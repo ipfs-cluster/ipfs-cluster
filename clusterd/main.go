@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	cli "github.com/codegangsta/cli"
 	api "github.com/ipfs/go-ipfs-api"
 	"golang.org/x/net/context"
 )
@@ -60,6 +61,7 @@ func (c *Cluster) apiHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		respondJson(w, out)
 	case "join":
 		host := r.URL.Query().Get("host")
+		_ = host
 		panic("not yet implemented")
 	default:
 		w.WriteHeader(404)
@@ -90,14 +92,14 @@ func (c *Cluster) StartIPFSHandler(ctx context.Context, addr string) error {
 	return nil
 }
 
-func (c *Cluster) Start() error {
+func (c *Cluster) Start(iapi, capi string) error {
 	ctx, cancel := context.WithCancel(context.Background())
-	err := c.StartIPFSHandler(ctx, "localhost:5101")
+	err := c.StartIPFSHandler(ctx, iapi)
 	if err != nil {
 		return err
 	}
 
-	err = c.StartAPIServer(ctx, "localhost:5100")
+	err = c.StartAPIServer(ctx, capi)
 	if err != nil {
 		return err
 	}
@@ -114,9 +116,30 @@ func (c *Cluster) Start() error {
 }
 
 func main() {
-	c := NewCluster("localhost:5001")
-	err := c.Start()
-	if err != nil {
-		log.Fatal(err)
+	app := cli.NewApp()
+	app.Name = "clusterd"
+
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "ipfs-daemon",
+			Value: "localhost:5001",
+		},
+		cli.StringFlag{
+			Name:  "ipfs-api",
+			Value: "localhost:5101",
+		},
+		cli.StringFlag{
+			Name:  "control-api",
+			Value: "localhost:5100",
+		},
+	}
+	app.Action = func(c *cli.Context) error {
+		clst := NewCluster(c.String("ipfs-daemon"))
+		err := clst.Start(c.String("ipfs-api"), c.String("control-api"))
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 }
