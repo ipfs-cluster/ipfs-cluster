@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	cli "github.com/codegangsta/cli"
@@ -143,5 +144,10 @@ func main() {
 		}
 
 		return nil
+	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
 	}
 }

@@ -2,18 +2,19 @@ package main
 
 import (
 	"io"
+	"log"
 	"net/http"
-	"strings"
 )
 
 // ipfsHandlerFunc implements a basic 'pass through' proxy for an ipfs daemon
 func (c *Cluster) ipfsHandlerFunc(w http.ResponseWriter, r *http.Request) {
-	path := strings.Split(r.URL.Path, "/")[1:]
-	if len(path) == 0 {
-		w.WriteHeader(404)
+	path := r.URL.Path[8:]
+	switch path {
+	case "pin/add":
+		log.Println("pin request")
+	default:
+		log.Printf("path: %s", path)
 	}
-
-	_ = path
 
 	url := *r.URL
 	url.Host = "localhost:5001"
@@ -21,12 +22,16 @@ func (c *Cluster) ipfsHandlerFunc(w http.ResponseWriter, r *http.Request) {
 
 	req, err := http.NewRequest(r.Method, url.String(), r.Body)
 	if err != nil {
-		panic(err)
+		log.Printf("error creating request: ", err)
+		http.Error(w, "error forwaring request", 501)
+		return
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		panic(err)
+		log.Printf("error forwarding request: ", err)
+		http.Error(w, "error forwaring request", 501)
+		return
 	}
 
 	for k, v := range resp.Header {
