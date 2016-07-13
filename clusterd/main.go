@@ -71,6 +71,7 @@ func (c *Cluster) apiHandlerFunc(w http.ResponseWriter, r *http.Request) {
 func (c *Cluster) StartAPIServer(ctx context.Context, addr string) error {
 	smux := http.NewServeMux()
 	smux.HandleFunc("/", c.apiHandlerFunc)
+	log.Printf("serving clusterd control api on %s", addr)
 	go func() {
 		err := http.ListenAndServe(addr, smux)
 		if err != nil {
@@ -83,6 +84,7 @@ func (c *Cluster) StartAPIServer(ctx context.Context, addr string) error {
 func (c *Cluster) StartIPFSHandler(ctx context.Context, addr string) error {
 	smux := http.NewServeMux()
 	smux.HandleFunc("/", c.ipfsHandlerFunc)
+	log.Printf("serving ipfs api on %s", addr)
 	go func() {
 		err := http.ListenAndServe(addr, smux)
 		if err != nil {
