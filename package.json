@@ -1,0 +1,42 @@
+{
+  "author": "hector",
+  "bugs": {
+    "url": "https://github.com/ipfs/ipfs-cluster"
+  },
+  "gx": {
+    "dvcsimport": "github.com/ipfs/ipfs-cluster"
+  },
+  "gxDependencies": [
+    {
+      "author": "hsanjuan",
+      "hash": "QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt",
+      "name": "go-libp2p-consensus",
+      "version": "0.0.3"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmbzCT1CwxVZ2ednptC9RavuJe7Bv8DDi2Ne89qUrA37XM",
+      "name": "go-libp2p",
+      "version": "4.3.0"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmdHo2LQKmGQ6rDAWFxnzNuW3z8b6Xmw3wEFsMQaj9Rsqj",
+      "name": "go-libp2p-raft",
+      "version": "0.1.1"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD",
+      "name": "go-cid",
+      "version": "0.7.7"
+    }
+  ],
+  "gxVersion": "0.10.0",
+  "language": "go",
+  "license": "",
+  "name": "ipfs-cluster",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.0.0"
+}
+
