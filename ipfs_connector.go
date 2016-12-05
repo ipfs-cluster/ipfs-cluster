@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 
@@ -31,6 +32,10 @@ type IPFSHTTPConnector struct {
 	listenPort int
 	handlers   map[string]func(http.ResponseWriter, *http.Request)
 	rpcCh      chan ClusterRPC
+	listener   net.Listener
+
+	shutdownCh chan bool
+	doneCh     chan bool
 }
 
 type ipfsError struct {
@@ -40,6 +45,11 @@ type ipfsError struct {
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
 func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
+		cfg.IPFSAPIListenAddr, cfg.IPFSAPIListenPort))
+	if err != nil {
+		return nil, err
+	}
 	ipfs := &IPFSHTTPConnector{
 		ctx:        ctx,
 		cancel:     cancel,
@@ -49,6 +59,9 @@ func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
 		listenPort: cfg.IPFSAPIListenPort,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
+		listener:   l,
+		shutdownCh: make(chan bool),
+		doneCh:     make(chan bool),
 	}
 
 	logger.Infof("Starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
@@ -104,19 +117,14 @@ func (ipfs *IPFSHTTPConnector) run() {
 		smux := http.NewServeMux()
 		smux.HandleFunc("/", ipfs.handle)
 		// Fixme: make this with closable net listener
-		err := http.ListenAndServe(
-			fmt.Sprintf("%s:%d", ipfs.listenAddr, ipfs.listenPort),
-			smux)
-		if err != nil {
-			logger.Error(err)
-			return
-		}
-	}()
-
-	go func() {
+		err := http.Serve(ipfs.listener, smux)
 		select {
-		case <-ipfs.ctx.Done():
-			return
+		case <-ipfs.shutdownCh:
+			close(ipfs.doneCh)
+		default:
+			if err != nil {
+				logger.Error(err)
+			}
 		}
 	}()
 }
@@ -131,6 +139,9 @@ func (ipfs *IPFSHTTPConnector) RpcChan() <-chan ClusterRPC {
 // any requests.
 func (ipfs *IPFSHTTPConnector) Shutdown() error {
 	logger.Info("Stopping IPFS Proxy")
+	close(ipfs.shutdownCh)
+	ipfs.listener.Close()
+	<-ipfs.doneCh
 	return nil
 }
 

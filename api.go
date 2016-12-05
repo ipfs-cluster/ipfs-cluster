@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 
 	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
@@ -22,6 +23,11 @@ type ClusterHTTPAPI struct {
 	listenPort int
 	rpcCh      chan ClusterRPC
 	router     *mux.Router
+
+	listener net.Listener
+
+	doneCh     chan bool
+	shutdownCh chan bool
 }
 
 type route struct {
@@ -63,12 +69,22 @@ type pinListResp []pinElemResp
 // started.
 func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
+		cfg.ClusterAPIListenAddr,
+		cfg.ClusterAPIListenPort))
+	if err != nil {
+		return nil, err
+	}
+
 	api := &ClusterHTTPAPI{
 		ctx:        ctx,
 		cancel:     cancel,
 		listenAddr: cfg.ClusterAPIListenAddr,
 		listenPort: cfg.ClusterAPIListenPort,
+		listener:   l,
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
+		doneCh:     make(chan bool),
+		shutdownCh: make(chan bool),
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -123,20 +139,14 @@ func (api *ClusterHTTPAPI) routes() []route {
 
 func (api *ClusterHTTPAPI) run() {
 	go func() {
-		// FIXME: make this with closable net listener
-		err := http.ListenAndServe(
-			fmt.Sprintf("%s:%d", api.listenAddr, api.listenPort),
-			api.router)
-		if err != nil {
-			logger.Error("starting ClusterHTTPAPI server:", err)
-			return
-		}
-	}()
-	// FIXME
-	go func() {
+		err := http.Serve(api.listener, api.router)
 		select {
-		case <-api.ctx.Done():
-			return
+		case <-api.shutdownCh:
+			close(api.doneCh)
+		default:
+			if err != nil {
+				logger.Error(err)
+			}
 		}
 	}()
 }
@@ -145,6 +155,9 @@ func (api *ClusterHTTPAPI) run() {
 func (api *ClusterHTTPAPI) Shutdown() error {
 	logger.Info("Stopping Cluster API")
 	api.cancel()
+	close(api.shutdownCh)
+	api.listener.Close()
+	<-api.doneCh
 	return nil
 }
 
