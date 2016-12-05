@@ -37,6 +37,7 @@ type clusterLogOp struct {
 // ApplyTo applies the operation to the ClusterState
 func (op clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	state, ok := cstate.(ClusterState)
+	var err error
 	if !ok {
 		// Should never be here
 		panic("Received unexpected state type")
@@ -48,32 +49,41 @@ func (op clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) 
 		panic("Could not decode a CID we ourselves encoded")
 	}
 
-	var rpcM RPCMethod
-	var resp RPCResponse
-	ctx, cancel := context.WithCancel(op.ctx)
-	defer cancel()
+	async_op := func(try, success RPCMethod, c *cid.Cid) {
+		ctx, cancel := context.WithCancel(op.ctx)
+		defer cancel()
+		resp := MakeRPC(ctx, op.rpcCh, RPC(try, *c), true)
+		if resp.Error != nil {
+			MakeRPC(ctx, op.rpcCh, RPC(StatePinError, *c), false)
+		} else {
+			logger.Debugf("Pinop (%d) success", try)
+			MakeRPC(ctx, op.rpcCh, RPC(success, *c), false)
+		}
+	}
 
 	switch op.Type {
 	case LogOpPin:
-		err = state.AddPin(cidObj)
-		rpcM = IPFSPinRPC
+		if state.ShouldPin(cidObj) {
+			err = state.Pinning(cidObj)
+			if err != nil {
+				goto ROLLBACK
+			}
+			go async_op(IPFSPinRPC, StatePinSuccess, cidObj)
+		} else {
+			err = state.Pinned(cidObj)
+			if err != nil {
+				goto ROLLBACK
+			}
+		}
 	case LogOpUnpin:
-		err = state.RmPin(cidObj)
-		rpcM = IPFSUnpinRPC
+		err = state.Unpinning(cidObj)
+		if err != nil {
+			goto ROLLBACK
+		}
+		go async_op(IPFSUnpinRPC, StateUnpinSuccess, cidObj)
 	default:
-		err = errors.New("Unknown clusterLogOp type")
+		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
-	if err != nil {
-		goto ROLLBACK
-	}
-
-	// Do we want to wait? Pins can take a very long time
-	resp = MakeRPC(ctx, op.rpcCh, RPC(rpcM, *cidObj), true)
-	if resp.Error != nil {
-		err = resp.Error
-		goto ROLLBACK
-	}
-
 	return state, nil
 
 ROLLBACK:
@@ -83,6 +93,8 @@ ROLLBACK:
 	// by the cluster leader.
 	rllbckRPC := RPC(RollbackRPC, state)
 	leadrRPC := RPC(LeaderRPC, rllbckRPC)
+	ctx, cancel := context.WithCancel(op.ctx)
+	defer cancel()
 	MakeRPC(ctx, op.rpcCh, leadrRPC, false)
 	logger.Errorf("an error ocurred when applying Op to state: %s", err)
 	logger.Error("a rollback was requested")
@@ -204,13 +216,13 @@ func (cc *ClusterConsensus) RmPin(c *cid.Cid) error {
 	// Here we only care that the operation was commited
 	// to the log, not if the resulting state is valid.
 
-	logger.Infof("Pin commited to global state: %s", c)
+	logger.Infof("Unpin commited to global state: %s", c)
 	return nil
 }
 
 // ListPins returns the list of Cids which are part of the
 // shared state of the cluster.
-func (cc *ClusterConsensus) ListPins() ([]*cid.Cid, error) {
+func (cc *ClusterConsensus) ListPins() ([]Pin, error) {
 	cstate, err := cc.consensus.GetLogHead()
 	if err != nil {
 		return nil, err

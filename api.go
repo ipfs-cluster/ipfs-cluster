@@ -52,6 +52,13 @@ type unpinResp struct {
 	Unpinned string `json:"unpinned"`
 }
 
+type pinElemResp struct {
+	Cid    string `json:"cid"`
+	Status string `json:"status"`
+}
+
+type pinListResp []pinElemResp
+
 // NewHTTPClusterAPI creates a new object which is ready to be
 // started.
 func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
@@ -216,12 +223,26 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 	rRpc := RPC(PinListRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Method, resp) {
-		data := resp.Data.([]*cid.Cid)
-		strPins := make([]string, 0, len(data))
+		data := resp.Data.([]Pin)
+		pins := make(pinListResp, 0, len(data))
 		for _, d := range data {
-			strPins = append(strPins, d.String())
+			var st string
+			switch d.Status {
+			case Error:
+				st = "error"
+			case Pinned:
+				st = "pinned"
+			case Pinning:
+				st = "pinning"
+			case Unpinning:
+				st = "unpinning"
+			}
+			pins = append(pins, pinElemResp{
+				Cid:    d.Cid,
+				Status: st,
+			})
 		}
-		sendJSONResponse(w, 200, strPins)
+		sendJSONResponse(w, 200, pins)
 	}
 
 }
@@ -248,7 +269,7 @@ func checkResponse(w http.ResponseWriter, method RPCMethod, resp RPCResponse) bo
 	case UnpinRPC:
 		_, ok = resp.Data.(cid.Cid)
 	case PinListRPC:
-		_, ok = resp.Data.([]*cid.Cid)
+		_, ok = resp.Data.([]Pin)
 	case IPFSPinRPC:
 	case IPFSUnpinRPC:
 	case VersionRPC:

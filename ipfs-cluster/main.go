@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 
-	state := ipfscluster.NewMapState()
+	state := ipfscluster.NewMapState("a")
 
 	cluster, err := ipfscluster.NewCluster(clusterCfg, api, proxy, state)
 	if err != nil {

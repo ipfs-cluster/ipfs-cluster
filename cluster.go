@@ -209,6 +209,27 @@ func (c *Cluster) handleOp(op *ClusterRPC) {
 			err = errors.New("Bad LeaderRPC type")
 		}
 		data, err = c.leaderRPC(rpc)
+	case StatePinSuccess:
+		hash, ok := op.Arguments.(cid.Cid)
+		if !ok {
+			err = errors.New("Bad StatePinSucess type")
+			break
+		}
+		err = c.state.Pinned(&hash)
+	case StateUnpinSuccess:
+		hash, ok := op.Arguments.(cid.Cid)
+		if !ok {
+			err = errors.New("Bad StateUnpinSucess type")
+			break
+		}
+		err = c.state.RmPin(&hash)
+	case StatePinError:
+		hash, ok := op.Arguments.(cid.Cid)
+		if !ok {
+			err = errors.New("Bad StatePinError type")
+			break
+		}
+		err = c.state.PinError(&hash)
 	default:
 		logger.Error("Unknown operation. Ignoring")
 	}

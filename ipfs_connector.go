@@ -140,12 +140,17 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 	logger.Infof("IPFS Pin request for: %s", hash)
 	pinType, err := ipfs.pinType(hash)
 
-	if err != nil || strings.Contains(pinType, "indirect") {
+	if err != nil {
+		return err
+	}
+
+	if pinType == "unpinned" || strings.Contains(pinType, "indirect") {
 		// Not pinned or indirectly pinned
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
 		_, err = ipfs.get(path)
 		return err
 	}
+
 	logger.Debug("object is already pinned. Doing nothing")
 	return nil
 }
@@ -156,14 +161,20 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	logger.Info("IPFS Unpin request for:", hash)
 	pinType, err := ipfs.pinType(hash)
 
-	if err == nil && !strings.Contains(pinType, "indirect") {
+	if err != nil {
+		return err
+	}
+
+	if pinType == "unpinned" {
+		logger.Debug("object not directly pinned. Doing nothing")
+		return nil
+	}
+
+	if !strings.Contains(pinType, "indirect") {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 		_, err := ipfs.get(path)
 		return err
 	}
-
-	// It is not pinned we do nothing
-	logger.Debug("object not directly pinned. Doing nothing")
 	return nil
 }
 
@@ -171,8 +182,15 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 func (ipfs *IPFSHTTPConnector) pinType(hash *cid.Cid) (string, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s", hash)
 	body, err := ipfs.get(lsPath)
-	if err != nil { // Not pinned
+
+	// Network error, daemon down
+	if body == nil && err != nil {
 		return "", err
+	}
+
+	// Pin not found likely here
+	if err != nil { // Not pinned
+		return "unpinned", nil
 	}
 
 	// What type of pin it is
@@ -199,13 +217,14 @@ func (ipfs *IPFSHTTPConnector) pinType(hash *cid.Cid) (string, error) {
 // get performs the heavy lifting of a get request against
 // the IPFS daemon.
 func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
+	logger.Debugf("Getting %s", path)
 	url := fmt.Sprintf("%s/%s",
 		ipfs.apiURL(),
 		path)
 
 	resp, err := http.Get(url)
 	if err != nil {
-		logger.Error("Error unpinning:", err)
+		logger.Error("Error getting:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -228,7 +247,7 @@ func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
 				resp.StatusCode, body)
 		}
 		logger.Error(msg)
-		return nil, errors.New(msg)
+		return body, errors.New(msg)
 	}
 	return body, nil
 }

@@ -11,6 +11,9 @@ const (
 	MemberListRPC
 	RollbackRPC
 	LeaderRPC
+	StatePinSuccess
+	StateUnpinSuccess
+	StatePinError
 )
 
 // RPCMethod identifies which RPC-supported operation we are trying to make

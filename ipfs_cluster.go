@@ -68,10 +68,14 @@ type Peered interface {
 // ClusterState is in charge of implementing any advanced pinning
 // strategies.
 type ClusterState interface {
-	AddPin(*cid.Cid) error
+	Pinning(*cid.Cid) error
+	Pinned(*cid.Cid) error
+	Unpinning(*cid.Cid) error
 	RmPin(*cid.Cid) error
+	PinError(*cid.Cid) error
 	Exists(*cid.Cid) bool
-	ListPins() []*cid.Cid
+	ListPins() []Pin
+	ShouldPin(*cid.Cid) bool
 	//	ShouldPin(peer.ID, *cid.Cid) bool
 }
 
@@ -103,9 +107,10 @@ func MakeRPC(ctx context.Context, ch chan ClusterRPC, r ClusterRPC, waitForRespo
 		return RPCResponse{}
 	}
 
-	logger.Debugf("Waiting for response")
+	logger.Debug("Waiting for response")
 	select {
 	case resp, ok := <-r.ResponseCh:
+		logger.Debug("Response received")
 		if !ok { // Not interested in response
 			logger.Warning("Response channel closed. Ignoring")
 			return RPCResponse{
