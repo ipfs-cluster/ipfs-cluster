@@ -31,12 +31,13 @@ type Cluster struct {
 	api       ClusterAPI
 	ipfs      IPFSConnector
 	state     ClusterState
+	tracker   PinTracker
 }
 
 // NewCluster builds a ready-to-start IPFS Cluster. It takes a ClusterAPI,
 // an IPFSConnector and a ClusterState as parameters, allowing the user,
 // to provide custom implementations of these components.
-func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state ClusterState) (*Cluster, error) {
+func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state ClusterState, tracker PinTracker) (*Cluster, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
@@ -58,6 +59,7 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 		api:       api,
 		ipfs:      ipfs,
 		state:     state,
+		tracker:   tracker,
 	}
 
 	logger.Info("Starting IPFS Cluster")
@@ -142,11 +144,11 @@ func (c *Cluster) run() {
 	for {
 		select {
 		case ipfsOp := <-ipfsCh:
-			go c.handleOp(&ipfsOp)
+			go c.handleOp(ipfsOp)
 		case consensusOp := <-consensusCh:
-			go c.handleOp(&consensusOp)
+			go c.handleOp(consensusOp)
 		case apiOp := <-apiCh:
-			go c.handleOp(&apiOp)
+			go c.handleOp(apiOp)
 		case <-c.ctx.Done():
 			logger.Debug("Cluster is Done()")
 			return
@@ -156,46 +158,50 @@ func (c *Cluster) run() {
 
 // handleOp takes care of running the necessary action for a
 // clusterRPC request and sending the response.
-func (c *Cluster) handleOp(op *ClusterRPC) {
+func (c *Cluster) handleOp(rpc ClusterRPC) {
+	var crpc *CidClusterRPC
+	var grpc *GenericClusterRPC
+	switch rpc.(type) {
+	case *CidClusterRPC:
+		crpc = rpc.(*CidClusterRPC)
+	case *GenericClusterRPC:
+		grpc = rpc.(*GenericClusterRPC)
+	default:
+		logger.Error("expected a known ClusterRPC type but got something else")
+		return
+	}
+
 	var data interface{} = nil
 	var err error = nil
-	switch op.Method {
-	case PinRPC:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad PinRPC type")
-			break
-		}
-		err = c.Pin(&hash)
-	case UnpinRPC:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad UnpinRPC type")
-			break
-		}
-		err = c.Unpin(&hash)
-	case PinListRPC:
-		data, err = c.consensus.ListPins()
-	case IPFSPinRPC:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad IPFSPinRPC type")
-			break
-		}
-		err = c.ipfs.Pin(&hash)
-	case IPFSUnpinRPC:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad IPFSUnpinRPC type")
-			break
-		}
-		err = c.ipfs.Unpin(&hash)
+	switch rpc.Op() {
 	case VersionRPC:
 		data = c.Version()
 	case MemberListRPC:
 		data = c.Members()
+	case PinListRPC:
+		data = c.tracker.ListPins()
+	case PinRPC:
+		err = c.Pin(crpc.CID)
+	case UnpinRPC:
+		err = c.Unpin(crpc.CID)
+	case IPFSPinRPC:
+		err = c.ipfs.Pin(crpc.CID)
+	case IPFSUnpinRPC:
+		err = c.ipfs.Unpin(crpc.CID)
+	case StatusPinnedRPC:
+		err = c.tracker.Pinned(crpc.CID)
+	case StatusPinningRPC:
+		err = c.tracker.Pinning(crpc.CID)
+	case StatusUnpinningRPC:
+		err = c.tracker.Unpinning(crpc.CID)
+	case StatusUnpinnedRPC:
+		err = c.tracker.Unpinned(crpc.CID)
+	case StatusPinErrorRPC:
+		err = c.tracker.PinError(crpc.CID)
+	case StatusUnpinErrorRPC:
+		err = c.tracker.UnpinError(crpc.CID)
 	case RollbackRPC:
-		state, ok := op.Arguments.(ClusterState)
+		state, ok := grpc.Arguments.(ClusterState)
 		if !ok {
 			err = errors.New("Bad RollbackRPC type")
 			break
@@ -204,32 +210,11 @@ func (c *Cluster) handleOp(op *ClusterRPC) {
 	case LeaderRPC:
 		// Leader RPC is a RPC that needs to be run
 		// by the Consensus Leader. Arguments is a wrapped RPC.
-		rpc, ok := op.Arguments.(*ClusterRPC)
+		rpc, ok := grpc.Arguments.(*ClusterRPC)
 		if !ok {
 			err = errors.New("Bad LeaderRPC type")
 		}
 		data, err = c.leaderRPC(rpc)
-	case StatePinSuccess:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad StatePinSucess type")
-			break
-		}
-		err = c.state.Pinned(&hash)
-	case StateUnpinSuccess:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad StateUnpinSucess type")
-			break
-		}
-		err = c.state.RmPin(&hash)
-	case StatePinError:
-		hash, ok := op.Arguments.(cid.Cid)
-		if !ok {
-			err = errors.New("Bad StatePinError type")
-			break
-		}
-		err = c.state.PinError(&hash)
 	default:
 		logger.Error("Unknown operation. Ignoring")
 	}
@@ -239,7 +224,7 @@ func (c *Cluster) handleOp(op *ClusterRPC) {
 		Error: err,
 	}
 
-	op.ResponseCh <- resp
+	rpc.ResponseCh() <- resp
 }
 
 // This uses libp2p to contact the cluster leader and ask him to do something

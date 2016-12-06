@@ -172,7 +172,7 @@ func (api *ClusterHTTPAPI) versionHandler(w http.ResponseWriter, r *http.Request
 	defer cancel()
 	rRpc := RPC(VersionRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Method, resp) {
+	if checkResponse(w, rRpc.Op(), resp) {
 		v := resp.Data.(string)
 		sendJSONResponse(w, 200, versionResp{v})
 	}
@@ -183,7 +183,7 @@ func (api *ClusterHTTPAPI) memberListHandler(w http.ResponseWriter, r *http.Requ
 	defer cancel()
 	rRpc := RPC(MemberListRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Method, resp) {
+	if checkResponse(w, rRpc.Op(), resp) {
 		data := resp.Data.([]peer.ID)
 		var strPeers []string
 		for _, p := range data {
@@ -203,10 +203,10 @@ func (api *ClusterHTTPAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 		sendErrorResponse(w, 400, err.Error())
 	}
 
-	rRpc := RPC(PinRPC, *c)
+	rRpc := RPC(PinRPC, c)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 
-	if checkResponse(w, rRpc.Method, resp) {
+	if checkResponse(w, rRpc.Op(), resp) {
 		c := resp.Data.(cid.Cid)
 		sendJSONResponse(w, 200, pinResp{c.String()})
 	}
@@ -222,9 +222,9 @@ func (api *ClusterHTTPAPI) unpinHandler(w http.ResponseWriter, r *http.Request) 
 		sendErrorResponse(w, 400, err.Error())
 	}
 
-	rRpc := RPC(UnpinRPC, *c)
+	rRpc := RPC(UnpinRPC, c)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Method, resp) {
+	if checkResponse(w, rRpc.Op(), resp) {
 		c := resp.Data.(cid.Cid)
 		sendJSONResponse(w, 200, unpinResp{c.String()})
 	}
@@ -235,7 +235,7 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 	defer cancel()
 	rRpc := RPC(PinListRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Method, resp) {
+	if checkResponse(w, rRpc.Op(), resp) {
 		data := resp.Data.([]Pin)
 		pins := make(pinListResp, 0, len(data))
 		for _, d := range data {
@@ -265,7 +265,7 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 // an error if the RPCResponse contains one. It also checks that the RPC
 // response data can be casted back into the expected value. It returns false
 // if the checks fail or an empty response is sent, and true otherwise.
-func checkResponse(w http.ResponseWriter, method RPCMethod, resp RPCResponse) bool {
+func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 	if resp.Error == nil && resp.Data == nil {
 		sendEmptyResponse(w)
 		return false
@@ -276,7 +276,7 @@ func checkResponse(w http.ResponseWriter, method RPCMethod, resp RPCResponse) bo
 
 	// Check thatwe can cast to the expected response format
 	ok := true
-	switch method {
+	switch op {
 	case PinRPC:
 		_, ok = resp.Data.(cid.Cid)
 	case UnpinRPC:

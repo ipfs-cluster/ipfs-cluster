@@ -43,44 +43,45 @@ func (op clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) 
 		panic("Received unexpected state type")
 	}
 
-	cidObj, err := cid.Decode(op.Cid)
+	c, err := cid.Decode(op.Cid)
 	if err != nil {
 		// Should never be here
 		panic("Could not decode a CID we ourselves encoded")
 	}
 
-	async_op := func(try, success RPCMethod, c *cid.Cid) {
+	async_op := func(startOp, ipfsOp, doneOp, errorOp RPCOp) {
 		ctx, cancel := context.WithCancel(op.ctx)
 		defer cancel()
-		resp := MakeRPC(ctx, op.rpcCh, RPC(try, *c), true)
+		// Mark as Pinning/Unpinning
+		_ = MakeRPC(ctx, op.rpcCh, RPC(startOp, c), true)
+		// Tell IPFS to Pin/Unpin
+		resp := MakeRPC(ctx, op.rpcCh, RPC(ipfsOp, c), true)
+
 		if resp.Error != nil {
-			MakeRPC(ctx, op.rpcCh, RPC(StatePinError, *c), false)
+			logger.Debug("IPFS pin op error")
+			// Mark an error
+			MakeRPC(ctx, op.rpcCh, RPC(errorOp, c), false)
 		} else {
-			logger.Debugf("Pinop (%d) success", try)
-			MakeRPC(ctx, op.rpcCh, RPC(success, *c), false)
+
+			logger.Debug("IPFS pin op success")
+			// Mark Pinned/Unpinned
+			MakeRPC(ctx, op.rpcCh, RPC(doneOp, c), false)
 		}
 	}
 
 	switch op.Type {
 	case LogOpPin:
-		if state.ShouldPin(cidObj) {
-			err = state.Pinning(cidObj)
-			if err != nil {
-				goto ROLLBACK
-			}
-			go async_op(IPFSPinRPC, StatePinSuccess, cidObj)
-		} else {
-			err = state.Pinned(cidObj)
-			if err != nil {
-				goto ROLLBACK
-			}
-		}
-	case LogOpUnpin:
-		err = state.Unpinning(cidObj)
+		err := state.AddPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
-		go async_op(IPFSUnpinRPC, StateUnpinSuccess, cidObj)
+		go async_op(StatusPinningRPC, IPFSPinRPC, StatusPinnedRPC, IPFSPinErrorRPC)
+	case LogOpUnpin:
+		err := state.RmPin(c)
+		if err != nil {
+			goto ROLLBACK
+		}
+		go async_op(StatusUnpinningRPC, IPFSUnpinRPC, StatusUnpinnedRPC, IPFSUnpinErrorRPC)
 	default:
 		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
@@ -190,13 +191,6 @@ func (cc *ClusterConsensus) AddPin(c *cid.Cid) error {
 		// This means the op did not make it to the log
 		return err
 	}
-
-	// Note: the returned state could be nil
-	// if ApplyTo failed. We deal with this in ApplyTo.
-	// We must schedule a Rollback in that case.
-	// Here we only care that the operation was commited
-	// to the log, not if the resulting state is valid.
-
 	logger.Infof("Pin commited to global state: %s", c)
 	return nil
 }
@@ -209,26 +203,8 @@ func (cc *ClusterConsensus) RmPin(c *cid.Cid) error {
 	if err != nil {
 		return err
 	}
-
-	// Note: the returned state could be nil
-	// if ApplyTo failed. We deal with this in ApplyTo.
-	// We must schedule a Rollback in that case.
-	// Here we only care that the operation was commited
-	// to the log, not if the resulting state is valid.
-
 	logger.Infof("Unpin commited to global state: %s", c)
 	return nil
-}
-
-// ListPins returns the list of Cids which are part of the
-// shared state of the cluster.
-func (cc *ClusterConsensus) ListPins() ([]Pin, error) {
-	cstate, err := cc.consensus.GetLogHead()
-	if err != nil {
-		return nil, err
-	}
-	state := cstate.(ClusterState)
-	return state.ListPins(), nil
 }
 
 // Leader() returns the peerID of the Leader of the

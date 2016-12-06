@@ -64,19 +64,33 @@ type Peered interface {
 
 // ClusterState represents the shared state of the cluster and it
 // is used by the ClusterConsensus component to keep track of
-// objects which are pinned and their location.
-// ClusterState is in charge of implementing any advanced pinning
-// strategies.
+// objects which objects are pinned. This component should be thread safe.
 type ClusterState interface {
-	Pinning(*cid.Cid) error
-	Pinned(*cid.Cid) error
-	Unpinning(*cid.Cid) error
+	AddPin(*cid.Cid) error
 	RmPin(*cid.Cid) error
+}
+
+// PinTracker represents a component which tracks the status of
+// the pins in this cluster and ensures they are in sync with the
+// IPFS daemon. This component should be thread safe.
+type PinTracker interface {
+	ClusterComponent
+	// Pinning tells the pin tracker that a pin is being pinned by IPFS
+	Pinning(*cid.Cid) error
+	// Pinned tells the pin tracer is pinned by IPFS
+	Pinned(*cid.Cid) error
+	// Pinned tells the pin tracker is being unpinned by IPFS
+	Unpinning(*cid.Cid) error
+	// Unpinned tells the pin tracker that a pin has been unpinned by IFPS
+	Unpinned(*cid.Cid) error
+	// PinError tells the pin tracker that an IPFS pin operation has failed
 	PinError(*cid.Cid) error
-	Exists(*cid.Cid) bool
+	// UnpinError tells the pin tracker that an IPFS unpin operation has failed
+	UnpinError(*cid.Cid) error
+	// ListPins returns the list of pins with their status
 	ListPins() []Pin
-	ShouldPin(*cid.Cid) bool
-	//	ShouldPin(peer.ID, *cid.Cid) bool
+	// GetPin returns a pin and ok if it is found.
+	GetPin(*cid.Cid) (Pin, bool)
 }
 
 // MakeRPC sends a ClusterRPC object over a channel and waits for an answer on
@@ -86,7 +100,7 @@ type ClusterState interface {
 // If the message cannot be placed in the ClusterRPC channel, retries will be
 // issued every MakeRPCRetryInterval.
 func MakeRPC(ctx context.Context, ch chan ClusterRPC, r ClusterRPC, waitForResponse bool) RPCResponse {
-	logger.Debugf("Sending RPC %d", r.Method)
+	logger.Debugf("Sending RPC %d", r.Op())
 	exitLoop := false
 	for !exitLoop {
 		select {
@@ -109,7 +123,7 @@ func MakeRPC(ctx context.Context, ch chan ClusterRPC, r ClusterRPC, waitForRespo
 
 	logger.Debug("Waiting for response")
 	select {
-	case resp, ok := <-r.ResponseCh:
+	case resp, ok := <-r.ResponseCh():
 		logger.Debug("Response received")
 		if !ok { // Not interested in response
 			logger.Warning("Response channel closed. Ignoring")

@@ -33,9 +33,10 @@ func main() {
 		return
 	}
 
-	state := ipfscluster.NewMapState("a")
+	state := ipfscluster.NewMapState()
+	tracker := ipfscluster.NewMapPinTracker()
 
-	cluster, err := ipfscluster.NewCluster(clusterCfg, api, proxy, state)
+	cluster, err := ipfscluster.NewCluster(clusterCfg, api, proxy, state, tracker)
 	if err != nil {
 		fmt.Println(err)
 		return
