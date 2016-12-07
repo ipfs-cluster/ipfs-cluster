@@ -52,6 +52,7 @@ type IPFSConnector interface {
 	ClusterComponent
 	Pin(*cid.Cid) error
 	Unpin(*cid.Cid) error
+	IsPinned(*cid.Cid) (bool, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
@@ -89,8 +90,16 @@ type PinTracker interface {
 	UnpinError(*cid.Cid) error
 	// ListPins returns the list of pins with their status
 	ListPins() []Pin
-	// GetPin returns a pin and ok if it is found.
-	GetPin(*cid.Cid) (Pin, bool)
+	// GetPin returns a Pin.
+	GetPin(*cid.Cid) Pin
+	// Sync makes sure that the Cid status reflect the real IPFS status. If not,
+	// the status is marked as error. The return value indicates if the
+	// Pin status was updated.
+	Sync(*cid.Cid) bool
+	// Recover attempts to recover an error by re-[un]pinning the item.
+	Recover(*cid.Cid) error
+	// SyncAll runs Sync() on every known Pin. It returns a list of changed Pins
+	SyncAll() []Pin
 }
 
 // MakeRPC sends a ClusterRPC object over a channel and waits for an answer on

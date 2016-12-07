@@ -82,6 +82,11 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("Error stopping IPFS Connector: %s", err)
 		return err
 	}
+
+	if err := c.tracker.Shutdown(); err != nil {
+		logger.Errorf("Error stopping PinTracker: %s", err)
+		return err
+	}
 	c.cancel()
 	return nil
 }
@@ -140,6 +145,7 @@ func (c *Cluster) run() {
 	ipfsCh := c.ipfs.RpcChan()
 	consensusCh := c.consensus.RpcChan()
 	apiCh := c.api.RpcChan()
+	trackerCh := c.tracker.RpcChan()
 
 	for {
 		select {
@@ -149,6 +155,8 @@ func (c *Cluster) run() {
 			go c.handleOp(consensusOp)
 		case apiOp := <-apiCh:
 			go c.handleOp(apiOp)
+		case trackerOp := <-trackerCh:
+			go c.handleOp(trackerOp)
 		case <-c.ctx.Done():
 			logger.Debug("Cluster is Done()")
 			return
@@ -185,21 +193,23 @@ func (c *Cluster) handleOp(rpc ClusterRPC) {
 	case UnpinRPC:
 		err = c.Unpin(crpc.CID)
 	case IPFSPinRPC:
+		c.tracker.Pinning(crpc.CID)
 		err = c.ipfs.Pin(crpc.CID)
+		if err != nil {
+			c.tracker.PinError(crpc.CID)
+		} else {
+			c.tracker.Pinned(crpc.CID)
+		}
 	case IPFSUnpinRPC:
+		c.tracker.Unpinning(crpc.CID)
 		err = c.ipfs.Unpin(crpc.CID)
-	case StatusPinnedRPC:
-		err = c.tracker.Pinned(crpc.CID)
-	case StatusPinningRPC:
-		err = c.tracker.Pinning(crpc.CID)
-	case StatusUnpinningRPC:
-		err = c.tracker.Unpinning(crpc.CID)
-	case StatusUnpinnedRPC:
-		err = c.tracker.Unpinned(crpc.CID)
-	case StatusPinErrorRPC:
-		err = c.tracker.PinError(crpc.CID)
-	case StatusUnpinErrorRPC:
-		err = c.tracker.UnpinError(crpc.CID)
+		if err != nil {
+			c.tracker.UnpinError(crpc.CID)
+		} else {
+			c.tracker.Unpinned(crpc.CID)
+		}
+	case IPFSIsPinnedRPC:
+		data, err = c.ipfs.IsPinned(crpc.CID)
 	case RollbackRPC:
 		state, ok := grpc.Arguments.(ClusterState)
 		if !ok {

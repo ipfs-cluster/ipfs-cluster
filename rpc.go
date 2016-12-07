@@ -9,16 +9,11 @@ const (
 	PinListRPC
 	IPFSPinRPC
 	IPFSUnpinRPC
+	IPFSIsPinnedRPC
 	VersionRPC
 	MemberListRPC
 	RollbackRPC
 	LeaderRPC
-	StatusPinnedRPC
-	StatusPinningRPC
-	StatusUnpinnedRPC
-	StatusUnpinningRPC
-	StatusPinErrorRPC
-	StatusUnPinErrorRPC
 )
 
 // RPCMethod identifies which RPC-supported operation we are trying to make

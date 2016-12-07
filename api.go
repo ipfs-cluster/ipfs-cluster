@@ -241,8 +241,10 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 		for _, d := range data {
 			var st string
 			switch d.Status {
-			case Error:
-				st = "error"
+			case PinError:
+				st = "pin_error"
+			case UnpinError:
+				st = "unpin_error"
 			case Pinned:
 				st = "pinned"
 			case Pinning:
@@ -251,7 +253,7 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 				st = "unpinning"
 			}
 			pins = append(pins, pinElemResp{
-				Cid:    d.Cid,
+				Cid:    d.Cid.String(),
 				Status: st,
 			})
 		}

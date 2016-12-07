@@ -49,25 +49,8 @@ func (op clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) 
 		panic("Could not decode a CID we ourselves encoded")
 	}
 
-	async_op := func(startOp, ipfsOp, doneOp, errorOp RPCOp) {
-		ctx, cancel := context.WithCancel(op.ctx)
-		defer cancel()
-		// Mark as Pinning/Unpinning
-		_ = MakeRPC(ctx, op.rpcCh, RPC(startOp, c), true)
-		// Tell IPFS to Pin/Unpin
-		resp := MakeRPC(ctx, op.rpcCh, RPC(ipfsOp, c), true)
-
-		if resp.Error != nil {
-			logger.Debug("IPFS pin op error")
-			// Mark an error
-			MakeRPC(ctx, op.rpcCh, RPC(errorOp, c), false)
-		} else {
-
-			logger.Debug("IPFS pin op success")
-			// Mark Pinned/Unpinned
-			MakeRPC(ctx, op.rpcCh, RPC(doneOp, c), false)
-		}
-	}
+	ctx, cancel := context.WithCancel(op.ctx)
+	defer cancel()
 
 	switch op.Type {
 	case LogOpPin:
@@ -75,13 +58,15 @@ func (op clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) 
 		if err != nil {
 			goto ROLLBACK
 		}
-		go async_op(StatusPinningRPC, IPFSPinRPC, StatusPinnedRPC, IPFSPinErrorRPC)
+		// Async, we let the PinTracker take care of any problems
+		MakeRPC(ctx, op.rpcCh, RPC(IPFSPinRPC, c), false)
 	case LogOpUnpin:
 		err := state.RmPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
-		go async_op(StatusUnpinningRPC, IPFSUnpinRPC, StatusUnpinnedRPC, IPFSUnpinErrorRPC)
+		// Async, we let the PinTracker take care of any problems
+		MakeRPC(ctx, op.rpcCh, RPC(IPFSUnpinRPC, c), false)
 	default:
 		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
@@ -94,8 +79,6 @@ ROLLBACK:
 	// by the cluster leader.
 	rllbckRPC := RPC(RollbackRPC, state)
 	leadrRPC := RPC(LeaderRPC, rllbckRPC)
-	ctx, cancel := context.WithCancel(op.ctx)
-	defer cancel()
 	MakeRPC(ctx, op.rpcCh, leadrRPC, false)
 	logger.Errorf("an error ocurred when applying Op to state: %s", err)
 	logger.Error("a rollback was requested")

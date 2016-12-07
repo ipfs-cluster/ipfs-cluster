@@ -149,19 +149,15 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 // daemon.
 func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 	logger.Infof("IPFS Pin request for: %s", hash)
-	pinType, err := ipfs.pinType(hash)
-
+	pinned, err := ipfs.IsPinned(hash)
 	if err != nil {
 		return err
 	}
-
-	if pinType == "unpinned" || strings.Contains(pinType, "indirect") {
-		// Not pinned or indirectly pinned
+	if !pinned {
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
 		_, err = ipfs.get(path)
 		return err
 	}
-
 	logger.Debug("object is already pinned. Doing nothing")
 	return nil
 }
@@ -170,23 +166,30 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 // daemon.
 func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	logger.Info("IPFS Unpin request for:", hash)
-	pinType, err := ipfs.pinType(hash)
-
+	pinned, err := ipfs.IsPinned(hash)
 	if err != nil {
 		return err
 	}
-
-	if pinType == "unpinned" {
-		logger.Debug("object not directly pinned. Doing nothing")
-		return nil
-	}
-
-	if !strings.Contains(pinType, "indirect") {
+	if pinned {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 		_, err := ipfs.get(path)
 		return err
 	}
+
+	logger.Debug("object not [directly] pinned. Doing nothing")
 	return nil
+}
+
+func (ipfs *IPFSHTTPConnector) IsPinned(hash *cid.Cid) (bool, error) {
+	pinType, err := ipfs.pinType(hash)
+	if err != nil {
+		return false, err
+	}
+
+	if pinType == "unpinned" || strings.Contains(pinType, "indirect") {
+		return false, nil
+	}
+	return true, nil
 }
 
 // Returns how a hash is pinned
