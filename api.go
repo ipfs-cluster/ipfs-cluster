@@ -207,8 +207,7 @@ func (api *ClusterHTTPAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 
 	if checkResponse(w, rRpc.Op(), resp) {
-		c := resp.Data.(cid.Cid)
-		sendJSONResponse(w, 200, pinResp{c.String()})
+		sendAcceptedResponse(w)
 	}
 }
 
@@ -225,8 +224,7 @@ func (api *ClusterHTTPAPI) unpinHandler(w http.ResponseWriter, r *http.Request) 
 	rRpc := RPC(UnpinRPC, c)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
-		c := resp.Data.(cid.Cid)
-		sendJSONResponse(w, 200, unpinResp{c.String()})
+		sendAcceptedResponse(w)
 	}
 }
 
@@ -263,15 +261,12 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 }
 
 // checkResponse does basic checking on an RPCResponse. It takes care of
-// using the http.ResponseWriter to send an empty response, or to send
+// using the http.ResponseWriter to send
 // an error if the RPCResponse contains one. It also checks that the RPC
 // response data can be casted back into the expected value. It returns false
 // if the checks fail or an empty response is sent, and true otherwise.
 func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
-	if resp.Error == nil && resp.Data == nil {
-		sendEmptyResponse(w)
-		return false
-	} else if err := resp.Error; err != nil {
+	if err := resp.Error; err != nil {
 		sendErrorResponse(w, 500, err.Error())
 		return false
 	}
@@ -279,10 +274,8 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 	// Check thatwe can cast to the expected response format
 	ok := true
 	switch op {
-	case PinRPC:
-		_, ok = resp.Data.(cid.Cid)
+	case PinRPC: // Pin/Unpin only return errors
 	case UnpinRPC:
-		_, ok = resp.Data.(cid.Cid)
 	case PinListRPC:
 		_, ok = resp.Data.([]Pin)
 	case IPFSPinRPC:
@@ -305,6 +298,10 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 
 func sendEmptyResponse(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func sendAcceptedResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
