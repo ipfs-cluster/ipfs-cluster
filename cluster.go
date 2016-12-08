@@ -211,7 +211,7 @@ func (c *Cluster) handleOp(rpc ClusterRPC) {
 	case IPFSIsPinnedRPC:
 		data, err = c.ipfs.IsPinned(crpc.CID)
 	case RollbackRPC:
-		state, ok := grpc.Arguments.(ClusterState)
+		state, ok := grpc.Argument.(ClusterState)
 		if !ok {
 			err = errors.New("Bad RollbackRPC type")
 			break
@@ -220,7 +220,7 @@ func (c *Cluster) handleOp(rpc ClusterRPC) {
 	case LeaderRPC:
 		// Leader RPC is a RPC that needs to be run
 		// by the Consensus Leader. Arguments is a wrapped RPC.
-		rpc, ok := grpc.Arguments.(*ClusterRPC)
+		rpc, ok := grpc.Argument.(*ClusterRPC)
 		if !ok {
 			err = errors.New("Bad LeaderRPC type")
 		}

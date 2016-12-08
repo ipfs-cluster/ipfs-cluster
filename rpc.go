@@ -16,44 +16,51 @@ const (
 	LeaderRPC
 )
 
-// RPCMethod identifies which RPC-supported operation we are trying to make
+// RPCMethod identifies which RPC supported operation we are trying to make
 type RPCOp int
 
+// ClusterRPC represents an internal RPC operation. It should be implemented
+// by all RPC types.
 type ClusterRPC interface {
 	Op() RPCOp
 	ResponseCh() chan RPCResponse
 }
 
+// baseRPC implements ClusterRPC and can be included as anonymous
+// field in other types.
 type baseRPC struct {
 	method     RPCOp
 	responseCh chan RPCResponse
 }
 
-// Method returns the RPC method for this request
+// Op returns the RPC method for this request
 func (brpc *baseRPC) Op() RPCOp {
 	return brpc.method
 }
 
-// ResponseCh returns a channel to send the RPCResponse
+// ResponseCh returns a channel on which the result of the
+// RPC operation can be sent.
 func (brpc *baseRPC) ResponseCh() chan RPCResponse {
 	return brpc.responseCh
 }
 
-// GenericClusterRPC is used to let Cluster perform operations as mandated by
-// its ClusterComponents. The result is placed on the ResponseCh channel.
+// GenericClusterRPC is a ClusterRPC with generic arguments.
 type GenericClusterRPC struct {
 	baseRPC
-	Arguments interface{}
+	Argument interface{}
 }
 
+// CidClusterRPC is a ClusterRPC whose only argument is a CID.
 type CidClusterRPC struct {
 	baseRPC
 	CID *cid.Cid
 }
 
-// RPC builds a ClusterRPC request.
-func RPC(m RPCOp, args interface{}) ClusterRPC {
-	c, ok := args.(*cid.Cid)
+// RPC builds a ClusterRPC request. It will create a
+// CidClusterRPC if the arg is of type cid.Cid. Otherwise,
+// a GenericClusterRPC is returned.
+func RPC(m RPCOp, arg interface{}) ClusterRPC {
+	c, ok := arg.(*cid.Cid)
 	if ok { // Its a CID
 		r := new(CidClusterRPC)
 		r.method = m
@@ -64,12 +71,13 @@ func RPC(m RPCOp, args interface{}) ClusterRPC {
 	// Its not a cid, make a generic
 	r := new(GenericClusterRPC)
 	r.method = m
-	r.Arguments = args
+	r.Argument = arg
 	r.responseCh = make(chan RPCResponse)
 	return r
 }
 
-// RPC response carries the result of an ClusterRPC-requested operation
+// RPCResponse carries the result of a ClusterRPC requested operation and/or
+// an error to indicate if the operation was successful.
 type RPCResponse struct {
 	Data  interface{}
 	Error error

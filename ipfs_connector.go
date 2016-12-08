@@ -216,7 +216,8 @@ func (ipfs *IPFSHTTPConnector) pinType(hash *cid.Cid) (string, error) {
 
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logger.Error("parsing pin/ls response")
+		logger.Error("parsing pin/ls response:")
+		logger.Error(string(body))
 		return "", err
 	}
 	pinObj, ok := resp.Keys[hash.String()]

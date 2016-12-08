@@ -23,7 +23,8 @@ var logger = logging.Logger("ipfs-cluster")
 // Current Cluster version.
 const Version = "0.0.1"
 
-// RPCMaxQueue can be used to set the size of the ClusterRPC channels.
+// RPCMaxQueue can be used to set the size of the ClusterRPC channels,
+// which will start blocking on send after reaching this number.
 var RPCMaxQueue = 128
 
 // MakeRPCRetryInterval specifies how long to wait before retrying
@@ -31,10 +32,11 @@ var RPCMaxQueue = 128
 var MakeRPCRetryInterval time.Duration = 1
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components
-// usually run their own goroutines (a http server for example) which can
-// be controlled via start and stop via Start() and Stop(). A ClusterRPC
-// channel is used by Cluster to perform operations requested by the
-// component.
+// usually run their own goroutines (a http server for example). They
+// communicate with Cluster via a channel carrying ClusterRPC operations.
+// These operations request tasks from other components. This way all components
+// are independent from each other and can be swapped as long as they maintain
+// RPC compatibility with Cluster.
 type ClusterComponent interface {
 	Shutdown() error
 	RpcChan() <-chan ClusterRPC
@@ -47,7 +49,7 @@ type ClusterAPI interface {
 }
 
 // IPFSConnector is a component which allows cluster to interact with
-// an IPFS daemon.
+// an IPFS daemon. This is a base component.
 type IPFSConnector interface {
 	ClusterComponent
 	Pin(*cid.Cid) error
@@ -56,7 +58,7 @@ type IPFSConnector interface {
 }
 
 // Peered represents a component which needs to be aware of the peers
-// in the Cluster.
+// in the Cluster and of any changes to the peer set.
 type Peered interface {
 	AddPeer(p peer.ID)
 	RmPeer(p peer.ID)
@@ -67,7 +69,9 @@ type Peered interface {
 // is used by the ClusterConsensus component to keep track of
 // objects which objects are pinned. This component should be thread safe.
 type ClusterState interface {
+	// AddPin adds a pin to the ClusterState
 	AddPin(*cid.Cid) error
+	// RmPin removes a pin from the ClusterState
 	RmPin(*cid.Cid) error
 }
 
@@ -102,18 +106,19 @@ type PinTracker interface {
 	SyncAll() []Pin
 }
 
-// MakeRPC sends a ClusterRPC object over a channel and waits for an answer on
-// ClusterRPC.ResponseCh channel. It can be used by any ClusterComponent to
-// simplify making RPC requests to Cluster. The ctx parameter must be a
-// cancellable context, and can be used to timeout requests.
+// MakeRPC sends a ClusterRPC object over a channel and optionally waits for a
+// Response on the ClusterRPC.ResponseCh channel. It can be used by any
+// ClusterComponent to simplify making RPC requests to Cluster.
+// The ctx parameter must be a cancellable context, and can be used to
+// timeout requests.
 // If the message cannot be placed in the ClusterRPC channel, retries will be
-// issued every MakeRPCRetryInterval.
-func MakeRPC(ctx context.Context, ch chan ClusterRPC, r ClusterRPC, waitForResponse bool) RPCResponse {
+// issued every MakeRPCRetryInterval seconds.
+func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForResponse bool) RPCResponse {
 	logger.Debugf("Sending RPC %d", r.Op())
 	exitLoop := false
 	for !exitLoop {
 		select {
-		case ch <- r:
+		case rpcCh <- r:
 			exitLoop = true
 		case <-ctx.Done():
 			logger.Debug("Cancelling sending RPC")
@@ -134,7 +139,7 @@ func MakeRPC(ctx context.Context, ch chan ClusterRPC, r ClusterRPC, waitForRespo
 	select {
 	case resp, ok := <-r.ResponseCh():
 		logger.Debug("Response received")
-		if !ok { // Not interested in response
+		if !ok {
 			logger.Warning("Response channel closed. Ignoring")
 			return RPCResponse{
 				Data:  nil,
