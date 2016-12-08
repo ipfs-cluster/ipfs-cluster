@@ -57,24 +57,35 @@ func testIPFSConnectorConfig(ts *httptest.Server) *ClusterConfig {
 	}
 }
 
-func TestNewIPFSHTTPConnector(t *testing.T) {
+func ipfsConnector(t *testing.T) (*IPFSHTTPConnector, *httptest.Server) {
 	ts := testServer(t)
 	cfg := testIPFSConnectorConfig(ts)
 
 	ipfs, err := NewIPFSHTTPConnector(cfg)
 	if err != nil {
-		t.Fatal("creating an IPFSConnector should work")
+		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
+	return ipfs, ts
+}
+
+func TestNewIPFSHTTPConnector(t *testing.T) {
+	ipfs, ts := ipfsConnector(t)
+	defer ts.Close()
+	defer ipfs.Shutdown()
 
 	ch := ipfs.RpcChan()
 	if ch == nil {
 		t.Error("RpcCh should be created")
 	}
+}
 
+func TestPin(t *testing.T) {
+	ipfs, ts := ipfsConnector(t)
+	defer ts.Close()
+	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
 	c2, _ := cid.Decode(testCid2)
-	c3, _ := cid.Decode(testCid3)
-	err = ipfs.Pin(c)
+	err := ipfs.Pin(c)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}
@@ -82,8 +93,16 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
+}
 
-	err = ipfs.Unpin(c)
+func TestUnpin(t *testing.T) {
+	ipfs, ts := ipfsConnector(t)
+	defer ts.Close()
+	defer ipfs.Shutdown()
+	c, _ := cid.Decode(testCid)
+	c2, _ := cid.Decode(testCid2)
+	c3, _ := cid.Decode(testCid3)
+	err := ipfs.Unpin(c)
 	if err != nil {
 		t.Error("expected success unpinning cid")
 	}
@@ -97,6 +116,14 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 	if err == nil {
 		t.Error("expected error unpinning cid")
 	}
+}
+
+func TestIsPinned(t *testing.T) {
+	ipfs, ts := ipfsConnector(t)
+	defer ts.Close()
+	defer ipfs.Shutdown()
+	c, _ := cid.Decode(testCid)
+	c2, _ := cid.Decode(testCid2)
 
 	isp, err := ipfs.IsPinned(c)
 	if err != nil || !isp {
@@ -107,6 +134,12 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 	if err != nil || isp {
 		t.Error("c2 should appear unpinned")
 	}
+}
+
+func TestProxy(t *testing.T) {
+	ipfs, ts := ipfsConnector(t)
+	defer ts.Close()
+	defer ipfs.Shutdown()
 
 	res, err := http.Get("http://127.0.0.1:5000/api/v0/add?arg=" + testCid)
 	if err != nil {
@@ -115,7 +148,11 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
+}
 
+func TestShutdown(t *testing.T) {
+	ipfs, ts := ipfsConnector(t)
+	defer ts.Close()
 	if err := ipfs.Shutdown(); err != nil {
 		t.Error("expected a clean shutdown")
 	}
