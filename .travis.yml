@@ -4,6 +4,7 @@ go:
 install:
 - go get github.com/gorilla/mux
 - go get github.com/hashicorp/raft
+- go get github.com/hashicorp/raft-boltdb
 - go get github.com/ugorji/go/codec
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
