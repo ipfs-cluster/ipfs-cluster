@@ -33,41 +33,39 @@ type MapPinTracker struct {
 	status map[string]Pin
 	rpcCh  chan ClusterRPC
 
-	mux    sync.Mutex
-	doneCh chan bool
+	mux sync.Mutex
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	shutdownCh chan struct{}
+	doneCh     chan struct{}
+
+	ctx context.Context
 }
 
 func NewMapPinTracker() *MapPinTracker {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	mpt := &MapPinTracker{
-		status: make(map[string]Pin),
-		rpcCh:  make(chan ClusterRPC),
-		doneCh: make(chan bool),
-		ctx:    ctx,
-		cancel: cancel,
+		status:     make(map[string]Pin),
+		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
+		shutdownCh: make(chan struct{}),
+		doneCh:     make(chan struct{}),
+		ctx:        ctx,
 	}
 	go mpt.run()
 	return mpt
 }
 
 func (mpt *MapPinTracker) run() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	mpt.ctx = ctx
+	for {
+		select {
+		case <-mpt.shutdownCh:
+			close(mpt.doneCh)
+			return
+		}
+	}
 	// Great plans for this thread
-
-	// The first time we run, we sync all
-	// and try to recover any errors
-	changed := mpt.SyncAll()
-	for _, p := range changed {
-		logger.Debugf("Recovering %s", p.Cid)
-		mpt.Recover(p.Cid)
-	}
-
-	select {
-	case <-mpt.ctx.Done():
-		close(mpt.doneCh)
-	}
 }
 
 func (mpt *MapPinTracker) set(c *cid.Cid, s PinStatus) error {
@@ -226,9 +224,63 @@ func (mpt *MapPinTracker) SyncAll() []Pin {
 	return changedPins
 }
 
+func (mpt *MapPinTracker) SyncState(cState ClusterState) []Pin {
+	clusterPins := cState.ListPins()
+	clusterMap := make(map[string]struct{})
+	// Make a map for faster lookup
+	for _, c := range clusterPins {
+		var a struct{}
+		clusterMap[c.String()] = a
+	}
+	var toRemove []*cid.Cid
+	var toAdd []*cid.Cid
+	var changed []Pin
+	mpt.mux.Lock()
+
+	// Collect items in the ClusterState not in the tracker
+	for _, c := range clusterPins {
+		_, ok := mpt.status[c.String()]
+		if !ok {
+			toAdd = append(toAdd, c)
+		}
+	}
+
+	// Collect items in the tracker not in the ClusterState
+	for _, p := range mpt.status {
+		_, ok := clusterMap[p.Cid.String()]
+		if !ok {
+			toRemove = append(toRemove, p.Cid)
+		}
+	}
+
+	// Update new items and mark them as pinning error
+	for _, c := range toAdd {
+		p := Pin{
+			Cid:     c,
+			PinMode: pinEverywhere,
+			Status:  PinError,
+		}
+		mpt.status[c.String()] = p
+		changed = append(changed, p)
+	}
+
+	// Mark items that need to be removed as unpin error
+	for _, c := range toRemove {
+		p := Pin{
+			Cid:     c,
+			PinMode: pinEverywhere,
+			Status:  UnpinError,
+		}
+		mpt.status[c.String()] = p
+		changed = append(changed, p)
+	}
+	mpt.mux.Unlock()
+	return changed
+}
+
 func (mpt *MapPinTracker) Shutdown() error {
 	logger.Info("Stopping MapPinTracker")
-	mpt.cancel()
+	close(mpt.shutdownCh)
 	<-mpt.doneCh
 	return nil
 }

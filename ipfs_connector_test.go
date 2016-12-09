@@ -40,7 +40,6 @@ func testServer(t *testing.T) *httptest.Server {
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	t.Log("test server url: ", ts.URL)
 	return ts
 }
 

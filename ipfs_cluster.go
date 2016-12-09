@@ -73,6 +73,8 @@ type ClusterState interface {
 	AddPin(*cid.Cid) error
 	// RmPin removes a pin from the ClusterState
 	RmPin(*cid.Cid) error
+	// ListPins lists all the pins in the state
+	ListPins() []*cid.Cid
 }
 
 // PinTracker represents a component which tracks the status of
@@ -104,6 +106,9 @@ type PinTracker interface {
 	Recover(*cid.Cid) error
 	// SyncAll runs Sync() on every known Pin. It returns a list of changed Pins
 	SyncAll() []Pin
+	// SyncState makes sure that the tracked Pins matches those in the
+	// cluster state and runs SyncAll(). It returns a list of changed Pins.
+	SyncState(ClusterState) []Pin
 }
 
 // MakeRPC sends a ClusterRPC object over a channel and optionally waits for a
@@ -132,6 +137,7 @@ func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForRe
 		}
 	}
 	if !waitForResponse {
+		logger.Debug("Not waiting for response. Returning directly")
 		return RPCResponse{}
 	}
 

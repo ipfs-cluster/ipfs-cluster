@@ -21,8 +21,7 @@ import (
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the componenets that make up the system.
 type Cluster struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
 
 	config *ClusterConfig
 	host   host.Host
@@ -38,7 +37,7 @@ type Cluster struct {
 // an IPFSConnector and a ClusterState as parameters, allowing the user,
 // to provide custom implementations of these components.
 func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state ClusterState, tracker PinTracker) (*Cluster, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -52,7 +51,6 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 
 	cluster := &Cluster{
 		ctx:       ctx,
-		cancel:    cancel,
 		config:    cfg,
 		host:      host,
 		consensus: consensus,
@@ -63,6 +61,9 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 	}
 
 	logger.Info("Starting IPFS Cluster")
+
+	logger.Info("Performing State synchronization")
+	cluster.Sync()
 	go cluster.run()
 	return cluster, nil
 }
@@ -87,7 +88,19 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("Error stopping PinTracker: %s", err)
 		return err
 	}
-	c.cancel()
+	return nil
+}
+
+func (c *Cluster) Sync() error {
+	cState, err := c.consensus.State()
+	if err != nil {
+		return err
+	}
+	changed := c.tracker.SyncState(cState)
+	for _, p := range changed {
+		logger.Debugf("Recovering %s", p.Cid)
+		c.tracker.Recover(p.Cid)
+	}
 	return nil
 }
 
@@ -142,6 +155,9 @@ func (c *Cluster) Members() []peer.ID {
 // run reads from the RPC channels of the different components and launches
 // short-lived go-routines to handle any requests.
 func (c *Cluster) run() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c.ctx = ctx
 	ipfsCh := c.ipfs.RpcChan()
 	consensusCh := c.consensus.RpcChan()
 	apiCh := c.api.RpcChan()

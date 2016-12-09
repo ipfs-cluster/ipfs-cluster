@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"context"
 	"errors"
+	"time"
 
 	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
 	consensus "gx/ipfs/QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt/go-libp2p-consensus"
@@ -24,6 +25,10 @@ const (
 )
 
 type clusterLogOpType int
+
+// We will wait for the consensus state to be updated up to this
+// amount of seconds.
+var MaxStartupDelay = 10 * time.Second
 
 // clusterLogOp represents an operation for the OpLogConsensus system.
 // It implements the consensus.Op interface.
@@ -90,8 +95,7 @@ ROLLBACK:
 // the members of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
 type ClusterConsensus struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
@@ -106,7 +110,7 @@ type ClusterConsensus struct {
 // is discarded.
 func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState) (*ClusterConsensus, error) {
 	logger.Info("Starting Consensus component")
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	rpcCh := make(chan ClusterRPC, RPCMaxQueue)
 	op := clusterLogOp{
 		ctx:   ctx,
@@ -121,12 +125,25 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 
 	cc := &ClusterConsensus{
 		ctx:       ctx,
-		cancel:    cancel,
 		consensus: con,
 		actor:     actor,
 		rpcCh:     rpcCh,
 		p2pRaft:   wrapper,
 	}
+
+	logger.Info("Waiting for Consensus state to catch up")
+	time.Sleep(1 * time.Second)
+	start := time.Now()
+	for {
+		time.Sleep(500 * time.Millisecond)
+		li := wrapper.raft.LastIndex()
+		lai := wrapper.raft.AppliedIndex()
+		if lai == li || time.Since(start) > MaxStartupDelay {
+			break
+		}
+		logger.Debugf("Waiting for Raft index: %d/%d", lai, li)
+	}
+
 	return cc, nil
 }
 
@@ -135,7 +152,6 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 // shutdown, along with the libp2p transport.
 func (cc *ClusterConsensus) Shutdown() error {
 	logger.Info("Stopping Consensus component")
-	cc.cancel()
 
 	// When we take snapshot, we make sure that
 	// we re-start from the previous state, and that
@@ -188,6 +204,18 @@ func (cc *ClusterConsensus) RmPin(c *cid.Cid) error {
 	}
 	logger.Infof("Unpin commited to global state: %s", c)
 	return nil
+}
+
+func (cc *ClusterConsensus) State() (ClusterState, error) {
+	st, err := cc.consensus.GetLogHead()
+	if err != nil {
+		return nil, err
+	}
+	state, ok := st.(ClusterState)
+	if !ok {
+		return nil, errors.New("Wrong state type")
+	}
+	return state, nil
 }
 
 // Leader() returns the peerID of the Leader of the

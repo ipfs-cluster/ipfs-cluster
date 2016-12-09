@@ -2,7 +2,12 @@ all: deps
 gx:
 	go get github.com/whyrusleeping/gx
 	go get github.com/whyrusleeping/gx-go
-deps: gx 
+deps: gx
+	go get github.com/gorilla/mux
+	go get github.com/hashicorp/raft
+	go get github.com/hashicorp/raft-boltdb
+	go get github.com/ugorji/go/codec
+
 	gx --verbose install --global
 	gx-go rewrite
 test: deps

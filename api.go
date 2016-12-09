@@ -18,16 +18,16 @@ import (
 // a RESTful HTTP API for Cluster.
 type ClusterHTTPAPI struct {
 	ctx        context.Context
-	cancel     context.CancelFunc
 	listenAddr string
 	listenPort int
 	rpcCh      chan ClusterRPC
 	router     *mux.Router
 
 	listener net.Listener
+	server   *http.Server
 
-	doneCh     chan bool
-	shutdownCh chan bool
+	doneCh     chan struct{}
+	shutdownCh chan struct{}
 }
 
 type route struct {
@@ -68,7 +68,7 @@ type pinListResp []pinElemResp
 // NewHTTPClusterAPI creates a new object which is ready to be
 // started.
 func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
 		cfg.ClusterAPIListenAddr,
 		cfg.ClusterAPIListenPort))
@@ -76,18 +76,21 @@ func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
 		return nil, err
 	}
 
+	router := mux.NewRouter().StrictSlash(true)
+	s := &http.Server{Handler: router}
+	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
+
 	api := &ClusterHTTPAPI{
 		ctx:        ctx,
-		cancel:     cancel,
 		listenAddr: cfg.ClusterAPIListenAddr,
 		listenPort: cfg.ClusterAPIListenPort,
 		listener:   l,
+		server:     s,
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
-		doneCh:     make(chan bool),
-		shutdownCh: make(chan bool),
+		doneCh:     make(chan struct{}),
+		shutdownCh: make(chan struct{}),
 	}
 
-	router := mux.NewRouter().StrictSlash(true)
 	for _, route := range api.routes() {
 		router.
 			Methods(route.Method).
@@ -139,7 +142,10 @@ func (api *ClusterHTTPAPI) routes() []route {
 
 func (api *ClusterHTTPAPI) run() {
 	go func() {
-		err := http.Serve(api.listener, api.router)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		api.ctx = ctx
+		err := api.server.Serve(api.listener)
 		select {
 		case <-api.shutdownCh:
 			close(api.doneCh)
@@ -154,8 +160,8 @@ func (api *ClusterHTTPAPI) run() {
 // Shutdown stops any API listeners.
 func (api *ClusterHTTPAPI) Shutdown() error {
 	logger.Info("Stopping Cluster API")
-	api.cancel()
 	close(api.shutdownCh)
+	api.server.SetKeepAlivesEnabled(false)
 	api.listener.Close()
 	<-api.doneCh
 	return nil
@@ -200,7 +206,8 @@ func (api *ClusterHTTPAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 	hash := vars["hash"]
 	c, err := cid.Decode(hash)
 	if err != nil {
-		sendErrorResponse(w, 400, err.Error())
+		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
+		return
 	}
 
 	rRpc := RPC(PinRPC, c)
@@ -218,7 +225,8 @@ func (api *ClusterHTTPAPI) unpinHandler(w http.ResponseWriter, r *http.Request) 
 	hash := vars["hash"]
 	c, err := cid.Decode(hash)
 	if err != nil {
-		sendErrorResponse(w, 400, err.Error())
+		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
+		return
 	}
 
 	rRpc := RPC(UnpinRPC, c)
@@ -288,7 +296,8 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 		ok = false
 	}
 	if !ok {
-		logger.Error("unexpected RPC Response format")
+		logger.Errorf("unexpected RPC Response format for %d:", op)
+		logger.Errorf("%+v", resp.Data)
 		sendErrorResponse(w, 500, "Unexpected RPC Response format")
 		return false
 	}

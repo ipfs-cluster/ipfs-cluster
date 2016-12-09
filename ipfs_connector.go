@@ -25,17 +25,18 @@ import (
 // against the configured IPFS daemom (such as a pin request).
 type IPFSHTTPConnector struct {
 	ctx        context.Context
-	cancel     context.CancelFunc
 	destHost   string
 	destPort   int
 	listenAddr string
 	listenPort int
 	handlers   map[string]func(http.ResponseWriter, *http.Request)
 	rpcCh      chan ClusterRPC
-	listener   net.Listener
 
-	shutdownCh chan bool
-	doneCh     chan bool
+	listener net.Listener
+	server   *http.Server
+
+	shutdownCh chan struct{}
+	doneCh     chan struct{}
 }
 
 type ipfsError struct {
@@ -44,15 +45,21 @@ type ipfsError struct {
 
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
 func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
 		cfg.IPFSAPIListenAddr, cfg.IPFSAPIListenPort))
 	if err != nil {
 		return nil, err
 	}
+
+	smux := http.NewServeMux()
+	s := &http.Server{
+		Handler: smux,
+	}
+	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
+
 	ipfs := &IPFSHTTPConnector{
 		ctx:        ctx,
-		cancel:     cancel,
 		destHost:   cfg.IPFSHost,
 		destPort:   cfg.IPFSPort,
 		listenAddr: cfg.IPFSAPIListenAddr,
@@ -60,9 +67,12 @@ func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
 		listener:   l,
-		shutdownCh: make(chan bool),
-		doneCh:     make(chan bool),
+		server:     s,
+		shutdownCh: make(chan struct{}),
+		doneCh:     make(chan struct{}),
 	}
+
+	smux.HandleFunc("/", ipfs.handle)
 
 	logger.Infof("Starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
 	go ipfs.run()
@@ -114,10 +124,10 @@ func (ipfs *IPFSHTTPConnector) defaultHandler(w http.ResponseWriter, r *http.Req
 func (ipfs *IPFSHTTPConnector) run() {
 	// This launches the proxy
 	go func() {
-		smux := http.NewServeMux()
-		smux.HandleFunc("/", ipfs.handle)
-		// Fixme: make this with closable net listener
-		err := http.Serve(ipfs.listener, smux)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ipfs.ctx = ctx
+		err := ipfs.server.Serve(ipfs.listener)
 		select {
 		case <-ipfs.shutdownCh:
 			close(ipfs.doneCh)
@@ -140,6 +150,7 @@ func (ipfs *IPFSHTTPConnector) RpcChan() <-chan ClusterRPC {
 func (ipfs *IPFSHTTPConnector) Shutdown() error {
 	logger.Info("Stopping IPFS Proxy")
 	close(ipfs.shutdownCh)
+	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.listener.Close()
 	<-ipfs.doneCh
 	return nil
