@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"os/user"
+	"path/filepath"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 
@@ -16,7 +18,10 @@ func main() {
 	cleanup := make(chan bool)
 	signal.Notify(signalChan, os.Interrupt)
 
-	clusterCfg, err := ipfscluster.LoadConfig("../cluster.json")
+	usr, _ := user.Current()
+	home := usr.Home
+
+	clusterCfg, err := ipfscluster.LoadConfig(filepath.Join(home, "ipfs-cluster.json"))
 	if err != nil {
 		fmt.Println(err)
 		return
