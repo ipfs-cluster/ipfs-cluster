@@ -19,7 +19,7 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt)
 
 	usr, _ := user.Current()
-	home := usr.Home
+	home := usr.HomeDir
 
 	clusterCfg, err := ipfscluster.LoadConfig(filepath.Join(home, "ipfs-cluster.json"))
 	if err != nil {
