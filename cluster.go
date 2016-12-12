@@ -62,9 +62,9 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 
 	logger.Info("Starting IPFS Cluster")
 
+	go cluster.run()
 	logger.Info("Performing State synchronization")
 	cluster.Sync()
-	go cluster.run()
 	return cluster, nil
 }
 

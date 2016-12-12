@@ -29,7 +29,7 @@ var RPCMaxQueue = 128
 
 // MakeRPCRetryInterval specifies how long to wait before retrying
 // to put a ClusterRPC request in the channel in MakeRPC().
-var MakeRPCRetryInterval time.Duration = 1
+var MakeRPCRetryInterval time.Duration = 1 * time.Second
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They
@@ -117,7 +117,7 @@ type PinTracker interface {
 // The ctx parameter must be a cancellable context, and can be used to
 // timeout requests.
 // If the message cannot be placed in the ClusterRPC channel, retries will be
-// issued every MakeRPCRetryInterval seconds.
+// issued every MakeRPCRetryInterval.
 func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForResponse bool) RPCResponse {
 	logger.Debugf("Sending RPC %d", r.Op())
 	exitLoop := false
@@ -132,8 +132,8 @@ func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForRe
 				Error: errors.New("Operation timed out while sending RPC"),
 			}
 		default:
-			logger.Error("RPC channel is full. Will retry in 1 second.")
-			time.Sleep(MakeRPCRetryInterval * time.Second)
+			logger.Error("RPC channel is full. Will retry.")
+			time.Sleep(MakeRPCRetryInterval)
 		}
 	}
 	if !waitForResponse {

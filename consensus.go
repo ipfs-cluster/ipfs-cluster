@@ -99,8 +99,8 @@ type ClusterConsensus struct {
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
-
-	rpcCh chan ClusterRPC
+	baseOp    clusterLogOp
+	rpcCh     chan ClusterRPC
 
 	p2pRaft *libp2pRaftWrap
 }
@@ -113,7 +113,7 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	ctx := context.Background()
 	rpcCh := make(chan ClusterRPC, RPCMaxQueue)
 	op := clusterLogOp{
-		ctx:   ctx,
+		ctx:   context.Background(),
 		rpcCh: rpcCh,
 	}
 	con, actor, wrapper, err := makeLibp2pRaft(cfg, host, state, op)
@@ -126,11 +126,13 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	cc := &ClusterConsensus{
 		ctx:       ctx,
 		consensus: con,
+		baseOp:    op,
 		actor:     actor,
 		rpcCh:     rpcCh,
 		p2pRaft:   wrapper,
 	}
 
+	// FIXME: this is broken.
 	logger.Info("Waiting for Consensus state to catch up")
 	time.Sleep(1 * time.Second)
 	start := time.Now()

@@ -30,10 +30,9 @@ type PinMode int
 type PinStatus int
 
 type MapPinTracker struct {
+	mux    sync.Mutex
 	status map[string]Pin
 	rpcCh  chan ClusterRPC
-
-	mux sync.Mutex
 
 	shutdownCh chan struct{}
 	doneCh     chan struct{}
