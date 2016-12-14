@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 // IPFSHTTPConnector implements the IPFSConnector interface

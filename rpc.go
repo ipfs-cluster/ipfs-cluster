@@ -1,6 +1,6 @@
 package ipfscluster
 
-import cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+import cid "github.com/ipfs/go-cid"
 
 // ClusterRPC supported operations.
 const (

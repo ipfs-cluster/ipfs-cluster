@@ -8,20 +8,17 @@ import (
 	"net/http"
 	"testing"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
-	apiHost = "http://127.0.0.1:5000"
+	apiHost = "http://127.0.0.1:10002" // should match testingConfig()
 )
 
 func testClusterApi(t *testing.T) *ClusterHTTPAPI {
 	//logging.SetDebugLogging()
-	cfg := &ClusterConfig{
-		ClusterAPIListenAddr: "127.0.0.1",
-		ClusterAPIListenPort: 5000,
-	}
+	cfg := testingConfig()
 	api, err := NewHTTPClusterAPI(cfg)
 	// No keep alive! Otherwise tests hang with
 	// connections re-used from previous tests
@@ -34,16 +31,6 @@ func testClusterApi(t *testing.T) *ClusterHTTPAPI {
 		t.Fatal("should create the Rpc channel")
 	}
 	return api
-}
-
-func simulateAnswer(ch <-chan ClusterRPC, answer interface{}, err error) {
-	go func() {
-		req := <-ch
-		req.ResponseCh() <- RPCResponse{
-			Data:  answer,
-			Error: err,
-		}
-	}()
 }
 
 func processResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {

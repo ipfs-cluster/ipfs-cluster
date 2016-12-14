@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -57,4 +57,14 @@ func TestMakeRPC(t *testing.T) {
 	// Previous request still taking the channel
 	time.Sleep(2 * time.Second)
 	cancel()
+}
+
+func simulateAnswer(ch <-chan ClusterRPC, answer interface{}, err error) {
+	go func() {
+		req := <-ch
+		req.ResponseCh() <- RPCResponse{
+			Data:  answer,
+			Error: err,
+		}
+	}()
 }

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"time"
 
-	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
-	consensus "gx/ipfs/QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt/go-libp2p-consensus"
-	libp2praft "gx/ipfs/QmdHo2LQKmGQ6rDAWFxnzNuW3z8b6Xmw3wEFsMQaj9Rsqj/go-libp2p-raft"
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	consensus "github.com/libp2p/go-libp2p-consensus"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 const (
@@ -40,7 +40,7 @@ type clusterLogOp struct {
 }
 
 // ApplyTo applies the operation to the ClusterState
-func (op clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
+func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	state, ok := cstate.(ClusterState)
 	var err error
 	if !ok {
@@ -99,7 +99,7 @@ type ClusterConsensus struct {
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
-	baseOp    clusterLogOp
+	baseOp    *clusterLogOp
 	rpcCh     chan ClusterRPC
 
 	p2pRaft *libp2pRaftWrap
@@ -112,7 +112,7 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	logger.Info("Starting Consensus component")
 	ctx := context.Background()
 	rpcCh := make(chan ClusterRPC, RPCMaxQueue)
-	op := clusterLogOp{
+	op := &clusterLogOp{
 		ctx:   context.Background(),
 		rpcCh: rpcCh,
 	}
@@ -154,7 +154,8 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 // shutdown, along with the libp2p transport.
 func (cc *ClusterConsensus) Shutdown() error {
 	logger.Info("Stopping Consensus component")
-
+	defer cc.p2pRaft.transport.Close()
+	defer cc.p2pRaft.boltdb.Close() // important!
 	// When we take snapshot, we make sure that
 	// we re-start from the previous state, and that
 	// we don't replay the log. This includes
@@ -163,7 +164,6 @@ func (cc *ClusterConsensus) Shutdown() error {
 	_ = f.Error()
 	f = cc.p2pRaft.raft.Shutdown()
 	err := f.Error()
-	cc.p2pRaft.transport.Close()
 	if err != nil {
 		return err
 	}
@@ -176,8 +176,8 @@ func (cc *ClusterConsensus) RpcChan() <-chan ClusterRPC {
 	return cc.rpcCh
 }
 
-func (cc *ClusterConsensus) op(c *cid.Cid, t clusterLogOpType) clusterLogOp {
-	return clusterLogOp{
+func (cc *ClusterConsensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
+	return &clusterLogOp{
 		Cid:  c.String(),
 		Type: t,
 	}
@@ -228,6 +228,7 @@ func (cc *ClusterConsensus) Leader() peer.ID {
 	return raftactor.Leader()
 }
 
+// TODO
 func (cc *ClusterConsensus) Rollback(state ClusterState) error {
 	return cc.consensus.Rollback(state)
 }

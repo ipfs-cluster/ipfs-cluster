@@ -3,7 +3,7 @@ package ipfscluster
 import (
 	"testing"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 func TestRPC(t *testing.T) {

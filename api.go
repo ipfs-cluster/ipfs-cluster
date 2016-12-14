@@ -7,9 +7,9 @@ import (
 	"net"
 	"net/http"
 
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 
 	mux "github.com/gorilla/mux"
 )

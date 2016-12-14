@@ -1,13 +1,12 @@
 package ipfscluster
 
 import (
-	"os"
 	"path/filepath"
 
-	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
-	libp2praft "gx/ipfs/QmdHo2LQKmGQ6rDAWFxnzNuW3z8b6Xmw3wEFsMQaj9Rsqj/go-libp2p-raft"
+	host "github.com/libp2p/go-libp2p-host"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
 
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	hashiraft "github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -22,17 +21,20 @@ type libp2pRaftWrap struct {
 	logStore      hashiraft.LogStore
 	stableStore   hashiraft.StableStore
 	peerstore     *libp2praft.Peerstore
+	boltdb        *raftboltdb.BoltStore
 }
 
 // This function does all heavy the work which is specifically related to
 // hashicorp's Raft. Other places should just rely on the Consensus interface.
-func makeLibp2pRaft(cfg *ClusterConfig, host host.Host, state ClusterState, op clusterLogOp) (*libp2praft.Consensus, *libp2praft.Actor, *libp2pRaftWrap, error) {
+func makeLibp2pRaft(cfg *ClusterConfig, host host.Host, state ClusterState, op *clusterLogOp) (*libp2praft.Consensus, *libp2praft.Actor, *libp2pRaftWrap, error) {
+	logger.Debug("creating libp2p Raft transport")
 	transport, err := libp2praft.NewLibp2pTransportWithHost(host)
 	if err != nil {
 		logger.Error("creating libp2p-raft transport: ", err)
 		return nil, nil, nil, err
 	}
 
+	logger.Debug("opening connections")
 	transport.OpenConns()
 
 	pstore := &libp2praft.Peerstore{}
@@ -43,23 +45,27 @@ func makeLibp2pRaft(cfg *ClusterConfig, host host.Host, state ClusterState, op c
 	}
 	pstore.SetPeers(strPeers)
 
+	logger.Debug("creating OpLog")
 	cons := libp2praft.NewOpLog(state, op)
 
 	raftCfg := hashiraft.DefaultConfig()
 	raftCfg.EnableSingleNode = raftSingleMode
+	logger.Debug("creating file snapshot store")
 	snapshots, err := hashiraft.NewFileSnapshotStore(cfg.RaftFolder, maxSnapshots, nil)
 	if err != nil {
 		logger.Error("creating file snapshot store: ", err)
 		return nil, nil, nil, err
 	}
 
+	logger.Debug("creating BoltDB log store")
 	logStore, err := raftboltdb.NewBoltStore(filepath.Join(cfg.RaftFolder, "raft.db"))
 	if err != nil {
 		logger.Error("creating bolt store: ", err)
 		return nil, nil, nil, err
 	}
 
-	r, err := hashiraft.NewRaft(raftCfg, cons, logStore, logStore, snapshots, pstore, transport)
+	logger.Debug("creating Raft")
+	r, err := hashiraft.NewRaft(raftCfg, cons.FSM(), logStore, logStore, snapshots, pstore, transport)
 	if err != nil {
 		logger.Error("initializing raft: ", err)
 		return nil, nil, nil, err
@@ -72,9 +78,6 @@ func makeLibp2pRaft(cfg *ClusterConfig, host host.Host, state ClusterState, op c
 		logStore:      logStore,
 		stableStore:   logStore,
 		peerstore:     pstore,
+		boltdb:        logStore,
 	}, nil
-}
-
-func cleanRaft(cfg *ClusterConfig) {
-	os.RemoveAll(cfg.RaftFolder)
 }

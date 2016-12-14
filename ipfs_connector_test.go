@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 func testServer(t *testing.T) *httptest.Server {
@@ -48,12 +48,10 @@ func testIPFSConnectorConfig(ts *httptest.Server) *ClusterConfig {
 	h := strings.Split(url.Host, ":")
 	i, _ := strconv.Atoi(h[1])
 
-	return &ClusterConfig{
-		IPFSHost:          h[0],
-		IPFSPort:          i,
-		IPFSAPIListenAddr: "127.0.0.1",
-		IPFSAPIListenPort: 5000,
-	}
+	cfg := testingConfig()
+	cfg.IPFSHost = h[0]
+	cfg.IPFSPort = i
+	return cfg
 }
 
 func ipfsConnector(t *testing.T) (*IPFSHTTPConnector, *httptest.Server) {
@@ -140,7 +138,8 @@ func TestProxy(t *testing.T) {
 	defer ts.Close()
 	defer ipfs.Shutdown()
 
-	res, err := http.Get("http://127.0.0.1:5000/api/v0/add?arg=" + testCid)
+	// Address comes from testingConfig()
+	res, err := http.Get("http://127.0.0.1:10001/api/v0/add?arg=" + testCid)
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
