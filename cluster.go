@@ -163,47 +163,79 @@ func (c *Cluster) run() {
 	apiCh := c.api.RpcChan()
 	trackerCh := c.tracker.RpcChan()
 
+	var op ClusterRPC
 	for {
 		select {
-		case ipfsOp := <-ipfsCh:
-			go c.handleOp(ipfsOp)
-		case consensusOp := <-consensusCh:
-			go c.handleOp(consensusOp)
-		case apiOp := <-apiCh:
-			go c.handleOp(apiOp)
-		case trackerOp := <-trackerCh:
-			go c.handleOp(trackerOp)
+		case op = <-ipfsCh:
+			goto HANDLEOP
+		case op = <-consensusCh:
+			goto HANDLEOP
+		case op = <-apiCh:
+			goto HANDLEOP
+		case op = <-trackerCh:
+			goto HANDLEOP
 		case <-c.ctx.Done():
 			logger.Debug("Cluster is Done()")
 			return
 		}
+
+	HANDLEOP:
+		switch op.(type) {
+		case *CidClusterRPC:
+			crpc := op.(*CidClusterRPC)
+			go c.handleCidRPC(crpc)
+		case *GenericClusterRPC:
+			grpc := op.(*GenericClusterRPC)
+			go c.handleGenericRPC(grpc)
+		default:
+			logger.Error("unknown ClusterRPC type")
+		}
 	}
 }
 
-// handleOp takes care of running the necessary action for a
-// clusterRPC request and sending the response.
-func (c *Cluster) handleOp(rpc ClusterRPC) {
-	var crpc *CidClusterRPC
-	var grpc *GenericClusterRPC
-	switch rpc.(type) {
-	case *CidClusterRPC:
-		crpc = rpc.(*CidClusterRPC)
-	case *GenericClusterRPC:
-		grpc = rpc.(*GenericClusterRPC)
-	default:
-		logger.Error("expected a known ClusterRPC type but got something else")
-		return
-	}
-
+func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 	var data interface{} = nil
 	var err error = nil
-	switch rpc.Op() {
+	switch grpc.Op() {
 	case VersionRPC:
 		data = c.Version()
 	case MemberListRPC:
 		data = c.Members()
 	case PinListRPC:
 		data = c.tracker.ListPins()
+	case RollbackRPC:
+		state, ok := grpc.Argument.(ClusterState)
+		if !ok {
+			err = errors.New("Bad RollbackRPC type")
+			break
+		}
+		err = c.consensus.Rollback(state)
+	case LeaderRPC:
+		// Leader RPC is a RPC that needs to be run
+		// by the Consensus Leader. Arguments is a wrapped RPC.
+		rpc, ok := grpc.Argument.(*ClusterRPC)
+		if !ok {
+			err = errors.New("Bad LeaderRPC type")
+		}
+		data, err = c.leaderRPC(rpc)
+	default:
+		logger.Error("unknown operation for GenericClusterRPC. Ignoring.")
+	}
+
+	resp := RPCResponse{
+		Data:  data,
+		Error: err,
+	}
+
+	grpc.ResponseCh() <- resp
+}
+
+// handleOp takes care of running the necessary action for a
+// clusterRPC request and sending the response.
+func (c *Cluster) handleCidRPC(crpc *CidClusterRPC) {
+	var data interface{} = nil
+	var err error = nil
+	switch crpc.Op() {
 	case PinRPC:
 		err = c.Pin(crpc.CID)
 	case UnpinRPC:
@@ -226,23 +258,8 @@ func (c *Cluster) handleOp(rpc ClusterRPC) {
 		}
 	case IPFSIsPinnedRPC:
 		data, err = c.ipfs.IsPinned(crpc.CID)
-	case RollbackRPC:
-		state, ok := grpc.Argument.(ClusterState)
-		if !ok {
-			err = errors.New("Bad RollbackRPC type")
-			break
-		}
-		err = c.consensus.Rollback(state)
-	case LeaderRPC:
-		// Leader RPC is a RPC that needs to be run
-		// by the Consensus Leader. Arguments is a wrapped RPC.
-		rpc, ok := grpc.Argument.(*ClusterRPC)
-		if !ok {
-			err = errors.New("Bad LeaderRPC type")
-		}
-		data, err = c.leaderRPC(rpc)
 	default:
-		logger.Error("Unknown operation. Ignoring")
+		logger.Error("unknown operation for CidClusterRPC. Ignoring.")
 	}
 
 	resp := RPCResponse{
@@ -250,7 +267,7 @@ func (c *Cluster) handleOp(rpc ClusterRPC) {
 		Error: err,
 	}
 
-	rpc.ResponseCh() <- resp
+	crpc.ResponseCh() <- resp
 }
 
 // This uses libp2p to contact the cluster leader and ask him to do something

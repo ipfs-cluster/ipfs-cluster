@@ -140,8 +140,9 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 
 	p := mpt.get(c)
 
+	// We assume errors will need a Recover() so we return true
 	if p.Status == PinError || p.Status == UnpinError {
-		return false
+		return true
 	}
 
 	resp := MakeRPC(ctx, mpt.rpcCh, RPC(IPFSIsPinnedRPC, c), true)

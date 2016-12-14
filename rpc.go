@@ -14,6 +14,8 @@ const (
 	MemberListRPC
 	RollbackRPC
 	LeaderRPC
+
+	NoopRPC
 )
 
 // RPCMethod identifies which RPC supported operation we are trying to make
