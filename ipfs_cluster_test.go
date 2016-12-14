@@ -47,7 +47,7 @@ func TestMakeRPC(t *testing.T) {
 		t.Error("expected empty response")
 	}
 
-	// Test full channel and cancel
+	// Test full channel and cancel on send
 	go func() {
 		resp := MakeRPC(ctx, testCh, testReq, true)
 		if resp.Error == nil || !strings.Contains(resp.Error.Error(), "timed out") {
@@ -55,8 +55,21 @@ func TestMakeRPC(t *testing.T) {
 		}
 	}()
 	// Previous request still taking the channel
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	cancel()
+
+	// Test cancelled while waiting for response context
+	ctx, cancel = context.WithCancel(context.Background())
+	testCh = make(chan ClusterRPC, 1)
+	go func() {
+		resp := MakeRPC(ctx, testCh, testReq, true)
+		if resp.Error == nil || !strings.Contains(resp.Error.Error(), "timed out") {
+			t.Fatal("the operation should have been waiting and then cancelled")
+		}
+	}()
+	time.Sleep(1 * time.Second)
+	cancel()
+	time.Sleep(1 * time.Second)
 }
 
 func simulateAnswer(ch <-chan ClusterRPC, answer interface{}, err error) {
