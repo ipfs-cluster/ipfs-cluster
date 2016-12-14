@@ -69,6 +69,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
+	time.Sleep(3 * time.Second) // make sure a leader is elected
 	return cl, api, ipfs, st, tracker
 }
 
@@ -85,12 +86,13 @@ func testClusterShutdown(t *testing.T) {
 	}
 }
 
-func testClusterSync(t *testing.T) {
+func TestClusterSync(t *testing.T) {
 	cl, _, _, st, _ := testingCluster(t)
+	defer cleanRaft()
 	defer cl.Shutdown()
 	err := cl.Sync()
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("expected an error as there is no state to sync")
 	}
 
 	c, _ := cid.Decode(testCid)
@@ -99,23 +101,21 @@ func testClusterSync(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
+	err = cl.Sync()
+	if err != nil {
+		t.Fatal("sync after pinning should have worked:", err)
+	}
+
 	// Modify state on the side so the sync does not
 	// happen on an empty slide
 	st.RmPin(c)
 	err = cl.Sync()
 	if err != nil {
-		t.Fatal("sync should have worked:", err)
-	}
-
-	// test an error case
-	cl.consensus.Shutdown()
-	err = cl.Sync()
-	if err == nil {
-		t.Error("expected an error but things worked")
+		t.Fatal("sync with recover should have worked:", err)
 	}
 }
 
-func testClusterPin(t *testing.T) {
+func TestClusterPin(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
@@ -134,7 +134,7 @@ func testClusterPin(t *testing.T) {
 	}
 }
 
-func testClusterUnpin(t *testing.T) {
+func TestClusterUnpin(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
