@@ -101,7 +101,7 @@ func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
 	}
 
 	api.router = router
-	logger.Infof("Starting Cluster API on %s:%d", api.listenAddr, api.listenPort)
+	logger.Infof("starting Cluster API on %s:%d", api.listenAddr, api.listenPort)
 	api.run()
 	return api, nil
 }
@@ -165,7 +165,7 @@ func (api *ClusterHTTPAPI) Shutdown() error {
 		return nil
 	}
 
-	logger.Info("Stopping Cluster API")
+	logger.Info("stopping Cluster API")
 
 	// Cancel any outstanding ops
 	api.server.SetKeepAlivesEnabled(false)
@@ -307,7 +307,7 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 	if !ok {
 		logger.Errorf("unexpected RPC Response format for %d:", op)
 		logger.Errorf("%+v", resp.Data)
-		sendErrorResponse(w, 500, "Unexpected RPC Response format")
+		sendErrorResponse(w, 500, "unexpected RPC Response format")
 		return false
 	}
 
@@ -331,6 +331,6 @@ func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
 
 func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 	errorResp := errorResp{code, msg}
-	logger.Errorf("Sending error response: %d: %s", code, msg)
+	logger.Errorf("sending error response: %d: %s", code, msg)
 	sendJSONResponse(w, code, errorResp)
 }

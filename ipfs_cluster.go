@@ -118,17 +118,17 @@ type PinTracker interface {
 // If the message cannot be placed in the ClusterRPC channel, retries will be
 // issued every MakeRPCRetryInterval.
 func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForResponse bool) RPCResponse {
-	logger.Debugf("Sending RPC %d", r.Op())
+	logger.Debugf("sending RPC %d", r.Op())
 	exitLoop := false
 	for !exitLoop {
 		select {
 		case rpcCh <- r:
 			exitLoop = true
 		case <-ctx.Done():
-			logger.Debug("Cancelling sending RPC")
+			logger.Debug("cancelling sending RPC")
 			return RPCResponse{
 				Data:  nil,
-				Error: errors.New("Operation timed out while sending RPC"),
+				Error: errors.New("operation timed out while sending RPC"),
 			}
 		default:
 			logger.Error("RPC channel is full. Will retry.")
@@ -136,16 +136,16 @@ func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForRe
 		}
 	}
 	if !waitForResponse {
-		logger.Debug("Not waiting for response. Returning directly")
+		logger.Debug("not waiting for response. Returning directly")
 		return RPCResponse{}
 	}
 
-	logger.Debug("Waiting for response")
+	logger.Debug("waiting for response")
 	select {
 	case resp, ok := <-r.ResponseCh():
-		logger.Debug("Response received")
+		logger.Debug("response received")
 		if !ok {
-			logger.Warning("Response channel closed. Ignoring")
+			logger.Warning("response channel closed. Ignoring")
 			return RPCResponse{
 				Data:  nil,
 				Error: nil,
@@ -153,10 +153,10 @@ func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForRe
 		}
 		return resp
 	case <-ctx.Done():
-		logger.Debug("Cancelling waiting for RPC Response")
+		logger.Debug("cancelling waiting for RPC Response")
 		return RPCResponse{
 			Data:  nil,
-			Error: errors.New("Operation timed out while waiting for response"),
+			Error: errors.New("operation timed out while waiting for response"),
 		}
 	}
 }

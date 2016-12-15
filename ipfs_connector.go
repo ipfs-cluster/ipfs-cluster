@@ -74,7 +74,7 @@ func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
 
 	smux.HandleFunc("/", ipfs.handle)
 
-	logger.Infof("Starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
+	logger.Infof("starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
 	ipfs.run()
 	return ipfs, nil
 }
@@ -153,7 +153,7 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 		return nil
 	}
 
-	logger.Info("Stopping IPFS Proxy")
+	logger.Info("stopping IPFS Proxy")
 
 	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.listener.Close()
@@ -250,20 +250,20 @@ func (ipfs *IPFSHTTPConnector) pinType(hash *cid.Cid) (string, error) {
 // get performs the heavy lifting of a get request against
 // the IPFS daemon.
 func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
-	logger.Debugf("Getting %s", path)
+	logger.Debugf("getting %s", path)
 	url := fmt.Sprintf("%s/%s",
 		ipfs.apiURL(),
 		path)
 
 	resp, err := http.Get(url)
 	if err != nil {
-		logger.Error("Error getting:", err)
+		logger.Error("error getting:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logger.Errorf("Error reading response body: %s", err)
+		logger.Errorf("error reading response body: %s", err)
 		return nil, err
 	}
 

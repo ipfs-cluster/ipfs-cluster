@@ -51,7 +51,7 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 
 	consensus, err := NewClusterConsensus(cfg, host, state)
 	if err != nil {
-		logger.Errorf("Error creating consensus: %s", err)
+		logger.Errorf("error creating consensus: %s", err)
 		return nil, err
 	}
 
@@ -67,10 +67,10 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 		shutdownCh: make(chan struct{}),
 	}
 
-	logger.Info("Starting IPFS Cluster")
+	logger.Info("starting IPFS Cluster")
 
 	cluster.run()
-	logger.Info("Performing State synchronization")
+	logger.Info("performing State synchronization")
 	cluster.Sync()
 	return cluster, nil
 }
@@ -84,22 +84,22 @@ func (c *Cluster) Shutdown() error {
 		return nil
 	}
 
-	logger.Info("Shutting down IPFS Cluster")
+	logger.Info("shutting down IPFS Cluster")
 	if err := c.consensus.Shutdown(); err != nil {
-		logger.Errorf("Error stopping consensus: %s", err)
+		logger.Errorf("error stopping consensus: %s", err)
 		return err
 	}
 	if err := c.api.Shutdown(); err != nil {
-		logger.Errorf("Error stopping API: %s", err)
+		logger.Errorf("error stopping API: %s", err)
 		return err
 	}
 	if err := c.ipfs.Shutdown(); err != nil {
-		logger.Errorf("Error stopping IPFS Connector: %s", err)
+		logger.Errorf("error stopping IPFS Connector: %s", err)
 		return err
 	}
 
 	if err := c.tracker.Shutdown(); err != nil {
-		logger.Errorf("Error stopping PinTracker: %s", err)
+		logger.Errorf("error stopping PinTracker: %s", err)
 		return err
 	}
 	c.shutdownCh <- struct{}{}
@@ -114,7 +114,7 @@ func (c *Cluster) Sync() error {
 	}
 	changed := c.tracker.SyncState(cState)
 	for _, p := range changed {
-		logger.Debugf("Recovering %s", p.Cid)
+		logger.Debugf("recovering %s", p.Cid)
 		c.tracker.Recover(p.Cid)
 	}
 	return nil
@@ -130,7 +130,7 @@ func (c *Cluster) Sync() error {
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
 	// TODO: Check this hash makes any sense
-	logger.Info("Pinning:", h)
+	logger.Info("pinning:", h)
 	err := c.consensus.AddPin(h)
 	if err != nil {
 		logger.Error(err)
@@ -149,7 +149,7 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	// TODO: Check this hash makes any sense
-	logger.Info("Unpinning:", h)
+	logger.Info("unpinning:", h)
 	err := c.consensus.RmPin(h)
 	if err != nil {
 		logger.Error(err)
@@ -224,7 +224,7 @@ func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 	case RollbackRPC:
 		state, ok := grpc.Argument.(ClusterState)
 		if !ok {
-			err = errors.New("Bad RollbackRPC type")
+			err = errors.New("bad RollbackRPC type")
 			break
 		}
 		err = c.consensus.Rollback(state)
@@ -233,7 +233,7 @@ func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 		// by the Consensus Leader. Arguments is a wrapped RPC.
 		rpc, ok := grpc.Argument.(*ClusterRPC)
 		if !ok {
-			err = errors.New("Bad LeaderRPC type")
+			err = errors.New("bad LeaderRPC type")
 		}
 		data, err = c.leaderRPC(rpc)
 	default:
@@ -290,7 +290,7 @@ func (c *Cluster) handleCidRPC(crpc *CidClusterRPC) {
 
 // This uses libp2p to contact the cluster leader and ask him to do something
 func (c *Cluster) leaderRPC(rpc *ClusterRPC) (interface{}, error) {
-	return nil, errors.New("Not implemented yet")
+	return nil, errors.New("not implemented yet")
 }
 
 // makeHost makes a libp2p-host

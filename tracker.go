@@ -50,6 +50,7 @@ func NewMapPinTracker() *MapPinTracker {
 		ctx:        ctx,
 		shutdownCh: make(chan struct{}),
 	}
+	logger.Info("starting MapPinTracker")
 	mpt.run()
 	return mpt
 }
@@ -74,7 +75,7 @@ func (mpt *MapPinTracker) Shutdown() error {
 		return nil
 	}
 
-	logger.Info("Stopping MapPinTracker")
+	logger.Info("stopping MapPinTracker")
 	mpt.shutdownCh <- struct{}{}
 	mpt.wg.Wait()
 	mpt.shutdown = true

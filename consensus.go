@@ -47,13 +47,13 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 	var err error
 	if !ok {
 		// Should never be here
-		panic("Received unexpected state type")
+		panic("received unexpected state type")
 	}
 
 	c, err := cid.Decode(op.Cid)
 	if err != nil {
 		// Should never be here
-		panic("Could not decode a CID we ourselves encoded")
+		panic("could not decode a CID we ourselves encoded")
 	}
 
 	ctx, cancel := context.WithCancel(op.ctx)
@@ -116,7 +116,7 @@ type ClusterConsensus struct {
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
 func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState) (*ClusterConsensus, error) {
-	logger.Info("Starting Consensus component")
+	logger.Info("starting Consensus component")
 	ctx := context.Background()
 	rpcCh := make(chan ClusterRPC, RPCMaxQueue)
 	op := &clusterLogOp{
@@ -143,7 +143,7 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	cc.run()
 
 	// FIXME: this is broken.
-	logger.Info("Waiting for Consensus state to catch up")
+	logger.Info("waiting for Consensus state to catch up")
 	time.Sleep(1 * time.Second)
 	start := time.Now()
 	for {
@@ -153,7 +153,7 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 		if lai == li || time.Since(start) > MaxStartupDelay {
 			break
 		}
-		logger.Debugf("Waiting for Raft index: %d/%d", lai, li)
+		logger.Debugf("waiting for Raft index: %d/%d", lai, li)
 	}
 
 	return cc, nil
@@ -183,7 +183,7 @@ func (cc *ClusterConsensus) Shutdown() error {
 		return nil
 	}
 
-	logger.Info("Stopping Consensus component")
+	logger.Info("stopping Consensus component")
 
 	// Cancel any outstanding makeRPCs
 	cc.shutdownCh <- struct{}{}
@@ -242,7 +242,7 @@ func (cc *ClusterConsensus) AddPin(c *cid.Cid) error {
 		// This means the op did not make it to the log
 		return err
 	}
-	logger.Infof("Pin commited to global state: %s", c)
+	logger.Infof("pin commited to global state: %s", c)
 	return nil
 }
 
@@ -254,7 +254,7 @@ func (cc *ClusterConsensus) RmPin(c *cid.Cid) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("Unpin commited to global state: %s", c)
+	logger.Infof("unpin commited to global state: %s", c)
 	return nil
 }
 
@@ -265,7 +265,7 @@ func (cc *ClusterConsensus) State() (ClusterState, error) {
 	}
 	state, ok := st.(ClusterState)
 	if !ok {
-		return nil, errors.New("Wrong state type")
+		return nil, errors.New("wrong state type")
 	}
 	return state, nil
 }

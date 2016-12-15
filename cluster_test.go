@@ -201,7 +201,7 @@ func TestClusterRun(t *testing.T) {
 		select {
 		case <-rpc.ResponseCh():
 		case <-timer.C:
-			t.Errorf("Generic RPC %d was not handled correctly by Cluster", i)
+			t.Errorf("GenericRPC %d was not handled correctly by Cluster", i)
 		}
 	}
 
@@ -223,7 +223,7 @@ func TestClusterRun(t *testing.T) {
 		select {
 		case <-rpc.ResponseCh():
 		case <-timer.C:
-			t.Errorf("Cid RPC %d was not handled correctly by Cluster", i)
+			t.Errorf("CidRPC %d was not handled correctly by Cluster", i)
 		}
 	}
 }
