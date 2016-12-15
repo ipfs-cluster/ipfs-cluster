@@ -76,7 +76,7 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 	}
 }
 
-func TestPin(t *testing.T) {
+func TestIPFSPin(t *testing.T) {
 	ipfs, ts := ipfsConnector(t)
 	defer ts.Close()
 	defer ipfs.Shutdown()
@@ -92,7 +92,7 @@ func TestPin(t *testing.T) {
 	}
 }
 
-func TestUnpin(t *testing.T) {
+func TestIPFSUnpin(t *testing.T) {
 	ipfs, ts := ipfsConnector(t)
 	defer ts.Close()
 	defer ipfs.Shutdown()
@@ -148,10 +148,11 @@ func TestProxy(t *testing.T) {
 	}
 }
 
-func TestShutdown(t *testing.T) {
+func TestIPFSShutdown(t *testing.T) {
 	ipfs, ts := ipfsConnector(t)
 	defer ts.Close()
 	if err := ipfs.Shutdown(); err != nil {
 		t.Error("expected a clean shutdown")
 	}
+	ipfs.Shutdown()
 }

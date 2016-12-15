@@ -32,12 +32,14 @@ type PinStatus int
 type MapPinTracker struct {
 	mux    sync.Mutex
 	status map[string]Pin
-	rpcCh  chan ClusterRPC
 
-	shutdownCh chan struct{}
-	doneCh     chan struct{}
+	ctx   context.Context
+	rpcCh chan ClusterRPC
 
-	ctx context.Context
+	shutdownLock sync.Mutex
+	shutdown     bool
+	shutdownCh   chan struct{}
+	wg           sync.WaitGroup
 }
 
 func NewMapPinTracker() *MapPinTracker {
@@ -45,26 +47,38 @@ func NewMapPinTracker() *MapPinTracker {
 	mpt := &MapPinTracker{
 		status:     make(map[string]Pin),
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
-		shutdownCh: make(chan struct{}),
-		doneCh:     make(chan struct{}),
 		ctx:        ctx,
+		shutdownCh: make(chan struct{}),
 	}
-	go mpt.run()
+	mpt.run()
 	return mpt
 }
 
 func (mpt *MapPinTracker) run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	mpt.ctx = ctx
-	for {
-		select {
-		case <-mpt.shutdownCh:
-			close(mpt.doneCh)
-			return
-		}
+	mpt.wg.Add(1)
+	go func() {
+		defer mpt.wg.Done()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		mpt.ctx = ctx
+		<-mpt.shutdownCh
+	}()
+}
+
+func (mpt *MapPinTracker) Shutdown() error {
+	mpt.shutdownLock.Lock()
+	defer mpt.shutdownLock.Unlock()
+
+	if mpt.shutdown {
+		logger.Debug("already shutdown")
+		return nil
 	}
-	// Great plans for this thread
+
+	logger.Info("Stopping MapPinTracker")
+	mpt.shutdownCh <- struct{}{}
+	mpt.wg.Wait()
+	mpt.shutdown = true
+	return nil
 }
 
 func (mpt *MapPinTracker) set(c *cid.Cid, s PinStatus) error {
@@ -276,13 +290,6 @@ func (mpt *MapPinTracker) SyncState(cState ClusterState) []Pin {
 	}
 	mpt.mux.Unlock()
 	return changed
-}
-
-func (mpt *MapPinTracker) Shutdown() error {
-	logger.Info("Stopping MapPinTracker")
-	close(mpt.shutdownCh)
-	<-mpt.doneCh
-	return nil
 }
 
 func (mpt *MapPinTracker) RpcChan() <-chan ClusterRPC {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
@@ -31,6 +32,11 @@ type Cluster struct {
 	ipfs      IPFSConnector
 	state     ClusterState
 	tracker   PinTracker
+
+	shutdownLock sync.Mutex
+	shutdown     bool
+	shutdownCh   chan struct{}
+	wg           sync.WaitGroup
 }
 
 // NewCluster builds a ready-to-start IPFS Cluster. It takes a ClusterAPI,
@@ -50,19 +56,20 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 	}
 
 	cluster := &Cluster{
-		ctx:       ctx,
-		config:    cfg,
-		host:      host,
-		consensus: consensus,
-		api:       api,
-		ipfs:      ipfs,
-		state:     state,
-		tracker:   tracker,
+		ctx:        ctx,
+		config:     cfg,
+		host:       host,
+		consensus:  consensus,
+		api:        api,
+		ipfs:       ipfs,
+		state:      state,
+		tracker:    tracker,
+		shutdownCh: make(chan struct{}),
 	}
 
 	logger.Info("Starting IPFS Cluster")
 
-	go cluster.run()
+	cluster.run()
 	logger.Info("Performing State synchronization")
 	cluster.Sync()
 	return cluster, nil
@@ -70,6 +77,13 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 
 // Shutdown stops the IPFS cluster components
 func (c *Cluster) Shutdown() error {
+	c.shutdownLock.Lock()
+	defer c.shutdownLock.Unlock()
+	if c.shutdown {
+		logger.Warning("Cluster is already shutdown")
+		return nil
+	}
+
 	logger.Info("Shutting down IPFS Cluster")
 	if err := c.consensus.Shutdown(); err != nil {
 		logger.Errorf("Error stopping consensus: %s", err)
@@ -88,6 +102,8 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("Error stopping PinTracker: %s", err)
 		return err
 	}
+	c.shutdownCh <- struct{}{}
+	c.wg.Wait()
 	return nil
 }
 
@@ -155,42 +171,44 @@ func (c *Cluster) Members() []peer.ID {
 // run reads from the RPC channels of the different components and launches
 // short-lived go-routines to handle any requests.
 func (c *Cluster) run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	c.ctx = ctx
-	ipfsCh := c.ipfs.RpcChan()
-	consensusCh := c.consensus.RpcChan()
-	apiCh := c.api.RpcChan()
-	trackerCh := c.tracker.RpcChan()
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		c.ctx = ctx
+		ipfsCh := c.ipfs.RpcChan()
+		consensusCh := c.consensus.RpcChan()
+		apiCh := c.api.RpcChan()
+		trackerCh := c.tracker.RpcChan()
 
-	var op ClusterRPC
-	for {
-		select {
-		case op = <-ipfsCh:
-			goto HANDLEOP
-		case op = <-consensusCh:
-			goto HANDLEOP
-		case op = <-apiCh:
-			goto HANDLEOP
-		case op = <-trackerCh:
-			goto HANDLEOP
-		case <-c.ctx.Done():
-			logger.Debug("Cluster is Done()")
-			return
+		var op ClusterRPC
+		for {
+			select {
+			case op = <-ipfsCh:
+				goto HANDLEOP
+			case op = <-consensusCh:
+				goto HANDLEOP
+			case op = <-apiCh:
+				goto HANDLEOP
+			case op = <-trackerCh:
+				goto HANDLEOP
+			case <-c.shutdownCh:
+				return
+			}
+		HANDLEOP:
+			switch op.(type) {
+			case *CidClusterRPC:
+				crpc := op.(*CidClusterRPC)
+				go c.handleCidRPC(crpc)
+			case *GenericClusterRPC:
+				grpc := op.(*GenericClusterRPC)
+				go c.handleGenericRPC(grpc)
+			default:
+				logger.Error("unknown ClusterRPC type")
+			}
 		}
-
-	HANDLEOP:
-		switch op.(type) {
-		case *CidClusterRPC:
-			crpc := op.(*CidClusterRPC)
-			go c.handleCidRPC(crpc)
-		case *GenericClusterRPC:
-			grpc := op.(*GenericClusterRPC)
-			go c.handleGenericRPC(grpc)
-		default:
-			logger.Error("unknown ClusterRPC type")
-		}
-	}
+	}()
 }
 
 func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {

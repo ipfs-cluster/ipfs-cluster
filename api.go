@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
+	"sync"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
@@ -26,8 +28,9 @@ type ClusterHTTPAPI struct {
 	listener net.Listener
 	server   *http.Server
 
-	doneCh     chan struct{}
-	shutdownCh chan struct{}
+	shutdownLock sync.Mutex
+	shutdown     bool
+	wg           sync.WaitGroup
 }
 
 type route struct {
@@ -87,8 +90,6 @@ func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
 		listener:   l,
 		server:     s,
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
-		doneCh:     make(chan struct{}),
-		shutdownCh: make(chan struct{}),
 	}
 
 	for _, route := range api.routes() {
@@ -101,7 +102,7 @@ func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
 
 	api.router = router
 	logger.Infof("Starting Cluster API on %s:%d", api.listenAddr, api.listenPort)
-	go api.run()
+	api.run()
 	return api, nil
 }
 
@@ -141,29 +142,37 @@ func (api *ClusterHTTPAPI) routes() []route {
 }
 
 func (api *ClusterHTTPAPI) run() {
+	api.wg.Add(1)
 	go func() {
+		defer api.wg.Done()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		api.ctx = ctx
 		err := api.server.Serve(api.listener)
-		select {
-		case <-api.shutdownCh:
-			close(api.doneCh)
-		default:
-			if err != nil {
-				logger.Error(err)
-			}
+		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+			logger.Error(err)
 		}
 	}()
 }
 
 // Shutdown stops any API listeners.
 func (api *ClusterHTTPAPI) Shutdown() error {
+	api.shutdownLock.Lock()
+	defer api.shutdownLock.Unlock()
+
+	if api.shutdown {
+		logger.Debug("already shutdown")
+		return nil
+	}
+
 	logger.Info("Stopping Cluster API")
-	close(api.shutdownCh)
+
+	// Cancel any outstanding ops
 	api.server.SetKeepAlivesEnabled(false)
 	api.listener.Close()
-	<-api.doneCh
+
+	api.wg.Wait()
+	api.shutdown = true
 	return nil
 }
 

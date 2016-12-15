@@ -75,6 +75,7 @@ func TestAPIShutdown(t *testing.T) {
 	if err != nil {
 		t.Error("should shutdown cleanly: ", err)
 	}
+	api.Shutdown()
 }
 
 func TestVersionEndpoint(t *testing.T) {

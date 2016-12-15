@@ -79,6 +79,7 @@ func testClusterShutdown(t *testing.T) {
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
 	}
+	cl.Shutdown()
 	cl, _, _, _, _ = testingCluster(t)
 	err = cl.Shutdown()
 	if err != nil {

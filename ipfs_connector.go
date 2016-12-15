@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 
 	cid "github.com/ipfs/go-cid"
 )
@@ -35,8 +36,9 @@ type IPFSHTTPConnector struct {
 	listener net.Listener
 	server   *http.Server
 
-	shutdownCh chan struct{}
-	doneCh     chan struct{}
+	shutdownLock sync.Mutex
+	shutdown     bool
+	wg           sync.WaitGroup
 }
 
 type ipfsError struct {
@@ -68,14 +70,12 @@ func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
 		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
 		listener:   l,
 		server:     s,
-		shutdownCh: make(chan struct{}),
-		doneCh:     make(chan struct{}),
 	}
 
 	smux.HandleFunc("/", ipfs.handle)
 
 	logger.Infof("Starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
-	go ipfs.run()
+	ipfs.run()
 	return ipfs, nil
 }
 
@@ -123,18 +123,15 @@ func (ipfs *IPFSHTTPConnector) defaultHandler(w http.ResponseWriter, r *http.Req
 
 func (ipfs *IPFSHTTPConnector) run() {
 	// This launches the proxy
+	ipfs.wg.Add(1)
 	go func() {
+		defer ipfs.wg.Done()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		ipfs.ctx = ctx
 		err := ipfs.server.Serve(ipfs.listener)
-		select {
-		case <-ipfs.shutdownCh:
-			close(ipfs.doneCh)
-		default:
-			if err != nil {
-				logger.Error(err)
-			}
+		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+			logger.Error(err)
 		}
 	}()
 }
@@ -148,11 +145,21 @@ func (ipfs *IPFSHTTPConnector) RpcChan() <-chan ClusterRPC {
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
 func (ipfs *IPFSHTTPConnector) Shutdown() error {
+	ipfs.shutdownLock.Lock()
+	defer ipfs.shutdownLock.Unlock()
+
+	if ipfs.shutdown {
+		logger.Debug("already shutdown")
+		return nil
+	}
+
 	logger.Info("Stopping IPFS Proxy")
-	close(ipfs.shutdownCh)
+
 	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.listener.Close()
-	<-ipfs.doneCh
+
+	ipfs.wg.Wait()
+	ipfs.shutdown = true
 	return nil
 }
 
@@ -266,13 +273,13 @@ func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		var msg string
 		if decodeErr == nil {
-			msg = fmt.Sprintf("IPFS error: %d: %s",
+			msg = fmt.Sprintf("IPFS unsuccessful: %d: %s",
 				resp.StatusCode, ipfsErr.Message)
 		} else {
-			msg = fmt.Sprintf("IPFS error: %d: %s",
+			msg = fmt.Sprintf("IPFS-get unsuccessful: %d: %s",
 				resp.StatusCode, body)
 		}
-		logger.Error(msg)
+		logger.Warning(msg)
 		return body, errors.New(msg)
 	}
 	return body, nil

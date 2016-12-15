@@ -110,6 +110,7 @@ func TestShutdownClusterConsensus(t *testing.T) {
 	if err != nil {
 		t.Fatal("ClusterConsensus cannot shutdown:", err)
 	}
+	cc.Shutdown()
 	cc = testingClusterConsensus(t)
 	err = cc.Shutdown()
 	if err != nil {

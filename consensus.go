@@ -3,6 +3,8 @@ package ipfscluster
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync"
 	"time"
 
 	consensus "github.com/libp2p/go-libp2p-consensus"
@@ -103,6 +105,11 @@ type ClusterConsensus struct {
 	rpcCh     chan ClusterRPC
 
 	p2pRaft *libp2pRaftWrap
+
+	shutdownLock sync.Mutex
+	shutdown     bool
+	shutdownCh   chan struct{}
+	wg           sync.WaitGroup
 }
 
 // NewClusterConsensus builds a new ClusterConsensus component. The state
@@ -124,13 +131,16 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	con.SetActor(actor)
 
 	cc := &ClusterConsensus{
-		ctx:       ctx,
-		consensus: con,
-		baseOp:    op,
-		actor:     actor,
-		rpcCh:     rpcCh,
-		p2pRaft:   wrapper,
+		ctx:        ctx,
+		consensus:  con,
+		baseOp:     op,
+		actor:      actor,
+		rpcCh:      rpcCh,
+		p2pRaft:    wrapper,
+		shutdownCh: make(chan struct{}),
 	}
+
+	cc.run()
 
 	// FIXME: this is broken.
 	logger.Info("Waiting for Consensus state to catch up")
@@ -149,24 +159,64 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	return cc, nil
 }
 
+func (cc *ClusterConsensus) run() {
+	cc.wg.Add(1)
+	go func() {
+		defer cc.wg.Done()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		cc.ctx = ctx
+		cc.baseOp.ctx = ctx
+		<-cc.shutdownCh
+	}()
+}
+
 // Shutdown stops the component so it will not process any
 // more updates. The underlying consensus is permanently
 // shutdown, along with the libp2p transport.
 func (cc *ClusterConsensus) Shutdown() error {
-	logger.Info("Stopping Consensus component")
-	defer cc.p2pRaft.transport.Close()
-	defer cc.p2pRaft.boltdb.Close() // important!
-	// When we take snapshot, we make sure that
-	// we re-start from the previous state, and that
-	// we don't replay the log. This includes
-	// pin and pin certain stuff.
-	f := cc.p2pRaft.raft.Snapshot()
-	_ = f.Error()
-	f = cc.p2pRaft.raft.Shutdown()
-	err := f.Error()
-	if err != nil {
-		return err
+	cc.shutdownLock.Lock()
+	defer cc.shutdownLock.Unlock()
+
+	if cc.shutdown {
+		logger.Debug("already shutdown")
+		return nil
 	}
+
+	logger.Info("Stopping Consensus component")
+
+	// Cancel any outstanding makeRPCs
+	cc.shutdownCh <- struct{}{}
+
+	// Raft shutdown
+	errMsgs := ""
+
+	f := cc.p2pRaft.raft.Snapshot()
+	err := f.Error()
+	if err != nil && !strings.Contains(err.Error(), "Nothing new to snapshot") {
+		errMsgs += "could not take snapshot: " + err.Error() + ".\n"
+	}
+	f = cc.p2pRaft.raft.Shutdown()
+	err = f.Error()
+	if err != nil {
+		errMsgs += "could not shutdown raft: " + err.Error() + ".\n"
+	}
+	err = cc.p2pRaft.transport.Close()
+	if err != nil {
+		errMsgs += "could not close libp2p transport: " + err.Error() + ".\n"
+	}
+	err = cc.p2pRaft.boltdb.Close() // important!
+	if err != nil {
+		errMsgs += "could not close boltdb: " + err.Error() + ".\n"
+	}
+
+	if errMsgs != "" {
+		errMsgs += "Consensus shutdown unsucessful"
+		logger.Error(errMsgs)
+		return errors.New(errMsgs)
+	}
+	cc.wg.Wait()
+	cc.shutdown = true
 	return nil
 }
 

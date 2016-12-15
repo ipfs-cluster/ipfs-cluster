@@ -9,9 +9,10 @@ import (
 // MapState is a very simple database to store
 // the state of the system.
 type MapState struct {
+	mux    sync.RWMutex
 	PinMap map[string]struct{}
-	rpcCh  chan ClusterRPC
-	mux    sync.Mutex
+
+	rpcCh chan ClusterRPC
 }
 
 func NewMapState() *MapState {
@@ -37,8 +38,8 @@ func (st *MapState) RmPin(c *cid.Cid) error {
 }
 
 func (st *MapState) ListPins() []*cid.Cid {
-	st.mux.Lock()
-	defer st.mux.Unlock()
+	st.mux.RLock()
+	defer st.mux.RUnlock()
 	cids := make([]*cid.Cid, 0, len(st.PinMap))
 	for k, _ := range st.PinMap {
 		c, _ := cid.Decode(k)
