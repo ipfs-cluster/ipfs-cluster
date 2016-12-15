@@ -221,6 +221,8 @@ func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 		data = c.Members()
 	case PinListRPC:
 		data = c.tracker.ListPins()
+	case SyncRPC:
+		err = c.Sync()
 	case RollbackRPC:
 		state, ok := grpc.Argument.(ClusterState)
 		if !ok {

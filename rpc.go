@@ -14,6 +14,7 @@ const (
 	MemberListRPC
 	RollbackRPC
 	LeaderRPC
+	SyncRPC
 
 	NoopRPC
 )

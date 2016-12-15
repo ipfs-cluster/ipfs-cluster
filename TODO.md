@@ -2,8 +2,8 @@
 
 Things that need to be done:
 
-* Start up sync fix
-* Allow to shutdown multiple times (+ test)
+* ~~Start up sync fix~~
+* ~~Allow to shutdown multiple times (+ test)~~
 * Efficient SyncAll (use single ipfs pin ls call)
 * LeaderRPC implementation
 * /pin/add /pin/rm hijack

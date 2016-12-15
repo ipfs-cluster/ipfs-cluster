@@ -28,9 +28,12 @@ const (
 
 type clusterLogOpType int
 
-// We will wait for the consensus state to be updated up to this
-// amount of seconds.
-var MaxStartupDelay = 10 * time.Second
+// FirstSyncDelay specifies what is the maximum delay
+// before the we trigger a Sync operation after starting
+// Raft. This is because Raft will need time to sync the global
+// state. If not all the ops have been applied after this
+// delay, at least the pin tracker will have a partial valid state.
+var FirstSyncDelay = 10 * time.Second
 
 // clusterLogOp represents an operation for the OpLogConsensus system.
 // It implements the consensus.Op interface.
@@ -141,21 +144,6 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	}
 
 	cc.run()
-
-	// FIXME: this is broken.
-	logger.Info("waiting for Consensus state to catch up")
-	time.Sleep(1 * time.Second)
-	start := time.Now()
-	for {
-		time.Sleep(500 * time.Millisecond)
-		li := wrapper.raft.LastIndex()
-		lai := wrapper.raft.AppliedIndex()
-		if lai == li || time.Since(start) > MaxStartupDelay {
-			break
-		}
-		logger.Debugf("waiting for Raft index: %d/%d", lai, li)
-	}
-
 	return cc, nil
 }
 
@@ -167,6 +155,36 @@ func (cc *ClusterConsensus) run() {
 		defer cancel()
 		cc.ctx = ctx
 		cc.baseOp.ctx = ctx
+
+		upToDate := make(chan struct{})
+		go func() {
+			logger.Info("consensus state is catching up")
+			time.Sleep(time.Second)
+			for {
+				lai := cc.p2pRaft.raft.AppliedIndex()
+				li := cc.p2pRaft.raft.LastIndex()
+				logger.Infof("current Raft index: %d/%d", lai, li)
+				if lai == li {
+					upToDate <- struct{}{}
+					break
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		}()
+
+		logger.Info("consensus state is catching up")
+		timer := time.NewTimer(FirstSyncDelay)
+		quitLoop := false
+		for !quitLoop {
+			select {
+			case <-timer.C: // Make a first sync
+				MakeRPC(ctx, cc.rpcCh, RPC(SyncRPC, nil), false)
+			case <-upToDate:
+				MakeRPC(ctx, cc.rpcCh, RPC(SyncRPC, nil), false)
+				quitLoop = true
+			}
+		}
+
 		<-cc.shutdownCh
 	}()
 }
