@@ -9,20 +9,20 @@ import (
 	"strings"
 	"sync"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 
 	mux "github.com/gorilla/mux"
 )
 
-// ClusterHTTPAPI implements a ClusterAPI and aims to provides
+// ClusterHTTPAPI implements a API and aims to provides
 // a RESTful HTTP API for Cluster.
 type ClusterHTTPAPI struct {
 	ctx        context.Context
 	listenAddr string
 	listenPort int
-	rpcCh      chan ClusterRPC
+	rpcCh      chan RPC
 	router     *mux.Router
 
 	listener net.Listener
@@ -61,20 +61,20 @@ type unpinResp struct {
 	Unpinned string `json:"unpinned"`
 }
 
-type pinElemResp struct {
+type statusCidResp struct {
 	Cid    string `json:"cid"`
 	Status string `json:"status"`
 }
 
-type pinListResp []pinElemResp
+type statusResp []statusCidResp
 
-// NewHTTPClusterAPI creates a new object which is ready to be
+// NewHTTPAPI creates a new object which is ready to be
 // started.
-func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
+func NewHTTPAPI(cfg *Config) (*ClusterHTTPAPI, error) {
 	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.ClusterAPIListenAddr,
-		cfg.ClusterAPIListenPort))
+		cfg.APIListenAddr,
+		cfg.APIListenPort))
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +85,11 @@ func NewHTTPClusterAPI(cfg *ClusterConfig) (*ClusterHTTPAPI, error) {
 
 	api := &ClusterHTTPAPI{
 		ctx:        ctx,
-		listenAddr: cfg.ClusterAPIListenAddr,
-		listenPort: cfg.ClusterAPIListenPort,
+		listenAddr: cfg.APIListenAddr,
+		listenPort: cfg.APIListenPort,
 		listener:   l,
 		server:     s,
-		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
+		rpcCh:      make(chan RPC, RPCMaxQueue),
 	}
 
 	for _, route := range api.routes() {
@@ -138,6 +138,30 @@ func (api *ClusterHTTPAPI) routes() []route {
 			"/pins/{hash}",
 			api.unpinHandler,
 		},
+		route{
+			"Status",
+			"GET",
+			"/status",
+			api.statusHandler,
+		},
+		route{
+			"StatusCid",
+			"GET",
+			"/status/{hash}",
+			api.statusCidHandler,
+		},
+		route{
+			"Sync",
+			"POST",
+			"/status",
+			api.syncHandler,
+		},
+		route{
+			"SyncCid",
+			"POST",
+			"/status/{hash}",
+			api.syncCidHandler,
+		},
 	}
 }
 
@@ -178,14 +202,14 @@ func (api *ClusterHTTPAPI) Shutdown() error {
 
 // RpcChan can be used by Cluster to read any
 // requests from this component
-func (api *ClusterHTTPAPI) RpcChan() <-chan ClusterRPC {
+func (api *ClusterHTTPAPI) RpcChan() <-chan RPC {
 	return api.rpcCh
 }
 
 func (api *ClusterHTTPAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	rRpc := RPC(VersionRPC, nil)
+	rRpc := NewRPC(VersionRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
 		v := resp.Data.(string)
@@ -196,7 +220,7 @@ func (api *ClusterHTTPAPI) versionHandler(w http.ResponseWriter, r *http.Request
 func (api *ClusterHTTPAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	rRpc := RPC(MemberListRPC, nil)
+	rRpc := NewRPC(MemberListRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
 		data := resp.Data.([]peer.ID)
@@ -211,70 +235,96 @@ func (api *ClusterHTTPAPI) memberListHandler(w http.ResponseWriter, r *http.Requ
 func (api *ClusterHTTPAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	vars := mux.Vars(r)
-	hash := vars["hash"]
-	c, err := cid.Decode(hash)
-	if err != nil {
-		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
-		return
-	}
 
-	rRpc := RPC(PinRPC, c)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-
-	if checkResponse(w, rRpc.Op(), resp) {
-		sendAcceptedResponse(w)
+	if c := parseCidOrError(w, r); c != nil {
+		rRpc := NewRPC(PinRPC, c)
+		resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
+		if checkResponse(w, rRpc.Op(), resp) {
+			sendAcceptedResponse(w)
+		}
 	}
 }
 
 func (api *ClusterHTTPAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	vars := mux.Vars(r)
-	hash := vars["hash"]
-	c, err := cid.Decode(hash)
-	if err != nil {
-		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
-		return
-	}
 
-	rRpc := RPC(UnpinRPC, c)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Op(), resp) {
-		sendAcceptedResponse(w)
+	if c := parseCidOrError(w, r); c != nil {
+		rRpc := NewRPC(UnpinRPC, c)
+		resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
+		if checkResponse(w, rRpc.Op(), resp) {
+			sendAcceptedResponse(w)
+		}
 	}
 }
 
 func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	rRpc := RPC(PinListRPC, nil)
+	rRpc := NewRPC(PinListRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
-		data := resp.Data.([]Pin)
-		pins := make(pinListResp, 0, len(data))
-		for _, d := range data {
-			var st string
-			switch d.Status {
-			case PinError:
-				st = "pin_error"
-			case UnpinError:
-				st = "unpin_error"
-			case Pinned:
-				st = "pinned"
-			case Pinning:
-				st = "pinning"
-			case Unpinning:
-				st = "unpinning"
-			}
-			pins = append(pins, pinElemResp{
-				Cid:    d.Cid.String(),
-				Status: st,
-			})
-		}
-		sendJSONResponse(w, 200, pins)
+		data := resp.Data.([]*cid.Cid)
+		sendJSONResponse(w, 200, data)
 	}
 
+}
+
+func (api *ClusterHTTPAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(api.ctx)
+	defer cancel()
+	rRpc := NewRPC(StatusRPC, nil)
+	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
+	if checkResponse(w, rRpc.Op(), resp) {
+		sendStatusResponse(w, resp)
+	}
+}
+
+func (api *ClusterHTTPAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(api.ctx)
+	defer cancel()
+
+	if c := parseCidOrError(w, r); c != nil {
+		op := NewRPC(StatusCidRPC, c)
+		resp := MakeRPC(ctx, api.rpcCh, op, true)
+		if checkResponse(w, op.Op(), resp) {
+			sendStatusCidResponse(w, resp)
+		}
+	}
+}
+
+func (api *ClusterHTTPAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(api.ctx)
+	defer cancel()
+	rRpc := NewRPC(GlobalSyncRPC, nil)
+	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
+	if checkResponse(w, rRpc.Op(), resp) {
+		sendStatusResponse(w, resp)
+	}
+}
+
+func (api *ClusterHTTPAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(api.ctx)
+	defer cancel()
+
+	if c := parseCidOrError(w, r); c != nil {
+		op := NewRPC(GlobalSyncCidRPC, c)
+		resp := MakeRPC(ctx, api.rpcCh, op, true)
+		if checkResponse(w, op.Op(), resp) {
+			sendStatusCidResponse(w, resp)
+		}
+	}
+}
+
+func parseCidOrError(w http.ResponseWriter, r *http.Request) *cid.Cid {
+	vars := mux.Vars(r)
+	hash := vars["hash"]
+	c, err := cid.Decode(hash)
+	if err != nil {
+		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
+		return nil
+	}
+	return c
 }
 
 // checkResponse does basic checking on an RPCResponse. It takes care of
@@ -293,8 +343,12 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 	switch op {
 	case PinRPC: // Pin/Unpin only return errors
 	case UnpinRPC:
-	case PinListRPC:
+	case StatusRPC, LocalSyncRPC, GlobalSyncRPC:
 		_, ok = resp.Data.([]Pin)
+	case StatusCidRPC, LocalSyncCidRPC, GlobalSyncCidRPC:
+		_, ok = resp.Data.(Pin)
+	case PinListRPC:
+		_, ok = resp.Data.([]*cid.Cid)
 	case IPFSPinRPC:
 	case IPFSUnpinRPC:
 	case VersionRPC:
@@ -333,4 +387,25 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 	errorResp := errorResp{code, msg}
 	logger.Errorf("sending error response: %d: %s", code, msg)
 	sendJSONResponse(w, code, errorResp)
+}
+
+func sendStatusResponse(w http.ResponseWriter, resp RPCResponse) {
+	data := resp.Data.([]Pin)
+	pins := make(statusResp, 0, len(data))
+	for _, d := range data {
+		pins = append(pins, statusCidResp{
+			Cid:    d.Cid.String(),
+			Status: d.Status.String(),
+		})
+	}
+	sendJSONResponse(w, 200, pins)
+}
+
+func sendStatusCidResponse(w http.ResponseWriter, resp RPCResponse) {
+	data := resp.Data.(Pin)
+	pin := statusCidResp{
+		Cid:    data.Cid.String(),
+		Status: data.Status.String(),
+	}
+	sendJSONResponse(w, 200, pin)
 }

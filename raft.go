@@ -3,10 +3,10 @@ package ipfscluster
 import (
 	"path/filepath"
 
-	host "github.com/libp2p/go-libp2p-host"
-	libp2praft "github.com/libp2p/go-libp2p-raft"
+	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
+	libp2praft "gx/ipfs/QmaofA6ApgPQm8yRojC77dQbVUatYMihdyQjB7VsAqrks1/go-libp2p-raft"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
 
 	hashiraft "github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -26,7 +26,7 @@ type libp2pRaftWrap struct {
 
 // This function does all heavy the work which is specifically related to
 // hashicorp's Raft. Other places should just rely on the Consensus interface.
-func makeLibp2pRaft(cfg *ClusterConfig, host host.Host, state ClusterState, op *clusterLogOp) (*libp2praft.Consensus, *libp2praft.Actor, *libp2pRaftWrap, error) {
+func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) (*libp2praft.Consensus, *libp2praft.Actor, *libp2pRaftWrap, error) {
 	logger.Debug("creating libp2p Raft transport")
 	transport, err := libp2praft.NewLibp2pTransportWithHost(host)
 	if err != nil {

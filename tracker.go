@@ -3,12 +3,21 @@ package ipfscluster
 import (
 	"context"
 	"sync"
+	"time"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 const (
 	pinEverywhere = -1
+)
+
+// A Pin or Unpin operation will be considered failed
+// if the Cid has stayed in Pinning or Unpinning state
+// for longer than these values.
+var (
+	PinningTimeout   = 15 * time.Minute
+	UnpinningTimeout = 10 * time.Second
 )
 
 const (
@@ -24,17 +33,36 @@ type Pin struct {
 	Cid     *cid.Cid
 	PinMode PinMode
 	Status  PinStatus
+	TS      time.Time
 }
 
 type PinMode int
 type PinStatus int
+
+func (st PinStatus) String() string {
+	switch st {
+	case PinError:
+		return "pin_error"
+	case UnpinError:
+		return "unpin_error"
+	case Pinned:
+		return "pinned"
+	case Pinning:
+		return "pinning"
+	case Unpinning:
+		return "unpinning"
+	case Unpinned:
+		return "unpinned"
+	}
+	return ""
+}
 
 type MapPinTracker struct {
 	mux    sync.Mutex
 	status map[string]Pin
 
 	ctx   context.Context
-	rpcCh chan ClusterRPC
+	rpcCh chan RPC
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -46,7 +74,7 @@ func NewMapPinTracker() *MapPinTracker {
 	ctx := context.Background()
 	mpt := &MapPinTracker{
 		status:     make(map[string]Pin),
-		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
+		rpcCh:      make(chan RPC, RPCMaxQueue),
 		ctx:        ctx,
 		shutdownCh: make(chan struct{}),
 	}
@@ -94,6 +122,7 @@ func (mpt *MapPinTracker) set(c *cid.Cid, s PinStatus) error {
 		Cid:     c,
 		PinMode: pinEverywhere,
 		Status:  s,
+		TS:      time.Now(),
 	}
 	return nil
 }
@@ -160,7 +189,7 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 		return true
 	}
 
-	resp := MakeRPC(ctx, mpt.rpcCh, RPC(IPFSIsPinnedRPC, c), true)
+	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSIsPinnedRPC, c), true)
 	if resp.Error != nil {
 		if p.Status == Pinned || p.Status == Pinning {
 			mpt.set(c, PinError)
@@ -186,8 +215,11 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 			mpt.set(c, Pinned)
 			return true
 		case Unpinning:
-			mpt.set(c, UnpinError) // Not sure here
-			return true
+			if time.Since(p.TS) > UnpinningTimeout {
+				mpt.set(c, UnpinError)
+				return true
+			}
+			return false
 		case Unpinned:
 			mpt.set(c, UnpinError)
 			return true
@@ -198,8 +230,11 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 			mpt.set(c, PinError)
 			return true
 		case Pinning:
-			mpt.set(c, PinError)
-			return true
+			if time.Since(p.TS) > PinningTimeout {
+				mpt.set(c, PinError)
+				return true
+			}
+			return false
 		case Unpinning:
 			mpt.set(c, Unpinned)
 			return true
@@ -219,10 +254,10 @@ func (mpt *MapPinTracker) Recover(c *cid.Cid) error {
 	ctx, cancel := context.WithCancel(mpt.ctx)
 	defer cancel()
 	if p.Status == PinError {
-		MakeRPC(ctx, mpt.rpcCh, RPC(IPFSPinRPC, c), false)
+		MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSPinRPC, c), false)
 	}
 	if p.Status == UnpinError {
-		MakeRPC(ctx, mpt.rpcCh, RPC(IPFSUnpinRPC, c), false)
+		MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSUnpinRPC, c), false)
 	}
 	return nil
 }
@@ -239,7 +274,7 @@ func (mpt *MapPinTracker) SyncAll() []Pin {
 	return changedPins
 }
 
-func (mpt *MapPinTracker) SyncState(cState ClusterState) []Pin {
+func (mpt *MapPinTracker) SyncState(cState State) []Pin {
 	clusterPins := cState.ListPins()
 	clusterMap := make(map[string]struct{})
 	// Make a map for faster lookup
@@ -252,7 +287,7 @@ func (mpt *MapPinTracker) SyncState(cState ClusterState) []Pin {
 	var changed []Pin
 	mpt.mux.Lock()
 
-	// Collect items in the ClusterState not in the tracker
+	// Collect items in the State not in the tracker
 	for _, c := range clusterPins {
 		_, ok := mpt.status[c.String()]
 		if !ok {
@@ -260,7 +295,7 @@ func (mpt *MapPinTracker) SyncState(cState ClusterState) []Pin {
 		}
 	}
 
-	// Collect items in the tracker not in the ClusterState
+	// Collect items in the tracker not in the State
 	for _, p := range mpt.status {
 		_, ok := clusterMap[p.Cid.String()]
 		if !ok {
@@ -293,6 +328,6 @@ func (mpt *MapPinTracker) SyncState(cState ClusterState) []Pin {
 	return changed
 }
 
-func (mpt *MapPinTracker) RpcChan() <-chan ClusterRPC {
+func (mpt *MapPinTracker) RpcChan() <-chan RPC {
 	return mpt.rpcCh
 }

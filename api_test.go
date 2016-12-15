@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 func testClusterApi(t *testing.T) *ClusterHTTPAPI {
 	//logging.SetDebugLogging()
 	cfg := testingConfig()
-	api, err := NewHTTPClusterAPI(cfg)
+	api, err := NewHTTPAPI(cfg)
 	// No keep alive! Otherwise tests hang with
 	// connections re-used from previous tests
 	api.server.SetKeepAlivesEnabled(false)
@@ -171,6 +171,24 @@ func TestPinListEndpoint(t *testing.T) {
 	c3, _ := cid.Decode(testCid3)
 	api := testClusterApi(t)
 	defer api.Shutdown()
+	pList := []*cid.Cid{
+		c, c2, c3, c, c2,
+	}
+
+	simulateAnswer(api.RpcChan(), pList, nil)
+	var resp []*cid.Cid
+	makeGet(t, "/pins", &resp)
+	if len(resp) != 5 {
+		t.Error("unexpected pin list: ", resp)
+	}
+}
+
+func TestStatusEndpoint(t *testing.T) {
+	c, _ := cid.Decode(testCid)
+	c2, _ := cid.Decode(testCid2)
+	c3, _ := cid.Decode(testCid3)
+	api := testClusterApi(t)
+	defer api.Shutdown()
 	pList := []Pin{
 		Pin{
 			Status: PinError,
@@ -195,9 +213,9 @@ func TestPinListEndpoint(t *testing.T) {
 	}
 
 	simulateAnswer(api.RpcChan(), pList, nil)
-	var resp pinListResp
-	makeGet(t, "/pins", &resp)
+	var resp statusResp
+	makeGet(t, "/status", &resp)
 	if len(resp) != 5 {
-		t.Error("unexpected pinListResp: ", resp)
+		t.Error("unexpected statusResp: ", resp)
 	}
 }

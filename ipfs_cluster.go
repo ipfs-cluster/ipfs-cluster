@@ -12,9 +12,9 @@ import (
 	"errors"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
 )
 
 var logger = logging.Logger("ipfs-cluster")
@@ -22,28 +22,28 @@ var logger = logging.Logger("ipfs-cluster")
 // Current Cluster version.
 const Version = "0.0.1"
 
-// RPCMaxQueue can be used to set the size of the ClusterRPC channels,
+// RPCMaxQueue can be used to set the size of the RPC channels,
 // which will start blocking on send after reaching this number.
 var RPCMaxQueue = 128
 
 // MakeRPCRetryInterval specifies how long to wait before retrying
-// to put a ClusterRPC request in the channel in MakeRPC().
+// to put a RPC request in the channel in MakeRPC().
 var MakeRPCRetryInterval time.Duration = 1 * time.Second
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They
-// communicate with Cluster via a channel carrying ClusterRPC operations.
+// communicate with Cluster via a channel carrying RPC operations.
 // These operations request tasks from other components. This way all components
 // are independent from each other and can be swapped as long as they maintain
 // RPC compatibility with Cluster.
 type ClusterComponent interface {
 	Shutdown() error
-	RpcChan() <-chan ClusterRPC
+	RpcChan() <-chan RPC
 }
 
-// ClusterAPI is a component which offers an API for Cluster. This is
+// API is a component which offers an API for Cluster. This is
 // a base component.
-type ClusterAPI interface {
+type API interface {
 	ClusterComponent
 }
 
@@ -64,13 +64,13 @@ type Peered interface {
 	SetPeers(peers []peer.ID)
 }
 
-// ClusterState represents the shared state of the cluster and it
-// is used by the ClusterConsensus component to keep track of
+// State represents the shared state of the cluster and it
+// is used by the Consensus component to keep track of
 // objects which objects are pinned. This component should be thread safe.
-type ClusterState interface {
-	// AddPin adds a pin to the ClusterState
+type State interface {
+	// AddPin adds a pin to the State
 	AddPin(*cid.Cid) error
-	// RmPin removes a pin from the ClusterState
+	// RmPin removes a pin from the State
 	RmPin(*cid.Cid) error
 	// ListPins lists all the pins in the state
 	ListPins() []*cid.Cid
@@ -107,17 +107,17 @@ type PinTracker interface {
 	SyncAll() []Pin
 	// SyncState makes sure that the tracked Pins matches those in the
 	// cluster state and runs SyncAll(). It returns a list of changed Pins.
-	SyncState(ClusterState) []Pin
+	SyncState(State) []Pin
 }
 
-// MakeRPC sends a ClusterRPC object over a channel and optionally waits for a
-// Response on the ClusterRPC.ResponseCh channel. It can be used by any
+// MakeRPC sends a RPC object over a channel and optionally waits for a
+// Response on the RPC.ResponseCh channel. It can be used by any
 // ClusterComponent to simplify making RPC requests to Cluster.
 // The ctx parameter must be a cancellable context, and can be used to
 // timeout requests.
-// If the message cannot be placed in the ClusterRPC channel, retries will be
+// If the message cannot be placed in the RPC channel, retries will be
 // issued every MakeRPCRetryInterval.
-func MakeRPC(ctx context.Context, rpcCh chan ClusterRPC, r ClusterRPC, waitForResponse bool) RPCResponse {
+func MakeRPC(ctx context.Context, rpcCh chan RPC, r RPC, waitForResponse bool) RPCResponse {
 	logger.Debugf("sending RPC %d", r.Op())
 	exitLoop := false
 	for !exitLoop {

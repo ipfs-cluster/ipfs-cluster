@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	consensus "github.com/libp2p/go-libp2p-consensus"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	libp2praft "github.com/libp2p/go-libp2p-raft"
+	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
+	consensus "gx/ipfs/QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt/go-libp2p-consensus"
+	libp2praft "gx/ipfs/QmaofA6ApgPQm8yRojC77dQbVUatYMihdyQjB7VsAqrks1/go-libp2p-raft"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 const (
@@ -41,12 +41,12 @@ type clusterLogOp struct {
 	Cid   string
 	Type  clusterLogOpType
 	ctx   context.Context
-	rpcCh chan ClusterRPC
+	rpcCh chan RPC
 }
 
-// ApplyTo applies the operation to the ClusterState
+// ApplyTo applies the operation to the State
 func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
-	state, ok := cstate.(ClusterState)
+	state, ok := cstate.(State)
 	var err error
 	if !ok {
 		// Should never be here
@@ -69,14 +69,14 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		MakeRPC(ctx, op.rpcCh, RPC(IPFSPinRPC, c), false)
+		MakeRPC(ctx, op.rpcCh, NewRPC(IPFSPinRPC, c), false)
 	case LogOpUnpin:
 		err := state.RmPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		MakeRPC(ctx, op.rpcCh, RPC(IPFSUnpinRPC, c), false)
+		MakeRPC(ctx, op.rpcCh, NewRPC(IPFSUnpinRPC, c), false)
 	default:
 		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
@@ -87,8 +87,8 @@ ROLLBACK:
 	// and therefore we need to request a rollback to the
 	// cluster to the previous state. This operation can only be performed
 	// by the cluster leader.
-	rllbckRPC := RPC(RollbackRPC, state)
-	leadrRPC := RPC(LeaderRPC, rllbckRPC)
+	rllbckRPC := NewRPC(RollbackRPC, state)
+	leadrRPC := NewRPC(LeaderRPC, rllbckRPC)
 	MakeRPC(ctx, op.rpcCh, leadrRPC, false)
 	logger.Errorf("an error ocurred when applying Op to state: %s", err)
 	logger.Error("a rollback was requested")
@@ -96,16 +96,16 @@ ROLLBACK:
 	return nil, errors.New("a rollback was requested. Reason: " + err.Error())
 }
 
-// ClusterConsensus handles the work of keeping a shared-state between
+// Consensus handles the work of keeping a shared-state between
 // the members of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
-type ClusterConsensus struct {
+type Consensus struct {
 	ctx context.Context
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
 	baseOp    *clusterLogOp
-	rpcCh     chan ClusterRPC
+	rpcCh     chan RPC
 
 	p2pRaft *libp2pRaftWrap
 
@@ -115,13 +115,13 @@ type ClusterConsensus struct {
 	wg           sync.WaitGroup
 }
 
-// NewClusterConsensus builds a new ClusterConsensus component. The state
+// NewConsensus builds a new ClusterConsensus component. The state
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
-func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState) (*ClusterConsensus, error) {
+func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) {
 	logger.Info("starting Consensus component")
 	ctx := context.Background()
-	rpcCh := make(chan ClusterRPC, RPCMaxQueue)
+	rpcCh := make(chan RPC, RPCMaxQueue)
 	op := &clusterLogOp{
 		ctx:   context.Background(),
 		rpcCh: rpcCh,
@@ -133,7 +133,7 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 
 	con.SetActor(actor)
 
-	cc := &ClusterConsensus{
+	cc := &Consensus{
 		ctx:        ctx,
 		consensus:  con,
 		baseOp:     op,
@@ -147,7 +147,7 @@ func NewClusterConsensus(cfg *ClusterConfig, host host.Host, state ClusterState)
 	return cc, nil
 }
 
-func (cc *ClusterConsensus) run() {
+func (cc *Consensus) run() {
 	cc.wg.Add(1)
 	go func() {
 		defer cc.wg.Done()
@@ -178,9 +178,9 @@ func (cc *ClusterConsensus) run() {
 		for !quitLoop {
 			select {
 			case <-timer.C: // Make a first sync
-				MakeRPC(ctx, cc.rpcCh, RPC(SyncRPC, nil), false)
+				MakeRPC(ctx, cc.rpcCh, NewRPC(LocalSyncRPC, nil), false)
 			case <-upToDate:
-				MakeRPC(ctx, cc.rpcCh, RPC(SyncRPC, nil), false)
+				MakeRPC(ctx, cc.rpcCh, NewRPC(LocalSyncRPC, nil), false)
 				quitLoop = true
 			}
 		}
@@ -192,7 +192,7 @@ func (cc *ClusterConsensus) run() {
 // Shutdown stops the component so it will not process any
 // more updates. The underlying consensus is permanently
 // shutdown, along with the libp2p transport.
-func (cc *ClusterConsensus) Shutdown() error {
+func (cc *Consensus) Shutdown() error {
 	cc.shutdownLock.Lock()
 	defer cc.shutdownLock.Unlock()
 
@@ -240,11 +240,11 @@ func (cc *ClusterConsensus) Shutdown() error {
 
 // RpcChan can be used by Cluster to read any
 // requests from this component
-func (cc *ClusterConsensus) RpcChan() <-chan ClusterRPC {
+func (cc *Consensus) RpcChan() <-chan RPC {
 	return cc.rpcCh
 }
 
-func (cc *ClusterConsensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
+func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 	return &clusterLogOp{
 		Cid:  c.String(),
 		Type: t,
@@ -252,7 +252,7 @@ func (cc *ClusterConsensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 }
 
 // AddPin submits a Cid to the shared state of the cluster.
-func (cc *ClusterConsensus) AddPin(c *cid.Cid) error {
+func (cc *Consensus) AddPin(c *cid.Cid) error {
 	// Create pin operation for the log
 	op := cc.op(c, LogOpPin)
 	_, err := cc.consensus.CommitOp(op)
@@ -265,7 +265,7 @@ func (cc *ClusterConsensus) AddPin(c *cid.Cid) error {
 }
 
 // RmPin removes a Cid from the shared state of the cluster.
-func (cc *ClusterConsensus) RmPin(c *cid.Cid) error {
+func (cc *Consensus) RmPin(c *cid.Cid) error {
 	// Create  unpin operation for the log
 	op := cc.op(c, LogOpUnpin)
 	_, err := cc.consensus.CommitOp(op)
@@ -276,12 +276,12 @@ func (cc *ClusterConsensus) RmPin(c *cid.Cid) error {
 	return nil
 }
 
-func (cc *ClusterConsensus) State() (ClusterState, error) {
+func (cc *Consensus) State() (State, error) {
 	st, err := cc.consensus.GetLogHead()
 	if err != nil {
 		return nil, err
 	}
-	state, ok := st.(ClusterState)
+	state, ok := st.(State)
 	if !ok {
 		return nil, errors.New("wrong state type")
 	}
@@ -290,13 +290,13 @@ func (cc *ClusterConsensus) State() (ClusterState, error) {
 
 // Leader() returns the peerID of the Leader of the
 // cluster.
-func (cc *ClusterConsensus) Leader() peer.ID {
+func (cc *Consensus) Leader() peer.ID {
 	// FIXME: Hashicorp Raft specific
 	raftactor := cc.actor.(*libp2praft.Actor)
 	return raftactor.Leader()
 }
 
 // TODO
-func (cc *ClusterConsensus) Rollback(state ClusterState) error {
+func (cc *Consensus) Rollback(state State) error {
 	return cc.consensus.Rollback(state)
 }

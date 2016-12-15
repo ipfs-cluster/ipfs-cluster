@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
 )
 
 var (
@@ -17,8 +17,8 @@ var (
 )
 
 func TestMakeRPC(t *testing.T) {
-	testCh := make(chan ClusterRPC, 1)
-	testReq := RPC(MemberListRPC, nil)
+	testCh := make(chan RPC, 1)
+	testReq := NewRPC(MemberListRPC, nil)
 	testResp := RPCResponse{
 		Data:  "hey",
 		Error: nil,
@@ -60,7 +60,7 @@ func TestMakeRPC(t *testing.T) {
 
 	// Test cancelled while waiting for response context
 	ctx, cancel = context.WithCancel(context.Background())
-	testCh = make(chan ClusterRPC, 1)
+	testCh = make(chan RPC, 1)
 	go func() {
 		resp := MakeRPC(ctx, testCh, testReq, true)
 		if resp.Error == nil || !strings.Contains(resp.Error.Error(), "timed out") {
@@ -72,7 +72,7 @@ func TestMakeRPC(t *testing.T) {
 	time.Sleep(1 * time.Second)
 }
 
-func simulateAnswer(ch <-chan ClusterRPC, answer interface{}, err error) {
+func simulateAnswer(ch <-chan RPC, answer interface{}, err error) {
 	go func() {
 		req := <-ch
 		req.ResponseCh() <- RPCResponse{

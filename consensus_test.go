@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 func TestApplyToPin(t *testing.T) {
@@ -14,7 +14,7 @@ func TestApplyToPin(t *testing.T) {
 		Cid:   testCid,
 		Type:  LogOpPin,
 		ctx:   context.Background(),
-		rpcCh: make(chan ClusterRPC, 1),
+		rpcCh: make(chan RPC, 1),
 	}
 
 	st := NewMapState()
@@ -30,7 +30,7 @@ func TestApplyToUnpin(t *testing.T) {
 		Cid:   testCid,
 		Type:  LogOpUnpin,
 		ctx:   context.Background(),
-		rpcCh: make(chan ClusterRPC, 1),
+		rpcCh: make(chan RPC, 1),
 	}
 
 	st := NewMapState()
@@ -54,7 +54,7 @@ func TestApplyToBadState(t *testing.T) {
 		Cid:   testCid,
 		Type:  LogOpUnpin,
 		ctx:   context.Background(),
-		rpcCh: make(chan ClusterRPC, 1),
+		rpcCh: make(chan RPC, 1),
 	}
 
 	var st interface{}
@@ -72,7 +72,7 @@ func TestApplyToBadCid(t *testing.T) {
 		Cid:   "agadfaegf",
 		Type:  LogOpPin,
 		ctx:   context.Background(),
-		rpcCh: make(chan ClusterRPC, 1),
+		rpcCh: make(chan RPC, 1),
 	}
 
 	st := NewMapState()
@@ -83,7 +83,7 @@ func cleanRaft() {
 	os.RemoveAll(testingConfig().RaftFolder)
 }
 
-func testingClusterConsensus(t *testing.T) *ClusterConsensus {
+func testingConsensus(t *testing.T) *Consensus {
 	//logging.SetDebugLogging()
 	cfg := testingConfig()
 	ctx := context.Background()
@@ -92,34 +92,34 @@ func testingClusterConsensus(t *testing.T) *ClusterConsensus {
 		t.Fatal("cannot create host:", err)
 	}
 	st := NewMapState()
-	cc, err := NewClusterConsensus(cfg, h, st)
+	cc, err := NewConsensus(cfg, h, st)
 	if err != nil {
-		t.Fatal("cannot create ClusterConsensus:", err)
+		t.Fatal("cannot create Consensus:", err)
 	}
 	// Oxygen for Raft to declare leader
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	return cc
 }
 
-func TestShutdownClusterConsensus(t *testing.T) {
+func TestShutdownConsensus(t *testing.T) {
 	// Bring it up twice to make sure shutdown cleans up properly
 	// but also to make sure raft comes up ok when re-initialized
 	defer cleanRaft()
-	cc := testingClusterConsensus(t)
+	cc := testingConsensus(t)
 	err := cc.Shutdown()
 	if err != nil {
-		t.Fatal("ClusterConsensus cannot shutdown:", err)
+		t.Fatal("Consensus cannot shutdown:", err)
 	}
 	cc.Shutdown()
-	cc = testingClusterConsensus(t)
+	cc = testingConsensus(t)
 	err = cc.Shutdown()
 	if err != nil {
-		t.Fatal("ClusterConsensus cannot shutdown:", err)
+		t.Fatal("Consensus cannot shutdown:", err)
 	}
 }
 
 func TestConsensusPin(t *testing.T) {
-	cc := testingClusterConsensus(t)
+	cc := testingConsensus(t)
 	defer cleanRaft() // Remember defer runs in LIFO order
 	defer cc.Shutdown()
 
@@ -132,7 +132,7 @@ func TestConsensusPin(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 	st, err := cc.State()
 	if err != nil {
-		t.Error("error getting state:", err)
+		t.Fatal("error getting state:", err)
 	}
 
 	pins := st.ListPins()
@@ -142,7 +142,7 @@ func TestConsensusPin(t *testing.T) {
 }
 
 func TestConsensusUnpin(t *testing.T) {
-	cc := testingClusterConsensus(t)
+	cc := testingConsensus(t)
 	defer cleanRaft()
 	defer cc.Shutdown()
 
@@ -154,7 +154,7 @@ func TestConsensusUnpin(t *testing.T) {
 }
 
 func TestConsensusLeader(t *testing.T) {
-	cc := testingClusterConsensus(t)
+	cc := testingConsensus(t)
 	cfg := testingConfig()
 	pId := cfg.ID
 	defer cleanRaft()

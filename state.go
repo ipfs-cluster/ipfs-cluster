@@ -3,7 +3,7 @@ package ipfscluster
 import (
 	"sync"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 // MapState is a very simple database to store
@@ -12,13 +12,13 @@ type MapState struct {
 	mux    sync.RWMutex
 	PinMap map[string]struct{}
 
-	rpcCh chan ClusterRPC
+	rpcCh chan RPC
 }
 
 func NewMapState() *MapState {
 	return &MapState{
 		PinMap: make(map[string]struct{}),
-		rpcCh:  make(chan ClusterRPC),
+		rpcCh:  make(chan RPC),
 	}
 }
 

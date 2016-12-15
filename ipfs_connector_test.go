@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 func testServer(t *testing.T) *httptest.Server {
@@ -43,7 +43,7 @@ func testServer(t *testing.T) *httptest.Server {
 	return ts
 }
 
-func testIPFSConnectorConfig(ts *httptest.Server) *ClusterConfig {
+func testIPFSConnectorConfig(ts *httptest.Server) *Config {
 	url, _ := url.Parse(ts.URL)
 	h := strings.Split(url.Host, ":")
 	i, _ := strconv.Atoi(h[1])

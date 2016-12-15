@@ -7,7 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	logging "github.com/ipfs/go-log"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 )
@@ -26,7 +26,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	api, err := ipfscluster.NewHTTPClusterAPI(clusterCfg)
+	api, err := ipfscluster.NewHTTPAPI(clusterCfg)
 	if err != nil {
 		fmt.Println(err)
 		return

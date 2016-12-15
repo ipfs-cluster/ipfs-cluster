@@ -1,8 +1,8 @@
 package ipfscluster
 
-import cid "github.com/ipfs/go-cid"
+import cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 
-// ClusterRPC supported operations.
+// RPC supported operations.
 const (
 	PinRPC = iota
 	UnpinRPC
@@ -14,7 +14,12 @@ const (
 	MemberListRPC
 	RollbackRPC
 	LeaderRPC
-	SyncRPC
+	LocalSyncRPC
+	LocalSyncCidRPC
+	GlobalSyncRPC
+	GlobalSyncCidRPC
+	StatusRPC
+	StatusCidRPC
 
 	NoopRPC
 )
@@ -22,14 +27,14 @@ const (
 // RPCMethod identifies which RPC supported operation we are trying to make
 type RPCOp int
 
-// ClusterRPC represents an internal RPC operation. It should be implemented
+// RPC represents an internal RPC operation. It should be implemented
 // by all RPC types.
-type ClusterRPC interface {
+type RPC interface {
 	Op() RPCOp
 	ResponseCh() chan RPCResponse
 }
 
-// baseRPC implements ClusterRPC and can be included as anonymous
+// baseRPC implements RPC and can be included as anonymous
 // field in other types.
 type baseRPC struct {
 	method     RPCOp
@@ -47,39 +52,40 @@ func (brpc *baseRPC) ResponseCh() chan RPCResponse {
 	return brpc.responseCh
 }
 
-// GenericClusterRPC is a ClusterRPC with generic arguments.
-type GenericClusterRPC struct {
+// GenericRPC is a ClusterRPC with generic arguments.
+type GenericRPC struct {
 	baseRPC
 	Argument interface{}
 }
 
-// CidClusterRPC is a ClusterRPC whose only argument is a CID.
-type CidClusterRPC struct {
+// CidRPC is a ClusterRPC whose only argument is a CID.
+type CidRPC struct {
 	baseRPC
 	CID *cid.Cid
 }
 
-// RPC builds a ClusterRPC request. It will create a
-// CidClusterRPC if the arg is of type cid.Cid. Otherwise,
-// a GenericClusterRPC is returned.
-func RPC(m RPCOp, arg interface{}) ClusterRPC {
-	c, ok := arg.(*cid.Cid)
-	if ok { // Its a CID
-		r := new(CidClusterRPC)
+// RPC builds a RPC request. It will create a
+// CidRPC if the arg is of type cid.Cid. Otherwise,
+// a GenericRPC is returned.
+func NewRPC(m RPCOp, arg interface{}) RPC {
+	switch arg.(type) {
+	case *cid.Cid:
+		c := arg.(*cid.Cid)
+		r := new(CidRPC)
 		r.method = m
 		r.CID = c
 		r.responseCh = make(chan RPCResponse)
 		return r
+	default:
+		r := new(GenericRPC)
+		r.method = m
+		r.Argument = arg
+		r.responseCh = make(chan RPCResponse)
+		return r
 	}
-	// Its not a cid, make a generic
-	r := new(GenericClusterRPC)
-	r.method = m
-	r.Argument = arg
-	r.responseCh = make(chan RPCResponse)
-	return r
 }
 
-// RPCResponse carries the result of a ClusterRPC requested operation and/or
+// RPCResponse carries the result of a RPC requested operation and/or
 // an error to indicate if the operation was successful.
 type RPCResponse struct {
 	Data  interface{}

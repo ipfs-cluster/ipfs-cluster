@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 type mockComponent struct {
-	rpcCh       chan ClusterRPC
+	rpcCh       chan RPC
 	returnError bool
 }
 
@@ -17,7 +17,7 @@ func (c *mockComponent) Shutdown() error {
 	return nil
 }
 
-func (c *mockComponent) RpcChan() <-chan ClusterRPC {
+func (c *mockComponent) RpcChan() <-chan RPC {
 	return c.rpcCh
 }
 
@@ -52,9 +52,9 @@ func (ipfs *mockConnector) IsPinned(c *cid.Cid) (bool, error) {
 
 func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState, *MapPinTracker) {
 	api := &mockApi{}
-	api.rpcCh = make(chan ClusterRPC, 2)
+	api.rpcCh = make(chan RPC, 2)
 	ipfs := &mockConnector{}
-	ipfs.rpcCh = make(chan ClusterRPC, 2)
+	ipfs.rpcCh = make(chan RPC, 2)
 	cfg := testingConfig()
 	st := NewMapState()
 	tracker := NewMapPinTracker()
@@ -87,11 +87,11 @@ func testClusterShutdown(t *testing.T) {
 	}
 }
 
-func TestClusterSync(t *testing.T) {
+func TestClusterLocalSync(t *testing.T) {
 	cl, _, _, st, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
-	err := cl.Sync()
+	_, err := cl.LocalSync()
 	if err == nil {
 		t.Error("expected an error as there is no state to sync")
 	}
@@ -102,7 +102,7 @@ func TestClusterSync(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	err = cl.Sync()
+	_, err = cl.LocalSync()
 	if err != nil {
 		t.Fatal("sync after pinning should have worked:", err)
 	}
@@ -110,7 +110,7 @@ func TestClusterSync(t *testing.T) {
 	// Modify state on the side so the sync does not
 	// happen on an empty slide
 	st.RmPin(c)
-	err = cl.Sync()
+	_, err = cl.LocalSync()
 	if err != nil {
 		t.Fatal("sync with recover should have worked:", err)
 	}
@@ -185,7 +185,7 @@ func TestClusterRun(t *testing.T) {
 
 	// Generic RPC
 	for i := 0; i < NoopRPC; i++ {
-		rpc := RPC(RPCOp(i), "something")
+		rpc := NewRPC(RPCOp(i), "something")
 		switch i % 4 {
 		case 0:
 			ipfs.rpcCh <- rpc
@@ -208,7 +208,7 @@ func TestClusterRun(t *testing.T) {
 	// Cid RPC
 	c, _ := cid.Decode(testCid)
 	for i := 0; i < NoopRPC; i++ {
-		rpc := RPC(RPCOp(i), c)
+		rpc := NewRPC(RPCOp(i), c)
 		switch i % 4 {
 		case 0:
 			ipfs.rpcCh <- rpc

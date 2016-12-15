@@ -3,18 +3,18 @@ package ipfscluster
 import (
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
-func TestRPC(t *testing.T) {
+func TestNewRPC(t *testing.T) {
 	c, err := cid.Decode(testCid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	crpc := RPC(IPFSPinRPC, c)
-	_, ok := crpc.(*CidClusterRPC)
+	crpc := NewRPC(IPFSPinRPC, c)
+	_, ok := crpc.(*CidRPC)
 	if !ok {
-		t.Error("expected a CidClusterRPC")
+		t.Error("expected a CidRPC")
 	}
 
 	if crpc.Op() != IPFSPinRPC {
@@ -25,10 +25,10 @@ func TestRPC(t *testing.T) {
 		t.Error("should have made the ResponseCh")
 	}
 
-	grpc := RPC(MemberListRPC, 3)
-	_, ok = grpc.(*GenericClusterRPC)
+	grpc := NewRPC(MemberListRPC, 3)
+	_, ok = grpc.(*GenericRPC)
 	if !ok {
-		t.Error("expected a GenericClusterRPC")
+		t.Error("expected a GenericRPC")
 	}
 
 	if grpc.Op() != MemberListRPC {

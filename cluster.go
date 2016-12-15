@@ -8,15 +8,15 @@ import (
 	"strings"
 	"sync"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	swarm "github.com/libp2p/go-libp2p-swarm"
-	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
-	multiaddr "github.com/multiformats/go-multiaddr"
+	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
+	multiaddr "gx/ipfs/QmUAQaWbKxGCUTuoQVvvicbQNZ9APF5pDGWyAZSe93AtKH/go-multiaddr"
+	swarm "gx/ipfs/QmWfxnAiQ5TnnCgiX9ikVUKFNHRgGhbgKdx5DoKPELD7P4/go-libp2p-swarm"
+	basichost "gx/ipfs/QmbzCT1CwxVZ2ednptC9RavuJe7Bv8DDi2Ne89qUrA37XM/go-libp2p/p2p/host/basic"
+	peerstore "gx/ipfs/QmeXj9VAjmYQZxpmVz7VzccbJrpmr8qkCDSjfVNsPTWTYU/go-libp2p-peerstore"
+	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	crypto "gx/ipfs/QmfWDLQjGjVe4fr5CoztYW2DYYjRysMJrFe1RCsXLPTf46/go-libp2p-crypto"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 // Cluster is the main IPFS cluster component. It provides
@@ -24,14 +24,16 @@ import (
 type Cluster struct {
 	ctx context.Context
 
-	config *ClusterConfig
+	config *Config
 	host   host.Host
 
-	consensus *ClusterConsensus
-	api       ClusterAPI
+	consensus *Consensus
+	api       API
 	ipfs      IPFSConnector
-	state     ClusterState
+	state     State
 	tracker   PinTracker
+
+	rpcCh chan RPC
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -39,17 +41,17 @@ type Cluster struct {
 	wg           sync.WaitGroup
 }
 
-// NewCluster builds a ready-to-start IPFS Cluster. It takes a ClusterAPI,
-// an IPFSConnector and a ClusterState as parameters, allowing the user,
+// NewCluster builds a ready-to-start IPFS Cluster. It takes a API,
+// an IPFSConnector and a State as parameters, allowing the user,
 // to provide custom implementations of these components.
-func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state ClusterState, tracker PinTracker) (*Cluster, error) {
+func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker) (*Cluster, error) {
 	ctx := context.Background()
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	consensus, err := NewClusterConsensus(cfg, host, state)
+	consensus, err := NewConsensus(cfg, host, state)
 	if err != nil {
 		logger.Errorf("error creating consensus: %s", err)
 		return nil, err
@@ -64,14 +66,13 @@ func NewCluster(cfg *ClusterConfig, api ClusterAPI, ipfs IPFSConnector, state Cl
 		ipfs:       ipfs,
 		state:      state,
 		tracker:    tracker,
+		rpcCh:      make(chan RPC),
 		shutdownCh: make(chan struct{}),
 	}
 
 	logger.Info("starting IPFS Cluster")
 
 	cluster.run()
-	logger.Info("performing State synchronization")
-	cluster.Sync()
 	return cluster, nil
 }
 
@@ -107,17 +108,77 @@ func (c *Cluster) Shutdown() error {
 	return nil
 }
 
-func (c *Cluster) Sync() error {
+// LocalSync makes sure that the current state of the Cluster matches
+// and the desired IPFS daemon state are aligned. It makes sure that
+// IPFS is pinning content that should be pinned locally, and not pinning
+// other content. It will also try to recover any failed pin or unpin
+// operations by retrigerring them.
+func (c *Cluster) LocalSync() ([]Pin, error) {
 	cState, err := c.consensus.State()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	changed := c.tracker.SyncState(cState)
 	for _, p := range changed {
 		logger.Debugf("recovering %s", p.Cid)
-		c.tracker.Recover(p.Cid)
+		err = c.tracker.Recover(p.Cid)
+		if err != nil {
+			logger.Errorf("Error recovering %s: %s", p.Cid, err)
+			return nil, err
+		}
 	}
-	return nil
+	return c.tracker.ListPins(), nil
+}
+
+// LocalSyncCid makes sure that the current state of the cluster
+// and the desired IPFS daemon state are aligned for a given Cid. It
+// makes sure that IPFS is pinning content that should be pinned locally,
+// and not pinning other content. It will also try to recover any failed
+// pin or unpin operations by retriggering them.
+func (c *Cluster) LocalSyncCid(h *cid.Cid) (Pin, error) {
+	changed := c.tracker.Sync(h)
+	if changed {
+		err := c.tracker.Recover(h)
+		if err != nil {
+			logger.Errorf("Error recovering %s: %s", h, err)
+			return Pin{}, err
+		}
+	}
+	return c.tracker.GetPin(h), nil
+}
+
+// GlobalSync triggers Sync() operations in all members of the Cluster.
+func (c *Cluster) GlobalSync() ([]Pin, error) {
+	return c.Status(), nil
+}
+
+// GlobalSunc triggers a Sync() operation for a given Cid in all members
+// of the Cluster.
+func (c *Cluster) GlobalSyncCid(h *cid.Cid) (Pin, error) {
+	return c.StatusCid(h), nil
+}
+
+// Status returns the last known status for all Pins tracked by Cluster.
+func (c *Cluster) Status() []Pin {
+	// TODO: Global
+	return c.tracker.ListPins()
+}
+
+// StatusCid returns the last known status for a given Cid
+func (c *Cluster) StatusCid(h *cid.Cid) Pin {
+	// TODO: Global
+	return c.tracker.GetPin(h)
+}
+
+// Pins returns the list of Cids managed by Cluster and which are part
+// of the current global state. This is the source of truth as to which
+// pins are managed, but does not indicate if the item is successfully pinned.
+func (c *Cluster) Pins() []*cid.Cid {
+	cState, err := c.consensus.State()
+	if err != nil {
+		return []*cid.Cid{}
+	}
+	return cState.ListPins()
 }
 
 // Pin makes the cluster Pin a Cid. This implies adding the Cid
@@ -177,41 +238,39 @@ func (c *Cluster) run() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		c.ctx = ctx
-		ipfsCh := c.ipfs.RpcChan()
-		consensusCh := c.consensus.RpcChan()
-		apiCh := c.api.RpcChan()
-		trackerCh := c.tracker.RpcChan()
 
-		var op ClusterRPC
+		var op RPC
 		for {
 			select {
-			case op = <-ipfsCh:
+			case op = <-c.ipfs.RpcChan():
 				goto HANDLEOP
-			case op = <-consensusCh:
+			case op = <-c.consensus.RpcChan():
 				goto HANDLEOP
-			case op = <-apiCh:
+			case op = <-c.api.RpcChan():
 				goto HANDLEOP
-			case op = <-trackerCh:
+			case op = <-c.tracker.RpcChan():
+				goto HANDLEOP
+			case op = <-c.rpcCh:
 				goto HANDLEOP
 			case <-c.shutdownCh:
 				return
 			}
 		HANDLEOP:
 			switch op.(type) {
-			case *CidClusterRPC:
-				crpc := op.(*CidClusterRPC)
-				go c.handleCidRPC(crpc)
-			case *GenericClusterRPC:
-				grpc := op.(*GenericClusterRPC)
-				go c.handleGenericRPC(grpc)
+			case *CidRPC:
+				crpc := op.(*CidRPC)
+				go c.handleCidNewRPC(crpc)
+			case *GenericRPC:
+				grpc := op.(*GenericRPC)
+				go c.handleGenericNewRPC(grpc)
 			default:
-				logger.Error("unknown ClusterRPC type")
+				logger.Error("unknown RPC type")
 			}
 		}
 	}()
 }
 
-func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
+func (c *Cluster) handleGenericNewRPC(grpc *GenericRPC) {
 	var data interface{} = nil
 	var err error = nil
 	switch grpc.Op() {
@@ -220,11 +279,15 @@ func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 	case MemberListRPC:
 		data = c.Members()
 	case PinListRPC:
-		data = c.tracker.ListPins()
-	case SyncRPC:
-		err = c.Sync()
+		data = c.Pins()
+	case LocalSyncRPC:
+		data, err = c.LocalSync()
+	case GlobalSyncRPC:
+		data, err = c.GlobalSync()
+	case StatusRPC:
+		data = c.Status()
 	case RollbackRPC:
-		state, ok := grpc.Argument.(ClusterState)
+		state, ok := grpc.Argument.(State)
 		if !ok {
 			err = errors.New("bad RollbackRPC type")
 			break
@@ -233,13 +296,13 @@ func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 	case LeaderRPC:
 		// Leader RPC is a RPC that needs to be run
 		// by the Consensus Leader. Arguments is a wrapped RPC.
-		rpc, ok := grpc.Argument.(*ClusterRPC)
+		rpc, ok := grpc.Argument.(*RPC)
 		if !ok {
 			err = errors.New("bad LeaderRPC type")
 		}
-		data, err = c.leaderRPC(rpc)
+		data, err = c.leaderNewRPC(rpc)
 	default:
-		logger.Error("unknown operation for GenericClusterRPC. Ignoring.")
+		logger.Error("unknown operation for GenericRPC. Ignoring.")
 	}
 
 	resp := RPCResponse{
@@ -252,7 +315,7 @@ func (c *Cluster) handleGenericRPC(grpc *GenericClusterRPC) {
 
 // handleOp takes care of running the necessary action for a
 // clusterRPC request and sending the response.
-func (c *Cluster) handleCidRPC(crpc *CidClusterRPC) {
+func (c *Cluster) handleCidNewRPC(crpc *CidRPC) {
 	var data interface{} = nil
 	var err error = nil
 	switch crpc.Op() {
@@ -278,8 +341,14 @@ func (c *Cluster) handleCidRPC(crpc *CidClusterRPC) {
 		}
 	case IPFSIsPinnedRPC:
 		data, err = c.ipfs.IsPinned(crpc.CID)
+	case StatusCidRPC:
+		data = c.StatusCid(crpc.CID)
+	case LocalSyncCidRPC:
+		data, err = c.LocalSyncCid(crpc.CID)
+	case GlobalSyncCidRPC:
+		data, err = c.GlobalSyncCid(crpc.CID)
 	default:
-		logger.Error("unknown operation for CidClusterRPC. Ignoring.")
+		logger.Error("unknown operation for CidRPC. Ignoring.")
 	}
 
 	resp := RPCResponse{
@@ -291,12 +360,12 @@ func (c *Cluster) handleCidRPC(crpc *CidClusterRPC) {
 }
 
 // This uses libp2p to contact the cluster leader and ask him to do something
-func (c *Cluster) leaderRPC(rpc *ClusterRPC) (interface{}, error) {
+func (c *Cluster) leaderNewRPC(rpc *RPC) (interface{}, error) {
 	return nil, errors.New("not implemented yet")
 }
 
 // makeHost makes a libp2p-host
-func makeHost(ctx context.Context, cfg *ClusterConfig) (host.Host, error) {
+func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	ps := peerstore.NewPeerstore()
 	peerID, err := peer.IDB58Decode(cfg.ID)
 	if err != nil {

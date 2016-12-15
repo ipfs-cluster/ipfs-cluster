@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 // IPFSHTTPConnector implements the IPFSConnector interface
@@ -31,7 +31,7 @@ type IPFSHTTPConnector struct {
 	listenAddr string
 	listenPort int
 	handlers   map[string]func(http.ResponseWriter, *http.Request)
-	rpcCh      chan ClusterRPC
+	rpcCh      chan RPC
 
 	listener net.Listener
 	server   *http.Server
@@ -46,7 +46,7 @@ type ipfsError struct {
 }
 
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
-func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
+func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
 		cfg.IPFSAPIListenAddr, cfg.IPFSAPIListenPort))
@@ -67,7 +67,7 @@ func NewIPFSHTTPConnector(cfg *ClusterConfig) (*IPFSHTTPConnector, error) {
 		listenAddr: cfg.IPFSAPIListenAddr,
 		listenPort: cfg.IPFSAPIListenPort,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
-		rpcCh:      make(chan ClusterRPC, RPCMaxQueue),
+		rpcCh:      make(chan RPC, RPCMaxQueue),
 		listener:   l,
 		server:     s,
 	}
@@ -138,7 +138,7 @@ func (ipfs *IPFSHTTPConnector) run() {
 
 // RpcChan can be used by Cluster to read any
 // requests from this component.
-func (ipfs *IPFSHTTPConnector) RpcChan() <-chan ClusterRPC {
+func (ipfs *IPFSHTTPConnector) RpcChan() <-chan RPC {
 	return ipfs.rpcCh
 }
 

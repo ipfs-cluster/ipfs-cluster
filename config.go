@@ -5,11 +5,11 @@ import (
 	"io/ioutil"
 )
 
-type ClusterConfig struct {
+type Config struct {
 	IPFSHost             string   `json:"ipfs_host"`
 	IPFSPort             int      `json:"ipfs_port"`
-	ClusterAPIListenAddr string   `json:"cluster_api_listen_addr"`
-	ClusterAPIListenPort int      `json:"cluster_api_listen_port"`
+	APIListenAddr string   `json:"cluster_api_listen_addr"`
+	APIListenPort int      `json:"cluster_api_listen_port"`
 	IPFSAPIListenAddr    string   `json:"ipfs_api_listen_addr"`
 	IPFSAPIListenPort    int      `json:"ipfs_api_listen_port"`
 	ConsensusListenAddr  string   `json:"consensus_listen_addr"`
@@ -20,8 +20,8 @@ type ClusterConfig struct {
 	RaftFolder           string   `json:"raft_folder"`
 }
 
-func LoadConfig(path string) (*ClusterConfig, error) {
-	config := &ClusterConfig{}
+func LoadConfig(path string) (*Config, error) {
+	config := &Config{}
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
