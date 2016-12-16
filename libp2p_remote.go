@@ -5,10 +5,9 @@ import (
 	"errors"
 	"sync"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	host "github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 //ClusterP2PProtocol is used to send libp2p messages between cluster members
@@ -72,14 +71,15 @@ func (r *Libp2pRemote) RpcChan() <-chan RPC {
 }
 
 func (r *Libp2pRemote) handleRemoteRPC(s *streamWrap) error {
-	var rpc RPC
-	if err := s.dec.Decode(&rpc); err != nil {
-		logger.Error("error decoding RPC request from Stream:", err)
-		errResp := RPCResponse{
-			Data:  nil,
-			Error: errors.New("error decoding request"),
-		}
-		r.sendStreamResponse(s, errResp)
+	logger.Debugf("%s: handling remote RPC", r.host.ID().Pretty())
+	rpcType, err := s.r.ReadByte()
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("RPC type is %d", rpcType)
+	rpc, err := r.decodeRPC(s, int(rpcType))
+	if err != nil {
 		return err
 	}
 
@@ -87,6 +87,40 @@ func (r *Libp2pRemote) handleRemoteRPC(s *streamWrap) error {
 	defer cancel()
 	resp := MakeRPC(ctx, r.rpcCh, rpc, true)
 	return r.sendStreamResponse(s, resp)
+}
+
+func (r *Libp2pRemote) decodeRPC(s *streamWrap, rpcType int) (RPC, error) {
+	var err error
+	switch RPCOpToType[rpcType] {
+	case CidRPCType:
+		var rpc *CidRPC
+		err = s.dec.Decode(&rpc)
+		if err != nil {
+			goto DECODE_ERROR
+		}
+		logger.Debugf("%+v", rpc)
+		return rpc, nil
+	case GenericRPCType:
+		var rpc *GenericRPC
+		err = s.dec.Decode(&rpc)
+		if err != nil {
+			goto DECODE_ERROR
+		}
+		logger.Debugf("%+v", rpc)
+		return rpc, nil
+	default:
+		err = errors.New("Unknown or unsupported RPCType when trying to decode")
+		goto DECODE_ERROR
+	}
+
+DECODE_ERROR:
+	logger.Error("error decoding RPC request from Stream:", err)
+	errResp := RPCResponse{
+		Data:  nil,
+		Error: errors.New("error decoding request"),
+	}
+	r.sendStreamResponse(s, errResp)
+	return nil, err
 }
 
 func (r *Libp2pRemote) sendStreamResponse(s *streamWrap, resp RPCResponse) error {
@@ -123,6 +157,10 @@ func (r *Libp2pRemote) MakeRemoteRPC(rpc RPC, node peer.ID) (RPCResponse, error)
 	sWrap := wrapStream(s)
 
 	logger.Debugf("sending remote RPC %d to %s", rpc.Op(), node)
+	if err := sWrap.w.WriteByte(byte(rpc.Op())); err != nil {
+		return resp, err
+	}
+
 	if err := sWrap.enc.Encode(rpc); err != nil {
 		return resp, err
 	}

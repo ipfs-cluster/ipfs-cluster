@@ -47,7 +47,7 @@ func newIpfsMock() *ipfsMock {
 	ts := httptest.NewServer(http.HandlerFunc(m.handler))
 	m.server = ts
 
-	url, _ := url.Parse(mock.server.URL)
+	url, _ := url.Parse(ts.URL)
 	h := strings.Split(url.Host, ":")
 	i, _ := strconv.Atoi(h[1])
 

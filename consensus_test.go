@@ -80,7 +80,7 @@ func TestApplyToBadCid(t *testing.T) {
 }
 
 func cleanRaft() {
-	os.RemoveAll(testingConfig().RaftFolder)
+	os.RemoveAll(testingConfig().ConsensusDataFolder)
 }
 
 func testingConsensus(t *testing.T) *Consensus {

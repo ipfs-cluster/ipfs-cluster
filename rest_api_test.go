@@ -16,10 +16,10 @@ var (
 	apiHost = "http://127.0.0.1:10002" // should match testingConfig()
 )
 
-func testClusterApi(t *testing.T) *ClusterHTTPAPI {
+func testClusterApi(t *testing.T) *RESTAPI {
 	//logging.SetDebugLogging()
 	cfg := testingConfig()
-	api, err := NewHTTPAPI(cfg)
+	api, err := NewRESTAPI(cfg)
 	// No keep alive! Otherwise tests hang with
 	// connections re-used from previous tests
 	api.server.SetKeepAlivesEnabled(false)

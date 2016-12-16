@@ -259,8 +259,8 @@ func TestClusterRun(t *testing.T) {
 
 	// Test that we answer to custom RPC types that are not handled
 	wrongRPC := &baseRPC{
-		method:     999,
-		responseCh: make(chan RPCResponse),
+		Method:   999,
+		RespChan: make(chan RPCResponse),
 	}
 	ipfs.rpcCh <- wrongRPC
 	timer := time.NewTimer(time.Second)

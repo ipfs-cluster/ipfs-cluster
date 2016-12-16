@@ -68,9 +68,9 @@ type statusCidResp struct {
 
 type statusResp []statusCidResp
 
-// NewHTTPAPI creates a new object which is ready to be
+// NewRESTAPI creates a new object which is ready to be
 // started.
-func NewHTTPAPI(cfg *Config) (*RESTAPI, error) {
+func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
 		cfg.APIAddr,

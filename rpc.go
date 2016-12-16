@@ -27,6 +27,36 @@ const (
 	NoopRPC
 )
 
+// Supported RPC types for serialization
+const (
+	BaseRPCType = iota
+	GenericRPCType
+	CidRPCType
+	WrappedRPCType
+)
+
+var RPCOpToType = map[int]int{
+	PinRPC:             CidRPCType,
+	UnpinRPC:           CidRPCType,
+	PinListRPC:         GenericRPCType,
+	IPFSPinRPC:         CidRPCType,
+	IPFSUnpinRPC:       CidRPCType,
+	IPFSIsPinnedRPC:    CidRPCType,
+	ConsensusAddPinRPC: CidRPCType,
+	ConsensusRmPinRPC:  CidRPCType,
+	VersionRPC:         GenericRPCType,
+	MemberListRPC:      GenericRPCType,
+	RollbackRPC:        GenericRPCType,
+	LeaderRPC:          WrappedRPCType,
+	BroadcastRPC:       WrappedRPCType,
+	LocalSyncRPC:       GenericRPCType,
+	LocalSyncCidRPC:    CidRPCType,
+	GlobalSyncRPC:      GenericRPCType,
+	GlobalSyncCidRPC:   CidRPCType,
+	StatusRPC:          GenericRPCType,
+	StatusCidRPC:       CidRPCType,
+}
+
 // RPCMethod identifies which RPC supported operation we are trying to make
 type RPCOp int
 
@@ -40,19 +70,20 @@ type RPC interface {
 // baseRPC implements RPC and can be included as anonymous
 // field in other types.
 type baseRPC struct {
-	method     RPCOp
-	responseCh chan RPCResponse
+	Type     int
+	Method   RPCOp
+	RespChan chan RPCResponse
 }
 
 // Op returns the RPC method for this request
 func (brpc *baseRPC) Op() RPCOp {
-	return brpc.method
+	return brpc.Method
 }
 
 // ResponseCh returns a channel on which the result of the
 // RPC operation can be sent.
 func (brpc *baseRPC) ResponseCh() chan RPCResponse {
-	return brpc.responseCh
+	return brpc.RespChan
 }
 
 // GenericRPC is a ClusterRPC with generic arguments.
@@ -64,7 +95,17 @@ type GenericRPC struct {
 // CidRPC is a ClusterRPC whose only argument is a CID.
 type CidRPC struct {
 	baseRPC
-	CID *cid.Cid
+	// Because CIDs are not a serializable object we need to carry
+	// the string representation
+	CIDStr string
+}
+
+func (crpc *CidRPC) CID() *cid.Cid {
+	c, err := cid.Decode(crpc.CIDStr)
+	if err != nil {
+		panic("Bad CID in CidRPC")
+	}
+	return c
 }
 
 type WrappedRPC struct {
@@ -80,22 +121,25 @@ func NewRPC(m RPCOp, arg interface{}) RPC {
 	case *cid.Cid:
 		c := arg.(*cid.Cid)
 		r := new(CidRPC)
-		r.method = m
-		r.CID = c
-		r.responseCh = make(chan RPCResponse)
+		r.Method = m
+		r.Type = CidRPCType
+		r.CIDStr = c.String()
+		r.RespChan = make(chan RPCResponse)
 		return r
 	case RPC:
 		w := arg.(RPC)
 		r := new(WrappedRPC)
-		r.method = m
+		r.Method = m
+		r.Type = WrappedRPCType
 		r.WRPC = w
-		r.responseCh = make(chan RPCResponse)
+		r.RespChan = make(chan RPCResponse)
 		return r
 	default:
 		r := new(GenericRPC)
-		r.method = m
+		r.Method = m
 		r.Argument = arg
-		r.responseCh = make(chan RPCResponse)
+		r.Type = GenericRPCType
+		r.RespChan = make(chan RPCResponse)
 		return r
 	}
 }

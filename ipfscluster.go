@@ -17,7 +17,6 @@ import (
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
-	wlogging "github.com/whyrusleeping/go-logging"
 )
 
 var logger = logging.Logger("ipfs-cluster")
@@ -37,7 +36,7 @@ var MakeRPCRetryInterval time.Duration = 1 * time.Second
 var SilentRaft = true
 
 // SetLogLevel sets the level in the logs
-func SetLogLevel(l wlogging.Level) {
+func SetLogLevel(l string) {
 	/*
 		CRITICAL Level = iota
 		ERROR
@@ -46,11 +45,7 @@ func SetLogLevel(l wlogging.Level) {
 		INFO
 		DEBUG
 	*/
-	logging.SetAllLoggers(l)
-}
-
-func init() {
-	SetLogLevel(wlogging.CRITICAL)
+	logging.SetLogLevel("ipfs-cluster", l)
 }
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components

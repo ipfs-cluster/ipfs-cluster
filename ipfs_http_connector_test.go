@@ -3,22 +3,15 @@ package ipfscluster
 import (
 	"fmt"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
 )
 
 func testIPFSConnectorConfig(mock *ipfsMock) *Config {
-	url, _ := url.Parse(mock.server.URL)
-	h := strings.Split(url.Host, ":")
-	i, _ := strconv.Atoi(h[1])
-
 	cfg := testingConfig()
-	cfg.IPFSHost = h[0]
-	cfg.IPFSPort = i
+	cfg.IPFSAddr = mock.addr
+	cfg.IPFSPort = mock.port
 	return cfg
 }
 
@@ -110,8 +103,8 @@ func TestIPFSProxy(t *testing.T) {
 
 	cfg := testingConfig()
 	res, err := http.Get(fmt.Sprintf("http://%s:%d/api/v0/add?arg=%s",
-		cfg.IPFSAPIListenAddr,
-		cfg.IPFSAPIListenPort,
+		cfg.IPFSAPIAddr,
+		cfg.IPFSAPIPort,
 		testCid))
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)

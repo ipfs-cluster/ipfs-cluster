@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -15,8 +16,6 @@ import (
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	multiaddr "github.com/multiformats/go-multiaddr"
-
-	cid "github.com/ipfs/go-cid"
 )
 
 // Cluster is the main IPFS cluster component. It provides
@@ -331,7 +330,7 @@ func (c *Cluster) handleGenericRPC(grpc *GenericRPC) {
 func (c *Cluster) handleCidRPC(crpc *CidRPC) {
 	var data interface{} = nil
 	var err error = nil
-	var h *cid.Cid = crpc.CID
+	var h *cid.Cid = crpc.CID()
 	switch crpc.Op() {
 	case PinRPC:
 		err = c.Pin(h)
@@ -490,6 +489,5 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	}
 
 	bhost := basichost.New(network)
-
 	return bhost, nil
 }
