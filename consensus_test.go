@@ -97,7 +97,7 @@ func testingConsensus(t *testing.T) *Consensus {
 		t.Fatal("cannot create Consensus:", err)
 	}
 	// Oxygen for Raft to declare leader
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 	return cc
 }
 

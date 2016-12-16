@@ -37,6 +37,13 @@ func (st *MapState) RmPin(c *cid.Cid) error {
 	return nil
 }
 
+func (st *MapState) HasPin(c *cid.Cid) bool {
+	st.mux.RLock()
+	defer st.mux.RUnlock()
+	_, ok := st.PinMap[c.String()]
+	return ok
+}
+
 func (st *MapState) ListPins() []*cid.Cid {
 	st.mux.RLock()
 	defer st.mux.RUnlock()

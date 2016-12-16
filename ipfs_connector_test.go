@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,39 +11,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 )
 
-func testServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//t.Log(r.URL.String())
-		switch r.URL.Path {
-		case "/api/v0/pin/add":
-			if r.URL.RawQuery == fmt.Sprintf("arg=%s", testCid) {
-				fmt.Fprintln(w, `{ "pinned": "`+testCid+`" }`)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case "/api/v0/pin/rm":
-			if r.URL.RawQuery == fmt.Sprintf("arg=%s", testCid) {
-				fmt.Fprintln(w, `{ "unpinned": "`+testCid+`" }`)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-		case "/api/v0/pin/ls":
-			if r.URL.RawQuery == fmt.Sprintf("arg=%s", testCid) {
-				fmt.Fprintln(w,
-					`{"Keys":{"`+testCid+`":{"Type":"recursive"}}}`)
-			} else {
-				fmt.Fprintln(w,
-					`{"Keys":{"`+testCid2+`":{"Type":"indirect"}}}`)
-			}
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	return ts
-}
-
-func testIPFSConnectorConfig(ts *httptest.Server) *Config {
-	url, _ := url.Parse(ts.URL)
+func testIPFSConnectorConfig(mock *ipfsMock) *Config {
+	url, _ := url.Parse(mock.server.URL)
 	h := strings.Split(url.Host, ":")
 	i, _ := strconv.Atoi(h[1])
 
@@ -54,20 +22,20 @@ func testIPFSConnectorConfig(ts *httptest.Server) *Config {
 	return cfg
 }
 
-func ipfsConnector(t *testing.T) (*IPFSHTTPConnector, *httptest.Server) {
-	ts := testServer(t)
-	cfg := testIPFSConnectorConfig(ts)
+func ipfsConnector(t *testing.T) (*IPFSHTTPConnector, *ipfsMock) {
+	mock := newIpfsMock()
+	cfg := testIPFSConnectorConfig(mock)
 
 	ipfs, err := NewIPFSHTTPConnector(cfg)
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
-	return ipfs, ts
+	return ipfs, mock
 }
 
 func TestNewIPFSHTTPConnector(t *testing.T) {
-	ipfs, ts := ipfsConnector(t)
-	defer ts.Close()
+	ipfs, mock := ipfsConnector(t)
+	defer mock.Close()
 	defer ipfs.Shutdown()
 
 	ch := ipfs.RpcChan()
@@ -77,15 +45,23 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 }
 
 func TestIPFSPin(t *testing.T) {
-	ipfs, ts := ipfsConnector(t)
-	defer ts.Close()
+	ipfs, mock := ipfsConnector(t)
+	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
 	err := ipfs.Pin(c)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}
+	yes, err := ipfs.IsPinned(c)
+	if err != nil {
+		t.Fatal("expected success doing ls")
+	}
+	if !yes {
+		t.Error("cid should have been pinned")
+	}
+
+	c2, _ := cid.Decode(errorCid)
 	err = ipfs.Pin(c2)
 	if err == nil {
 		t.Error("expected error pinning cid")
@@ -93,35 +69,29 @@ func TestIPFSPin(t *testing.T) {
 }
 
 func TestIPFSUnpin(t *testing.T) {
-	ipfs, ts := ipfsConnector(t)
-	defer ts.Close()
+	ipfs, mock := ipfsConnector(t)
+	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
-	c3, _ := cid.Decode(testCid3)
 	err := ipfs.Unpin(c)
 	if err != nil {
-		t.Error("expected success unpinning cid")
+		t.Error("expected success unpinning non-pinned cid")
 	}
-
-	err = ipfs.Unpin(c2)
+	ipfs.Pin(c)
+	err = ipfs.Unpin(c)
 	if err != nil {
-		t.Error("expected error unpinning cid")
-	}
-
-	err = ipfs.Unpin(c3)
-	if err == nil {
-		t.Error("expected error unpinning cid")
+		t.Error("expected success unpinning pinned cid")
 	}
 }
 
-func TestIsPinned(t *testing.T) {
-	ipfs, ts := ipfsConnector(t)
-	defer ts.Close()
+func TestIPFSIsPinned(t *testing.T) {
+	ipfs, mock := ipfsConnector(t)
+	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
 	c2, _ := cid.Decode(testCid2)
 
+	ipfs.Pin(c)
 	isp, err := ipfs.IsPinned(c)
 	if err != nil || !isp {
 		t.Error("c should appear pinned")
@@ -133,13 +103,16 @@ func TestIsPinned(t *testing.T) {
 	}
 }
 
-func TestProxy(t *testing.T) {
-	ipfs, ts := ipfsConnector(t)
-	defer ts.Close()
+func TestIPFSProxy(t *testing.T) {
+	ipfs, mock := ipfsConnector(t)
+	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	// Address comes from testingConfig()
-	res, err := http.Get("http://127.0.0.1:10001/api/v0/add?arg=" + testCid)
+	cfg := testingConfig()
+	res, err := http.Get(fmt.Sprintf("http://%s:%d/api/v0/add?arg=%s",
+		cfg.IPFSAPIListenAddr,
+		cfg.IPFSAPIListenPort,
+		testCid))
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
@@ -149,10 +122,12 @@ func TestProxy(t *testing.T) {
 }
 
 func TestIPFSShutdown(t *testing.T) {
-	ipfs, ts := ipfsConnector(t)
-	defer ts.Close()
+	ipfs, mock := ipfsConnector(t)
+	defer mock.Close()
 	if err := ipfs.Shutdown(); err != nil {
 		t.Error("expected a clean shutdown")
 	}
-	ipfs.Shutdown()
+	if err := ipfs.Shutdown(); err != nil {
+		t.Error("expected a second clean shutdown")
+	}
 }
