@@ -435,7 +435,7 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	publicKey := privateKey.GetPublic()
 
 	addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
-		cfg.ConsensusListenAddr, cfg.ConsensusListenPort))
+		cfg.ClusterAddr, cfg.ClusterPort))
 	if err != nil {
 		return nil, err
 	}

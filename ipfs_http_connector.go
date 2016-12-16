@@ -49,7 +49,7 @@ type ipfsError struct {
 func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.IPFSAPIListenAddr, cfg.IPFSAPIListenPort))
+		cfg.IPFSAPIAddr, cfg.IPFSAPIPort))
 	if err != nil {
 		return nil, err
 	}
@@ -62,10 +62,10 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	ipfs := &IPFSHTTPConnector{
 		ctx:        ctx,
-		destHost:   cfg.IPFSHost,
+		destHost:   cfg.IPFSAddr,
 		destPort:   cfg.IPFSPort,
-		listenAddr: cfg.IPFSAPIListenAddr,
-		listenPort: cfg.IPFSAPIListenPort,
+		listenAddr: cfg.IPFSAPIAddr,
+		listenPort: cfg.IPFSAPIPort,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
 		rpcCh:      make(chan RPC, RPCMaxQueue),
 		listener:   l,

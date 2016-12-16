@@ -16,9 +16,9 @@ import (
 	mux "github.com/gorilla/mux"
 )
 
-// ClusterHTTPAPI implements a API and aims to provides
+// RESTAPI implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
-type ClusterHTTPAPI struct {
+type RESTAPI struct {
 	ctx        context.Context
 	listenAddr string
 	listenPort int
@@ -70,11 +70,11 @@ type statusResp []statusCidResp
 
 // NewHTTPAPI creates a new object which is ready to be
 // started.
-func NewHTTPAPI(cfg *Config) (*ClusterHTTPAPI, error) {
+func NewHTTPAPI(cfg *Config) (*RESTAPI, error) {
 	ctx := context.Background()
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.APIListenAddr,
-		cfg.APIListenPort))
+		cfg.APIAddr,
+		cfg.APIPort))
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +83,10 @@ func NewHTTPAPI(cfg *Config) (*ClusterHTTPAPI, error) {
 	s := &http.Server{Handler: router}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
-	api := &ClusterHTTPAPI{
+	api := &RESTAPI{
 		ctx:        ctx,
-		listenAddr: cfg.APIListenAddr,
-		listenPort: cfg.APIListenPort,
+		listenAddr: cfg.APIAddr,
+		listenPort: cfg.APIPort,
 		listener:   l,
 		server:     s,
 		rpcCh:      make(chan RPC, RPCMaxQueue),
@@ -106,7 +106,7 @@ func NewHTTPAPI(cfg *Config) (*ClusterHTTPAPI, error) {
 	return api, nil
 }
 
-func (api *ClusterHTTPAPI) routes() []route {
+func (api *RESTAPI) routes() []route {
 	return []route{
 		route{
 			"Members",
@@ -165,7 +165,7 @@ func (api *ClusterHTTPAPI) routes() []route {
 	}
 }
 
-func (api *ClusterHTTPAPI) run() {
+func (api *RESTAPI) run() {
 	api.wg.Add(1)
 	go func() {
 		defer api.wg.Done()
@@ -180,7 +180,7 @@ func (api *ClusterHTTPAPI) run() {
 }
 
 // Shutdown stops any API listeners.
-func (api *ClusterHTTPAPI) Shutdown() error {
+func (api *RESTAPI) Shutdown() error {
 	api.shutdownLock.Lock()
 	defer api.shutdownLock.Unlock()
 
@@ -202,11 +202,11 @@ func (api *ClusterHTTPAPI) Shutdown() error {
 
 // RpcChan can be used by Cluster to read any
 // requests from this component
-func (api *ClusterHTTPAPI) RpcChan() <-chan RPC {
+func (api *RESTAPI) RpcChan() <-chan RPC {
 	return api.rpcCh
 }
 
-func (api *ClusterHTTPAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 	rRpc := NewRPC(VersionRPC, nil)
@@ -217,7 +217,7 @@ func (api *ClusterHTTPAPI) versionHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (api *ClusterHTTPAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 	rRpc := NewRPC(MemberListRPC, nil)
@@ -232,7 +232,7 @@ func (api *ClusterHTTPAPI) memberListHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (api *ClusterHTTPAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 
@@ -245,7 +245,7 @@ func (api *ClusterHTTPAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *ClusterHTTPAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 
@@ -258,7 +258,7 @@ func (api *ClusterHTTPAPI) unpinHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 	rRpc := NewRPC(PinListRPC, nil)
@@ -270,7 +270,7 @@ func (api *ClusterHTTPAPI) pinListHandler(w http.ResponseWriter, r *http.Request
 
 }
 
-func (api *ClusterHTTPAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 	rRpc := NewRPC(StatusRPC, nil)
@@ -280,7 +280,7 @@ func (api *ClusterHTTPAPI) statusHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (api *ClusterHTTPAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 
@@ -293,7 +293,7 @@ func (api *ClusterHTTPAPI) statusCidHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (api *ClusterHTTPAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 	rRpc := NewRPC(LocalSyncRPC, nil)
@@ -303,7 +303,7 @@ func (api *ClusterHTTPAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *ClusterHTTPAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 

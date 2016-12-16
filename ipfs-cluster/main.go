@@ -40,7 +40,7 @@ func main() {
 
 	state := ipfscluster.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker()
-	remote := NewLibp2pRemote()
+	remote := ipfscluster.NewLibp2pRemote()
 
 	cluster, err := ipfscluster.NewCluster(clusterCfg, api, proxy, state, tracker, remote)
 	if err != nil {

@@ -56,14 +56,14 @@ func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) 
 		raftCfg.Logger = nil
 	}
 	logger.Debug("creating file snapshot store")
-	snapshots, err := hashiraft.NewFileSnapshotStore(cfg.RaftFolder, maxSnapshots, nil)
+	snapshots, err := hashiraft.NewFileSnapshotStore(cfg.ConsensusDataFolder, maxSnapshots, nil)
 	if err != nil {
 		logger.Error("creating file snapshot store: ", err)
 		return nil, nil, nil, err
 	}
 
 	logger.Debug("creating BoltDB log store")
-	logStore, err := raftboltdb.NewBoltStore(filepath.Join(cfg.RaftFolder, "raft.db"))
+	logStore, err := raftboltdb.NewBoltStore(filepath.Join(cfg.ConsensusDataFolder, "raft.db"))
 	if err != nil {
 		logger.Error("creating bolt store: ", err)
 		return nil, nil, nil, err

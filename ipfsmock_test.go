@@ -5,16 +5,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 
 	cid "github.com/ipfs/go-cid"
 )
 
 // This is an ipfs daemon mock which should sustain the functionality used by
-// used by ipfscluster.
+// ipfscluster.
 
 type ipfsMock struct {
 	server *httptest.Server
+	addr   string
+	port   int
 	pinMap *MapState
 }
 
@@ -42,6 +46,13 @@ func newIpfsMock() *ipfsMock {
 	}
 	ts := httptest.NewServer(http.HandlerFunc(m.handler))
 	m.server = ts
+
+	url, _ := url.Parse(mock.server.URL)
+	h := strings.Split(url.Host, ":")
+	i, _ := strconv.Atoi(h[1])
+
+	m.port = i
+	m.addr = h[0]
 	return m
 
 }
