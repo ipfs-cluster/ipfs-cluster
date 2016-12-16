@@ -1,12 +1,13 @@
 package ipfscluster
 
 import (
+	"io/ioutil"
 	"path/filepath"
 
-	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
-	libp2praft "gx/ipfs/QmaofA6ApgPQm8yRojC77dQbVUatYMihdyQjB7VsAqrks1/go-libp2p-raft"
+	host "github.com/libp2p/go-libp2p-host"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
 
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	hashiraft "github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -50,6 +51,10 @@ func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) 
 
 	raftCfg := hashiraft.DefaultConfig()
 	raftCfg.EnableSingleNode = raftSingleMode
+	if SilentRaft {
+		raftCfg.LogOutput = ioutil.Discard
+		raftCfg.Logger = nil
+	}
 	logger.Debug("creating file snapshot store")
 	snapshots, err := hashiraft.NewFileSnapshotStore(cfg.RaftFolder, maxSnapshots, nil)
 	if err != nil {

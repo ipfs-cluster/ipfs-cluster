@@ -1,6 +1,6 @@
 package ipfscluster
 
-import cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+import cid "github.com/ipfs/go-cid"
 
 // RPC supported operations.
 const (
@@ -10,10 +10,13 @@ const (
 	IPFSPinRPC
 	IPFSUnpinRPC
 	IPFSIsPinnedRPC
+	ConsensusAddPinRPC
+	ConsensusRmPinRPC
 	VersionRPC
 	MemberListRPC
 	RollbackRPC
 	LeaderRPC
+	BroadcastRPC
 	LocalSyncRPC
 	LocalSyncCidRPC
 	GlobalSyncRPC
@@ -64,6 +67,11 @@ type CidRPC struct {
 	CID *cid.Cid
 }
 
+type WrappedRPC struct {
+	baseRPC
+	WRPC RPC
+}
+
 // RPC builds a RPC request. It will create a
 // CidRPC if the arg is of type cid.Cid. Otherwise,
 // a GenericRPC is returned.
@@ -74,6 +82,13 @@ func NewRPC(m RPCOp, arg interface{}) RPC {
 		r := new(CidRPC)
 		r.method = m
 		r.CID = c
+		r.responseCh = make(chan RPCResponse)
+		return r
+	case RPC:
+		w := arg.(RPC)
+		r := new(WrappedRPC)
+		r.method = m
+		r.WRPC = w
 		r.responseCh = make(chan RPCResponse)
 		return r
 	default:

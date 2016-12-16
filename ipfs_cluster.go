@@ -12,9 +12,12 @@ import (
 	"errors"
 	"time"
 
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	host "github.com/libp2p/go-libp2p-host"
+
+	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-peer"
+	wlogging "github.com/whyrusleeping/go-logging"
 )
 
 var logger = logging.Logger("ipfs-cluster")
@@ -29,6 +32,26 @@ var RPCMaxQueue = 128
 // MakeRPCRetryInterval specifies how long to wait before retrying
 // to put a RPC request in the channel in MakeRPC().
 var MakeRPCRetryInterval time.Duration = 1 * time.Second
+
+// SilentRaft controls whether all Raft log messages are discarded.
+var SilentRaft = true
+
+// SetLogLevel sets the level in the logs
+func SetLogLevel(l wlogging.Level) {
+	/*
+		CRITICAL Level = iota
+		ERROR
+		WARNING
+		NOTICE
+		INFO
+		DEBUG
+	*/
+	logging.SetAllLoggers(l)
+}
+
+func init() {
+	SetLogLevel(wlogging.CRITICAL)
+}
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They
@@ -108,6 +131,15 @@ type PinTracker interface {
 	// SyncState makes sure that the tracked Pins matches those in the
 	// cluster state and runs SyncAll(). It returns a list of changed Pins.
 	SyncState(State) []Pin
+}
+
+// Remote represents a component which takes care of
+// executing RPC requests in a different cluster member as well as
+// handling any incoming remote requests from other nodes.
+type Remote interface {
+	ClusterComponent
+	MakeRemoteRPC(rpc RPC, node peer.ID) (RPCResponse, error)
+	SetHost(host.Host)
 }
 
 // MakeRPC sends a RPC object over a channel and optionally waits for a

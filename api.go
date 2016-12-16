@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 
 	mux "github.com/gorilla/mux"
 )
@@ -296,7 +296,7 @@ func (api *ClusterHTTPAPI) statusCidHandler(w http.ResponseWriter, r *http.Reque
 func (api *ClusterHTTPAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	rRpc := NewRPC(GlobalSyncRPC, nil)
+	rRpc := NewRPC(LocalSyncRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
 		sendStatusResponse(w, resp)
@@ -308,7 +308,7 @@ func (api *ClusterHTTPAPI) syncCidHandler(w http.ResponseWriter, r *http.Request
 	defer cancel()
 
 	if c := parseCidOrError(w, r); c != nil {
-		op := NewRPC(GlobalSyncCidRPC, c)
+		op := NewRPC(LocalSyncCidRPC, c)
 		resp := MakeRPC(ctx, api.rpcCh, op, true)
 		if checkResponse(w, op.Op(), resp) {
 			sendStatusCidResponse(w, resp)

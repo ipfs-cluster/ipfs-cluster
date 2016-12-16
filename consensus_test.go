@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 func TestApplyToPin(t *testing.T) {
@@ -132,7 +132,7 @@ func TestConsensusPin(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 	st, err := cc.State()
 	if err != nil {
-		t.Fatal("error getting state:", err)
+		t.Fatal("error gettinng state:", err)
 	}
 
 	pins := st.ListPins()
@@ -159,7 +159,12 @@ func TestConsensusLeader(t *testing.T) {
 	pId := cfg.ID
 	defer cleanRaft()
 	defer cc.Shutdown()
-	if l := cc.Leader().Pretty(); l != pId {
+	l, err := cc.Leader()
+	if err != nil {
+		t.Fatal("No leader:", err)
+	}
+
+	if l.Pretty() != pId {
 		t.Errorf("expected %s but the leader appears as %s", pId, l)
 	}
 }

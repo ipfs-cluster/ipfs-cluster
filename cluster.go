@@ -8,15 +8,15 @@ import (
 	"strings"
 	"sync"
 
-	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
-	multiaddr "gx/ipfs/QmUAQaWbKxGCUTuoQVvvicbQNZ9APF5pDGWyAZSe93AtKH/go-multiaddr"
-	swarm "gx/ipfs/QmWfxnAiQ5TnnCgiX9ikVUKFNHRgGhbgKdx5DoKPELD7P4/go-libp2p-swarm"
-	basichost "gx/ipfs/QmbzCT1CwxVZ2ednptC9RavuJe7Bv8DDi2Ne89qUrA37XM/go-libp2p/p2p/host/basic"
-	peerstore "gx/ipfs/QmeXj9VAjmYQZxpmVz7VzccbJrpmr8qkCDSjfVNsPTWTYU/go-libp2p-peerstore"
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
-	crypto "gx/ipfs/QmfWDLQjGjVe4fr5CoztYW2DYYjRysMJrFe1RCsXLPTf46/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	swarm "github.com/libp2p/go-libp2p-swarm"
+	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	multiaddr "github.com/multiformats/go-multiaddr"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 // Cluster is the main IPFS cluster component. It provides
@@ -28,6 +28,7 @@ type Cluster struct {
 	host   host.Host
 
 	consensus *Consensus
+	remote    Remote
 	api       API
 	ipfs      IPFSConnector
 	state     State
@@ -44,7 +45,7 @@ type Cluster struct {
 // NewCluster builds a ready-to-start IPFS Cluster. It takes a API,
 // an IPFSConnector and a State as parameters, allowing the user,
 // to provide custom implementations of these components.
-func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker) (*Cluster, error) {
+func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker, remote Remote) (*Cluster, error) {
 	ctx := context.Background()
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
@@ -57,11 +58,14 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		return nil, err
 	}
 
+	remote.SetHost(host)
+
 	cluster := &Cluster{
 		ctx:        ctx,
 		config:     cfg,
 		host:       host,
 		consensus:  consensus,
+		remote:     remote,
 		api:        api,
 		ipfs:       ipfs,
 		state:      state,
@@ -183,38 +187,46 @@ func (c *Cluster) Pins() []*cid.Cid {
 
 // Pin makes the cluster Pin a Cid. This implies adding the Cid
 // to the IPFS Cluster peers shared-state. Depending on the cluster
-// pinning strategy, the IPFSConnector may then request the IPFS daemon
-// to pin the Cid.
+// pinning strategy, the PinTracker may then request the IPFS daemon
+// to pin the Cid. When the current node is not the cluster leader,
+// the request is forwarded to the leader.
 //
 // Pin returns an error if the operation could not be persisted
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
-	// TODO: Check this hash makes any sense
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+
 	logger.Info("pinning:", h)
-	err := c.consensus.AddPin(h)
-	if err != nil {
-		logger.Error(err)
-		return err
+	rpc := NewRPC(ConsensusAddPinRPC, h)
+	wrpc := NewRPC(LeaderRPC, rpc)
+	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
+	if resp.Error != nil {
+		logger.Error(resp.Error)
+		return resp.Error
 	}
 	return nil
 }
 
 // Unpin makes the cluster Unpin a Cid. This implies adding the Cid
-// to the IPFS Cluster peers shared-state. Depending on the cluster
-// unpinning strategy, the IPFSConnector may then request the IPFS daemon
-// to unpin the Cid.
+// to the IPFS Cluster peers shared-state. When the current node is
+// not the cluster leader, the request is forwarded to the leader.
 //
 // Unpin returns an error if the operation could not be persisted
 // to the global state. Unpin does not reflect the success or failure
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
-	// TODO: Check this hash makes any sense
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+
 	logger.Info("unpinning:", h)
-	err := c.consensus.RmPin(h)
-	if err != nil {
-		logger.Error(err)
-		return err
+	rpc := NewRPC(ConsensusRmPinRPC, h)
+	wrpc := NewRPC(LeaderRPC, rpc)
+	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
+	if resp.Error != nil {
+		logger.Error(resp.Error)
+		return resp.Error
 	}
 	return nil
 }
@@ -250,6 +262,8 @@ func (c *Cluster) run() {
 				goto HANDLEOP
 			case op = <-c.tracker.RpcChan():
 				goto HANDLEOP
+			case op = <-c.remote.RpcChan():
+				goto HANDLEOP
 			case op = <-c.rpcCh:
 				goto HANDLEOP
 			case <-c.shutdownCh:
@@ -259,18 +273,25 @@ func (c *Cluster) run() {
 			switch op.(type) {
 			case *CidRPC:
 				crpc := op.(*CidRPC)
-				go c.handleCidNewRPC(crpc)
+				go c.handleCidRPC(crpc)
 			case *GenericRPC:
 				grpc := op.(*GenericRPC)
-				go c.handleGenericNewRPC(grpc)
+				go c.handleGenericRPC(grpc)
+			case *WrappedRPC:
+				wrpc := op.(*WrappedRPC)
+				go c.handleWrappedRPC(wrpc)
 			default:
 				logger.Error("unknown RPC type")
+				op.ResponseCh() <- RPCResponse{
+					Data:  nil,
+					Error: errors.New("unknown RPC type"),
+				}
 			}
 		}
 	}()
 }
 
-func (c *Cluster) handleGenericNewRPC(grpc *GenericRPC) {
+func (c *Cluster) handleGenericRPC(grpc *GenericRPC) {
 	var data interface{} = nil
 	var err error = nil
 	switch grpc.Op() {
@@ -293,14 +314,6 @@ func (c *Cluster) handleGenericNewRPC(grpc *GenericRPC) {
 			break
 		}
 		err = c.consensus.Rollback(state)
-	case LeaderRPC:
-		// Leader RPC is a RPC that needs to be run
-		// by the Consensus Leader. Arguments is a wrapped RPC.
-		rpc, ok := grpc.Argument.(*RPC)
-		if !ok {
-			err = errors.New("bad LeaderRPC type")
-		}
-		data, err = c.leaderNewRPC(rpc)
 	default:
 		logger.Error("unknown operation for GenericRPC. Ignoring.")
 	}
@@ -315,38 +328,43 @@ func (c *Cluster) handleGenericNewRPC(grpc *GenericRPC) {
 
 // handleOp takes care of running the necessary action for a
 // clusterRPC request and sending the response.
-func (c *Cluster) handleCidNewRPC(crpc *CidRPC) {
+func (c *Cluster) handleCidRPC(crpc *CidRPC) {
 	var data interface{} = nil
 	var err error = nil
+	var h *cid.Cid = crpc.CID
 	switch crpc.Op() {
 	case PinRPC:
-		err = c.Pin(crpc.CID)
+		err = c.Pin(h)
 	case UnpinRPC:
-		err = c.Unpin(crpc.CID)
+		err = c.Unpin(h)
+	case ConsensusAddPinRPC:
+		err = c.consensus.AddPin(h)
+	case ConsensusRmPinRPC:
+		err = c.consensus.RmPin(h)
 	case IPFSPinRPC:
-		c.tracker.Pinning(crpc.CID)
-		err = c.ipfs.Pin(crpc.CID)
+		c.tracker.Pinning(h)
+		err = c.ipfs.Pin(h)
 		if err != nil {
-			c.tracker.PinError(crpc.CID)
+			c.tracker.PinError(h)
 		} else {
-			c.tracker.Pinned(crpc.CID)
+			c.tracker.Pinned(h)
 		}
 	case IPFSUnpinRPC:
-		c.tracker.Unpinning(crpc.CID)
-		err = c.ipfs.Unpin(crpc.CID)
+		c.tracker.Unpinning(h)
+		err = c.ipfs.Unpin(h)
 		if err != nil {
-			c.tracker.UnpinError(crpc.CID)
+			c.tracker.UnpinError(h)
 		} else {
-			c.tracker.Unpinned(crpc.CID)
+			c.tracker.Unpinned(h)
 		}
 	case IPFSIsPinnedRPC:
-		data, err = c.ipfs.IsPinned(crpc.CID)
+		data, err = c.ipfs.IsPinned(h)
 	case StatusCidRPC:
-		data = c.StatusCid(crpc.CID)
+		data = c.StatusCid(h)
 	case LocalSyncCidRPC:
-		data, err = c.LocalSyncCid(crpc.CID)
+		data, err = c.LocalSyncCid(h)
 	case GlobalSyncCidRPC:
-		data, err = c.GlobalSyncCid(crpc.CID)
+		data, err = c.GlobalSyncCid(h)
 	default:
 		logger.Error("unknown operation for CidRPC. Ignoring.")
 	}
@@ -359,9 +377,38 @@ func (c *Cluster) handleCidNewRPC(crpc *CidRPC) {
 	crpc.ResponseCh() <- resp
 }
 
-// This uses libp2p to contact the cluster leader and ask him to do something
-func (c *Cluster) leaderNewRPC(rpc *RPC) (interface{}, error) {
-	return nil, errors.New("not implemented yet")
+func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
+	innerRPC := wrpc.WRPC
+	var resp RPCResponse
+	switch wrpc.Op() {
+	case LeaderRPC:
+		leader, err := c.consensus.Leader()
+		if err != nil {
+			resp = RPCResponse{
+				Data:  nil,
+				Error: err,
+			}
+		}
+		resp, err = c.remote.MakeRemoteRPC(innerRPC, leader)
+		if err != nil {
+			resp = RPCResponse{
+				Data:  nil,
+				Error: fmt.Errorf("request to %s failed with: %s", err),
+			}
+		}
+	case BroadcastRPC:
+		resp = RPCResponse{
+			Data:  nil,
+			Error: errors.New("not implemented"),
+		}
+	default:
+		resp = RPCResponse{
+			Data:  nil,
+			Error: errors.New("unknown WrappedRPC type"),
+		}
+	}
+
+	wrpc.ResponseCh() <- resp
 }
 
 // makeHost makes a libp2p-host
@@ -443,5 +490,6 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	}
 
 	bhost := basichost.New(network)
+
 	return bhost, nil
 }

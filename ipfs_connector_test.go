@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 func testServer(t *testing.T) *httptest.Server {

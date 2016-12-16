@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	host "gx/ipfs/QmPTGbC34bPKaUm9wTxBo7zSCac7pDuG42ZmnXC718CKZZ/go-libp2p-host"
-	consensus "gx/ipfs/QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt/go-libp2p-consensus"
-	libp2praft "gx/ipfs/QmaofA6ApgPQm8yRojC77dQbVUatYMihdyQjB7VsAqrks1/go-libp2p-raft"
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	consensus "github.com/libp2p/go-libp2p-consensus"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 const (
@@ -290,7 +290,7 @@ func (cc *Consensus) State() (State, error) {
 
 // Leader() returns the peerID of the Leader of the
 // cluster.
-func (cc *Consensus) Leader() peer.ID {
+func (cc *Consensus) Leader() (peer.ID, error) {
 	// FIXME: Hashicorp Raft specific
 	raftactor := cc.actor.(*libp2praft.Actor)
 	return raftactor.Leader()

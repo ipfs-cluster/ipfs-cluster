@@ -3,7 +3,7 @@ package ipfscluster
 import (
 	"sync"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 // MapState is a very simple database to store

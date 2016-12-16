@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	peer "gx/ipfs/QmfMmLGoKzCHDN7cGgk64PJr4iipzidDRME8HABSJqvmhC/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
