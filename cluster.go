@@ -89,6 +89,10 @@ func (c *Cluster) Shutdown() error {
 	}
 
 	logger.Info("shutting down IPFS Cluster")
+	if err := c.remote.Shutdown(); err != nil {
+		logger.Errorf("error stopping remote: %s", err)
+		return err
+	}
 	if err := c.consensus.Shutdown(); err != nil {
 		logger.Errorf("error stopping consensus: %s", err)
 		return err
