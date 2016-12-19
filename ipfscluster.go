@@ -26,7 +26,7 @@ const Version = "0.0.1"
 
 // RPCMaxQueue can be used to set the size of the RPC channels,
 // which will start blocking on send after reaching this number.
-var RPCMaxQueue = 128
+var RPCMaxQueue = 256
 
 // MakeRPCRetryInterval specifies how long to wait before retrying
 // to put a RPC request in the channel in MakeRPC().
@@ -160,7 +160,7 @@ func MakeRPC(ctx context.Context, rpcCh chan RPC, r RPC, waitForResponse bool) R
 				Error: errors.New("operation timed out while sending RPC"),
 			}
 		default:
-			logger.Error("RPC channel is full. Will retry.")
+			logger.Errorf("RPC channel is full. Will retry request %d", r.Op())
 			time.Sleep(MakeRPCRetryInterval)
 		}
 	}

@@ -69,7 +69,7 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		ipfs:       ipfs,
 		state:      state,
 		tracker:    tracker,
-		rpcCh:      make(chan RPC),
+		rpcCh:      make(chan RPC, RPCMaxQueue),
 		shutdownCh: make(chan struct{}),
 	}
 
@@ -252,21 +252,15 @@ func (c *Cluster) run() {
 		for {
 			select {
 			case op = <-c.ipfs.RpcChan():
-				goto HANDLEOP
 			case op = <-c.consensus.RpcChan():
-				goto HANDLEOP
 			case op = <-c.api.RpcChan():
-				goto HANDLEOP
 			case op = <-c.tracker.RpcChan():
-				goto HANDLEOP
 			case op = <-c.remote.RpcChan():
-				goto HANDLEOP
 			case op = <-c.rpcCh:
-				goto HANDLEOP
 			case <-c.shutdownCh:
 				return
 			}
-		HANDLEOP:
+
 			switch op.(type) {
 			case *CidRPC:
 				crpc := op.(*CidRPC)
