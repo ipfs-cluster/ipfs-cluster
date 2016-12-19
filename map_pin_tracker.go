@@ -129,6 +129,7 @@ func (mpt *MapPinTracker) Shutdown() error {
 func (mpt *MapPinTracker) unsafeSet(c *cid.Cid, s IPFSStatus) {
 	if s == Unpinned {
 		delete(mpt.status, c.String())
+		return
 	}
 
 	mpt.status[c.String()] = PinInfo{

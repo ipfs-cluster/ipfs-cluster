@@ -215,6 +215,7 @@ func TestE2EPin(t *testing.T) {
 		status := c.tracker.LocalStatus()
 		if l := len(status); l != 0 {
 			t.Errorf("Nothing should be pinned")
+			//t.Errorf("%+v", status)
 		}
 	}
 	runF(t, clusters, funpinned)
