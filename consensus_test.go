@@ -124,7 +124,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(testCid)
-	err := cc.AddPin(c)
+	err := cc.LogPin(c)
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -147,7 +147,7 @@ func TestConsensusUnpin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(testCid2)
-	err := cc.RmPin(c)
+	err := cc.LogUnpin(c)
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}

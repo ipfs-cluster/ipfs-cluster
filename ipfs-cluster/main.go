@@ -26,7 +26,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	api, err := ipfscluster.NewHTTPAPI(clusterCfg)
+	api, err := ipfscluster.NewRESTAPI(clusterCfg)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -39,7 +39,7 @@ func main() {
 	}
 
 	state := ipfscluster.NewMapState()
-	tracker := ipfscluster.NewMapPinTracker()
+	tracker := ipfscluster.NewMapPinTracker(clusterCfg)
 	remote := ipfscluster.NewLibp2pRemote()
 
 	cluster, err := ipfscluster.NewCluster(clusterCfg, api, proxy, state, tracker, remote)

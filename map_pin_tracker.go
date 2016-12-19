@@ -2,14 +2,14 @@ package ipfscluster
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-)
+	peer "github.com/libp2p/go-libp2p-peer"
 
-const (
-	pinEverywhere = -1
+	cid "github.com/ipfs/go-cid"
 )
 
 // A Pin or Unpin operation will be considered failed
@@ -27,19 +27,27 @@ const (
 	Pinning
 	Unpinning
 	Unpinned
+	RemotePin
 )
 
-type Pin struct {
-	Cid     *cid.Cid
-	PinMode PinMode
-	Status  PinStatus
-	TS      time.Time
+type GlobalPinInfo struct {
+	Cid    *cid.Cid
+	Status map[peer.ID]PinInfo
 }
 
-type PinMode int
-type PinStatus int
+// PinInfo holds information about local pins. PinInfo is
+// serialized when requesting the Global status, therefore
+// we cannot use *cid.Cid.
+type PinInfo struct {
+	CidStr string
+	Peer   peer.ID
+	IPFS   IPFSStatus
+	TS     time.Time
+}
 
-func (st PinStatus) String() string {
+type IPFSStatus int
+
+func (st IPFSStatus) String() string {
 	switch st {
 	case PinError:
 		return "pin_error"
@@ -59,10 +67,11 @@ func (st PinStatus) String() string {
 
 type MapPinTracker struct {
 	mux    sync.Mutex
-	status map[string]Pin
+	status map[string]PinInfo
 
-	ctx   context.Context
-	rpcCh chan RPC
+	ctx    context.Context
+	rpcCh  chan RPC
+	peerID peer.ID
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -70,12 +79,19 @@ type MapPinTracker struct {
 	wg           sync.WaitGroup
 }
 
-func NewMapPinTracker() *MapPinTracker {
+func NewMapPinTracker(cfg *Config) *MapPinTracker {
 	ctx := context.Background()
+
+	pID, err := peer.IDB58Decode(cfg.ID)
+	if err != nil {
+		panic(err)
+	}
+
 	mpt := &MapPinTracker{
-		status:     make(map[string]Pin),
-		rpcCh:      make(chan RPC, RPCMaxQueue),
 		ctx:        ctx,
+		status:     make(map[string]PinInfo),
+		rpcCh:      make(chan RPC, RPCMaxQueue),
+		peerID:     pID,
 		shutdownCh: make(chan struct{}),
 	}
 	logger.Info("starting MapPinTracker")
@@ -110,72 +126,177 @@ func (mpt *MapPinTracker) Shutdown() error {
 	return nil
 }
 
-func (mpt *MapPinTracker) set(c *cid.Cid, s PinStatus) error {
-	mpt.mux.Lock()
-	defer mpt.mux.Unlock()
+func (mpt *MapPinTracker) unsafeSet(c *cid.Cid, s IPFSStatus) {
 	if s == Unpinned {
 		delete(mpt.status, c.String())
-		return nil
 	}
 
-	mpt.status[c.String()] = Pin{
-		Cid:     c,
-		PinMode: pinEverywhere,
-		Status:  s,
-		TS:      time.Now(),
+	mpt.status[c.String()] = PinInfo{
+		//		cid:    c,
+		CidStr: c.String(),
+		Peer:   mpt.peerID,
+		IPFS:   s,
+		TS:     time.Now(),
 	}
-	return nil
 }
 
-func (mpt *MapPinTracker) get(c *cid.Cid) Pin {
+func (mpt *MapPinTracker) set(c *cid.Cid, s IPFSStatus) {
+	mpt.mux.Lock()
+	defer mpt.mux.Unlock()
+	mpt.unsafeSet(c, s)
+}
+
+func (mpt *MapPinTracker) get(c *cid.Cid) PinInfo {
 	mpt.mux.Lock()
 	defer mpt.mux.Unlock()
 	p, ok := mpt.status[c.String()]
 	if !ok {
-		return Pin{
-			Cid:    c,
-			Status: Unpinned,
+		return PinInfo{
+			//			cid:    c,
+			CidStr: c.String(),
+			Peer:   mpt.peerID,
+			IPFS:   Unpinned,
+			TS:     time.Now(),
 		}
 	}
 	return p
 }
 
-func (mpt *MapPinTracker) Pinning(c *cid.Cid) error {
-	return mpt.set(c, Pinning)
+func (mpt *MapPinTracker) pin(c *cid.Cid) error {
+	ctx, cancel := context.WithCancel(mpt.ctx)
+	defer cancel()
+
+	mpt.set(c, Pinning)
+	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSPinRPC, c), true)
+	if resp.Error != nil {
+		mpt.set(c, PinError)
+		return resp.Error
+	}
+	mpt.set(c, Pinned)
+	return nil
 }
 
-func (mpt *MapPinTracker) Unpinning(c *cid.Cid) error {
-	return mpt.set(c, Unpinning)
+func (mpt *MapPinTracker) unpin(c *cid.Cid) error {
+	ctx, cancel := context.WithCancel(mpt.ctx)
+	defer cancel()
+
+	mpt.set(c, Unpinning)
+	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSUnpinRPC, c), true)
+	if resp.Error != nil {
+		mpt.set(c, PinError)
+		return resp.Error
+	}
+	mpt.set(c, Unpinned)
+	return nil
 }
 
-func (mpt *MapPinTracker) Pinned(c *cid.Cid) error {
-	return mpt.set(c, Pinned)
+func (mpt *MapPinTracker) Track(c *cid.Cid) error {
+	return mpt.pin(c)
 }
 
-func (mpt *MapPinTracker) PinError(c *cid.Cid) error {
-	return mpt.set(c, PinError)
+func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
+	return mpt.unpin(c)
 }
 
-func (mpt *MapPinTracker) UnpinError(c *cid.Cid) error {
-	return mpt.set(c, UnpinError)
-}
-
-func (mpt *MapPinTracker) Unpinned(c *cid.Cid) error {
-	return mpt.set(c, Unpinned)
-}
-
-func (mpt *MapPinTracker) GetPin(c *cid.Cid) Pin {
+func (mpt *MapPinTracker) LocalStatusCid(c *cid.Cid) PinInfo {
 	return mpt.get(c)
 }
 
-func (mpt *MapPinTracker) ListPins() []Pin {
+func (mpt *MapPinTracker) LocalStatus() []PinInfo {
 	mpt.mux.Lock()
 	defer mpt.mux.Unlock()
-	pins := make([]Pin, 0, len(mpt.status))
+	pins := make([]PinInfo, 0, len(mpt.status))
 	for _, v := range mpt.status {
 		pins = append(pins, v)
 	}
 	return pins
+}
+
+func (mpt *MapPinTracker) GlobalStatus() ([]GlobalPinInfo, error) {
+	ctx, cancel := context.WithCancel(mpt.ctx)
+	defer cancel()
+
+	rpc := NewRPC(TrackerLocalStatusRPC, nil)
+	wrpc := NewRPC(BroadcastRPC, rpc)
+	resp := MakeRPC(ctx, mpt.rpcCh, wrpc, true)
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	responses, ok := resp.Data.([]RPCResponse)
+	if !ok {
+		return nil, errors.New("unexpected responses format")
+	}
+	fullMap := make(map[string]GlobalPinInfo)
+
+	mergePins := func(pins []PinInfo) {
+		for _, p := range pins {
+			item, ok := fullMap[p.CidStr]
+			c, _ := cid.Decode(p.CidStr)
+			if !ok {
+				fullMap[p.CidStr] = GlobalPinInfo{
+					Cid: c,
+					Status: map[peer.ID]PinInfo{
+						p.Peer: p,
+					},
+				}
+			} else {
+				item.Status[p.Peer] = p
+			}
+		}
+	}
+	for _, r := range responses {
+		if r.Error != nil {
+			logger.Error("error in one of the broadcast responses: ", r.Error)
+			continue
+		}
+		pins, ok := r.Data.([]PinInfo)
+		if !ok {
+			return nil, fmt.Errorf("unexpected response format: %+v", r.Data)
+		}
+		mergePins(pins)
+	}
+
+	status := make([]GlobalPinInfo, 0, len(fullMap))
+	for _, v := range fullMap {
+		status = append(status, v)
+	}
+	return status, nil
+}
+
+func (mpt *MapPinTracker) GlobalStatusCid(c *cid.Cid) (GlobalPinInfo, error) {
+	ctx, cancel := context.WithCancel(mpt.ctx)
+	defer cancel()
+
+	pin := GlobalPinInfo{
+		Cid:    c,
+		Status: make(map[peer.ID]PinInfo),
+	}
+
+	rpc := NewRPC(TrackerLocalStatusCidRPC, c)
+	wrpc := NewRPC(BroadcastRPC, rpc)
+	resp := MakeRPC(ctx, mpt.rpcCh, wrpc, true)
+	if resp.Error != nil {
+		return pin, resp.Error
+	}
+
+	responses, ok := resp.Data.([]RPCResponse)
+	if !ok {
+		return pin, errors.New("unexpected responses format")
+	}
+
+	for _, r := range responses {
+		if r.Error != nil {
+			return pin, r.Error
+		}
+		info, ok := r.Data.(PinInfo)
+		if !ok {
+			return pin, errors.New("unexpected response format")
+		}
+		pin.Status[info.Peer] = info
+	}
+
+	return pin, nil
 }
 
 func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
@@ -185,17 +306,17 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 	p := mpt.get(c)
 
 	// We assume errors will need a Recover() so we return true
-	if p.Status == PinError || p.Status == UnpinError {
+	if p.IPFS == PinError || p.IPFS == UnpinError {
 		return true
 	}
 
 	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSIsPinnedRPC, c), true)
 	if resp.Error != nil {
-		if p.Status == Pinned || p.Status == Pinning {
+		if p.IPFS == Pinned || p.IPFS == Pinning {
 			mpt.set(c, PinError)
 			return true
 		}
-		if p.Status == Unpinned || p.Status == Unpinning {
+		if p.IPFS == Unpinned || p.IPFS == Unpinning {
 			mpt.set(c, UnpinError)
 			return true
 		}
@@ -208,7 +329,7 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 	}
 
 	if ipfsPinned {
-		switch p.Status {
+		switch p.IPFS {
 		case Pinned:
 			return false
 		case Pinning:
@@ -225,7 +346,7 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 			return true
 		}
 	} else {
-		switch p.Status {
+		switch p.IPFS {
 		case Pinned:
 			mpt.set(c, PinError)
 			return true
@@ -247,26 +368,25 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 
 func (mpt *MapPinTracker) Recover(c *cid.Cid) error {
 	p := mpt.get(c)
-	if p.Status != PinError && p.Status != UnpinError {
+	if p.IPFS != PinError && p.IPFS != UnpinError {
 		return nil
 	}
 
-	ctx, cancel := context.WithCancel(mpt.ctx)
-	defer cancel()
-	if p.Status == PinError {
-		MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSPinRPC, c), false)
+	if p.IPFS == PinError {
+		mpt.pin(c)
 	}
-	if p.Status == UnpinError {
-		MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSUnpinRPC, c), false)
+	if p.IPFS == UnpinError {
+		mpt.unpin(c)
 	}
 	return nil
 }
 
-func (mpt *MapPinTracker) SyncAll() []Pin {
-	var changedPins []Pin
-	pins := mpt.ListPins()
+func (mpt *MapPinTracker) SyncAll() []PinInfo {
+	var changedPins []PinInfo
+	pins := mpt.LocalStatus()
 	for _, p := range pins {
-		changed := mpt.Sync(p.Cid)
+		c, _ := cid.Decode(p.CidStr)
+		changed := mpt.Sync(c)
 		if changed {
 			changedPins = append(changedPins, p)
 		}
@@ -274,7 +394,7 @@ func (mpt *MapPinTracker) SyncAll() []Pin {
 	return changedPins
 }
 
-func (mpt *MapPinTracker) SyncState(cState State) []Pin {
+func (mpt *MapPinTracker) SyncState(cState State) []*cid.Cid {
 	clusterPins := cState.ListPins()
 	clusterMap := make(map[string]struct{})
 	// Make a map for faster lookup
@@ -284,7 +404,7 @@ func (mpt *MapPinTracker) SyncState(cState State) []Pin {
 	}
 	var toRemove []*cid.Cid
 	var toAdd []*cid.Cid
-	var changed []Pin
+	var changed []*cid.Cid
 	mpt.mux.Lock()
 
 	// Collect items in the State not in the tracker
@@ -297,32 +417,23 @@ func (mpt *MapPinTracker) SyncState(cState State) []Pin {
 
 	// Collect items in the tracker not in the State
 	for _, p := range mpt.status {
-		_, ok := clusterMap[p.Cid.String()]
+		c, _ := cid.Decode(p.CidStr)
+		_, ok := clusterMap[p.CidStr]
 		if !ok {
-			toRemove = append(toRemove, p.Cid)
+			toRemove = append(toRemove, c)
 		}
 	}
 
 	// Update new items and mark them as pinning error
 	for _, c := range toAdd {
-		p := Pin{
-			Cid:     c,
-			PinMode: pinEverywhere,
-			Status:  PinError,
-		}
-		mpt.status[c.String()] = p
-		changed = append(changed, p)
+		mpt.unsafeSet(c, PinError)
+		changed = append(changed, c)
 	}
 
 	// Mark items that need to be removed as unpin error
 	for _, c := range toRemove {
-		p := Pin{
-			Cid:     c,
-			PinMode: pinEverywhere,
-			Status:  UnpinError,
-		}
-		mpt.status[c.String()] = p
-		changed = append(changed, p)
+		mpt.unsafeSet(c, UnpinError)
+		changed = append(changed, c)
 	}
 	mpt.mux.Unlock()
 	return changed

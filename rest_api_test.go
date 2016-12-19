@@ -189,33 +189,74 @@ func TestStatusEndpoint(t *testing.T) {
 	c3, _ := cid.Decode(testCid3)
 	api := testClusterApi(t)
 	defer api.Shutdown()
-	pList := []Pin{
-		Pin{
-			Status: PinError,
-			Cid:    c,
+	pList := []GlobalPinInfo{
+		GlobalPinInfo{
+			Status: map[peer.ID]PinInfo{
+				testPeerID: PinInfo{
+					CidStr: testCid,
+					Peer:   testPeerID,
+					IPFS:   Pinned,
+				},
+			},
+			Cid: c,
 		},
-		Pin{
-			Status: UnpinError,
-			Cid:    c,
+		GlobalPinInfo{
+			Status: map[peer.ID]PinInfo{
+				testPeerID: PinInfo{
+					CidStr: testCid,
+					Peer:   testPeerID,
+					IPFS:   Unpinned,
+				},
+			},
+			Cid: c2,
 		},
-		Pin{
-			Status: Pinned,
-			Cid:    c3,
+		GlobalPinInfo{
+			Status: map[peer.ID]PinInfo{
+				testPeerID: PinInfo{
+					CidStr: testCid,
+					Peer:   testPeerID,
+					IPFS:   PinError,
+				},
+			},
+
+			Cid: c3,
 		},
-		Pin{
-			Status: Pinning,
-			Cid:    c,
+		GlobalPinInfo{
+			Status: map[peer.ID]PinInfo{
+				testPeerID: PinInfo{
+					CidStr: testCid,
+					Peer:   testPeerID,
+					IPFS:   UnpinError,
+				},
+			},
+			Cid: c,
 		},
-		Pin{
-			Status: Unpinning,
-			Cid:    c2,
+		GlobalPinInfo{
+			Status: map[peer.ID]PinInfo{
+				testPeerID: PinInfo{
+					CidStr: testCid,
+					Peer:   testPeerID,
+					IPFS:   Unpinning,
+				},
+			},
+			Cid: c2,
+		},
+		GlobalPinInfo{
+			Status: map[peer.ID]PinInfo{
+				testPeerID: PinInfo{
+					CidStr: testCid,
+					Peer:   testPeerID,
+					IPFS:   Pinning,
+				},
+			},
+			Cid: c3,
 		},
 	}
 
 	simulateAnswer(api.RpcChan(), pList, nil)
 	var resp statusResp
 	makeGet(t, "/status", &resp)
-	if len(resp) != 5 {
-		t.Error("unexpected statusResp: ", resp)
+	if len(resp) != 6 {
+		t.Errorf("unexpected statusResp:\n %+v", resp)
 	}
 }

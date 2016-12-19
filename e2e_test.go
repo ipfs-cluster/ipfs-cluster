@@ -15,7 +15,8 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-// This runs tests using the standard components and the IPFS mock daemon.
+// This runs end-to-end tests using the standard components and the IPFS mock
+// daemon.
 // End-to-end means that all default implementations of components are tested
 // together. It is not fully end-to-end because the ipfs daemon is a mock which
 // never hangs.
@@ -24,7 +25,7 @@ import (
 var nClusters = 3
 
 // number of pins to pin/unpin/check
-var nPins = 1000
+var nPins = 500
 
 // ports
 var clusterPort = 20000
@@ -50,9 +51,9 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createClusters(t *testing.T) ([]*Cluster, *ipfsMock) {
+func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 	os.RemoveAll("./e2eTestRaft")
-	ipfsmock := newIpfsMock()
+	ipfsMocks := make([]*ipfsMock, 0, nClusters)
 	clusters := make([]*Cluster, 0, nClusters)
 	cfgs := make([]*Config, 0, nClusters)
 
@@ -82,6 +83,8 @@ func createClusters(t *testing.T) ([]*Cluster, *ipfsMock) {
 
 	// Generate nClusters configs
 	for i := 0; i < nClusters; i++ {
+		mock := newIpfsMock()
+		ipfsMocks = append(ipfsMocks, mock)
 		cfgs = append(cfgs, &Config{
 			ID:                  peers[i].pid,
 			PrivateKey:          peers[i].priv,
@@ -93,8 +96,8 @@ func createClusters(t *testing.T) ([]*Cluster, *ipfsMock) {
 			APIPort:             apiPort + i,
 			IPFSAPIAddr:         "127.0.0.1",
 			IPFSAPIPort:         ipfsApiPort + i,
-			IPFSAddr:            ipfsmock.addr,
-			IPFSPort:            ipfsmock.port,
+			IPFSAddr:            mock.addr,
+			IPFSPort:            mock.port,
 		})
 	}
 
@@ -104,19 +107,19 @@ func createClusters(t *testing.T) ([]*Cluster, *ipfsMock) {
 		ipfs, err := NewIPFSHTTPConnector(cfgs[i])
 		checkErr(t, err)
 		state := NewMapState()
-		tracker := NewMapPinTracker()
+		tracker := NewMapPinTracker(cfgs[i])
 		remote := NewLibp2pRemote()
 
 		cl, err := NewCluster(cfgs[i], api, ipfs, state, tracker, remote)
 		checkErr(t, err)
 		clusters = append(clusters, cl)
 	}
-	return clusters, ipfsmock
+	return clusters, ipfsMocks
 }
 
-func shutdownClusters(t *testing.T, clusters []*Cluster, m *ipfsMock) {
-	m.Close()
-	for _, c := range clusters {
+func shutdownClusters(t *testing.T, clusters []*Cluster, m []*ipfsMock) {
+	for i, c := range clusters {
+		m[i].Close()
 		err := c.Shutdown()
 		if err != nil {
 			t.Error(err)
@@ -163,25 +166,100 @@ func TestE2EPin(t *testing.T) {
 	for i := 0; i < nPins; i++ {
 		j := rand.Intn(nClusters)           // choose a random cluster member
 		h, err := prefix.Sum(randomBytes()) // create random cid
-		fmt.Println(h)
 		checkErr(t, err)
 		err = clusters[j].Pin(h)
 		if err != nil {
 			t.Errorf("error pinning %s: %s", h, err)
 		}
+		// Test re-pin
+		err = clusters[j].Pin(h)
+		if err != nil {
+			t.Errorf("error repinning %s: %s", h, err)
+		}
 	}
 	delay()
-	f := func(t *testing.T, c *Cluster) {
-		status := c.tracker.ListPins()
+	fpinned := func(t *testing.T, c *Cluster) {
+		status := c.tracker.LocalStatus()
 		for _, v := range status {
-			if v.Status != Pinned {
+			if v.IPFS != Pinned {
 				t.Errorf("%s should have been pinned but it is %s",
-					v.Cid.String,
-					v.Status.String())
+					v.CidStr,
+					v.IPFS.String())
 			}
 		}
 		if l := len(status); l != nPins {
 			t.Errorf("Pinned %d out of %d requests", l, nPins)
+		}
+	}
+	runF(t, clusters, fpinned)
+
+	// Unpin everything
+	pinList := clusters[0].Pins()
+
+	for i := 0; i < nPins; i++ {
+		j := rand.Intn(nClusters) // choose a random cluster member
+		err := clusters[j].Unpin(pinList[i])
+		if err != nil {
+			t.Errorf("error unpinning %s: %s", pinList[i], err)
+		}
+		// test re-unpin
+		err = clusters[j].Unpin(pinList[i])
+		if err != nil {
+			t.Errorf("error re-unpinning %s: %s", pinList[i], err)
+		}
+
+	}
+	delay()
+
+	funpinned := func(t *testing.T, c *Cluster) {
+		status := c.tracker.LocalStatus()
+		if l := len(status); l != 0 {
+			t.Errorf("Nothing should be pinned")
+		}
+	}
+	runF(t, clusters, funpinned)
+}
+
+func TestE2EStatus(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+	h, _ := cid.Decode(testCid)
+	clusters[0].Pin(h)
+	delay()
+	// Global status
+	f := func(t *testing.T, c *Cluster) {
+		statuses, err := c.Status()
+		if err != nil {
+			t.Error(err)
+		}
+		if len(statuses) == 0 {
+			t.Fatal("bad status. Expected one item")
+		}
+		if statuses[0].Cid.String() != testCid {
+			t.Error("bad cid in status")
+		}
+		info := statuses[0].Status
+		if len(info) != nClusters {
+			t.Error("bad info in status")
+		}
+
+		if info[c.host.ID()].IPFS != Pinned {
+			t.Error("the hash should have been pinned")
+		}
+
+		status, err := c.StatusCid(h)
+		if err != nil {
+			t.Error(err)
+		}
+
+		pinfo, ok := status.Status[c.host.ID()]
+		if !ok {
+			t.Fatal("Host not in status")
+		}
+
+		if pinfo.IPFS != Pinned {
+			t.Error("the status should show the hash as pinned")
 		}
 	}
 	runF(t, clusters, f)

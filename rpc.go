@@ -10,8 +10,8 @@ const (
 	IPFSPinRPC
 	IPFSUnpinRPC
 	IPFSIsPinnedRPC
-	ConsensusAddPinRPC
-	ConsensusRmPinRPC
+	ConsensusLogPinRPC
+	ConsensusLogUnpinRPC
 	VersionRPC
 	MemberListRPC
 	RollbackRPC
@@ -21,6 +21,10 @@ const (
 	LocalSyncCidRPC
 	GlobalSyncRPC
 	GlobalSyncCidRPC
+	TrackRPC
+	UntrackRPC
+	TrackerLocalStatusRPC
+	TrackerLocalStatusCidRPC
 	StatusRPC
 	StatusCidRPC
 
@@ -35,42 +39,27 @@ const (
 	WrappedRPCType
 )
 
-var RPCOpToType = map[int]int{
-	PinRPC:             CidRPCType,
-	UnpinRPC:           CidRPCType,
-	PinListRPC:         GenericRPCType,
-	IPFSPinRPC:         CidRPCType,
-	IPFSUnpinRPC:       CidRPCType,
-	IPFSIsPinnedRPC:    CidRPCType,
-	ConsensusAddPinRPC: CidRPCType,
-	ConsensusRmPinRPC:  CidRPCType,
-	VersionRPC:         GenericRPCType,
-	MemberListRPC:      GenericRPCType,
-	RollbackRPC:        GenericRPCType,
-	LeaderRPC:          WrappedRPCType,
-	BroadcastRPC:       WrappedRPCType,
-	LocalSyncRPC:       GenericRPCType,
-	LocalSyncCidRPC:    CidRPCType,
-	GlobalSyncRPC:      GenericRPCType,
-	GlobalSyncCidRPC:   CidRPCType,
-	StatusRPC:          GenericRPCType,
-	StatusCidRPC:       CidRPCType,
-}
-
-// RPCMethod identifies which RPC supported operation we are trying to make
+// RPCOp identifies which RPC supported operation we are trying to make
 type RPCOp int
+
+// RPCType identified which implementation of RPC we are using
+type RPCType int
 
 // RPC represents an internal RPC operation. It should be implemented
 // by all RPC types.
 type RPC interface {
+	// Op indicates which operation should be performed
 	Op() RPCOp
+	// RType indicates which RPC implementation is used
+	RType() RPCType
+	// ResponseCh returns a channel to place the response for this RPC
 	ResponseCh() chan RPCResponse
 }
 
 // baseRPC implements RPC and can be included as anonymous
 // field in other types.
 type baseRPC struct {
-	Type     int
+	Type     RPCType
 	Method   RPCOp
 	RespChan chan RPCResponse
 }
@@ -84,6 +73,10 @@ func (brpc *baseRPC) Op() RPCOp {
 // RPC operation can be sent.
 func (brpc *baseRPC) ResponseCh() chan RPCResponse {
 	return brpc.RespChan
+}
+
+func (brpc *baseRPC) RType() RPCType {
+	return brpc.Type
 }
 
 // GenericRPC is a ClusterRPC with generic arguments.

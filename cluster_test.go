@@ -57,7 +57,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState
 	ipfs.rpcCh = make(chan RPC, 2)
 	cfg := testingConfig()
 	st := NewMapState()
-	tracker := NewMapPinTracker()
+	tracker := NewMapPinTracker(cfg)
 	remote := NewLibp2pRemote()
 
 	cl, err := NewCluster(

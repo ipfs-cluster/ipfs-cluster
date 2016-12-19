@@ -166,7 +166,6 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 // Pin performs a pin request against the configured IPFS
 // daemon.
 func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
-	logger.Infof("IPFS Pin request for: %s", hash)
 	pinned, err := ipfs.IsPinned(hash)
 	if err != nil {
 		return err
@@ -174,16 +173,18 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 	if !pinned {
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
 		_, err = ipfs.get(path)
+		if err == nil {
+			logger.Info("IPFS Pin request succeeded: ", hash)
+		}
 		return err
 	}
-	logger.Debug("object is already pinned. Doing nothing")
+	logger.Info("IPFS object is already pinned: ", hash)
 	return nil
 }
 
 // UnPin performs an unpin request against the configured IPFS
 // daemon.
 func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
-	logger.Info("IPFS Unpin request for:", hash)
 	pinned, err := ipfs.IsPinned(hash)
 	if err != nil {
 		return err
@@ -191,10 +192,13 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	if pinned {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 		_, err := ipfs.get(path)
+		if err == nil {
+			logger.Info("IPFS Unpin request succeeded:", hash)
+		}
 		return err
 	}
 
-	logger.Debug("object not [directly] pinned. Doing nothing")
+	logger.Info("IPFS object is already unpinned: ", hash)
 	return nil
 }
 

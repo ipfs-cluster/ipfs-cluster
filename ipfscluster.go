@@ -99,33 +99,32 @@ type State interface {
 // IPFS daemon. This component should be thread safe.
 type PinTracker interface {
 	ClusterComponent
-	// Pinning tells the pin tracker that a pin is being pinned by IPFS
-	Pinning(*cid.Cid) error
-	// Pinned tells the pin tracer is pinned by IPFS
-	Pinned(*cid.Cid) error
-	// Pinned tells the pin tracker is being unpinned by IPFS
-	Unpinning(*cid.Cid) error
-	// Unpinned tells the pin tracker that a pin has been unpinned by IFPS
-	Unpinned(*cid.Cid) error
-	// PinError tells the pin tracker that an IPFS pin operation has failed
-	PinError(*cid.Cid) error
-	// UnpinError tells the pin tracker that an IPFS unpin operation has failed
-	UnpinError(*cid.Cid) error
-	// ListPins returns the list of pins with their status
-	ListPins() []Pin
-	// GetPin returns a Pin.
-	GetPin(*cid.Cid) Pin
+	// Track tells the tracker that a Cid is now under its supervision
+	// The tracker may decide to perform an IPFS pin.
+	Track(*cid.Cid) error
+	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
+	// may perform an IPFS unpin operation.
+	Untrack(*cid.Cid) error
+	// LocalStatus returns the list of pins with their local status.
+	LocalStatus() []PinInfo
+	// GlobalStatus returns the list of pins with their local and remote
+	// status, which has been fetched.
+	LocalStatusCid(*cid.Cid) PinInfo
+	// GlobalStatusCid returns the global status of a given Cid.
+	GlobalStatus() ([]GlobalPinInfo, error)
+	// LocalStatusCid returns the local status of a given Cid.
+	GlobalStatusCid(*cid.Cid) (GlobalPinInfo, error)
 	// Sync makes sure that the Cid status reflect the real IPFS status. If not,
 	// the status is marked as error. The return value indicates if the
 	// Pin status was updated.
 	Sync(*cid.Cid) bool
-	// Recover attempts to recover an error by re-[un]pinning the item.
+	// Recover attempts to recover an error by re-[un]pinning the item if needed.
 	Recover(*cid.Cid) error
 	// SyncAll runs Sync() on every known Pin. It returns a list of changed Pins
-	SyncAll() []Pin
+	SyncAll() []PinInfo
 	// SyncState makes sure that the tracked Pins matches those in the
 	// cluster state and runs SyncAll(). It returns a list of changed Pins.
-	SyncState(State) []Pin
+	SyncState(State) []*cid.Cid
 }
 
 // Remote represents a component which takes care of
@@ -133,7 +132,10 @@ type PinTracker interface {
 // handling any incoming remote requests from other nodes.
 type Remote interface {
 	ClusterComponent
-	MakeRemoteRPC(rpc RPC, node peer.ID) (RPCResponse, error)
+	// MakeRemoteRPC performs an RPC requests to a remote peer.
+	// The response is decoded onto the RPCResponse provided.
+	MakeRemoteRPC(RPC, peer.ID, *RPCResponse) error
+	// SetHost provides a libp2p host to use by this remote
 	SetHost(host.Host)
 }
 

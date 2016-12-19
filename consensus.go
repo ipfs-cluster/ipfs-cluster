@@ -69,14 +69,14 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		MakeRPC(ctx, op.rpcCh, NewRPC(IPFSPinRPC, c), false)
+		MakeRPC(ctx, op.rpcCh, NewRPC(TrackRPC, c), false)
 	case LogOpUnpin:
 		err := state.RmPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		MakeRPC(ctx, op.rpcCh, NewRPC(IPFSUnpinRPC, c), false)
+		MakeRPC(ctx, op.rpcCh, NewRPC(UntrackRPC, c), false)
 	default:
 		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
@@ -251,8 +251,8 @@ func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 	}
 }
 
-// AddPin submits a Cid to the shared state of the cluster.
-func (cc *Consensus) AddPin(c *cid.Cid) error {
+// LogPin submits a Cid to the shared state of the cluster.
+func (cc *Consensus) LogPin(c *cid.Cid) error {
 	// Create pin operation for the log
 	op := cc.op(c, LogOpPin)
 	_, err := cc.consensus.CommitOp(op)
@@ -264,8 +264,8 @@ func (cc *Consensus) AddPin(c *cid.Cid) error {
 	return nil
 }
 
-// RmPin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) RmPin(c *cid.Cid) error {
+// LogUnpin removes a Cid from the shared state of the cluster.
+func (cc *Consensus) LogUnpin(c *cid.Cid) error {
 	// Create  unpin operation for the log
 	op := cc.op(c, LogOpUnpin)
 	_, err := cc.consensus.CommitOp(op)

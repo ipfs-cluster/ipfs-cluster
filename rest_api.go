@@ -61,9 +61,13 @@ type unpinResp struct {
 	Unpinned string `json:"unpinned"`
 }
 
+type statusInfo struct {
+	Status string
+}
+
 type statusCidResp struct {
-	Cid    string `json:"cid"`
-	Status string `json:"status"`
+	Cid    string                `json:"cid"`
+	Status map[string]statusInfo `json:"status"`
 }
 
 type statusResp []statusCidResp
@@ -296,7 +300,7 @@ func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
 func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
-	rRpc := NewRPC(LocalSyncRPC, nil)
+	rRpc := NewRPC(GlobalSyncRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
 		sendStatusResponse(w, resp)
@@ -308,7 +312,7 @@ func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if c := parseCidOrError(w, r); c != nil {
-		op := NewRPC(LocalSyncCidRPC, c)
+		op := NewRPC(GlobalSyncCidRPC, c)
 		resp := MakeRPC(ctx, api.rpcCh, op, true)
 		if checkResponse(w, op.Op(), resp) {
 			sendStatusCidResponse(w, resp)
@@ -344,9 +348,9 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 	case PinRPC: // Pin/Unpin only return errors
 	case UnpinRPC:
 	case StatusRPC, LocalSyncRPC, GlobalSyncRPC:
-		_, ok = resp.Data.([]Pin)
+		_, ok = resp.Data.([]GlobalPinInfo)
 	case StatusCidRPC, LocalSyncCidRPC, GlobalSyncCidRPC:
-		_, ok = resp.Data.(Pin)
+		_, ok = resp.Data.(GlobalPinInfo)
 	case PinListRPC:
 		_, ok = resp.Data.([]*cid.Cid)
 	case IPFSPinRPC:
@@ -389,23 +393,30 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 	sendJSONResponse(w, code, errorResp)
 }
 
+func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
+	s := statusCidResp{}
+	s.Cid = p.Cid.String()
+	s.Status = make(map[string]statusInfo)
+	for k, v := range p.Status {
+		s.Status[k.Pretty()] = statusInfo{
+			Status: v.IPFS.String(),
+		}
+	}
+	return s
+}
+
 func sendStatusResponse(w http.ResponseWriter, resp RPCResponse) {
-	data := resp.Data.([]Pin)
+	data := resp.Data.([]GlobalPinInfo)
 	pins := make(statusResp, 0, len(data))
+
 	for _, d := range data {
-		pins = append(pins, statusCidResp{
-			Cid:    d.Cid.String(),
-			Status: d.Status.String(),
-		})
+		pins = append(pins, transformPinToStatusCid(d))
 	}
 	sendJSONResponse(w, 200, pins)
 }
 
 func sendStatusCidResponse(w http.ResponseWriter, resp RPCResponse) {
-	data := resp.Data.(Pin)
-	pin := statusCidResp{
-		Cid:    data.Cid.String(),
-		Status: data.Status.String(),
-	}
-	sendJSONResponse(w, 200, pin)
+	data := resp.Data.(GlobalPinInfo)
+	st := transformPinToStatusCid(data)
+	sendJSONResponse(w, 200, st)
 }

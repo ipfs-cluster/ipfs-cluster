@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -38,11 +39,13 @@ type Config struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
+	fmt.Println(path)
 	config := &Config{}
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 	json.Unmarshal(file, config)
+	fmt.Printf("%+v", config)
 	return config, nil
 }

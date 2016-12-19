@@ -5,7 +5,9 @@ Things that need to be done:
 * ~~Start up sync fix~~
 * ~~Allow to shutdown multiple times (+ test)~~
 * Efficient SyncAll (use single ipfs pin ls call)
-* LeaderRPC implementation
+* ~~GlobalStatus~~
+* GlobalSync
+* ~~LeaderRPC implementation~~
 * /pin/add /pin/rm hijack
 * End-to-end tests
 * ipfscluster-server tool
