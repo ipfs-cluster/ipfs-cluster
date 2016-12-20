@@ -9,7 +9,6 @@ package ipfscluster
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	host "github.com/libp2p/go-libp2p-host"
@@ -92,6 +91,8 @@ type State interface {
 	RmPin(*cid.Cid) error
 	// ListPins lists all the pins in the state
 	ListPins() []*cid.Cid
+	// HasPin returns true if the state is holding a Cid
+	HasPin(*cid.Cid) bool
 }
 
 // PinTracker represents a component which tracks the status of
@@ -105,26 +106,16 @@ type PinTracker interface {
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
 	Untrack(*cid.Cid) error
-	// LocalStatus returns the list of pins with their local status.
-	LocalStatus() []PinInfo
-	// GlobalStatus returns the list of pins with their local and remote
-	// status, which has been fetched.
-	LocalStatusCid(*cid.Cid) PinInfo
-	// GlobalStatusCid returns the global status of a given Cid.
-	GlobalStatus() ([]GlobalPinInfo, error)
-	// LocalStatusCid returns the local status of a given Cid.
-	GlobalStatusCid(*cid.Cid) (GlobalPinInfo, error)
-	// Sync makes sure that the Cid status reflect the real IPFS status. If not,
-	// the status is marked as error. The return value indicates if the
-	// Pin status was updated.
+	// Status returns the list of pins with their local status.
+	Status() []PinInfo
+	// StatusCid returns the local status of a given Cid.
+	StatusCid(*cid.Cid) PinInfo
+	// Sync makes sure that the Cid status reflect the real IPFS status.
+	// The return value indicates if the Cid status deserved attention,
+	// either because its state was updated or because it is in error state.
 	Sync(*cid.Cid) bool
-	// Recover attempts to recover an error by re-[un]pinning the item if needed.
+	// Recover retriggers a Pin/Unpin operation in Cids with error status.
 	Recover(*cid.Cid) error
-	// SyncAll runs Sync() on every known Pin. It returns a list of changed Pins
-	SyncAll() []PinInfo
-	// SyncState makes sure that the tracked Pins matches those in the
-	// cluster state and runs SyncAll(). It returns a list of changed Pins.
-	SyncState(State) []*cid.Cid
 }
 
 // Remote represents a component which takes care of
@@ -157,7 +148,7 @@ func MakeRPC(ctx context.Context, rpcCh chan RPC, r RPC, waitForResponse bool) R
 			logger.Debug("cancelling sending RPC")
 			return RPCResponse{
 				Data:  nil,
-				Error: errors.New("operation timed out while sending RPC"),
+				Error: NewRPCError("operation timed out while sending RPC"),
 			}
 		default:
 			logger.Errorf("RPC channel is full. Will retry request %d", r.Op())
@@ -185,7 +176,7 @@ func MakeRPC(ctx context.Context, rpcCh chan RPC, r RPC, waitForResponse bool) R
 		logger.Debug("cancelling waiting for RPC Response")
 		return RPCResponse{
 			Data:  nil,
-			Error: errors.New("operation timed out while waiting for response"),
+			Error: NewRPCError("operation timed out while waiting for response"),
 		}
 	}
 }

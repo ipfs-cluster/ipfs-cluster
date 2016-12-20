@@ -179,7 +179,7 @@ func TestE2EPin(t *testing.T) {
 	}
 	delay()
 	fpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.LocalStatus()
+		status := c.tracker.Status()
 		for _, v := range status {
 			if v.IPFS != Pinned {
 				t.Errorf("%s should have been pinned but it is %s",
@@ -212,7 +212,7 @@ func TestE2EPin(t *testing.T) {
 	delay()
 
 	funpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.LocalStatus()
+		status := c.tracker.Status()
 		if l := len(status); l != 0 {
 			t.Errorf("Nothing should be pinned")
 			//t.Errorf("%+v", status)
@@ -264,4 +264,149 @@ func TestE2EStatus(t *testing.T) {
 		}
 	}
 	runF(t, clusters, f)
+}
+
+func TestE2ELocalSync(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+	h, _ := cid.Decode(errorCid) // This cid always fails
+	h2, _ := cid.Decode(testCid2)
+	clusters[0].Pin(h)
+	clusters[0].Pin(h2)
+	delay()
+	f := func(t *testing.T, c *Cluster) {
+		// Sync bad ID
+		infos, err := c.LocalSync()
+		if err != nil {
+			// LocalSync() is asynchronous and should not show an
+			// error even if Recover() fails.
+			t.Error(err)
+		}
+		if len(infos) != 1 {
+			t.Fatal("expected 1 elem slice")
+		}
+		// Last-known state may still be pinning
+		if infos[0].IPFS != PinError && infos[0].IPFS != Pinning {
+			t.Error("element should be in Pinning or PinError state")
+		}
+	}
+	// Test Local syncs
+	runF(t, clusters, f)
+}
+
+func TestE2ELocalSyncCid(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+	h, _ := cid.Decode(errorCid) // This cid always fails
+	h2, _ := cid.Decode(testCid2)
+	clusters[0].Pin(h)
+	clusters[0].Pin(h2)
+	delay()
+
+	f := func(t *testing.T, c *Cluster) {
+		info, err := c.LocalSyncCid(h)
+		if err == nil {
+			// LocalSyncCid is synchronous
+			t.Error("expected an error")
+		}
+		if info.IPFS != PinError && info.IPFS != Pinning {
+			t.Errorf("element is %s and not PinError", info.IPFS)
+		}
+
+		// Sync good ID
+		info, err = c.LocalSyncCid(h2)
+		if err != nil {
+			t.Error(err)
+		}
+		if info.IPFS != Pinned {
+			t.Error("element should be in Pinned state")
+		}
+	}
+	// Test Local syncs
+	runF(t, clusters, f)
+}
+
+func TestE2EGlobalSync(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+	h, _ := cid.Decode(errorCid) // This cid always fails
+	h2, _ := cid.Decode(testCid2)
+	clusters[0].Pin(h)
+	clusters[0].Pin(h2)
+	delay()
+
+	j := rand.Intn(nClusters) // choose a random cluster member
+	ginfos, err := clusters[j].GlobalSync()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ginfos) != 1 {
+		t.Fatal("expected globalsync to have 1 elements")
+	}
+	if ginfos[0].Cid.String() != errorCid {
+		t.Error("expected globalsync to have problems with errorCid")
+	}
+	for _, c := range clusters {
+		inf, ok := ginfos[0].Status[c.host.ID()]
+		if !ok {
+			t.Fatal("GlobalPinInfo should have this cluster")
+		}
+		if inf.IPFS != PinError && inf.IPFS != Pinning {
+			t.Error("should be PinError in all members")
+		}
+	}
+}
+
+func TestE2EGlobalSyncCid(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+	h, _ := cid.Decode(errorCid) // This cid always fails
+	h2, _ := cid.Decode(testCid2)
+	clusters[0].Pin(h)
+	clusters[0].Pin(h2)
+	delay()
+
+	j := rand.Intn(nClusters)
+	ginfo, err := clusters[j].GlobalSyncCid(h)
+	if err == nil {
+		t.Error("expected an error")
+	}
+	if ginfo.Cid.String() != errorCid {
+		t.Error("GlobalPinInfo should be for errorCid")
+	}
+
+	for _, c := range clusters {
+		inf, ok := ginfo.Status[c.host.ID()]
+		if !ok {
+			t.Fatal("GlobalPinInfo should not be empty for this host")
+		}
+
+		if inf.IPFS != PinError && inf.IPFS != Pinning {
+			t.Error("should be PinError or Pinning in all members")
+		}
+	}
+
+	// Test with a good Cid
+	j = rand.Intn(nClusters)
+	ginfo, err = clusters[j].GlobalSyncCid(h2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ginfo.Cid.String() != testCid2 {
+		t.Error("GlobalPinInfo should be for testrCid2")
+	}
+
+	for _, c := range clusters {
+		inf, ok := ginfo.Status[c.host.ID()]
+		if !ok {
+			t.Fatal("GlobalPinInfo should have this cluster")
+		}
+		if inf.IPFS != Pinned {
+			t.Error("the GlobalPinInfo should show Pinned in all members")
+		}
+	}
 }

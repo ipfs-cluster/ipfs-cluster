@@ -4,29 +4,40 @@ import cid "github.com/ipfs/go-cid"
 
 // RPC supported operations.
 const (
+	// Cluster API
 	PinRPC = iota
 	UnpinRPC
 	PinListRPC
-	IPFSPinRPC
-	IPFSUnpinRPC
-	IPFSIsPinnedRPC
-	ConsensusLogPinRPC
-	ConsensusLogUnpinRPC
 	VersionRPC
 	MemberListRPC
-	RollbackRPC
-	LeaderRPC
-	BroadcastRPC
+	StatusRPC
+	StatusCidRPC
 	LocalSyncRPC
 	LocalSyncCidRPC
 	GlobalSyncRPC
 	GlobalSyncCidRPC
+	StateSyncRPC
+
+	// Tracker
 	TrackRPC
 	UntrackRPC
-	TrackerLocalStatusRPC
-	TrackerLocalStatusCidRPC
-	StatusRPC
-	StatusCidRPC
+	TrackerStatusRPC
+	TrackerStatusCidRPC
+	TrackerRecoverRPC
+
+	// IPFS Connector
+	IPFSPinRPC
+	IPFSUnpinRPC
+	IPFSIsPinnedRPC
+
+	// Consensus
+	ConsensusLogPinRPC
+	ConsensusLogUnpinRPC
+
+	// Special
+	LeaderRPC
+	BroadcastRPC
+	RollbackRPC
 
 	NoopRPC
 )
@@ -141,5 +152,26 @@ func NewRPC(m RPCOp, arg interface{}) RPC {
 // an error to indicate if the operation was successful.
 type RPCResponse struct {
 	Data  interface{}
-	Error error
+	Error *RPCError
+}
+
+// RPCError is a serializable implementation of error.
+type RPCError struct {
+	Msg string
+}
+
+func NewRPCError(m string) *RPCError {
+	return &RPCError{m}
+}
+
+func CastRPCError(err error) *RPCError {
+	if err != nil {
+		return NewRPCError(err.Error())
+	} else {
+		return nil
+	}
+}
+
+func (r *RPCError) Error() string {
+	return r.Msg
 }

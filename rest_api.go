@@ -62,7 +62,7 @@ type unpinResp struct {
 }
 
 type statusInfo struct {
-	Status string
+	IPFS string `json:"ipfs"`
 }
 
 type statusCidResp struct {
@@ -280,7 +280,7 @@ func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	rRpc := NewRPC(StatusRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
-		sendStatusResponse(w, resp)
+		sendStatusResponse(w, http.StatusOK, resp)
 	}
 }
 
@@ -292,7 +292,7 @@ func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
 		op := NewRPC(StatusCidRPC, c)
 		resp := MakeRPC(ctx, api.rpcCh, op, true)
 		if checkResponse(w, op.Op(), resp) {
-			sendStatusCidResponse(w, resp)
+			sendStatusCidResponse(w, http.StatusOK, resp)
 		}
 	}
 }
@@ -303,7 +303,7 @@ func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	rRpc := NewRPC(GlobalSyncRPC, nil)
 	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
 	if checkResponse(w, rRpc.Op(), resp) {
-		sendStatusResponse(w, resp)
+		sendStatusResponse(w, http.StatusAccepted, resp)
 	}
 }
 
@@ -315,7 +315,7 @@ func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
 		op := NewRPC(GlobalSyncCidRPC, c)
 		resp := MakeRPC(ctx, api.rpcCh, op, true)
 		if checkResponse(w, op.Op(), resp) {
-			sendStatusCidResponse(w, resp)
+			sendStatusCidResponse(w, http.StatusOK, resp)
 		}
 	}
 }
@@ -347,14 +347,12 @@ func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
 	switch op {
 	case PinRPC: // Pin/Unpin only return errors
 	case UnpinRPC:
-	case StatusRPC, LocalSyncRPC, GlobalSyncRPC:
+	case StatusRPC, GlobalSyncRPC:
 		_, ok = resp.Data.([]GlobalPinInfo)
-	case StatusCidRPC, LocalSyncCidRPC, GlobalSyncCidRPC:
+	case StatusCidRPC, GlobalSyncCidRPC:
 		_, ok = resp.Data.(GlobalPinInfo)
 	case PinListRPC:
 		_, ok = resp.Data.([]*cid.Cid)
-	case IPFSPinRPC:
-	case IPFSUnpinRPC:
 	case VersionRPC:
 		_, ok = resp.Data.(string)
 	case MemberListRPC:
@@ -399,24 +397,24 @@ func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
 	s.Status = make(map[string]statusInfo)
 	for k, v := range p.Status {
 		s.Status[k.Pretty()] = statusInfo{
-			Status: v.IPFS.String(),
+			IPFS: v.IPFS.String(),
 		}
 	}
 	return s
 }
 
-func sendStatusResponse(w http.ResponseWriter, resp RPCResponse) {
+func sendStatusResponse(w http.ResponseWriter, code int, resp RPCResponse) {
 	data := resp.Data.([]GlobalPinInfo)
 	pins := make(statusResp, 0, len(data))
 
 	for _, d := range data {
 		pins = append(pins, transformPinToStatusCid(d))
 	}
-	sendJSONResponse(w, 200, pins)
+	sendJSONResponse(w, code, pins)
 }
 
-func sendStatusCidResponse(w http.ResponseWriter, resp RPCResponse) {
+func sendStatusCidResponse(w http.ResponseWriter, code int, resp RPCResponse) {
 	data := resp.Data.(GlobalPinInfo)
 	st := transformPinToStatusCid(data)
-	sendJSONResponse(w, 200, st)
+	sendJSONResponse(w, code, st)
 }

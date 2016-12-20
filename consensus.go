@@ -178,9 +178,9 @@ func (cc *Consensus) run() {
 		for !quitLoop {
 			select {
 			case <-timer.C: // Make a first sync
-				MakeRPC(ctx, cc.rpcCh, NewRPC(LocalSyncRPC, nil), false)
+				MakeRPC(ctx, cc.rpcCh, NewRPC(StateSyncRPC, nil), false)
 			case <-upToDate:
-				MakeRPC(ctx, cc.rpcCh, NewRPC(LocalSyncRPC, nil), false)
+				MakeRPC(ctx, cc.rpcCh, NewRPC(StateSyncRPC, nil), false)
 				quitLoop = true
 			}
 		}

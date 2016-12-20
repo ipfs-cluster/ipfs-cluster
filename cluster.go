@@ -115,64 +115,117 @@ func (c *Cluster) Shutdown() error {
 	return nil
 }
 
-// LocalSync makes sure that the current state of the Cluster matches
-// and the desired IPFS daemon state are aligned. It makes sure that
-// IPFS is pinning content that should be pinned locally, and not pinning
-// other content. It will also try to recover any failed pin or unpin
-// operations by retrigerring them.
-func (c *Cluster) LocalSync() ([]PinInfo, error) {
+// StateSync syncs the consensus state to the Pin Tracker, ensuring
+// that every Cid that should be tracked is tracked. It returns
+// PinInfo for Cids which were added or deleted.
+func (c *Cluster) StateSync() ([]PinInfo, error) {
 	cState, err := c.consensus.State()
 	if err != nil {
 		return nil, err
 	}
-	changed := c.tracker.SyncState(cState)
-	for _, h := range changed {
-		logger.Debugf("recovering %s", h)
-		err = c.tracker.Recover(h)
-		if err != nil {
-			logger.Errorf("Error recovering %s: %s", h, err)
-			return nil, err
+
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+
+	logger.Info("syncing state to tracker")
+	clusterPins := cState.ListPins()
+	var changed []*cid.Cid
+
+	// Track items which are not tracked
+	for _, h := range clusterPins {
+		if c.tracker.StatusCid(h).IPFS == Unpinned {
+			changed = append(changed, h)
+			MakeRPC(ctx, c.rpcCh, NewRPC(TrackRPC, h), false)
+
 		}
 	}
-	return c.tracker.LocalStatus(), nil
+
+	// Untrack items which should not be tracked
+	for _, p := range c.tracker.Status() {
+		h, _ := cid.Decode(p.CidStr)
+		if !cState.HasPin(h) {
+			changed = append(changed, h)
+			MakeRPC(ctx, c.rpcCh, NewRPC(UntrackRPC, h), false)
+		}
+	}
+
+	var infos []PinInfo
+	for _, h := range changed {
+		infos = append(infos, c.tracker.StatusCid(h))
+	}
+	return infos, nil
 }
 
-// LocalSyncCid makes sure that the current state of the cluster
-// and the desired IPFS daemon state are aligned for a given Cid. It
-// makes sure that IPFS is pinning content that should be pinned locally,
-// and not pinning other content. It will also try to recover any failed
-// pin or unpin operations by retriggering them.
-func (c *Cluster) LocalSyncCid(h *cid.Cid) (PinInfo, error) {
-	changed := c.tracker.Sync(h)
-	if changed {
-		err := c.tracker.Recover(h)
-		if err != nil {
-			logger.Errorf("Error recovering %s: %s", h, err)
-			return PinInfo{}, err
+// LocalSync makes sure that the current state the Tracker matches
+// the IPFS daemon state by triggering a Tracker.Sync() and Recover()
+// on all items that need it. Returns PinInfo for items changed on Sync().
+//
+// LocalSync triggers recoveries asynchronously, and will not wait for
+// them to fail or succeed before returning.
+func (c *Cluster) LocalSync() ([]PinInfo, error) {
+	status := c.tracker.Status()
+	var toRecover []*cid.Cid
+
+	for _, p := range status {
+		h, _ := cid.Decode(p.CidStr)
+		modified := c.tracker.Sync(h)
+		if modified {
+			toRecover = append(toRecover, h)
 		}
 	}
-	return c.tracker.LocalStatusCid(h), nil
+
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+	logger.Infof("%d items to recover after sync", len(toRecover))
+	for i, h := range toRecover {
+		logger.Infof("recovering in progress for %s (%d/%d", h, i, len(toRecover))
+		MakeRPC(ctx, c.rpcCh, NewRPC(TrackerRecoverRPC, h), false)
+	}
+
+	var changed []PinInfo
+	for _, h := range toRecover {
+		changed = append(changed, c.tracker.StatusCid(h))
+	}
+	return changed, nil
+}
+
+// LocalSyncCid performs a Tracker.Sync() operation followed by a
+// Recover() when needed. It returns the latest known PinInfo for the Cid.
+//
+// LocalSyncCid will wait for the Recover operation to fail or succeed before
+// returning.
+func (c *Cluster) LocalSyncCid(h *cid.Cid) (PinInfo, error) {
+	var err error
+	if c.tracker.Sync(h) {
+		err = c.tracker.Recover(h)
+	}
+	return c.tracker.StatusCid(h), err
 }
 
 // GlobalSync triggers Sync() operations in all members of the Cluster.
 func (c *Cluster) GlobalSync() ([]GlobalPinInfo, error) {
-	return c.Status()
+	return c.globalPinInfoSlice(LocalSyncRPC)
 }
 
-// GlobalSunc triggers a Sync() operation for a given Cid in all members
-// of the Cluster.
+// GlobalSyncCid triggers a LocalSyncCid() operation for a given Cid
+// in all members of the Cluster.
+//
+// GlobalSyncCid will only return when all operations have either failed,
+// succeeded or timed-out.
 func (c *Cluster) GlobalSyncCid(h *cid.Cid) (GlobalPinInfo, error) {
-	return c.StatusCid(h)
+	return c.globalPinInfoCid(LocalSyncCidRPC, h)
 }
 
-// Status returns the last known status for all Pins tracked by Cluster.
+// Status returns the GlobalPinInfo for all tracked Cids. If an error happens,
+// the slice will contain as much information as could be fetched.
 func (c *Cluster) Status() ([]GlobalPinInfo, error) {
-	return c.tracker.GlobalStatus()
+	return c.globalPinInfoSlice(TrackerStatusRPC)
 }
 
-// StatusCid returns the last known status for a given Cid
+// StatusCid returns the GlobalPinInfo for a given Cid. If an error happens,
+// the GlobalPinInfo should contain as much information as could be fetched.
 func (c *Cluster) StatusCid(h *cid.Cid) (GlobalPinInfo, error) {
-	return c.tracker.GlobalStatusCid(h)
+	return c.globalPinInfoCid(TrackerStatusCidRPC, h)
 }
 
 // Pins returns the list of Cids managed by Cluster and which are part
@@ -279,7 +332,7 @@ func (c *Cluster) run() {
 				logger.Error("unknown RPC type")
 				op.ResponseCh() <- RPCResponse{
 					Data:  nil,
-					Error: errors.New("unknown RPC type"),
+					Error: NewRPCError("unknown RPC type"),
 				}
 			}
 		}
@@ -300,10 +353,12 @@ func (c *Cluster) handleGenericRPC(grpc *GenericRPC) {
 		data, err = c.LocalSync()
 	case GlobalSyncRPC:
 		data, err = c.GlobalSync()
+	case StateSyncRPC:
+		data, err = c.StateSync()
 	case StatusRPC:
 		data, err = c.Status()
-	case TrackerLocalStatusRPC:
-		data = c.tracker.LocalStatus()
+	case TrackerStatusRPC:
+		data = c.tracker.Status()
 	case RollbackRPC:
 		// State, ok := grpc.Argument.(State)
 		// if !ok {
@@ -317,7 +372,7 @@ func (c *Cluster) handleGenericRPC(grpc *GenericRPC) {
 
 	resp := RPCResponse{
 		Data:  data,
-		Error: err,
+		Error: CastRPCError(err),
 	}
 
 	grpc.ResponseCh() <- resp
@@ -334,6 +389,12 @@ func (c *Cluster) handleCidRPC(crpc *CidRPC) {
 		err = c.Pin(h)
 	case UnpinRPC:
 		err = c.Unpin(h)
+	case StatusCidRPC:
+		data, err = c.StatusCid(h)
+	case LocalSyncCidRPC:
+		data, err = c.LocalSyncCid(h)
+	case GlobalSyncCidRPC:
+		data, err = c.GlobalSyncCid(h)
 	case ConsensusLogPinRPC:
 		err = c.consensus.LogPin(h)
 	case ConsensusLogUnpinRPC:
@@ -342,27 +403,24 @@ func (c *Cluster) handleCidRPC(crpc *CidRPC) {
 		err = c.tracker.Track(h)
 	case UntrackRPC:
 		err = c.tracker.Untrack(h)
-	case TrackerLocalStatusCidRPC:
-		data = c.tracker.LocalStatusCid(h)
+	case TrackerStatusCidRPC:
+		data = c.tracker.StatusCid(h)
+	case TrackerRecoverRPC:
+		err = c.tracker.Recover(h)
 	case IPFSPinRPC:
 		err = c.ipfs.Pin(h)
 	case IPFSUnpinRPC:
 		err = c.ipfs.Unpin(h)
 	case IPFSIsPinnedRPC:
 		data, err = c.ipfs.IsPinned(h)
-	case StatusCidRPC:
-		data, err = c.StatusCid(h)
-	case LocalSyncCidRPC:
-		data, err = c.LocalSyncCid(h)
-	case GlobalSyncCidRPC:
-		data, err = c.GlobalSyncCid(h)
+
 	default:
 		logger.Error("unknown operation for CidRPC. Ignoring.")
 	}
 
 	resp := RPCResponse{
 		Data:  data,
-		Error: err,
+		Error: CastRPCError(err),
 	}
 
 	crpc.ResponseCh() <- resp
@@ -373,15 +431,13 @@ func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
 	var resp RPCResponse
 	// resp initialization
 	switch innerRPC.Op() {
-	case TrackerLocalStatusRPC:
+	case TrackerStatusRPC, LocalSyncRPC:
 		resp = RPCResponse{
-			Data:  []PinInfo{},
-			Error: nil,
+			Data: []PinInfo{},
 		}
-	case TrackerLocalStatusCidRPC:
+	case TrackerStatusCidRPC, LocalSyncCidRPC:
 		resp = RPCResponse{
-			Data:  PinInfo{},
-			Error: nil,
+			Data: PinInfo{},
 		}
 	default:
 		resp = RPCResponse{}
@@ -395,14 +451,14 @@ func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
 		if err != nil {
 			resp = RPCResponse{
 				Data:  nil,
-				Error: err,
+				Error: CastRPCError(err),
 			}
 		}
 		err = c.remote.MakeRemoteRPC(innerRPC, leader, &resp)
 		if err != nil {
 			resp = RPCResponse{
 				Data:  nil,
-				Error: fmt.Errorf("request to %s failed with: %s", err),
+				Error: CastRPCError(fmt.Errorf("request to %s failed with: %s", err)),
 			}
 		}
 	case BroadcastRPC:
@@ -417,7 +473,7 @@ func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
 			if err != nil {
 				logger.Error("Error making remote RPC: ", err)
 				rch <- RPCResponse{
-					Error: err,
+					Error: CastRPCError(err),
 				}
 			} else {
 				rch <- r
@@ -441,7 +497,7 @@ func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
 	default:
 		resp = RPCResponse{
 			Data:  nil,
-			Error: errors.New("unknown WrappedRPC type"),
+			Error: NewRPCError("unknown WrappedRPC type"),
 		}
 	}
 
@@ -528,4 +584,105 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 
 	bhost := basichost.New(network)
 	return bhost, nil
+}
+
+func (c *Cluster) globalPinInfoCid(op RPCOp, h *cid.Cid) (GlobalPinInfo, error) {
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+
+	pin := GlobalPinInfo{
+		Cid:    h,
+		Status: make(map[peer.ID]PinInfo),
+	}
+
+	rpc := NewRPC(op, h)
+	wrpc := NewRPC(BroadcastRPC, rpc)
+	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
+	if resp.Error != nil {
+		return pin, resp.Error
+	}
+
+	responses, ok := resp.Data.([]RPCResponse)
+	if !ok {
+		return pin, errors.New("unexpected responses format")
+	}
+
+	var errorMsgs string
+	for _, r := range responses {
+		if r.Error != nil {
+			logger.Error(r.Error)
+			errorMsgs += r.Error.Error() + "\n"
+		}
+		info, ok := r.Data.(PinInfo)
+		if !ok {
+			return pin, errors.New("unexpected response format")
+		}
+		pin.Status[info.Peer] = info
+	}
+
+	if len(errorMsgs) == 0 {
+		return pin, nil
+	} else {
+		return pin, errors.New(errorMsgs)
+	}
+}
+
+func (c *Cluster) globalPinInfoSlice(op RPCOp) ([]GlobalPinInfo, error) {
+	ctx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+
+	var infos []GlobalPinInfo
+	fullMap := make(map[string]GlobalPinInfo)
+
+	rpc := NewRPC(op, nil)
+	wrpc := NewRPC(BroadcastRPC, rpc)
+	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	responses, ok := resp.Data.([]RPCResponse)
+	if !ok {
+		return infos, errors.New("unexpected responses format")
+	}
+
+	mergePins := func(pins []PinInfo) {
+		for _, p := range pins {
+			item, ok := fullMap[p.CidStr]
+			c, _ := cid.Decode(p.CidStr)
+			if !ok {
+				fullMap[p.CidStr] = GlobalPinInfo{
+					Cid: c,
+					Status: map[peer.ID]PinInfo{
+						p.Peer: p,
+					},
+				}
+			} else {
+				item.Status[p.Peer] = p
+			}
+		}
+	}
+
+	var errorMsgs string
+	for _, r := range responses {
+		if r.Error != nil {
+			logger.Error("error in one of the broadcast responses: ", r.Error)
+			errorMsgs += r.Error.Error() + "\n"
+		}
+		pins, ok := r.Data.([]PinInfo)
+		if !ok {
+			return infos, fmt.Errorf("unexpected response format: %+v", r.Data)
+		}
+		mergePins(pins)
+	}
+
+	for _, v := range fullMap {
+		infos = append(infos, v)
+	}
+
+	if len(errorMsgs) == 0 {
+		return infos, nil
+	} else {
+		return infos, errors.New(errorMsgs)
+	}
 }

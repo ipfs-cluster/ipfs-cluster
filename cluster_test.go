@@ -89,11 +89,11 @@ func testClusterShutdown(t *testing.T) {
 	}
 }
 
-func TestClusterLocalSync(t *testing.T) {
+func TestClusterStateSync(t *testing.T) {
 	cl, _, _, st, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
-	_, err := cl.LocalSync()
+	_, err := cl.StateSync()
 	if err == nil {
 		t.Error("expected an error as there is no state to sync")
 	}
@@ -104,7 +104,7 @@ func TestClusterLocalSync(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	_, err = cl.LocalSync()
+	_, err = cl.StateSync()
 	if err != nil {
 		t.Fatal("sync after pinning should have worked:", err)
 	}
@@ -112,7 +112,7 @@ func TestClusterLocalSync(t *testing.T) {
 	// Modify state on the side so the sync does not
 	// happen on an empty slide
 	st.RmPin(c)
-	_, err = cl.LocalSync()
+	_, err = cl.StateSync()
 	if err != nil {
 		t.Fatal("sync with recover should have worked:", err)
 	}

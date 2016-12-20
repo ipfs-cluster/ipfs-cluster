@@ -78,7 +78,7 @@ func simulateAnswer(ch <-chan RPC, answer interface{}, err error) {
 		req := <-ch
 		req.ResponseCh() <- RPCResponse{
 			Data:  answer,
-			Error: err,
+			Error: CastRPCError(err),
 		}
 	}()
 }

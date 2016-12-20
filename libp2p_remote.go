@@ -116,7 +116,7 @@ DECODE_ERROR:
 	logger.Error("error decoding RPC request from Stream:", err)
 	errResp := RPCResponse{
 		Data:  nil,
-		Error: errors.New("error decoding request"),
+		Error: NewRPCError("error decoding request"),
 	}
 	r.sendStreamResponse(s, errResp)
 	return nil, err

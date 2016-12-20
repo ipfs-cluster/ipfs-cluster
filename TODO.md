@@ -6,7 +6,7 @@ Things that need to be done:
 * ~~Allow to shutdown multiple times (+ test)~~
 * Efficient SyncAll (use single ipfs pin ls call)
 * ~~GlobalStatus~~
-* GlobalSync
+* ~~GlobalSync~~
 * ~~LeaderRPC implementation~~
 * /pin/add /pin/rm hijack
 * End-to-end tests
