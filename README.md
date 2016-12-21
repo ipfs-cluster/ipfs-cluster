@@ -18,11 +18,13 @@
 
 `ipfs-cluster` is a tool which groups a number of IPFS nodes together, allowing to collectively perform operations such as pinning.
 
-In order to do so `ipfs-cluster` nodes use a libp2p-based consensus algorithm (currently Raft) to agree on a log of operations and build a consistent state across the cluster. The state represents which objects should be pinned by which nodes.
+In order to do so IPFS Cluster server nodes use a libp2p-based consensus algorithm (currently Raft) to agree on a log of operations and build a consistent state across the cluster. The state represents which objects should be pinned by which nodes.
 
-Additionally, `ipfs-cluster` nodes act as a proxy/wrapper to the IPFS API, so an IPFS cluster can be used as a regular node.
+Additionally, server nodes act as a proxy/wrapper to the IPFS API, so they can be used as a regular node, with the difference that pin requests are handled by the Cluster.
 
-`ipfs-cluster` provides a Go API, an equivalent HTTP API (in a RESTful fashion) and a command-line interface tool (`ipfs-cluster-ctl`) which plugs directly into it.
+IPFS Cluster provides a server application (`ipfscluster-server`), a Go API, a HTTP API and a command-line tool (`ipfscluster`).
+
+Current functionality only allows pinning in all cluster members, but more strategies (like setting a replication factor for each pin) will be developed.
 
 ## Table of Contents
 
@@ -41,17 +43,53 @@ Since the start of IPFS it was clear that a tool to coordinate a number of diffe
 
 ## Install
 
-TODO
+In order to install `ipfs-cluster` simply download this repository and run `make` as follows:
+
+```
+$ go get -u -d github.com/ipfs/ipfs-cluster
+$ cd $GOPATH/src/github.com/ipfs/ipfs-cluster
+$ make install
+```
+
+This will install the ipfs-cluster executables (`ipfscluster-server` and `ipfscluster`) in your `$GOPATH/bin` folder.
 
 ## Usage
 
-The documentation and examples for `ipfs-cluster` (useful if you are integrating it in Go) can be found in [godoc.org/github.com/ipfs/ipfs-cluster](https://godoc.org/github.com/ipfs/ipfs-cluster).
+### `ipfscluster-server`
 
-TODO
+`ipfscluster-server` runs a member node for the cluster. Usage information can be obtained running:
+
+```
+$ ipfscluster-server -h
+
+```
+
+Before running `ipfscluster-server` for the first time, initialize a configuration file with:
+
+```
+$ ipfscluster-server -init
+```
+
+The configuration will be placed in `~/.ipfs-cluster/server.json`.
+
+You can add the multiaddresses for the other members of the cluster in the `cluster_peers` variable.
+
+
+### `ipfscluster`
+
+`ipfscluster` is the client application to manage the cluster servers and perform actions. `ipfscluster` uses the HTTP API provided by the server nodes.
+
+TODO: This is not done yet
+
+### Go
+
+IPFS Cluster nodes can be launched directly from Go. The `Cluster` object provides methods to interact with the cluster and perform actions.
+
+Documentation and examples on how to use IPFS Cluster from Go can be found in [godoc.org/github.com/ipfs/ipfs-cluster](https://godoc.org/github.com/ipfs/ipfs-cluster).
 
 ## API
 
-TODO
+TODO: Swagger
 
 ## Contribute
 

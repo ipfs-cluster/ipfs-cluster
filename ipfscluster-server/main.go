@@ -96,6 +96,7 @@ func init() {
 	flag.StringVar(&logLevelFlag, "loglevel", "info",
 		"set the loglevel [critical, error, warning, notice, info, debug]")
 	flag.Parse()
+	configPath = configFlag
 }
 
 func out(m string, a ...interface{}) {

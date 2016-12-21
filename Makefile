@@ -1,6 +1,10 @@
-all: deps
+all: install
+clean:
+	$(MAKE) -C ipfscluster-server clean
+install: deps
+	$(MAKE) -C ipfscluster-server install
 server: deps
-	$(MAKE) -C ipfscluster-server
+	$(MAKE) -C ipfscluster-server ipfscluster-server
 gx:
 	go get github.com/whyrusleeping/gx
 	go get github.com/whyrusleeping/gx-go
@@ -20,4 +24,4 @@ rwundo:
 	gx-go rewrite --undo
 publish: rwundo
 	gx publish
-.PHONY: all gx deps test rw rwundo publish
+.PHONY: all gx deps test rw rwundo publish server install clean

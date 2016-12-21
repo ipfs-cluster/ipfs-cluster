@@ -10,10 +10,11 @@ Things that need to be done:
 * ~~LeaderRPC implementation~~
 * /pin/add /pin/rm hijack
 * End-to-end tests
-* ipfscluster-server tool
-  * Allow custom configuration path
-  * allow --init
+* ~~ipfscluster-server tool~~
+  * ~~Allow custom configuration path~~
+  * ~~allow --init~~
 * Peer-aware components. Modify cluster members on the fly.
-* Recover(). Also vs. Sync()
+* ~~Recover(). Also vs. Sync()~~
+* go-fmt
 * PinTracker docs
 * Readme docs
