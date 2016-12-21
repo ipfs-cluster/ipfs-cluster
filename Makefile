@@ -1,4 +1,6 @@
 all: deps
+server: deps
+	$(MAKE) -C ipfscluster-server
 gx:
 	go get github.com/whyrusleeping/gx
 	go get github.com/whyrusleeping/gx-go

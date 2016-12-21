@@ -163,7 +163,7 @@ func (cc *Consensus) run() {
 			for {
 				lai := cc.p2pRaft.raft.AppliedIndex()
 				li := cc.p2pRaft.raft.LastIndex()
-				logger.Infof("current Raft index: %d/%d", lai, li)
+				logger.Debugf("current Raft index: %d/%d", lai, li)
 				if lai == li {
 					upToDate <- struct{}{}
 					break
@@ -172,7 +172,6 @@ func (cc *Consensus) run() {
 			}
 		}()
 
-		logger.Info("consensus state is catching up")
 		timer := time.NewTimer(FirstSyncDelay)
 		quitLoop := false
 		for !quitLoop {
@@ -180,6 +179,7 @@ func (cc *Consensus) run() {
 			case <-timer.C: // Make a first sync
 				MakeRPC(ctx, cc.rpcCh, NewRPC(StateSyncRPC, nil), false)
 			case <-upToDate:
+				logger.Info("consensus is up to date. Triggering state sync.")
 				MakeRPC(ctx, cc.rpcCh, NewRPC(StateSyncRPC, nil), false)
 				quitLoop = true
 			}

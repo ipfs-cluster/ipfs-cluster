@@ -18,7 +18,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var logger = logging.Logger("ipfs-cluster")
+var logger = logging.Logger("ipfscluster")
 
 // Current Cluster version.
 const Version = "0.0.1"

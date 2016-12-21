@@ -1,9 +1,26 @@
 package ipfscluster
 
 import (
+	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
+)
+
+// Default parameters for the configuration
+const (
+	DefaultConfigCrypto    = crypto.RSA
+	DefaultConfigKeyLength = 2048
+	DefaultAPIAddr         = "127.0.0.1"
+	DefaultAPIPort         = 9094
+	DefaultIPFSAPIAddr     = "127.0.0.1"
+	DefaultIPFSAPIPort     = 9095
+	DefaultIPFSAddr        = "127.0.0.1"
+	DefaultIPFSPort        = 5001
+	DefaultClusterAddr     = "0.0.0.0"
+	DefaultClusterPort     = 9096
 )
 
 type Config struct {
@@ -39,13 +56,55 @@ type Config struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	fmt.Println(path)
 	config := &Config{}
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 	json.Unmarshal(file, config)
-	fmt.Printf("%+v", config)
 	return config, nil
+}
+
+// NewDefaultConfig returns a default configuration object with a randomly
+// generated ID and private key.
+func NewDefaultConfig() (*Config, error) {
+	priv, pub, err := crypto.GenerateKeyPair(
+		DefaultConfigCrypto,
+		DefaultConfigKeyLength)
+	if err != nil {
+		return nil, err
+	}
+	pid, err := peer.IDFromPublicKey(pub)
+	if err != nil {
+		return nil, err
+	}
+	privBytes, err := priv.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	b64priv := base64.StdEncoding.EncodeToString(privBytes)
+
+	return &Config{
+		ID:                  peer.IDB58Encode(pid),
+		PrivateKey:          b64priv,
+		ClusterPeers:        []string{},
+		ClusterAddr:         DefaultClusterAddr,
+		ClusterPort:         DefaultClusterPort,
+		ConsensusDataFolder: "ipfscluster-data",
+		APIAddr:             DefaultAPIAddr,
+		APIPort:             DefaultAPIPort,
+		IPFSAPIAddr:         DefaultIPFSAPIAddr,
+		IPFSAPIPort:         DefaultIPFSAPIPort,
+		IPFSAddr:            DefaultIPFSAddr,
+		IPFSPort:            DefaultIPFSPort,
+	}, nil
+}
+
+func (c *Config) Save(path string) error {
+	json, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(path, json, 0600)
+	return err
 }
