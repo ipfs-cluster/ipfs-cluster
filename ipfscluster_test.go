@@ -138,10 +138,10 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 	var wg sync.WaitGroup
 	for _, c := range clusters {
 		wg.Add(1)
-		go func() {
+		go func(c *Cluster) {
 			defer wg.Done()
 			f(t, c)
-		}()
+		}(c)
 
 	}
 	wg.Wait()

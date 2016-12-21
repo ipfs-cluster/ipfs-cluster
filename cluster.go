@@ -458,7 +458,7 @@ func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
 		if err != nil {
 			resp = RPCResponse{
 				Data:  nil,
-				Error: CastRPCError(fmt.Errorf("request to %s failed with: %s", err)),
+				Error: CastRPCError(fmt.Errorf("request to %s failed with: %s", leader, err)),
 			}
 		}
 	case BroadcastRPC:

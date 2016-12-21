@@ -280,7 +280,6 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 			return false
 		}
 	}
-	return false
 }
 
 // Recover will re-track or re-untrack a Cid in error state,
