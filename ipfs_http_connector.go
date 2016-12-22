@@ -11,8 +11,20 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	cid "github.com/ipfs/go-cid"
+)
+
+// IPFS Proxy settings
+var (
+	// maximum duration before timing out read of the request
+	IPFSProxyServerReadTimeout = 5 * time.Second
+	// maximum duration before timing out write of the response
+	IPFSProxyServerWriteTimeout = 10 * time.Second
+	// server-side the amount of time a Keep-Alive connection will be
+	// kept idle before being reused
+	IPFSProxyServerIdleTimeout = 60 * time.Second
 )
 
 // IPFSHTTPConnector implements the IPFSConnector interface
@@ -56,6 +68,9 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	smux := http.NewServeMux()
 	s := &http.Server{
+		ReadTimeout:  IPFSProxyServerReadTimeout,
+		WriteTimeout: IPFSProxyServerWriteTimeout,
+		// IdleTimeout:  IPFSProxyServerIdleTimeout, // TODO Go 1.8
 		Handler: smux,
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed

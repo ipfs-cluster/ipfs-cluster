@@ -13,8 +13,10 @@ Things that need to be done:
 * ~~ipfscluster-server tool~~
   * ~~Allow custom configuration path~~
   * ~~allow --init~~
+* ipfscluster tool
 * Peer-aware components. Modify cluster members on the fly.
 * ~~Recover(). Also vs. Sync()~~
 * go-fmt
 * PinTracker docs
 * Readme docs
+* ~~Go Server hardening https://getpocket.com/a/read/1525235285~~

@@ -8,12 +8,24 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	cid "github.com/ipfs/go-cid"
 
 	mux "github.com/gorilla/mux"
+)
+
+// Server settings
+var (
+	// maximum duration before timing out read of the request
+	RESTAPIServerReadTimeout = 5 * time.Second
+	// maximum duration before timing out write of the response
+	RESTAPIServerWriteTimeout = 10 * time.Second
+	// server-side the amount of time a Keep-Alive connection will be
+	// kept idle before being reused
+	RESTAPIServerIdleTimeout = 60 * time.Second
 )
 
 // RESTAPI implements an API and aims to provides
@@ -84,7 +96,12 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
-	s := &http.Server{Handler: router}
+	s := &http.Server{
+		ReadTimeout:  RESTAPIServerReadTimeout,
+		WriteTimeout: RESTAPIServerWriteTimeout,
+		//IdleTimeout:  RESTAPIServerIdleTimeout, // TODO: Go 1.8
+		Handler: router,
+	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	api := &RESTAPI{
