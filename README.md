@@ -37,13 +37,13 @@ Current functionality only allows pinning in all cluster members, but more strat
 
 ## Background
 
-Since the start of IPFS it was clear that a tool to coordinate a number of different nodes (and the content they are supposed to store) would add a great value to the IPFS ecosystem. Naïve approaches are possible, but they present some weaknesses, specially at dealing with error handling and incorporating multiple pinning strategies.
+Since the start of IPFS it was clear that a tool to coordinate a number of different nodes (and the content they are supposed to store) would add a great value to the IPFS ecosystem. Naïve approaches are possible, but they present some weaknesses, specially at dealing with error handling, recovery and implementation of advanced pinning strategies.
 
-`ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster members via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the members of the cluster. Thus, every cluster member has an overview of where each hash is pinned, and the cluster can react to any contingencies, like IPFS nodes dying, by redistributing the storage load to others.
+`ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster members via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the members of the cluster. Thus, every cluster member knows which content is tracked, can decide whether asking IPFS to pin it and can react to any contingencies like server reboots.
 
 ## Install
 
-In order to install `ipfs-cluster` simply download this repository and run `make` as follows:
+In order to install the `ipfscluster-server` the `ipfscluster` tool  simply download this repository and run `make` as follows:
 
 ```
 $ go get -u -d github.com/ipfs/ipfs-cluster
@@ -51,7 +51,7 @@ $ cd $GOPATH/src/github.com/ipfs/ipfs-cluster
 $ make install
 ```
 
-This will install the ipfs-cluster executables (`ipfscluster-server` and `ipfscluster`) in your `$GOPATH/bin` folder.
+This will install `ipfscluster-server` and `ipfscluster` in your `$GOPATH/bin` folder.
 
 ## Usage
 
@@ -70,7 +70,7 @@ Before running `ipfscluster-server` for the first time, initialize a configurati
 $ ipfscluster-server -init
 ```
 
-The configuration will be placed in `~/.ipfs-cluster/server.json`.
+The configuration will be placed in `~/.ipfs-cluster/server.json` by default.
 
 You can add the multiaddresses for the other members of the cluster in the `cluster_peers` variable.
 
@@ -79,7 +79,18 @@ You can add the multiaddresses for the other members of the cluster in the `clus
 
 `ipfscluster` is the client application to manage the cluster servers and perform actions. `ipfscluster` uses the HTTP API provided by the server nodes.
 
-TODO: This is not done yet
+After installing, you can run `ipfscluster --help` to display general description and options, or alternatively `ipfscluster help [cmd]` to display
+information about supported commands.
+
+In summary, it works as follows:
+
+```
+$ ipfscluster member ls                                                # list cluster members
+$ ipfscluster pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a Cid in the cluster
+$ ipfscluster pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # unpin a Cid from the cluster
+$ ipfscluster status                                                   # display tracked Cids information
+$ ipfscluster sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # recover Cids in error status
+```
 
 ### Go
 

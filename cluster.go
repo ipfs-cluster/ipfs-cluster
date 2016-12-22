@@ -73,7 +73,7 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		shutdownCh: make(chan struct{}),
 	}
 
-	logger.Info("starting IPFS Cluster")
+	logger.Infof("starting IPFS Cluster v%s", Version)
 
 	cluster.run()
 	return cluster, nil

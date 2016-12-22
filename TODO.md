@@ -13,7 +13,7 @@ Things that need to be done:
 * ~~ipfscluster-server tool~~
   * ~~Allow custom configuration path~~
   * ~~allow --init~~
-* ipfscluster tool
+* ~~ipfscluster tool~~
 * Peer-aware components. Modify cluster members on the fly.
 * ~~Recover(). Also vs. Sync()~~
 * go-fmt

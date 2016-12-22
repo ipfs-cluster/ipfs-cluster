@@ -13,12 +13,12 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 )
 
-// Name of this application
-const name = `ipfscluster-server`
+// ProgramName of this application
+const programName = `ipfscluster-server`
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
-%s runs an IPFS Cluster member.
+%s runs an IPFS Cluster member (version %s).
 
 A member is a server node which participates in the cluster consensus, follows
 a distributed log of pinning and unpinning operations and manages pinning
@@ -33,11 +33,13 @@ independent from IPFS and includes its own LibP2P key-pair. It can be
 initialized with -init and its default location is
  ~/%s/%s.
 
-For any additional information, visit https://github.com/ipfs/ipfs-cluster.
+For feedback, bug reports or any additional information, visit
+https://github.com/ipfs/ipfs-cluster.
 
 `,
-	name,
-	name,
+	programName,
+	ipfscluster.Version,
+	programName,
 	DefaultPath,
 	DefaultConfigFile)
 
@@ -63,6 +65,7 @@ var (
 	configFlag   string
 	debugFlag    bool
 	logLevelFlag string
+	versionFlag  bool
 )
 
 func init() {
@@ -81,7 +84,7 @@ func init() {
 	dataPath = filepath.Join(DefaultPath, DefaultDataFolder)
 
 	flag.Usage = func() {
-		out("Usage: %s [options]\n", name)
+		out("Usage: %s [options]\n", programName)
 		out(Description)
 		out("Options:\n")
 		flag.PrintDefaults()
@@ -95,8 +98,21 @@ func init() {
 		"enable full debug logs of ipfs cluster and consensus layers")
 	flag.StringVar(&logLevelFlag, "loglevel", "info",
 		"set the loglevel [critical, error, warning, notice, info, debug]")
+	flag.BoolVar(&versionFlag, "version", false,
+		fmt.Sprintf("display %s version", programName))
 	flag.Parse()
 	configPath = configFlag
+
+	setupLogging()
+	setupDebug()
+	if versionFlag {
+		fmt.Println(ipfscluster.Version)
+	}
+	if initFlag {
+		err := initConfig()
+		checkErr("creating configuration", err)
+		os.Exit(0)
+	}
 }
 
 func out(m string, a ...interface{}) {
@@ -107,14 +123,6 @@ func main() {
 	// Catch SIGINT as a way to exit
 	signalChan := make(chan os.Signal)
 	signal.Notify(signalChan, os.Interrupt)
-
-	setupLogging()
-	setupDebug()
-	if initFlag {
-		err := initConfig()
-		checkErr("creating configuration", err)
-		os.Exit(0)
-	}
 
 	cfg, err := loadConfig()
 	checkErr("loading configuration", err)
@@ -145,12 +153,12 @@ func checkErr(doing string, err error) {
 }
 
 func setupLogging() {
-	logging.SetLogLevel("ipfscluster", logLevelFlag)
+	logging.SetLogLevel("cluster", logLevelFlag)
 }
 
 func setupDebug() {
 	if debugFlag {
-		logging.SetLogLevel("ipfscluster", "debug")
+		logging.SetLogLevel("cluster", "debug")
 		logging.SetLogLevel("libp2p-raft", "debug")
 		ipfscluster.SilentRaft = false
 	}
@@ -171,7 +179,7 @@ func initConfig() error {
 		return err
 	}
 	out("%s configuration written to %s",
-		name, configPath)
+		programName, configPath)
 	return nil
 }
 

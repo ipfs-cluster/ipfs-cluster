@@ -1,10 +1,16 @@
-all: install
-clean:
+all: server client
+clean: rwundo
 	$(MAKE) -C ipfscluster-server clean
+	$(MAKE) -C ipfscluster clean
 install: deps
 	$(MAKE) -C ipfscluster-server install
+	$(MAKE) -C ipfscluster install
+
 server: deps
 	$(MAKE) -C ipfscluster-server ipfscluster-server
+client: deps
+	$(MAKE) -C ipfscluster ipfscluster
+
 gx:
 	go get github.com/whyrusleeping/gx
 	go get github.com/whyrusleeping/gx-go

@@ -2,9 +2,9 @@
 // allows to orchestrate a number of tasks between several IPFS nodes.
 //
 // IPFS Cluster uses a consensus algorithm and libP2P to keep a shared
-// state between the different members of the cluster. This state is
-// primarily used to keep track of pinned items, and ensure that an
-// item is pinned in different places.
+// state between the different members of the cluster and provides
+// components to interact with the IPFS daemon and provide public
+// and internal APIs.
 package ipfscluster
 
 import (
@@ -18,7 +18,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var logger = logging.Logger("ipfscluster")
+var logger = logging.Logger("cluster")
 
 // Current Cluster version.
 const Version = "0.0.1"
@@ -44,7 +44,7 @@ func SetLogLevel(l string) {
 		INFO
 		DEBUG
 	*/
-	logging.SetLogLevel("ipfs-cluster", l)
+	logging.SetLogLevel("cluster", l)
 }
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components

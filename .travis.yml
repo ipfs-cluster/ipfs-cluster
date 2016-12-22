@@ -11,6 +11,8 @@ install:
 - make all
 script:
 - make test
+- make server
+- make client
 - "$GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN"
 env:
   global:
