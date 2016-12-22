@@ -216,8 +216,8 @@ func init() {
 		"how many seconds before timing out a Cluster API request")
 	flag.BoolVar(&versionFlag, "version", false,
 		fmt.Sprintf("display %s version", programName))
-	//	flag.BoolVar(&debugFlag, "debug", false,
-	//		"set debug log level")
+	flag.BoolVar(&debugFlag, "debug", false,
+		"set debug log level")
 	flag.Parse()
 	defaultHost = hostFlag
 	defaultProtocol = protocolFlag
@@ -363,7 +363,7 @@ func formatResponse(r *http.Response) {
 		checkErr("decoding error response", err)
 		out("Error %d: %s", e.Code, e.Message)
 	} else if r.StatusCode == http.StatusAccepted {
-		out("Request accepted")
+		out("Request accepted\n\n")
 	} else {
 		var resp interface{}
 		err = json.Unmarshal(body, &resp)
