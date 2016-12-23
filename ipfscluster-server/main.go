@@ -132,14 +132,12 @@ func main() {
 	checkErr("creating IPFS Connector component", err)
 	state := ipfscluster.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker(cfg)
-	remote := ipfscluster.NewLibp2pRemote()
 	cluster, err := ipfscluster.NewCluster(cfg,
-		api, proxy, state, tracker, remote)
+		api, proxy, state, tracker)
 	checkErr("creating IPFS Cluster", err)
 
 	// Wait until we are told to exit by a signal
 	<-signalChan
-	fmt.Println("aa")
 	err = cluster.Shutdown()
 	checkErr("shutting down IPFS Cluster", err)
 	os.Exit(0)
@@ -154,12 +152,14 @@ func checkErr(doing string, err error) {
 
 func setupLogging() {
 	logging.SetLogLevel("cluster", logLevelFlag)
+	logging.SetLogLevel("libp2p-rpc", logLevelFlag)
 }
 
 func setupDebug() {
 	if debugFlag {
 		logging.SetLogLevel("cluster", "debug")
 		logging.SetLogLevel("libp2p-raft", "debug")
+		logging.SetLogLevel("libp2p-rpc", "debug")
 		ipfscluster.SilentRaft = false
 	}
 }
@@ -178,7 +178,7 @@ func initConfig() error {
 	if err != nil {
 		return err
 	}
-	out("%s configuration written to %s",
+	out("%s configuration written to %s\n",
 		programName, configPath)
 	return nil
 }

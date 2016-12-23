@@ -15,7 +15,7 @@ func testIPFSConnectorConfig(mock *ipfsMock) *Config {
 	return cfg
 }
 
-func ipfsConnector(t *testing.T) (*IPFSHTTPConnector, *ipfsMock) {
+func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *ipfsMock) {
 	mock := newIpfsMock()
 	cfg := testIPFSConnectorConfig(mock)
 
@@ -23,22 +23,18 @@ func ipfsConnector(t *testing.T) (*IPFSHTTPConnector, *ipfsMock) {
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
+	ipfs.SetClient(mockRPCClient(t))
 	return ipfs, mock
 }
 
 func TestNewIPFSHTTPConnector(t *testing.T) {
-	ipfs, mock := ipfsConnector(t)
+	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
-
-	ch := ipfs.RpcChan()
-	if ch == nil {
-		t.Error("RpcCh should be created")
-	}
 }
 
 func TestIPFSPin(t *testing.T) {
-	ipfs, mock := ipfsConnector(t)
+	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
@@ -62,7 +58,7 @@ func TestIPFSPin(t *testing.T) {
 }
 
 func TestIPFSUnpin(t *testing.T) {
-	ipfs, mock := ipfsConnector(t)
+	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
@@ -78,7 +74,7 @@ func TestIPFSUnpin(t *testing.T) {
 }
 
 func TestIPFSIsPinned(t *testing.T) {
-	ipfs, mock := ipfsConnector(t)
+	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(testCid)
@@ -97,7 +93,7 @@ func TestIPFSIsPinned(t *testing.T) {
 }
 
 func TestIPFSProxy(t *testing.T) {
-	ipfs, mock := ipfsConnector(t)
+	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
@@ -115,7 +111,7 @@ func TestIPFSProxy(t *testing.T) {
 }
 
 func TestIPFSShutdown(t *testing.T) {
-	ipfs, mock := ipfsConnector(t)
+	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	if err := ipfs.Shutdown(); err != nil {
 		t.Error("expected a clean shutdown")

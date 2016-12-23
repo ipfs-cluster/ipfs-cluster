@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
+	cid "github.com/ipfs/go-cid"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
-
-	cid "github.com/ipfs/go-cid"
 )
 
 const (
@@ -28,20 +28,13 @@ const (
 
 type clusterLogOpType int
 
-// FirstSyncDelay specifies what is the maximum delay
-// before the we trigger a Sync operation after starting
-// Raft. This is because Raft will need time to sync the global
-// state. If not all the ops have been applied after this
-// delay, at least the pin tracker will have a partial valid state.
-var FirstSyncDelay = 10 * time.Second
-
 // clusterLogOp represents an operation for the OpLogConsensus system.
 // It implements the consensus.Op interface.
 type clusterLogOp struct {
-	Cid   string
-	Type  clusterLogOpType
-	ctx   context.Context
-	rpcCh chan RPC
+	Cid       string
+	Type      clusterLogOpType
+	ctx       context.Context
+	rpcClient *rpc.Client
 }
 
 // ApplyTo applies the operation to the State
@@ -59,9 +52,6 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 		panic("could not decode a CID we ourselves encoded")
 	}
 
-	ctx, cancel := context.WithCancel(op.ctx)
-	defer cancel()
-
 	switch op.Type {
 	case LogOpPin:
 		err := state.AddPin(c)
@@ -69,14 +59,24 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		MakeRPC(ctx, op.rpcCh, NewRPC(TrackRPC, c), false)
+		op.rpcClient.Go("",
+			"Cluster",
+			"Track",
+			NewCidArg(c),
+			&struct{}{},
+			nil)
 	case LogOpUnpin:
 		err := state.RmPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		MakeRPC(ctx, op.rpcCh, NewRPC(UntrackRPC, c), false)
+		op.rpcClient.Go("",
+			"Cluster",
+			"Untrack",
+			NewCidArg(c),
+			&struct{}{},
+			nil)
 	default:
 		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
@@ -87,13 +87,8 @@ ROLLBACK:
 	// and therefore we need to request a rollback to the
 	// cluster to the previous state. This operation can only be performed
 	// by the cluster leader.
-	rllbckRPC := NewRPC(RollbackRPC, state)
-	leadrRPC := NewRPC(LeaderRPC, rllbckRPC)
-	MakeRPC(ctx, op.rpcCh, leadrRPC, false)
-	logger.Errorf("an error ocurred when applying Op to state: %s", err)
-	logger.Error("a rollback was requested")
-	// Make sure the consensus algorithm nows this update did not work
-	return nil, errors.New("a rollback was requested. Reason: " + err.Error())
+	logger.Error("Rollbacks are not implemented")
+	return nil, errors.New("a rollback may be necessary. Reason: " + err.Error())
 }
 
 // Consensus handles the work of keeping a shared-state between
@@ -102,12 +97,16 @@ ROLLBACK:
 type Consensus struct {
 	ctx context.Context
 
+	cfg  *Config
+	host host.Host
+
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
 	baseOp    *clusterLogOp
-	rpcCh     chan RPC
+	p2pRaft   *libp2pRaftWrap
 
-	p2pRaft *libp2pRaftWrap
+	rpcClient *rpc.Client
+	rpcReady  chan struct{}
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -119,35 +118,25 @@ type Consensus struct {
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
 func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) {
-	logger.Info("starting Consensus component")
 	ctx := context.Background()
-	rpcCh := make(chan RPC, RPCMaxQueue)
 	op := &clusterLogOp{
-		ctx:   context.Background(),
-		rpcCh: rpcCh,
+		ctx: context.Background(),
 	}
-	con, actor, wrapper, err := makeLibp2pRaft(cfg, host, state, op)
-	if err != nil {
-		return nil, err
-	}
-
-	con.SetActor(actor)
 
 	cc := &Consensus{
 		ctx:        ctx,
-		consensus:  con,
+		cfg:        cfg,
+		host:       host,
 		baseOp:     op,
-		actor:      actor,
-		rpcCh:      rpcCh,
-		p2pRaft:    wrapper,
 		shutdownCh: make(chan struct{}),
+		rpcReady:   make(chan struct{}, 1),
 	}
 
-	cc.run()
+	cc.run(state)
 	return cc, nil
 }
 
-func (cc *Consensus) run() {
+func (cc *Consensus) run(state State) {
 	cc.wg.Add(1)
 	go func() {
 		defer cc.wg.Done()
@@ -156,6 +145,20 @@ func (cc *Consensus) run() {
 		cc.ctx = ctx
 		cc.baseOp.ctx = ctx
 
+		// While rpc is not ready we cannot do anything
+		<-cc.rpcReady
+
+		logger.Info("starting Consensus component")
+		con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
+			cc.host, state, cc.baseOp)
+		if err != nil {
+			panic(err)
+		}
+		con.SetActor(actor)
+		cc.actor = actor
+		cc.consensus = con
+		cc.p2pRaft = wrapper
+
 		upToDate := make(chan struct{})
 		go func() {
 			logger.Info("consensus state is catching up")
@@ -163,7 +166,8 @@ func (cc *Consensus) run() {
 			for {
 				lai := cc.p2pRaft.raft.AppliedIndex()
 				li := cc.p2pRaft.raft.LastIndex()
-				logger.Debugf("current Raft index: %d/%d", lai, li)
+				logger.Debugf("current Raft index: %d/%d",
+					lai, li)
 				if lai == li {
 					upToDate <- struct{}{}
 					break
@@ -172,18 +176,16 @@ func (cc *Consensus) run() {
 			}
 		}()
 
-		timer := time.NewTimer(FirstSyncDelay)
-		quitLoop := false
-		for !quitLoop {
-			select {
-			case <-timer.C: // Make a first sync
-				MakeRPC(ctx, cc.rpcCh, NewRPC(StateSyncRPC, nil), false)
-			case <-upToDate:
-				logger.Info("consensus is up to date. Triggering state sync.")
-				MakeRPC(ctx, cc.rpcCh, NewRPC(StateSyncRPC, nil), false)
-				quitLoop = true
-			}
-		}
+		<-upToDate
+		logger.Info("consensus state is up to date")
+		var pInfo []PinInfo
+		cc.rpcClient.Go(
+			"",
+			"Cluster",
+			"StateSync",
+			struct{}{},
+			&pInfo,
+			nil)
 
 		<-cc.shutdownCh
 	}()
@@ -203,7 +205,7 @@ func (cc *Consensus) Shutdown() error {
 
 	logger.Info("stopping Consensus component")
 
-	// Cancel any outstanding makeRPCs
+	close(cc.rpcReady)
 	cc.shutdownCh <- struct{}{}
 
 	// Raft shutdown
@@ -219,10 +221,11 @@ func (cc *Consensus) Shutdown() error {
 	if err != nil {
 		errMsgs += "could not shutdown raft: " + err.Error() + ".\n"
 	}
-	err = cc.p2pRaft.transport.Close()
-	if err != nil {
-		errMsgs += "could not close libp2p transport: " + err.Error() + ".\n"
-	}
+	// BUG(hector): See go-libp2p-raft#16
+	// err = cc.p2pRaft.transport.Close()
+	// if err != nil {
+	// 	errMsgs += "could not close libp2p transport: " + err.Error() + ".\n"
+	// }
 	err = cc.p2pRaft.boltdb.Close() // important!
 	if err != nil {
 		errMsgs += "could not close boltdb: " + err.Error() + ".\n"
@@ -238,10 +241,11 @@ func (cc *Consensus) Shutdown() error {
 	return nil
 }
 
-// RpcChan can be used by Cluster to read any
-// requests from this component
-func (cc *Consensus) RpcChan() <-chan RPC {
-	return cc.rpcCh
+// SetClient makes the component ready to perform RPC requets
+func (cc *Consensus) SetClient(c *rpc.Client) {
+	cc.rpcClient = c
+	cc.baseOp.rpcClient = c
+	cc.rpcReady <- struct{}{}
 }
 
 func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {

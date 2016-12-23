@@ -11,10 +11,10 @@ import (
 
 func TestApplyToPin(t *testing.T) {
 	op := &clusterLogOp{
-		Cid:   testCid,
-		Type:  LogOpPin,
-		ctx:   context.Background(),
-		rpcCh: make(chan RPC, 1),
+		Cid:       testCid,
+		Type:      LogOpPin,
+		ctx:       context.Background(),
+		rpcClient: mockRPCClient(t),
 	}
 
 	st := NewMapState()
@@ -27,10 +27,10 @@ func TestApplyToPin(t *testing.T) {
 
 func TestApplyToUnpin(t *testing.T) {
 	op := &clusterLogOp{
-		Cid:   testCid,
-		Type:  LogOpUnpin,
-		ctx:   context.Background(),
-		rpcCh: make(chan RPC, 1),
+		Cid:       testCid,
+		Type:      LogOpUnpin,
+		ctx:       context.Background(),
+		rpcClient: mockRPCClient(t),
 	}
 
 	st := NewMapState()
@@ -51,10 +51,10 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &clusterLogOp{
-		Cid:   testCid,
-		Type:  LogOpUnpin,
-		ctx:   context.Background(),
-		rpcCh: make(chan RPC, 1),
+		Cid:       testCid,
+		Type:      LogOpUnpin,
+		ctx:       context.Background(),
+		rpcClient: mockRPCClient(t),
 	}
 
 	var st interface{}
@@ -69,10 +69,10 @@ func TestApplyToBadCid(t *testing.T) {
 	}()
 
 	op := &clusterLogOp{
-		Cid:   "agadfaegf",
-		Type:  LogOpPin,
-		ctx:   context.Background(),
-		rpcCh: make(chan RPC, 1),
+		Cid:       "agadfaegf",
+		Type:      LogOpPin,
+		ctx:       context.Background(),
+		rpcClient: mockRPCClient(t),
 	}
 
 	st := NewMapState()
@@ -96,6 +96,7 @@ func testingConsensus(t *testing.T) *Consensus {
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
+	cc.SetClient(mockRPCClient(t))
 	// Oxygen for Raft to declare leader
 	time.Sleep(3 * time.Second)
 	return cc

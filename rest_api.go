@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	mux "github.com/gorilla/mux"
 )
@@ -34,7 +34,8 @@ type RESTAPI struct {
 	ctx        context.Context
 	listenAddr string
 	listenPort int
-	rpcCh      chan RPC
+	rpcClient  *rpc.Client
+	rpcReady   chan struct{}
 	router     *mux.Router
 
 	listener net.Listener
@@ -110,7 +111,7 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 		listenPort: cfg.APIPort,
 		listener:   l,
 		server:     s,
-		rpcCh:      make(chan RPC, RPCMaxQueue),
+		rpcReady:   make(chan struct{}, 1),
 	}
 
 	for _, route := range api.routes() {
@@ -193,6 +194,9 @@ func (api *RESTAPI) run() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		api.ctx = ctx
+
+		<-api.rpcReady
+
 		err := api.server.Serve(api.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -212,6 +216,7 @@ func (api *RESTAPI) Shutdown() error {
 
 	logger.Info("stopping Cluster API")
 
+	close(api.rpcReady)
 	// Cancel any outstanding ops
 	api.server.SetKeepAlivesEnabled(false)
 	api.listener.Close()
@@ -221,32 +226,37 @@ func (api *RESTAPI) Shutdown() error {
 	return nil
 }
 
-// RpcChan can be used by Cluster to read any
-// requests from this component
-func (api *RESTAPI) RpcChan() <-chan RPC {
-	return api.rpcCh
+// SetClient makes the component ready to perform RPC
+// requests.
+func (api *RESTAPI) SetClient(c *rpc.Client) {
+	api.rpcClient = c
+	api.rpcReady <- struct{}{}
 }
 
 func (api *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-	rRpc := NewRPC(VersionRPC, nil)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Op(), resp) {
-		v := resp.Data.(string)
+	var v string
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"Version",
+		struct{}{},
+		&v)
+
+	if checkRPCErr(w, "Version", err) {
 		sendJSONResponse(w, 200, versionResp{v})
 	}
 }
 
 func (api *RESTAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-	rRpc := NewRPC(MemberListRPC, nil)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Op(), resp) {
-		data := resp.Data.([]peer.ID)
+	var peers []peer.ID
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"MemberList",
+		struct{}{},
+		&peers)
+
+	if checkRPCErr(w, "MemberList", err) {
 		var strPeers []string
-		for _, p := range data {
+		for _, p := range peers {
 			strPeers = append(strPeers, p.Pretty())
 		}
 		sendJSONResponse(w, 200, strPeers)
@@ -254,136 +264,115 @@ func (api *RESTAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-
 	if c := parseCidOrError(w, r); c != nil {
-		rRpc := NewRPC(PinRPC, c)
-		resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-		if checkResponse(w, rRpc.Op(), resp) {
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"Pin",
+			c,
+			&struct{}{})
+		if checkRPCErr(w, "Pin", err) {
 			sendAcceptedResponse(w)
 		}
 	}
 }
 
 func (api *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-
 	if c := parseCidOrError(w, r); c != nil {
-		rRpc := NewRPC(UnpinRPC, c)
-		resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-		if checkResponse(w, rRpc.Op(), resp) {
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"Unpin",
+			c,
+			&struct{}{})
+		if checkRPCErr(w, "Unpin", err) {
 			sendAcceptedResponse(w)
 		}
 	}
 }
 
 func (api *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-	rRpc := NewRPC(PinListRPC, nil)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Op(), resp) {
-		data := resp.Data.([]*cid.Cid)
-		sendJSONResponse(w, 200, data)
+	var pins []string
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"PinList",
+		struct{}{},
+		&pins)
+	if checkRPCErr(w, "PinList", err) {
+		sendJSONResponse(w, 200, pins)
 	}
 
 }
 
 func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-	rRpc := NewRPC(StatusRPC, nil)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Op(), resp) {
-		sendStatusResponse(w, http.StatusOK, resp)
+	var pinInfos []GlobalPinInfo
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"Status",
+		struct{}{},
+		&pinInfos)
+	if checkRPCErr(w, "Status", err) {
+		sendStatusResponse(w, http.StatusOK, pinInfos)
 	}
 }
 
 func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-
 	if c := parseCidOrError(w, r); c != nil {
-		op := NewRPC(StatusCidRPC, c)
-		resp := MakeRPC(ctx, api.rpcCh, op, true)
-		if checkResponse(w, op.Op(), resp) {
-			sendStatusCidResponse(w, http.StatusOK, resp)
+		var pinInfo GlobalPinInfo
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"StatusCid",
+			c,
+			&pinInfo)
+		if checkRPCErr(w, "StatusCid", err) {
+			sendStatusCidResponse(w, http.StatusOK, pinInfo)
 		}
 	}
 }
 
 func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-	rRpc := NewRPC(GlobalSyncRPC, nil)
-	resp := MakeRPC(ctx, api.rpcCh, rRpc, true)
-	if checkResponse(w, rRpc.Op(), resp) {
-		sendStatusResponse(w, http.StatusAccepted, resp)
+	var pinInfos []GlobalPinInfo
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"GlobalSync",
+		struct{}{},
+		&pinInfos)
+	if checkRPCErr(w, "Sync", err) {
+		sendStatusResponse(w, http.StatusAccepted, pinInfos)
 	}
 }
 
 func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-
 	if c := parseCidOrError(w, r); c != nil {
-		op := NewRPC(GlobalSyncCidRPC, c)
-		resp := MakeRPC(ctx, api.rpcCh, op, true)
-		if checkResponse(w, op.Op(), resp) {
-			sendStatusCidResponse(w, http.StatusOK, resp)
+		var pinInfo GlobalPinInfo
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"GlobalSyncCid",
+			c,
+			&pinInfo)
+		if checkRPCErr(w, "SyncCid", err) {
+			sendStatusCidResponse(w, http.StatusOK, pinInfo)
 		}
 	}
 }
 
-func parseCidOrError(w http.ResponseWriter, r *http.Request) *cid.Cid {
+func parseCidOrError(w http.ResponseWriter, r *http.Request) *CidArg {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
-	c, err := cid.Decode(hash)
+	_, err := cid.Decode(hash)
 	if err != nil {
 		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
 		return nil
 	}
-	return c
+	return &CidArg{hash}
 }
 
-// checkResponse does basic checking on an RPCResponse. It takes care of
-// using the http.ResponseWriter to send
-// an error if the RPCResponse contains one. It also checks that the RPC
-// response data can be casted back into the expected value. It returns false
-// if the checks fail or an empty response is sent, and true otherwise.
-func checkResponse(w http.ResponseWriter, op RPCOp, resp RPCResponse) bool {
-	if err := resp.Error; err != nil {
+// checkRPCErr takes care of returning standard error responses if we
+// pass an error to it. It returns true when everythings OK (no error
+// was handled), or false otherwise.
+func checkRPCErr(w http.ResponseWriter, method string, err error) bool {
+	if err != nil {
 		sendErrorResponse(w, 500, err.Error())
 		return false
 	}
-
-	// Check thatwe can cast to the expected response format
-	ok := true
-	switch op {
-	case PinRPC: // Pin/Unpin only return errors
-	case UnpinRPC:
-	case StatusRPC, GlobalSyncRPC:
-		_, ok = resp.Data.([]GlobalPinInfo)
-	case StatusCidRPC, GlobalSyncCidRPC:
-		_, ok = resp.Data.(GlobalPinInfo)
-	case PinListRPC:
-		_, ok = resp.Data.([]*cid.Cid)
-	case VersionRPC:
-		_, ok = resp.Data.(string)
-	case MemberListRPC:
-		_, ok = resp.Data.([]peer.ID)
-	default:
-		ok = false
-	}
-	if !ok {
-		logger.Errorf("unexpected RPC Response format for %d:", op)
-		logger.Errorf("%+v", resp.Data)
-		sendErrorResponse(w, 500, "unexpected RPC Response format")
-		return false
-	}
-
 	return true
 }
 
@@ -420,8 +409,7 @@ func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
 	return s
 }
 
-func sendStatusResponse(w http.ResponseWriter, code int, resp RPCResponse) {
-	data := resp.Data.([]GlobalPinInfo)
+func sendStatusResponse(w http.ResponseWriter, code int, data []GlobalPinInfo) {
 	pins := make(statusResp, 0, len(data))
 
 	for _, d := range data {
@@ -430,8 +418,7 @@ func sendStatusResponse(w http.ResponseWriter, code int, resp RPCResponse) {
 	sendJSONResponse(w, code, pins)
 }
 
-func sendStatusCidResponse(w http.ResponseWriter, code int, resp RPCResponse) {
-	data := resp.Data.(GlobalPinInfo)
+func sendStatusCidResponse(w http.ResponseWriter, code int, data GlobalPinInfo) {
 	st := transformPinToStatusCid(data)
 	sendJSONResponse(w, code, st)
 }

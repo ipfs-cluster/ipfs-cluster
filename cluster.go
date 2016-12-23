@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
@@ -23,17 +24,16 @@ import (
 type Cluster struct {
 	ctx context.Context
 
-	config *Config
-	host   host.Host
+	config    *Config
+	host      host.Host
+	rpcServer *rpc.Server
+	rpcClient *rpc.Client
 
 	consensus *Consensus
-	remote    Remote
 	api       API
 	ipfs      IPFSConnector
 	state     State
 	tracker   PinTracker
-
-	rpcCh chan RPC
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -41,15 +41,17 @@ type Cluster struct {
 	wg           sync.WaitGroup
 }
 
-// NewCluster builds a ready-to-start IPFS Cluster. It takes a API,
-// an IPFSConnector and a State as parameters, allowing the user,
-// to provide custom implementations of these components.
-func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker, remote Remote) (*Cluster, error) {
+// NewCluster builds a new IPFS Cluster. It initializes a LibP2P host, creates
+// and RPC Server and client and sets up all components.
+func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker) (*Cluster, error) {
 	ctx := context.Background()
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
+
+	rpcServer := rpc.NewServer(host, RPCProtocol)
+	rpcClient := rpc.NewClientWithServer(host, RPCProtocol, rpcServer)
 
 	consensus, err := NewConsensus(cfg, host, state)
 	if err != nil {
@@ -57,20 +59,30 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		return nil, err
 	}
 
-	remote.SetHost(host)
+	tracker.SetClient(rpcClient)
+	ipfs.SetClient(rpcClient)
+	api.SetClient(rpcClient)
+	consensus.SetClient(rpcClient)
 
 	cluster := &Cluster{
 		ctx:        ctx,
 		config:     cfg,
 		host:       host,
+		rpcServer:  rpcServer,
+		rpcClient:  rpcClient,
 		consensus:  consensus,
-		remote:     remote,
 		api:        api,
 		ipfs:       ipfs,
 		state:      state,
 		tracker:    tracker,
-		rpcCh:      make(chan RPC, RPCMaxQueue),
 		shutdownCh: make(chan struct{}),
+	}
+
+	err = rpcServer.RegisterName(
+		"Cluster",
+		&RPCAPI{cluster: cluster})
+	if err != nil {
+		return nil, err
 	}
 
 	logger.Infof("starting IPFS Cluster v%s", Version)
@@ -89,10 +101,6 @@ func (c *Cluster) Shutdown() error {
 	}
 
 	logger.Info("shutting down IPFS Cluster")
-	if err := c.remote.Shutdown(); err != nil {
-		logger.Errorf("error stopping remote: %s", err)
-		return err
-	}
 	if err := c.consensus.Shutdown(); err != nil {
 		logger.Errorf("error stopping consensus: %s", err)
 		return err
@@ -112,6 +120,7 @@ func (c *Cluster) Shutdown() error {
 	}
 	c.shutdownCh <- struct{}{}
 	c.wg.Wait()
+	c.host.Close() // Shutdown all network services
 	return nil
 }
 
@@ -124,9 +133,6 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
-
 	logger.Info("syncing state to tracker")
 	clusterPins := cState.ListPins()
 	var changed []*cid.Cid
@@ -135,7 +141,15 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 	for _, h := range clusterPins {
 		if c.tracker.StatusCid(h).IPFS == Unpinned {
 			changed = append(changed, h)
-			MakeRPC(ctx, c.rpcCh, NewRPC(TrackRPC, h), false)
+			err := c.rpcClient.Go("",
+				"Cluster",
+				"Track",
+				NewCidArg(h),
+				&struct{}{},
+				nil)
+			if err != nil {
+				return []PinInfo{}, err
+			}
 
 		}
 	}
@@ -145,7 +159,15 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		h, _ := cid.Decode(p.CidStr)
 		if !cState.HasPin(h) {
 			changed = append(changed, h)
-			MakeRPC(ctx, c.rpcCh, NewRPC(UntrackRPC, h), false)
+			err := c.rpcClient.Go("",
+				"Cluster",
+				"Track",
+				&CidArg{p.CidStr},
+				&struct{}{},
+				nil)
+			if err != nil {
+				return []PinInfo{}, err
+			}
 		}
 	}
 
@@ -154,6 +176,18 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		infos = append(infos, c.tracker.StatusCid(h))
 	}
 	return infos, nil
+}
+
+// Status returns the GlobalPinInfo for all tracked Cids. If an error happens,
+// the slice will contain as much information as could be fetched.
+func (c *Cluster) Status() ([]GlobalPinInfo, error) {
+	return c.globalPinInfoSlice("TrackerStatus")
+}
+
+// StatusCid returns the GlobalPinInfo for a given Cid. If an error happens,
+// the GlobalPinInfo should contain as much information as could be fetched.
+func (c *Cluster) StatusCid(h *cid.Cid) (GlobalPinInfo, error) {
+	return c.globalPinInfoCid("TrackerStatusCid", h)
 }
 
 // LocalSync makes sure that the current state the Tracker matches
@@ -174,12 +208,13 @@ func (c *Cluster) LocalSync() ([]PinInfo, error) {
 		}
 	}
 
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
 	logger.Infof("%d items to recover after sync", len(toRecover))
 	for i, h := range toRecover {
-		logger.Infof("recovering in progress for %s (%d/%d", h, i, len(toRecover))
-		MakeRPC(ctx, c.rpcCh, NewRPC(TrackerRecoverRPC, h), false)
+		logger.Infof("recovering in progress for %s (%d/%d",
+			h, i, len(toRecover))
+		go func(h *cid.Cid) {
+			c.tracker.Recover(h)
+		}(h)
 	}
 
 	var changed []PinInfo
@@ -204,7 +239,7 @@ func (c *Cluster) LocalSyncCid(h *cid.Cid) (PinInfo, error) {
 
 // GlobalSync triggers Sync() operations in all members of the Cluster.
 func (c *Cluster) GlobalSync() ([]GlobalPinInfo, error) {
-	return c.globalPinInfoSlice(LocalSyncRPC)
+	return c.globalPinInfoSlice("LocalSync")
 }
 
 // GlobalSyncCid triggers a LocalSyncCid() operation for a given Cid
@@ -213,19 +248,7 @@ func (c *Cluster) GlobalSync() ([]GlobalPinInfo, error) {
 // GlobalSyncCid will only return when all operations have either failed,
 // succeeded or timed-out.
 func (c *Cluster) GlobalSyncCid(h *cid.Cid) (GlobalPinInfo, error) {
-	return c.globalPinInfoCid(LocalSyncCidRPC, h)
-}
-
-// Status returns the GlobalPinInfo for all tracked Cids. If an error happens,
-// the slice will contain as much information as could be fetched.
-func (c *Cluster) Status() ([]GlobalPinInfo, error) {
-	return c.globalPinInfoSlice(TrackerStatusRPC)
-}
-
-// StatusCid returns the GlobalPinInfo for a given Cid. If an error happens,
-// the GlobalPinInfo should contain as much information as could be fetched.
-func (c *Cluster) StatusCid(h *cid.Cid) (GlobalPinInfo, error) {
-	return c.globalPinInfoCid(TrackerStatusCidRPC, h)
+	return c.globalPinInfoCid("LocalSyncCid", h)
 }
 
 // Pins returns the list of Cids managed by Cluster and which are part
@@ -249,16 +272,20 @@ func (c *Cluster) Pins() []*cid.Cid {
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
-
 	logger.Info("pinning:", h)
-	rpc := NewRPC(ConsensusLogPinRPC, h)
-	wrpc := NewRPC(LeaderRPC, rpc)
-	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
-	if resp.Error != nil {
-		logger.Error(resp.Error)
-		return resp.Error
+	leader, err := c.consensus.Leader()
+	if err != nil {
+		return err
+	}
+	err = c.rpcClient.Call(
+		leader,
+		"Cluster",
+		"ConsensusLogPin",
+		NewCidArg(h),
+		&struct{}{})
+
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -271,16 +298,20 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 // to the global state. Unpin does not reflect the success or failure
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
+	logger.Info("pinning:", h)
+	leader, err := c.consensus.Leader()
+	if err != nil {
+		return err
+	}
+	err = c.rpcClient.Call(
+		leader,
+		"Cluster",
+		"ConsensusLogUnpin",
+		NewCidArg(h),
+		&struct{}{})
 
-	logger.Info("unpinning:", h)
-	rpc := NewRPC(ConsensusLogUnpinRPC, h)
-	wrpc := NewRPC(LeaderRPC, rpc)
-	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
-	if resp.Error != nil {
-		logger.Error(resp.Error)
-		return resp.Error
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -299,209 +330,16 @@ func (c *Cluster) Members() []peer.ID {
 // short-lived go-routines to handle any requests.
 func (c *Cluster) run() {
 	c.wg.Add(1)
+
+	// Currently we do nothing other than waiting to
+	// cancel our context.
 	go func() {
 		defer c.wg.Done()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		c.ctx = ctx
-
-		var op RPC
-		for {
-			select {
-			case op = <-c.ipfs.RpcChan():
-			case op = <-c.consensus.RpcChan():
-			case op = <-c.api.RpcChan():
-			case op = <-c.tracker.RpcChan():
-			case op = <-c.remote.RpcChan():
-			case op = <-c.rpcCh:
-			case <-c.shutdownCh:
-				return
-			}
-
-			switch op.(type) {
-			case *CidRPC:
-				crpc := op.(*CidRPC)
-				go c.handleCidRPC(crpc)
-			case *GenericRPC:
-				grpc := op.(*GenericRPC)
-				go c.handleGenericRPC(grpc)
-			case *WrappedRPC:
-				wrpc := op.(*WrappedRPC)
-				go c.handleWrappedRPC(wrpc)
-			default:
-				logger.Error("unknown RPC type")
-				op.ResponseCh() <- RPCResponse{
-					Data:  nil,
-					Error: NewRPCError("unknown RPC type"),
-				}
-			}
-		}
+		<-c.shutdownCh
 	}()
-}
-
-func (c *Cluster) handleGenericRPC(grpc *GenericRPC) {
-	var data interface{} = nil
-	var err error = nil
-	switch grpc.Op() {
-	case VersionRPC:
-		data = c.Version()
-	case MemberListRPC:
-		data = c.Members()
-	case PinListRPC:
-		data = c.Pins()
-	case LocalSyncRPC:
-		data, err = c.LocalSync()
-	case GlobalSyncRPC:
-		data, err = c.GlobalSync()
-	case StateSyncRPC:
-		data, err = c.StateSync()
-	case StatusRPC:
-		data, err = c.Status()
-	case TrackerStatusRPC:
-		data = c.tracker.Status()
-	case RollbackRPC:
-		// State, ok := grpc.Argument.(State)
-		// if !ok {
-		// 	err = errors.New("bad RollbackRPC type")
-		// 	break
-		// }
-		// err = c.consensus.Rollback(state)
-	default:
-		logger.Error("unknown operation for GenericRPC. Ignoring.")
-	}
-
-	resp := RPCResponse{
-		Data:  data,
-		Error: CastRPCError(err),
-	}
-
-	grpc.ResponseCh() <- resp
-}
-
-// handleOp takes care of running the necessary action for a
-// clusterRPC request and sending the response.
-func (c *Cluster) handleCidRPC(crpc *CidRPC) {
-	var data interface{} = nil
-	var err error = nil
-	var h *cid.Cid = crpc.CID()
-	switch crpc.Op() {
-	case PinRPC:
-		err = c.Pin(h)
-	case UnpinRPC:
-		err = c.Unpin(h)
-	case StatusCidRPC:
-		data, err = c.StatusCid(h)
-	case LocalSyncCidRPC:
-		data, err = c.LocalSyncCid(h)
-	case GlobalSyncCidRPC:
-		data, err = c.GlobalSyncCid(h)
-	case ConsensusLogPinRPC:
-		err = c.consensus.LogPin(h)
-	case ConsensusLogUnpinRPC:
-		err = c.consensus.LogUnpin(h)
-	case TrackRPC:
-		err = c.tracker.Track(h)
-	case UntrackRPC:
-		err = c.tracker.Untrack(h)
-	case TrackerStatusCidRPC:
-		data = c.tracker.StatusCid(h)
-	case TrackerRecoverRPC:
-		err = c.tracker.Recover(h)
-	case IPFSPinRPC:
-		err = c.ipfs.Pin(h)
-	case IPFSUnpinRPC:
-		err = c.ipfs.Unpin(h)
-	case IPFSIsPinnedRPC:
-		data, err = c.ipfs.IsPinned(h)
-
-	default:
-		logger.Error("unknown operation for CidRPC. Ignoring.")
-	}
-
-	resp := RPCResponse{
-		Data:  data,
-		Error: CastRPCError(err),
-	}
-
-	crpc.ResponseCh() <- resp
-}
-
-func (c *Cluster) handleWrappedRPC(wrpc *WrappedRPC) {
-	innerRPC := wrpc.WRPC
-	var resp RPCResponse
-	// resp initialization
-	switch innerRPC.Op() {
-	case TrackerStatusRPC, LocalSyncRPC:
-		resp = RPCResponse{
-			Data: []PinInfo{},
-		}
-	case TrackerStatusCidRPC, LocalSyncCidRPC:
-		resp = RPCResponse{
-			Data: PinInfo{},
-		}
-	default:
-		resp = RPCResponse{}
-	}
-
-	switch wrpc.Op() {
-	case LeaderRPC:
-		// This is very generic for the moment. Only used for consensus
-		// LogPin/unpin.
-		leader, err := c.consensus.Leader()
-		if err != nil {
-			resp = RPCResponse{
-				Data:  nil,
-				Error: CastRPCError(err),
-			}
-		}
-		err = c.remote.MakeRemoteRPC(innerRPC, leader, &resp)
-		if err != nil {
-			resp = RPCResponse{
-				Data:  nil,
-				Error: CastRPCError(fmt.Errorf("request to %s failed with: %s", leader, err)),
-			}
-		}
-	case BroadcastRPC:
-		var wg sync.WaitGroup
-		var responses []RPCResponse
-		members := c.Members()
-		rch := make(chan RPCResponse, len(members))
-
-		makeRemote := func(p peer.ID, r RPCResponse) {
-			defer wg.Done()
-			err := c.remote.MakeRemoteRPC(innerRPC, p, &r)
-			if err != nil {
-				logger.Error("Error making remote RPC: ", err)
-				rch <- RPCResponse{
-					Error: CastRPCError(err),
-				}
-			} else {
-				rch <- r
-			}
-		}
-		wg.Add(len(members))
-		for _, m := range members {
-			go makeRemote(m, resp)
-		}
-		wg.Wait()
-		close(rch)
-
-		for r := range rch {
-			responses = append(responses, r)
-		}
-
-		resp = RPCResponse{
-			Data:  responses,
-			Error: nil,
-		}
-	default:
-		resp = RPCResponse{
-			Data:  nil,
-			Error: NewRPCError("unknown WrappedRPC type"),
-		}
-	}
-
-	wrpc.ResponseCh() <- resp
 }
 
 // makeHost makes a libp2p-host
@@ -586,38 +424,54 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	return bhost, nil
 }
 
-func (c *Cluster) globalPinInfoCid(op RPCOp, h *cid.Cid) (GlobalPinInfo, error) {
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
+// Perform a sync rpc request to multiple destinations
+func (c *Cluster) multiRPC(dests []peer.ID, svcName, svcMethod string, args interface{}, reply []interface{}) []error {
+	if len(dests) != len(reply) {
+		panic("must have mathing dests and replies")
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, len(dests), len(dests))
 
+	for i, _ := range dests {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			err := c.rpcClient.Call(
+				dests[i],
+				svcName,
+				svcMethod,
+				args,
+				reply[i])
+			errs[i] = err
+		}(i)
+	}
+	wg.Wait()
+	return errs
+
+}
+
+func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, error) {
 	pin := GlobalPinInfo{
 		Cid:    h,
 		Status: make(map[peer.ID]PinInfo),
 	}
 
-	rpc := NewRPC(op, h)
-	wrpc := NewRPC(BroadcastRPC, rpc)
-	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
-	if resp.Error != nil {
-		return pin, resp.Error
+	members := c.Members()
+	replies := make([]PinInfo, len(members), len(members))
+	ifaceReplies := make([]interface{}, len(members), len(members))
+	for i, _ := range replies {
+		ifaceReplies[i] = &replies[i]
 	}
-
-	responses, ok := resp.Data.([]RPCResponse)
-	if !ok {
-		return pin, errors.New("unexpected responses format")
-	}
+	args := NewCidArg(h)
+	errs := c.multiRPC(members, "Cluster", method, args, ifaceReplies)
 
 	var errorMsgs string
-	for _, r := range responses {
-		if r.Error != nil {
-			logger.Error(r.Error)
-			errorMsgs += r.Error.Error() + "\n"
+	for i, r := range replies {
+		if e := errs[i]; e != nil {
+			logger.Error(e)
+			errorMsgs += e.Error() + "\n"
 		}
-		info, ok := r.Data.(PinInfo)
-		if !ok {
-			return pin, errors.New("unexpected response format")
-		}
-		pin.Status[info.Peer] = info
+		pin.Status[r.Peer] = r
 	}
 
 	if len(errorMsgs) == 0 {
@@ -627,24 +481,17 @@ func (c *Cluster) globalPinInfoCid(op RPCOp, h *cid.Cid) (GlobalPinInfo, error) 
 	}
 }
 
-func (c *Cluster) globalPinInfoSlice(op RPCOp) ([]GlobalPinInfo, error) {
-	ctx, cancel := context.WithCancel(c.ctx)
-	defer cancel()
-
+func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	var infos []GlobalPinInfo
 	fullMap := make(map[string]GlobalPinInfo)
 
-	rpc := NewRPC(op, nil)
-	wrpc := NewRPC(BroadcastRPC, rpc)
-	resp := MakeRPC(ctx, c.rpcCh, wrpc, true)
-	if resp.Error != nil {
-		return nil, resp.Error
+	members := c.Members()
+	replies := make([][]PinInfo, len(members), len(members))
+	ifaceReplies := make([]interface{}, len(members), len(members))
+	for i, _ := range replies {
+		ifaceReplies[i] = &replies[i]
 	}
-
-	responses, ok := resp.Data.([]RPCResponse)
-	if !ok {
-		return infos, errors.New("unexpected responses format")
-	}
+	errs := c.multiRPC(members, "Cluster", method, struct{}{}, ifaceReplies)
 
 	mergePins := func(pins []PinInfo) {
 		for _, p := range pins {
@@ -664,16 +511,12 @@ func (c *Cluster) globalPinInfoSlice(op RPCOp) ([]GlobalPinInfo, error) {
 	}
 
 	var errorMsgs string
-	for _, r := range responses {
-		if r.Error != nil {
-			logger.Error("error in one of the broadcast responses: ", r.Error)
-			errorMsgs += r.Error.Error() + "\n"
+	for i, r := range replies {
+		if e := errs[i]; e != nil {
+			logger.Error("error in broadcast response: ", e)
+			errorMsgs += e.Error() + "\n"
 		}
-		pins, ok := r.Data.([]PinInfo)
-		if !ok {
-			return infos, fmt.Errorf("unexpected response format: %+v", r.Data)
-		}
-		mergePins(pins)
+		mergePins(r)
 	}
 
 	for _, v := range fullMap {

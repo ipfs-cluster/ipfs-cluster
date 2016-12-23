@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // A Pin or Unpin operation will be considered failed
@@ -19,7 +19,8 @@ var (
 )
 
 const (
-	PinError = iota
+	Bad = iota
+	PinError
 	UnpinError
 	Pinned
 	Pinning
@@ -47,6 +48,8 @@ type IPFSStatus int
 
 func (st IPFSStatus) String() string {
 	switch st {
+	case Bad:
+		return "bug"
 	case PinError:
 		return "pin_error"
 	case UnpinError:
@@ -67,9 +70,10 @@ type MapPinTracker struct {
 	mux    sync.RWMutex
 	status map[string]PinInfo
 
-	ctx    context.Context
-	rpcCh  chan RPC
-	peerID peer.ID
+	ctx       context.Context
+	rpcClient *rpc.Client
+	rpcReady  chan struct{}
+	peerID    peer.ID
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -88,7 +92,7 @@ func NewMapPinTracker(cfg *Config) *MapPinTracker {
 	mpt := &MapPinTracker{
 		ctx:        ctx,
 		status:     make(map[string]PinInfo),
-		rpcCh:      make(chan RPC, RPCMaxQueue),
+		rpcReady:   make(chan struct{}, 1),
 		peerID:     pID,
 		shutdownCh: make(chan struct{}),
 	}
@@ -104,6 +108,7 @@ func (mpt *MapPinTracker) run() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		mpt.ctx = ctx
+		//<-mpt.rpcReady
 		<-mpt.shutdownCh
 	}()
 }
@@ -165,28 +170,31 @@ func (mpt *MapPinTracker) get(c *cid.Cid) PinInfo {
 }
 
 func (mpt *MapPinTracker) pin(c *cid.Cid) error {
-	ctx, cancel := context.WithCancel(mpt.ctx)
-	defer cancel()
-
 	mpt.set(c, Pinning)
-	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSPinRPC, c), true)
-	if resp.Error != nil {
+	err := mpt.rpcClient.Call("",
+		"Cluster",
+		"IPFSPin",
+		NewCidArg(c),
+		&struct{}{})
+
+	if err != nil {
 		mpt.set(c, PinError)
-		return resp.Error
+		return err
 	}
 	mpt.set(c, Pinned)
 	return nil
 }
 
 func (mpt *MapPinTracker) unpin(c *cid.Cid) error {
-	ctx, cancel := context.WithCancel(mpt.ctx)
-	defer cancel()
-
 	mpt.set(c, Unpinning)
-	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSUnpinRPC, c), true)
-	if resp.Error != nil {
+	err := mpt.rpcClient.Call("",
+		"Cluster",
+		"IPFSUnpin",
+		NewCidArg(c),
+		&struct{}{})
+	if err != nil {
 		mpt.set(c, UnpinError)
-		return resp.Error
+		return err
 	}
 	mpt.set(c, Unpinned)
 	return nil
@@ -215,12 +223,15 @@ func (mpt *MapPinTracker) Status() []PinInfo {
 }
 
 func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
-	ctx, cancel := context.WithCancel(mpt.ctx)
-	defer cancel()
-
+	var ipfsPinned bool
 	p := mpt.get(c)
-	resp := MakeRPC(ctx, mpt.rpcCh, NewRPC(IPFSIsPinnedRPC, c), true)
-	if resp.Error != nil {
+	err := mpt.rpcClient.Call("",
+		"Cluster",
+		"IPFSIsPinned",
+		NewCidArg(c),
+		&ipfsPinned)
+
+	if err != nil {
 		switch p.IPFS {
 		case Pinned, Pinning:
 			mpt.set(c, PinError)
@@ -233,12 +244,6 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 		default:
 			return false
 		}
-	}
-
-	ipfsPinned, ok := resp.Data.(bool)
-	if !ok {
-		logger.Error("wrong type of IPFSIsPinnedRPC response")
-		return false
 	}
 
 	if ipfsPinned {
@@ -305,6 +310,7 @@ func (mpt *MapPinTracker) Recover(c *cid.Cid) error {
 	return nil
 }
 
-func (mpt *MapPinTracker) RpcChan() <-chan RPC {
-	return mpt.rpcCh
+func (mpt *MapPinTracker) SetClient(c *rpc.Client) {
+	mpt.rpcClient = c
+	mpt.rpcReady <- struct{}{}
 }

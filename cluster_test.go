@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
 )
 
 type mockComponent struct {
-	rpcCh       chan RPC
+	rpcClient   *rpc.Client
 	returnError bool
 }
 
@@ -17,8 +18,9 @@ func (c *mockComponent) Shutdown() error {
 	return nil
 }
 
-func (c *mockComponent) RpcChan() <-chan RPC {
-	return c.rpcCh
+func (c *mockComponent) SetClient(client *rpc.Client) {
+	c.rpcClient = client
+	return
 }
 
 type mockApi struct {
@@ -50,15 +52,12 @@ func (ipfs *mockConnector) IsPinned(c *cid.Cid) (bool, error) {
 	return true, nil
 }
 
-func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState, *MapPinTracker, *Libp2pRemote) {
+func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState, *MapPinTracker) {
 	api := &mockApi{}
-	api.rpcCh = make(chan RPC, 2)
 	ipfs := &mockConnector{}
-	ipfs.rpcCh = make(chan RPC, 2)
 	cfg := testingConfig()
 	st := NewMapState()
 	tracker := NewMapPinTracker(cfg)
-	remote := NewLibp2pRemote()
 
 	cl, err := NewCluster(
 		cfg,
@@ -66,23 +65,22 @@ func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState
 		ipfs,
 		st,
 		tracker,
-		remote,
 	)
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
 	time.Sleep(3 * time.Second) // make sure a leader is elected
-	return cl, api, ipfs, st, tracker, remote
+	return cl, api, ipfs, st, tracker
 }
 
 func testClusterShutdown(t *testing.T) {
-	cl, _, _, _, _, _ := testingCluster(t)
+	cl, _, _, _, _ := testingCluster(t)
 	err := cl.Shutdown()
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
 	}
 	cl.Shutdown()
-	cl, _, _, _, _, _ = testingCluster(t)
+	cl, _, _, _, _ = testingCluster(t)
 	err = cl.Shutdown()
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
@@ -90,7 +88,7 @@ func testClusterShutdown(t *testing.T) {
 }
 
 func TestClusterStateSync(t *testing.T) {
-	cl, _, _, st, _, _ := testingCluster(t)
+	cl, _, _, st, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	_, err := cl.StateSync()
@@ -119,7 +117,7 @@ func TestClusterStateSync(t *testing.T) {
 }
 
 func TestClusterPin(t *testing.T) {
-	cl, _, _, _, _, _ := testingCluster(t)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 
@@ -138,7 +136,7 @@ func TestClusterPin(t *testing.T) {
 }
 
 func TestClusterUnpin(t *testing.T) {
-	cl, _, _, _, _, _ := testingCluster(t)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 
@@ -157,7 +155,7 @@ func TestClusterUnpin(t *testing.T) {
 }
 
 func TestClusterMembers(t *testing.T) {
-	cl, _, _, _, _, _ := testingCluster(t)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	m := cl.Members()
@@ -168,105 +166,10 @@ func TestClusterMembers(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	cl, _, _, _, _, _ := testingCluster(t)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	if cl.Version() != Version {
 		t.Error("bad Version()")
-	}
-}
-
-func TestClusterRun(t *testing.T) {
-	cl, api, ipfs, _, tracker, remote := testingCluster(t)
-	defer cleanRaft()
-	defer cl.Shutdown()
-	// We sent RPCs all all types with one of the
-	// RpcChannels and make sure there is always a response
-	// We don't care about the value of that response now. We leave
-	// that for end-to-end tests
-
-	// Generic RPC
-	for i := 0; i < NoopRPC; i++ {
-		rpc := NewRPC(RPCOp(i), "something")
-		switch i % 5 {
-		case 0:
-			ipfs.rpcCh <- rpc
-		case 1:
-			cl.consensus.rpcCh <- rpc
-		case 2:
-			api.rpcCh <- rpc
-		case 3:
-			tracker.rpcCh <- rpc
-		case 4:
-			remote.rpcCh <- rpc
-		}
-		// Wait for a response
-		timer := time.NewTimer(time.Second)
-		select {
-		case <-rpc.ResponseCh():
-		case <-timer.C:
-			t.Errorf("GenericRPC %d was not handled correctly by Cluster", i)
-		}
-	}
-
-	// Cid RPC
-	c, _ := cid.Decode(testCid)
-	for i := 0; i <= NoopRPC; i++ {
-		rpc := NewRPC(RPCOp(i), c)
-		switch i % 5 {
-		case 0:
-			ipfs.rpcCh <- rpc
-		case 1:
-			cl.consensus.rpcCh <- rpc
-		case 2:
-			api.rpcCh <- rpc
-		case 3:
-			tracker.rpcCh <- rpc
-		case 4:
-			remote.rpcCh <- rpc
-		}
-		timer := time.NewTimer(time.Second)
-		select {
-		case <-rpc.ResponseCh():
-		case <-timer.C:
-			t.Errorf("CidRPC %d was not handled correctly by Cluster", i)
-		}
-	}
-
-	// Wrapped RPC
-	w := NewRPC(PinRPC, c)
-	for i := 0; i <= NoopRPC; i++ {
-		rpc := NewRPC(RPCOp(i), w)
-		switch i % 5 {
-		case 0:
-			ipfs.rpcCh <- rpc
-		case 1:
-			cl.consensus.rpcCh <- rpc
-		case 2:
-			api.rpcCh <- rpc
-		case 3:
-			tracker.rpcCh <- rpc
-		case 4:
-			remote.rpcCh <- rpc
-		}
-		timer := time.NewTimer(time.Second)
-		select {
-		case <-rpc.ResponseCh():
-		case <-timer.C:
-			t.Errorf("CidRPC %d was not handled correctly by Cluster", i)
-		}
-	}
-
-	// Test that we answer to custom RPC types that are not handled
-	wrongRPC := &baseRPC{
-		Method:   999,
-		RespChan: make(chan RPCResponse),
-	}
-	ipfs.rpcCh <- wrongRPC
-	timer := time.NewTimer(time.Second)
-	select {
-	case <-wrongRPC.ResponseCh():
-	case <-timer.C:
-		t.Errorf("We did not give an answer to an RPC with a bad code")
 	}
 }

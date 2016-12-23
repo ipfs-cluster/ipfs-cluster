@@ -3,33 +3,27 @@ package ipfscluster
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"testing"
-
-	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
 	apiHost = "http://127.0.0.1:10002" // should match testingConfig()
 )
 
-func testClusterApi(t *testing.T) *RESTAPI {
+func testRESTAPI(t *testing.T) *RESTAPI {
 	//logging.SetDebugLogging()
 	cfg := testingConfig()
 	api, err := NewRESTAPI(cfg)
-	// No keep alive! Otherwise tests hang with
-	// connections re-used from previous tests
-	api.server.SetKeepAlivesEnabled(false)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
 
-	if api.RpcChan() == nil {
-		t.Fatal("should create the Rpc channel")
-	}
+	// No keep alive! Otherwise tests hang with
+	// connections re-used from previous tests
+	api.server.SetKeepAlivesEnabled(false)
+	api.SetClient(mockRPCClient(t))
 	return api
 }
 
@@ -69,215 +63,108 @@ func makeDelete(t *testing.T, path string, resp interface{}) {
 	processResp(t, httpResp, err, resp)
 }
 
-func TestAPIShutdown(t *testing.T) {
-	api := testClusterApi(t)
+func TestRESTAPIShutdown(t *testing.T) {
+	api := testRESTAPI(t)
 	err := api.Shutdown()
 	if err != nil {
 		t.Error("should shutdown cleanly: ", err)
 	}
+	// test shutting down twice
 	api.Shutdown()
 }
 
-func TestVersionEndpoint(t *testing.T) {
-	api := testClusterApi(t)
-	api.server.SetKeepAlivesEnabled(false)
+func TestRESTAPIVersionEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	simulateAnswer(api.RpcChan(), "v", nil)
 	ver := versionResp{}
 	makeGet(t, "/version", &ver)
-	if ver.Version != "v" {
+	if ver.Version != "0.0.mock" {
 		t.Error("expected correct version")
-	}
-
-	simulateAnswer(api.RpcChan(), nil, errors.New("an error"))
-	errResp := errorResp{}
-	makeGet(t, "/version", &errResp)
-	if errResp.Message != "an error" {
-		t.Error("expected different error")
 	}
 }
 
-func TestMemberListEndpoint(t *testing.T) {
-	api := testClusterApi(t)
-	api.server.SetKeepAlivesEnabled(false)
+func TestRESTAPIMemberListEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	pList := []peer.ID{
-		testPeerID,
-	}
-	simulateAnswer(api.RpcChan(), pList, nil)
+
 	var list []string
 	makeGet(t, "/members", &list)
 	if len(list) != 1 || list[0] != testPeerID.Pretty() {
-		t.Error("expected a peer id list: ", list)
-	}
-
-	simulateAnswer(api.RpcChan(), nil, errors.New("an error"))
-	errResp := errorResp{}
-	makeGet(t, "/members", &errResp)
-	if errResp.Message != "an error" {
-		t.Error("expected different error")
+		t.Error("expected a different peer id list: ", list)
 	}
 }
 
-func TestPinEndpoint(t *testing.T) {
-	api := testClusterApi(t)
+func TestRESTAPIPinEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	simulateAnswer(api.RpcChan(), nil, nil)
-	var i interface{} = nil
-	makePost(t, "/pins/"+testCid, &i)
-	if i != nil {
-		t.Error("pin should have returned an empty response")
-	}
 
-	simulateAnswer(api.RpcChan(), nil, errors.New("an error"))
+	// test regular post
+	makePost(t, "/pins/"+testCid, &struct{}{})
+
 	errResp := errorResp{}
-	makePost(t, "/pins/"+testCid2, &errResp)
-	if errResp.Message != "an error" {
-		t.Error("expected different error")
+	makePost(t, "/pins/"+errorCid, &errResp)
+	if errResp.Message != badCidError.Error() {
+		t.Error("expected different error: ", errResp.Message)
 	}
 
 	makePost(t, "/pins/abcd", &errResp)
 	if errResp.Code != 400 {
-		t.Error("should fail with wrong Cid")
+		t.Error("should fail with bad Cid")
 	}
 }
 
-func TestUnpinEndpoint(t *testing.T) {
-	api := testClusterApi(t)
+func TestRESTAPIUnpinEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	simulateAnswer(api.RpcChan(), nil, nil)
-	var i interface{} = nil
-	makeDelete(t, "/pins/"+testCid, &i)
-	if i != nil {
-		t.Error("pin should have returned an empty response")
-	}
 
-	simulateAnswer(api.RpcChan(), nil, errors.New("an error"))
+	// test regular delete
+	makeDelete(t, "/pins/"+testCid, &struct{}{})
+
 	errResp := errorResp{}
-	makeDelete(t, "/pins/"+testCid2, &errResp)
-	if errResp.Message != "an error" {
-		t.Error("expected different error")
+	makeDelete(t, "/pins/"+errorCid, &errResp)
+	if errResp.Message != badCidError.Error() {
+		t.Error("expected different error: ", errResp.Message)
 	}
 
 	makeDelete(t, "/pins/abcd", &errResp)
 	if errResp.Code != 400 {
-		t.Error("should fail with wrong Cid")
+		t.Error("should fail with bad Cid")
 	}
 }
 
-func TestPinListEndpoint(t *testing.T) {
-	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
-	c3, _ := cid.Decode(testCid3)
-	api := testClusterApi(t)
+func TestRESTAPIPinListEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	pList := []*cid.Cid{
-		c, c2, c3, c, c2,
-	}
 
-	simulateAnswer(api.RpcChan(), pList, nil)
-	var resp []*cid.Cid
+	var resp []string
 	makeGet(t, "/pins", &resp)
-	if len(resp) != 5 {
+	if len(resp) != 3 ||
+		resp[0] != testCid1 || resp[1] != testCid2 ||
+		resp[2] != testCid3 {
 		t.Error("unexpected pin list: ", resp)
 	}
 }
 
-func TestStatusEndpoint(t *testing.T) {
-	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
-	c3, _ := cid.Decode(testCid3)
-	api := testClusterApi(t)
+func TestRESTAPIStatusEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	pList := []GlobalPinInfo{
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid,
-					Peer:   testPeerID,
-					IPFS:   Pinned,
-				},
-			},
-			Cid: c,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid2,
-					Peer:   testPeerID,
-					IPFS:   Unpinned,
-				},
-			},
-			Cid: c2,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid3,
-					Peer:   testPeerID,
-					IPFS:   PinError,
-				},
-			},
 
-			Cid: c3,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid,
-					Peer:   testPeerID,
-					IPFS:   UnpinError,
-				},
-			},
-			Cid: c,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid2,
-					Peer:   testPeerID,
-					IPFS:   Unpinning,
-				},
-			},
-			Cid: c2,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid3,
-					Peer:   testPeerID,
-					IPFS:   Pinning,
-				},
-			},
-			Cid: c3,
-		},
-	}
-
-	simulateAnswer(api.RpcChan(), pList, nil)
 	var resp statusResp
 	makeGet(t, "/status", &resp)
-	if len(resp) != 6 {
+	if len(resp) != 3 ||
+		resp[0].Cid != testCid1 ||
+		resp[1].Status[testPeerID.Pretty()].IPFS != "pinning" {
 		t.Errorf("unexpected statusResp:\n %+v", resp)
 	}
 }
 
-func TestStatusCidEndpoint(t *testing.T) {
-	c, _ := cid.Decode(testCid)
-	api := testClusterApi(t)
+func TestRESTAPIStatusCidEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	pin := GlobalPinInfo{
-		Cid: c,
-		Status: map[peer.ID]PinInfo{
-			testPeerID: PinInfo{
-				CidStr: testCid,
-				Peer:   testPeerID,
-				IPFS:   Unpinned,
-			},
-		},
-	}
-	simulateAnswer(api.RpcChan(), pin, nil)
+
 	var resp statusCidResp
 	makeGet(t, "/status/"+testCid, &resp)
+
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")
 	}
@@ -285,86 +172,40 @@ func TestStatusCidEndpoint(t *testing.T) {
 	if !ok {
 		t.Fatal("expected info for testPeerID")
 	}
-	if info.IPFS != "unpinned" {
+	if info.IPFS != "pinned" {
 		t.Error("expected different status")
 	}
 }
 
-func TestStatusSyncEndpoint(t *testing.T) {
-	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
-	c3, _ := cid.Decode(testCid3)
-	api := testClusterApi(t)
+func TestRESTAPIStatusSyncEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	pList := []GlobalPinInfo{
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid,
-					Peer:   testPeerID,
-					IPFS:   PinError,
-				},
-			},
-			Cid: c,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid2,
-					Peer:   testPeerID,
-					IPFS:   UnpinError,
-				},
-			},
-			Cid: c2,
-		},
-		GlobalPinInfo{
-			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
-					CidStr: testCid3,
-					Peer:   testPeerID,
-					IPFS:   PinError,
-				},
-			},
-			Cid: c3,
-		},
-	}
 
-	simulateAnswer(api.RpcChan(), pList, nil)
 	var resp statusResp
-	makeGet(t, "/status", &resp)
-	if len(resp) != 3 {
+	makePost(t, "/status", &resp)
+
+	if len(resp) != 3 ||
+		resp[0].Cid != testCid1 ||
+		resp[1].Status[testPeerID.Pretty()].IPFS != "pinning" {
 		t.Errorf("unexpected statusResp:\n %+v", resp)
-	}
-	if resp[0].Cid != testCid {
-		t.Error("unexpected response info")
 	}
 }
 
-func TestStatusSyncCidEndpoint(t *testing.T) {
-	c, _ := cid.Decode(errorCid)
-	api := testClusterApi(t)
+func TestRESTAPIStatusSyncCidEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
 	defer api.Shutdown()
-	pin := GlobalPinInfo{
-		Cid: c,
-		Status: map[peer.ID]PinInfo{
-			testPeerID: PinInfo{
-				CidStr: errorCid,
-				Peer:   testPeerID,
-				IPFS:   PinError,
-			},
-		},
-	}
-	simulateAnswer(api.RpcChan(), pin, nil)
+
 	var resp statusCidResp
 	makePost(t, "/status/"+testCid, &resp)
-	if resp.Cid != errorCid {
+
+	if resp.Cid != testCid {
 		t.Error("expected the same cid")
 	}
 	info, ok := resp.Status[testPeerID.Pretty()]
 	if !ok {
 		t.Fatal("expected info for testPeerID")
 	}
-	if info.IPFS != "pin_error" {
+	if info.IPFS != "pinned" {
 		t.Error("expected different status")
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
 )
 
@@ -42,8 +43,11 @@ type IPFSHTTPConnector struct {
 	destPort   int
 	listenAddr string
 	listenPort int
-	handlers   map[string]func(http.ResponseWriter, *http.Request)
-	rpcCh      chan RPC
+
+	handlers map[string]func(http.ResponseWriter, *http.Request)
+
+	rpcClient *rpc.Client
+	rpcReady  chan struct{}
 
 	listener net.Listener
 	server   *http.Server
@@ -82,7 +86,7 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 		listenAddr: cfg.IPFSAPIAddr,
 		listenPort: cfg.IPFSAPIPort,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
-		rpcCh:      make(chan RPC, RPCMaxQueue),
+		rpcReady:   make(chan struct{}, 1),
 		listener:   l,
 		server:     s,
 	}
@@ -144,6 +148,9 @@ func (ipfs *IPFSHTTPConnector) run() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		ipfs.ctx = ctx
+
+		<-ipfs.rpcReady
+
 		err := ipfs.server.Serve(ipfs.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -151,10 +158,11 @@ func (ipfs *IPFSHTTPConnector) run() {
 	}()
 }
 
-// RpcChan can be used by Cluster to read any
-// requests from this component.
-func (ipfs *IPFSHTTPConnector) RpcChan() <-chan RPC {
-	return ipfs.rpcCh
+// SetClient makes the component ready to perform RPC
+// requests.
+func (ipfs *IPFSHTTPConnector) SetClient(c *rpc.Client) {
+	ipfs.rpcClient = c
+	ipfs.rpcReady <- struct{}{}
 }
 
 // Shutdown stops any listeners and stops the component from taking
@@ -170,6 +178,7 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 
 	logger.Info("stopping IPFS Proxy")
 
+	close(ipfs.rpcReady)
 	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.listener.Close()
 

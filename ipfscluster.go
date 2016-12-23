@@ -8,20 +8,22 @@
 package ipfscluster
 
 import (
-	"context"
 	"time"
 
-	host "github.com/libp2p/go-libp2p-host"
-
+	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 )
 
 var logger = logging.Logger("cluster")
 
 // Current Cluster version.
 const Version = "0.0.1"
+
+// RPCProtocol is used to send libp2p messages between cluster members
+var RPCProtocol protocol.ID = "/ipfscluster/" + Version + "/rpc"
 
 // RPCMaxQueue can be used to set the size of the RPC channels,
 // which will start blocking on send after reaching this number.
@@ -49,13 +51,11 @@ func SetLogLevel(l string) {
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They
-// communicate with Cluster via a channel carrying RPC operations.
-// These operations request tasks from other components. This way all components
-// are independent from each other and can be swapped as long as they maintain
-// RPC compatibility with Cluster.
+// communicate with the main Cluster component and other components
+// (both local and remote), using an instance of rpc.Client.
 type ClusterComponent interface {
+	SetClient(*rpc.Client)
 	Shutdown() error
-	RpcChan() <-chan RPC
 }
 
 // API is a component which offers an API for Cluster. This is
@@ -116,67 +116,4 @@ type PinTracker interface {
 	Sync(*cid.Cid) bool
 	// Recover retriggers a Pin/Unpin operation in Cids with error status.
 	Recover(*cid.Cid) error
-}
-
-// Remote represents a component which takes care of
-// executing RPC requests in a different cluster member as well as
-// handling any incoming remote requests from other nodes.
-type Remote interface {
-	ClusterComponent
-	// MakeRemoteRPC performs an RPC requests to a remote peer.
-	// The response is decoded onto the RPCResponse provided.
-	MakeRemoteRPC(RPC, peer.ID, *RPCResponse) error
-	// SetHost provides a libp2p host to use by this remote
-	SetHost(host.Host)
-}
-
-// MakeRPC sends a RPC object over a channel and optionally waits for a
-// Response on the RPC.ResponseCh channel. It can be used by any
-// ClusterComponent to simplify making RPC requests to Cluster.
-// The ctx parameter must be a cancellable context, and can be used to
-// timeout requests.
-// If the message cannot be placed in the RPC channel, retries will be
-// issued every MakeRPCRetryInterval.
-func MakeRPC(ctx context.Context, rpcCh chan RPC, r RPC, waitForResponse bool) RPCResponse {
-	logger.Debugf("sending RPC %d", r.Op())
-	exitLoop := false
-	for !exitLoop {
-		select {
-		case rpcCh <- r:
-			exitLoop = true
-		case <-ctx.Done():
-			logger.Debug("cancelling sending RPC")
-			return RPCResponse{
-				Data:  nil,
-				Error: NewRPCError("operation timed out while sending RPC"),
-			}
-		default:
-			logger.Errorf("RPC channel is full. Will retry request %d", r.Op())
-			time.Sleep(MakeRPCRetryInterval)
-		}
-	}
-	if !waitForResponse {
-		logger.Debug("not waiting for response. Returning directly")
-		return RPCResponse{}
-	}
-
-	logger.Debug("waiting for response")
-	select {
-	case resp, ok := <-r.ResponseCh():
-		logger.Debug("response received")
-		if !ok {
-			logger.Warning("response channel closed. Ignoring")
-			return RPCResponse{
-				Data:  nil,
-				Error: nil,
-			}
-		}
-		return resp
-	case <-ctx.Done():
-		logger.Debug("cancelling waiting for RPC Response")
-		return RPCResponse{
-			Data:  nil,
-			Error: NewRPCError("operation timed out while waiting for response"),
-		}
-	}
 }

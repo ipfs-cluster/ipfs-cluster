@@ -11,14 +11,11 @@ import (
 type MapState struct {
 	mux    sync.RWMutex
 	PinMap map[string]struct{}
-
-	rpcCh chan RPC
 }
 
 func NewMapState() *MapState {
 	return &MapState{
 		PinMap: make(map[string]struct{}),
-		rpcCh:  make(chan RPC),
 	}
 }
 

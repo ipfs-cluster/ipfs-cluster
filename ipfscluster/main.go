@@ -338,6 +338,8 @@ func request(method, path string, args ...string) *http.Response {
 		p := fmt.Sprintf("{param%d}", i)
 		u = strings.Replace(u, p, a, 1)
 	}
+	u = strings.TrimSuffix(u, "/")
+
 	logger.Debugf("%s: %s", method, u)
 
 	r, err := http.NewRequest(method, u, nil)

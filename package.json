@@ -30,6 +30,12 @@
       "hash": "QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD",
       "name": "go-cid",
       "version": "0.7.7"
+    },
+    {
+      "author": "hector",
+      "hash": "QmZvXudUXTc2G3o2SYPU7uQX1gzbeQkAZXJ6bnN8C4rcXE",
+      "name": "go-libp2p-rpc",
+      "version": "0.0.10"
     }
   ],
   "gxVersion": "0.10.0",
