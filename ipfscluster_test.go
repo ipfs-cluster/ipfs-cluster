@@ -34,7 +34,7 @@ var (
 	// ports
 	clusterPort = 20000
 	apiPort     = 20500
-	ipfsApiPort = 21000
+	ipfsAPIPort = 21000
 )
 
 func init() {
@@ -100,7 +100,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 			APIAddr:             "127.0.0.1",
 			APIPort:             apiPort + i,
 			IPFSAPIAddr:         "127.0.0.1",
-			IPFSAPIPort:         ipfsApiPort + i,
+			IPFSAPIPort:         ipfsAPIPort + i,
 			IPFSAddr:            mock.addr,
 			IPFSPort:            mock.port,
 		})

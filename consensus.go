@@ -280,6 +280,10 @@ func (cc *Consensus) LogUnpin(c *cid.Cid) error {
 	return nil
 }
 
+// State retrieves the current consensus State. It may error
+// if no State has been agreed upon or the state is not
+// consistent. The returned State is the last agreed-upon
+// State known by this node.
 func (cc *Consensus) State() (State, error) {
 	st, err := cc.consensus.GetLogHead()
 	if err != nil {
@@ -292,15 +296,17 @@ func (cc *Consensus) State() (State, error) {
 	return state, nil
 }
 
-// Leader() returns the peerID of the Leader of the
-// cluster.
+// Leader returns the peerID of the Leader of the
+// cluster. It returns an error when there is no leader.
 func (cc *Consensus) Leader() (peer.ID, error) {
 	// FIXME: Hashicorp Raft specific
 	raftactor := cc.actor.(*libp2praft.Actor)
 	return raftactor.Leader()
 }
 
-// TODO
+// Rollback replaces the current agreed-upon
+// state with the state provided. Only the consensus leader
+// can perform this operation.
 func (cc *Consensus) Rollback(state State) error {
 	return cc.consensus.Rollback(state)
 }

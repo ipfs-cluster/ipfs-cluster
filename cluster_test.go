@@ -23,7 +23,7 @@ func (c *mockComponent) SetClient(client *rpc.Client) {
 	return
 }
 
-type mockApi struct {
+type mockAPI struct {
 	mockComponent
 }
 
@@ -52,8 +52,8 @@ func (ipfs *mockConnector) IsPinned(c *cid.Cid) (bool, error) {
 	return true, nil
 }
 
-func testingCluster(t *testing.T) (*Cluster, *mockApi, *mockConnector, *MapState, *MapPinTracker) {
-	api := &mockApi{}
+func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *MapState, *MapPinTracker) {
+	api := &mockAPI{}
 	ipfs := &mockConnector{}
 	cfg := testingConfig()
 	st := NewMapState()

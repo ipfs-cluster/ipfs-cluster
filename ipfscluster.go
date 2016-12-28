@@ -1,10 +1,11 @@
-// package ipfscluster implements a wrapper for the IPFS deamon which
-// allows to orchestrate a number of tasks between several IPFS nodes.
+// Package ipfscluster implements a wrapper for the IPFS deamon which
+// allows to orchestrate pinning operations among several IPFS nodes.
 //
-// IPFS Cluster uses a consensus algorithm and libP2P to keep a shared
-// state between the different members of the cluster and provides
-// components to interact with the IPFS daemon and provide public
-// and internal APIs.
+// IPFS Cluster uses a go-libp2p-raft to keep a shared state between
+// the different members of the cluster. It also uses LibP2P to enable
+// communication between its different components, which perform different
+// tasks like managing the underlying IPFS daemons, or providing APIs for
+// external control.
 package ipfscluster
 
 import (
@@ -19,19 +20,12 @@ import (
 
 var logger = logging.Logger("cluster")
 
-// Current Cluster version.
+// Version is the current cluster version. Version alignment between
+// components, apis and tools ensures compatibility among them.
 const Version = "0.0.1"
 
 // RPCProtocol is used to send libp2p messages between cluster members
 var RPCProtocol protocol.ID = "/ipfscluster/" + Version + "/rpc"
-
-// RPCMaxQueue can be used to set the size of the RPC channels,
-// which will start blocking on send after reaching this number.
-var RPCMaxQueue = 256
-
-// MakeRPCRetryInterval specifies how long to wait before retrying
-// to put a RPC request in the channel in MakeRPC().
-var MakeRPCRetryInterval time.Duration = 1 * time.Second
 
 // SilentRaft controls whether all Raft log messages are discarded.
 var SilentRaft = true
@@ -47,6 +41,67 @@ func SetLogLevel(l string) {
 		DEBUG
 	*/
 	logging.SetLogLevel("cluster", l)
+}
+
+// IPFSStatus values
+const (
+	// IPFSStatus should never take this value
+	Bug = iota
+	// An error occurred pinning
+	PinError
+	// An error occurred unpinning
+	UnpinError
+	// The IPFS daemon has pinned the item
+	Pinned
+	// The IPFS daemon is currently pinning the item
+	Pinning
+	// The IPFS daemon is currently unpinning the item
+	Unpinning
+	// The IPFS daemon is not pinning the item
+	Unpinned
+	// The IPFS deamon is not pinning the item but it is being tracked
+	RemotePin
+)
+
+// IPFSStatus represents the status of a tracked Cid in the IPFS daemon
+type IPFSStatus int
+
+// GlobalPinInfo contains cluster-wide status information about a tracked Cid,
+// indexed by cluster member.
+type GlobalPinInfo struct {
+	Cid    *cid.Cid
+	Status map[peer.ID]PinInfo
+}
+
+// PinInfo holds information about local pins. PinInfo is
+// serialized when requesting the Global status, therefore
+// we cannot use *cid.Cid.
+type PinInfo struct {
+	CidStr string
+	Peer   peer.ID
+	IPFS   IPFSStatus
+	TS     time.Time
+}
+
+// String converts an IPFSStatus into a readable string.
+func (st IPFSStatus) String() string {
+	switch st {
+	case Bug:
+		return "bug"
+	case PinError:
+		return "pin_error"
+	case UnpinError:
+		return "unpin_error"
+	case Pinned:
+		return "pinned"
+	case Pinning:
+		return "pinning"
+	case Unpinning:
+		return "unpinning"
+	case Unpinned:
+		return "unpinned"
+	}
+	return ""
 }
 
 // ClusterComponent represents a piece of ipfscluster. Cluster components

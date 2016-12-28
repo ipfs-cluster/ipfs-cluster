@@ -23,6 +23,9 @@ const (
 	DefaultClusterPort     = 9096
 )
 
+// Config represents an ipfs-cluster configuration which can be
+// saved and loaded from disk. Currently it holds configuration
+// values used by all components.
 type Config struct {
 	// Libp2p ID and private key for Cluster communication (including)
 	// the Consensus component.
@@ -55,6 +58,8 @@ type Config struct {
 	IPFSPort int    `json:"ipfs_port"`
 }
 
+// LoadConfig reads a JSON configuration file from the given path,
+// parses it and returns a new Config object.
 func LoadConfig(path string) (*Config, error) {
 	config := &Config{}
 	file, err := ioutil.ReadFile(path)
@@ -100,6 +105,7 @@ func NewDefaultConfig() (*Config, error) {
 	}, nil
 }
 
+// Save stores a configuration as a JSON file in the given path.
 func (c *Config) Save(path string) error {
 	json, err := json.MarshalIndent(c, "", "    ")
 	if err != nil {

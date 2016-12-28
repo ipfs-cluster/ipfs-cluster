@@ -10,7 +10,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var badCidError = errors.New("used the error cid so we error the op")
+var errBadCid = errors.New("used the error cid so we error the op")
 
 type mockService struct{}
 
@@ -26,14 +26,14 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 
 func (mock *mockService) Pin(in *CidArg, out *struct{}) error {
 	if in.Cid == errorCid {
-		return badCidError
+		return errBadCid
 	}
 	return nil
 }
 
 func (mock *mockService) Unpin(in *CidArg, out *struct{}) error {
 	if in.Cid == errorCid {
-		return badCidError
+		return errBadCid
 	}
 	return nil
 }
@@ -97,7 +97,7 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 
 func (mock *mockService) StatusCid(in *CidArg, out *GlobalPinInfo) error {
 	if in.Cid == errorCid {
-		return badCidError
+		return errBadCid
 	}
 	c1, _ := cid.Decode(testCid1)
 	*out = GlobalPinInfo{

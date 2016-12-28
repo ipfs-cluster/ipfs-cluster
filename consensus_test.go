@@ -157,7 +157,7 @@ func TestConsensusUnpin(t *testing.T) {
 func TestConsensusLeader(t *testing.T) {
 	cc := testingConsensus(t)
 	cfg := testingConfig()
-	pId := cfg.ID
+	pID := cfg.ID
 	defer cleanRaft()
 	defer cc.Shutdown()
 	l, err := cc.Leader()
@@ -165,7 +165,7 @@ func TestConsensusLeader(t *testing.T) {
 		t.Fatal("No leader:", err)
 	}
 
-	if l.Pretty() != pId {
-		t.Errorf("expected %s but the leader appears as %s", pId, l)
+	if l.Pretty() != pID {
+		t.Errorf("expected %s but the leader appears as %s", pID, l)
 	}
 }

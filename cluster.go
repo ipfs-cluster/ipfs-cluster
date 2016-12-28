@@ -432,7 +432,7 @@ func (c *Cluster) multiRPC(dests []peer.ID, svcName, svcMethod string, args inte
 	var wg sync.WaitGroup
 	errs := make([]error, len(dests), len(dests))
 
-	for i, _ := range dests {
+	for i := range dests {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -459,7 +459,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 	members := c.Members()
 	replies := make([]PinInfo, len(members), len(members))
 	ifaceReplies := make([]interface{}, len(members), len(members))
-	for i, _ := range replies {
+	for i := range replies {
 		ifaceReplies[i] = &replies[i]
 	}
 	args := NewCidArg(h)
@@ -476,9 +476,9 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 
 	if len(errorMsgs) == 0 {
 		return pin, nil
-	} else {
-		return pin, errors.New(errorMsgs)
 	}
+
+	return pin, errors.New(errorMsgs)
 }
 
 func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
@@ -488,7 +488,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	members := c.Members()
 	replies := make([][]PinInfo, len(members), len(members))
 	ifaceReplies := make([]interface{}, len(members), len(members))
-	for i, _ := range replies {
+	for i := range replies {
 		ifaceReplies[i] = &replies[i]
 	}
 	errs := c.multiRPC(members, "Cluster", method, struct{}{}, ifaceReplies)
@@ -525,7 +525,6 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 
 	if len(errorMsgs) == 0 {
 		return infos, nil
-	} else {
-		return infos, errors.New(errorMsgs)
 	}
+	return infos, errors.New(errorMsgs)
 }

@@ -103,7 +103,7 @@ func TestRESTAPIPinEndpoint(t *testing.T) {
 
 	errResp := errorResp{}
 	makePost(t, "/pins/"+errorCid, &errResp)
-	if errResp.Message != badCidError.Error() {
+	if errResp.Message != errBadCid.Error() {
 		t.Error("expected different error: ", errResp.Message)
 	}
 
@@ -122,7 +122,7 @@ func TestRESTAPIUnpinEndpoint(t *testing.T) {
 
 	errResp := errorResp{}
 	makeDelete(t, "/pins/"+errorCid, &errResp)
-	if errResp.Message != badCidError.Error() {
+	if errResp.Message != errBadCid.Error() {
 		t.Error("expected different error: ", errResp.Message)
 	}
 

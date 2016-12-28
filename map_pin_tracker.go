@@ -18,54 +18,8 @@ var (
 	UnpinningTimeout = 10 * time.Second
 )
 
-const (
-	Bad = iota
-	PinError
-	UnpinError
-	Pinned
-	Pinning
-	Unpinning
-	Unpinned
-	RemotePin
-)
-
-type GlobalPinInfo struct {
-	Cid    *cid.Cid
-	Status map[peer.ID]PinInfo
-}
-
-// PinInfo holds information about local pins. PinInfo is
-// serialized when requesting the Global status, therefore
-// we cannot use *cid.Cid.
-type PinInfo struct {
-	CidStr string
-	Peer   peer.ID
-	IPFS   IPFSStatus
-	TS     time.Time
-}
-
-type IPFSStatus int
-
-func (st IPFSStatus) String() string {
-	switch st {
-	case Bad:
-		return "bug"
-	case PinError:
-		return "pin_error"
-	case UnpinError:
-		return "unpin_error"
-	case Pinned:
-		return "pinned"
-	case Pinning:
-		return "pinning"
-	case Unpinning:
-		return "unpinning"
-	case Unpinned:
-		return "unpinned"
-	}
-	return ""
-}
-
+// MapPinTracker is a PinTracker implementation which uses a Go map
+// to store the status of the tracked Cids. This component is thread-safe.
 type MapPinTracker struct {
 	mux    sync.RWMutex
 	status map[string]PinInfo
@@ -81,6 +35,8 @@ type MapPinTracker struct {
 	wg           sync.WaitGroup
 }
 
+// NewMapPinTracker returns a new object which has been correcly
+// initialized with the given configuration.
 func NewMapPinTracker(cfg *Config) *MapPinTracker {
 	ctx := context.Background()
 
@@ -101,6 +57,7 @@ func NewMapPinTracker(cfg *Config) *MapPinTracker {
 	return mpt
 }
 
+// run does nothing other than give MapPinTracker a cancellable context.
 func (mpt *MapPinTracker) run() {
 	mpt.wg.Add(1)
 	go func() {
@@ -113,6 +70,8 @@ func (mpt *MapPinTracker) run() {
 	}()
 }
 
+// Shutdown finishes the services provided by the MapPinTracker and cancels
+// any active context.
 func (mpt *MapPinTracker) Shutdown() error {
 	mpt.shutdownLock.Lock()
 	defer mpt.shutdownLock.Unlock()
@@ -200,18 +159,26 @@ func (mpt *MapPinTracker) unpin(c *cid.Cid) error {
 	return nil
 }
 
+// Track tells the MapPinTracker to start managing a Cid,
+// possibly trigerring Pin operations on the IPFS daemon.
 func (mpt *MapPinTracker) Track(c *cid.Cid) error {
 	return mpt.pin(c)
 }
 
+// Untrack tells the MapPinTracker to stop managing a Cid.
+// If the Cid is pinned locally, it will be unpinned.
 func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	return mpt.unpin(c)
 }
 
+// StatusCid returns information for a Cid tracked by this
+// MapPinTracker.
 func (mpt *MapPinTracker) StatusCid(c *cid.Cid) PinInfo {
 	return mpt.get(c)
 }
 
+// Status returns information for all Cids tracked by this
+// MapPinTracker.
 func (mpt *MapPinTracker) Status() []PinInfo {
 	mpt.mux.Lock()
 	defer mpt.mux.Unlock()
@@ -222,6 +189,11 @@ func (mpt *MapPinTracker) Status() []PinInfo {
 	return pins
 }
 
+// Sync verifies that the status of a Cid matches the status
+// of it in the IPFS daemon. If not, it will be transitioned
+// to Pin or Unpin error. Sync returns true if the status was
+// modified or the status is error. Pins in error states can be
+// recovered with Recover().
 func (mpt *MapPinTracker) Sync(c *cid.Cid) bool {
 	var ipfsPinned bool
 	p := mpt.get(c)
@@ -310,6 +282,8 @@ func (mpt *MapPinTracker) Recover(c *cid.Cid) error {
 	return nil
 }
 
+// SetClient makes the MapPinTracker ready to perform RPC requests to
+// other components.
 func (mpt *MapPinTracker) SetClient(c *rpc.Client) {
 	mpt.rpcClient = c
 	mpt.rpcReady <- struct{}{}

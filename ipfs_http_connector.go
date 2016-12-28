@@ -206,7 +206,7 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 	return nil
 }
 
-// UnPin performs an unpin request against the configured IPFS
+// Unpin performs an unpin request against the configured IPFS
 // daemon.
 func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	pinned, err := ipfs.IsPinned(hash)
@@ -226,6 +226,8 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	return nil
 }
 
+// IsPinned performs a "pin ls" request against the configured IPFS
+// daemon. It returns true when the given Cid is pinned not indirectly.
 func (ipfs *IPFSHTTPConnector) IsPinned(hash *cid.Cid) (bool, error) {
 	pinType, err := ipfs.pinType(hash)
 	if err != nil {
@@ -238,7 +240,10 @@ func (ipfs *IPFSHTTPConnector) IsPinned(hash *cid.Cid) (bool, error) {
 	return true, nil
 }
 
-// Returns how a hash is pinned
+// pinType performs a pin ls request and returns the information associated
+// to the key. Unfortunately, the daemon does not provide an standarized
+// output, so it may well be a sentence like "$hash is indirectly pinned through
+// $otherhash".
 func (ipfs *IPFSHTTPConnector) pinType(hash *cid.Cid) (string, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s", hash)
 	body, err := ipfs.get(lsPath)
