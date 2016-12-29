@@ -104,11 +104,11 @@ func (st IPFSStatus) String() string {
 	return ""
 }
 
-// ClusterComponent represents a piece of ipfscluster. Cluster components
+// Component represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They
 // communicate with the main Cluster component and other components
 // (both local and remote), using an instance of rpc.Client.
-type ClusterComponent interface {
+type Component interface {
 	SetClient(*rpc.Client)
 	Shutdown() error
 }
@@ -116,13 +116,13 @@ type ClusterComponent interface {
 // API is a component which offers an API for Cluster. This is
 // a base component.
 type API interface {
-	ClusterComponent
+	Component
 }
 
 // IPFSConnector is a component which allows cluster to interact with
 // an IPFS daemon. This is a base component.
 type IPFSConnector interface {
-	ClusterComponent
+	Component
 	Pin(*cid.Cid) error
 	Unpin(*cid.Cid) error
 	IsPinned(*cid.Cid) (bool, error)
@@ -154,7 +154,7 @@ type State interface {
 // the pins in this cluster and ensures they are in sync with the
 // IPFS daemon. This component should be thread safe.
 type PinTracker interface {
-	ClusterComponent
+	Component
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
 	Track(*cid.Cid) error
