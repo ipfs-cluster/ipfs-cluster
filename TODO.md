@@ -16,7 +16,7 @@ Things that need to be done:
 * ~~ipfscluster tool~~
 * Peer-aware components. Modify cluster members on the fly.
 * ~~Recover(). Also vs. Sync()~~
-* go-fmt
-* PinTracker docs
-* Readme docs
+* ~~go-fmt~~
+* ~~PinTracker docs~~
+* ~~Readme docs~~
 * ~~Go Server hardening https://getpocket.com/a/read/1525235285~~
