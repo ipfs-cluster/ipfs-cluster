@@ -21,7 +21,7 @@ func TestApplyToPin(t *testing.T) {
 	op.ApplyTo(st)
 	pins := st.ListPins()
 	if len(pins) != 1 || pins[0].String() != testCid {
-		t.Error("the state  was not modified correctly")
+		t.Error("the state was not modified correctly")
 	}
 }
 
@@ -39,7 +39,7 @@ func TestApplyToUnpin(t *testing.T) {
 	op.ApplyTo(st)
 	pins := st.ListPins()
 	if len(pins) != 0 {
-		t.Error("the state  was not modified correctly")
+		t.Error("the state was not modified correctly")
 	}
 }
 

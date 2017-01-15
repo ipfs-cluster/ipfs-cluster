@@ -87,7 +87,7 @@ In summary, it works as follows:
 ```
 $ ipfscluster member ls                                                # list cluster members
 $ ipfscluster pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a Cid in the cluster
-$ ipfscluster pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # unpin a Cid from the cluster
+$ ipfscluster pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # unpins a Cid from the cluster
 $ ipfscluster status                                                   # display tracked Cids information
 $ ipfscluster sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # recover Cids in error status
 ```
