@@ -28,7 +28,7 @@ const (
 
 // LeaderTimeout specifies how long to wait during initialization
 // before failing for not having a leader.
-var LeaderTimeout = 10 * time.Second
+var LeaderTimeout = 120 * time.Second
 
 type clusterLogOpType int
 
@@ -137,6 +137,7 @@ func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) 
 	}
 
 	logger.Info("starting Consensus component")
+	logger.Infof("waiting %d seconds for leader", LeaderTimeout/time.Second)
 	con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
 		cc.host, state, cc.baseOp)
 	if err != nil {
