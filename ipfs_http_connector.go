@@ -9,12 +9,14 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // IPFS Proxy settings
@@ -39,6 +41,8 @@ var (
 // against the configured IPFS daemom (such as a pin request).
 type IPFSHTTPConnector struct {
 	ctx        context.Context
+	nodeAddr   ma.Multiaddr
+	proxyAddr  ma.Multiaddr
 	destHost   string
 	destPort   int
 	listenAddr string
@@ -64,8 +68,34 @@ type ipfsError struct {
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
 func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	ctx := context.Background()
+	destHost, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return nil, err
+	}
+	destPortStr, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	destPort, err := strconv.Atoi(destPortStr)
+	if err != nil {
+		return nil, err
+	}
+
+	listenAddr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return nil, err
+	}
+	listenPortStr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	listenPort, err := strconv.Atoi(listenPortStr)
+	if err != nil {
+		return nil, err
+	}
+
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.IPFSAPIAddr, cfg.IPFSAPIPort))
+		listenAddr, listenPort))
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +110,14 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	ipfs := &IPFSHTTPConnector{
-		ctx:        ctx,
-		destHost:   cfg.IPFSAddr,
-		destPort:   cfg.IPFSPort,
-		listenAddr: cfg.IPFSAPIAddr,
-		listenPort: cfg.IPFSAPIPort,
+		ctx:       ctx,
+		nodeAddr:  cfg.IPFSProxyAddr,
+		proxyAddr: cfg.IPFSNodeAddr,
+
+		destHost:   destHost,
+		destPort:   destPort,
+		listenAddr: listenAddr,
+		listenPort: listenPort,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
 		rpcReady:   make(chan struct{}, 1),
 		listener:   l,
@@ -93,7 +126,6 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	smux.HandleFunc("/", ipfs.handle)
 
-	logger.Infof("starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
 	ipfs.run()
 	return ipfs, nil
 }
@@ -151,6 +183,9 @@ func (ipfs *IPFSHTTPConnector) run() {
 
 		<-ipfs.rpcReady
 
+		logger.Infof("IPFS Proxy: %s -> %s",
+			ipfs.proxyAddr,
+			ipfs.nodeAddr)
 		err := ipfs.server.Serve(ipfs.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -202,7 +237,7 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 		}
 		return err
 	}
-	logger.Info("IPFS object is already pinned: ", hash)
+	logger.Debug("IPFS object is already pinned: ", hash)
 	return nil
 }
 
@@ -222,7 +257,7 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 		return err
 	}
 
-	logger.Info("IPFS object is already unpinned: ", hash)
+	logger.Debug("IPFS object is already unpinned: ", hash)
 	return nil
 }
 

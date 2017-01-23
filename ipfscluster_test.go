@@ -1,7 +1,6 @@
 package ipfscluster
 
 import (
-	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"os"
@@ -12,6 +11,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var (
@@ -32,9 +32,9 @@ var (
 	nPins = 500
 
 	// ports
-	clusterPort = 20000
-	apiPort     = 20500
-	ipfsAPIPort = 21000
+	clusterPort   = 20000
+	apiPort       = 20500
+	ipfsProxyPort = 21000
 )
 
 func init() {
@@ -63,11 +63,11 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 	cfgs := make([]*Config, 0, nClusters)
 
 	type peerInfo struct {
-		pid  string
-		priv string
+		pid  peer.ID
+		priv crypto.PrivKey
 	}
 	peers := make([]peerInfo, 0, nClusters)
-	clusterpeers := make([]string, 0, nClusters)
+	clusterpeers := make([]ma.Multiaddr, 0, nClusters)
 
 	// Generate keys and ids
 	for i := 0; i < nClusters; i++ {
@@ -75,14 +75,11 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 		checkErr(t, err)
 		pid, err := peer.IDFromPublicKey(pub)
 		checkErr(t, err)
-		privBytes, err := priv.Bytes()
-		checkErr(t, err)
-		b64priv := base64.StdEncoding.EncodeToString(privBytes)
-		ma := fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
+		maddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
 			clusterPort+i,
-			pid.Pretty())
-		peers = append(peers, peerInfo{pid.Pretty(), b64priv})
-		clusterpeers = append(clusterpeers, ma)
+			pid.Pretty()))
+		peers = append(peers, peerInfo{pid, priv})
+		clusterpeers = append(clusterpeers, maddr)
 		//t.Log(ma)
 	}
 
@@ -90,19 +87,20 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 	for i := 0; i < nClusters; i++ {
 		mock := newIpfsMock()
 		ipfsMocks = append(ipfsMocks, mock)
+		clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
+		apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
+		proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
+		nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.addr, mock.port))
+
 		cfgs = append(cfgs, &Config{
 			ID:                  peers[i].pid,
 			PrivateKey:          peers[i].priv,
 			ClusterPeers:        clusterpeers,
-			ClusterAddr:         "127.0.0.1",
-			ClusterPort:         clusterPort + i,
-			ConsensusDataFolder: "./e2eTestRaft/" + peers[i].pid,
-			APIAddr:             "127.0.0.1",
-			APIPort:             apiPort + i,
-			IPFSAPIAddr:         "127.0.0.1",
-			IPFSAPIPort:         ipfsAPIPort + i,
-			IPFSAddr:            mock.addr,
-			IPFSPort:            mock.port,
+			ClusterAddr:         clusterAddr,
+			APIAddr:             apiAddr,
+			IPFSProxyAddr:       proxyAddr,
+			IPFSNodeAddr:        nodeAddr,
+			ConsensusDataFolder: "./e2eTestRaft/" + peers[i].pid.Pretty(),
 		})
 	}
 

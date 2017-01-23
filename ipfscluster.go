@@ -41,6 +41,9 @@ func SetLogLevel(l string) {
 		DEBUG
 	*/
 	logging.SetLogLevel("cluster", l)
+	//logging.SetLogLevel("libp2p-rpc", l)
+	//logging.SetLogLevel("swarm2", l)
+	//logging.SetLogLevel("libp2p-raft", l)
 }
 
 // IPFSStatus values

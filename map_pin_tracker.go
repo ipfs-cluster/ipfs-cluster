@@ -40,19 +40,13 @@ type MapPinTracker struct {
 func NewMapPinTracker(cfg *Config) *MapPinTracker {
 	ctx := context.Background()
 
-	pID, err := peer.IDB58Decode(cfg.ID)
-	if err != nil {
-		panic(err)
-	}
-
 	mpt := &MapPinTracker{
 		ctx:        ctx,
 		status:     make(map[string]PinInfo),
 		rpcReady:   make(chan struct{}, 1),
-		peerID:     pID,
+		peerID:     cfg.ID,
 		shutdownCh: make(chan struct{}),
 	}
-	logger.Info("starting MapPinTracker")
 	mpt.run()
 	return mpt
 }
@@ -65,7 +59,8 @@ func (mpt *MapPinTracker) run() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		mpt.ctx = ctx
-		//<-mpt.rpcReady
+		<-mpt.rpcReady
+		logger.Info("PinTracker ready")
 		<-mpt.shutdownCh
 	}()
 }

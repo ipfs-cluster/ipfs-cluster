@@ -2,15 +2,13 @@ package ipfscluster
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
-	"fmt"
-	"strings"
+	"math/rand"
 	"sync"
+	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
@@ -53,16 +51,13 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	rpcServer := rpc.NewServer(host, RPCProtocol)
 	rpcClient := rpc.NewClientWithServer(host, RPCProtocol, rpcServer)
 
+	logger.Infof("IPFS Cluster v%s - %s/ipfs/%s", Version, cfg.ClusterAddr, host.ID().Pretty())
+
 	consensus, err := NewConsensus(cfg, host, state)
 	if err != nil {
 		logger.Errorf("error creating consensus: %s", err)
 		return nil, err
 	}
-
-	tracker.SetClient(rpcClient)
-	ipfs.SetClient(rpcClient)
-	api.SetClient(rpcClient)
-	consensus.SetClient(rpcClient)
 
 	cluster := &Cluster{
 		ctx:        ctx,
@@ -85,7 +80,15 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		return nil, err
 	}
 
-	logger.Infof("starting IPFS Cluster v%s", Version)
+	// Workaround for https://github.com/libp2p/go-libp2p-swarm/issues/15
+	cluster.openConns()
+
+	defer func() {
+		tracker.SetClient(rpcClient)
+		ipfs.SetClient(rpcClient)
+		api.SetClient(rpcClient)
+		consensus.SetClient(rpcClient)
+	}()
 
 	cluster.run()
 	return cluster, nil
@@ -133,7 +136,7 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		return nil, err
 	}
 
-	logger.Info("syncing state to tracker")
+	logger.Debug("syncing state to tracker")
 	clusterPins := cState.ListPins()
 	var changed []*cid.Cid
 
@@ -345,57 +348,25 @@ func (c *Cluster) run() {
 // makeHost makes a libp2p-host
 func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	ps := peerstore.NewPeerstore()
-	peerID, err := peer.IDB58Decode(cfg.ID)
-	if err != nil {
-		logger.Error("decoding ID: ", err)
-		return nil, err
-	}
-
-	pkb, err := base64.StdEncoding.DecodeString(cfg.PrivateKey)
-	if err != nil {
-		logger.Error("decoding private key base64: ", err)
-		return nil, err
-	}
-
-	privateKey, err := crypto.UnmarshalPrivateKey(pkb)
-	if err != nil {
-		logger.Error("unmarshaling private key", err)
-		return nil, err
-	}
-
+	privateKey := cfg.PrivateKey
 	publicKey := privateKey.GetPublic()
 
-	addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
-		cfg.ClusterAddr, cfg.ClusterPort))
-	if err != nil {
+	if err := ps.AddPubKey(cfg.ID, publicKey); err != nil {
 		return nil, err
 	}
 
-	if err := ps.AddPubKey(peerID, publicKey); err != nil {
+	if err := ps.AddPrivKey(cfg.ID, privateKey); err != nil {
 		return nil, err
 	}
 
-	if err := ps.AddPrivKey(peerID, privateKey); err != nil {
-		return nil, err
-	}
-
-	for _, cpeer := range cfg.ClusterPeers {
-		addr, err := multiaddr.NewMultiaddr(cpeer)
-		if err != nil {
-			logger.Errorf("parsing cluster peer multiaddress %s: %s", cpeer, err)
-			return nil, err
-		}
-
+	for _, addr := range cfg.ClusterPeers {
 		pid, err := addr.ValueForProtocol(multiaddr.P_IPFS)
 		if err != nil {
 			return nil, err
 		}
 
-		strAddr := strings.Split(addr.String(), "/ipfs/")[0]
-		maddr, err := multiaddr.NewMultiaddr(strAddr)
-		if err != nil {
-			return nil, err
-		}
+		ipfs, _ := multiaddr.NewMultiaddr("/ipfs/" + pid)
+		maddr := addr.Decapsulate(ipfs)
 
 		peerID, err := peer.IDB58Decode(pid)
 		if err != nil {
@@ -410,8 +381,8 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 
 	network, err := swarm.NewNetwork(
 		ctx,
-		[]multiaddr.Multiaddr{addr},
-		peerID,
+		[]multiaddr.Multiaddr{cfg.ClusterAddr},
+		cfg.ID,
 		ps,
 		nil,
 	)
@@ -468,7 +439,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 	var errorMsgs string
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
-			logger.Error(e)
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
 			errorMsgs += e.Error() + "\n"
 		}
 		pin.Status[r.Peer] = r
@@ -513,7 +484,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	var errorMsgs string
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
-			logger.Error("error in broadcast response: ", e)
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
 			errorMsgs += e.Error() + "\n"
 		}
 		mergePins(r)
@@ -527,4 +498,25 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 		return infos, nil
 	}
 	return infos, errors.New(errorMsgs)
+}
+
+// openConns is a workaround for
+// https://github.com/libp2p/go-libp2p-swarm/issues/15
+// It runs when consensus is initialized so we can assume
+// that the cluster is more or less up.
+// It should open connections for peers where they haven't
+// yet been opened. By randomly sleeping we reduce the
+// chance that members will open 2 connections simultaneously.
+func (c *Cluster) openConns() {
+	rand.Seed(time.Now().UnixNano())
+	time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+	peers := c.host.Peerstore().Peers()
+	for _, p := range peers {
+		peerInfo := c.host.Peerstore().PeerInfo(p)
+		if p == c.host.ID() {
+			continue // do not connect to ourselves
+		}
+		// ignore any errors here
+		c.host.Connect(c.ctx, peerInfo)
+	}
 }

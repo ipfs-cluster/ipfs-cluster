@@ -49,8 +49,11 @@ func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) 
 	logger.Debug("creating OpLog")
 	cons := libp2praft.NewOpLog(state, op)
 
-	raftCfg := hashiraft.DefaultConfig()
-	raftCfg.EnableSingleNode = raftSingleMode
+	raftCfg := cfg.RaftConfig
+	if raftCfg == nil {
+		raftCfg = hashiraft.DefaultConfig()
+		raftCfg.EnableSingleNode = raftSingleMode
+	}
 	if SilentRaft {
 		raftCfg.LogOutput = ioutil.Discard
 		raftCfg.Logger = nil

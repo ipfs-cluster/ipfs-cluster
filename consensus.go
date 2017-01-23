@@ -136,8 +136,7 @@ func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) 
 		rpcReady:   make(chan struct{}, 1),
 	}
 
-	logger.Info("starting Consensus component")
-	logger.Infof("waiting %d seconds for leader", LeaderTimeout/time.Second)
+	logger.Infof("starting Consensus: waiting %d seconds for leader...", LeaderTimeout/time.Second)
 	con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
 		cc.host, state, cc.baseOp)
 	if err != nil {
@@ -162,7 +161,7 @@ func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) 
 		return nil, errors.New("no leader was found after timeout")
 	}
 
-	logger.Debugf("raft leader is %s", leader)
+	logger.Infof("Consensus leader found (%s). Syncing state...", leader.Pretty())
 	cc.run(state)
 	return cc, nil
 }
@@ -178,7 +177,7 @@ func (cc *Consensus) run(state State) {
 
 		upToDate := make(chan struct{})
 		go func() {
-			logger.Info("consensus state is catching up")
+			logger.Debug("consensus state is catching up")
 			time.Sleep(time.Second)
 			for {
 				lai := cc.p2pRaft.raft.AppliedIndex()
@@ -194,7 +193,7 @@ func (cc *Consensus) run(state State) {
 		}()
 
 		<-upToDate
-		logger.Info("consensus state is up to date")
+		logger.Info("Consensus state is up to date")
 
 		// While rpc is not ready we cannot perform a sync
 		<-cc.rpcReady
@@ -208,6 +207,7 @@ func (cc *Consensus) run(state State) {
 			&pInfo,
 			nil)
 
+		logger.Infof("IPFS Cluster is running")
 		<-cc.shutdownCh
 	}()
 }
