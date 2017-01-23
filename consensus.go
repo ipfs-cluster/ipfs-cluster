@@ -276,11 +276,37 @@ func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 	}
 }
 
-// LogPin submits a Cid to the shared state of the cluster.
+// returns true if the operation was redirected to the leader
+func (cc *Consensus) redirectToLeader(method string, c *cid.Cid) (bool, error) {
+	leader, err := cc.Leader()
+	if err != nil {
+		return false, err
+	}
+	if leader != cc.host.ID() {
+		err = cc.rpcClient.Call(
+			leader,
+			"Cluster",
+			method,
+			NewCidArg(c),
+			&struct{}{})
+		return true, err
+	}
+	return false, nil
+}
+
+// LogPin submits a Cid to the shared state of the cluster. It will forward
+// the operation to the leader if this is not it.
 func (cc *Consensus) LogPin(c *cid.Cid) error {
+	redirected, err := cc.redirectToLeader("ConsensusLogPin", c)
+	if err != nil || redirected {
+		return err
+	}
+
+	// It seems WE are the leader.
+
 	// Create pin operation for the log
 	op := cc.op(c, LogOpPin)
-	_, err := cc.consensus.CommitOp(op)
+	_, err = cc.consensus.CommitOp(op)
 	if err != nil {
 		// This means the op did not make it to the log
 		return err
@@ -291,9 +317,16 @@ func (cc *Consensus) LogPin(c *cid.Cid) error {
 
 // LogUnpin removes a Cid from the shared state of the cluster.
 func (cc *Consensus) LogUnpin(c *cid.Cid) error {
+	redirected, err := cc.redirectToLeader("ConsensusLogUnpin", c)
+	if err != nil || redirected {
+		return err
+	}
+
+	// It seems WE are the leader.
+
 	// Create  unpin operation for the log
 	op := cc.op(c, LogOpUnpin)
-	_, err := cc.consensus.CommitOp(op)
+	_, err = cc.consensus.CommitOp(op)
 	if err != nil {
 		return err
 	}

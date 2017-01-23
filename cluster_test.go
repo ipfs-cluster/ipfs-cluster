@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"errors"
 	"testing"
-	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
@@ -69,7 +68,6 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *MapState
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
-	time.Sleep(3 * time.Second) // make sure a leader is elected
 	return cl, api, ipfs, st, tracker
 }
 

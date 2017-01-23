@@ -265,25 +265,14 @@ func (c *Cluster) Pins() []*cid.Cid {
 // Pin makes the cluster Pin a Cid. This implies adding the Cid
 // to the IPFS Cluster peers shared-state. Depending on the cluster
 // pinning strategy, the PinTracker may then request the IPFS daemon
-// to pin the Cid. When the current node is not the cluster leader,
-// the request is forwarded to the leader.
+// to pin the Cid.
 //
 // Pin returns an error if the operation could not be persisted
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
 	logger.Info("pinning:", h)
-	leader, err := c.consensus.Leader()
-	if err != nil {
-		return err
-	}
-	err = c.rpcClient.Call(
-		leader,
-		"Cluster",
-		"ConsensusLogPin",
-		NewCidArg(h),
-		&struct{}{})
-
+	err := c.consensus.LogPin(h)
 	if err != nil {
 		return err
 	}
@@ -291,25 +280,14 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 }
 
 // Unpin makes the cluster Unpin a Cid. This implies adding the Cid
-// to the IPFS Cluster peers shared-state. When the current node is
-// not the cluster leader, the request is forwarded to the leader.
+// to the IPFS Cluster peers shared-state.
 //
 // Unpin returns an error if the operation could not be persisted
 // to the global state. Unpin does not reflect the success or failure
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("pinning:", h)
-	leader, err := c.consensus.Leader()
-	if err != nil {
-		return err
-	}
-	err = c.rpcClient.Call(
-		leader,
-		"Cluster",
-		"ConsensusLogUnpin",
-		NewCidArg(h),
-		&struct{}{})
-
+	err := c.consensus.LogUnpin(h)
 	if err != nil {
 		return err
 	}
