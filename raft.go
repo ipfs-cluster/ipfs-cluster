@@ -35,8 +35,8 @@ func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) 
 		return nil, nil, nil, err
 	}
 
-	logger.Debug("opening connections")
-	transport.OpenConns()
+	//logger.Debug("opening connections")
+	//transport.OpenConns()
 
 	pstore := &libp2praft.Peerstore{}
 	hPeers := host.Peerstore().Peers()
