@@ -160,7 +160,7 @@ func TestClusterMembers(t *testing.T) {
 	defer cl.Shutdown()
 	m := cl.Members()
 	id := testingConfig().ID
-	if len(m) != 1 || m[0].Pretty() != id {
+	if len(m) != 1 || m[0] != id {
 		t.Error("bad Members()")
 	}
 }

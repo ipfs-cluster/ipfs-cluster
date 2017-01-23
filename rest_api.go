@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
 
 	mux "github.com/gorilla/mux"
 )
@@ -89,9 +91,22 @@ type statusResp []statusCidResp
 // started.
 func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	ctx := context.Background()
+
+	listenAddr, err := cfg.APIAddr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return nil, err
+	}
+	listenPortStr, err := cfg.APIAddr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	listenPort, err := strconv.Atoi(listenPortStr)
+	if err != nil {
+		return nil, err
+	}
+
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.APIAddr,
-		cfg.APIPort))
+		listenAddr, listenPort))
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +122,8 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 
 	api := &RESTAPI{
 		ctx:        ctx,
-		listenAddr: cfg.APIAddr,
-		listenPort: cfg.APIPort,
+		listenAddr: listenAddr,
+		listenPort: listenPort,
 		listener:   l,
 		server:     s,
 		rpcReady:   make(chan struct{}, 1),

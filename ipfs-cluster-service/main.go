@@ -63,6 +63,7 @@ var (
 var (
 	initFlag     bool
 	configFlag   string
+	forceFlag    bool
 	debugFlag    bool
 	logLevelFlag string
 	versionFlag  bool
@@ -94,6 +95,8 @@ func init() {
 		"create a default configuration and exit")
 	flag.StringVar(&configFlag, "config", configPath,
 		"path to the ipfs-cluster-service configuration file")
+	flag.BoolVar(&forceFlag, "f", false,
+		"force configuration overwrite when running -init")
 	flag.BoolVar(&debugFlag, "debug", false,
 		"enable full debug logs of ipfs cluster and consensus layers")
 	flag.StringVar(&logLevelFlag, "loglevel", "info",
@@ -108,7 +111,7 @@ func init() {
 	if versionFlag {
 		fmt.Println(ipfscluster.Version)
 	}
-	if initFlag {
+	if initFlag || flag.Arg(0) == "init" {
 		err := initConfig()
 		checkErr("creating configuration", err)
 		os.Exit(0)
@@ -166,7 +169,7 @@ func setupDebug() {
 
 func initConfig() error {
 	if _, err := os.Stat(configPath); err == nil {
-		return fmt.Errorf("%s exists. Try deleting it first", configPath)
+		return fmt.Errorf("%s exists. Try running with -f", configPath)
 	}
 	cfg, err := ipfscluster.NewDefaultConfig()
 	if err != nil {

@@ -9,12 +9,14 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // IPFS Proxy settings
@@ -64,8 +66,34 @@ type ipfsError struct {
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
 func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	ctx := context.Background()
+	destHost, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return nil, err
+	}
+	destPortStr, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	destPort, err := strconv.Atoi(destPortStr)
+	if err != nil {
+		return nil, err
+	}
+
+	listenAddr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return nil, err
+	}
+	listenPortStr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	listenPort, err := strconv.Atoi(listenPortStr)
+	if err != nil {
+		return nil, err
+	}
+
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.IPFSAPIAddr, cfg.IPFSAPIPort))
+		listenAddr, listenPort))
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +109,10 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	ipfs := &IPFSHTTPConnector{
 		ctx:        ctx,
-		destHost:   cfg.IPFSAddr,
-		destPort:   cfg.IPFSPort,
-		listenAddr: cfg.IPFSAPIAddr,
-		listenPort: cfg.IPFSAPIPort,
+		destHost:   destHost,
+		destPort:   destPort,
+		listenAddr: listenAddr,
+		listenPort: listenPort,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
 		rpcReady:   make(chan struct{}, 1),
 		listener:   l,

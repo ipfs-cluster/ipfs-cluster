@@ -165,7 +165,7 @@ func TestConsensusLeader(t *testing.T) {
 		t.Fatal("No leader:", err)
 	}
 
-	if l.Pretty() != pID {
+	if l != pID {
 		t.Errorf("expected %s but the leader appears as %s", pID, l)
 	}
 }

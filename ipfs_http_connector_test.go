@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func testIPFSConnectorConfig(mock *ipfsMock) *Config {
 	cfg := testingConfig()
-	cfg.IPFSAddr = mock.addr
-	cfg.IPFSPort = mock.port
+	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.addr, mock.port))
+	cfg.IPFSNodeAddr = addr
 	return cfg
 }
 
@@ -98,9 +99,11 @@ func TestIPFSProxy(t *testing.T) {
 	defer ipfs.Shutdown()
 
 	cfg := testingConfig()
-	res, err := http.Get(fmt.Sprintf("http://%s:%d/api/v0/add?arg=%s",
-		cfg.IPFSAPIAddr,
-		cfg.IPFSAPIPort,
+	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/add?arg=%s",
+		host,
+		port,
 		testCid))
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)

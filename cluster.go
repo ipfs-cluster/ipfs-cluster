@@ -2,15 +2,11 @@ package ipfscluster
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
-	"fmt"
-	"strings"
 	"sync"
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
@@ -59,11 +55,6 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		return nil, err
 	}
 
-	tracker.SetClient(rpcClient)
-	ipfs.SetClient(rpcClient)
-	api.SetClient(rpcClient)
-	consensus.SetClient(rpcClient)
-
 	cluster := &Cluster{
 		ctx:        ctx,
 		config:     cfg,
@@ -84,6 +75,13 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		tracker.SetClient(rpcClient)
+		ipfs.SetClient(rpcClient)
+		api.SetClient(rpcClient)
+		consensus.SetClient(rpcClient)
+	}()
 
 	logger.Infof("starting IPFS Cluster v%s", Version)
 
@@ -345,57 +343,25 @@ func (c *Cluster) run() {
 // makeHost makes a libp2p-host
 func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	ps := peerstore.NewPeerstore()
-	peerID, err := peer.IDB58Decode(cfg.ID)
-	if err != nil {
-		logger.Error("decoding ID: ", err)
-		return nil, err
-	}
-
-	pkb, err := base64.StdEncoding.DecodeString(cfg.PrivateKey)
-	if err != nil {
-		logger.Error("decoding private key base64: ", err)
-		return nil, err
-	}
-
-	privateKey, err := crypto.UnmarshalPrivateKey(pkb)
-	if err != nil {
-		logger.Error("unmarshaling private key", err)
-		return nil, err
-	}
-
+	privateKey := cfg.PrivateKey
 	publicKey := privateKey.GetPublic()
 
-	addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
-		cfg.ClusterAddr, cfg.ClusterPort))
-	if err != nil {
+	if err := ps.AddPubKey(cfg.ID, publicKey); err != nil {
 		return nil, err
 	}
 
-	if err := ps.AddPubKey(peerID, publicKey); err != nil {
+	if err := ps.AddPrivKey(cfg.ID, privateKey); err != nil {
 		return nil, err
 	}
 
-	if err := ps.AddPrivKey(peerID, privateKey); err != nil {
-		return nil, err
-	}
-
-	for _, cpeer := range cfg.ClusterPeers {
-		addr, err := multiaddr.NewMultiaddr(cpeer)
-		if err != nil {
-			logger.Errorf("parsing cluster peer multiaddress %s: %s", cpeer, err)
-			return nil, err
-		}
-
+	for _, addr := range cfg.ClusterPeers {
 		pid, err := addr.ValueForProtocol(multiaddr.P_IPFS)
 		if err != nil {
 			return nil, err
 		}
 
-		strAddr := strings.Split(addr.String(), "/ipfs/")[0]
-		maddr, err := multiaddr.NewMultiaddr(strAddr)
-		if err != nil {
-			return nil, err
-		}
+		ipfs, _ := multiaddr.NewMultiaddr("/ipfs/" + pid)
+		maddr := addr.Decapsulate(ipfs)
 
 		peerID, err := peer.IDB58Decode(pid)
 		if err != nil {
@@ -410,8 +376,8 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 
 	network, err := swarm.NewNetwork(
 		ctx,
-		[]multiaddr.Multiaddr{addr},
-		peerID,
+		[]multiaddr.Multiaddr{cfg.ClusterAddr},
+		cfg.ID,
 		ps,
 		nil,
 	)
