@@ -1,12 +1,12 @@
-all: ipfscluster
+all: ipfs-cluster-ctl
 
-ipfscluster:
+ipfs-cluster-ctl:
 	go build
 
 install:
 	go install
 
 clean:
-	rm -f ipfscluster
+	rm -f ipfs-cluster-ctl
 
 .PHONY: clean install

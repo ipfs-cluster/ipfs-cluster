@@ -16,7 +16,7 @@ import (
 	logging "github.com/ipfs/go-log"
 )
 
-const programName = `ipfscluster`
+const programName = `ipfs-cluster-ctl`
 
 var (
 	defaultHost     = fmt.Sprintf("127.0.0.1:%d", 9094)

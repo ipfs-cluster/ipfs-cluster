@@ -7,8 +7,8 @@ install:
 - make deps
 script:
 - make test
-- make server
-- make client
+- make service
+- make ctl
 - "$GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN"
 env:
   global:

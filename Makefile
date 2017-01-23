@@ -1,15 +1,15 @@
 all: server client
 clean: rwundo
-	$(MAKE) -C ipfscluster-server clean
-	$(MAKE) -C ipfscluster clean
+	$(MAKE) -C ipfs-cluster-service clean
+	$(MAKE) -C ipfs-cluster-ctl clean
 install: deps
-	$(MAKE) -C ipfscluster-server install
-	$(MAKE) -C ipfscluster install
+	$(MAKE) -C ipfs-cluster-service install
+	$(MAKE) -C ipfs-cluster-ctl install
 
-server: deps
-	$(MAKE) -C ipfscluster-server ipfscluster-server
-client: deps
-	$(MAKE) -C ipfscluster ipfscluster
+service: deps
+	$(MAKE) -C ipfs-cluster-service ipfs-cluster-service
+ctl: deps
+	$(MAKE) -C ipfs-cluster-ctl ipfs-cluster-ctl
 
 gx:
 	go get github.com/whyrusleeping/gx
@@ -29,4 +29,4 @@ rwundo:
 	gx-go rewrite --undo
 publish: rwundo
 	gx publish
-.PHONY: all gx deps test rw rwundo publish server install clean
+.PHONY: all gx deps test rw rwundo publish service ctl install clean

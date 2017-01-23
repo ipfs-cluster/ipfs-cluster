@@ -1,6 +1,6 @@
 coverage.out
-ipfscluster-server/ipfscluster-server
-ipfscluster/ipfscluster
+ipfs-cluster-service/ipfs-cluster-service
+ipfs-cluster-ctl/ipfs-cluster-ctl
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o

@@ -6,8 +6,8 @@ These definitions are still evolving and may change:
 
   * Member: an ipfs cluster server node which is member of the consensus. Alternatively: node, peer
   * ipfs-cluster: the IPFS cluster software
-  * ipfscluster: the IPFS cluster client command line application
-  * ipfscluster-server: the IPFS cluster server application.
+  * ipfs-cluster-ctl: the IPFS cluster client command line application
+  * ipfs-cluster-service: the IPFS cluster node application
   * API: the REST-ish API implemented by the RESTAPI component and used by the clients.
   * RPC API: the internal API that cluster members and components use.
   * Go API: the public interface offered by the Cluster object in Go.
@@ -54,13 +54,13 @@ Currently, all components live in the same `ipfscluster` Go module, but they sha
 
 ## Applications
 
-### `ipfscluster-server`
+### `ipfs-cluster-service`
 
-This is the server application of IPFS Cluster. It brings up a cluster, connects to other members, gets the latest consensus state and participates in cluster.
+This is the service application of IPFS Cluster. It brings up a cluster, connects to other members, gets the latest consensus state and participates in cluster.
 
-### `ipfscluster`
+### `ipfs-cluster-ctl`
 
-This is the client application of IPFS Cluster. It is a command line interface which uses the REST API to communicate with Cluster.
+This is the client/control application of IPFS Cluster. It is a command line interface which uses the REST API to communicate with Cluster.
 
 ## Legacy illustrations
 

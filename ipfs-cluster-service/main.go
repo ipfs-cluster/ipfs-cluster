@@ -14,17 +14,17 @@ import (
 )
 
 // ProgramName of this application
-const programName = `ipfscluster-server`
+const programName = `ipfs-cluster-service`
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
 %s runs an IPFS Cluster member (version %s).
 
-A member is a server node which participates in the cluster consensus, follows
+A member is a node which participates in the cluster consensus, follows
 a distributed log of pinning and unpinning operations and manages pinning
 operations to a configured IPFS daemon.
 
-This server also provides an API for cluster management, an IPFS Proxy API which
+This node also provides an API for cluster management, an IPFS Proxy API which
 forwards requests to IPFS and a number of components for internal communication
 using LibP2P.
 
@@ -45,11 +45,11 @@ https://github.com/ipfs/ipfs-cluster.
 
 // Default location for the configurations and data
 var (
-	// DefaultPath is initialized to something like ~/.ipfs-cluster/server.json
+	// DefaultPath is initialized to something like ~/.ipfs-cluster/service.json
 	// and holds all the ipfs-cluster data
 	DefaultPath = ".ipfs-cluster"
 	// The name of the configuration file inside DefaultPath
-	DefaultConfigFile = "server.json"
+	DefaultConfigFile = "service.json"
 	// The name of the data folder inside DefaultPath
 	DefaultDataFolder = "data"
 )
@@ -93,7 +93,7 @@ func init() {
 	flag.BoolVar(&initFlag, "init", false,
 		"create a default configuration and exit")
 	flag.StringVar(&configFlag, "config", configPath,
-		"path to the ipfscluster-server configuration file")
+		"path to the ipfs-cluster-service configuration file")
 	flag.BoolVar(&debugFlag, "debug", false,
 		"enable full debug logs of ipfs cluster and consensus layers")
 	flag.StringVar(&logLevelFlag, "loglevel", "info",
