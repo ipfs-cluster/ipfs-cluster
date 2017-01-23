@@ -3,7 +3,9 @@ package ipfscluster
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"sync"
+	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
@@ -75,6 +77,9 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	if err != nil {
 		return nil, err
 	}
+
+	// Workaround for https://github.com/libp2p/go-libp2p-swarm/issues/15
+	cluster.openConns()
 
 	defer func() {
 		tracker.SetClient(rpcClient)
@@ -434,7 +439,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 	var errorMsgs string
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
-			logger.Error(e)
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
 			errorMsgs += e.Error() + "\n"
 		}
 		pin.Status[r.Peer] = r
@@ -479,7 +484,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	var errorMsgs string
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
-			logger.Error("error in broadcast response: ", e)
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
 			errorMsgs += e.Error() + "\n"
 		}
 		mergePins(r)
@@ -493,4 +498,25 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 		return infos, nil
 	}
 	return infos, errors.New(errorMsgs)
+}
+
+// openConns is a workaround for
+// https://github.com/libp2p/go-libp2p-swarm/issues/15
+// It runs when consensus is initialized so we can assume
+// that the cluster is more or less up.
+// It should open connections for peers where they haven't
+// yet been opened. By randomly sleeping we reduce the
+// chance that members will open 2 connections simultaneously.
+func (c *Cluster) openConns() {
+	rand.Seed(time.Now().UnixNano())
+	time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+	peers := c.host.Peerstore().Peers()
+	for _, p := range peers {
+		peerInfo := c.host.Peerstore().PeerInfo(p)
+		if p == c.host.ID() {
+			continue // do not connect to ourselves
+		}
+		// ignore any errors here
+		c.host.Connect(c.ctx, peerInfo)
+	}
 }
