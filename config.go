@@ -133,15 +133,18 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	id, err := peer.IDB58Decode(jcfg.ID)
 	if err != nil {
+		err = fmt.Errorf("error decoding cluster ID: %s", err)
 		return
 	}
 
 	pkb, err := base64.StdEncoding.DecodeString(jcfg.PrivateKey)
 	if err != nil {
+		err = fmt.Errorf("error decoding private_key: %s", err)
 		return
 	}
 	pKey, err := crypto.UnmarshalPrivateKey(pkb)
 	if err != nil {
+		err = fmt.Errorf("error parsing private_key ID: %s", err)
 		return
 	}
 
@@ -149,6 +152,8 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	for i := 0; i < len(jcfg.ClusterPeers); i++ {
 		maddr, err := ma.NewMultiaddr(jcfg.ClusterPeers[i])
 		if err != nil {
+			err = fmt.Errorf("error parsing multiaddress for peer %s: %s",
+				jcfg.ClusterPeers[i], err)
 			return nil, err
 		}
 		clusterPeers[i] = maddr
@@ -156,19 +161,23 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 
 	clusterAddr, err := ma.NewMultiaddr(jcfg.ClusterListenMultiaddress)
 	if err != nil {
+		err = fmt.Errorf("error parsing cluster_listen_multiaddress: %s", err)
 		return
 	}
 
 	apiAddr, err := ma.NewMultiaddr(jcfg.APIListenMultiaddress)
 	if err != nil {
+		err = fmt.Errorf("error parsing api_listen_multiaddress: %s", err)
 		return
 	}
 	ipfsProxyAddr, err := ma.NewMultiaddr(jcfg.IPFSProxyListenMultiaddress)
 	if err != nil {
+		err = fmt.Errorf("error parsing ipfs_proxy_listen_multiaddress: %s", err)
 		return
 	}
 	ipfsNodeAddr, err := ma.NewMultiaddr(jcfg.IPFSNodeMultiaddress)
 	if err != nil {
+		err = fmt.Errorf("error parsing ipfs_node_multiaddress: %s", err)
 		return
 	}
 

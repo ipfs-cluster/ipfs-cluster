@@ -132,7 +132,7 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt)
 
 	cfg, err := loadConfig()
-	checkErr("loading configuration", err)
+	checkErr("error loading configuration", err)
 	api, err := ipfscluster.NewRESTAPI(cfg)
 	checkErr("creating REST API component", err)
 	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
