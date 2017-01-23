@@ -106,18 +106,24 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 		})
 	}
 
+	var wg sync.WaitGroup
 	for i := 0; i < nClusters; i++ {
-		api, err := NewRESTAPI(cfgs[i])
-		checkErr(t, err)
-		ipfs, err := NewIPFSHTTPConnector(cfgs[i])
-		checkErr(t, err)
-		state := NewMapState()
-		tracker := NewMapPinTracker(cfgs[i])
+		wg.Add(1)
+		go func(i int) {
+			api, err := NewRESTAPI(cfgs[i])
+			checkErr(t, err)
+			ipfs, err := NewIPFSHTTPConnector(cfgs[i])
+			checkErr(t, err)
+			state := NewMapState()
+			tracker := NewMapPinTracker(cfgs[i])
 
-		cl, err := NewCluster(cfgs[i], api, ipfs, state, tracker)
-		checkErr(t, err)
-		clusters = append(clusters, cl)
+			cl, err := NewCluster(cfgs[i], api, ipfs, state, tracker)
+			checkErr(t, err)
+			clusters = append(clusters, cl)
+			wg.Done()
+		}(i)
 	}
+	wg.Wait()
 	return clusters, ipfsMocks
 }
 
@@ -164,7 +170,6 @@ func TestClustersVersion(t *testing.T) {
 func TestClustersPin(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 	exampleCid, _ := cid.Decode(testCid)
 	prefix := exampleCid.Prefix()
 	for i := 0; i < nPins; i++ {
@@ -228,7 +233,6 @@ func TestClustersPin(t *testing.T) {
 func TestClustersStatus(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 	h, _ := cid.Decode(testCid)
 	clusters[0].Pin(h)
 	delay()
@@ -273,7 +277,6 @@ func TestClustersStatus(t *testing.T) {
 func TestClustersLocalSync(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 	h, _ := cid.Decode(errorCid) // This cid always fails
 	h2, _ := cid.Decode(testCid2)
 	clusters[0].Pin(h)
@@ -302,7 +305,6 @@ func TestClustersLocalSync(t *testing.T) {
 func TestClustersLocalSyncCid(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 	h, _ := cid.Decode(errorCid) // This cid always fails
 	h2, _ := cid.Decode(testCid2)
 	clusters[0].Pin(h)
@@ -335,7 +337,6 @@ func TestClustersLocalSyncCid(t *testing.T) {
 func TestClustersGlobalSync(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 	h, _ := cid.Decode(errorCid) // This cid always fails
 	h2, _ := cid.Decode(testCid2)
 	clusters[0].Pin(h)
@@ -367,7 +368,6 @@ func TestClustersGlobalSync(t *testing.T) {
 func TestClustersGlobalSyncCid(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 	h, _ := cid.Decode(errorCid) // This cid always fails
 	h2, _ := cid.Decode(testCid2)
 	clusters[0].Pin(h)

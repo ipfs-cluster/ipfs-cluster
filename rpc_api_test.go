@@ -10,7 +10,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var errBadCid = errors.New("used the error cid so we error the op")
+var errBadCid = errors.New("this is an expected error when using errorCid")
 
 type mockService struct{}
 
@@ -120,4 +120,17 @@ func (mock *mockService) GlobalSync(in struct{}, out *[]GlobalPinInfo) error {
 
 func (mock *mockService) GlobalSyncCid(in *CidArg, out *GlobalPinInfo) error {
 	return mock.StatusCid(in, out)
+}
+
+func (mock *mockService) StateSync(in struct{}, out *[]PinInfo) error {
+	*out = []PinInfo{}
+	return nil
+}
+
+func (mock *mockService) Track(in *CidArg, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) Untrack(in *CidArg, out *struct{}) error {
+	return nil
 }

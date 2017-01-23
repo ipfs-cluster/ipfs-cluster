@@ -26,6 +26,10 @@ const (
 	LogOpUnpin
 )
 
+// LeaderTimeout specifies how long to wait during initialization
+// before failing for not having a leader.
+var LeaderTimeout = 10 * time.Second
+
 type clusterLogOpType int
 
 // clusterLogOp represents an operation for the OpLogConsensus system.
@@ -132,6 +136,32 @@ func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) 
 		rpcReady:   make(chan struct{}, 1),
 	}
 
+	logger.Info("starting Consensus component")
+	con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
+		cc.host, state, cc.baseOp)
+	if err != nil {
+		panic(err)
+	}
+	con.SetActor(actor)
+	cc.actor = actor
+	cc.consensus = con
+	cc.p2pRaft = wrapper
+
+	// Wait for a leader
+	start := time.Now()
+	leader := peer.ID("")
+	for time.Since(start) < LeaderTimeout {
+		time.Sleep(500 * time.Millisecond)
+		leader, err = cc.Leader()
+		if err == nil {
+			break
+		}
+	}
+	if leader == "" {
+		return nil, errors.New("no leader was found after timeout")
+	}
+
+	logger.Debugf("raft leader is %s", leader)
 	cc.run(state)
 	return cc, nil
 }
@@ -144,20 +174,6 @@ func (cc *Consensus) run(state State) {
 		defer cancel()
 		cc.ctx = ctx
 		cc.baseOp.ctx = ctx
-
-		// While rpc is not ready we cannot do anything
-		<-cc.rpcReady
-
-		logger.Info("starting Consensus component")
-		con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
-			cc.host, state, cc.baseOp)
-		if err != nil {
-			panic(err)
-		}
-		con.SetActor(actor)
-		cc.actor = actor
-		cc.consensus = con
-		cc.p2pRaft = wrapper
 
 		upToDate := make(chan struct{})
 		go func() {
@@ -178,6 +194,10 @@ func (cc *Consensus) run(state State) {
 
 		<-upToDate
 		logger.Info("consensus state is up to date")
+
+		// While rpc is not ready we cannot perform a sync
+		<-cc.rpcReady
+
 		var pInfo []PinInfo
 		cc.rpcClient.Go(
 			"",
