@@ -50,7 +50,7 @@ This makes broadcasting operations, contacting the Cluster leader really easy. I
 
 ### Code layout
 
-Currently, all components live in the same `ipfscluster` Go module, but they shall be moved to their own submodules without trouble in the future. 
+Currently, all components live in the same `ipfscluster` Go module, but they shall be moved to their own submodules without trouble in the future.
 
 ## Applications
 
