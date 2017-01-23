@@ -95,10 +95,9 @@ You can add the multiaddresses for the other members of the cluster in the `clus
     "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "consensus_data_folder": "/home/user/.ipfs-cluster/data",
     "raft_config": {
-        "SnapshotIntervalSeconds": 120,
-        "EnableSingleNode": true
+        "snapshot_interval_seconds": 120,
+        "enable_single_node": true
     }
-}
 ```
 
 The configuration file should probably be identical among all cluster members, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` may include its own address, but it does not have to. For additional information about the configuration format, see the [JSONConfig documentation](https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig).
