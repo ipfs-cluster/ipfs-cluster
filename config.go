@@ -195,8 +195,10 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	}
 
 	raftCfg := hashiraft.DefaultConfig()
-	raftCfg.SnapshotInterval = time.Duration(jcfg.RaftConfig.SnapshotIntervalSeconds) * time.Second
-	raftCfg.EnableSingleNode = jcfg.RaftConfig.EnableSingleNode
+	if jcfg.RaftConfig != nil {
+		raftCfg.SnapshotInterval = time.Duration(jcfg.RaftConfig.SnapshotIntervalSeconds) * time.Second
+		raftCfg.EnableSingleNode = jcfg.RaftConfig.EnableSingleNode
+	}
 
 	c = &Config{
 		ID:                  id,
