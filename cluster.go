@@ -427,7 +427,7 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 // Perform a sync rpc request to multiple destinations
 func (c *Cluster) multiRPC(dests []peer.ID, svcName, svcMethod string, args interface{}, reply []interface{}) []error {
 	if len(dests) != len(reply) {
-		panic("must have mathing dests and replies")
+		panic("must have matching dests and replies")
 	}
 	var wg sync.WaitGroup
 	errs := make([]error, len(dests), len(dests))

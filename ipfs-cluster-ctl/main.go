@@ -32,7 +32,7 @@ var Description = fmt.Sprintf(`
 Use "%s help" to list all available commands and "%s help <command>"
 to get usage information for a specific one.
 
-%s uses the IPFS Cluster API to perform requests and display 
+%s uses the IPFS Cluster API to perform requests and display
 responses in a user-readable format. The location of the IPFS
 Cluster server is assumed to be %s, but can be
 configured with the -host option.
@@ -106,7 +106,7 @@ This command lists the nodes participating in the IPFS Cluster.
 		LongDesc: `
 Usage: pin add|rm|ls [cid]
 
-This command allows to add, remove or list items managed (pinned) by 
+This command allows to add, remove or list items managed (pinned) by
 the Cluster.
 `},
 	"pin add": cmd{
@@ -184,7 +184,7 @@ Usage: sync [cid]
 This command verifies that the current status tracked CIDs are accurate by
 triggering queries to the IPFS daemons that pin them. When the CID is in
 error state, either because pinning or unpinning failed, IPFS Cluster will
-attempt to retry the operation. If a CID is provided, the sync and recover 
+attempt to retry the operation. If a CID is provided, the sync and recover
 operations will be limited to that single item.
 `},
 	"version": cmd{

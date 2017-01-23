@@ -28,8 +28,8 @@ This node also provides an API for cluster management, an IPFS Proxy API which
 forwards requests to IPFS and a number of components for internal communication
 using LibP2P.
 
-%s needs a valid configuration to run. This configuration is 
-independent from IPFS and includes its own LibP2P key-pair. It can be 
+%s needs a valid configuration to run. This configuration is
+independent from IPFS and includes its own LibP2P key-pair. It can be
 initialized with -init and its default location is
  ~/%s/%s.
 
