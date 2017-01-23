@@ -93,7 +93,7 @@ You can add the multiaddresses for the other members of the cluster in the `clus
     "api_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
     "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
     "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-    "consensus_data_folder": "/home/hector/go/src/github.com/ipfs/ipfs-cluster/ipfs-cluster-service/data",
+    "consensus_data_folder": "/home/user/.ipfs-cluster/data",
     "raft_config": {
         "SnapshotIntervalSeconds": 120,
         "EnableSingleNode": true

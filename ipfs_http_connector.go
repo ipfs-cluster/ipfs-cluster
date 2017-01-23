@@ -41,6 +41,8 @@ var (
 // against the configured IPFS daemom (such as a pin request).
 type IPFSHTTPConnector struct {
 	ctx        context.Context
+	nodeAddr   ma.Multiaddr
+	proxyAddr  ma.Multiaddr
 	destHost   string
 	destPort   int
 	listenAddr string
@@ -108,7 +110,10 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	ipfs := &IPFSHTTPConnector{
-		ctx:        ctx,
+		ctx:       ctx,
+		nodeAddr:  cfg.IPFSProxyAddr,
+		proxyAddr: cfg.IPFSNodeAddr,
+
 		destHost:   destHost,
 		destPort:   destPort,
 		listenAddr: listenAddr,
@@ -121,7 +126,6 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	smux.HandleFunc("/", ipfs.handle)
 
-	logger.Infof("starting IPFS Proxy on %s:%d", ipfs.listenAddr, ipfs.listenPort)
 	ipfs.run()
 	return ipfs, nil
 }
@@ -179,6 +183,9 @@ func (ipfs *IPFSHTTPConnector) run() {
 
 		<-ipfs.rpcReady
 
+		logger.Infof("IPFS Proxy: %s -> %s",
+			ipfs.proxyAddr,
+			ipfs.nodeAddr)
 		err := ipfs.server.Serve(ipfs.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -230,7 +237,7 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 		}
 		return err
 	}
-	logger.Info("IPFS object is already pinned: ", hash)
+	logger.Debug("IPFS object is already pinned: ", hash)
 	return nil
 }
 
@@ -250,7 +257,7 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 		return err
 	}
 
-	logger.Info("IPFS object is already unpinned: ", hash)
+	logger.Debug("IPFS object is already unpinned: ", hash)
 	return nil
 }
 

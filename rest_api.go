@@ -34,6 +34,7 @@ var (
 // a RESTful HTTP API for Cluster.
 type RESTAPI struct {
 	ctx        context.Context
+	apiAddr    ma.Multiaddr
 	listenAddr string
 	listenPort int
 	rpcClient  *rpc.Client
@@ -122,6 +123,7 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 
 	api := &RESTAPI{
 		ctx:        ctx,
+		apiAddr:    cfg.APIAddr,
 		listenAddr: listenAddr,
 		listenPort: listenPort,
 		listener:   l,
@@ -138,7 +140,6 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	}
 
 	api.router = router
-	logger.Infof("starting Cluster API on %s:%d", api.listenAddr, api.listenPort)
 	api.run()
 	return api, nil
 }
@@ -212,6 +213,7 @@ func (api *RESTAPI) run() {
 
 		<-api.rpcReady
 
+		logger.Infof("REST API: %s", api.apiAddr)
 		err := api.server.Serve(api.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)

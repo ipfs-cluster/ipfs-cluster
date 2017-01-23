@@ -51,6 +51,8 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	rpcServer := rpc.NewServer(host, RPCProtocol)
 	rpcClient := rpc.NewClientWithServer(host, RPCProtocol, rpcServer)
 
+	logger.Infof("IPFS Cluster v%s - %s/ipfs/%s", Version, cfg.ClusterAddr, host.ID().Pretty())
+
 	consensus, err := NewConsensus(cfg, host, state)
 	if err != nil {
 		logger.Errorf("error creating consensus: %s", err)
@@ -87,8 +89,6 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		api.SetClient(rpcClient)
 		consensus.SetClient(rpcClient)
 	}()
-
-	logger.Infof("starting IPFS Cluster v%s", Version)
 
 	cluster.run()
 	return cluster, nil
@@ -136,7 +136,7 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		return nil, err
 	}
 
-	logger.Info("syncing state to tracker")
+	logger.Debug("syncing state to tracker")
 	clusterPins := cState.ListPins()
 	var changed []*cid.Cid
 
