@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -72,11 +73,11 @@ type JSONConfig struct {
 	ClusterListenMultiaddress string `json:"cluster_multiaddress"`
 
 	// Listen parameters for the the Cluster HTTP API component.
-	APIListenMultiaddress string `json:"api_multiaddress`
+	APIListenMultiaddress string `json:"api_listen_multiaddress"`
 
 	// Listen parameters for the IPFS Proxy. Used by the IPFS
 	// connector component.
-	IPFSProxyListenMultiaddress string `json:ipfs_proxy_api_multiaddress`
+	IPFSProxyListenMultiaddress string `json:"ipfs_proxy_listen_multiaddress"`
 
 	// Host/Port for the IPFS daemon.
 	IPFSNodeMultiaddress string `json:"ipfs_node_multiaddress"`
@@ -86,7 +87,12 @@ type JSONConfig struct {
 	ConsensusDataFolder string `json:"consensus_data_folder"`
 
 	// Raft configuration
-	RaftConfig *hashiraft.Config `json:"raft_config"`
+	RaftConfig *RaftConfig `json:"raft_config"`
+}
+
+type RaftConfig struct {
+	SnapshotIntervalSeconds int  `json:snapshot_interval_seconds`
+	EnableSingleNode        bool `json:enable_single_node`
 }
 
 func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
@@ -116,7 +122,10 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
-		RaftConfig:                  cfg.RaftConfig,
+		RaftConfig: &RaftConfig{
+			SnapshotIntervalSeconds: int(cfg.RaftConfig.SnapshotInterval / time.Second),
+			EnableSingleNode:        cfg.RaftConfig.EnableSingleNode,
+		},
 	}
 	return
 }
@@ -163,6 +172,10 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		return
 	}
 
+	raftCfg := hashiraft.DefaultConfig()
+	raftCfg.SnapshotInterval = time.Duration(jcfg.RaftConfig.SnapshotIntervalSeconds) * time.Second
+	raftCfg.EnableSingleNode = jcfg.RaftConfig.EnableSingleNode
+
 	c = &Config{
 		ID:                  id,
 		PrivateKey:          pKey,
@@ -171,7 +184,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		APIAddr:             apiAddr,
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
-		RaftConfig:          jcfg.RaftConfig,
+		RaftConfig:          raftCfg,
 		ConsensusDataFolder: jcfg.ConsensusDataFolder,
 	}
 	return

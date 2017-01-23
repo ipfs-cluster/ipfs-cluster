@@ -81,8 +81,6 @@ func init() {
 			usr.HomeDir,
 			".ipfs-cluster")
 	}
-	configPath = filepath.Join(DefaultPath, DefaultConfigFile)
-	dataPath = filepath.Join(DefaultPath, DefaultDataFolder)
 
 	flag.Usage = func() {
 		out("Usage: %s [options]\n", programName)
@@ -93,8 +91,8 @@ func init() {
 	}
 	flag.BoolVar(&initFlag, "init", false,
 		"create a default configuration and exit")
-	flag.StringVar(&configFlag, "config", configPath,
-		"path to the ipfs-cluster-service configuration file")
+	flag.StringVar(&configFlag, "config", DefaultPath,
+		"path to the ipfs-cluster-service configuration and data folder")
 	flag.BoolVar(&forceFlag, "f", false,
 		"force configuration overwrite when running -init")
 	flag.BoolVar(&debugFlag, "debug", false,
@@ -104,7 +102,13 @@ func init() {
 	flag.BoolVar(&versionFlag, "version", false,
 		fmt.Sprintf("display %s version", programName))
 	flag.Parse()
-	configPath = configFlag
+
+	absPath, err := filepath.Abs(configFlag)
+	if err != nil {
+		panic("error expading " + configFlag)
+	}
+	configPath = filepath.Join(absPath, DefaultConfigFile)
+	dataPath = filepath.Join(absPath, DefaultDataFolder)
 
 	setupLogging()
 	setupDebug()
@@ -168,7 +172,7 @@ func setupDebug() {
 }
 
 func initConfig() error {
-	if _, err := os.Stat(configPath); err == nil {
+	if _, err := os.Stat(configPath); err == nil && !forceFlag {
 		return fmt.Errorf("%s exists. Try running with -f", configPath)
 	}
 	cfg, err := ipfscluster.NewDefaultConfig()
