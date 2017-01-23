@@ -374,9 +374,19 @@ func TestClustersGlobalSyncCid(t *testing.T) {
 
 	j := rand.Intn(nClusters)
 	ginfo, err := clusters[j].GlobalSyncCid(h)
-	if err == nil {
-		t.Error("expected an error")
+	if err != nil {
+		// we always attempt to return a valid response
+		// with errors contained in GlobalPinInfo
+		t.Fatal("did not expect an error")
 	}
+	pinfo, ok := ginfo.Status[clusters[j].host.ID()]
+	if !ok {
+		t.Fatal("should have info for this host")
+	}
+	if pinfo.Error == "" {
+		t.Error("pinInfo error should not be empty")
+	}
+
 	if ginfo.Cid.String() != errorCid {
 		t.Error("GlobalPinInfo should be for errorCid")
 	}

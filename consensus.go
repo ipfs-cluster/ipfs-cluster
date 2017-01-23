@@ -140,7 +140,7 @@ func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) 
 	con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
 		cc.host, state, cc.baseOp)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	con.SetActor(actor)
 	cc.actor = actor

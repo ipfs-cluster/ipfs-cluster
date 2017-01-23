@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"context"
-	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -436,23 +435,29 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 	args := NewCidArg(h)
 	errs := c.multiRPC(members, "Cluster", method, args, ifaceReplies)
 
-	var errorMsgs string
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
-			errorMsgs += e.Error() + "\n"
+			if r.IPFS == Bug {
+				r = PinInfo{
+					CidStr: h.String(),
+					Peer:   members[i],
+					IPFS:   ClusterError,
+					TS:     time.Now(),
+					Error:  e.Error(),
+				}
+			} else {
+				r.Error = e.Error()
+			}
 		}
-		pin.Status[r.Peer] = r
+		pin.Status[members[i]] = r
 	}
 
-	if len(errorMsgs) == 0 {
-		return pin, nil
-	}
-
-	return pin, errors.New(errorMsgs)
+	return pin, nil
 }
 
 func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
+	// FIXME: should not fail when a single node fails
 	var infos []GlobalPinInfo
 	fullMap := make(map[string]GlobalPinInfo)
 
@@ -481,23 +486,29 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 		}
 	}
 
-	var errorMsgs string
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
-			errorMsgs += e.Error() + "\n"
+			i := []PinInfo{
+				PinInfo{
+					CidStr: "*",
+					Peer:   members[i],
+					IPFS:   ClusterError,
+					TS:     time.Now(),
+					Error:  e.Error(),
+				},
+			}
+			mergePins(i)
+		} else {
+			mergePins(r)
 		}
-		mergePins(r)
 	}
 
 	for _, v := range fullMap {
 		infos = append(infos, v)
 	}
 
-	if len(errorMsgs) == 0 {
-		return infos, nil
-	}
-	return infos, errors.New(errorMsgs)
+	return infos, nil
 }
 
 // openConns is a workaround for

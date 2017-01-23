@@ -50,6 +50,8 @@ func SetLogLevel(l string) {
 const (
 	// IPFSStatus should never take this value
 	Bug = iota
+	// The cluster node is offline or not responding
+	ClusterError
 	// An error occurred pinning
 	PinError
 	// An error occurred unpinning
@@ -84,6 +86,7 @@ type PinInfo struct {
 	Peer   peer.ID
 	IPFS   IPFSStatus
 	TS     time.Time
+	Error  string
 }
 
 // String converts an IPFSStatus into a readable string.
