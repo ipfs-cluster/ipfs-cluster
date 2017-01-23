@@ -24,9 +24,9 @@ const (
 	DefaultClusterAddr     = "/ip4/0.0.0.0/tcp/9096"
 )
 
-// Config represents an ipfs-cluster configuration which can be
-// saved and loaded from disk. Currently it holds configuration
-// values used by all components.
+// Config represents an ipfs-cluster configuration. It is used by
+// Cluster components. An initialized version of it can be obtained with
+// NewDefaultConfig().
 type Config struct {
 	// Libp2p ID and private key for Cluster communication (including)
 	// the Consensus component.
@@ -58,28 +58,33 @@ type Config struct {
 	RaftConfig *hashiraft.Config
 }
 
-// This is how a config actually look in JSON
+// JSONConfig represents a Cluster configuration as it will look when it is
+// saved using JSON. Most configuration keys are converted into simple types
+// like strings, and key names aim to be self-explanatory for the user.
 type JSONConfig struct {
 	// Libp2p ID and private key for Cluster communication (including)
 	// the Consensus component.
 	ID         string `json:"id"`
 	PrivateKey string `json:"private_key"`
 
-	// List of multiaddresses of the peers of this cluster.
+	// List of multiaddresses of the peers of this cluster. This list may
+	// include the multiaddress of this node.
 	ClusterPeers []string `json:"cluster_peers"`
 
-	// Listen parameters for the Cluster libp2p Host. Used by
-	// the RPC and Consensus components.
+	// Listen address for the Cluster libp2p host. This is used for
+	// interal RPC and Consensus communications between cluster members.
 	ClusterListenMultiaddress string `json:"cluster_multiaddress"`
 
-	// Listen parameters for the the Cluster HTTP API component.
+	// Listen address for the the Cluster HTTP API component.
+	// Tools like ipfs-cluster-ctl will connect to his endpoint to
+	// manage cluster.
 	APIListenMultiaddress string `json:"api_listen_multiaddress"`
 
-	// Listen parameters for the IPFS Proxy. Used by the IPFS
-	// connector component.
+	// Listen address for the IPFS Proxy, which forwards requests to
+	// an IPFS daemon.
 	IPFSProxyListenMultiaddress string `json:"ipfs_proxy_listen_multiaddress"`
 
-	// Host/Port for the IPFS daemon.
+	// API address for the IPFS daemon.
 	IPFSNodeMultiaddress string `json:"ipfs_node_multiaddress"`
 
 	// Storage folder for snapshots, log store etc. Used by
@@ -90,11 +95,17 @@ type JSONConfig struct {
 	RaftConfig *RaftConfig `json:"raft_config"`
 }
 
+// RaftConfig is a configuration section which affects the behaviour of
+// the Raft component. See https://godoc.org/github.com/hashicorp/raft#Config
+// for more information. Only the options below are customizable, the rest will
+// take the default values from raft.DefaultConfig().
 type RaftConfig struct {
-	SnapshotIntervalSeconds int  `json:snapshot_interval_seconds`
-	EnableSingleNode        bool `json:enable_single_node`
+	SnapshotIntervalSeconds int  `json:"snapshot_interval_seconds"`
+	EnableSingleNode        bool `json:"enable_single_node"`
 }
 
+// ToJSONConfig converts a Config object to its JSON representation which
+// is focused on user presentation and easy understanding.
 func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	// Multiaddress String() may panic
 	defer func() {
@@ -130,6 +141,8 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	return
 }
 
+// ToConfig converts a JSONConfig to its internal Config representation,
+// where options are parsed into their native types.
 func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	id, err := peer.IDB58Decode(jcfg.ID)
 	if err != nil {
@@ -222,8 +235,8 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // Save stores a configuration as a JSON file in the given path.
-func (c *Config) Save(path string) error {
-	jcfg, err := c.ToJSONConfig()
+func (cfg *Config) Save(path string) error {
+	jcfg, err := cfg.ToJSONConfig()
 	if err != nil {
 		logger.Error("error generating JSON config")
 		return err

@@ -88,20 +88,20 @@ You can add the multiaddresses for the other members of the cluster in the `clus
           "/ip4/192.168.1.3/tcp/9096/ipfs/QmdFBMf9HMDH3eCWrc1U11YCPenC3Uvy9mZQ2BedTyKTDf",
           "/ip4/192.168.1.4/tcp/9096/ipfs/QmYY1ggjoew5eFrvkenTR3F4uWqtkBkmgfJk8g9Qqcwy51",
           "/ip4/192.168.1.5/tcp/9096/ipfs/QmSGCzHkz8gC9fNndMtaCZdf9RFtwtbTEEsGo4zkVfcykD"
-        ],
-    "cluster_addr": "0.0.0.0",
-    "cluster_port": 9096,
-    "consensus_data_folder": "/home/user/.ipfs-cluster/data",
-    "api_addr": "0.0.0.0",
-    "api_port": 9094,
-    "ipfs_api_addr": "0.0.0.0",
-    "ipfs_api_port": 9095,
-    "ipfs_addr": "127.0.0.1",
-    "ipfs_port": 5001
+          ],
+    "cluster_multiaddress": "/ip4/0.0.0.0/tcp/9096",
+    "api_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
+    "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+    "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+    "consensus_data_folder": "/home/hector/go/src/github.com/ipfs/ipfs-cluster/ipfs-cluster-service/data",
+    "raft_config": {
+        "SnapshotIntervalSeconds": 120,
+        "EnableSingleNode": true
+    }
 }
 ```
 
-The configuration file should probably be identical among all cluster members, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` includes its own address, but it does not have to.
+The configuration file should probably be identical among all cluster members, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` may include its own address, but it does not have to. For additional information about the configuration format, see the [JSONConfig documentation](https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig).
 
 Once every cluster member has the configuration in place, you can run `ipfs-cluster-service` to start the cluster.
 
