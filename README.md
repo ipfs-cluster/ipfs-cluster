@@ -29,6 +29,7 @@ Current functionality only allows pinning in all cluster members, but more strat
 ## Table of Contents
 
 - [Background](#background)
+- [Captain](#captain)
 - [Install](#install)
 - [Usage](#usage)
 - [API](#api)
@@ -40,6 +41,10 @@ Current functionality only allows pinning in all cluster members, but more strat
 Since the start of IPFS it was clear that a tool to coordinate a number of different nodes (and the content they are supposed to store) would add a great value to the IPFS ecosystem. Naïve approaches are possible, but they present some weaknesses, specially at dealing with error handling, recovery and implementation of advanced pinning strategies.
 
 `ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster members via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the members of the cluster. Thus, every cluster member knows which content is tracked, can decide whether asking IPFS to pin it and can react to any contingencies like server reboots.
+
+## Captain
+
+This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](captain.log.md) for information about current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md).
 
 ## Install
 
