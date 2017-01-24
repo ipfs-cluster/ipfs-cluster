@@ -97,8 +97,6 @@ func testingConsensus(t *testing.T) *Consensus {
 		t.Fatal("cannot create Consensus:", err)
 	}
 	cc.SetClient(mockRPCClient(t))
-	// Oxygen for Raft to declare leader
-	time.Sleep(3 * time.Second)
 	return cc
 }
 
