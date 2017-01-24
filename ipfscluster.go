@@ -20,12 +20,8 @@ import (
 
 var logger = logging.Logger("cluster")
 
-// Version is the current cluster version. Version alignment between
-// components, apis and tools ensures compatibility among them.
-const Version = "0.0.1"
-
 // RPCProtocol is used to send libp2p messages between cluster members
-var RPCProtocol protocol.ID = "/ipfscluster/" + Version + "/rpc"
+var RPCProtocol = protocol.ID("/ipfscluster/" + Version + "/rpc")
 
 // SilentRaft controls whether all Raft log messages are discarded.
 var SilentRaft = true

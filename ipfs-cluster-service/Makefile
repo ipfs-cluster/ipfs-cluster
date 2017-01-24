@@ -4,7 +4,7 @@ ipfs-cluster-service:
 	go build
 
 install:
-	go install
+	go install -ldflags "-X ipfscluster.commit $(shell git rev-parse HEAD)"
 
 clean:
 	rm -f ipfs-cluster-service

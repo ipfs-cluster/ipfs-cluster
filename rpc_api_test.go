@@ -7,6 +7,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -40,6 +41,18 @@ func (mock *mockService) Unpin(in *CidArg, out *struct{}) error {
 
 func (mock *mockService) PinList(in struct{}, out *[]string) error {
 	*out = []string{testCid, testCid2, testCid3}
+	return nil
+}
+
+func (mock *mockService) ID(in struct{}, out *ID) error {
+	_, pubkey, _ := crypto.GenerateKeyPair(
+		DefaultConfigCrypto,
+		DefaultConfigKeyLength)
+	*out = ID{
+		ID:        testPeerID,
+		PublicKey: pubkey,
+		Version:   "0.0.mock",
+	}
 	return nil
 }
 

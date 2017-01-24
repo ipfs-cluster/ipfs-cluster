@@ -6,6 +6,9 @@ install: deps
 	$(MAKE) -C ipfs-cluster-service install
 	$(MAKE) -C ipfs-cluster-ctl install
 
+build: deps
+	go build -ldflags "-X ipfscluster.Commit $(shell git rev-parse HEAD)"
+
 service: deps
 	$(MAKE) -C ipfs-cluster-service ipfs-cluster-service
 ctl: deps

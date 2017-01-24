@@ -114,6 +114,22 @@ func TestClusterStateSync(t *testing.T) {
 	}
 }
 
+func TestClusterID(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+	id := cl.ID()
+	if len(id.Addresses) == 0 {
+		t.Error("expected more addresses")
+	}
+	if id.ID == "" {
+		t.Error("expected a cluster ID")
+	}
+	if id.Version != Version {
+		t.Error("version should match current version")
+	}
+}
+
 func TestClusterPin(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()

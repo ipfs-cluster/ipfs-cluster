@@ -107,6 +107,17 @@ func main() {
 
 	app.Commands = []cli.Command{
 		{
+			Name:  "id",
+			Usage: "retrieve cluster member information",
+			UsageText: `
+This command will print out information about the cluster peer used
+`,
+			Action: func(c *cli.Context) {
+				resp := request("GET", "/id")
+				formatResponse(resp)
+			},
+		},
+		{
 			Name:  "member",
 			Usage: "list and manage IPFS Cluster members",
 			UsageText: `
