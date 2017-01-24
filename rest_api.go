@@ -278,7 +278,7 @@ func (api *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
 		pubKey := ""
 		if idObj.PublicKey != nil {
 			keyBytes, err := idObj.PublicKey.Bytes()
-			if err != nil {
+			if err == nil {
 				pubKey = base64.StdEncoding.EncodeToString(keyBytes)
 			}
 		}

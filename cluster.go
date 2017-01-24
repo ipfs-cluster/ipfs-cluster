@@ -143,7 +143,7 @@ func (c *Cluster) ID() ID {
 		PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
 		Addresses:          c.host.Addrs(),
 		Version:            Version,
-		Commit:             commit,
+		Commit:             Commit,
 		RPCProtocolVersion: RPCProtocol,
 	}
 }

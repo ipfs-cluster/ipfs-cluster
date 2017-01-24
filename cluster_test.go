@@ -128,6 +128,9 @@ func TestClusterID(t *testing.T) {
 	if id.Version != Version {
 		t.Error("version should match current version")
 	}
+	if id.PublicKey == nil {
+		t.Error("publicKey should not be empty")
+	}
 }
 
 func TestClusterPin(t *testing.T) {

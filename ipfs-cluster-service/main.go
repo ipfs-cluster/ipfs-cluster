@@ -16,6 +16,9 @@ import (
 // ProgramName of this application
 const programName = `ipfs-cluster-service`
 
+// We store a commit id here
+var commit string
+
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
 %s runs an IPFS Cluster peer (version %s).
@@ -70,6 +73,9 @@ var (
 )
 
 func init() {
+	// The only way I could make this work
+	ipfscluster.Commit = commit
+
 	if path := os.Getenv("IPFSCLUSTER_PATH"); path != "" {
 		DefaultPath = path
 	} else {

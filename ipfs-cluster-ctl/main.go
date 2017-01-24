@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -303,10 +303,20 @@ func formatResponse(r *http.Response) {
 		var resp interface{}
 		err = json.Unmarshal(body, &resp)
 		checkErr("decoding response", err)
-		prettyPrint(resp, 0)
+		prettyPrint(body)
 	}
 }
 
+// JSON output is nice and allows users to build on top.
+func prettyPrint(buf []byte) {
+	var dst bytes.Buffer
+	err := json.Indent(&dst, buf, "", "  ")
+	checkErr("indenting json", err)
+	fmt.Printf("%s", dst.String())
+}
+
+/*
+// old ugly pretty print
 func prettyPrint(obj interface{}, indent int) {
 	ind := func() string {
 		var str string
@@ -344,3 +354,4 @@ func prettyPrint(obj interface{}, indent int) {
 		fmt.Println(obj)
 	}
 }
+*/
