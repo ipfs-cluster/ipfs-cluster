@@ -4,13 +4,11 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	host "github.com/libp2p/go-libp2p-host"
-	libp2praft "github.com/libp2p/go-libp2p-raft"
-
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	hashiraft "github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
+	raftboltdb "gx/ipfs/QmWrdreJ88vAtixq3k7PA9fX6hCLVzWwQu9oYr48R81NEa/raft-boltdb"
 )
 
 // libp2pRaftWrap wraps the stuff that we need to run

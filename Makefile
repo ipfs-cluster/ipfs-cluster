@@ -44,10 +44,6 @@ $(gx-go_bin):
 gx: $(gx_bin) $(gx-go_bin)
 
 deps: gx
-	go get github.com/gorilla/mux
-	go get github.com/hashicorp/raft
-	go get github.com/hashicorp/raft-boltdb
-	go get github.com/ugorji/go/codec
 	$(gx_bin) --verbose install --global
 	$(gx-go_bin) rewrite
 test: deps
