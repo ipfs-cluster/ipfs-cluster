@@ -15,15 +15,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmbzCT1CwxVZ2ednptC9RavuJe7Bv8DDi2Ne89qUrA37XM",
+      "hash": "QmdzDdLZ7nj133QvNHypyS9Y39g35bMFk5DJ2pmX7YqtKU",
       "name": "go-libp2p",
-      "version": "4.3.0"
+      "version": "4.3.5"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmbdNJqhQ1jmNmLmig2f99a49XwKJHp6XJUTht4VdrYT2M",
+      "hash": "QmURcg2K5geS5fgV5EUKYdyqhsRTwCSzYsFjJpGq91vLCn",
       "name": "go-libp2p-raft",
-      "version": "1.0.1"
+      "version": "1.0.2"
     },
     {
       "author": "whyrusleeping",
