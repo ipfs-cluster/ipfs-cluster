@@ -17,7 +17,7 @@ import (
 )
 
 // Cluster is the main IPFS cluster component. It provides
-// the go-API for it and orchestrates the componenets that make up the system.
+// the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
 	ctx context.Context
 
@@ -476,7 +476,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
-		for c, _ := range fullMap {
+		for c := range fullMap {
 			fullMap[c].Status[p] = PinInfo{
 				CidStr: c,
 				Peer:   p,

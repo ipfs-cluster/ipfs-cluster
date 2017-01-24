@@ -18,9 +18,9 @@ const programName = `ipfs-cluster-service`
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
-%s runs an IPFS Cluster member (version %s).
+%s runs an IPFS Cluster peer (version %s).
 
-A member is a node which participates in the cluster consensus, follows
+A peer is a node which participates in the cluster consensus, follows
 a distributed log of pinning and unpinning operations and manages pinning
 operations to a configured IPFS daemon.
 

@@ -58,10 +58,10 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 	c2, _ := cid.Decode(testCid2)
 	c3, _ := cid.Decode(testCid3)
 	*out = []GlobalPinInfo{
-		GlobalPinInfo{
+		{
 			Cid: c1,
 			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
+				testPeerID: {
 					CidStr: testCid1,
 					Peer:   testPeerID,
 					IPFS:   Pinned,
@@ -69,10 +69,10 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 				},
 			},
 		},
-		GlobalPinInfo{
+		{
 			Cid: c2,
 			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
+				testPeerID: {
 					CidStr: testCid2,
 					Peer:   testPeerID,
 					IPFS:   Pinning,
@@ -80,10 +80,10 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 				},
 			},
 		},
-		GlobalPinInfo{
+		{
 			Cid: c3,
 			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
+				testPeerID: {
 					CidStr: testCid3,
 					Peer:   testPeerID,
 					IPFS:   PinError,
@@ -103,7 +103,7 @@ func (mock *mockService) StatusCid(in *CidArg, out *GlobalPinInfo) error {
 	*out = GlobalPinInfo{
 		Cid: c1,
 		Status: map[peer.ID]PinInfo{
-			testPeerID: PinInfo{
+			testPeerID: {
 				CidStr: testCid1,
 				Peer:   testPeerID,
 				IPFS:   Pinned,

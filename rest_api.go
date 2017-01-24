@@ -147,55 +147,55 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 
 func (api *RESTAPI) routes() []route {
 	return []route{
-		route{
+		{
 			"Members",
 			"GET",
 			"/members",
 			api.memberListHandler,
 		},
-		route{
+		{
 			"Pins",
 			"GET",
 			"/pins",
 			api.pinListHandler,
 		},
-		route{
+		{
 			"Version",
 			"GET",
 			"/version",
 			api.versionHandler,
 		},
-		route{
+		{
 			"Pin",
 			"POST",
 			"/pins/{hash}",
 			api.pinHandler,
 		},
-		route{
+		{
 			"Unpin",
 			"DELETE",
 			"/pins/{hash}",
 			api.unpinHandler,
 		},
-		route{
+		{
 			"Status",
 			"GET",
 			"/status",
 			api.statusHandler,
 		},
-		route{
+		{
 			"StatusCid",
 			"GET",
 			"/status/{hash}",
 			api.statusCidHandler,
 		},
-		route{
+		{
 			"Sync",
 			"POST",
 			"/status",
 			api.syncHandler,
 		},
-		route{
+		{
 			"SyncCid",
 			"POST",
 			"/status/{hash}",
