@@ -78,7 +78,8 @@ type unpinResp struct {
 }
 
 type statusInfo struct {
-	IPFS string `json:"ipfs"`
+	IPFS  string `json:"ipfs"`
+	Error string `json:"error,omitempty"`
 }
 
 type statusCidResp struct {
@@ -420,7 +421,8 @@ func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
 	s.Status = make(map[string]statusInfo)
 	for k, v := range p.Status {
 		s.Status[k.Pretty()] = statusInfo{
-			IPFS: v.IPFS.String(),
+			IPFS:  v.IPFS.String(),
+			Error: v.Error,
 		}
 	}
 	return s

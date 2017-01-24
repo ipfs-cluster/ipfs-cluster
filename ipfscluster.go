@@ -94,6 +94,8 @@ func (st IPFSStatus) String() string {
 	switch st {
 	case Bug:
 		return "bug"
+	case ClusterError:
+		return "cluster_error"
 	case PinError:
 		return "pin_error"
 	case UnpinError:

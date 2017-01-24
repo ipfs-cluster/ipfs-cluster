@@ -486,21 +486,26 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 		}
 	}
 
+	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil {
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
-			i := []PinInfo{
-				PinInfo{
-					CidStr: "*",
-					Peer:   members[i],
-					IPFS:   ClusterError,
-					TS:     time.Now(),
-					Error:  e.Error(),
-				},
-			}
-			mergePins(i)
+			erroredPeers[members[i]] = e.Error()
 		} else {
 			mergePins(r)
+		}
+	}
+
+	// Merge any errors
+	for p, msg := range erroredPeers {
+		for c, _ := range fullMap {
+			fullMap[c].Status[p] = PinInfo{
+				CidStr: c,
+				Peer:   p,
+				IPFS:   ClusterError,
+				TS:     time.Now(),
+				Error:  msg,
+			}
 		}
 	}
 
