@@ -112,9 +112,10 @@ func main() {
 			UsageText: `
 This command will print out information about the cluster peer used
 `,
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				resp := request("GET", "/id")
 				formatResponse(resp)
+				return nil
 			},
 		},
 		{
@@ -127,9 +128,10 @@ This command can be used to list and manage IPFS Cluster members.
 				{
 					Name:  "ls",
 					Usage: "list the nodes participating in the IPFS Cluster",
-					Action: func(c *cli.Context) {
+					Action: func(c *cli.Context) error {
 						resp := request("GET", "/members")
 						formatResponse(resp)
+						return nil
 					},
 				},
 			},
@@ -154,7 +156,7 @@ When the request has succeeded, the command returns the status of the CID
 in the cluster and should be part of the list offered by "pin ls".
 `,
 					ArgsUsage: "<cid>",
-					Action: func(c *cli.Context) {
+					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
@@ -162,6 +164,7 @@ in the cluster and should be part of the list offered by "pin ls".
 						time.Sleep(500 * time.Millisecond)
 						resp := request("GET", "/status/"+cidStr)
 						formatResponse(resp)
+						return nil
 					},
 				},
 				{
@@ -176,7 +179,7 @@ in the cluster. The CID should dissapear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
 					ArgsUsage: "<cid>",
-					Action: func(c *cli.Context) {
+					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
@@ -184,6 +187,7 @@ although unpinning operations in the cluster may take longer or fail.
 						time.Sleep(500 * time.Millisecond)
 						resp := request("GET", "/status/"+cidStr)
 						formatResponse(resp)
+						return nil
 					},
 				},
 				{
@@ -195,9 +199,10 @@ list does not include information about tracking status or location, it
 merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
-					Action: func(c *cli.Context) {
+					Action: func(c *cli.Context) error {
 						resp := request("GET", "/pins")
 						formatResponse(resp)
+						return nil
 					},
 				},
 			},
@@ -212,7 +217,7 @@ If a CID is provided, the status will be only fetched for a single
 item.
 `,
 			ArgsUsage: "[cid]",
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
@@ -220,6 +225,7 @@ item.
 				}
 				resp := request("GET", "/status/"+cidStr)
 				formatResponse(resp)
+				return nil
 			},
 		},
 		{
@@ -233,7 +239,7 @@ attempt to retry the operation. If a CID is provided, the sync and recover
 operations will be limited to that single item.
 `,
 			ArgsUsage: "[cid]",
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
@@ -241,6 +247,7 @@ operations will be limited to that single item.
 				}
 				resp := request("POST", "/status/"+cidStr)
 				formatResponse(resp)
+				return nil
 			},
 		},
 		{
@@ -250,9 +257,10 @@ operations will be limited to that single item.
 This command retrieves the IPFS Cluster version and can be used
 to check that it matches the CLI version (shown by -v).
 `,
-			Action: func(c *cli.Context) {
+			Action: func(c *cli.Context) error {
 				resp := request("GET", "/version")
 				formatResponse(resp)
+				return nil
 			},
 		},
 	}

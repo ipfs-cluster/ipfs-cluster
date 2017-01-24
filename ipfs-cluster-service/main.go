@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,6 +8,7 @@ import (
 	"path/filepath"
 
 	logging "github.com/ipfs/go-log"
+	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 )
@@ -21,11 +21,11 @@ var commit string
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
-%s runs an IPFS Cluster peer (version %s).
+%s runs an IPFS Cluster node.
 
-A peer is a node which participates in the cluster consensus, follows
-a distributed log of pinning and unpinning operations and manages pinning
-operations to a configured IPFS daemon.
+A node participates in the cluster consensus, follows a distributed log
+of pinning and unpinning requests and manages pinning operations to a
+configured IPFS daemon.
 
 This node also provides an API for cluster management, an IPFS Proxy API which
 forwards requests to IPFS and a number of components for internal communication
@@ -33,15 +33,13 @@ using LibP2P.
 
 %s needs a valid configuration to run. This configuration is
 independent from IPFS and includes its own LibP2P key-pair. It can be
-initialized with -init and its default location is
+initialized with --init and its default location is
  ~/%s/%s.
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
-
 `,
 	programName,
-	ipfscluster.Version,
 	programName,
 	DefaultPath,
 	DefaultConfigFile)
@@ -62,98 +60,20 @@ var (
 	dataPath   string
 )
 
-// Command line flags
-var (
-	initFlag     bool
-	configFlag   string
-	forceFlag    bool
-	debugFlag    bool
-	logLevelFlag string
-	versionFlag  bool
-)
-
 func init() {
 	// The only way I could make this work
 	ipfscluster.Commit = commit
-
-	if path := os.Getenv("IPFSCLUSTER_PATH"); path != "" {
-		DefaultPath = path
-	} else {
-		usr, err := user.Current()
-		if err != nil {
-			panic("cannot guess the current user")
-		}
-		DefaultPath = filepath.Join(
-			usr.HomeDir,
-			".ipfs-cluster")
-	}
-
-	flag.Usage = func() {
-		out("Usage: %s [options]\n", programName)
-		out(Description)
-		out("Options:\n")
-		flag.PrintDefaults()
-		out("\n")
-	}
-	flag.BoolVar(&initFlag, "init", false,
-		"create a default configuration and exit")
-	flag.StringVar(&configFlag, "config", DefaultPath,
-		"path to the ipfs-cluster-service configuration and data folder")
-	flag.BoolVar(&forceFlag, "f", false,
-		"force configuration overwrite when running -init")
-	flag.BoolVar(&debugFlag, "debug", false,
-		"enable full debug logs of ipfs cluster and consensus layers")
-	flag.StringVar(&logLevelFlag, "loglevel", "info",
-		"set the loglevel [critical, error, warning, notice, info, debug]")
-	flag.BoolVar(&versionFlag, "version", false,
-		fmt.Sprintf("display %s version", programName))
-	flag.Parse()
-
-	absPath, err := filepath.Abs(configFlag)
+	usr, err := user.Current()
 	if err != nil {
-		panic("error expading " + configFlag)
+		panic("cannot guess the current user")
 	}
-	configPath = filepath.Join(absPath, DefaultConfigFile)
-	dataPath = filepath.Join(absPath, DefaultDataFolder)
-
-	setupLogging()
-	setupDebug()
-	if versionFlag {
-		fmt.Println(ipfscluster.Version)
-	}
-	if initFlag || flag.Arg(0) == "init" {
-		err := initConfig()
-		checkErr("creating configuration", err)
-		os.Exit(0)
-	}
+	DefaultPath = filepath.Join(
+		usr.HomeDir,
+		".ipfs-cluster")
 }
 
 func out(m string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, a...)
-}
-
-func main() {
-	// Catch SIGINT as a way to exit
-	signalChan := make(chan os.Signal)
-	signal.Notify(signalChan, os.Interrupt)
-
-	cfg, err := loadConfig()
-	checkErr("error loading configuration", err)
-	api, err := ipfscluster.NewRESTAPI(cfg)
-	checkErr("creating REST API component", err)
-	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
-	checkErr("creating IPFS Connector component", err)
-	state := ipfscluster.NewMapState()
-	tracker := ipfscluster.NewMapPinTracker(cfg)
-	cluster, err := ipfscluster.NewCluster(cfg,
-		api, proxy, state, tracker)
-	checkErr("creating IPFS Cluster", err)
-
-	// Wait until we are told to exit by a signal
-	<-signalChan
-	err = cluster.Shutdown()
-	checkErr("shutting down IPFS Cluster", err)
-	os.Exit(0)
 }
 
 func checkErr(doing string, err error) {
@@ -163,37 +83,129 @@ func checkErr(doing string, err error) {
 	}
 }
 
-func setupLogging() {
-	logging.SetLogLevel("cluster", logLevelFlag)
-	logging.SetLogLevel("libp2p-rpc", logLevelFlag)
+func main() {
+	// Catch SIGINT as a way to exit
+	signalChan := make(chan os.Signal)
+	signal.Notify(signalChan, os.Interrupt)
+
+	app := cli.NewApp()
+	app.Name = programName
+	app.Usage = "IPFS Cluster node"
+	app.UsageText = Description
+	app.Version = ipfscluster.Version
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "init",
+			Usage: "create a default configuration and exit",
+		},
+		cli.StringFlag{
+			Name:   "config, c",
+			Value:  DefaultPath,
+			Usage:  "path to the configuration and data `FOLDER`",
+			EnvVar: "IPFS_CLUSTER_PATH",
+		},
+		cli.BoolFlag{
+			Name:  "force, f",
+			Usage: "force configuration overwrite when running --init",
+		},
+		cli.BoolFlag{
+			Name:  "debug, d",
+			Usage: "enable full debug logging",
+		},
+		cli.StringFlag{
+			Name:  "loglevel, l",
+			Value: "info",
+			Usage: "set the loglevel [critical, error, warning, info, debug]",
+		},
+	}
+
+	app.Commands = []cli.Command{
+		{
+			Name:  "init",
+			Usage: "create a default configuration and exit",
+			Action: func(c *cli.Context) error {
+				initConfig(c.GlobalBool("force"))
+				return nil
+			},
+		},
+	}
+
+	app.Before = func(c *cli.Context) error {
+		absPath, err := filepath.Abs(c.String("config"))
+		if err != nil {
+			return err
+		}
+
+		configPath = filepath.Join(absPath, DefaultConfigFile)
+		dataPath = filepath.Join(absPath, DefaultDataFolder)
+
+		setupLogging(c.String("loglevel"))
+		if c.Bool("debug") {
+			setupDebug()
+		}
+		return nil
+	}
+
+	app.Action = func(c *cli.Context) error {
+		if c.Bool("init") {
+			initConfig(c.Bool("force"))
+			return nil
+		}
+
+		cfg, err := loadConfig()
+		checkErr("loading configuration", err)
+
+		api, err := ipfscluster.NewRESTAPI(cfg)
+		checkErr("creating REST API component", err)
+
+		proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
+		checkErr("creating IPFS Connector component", err)
+
+		state := ipfscluster.NewMapState()
+		tracker := ipfscluster.NewMapPinTracker(cfg)
+		cluster, err := ipfscluster.NewCluster(
+			cfg,
+			api,
+			proxy,
+			state,
+			tracker)
+		checkErr("starting cluster", err)
+
+		// Wait until we are told to exit by a signal
+		<-signalChan
+		err = cluster.Shutdown()
+		checkErr("shutting down cluster", err)
+		return nil
+	}
+
+	app.Run(os.Args)
+}
+
+func setupLogging(lvl string) {
+	logging.SetLogLevel("cluster", lvl)
+	logging.SetLogLevel("libp2p-rpc", lvl)
 }
 
 func setupDebug() {
-	if debugFlag {
-		logging.SetLogLevel("cluster", "debug")
-		logging.SetLogLevel("libp2p-raft", "debug")
-		logging.SetLogLevel("libp2p-rpc", "debug")
-		ipfscluster.SilentRaft = false
-	}
+	logging.SetLogLevel("cluster", "debug")
+	logging.SetLogLevel("libp2p-raft", "debug")
+	logging.SetLogLevel("libp2p-rpc", "debug") // FIXME
+	ipfscluster.SilentRaft = false
 }
 
-func initConfig() error {
-	if _, err := os.Stat(configPath); err == nil && !forceFlag {
-		return fmt.Errorf("%s exists. Try running with -f", configPath)
+func initConfig(force bool) {
+	if _, err := os.Stat(configPath); err == nil && !force {
+		err := fmt.Errorf("%s exists. Try running with -f", configPath)
+		checkErr("", err)
 	}
 	cfg, err := ipfscluster.NewDefaultConfig()
-	if err != nil {
-		return err
-	}
+	checkErr("creating default configuration", err)
 	cfg.ConsensusDataFolder = dataPath
 	err = os.MkdirAll(DefaultPath, 0700)
 	err = cfg.Save(configPath)
-	if err != nil {
-		return err
-	}
+	checkErr("saving new configuration", err)
 	out("%s configuration written to %s\n",
 		programName, configPath)
-	return nil
 }
 
 func loadConfig() (*ipfscluster.Config, error) {
