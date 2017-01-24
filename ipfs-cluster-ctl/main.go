@@ -243,6 +243,18 @@ operations will be limited to that single item.
 				formatResponse(resp)
 			},
 		},
+		{
+			Name:  "version",
+			Usage: "Retrieve cluster version",
+			UsageText: `
+This command retrieves the IPFS Cluster version and can be used
+to check that it matches the CLI version (shown by -v).
+`,
+			Action: func(c *cli.Context) {
+				resp := request("GET", "/version")
+				formatResponse(resp)
+			},
+		},
 	}
 
 	app.Run(os.Args)
