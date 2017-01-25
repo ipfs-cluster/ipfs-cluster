@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	rpc "github.com/hsanjuan/go-libp2p-rpc"
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 )
 

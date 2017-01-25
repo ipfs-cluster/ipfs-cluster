@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-rpc"
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	host "github.com/libp2p/go-libp2p-host"

@@ -32,12 +32,6 @@
       "version": "0.7.7"
     },
     {
-      "author": "hector",
-      "hash": "QmZvXudUXTc2G3o2SYPU7uQX1gzbeQkAZXJ6bnN8C4rcXE",
-      "name": "go-libp2p-rpc",
-      "version": "0.0.10"
-    },
-    {
       "author": "urfave",
       "hash": "Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA",
       "name": "cli",
@@ -54,6 +48,12 @@
       "hash": "QmVrBjGjskzhW7HRfC56f4mT3nmNBHj2WWnEXr39G7Y6w8",
       "name": "mux",
       "version": "1.3.0"
+    },
+    {
+      "author": "hector",
+      "hash": "QmcmpQc4j164VuyLxxvYM5VZYf8RZRnouttAbvK6ZknUu3",
+      "name": "go-libp2p-gorpc",
+      "version": "0.0.14"
     }
   ],
   "gxVersion": "0.10.0",

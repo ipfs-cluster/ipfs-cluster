@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-rpc"
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"

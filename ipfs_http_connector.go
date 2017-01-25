@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-rpc"
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
 )
