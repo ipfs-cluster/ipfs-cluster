@@ -1,5 +1,5 @@
 {
-  "author": "hector",
+  "author": "hsanjuan",
   "bugs": {
     "url": "https://github.com/ipfs/ipfs-cluster"
   },
@@ -58,9 +58,9 @@
   ],
   "gxVersion": "0.10.0",
   "language": "go",
-  "license": "",
+  "license": "MIT",
   "name": "ipfs-cluster",
-  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "0.0.0"
+  "releaseCmd": "./release.sh",
+  "version": "0.0.2"
 }
 

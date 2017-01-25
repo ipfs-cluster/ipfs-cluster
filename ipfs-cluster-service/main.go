@@ -8,9 +8,8 @@ import (
 	"path/filepath"
 
 	logging "github.com/ipfs/go-log"
-	"github.com/urfave/cli"
-
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	cli "github.com/urfave/cli"
 )
 
 // ProgramName of this application
