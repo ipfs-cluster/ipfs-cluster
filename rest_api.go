@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -87,6 +88,15 @@ type statusCidResp struct {
 	Status map[string]statusInfo `json:"status"`
 }
 
+type idResp struct {
+	ID                 string   `json:"id"`
+	PublicKey          string   `json:"public_key"`
+	Addresses          []string `json:"addresses"`
+	Version            string   `json:"version"`
+	Commit             string   `json:"commit"`
+	RPCProtocolVersion string   `json:"rpc_protocol_version"`
+}
+
 type statusResp []statusCidResp
 
 // NewRESTAPI creates a new object which is ready to be
@@ -147,55 +157,61 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 
 func (api *RESTAPI) routes() []route {
 	return []route{
-		route{
+		{
+			"ID",
+			"GET",
+			"/id",
+			api.idHandler,
+		},
+		{
 			"Members",
 			"GET",
 			"/members",
 			api.memberListHandler,
 		},
-		route{
+		{
 			"Pins",
 			"GET",
 			"/pins",
 			api.pinListHandler,
 		},
-		route{
+		{
 			"Version",
 			"GET",
 			"/version",
 			api.versionHandler,
 		},
-		route{
+		{
 			"Pin",
 			"POST",
 			"/pins/{hash}",
 			api.pinHandler,
 		},
-		route{
+		{
 			"Unpin",
 			"DELETE",
 			"/pins/{hash}",
 			api.unpinHandler,
 		},
-		route{
+		{
 			"Status",
 			"GET",
 			"/status",
 			api.statusHandler,
 		},
-		route{
+		{
 			"StatusCid",
 			"GET",
 			"/status/{hash}",
 			api.statusCidHandler,
 		},
-		route{
+		{
 			"Sync",
 			"POST",
 			"/status",
 			api.syncHandler,
 		},
-		route{
+		{
 			"SyncCid",
 			"POST",
 			"/status/{hash}",
@@ -251,6 +267,37 @@ func (api *RESTAPI) SetClient(c *rpc.Client) {
 	api.rpcReady <- struct{}{}
 }
 
+func (api *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
+	idObj := ID{}
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"ID",
+		struct{}{},
+		&idObj)
+	if checkRPCErr(w, err) {
+		pubKey := ""
+		if idObj.PublicKey != nil {
+			keyBytes, err := idObj.PublicKey.Bytes()
+			if err == nil {
+				pubKey = base64.StdEncoding.EncodeToString(keyBytes)
+			}
+		}
+		addrs := make([]string, len(idObj.Addresses), len(idObj.Addresses))
+		for i, a := range idObj.Addresses {
+			addrs[i] = a.String()
+		}
+		idResponse := idResp{
+			ID:                 idObj.ID.Pretty(),
+			PublicKey:          pubKey,
+			Addresses:          addrs,
+			Version:            idObj.Version,
+			Commit:             idObj.Commit,
+			RPCProtocolVersion: string(idObj.RPCProtocolVersion),
+		}
+		sendJSONResponse(w, 200, idResponse)
+	}
+}
+
 func (api *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 	var v string
 	err := api.rpcClient.Call("",
@@ -259,7 +306,7 @@ func (api *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&v)
 
-	if checkRPCErr(w, "Version", err) {
+	if checkRPCErr(w, err) {
 		sendJSONResponse(w, 200, versionResp{v})
 	}
 }
@@ -272,7 +319,7 @@ func (api *RESTAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&peers)
 
-	if checkRPCErr(w, "MemberList", err) {
+	if checkRPCErr(w, err) {
 		var strPeers []string
 		for _, p := range peers {
 			strPeers = append(strPeers, p.Pretty())
@@ -288,7 +335,7 @@ func (api *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 			"Pin",
 			c,
 			&struct{}{})
-		if checkRPCErr(w, "Pin", err) {
+		if checkRPCErr(w, err) {
 			sendAcceptedResponse(w)
 		}
 	}
@@ -301,7 +348,7 @@ func (api *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			"Unpin",
 			c,
 			&struct{}{})
-		if checkRPCErr(w, "Unpin", err) {
+		if checkRPCErr(w, err) {
 			sendAcceptedResponse(w)
 		}
 	}
@@ -314,7 +361,7 @@ func (api *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
 		"PinList",
 		struct{}{},
 		&pins)
-	if checkRPCErr(w, "PinList", err) {
+	if checkRPCErr(w, err) {
 		sendJSONResponse(w, 200, pins)
 	}
 
@@ -327,7 +374,7 @@ func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 		"Status",
 		struct{}{},
 		&pinInfos)
-	if checkRPCErr(w, "Status", err) {
+	if checkRPCErr(w, err) {
 		sendStatusResponse(w, http.StatusOK, pinInfos)
 	}
 }
@@ -340,7 +387,7 @@ func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
 			"StatusCid",
 			c,
 			&pinInfo)
-		if checkRPCErr(w, "StatusCid", err) {
+		if checkRPCErr(w, err) {
 			sendStatusCidResponse(w, http.StatusOK, pinInfo)
 		}
 	}
@@ -353,7 +400,7 @@ func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 		"GlobalSync",
 		struct{}{},
 		&pinInfos)
-	if checkRPCErr(w, "Sync", err) {
+	if checkRPCErr(w, err) {
 		sendStatusResponse(w, http.StatusAccepted, pinInfos)
 	}
 }
@@ -366,7 +413,7 @@ func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
 			"GlobalSyncCid",
 			c,
 			&pinInfo)
-		if checkRPCErr(w, "SyncCid", err) {
+		if checkRPCErr(w, err) {
 			sendStatusCidResponse(w, http.StatusOK, pinInfo)
 		}
 	}
@@ -386,7 +433,7 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) *CidArg {
 // checkRPCErr takes care of returning standard error responses if we
 // pass an error to it. It returns true when everythings OK (no error
 // was handled), or false otherwise.
-func checkRPCErr(w http.ResponseWriter, method string, err error) bool {
+func checkRPCErr(w http.ResponseWriter, err error) bool {
 	if err != nil {
 		sendErrorResponse(w, 500, err.Error())
 		return false

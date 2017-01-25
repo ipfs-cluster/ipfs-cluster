@@ -7,6 +7,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -43,6 +44,18 @@ func (mock *mockService) PinList(in struct{}, out *[]string) error {
 	return nil
 }
 
+func (mock *mockService) ID(in struct{}, out *ID) error {
+	_, pubkey, _ := crypto.GenerateKeyPair(
+		DefaultConfigCrypto,
+		DefaultConfigKeyLength)
+	*out = ID{
+		ID:        testPeerID,
+		PublicKey: pubkey,
+		Version:   "0.0.mock",
+	}
+	return nil
+}
+
 func (mock *mockService) Version(in struct{}, out *string) error {
 	*out = "0.0.mock"
 	return nil
@@ -58,10 +71,10 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 	c2, _ := cid.Decode(testCid2)
 	c3, _ := cid.Decode(testCid3)
 	*out = []GlobalPinInfo{
-		GlobalPinInfo{
+		{
 			Cid: c1,
 			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
+				testPeerID: {
 					CidStr: testCid1,
 					Peer:   testPeerID,
 					IPFS:   Pinned,
@@ -69,10 +82,10 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 				},
 			},
 		},
-		GlobalPinInfo{
+		{
 			Cid: c2,
 			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
+				testPeerID: {
 					CidStr: testCid2,
 					Peer:   testPeerID,
 					IPFS:   Pinning,
@@ -80,10 +93,10 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 				},
 			},
 		},
-		GlobalPinInfo{
+		{
 			Cid: c3,
 			Status: map[peer.ID]PinInfo{
-				testPeerID: PinInfo{
+				testPeerID: {
 					CidStr: testCid3,
 					Peer:   testPeerID,
 					IPFS:   PinError,
@@ -103,7 +116,7 @@ func (mock *mockService) StatusCid(in *CidArg, out *GlobalPinInfo) error {
 	*out = GlobalPinInfo{
 		Cid: c1,
 		Status: map[peer.ID]PinInfo{
-			testPeerID: PinInfo{
+			testPeerID: {
 				CidStr: testCid1,
 				Peer:   testPeerID,
 				IPFS:   Pinned,

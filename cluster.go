@@ -8,16 +8,18 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-rpc"
 	cid "github.com/ipfs/go-cid"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
-	multiaddr "github.com/multiformats/go-multiaddr"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // Cluster is the main IPFS cluster component. It provides
-// the go-API for it and orchestrates the componenets that make up the system.
+// the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
 	ctx context.Context
 
@@ -36,6 +38,15 @@ type Cluster struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	wg           sync.WaitGroup
+}
+
+type ID struct {
+	ID                 peer.ID
+	PublicKey          crypto.PubKey
+	Addresses          []ma.Multiaddr
+	Version            string
+	Commit             string
+	RPCProtocolVersion protocol.ID
 }
 
 // NewCluster builds a new IPFS Cluster. It initializes a LibP2P host, creates
@@ -124,6 +135,17 @@ func (c *Cluster) Shutdown() error {
 	c.wg.Wait()
 	c.host.Close() // Shutdown all network services
 	return nil
+}
+
+func (c *Cluster) ID() ID {
+	return ID{
+		ID:                 c.host.ID(),
+		PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
+		Addresses:          c.host.Addrs(),
+		Version:            Version,
+		Commit:             Commit,
+		RPCProtocolVersion: RPCProtocol,
+	}
 }
 
 // StateSync syncs the consensus state to the Pin Tracker, ensuring
@@ -337,12 +359,12 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	}
 
 	for _, addr := range cfg.ClusterPeers {
-		pid, err := addr.ValueForProtocol(multiaddr.P_IPFS)
+		pid, err := addr.ValueForProtocol(ma.P_IPFS)
 		if err != nil {
 			return nil, err
 		}
 
-		ipfs, _ := multiaddr.NewMultiaddr("/ipfs/" + pid)
+		ipfs, _ := ma.NewMultiaddr("/ipfs/" + pid)
 		maddr := addr.Decapsulate(ipfs)
 
 		peerID, err := peer.IDB58Decode(pid)
@@ -352,13 +374,13 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 
 		ps.AddAddrs(
 			peerID,
-			[]multiaddr.Multiaddr{maddr},
+			[]ma.Multiaddr{maddr},
 			peerstore.PermanentAddrTTL)
 	}
 
 	network, err := swarm.NewNetwork(
 		ctx,
-		[]multiaddr.Multiaddr{cfg.ClusterAddr},
+		[]ma.Multiaddr{cfg.ClusterAddr},
 		cfg.ID,
 		ps,
 		nil,
@@ -476,7 +498,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
-		for c, _ := range fullMap {
+		for c := range fullMap {
 			fullMap[c].Status[p] = PinInfo{
 				CidStr: c,
 				Peer:   p,

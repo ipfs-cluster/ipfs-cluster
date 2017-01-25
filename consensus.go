@@ -253,7 +253,7 @@ func (cc *Consensus) Shutdown() error {
 	}
 
 	if errMsgs != "" {
-		errMsgs += "Consensus shutdown unsucessful"
+		errMsgs += "Consensus shutdown unsuccessful"
 		logger.Error(errMsgs)
 		return errors.New(errMsgs)
 	}
@@ -311,7 +311,7 @@ func (cc *Consensus) LogPin(c *cid.Cid) error {
 		// This means the op did not make it to the log
 		return err
 	}
-	logger.Infof("pin commited to global state: %s", c)
+	logger.Infof("pin committed to global state: %s", c)
 	return nil
 }
 
@@ -330,7 +330,7 @@ func (cc *Consensus) LogUnpin(c *cid.Cid) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("unpin commited to global state: %s", c)
+	logger.Infof("unpin committed to global state: %s", c)
 	return nil
 }
 

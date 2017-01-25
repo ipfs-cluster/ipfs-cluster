@@ -44,6 +44,11 @@ func (arg *CidArg) CID() (*cid.Cid, error) {
    Cluster components methods
 */
 
+func (api *RPCAPI) ID(in struct{}, out *ID) error {
+	*out = api.cluster.ID()
+	return nil
+}
+
 // Pin runs Cluster.Pin().
 func (api *RPCAPI) Pin(in *CidArg, out *struct{}) error {
 	c, err := in.CID()

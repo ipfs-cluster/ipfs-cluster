@@ -36,6 +36,12 @@
       "hash": "QmZvXudUXTc2G3o2SYPU7uQX1gzbeQkAZXJ6bnN8C4rcXE",
       "name": "go-libp2p-rpc",
       "version": "0.0.10"
+    },
+    {
+      "author": "urfave",
+      "hash": "Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA",
+      "name": "cli",
+      "version": "1.19.1"
     }
   ],
   "gxVersion": "0.10.0",

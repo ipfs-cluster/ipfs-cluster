@@ -73,6 +73,16 @@ func TestRESTAPIShutdown(t *testing.T) {
 	api.Shutdown()
 }
 
+func TestRestAPIIDEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
+	defer api.Shutdown()
+	id := idResp{}
+	makeGet(t, "/id", &id)
+	if id.ID != testPeerID.Pretty() {
+		t.Error("expected correct id")
+	}
+}
+
 func TestRESTAPIVersionEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
