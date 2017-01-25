@@ -50,10 +50,10 @@
       "version": "1.3.0"
     },
     {
-      "author": "hector",
-      "hash": "QmcmpQc4j164VuyLxxvYM5VZYf8RZRnouttAbvK6ZknUu3",
+      "author": "hsanjuan",
+      "hash": "QmSPSvzt29mUZyoAvM6vtdHdvnTs2vgihno11MexCFXBDp",
       "name": "go-libp2p-gorpc",
-      "version": "0.0.14"
+      "version": "0.0.15"
     }
   ],
   "gxVersion": "0.10.0",
