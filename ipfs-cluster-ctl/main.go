@@ -19,7 +19,7 @@ import (
 const programName = `ipfs-cluster-ctl`
 
 // Version
-const Version = "0.0.1"
+const Version = "0.0.2"
 
 var (
 	defaultHost     = fmt.Sprintf("127.0.0.1:%d", 9094)
