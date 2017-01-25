@@ -11,7 +11,7 @@ package ipfscluster
 import (
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-rpc"
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"

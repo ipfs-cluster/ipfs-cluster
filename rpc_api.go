@@ -5,7 +5,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-// RPCAPI is a go-libp2p-rpc service which provides the internal ipfs-cluster
+// RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster
 // API, which enables components and members of the cluster to communicate and
 // request actions from each other.
 //
