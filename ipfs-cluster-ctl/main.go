@@ -18,7 +18,8 @@ import (
 
 const programName = `ipfs-cluster-ctl`
 
-// Version
+// Version is the cluster-ctl tool version. It should match
+// the IPFS cluster's version
 const Version = "0.0.2"
 
 var (
@@ -175,7 +176,7 @@ This command tells IPFS Cluster to no longer manage a CID. This will
 trigger unpinning operations in all the IPFS nodes holding the content.
 
 When the request has succeeded, the command returns the status of the CID
-in the cluster. The CID should dissapear from the list offered by "pin ls",
+in the cluster. The CID should disappear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
 					ArgsUsage: "<cid>",
