@@ -163,23 +163,45 @@ func (api *RESTAPI) routes() []route {
 			"/id",
 			api.idHandler,
 		},
+
+		{
+			"Version",
+			"GET",
+			"/version",
+			api.versionHandler,
+		},
+
 		{
 			"Members",
 			"GET",
 			"/members",
 			api.memberListHandler,
 		},
+
 		{
 			"Pins",
 			"GET",
-			"/pins",
+			"/pinlist",
 			api.pinListHandler,
 		},
+
 		{
-			"Version",
+			"StatusAll",
 			"GET",
-			"/version",
-			api.versionHandler,
+			"/pins",
+			api.statusAllHandler,
+		},
+		{
+			"SyncAll",
+			"POST",
+			"/pins/sync",
+			api.syncAllHandler,
+		},
+		{
+			"Status",
+			"GET",
+			"/pins/{hash}",
+			api.statusHandler,
 		},
 		{
 			"Pin",
@@ -194,28 +216,16 @@ func (api *RESTAPI) routes() []route {
 			api.unpinHandler,
 		},
 		{
-			"Status",
-			"GET",
-			"/status",
-			api.statusHandler,
-		},
-		{
-			"StatusCid",
-			"GET",
-			"/status/{hash}",
-			api.statusCidHandler,
-		},
-		{
 			"Sync",
 			"POST",
-			"/status",
+			"/pins/{hash}/sync",
 			api.syncHandler,
 		},
 		{
-			"SyncCid",
+			"Recover",
 			"POST",
-			"/status/{hash}",
-			api.syncCidHandler,
+			"/pins/{hash}/recover",
+			api.recoverHandler,
 		},
 	}
 }
@@ -367,11 +377,11 @@ func (api *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	var pinInfos []GlobalPinInfo
 	err := api.rpcClient.Call("",
 		"Cluster",
-		"Status",
+		"StatusAll",
 		struct{}{},
 		&pinInfos)
 	if checkRPCErr(w, err) {
@@ -379,12 +389,12 @@ func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c != nil {
 		var pinInfo GlobalPinInfo
 		err := api.rpcClient.Call("",
 			"Cluster",
-			"StatusCid",
+			"Status",
 			c,
 			&pinInfo)
 		if checkRPCErr(w, err) {
@@ -393,11 +403,11 @@ func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
 	var pinInfos []GlobalPinInfo
 	err := api.rpcClient.Call("",
 		"Cluster",
-		"GlobalSync",
+		"SyncAll",
 		struct{}{},
 		&pinInfos)
 	if checkRPCErr(w, err) {
@@ -405,12 +415,26 @@ func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c != nil {
 		var pinInfo GlobalPinInfo
 		err := api.rpcClient.Call("",
 			"Cluster",
-			"GlobalSyncCid",
+			"Sync",
+			c,
+			&pinInfo)
+		if checkRPCErr(w, err) {
+			sendStatusCidResponse(w, http.StatusOK, pinInfo)
+		}
+	}
+}
+
+func (api *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c != nil {
+		var pinInfo GlobalPinInfo
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"Recover",
 			c,
 			&pinInfo)
 		if checkRPCErr(w, err) {

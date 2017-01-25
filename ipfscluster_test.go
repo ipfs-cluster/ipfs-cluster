@@ -186,7 +186,7 @@ func TestClustersPin(t *testing.T) {
 	}
 	delay()
 	fpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.Status()
+		status := c.tracker.StatusAll()
 		for _, v := range status {
 			if v.Status != TrackerStatusPinned {
 				t.Errorf("%s should have been pinned but it is %s",
@@ -219,7 +219,7 @@ func TestClustersPin(t *testing.T) {
 	delay()
 
 	funpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.Status()
+		status := c.tracker.StatusAll()
 		if l := len(status); l != 0 {
 			t.Errorf("Nothing should be pinned")
 			//t.Errorf("%+v", status)
@@ -228,7 +228,7 @@ func TestClustersPin(t *testing.T) {
 	runF(t, clusters, funpinned)
 }
 
-func TestClustersStatus(t *testing.T) {
+func TestClustersStatusAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(testCid)
@@ -236,7 +236,7 @@ func TestClustersStatus(t *testing.T) {
 	delay()
 	// Global status
 	f := func(t *testing.T, c *Cluster) {
-		statuses, err := c.Status()
+		statuses, err := c.StatusAll()
 		if err != nil {
 			t.Error(err)
 		}
@@ -255,7 +255,7 @@ func TestClustersStatus(t *testing.T) {
 			t.Error("the hash should have been pinned")
 		}
 
-		status, err := c.StatusCid(h)
+		status, err := c.Status(h)
 		if err != nil {
 			t.Error(err)
 		}
@@ -272,7 +272,7 @@ func TestClustersStatus(t *testing.T) {
 	runF(t, clusters, f)
 }
 
-func TestClustersLocalSync(t *testing.T) {
+func TestClustersSyncAllLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(errorCid) // This cid always fails
@@ -282,7 +282,7 @@ func TestClustersLocalSync(t *testing.T) {
 	delay()
 	f := func(t *testing.T, c *Cluster) {
 		// Sync bad ID
-		infos, err := c.LocalSync()
+		infos, err := c.SyncAllLocal()
 		if err != nil {
 			// LocalSync() is asynchronous and should not show an
 			// error even if Recover() fails.
@@ -300,7 +300,7 @@ func TestClustersLocalSync(t *testing.T) {
 	runF(t, clusters, f)
 }
 
-func TestClustersLocalSyncCid(t *testing.T) {
+func TestClustersSyncLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(errorCid) // This cid always fails
@@ -310,7 +310,7 @@ func TestClustersLocalSyncCid(t *testing.T) {
 	delay()
 
 	f := func(t *testing.T, c *Cluster) {
-		info, err := c.LocalSyncCid(h)
+		info, err := c.SyncLocal(h)
 		if err != nil {
 			t.Error(err)
 		}
@@ -319,7 +319,7 @@ func TestClustersLocalSyncCid(t *testing.T) {
 		}
 
 		// Sync good ID
-		info, err = c.LocalSyncCid(h2)
+		info, err = c.SyncLocal(h2)
 		if err != nil {
 			t.Error(err)
 		}
@@ -331,7 +331,7 @@ func TestClustersLocalSyncCid(t *testing.T) {
 	runF(t, clusters, f)
 }
 
-func TestClustersGlobalSync(t *testing.T) {
+func TestClustersSyncAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(errorCid) // This cid always fails
@@ -341,7 +341,7 @@ func TestClustersGlobalSync(t *testing.T) {
 	delay()
 
 	j := rand.Intn(nClusters) // choose a random cluster member
-	ginfos, err := clusters[j].GlobalSync()
+	ginfos, err := clusters[j].SyncAll()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +362,7 @@ func TestClustersGlobalSync(t *testing.T) {
 	}
 }
 
-func TestClustersGlobalSyncCid(t *testing.T) {
+func TestClustersSync(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(errorCid) // This cid always fails
@@ -372,7 +372,7 @@ func TestClustersGlobalSyncCid(t *testing.T) {
 	delay()
 
 	j := rand.Intn(nClusters)
-	ginfo, err := clusters[j].GlobalSyncCid(h)
+	ginfo, err := clusters[j].Sync(h)
 	if err != nil {
 		// we always attempt to return a valid response
 		// with errors contained in GlobalPinInfo
@@ -404,7 +404,97 @@ func TestClustersGlobalSyncCid(t *testing.T) {
 
 	// Test with a good Cid
 	j = rand.Intn(nClusters)
-	ginfo, err = clusters[j].GlobalSyncCid(h2)
+	ginfo, err = clusters[j].Sync(h2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ginfo.Cid.String() != testCid2 {
+		t.Error("GlobalPinInfo should be for testrCid2")
+	}
+
+	for _, c := range clusters {
+		inf, ok := ginfo.PeerMap[c.host.ID()]
+		if !ok {
+			t.Fatal("GlobalPinInfo should have this cluster")
+		}
+		if inf.Status != TrackerStatusPinned {
+			t.Error("the GlobalPinInfo should show Pinned in all members")
+		}
+	}
+}
+
+func TestClustersRecoverLocal(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	h, _ := cid.Decode(errorCid) // This cid always fails
+	h2, _ := cid.Decode(testCid2)
+	clusters[0].Pin(h)
+	clusters[0].Pin(h2)
+
+	delay()
+
+	f := func(t *testing.T, c *Cluster) {
+		info, err := c.RecoverLocal(h)
+		if err == nil {
+			t.Error("expected an error recovering")
+		}
+		if info.Status != TrackerStatusPinError {
+			t.Errorf("element is %s and not PinError", info.Status)
+		}
+
+		// Recover good ID
+		info, err = c.SyncLocal(h2)
+		if err != nil {
+			t.Error(err)
+		}
+		if info.Status != TrackerStatusPinned {
+			t.Error("element should be in Pinned state")
+		}
+	}
+	// Test Local syncs
+	runF(t, clusters, f)
+}
+
+func TestClustersRecover(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	h, _ := cid.Decode(errorCid) // This cid always fails
+	h2, _ := cid.Decode(testCid2)
+	clusters[0].Pin(h)
+	clusters[0].Pin(h2)
+
+	delay()
+
+	j := rand.Intn(nClusters)
+	ginfo, err := clusters[j].Recover(h)
+	if err != nil {
+		// we always attempt to return a valid response
+		// with errors contained in GlobalPinInfo
+		t.Fatal("did not expect an error")
+	}
+	pinfo, ok := ginfo.PeerMap[clusters[j].host.ID()]
+	if !ok {
+		t.Fatal("should have info for this host")
+	}
+	if pinfo.Error == "" {
+		t.Error("pinInfo error should not be empty")
+	}
+
+	for _, c := range clusters {
+		inf, ok := ginfo.PeerMap[c.host.ID()]
+		if !ok {
+			t.Logf("%+v", ginfo)
+			t.Fatal("GlobalPinInfo should not be empty for this host")
+		}
+
+		if inf.Status != TrackerStatusPinError {
+			t.Error("should be PinError in all members")
+		}
+	}
+
+	// Test with a good Cid
+	j = rand.Intn(nClusters)
+	ginfo, err = clusters[j].Recover(h2)
 	if err != nil {
 		t.Fatal(err)
 	}

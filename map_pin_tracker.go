@@ -207,13 +207,13 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 
 // StatusCid returns information for a Cid tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) StatusCid(c *cid.Cid) PinInfo {
+func (mpt *MapPinTracker) Status(c *cid.Cid) PinInfo {
 	return mpt.get(c)
 }
 
 // Status returns information for all Cids tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) Status() []PinInfo {
+func (mpt *MapPinTracker) StatusAll() []PinInfo {
 	mpt.mux.Lock()
 	defer mpt.mux.Unlock()
 	pins := make([]PinInfo, 0, len(mpt.status))
@@ -223,15 +223,15 @@ func (mpt *MapPinTracker) Status() []PinInfo {
 	return pins
 }
 
-// SyncCid verifies that the status of a Cid matches that of
+// Sync verifies that the status of a Cid matches that of
 // the IPFS daemon. If not, it will be transitioned
 // to PinError or UnpinError.
 //
-// SyncCid returns the updated local status for the given Cid.
+// Sync returns the updated local status for the given Cid.
 // Pins in error states can be recovered with Recover().
 // An error is returned if we are unable to contact
 // the IPFS daemon.
-func (mpt *MapPinTracker) SyncCid(c *cid.Cid) (PinInfo, error) {
+func (mpt *MapPinTracker) Sync(c *cid.Cid) (PinInfo, error) {
 	var ips IPFSPinStatus
 	err := mpt.rpcClient.Call("",
 		"Cluster",
@@ -245,15 +245,15 @@ func (mpt *MapPinTracker) SyncCid(c *cid.Cid) (PinInfo, error) {
 	return mpt.syncStatus(c, ips), nil
 }
 
-// Sync verifies that the statuses of all tracked Cids match the
+// SyncAll verifies that the statuses of all tracked Cids match the
 // one reported by the IPFS daemon. If not, they will be transitioned
 // to PinError or UnpinError.
 //
-// Sync returns the list of local status for all tracked Cids which
+// SyncAll returns the list of local status for all tracked Cids which
 // were updated or have errors. Cids in error states can be recovered
 // with Recover().
 // An error is returned if we are unable to contact the IPFS daemon.
-func (mpt *MapPinTracker) Sync() ([]PinInfo, error) {
+func (mpt *MapPinTracker) SyncAll() ([]PinInfo, error) {
 	var ipsMap map[string]IPFSPinStatus
 	var pInfos []PinInfo
 	err := mpt.rpcClient.Call("",
@@ -272,7 +272,7 @@ func (mpt *MapPinTracker) Sync() ([]PinInfo, error) {
 		return pInfos, err
 	}
 
-	status := mpt.Status()
+	status := mpt.StatusAll()
 	for _, pInfoOrig := range status {
 		c, err := cid.Decode(pInfoOrig.CidStr)
 		if err != nil { // this should not happen but let's play safe
@@ -333,11 +333,11 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips IPFSPinStatus) PinInfo {
 // Recover will re-track or re-untrack a Cid in error state,
 // possibly retriggering an IPFS pinning operation and returning
 // only when it is done.
-func (mpt *MapPinTracker) Recover(c *cid.Cid) error {
+func (mpt *MapPinTracker) Recover(c *cid.Cid) (PinInfo, error) {
 	p := mpt.get(c)
 	if p.Status != TrackerStatusPinError &&
 		p.Status != TrackerStatusUnpinError {
-		return nil
+		return p, nil
 	}
 	logger.Infof("Recovering %s", c)
 	var err error
@@ -349,9 +349,8 @@ func (mpt *MapPinTracker) Recover(c *cid.Cid) error {
 	}
 	if err != nil {
 		logger.Errorf("error recovering %s: %s", c, err)
-		return err
 	}
-	return nil
+	return mpt.get(c), err
 }
 
 // SetClient makes the MapPinTracker ready to perform RPC requests to

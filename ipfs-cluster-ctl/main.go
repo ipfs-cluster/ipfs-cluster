@@ -163,7 +163,7 @@ in the cluster and should be part of the list offered by "pin ls".
 						checkErr("parsing cid", err)
 						request("POST", "/pins/"+cidStr)
 						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/status/"+cidStr)
+						resp := request("GET", "/pins/"+cidStr)
 						formatResponse(resp)
 						return nil
 					},
@@ -186,7 +186,7 @@ although unpinning operations in the cluster may take longer or fail.
 						checkErr("parsing cid", err)
 						request("DELETE", "/pins/"+cidStr)
 						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/status/"+cidStr)
+						resp := request("GET", "/pins/"+cidStr)
 						formatResponse(resp)
 						return nil
 					},
@@ -201,7 +201,7 @@ merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
 					Action: func(c *cli.Context) error {
-						resp := request("GET", "/pins")
+						resp := request("GET", "/pinlist")
 						formatResponse(resp)
 						return nil
 					},
@@ -216,6 +216,9 @@ This command retrieves the status of the CIDs tracked by IPFS
 Cluster, including which member is pinning them and any errors.
 If a CID is provided, the status will be only fetched for a single
 item.
+
+The status of a CID may not be accurate. A manual sync can be triggered
+with "sync".
 `,
 			ArgsUsage: "[cid]",
 			Action: func(c *cli.Context) error {
@@ -224,30 +227,64 @@ item.
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
 				}
-				resp := request("GET", "/status/"+cidStr)
+				resp := request("GET", "/pins/"+cidStr)
 				formatResponse(resp)
 				return nil
 			},
 		},
 		{
 			Name:  "sync",
-			Usage: "Sync status and/or recover tracked items",
+			Usage: "Sync status of tracked items",
 			UsageText: `
-This command verifies that the current status tracked CIDs are accurate by
-triggering queries to the IPFS daemons that pin them. When the CID is in
-error state, either because pinning or unpinning failed, IPFS Cluster will
-attempt to retry the operation. If a CID is provided, the sync and recover
-operations will be limited to that single item.
+This command asks Cluster peers to verify that the current status of tracked
+CIDs is accurate by triggering queries to the IPFS daemons that pin them.
+If a CID is provided, the sync and recover operations will be limited to 
+that single item.
+
+Unless providing a specific CID, the command will output only items which
+have changed status because of the sync or are in error state in some node,
+therefore, the output should be empty if no operations were performed.
+
+CIDs in error state may be manually recovered with "recover".
 `,
 			ArgsUsage: "[cid]",
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
+				var resp *http.Response
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
+					resp = request("POST", "/pins/"+cidStr+"/sync")
+				} else {
+					resp = request("POST", "/pins/sync")
 				}
-				resp := request("POST", "/status/"+cidStr)
 				formatResponse(resp)
+				return nil
+			},
+		},
+		{
+			Name:  "recover",
+			Usage: "Recover tracked items in error state",
+			UsageText: `
+This command asks Cluster peers to re-track or re-forget an item which is in
+error state, usually because the IPFS pin or unpin operation has failed.
+
+The command will wait for any operations to succeed and will return the status
+of the item upon completion.
+`,
+			ArgsUsage: "<cid>",
+			Action: func(c *cli.Context) error {
+				cidStr := c.Args().First()
+				var resp *http.Response
+				if cidStr != "" {
+					_, err := cid.Decode(cidStr)
+					checkErr("parsing cid", err)
+					resp = request("POST", "/pins/"+cidStr+"/recover")
+					formatResponse(resp)
+
+				} else {
+					return cli.NewExitError("A CID is required", 1)
+				}
 				return nil
 			},
 		},

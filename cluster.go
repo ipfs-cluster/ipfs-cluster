@@ -165,7 +165,7 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 
 	// Track items which are not tracked
 	for _, h := range clusterPins {
-		if c.tracker.StatusCid(h).Status == TrackerStatusUnpinned {
+		if c.tracker.Status(h).Status == TrackerStatusUnpinned {
 			changed = append(changed, h)
 			err := c.rpcClient.Go("",
 				"Cluster",
@@ -181,7 +181,7 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 	}
 
 	// Untrack items which should not be tracked
-	for _, p := range c.tracker.Status() {
+	for _, p := range c.tracker.StatusAll() {
 		h, _ := cid.Decode(p.CidStr)
 		if !cState.HasPin(h) {
 			changed = append(changed, h)
@@ -199,85 +199,75 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 
 	var infos []PinInfo
 	for _, h := range changed {
-		infos = append(infos, c.tracker.StatusCid(h))
+		infos = append(infos, c.tracker.Status(h))
 	}
 	return infos, nil
 }
 
-// Status returns the GlobalPinInfo for all tracked Cids. If an error happens,
-// the slice will contain as much information as could be fetched.
-func (c *Cluster) Status() ([]GlobalPinInfo, error) {
-	return c.globalPinInfoSlice("TrackerStatus")
+// StatusAll returns the GlobalPinInfo for all tracked Cids. If an error
+// happens, the slice will contain as much information as could be fetched.
+func (c *Cluster) StatusAll() ([]GlobalPinInfo, error) {
+	return c.globalPinInfoSlice("TrackerStatusAll")
 }
 
-// StatusCid returns the GlobalPinInfo for a given Cid. If an error happens,
+// Status returns the GlobalPinInfo for a given Cid. If an error happens,
 // the GlobalPinInfo should contain as much information as could be fetched.
-func (c *Cluster) StatusCid(h *cid.Cid) (GlobalPinInfo, error) {
-	return c.globalPinInfoCid("TrackerStatusCid", h)
+func (c *Cluster) Status(h *cid.Cid) (GlobalPinInfo, error) {
+	return c.globalPinInfoCid("TrackerStatus", h)
 }
 
-// LocalSync makes sure that the current state the Tracker matches
-// the IPFS daemon state by triggering a Tracker.Sync() and Recover()
-// on all items that need it. Returns PinInfo for items changed on Sync().
+// SyncAllLocal makes sure that the current state for all tracked items
+// matches the state reported by the IPFS daemon.
 //
-// LocalSync triggers recoveries asynchronously, and will not wait for
-// them to fail or succeed before returning. The PinInfo may not reflect
-// the recovery attempt.
-func (c *Cluster) LocalSync() ([]PinInfo, error) {
-	syncedItems, err := c.tracker.Sync()
-	// Despite errors, tracker provides synced items that we can work with.
-	// However we skip recover() on those cases, as probably the ipfs daemon
-	// is gone.
+// SyncAllLocal returns the list of PinInfo that where updated because of
+// the operation, along with those in error states.
+func (c *Cluster) SyncAllLocal() ([]PinInfo, error) {
+	syncedItems, err := c.tracker.SyncAll()
+	// Despite errors, tracker provides synced items that we can provide.
+	// They encapsulate the error.
 	if err != nil {
 		logger.Error("tracker.Sync() returned with error: ", err)
 		logger.Error("Is the ipfs daemon running?")
 		logger.Error("LocalSync returning without attempting recovers")
-		return syncedItems, nil
 	}
-
-	// FIXME: at this point, recover probably deserves it's own api endpoint
-	// or be optional or be synchronous.
-	logger.Infof("%d items changed on sync", len(syncedItems))
-	for _, pInfo := range syncedItems {
-		pCid, _ := cid.Decode(pInfo.CidStr)
-		go func(h *cid.Cid) {
-			c.tracker.Recover(h)
-		}(pCid)
-	}
-	return syncedItems, nil
+	return syncedItems, err
 }
 
-// LocalSyncCid performs a Tracker.Sync() operation followed by a
-// Recover() when needed. It returns the latest known PinInfo for the Cid.
-//
-// LocalSyncCid will wait for the Recover operation to fail or succeed before
-// returning.
-func (c *Cluster) LocalSyncCid(h *cid.Cid) (PinInfo, error) {
+// SyncLocal performs a local sync operation for the given Cid. This will
+// tell the tracker to verify the status of the Cid against the IPFS daemon.
+// It returns the updated PinInfo for the Cid.
+func (c *Cluster) SyncLocal(h *cid.Cid) (PinInfo, error) {
 	var err error
-	pInfo, err := c.tracker.SyncCid(h)
+	pInfo, err := c.tracker.Sync(h)
 	// Despite errors, trackers provides an updated PinInfo so
 	// we just log it.
 	if err != nil {
 		logger.Error("tracker.SyncCid() returned with error: ", err)
 		logger.Error("Is the ipfs daemon running?")
-		return pInfo, nil
 	}
-	c.tracker.Recover(h)
-	return c.tracker.StatusCid(h), nil
+	return pInfo, err
 }
 
-// GlobalSync triggers Sync() operations in all members of the Cluster.
-func (c *Cluster) GlobalSync() ([]GlobalPinInfo, error) {
-	return c.globalPinInfoSlice("LocalSync")
+// SyncAll triggers LocalSync() operations in all members of the Cluster.
+func (c *Cluster) SyncAll() ([]GlobalPinInfo, error) {
+	return c.globalPinInfoSlice("SyncAllLocal")
 }
 
-// GlobalSyncCid triggers a LocalSyncCid() operation for a given Cid
+// Sync triggers a LocalSyncCid() operation for a given Cid
 // in all members of the Cluster.
-//
-// GlobalSyncCid will only return when all operations have either failed,
-// succeeded or timed-out.
-func (c *Cluster) GlobalSyncCid(h *cid.Cid) (GlobalPinInfo, error) {
-	return c.globalPinInfoCid("LocalSyncCid", h)
+func (c *Cluster) Sync(h *cid.Cid) (GlobalPinInfo, error) {
+	return c.globalPinInfoCid("SyncLocal", h)
+}
+
+// RecoverLocal triggers a recover operation for a given Cid
+func (c *Cluster) RecoverLocal(h *cid.Cid) (PinInfo, error) {
+	return c.tracker.Recover(h)
+}
+
+// Recover triggers a recover operation for a given Cid in all
+// members of the Cluster.
+func (c *Cluster) Recover(h *cid.Cid) (GlobalPinInfo, error) {
+	return c.globalPinInfoCid("TrackerRecover", h)
 }
 
 // Pins returns the list of Cids managed by Cluster and which are part
@@ -315,7 +305,7 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 // to the global state. Unpin does not reflect the success or failure
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
-	logger.Info("pinning:", h)
+	logger.Info("unpinning:", h)
 	err := c.consensus.LogUnpin(h)
 	if err != nil {
 		return err

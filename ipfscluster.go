@@ -187,16 +187,16 @@ type PinTracker interface {
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
 	Untrack(*cid.Cid) error
-	// Status returns the list of pins with their local status.
-	Status() []PinInfo
-	// StatusCid returns the local status of a given Cid.
-	StatusCid(*cid.Cid) PinInfo
-	// Sync makes sure that all tracked Cids reflect the real IPFS status.
+	// StatusAll returns the list of pins with their local status.
+	StatusAll() []PinInfo
+	// Status returns the local status of a given Cid.
+	Status(*cid.Cid) PinInfo
+	// SyncAll makes sure that all tracked Cids reflect the real IPFS status.
 	// It returns the list of pins which were updated by the call.
-	Sync() ([]PinInfo, error)
-	// SyncCid makes sure that the Cid status reflect the real IPFS status.
-	// It return the local status of the Cid.
-	SyncCid(*cid.Cid) (PinInfo, error)
+	SyncAll() ([]PinInfo, error)
+	// Sync makes sure that the Cid status reflect the real IPFS status.
+	// It returns the local status of the Cid.
+	Sync(*cid.Cid) (PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in Cids with error status.
-	Recover(*cid.Cid) error
+	Recover(*cid.Cid) (PinInfo, error)
 }

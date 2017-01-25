@@ -91,56 +91,56 @@ func (api *RPCAPI) MemberList(in struct{}, out *[]peer.ID) error {
 	return nil
 }
 
+// StatusAll runs Cluster.StatusAll().
+func (api *RPCAPI) StatusAll(in struct{}, out *[]GlobalPinInfo) error {
+	pinfo, err := api.cluster.StatusAll()
+	*out = pinfo
+	return err
+}
+
 // Status runs Cluster.Status().
-func (api *RPCAPI) Status(in struct{}, out *[]GlobalPinInfo) error {
-	pinfo, err := api.cluster.Status()
-	*out = pinfo
-	return err
-}
-
-// StatusCid runs Cluster.StatusCid().
-func (api *RPCAPI) StatusCid(in *CidArg, out *GlobalPinInfo) error {
+func (api *RPCAPI) Status(in *CidArg, out *GlobalPinInfo) error {
 	c, err := in.CID()
 	if err != nil {
 		return err
 	}
-	pinfo, err := api.cluster.StatusCid(c)
+	pinfo, err := api.cluster.Status(c)
 	*out = pinfo
 	return err
 }
 
-// LocalSync runs Cluster.LocalSync().
-func (api *RPCAPI) LocalSync(in struct{}, out *[]PinInfo) error {
-	pinfo, err := api.cluster.LocalSync()
+// SyncAllLocal runs Cluster.SyncAllLocal().
+func (api *RPCAPI) SyncAllLocal(in struct{}, out *[]PinInfo) error {
+	pinfo, err := api.cluster.SyncAllLocal()
 	*out = pinfo
 	return err
 }
 
-// LocalSyncCid runs Cluster.LocalSyncCid().
-func (api *RPCAPI) LocalSyncCid(in *CidArg, out *PinInfo) error {
+// SyncLocal runs Cluster.SyncLocal().
+func (api *RPCAPI) SyncLocal(in *CidArg, out *PinInfo) error {
 	c, err := in.CID()
 	if err != nil {
 		return err
 	}
-	pinfo, err := api.cluster.LocalSyncCid(c)
+	pinfo, err := api.cluster.SyncLocal(c)
 	*out = pinfo
 	return err
 }
 
-// GlobalSync runs Cluster.GlobalSync().
-func (api *RPCAPI) GlobalSync(in struct{}, out *[]GlobalPinInfo) error {
-	pinfo, err := api.cluster.GlobalSync()
+// SyncAll runs Cluster.SyncAll().
+func (api *RPCAPI) SyncAll(in struct{}, out *[]GlobalPinInfo) error {
+	pinfo, err := api.cluster.SyncAll()
 	*out = pinfo
 	return err
 }
 
-// GlobalSyncCid runs Cluster.GlobalSyncCid().
-func (api *RPCAPI) GlobalSyncCid(in *CidArg, out *GlobalPinInfo) error {
+// Sync runs Cluster.Sync().
+func (api *RPCAPI) Sync(in *CidArg, out *GlobalPinInfo) error {
 	c, err := in.CID()
 	if err != nil {
 		return err
 	}
-	pinfo, err := api.cluster.GlobalSyncCid(c)
+	pinfo, err := api.cluster.Sync(c)
 	*out = pinfo
 	return err
 }
@@ -148,6 +148,17 @@ func (api *RPCAPI) GlobalSyncCid(in *CidArg, out *GlobalPinInfo) error {
 // StateSync runs Cluster.StateSync().
 func (api *RPCAPI) StateSync(in struct{}, out *[]PinInfo) error {
 	pinfo, err := api.cluster.StateSync()
+	*out = pinfo
+	return err
+}
+
+// Recover runs Cluster.Recover().
+func (api *RPCAPI) Recover(in *CidArg, out *GlobalPinInfo) error {
+	c, err := in.CID()
+	if err != nil {
+		return err
+	}
+	pinfo, err := api.cluster.Recover(c)
 	*out = pinfo
 	return err
 }
@@ -174,24 +185,33 @@ func (api *RPCAPI) Untrack(in *CidArg, out *struct{}) error {
 	return api.cluster.tracker.Untrack(c)
 }
 
-// TrackerStatus runs PinTracker.Status().
-func (api *RPCAPI) TrackerStatus(in struct{}, out *[]PinInfo) error {
-	*out = api.cluster.tracker.Status()
+// TrackerStatusAll runs PinTracker.StatusAll().
+func (api *RPCAPI) TrackerStatusAll(in struct{}, out *[]PinInfo) error {
+	*out = api.cluster.tracker.StatusAll()
 	return nil
 }
 
-// TrackerStatusCid runs PinTracker.StatusCid().
-func (api *RPCAPI) TrackerStatusCid(in *CidArg, out *PinInfo) error {
+// TrackerStatus runs PinTracker.Status().
+func (api *RPCAPI) TrackerStatus(in *CidArg, out *PinInfo) error {
 	c, err := in.CID()
 	if err != nil {
 		return err
 	}
-	pinfo := api.cluster.tracker.StatusCid(c)
+	pinfo := api.cluster.tracker.Status(c)
 	*out = pinfo
 	return nil
 }
 
-// TrackerRecover not sure if needed
+// TrackerRecover runs PinTracker.Recover().
+func (api *RPCAPI) TrackerRecover(in *CidArg, out *PinInfo) error {
+	c, err := in.CID()
+	if err != nil {
+		return err
+	}
+	pinfo, err := api.cluster.tracker.Recover(c)
+	*out = pinfo
+	return err
+}
 
 /*
    IPFS Connector component methods
