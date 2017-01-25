@@ -1,16 +1,21 @@
 gx_version=v0.10.0
 gx-go_version=v1.4.0
+
+deptools=deptools
+
 gx=gx_$(gx_version)
 gx-go=gx-go_$(gx-go_version)
-gx_bin=deptools/$(gx)
-gx-go_bin=deptools/$(gx-go)
+gx_bin=$(deptools)/$(gx)
+gx-go_bin=$(deptools)/$(gx-go)
 bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
 
+export PATH := $(deptools):$(PATH)
+
 all: service ctl
-clean: rwundo
+clean:
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
-	rm -rf deptools
+	rm -rf $(deptools)
 install: deps
 	$(MAKE) -C ipfs-cluster-service install
 	$(MAKE) -C ipfs-cluster-ctl install
@@ -27,19 +32,23 @@ ctl: deps
 
 $(gx_bin):
 	@echo "Downloading gx"
-	@mkdir -p ./deptools
+	@mkdir -p ./$(deptools)
+	@rm -f $(deptools)/gx
 	@wget -nc -q -O $(gx_bin).tgz https://dist.ipfs.io/gx/$(gx_version)/$(gx)_$(bin_env).tar.gz
-	@tar -zxf $(gx_bin).tgz -C deptools --strip-components=1 gx/gx
-	@mv deptools/gx $(gx_bin)
+	@tar -zxf $(gx_bin).tgz -C $(deptools) --strip-components=1 gx/gx
+	@mv $(deptools)/gx $(gx_bin)
+	@ln -s $(gx) $(deptools)/gx
 	@rm $(gx_bin).tgz
 
 $(gx-go_bin):
-	echo "Downloading gx-go"
-	mkdir -p ./deptools
-	wget -nc -q -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
-	tar -zxf $(gx-go_bin).tgz -C deptools --strip-components=1 gx-go/gx-go
-	mv deptools/gx-go $(gx-go_bin)
-	rm $(gx-go_bin).tgz
+	@echo "Downloading gx-go"
+	@mkdir -p ./$(deptools)
+	@rm -f $(deptools)gx-go
+	@wget -nc -q -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
+	@tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
+	@mv $(deptools)/gx-go $(gx-go_bin)
+	@ln -s $(gx-go) $(deptools)/gx-go
+	@rm $(gx-go_bin).tgz
 
 gx: $(gx_bin) $(gx-go_bin)
 
@@ -48,9 +57,9 @@ deps: gx
 	$(gx-go_bin) rewrite
 test: deps
 	go test -tags silent -v -covermode count -coverprofile=coverage.out .
-rw:
+rw: gx
 	$(gx-go_bin) rewrite
-rwundo:
+rwundo: gx
 	$(gx-go_bin) rewrite --undo
 publish: rwundo
 	$(gx_bin) publish
