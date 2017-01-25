@@ -188,10 +188,10 @@ func TestClustersPin(t *testing.T) {
 	fpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.Status()
 		for _, v := range status {
-			if v.IPFS != Pinned {
+			if v.Status != TrackerStatusPinned {
 				t.Errorf("%s should have been pinned but it is %s",
 					v.CidStr,
-					v.IPFS.String())
+					v.Status.String())
 			}
 		}
 		if l := len(status); l != nPins {
@@ -246,12 +246,12 @@ func TestClustersStatus(t *testing.T) {
 		if statuses[0].Cid.String() != testCid {
 			t.Error("bad cid in status")
 		}
-		info := statuses[0].Status
+		info := statuses[0].PeerMap
 		if len(info) != nClusters {
 			t.Error("bad info in status")
 		}
 
-		if info[c.host.ID()].IPFS != Pinned {
+		if info[c.host.ID()].Status != TrackerStatusPinned {
 			t.Error("the hash should have been pinned")
 		}
 
@@ -260,12 +260,12 @@ func TestClustersStatus(t *testing.T) {
 			t.Error(err)
 		}
 
-		pinfo, ok := status.Status[c.host.ID()]
+		pinfo, ok := status.PeerMap[c.host.ID()]
 		if !ok {
 			t.Fatal("Host not in status")
 		}
 
-		if pinfo.IPFS != Pinned {
+		if pinfo.Status != TrackerStatusPinned {
 			t.Error("the status should show the hash as pinned")
 		}
 	}
@@ -292,7 +292,7 @@ func TestClustersLocalSync(t *testing.T) {
 			t.Fatal("expected 1 elem slice")
 		}
 		// Last-known state may still be pinning
-		if infos[0].IPFS != PinError && infos[0].IPFS != Pinning {
+		if infos[0].Status != TrackerStatusPinError && infos[0].Status != TrackerStatusPinning {
 			t.Error("element should be in Pinning or PinError state")
 		}
 	}
@@ -311,12 +311,11 @@ func TestClustersLocalSyncCid(t *testing.T) {
 
 	f := func(t *testing.T, c *Cluster) {
 		info, err := c.LocalSyncCid(h)
-		if err == nil {
-			// LocalSyncCid is synchronous
-			t.Error("expected an error")
+		if err != nil {
+			t.Error(err)
 		}
-		if info.IPFS != PinError && info.IPFS != Pinning {
-			t.Errorf("element is %s and not PinError", info.IPFS)
+		if info.Status != TrackerStatusPinError && info.Status != TrackerStatusPinning {
+			t.Errorf("element is %s and not PinError", info.Status)
 		}
 
 		// Sync good ID
@@ -324,7 +323,7 @@ func TestClustersLocalSyncCid(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if info.IPFS != Pinned {
+		if info.Status != TrackerStatusPinned {
 			t.Error("element should be in Pinned state")
 		}
 	}
@@ -353,11 +352,11 @@ func TestClustersGlobalSync(t *testing.T) {
 		t.Error("expected globalsync to have problems with errorCid")
 	}
 	for _, c := range clusters {
-		inf, ok := ginfos[0].Status[c.host.ID()]
+		inf, ok := ginfos[0].PeerMap[c.host.ID()]
 		if !ok {
 			t.Fatal("GlobalPinInfo should have this cluster")
 		}
-		if inf.IPFS != PinError && inf.IPFS != Pinning {
+		if inf.Status != TrackerStatusPinError && inf.Status != TrackerStatusPinning {
 			t.Error("should be PinError in all members")
 		}
 	}
@@ -379,7 +378,7 @@ func TestClustersGlobalSyncCid(t *testing.T) {
 		// with errors contained in GlobalPinInfo
 		t.Fatal("did not expect an error")
 	}
-	pinfo, ok := ginfo.Status[clusters[j].host.ID()]
+	pinfo, ok := ginfo.PeerMap[clusters[j].host.ID()]
 	if !ok {
 		t.Fatal("should have info for this host")
 	}
@@ -392,13 +391,13 @@ func TestClustersGlobalSyncCid(t *testing.T) {
 	}
 
 	for _, c := range clusters {
-		inf, ok := ginfo.Status[c.host.ID()]
+		inf, ok := ginfo.PeerMap[c.host.ID()]
 		if !ok {
 			t.Logf("%+v", ginfo)
 			t.Fatal("GlobalPinInfo should not be empty for this host")
 		}
 
-		if inf.IPFS != PinError && inf.IPFS != Pinning {
+		if inf.Status != TrackerStatusPinError && inf.Status != TrackerStatusPinning {
 			t.Error("should be PinError or Pinning in all members")
 		}
 	}
@@ -414,11 +413,11 @@ func TestClustersGlobalSyncCid(t *testing.T) {
 	}
 
 	for _, c := range clusters {
-		inf, ok := ginfo.Status[c.host.ID()]
+		inf, ok := ginfo.PeerMap[c.host.ID()]
 		if !ok {
 			t.Fatal("GlobalPinInfo should have this cluster")
 		}
-		if inf.IPFS != Pinned {
+		if inf.Status != TrackerStatusPinned {
 			t.Error("the GlobalPinInfo should show Pinned in all members")
 		}
 	}

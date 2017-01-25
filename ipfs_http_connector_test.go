@@ -43,11 +43,11 @@ func TestIPFSPin(t *testing.T) {
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}
-	yes, err := ipfs.IsPinned(c)
+	pinSt, err := ipfs.PinLsCid(c)
 	if err != nil {
 		t.Fatal("expected success doing ls")
 	}
-	if !yes {
+	if !pinSt.IsPinned() {
 		t.Error("cid should have been pinned")
 	}
 
@@ -74,7 +74,7 @@ func TestIPFSUnpin(t *testing.T) {
 	}
 }
 
-func TestIPFSIsPinned(t *testing.T) {
+func TestIPFSPinLsCid(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
@@ -82,14 +82,37 @@ func TestIPFSIsPinned(t *testing.T) {
 	c2, _ := cid.Decode(testCid2)
 
 	ipfs.Pin(c)
-	isp, err := ipfs.IsPinned(c)
-	if err != nil || !isp {
+	ips, err := ipfs.PinLsCid(c)
+	if err != nil || !ips.IsPinned() {
 		t.Error("c should appear pinned")
 	}
 
-	isp, err = ipfs.IsPinned(c2)
-	if err != nil || isp {
+	ips, err = ipfs.PinLsCid(c2)
+	if err != nil || ips != IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
+	}
+}
+
+func TestIPFSPinLs(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+	c, _ := cid.Decode(testCid)
+	c2, _ := cid.Decode(testCid2)
+
+	ipfs.Pin(c)
+	ipfs.Pin(c2)
+	ipsMap, err := ipfs.PinLs()
+	if err != nil {
+		t.Error("should not error")
+	}
+
+	if len(ipsMap) != 2 {
+		t.Fatal("the map does not contain expected keys")
+	}
+
+	if !ipsMap[testCid].IsPinned() || !ipsMap[testCid2].IsPinned() {
+		t.Error("c1 and c2 should appear pinned")
 	}
 }
 

@@ -65,6 +65,12 @@ type ipfsError struct {
 	Message string
 }
 
+type pinLsResp struct {
+	Keys map[string]struct {
+		Type string
+	}
+}
+
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
 func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	ctx := context.Background()
@@ -225,11 +231,11 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 // Pin performs a pin request against the configured IPFS
 // daemon.
 func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
-	pinned, err := ipfs.IsPinned(hash)
+	pinStatus, err := ipfs.PinLsCid(hash)
 	if err != nil {
 		return err
 	}
-	if !pinned {
+	if !pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
 		_, err = ipfs.get(path)
 		if err == nil {
@@ -244,11 +250,11 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
 func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
-	pinned, err := ipfs.IsPinned(hash)
+	pinStatus, err := ipfs.PinLsCid(hash)
 	if err != nil {
 		return err
 	}
-	if pinned {
+	if pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 		_, err := ipfs.get(path)
 		if err == nil {
@@ -261,58 +267,73 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	return nil
 }
 
-// IsPinned performs a "pin ls" request against the configured IPFS
-// daemon. It returns true when the given Cid is pinned not indirectly.
-func (ipfs *IPFSHTTPConnector) IsPinned(hash *cid.Cid) (bool, error) {
-	pinType, err := ipfs.pinType(hash)
-	if err != nil {
-		return false, err
+func parseIPFSPinType(t string) IPFSPinStatus {
+	switch {
+	case t == "indirect":
+		return IPFSPinStatusIndirect
+	case t == "direct":
+		return IPFSPinStatusDirect
+	case t == "recursive":
+		return IPFSPinStatusRecursive
+	default:
+		return IPFSPinStatusBug
 	}
-
-	if pinType == "unpinned" || strings.Contains(pinType, "indirect") {
-		return false, nil
-	}
-	return true, nil
 }
 
-// pinType performs a pin ls request and returns the information associated
-// to the key. Unfortunately, the daemon does not provide an standarized
-// output, so it may well be a sentence like "$hash is indirectly pinned through
-// $otherhash".
-func (ipfs *IPFSHTTPConnector) pinType(hash *cid.Cid) (string, error) {
+// PinLs performs a "pin ls" request against the configured IPFS daemon and
+// returns a map of cid strings and their status.
+func (ipfs *IPFSHTTPConnector) PinLs() (map[string]IPFSPinStatus, error) {
+	body, err := ipfs.get("pin/ls")
+
+	// Some error talking to the daemon
+	if err != nil {
+		return nil, err
+	}
+
+	var resp pinLsResp
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		logger.Error("parsing pin/ls response")
+		logger.Error(string(body))
+		return nil, err
+	}
+
+	statusMap := make(map[string]IPFSPinStatus)
+	for k, v := range resp.Keys {
+		statusMap[k] = parseIPFSPinType(v.Type)
+	}
+	return statusMap, nil
+}
+
+// PinLsCid performs a "pin ls <hash> "request and returns IPFSPinStatus for
+// that hash.
+func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (IPFSPinStatus, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s", hash)
 	body, err := ipfs.get(lsPath)
 
 	// Network error, daemon down
 	if body == nil && err != nil {
-		return "", err
+		return IPFSPinStatusError, err
 	}
 
 	// Pin not found likely here
 	if err != nil { // Not pinned
-		return "unpinned", nil
+		return IPFSPinStatusUnpinned, nil
 	}
 
-	// What type of pin it is
-	var resp struct {
-		Keys map[string]struct {
-			Type string
-		}
-	}
-
+	var resp pinLsResp
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logger.Error("parsing pin/ls response:")
+		logger.Error("parsing pin/ls?arg=cid response:")
 		logger.Error(string(body))
-		return "", err
+		return IPFSPinStatusError, err
 	}
 	pinObj, ok := resp.Keys[hash.String()]
 	if !ok {
-		return "", errors.New("expected to find the pin in the response")
+		return IPFSPinStatusError, errors.New("expected to find the pin in the response")
 	}
-	pinType := pinObj.Type
-	logger.Debug("pinType check: ", pinType)
-	return pinType, nil
+
+	return parseIPFSPinType(pinObj.Type), nil
 }
 
 // get performs the heavy lifting of a get request against

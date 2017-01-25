@@ -163,7 +163,7 @@ func TestRESTAPIStatusEndpoint(t *testing.T) {
 	makeGet(t, "/status", &resp)
 	if len(resp) != 3 ||
 		resp[0].Cid != testCid1 ||
-		resp[1].Status[testPeerID.Pretty()].IPFS != "pinning" {
+		resp[1].PeerMap[testPeerID.Pretty()].Status != "pinning" {
 		t.Errorf("unexpected statusResp:\n %+v", resp)
 	}
 }
@@ -178,11 +178,11 @@ func TestRESTAPIStatusCidEndpoint(t *testing.T) {
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")
 	}
-	info, ok := resp.Status[testPeerID.Pretty()]
+	info, ok := resp.PeerMap[testPeerID.Pretty()]
 	if !ok {
 		t.Fatal("expected info for testPeerID")
 	}
-	if info.IPFS != "pinned" {
+	if info.Status != "pinned" {
 		t.Error("expected different status")
 	}
 }
@@ -196,7 +196,7 @@ func TestRESTAPIStatusSyncEndpoint(t *testing.T) {
 
 	if len(resp) != 3 ||
 		resp[0].Cid != testCid1 ||
-		resp[1].Status[testPeerID.Pretty()].IPFS != "pinning" {
+		resp[1].PeerMap[testPeerID.Pretty()].Status != "pinning" {
 		t.Errorf("unexpected statusResp:\n %+v", resp)
 	}
 }
@@ -211,11 +211,11 @@ func TestRESTAPIStatusSyncCidEndpoint(t *testing.T) {
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")
 	}
-	info, ok := resp.Status[testPeerID.Pretty()]
+	info, ok := resp.PeerMap[testPeerID.Pretty()]
 	if !ok {
 		t.Fatal("expected info for testPeerID")
 	}
-	if info.IPFS != "pinned" {
+	if info.Status != "pinned" {
 		t.Error("expected different status")
 	}
 }

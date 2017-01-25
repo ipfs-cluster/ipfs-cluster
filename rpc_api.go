@@ -44,6 +44,7 @@ func (arg *CidArg) CID() (*cid.Cid, error) {
    Cluster components methods
 */
 
+// ID runs Cluster.ID()
 func (api *RPCAPI) ID(in struct{}, out *ID) error {
 	*out = api.cluster.ID()
 	return nil
@@ -214,14 +215,21 @@ func (api *RPCAPI) IPFSUnpin(in *CidArg, out *struct{}) error {
 	return api.cluster.ipfs.Unpin(c)
 }
 
-// IPFSIsPinned runs IPFSConnector.IsPinned().
-func (api *RPCAPI) IPFSIsPinned(in *CidArg, out *bool) error {
+// IPFSPinLsCid runs IPFSConnector.PinLsCid().
+func (api *RPCAPI) IPFSPinLsCid(in *CidArg, out *IPFSPinStatus) error {
 	c, err := in.CID()
 	if err != nil {
 		return err
 	}
-	b, err := api.cluster.ipfs.IsPinned(c)
+	b, err := api.cluster.ipfs.PinLsCid(c)
 	*out = b
+	return err
+}
+
+// IPFSPinLs runs IPFSConnector.PinLs().
+func (api *RPCAPI) IPFSPinLs(in struct{}, out *map[string]IPFSPinStatus) error {
+	m, err := api.cluster.ipfs.PinLs()
+	*out = m
 	return err
 }
 

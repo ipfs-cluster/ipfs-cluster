@@ -42,36 +42,54 @@ func SetLogLevel(l string) {
 	//logging.SetLogLevel("libp2p-raft", l)
 }
 
-// IPFSStatus values
+// TrackerStatus values
 const (
 	// IPFSStatus should never take this value
-	Bug = iota
+	TrackerStatusBug = iota
 	// The cluster node is offline or not responding
-	ClusterError
+	TrackerStatusClusterError
 	// An error occurred pinning
-	PinError
+	TrackerStatusPinError
 	// An error occurred unpinning
-	UnpinError
+	TrackerStatusUnpinError
 	// The IPFS daemon has pinned the item
-	Pinned
+	TrackerStatusPinned
 	// The IPFS daemon is currently pinning the item
-	Pinning
+	TrackerStatusPinning
 	// The IPFS daemon is currently unpinning the item
-	Unpinning
+	TrackerStatusUnpinning
 	// The IPFS daemon is not pinning the item
-	Unpinned
+	TrackerStatusUnpinned
 	// The IPFS deamon is not pinning the item but it is being tracked
-	RemotePin
+	TrackerStatusRemotePin
 )
 
-// IPFSStatus represents the status of a tracked Cid in the IPFS daemon
-type IPFSStatus int
+// TrackerStatus represents the status of a tracked Cid in the PinTracker
+type TrackerStatus int
+
+// IPFSPinStatus values
+const (
+	IPFSPinStatusBug = iota
+	IPFSPinStatusError
+	IPFSPinStatusDirect
+	IPFSPinStatusRecursive
+	IPFSPinStatusIndirect
+	IPFSPinStatusUnpinned
+)
+
+// IPFSPinStatus represents the status of a pin in IPFS (direct, recursive etc.)
+type IPFSPinStatus int
+
+// IsPinned returns true if the status is Direct or Recursive
+func (ips IPFSPinStatus) IsPinned() bool {
+	return ips == IPFSPinStatusDirect || ips == IPFSPinStatusRecursive
+}
 
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster member.
 type GlobalPinInfo struct {
-	Cid    *cid.Cid
-	Status map[peer.ID]PinInfo
+	Cid     *cid.Cid
+	PeerMap map[peer.ID]PinInfo
 }
 
 // PinInfo holds information about local pins. PinInfo is
@@ -80,32 +98,35 @@ type GlobalPinInfo struct {
 type PinInfo struct {
 	CidStr string
 	Peer   peer.ID
-	IPFS   IPFSStatus
+	Status TrackerStatus
 	TS     time.Time
 	Error  string
 }
 
 // String converts an IPFSStatus into a readable string.
-func (st IPFSStatus) String() string {
+func (st TrackerStatus) String() string {
 	switch st {
-	case Bug:
+	case TrackerStatusBug:
 		return "bug"
-	case ClusterError:
+	case TrackerStatusClusterError:
 		return "cluster_error"
-	case PinError:
+	case TrackerStatusPinError:
 		return "pin_error"
-	case UnpinError:
+	case TrackerStatusUnpinError:
 		return "unpin_error"
-	case Pinned:
+	case TrackerStatusPinned:
 		return "pinned"
-	case Pinning:
+	case TrackerStatusPinning:
 		return "pinning"
-	case Unpinning:
+	case TrackerStatusUnpinning:
 		return "unpinning"
-	case Unpinned:
+	case TrackerStatusUnpinned:
 		return "unpinned"
+	case TrackerStatusRemotePin:
+		return "remote"
+	default:
+		return ""
 	}
-	return ""
 }
 
 // Component represents a piece of ipfscluster. Cluster components
@@ -129,7 +150,8 @@ type IPFSConnector interface {
 	Component
 	Pin(*cid.Cid) error
 	Unpin(*cid.Cid) error
-	IsPinned(*cid.Cid) (bool, error)
+	PinLsCid(*cid.Cid) (IPFSPinStatus, error)
+	PinLs() (map[string]IPFSPinStatus, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
@@ -169,10 +191,12 @@ type PinTracker interface {
 	Status() []PinInfo
 	// StatusCid returns the local status of a given Cid.
 	StatusCid(*cid.Cid) PinInfo
-	// Sync makes sure that the Cid status reflect the real IPFS status.
-	// The return value indicates if the Cid status deserved attention,
-	// either because its state was updated or because it is in error state.
-	Sync(*cid.Cid) bool
+	// Sync makes sure that all tracked Cids reflect the real IPFS status.
+	// It returns the list of pins which were updated by the call.
+	Sync() ([]PinInfo, error)
+	// SyncCid makes sure that the Cid status reflect the real IPFS status.
+	// It return the local status of the Cid.
+	SyncCid(*cid.Cid) (PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in Cids with error status.
 	Recover(*cid.Cid) error
 }

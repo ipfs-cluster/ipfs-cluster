@@ -79,13 +79,13 @@ type unpinResp struct {
 }
 
 type statusInfo struct {
-	IPFS  string `json:"ipfs"`
-	Error string `json:"error,omitempty"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }
 
 type statusCidResp struct {
-	Cid    string                `json:"cid"`
-	Status map[string]statusInfo `json:"status"`
+	Cid     string                `json:"cid"`
+	PeerMap map[string]statusInfo `json:"peer_map"`
 }
 
 type idResp struct {
@@ -465,11 +465,11 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
 	s := statusCidResp{}
 	s.Cid = p.Cid.String()
-	s.Status = make(map[string]statusInfo)
-	for k, v := range p.Status {
-		s.Status[k.Pretty()] = statusInfo{
-			IPFS:  v.IPFS.String(),
-			Error: v.Error,
+	s.PeerMap = make(map[string]statusInfo)
+	for k, v := range p.PeerMap {
+		s.PeerMap[k.Pretty()] = statusInfo{
+			Status: v.Status.String(),
+			Error:  v.Error,
 		}
 	}
 	return s
