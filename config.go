@@ -72,7 +72,7 @@ type JSONConfig struct {
 	ClusterPeers []string `json:"cluster_peers"`
 
 	// Listen address for the Cluster libp2p host. This is used for
-	// interal RPC and Consensus communications between cluster members.
+	// interal RPC and Consensus communications between cluster peers.
 	ClusterListenMultiaddress string `json:"cluster_multiaddress"`
 
 	// Listen address for the the Cluster HTTP API component.

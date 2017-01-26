@@ -34,6 +34,32 @@ func TestNewIPFSHTTPConnector(t *testing.T) {
 	defer ipfs.Shutdown()
 }
 
+func TestIPFSID(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer ipfs.Shutdown()
+	id, err := ipfs.ID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.ID != testPeerID {
+		t.Error("expected testPeerID")
+	}
+	if len(id.Addresses) != 1 {
+		t.Error("expected 1 address")
+	}
+	if id.Error != "" {
+		t.Error("expected no error")
+	}
+	mock.Close()
+	id, err = ipfs.ID()
+	if err == nil {
+		t.Error("expected an error")
+	}
+	if id.Error != err.Error() {
+		t.Error("error messages should match")
+	}
+}
+
 func TestIPFSPin(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()

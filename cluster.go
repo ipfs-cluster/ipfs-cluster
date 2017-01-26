@@ -8,11 +8,9 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	ma "github.com/multiformats/go-multiaddr"
@@ -38,16 +36,6 @@ type Cluster struct {
 	shutdown     bool
 	shutdownCh   chan struct{}
 	wg           sync.WaitGroup
-}
-
-// ID holds information about the Cluster peer
-type ID struct {
-	ID                 peer.ID
-	PublicKey          crypto.PubKey
-	Addresses          []ma.Multiaddr
-	Version            string
-	Commit             string
-	RPCProtocolVersion protocol.ID
 }
 
 // NewCluster builds a new IPFS Cluster. It initializes a LibP2P host, creates
@@ -140,13 +128,22 @@ func (c *Cluster) Shutdown() error {
 
 // ID returns information about the Cluster peer
 func (c *Cluster) ID() ID {
+	// ignore error since it is included in response object
+	ipfsID, _ := c.ipfs.ID()
+	var addrs []ma.Multiaddr
+	for _, addr := range c.host.Addrs() {
+		ipfsAddr, _ := ma.NewMultiaddr("/ipfs/" + c.host.ID().Pretty())
+		addrs = append(addrs, addr.Encapsulate(ipfsAddr))
+	}
+
 	return ID{
 		ID:                 c.host.ID(),
 		PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
-		Addresses:          c.host.Addrs(),
+		Addresses:          addrs,
 		Version:            Version,
 		Commit:             Commit,
 		RPCProtocolVersion: RPCProtocol,
+		IPFS:               ipfsID,
 	}
 }
 
@@ -248,13 +245,13 @@ func (c *Cluster) SyncLocal(h *cid.Cid) (PinInfo, error) {
 	return pInfo, err
 }
 
-// SyncAll triggers LocalSync() operations in all members of the Cluster.
+// SyncAll triggers LocalSync() operations in all cluster peers.
 func (c *Cluster) SyncAll() ([]GlobalPinInfo, error) {
 	return c.globalPinInfoSlice("SyncAllLocal")
 }
 
 // Sync triggers a LocalSyncCid() operation for a given Cid
-// in all members of the Cluster.
+// in all cluster peers.
 func (c *Cluster) Sync(h *cid.Cid) (GlobalPinInfo, error) {
 	return c.globalPinInfoCid("SyncLocal", h)
 }
@@ -265,7 +262,7 @@ func (c *Cluster) RecoverLocal(h *cid.Cid) (PinInfo, error) {
 }
 
 // Recover triggers a recover operation for a given Cid in all
-// members of the Cluster.
+// cluster peers.
 func (c *Cluster) Recover(h *cid.Cid) (GlobalPinInfo, error) {
 	return c.globalPinInfoCid("TrackerRecover", h)
 }
@@ -318,8 +315,32 @@ func (c *Cluster) Version() string {
 	return Version
 }
 
-// Members returns the IDs of the members of this Cluster
-func (c *Cluster) Members() []peer.ID {
+// Peers returns the IDs of the members of this Cluster
+func (c *Cluster) Peers() []ID {
+	members := c.peerList()
+	peersSerial := make([]IDSerial, len(members), len(members))
+	peers := make([]ID, len(members), len(members))
+
+	ifaceReplies := make([]interface{}, len(members), len(members))
+	for i := range peersSerial {
+		ifaceReplies[i] = &peersSerial[i]
+	}
+
+	errs := c.multiRPC(members, "Cluster", "ID", struct{}{}, ifaceReplies)
+	for i, err := range errs {
+		if err != nil {
+			peersSerial[i].ID = peer.IDB58Encode(members[i])
+			peersSerial[i].Error = err.Error()
+		}
+	}
+
+	for i, ps := range peersSerial {
+		peers[i] = ps.ToID()
+	}
+	return peers
+}
+
+func (c *Cluster) peerList() []peer.ID {
 	return c.host.Peerstore().Peers()
 }
 
@@ -421,7 +442,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 		PeerMap: make(map[peer.ID]PinInfo),
 	}
 
-	members := c.Members()
+	members := c.peerList()
 	replies := make([]PinInfo, len(members), len(members))
 	ifaceReplies := make([]interface{}, len(members), len(members))
 	for i := range replies {
@@ -456,7 +477,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	var infos []GlobalPinInfo
 	fullMap := make(map[string]GlobalPinInfo)
 
-	members := c.Members()
+	members := c.peerList()
 	replies := make([][]PinInfo, len(members), len(members))
 	ifaceReplies := make([]interface{}, len(members), len(members))
 	for i := range replies {
@@ -513,11 +534,12 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 
 // openConns is a workaround for
 // https://github.com/libp2p/go-libp2p-swarm/issues/15
+// which break our tests.
 // It runs when consensus is initialized so we can assume
 // that the cluster is more or less up.
 // It should open connections for peers where they haven't
 // yet been opened. By randomly sleeping we reduce the
-// chance that members will open 2 connections simultaneously.
+// chance that peers will open 2 connections simultaneously.
 func (c *Cluster) openConns() {
 	rand.Seed(time.Now().UnixNano())
 	time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)

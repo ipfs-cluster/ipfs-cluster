@@ -2,7 +2,7 @@
 // allows to orchestrate pinning operations among several IPFS nodes.
 //
 // IPFS Cluster uses a go-libp2p-raft to keep a shared state between
-// the different members of the cluster. It also uses LibP2P to enable
+// the different cluster peers. It also uses LibP2P to enable
 // communication between its different components, which perform different
 // tasks like managing the underlying IPFS daemons, or providing APIs for
 // external control.
@@ -11,16 +11,19 @@ package ipfscluster
 import (
 	"time"
 
+	crypto "github.com/libp2p/go-libp2p-crypto"
+
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var logger = logging.Logger("cluster")
 
-// RPCProtocol is used to send libp2p messages between cluster members
+// RPCProtocol is used to send libp2p messages between cluster peers
 var RPCProtocol = protocol.ID("/ipfscluster/" + Version + "/rpc")
 
 // SilentRaft controls whether all Raft log messages are discarded.
@@ -86,7 +89,7 @@ func (ips IPFSPinStatus) IsPinned() bool {
 }
 
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
-// indexed by cluster member.
+// indexed by cluster peer.
 type GlobalPinInfo struct {
 	Cid     *cid.Cid
 	PeerMap map[peer.ID]PinInfo
@@ -148,6 +151,7 @@ type API interface {
 // an IPFS daemon. This is a base component.
 type IPFSConnector interface {
 	Component
+	ID() (IPFSID, error)
 	Pin(*cid.Cid) error
 	Unpin(*cid.Cid) error
 	PinLsCid(*cid.Cid) (IPFSPinStatus, error)
@@ -199,4 +203,115 @@ type PinTracker interface {
 	Sync(*cid.Cid) (PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in Cids with error status.
 	Recover(*cid.Cid) (PinInfo, error)
+}
+
+// IPFSID is used to store information about the underlying IPFS daemon
+type IPFSID struct {
+	ID        peer.ID
+	Addresses []ma.Multiaddr
+	Error     string
+}
+
+// IPFSIDSerial is the serializable IPFSID for RPC requests
+type IPFSIDSerial struct {
+	ID        string
+	Addresses [][]byte
+	Error     string
+}
+
+// ToSerial converts IPFSID to a go serializable object
+func (id *IPFSID) ToSerial() IPFSIDSerial {
+	mAddrsB := make([][]byte, len(id.Addresses), len(id.Addresses))
+	for i, a := range id.Addresses {
+		mAddrsB[i] = a.Bytes()
+	}
+	return IPFSIDSerial{
+		ID:        peer.IDB58Encode(id.ID),
+		Addresses: mAddrsB,
+		Error:     id.Error,
+	}
+}
+
+// ToID converts an IPFSIDSerial to IPFSID
+// It will ignore any errors when parsing the fields.
+func (ids *IPFSIDSerial) ToID() IPFSID {
+	id := IPFSID{}
+	if pID, err := peer.IDB58Decode(ids.ID); err == nil {
+		id.ID = pID
+	}
+	id.Addresses = make([]ma.Multiaddr, len(ids.Addresses), len(ids.Addresses))
+	for i, mAddrB := range ids.Addresses {
+		if mAddr, err := ma.NewMultiaddrBytes(mAddrB); err == nil {
+			id.Addresses[i] = mAddr
+		}
+	}
+	id.Error = ids.Error
+	return id
+}
+
+// ID holds information about the Cluster peer
+type ID struct {
+	ID                 peer.ID
+	PublicKey          crypto.PubKey
+	Addresses          []ma.Multiaddr
+	Version            string
+	Commit             string
+	RPCProtocolVersion protocol.ID
+	Error              string
+	IPFS               IPFSID
+}
+
+// IDSerial is the serializable ID counterpart for RPC requests
+type IDSerial struct {
+	ID                 string
+	PublicKey          []byte
+	Addresses          [][]byte
+	Version            string
+	Commit             string
+	RPCProtocolVersion string
+	Error              string
+	IPFS               IPFSIDSerial
+}
+
+// ToSerial converts an ID to its Go-serializable version
+func (id ID) ToSerial() IDSerial {
+	mAddrsB := make([][]byte, len(id.Addresses), len(id.Addresses))
+	for i, a := range id.Addresses {
+		mAddrsB[i] = a.Bytes()
+	}
+	pkey, _ := id.PublicKey.Bytes()
+	return IDSerial{
+		ID:                 peer.IDB58Encode(id.ID),
+		PublicKey:          pkey,
+		Addresses:          mAddrsB,
+		Version:            id.Version,
+		Commit:             id.Commit,
+		RPCProtocolVersion: string(id.RPCProtocolVersion),
+		Error:              id.Error,
+		IPFS:               id.IPFS.ToSerial(),
+	}
+}
+
+// ToID converts an IDSerial object to ID.
+// It will ignore any errors when parsing the fields.
+func (ids IDSerial) ToID() ID {
+	id := ID{}
+	if pID, err := peer.IDB58Decode(ids.ID); err == nil {
+		id.ID = pID
+	}
+	if pkey, err := crypto.UnmarshalPublicKey(ids.PublicKey); err == nil {
+		id.PublicKey = pkey
+	}
+	id.Addresses = make([]ma.Multiaddr, len(ids.Addresses), len(ids.Addresses))
+	for i, mAddrB := range ids.Addresses {
+		if mAddr, err := ma.NewMultiaddrBytes(mAddrB); err == nil {
+			id.Addresses[i] = mAddr
+		}
+	}
+	id.Version = ids.Version
+	id.Commit = ids.Commit
+	id.RPCProtocolVersion = protocol.ID(ids.RPCProtocolVersion)
+	id.Error = ids.Error
+	id.IPFS = ids.IPFS.ToID()
+	return id
 }

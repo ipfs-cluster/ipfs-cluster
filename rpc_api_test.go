@@ -44,7 +44,7 @@ func (mock *mockService) PinList(in struct{}, out *[]string) error {
 	return nil
 }
 
-func (mock *mockService) ID(in struct{}, out *ID) error {
+func (mock *mockService) ID(in struct{}, out *IDSerial) error {
 	_, pubkey, _ := crypto.GenerateKeyPair(
 		DefaultConfigCrypto,
 		DefaultConfigKeyLength)
@@ -52,7 +52,10 @@ func (mock *mockService) ID(in struct{}, out *ID) error {
 		ID:        testPeerID,
 		PublicKey: pubkey,
 		Version:   "0.0.mock",
-	}
+		IPFS: IPFSID{
+			ID: testPeerID,
+		},
+	}.ToSerial()
 	return nil
 }
 
@@ -61,8 +64,11 @@ func (mock *mockService) Version(in struct{}, out *string) error {
 	return nil
 }
 
-func (mock *mockService) MemberList(in struct{}, out *[]peer.ID) error {
-	*out = []peer.ID{testPeerID}
+func (mock *mockService) Peers(in struct{}, out *[]IDSerial) error {
+	id := IDSerial{}
+	mock.ID(in, &id)
+
+	*out = []IDSerial{id}
 	return nil
 }
 

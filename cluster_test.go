@@ -30,6 +30,15 @@ type mockConnector struct {
 	mockComponent
 }
 
+func (ipfs *mockConnector) ID() (IPFSID, error) {
+	if ipfs.returnError {
+		return IPFSID{}, errors.New("")
+	}
+	return IPFSID{
+		ID: testPeerID,
+	}, nil
+}
+
 func (ipfs *mockConnector) Pin(c *cid.Cid) error {
 	if ipfs.returnError {
 		return errors.New("")
@@ -179,14 +188,16 @@ func TestClusterUnpin(t *testing.T) {
 	}
 }
 
-func TestClusterMembers(t *testing.T) {
+func TestClusterPeers(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
-	m := cl.Members()
-	id := testingConfig().ID
-	if len(m) != 1 || m[0] != id {
-		t.Error("bad Members()")
+	peers := cl.Peers()
+	if len(peers) != 1 {
+		t.Fatal("expected 1 peer")
+	}
+	if peers[0].ID != testingConfig().ID {
+		t.Error("bad member")
 	}
 }
 

@@ -1,12 +1,9 @@
 package ipfscluster
 
-import (
-	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
-)
+import cid "github.com/ipfs/go-cid"
 
 // RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster
-// API, which enables components and members of the cluster to communicate and
+// API, which enables components and cluster peers to communicate and
 // request actions from each other.
 //
 // The RPC API methods are usually redirects to the actual methods in
@@ -45,8 +42,9 @@ func (arg *CidArg) CID() (*cid.Cid, error) {
 */
 
 // ID runs Cluster.ID()
-func (api *RPCAPI) ID(in struct{}, out *ID) error {
-	*out = api.cluster.ID()
+func (api *RPCAPI) ID(in struct{}, out *IDSerial) error {
+	id := api.cluster.ID().ToSerial()
+	*out = id
 	return nil
 }
 
@@ -85,9 +83,14 @@ func (api *RPCAPI) Version(in struct{}, out *string) error {
 	return nil
 }
 
-// MemberList runs Cluster.Members().
-func (api *RPCAPI) MemberList(in struct{}, out *[]peer.ID) error {
-	*out = api.cluster.Members()
+// Peers runs Cluster.Peers().
+func (api *RPCAPI) Peers(in struct{}, out *[]IDSerial) error {
+	peers := api.cluster.Peers()
+	var sPeers []IDSerial
+	for _, p := range peers {
+		sPeers = append(sPeers, p.ToSerial())
+	}
+	*out = sPeers
 	return nil
 }
 

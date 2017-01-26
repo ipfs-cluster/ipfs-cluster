@@ -63,6 +63,15 @@ func (m *ipfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	endp := strings.TrimPrefix(p, "/api/v0/")
 	var cidStr string
 	switch endp {
+	case "id":
+		resp := ipfsIDResp{
+			ID: testPeerID.Pretty(),
+			Addresses: []string{
+				"/ip4/0.0.0.0/tcp/1234",
+			},
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
 	case "pin/add":
 		query := r.URL.Query()
 		arg, ok := query["arg"]

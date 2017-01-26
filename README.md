@@ -25,7 +25,7 @@ Additionally, cluster nodes act as a proxy/wrapper to the IPFS API, so they can 
 
 IPFS Cluster provides a cluster-node application (`ipfs-cluster-service`), a Go API, a HTTP API and a command-line tool (`ipfs-cluster-ctl`).
 
-Current functionality only allows pinning in all cluster members, but more strategies (like setting a replication factor for each pin) will be developed.
+Current functionality only allows pinning in all cluster peers, but more strategies (like setting a replication factor for each pin) will be developed.
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@ Current functionality only allows pinning in all cluster members, but more strat
 
 Since the start of IPFS it was clear that a tool to coordinate a number of different nodes (and the content they are supposed to store) would add a great value to the IPFS ecosystem. Naïve approaches are possible, but they present some weaknesses, specially at dealing with error handling, recovery and implementation of advanced pinning strategies.
 
-`ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster members via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the members of the cluster. Thus, every cluster member knows which content is tracked, can decide whether asking IPFS to pin it and can react to any contingencies like node reboots.
+`ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster peers via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the cluster peers. Thus, every cluster node knows which content is tracked, can decide whether asking IPFS to pin it and can react to any contingencies like node reboots.
 
 ## Captain
 
@@ -63,7 +63,7 @@ This will install `ipfs-cluster-service` and `ipfs-cluster-ctl` in your `$GOPATH
 
 ### `ipfs-cluster-service`
 
-`ipfs-cluster-service` runs a member node for the cluster. Usage information can be obtained running:
+`ipfs-cluster-service` runs a cluster peer. Usage information can be obtained running:
 
 ```
 $ ipfs-cluster-service -h
@@ -78,7 +78,7 @@ $ ipfs-cluster-service -init
 
 The configuration will be placed in `~/.ipfs-cluster/service.json` by default.
 
-You can add the multiaddresses for the other members of the cluster in the `cluster_peers` variable. For example, here is a valid configuration for a cluster of 4 members:
+You can add the multiaddresses for the other cluster peers the `cluster_peers` variable. For example, here is a valid configuration for a cluster of 4 peers:
 
 ```json
 {
@@ -101,9 +101,9 @@ You can add the multiaddresses for the other members of the cluster in the `clus
     }
 ```
 
-The configuration file should probably be identical among all cluster members, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` may include its own address, but it does not have to. For additional information about the configuration format, see the [JSONConfig documentation](https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig).
+The configuration file should probably be identical among all cluster peers, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` may include its own address, but it does not have to. For additional information about the configuration format, see the [JSONConfig documentation](https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig).
 
-Once every cluster member has the configuration in place, you can run `ipfs-cluster-service` to start the cluster.
+Once every cluster peer has the configuration in place, you can run `ipfs-cluster-service` to start the cluster.
 
 
 ### `ipfs-cluster-ctl`
@@ -116,7 +116,7 @@ information about supported commands.
 In summary, it works as follows:
 
 ```
-$ ipfs-cluster-ctl member ls                                                # list cluster members
+$ ipfs-cluster-ctl peers ls                                                # list cluster peers
 $ ipfs-cluster-ctl pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a Cid in the cluster
 $ ipfs-cluster-ctl pin rm Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58    # unpins a Cid from the cluster
 $ ipfs-cluster-ctl status                                                   # display tracked Cids information

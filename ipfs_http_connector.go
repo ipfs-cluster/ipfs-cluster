@@ -16,6 +16,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -69,6 +70,11 @@ type pinLsResp struct {
 	Keys map[string]struct {
 		Type string
 	}
+}
+
+type ipfsIDResp struct {
+	ID        string
+	Addresses []string
 }
 
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
@@ -226,6 +232,47 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 	ipfs.wg.Wait()
 	ipfs.shutdown = true
 	return nil
+}
+
+// ID performs an ID request against the configured
+// IPFS daemon. It returns the fetched information.
+// If the request fails, or the parsing fails, it
+// returns an error and an empty IPFSID which also
+// contains the error message.
+func (ipfs *IPFSHTTPConnector) ID() (IPFSID, error) {
+	id := IPFSID{}
+	body, err := ipfs.get("id")
+	if err != nil {
+		id.Error = err.Error()
+		return id, err
+	}
+
+	var resp ipfsIDResp
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		id.Error = err.Error()
+		return id, err
+	}
+
+	pID, err := peer.IDB58Decode(resp.ID)
+	if err != nil {
+		id.Error = err.Error()
+		return id, err
+	}
+	id.ID = pID
+
+	mAddrs := make([]ma.Multiaddr, len(resp.Addresses), len(resp.Addresses))
+	for i, strAddr := range resp.Addresses {
+		mAddr, err := ma.NewMultiaddr(strAddr)
+		if err != nil {
+			id.Error = err.Error()
+			return id, err
+		}
+		mAddrs[i] = mAddr
+	}
+	id.Addresses = mAddrs
+
+	return id, nil
 }
 
 // Pin performs a pin request against the configured IPFS

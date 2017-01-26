@@ -76,7 +76,7 @@ func TestRESTAPIShutdown(t *testing.T) {
 func TestRestAPIIDEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
-	id := idResp{}
+	id := restIDResp{}
 	makeGet(t, "/id", &id)
 	if id.ID != testPeerID.Pretty() {
 		t.Error("expected correct id")
@@ -93,13 +93,16 @@ func TestRESTAPIVersionEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIMemberListEndpoint(t *testing.T) {
+func TestRESTAPIPeerstEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
 
-	var list []string
-	makeGet(t, "/members", &list)
-	if len(list) != 1 || list[0] != testPeerID.Pretty() {
+	var list []restIDResp
+	makeGet(t, "/peers", &list)
+	if len(list) != 1 {
+		t.Fatal("expected 1 element")
+	}
+	if list[0].ID != testPeerID.Pretty() {
 		t.Error("expected a different peer id list: ", list)
 	}
 }
