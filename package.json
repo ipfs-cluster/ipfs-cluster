@@ -21,9 +21,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmURcg2K5geS5fgV5EUKYdyqhsRTwCSzYsFjJpGq91vLCn",
+      "hash": "Qmaa72hUXzB6KtnZfbtsswsUHnXMLDYoFpW3j6Kxz26sD1",
       "name": "go-libp2p-raft",
-      "version": "1.0.2"
+      "version": "1.0.3"
     },
     {
       "author": "whyrusleeping",
@@ -51,9 +51,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSPSvzt29mUZyoAvM6vtdHdvnTs2vgihno11MexCFXBDp",
+      "hash": "QmWMLhT1dRRxeP7bg13q5PjWQ2uyCWK37hPbWG3v2KEySZ",
       "name": "go-libp2p-gorpc",
-      "version": "0.0.15"
+      "version": "1.0.0"
     }
   ],
   "gxVersion": "0.10.0",
