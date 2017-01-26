@@ -205,13 +205,13 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	return mpt.unpin(c)
 }
 
-// StatusCid returns information for a Cid tracked by this
+// Status returns information for a Cid tracked by this
 // MapPinTracker.
 func (mpt *MapPinTracker) Status(c *cid.Cid) PinInfo {
 	return mpt.get(c)
 }
 
-// Status returns information for all Cids tracked by this
+// StatusAll returns information for all Cids tracked by this
 // MapPinTracker.
 func (mpt *MapPinTracker) StatusAll() []PinInfo {
 	mpt.mux.Lock()
