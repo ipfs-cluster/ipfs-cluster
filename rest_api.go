@@ -79,13 +79,13 @@ type unpinResp struct {
 }
 
 type statusInfo struct {
-	IPFS  string `json:"ipfs"`
-	Error string `json:"error,omitempty"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }
 
 type statusCidResp struct {
-	Cid    string                `json:"cid"`
-	Status map[string]statusInfo `json:"status"`
+	Cid     string                `json:"cid"`
+	PeerMap map[string]statusInfo `json:"peer_map"`
 }
 
 type idResp struct {
@@ -163,23 +163,45 @@ func (api *RESTAPI) routes() []route {
 			"/id",
 			api.idHandler,
 		},
+
+		{
+			"Version",
+			"GET",
+			"/version",
+			api.versionHandler,
+		},
+
 		{
 			"Members",
 			"GET",
 			"/members",
 			api.memberListHandler,
 		},
+
 		{
 			"Pins",
 			"GET",
-			"/pins",
+			"/pinlist",
 			api.pinListHandler,
 		},
+
 		{
-			"Version",
+			"StatusAll",
 			"GET",
-			"/version",
-			api.versionHandler,
+			"/pins",
+			api.statusAllHandler,
+		},
+		{
+			"SyncAll",
+			"POST",
+			"/pins/sync",
+			api.syncAllHandler,
+		},
+		{
+			"Status",
+			"GET",
+			"/pins/{hash}",
+			api.statusHandler,
 		},
 		{
 			"Pin",
@@ -194,28 +216,16 @@ func (api *RESTAPI) routes() []route {
 			api.unpinHandler,
 		},
 		{
-			"Status",
-			"GET",
-			"/status",
-			api.statusHandler,
-		},
-		{
-			"StatusCid",
-			"GET",
-			"/status/{hash}",
-			api.statusCidHandler,
-		},
-		{
 			"Sync",
 			"POST",
-			"/status",
+			"/pins/{hash}/sync",
 			api.syncHandler,
 		},
 		{
-			"SyncCid",
+			"Recover",
 			"POST",
-			"/status/{hash}",
-			api.syncCidHandler,
+			"/pins/{hash}/recover",
+			api.recoverHandler,
 		},
 	}
 }
@@ -367,11 +377,11 @@ func (api *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	var pinInfos []GlobalPinInfo
 	err := api.rpcClient.Call("",
 		"Cluster",
-		"Status",
+		"StatusAll",
 		struct{}{},
 		&pinInfos)
 	if checkRPCErr(w, err) {
@@ -379,12 +389,12 @@ func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c != nil {
 		var pinInfo GlobalPinInfo
 		err := api.rpcClient.Call("",
 			"Cluster",
-			"StatusCid",
+			"Status",
 			c,
 			&pinInfo)
 		if checkRPCErr(w, err) {
@@ -393,11 +403,11 @@ func (api *RESTAPI) statusCidHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
 	var pinInfos []GlobalPinInfo
 	err := api.rpcClient.Call("",
 		"Cluster",
-		"GlobalSync",
+		"SyncAll",
 		struct{}{},
 		&pinInfos)
 	if checkRPCErr(w, err) {
@@ -405,12 +415,26 @@ func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) syncCidHandler(w http.ResponseWriter, r *http.Request) {
+func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c != nil {
 		var pinInfo GlobalPinInfo
 		err := api.rpcClient.Call("",
 			"Cluster",
-			"GlobalSyncCid",
+			"Sync",
+			c,
+			&pinInfo)
+		if checkRPCErr(w, err) {
+			sendStatusCidResponse(w, http.StatusOK, pinInfo)
+		}
+	}
+}
+
+func (api *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c != nil {
+		var pinInfo GlobalPinInfo
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"Recover",
 			c,
 			&pinInfo)
 		if checkRPCErr(w, err) {
@@ -465,11 +489,11 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
 	s := statusCidResp{}
 	s.Cid = p.Cid.String()
-	s.Status = make(map[string]statusInfo)
-	for k, v := range p.Status {
-		s.Status[k.Pretty()] = statusInfo{
-			IPFS:  v.IPFS.String(),
-			Error: v.Error,
+	s.PeerMap = make(map[string]statusInfo)
+	for k, v := range p.PeerMap {
+		s.PeerMap[k.Pretty()] = statusInfo{
+			Status: v.Status.String(),
+			Error:  v.Error,
 		}
 	}
 	return s

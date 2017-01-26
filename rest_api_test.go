@@ -147,7 +147,7 @@ func TestRESTAPIPinListEndpoint(t *testing.T) {
 	defer api.Shutdown()
 
 	var resp []string
-	makeGet(t, "/pins", &resp)
+	makeGet(t, "/pinlist", &resp)
 	if len(resp) != 3 ||
 		resp[0] != testCid1 || resp[1] != testCid2 ||
 		resp[2] != testCid3 {
@@ -155,67 +155,86 @@ func TestRESTAPIPinListEndpoint(t *testing.T) {
 	}
 }
 
+func TestRESTAPIStatusAllEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
+	defer api.Shutdown()
+
+	var resp statusResp
+	makeGet(t, "/pins", &resp)
+	if len(resp) != 3 ||
+		resp[0].Cid != testCid1 ||
+		resp[1].PeerMap[testPeerID.Pretty()].Status != "pinning" {
+		t.Errorf("unexpected statusResp:\n %+v", resp)
+	}
+}
+
 func TestRESTAPIStatusEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
 
-	var resp statusResp
-	makeGet(t, "/status", &resp)
-	if len(resp) != 3 ||
-		resp[0].Cid != testCid1 ||
-		resp[1].Status[testPeerID.Pretty()].IPFS != "pinning" {
-		t.Errorf("unexpected statusResp:\n %+v", resp)
-	}
-}
-
-func TestRESTAPIStatusCidEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
-
 	var resp statusCidResp
-	makeGet(t, "/status/"+testCid, &resp)
+	makeGet(t, "/pins/"+testCid, &resp)
 
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")
 	}
-	info, ok := resp.Status[testPeerID.Pretty()]
+	info, ok := resp.PeerMap[testPeerID.Pretty()]
 	if !ok {
 		t.Fatal("expected info for testPeerID")
 	}
-	if info.IPFS != "pinned" {
+	if info.Status != "pinned" {
 		t.Error("expected different status")
 	}
 }
 
-func TestRESTAPIStatusSyncEndpoint(t *testing.T) {
+func TestRESTAPISyncAllEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
 
 	var resp statusResp
-	makePost(t, "/status", &resp)
+	makePost(t, "/pins/sync", &resp)
 
 	if len(resp) != 3 ||
 		resp[0].Cid != testCid1 ||
-		resp[1].Status[testPeerID.Pretty()].IPFS != "pinning" {
+		resp[1].PeerMap[testPeerID.Pretty()].Status != "pinning" {
 		t.Errorf("unexpected statusResp:\n %+v", resp)
 	}
 }
 
-func TestRESTAPIStatusSyncCidEndpoint(t *testing.T) {
+func TestRESTAPISyncEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
 
 	var resp statusCidResp
-	makePost(t, "/status/"+testCid, &resp)
+	makePost(t, "/pins/"+testCid+"/sync", &resp)
 
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")
 	}
-	info, ok := resp.Status[testPeerID.Pretty()]
+	info, ok := resp.PeerMap[testPeerID.Pretty()]
 	if !ok {
 		t.Fatal("expected info for testPeerID")
 	}
-	if info.IPFS != "pinned" {
+	if info.Status != "pinned" {
+		t.Error("expected different status")
+	}
+}
+
+func TestRESTAPIRecoverEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
+	defer api.Shutdown()
+
+	var resp statusCidResp
+	makePost(t, "/pins/"+testCid+"/recover", &resp)
+
+	if resp.Cid != testCid {
+		t.Error("expected the same cid")
+	}
+	info, ok := resp.PeerMap[testPeerID.Pretty()]
+	if !ok {
+		t.Fatal("expected info for testPeerID")
+	}
+	if info.Status != "pinned" {
 		t.Error("expected different status")
 	}
 }

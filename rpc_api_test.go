@@ -66,40 +66,40 @@ func (mock *mockService) MemberList(in struct{}, out *[]peer.ID) error {
 	return nil
 }
 
-func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
+func (mock *mockService) StatusAll(in struct{}, out *[]GlobalPinInfo) error {
 	c1, _ := cid.Decode(testCid1)
 	c2, _ := cid.Decode(testCid2)
 	c3, _ := cid.Decode(testCid3)
 	*out = []GlobalPinInfo{
 		{
 			Cid: c1,
-			Status: map[peer.ID]PinInfo{
+			PeerMap: map[peer.ID]PinInfo{
 				testPeerID: {
 					CidStr: testCid1,
 					Peer:   testPeerID,
-					IPFS:   Pinned,
+					Status: TrackerStatusPinned,
 					TS:     time.Now(),
 				},
 			},
 		},
 		{
 			Cid: c2,
-			Status: map[peer.ID]PinInfo{
+			PeerMap: map[peer.ID]PinInfo{
 				testPeerID: {
 					CidStr: testCid2,
 					Peer:   testPeerID,
-					IPFS:   Pinning,
+					Status: TrackerStatusPinning,
 					TS:     time.Now(),
 				},
 			},
 		},
 		{
 			Cid: c3,
-			Status: map[peer.ID]PinInfo{
+			PeerMap: map[peer.ID]PinInfo{
 				testPeerID: {
 					CidStr: testCid3,
 					Peer:   testPeerID,
-					IPFS:   PinError,
+					Status: TrackerStatusPinError,
 					TS:     time.Now(),
 				},
 			},
@@ -108,18 +108,18 @@ func (mock *mockService) Status(in struct{}, out *[]GlobalPinInfo) error {
 	return nil
 }
 
-func (mock *mockService) StatusCid(in *CidArg, out *GlobalPinInfo) error {
+func (mock *mockService) Status(in *CidArg, out *GlobalPinInfo) error {
 	if in.Cid == errorCid {
 		return errBadCid
 	}
 	c1, _ := cid.Decode(testCid1)
 	*out = GlobalPinInfo{
 		Cid: c1,
-		Status: map[peer.ID]PinInfo{
+		PeerMap: map[peer.ID]PinInfo{
 			testPeerID: {
 				CidStr: testCid1,
 				Peer:   testPeerID,
-				IPFS:   Pinned,
+				Status: TrackerStatusPinned,
 				TS:     time.Now(),
 			},
 		},
@@ -127,17 +127,21 @@ func (mock *mockService) StatusCid(in *CidArg, out *GlobalPinInfo) error {
 	return nil
 }
 
-func (mock *mockService) GlobalSync(in struct{}, out *[]GlobalPinInfo) error {
-	return mock.Status(in, out)
+func (mock *mockService) SyncAll(in struct{}, out *[]GlobalPinInfo) error {
+	return mock.StatusAll(in, out)
 }
 
-func (mock *mockService) GlobalSyncCid(in *CidArg, out *GlobalPinInfo) error {
-	return mock.StatusCid(in, out)
+func (mock *mockService) Sync(in *CidArg, out *GlobalPinInfo) error {
+	return mock.Status(in, out)
 }
 
 func (mock *mockService) StateSync(in struct{}, out *[]PinInfo) error {
 	*out = []PinInfo{}
 	return nil
+}
+
+func (mock *mockService) Recover(in *CidArg, out *GlobalPinInfo) error {
+	return mock.Status(in, out)
 }
 
 func (mock *mockService) Track(in *CidArg, out *struct{}) error {

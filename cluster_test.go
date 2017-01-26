@@ -44,11 +44,19 @@ func (ipfs *mockConnector) Unpin(c *cid.Cid) error {
 	return nil
 }
 
-func (ipfs *mockConnector) IsPinned(c *cid.Cid) (bool, error) {
+func (ipfs *mockConnector) PinLsCid(c *cid.Cid) (IPFSPinStatus, error) {
 	if ipfs.returnError {
-		return false, errors.New("")
+		return IPFSPinStatusError, errors.New("")
 	}
-	return true, nil
+	return IPFSPinStatusRecursive, nil
+}
+
+func (ipfs *mockConnector) PinLs() (map[string]IPFSPinStatus, error) {
+	if ipfs.returnError {
+		return nil, errors.New("")
+	}
+	m := make(map[string]IPFSPinStatus)
+	return m, nil
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *MapState, *MapPinTracker) {
