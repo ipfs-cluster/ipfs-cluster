@@ -96,7 +96,7 @@ ROLLBACK:
 }
 
 // Consensus handles the work of keeping a shared-state between
-// the members of an IPFS Cluster, as well as modifying that state and
+// the peers of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
 type Consensus struct {
 	ctx context.Context
@@ -199,14 +199,21 @@ func (cc *Consensus) run(state State) {
 		<-cc.rpcReady
 
 		var pInfo []PinInfo
-		cc.rpcClient.Go(
-			"",
-			"Cluster",
-			"StateSync",
-			struct{}{},
-			&pInfo,
-			nil)
 
+		_, err := cc.State()
+		// only check sync if we have a state
+		// avoid error on new running clusters
+		if err != nil {
+			logger.Debug("skipping state sync: ", err)
+		} else {
+			cc.rpcClient.Go(
+				"",
+				"Cluster",
+				"StateSync",
+				struct{}{},
+				&pInfo,
+				nil)
+		}
 		logger.Infof("IPFS Cluster is running")
 		<-cc.shutdownCh
 	}()

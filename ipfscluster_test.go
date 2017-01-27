@@ -165,13 +165,50 @@ func TestClustersVersion(t *testing.T) {
 	runF(t, clusters, f)
 }
 
+func TestClustersPeers(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+
+	j := rand.Intn(nClusters) // choose a random cluster peer
+	peers := clusters[j].Peers()
+	if len(peers) != nClusters {
+		t.Fatal("expected as many peers as clusters")
+	}
+
+	clusterIDMap := make(map[peer.ID]ID)
+	peerIDMap := make(map[peer.ID]ID)
+
+	for _, c := range clusters {
+		id := c.ID()
+		clusterIDMap[id.ID] = id
+	}
+
+	for _, p := range peers {
+		peerIDMap[p.ID] = p
+	}
+
+	for k, id := range clusterIDMap {
+		id2, ok := peerIDMap[k]
+		if !ok {
+			t.Fatal("expected id in both maps")
+		}
+		if !crypto.KeyEqual(id.PublicKey, id2.PublicKey) {
+			t.Error("expected same public key")
+		}
+		if id.IPFS.ID != id2.IPFS.ID {
+			t.Error("expected same ipfs daemon ID")
+		}
+	}
+}
+
 func TestClustersPin(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	exampleCid, _ := cid.Decode(testCid)
 	prefix := exampleCid.Prefix()
 	for i := 0; i < nPins; i++ {
-		j := rand.Intn(nClusters)           // choose a random cluster member
+		j := rand.Intn(nClusters)           // choose a random cluster peer
 		h, err := prefix.Sum(randomBytes()) // create random cid
 		checkErr(t, err)
 		err = clusters[j].Pin(h)
@@ -204,7 +241,7 @@ func TestClustersPin(t *testing.T) {
 	pinList := clusters[0].Pins()
 
 	for i := 0; i < nPins; i++ {
-		j := rand.Intn(nClusters) // choose a random cluster member
+		j := rand.Intn(nClusters) // choose a random cluster peer
 		err := clusters[j].Unpin(pinList[i])
 		if err != nil {
 			t.Errorf("error unpinning %s: %s", pinList[i], err)
@@ -340,7 +377,7 @@ func TestClustersSyncAll(t *testing.T) {
 	clusters[0].Pin(h2)
 	delay()
 
-	j := rand.Intn(nClusters) // choose a random cluster member
+	j := rand.Intn(nClusters) // choose a random cluster peer
 	ginfos, err := clusters[j].SyncAll()
 	if err != nil {
 		t.Fatal(err)
@@ -357,7 +394,7 @@ func TestClustersSyncAll(t *testing.T) {
 			t.Fatal("GlobalPinInfo should have this cluster")
 		}
 		if inf.Status != TrackerStatusPinError && inf.Status != TrackerStatusPinning {
-			t.Error("should be PinError in all members")
+			t.Error("should be PinError in all peers")
 		}
 	}
 }
@@ -398,7 +435,7 @@ func TestClustersSync(t *testing.T) {
 		}
 
 		if inf.Status != TrackerStatusPinError && inf.Status != TrackerStatusPinning {
-			t.Error("should be PinError or Pinning in all members")
+			t.Error("should be PinError or Pinning in all peers")
 		}
 	}
 
@@ -418,7 +455,7 @@ func TestClustersSync(t *testing.T) {
 			t.Fatal("GlobalPinInfo should have this cluster")
 		}
 		if inf.Status != TrackerStatusPinned {
-			t.Error("the GlobalPinInfo should show Pinned in all members")
+			t.Error("the GlobalPinInfo should show Pinned in all peers")
 		}
 	}
 }
@@ -488,7 +525,7 @@ func TestClustersRecover(t *testing.T) {
 		}
 
 		if inf.Status != TrackerStatusPinError {
-			t.Error("should be PinError in all members")
+			t.Error("should be PinError in all peers")
 		}
 	}
 
@@ -508,7 +545,7 @@ func TestClustersRecover(t *testing.T) {
 			t.Fatal("GlobalPinInfo should have this cluster")
 		}
 		if inf.Status != TrackerStatusPinned {
-			t.Error("the GlobalPinInfo should show Pinned in all members")
+			t.Error("the GlobalPinInfo should show Pinned in all peers")
 		}
 	}
 }

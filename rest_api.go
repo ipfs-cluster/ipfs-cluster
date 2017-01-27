@@ -14,7 +14,6 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	mux "github.com/gorilla/mux"
@@ -88,13 +87,58 @@ type statusCidResp struct {
 	PeerMap map[string]statusInfo `json:"peer_map"`
 }
 
-type idResp struct {
-	ID                 string   `json:"id"`
-	PublicKey          string   `json:"public_key"`
-	Addresses          []string `json:"addresses"`
-	Version            string   `json:"version"`
-	Commit             string   `json:"commit"`
-	RPCProtocolVersion string   `json:"rpc_protocol_version"`
+type restIPFSIDResp struct {
+	ID        string   `json:"id"`
+	Addresses []string `json:"addresses"`
+	Error     string   `json:"error,omitempty"`
+}
+
+func newRestIPFSIDResp(id IPFSID) *restIPFSIDResp {
+	addrs := make([]string, len(id.Addresses), len(id.Addresses))
+	for i, a := range id.Addresses {
+		addrs[i] = a.String()
+	}
+
+	return &restIPFSIDResp{
+		ID:        id.ID.Pretty(),
+		Addresses: addrs,
+		Error:     id.Error,
+	}
+}
+
+type restIDResp struct {
+	ID                 string          `json:"id"`
+	PublicKey          string          `json:"public_key"`
+	Addresses          []string        `json:"addresses"`
+	Version            string          `json:"version"`
+	Commit             string          `json:"commit"`
+	RPCProtocolVersion string          `json:"rpc_protocol_version"`
+	Error              string          `json:"error,omitempty"`
+	IPFS               *restIPFSIDResp `json:"ipfs"`
+}
+
+func newRestIDResp(id ID) *restIDResp {
+	pubKey := ""
+	if id.PublicKey != nil {
+		keyBytes, err := id.PublicKey.Bytes()
+		if err == nil {
+			pubKey = base64.StdEncoding.EncodeToString(keyBytes)
+		}
+	}
+	addrs := make([]string, len(id.Addresses), len(id.Addresses))
+	for i, a := range id.Addresses {
+		addrs[i] = a.String()
+	}
+	return &restIDResp{
+		ID:                 id.ID.Pretty(),
+		PublicKey:          pubKey,
+		Addresses:          addrs,
+		Version:            id.Version,
+		Commit:             id.Commit,
+		RPCProtocolVersion: string(id.RPCProtocolVersion),
+		Error:              id.Error,
+		IPFS:               newRestIPFSIDResp(id.IPFS),
+	}
 }
 
 type statusResp []statusCidResp
@@ -172,10 +216,10 @@ func (api *RESTAPI) routes() []route {
 		},
 
 		{
-			"Members",
+			"Peers",
 			"GET",
-			"/members",
-			api.memberListHandler,
+			"/peers",
+			api.peerListHandler,
 		},
 
 		{
@@ -278,33 +322,16 @@ func (api *RESTAPI) SetClient(c *rpc.Client) {
 }
 
 func (api *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
-	idObj := ID{}
+	idSerial := IDSerial{}
 	err := api.rpcClient.Call("",
 		"Cluster",
 		"ID",
 		struct{}{},
-		&idObj)
+		&idSerial)
 	if checkRPCErr(w, err) {
-		pubKey := ""
-		if idObj.PublicKey != nil {
-			keyBytes, err := idObj.PublicKey.Bytes()
-			if err == nil {
-				pubKey = base64.StdEncoding.EncodeToString(keyBytes)
-			}
-		}
-		addrs := make([]string, len(idObj.Addresses), len(idObj.Addresses))
-		for i, a := range idObj.Addresses {
-			addrs[i] = a.String()
-		}
-		idResponse := idResp{
-			ID:                 idObj.ID.Pretty(),
-			PublicKey:          pubKey,
-			Addresses:          addrs,
-			Version:            idObj.Version,
-			Commit:             idObj.Commit,
-			RPCProtocolVersion: string(idObj.RPCProtocolVersion),
-		}
-		sendJSONResponse(w, 200, idResponse)
+		id := idSerial.ToID()
+		resp := newRestIDResp(id)
+		sendJSONResponse(w, 200, resp)
 	}
 }
 
@@ -321,20 +348,21 @@ func (api *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RESTAPI) memberListHandler(w http.ResponseWriter, r *http.Request) {
-	var peers []peer.ID
+func (api *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
+	var peersSerial []IDSerial
 	err := api.rpcClient.Call("",
 		"Cluster",
-		"MemberList",
+		"Peers",
 		struct{}{},
-		&peers)
+		&peersSerial)
 
 	if checkRPCErr(w, err) {
-		var strPeers []string
-		for _, p := range peers {
-			strPeers = append(strPeers, p.Pretty())
+		var resp []*restIDResp
+		for _, pS := range peersSerial {
+			p := pS.ToID()
+			resp = append(resp, newRestIDResp(p))
 		}
-		sendJSONResponse(w, 200, strPeers)
+		sendJSONResponse(w, 200, resp)
 	}
 }
 

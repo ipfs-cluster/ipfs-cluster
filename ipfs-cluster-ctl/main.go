@@ -120,17 +120,17 @@ This command will print out information about the cluster peer used
 			},
 		},
 		{
-			Name:  "member",
-			Usage: "list and manage IPFS Cluster members",
+			Name:  "peers",
+			Usage: "list and manage IPFS Cluster peers",
 			UsageText: `
-This command can be used to list and manage IPFS Cluster members.
+This command can be used to list and manage IPFS Cluster peers.
 `,
 			Subcommands: []cli.Command{
 				{
 					Name:  "ls",
 					Usage: "list the nodes participating in the IPFS Cluster",
 					Action: func(c *cli.Context) error {
-						resp := request("GET", "/members")
+						resp := request("GET", "/peers")
 						formatResponse(resp)
 						return nil
 					},

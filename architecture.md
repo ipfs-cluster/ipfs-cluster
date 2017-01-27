@@ -4,12 +4,12 @@
 
 These definitions are still evolving and may change:
 
-  * Member: an ipfs cluster server node which is member of the consensus. Alternatively: node, peer
+  * Peer: an ipfs cluster service node which is member of the consensus. Alternatively: node, member.
   * ipfs-cluster: the IPFS cluster software
   * ipfs-cluster-ctl: the IPFS cluster client command line application
   * ipfs-cluster-service: the IPFS cluster node application
   * API: the REST-ish API implemented by the RESTAPI component and used by the clients.
-  * RPC API: the internal API that cluster members and components use.
+  * RPC API: the internal API that cluster peers and components use.
   * Go API: the public interface offered by the Cluster object in Go.
   * Component: an ipfs-cluster module which performs specific functions and uses the RPC API to communicate with other parts of the system. Implements the Component interface.
 
@@ -38,7 +38,7 @@ Components perform a number of functions and need to be able to communicate with
 
   * the API needs to use functionality provided by the main component
   * the PinTracker needs to use functionality provided by the IPFSConnector
-  * the main component needs to use functionality provided by the main component of a different member (the leader)
+  * the main component needs to use functionality provided by the main component of a different peer (the leader)
 
 ### RPC API
 
@@ -56,7 +56,7 @@ Currently, all components live in the same `ipfscluster` Go module, but they sha
 
 ### `ipfs-cluster-service`
 
-This is the service application of IPFS Cluster. It brings up a cluster, connects to other members, gets the latest consensus state and participates in cluster.
+This is the service application of IPFS Cluster. It brings up a cluster, connects to other peers, gets the latest consensus state and participates in cluster.
 
 ### `ipfs-cluster-ctl`
 

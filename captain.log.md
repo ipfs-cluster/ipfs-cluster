@@ -6,7 +6,7 @@ I have just merged the initial cluster version into master. There are many rough
 
 The rest of the quarter will be focused on 4 main issues:
 
-* Simplify the process of adding and removing members of a cluster
+* Simplify the process of adding and removing cluster peers
 * Implement a replication-factor-based pinning strategy
 * Generate real end to end tests
 * Make ipfs-cluster stable

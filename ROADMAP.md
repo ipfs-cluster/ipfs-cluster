@@ -14,9 +14,9 @@ This quarter is going to be focused on bringing ipfs-cluster to life as a usable
 
 On these lines, there are several endeavours which stand out for themselves and are officially part of the general IPFS Roadmaps:
 
-* Dynamically add and remove cluster members in an easy fashion (https://github.com/ipfs/pm/issues/353)
+* Dynamically add and remove cluster peers in an easy fashion (https://github.com/ipfs/pm/issues/353)
 
-This involves easily adding a member (or removing) from a running cluster. `ipfs-cluster-service member add <maddress>` should work and should update the peer set of all components of all members, along with their configurations.
+This involves easily adding a peer (or removing) from a running cluster. `ipfs-cluster-service peer add <maddress>` should work and should update the peer set of all components of all peers, along with their configurations.
 
 * Replication-factor-based pinning strategy (https://github.com/ipfs/pm/issues/353)
 
