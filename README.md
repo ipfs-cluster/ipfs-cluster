@@ -11,7 +11,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/ipfs/ipfs-cluster/badge.svg?branch=master)](https://coveralls.io/github/ipfs/ipfs-cluster?branch=master)
 
 
-> Clustering for IPFS nodes.
+> Collective pinning and composition for IPFS.
 
 **WORK IN PROGRESS**
 
