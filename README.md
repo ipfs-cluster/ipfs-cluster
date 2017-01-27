@@ -30,7 +30,7 @@ Current functionality only allows pinning in all cluster peers, but more strateg
 ## Table of Contents
 
 - [Background](#background)
-- [Captain](#captain)
+- [Maintainers and roadmap](#maintainers-and-roadmap)
 - [Install](#install)
 - [Usage](#usage)
 - [API](#api)
@@ -45,7 +45,7 @@ Since the start of IPFS it was clear that a tool to coordinate a number of diffe
 
 ## Maintainers and roadmap
 
-This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](captain.log.md) for a written summary of current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md) for a high level overview of what's coming and the project's [Waffle Board](https://waffle.io/ipfs/ipfs-cluster) to see what issues are being worked on at the moment.
+This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](CAPTAIN.LOG.md) for a written summary of current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md) for a high level overview of what's coming and the project's [Waffle Board](https://waffle.io/ipfs/ipfs-cluster) to see what issues are being worked on at the moment.
 
 ## Install
 
