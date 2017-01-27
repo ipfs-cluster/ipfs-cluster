@@ -183,13 +183,13 @@ func main() {
 
 func setupLogging(lvl string) {
 	logging.SetLogLevel("cluster", lvl)
-	logging.SetLogLevel("libp2p-rpc", lvl)
 }
 
 func setupDebug() {
 	logging.SetLogLevel("cluster", "debug")
 	logging.SetLogLevel("libp2p-raft", "debug")
-	logging.SetLogLevel("libp2p-rpc", "debug") // FIXME
+	logging.SetLogLevel("p2p-gorpc", "debug")
+	//logging.SetLogLevel("swarm2", "debug")
 	ipfscluster.SilentRaft = false
 }
 

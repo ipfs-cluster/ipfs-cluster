@@ -12,10 +12,9 @@ bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
 export PATH := $(deptools):$(PATH)
 
 all: service ctl
-clean:
+clean: rwundo
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
-	rm -rf $(deptools)
 install: deps
 	$(MAKE) -C ipfs-cluster-service install
 	$(MAKE) -C ipfs-cluster-ctl install

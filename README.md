@@ -21,7 +21,7 @@
 
 In order to do so IPFS Cluster nodes use a libp2p-based consensus algorithm (currently Raft) to agree on a log of operations and build a consistent state across the cluster. The state represents which objects should be pinned by which nodes.
 
-Additionally, cluster nodes act as a proxy/wrapper to the IPFS API, so they can be used as a regular node, with the difference that pin requests are handled by the Cluster.
+Additionally, cluster nodes act as a proxy/wrapper to the IPFS API, so they can be used as a regular node, with the difference that `pin add`, `pin rm` and `pin ls` requests are handled by the Cluster.
 
 IPFS Cluster provides a cluster-node application (`ipfs-cluster-service`), a Go API, a HTTP API and a command-line tool (`ipfs-cluster-ctl`).
 
@@ -43,9 +43,9 @@ Since the start of IPFS it was clear that a tool to coordinate a number of diffe
 
 `ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster peers via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the cluster peers. Thus, every cluster node knows which content is tracked, can decide whether asking IPFS to pin it and can react to any contingencies like node reboots.
 
-## Captain
+## Maintainers and roadmap
 
-This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](captain.log.md) for information about current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md).
+This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](captain.log.md) for a written summary of current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md) for a high level overview of what's coming and the project's [Waffle Board](https://waffle.io/ipfs/ipfs-cluster) to see what issues are being worked on at the moment.
 
 ## Install
 
@@ -105,10 +105,16 @@ The configuration file should probably be identical among all cluster peers, exc
 
 Once every cluster peer has the configuration in place, you can run `ipfs-cluster-service` to start the cluster.
 
+#### Debugging
+
+`ipfs-cluster-service` offers two debugging options:
+
+* `--debug` enables debug logging from the `ipfs-cluster`, `go-libp2p-raft` and `go-libp2p-rpc` layers. This will be a very verbose log output, but at the same time it is the most informative.
+* `--loglevel` sets the log level (`[error, warning, info, debug]`) for the `ipfs-cluster` only, allowing to get an overview of the what cluster is doing. The default log-level is `info`.
 
 ### `ipfs-cluster-ctl`
 
-`ipfs-cluster-ctl` is the client application to manage the cluster nodes and perform actions. `ipfs-cluster-ctl` uses the HTTP API provided by the nodes.
+`ipfs-cluster-ctl` is the client application to manage the cluster nodes and perform actions. `ipfs-cluster-ctl` uses the HTTP API provided by the nodes and it is completely separate from the cluster service. It can talk to any cluster peer (`--host`) and uses `localhost` by default.
 
 After installing, you can run `ipfs-cluster-ctl --help` to display general description and options, or alternatively `ipfs-cluster-ctl help [cmd]` to display
 information about supported commands.
@@ -116,12 +122,18 @@ information about supported commands.
 In summary, it works as follows:
 
 ```
-$ ipfs-cluster-ctl peers ls                                                # list cluster peers
-$ ipfs-cluster-ctl pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a Cid in the cluster
-$ ipfs-cluster-ctl pin rm Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58    # unpins a Cid from the cluster
-$ ipfs-cluster-ctl status                                                   # display tracked Cids information
-$ ipfs-cluster-ctl sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # recover Cids in error status
+$ ipfs-cluster-ctl id                                                       # show cluster peer and ipfs daemon information
+$ ipfs-cluster-ctl peers ls                                                 # list cluster peers
+$ ipfs-cluster-ctl pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a CID in the cluster
+$ ipfs-cluster-ctl pin rm Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58    # unpins a CID from the cluster
+$ ipfs-cluster-ctl status                                                   # display tracked CIDs information
+$ ipfs-cluster-ctl sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # sync information from the IPFS daemon
+$ ipfs-cluster-ctl recover Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # attempt to re-pin/unpin CIDs in error state
 ```
+
+#### Debugging
+
+`ipfs-cluster-ctl` provides a `--debug` flag which allows to inspect request paths and raw response bodies.
 
 ### Go
 
@@ -132,6 +144,23 @@ Documentation and examples on how to use IPFS Cluster from Go can be found in [g
 ## API
 
 TODO: Swagger
+
+This is a quick summary of API endpoints offered by the Rest API component (these may change before 1.0):
+
+|Method|Endpoint            |Comment|
+|------|--------------------|-------|
+|GET   |/id                 |Cluster peer information|
+|GET   |/version            |Cluster version|
+|GET   |/peers              |Cluster peers|
+|GET   |/pinlist            |List of pins in the consensus state|
+|GET   |/pins               |Status of all tracked CIDs|
+|POST  |/pins/sync          |Sync all|
+|GET   |/pins/{cid}         |Status of single CID|
+|POST  |/pins/{cid}         |Pin CID|
+|DELETE|/pins/{cid}         |Unpin CID|
+|POST  |/pins/{cid}/sync    |Sync CID|
+|POST  |/pins/{cid}/recover |Recover CID|
+
 
 ## Contribute
 

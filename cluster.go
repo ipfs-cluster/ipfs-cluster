@@ -473,7 +473,6 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 }
 
 func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
-	// FIXME: should not fail when a single node fails
 	var infos []GlobalPinInfo
 	fullMap := make(map[string]GlobalPinInfo)
 
