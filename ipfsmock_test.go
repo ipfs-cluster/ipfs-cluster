@@ -143,6 +143,8 @@ func (m *ipfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			j, _ := json.Marshal(resp)
 			w.Write(j)
 		}
+	case "version":
+		w.Write([]byte("{\"Version\":\"m.o.c.k\"}"))
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}

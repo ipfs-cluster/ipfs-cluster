@@ -1,7 +1,9 @@
 package ipfscluster
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -142,7 +144,9 @@ func TestIPFSPinLs(t *testing.T) {
 	}
 }
 
-func TestIPFSProxy(t *testing.T) {
+func TestIPFSProxyVersion(t *testing.T) {
+	// This makes sure default handler is used
+
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
@@ -150,16 +154,198 @@ func TestIPFSProxy(t *testing.T) {
 	cfg := testingConfig()
 	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
 	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/add?arg=%s",
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/version",
 		host,
-		port,
-		testCid))
+		port))
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
+
+	defer res.Body.Close()
+	resBytes, _ := ioutil.ReadAll(res.Body)
+
+	var resp struct {
+		Version string
+	}
+	err = json.Unmarshal(resBytes, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Version != "m.o.c.k" {
+		t.Error("wrong version")
+	}
+}
+
+func TestIPFSProxyPin(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	cfg := testingConfig()
+	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
+		host,
+		port,
+		testCid))
+	if err != nil {
+		t.Fatal("should have succeeded: ", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Error("the request should have succeeded")
+	}
+	resBytes, _ := ioutil.ReadAll(res.Body)
+
+	var resp ipfsPinOpResp
+	err = json.Unmarshal(resBytes, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(resp.Pins) != 1 || resp.Pins[0] != testCid {
+		t.Error("wrong response")
+	}
+	res.Body.Close()
+
+	// Try with a bad cid
+	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
+		host,
+		port,
+		errorCid))
+	if err != nil {
+		t.Fatal("request should work: ", err)
+	}
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Error("the request should return with InternalServerError")
+	}
+
+	resBytes, _ = ioutil.ReadAll(res.Body)
+	var respErr ipfsError
+	err = json.Unmarshal(resBytes, &respErr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if respErr.Message != errBadCid.Error() {
+		t.Error("wrong response")
+	}
+	res.Body.Close()
+}
+
+func TestIPFSProxyUnpin(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	cfg := testingConfig()
+	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
+		host,
+		port,
+		testCid))
+	if err != nil {
+		t.Fatal("should have succeeded: ", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Error("the request should have succeeded")
+	}
+
+	resBytes, _ := ioutil.ReadAll(res.Body)
+
+	var resp ipfsPinOpResp
+	err = json.Unmarshal(resBytes, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(resp.Pins) != 1 || resp.Pins[0] != testCid {
+		t.Error("wrong response")
+	}
+	res.Body.Close()
+
+	// Try with a bad cid
+	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
+		host,
+		port,
+		errorCid))
+	if err != nil {
+		t.Fatal("request should work: ", err)
+	}
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Error("the request should return with InternalServerError")
+	}
+
+	resBytes, _ = ioutil.ReadAll(res.Body)
+	var respErr ipfsError
+	err = json.Unmarshal(resBytes, &respErr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if respErr.Message != errBadCid.Error() {
+		t.Error("wrong response")
+	}
+	res.Body.Close()
+}
+
+func TestIPFSProxyPinLs(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	cfg := testingConfig()
+	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/ls?arg=%s",
+		host,
+		port,
+		testCid))
+	if err != nil {
+		t.Fatal("should have succeeded: ", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Error("the request should have succeeded")
+	}
+
+	resBytes, _ := ioutil.ReadAll(res.Body)
+
+	var resp ipfsPinLsResp
+	err = json.Unmarshal(resBytes, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, ok := resp.Keys[testCid]
+	if len(resp.Keys) != 1 || !ok {
+		t.Error("wrong response")
+	}
+	res.Body.Close()
+
+	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/ls",
+		host,
+		port))
+	if err != nil {
+		t.Fatal("should have succeeded: ", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Error("the request should have succeeded")
+	}
+
+	resBytes, _ = ioutil.ReadAll(res.Body)
+	err = json.Unmarshal(resBytes, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(resp.Keys) != 3 {
+		t.Error("wrong response")
+	}
+	res.Body.Close()
 }
 
 func TestIPFSShutdown(t *testing.T) {

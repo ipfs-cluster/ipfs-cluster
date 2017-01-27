@@ -66,10 +66,16 @@ type ipfsError struct {
 	Message string
 }
 
-type pinLsResp struct {
-	Keys map[string]struct {
-		Type string
-	}
+type ipfsPinType struct {
+	Type string
+}
+
+type ipfsPinLsResp struct {
+	Keys map[string]ipfsPinType
+}
+
+type ipfsPinOpResp struct {
+	Pins []string
 }
 
 type ipfsIDResp struct {
@@ -123,8 +129,8 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	ipfs := &IPFSHTTPConnector{
 		ctx:       ctx,
-		nodeAddr:  cfg.IPFSProxyAddr,
-		proxyAddr: cfg.IPFSNodeAddr,
+		nodeAddr:  cfg.IPFSNodeAddr,
+		proxyAddr: cfg.IPFSProxyAddr,
 
 		destHost:   destHost,
 		destPort:   destPort,
@@ -137,9 +143,34 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	}
 
 	smux.HandleFunc("/", ipfs.handle)
+	ipfs.handlers["/api/v0/pin/add"] = ipfs.pinHandler
+	ipfs.handlers["/api/v0/pin/rm"] = ipfs.unpinHandler
+	ipfs.handlers["/api/v0/pin/ls"] = ipfs.pinLsHandler
 
 	ipfs.run()
 	return ipfs, nil
+}
+
+// set cancellable context. launch proxy
+func (ipfs *IPFSHTTPConnector) run() {
+	// This launches the proxy
+	ipfs.wg.Add(1)
+	go func() {
+		defer ipfs.wg.Done()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ipfs.ctx = ctx
+
+		<-ipfs.rpcReady
+
+		logger.Infof("IPFS Proxy: %s -> %s",
+			ipfs.proxyAddr,
+			ipfs.nodeAddr)
+		err := ipfs.server.Serve(ipfs.listener)
+		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+			logger.Error(err)
+		}
+	}()
 }
 
 // This will run a custom handler if we have one for a URL.Path, or
@@ -184,25 +215,100 @@ func (ipfs *IPFSHTTPConnector) defaultHandler(w http.ResponseWriter, r *http.Req
 	io.Copy(w, resp.Body)
 }
 
-func (ipfs *IPFSHTTPConnector) run() {
-	// This launches the proxy
-	ipfs.wg.Add(1)
-	go func() {
-		defer ipfs.wg.Done()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		ipfs.ctx = ctx
+func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
+	resp := ipfsError{errMsg}
+	respBytes, _ := json.Marshal(resp)
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write(respBytes)
+	return
+}
 
-		<-ipfs.rpcReady
+func (ipfs *IPFSHTTPConnector) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
+	argA := r.URL.Query()["arg"]
+	if len(argA) == 0 {
+		ipfsErrorResponder(w, "Error: bad argument")
+		return
+	}
+	arg := argA[0]
+	_, err := cid.Decode(arg)
+	if err != nil {
+		ipfsErrorResponder(w, "Error parsing CID: "+err.Error())
+		return
+	}
 
-		logger.Infof("IPFS Proxy: %s -> %s",
-			ipfs.proxyAddr,
-			ipfs.nodeAddr)
-		err := ipfs.server.Serve(ipfs.listener)
-		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
-			logger.Error(err)
+	err = ipfs.rpcClient.Call("",
+		"Cluster",
+		op,
+		&CidArg{arg},
+		&struct{}{})
+
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	resp := ipfsPinOpResp{
+		Pins: []string{arg},
+	}
+	respBytes, _ := json.Marshal(resp)
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBytes)
+	return
+}
+
+func (ipfs *IPFSHTTPConnector) pinHandler(w http.ResponseWriter, r *http.Request) {
+	ipfs.pinOpHandler("Pin", w, r)
+}
+
+func (ipfs *IPFSHTTPConnector) unpinHandler(w http.ResponseWriter, r *http.Request) {
+	ipfs.pinOpHandler("Unpin", w, r)
+}
+
+func (ipfs *IPFSHTTPConnector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
+	pinLs := ipfsPinLsResp{}
+	pinLs.Keys = make(map[string]ipfsPinType)
+
+	var pins []string
+	err := ipfs.rpcClient.Call("",
+		"Cluster",
+		"PinList",
+		struct{}{},
+		&pins)
+
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	for _, pin := range pins {
+		pinLs.Keys[pin] = ipfsPinType{
+			Type: "recursive",
 		}
-	}()
+	}
+
+	argA, ok := r.URL.Query()["arg"]
+	if ok {
+		if len(argA) == 0 {
+			ipfsErrorResponder(w, "Error: bad argument")
+			return
+		}
+		arg := argA[0]
+		singlePin, ok := pinLs.Keys[arg]
+		if ok {
+			pinLs.Keys = map[string]ipfsPinType{
+				arg: singlePin,
+			}
+		} else {
+			ipfsErrorResponder(w, fmt.Sprintf(
+				"Error: path '%s' is not pinned",
+				arg))
+			return
+		}
+	}
+
+	respBytes, _ := json.Marshal(pinLs)
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBytes)
 }
 
 // SetClient makes the component ready to perform RPC
@@ -337,7 +443,7 @@ func (ipfs *IPFSHTTPConnector) PinLs() (map[string]IPFSPinStatus, error) {
 		return nil, err
 	}
 
-	var resp pinLsResp
+	var resp ipfsPinLsResp
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		logger.Error("parsing pin/ls response")
@@ -368,7 +474,7 @@ func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (IPFSPinStatus, error) {
 		return IPFSPinStatusUnpinned, nil
 	}
 
-	var resp pinLsResp
+	var resp ipfsPinLsResp
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		logger.Error("parsing pin/ls?arg=cid response:")
