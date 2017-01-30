@@ -53,7 +53,7 @@ func NewMapPinTracker(cfg *Config) *MapPinTracker {
 		status:     make(map[string]PinInfo),
 		rpcReady:   make(chan struct{}, 1),
 		peerID:     cfg.ID,
-		shutdownCh: make(chan struct{}),
+		shutdownCh: make(chan struct{}, 1),
 	}
 	mpt.run()
 	return mpt
@@ -85,6 +85,7 @@ func (mpt *MapPinTracker) Shutdown() error {
 	}
 
 	logger.Info("stopping MapPinTracker")
+	close(mpt.rpcReady)
 	mpt.shutdownCh <- struct{}{}
 	mpt.wg.Wait()
 	mpt.shutdown = true

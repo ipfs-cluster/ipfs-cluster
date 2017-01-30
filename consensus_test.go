@@ -97,6 +97,7 @@ func testingConsensus(t *testing.T) *Consensus {
 		t.Fatal("cannot create Consensus:", err)
 	}
 	cc.SetClient(mockRPCClient(t))
+	<-cc.Ready()
 	return cc
 }
 

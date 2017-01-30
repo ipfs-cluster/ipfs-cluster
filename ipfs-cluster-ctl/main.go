@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,6 +14,8 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli"
 )
 
@@ -54,6 +57,10 @@ https://github.com/ipfs/ipfs-cluster.
 type errorResp struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+type peerAddBody struct {
+	Addr string `json:"peer_multiaddress"`
 }
 
 func out(m string, a ...interface{}) {
@@ -114,7 +121,7 @@ func main() {
 This command will print out information about the cluster peer used
 `,
 			Action: func(c *cli.Context) error {
-				resp := request("GET", "/id")
+				resp := request("GET", "/id", nil)
 				formatResponse(resp)
 				return nil
 			},
@@ -129,8 +136,55 @@ This command can be used to list and manage IPFS Cluster peers.
 				{
 					Name:  "ls",
 					Usage: "list the nodes participating in the IPFS Cluster",
+					UsageText: `
+This commands provides a list of the ID information of all the peers in the Cluster.
+`,
 					Action: func(c *cli.Context) error {
-						resp := request("GET", "/peers")
+						resp := request("GET", "/peers", nil)
+						formatResponse(resp)
+						return nil
+					},
+				},
+				{
+					Name:  "add",
+					Usage: "add a peer to the Cluster",
+					UsageText: `
+This command adds a new peer to the cluster. In order for the operation to
+succeed, the new peer needs to be reachable and any other member of the cluster
+should be online. The operation returns the ID information for the new peer.
+`,
+					ArgsUsage: "<multiaddress>",
+					Action: func(c *cli.Context) error {
+						addr := c.Args().First()
+						if addr == "" {
+							return cli.NewExitError("Error: a multiaddress argument is needed", 1)
+						}
+						_, err := ma.NewMultiaddr(addr)
+						checkErr("parsing multiaddress", err)
+						addBody := peerAddBody{addr}
+						var buf bytes.Buffer
+						enc := json.NewEncoder(&buf)
+						enc.Encode(addBody)
+						resp := request("POST", "/peers", &buf)
+						formatResponse(resp)
+						return nil
+					},
+				},
+				{
+					Name:  "rm",
+					Usage: "remove a peer from the Cluster",
+					UsageText: `
+This command removes a peer from the cluster. If the peer is online, it will
+automatically shut down. All other cluster peers should be online for the
+operation to succeed, otherwise some nodes may be left with an outdated list of
+cluster peers.
+`,
+					ArgsUsage: "<peer ID>",
+					Action: func(c *cli.Context) error {
+						pid := c.Args().First()
+						_, err := peer.IDB58Decode(pid)
+						checkErr("parsing peer ID", err)
+						resp := request("DELETE", "/peers/"+pid, nil)
 						formatResponse(resp)
 						return nil
 					},
@@ -161,9 +215,9 @@ in the cluster and should be part of the list offered by "pin ls".
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						request("POST", "/pins/"+cidStr)
+						request("POST", "/pins/"+cidStr, nil)
 						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/pins/"+cidStr)
+						resp := request("GET", "/pins/"+cidStr, nil)
 						formatResponse(resp)
 						return nil
 					},
@@ -184,9 +238,9 @@ although unpinning operations in the cluster may take longer or fail.
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						request("DELETE", "/pins/"+cidStr)
+						request("DELETE", "/pins/"+cidStr, nil)
 						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/pins/"+cidStr)
+						resp := request("GET", "/pins/"+cidStr, nil)
 						formatResponse(resp)
 						return nil
 					},
@@ -201,7 +255,7 @@ merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
 					Action: func(c *cli.Context) error {
-						resp := request("GET", "/pinlist")
+						resp := request("GET", "/pinlist", nil)
 						formatResponse(resp)
 						return nil
 					},
@@ -227,7 +281,7 @@ with "sync".
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
 				}
-				resp := request("GET", "/pins/"+cidStr)
+				resp := request("GET", "/pins/"+cidStr, nil)
 				formatResponse(resp)
 				return nil
 			},
@@ -254,9 +308,9 @@ CIDs in error state may be manually recovered with "recover".
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp = request("POST", "/pins/"+cidStr+"/sync")
+					resp = request("POST", "/pins/"+cidStr+"/sync", nil)
 				} else {
-					resp = request("POST", "/pins/sync")
+					resp = request("POST", "/pins/sync", nil)
 				}
 				formatResponse(resp)
 				return nil
@@ -279,7 +333,7 @@ of the item upon completion.
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp = request("POST", "/pins/"+cidStr+"/recover")
+					resp = request("POST", "/pins/"+cidStr+"/recover", nil)
 					formatResponse(resp)
 
 				} else {
@@ -296,7 +350,7 @@ This command retrieves the IPFS Cluster version and can be used
 to check that it matches the CLI version (shown by -v).
 `,
 			Action: func(c *cli.Context) error {
-				resp := request("GET", "/version")
+				resp := request("GET", "/version", nil)
 				formatResponse(resp)
 				return nil
 			},
@@ -306,7 +360,7 @@ to check that it matches the CLI version (shown by -v).
 	app.Run(os.Args)
 }
 
-func request(method, path string, args ...string) *http.Response {
+func request(method, path string, body io.Reader, args ...string) *http.Response {
 	ctx, cancel := context.WithTimeout(context.Background(),
 		time.Duration(defaultTimeout)*time.Second)
 	defer cancel()
@@ -321,7 +375,7 @@ func request(method, path string, args ...string) *http.Response {
 
 	logger.Debugf("%s: %s", method, u)
 
-	r, err := http.NewRequest(method, u, nil)
+	r, err := http.NewRequest(method, u, body)
 	checkErr("creating request", err)
 	r.WithContext(ctx)
 
@@ -345,6 +399,8 @@ func formatResponse(r *http.Response) {
 		out("Error %d: %s", e.Code, e.Message)
 	} else if r.StatusCode == http.StatusAccepted {
 		out("%s", "request accepted")
+	} else if r.StatusCode == http.StatusNoContent {
+		out("%s", "Request succeeded\n")
 	} else {
 		var resp interface{}
 		err = json.Unmarshal(body, &resp)

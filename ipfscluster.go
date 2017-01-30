@@ -11,39 +11,16 @@ package ipfscluster
 import (
 	"time"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-var logger = logging.Logger("cluster")
-
 // RPCProtocol is used to send libp2p messages between cluster peers
 var RPCProtocol = protocol.ID("/ipfscluster/" + Version + "/rpc")
-
-// SilentRaft controls whether all Raft log messages are discarded.
-var SilentRaft = true
-
-// SetLogLevel sets the level in the logs
-func SetLogLevel(l string) {
-	/*
-		CRITICAL Level = iota
-		ERROR
-		WARNING
-		NOTICE
-		INFO
-		DEBUG
-	*/
-	logging.SetLogLevel("cluster", l)
-	//logging.SetLogLevel("p2p-gorpc", l)
-	//logging.SetLogLevel("swarm2", l)
-	//logging.SetLogLevel("libp2p-raft", l)
-}
 
 // TrackerStatus values
 const (
@@ -163,7 +140,7 @@ type IPFSConnector interface {
 type Peered interface {
 	AddPeer(p peer.ID)
 	RmPeer(p peer.ID)
-	SetPeers(peers []peer.ID)
+	//SetPeers(peers []peer.ID)
 }
 
 // State represents the shared state of the cluster and it
@@ -215,19 +192,15 @@ type IPFSID struct {
 // IPFSIDSerial is the serializable IPFSID for RPC requests
 type IPFSIDSerial struct {
 	ID        string
-	Addresses [][]byte
+	Addresses MultiaddrsSerial
 	Error     string
 }
 
 // ToSerial converts IPFSID to a go serializable object
 func (id *IPFSID) ToSerial() IPFSIDSerial {
-	mAddrsB := make([][]byte, len(id.Addresses), len(id.Addresses))
-	for i, a := range id.Addresses {
-		mAddrsB[i] = a.Bytes()
-	}
 	return IPFSIDSerial{
 		ID:        peer.IDB58Encode(id.ID),
-		Addresses: mAddrsB,
+		Addresses: MultiaddrsToSerial(id.Addresses),
 		Error:     id.Error,
 	}
 }
@@ -239,12 +212,7 @@ func (ids *IPFSIDSerial) ToID() IPFSID {
 	if pID, err := peer.IDB58Decode(ids.ID); err == nil {
 		id.ID = pID
 	}
-	id.Addresses = make([]ma.Multiaddr, len(ids.Addresses), len(ids.Addresses))
-	for i, mAddrB := range ids.Addresses {
-		if mAddr, err := ma.NewMultiaddrBytes(mAddrB); err == nil {
-			id.Addresses[i] = mAddr
-		}
-	}
+	id.Addresses = ids.Addresses.ToMultiaddrs()
 	id.Error = ids.Error
 	return id
 }
@@ -254,6 +222,7 @@ type ID struct {
 	ID                 peer.ID
 	PublicKey          crypto.PubKey
 	Addresses          []ma.Multiaddr
+	ClusterPeers       []ma.Multiaddr
 	Version            string
 	Commit             string
 	RPCProtocolVersion protocol.ID
@@ -265,7 +234,8 @@ type ID struct {
 type IDSerial struct {
 	ID                 string
 	PublicKey          []byte
-	Addresses          [][]byte
+	Addresses          MultiaddrsSerial
+	ClusterPeers       MultiaddrsSerial
 	Version            string
 	Commit             string
 	RPCProtocolVersion string
@@ -275,15 +245,16 @@ type IDSerial struct {
 
 // ToSerial converts an ID to its Go-serializable version
 func (id ID) ToSerial() IDSerial {
-	mAddrsB := make([][]byte, len(id.Addresses), len(id.Addresses))
-	for i, a := range id.Addresses {
-		mAddrsB[i] = a.Bytes()
+	var pkey []byte
+	if id.PublicKey != nil {
+		pkey, _ = id.PublicKey.Bytes()
 	}
-	pkey, _ := id.PublicKey.Bytes()
+
 	return IDSerial{
 		ID:                 peer.IDB58Encode(id.ID),
 		PublicKey:          pkey,
-		Addresses:          mAddrsB,
+		Addresses:          MultiaddrsToSerial(id.Addresses),
+		ClusterPeers:       MultiaddrsToSerial(id.ClusterPeers),
 		Version:            id.Version,
 		Commit:             id.Commit,
 		RPCProtocolVersion: string(id.RPCProtocolVersion),
@@ -302,16 +273,50 @@ func (ids IDSerial) ToID() ID {
 	if pkey, err := crypto.UnmarshalPublicKey(ids.PublicKey); err == nil {
 		id.PublicKey = pkey
 	}
-	id.Addresses = make([]ma.Multiaddr, len(ids.Addresses), len(ids.Addresses))
-	for i, mAddrB := range ids.Addresses {
-		if mAddr, err := ma.NewMultiaddrBytes(mAddrB); err == nil {
-			id.Addresses[i] = mAddr
-		}
-	}
+
+	id.Addresses = ids.Addresses.ToMultiaddrs()
+	id.ClusterPeers = ids.ClusterPeers.ToMultiaddrs()
 	id.Version = ids.Version
 	id.Commit = ids.Commit
 	id.RPCProtocolVersion = protocol.ID(ids.RPCProtocolVersion)
 	id.Error = ids.Error
 	id.IPFS = ids.IPFS.ToID()
 	return id
+}
+
+// MultiaddrSerial is a Multiaddress in a serializable form
+type MultiaddrSerial []byte
+
+// MultiaddrsSerial is an array of Multiaddresses in serializable form
+type MultiaddrsSerial []MultiaddrSerial
+
+// MultiaddrToSerial converts a Multiaddress to its serializable form
+func MultiaddrToSerial(addr ma.Multiaddr) MultiaddrSerial {
+	return addr.Bytes()
+}
+
+// ToMultiaddr converts a serializable Multiaddress to its original type.
+// All errors are ignored.
+func (addrS MultiaddrSerial) ToMultiaddr() ma.Multiaddr {
+	a, _ := ma.NewMultiaddrBytes(addrS)
+	return a
+}
+
+// MultiaddrsToSerial converts a slice of Multiaddresses to its
+// serializable form.
+func MultiaddrsToSerial(addrs []ma.Multiaddr) MultiaddrsSerial {
+	addrsS := make([]MultiaddrSerial, len(addrs), len(addrs))
+	for i, a := range addrs {
+		addrsS[i] = MultiaddrToSerial(a)
+	}
+	return addrsS
+}
+
+// ToMultiaddrs converts MultiaddrsSerial back to a slice of Multiaddresses
+func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
+	addrs := make([]ma.Multiaddr, len(addrsS), len(addrsS))
+	for i, addrS := range addrsS {
+		addrs[i] = addrS.ToMultiaddr()
+	}
+	return addrs
 }

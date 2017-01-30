@@ -37,10 +37,13 @@ func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) 
 	//transport.OpenConns()
 
 	pstore := &libp2praft.Peerstore{}
-	hPeers := host.Peerstore().Peers()
-	strPeers := make([]string, 0, len(hPeers))
-	for _, p := range hPeers {
-		strPeers = append(strPeers, peer.IDB58Encode(p))
+	strPeers := []string{peer.IDB58Encode(host.ID())}
+	for _, addr := range cfg.ClusterPeers {
+		p, _, err := multiaddrSplit(addr)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		strPeers = append(strPeers, p.Pretty())
 	}
 	pstore.SetPeers(strPeers)
 
@@ -52,12 +55,11 @@ func makeLibp2pRaft(cfg *Config, host host.Host, state State, op *clusterLogOp) 
 		raftCfg = hashiraft.DefaultConfig()
 		raftCfg.EnableSingleNode = raftSingleMode
 	}
-	if SilentRaft {
-		raftCfg.LogOutput = ioutil.Discard
-		raftCfg.Logger = nil
-	}
+	raftCfg.LogOutput = ioutil.Discard
+	raftCfg.Logger = raftStdLogger
+
 	logger.Debug("creating file snapshot store")
-	snapshots, err := hashiraft.NewFileSnapshotStore(cfg.ConsensusDataFolder, maxSnapshots, nil)
+	snapshots, err := hashiraft.NewFileSnapshotStoreWithLogger(cfg.ConsensusDataFolder, maxSnapshots, raftStdLogger)
 	if err != nil {
 		logger.Error("creating file snapshot store: ", err)
 		return nil, nil, nil, err
