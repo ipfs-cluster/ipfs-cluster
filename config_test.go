@@ -11,10 +11,6 @@ func testingConfig() *Config {
 		APIListenMultiaddress:       "/ip4/127.0.0.1/tcp/10002",
 		IPFSProxyListenMultiaddress: "/ip4/127.0.0.1/tcp/10001",
 		ConsensusDataFolder:         "./raftFolderFromTests",
-		RaftConfig: &RaftConfig{
-			EnableSingleNode:        true,
-			SnapshotIntervalSeconds: 120,
-		},
 	}
 
 	cfg, _ := jcfg.ToConfig()

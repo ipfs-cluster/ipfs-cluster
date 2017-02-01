@@ -53,7 +53,10 @@ func TestClustersPeerAdd(t *testing.T) {
 	}
 
 	h, _ := cid.Decode(testCid)
-	clusters[1].Pin(h)
+	err := clusters[1].Pin(h)
+	if err != nil {
+		t.Fatal(err)
+	}
 	delay()
 
 	f := func(t *testing.T, c *Cluster) {
@@ -67,6 +70,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		// Check that they are part of the consensus
 		pins := c.Pins()
 		if len(pins) != 1 {
+			t.Log(pins)
 			t.Error("expected 1 pin everywhere")
 		}
 

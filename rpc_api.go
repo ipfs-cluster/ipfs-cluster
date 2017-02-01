@@ -297,7 +297,6 @@ func (api *RPCAPI) ConsensusLogUnpin(in *CidArg, out *struct{}) error {
 
 /*
    Peer Manager methods
-
 */
 
 // PeerManagerAddPeer runs peerManager.addPeer().

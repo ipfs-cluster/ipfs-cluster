@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sync"
-	"time"
 
-	hashiraft "github.com/hashicorp/raft"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -55,9 +53,6 @@ type Config struct {
 	// the Consensus component.
 	ConsensusDataFolder string
 
-	// Hashicorp's Raft configuration
-	RaftConfig *hashiraft.Config
-
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
 	path string
@@ -95,18 +90,6 @@ type JSONConfig struct {
 	// Storage folder for snapshots, log store etc. Used by
 	// the Consensus component.
 	ConsensusDataFolder string `json:"consensus_data_folder"`
-
-	// Raft configuration
-	RaftConfig *RaftConfig `json:"raft_config"`
-}
-
-// RaftConfig is a configuration section which affects the behaviour of
-// the Raft component. See https://godoc.org/github.com/hashicorp/raft#Config
-// for more information. Only the options below are customizable, the rest will
-// take the default values from raft.DefaultConfig().
-type RaftConfig struct {
-	SnapshotIntervalSeconds int  `json:"snapshot_interval_seconds"`
-	EnableSingleNode        bool `json:"enable_single_node"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -140,10 +123,6 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
-		RaftConfig: &RaftConfig{
-			SnapshotIntervalSeconds: int(cfg.RaftConfig.SnapshotInterval / time.Second),
-			EnableSingleNode:        cfg.RaftConfig.EnableSingleNode,
-		},
 	}
 	return
 }
@@ -201,14 +180,6 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		return
 	}
 
-	raftCfg := hashiraft.DefaultConfig()
-	raftCfg.DisableBootstrapAfterElect = false
-	raftCfg.ShutdownOnRemove = false
-	if jcfg.RaftConfig != nil {
-		raftCfg.SnapshotInterval = time.Duration(jcfg.RaftConfig.SnapshotIntervalSeconds) * time.Second
-		raftCfg.EnableSingleNode = jcfg.RaftConfig.EnableSingleNode
-	}
-
 	c = &Config{
 		ID:                  id,
 		PrivateKey:          pKey,
@@ -217,7 +188,6 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		APIAddr:             apiAddr,
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
-		RaftConfig:          raftCfg,
 		ConsensusDataFolder: jcfg.ConsensusDataFolder,
 	}
 	return
@@ -275,11 +245,6 @@ func NewDefaultConfig() (*Config, error) {
 		return nil, err
 	}
 
-	raftCfg := hashiraft.DefaultConfig()
-	raftCfg.DisableBootstrapAfterElect = false
-	raftCfg.EnableSingleNode = true
-	raftCfg.ShutdownOnRemove = false
-
 	clusterAddr, _ := ma.NewMultiaddr(DefaultClusterAddr)
 	apiAddr, _ := ma.NewMultiaddr(DefaultAPIAddr)
 	ipfsProxyAddr, _ := ma.NewMultiaddr(DefaultIPFSProxyAddr)
@@ -294,7 +259,6 @@ func NewDefaultConfig() (*Config, error) {
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: "ipfscluster-data",
-		RaftConfig:          raftCfg,
 	}, nil
 }
 

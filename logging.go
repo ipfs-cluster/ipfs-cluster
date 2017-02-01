@@ -25,6 +25,7 @@ func SetLogLevel(l string) {
 		DEBUG
 	*/
 	logging.SetLogLevel("cluster", l)
+	//logging.SetLogLevel("raft", l)
 	//logging.SetLogLevel("p2p-gorpc", l)
 	//logging.SetLogLevel("swarm2", l)
 	//logging.SetLogLevel("libp2p-raft", l)

@@ -100,7 +100,7 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	cluster.rpcClient = rpcClient
 
 	// Setup Consensus
-	consensus, err := NewConsensus(cfg, host, state)
+	consensus, err := NewConsensus(pm.peers(), host, cfg.ConsensusDataFolder, state)
 	if err != nil {
 		logger.Errorf("error creating consensus: %s", err)
 		cluster.Shutdown()
@@ -439,6 +439,7 @@ func (c *Cluster) Recover(h *cid.Cid) (GlobalPinInfo, error) {
 func (c *Cluster) Pins() []*cid.Cid {
 	cState, err := c.consensus.State()
 	if err != nil {
+		logger.Error(err)
 		return []*cid.Cid{}
 	}
 	return cState.ListPins()
