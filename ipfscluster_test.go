@@ -26,7 +26,7 @@ var (
 //TestClusters*
 var (
 	// number of clusters to create
-	nClusters = 3
+	nClusters = 6
 
 	// number of pins to pin/unpin/check
 	nPins = 500
@@ -70,12 +70,13 @@ func createComponents(t *testing.T, i int) (*Config, *RESTAPI, *IPFSHTTPConnecto
 	cfg, _ := NewDefaultConfig()
 	cfg.ID = pid
 	cfg.PrivateKey = priv
-	cfg.ClusterPeers = []ma.Multiaddr{}
+	cfg.Bootstrap = []ma.Multiaddr{}
 	cfg.ClusterAddr = clusterAddr
 	cfg.APIAddr = apiAddr
 	cfg.IPFSProxyAddr = proxyAddr
 	cfg.IPFSNodeAddr = nodeAddr
 	cfg.ConsensusDataFolder = "./e2eTestRaft/" + pid.Pretty()
+	cfg.LeaveOnShutdown = false
 
 	api, err := NewRESTAPI(cfg)
 	checkErr(t, err)
@@ -124,12 +125,24 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 			cfg.ID.Pretty()))
 		clusterPeers[i] = addr
 	}
+
+	// Set up the cluster using ClusterPeers
 	for i := 0; i < nClusters; i++ {
 		cfgs[i].ClusterPeers = make([]ma.Multiaddr, nClusters, nClusters)
 		for j := 0; j < nClusters; j++ {
 			cfgs[i].ClusterPeers[j] = clusterPeers[j]
 		}
 	}
+
+	// Alternative way of starting using bootstrap
+	// for i := 1; i < nClusters; i++ {
+	// 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
+	// 		clusterPort,
+	// 		cfgs[0].ID.Pretty()))
+
+	// 	// Use previous cluster  for bootstrapping
+	// 	cfgs[i].Bootstrap = []ma.Multiaddr{addr}
+	// }
 
 	var wg sync.WaitGroup
 	for i := 0; i < nClusters; i++ {
@@ -140,6 +153,12 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 		}(i)
 	}
 	wg.Wait()
+
+	// Yet an alternative way using PeerAdd
+	// for i := 1; i < nClusters; i++ {
+	// 	clusters[0].PeerAdd(clusterAddr(clusters[i]))
+	// }
+	delay()
 	return clusters, ipfsMocks
 }
 
@@ -168,7 +187,16 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 }
 
 func delay() {
-	time.Sleep(time.Duration(nClusters) * time.Second)
+	var d int
+	if nClusters > 10 {
+		d = 8
+
+	} else if nClusters > 5 {
+		d = 5
+	} else {
+		d = nClusters
+	}
+	time.Sleep(time.Duration(d) * time.Second)
 }
 
 func TestClustersVersion(t *testing.T) {

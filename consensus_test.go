@@ -12,7 +12,7 @@ import (
 
 func TestApplyToPin(t *testing.T) {
 	op := &clusterLogOp{
-		Cid:       testCid,
+		Arg:       testCid,
 		Type:      LogOpPin,
 		ctx:       context.Background(),
 		rpcClient: mockRPCClient(t),
@@ -28,7 +28,7 @@ func TestApplyToPin(t *testing.T) {
 
 func TestApplyToUnpin(t *testing.T) {
 	op := &clusterLogOp{
-		Cid:       testCid,
+		Arg:       testCid,
 		Type:      LogOpUnpin,
 		ctx:       context.Background(),
 		rpcClient: mockRPCClient(t),
@@ -52,7 +52,7 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &clusterLogOp{
-		Cid:       testCid,
+		Arg:       testCid,
 		Type:      LogOpUnpin,
 		ctx:       context.Background(),
 		rpcClient: mockRPCClient(t),
@@ -70,7 +70,7 @@ func TestApplyToBadCid(t *testing.T) {
 	}()
 
 	op := &clusterLogOp{
-		Cid:       "agadfaegf",
+		Arg:       "agadfaegf",
 		Type:      LogOpPin,
 		ctx:       context.Background(),
 		rpcClient: mockRPCClient(t),

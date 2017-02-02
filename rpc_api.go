@@ -1,8 +1,9 @@
 package ipfscluster
 
 import (
-	cid "github.com/ipfs/go-cid"
+	"errors"
 
+	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -109,6 +110,13 @@ func (api *RPCAPI) PeerAdd(in MultiaddrSerial, out *IDSerial) error {
 // PeerRemove runs Cluster.PeerRm().
 func (api *RPCAPI) PeerRemove(in peer.ID, out *struct{}) error {
 	return api.cluster.PeerRemove(in)
+}
+
+// Join runs Cluster.Join().
+func (api *RPCAPI) Join(in MultiaddrSerial, out *struct{}) error {
+	addr := in.ToMultiaddr()
+	err := api.cluster.Join(addr)
+	return err
 }
 
 // StatusAll runs Cluster.StatusAll().
@@ -295,32 +303,58 @@ func (api *RPCAPI) ConsensusLogUnpin(in *CidArg, out *struct{}) error {
 	return api.cluster.consensus.LogUnpin(c)
 }
 
+// ConsensusLogAddPeer runs Consensus.LogAddPeer().
+func (api *RPCAPI) ConsensusLogAddPeer(in MultiaddrSerial, out *struct{}) error {
+	addr := in.ToMultiaddr()
+	return api.cluster.consensus.LogAddPeer(addr)
+}
+
+// ConsensusLogRmPeer runs Consensus.LogRmPeer().
+func (api *RPCAPI) ConsensusLogRmPeer(in peer.ID, out *struct{}) error {
+	return api.cluster.consensus.LogRmPeer(in)
+}
+
 /*
    Peer Manager methods
 */
 
 // PeerManagerAddPeer runs peerManager.addPeer().
-func (api *RPCAPI) PeerManagerAddPeer(in MultiaddrSerial, out *peer.ID) error {
-	mAddr := in.ToMultiaddr()
-	p, err := api.cluster.peerManager.addPeer(mAddr)
-	*out = p
+func (api *RPCAPI) PeerManagerAddPeer(in MultiaddrSerial, out *struct{}) error {
+	addr := in.ToMultiaddr()
+	err := api.cluster.peerManager.addPeer(addr)
 	return err
-}
-
-// PeerManagerRmPeer runs peerManager.rmPeer().
-func (api *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
-	return api.cluster.peerManager.rmPeer(in)
 }
 
 // PeerManagerAddFromMultiaddrs runs peerManager.addFromMultiaddrs().
 func (api *RPCAPI) PeerManagerAddFromMultiaddrs(in MultiaddrsSerial, out *struct{}) error {
-	api.cluster.peerManager.addFromMultiaddrs(in.ToMultiaddrs())
-	return nil
+	addrs := in.ToMultiaddrs()
+	err := api.cluster.peerManager.addFromMultiaddrs(addrs)
+	return err
 }
 
-// PeerManagerPeers runs peerManager.peers().
-func (api *RPCAPI) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
-	peers := api.cluster.peerManager.peers()
-	*out = peers
+// PeerManagerRmPeerShutdown runs peerManager.rmPeer().
+func (api *RPCAPI) PeerManagerRmPeerShutdown(in peer.ID, out *struct{}) error {
+	return api.cluster.peerManager.rmPeer(in, true)
+}
+
+// PeerManagerRmPeer runs peerManager.rmPeer().
+func (api *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
+	return api.cluster.peerManager.rmPeer(in, false)
+}
+
+/*
+   Other
+*/
+
+// RemoteMultiaddrForPeer returns the multiaddr of a peer as seen by this peer.
+// This is necessary for a peer to figure out which of its multiaddresses the
+// peers are seeing (also when crossing NATs). It should be called from
+// the peer the IN parameter indicates.
+func (api *RPCAPI) RemoteMultiaddrForPeer(in peer.ID, out *MultiaddrSerial) error {
+	conns := api.cluster.host.Network().ConnsToPeer(in)
+	if len(conns) == 0 {
+		return errors.New("no connections to: " + in.Pretty())
+	}
+	*out = MultiaddrToSerial(multiaddrJoin(conns[0].RemoteMultiaddr(), in))
 	return nil
 }
