@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"sync"
 	"testing"
+	"time"
 
 	cid "github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
@@ -26,9 +27,8 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 }
 
 func clusterAddr(c *Cluster) ma.Multiaddr {
-	addr := c.config.ClusterAddr
-	pidAddr, _ := ma.NewMultiaddr("/ipfs/" + c.ID().ID.Pretty())
-	return addr.Encapsulate(pidAddr)
+	addr, _ := multiaddrJoin(c.config.ClusterAddr, c.ID().ID)
+	return addr
 }
 
 func TestClustersPeerAdd(t *testing.T) {
@@ -143,6 +143,7 @@ func TestClustersPeerRemove(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 
 	p := clusters[1].ID().ID
+	t.Logf("remove %s from %s", p.Pretty(), clusters[0].config.ClusterPeers)
 	err := clusters[0].PeerRemove(p)
 	if err != nil {
 		t.Error(err)
@@ -162,11 +163,60 @@ func TestClustersPeerRemove(t *testing.T) {
 			if len(ids) != nClusters-1 {
 				t.Error("should have removed 1 peer")
 			}
-			if len(c.config.ClusterPeers) != nClusters-2 {
+			if len(c.config.ClusterPeers) != nClusters-1 {
+				t.Log(c.config.ClusterPeers)
 				t.Error("should have removed peer from config")
 			}
 		}
 	}
 
+	runF(t, clusters, f)
+}
+
+func TestClusterPeerRemoveSelf(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	for i := 0; i < len(clusters); i++ {
+		err := clusters[i].PeerRemove(clusters[i].ID().ID)
+		if err != nil {
+			t.Error(err)
+		}
+		time.Sleep(time.Second)
+		_, more := <-clusters[i].Done()
+		if more {
+			t.Error("should be done")
+		}
+	}
+}
+
+func TestClustersPeerJoin(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	if len(clusters) < 3 {
+		t.Fatal("this test needs at least 3 clusters")
+	}
+
+	for i := 1; i < len(clusters); i++ {
+		err := clusters[i].Join(clusterAddr(clusters[0]))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	hash, _ := cid.Decode(testCid)
+	clusters[0].Pin(hash)
+	delay()
+
+	f := func(t *testing.T, c *Cluster) {
+		peers := c.Peers()
+		if len(peers) != nClusters {
+			t.Error("all peers should be connected")
+		}
+		pins := c.Pins()
+		if len(pins) != 1 || !pins[0].Equals(hash) {
+			t.Error("all peers should have pinned the cid")
+		}
+	}
 	runF(t, clusters, f)
 }

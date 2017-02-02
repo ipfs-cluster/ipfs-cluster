@@ -67,3 +67,11 @@ func multiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
 	}
 	return peerID, decapAddr, nil
 }
+
+func multiaddrJoin(addr ma.Multiaddr, p peer.ID) (ma.Multiaddr, error) {
+	pidAddr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(p))
+	if err != nil {
+		return nil, err
+	}
+	return addr.Encapsulate(pidAddr), nil
+}

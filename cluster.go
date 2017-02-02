@@ -120,7 +120,7 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 // Ready returns a channel which signals when this peer is
 // fully initialized (including consensus).
 func (c *Cluster) Ready() <-chan struct{} {
-	return c.consensus.readyCh
+	return c.readyCh
 }
 
 // Shutdown stops the IPFS cluster components
@@ -172,8 +172,8 @@ func (c *Cluster) ID() ID {
 	ipfsID, _ := c.ipfs.ID()
 	var addrs []ma.Multiaddr
 	for _, addr := range c.host.Addrs() {
-		ipfsAddr, _ := ma.NewMultiaddr("/ipfs/" + c.host.ID().Pretty())
-		addrs = append(addrs, addr.Encapsulate(ipfsAddr))
+		fullAddr, _ := multiaddrJoin(addr, c.host.ID())
+		addrs = append(addrs, fullAddr)
 	}
 
 	return ID{
@@ -201,6 +201,7 @@ func (c *Cluster) ID() ID {
 //
 // PeerAdd will fail if any of the peers is not reachable.
 func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
+	logger.Debugf("peerAdd called with %s", addr)
 	p, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
 		id := ID{
@@ -209,35 +210,15 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 		return id, err
 	}
 
-	// only add reachable nodes
-	err = c.host.Connect(c.ctx, peerstore.PeerInfo{
-		ID:    p,
-		Addrs: []ma.Multiaddr{decapAddr},
-	})
+	// Attempt connection and find which is the multiaddress
+	// we use to connect to that peer
+	localMAddr, err := c.getLocalMultiaddrTo(p, decapAddr)
 	if err != nil {
-		err = fmt.Errorf("Peer unreachable. Aborting operation: %s", err)
-		id := ID{
-			ID:    p,
-			Error: err.Error(),
-		}
 		logger.Error(err)
+		id := ID{ID: p, Error: err.Error()}
 		return id, err
 	}
-
-	// Find which local address we use to connect
-	conns := c.host.Network().ConnsToPeer(p)
-	if len(conns) == 0 {
-		err := errors.New("No connections to peer available")
-		logger.Error(err)
-		id := ID{
-			ID:    p,
-			Error: err.Error(),
-		}
-
-		return id, err
-	}
-	pidMAddr, _ := ma.NewMultiaddr("/ipfs/" + c.host.ID().Pretty())
-	localMAddr := conns[0].LocalMultiaddr().Encapsulate(pidMAddr)
+	logger.Debugf("local multiaddress to %s is %s", p, localMAddr)
 
 	// Let all peer managers know they need to add this peer
 	peers := c.peerManager.peers()
@@ -283,7 +264,6 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 	err = c.rpcClient.Call(
 		p, "Cluster", "ID", struct{}{}, &idSerial)
 
-	logger.Infof("peer %s has been added to the Cluster", addr)
 	return idSerial.ToID(), err
 }
 
@@ -293,6 +273,9 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 // remove all cluster peers from its configuration and
 // shut itself down.
 func (c *Cluster) PeerRemove(p peer.ID) error {
+	if !c.peerManager.isPeer(p) {
+		return fmt.Errorf("%s is not a peer", p.Pretty())
+	}
 	peers := c.peerManager.peers()
 	replies := make([]struct{}, len(peers), len(peers))
 	errs := c.multiRPC(peers, "Cluster", "PeerManagerRmPeer",
@@ -309,7 +292,30 @@ func (c *Cluster) PeerRemove(p peer.ID) error {
 	if errorMsgs != "" {
 		return errors.New(errorMsgs)
 	}
-	logger.Infof("peer %s has been removed from the Cluster", p.Pretty())
+	return nil
+}
+
+// Join adds this peer to an existing cluster by fetching the cluster members
+// from the given multiaddress.
+func (c *Cluster) Join(addr ma.Multiaddr) error {
+	pid, mAddr, err := multiaddrSplit(addr)
+	if err != nil {
+		return err
+	}
+
+	localMAddr, err := c.getLocalMultiaddrTo(pid, mAddr)
+	if err != nil {
+		return err
+	}
+	logger.Debugf("local multiaddress to %s is %s", pid, localMAddr)
+
+	var myIDSerial IDSerial
+	err = c.rpcClient.Call(pid,
+		"Cluster", "PeerAdd", MultiaddrToSerial(localMAddr), &myIDSerial)
+	if err != nil {
+		return err
+	}
+	logger.Infof("peer joined %s's cluster", pid.Pretty())
 	return nil
 }
 
@@ -522,7 +528,7 @@ func (c *Cluster) run() {
 			case <-c.shutdownCh:
 				return
 			case <-c.consensus.Ready():
-				close(c.readyCh)
+				c.readyCh <- struct{}{}
 				logger.Info("IPFS Cluster is ready")
 			}
 		}
@@ -692,4 +698,42 @@ func (c *Cluster) openConns() {
 		// ignore any errors here
 		c.host.Connect(c.ctx, peerInfo)
 	}
+}
+
+// connect to a peer ID.
+func (c *Cluster) connectToPeer(id peer.ID, addr ma.Multiaddr) error {
+	err := c.host.Connect(c.ctx, peerstore.PeerInfo{
+		ID:    id,
+		Addrs: []ma.Multiaddr{addr},
+	})
+	return err
+}
+
+// return the local multiaddresses used to communicate to a peer.
+func (c *Cluster) localMultiaddrsTo(pid peer.ID) []ma.Multiaddr {
+	var addrs []ma.Multiaddr
+	conns := c.host.Network().ConnsToPeer(pid)
+	logger.Debugf("conns to %s are: %s", pid, conns)
+	for _, conn := range conns {
+		addr, _ := multiaddrJoin(conn.LocalMultiaddr(), c.host.ID())
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
+func (c *Cluster) getLocalMultiaddrTo(id peer.ID, addr ma.Multiaddr) (ma.Multiaddr, error) {
+	addrs := c.host.Peerstore().Addrs(id)
+	if len(addrs) > 0 { // always trust the peerstore addresses first
+		lAddr, _ := multiaddrJoin(addrs[0], c.host.ID())
+		return lAddr, nil
+	}
+	err := c.connectToPeer(id, addr)
+	if err != nil {
+		return nil, err
+	}
+	lAddrs := c.localMultiaddrsTo(id)
+	if len(lAddrs) == 0 {
+		return nil, errors.New("No connections to peer exist")
+	}
+	return lAddrs[0], nil
 }
