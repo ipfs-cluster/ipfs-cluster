@@ -29,7 +29,28 @@ configured IPFS daemon.
 
 This node also provides an API for cluster management, an IPFS Proxy API which
 forwards requests to IPFS and a number of components for internal communication
-using LibP2P.
+using LibP2P. This is a simplified view of the components:
+
+             +------------------+
+             | ipfs-cluster-ctl |
+             +---------+--------+
+                       |
+                       | HTTP
+ipfs-cluster-service   |                           HTTP
++----------+--------+--v--+----------------------+      +-------------+
+| RPC/Raft | Peer 1 | API | IPFS Connector/Proxy +------> IPFS daemon |
++----^-----+--------+-----+----------------------+      +-------------+
+     | libp2p
+     |
++----v-----+--------+-----+----------------------+      +-------------+
+| RPC/Raft | Peer 2 | API | IPFS Connector/Proxy +------> IPFS daemon |
++----^-----+--------+-----+----------------------+      +-------------+
+     |
+     |
++----v-----+--------+-----+----------------------+      +-------------+
+| RPC/Raft | Peer 3 | API | IPFS Connector/Proxy +------> IPFS daemon |
++----------+--------+-----+----------------------+      +-------------+
+
 
 %s needs a valid configuration to run. This configuration is
 independent from IPFS and includes its own LibP2P key-pair. It can be
@@ -127,6 +148,11 @@ func main() {
 				return nil
 			},
 		},
+		{
+			Name:   "run",
+			Usage:  "run the IPFS Cluster peer (default)",
+			Action: run,
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
@@ -145,49 +171,51 @@ func main() {
 		return nil
 	}
 
-	app.Action = func(c *cli.Context) error {
-		if c.Bool("init") {
-			initConfig(c.Bool("force"))
-			return nil
-		}
-
-		cfg, err := loadConfig()
-		checkErr("loading configuration", err)
-
-		api, err := ipfscluster.NewRESTAPI(cfg)
-		checkErr("creating REST API component", err)
-
-		proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
-		checkErr("creating IPFS Connector component", err)
-
-		state := ipfscluster.NewMapState()
-		tracker := ipfscluster.NewMapPinTracker(cfg)
-		cluster, err := ipfscluster.NewCluster(
-			cfg,
-			api,
-			proxy,
-			state,
-			tracker)
-		checkErr("starting cluster", err)
-
-		signalChan := make(chan os.Signal)
-		signal.Notify(signalChan, os.Interrupt)
-
-		for {
-			select {
-			case <-signalChan:
-				err = cluster.Shutdown()
-				checkErr("shutting down cluster", err)
-				return nil
-			case <-cluster.Done():
-				return nil
-			case <-cluster.Ready():
-				logger.Info("IPFS Cluster is ready")
-			}
-		}
-	}
+	app.Action = run
 
 	app.Run(os.Args)
+}
+
+func run(c *cli.Context) error {
+	if c.Bool("init") {
+		initConfig(c.Bool("force"))
+		return nil
+	}
+
+	cfg, err := loadConfig()
+	checkErr("loading configuration", err)
+
+	api, err := ipfscluster.NewRESTAPI(cfg)
+	checkErr("creating REST API component", err)
+
+	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
+	checkErr("creating IPFS Connector component", err)
+
+	state := ipfscluster.NewMapState()
+	tracker := ipfscluster.NewMapPinTracker(cfg)
+	cluster, err := ipfscluster.NewCluster(
+		cfg,
+		api,
+		proxy,
+		state,
+		tracker)
+	checkErr("starting cluster", err)
+
+	signalChan := make(chan os.Signal)
+	signal.Notify(signalChan, os.Interrupt)
+
+	for {
+		select {
+		case <-signalChan:
+			err = cluster.Shutdown()
+			checkErr("shutting down cluster", err)
+			return nil
+		case <-cluster.Done():
+			return nil
+		case <-cluster.Ready():
+			logger.Info("IPFS Cluster is ready")
+		}
+	}
 }
 
 func setupLogging(lvl string) {
