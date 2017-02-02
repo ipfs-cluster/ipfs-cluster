@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -51,8 +52,8 @@ func makeGet(t *testing.T, path string, resp interface{}) {
 	processResp(t, httpResp, err, resp)
 }
 
-func makePost(t *testing.T, path string, resp interface{}) {
-	httpResp, err := http.Post(apiHost+path, "application/json", bytes.NewReader([]byte{}))
+func makePost(t *testing.T, path string, body []byte, resp interface{}) {
+	httpResp, err := http.Post(apiHost+path, "application/json", bytes.NewReader(body))
 	processResp(t, httpResp, err, resp)
 }
 
@@ -107,20 +108,57 @@ func TestRESTAPIPeerstEndpoint(t *testing.T) {
 	}
 }
 
+func TestRESTAPIPeerAddEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
+	defer api.Shutdown()
+
+	id := restIDResp{}
+	// post with valid body
+	body := fmt.Sprintf("{\"peer_multiaddress\":\"/ip4/1.2.3.4/tcp/1234/ipfs/%s\"}", testPeerID.Pretty())
+	t.Log(body)
+	makePost(t, "/peers", []byte(body), &id)
+
+	if id.ID != testPeerID.Pretty() {
+		t.Error("expected correct ID")
+	}
+	if id.Error != "" {
+		t.Error("did not expect an error")
+	}
+
+	// Send invalid body
+	errResp := errorResp{}
+	makePost(t, "/peers", []byte("oeoeoeoe"), &errResp)
+	if errResp.Code != 400 {
+		t.Error("expected error with bad body")
+	}
+	// Send invalid multiaddr
+	makePost(t, "/peers", []byte("{\"peer_multiaddress\": \"ab\"}"), &errResp)
+	if errResp.Code != 400 {
+		t.Error("expected error with bad multiaddress")
+	}
+}
+
+func TestRESTAPIPeerRemoveEndpoint(t *testing.T) {
+	api := testRESTAPI(t)
+	defer api.Shutdown()
+
+	makeDelete(t, "/peers/"+testPeerID.Pretty(), &struct{}{})
+}
+
 func TestRESTAPIPinEndpoint(t *testing.T) {
 	api := testRESTAPI(t)
 	defer api.Shutdown()
 
 	// test regular post
-	makePost(t, "/pins/"+testCid, &struct{}{})
+	makePost(t, "/pins/"+testCid, []byte{}, &struct{}{})
 
 	errResp := errorResp{}
-	makePost(t, "/pins/"+errorCid, &errResp)
+	makePost(t, "/pins/"+errorCid, []byte{}, &errResp)
 	if errResp.Message != errBadCid.Error() {
 		t.Error("expected different error: ", errResp.Message)
 	}
 
-	makePost(t, "/pins/abcd", &errResp)
+	makePost(t, "/pins/abcd", []byte{}, &errResp)
 	if errResp.Code != 400 {
 		t.Error("should fail with bad Cid")
 	}
@@ -195,7 +233,7 @@ func TestRESTAPISyncAllEndpoint(t *testing.T) {
 	defer api.Shutdown()
 
 	var resp statusResp
-	makePost(t, "/pins/sync", &resp)
+	makePost(t, "/pins/sync", []byte{}, &resp)
 
 	if len(resp) != 3 ||
 		resp[0].Cid != testCid1 ||
@@ -209,7 +247,7 @@ func TestRESTAPISyncEndpoint(t *testing.T) {
 	defer api.Shutdown()
 
 	var resp statusCidResp
-	makePost(t, "/pins/"+testCid+"/sync", &resp)
+	makePost(t, "/pins/"+testCid+"/sync", []byte{}, &resp)
 
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")
@@ -228,7 +266,7 @@ func TestRESTAPIRecoverEndpoint(t *testing.T) {
 	defer api.Shutdown()
 
 	var resp statusCidResp
-	makePost(t, "/pins/"+testCid+"/recover", &resp)
+	makePost(t, "/pins/"+testCid+"/recover", []byte{}, &resp)
 
 	if resp.Cid != testCid {
 		t.Error("expected the same cid")

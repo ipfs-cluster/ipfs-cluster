@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 func TestApplyToPin(t *testing.T) {
@@ -92,11 +93,12 @@ func testingConsensus(t *testing.T) *Consensus {
 		t.Fatal("cannot create host:", err)
 	}
 	st := NewMapState()
-	cc, err := NewConsensus(cfg, h, st)
+	cc, err := NewConsensus([]peer.ID{cfg.ID}, h, cfg.ConsensusDataFolder, st)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
 	cc.SetClient(mockRPCClient(t))
+	<-cc.Ready()
 	return cc
 }
 

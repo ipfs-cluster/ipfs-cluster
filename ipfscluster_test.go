@@ -56,68 +56,86 @@ func randomBytes() []byte {
 	return bs
 }
 
+func createComponents(t *testing.T, i int) (*Config, *RESTAPI, *IPFSHTTPConnector, *MapState, *MapPinTracker, *ipfsMock) {
+	mock := newIpfsMock()
+	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
+	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
+	proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
+	nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.addr, mock.port))
+	priv, pub, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
+	checkErr(t, err)
+	pid, err := peer.IDFromPublicKey(pub)
+	checkErr(t, err)
+
+	cfg, _ := NewDefaultConfig()
+	cfg.ID = pid
+	cfg.PrivateKey = priv
+	cfg.ClusterPeers = []ma.Multiaddr{}
+	cfg.ClusterAddr = clusterAddr
+	cfg.APIAddr = apiAddr
+	cfg.IPFSProxyAddr = proxyAddr
+	cfg.IPFSNodeAddr = nodeAddr
+	cfg.ConsensusDataFolder = "./e2eTestRaft/" + pid.Pretty()
+
+	api, err := NewRESTAPI(cfg)
+	checkErr(t, err)
+	ipfs, err := NewIPFSHTTPConnector(cfg)
+	checkErr(t, err)
+	state := NewMapState()
+	tracker := NewMapPinTracker(cfg)
+
+	return cfg, api, ipfs, state, tracker, mock
+}
+
+func createCluster(t *testing.T, cfg *Config, api *RESTAPI, ipfs *IPFSHTTPConnector, state *MapState, tracker *MapPinTracker) *Cluster {
+	cl, err := NewCluster(cfg, api, ipfs, state, tracker)
+	checkErr(t, err)
+	<-cl.Ready()
+	return cl
+}
+
+func createOnePeerCluster(t *testing.T, nth int) (*Cluster, *ipfsMock) {
+	cfg, api, ipfs, state, tracker, mock := createComponents(t, nth)
+	cl := createCluster(t, cfg, api, ipfs, state, tracker)
+	return cl, mock
+}
+
 func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 	os.RemoveAll("./e2eTestRaft")
-	ipfsMocks := make([]*ipfsMock, 0, nClusters)
-	clusters := make([]*Cluster, 0, nClusters)
-	cfgs := make([]*Config, 0, nClusters)
+	cfgs := make([]*Config, nClusters, nClusters)
+	apis := make([]*RESTAPI, nClusters, nClusters)
+	ipfss := make([]*IPFSHTTPConnector, nClusters, nClusters)
+	states := make([]*MapState, nClusters, nClusters)
+	trackers := make([]*MapPinTracker, nClusters, nClusters)
+	ipfsMocks := make([]*ipfsMock, nClusters, nClusters)
+	clusters := make([]*Cluster, nClusters, nClusters)
 
-	type peerInfo struct {
-		pid  peer.ID
-		priv crypto.PrivKey
-	}
-	peers := make([]peerInfo, 0, nClusters)
-	clusterpeers := make([]ma.Multiaddr, 0, nClusters)
-
-	// Generate keys and ids
+	clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
 	for i := 0; i < nClusters; i++ {
-		priv, pub, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
-		checkErr(t, err)
-		pid, err := peer.IDFromPublicKey(pub)
-		checkErr(t, err)
-		maddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
+		cfg, api, ipfs, state, tracker, mock := createComponents(t, i)
+		cfgs[i] = cfg
+		apis[i] = api
+		ipfss[i] = ipfs
+		states[i] = state
+		trackers[i] = tracker
+		ipfsMocks[i] = mock
+		addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
 			clusterPort+i,
-			pid.Pretty()))
-		peers = append(peers, peerInfo{pid, priv})
-		clusterpeers = append(clusterpeers, maddr)
-		//t.Log(ma)
+			cfg.ID.Pretty()))
+		clusterPeers[i] = addr
 	}
-
-	// Generate nClusters configs
 	for i := 0; i < nClusters; i++ {
-		mock := newIpfsMock()
-		ipfsMocks = append(ipfsMocks, mock)
-		clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
-		apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
-		proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
-		nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.addr, mock.port))
-
-		cfgs = append(cfgs, &Config{
-			ID:                  peers[i].pid,
-			PrivateKey:          peers[i].priv,
-			ClusterPeers:        clusterpeers,
-			ClusterAddr:         clusterAddr,
-			APIAddr:             apiAddr,
-			IPFSProxyAddr:       proxyAddr,
-			IPFSNodeAddr:        nodeAddr,
-			ConsensusDataFolder: "./e2eTestRaft/" + peers[i].pid.Pretty(),
-		})
+		cfgs[i].ClusterPeers = make([]ma.Multiaddr, nClusters, nClusters)
+		for j := 0; j < nClusters; j++ {
+			cfgs[i].ClusterPeers[j] = clusterPeers[j]
+		}
 	}
 
 	var wg sync.WaitGroup
 	for i := 0; i < nClusters; i++ {
 		wg.Add(1)
 		go func(i int) {
-			api, err := NewRESTAPI(cfgs[i])
-			checkErr(t, err)
-			ipfs, err := NewIPFSHTTPConnector(cfgs[i])
-			checkErr(t, err)
-			state := NewMapState()
-			tracker := NewMapPinTracker(cfgs[i])
-
-			cl, err := NewCluster(cfgs[i], api, ipfs, state, tracker)
-			checkErr(t, err)
-			clusters = append(clusters, cl)
+			clusters[i] = createCluster(t, cfgs[i], apis[i], ipfss[i], states[i], trackers[i])
 			wg.Done()
 		}(i)
 	}
@@ -548,4 +566,20 @@ func TestClustersRecover(t *testing.T) {
 			t.Error("the GlobalPinInfo should show Pinned in all peers")
 		}
 	}
+}
+
+func TestClustersShutdown(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	f := func(t *testing.T, c *Cluster) {
+		err := c.Shutdown()
+		if err != nil {
+			t.Error("should be able to shutdown cleanly")
+		}
+	}
+	// Shutdown 3 times
+	runF(t, clusters, f)
+	runF(t, clusters, f)
+	runF(t, clusters, f)
 }

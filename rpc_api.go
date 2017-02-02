@@ -1,6 +1,10 @@
 package ipfscluster
 
-import cid "github.com/ipfs/go-cid"
+import (
+	cid "github.com/ipfs/go-cid"
+
+	peer "github.com/libp2p/go-libp2p-peer"
+)
 
 // RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster
 // API, which enables components and cluster peers to communicate and
@@ -92,6 +96,19 @@ func (api *RPCAPI) Peers(in struct{}, out *[]IDSerial) error {
 	}
 	*out = sPeers
 	return nil
+}
+
+// PeerAdd runs Cluster.PeerAdd().
+func (api *RPCAPI) PeerAdd(in MultiaddrSerial, out *IDSerial) error {
+	addr := in.ToMultiaddr()
+	id, err := api.cluster.PeerAdd(addr)
+	*out = id.ToSerial()
+	return err
+}
+
+// PeerRemove runs Cluster.PeerRm().
+func (api *RPCAPI) PeerRemove(in peer.ID, out *struct{}) error {
+	return api.cluster.PeerRemove(in)
 }
 
 // StatusAll runs Cluster.StatusAll().
@@ -276,4 +293,34 @@ func (api *RPCAPI) ConsensusLogUnpin(in *CidArg, out *struct{}) error {
 		return err
 	}
 	return api.cluster.consensus.LogUnpin(c)
+}
+
+/*
+   Peer Manager methods
+*/
+
+// PeerManagerAddPeer runs peerManager.addPeer().
+func (api *RPCAPI) PeerManagerAddPeer(in MultiaddrSerial, out *peer.ID) error {
+	mAddr := in.ToMultiaddr()
+	p, err := api.cluster.peerManager.addPeer(mAddr)
+	*out = p
+	return err
+}
+
+// PeerManagerRmPeer runs peerManager.rmPeer().
+func (api *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
+	return api.cluster.peerManager.rmPeer(in)
+}
+
+// PeerManagerAddFromMultiaddrs runs peerManager.addFromMultiaddrs().
+func (api *RPCAPI) PeerManagerAddFromMultiaddrs(in MultiaddrsSerial, out *struct{}) error {
+	api.cluster.peerManager.addFromMultiaddrs(in.ToMultiaddrs())
+	return nil
+}
+
+// PeerManagerPeers runs peerManager.peers().
+func (api *RPCAPI) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
+	peers := api.cluster.peerManager.peers()
+	*out = peers
+	return nil
 }

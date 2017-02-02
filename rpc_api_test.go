@@ -72,6 +72,17 @@ func (mock *mockService) Peers(in struct{}, out *[]IDSerial) error {
 	return nil
 }
 
+func (mock *mockService) PeerAdd(in MultiaddrSerial, out *IDSerial) error {
+	id := IDSerial{}
+	mock.ID(struct{}{}, &id)
+	*out = id
+	return nil
+}
+
+func (mock *mockService) PeerRemove(in peer.ID, out *struct{}) error {
+	return nil
+}
+
 func (mock *mockService) StatusAll(in struct{}, out *[]GlobalPinInfo) error {
 	c1, _ := cid.Decode(testCid1)
 	c2, _ := cid.Decode(testCid2)

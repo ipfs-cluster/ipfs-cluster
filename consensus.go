@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
 
@@ -13,11 +12,6 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
-)
-
-const (
-	maxSnapshots   = 5
-	raftSingleMode = true
 )
 
 // Type of pin operation
@@ -101,16 +95,16 @@ ROLLBACK:
 type Consensus struct {
 	ctx context.Context
 
-	cfg  *Config
 	host host.Host
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
 	baseOp    *clusterLogOp
-	p2pRaft   *libp2pRaftWrap
+	raft      *Raft
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
+	readyCh   chan struct{}
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -121,52 +115,38 @@ type Consensus struct {
 // NewConsensus builds a new ClusterConsensus component. The state
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
-func NewConsensus(cfg *Config, host host.Host, state State) (*Consensus, error) {
+func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, state State) (*Consensus, error) {
 	ctx := context.Background()
 	op := &clusterLogOp{
 		ctx: context.Background(),
 	}
 
-	cc := &Consensus{
-		ctx:        ctx,
-		cfg:        cfg,
-		host:       host,
-		baseOp:     op,
-		shutdownCh: make(chan struct{}),
-		rpcReady:   make(chan struct{}, 1),
-	}
-
-	logger.Infof("starting Consensus: waiting %d seconds for leader...", LeaderTimeout/time.Second)
-	con, actor, wrapper, err := makeLibp2pRaft(cc.cfg,
-		cc.host, state, cc.baseOp)
+	logger.Infof("starting Consensus and waiting for a leader...")
+	consensus := libp2praft.NewOpLog(state, op)
+	raft, err := NewRaft(clusterPeers, host, dataFolder, consensus.FSM())
 	if err != nil {
 		return nil, err
 	}
-	con.SetActor(actor)
-	cc.actor = actor
-	cc.consensus = con
-	cc.p2pRaft = wrapper
+	actor := libp2praft.NewActor(raft.raft)
+	consensus.SetActor(actor)
 
-	// Wait for a leader
-	start := time.Now()
-	leader := peer.ID("")
-	for time.Since(start) < LeaderTimeout {
-		time.Sleep(500 * time.Millisecond)
-		leader, err = cc.Leader()
-		if err == nil {
-			break
-		}
-	}
-	if leader == "" {
-		return nil, errors.New("no leader was found after timeout")
+	cc := &Consensus{
+		ctx:        ctx,
+		host:       host,
+		consensus:  consensus,
+		actor:      actor,
+		baseOp:     op,
+		raft:       raft,
+		shutdownCh: make(chan struct{}, 1),
+		rpcReady:   make(chan struct{}, 1),
+		readyCh:    make(chan struct{}, 1),
 	}
 
-	logger.Infof("Consensus leader found (%s). Syncing state...", leader.Pretty())
-	cc.run(state)
+	cc.run()
 	return cc, nil
 }
 
-func (cc *Consensus) run(state State) {
+func (cc *Consensus) run() {
 	cc.wg.Add(1)
 	go func() {
 		defer cc.wg.Done()
@@ -175,49 +155,66 @@ func (cc *Consensus) run(state State) {
 		cc.ctx = ctx
 		cc.baseOp.ctx = ctx
 
-		upToDate := make(chan struct{})
 		go func() {
-			logger.Debug("consensus state is catching up")
-			time.Sleep(time.Second)
-			for {
-				lai := cc.p2pRaft.raft.AppliedIndex()
-				li := cc.p2pRaft.raft.LastIndex()
-				logger.Debugf("current Raft index: %d/%d",
-					lai, li)
-				if lai == li {
-					upToDate <- struct{}{}
-					break
-				}
-				time.Sleep(500 * time.Millisecond)
-			}
+			cc.finishBootstrap()
 		}()
-
-		<-upToDate
-		logger.Info("Consensus state is up to date")
-
-		// While rpc is not ready we cannot perform a sync
-		<-cc.rpcReady
-
-		var pInfo []PinInfo
-
-		_, err := cc.State()
-		// only check sync if we have a state
-		// avoid error on new running clusters
-		if err != nil {
-			logger.Debug("skipping state sync: ", err)
-		} else {
-			cc.rpcClient.Go(
-				"",
-				"Cluster",
-				"StateSync",
-				struct{}{},
-				&pInfo,
-				nil)
-		}
-		logger.Infof("IPFS Cluster is running")
 		<-cc.shutdownCh
 	}()
 }
+
+// waits until there is a consensus leader and syncs the state
+// to the tracker
+func (cc *Consensus) finishBootstrap() {
+	cc.raft.WaitForLeader(cc.ctx)
+	cc.raft.WaitForUpdates(cc.ctx)
+	logger.Info("Consensus state is up to date")
+
+	// While rpc is not ready we cannot perform a sync
+	select {
+	case <-cc.ctx.Done():
+		return
+	case <-cc.rpcReady:
+	}
+
+	var pInfo []PinInfo
+
+	_, err := cc.State()
+	// only check sync if we have a state
+	// avoid error on new running clusters
+	if err != nil {
+		logger.Debug("skipping state sync: ", err)
+	} else {
+		cc.rpcClient.Go(
+			"",
+			"Cluster",
+			"StateSync",
+			struct{}{},
+			&pInfo,
+			nil)
+	}
+	cc.readyCh <- struct{}{}
+	logger.Debug("consensus ready") // not accurate if we are shutting down
+}
+
+// // raft stores peer add/rm operations. This is how to force a peer set.
+// func (cc *Consensus) setPeers() {
+// 	logger.Debug("forcefully setting Raft peers to known set")
+// 	var peersStr []string
+// 	var peers []peer.ID
+// 	err := cc.rpcClient.Call("",
+// 		"Cluster",
+// 		"PeerManagerPeers",
+// 		struct{}{},
+// 		&peers)
+// 	if err != nil {
+// 		logger.Error(err)
+// 		return
+// 	}
+// 	for _, p := range peers {
+// 		peersStr = append(peersStr, p.Pretty())
+// 	}
+// 	cc.p2pRaft.raft.SetPeers(peersStr)
+// }
 
 // Shutdown stops the component so it will not process any
 // more updates. The underlying consensus is permanently
@@ -238,25 +235,13 @@ func (cc *Consensus) Shutdown() error {
 
 	// Raft shutdown
 	errMsgs := ""
-
-	f := cc.p2pRaft.raft.Snapshot()
-	err := f.Error()
-	if err != nil && !strings.Contains(err.Error(), "Nothing new to snapshot") {
-		errMsgs += "could not take snapshot: " + err.Error() + ".\n"
-	}
-	f = cc.p2pRaft.raft.Shutdown()
-	err = f.Error()
+	err := cc.raft.Snapshot()
 	if err != nil {
-		errMsgs += "could not shutdown raft: " + err.Error() + ".\n"
+		errMsgs += err.Error()
 	}
-	// BUG(hector): See go-libp2p-raft#16
-	// err = cc.p2pRaft.transport.Close()
-	// if err != nil {
-	// 	errMsgs += "could not close libp2p transport: " + err.Error() + ".\n"
-	// }
-	err = cc.p2pRaft.boltdb.Close() // important!
+	err = cc.raft.Shutdown()
 	if err != nil {
-		errMsgs += "could not close boltdb: " + err.Error() + ".\n"
+		errMsgs += err.Error()
 	}
 
 	if errMsgs != "" {
@@ -276,6 +261,12 @@ func (cc *Consensus) SetClient(c *rpc.Client) {
 	cc.rpcReady <- struct{}{}
 }
 
+// Ready returns a channel which is signaled when the Consensus
+// algorithm has finished bootstrapping and is ready to use
+func (cc *Consensus) Ready() <-chan struct{} {
+	return cc.readyCh
+}
+
 func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 	return &clusterLogOp{
 		Cid:  c.String(),
@@ -284,27 +275,28 @@ func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 }
 
 // returns true if the operation was redirected to the leader
-func (cc *Consensus) redirectToLeader(method string, c *cid.Cid) (bool, error) {
+func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, error) {
 	leader, err := cc.Leader()
 	if err != nil {
 		return false, err
 	}
-	if leader != cc.host.ID() {
-		err = cc.rpcClient.Call(
-			leader,
-			"Cluster",
-			method,
-			NewCidArg(c),
-			&struct{}{})
-		return true, err
+	if leader == cc.host.ID() {
+		return false, nil
 	}
-	return false, nil
+
+	err = cc.rpcClient.Call(
+		leader,
+		"Cluster",
+		method,
+		arg,
+		&struct{}{})
+	return true, err
 }
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
 func (cc *Consensus) LogPin(c *cid.Cid) error {
-	redirected, err := cc.redirectToLeader("ConsensusLogPin", c)
+	redirected, err := cc.redirectToLeader("ConsensusLogPin", NewCidArg(c))
 	if err != nil || redirected {
 		return err
 	}
@@ -324,7 +316,7 @@ func (cc *Consensus) LogPin(c *cid.Cid) error {
 
 // LogUnpin removes a Cid from the shared state of the cluster.
 func (cc *Consensus) LogUnpin(c *cid.Cid) error {
-	redirected, err := cc.redirectToLeader("ConsensusLogUnpin", c)
+	redirected, err := cc.redirectToLeader("ConsensusLogUnpin", NewCidArg(c))
 	if err != nil || redirected {
 		return err
 	}
@@ -339,6 +331,26 @@ func (cc *Consensus) LogUnpin(c *cid.Cid) error {
 	}
 	logger.Infof("unpin committed to global state: %s", c)
 	return nil
+}
+
+// AddPeer attempts to add a peer to the consensus.
+func (cc *Consensus) AddPeer(p peer.ID) error {
+	//redirected, err := cc.redirectToLeader("ConsensusAddPeer", p)
+	//if err != nil || redirected {
+	//		return err
+	//	}
+
+	return cc.raft.AddPeer(peer.IDB58Encode(p))
+}
+
+// RemovePeer attempts to remove a peer from the consensus.
+func (cc *Consensus) RemovePeer(p peer.ID) error {
+	//redirected, err := cc.redirectToLeader("ConsensusRemovePeer", p)
+	//if err != nil || redirected {
+	//	return err
+	//}
+
+	return cc.raft.RemovePeer(peer.IDB58Encode(p))
 }
 
 // State retrieves the current consensus State. It may error
@@ -360,7 +372,6 @@ func (cc *Consensus) State() (State, error) {
 // Leader returns the peerID of the Leader of the
 // cluster. It returns an error when there is no leader.
 func (cc *Consensus) Leader() (peer.ID, error) {
-	// FIXME: Hashicorp Raft specific
 	raftactor := cc.actor.(*libp2praft.Actor)
 	return raftactor.Leader()
 }

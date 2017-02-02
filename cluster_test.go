@@ -85,6 +85,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *MapState
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
+	<-cl.Ready()
 	return cl, api, ipfs, st, tracker
 }
 

@@ -33,7 +33,7 @@ using LibP2P.
 
 %s needs a valid configuration to run. This configuration is
 independent from IPFS and includes its own LibP2P key-pair. It can be
-initialized with --init and its default location is
+initialized with "init" and its default location is
  ~/%s/%s.
 
 For feedback, bug reports or any additional information, visit
@@ -43,6 +43,8 @@ https://github.com/ipfs/ipfs-cluster.
 	programName,
 	DefaultPath,
 	DefaultConfigFile)
+
+var logger = logging.Logger("service")
 
 // Default location for the configurations and data
 var (
@@ -84,10 +86,6 @@ func checkErr(doing string, err error) {
 }
 
 func main() {
-	// Catch SIGINT as a way to exit
-	signalChan := make(chan os.Signal)
-	signal.Notify(signalChan, os.Interrupt)
-
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "IPFS Cluster node"
@@ -95,8 +93,9 @@ func main() {
 	app.Version = ipfscluster.Version
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
-			Name:  "init",
-			Usage: "create a default configuration and exit",
+			Name:   "init",
+			Usage:  "create a default configuration and exit",
+			Hidden: true,
 		},
 		cli.StringFlag{
 			Name:   "config, c",
@@ -106,7 +105,7 @@ func main() {
 		},
 		cli.BoolFlag{
 			Name:  "force, f",
-			Usage: "force configuration overwrite when running --init",
+			Usage: "force configuration overwrite when running 'init'",
 		},
 		cli.BoolFlag{
 			Name:  "debug, d",
@@ -171,26 +170,38 @@ func main() {
 			tracker)
 		checkErr("starting cluster", err)
 
-		// Wait until we are told to exit by a signal
-		<-signalChan
-		err = cluster.Shutdown()
-		checkErr("shutting down cluster", err)
-		return nil
+		signalChan := make(chan os.Signal)
+		signal.Notify(signalChan, os.Interrupt)
+
+		for {
+			select {
+			case <-signalChan:
+				err = cluster.Shutdown()
+				checkErr("shutting down cluster", err)
+				return nil
+			case <-cluster.Done():
+				return nil
+			case <-cluster.Ready():
+				logger.Info("IPFS Cluster is ready")
+			}
+		}
 	}
 
 	app.Run(os.Args)
 }
 
 func setupLogging(lvl string) {
+	logging.SetLogLevel("service", lvl)
 	logging.SetLogLevel("cluster", lvl)
+	//logging.SetLogLevel("raft", lvl)
 }
 
 func setupDebug() {
 	logging.SetLogLevel("cluster", "debug")
-	logging.SetLogLevel("libp2p-raft", "debug")
+	//logging.SetLogLevel("libp2p-raft", "debug")
 	logging.SetLogLevel("p2p-gorpc", "debug")
 	//logging.SetLogLevel("swarm2", "debug")
-	ipfscluster.SilentRaft = false
+	logging.SetLogLevel("raft", "debug")
 }
 
 func initConfig(force bool) {
@@ -201,7 +212,7 @@ func initConfig(force bool) {
 	cfg, err := ipfscluster.NewDefaultConfig()
 	checkErr("creating default configuration", err)
 	cfg.ConsensusDataFolder = dataPath
-	err = os.MkdirAll(DefaultPath, 0700)
+	err = os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.Save(configPath)
 	checkErr("saving new configuration", err)
 	out("%s configuration written to %s\n",

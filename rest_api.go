@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
+	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
-
-	mux "github.com/gorilla/mux"
 )
 
 // Server settings
@@ -54,6 +54,10 @@ type route struct {
 	Method      string
 	Pattern     string
 	HandlerFunc http.HandlerFunc
+}
+
+type peerAddBody struct {
+	PeerMultiaddr string `json:"peer_multiaddress"`
 }
 
 type errorResp struct {
@@ -110,6 +114,7 @@ type restIDResp struct {
 	ID                 string          `json:"id"`
 	PublicKey          string          `json:"public_key"`
 	Addresses          []string        `json:"addresses"`
+	ClusterPeers       []string        `json:"cluster_peers"`
 	Version            string          `json:"version"`
 	Commit             string          `json:"commit"`
 	RPCProtocolVersion string          `json:"rpc_protocol_version"`
@@ -129,10 +134,15 @@ func newRestIDResp(id ID) *restIDResp {
 	for i, a := range id.Addresses {
 		addrs[i] = a.String()
 	}
+	peers := make([]string, len(id.ClusterPeers), len(id.ClusterPeers))
+	for i, a := range id.ClusterPeers {
+		peers[i] = a.String()
+	}
 	return &restIDResp{
 		ID:                 id.ID.Pretty(),
 		PublicKey:          pubKey,
 		Addresses:          addrs,
+		ClusterPeers:       peers,
 		Version:            id.Version,
 		Commit:             id.Commit,
 		RPCProtocolVersion: string(id.RPCProtocolVersion),
@@ -220,6 +230,18 @@ func (api *RESTAPI) routes() []route {
 			"GET",
 			"/peers",
 			api.peerListHandler,
+		},
+		{
+			"PeerAdd",
+			"POST",
+			"/peers",
+			api.peerAddHandler,
+		},
+		{
+			"PeerRemove",
+			"DELETE",
+			"/peers/{peer}",
+			api.peerRemoveHandler,
 		},
 
 		{
@@ -329,8 +351,7 @@ func (api *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&idSerial)
 	if checkRPCErr(w, err) {
-		id := idSerial.ToID()
-		resp := newRestIDResp(id)
+		resp := newRestIDResp(idSerial.ToID())
 		sendJSONResponse(w, 200, resp)
 	}
 }
@@ -363,6 +384,48 @@ func (api *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
 			resp = append(resp, newRestIDResp(p))
 		}
 		sendJSONResponse(w, 200, resp)
+	}
+}
+
+func (api *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
+	dec := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+
+	var addInfo peerAddBody
+	err := dec.Decode(&addInfo)
+	if err != nil {
+		sendErrorResponse(w, 400, "error decoding request body")
+		return
+	}
+
+	mAddr, err := ma.NewMultiaddr(addInfo.PeerMultiaddr)
+	if err != nil {
+		sendErrorResponse(w, 400, "error decoding peer_multiaddress")
+		return
+	}
+
+	var ids IDSerial
+	err = api.rpcClient.Call("",
+		"Cluster",
+		"PeerAdd",
+		MultiaddrToSerial(mAddr),
+		&ids)
+	if checkRPCErr(w, err) {
+		resp := newRestIDResp(ids.ToID())
+		sendJSONResponse(w, 200, resp)
+	}
+}
+
+func (api *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
+	if p := parsePidOrError(w, r); p != "" {
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"PeerRemove",
+			p,
+			&struct{}{})
+		if checkRPCErr(w, err) {
+			sendEmptyResponse(w)
+		}
 	}
 }
 
@@ -480,6 +543,17 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) *CidArg {
 		return nil
 	}
 	return &CidArg{hash}
+}
+
+func parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {
+	vars := mux.Vars(r)
+	idStr := vars["peer"]
+	pid, err := peer.IDB58Decode(idStr)
+	if err != nil {
+		sendErrorResponse(w, 400, "error decoding Peer ID: "+err.Error())
+		return ""
+	}
+	return pid
 }
 
 // checkRPCErr takes care of returning standard error responses if we

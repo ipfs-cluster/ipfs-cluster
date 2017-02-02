@@ -33,6 +33,9 @@ Current functionality only allows pinning in all cluster peers, but more strateg
 - [Maintainers and roadmap](#maintainers-and-roadmap)
 - [Install](#install)
 - [Usage](#usage)
+  - [`ipfs-cluster-service`](#ipfs-cluster-service)
+  - [`ipfs-cluster-ctl`](#ipfs-cluster-ctl)
+  - [Quick start: Building and updating an IPFS Cluster](#quick-start-building-and-updating-an-ipfs-cluster)
 - [API](#api)
 - [Contribute](#contribute)
 - [License](#license)
@@ -87,21 +90,17 @@ You can add the multiaddresses for the other cluster peers the `cluster_peers` v
     "cluster_peers" : [
           "/ip4/192.168.1.2/tcp/9096/ipfs/QmcQ5XvrSQ4DouNkQyQtEoLczbMr6D9bSenGy6WQUCQUBt",
           "/ip4/192.168.1.3/tcp/9096/ipfs/QmdFBMf9HMDH3eCWrc1U11YCPenC3Uvy9mZQ2BedTyKTDf",
-          "/ip4/192.168.1.4/tcp/9096/ipfs/QmYY1ggjoew5eFrvkenTR3F4uWqtkBkmgfJk8g9Qqcwy51",
-          "/ip4/192.168.1.5/tcp/9096/ipfs/QmSGCzHkz8gC9fNndMtaCZdf9RFtwtbTEEsGo4zkVfcykD"
+          "/ip4/192.168.1.4/tcp/9096/ipfs/QmYY1ggjoew5eFrvkenTR3F4uWqtkBkmgfJk8g9Qqcwy51"
           ],
     "cluster_multiaddress": "/ip4/0.0.0.0/tcp/9096",
     "api_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
     "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
     "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-    "consensus_data_folder": "/home/user/.ipfs-cluster/data",
-    "raft_config": {
-        "snapshot_interval_seconds": 120,
-        "enable_single_node": true
-    }
+    "consensus_data_folder": "/home/user/.ipfs-cluster/data"
+}
 ```
 
-The configuration file should probably be identical among all cluster peers, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` may include its own address, but it does not have to. For additional information about the configuration format, see the [JSONConfig documentation](https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig).
+The configuration file should probably be identical among all cluster peers, except for the `id` and `private_key` fields. To facilitate configuration, `cluster_peers` may include its own address, but it will be removed on boot. For additional information about the configuration format, see the [JSONConfig documentation](https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig).
 
 Once every cluster peer has the configuration in place, you can run `ipfs-cluster-service` to start the cluster.
 
@@ -124,6 +123,8 @@ In summary, it works as follows:
 ```
 $ ipfs-cluster-ctl id                                                       # show cluster peer and ipfs daemon information
 $ ipfs-cluster-ctl peers ls                                                 # list cluster peers
+$ ipfs-cluster-ctl peers add /ip4/1.2.3.4/tcp/1234/<peerid>                 # add a new cluster peer
+$ ipfs-cluster-ctl peers rm <peerid>                                        # remove a cluster peer
 $ ipfs-cluster-ctl pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a CID in the cluster
 $ ipfs-cluster-ctl pin rm Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58    # unpins a CID from the cluster
 $ ipfs-cluster-ctl status                                                   # display tracked CIDs information
@@ -134,6 +135,107 @@ $ ipfs-cluster-ctl recover Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # at
 #### Debugging
 
 `ipfs-cluster-ctl` provides a `--debug` flag which allows to inspect request paths and raw response bodies.
+
+### Quick start: Building and updating an IPFS Cluster
+
+#### Step 0: Run your first cluster node
+
+This step creates a single-node IPFS Cluster.
+
+First initialize the configuration:
+
+```
+node0 $ ipfs-cluster-service init
+ipfs-cluster-service configuration written to /home/user/.ipfs-cluster/service.json
+```
+
+Then run cluster:
+
+```
+node0> ipfs-cluster-service
+12:38:34.470  INFO    cluster: IPFS Cluster v0.0.1 listening on: cluster.go:59
+12:38:34.472  INFO    cluster:         /ip4/127.0.0.1/tcp/9096/ipfs/QmWM4knzVuWU5utXqkD2JeQ9zYT82f4s9s196bJ8PekStF cluster.go:61
+12:38:34.472  INFO    cluster:         /ip4/192.168.1.58/tcp/9096/ipfs/QmWM4knzVuWU5utXqkD2JeQ9zYT82f4s9s196bJ8PekStF cluster.go:61
+12:38:34.472  INFO    cluster: This is a single-node cluster peer_manager.go:141
+12:38:34.569  INFO    cluster: starting Consensus and waiting for a leader... consensus.go:124
+12:38:34.591  INFO    cluster: REST API: /ip4/127.0.0.1/tcp/9094 rest_api.go:309
+12:38:34.591  INFO    cluster: IPFS Proxy: /ip4/127.0.0.1/tcp/9095 -> /ip4/127.0.0.1/tcp/5001 ipfs_http_connector.go:168
+12:38:34.592  INFO    cluster: PinTracker ready map_pin_tracker.go:71
+12:38:36.092  INFO    cluster: Raft Leader elected: QmWM4knzVuWU5utXqkD2JeQ9zYT82f4s9s196bJ8PekStF raft.go:146
+12:38:36.092  INFO    cluster: Consensus state is up to date consensus.go:170
+12:38:36.092  INFO    cluster: IPFS Cluster is ready cluster.go:526
+```
+
+#### Step 1: Add new members to the cluster
+
+Initialize and run cluster in a different node(s):
+
+```
+node1> ipfs-cluster-service init
+ipfs-cluster-service configuration written to /home/user/.ipfs-cluster/service.json
+node1> ipfs-cluster-service
+12:39:24.818  INFO    cluster: IPFS Cluster v0.0.1 listening on: cluster.go:59
+12:39:24.819  INFO    cluster:         /ip4/127.0.0.1/tcp/9096/ipfs/QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK cluster.go:61
+12:39:24.820  INFO    cluster:         /ip4/192.168.1.57/tcp/9096/ipfs/QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK cluster.go:61
+12:39:24.820  INFO    cluster: This is a single-node cluster peer_manager.go:141
+12:39:24.850  INFO    cluster: starting Consensus and waiting for a leader... consensus.go:124
+12:39:24.876  INFO    cluster: IPFS Proxy: /ip4/127.0.0.1/tcp/9095 -> /ip4/127.0.0.1/tcp/5001 ipfs_http_connector.go:168
+12:39:24.876  INFO    cluster: REST API: /ip4/127.0.0.1/tcp/9094 rest_api.go:309
+12:39:24.876  INFO    cluster: PinTracker ready map_pin_tracker.go:71
+12:39:26.877  INFO    cluster: Raft Leader elected: QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK raft.go:146
+12:39:26.877  INFO    cluster: Consensus state is up to date consensus.go:170
+12:39:26.878  INFO    service: IPFS Cluster is ready main.go:184
+```
+
+Add them to the original cluster with `ipfs-cluster-ctl peers add <multiaddr>`. The command will return the ID information of the newly added member:
+
+```
+node0> ipfs-cluster-ctl peers add /ip4/192.168.1.57/tcp/9096/ipfs/QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK
+{
+  "id": "QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK",
+  "public_key": "CAASpgIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDQUN0iWAdbYEfQFAYcORsd0XnBvR9dk1QrJbzyqwDEHebP/wYqjeK73cyzBrpTYzxyd205ZSrpImL1GvVl+iLONMlz0CHsQ2YL0zzYHy55Y+1LhGGZY5R14MqvrjSq8pWo8U9nF8aenXSxhNvVeErnE5voVUU7YTjXSaXYmsK0cT7erKHZooJ16dzL/UmRTYlirMuGcOv/4WmgYX5fikH1mtw1Ln2xew76qxL5MeCu7v7NNugbsachJFiC/0DewxPClS03Nv6TvW2FsN4iis961EoBH7qTI3E1gUS89s7xp2njfgD/hsyk6YUbEEbOJUNihPFJ3Wlx6ogbis3cdX3tAgMBAAE=",
+  "addresses": [
+    "/ip4/127.0.0.1/tcp/9096/ipfs/QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK",
+    "/ip4/192.168.1.57/tcp/9096/ipfs/QmQn6aaWJNvyZnLh4soqjXQXiXGZM8VTuZW4B6AGaWxeNK"
+  ],
+  "cluster_peers": [
+    "/ip4/192.168.1.58/tcp/9096/ipfs/QmWM4knzVuWU5utXqkD2JeQ9zYT82f4s9s196bJ8PekStF"
+  ],
+  "version": "0.0.1",
+  "commit": "",
+  "rpc_protocol_version": "/ipfscluster/0.0.1/rpc",
+  "ipfs": {
+    "id": "QmRbn14eEDGEDf9d6mW64W6KsinkmMXqZaToWVbRANT8gY",
+    "addresses": [
+      "/ip4/127.0.0.1/tcp/4001/ipfs/QmRbn14eEDGEDf9d6mW64W6KsinkmMXqZaToWVbRANT8gY",
+      "/ip4/192.168.1.57/tcp/4001/ipfs/QmRbn14eEDGEDf9d6mW64W6KsinkmMXqZaToWVbRANT8gY"
+    ]
+  }
+}
+```
+
+You can repeat the process with any other nodes.
+
+#### Step 3: Remove no longer needed nodes
+
+You can use `ipfs-cluster-ctl peers rm <multiaddr>` to remove and disconnect any nodes from your cluster. The nodes will be automatically
+shutdown. They can be restarted manually and re-added to the Cluster any time:
+
+```
+node0> ipfs-cluster-ctl peers rm QmbGFbZVTF3UAEPK9pBVdwHGdDAYkHYufQwSh4k1i8bbbb
+OK
+```
+
+The `node1` is then disconnected and shuts down:
+
+```
+12:41:13.693 WARNI    cluster: this peer has been removed from the Cluster and will shutdown itself peer_manager.go:80
+12:41:13.695  INFO    cluster: stopping Consensus component consensus.go:231
+12:41:14.695  INFO    cluster: shutting down IPFS Cluster cluster.go:135
+12:41:14.696  INFO    cluster: stopping Cluster API rest_api.go:327
+12:41:14.696  INFO    cluster: stopping IPFS Proxy ipfs_http_connector.go:332
+12:41:14.697  INFO    cluster: stopping MapPinTracker map_pin_tracker.go:87
+```
 
 ### Go
 
@@ -152,6 +254,8 @@ This is a quick summary of API endpoints offered by the Rest API component (thes
 |GET   |/id                 |Cluster peer information|
 |GET   |/version            |Cluster version|
 |GET   |/peers              |Cluster peers|
+|POST  |/peers              |Add new peer|
+|DELETE|/peers/{peerID}     |Remove a peer|
 |GET   |/pinlist            |List of pins in the consensus state|
 |GET   |/pins               |Status of all tracked CIDs|
 |POST  |/pins/sync          |Sync all|

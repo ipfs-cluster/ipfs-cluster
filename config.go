@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"time"
+	"sync"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
-
-	hashiraft "github.com/hashicorp/raft"
 )
 
 // Default parameters for the configuration
@@ -35,6 +33,7 @@ type Config struct {
 
 	// List of multiaddresses of the peers of this cluster.
 	ClusterPeers []ma.Multiaddr
+	pMux         sync.Mutex
 
 	// Listen parameters for the Cluster libp2p Host. Used by
 	// the RPC and Consensus components.
@@ -54,8 +53,9 @@ type Config struct {
 	// the Consensus component.
 	ConsensusDataFolder string
 
-	// Hashicorp's Raft configuration
-	RaftConfig *hashiraft.Config
+	// if a config has been loaded from disk, track the path
+	// so it can be saved to the same place.
+	path string
 }
 
 // JSONConfig represents a Cluster configuration as it will look when it is
@@ -90,18 +90,6 @@ type JSONConfig struct {
 	// Storage folder for snapshots, log store etc. Used by
 	// the Consensus component.
 	ConsensusDataFolder string `json:"consensus_data_folder"`
-
-	// Raft configuration
-	RaftConfig *RaftConfig `json:"raft_config"`
-}
-
-// RaftConfig is a configuration section which affects the behaviour of
-// the Raft component. See https://godoc.org/github.com/hashicorp/raft#Config
-// for more information. Only the options below are customizable, the rest will
-// take the default values from raft.DefaultConfig().
-type RaftConfig struct {
-	SnapshotIntervalSeconds int  `json:"snapshot_interval_seconds"`
-	EnableSingleNode        bool `json:"enable_single_node"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -119,10 +107,12 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	}
 	pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
 
+	cfg.pMux.Lock()
 	clusterPeers := make([]string, len(cfg.ClusterPeers), len(cfg.ClusterPeers))
 	for i := 0; i < len(cfg.ClusterPeers); i++ {
 		clusterPeers[i] = cfg.ClusterPeers[i].String()
 	}
+	cfg.pMux.Unlock()
 
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
@@ -133,10 +123,6 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
-		RaftConfig: &RaftConfig{
-			SnapshotIntervalSeconds: int(cfg.RaftConfig.SnapshotInterval / time.Second),
-			EnableSingleNode:        cfg.RaftConfig.EnableSingleNode,
-		},
 	}
 	return
 }
@@ -194,12 +180,6 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		return
 	}
 
-	raftCfg := hashiraft.DefaultConfig()
-	if jcfg.RaftConfig != nil {
-		raftCfg.SnapshotInterval = time.Duration(jcfg.RaftConfig.SnapshotIntervalSeconds) * time.Second
-		raftCfg.EnableSingleNode = jcfg.RaftConfig.EnableSingleNode
-	}
-
 	c = &Config{
 		ID:                  id,
 		PrivateKey:          pKey,
@@ -208,7 +188,6 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		APIAddr:             apiAddr,
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
-		RaftConfig:          raftCfg,
 		ConsensusDataFolder: jcfg.ConsensusDataFolder,
 	}
 	return
@@ -233,6 +212,7 @@ func LoadConfig(path string) (*Config, error) {
 		logger.Error("error parsing configuration: ", err)
 		return nil, err
 	}
+	cfg.path = path
 	return cfg, nil
 }
 
@@ -265,9 +245,6 @@ func NewDefaultConfig() (*Config, error) {
 		return nil, err
 	}
 
-	raftCfg := hashiraft.DefaultConfig()
-	raftCfg.EnableSingleNode = true
-
 	clusterAddr, _ := ma.NewMultiaddr(DefaultClusterAddr)
 	apiAddr, _ := ma.NewMultiaddr(DefaultAPIAddr)
 	ipfsProxyAddr, _ := ma.NewMultiaddr(DefaultIPFSProxyAddr)
@@ -282,6 +259,47 @@ func NewDefaultConfig() (*Config, error) {
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: "ipfscluster-data",
-		RaftConfig:          raftCfg,
 	}, nil
+}
+
+func (cfg *Config) addPeer(addr ma.Multiaddr) {
+	cfg.pMux.Lock()
+	defer cfg.pMux.Unlock()
+	found := false
+	for _, cpeer := range cfg.ClusterPeers {
+		if cpeer.Equal(addr) {
+			found = true
+		}
+	}
+	if !found {
+		cfg.ClusterPeers = append(cfg.ClusterPeers, addr)
+	}
+	logger.Debugf("add: cluster peers are now: %s", cfg.ClusterPeers)
+}
+
+func (cfg *Config) rmPeer(p peer.ID) {
+	cfg.pMux.Lock()
+	defer cfg.pMux.Unlock()
+	foundPos := -1
+	for i, addr := range cfg.ClusterPeers {
+		cp, _, _ := multiaddrSplit(addr)
+		if cp == p {
+			foundPos = i
+		}
+	}
+	if foundPos < 0 {
+		return
+	}
+
+	// Delete preserving order
+	copy(cfg.ClusterPeers[foundPos:], cfg.ClusterPeers[foundPos+1:])
+	cfg.ClusterPeers[len(cfg.ClusterPeers)-1] = nil // or the zero value of T
+	cfg.ClusterPeers = cfg.ClusterPeers[:len(cfg.ClusterPeers)-1]
+	logger.Debugf("rm: cluster peers are now: %s", cfg.ClusterPeers)
+}
+
+func (cfg *Config) emptyPeers() {
+	cfg.pMux.Lock()
+	defer cfg.pMux.Unlock()
+	cfg.ClusterPeers = []ma.Multiaddr{}
 }
