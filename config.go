@@ -218,6 +218,7 @@ func LoadConfig(path string) (*Config, error) {
 
 // Save stores a configuration as a JSON file in the given path.
 func (cfg *Config) Save(path string) error {
+	logger.Info("Saving configuration")
 	jcfg, err := cfg.ToJSONConfig()
 	if err != nil {
 		logger.Error("error generating JSON config")

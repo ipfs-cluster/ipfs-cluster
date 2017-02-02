@@ -29,27 +29,35 @@ func newPeerManager(c *Cluster) *peerManager {
 func (pm *peerManager) addPeer(addr ma.Multiaddr) (peer.ID, error) {
 	logger.Debugf("adding peer %s", addr)
 
-	peerID, decapAddr, err := multiaddrSplit(addr)
+	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
-		return peerID, err
+		return pid, err
 	}
 
 	pm.peerSetMux.RLock()
-	_, ok := pm.peerSet[peerID]
+	_, ok := pm.peerSet[pid]
 	pm.peerSetMux.RUnlock()
 
 	if ok {
-		logger.Debugf("%s is already a peer", peerID)
-		return peerID, nil
+		logger.Debugf("%s is already a peer", pid)
+		return pid, nil
 	}
 
 	pm.peerSetMux.Lock()
-	pm.peerSet[peerID] = struct{}{}
+	pm.peerSet[pid] = struct{}{}
 	pm.peerSetMux.Unlock()
-	pm.cluster.host.Peerstore().AddAddr(peerID, decapAddr, peerstore.PermanentAddrTTL)
+
+	knownAddrs := pm.cluster.host.Peerstore().Addrs(pid)
+	if len(knownAddrs) > 0 { // we have it in the peerstore, trust that
+		addr, _ = multiaddrJoin(knownAddrs[0], pid)
+		logger.Debugf("peer address was in peerstore so we are using %s for the config", addr)
+	} else {
+		pm.cluster.host.Peerstore().AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
+	}
+
 	pm.cluster.config.addPeer(addr)
 	if con := pm.cluster.consensus; con != nil {
-		pm.cluster.consensus.AddPeer(peerID)
+		pm.cluster.consensus.AddPeer(pid)
 	}
 	if path := pm.cluster.config.path; path != "" {
 		err := pm.cluster.config.Save(path)
@@ -57,7 +65,15 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr) (peer.ID, error) {
 			logger.Error(err)
 		}
 	}
-	return peerID, nil
+	logger.Infof("added peer %s", addr.String())
+	return pid, nil
+}
+
+func (pm *peerManager) isPeer(p peer.ID) bool {
+	pm.peerSetMux.RLock()
+	defer pm.peerSetMux.RUnlock()
+	_, ok := pm.peerSet[p]
+	return ok
 }
 
 func (pm *peerManager) rmPeer(p peer.ID) error {
@@ -91,7 +107,7 @@ func (pm *peerManager) rmPeer(p peer.ID) error {
 	if path := pm.cluster.config.path; path != "" {
 		pm.cluster.config.Save(path)
 	}
-
+	logger.Infof("removed peer %s", p.Pretty())
 	return nil
 }
 
@@ -130,21 +146,14 @@ func (pm *peerManager) addFromConfig(cfg *Config) error {
 	return pm.addFromMultiaddrs(cfg.ClusterPeers)
 }
 
-func (pm *peerManager) addFromMultiaddrs(mAddrIDs []ma.Multiaddr) error {
-	pm.resetPeerSet()
-	pm.cluster.config.emptyPeers()
-	if len(mAddrIDs) > 0 {
-		logger.Info("adding Cluster peers:")
-	} else {
-		logger.Info("This is a single-node cluster")
-	}
-
-	for _, m := range mAddrIDs {
+func (pm *peerManager) addFromMultiaddrs(addrs []ma.Multiaddr) error {
+	for _, m := range addrs {
 		_, err := pm.addPeer(m)
 		if err != nil {
+			logger.Error(err)
 			return err
 		}
-		logger.Infof("    - %s", m.String())
 	}
+
 	return nil
 }

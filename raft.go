@@ -117,7 +117,7 @@ func (r *Raft) WaitForLeader(ctx context.Context) {
 }
 
 func (r *Raft) waitForLeader(ctx context.Context) {
-	obsCh := make(chan hashiraft.Observation)
+	obsCh := make(chan hashiraft.Observation, 1)
 	filter := func(o *hashiraft.Observation) bool {
 		switch o.Data.(type) {
 		case hashiraft.LeaderObservation:
@@ -126,16 +126,14 @@ func (r *Raft) waitForLeader(ctx context.Context) {
 			return false
 		}
 	}
-	observer := hashiraft.NewObserver(obsCh, true, filter)
+	observer := hashiraft.NewObserver(obsCh, false, filter)
 	r.raft.RegisterObserver(observer)
-	defer r.raft.DeregisterObserver(observer)
 	select {
 	case obs := <-obsCh:
 		leaderObs := obs.Data.(hashiraft.LeaderObservation)
 		logger.Infof("Raft Leader elected: %s", leaderObs.Leader)
-
+		r.raft.DeregisterObserver(observer)
 	case <-ctx.Done():
-		return
 	}
 }
 
@@ -209,6 +207,12 @@ func (r *Raft) Shutdown() error {
 func (r *Raft) AddPeer(peer string) error {
 	future := r.raft.AddPeer(peer)
 	err := future.Error()
+	if err != nil {
+		logger.Debug("raft cannot add peer (someone else will): ", err)
+		return err
+	}
+	peers, _ := r.peerstore.Peers()
+	logger.Debugf("raft peerstore: %s", peers)
 	return err
 }
 
@@ -216,6 +220,12 @@ func (r *Raft) AddPeer(peer string) error {
 func (r *Raft) RemovePeer(peer string) error {
 	future := r.raft.RemovePeer(peer)
 	err := future.Error()
+	if err != nil {
+		logger.Debug("raft cannot remove peer (someone else will): ", err)
+		return err
+	}
+	peers, _ := r.peerstore.Peers()
+	logger.Debugf("raft peerstore: %s", peers)
 	return err
 }
 
