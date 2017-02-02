@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
@@ -128,14 +129,22 @@ func main() {
 			Name:  "force, f",
 			Usage: "force configuration overwrite when running 'init'",
 		},
+		cli.StringFlag{
+			Name:  "join, j",
+			Usage: "join a cluster providing an existing peer's `multiaddress`",
+		},
+		cli.BoolFlag{
+			Name:  "leave, x",
+			Usage: "remove peer from cluster on exit",
+		},
 		cli.BoolFlag{
 			Name:  "debug, d",
-			Usage: "enable full debug logging",
+			Usage: "enable full debug logging (very verbose)",
 		},
 		cli.StringFlag{
 			Name:  "loglevel, l",
 			Value: "info",
-			Usage: "set the loglevel [critical, error, warning, info, debug]",
+			Usage: "set the loglevel for cluster only [critical, error, warning, info, debug]",
 		},
 	}
 
@@ -182,6 +191,15 @@ func run(c *cli.Context) error {
 		return nil
 	}
 
+	var joinAddr ma.Multiaddr
+	if a := c.String("join"); a != "" {
+		var err error
+		joinAddr, err = ma.NewMultiaddr(a)
+		if err != nil {
+			return fmt.Errorf("error parsing multiaddress: %s", err)
+		}
+	}
+
 	cfg, err := loadConfig()
 	checkErr("loading configuration", err)
 
@@ -201,35 +219,48 @@ func run(c *cli.Context) error {
 		tracker)
 	checkErr("starting cluster", err)
 
-	signalChan := make(chan os.Signal)
+	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 
 	for {
 		select {
 		case <-signalChan:
-			err = cluster.Shutdown()
-			checkErr("shutting down cluster", err)
-			return nil
+			if c.Bool("leave") {
+				// Leave cluster (this will shut us down)
+				err = cluster.PeerRemove(cluster.ID().ID)
+				checkErr("error leaving cluster: %s", err)
+			} else {
+				err = cluster.Shutdown()
+				checkErr("shutting down cluster", err)
+				return nil
+			}
 		case <-cluster.Done():
 			return nil
 		case <-cluster.Ready():
-			logger.Info("IPFS Cluster is ready")
+			if c.String("join") != "" {
+				err = cluster.Join(joinAddr)
+				if err != nil {
+					logger.Errorf("error joining cluster: %s", err)
+					signalChan <- os.Interrupt
+				}
+			}
 		}
 	}
 }
 
 func setupLogging(lvl string) {
-	logging.SetLogLevel("service", lvl)
-	logging.SetLogLevel("cluster", lvl)
-	//logging.SetLogLevel("raft", lvl)
+	ipfscluster.SetFacilityLogLevel("service", lvl)
+	ipfscluster.SetFacilityLogLevel("cluster", lvl)
+	//ipfscluster.SetFacilityLogLevel("raft", lvl)
 }
 
 func setupDebug() {
-	logging.SetLogLevel("cluster", "debug")
-	//logging.SetLogLevel("libp2p-raft", "debug")
-	logging.SetLogLevel("p2p-gorpc", "debug")
-	//logging.SetLogLevel("swarm2", "debug")
-	logging.SetLogLevel("raft", "debug")
+	l := "DEBUG"
+	ipfscluster.SetFacilityLogLevel("cluster", l)
+	ipfscluster.SetFacilityLogLevel("raft", l)
+	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
+	//SetFacilityLogLevel("swarm2", l)
+	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
 func initConfig(force bool) {

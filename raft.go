@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ type Raft struct {
 	stableStore   hashiraft.StableStore
 	peerstore     *libp2praft.Peerstore
 	boltdb        *raftboltdb.BoltStore
+	dataFolder    string
 }
 
 func defaultRaftConfig() *hashiraft.Config {
@@ -102,6 +104,7 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 		stableStore:   logStore,
 		peerstore:     pstore,
 		boltdb:        logStore,
+		dataFolder:    dataFolder,
 	}, nil
 }
 
@@ -117,7 +120,7 @@ func (r *Raft) WaitForLeader(ctx context.Context) {
 }
 
 func (r *Raft) waitForLeader(ctx context.Context) {
-	obsCh := make(chan hashiraft.Observation)
+	obsCh := make(chan hashiraft.Observation, 1)
 	filter := func(o *hashiraft.Observation) bool {
 		switch o.Data.(type) {
 		case hashiraft.LeaderObservation:
@@ -126,16 +129,14 @@ func (r *Raft) waitForLeader(ctx context.Context) {
 			return false
 		}
 	}
-	observer := hashiraft.NewObserver(obsCh, true, filter)
+	observer := hashiraft.NewObserver(obsCh, false, filter)
 	r.raft.RegisterObserver(observer)
-	defer r.raft.DeregisterObserver(observer)
 	select {
 	case obs := <-obsCh:
 		leaderObs := obs.Data.(hashiraft.LeaderObservation)
 		logger.Infof("Raft Leader elected: %s", leaderObs.Leader)
-
+		r.raft.DeregisterObserver(observer)
 	case <-ctx.Done():
-		return
 	}
 }
 
@@ -199,9 +200,18 @@ func (r *Raft) Shutdown() error {
 	if err != nil {
 		errMsgs += "could not close boltdb: " + err.Error()
 	}
+
 	if errMsgs != "" {
 		return errors.New(errMsgs)
 	}
+
+	// If the shutdown worked correctly
+	// (including snapshot) we can remove the Raft
+	// database (which traces peers additions
+	// and removals). It makes re-start of the peer
+	// way less confusing for Raft while the state
+	// can be restored from the snapshot.
+	os.Remove(filepath.Join(r.dataFolder, "raft.db"))
 	return nil
 }
 
@@ -209,6 +219,12 @@ func (r *Raft) Shutdown() error {
 func (r *Raft) AddPeer(peer string) error {
 	future := r.raft.AddPeer(peer)
 	err := future.Error()
+	if err != nil {
+		logger.Debug("raft cannot add peer (someone else will): ", err)
+		return err
+	}
+	peers, _ := r.peerstore.Peers()
+	logger.Debugf("raft peerstore: %s", peers)
 	return err
 }
 
@@ -216,6 +232,12 @@ func (r *Raft) AddPeer(peer string) error {
 func (r *Raft) RemovePeer(peer string) error {
 	future := r.raft.RemovePeer(peer)
 	err := future.Error()
+	if err != nil {
+		logger.Debug("raft cannot remove peer (someone else will): ", err)
+		return err
+	}
+	peers, _ := r.peerstore.Peers()
+	logger.Debugf("raft peerstore: %s", peers)
 	return err
 }
 

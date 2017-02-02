@@ -1,8 +1,6 @@
 package ipfscluster
 
 import (
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -13,43 +11,41 @@ import (
 
 type peerManager struct {
 	cluster *Cluster
+	ps      peerstore.Peerstore
 
-	peerSetMux sync.RWMutex
-	peerSet    map[peer.ID]struct{}
+	peerSet map[peer.ID]ma.Multiaddr
+	mux     sync.Mutex
 }
 
 func newPeerManager(c *Cluster) *peerManager {
 	pm := &peerManager{
 		cluster: c,
+		ps:      c.host.Peerstore(),
 	}
-	pm.resetPeerSet()
+	pm.resetPeers()
 	return pm
 }
 
 func (pm *peerManager) addPeer(addr ma.Multiaddr) (peer.ID, error) {
 	logger.Debugf("adding peer %s", addr)
 
-	peerID, decapAddr, err := multiaddrSplit(addr)
+	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
-		return peerID, err
+		return pid, err
 	}
 
-	pm.peerSetMux.RLock()
-	_, ok := pm.peerSet[peerID]
-	pm.peerSetMux.RUnlock()
-
-	if ok {
-		logger.Debugf("%s is already a peer", peerID)
-		return peerID, nil
+	if pm.isPeer(pid) {
+		logger.Debugf("%s is already a peer", pid)
+		return pid, nil
 	}
 
-	pm.peerSetMux.Lock()
-	pm.peerSet[peerID] = struct{}{}
-	pm.peerSetMux.Unlock()
-	pm.cluster.host.Peerstore().AddAddr(peerID, decapAddr, peerstore.PermanentAddrTTL)
+	pm.mux.Lock()
+	pm.peerSet[pid] = addr
+	pm.mux.Unlock()
+	pm.ps.AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
 	pm.cluster.config.addPeer(addr)
 	if con := pm.cluster.consensus; con != nil {
-		pm.cluster.consensus.AddPeer(peerID)
+		pm.cluster.consensus.AddPeer(pid)
 	}
 	if path := pm.cluster.config.path; path != "" {
 		err := pm.cluster.config.Save(path)
@@ -57,33 +53,34 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr) (peer.ID, error) {
 			logger.Error(err)
 		}
 	}
-	return peerID, nil
+	logger.Infof("new Cluster peer %s", addr.String())
+	return pid, nil
 }
 
-func (pm *peerManager) rmPeer(p peer.ID) error {
-	logger.Debugf("removing peer %s", p.Pretty())
-	pm.peerSetMux.RLock()
-	_, ok := pm.peerSet[p]
-	pm.peerSetMux.RUnlock()
-	if !ok {
+func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
+	logger.Debugf("removing peer %s", pid.Pretty())
+
+	if !pm.isPeer(pid) {
 		return nil
 	}
-	pm.peerSetMux.Lock()
-	delete(pm.peerSet, p)
-	pm.peerSetMux.Unlock()
-	pm.cluster.host.Peerstore().ClearAddrs(p)
-	pm.cluster.config.rmPeer(p)
-	pm.cluster.consensus.RemovePeer(p)
+
+	pm.mux.Lock()
+	delete(pm.peerSet, pid)
+	pm.mux.Unlock()
+	pm.cluster.host.Peerstore().ClearAddrs(pid)
+	pm.cluster.config.rmPeer(pid)
+	pm.cluster.consensus.RemovePeer(pid)
 
 	// It's ourselves. This is not very graceful
-	if p == pm.cluster.host.ID() {
-		logger.Warning("this peer has been removed from the Cluster and will shutdown itself")
+	if pid == pm.cluster.host.ID() && selfShutdown {
+		logger.Warning("this peer has been removed from the Cluster and will shutdown itself in 5 seconds")
 		pm.cluster.config.emptyPeers()
 		defer func() {
 			go func() {
-				time.Sleep(time.Second)
+				time.Sleep(1 * time.Second)
 				pm.cluster.consensus.Shutdown()
-				pm.selfShutdown()
+				time.Sleep(4 * time.Second)
+				pm.cluster.Shutdown()
 			}()
 		}()
 	}
@@ -91,60 +88,62 @@ func (pm *peerManager) rmPeer(p peer.ID) error {
 	if path := pm.cluster.config.path; path != "" {
 		pm.cluster.config.Save(path)
 	}
-
+	logger.Infof("removed peer %s", pid.Pretty())
 	return nil
 }
 
-func (pm *peerManager) selfShutdown() {
-	err := pm.cluster.Shutdown()
-	if err == nil {
-		// If the shutdown worked correctly
-		// (including snapshot) we can remove the Raft
-		// database (which traces peers additions
-		// and removals). It makes re-start of the peer
-		// way less confusing for Raft while the state
-		// kept in the snapshot.
-		os.Remove(filepath.Join(pm.cluster.config.ConsensusDataFolder, "raft.db"))
-	}
+func (pm *peerManager) isPeer(p peer.ID) bool {
+	pm.mux.Lock()
+	_, ok := pm.peerSet[p]
+	pm.mux.Unlock()
+	return ok
 }
 
-// empty the peerset and add ourselves only
-func (pm *peerManager) resetPeerSet() {
-	pm.peerSetMux.Lock()
-	defer pm.peerSetMux.Unlock()
-	pm.peerSet = make(map[peer.ID]struct{})
-	pm.peerSet[pm.cluster.host.ID()] = struct{}{}
+// empty the peerstore
+func (pm *peerManager) resetPeers() {
+	pm.mux.Lock()
+	defer pm.mux.Unlock()
+	pm.peerSet = make(map[peer.ID]ma.Multiaddr)
+	pm.peerSet[pm.cluster.host.ID()] = pm.cluster.config.ClusterAddr
 }
 
 func (pm *peerManager) peers() []peer.ID {
-	pm.peerSetMux.RLock()
-	defer pm.peerSetMux.RUnlock()
-	var pList []peer.ID
+	pm.mux.Lock()
+	defer pm.mux.Unlock()
+	var peers []peer.ID
 	for k := range pm.peerSet {
-		pList = append(pList, k)
+		peers = append(peers, k)
 	}
-	return pList
+	return peers
+}
+
+// cluster peer addresses (NOT including ourselves)
+func (pm *peerManager) peersAddrs() []ma.Multiaddr {
+	pm.mux.Lock()
+	defer pm.mux.Unlock()
+
+	var addrs []ma.Multiaddr
+	for pid, addr := range pm.peerSet {
+		if pid == pm.cluster.host.ID() {
+			continue
+		}
+		addrs = append(addrs, addr)
+	}
+	return addrs
 }
 
 func (pm *peerManager) addFromConfig(cfg *Config) error {
 	return pm.addFromMultiaddrs(cfg.ClusterPeers)
 }
 
-func (pm *peerManager) addFromMultiaddrs(mAddrIDs []ma.Multiaddr) error {
-	pm.resetPeerSet()
-	pm.cluster.config.emptyPeers()
-	if len(mAddrIDs) > 0 {
-		logger.Info("adding Cluster peers:")
-	} else {
-		logger.Info("This is a single-node cluster")
-	}
-
-	for _, m := range mAddrIDs {
+func (pm *peerManager) addFromMultiaddrs(addrs []ma.Multiaddr) error {
+	for _, m := range addrs {
 		_, err := pm.addPeer(m)
 		if err != nil {
+			logger.Error(err)
 			return err
 		}
-		logger.Infof("    - %s", m.String())
 	}
+
 	return nil
 }

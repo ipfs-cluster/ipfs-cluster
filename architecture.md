@@ -88,15 +88,23 @@ This sections explains how some things work in Cluster.
 
 * The `RESTAPI` component receives a `PeerAdd` request on the respective endpoint. It makes a `PeerAdd` RPC request.
 * The local RPC server receives it and calls `PeerAdd` method in the main `Cluster` component.
-* A libp2p connection is opened to the new peer's multiaddress. It should be reachable. We note down the local multiaddress used to reach the new peer.
-* A broadcast `PeerManagerAddPeer` request is sent to all peers in the current cluster. It is received and the RPC server calls `peerManager.addPeer`. The `peerManager` is an annex to the main Cluster Component around the peer management functionality (add/remove).
-* The `peerManager` adds the new peer to libp2p's peerstore, asks Raft to make if part of its peerset and adds it to the `ClusterPeers` section
-of the configuration (which is then saved).
-* If the broadcast requests fails somewhere, the operation is aborted, and a `PeerRemove` operation for the new peer is triggered to undo any changes. Otherwise, on success, the local list of ClusterPeers from the configuration, along with the local multiaddress from the connection we noted down are
-sent to the new peer (via the RPC `PeerManagerAddFromMultiaddrs` method).
-* The new peer's `peerManager` updates the current list of peers, the Raft's peer set and the configuration and has become part of the new cluster.
-* The `PeerAdd` method in `Cluster` makes an remote RPC request to the new peers `ID` method. The received ID is used as response to the call.
-* The RPC server takes the response and sends it to the `RESTAPI` component, which in turns converts it and responds to the request.
+* If the peer is unknown, a libp2p connection is opened to the new peer's multiaddress. It should be reachable. We note down the local multiaddress used to reach the new peer.
+* The local `peerManager` adds the peer to the known cluster peers, saves the configuration and attempts to update Rafts peer set.
+* A remote RPC call `Join` is made to the new peer using the local multiaddress we learned before.
+  * The new peer receives a call to `Join()` via RPC with a multiaddress pointing to a member of the cluster (bootstrap node) to be joined and immediately fails if it is part of another cluster.
+  * The new peer makes a remote RPC `ID()` to the bootstrap node, obtaining the list of its cluster peers with it.
+  * For each of those peers, the new member:
+    * tells the local `peerManager` to add the peer if it was unknown
+    * if no connections to it existed, connect to the peer and make a remote RPC request `PeerManagerAddPeer` using the local multiaddress that we
+    use to connect.
+    * make a remote RPC request `ID` to the peer and obtain its cluster peers.
+    * repeat with the new list of cluster peers. In the ideal case all cluster peers will be already known, but if two nodes were bootstrapping at the same time to different peers this will help discovering them.
+  * if there were any errors checking in with peers a rollpack using remote RPC `PeerManagerRmPeer` is attempted.
+    * `PeerManagerRmPeer` remote RPC request is broadcasted to all known cluster peers requsting them to remove us from the peer list
+    * It should undo all the previously done `PeerManagerAddPeer` calls.
+  * otherwise we have successfully added ourselves to all the cluster members. We also know that, acting as Raft leader, should have added us to the Raft's peer set.  
+* If the `Join` call succeeds, we return to the original caller who was adding us using `PeerAdd`.
+* The `PeerAdd` call either success or, after a failure in `Join`, instructs the local `peerManager` to remove the new peer.
 
 ### Pinning
 
