@@ -14,12 +14,13 @@ import (
 
 // Default parameters for the configuration
 const (
-	DefaultConfigCrypto    = crypto.RSA
-	DefaultConfigKeyLength = 2048
-	DefaultAPIAddr         = "/ip4/127.0.0.1/tcp/9094"
-	DefaultIPFSProxyAddr   = "/ip4/127.0.0.1/tcp/9095"
-	DefaultIPFSNodeAddr    = "/ip4/127.0.0.1/tcp/5001"
-	DefaultClusterAddr     = "/ip4/0.0.0.0/tcp/9096"
+	DefaultConfigCrypto     = crypto.RSA
+	DefaultConfigKeyLength  = 2048
+	DefaultAPIAddr          = "/ip4/127.0.0.1/tcp/9094"
+	DefaultIPFSProxyAddr    = "/ip4/127.0.0.1/tcp/9095"
+	DefaultIPFSNodeAddr     = "/ip4/127.0.0.1/tcp/5001"
+	DefaultClusterAddr      = "/ip4/0.0.0.0/tcp/9096"
+	DefaultStateSyncSeconds = 15
 )
 
 // Config represents an ipfs-cluster configuration. It is used by
@@ -52,6 +53,9 @@ type Config struct {
 	// Storage folder for snapshots, log store etc. Used by
 	// the Consensus component.
 	ConsensusDataFolder string
+
+	// Number of seconds between StateSync() operations
+	StateSyncSeconds int
 
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
@@ -90,6 +94,11 @@ type JSONConfig struct {
 	// Storage folder for snapshots, log store etc. Used by
 	// the Consensus component.
 	ConsensusDataFolder string `json:"consensus_data_folder"`
+
+	// Number of seconds between syncs of the consensus state to the
+	// tracker state. Normally states are synced anyway, but this helps
+	// when new nodes are joining the cluster
+	StateSyncSeconds int `json:"state_sync_seconds"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -123,6 +132,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
+		StateSyncSeconds:            cfg.StateSyncSeconds,
 	}
 	return
 }
@@ -180,6 +190,10 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		return
 	}
 
+	if jcfg.StateSyncSeconds <= 0 {
+		jcfg.StateSyncSeconds = DefaultStateSyncSeconds
+	}
+
 	c = &Config{
 		ID:                  id,
 		PrivateKey:          pKey,
@@ -189,6 +203,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: jcfg.ConsensusDataFolder,
+		StateSyncSeconds:    jcfg.StateSyncSeconds,
 	}
 	return
 }
@@ -260,6 +275,7 @@ func NewDefaultConfig() (*Config, error) {
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: "ipfscluster-data",
+		StateSyncSeconds:    DefaultStateSyncSeconds,
 	}, nil
 }
 

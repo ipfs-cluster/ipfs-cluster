@@ -434,20 +434,16 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 	clusterPins := cState.ListPins()
 	var changed []*cid.Cid
 
+	// For the moment we run everything in parallel.
+	// The PinTracker should probably decide if it can
+	// pin in parallel or queues everything and does it
+	// one by one
+
 	// Track items which are not tracked
 	for _, h := range clusterPins {
 		if c.tracker.Status(h).Status == TrackerStatusUnpinned {
 			changed = append(changed, h)
-			err := c.rpcClient.Go("",
-				"Cluster",
-				"Track",
-				NewCidArg(h),
-				&struct{}{},
-				nil)
-			if err != nil {
-				return []PinInfo{}, err
-			}
-
+			go c.tracker.Track(h)
 		}
 	}
 
@@ -456,15 +452,7 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		h, _ := cid.Decode(p.CidStr)
 		if !cState.HasPin(h) {
 			changed = append(changed, h)
-			err := c.rpcClient.Go("",
-				"Cluster",
-				"Track",
-				&CidArg{p.CidStr},
-				&struct{}{},
-				nil)
-			if err != nil {
-				return []PinInfo{}, err
-			}
+			go c.tracker.Untrack(h)
 		}
 	}
 
@@ -625,9 +613,15 @@ func (c *Cluster) run() {
 		defer cancel()
 		c.ctx = ctx
 
+		stateSyncTicker := time.NewTicker(
+			time.Duration(c.config.StateSyncSeconds) * time.Second)
+
 		for {
 			select {
+			case <-stateSyncTicker.C:
+				c.StateSync()
 			case <-c.shutdownCh:
+				stateSyncTicker.Stop()
 				return
 			case <-c.consensus.Ready():
 				c.readyCh <- struct{}{}
