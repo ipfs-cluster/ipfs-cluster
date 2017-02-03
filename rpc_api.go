@@ -1,8 +1,9 @@
 package ipfscluster
 
 import (
-	cid "github.com/ipfs/go-cid"
+	"sync"
 
+	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -15,6 +16,10 @@ import (
 // Refer to documentation on those methods for details on their behaviour.
 type RPCAPI struct {
 	cluster *Cluster
+
+	// let peer operations be atomic
+	peerAddMux    sync.Mutex
+	peerRemoveMux sync.Mutex
 }
 
 // CidArg is an arguments that carry a Cid. It may carry more things in the
@@ -100,6 +105,8 @@ func (api *RPCAPI) Peers(in struct{}, out *[]IDSerial) error {
 
 // PeerAdd runs Cluster.PeerAdd().
 func (api *RPCAPI) PeerAdd(in MultiaddrSerial, out *IDSerial) error {
+	api.peerAddMux.Lock()
+	defer api.peerAddMux.Unlock()
 	addr := in.ToMultiaddr()
 	id, err := api.cluster.PeerAdd(addr)
 	*out = id.ToSerial()
@@ -108,7 +115,17 @@ func (api *RPCAPI) PeerAdd(in MultiaddrSerial, out *IDSerial) error {
 
 // PeerRemove runs Cluster.PeerRm().
 func (api *RPCAPI) PeerRemove(in peer.ID, out *struct{}) error {
+	//api.peerRemoveMux.Lock()
+	//defer api.peerRemoveMux.Unlock()
 	return api.cluster.PeerRemove(in)
+}
+
+func (api *RPCAPI) Join(in MultiaddrSerial, out *struct{}) error {
+	api.peerAddMux.Lock()
+	defer api.peerAddMux.Unlock()
+	addr := in.ToMultiaddr()
+	err := api.cluster.Join(addr)
+	return err
 }
 
 // StatusAll runs Cluster.StatusAll().
@@ -301,6 +318,8 @@ func (api *RPCAPI) ConsensusLogUnpin(in *CidArg, out *struct{}) error {
 
 // PeerManagerAddPeer runs peerManager.addPeer().
 func (api *RPCAPI) PeerManagerAddPeer(in MultiaddrSerial, out *peer.ID) error {
+	api.peerAddMux.Lock()
+	defer api.peerAddMux.Unlock()
 	mAddr := in.ToMultiaddr()
 	p, err := api.cluster.peerManager.addPeer(mAddr)
 	*out = p
@@ -309,18 +328,14 @@ func (api *RPCAPI) PeerManagerAddPeer(in MultiaddrSerial, out *peer.ID) error {
 
 // PeerManagerRmPeer runs peerManager.rmPeer().
 func (api *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
-	return api.cluster.peerManager.rmPeer(in)
+	api.peerRemoveMux.Lock()
+	defer api.peerRemoveMux.Unlock()
+	return api.cluster.peerManager.rmPeer(in, true)
 }
 
-// PeerManagerAddFromMultiaddrs runs peerManager.addFromMultiaddrs().
-func (api *RPCAPI) PeerManagerAddFromMultiaddrs(in MultiaddrsSerial, out *struct{}) error {
-	api.cluster.peerManager.addFromMultiaddrs(in.ToMultiaddrs())
-	return nil
-}
-
-// PeerManagerPeers runs peerManager.peers().
-func (api *RPCAPI) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
-	peers := api.cluster.peerManager.peers()
-	*out = peers
-	return nil
+// PeerManagerRmPeer runs peerManager.rmPeer().
+func (api *RPCAPI) PeerManagerRmPeerNoShutdown(in peer.ID, out *struct{}) error {
+	api.peerRemoveMux.Lock()
+	defer api.peerRemoveMux.Unlock()
+	return api.cluster.peerManager.rmPeer(in, false)
 }

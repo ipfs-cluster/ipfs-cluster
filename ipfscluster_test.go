@@ -26,7 +26,7 @@ var (
 //TestClusters*
 var (
 	// number of clusters to create
-	nClusters = 3
+	nClusters = 5
 
 	// number of pins to pin/unpin/check
 	nPins = 500
@@ -168,7 +168,13 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 }
 
 func delay() {
-	time.Sleep(time.Duration(nClusters) * time.Second)
+	var d int
+	if nClusters > 5 {
+		d = 5
+	} else {
+		d = nClusters
+	}
+	time.Sleep(time.Duration(d) * time.Second)
 }
 
 func TestClustersVersion(t *testing.T) {

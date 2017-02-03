@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -83,8 +82,7 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		return nil, err
 	}
 
-	// Workaround for https://github.com/libp2p/go-libp2p-swarm/issues/15
-	cluster.openConns()
+	openConns(ctx, host)
 
 	// Setup RPC
 	rpcServer := rpc.NewServer(host, RPCProtocol)
@@ -120,7 +118,7 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 // Ready returns a channel which signals when this peer is
 // fully initialized (including consensus).
 func (c *Cluster) Ready() <-chan struct{} {
-	return c.consensus.readyCh
+	return c.readyCh
 }
 
 // Shutdown stops the IPFS cluster components
@@ -172,15 +170,14 @@ func (c *Cluster) ID() ID {
 	ipfsID, _ := c.ipfs.ID()
 	var addrs []ma.Multiaddr
 	for _, addr := range c.host.Addrs() {
-		ipfsAddr, _ := ma.NewMultiaddr("/ipfs/" + c.host.ID().Pretty())
-		addrs = append(addrs, addr.Encapsulate(ipfsAddr))
+		addrs = append(addrs, multiaddrJoin(addr, c.host.ID()))
 	}
 
 	return ID{
 		ID:                 c.host.ID(),
 		PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
 		Addresses:          addrs,
-		ClusterPeers:       c.config.ClusterPeers,
+		ClusterPeers:       c.peerManager.peersAddrs(),
 		Version:            Version,
 		Commit:             Commit,
 		RPCProtocolVersion: RPCProtocol,
@@ -201,7 +198,8 @@ func (c *Cluster) ID() ID {
 //
 // PeerAdd will fail if any of the peers is not reachable.
 func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
-	p, decapAddr, err := multiaddrSplit(addr)
+	logger.Debugf("peerAdd called with %s", addr)
+	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
 		id := ID{
 			Error: err.Error(),
@@ -209,82 +207,35 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 		return id, err
 	}
 
-	// only add reachable nodes
-	err = c.host.Connect(c.ctx, peerstore.PeerInfo{
-		ID:    p,
-		Addrs: []ma.Multiaddr{decapAddr},
-	})
+	if c.peerManager.isPeer(pid) {
+		id, _ := c.getIDForPeer(pid)
+		return id, errors.New("peer is already in the cluster")
+	}
+
+	// Attempt connection and find which is the multiaddress
+	// we use to connect to that peer
+	localMAddr, err := getLocalMultiaddrTo(c.ctx, c.host, pid, decapAddr)
 	if err != nil {
-		err = fmt.Errorf("Peer unreachable. Aborting operation: %s", err)
-		id := ID{
-			ID:    p,
-			Error: err.Error(),
-		}
 		logger.Error(err)
+		id := ID{ID: pid, Error: err.Error()}
 		return id, err
 	}
+	logger.Debugf("local multiaddress to %s is %s", pid, localMAddr)
 
-	// Find which local address we use to connect
-	conns := c.host.Network().ConnsToPeer(p)
-	if len(conns) == 0 {
-		err := errors.New("No connections to peer available")
-		logger.Error(err)
-		id := ID{
-			ID:    p,
-			Error: err.Error(),
-		}
+	c.peerManager.addPeer(addr)
 
-		return id, err
-	}
-	pidMAddr, _ := ma.NewMultiaddr("/ipfs/" + c.host.ID().Pretty())
-	localMAddr := conns[0].LocalMultiaddr().Encapsulate(pidMAddr)
-
-	// Let all peer managers know they need to add this peer
-	peers := c.peerManager.peers()
-	replies := make([]peer.ID, len(peers), len(peers))
-	errs := c.multiRPC(peers, "Cluster", "PeerManagerAddPeer",
-		MultiaddrToSerial(addr), copyPIDsToIfaces(replies))
-	errorMsgs := ""
-	for i, err := range errs {
-		if err != nil {
-			logger.Error(err)
-			errorMsgs += fmt.Sprintf("%s: %s\n",
-				peers[i].Pretty(),
-				err.Error())
-		}
-	}
-	if errorMsgs != "" {
-		logger.Error("There were errors adding peer. Trying to rollback the operation")
-		c.PeerRemove(p)
-		id := ID{
-			ID:    p,
-			Error: "Error adding peer: " + errorMsgs,
-		}
-		return id, errors.New(errorMsgs)
-	}
-
-	// Inform the peer of the current cluster peers
-	clusterPeers := MultiaddrsToSerial(c.config.ClusterPeers)
-	clusterPeers = append(clusterPeers, MultiaddrToSerial(localMAddr))
-	err = c.rpcClient.Call(
-		p, "Cluster", "PeerManagerAddFromMultiaddrs",
-		clusterPeers, &struct{}{})
+	// Let new peer join the cluster
+	err = c.rpcClient.Call(pid, "Cluster", "Join",
+		MultiaddrToSerial(localMAddr), &struct{}{})
 	if err != nil {
-		logger.Errorf("Error sending back the list of peers: %s")
-		id := ID{
-			ID:    p,
-			Error: err.Error(),
-		}
-		return id, err
+		msg := "error adding peer: " + err.Error()
+		logger.Error(msg)
+		c.peerManager.rmPeer(pid, false)
+		id := ID{ID: pid, Error: msg}
+		return id, errors.New(msg)
 	}
-	idSerial := ID{
-		ID: p,
-	}.ToSerial()
-	err = c.rpcClient.Call(
-		p, "Cluster", "ID", struct{}{}, &idSerial)
-
-	logger.Infof("peer %s has been added to the Cluster", addr)
-	return idSerial.ToID(), err
+	logger.Infof("added peer to cluster: %s", addr)
+	return c.getIDForPeer(pid)
 }
 
 // PeerRemove removes a peer from this Cluster.
@@ -292,14 +243,17 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 // The peer will be removed from the consensus peer set,
 // remove all cluster peers from its configuration and
 // shut itself down.
-func (c *Cluster) PeerRemove(p peer.ID) error {
+func (c *Cluster) PeerRemove(pid peer.ID) error {
+	if !c.peerManager.isPeer(pid) {
+		return fmt.Errorf("%s is not a peer", pid.Pretty())
+	}
 	peers := c.peerManager.peers()
 	replies := make([]struct{}, len(peers), len(peers))
 	errs := c.multiRPC(peers, "Cluster", "PeerManagerRmPeer",
-		p, copyEmptyStructToIfaces(replies))
+		pid, copyEmptyStructToIfaces(replies))
 	errorMsgs := ""
 	for i, err := range errs {
-		if err != nil && peers[i] != p {
+		if err != nil && peers[i] != pid {
 			logger.Error(err)
 			errorMsgs += fmt.Sprintf("%s: %s\n",
 				peers[i].Pretty(),
@@ -309,8 +263,162 @@ func (c *Cluster) PeerRemove(p peer.ID) error {
 	if errorMsgs != "" {
 		return errors.New(errorMsgs)
 	}
-	logger.Infof("peer %s has been removed from the Cluster", p.Pretty())
 	return nil
+}
+
+// Join adds this peer to an existing cluster by fetching the cluster members
+// from the given multiaddress and then proceeding to contact each of them
+// and registering with them.
+func (c *Cluster) Join(addr ma.Multiaddr) error {
+	logger.Debugf("Join(%s)", addr)
+
+	if len(c.peerManager.peers()) > 1 {
+		return errors.New("only single-node clusters can be joined")
+	}
+
+	// Add bootstrapping node so we can talk to it
+	pid, decapAddr, err := multiaddrSplit(addr)
+	if err != nil {
+		return errors.New("bad address: " + err.Error())
+	}
+
+	c.host.Peerstore().AddAddr(pid, decapAddr, peerstore.TempAddrTTL)
+
+	// If there is no connection open, the first thing is to register
+	// ourselves with the new node, otherwise we assume this is done.
+	// The main problem is that we cannot know which IP/interface we use
+	// for a connection unless we opened it ourselves (i.e. otherwise
+	// localAddr() is /ip4/0.0.0.0/. And we cannot force close/re-open
+	// in Join because we might have been called remotely by PeerAdd().
+	// But in that case, the caller will have added us so we can skip
+	// the step.
+	if len(c.host.Network().ConnsToPeer(pid)) == 0 {
+		whoAmI, err := getLocalMultiaddrTo(c.ctx, c.host, pid, decapAddr)
+		if err != nil {
+			logger.Error(err)
+			return errors.New("cannot contact cluster: " + err.Error())
+		}
+		var tmp peer.ID
+		err = c.rpcClient.Call(pid, "Cluster", "PeerManagerAddPeer",
+			MultiaddrToSerial(whoAmI), &tmp)
+		if err != nil {
+			msg := fmt.Sprintf("error joining %s: %s", pid.Pretty(), err)
+			logger.Error(msg)
+			return errors.New(msg)
+		}
+	}
+
+	// At this point, either we registered ourselves or we assume
+	// we were registered because we were contacted by that node
+	// so we get some cluster peers and check-in with them all
+
+	id, err := c.getIDForPeer(pid)
+	if err != nil {
+		return err
+	}
+	err = c.checkInWithPeers(append(id.ClusterPeers, addr))
+	if err != nil {
+		return err
+	}
+	logger.Infof("peer joined %s's cluster", pid.Pretty())
+	return nil
+}
+
+// checkInWithPeers peerManager.addPeer locally and remove for
+// the peers in the given list, provided that:
+// * They are not in our peer list
+// * We have no open connections to them (if so we just add them locally)
+// Then, we fetch the ID()s from all previously-unknown cluster peers and
+// repeat with their list of Cluster peers.
+// This allows to checkIn with all peers in the cluster even if they
+// were still bootstrapping to a different node at the same time as us.
+func (c *Cluster) checkInWithPeers(clusterPeers []ma.Multiaddr) error {
+	logger.Debugf("checkInWithPeers %s", clusterPeers)
+
+	if len(clusterPeers) == 0 {
+		return nil
+	}
+	newClusterPeersMap := make(map[peer.ID]ma.Multiaddr)
+	errs := make([]string, len(clusterPeers), len(clusterPeers))
+	var mux sync.Mutex
+	var wg sync.WaitGroup
+	for i, cp := range clusterPeers {
+		wg.Add(1)
+		go func(cp ma.Multiaddr, i int) {
+			defer wg.Done()
+			logger.Debugf("starting checking with %s", cp)
+			pid, addr, _ := multiaddrSplit(cp)
+			if c.peerManager.isPeer(pid) {
+				return
+			}
+			if len(c.host.Network().ConnsToPeer(pid)) > 0 {
+				logger.Debugf("no checkin: already connected to %s", pid.Pretty())
+				// They are connected. They must have us.
+				// We don't check in, just add them
+				c.peerManager.addPeer(cp)
+				return
+			}
+
+			whoAmI, err := getLocalMultiaddrTo(c.ctx, c.host, pid, addr)
+			if err != nil {
+				msg := fmt.Sprintf("cannot connect to %s. ", cp)
+				logger.Error(msg)
+				errs[i] = msg
+				return
+			}
+			logger.Debugf("checin: I am %s", whoAmI)
+
+			var tmp peer.ID
+			err = c.rpcClient.Call(pid, "Cluster", "PeerManagerAddPeer",
+				MultiaddrToSerial(whoAmI), &tmp)
+			if err != nil {
+				msg := fmt.Sprintf("error checking-in with %s: %s", pid.Pretty(), err)
+				logger.Error(msg)
+				errs[i] = msg
+				return
+			}
+			c.peerManager.addPeer(cp)
+
+			id, err := c.getIDForPeer(pid)
+			if err != nil {
+				msg := fmt.Sprintf("error getting peers from %s: %s", pid.Pretty(), err)
+				logger.Error(msg)
+				errs[i] = msg
+				return
+			}
+			mux.Lock()
+			for _, newcp := range id.ClusterPeers {
+				newpid, _, _ := multiaddrSplit(newcp)
+				newClusterPeersMap[newpid] = newcp
+			}
+			mux.Unlock()
+		}(cp, i)
+	}
+	wg.Wait()
+
+	// Collect errors and roll back
+	errorMsgs := ""
+	for _, e := range errs {
+		if e != "" {
+			errorMsgs += e + "\n"
+		}
+	}
+
+	if errorMsgs != "" {
+		// Broadcast PeerManagerRmPeer without shutting ourselves down
+		peers := c.peerManager.peers()
+		replies := make([]struct{}, len(peers), len(peers))
+		c.multiRPC(peers, "Cluster", "PeerManagerRmPeerNoShutdown",
+			c.host.ID(), copyEmptyStructToIfaces(replies))
+		return errors.New(errorMsgs)
+	}
+
+	newPeers := make([]ma.Multiaddr, 0, len(newClusterPeersMap))
+	for _, v := range newClusterPeersMap {
+		newPeers = append(newPeers, v)
+	}
+	// Recursively check with all retrieved peers
+	return c.checkInWithPeers(newPeers)
 }
 
 // StateSync syncs the consensus state to the Pin Tracker, ensuring
@@ -326,20 +434,16 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 	clusterPins := cState.ListPins()
 	var changed []*cid.Cid
 
+	// For the moment we run everything in parallel.
+	// The PinTracker should probably decide if it can
+	// pin in parallel or queues everything and does it
+	// one by one
+
 	// Track items which are not tracked
 	for _, h := range clusterPins {
 		if c.tracker.Status(h).Status == TrackerStatusUnpinned {
 			changed = append(changed, h)
-			err := c.rpcClient.Go("",
-				"Cluster",
-				"Track",
-				NewCidArg(h),
-				&struct{}{},
-				nil)
-			if err != nil {
-				return []PinInfo{}, err
-			}
-
+			go c.tracker.Track(h)
 		}
 	}
 
@@ -348,15 +452,7 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 		h, _ := cid.Decode(p.CidStr)
 		if !cState.HasPin(h) {
 			changed = append(changed, h)
-			err := c.rpcClient.Go("",
-				"Cluster",
-				"Track",
-				&CidArg{p.CidStr},
-				&struct{}{},
-				nil)
-			if err != nil {
-				return []PinInfo{}, err
-			}
+			go c.tracker.Untrack(h)
 		}
 	}
 
@@ -517,12 +613,18 @@ func (c *Cluster) run() {
 		defer cancel()
 		c.ctx = ctx
 
+		stateSyncTicker := time.NewTicker(
+			time.Duration(c.config.StateSyncSeconds) * time.Second)
+
 		for {
 			select {
+			case <-stateSyncTicker.C:
+				c.StateSync()
 			case <-c.shutdownCh:
+				stateSyncTicker.Stop()
 				return
 			case <-c.consensus.Ready():
-				close(c.readyCh)
+				c.readyCh <- struct{}{}
 				logger.Info("IPFS Cluster is ready")
 			}
 		}
@@ -672,24 +774,14 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	return infos, nil
 }
 
-// openConns is a workaround for
-// https://github.com/libp2p/go-libp2p-swarm/issues/15
-// which break our tests.
-// It runs when consensus is initialized so we can assume
-// that the cluster is more or less up.
-// It should open connections for peers where they haven't
-// yet been opened. By randomly sleeping we reduce the
-// chance that peers will open 2 connections simultaneously.
-func (c *Cluster) openConns() {
-	rand.Seed(time.Now().UnixNano())
-	time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-	peers := c.host.Peerstore().Peers()
-	for _, p := range peers {
-		peerInfo := c.host.Peerstore().PeerInfo(p)
-		if p == c.host.ID() {
-			continue // do not connect to ourselves
-		}
-		// ignore any errors here
-		c.host.Connect(c.ctx, peerInfo)
+func (c *Cluster) getIDForPeer(pid peer.ID) (ID, error) {
+	idSerial := ID{ID: pid}.ToSerial()
+	err := c.rpcClient.Call(
+		pid, "Cluster", "ID", struct{}{}, &idSerial)
+	id := idSerial.ToID()
+	if err != nil {
+		logger.Error(err)
+		id.Error = err.Error()
 	}
+	return id, err
 }
