@@ -1,5 +1,17 @@
 # IPFS Cluster - Captain's log
 
+## 20170208 | @hsanjuan
+
+So much for commitments... I missed last friday's log entry. The reason is that I was busy with the implementation of [dynamic membership for IPFS Cluster](https://github.com/ipfs/ipfs-cluster/milestone/2).
+
+What seemed a rather simple task turned into a not so simple endeavour because modifying the peer set of Raft has a lot of pitfalls. This is specially if it is during boot (in order to bootstrap). A `peer add` operation implies making everyone aware of a new peer. In Raft this is achieved by commiting a special log entry. However there is no way to notify of such event on a receiver, and such entry only has the peer ID, not the full multiaddress of the new peer (needed so that other nodes can talk to it).
+
+Therefore whoever adds the node must additionally broadcast the new node and also send back the full list of cluster peers to it. After three implementation attempts (all working but all improving on top of the previous), we perform this broadcasting by logging our own `PeerAdd` operation in Raft, with the multiaddress. This proved nicer and simpler than broadcasting to all the nodes (mostly on dealing with failures and errors - what do when a node has missed out). If the operation makes it to the log then everyone should get it, and if not, failure does not involve un-doing the operation in every node with another broadcast. The whole thing is still tricky when joining peers which have disjoint Raft states, so it is best to use it with clean, just started peers.
+
+Same as `peer add`, there is a `join` operation which facilitates bootstrapping a node and have it directly join a cluster. On shut down, each node will save the current cluster peers in the configuration for future use. A `join` operation can be triggered with the `--bootstrap` flag in `ipfs-cluster-service` or with the `bootstrap` option in the configuration and works best with clean nodes.
+
+The next days will be spent on implementing [replication factors](https://github.com/ipfs/ipfs-cluster/milestone/3), which implies the addition of new components to the mix.
+
 ## 20170127 | @hsanjuan
 
 Friday is from now on the Captain Log entry day.
