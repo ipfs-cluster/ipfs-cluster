@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 
 	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
@@ -59,6 +61,21 @@ initialized with "init" and its default location is
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
+
+
+EXAMPLES
+
+Initial configuration:
+
+$ ipfs-cluster-service init
+
+Launch a cluster:
+
+$ ipfs-cluster-service
+
+Launch a peer and join existing cluster:
+
+$ ipfs-cluster-service --bootstrap /ip4/192.168.1.2/tcp/9096/ipfs/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
 `,
 	programName,
 	programName,
@@ -110,7 +127,8 @@ func main() {
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "IPFS Cluster node"
-	app.UsageText = Description
+	app.Description = Description
+	//app.Copyright = "© Protocol Labs, Inc."
 	app.Version = ipfscluster.Version
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
@@ -126,16 +144,25 @@ func main() {
 		},
 		cli.BoolFlag{
 			Name:  "force, f",
-			Usage: "force configuration overwrite when running 'init'",
+			Usage: "forcefully proceed with some actions. i.e. overwriting configuration",
+		},
+		cli.StringFlag{
+			Name:  "bootstrap, j",
+			Usage: "join a cluster providing an existing peer's `multiaddress`. Overrides the \"bootstrap\" values from the configuration",
+		},
+		cli.BoolFlag{
+			Name:   "leave, x",
+			Usage:  "remove peer from cluster on exit. Overrides \"leave_on_shutdown\"",
+			Hidden: true,
 		},
 		cli.BoolFlag{
 			Name:  "debug, d",
-			Usage: "enable full debug logging",
+			Usage: "enable full debug logging (very verbose)",
 		},
 		cli.StringFlag{
 			Name:  "loglevel, l",
 			Value: "info",
-			Usage: "set the loglevel [critical, error, warning, info, debug]",
+			Usage: "set the loglevel for cluster only [critical, error, warning, info, debug]",
 		},
 	}
 
@@ -185,6 +212,22 @@ func run(c *cli.Context) error {
 	cfg, err := loadConfig()
 	checkErr("loading configuration", err)
 
+	if a := c.String("bootstrap"); a != "" {
+		if len(cfg.ClusterPeers) > 0 && !c.Bool("force") {
+			return errors.New("The configuration provides ClusterPeers. Use -f to ignore and proceed bootstrapping")
+		}
+		joinAddr, err := ma.NewMultiaddr(a)
+		if err != nil {
+			return fmt.Errorf("error parsing multiaddress: %s", err)
+		}
+		cfg.Bootstrap = []ma.Multiaddr{joinAddr}
+		cfg.ClusterPeers = []ma.Multiaddr{}
+	}
+
+	if c.Bool("leave") {
+		cfg.LeaveOnShutdown = true
+	}
+
 	api, err := ipfscluster.NewRESTAPI(cfg)
 	checkErr("creating REST API component", err)
 
@@ -201,35 +244,33 @@ func run(c *cli.Context) error {
 		tracker)
 	checkErr("starting cluster", err)
 
-	signalChan := make(chan os.Signal)
+	signalChan := make(chan os.Signal, 20)
 	signal.Notify(signalChan, os.Interrupt)
-
 	for {
 		select {
 		case <-signalChan:
 			err = cluster.Shutdown()
 			checkErr("shutting down cluster", err)
-			return nil
 		case <-cluster.Done():
 			return nil
 		case <-cluster.Ready():
-			logger.Info("IPFS Cluster is ready")
 		}
 	}
 }
 
 func setupLogging(lvl string) {
-	logging.SetLogLevel("service", lvl)
-	logging.SetLogLevel("cluster", lvl)
-	//logging.SetLogLevel("raft", lvl)
+	ipfscluster.SetFacilityLogLevel("service", lvl)
+	ipfscluster.SetFacilityLogLevel("cluster", lvl)
+	//ipfscluster.SetFacilityLogLevel("raft", lvl)
 }
 
 func setupDebug() {
-	logging.SetLogLevel("cluster", "debug")
-	//logging.SetLogLevel("libp2p-raft", "debug")
-	logging.SetLogLevel("p2p-gorpc", "debug")
-	//logging.SetLogLevel("swarm2", "debug")
-	logging.SetLogLevel("raft", "debug")
+	l := "DEBUG"
+	ipfscluster.SetFacilityLogLevel("cluster", l)
+	ipfscluster.SetFacilityLogLevel("raft", l)
+	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
+	//SetFacilityLogLevel("swarm2", l)
+	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
 func initConfig(force bool) {

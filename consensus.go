@@ -12,24 +12,31 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // Type of pin operation
 const (
 	LogOpPin = iota + 1
 	LogOpUnpin
+	LogOpAddPeer
+	LogOpRmPeer
 )
 
-// LeaderTimeout specifies how long to wait during initialization
-// before failing for not having a leader.
-var LeaderTimeout = 120 * time.Second
+// LeaderTimeout specifies how long to wait before failing an operation
+// because there is no leader
+var LeaderTimeout = 15 * time.Second
+
+// CommitRetries specifies how many times we retry a failed commit until
+// we give up
+var CommitRetries = 2
 
 type clusterLogOpType int
 
 // clusterLogOp represents an operation for the OpLogConsensus system.
 // It implements the consensus.Op interface.
 type clusterLogOp struct {
-	Cid       string
+	Arg       string
 	Type      clusterLogOpType
 	ctx       context.Context
 	rpcClient *rpc.Client
@@ -44,15 +51,13 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 		panic("received unexpected state type")
 	}
 
-	c, err := cid.Decode(op.Cid)
-	if err != nil {
-		// Should never be here
-		panic("could not decode a CID we ourselves encoded")
-	}
-
 	switch op.Type {
 	case LogOpPin:
-		err := state.AddPin(c)
+		c, err := cid.Decode(op.Arg)
+		if err != nil {
+			panic("could not decode a CID we ourselves encoded")
+		}
+		err = state.AddPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
@@ -64,7 +69,11 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 			&struct{}{},
 			nil)
 	case LogOpUnpin:
-		err := state.RmPin(c)
+		c, err := cid.Decode(op.Arg)
+		if err != nil {
+			panic("could not decode a CID we ourselves encoded")
+		}
+		err = state.RmPin(c)
 		if err != nil {
 			goto ROLLBACK
 		}
@@ -75,6 +84,28 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 			NewCidArg(c),
 			&struct{}{},
 			nil)
+	case LogOpAddPeer:
+		addr, err := ma.NewMultiaddr(op.Arg)
+		if err != nil {
+			panic("could not decode a multiaddress we ourselves encoded")
+		}
+		op.rpcClient.Call("",
+			"Cluster",
+			"PeerManagerAddPeer",
+			MultiaddrToSerial(addr),
+			&struct{}{})
+		// TODO rebalance ops
+	case LogOpRmPeer:
+		pid, err := peer.IDB58Decode(op.Arg)
+		if err != nil {
+			panic("could not decode a PID we ourselves encoded")
+		}
+		op.rpcClient.Call("",
+			"Cluster",
+			"PeerManagerRmPeer",
+			pid,
+			&struct{}{})
+		// TODO rebalance ops
 	default:
 		logger.Error("unknown clusterLogOp type. Ignoring")
 	}
@@ -155,35 +186,52 @@ func (cc *Consensus) run() {
 		cc.ctx = ctx
 		cc.baseOp.ctx = ctx
 
-		go func() {
-			cc.finishBootstrap()
-		}()
+		go cc.finishBootstrap()
 		<-cc.shutdownCh
 	}()
+}
+
+// WaitForSync waits for a leader and for the state to be up to date, then returns.
+func (cc *Consensus) WaitForSync() error {
+	leaderCtx, cancel := context.WithTimeout(cc.ctx, LeaderTimeout)
+	defer cancel()
+	err := cc.raft.WaitForLeader(leaderCtx)
+	if err != nil {
+		return errors.New("error waiting for leader: " + err.Error())
+	}
+	err = cc.raft.WaitForUpdates(cc.ctx)
+	if err != nil {
+		return errors.New("error waiting for consensus updates: " + err.Error())
+	}
+	return nil
 }
 
 // waits until there is a consensus leader and syncs the state
 // to the tracker
 func (cc *Consensus) finishBootstrap() {
-	cc.raft.WaitForLeader(cc.ctx)
-	cc.raft.WaitForUpdates(cc.ctx)
+	err := cc.WaitForSync()
+	if err != nil {
+		return
+	}
 	logger.Info("Consensus state is up to date")
 
 	// While rpc is not ready we cannot perform a sync
-	select {
-	case <-cc.ctx.Done():
-		return
-	case <-cc.rpcReady:
+	if cc.rpcClient == nil {
+		select {
+		case <-cc.ctx.Done():
+			return
+		case <-cc.rpcReady:
+		}
 	}
 
-	var pInfo []PinInfo
-
-	_, err := cc.State()
+	st, err := cc.State()
+	_ = st
 	// only check sync if we have a state
 	// avoid error on new running clusters
 	if err != nil {
 		logger.Debug("skipping state sync: ", err)
 	} else {
+		var pInfo []PinInfo
 		cc.rpcClient.Go(
 			"",
 			"Cluster",
@@ -193,28 +241,8 @@ func (cc *Consensus) finishBootstrap() {
 			nil)
 	}
 	cc.readyCh <- struct{}{}
-	logger.Debug("consensus ready") // not accurate if we are shutting down
+	logger.Debug("consensus ready")
 }
-
-// // raft stores peer add/rm operations. This is how to force a peer set.
-// func (cc *Consensus) setPeers() {
-// 	logger.Debug("forcefully setting Raft peers to known set")
-// 	var peersStr []string
-// 	var peers []peer.ID
-// 	err := cc.rpcClient.Call("",
-// 		"Cluster",
-// 		"PeerManagerPeers",
-// 		struct{}{},
-// 		&peers)
-// 	if err != nil {
-// 		logger.Error(err)
-// 		return
-// 	}
-// 	for _, p := range peers {
-// 		peersStr = append(peersStr, p.Pretty())
-// 	}
-// 	cc.p2pRaft.raft.SetPeers(peersStr)
-// }
 
 // Shutdown stops the component so it will not process any
 // more updates. The underlying consensus is permanently
@@ -267,9 +295,20 @@ func (cc *Consensus) Ready() <-chan struct{} {
 	return cc.readyCh
 }
 
-func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
+func (cc *Consensus) op(argi interface{}, t clusterLogOpType) *clusterLogOp {
+	var arg string
+	switch argi.(type) {
+	case *cid.Cid:
+		arg = argi.(*cid.Cid).String()
+	case peer.ID:
+		arg = peer.IDB58Encode(argi.(peer.ID))
+	case ma.Multiaddr:
+		arg = argi.(ma.Multiaddr).String()
+	default:
+		panic("bad type")
+	}
 	return &clusterLogOp{
-		Cid:  c.String(),
+		Arg:  arg,
 		Type: t,
 	}
 }
@@ -278,7 +317,12 @@ func (cc *Consensus) op(c *cid.Cid, t clusterLogOpType) *clusterLogOp {
 func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, error) {
 	leader, err := cc.Leader()
 	if err != nil {
-		return false, err
+		rctx, cancel := context.WithTimeout(cc.ctx, LeaderTimeout)
+		defer cancel()
+		err := cc.raft.WaitForLeader(rctx)
+		if err != nil {
+			return false, err
+		}
 	}
 	if leader == cc.host.ID() {
 		return false, nil
@@ -293,64 +337,144 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 	return true, err
 }
 
+func (cc *Consensus) logOpCid(rpcOp string, opType clusterLogOpType, c *cid.Cid) error {
+	var finalErr error
+	for i := 0; i < CommitRetries; i++ {
+		logger.Debugf("Try %d", i)
+		redirected, err := cc.redirectToLeader(rpcOp, NewCidArg(c))
+		if err != nil {
+			finalErr = err
+			continue
+		}
+
+		if redirected {
+			return nil
+		}
+
+		// It seems WE are the leader.
+
+		// Create pin operation for the log
+		op := cc.op(c, opType)
+		_, err = cc.consensus.CommitOp(op)
+		if err != nil {
+			// This means the op did not make it to the log
+			finalErr = err
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		finalErr = nil
+		break
+	}
+	if finalErr != nil {
+		return finalErr
+	}
+
+	switch opType {
+	case LogOpPin:
+		logger.Infof("pin committed to global state: %s", c)
+	case LogOpUnpin:
+		logger.Infof("unpin committed to global state: %s", c)
+	}
+	return nil
+}
+
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
 func (cc *Consensus) LogPin(c *cid.Cid) error {
-	redirected, err := cc.redirectToLeader("ConsensusLogPin", NewCidArg(c))
-	if err != nil || redirected {
-		return err
-	}
-
-	// It seems WE are the leader.
-
-	// Create pin operation for the log
-	op := cc.op(c, LogOpPin)
-	_, err = cc.consensus.CommitOp(op)
-	if err != nil {
-		// This means the op did not make it to the log
-		return err
-	}
-	logger.Infof("pin committed to global state: %s", c)
-	return nil
+	return cc.logOpCid("ConsensusLogPin", LogOpPin, c)
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
 func (cc *Consensus) LogUnpin(c *cid.Cid) error {
-	redirected, err := cc.redirectToLeader("ConsensusLogUnpin", NewCidArg(c))
-	if err != nil || redirected {
-		return err
-	}
+	return cc.logOpCid("ConsensusLogUnpin", LogOpUnpin, c)
+}
 
-	// It seems WE are the leader.
+// LogAddPeer submits a new peer to the shared state of the cluster. It will
+// forward the operation to the leader if this is not it.
+func (cc *Consensus) LogAddPeer(addr ma.Multiaddr) error {
+	var finalErr error
+	for i := 0; i < CommitRetries; i++ {
+		logger.Debugf("Try %d", i)
+		redirected, err := cc.redirectToLeader("ConsensusLogAddPeer", MultiaddrToSerial(addr))
+		if err != nil {
+			finalErr = err
+			continue
+		}
 
-	// Create  unpin operation for the log
-	op := cc.op(c, LogOpUnpin)
-	_, err = cc.consensus.CommitOp(op)
-	if err != nil {
-		return err
+		if redirected {
+			return nil
+		}
+
+		// It seems WE are the leader.
+		pid, _, err := multiaddrSplit(addr)
+		if err != nil {
+			return err
+		}
+
+		// Create pin operation for the log
+		op := cc.op(addr, LogOpAddPeer)
+		_, err = cc.consensus.CommitOp(op)
+		if err != nil {
+			// This means the op did not make it to the log
+			finalErr = err
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		err = cc.raft.AddPeer(peer.IDB58Encode(pid))
+		if err != nil {
+			finalErr = err
+			continue
+		}
+		finalErr = nil
+		break
 	}
-	logger.Infof("unpin committed to global state: %s", c)
+	if finalErr != nil {
+		return finalErr
+	}
+	logger.Infof("peer committed to global state: %s", addr)
 	return nil
 }
 
-// AddPeer attempts to add a peer to the consensus.
-func (cc *Consensus) AddPeer(p peer.ID) error {
-	//redirected, err := cc.redirectToLeader("ConsensusAddPeer", p)
-	//if err != nil || redirected {
-	//		return err
-	//	}
+// LogRmPeer removes a peer from the shared state of the cluster. It will
+// forward the operation to the leader if this is not it.
+func (cc *Consensus) LogRmPeer(pid peer.ID) error {
+	var finalErr error
+	for i := 0; i < CommitRetries; i++ {
+		logger.Debugf("Try %d", i)
+		redirected, err := cc.redirectToLeader("ConsensusLogRmPeer", pid)
+		if err != nil {
+			finalErr = err
+			continue
+		}
 
-	return cc.raft.AddPeer(peer.IDB58Encode(p))
-}
+		if redirected {
+			return nil
+		}
 
-// RemovePeer attempts to remove a peer from the consensus.
-func (cc *Consensus) RemovePeer(p peer.ID) error {
-	//redirected, err := cc.redirectToLeader("ConsensusRemovePeer", p)
-	//if err != nil || redirected {
-	//	return err
-	//}
+		// It seems WE are the leader.
 
-	return cc.raft.RemovePeer(peer.IDB58Encode(p))
+		// Create pin operation for the log
+		op := cc.op(pid, LogOpRmPeer)
+		_, err = cc.consensus.CommitOp(op)
+		if err != nil {
+			// This means the op did not make it to the log
+			finalErr = err
+			continue
+		}
+		err = cc.raft.RemovePeer(peer.IDB58Encode(pid))
+		if err != nil {
+			finalErr = err
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		finalErr = nil
+		break
+	}
+	if finalErr != nil {
+		return finalErr
+	}
+	logger.Infof("peer removed from global state: %s", pid)
+	return nil
 }
 
 // State retrieves the current consensus State. It may error

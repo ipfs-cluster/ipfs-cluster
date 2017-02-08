@@ -14,8 +14,8 @@ var logger = logging.Logger("cluster")
 var raftStdLogger = makeRaftLogger()
 var raftLogger = logging.Logger("raft")
 
-// SetLogLevel sets the level in the logs
-func SetLogLevel(l string) {
+// SetFacilityLogLevel sets the log level for a given module
+func SetFacilityLogLevel(f, l string) {
 	/*
 		CRITICAL Level = iota
 		ERROR
@@ -24,11 +24,7 @@ func SetLogLevel(l string) {
 		INFO
 		DEBUG
 	*/
-	logging.SetLogLevel("cluster", l)
-	//logging.SetLogLevel("raft", l)
-	//logging.SetLogLevel("p2p-gorpc", l)
-	//logging.SetLogLevel("swarm2", l)
-	//logging.SetLogLevel("libp2p-raft", l)
+	logging.SetLogLevel(f, l)
 }
 
 // This redirects Raft output to our logger

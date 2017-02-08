@@ -37,6 +37,7 @@ type Raft struct {
 	stableStore   hashiraft.StableStore
 	peerstore     *libp2praft.Peerstore
 	boltdb        *raftboltdb.BoltStore
+	dataFolder    string
 }
 
 func defaultRaftConfig() *hashiraft.Config {
@@ -87,14 +88,15 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 		return nil, err
 	}
 
+	cfg := defaultRaftConfig()
 	logger.Debug("creating Raft")
-	r, err := hashiraft.NewRaft(defaultRaftConfig(), fsm, logStore, logStore, snapshots, pstore, transport)
+	r, err := hashiraft.NewRaft(cfg, fsm, logStore, logStore, snapshots, pstore, transport)
 	if err != nil {
 		logger.Error("initializing raft: ", err)
 		return nil, err
 	}
 
-	return &Raft{
+	raft := &Raft{
 		raft:          r,
 		transport:     transport,
 		snapshotStore: snapshots,
@@ -102,22 +104,26 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 		stableStore:   logStore,
 		peerstore:     pstore,
 		boltdb:        logStore,
-	}, nil
+		dataFolder:    dataFolder,
+	}
+
+	return raft, nil
 }
 
-// WaitForLeader holds until Raft says we have a leader
-func (r *Raft) WaitForLeader(ctx context.Context) {
+// WaitForLeader holds until Raft says we have a leader.
+// Returns an error if we don't.
+func (r *Raft) WaitForLeader(ctx context.Context) error {
 	// Using Raft observers panics on non-64 architectures.
 	// This is a work around
+	logger.Info("waiting for leader")
 	if sixtyfour {
-		r.waitForLeader(ctx)
-	} else {
-		r.waitForLeaderLegacy(ctx)
+		return r.waitForLeader(ctx)
 	}
+	return r.waitForLeaderLegacy(ctx)
 }
 
-func (r *Raft) waitForLeader(ctx context.Context) {
-	obsCh := make(chan hashiraft.Observation)
+func (r *Raft) waitForLeader(ctx context.Context) error {
+	obsCh := make(chan hashiraft.Observation, 1)
 	filter := func(o *hashiraft.Observation) bool {
 		switch o.Data.(type) {
 		case hashiraft.LeaderObservation:
@@ -126,29 +132,43 @@ func (r *Raft) waitForLeader(ctx context.Context) {
 			return false
 		}
 	}
-	observer := hashiraft.NewObserver(obsCh, true, filter)
+	observer := hashiraft.NewObserver(obsCh, false, filter)
 	r.raft.RegisterObserver(observer)
 	defer r.raft.DeregisterObserver(observer)
-	select {
-	case obs := <-obsCh:
-		leaderObs := obs.Data.(hashiraft.LeaderObservation)
-		logger.Infof("Raft Leader elected: %s", leaderObs.Leader)
-
-	case <-ctx.Done():
-		return
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case obs := <-obsCh:
+			switch obs.Data.(type) {
+			case hashiraft.LeaderObservation:
+				leaderObs := obs.Data.(hashiraft.LeaderObservation)
+				logger.Infof("Raft Leader elected: %s", leaderObs.Leader)
+				return nil
+			}
+		case <-ticker.C:
+			if l := r.raft.Leader(); l != "" { //we missed or there was no election
+				logger.Debug("waitForleaderTimer")
+				logger.Infof("Raft Leader elected: %s", l)
+				ticker.Stop()
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
-func (r *Raft) waitForLeaderLegacy(ctx context.Context) {
+// 32-bit systems should use this.
+func (r *Raft) waitForLeaderLegacy(ctx context.Context) error {
 	for {
 		leader := r.raft.Leader()
 		if leader != "" {
 			logger.Infof("Raft Leader elected: %s", leader)
-			return
+			return nil
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		default:
 			time.Sleep(500 * time.Millisecond)
 		}
@@ -156,23 +176,22 @@ func (r *Raft) waitForLeaderLegacy(ctx context.Context) {
 }
 
 // WaitForUpdates holds until Raft has synced to the last index in the log
-func (r *Raft) WaitForUpdates(ctx context.Context) {
+func (r *Raft) WaitForUpdates(ctx context.Context) error {
 	logger.Debug("Raft state is catching up")
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		default:
 			lai := r.raft.AppliedIndex()
 			li := r.raft.LastIndex()
 			logger.Debugf("current Raft index: %d/%d",
 				lai, li)
 			if lai == li {
-				return
+				return nil
 			}
 			time.Sleep(500 * time.Millisecond)
 		}
-
 	}
 }
 
@@ -199,28 +218,81 @@ func (r *Raft) Shutdown() error {
 	if err != nil {
 		errMsgs += "could not close boltdb: " + err.Error()
 	}
+
 	if errMsgs != "" {
 		return errors.New(errMsgs)
 	}
+
+	// If the shutdown worked correctly
+	// (including snapshot) we can remove the Raft
+	// database (which traces peers additions
+	// and removals). It makes re-start of the peer
+	// way less confusing for Raft while the state
+	// can be restored from the snapshot.
+	//os.Remove(filepath.Join(r.dataFolder, "raft.db"))
 	return nil
 }
 
 // AddPeer adds a peer to Raft
 func (r *Raft) AddPeer(peer string) error {
+	if r.hasPeer(peer) {
+		logger.Debug("skipping raft add as already in peer set")
+		return nil
+	}
+
 	future := r.raft.AddPeer(peer)
 	err := future.Error()
+	if err != nil {
+		logger.Error("raft cannot add peer: ", err)
+		return err
+	}
+	peers, _ := r.peerstore.Peers()
+	logger.Debugf("raft peerstore: %s", peers)
 	return err
 }
 
 // RemovePeer removes a peer from Raft
 func (r *Raft) RemovePeer(peer string) error {
+	if !r.hasPeer(peer) {
+		return nil
+	}
+
 	future := r.raft.RemovePeer(peer)
 	err := future.Error()
+	if err != nil {
+		logger.Error("raft cannot remove peer: ", err)
+		return err
+	}
+	peers, _ := r.peerstore.Peers()
+	logger.Debugf("raft peerstore: %s", peers)
 	return err
 }
+
+// func (r *Raft) SetPeers(peers []string) error {
+// 	logger.Debugf("SetPeers(): %s", peers)
+// 	future := r.raft.SetPeers(peers)
+// 	err := future.Error()
+// 	if err != nil {
+// 		logger.Error(err)
+// 	}
+// 	return err
+// }
 
 // Leader returns Raft's leader. It may be an empty string if
 // there is no leader or it is unknown.
 func (r *Raft) Leader() string {
 	return r.raft.Leader()
+}
+
+func (r *Raft) hasPeer(peer string) bool {
+	found := false
+	peers, _ := r.peerstore.Peers()
+	for _, p := range peers {
+		if p == peer {
+			found = true
+			break
+		}
+	}
+
+	return found
 }

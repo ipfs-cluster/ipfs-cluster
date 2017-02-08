@@ -14,12 +14,13 @@ import (
 
 // Default parameters for the configuration
 const (
-	DefaultConfigCrypto    = crypto.RSA
-	DefaultConfigKeyLength = 2048
-	DefaultAPIAddr         = "/ip4/127.0.0.1/tcp/9094"
-	DefaultIPFSProxyAddr   = "/ip4/127.0.0.1/tcp/9095"
-	DefaultIPFSNodeAddr    = "/ip4/127.0.0.1/tcp/5001"
-	DefaultClusterAddr     = "/ip4/0.0.0.0/tcp/9096"
+	DefaultConfigCrypto     = crypto.RSA
+	DefaultConfigKeyLength  = 2048
+	DefaultAPIAddr          = "/ip4/127.0.0.1/tcp/9094"
+	DefaultIPFSProxyAddr    = "/ip4/127.0.0.1/tcp/9095"
+	DefaultIPFSNodeAddr     = "/ip4/127.0.0.1/tcp/5001"
+	DefaultClusterAddr      = "/ip4/0.0.0.0/tcp/9096"
+	DefaultStateSyncSeconds = 60
 )
 
 // Config represents an ipfs-cluster configuration. It is used by
@@ -31,9 +32,21 @@ type Config struct {
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
 
-	// List of multiaddresses of the peers of this cluster.
+	// ClusterPeers is the list of peers in the Cluster. They are used
+	// as the initial peers in the consensus. When bootstrapping a peer,
+	// ClusterPeers will be filled in automatically for the next run upon
+	// shutdown.
 	ClusterPeers []ma.Multiaddr
-	pMux         sync.Mutex
+
+	// Bootstrap peers multiaddresses. This peer will attempt to
+	// join the clusters of the peers in this list after booting.
+	// Leave empty for a single-peer-cluster.
+	Bootstrap []ma.Multiaddr
+
+	// Leave Cluster on shutdown. Politely informs other peers
+	// of the departure and removes itself from the consensus
+	// peer set. The Cluster size will be reduced by one.
+	LeaveOnShutdown bool
 
 	// Listen parameters for the Cluster libp2p Host. Used by
 	// the RPC and Consensus components.
@@ -53,9 +66,14 @@ type Config struct {
 	// the Consensus component.
 	ConsensusDataFolder string
 
+	// Number of seconds between StateSync() operations
+	StateSyncSeconds int
+
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
 	path string
+
+	saveMux sync.Mutex
 }
 
 // JSONConfig represents a Cluster configuration as it will look when it is
@@ -67,9 +85,21 @@ type JSONConfig struct {
 	ID         string `json:"id"`
 	PrivateKey string `json:"private_key"`
 
-	// List of multiaddresses of the peers of this cluster. This list may
-	// include the multiaddress of this node.
+	// ClusterPeers is the list of peers' multiaddresses in the Cluster.
+	// They are used as the initial peers in the consensus. When
+	// bootstrapping a peer, ClusterPeers will be filled in automatically.
 	ClusterPeers []string `json:"cluster_peers"`
+
+	// Bootstrap peers multiaddresses. This peer will attempt to
+	// join the clusters of the peers in the list. ONLY when ClusterPeers
+	// is empty. Otherwise it is ignored. Leave empty for a single-peer
+	// cluster.
+	Bootstrap []string `json:"bootstrap"`
+
+	// Leave Cluster on shutdown. Politely informs other peers
+	// of the departure and removes itself from the consensus
+	// peer set. The Cluster size will be reduced by one.
+	LeaveOnShutdown bool `json:"leave_on_shutdown"`
 
 	// Listen address for the Cluster libp2p host. This is used for
 	// interal RPC and Consensus communications between cluster peers.
@@ -90,6 +120,11 @@ type JSONConfig struct {
 	// Storage folder for snapshots, log store etc. Used by
 	// the Consensus component.
 	ConsensusDataFolder string `json:"consensus_data_folder"`
+
+	// Number of seconds between syncs of the consensus state to the
+	// tracker state. Normally states are synced anyway, but this helps
+	// when new nodes are joining the cluster
+	StateSyncSeconds int `json:"state_sync_seconds"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -107,22 +142,28 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	}
 	pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
 
-	cfg.pMux.Lock()
 	clusterPeers := make([]string, len(cfg.ClusterPeers), len(cfg.ClusterPeers))
 	for i := 0; i < len(cfg.ClusterPeers); i++ {
 		clusterPeers[i] = cfg.ClusterPeers[i].String()
 	}
-	cfg.pMux.Unlock()
+
+	bootstrap := make([]string, len(cfg.Bootstrap), len(cfg.Bootstrap))
+	for i := 0; i < len(cfg.Bootstrap); i++ {
+		bootstrap[i] = cfg.Bootstrap[i].String()
+	}
 
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
 		PrivateKey:                  pKey,
 		ClusterPeers:                clusterPeers,
+		Bootstrap:                   bootstrap,
+		LeaveOnShutdown:             cfg.LeaveOnShutdown,
 		ClusterListenMultiaddress:   cfg.ClusterAddr.String(),
 		APIListenMultiaddress:       cfg.APIAddr.String(),
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
+		StateSyncSeconds:            cfg.StateSyncSeconds,
 	}
 	return
 }
@@ -158,6 +199,17 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		clusterPeers[i] = maddr
 	}
 
+	bootstrap := make([]ma.Multiaddr, len(jcfg.Bootstrap))
+	for i := 0; i < len(jcfg.Bootstrap); i++ {
+		maddr, err := ma.NewMultiaddr(jcfg.Bootstrap[i])
+		if err != nil {
+			err = fmt.Errorf("error parsing multiaddress for peer %s: %s",
+				jcfg.Bootstrap[i], err)
+			return nil, err
+		}
+		bootstrap[i] = maddr
+	}
+
 	clusterAddr, err := ma.NewMultiaddr(jcfg.ClusterListenMultiaddress)
 	if err != nil {
 		err = fmt.Errorf("error parsing cluster_listen_multiaddress: %s", err)
@@ -180,15 +232,22 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		return
 	}
 
+	if jcfg.StateSyncSeconds <= 0 {
+		jcfg.StateSyncSeconds = DefaultStateSyncSeconds
+	}
+
 	c = &Config{
 		ID:                  id,
 		PrivateKey:          pKey,
 		ClusterPeers:        clusterPeers,
+		Bootstrap:           bootstrap,
+		LeaveOnShutdown:     jcfg.LeaveOnShutdown,
 		ClusterAddr:         clusterAddr,
 		APIAddr:             apiAddr,
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: jcfg.ConsensusDataFolder,
+		StateSyncSeconds:    jcfg.StateSyncSeconds,
 	}
 	return
 }
@@ -217,7 +276,17 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // Save stores a configuration as a JSON file in the given path.
+// If no path is provided, it uses the path the configuration was
+// loaded from.
 func (cfg *Config) Save(path string) error {
+	cfg.saveMux.Lock()
+	defer cfg.saveMux.Unlock()
+
+	if path == "" {
+		path = cfg.path
+	}
+
+	logger.Info("Saving configuration")
 	jcfg, err := cfg.ToJSONConfig()
 	if err != nil {
 		logger.Error("error generating JSON config")
@@ -254,52 +323,13 @@ func NewDefaultConfig() (*Config, error) {
 		ID:                  pid,
 		PrivateKey:          priv,
 		ClusterPeers:        []ma.Multiaddr{},
+		Bootstrap:           []ma.Multiaddr{},
+		LeaveOnShutdown:     false,
 		ClusterAddr:         clusterAddr,
 		APIAddr:             apiAddr,
 		IPFSProxyAddr:       ipfsProxyAddr,
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: "ipfscluster-data",
+		StateSyncSeconds:    DefaultStateSyncSeconds,
 	}, nil
-}
-
-func (cfg *Config) addPeer(addr ma.Multiaddr) {
-	cfg.pMux.Lock()
-	defer cfg.pMux.Unlock()
-	found := false
-	for _, cpeer := range cfg.ClusterPeers {
-		if cpeer.Equal(addr) {
-			found = true
-		}
-	}
-	if !found {
-		cfg.ClusterPeers = append(cfg.ClusterPeers, addr)
-	}
-	logger.Debugf("add: cluster peers are now: %s", cfg.ClusterPeers)
-}
-
-func (cfg *Config) rmPeer(p peer.ID) {
-	cfg.pMux.Lock()
-	defer cfg.pMux.Unlock()
-	foundPos := -1
-	for i, addr := range cfg.ClusterPeers {
-		cp, _, _ := multiaddrSplit(addr)
-		if cp == p {
-			foundPos = i
-		}
-	}
-	if foundPos < 0 {
-		return
-	}
-
-	// Delete preserving order
-	copy(cfg.ClusterPeers[foundPos:], cfg.ClusterPeers[foundPos+1:])
-	cfg.ClusterPeers[len(cfg.ClusterPeers)-1] = nil // or the zero value of T
-	cfg.ClusterPeers = cfg.ClusterPeers[:len(cfg.ClusterPeers)-1]
-	logger.Debugf("rm: cluster peers are now: %s", cfg.ClusterPeers)
-}
-
-func (cfg *Config) emptyPeers() {
-	cfg.pMux.Lock()
-	defer cfg.pMux.Unlock()
-	cfg.ClusterPeers = []ma.Multiaddr{}
 }

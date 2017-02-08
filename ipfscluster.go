@@ -155,6 +155,7 @@ type State interface {
 	ListPins() []*cid.Cid
 	// HasPin returns true if the state is holding a Cid
 	HasPin(*cid.Cid) bool
+	// AddPeer adds a peer to the shared state
 }
 
 // PinTracker represents a component which tracks the status of

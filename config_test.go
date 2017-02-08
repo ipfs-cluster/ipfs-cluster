@@ -11,6 +11,7 @@ func testingConfig() *Config {
 		APIListenMultiaddress:       "/ip4/127.0.0.1/tcp/10002",
 		IPFSProxyListenMultiaddress: "/ip4/127.0.0.1/tcp/10001",
 		ConsensusDataFolder:         "./raftFolderFromTests",
+		LeaveOnShutdown:             true,
 	}
 
 	cfg, _ := jcfg.ToConfig()
@@ -85,9 +86,9 @@ func TestConfigToConfig(t *testing.T) {
 	}
 
 	j, _ = cfg.ToJSONConfig()
-	j.ClusterPeers = []string{"abc"}
+	j.Bootstrap = []string{"abc"}
 	_, err = j.ToConfig()
 	if err == nil {
-		t.Error("expected error parsing cluster_peers")
+		t.Error("expected error parsing Bootstrap")
 	}
 }
