@@ -3,8 +3,9 @@ package ipfscluster
 import (
 	"fmt"
 
-	host "github.com/libp2p/go-libp2p-host"
+	"github.com/ipfs/ipfs-cluster/api"
 
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -18,7 +19,7 @@ import (
 // 	return ifaces
 // }
 
-func copyIDSerialsToIfaces(in []IDSerial) []interface{} {
+func copyIDSerialsToIfaces(in []api.IDSerial) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
@@ -26,7 +27,7 @@ func copyIDSerialsToIfaces(in []IDSerial) []interface{} {
 	return ifaces
 }
 
-func copyPinInfoToIfaces(in []PinInfo) []interface{} {
+func copyPinInfoSerialToIfaces(in []api.PinInfoSerial) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
@@ -34,7 +35,7 @@ func copyPinInfoToIfaces(in []PinInfo) []interface{} {
 	return ifaces
 }
 
-func copyPinInfoSliceToIfaces(in [][]PinInfo) []interface{} {
+func copyPinInfoSerialSliceToIfaces(in [][]api.PinInfoSerial) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
@@ -119,4 +120,20 @@ func getRemoteMultiaddr(h host.Host, pid peer.ID, addr ma.Multiaddr) ma.Multiadd
 		return multiaddrJoin(conns[0].RemoteMultiaddr(), pid)
 	}
 	return multiaddrJoin(addr, pid)
+}
+
+func pinInfoSliceToSerial(pi []api.PinInfo) []api.PinInfoSerial {
+	pis := make([]api.PinInfoSerial, len(pi), len(pi))
+	for i, v := range pi {
+		pis[i] = v.ToSerial()
+	}
+	return pis
+}
+
+func globalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSerial {
+	gpis := make([]api.GlobalPinInfoSerial, len(gpi), len(gpi))
+	for i, v := range gpi {
+		gpis[i] = v.ToSerial()
+	}
+	return gpis
 }

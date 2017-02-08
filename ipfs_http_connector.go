@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -239,7 +241,7 @@ func (ipfs *IPFSHTTPConnector) pinOpHandler(op string, w http.ResponseWriter, r 
 	err = ipfs.rpcClient.Call("",
 		"Cluster",
 		op,
-		&CidArg{arg},
+		api.CidArgSerial{arg},
 		&struct{}{})
 
 	if err != nil {
@@ -345,8 +347,8 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 // If the request fails, or the parsing fails, it
 // returns an error and an empty IPFSID which also
 // contains the error message.
-func (ipfs *IPFSHTTPConnector) ID() (IPFSID, error) {
-	id := IPFSID{}
+func (ipfs *IPFSHTTPConnector) ID() (api.IPFSID, error) {
+	id := api.IPFSID{}
 	body, err := ipfs.get("id")
 	if err != nil {
 		id.Error = err.Error()
@@ -420,22 +422,9 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	return nil
 }
 
-func parseIPFSPinType(t string) IPFSPinStatus {
-	switch {
-	case t == "indirect":
-		return IPFSPinStatusIndirect
-	case t == "direct":
-		return IPFSPinStatusDirect
-	case t == "recursive":
-		return IPFSPinStatusRecursive
-	default:
-		return IPFSPinStatusBug
-	}
-}
-
 // PinLs performs a "pin ls" request against the configured IPFS daemon and
 // returns a map of cid strings and their status.
-func (ipfs *IPFSHTTPConnector) PinLs() (map[string]IPFSPinStatus, error) {
+func (ipfs *IPFSHTTPConnector) PinLs() (map[string]api.IPFSPinStatus, error) {
 	body, err := ipfs.get("pin/ls")
 
 	// Some error talking to the daemon
@@ -451,27 +440,27 @@ func (ipfs *IPFSHTTPConnector) PinLs() (map[string]IPFSPinStatus, error) {
 		return nil, err
 	}
 
-	statusMap := make(map[string]IPFSPinStatus)
+	statusMap := make(map[string]api.IPFSPinStatus)
 	for k, v := range resp.Keys {
-		statusMap[k] = parseIPFSPinType(v.Type)
+		statusMap[k] = api.IPFSPinStatusFromString(v.Type)
 	}
 	return statusMap, nil
 }
 
 // PinLsCid performs a "pin ls <hash> "request and returns IPFSPinStatus for
 // that hash.
-func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (IPFSPinStatus, error) {
+func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s", hash)
 	body, err := ipfs.get(lsPath)
 
 	// Network error, daemon down
 	if body == nil && err != nil {
-		return IPFSPinStatusError, err
+		return api.IPFSPinStatusError, err
 	}
 
 	// Pin not found likely here
 	if err != nil { // Not pinned
-		return IPFSPinStatusUnpinned, nil
+		return api.IPFSPinStatusUnpinned, nil
 	}
 
 	var resp ipfsPinLsResp
@@ -479,14 +468,14 @@ func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (IPFSPinStatus, error) {
 	if err != nil {
 		logger.Error("parsing pin/ls?arg=cid response:")
 		logger.Error(string(body))
-		return IPFSPinStatusError, err
+		return api.IPFSPinStatusError, err
 	}
 	pinObj, ok := resp.Keys[hash.String()]
 	if !ok {
-		return IPFSPinStatusError, errors.New("expected to find the pin in the response")
+		return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
 	}
 
-	return parseIPFSPinType(pinObj.Type), nil
+	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
 // get performs the heavy lifting of a get request against

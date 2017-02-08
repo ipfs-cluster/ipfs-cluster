@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/ipfs/ipfs-cluster/api"
 )
 
 var (
@@ -16,16 +18,16 @@ var (
 func testRESTAPI(t *testing.T) *RESTAPI {
 	//logging.SetDebugLogging()
 	cfg := testingConfig()
-	api, err := NewRESTAPI(cfg)
+	rest, err := NewRESTAPI(cfg)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
 
 	// No keep alive! Otherwise tests hang with
 	// connections re-used from previous tests
-	api.server.SetKeepAlivesEnabled(false)
-	api.SetClient(mockRPCClient(t))
-	return api
+	rest.server.SetKeepAlivesEnabled(false)
+	rest.SetClient(mockRPCClient(t))
+	return rest
 }
 
 func processResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
@@ -65,19 +67,19 @@ func makeDelete(t *testing.T, path string, resp interface{}) {
 }
 
 func TestRESTAPIShutdown(t *testing.T) {
-	api := testRESTAPI(t)
-	err := api.Shutdown()
+	rest := testRESTAPI(t)
+	err := rest.Shutdown()
 	if err != nil {
 		t.Error("should shutdown cleanly: ", err)
 	}
 	// test shutting down twice
-	api.Shutdown()
+	rest.Shutdown()
 }
 
 func TestRestAPIIDEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
-	id := restIDResp{}
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
+	id := api.IDSerial{}
 	makeGet(t, "/id", &id)
 	if id.ID != testPeerID.Pretty() {
 		t.Error("expected correct id")
@@ -85,9 +87,9 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIVersionEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
-	ver := versionResp{}
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
+	ver := api.Version{}
 	makeGet(t, "/version", &ver)
 	if ver.Version != "0.0.mock" {
 		t.Error("expected correct version")
@@ -95,10 +97,10 @@ func TestRESTAPIVersionEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIPeerstEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	var list []restIDResp
+	var list []api.IDSerial
 	makeGet(t, "/peers", &list)
 	if len(list) != 1 {
 		t.Fatal("expected 1 element")
@@ -109,10 +111,10 @@ func TestRESTAPIPeerstEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIPeerAddEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	id := restIDResp{}
+	id := api.IDSerial{}
 	// post with valid body
 	body := fmt.Sprintf("{\"peer_multiaddress\":\"/ip4/1.2.3.4/tcp/1234/ipfs/%s\"}", testPeerID.Pretty())
 	t.Log(body)
@@ -139,15 +141,15 @@ func TestRESTAPIPeerAddEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIPeerRemoveEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
 	makeDelete(t, "/peers/"+testPeerID.Pretty(), &struct{}{})
 }
 
 func TestRESTAPIPinEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
 	// test regular post
 	makePost(t, "/pins/"+testCid, []byte{}, &struct{}{})
@@ -165,8 +167,8 @@ func TestRESTAPIPinEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIUnpinEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
 	// test regular delete
 	makeDelete(t, "/pins/"+testCid, &struct{}{})
@@ -184,8 +186,8 @@ func TestRESTAPIUnpinEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIPinListEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
 	var resp []string
 	makeGet(t, "/pinlist", &resp)
@@ -197,10 +199,10 @@ func TestRESTAPIPinListEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIStatusAllEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	var resp statusResp
+	var resp []api.GlobalPinInfoSerial
 	makeGet(t, "/pins", &resp)
 	if len(resp) != 3 ||
 		resp[0].Cid != testCid1 ||
@@ -210,10 +212,10 @@ func TestRESTAPIStatusAllEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIStatusEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	var resp statusCidResp
+	var resp api.GlobalPinInfoSerial
 	makeGet(t, "/pins/"+testCid, &resp)
 
 	if resp.Cid != testCid {
@@ -229,10 +231,10 @@ func TestRESTAPIStatusEndpoint(t *testing.T) {
 }
 
 func TestRESTAPISyncAllEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	var resp statusResp
+	var resp []api.GlobalPinInfoSerial
 	makePost(t, "/pins/sync", []byte{}, &resp)
 
 	if len(resp) != 3 ||
@@ -243,10 +245,10 @@ func TestRESTAPISyncAllEndpoint(t *testing.T) {
 }
 
 func TestRESTAPISyncEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	var resp statusCidResp
+	var resp api.GlobalPinInfoSerial
 	makePost(t, "/pins/"+testCid+"/sync", []byte{}, &resp)
 
 	if resp.Cid != testCid {
@@ -262,10 +264,10 @@ func TestRESTAPISyncEndpoint(t *testing.T) {
 }
 
 func TestRESTAPIRecoverEndpoint(t *testing.T) {
-	api := testRESTAPI(t)
-	defer api.Shutdown()
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
 
-	var resp statusCidResp
+	var resp api.GlobalPinInfoSerial
 	makePost(t, "/pins/"+testCid+"/recover", []byte{}, &resp)
 
 	if resp.Cid != testCid {

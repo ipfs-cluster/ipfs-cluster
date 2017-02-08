@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -30,7 +32,7 @@ var (
 // to store the status of the tracked Cids. This component is thread-safe.
 type MapPinTracker struct {
 	mux    sync.RWMutex
-	status map[string]PinInfo
+	status map[string]api.PinInfo
 
 	ctx       context.Context
 	rpcClient *rpc.Client
@@ -50,7 +52,7 @@ func NewMapPinTracker(cfg *Config) *MapPinTracker {
 
 	mpt := &MapPinTracker{
 		ctx:        ctx,
-		status:     make(map[string]PinInfo),
+		status:     make(map[string]api.PinInfo),
 		rpcReady:   make(chan struct{}, 1),
 		peerID:     cfg.ID,
 		shutdownCh: make(chan struct{}, 1),
@@ -92,21 +94,20 @@ func (mpt *MapPinTracker) Shutdown() error {
 	return nil
 }
 
-func (mpt *MapPinTracker) set(c *cid.Cid, s TrackerStatus) {
+func (mpt *MapPinTracker) set(c *cid.Cid, s api.TrackerStatus) {
 	mpt.mux.Lock()
 	defer mpt.mux.Unlock()
 	mpt.unsafeSet(c, s)
 }
 
-func (mpt *MapPinTracker) unsafeSet(c *cid.Cid, s TrackerStatus) {
-	if s == TrackerStatusUnpinned {
+func (mpt *MapPinTracker) unsafeSet(c *cid.Cid, s api.TrackerStatus) {
+	if s == api.TrackerStatusUnpinned {
 		delete(mpt.status, c.String())
 		return
 	}
 
-	mpt.status[c.String()] = PinInfo{
-		//		cid:    c,
-		CidStr: c.String(),
+	mpt.status[c.String()] = api.PinInfo{
+		Cid:    c,
 		Peer:   mpt.peerID,
 		Status: s,
 		TS:     time.Now(),
@@ -114,19 +115,19 @@ func (mpt *MapPinTracker) unsafeSet(c *cid.Cid, s TrackerStatus) {
 	}
 }
 
-func (mpt *MapPinTracker) get(c *cid.Cid) PinInfo {
+func (mpt *MapPinTracker) get(c *cid.Cid) api.PinInfo {
 	mpt.mux.RLock()
 	defer mpt.mux.RUnlock()
 	return mpt.unsafeGet(c)
 }
 
-func (mpt *MapPinTracker) unsafeGet(c *cid.Cid) PinInfo {
+func (mpt *MapPinTracker) unsafeGet(c *cid.Cid) api.PinInfo {
 	p, ok := mpt.status[c.String()]
 	if !ok {
-		return PinInfo{
-			CidStr: c.String(),
+		return api.PinInfo{
+			Cid:    c,
 			Peer:   mpt.peerID,
-			Status: TrackerStatusUnpinned,
+			Status: api.TrackerStatusUnpinned,
 			TS:     time.Now(),
 			Error:  "",
 		}
@@ -144,19 +145,19 @@ func (mpt *MapPinTracker) setError(c *cid.Cid, err error) {
 func (mpt *MapPinTracker) unsafeSetError(c *cid.Cid, err error) {
 	p := mpt.unsafeGet(c)
 	switch p.Status {
-	case TrackerStatusPinned, TrackerStatusPinning, TrackerStatusPinError:
-		mpt.status[c.String()] = PinInfo{
-			CidStr: c.String(),
+	case api.TrackerStatusPinned, api.TrackerStatusPinning, api.TrackerStatusPinError:
+		mpt.status[c.String()] = api.PinInfo{
+			Cid:    c,
 			Peer:   mpt.peerID,
-			Status: TrackerStatusPinError,
+			Status: api.TrackerStatusPinError,
 			TS:     time.Now(),
 			Error:  err.Error(),
 		}
-	case TrackerStatusUnpinned, TrackerStatusUnpinning, TrackerStatusUnpinError:
-		mpt.status[c.String()] = PinInfo{
-			CidStr: c.String(),
+	case api.TrackerStatusUnpinned, api.TrackerStatusUnpinning, api.TrackerStatusUnpinError:
+		mpt.status[c.String()] = api.PinInfo{
+			Cid:    c,
 			Peer:   mpt.peerID,
-			Status: TrackerStatusUnpinError,
+			Status: api.TrackerStatusUnpinError,
 			TS:     time.Now(),
 			Error:  err.Error(),
 		}
@@ -164,33 +165,33 @@ func (mpt *MapPinTracker) unsafeSetError(c *cid.Cid, err error) {
 }
 
 func (mpt *MapPinTracker) pin(c *cid.Cid) error {
-	mpt.set(c, TrackerStatusPinning)
+	mpt.set(c, api.TrackerStatusPinning)
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSPin",
-		NewCidArg(c),
+		api.CidArg{c}.ToSerial(),
 		&struct{}{})
 
 	if err != nil {
 		mpt.setError(c, err)
 		return err
 	}
-	mpt.set(c, TrackerStatusPinned)
+	mpt.set(c, api.TrackerStatusPinned)
 	return nil
 }
 
 func (mpt *MapPinTracker) unpin(c *cid.Cid) error {
-	mpt.set(c, TrackerStatusUnpinning)
+	mpt.set(c, api.TrackerStatusUnpinning)
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSUnpin",
-		NewCidArg(c),
+		api.CidArg{c}.ToSerial(),
 		&struct{}{})
 	if err != nil {
 		mpt.setError(c, err)
 		return err
 	}
-	mpt.set(c, TrackerStatusUnpinned)
+	mpt.set(c, api.TrackerStatusUnpinned)
 	return nil
 }
 
@@ -208,16 +209,16 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 
 // Status returns information for a Cid tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) Status(c *cid.Cid) PinInfo {
+func (mpt *MapPinTracker) Status(c *cid.Cid) api.PinInfo {
 	return mpt.get(c)
 }
 
 // StatusAll returns information for all Cids tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) StatusAll() []PinInfo {
+func (mpt *MapPinTracker) StatusAll() []api.PinInfo {
 	mpt.mux.Lock()
 	defer mpt.mux.Unlock()
-	pins := make([]PinInfo, 0, len(mpt.status))
+	pins := make([]api.PinInfo, 0, len(mpt.status))
 	for _, v := range mpt.status {
 		pins = append(pins, v)
 	}
@@ -232,12 +233,12 @@ func (mpt *MapPinTracker) StatusAll() []PinInfo {
 // Pins in error states can be recovered with Recover().
 // An error is returned if we are unable to contact
 // the IPFS daemon.
-func (mpt *MapPinTracker) Sync(c *cid.Cid) (PinInfo, error) {
-	var ips IPFSPinStatus
+func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
+	var ips api.IPFSPinStatus
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSPinLsCid",
-		NewCidArg(c),
+		api.CidArg{c}.ToSerial(),
 		&ips)
 	if err != nil {
 		mpt.setError(c, err)
@@ -254,9 +255,9 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) (PinInfo, error) {
 // were updated or have errors. Cids in error states can be recovered
 // with Recover().
 // An error is returned if we are unable to contact the IPFS daemon.
-func (mpt *MapPinTracker) SyncAll() ([]PinInfo, error) {
-	var ipsMap map[string]IPFSPinStatus
-	var pInfos []PinInfo
+func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
+	var ipsMap map[string]api.IPFSPinStatus
+	var pInfos []api.PinInfo
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSPinLs",
@@ -275,56 +276,53 @@ func (mpt *MapPinTracker) SyncAll() ([]PinInfo, error) {
 
 	status := mpt.StatusAll()
 	for _, pInfoOrig := range status {
-		c, err := cid.Decode(pInfoOrig.CidStr)
-		if err != nil { // this should not happen but let's play safe
-			return pInfos, err
-		}
-		var pInfoNew PinInfo
-		ips, ok := ipsMap[pInfoOrig.CidStr]
+		var pInfoNew api.PinInfo
+		c := pInfoOrig.Cid
+		ips, ok := ipsMap[c.String()]
 		if !ok {
-			pInfoNew = mpt.syncStatus(c, IPFSPinStatusUnpinned)
+			pInfoNew = mpt.syncStatus(c, api.IPFSPinStatusUnpinned)
 		} else {
 			pInfoNew = mpt.syncStatus(c, ips)
 		}
 
 		if pInfoOrig.Status != pInfoNew.Status ||
-			pInfoNew.Status == TrackerStatusUnpinError ||
-			pInfoNew.Status == TrackerStatusPinError {
+			pInfoNew.Status == api.TrackerStatusUnpinError ||
+			pInfoNew.Status == api.TrackerStatusPinError {
 			pInfos = append(pInfos, pInfoNew)
 		}
 	}
 	return pInfos, nil
 }
 
-func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips IPFSPinStatus) PinInfo {
+func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
 	p := mpt.get(c)
 	if ips.IsPinned() {
 		switch p.Status {
-		case TrackerStatusPinned: // nothing
-		case TrackerStatusPinning, TrackerStatusPinError:
-			mpt.set(c, TrackerStatusPinned)
-		case TrackerStatusUnpinning:
+		case api.TrackerStatusPinned: // nothing
+		case api.TrackerStatusPinning, api.TrackerStatusPinError:
+			mpt.set(c, api.TrackerStatusPinned)
+		case api.TrackerStatusUnpinning:
 			if time.Since(p.TS) > UnpinningTimeout {
 				mpt.setError(c, errUnpinningTimeout)
 			}
-		case TrackerStatusUnpinned:
+		case api.TrackerStatusUnpinned:
 			mpt.setError(c, errPinned)
-		case TrackerStatusUnpinError: // nothing, keep error as it was
+		case api.TrackerStatusUnpinError: // nothing, keep error as it was
 		default:
 		}
 	} else {
 		switch p.Status {
-		case TrackerStatusPinned:
+		case api.TrackerStatusPinned:
 
 			mpt.setError(c, errUnpinned)
-		case TrackerStatusPinError: // nothing, keep error as it was
-		case TrackerStatusPinning:
+		case api.TrackerStatusPinError: // nothing, keep error as it was
+		case api.TrackerStatusPinning:
 			if time.Since(p.TS) > PinningTimeout {
 				mpt.setError(c, errPinningTimeout)
 			}
-		case TrackerStatusUnpinning, TrackerStatusUnpinError:
-			mpt.set(c, TrackerStatusUnpinned)
-		case TrackerStatusUnpinned: // nothing
+		case api.TrackerStatusUnpinning, api.TrackerStatusUnpinError:
+			mpt.set(c, api.TrackerStatusUnpinned)
+		case api.TrackerStatusUnpinned: // nothing
 		default:
 		}
 	}
@@ -334,18 +332,18 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips IPFSPinStatus) PinInfo {
 // Recover will re-track or re-untrack a Cid in error state,
 // possibly retriggering an IPFS pinning operation and returning
 // only when it is done.
-func (mpt *MapPinTracker) Recover(c *cid.Cid) (PinInfo, error) {
+func (mpt *MapPinTracker) Recover(c *cid.Cid) (api.PinInfo, error) {
 	p := mpt.get(c)
-	if p.Status != TrackerStatusPinError &&
-		p.Status != TrackerStatusUnpinError {
+	if p.Status != api.TrackerStatusPinError &&
+		p.Status != api.TrackerStatusUnpinError {
 		return p, nil
 	}
 	logger.Infof("Recovering %s", c)
 	var err error
 	switch p.Status {
-	case TrackerStatusPinError:
+	case api.TrackerStatusPinError:
 		err = mpt.Track(c)
-	case TrackerStatusUnpinError:
+	case api.TrackerStatusUnpinError:
 		err = mpt.Untrack(c)
 	}
 	if err != nil {

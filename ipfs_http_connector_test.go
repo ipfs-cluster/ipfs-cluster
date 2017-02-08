@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	cid "github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -116,7 +118,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 	}
 
 	ips, err = ipfs.PinLsCid(c2)
-	if err != nil || ips != IPFSPinStatusUnpinned {
+	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
 	}
 }

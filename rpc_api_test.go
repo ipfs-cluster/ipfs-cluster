@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -25,14 +26,14 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) Pin(in *CidArg, out *struct{}) error {
+func (mock *mockService) Pin(in api.CidArgSerial, out *struct{}) error {
 	if in.Cid == errorCid {
 		return errBadCid
 	}
 	return nil
 }
 
-func (mock *mockService) Unpin(in *CidArg, out *struct{}) error {
+func (mock *mockService) Unpin(in api.CidArgSerial, out *struct{}) error {
 	if in.Cid == errorCid {
 		return errBadCid
 	}
@@ -44,36 +45,36 @@ func (mock *mockService) PinList(in struct{}, out *[]string) error {
 	return nil
 }
 
-func (mock *mockService) ID(in struct{}, out *IDSerial) error {
-	_, pubkey, _ := crypto.GenerateKeyPair(
-		DefaultConfigCrypto,
-		DefaultConfigKeyLength)
-	*out = ID{
-		ID:        testPeerID,
-		PublicKey: pubkey,
-		Version:   "0.0.mock",
-		IPFS: IPFSID{
+func (mock *mockService) ID(in struct{}, out *api.IDSerial) error {
+	//_, pubkey, _ := crypto.GenerateKeyPair(
+	//	DefaultConfigCrypto,
+	//	DefaultConfigKeyLength)
+	*out = api.ID{
+		ID: testPeerID,
+		//PublicKey: pubkey,
+		Version: "0.0.mock",
+		IPFS: api.IPFSID{
 			ID: testPeerID,
 		},
 	}.ToSerial()
 	return nil
 }
 
-func (mock *mockService) Version(in struct{}, out *string) error {
-	*out = "0.0.mock"
+func (mock *mockService) Version(in struct{}, out *api.Version) error {
+	*out = api.Version{"0.0.mock"}
 	return nil
 }
 
-func (mock *mockService) Peers(in struct{}, out *[]IDSerial) error {
-	id := IDSerial{}
+func (mock *mockService) Peers(in struct{}, out *[]api.IDSerial) error {
+	id := api.IDSerial{}
 	mock.ID(in, &id)
 
-	*out = []IDSerial{id}
+	*out = []api.IDSerial{id}
 	return nil
 }
 
-func (mock *mockService) PeerAdd(in MultiaddrSerial, out *IDSerial) error {
-	id := IDSerial{}
+func (mock *mockService) PeerAdd(in api.MultiaddrSerial, out *api.IDSerial) error {
+	id := api.IDSerial{}
 	mock.ID(struct{}{}, &id)
 	*out = id
 	return nil
@@ -83,88 +84,88 @@ func (mock *mockService) PeerRemove(in peer.ID, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) StatusAll(in struct{}, out *[]GlobalPinInfo) error {
+func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	c1, _ := cid.Decode(testCid1)
 	c2, _ := cid.Decode(testCid2)
 	c3, _ := cid.Decode(testCid3)
-	*out = []GlobalPinInfo{
+	*out = globalPinInfoSliceToSerial([]api.GlobalPinInfo{
 		{
 			Cid: c1,
-			PeerMap: map[peer.ID]PinInfo{
+			PeerMap: map[peer.ID]api.PinInfo{
 				testPeerID: {
-					CidStr: testCid1,
+					Cid:    c1,
 					Peer:   testPeerID,
-					Status: TrackerStatusPinned,
+					Status: api.TrackerStatusPinned,
 					TS:     time.Now(),
 				},
 			},
 		},
 		{
 			Cid: c2,
-			PeerMap: map[peer.ID]PinInfo{
+			PeerMap: map[peer.ID]api.PinInfo{
 				testPeerID: {
-					CidStr: testCid2,
+					Cid:    c2,
 					Peer:   testPeerID,
-					Status: TrackerStatusPinning,
+					Status: api.TrackerStatusPinning,
 					TS:     time.Now(),
 				},
 			},
 		},
 		{
 			Cid: c3,
-			PeerMap: map[peer.ID]PinInfo{
+			PeerMap: map[peer.ID]api.PinInfo{
 				testPeerID: {
-					CidStr: testCid3,
+					Cid:    c3,
 					Peer:   testPeerID,
-					Status: TrackerStatusPinError,
+					Status: api.TrackerStatusPinError,
 					TS:     time.Now(),
 				},
 			},
 		},
-	}
+	})
 	return nil
 }
 
-func (mock *mockService) Status(in *CidArg, out *GlobalPinInfo) error {
+func (mock *mockService) Status(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
 	if in.Cid == errorCid {
 		return errBadCid
 	}
 	c1, _ := cid.Decode(testCid1)
-	*out = GlobalPinInfo{
+	*out = api.GlobalPinInfo{
 		Cid: c1,
-		PeerMap: map[peer.ID]PinInfo{
+		PeerMap: map[peer.ID]api.PinInfo{
 			testPeerID: {
-				CidStr: testCid1,
+				Cid:    c1,
 				Peer:   testPeerID,
-				Status: TrackerStatusPinned,
+				Status: api.TrackerStatusPinned,
 				TS:     time.Now(),
 			},
 		},
-	}
+	}.ToSerial()
 	return nil
 }
 
-func (mock *mockService) SyncAll(in struct{}, out *[]GlobalPinInfo) error {
+func (mock *mockService) SyncAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	return mock.StatusAll(in, out)
 }
 
-func (mock *mockService) Sync(in *CidArg, out *GlobalPinInfo) error {
+func (mock *mockService) Sync(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
 	return mock.Status(in, out)
 }
 
-func (mock *mockService) StateSync(in struct{}, out *[]PinInfo) error {
-	*out = []PinInfo{}
+func (mock *mockService) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
+	*out = make([]api.PinInfoSerial, 0, 0)
 	return nil
 }
 
-func (mock *mockService) Recover(in *CidArg, out *GlobalPinInfo) error {
+func (mock *mockService) Recover(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
 	return mock.Status(in, out)
 }
 
-func (mock *mockService) Track(in *CidArg, out *struct{}) error {
+func (mock *mockService) Track(in api.CidArgSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) Untrack(in *CidArg, out *struct{}) error {
+func (mock *mockService) Untrack(in api.CidArgSerial, out *struct{}) error {
 	return nil
 }

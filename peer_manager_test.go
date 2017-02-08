@@ -160,6 +160,8 @@ func TestClustersPeerRemove(t *testing.T) {
 		t.Error(err)
 	}
 
+	delay()
+
 	f := func(t *testing.T, c *Cluster) {
 		if c.ID().ID == p { //This is the removed cluster
 			_, ok := <-c.Done()

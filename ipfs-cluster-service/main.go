@@ -214,7 +214,7 @@ func run(c *cli.Context) error {
 
 	if a := c.String("bootstrap"); a != "" {
 		if len(cfg.ClusterPeers) > 0 && !c.Bool("force") {
-			return errors.New("The configuration provides ClusterPeers. Use -f to ignore and proceed bootstrapping")
+			return errors.New("the configuration provides ClusterPeers. Use -f to ignore and proceed bootstrapping")
 		}
 		joinAddr, err := ma.NewMultiaddr(a)
 		if err != nil {

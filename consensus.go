@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	consensus "github.com/libp2p/go-libp2p-consensus"
@@ -65,7 +67,7 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 		op.rpcClient.Go("",
 			"Cluster",
 			"Track",
-			NewCidArg(c),
+			api.CidArg{c}.ToSerial(),
 			&struct{}{},
 			nil)
 	case LogOpUnpin:
@@ -81,7 +83,7 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 		op.rpcClient.Go("",
 			"Cluster",
 			"Untrack",
-			NewCidArg(c),
+			api.CidArg{c}.ToSerial(),
 			&struct{}{},
 			nil)
 	case LogOpAddPeer:
@@ -92,7 +94,7 @@ func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error)
 		op.rpcClient.Call("",
 			"Cluster",
 			"PeerManagerAddPeer",
-			MultiaddrToSerial(addr),
+			api.MultiaddrToSerial(addr),
 			&struct{}{})
 		// TODO rebalance ops
 	case LogOpRmPeer:
@@ -231,13 +233,13 @@ func (cc *Consensus) finishBootstrap() {
 	if err != nil {
 		logger.Debug("skipping state sync: ", err)
 	} else {
-		var pInfo []PinInfo
+		var pInfoSerial []api.PinInfoSerial
 		cc.rpcClient.Go(
 			"",
 			"Cluster",
 			"StateSync",
 			struct{}{},
-			&pInfo,
+			&pInfoSerial,
 			nil)
 	}
 	cc.readyCh <- struct{}{}
@@ -341,7 +343,8 @@ func (cc *Consensus) logOpCid(rpcOp string, opType clusterLogOpType, c *cid.Cid)
 	var finalErr error
 	for i := 0; i < CommitRetries; i++ {
 		logger.Debugf("Try %d", i)
-		redirected, err := cc.redirectToLeader(rpcOp, NewCidArg(c))
+		redirected, err := cc.redirectToLeader(
+			rpcOp, api.CidArg{c}.ToSerial())
 		if err != nil {
 			finalErr = err
 			continue
@@ -395,7 +398,8 @@ func (cc *Consensus) LogAddPeer(addr ma.Multiaddr) error {
 	var finalErr error
 	for i := 0; i < CommitRetries; i++ {
 		logger.Debugf("Try %d", i)
-		redirected, err := cc.redirectToLeader("ConsensusLogAddPeer", MultiaddrToSerial(addr))
+		redirected, err := cc.redirectToLeader(
+			"ConsensusLogAddPeer", api.MultiaddrToSerial(addr))
 		if err != nil {
 			finalErr = err
 			continue
