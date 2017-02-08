@@ -170,7 +170,7 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 		Cid:    pi.Cid.String(),
 		Peer:   peer.IDB58Encode(pi.Peer),
 		Status: pi.Status.String(),
-		TS:     pi.TS.String(),
+		TS:     pi.TS.Format(time.RFC1123),
 		Error:  pi.Error,
 	}
 }
