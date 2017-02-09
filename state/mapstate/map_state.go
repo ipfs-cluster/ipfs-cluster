@@ -1,4 +1,4 @@
-package ipfscluster
+package mapstate
 
 import (
 	"sync"
@@ -9,17 +9,14 @@ import (
 // MapState is a very simple database to store the state of the system
 // using a Go map. It is thread safe. It implements the State interface.
 type MapState struct {
-	pinMux  sync.RWMutex
-	PinMap  map[string]struct{}
-	peerMux sync.RWMutex
-	PeerMap map[string]string
+	pinMux sync.RWMutex
+	PinMap map[string]struct{}
 }
 
 // NewMapState initializes the internal map and returns a new MapState object.
 func NewMapState() *MapState {
 	return &MapState{
-		PinMap:  make(map[string]struct{}),
-		PeerMap: make(map[string]string),
+		PinMap: make(map[string]struct{}),
 	}
 }
 

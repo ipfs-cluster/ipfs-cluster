@@ -213,8 +213,8 @@ func (rpcapi *RPCAPI) IPFSPinLsCid(in api.CidArgSerial, out *api.IPFSPinStatus) 
 }
 
 // IPFSPinLs runs IPFSConnector.PinLs().
-func (rpcapi *RPCAPI) IPFSPinLs(in struct{}, out *map[string]api.IPFSPinStatus) error {
-	m, err := rpcapi.c.ipfs.PinLs()
+func (rpcapi *RPCAPI) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) error {
+	m, err := rpcapi.c.ipfs.PinLs(in)
 	*out = m
 	return err
 }

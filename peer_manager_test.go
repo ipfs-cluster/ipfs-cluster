@@ -6,13 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/test"
+
 	cid "github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func peerManagerClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
+func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	cls := make([]*Cluster, nClusters, nClusters)
-	mocks := make([]*ipfsMock, nClusters, nClusters)
+	mocks := make([]*test.IpfsMock, nClusters, nClusters)
 	var wg sync.WaitGroup
 	for i := 0; i < nClusters; i++ {
 		wg.Add(1)
@@ -53,7 +55,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		}
 	}
 
-	h, _ := cid.Decode(testCid)
+	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[1].Pin(h)
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +219,7 @@ func TestClustersPeerJoin(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	hash, _ := cid.Decode(testCid)
+	hash, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(hash)
 	delay()
 
@@ -250,7 +252,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	}
 	runF(t, clusters[1:], f)
 
-	hash, _ := cid.Decode(testCid)
+	hash, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(hash)
 	delay()
 
@@ -292,7 +294,7 @@ func TestClustersPeerJoinAllAtOnceWithRandomBootstrap(t *testing.T) {
 	}
 	runF(t, clusters[2:], f)
 
-	hash, _ := cid.Decode(testCid)
+	hash, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(hash)
 	delay()
 

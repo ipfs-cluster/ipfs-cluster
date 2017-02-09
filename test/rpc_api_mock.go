@@ -1,4 +1,4 @@
-package ipfscluster
+package test
 
 import (
 	"errors"
@@ -12,11 +12,13 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var errBadCid = errors.New("this is an expected error when using errorCid")
+var ErrBadCid = errors.New("this is an expected error when using ErrorCid")
 
 type mockService struct{}
 
-func mockRPCClient(t *testing.T) *rpc.Client {
+// NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
+// a client to it.
+func NewMockRPCClient(t *testing.T) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
 	err := s.RegisterName("Cluster", &mockService{})
@@ -27,21 +29,21 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 }
 
 func (mock *mockService) Pin(in api.CidArgSerial, out *struct{}) error {
-	if in.Cid == errorCid {
-		return errBadCid
+	if in.Cid == ErrorCid {
+		return ErrBadCid
 	}
 	return nil
 }
 
 func (mock *mockService) Unpin(in api.CidArgSerial, out *struct{}) error {
-	if in.Cid == errorCid {
-		return errBadCid
+	if in.Cid == ErrorCid {
+		return ErrBadCid
 	}
 	return nil
 }
 
 func (mock *mockService) PinList(in struct{}, out *[]string) error {
-	*out = []string{testCid, testCid2, testCid3}
+	*out = []string{TestCid1, TestCid2, TestCid3}
 	return nil
 }
 
@@ -50,11 +52,11 @@ func (mock *mockService) ID(in struct{}, out *api.IDSerial) error {
 	//	DefaultConfigCrypto,
 	//	DefaultConfigKeyLength)
 	*out = api.ID{
-		ID: testPeerID,
+		ID: TestPeerID1,
 		//PublicKey: pubkey,
 		Version: "0.0.mock",
 		IPFS: api.IPFSID{
-			ID: testPeerID,
+			ID: TestPeerID1,
 		},
 	}.ToSerial()
 	return nil
@@ -84,17 +86,26 @@ func (mock *mockService) PeerRemove(in peer.ID, out *struct{}) error {
 	return nil
 }
 
+// FIXME: dup from util.go
+func globalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSerial {
+	gpis := make([]api.GlobalPinInfoSerial, len(gpi), len(gpi))
+	for i, v := range gpi {
+		gpis[i] = v.ToSerial()
+	}
+	return gpis
+}
+
 func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
-	c1, _ := cid.Decode(testCid1)
-	c2, _ := cid.Decode(testCid2)
-	c3, _ := cid.Decode(testCid3)
+	c1, _ := cid.Decode(TestCid1)
+	c2, _ := cid.Decode(TestCid2)
+	c3, _ := cid.Decode(TestCid3)
 	*out = globalPinInfoSliceToSerial([]api.GlobalPinInfo{
 		{
 			Cid: c1,
 			PeerMap: map[peer.ID]api.PinInfo{
-				testPeerID: {
+				TestPeerID1: {
 					Cid:    c1,
-					Peer:   testPeerID,
+					Peer:   TestPeerID1,
 					Status: api.TrackerStatusPinned,
 					TS:     time.Now(),
 				},
@@ -103,9 +114,9 @@ func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) 
 		{
 			Cid: c2,
 			PeerMap: map[peer.ID]api.PinInfo{
-				testPeerID: {
+				TestPeerID1: {
 					Cid:    c2,
-					Peer:   testPeerID,
+					Peer:   TestPeerID1,
 					Status: api.TrackerStatusPinning,
 					TS:     time.Now(),
 				},
@@ -114,9 +125,9 @@ func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) 
 		{
 			Cid: c3,
 			PeerMap: map[peer.ID]api.PinInfo{
-				testPeerID: {
+				TestPeerID1: {
 					Cid:    c3,
-					Peer:   testPeerID,
+					Peer:   TestPeerID1,
 					Status: api.TrackerStatusPinError,
 					TS:     time.Now(),
 				},
@@ -127,16 +138,16 @@ func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) 
 }
 
 func (mock *mockService) Status(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
-	if in.Cid == errorCid {
-		return errBadCid
+	if in.Cid == ErrorCid {
+		return ErrBadCid
 	}
-	c1, _ := cid.Decode(testCid1)
+	c1, _ := cid.Decode(TestCid1)
 	*out = api.GlobalPinInfo{
 		Cid: c1,
 		PeerMap: map[peer.ID]api.PinInfo{
-			testPeerID: {
+			TestPeerID1: {
 				Cid:    c1,
-				Peer:   testPeerID,
+				Peer:   TestPeerID1,
 				Status: api.TrackerStatusPinned,
 				TS:     time.Now(),
 			},

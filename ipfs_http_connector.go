@@ -422,10 +422,10 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 	return nil
 }
 
-// PinLs performs a "pin ls" request against the configured IPFS daemon and
-// returns a map of cid strings and their status.
-func (ipfs *IPFSHTTPConnector) PinLs() (map[string]api.IPFSPinStatus, error) {
-	body, err := ipfs.get("pin/ls")
+// PinLs performs a "pin ls --type typeFilter" request against the configured
+// IPFS daemon and returns a map of cid strings and their status.
+func (ipfs *IPFSHTTPConnector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error) {
+	body, err := ipfs.get("pin/ls?type=" + typeFilter)
 
 	// Some error talking to the daemon
 	if err != nil {

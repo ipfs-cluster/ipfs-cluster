@@ -43,7 +43,7 @@ type IPFSConnector interface {
 	Pin(*cid.Cid) error
 	Unpin(*cid.Cid) error
 	PinLsCid(*cid.Cid) (api.IPFSPinStatus, error)
-	PinLs() (map[string]api.IPFSPinStatus, error)
+	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

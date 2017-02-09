@@ -9,20 +9,13 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
-)
-
-var (
-	testCid1      = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq"
-	testCid       = testCid1
-	testCid2      = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma"
-	testCid3      = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb"
-	errorCid      = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc"
-	testPeerID, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 )
 
 //TestClusters*
@@ -58,12 +51,12 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int) (*Config, *RESTAPI, *IPFSHTTPConnector, *MapState, *MapPinTracker, *ipfsMock) {
-	mock := newIpfsMock()
+func createComponents(t *testing.T, i int) (*Config, *RESTAPI, *IPFSHTTPConnector, *mapstate.MapState, *MapPinTracker, *test.IpfsMock) {
+	mock := test.NewIpfsMock()
 	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
 	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
 	proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
-	nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.addr, mock.port))
+	nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
 	priv, pub, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	checkErr(t, err)
 	pid, err := peer.IDFromPublicKey(pub)
@@ -84,33 +77,33 @@ func createComponents(t *testing.T, i int) (*Config, *RESTAPI, *IPFSHTTPConnecto
 	checkErr(t, err)
 	ipfs, err := NewIPFSHTTPConnector(cfg)
 	checkErr(t, err)
-	state := NewMapState()
+	state := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
 
 	return cfg, api, ipfs, state, tracker, mock
 }
 
-func createCluster(t *testing.T, cfg *Config, api *RESTAPI, ipfs *IPFSHTTPConnector, state *MapState, tracker *MapPinTracker) *Cluster {
+func createCluster(t *testing.T, cfg *Config, api *RESTAPI, ipfs *IPFSHTTPConnector, state *mapstate.MapState, tracker *MapPinTracker) *Cluster {
 	cl, err := NewCluster(cfg, api, ipfs, state, tracker)
 	checkErr(t, err)
 	<-cl.Ready()
 	return cl
 }
 
-func createOnePeerCluster(t *testing.T, nth int) (*Cluster, *ipfsMock) {
+func createOnePeerCluster(t *testing.T, nth int) (*Cluster, *test.IpfsMock) {
 	cfg, api, ipfs, state, tracker, mock := createComponents(t, nth)
 	cl := createCluster(t, cfg, api, ipfs, state, tracker)
 	return cl, mock
 }
 
-func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
+func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	os.RemoveAll("./e2eTestRaft")
 	cfgs := make([]*Config, nClusters, nClusters)
 	apis := make([]*RESTAPI, nClusters, nClusters)
 	ipfss := make([]*IPFSHTTPConnector, nClusters, nClusters)
-	states := make([]*MapState, nClusters, nClusters)
+	states := make([]*mapstate.MapState, nClusters, nClusters)
 	trackers := make([]*MapPinTracker, nClusters, nClusters)
-	ipfsMocks := make([]*ipfsMock, nClusters, nClusters)
+	ipfsMocks := make([]*test.IpfsMock, nClusters, nClusters)
 	clusters := make([]*Cluster, nClusters, nClusters)
 
 	clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
@@ -164,7 +157,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*ipfsMock) {
 	return clusters, ipfsMocks
 }
 
-func shutdownClusters(t *testing.T, clusters []*Cluster, m []*ipfsMock) {
+func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 	for i, c := range clusters {
 		m[i].Close()
 		err := c.Shutdown()
@@ -253,7 +246,7 @@ func TestClustersPeers(t *testing.T) {
 func TestClustersPin(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	exampleCid, _ := cid.Decode(testCid)
+	exampleCid, _ := cid.Decode(test.TestCid1)
 	prefix := exampleCid.Prefix()
 	for i := 0; i < nPins; i++ {
 		j := rand.Intn(nClusters)           // choose a random cluster peer
@@ -316,7 +309,7 @@ func TestClustersPin(t *testing.T) {
 func TestClustersStatusAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(testCid)
+	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(h)
 	delay()
 	// Global status
@@ -328,7 +321,7 @@ func TestClustersStatusAll(t *testing.T) {
 		if len(statuses) == 0 {
 			t.Fatal("bad status. Expected one item")
 		}
-		if statuses[0].Cid.String() != testCid {
+		if statuses[0].Cid.String() != test.TestCid1 {
 			t.Error("bad cid in status")
 		}
 		info := statuses[0].PeerMap
@@ -360,8 +353,8 @@ func TestClustersStatusAll(t *testing.T) {
 func TestClustersSyncAllLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(errorCid) // This cid always fails
-	h2, _ := cid.Decode(testCid2)
+	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
+	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(h)
 	clusters[0].Pin(h2)
 	delay()
@@ -388,8 +381,8 @@ func TestClustersSyncAllLocal(t *testing.T) {
 func TestClustersSyncLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(errorCid) // This cid always fails
-	h2, _ := cid.Decode(testCid2)
+	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
+	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(h)
 	clusters[0].Pin(h2)
 	delay()
@@ -419,8 +412,8 @@ func TestClustersSyncLocal(t *testing.T) {
 func TestClustersSyncAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(errorCid) // This cid always fails
-	h2, _ := cid.Decode(testCid2)
+	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
+	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(h)
 	clusters[0].Pin(h2)
 	delay()
@@ -433,8 +426,8 @@ func TestClustersSyncAll(t *testing.T) {
 	if len(ginfos) != 1 {
 		t.Fatal("expected globalsync to have 1 elements")
 	}
-	if ginfos[0].Cid.String() != errorCid {
-		t.Error("expected globalsync to have problems with errorCid")
+	if ginfos[0].Cid.String() != test.ErrorCid {
+		t.Error("expected globalsync to have problems with test.ErrorCid")
 	}
 	for _, c := range clusters {
 		inf, ok := ginfos[0].PeerMap[c.host.ID()]
@@ -450,8 +443,8 @@ func TestClustersSyncAll(t *testing.T) {
 func TestClustersSync(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(errorCid) // This cid always fails
-	h2, _ := cid.Decode(testCid2)
+	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
+	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(h)
 	clusters[0].Pin(h2)
 	delay()
@@ -471,8 +464,8 @@ func TestClustersSync(t *testing.T) {
 		t.Error("pinInfo error should not be empty")
 	}
 
-	if ginfo.Cid.String() != errorCid {
-		t.Error("GlobalPinInfo should be for errorCid")
+	if ginfo.Cid.String() != test.ErrorCid {
+		t.Error("GlobalPinInfo should be for test.ErrorCid")
 	}
 
 	for _, c := range clusters {
@@ -493,7 +486,7 @@ func TestClustersSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ginfo.Cid.String() != testCid2 {
+	if ginfo.Cid.String() != test.TestCid2 {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
 
@@ -511,8 +504,8 @@ func TestClustersSync(t *testing.T) {
 func TestClustersRecoverLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(errorCid) // This cid always fails
-	h2, _ := cid.Decode(testCid2)
+	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
+	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(h)
 	clusters[0].Pin(h2)
 
@@ -543,8 +536,8 @@ func TestClustersRecoverLocal(t *testing.T) {
 func TestClustersRecover(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(errorCid) // This cid always fails
-	h2, _ := cid.Decode(testCid2)
+	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
+	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(h)
 	clusters[0].Pin(h2)
 
@@ -583,7 +576,7 @@ func TestClustersRecover(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ginfo.Cid.String() != testCid2 {
+	if ginfo.Cid.String() != test.TestCid2 {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
 

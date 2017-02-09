@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/test"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -37,7 +39,7 @@ func (ipfs *mockConnector) ID() (api.IPFSID, error) {
 		return api.IPFSID{}, errors.New("")
 	}
 	return api.IPFSID{
-		ID: testPeerID,
+		ID: test.TestPeerID1,
 	}, nil
 }
 
@@ -62,7 +64,7 @@ func (ipfs *mockConnector) PinLsCid(c *cid.Cid) (api.IPFSPinStatus, error) {
 	return api.IPFSPinStatusRecursive, nil
 }
 
-func (ipfs *mockConnector) PinLs() (map[string]api.IPFSPinStatus, error) {
+func (ipfs *mockConnector) PinLs(filter string) (map[string]api.IPFSPinStatus, error) {
 	if ipfs.returnError {
 		return nil, errors.New("")
 	}
@@ -70,11 +72,11 @@ func (ipfs *mockConnector) PinLs() (map[string]api.IPFSPinStatus, error) {
 	return m, nil
 }
 
-func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *MapState, *MapPinTracker) {
+func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *MapPinTracker) {
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
 	cfg := testingConfig()
-	st := NewMapState()
+	st := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
 
 	cl, err := NewCluster(
@@ -114,7 +116,7 @@ func TestClusterStateSync(t *testing.T) {
 		t.Fatal("expected an error as there is no state to sync")
 	}
 
-	c, _ := cid.Decode(testCid)
+	c, _ := cid.Decode(test.TestCid1)
 	err = cl.Pin(c)
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -158,7 +160,7 @@ func TestClusterPin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	c, _ := cid.Decode(testCid)
+	c, _ := cid.Decode(test.TestCid1)
 	err := cl.Pin(c)
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -177,7 +179,7 @@ func TestClusterUnpin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	c, _ := cid.Decode(testCid)
+	c, _ := cid.Decode(test.TestCid1)
 	err := cl.Unpin(c)
 	if err != nil {
 		t.Fatal("pin should have worked:", err)

@@ -1,4 +1,4 @@
-package ipfscluster
+package test
 
 import (
 	"encoding/json"
@@ -9,17 +9,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
+
 	cid "github.com/ipfs/go-cid"
 )
 
-// This is an ipfs daemon mock which should sustain the functionality used by
-// ipfscluster.
-
-type ipfsMock struct {
+// IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.
+type IpfsMock struct {
 	server *httptest.Server
-	addr   string
-	port   int
-	pinMap *MapState
+	Addr   string
+	Port   int
+	pinMap *mapstate.MapState
 }
 
 type mockPinResp struct {
@@ -39,9 +39,15 @@ type ipfsErr struct {
 	Message string
 }
 
-func newIpfsMock() *ipfsMock {
-	st := NewMapState()
-	m := &ipfsMock{
+type idResp struct {
+	ID        string
+	Addresses []string
+}
+
+// NewIpfsMock returns a new mock.
+func NewIpfsMock() *IpfsMock {
+	st := mapstate.NewMapState()
+	m := &IpfsMock{
 		pinMap: st,
 	}
 	ts := httptest.NewServer(http.HandlerFunc(m.handler))
@@ -51,21 +57,21 @@ func newIpfsMock() *ipfsMock {
 	h := strings.Split(url.Host, ":")
 	i, _ := strconv.Atoi(h[1])
 
-	m.port = i
-	m.addr = h[0]
+	m.Port = i
+	m.Addr = h[0]
 	return m
 
 }
 
 // FIXME: what if IPFS API changes?
-func (m *ipfsMock) handler(w http.ResponseWriter, r *http.Request) {
+func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	endp := strings.TrimPrefix(p, "/api/v0/")
 	var cidStr string
 	switch endp {
 	case "id":
-		resp := ipfsIDResp{
-			ID: testPeerID.Pretty(),
+		resp := idResp{
+			ID: TestPeerID1.Pretty(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
 			},
@@ -79,7 +85,7 @@ func (m *ipfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			goto ERROR
 		}
 		cidStr = arg[0]
-		if cidStr == errorCid {
+		if cidStr == ErrorCid {
 			goto ERROR
 		}
 		c, err := cid.Decode(cidStr)
@@ -153,6 +159,6 @@ ERROR:
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
-func (m *ipfsMock) Close() {
+func (m *IpfsMock) Close() {
 	m.server.Close()
 }

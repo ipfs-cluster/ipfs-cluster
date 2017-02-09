@@ -261,7 +261,7 @@ func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSPinLs",
-		struct{}{},
+		"recursive",
 		&ipsMap)
 	if err != nil {
 		mpt.mux.Lock()

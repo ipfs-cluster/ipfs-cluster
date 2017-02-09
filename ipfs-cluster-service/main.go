@@ -13,6 +13,7 @@ import (
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
 // ProgramName of this application
@@ -234,7 +235,7 @@ func run(c *cli.Context) error {
 	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
 	checkErr("creating IPFS Connector component", err)
 
-	state := ipfscluster.NewMapState()
+	state := mapstate.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker(cfg)
 	cluster, err := ipfscluster.NewCluster(
 		cfg,

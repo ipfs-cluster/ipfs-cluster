@@ -21,7 +21,8 @@ import (
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
-	ctx context.Context
+	ctx    context.Context
+	cancel func()
 
 	id          peer.ID
 	config      *Config
@@ -38,7 +39,6 @@ type Cluster struct {
 
 	shutdownLock sync.Mutex
 	shutdown     bool
-	shutdownCh   chan struct{}
 	doneCh       chan struct{}
 	readyCh      chan struct{}
 	wg           sync.WaitGroup
@@ -53,7 +53,7 @@ type Cluster struct {
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
 func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker) (*Cluster, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -65,17 +65,17 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	}
 
 	c := &Cluster{
-		ctx:        ctx,
-		id:         host.ID(),
-		config:     cfg,
-		host:       host,
-		api:        api,
-		ipfs:       ipfs,
-		state:      state,
-		tracker:    tracker,
-		shutdownCh: make(chan struct{}, 1),
-		doneCh:     make(chan struct{}, 1),
-		readyCh:    make(chan struct{}, 1),
+		ctx:     ctx,
+		cancel:  cancel,
+		id:      host.ID(),
+		config:  cfg,
+		host:    host,
+		api:     api,
+		ipfs:    ipfs,
+		state:   state,
+		tracker: tracker,
+		doneCh:  make(chan struct{}, 1),
+		readyCh: make(chan struct{}, 1),
 	}
 
 	c.setupPeerManager()
@@ -163,17 +163,8 @@ func (c *Cluster) stateSyncWatcher() {
 // run provides a cancellable context and launches some goroutines
 // before signaling readyCh
 func (c *Cluster) run() {
-	c.wg.Add(1)
-	// cancellable context
-	go func() {
-		defer c.wg.Done()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		c.ctx = ctx
-		go c.stateSyncWatcher()
-		go c.bootstrapAndReady()
-		<-c.shutdownCh
-	}()
+	go c.stateSyncWatcher()
+	go c.bootstrapAndReady()
 }
 
 func (c *Cluster) bootstrapAndReady() {
@@ -258,6 +249,9 @@ func (c *Cluster) Shutdown() error {
 		c.peerManager.resetPeers()
 	}
 
+	// Cancel contexts
+	c.cancel()
+
 	if con := c.consensus; con != nil {
 		if err := con.Shutdown(); err != nil {
 			logger.Errorf("error stopping consensus: %s", err)
@@ -280,7 +274,6 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("error stopping PinTracker: %s", err)
 		return err
 	}
-	c.shutdownCh <- struct{}{}
 	c.wg.Wait()
 	c.host.Close() // Shutdown all network services
 	c.shutdown = true

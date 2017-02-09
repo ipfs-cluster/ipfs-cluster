@@ -6,36 +6,39 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/test"
+
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 func TestApplyToPin(t *testing.T) {
 	op := &clusterLogOp{
-		Arg:       testCid,
+		Arg:       test.TestCid1,
 		Type:      LogOpPin,
 		ctx:       context.Background(),
-		rpcClient: mockRPCClient(t),
+		rpcClient: test.NewMockRPCClient(t),
 	}
 
-	st := NewMapState()
+	st := mapstate.NewMapState()
 	op.ApplyTo(st)
 	pins := st.ListPins()
-	if len(pins) != 1 || pins[0].String() != testCid {
+	if len(pins) != 1 || pins[0].String() != test.TestCid1 {
 		t.Error("the state was not modified correctly")
 	}
 }
 
 func TestApplyToUnpin(t *testing.T) {
 	op := &clusterLogOp{
-		Arg:       testCid,
+		Arg:       test.TestCid1,
 		Type:      LogOpUnpin,
 		ctx:       context.Background(),
-		rpcClient: mockRPCClient(t),
+		rpcClient: test.NewMockRPCClient(t),
 	}
 
-	st := NewMapState()
-	c, _ := cid.Decode(testCid)
+	st := mapstate.NewMapState()
+	c, _ := cid.Decode(test.TestCid1)
 	st.AddPin(c)
 	op.ApplyTo(st)
 	pins := st.ListPins()
@@ -52,10 +55,10 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &clusterLogOp{
-		Arg:       testCid,
+		Arg:       test.TestCid1,
 		Type:      LogOpUnpin,
 		ctx:       context.Background(),
-		rpcClient: mockRPCClient(t),
+		rpcClient: test.NewMockRPCClient(t),
 	}
 
 	var st interface{}
@@ -73,10 +76,10 @@ func TestApplyToBadCid(t *testing.T) {
 		Arg:       "agadfaegf",
 		Type:      LogOpPin,
 		ctx:       context.Background(),
-		rpcClient: mockRPCClient(t),
+		rpcClient: test.NewMockRPCClient(t),
 	}
 
-	st := NewMapState()
+	st := mapstate.NewMapState()
 	op.ApplyTo(st)
 }
 
@@ -92,12 +95,12 @@ func testingConsensus(t *testing.T) *Consensus {
 	if err != nil {
 		t.Fatal("cannot create host:", err)
 	}
-	st := NewMapState()
+	st := mapstate.NewMapState()
 	cc, err := NewConsensus([]peer.ID{cfg.ID}, h, cfg.ConsensusDataFolder, st)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
-	cc.SetClient(mockRPCClient(t))
+	cc.SetClient(test.NewMockRPCClient(t))
 	<-cc.Ready()
 	return cc
 }
@@ -124,7 +127,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cleanRaft() // Remember defer runs in LIFO order
 	defer cc.Shutdown()
 
-	c, _ := cid.Decode(testCid)
+	c, _ := cid.Decode(test.TestCid1)
 	err := cc.LogPin(c)
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
@@ -137,7 +140,7 @@ func TestConsensusPin(t *testing.T) {
 	}
 
 	pins := st.ListPins()
-	if len(pins) != 1 || pins[0].String() != testCid {
+	if len(pins) != 1 || pins[0].String() != test.TestCid1 {
 		t.Error("the added pin should be in the state")
 	}
 }
@@ -147,7 +150,7 @@ func TestConsensusUnpin(t *testing.T) {
 	defer cleanRaft()
 	defer cc.Shutdown()
 
-	c, _ := cid.Decode(testCid2)
+	c, _ := cid.Decode(test.TestCid2)
 	err := cc.LogUnpin(c)
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
