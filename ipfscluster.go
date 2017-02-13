@@ -58,15 +58,16 @@ type Peered interface {
 // is used by the Consensus component to keep track of
 // objects which objects are pinned. This component should be thread safe.
 type State interface {
-	// AddPin adds a pin to the State
-	AddPin(*cid.Cid) error
-	// RmPin removes a pin from the State
-	RmPin(*cid.Cid) error
-	// ListPins lists all the pins in the state
-	ListPins() []*cid.Cid
-	// HasPin returns true if the state is holding a Cid
-	HasPin(*cid.Cid) bool
-	// AddPeer adds a peer to the shared state
+	// Add adds a pin to the State
+	Add(api.CidArg) error
+	// Rm removes a pin from the State
+	Rm(*cid.Cid) error
+	// List lists all the pins in the state
+	List() []api.CidArg
+	// Has returns true if the state is holding information for a Cid
+	Has(*cid.Cid) bool
+	// Get returns the information attacthed to this pin
+	Get(*cid.Cid) api.CidArg
 }
 
 // PinTracker represents a component which tracks the status of
@@ -76,7 +77,7 @@ type PinTracker interface {
 	Component
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
-	Track(*cid.Cid) error
+	Track(api.CidArg) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
 	Untrack(*cid.Cid) error
@@ -92,4 +93,44 @@ type PinTracker interface {
 	Sync(*cid.Cid) (api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in Cids with error status.
 	Recover(*cid.Cid) (api.PinInfo, error)
+}
+
+// Informer returns Metric information in a peer. The metrics produced by
+// informers are then passed to a PinAllocator which will use them to
+// determine where to pin content.
+type Informer interface {
+	Component
+	Name() string
+	GetMetric() api.Metric
+}
+
+// PinAllocator decides where to pin certain content. In order to make such
+// decision, it receives the pin arguments, the peers which are currently
+// allocated to the content and metrics available for all peers which could
+// allocate the content.
+type PinAllocator interface {
+	Component
+	// Allocate returns the list of peers that should be assigned to
+	// Pin content in oder of preference (from the most preferred to the
+	// least). The current map contains the metrics for all peers
+	// which are currently pinning the content. The candidates map
+	// contains the metrics for all pins which are eligible for pinning
+	// the content.
+	Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error)
+}
+
+// PeerMonitor is a component in charge of monitoring the peers in the cluster
+// and providing candidates to the PinAllocator when a pin request arrives.
+type PeerMonitor interface {
+	Component
+	// LogMetric stores a metric. Metrics are pushed reguarly from each peer
+	// to the active PeerMonitor.
+	LogMetric(api.Metric)
+	// LastMetrics returns a map with the latest metrics of matching name
+	// for the current cluster peers.
+	LastMetrics(name string) []api.Metric
+	// Alerts delivers alerts generated when this peer monitor detects
+	// a problem (i.e. metrics not arriving as expected). Alerts are used to
+	// trigger rebalancing operations.
+	Alerts() <-chan api.Alert
 }

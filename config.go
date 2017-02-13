@@ -69,6 +69,9 @@ type Config struct {
 	// Number of seconds between StateSync() operations
 	StateSyncSeconds int
 
+	// ReplicationFactor is the number of copies we keep for each pin
+	ReplicationFactor int
+
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
 	path string
@@ -125,6 +128,12 @@ type JSONConfig struct {
 	// tracker state. Normally states are synced anyway, but this helps
 	// when new nodes are joining the cluster
 	StateSyncSeconds int `json:"state_sync_seconds"`
+
+	// ReplicationFactor indicates the number of nodes that must pin content.
+	// For exampe, a replication_factor of 2 will prompt cluster to choose
+	// two nodes for each pinned hash. A replication_factor -1 will
+	// use every available node for each pin.
+	ReplicationFactor int `json:"replication_factor"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -164,6 +173,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
 		StateSyncSeconds:            cfg.StateSyncSeconds,
+		ReplicationFactor:           cfg.ReplicationFactor,
 	}
 	return
 }
@@ -232,6 +242,11 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		return
 	}
 
+	if jcfg.ReplicationFactor == 0 {
+		logger.Warning("Replication factor set to -1 (pin everywhere)")
+		jcfg.ReplicationFactor = -1
+	}
+
 	if jcfg.StateSyncSeconds <= 0 {
 		jcfg.StateSyncSeconds = DefaultStateSyncSeconds
 	}
@@ -248,6 +263,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: jcfg.ConsensusDataFolder,
 		StateSyncSeconds:    jcfg.StateSyncSeconds,
+		ReplicationFactor:   jcfg.ReplicationFactor,
 	}
 	return
 }
@@ -331,5 +347,6 @@ func NewDefaultConfig() (*Config, error) {
 		IPFSNodeAddr:        ipfsNodeAddr,
 		ConsensusDataFolder: "ipfscluster-data",
 		StateSyncSeconds:    DefaultStateSyncSeconds,
+		ReplicationFactor:   -1,
 	}, nil
 }

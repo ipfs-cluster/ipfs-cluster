@@ -229,7 +229,7 @@ func TestClustersPeerJoin(t *testing.T) {
 			t.Error("all peers should be connected")
 		}
 		pins := c.Pins()
-		if len(pins) != 1 || !pins[0].Equals(hash) {
+		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
 			t.Error("all peers should have pinned the cid")
 		}
 	}
@@ -262,7 +262,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 			t.Error("all peers should be connected")
 		}
 		pins := c.Pins()
-		if len(pins) != 1 || !pins[0].Equals(hash) {
+		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
 			t.Error("all peers should have pinned the cid")
 		}
 	}
@@ -304,7 +304,7 @@ func TestClustersPeerJoinAllAtOnceWithRandomBootstrap(t *testing.T) {
 			t.Error("all peers should be connected")
 		}
 		pins := c.Pins()
-		if len(pins) != 1 || !pins[0].Equals(hash) {
+		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
 			t.Error("all peers should have pinned the cid")
 		}
 	}

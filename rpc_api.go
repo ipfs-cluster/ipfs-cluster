@@ -43,13 +43,13 @@ func (rpcapi *RPCAPI) Unpin(in api.CidArgSerial, out *struct{}) error {
 }
 
 // PinList runs Cluster.Pins().
-func (rpcapi *RPCAPI) PinList(in struct{}, out *[]string) error {
+func (rpcapi *RPCAPI) PinList(in struct{}, out *[]api.CidArgSerial) error {
 	cidList := rpcapi.c.Pins()
-	cidStrList := make([]string, 0, len(cidList))
+	cidSerialList := make([]api.CidArgSerial, 0, len(cidList))
 	for _, c := range cidList {
-		cidStrList = append(cidStrList, c.String())
+		cidSerialList = append(cidSerialList, c.ToSerial())
 	}
-	*out = cidStrList
+	*out = cidSerialList
 	return nil
 }
 
@@ -156,8 +156,7 @@ func (rpcapi *RPCAPI) Recover(in api.CidArgSerial, out *api.GlobalPinInfoSerial)
 
 // Track runs PinTracker.Track().
 func (rpcapi *RPCAPI) Track(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
-	return rpcapi.c.tracker.Track(c)
+	return rpcapi.c.tracker.Track(in.ToCidArg())
 }
 
 // Untrack runs PinTracker.Untrack().
@@ -225,13 +224,13 @@ func (rpcapi *RPCAPI) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) er
 
 // ConsensusLogPin runs Consensus.LogPin().
 func (rpcapi *RPCAPI) ConsensusLogPin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
+	c := in.ToCidArg()
 	return rpcapi.c.consensus.LogPin(c)
 }
 
 // ConsensusLogUnpin runs Consensus.LogUnpin().
 func (rpcapi *RPCAPI) ConsensusLogUnpin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
+	c := in.ToCidArg()
 	return rpcapi.c.consensus.LogUnpin(c)
 }
 
@@ -272,6 +271,28 @@ func (rpcapi *RPCAPI) PeerManagerRmPeerShutdown(in peer.ID, out *struct{}) error
 // PeerManagerRmPeer runs peerManager.rmPeer().
 func (rpcapi *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
 	return rpcapi.c.peerManager.rmPeer(in, false)
+}
+
+// PeerManagerPeers runs peerManager.peers().
+func (rpcapi *RPCAPI) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
+	*out = rpcapi.c.peerManager.peers()
+	return nil
+}
+
+/*
+   PeerMonitor
+*/
+
+// PeerMonitorLogMetric runs PeerMonitor.LogMetric().
+func (rpcapi *RPCAPI) PeerMonitorLogMetric(in api.Metric, out *struct{}) error {
+	rpcapi.c.monitor.LogMetric(in)
+	return nil
+}
+
+// PeerMonitorLastMetrics runs PeerMonitor.LastMetrics().
+func (rpcapi *RPCAPI) PeerMonitorLastMetrics(in string, out *[]api.Metric) error {
+	*out = rpcapi.c.monitor.LastMetrics(in)
+	return nil
 }
 
 /*

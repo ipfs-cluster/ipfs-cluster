@@ -14,6 +14,7 @@ const (
 	formatGPInfo
 	formatString
 	formatVersion
+	formatCidArg
 )
 
 type format int
@@ -45,6 +46,10 @@ func textFormatObject(body []byte, format int) {
 		var obj api.Version
 		textFormatDecodeOn(body, &obj)
 		textFormatPrintVersion(&obj)
+	case formatCidArg:
+		var obj api.CidArgSerial
+		textFormatDecodeOn(body, &obj)
+		textFormatPrintCidArg(&obj)
 	default:
 		var obj interface{}
 		textFormatDecodeOn(body, &obj)
@@ -98,4 +103,13 @@ func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
 
 func textFormatPrintVersion(obj *api.Version) {
 	fmt.Println(obj.Version)
+}
+
+func textFormatPrintCidArg(obj *api.CidArgSerial) {
+	fmt.Printf("%s | Allocations: ", obj.Cid)
+	if obj.Everywhere {
+		fmt.Printf("[everywhere]\n")
+	} else {
+		fmt.Printf("%s", obj.Allocations)
+	}
 }

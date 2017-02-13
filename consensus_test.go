@@ -6,82 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
-
-func TestApplyToPin(t *testing.T) {
-	op := &clusterLogOp{
-		Arg:       test.TestCid1,
-		Type:      LogOpPin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
-	}
-
-	st := mapstate.NewMapState()
-	op.ApplyTo(st)
-	pins := st.ListPins()
-	if len(pins) != 1 || pins[0].String() != test.TestCid1 {
-		t.Error("the state was not modified correctly")
-	}
-}
-
-func TestApplyToUnpin(t *testing.T) {
-	op := &clusterLogOp{
-		Arg:       test.TestCid1,
-		Type:      LogOpUnpin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
-	}
-
-	st := mapstate.NewMapState()
-	c, _ := cid.Decode(test.TestCid1)
-	st.AddPin(c)
-	op.ApplyTo(st)
-	pins := st.ListPins()
-	if len(pins) != 0 {
-		t.Error("the state was not modified correctly")
-	}
-}
-
-func TestApplyToBadState(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("should have recovered an error")
-		}
-	}()
-
-	op := &clusterLogOp{
-		Arg:       test.TestCid1,
-		Type:      LogOpUnpin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
-	}
-
-	var st interface{}
-	op.ApplyTo(st)
-}
-
-func TestApplyToBadCid(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("should have recovered an error")
-		}
-	}()
-
-	op := &clusterLogOp{
-		Arg:       "agadfaegf",
-		Type:      LogOpPin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
-	}
-
-	st := mapstate.NewMapState()
-	op.ApplyTo(st)
-}
 
 func cleanRaft() {
 	os.RemoveAll(testingConfig().ConsensusDataFolder)
@@ -128,7 +59,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(c)
+	err := cc.LogPin(api.CidArg{Cid: c, Everywhere: true})
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -139,8 +70,8 @@ func TestConsensusPin(t *testing.T) {
 		t.Fatal("error gettinng state:", err)
 	}
 
-	pins := st.ListPins()
-	if len(pins) != 1 || pins[0].String() != test.TestCid1 {
+	pins := st.List()
+	if len(pins) != 1 || pins[0].Cid.String() != test.TestCid1 {
 		t.Error("the added pin should be in the state")
 	}
 }
@@ -151,7 +82,7 @@ func TestConsensusUnpin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid2)
-	err := cc.LogUnpin(c)
+	err := cc.LogUnpin(api.CidArgCid(c))
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}

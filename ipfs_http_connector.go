@@ -241,7 +241,9 @@ func (ipfs *IPFSHTTPConnector) pinOpHandler(op string, w http.ResponseWriter, r 
 	err = ipfs.rpcClient.Call("",
 		"Cluster",
 		op,
-		api.CidArgSerial{arg},
+		api.CidArgSerial{
+			Cid: arg,
+		},
 		&struct{}{})
 
 	if err != nil {
@@ -270,7 +272,7 @@ func (ipfs *IPFSHTTPConnector) pinLsHandler(w http.ResponseWriter, r *http.Reque
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
-	var pins []string
+	var pins []api.CidArgSerial
 	err := ipfs.rpcClient.Call("",
 		"Cluster",
 		"PinList",
@@ -283,7 +285,7 @@ func (ipfs *IPFSHTTPConnector) pinLsHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	for _, pin := range pins {
-		pinLs.Keys[pin] = ipfsPinType{
+		pinLs.Keys[pin.Cid] = ipfsPinType{
 			Type: "recursive",
 		}
 	}
@@ -507,8 +509,8 @@ func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
 			msg = fmt.Sprintf("IPFS unsuccessful: %d: %s",
 				resp.StatusCode, ipfsErr.Message)
 		} else {
-			msg = fmt.Sprintf("IPFS-get unsuccessful: %d: %s",
-				resp.StatusCode, body)
+			msg = fmt.Sprintf("IPFS-get '%s' unsuccessful: %d: %s",
+				path, resp.StatusCode, body)
 		}
 		logger.Warning(msg)
 		return body, errors.New(msg)

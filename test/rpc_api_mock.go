@@ -42,8 +42,18 @@ func (mock *mockService) Unpin(in api.CidArgSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) PinList(in struct{}, out *[]string) error {
-	*out = []string{TestCid1, TestCid2, TestCid3}
+func (mock *mockService) PinList(in struct{}, out *[]api.CidArgSerial) error {
+	*out = []api.CidArgSerial{
+		{
+			Cid: TestCid1,
+		},
+		{
+			Cid: TestCid2,
+		},
+		{
+			Cid: TestCid3,
+		},
+	}
 	return nil
 }
 
@@ -178,5 +188,10 @@ func (mock *mockService) Track(in api.CidArgSerial, out *struct{}) error {
 }
 
 func (mock *mockService) Untrack(in api.CidArgSerial, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
+	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
 	return nil
 }

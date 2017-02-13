@@ -13,6 +13,8 @@ import (
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -237,12 +239,19 @@ func run(c *cli.Context) error {
 
 	state := mapstate.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker(cfg)
+	mon := ipfscluster.NewStdPeerMonitor(5)
+	informer := numpin.NewInformer()
+	alloc := numpinalloc.NewAllocator()
+
 	cluster, err := ipfscluster.NewCluster(
 		cfg,
 		api,
 		proxy,
 		state,
-		tracker)
+		tracker,
+		mon,
+		alloc,
+		informer)
 	checkErr("starting cluster", err)
 
 	signalChan := make(chan os.Signal, 20)

@@ -36,7 +36,7 @@ const (
 	// The IPFS daemon is not pinning the item
 	TrackerStatusUnpinned
 	// The IPFS deamon is not pinning the item but it is being tracked
-	TrackerStatusRemotePin
+	TrackerStatusRemote
 )
 
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
@@ -51,7 +51,7 @@ var trackerStatusString = map[TrackerStatus]string{
 	TrackerStatusPinning:      "pinning",
 	TrackerStatusUnpinning:    "unpinning",
 	TrackerStatusUnpinned:     "unpinned",
-	TrackerStatusRemotePin:    "remote",
+	TrackerStatusRemote:       "remote",
 }
 
 // String converts a TrackerStatus into a readable string.
@@ -335,25 +335,91 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 // CidArg is an arguments that carry a Cid. It may carry more things in the
 // future.
 type CidArg struct {
-	Cid *cid.Cid
+	Cid         *cid.Cid
+	Allocations []peer.ID
+	Everywhere  bool
+}
+
+// CidArgCid is a shorcut to create a CidArg only with a Cid.
+func CidArgCid(c *cid.Cid) CidArg {
+	return CidArg{
+		Cid: c,
+	}
 }
 
 // CidArgSerial is a serializable version of CidArg
 type CidArgSerial struct {
-	Cid string `json:"cid"`
+	Cid         string   `json:"cid"`
+	Allocations []string `json:"allocations"`
+	Everywhere  bool     `json:"everywhere"`
 }
 
 // ToSerial converts a CidArg to CidArgSerial.
 func (carg CidArg) ToSerial() CidArgSerial {
+	lenAllocs := len(carg.Allocations)
+	allocs := make([]string, lenAllocs, lenAllocs)
+	for i, p := range carg.Allocations {
+		allocs[i] = peer.IDB58Encode(p)
+	}
+
 	return CidArgSerial{
-		Cid: carg.Cid.String(),
+		Cid:         carg.Cid.String(),
+		Allocations: allocs,
+		Everywhere:  carg.Everywhere,
 	}
 }
 
 // ToCidArg converts a CidArgSerial to its native form.
 func (cargs CidArgSerial) ToCidArg() CidArg {
 	c, _ := cid.Decode(cargs.Cid)
-	return CidArg{
-		Cid: c,
+	lenAllocs := len(cargs.Allocations)
+	allocs := make([]peer.ID, lenAllocs, lenAllocs)
+	for i, p := range cargs.Allocations {
+		allocs[i], _ = peer.IDB58Decode(p)
 	}
+	return CidArg{
+		Cid:         c,
+		Allocations: allocs,
+		Everywhere:  cargs.Everywhere,
+	}
+}
+
+// Metric transports information about a peer.ID. It is used to decide
+// pin allocations by a PinAllocator. IPFS cluster is agnostic to
+// the Value, which should be interpreted by the PinAllocator.
+type Metric struct {
+	Name   string
+	Peer   peer.ID // filled-in by Cluster.
+	Value  string
+	Expire string // RFC1123
+	Valid  bool   // if the metric is not valid it will be discarded
+}
+
+// SetTTL sets Metric to expire after the given seconds
+func (m *Metric) SetTTL(seconds int) {
+	exp := time.Now().Add(time.Duration(seconds) * time.Second)
+	m.Expire = exp.Format(time.RFC1123)
+}
+
+// GetTTL returns the time left before the Metric expires
+func (m *Metric) GetTTL() time.Duration {
+	exp, _ := time.Parse(time.RFC1123, m.Expire)
+	return exp.Sub(time.Now())
+}
+
+// Expired returns if the Metric has expired
+func (m *Metric) Expired() bool {
+	exp, _ := time.Parse(time.RFC1123, m.Expire)
+	return time.Now().After(exp)
+}
+
+// Discard returns if the metric not valid or has expired
+func (m *Metric) Discard() bool {
+	return !m.Valid || m.Expired()
+}
+
+// Alert carries alerting information about a peer. WIP.
+type Alert struct {
+	Peer       peer.ID
+	MetricName string
 }

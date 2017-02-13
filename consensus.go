@@ -9,20 +9,11 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	cid "github.com/ipfs/go-cid"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
 	ma "github.com/multiformats/go-multiaddr"
-)
-
-// Type of pin operation
-const (
-	LogOpPin = iota + 1
-	LogOpUnpin
-	LogOpAddPeer
-	LogOpRmPeer
 )
 
 // LeaderTimeout specifies how long to wait before failing an operation
@@ -32,95 +23,6 @@ var LeaderTimeout = 15 * time.Second
 // CommitRetries specifies how many times we retry a failed commit until
 // we give up
 var CommitRetries = 2
-
-type clusterLogOpType int
-
-// clusterLogOp represents an operation for the OpLogConsensus system.
-// It implements the consensus.Op interface.
-type clusterLogOp struct {
-	Arg       string
-	Type      clusterLogOpType
-	ctx       context.Context
-	rpcClient *rpc.Client
-}
-
-// ApplyTo applies the operation to the State
-func (op *clusterLogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
-	state, ok := cstate.(State)
-	var err error
-	if !ok {
-		// Should never be here
-		panic("received unexpected state type")
-	}
-
-	switch op.Type {
-	case LogOpPin:
-		c, err := cid.Decode(op.Arg)
-		if err != nil {
-			panic("could not decode a CID we ourselves encoded")
-		}
-		err = state.AddPin(c)
-		if err != nil {
-			goto ROLLBACK
-		}
-		// Async, we let the PinTracker take care of any problems
-		op.rpcClient.Go("",
-			"Cluster",
-			"Track",
-			api.CidArg{c}.ToSerial(),
-			&struct{}{},
-			nil)
-	case LogOpUnpin:
-		c, err := cid.Decode(op.Arg)
-		if err != nil {
-			panic("could not decode a CID we ourselves encoded")
-		}
-		err = state.RmPin(c)
-		if err != nil {
-			goto ROLLBACK
-		}
-		// Async, we let the PinTracker take care of any problems
-		op.rpcClient.Go("",
-			"Cluster",
-			"Untrack",
-			api.CidArg{c}.ToSerial(),
-			&struct{}{},
-			nil)
-	case LogOpAddPeer:
-		addr, err := ma.NewMultiaddr(op.Arg)
-		if err != nil {
-			panic("could not decode a multiaddress we ourselves encoded")
-		}
-		op.rpcClient.Call("",
-			"Cluster",
-			"PeerManagerAddPeer",
-			api.MultiaddrToSerial(addr),
-			&struct{}{})
-		// TODO rebalance ops
-	case LogOpRmPeer:
-		pid, err := peer.IDB58Decode(op.Arg)
-		if err != nil {
-			panic("could not decode a PID we ourselves encoded")
-		}
-		op.rpcClient.Call("",
-			"Cluster",
-			"PeerManagerRmPeer",
-			pid,
-			&struct{}{})
-		// TODO rebalance ops
-	default:
-		logger.Error("unknown clusterLogOp type. Ignoring")
-	}
-	return state, nil
-
-ROLLBACK:
-	// We failed to apply the operation to the state
-	// and therefore we need to request a rollback to the
-	// cluster to the previous state. This operation can only be performed
-	// by the cluster leader.
-	logger.Error("Rollbacks are not implemented")
-	return nil, errors.New("a rollback may be necessary. Reason: " + err.Error())
-}
 
 // Consensus handles the work of keeping a shared-state between
 // the peers of an IPFS Cluster, as well as modifying that state and
@@ -132,7 +34,7 @@ type Consensus struct {
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
-	baseOp    *clusterLogOp
+	baseOp    *LogOp
 	raft      *Raft
 
 	rpcClient *rpc.Client
@@ -150,7 +52,7 @@ type Consensus struct {
 // is discarded.
 func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, state State) (*Consensus, error) {
 	ctx := context.Background()
-	op := &clusterLogOp{
+	op := &LogOp{
 		ctx: context.Background(),
 	}
 
@@ -297,21 +199,20 @@ func (cc *Consensus) Ready() <-chan struct{} {
 	return cc.readyCh
 }
 
-func (cc *Consensus) op(argi interface{}, t clusterLogOpType) *clusterLogOp {
-	var arg string
+func (cc *Consensus) op(argi interface{}, t LogOpType) *LogOp {
 	switch argi.(type) {
-	case *cid.Cid:
-		arg = argi.(*cid.Cid).String()
-	case peer.ID:
-		arg = peer.IDB58Encode(argi.(peer.ID))
+	case api.CidArg:
+		return &LogOp{
+			Cid:  argi.(api.CidArg).ToSerial(),
+			Type: t,
+		}
 	case ma.Multiaddr:
-		arg = argi.(ma.Multiaddr).String()
+		return &LogOp{
+			Peer: api.MultiaddrToSerial(argi.(ma.Multiaddr)),
+			Type: t,
+		}
 	default:
 		panic("bad type")
-	}
-	return &clusterLogOp{
-		Arg:  arg,
-		Type: t,
 	}
 }
 
@@ -339,12 +240,12 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 	return true, err
 }
 
-func (cc *Consensus) logOpCid(rpcOp string, opType clusterLogOpType, c *cid.Cid) error {
+func (cc *Consensus) logOpCid(rpcOp string, opType LogOpType, carg api.CidArg) error {
 	var finalErr error
 	for i := 0; i < CommitRetries; i++ {
 		logger.Debugf("Try %d", i)
 		redirected, err := cc.redirectToLeader(
-			rpcOp, api.CidArg{c}.ToSerial())
+			rpcOp, carg.ToSerial())
 		if err != nil {
 			finalErr = err
 			continue
@@ -356,8 +257,7 @@ func (cc *Consensus) logOpCid(rpcOp string, opType clusterLogOpType, c *cid.Cid)
 
 		// It seems WE are the leader.
 
-		// Create pin operation for the log
-		op := cc.op(c, opType)
+		op := cc.op(carg, opType)
 		_, err = cc.consensus.CommitOp(op)
 		if err != nil {
 			// This means the op did not make it to the log
@@ -374,21 +274,21 @@ func (cc *Consensus) logOpCid(rpcOp string, opType clusterLogOpType, c *cid.Cid)
 
 	switch opType {
 	case LogOpPin:
-		logger.Infof("pin committed to global state: %s", c)
+		logger.Infof("pin committed to global state: %s", carg.Cid)
 	case LogOpUnpin:
-		logger.Infof("unpin committed to global state: %s", c)
+		logger.Infof("unpin committed to global state: %s", carg.Cid)
 	}
 	return nil
 }
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
-func (cc *Consensus) LogPin(c *cid.Cid) error {
+func (cc *Consensus) LogPin(c api.CidArg) error {
 	return cc.logOpCid("ConsensusLogPin", LogOpPin, c)
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) LogUnpin(c *cid.Cid) error {
+func (cc *Consensus) LogUnpin(c api.CidArg) error {
 	return cc.logOpCid("ConsensusLogUnpin", LogOpUnpin, c)
 }
 
@@ -458,7 +358,11 @@ func (cc *Consensus) LogRmPeer(pid peer.ID) error {
 		// It seems WE are the leader.
 
 		// Create pin operation for the log
-		op := cc.op(pid, LogOpRmPeer)
+		addr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(pid))
+		if err != nil {
+			return err
+		}
+		op := cc.op(addr, LogOpRmPeer)
 		_, err = cc.consensus.CommitOp(op)
 		if err != nil {
 			// This means the op did not make it to the log

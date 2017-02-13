@@ -4,7 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -78,6 +80,9 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	cfg := testingConfig()
 	st := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
+	mon := NewStdPeerMonitor(5)
+	alloc := numpinalloc.NewAllocator()
+	inf := numpin.NewInformer()
 
 	cl, err := NewCluster(
 		cfg,
@@ -85,7 +90,9 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 		ipfs,
 		st,
 		tracker,
-	)
+		mon,
+		alloc,
+		inf)
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
@@ -129,7 +136,7 @@ func TestClusterStateSync(t *testing.T) {
 
 	// Modify state on the side so the sync does not
 	// happen on an empty slide
-	st.RmPin(c)
+	st.Rm(c)
 	_, err = cl.StateSync()
 	if err != nil {
 		t.Fatal("sync with recover should have worked:", err)

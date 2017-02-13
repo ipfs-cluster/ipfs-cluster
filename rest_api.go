@@ -353,7 +353,7 @@ func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
-	var pins []string
+	var pins []api.CidArgSerial
 	err := rest.rpcClient.Call("",
 		"Cluster",
 		"PinList",
@@ -424,9 +424,9 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) api.CidArgSerial {
 	_, err := cid.Decode(hash)
 	if err != nil {
 		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
-		return api.CidArgSerial{""}
+		return api.CidArgSerial{Cid: ""}
 	}
-	return api.CidArgSerial{hash}
+	return api.CidArgSerial{Cid: hash}
 }
 
 func parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {

@@ -190,11 +190,11 @@ func TestRESTAPIPinListEndpoint(t *testing.T) {
 	rest := testRESTAPI(t)
 	defer rest.Shutdown()
 
-	var resp []string
+	var resp []api.CidArgSerial
 	makeGet(t, "/pinlist", &resp)
 	if len(resp) != 3 ||
-		resp[0] != test.TestCid1 || resp[1] != test.TestCid2 ||
-		resp[2] != test.TestCid3 {
+		resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||
+		resp[2].Cid != test.TestCid3 {
 		t.Error("unexpected pin list: ", resp)
 	}
 }

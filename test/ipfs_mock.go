@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
 	cid "github.com/ipfs/go-cid"
@@ -92,7 +93,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.AddPin(c)
+		m.pinMap.Add(api.CidArgCid(c))
 		resp := mockPinResp{
 			Pins: []string{cidStr},
 		}
@@ -109,7 +110,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.RmPin(c)
+		m.pinMap.Rm(c)
 		resp := mockPinResp{
 			Pins: []string{cidStr},
 		}
@@ -120,9 +121,9 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		arg, ok := query["arg"]
 		if !ok {
 			rMap := make(map[string]mockPinType)
-			pins := m.pinMap.ListPins()
+			pins := m.pinMap.List()
 			for _, p := range pins {
-				rMap[p.String()] = mockPinType{"recursive"}
+				rMap[p.Cid.String()] = mockPinType{"recursive"}
 			}
 			j, _ := json.Marshal(mockPinLsResp{rMap})
 			w.Write(j)
@@ -137,7 +138,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		ok = m.pinMap.HasPin(c)
+		ok = m.pinMap.Has(c)
 		if ok {
 			rMap := make(map[string]mockPinType)
 			rMap[cidStr] = mockPinType{"recursive"}

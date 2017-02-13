@@ -225,9 +225,10 @@ in the cluster and should be part of the list offered by "pin ls".
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						request("POST", "/pins/"+cidStr, nil)
+						resp := request("POST", "/pins/"+cidStr, nil)
+						formatResponse(c, resp)
 						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/pins/"+cidStr, nil)
+						resp = request("GET", "/pins/"+cidStr, nil)
 						formatResponse(c, resp)
 						return nil
 					},
@@ -260,12 +261,13 @@ although unpinning operations in the cluster may take longer or fail.
 					Name:  "ls",
 					Usage: "List tracked CIDs",
 					UsageText: `
-This command will list the CIDs which are tracked by IPFS Cluster. This
-list does not include information about tracking status or location, it
+This command will list the CIDs which are tracked by IPFS Cluster and to
+which peers they are currently allocated. This list does not include
+any monitoring information about the 
 merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
-					Flags: []cli.Flag{parseFlag(formatString)},
+					Flags: []cli.Flag{parseFlag(formatCidArg)},
 					Action: func(c *cli.Context) error {
 						resp := request("GET", "/pinlist", nil)
 						formatResponse(c, resp)

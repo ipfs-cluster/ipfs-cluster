@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -136,4 +137,10 @@ func globalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSeri
 		gpis[i] = v.ToSerial()
 	}
 	return gpis
+}
+
+func logError(fmtstr string, args ...interface{}) error {
+	msg := fmt.Sprintf(fmtstr, args...)
+	logger.Error(msg)
+	return errors.New(msg)
 }
