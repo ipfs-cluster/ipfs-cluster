@@ -12,7 +12,7 @@ for dir in $dirs;
 do
         if ls "$dir"/*.go &> /dev/null;
         then
-            go test -coverprofile=profile.out -covermode=count -tags silent "$dir"
+            go test -v -coverprofile=profile.out -covermode=count -tags silent "$dir"
             if [ $? -ne 0 ];
             then
                 exit 1
