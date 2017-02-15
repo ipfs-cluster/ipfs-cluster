@@ -13,6 +13,9 @@ import (
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
 // ProgramName of this application
@@ -214,7 +217,7 @@ func run(c *cli.Context) error {
 
 	if a := c.String("bootstrap"); a != "" {
 		if len(cfg.ClusterPeers) > 0 && !c.Bool("force") {
-			return errors.New("The configuration provides ClusterPeers. Use -f to ignore and proceed bootstrapping")
+			return errors.New("the configuration provides ClusterPeers. Use -f to ignore and proceed bootstrapping")
 		}
 		joinAddr, err := ma.NewMultiaddr(a)
 		if err != nil {
@@ -234,14 +237,21 @@ func run(c *cli.Context) error {
 	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
 	checkErr("creating IPFS Connector component", err)
 
-	state := ipfscluster.NewMapState()
+	state := mapstate.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker(cfg)
+	mon := ipfscluster.NewStdPeerMonitor(5)
+	informer := numpin.NewInformer()
+	alloc := numpinalloc.NewAllocator()
+
 	cluster, err := ipfscluster.NewCluster(
 		cfg,
 		api,
 		proxy,
 		state,
-		tracker)
+		tracker,
+		mon,
+		alloc,
+		informer)
 	checkErr("starting cluster", err)
 
 	signalChan := make(chan os.Signal, 20)

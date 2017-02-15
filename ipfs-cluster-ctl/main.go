@@ -90,6 +90,11 @@ func main() {
 			Name:  "https, s",
 			Usage: "use https to connect to the API",
 		},
+		cli.StringFlag{
+			Name:  "encoding, enc",
+			Value: "text",
+			Usage: "output format encoding [text, json]",
+		},
 		cli.IntFlag{
 			Name:  "timeout, t",
 			Value: defaultTimeout,
@@ -120,9 +125,10 @@ func main() {
 			UsageText: `
 This command will print out information about the cluster peer used
 `,
+			Flags: []cli.Flag{parseFlag(formatID)},
 			Action: func(c *cli.Context) error {
 				resp := request("GET", "/id", nil)
-				formatResponse(resp)
+				formatResponse(c, resp)
 				return nil
 			},
 		},
@@ -139,9 +145,10 @@ This command can be used to list and manage IPFS Cluster peers.
 					UsageText: `
 This commands provides a list of the ID information of all the peers in the Cluster.
 `,
+					Flags: []cli.Flag{parseFlag(formatID)},
 					Action: func(c *cli.Context) error {
 						resp := request("GET", "/peers", nil)
-						formatResponse(resp)
+						formatResponse(c, resp)
 						return nil
 					},
 				},
@@ -154,6 +161,7 @@ succeed, the new peer needs to be reachable and any other member of the cluster
 should be online. The operation returns the ID information for the new peer.
 `,
 					ArgsUsage: "<multiaddress>",
+					Flags:     []cli.Flag{parseFlag(formatID)},
 					Action: func(c *cli.Context) error {
 						addr := c.Args().First()
 						if addr == "" {
@@ -166,7 +174,7 @@ should be online. The operation returns the ID information for the new peer.
 						enc := json.NewEncoder(&buf)
 						enc.Encode(addBody)
 						resp := request("POST", "/peers", &buf)
-						formatResponse(resp)
+						formatResponse(c, resp)
 						return nil
 					},
 				},
@@ -180,12 +188,13 @@ operation to succeed, otherwise some nodes may be left with an outdated list of
 cluster peers.
 `,
 					ArgsUsage: "<peer ID>",
+					Flags:     []cli.Flag{parseFlag(formatNone)},
 					Action: func(c *cli.Context) error {
 						pid := c.Args().First()
 						_, err := peer.IDB58Decode(pid)
 						checkErr("parsing peer ID", err)
 						resp := request("DELETE", "/peers/"+pid, nil)
-						formatResponse(resp)
+						formatResponse(c, resp)
 						return nil
 					},
 				},
@@ -211,14 +220,16 @@ When the request has succeeded, the command returns the status of the CID
 in the cluster and should be part of the list offered by "pin ls".
 `,
 					ArgsUsage: "<cid>",
+					Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						request("POST", "/pins/"+cidStr, nil)
+						resp := request("POST", "/pins/"+cidStr, nil)
+						formatResponse(c, resp)
 						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/pins/"+cidStr, nil)
-						formatResponse(resp)
+						resp = request("GET", "/pins/"+cidStr, nil)
+						formatResponse(c, resp)
 						return nil
 					},
 				},
@@ -234,6 +245,7 @@ in the cluster. The CID should disappear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
 					ArgsUsage: "<cid>",
+					Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
@@ -241,7 +253,7 @@ although unpinning operations in the cluster may take longer or fail.
 						request("DELETE", "/pins/"+cidStr, nil)
 						time.Sleep(500 * time.Millisecond)
 						resp := request("GET", "/pins/"+cidStr, nil)
-						formatResponse(resp)
+						formatResponse(c, resp)
 						return nil
 					},
 				},
@@ -249,14 +261,16 @@ although unpinning operations in the cluster may take longer or fail.
 					Name:  "ls",
 					Usage: "List tracked CIDs",
 					UsageText: `
-This command will list the CIDs which are tracked by IPFS Cluster. This
-list does not include information about tracking status or location, it
+This command will list the CIDs which are tracked by IPFS Cluster and to
+which peers they are currently allocated. This list does not include
+any monitoring information about the 
 merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
+					Flags: []cli.Flag{parseFlag(formatCidArg)},
 					Action: func(c *cli.Context) error {
 						resp := request("GET", "/pinlist", nil)
-						formatResponse(resp)
+						formatResponse(c, resp)
 						return nil
 					},
 				},
@@ -275,6 +289,7 @@ The status of a CID may not be accurate. A manual sync can be triggered
 with "sync".
 `,
 			ArgsUsage: "[cid]",
+			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
@@ -282,7 +297,7 @@ with "sync".
 					checkErr("parsing cid", err)
 				}
 				resp := request("GET", "/pins/"+cidStr, nil)
-				formatResponse(resp)
+				formatResponse(c, resp)
 				return nil
 			},
 		},
@@ -302,6 +317,7 @@ therefore, the output should be empty if no operations were performed.
 CIDs in error state may be manually recovered with "recover".
 `,
 			ArgsUsage: "[cid]",
+			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				var resp *http.Response
@@ -312,7 +328,7 @@ CIDs in error state may be manually recovered with "recover".
 				} else {
 					resp = request("POST", "/pins/sync", nil)
 				}
-				formatResponse(resp)
+				formatResponse(c, resp)
 				return nil
 			},
 		},
@@ -327,6 +343,7 @@ The command will wait for any operations to succeed and will return the status
 of the item upon completion.
 `,
 			ArgsUsage: "<cid>",
+			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				var resp *http.Response
@@ -334,7 +351,7 @@ of the item upon completion.
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
 					resp = request("POST", "/pins/"+cidStr+"/recover", nil)
-					formatResponse(resp)
+					formatResponse(c, resp)
 
 				} else {
 					return cli.NewExitError("A CID is required", 1)
@@ -349,15 +366,40 @@ of the item upon completion.
 This command retrieves the IPFS Cluster version and can be used
 to check that it matches the CLI version (shown by -v).
 `,
+			Flags: []cli.Flag{parseFlag(formatVersion)},
 			Action: func(c *cli.Context) error {
 				resp := request("GET", "/version", nil)
-				formatResponse(resp)
+				formatResponse(c, resp)
+				return nil
+			},
+		},
+		{
+			Name:   "commands",
+			Usage:  "List all commands",
+			Hidden: true,
+			Action: func(c *cli.Context) error {
+				walkCommands(c.App.Commands)
 				return nil
 			},
 		},
 	}
 
 	app.Run(os.Args)
+}
+
+func parseFlag(t int) cli.IntFlag {
+	return cli.IntFlag{
+		Name:   "parseAs",
+		Value:  t,
+		Hidden: true,
+	}
+}
+
+func walkCommands(cmds []cli.Command) {
+	for _, c := range cmds {
+		fmt.Println(c.HelpName)
+		walkCommands(c.Subcommands)
+	}
 }
 
 func request(method, path string, body io.Reader, args ...string) *http.Response {
@@ -386,26 +428,34 @@ func request(method, path string, body io.Reader, args ...string) *http.Response
 	return resp
 }
 
-func formatResponse(r *http.Response) {
+func formatResponse(c *cli.Context, r *http.Response) {
 	defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
 	checkErr("reading body", err)
 	logger.Debugf("Body: %s", body)
 
-	if r.StatusCode > 399 {
+	switch {
+	case r.StatusCode > 399:
 		var e errorResp
 		err = json.Unmarshal(body, &e)
 		checkErr("decoding error response", err)
 		out("Error %d: %s", e.Code, e.Message)
-	} else if r.StatusCode == http.StatusAccepted {
-		out("%s", "request accepted")
-	} else if r.StatusCode == http.StatusNoContent {
+	case r.StatusCode == http.StatusAccepted:
+		out("%s", "Request accepted")
+	case r.StatusCode == http.StatusNoContent:
 		out("%s", "Request succeeded\n")
-	} else {
-		var resp interface{}
-		err = json.Unmarshal(body, &resp)
-		checkErr("decoding response", err)
-		prettyPrint(body)
+	default:
+		enc := c.GlobalString("encoding")
+
+		switch enc {
+		case "text":
+			textFormat(body, c.Int("parseAs"))
+		default:
+			var resp interface{}
+			err = json.Unmarshal(body, &resp)
+			checkErr("decoding response", err)
+			prettyPrint(body)
+		}
 	}
 }
 

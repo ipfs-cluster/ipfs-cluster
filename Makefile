@@ -55,7 +55,7 @@ deps: gx
 	$(gx_bin) --verbose install --global
 	$(gx-go_bin) rewrite
 test: deps
-	go test -tags silent -v -covermode count -coverprofile=coverage.out .
+	go test -tags silent -v ./...
 rw: gx
 	$(gx-go_bin) rewrite
 rwundo: gx

@@ -9,105 +9,16 @@
 package ipfscluster
 
 import (
-	"time"
-
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
-	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/ipfs/ipfs-cluster/api"
 )
 
 // RPCProtocol is used to send libp2p messages between cluster peers
 var RPCProtocol = protocol.ID("/ipfscluster/" + Version + "/rpc")
-
-// TrackerStatus values
-const (
-	// IPFSStatus should never take this value
-	TrackerStatusBug = iota
-	// The cluster node is offline or not responding
-	TrackerStatusClusterError
-	// An error occurred pinning
-	TrackerStatusPinError
-	// An error occurred unpinning
-	TrackerStatusUnpinError
-	// The IPFS daemon has pinned the item
-	TrackerStatusPinned
-	// The IPFS daemon is currently pinning the item
-	TrackerStatusPinning
-	// The IPFS daemon is currently unpinning the item
-	TrackerStatusUnpinning
-	// The IPFS daemon is not pinning the item
-	TrackerStatusUnpinned
-	// The IPFS deamon is not pinning the item but it is being tracked
-	TrackerStatusRemotePin
-)
-
-// TrackerStatus represents the status of a tracked Cid in the PinTracker
-type TrackerStatus int
-
-// IPFSPinStatus values
-const (
-	IPFSPinStatusBug = iota
-	IPFSPinStatusError
-	IPFSPinStatusDirect
-	IPFSPinStatusRecursive
-	IPFSPinStatusIndirect
-	IPFSPinStatusUnpinned
-)
-
-// IPFSPinStatus represents the status of a pin in IPFS (direct, recursive etc.)
-type IPFSPinStatus int
-
-// IsPinned returns true if the status is Direct or Recursive
-func (ips IPFSPinStatus) IsPinned() bool {
-	return ips == IPFSPinStatusDirect || ips == IPFSPinStatusRecursive
-}
-
-// GlobalPinInfo contains cluster-wide status information about a tracked Cid,
-// indexed by cluster peer.
-type GlobalPinInfo struct {
-	Cid     *cid.Cid
-	PeerMap map[peer.ID]PinInfo
-}
-
-// PinInfo holds information about local pins. PinInfo is
-// serialized when requesting the Global status, therefore
-// we cannot use *cid.Cid.
-type PinInfo struct {
-	CidStr string
-	Peer   peer.ID
-	Status TrackerStatus
-	TS     time.Time
-	Error  string
-}
-
-// String converts an IPFSStatus into a readable string.
-func (st TrackerStatus) String() string {
-	switch st {
-	case TrackerStatusBug:
-		return "bug"
-	case TrackerStatusClusterError:
-		return "cluster_error"
-	case TrackerStatusPinError:
-		return "pin_error"
-	case TrackerStatusUnpinError:
-		return "unpin_error"
-	case TrackerStatusPinned:
-		return "pinned"
-	case TrackerStatusPinning:
-		return "pinning"
-	case TrackerStatusUnpinning:
-		return "unpinning"
-	case TrackerStatusUnpinned:
-		return "unpinned"
-	case TrackerStatusRemotePin:
-		return "remote"
-	default:
-		return ""
-	}
-}
 
 // Component represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They
@@ -128,11 +39,11 @@ type API interface {
 // an IPFS daemon. This is a base component.
 type IPFSConnector interface {
 	Component
-	ID() (IPFSID, error)
+	ID() (api.IPFSID, error)
 	Pin(*cid.Cid) error
 	Unpin(*cid.Cid) error
-	PinLsCid(*cid.Cid) (IPFSPinStatus, error)
-	PinLs() (map[string]IPFSPinStatus, error)
+	PinLsCid(*cid.Cid) (api.IPFSPinStatus, error)
+	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
@@ -147,15 +58,16 @@ type Peered interface {
 // is used by the Consensus component to keep track of
 // objects which objects are pinned. This component should be thread safe.
 type State interface {
-	// AddPin adds a pin to the State
-	AddPin(*cid.Cid) error
-	// RmPin removes a pin from the State
-	RmPin(*cid.Cid) error
-	// ListPins lists all the pins in the state
-	ListPins() []*cid.Cid
-	// HasPin returns true if the state is holding a Cid
-	HasPin(*cid.Cid) bool
-	// AddPeer adds a peer to the shared state
+	// Add adds a pin to the State
+	Add(api.CidArg) error
+	// Rm removes a pin from the State
+	Rm(*cid.Cid) error
+	// List lists all the pins in the state
+	List() []api.CidArg
+	// Has returns true if the state is holding information for a Cid
+	Has(*cid.Cid) bool
+	// Get returns the information attacthed to this pin
+	Get(*cid.Cid) api.CidArg
 }
 
 // PinTracker represents a component which tracks the status of
@@ -165,159 +77,60 @@ type PinTracker interface {
 	Component
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
-	Track(*cid.Cid) error
+	Track(api.CidArg) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
 	Untrack(*cid.Cid) error
 	// StatusAll returns the list of pins with their local status.
-	StatusAll() []PinInfo
+	StatusAll() []api.PinInfo
 	// Status returns the local status of a given Cid.
-	Status(*cid.Cid) PinInfo
+	Status(*cid.Cid) api.PinInfo
 	// SyncAll makes sure that all tracked Cids reflect the real IPFS status.
 	// It returns the list of pins which were updated by the call.
-	SyncAll() ([]PinInfo, error)
+	SyncAll() ([]api.PinInfo, error)
 	// Sync makes sure that the Cid status reflect the real IPFS status.
 	// It returns the local status of the Cid.
-	Sync(*cid.Cid) (PinInfo, error)
+	Sync(*cid.Cid) (api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in Cids with error status.
-	Recover(*cid.Cid) (PinInfo, error)
+	Recover(*cid.Cid) (api.PinInfo, error)
 }
 
-// IPFSID is used to store information about the underlying IPFS daemon
-type IPFSID struct {
-	ID        peer.ID
-	Addresses []ma.Multiaddr
-	Error     string
+// Informer returns Metric information in a peer. The metrics produced by
+// informers are then passed to a PinAllocator which will use them to
+// determine where to pin content.
+type Informer interface {
+	Component
+	Name() string
+	GetMetric() api.Metric
 }
 
-// IPFSIDSerial is the serializable IPFSID for RPC requests
-type IPFSIDSerial struct {
-	ID        string
-	Addresses MultiaddrsSerial
-	Error     string
+// PinAllocator decides where to pin certain content. In order to make such
+// decision, it receives the pin arguments, the peers which are currently
+// allocated to the content and metrics available for all peers which could
+// allocate the content.
+type PinAllocator interface {
+	Component
+	// Allocate returns the list of peers that should be assigned to
+	// Pin content in oder of preference (from the most preferred to the
+	// least). The current map contains the metrics for all peers
+	// which are currently pinning the content. The candidates map
+	// contains the metrics for all pins which are eligible for pinning
+	// the content.
+	Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error)
 }
 
-// ToSerial converts IPFSID to a go serializable object
-func (id *IPFSID) ToSerial() IPFSIDSerial {
-	return IPFSIDSerial{
-		ID:        peer.IDB58Encode(id.ID),
-		Addresses: MultiaddrsToSerial(id.Addresses),
-		Error:     id.Error,
-	}
-}
-
-// ToID converts an IPFSIDSerial to IPFSID
-// It will ignore any errors when parsing the fields.
-func (ids *IPFSIDSerial) ToID() IPFSID {
-	id := IPFSID{}
-	if pID, err := peer.IDB58Decode(ids.ID); err == nil {
-		id.ID = pID
-	}
-	id.Addresses = ids.Addresses.ToMultiaddrs()
-	id.Error = ids.Error
-	return id
-}
-
-// ID holds information about the Cluster peer
-type ID struct {
-	ID                 peer.ID
-	PublicKey          crypto.PubKey
-	Addresses          []ma.Multiaddr
-	ClusterPeers       []ma.Multiaddr
-	Version            string
-	Commit             string
-	RPCProtocolVersion protocol.ID
-	Error              string
-	IPFS               IPFSID
-}
-
-// IDSerial is the serializable ID counterpart for RPC requests
-type IDSerial struct {
-	ID                 string
-	PublicKey          []byte
-	Addresses          MultiaddrsSerial
-	ClusterPeers       MultiaddrsSerial
-	Version            string
-	Commit             string
-	RPCProtocolVersion string
-	Error              string
-	IPFS               IPFSIDSerial
-}
-
-// ToSerial converts an ID to its Go-serializable version
-func (id ID) ToSerial() IDSerial {
-	var pkey []byte
-	if id.PublicKey != nil {
-		pkey, _ = id.PublicKey.Bytes()
-	}
-
-	return IDSerial{
-		ID:                 peer.IDB58Encode(id.ID),
-		PublicKey:          pkey,
-		Addresses:          MultiaddrsToSerial(id.Addresses),
-		ClusterPeers:       MultiaddrsToSerial(id.ClusterPeers),
-		Version:            id.Version,
-		Commit:             id.Commit,
-		RPCProtocolVersion: string(id.RPCProtocolVersion),
-		Error:              id.Error,
-		IPFS:               id.IPFS.ToSerial(),
-	}
-}
-
-// ToID converts an IDSerial object to ID.
-// It will ignore any errors when parsing the fields.
-func (ids IDSerial) ToID() ID {
-	id := ID{}
-	if pID, err := peer.IDB58Decode(ids.ID); err == nil {
-		id.ID = pID
-	}
-	if pkey, err := crypto.UnmarshalPublicKey(ids.PublicKey); err == nil {
-		id.PublicKey = pkey
-	}
-
-	id.Addresses = ids.Addresses.ToMultiaddrs()
-	id.ClusterPeers = ids.ClusterPeers.ToMultiaddrs()
-	id.Version = ids.Version
-	id.Commit = ids.Commit
-	id.RPCProtocolVersion = protocol.ID(ids.RPCProtocolVersion)
-	id.Error = ids.Error
-	id.IPFS = ids.IPFS.ToID()
-	return id
-}
-
-// MultiaddrSerial is a Multiaddress in a serializable form
-type MultiaddrSerial []byte
-
-// MultiaddrsSerial is an array of Multiaddresses in serializable form
-type MultiaddrsSerial []MultiaddrSerial
-
-// MultiaddrToSerial converts a Multiaddress to its serializable form
-func MultiaddrToSerial(addr ma.Multiaddr) MultiaddrSerial {
-	return addr.Bytes()
-}
-
-// ToMultiaddr converts a serializable Multiaddress to its original type.
-// All errors are ignored.
-func (addrS MultiaddrSerial) ToMultiaddr() ma.Multiaddr {
-	a, _ := ma.NewMultiaddrBytes(addrS)
-	return a
-}
-
-// MultiaddrsToSerial converts a slice of Multiaddresses to its
-// serializable form.
-func MultiaddrsToSerial(addrs []ma.Multiaddr) MultiaddrsSerial {
-	addrsS := make([]MultiaddrSerial, len(addrs), len(addrs))
-	for i, a := range addrs {
-		addrsS[i] = MultiaddrToSerial(a)
-	}
-	return addrsS
-}
-
-// ToMultiaddrs converts MultiaddrsSerial back to a slice of Multiaddresses
-func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
-	addrs := make([]ma.Multiaddr, len(addrsS), len(addrsS))
-	for i, addrS := range addrsS {
-		addrs[i] = addrS.ToMultiaddr()
-	}
-	return addrs
+// PeerMonitor is a component in charge of monitoring the peers in the cluster
+// and providing candidates to the PinAllocator when a pin request arrives.
+type PeerMonitor interface {
+	Component
+	// LogMetric stores a metric. Metrics are pushed reguarly from each peer
+	// to the active PeerMonitor.
+	LogMetric(api.Metric)
+	// LastMetrics returns a map with the latest metrics of matching name
+	// for the current cluster peers.
+	LastMetrics(name string) []api.Metric
+	// Alerts delivers alerts generated when this peer monitor detects
+	// a problem (i.e. metrics not arriving as expected). Alerts are used to
+	// trigger rebalancing operations.
+	Alerts() <-chan api.Alert
 }

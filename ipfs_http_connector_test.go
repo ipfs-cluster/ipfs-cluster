@@ -7,26 +7,29 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/test"
+
 	cid "github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func testIPFSConnectorConfig(mock *ipfsMock) *Config {
+func testIPFSConnectorConfig(mock *test.IpfsMock) *Config {
 	cfg := testingConfig()
-	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.addr, mock.port))
+	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
 	cfg.IPFSNodeAddr = addr
 	return cfg
 }
 
-func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *ipfsMock) {
-	mock := newIpfsMock()
+func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *test.IpfsMock) {
+	mock := test.NewIpfsMock()
 	cfg := testIPFSConnectorConfig(mock)
 
 	ipfs, err := NewIPFSHTTPConnector(cfg)
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
-	ipfs.SetClient(mockRPCClient(t))
+	ipfs.SetClient(test.NewMockRPCClient(t))
 	return ipfs, mock
 }
 
@@ -43,7 +46,7 @@ func TestIPFSID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id.ID != testPeerID {
+	if id.ID != test.TestPeerID1 {
 		t.Error("expected testPeerID")
 	}
 	if len(id.Addresses) != 1 {
@@ -66,7 +69,7 @@ func TestIPFSPin(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
-	c, _ := cid.Decode(testCid)
+	c, _ := cid.Decode(test.TestCid1)
 	err := ipfs.Pin(c)
 	if err != nil {
 		t.Error("expected success pinning cid")
@@ -79,7 +82,7 @@ func TestIPFSPin(t *testing.T) {
 		t.Error("cid should have been pinned")
 	}
 
-	c2, _ := cid.Decode(errorCid)
+	c2, _ := cid.Decode(test.ErrorCid)
 	err = ipfs.Pin(c2)
 	if err == nil {
 		t.Error("expected error pinning cid")
@@ -90,7 +93,7 @@ func TestIPFSUnpin(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
-	c, _ := cid.Decode(testCid)
+	c, _ := cid.Decode(test.TestCid1)
 	err := ipfs.Unpin(c)
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
@@ -106,8 +109,8 @@ func TestIPFSPinLsCid(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
-	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
+	c, _ := cid.Decode(test.TestCid1)
+	c2, _ := cid.Decode(test.TestCid2)
 
 	ipfs.Pin(c)
 	ips, err := ipfs.PinLsCid(c)
@@ -116,7 +119,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 	}
 
 	ips, err = ipfs.PinLsCid(c2)
-	if err != nil || ips != IPFSPinStatusUnpinned {
+	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
 	}
 }
@@ -125,12 +128,12 @@ func TestIPFSPinLs(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
-	c, _ := cid.Decode(testCid)
-	c2, _ := cid.Decode(testCid2)
+	c, _ := cid.Decode(test.TestCid1)
+	c2, _ := cid.Decode(test.TestCid2)
 
 	ipfs.Pin(c)
 	ipfs.Pin(c2)
-	ipsMap, err := ipfs.PinLs()
+	ipsMap, err := ipfs.PinLs("")
 	if err != nil {
 		t.Error("should not error")
 	}
@@ -139,7 +142,7 @@ func TestIPFSPinLs(t *testing.T) {
 		t.Fatal("the map does not contain expected keys")
 	}
 
-	if !ipsMap[testCid].IsPinned() || !ipsMap[testCid2].IsPinned() {
+	if !ipsMap[test.TestCid1].IsPinned() || !ipsMap[test.TestCid2].IsPinned() {
 		t.Error("c1 and c2 should appear pinned")
 	}
 }
@@ -191,7 +194,7 @@ func TestIPFSProxyPin(t *testing.T) {
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
 		host,
 		port,
-		testCid))
+		test.TestCid1))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -206,7 +209,7 @@ func TestIPFSProxyPin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(resp.Pins) != 1 || resp.Pins[0] != testCid {
+	if len(resp.Pins) != 1 || resp.Pins[0] != test.TestCid1 {
 		t.Error("wrong response")
 	}
 	res.Body.Close()
@@ -215,7 +218,7 @@ func TestIPFSProxyPin(t *testing.T) {
 	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
 		host,
 		port,
-		errorCid))
+		test.ErrorCid))
 	if err != nil {
 		t.Fatal("request should work: ", err)
 	}
@@ -230,7 +233,7 @@ func TestIPFSProxyPin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if respErr.Message != errBadCid.Error() {
+	if respErr.Message != test.ErrBadCid.Error() {
 		t.Error("wrong response")
 	}
 	res.Body.Close()
@@ -247,7 +250,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
 		host,
 		port,
-		testCid))
+		test.TestCid1))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -263,7 +266,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(resp.Pins) != 1 || resp.Pins[0] != testCid {
+	if len(resp.Pins) != 1 || resp.Pins[0] != test.TestCid1 {
 		t.Error("wrong response")
 	}
 	res.Body.Close()
@@ -272,7 +275,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
 		host,
 		port,
-		errorCid))
+		test.ErrorCid))
 	if err != nil {
 		t.Fatal("request should work: ", err)
 	}
@@ -287,7 +290,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if respErr.Message != errBadCid.Error() {
+	if respErr.Message != test.ErrBadCid.Error() {
 		t.Error("wrong response")
 	}
 	res.Body.Close()
@@ -304,7 +307,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/ls?arg=%s",
 		host,
 		port,
-		testCid))
+		test.TestCid1))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -320,7 +323,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, ok := resp.Keys[testCid]
+	_, ok := resp.Keys[test.TestCid1]
 	if len(resp.Keys) != 1 || !ok {
 		t.Error("wrong response")
 	}

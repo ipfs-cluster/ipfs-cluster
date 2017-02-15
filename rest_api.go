@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -69,90 +70,6 @@ func (e errorResp) Error() string {
 	return e.Message
 }
 
-type versionResp struct {
-	Version string `json:"version"`
-}
-
-type pinResp struct {
-	Pinned string `json:"pinned"`
-}
-
-type unpinResp struct {
-	Unpinned string `json:"unpinned"`
-}
-
-type statusInfo struct {
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
-}
-
-type statusCidResp struct {
-	Cid     string                `json:"cid"`
-	PeerMap map[string]statusInfo `json:"peer_map"`
-}
-
-type restIPFSIDResp struct {
-	ID        string   `json:"id"`
-	Addresses []string `json:"addresses"`
-	Error     string   `json:"error,omitempty"`
-}
-
-func newRestIPFSIDResp(id IPFSID) *restIPFSIDResp {
-	addrs := make([]string, len(id.Addresses), len(id.Addresses))
-	for i, a := range id.Addresses {
-		addrs[i] = a.String()
-	}
-
-	return &restIPFSIDResp{
-		ID:        id.ID.Pretty(),
-		Addresses: addrs,
-		Error:     id.Error,
-	}
-}
-
-type restIDResp struct {
-	ID                 string          `json:"id"`
-	PublicKey          string          `json:"public_key"`
-	Addresses          []string        `json:"addresses"`
-	ClusterPeers       []string        `json:"cluster_peers"`
-	Version            string          `json:"version"`
-	Commit             string          `json:"commit"`
-	RPCProtocolVersion string          `json:"rpc_protocol_version"`
-	Error              string          `json:"error,omitempty"`
-	IPFS               *restIPFSIDResp `json:"ipfs"`
-}
-
-func newRestIDResp(id ID) *restIDResp {
-	pubKey := ""
-	if id.PublicKey != nil {
-		keyBytes, err := id.PublicKey.Bytes()
-		if err == nil {
-			pubKey = base64.StdEncoding.EncodeToString(keyBytes)
-		}
-	}
-	addrs := make([]string, len(id.Addresses), len(id.Addresses))
-	for i, a := range id.Addresses {
-		addrs[i] = a.String()
-	}
-	peers := make([]string, len(id.ClusterPeers), len(id.ClusterPeers))
-	for i, a := range id.ClusterPeers {
-		peers[i] = a.String()
-	}
-	return &restIDResp{
-		ID:                 id.ID.Pretty(),
-		PublicKey:          pubKey,
-		Addresses:          addrs,
-		ClusterPeers:       peers,
-		Version:            id.Version,
-		Commit:             id.Commit,
-		RPCProtocolVersion: string(id.RPCProtocolVersion),
-		Error:              id.Error,
-		IPFS:               newRestIPFSIDResp(id.IPFS),
-	}
-}
-
-type statusResp []statusCidResp
-
 // NewRESTAPI creates a new object which is ready to be
 // started.
 func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
@@ -209,105 +126,105 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	return api, nil
 }
 
-func (api *RESTAPI) routes() []route {
+func (rest *RESTAPI) routes() []route {
 	return []route{
 		{
 			"ID",
 			"GET",
 			"/id",
-			api.idHandler,
+			rest.idHandler,
 		},
 
 		{
 			"Version",
 			"GET",
 			"/version",
-			api.versionHandler,
+			rest.versionHandler,
 		},
 
 		{
 			"Peers",
 			"GET",
 			"/peers",
-			api.peerListHandler,
+			rest.peerListHandler,
 		},
 		{
 			"PeerAdd",
 			"POST",
 			"/peers",
-			api.peerAddHandler,
+			rest.peerAddHandler,
 		},
 		{
 			"PeerRemove",
 			"DELETE",
 			"/peers/{peer}",
-			api.peerRemoveHandler,
+			rest.peerRemoveHandler,
 		},
 
 		{
 			"Pins",
 			"GET",
 			"/pinlist",
-			api.pinListHandler,
+			rest.pinListHandler,
 		},
 
 		{
 			"StatusAll",
 			"GET",
 			"/pins",
-			api.statusAllHandler,
+			rest.statusAllHandler,
 		},
 		{
 			"SyncAll",
 			"POST",
 			"/pins/sync",
-			api.syncAllHandler,
+			rest.syncAllHandler,
 		},
 		{
 			"Status",
 			"GET",
 			"/pins/{hash}",
-			api.statusHandler,
+			rest.statusHandler,
 		},
 		{
 			"Pin",
 			"POST",
 			"/pins/{hash}",
-			api.pinHandler,
+			rest.pinHandler,
 		},
 		{
 			"Unpin",
 			"DELETE",
 			"/pins/{hash}",
-			api.unpinHandler,
+			rest.unpinHandler,
 		},
 		{
 			"Sync",
 			"POST",
 			"/pins/{hash}/sync",
-			api.syncHandler,
+			rest.syncHandler,
 		},
 		{
 			"Recover",
 			"POST",
 			"/pins/{hash}/recover",
-			api.recoverHandler,
+			rest.recoverHandler,
 		},
 	}
 }
 
-func (api *RESTAPI) run() {
-	api.wg.Add(1)
+func (rest *RESTAPI) run() {
+	rest.wg.Add(1)
 	go func() {
-		defer api.wg.Done()
+		defer rest.wg.Done()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		api.ctx = ctx
+		rest.ctx = ctx
 
-		<-api.rpcReady
+		<-rest.rpcReady
 
-		logger.Infof("REST API: %s", api.apiAddr)
-		err := api.server.Serve(api.listener)
+		logger.Infof("REST API: %s", rest.apiAddr)
+		err := rest.server.Serve(rest.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
 		}
@@ -315,79 +232,68 @@ func (api *RESTAPI) run() {
 }
 
 // Shutdown stops any API listeners.
-func (api *RESTAPI) Shutdown() error {
-	api.shutdownLock.Lock()
-	defer api.shutdownLock.Unlock()
+func (rest *RESTAPI) Shutdown() error {
+	rest.shutdownLock.Lock()
+	defer rest.shutdownLock.Unlock()
 
-	if api.shutdown {
+	if rest.shutdown {
 		logger.Debug("already shutdown")
 		return nil
 	}
 
 	logger.Info("stopping Cluster API")
 
-	close(api.rpcReady)
+	close(rest.rpcReady)
 	// Cancel any outstanding ops
-	api.server.SetKeepAlivesEnabled(false)
-	api.listener.Close()
+	rest.server.SetKeepAlivesEnabled(false)
+	rest.listener.Close()
 
-	api.wg.Wait()
-	api.shutdown = true
+	rest.wg.Wait()
+	rest.shutdown = true
 	return nil
 }
 
 // SetClient makes the component ready to perform RPC
 // requests.
-func (api *RESTAPI) SetClient(c *rpc.Client) {
-	api.rpcClient = c
-	api.rpcReady <- struct{}{}
+func (rest *RESTAPI) SetClient(c *rpc.Client) {
+	rest.rpcClient = c
+	rest.rpcReady <- struct{}{}
 }
 
-func (api *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
-	idSerial := IDSerial{}
-	err := api.rpcClient.Call("",
+func (rest *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
+	idSerial := api.IDSerial{}
+	err := rest.rpcClient.Call("",
 		"Cluster",
 		"ID",
 		struct{}{},
 		&idSerial)
-	if checkRPCErr(w, err) {
-		resp := newRestIDResp(idSerial.ToID())
-		sendJSONResponse(w, 200, resp)
-	}
+
+	sendResponse(w, err, idSerial)
 }
 
-func (api *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
-	var v string
-	err := api.rpcClient.Call("",
+func (rest *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
+	var v api.Version
+	err := rest.rpcClient.Call("",
 		"Cluster",
 		"Version",
 		struct{}{},
 		&v)
 
-	if checkRPCErr(w, err) {
-		sendJSONResponse(w, 200, versionResp{v})
-	}
+	sendResponse(w, err, v)
 }
 
-func (api *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
-	var peersSerial []IDSerial
-	err := api.rpcClient.Call("",
+func (rest *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
+	var peersSerial []api.IDSerial
+	err := rest.rpcClient.Call("",
 		"Cluster",
 		"Peers",
 		struct{}{},
 		&peersSerial)
 
-	if checkRPCErr(w, err) {
-		var resp []*restIDResp
-		for _, pS := range peersSerial {
-			p := pS.ToID()
-			resp = append(resp, newRestIDResp(p))
-		}
-		sendJSONResponse(w, 200, resp)
-	}
+	sendResponse(w, err, peersSerial)
 }
 
-func (api *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
+func (rest *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
@@ -404,145 +310,123 @@ func (api *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ids IDSerial
-	err = api.rpcClient.Call("",
+	var ids api.IDSerial
+	err = rest.rpcClient.Call("",
 		"Cluster",
 		"PeerAdd",
-		MultiaddrToSerial(mAddr),
+		api.MultiaddrToSerial(mAddr),
 		&ids)
-	if checkRPCErr(w, err) {
-		resp := newRestIDResp(ids.ToID())
-		sendJSONResponse(w, 200, resp)
-	}
+	sendResponse(w, err, ids)
 }
 
-func (api *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
+func (rest *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	if p := parsePidOrError(w, r); p != "" {
-		err := api.rpcClient.Call("",
+		err := rest.rpcClient.Call("",
 			"Cluster",
 			"PeerRemove",
 			p,
 			&struct{}{})
-		if checkRPCErr(w, err) {
-			sendEmptyResponse(w)
-		}
+		sendEmptyResponse(w, err)
 	}
 }
 
-func (api *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c != nil {
-		err := api.rpcClient.Call("",
+func (rest *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		err := rest.rpcClient.Call("",
 			"Cluster",
 			"Pin",
 			c,
 			&struct{}{})
-		if checkRPCErr(w, err) {
-			sendAcceptedResponse(w)
-		}
+		sendAcceptedResponse(w, err)
 	}
 }
 
-func (api *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c != nil {
-		err := api.rpcClient.Call("",
+func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		err := rest.rpcClient.Call("",
 			"Cluster",
 			"Unpin",
 			c,
 			&struct{}{})
-		if checkRPCErr(w, err) {
-			sendAcceptedResponse(w)
-		}
+		sendAcceptedResponse(w, err)
 	}
 }
 
-func (api *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
-	var pins []string
-	err := api.rpcClient.Call("",
+func (rest *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
+	var pins []api.CidArgSerial
+	err := rest.rpcClient.Call("",
 		"Cluster",
 		"PinList",
 		struct{}{},
 		&pins)
-	if checkRPCErr(w, err) {
-		sendJSONResponse(w, 200, pins)
-	}
-
+	sendResponse(w, err, pins)
 }
 
-func (api *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
-	var pinInfos []GlobalPinInfo
-	err := api.rpcClient.Call("",
+func (rest *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
+	var pinInfos []api.GlobalPinInfoSerial
+	err := rest.rpcClient.Call("",
 		"Cluster",
 		"StatusAll",
 		struct{}{},
 		&pinInfos)
-	if checkRPCErr(w, err) {
-		sendStatusResponse(w, http.StatusOK, pinInfos)
-	}
+	sendResponse(w, err, pinInfos)
 }
 
-func (api *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c != nil {
-		var pinInfo GlobalPinInfo
-		err := api.rpcClient.Call("",
+func (rest *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		var pinInfo api.GlobalPinInfoSerial
+		err := rest.rpcClient.Call("",
 			"Cluster",
 			"Status",
 			c,
 			&pinInfo)
-		if checkRPCErr(w, err) {
-			sendStatusCidResponse(w, http.StatusOK, pinInfo)
-		}
+		sendResponse(w, err, pinInfo)
 	}
 }
 
-func (api *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
-	var pinInfos []GlobalPinInfo
-	err := api.rpcClient.Call("",
+func (rest *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
+	var pinInfos []api.GlobalPinInfoSerial
+	err := rest.rpcClient.Call("",
 		"Cluster",
 		"SyncAll",
 		struct{}{},
 		&pinInfos)
-	if checkRPCErr(w, err) {
-		sendStatusResponse(w, http.StatusAccepted, pinInfos)
-	}
+	sendResponse(w, err, pinInfos)
 }
 
-func (api *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c != nil {
-		var pinInfo GlobalPinInfo
-		err := api.rpcClient.Call("",
+func (rest *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		var pinInfo api.GlobalPinInfoSerial
+		err := rest.rpcClient.Call("",
 			"Cluster",
 			"Sync",
 			c,
 			&pinInfo)
-		if checkRPCErr(w, err) {
-			sendStatusCidResponse(w, http.StatusOK, pinInfo)
-		}
+		sendResponse(w, err, pinInfo)
 	}
 }
 
-func (api *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c != nil {
-		var pinInfo GlobalPinInfo
-		err := api.rpcClient.Call("",
+func (rest *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		var pinInfo api.GlobalPinInfoSerial
+		err := rest.rpcClient.Call("",
 			"Cluster",
 			"Recover",
 			c,
 			&pinInfo)
-		if checkRPCErr(w, err) {
-			sendStatusCidResponse(w, http.StatusOK, pinInfo)
-		}
+		sendResponse(w, err, pinInfo)
 	}
 }
 
-func parseCidOrError(w http.ResponseWriter, r *http.Request) *CidArg {
+func parseCidOrError(w http.ResponseWriter, r *http.Request) api.CidArgSerial {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
 	_, err := cid.Decode(hash)
 	if err != nil {
 		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
-		return nil
+		return api.CidArgSerial{Cid: ""}
 	}
-	return &CidArg{hash}
+	return api.CidArgSerial{Cid: hash}
 }
 
 func parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {
@@ -556,6 +440,12 @@ func parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {
 	return pid
 }
 
+func sendResponse(w http.ResponseWriter, rpcErr error, resp interface{}) {
+	if checkRPCErr(w, rpcErr) {
+		sendJSONResponse(w, 200, resp)
+	}
+}
+
 // checkRPCErr takes care of returning standard error responses if we
 // pass an error to it. It returns true when everythings OK (no error
 // was handled), or false otherwise.
@@ -567,12 +457,16 @@ func checkRPCErr(w http.ResponseWriter, err error) bool {
 	return true
 }
 
-func sendEmptyResponse(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusNoContent)
+func sendEmptyResponse(w http.ResponseWriter, rpcErr error) {
+	if checkRPCErr(w, rpcErr) {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
-func sendAcceptedResponse(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusAccepted)
+func sendAcceptedResponse(w http.ResponseWriter, rpcErr error) {
+	if checkRPCErr(w, rpcErr) {
+		w.WriteHeader(http.StatusAccepted)
+	}
 }
 
 func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
@@ -586,31 +480,4 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 	errorResp := errorResp{code, msg}
 	logger.Errorf("sending error response: %d: %s", code, msg)
 	sendJSONResponse(w, code, errorResp)
-}
-
-func transformPinToStatusCid(p GlobalPinInfo) statusCidResp {
-	s := statusCidResp{}
-	s.Cid = p.Cid.String()
-	s.PeerMap = make(map[string]statusInfo)
-	for k, v := range p.PeerMap {
-		s.PeerMap[k.Pretty()] = statusInfo{
-			Status: v.Status.String(),
-			Error:  v.Error,
-		}
-	}
-	return s
-}
-
-func sendStatusResponse(w http.ResponseWriter, code int, data []GlobalPinInfo) {
-	pins := make(statusResp, 0, len(data))
-
-	for _, d := range data {
-		pins = append(pins, transformPinToStatusCid(d))
-	}
-	sendJSONResponse(w, code, pins)
-}
-
-func sendStatusCidResponse(w http.ResponseWriter, code int, data GlobalPinInfo) {
-	st := transformPinToStatusCid(data)
-	sendJSONResponse(w, code, st)
 }

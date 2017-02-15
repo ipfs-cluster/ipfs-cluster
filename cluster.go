@@ -2,9 +2,12 @@ package ipfscluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -19,7 +22,8 @@ import (
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
-	ctx context.Context
+	ctx    context.Context
+	cancel func()
 
 	id          peer.ID
 	config      *Config
@@ -33,10 +37,12 @@ type Cluster struct {
 	ipfs      IPFSConnector
 	state     State
 	tracker   PinTracker
+	monitor   PeerMonitor
+	allocator PinAllocator
+	informer  Informer
 
 	shutdownLock sync.Mutex
 	shutdown     bool
-	shutdownCh   chan struct{}
 	doneCh       chan struct{}
 	readyCh      chan struct{}
 	wg           sync.WaitGroup
@@ -50,8 +56,17 @@ type Cluster struct {
 // The new cluster peer may still be performing initialization tasks when
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
-func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker) (*Cluster, error) {
-	ctx := context.Background()
+func NewCluster(
+	cfg *Config,
+	api API,
+	ipfs IPFSConnector,
+	state State,
+	tracker PinTracker,
+	monitor PeerMonitor,
+	allocator PinAllocator,
+	informer Informer) (*Cluster, error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -63,17 +78,20 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 	}
 
 	c := &Cluster{
-		ctx:        ctx,
-		id:         host.ID(),
-		config:     cfg,
-		host:       host,
-		api:        api,
-		ipfs:       ipfs,
-		state:      state,
-		tracker:    tracker,
-		shutdownCh: make(chan struct{}, 1),
-		doneCh:     make(chan struct{}, 1),
-		readyCh:    make(chan struct{}, 1),
+		ctx:       ctx,
+		cancel:    cancel,
+		id:        host.ID(),
+		config:    cfg,
+		host:      host,
+		api:       api,
+		ipfs:      ipfs,
+		state:     state,
+		tracker:   tracker,
+		monitor:   monitor,
+		allocator: allocator,
+		informer:  informer,
+		doneCh:    make(chan struct{}),
+		readyCh:   make(chan struct{}),
 	}
 
 	c.setupPeerManager()
@@ -89,7 +107,17 @@ func NewCluster(cfg *Config, api API, ipfs IPFSConnector, state State, tracker P
 		return nil, err
 	}
 	c.setupRPCClients()
-	c.run()
+	c.bootstrap()
+	ok := c.bootstrap()
+	if !ok {
+		logger.Error("Bootstrap unsuccessful")
+		c.Shutdown()
+		return nil, errors.New("bootstrap unsuccessful")
+	}
+	go func() {
+		c.ready()
+		c.run()
+	}()
 	return c, nil
 }
 
@@ -106,7 +134,7 @@ func (c *Cluster) setupPeerManager() {
 
 func (c *Cluster) setupRPC() error {
 	rpcServer := rpc.NewServer(c.host, RPCProtocol)
-	err := rpcServer.RegisterName("Cluster", &RPCAPI{cluster: c})
+	err := rpcServer.RegisterName("Cluster", &RPCAPI{c})
 	if err != nil {
 		return err
 	}
@@ -142,8 +170,12 @@ func (c *Cluster) setupRPCClients() {
 	c.ipfs.SetClient(c.rpcClient)
 	c.api.SetClient(c.rpcClient)
 	c.consensus.SetClient(c.rpcClient)
+	c.monitor.SetClient(c.rpcClient)
+	c.allocator.SetClient(c.rpcClient)
+	c.informer.SetClient(c.rpcClient)
 }
 
+// stateSyncWatcher loops and triggers StateSync from time to time
 func (c *Cluster) stateSyncWatcher() {
 	stateSyncTicker := time.NewTicker(
 		time.Duration(c.config.StateSyncSeconds) * time.Second)
@@ -158,30 +190,52 @@ func (c *Cluster) stateSyncWatcher() {
 	}
 }
 
+// push metrics loops and pushes metrics to the leader's monitor
+func (c *Cluster) pushInformerMetrics() {
+	timer := time.NewTimer(0) // fire immediately first
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-timer.C:
+			// wait
+		}
+
+		leader, err := c.consensus.Leader()
+
+		if err != nil {
+			// retry in 1 second
+			timer.Stop()
+			timer.Reset(1 * time.Second)
+			continue
+		}
+
+		metric := c.informer.GetMetric()
+		metric.Peer = c.id
+
+		err = c.rpcClient.Call(
+			leader,
+			"Cluster", "PeerMonitorLogMetric",
+			metric, &struct{}{})
+		if err != nil {
+			logger.Errorf("error pushing metric to %s", leader.Pretty())
+		}
+
+		logger.Debugf("pushed metric %s to %s", metric.Name, metric.Peer.Pretty())
+
+		timer.Stop() // no need to drain C if we are here
+		timer.Reset(metric.GetTTL() / 2)
+	}
+}
+
 // run provides a cancellable context and launches some goroutines
 // before signaling readyCh
 func (c *Cluster) run() {
-	c.wg.Add(1)
-	// cancellable context
-	go func() {
-		defer c.wg.Done()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		c.ctx = ctx
-		go c.stateSyncWatcher()
-		go c.bootstrapAndReady()
-		<-c.shutdownCh
-	}()
+	go c.stateSyncWatcher()
+	go c.pushInformerMetrics()
 }
 
-func (c *Cluster) bootstrapAndReady() {
-	ok := c.bootstrap()
-	if !ok {
-		logger.Error("Bootstrap unsuccessful")
-		c.Shutdown()
-		return
-	}
-
+func (c *Cluster) ready() {
 	// We bootstrapped first because with dirty state consensus
 	// may have a peerset and not find a leader so we cannot wait
 	// for it.
@@ -197,8 +251,6 @@ func (c *Cluster) bootstrapAndReady() {
 	}
 
 	// Cluster is ready.
-	c.readyCh <- struct{}{}
-	logger.Info("IPFS Cluster is ready")
 	logger.Info("Cluster Peers (not including ourselves):")
 	peers := c.peerManager.peersAddrs()
 	if len(peers) == 0 {
@@ -207,6 +259,8 @@ func (c *Cluster) bootstrapAndReady() {
 	for _, a := range c.peerManager.peersAddrs() {
 		logger.Infof("    - %s", a)
 	}
+	close(c.readyCh)
+	logger.Info("IPFS Cluster is ready")
 }
 
 func (c *Cluster) bootstrap() bool {
@@ -256,6 +310,9 @@ func (c *Cluster) Shutdown() error {
 		c.peerManager.resetPeers()
 	}
 
+	// Cancel contexts
+	c.cancel()
+
 	if con := c.consensus; con != nil {
 		if err := con.Shutdown(); err != nil {
 			logger.Errorf("error stopping consensus: %s", err)
@@ -278,7 +335,6 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("error stopping PinTracker: %s", err)
 		return err
 	}
-	c.shutdownCh <- struct{}{}
 	c.wg.Wait()
 	c.host.Close() // Shutdown all network services
 	c.shutdown = true
@@ -293,7 +349,7 @@ func (c *Cluster) Done() <-chan struct{} {
 }
 
 // ID returns information about the Cluster peer
-func (c *Cluster) ID() ID {
+func (c *Cluster) ID() api.ID {
 	// ignore error since it is included in response object
 	ipfsID, _ := c.ipfs.ID()
 	var addrs []ma.Multiaddr
@@ -301,9 +357,9 @@ func (c *Cluster) ID() ID {
 		addrs = append(addrs, multiaddrJoin(addr, c.host.ID()))
 	}
 
-	return ID{
-		ID:                 c.host.ID(),
-		PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
+	return api.ID{
+		ID: c.host.ID(),
+		//PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
 		Addresses:          addrs,
 		ClusterPeers:       c.peerManager.peersAddrs(),
 		Version:            Version,
@@ -319,7 +375,7 @@ func (c *Cluster) ID() ID {
 // consensus and will receive the shared state (including the
 // list of peers). The new peer should be a single-peer cluster,
 // preferable without any relevant state.
-func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
+func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	// starting 10 nodes on the same box for testing
 	// causes deadlock and a global lock here
 	// seems to help.
@@ -328,7 +384,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 	logger.Debugf("peerAdd called with %s", addr)
 	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
-		id := ID{
+		id := api.ID{
 			Error: err.Error(),
 		}
 		return id, err
@@ -340,18 +396,18 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 	err = c.peerManager.addPeer(remoteAddr)
 	if err != nil {
 		logger.Error(err)
-		id := ID{ID: pid, Error: err.Error()}
+		id := api.ID{ID: pid, Error: err.Error()}
 		return id, err
 	}
 
 	// Figure out our address to that peer. This also
 	// ensures that it is reachable
-	var addrSerial MultiaddrSerial
+	var addrSerial api.MultiaddrSerial
 	err = c.rpcClient.Call(pid, "Cluster",
 		"RemoteMultiaddrForPeer", c.host.ID(), &addrSerial)
 	if err != nil {
 		logger.Error(err)
-		id := ID{ID: pid, Error: err.Error()}
+		id := api.ID{ID: pid, Error: err.Error()}
 		c.peerManager.rmPeer(pid, false)
 		return id, err
 	}
@@ -360,7 +416,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 	err = c.consensus.LogAddPeer(remoteAddr)
 	if err != nil {
 		logger.Error(err)
-		id := ID{ID: pid, Error: err.Error()}
+		id := api.ID{ID: pid, Error: err.Error()}
 		c.peerManager.rmPeer(pid, false)
 		return id, err
 	}
@@ -371,7 +427,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (ID, error) {
 	err = c.rpcClient.Call(pid,
 		"Cluster",
 		"PeerManagerAddFromMultiaddrs",
-		MultiaddrsToSerial(clusterPeers),
+		api.MultiaddrsToSerial(clusterPeers),
 		&struct{}{})
 	if err != nil {
 		logger.Error(err)
@@ -438,11 +494,11 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
 	// ClusterAddr).
-	var myID IDSerial
+	var myID api.IDSerial
 	err = c.rpcClient.Call(pid,
 		"Cluster",
 		"PeerAdd",
-		MultiaddrToSerial(multiaddrJoin(c.config.ClusterAddr, c.host.ID())),
+		api.MultiaddrToSerial(multiaddrJoin(c.config.ClusterAddr, c.host.ID())),
 		&myID)
 	if err != nil {
 		logger.Error(err)
@@ -465,39 +521,33 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 // StateSync syncs the consensus state to the Pin Tracker, ensuring
 // that every Cid that should be tracked is tracked. It returns
 // PinInfo for Cids which were added or deleted.
-func (c *Cluster) StateSync() ([]PinInfo, error) {
+func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 	cState, err := c.consensus.State()
 	if err != nil {
 		return nil, err
 	}
 
 	logger.Debug("syncing state to tracker")
-	clusterPins := cState.ListPins()
+	clusterPins := cState.List()
 	var changed []*cid.Cid
 
-	// For the moment we run everything in parallel.
-	// The PinTracker should probably decide if it can
-	// pin in parallel or queues everything and does it
-	// one by one
-
 	// Track items which are not tracked
-	for _, h := range clusterPins {
-		if c.tracker.Status(h).Status == TrackerStatusUnpinned {
-			changed = append(changed, h)
-			go c.tracker.Track(h)
+	for _, carg := range clusterPins {
+		if c.tracker.Status(carg.Cid).Status == api.TrackerStatusUnpinned {
+			changed = append(changed, carg.Cid)
+			go c.tracker.Track(carg)
 		}
 	}
 
 	// Untrack items which should not be tracked
 	for _, p := range c.tracker.StatusAll() {
-		h, _ := cid.Decode(p.CidStr)
-		if !cState.HasPin(h) {
-			changed = append(changed, h)
-			go c.tracker.Untrack(h)
+		if !cState.Has(p.Cid) {
+			changed = append(changed, p.Cid)
+			go c.tracker.Untrack(p.Cid)
 		}
 	}
 
-	var infos []PinInfo
+	var infos []api.PinInfo
 	for _, h := range changed {
 		infos = append(infos, c.tracker.Status(h))
 	}
@@ -506,13 +556,13 @@ func (c *Cluster) StateSync() ([]PinInfo, error) {
 
 // StatusAll returns the GlobalPinInfo for all tracked Cids. If an error
 // happens, the slice will contain as much information as could be fetched.
-func (c *Cluster) StatusAll() ([]GlobalPinInfo, error) {
+func (c *Cluster) StatusAll() ([]api.GlobalPinInfo, error) {
 	return c.globalPinInfoSlice("TrackerStatusAll")
 }
 
 // Status returns the GlobalPinInfo for a given Cid. If an error happens,
 // the GlobalPinInfo should contain as much information as could be fetched.
-func (c *Cluster) Status(h *cid.Cid) (GlobalPinInfo, error) {
+func (c *Cluster) Status(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("TrackerStatus", h)
 }
 
@@ -521,14 +571,13 @@ func (c *Cluster) Status(h *cid.Cid) (GlobalPinInfo, error) {
 //
 // SyncAllLocal returns the list of PinInfo that where updated because of
 // the operation, along with those in error states.
-func (c *Cluster) SyncAllLocal() ([]PinInfo, error) {
+func (c *Cluster) SyncAllLocal() ([]api.PinInfo, error) {
 	syncedItems, err := c.tracker.SyncAll()
 	// Despite errors, tracker provides synced items that we can provide.
 	// They encapsulate the error.
 	if err != nil {
 		logger.Error("tracker.Sync() returned with error: ", err)
 		logger.Error("Is the ipfs daemon running?")
-		logger.Error("LocalSync returning without attempting recovers")
 	}
 	return syncedItems, err
 }
@@ -536,7 +585,7 @@ func (c *Cluster) SyncAllLocal() ([]PinInfo, error) {
 // SyncLocal performs a local sync operation for the given Cid. This will
 // tell the tracker to verify the status of the Cid against the IPFS daemon.
 // It returns the updated PinInfo for the Cid.
-func (c *Cluster) SyncLocal(h *cid.Cid) (PinInfo, error) {
+func (c *Cluster) SyncLocal(h *cid.Cid) (api.PinInfo, error) {
 	var err error
 	pInfo, err := c.tracker.Sync(h)
 	// Despite errors, trackers provides an updated PinInfo so
@@ -549,37 +598,38 @@ func (c *Cluster) SyncLocal(h *cid.Cid) (PinInfo, error) {
 }
 
 // SyncAll triggers LocalSync() operations in all cluster peers.
-func (c *Cluster) SyncAll() ([]GlobalPinInfo, error) {
+func (c *Cluster) SyncAll() ([]api.GlobalPinInfo, error) {
 	return c.globalPinInfoSlice("SyncAllLocal")
 }
 
 // Sync triggers a LocalSyncCid() operation for a given Cid
 // in all cluster peers.
-func (c *Cluster) Sync(h *cid.Cid) (GlobalPinInfo, error) {
+func (c *Cluster) Sync(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("SyncLocal", h)
 }
 
 // RecoverLocal triggers a recover operation for a given Cid
-func (c *Cluster) RecoverLocal(h *cid.Cid) (PinInfo, error) {
+func (c *Cluster) RecoverLocal(h *cid.Cid) (api.PinInfo, error) {
 	return c.tracker.Recover(h)
 }
 
 // Recover triggers a recover operation for a given Cid in all
 // cluster peers.
-func (c *Cluster) Recover(h *cid.Cid) (GlobalPinInfo, error) {
+func (c *Cluster) Recover(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("TrackerRecover", h)
 }
 
 // Pins returns the list of Cids managed by Cluster and which are part
 // of the current global state. This is the source of truth as to which
 // pins are managed, but does not indicate if the item is successfully pinned.
-func (c *Cluster) Pins() []*cid.Cid {
+func (c *Cluster) Pins() []api.CidArg {
 	cState, err := c.consensus.State()
 	if err != nil {
 		logger.Error(err)
-		return []*cid.Cid{}
+		return []api.CidArg{}
 	}
-	return cState.ListPins()
+
+	return cState.List()
 }
 
 // Pin makes the cluster Pin a Cid. This implies adding the Cid
@@ -592,7 +642,26 @@ func (c *Cluster) Pins() []*cid.Cid {
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
 	logger.Info("pinning:", h)
-	err := c.consensus.LogPin(h)
+
+	cidArg := api.CidArg{
+		Cid: h,
+	}
+
+	rpl := c.config.ReplicationFactor
+	switch {
+	case rpl == 0:
+		return errors.New("replication factor is 0")
+	case rpl < 0:
+		cidArg.Everywhere = true
+	case rpl > 0:
+		allocs, err := c.allocate(h)
+		if err != nil {
+			return err
+		}
+		cidArg.Allocations = allocs
+	}
+
+	err := c.consensus.LogPin(cidArg)
 	if err != nil {
 		return err
 	}
@@ -607,7 +676,12 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("unpinning:", h)
-	err := c.consensus.LogUnpin(h)
+
+	carg := api.CidArg{
+		Cid: h,
+	}
+
+	err := c.consensus.LogUnpin(carg)
 	if err != nil {
 		return err
 	}
@@ -620,10 +694,10 @@ func (c *Cluster) Version() string {
 }
 
 // Peers returns the IDs of the members of this Cluster
-func (c *Cluster) Peers() []ID {
+func (c *Cluster) Peers() []api.ID {
 	members := c.peerManager.peers()
-	peersSerial := make([]IDSerial, len(members), len(members))
-	peers := make([]ID, len(members), len(members))
+	peersSerial := make([]api.IDSerial, len(members), len(members))
+	peers := make([]api.ID, len(members), len(members))
 
 	errs := c.multiRPC(members, "Cluster", "ID", struct{}{},
 		copyIDSerialsToIfaces(peersSerial))
@@ -697,25 +771,32 @@ func (c *Cluster) multiRPC(dests []peer.ID, svcName, svcMethod string, args inte
 
 }
 
-func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, error) {
-	pin := GlobalPinInfo{
+func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo, error) {
+	pin := api.GlobalPinInfo{
 		Cid:     h,
-		PeerMap: make(map[peer.ID]PinInfo),
+		PeerMap: make(map[peer.ID]api.PinInfo),
 	}
 
 	members := c.peerManager.peers()
-	replies := make([]PinInfo, len(members), len(members))
-	args := NewCidArg(h)
-	errs := c.multiRPC(members, "Cluster", method, args, copyPinInfoToIfaces(replies))
+	replies := make([]api.PinInfoSerial, len(members), len(members))
+	arg := api.CidArg{
+		Cid: h,
+	}
+	errs := c.multiRPC(members,
+		"Cluster",
+		method, arg.ToSerial(),
+		copyPinInfoSerialToIfaces(replies))
 
-	for i, r := range replies {
-		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
-			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
-			if r.Status == TrackerStatusBug {
-				r = PinInfo{
-					CidStr: h.String(),
+	for i, rserial := range replies {
+		r := rserial.ToPinInfo()
+		if e := errs[i]; e != nil {
+			if r.Status == api.TrackerStatusBug {
+				// This error must come from not being able to contact that cluster member
+				logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
+				r = api.PinInfo{
+					Cid:    r.Cid,
 					Peer:   members[i],
-					Status: TrackerStatusClusterError,
+					Status: api.TrackerStatusClusterError,
 					TS:     time.Now(),
 					Error:  e.Error(),
 				}
@@ -729,22 +810,25 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (GlobalPinInfo, er
 	return pin, nil
 }
 
-func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
-	var infos []GlobalPinInfo
-	fullMap := make(map[string]GlobalPinInfo)
+func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error) {
+	var infos []api.GlobalPinInfo
+	fullMap := make(map[string]api.GlobalPinInfo)
 
 	members := c.peerManager.peers()
-	replies := make([][]PinInfo, len(members), len(members))
-	errs := c.multiRPC(members, "Cluster", method, struct{}{}, copyPinInfoSliceToIfaces(replies))
+	replies := make([][]api.PinInfoSerial, len(members), len(members))
+	errs := c.multiRPC(members,
+		"Cluster",
+		method, struct{}{},
+		copyPinInfoSerialSliceToIfaces(replies))
 
-	mergePins := func(pins []PinInfo) {
-		for _, p := range pins {
-			item, ok := fullMap[p.CidStr]
-			c, _ := cid.Decode(p.CidStr)
+	mergePins := func(pins []api.PinInfoSerial) {
+		for _, pserial := range pins {
+			p := pserial.ToPinInfo()
+			item, ok := fullMap[pserial.Cid]
 			if !ok {
-				fullMap[p.CidStr] = GlobalPinInfo{
-					Cid: c,
-					PeerMap: map[peer.ID]PinInfo{
+				fullMap[pserial.Cid] = api.GlobalPinInfo{
+					Cid: p.Cid,
+					PeerMap: map[peer.ID]api.PinInfo{
 						p.Peer: p,
 					},
 				}
@@ -766,11 +850,12 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
-		for c := range fullMap {
-			fullMap[c].PeerMap[p] = PinInfo{
-				CidStr: c,
+		for cidStr := range fullMap {
+			c, _ := cid.Decode(cidStr)
+			fullMap[cidStr].PeerMap[p] = api.PinInfo{
+				Cid:    c,
 				Peer:   p,
-				Status: TrackerStatusClusterError,
+				Status: api.TrackerStatusClusterError,
 				TS:     time.Now(),
 				Error:  msg,
 			}
@@ -784,8 +869,8 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]GlobalPinInfo, error) {
 	return infos, nil
 }
 
-func (c *Cluster) getIDForPeer(pid peer.ID) (ID, error) {
-	idSerial := ID{ID: pid}.ToSerial()
+func (c *Cluster) getIDForPeer(pid peer.ID) (api.ID, error) {
+	idSerial := api.ID{ID: pid}.ToSerial()
 	err := c.rpcClient.Call(
 		pid, "Cluster", "ID", struct{}{}, &idSerial)
 	id := idSerial.ToID()
@@ -794,4 +879,103 @@ func (c *Cluster) getIDForPeer(pid peer.ID) (ID, error) {
 		id.Error = err.Error()
 	}
 	return id, err
+}
+
+// allocate finds peers to allocate a hash using the informer and the monitor
+// it should only be used with a positive replication factor
+func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
+	if c.config.ReplicationFactor <= 0 {
+		return nil, errors.New("cannot decide allocation for replication factor <= 0")
+	}
+
+	// Figure out who is currently holding this
+	var currentlyAllocatedPeers []peer.ID
+	st, err := c.consensus.State()
+	if err != nil {
+		// no state we assume it is empty. If there was other
+		// problem, we would fail to commit anyway.
+		currentlyAllocatedPeers = []peer.ID{}
+	} else {
+		carg := st.Get(hash)
+		currentlyAllocatedPeers = carg.Allocations
+	}
+
+	// initialize a candidate metrics map with all current clusterPeers
+	// (albeit with invalid metrics)
+	clusterPeers := c.peerManager.peers()
+	metricsMap := make(map[peer.ID]api.Metric)
+	for _, cp := range clusterPeers {
+		metricsMap[cp] = api.Metric{Valid: false}
+	}
+
+	// Request latest metrics logged by informers from the leader
+	metricName := c.informer.Name()
+	l, err := c.consensus.Leader()
+	if err != nil {
+		return nil, errors.New("cannot determine leading Monitor")
+	}
+	var metrics []api.Metric
+	err = c.rpcClient.Call(l,
+		"Cluster", "PeerMonitorLastMetrics",
+		metricName,
+		&metrics)
+	if err != nil {
+		return nil, err
+	}
+
+	// put metrics in the metricsMap if they belong to a current clusterPeer
+	for _, m := range metrics {
+		_, ok := metricsMap[m.Peer]
+		if !ok {
+			continue
+		}
+		metricsMap[m.Peer] = m
+	}
+
+	// Remove any invalid metric. This will clear any cluster peers
+	// for which we did not receive metrics.
+	for p, m := range metricsMap {
+		if m.Discard() {
+			delete(metricsMap, p)
+		}
+	}
+
+	// Move metrics from currentlyAllocatedPeers to a new map
+	currentlyAllocatedPeersMetrics := make(map[peer.ID]api.Metric)
+	for _, p := range currentlyAllocatedPeers {
+		m, ok := metricsMap[p]
+		if !ok {
+			continue
+		}
+		currentlyAllocatedPeersMetrics[p] = m
+		delete(metricsMap, p)
+
+	}
+
+	// how many allocations do we need (note we will re-allocate if we did
+	// not receive good metrics for currently allocated peeers)
+	needed := c.config.ReplicationFactor - len(currentlyAllocatedPeersMetrics)
+
+	// if we are already good (note invalid metrics would trigger
+	// re-allocations as they are not included in currentAllocMetrics)
+	if needed <= 0 {
+		return nil, fmt.Errorf("CID is already correctly allocated to %s", currentlyAllocatedPeers)
+	}
+
+	// Allocate is called with currentAllocMetrics which contains
+	// only currentlyAllocatedPeers when they have provided valid metrics.
+	candidateAllocs, err := c.allocator.Allocate(hash, currentlyAllocatedPeersMetrics, metricsMap)
+	if err != nil {
+		return nil, logError(err.Error())
+	}
+
+	// we don't have enough peers to pin
+	if len(candidateAllocs) < needed {
+		err = logError("cannot find enough allocations for this CID: needed: %d. Got: %s",
+			needed, candidateAllocs)
+		return nil, err
+	}
+
+	// return as many as needed
+	return candidateAllocs[0:needed], nil
 }
