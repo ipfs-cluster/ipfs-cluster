@@ -818,6 +818,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 
 	// Time for consensus to catch up again in case we hit the leader.
 	delay()
+	delay()
 
 	err = clusters[j].Pin(h)
 	if err == nil {
