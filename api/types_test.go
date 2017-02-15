@@ -19,7 +19,7 @@ func TestTrackerFromString(t *testing.T) {
 	testcases := []string{"bug", "cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
 	for i, tc := range testcases {
 		if TrackerStatusFromString(tc).String() != TrackerStatus(i).String() {
-			t.Errorf("%s does not match  %s", tc, i)
+			t.Errorf("%s does not match  TrackerStatus %d", tc, i)
 		}
 	}
 }

@@ -20,6 +20,7 @@ var logger = logging.Logger("numpinalloc")
 // Allocator implements ipfscluster.Allocate.
 type Allocator struct{}
 
+// NewAllocator returns an initialized Allocator
 func NewAllocator() *Allocator {
 	return &Allocator{}
 }
