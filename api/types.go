@@ -170,7 +170,7 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 		Cid:    pi.Cid.String(),
 		Peer:   peer.IDB58Encode(pi.Peer),
 		Status: pi.Status.String(),
-		TS:     pi.TS.Format(time.RFC1123),
+		TS:     pi.TS.UTC().Format(time.RFC1123),
 		Error:  pi.Error,
 	}
 }
@@ -398,7 +398,7 @@ type Metric struct {
 // SetTTL sets Metric to expire after the given seconds
 func (m *Metric) SetTTL(seconds int) {
 	exp := time.Now().Add(time.Duration(seconds) * time.Second)
-	m.Expire = exp.Format(time.RFC1123)
+	m.Expire = exp.UTC().Format(time.RFC1123)
 }
 
 // GetTTL returns the time left before the Metric expires
