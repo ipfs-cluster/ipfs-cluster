@@ -153,7 +153,7 @@ func (c *Cluster) setupConsensus() error {
 	}
 
 	consensus, err := NewConsensus(
-		append(startPeers, c.host.ID()),
+		append(startPeers, c.id),
 		c.host,
 		c.config.ConsensusDataFolder,
 		c.state)
@@ -301,7 +301,7 @@ func (c *Cluster) Shutdown() error {
 	if c.config.LeaveOnShutdown {
 		// best effort
 		logger.Warning("Attempting to leave Cluster. This may take some seconds")
-		err := c.consensus.LogRmPeer(c.host.ID())
+		err := c.consensus.LogRmPeer(c.id)
 		if err != nil {
 			logger.Error("leaving cluster: " + err.Error())
 		} else {
@@ -354,12 +354,12 @@ func (c *Cluster) ID() api.ID {
 	ipfsID, _ := c.ipfs.ID()
 	var addrs []ma.Multiaddr
 	for _, addr := range c.host.Addrs() {
-		addrs = append(addrs, multiaddrJoin(addr, c.host.ID()))
+		addrs = append(addrs, multiaddrJoin(addr, c.id))
 	}
 
 	return api.ID{
-		ID: c.host.ID(),
-		//PublicKey:          c.host.Peerstore().PubKey(c.host.ID()),
+		ID: c.id,
+		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:          addrs,
 		ClusterPeers:       c.peerManager.peersAddrs(),
 		Version:            Version,
@@ -404,7 +404,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	// ensures that it is reachable
 	var addrSerial api.MultiaddrSerial
 	err = c.rpcClient.Call(pid, "Cluster",
-		"RemoteMultiaddrForPeer", c.host.ID(), &addrSerial)
+		"RemoteMultiaddrForPeer", c.id, &addrSerial)
 	if err != nil {
 		logger.Error(err)
 		id := api.ID{ID: pid, Error: err.Error()}
@@ -484,7 +484,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	}
 
 	// Bootstrap to myself
-	if pid == c.host.ID() {
+	if pid == c.id {
 		return nil
 	}
 
@@ -498,7 +498,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	err = c.rpcClient.Call(pid,
 		"Cluster",
 		"PeerAdd",
-		api.MultiaddrToSerial(multiaddrJoin(c.config.ClusterAddr, c.host.ID())),
+		api.MultiaddrToSerial(multiaddrJoin(c.config.ClusterAddr, c.id)),
 		&myID)
 	if err != nil {
 		logger.Error(err)
@@ -792,7 +792,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo
 		if e := errs[i]; e != nil {
 			if r.Status == api.TrackerStatusBug {
 				// This error must come from not being able to contact that cluster member
-				logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
+				logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 				r = api.PinInfo{
 					Cid:    r.Cid,
 					Peer:   members[i],
@@ -841,7 +841,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
-			logger.Errorf("%s: error in broadcast response from %s: %s ", c.host.ID(), members[i], e)
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
 		} else {
 			mergePins(r)
