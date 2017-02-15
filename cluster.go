@@ -353,7 +353,13 @@ func (c *Cluster) ID() api.ID {
 	// ignore error since it is included in response object
 	ipfsID, _ := c.ipfs.ID()
 	var addrs []ma.Multiaddr
+
+	addrsSet := make(map[string]struct{}) // to filter dups
 	for _, addr := range c.host.Addrs() {
+		addrsSet[addr.String()] = struct{}{}
+	}
+	for k := range addrsSet {
+		addr, _ := ma.NewMultiaddr(k)
 		addrs = append(addrs, multiaddrJoin(addr, c.id))
 	}
 
