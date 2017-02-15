@@ -12,6 +12,8 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+// ErrBadCid is returned when using ErrorCid. Operations with that CID always
+// fail.
 var ErrBadCid = errors.New("this is an expected error when using ErrorCid")
 
 type mockService struct{}
@@ -73,7 +75,9 @@ func (mock *mockService) ID(in struct{}, out *api.IDSerial) error {
 }
 
 func (mock *mockService) Version(in struct{}, out *api.Version) error {
-	*out = api.Version{"0.0.mock"}
+	*out = api.Version{
+		Version: "0.0.mock",
+	}
 	return nil
 }
 

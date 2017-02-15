@@ -69,6 +69,7 @@ func NewCluster(
 	ctx, cancel := context.WithCancel(context.Background())
 	host, err := makeHost(ctx, cfg)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 

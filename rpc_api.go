@@ -55,7 +55,9 @@ func (rpcapi *RPCAPI) PinList(in struct{}, out *[]api.CidArgSerial) error {
 
 // Version runs Cluster.Version().
 func (rpcapi *RPCAPI) Version(in struct{}, out *api.Version) error {
-	*out = api.Version{rpcapi.c.Version()}
+	*out = api.Version{
+		Version: rpcapi.c.Version(),
+	}
 	return nil
 }
 

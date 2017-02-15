@@ -299,12 +299,12 @@ func TestClustersPin(t *testing.T) {
 		j := rand.Intn(nClusters) // choose a random cluster peer
 		err := clusters[j].Unpin(pinList[i].Cid)
 		if err != nil {
-			t.Errorf("error unpinning %s: %s", pinList[i], err)
+			t.Errorf("error unpinning %s: %s", pinList[i].Cid, err)
 		}
 		// test re-unpin
 		err = clusters[j].Unpin(pinList[i].Cid)
 		if err != nil {
-			t.Errorf("error re-unpinning %s: %s", pinList[i], err)
+			t.Errorf("error re-unpinning %s: %s", pinList[i].Cid, err)
 		}
 
 	}
