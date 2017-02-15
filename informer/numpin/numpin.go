@@ -22,6 +22,7 @@ type Informer struct {
 	rpcClient *rpc.Client
 }
 
+// NewInformer returns an initialized Informer.
 func NewInformer() *Informer {
 	return &Informer{}
 }

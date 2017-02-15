@@ -95,9 +95,10 @@ type PinTracker interface {
 	Recover(*cid.Cid) (api.PinInfo, error)
 }
 
-// Informer returns Metric information in a peer. The metrics produced by
+// Informer provides Metric information from a peer. The metrics produced by
 // informers are then passed to a PinAllocator which will use them to
-// determine where to pin content.
+// determine where to pin content. The metric is agnostic to the rest of
+// Cluster.
 type Informer interface {
 	Component
 	Name() string
@@ -112,9 +113,9 @@ type PinAllocator interface {
 	Component
 	// Allocate returns the list of peers that should be assigned to
 	// Pin content in oder of preference (from the most preferred to the
-	// least). The current map contains the metrics for all peers
+	// least). The "current" map contains valid metrics for peers
 	// which are currently pinning the content. The candidates map
-	// contains the metrics for all pins which are eligible for pinning
+	// contains the metrics for all peers which are eligible for pinning
 	// the content.
 	Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error)
 }

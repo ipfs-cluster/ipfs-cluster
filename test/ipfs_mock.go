@@ -160,6 +160,8 @@ ERROR:
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
+// Close closes the mock server. It's important to call after each test or
+// the listeners are left hanging around.
 func (m *IpfsMock) Close() {
 	m.server.Close()
 }

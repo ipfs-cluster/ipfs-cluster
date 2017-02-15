@@ -213,7 +213,7 @@ func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
 	return metrics
 }
 
-// Alerts() returns a channel on which alerts are sent when the
+// Alerts returns a channel on which alerts are sent when the
 // monitor detects a failure.
 func (mon *StdPeerMonitor) Alerts() <-chan api.Alert {
 	return mon.alerts

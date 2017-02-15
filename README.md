@@ -30,13 +30,14 @@ Current functionality only allows pinning in all cluster peers, but more strateg
 ## Table of Contents
 
 - [Background](#background)
-- [Maintainers and roadmap](#maintainers-and-roadmap)
+- [Maintainers and Roadmap](#maintainers-and-roadmap)
 - [Install](#install)
 - [Usage](#usage)
   - [`ipfs-cluster-service`](#ipfs-cluster-service)
   - [`ipfs-cluster-ctl`](#ipfs-cluster-ctl)
   - [Quick start: Building and updating an IPFS Cluster](#quick-start-building-and-updating-an-ipfs-cluster)
 - [API](#api)
+- [Architecture](#api)  
 - [Contribute](#contribute)
 - [License](#license)
 
@@ -46,7 +47,7 @@ Since the start of IPFS it was clear that a tool to coordinate a number of diffe
 
 `ipfs-cluster` aims to address this issues by providing a IPFS node wrapper which coordinates multiple cluster peers via a consensus algorithm. This ensures that the desired state of the system is always agreed upon and can be easily maintained by the cluster peers. Thus, every cluster node knows which content is tracked, can decide whether asking IPFS to pin it and can react to any contingencies like node reboots.
 
-## Maintainers and roadmap
+## Maintainers and Roadmap
 
 This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](CAPTAIN.LOG.md) for a written summary of current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md) for a high level overview of what's coming and the project's [Waffle Board](https://waffle.io/ipfs/ipfs-cluster) to see what issues are being worked on at the moment.
 
@@ -95,7 +96,8 @@ You can add the multiaddresses for the other cluster peers the `bootstrap_multia
     "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
     "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "consensus_data_folder": "/home/hector/go/src/github.com/ipfs/ipfs-cluster/ipfs-cluster-service/d1/data",
-    "state_sync_seconds": 60
+    "state_sync_seconds": 60,
+    "replication_factor": -1
 }
 ```
 
@@ -279,6 +281,10 @@ This is a quick summary of API endpoints offered by the Rest API component (thes
 |POST  |/pins/{cid}/sync    |Sync CID|
 |POST  |/pins/{cid}/recover |Recover CID|
 
+
+## Architecture
+
+The best place to get an overview of how cluster works, what components exist etc. is the [architecture.md](architecture.md) doc.
 
 ## Contribute
 

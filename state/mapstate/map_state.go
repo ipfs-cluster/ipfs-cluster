@@ -8,6 +8,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 )
 
+// Version is the map state Version. States with old versions should
+// perform an upgrade before.
 const Version = 1
 
 // MapState is a very simple database to store the state of the system
@@ -41,6 +43,7 @@ func (st *MapState) Rm(c *cid.Cid) error {
 	return nil
 }
 
+// Get returns CidArg information for a CID.
 func (st *MapState) Get(c *cid.Cid) api.CidArg {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()

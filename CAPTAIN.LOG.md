@@ -1,5 +1,22 @@
 # IPFS Cluster - Captain's log
 
+## 20170215 | @hsanjuan
+
+A global replication factor is now supported! A new configuration file option `replication_factor` allows to specify how many peers should be allocated to pin a CID. `-1` means "Pin everywhere", and maintains compatibility with the previous behaviour. A replication factor >= 1 pin request is subjec to a number of requirements:
+
+* It needs to not be allocated already. If it is the pin will return with an error saying so.
+* It needs to find enough peers to pin.
+
+How the peers are allocated content has been most of the work in this feature. We have two three componenets for doing so:
+
+* An `Informer` component. Informer is used to fetch some metric (agnostic to Cluster). The metric has a Time-to-Live and it is pushed in TTL/2 intervals to the Cluster leader.
+* An `Allocator` component. The allocator is used to provide an `Allocate()` method which, given current allocations, candidate peers and the last valid metrics pushed from the `Informers`, can decide which peers should perform the pinning. For example, a metric could be the used disk space in a cluster peer, and the allocation algorithm would be to sort candidate peers according to that metrics. The first in the list are the ones with less disk used, and will then be chosen to perform the pin. An `Allocator` could also work by receiving a location metric and making sure that the most preferential location is different from the already existing ones etc.
+* A `PeerMonitor` component, which is in charge of logging metrics and providing the last valid ones. It will be extended in the future to detect peer failures and trigger alerts.
+
+The current allocation strategy is a simple one called `numpin`, which just distributes the pins according to the number of CIDs peers are already pinning. More useful strategies should come in the future (help wanted!).
+
+The next steps in Cluster will be wrapping up this milestone with failure detection and re-balancing.
+
 ## 20170208 | @hsanjuan
 
 So much for commitments... I missed last friday's log entry. The reason is that I was busy with the implementation of [dynamic membership for IPFS Cluster](https://github.com/ipfs/ipfs-cluster/milestone/2).

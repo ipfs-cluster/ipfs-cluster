@@ -28,17 +28,20 @@ These definitions are still evolving and may change:
 
   * The definitions of components and their interfaces and related types (`ipfscluster.go`)
   * The **Cluster** main-component which binds together the whole system and offers the Go API (`cluster.go`). This component takes an arbitrary:
-    * **PinTracker**: a component which tracks the pin set, makes sure that it is persisted by IPFS daemon as intended. Default: `MapPinTracker`
-    * **IPFSConnector**: a component which talks to the IPFS daemon and provides a proxy to it. Default: `IPFSHTTPConnector`
     * **API**: a component which offers a public facing API. Default: `RESTAPI`
+    * **IPFSConnector**: a component which talks to the IPFS daemon and provides a proxy to it. Default: `IPFSHTTPConnector`
     * **State**: a component which keeps a list of Pins (maintained by the Consensus component)
+    * **PinTracker**: a component which tracks the pin set, makes sure that it is persisted by IPFS daemon as intended. Default: `MapPinTracker`
+    * **PeerMonitor**: a component to log metrics and detect peer failures. Default: `StdPeerMonitor`
+    * **PinAllocator**: a component to decide which peers should pin a CID given some metrics. Default: `NumPinAllocator`
+    * **Informer**: a component to collect metrics which are used by the `PinAllocator` and the `PinMonitor`. Default: `NumPin`
   * The **Consensus** component. This component is separate but internal to Cluster in the sense that it cannot be provided arbitrarily during initialization. The consensus component uses `go-libp2p-raft` via `go-libp2p-consensus`. While it is attempted to be agnostic from the underlying consensus implementation, it is not possible in all places. These places are however well marked.
 
 Components perform a number of functions and need to be able to communicate with eachothers: i.e.:
 
   * the API needs to use functionality provided by the main component
   * the PinTracker needs to use functionality provided by the IPFSConnector
-  * the main component needs to use functionality provided by the main component of a different peer (the leader)
+  * the main component needs to use functionality provided by the main component of different peers
 
 ### RPC API
 
@@ -46,77 +49,97 @@ Communication between components happens through the RPC API: a set of functions
 
 The RPC API uses `go-libp2p-gorpc`. The main Cluster component runs an RPC server. RPC Clients are provided to all components for their use. The main feature of this setup is that **Components can use `go-libp2p-gorpc` to perform operations in the local cluster and in any remote cluster node using the same API**.
 
-This makes broadcasting operations, contacting the Cluster leader really easy. It also allows to think of a future where components may be completely arbitrary and run from different applications. Local RPC calls, on their side, do not suffer any penalty as the execution is short cut directly to the server component of the Cluster, without network intervention.
+This makes broadcasting operations and contacting the Cluster leader really easy. It also allows to think of a future where components may be completely arbitrary and run from different applications. Local RPC calls, on their side, do not suffer any penalty as the execution is short-cut directly to the server component of the Cluster, without network intervention.
+
+On the down-side, the RPC API involves "reflect" magic and it is not easy to verify that a call happens to a method registered on the RPC server. Every RPC-based functionality should be tested. Bad operations will result in errors so they are easy to catch on tests.
 
 ### Code layout
 
-Currently, all components live in the same `ipfscluster` Go module, but they shall be moved to their own submodules without trouble in the future.
+Eventually, as the project grow, components will be organized in different submodules. The groundwork for this is already there (i.e. a there is a submodule providing API related types), but most components still live in the base project.
 
 ## Applications
 
 ### `ipfs-cluster-service`
 
-This is the service application of IPFS Cluster. It brings up a cluster, connects to other peers, gets the latest consensus state and participates in cluster.
+This is the service application of IPFS Cluster. It brings up a cluster, connects to other peers, gets the latest consensus state and participates in cluster. Handles clean shutdowns when receiving Interrupts.
 
 ### `ipfs-cluster-ctl`
 
 This is the client/control application of IPFS Cluster. It is a command line interface which uses the REST API to communicate with Cluster.
 
-## Code paths
+## How does it work?
 
-This sections explains how some things work in Cluster.
+This sections gives an overview of how some things work in Cluster. Doubts? Something missing? Open an issue and ask!
 
 ### Startup
 
-* `NewCluster` triggers the Cluster bootstrap. `IPFSConnector`, `State`, `PinTracker` component are provided. These components are up but possibly waiting for a `SetClient(RPCClient)` call. Without having an RPCClient, they are unable to communicate with the other components.
-* The first step bootstrapping is to create the libp2p `Host`. It is using configuration keys to set up public, private keys, the swarm network etc.
-* The `peerManager` is initialized. It allows to list known cluster peers and keep components in the loop about changes.
-* The `RPCServer` (`go-libp2p-gorpc`) is setup, along with an `RPCClient`. The client can communicate to any RPC server using libp2p, or with the local one (shortcutting). The `RPCAPI` object is registered: it implements all the RPC operations supported by cluster and used for inter-component/inter-peer communication.
-* The `Consensus` component is bootstrapped. It:
-  * Sets up a new Raft node (with the `cluster_peers` from the configuration) from scratch, including snapshots, stable datastore (boltDB), log store etc...
-  * Initializes `go-libp2p-consensus` components (`Actor` and `LogOpConsensus`) using `go-libp2p-raft`
-  * Returns a new `Consensus` object while asynchronously waiting for a Raft leader and then also for the current Raft peer to catch up with the latest index of the log when there is anything to catch up with.
-  * Waits for an RPCClient to be set and when it happens it triggers an asynchronous RPC request (`StateSync`) to the local `Cluster` component and reports `Ready()`
-  * The `StateSync` operation (from the main `Cluster` component) makes a diff between the local `MapPinTracker` state and the consensus-maintained state. It triggers asynchronous local RPC requests (`Track` and `Untrack`) to the `MapPinTracker`.
-  * The `MapPinTracker` receives the `Track` requests and checks, pins or unpins items, as well as updating the local status of a pin (see the Pinning section below)
-* While the consensus is being bootstrapped, `SetClient(RPCClient` is called on all components (tracker, ipfs connector, api and consensus)
-* The new `Cluster` object is returned.
-* Asynchronously, a thread triggers the bootsrap process and then waits for the `Consensus` component to report `Ready()`.
-* The bootstrap process uses the configured multiaddresses from the Bootstrap section of the configuration perform a remote RPC `PeerAdd` request (it tries until it works in one of them).
-* The remote node then performs a consensus log operation logging the multiaddress and peer ID of the new cluster member. If the log operation is successful, the new member is added to `Raft` (which internally logs it as well). The new node is contacted by Raft, its internal peerset updated. It receives the state from the cluster, including pins (which are synced to the `PinTracker` and other peers, which are handled by the `peerManager`.
-* If the bootstrap was successful or not necessary, Cluster reports itself `Ready()`. At this moment, all components are up, consensus is working and cluster is ready to perform any operations. The consensus state may still be syncing, or mostly the `MapPinTracker` may still be verifying that pins are there against the daemon, but this does not causes any problems to use cluster.
+* Initialize the P2P host.
+* Initialize the PeerManager: needs to keep track of cluster peers.
+* Initialize Consensus: start looking for a leader asap.
+* Setup RPC in all componenets: allow them to communicate with different parts of the cluster.
+* Bootstrap: if we are bootstrapping from another node, do the dance (contact, receive cluster peers, join consensus)
+* Cluster is up, but it is only `Ready()` when consensus is ready (which in this case means it has found a leader).
+* All components are doing its thing.
+
+Consensus startup deserves a note:
+
+* Raft is setup and wrapped with `go-libp2p-consensus`.
+* Waits until there is a leader
+* Waits until the state is fully synced (compare raft last log index with current)
+* Triggers a `SyncState` to the `PinTracker`, which means that we have recovered the full state of the system and the pin tracker should
+keep tabs on the Pins in that state (we don't wait for completion of this operation).
+* Consensus is then ready.
+
+If the above procedures don't work, Cluster might just itself down (i.e. if a leader is not found after a while, we automatically shutdown).
+
+
+### Pinning
+
+* If it's an API request, it involves an RPC request to the cluster main component.
+* `Cluster.Pin()`
+* We find some peers to pin (`Allocate`) using the metrics from the PeerMonitor and the `PinAllocator`.
+* We have a CID and some allocations: time to make a log entry in the consensus log.
+* The consensus component will forward this to the Raft leader, as only the leader can make log entries.
+* The Raft leader makes a log entry with a `LogOp` that says "pin this CID with this allocations".
+* Every peer receives the operation. Per `ConsensusOpLog`, the `Apply(state)` method is triggered. Every peer modifies the `State` accordingly to this operation. The state keeps the full map of CID/Allocations and is only updated via log operations.
+* The Apply method triggers a `Track` RPC request to the `PinTracker` in each peer.
+* The pin tracker now knows that it needs to track a certain CID.
+* If the CID is allocated to the peer, the `PinTracker` will trigger an RPC request to the `IPFSConnector` asking it to pin the CID.
+* If the CID is allocated to different peers, the `PinTracker` will mark is as `remote`.
+* Now the content is officially pinned.
+
+Notes:
+* the log operation should never fail. It has no real places to fail. The calls to the `PinTracker` are asynchronous and a side effect of the state modification.
+* the `PinTracker` also should not fail to track anything, BUT
+* the `IPFSConnector` might fail to pin something. In this case pins are marked as `pin_error` in the pin tracker.
+* the `MapPinTracker` (current implementation of `PinTracker`) queues pin requests so they happen one by one to IPFS. In the meantime things are in `pinning` state.
 
 
 ### Adding a peer
 
-* The `RESTAPI` component receives a `PeerAdd` request on the respective endpoint. It makes a `PeerAdd` RPC request.
-* The local RPC server receives it and calls `PeerAdd` method in the main `Cluster` component.
-* If there is a connection from the given PID, we use it to determine the true multiaddress (with the right remote IP), in case it was not
-provided correctly (usually when using `Join` since it cannot be determined-see below). This allows to correctly let peers join from accross NATs.
-* The peer is added to the `peerManager` so we can perform RPC requests to it.
-* A remote RPC `RemoteMultiaddressForPeer` is performed to the new peer, so it reports how our multiaddress looks from their side.
-* The address of the new peer is then commited to the consensus state. Since this is a new peer, Raft peerstore is also updated. Raft starts
-sending updates to the new peer, among them prompting it to update its own peerstore with the list of peers in this cluster.
-* The list of cluster peers (plus ourselves with our real multiaddress) is sent to the new cluster in a remote `PeerManagerAddMultiaddrs` RPC request.
-* A remote `ID` RPC request is performed and the information about the new node is returned.
+* If it's an API requests, it involves an RPC request to the cluster main component.
+* `Cluster.PeerAdd()`
+* Figure out the real multiaddress for that peer (the one we see).
+* Let the `PeerManager` component know about the new peer. This adds it to the Libp2p host and notifies any component which needs to know
+about peers. This means also ability to perform RPC requests to that peer.
+* Figure out our multiaddress in regard to the new peer (the one it sees to connect to us). This is done with an RPC request and it also
+ensure that the peer is up and reachable.
+* Trigger a consensus `LopOp` indicating that there is a new peer.
+* Send the new peer the list of cluster peers. This is an RPC request to the new peers `PeerManager` which allows to keep a tab on the current cluster peers.
 
-### Joining a cluster
+The consensus part has its own complexity:
 
-* Joining means calling `AddPeer` on the cluster we want to join.
-* This is used also for bootstrapping.
-* Join is disallowed if we are not a single-peer cluster.
+* As usual, the "add peer" operation is forwarded to the Raft leader.
+* The consensus component logs such operation and also uses Raft `AddPeer` method or equivalent.
+* This results in two log entries, one internal to Raft which updates the internal Raft peerstore in all peers, and one from Cluster which is
+received by the `Apply` method. This `Apply` operation does not modify the shared `State` (like when pinning), but rather only notifies the `PeerManager` about a new peer so the nodes can be set up to talk to it.
 
-### Pinning
+As such we are efectively using the consensus log to broadcast a PeerAdd operation. That is because this is critical and should either succeed everywhere or fail. If we performed a regular "for loop broadcast" and some peers fail, we end up with a mess that needs to be cleaned up and uncertain state. By using the consensus log, those peers which did not receive the operation have the oportunity to receive it later (on restart if they were down). There are still pitfalls to this (restoring from snapshot might result in peers with missing cluster peers) but the errors are more obvious and isolated than in other ways.
 
-* The `RESTAPI` component receives a `Pin` request on the respective endpoint. This triggers a `Pin` RPC request.
-* The local RPC server receives it and calls `Pin` method in the main `Cluster` component.
-* The main cluster component calls `LogPin` in the `Consensus` Component.
-* The Consensus component checks that it is the Raft leader, or alternatively makes an `ConsensusLogPin` RPC request to whoever is the leader.
-* The Consensus component of the current Raft's leader builds a pin `clusterLogOp` operation performs a `consensus.Commit(op)`. This is handled by `go-libp2p-raft` and, when the operation makes it to the Raft's log, it triggers `clusterLogOp.ApplyTo(state)` in every peer.
-* `ApplyTo` modifies the local cluster state by adding the pin and triggers an asynchronous `Track` local RPC request. It returns without waiting for the result. While `ApplyTo` is running no other state updates may be applied so it is a critical code path.
-* The RPC server handles the request to the `MapPinTracker` component and its `Track` method. It marks the local state of the pin as `pinning` and makes a local RPC request for the `IPFSHTTPConnector` component (`IPFSPin`) to pin it.
-* The `IPFSHTTPConnector` component receives the request and uses the configured IPFS daemon API to send a pin request with the given hash. It waits until the call comes back and returns success or failure.
-* The `MapPinTracker` component receives the result from the RPC request to the `IPFSHTTPConnector` and updates the local status of the pin to `pinned` or `pin_error`.
+Notes:
+
+* The `Join()` (used for bootstrapping) is just a `PeerAdd()` operation triggered remotely by an RPC request from the joining peer.
+
 
 ## Legacy illustrations
 
