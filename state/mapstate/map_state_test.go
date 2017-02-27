@@ -1,6 +1,8 @@
 package mapstate
 
 import (
+	"bytes"
+	"fmt"
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
@@ -64,5 +66,45 @@ func TestList(t *testing.T) {
 		list[0].Allocations[0] != c.Allocations[0] ||
 		list[0].ReplicationFactor != c.ReplicationFactor {
 		t.Error("returned something different")
+	}
+}
+
+func TestSnapshotRestore(t *testing.T) {
+	ms := NewMapState()
+	ms.Add(c)
+	var buf bytes.Buffer
+	err := ms.Snapshot(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ms2 := NewMapState()
+	err = ms2.Restore(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := ms2.Get(c.Cid)
+	if get.Allocations[0] != testPeerID1 {
+		t.Error("expected different peer id")
+	}
+}
+
+func TestMigrateFromV1(t *testing.T) {
+	v1 := []byte(fmt.Sprintf(`{
+  "Version": 1,
+  "PinMap": {
+    "%s": {}
+   }
+}
+`, c.Cid))
+	buf := bytes.NewBuffer(v1)
+	ms := NewMapState()
+	err := ms.Restore(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := ms.Get(c.Cid)
+	if get.ReplicationFactor != -1 || !get.Cid.Equals(c.Cid) {
+		t.Error("expected something different")
+		t.Logf("%+v", get)
 	}
 }

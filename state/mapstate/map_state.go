@@ -1,6 +1,9 @@
 package mapstate
 
 import (
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -10,7 +13,7 @@ import (
 
 // Version is the map state Version. States with old versions should
 // perform an upgrade before.
-const Version = 1
+const Version = 2
 
 // MapState is a very simple database to store the state of the system
 // using a Go map. It is thread safe. It implements the State interface.
@@ -23,7 +26,8 @@ type MapState struct {
 // NewMapState initializes the internal map and returns a new MapState object.
 func NewMapState() *MapState {
 	return &MapState{
-		PinMap: make(map[string]api.PinSerial),
+		PinMap:  make(map[string]api.PinSerial),
+		Version: Version,
 	}
 }
 
@@ -68,7 +72,39 @@ func (st *MapState) List() []api.Pin {
 	defer st.pinMux.RUnlock()
 	cids := make([]api.Pin, 0, len(st.PinMap))
 	for _, v := range st.PinMap {
+		if v.Cid == "" {
+			continue
+		}
 		cids = append(cids, v.ToPin())
 	}
 	return cids
+}
+
+// Snapshot dumps the MapState to the given writer, in pretty json
+// format.
+func (st *MapState) Snapshot(w io.Writer) error {
+	st.pinMux.RLock()
+	defer st.pinMux.RUnlock()
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	return enc.Encode(st)
+}
+
+func (st *MapState) Restore(r io.Reader) error {
+	snap, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	var vonly struct{ Version int }
+	err = json.Unmarshal(snap, &vonly)
+	if err != nil {
+		return err
+	}
+	if vonly.Version == Version {
+		// we are good
+		err := json.Unmarshal(snap, st)
+		return err
+	} else {
+		return st.migrateFrom(vonly.Version, snap)
+	}
 }

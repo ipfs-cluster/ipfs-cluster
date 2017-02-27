@@ -9,6 +9,8 @@
 package ipfscluster
 
 import (
+	"io"
+
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -68,6 +70,10 @@ type State interface {
 	Has(*cid.Cid) bool
 	// Get returns the information attacthed to this pin
 	Get(*cid.Cid) api.Pin
+	// Snapshot writes a snapshot of the state to a writer
+	Snapshot(w io.Writer) error
+	// Restore restores a snapshot from a reader
+	Restore(r io.Reader) error
 }
 
 // PinTracker represents a component which tracks the status of
