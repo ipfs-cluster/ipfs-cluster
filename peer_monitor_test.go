@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
@@ -13,8 +14,9 @@ import (
 var metricCounter = 0
 
 func testPeerMonitor(t *testing.T) *StdPeerMonitor {
+	cfg := testingConfig()
 	mock := test.NewMockRPCClient(t)
-	mon := NewStdPeerMonitor(2)
+	mon := NewStdPeerMonitor(cfg)
 	mon.SetClient(mock)
 	return mon
 }
@@ -96,5 +98,31 @@ func TestPeerMonitorLogMetric(t *testing.T) {
 	}
 	if lastMetrics[0].Value != fmt.Sprintf("%d", metricCounter-1) {
 		t.Error("metric is not last")
+	}
+}
+
+func TestPeerMonitorAlerts(t *testing.T) {
+	pm := testPeerMonitor(t)
+	defer pm.Shutdown()
+
+	mtr := newMetric("test", test.TestPeerID1)
+	mtr.SetTTL(0)
+	pm.LogMetric(mtr)
+	time.Sleep(time.Second)
+	timeout := time.NewTimer(time.Second * 5)
+
+	// it should alert twice at least. Alert re-occurrs.
+	for i := 0; i < 2; i++ {
+		select {
+		case <-timeout.C:
+			t.Fatal("should have thrown an alert by now")
+		case alrt := <-pm.Alerts():
+			if alrt.MetricName != "test" {
+				t.Error("Alert should be for test")
+			}
+			if alrt.Peer != test.TestPeerID1 {
+				t.Error("Peer should be TestPeerID1")
+			}
+		}
 	}
 }

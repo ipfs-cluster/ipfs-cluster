@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -13,6 +14,9 @@ import (
 
 // AlertChannelCap specifies how much buffer the alerts channel has.
 var AlertChannelCap = 256
+
+// WindowCap specifies how many metrics to keep for given host and metric type
+var WindowCap = 10
 
 // peerMetrics is just a circular queue
 type peerMetrics struct {
@@ -84,14 +88,19 @@ type StdPeerMonitor struct {
 
 	alerts chan api.Alert
 
+	monitoringInterval int
+
 	shutdownLock sync.Mutex
 	shutdown     bool
 	wg           sync.WaitGroup
 }
 
-// NewStdPeerMonitor creates a new monitor.
-func NewStdPeerMonitor(windowCap int) *StdPeerMonitor {
-	if windowCap <= 0 {
+// NewStdPeerMonitor creates a new monitor. It receives the window capacity
+// (how many metrics to keep for each peer and type of metric) and the
+// monitoringInterval (interval between the checks that produce alerts)
+// as parameters
+func NewStdPeerMonitor(cfg *Config) *StdPeerMonitor {
+	if WindowCap <= 0 {
 		panic("windowCap too small")
 	}
 
@@ -103,8 +112,10 @@ func NewStdPeerMonitor(windowCap int) *StdPeerMonitor {
 		rpcReady: make(chan struct{}, 1),
 
 		metrics:   make(map[string]metricsByPeer),
-		windowCap: windowCap,
-		alerts:    make(chan api.Alert),
+		windowCap: WindowCap,
+		alerts:    make(chan api.Alert, AlertChannelCap),
+
+		monitoringInterval: cfg.MonitoringIntervalSeconds,
 	}
 
 	go mon.run()
@@ -114,7 +125,7 @@ func NewStdPeerMonitor(windowCap int) *StdPeerMonitor {
 func (mon *StdPeerMonitor) run() {
 	select {
 	case <-mon.rpcReady:
-		//go mon.Heartbeat()
+		go mon.monitor()
 	case <-mon.ctx.Done():
 	}
 }
@@ -217,4 +228,73 @@ func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
 // monitor detects a failure.
 func (mon *StdPeerMonitor) Alerts() <-chan api.Alert {
 	return mon.alerts
+}
+
+func (mon *StdPeerMonitor) monitor() {
+	ticker := time.NewTicker(time.Second * time.Duration(mon.monitoringInterval))
+	for {
+		select {
+		case <-ticker.C:
+			logger.Debug("monitoring tick")
+			// Get current peers
+			var peers []peer.ID
+			err := mon.rpcClient.Call("",
+				"Cluster",
+				"PeerManagerPeers",
+				struct{}{},
+				&peers)
+			if err != nil {
+				logger.Error(err)
+				break
+			}
+
+			for k := range mon.metrics {
+				logger.Debug("check metrics ", k)
+				mon.checkMetrics(peers, k)
+			}
+		case <-mon.ctx.Done():
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+// This is probably the place to implement some advanced ways of detecting down
+// peers.
+// Currently easy logic, just check that all peers have a valid metric.
+func (mon *StdPeerMonitor) checkMetrics(peers []peer.ID, metricName string) {
+	mon.metricsMux.RLock()
+	defer mon.metricsMux.RUnlock()
+
+	// get metric windows for peers
+	metricsByPeer := mon.metrics[metricName]
+
+	// for each of the given current peers
+	for _, p := range peers {
+		// get metrics for that peer
+		pMetrics, ok := metricsByPeer[p]
+		if !ok { // no metrics from this peer
+			continue
+		}
+		last, err := pMetrics.latest()
+		if err != nil { // no metrics for this peer
+			continue
+		}
+		// send alert if metric is expired (but was valid at some point)
+		if last.Valid && last.Expired() {
+			mon.sendAlert(p, metricName)
+		}
+	}
+}
+
+func (mon *StdPeerMonitor) sendAlert(p peer.ID, metricName string) {
+	alrt := api.Alert{
+		Peer:       p,
+		MetricName: metricName,
+	}
+	select {
+	case mon.alerts <- alrt:
+	default:
+		logger.Error("alert channel is full")
+	}
 }
