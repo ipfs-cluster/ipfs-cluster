@@ -76,6 +76,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	cfg.ConsensusDataFolder = "./e2eTestRaft/" + pid.Pretty()
 	cfg.LeaveOnShutdown = false
 	cfg.ReplicationFactor = -1
+	cfg.MonitoringIntervalSeconds = 2
 
 	api, err := NewRESTAPI(cfg)
 	checkErr(t, err)
@@ -83,7 +84,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	checkErr(t, err)
 	state := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
-	mon := NewStdPeerMonitor(5)
+	mon := NewStdPeerMonitor(cfg)
 	alloc := numpinalloc.NewAllocator()
 	numpin.MetricTTL = 1 // second
 	inf := numpin.NewInformer()
@@ -801,26 +802,41 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	// Let some metrics arrive
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[j].Pin(h)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// Let the pin arrive
 	time.Sleep(time.Second / 2)
 
+	clusters[0].Shutdown()
 	clusters[1].Shutdown()
-	clusters[2].Shutdown()
 
-	// Time for consensus to catch up again in case we hit the leader.
 	delay()
 	delay()
 
-	err = clusters[j].Pin(h)
+	timer := time.NewTimer(time.Minute)
+	ticker := time.NewTicker(time.Second)
+	// Wait for consensus to pick a new leader in case we shut it down
+loop:
+	for {
+		select {
+		case <-timer.C:
+			t.Fatal("timed out waiting for a leader")
+		case <-ticker.C:
+			_, err := clusters[2].consensus.Leader()
+			if err == nil {
+				break loop
+			}
+		}
+	}
+
+	err = clusters[2].Pin(h)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -829,4 +845,62 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log(err)
+}
+
+func TestClustersRebalanceOnPeerDown(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactor = nClusters - 1
+	}
+
+	// Let some metrics arrive
+	time.Sleep(time.Second)
+	// pin something
+	h, _ := cid.Decode(test.TestCid1)
+	clusters[0].Pin(h)
+	time.Sleep(time.Second)
+	pinLocal := 0
+	pinRemote := 0
+	var localPinner peer.ID
+	var remotePinner peer.ID
+	var remotePinnerCluster *Cluster
+
+	status, _ := clusters[0].Status(h)
+
+	// check it was correctly pinned
+	for p, pinfo := range status.PeerMap {
+		if pinfo.Status == api.TrackerStatusPinned {
+			pinLocal++
+			localPinner = p
+		} else if pinfo.Status == api.TrackerStatusRemote {
+			pinRemote++
+			remotePinner = p
+		}
+	}
+
+	if pinLocal != nClusters-1 || pinRemote != 1 {
+		t.Fatal("Not pinned as expected")
+	}
+
+	// find a kill the local pinner
+	for _, c := range clusters {
+		if c.id == localPinner {
+			c.Shutdown()
+		} else if c.id == remotePinner {
+			remotePinnerCluster = c
+		}
+	}
+
+	// Sleep a monitoring interval
+	time.Sleep(6 * time.Second)
+
+	// It should be now pinned in the remote pinner
+	if s := remotePinnerCluster.tracker.Status(h).Status; s != api.TrackerStatusPinned {
+		t.Errorf("it should be pinned and is %s", s)
+	}
 }

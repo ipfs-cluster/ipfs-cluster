@@ -12,6 +12,7 @@ func testingConfig() *Config {
 		IPFSProxyListenMultiaddress: "/ip4/127.0.0.1/tcp/10001",
 		ConsensusDataFolder:         "./raftFolderFromTests",
 		LeaveOnShutdown:             true,
+		MonitoringIntervalSeconds:   2,
 	}
 
 	cfg, _ := jcfg.ToConfig()

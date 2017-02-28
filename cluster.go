@@ -191,6 +191,23 @@ func (c *Cluster) stateSyncWatcher() {
 	}
 }
 
+func (c *Cluster) broadcastMetric(m api.Metric) error {
+	peers := c.peerManager.peers()
+	errs := c.multiRPC(peers,
+		"Cluster",
+		"PeerMonitorLogMetric",
+		m,
+		copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
+	for i, e := range errs {
+		if e != nil {
+			logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
+		}
+	}
+
+	logger.Debugf("broadcasted metric %s", m.Name)
+	return nil
+}
+
 // push metrics loops and pushes metrics to the leader's monitor
 func (c *Cluster) pushInformerMetrics() {
 	timer := time.NewTimer(0) // fire immediately first
@@ -202,7 +219,10 @@ func (c *Cluster) pushInformerMetrics() {
 			// wait
 		}
 
-		leader, err := c.consensus.Leader()
+		metric := c.informer.GetMetric()
+		metric.Peer = c.id
+
+		err := c.broadcastMetric(metric)
 
 		if err != nil {
 			// retry in 1 second
@@ -211,21 +231,71 @@ func (c *Cluster) pushInformerMetrics() {
 			continue
 		}
 
-		metric := c.informer.GetMetric()
-		metric.Peer = c.id
-
-		err = c.rpcClient.Call(
-			leader,
-			"Cluster", "PeerMonitorLogMetric",
-			metric, &struct{}{})
-		if err != nil {
-			logger.Errorf("error pushing metric to %s", leader.Pretty())
-		}
-
-		logger.Debugf("pushed metric %s to %s", metric.Name, metric.Peer.Pretty())
-
 		timer.Stop() // no need to drain C if we are here
 		timer.Reset(metric.GetTTL() / 2)
+	}
+}
+
+func (c *Cluster) pushPingMetrics() {
+	ticker := time.NewTicker(time.Second * time.Duration(c.config.MonitoringIntervalSeconds))
+	for {
+		metric := api.Metric{
+			Name:  "ping",
+			Peer:  c.id,
+			Valid: true,
+		}
+		metric.SetTTL(c.config.MonitoringIntervalSeconds * 2)
+		c.broadcastMetric(metric)
+
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// read the alerts channel from the monitor and triggers repins
+func (c *Cluster) alertsHandler() {
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case alrt := <-c.monitor.Alerts():
+			// no point in repinning when pinning everywhere
+			if c.config.ReplicationFactor == -1 {
+				break
+			}
+
+			leader, _ := c.consensus.Leader()
+			// discard while not leaders as our monitor is not
+			// getting metrics in that case
+			if leader == c.id {
+				logger.Warningf("Received alert for %s in %s", alrt.MetricName, alrt.Peer.Pretty())
+				switch alrt.MetricName {
+				case "ping":
+					c.repinFromPeer(alrt.Peer)
+				}
+			}
+		}
+	}
+}
+
+// find all Cids pinned to a given peer and triggers re-pins on them
+func (c *Cluster) repinFromPeer(p peer.ID) {
+	cState, err := c.consensus.State()
+	if err != nil {
+		logger.Warning(err)
+		return
+	}
+	list := cState.List()
+	for _, cidInfo := range list {
+		for _, alloc := range cidInfo.Allocations {
+			if alloc == p {
+				logger.Infof("repinning %s out of %s", cidInfo.Cid, p.Pretty())
+				c.Pin(cidInfo.Cid)
+			}
+		}
 	}
 }
 
@@ -233,7 +303,9 @@ func (c *Cluster) pushInformerMetrics() {
 // before signaling readyCh
 func (c *Cluster) run() {
 	go c.stateSyncWatcher()
+	go c.pushPingMetrics()
 	go c.pushInformerMetrics()
+	go c.alertsHandler()
 }
 
 func (c *Cluster) ready() {
@@ -322,6 +394,11 @@ func (c *Cluster) Shutdown() error {
 	}
 
 	c.peerManager.savePeers()
+
+	if err := c.monitor.Shutdown(); err != nil {
+		logger.Errorf("error stopping monitor: %s", err)
+		return err
+	}
 
 	if err := c.api.Shutdown(); err != nil {
 		logger.Errorf("error stopping API: %s", err)
@@ -648,8 +725,6 @@ func (c *Cluster) Pins() []api.CidArg {
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
-	logger.Info("pinning:", h)
-
 	cidArg := api.CidArg{
 		Cid: h,
 	}
@@ -660,12 +735,16 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 		return errors.New("replication factor is 0")
 	case rpl < 0:
 		cidArg.Everywhere = true
+		logger.Infof("IPFS cluster pinning %s everywhere:", h)
+
 	case rpl > 0:
 		allocs, err := c.allocate(h)
 		if err != nil {
 			return err
 		}
 		cidArg.Allocations = allocs
+		logger.Infof("IPFS cluster pinning %s on %s:", h, cidArg.Allocations)
+
 	}
 
 	err := c.consensus.LogPin(cidArg)
@@ -682,7 +761,7 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 // to the global state. Unpin does not reflect the success or failure
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
-	logger.Info("unpinning:", h)
+	logger.Info("IPFS cluster unpinning:", h)
 
 	carg := api.CidArg{
 		Cid: h,

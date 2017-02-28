@@ -14,13 +14,14 @@ import (
 
 // Default parameters for the configuration
 const (
-	DefaultConfigCrypto     = crypto.RSA
-	DefaultConfigKeyLength  = 2048
-	DefaultAPIAddr          = "/ip4/127.0.0.1/tcp/9094"
-	DefaultIPFSProxyAddr    = "/ip4/127.0.0.1/tcp/9095"
-	DefaultIPFSNodeAddr     = "/ip4/127.0.0.1/tcp/5001"
-	DefaultClusterAddr      = "/ip4/0.0.0.0/tcp/9096"
-	DefaultStateSyncSeconds = 60
+	DefaultConfigCrypto              = crypto.RSA
+	DefaultConfigKeyLength           = 2048
+	DefaultAPIAddr                   = "/ip4/127.0.0.1/tcp/9094"
+	DefaultIPFSProxyAddr             = "/ip4/127.0.0.1/tcp/9095"
+	DefaultIPFSNodeAddr              = "/ip4/127.0.0.1/tcp/5001"
+	DefaultClusterAddr               = "/ip4/0.0.0.0/tcp/9096"
+	DefaultStateSyncSeconds          = 60
+	DefaultMonitoringIntervalSeconds = 15
 )
 
 // Config represents an ipfs-cluster configuration. It is used by
@@ -71,6 +72,10 @@ type Config struct {
 
 	// ReplicationFactor is the number of copies we keep for each pin
 	ReplicationFactor int
+
+	// MonitoringIntervalSeconds is the number of seconds that can
+	// pass before a peer can be detected as down.
+	MonitoringIntervalSeconds int
 
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
@@ -134,6 +139,10 @@ type JSONConfig struct {
 	// two nodes for each pinned hash. A replication_factor -1 will
 	// use every available node for each pin.
 	ReplicationFactor int `json:"replication_factor"`
+
+	// Number of seconds between monitoring checks which detect
+	// if a peer is down and consenquently trigger a rebalance
+	MonitoringIntervalSeconds int `json:"monitoring_interval"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -174,6 +183,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
 		StateSyncSeconds:            cfg.StateSyncSeconds,
 		ReplicationFactor:           cfg.ReplicationFactor,
+		MonitoringIntervalSeconds:   cfg.MonitoringIntervalSeconds,
 	}
 	return
 }
@@ -251,19 +261,24 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		jcfg.StateSyncSeconds = DefaultStateSyncSeconds
 	}
 
+	if jcfg.MonitoringIntervalSeconds <= 0 {
+		jcfg.MonitoringIntervalSeconds = DefaultMonitoringIntervalSeconds
+	}
+
 	c = &Config{
-		ID:                  id,
-		PrivateKey:          pKey,
-		ClusterPeers:        clusterPeers,
-		Bootstrap:           bootstrap,
-		LeaveOnShutdown:     jcfg.LeaveOnShutdown,
-		ClusterAddr:         clusterAddr,
-		APIAddr:             apiAddr,
-		IPFSProxyAddr:       ipfsProxyAddr,
-		IPFSNodeAddr:        ipfsNodeAddr,
-		ConsensusDataFolder: jcfg.ConsensusDataFolder,
-		StateSyncSeconds:    jcfg.StateSyncSeconds,
-		ReplicationFactor:   jcfg.ReplicationFactor,
+		ID:                        id,
+		PrivateKey:                pKey,
+		ClusterPeers:              clusterPeers,
+		Bootstrap:                 bootstrap,
+		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
+		ClusterAddr:               clusterAddr,
+		APIAddr:                   apiAddr,
+		IPFSProxyAddr:             ipfsProxyAddr,
+		IPFSNodeAddr:              ipfsNodeAddr,
+		ConsensusDataFolder:       jcfg.ConsensusDataFolder,
+		StateSyncSeconds:          jcfg.StateSyncSeconds,
+		ReplicationFactor:         jcfg.ReplicationFactor,
+		MonitoringIntervalSeconds: jcfg.MonitoringIntervalSeconds,
 	}
 	return
 }
@@ -336,17 +351,18 @@ func NewDefaultConfig() (*Config, error) {
 	ipfsNodeAddr, _ := ma.NewMultiaddr(DefaultIPFSNodeAddr)
 
 	return &Config{
-		ID:                  pid,
-		PrivateKey:          priv,
-		ClusterPeers:        []ma.Multiaddr{},
-		Bootstrap:           []ma.Multiaddr{},
-		LeaveOnShutdown:     false,
-		ClusterAddr:         clusterAddr,
-		APIAddr:             apiAddr,
-		IPFSProxyAddr:       ipfsProxyAddr,
-		IPFSNodeAddr:        ipfsNodeAddr,
-		ConsensusDataFolder: "ipfscluster-data",
-		StateSyncSeconds:    DefaultStateSyncSeconds,
-		ReplicationFactor:   -1,
+		ID:                        pid,
+		PrivateKey:                priv,
+		ClusterPeers:              []ma.Multiaddr{},
+		Bootstrap:                 []ma.Multiaddr{},
+		LeaveOnShutdown:           false,
+		ClusterAddr:               clusterAddr,
+		APIAddr:                   apiAddr,
+		IPFSProxyAddr:             ipfsProxyAddr,
+		IPFSNodeAddr:              ipfsNodeAddr,
+		ConsensusDataFolder:       "ipfscluster-data",
+		StateSyncSeconds:          DefaultStateSyncSeconds,
+		ReplicationFactor:         -1,
+		MonitoringIntervalSeconds: DefaultMonitoringIntervalSeconds,
 	}, nil
 }

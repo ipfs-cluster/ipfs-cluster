@@ -80,7 +80,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	cfg := testingConfig()
 	st := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
-	mon := NewStdPeerMonitor(5)
+	mon := NewStdPeerMonitor(cfg)
 	alloc := numpinalloc.NewAllocator()
 	inf := numpin.NewInformer()
 

@@ -239,7 +239,7 @@ func run(c *cli.Context) error {
 
 	state := mapstate.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker(cfg)
-	mon := ipfscluster.NewStdPeerMonitor(5)
+	mon := ipfscluster.NewStdPeerMonitor(cfg)
 	informer := numpin.NewInformer()
 	alloc := numpinalloc.NewAllocator()
 
