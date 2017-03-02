@@ -19,8 +19,10 @@
 
 * Works on top of the IPFS daemon by running one cluster peer per IPFS node (`ipfs-cluster-service`)
 * A `replication_factor` controls how many times a CID is pinned in the cluster
+* Re-pins stuff in a different place when a peer goes down
 * Provides an HTTP API and a command-line wrapper (`ipfs-cluster-ctl`)
 * Provides an IPFS daemon API Proxy which intercepts any "pin"/"unpin" requests and does cluster pinning instead
+* The IPFS Proxy allows to build cluster composition, with a cluster peer acting as an IPFS daemon for another higher-level cluster.
 * Peers share the state using Raft-based consensus. Uses the LibP2P stack (`go-libp2p-raft`, `go-libp2p-rpc`...)
 
 

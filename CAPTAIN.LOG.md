@@ -1,5 +1,13 @@
 # IPFS Cluster - Captain's log
 
+## 20170302 | @hsanjuan
+
+IPFS cluster now has basic peer monitoring and re-pinning support when a cluster peer goes down.
+
+This is done by broadcasting a "ping" from each peer to the monitor component. When it detects no pings are arriving from a current cluster member, it triggers an alert, which makes cluster trigger re-pins for all the CIDs associated to that peer.
+
+The next days will be spent fixing small things and figuring out how to get better tests as part of the [Test Lab Sprint](https://github.com/ipfs/pm/issues/354). I also plan to make a call for early testers, to see if we can get some people on board to try IPFS Cluster out.
+
 ## 20170215 | @hsanjuan
 
 A global replication factor is now supported! A new configuration file option `replication_factor` allows to specify how many peers should be allocated to pin a CID. `-1` means "Pin everywhere", and maintains compatibility with the previous behaviour. A replication factor >= 1 pin request is subjec to a number of requirements:
