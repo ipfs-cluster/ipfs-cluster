@@ -34,7 +34,9 @@ var (
 // RESTAPI implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
 type RESTAPI struct {
-	ctx        context.Context
+	ctx    context.Context
+	cancel func()
+
 	apiAddr    ma.Multiaddr
 	listenAddr string
 	listenPort int
@@ -73,8 +75,6 @@ func (e errorResp) Error() string {
 // NewRESTAPI creates a new object which is ready to be
 // started.
 func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
-	ctx := context.Background()
-
 	listenAddr, err := cfg.APIAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
@@ -103,8 +103,11 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	api := &RESTAPI{
 		ctx:        ctx,
+		cancel:     cancel,
 		apiAddr:    cfg.APIAddr,
 		listenAddr: listenAddr,
 		listenPort: listenPort,
@@ -217,10 +220,6 @@ func (rest *RESTAPI) run() {
 	rest.wg.Add(1)
 	go func() {
 		defer rest.wg.Done()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		rest.ctx = ctx
-
 		<-rest.rpcReady
 
 		logger.Infof("REST API: %s", rest.apiAddr)
@@ -243,6 +242,7 @@ func (rest *RESTAPI) Shutdown() error {
 
 	logger.Info("stopping Cluster API")
 
+	rest.cancel()
 	close(rest.rpcReady)
 	// Cancel any outstanding ops
 	rest.server.SetKeepAlivesEnabled(false)

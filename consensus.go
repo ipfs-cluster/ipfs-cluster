@@ -28,7 +28,8 @@ var CommitRetries = 2
 // the peers of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
 type Consensus struct {
-	ctx context.Context
+	ctx    context.Context
+	cancel func()
 
 	host host.Host
 
@@ -43,15 +44,12 @@ type Consensus struct {
 
 	shutdownLock sync.Mutex
 	shutdown     bool
-	shutdownCh   chan struct{}
-	wg           sync.WaitGroup
 }
 
 // NewConsensus builds a new ClusterConsensus component. The state
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
 func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, state State) (*Consensus, error) {
-	ctx := context.Background()
 	op := &LogOp{
 		ctx: context.Background(),
 	}
@@ -65,34 +63,23 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, sta
 	actor := libp2praft.NewActor(raft.raft)
 	consensus.SetActor(actor)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	op.ctx = ctx
+
 	cc := &Consensus{
-		ctx:        ctx,
-		host:       host,
-		consensus:  consensus,
-		actor:      actor,
-		baseOp:     op,
-		raft:       raft,
-		shutdownCh: make(chan struct{}, 1),
-		rpcReady:   make(chan struct{}, 1),
-		readyCh:    make(chan struct{}, 1),
+		ctx:       ctx,
+		cancel:    cancel,
+		host:      host,
+		consensus: consensus,
+		actor:     actor,
+		baseOp:    op,
+		raft:      raft,
+		rpcReady:  make(chan struct{}, 1),
+		readyCh:   make(chan struct{}, 1),
 	}
 
-	cc.run()
+	go cc.finishBootstrap()
 	return cc, nil
-}
-
-func (cc *Consensus) run() {
-	cc.wg.Add(1)
-	go func() {
-		defer cc.wg.Done()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		cc.ctx = ctx
-		cc.baseOp.ctx = ctx
-
-		go cc.finishBootstrap()
-		<-cc.shutdownCh
-	}()
 }
 
 // WaitForSync waits for a leader and for the state to be up to date, then returns.
@@ -162,8 +149,8 @@ func (cc *Consensus) Shutdown() error {
 
 	logger.Info("stopping Consensus component")
 
+	cc.cancel()
 	close(cc.rpcReady)
-	cc.shutdownCh <- struct{}{}
 
 	// Raft shutdown
 	errMsgs := ""
@@ -181,7 +168,6 @@ func (cc *Consensus) Shutdown() error {
 		logger.Error(errMsgs)
 		return errors.New(errMsgs)
 	}
-	cc.wg.Wait()
 	cc.shutdown = true
 	return nil
 }

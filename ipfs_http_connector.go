@@ -43,7 +43,9 @@ var (
 // On the other side, it is used to perform on-demand requests
 // against the configured IPFS daemom (such as a pin request).
 type IPFSHTTPConnector struct {
-	ctx        context.Context
+	ctx    context.Context
+	cancel func()
+
 	nodeAddr   ma.Multiaddr
 	proxyAddr  ma.Multiaddr
 	destHost   string
@@ -87,7 +89,6 @@ type ipfsIDResp struct {
 
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
 func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
-	ctx := context.Background()
 	destHost, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
@@ -129,8 +130,11 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	ipfs := &IPFSHTTPConnector{
 		ctx:       ctx,
+		cancel:    cancel,
 		nodeAddr:  cfg.IPFSNodeAddr,
 		proxyAddr: cfg.IPFSProxyAddr,
 
@@ -159,10 +163,6 @@ func (ipfs *IPFSHTTPConnector) run() {
 	ipfs.wg.Add(1)
 	go func() {
 		defer ipfs.wg.Done()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		ipfs.ctx = ctx
-
 		<-ipfs.rpcReady
 
 		logger.Infof("IPFS Proxy: %s -> %s",
@@ -335,6 +335,7 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 
 	logger.Info("stopping IPFS Proxy")
 
+	ipfs.cancel()
 	close(ipfs.rpcReady)
 	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.listener.Close()
