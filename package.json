@@ -15,15 +15,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmdzDdLZ7nj133QvNHypyS9Y39g35bMFk5DJ2pmX7YqtKU",
+      "hash": "QmSNJRX4uphb3Eyp69uYbpRVvgqjPxfjnJmjcdMWkDH5Pn",
       "name": "go-libp2p",
-      "version": "4.3.5"
+      "version": "4.3.9"
     },
     {
       "author": "hsanjuan",
-      "hash": "Qmaa72hUXzB6KtnZfbtsswsUHnXMLDYoFpW3j6Kxz26sD1",
+      "hash": "QmW92B7boZiW7qBEUE2aT8vi3WNLWpk6on4mxg1CpEzLpB",
       "name": "go-libp2p-raft",
-      "version": "1.0.3"
+      "version": "1.0.4"
     },
     {
       "author": "whyrusleeping",
@@ -51,12 +51,12 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmWMLhT1dRRxeP7bg13q5PjWQ2uyCWK37hPbWG3v2KEySZ",
+      "hash": "QmYqnvVzUjjVddWPLGMAErUjNBqnyjoeeCgZUZFsAJeGHr",
       "name": "go-libp2p-gorpc",
-      "version": "1.0.0"
+      "version": "1.0.1"
     }
   ],
-  "gxVersion": "0.10.0",
+  "gxVersion": "0.11.0",
   "language": "go",
   "license": "MIT",
   "name": "ipfs-cluster",
