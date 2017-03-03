@@ -61,11 +61,11 @@ This will install `ipfs-cluster-service` and `ipfs-cluster-ctl` in your `$GOPATH
 
 ### `ipfs-cluster-service`
 
-For information on how to configure and launch an IPFS Cluster peer see the [`ipfs-cluster-service` README](ipfs-cluster-service/README.md).
+For information on how to configure and launch an IPFS Cluster peer see the [`ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md).
 
 ### `ipfs-cluster-ctl`
 
-For information on how to manage and perform operations on an IPFS Cluster peer see the [`ipfs-cluster-ctl` README](ipfs-cluster-ctl/README.md).
+For information on how to manage and perform operations on an IPFS Cluster peer see the [`ipfs-cluster-ctl` README](ipfs-cluster-ctl/dist/README.md).
 
 ### Go
 
