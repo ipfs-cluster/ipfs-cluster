@@ -142,7 +142,7 @@ type JSONConfig struct {
 
 	// Number of seconds between monitoring checks which detect
 	// if a peer is down and consenquently trigger a rebalance
-	MonitoringIntervalSeconds int `json:"monitoring_interval"`
+	MonitoringIntervalSeconds int `json:"monitoring_interval_seconds"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
