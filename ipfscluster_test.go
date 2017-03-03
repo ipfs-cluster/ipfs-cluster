@@ -802,7 +802,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	// Let some metrics arrive
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
