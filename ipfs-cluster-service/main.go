@@ -8,6 +8,8 @@ import (
 	"os/user"
 	"path/filepath"
 
+	//	_ "net/http/pprof"
+
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli"
@@ -127,6 +129,10 @@ func checkErr(doing string, err error) {
 }
 
 func main() {
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
+
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "IPFS Cluster node"
@@ -263,7 +269,8 @@ func run(c *cli.Context) error {
 			checkErr("shutting down cluster", err)
 		case <-cluster.Done():
 			return nil
-		case <-cluster.Ready():
+
+			//case <-cluster.Ready():
 		}
 	}
 }
