@@ -107,7 +107,7 @@ func textFormatPrintVersion(obj *api.Version) {
 
 func textFormatPrintPin(obj *api.PinSerial) {
 	fmt.Printf("%s | Allocations: ", obj.Cid)
-	if obj.Everywhere {
+	if obj.ReplicationFactor < 0 {
 		fmt.Printf("[everywhere]\n")
 	} else {
 		fmt.Printf("%s\n", obj.Allocations)

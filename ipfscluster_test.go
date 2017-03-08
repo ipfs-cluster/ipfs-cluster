@@ -267,12 +267,12 @@ func TestClustersPin(t *testing.T) {
 		j := rand.Intn(nClusters)           // choose a random cluster peer
 		h, err := prefix.Sum(randomBytes()) // create random cid
 		checkErr(t, err)
-		err = clusters[j].Pin(h)
+		err = clusters[j].Pin(api.PinCid(h))
 		if err != nil {
 			t.Errorf("error pinning %s: %s", h, err)
 		}
 		// Test re-pin
-		err = clusters[j].Pin(h)
+		err = clusters[j].Pin(api.PinCid(h))
 		if err != nil {
 			t.Errorf("error repinning %s: %s", h, err)
 		}
@@ -325,7 +325,7 @@ func TestClustersStatusAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(h)
+	clusters[0].Pin(api.PinCid(h))
 	delay()
 	// Global status
 	f := func(t *testing.T, c *Cluster) {
@@ -370,8 +370,8 @@ func TestClustersSyncAllLocal(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(h)
-	clusters[0].Pin(h2)
+	clusters[0].Pin(api.PinCid(h))
+	clusters[0].Pin(api.PinCid(h2))
 	delay()
 	f := func(t *testing.T, c *Cluster) {
 		// Sync bad ID
@@ -398,8 +398,8 @@ func TestClustersSyncLocal(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(h)
-	clusters[0].Pin(h2)
+	clusters[0].Pin(api.PinCid(h))
+	clusters[0].Pin(api.PinCid(h2))
 	delay()
 
 	f := func(t *testing.T, c *Cluster) {
@@ -429,8 +429,8 @@ func TestClustersSyncAll(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(h)
-	clusters[0].Pin(h2)
+	clusters[0].Pin(api.PinCid(h))
+	clusters[0].Pin(api.PinCid(h2))
 	delay()
 
 	j := rand.Intn(nClusters) // choose a random cluster peer
@@ -460,8 +460,8 @@ func TestClustersSync(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(h)
-	clusters[0].Pin(h2)
+	clusters[0].Pin(api.PinCid(h))
+	clusters[0].Pin(api.PinCid(h2))
 	delay()
 
 	j := rand.Intn(nClusters)
@@ -521,8 +521,8 @@ func TestClustersRecoverLocal(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(h)
-	clusters[0].Pin(h2)
+	clusters[0].Pin(api.PinCid(h))
+	clusters[0].Pin(api.PinCid(h2))
 
 	delay()
 
@@ -553,8 +553,8 @@ func TestClustersRecover(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(h)
-	clusters[0].Pin(h2)
+	clusters[0].Pin(api.PinCid(h))
+	clusters[0].Pin(api.PinCid(h2))
 
 	delay()
 
@@ -647,7 +647,7 @@ func TestClustersReplication(t *testing.T) {
 		j := rand.Intn(nClusters)           // choose a random cluster peer
 		h, err := prefix.Sum(randomBytes()) // create random cid
 		checkErr(t, err)
-		err = clusters[j].Pin(h)
+		err = clusters[j].Pin(api.PinCid(h))
 		if err != nil {
 			t.Error(err)
 		}
@@ -737,7 +737,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
-	err := clusters[j].Pin(h)
+	err := clusters[j].Pin(api.PinCid(h))
 	if err != nil {
 		t.Error(err)
 	}
@@ -746,7 +746,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	time.Sleep(time.Second / 2)
 
 	// Re-pin should fail as it is allocated already
-	err = clusters[j].Pin(h)
+	err = clusters[j].Pin(api.PinCid(h))
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -767,7 +767,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// now pin should succeed
-	err = clusters[j].Pin(h)
+	err = clusters[j].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -806,7 +806,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
-	err := clusters[j].Pin(h)
+	err := clusters[j].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -836,7 +836,7 @@ loop:
 		}
 	}
 
-	err = clusters[2].Pin(h)
+	err = clusters[2].Pin(api.PinCid(h))
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -862,7 +862,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	time.Sleep(time.Second)
 	// pin something
 	h, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(h)
+	clusters[0].Pin(api.PinCid(h))
 	time.Sleep(time.Second)
 	pinLocal := 0
 	pinRemote := 0

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -56,7 +57,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	}
 
 	h, _ := cid.Decode(test.TestCid1)
-	err := clusters[1].Pin(h)
+	err := clusters[1].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +221,7 @@ func TestClustersPeerJoin(t *testing.T) {
 		}
 	}
 	hash, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(hash)
+	clusters[0].Pin(api.PinCid(hash))
 	delay()
 
 	f := func(t *testing.T, c *Cluster) {
@@ -253,7 +254,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	runF(t, clusters[1:], f)
 
 	hash, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(hash)
+	clusters[0].Pin(api.PinCid(hash))
 	delay()
 
 	f2 := func(t *testing.T, c *Cluster) {
@@ -295,7 +296,7 @@ func TestClustersPeerJoinAllAtOnceWithRandomBootstrap(t *testing.T) {
 	runF(t, clusters[2:], f)
 
 	hash, _ := cid.Decode(test.TestCid1)
-	clusters[0].Pin(hash)
+	clusters[0].Pin(api.PinCid(hash))
 	delay()
 
 	f2 := func(t *testing.T, c *Cluster) {

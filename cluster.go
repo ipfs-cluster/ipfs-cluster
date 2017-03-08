@@ -262,11 +262,6 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			// no point in repinning when pinning everywhere
-			if c.config.ReplicationFactor == -1 {
-				break
-			}
-
 			leader, _ := c.consensus.Leader()
 			// discard while not leaders as our monitor is not
 			// getting metrics in that case
@@ -289,11 +284,11 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 		return
 	}
 	list := cState.List()
-	for _, cidInfo := range list {
-		for _, alloc := range cidInfo.Allocations {
-			if alloc == p {
-				logger.Infof("repinning %s out of %s", cidInfo.Cid, p.Pretty())
-				c.Pin(cidInfo.Cid)
+	for _, pin := range list {
+		for _, alloc := range pin.Allocations {
+			if alloc == p { // found pin allocated to node
+				logger.Infof("repinning %s out of %s", pin.Cid, p.Pretty())
+				c.Pin(pin)
 			}
 		}
 	}
@@ -724,26 +719,24 @@ func (c *Cluster) Pins() []api.Pin {
 // Pin returns an error if the operation could not be persisted
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
-func (c *Cluster) Pin(h *cid.Cid) error {
-	pin := api.Pin{
-		Cid: h,
+func (c *Cluster) Pin(pin api.Pin) error {
+	rpl := pin.ReplicationFactor
+	if rpl == 0 {
+		rpl = c.config.ReplicationFactor
+		pin.ReplicationFactor = rpl
 	}
-
-	rpl := c.config.ReplicationFactor
 	switch {
 	case rpl == 0:
 		return errors.New("replication factor is 0")
 	case rpl < 0:
-		pin.Everywhere = true
-		logger.Infof("IPFS cluster pinning %s everywhere:", h)
-
+		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
 	case rpl > 0:
-		allocs, err := c.allocate(h)
+		allocs, err := c.allocate(pin.Cid, pin.ReplicationFactor)
 		if err != nil {
 			return err
 		}
 		pin.Allocations = allocs
-		logger.Infof("IPFS cluster pinning %s on %s:", h, pin.Allocations)
+		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 
 	}
 
@@ -969,8 +962,8 @@ func (c *Cluster) getIDForPeer(pid peer.ID) (api.ID, error) {
 
 // allocate finds peers to allocate a hash using the informer and the monitor
 // it should only be used with a positive replication factor
-func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
-	if c.config.ReplicationFactor <= 0 {
+func (c *Cluster) allocate(hash *cid.Cid, repl int) ([]peer.ID, error) {
+	if repl <= 0 {
 		return nil, errors.New("cannot decide allocation for replication factor <= 0")
 	}
 
@@ -1040,7 +1033,7 @@ func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
 
 	// how many allocations do we need (note we will re-allocate if we did
 	// not receive good metrics for currently allocated peeers)
-	needed := c.config.ReplicationFactor - len(currentlyAllocatedPeersMetrics)
+	needed := repl - len(currentlyAllocatedPeersMetrics)
 
 	// if we are already good (note invalid metrics would trigger
 	// re-allocations as they are not included in currentAllocMetrics)

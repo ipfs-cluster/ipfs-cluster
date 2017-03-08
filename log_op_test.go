@@ -37,7 +37,7 @@ func TestApplyToUnpin(t *testing.T) {
 
 	st := mapstate.NewMapState()
 	c, _ := cid.Decode(test.TestCid1)
-	st.Add(api.Pin{Cid: c, Everywhere: true})
+	st.Add(api.Pin{Cid: c, ReplicationFactor: -1})
 	op.ApplyTo(st)
 	pins := st.List()
 	if len(pins) != 0 {

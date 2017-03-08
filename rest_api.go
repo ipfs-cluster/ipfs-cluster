@@ -421,12 +421,24 @@ func (rest *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
 func parseCidOrError(w http.ResponseWriter, r *http.Request) api.PinSerial {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
+
 	_, err := cid.Decode(hash)
 	if err != nil {
 		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
 		return api.PinSerial{Cid: ""}
 	}
-	return api.PinSerial{Cid: hash}
+
+	pin := api.PinSerial{
+		Cid: hash,
+	}
+
+	queryValues := r.URL.Query()
+	rplStr := queryValues.Get("replication_factor")
+	if rpl, err := strconv.Atoi(rplStr); err == nil {
+		pin.ReplicationFactor = rpl
+	}
+
+	return pin
 }
 
 func parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {

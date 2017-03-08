@@ -337,7 +337,6 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 type Pin struct {
 	Cid               *cid.Cid
 	Allocations       []peer.ID
-	Everywhere        bool
 	ReplicationFactor int
 }
 
@@ -350,9 +349,10 @@ func PinCid(c *cid.Cid) Pin {
 
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
-	Cid         string   `json:"cid"`
-	Allocations []string `json:"allocations"`
-	Everywhere  bool     `json:"everywhere"`
+	Cid               string   `json:"cid"`
+	Allocations       []string `json:"allocations"`
+	Everywhere        bool     `json:"everywhere,omitempty"` // legacy
+	ReplicationFactor int      `json:"replication_factor"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -364,9 +364,9 @@ func (pin Pin) ToSerial() PinSerial {
 	}
 
 	return PinSerial{
-		Cid:         pin.Cid.String(),
-		Allocations: allocs,
-		Everywhere:  pin.Everywhere,
+		Cid:               pin.Cid.String(),
+		Allocations:       allocs,
+		ReplicationFactor: pin.ReplicationFactor,
 	}
 }
 
@@ -378,10 +378,16 @@ func (pins PinSerial) ToPin() Pin {
 	for i, p := range pins.Allocations {
 		allocs[i], _ = peer.IDB58Decode(p)
 	}
+
+	// legacy format management
+	if pins.ReplicationFactor == 0 && pins.Everywhere {
+		pins.ReplicationFactor = -1
+	}
+
 	return Pin{
-		Cid:         c,
-		Allocations: allocs,
-		Everywhere:  pins.Everywhere,
+		Cid:               c,
+		Allocations:       allocs,
+		ReplicationFactor: pins.ReplicationFactor,
 	}
 }
 

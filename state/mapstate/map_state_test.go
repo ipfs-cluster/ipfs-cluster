@@ -13,9 +13,9 @@ var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 
 var c = api.Pin{
-	Cid:         testCid1,
-	Allocations: []peer.ID{testPeerID1},
-	Everywhere:  false,
+	Cid:               testCid1,
+	Allocations:       []peer.ID{testPeerID1},
+	ReplicationFactor: -1,
 }
 
 func TestAdd(t *testing.T) {
@@ -46,7 +46,7 @@ func TestGet(t *testing.T) {
 	get := ms.Get(c.Cid)
 	if get.Cid.String() != c.Cid.String() ||
 		get.Allocations[0] != c.Allocations[0] ||
-		get.Everywhere != c.Everywhere {
+		get.ReplicationFactor != c.ReplicationFactor {
 		t.Error("returned something different")
 	}
 }
@@ -62,7 +62,7 @@ func TestList(t *testing.T) {
 	list := ms.List()
 	if list[0].Cid.String() != c.Cid.String() ||
 		list[0].Allocations[0] != c.Allocations[0] ||
-		list[0].Everywhere != c.Everywhere {
+		list[0].ReplicationFactor != c.ReplicationFactor {
 		t.Error("returned something different")
 	}
 }

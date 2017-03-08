@@ -32,8 +32,7 @@ func (rpcapi *RPCAPI) ID(in struct{}, out *api.IDSerial) error {
 
 // Pin runs Cluster.Pin().
 func (rpcapi *RPCAPI) Pin(in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
-	return rpcapi.c.Pin(c)
+	return rpcapi.c.Pin(in.ToPin())
 }
 
 // Unpin runs Cluster.Unpin().
