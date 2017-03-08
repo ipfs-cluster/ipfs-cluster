@@ -133,20 +133,20 @@ func TestMultiaddrConv(t *testing.T) {
 	}
 }
 
-func TestCidArgConv(t *testing.T) {
+func TestPinConv(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatal("paniced")
 		}
 	}()
 
-	c := CidArg{
+	c := Pin{
 		Cid:         testCid1,
 		Allocations: []peer.ID{testPeerID1},
 		Everywhere:  true,
 	}
 
-	newc := c.ToSerial().ToCidArg()
+	newc := c.ToSerial().ToPin()
 	if c.Cid.String() != newc.Cid.String() ||
 		c.Allocations[0] != newc.Allocations[0] ||
 		c.Everywhere != newc.Everywhere {

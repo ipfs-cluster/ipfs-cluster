@@ -187,9 +187,9 @@ func (cc *Consensus) Ready() <-chan struct{} {
 
 func (cc *Consensus) op(argi interface{}, t LogOpType) *LogOp {
 	switch argi.(type) {
-	case api.CidArg:
+	case api.Pin:
 		return &LogOp{
-			Cid:  argi.(api.CidArg).ToSerial(),
+			Cid:  argi.(api.Pin).ToSerial(),
 			Type: t,
 		}
 	case ma.Multiaddr:
@@ -226,12 +226,12 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 	return true, err
 }
 
-func (cc *Consensus) logOpCid(rpcOp string, opType LogOpType, carg api.CidArg) error {
+func (cc *Consensus) logOpCid(rpcOp string, opType LogOpType, pin api.Pin) error {
 	var finalErr error
 	for i := 0; i < CommitRetries; i++ {
 		logger.Debugf("Try %d", i)
 		redirected, err := cc.redirectToLeader(
-			rpcOp, carg.ToSerial())
+			rpcOp, pin.ToSerial())
 		if err != nil {
 			finalErr = err
 			continue
@@ -243,7 +243,7 @@ func (cc *Consensus) logOpCid(rpcOp string, opType LogOpType, carg api.CidArg) e
 
 		// It seems WE are the leader.
 
-		op := cc.op(carg, opType)
+		op := cc.op(pin, opType)
 		_, err = cc.consensus.CommitOp(op)
 		if err != nil {
 			// This means the op did not make it to the log
@@ -260,21 +260,21 @@ func (cc *Consensus) logOpCid(rpcOp string, opType LogOpType, carg api.CidArg) e
 
 	switch opType {
 	case LogOpPin:
-		logger.Infof("pin committed to global state: %s", carg.Cid)
+		logger.Infof("pin committed to global state: %s", pin.Cid)
 	case LogOpUnpin:
-		logger.Infof("unpin committed to global state: %s", carg.Cid)
+		logger.Infof("unpin committed to global state: %s", pin.Cid)
 	}
 	return nil
 }
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
-func (cc *Consensus) LogPin(c api.CidArg) error {
+func (cc *Consensus) LogPin(c api.Pin) error {
 	return cc.logOpCid("ConsensusLogPin", LogOpPin, c)
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) LogUnpin(c api.CidArg) error {
+func (cc *Consensus) LogUnpin(c api.Pin) error {
 	return cc.logOpCid("ConsensusLogUnpin", LogOpUnpin, c)
 }
 

@@ -190,7 +190,7 @@ func TestRESTAPIPinListEndpoint(t *testing.T) {
 	rest := testRESTAPI(t)
 	defer rest.Shutdown()
 
-	var resp []api.CidArgSerial
+	var resp []api.PinSerial
 	makeGet(t, "/pinlist", &resp)
 	if len(resp) != 3 ||
 		resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||

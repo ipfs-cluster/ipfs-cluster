@@ -13,7 +13,7 @@ import (
 
 func TestApplyToPin(t *testing.T) {
 	op := &LogOp{
-		Cid:       api.CidArgSerial{Cid: test.TestCid1},
+		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpPin,
 		ctx:       context.Background(),
 		rpcClient: test.NewMockRPCClient(t),
@@ -29,7 +29,7 @@ func TestApplyToPin(t *testing.T) {
 
 func TestApplyToUnpin(t *testing.T) {
 	op := &LogOp{
-		Cid:       api.CidArgSerial{Cid: test.TestCid1},
+		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpUnpin,
 		ctx:       context.Background(),
 		rpcClient: test.NewMockRPCClient(t),
@@ -37,7 +37,7 @@ func TestApplyToUnpin(t *testing.T) {
 
 	st := mapstate.NewMapState()
 	c, _ := cid.Decode(test.TestCid1)
-	st.Add(api.CidArg{Cid: c, Everywhere: true})
+	st.Add(api.Pin{Cid: c, Everywhere: true})
 	op.ApplyTo(st)
 	pins := st.List()
 	if len(pins) != 0 {
@@ -53,7 +53,7 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &LogOp{
-		Cid:       api.CidArgSerial{Cid: test.TestCid1},
+		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpUnpin,
 		ctx:       context.Background(),
 		rpcClient: test.NewMockRPCClient(t),
@@ -71,7 +71,7 @@ func TestApplyToBadState(t *testing.T) {
 // 	}()
 
 // 	op := &LogOp{
-// 		Cid:       api.CidArgSerial{Cid: "agadfaegf"},
+// 		Cid:       api.PinSerial{Cid: "agadfaegf"},
 // 		Type:      LogOpPin,
 // 		ctx:       context.Background(),
 // 		rpcClient: test.NewMockRPCClient(t),

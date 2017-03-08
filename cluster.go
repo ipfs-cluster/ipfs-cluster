@@ -616,10 +616,10 @@ func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 	var changed []*cid.Cid
 
 	// Track items which are not tracked
-	for _, carg := range clusterPins {
-		if c.tracker.Status(carg.Cid).Status == api.TrackerStatusUnpinned {
-			changed = append(changed, carg.Cid)
-			go c.tracker.Track(carg)
+	for _, pin := range clusterPins {
+		if c.tracker.Status(pin.Cid).Status == api.TrackerStatusUnpinned {
+			changed = append(changed, pin.Cid)
+			go c.tracker.Track(pin)
 		}
 	}
 
@@ -706,11 +706,11 @@ func (c *Cluster) Recover(h *cid.Cid) (api.GlobalPinInfo, error) {
 // Pins returns the list of Cids managed by Cluster and which are part
 // of the current global state. This is the source of truth as to which
 // pins are managed, but does not indicate if the item is successfully pinned.
-func (c *Cluster) Pins() []api.CidArg {
+func (c *Cluster) Pins() []api.Pin {
 	cState, err := c.consensus.State()
 	if err != nil {
 		logger.Error(err)
-		return []api.CidArg{}
+		return []api.Pin{}
 	}
 
 	return cState.List()
@@ -725,7 +725,7 @@ func (c *Cluster) Pins() []api.CidArg {
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(h *cid.Cid) error {
-	cidArg := api.CidArg{
+	pin := api.Pin{
 		Cid: h,
 	}
 
@@ -734,7 +734,7 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 	case rpl == 0:
 		return errors.New("replication factor is 0")
 	case rpl < 0:
-		cidArg.Everywhere = true
+		pin.Everywhere = true
 		logger.Infof("IPFS cluster pinning %s everywhere:", h)
 
 	case rpl > 0:
@@ -742,12 +742,12 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 		if err != nil {
 			return err
 		}
-		cidArg.Allocations = allocs
-		logger.Infof("IPFS cluster pinning %s on %s:", h, cidArg.Allocations)
+		pin.Allocations = allocs
+		logger.Infof("IPFS cluster pinning %s on %s:", h, pin.Allocations)
 
 	}
 
-	err := c.consensus.LogPin(cidArg)
+	err := c.consensus.LogPin(pin)
 	if err != nil {
 		return err
 	}
@@ -763,11 +763,11 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("IPFS cluster unpinning:", h)
 
-	carg := api.CidArg{
+	pin := api.Pin{
 		Cid: h,
 	}
 
-	err := c.consensus.LogUnpin(carg)
+	err := c.consensus.LogUnpin(pin)
 	if err != nil {
 		return err
 	}
@@ -865,7 +865,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo
 
 	members := c.peerManager.peers()
 	replies := make([]api.PinInfoSerial, len(members), len(members))
-	arg := api.CidArg{
+	arg := api.Pin{
 		Cid: h,
 	}
 	errs := c.multiRPC(members,
@@ -982,8 +982,8 @@ func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
 		// problem, we would fail to commit anyway.
 		currentlyAllocatedPeers = []peer.ID{}
 	} else {
-		carg := st.Get(hash)
-		currentlyAllocatedPeers = carg.Allocations
+		pin := st.Get(hash)
+		currentlyAllocatedPeers = pin.Allocations
 	}
 
 	// initialize a candidate metrics map with all current clusterPeers

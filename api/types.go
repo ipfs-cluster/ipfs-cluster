@@ -332,55 +332,56 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 	return addrs
 }
 
-// CidArg is an arguments that carry a Cid. It may carry more things in the
+// Pin is an argument that carries a Cid. It may carry more things in the
 // future.
-type CidArg struct {
-	Cid         *cid.Cid
-	Allocations []peer.ID
-	Everywhere  bool
+type Pin struct {
+	Cid               *cid.Cid
+	Allocations       []peer.ID
+	Everywhere        bool
+	ReplicationFactor int
 }
 
-// CidArgCid is a shorcut to create a CidArg only with a Cid.
-func CidArgCid(c *cid.Cid) CidArg {
-	return CidArg{
+// PinCid is a shorcut to create a Pin only with a Cid.
+func PinCid(c *cid.Cid) Pin {
+	return Pin{
 		Cid: c,
 	}
 }
 
-// CidArgSerial is a serializable version of CidArg
-type CidArgSerial struct {
+// PinSerial is a serializable version of Pin
+type PinSerial struct {
 	Cid         string   `json:"cid"`
 	Allocations []string `json:"allocations"`
 	Everywhere  bool     `json:"everywhere"`
 }
 
-// ToSerial converts a CidArg to CidArgSerial.
-func (carg CidArg) ToSerial() CidArgSerial {
-	lenAllocs := len(carg.Allocations)
+// ToSerial converts a Pin to PinSerial.
+func (pin Pin) ToSerial() PinSerial {
+	lenAllocs := len(pin.Allocations)
 	allocs := make([]string, lenAllocs, lenAllocs)
-	for i, p := range carg.Allocations {
+	for i, p := range pin.Allocations {
 		allocs[i] = peer.IDB58Encode(p)
 	}
 
-	return CidArgSerial{
-		Cid:         carg.Cid.String(),
+	return PinSerial{
+		Cid:         pin.Cid.String(),
 		Allocations: allocs,
-		Everywhere:  carg.Everywhere,
+		Everywhere:  pin.Everywhere,
 	}
 }
 
-// ToCidArg converts a CidArgSerial to its native form.
-func (cargs CidArgSerial) ToCidArg() CidArg {
-	c, _ := cid.Decode(cargs.Cid)
-	lenAllocs := len(cargs.Allocations)
+// ToPin converts a PinSerial to its native form.
+func (pins PinSerial) ToPin() Pin {
+	c, _ := cid.Decode(pins.Cid)
+	lenAllocs := len(pins.Allocations)
 	allocs := make([]peer.ID, lenAllocs, lenAllocs)
-	for i, p := range cargs.Allocations {
+	for i, p := range pins.Allocations {
 		allocs[i], _ = peer.IDB58Decode(p)
 	}
-	return CidArg{
+	return Pin{
 		Cid:         c,
 		Allocations: allocs,
-		Everywhere:  cargs.Everywhere,
+		Everywhere:  pins.Everywhere,
 	}
 }
 

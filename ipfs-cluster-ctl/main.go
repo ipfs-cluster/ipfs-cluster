@@ -267,7 +267,7 @@ any monitoring information about the
 merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
-					Flags: []cli.Flag{parseFlag(formatCidArg)},
+					Flags: []cli.Flag{parseFlag(formatPin)},
 					Action: func(c *cli.Context) error {
 						resp := request("GET", "/pinlist", nil)
 						formatResponse(c, resp)

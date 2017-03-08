@@ -12,7 +12,7 @@ import (
 var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 
-var c = api.CidArg{
+var c = api.Pin{
 	Cid:         testCid1,
 	Allocations: []peer.ID{testPeerID1},
 	Everywhere:  false,
