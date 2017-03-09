@@ -1020,7 +1020,9 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int) ([]peer.ID, error) {
 	}
 
 	// Move metrics from currentlyAllocatedPeers to a new map
+	// and record which peers have valid allocations
 	currentlyAllocatedPeersMetrics := make(map[peer.ID]api.Metric)
+	validAllocations := make([]peer.ID, 0)
 	for _, p := range currentlyAllocatedPeers {
 		m, ok := metricsMap[p]
 		if !ok {
@@ -1028,33 +1030,41 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int) ([]peer.ID, error) {
 		}
 		currentlyAllocatedPeersMetrics[p] = m
 		delete(metricsMap, p)
+		validAllocations = append(validAllocations, p)
 
 	}
 
 	// how many allocations do we need (note we will re-allocate if we did
 	// not receive good metrics for currently allocated peeers)
-	needed := repl - len(currentlyAllocatedPeersMetrics)
+	needed := repl - len(validAllocations)
 
-	// if we are already good (note invalid metrics would trigger
-	// re-allocations as they are not included in currentAllocMetrics)
-	if needed <= 0 {
-		return nil, fmt.Errorf("CID is already correctly allocated to %s", currentlyAllocatedPeers)
+	logger.Debugf("allocate: Valid allocations: %s", validAllocations)
+	logger.Debugf("allocate: Needed: %d", needed)
+
+	// If needed == 0, we don't need anything. If needed < 0, we are
+	// reducing the replication factor
+	switch {
+	// set the allocations to the needed ones
+	case needed <= 0:
+		return validAllocations[0 : len(validAllocations)+needed], nil
+	default:
+		// Allocate is called with currentAllocMetrics which contains
+		// only currentlyAllocatedPeers when they have provided valid metrics.
+		candidateAllocs, err := c.allocator.Allocate(hash, currentlyAllocatedPeersMetrics, metricsMap)
+		if err != nil {
+			return nil, logError(err.Error())
+		}
+
+		logger.Debugf("allocate: candidate allocations: %s", candidateAllocs)
+
+		// we don't have enough peers to pin
+		if len(candidateAllocs) < needed {
+			err = logError("cannot find enough allocations for this CID: needed: %d. Got: %s",
+				needed, candidateAllocs)
+			return nil, err
+		}
+
+		// the new allocations = the valid ones we had + the needed ones
+		return append(validAllocations, candidateAllocs[0:needed]...), nil
 	}
-
-	// Allocate is called with currentAllocMetrics which contains
-	// only currentlyAllocatedPeers when they have provided valid metrics.
-	candidateAllocs, err := c.allocator.Allocate(hash, currentlyAllocatedPeersMetrics, metricsMap)
-	if err != nil {
-		return nil, logError(err.Error())
-	}
-
-	// we don't have enough peers to pin
-	if len(candidateAllocs) < needed {
-		err = logError("cannot find enough allocations for this CID: needed: %d. Got: %s",
-			needed, candidateAllocs)
-		return nil, err
-	}
-
-	// return as many as needed
-	return candidateAllocs[0:needed], nil
 }
