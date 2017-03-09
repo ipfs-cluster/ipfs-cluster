@@ -262,11 +262,6 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			// no point in repinning when pinning everywhere
-			if c.config.ReplicationFactor == -1 {
-				break
-			}
-
 			leader, _ := c.consensus.Leader()
 			// discard while not leaders as our monitor is not
 			// getting metrics in that case
@@ -289,11 +284,11 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 		return
 	}
 	list := cState.List()
-	for _, cidInfo := range list {
-		for _, alloc := range cidInfo.Allocations {
-			if alloc == p {
-				logger.Infof("repinning %s out of %s", cidInfo.Cid, p.Pretty())
-				c.Pin(cidInfo.Cid)
+	for _, pin := range list {
+		for _, alloc := range pin.Allocations {
+			if alloc == p { // found pin allocated to node
+				logger.Infof("repinning %s out of %s", pin.Cid, p.Pretty())
+				c.Pin(pin)
 			}
 		}
 	}
@@ -616,10 +611,10 @@ func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 	var changed []*cid.Cid
 
 	// Track items which are not tracked
-	for _, carg := range clusterPins {
-		if c.tracker.Status(carg.Cid).Status == api.TrackerStatusUnpinned {
-			changed = append(changed, carg.Cid)
-			go c.tracker.Track(carg)
+	for _, pin := range clusterPins {
+		if c.tracker.Status(pin.Cid).Status == api.TrackerStatusUnpinned {
+			changed = append(changed, pin.Cid)
+			go c.tracker.Track(pin)
 		}
 	}
 
@@ -706,11 +701,11 @@ func (c *Cluster) Recover(h *cid.Cid) (api.GlobalPinInfo, error) {
 // Pins returns the list of Cids managed by Cluster and which are part
 // of the current global state. This is the source of truth as to which
 // pins are managed, but does not indicate if the item is successfully pinned.
-func (c *Cluster) Pins() []api.CidArg {
+func (c *Cluster) Pins() []api.Pin {
 	cState, err := c.consensus.State()
 	if err != nil {
 		logger.Error(err)
-		return []api.CidArg{}
+		return []api.Pin{}
 	}
 
 	return cState.List()
@@ -724,30 +719,28 @@ func (c *Cluster) Pins() []api.CidArg {
 // Pin returns an error if the operation could not be persisted
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
-func (c *Cluster) Pin(h *cid.Cid) error {
-	cidArg := api.CidArg{
-		Cid: h,
+func (c *Cluster) Pin(pin api.Pin) error {
+	rpl := pin.ReplicationFactor
+	if rpl == 0 {
+		rpl = c.config.ReplicationFactor
+		pin.ReplicationFactor = rpl
 	}
-
-	rpl := c.config.ReplicationFactor
 	switch {
 	case rpl == 0:
 		return errors.New("replication factor is 0")
 	case rpl < 0:
-		cidArg.Everywhere = true
-		logger.Infof("IPFS cluster pinning %s everywhere:", h)
-
+		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
 	case rpl > 0:
-		allocs, err := c.allocate(h)
+		allocs, err := c.allocate(pin.Cid, pin.ReplicationFactor)
 		if err != nil {
 			return err
 		}
-		cidArg.Allocations = allocs
-		logger.Infof("IPFS cluster pinning %s on %s:", h, cidArg.Allocations)
+		pin.Allocations = allocs
+		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 
 	}
 
-	err := c.consensus.LogPin(cidArg)
+	err := c.consensus.LogPin(pin)
 	if err != nil {
 		return err
 	}
@@ -763,11 +756,11 @@ func (c *Cluster) Pin(h *cid.Cid) error {
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("IPFS cluster unpinning:", h)
 
-	carg := api.CidArg{
+	pin := api.Pin{
 		Cid: h,
 	}
 
-	err := c.consensus.LogUnpin(carg)
+	err := c.consensus.LogUnpin(pin)
 	if err != nil {
 		return err
 	}
@@ -865,7 +858,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo
 
 	members := c.peerManager.peers()
 	replies := make([]api.PinInfoSerial, len(members), len(members))
-	arg := api.CidArg{
+	arg := api.Pin{
 		Cid: h,
 	}
 	errs := c.multiRPC(members,
@@ -969,8 +962,8 @@ func (c *Cluster) getIDForPeer(pid peer.ID) (api.ID, error) {
 
 // allocate finds peers to allocate a hash using the informer and the monitor
 // it should only be used with a positive replication factor
-func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
-	if c.config.ReplicationFactor <= 0 {
+func (c *Cluster) allocate(hash *cid.Cid, repl int) ([]peer.ID, error) {
+	if repl <= 0 {
 		return nil, errors.New("cannot decide allocation for replication factor <= 0")
 	}
 
@@ -982,8 +975,8 @@ func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
 		// problem, we would fail to commit anyway.
 		currentlyAllocatedPeers = []peer.ID{}
 	} else {
-		carg := st.Get(hash)
-		currentlyAllocatedPeers = carg.Allocations
+		pin := st.Get(hash)
+		currentlyAllocatedPeers = pin.Allocations
 	}
 
 	// initialize a candidate metrics map with all current clusterPeers
@@ -1040,7 +1033,7 @@ func (c *Cluster) allocate(hash *cid.Cid) ([]peer.ID, error) {
 
 	// how many allocations do we need (note we will re-allocate if we did
 	// not receive good metrics for currently allocated peeers)
-	needed := c.config.ReplicationFactor - len(currentlyAllocatedPeersMetrics)
+	needed := repl - len(currentlyAllocatedPeersMetrics)
 
 	// if we are already good (note invalid metrics would trigger
 	// re-allocations as they are not included in currentAllocMetrics)

@@ -14,7 +14,7 @@ const (
 	formatGPInfo
 	formatString
 	formatVersion
-	formatCidArg
+	formatPin
 )
 
 type format int
@@ -46,10 +46,10 @@ func textFormatObject(body []byte, format int) {
 		var obj api.Version
 		textFormatDecodeOn(body, &obj)
 		textFormatPrintVersion(&obj)
-	case formatCidArg:
-		var obj api.CidArgSerial
+	case formatPin:
+		var obj api.PinSerial
 		textFormatDecodeOn(body, &obj)
-		textFormatPrintCidArg(&obj)
+		textFormatPrintPin(&obj)
 	default:
 		var obj interface{}
 		textFormatDecodeOn(body, &obj)
@@ -94,7 +94,7 @@ func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
 	fmt.Printf("%s:\n", obj.Cid)
 	for k, v := range obj.PeerMap {
 		if v.Error != "" {
-			fmt.Printf("  - %s ERROR: %s\n", k, v.Error)
+			fmt.Printf("  > Peer %s: ERROR | %s\n", k, v.Error)
 			continue
 		}
 		fmt.Printf("    > Peer %s: %s | %s\n", k, strings.ToUpper(v.Status), v.TS)
@@ -105,11 +105,11 @@ func textFormatPrintVersion(obj *api.Version) {
 	fmt.Println(obj.Version)
 }
 
-func textFormatPrintCidArg(obj *api.CidArgSerial) {
+func textFormatPrintPin(obj *api.PinSerial) {
 	fmt.Printf("%s | Allocations: ", obj.Cid)
-	if obj.Everywhere {
+	if obj.ReplicationFactor < 0 {
 		fmt.Printf("[everywhere]\n")
 	} else {
-		fmt.Printf("%s", obj.Allocations)
+		fmt.Printf("%s\n", obj.Allocations)
 	}
 }

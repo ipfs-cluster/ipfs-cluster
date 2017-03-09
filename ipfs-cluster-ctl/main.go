@@ -218,14 +218,26 @@ become part of the Cluster's state and will tracked from this point.
 
 When the request has succeeded, the command returns the status of the CID
 in the cluster and should be part of the list offered by "pin ls".
+
+An optional replication factor can be provided: -1 means "pin everywhere"
+and 0 means use cluster's default setting. Positive values indicate how many
+peers should pin this content.
 `,
 					ArgsUsage: "<cid>",
-					Flags:     []cli.Flag{parseFlag(formatGPInfo)},
+					Flags: []cli.Flag{
+						parseFlag(formatGPInfo),
+						cli.IntFlag{
+							Name:  "replication, r",
+							Value: 0,
+							Usage: "Sets a custom replication factor for this pin",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						resp := request("POST", "/pins/"+cidStr, nil)
+						query := fmt.Sprintf("?replication_factor=%d", c.Int("replication"))
+						resp := request("POST", "/pins/"+cidStr+query, nil)
 						formatResponse(c, resp)
 						time.Sleep(500 * time.Millisecond)
 						resp = request("GET", "/pins/"+cidStr, nil)
@@ -263,11 +275,11 @@ although unpinning operations in the cluster may take longer or fail.
 					UsageText: `
 This command will list the CIDs which are tracked by IPFS Cluster and to
 which peers they are currently allocated. This list does not include
-any monitoring information about the 
+any monitoring information about the
 merely represents the list of pins which are part of the global state of
 the cluster. For specific information, use "status".
 `,
-					Flags: []cli.Flag{parseFlag(formatCidArg)},
+					Flags: []cli.Flag{parseFlag(formatPin)},
 					Action: func(c *cli.Context) error {
 						resp := request("GET", "/pinlist", nil)
 						formatResponse(c, resp)
@@ -307,7 +319,7 @@ with "sync".
 			UsageText: `
 This command asks Cluster peers to verify that the current status of tracked
 CIDs is accurate by triggering queries to the IPFS daemons that pin them.
-If a CID is provided, the sync and recover operations will be limited to 
+If a CID is provided, the sync and recover operations will be limited to
 that single item.
 
 Unless providing a specific CID, the command will output only items which

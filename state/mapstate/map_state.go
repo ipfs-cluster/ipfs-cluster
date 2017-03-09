@@ -16,19 +16,19 @@ const Version = 1
 // using a Go map. It is thread safe. It implements the State interface.
 type MapState struct {
 	pinMux  sync.RWMutex
-	PinMap  map[string]api.CidArgSerial
+	PinMap  map[string]api.PinSerial
 	Version int
 }
 
 // NewMapState initializes the internal map and returns a new MapState object.
 func NewMapState() *MapState {
 	return &MapState{
-		PinMap: make(map[string]api.CidArgSerial),
+		PinMap: make(map[string]api.PinSerial),
 	}
 }
 
-// Add adds a CidArg to the internal map.
-func (st *MapState) Add(c api.CidArg) error {
+// Add adds a Pin to the internal map.
+func (st *MapState) Add(c api.Pin) error {
 	st.pinMux.Lock()
 	defer st.pinMux.Unlock()
 	st.PinMap[c.Cid.String()] = c.ToSerial()
@@ -43,15 +43,15 @@ func (st *MapState) Rm(c *cid.Cid) error {
 	return nil
 }
 
-// Get returns CidArg information for a CID.
-func (st *MapState) Get(c *cid.Cid) api.CidArg {
+// Get returns Pin information for a CID.
+func (st *MapState) Get(c *cid.Cid) api.Pin {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
-	cargs, ok := st.PinMap[c.String()]
+	pins, ok := st.PinMap[c.String()]
 	if !ok { // make sure no panics
-		return api.CidArg{}
+		return api.Pin{}
 	}
-	return cargs.ToCidArg()
+	return pins.ToPin()
 }
 
 // Has returns true if the Cid belongs to the State.
@@ -62,13 +62,13 @@ func (st *MapState) Has(c *cid.Cid) bool {
 	return ok
 }
 
-// List provides the list of tracked CidArgs.
-func (st *MapState) List() []api.CidArg {
+// List provides the list of tracked Pins.
+func (st *MapState) List() []api.Pin {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
-	cids := make([]api.CidArg, 0, len(st.PinMap))
+	cids := make([]api.Pin, 0, len(st.PinMap))
 	for _, v := range st.PinMap {
-		cids = append(cids, v.ToCidArg())
+		cids = append(cids, v.ToPin())
 	}
 	return cids
 }

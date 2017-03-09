@@ -93,7 +93,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.Add(api.CidArgCid(c))
+		m.pinMap.Add(api.PinCid(c))
 		resp := mockPinResp{
 			Pins: []string{cidStr},
 		}

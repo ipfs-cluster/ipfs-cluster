@@ -124,7 +124,7 @@ func TestClusterStateSync(t *testing.T) {
 	}
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = cl.Pin(c)
+	err = cl.Pin(api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -168,14 +168,14 @@ func TestClusterPin(t *testing.T) {
 	defer cl.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cl.Pin(c)
+	err := cl.Pin(api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
 
 	// test an error case
 	cl.consensus.Shutdown()
-	err = cl.Pin(c)
+	err = cl.Pin(api.PinCid(c))
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}

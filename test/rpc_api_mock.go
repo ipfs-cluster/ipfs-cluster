@@ -30,22 +30,22 @@ func NewMockRPCClient(t *testing.T) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) Pin(in api.CidArgSerial, out *struct{}) error {
+func (mock *mockService) Pin(in api.PinSerial, out *struct{}) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
 	return nil
 }
 
-func (mock *mockService) Unpin(in api.CidArgSerial, out *struct{}) error {
+func (mock *mockService) Unpin(in api.PinSerial, out *struct{}) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
 	return nil
 }
 
-func (mock *mockService) PinList(in struct{}, out *[]api.CidArgSerial) error {
-	*out = []api.CidArgSerial{
+func (mock *mockService) PinList(in struct{}, out *[]api.PinSerial) error {
+	*out = []api.PinSerial{
 		{
 			Cid: TestCid1,
 		},
@@ -151,7 +151,7 @@ func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) 
 	return nil
 }
 
-func (mock *mockService) Status(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
+func (mock *mockService) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
@@ -174,7 +174,7 @@ func (mock *mockService) SyncAll(in struct{}, out *[]api.GlobalPinInfoSerial) er
 	return mock.StatusAll(in, out)
 }
 
-func (mock *mockService) Sync(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
+func (mock *mockService) Sync(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	return mock.Status(in, out)
 }
 
@@ -183,15 +183,15 @@ func (mock *mockService) StateSync(in struct{}, out *[]api.PinInfoSerial) error 
 	return nil
 }
 
-func (mock *mockService) Recover(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
+func (mock *mockService) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	return mock.Status(in, out)
 }
 
-func (mock *mockService) Track(in api.CidArgSerial, out *struct{}) error {
+func (mock *mockService) Track(in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) Untrack(in api.CidArgSerial, out *struct{}) error {
+func (mock *mockService) Untrack(in api.PinSerial, out *struct{}) error {
 	return nil
 }
 

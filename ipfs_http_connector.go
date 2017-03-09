@@ -241,7 +241,7 @@ func (ipfs *IPFSHTTPConnector) pinOpHandler(op string, w http.ResponseWriter, r 
 	err = ipfs.rpcClient.Call("",
 		"Cluster",
 		op,
-		api.CidArgSerial{
+		api.PinSerial{
 			Cid: arg,
 		},
 		&struct{}{})
@@ -272,7 +272,7 @@ func (ipfs *IPFSHTTPConnector) pinLsHandler(w http.ResponseWriter, r *http.Reque
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
-	var pins []api.CidArgSerial
+	var pins []api.PinSerial
 	err := ipfs.rpcClient.Call("",
 		"Cluster",
 		"PinList",

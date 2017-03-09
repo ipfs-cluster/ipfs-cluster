@@ -27,7 +27,7 @@ type LogOpType int
 // It implements the consensus.Op interface and it is used by the
 // Consensus component.
 type LogOp struct {
-	Cid       api.CidArgSerial
+	Cid       api.PinSerial
 	Peer      api.MultiaddrSerial
 	Type      LogOpType
 	ctx       context.Context
@@ -45,7 +45,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 
 	switch op.Type {
 	case LogOpPin:
-		arg := op.Cid.ToCidArg()
+		arg := op.Cid.ToPin()
 		err = state.Add(arg)
 		if err != nil {
 			goto ROLLBACK
@@ -58,7 +58,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			&struct{}{},
 			nil)
 	case LogOpUnpin:
-		arg := op.Cid.ToCidArg()
+		arg := op.Cid.ToPin()
 		err = state.Rm(arg.Cid)
 		if err != nil {
 			goto ROLLBACK

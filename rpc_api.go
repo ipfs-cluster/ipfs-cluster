@@ -31,21 +31,20 @@ func (rpcapi *RPCAPI) ID(in struct{}, out *api.IDSerial) error {
 }
 
 // Pin runs Cluster.Pin().
-func (rpcapi *RPCAPI) Pin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
-	return rpcapi.c.Pin(c)
+func (rpcapi *RPCAPI) Pin(in api.PinSerial, out *struct{}) error {
+	return rpcapi.c.Pin(in.ToPin())
 }
 
 // Unpin runs Cluster.Unpin().
-func (rpcapi *RPCAPI) Unpin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) Unpin(in api.PinSerial, out *struct{}) error {
+	c := in.ToPin().Cid
 	return rpcapi.c.Unpin(c)
 }
 
 // PinList runs Cluster.Pins().
-func (rpcapi *RPCAPI) PinList(in struct{}, out *[]api.CidArgSerial) error {
+func (rpcapi *RPCAPI) PinList(in struct{}, out *[]api.PinSerial) error {
 	cidList := rpcapi.c.Pins()
-	cidSerialList := make([]api.CidArgSerial, 0, len(cidList))
+	cidSerialList := make([]api.PinSerial, 0, len(cidList))
 	for _, c := range cidList {
 		cidSerialList = append(cidSerialList, c.ToSerial())
 	}
@@ -100,8 +99,8 @@ func (rpcapi *RPCAPI) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) err
 }
 
 // Status runs Cluster.Status().
-func (rpcapi *RPCAPI) Status(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.Status(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -115,8 +114,8 @@ func (rpcapi *RPCAPI) SyncAllLocal(in struct{}, out *[]api.PinInfoSerial) error 
 }
 
 // SyncLocal runs Cluster.SyncLocal().
-func (rpcapi *RPCAPI) SyncLocal(in api.CidArgSerial, out *api.PinInfoSerial) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) SyncLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.SyncLocal(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -130,8 +129,8 @@ func (rpcapi *RPCAPI) SyncAll(in struct{}, out *[]api.GlobalPinInfoSerial) error
 }
 
 // Sync runs Cluster.Sync().
-func (rpcapi *RPCAPI) Sync(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) Sync(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.Sync(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -145,8 +144,8 @@ func (rpcapi *RPCAPI) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
 }
 
 // Recover runs Cluster.Recover().
-func (rpcapi *RPCAPI) Recover(in api.CidArgSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.Recover(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -157,13 +156,13 @@ func (rpcapi *RPCAPI) Recover(in api.CidArgSerial, out *api.GlobalPinInfoSerial)
 */
 
 // Track runs PinTracker.Track().
-func (rpcapi *RPCAPI) Track(in api.CidArgSerial, out *struct{}) error {
-	return rpcapi.c.tracker.Track(in.ToCidArg())
+func (rpcapi *RPCAPI) Track(in api.PinSerial, out *struct{}) error {
+	return rpcapi.c.tracker.Track(in.ToPin())
 }
 
 // Untrack runs PinTracker.Untrack().
-func (rpcapi *RPCAPI) Untrack(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) Untrack(in api.PinSerial, out *struct{}) error {
+	c := in.ToPin().Cid
 	return rpcapi.c.tracker.Untrack(c)
 }
 
@@ -174,16 +173,16 @@ func (rpcapi *RPCAPI) TrackerStatusAll(in struct{}, out *[]api.PinInfoSerial) er
 }
 
 // TrackerStatus runs PinTracker.Status().
-func (rpcapi *RPCAPI) TrackerStatus(in api.CidArgSerial, out *api.PinInfoSerial) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) TrackerStatus(in api.PinSerial, out *api.PinInfoSerial) error {
+	c := in.ToPin().Cid
 	pinfo := rpcapi.c.tracker.Status(c)
 	*out = pinfo.ToSerial()
 	return nil
 }
 
 // TrackerRecover runs PinTracker.Recover().
-func (rpcapi *RPCAPI) TrackerRecover(in api.CidArgSerial, out *api.PinInfoSerial) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) TrackerRecover(in api.PinSerial, out *api.PinInfoSerial) error {
+	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.tracker.Recover(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -194,20 +193,20 @@ func (rpcapi *RPCAPI) TrackerRecover(in api.CidArgSerial, out *api.PinInfoSerial
 */
 
 // IPFSPin runs IPFSConnector.Pin().
-func (rpcapi *RPCAPI) IPFSPin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) IPFSPin(in api.PinSerial, out *struct{}) error {
+	c := in.ToPin().Cid
 	return rpcapi.c.ipfs.Pin(c)
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
-func (rpcapi *RPCAPI) IPFSUnpin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) IPFSUnpin(in api.PinSerial, out *struct{}) error {
+	c := in.ToPin().Cid
 	return rpcapi.c.ipfs.Unpin(c)
 }
 
 // IPFSPinLsCid runs IPFSConnector.PinLsCid().
-func (rpcapi *RPCAPI) IPFSPinLsCid(in api.CidArgSerial, out *api.IPFSPinStatus) error {
-	c := in.ToCidArg().Cid
+func (rpcapi *RPCAPI) IPFSPinLsCid(in api.PinSerial, out *api.IPFSPinStatus) error {
+	c := in.ToPin().Cid
 	b, err := rpcapi.c.ipfs.PinLsCid(c)
 	*out = b
 	return err
@@ -225,14 +224,14 @@ func (rpcapi *RPCAPI) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) er
 */
 
 // ConsensusLogPin runs Consensus.LogPin().
-func (rpcapi *RPCAPI) ConsensusLogPin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg()
+func (rpcapi *RPCAPI) ConsensusLogPin(in api.PinSerial, out *struct{}) error {
+	c := in.ToPin()
 	return rpcapi.c.consensus.LogPin(c)
 }
 
 // ConsensusLogUnpin runs Consensus.LogUnpin().
-func (rpcapi *RPCAPI) ConsensusLogUnpin(in api.CidArgSerial, out *struct{}) error {
-	c := in.ToCidArg()
+func (rpcapi *RPCAPI) ConsensusLogUnpin(in api.PinSerial, out *struct{}) error {
+	c := in.ToPin()
 	return rpcapi.c.consensus.LogUnpin(c)
 }
 

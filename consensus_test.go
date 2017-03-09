@@ -59,7 +59,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.CidArg{Cid: c, Everywhere: true})
+	err := cc.LogPin(api.Pin{Cid: c, ReplicationFactor: -1})
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -82,7 +82,7 @@ func TestConsensusUnpin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid2)
-	err := cc.LogUnpin(api.CidArgCid(c))
+	err := cc.LogUnpin(api.PinCid(c))
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}

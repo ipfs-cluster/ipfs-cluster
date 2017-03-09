@@ -59,15 +59,15 @@ type Peered interface {
 // objects which objects are pinned. This component should be thread safe.
 type State interface {
 	// Add adds a pin to the State
-	Add(api.CidArg) error
+	Add(api.Pin) error
 	// Rm removes a pin from the State
 	Rm(*cid.Cid) error
 	// List lists all the pins in the state
-	List() []api.CidArg
+	List() []api.Pin
 	// Has returns true if the state is holding information for a Cid
 	Has(*cid.Cid) bool
 	// Get returns the information attacthed to this pin
-	Get(*cid.Cid) api.CidArg
+	Get(*cid.Cid) api.Pin
 }
 
 // PinTracker represents a component which tracks the status of
@@ -77,7 +77,7 @@ type PinTracker interface {
 	Component
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
-	Track(api.CidArg) error
+	Track(api.Pin) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
 	Untrack(*cid.Cid) error
