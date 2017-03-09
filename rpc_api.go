@@ -3,7 +3,7 @@ package ipfscluster
 import (
 	"errors"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	hashiraft "github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	libp2praft "github.com/libp2p/go-libp2p-raft"
+	raftboltdb "gx/ipfs/QmUDCcPkPMPJ149YBpfFLWJtRFeqace5GNdBPD2cW4Z8E6/raft-boltdb"
+	libp2praft "gx/ipfs/QmW92B7boZiW7qBEUE2aT8vi3WNLWpk6on4mxg1CpEzLpB/go-libp2p-raft"
+	hashiraft "gx/ipfs/QmWRzh5sntXhuZaxmGDEjjBhg1nX7DgaMdhBeik42LZdEv/raft"
+	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
+	host "gx/ipfs/QmbzbRyd22gcW92U1rA2yKagB3myMYhk45XBknJ49F9XWJ/go-libp2p-host"
 )
 
 // DefaultRaftConfig allows to tweak Raft configuration used by Cluster from

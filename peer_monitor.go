@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+	rpc "gx/ipfs/QmYqnvVzUjjVddWPLGMAErUjNBqnyjoeeCgZUZFsAJeGHr/go-libp2p-gorpc"
+	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

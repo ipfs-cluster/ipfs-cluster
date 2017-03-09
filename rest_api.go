@@ -13,11 +13,11 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	mux "github.com/gorilla/mux"
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
+	ma "gx/ipfs/QmSWLfmj5frN9xVLMMN846dMDriy5wN5jeghUm7aTW3DAG/go-multiaddr"
+	mux "gx/ipfs/QmVrBjGjskzhW7HRfC56f4mT3nmNBHj2WWnEXr39G7Y6w8/mux"
+	rpc "gx/ipfs/QmYqnvVzUjjVddWPLGMAErUjNBqnyjoeeCgZUZFsAJeGHr/go-libp2p-gorpc"
+	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 // Server settings
