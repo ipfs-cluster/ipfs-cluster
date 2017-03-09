@@ -61,6 +61,6 @@
   "license": "MIT",
   "name": "ipfs-cluster",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "0.0.5"
+  "version": "0.0.6"
 }
 
