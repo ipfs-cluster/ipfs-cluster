@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -207,6 +208,31 @@ func delay() {
 		d = nClusters
 	}
 	time.Sleep(time.Duration(d) * time.Second)
+}
+
+func waitForLeader(t *testing.T, clusters []*Cluster) {
+	timer := time.NewTimer(time.Minute)
+	ticker := time.NewTicker(time.Second)
+	// Wait for consensus to pick a new leader in case we shut it down
+
+	// Make sure we don't check on a shutdown cluster
+	j := rand.Intn(len(clusters))
+	for clusters[j].shutdown {
+		j = rand.Intn(len(clusters))
+	}
+
+loop:
+	for {
+		select {
+		case <-timer.C:
+			t.Fatal("timed out waiting for a leader")
+		case <-ticker.C:
+			_, err := clusters[j].consensus.Leader()
+			if err == nil {
+				break loop
+			}
+		}
+	}
 }
 
 func TestClustersVersion(t *testing.T) {
@@ -733,44 +759,74 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	}
 
 	// Let some metrics arrive
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 3)
 
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[j].Pin(api.PinCid(h))
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// Let the pin arrive
 	time.Sleep(time.Second / 2)
 
-	// Re-pin should fail as it is allocated already
+	pin := clusters[j].Pins()[0]
+	pinSerial := pin.ToSerial()
+	allocs := sort.StringSlice(pinSerial.Allocations)
+	allocs.Sort()
+	allocsStr := fmt.Sprintf("%s", allocs)
+
+	// Re-pin should work and be allocated to the same
+	// nodes
 	err = clusters[j].Pin(api.PinCid(h))
-	if err == nil {
-		t.Fatal("expected an error")
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Log(err)
+
+	time.Sleep(time.Second / 2)
+
+	pin2 := clusters[j].Pins()[0]
+	pinSerial2 := pin2.ToSerial()
+	allocs2 := sort.StringSlice(pinSerial2.Allocations)
+	allocs2.Sort()
+	allocsStr2 := fmt.Sprintf("%s", allocs2)
+	if allocsStr != allocsStr2 {
+		t.Fatal("allocations changed without reason")
+	}
+	//t.Log(allocsStr)
+	//t.Log(allocsStr2)
 
 	var killedClusterIndex int
 	// find someone that pinned it and kill that cluster
 	for i, c := range clusters {
 		pinfo := c.tracker.Status(h)
 		if pinfo.Status == api.TrackerStatusPinned {
+			//t.Logf("Killing %s", c.id.Pretty())
 			killedClusterIndex = i
 			c.Shutdown()
-			return
+			break
 		}
 	}
 
 	// let metrics expire
 	time.Sleep(2 * time.Second)
 
+	waitForLeader(t, clusters)
+
+	// Make sure we haven't killed our randomly
+	// selected cluster
+	for j == killedClusterIndex {
+		j = rand.Intn(nClusters)
+	}
+
 	// now pin should succeed
 	err = clusters[j].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	time.Sleep(time.Second / 2)
 
 	numPinned := 0
 	for i, c := range clusters {
@@ -779,6 +835,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		}
 		pinfo := c.tracker.Status(h)
 		if pinfo.Status == api.TrackerStatusPinned {
+			//t.Log(pinfo.Peer.Pretty())
 			numPinned++
 		}
 	}
@@ -818,23 +875,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	clusters[1].Shutdown()
 
 	delay()
-	delay()
-
-	timer := time.NewTimer(time.Minute)
-	ticker := time.NewTicker(time.Second)
-	// Wait for consensus to pick a new leader in case we shut it down
-loop:
-	for {
-		select {
-		case <-timer.C:
-			t.Fatal("timed out waiting for a leader")
-		case <-ticker.C:
-			_, err := clusters[2].consensus.Leader()
-			if err == nil {
-				break loop
-			}
-		}
-	}
+	waitForLeader(t, clusters)
 
 	err = clusters[2].Pin(api.PinCid(h))
 	if err == nil {
