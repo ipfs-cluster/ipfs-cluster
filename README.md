@@ -30,6 +30,9 @@
 
 - [Maintainers and Roadmap](#maintainers-and-roadmap)
 - [Install](#install)
+  - [Pre-compiled binaries](#pre-compiled-binaries)
+  - [Docker](#docker)
+  - [Install from sources](#install-from-sources)
 - [Usage](#usage)
   - [`ipfs-cluster-service`](#ipfs-cluster-service)
   - [`ipfs-cluster-ctl`](#ipfs-cluster-ctl)
@@ -47,7 +50,30 @@ This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [
 
 ## Install
 
-`ipfs-cluster` is written in Go. In order to install the `ipfs-cluster-service` the `ipfs-cluster-ctl` tool  simply download this repository and run `make` as follows:
+### Pre-compiled binaries
+
+You can download pre-compiled binaries for your platform from the [dist.ipfs.io](https://dist.ipfs.io) website:
+
+* [Builds for `ipfs-cluster-service`](https://dist.ipfs.io/#ipfs-cluster-service)
+* [Builds for `ipfs-cluster-ctl`](https://dist.ipfs.io/#ipfs-cluster-ctl)
+
+Note that since IPFS Cluster is evolving fast, the these builds may not contain the latest features/bugfixes as they are updated only bi-weekly.
+
+### Docker
+
+You can build or download an automated build of the ipfs-cluster docker container. This container runs both the IPFS daemon and `ipfs-cluster-service` and includes `ipfs-cluster-ctl`. To launch the latest published version on Docker run:
+
+`$ docker run ipfs/ipfs-cluster`
+
+To build the container manually you can:
+
+`$ docker build . -t ipfs-cluster`
+
+You can mount your local ipfs-cluster configuration and data folder by passing `-v /data/ipfs-cluster your-local-ipfs-cluster-folder` to Docker.
+
+### Install from sources
+
+Installing from `master` is the best way to have the latest features and bugfixes. In order to install the `ipfs-cluster-service` the `ipfs-cluster-ctl` tools you will need `Go` installed in your system and the run the following commands:
 
 ```
 $ go get -u -d github.com/ipfs/ipfs-cluster
