@@ -1,5 +1,18 @@
 # IPFS Cluster - Captain's log
 
+## 20170310 | @hsanjuan
+
+This week has been mostly spent on making IPFS Cluster easy to install, writing end-to-end tests as part of the Test Lab Sprint and bugfixing:
+
+* There is now an ipfs-cluster docker container, which should be part of the ipfs docker hub very soon
+* IPFS Cluster builds are about to appear in dist.ipfs.io
+* I shall be publishing some Ansible roles to deploy ipfs+ipfs-cluster
+* There are now some tests using [kubernetes-ipfs](https://github.com/ipfs/kubernetes-ipfs)with new docker container. These tests are the first automated tests that are truly end-to-end, using a real IPFS-daemon under the hood.
+* I have added replication-factor-per-pin support. Which means that for every pinned item, it can be specified what it's replication factor should be, and this factor can be updated. This allows to override the global configuration option for replication factor.
+* Bugfixes: one affecting re-pinning+replication and some others in ipfs-cluster-ctl output.
+
+Next week will probably focus on the [Delightful documentation sprint](https://github.com/ipfs/pm/issues/357). I'll try to throw in some more tests for `ipfs-cluster-ctl` and will send the call for early testers that I was talking about in the last update, now that we have new multiple install options.
+
 ## 20170302 | @hsanjuan
 
 IPFS cluster now has basic peer monitoring and re-pinning support when a cluster peer goes down.
