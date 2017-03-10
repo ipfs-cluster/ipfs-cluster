@@ -1,15 +1,17 @@
-package ipfscluster
+package raft
 
 import (
 	"context"
 	"errors"
 	"io/ioutil"
+	"log"
 	"path/filepath"
 	"strings"
 	"time"
 
 	hashiraft "github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
+	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
@@ -25,6 +27,31 @@ var RaftMaxSnapshots = 5
 
 // is this running 64 bits arch? https://groups.google.com/forum/#!topic/golang-nuts/vAckmhUMAdQ
 const sixtyfour = uint64(^uint(0)) == ^uint64(0)
+
+type logForwarder struct{}
+
+var raftStdLogger = log.New(&logForwarder{}, "", 0)
+var raftLogger = logging.Logger("raft")
+
+// Write forwards to our go-log logger.
+// According to https://golang.org/pkg/log/#Logger.Output
+// it is called per line.
+func (fw *logForwarder) Write(p []byte) (n int, err error) {
+	t := strings.TrimSuffix(string(p), "\n")
+	switch {
+	case strings.Contains(t, "[DEBUG]"):
+		raftLogger.Debug(strings.TrimPrefix(t, "[DEBUG] raft: "))
+	case strings.Contains(t, "[WARN]"):
+		raftLogger.Warning(strings.TrimPrefix(t, "[WARN]  raft: "))
+	case strings.Contains(t, "[ERR]"):
+		raftLogger.Error(strings.TrimPrefix(t, "[ERR] raft: "))
+	case strings.Contains(t, "[INFO]"):
+		raftLogger.Info(strings.TrimPrefix(t, "[INFO] raft: "))
+	default:
+		raftLogger.Debug(t)
+	}
+	return len(p), nil
+}
 
 // Raft performs all Raft-specific operations which are needed by Cluster but
 // are not fulfilled by the consensus interface. It should contain most of the

@@ -15,6 +15,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfs-connector/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -57,7 +59,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
 	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
@@ -89,7 +91,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	checkErr(t, err)
 	state := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
-	mon := NewStdPeerMonitor(cfg)
+	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	alloc := numpinalloc.NewAllocator()
 	numpin.MetricTTL = 1 // second
 	inf := numpin.NewInformer()
@@ -97,7 +99,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	return cfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
-func createCluster(t *testing.T, cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+func createCluster(t *testing.T, cfg *Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
 	cl, err := NewCluster(cfg, api, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	<-cl.Ready()
@@ -115,7 +117,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	cfgs := make([]*Config, nClusters, nClusters)
 	apis := make([]API, nClusters, nClusters)
 	ipfss := make([]IPFSConnector, nClusters, nClusters)
-	states := make([]State, nClusters, nClusters)
+	states := make([]state.State, nClusters, nClusters)
 	trackers := make([]PinTracker, nClusters, nClusters)
 	mons := make([]PeerMonitor, nClusters, nClusters)
 	allocs := make([]PinAllocator, nClusters, nClusters)

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -34,10 +36,10 @@ type Cluster struct {
 	rpcClient   *rpc.Client
 	peerManager *peerManager
 
-	consensus *Consensus
+	consensus *raft.Consensus
 	api       API
 	ipfs      IPFSConnector
-	state     State
+	state     state.State
 	tracker   PinTracker
 	monitor   PeerMonitor
 	allocator PinAllocator
@@ -62,7 +64,7 @@ func NewCluster(
 	cfg *Config,
 	api API,
 	ipfs IPFSConnector,
-	state State,
+	st state.State,
 	tracker PinTracker,
 	monitor PeerMonitor,
 	allocator PinAllocator,
@@ -88,7 +90,7 @@ func NewCluster(
 		host:      host,
 		api:       api,
 		ipfs:      ipfs,
-		state:     state,
+		state:     st,
 		tracker:   tracker,
 		monitor:   monitor,
 		allocator: allocator,
@@ -155,7 +157,7 @@ func (c *Cluster) setupConsensus() error {
 		startPeers = peersFromMultiaddrs(c.config.Bootstrap)
 	}
 
-	consensus, err := NewConsensus(
+	consensus, err := raft.NewConsensus(
 		append(startPeers, c.id),
 		c.host,
 		c.config.ConsensusDataFolder,

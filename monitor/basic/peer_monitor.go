@@ -1,4 +1,4 @@
-package ipfscluster
+package basic
 
 import (
 	"context"
@@ -7,10 +7,13 @@ import (
 	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
+
+var logger = logging.Logger("monitor")
 
 // AlertChannelCap specifies how much buffer the alerts channel has.
 var AlertChannelCap = 256
@@ -99,7 +102,7 @@ type StdPeerMonitor struct {
 // (how many metrics to keep for each peer and type of metric) and the
 // monitoringInterval (interval between the checks that produce alerts)
 // as parameters
-func NewStdPeerMonitor(cfg *Config) *StdPeerMonitor {
+func NewStdPeerMonitor(monIntervalSecs int) *StdPeerMonitor {
 	if WindowCap <= 0 {
 		panic("windowCap too small")
 	}
@@ -115,7 +118,7 @@ func NewStdPeerMonitor(cfg *Config) *StdPeerMonitor {
 		windowCap: WindowCap,
 		alerts:    make(chan api.Alert, AlertChannelCap),
 
-		monitoringInterval: cfg.MonitoringIntervalSeconds,
+		monitoringInterval: monIntervalSecs,
 	}
 
 	go mon.run()

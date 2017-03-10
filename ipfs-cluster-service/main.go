@@ -19,6 +19,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfs-connector/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -248,7 +249,7 @@ func run(c *cli.Context) error {
 
 	state := mapstate.NewMapState()
 	tracker := ipfscluster.NewMapPinTracker(cfg)
-	mon := ipfscluster.NewStdPeerMonitor(cfg)
+	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	informer := numpin.NewInformer()
 	alloc := numpinalloc.NewAllocator()
 
@@ -286,11 +287,20 @@ func setupLogging(lvl string) {
 
 func setupDebug() {
 	l := "DEBUG"
-	ipfscluster.SetFacilityLogLevel("cluster", l)
-	ipfscluster.SetFacilityLogLevel("ipfshttp", l)
-	ipfscluster.SetFacilityLogLevel("restapi", l)
-	ipfscluster.SetFacilityLogLevel("raft", l)
-	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
+	var facilities = []string{
+		"cluster",
+		"restapi",
+		"ipfshttp",
+		"monitor",
+		"consensus",
+		"raft",
+		"p2p-gorpc",
+	}
+
+	for _, f := range facilities {
+		ipfscluster.SetFacilityLogLevel(f, l)
+	}
+
 	//SetFacilityLogLevel("swarm2", l)
 	//SetFacilityLogLevel("libp2p-raft", l)
 }

@@ -2,11 +2,13 @@ package ipfscluster
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -80,7 +82,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	cfg := testingConfig()
 	st := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
-	mon := NewStdPeerMonitor(cfg)
+	mon := basic.NewStdPeerMonitor(2)
 	alloc := numpinalloc.NewAllocator()
 	inf := numpin.NewInformer()
 
@@ -98,6 +100,10 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	}
 	<-cl.Ready()
 	return cl, api, ipfs, st, tracker
+}
+
+func cleanRaft() {
+	os.RemoveAll(".raftFolderFromTests")
 }
 
 func testClusterShutdown(t *testing.T) {

@@ -1,4 +1,4 @@
-package ipfscluster
+package raft
 
 import (
 	"context"
@@ -7,14 +7,18 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	logging "github.com/ipfs/go-log"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+var logger = logging.Logger("consensus")
 
 // LeaderTimeout specifies how long to wait before failing an operation
 // because there is no leader
@@ -49,7 +53,7 @@ type Consensus struct {
 // NewConsensus builds a new ClusterConsensus component. The state
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
-func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, state State) (*Consensus, error) {
+func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, state state.State) (*Consensus, error) {
 	op := &LogOp{
 		ctx: context.Background(),
 	}
@@ -296,7 +300,11 @@ func (cc *Consensus) LogAddPeer(addr ma.Multiaddr) error {
 		}
 
 		// It seems WE are the leader.
-		pid, _, err := multiaddrSplit(addr)
+		pidStr, err := addr.ValueForProtocol(ma.P_IPFS)
+		if err != nil {
+			return err
+		}
+		pid, err := peer.IDB58Decode(pidStr)
 		if err != nil {
 			return err
 		}
@@ -375,12 +383,12 @@ func (cc *Consensus) LogRmPeer(pid peer.ID) error {
 // if no State has been agreed upon or the state is not
 // consistent. The returned State is the last agreed-upon
 // State known by this node.
-func (cc *Consensus) State() (State, error) {
+func (cc *Consensus) State() (state.State, error) {
 	st, err := cc.consensus.GetLogHead()
 	if err != nil {
 		return nil, err
 	}
-	state, ok := st.(State)
+	state, ok := st.(state.State)
 	if !ok {
 		return nil, errors.New("wrong state type")
 	}
@@ -397,6 +405,6 @@ func (cc *Consensus) Leader() (peer.ID, error) {
 // Rollback replaces the current agreed-upon
 // state with the state provided. Only the consensus leader
 // can perform this operation.
-func (cc *Consensus) Rollback(state State) error {
+func (cc *Consensus) Rollback(state state.State) error {
 	return cc.consensus.Rollback(state)
 }

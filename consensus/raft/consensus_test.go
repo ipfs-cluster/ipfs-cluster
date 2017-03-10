@@ -1,4 +1,4 @@
-package ipfscluster
+package raft
 
 import (
 	"context"
@@ -11,23 +11,37 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	swarm "github.com/libp2p/go-libp2p-swarm"
+	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func cleanRaft() {
-	os.RemoveAll(testingConfig().ConsensusDataFolder)
+	os.RemoveAll(".raftFolderFromTests")
+}
+
+func makeTestingHost(t *testing.T) host.Host {
+	priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, 2048)
+	pid, _ := peer.IDFromPublicKey(pub)
+	maddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10000")
+	ps := peerstore.NewPeerstore()
+	ps.AddPubKey(pid, pub)
+	ps.AddPrivKey(pid, priv)
+	n, _ := swarm.NewNetwork(
+		context.Background(),
+		[]ma.Multiaddr{maddr},
+		pid, ps, nil)
+	return basichost.New(n)
 }
 
 func testingConsensus(t *testing.T) *Consensus {
-	//logging.SetDebugLogging()
-	cfg := testingConfig()
-	ctx := context.Background()
-	h, err := makeHost(ctx, cfg)
-	if err != nil {
-		t.Fatal("cannot create host:", err)
-	}
+	h := makeTestingHost(t)
 	st := mapstate.NewMapState()
-	cc, err := NewConsensus([]peer.ID{cfg.ID}, h, cfg.ConsensusDataFolder, st)
+	cc, err := NewConsensus([]peer.ID{h.ID()}, h, ".raftFolderFromTests", st)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
@@ -90,8 +104,7 @@ func TestConsensusUnpin(t *testing.T) {
 
 func TestConsensusLeader(t *testing.T) {
 	cc := testingConsensus(t)
-	cfg := testingConfig()
-	pID := cfg.ID
+	pID := cc.host.ID()
 	defer cleanRaft()
 	defer cc.Shutdown()
 	l, err := cc.Leader()
