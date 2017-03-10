@@ -52,7 +52,7 @@ $(gx-go_bin):
 gx: $(gx_bin) $(gx-go_bin)
 
 deps: gx
-	$(gx_bin) --verbose install --global
+	$(gx_bin) install --global
 	$(gx-go_bin) rewrite
 test: deps
 	go test -tags silent -v ./...
