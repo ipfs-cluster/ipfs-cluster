@@ -16,7 +16,9 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/ipfs-connector/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -237,10 +239,11 @@ func run(c *cli.Context) error {
 		cfg.LeaveOnShutdown = true
 	}
 
-	api, err := ipfscluster.NewRESTAPI(cfg)
+	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
+	proxy, err := ipfshttp.NewIPFSHTTPConnector(
+		cfg.IPFSNodeAddr, cfg.IPFSProxyAddr)
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
@@ -284,6 +287,8 @@ func setupLogging(lvl string) {
 func setupDebug() {
 	l := "DEBUG"
 	ipfscluster.SetFacilityLogLevel("cluster", l)
+	ipfscluster.SetFacilityLogLevel("ipfshttp", l)
+	ipfscluster.SetFacilityLogLevel("restapi", l)
 	ipfscluster.SetFacilityLogLevel("raft", l)
 	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
 	//SetFacilityLogLevel("swarm2", l)

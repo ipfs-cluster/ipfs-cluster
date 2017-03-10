@@ -1,4 +1,4 @@
-package ipfscluster
+package ipfshttp
 
 import (
 	"context"
@@ -18,9 +18,12 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+var logger = logging.Logger("ipfshttp")
 
 // IPFS Proxy settings
 var (
@@ -88,12 +91,12 @@ type ipfsIDResp struct {
 }
 
 // NewIPFSHTTPConnector creates the component and leaves it ready to be started
-func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
-	destHost, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_IP4)
+func NewIPFSHTTPConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*IPFSHTTPConnector, error) {
+	destHost, err := ipfsNodeMAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
 	}
-	destPortStr, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_TCP)
+	destPortStr, err := ipfsNodeMAddr.ValueForProtocol(ma.P_TCP)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +105,11 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 		return nil, err
 	}
 
-	listenAddr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	listenAddr, err := ipfsProxyMAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
 	}
-	listenPortStr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	listenPortStr, err := ipfsProxyMAddr.ValueForProtocol(ma.P_TCP)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +138,8 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 	ipfs := &IPFSHTTPConnector{
 		ctx:       ctx,
 		cancel:    cancel,
-		nodeAddr:  cfg.IPFSNodeAddr,
-		proxyAddr: cfg.IPFSProxyAddr,
+		nodeAddr:  ipfsNodeMAddr,
+		proxyAddr: ipfsProxyMAddr,
 
 		destHost:   destHost,
 		destPort:   destPort,

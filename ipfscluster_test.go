@@ -12,7 +12,9 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/ipfs-connector/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -79,9 +81,11 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	cfg.ReplicationFactor = -1
 	cfg.MonitoringIntervalSeconds = 2
 
-	api, err := NewRESTAPI(cfg)
+	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr(t, err)
-	ipfs, err := NewIPFSHTTPConnector(cfg)
+	ipfs, err := ipfshttp.NewIPFSHTTPConnector(
+		cfg.IPFSNodeAddr,
+		cfg.IPFSProxyAddr)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
 	tracker := NewMapPinTracker(cfg)
