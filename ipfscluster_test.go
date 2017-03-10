@@ -663,7 +663,7 @@ func TestClustersReplication(t *testing.T) {
 	// nCluster pins.
 
 	// Let some metrics arrive
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 3)
 
 	tmpCid, _ := cid.Decode(test.TestCid1)
 	prefix := tmpCid.Prefix()
@@ -677,7 +677,7 @@ func TestClustersReplication(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		time.Sleep(time.Second / 2)
+		time.Sleep(time.Second)
 
 		// check that it is held by exactly nClusters -1 peers
 		gpi, err := clusters[j].Status(h)
