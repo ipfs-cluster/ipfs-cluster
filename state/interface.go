@@ -3,6 +3,8 @@ package state
 // State represents the shared state of the cluster and it
 import (
 	cid "github.com/ipfs/go-cid"
+	"io"
+
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
@@ -19,4 +21,8 @@ type State interface {
 	Has(*cid.Cid) bool
 	// Get returns the information attacthed to this pin
 	Get(*cid.Cid) api.Pin
+	// Snapshot writes a snapshot of the state to a writer
+	Snapshot(w io.Writer) error
+	// Restore restores a snapshot from a reader
+	Restore(r io.Reader) error
 }
