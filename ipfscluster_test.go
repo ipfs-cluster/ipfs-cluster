@@ -775,7 +775,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second)
 
 	pin := clusters[j].Pins()[0]
 	pinSerial := pin.ToSerial()
@@ -790,7 +790,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second)
 
 	pin2 := clusters[j].Pins()[0]
 	pinSerial2 := pin2.ToSerial()
@@ -832,7 +832,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second)
 
 	numPinned := 0
 	for i, c := range clusters {
@@ -875,7 +875,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second)
 
 	clusters[0].Shutdown()
 	clusters[1].Shutdown()

@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -20,14 +22,22 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func cleanRaft() {
-	os.RemoveAll(".raftFolderFromTests")
+var p2pPort = 10000
+var p2pPortAlt = 11000
+
+func cleanRaft(port int) {
+	os.RemoveAll(fmt.Sprintf(".raftFolderFromTests%d", port))
 }
 
-func makeTestingHost(t *testing.T) host.Host {
+func init() {
+	_ = logging.LevelDebug
+	//logging.SetLogLevel("consensus", "DEBUG")
+}
+
+func makeTestingHost(t *testing.T, port int) host.Host {
 	priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	pid, _ := peer.IDFromPublicKey(pub)
-	maddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10000")
+	maddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
 	ps := peerstore.NewPeerstore()
 	ps.AddPubKey(pid, pub)
 	ps.AddPrivKey(pid, priv)
@@ -38,10 +48,11 @@ func makeTestingHost(t *testing.T) host.Host {
 	return basichost.New(n)
 }
 
-func testingConsensus(t *testing.T) *Consensus {
-	h := makeTestingHost(t)
+func testingConsensus(t *testing.T, port int) *Consensus {
+	h := makeTestingHost(t, port)
 	st := mapstate.NewMapState()
-	cc, err := NewConsensus([]peer.ID{h.ID()}, h, ".raftFolderFromTests", st)
+	cc, err := NewConsensus([]peer.ID{h.ID()},
+		h, fmt.Sprintf(".raftFolderFromTests%d", port), st)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
@@ -53,14 +64,14 @@ func testingConsensus(t *testing.T) *Consensus {
 func TestShutdownConsensus(t *testing.T) {
 	// Bring it up twice to make sure shutdown cleans up properly
 	// but also to make sure raft comes up ok when re-initialized
-	defer cleanRaft()
-	cc := testingConsensus(t)
+	defer cleanRaft(p2pPort)
+	cc := testingConsensus(t, p2pPort)
 	err := cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)
 	}
 	cc.Shutdown()
-	cc = testingConsensus(t)
+	cc = testingConsensus(t, p2pPort)
 	err = cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)
@@ -68,8 +79,8 @@ func TestShutdownConsensus(t *testing.T) {
 }
 
 func TestConsensusPin(t *testing.T) {
-	cc := testingConsensus(t)
-	defer cleanRaft() // Remember defer runs in LIFO order
+	cc := testingConsensus(t, p2pPort)
+	defer cleanRaft(p2pPort) // Remember defer runs in LIFO order
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
@@ -91,8 +102,8 @@ func TestConsensusPin(t *testing.T) {
 }
 
 func TestConsensusUnpin(t *testing.T) {
-	cc := testingConsensus(t)
-	defer cleanRaft()
+	cc := testingConsensus(t, p2pPort)
+	defer cleanRaft(p2pPort)
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid2)
@@ -102,10 +113,40 @@ func TestConsensusUnpin(t *testing.T) {
 	}
 }
 
+func TestConsensusLogAddPeer(t *testing.T) {
+	cc := testingConsensus(t, p2pPort)
+	cc2 := testingConsensus(t, p2pPortAlt)
+	t.Log(cc.host.ID().Pretty())
+	t.Log(cc2.host.ID().Pretty())
+	defer cleanRaft(p2pPort)
+	defer cleanRaft(p2pPortAlt)
+	defer cc.Shutdown()
+	defer cc2.Shutdown()
+
+	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
+	haddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", cc2.host.ID().Pretty()))
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
+	err := cc.LogAddPeer(addr.Encapsulate(haddr))
+	if err != nil {
+		t.Error("the operation did not make it to the log:", err)
+	}
+}
+
+func TestConsensusLogRmPeer(t *testing.T) {
+	cc := testingConsensus(t, p2pPort)
+	defer cleanRaft(p2pPort)
+	defer cc.Shutdown()
+
+	err := cc.LogRmPeer(test.TestPeerID1)
+	if err != nil {
+		t.Error("the operation did not make it to the log:", err)
+	}
+}
+
 func TestConsensusLeader(t *testing.T) {
-	cc := testingConsensus(t)
+	cc := testingConsensus(t, p2pPort)
 	pID := cc.host.ID()
-	defer cleanRaft()
+	defer cleanRaft(p2pPort)
 	defer cc.Shutdown()
 	l, err := cc.Leader()
 	if err != nil {

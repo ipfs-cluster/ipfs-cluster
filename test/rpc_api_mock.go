@@ -199,3 +199,11 @@ func (mock *mockService) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
 	return nil
 }
+
+func (mock *mockService) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
+	return nil
+}
+
+func (rpcapi *mockService) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
+	return nil
+}
