@@ -239,9 +239,11 @@ peers should pin this content.
 						query := fmt.Sprintf("?replication_factor=%d", c.Int("replication"))
 						resp := request("POST", "/pins/"+cidStr+query, nil)
 						formatResponse(c, resp)
-						time.Sleep(500 * time.Millisecond)
-						resp = request("GET", "/pins/"+cidStr, nil)
-						formatResponse(c, resp)
+						if resp.StatusCode < 300 {
+							time.Sleep(1000 * time.Millisecond)
+							resp = request("GET", "/pins/"+cidStr, nil)
+							formatResponse(c, resp)
+						}
 						return nil
 					},
 				},
@@ -262,10 +264,12 @@ although unpinning operations in the cluster may take longer or fail.
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						request("DELETE", "/pins/"+cidStr, nil)
-						time.Sleep(500 * time.Millisecond)
-						resp := request("GET", "/pins/"+cidStr, nil)
-						formatResponse(c, resp)
+						resp := request("DELETE", "/pins/"+cidStr, nil)
+						if resp.StatusCode < 300 {
+							time.Sleep(1000 * time.Millisecond)
+							resp := request("GET", "/pins/"+cidStr, nil)
+							formatResponse(c, resp)
+						}
 						return nil
 					},
 				},
@@ -451,9 +455,9 @@ func formatResponse(c *cli.Context, r *http.Response) {
 		var e errorResp
 		err = json.Unmarshal(body, &e)
 		checkErr("decoding error response", err)
-		out("Error %d: %s", e.Code, e.Message)
+		out("Error %d: %s\n", e.Code, e.Message)
 	case r.StatusCode == http.StatusAccepted:
-		out("%s", "Request accepted")
+		out("%s", "Request accepted\n")
 	case r.StatusCode == http.StatusNoContent:
 		out("%s", "Request succeeded\n")
 	default:
