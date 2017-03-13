@@ -885,7 +885,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 		t.Error("different error than expected")
 		t.Error(err)
 	}
-	t.Log(err)
+	//t.Log(err)
 }
 
 func TestClustersRebalanceOnPeerDown(t *testing.T) {
@@ -904,7 +904,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	// pin something
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 	pinLocal := 0
 	pinRemote := 0
 	var localPinner peer.ID

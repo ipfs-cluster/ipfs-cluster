@@ -193,18 +193,36 @@ func (c *Cluster) stateSyncWatcher() {
 
 func (c *Cluster) broadcastMetric(m api.Metric) error {
 	peers := c.peerManager.peers()
-	errs := c.multiRPC(peers,
-		"Cluster",
-		"PeerMonitorLogMetric",
-		m,
-		copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
-	for i, e := range errs {
-		if e != nil {
-			logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
+	leader, err := c.consensus.Leader()
+	if err != nil {
+		return err
+	}
+
+	if leader == c.id {
+		// Leader needs to broadcast its metric to everyone
+		// in case it goes down (new leader will have to detect this node went down)
+		errs := c.multiRPC(peers,
+			"Cluster",
+			"PeerMonitorLogMetric",
+			m,
+			copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
+		for i, e := range errs {
+			if e != nil {
+				logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
+			}
+		}
+	} else {
+		// non-leaders just need to forward their metrics to the leader
+		err := c.rpcClient.Call(leader,
+			"Cluster", "PeerMonitorLogMetric",
+			m, &struct{}{})
+		if err != nil {
+			logger.Error(err)
+			return err
 		}
 	}
 
-	logger.Debugf("broadcasted metric %s", m.Name)
+	logger.Debugf("sent metric %s", m.Name)
 	return nil
 }
 
@@ -225,9 +243,10 @@ func (c *Cluster) pushInformerMetrics() {
 		err := c.broadcastMetric(metric)
 
 		if err != nil {
+			logger.Debug("error broadcasting metric: %s, err")
 			// retry in 1 second
 			timer.Stop()
-			timer.Reset(1 * time.Second)
+			timer.Reset(500 * time.Millisecond)
 			continue
 		}
 
@@ -262,10 +281,9 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			leader, _ := c.consensus.Leader()
-			// discard while not leaders as our monitor is not
-			// getting metrics in that case
-			if leader == c.id {
+			// only the leader handles alerts
+			leader, err := c.consensus.Leader()
+			if err == nil && leader == c.id {
 				logger.Warningf("Received alert for %s in %s", alrt.MetricName, alrt.Peer.Pretty())
 				switch alrt.MetricName {
 				case "ping":
