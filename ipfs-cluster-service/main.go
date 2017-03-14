@@ -18,8 +18,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
-	"github.com/ipfs/ipfs-cluster/ipfs-connector/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -248,7 +249,7 @@ func run(c *cli.Context) error {
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
-	tracker := ipfscluster.NewMapPinTracker(cfg)
+	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	informer := numpin.NewInformer()
 	alloc := numpinalloc.NewAllocator()

@@ -14,8 +14,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
-	"github.com/ipfs/ipfs-cluster/ipfs-connector/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -90,7 +91,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.S
 		cfg.IPFSProxyAddr)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := NewMapPinTracker(cfg)
+	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	alloc := numpinalloc.NewAllocator()
 	numpin.MetricTTL = 1 // second

@@ -1,4 +1,4 @@
-package ipfscluster
+package maptracker
 
 import (
 	"context"
@@ -10,8 +10,11 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
+
+var logger = logging.Logger("pintracker")
 
 // A Pin or Unpin operation will be considered failed
 // if the Cid has stayed in Pinning or Unpinning state
@@ -56,7 +59,7 @@ type MapPinTracker struct {
 
 // NewMapPinTracker returns a new object which has been correcly
 // initialized with the given configuration.
-func NewMapPinTracker(cfg *Config) *MapPinTracker {
+func NewMapPinTracker(pid peer.ID) *MapPinTracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mpt := &MapPinTracker{
@@ -64,7 +67,7 @@ func NewMapPinTracker(cfg *Config) *MapPinTracker {
 		cancel:   cancel,
 		status:   make(map[string]api.PinInfo),
 		rpcReady: make(chan struct{}, 1),
-		peerID:   cfg.ID,
+		peerID:   pid,
 		pinCh:    make(chan api.Pin, PinQueueSize),
 		unpinCh:  make(chan api.Pin, PinQueueSize),
 	}
@@ -246,8 +249,10 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 	select {
 	case mpt.pinCh <- c:
 	default:
-		mpt.setError(c.Cid, errors.New("pin queue is full"))
-		return logError("map_pin_tracker pin queue is full")
+		err := errors.New("pin queue is full")
+		mpt.setError(c.Cid, err)
+		logger.Error(err.Error())
+		return err
 	}
 	return nil
 }
@@ -259,8 +264,10 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	select {
 	case mpt.unpinCh <- api.PinCid(c):
 	default:
-		mpt.setError(c, errors.New("unpin queue is full"))
-		return logError("map_pin_tracker unpin queue is full")
+		err := errors.New("unpin queue is full")
+		mpt.setError(c, err)
+		logger.Error(err.Error())
+		return err
 	}
 	return nil
 }
@@ -371,7 +378,6 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 	} else {
 		switch p.Status {
 		case api.TrackerStatusPinned:
-
 			mpt.setError(c, errUnpinned)
 		case api.TrackerStatusPinError: // nothing, keep error as it was
 		case api.TrackerStatusPinning:
