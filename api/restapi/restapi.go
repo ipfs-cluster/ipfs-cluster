@@ -1,3 +1,5 @@
+// Package restapi implements an IPFS Cluster API component. It provides
+// a REST-ish API to interact with Cluster over HTTP.
 package restapi
 
 import (

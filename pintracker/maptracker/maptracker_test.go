@@ -142,9 +142,9 @@ func TestStatusAll(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 
 	// LocalPin
-	c := api.Pin{h1, []peer.ID{}, -1}
+	c := api.Pin{Cid: h1, Allocations: []peer.ID{}, ReplicationFactor: -1}
 	mpt.Track(c)
-	c = api.Pin{h2, []peer.ID{test.TestPeerID2}, 1}
+	c = api.Pin{Cid: h2, Allocations: []peer.ID{test.TestPeerID2}, ReplicationFactor: 1}
 	mpt.Track(c)
 
 	time.Sleep(100 * time.Millisecond)
@@ -172,9 +172,9 @@ func TestSyncAndRecover(t *testing.T) {
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
 
-	c := api.Pin{h1, []peer.ID{}, -1}
+	c := api.Pin{Cid: h1, Allocations: []peer.ID{}, ReplicationFactor: -1}
 	mpt.Track(c)
-	c = api.Pin{h2, []peer.ID{}, -1}
+	c = api.Pin{Cid: h2, Allocations: []peer.ID{}, ReplicationFactor: -1}
 	mpt.Track(c)
 
 	time.Sleep(100 * time.Millisecond)
@@ -238,9 +238,9 @@ func TestSyncAll(t *testing.T) {
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
 
-	c := api.Pin{h1, []peer.ID{}, -1}
+	c := api.Pin{Cid: h1, Allocations: []peer.ID{}, ReplicationFactor: -1}
 	mpt.Track(c)
-	c = api.Pin{h2, []peer.ID{}, -1}
+	c = api.Pin{Cid: h2, Allocations: []peer.ID{}, ReplicationFactor: -1}
 	mpt.Track(c)
 
 	time.Sleep(100 * time.Millisecond)

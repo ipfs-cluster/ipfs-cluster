@@ -244,7 +244,7 @@ func run(c *cli.Context) error {
 	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfshttp.NewIPFSHTTPConnector(
+	proxy, err := ipfshttp.NewConnector(
 		cfg.IPFSNodeAddr, cfg.IPFSProxyAddr)
 	checkErr("creating IPFS Connector component", err)
 

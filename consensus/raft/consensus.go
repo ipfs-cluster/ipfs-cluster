@@ -1,3 +1,5 @@
+// Package raft implements a Consensus component for IPFS Cluster which uses
+// Raft (go-libp2p-raft).
 package raft
 
 import (

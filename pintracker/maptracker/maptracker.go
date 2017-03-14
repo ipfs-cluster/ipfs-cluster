@@ -1,3 +1,5 @@
+// Package maptracker implements a PinTracker component for IPFS Cluster. It
+// uses a map to keep track of the state of tracked pins.
 package maptracker
 
 import (

@@ -1,3 +1,6 @@
+// Package basic implements a basic PeerMonitor component for IPFS Cluster. This
+// component is in charge of logging metrics and triggering alerts when a peer
+// goes down.
 package basic
 
 import (

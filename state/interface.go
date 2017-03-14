@@ -1,14 +1,16 @@
+// Package state holds the interface that any state implementation for
+// IPFS Cluster must satisfy.
 package state
 
 // State represents the shared state of the cluster and it
 import (
-	cid "github.com/ipfs/go-cid"
 	"io"
 
+	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-// is used by the Consensus component to keep track of
+// State is used by the Consensus component to keep track of
 // objects which objects are pinned. This component should be thread safe.
 type State interface {
 	// Add adds a pin to the State

@@ -14,13 +14,13 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *test.IpfsMock) {
+func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
 		mock.Addr, mock.Port))
 	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
 
-	ipfs, err := NewIPFSHTTPConnector(nodeMAddr, proxyMAddr)
+	ipfs, err := NewConnector(nodeMAddr, proxyMAddr)
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
@@ -28,7 +28,7 @@ func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *test.IpfsMock) {
 	return ipfs, mock
 }
 
-func TestNewIPFSHTTPConnector(t *testing.T) {
+func TestNewConnector(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()

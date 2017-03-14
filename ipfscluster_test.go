@@ -86,7 +86,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.S
 
 	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr(t, err)
-	ipfs, err := ipfshttp.NewIPFSHTTPConnector(
+	ipfs, err := ipfshttp.NewConnector(
 		cfg.IPFSNodeAddr,
 		cfg.IPFSProxyAddr)
 	checkErr(t, err)

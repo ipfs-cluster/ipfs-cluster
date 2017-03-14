@@ -36,7 +36,7 @@ type Cluster struct {
 	rpcClient   *rpc.Client
 	peerManager *peerManager
 
-	consensus *raft.Consensus
+	consensus Consensus
 	api       API
 	ipfs      IPFSConnector
 	state     state.State
