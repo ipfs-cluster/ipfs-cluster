@@ -195,7 +195,45 @@ func (mock *mockService) Untrack(in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
+/* PeerManager methods */
+
 func (mock *mockService) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
+	return nil
+}
+
+func (mock *mockService) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
+	return nil
+}
+
+/* IPFSConnector methods */
+
+func (mock *mockService) IPFSPin(in api.PinSerial, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) IPFSUnpin(in api.PinSerial, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) IPFSPinLsCid(in api.PinSerial, out *api.IPFSPinStatus) error {
+	if in.Cid == TestCid1 || in.Cid == TestCid3 {
+		*out = api.IPFSPinStatusRecursive
+	} else {
+		*out = api.IPFSPinStatusUnpinned
+	}
+	return nil
+}
+
+func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) error {
+	m := map[string]api.IPFSPinStatus{
+		TestCid1: api.IPFSPinStatusRecursive,
+		TestCid3: api.IPFSPinStatusRecursive,
+	}
+	*out = m
 	return nil
 }

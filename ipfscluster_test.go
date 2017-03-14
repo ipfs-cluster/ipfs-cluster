@@ -12,7 +12,12 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -55,7 +60,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
 	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
@@ -79,13 +84,15 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	cfg.ReplicationFactor = -1
 	cfg.MonitoringIntervalSeconds = 2
 
-	api, err := NewRESTAPI(cfg)
+	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr(t, err)
-	ipfs, err := NewIPFSHTTPConnector(cfg)
+	ipfs, err := ipfshttp.NewConnector(
+		cfg.IPFSNodeAddr,
+		cfg.IPFSProxyAddr)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := NewMapPinTracker(cfg)
-	mon := NewStdPeerMonitor(cfg)
+	tracker := maptracker.NewMapPinTracker(cfg.ID)
+	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	alloc := numpinalloc.NewAllocator()
 	numpin.MetricTTL = 1 // second
 	inf := numpin.NewInformer()
@@ -93,7 +100,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, State, 
 	return cfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
-func createCluster(t *testing.T, cfg *Config, api API, ipfs IPFSConnector, state State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+func createCluster(t *testing.T, cfg *Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
 	cl, err := NewCluster(cfg, api, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	<-cl.Ready()
@@ -111,7 +118,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	cfgs := make([]*Config, nClusters, nClusters)
 	apis := make([]API, nClusters, nClusters)
 	ipfss := make([]IPFSConnector, nClusters, nClusters)
-	states := make([]State, nClusters, nClusters)
+	states := make([]state.State, nClusters, nClusters)
 	trackers := make([]PinTracker, nClusters, nClusters)
 	mons := make([]PeerMonitor, nClusters, nClusters)
 	allocs := make([]PinAllocator, nClusters, nClusters)
@@ -662,9 +669,6 @@ func TestClustersReplication(t *testing.T) {
 	// will result in each peer holding locally exactly
 	// nCluster pins.
 
-	// Let some metrics arrive
-	time.Sleep(time.Second * 3)
-
 	tmpCid, _ := cid.Decode(test.TestCid1)
 	prefix := tmpCid.Prefix()
 
@@ -677,7 +681,7 @@ func TestClustersReplication(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 
 		// check that it is held by exactly nClusters -1 peers
 		gpi, err := clusters[j].Status(h)
@@ -757,9 +761,6 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactor = nClusters - 1
 	}
-
-	// Let some metrics arrive
-	time.Sleep(time.Second * 3)
 
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
@@ -858,9 +859,6 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 		c.config.ReplicationFactor = nClusters - 1
 	}
 
-	// Let some metrics arrive
-	time.Sleep(4 * time.Second)
-
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[j].Pin(api.PinCid(h))
@@ -899,12 +897,10 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 		c.config.ReplicationFactor = nClusters - 1
 	}
 
-	// Let some metrics arrive
-	time.Sleep(time.Second)
 	// pin something
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second / 2) // let the pin arrive
 	pinLocal := 0
 	pinRemote := 0
 	var localPinner peer.ID

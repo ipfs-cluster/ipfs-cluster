@@ -16,7 +16,11 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -237,15 +241,16 @@ func run(c *cli.Context) error {
 		cfg.LeaveOnShutdown = true
 	}
 
-	api, err := ipfscluster.NewRESTAPI(cfg)
+	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfscluster.NewIPFSHTTPConnector(cfg)
+	proxy, err := ipfshttp.NewConnector(
+		cfg.IPFSNodeAddr, cfg.IPFSProxyAddr)
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
-	tracker := ipfscluster.NewMapPinTracker(cfg)
-	mon := ipfscluster.NewStdPeerMonitor(cfg)
+	tracker := maptracker.NewMapPinTracker(cfg.ID)
+	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	informer := numpin.NewInformer()
 	alloc := numpinalloc.NewAllocator()
 
@@ -275,17 +280,30 @@ func run(c *cli.Context) error {
 	}
 }
 
+var facilities = []string{
+	"service",
+	"cluster",
+	"restapi",
+	"ipfshttp",
+	"monitor",
+	"consensus",
+	"pintracker",
+}
+
 func setupLogging(lvl string) {
-	ipfscluster.SetFacilityLogLevel("service", lvl)
-	ipfscluster.SetFacilityLogLevel("cluster", lvl)
-	//ipfscluster.SetFacilityLogLevel("raft", lvl)
+	for _, f := range facilities {
+		ipfscluster.SetFacilityLogLevel(f, lvl)
+	}
 }
 
 func setupDebug() {
 	l := "DEBUG"
-	ipfscluster.SetFacilityLogLevel("cluster", l)
-	ipfscluster.SetFacilityLogLevel("raft", l)
+	for _, f := range facilities {
+		ipfscluster.SetFacilityLogLevel(f, l)
+	}
+
 	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
+	ipfscluster.SetFacilityLogLevel("raft", l)
 	//SetFacilityLogLevel("swarm2", l)
 	//SetFacilityLogLevel("libp2p-raft", l)
 }

@@ -1,4 +1,6 @@
-package ipfscluster
+// Package ipfshttp implements an IPFS Cluster IPFSConnector component. It
+// uses the IPFS HTTP API to communicate to IPFS.
+package ipfshttp
 
 import (
 	"context"
@@ -18,9 +20,12 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+var logger = logging.Logger("ipfshttp")
 
 // IPFS Proxy settings
 var (
@@ -33,7 +38,7 @@ var (
 	IPFSProxyServerIdleTimeout = 60 * time.Second
 )
 
-// IPFSHTTPConnector implements the IPFSConnector interface
+// Connector implements the IPFSConnector interface
 // and provides a component which does two tasks:
 //
 // On one side, it proxies HTTP requests to the configured IPFS
@@ -42,7 +47,7 @@ var (
 //
 // On the other side, it is used to perform on-demand requests
 // against the configured IPFS daemom (such as a pin request).
-type IPFSHTTPConnector struct {
+type Connector struct {
 	ctx    context.Context
 	cancel func()
 
@@ -87,13 +92,13 @@ type ipfsIDResp struct {
 	Addresses []string
 }
 
-// NewIPFSHTTPConnector creates the component and leaves it ready to be started
-func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
-	destHost, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_IP4)
+// NewConnector creates the component and leaves it ready to be started
+func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Connector, error) {
+	destHost, err := ipfsNodeMAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
 	}
-	destPortStr, err := cfg.IPFSNodeAddr.ValueForProtocol(ma.P_TCP)
+	destPortStr, err := ipfsNodeMAddr.ValueForProtocol(ma.P_TCP)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +107,11 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 		return nil, err
 	}
 
-	listenAddr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
+	listenAddr, err := ipfsProxyMAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
 	}
-	listenPortStr, err := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	listenPortStr, err := ipfsProxyMAddr.ValueForProtocol(ma.P_TCP)
 	if err != nil {
 		return nil, err
 	}
@@ -132,11 +137,11 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	ipfs := &IPFSHTTPConnector{
+	ipfs := &Connector{
 		ctx:       ctx,
 		cancel:    cancel,
-		nodeAddr:  cfg.IPFSNodeAddr,
-		proxyAddr: cfg.IPFSProxyAddr,
+		nodeAddr:  ipfsNodeMAddr,
+		proxyAddr: ipfsProxyMAddr,
 
 		destHost:   destHost,
 		destPort:   destPort,
@@ -158,7 +163,7 @@ func NewIPFSHTTPConnector(cfg *Config) (*IPFSHTTPConnector, error) {
 }
 
 // set cancellable context. launch proxy
-func (ipfs *IPFSHTTPConnector) run() {
+func (ipfs *Connector) run() {
 	// This launches the proxy
 	ipfs.wg.Add(1)
 	go func() {
@@ -177,7 +182,7 @@ func (ipfs *IPFSHTTPConnector) run() {
 
 // This will run a custom handler if we have one for a URL.Path, or
 // otherwise just proxy the requests.
-func (ipfs *IPFSHTTPConnector) handle(w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) handle(w http.ResponseWriter, r *http.Request) {
 	if customHandler, ok := ipfs.handlers[r.URL.Path]; ok {
 		customHandler(w, r)
 	} else {
@@ -187,7 +192,7 @@ func (ipfs *IPFSHTTPConnector) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 // defaultHandler just proxies the requests
-func (ipfs *IPFSHTTPConnector) defaultHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 	newURL := *r.URL
 	newURL.Host = fmt.Sprintf("%s:%d", ipfs.destHost, ipfs.destPort)
 	newURL.Scheme = "http"
@@ -225,7 +230,7 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	return
 }
 
-func (ipfs *IPFSHTTPConnector) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
 	argA := r.URL.Query()["arg"]
 	if len(argA) == 0 {
 		ipfsErrorResponder(w, "Error: bad argument")
@@ -260,15 +265,15 @@ func (ipfs *IPFSHTTPConnector) pinOpHandler(op string, w http.ResponseWriter, r 
 	return
 }
 
-func (ipfs *IPFSHTTPConnector) pinHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) pinHandler(w http.ResponseWriter, r *http.Request) {
 	ipfs.pinOpHandler("Pin", w, r)
 }
 
-func (ipfs *IPFSHTTPConnector) unpinHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	ipfs.pinOpHandler("Unpin", w, r)
 }
 
-func (ipfs *IPFSHTTPConnector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
@@ -317,14 +322,14 @@ func (ipfs *IPFSHTTPConnector) pinLsHandler(w http.ResponseWriter, r *http.Reque
 
 // SetClient makes the component ready to perform RPC
 // requests.
-func (ipfs *IPFSHTTPConnector) SetClient(c *rpc.Client) {
+func (ipfs *Connector) SetClient(c *rpc.Client) {
 	ipfs.rpcClient = c
 	ipfs.rpcReady <- struct{}{}
 }
 
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
-func (ipfs *IPFSHTTPConnector) Shutdown() error {
+func (ipfs *Connector) Shutdown() error {
 	ipfs.shutdownLock.Lock()
 	defer ipfs.shutdownLock.Unlock()
 
@@ -350,7 +355,7 @@ func (ipfs *IPFSHTTPConnector) Shutdown() error {
 // If the request fails, or the parsing fails, it
 // returns an error and an empty IPFSID which also
 // contains the error message.
-func (ipfs *IPFSHTTPConnector) ID() (api.IPFSID, error) {
+func (ipfs *Connector) ID() (api.IPFSID, error) {
 	id := api.IPFSID{}
 	body, err := ipfs.get("id")
 	if err != nil {
@@ -388,7 +393,7 @@ func (ipfs *IPFSHTTPConnector) ID() (api.IPFSID, error) {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
+func (ipfs *Connector) Pin(hash *cid.Cid) error {
 	pinStatus, err := ipfs.PinLsCid(hash)
 	if err != nil {
 		return err
@@ -407,7 +412,7 @@ func (ipfs *IPFSHTTPConnector) Pin(hash *cid.Cid) error {
 
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
-func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
+func (ipfs *Connector) Unpin(hash *cid.Cid) error {
 	pinStatus, err := ipfs.PinLsCid(hash)
 	if err != nil {
 		return err
@@ -427,7 +432,7 @@ func (ipfs *IPFSHTTPConnector) Unpin(hash *cid.Cid) error {
 
 // PinLs performs a "pin ls --type typeFilter" request against the configured
 // IPFS daemon and returns a map of cid strings and their status.
-func (ipfs *IPFSHTTPConnector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error) {
+func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error) {
 	body, err := ipfs.get("pin/ls?type=" + typeFilter)
 
 	// Some error talking to the daemon
@@ -452,7 +457,7 @@ func (ipfs *IPFSHTTPConnector) PinLs(typeFilter string) (map[string]api.IPFSPinS
 
 // PinLsCid performs a "pin ls <hash> "request and returns IPFSPinStatus for
 // that hash.
-func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
+func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s", hash)
 	body, err := ipfs.get(lsPath)
 
@@ -483,7 +488,7 @@ func (ipfs *IPFSHTTPConnector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error
 
 // get performs the heavy lifting of a get request against
 // the IPFS daemon.
-func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
+func (ipfs *Connector) get(path string) ([]byte, error) {
 	logger.Debugf("getting %s", path)
 	url := fmt.Sprintf("%s/%s",
 		ipfs.apiURL(),
@@ -513,7 +518,7 @@ func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
 			msg = fmt.Sprintf("IPFS-get '%s' unsuccessful: %d: %s",
 				path, resp.StatusCode, body)
 		}
-		logger.Warning(msg)
+
 		return body, errors.New(msg)
 	}
 	return body, nil
@@ -521,7 +526,7 @@ func (ipfs *IPFSHTTPConnector) get(path string) ([]byte, error) {
 
 // apiURL is a short-hand for building the url of the IPFS
 // daemon API.
-func (ipfs *IPFSHTTPConnector) apiURL() string {
+func (ipfs *Connector) apiURL() string {
 	return fmt.Sprintf("http://%s:%d/api/v0",
 		ipfs.destHost,
 		ipfs.destPort)

@@ -1,4 +1,4 @@
-package ipfscluster
+package ipfshttp
 
 import (
 	"encoding/json"
@@ -14,18 +14,13 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func testIPFSConnectorConfig(mock *test.IpfsMock) *Config {
-	cfg := testingConfig()
-	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
-	cfg.IPFSNodeAddr = addr
-	return cfg
-}
-
-func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *test.IpfsMock) {
+func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
-	cfg := testIPFSConnectorConfig(mock)
+	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
+		mock.Addr, mock.Port))
+	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
 
-	ipfs, err := NewIPFSHTTPConnector(cfg)
+	ipfs, err := NewConnector(nodeMAddr, proxyMAddr)
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
@@ -33,7 +28,7 @@ func testIPFSConnector(t *testing.T) (*IPFSHTTPConnector, *test.IpfsMock) {
 	return ipfs, mock
 }
 
-func TestNewIPFSHTTPConnector(t *testing.T) {
+func TestNewConnector(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
@@ -148,15 +143,12 @@ func TestIPFSPinLs(t *testing.T) {
 }
 
 func TestIPFSProxyVersion(t *testing.T) {
-	// This makes sure default handler is used
-
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	cfg := testingConfig()
-	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/version",
 		host,
 		port))
@@ -188,9 +180,8 @@ func TestIPFSProxyPin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	cfg := testingConfig()
-	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
 		host,
 		port,
@@ -244,9 +235,8 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	cfg := testingConfig()
-	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
 		host,
 		port,
@@ -301,9 +291,8 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	cfg := testingConfig()
-	host, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := cfg.IPFSProxyAddr.ValueForProtocol(ma.P_TCP)
+	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
+	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/ls?arg=%s",
 		host,
 		port,

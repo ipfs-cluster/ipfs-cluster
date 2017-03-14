@@ -1,10 +1,11 @@
-package ipfscluster
+package raft
 
 import (
 	"context"
 	"errors"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	consensus "github.com/libp2p/go-libp2p-consensus"
@@ -36,7 +37,7 @@ type LogOp struct {
 
 // ApplyTo applies the operation to the State
 func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
-	state, ok := cstate.(State)
+	state, ok := cstate.(state.State)
 	var err error
 	if !ok {
 		// Should never be here

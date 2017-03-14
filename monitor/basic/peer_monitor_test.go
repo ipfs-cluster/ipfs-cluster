@@ -1,4 +1,4 @@
-package ipfscluster
+package basic
 
 import (
 	"fmt"
@@ -14,9 +14,8 @@ import (
 var metricCounter = 0
 
 func testPeerMonitor(t *testing.T) *StdPeerMonitor {
-	cfg := testingConfig()
 	mock := test.NewMockRPCClient(t)
-	mon := NewStdPeerMonitor(cfg)
+	mon := NewStdPeerMonitor(2)
 	mon.SetClient(mock)
 	return mon
 }

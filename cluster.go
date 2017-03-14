@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -34,10 +36,10 @@ type Cluster struct {
 	rpcClient   *rpc.Client
 	peerManager *peerManager
 
-	consensus *Consensus
+	consensus Consensus
 	api       API
 	ipfs      IPFSConnector
-	state     State
+	state     state.State
 	tracker   PinTracker
 	monitor   PeerMonitor
 	allocator PinAllocator
@@ -62,7 +64,7 @@ func NewCluster(
 	cfg *Config,
 	api API,
 	ipfs IPFSConnector,
-	state State,
+	st state.State,
 	tracker PinTracker,
 	monitor PeerMonitor,
 	allocator PinAllocator,
@@ -88,7 +90,7 @@ func NewCluster(
 		host:      host,
 		api:       api,
 		ipfs:      ipfs,
-		state:     state,
+		state:     st,
 		tracker:   tracker,
 		monitor:   monitor,
 		allocator: allocator,
@@ -155,7 +157,7 @@ func (c *Cluster) setupConsensus() error {
 		startPeers = peersFromMultiaddrs(c.config.Bootstrap)
 	}
 
-	consensus, err := NewConsensus(
+	consensus, err := raft.NewConsensus(
 		append(startPeers, c.id),
 		c.host,
 		c.config.ConsensusDataFolder,
@@ -245,7 +247,7 @@ func (c *Cluster) pushInformerMetrics() {
 		err := c.broadcastMetric(metric)
 
 		if err != nil {
-			logger.Debug("error broadcasting metric: %s, err")
+			logger.Errorf("error broadcasting metric: %s", err)
 			// retry in 1 second
 			timer.Stop()
 			timer.Reset(500 * time.Millisecond)
@@ -1023,7 +1025,8 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int) ([]peer.ID, error) {
 		return nil, err
 	}
 
-	// put metrics in the metricsMap if they belong to a current clusterPeer
+	// put metrics in the metricsMap if we have an entry for the peer
+	// (means it's a current cluster peer)
 	for _, m := range metrics {
 		_, ok := metricsMap[m.Peer]
 		if !ok {

@@ -1,4 +1,4 @@
-package ipfscluster
+package restapi
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var (
@@ -18,8 +20,8 @@ var (
 
 func testRESTAPI(t *testing.T) *RESTAPI {
 	//logging.SetDebugLogging()
-	cfg := testingConfig()
-	rest, err := NewRESTAPI(cfg)
+	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10002")
+	rest, err := NewRESTAPI(apiMAddr)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}

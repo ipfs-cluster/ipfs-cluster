@@ -9,14 +9,14 @@
 package ipfscluster
 
 import (
-	"io"
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
-
-	"github.com/ipfs/ipfs-cluster/api"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // RPCProtocol is used to send libp2p messages between cluster peers
@@ -29,6 +29,31 @@ var RPCProtocol = protocol.ID("/ipfscluster/" + Version + "/rpc")
 type Component interface {
 	SetClient(*rpc.Client)
 	Shutdown() error
+}
+
+// Consensus is a component which keeps a shared state in
+// IPFS Cluster and triggers actions on updates to that state.
+// Currently, Consensus needs to be able to elect/provide a
+// Cluster Leader and the implementation is very tight to
+// the Cluster main component.
+type Consensus interface {
+	Component
+	// Returns a channel to signal that the consensus
+	// algoritm is ready
+	Ready() <-chan struct{}
+	// Logs a pin operation
+	LogPin(c api.Pin) error
+	// Logs an unpin operation
+	LogUnpin(c api.Pin) error
+	LogAddPeer(addr ma.Multiaddr) error
+	LogRmPeer(p peer.ID) error
+	State() (state.State, error)
+	// Provide a node which is responsible to perform
+	// specific tasks which must only run in 1 cluster peer
+	Leader() (peer.ID, error)
+	// Only returns when the consensus state has all log
+	// updates applied to it
+	WaitForSync() error
 }
 
 // API is a component which offers an API for Cluster. This is
@@ -54,26 +79,6 @@ type Peered interface {
 	AddPeer(p peer.ID)
 	RmPeer(p peer.ID)
 	//SetPeers(peers []peer.ID)
-}
-
-// State represents the shared state of the cluster and it
-// is used by the Consensus component to keep track of
-// objects which objects are pinned. This component should be thread safe.
-type State interface {
-	// Add adds a pin to the State
-	Add(api.Pin) error
-	// Rm removes a pin from the State
-	Rm(*cid.Cid) error
-	// List lists all the pins in the state
-	List() []api.Pin
-	// Has returns true if the state is holding information for a Cid
-	Has(*cid.Cid) bool
-	// Get returns the information attacthed to this pin
-	Get(*cid.Cid) api.Pin
-	// Snapshot writes a snapshot of the state to a writer
-	Snapshot(w io.Writer) error
-	// Restore restores a snapshot from a reader
-	Restore(r io.Reader) error
 }
 
 // PinTracker represents a component which tracks the status of

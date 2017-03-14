@@ -1,4 +1,6 @@
-package ipfscluster
+// Package restapi implements an IPFS Cluster API component. It provides
+// a REST-ish API to interact with Cluster over HTTP.
+package restapi
 
 import (
 	"context"
@@ -16,9 +18,12 @@ import (
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+var logger = logging.Logger("restapi")
 
 // Server settings
 var (
@@ -72,14 +77,14 @@ func (e errorResp) Error() string {
 	return e.Message
 }
 
-// NewRESTAPI creates a new object which is ready to be
-// started.
-func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
-	listenAddr, err := cfg.APIAddr.ValueForProtocol(ma.P_IP4)
+// NewRESTAPI creates a new REST API component. It receives
+// the multiaddress on which the API listens.
+func NewRESTAPI(apiMAddr ma.Multiaddr) (*RESTAPI, error) {
+	listenAddr, err := apiMAddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
 		return nil, err
 	}
-	listenPortStr, err := cfg.APIAddr.ValueForProtocol(ma.P_TCP)
+	listenPortStr, err := apiMAddr.ValueForProtocol(ma.P_TCP)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +113,7 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 	api := &RESTAPI{
 		ctx:        ctx,
 		cancel:     cancel,
-		apiAddr:    cfg.APIAddr,
+		apiAddr:    apiMAddr,
 		listenAddr: listenAddr,
 		listenPort: listenPort,
 		listener:   l,

@@ -161,7 +161,7 @@ func TestMetric(t *testing.T) {
 	}
 
 	if !m.Expired() {
-		t.Error("metric should be expire")
+		t.Error("metric should be expired")
 	}
 
 	m.SetTTL(1)

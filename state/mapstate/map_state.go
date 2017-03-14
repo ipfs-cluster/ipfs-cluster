@@ -1,3 +1,5 @@
+// Package mapstate implements the State interface for IPFS Cluster by using
+// a map to keep track of the consensus-shared state.
 package mapstate
 
 import (
@@ -90,6 +92,8 @@ func (st *MapState) Snapshot(w io.Writer) error {
 	return enc.Encode(st)
 }
 
+// Restore takes a reader and restores a snapshot. It should migrate
+// the format if it is not compatible with the current version.
 func (st *MapState) Restore(r io.Reader) error {
 	snap, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -104,7 +108,6 @@ func (st *MapState) Restore(r io.Reader) error {
 		// we are good
 		err := json.Unmarshal(snap, st)
 		return err
-	} else {
-		return st.migrateFrom(vonly.Version, snap)
 	}
+	return st.migrateFrom(vonly.Version, snap)
 }

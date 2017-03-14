@@ -55,7 +55,7 @@ On the down-side, the RPC API involves "reflect" magic and it is not easy to ver
 
 ### Code layout
 
-Eventually, as the project grow, components will be organized in different submodules. The groundwork for this is already there (i.e. a there is a submodule providing API related types), but most components still live in the base project.
+Components are organized in different submodules (i.e. `pintracker/maptracker` represents component `PinTracker` and implementation `MapPinTracker`). Interfaces for all components are on the base module. Executables (`ipfs-cluster-service` and `ipfs-cluster-ctl` are also submodules to the base module).
 
 ## Applications
 

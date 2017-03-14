@@ -170,7 +170,7 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 		Cid:    pi.Cid.String(),
 		Peer:   peer.IDB58Encode(pi.Peer),
 		Status: pi.Status.String(),
-		TS:     pi.TS.UTC().Format(time.RFC1123),
+		TS:     pi.TS.UTC().Format(time.RFC3339),
 		Error:  pi.Error,
 	}
 }
@@ -179,7 +179,7 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 func (pis PinInfoSerial) ToPinInfo() PinInfo {
 	c, _ := cid.Decode(pis.Cid)
 	p, _ := peer.IDB58Decode(pis.Peer)
-	ts, _ := time.Parse(time.RFC1123, pis.TS)
+	ts, _ := time.Parse(time.RFC3339, pis.TS)
 	return PinInfo{
 		Cid:    c,
 		Peer:   p,
@@ -398,25 +398,37 @@ type Metric struct {
 	Name   string
 	Peer   peer.ID // filled-in by Cluster.
 	Value  string
-	Expire string // RFC1123
+	Expire string // RFC3339Nano
 	Valid  bool   // if the metric is not valid it will be discarded
 }
 
 // SetTTL sets Metric to expire after the given seconds
 func (m *Metric) SetTTL(seconds int) {
 	exp := time.Now().Add(time.Duration(seconds) * time.Second)
-	m.Expire = exp.UTC().Format(time.RFC1123)
+	m.Expire = exp.UTC().Format(time.RFC3339Nano)
 }
 
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
-	exp, _ := time.Parse(time.RFC1123, m.Expire)
+	if m.Expire == "" {
+		return 0
+	}
+	exp, err := time.Parse(time.RFC3339Nano, m.Expire)
+	if err != nil {
+		panic(err)
+	}
 	return exp.Sub(time.Now())
 }
 
 // Expired returns if the Metric has expired
 func (m *Metric) Expired() bool {
-	exp, _ := time.Parse(time.RFC1123, m.Expire)
+	if m.Expire == "" {
+		return true
+	}
+	exp, err := time.Parse(time.RFC3339Nano, m.Expire)
+	if err != nil {
+		panic(err)
+	}
 	return time.Now().After(exp)
 }
 
