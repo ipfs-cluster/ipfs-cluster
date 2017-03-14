@@ -212,6 +212,7 @@ func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
 
 	mbyp, ok := mon.metrics[name]
 	if !ok {
+		logger.Warningf("LastMetrics: No %s metrics", name)
 		return []api.Metric{}
 	}
 

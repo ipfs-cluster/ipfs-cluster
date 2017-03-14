@@ -668,9 +668,6 @@ func TestClustersReplication(t *testing.T) {
 	// will result in each peer holding locally exactly
 	// nCluster pins.
 
-	// Let some metrics arrive
-	time.Sleep(time.Second * 3)
-
 	tmpCid, _ := cid.Decode(test.TestCid1)
 	prefix := tmpCid.Prefix()
 
@@ -683,7 +680,7 @@ func TestClustersReplication(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 
 		// check that it is held by exactly nClusters -1 peers
 		gpi, err := clusters[j].Status(h)
@@ -764,9 +761,6 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		c.config.ReplicationFactor = nClusters - 1
 	}
 
-	// Let some metrics arrive
-	time.Sleep(time.Second * 3)
-
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[j].Pin(api.PinCid(h))
@@ -775,7 +769,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	pin := clusters[j].Pins()[0]
 	pinSerial := pin.ToSerial()
@@ -790,7 +784,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	pin2 := clusters[j].Pins()[0]
 	pinSerial2 := pin2.ToSerial()
@@ -832,7 +826,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	numPinned := 0
 	for i, c := range clusters {
@@ -864,9 +858,6 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 		c.config.ReplicationFactor = nClusters - 1
 	}
 
-	// Let some metrics arrive
-	time.Sleep(4 * time.Second)
-
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[j].Pin(api.PinCid(h))
@@ -875,7 +866,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	clusters[0].Shutdown()
 	clusters[1].Shutdown()
@@ -905,12 +896,10 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 		c.config.ReplicationFactor = nClusters - 1
 	}
 
-	// Let some metrics arrive
-	time.Sleep(time.Second)
 	// pin something
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second / 2) // let the pin arrive
 	pinLocal := 0
 	pinRemote := 0
 	var localPinner peer.ID
