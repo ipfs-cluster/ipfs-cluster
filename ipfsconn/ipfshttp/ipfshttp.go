@@ -518,7 +518,7 @@ func (ipfs *Connector) get(path string) ([]byte, error) {
 			msg = fmt.Sprintf("IPFS-get '%s' unsuccessful: %d: %s",
 				path, resp.StatusCode, body)
 		}
-		logger.Warning(msg)
+
 		return body, errors.New(msg)
 	}
 	return body, nil

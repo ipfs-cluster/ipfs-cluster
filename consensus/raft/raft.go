@@ -142,7 +142,6 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 func (r *Raft) WaitForLeader(ctx context.Context) error {
 	// Using Raft observers panics on non-64 architectures.
 	// This is a work around
-	logger.Info("waiting for leader")
 	if sixtyfour {
 		return r.waitForLeader(ctx)
 	}

@@ -280,28 +280,30 @@ func run(c *cli.Context) error {
 	}
 }
 
+var facilities = []string{
+	"service",
+	"cluster",
+	"restapi",
+	"ipfshttp",
+	"monitor",
+	"consensus",
+	"pintracker",
+}
+
 func setupLogging(lvl string) {
-	ipfscluster.SetFacilityLogLevel("service", lvl)
-	ipfscluster.SetFacilityLogLevel("cluster", lvl)
-	//ipfscluster.SetFacilityLogLevel("raft", lvl)
+	for _, f := range facilities {
+		ipfscluster.SetFacilityLogLevel(f, lvl)
+	}
 }
 
 func setupDebug() {
 	l := "DEBUG"
-	var facilities = []string{
-		"cluster",
-		"restapi",
-		"ipfshttp",
-		"monitor",
-		"consensus",
-		"raft",
-		"p2p-gorpc",
-	}
-
 	for _, f := range facilities {
 		ipfscluster.SetFacilityLogLevel(f, l)
 	}
 
+	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
+	ipfscluster.SetFacilityLogLevel("raft", l)
 	//SetFacilityLogLevel("swarm2", l)
 	//SetFacilityLogLevel("libp2p-raft", l)
 }

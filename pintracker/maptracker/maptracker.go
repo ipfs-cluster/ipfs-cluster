@@ -205,6 +205,7 @@ func (mpt *MapPinTracker) isRemote(c api.Pin) bool {
 }
 
 func (mpt *MapPinTracker) pin(c api.Pin) error {
+	logger.Debugf("issuing pin call for %s", c.Cid)
 	mpt.set(c.Cid, api.TrackerStatusPinning)
 	err := mpt.rpcClient.Call("",
 		"Cluster",
@@ -222,6 +223,7 @@ func (mpt *MapPinTracker) pin(c api.Pin) error {
 }
 
 func (mpt *MapPinTracker) unpin(c api.Pin) error {
+	logger.Debugf("issuing unpin call for %s", c.Cid)
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSUnpin",
@@ -239,6 +241,7 @@ func (mpt *MapPinTracker) unpin(c api.Pin) error {
 // Track tells the MapPinTracker to start managing a Cid,
 // possibly trigerring Pin operations on the IPFS daemon.
 func (mpt *MapPinTracker) Track(c api.Pin) error {
+	logger.Debugf("tracking %s", c.Cid)
 	if mpt.isRemote(c) {
 		if mpt.get(c.Cid).Status == api.TrackerStatusPinned {
 			mpt.unpin(c)
@@ -262,6 +265,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 // Untrack tells the MapPinTracker to stop managing a Cid.
 // If the Cid is pinned locally, it will be unpinned.
 func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
+	logger.Debugf("untracking %s", c)
 	mpt.set(c, api.TrackerStatusUnpinning)
 	select {
 	case mpt.unpinCh <- api.PinCid(c):
