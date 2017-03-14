@@ -410,13 +410,19 @@ func (m *Metric) SetTTL(seconds int) {
 
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
-	exp, _ := time.Parse(time.RFC3339Nano, m.Expire)
+	exp, err := time.Parse(time.RFC3339Nano, m.Expire)
+	if err != nil {
+		panic(err)
+	}
 	return exp.Sub(time.Now())
 }
 
 // Expired returns if the Metric has expired
 func (m *Metric) Expired() bool {
-	exp, _ := time.Parse(time.RFC3339Nano, m.Expire)
+	exp, err := time.Parse(time.RFC3339Nano, m.Expire)
+	if err != nil {
+		panic(err)
+	}
 	return time.Now().After(exp)
 }
 
