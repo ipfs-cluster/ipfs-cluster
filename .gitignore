@@ -3,6 +3,8 @@ ipfs-cluster-service/ipfs-cluster-service
 ipfs-cluster-ctl/ipfs-cluster-ctl
 deptools
 
+raftFolderFromTest*
+
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a

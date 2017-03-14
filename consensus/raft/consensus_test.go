@@ -26,7 +26,7 @@ var p2pPort = 10000
 var p2pPortAlt = 11000
 
 func cleanRaft(port int) {
-	os.RemoveAll(fmt.Sprintf(".raftFolderFromTests%d", port))
+	os.RemoveAll(fmt.Sprintf("raftFolderFromTests%d", port))
 }
 
 func init() {
@@ -52,7 +52,7 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 	h := makeTestingHost(t, port)
 	st := mapstate.NewMapState()
 	cc, err := NewConsensus([]peer.ID{h.ID()},
-		h, fmt.Sprintf(".raftFolderFromTests%d", port), st)
+		h, fmt.Sprintf("raftFolderFromTests%d", port), st)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
