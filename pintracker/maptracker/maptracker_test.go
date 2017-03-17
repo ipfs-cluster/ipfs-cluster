@@ -121,7 +121,7 @@ func TestUntrack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 
 	st := mpt.Status(h1)
 	if st.Status != api.TrackerStatusUnpinned {

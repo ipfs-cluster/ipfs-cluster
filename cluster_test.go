@@ -122,6 +122,7 @@ func testClusterShutdown(t *testing.T) {
 }
 
 func TestClusterStateSync(t *testing.T) {
+	cleanRaft()
 	cl, _, _, st, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
