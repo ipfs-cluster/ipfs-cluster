@@ -5,7 +5,6 @@ package restapi
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -21,6 +20,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 var logger = logging.Logger("restapi")
@@ -42,12 +42,10 @@ type RESTAPI struct {
 	ctx    context.Context
 	cancel func()
 
-	apiAddr    ma.Multiaddr
-	listenAddr string
-	listenPort int
-	rpcClient  *rpc.Client
-	rpcReady   chan struct{}
-	router     *mux.Router
+	apiAddr   ma.Multiaddr
+	rpcClient *rpc.Client
+	rpcReady  chan struct{}
+	router    *mux.Router
 
 	listener net.Listener
 	server   *http.Server
@@ -80,21 +78,11 @@ func (e errorResp) Error() string {
 // NewRESTAPI creates a new REST API component. It receives
 // the multiaddress on which the API listens.
 func NewRESTAPI(apiMAddr ma.Multiaddr) (*RESTAPI, error) {
-	listenAddr, err := apiMAddr.ValueForProtocol(ma.P_IP4)
+	n, addr, err := manet.DialArgs(apiMAddr)
 	if err != nil {
 		return nil, err
 	}
-	listenPortStr, err := apiMAddr.ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		return nil, err
-	}
-	listenPort, err := strconv.Atoi(listenPortStr)
-	if err != nil {
-		return nil, err
-	}
-
-	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		listenAddr, listenPort))
+	l, err := net.Listen(n, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -111,14 +99,12 @@ func NewRESTAPI(apiMAddr ma.Multiaddr) (*RESTAPI, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	api := &RESTAPI{
-		ctx:        ctx,
-		cancel:     cancel,
-		apiAddr:    apiMAddr,
-		listenAddr: listenAddr,
-		listenPort: listenPort,
-		listener:   l,
-		server:     s,
-		rpcReady:   make(chan struct{}, 1),
+		ctx:      ctx,
+		cancel:   cancel,
+		apiAddr:  apiMAddr,
+		listener: l,
+		server:   s,
+		rpcReady: make(chan struct{}, 1),
 	}
 
 	for _, route := range api.routes() {

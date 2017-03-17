@@ -12,6 +12,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
@@ -147,11 +148,7 @@ func TestIPFSProxyVersion(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/version",
-		host,
-		port))
+	res, err := http.Get(fmt.Sprintf("%s/version", proxyURL(ipfs)))
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
@@ -180,12 +177,7 @@ func TestIPFSProxyPin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
-		host,
-		port,
-		test.TestCid1))
+	res, err := http.Get(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.TestCid1))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -206,13 +198,11 @@ func TestIPFSProxyPin(t *testing.T) {
 	res.Body.Close()
 
 	// Try with a bad cid
-	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/add?arg=%s",
-		host,
-		port,
-		test.ErrorCid))
+	res, err = http.Get(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid))
 	if err != nil {
 		t.Fatal("request should work: ", err)
 	}
+	t.Log(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid))
 	if res.StatusCode != http.StatusInternalServerError {
 		t.Error("the request should return with InternalServerError")
 	}
@@ -235,12 +225,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
-		host,
-		port,
-		test.TestCid1))
+	res, err := http.Get(fmt.Sprintf("%s/pin/rm?arg=%s", proxyURL(ipfs), test.TestCid1))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -262,10 +247,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	res.Body.Close()
 
 	// Try with a bad cid
-	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/rm?arg=%s",
-		host,
-		port,
-		test.ErrorCid))
+	res, err = http.Get(fmt.Sprintf("%s/pin/rm?arg=%s", proxyURL(ipfs), test.ErrorCid))
 	if err != nil {
 		t.Fatal("request should work: ", err)
 	}
@@ -291,12 +273,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	host, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_IP4)
-	port, _ := ipfs.proxyAddr.ValueForProtocol(ma.P_TCP)
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/ls?arg=%s",
-		host,
-		port,
-		test.TestCid1))
+	res, err := http.Get(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(ipfs), test.TestCid1))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -318,9 +295,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	}
 	res.Body.Close()
 
-	res, err = http.Get(fmt.Sprintf("http://%s:%s/api/v0/pin/ls",
-		host,
-		port))
+	res, err = http.Get(fmt.Sprintf("%s/pin/ls", proxyURL(ipfs)))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
@@ -349,4 +324,9 @@ func TestIPFSShutdown(t *testing.T) {
 	if err := ipfs.Shutdown(); err != nil {
 		t.Error("expected a second clean shutdown")
 	}
+}
+
+func proxyURL(c *Connector) string {
+	_, addr, _ := manet.DialArgs(c.proxyMAddr)
+	return fmt.Sprintf("http://%s/api/v0", addr)
 }

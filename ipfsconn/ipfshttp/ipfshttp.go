@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +22,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 var logger = logging.Logger("ipfshttp")
@@ -51,12 +51,9 @@ type Connector struct {
 	ctx    context.Context
 	cancel func()
 
-	nodeAddr   ma.Multiaddr
-	proxyAddr  ma.Multiaddr
-	destHost   string
-	destPort   int
-	listenAddr string
-	listenPort int
+	nodeMAddr  ma.Multiaddr
+	nodeAddr   string
+	proxyMAddr ma.Multiaddr
 
 	handlers map[string]func(http.ResponseWriter, *http.Request)
 
@@ -94,34 +91,17 @@ type ipfsIDResp struct {
 
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Connector, error) {
-	destHost, err := ipfsNodeMAddr.ValueForProtocol(ma.P_IP4)
-	if err != nil {
-		return nil, err
-	}
-	destPortStr, err := ipfsNodeMAddr.ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		return nil, err
-	}
-	destPort, err := strconv.Atoi(destPortStr)
+	_, nodeAddr, err := manet.DialArgs(ipfsNodeMAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	listenAddr, err := ipfsProxyMAddr.ValueForProtocol(ma.P_IP4)
-	if err != nil {
-		return nil, err
-	}
-	listenPortStr, err := ipfsProxyMAddr.ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		return nil, err
-	}
-	listenPort, err := strconv.Atoi(listenPortStr)
+	proxyNet, proxyAddr, err := manet.DialArgs(ipfsProxyMAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		listenAddr, listenPort))
+	l, err := net.Listen(proxyNet, proxyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -138,15 +118,11 @@ func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Con
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ipfs := &Connector{
-		ctx:       ctx,
-		cancel:    cancel,
-		nodeAddr:  ipfsNodeMAddr,
-		proxyAddr: ipfsProxyMAddr,
-
-		destHost:   destHost,
-		destPort:   destPort,
-		listenAddr: listenAddr,
-		listenPort: listenPort,
+		ctx:        ctx,
+		cancel:     cancel,
+		nodeMAddr:  ipfsNodeMAddr,
+		nodeAddr:   nodeAddr,
+		proxyMAddr: ipfsProxyMAddr,
 		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
 		rpcReady:   make(chan struct{}, 1),
 		listener:   l,
@@ -171,8 +147,8 @@ func (ipfs *Connector) run() {
 		<-ipfs.rpcReady
 
 		logger.Infof("IPFS Proxy: %s -> %s",
-			ipfs.proxyAddr,
-			ipfs.nodeAddr)
+			ipfs.proxyMAddr,
+			ipfs.nodeMAddr)
 		err := ipfs.server.Serve(ipfs.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -194,7 +170,7 @@ func (ipfs *Connector) handle(w http.ResponseWriter, r *http.Request) {
 // defaultHandler just proxies the requests
 func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 	newURL := *r.URL
-	newURL.Host = fmt.Sprintf("%s:%d", ipfs.destHost, ipfs.destPort)
+	newURL.Host = ipfs.nodeAddr
 	newURL.Scheme = "http"
 
 	proxyReq, err := http.NewRequest(r.Method, newURL.String(), r.Body)
@@ -527,7 +503,5 @@ func (ipfs *Connector) get(path string) ([]byte, error) {
 // apiURL is a short-hand for building the url of the IPFS
 // daemon API.
 func (ipfs *Connector) apiURL() string {
-	return fmt.Sprintf("http://%s:%d/api/v0",
-		ipfs.destHost,
-		ipfs.destPort)
+	return fmt.Sprintf("http://%s/api/v0", ipfs.nodeAddr)
 }
