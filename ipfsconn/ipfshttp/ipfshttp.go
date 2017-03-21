@@ -431,10 +431,10 @@ func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, e
 	return statusMap, nil
 }
 
-// PinLsCid performs a "pin ls <hash> "request and returns IPFSPinStatus for
-// that hash.
+// PinLsCid performs a "pin ls --type=recursive <hash> "request and returns
+// an api.IPFSPinStatus for that hash.
 func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
-	lsPath := fmt.Sprintf("pin/ls?arg=%s", hash)
+	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=recursive", hash)
 	body, err := ipfs.get(lsPath)
 
 	// Network error, daemon down
