@@ -224,6 +224,7 @@ func (mpt *MapPinTracker) pin(c api.Pin) error {
 
 func (mpt *MapPinTracker) unpin(c api.Pin) error {
 	logger.Debugf("issuing unpin call for %s", c.Cid)
+	mpt.set(c.Cid, api.TrackerStatusUnpinning)
 	err := mpt.rpcClient.Call("",
 		"Cluster",
 		"IPFSUnpin",
