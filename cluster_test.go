@@ -77,6 +77,8 @@ func (ipfs *mockConnector) PinLs(filter string) (map[string]api.IPFSPinStatus, e
 	return m, nil
 }
 
+func (ipfs *mockConnector) ConnectSwarms() {}
+
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
 	api := &mockAPI{}
 	ipfs := &mockConnector{}

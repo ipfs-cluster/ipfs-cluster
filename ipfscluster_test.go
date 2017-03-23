@@ -681,7 +681,7 @@ func TestClustersReplication(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		time.Sleep(time.Second / 2)
+		time.Sleep(time.Second)
 
 		// check that it is held by exactly nClusters -1 peers
 		gpi, err := clusters[j].Status(h)

@@ -63,14 +63,17 @@ func (mock *mockService) ID(in struct{}, out *api.IDSerial) error {
 	//_, pubkey, _ := crypto.GenerateKeyPair(
 	//	DefaultConfigCrypto,
 	//	DefaultConfigKeyLength)
-	*out = api.ID{
-		ID: TestPeerID1,
+	*out = api.IDSerial{
+		ID: TestPeerID1.Pretty(),
 		//PublicKey: pubkey,
 		Version: "0.0.mock",
-		IPFS: api.IPFSID{
-			ID: TestPeerID1,
+		IPFS: api.IPFSIDSerial{
+			ID: TestPeerID1.Pretty(),
+			Addresses: api.MultiaddrsSerial{
+				api.MultiaddrSerial("/ip4/127.0.0.1/tcp/4001/ipfs/" + TestPeerID1.Pretty()),
+			},
 		},
-	}.ToSerial()
+	}
 	return nil
 }
 
@@ -235,5 +238,9 @@ func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus)
 		TestCid3: api.IPFSPinStatusRecursive,
 	}
 	*out = m
+	return nil
+}
+
+func (mock *mockService) ConnectSwarms(in struct{}, out *struct{}) error {
 	return nil
 }

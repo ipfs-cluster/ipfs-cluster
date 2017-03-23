@@ -6,14 +6,21 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 )
+
+func init() {
+	_ = logging.Logger
+	ConnectSwarmsDelay = 0
+}
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
@@ -324,6 +331,18 @@ func TestIPFSShutdown(t *testing.T) {
 	if err := ipfs.Shutdown(); err != nil {
 		t.Error("expected a second clean shutdown")
 	}
+}
+
+func TestConnectSwarms(t *testing.T) {
+	// In order to interactively test uncomment the following.
+	// Otherwise there is no good way to test this with the
+	// ipfs mock
+	// logging.SetDebugLogging()
+
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+	time.Sleep(time.Second)
 }
 
 func proxyURL(c *Connector) string {
