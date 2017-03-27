@@ -241,6 +241,22 @@ func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus)
 	return nil
 }
 
-func (mock *mockService) ConnectSwarms(in struct{}, out *struct{}) error {
+func (mock *mockService) IPFSConnectSwarms(in struct{}, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) IPFSConfigKey(in string, out *interface{}) error {
+	switch in {
+	case "Datastore/StorageMax":
+		*out = "100KB"
+	default:
+		return errors.New("configuration key not found")
+	}
+	return nil
+}
+
+func (mock *mockService) IPFSRepoSize(in struct{}, out *int) error {
+	// since we have two pins. Assume each is 1KB.
+	*out = 2000
 	return nil
 }

@@ -1,4 +1,4 @@
-package numpinalloc
+package ascendalloc
 
 import (
 	"testing"
@@ -65,24 +65,6 @@ var testCases = []testcase{
 				Value:  "1",
 				Expire: inAMinute,
 				Valid:  false,
-			},
-			peer1: api.Metric{
-				Name:   numpin.MetricName,
-				Value:  "5",
-				Expire: inAMinute,
-				Valid:  true,
-			},
-		},
-		current:  map[peer.ID]api.Metric{},
-		expected: []peer.ID{peer1},
-	},
-	{ // filter bad metric name
-		candidates: map[peer.ID]api.Metric{
-			peer0: api.Metric{
-				Name:   "lalala",
-				Value:  "1",
-				Expire: inAMinute,
-				Valid:  true,
 			},
 			peer1: api.Metric{
 				Name:   numpin.MetricName,

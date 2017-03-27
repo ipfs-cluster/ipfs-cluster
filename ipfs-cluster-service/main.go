@@ -15,8 +15,9 @@ import (
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
+	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
@@ -177,6 +178,11 @@ func main() {
 			Value: "info",
 			Usage: "set the loglevel for cluster only [critical, error, warning, info, debug]",
 		},
+		cli.StringFlag{
+			Name:  "alloc, a",
+			Value: "disk",
+			Usage: "allocation strategy [reposize, pincount]. Overrides the \"allocation_strategy\" value from the configuration",
+		},
 	}
 
 	app.Commands = []cli.Command{
@@ -241,6 +247,10 @@ func run(c *cli.Context) error {
 		cfg.LeaveOnShutdown = true
 	}
 
+	if a := c.String("alloc"); a != "" {
+		cfg.AllocationStrategy = a
+	}
+
 	api, err := restapi.NewRESTAPI(cfg.APIAddr)
 	checkErr("creating REST API component", err)
 
@@ -251,8 +261,7 @@ func run(c *cli.Context) error {
 	state := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
-	informer := numpin.NewInformer()
-	alloc := numpinalloc.NewAllocator()
+	informer, alloc := setupAllocation(cfg.AllocationStrategy)
 
 	cluster, err := ipfscluster.NewCluster(
 		cfg,
@@ -288,11 +297,26 @@ var facilities = []string{
 	"monitor",
 	"consensus",
 	"pintracker",
+	"ascendalloc",
+	"diskinfo",
 }
 
 func setupLogging(lvl string) {
 	for _, f := range facilities {
 		ipfscluster.SetFacilityLogLevel(f, lvl)
+	}
+}
+
+func setupAllocation(strategy string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
+	switch strategy {
+	case "disk", "reposize":
+		return disk.NewInformer(), ascendalloc.NewAllocator()
+	case "numpin", "pincount":
+		return numpin.NewInformer(), ascendalloc.NewAllocator()
+	default:
+		err := errors.New("unknown allocation strategy")
+		checkErr("", err)
+		return nil, nil
 	}
 }
 

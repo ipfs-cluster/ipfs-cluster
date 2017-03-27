@@ -12,6 +12,8 @@ var facilities = []string{
 	"consensus",
 	"raft",
 	"pintracker",
+	"ascendalloc",
+	"diskinfo",
 }
 
 // SetFacilityLogLevel sets the log level for a given module

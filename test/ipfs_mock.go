@@ -45,6 +45,17 @@ type idResp struct {
 	Addresses []string
 }
 
+type repoStatResp struct {
+	RepoSize  int
+	RepoCount int
+}
+
+type configResp struct {
+	Datastore struct {
+		StorageMax string
+	}
+}
+
 // NewIpfsMock returns a new mock.
 func NewIpfsMock() *IpfsMock {
 	st := mapstate.NewMapState()
@@ -163,6 +174,24 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			Strings []string
 		}{
 			Strings: []string{fmt.Sprintf("connect %s success", pid)},
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "repo/stat":
+		len := len(m.pinMap.List())
+		resp := repoStatResp{
+			RepoSize:  len * 1000,
+			RepoCount: len,
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "config/show":
+		resp := configResp{
+			Datastore: struct {
+				StorageMax string
+			}{
+				StorageMax: "10G",
+			},
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)

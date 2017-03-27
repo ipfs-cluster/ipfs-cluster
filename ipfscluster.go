@@ -73,7 +73,13 @@ type IPFSConnector interface {
 	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.
-	ConnectSwarms()
+	ConnectSwarms() error
+	// ConfigKey returns the value for a configuration key.
+	// Subobjects are reached with keypaths as "Parent/Child/GrandChild...".
+	ConfigKey(keypath string) (interface{}, error)
+	// RepoSize returns the current repository size as expressed
+	// by "repo stat".
+	RepoSize() (int, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

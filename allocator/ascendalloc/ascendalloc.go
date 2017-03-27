@@ -1,13 +1,14 @@
-// Package numpinalloc implements an ipfscluster.Allocator based on the "numpin"
-// Informer. It is a simple example on how an allocator is implemented.
-package numpinalloc
+// Package ascendalloc implements an ipfscluster.Allocator returns allocations
+// based on sorting the metrics in ascending order. Thus, peers with smallest
+// metrics are first in the list. This allocator can be used with a number
+// of informers, as long as they provide a numeric metric value.
+package ascendalloc
 
 import (
 	"sort"
 	"strconv"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/informer/numpin"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -15,7 +16,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var logger = logging.Logger("numpinalloc")
+var logger = logging.Logger("ascendalloc")
 
 // Allocator implements ipfscluster.Allocate.
 type Allocator struct{}
@@ -31,14 +32,15 @@ func (alloc *Allocator) SetClient(c *rpc.Client) {}
 // Shutdown does nothing in this allocator
 func (alloc *Allocator) Shutdown() error { return nil }
 
-// Allocate returns where to allocate a pin request based on "numpin"-Informer
-// metrics. In this simple case, we do not pay attention to the metrics
-// of the current, we just need to sort the candidates by number of pins.
+// Allocate returns where to allocate a pin request based on metrics which
+// carry a numeric value such as "used disk". We do not pay attention to
+// the metrics of the currently allocated peers and we just sort the candidates
+// based on their metric values (from smallest to largest).
 func (alloc *Allocator) Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error) {
 	// sort our metrics
-	numpins := newMetricsSorter(candidates)
-	sort.Sort(numpins)
-	return numpins.peers, nil
+	sortable := newMetricsSorter(candidates)
+	sort.Sort(sortable)
+	return sortable.peers, nil
 }
 
 // metricsSorter attaches sort.Interface methods to our metrics and sorts
@@ -52,7 +54,7 @@ func newMetricsSorter(m map[peer.ID]api.Metric) *metricsSorter {
 	vMap := make(map[peer.ID]int)
 	peers := make([]peer.ID, 0, len(m))
 	for k, v := range m {
-		if v.Name != numpin.MetricName || v.Discard() {
+		if v.Discard() {
 			continue
 		}
 		val, err := strconv.Atoi(v.Value)
