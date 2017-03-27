@@ -1,5 +1,24 @@
 # IPFS Cluster - Captain's log
 
+## 20170328 | @hsanjuan
+
+The last weeks were spent on improving go-ipfs/libp2p/multiformats documentation as part of the [documentation sprint](https://github.com/ipfs/pm/issues/357) mentioned earlier.
+
+That said, a few changes have made it to ipfs-cluster:
+
+* All components have now been converted into submodules. This clarifies
+the project layout and actually makes the component borders explicit.
+* Increase pin performance. By using `type=recursive` in IPFS API queries
+they return way faster.
+* Connect different ipfs nodes in the cluster: we now trigger `swarm connect` operations for each ipfs node associated to a cluster peer, both at start up and
+upon operations like `peer add`. This should ensure that ipfs nodes in the
+cluster know each others.
+* Add `disk` informer. The default allocation strategy now is based on how
+big the IPFS repository is. Pins will be allocated to peers with lower
+repository sizes.
+
+I will be releasing new builds/release for ipfs-cluster in the following days.
+
 ## 20170310 | @hsanjuan
 
 This week has been mostly spent on making IPFS Cluster easy to install, writing end-to-end tests as part of the Test Lab Sprint and bugfixing:
