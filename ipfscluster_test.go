@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
-	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -93,9 +93,9 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.S
 	state := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
-	alloc := numpinalloc.NewAllocator()
-	numpin.MetricTTL = 1 // second
-	inf := numpin.NewInformer()
+	alloc := ascendalloc.NewAllocator()
+	disk.MetricTTL = 1 // second
+	inf := disk.NewInformer()
 
 	return cfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
@@ -664,8 +664,7 @@ func TestClustersReplication(t *testing.T) {
 
 	// Why is replication factor nClusters - 1?
 	// Because that way we know that pinning nCluster
-	// pins with an strategy like numpins (which tries
-	// to make everyone pin the same number of things),
+	// pins with an strategy like numpins/disk
 	// will result in each peer holding locally exactly
 	// nCluster pins.
 

@@ -219,10 +219,24 @@ func (rpcapi *RPCAPI) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) er
 	return err
 }
 
-// ConnectSwarms runs IPFSConnector.ConnectSwarms().
-func (rpcapi *RPCAPI) ConnectSwarms(in struct{}, out *struct{}) error {
-	rpcapi.c.ipfs.ConnectSwarms()
-	return nil
+// IPFSConnectSwarms runs IPFSConnector.ConnectSwarms().
+func (rpcapi *RPCAPI) IPFSConnectSwarms(in struct{}, out *struct{}) error {
+	err := rpcapi.c.ipfs.ConnectSwarms()
+	return err
+}
+
+// IPFSConfigKey runs IPFSConnector.ConfigKey().
+func (rpcapi *RPCAPI) IPFSConfigKey(in string, out *interface{}) error {
+	res, err := rpcapi.c.ipfs.ConfigKey(in)
+	*out = res
+	return err
+}
+
+// IPFSRepoSize runs IPFSConnector.RepoSize().
+func (rpcapi *RPCAPI) IPFSRepoSize(in struct{}, out *int) error {
+	res, err := rpcapi.c.ipfs.RepoSize()
+	*out = res
+	return err
 }
 
 /*

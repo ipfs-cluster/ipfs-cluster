@@ -94,6 +94,11 @@ type ipfsIDResp struct {
 	Addresses []string
 }
 
+type ipfsRepoStatResp struct {
+	RepoSize   int
+	NumObjects int
+}
+
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Connector, error) {
 	_, nodeAddr, err := manet.DialArgs(ipfsNodeMAddr)
@@ -531,7 +536,7 @@ func (ipfs *Connector) apiURL() string {
 
 // ConnectSwarms requests the ipfs addresses of other peers and
 // triggers ipfs swarm connect requests
-func (ipfs *Connector) ConnectSwarms() {
+func (ipfs *Connector) ConnectSwarms() error {
 	var idsSerial []api.IDSerial
 	err := ipfs.rpcClient.Call("",
 		"Cluster",
@@ -540,7 +545,7 @@ func (ipfs *Connector) ConnectSwarms() {
 		&idsSerial)
 	if err != nil {
 		logger.Error(err)
-		return
+		return err
 	}
 	logger.Debugf("%+v", idsSerial)
 
@@ -559,4 +564,67 @@ func (ipfs *Connector) ConnectSwarms() {
 			logger.Debugf("ipfs successfully connected to %s", addr)
 		}
 	}
+	return nil
+}
+
+// ConfigKey fetches the IPFS daemon configuration and retrieves the value for
+// a given configuration key. For example, "Datastore/StorageMax" will return
+// the value for StorageMax in the Datastore configuration object.
+func (ipfs *Connector) ConfigKey(keypath string) (interface{}, error) {
+	resp, err := ipfs.get("config/show")
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+
+	var cfg map[string]interface{}
+	err = json.Unmarshal(resp, &cfg)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+
+	path := strings.SplitN(keypath, "/", 2)
+	if len(path) == 0 {
+		return nil, errors.New("cannot lookup without a path")
+	}
+
+	return getConfigValue(path, cfg)
+}
+
+func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, error) {
+	value, ok := cfg[path[0]]
+	if !ok {
+		return nil, errors.New("key not found in configuration")
+	}
+
+	if len(path) == 1 {
+		return value, nil
+	}
+
+	switch value.(type) {
+	case map[string]interface{}:
+		v := value.(map[string]interface{})
+		return getConfigValue(path[1:], v)
+	default:
+		return nil, errors.New("invalid path")
+	}
+}
+
+// RepoSize returns the current repository size of the ipfs daemon as
+// provided by "repo stats". The value is in bytes.
+func (ipfs *Connector) RepoSize() (int, error) {
+	resp, err := ipfs.get("repo/stat")
+	if err != nil {
+		logger.Error(err)
+		return 0, err
+	}
+
+	var stats ipfsRepoStatResp
+	err = json.Unmarshal(resp, &stats)
+	if err != nil {
+		logger.Error(err)
+		return 0, err
+	}
+	return stats.RepoSize, nil
 }

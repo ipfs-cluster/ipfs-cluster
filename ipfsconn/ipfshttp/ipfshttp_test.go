@@ -345,6 +345,69 @@ func TestConnectSwarms(t *testing.T) {
 	time.Sleep(time.Second)
 }
 
+func TestRepoSize(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	s, err := ipfs.RepoSize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// See the ipfs mock implementation
+	if s != 0 {
+		t.Error("expected 0 bytes of size")
+	}
+
+	c, _ := cid.Decode(test.TestCid1)
+	err = ipfs.Pin(c)
+	if err != nil {
+		t.Error("expected success pinning cid")
+	}
+
+	s, err = ipfs.RepoSize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s != 1000 {
+		t.Error("expected 1000 bytes of size")
+	}
+}
+
+func TestConfigKey(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	v, err := ipfs.ConfigKey("Datastore/StorageMax")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sto, ok := v.(string)
+	if !ok {
+		t.Fatal("error converting to string")
+	}
+	if sto != "10G" {
+		t.Error("StorageMax shouold be 10G")
+	}
+
+	v, err = ipfs.ConfigKey("Datastore")
+	_, ok = v.(map[string]interface{})
+	if !ok {
+		t.Error("should have returned the whole Datastore config object")
+	}
+
+	_, err = ipfs.ConfigKey("")
+	if err == nil {
+		t.Error("should not work with an empty path")
+	}
+
+	_, err = ipfs.ConfigKey("Datastore/abc")
+	if err == nil {
+		t.Error("should not work with a bad path")
+	}
+}
+
 func proxyURL(c *Connector) string {
 	_, addr, _ := manet.DialArgs(c.proxyMAddr)
 	return fmt.Sprintf("http://%s/api/v0", addr)

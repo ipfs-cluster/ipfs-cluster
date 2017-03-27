@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/allocator/numpinalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
@@ -77,7 +77,9 @@ func (ipfs *mockConnector) PinLs(filter string) (map[string]api.IPFSPinStatus, e
 	return m, nil
 }
 
-func (ipfs *mockConnector) ConnectSwarms() {}
+func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
+func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
+func (ipfs *mockConnector) RepoSize() (int, error)                        { return 0, nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
 	api := &mockAPI{}
@@ -86,7 +88,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	st := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(2)
-	alloc := numpinalloc.NewAllocator()
+	alloc := ascendalloc.NewAllocator()
 	inf := numpin.NewInformer()
 
 	cl, err := NewCluster(
@@ -106,7 +108,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 }
 
 func cleanRaft() {
-	os.RemoveAll(".raftFolderFromTests")
+	os.RemoveAll("raftFolderFromTests")
 }
 
 func testClusterShutdown(t *testing.T) {

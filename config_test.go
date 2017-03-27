@@ -10,7 +10,7 @@ func testingConfig() *Config {
 		ClusterListenMultiaddress:   "/ip4/127.0.0.1/tcp/10000",
 		APIListenMultiaddress:       "/ip4/127.0.0.1/tcp/10002",
 		IPFSProxyListenMultiaddress: "/ip4/127.0.0.1/tcp/10001",
-		ConsensusDataFolder:         "./raftFolderFromTests",
+		ConsensusDataFolder:         "raftFolderFromTests",
 		LeaveOnShutdown:             true,
 		MonitoringIntervalSeconds:   2,
 	}

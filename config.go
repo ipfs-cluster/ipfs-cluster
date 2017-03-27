@@ -77,6 +77,10 @@ type Config struct {
 	// pass before a peer can be detected as down.
 	MonitoringIntervalSeconds int
 
+	// AllocationStrategy is used to decide on the
+	// Informer/Allocator implementation to use.
+	AllocationStrategy string
+
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
 	path string
@@ -143,6 +147,11 @@ type JSONConfig struct {
 	// Number of seconds between monitoring checks which detect
 	// if a peer is down and consenquently trigger a rebalance
 	MonitoringIntervalSeconds int `json:"monitoring_interval_seconds"`
+
+	// AllocationStrategy is used to set how pins are allocated to
+	// different Cluster peers. Currently supports "reposize" and "pincount"
+	// values.
+	AllocationStrategy string `json:"allocation_strategy"`
 }
 
 // ToJSONConfig converts a Config object to its JSON representation which
@@ -184,6 +193,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		StateSyncSeconds:            cfg.StateSyncSeconds,
 		ReplicationFactor:           cfg.ReplicationFactor,
 		MonitoringIntervalSeconds:   cfg.MonitoringIntervalSeconds,
+		AllocationStrategy:          cfg.AllocationStrategy,
 	}
 	return
 }
@@ -265,6 +275,10 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		jcfg.MonitoringIntervalSeconds = DefaultMonitoringIntervalSeconds
 	}
 
+	if jcfg.AllocationStrategy == "" {
+		jcfg.AllocationStrategy = "reposize"
+	}
+
 	c = &Config{
 		ID:                        id,
 		PrivateKey:                pKey,
@@ -279,6 +293,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		StateSyncSeconds:          jcfg.StateSyncSeconds,
 		ReplicationFactor:         jcfg.ReplicationFactor,
 		MonitoringIntervalSeconds: jcfg.MonitoringIntervalSeconds,
+		AllocationStrategy:        jcfg.AllocationStrategy,
 	}
 	return
 }
