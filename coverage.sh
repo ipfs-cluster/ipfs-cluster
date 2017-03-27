@@ -1,10 +1,5 @@
 #!/bin/bash
 
-if [ -z $COVERALLS_TOKEN ]
-then
-    exit 1
-fi
-
 echo "mode: count" > fullcov.out
 dirs=$(find ./* -maxdepth 10 -type d )
 dirs=". $dirs"
@@ -23,6 +18,10 @@ do
             fi
         fi
 done
-$HOME/gopath/bin/goveralls -coverprofile=fullcov.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+
+if [ -n $COVERALLS_TOKEN ];
+then
+    $HOME/gopath/bin/goveralls -coverprofile=fullcov.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+fi
 rm -rf ./profile.out
 rm -rf ./fullcov.out
