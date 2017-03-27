@@ -150,6 +150,22 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			j, _ := json.Marshal(resp)
 			w.Write(j)
 		}
+	case "swarm/connect":
+		query := r.URL.Query()
+		arg, ok := query["arg"]
+		if !ok {
+			goto ERROR
+		}
+		addr := arg[0]
+		splits := strings.Split(addr, "/")
+		pid := splits[len(splits)-1]
+		resp := struct {
+			Strings []string
+		}{
+			Strings: []string{fmt.Sprintf("connect %s success", pid)},
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
 	case "version":
 		w.Write([]byte("{\"Version\":\"m.o.c.k\"}"))
 	default:

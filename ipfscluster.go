@@ -71,6 +71,9 @@ type IPFSConnector interface {
 	Unpin(*cid.Cid) error
 	PinLsCid(*cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)
+	// ConnectSwarms make sure this peer's IPFS daemon is connected to
+	// other peers IPFS daemons.
+	ConnectSwarms()
 }
 
 // Peered represents a component which needs to be aware of the peers

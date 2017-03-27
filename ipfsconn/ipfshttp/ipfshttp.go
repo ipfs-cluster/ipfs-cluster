@@ -27,6 +27,11 @@ import (
 
 var logger = logging.Logger("ipfshttp")
 
+// ConnectSwarmsDelay specifies how long to wait after startup before attempting
+// to open connections from this peer's IPFS daemon to the IPFS daemons
+// of other peers.
+var ConnectSwarmsDelay = 7 * time.Second
+
 // IPFS Proxy settings
 var (
 	// maximum duration before timing out read of the request
@@ -134,24 +139,43 @@ func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Con
 	ipfs.handlers["/api/v0/pin/rm"] = ipfs.unpinHandler
 	ipfs.handlers["/api/v0/pin/ls"] = ipfs.pinLsHandler
 
-	ipfs.run()
+	go ipfs.run()
 	return ipfs, nil
 }
 
-// set cancellable context. launch proxy
+// launches proxy and connects all ipfs daemons when
+// we receive the rpcReady signal.
 func (ipfs *Connector) run() {
+	<-ipfs.rpcReady
+
 	// This launches the proxy
 	ipfs.wg.Add(1)
 	go func() {
 		defer ipfs.wg.Done()
-		<-ipfs.rpcReady
-
 		logger.Infof("IPFS Proxy: %s -> %s",
 			ipfs.proxyMAddr,
 			ipfs.nodeMAddr)
-		err := ipfs.server.Serve(ipfs.listener)
+		err := ipfs.server.Serve(ipfs.listener) // hangs here
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
+		}
+	}()
+
+	// This runs ipfs swarm connect to the daemons of other cluster members
+	ipfs.wg.Add(1)
+	go func() {
+		defer ipfs.wg.Done()
+
+		// It does not hurt to wait a little bit. i.e. think cluster
+		// peers which are started at the same time as the ipfs
+		// daemon...
+		tmr := time.NewTimer(ConnectSwarmsDelay)
+		defer tmr.Stop()
+		select {
+		case <-tmr.C:
+			ipfs.ConnectSwarms()
+		case <-ipfs.ctx.Done():
+			return
 		}
 	}()
 }
@@ -363,7 +387,6 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 		mAddrs[i] = mAddr
 	}
 	id.Addresses = mAddrs
-
 	return id, nil
 }
 
@@ -504,4 +527,36 @@ func (ipfs *Connector) get(path string) ([]byte, error) {
 // daemon API.
 func (ipfs *Connector) apiURL() string {
 	return fmt.Sprintf("http://%s/api/v0", ipfs.nodeAddr)
+}
+
+// ConnectSwarms requests the ipfs addresses of other peers and
+// triggers ipfs swarm connect requests
+func (ipfs *Connector) ConnectSwarms() {
+	var idsSerial []api.IDSerial
+	err := ipfs.rpcClient.Call("",
+		"Cluster",
+		"Peers",
+		struct{}{},
+		&idsSerial)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	logger.Debugf("%+v", idsSerial)
+
+	for _, idSerial := range idsSerial {
+		ipfsID := idSerial.IPFS
+		for _, addr := range ipfsID.Addresses {
+			// This is a best effort attempt
+			// We ignore errors which happens
+			// when passing in a bunch of addresses
+			_, err := ipfs.get(
+				fmt.Sprintf("swarm/connect?arg=%s", addr))
+			if err != nil {
+				logger.Debug(err)
+				continue
+			}
+			logger.Debugf("ipfs successfully connected to %s", addr)
+		}
+	}
 }

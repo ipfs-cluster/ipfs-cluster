@@ -219,6 +219,12 @@ func (rpcapi *RPCAPI) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) er
 	return err
 }
 
+// ConnectSwarms runs IPFSConnector.ConnectSwarms().
+func (rpcapi *RPCAPI) ConnectSwarms(in struct{}, out *struct{}) error {
+	rpcapi.c.ipfs.ConnectSwarms()
+	return nil
+}
+
 /*
    Consensus component methods
 */

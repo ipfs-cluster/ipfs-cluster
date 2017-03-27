@@ -535,6 +535,16 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		logger.Error(err)
 	}
 
+	// Ask the new peer to connect its IPFS daemon to the rest
+	err = c.rpcClient.Call(pid,
+		"Cluster",
+		"IPFSConnectSwarms",
+		struct{}{},
+		&struct{}{})
+	if err != nil {
+		logger.Error(err)
+	}
+
 	id, err := c.getIDForPeer(pid)
 	return id, nil
 }
