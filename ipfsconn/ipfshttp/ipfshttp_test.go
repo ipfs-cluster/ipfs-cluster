@@ -162,8 +162,8 @@ func TestIPFSProxyVersion(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
-
 	defer res.Body.Close()
+
 	resBytes, _ := ioutil.ReadAll(res.Body)
 
 	var resp struct {
@@ -188,6 +188,8 @@ func TestIPFSProxyPin(t *testing.T) {
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
@@ -202,19 +204,20 @@ func TestIPFSProxyPin(t *testing.T) {
 	if len(resp.Pins) != 1 || resp.Pins[0] != test.TestCid1 {
 		t.Error("wrong response")
 	}
-	res.Body.Close()
 
 	// Try with a bad cid
-	res, err = http.Get(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid))
+	res2, err := http.Get(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid))
 	if err != nil {
 		t.Fatal("request should work: ", err)
 	}
+	defer res2.Body.Close()
+
 	t.Log(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid))
-	if res.StatusCode != http.StatusInternalServerError {
+	if res2.StatusCode != http.StatusInternalServerError {
 		t.Error("the request should return with InternalServerError")
 	}
 
-	resBytes, _ = ioutil.ReadAll(res.Body)
+	resBytes, _ = ioutil.ReadAll(res2.Body)
 	var respErr ipfsError
 	err = json.Unmarshal(resBytes, &respErr)
 	if err != nil {
@@ -224,7 +227,6 @@ func TestIPFSProxyPin(t *testing.T) {
 	if respErr.Message != test.ErrBadCid.Error() {
 		t.Error("wrong response")
 	}
-	res.Body.Close()
 }
 
 func TestIPFSProxyUnpin(t *testing.T) {
@@ -236,6 +238,8 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
@@ -251,18 +255,19 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	if len(resp.Pins) != 1 || resp.Pins[0] != test.TestCid1 {
 		t.Error("wrong response")
 	}
-	res.Body.Close()
 
 	// Try with a bad cid
-	res, err = http.Get(fmt.Sprintf("%s/pin/rm?arg=%s", proxyURL(ipfs), test.ErrorCid))
+	res2, err := http.Get(fmt.Sprintf("%s/pin/rm?arg=%s", proxyURL(ipfs), test.ErrorCid))
 	if err != nil {
 		t.Fatal("request should work: ", err)
 	}
-	if res.StatusCode != http.StatusInternalServerError {
+	defer res2.Body.Close()
+
+	if res2.StatusCode != http.StatusInternalServerError {
 		t.Error("the request should return with InternalServerError")
 	}
 
-	resBytes, _ = ioutil.ReadAll(res.Body)
+	resBytes, _ = ioutil.ReadAll(res2.Body)
 	var respErr ipfsError
 	err = json.Unmarshal(resBytes, &respErr)
 	if err != nil {
@@ -272,7 +277,6 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	if respErr.Message != test.ErrBadCid.Error() {
 		t.Error("wrong response")
 	}
-	res.Body.Close()
 }
 
 func TestIPFSProxyPinLs(t *testing.T) {
@@ -284,6 +288,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
@@ -300,17 +305,17 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	if len(resp.Keys) != 1 || !ok {
 		t.Error("wrong response")
 	}
-	res.Body.Close()
 
-	res, err = http.Get(fmt.Sprintf("%s/pin/ls", proxyURL(ipfs)))
+	res2, err := http.Get(fmt.Sprintf("%s/pin/ls", proxyURL(ipfs)))
 	if err != nil {
 		t.Fatal("should have succeeded: ", err)
 	}
-	if res.StatusCode != http.StatusOK {
+	defer res2.Body.Close()
+	if res2.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 	}
 
-	resBytes, _ = ioutil.ReadAll(res.Body)
+	resBytes, _ = ioutil.ReadAll(res2.Body)
 	err = json.Unmarshal(resBytes, &resp)
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +324,21 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	if len(resp.Keys) != 3 {
 		t.Error("wrong response")
 	}
-	res.Body.Close()
+}
+
+func TestProxyError(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	res, err := http.Get(fmt.Sprintf("%s/bad/command", proxyURL(ipfs)))
+	if err != nil {
+		t.Fatal("should have succeeded: ", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 404 {
+		t.Error("should have respected the status code")
+	}
 }
 
 func TestIPFSShutdown(t *testing.T) {
