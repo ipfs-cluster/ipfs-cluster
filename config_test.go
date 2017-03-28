@@ -93,3 +93,13 @@ func TestConfigToConfig(t *testing.T) {
 		t.Error("expected error parsing Bootstrap")
 	}
 }
+
+func TestConfigShadow(t *testing.T) {
+	cfg, _ := NewDefaultConfig()
+	cfg.Shadow()
+	cfg.LeaveOnShutdown = true
+	cfg.unshadow()
+	if cfg.LeaveOnShutdown == true {
+		t.Error("LeaveOnShutdown should retain default false value")
+	}
+}

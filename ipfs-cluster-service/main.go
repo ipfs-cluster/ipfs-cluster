@@ -231,6 +231,7 @@ func run(c *cli.Context) error {
 
 	cfg, err := loadConfig()
 	checkErr("loading configuration", err)
+	cfg.Shadow()
 
 	if a := c.String("bootstrap"); a != "" {
 		if len(cfg.ClusterPeers) > 0 && !c.Bool("force") {
