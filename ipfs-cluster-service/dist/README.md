@@ -4,6 +4,8 @@
 
 `ipfs-cluster-service` runs a full IPFS Cluster peer.
 
+![ipfs-cluster-service example](https://ipfs.io/ipfs/QmWf2asBu54nEaCzfJtdyP1KQjf4pWXmqeHYHZJm86eHAT)
+
 ### Usage
 
 Usage information can be obtained with:
