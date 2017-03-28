@@ -216,6 +216,8 @@ func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(resp.StatusCode)
+
 	// Set response headers
 	for k, v := range resp.Header {
 		for _, s := range v {
@@ -225,6 +227,7 @@ func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 
 	// And body
 	io.Copy(w, resp.Body)
+	resp.Body.Close()
 }
 
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
