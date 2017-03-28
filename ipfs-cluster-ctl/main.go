@@ -23,7 +23,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.0.10"
+const Version = "0.0.11"
 
 var (
 	defaultHost     = fmt.Sprintf("127.0.0.1:%d", 9094)
