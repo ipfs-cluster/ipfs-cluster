@@ -54,11 +54,6 @@ https://github.com/ipfs/ipfs-cluster.
 	programName,
 	defaultHost)
 
-type errorResp struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
 type peerAddBody struct {
 	Addr string `json:"peer_multiaddress"`
 }
@@ -448,24 +443,23 @@ func formatResponse(c *cli.Context, r *http.Response) {
 	defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
 	checkErr("reading body", err)
-	logger.Debugf("Body: %s", body)
+	logger.Debugf("Response body: %s", body)
 
 	switch {
-	case r.StatusCode > 399:
-		var e errorResp
-		err = json.Unmarshal(body, &e)
-		checkErr("decoding error response", err)
-		out("Error %d: %s\n", e.Code, e.Message)
 	case r.StatusCode == http.StatusAccepted:
-		out("%s", "Request accepted\n")
+		logger.Debug("Request accepted")
 	case r.StatusCode == http.StatusNoContent:
-		out("%s", "Request succeeded\n")
+		logger.Debug("Request suceeded. Response has no content")
 	default:
 		enc := c.GlobalString("encoding")
 
 		switch enc {
 		case "text":
-			textFormat(body, c.Int("parseAs"))
+			if r.StatusCode > 399 {
+				textFormat(body, formatError)
+			} else {
+				textFormat(body, c.Int("parseAs"))
+			}
 		default:
 			var resp interface{}
 			err = json.Unmarshal(body, &resp)

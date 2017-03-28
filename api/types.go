@@ -442,3 +442,14 @@ type Alert struct {
 	Peer       peer.ID
 	MetricName string
 }
+
+// Error can be used by APIs to return errors.
+type Error struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// Error implements the error interface and returns the error's message.
+func (e Error) Error() string {
+	return e.Message
+}

@@ -112,7 +112,6 @@ func NewCluster(
 		return nil, err
 	}
 	c.setupRPCClients()
-	c.bootstrap()
 	ok := c.bootstrap()
 	if !ok {
 		logger.Error("Bootstrap unsuccessful")

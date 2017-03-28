@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"syscall"
 
 	//	_ "net/http/pprof"
 
@@ -230,6 +231,7 @@ func run(c *cli.Context) error {
 
 	cfg, err := loadConfig()
 	checkErr("loading configuration", err)
+	cfg.Shadow()
 
 	if a := c.String("bootstrap"); a != "" {
 		if len(cfg.ClusterPeers) > 0 && !c.Bool("force") {
@@ -275,7 +277,8 @@ func run(c *cli.Context) error {
 	checkErr("starting cluster", err)
 
 	signalChan := make(chan os.Signal, 20)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGINT)
+	signal.Notify(signalChan, syscall.SIGTERM)
 	for {
 		select {
 		case <-signalChan:

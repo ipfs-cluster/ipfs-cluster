@@ -131,7 +131,7 @@ func TestRESTAPIPeerAddEndpoint(t *testing.T) {
 	}
 
 	// Send invalid body
-	errResp := errorResp{}
+	errResp := api.Error{}
 	makePost(t, "/peers", []byte("oeoeoeoe"), &errResp)
 	if errResp.Code != 400 {
 		t.Error("expected error with bad body")
@@ -157,7 +157,7 @@ func TestRESTAPIPinEndpoint(t *testing.T) {
 	// test regular post
 	makePost(t, "/pins/"+test.TestCid1, []byte{}, &struct{}{})
 
-	errResp := errorResp{}
+	errResp := api.Error{}
 	makePost(t, "/pins/"+test.ErrorCid, []byte{}, &errResp)
 	if errResp.Message != test.ErrBadCid.Error() {
 		t.Error("expected different error: ", errResp.Message)
@@ -176,7 +176,7 @@ func TestRESTAPIUnpinEndpoint(t *testing.T) {
 	// test regular delete
 	makeDelete(t, "/pins/"+test.TestCid1, &struct{}{})
 
-	errResp := errorResp{}
+	errResp := api.Error{}
 	makeDelete(t, "/pins/"+test.ErrorCid, &errResp)
 	if errResp.Message != test.ErrBadCid.Error() {
 		t.Error("expected different error: ", errResp.Message)

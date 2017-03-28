@@ -15,6 +15,7 @@ const (
 	formatString
 	formatVersion
 	formatPin
+	formatError
 )
 
 type format int
@@ -50,6 +51,11 @@ func textFormatObject(body []byte, format int) {
 		var obj api.PinSerial
 		textFormatDecodeOn(body, &obj)
 		textFormatPrintPin(&obj)
+	case formatError:
+		var obj api.Error
+		textFormatDecodeOn(body, &obj)
+		textFormatPrintError(&obj)
+
 	default:
 		var obj interface{}
 		textFormatDecodeOn(body, &obj)
@@ -112,4 +118,10 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	} else {
 		fmt.Printf("%s\n", obj.Allocations)
 	}
+}
+
+func textFormatPrintError(obj *api.Error) {
+	fmt.Printf("An error ocurred:\n")
+	fmt.Printf("  Code: %d\n", obj.Code)
+	fmt.Printf("  Message: %s\n", obj.Message)
 }

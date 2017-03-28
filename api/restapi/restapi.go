@@ -66,15 +66,6 @@ type peerAddBody struct {
 	PeerMultiaddr string `json:"peer_multiaddress"`
 }
 
-type errorResp struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (e errorResp) Error() string {
-	return e.Message
-}
-
 // NewRESTAPI creates a new REST API component. It receives
 // the multiaddress on which the API listens.
 func NewRESTAPI(apiMAddr ma.Multiaddr) (*RESTAPI, error) {
@@ -480,7 +471,10 @@ func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
 }
 
 func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
-	errorResp := errorResp{code, msg}
+	errorResp := api.Error{
+		Code:    code,
+		Message: msg,
+	}
 	logger.Errorf("sending error response: %d: %s", code, msg)
 	sendJSONResponse(w, code, errorResp)
 }

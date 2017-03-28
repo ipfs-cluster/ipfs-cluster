@@ -86,6 +86,8 @@ type Config struct {
 	path string
 
 	saveMux sync.Mutex
+
+	shadow *Config
 }
 
 // JSONConfig represents a Cluster configuration as it will look when it is
@@ -328,6 +330,8 @@ func (cfg *Config) Save(path string) error {
 	cfg.saveMux.Lock()
 	defer cfg.saveMux.Unlock()
 
+	cfg.unshadow()
+
 	if path == "" {
 		path = cfg.path
 	}
@@ -344,6 +348,34 @@ func (cfg *Config) Save(path string) error {
 	}
 	err = ioutil.WriteFile(path, json, 0600)
 	return err
+}
+
+// Shadow copies certain configuration values to a shadow configuration
+// object. From the moment Shadow is called, configuration keys which are
+// shadowed may be changed, but Save() will restore them to the original
+// value stored in the shadow. Currently affects:
+//
+//   - AllocationStrategy
+//   - LeaveOnShutdown
+//   - Bootstrap
+//
+// which are options which can be overriden via ipfs-cluster-service flags.
+// The shadow dissapears with every call to Save().
+func (cfg *Config) Shadow() {
+	cfg.shadow = &Config{
+		AllocationStrategy: cfg.AllocationStrategy,
+		LeaveOnShutdown:    cfg.LeaveOnShutdown,
+		Bootstrap:          cfg.Bootstrap,
+	}
+}
+
+func (cfg *Config) unshadow() {
+	if cfg.shadow != nil {
+		cfg.AllocationStrategy = cfg.shadow.AllocationStrategy
+		cfg.LeaveOnShutdown = cfg.shadow.LeaveOnShutdown
+		cfg.Bootstrap = cfg.shadow.Bootstrap
+	}
+	cfg.shadow = nil
 }
 
 // NewDefaultConfig returns a default configuration object with a randomly
