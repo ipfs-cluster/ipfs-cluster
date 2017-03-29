@@ -761,6 +761,7 @@ func (c *Cluster) Pin(pin api.Pin) error {
 	case rpl == 0:
 		return errors.New("replication factor is 0")
 	case rpl < 0:
+		pin.Allocations = []peer.ID{}
 		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
 	case rpl > 0:
 		allocs, err := c.allocate(pin.Cid, pin.ReplicationFactor)
