@@ -277,8 +277,10 @@ func run(c *cli.Context) error {
 	checkErr("starting cluster", err)
 
 	signalChan := make(chan os.Signal, 20)
-	signal.Notify(signalChan, syscall.SIGINT)
-	signal.Notify(signalChan, syscall.SIGTERM)
+	signal.Notify(signalChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGHUP)
 	for {
 		select {
 		case <-signalChan:
