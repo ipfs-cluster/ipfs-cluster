@@ -219,15 +219,11 @@ func (ipfs *Connector) proxyRequest(r *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	// Copy all headers from the original request
-	logger.Infof("%+v", r.Header)
-
 	for k, v := range r.Header {
 		for _, s := range v {
 			proxyReq.Header.Add(k, s)
 		}
 	}
-	logger.Infof("%+v", proxyReq.Header)
 
 	res, err := http.DefaultTransport.RoundTrip(proxyReq)
 	if err != nil {
