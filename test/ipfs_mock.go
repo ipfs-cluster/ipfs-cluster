@@ -40,20 +40,25 @@ type ipfsErr struct {
 	Message string
 }
 
-type idResp struct {
+type mockIdResp struct {
 	ID        string
 	Addresses []string
 }
 
-type repoStatResp struct {
+type mockRepoStatResp struct {
 	RepoSize  int
 	RepoCount int
 }
 
-type configResp struct {
+type mockConfigResp struct {
 	Datastore struct {
 		StorageMax string
 	}
+}
+
+type mockAddResp struct {
+	Name string
+	Hash string
 }
 
 // NewIpfsMock returns a new mock.
@@ -82,11 +87,27 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	var cidStr string
 	switch endp {
 	case "id":
-		resp := idResp{
+		resp := mockIdResp{
 			ID: TestPeerID1.Pretty(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
 			},
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "add":
+		c, _ := cid.Decode(TestCid3)
+		// add also pins
+		m.pinMap.Add(api.PinCid(c))
+		_, fheader, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, "no file in /add", 500)
+			return
+		}
+
+		resp := mockAddResp{
+			Name: fheader.Filename,
+			Hash: TestCid3,
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
@@ -179,14 +200,14 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(j)
 	case "repo/stat":
 		len := len(m.pinMap.List())
-		resp := repoStatResp{
+		resp := mockRepoStatResp{
 			RepoSize:  len * 1000,
 			RepoCount: len,
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "config/show":
-		resp := configResp{
+		resp := mockConfigResp{
 			Datastore: struct {
 				StorageMax string
 			}{

@@ -3,6 +3,7 @@
 package ipfshttp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -34,10 +37,12 @@ var ConnectSwarmsDelay = 7 * time.Second
 
 // IPFS Proxy settings
 var (
-	// maximum duration before timing out read of the request
-	IPFSProxyServerReadTimeout = 5 * time.Second
+	// maximum duration before timing out reading a full request
+	IPFSProxyServerReadTimeout = 10 * time.Minute
+	// maximum duration before timing out reading the headers of a request
+	IPFSProxyServerReadHeaderTimeout = 5 * time.Second
 	// maximum duration before timing out write of the response
-	IPFSProxyServerWriteTimeout = 10 * time.Second
+	IPFSProxyServerWriteTimeout = 10 * time.Minute
 	// server-side the amount of time a Keep-Alive connection will be
 	// kept idle before being reused
 	IPFSProxyServerIdleTimeout = 60 * time.Second
@@ -99,6 +104,11 @@ type ipfsRepoStatResp struct {
 	NumObjects int
 }
 
+type ipfsAddResp struct {
+	Name string
+	Hash string
+}
+
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Connector, error) {
 	_, nodeAddr, err := manet.DialArgs(ipfsNodeMAddr)
@@ -120,7 +130,8 @@ func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Con
 	s := &http.Server{
 		ReadTimeout:  IPFSProxyServerReadTimeout,
 		WriteTimeout: IPFSProxyServerWriteTimeout,
-		// IdleTimeout:  IPFSProxyServerIdleTimeout, // TODO Go 1.8
+		//ReadHeaderTimeout: IPFSProxyServerReadHeaderTimeout, Go 1.8
+		//IdleTimeout:       IPFSProxyServerIdleTimeout, Go 1.8
 		Handler: smux,
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
@@ -143,6 +154,7 @@ func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Con
 	ipfs.handlers["/api/v0/pin/add"] = ipfs.pinHandler
 	ipfs.handlers["/api/v0/pin/rm"] = ipfs.unpinHandler
 	ipfs.handlers["/api/v0/pin/ls"] = ipfs.pinLsHandler
+	ipfs.handlers["/api/v0/add"] = ipfs.addHandler
 
 	go ipfs.run()
 	return ipfs, nil
@@ -196,8 +208,7 @@ func (ipfs *Connector) handle(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// defaultHandler just proxies the requests
-func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *Connector) proxyRequest(r *http.Request) (*http.Response, error) {
 	newURL := *r.URL
 	newURL.Host = ipfs.nodeAddr
 	newURL.Scheme = "http"
@@ -205,36 +216,59 @@ func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 	proxyReq, err := http.NewRequest(r.Method, newURL.String(), r.Body)
 	if err != nil {
 		logger.Error("error creating proxy request: ", err)
-		http.Error(w, "error forwarding request", 500)
-		return
+		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(proxyReq)
+	// Copy all headers from the original request
+	logger.Infof("%+v", r.Header)
+
+	for k, v := range r.Header {
+		for _, s := range v {
+			proxyReq.Header.Add(k, s)
+		}
+	}
+	logger.Infof("%+v", proxyReq.Header)
+
+	res, err := http.DefaultTransport.RoundTrip(proxyReq)
 	if err != nil {
 		logger.Error("error forwarding request: ", err)
-		http.Error(w, "error forwaring request", 500)
-		return
+		return nil, err
 	}
+	return res, nil
+}
 
-	w.WriteHeader(resp.StatusCode)
-
+// Writes a response to a ResponseWriter using the given body
+// (which maybe resp.Body or a copy if it was already used).
+func (ipfs *Connector) proxyResponse(w http.ResponseWriter, res *http.Response, body io.Reader) {
 	// Set response headers
-	for k, v := range resp.Header {
+	for k, v := range res.Header {
 		for _, s := range v {
 			w.Header().Add(k, s)
 		}
 	}
 
-	// And body
-	io.Copy(w, resp.Body)
-	resp.Body.Close()
+	w.WriteHeader(res.StatusCode)
+
+	// And copy body
+	io.Copy(w, body)
+}
+
+// defaultHandler just proxies the requests.
+func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
+	res, err := ipfs.proxyRequest(r)
+	if err != nil {
+		http.Error(w, "error forwarding request: "+err.Error(), 500)
+		return
+	}
+	ipfs.proxyResponse(w, res, res.Body)
+	res.Body.Close()
 }
 
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
-	resp := ipfsError{errMsg}
-	respBytes, _ := json.Marshal(resp)
+	res := ipfsError{errMsg}
+	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Write(respBytes)
+	w.Write(resBytes)
 	return
 }
 
@@ -264,12 +298,12 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	resp := ipfsPinOpResp{
+	res := ipfsPinOpResp{
 		Pins: []string{arg},
 	}
-	respBytes, _ := json.Marshal(resp)
+	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
+	w.Write(resBytes)
 	return
 }
 
@@ -323,9 +357,168 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	respBytes, _ := json.Marshal(pinLs)
+	resBytes, _ := json.Marshal(pinLs)
 	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
+	w.Write(resBytes)
+}
+
+func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle some request options
+	q := r.URL.Query()
+	// Remember if the user does not want cluster/ipfs to pin
+	doNotPin := q.Get("pin") == "false"
+	// make sure the local peer does not pin.
+	// Cluster will decide where to pin based on metrics and current
+	// allocations.
+	q.Set("pin", "false")
+	// do not send progress updates. They have no use since we need to
+	// wait until the end to tell cluster to pin.
+	q.Set("progress", "false")
+	r.URL.RawQuery = q.Encode()
+
+	res, err := ipfs.proxyRequest(r)
+	if err != nil {
+		http.Error(w, "error forwarding request: "+err.Error(), 500)
+		return
+	}
+	defer res.Body.Close()
+
+	// Shortcut some cases where there is nothing else to do
+	if scode := res.StatusCode; scode != http.StatusOK {
+		logger.Warningf("proxy /add request returned %d", scode)
+		ipfs.proxyResponse(w, res, res.Body)
+		return
+	}
+
+	if doNotPin {
+		logger.Debug("proxy /add requests has pin==false")
+		ipfs.proxyResponse(w, res, res.Body)
+		return
+	}
+
+	// The ipfs-add response is a streaming-like body where
+	// { "Name" : "filename", "Hash": "cid" } objects are provided
+	// for every added object.
+
+	// We will need to re-read the response in order to re-play it to
+	// the client at the end, therefore we make a copy in bodyCopy
+	// while decoding.
+	bodyCopy := new(bytes.Buffer)
+	bodyReader := io.TeeReader(res.Body, bodyCopy)
+
+	ipfsAddResps := []ipfsAddResp{}
+	dec := json.NewDecoder(bodyReader)
+	for dec.More() {
+		var addResp ipfsAddResp
+		err := dec.Decode(&addResp)
+		if err != nil {
+			http.Error(w, "error decoding response: "+err.Error(), 502)
+			return
+		}
+		ipfsAddResps = append(ipfsAddResps, addResp)
+	}
+
+	if len(ipfsAddResps) == 0 {
+		logger.Warning("proxy /add request response was OK but empty")
+		ipfs.proxyResponse(w, res, bodyCopy)
+		return
+	}
+
+	// An ipfs-add call can add multiple files and pin multiple items.
+	// The go-ipfs api is not perfectly behaved here (i.e. when passing in
+	// two directories to pin). There is no easy way to know for sure what
+	// has been pinned recursively and what not.
+	// Usually when pinning a directory, the recursive pin comes last.
+	// But we may just be pinning different files and no directories.
+	// In that case, we need to recursively pin them separately.
+	// decideRecursivePins() takes a conservative approach. It
+	// works on the regular use-cases. Otherwise, it might pin
+	// more things than it should.
+	pinHashes := decideRecursivePins(ipfsAddResps, r.URL.Query())
+
+	logger.Debugf("proxy /add request and will pin %s", pinHashes)
+	for _, pin := range pinHashes {
+		err := ipfs.rpcClient.Call("",
+			"Cluster",
+			"Pin",
+			api.PinSerial{
+				Cid: pin,
+			},
+			&struct{}{})
+		if err != nil {
+			// we need to fail the operation and make sure the
+			// user knows about it.
+			msg := "add operation was successful but "
+			msg += "an error ocurred performing the cluster "
+			msg += "pin operation: " + err.Error()
+			logger.Error(msg)
+			http.Error(w, msg, 500)
+			return
+		}
+	}
+	// Finally, send the original response back
+	ipfs.proxyResponse(w, res, bodyCopy)
+}
+
+// decideRecursivePins takes the answers from ipfsAddResp and
+// figures out which of the pinned items need to be pinned
+// recursively in cluster. That is, it guesses which items
+// ipfs would have pinned recursively.
+// When adding multiple files+directories, it may end up
+// pinning more than it should because ipfs API does not
+// behave well in these cases.
+// It should work well for regular usecases: pin 1 file,
+// pin 1 directory, pin several files.
+func decideRecursivePins(added []ipfsAddResp, q url.Values) []string {
+	// When wrap-in-directory, return last element only.
+	_, ok := q["wrap-in-directory"]
+	if ok && q.Get("wrap-in-directory") == "true" {
+		return []string{
+			added[len(added)-1].Hash,
+		}
+	}
+
+	toPin := []string{}
+	baseFolders := make(map[string]struct{})
+	// Guess base folder names
+	baseFolder := func(path string) string {
+		slashed := filepath.ToSlash(path)
+		parts := strings.Split(slashed, "/")
+		if len(parts) == 0 {
+			return ""
+		}
+		if parts[0] == "" && len(parts) > 1 {
+			return parts[1]
+		}
+		return parts[0]
+	}
+
+	for _, add := range added {
+		if add.Hash == "" {
+			continue
+		}
+		b := baseFolder(add.Name)
+		if b != "" {
+			baseFolders[b] = struct{}{}
+		}
+	}
+	for _, add := range added {
+		if add.Hash == "" {
+			continue
+		}
+		_, ok := baseFolders[add.Name]
+		if ok { // it's a base folder, pin it
+			toPin = append(toPin, add.Hash)
+		} else { // otherwise, pin if there is no
+			// basefolder to it.
+			b := baseFolder(add.Name)
+			_, ok := baseFolders[b]
+			if !ok {
+				toPin = append(toPin, add.Hash)
+			}
+		}
+	}
+	return toPin
 }
 
 // SetClient makes the component ready to perform RPC
@@ -371,22 +564,22 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 		return id, err
 	}
 
-	var resp ipfsIDResp
-	err = json.Unmarshal(body, &resp)
+	var res ipfsIDResp
+	err = json.Unmarshal(body, &res)
 	if err != nil {
 		id.Error = err.Error()
 		return id, err
 	}
 
-	pID, err := peer.IDB58Decode(resp.ID)
+	pID, err := peer.IDB58Decode(res.ID)
 	if err != nil {
 		id.Error = err.Error()
 		return id, err
 	}
 	id.ID = pID
 
-	mAddrs := make([]ma.Multiaddr, len(resp.Addresses), len(resp.Addresses))
-	for i, strAddr := range resp.Addresses {
+	mAddrs := make([]ma.Multiaddr, len(res.Addresses), len(res.Addresses))
+	for i, strAddr := range res.Addresses {
 		mAddr, err := ma.NewMultiaddr(strAddr)
 		if err != nil {
 			id.Error = err.Error()
@@ -447,8 +640,8 @@ func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, e
 		return nil, err
 	}
 
-	var resp ipfsPinLsResp
-	err = json.Unmarshal(body, &resp)
+	var res ipfsPinLsResp
+	err = json.Unmarshal(body, &res)
 	if err != nil {
 		logger.Error("parsing pin/ls response")
 		logger.Error(string(body))
@@ -456,7 +649,7 @@ func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, e
 	}
 
 	statusMap := make(map[string]api.IPFSPinStatus)
-	for k, v := range resp.Keys {
+	for k, v := range res.Keys {
 		statusMap[k] = api.IPFSPinStatusFromString(v.Type)
 	}
 	return statusMap, nil
@@ -478,14 +671,14 @@ func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 		return api.IPFSPinStatusUnpinned, nil
 	}
 
-	var resp ipfsPinLsResp
-	err = json.Unmarshal(body, &resp)
+	var res ipfsPinLsResp
+	err = json.Unmarshal(body, &res)
 	if err != nil {
 		logger.Error("parsing pin/ls?arg=cid response:")
 		logger.Error(string(body))
 		return api.IPFSPinStatusError, err
 	}
-	pinObj, ok := resp.Keys[hash.String()]
+	pinObj, ok := res.Keys[hash.String()]
 	if !ok {
 		return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
 	}
@@ -501,13 +694,13 @@ func (ipfs *Connector) get(path string) ([]byte, error) {
 		ipfs.apiURL(),
 		path)
 
-	resp, err := http.Get(url)
+	res, err := http.Get(url)
 	if err != nil {
 		logger.Error("error getting:", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		logger.Errorf("error reading response body: %s", err)
 		return nil, err
@@ -516,14 +709,14 @@ func (ipfs *Connector) get(path string) ([]byte, error) {
 	var ipfsErr ipfsError
 	decodeErr := json.Unmarshal(body, &ipfsErr)
 
-	if resp.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusOK {
 		var msg string
 		if decodeErr == nil {
 			msg = fmt.Sprintf("IPFS unsuccessful: %d: %s",
-				resp.StatusCode, ipfsErr.Message)
+				res.StatusCode, ipfsErr.Message)
 		} else {
 			msg = fmt.Sprintf("IPFS-get '%s' unsuccessful: %d: %s",
-				path, resp.StatusCode, body)
+				path, res.StatusCode, body)
 		}
 
 		return body, errors.New(msg)
@@ -574,14 +767,14 @@ func (ipfs *Connector) ConnectSwarms() error {
 // a given configuration key. For example, "Datastore/StorageMax" will return
 // the value for StorageMax in the Datastore configuration object.
 func (ipfs *Connector) ConfigKey(keypath string) (interface{}, error) {
-	resp, err := ipfs.get("config/show")
+	res, err := ipfs.get("config/show")
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
 
 	var cfg map[string]interface{}
-	err = json.Unmarshal(resp, &cfg)
+	err = json.Unmarshal(res, &cfg)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -617,14 +810,14 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 // RepoSize returns the current repository size of the ipfs daemon as
 // provided by "repo stats". The value is in bytes.
 func (ipfs *Connector) RepoSize() (int, error) {
-	resp, err := ipfs.get("repo/stat")
+	res, err := ipfs.get("repo/stat")
 	if err != nil {
 		logger.Error(err)
 		return 0, err
 	}
 
 	var stats ipfsRepoStatResp
-	err = json.Unmarshal(resp, &stats)
+	err = json.Unmarshal(res, &stats)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
