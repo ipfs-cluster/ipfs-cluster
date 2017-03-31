@@ -411,5 +411,6 @@ func NewDefaultConfig() (*Config, error) {
 		StateSyncSeconds:          DefaultStateSyncSeconds,
 		ReplicationFactor:         -1,
 		MonitoringIntervalSeconds: DefaultMonitoringIntervalSeconds,
+		AllocationStrategy:        "reposize",
 	}, nil
 }
