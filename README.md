@@ -34,8 +34,7 @@
   - [Docker](#docker)
   - [Install from sources](#install-from-sources)
 - [Usage](#usage)
-  - [`ipfs-cluster-service`](#ipfs-cluster-service)
-  - [`ipfs-cluster-ctl`](#ipfs-cluster-ctl)
+  - [`Quickstart`](#quickstart)
   - [`Go`](#go)
   - [`Additional docs`](#additional-docs)
 - [API](#api)
@@ -87,11 +86,24 @@ This will install `ipfs-cluster-service` and `ipfs-cluster-ctl` in your `$GOPATH
 
 ![ipfs-cluster-usage](https://ipfs.io/ipfs/QmVMKD39fYJG9QGyyFkGN3QuZRg3EfuuxqkG1scCo9ZUHp/cluster-mgmt.gif)
 
-### `ipfs-cluster-service`
+### Quickstart
 
-For information on how to configure and launch an IPFS Cluster peer see the [`ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md).
+**`ipfs-cluster-service`** runs an ipfs-cluster peer:
 
-### `ipfs-cluster-ctl`
+* Initialize with `ipfs-cluster-service init`
+* Run with `ipfs-cluster-service`. Check `--help` for options
+
+For more information see the [`ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md). Also, read [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md) for full a full overview of how cluster works.
+
+**`ipfs-cluster-ctl`** is used to interface with the ipfs-cluster peer:
+
+```
+ipfs-cluster-ctl id                    # see peer information
+ipfs-cluster-ctl pin add <cid>         # Pin a CID in ipfs-cluster
+ipfs-cluster-ctl pin rm <cid>          # Upin a CID
+ipfs-cluster-ctl ls                    # See current pins and allocations
+ipfs-cluster-ctl status <cid>          # See information from every allocation for a CID.
+```
 
 For information on how to manage and perform operations on an IPFS Cluster peer see the [`ipfs-cluster-ctl` README](ipfs-cluster-ctl/dist/README.md).
 
@@ -105,6 +117,7 @@ Documentation and examples on how to use IPFS Cluster from Go can be found in [g
 
 You can find more information and detailed guides:
 
+* [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.m)
 * [Building and updating an IPFS Cluster](docs/HOWTO_build_and_update_a_cluster.md)
 
 Note: please contribute to improve and add more documentation!
