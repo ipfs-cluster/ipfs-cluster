@@ -179,14 +179,22 @@ func (c *Cluster) setupRPCClients() {
 	c.informer.SetClient(c.rpcClient)
 }
 
-// stateSyncWatcher loops and triggers StateSync from time to time
-func (c *Cluster) stateSyncWatcher() {
+// syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
+func (c *Cluster) syncWatcher() {
 	stateSyncTicker := time.NewTicker(
 		time.Duration(c.config.StateSyncSeconds) * time.Second)
+
+	syncTicker := time.NewTicker(
+		time.Duration(c.config.IPFSSyncSeconds) * time.Second)
+
 	for {
 		select {
 		case <-stateSyncTicker.C:
+			logger.Debug("auto-triggering StateSync()")
 			c.StateSync()
+		case <-syncTicker.C:
+			logger.Debug("auto-triggering SyncAllLocal()")
+			c.SyncAllLocal()
 		case <-c.ctx.Done():
 			stateSyncTicker.Stop()
 			return
@@ -318,7 +326,7 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 // run provides a cancellable context and launches some goroutines
 // before signaling readyCh
 func (c *Cluster) run() {
-	go c.stateSyncWatcher()
+	go c.syncWatcher()
 	go c.pushPingMetrics()
 	go c.pushInformerMetrics()
 	go c.alertsHandler()

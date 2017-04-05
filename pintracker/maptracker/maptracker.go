@@ -22,8 +22,8 @@ var logger = logging.Logger("pintracker")
 // if the Cid has stayed in Pinning or Unpinning state
 // for longer than these values.
 var (
-	PinningTimeout   = 15 * time.Minute
-	UnpinningTimeout = 10 * time.Second
+	PinningTimeout   = 60 * time.Minute
+	UnpinningTimeout = 15 * time.Minute
 )
 
 // PinQueueSize specifies the maximum amount of pin operations waiting
