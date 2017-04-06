@@ -188,16 +188,33 @@ func TestRESTAPIUnpinEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIPinListEndpoint(t *testing.T) {
+func TestRESTAPIAllocationsEndpoint(t *testing.T) {
 	rest := testRESTAPI(t)
 	defer rest.Shutdown()
 
 	var resp []api.PinSerial
-	makeGet(t, "/pinlist", &resp)
+	makeGet(t, "/allocations", &resp)
 	if len(resp) != 3 ||
 		resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||
 		resp[2].Cid != test.TestCid3 {
 		t.Error("unexpected pin list: ", resp)
+	}
+}
+
+func TestRESTAPIAllocationEndpoint(t *testing.T) {
+	rest := testRESTAPI(t)
+	defer rest.Shutdown()
+
+	var resp api.PinSerial
+	makeGet(t, "/allocations/"+test.TestCid1, &resp)
+	if resp.Cid != test.TestCid1 {
+		t.Error("cid should be the same")
+	}
+
+	errResp := api.Error{}
+	makeGet(t, "/allocations/"+test.ErrorCid, &errResp)
+	if errResp.Code != 404 {
+		t.Error("a non-pinned cid should 404")
 	}
 }
 

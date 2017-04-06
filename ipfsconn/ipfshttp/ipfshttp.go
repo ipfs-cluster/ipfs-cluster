@@ -263,6 +263,7 @@ func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	res := ipfsError{errMsg}
 	resBytes, _ := json.Marshal(res)
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write(resBytes)
 	return
@@ -298,6 +299,7 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		Pins: []string{arg},
 	}
 	resBytes, _ := json.Marshal(res)
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 	return
@@ -315,45 +317,51 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
-	var pins []api.PinSerial
-	err := ipfs.rpcClient.Call("",
-		"Cluster",
-		"PinList",
-		struct{}{},
-		&pins)
-
-	if err != nil {
-		ipfsErrorResponder(w, err.Error())
-		return
-	}
-
-	for _, pin := range pins {
-		pinLs.Keys[pin.Cid] = ipfsPinType{
-			Type: "recursive",
-		}
-	}
-
-	argA, ok := r.URL.Query()["arg"]
-	if ok {
-		if len(argA) == 0 {
-			ipfsErrorResponder(w, "Error: bad argument")
+	q := r.URL.Query()
+	arg := q.Get("arg")
+	if arg != "" {
+		c, err := cid.Decode(arg)
+		if err != nil {
+			ipfsErrorResponder(w, err.Error())
 			return
 		}
-		arg := argA[0]
-		singlePin, ok := pinLs.Keys[arg]
-		if ok {
-			pinLs.Keys = map[string]ipfsPinType{
-				arg: singlePin,
-			}
-		} else {
+		var pin api.PinSerial
+		err = ipfs.rpcClient.Call("",
+			"Cluster",
+			"PinGet",
+			api.PinCid(c).ToSerial(),
+			&pin)
+		if err != nil {
 			ipfsErrorResponder(w, fmt.Sprintf(
 				"Error: path '%s' is not pinned",
 				arg))
 			return
 		}
+		pinLs.Keys[pin.Cid] = ipfsPinType{
+			Type: "recursive",
+		}
+	} else {
+		var pins []api.PinSerial
+		err := ipfs.rpcClient.Call("",
+			"Cluster",
+			"Pins",
+			struct{}{},
+			&pins)
+
+		if err != nil {
+			ipfsErrorResponder(w, err.Error())
+			return
+		}
+
+		for _, pin := range pins {
+			pinLs.Keys[pin.Cid] = ipfsPinType{
+				Type: "recursive",
+			}
+		}
 	}
 
 	resBytes, _ := json.Marshal(pinLs)
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 }

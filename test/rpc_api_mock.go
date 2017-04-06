@@ -44,7 +44,7 @@ func (mock *mockService) Unpin(in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) PinList(in struct{}, out *[]api.PinSerial) error {
+func (mock *mockService) Pins(in struct{}, out *[]api.PinSerial) error {
 	*out = []api.PinSerial{
 		{
 			Cid: TestCid1,
@@ -56,6 +56,14 @@ func (mock *mockService) PinList(in struct{}, out *[]api.PinSerial) error {
 			Cid: TestCid3,
 		},
 	}
+	return nil
+}
+
+func (mock *mockService) PinGet(in api.PinSerial, out *api.PinSerial) error {
+	if in.Cid == ErrorCid {
+		return errors.New("expected error when using ErrorCid")
+	}
+	*out = in
 	return nil
 }
 

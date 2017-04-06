@@ -147,12 +147,17 @@ func (rest *RESTAPI) routes() []route {
 		},
 
 		{
-			"Pins",
+			"Allocations",
 			"GET",
-			"/pinlist",
-			rest.pinListHandler,
+			"/allocations",
+			rest.allocationsHandler,
 		},
-
+		{
+			"Allocation",
+			"GET",
+			"/allocations/{hash}",
+			rest.allocationHandler,
+		},
 		{
 			"StatusAll",
 			"GET",
@@ -334,14 +339,30 @@ func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) pinListHandler(w http.ResponseWriter, r *http.Request) {
+func (rest *RESTAPI) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	var pins []api.PinSerial
 	err := rest.rpcClient.Call("",
 		"Cluster",
-		"PinList",
+		"Pins",
 		struct{}{},
 		&pins)
 	sendResponse(w, err, pins)
+}
+
+func (rest *RESTAPI) allocationHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		var pin api.PinSerial
+		err := rest.rpcClient.Call("",
+			"Cluster",
+			"PinGet",
+			c,
+			&pin)
+		if err != nil { // errors here are 404s
+			sendErrorResponse(w, 404, err.Error())
+			return
+		}
+		sendJSONResponse(w, 200, pin)
+	}
 }
 
 func (rest *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
@@ -464,6 +485,7 @@ func sendAcceptedResponse(w http.ResponseWriter, rpcErr error) {
 }
 
 func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		panic(err)

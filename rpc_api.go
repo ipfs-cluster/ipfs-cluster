@@ -41,8 +41,8 @@ func (rpcapi *RPCAPI) Unpin(in api.PinSerial, out *struct{}) error {
 	return rpcapi.c.Unpin(c)
 }
 
-// PinList runs Cluster.Pins().
-func (rpcapi *RPCAPI) PinList(in struct{}, out *[]api.PinSerial) error {
+// Pins runs Cluster.Pins().
+func (rpcapi *RPCAPI) Pins(in struct{}, out *[]api.PinSerial) error {
 	cidList := rpcapi.c.Pins()
 	cidSerialList := make([]api.PinSerial, 0, len(cidList))
 	for _, c := range cidList {
@@ -50,6 +50,16 @@ func (rpcapi *RPCAPI) PinList(in struct{}, out *[]api.PinSerial) error {
 	}
 	*out = cidSerialList
 	return nil
+}
+
+// PinGet runs Cluster.PinGet().
+func (rpcapi *RPCAPI) PinGet(in api.PinSerial, out *api.PinSerial) error {
+	cidarg := in.ToPin()
+	pin, err := rpcapi.c.PinGet(cidarg.Cid)
+	if err == nil {
+		*out = pin.ToSerial()
+	}
+	return err
 }
 
 // Version runs Cluster.Version().

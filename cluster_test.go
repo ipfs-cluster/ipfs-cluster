@@ -193,6 +193,52 @@ func TestClusterPin(t *testing.T) {
 	}
 }
 
+func TestClusterPins(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	c, _ := cid.Decode(test.TestCid1)
+	err := cl.Pin(api.PinCid(c))
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+
+	pins := cl.Pins()
+	if len(pins) != 1 {
+		t.Fatal("pin should be part of the state")
+	}
+	if !pins[0].Cid.Equals(c) || pins[0].ReplicationFactor != -1 {
+		t.Error("the Pin does not look as expected")
+	}
+}
+
+func TestClusterPinGet(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	c, _ := cid.Decode(test.TestCid1)
+	err := cl.Pin(api.PinCid(c))
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+
+	pin, err := cl.PinGet(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pin.Cid.Equals(c) || pin.ReplicationFactor != -1 {
+		t.Error("the Pin does not look as expected")
+	}
+
+	c2, _ := cid.Decode(test.TestCid2)
+	_, err = cl.PinGet(c2)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
 func TestClusterUnpin(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
