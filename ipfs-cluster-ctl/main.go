@@ -274,13 +274,19 @@ although unpinning operations in the cluster may take longer or fail.
 					UsageText: `
 This command will list the CIDs which are tracked by IPFS Cluster and to
 which peers they are currently allocated. This list does not include
-any monitoring information about the
-merely represents the list of pins which are part of the global state of
-the cluster. For specific information, use "status".
+any monitoring information about the IPFS status of the CIDs, it
+merely represents the list of pins which are part of the shared state of
+the cluster. For IPFS-status information about the pins, use "status".
 `,
-					Flags: []cli.Flag{parseFlag(formatPin)},
+					ArgsUsage: "[cid]",
+					Flags:     []cli.Flag{parseFlag(formatPin)},
 					Action: func(c *cli.Context) error {
-						resp := request("GET", "/pinlist", nil)
+						cidStr := c.Args().First()
+						if cidStr != "" {
+							_, err := cid.Decode(cidStr)
+							checkErr("parsing cid", err)
+						}
+						resp := request("GET", "/allocations/"+cidStr, nil)
 						formatResponse(c, resp)
 						return nil
 					},

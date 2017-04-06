@@ -40,7 +40,7 @@ type ipfsErr struct {
 	Message string
 }
 
-type mockIdResp struct {
+type mockIDResp struct {
 	ID        string
 	Addresses []string
 }
@@ -87,7 +87,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	var cidStr string
 	switch endp {
 	case "id":
-		resp := mockIdResp{
+		resp := mockIDResp{
 			ID: TestPeerID1.Pretty(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",

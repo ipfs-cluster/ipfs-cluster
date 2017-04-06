@@ -732,7 +732,8 @@ func (c *Cluster) Recover(h *cid.Cid) (api.GlobalPinInfo, error) {
 
 // Pins returns the list of Cids managed by Cluster and which are part
 // of the current global state. This is the source of truth as to which
-// pins are managed, but does not indicate if the item is successfully pinned.
+// pins are managed and their allocation, but does not indicate if
+// the item is successfully pinned. For that, use StatusAll().
 func (c *Cluster) Pins() []api.Pin {
 	cState, err := c.consensus.State()
 	if err != nil {
@@ -741,6 +742,25 @@ func (c *Cluster) Pins() []api.Pin {
 	}
 
 	return cState.List()
+}
+
+// PinGet returns information for a single Cid managed by Cluster.
+// The information is obtained from the current global state. The
+// returned api.Pin provides information about the allocations
+// assigned for the requested Cid, but does not provide indicate if
+// the item is successfully pinned. For that, use Status(). PinGet
+// returns an error if the given Cid is not part of the global state.
+func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
+	cState, err := c.consensus.State()
+	if err != nil {
+		logger.Error(err)
+		return api.Pin{}, err
+	}
+	pin := cState.Get(h)
+	if pin.Cid == nil {
+		return pin, errors.New("Cid is not part of the global state")
+	}
+	return pin, nil
 }
 
 // Pin makes the cluster Pin a Cid. This implies adding the Cid

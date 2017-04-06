@@ -122,7 +122,8 @@ This is a quick summary of API endpoints offered by the Rest API component (thes
 |GET   |/peers              |Cluster peers|
 |POST  |/peers              |Add new peer|
 |DELETE|/peers/{peerID}     |Remove a peer|
-|GET   |/pinlist            |List of pins in the consensus state|
+|GET   |/allocations        |List of pins and their allocations (consensus-shared state)|
+|GET   |/allocations/{cid}  |Show a single pin and its allocations (from the consensus-shared state)|
 |GET   |/pins               |Status of all tracked CIDs|
 |POST  |/pins/sync          |Sync all|
 |GET   |/pins/{cid}         |Status of single CID|

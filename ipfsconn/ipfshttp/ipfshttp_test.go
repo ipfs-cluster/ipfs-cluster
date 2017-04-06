@@ -327,6 +327,15 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	if len(resp.Keys) != 3 {
 		t.Error("wrong response")
 	}
+
+	res3, err := http.Get(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(ipfs), test.ErrorCid))
+	if err != nil {
+		t.Fatal("should have succeeded: ", err)
+	}
+	defer res3.Body.Close()
+	if res3.StatusCode != http.StatusInternalServerError {
+		t.Error("the request should have failed")
+	}
 }
 
 func TestProxyAdd(t *testing.T) {
