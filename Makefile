@@ -42,7 +42,7 @@ $(gx_bin):
 $(gx-go_bin):
 	@echo "Downloading gx-go"
 	@mkdir -p ./$(deptools)
-	@rm -f $(deptools)gx-go
+	@rm -f $(deptools)/gx-go
 	@wget -nc -q -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
 	@tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
 	@mv $(deptools)/gx-go $(gx-go_bin)
@@ -54,12 +54,20 @@ gx: $(gx_bin) $(gx-go_bin)
 deps: gx
 	$(gx_bin) install --global
 	$(gx-go_bin) rewrite
+
 test: deps
 	go test -tags silent -v ./...
+test_sharness: sharness_deps
+	@sh test/sharness/run-sharness-tests.sh
+
+sharness_deps: deps 
+	@./test/sharness/lib/install-sharness.sh		
+	@rm -rf test/sharness/test-results
+
 rw: gx
 	$(gx-go_bin) rewrite
 rwundo: gx
 	$(gx-go_bin) rewrite --undo
 publish: rwundo
 	$(gx_bin) publish
-.PHONY: all gx deps test rw rwundo publish service ctl install clean
+.PHONY: all gx deps test test_sharness sharness_deps rw rwundo publish service ctl install clean
