@@ -12,7 +12,7 @@ bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
 export PATH := $(deptools):$(PATH)
 
 all: service ctl
-clean: rwundo 
+clean: rwundo
 	$(MAKE) clean_sharness
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
@@ -61,10 +61,10 @@ test: deps
 test_sharness: sharness_deps
 	@sh sharness/run-sharness-tests.sh
 
-sharness_deps: clean_sharness 
-	@./sharness/lib/install-sharness.sh		
+sharness_deps: clean_sharness
+	@./sharness/lib/install-sharness.sh
 
-clean_sharness: 
+clean_sharness:
 	@rm -rf ./sharness/test-results
 	@rm -rf ./sharness/lib/sharness
 	@rm -rf sharness/trash\ directory*
