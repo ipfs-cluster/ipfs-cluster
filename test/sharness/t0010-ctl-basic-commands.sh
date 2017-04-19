@@ -16,18 +16,18 @@ test_expect_success "cluster-ctl --version succeeds" '
 '
 
 test_expect_success "cluster-ctl --version output looks good" '
-   egrep "^ipfs-cluster-ctl version [0-9]+\.[0-9]+\.[0-9]" version.txt >/dev/null ||
-   test_fsh cat version.txt
+   egrep "^ipfs-cluster-ctl version [0-9]+\.[0-9]+\.[0-9]" version.txt >/dev/null &&
+   rm version.txt
 '
 
 test_expect_success "cluster-ctl --help and -h succeed" '
-    ipfs-cluster-ctl --help >help.txt &&
-    ipfs-cluster-ctl -h >help.txt 
+    ipfs-cluster-ctl --help &&
+    ipfs-cluster-ctl -h 
 '
 
 test_expect_success "cluster-ctl help and h succeed" '
-    ipfs-cluster-ctl h >help.txt &&
-    ipfs-cluster-ctl help >help.txt
+    ipfs-cluster-ctl h &&
+    ipfs-cluster-ctl help
 '
 
 test_expect_success "All help options match" '
@@ -37,19 +37,20 @@ test_expect_success "All help options match" '
     ipfs-cluster-ctl --h >help3.txt && 
     diff help.txt help1.txt &&
     diff help.txt help2.txt &&
-    diff help.txt help3.txt ||
-    test_fsh cat help.txt help1.txt help2.txt help3.txt 
+    diff help.txt help3.txt &&
+    rm help1.txt help2.txt help3.txt
 '
 
 test_expect_success "cluster-ctl help output looks good" '
     egrep -i "^Usage" help.txt >/dev/null &&
     egrep -i "^Commands" help.txt >/dev/null &&
-    egrep -i "^Global Options" help.txt >/dev/null    
+    egrep -i "^Global Options" help.txt >/dev/null &&
+    rm help.txt
 '
 
 test_expect_success "cluster-ctl commands succeeds" '
     ipfs-cluster-ctl commands >unfmt_commands.txt &&
-    awk ''NF'' unfmt_commands.txt >commands.txt 
+    awk ''NF'' unfmt_commands.txt >commands.txt
 '
 
 test_expect_success "cluster-ctl commands output looks good" '
@@ -88,6 +89,7 @@ test_expect_success "All cluster-ctl command docs are 80 columns or less" '
    if [ $(cat failure) = 1 ]; then
        return 1
    fi
+   rm commands.txt
 '
 test_done
 
