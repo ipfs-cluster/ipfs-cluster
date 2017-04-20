@@ -15,11 +15,17 @@ test_description="Cleanup state from tests (kill ipfs daemon)"
 #'
 
 test_expect_success "Kill cluster-service " '
-    kill -1 $(< ../.test_config/sPID.txt)
+    kill -1 $(< ../sPID.txt)
 '
 
 test_expect_success "Kill ipfs dameon " '
-    kill -1 $(< ../.test_ipfs/dPID.txt)
+    kill -1 $(< ../dPID.txt)
 '
+
+test_expect_success "Remove config directories" '
+    rm -rf ../test_ipfs &&
+    rm -rf ../test_config
+'
+
 
 test_done

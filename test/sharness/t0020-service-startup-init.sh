@@ -15,17 +15,15 @@ test_expect_success "ipfs is installed on this machine" '
 # get this working automatically through tests
 
 test_expect_success "launch ipfs daemon" '
-    pre_IPFS_PATH=$IPFS_PATH &&
-    IPFS_PATH="../.test_ipfs" && 
-    ipfs init &&
-    ipfs daemon & 
-    IPFS_D_PID=$! &&
-    sleep 3 &&
-    echo $IPFS_D_PID >../.test_ipfs/dPID.txt &&
-    IPFS_PATH=$pre_IPFS_PATH
+    mkdir -p ../.test_ipfs &&
+    [ -d ../.test_ipfs ] &&
+    IPFS_PATH="../.test_ipfs" eval ''ipfs init'' &&
+    IPFS_PATH="../.test_ipfs" eval ''ipfs daemon & echo $! >../dPID.txt'' &&
+    sleep 3
 '
 
 test_expect_success "test config folder exists" '
+    mkdir -p ../.test_config &&
     [ -d ../.test_config ]
 '
 
@@ -37,8 +35,7 @@ test_expect_success "init cluster-service" '
 
 test_expect_success "run cluster-service" '
     ipfs-cluster-service --config ../.test_config 2>service_start.txt &
-    CLUSTER_SERVICE_PID=$! &&
-    echo $CLUSTER_SERVICE_PID >../.test_config/sPID.txt &&
+    echo $!>../sPID.txt &&
     sleep 3  &&
     egrep -i "ready" service_start.txt >/dev/null &&
     rm service_start.txt
