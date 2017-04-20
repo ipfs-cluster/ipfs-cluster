@@ -59,6 +59,7 @@ test: deps
 	go test -tags silent -v ./...
 test_sharness: sharness_deps
 	@sh test/sharness/run-sharness-tests.sh
+	@rm -rf test/sharness/trash\ directory*
 
 sharness_deps: deps 
 	@./test/sharness/lib/install-sharness.sh		

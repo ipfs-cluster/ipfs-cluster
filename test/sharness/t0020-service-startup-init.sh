@@ -15,7 +15,7 @@ test_expect_success "launch ipfs daemon" '
    mkdir -p ../.test_ipfs &&
    IPFS_PATH="../.test_ipfs" eval '"'"'ipfs init'"'"' &&
    IPFS_PATH="../.test_ipfs" eval '"'"'ipfs daemon & echo $! >../dPID.txt'"'"' &&
-   sleep 3
+   sleep 2 
 '
 
 test_expect_success "test config folder exists" '
@@ -31,7 +31,7 @@ test_expect_success "init cluster-service" '
 test_expect_success "run cluster-service" '
     ipfs-cluster-service --config ../.test_config 2>service_start.txt &
     echo $!>../sPID.txt &&
-    sleep 3  &&
+    sleep 2  &&
     egrep -i "ready" service_start.txt >/dev/null &&
     rm service_start.txt
 '
