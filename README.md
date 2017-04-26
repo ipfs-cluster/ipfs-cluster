@@ -117,7 +117,7 @@ Documentation and examples on how to use IPFS Cluster from Go can be found in [g
 
 You can find more information and detailed guides:
 
-* [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.m)
+* [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md)
 * [Building and updating an IPFS Cluster](docs/HOWTO_build_and_update_a_cluster.md)
 
 Note: please contribute to improve and add more documentation!
