@@ -40,14 +40,14 @@ $(gx_bin):
 	@rm $(gx_bin).tgz
 
 $(gx-go_bin):
-	@echo "Downloading gx-go"
-	@mkdir -p ./$(deptools)
-	@rm -f $(deptools)/gx-go
-	@wget -nc -q -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
-	@tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
-	@mv $(deptools)/gx-go $(gx-go_bin)
-	@ln -s $(gx-go) $(deptools)/gx-go
-	@rm $(gx-go_bin).tgz
+	echo "Downloading gx-go"
+	mkdir -p ./$(deptools)
+	rm -f $(deptools)/gx-go
+	wget -nc -q -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
+	tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
+	mv $(deptools)/gx-go $(gx-go_bin)
+	ln -s $(gx-go) $(deptools)/gx-go
+	rm $(gx-go_bin).tgz
 
 gx: $(gx_bin) $(gx-go_bin)
 
