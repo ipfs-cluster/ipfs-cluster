@@ -10,14 +10,12 @@ ENV PATH       /go/bin:$PATH
 ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
 ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
 
-USER root
+VOLUME $IPFS_CLUSTER_PATH
 
 COPY . $SRC_PATH
 
 RUN apk add --no-cache --virtual cluster-deps make musl-dev go git \
     && apk add --no-cache jq \
-    && mkdir -p $IPFS_CLUSTER_PATH \
-    && chown ipfs:ipfs $IPFS_CLUSTER_PATH && chmod 0755 $IPFS_CLUSTER_PATH \
     && go get -u github.com/whyrusleeping/gx \
     && go get -u github.com/whyrusleeping/gx-go \
     && cd $SRC_PATH \
@@ -31,10 +29,6 @@ RUN apk add --no-cache --virtual cluster-deps make musl-dev go git \
     && apk del --purge cluster-deps \
     && cd / && rm -rf /go/src /go/bin/gx /go/bin/gx-go
 
-USER ipfs
-
-VOLUME $IPFS_CLUSTER_PATH
-
-ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start-daemons.sh"]
 
 CMD ["$IPFS_CLUSTER_OPTS"]
