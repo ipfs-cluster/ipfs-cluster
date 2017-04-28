@@ -1,8 +1,10 @@
 #!/bin/sh
+#
+# MIT License
 
 # Run tests 
 cd "$(dirname "$0")"
-for i in t*.sh;
+for i in `ls t*.sh | sort`;
 do
     echo "*** $i ***"
     ./$i 
