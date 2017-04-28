@@ -1,6 +1,4 @@
 #!/bin/sh
-#
-# MIT License
 
 # Run tests 
 cd "$(dirname "$0")"

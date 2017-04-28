@@ -1,7 +1,4 @@
 #!/bin/sh
-#
-# MIT Licensed
-#
 
 test_description="Cleanup state from tests (kill ipfs daemon)"
 

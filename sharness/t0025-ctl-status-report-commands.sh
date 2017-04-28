@@ -1,7 +1,4 @@
 #!/bin/sh
-#
-# MIT Licensed
-#
 
 test_description="Test ctl's status reporting functionality.  Test errors on incomplete commands"
 
