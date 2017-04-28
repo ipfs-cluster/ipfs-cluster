@@ -1,23 +1,18 @@
 #!/bin/sh
-#
-# MIT Licensed
-#
 
 test_description="Test ctl installation and some basic commands"
 
 . lib/test-lib.sh
 
 test_expect_success "current dir is writeable" '
-    echo "Writability check" >test.txt
+    echo "Writability check" >test.txt &&
+    test_when_finished "rm test.txt"
 '
 
+# TODO Make a comparison between cluster-ctl and cluster-service version
 test_expect_success "cluster-ctl --version succeeds" '
-    ipfs-cluster-ctl --version >version.txt
-'
-
-test_expect_success "cluster-ctl --version output looks good" '
-   egrep "^ipfs-cluster-ctl version [0-9]+\.[0-9]+\.[0-9]" version.txt >/dev/null &&
-   rm version.txt
+    ipfs-cluster-ctl --version >version.txt &&
+    test_when_finished "rm version.txt"
 '
 
 test_expect_success "cluster-ctl --help and -h succeed" '
@@ -29,67 +24,43 @@ test_expect_success "cluster-ctl help and h succeed" '
     ipfs-cluster-ctl h &&
     ipfs-cluster-ctl help
 '
-
-test_expect_success "All help options match" '
-    ipfs-cluster-ctl help >help.txt &&
-    ipfs-cluster-ctl h >help1.txt &&
-    ipfs-cluster-ctl --help >help2.txt &&
-    ipfs-cluster-ctl --h >help3.txt && 
-    diff help.txt help1.txt &&
-    diff help.txt help2.txt &&
-    diff help.txt help3.txt &&
-    rm help1.txt help2.txt help3.txt
-'
+# TODO 80 character limit for help output 
 
 test_expect_success "cluster-ctl help output looks good" '
-    egrep -i "^Usage" help.txt >/dev/null &&
-    egrep -i "^Commands" help.txt >/dev/null &&
-    egrep -i "^Global Options" help.txt >/dev/null &&
-    rm help.txt
+    ipfs-cluster-ctl --help | egrep -q -i "^(Usage|Commands|Global options)"
 '
 
-test_expect_success "cluster-ctl commands succeeds" '
-    ipfs-cluster-ctl commands >unfmt_commands.txt &&
-    awk ''NF'' unfmt_commands.txt >commands.txt
-'
-
+# TODO don't use an intermediate file.  Is this necessary?
 test_expect_success "cluster-ctl commands output looks good" '
-    grep "ipfs-cluster-ctl id" commands.txt &&
-    grep "ipfs-cluster-ctl peers" commands.txt &&
-    grep "ipfs-cluster-ctl pin" commands.txt &&
-    grep "ipfs-cluster-ctl status" commands.txt &&
-    grep "ipfs-cluster-ctl sync" commands.txt &&
-    grep "ipfs-cluster-ctl recover" commands.txt &&
-    grep "ipfs-cluster-ctl version" commands.txt &&
-    grep "ipfs-cluster-ctl commands" commands.txt 
+    ipfs-cluster-ctl commands | awk '"'"'NF'"'"' >commands.txt &&
+    test_when_finished "rm commands.txt" &&
+    numCmds=`cat commands.txt | sed '"'"'/^s*$/d'"'"' | wc -l` &&
+    [ $numCmds -eq "8" ] &&
+    egrep -q "ipfs-cluster-ctl id" commands.txt &&
+    egrep -q "ipfs-cluster-ctl peers" commands.txt &&
+    egrep -q "ipfs-cluster-ctl pin" commands.txt &&
+    egrep -q "ipfs-cluster-ctl status" commands.txt &&
+    egrep -q "ipfs-cluster-ctl sync" commands.txt &&
+    egrep -q "ipfs-cluster-ctl recover" commands.txt &&
+    egrep -q "ipfs-cluster-ctl version" commands.txt &&
+    egrep -q "ipfs-cluster-ctl commands" commands.txt
 '
 
-test_expect_success "All commands accept --help" '
-    echo 0 > fail
-    while read -r cmd
-    do 
-        $cmd --help </dev/null >/dev/null ||
-            { echo $cmd does not accept --help; echo 1 > fail; }
-    done <commands.txt
-
-    if [$(cat fail) = 1 ]; then
-        return 1
-    fi
-'
-
+# TODO  generalize and put inside of library for use in other tests, specifically with help output 
 test_expect_success "All cluster-ctl command docs are 80 columns or less" '
-   echo 0 > failure 
+   export failure="0" &&
+   ipfs-cluster-ctl commands | awk '"'"'NF'"'"' >commands.txt &&
+   test_when_finished "rm commands.txt" &&
    while read cmd
    do
-       LENGTH="$($cmd --help | awk "{ print length }" | sort -nr | head -1)"
-       [ $LENGTH -gt 80 ] &&
-           { echo "$cmd" help text is longer than 79 chars "($LENGTH)"; echo 1 > failure; }
+       LENGTH="$($cmd --help | awk '"'"'{ print length }'"'"' | sort -nr | head -n 1)"
+       [ "$LENGTH" -gt 80 ] &&
+           { echo "$cmd" help text is longer than 79 chars "($LENGTH)"; export failure="1"; }
    done <commands.txt
 
-   if [ $(cat failure) = 1 ]; then
+   if [ $failure -eq "1" ]; then
        return 1
    fi
-   rm commands.txt
 '
 test_done
 

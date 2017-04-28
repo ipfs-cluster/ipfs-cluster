@@ -1,7 +1,5 @@
 #!/bin/sh
-#
-# MIT LICENSED
-#
+
 test_description="Test service startup and init functionality"
 
 . lib/test-lib.sh

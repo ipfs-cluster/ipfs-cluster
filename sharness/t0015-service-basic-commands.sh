@@ -1,7 +1,4 @@
 #!/bin/sh
-#
-# MIT Licensed
-#
 
 test_description="Test service installation and some basic commands"
 
