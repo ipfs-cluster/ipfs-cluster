@@ -11,7 +11,7 @@ do
 done
 
 # Aggregate Results
-echo "We are aggregating"
+echo "Aggregating..."
 for f in test-results/*.counts; do
     echo "$f";
-done | bash aggregate-results.sh
+done | bash lib/sharness/aggregate-results.sh
