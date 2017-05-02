@@ -15,16 +15,19 @@ test_expect_success "cluster-ctl --version succeeds" '
     test_when_finished "rm version.txt"
 '
 
-test_expect_success "cluster-ctl --help and -h succeed" '
+test_expect_success "cluster-ctl help commands succeed" '
     ipfs-cluster-ctl --help &&
-    ipfs-cluster-ctl -h 
-'
-
-test_expect_success "cluster-ctl help and h succeed" '
+    ipfs-cluster-ctl -h &&
     ipfs-cluster-ctl h &&
     ipfs-cluster-ctl help
 '
-# TODO 80 character limit for help output 
+
+test_expect_success "cluster-ctl help has 80 char limits" '
+    ipfs-cluster-ctl --help >help.txt &&
+    test_when_finished "rm help.txt" &&
+    LENGTH="$(cat help.txt | awk '"'"'{print length }'"'"' | sort -nr | head -n 1)" &&
+    [ ! "$LENGTH" -gt 80 ] 
+'
 
 test_expect_success "cluster-ctl help output looks good" '
     ipfs-cluster-ctl --help | egrep -q -i "^(Usage|Commands|Global options)"
@@ -46,21 +49,20 @@ test_expect_success "cluster-ctl commands output looks good" '
     egrep -q "ipfs-cluster-ctl commands" commands.txt
 '
 
-# TODO  generalize and put inside of library for use in other tests, specifically with help output 
 test_expect_success "All cluster-ctl command docs are 80 columns or less" '
-   export failure="0" &&
-   ipfs-cluster-ctl commands | awk '"'"'NF'"'"' >commands.txt &&
-   test_when_finished "rm commands.txt" &&
-   while read cmd
-   do
-       LENGTH="$($cmd --help | awk '"'"'{ print length }'"'"' | sort -nr | head -n 1)"
-       [ "$LENGTH" -gt 80 ] &&
-           { echo "$cmd" help text is longer than 79 chars "($LENGTH)"; export failure="1"; }
-   done <commands.txt
+    export failure="0" &&
+    ipfs-cluster-ctl commands | awk '"'"'NF'"'"' >commands.txt &&
+    test_when_finished "rm commands.txt" &&
+    while read cmd
+    do
+        LENGTH="$($cmd --help | awk '"'"'{ print length }'"'"' | sort -nr | head -n 1)"
+        [ "$LENGTH" -gt 80 ] &&
+            { echo "$cmd" help text is longer than 79 chars "($LENGTH)"; export failure="1"; }
+    done <commands.txt
 
-   if [ $failure -eq "1" ]; then
-       return 1
-   fi
+    if [ $failure -eq "1" ]; then
+        return 1
+    fi
 '
 test_done
 

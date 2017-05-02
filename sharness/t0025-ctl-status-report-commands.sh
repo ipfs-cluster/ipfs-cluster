@@ -4,47 +4,63 @@ test_description="Test ctl's status reporting functionality.  Test errors on inc
 
 . lib/test-lib.sh
 
-test_expect_success "cluster-ctl version looks good" '
-    ipfs-cluster-ctl version >version.txt &&
-    egrep "[0-9]+\.[0-9]+\.[0-9]" version.txt >/dev/null &&
-    rm version.txt
+test_expect_success "pre-reqs enabled" '
+    test_ipfs_init &&
+    test_have_prereq IPFS_INIT &&
+    test_cluster_init &&
+    test_have_prereq CLUSTER_INIT
 '
 
 test_expect_success "cluster-ctl can read id" '
-    ipfs-cluster-ctl id >id.txt &&
-    grep "> Addresses:" id.txt >/dev/null &&
-    grep "> IPFS: " id.txt >/dev/null &&
-    rm id.txt
+    ipfs-cluster-ctl id | egrep -q -i "$CLUSTER_CONFIG_ID"
 '
 
 test_expect_success "cluster-ctl list 0 peers" '
-    ipfs-cluster-ctl peers ls >peers.txt &&
-    grep "| 0 peers" peers.txt >/dev/null &&
-    rm peers.txt
+    export PEER_OUT=`ipfs-cluster-ctl peers ls` &&
+    export SELF_OUT=`ipfs-cluster-ctl id` &&
+    [ "$PEER_OUT" = "$SELF_OUT" ]
 '
 
-test_expect_failure "cluster-ctl add need multiaddress" '
-    ipfs-cluster-ctl peers add 
+test_expect_success "cluster-ctl add need peer id" '
+    test_must_fail ipfs-cluster-ctl peers add 
 '
 
-test_expect_failure "cluster-ctl rm need multihash" '
-    ipfs-cluster-ctl peers rm 
+test_expect_success "cluster-ctl add invalid peer id" '
+    test_must_fail ipfs-cluster-ctl peers add XXXinvalid-peerXXX
+'
+
+test_expect_success "cluster-ctl rm needs peer id" '
+    test_must_fail ipfs-cluster-ctl peers rm 
+'
+
+test_expect_success"cluster-ctl rm invalid peer id" '
+    test_must_fail ipfs-cluster-ctl peers rm XXXinvalid-peerXXX
 '
 
 test_expect_success "empty cluster-ctl status succeeds" '
     ipfs-cluster-ctl status 
 '
 
+test_expect_success "invalid CID status" '
+    test_must_fail ipfs-cluster-ctl status XXXinvalid-CIDXXX
+'
+
 test_expect_success "empty cluster-ctl sync succeeds" '
     ipfs-cluster-ctl sync 
 '
 
-test_expect_failure "empty cluster_ctl recover needs CID" '
-    ipfs-cluster-ctl recover 
+test_expect_success "empty cluster_ctl recover needs CID" '
+    test_must_fail ipfs-cluster-ctl recover 
 '
 
-test_expect_success "pin ls " '
+test_expect_success "pin ls succeeds" '
     ipfs-cluster-ctl pin ls 
 '
 
+test_expect_success "pin ls on invalid CID succeeds" '
+    ipfs-cluster-ctl pin ls XXXinvalid-CIDXXX
+'
+
+cleanup test_clean_cluster
+cleanup test_clean_ipfs
 test_done
