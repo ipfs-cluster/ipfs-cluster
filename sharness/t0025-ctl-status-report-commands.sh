@@ -11,14 +11,17 @@ test_expect_success "pre-reqs enabled" '
     test_have_prereq CLUSTER_INIT
 '
 
-test_expect_success "cluster-ctl can read id" '
+test_expect_success JQ "cluster-ctl can read id" '
+    test_cluster_config &&
     ipfs-cluster-ctl id | egrep -q -i "$CLUSTER_CONFIG_ID"
 '
 
 test_expect_success "cluster-ctl list 0 peers" '
     export PEER_OUT=`ipfs-cluster-ctl peers ls` &&
+    sorted_peer_out=$(printf '"'"'%s\n'"'"' $PEER_OUT | sort -u) &&
     export SELF_OUT=`ipfs-cluster-ctl id` &&
-    [ "$PEER_OUT" = "$SELF_OUT" ]
+    sorted_self_out=$(printf '"'"'%s\n'"'"' $SELF_OUT | sort -u) &&
+    [ "$sorted_peer_out" = "$sorted_self_out" ]
 '
 
 test_expect_success "cluster-ctl add need peer id" '

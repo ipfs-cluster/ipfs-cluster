@@ -2,7 +2,7 @@
 
 # Run tests 
 cd "$(dirname "$0")"
-for i in `ls t*.sh | sort`;
+for i in t*.sh;
 do
     echo "*** $i ***"
     ./$i 

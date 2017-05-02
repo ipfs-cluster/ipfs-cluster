@@ -11,6 +11,10 @@ SHARNESS_LIB="lib/sharness/sharness.sh"
     exit 1
 }
 
+if [ $(command -v jq) ]; then
+    test_set_prereq JQ
+fi
+
 # Set prereqs 
 test_ipfs_init() {
     ipfs help | egrep -q -i "^Usage" &&
@@ -26,16 +30,18 @@ test_cluster_init() {
     ipfs-cluster-service help | egrep -q -i "^Usage" &&
     CLUSTER_TEMP_DIR=`mktemp -d cluster-XXXXX` &&
     ipfs-cluster-service -f --config $CLUSTER_TEMP_DIR init &&
-    CLUSTER_CONFIG_PATH=$CLUSTER_TEMP_DIR"/service.json" &&
-    CLUSTER_CONFIG_ID=`jq --raw-output ".id" $CLUSTER_CONFIG_PATH` &&
-    CLUSTER_CONFIG_PK=`jq --raw-output ".private_key" $CLUSTER_CONFIG_PATH` &&
-    [ $CLUSTER_CONFIG_ID != null ] &&
-    [ $CLUSTER_CONFIG_PK != null ] &&
     eval 'ipfs-cluster-service --config $CLUSTER_TEMP_DIR & export CLUSTER_D_PID=`echo $!`' && 
     sleep 2 &&
     test_set_prereq CLUSTER_INIT
 }
 
+test_cluster_config() {
+    CLUSTER_CONFIG_PATH=$CLUSTER_TEMP_DIR"/service.json" &&
+    CLUSTER_CONFIG_ID=`jq --raw-output ".id" $CLUSTER_CONFIG_PATH` &&
+    CLUSTER_CONFIG_PK=`jq --raw-output ".private_key" $CLUSTER_CONFIG_PATH` &&
+    [ $CLUSTER_CONFIG_ID != null ] &&
+    [ $CLUSTER_CONFIG_PK != null ] 
+}
 
 # Cleanup functions
 test_clean_ipfs(){
