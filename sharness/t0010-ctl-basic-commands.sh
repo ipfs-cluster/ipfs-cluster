@@ -4,6 +4,7 @@ test_description="Test ctl installation and some basic commands"
 
 . lib/test-lib.sh
 
+
 test_expect_success "current dir is writeable" '
     echo "Writability check" >test.txt &&
     test_when_finished "rm test.txt"
@@ -32,9 +33,9 @@ test_expect_success "cluster-ctl help output looks good" '
 '
 
 test_expect_success "cluster-ctl commands output looks good" '
-    ipfs-cluster-ctl commands | awk '"'"'NF'"'"' >commands.txt &&
+    ipfs-cluster-ctl commands | awk "NF" >commands.txt &&
     test_when_finished "rm commands.txt" &&
-    numCmds=`cat commands.txt | sed '"'"'/^s*$/d'"'"' | wc -l` &&
+    numCmds=`cat commands.txt | wc -l` &&
     [ $numCmds -eq "8" ] &&
     egrep -q "ipfs-cluster-ctl id" commands.txt &&
     egrep -q "ipfs-cluster-ctl peers" commands.txt &&
@@ -48,11 +49,11 @@ test_expect_success "cluster-ctl commands output looks good" '
 
 test_expect_success "All cluster-ctl command docs are 80 columns or less" '
     export failure="0" &&
-    ipfs-cluster-ctl commands | awk '"'"'NF'"'"' >commands.txt &&
+    ipfs-cluster-ctl commands | awk "NF" >commands.txt &&
     test_when_finished "rm commands.txt" &&
     while read cmd
     do
-        LENGTH="$($cmd --help | awk '"'"'{ print length }'"'"' | sort -nr | head -n 1)"
+        LENGTH="$($cmd --help | awk "{ print length }" | sort -nr | head -n 1)"
         [ "$LENGTH" -gt 80 ] &&
             { echo "$cmd" help text is longer than 79 chars "($LENGTH)"; export failure="1"; }
     done <commands.txt

@@ -23,7 +23,7 @@ test_ipfs_init() {
     ipfs init && 
     eval 'ipfs daemon & export IPFS_D_PID=`echo $!`' && # Esoteric, but gets correct value of $!
     sleep 2 &&
-    test_set_prereq IPFS_INIT
+    test_set_prereq IPFS
 }
 
 test_cluster_init() {
@@ -32,7 +32,7 @@ test_cluster_init() {
     ipfs-cluster-service -f --config $CLUSTER_TEMP_DIR init &&
     eval 'ipfs-cluster-service --config $CLUSTER_TEMP_DIR & export CLUSTER_D_PID=`echo $!`' && 
     sleep 2 &&
-    test_set_prereq CLUSTER_INIT
+    test_set_prereq CLUSTER
 }
 
 test_cluster_config() {

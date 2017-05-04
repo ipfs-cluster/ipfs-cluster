@@ -8,6 +8,7 @@ gx-go=gx-go_$(gx-go_version)
 gx_bin=$(deptools)/$(gx)
 gx-go_bin=$(deptools)/$(gx-go)
 bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
+sharness = sharness/lib/sharness
 
 export PATH := $(deptools):$(PATH)
 
@@ -58,11 +59,17 @@ deps: gx
 
 test: deps
 	go test -tags silent -v ./...
-test_sharness: sharness_deps
+
+test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
 
-sharness_deps: clean_sharness
-	@./sharness/lib/install-sharness.sh
+$(sharness):
+	echo "Downloading sharness"
+	@wget -q -O sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/master.tar.gz
+	tar -zxf ./sharness/lib/sharness.tar.gz
+	ls sharness/lib
+	@mv sharness/lib/sharness-master sharness/lib/sharness
+	@rm sharness/lib/sharness.tar.gz
 
 clean_sharness:
 	@rm -rf ./sharness/test-results
@@ -75,4 +82,4 @@ rwundo: gx
 	$(gx-go_bin) rewrite --undo
 publish: rwundo
 	$(gx_bin) publish
-.PHONY: all gx deps test test_sharness sharness_deps rw rwundo publish service ctl install clean
+.PHONY: all gx deps test test_sharness sharness_deps clean_sharness rw rwundo publish service ctl install clean
