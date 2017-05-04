@@ -66,7 +66,7 @@ test_sharness: $(sharness)
 $(sharness):
 	echo "Downloading sharness"
 	@wget -q -O sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/master.tar.gz
-	tar -zxf ./sharness/lib/sharness.tar.gz
+	cd sharness/lib; tar -zxf sharness.tar.gz; cd ../..
 	ls sharness/lib
 	@mv sharness/lib/sharness-master sharness/lib/sharness
 	@rm sharness/lib/sharness.tar.gz
