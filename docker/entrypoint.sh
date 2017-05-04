@@ -1,14 +1,17 @@
 #!/bin/sh
 
-user=$(whoami)
+set -e
+user=ipfs
 repo="$IPFS_PATH"
 
-# Test whether the mounted directory is writable for us
-if [ ! -w "$repo" 2>/dev/null ]; then
-  echo "error: $repo is not writable for user $user (uid=$(id -u $user))"
-  exit 1
+if [ `id -u` -eq 0 ]; then
+    # ensure directories are writable
+    su-exec "$user" test -w "$repo" || chown -R -- "$user" "$repo"
+    su-exec "$user" test -w "$IPFS_CLUSTER_PATH" || chown -R -- "$user" "$IPFS_CLUSTER_PATH"
+    exec su-exec "$user" "$0" "$@"
 fi
 
+# Second invocation with regular user
 ipfs version
 
 if [ -e "$repo/config" ]; then
@@ -21,12 +24,6 @@ fi
 
 ipfs daemon --migrate=true &
 sleep 3
-
-# Test whether the mounted directory is writable for us
-if [ ! -w "$IPFS_CLUSTER_PATH" 2>/dev/null ]; then
-  echo "error: $IPFS_CLUSTER_PATH is not writable for user $user (uid=$(id -u $user))"
-  exit 1
-fi
 
 ipfs-cluster-service --version
 
