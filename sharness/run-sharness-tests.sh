@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# Run tests 
+# Run tests
 cd "$(dirname "$0")"
 for i in t*.sh;
 do
     echo "*** $i ***"
-    ./$i 
+    ./$i
 done
 
 # Aggregate Results

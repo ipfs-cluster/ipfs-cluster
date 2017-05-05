@@ -21,7 +21,7 @@ test_expect_success IPFS,CLUSTER "cluster-ctl list 0 peers" '
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl add need peer id" '
-    test_must_fail ipfs-cluster-ctl peers add 
+    test_must_fail ipfs-cluster-ctl peers add
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl add invalid peer id" '
@@ -29,7 +29,7 @@ test_expect_success IPFS,CLUSTER "cluster-ctl add invalid peer id" '
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl rm needs peer id" '
-    test_must_fail ipfs-cluster-ctl peers rm 
+    test_must_fail ipfs-cluster-ctl peers rm
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl rm invalid peer id" '
@@ -37,7 +37,7 @@ test_expect_success IPFS,CLUSTER "cluster-ctl rm invalid peer id" '
 '
 
 test_expect_success IPFS,CLUSTER "empty cluster-ctl status succeeds" '
-    ipfs-cluster-ctl status 
+    ipfs-cluster-ctl status
 '
 
 test_expect_success IPFS,CLUSTER "invalid CID status" '
@@ -45,15 +45,15 @@ test_expect_success IPFS,CLUSTER "invalid CID status" '
 '
 
 test_expect_success IPFS,CLUSTER "empty cluster-ctl sync succeeds" '
-    ipfs-cluster-ctl sync 
+    ipfs-cluster-ctl sync
 '
 
 test_expect_success IPFS,CLUSTER "empty cluster_ctl recover needs CID" '
-    test_must_fail ipfs-cluster-ctl recover 
+    test_must_fail ipfs-cluster-ctl recover
 '
 
 test_expect_success IPFS,CLUSTER "pin ls succeeds" '
-    ipfs-cluster-ctl pin ls 
+    ipfs-cluster-ctl pin ls
 '
 
 test_expect_success IPFS,CLUSTER "pin ls on invalid CID succeeds" '

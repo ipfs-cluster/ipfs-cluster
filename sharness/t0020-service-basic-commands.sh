@@ -9,7 +9,7 @@ test_cluster_init
 
 test_expect_success "prerequisites" '
     test_have_prereq IPFS &&
-    test_have_prereq CLUSTER 
+    test_have_prereq CLUSTER
 '
 
 test_expect_success JQ "ipfs cluster config valid" '
@@ -28,6 +28,6 @@ test_expect_success "cluster-service --version succeeds and matches ctl" '
     [ "${sv[2]}" = "${cv[2]}" ]
 '
 
-cleanup test_clean_cluster 
+cleanup test_clean_cluster
 cleanup test_clean_ipfs
 test_done
