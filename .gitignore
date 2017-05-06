@@ -13,6 +13,11 @@ raftFolderFromTest*
 # Folders
 _obj
 _test
+test/sharness/test-results
+test/sharness/trash*
+test/sharness/lib/sharness
+test/sharness/.test_config
+test/sharness/.test_ipfs
 
 # Architecture specific extensions/prefixes
 *.[568vq]
