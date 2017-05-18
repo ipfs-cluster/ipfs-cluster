@@ -28,12 +28,12 @@ var logger = logging.Logger("restapi")
 // Server settings
 var (
 	// maximum duration before timing out read of the request
-	RESTAPIServerReadTimeout = 5 * time.Second
+	RESTAPIServerReadTimeout = 30 * time.Second
 	// maximum duration before timing out write of the response
-	RESTAPIServerWriteTimeout = 10 * time.Second
+	RESTAPIServerWriteTimeout = 60 * time.Second
 	// server-side the amount of time a Keep-Alive connection will be
 	// kept idle before being reused
-	RESTAPIServerIdleTimeout = 60 * time.Second
+	RESTAPIServerIdleTimeout = 120 * time.Second
 )
 
 // RESTAPI implements an API and aims to provides

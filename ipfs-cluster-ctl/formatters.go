@@ -97,10 +97,10 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 }
 
 func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
-	fmt.Printf("%s:\n", obj.Cid)
+	fmt.Printf("%s :\n", obj.Cid)
 	for k, v := range obj.PeerMap {
 		if v.Error != "" {
-			fmt.Printf("  > Peer %s: ERROR | %s\n", k, v.Error)
+			fmt.Printf("    > Peer %s: ERROR | %s\n", k, v.Error)
 			continue
 		}
 		fmt.Printf("    > Peer %s: %s | %s\n", k, strings.ToUpper(v.Status), v.TS)
