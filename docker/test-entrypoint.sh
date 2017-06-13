@@ -12,6 +12,7 @@ if [ `id -u` -eq 0 ]; then
     # Make fifo with root priveleges
     echo "making cluster-out-pipe fifo"
     mkfifo cluster-out-pipe
+    chown "$user" cluster-out-pipe
     # restart script with new privileges
     exec su-exec "$user" "$0" "$@"
 fi
