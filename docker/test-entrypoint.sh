@@ -9,10 +9,6 @@ if [ `id -u` -eq 0 ]; then
     # ensure folders are writeable
     su-exec "$user" test -w "$repo" || chown -R -- "$user" "$repo"
     su-exec "$user" test -w "$IPFS_CLUSTER_PATH" || chown -R -- "$user" "$IPFS_CLUSTER_PATH"
-    # Make fifo with root priveleges
-    echo "making cluster-out-pipe fifo"
-    mkfifo cluster-out-pipe
-    chown "$user" cluster-out-pipe
     # restart script with new privileges
     exec su-exec "$user" "$0" "$@"
 fi
@@ -49,6 +45,6 @@ else
     sed -i 's/127\.0\.0\.1\/tcp\/9094/0.0.0.0\/tcp\/9094/' "$IPFS_CLUSTER_PATH/service.json"
     sed -i 's/127\.0\.0\.1\/tcp\/9095/0.0.0.0\/tcp\/9095/' "$IPFS_CLUSTER_PATH/service.json"
 fi
-ipfs-cluster-service $@ > cluster-out-pipe&
+ipfs-cluster-service $@ &
 echo "Daemons launched"
-exec tail -f cluster-out-pipe
+exec tail -f /dev/null
