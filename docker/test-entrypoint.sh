@@ -46,5 +46,9 @@ else
     sed -i 's/127\.0\.0\.1\/tcp\/9095/0.0.0.0\/tcp\/9095/' "$IPFS_CLUSTER_PATH/service.json"
 fi
 ipfs-cluster-service $@ &
+exec /usr/local/bin/random-stopper.sh &
+kill -STOP $!
+exec /usr/local/bin/random-killer.sh &
+kill -STOP $!
 echo "Daemons launched"
 exec tail -f /dev/null
