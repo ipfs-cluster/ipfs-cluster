@@ -25,6 +25,9 @@ RUN apk add --no-cache --virtual cluster-deps make musl-dev go git \
     && make -C ipfs-cluster-service install \
     && make -C ipfs-cluster-ctl install \
     && cp docker/test-entrypoint.sh /usr/local/bin/start-daemons.sh \
+    && cp docker/random-stopper.sh /usr/local/bin/random-stopper.sh \
+    && cp docker/random-killer.sh /usr/local/bin/random-killer.sh \
+    && cp docker/wait-killer-stopper.sh /usr/local/bin/wait-killer-stopper.sh \
     && chmod +x /usr/local/bin/start-daemons.sh \
     && apk del --purge cluster-deps \
     && cd / && rm -rf /go/src /go/bin/gx /go/bin/gx-go
