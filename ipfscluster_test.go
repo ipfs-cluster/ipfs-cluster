@@ -366,7 +366,7 @@ func TestClustersStatusAll(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if len(statuses) == 0 {
+		if len(statuses) != 1 {
 			t.Fatal("bad status. Expected one item")
 		}
 		if statuses[0].Cid.String() != test.TestCid1 {
@@ -394,6 +394,65 @@ func TestClustersStatusAll(t *testing.T) {
 		if pinfo.Status != api.TrackerStatusPinned {
 			t.Error("the status should show the hash as pinned")
 		}
+	}
+	runF(t, clusters, f)
+}
+
+func TestClustersStatusAllWithErrors(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	h, _ := cid.Decode(test.TestCid1)
+	clusters[0].Pin(api.PinCid(h))
+	delay()
+
+	// shutdown 1 cluster peer
+	clusters[1].Shutdown()
+
+	f := func(t *testing.T, c *Cluster) {
+		// skip if it's the shutdown peer
+		if c.ID().ID == clusters[1].ID().ID {
+			return
+		}
+
+		statuses, err := c.StatusAll()
+		if err != nil {
+			t.Error(err)
+		}
+		if len(statuses) != 1 {
+			t.Fatal("bad status. Expected one item")
+		}
+
+		stts := statuses[0]
+		if len(stts.PeerMap) != nClusters {
+			t.Error("bad number of peers in status")
+		}
+
+		errst := stts.PeerMap[clusters[1].ID().ID]
+
+		if errst.Cid.String() != test.TestCid1 {
+			t.Error("errored pinInfo should have a good cid")
+		}
+
+		if errst.Status != api.TrackerStatusClusterError {
+			t.Error("erroring status should be set to ClusterError")
+		}
+
+		// now check with Cid status
+		status, err := c.Status(h)
+		if err != nil {
+			t.Error(err)
+		}
+
+		pinfo := status.PeerMap[clusters[1].ID().ID]
+
+		if pinfo.Status != api.TrackerStatusClusterError {
+			t.Error("erroring status should be ClusterError")
+		}
+
+		if pinfo.Cid.String() != test.TestCid1 {
+			t.Error("errored status should have a good cid")
+		}
+
 	}
 	runF(t, clusters, f)
 }
