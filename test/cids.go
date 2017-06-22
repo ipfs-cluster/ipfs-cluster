@@ -1,6 +1,6 @@
 package test
 
-import peer "github.com/libp2p/go-libp2p-peer"
+import peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
 
 // Common variables used all arround tests.
 var (

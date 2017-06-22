@@ -11,9 +11,9 @@ import (
 
 	//	_ "net/http/pprof"
 
-	logging "github.com/ipfs/go-log"
-	ma "github.com/multiformats/go-multiaddr"
-	"github.com/urfave/cli"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	"gx/ipfs/Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA/cli"
+	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
@@ -104,11 +104,14 @@ var (
 	DefaultConfigFile = "service.json"
 	// The name of the data folder inside DefaultPath
 	DefaultDataFolder = "data"
+	// The name of the swarm key for pnets inside of DefaultPath
+	//DefaultSwarmKeyFile = "swarm.key"
 )
 
 var (
 	configPath string
 	dataPath   string
+	//swarmKeyPath string
 )
 
 func init() {
@@ -210,6 +213,7 @@ func main() {
 
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		dataPath = filepath.Join(absPath, DefaultDataFolder)
+		//swarmKeyPath = filepath.Join(absPath, DefaultSwarmKeyFile)
 
 		setupLogging(c.String("loglevel"))
 		if c.Bool("debug") {

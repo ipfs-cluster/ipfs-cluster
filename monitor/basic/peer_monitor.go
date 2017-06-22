@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	rpc "gx/ipfs/QmayPizdYNaSKGyFFxcjKf4ZkZ6kriQePqZkFwZQyvteDp/go-libp2p-gorpc"
+	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

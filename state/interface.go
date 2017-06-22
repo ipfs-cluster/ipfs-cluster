@@ -6,8 +6,8 @@ package state
 import (
 	"io"
 
-	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 // State is used by the Consensus component to keep track of
