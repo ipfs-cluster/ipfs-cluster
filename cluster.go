@@ -13,19 +13,17 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/state"
+	pnet "github.com/libp2p/go-libp2p-pnet"
 
 	peerstore "gx/ipfs/QmQMQ2RUjnaEEX8ybmrhuFFGhAwPjyL1Eo6ZoJGD7aAccM/go-libp2p-peerstore"
 	basichost "gx/ipfs/QmSNJRX4uphb3Eyp69uYbpRVvgqjPxfjnJmjcdMWkDH5Pn/go-libp2p/p2p/host/basic"
 	ma "gx/ipfs/QmSWLfmj5frN9xVLMMN846dMDriy5wN5jeghUm7aTW3DAG/go-multiaddr"
+	ipnet "gx/ipfs/QmUxRRPqCRmjgZajYGDhUt4MNZFvT8sgry7YkA4ap7qLUP/go-libp2p-interface-pnet"
 	swarm "gx/ipfs/QmY8hduizbuACvYmL4aZQbpFeKhEQJ1Nom2jY6kv6rL8Gf/go-libp2p-swarm"
 	rpc "gx/ipfs/QmYqnvVzUjjVddWPLGMAErUjNBqnyjoeeCgZUZFsAJeGHr/go-libp2p-gorpc"
 	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
 	host "gx/ipfs/QmbzbRyd22gcW92U1rA2yKagB3myMYhk45XBknJ49F9XWJ/go-libp2p-host"
 	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
-
-	//pnet "github.com/libp2p/go-libp2p-pnet"
-	pnet "github.com/libp2p/go-libp2p-pnet"
-	ipnet "gx/ipfs/QmUxRRPqCRmjgZajYGDhUt4MNZFvT8sgry7YkA4ap7qLUP/go-libp2p-interface-pnet"
 )
 
 // Cluster is the main IPFS cluster component. It provides
@@ -878,7 +876,7 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 			return nil, err
 		}
 		cfg.PNetFingerprint = protec.Fingerprint()
-		/* this is in go-ipfs, not sure whether we want it here */
+		// this is in go-ipfs, not sure whether we want something like it here
 		/* go func() {
 			t := time.NewTicker(30 * time.Second)
 			<-t.C // swallow one tick
