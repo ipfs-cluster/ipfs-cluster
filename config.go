@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"sync"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
+	crypto "gx/ipfs/QmNiCwBNA8MWDADTFVq1BonUEJbS2SvjAoNkZZrhEwcuUi/go-libp2p-crypto"
+	ma "gx/ipfs/QmSWLfmj5frN9xVLMMN846dMDriy5wN5jeghUm7aTW3DAG/go-multiaddr"
+	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
 )
 
 // Default parameters for the configuration
@@ -33,6 +34,11 @@ type Config struct {
 	// the Consensus component.
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
+
+	// Swarm key for private network
+	SwarmKeyPath string
+	// Fingerprint for private network
+	PNetFingerprint []byte
 
 	// ClusterPeers is the list of peers in the Cluster. They are used
 	// as the initial peers in the consensus. When bootstrapping a peer,
@@ -339,6 +345,23 @@ func LoadConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
+func loadSwarmKey(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+	defer f.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return ioutil.ReadAll(f)
+}
+
 // Save stores a configuration as a JSON file in the given path.
 // If no path is provided, it uses the path the configuration was
 // loaded from.
@@ -416,6 +439,7 @@ func NewDefaultConfig() (*Config, error) {
 	return &Config{
 		ID:                        pid,
 		PrivateKey:                priv,
+		SwarmKeyPath:              "",
 		ClusterPeers:              []ma.Multiaddr{},
 		Bootstrap:                 []ma.Multiaddr{},
 		LeaveOnShutdown:           false,

@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	rpc "gx/ipfs/QmYqnvVzUjjVddWPLGMAErUjNBqnyjoeeCgZUZFsAJeGHr/go-libp2p-gorpc"
 )
 
 type mockService struct{}
