@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 // IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.

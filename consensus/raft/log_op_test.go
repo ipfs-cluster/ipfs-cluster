@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
