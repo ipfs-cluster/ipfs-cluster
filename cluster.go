@@ -928,23 +928,37 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo
 		copyPinInfoSerialToIfaces(replies))
 
 	for i, rserial := range replies {
+		e := errs[i]
+
+		// Potentially rserial is empty. But ToPinInfo ignores all
+		// errors from underlying libraries. In that case .Status
+		// will be TrackerStatusBug (0)
 		r := rserial.ToPinInfo()
-		if e := errs[i]; e != nil {
-			if r.Status == api.TrackerStatusBug {
-				// This error must come from not being able to contact that cluster member
-				logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
-				r = api.PinInfo{
-					Cid:    r.Cid,
-					Peer:   members[i],
-					Status: api.TrackerStatusClusterError,
-					TS:     time.Now(),
-					Error:  e.Error(),
-				}
-			} else {
-				r.Error = e.Error()
-			}
+
+		// No error. Parse and continue
+		if e == nil {
+			pin.PeerMap[members[i]] = r
+			continue
 		}
-		pin.PeerMap[members[i]] = r
+
+		// Deal with error cases (err != nil): wrap errors in PinInfo
+
+		// In this case, we had no answer at all. The contacted peer
+		// must be offline or unreachable.
+		if r.Status == api.TrackerStatusBug {
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
+			pin.PeerMap[members[i]] = api.PinInfo{
+				Cid:    h,
+				Peer:   members[i],
+				Status: api.TrackerStatusClusterError,
+				TS:     time.Now(),
+				Error:  e.Error(),
+			}
+		} else { // there was an rpc error, but got a valid response :S
+			r.Error = e.Error()
+			pin.PeerMap[members[i]] = r
+			// unlikely to come down this path
+		}
 	}
 
 	return pin, nil
