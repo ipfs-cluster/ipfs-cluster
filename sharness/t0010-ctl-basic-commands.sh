@@ -21,7 +21,7 @@ test_expect_success "cluster-ctl help commands succeed" '
     ipfs-cluster-ctl help
 '
 
-test_expect_failure "cluster-ctl help has 80 char limits" '
+test_expect_success "cluster-ctl help has 80 char limits" '
     ipfs-cluster-ctl --help >help.txt &&
     test_when_finished "rm help.txt" &&
     LENGTH="$(cat help.txt | awk '"'"'{print length }'"'"' | sort -nr | head -n 1)" &&
