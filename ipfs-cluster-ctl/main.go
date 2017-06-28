@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
-	cli "github.com/urfave/cli"
+	ma "gx/ipfs/QmSWLfmj5frN9xVLMMN846dMDriy5wN5jeghUm7aTW3DAG/go-multiaddr"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	peer "gx/ipfs/QmZcUPvPhD1Xvk6mwijYF8AfR3mG31S1YsEfHG4khrFPRr/go-libp2p-peer"
+	cli "gx/ipfs/Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA/cli"
+	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
 )
 
 const programName = `ipfs-cluster-ctl`
@@ -79,7 +79,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost,
-			Usage: "host:port of the IPFS Cluster service API",
+			Usage: "host:port of the IPFS Cluster service API\n\t\t",
 		},
 		cli.BoolFlag{
 			Name:  "https, s",
@@ -88,12 +88,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "encoding, enc",
 			Value: "text",
-			Usage: "output format encoding [text, json]",
+			Usage: "output format encoding [text, json]\n\t\t",
 		},
 		cli.IntFlag{
 			Name:  "timeout, t",
 			Value: defaultTimeout,
-			Usage: "number of seconds to wait before timing out a request",
+			Usage: "number of seconds to wait before timing \n\t\t out a request",
 		},
 		cli.BoolFlag{
 			Name:  "debug, d",
