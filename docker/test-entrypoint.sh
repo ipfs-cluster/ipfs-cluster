@@ -45,12 +45,16 @@ else
     sed -i 's/127\.0\.0\.1\/tcp\/9094/0.0.0.0\/tcp\/9094/' "$IPFS_CLUSTER_PATH/service.json"
     sed -i 's/127\.0\.0\.1\/tcp\/9095/0.0.0.0\/tcp\/9095/' "$IPFS_CLUSTER_PATH/service.json"
 fi
-ipfs-cluster-service $@ &
+ipfs-cluster-service --debug $@ &
+# Testing scripts that spawn background processes are spawned and stopped here
 /usr/local/bin/random-stopper.sh &
 kill -STOP $!
 echo $! > /data/ipfs-cluster/random-stopper-pid
 /usr/local/bin/random-killer.sh &
 kill -STOP $!
 echo $! > /data/ipfs-cluster/random-killer-pid
+/usr/local/bin/cluster-restart.sh &
+kill -STOP $!
+echo $! > /data/ipfs-cluster/cluster-restart-pid
 echo "Daemons launched"
 exec tail -f /dev/null
