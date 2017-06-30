@@ -10,7 +10,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
+	cid "github.com/ipfs/go-cid"
 )
 
 // Version is the map state Version. States with old versions should

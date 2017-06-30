@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	raftboltdb "gx/ipfs/QmUDCcPkPMPJ149YBpfFLWJtRFeqace5GNdBPD2cW4Z8E6/raft-boltdb"
-	libp2praft "gx/ipfs/QmUqn6GHVKewa8H4L8mEwWFV27R4xb3s9LB9qxNxGGqxgy/go-libp2p-raft"
-	host "gx/ipfs/QmUywuGNZoUKV8B9iyvup9bPkLiMrhTsyVMkeSXW5VxAfC/go-libp2p-host"
-	hashiraft "gx/ipfs/QmWRzh5sntXhuZaxmGDEjjBhg1nX7DgaMdhBeik42LZdEv/raft"
-	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
+	hashiraft "github.com/hashicorp/raft"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
+	logging "github.com/ipfs/go-log"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
 )
 
 // DefaultRaftConfig allows to tweak Raft configuration used by Cluster from

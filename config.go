@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"sync"
 
-	crypto "gx/ipfs/QmP1DfoUjiWH2ZBo1PBH6FupdBucbDepx3HpWmEY6JMUpY/go-libp2p-crypto"
-	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
-	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // Default parameters for the configuration
@@ -36,7 +35,7 @@ type Config struct {
 	PrivateKey crypto.PrivKey
 
 	// Swarm key for private network
-	SwarmKeyPath string
+	SwarmKey string
 	// Fingerprint for private network
 	PNetFingerprint []byte
 
@@ -110,7 +109,7 @@ type JSONConfig struct {
 	PrivateKey string `json:"private_key"`
 
 	// Swarm key for private network
-	SwarmKeyPath string `json:"swarm_key_path"`
+	SwarmKey string `json:"swarm_key"`
 
 	// ClusterPeers is the list of peers' multiaddresses in the Cluster.
 	// They are used as the initial peers in the consensus. When
@@ -203,7 +202,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
 		PrivateKey:                  pKey,
-		SwarmKeyPath:                cfg.SwarmKeyPath,
+		SwarmKey:                    cfg.SwarmKey,
 		ClusterPeers:                clusterPeers,
 		Bootstrap:                   bootstrap,
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
@@ -309,7 +308,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	c = &Config{
 		ID:                        id,
 		PrivateKey:                pKey,
-		SwarmKeyPath:              jcfg.SwarmKeyPath,
+		SwarmKey:                  jcfg.SwarmKey,
 		ClusterPeers:              clusterPeers,
 		Bootstrap:                 bootstrap,
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
@@ -347,24 +346,8 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	cfg.path = path
+
 	return cfg, nil
-}
-
-func loadSwarmKey(path string) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-	defer f.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return ioutil.ReadAll(f)
 }
 
 // Save stores a configuration as a JSON file in the given path.

@@ -5,7 +5,7 @@ package numpin
 import (
 	"fmt"
 
-	rpc "gx/ipfs/QmayPizdYNaSKGyFFxcjKf4ZkZ6kriQePqZkFwZQyvteDp/go-libp2p-gorpc"
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

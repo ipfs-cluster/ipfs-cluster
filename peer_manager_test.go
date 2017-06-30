@@ -9,8 +9,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "gx/ipfs/QmcTcsTvfaeEBRFo1TkFgT8sRmgi1n1LTZpecfVP8fzpGD/go-cid"
-	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
+	cid "github.com/ipfs/go-cid"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
@@ -21,7 +21,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			cl, m := createOnePeerCluster(t, i)
+			cl, m := createOnePeerCluster(t, i, false)
 			cls[i] = cl
 			mocks[i] = m
 		}(i)
