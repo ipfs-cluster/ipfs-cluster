@@ -1,7 +1,10 @@
 package ipfscluster
 
 import (
+	"bytes"
+	crand "crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -35,7 +38,7 @@ type Config struct {
 	PrivateKey crypto.PrivKey
 
 	// Swarm key for private network
-	SwarmKey string
+	SwarmSecret string
 	// Fingerprint for private network
 	PNetFingerprint []byte
 
@@ -109,7 +112,7 @@ type JSONConfig struct {
 	PrivateKey string `json:"private_key"`
 
 	// Swarm key for private network
-	SwarmKey string `json:"swarm_key"`
+	SwarmSecret string `json:"swarm_key"`
 
 	// ClusterPeers is the list of peers' multiaddresses in the Cluster.
 	// They are used as the initial peers in the consensus. When
@@ -202,7 +205,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
 		PrivateKey:                  pKey,
-		SwarmKey:                    cfg.SwarmKey,
+		SwarmSecret:                 cfg.SwarmSecret,
 		ClusterPeers:                clusterPeers,
 		Bootstrap:                   bootstrap,
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
@@ -308,7 +311,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	c = &Config{
 		ID:                        id,
 		PrivateKey:                pKey,
-		SwarmKey:                  jcfg.SwarmKey,
+		SwarmSecret:               jcfg.SwarmSecret,
 		ClusterPeers:              clusterPeers,
 		Bootstrap:                 bootstrap,
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
@@ -403,6 +406,30 @@ func (cfg *Config) unshadow() {
 		cfg.Bootstrap = cfg.shadow.Bootstrap
 	}
 	cfg.shadow = nil
+}
+
+// copied/modified from github.com/Kubuxu/go-ipfs-swarm-key-gen
+func generateSwarmSecret() (string, error) {
+	key := make([]byte, 32)
+	_, err := crand.Read(key)
+	if err != nil {
+		return "", fmt.Errorf("Error reading from rand: %v", err)
+	}
+	return hex.EncodeToString(key), nil
+}
+
+func swarmSecretToKey(secret string) (string, error) {
+	hexSecret := hex.EncodeToString([]byte(secret))[:68]
+	if len(hexSecret) < 10 {
+		return "", fmt.Errorf("Swarm secret must be >= 10 chars, but is %d\n",
+			len(hexSecret))
+	}
+	var key bytes.Buffer
+	key.WriteString("/key/swarm/psk/1.0.0/\n")
+	key.WriteString("/base16/\n")
+	key.WriteString(hexSecret)
+
+	return key.String(), nil
 }
 
 // NewDefaultConfig returns a default configuration object with a randomly

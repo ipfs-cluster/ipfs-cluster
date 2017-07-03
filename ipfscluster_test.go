@@ -1,9 +1,6 @@
 package ipfscluster
 
 import (
-	"bytes"
-	crand "crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"os"
@@ -44,32 +41,15 @@ var (
 	ipfsProxyPort = 21000
 
 	// reusable swarm key
-	constSwarmKey string = "/key/swarm/psk/1.0.0/\n/base16/\n2951539a3737c06a5aee55834c27145ca1783bdc7daeaa92f9712b3ff6e9fa25"
+	constSwarmSecret string = "2951539a3737c06a5aee55834c27145ca1783bdc7daeaa92f9712b3ff6e9fa25"
 )
 
-func testingSwarmKey(uniqueSwarm bool) (string, error) {
+func testingSwarmSecret(uniqueSwarm bool) (string, error) {
 	if uniqueSwarm {
-		return generateSwarmKey()
+		return generateSwarmSecret()
 	} else {
-		return constSwarmKey, nil
+		return constSwarmSecret, nil
 	}
-}
-
-// copied/modified from github.com/Kubuxu/go-ipfs-swarm-key-gen
-func generateSwarmKey() (string, error) {
-	key := make([]byte, 32)
-	_, err := crand.Read(key)
-	if err != nil {
-		return "", fmt.Errorf("Error reading from rand: %v", err)
-	}
-
-	// very fast way to concat strings in Go, may be unnecessary here
-	var buffer bytes.Buffer
-	buffer.WriteString("/key/swarm/psk/1.0.0/\n")
-	buffer.WriteString("/base16/\n")
-	buffer.WriteString(hex.EncodeToString(key))
-
-	return buffer.String(), nil
 }
 
 func init() {
@@ -101,13 +81,13 @@ func createComponents(t *testing.T, i int, uniqueSwarm bool) (*Config, API, IPFS
 	checkErr(t, err)
 	pid, err := peer.IDFromPublicKey(pub)
 	checkErr(t, err)
-	swarmKey, err := testingSwarmKey(uniqueSwarm)
+	swarmSecret, err := testingSwarmSecret(uniqueSwarm)
 	checkErr(t, err)
 
 	cfg, _ := NewDefaultConfig()
 	cfg.ID = pid
 	cfg.PrivateKey = priv
-	cfg.SwarmKey = swarmKey
+	cfg.SwarmSecret = swarmSecret
 	cfg.Bootstrap = []ma.Multiaddr{}
 	cfg.ClusterAddr = clusterAddr
 	cfg.APIAddr = apiAddr

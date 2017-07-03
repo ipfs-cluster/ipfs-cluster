@@ -84,9 +84,9 @@ func (ipfs *mockConnector) RepoSize() (int, error)                        { retu
 func testingCluster(t *testing.T, uniqueSwarm bool) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
-	swarmKey, err := testingSwarmKey(uniqueSwarm)
+	swarmSecret, err := testingSwarmSecret(uniqueSwarm)
 	checkErr(t, err)
-	cfg := testingConfig(swarmKey)
+	cfg := testingConfig(swarmSecret)
 	st := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(2)

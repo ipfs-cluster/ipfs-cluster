@@ -865,9 +865,13 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	publicKey := privateKey.GetPublic()
 
 	var protec ipnet.Protector
-	if len(cfg.SwarmKey) != 0 {
+	if len(cfg.SwarmSecret) != 0 {
 		var err error
-		protec, err = pnet.NewProtector(strings.NewReader(cfg.SwarmKey))
+		swarmKey, err := swarmSecretToKey(cfg.SwarmSecret)
+		if err != nil {
+			return nil, err
+		}
+		protec, err = pnet.NewProtector(strings.NewReader(swarmKey))
 		if err != nil {
 			return nil, err
 		}

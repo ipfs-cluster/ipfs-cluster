@@ -37,6 +37,7 @@ func TestSwarmKeyRequired(t *testing.T) {
     if err == nil {
         t.Fatal("Peer entered private cluster without key.")
     }
+    //fmt.Printf("@GRISH: %s\n", err.Error())
 
     if len(peers1) != len(peers2) {
         t.Fatal("Expected same number of peers")
