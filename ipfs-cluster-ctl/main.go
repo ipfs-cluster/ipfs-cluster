@@ -73,7 +73,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "CLI for IPFS Cluster"
-	app.UsageText = Description
+	app.Description = Description
 	app.Version = Version
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -116,9 +116,10 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:  "id",
-			Usage: "retrieve cluster member information",
-			UsageText: `
-This command will print out information about the cluster peer used
+			Usage: "retrieve peer information",
+			Description: `
+This command displays information about the peer that the tool is contacting
+(usually running in localhost).
 `,
 			Flags: []cli.Flag{parseFlag(formatID)},
 			Action: func(c *cli.Context) error {
@@ -128,19 +129,17 @@ This command will print out information about the cluster peer used
 			},
 		},
 		{
-			Name:  "peers",
-			Usage: "list and manage IPFS Cluster peers",
-			UsageText: `
-This command can be used to list and manage IPFS Cluster peers.
-`,
+			Name:        "peers",
+			Description: "list and manage IPFS Cluster peers",
 			Subcommands: []cli.Command{
 				{
 					Name:  "ls",
 					Usage: "list the nodes participating in the IPFS Cluster",
-					UsageText: `
-This commands provides a list of the ID information of all the peers in the Cluster.
+					Description: `
+This command provides a list of the ID information of all the peers in the Cluster.
 `,
-					Flags: []cli.Flag{parseFlag(formatID)},
+					Flags:     []cli.Flag{parseFlag(formatID)},
+					ArgsUsage: " ",
 					Action: func(c *cli.Context) error {
 						resp := request("GET", "/peers", nil)
 						formatResponse(c, resp)
@@ -150,7 +149,7 @@ This commands provides a list of the ID information of all the peers in the Clus
 				{
 					Name:  "add",
 					Usage: "add a peer to the Cluster",
-					UsageText: `
+					Description: `
 This command adds a new peer to the cluster. In order for the operation to
 succeed, the new peer needs to be reachable and any other member of the cluster
 should be online. The operation returns the ID information for the new peer.
@@ -176,7 +175,7 @@ should be online. The operation returns the ID information for the new peer.
 				{
 					Name:  "rm",
 					Usage: "remove a peer from the Cluster",
-					UsageText: `
+					Description: `
 This command removes a peer from the cluster. If the peer is online, it will
 automatically shut down. All other cluster peers should be online for the
 operation to succeed, otherwise some nodes may be left with an outdated list of
@@ -196,17 +195,13 @@ cluster peers.
 			},
 		},
 		{
-			Name:  "pin",
-			Usage: "add, remove or list items managed by IPFS Cluster",
-			UsageText: `
-This command allows to add, remove or list items managed (pinned) by
-the Cluster.
-`,
+			Name:        "pin",
+			Description: "add, remove or list items managed by IPFS Cluster",
 			Subcommands: []cli.Command{
 				{
 					Name:  "add",
 					Usage: "Track a CID (pin)",
-					UsageText: `
+					Description: `
 This command tells IPFS Cluster to start managing a CID. Depending on
 the pinning strategy, this will trigger IPFS pin requests. The CID will
 become part of the Cluster's state and will tracked from this point.
@@ -218,7 +213,7 @@ An optional replication factor can be provided: -1 means "pin everywhere"
 and 0 means use cluster's default setting. Positive values indicate how many
 peers should pin this content.
 `,
-					ArgsUsage: "<cid>",
+					ArgsUsage: "<CID>",
 					Flags: []cli.Flag{
 						parseFlag(formatGPInfo),
 						cli.IntFlag{
@@ -245,7 +240,7 @@ peers should pin this content.
 				{
 					Name:  "rm",
 					Usage: "Stop tracking a CID (unpin)",
-					UsageText: `
+					Description: `
 This command tells IPFS Cluster to no longer manage a CID. This will
 trigger unpinning operations in all the IPFS nodes holding the content.
 
@@ -253,7 +248,7 @@ When the request has succeeded, the command returns the status of the CID
 in the cluster. The CID should disappear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
-					ArgsUsage: "<cid>",
+					ArgsUsage: "<CID>",
 					Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
@@ -271,14 +266,14 @@ although unpinning operations in the cluster may take longer or fail.
 				{
 					Name:  "ls",
 					Usage: "List tracked CIDs",
-					UsageText: `
+					Description: `
 This command will list the CIDs which are tracked by IPFS Cluster and to
 which peers they are currently allocated. This list does not include
 any monitoring information about the IPFS status of the CIDs, it
 merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
 `,
-					ArgsUsage: "[cid]",
+					ArgsUsage: "[CID]",
 					Flags:     []cli.Flag{parseFlag(formatPin)},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
@@ -296,7 +291,7 @@ the cluster. For IPFS-status information about the pins, use "status".
 		{
 			Name:  "status",
 			Usage: "Retrieve the status of tracked items",
-			UsageText: `
+			Description: `
 This command retrieves the status of the CIDs tracked by IPFS
 Cluster, including which member is pinning them and any errors.
 If a CID is provided, the status will be only fetched for a single
@@ -305,7 +300,7 @@ item.
 The status of a CID may not be accurate. A manual sync can be triggered
 with "sync".
 `,
-			ArgsUsage: "[cid]",
+			ArgsUsage: "[CID]",
 			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
@@ -321,7 +316,7 @@ with "sync".
 		{
 			Name:  "sync",
 			Usage: "Sync status of tracked items",
-			UsageText: `
+			Description: `
 This command asks Cluster peers to verify that the current status of tracked
 CIDs is accurate by triggering queries to the IPFS daemons that pin them.
 If a CID is provided, the sync and recover operations will be limited to
@@ -333,7 +328,7 @@ therefore, the output should be empty if no operations were performed.
 
 CIDs in error state may be manually recovered with "recover".
 `,
-			ArgsUsage: "[cid]",
+			ArgsUsage: "[CID]",
 			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
@@ -352,14 +347,14 @@ CIDs in error state may be manually recovered with "recover".
 		{
 			Name:  "recover",
 			Usage: "Recover tracked items in error state",
-			UsageText: `
+			Description: `
 This command asks Cluster peers to re-track or re-forget an item which is in
 error state, usually because the IPFS pin or unpin operation has failed.
 
 The command will wait for any operations to succeed and will return the status
 of the item upon completion.
 `,
-			ArgsUsage: "<cid>",
+			ArgsUsage: "<CID>",
 			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
@@ -379,11 +374,12 @@ of the item upon completion.
 		{
 			Name:  "version",
 			Usage: "Retrieve cluster version",
-			UsageText: `
+			Description: `
 This command retrieves the IPFS Cluster version and can be used
 to check that it matches the CLI version (shown by -v).
 `,
-			Flags: []cli.Flag{parseFlag(formatVersion)},
+			ArgsUsage: " ",
+			Flags:     []cli.Flag{parseFlag(formatVersion)},
 			Action: func(c *cli.Context) error {
 				resp := request("GET", "/version", nil)
 				formatResponse(c, resp)
@@ -391,11 +387,12 @@ to check that it matches the CLI version (shown by -v).
 			},
 		},
 		{
-			Name:   "commands",
-			Usage:  "List all commands",
-			Hidden: true,
+			Name:      "commands",
+			Usage:     "List all commands",
+			ArgsUsage: " ",
+			Hidden:    true,
 			Action: func(c *cli.Context) error {
-				walkCommands(c.App.Commands)
+				walkCommands(c.App.Commands, "ipfs-cluster-ctl")
 				return nil
 			},
 		},
@@ -412,10 +409,17 @@ func parseFlag(t int) cli.IntFlag {
 	}
 }
 
-func walkCommands(cmds []cli.Command) {
+func walkCommands(cmds []cli.Command, parentHelpName string) {
 	for _, c := range cmds {
-		fmt.Println(c.HelpName)
-		walkCommands(c.Subcommands)
+		var h string
+		// Sometimes HelpName is empty :S
+		if h = c.HelpName; h != "" {
+			fmt.Println(c.HelpName)
+		} else {
+			h = fmt.Sprintf("%s %s", parentHelpName, c.FullName())
+			fmt.Println(h)
+		}
+		walkCommands(c.Subcommands, h)
 	}
 }
 
