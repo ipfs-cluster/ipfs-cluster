@@ -5,19 +5,18 @@ test_description="Test ctl's status reporting functionality.  Test errors on inc
 . lib/test-lib.sh
 
 test_ipfs_init
+cleanup test_clean_ipfs
 test_cluster_init
+cleanup test_clean_cluster
 
 test_expect_success IPFS,CLUSTER,JQ "cluster-ctl can read id" '
-    test_cluster_config &&
-    ipfs-cluster-ctl id | egrep -q -i "$CLUSTER_CONFIG_ID"
+    id=`cluster_id`
+    test_cluster_config && ipfs-cluster-ctl id | egrep -q "$id"
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl list 0 peers" '
-    export PEER_OUT=`ipfs-cluster-ctl peers ls` &&
-    sorted_peer_out=$(printf "%s\n" $PEER_OUT | sort -u) &&
-    export SELF_OUT=`ipfs-cluster-ctl id` &&
-    sorted_self_out=$(printf "%s\n" $SELF_OUT | sort -u) &&
-    [ "$sorted_peer_out" = "$sorted_self_out" ]
+    peer_length=`ipfs-cluster-ctl --enc=json peers ls | jq ". | length"`
+    [ $peer_length -eq 1 ]
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl add need peer id" '
@@ -56,10 +55,8 @@ test_expect_success IPFS,CLUSTER "pin ls succeeds" '
     ipfs-cluster-ctl pin ls
 '
 
-test_expect_success IPFS,CLUSTER "pin ls on invalid CID succeeds" '
-    ipfs-cluster-ctl pin ls XXXinvalid-CIDXXX
+test_expect_success IPFS,CLUSTER "pin ls on invalid CID fails" '
+    test_must_fail ipfs-cluster-ctl pin ls XXXinvalid-CIDXXX
 '
 
-cleanup test_clean_cluster
-cleanup test_clean_ipfs
 test_done

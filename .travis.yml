@@ -1,12 +1,19 @@
 language: go
 go:
 - '1.8'
+services:
+  - docker
+before_install:
+  - docker pull ipfs/go-ipfs
+  - sudo apt-get update
+  - sudo apt-get install -y jq curl
 install:
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
 - make deps
 script:
 - make service && make ctl && ./coverage.sh
+- make install
 - make test_sharness && make clean_sharness
 env:
   global:

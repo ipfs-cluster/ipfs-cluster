@@ -33,10 +33,8 @@ test_expect_success "cluster-ctl help output looks good" '
 '
 
 test_expect_success "cluster-ctl commands output looks good" '
-    ipfs-cluster-ctl commands | awk "NF" >commands.txt &&
+    ipfs-cluster-ctl commands > commands.txt &&
     test_when_finished "rm commands.txt" &&
-    numCmds=`cat commands.txt | wc -l` &&
-    [ $numCmds -eq "8" ] &&
     egrep -q "ipfs-cluster-ctl id" commands.txt &&
     egrep -q "ipfs-cluster-ctl peers" commands.txt &&
     egrep -q "ipfs-cluster-ctl pin" commands.txt &&
