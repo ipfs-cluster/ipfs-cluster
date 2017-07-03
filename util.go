@@ -144,3 +144,12 @@ func logError(fmtstr string, args ...interface{}) error {
 	logger.Error(msg)
 	return errors.New(msg)
 }
+
+func containsPeer(list []peer.ID, peer peer.ID) bool {
+	for _, p := range list {
+		if p == peer {
+			return true
+		}
+	}
+	return false
+}
