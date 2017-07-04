@@ -865,17 +865,16 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	publicKey := privateKey.GetPublic()
 
 	var protec ipnet.Protector
-	if len(cfg.SwarmSecret) != 0 {
+	if len(cfg.ClusterSecret) != 0 {
 		var err error
-		swarmKey, err := swarmSecretToKey(cfg.SwarmSecret)
+		clusterKey, err := clusterSecretToKey(cfg.ClusterSecret)
 		if err != nil {
 			return nil, err
 		}
-		protec, err = pnet.NewProtector(strings.NewReader(swarmKey))
+		protec, err = pnet.NewProtector(strings.NewReader(clusterKey))
 		if err != nil {
 			return nil, err
 		}
-		cfg.PNetFingerprint = protec.Fingerprint()
 		// this is in go-ipfs, not sure whether we want something like it here
 		/* go func() {
 			t := time.NewTicker(30 * time.Second)

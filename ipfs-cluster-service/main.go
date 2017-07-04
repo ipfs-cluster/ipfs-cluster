@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
@@ -104,8 +105,6 @@ var (
 	DefaultConfigFile = "service.json"
 	// The name of the data folder inside DefaultPath
 	DefaultDataFolder = "data"
-	// The name of the swarm key for pnets inside of DefaultPath
-	//DefaultSwarmKeyFile = "swarm.key"
 )
 
 var (
@@ -159,6 +158,11 @@ func main() {
 			Usage:  "path to the configuration and data `FOLDER`",
 			EnvVar: "IPFS_CLUSTER_PATH",
 		},
+		cli.StringFlag{
+			Name:   "env-cluster-secret",
+			EnvVar: "CLUSTER_SECRET",
+			Hidden: true,
+		},
 		cli.BoolFlag{
 			Name:  "force, f",
 			Usage: "forcefully proceed with some actions. i.e. overwriting configuration",
@@ -192,8 +196,15 @@ func main() {
 		{
 			Name:  "init",
 			Usage: "create a default configuration and exit",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "gen-secret, g",
+					Usage: "automatically generate cluster secret",
+				},
+			},
 			Action: func(c *cli.Context) error {
-				initConfig(c.GlobalBool("force"))
+				initConfig(c.GlobalBool("force"), c.Bool("gen-secret"),
+					[]byte(c.GlobalString("env-cluster-secret")))
 				return nil
 			},
 		},
@@ -227,7 +238,7 @@ func main() {
 
 func run(c *cli.Context) error {
 	if c.Bool("init") {
-		initConfig(c.Bool("force"))
+		initConfig(c.Bool("force"), false, nil)
 		return nil
 	}
 
@@ -339,13 +350,26 @@ func setupDebug() {
 	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
-func initConfig(force bool) {
+func initConfig(force bool, generateSecret bool, envSecret []byte) {
 	if _, err := os.Stat(configPath); err == nil && !force {
 		err := fmt.Errorf("%s exists. Try running with -f", configPath)
 		checkErr("", err)
 	}
+
 	cfg, err := ipfscluster.NewDefaultConfig()
 	checkErr("creating default configuration", err)
+
+	if !generateSecret {
+		if len(envSecret) != 0 {
+			// read cluster secret from env variable
+			fmt.Println("Reading cluster secret from CLUSTER_SECRET environment variable.")
+			cfg.ClusterSecret = []byte(envSecret)
+		} else {
+			// get cluster secret from user
+			cfg.ClusterSecret = []byte(promptUser("Enter cluster secret (to automatically generate, rerun with --gen-secret): "))
+		}
+	}
+
 	cfg.ConsensusDataFolder = dataPath
 	err = os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.Save(configPath)
@@ -356,4 +380,11 @@ func initConfig(force bool) {
 
 func loadConfig() (*ipfscluster.Config, error) {
 	return ipfscluster.LoadConfig(configPath)
+}
+
+func promptUser(msg string) string {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print(msg)
+	scanner.Scan()
+	return scanner.Text()
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	crand "crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -37,10 +36,10 @@ type Config struct {
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
 
-	// Swarm key for private network
-	SwarmSecret string
-	// Fingerprint for private network
-	PNetFingerprint []byte
+	// Cluster secret for private network. Peers will be in the same cluster if and
+	// only if they have the same ClusterSecret. If this value is empty, then the
+	// cluster will be on a unprotected public network (accessible by anyone).
+	ClusterSecret []byte
 
 	// ClusterPeers is the list of peers in the Cluster. They are used
 	// as the initial peers in the consensus. When bootstrapping a peer,
@@ -111,8 +110,10 @@ type JSONConfig struct {
 	ID         string `json:"id"`
 	PrivateKey string `json:"private_key"`
 
-	// Swarm key for private network
-	SwarmSecret string `json:"swarm_key"`
+	// Cluster secret for private network. Peers will be in the same cluster if and
+	// only if they have the same ClusterSecret. If this value is empty, then the
+	// cluster will be on a unprotected public network (accessible by anyone).
+	ClusterSecret string `json:"cluster_secret"`
 
 	// ClusterPeers is the list of peers' multiaddresses in the Cluster.
 	// They are used as the initial peers in the consensus. When
@@ -205,7 +206,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
 		PrivateKey:                  pKey,
-		SwarmSecret:                 cfg.SwarmSecret,
+		ClusterSecret:               string(cfg.ClusterSecret),
 		ClusterPeers:                clusterPeers,
 		Bootstrap:                   bootstrap,
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
@@ -311,7 +312,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	c = &Config{
 		ID:                        id,
 		PrivateKey:                pKey,
-		SwarmSecret:               jcfg.SwarmSecret,
+		ClusterSecret:             []byte(jcfg.ClusterSecret),
 		ClusterPeers:              clusterPeers,
 		Bootstrap:                 bootstrap,
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
@@ -408,26 +409,23 @@ func (cfg *Config) unshadow() {
 	cfg.shadow = nil
 }
 
-// copied/modified from github.com/Kubuxu/go-ipfs-swarm-key-gen
-func generateSwarmSecret() (string, error) {
-	key := make([]byte, 32)
-	_, err := crand.Read(key)
+func generateClusterSecret() ([]byte, error) {
+	encodedSecretLength := 64
+	secret := make([]byte, base64.StdEncoding.DecodedLen(encodedSecretLength))
+	_, err := crand.Read(secret)
 	if err != nil {
-		return "", fmt.Errorf("Error reading from rand: %v", err)
+		return nil, fmt.Errorf("Error reading from rand: %v", err)
 	}
-	return hex.EncodeToString(key), nil
+	encodedSecret := make([]byte, encodedSecretLength)
+	base64.StdEncoding.Encode(encodedSecret, secret)
+	return encodedSecret, nil
 }
 
-func swarmSecretToKey(secret string) (string, error) {
-	hexSecret := hex.EncodeToString([]byte(secret))[:68]
-	if len(hexSecret) < 10 {
-		return "", fmt.Errorf("Swarm secret must be >= 10 chars, but is %d\n",
-			len(hexSecret))
-	}
+func clusterSecretToKey(secret []byte) (string, error) {
 	var key bytes.Buffer
 	key.WriteString("/key/swarm/psk/1.0.0/\n")
-	key.WriteString("/base16/\n")
-	key.WriteString(hexSecret)
+	key.WriteString("/base64/\n")
+	key.Write(secret)
 
 	return key.String(), nil
 }
@@ -445,6 +443,10 @@ func NewDefaultConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	clusterSecret, err := generateClusterSecret()
+	if err != nil {
+		return nil, err
+	}
 
 	clusterAddr, _ := ma.NewMultiaddr(DefaultClusterAddr)
 	apiAddr, _ := ma.NewMultiaddr(DefaultAPIAddr)
@@ -454,6 +456,7 @@ func NewDefaultConfig() (*Config, error) {
 	return &Config{
 		ID:                        pid,
 		PrivateKey:                priv,
+		ClusterSecret:             clusterSecret,
 		ClusterPeers:              []ma.Multiaddr{},
 		Bootstrap:                 []ma.Multiaddr{},
 		LeaveOnShutdown:           false,

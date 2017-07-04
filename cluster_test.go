@@ -81,12 +81,10 @@ func (ipfs *mockConnector) ConnectSwarms() error                          { retu
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 func (ipfs *mockConnector) RepoSize() (int, error)                        { return 0, nil }
 
-func testingCluster(t *testing.T, uniqueSwarm bool) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
+func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
-	swarmSecret, err := testingSwarmSecret(uniqueSwarm)
-	checkErr(t, err)
-	cfg := testingConfig(swarmSecret)
+	cfg := testingConfig()
 	st := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(2)
@@ -114,13 +112,13 @@ func cleanRaft() {
 }
 
 func testClusterShutdown(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	err := cl.Shutdown()
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
 	}
 	cl.Shutdown()
-	cl, _, _, _, _ = testingCluster(t, false)
+	cl, _, _, _, _ = testingCluster(t)
 	err = cl.Shutdown()
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
@@ -129,7 +127,7 @@ func testClusterShutdown(t *testing.T) {
 
 func TestClusterStateSync(t *testing.T) {
 	cleanRaft()
-	cl, _, _, st, _ := testingCluster(t, false)
+	cl, _, _, st, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	_, err := cl.StateSync()
@@ -158,7 +156,7 @@ func TestClusterStateSync(t *testing.T) {
 }
 
 func TestClusterID(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	id := cl.ID()
@@ -177,7 +175,7 @@ func TestClusterID(t *testing.T) {
 }
 
 func TestClusterPin(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 
@@ -196,7 +194,7 @@ func TestClusterPin(t *testing.T) {
 }
 
 func TestClusterPins(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 
@@ -216,7 +214,7 @@ func TestClusterPins(t *testing.T) {
 }
 
 func TestClusterPinGet(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 
@@ -242,7 +240,7 @@ func TestClusterPinGet(t *testing.T) {
 }
 
 func TestClusterUnpin(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 
@@ -261,20 +259,20 @@ func TestClusterUnpin(t *testing.T) {
 }
 
 func TestClusterPeers(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	peers := cl.Peers()
 	if len(peers) != 1 {
 		t.Fatal("expected 1 peer")
 	}
-	if peers[0].ID != testingConfig("").ID {
+	if peers[0].ID != testingConfig().ID {
 		t.Error("bad member")
 	}
 }
 
 func TestVersion(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t, false)
+	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
 	if cl.Version() != Version {
