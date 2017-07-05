@@ -314,11 +314,9 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 	}
 	list := cState.List()
 	for _, pin := range list {
-		for _, alloc := range pin.Allocations {
-			if alloc == p { // found pin allocated to node
-				logger.Infof("repinning %s out of %s", pin.Cid, p.Pretty())
-				c.pin(pin, []peer.ID{p}) // pin blacklisting this peer
-			}
+		if containsPeer(pin.Allocations, p) {
+			logger.Infof("repinning %s out of %s", pin.Cid, p.Pretty())
+			c.pin(pin, []peer.ID{p}) // pin blacklisting this peer
 		}
 	}
 }
@@ -1112,6 +1110,11 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int, blacklist []peer.ID) ([]peer
 
 	case needed <= 0: // set the allocations to the needed ones
 		return validAllocations[0 : len(validAllocations)+needed], nil
+	case candidatesValid < needed:
+		err = logError(
+			"not enough candidates to allocate %s. Needed: %d. Got: %s",
+			hash, needed, candidatesValid)
+		return nil, err
 	default:
 		// this will return candidate peers in order of
 		// preference according to the allocator.
