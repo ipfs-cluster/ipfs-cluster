@@ -937,7 +937,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	if !strings.Contains(err.Error(), "enough allocations") {
+	if !strings.Contains(err.Error(), "not enough candidates") {
 		t.Error("different error than expected")
 		t.Error(err)
 	}
