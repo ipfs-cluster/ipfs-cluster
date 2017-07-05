@@ -206,6 +206,76 @@ func TestClusterPeerRemoveSelf(t *testing.T) {
 	}
 }
 
+func TestClusterPeerRemoveReallocsPins(t *testing.T) {
+	clusters, mocks := createClusters(t)
+	defer shutdownClusters(t, clusters, mocks)
+
+	if len(clusters) < 3 {
+		t.Skip("test needs at least 3 clusters")
+	}
+
+	// Adjust the replication factor for re-allocation
+	for _, c := range clusters {
+		c.config.ReplicationFactor = nClusters - 1
+	}
+
+	cpeer := clusters[0]
+	clusterID := cpeer.ID().ID
+
+	tmpCid, _ := cid.Decode(test.TestCid1)
+	prefix := tmpCid.Prefix()
+
+	// Pin nCluster random pins. This ensures each peer will
+	// pin the same number of Cids.
+	for i := 0; i < nClusters; i++ {
+		h, err := prefix.Sum(randomBytes())
+		checkErr(t, err)
+		err = cpeer.Pin(api.PinCid(h))
+		checkErr(t, err)
+		time.Sleep(time.Second)
+	}
+
+	delay()
+
+	// At this point, all peers must have 1 pin associated to them.
+	// Find out which pin is associated to cpeer.
+	interestingCids := []*cid.Cid{}
+
+	pins := cpeer.Pins()
+	if len(pins) != nClusters {
+		t.Fatal("expected number of tracked pins to be nClusters")
+	}
+	for _, p := range pins {
+		if containsPeer(p.Allocations, clusterID) {
+			//t.Logf("%s pins %s", clusterID, p.Cid)
+			interestingCids = append(interestingCids, p.Cid)
+		}
+	}
+
+	if len(interestingCids) != nClusters-1 {
+		t.Fatal("The number of allocated Cids is not expected")
+	}
+
+	// Now remove cluster peer
+	err := clusters[0].PeerRemove(clusterID)
+	if err != nil {
+		t.Fatal("error removing peer:", err)
+	}
+
+	delay()
+
+	for _, icid := range interestingCids {
+		// Now check that the allocations are new.
+		newPin, err := clusters[0].PinGet(icid)
+		if err != nil {
+			t.Fatal("error getting the new allocations for", icid)
+		}
+		if containsPeer(newPin.Allocations, clusterID) {
+			t.Fatal("pin should not be allocated to the removed peer")
+		}
+	}
+}
+
 func TestClustersPeerJoin(t *testing.T) {
 	clusters, mocks := peerManagerClusters(t)
 	defer shutdownClusters(t, clusters, mocks)

@@ -208,8 +208,21 @@ func (mon *StdPeerMonitor) LogMetric(m api.Metric) {
 // 	return metric
 // }
 
-// LastMetrics returns last known VALID metrics of a given type
+// LastMetrics returns last known VALID metrics of a given type. A metric
+// is only valid if it has not expired and belongs to a current cluster peer.
 func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
+	// Ger current list of peers
+	var peers []peer.ID
+	err := mon.rpcClient.Call("",
+		"Cluster",
+		"PeerManagerPeers",
+		struct{}{},
+		&peers)
+	if err != nil {
+		logger.Errorf("LastMetrics could not list peers: %s", err)
+		return []api.Metric{}
+	}
+
 	mon.metricsMux.RLock()
 	defer mon.metricsMux.RUnlock()
 
@@ -221,12 +234,18 @@ func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
 
 	metrics := make([]api.Metric, 0, len(mbyp))
 
-	for _, peerMetrics := range mbyp {
+	// only show metrics for current set of peers
+	for _, peer := range peers {
+		peerMetrics, ok := mbyp[peer]
+		if !ok {
+			continue
+		}
 		last, err := peerMetrics.latest()
 		if err != nil || last.Discard() {
 			continue
 		}
 		metrics = append(metrics, last)
+
 	}
 	return metrics
 }

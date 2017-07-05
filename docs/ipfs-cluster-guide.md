@@ -126,9 +126,8 @@ Static clusters expect every member peer to be up and responding. Otherwise, the
 
 We call a dynamic cluster, that in which the set of `cluster_peers` changes. Nodes are bootstrapped to existing cluster peers, the "peer add" and "peer rm" operations are used and/or the `leave_on_shutdown` configuration option is enabled. This option allows a node to abandon the consensus membership when shutting down. Thus reducing the cluster size by one.
 
-Dynamic clusters allow greater flexibility at the cost of stablity. Join and leave operations are tricky as they change the consensus membership and they are likely to create bad situations in unhealthy clusters.
+Dynamic clusters allow greater flexibility at the cost of stablity. Join and leave operations are tricky as they change the consensus membership and they are likely to create bad situations in unhealthy clusters. Also, bear in mind than removing a peer from the cluster will trigger a re-allocation of the pins that were associated to it. If the replication factor was 1, it is recommended to keep the ipfs daemon running so the content can actually be copied out to a daemon managed by a different peer.
 
-Also, *currently*, pins allocated to a peer that left the cluster are not re-allocated to new peers.
 
 The best way to diagnose and fix a broken cluster membership issue is to:
 
@@ -140,6 +139,8 @@ The best way to diagnose and fix a broken cluster membership issue is to:
 wrong peer count, stop them, fix `cluster_peers` manually and restart them.
 * `ipfs-cluster-ctl --enc=json peers ls` provides additional useful information, like the list of peers for every responding peer.
 * In cases were no Leader can be elected, then manual stop and editing of `cluster_peers` is necessary.
+
+
 
 
 ## Pinning an item
