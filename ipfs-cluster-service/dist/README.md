@@ -22,6 +22,26 @@ Before running `ipfs-cluster-service` for the first time, initialize a configura
 $ ipfs-cluster-service init
 ```
 
+### Cluster secret
+
+As long as the `CLUSTER_SECRET` environment variable is not set, you will be
+prompted to enter a `cluster_secret` value for your configuration. Two peers
+will be in the same cluster if and only if they share the same `cluster_secret`
+value. When initializing a cluster service, the following conditions are checked
+(in the order shown) and determine how `cluster_secret` is set:
+
+1.  If the `--gen-secret` flag is passed to `ipfs-cluster-service init`, then a
+    `cluster_secret` value will be automatically generated.
+2.  If the `CLUSTER_SECRET` environment variable is set in your current shell
+    instance, its value will be read and used as the `cluster_service` value.
+3.  If neither of the above conditions were ture, then you will be prompted to
+    enter a `cluster_secret` during the initialization.
+
+The `cluster_secret` must be a 64-character string with only hexadecimal
+characters (`[0-9a-f]`).
+
+TODO: Explain adding peers/sharing cluster secret once that functionality is
+implemented.
 
 ### Configuration
 
@@ -33,6 +53,7 @@ You can add the multiaddresses for the other cluster peers the `bootstrap` varia
 {
     "id": "QmXMhZ53zAoes8TYbKGn3rnm5nfWs5Wdu41Fhhfw9XmM5A",
     "private_key": "<redacted>",
+    "cluster_secret": "<redacted>",
     "cluster_peers": [],
     "bootstrap": [],
     "leave_on_shutdown": false,

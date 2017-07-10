@@ -27,7 +27,7 @@ func TestSimplePNet(t *testing.T) {
 func TestClusterSecretRequired(t *testing.T) {
     cl1Secret, err := generateClusterSecret()
     if err != nil {
-        t.Fatal("Unable to generate cluster secret")
+        t.Fatal("Unable to generate cluster secret.")
     }
 	cl1, _ := createOnePeerCluster(t, 1, cl1Secret)
 	cl2, _ := createOnePeerCluster(t, 2, testingClusterSecret)

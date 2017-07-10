@@ -204,7 +204,7 @@ func main() {
 			},
 			Action: func(c *cli.Context) error {
 				initConfig(c.GlobalBool("force"), c.Bool("gen-secret"),
-					[]byte(c.GlobalString("env-cluster-secret")))
+					c.GlobalString("env-cluster-secret"))
 				return nil
 			},
 		},
@@ -238,7 +238,7 @@ func main() {
 
 func run(c *cli.Context) error {
 	if c.Bool("init") {
-		initConfig(c.Bool("force"), false, nil)
+		initConfig(c.Bool("force"), false, "")
 		return nil
 	}
 
@@ -350,7 +350,7 @@ func setupDebug() {
 	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
-func initConfig(force bool, generateSecret bool, envSecret []byte) {
+func initConfig(force bool, generateSecret bool, envSecret string) {
 	if _, err := os.Stat(configPath); err == nil && !force {
 		err := fmt.Errorf("%s exists. Try running with -f", configPath)
 		checkErr("", err)
@@ -363,11 +363,12 @@ func initConfig(force bool, generateSecret bool, envSecret []byte) {
 		if len(envSecret) != 0 {
 			// read cluster secret from env variable
 			fmt.Println("Reading cluster secret from CLUSTER_SECRET environment variable.")
-			cfg.ClusterSecret = []byte(envSecret)
+			cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(envSecret)
 		} else {
 			// get cluster secret from user
-			cfg.ClusterSecret = []byte(promptUser("Enter cluster secret (to automatically generate, rerun with --gen-secret): "))
+			cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (to automatically generate, rerun with --gen-secret): "))
 		}
+		checkErr("parsing cluster secret", err)
 	}
 
 	cfg.ConsensusDataFolder = dataPath

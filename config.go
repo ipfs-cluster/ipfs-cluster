@@ -4,6 +4,7 @@ import (
 	"bytes"
 	crand "crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -37,8 +38,8 @@ type Config struct {
 	PrivateKey crypto.PrivKey
 
 	// Cluster secret for private network. Peers will be in the same cluster if and
-	// only if they have the same ClusterSecret. If this value is empty, then the
-	// cluster will be on a unprotected public network (accessible by anyone).
+	// only if they have the same ClusterSecret. The cluster secret must be exactly
+	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
 	ClusterSecret []byte
 
 	// ClusterPeers is the list of peers in the Cluster. They are used
@@ -111,8 +112,8 @@ type JSONConfig struct {
 	PrivateKey string `json:"private_key"`
 
 	// Cluster secret for private network. Peers will be in the same cluster if and
-	// only if they have the same ClusterSecret. If this value is empty, then the
-	// cluster will be on a unprotected public network (accessible by anyone).
+	// only if they have the same ClusterSecret. The cluster secret must be exactly
+	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
 	ClusterSecret string `json:"cluster_secret"`
 
 	// ClusterPeers is the list of peers' multiaddresses in the Cluster.
@@ -206,7 +207,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
 		PrivateKey:                  pKey,
-		ClusterSecret:               string(cfg.ClusterSecret),
+		ClusterSecret:               EncodeClusterSecret(cfg.ClusterSecret),
 		ClusterPeers:                clusterPeers,
 		Bootstrap:                   bootstrap,
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
@@ -242,6 +243,11 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	if err != nil {
 		err = fmt.Errorf("error parsing private_key ID: %s", err)
 		return
+	}
+	clusterSecret, err := DecodeClusterSecret(jcfg.ClusterSecret)
+	if err != nil {
+		err = fmt.Errorf("error loading cluster secret from config: ", err)
+		return nil, err
 	}
 
 	clusterPeers := make([]ma.Multiaddr, len(jcfg.ClusterPeers))
@@ -312,7 +318,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	c = &Config{
 		ID:                        id,
 		PrivateKey:                pKey,
-		ClusterSecret:             []byte(jcfg.ClusterSecret),
+		ClusterSecret:             clusterSecret,
 		ClusterPeers:              clusterPeers,
 		Bootstrap:                 bootstrap,
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
@@ -410,24 +416,37 @@ func (cfg *Config) unshadow() {
 }
 
 func generateClusterSecret() ([]byte, error) {
-	encodedSecretLength := 64
-	secret := make([]byte, base64.StdEncoding.DecodedLen(encodedSecretLength))
-	_, err := crand.Read(secret)
+	secretBytes := make([]byte, 32)
+	_, err := crand.Read(secretBytes)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading from rand: %v", err)
 	}
-	encodedSecret := make([]byte, encodedSecretLength)
-	base64.StdEncoding.Encode(encodedSecret, secret)
-	return encodedSecret, nil
+	return secretBytes, nil
 }
 
 func clusterSecretToKey(secret []byte) (string, error) {
 	var key bytes.Buffer
 	key.WriteString("/key/swarm/psk/1.0.0/\n")
-	key.WriteString("/base64/\n")
-	key.Write(secret)
+	key.WriteString("/base16/\n")
+	key.WriteString(EncodeClusterSecret(secret))
 
 	return key.String(), nil
+}
+
+func DecodeClusterSecret(hexSecret string) ([]byte, error) {
+	secret, err := hex.DecodeString(hexSecret)
+	if err != nil {
+		return nil, err
+	}
+	secretLen := len(secret)
+	if secretLen != 32 {
+		return nil, fmt.Errorf("Input secret is %d bytes, cluster secret should be 32.", secretLen)
+	}
+	return secret, nil
+}
+
+func EncodeClusterSecret(secretBytes []byte) string {
+	return hex.EncodeToString(secretBytes)
 }
 
 // NewDefaultConfig returns a default configuration object with a randomly
