@@ -26,6 +26,7 @@ const (
 	DefaultStateSyncSeconds          = 60
 	DefaultIPFSSyncSeconds           = 130
 	DefaultMonitoringIntervalSeconds = 15
+	DefaultDataFolder                = "ipfs-cluster-data"
 )
 
 // Config represents an ipfs-cluster configuration. It is used by
@@ -73,7 +74,7 @@ type Config struct {
 	IPFSNodeAddr ma.Multiaddr
 
 	// Storage folder for snapshots, log store etc. Used by
-	// the Consensus component.
+	// the Consensus component. The folder should exist.
 	ConsensusDataFolder string
 
 	// Number of seconds between automatic calls to StateSync().
@@ -149,8 +150,10 @@ type JSONConfig struct {
 	IPFSNodeMultiaddress string `json:"ipfs_node_multiaddress"`
 
 	// Storage folder for snapshots, log store etc. Used by
-	// the Consensus component.
-	ConsensusDataFolder string `json:"consensus_data_folder"`
+	// the Consensus component. When empty, it defaults to an
+	// "ipfs-cluster-data" subfolder from which the configuration
+	// file was read. Otherwise, it uses the value specified.
+	ConsensusDataFolder string `json:"consensus_data_folder,omitempty"`
 
 	// Number of seconds between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
@@ -486,7 +489,7 @@ func NewDefaultConfig() (*Config, error) {
 		APIAddr:                   apiAddr,
 		IPFSProxyAddr:             ipfsProxyAddr,
 		IPFSNodeAddr:              ipfsNodeAddr,
-		ConsensusDataFolder:       "ipfscluster-data",
+		ConsensusDataFolder:       "",
 		StateSyncSeconds:          DefaultStateSyncSeconds,
 		IPFSSyncSeconds:           DefaultIPFSSyncSeconds,
 		ReplicationFactor:         -1,

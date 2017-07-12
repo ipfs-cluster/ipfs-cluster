@@ -159,10 +159,15 @@ func (c *Cluster) setupConsensus() error {
 		startPeers = peersFromMultiaddrs(c.config.Bootstrap)
 	}
 
+	dataFolder := c.config.ConsensusDataFolder
+	if dataFolder == "" {
+		dataFolder = filepath.Join(filepath.Dir(c.config.path), DefaultDataFolder)
+	}
+
 	consensus, err := raft.NewConsensus(
 		append(startPeers, c.id),
 		c.host,
-		c.config.ConsensusDataFolder,
+		dataFolder,
 		c.state)
 	if err != nil {
 		logger.Errorf("error creating consensus: %s", err)
