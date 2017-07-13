@@ -2,6 +2,30 @@ package ipfscluster
 
 import "testing"
 
+func TestClusterKeyFormat(t *testing.T) {
+    goodKey := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    tooShort := "0123456789abcdef"
+    tooLong := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
+    unsupportedChars := "0123456789abcdef0123456789!!!!!!0123456789abcdef0123456789abcdef"
+
+	_, err := DecodeClusterSecret(goodKey)
+	if err != nil {
+        t.Fatal("Failed to decode well-formatted key.")
+	}
+	_, err = DecodeClusterSecret(tooShort)
+	if err == nil {
+        t.Fatal("Successfully decoded key that should haved failed (too short).")
+	}
+	_, err = DecodeClusterSecret(tooLong)
+	if err == nil {
+        t.Fatal("Successfully decoded key that should haved failed (too long).")
+	}
+	_, err = DecodeClusterSecret(unsupportedChars)
+	if err == nil {
+        t.Fatal("Successfully decoded key that should haved failed (unsupported chars).")
+	}
+}
+
 func TestSimplePNet(t *testing.T) {
 	clusters, mocks := peerManagerClusters(t)
 	defer cleanRaft()
