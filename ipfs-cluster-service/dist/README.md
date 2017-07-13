@@ -22,6 +22,10 @@ Before running `ipfs-cluster-service` for the first time, initialize a configura
 $ ipfs-cluster-service init
 ```
 
+`init` will ask for a `cluster_secret` (unless specified by the `CLUSTER_SECRET` environment variable or running with `--gen-secret`).
+
+All peers in a cluster **must share the same cluster secret**. Using an empty secret may compromise the security of your cluster (see the documentation for more information).
+
 
 ### Configuration
 
@@ -33,6 +37,7 @@ You can add the multiaddresses for the other cluster peers the `bootstrap` varia
 {
     "id": "QmXMhZ53zAoes8TYbKGn3rnm5nfWs5Wdu41Fhhfw9XmM5A",
     "private_key": "<redacted>",
+    "cluster_secret": "<redacted>",
     "cluster_peers": [],
     "bootstrap": [],
     "leave_on_shutdown": false,

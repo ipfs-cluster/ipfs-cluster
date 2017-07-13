@@ -60,6 +60,8 @@ The ipfs-cluster configuration file is usually found at `~/.ipfs-cluster/service
 
 A default configuration file can be generated with `ipfs-cluster-service init`. It is recommended that you re-create the configuration file after an upgrade, to make sure that you are up to date with any new options. Tthe `-c` option to specify a different configuration folder path allows to create a default configuration in a temporary folder. Then you can compare with the existing one. Non-specified options will take default values so an old configuration will usually work anyways.
 
+The configuration stores a `cluster_secret` which is a 32 byte (hex-encoded) key which **must be shared by all cluster peers**. Using an empty key has security implications (see the Security section). Using different keys will prevent different peers from talking to each other.
+
 The configuration options are documented at: https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig . It is recommended that you read them carefully before running your cluster.
 
 ## Starting your cluster
@@ -140,6 +142,7 @@ wrong peer count, stop them, fix `cluster_peers` manually and restart them.
 * `ipfs-cluster-ctl --enc=json peers ls` provides additional useful information, like the list of peers for every responding peer.
 * In cases were no Leader can be elected, then manual stop and editing of `cluster_peers` is necessary.
 
+Note that when adding a peer to an existing cluster, the new peer must be configured with the same `cluster_secret` as the rest of the cluster.
 
 
 
@@ -224,14 +227,11 @@ Note that **this feature has not been extensively tested**.
 
 ipfs-cluster peers communicate which eachother using libp2p-encrypted streams (`secio`), with the ipfs daemon using plain http, provide an HTTP API themselves (used by `ipfs-cluster-ctl`) and an IPFS Proxy. This means that there are four endpoints to be wary about when thinking of security:
 
-* `cluster_multiaddress`, defaults to `/ip4/0.0.0.0/tcp/9096` and is the listening address to communicate with other peers (via Remote RPC calls mostly). While the communication channel is encrypted, **there is nothing preventing anyone to send RPC commands to this endpoint** and thus, controlling the cluster and the ipfs daemon (at least when it comes to pin/unpin/pin ls and swarm connect operations. ipfs-cluster administrators should therefore be careful keep this endpoint unaccessible to third-parties, as cluster currently provides no authentication/authorization facilities.
+* `cluster_multiaddress`, defaults to `/ip4/0.0.0.0/tcp/9096` and is the listening address to communicate with other peers (via Remote RPC calls mostly). These endpoints are protected by the `cluster_secret` specified in the configuration. Only peers holding the same secret can communicate between
+each other. If the secret is empty, then **nothing prevents anyone from sending RPC commands to the cluster RPC endpoint** and thus, controlling the cluster and the ipfs daemon (at least when it comes to pin/unpin/pin ls and swarm connect operations. ipfs-cluster administrators should therefore be careful keep this endpoint unaccessible to third-parties when no `cluster_secret` is set.
 * `api_listen_multiaddress`, defaults to `/ip4/127.0.0.1/tcp/9094` and is the listening address for the HTTP API that is used by `ipfs-cluster-ctl`. The considerations for `api_listen_multiaddress` are the same as for `cluster_multiaddress`, as access to this endpoint allows to control ipfs-cluster and the ipfs daemon to a extent. By default, this endpoint listens on locahost which means it can only be used by `ipfs-cluster-ctl` running in the same host.
 * `ipfs_proxy_listen_multiaddress` defaults to `/ip4/127.0.0.1/tcp/9095`. As explained before, this endpoint offers control of ipfs-cluster pin/unpin operations and a full access to the underlying ipfs daemon. This endpoint should be treated with the same precautions as the ipfs HTTP API.
 * `ipfs_node_multiaddress` defaults to `/ip4/127.0.0.1/tcp/5001` and contains the address of the ipfs daemon HTTP API. The recommendation is running IPFS on the same host as ipfs-cluster. This way it is not necessary to make ipfs API listen on other than localhost.
-
-In short, **if `cluster_multiaddress` is reachable by the world, your ipfs-cluster and ipfs daemon can be fully controlled by anyone**.
-
-This situation will be addressed with the implementation of [Private Networks](https://github.com/ipfs/ipfs-cluster/issues/42) in ipfs-cluster, an upcoming feature which will provide a mechanism to only allow peers with a given pre-shared-key to communicate in a cluster.
 
 
 ## Upgrading
@@ -275,6 +275,7 @@ When your peer is not starting:
 * Check the logs and look for errors
 * Are all the listen addresses free or are they used by a different process?
 * Are other peers of the cluster reachable?
+* Is the `cluster_secret` the same for all peers?
 * Double-check that the addresses in `cluster_peers` are correct.
 * Double-check that the rest of the cluster is in a healthy state.
 * In some cases, it may help to delete everything in the `consensus_data_folder`. Assuming that the cluster is healthy, this will allow the non-starting peer to pull a clean state from the cluster Leader. Make a backup first, just in case.

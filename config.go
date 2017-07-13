@@ -1,7 +1,10 @@
 package ipfscluster
 
 import (
+	"bytes"
+	crand "crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -33,6 +36,11 @@ type Config struct {
 	// the Consensus component.
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
+
+	// Cluster secret for private network. Peers will be in the same cluster if and
+	// only if they have the same ClusterSecret. The cluster secret must be exactly
+	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
+	ClusterSecret []byte
 
 	// ClusterPeers is the list of peers in the Cluster. They are used
 	// as the initial peers in the consensus. When bootstrapping a peer,
@@ -102,6 +110,11 @@ type JSONConfig struct {
 	// the Consensus component.
 	ID         string `json:"id"`
 	PrivateKey string `json:"private_key"`
+
+	// Cluster secret for private network. Peers will be in the same cluster if and
+	// only if they have the same ClusterSecret. The cluster secret must be exactly
+	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
+	ClusterSecret string `json:"cluster_secret"`
 
 	// ClusterPeers is the list of peers' multiaddresses in the Cluster.
 	// They are used as the initial peers in the consensus. When
@@ -194,6 +207,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 	j = &JSONConfig{
 		ID:                          cfg.ID.Pretty(),
 		PrivateKey:                  pKey,
+		ClusterSecret:               EncodeClusterSecret(cfg.ClusterSecret),
 		ClusterPeers:                clusterPeers,
 		Bootstrap:                   bootstrap,
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
@@ -229,6 +243,11 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	if err != nil {
 		err = fmt.Errorf("error parsing private_key ID: %s", err)
 		return
+	}
+	clusterSecret, err := DecodeClusterSecret(jcfg.ClusterSecret)
+	if err != nil {
+		err = fmt.Errorf("error loading cluster secret from config: ", err)
+		return nil, err
 	}
 
 	clusterPeers := make([]ma.Multiaddr, len(jcfg.ClusterPeers))
@@ -299,6 +318,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 	c = &Config{
 		ID:                        id,
 		PrivateKey:                pKey,
+		ClusterSecret:             clusterSecret,
 		ClusterPeers:              clusterPeers,
 		Bootstrap:                 bootstrap,
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
@@ -336,6 +356,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	cfg.path = path
+
 	return cfg, nil
 }
 
@@ -394,6 +415,43 @@ func (cfg *Config) unshadow() {
 	cfg.shadow = nil
 }
 
+func generateClusterSecret() ([]byte, error) {
+	secretBytes := make([]byte, 32)
+	_, err := crand.Read(secretBytes)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading from rand: %v", err)
+	}
+	return secretBytes, nil
+}
+
+func clusterSecretToKey(secret []byte) (string, error) {
+	var key bytes.Buffer
+	key.WriteString("/key/swarm/psk/1.0.0/\n")
+	key.WriteString("/base16/\n")
+	key.WriteString(EncodeClusterSecret(secret))
+
+	return key.String(), nil
+}
+
+// DecodeClusterSecret parses a hex-encoded string, checks that it is exactly
+// 32 bytes long and returns its value as a byte-slice.x
+func DecodeClusterSecret(hexSecret string) ([]byte, error) {
+	secret, err := hex.DecodeString(hexSecret)
+	if err != nil {
+		return nil, err
+	}
+	secretLen := len(secret)
+	if secretLen != 32 {
+		return nil, fmt.Errorf("Input secret is %d bytes, cluster secret should be 32.", secretLen)
+	}
+	return secret, nil
+}
+
+// EncodeClusterSecret converts a byte slice to its hex string representation.
+func EncodeClusterSecret(secretBytes []byte) string {
+	return hex.EncodeToString(secretBytes)
+}
+
 // NewDefaultConfig returns a default configuration object with a randomly
 // generated ID and private key.
 func NewDefaultConfig() (*Config, error) {
@@ -407,6 +465,10 @@ func NewDefaultConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	clusterSecret, err := generateClusterSecret()
+	if err != nil {
+		return nil, err
+	}
 
 	clusterAddr, _ := ma.NewMultiaddr(DefaultClusterAddr)
 	apiAddr, _ := ma.NewMultiaddr(DefaultAPIAddr)
@@ -416,6 +478,7 @@ func NewDefaultConfig() (*Config, error) {
 	return &Config{
 		ID:                        pid,
 		PrivateKey:                priv,
+		ClusterSecret:             clusterSecret,
 		ClusterPeers:              []ma.Multiaddr{},
 		Bootstrap:                 []ma.Multiaddr{},
 		LeaveOnShutdown:           false,

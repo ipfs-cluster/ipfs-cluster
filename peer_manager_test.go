@@ -21,7 +21,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			cl, m := createOnePeerCluster(t, i)
+			cl, m := createOnePeerCluster(t, i, testingClusterSecret)
 			cls[i] = cl
 			mocks[i] = m
 		}(i)

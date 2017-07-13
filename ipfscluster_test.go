@@ -60,7 +60,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
 	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
@@ -74,6 +74,7 @@ func createComponents(t *testing.T, i int) (*Config, API, IPFSConnector, state.S
 	cfg, _ := NewDefaultConfig()
 	cfg.ID = pid
 	cfg.PrivateKey = priv
+	cfg.ClusterSecret = clusterSecret
 	cfg.Bootstrap = []ma.Multiaddr{}
 	cfg.ClusterAddr = clusterAddr
 	cfg.APIAddr = apiAddr
@@ -107,8 +108,8 @@ func createCluster(t *testing.T, cfg *Config, api API, ipfs IPFSConnector, state
 	return cl
 }
 
-func createOnePeerCluster(t *testing.T, nth int) (*Cluster, *test.IpfsMock) {
-	cfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth)
+func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster, *test.IpfsMock) {
+	cfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret)
 	cl := createCluster(t, cfg, api, ipfs, state, tracker, mon, alloc, inf)
 	return cl, mock
 }
@@ -128,7 +129,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 	clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
 	for i := 0; i < nClusters; i++ {
-		cfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i)
+		cfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret)
 		cfgs[i] = cfg
 		apis[i] = api
 		ipfss[i] = ipfs

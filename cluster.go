@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/state"
+	pnet "github.com/libp2p/go-libp2p-pnet"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
+	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	swarm "github.com/libp2p/go-libp2p-swarm"
@@ -870,6 +873,38 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	privateKey := cfg.PrivateKey
 	publicKey := privateKey.GetPublic()
 
+	var protec ipnet.Protector
+	if len(cfg.ClusterSecret) != 0 {
+		var err error
+		clusterKey, err := clusterSecretToKey(cfg.ClusterSecret)
+		if err != nil {
+			return nil, err
+		}
+		protec, err = pnet.NewProtector(strings.NewReader(clusterKey))
+		if err != nil {
+			return nil, err
+		}
+		// this is in go-ipfs, not sure whether we want something like it here
+		/* go func() {
+			t := time.NewTicker(30 * time.Second)
+			<-t.C // swallow one tick
+			for {
+				select {
+				case <-t.C:
+					if ph := cfg.Host; ph != nil {
+						if len(ph.Network().Peers()) == 0 {
+							log.Warning("We are in a private network and have no peers.")
+							log.Warning("This might be a configuration mistake.")
+						}
+					}
+					case <-n.Process().Closing:
+					t.Stop()
+					return
+				}
+			}
+		}()*/
+	}
+
 	if err := ps.AddPubKey(cfg.ID, publicKey); err != nil {
 		return nil, err
 	}
@@ -878,11 +913,12 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 		return nil, err
 	}
 
-	network, err := swarm.NewNetwork(
+	network, err := swarm.NewNetworkWithProtector(
 		ctx,
 		[]ma.Multiaddr{cfg.ClusterAddr},
 		cfg.ID,
 		ps,
+		protec,
 		nil,
 	)
 
