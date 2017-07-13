@@ -22,26 +22,10 @@ Before running `ipfs-cluster-service` for the first time, initialize a configura
 $ ipfs-cluster-service init
 ```
 
-### Cluster secret
+`init` will ask for a `cluster_secret` (unless specified by the `CLUSTER_SECRET` environment variable or running with `--gen-secret`).
 
-As long as the `CLUSTER_SECRET` environment variable is not set, you will be
-prompted to enter a `cluster_secret` value for your configuration. Two peers
-will be in the same cluster if and only if they share the same `cluster_secret`
-value. When initializing a cluster service, the following conditions are checked
-(in the order shown) and determine how `cluster_secret` is set:
+All peers in a cluster **must share the same cluster secret**. Using an empty secret may compromise the security of your cluster (see the documentation for more information).
 
-1.  If the `--gen-secret` flag is passed to `ipfs-cluster-service init`, then a
-    `cluster_secret` value will be automatically generated.
-2.  If the `CLUSTER_SECRET` environment variable is set in your current shell
-    instance, its value will be read and used as the `cluster_service` value.
-3.  If neither of the above conditions were ture, then you will be prompted to
-    enter a `cluster_secret` during the initialization.
-
-The `cluster_secret` must be a 64-character string with only hexadecimal
-characters (`[0-9a-f]`).
-
-TODO: Explain adding peers/sharing cluster secret once that functionality is
-implemented.
 
 ### Configuration
 
