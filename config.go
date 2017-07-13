@@ -433,6 +433,8 @@ func clusterSecretToKey(secret []byte) (string, error) {
 	return key.String(), nil
 }
 
+// DecodeClusterSecret parses a hex-encoded string, checks that it is exactly
+// 32 bytes long and returns its value as a byte-slice.x
 func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	secret, err := hex.DecodeString(hexSecret)
 	if err != nil {
@@ -445,6 +447,7 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	return secret, nil
 }
 
+// EncodeClusterSecret converts a byte slice to its hex string representation.
 func EncodeClusterSecret(secretBytes []byte) string {
 	return hex.EncodeToString(secretBytes)
 }
