@@ -440,11 +440,15 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	secretLen := len(secret)
-	if secretLen != 32 {
+	switch secretLen := len(secret); secretLen {
+	case 0:
+		logger.Warning("Cluster secret is empty, cluster will start on unprotected network.")
+		return nil, nil
+	case 32:
+		return secret, nil
+	default:
 		return nil, fmt.Errorf("Input secret is %d bytes, cluster secret should be 32.", secretLen)
 	}
-	return secret, nil
 }
 
 // EncodeClusterSecret converts a byte slice to its hex string representation.
