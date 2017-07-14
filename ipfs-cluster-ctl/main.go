@@ -411,14 +411,12 @@ func parseFlag(t int) cli.IntFlag {
 
 func walkCommands(cmds []cli.Command, parentHelpName string) {
 	for _, c := range cmds {
-		var h string
-		// Sometimes HelpName is empty :S
-		if h = c.HelpName; h != "" {
-			fmt.Println(c.HelpName)
-		} else {
+		h := c.HelpName
+		// Sometimes HelpName is empty
+		if h == "" {
 			h = fmt.Sprintf("%s %s", parentHelpName, c.FullName())
-			fmt.Println(h)
 		}
+		fmt.Println(h)
 		walkCommands(c.Subcommands, h)
 	}
 }

@@ -83,7 +83,7 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 	}
 
 	fmt.Printf("%s | %d peers\n", obj.ID, len(obj.ClusterPeers))
-	addrs := sort.StringSlice{}
+	addrs := make(sort.StringSlice, 0, len(obj.Addresses))
 	for _, a := range obj.Addresses {
 		addrs = append(addrs, string(a))
 	}
@@ -97,7 +97,7 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 		return
 	}
 
-	ipfsAddrs := sort.StringSlice{}
+	ipfsAddrs := make(sort.StringSlice, 0, len(obj.Addresses))
 	for _, a := range obj.IPFS.Addresses {
 		ipfsAddrs = append(ipfsAddrs, string(a))
 	}
@@ -110,7 +110,7 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 
 func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
 	fmt.Printf("%s :\n", obj.Cid)
-	peers := sort.StringSlice{}
+	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
 	for k, _ := range obj.PeerMap {
 		peers = append(peers, k)
 	}
