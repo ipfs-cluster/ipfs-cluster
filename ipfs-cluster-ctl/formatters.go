@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -82,23 +83,41 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 	}
 
 	fmt.Printf("%s | %d peers\n", obj.ID, len(obj.ClusterPeers))
-	fmt.Println("  > Addresses:")
+	addrs := make(sort.StringSlice, 0, len(obj.Addresses))
 	for _, a := range obj.Addresses {
+		addrs = append(addrs, string(a))
+	}
+	addrs.Sort()
+	fmt.Println("  > Addresses:")
+	for _, a := range addrs {
 		fmt.Printf("    - %s\n", a)
 	}
 	if obj.IPFS.Error != "" {
 		fmt.Printf("  > IPFS ERROR: %s\n", obj.IPFS.Error)
 		return
 	}
-	fmt.Printf("  > IPFS: %s\n", obj.IPFS.ID)
+
+	ipfsAddrs := make(sort.StringSlice, 0, len(obj.Addresses))
 	for _, a := range obj.IPFS.Addresses {
+		ipfsAddrs = append(ipfsAddrs, string(a))
+	}
+	ipfsAddrs.Sort()
+	fmt.Printf("  > IPFS: %s\n", obj.IPFS.ID)
+	for _, a := range ipfsAddrs {
 		fmt.Printf("    - %s\n", a)
 	}
 }
 
 func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
 	fmt.Printf("%s :\n", obj.Cid)
-	for k, v := range obj.PeerMap {
+	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
+	for k, _ := range obj.PeerMap {
+		peers = append(peers, k)
+	}
+	peers.Sort()
+
+	for _, k := range peers {
+		v := obj.PeerMap[k]
 		if v.Error != "" {
 			fmt.Printf("    > Peer %s: ERROR | %s\n", k, v.Error)
 			continue
@@ -116,7 +135,9 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	if obj.ReplicationFactor < 0 {
 		fmt.Printf("[everywhere]\n")
 	} else {
-		fmt.Printf("%s\n", obj.Allocations)
+		var sortAlloc sort.StringSlice = obj.Allocations
+		sortAlloc.Sort()
+		fmt.Printf("%s\n", sortAlloc)
 	}
 }
 
