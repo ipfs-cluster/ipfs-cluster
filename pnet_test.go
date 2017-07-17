@@ -2,27 +2,32 @@ package ipfscluster
 
 import "testing"
 
-func TestClusterKeyFormat(t *testing.T) {
-    goodKey := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+func TestClusterSecretFormat(t *testing.T) {
+    goodSecret := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    emptySecret := ""
     tooShort := "0123456789abcdef"
     tooLong := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
     unsupportedChars := "0123456789abcdef0123456789!!!!!!0123456789abcdef0123456789abcdef"
 
-	_, err := DecodeClusterSecret(goodKey)
+	_, err := DecodeClusterSecret(goodSecret)
 	if err != nil {
-        t.Fatal("Failed to decode well-formatted key.")
+        t.Fatal("Failed to decode well-formatted secret.")
+	}
+	decodedEmptySecret, err := DecodeClusterSecret(emptySecret)
+	if decodedEmptySecret != nil || err != nil {
+        t.Fatal("Unsuspected output of decoding empty secret.")
 	}
 	_, err = DecodeClusterSecret(tooShort)
 	if err == nil {
-        t.Fatal("Successfully decoded key that should haved failed (too short).")
+        t.Fatal("Successfully decoded secret that should haved failed (too short).")
 	}
 	_, err = DecodeClusterSecret(tooLong)
 	if err == nil {
-        t.Fatal("Successfully decoded key that should haved failed (too long).")
+        t.Fatal("Successfully decoded secret that should haved failed (too long).")
 	}
 	_, err = DecodeClusterSecret(unsupportedChars)
 	if err == nil {
-        t.Fatal("Successfully decoded key that should haved failed (unsupported chars).")
+        t.Fatal("Successfully decoded secret that should haved failed (unsupported chars).")
 	}
 }
 
