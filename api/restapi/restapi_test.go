@@ -15,7 +15,9 @@ import (
 )
 
 var (
-	apiHost = "http://127.0.0.1:10002" // should match testingConfig()
+	apiHost            = "http://127.0.0.1:10002" // should match testingConfig()
+	testingTLSCertFile = "test-tls/server.crt"
+	testingTLSKeyFile  = "test-tls/server.key"
 )
 
 func testRESTAPI(t *testing.T) *RESTAPI {
