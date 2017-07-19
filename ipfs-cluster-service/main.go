@@ -103,18 +103,16 @@ var (
 	DefaultPath = ".ipfs-cluster"
 	// The name of the configuration file inside DefaultPath
 	DefaultConfigFile = "service.json"
-	// The name of the data folder inside DefaultPath
-	DefaultDataFolder = "data"
 )
 
 var (
 	configPath string
-	dataPath   string
 )
 
 func init() {
-	// The only way I could make this work
+	// Set the right commit. The only way I could make this work
 	ipfscluster.Commit = commit
+
 	usr, err := user.Current()
 	if err != nil {
 		panic("cannot guess the current user")
@@ -222,7 +220,6 @@ func main() {
 		}
 
 		configPath = filepath.Join(absPath, DefaultConfigFile)
-		dataPath = filepath.Join(absPath, DefaultDataFolder)
 
 		setupLogging(c.String("loglevel"))
 		if c.Bool("debug") {
@@ -371,7 +368,6 @@ func initConfig(force bool, generateSecret bool, envSecret string) {
 		checkErr("parsing cluster secret", err)
 	}
 
-	cfg.ConsensusDataFolder = dataPath
 	err = os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.Save(configPath)
 	checkErr("saving new configuration", err)

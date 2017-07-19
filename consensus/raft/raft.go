@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -102,6 +103,12 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 	pstore.SetPeers(peersStr)
 
 	logger.Debug("creating file snapshot store")
+	err = os.MkdirAll(dataFolder, 0700)
+	if err != nil {
+		logger.Errorf("creating cosensus data folder (%s): %s",
+			dataFolder, err)
+		return nil, err
+	}
 	snapshots, err := hashiraft.NewFileSnapshotStoreWithLogger(dataFolder, RaftMaxSnapshots, raftStdLogger)
 	if err != nil {
 		logger.Error("creating file snapshot store: ", err)
