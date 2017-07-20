@@ -12,6 +12,7 @@ install:
 - go get github.com/mattn/goveralls
 - make deps
 script:
+#- make test_problem
 - make service && make ctl && ./coverage.sh
 - make install
 - make test_sharness && make clean_sharness

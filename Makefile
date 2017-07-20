@@ -10,6 +10,9 @@ gx-go_bin=$(deptools)/$(gx-go)
 bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
 sharness = sharness/lib/sharness
 
+# For debugging
+problematic_test = TestClustersReplicationRealloc
+
 export PATH := $(deptools):$(PATH)
 
 all: service ctl
@@ -62,6 +65,9 @@ test: deps
 
 test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
+
+test_problem: deps
+	go test -tags debug -v -run $(problematic_test)
 
 $(sharness):
 	@echo "Downloading sharness"
