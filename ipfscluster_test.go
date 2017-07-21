@@ -830,7 +830,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	delay()
+	time.Sleep(time.Second / 2)
 
 	pin := clusters[j].Pins()[0]
 	pinSerial := pin.ToSerial()
@@ -845,7 +845,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	pin2 := clusters[j].Pins()[0]
 	pinSerial2 := pin2.ToSerial()
@@ -876,7 +876,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	time.Sleep(4 * time.Second)
 	waitForLeader(t, clusters)
 	// wait for new metrics to arrive
-	delay()
+	time.Sleep(2 * time.Second)
 
 	// Make sure we haven't killed our randomly
 	// selected cluster
@@ -890,7 +890,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	numPinned := 0
 	for i, c := range clusters {
