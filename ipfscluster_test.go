@@ -178,7 +178,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// 	clusters[0].PeerAdd(clusterAddr(clusters[i]))
 	// }
 	delay()
-	delay()
 	return clusters, ipfsMocks
 }
 
@@ -766,7 +765,7 @@ func TestClustersReplication(t *testing.T) {
 		if numRemote != 1 {
 			t.Errorf("We wanted 1 peer track as remote but %d do", numRemote)
 		}
-		time.Sleep(time.Second) // this is for metric to be up to date
+		time.Sleep(time.Second / 2) // this is for metric to be up to date
 	}
 
 	f := func(t *testing.T, c *Cluster) {
@@ -830,7 +829,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	delay()
+	time.Sleep(time.Second / 2)
 
 	pin := clusters[j].Pins()[0]
 	pinSerial := pin.ToSerial()
@@ -845,7 +844,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	pin2 := clusters[j].Pins()[0]
 	pinSerial2 := pin2.ToSerial()
@@ -865,6 +864,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		if pinfo.Status == api.TrackerStatusPinned {
 			//t.Logf("Killing %s", c.id.Pretty())
 			killedClusterIndex = i
+			t.Logf("Shutting down %s", c.ID().ID)
 			c.Shutdown()
 			break
 		}
@@ -873,8 +873,9 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	// let metrics expire and give time for the cluster to
 	// see if they have lost the leader
 	time.Sleep(4 * time.Second)
-
 	waitForLeader(t, clusters)
+	// wait for new metrics to arrive
+	time.Sleep(2 * time.Second)
 
 	// Make sure we haven't killed our randomly
 	// selected cluster
@@ -888,7 +889,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second / 2)
 
 	numPinned := 0
 	for i, c := range clusters {

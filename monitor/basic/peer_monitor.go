@@ -178,7 +178,7 @@ func (mon *StdPeerMonitor) LogMetric(m api.Metric) {
 		mbyp[peer] = pmets
 	}
 
-	logger.Debugf("logged '%s' metric from '%s'", name, peer)
+	logger.Debugf("logged '%s' metric from '%s'. Expires on %s", name, peer, m.Expire)
 	pmets.add(m)
 }
 
@@ -308,6 +308,7 @@ func (mon *StdPeerMonitor) checkMetrics(peers []peer.ID, metricName string) {
 		}
 		// send alert if metric is expired (but was valid at some point)
 		if last.Valid && last.Expired() {
+			logger.Debugf("Metric %s from peer %s expired at %s", metricName, p, last.Expire)
 			mon.sendAlert(p, metricName)
 		}
 	}

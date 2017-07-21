@@ -5,7 +5,9 @@ test_description="Test service startup and init functionality"
 . lib/test-lib.sh
 
 test_ipfs_init
+cleanup test_clean_ipfs
 test_cluster_init
+cleanup test_clean_cluster
 
 test_expect_success "prerequisites" '
     test_have_prereq IPFS &&
@@ -21,13 +23,9 @@ test_expect_success "custer-service help output looks good" '
 '
 
 test_expect_success "cluster-service --version succeeds and matches ctl" '
-    export SERV_VERSION=`ipfs-cluster-service --version` &&
-    export CTL_VERSION=`ipfs-cluster-ctl --version` &&
-    sv=($SERV_VERSION) &&
-    cv=($CTL_VERSION) &&
-    [ "${sv[2]}" = "${cv[2]}" ]
+    export SERV_VERSION=`ipfs-cluster-service --version | grep -Po "\d+\.\d+\.\d+"`
+    export CTL_VERSION=`ipfs-cluster-ctl --version | grep -Po "\d+\.\d+\.\d+"`
+    [ "$SERV_VERSION" = "$CTL_VERSION" ]
 '
 
-cleanup test_clean_cluster
-cleanup test_clean_ipfs
 test_done

@@ -10,10 +10,11 @@ import (
 	"sync"
 	"time"
 
+	pnet "github.com/libp2p/go-libp2p-pnet"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/state"
-	pnet "github.com/libp2p/go-libp2p-pnet"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -217,31 +218,41 @@ func (c *Cluster) broadcastMetric(m api.Metric) error {
 		return err
 	}
 
-	if leader == c.id {
-		// Leader needs to broadcast its metric to everyone
-		// in case it goes down (new leader will have to detect this node went down)
-		errs := c.multiRPC(peers,
-			"Cluster",
-			"PeerMonitorLogMetric",
-			m,
-			copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
-		for i, e := range errs {
-			if e != nil {
-				logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
-			}
-		}
-	} else {
-		// non-leaders just need to forward their metrics to the leader
-		err := c.rpcClient.Call(leader,
-			"Cluster", "PeerMonitorLogMetric",
-			m, &struct{}{})
-		if err != nil {
-			logger.Error(err)
-			return err
-		}
-	}
+	// If a peer is down, the rpc call will get locked. Therefore,
+	// we need to do it async. This way we keep broadcasting
+	// even if someone is down. Eventually those requests will
+	// timeout in libp2p and the errors logged.
+	go func() {
+		if leader == c.id {
+			// Leader needs to broadcast its metric to everyone
+			// in case it goes down (new leader will have to detect this node went down)
+			logger.Debugf("Leader %s about to broadcast metric %s to %s. Expires: %s", c.id, m.Name, peers, m.Expire)
 
-	logger.Debugf("sent metric %s", m.Name)
+			errs := c.multiRPC(peers,
+				"Cluster",
+				"PeerMonitorLogMetric",
+				m,
+				copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
+			for i, e := range errs {
+				if e != nil {
+					logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
+				}
+			}
+			logger.Debugf("Leader %s broadcasted metric %s to %s. Expires: %s", c.id, m.Name, peers, m.Expire)
+		} else {
+			// non-leaders just need to forward their metrics to the leader
+			logger.Debugf("Peer %s about to send metric %s to %s. Expires: %s", c.id, m.Name, leader, m.Expire)
+
+			err := c.rpcClient.Call(leader,
+				"Cluster", "PeerMonitorLogMetric",
+				m, &struct{}{})
+			if err != nil {
+				logger.Error(err)
+			}
+			logger.Debugf("Peer %s sent metric %s to %s. Expires: %s", c.id, m.Name, leader, m.Expire)
+
+		}
+	}()
 	return nil
 }
 
@@ -272,6 +283,7 @@ func (c *Cluster) pushInformerMetrics() {
 		timer.Stop() // no need to drain C if we are here
 		timer.Reset(metric.GetTTL() / 2)
 	}
+	logger.Debugf("Peer %s. Finished pushInformerMetrics", c.id)
 }
 
 func (c *Cluster) pushPingMetrics() {
@@ -291,6 +303,7 @@ func (c *Cluster) pushPingMetrics() {
 		case <-ticker.C:
 		}
 	}
+	logger.Debugf("Peer %s. Finished pushPingMetrics", c.id)
 }
 
 // read the alerts channel from the monitor and triggers repins
@@ -303,7 +316,7 @@ func (c *Cluster) alertsHandler() {
 			// only the leader handles alerts
 			leader, err := c.consensus.Leader()
 			if err == nil && leader == c.id {
-				logger.Warningf("Received alert for %s in %s", alrt.MetricName, alrt.Peer.Pretty())
+				logger.Warningf("Peer %s received alert for %s in %s", c.id, alrt.MetricName, alrt.Peer.Pretty())
 				switch alrt.MetricName {
 				case "ping":
 					c.repinFromPeer(alrt.Peer)
