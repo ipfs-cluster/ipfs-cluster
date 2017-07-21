@@ -178,7 +178,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// 	clusters[0].PeerAdd(clusterAddr(clusters[i]))
 	// }
 	delay()
-	delay()
 	return clusters, ipfsMocks
 }
 
@@ -766,7 +765,7 @@ func TestClustersReplication(t *testing.T) {
 		if numRemote != 1 {
 			t.Errorf("We wanted 1 peer track as remote but %d do", numRemote)
 		}
-		time.Sleep(time.Second) // this is for metric to be up to date
+		time.Sleep(time.Second / 2) // this is for metric to be up to date
 	}
 
 	f := func(t *testing.T, c *Cluster) {
