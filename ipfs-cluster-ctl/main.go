@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,9 +27,10 @@ const programName = `ipfs-cluster-ctl`
 const Version = "0.0.12"
 
 var (
-	defaultHost     = fmt.Sprintf("127.0.0.1:%d", 9094)
-	defaultTimeout  = 60
-	defaultProtocol = "http"
+	defaultHost      = fmt.Sprintf("127.0.0.1:%d", 9094)
+	defaultTimeout   = 60
+	defaultProtocol  = "http"
+	defaultTransport = http.DefaultTransport
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -85,6 +87,10 @@ func main() {
 			Name:  "https, s",
 			Usage: "use https to connect to the API",
 		},
+		cli.BoolFlag{
+			Name:  "no-check-certificate",
+			Usage: "do not verify server TLS certificate. only valid with `--https` flag.",
+		},
 		cli.StringFlag{
 			Name:  "encoding, enc",
 			Value: "text",
@@ -106,6 +112,7 @@ func main() {
 		defaultTimeout = c.Int("timeout")
 		if c.Bool("https") {
 			defaultProtocol = "https"
+			defaultTransport = newTLSTransport(c.Bool("no-check-certificate"))
 		}
 		if c.Bool("debug") {
 			logging.SetLogLevel("cluster-ctl", "debug")
@@ -440,7 +447,7 @@ func request(method, path string, body io.Reader, args ...string) *http.Response
 	checkErr("creating request", err)
 	r.WithContext(ctx)
 
-	client := &http.Client{}
+	client := &http.Client{Transport: defaultTransport}
 	resp, err := client.Do(r)
 	checkErr(fmt.Sprintf("performing request to %s", defaultHost), err)
 
@@ -483,6 +490,25 @@ func prettyPrint(buf []byte) {
 	err := json.Indent(&dst, buf, "", "  ")
 	checkErr("indenting json", err)
 	fmt.Printf("%s", dst.String())
+}
+
+func newTLSTransport(skipVerifyCert bool) *http.Transport {
+	// based on https://github.com/denji/golang-tls
+	tlsCfg := &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+		InsecureSkipVerify: skipVerifyCert,
+	}
+	return &http.Transport{
+		TLSClientConfig: tlsCfg,
+	}
 }
 
 /*
