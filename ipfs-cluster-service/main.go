@@ -194,13 +194,13 @@ This command will initialize a new service.json configuration file
 for %s.
 
 By default, %s requires a cluster secret. This secret will be
-automatically generated, but can be manually provided with -custom-secret
+automatically generated, but can be manually provided with --custom-secret
 (in which case it will be prompted), or by setting the CLUSTER_SECRET
 environment variable.
 
 The private key for the libp2p node is randomly generated in all cases.
 
-Note that the -force first-level-flag allows to overwrite an existing
+Note that the --force first-level-flag allows to overwrite an existing
 configuration.
 `, programName, programName),
 			ArgsUsage: " ",
@@ -377,10 +377,10 @@ func initConfig(force bool, generateSecret bool, envSecret string) {
 		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(envSecret)
 	} else if !generateSecret {
 		// get cluster secret from user
-		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (to automatically generate, rerun with --gen-secret): "))
+		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (32-byte hex string): "))
 
-		checkErr("parsing cluster secret", err)
 	}
+	checkErr("parsing cluster secret", err)
 
 	err = os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.Save(configPath)
