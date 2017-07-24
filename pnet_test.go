@@ -3,31 +3,31 @@ package ipfscluster
 import "testing"
 
 func TestClusterSecretFormat(t *testing.T) {
-    goodSecret := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-    emptySecret := ""
-    tooShort := "0123456789abcdef"
-    tooLong := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
-    unsupportedChars := "0123456789abcdef0123456789!!!!!!0123456789abcdef0123456789abcdef"
+	goodSecret := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	emptySecret := ""
+	tooShort := "0123456789abcdef"
+	tooLong := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"
+	unsupportedChars := "0123456789abcdef0123456789!!!!!!0123456789abcdef0123456789abcdef"
 
 	_, err := DecodeClusterSecret(goodSecret)
 	if err != nil {
-        t.Fatal("Failed to decode well-formatted secret.")
+		t.Fatal("Failed to decode well-formatted secret.")
 	}
 	decodedEmptySecret, err := DecodeClusterSecret(emptySecret)
 	if decodedEmptySecret != nil || err != nil {
-        t.Fatal("Unsuspected output of decoding empty secret.")
+		t.Fatal("Unsuspected output of decoding empty secret.")
 	}
 	_, err = DecodeClusterSecret(tooShort)
 	if err == nil {
-        t.Fatal("Successfully decoded secret that should haved failed (too short).")
+		t.Fatal("Successfully decoded secret that should haved failed (too short).")
 	}
 	_, err = DecodeClusterSecret(tooLong)
 	if err == nil {
-        t.Fatal("Successfully decoded secret that should haved failed (too long).")
+		t.Fatal("Successfully decoded secret that should haved failed (too long).")
 	}
 	_, err = DecodeClusterSecret(unsupportedChars)
 	if err == nil {
-        t.Fatal("Successfully decoded secret that should haved failed (unsupported chars).")
+		t.Fatal("Successfully decoded secret that should haved failed (unsupported chars).")
 	}
 }
 
@@ -54,10 +54,10 @@ func TestSimplePNet(t *testing.T) {
 }
 
 func TestClusterSecretRequired(t *testing.T) {
-    cl1Secret, err := generateClusterSecret()
-    if err != nil {
-        t.Fatal("Unable to generate cluster secret.")
-    }
+	cl1Secret, err := generateClusterSecret()
+	if err != nil {
+		t.Fatal("Unable to generate cluster secret.")
+	}
 	cl1, _ := createOnePeerCluster(t, 1, cl1Secret)
 	cl2, _ := createOnePeerCluster(t, 2, testingClusterSecret)
 	defer cleanRaft()
