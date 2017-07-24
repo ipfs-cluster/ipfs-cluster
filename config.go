@@ -66,6 +66,18 @@ type Config struct {
 	// Listen parameters for the the Cluster HTTP API component.
 	APIAddr ma.Multiaddr
 
+	// TLSCertFile is a path to a certificate file used for identifying the
+	// Cluster's HTTP(S) API. TLSKeyFile must also be set in order to establish
+	// a TLS server. If both this and TLSKeyFile are empty, then HTTP (without
+	// TLS) will be used
+	TLSCertFile string
+
+	// TLSKeyFile is a path to a private key used for setting up TLS sessions for
+	// the HTTP(S) API. TLSCertFile must also be set in order to establish a TLS
+	// server. If both this and TLSCertFile are empty, then HTTP (without
+	// TLS) will be used
+	TLSKeyFile string
+
 	// Listen parameters for the IPFS Proxy. Used by the IPFS
 	// connector component.
 	IPFSProxyAddr ma.Multiaddr
@@ -137,10 +149,22 @@ type JSONConfig struct {
 	// interal RPC and Consensus communications between cluster peers.
 	ClusterListenMultiaddress string `json:"cluster_multiaddress"`
 
-	// Listen address for the the Cluster HTTP API component.
+	// Listen address for the the Cluster HTTP(S) API component.
 	// Tools like ipfs-cluster-ctl will connect to his endpoint to
 	// manage cluster.
 	APIListenMultiaddress string `json:"api_listen_multiaddress"`
+
+	// TLSCertFile is a path to a certificate file used for identifying the
+	// Cluster's HTTP(S) API. TLSKeyFile must also be set in order to establish
+	// a TLS server. If both this and TLSKeyFile are empty, then HTTP (without
+	// TLS) will be used
+	TLSCertFile string
+
+	// TLSKeyFile is a path to a private key used for setting up TLS sessions for
+	// the HTTP(S) API. TLSCertFile must also be set in order to establish a TLS
+	// server. If both this and TLSCertFile are empty, then HTTP (without
+	// TLS) will be used
+	TLSKeyFile string
 
 	// Listen address for the IPFS Proxy, which forwards requests to
 	// an IPFS daemon.
@@ -216,6 +240,8 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
 		ClusterListenMultiaddress:   cfg.ClusterAddr.String(),
 		APIListenMultiaddress:       cfg.APIAddr.String(),
+		TLSCertFile:                 cfg.TLSCertFile,
+		TLSKeyFile:                  cfg.TLSKeyFile,
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
@@ -327,6 +353,8 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
 		ClusterAddr:               clusterAddr,
 		APIAddr:                   apiAddr,
+		TLSCertFile:               jcfg.TLSCertFile,
+		TLSKeyFile:                jcfg.TLSKeyFile,
 		IPFSProxyAddr:             ipfsProxyAddr,
 		IPFSNodeAddr:              ipfsNodeAddr,
 		ConsensusDataFolder:       jcfg.ConsensusDataFolder,

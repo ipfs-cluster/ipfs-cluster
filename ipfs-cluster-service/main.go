@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
@@ -263,7 +264,14 @@ func run(c *cli.Context) error {
 		cfg.AllocationStrategy = a
 	}
 
-	api, err := restapi.NewRESTAPI(cfg.APIAddr)
+	var api *restapi.RESTAPI
+	if len(cfg.TLSCertFile) != 0 || len(cfg.TLSKeyFile) != 0 {
+		tlsCfg, err := newTLSConfig(cfg.TLSCertFile, cfg.TLSKeyFile)
+		checkErr("creating TLS config: ", err)
+		api, err = restapi.NewTLSRESTAPI(cfg.APIAddr, tlsCfg)
+	} else {
+		api, err = restapi.NewRESTAPI(cfg.APIAddr)
+	}
 	checkErr("creating REST API component", err)
 
 	proxy, err := ipfshttp.NewConnector(
@@ -384,4 +392,24 @@ func promptUser(msg string) string {
 	fmt.Print(msg)
 	scanner.Scan()
 	return scanner.Text()
+}
+
+func newTLSConfig(certFile, keyFile string) (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, errors.New("Error loading TLS certficate/key: " + err.Error())
+	}
+	// based on https://github.com/denji/golang-tls
+	return &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+		Certificates: []tls.Certificate{cert},
+	}, nil
 }

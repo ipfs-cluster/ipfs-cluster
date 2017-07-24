@@ -4,6 +4,7 @@ package restapi
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -77,7 +78,25 @@ func NewRESTAPI(apiMAddr ma.Multiaddr) (*RESTAPI, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newRESTAPI(apiMAddr, l)
+}
 
+// NewTlsRESTAPI creates a new REST API component that uses TLS for security
+// (authentication, encryption). It receives the multiaddress on which the API
+// listens, as well as paths to certificate and private key files
+func NewTLSRESTAPI(apiMAddr ma.Multiaddr, tlsCfg *tls.Config) (*RESTAPI, error) {
+	n, addr, err := manet.DialArgs(apiMAddr)
+	if err != nil {
+		return nil, err
+	}
+	l, err := tls.Listen(n, addr, tlsCfg)
+	if err != nil {
+		return nil, err
+	}
+	return newRESTAPI(apiMAddr, l)
+}
+
+func newRESTAPI(apiMAddr ma.Multiaddr, l net.Listener) (*RESTAPI, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	s := &http.Server{
 		ReadTimeout:  RESTAPIServerReadTimeout,
