@@ -61,7 +61,7 @@ test_cluster_init() {
         exit 1
     fi
     export CLUSTER_TEMP_DIR=`mktemp -d cluster-XXXXX`
-    ipfs-cluster-service -f --config "$CLUSTER_TEMP_DIR" init --gen-secret >"$IPFS_OUTPUT" 2>&1
+    ipfs-cluster-service -f --config "$CLUSTER_TEMP_DIR" init >"$IPFS_OUTPUT" 2>&1
     if [ $? -ne 0 ]; then
         echo "error initializing ipfs cluster"
         exit 1
