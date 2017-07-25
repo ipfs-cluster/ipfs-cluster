@@ -136,7 +136,7 @@ func checkErr(doing string, err error) {
 
 func main() {
 	// go func() {
-	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	//	log.Println(http.ListenAndServe("localhost:6060", nil))
 	// }()
 
 	app := cli.NewApp()
@@ -156,11 +156,6 @@ func main() {
 			Value:  DefaultPath,
 			Usage:  "path to the configuration and data `FOLDER`",
 			EnvVar: "IPFS_CLUSTER_PATH",
-		},
-		cli.StringFlag{
-			Name:   "env-cluster-secret",
-			EnvVar: "CLUSTER_SECRET",
-			Hidden: true,
 		},
 		cli.BoolFlag{
 			Name:  "force, f",
@@ -195,15 +190,35 @@ func main() {
 		{
 			Name:  "init",
 			Usage: "create a default configuration and exit",
+			Description: fmt.Sprintf(`
+This command will initialize a new service.json configuration file
+for %s.
+
+By default, %s requires a cluster secret. This secret will be
+automatically generated, but can be manually provided with --custom-secret
+(in which case it will be prompted), or by setting the CLUSTER_SECRET
+environment variable.
+
+The private key for the libp2p node is randomly generated in all cases.
+
+Note that the --force first-level-flag allows to overwrite an existing
+configuration.
+`, programName, programName),
+			ArgsUsage: " ",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
-					Name:  "gen-secret, g",
-					Usage: "automatically generate cluster secret",
+					Name:  "custom-secret, s",
+					Usage: "prompt for the cluster secret",
+				},
+				cli.StringFlag{
+					Name:   "env-cluster-secret",
+					EnvVar: "CLUSTER_SECRET",
+					Hidden: true,
 				},
 			},
 			Action: func(c *cli.Context) error {
-				initConfig(c.GlobalBool("force"), c.Bool("gen-secret"),
-					c.GlobalString("env-cluster-secret"))
+				initConfig(c.GlobalBool("force"), !c.Bool("custom-secret"),
+					c.String("env-cluster-secret"))
 				return nil
 			},
 		},
@@ -364,17 +379,16 @@ func initConfig(force bool, generateSecret bool, envSecret string) {
 	cfg, err := ipfscluster.NewDefaultConfig()
 	checkErr("creating default configuration", err)
 
-	if !generateSecret {
-		if len(envSecret) != 0 {
-			// read cluster secret from env variable
-			fmt.Println("Reading cluster secret from CLUSTER_SECRET environment variable.")
-			cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(envSecret)
-		} else {
-			// get cluster secret from user
-			cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (to automatically generate, rerun with --gen-secret): "))
-		}
-		checkErr("parsing cluster secret", err)
+	if len(envSecret) != 0 {
+		// read cluster secret from env variable
+		fmt.Println("Reading cluster secret from CLUSTER_SECRET environment variable.")
+		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(envSecret)
+	} else if !generateSecret {
+		// get cluster secret from user
+		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (32-byte hex string): "))
+
 	}
+	checkErr("parsing cluster secret", err)
 
 	err = os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.Save(configPath)
