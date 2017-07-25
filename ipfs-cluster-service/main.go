@@ -280,8 +280,8 @@ func run(c *cli.Context) error {
 	}
 
 	var api *restapi.RESTAPI
-	if len(cfg.TLSCertFile) != 0 || len(cfg.TLSKeyFile) != 0 {
-		tlsCfg, err := newTLSConfig(cfg.TLSCertFile, cfg.TLSKeyFile)
+	if len(cfg.SSLCertFile) != 0 || len(cfg.SSLKeyFile) != 0 {
+		tlsCfg, err := newTLSConfig(cfg.SSLCertFile, cfg.SSLKeyFile)
 		checkErr("creating TLS config: ", err)
 		api, err = restapi.NewTLSRESTAPI(cfg.APIAddr, tlsCfg)
 	} else {
