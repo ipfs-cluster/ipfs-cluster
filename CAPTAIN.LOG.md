@@ -2,13 +2,13 @@
 
 ## 20170726 | @hsanjuan
 
-Unfortunately, I have not thought of updating the Captain's log for some months. The Coinlist effort has had me very busy, which means that my time and mind were not 100% focused on cluster. That said, there has been significant progress during this period. Much of that progress has happened thanks to @Zenground0 and @dgrisham, who have been working on cluster for most of Q2 making valuable contributions (many of them on the testing front).
+Unfortunately, I have not thought of updating the Captain's log for some months. The Coinlist effort has had me very busy, which means that my time and mind were not fully focused on cluster as before. That said, there has been significant progress during this period. Much of that progress has happened thanks to @Zenground0 and @dgrisham, who have been working on cluster for most of Q2 making valuable contributions (many of them on the testing front).
 
 As a summary, since my last update, we have:
 
-* Added a [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md), with detailed information on how cluster works, what behaviours to expect and why. It should answer many questions which are not covered by the getting-started-quickly guides.
-* Added sharness tests, which make sure that `ìpfs-cluster-ctl` and `ipfs-cluster-service` are tested and not broken in obvious ways at least.
-* Pushed the [kubernetes-ipfs](https://github.com/ipfs/kubernetes-ipfs) project great lengths, adding a lot of DLS-language features and a bunch of highly advanced ipfs-cluster tests. The goal is to be able to test deployments layouts which are closer to reality, including escalability tests.
+* [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md), with detailed information on how cluster works, what behaviours to expect and why. It should answer many questions which are not covered by the getting-started-quickly guides.
+* Added sharness tests, which make sure that `ìpfs-cluster-ctl` and `ipfs-cluster-service` are tested and not broken in obvious ways at least and complement our testing pipeline.
+* Pushed the [kubernetes-ipfs](https://github.com/ipfs/kubernetes-ipfs) project great lengths, adding a lot of features to its DSL and a bunch of highly advanced ipfs-cluster tests. The goal is to be able to test deployments layouts which are closer to reality, including escalability tests.
 * The extra tests uncovered and allowed us to fix a number of nasty bugs, usually around the ipfs-cluster behaviour when peers go down or stop responding.
 * Added CID re-allocation on peer removal.
 * Added "Private Networks" support to ipfs-cluster. Private Networks is a libp2p feature which allows to secure a libp2p connection with a key. This means that inter-peer communication is now protected and isolated with a `cluster_secret`. This brings a significant reduction on the security pitfalls of running ipfs-cluster: default setup does not allow anymore remote control of a cluster peer. More information on security can be read on the [guide](docs/ipfs-cluster-guide.md).
