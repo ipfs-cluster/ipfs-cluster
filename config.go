@@ -66,17 +66,13 @@ type Config struct {
 	// Listen parameters for the the Cluster HTTP API component.
 	APIAddr ma.Multiaddr
 
-	// TLSCertFile is a path to a certificate file used for identifying the
-	// Cluster's HTTP(S) API. TLSKeyFile must also be set in order to establish
-	// a TLS server. If both this and TLSKeyFile are empty, then HTTP (without
-	// TLS) will be used
-	TLSCertFile string
+	// SSLCertFile is a path to a certificate file used to secure the HTTP
+	// API endpoint. Leave empty to use plain HTTP instead.
+	SSLCertFile string
 
-	// TLSKeyFile is a path to a private key used for setting up TLS sessions for
-	// the HTTP(S) API. TLSCertFile must also be set in order to establish a TLS
-	// server. If both this and TLSCertFile are empty, then HTTP (without
-	// TLS) will be used
-	TLSKeyFile string
+	// SSLKeyFile is a path to the private key corresponding to the
+	// SSLCertFile.
+	SSLKeyFile string
 
 	// Listen parameters for the IPFS Proxy. Used by the IPFS
 	// connector component.
@@ -154,17 +150,13 @@ type JSONConfig struct {
 	// manage cluster.
 	APIListenMultiaddress string `json:"api_listen_multiaddress"`
 
-	// TLSCertFile is a path to a certificate file used for identifying the
-	// Cluster's HTTP(S) API. TLSKeyFile must also be set in order to establish
-	// a TLS server. If both this and TLSKeyFile are empty, then HTTP (without
-	// TLS) will be used
-	TLSCertFile string
+	// SSLCertFile is a path to a certificate file used to secure the HTTP
+	// API endpoint. Leave empty to use plain HTTP instead.
+	SSLCertFile string `json:"ssl_cert_file,omitempty"`
 
-	// TLSKeyFile is a path to a private key used for setting up TLS sessions for
-	// the HTTP(S) API. TLSCertFile must also be set in order to establish a TLS
-	// server. If both this and TLSCertFile are empty, then HTTP (without
-	// TLS) will be used
-	TLSKeyFile string
+	// SSLKeyFile is a path to the private key corresponding to the
+	// SSLCertFile.
+	SSLKeyFile string `json:"ssl_key_file,omitempty"`
 
 	// Listen address for the IPFS Proxy, which forwards requests to
 	// an IPFS daemon.
@@ -240,8 +232,8 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		LeaveOnShutdown:             cfg.LeaveOnShutdown,
 		ClusterListenMultiaddress:   cfg.ClusterAddr.String(),
 		APIListenMultiaddress:       cfg.APIAddr.String(),
-		TLSCertFile:                 cfg.TLSCertFile,
-		TLSKeyFile:                  cfg.TLSKeyFile,
+		SSLCertFile:                 cfg.SSLCertFile,
+		SSLKeyFile:                  cfg.SSLKeyFile,
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
@@ -353,8 +345,8 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		LeaveOnShutdown:           jcfg.LeaveOnShutdown,
 		ClusterAddr:               clusterAddr,
 		APIAddr:                   apiAddr,
-		TLSCertFile:               jcfg.TLSCertFile,
-		TLSKeyFile:                jcfg.TLSKeyFile,
+		SSLCertFile:               jcfg.SSLCertFile,
+		SSLKeyFile:                jcfg.SSLKeyFile,
 		IPFSProxyAddr:             ipfsProxyAddr,
 		IPFSNodeAddr:              ipfsNodeAddr,
 		ConsensusDataFolder:       jcfg.ConsensusDataFolder,
