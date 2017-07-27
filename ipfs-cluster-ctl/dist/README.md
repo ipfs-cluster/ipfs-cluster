@@ -22,9 +22,10 @@ $ ipfs-cluster-ctl peers ls                                                 # li
 $ ipfs-cluster-ctl peers add /ip4/1.2.3.4/tcp/1234/<peerid>                 # add a new cluster peer
 $ ipfs-cluster-ctl peers rm <peerid>                                        # remove a cluster peer
 $ ipfs-cluster-ctl pin add Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # pins a CID in the cluster
-$ ipfs-cluster-ctl pin rm Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58    # unpins a CID from the cluster
-$ ipfs-cluster-ctl status                                                   # display tracked CIDs information
-$ ipfs-cluster-ctl sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # sync information from the IPFS daemon
+$ ipfs-cluster-ctl pin rm Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58    # unpins a CID from the clustre
+$ ipfs-cluster-ctl pin ls [CID]                                             # list tracked CIDs (shared state)
+$ ipfs-cluster-ctl status [CID]                                             # list current status of tracked CIDs (local state)
+$ ipfs-cluster-ctl sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # re-sync seen status against status reported by the IPFS daemon
 $ ipfs-cluster-ctl recover Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # attempt to re-pin/unpin CIDs in error state
 ```
 
