@@ -1,10 +1,22 @@
 # IPFS Cluster - Roadmap
 
+## Q3 2017
+
+Since Q1 ipfs-cluster has made some progress with a strong effort in reaching a minimal feature set that allows to use it in production settings along with lots of focus on testing. The summary of what has been achieved can be seen in the [Captain's Log](CAPTAIN.log.md).
+
+For Q3, this is the tentative roadmap of things on which ipfs-cluster will focus on:
+
+* Making all the ipfs-kubernetes tests fit
+* Working on low-hanging fruit: easy features with significant impact
+* Adopting ipfs-cluster as a replacement for the ipfs pin-bot (or deploying a production-maintained ipfs-cluster)
+* Outlining more a Q4 roadmap where development efforts come back in-full to ipfs-cluster
+
+
 ## Q1 2017
 
 This quarter is going to be focused on bringing ipfs-cluster to life as a usable product in the IPFS ecosystem. That means:
 
-* It shouldn't hard to crash
+* It should be hard to crash
 * It shouldn't lose track of content
 * It should play well with go-ipfs
 * It should support a replication-factor
