@@ -21,9 +21,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmUqn6GHVKewa8H4L8mEwWFV27R4xb3s9LB9qxNxGGqxgy",
+      "hash": "QmSLvGe32QcBEDjqrC93pnZzB6gh4VZTi2wVLt9EyUTUWX",
       "name": "go-libp2p-raft",
-      "version": "1.0.5"
+      "version": "1.0.6"
     },
     {
       "author": "whyrusleeping",
@@ -39,9 +39,9 @@
     },
     {
       "author": "hashicorp",
-      "hash": "QmUDCcPkPMPJ149YBpfFLWJtRFeqace5GNdBPD2cW4Z8E6",
+      "hash": "QmfNTPUT6FKg2wyPcqgn3tKuGJWnvu6QqwHoo56FgcR4c2",
       "name": "raft-boltdb",
-      "version": "2017.1.24"
+      "version": "2017.7.27"
     },
     {
       "author": "gorilla",
