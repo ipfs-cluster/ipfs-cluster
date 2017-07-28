@@ -50,6 +50,8 @@ test_ipfs_running() {
 }
 
 test_cluster_init() {
+    custom_config_files="$1"
+
     which ipfs-cluster-service >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "ipfs-cluster-service not found"
@@ -65,6 +67,9 @@ test_cluster_init() {
     if [ $? -ne 0 ]; then
         echo "error initializing ipfs cluster"
         exit 1
+    fi
+    if [[ -n "$custom_config_files" ]]; then
+        cp -f ${custom_config_files}/* "$CLUSTER_TEMP_DIR"
     fi
     ipfs-cluster-service --config "$CLUSTER_TEMP_DIR" >"$IPFS_OUTPUT" 2>&1 &
     export CLUSTER_D_PID=$!
