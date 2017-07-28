@@ -210,15 +210,14 @@ configuration.
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret",
 				},
-				cli.StringFlag{
-					Name:   "env-cluster-secret",
-					EnvVar: "CLUSTER_SECRET",
-					Hidden: true,
-				},
 			},
 			Action: func(c *cli.Context) error {
-				initConfig(c.GlobalBool("force"), !c.Bool("custom-secret"),
-					c.String("env-cluster-secret"))
+				envSecret, envSecretDefined := os.LookupEnv("CLUSTER_SECRET")
+				if envSecretDefined {
+					initConfig(c.GlobalBool("force"), !c.Bool("custom-secret"), &envSecret)
+				} else {
+					initConfig(c.GlobalBool("force"), !c.Bool("custom-secret"), nil)
+				}
 				return nil
 			},
 		},
@@ -251,7 +250,7 @@ configuration.
 
 func run(c *cli.Context) error {
 	if c.Bool("init") {
-		initConfig(c.Bool("force"), false, "")
+		initConfig(c.Bool("force"), false, nil)
 		return nil
 	}
 
@@ -370,7 +369,7 @@ func setupDebug() {
 	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
-func initConfig(force bool, generateSecret bool, envSecret string) {
+func initConfig(force bool, generateSecret bool, envSecret *string) {
 	if _, err := os.Stat(configPath); err == nil && !force {
 		err := fmt.Errorf("%s exists. Try running with -f", configPath)
 		checkErr("", err)
@@ -379,10 +378,10 @@ func initConfig(force bool, generateSecret bool, envSecret string) {
 	cfg, err := ipfscluster.NewDefaultConfig()
 	checkErr("creating default configuration", err)
 
-	if len(envSecret) != 0 {
+	if envSecret != nil {
 		// read cluster secret from env variable
 		fmt.Println("Reading cluster secret from CLUSTER_SECRET environment variable.")
-		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(envSecret)
+		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(*envSecret)
 	} else if !generateSecret {
 		// get cluster secret from user
 		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (32-byte hex string): "))
