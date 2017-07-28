@@ -212,12 +212,8 @@ configuration.
 				},
 			},
 			Action: func(c *cli.Context) error {
-				envSecret, envSecretDefined := os.LookupEnv("CLUSTER_SECRET")
-				if envSecretDefined {
-					initConfig(c.GlobalBool("force"), c.Bool("custom-secret"), &envSecret)
-				} else {
-					initConfig(c.GlobalBool("force"), c.Bool("custom-secret"), nil)
-				}
+				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
+				initConfig(c.GlobalBool("force"), userSecret, userSecretDefined)
 				return nil
 			},
 		},
@@ -250,7 +246,7 @@ configuration.
 
 func run(c *cli.Context) error {
 	if c.Bool("init") {
-		initConfig(c.Bool("force"), false, nil)
+		initConfig(c.Bool("force"), nil, false)
 		return nil
 	}
 
@@ -369,7 +365,7 @@ func setupDebug() {
 	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
-func initConfig(force bool, customSecret bool, envSecret *string) {
+func initConfig(force bool, userSecret []byte, userSecretDefined bool) {
 	if _, err := os.Stat(configPath); err == nil && !force {
 		err := fmt.Errorf("%s exists. Try running with -f", configPath)
 		checkErr("", err)
@@ -378,22 +374,30 @@ func initConfig(force bool, customSecret bool, envSecret *string) {
 	cfg, err := ipfscluster.NewDefaultConfig()
 	checkErr("creating default configuration", err)
 
-	if envSecret != nil {
-		// read cluster secret from env variable
-		fmt.Println("Reading cluster secret from CLUSTER_SECRET environment variable.")
-		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(*envSecret)
-	} else if customSecret {
-		// get cluster secret from user
-		cfg.ClusterSecret, err = ipfscluster.DecodeClusterSecret(promptUser("Enter cluster secret (32-byte hex string): "))
-
+	if userSecretDefined {
+		cfg.ClusterSecret = userSecret
 	}
-	checkErr("parsing cluster secret", err)
 
 	err = os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.Save(configPath)
 	checkErr("saving new configuration", err)
 	out("%s configuration written to %s\n",
 		programName, configPath)
+}
+
+func userProvidedSecret(enterSecret bool) ([]byte, bool) {
+	var secret string
+	if enterSecret {
+		secret = promptUser("Enter cluster secret (32-byte hex string): ")
+	} else if envSecret, envSecretDefined := os.LookupEnv("CLUSTER_SECRET"); envSecretDefined {
+		secret = envSecret
+	} else {
+		return nil, false
+	}
+
+	decodedSecret, err := ipfscluster.DecodeClusterSecret(secret)
+	checkErr("parsing user-provided secret", err)
+	return decodedSecret, true
 }
 
 func loadConfig() (*ipfscluster.Config, error) {
