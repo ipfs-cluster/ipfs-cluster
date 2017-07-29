@@ -68,7 +68,7 @@ test_cluster_init() {
         echo "error initializing ipfs cluster"
         exit 1
     fi
-    if [[ -n "$custom_config_files" ]]; then
+    if [ -n "$custom_config_files" ]; then
         cp -f ${custom_config_files}/* "$CLUSTER_TEMP_DIR"
     fi
     ipfs-cluster-service --config "$CLUSTER_TEMP_DIR" >"$IPFS_OUTPUT" 2>&1 &
