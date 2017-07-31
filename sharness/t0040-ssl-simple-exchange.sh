@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -x
+
 test_description="Test service + ctl SSL interaction"
 
 ssl_config="`pwd`/ssl"

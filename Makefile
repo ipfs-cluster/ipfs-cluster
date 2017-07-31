@@ -64,7 +64,9 @@ test: deps
 	go test -tags silent -v ./...
 
 test_sharness: $(sharness)
-	@sh sharness/run-sharness-tests.sh
+	#@sh sharness/run-sharness-tests.sh
+	@sh sharness/t0040-ssl-simple-exchange.sh.sh
+	@sh sharness/t0041-ssl-simple-exchange.sh.sh
 
 test_problem: deps
 	go test -tags debug -v -run $(problematic_test)

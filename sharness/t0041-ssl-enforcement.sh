@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -x
+
 test_description="Test failure when server not using SSL but client requests it"
 
 . lib/test-lib.sh
