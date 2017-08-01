@@ -35,7 +35,7 @@ test_ipfs_init() {
             echo "Error running go-ipfs in docker."
             exit 1
         fi
-        sleep 6
+        sleep 10
     fi
     test_set_prereq IPFS
 }
@@ -50,6 +50,8 @@ test_ipfs_running() {
 }
 
 test_cluster_init() {
+    custom_config_files="$1"
+
     which ipfs-cluster-service >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "ipfs-cluster-service not found"
@@ -60,27 +62,29 @@ test_cluster_init() {
         echo "ipfs-cluster-ctl not found"
         exit 1
     fi
-    export CLUSTER_TEMP_DIR=`mktemp -d cluster-XXXXX`
-    ipfs-cluster-service -f --config "$CLUSTER_TEMP_DIR" init >"$IPFS_OUTPUT" 2>&1
+    ipfs-cluster-service -f --config "test-config" init >"$IPFS_OUTPUT" 2>&1
     if [ $? -ne 0 ]; then
         echo "error initializing ipfs cluster"
         exit 1
     fi
-    ipfs-cluster-service --config "$CLUSTER_TEMP_DIR" >"$IPFS_OUTPUT" 2>&1 &
+    if [ -n "$custom_config_files" ]; then
+        cp -f ${custom_config_files}/* "test-config"
+    fi
+    ipfs-cluster-service --config "test-config" >"$IPFS_OUTPUT" 2>&1 &
     export CLUSTER_D_PID=$!
     sleep 5
     test_set_prereq CLUSTER
 }
 
 test_cluster_config() {
-    export CLUSTER_CONFIG_PATH="${CLUSTER_TEMP_DIR}/service.json"
+    export CLUSTER_CONFIG_PATH="test-config/service.json"
     export CLUSTER_CONFIG_ID=`jq --raw-output ".id" $CLUSTER_CONFIG_PATH`
     export CLUSTER_CONFIG_PK=`jq --raw-output ".private_key" $CLUSTER_CONFIG_PATH`
     [ "$CLUSTER_CONFIG_ID" != "null" ] && [ "$CLUSTER_CONFIG_PK" != "null" ]
 }
 
 cluster_id() {
-    echo "$CLUSTER_CONFIG_ID"
+    jq --raw-output ".id" test-config/service.json
 }
 
 # Cleanup functions
@@ -92,5 +96,6 @@ test_clean_ipfs(){
 
 test_clean_cluster(){
     kill -1 "$CLUSTER_D_PID"
-    rm -rf "$CLUSTER_TEMP_DIR"
+    rm -rf test-config
+    sleep 2
 }
