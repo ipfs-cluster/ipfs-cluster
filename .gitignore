@@ -2,6 +2,9 @@ coverage.out
 ipfs-cluster-service/ipfs-cluster-service
 ipfs-cluster-ctl/ipfs-cluster-ctl
 deptools
+sharness/lib/sharness
+sharness/test-results
+sharness/trash*
 
 raftFolderFromTest*
 

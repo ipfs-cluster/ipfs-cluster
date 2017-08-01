@@ -10,8 +10,9 @@ test_cluster_init
 cleanup test_clean_cluster
 
 test_expect_success IPFS,CLUSTER,JQ "cluster-ctl can read id" '
+    test_cluster_config
     id=`cluster_id`
-    test_cluster_config && ipfs-cluster-ctl id | egrep -q "$id"
+    [ -n "$id"] && ipfs-cluster-ctl id | egrep -q "$id"
 '
 
 test_expect_success IPFS,CLUSTER "cluster-ctl list 0 peers" '
