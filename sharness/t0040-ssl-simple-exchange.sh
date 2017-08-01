@@ -17,7 +17,6 @@ test_expect_success "prerequisites" '
 '
 
 test_expect_success "ssl interaction succeeds" '
-    test_cluster_config
     id=`cluster_id`
     ipfs-cluster-ctl --https --no-check-certificate id | egrep -q "$id"
 '

@@ -84,7 +84,7 @@ test_cluster_config() {
 }
 
 cluster_id() {
-    echo "$CLUSTER_CONFIG_ID"
+    jq --raw-output ".id" test-config/service.json
 }
 
 # Cleanup functions
@@ -97,4 +97,5 @@ test_clean_ipfs(){
 test_clean_cluster(){
     kill -1 "$CLUSTER_D_PID"
     rm -rf test-config
+    sleep 2
 }
