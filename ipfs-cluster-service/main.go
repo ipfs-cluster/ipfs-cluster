@@ -342,8 +342,12 @@ func setupLogging(lvl string) {
 
 func setupAllocation(strategy string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
 	switch strategy {
-	case "disk", "reposize":
-		return disk.NewInformer(), ascendalloc.NewAllocator()
+	case "disk":
+		informer := disk.NewInformer()
+		return informer, ascendalloc.NewAllocator()
+	case "disk-freespace", "disk-reposize":
+		informer := disk.NewInformerWithMetric(strategy)
+		return informer, ascendalloc.NewAllocator()
 	case "numpin", "pincount":
 		return numpin.NewInformer(), ascendalloc.NewAllocator()
 	default:

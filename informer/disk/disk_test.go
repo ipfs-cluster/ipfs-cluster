@@ -52,7 +52,7 @@ func (mock *badRPCService) IPFSRepoSize(in struct{}, out *int) error {
 func Test(t *testing.T) {
 	inf := NewInformer()
 	defer inf.Shutdown()
-	if inf.Name() != "disk" {
+	if inf.Name() != DefaultMetric {
 		t.Error("careful when changing the name of an informer")
 	}
 	m := inf.GetMetric()

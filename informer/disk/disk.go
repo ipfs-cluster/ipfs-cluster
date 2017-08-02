@@ -12,13 +12,21 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+// TODO: switch default to disk-freespace
+const DefaultMetric = "disk-reposize"
+
 var logger = logging.Logger("diskinfo")
 
 // MetricTTL specifies how long our reported metric is valid in seconds.
 var MetricTTL = 30
 
 // MetricName specifies the name of our metric
-var MetricName = "disk"
+var MetricName string
+
+var nameToRPC = map[string]string{
+	"disk-freespace": "IPFSFreeSpace",
+	"disk-reposize":  "IPFSRepoSize",
+}
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces.
@@ -28,6 +36,14 @@ type Informer struct {
 
 // NewInformer returns an initialized Informer.
 func NewInformer() *Informer {
+	MetricName = DefaultMetric
+	return &Informer{}
+}
+
+// NewInformer returns an initialized Informer.
+func NewInformerWithMetric(metric string) *Informer {
+	// assume `metric` has been checked already
+	MetricName = metric
 	return &Informer{}
 }
 
@@ -49,8 +65,6 @@ func (disk *Informer) Name() string {
 	return MetricName
 }
 
-// GetMetric uses the IPFSConnector the current
-// repository size and returns it in a metric.
 func (disk *Informer) GetMetric() api.Metric {
 	if disk.rpcClient == nil {
 		return api.Metric{
@@ -58,13 +72,13 @@ func (disk *Informer) GetMetric() api.Metric {
 		}
 	}
 
-	var repoSize int
+	var metric int
 	valid := true
 	err := disk.rpcClient.Call("",
 		"Cluster",
-		"IPFSRepoSize",
+		nameToRPC[MetricName],
 		struct{}{},
-		&repoSize)
+		&metric)
 	if err != nil {
 		logger.Error(err)
 		valid = false
@@ -72,7 +86,7 @@ func (disk *Informer) GetMetric() api.Metric {
 
 	m := api.Metric{
 		Name:  MetricName,
-		Value: fmt.Sprintf("%d", repoSize),
+		Value: fmt.Sprintf("%d", metric),
 		Valid: valid,
 	}
 

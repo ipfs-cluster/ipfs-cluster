@@ -101,6 +101,7 @@ type ipfsIDResp struct {
 
 type ipfsRepoStatResp struct {
 	RepoSize   int
+	StorageMax int
 	NumObjects int
 }
 
@@ -809,6 +810,25 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 	default:
 		return nil, errors.New("invalid path")
 	}
+}
+
+// FreeSpace returns the amount of unused space in the ipfs repository. This
+// value is derived from the RepoSize and StorageMax values given by "repo
+// stats". The value is in bytes.
+func (ipfs *Connector) FreeSpace() (int, error) {
+	res, err := ipfs.get("repo/stat")
+	if err != nil {
+		logger.Error(err)
+		return 0, err
+	}
+
+	var stats ipfsRepoStatResp
+	err = json.Unmarshal(res, &stats)
+	if err != nil {
+		logger.Error(err)
+		return 0, err
+	}
+	return stats.StorageMax - stats.RepoSize, nil
 }
 
 // RepoSize returns the current repository size of the ipfs daemon as

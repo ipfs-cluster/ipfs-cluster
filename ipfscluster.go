@@ -77,6 +77,9 @@ type IPFSConnector interface {
 	// ConfigKey returns the value for a configuration key.
 	// Subobjects are reached with keypaths as "Parent/Child/GrandChild...".
 	ConfigKey(keypath string) (interface{}, error)
+	// FreeSpace returns the amount of remaining space on the repo, calculated from
+	//"repo stat"
+	FreeSpace() (int, error)
 	// RepoSize returns the current repository size as expressed
 	// by "repo stat".
 	RepoSize() (int, error)
