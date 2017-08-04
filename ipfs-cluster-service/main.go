@@ -19,6 +19,7 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
@@ -331,6 +332,7 @@ var facilities = []string{
 	"consensus",
 	"pintracker",
 	"ascendalloc",
+	"descendalloc",
 	"diskinfo",
 }
 
@@ -342,10 +344,10 @@ func setupLogging(lvl string) {
 
 func setupAllocation(strategy string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
 	switch strategy {
-	case "disk":
+	case "disk", "disk-freespace":
 		informer := disk.NewInformer()
-		return informer, ascendalloc.NewAllocator()
-	case "disk-freespace", "disk-reposize":
+		return informer, descendalloc.NewAllocator()
+	case "disk-reposize":
 		informer := disk.NewInformerWithMetric(strategy)
 		return informer, ascendalloc.NewAllocator()
 	case "numpin", "pincount":

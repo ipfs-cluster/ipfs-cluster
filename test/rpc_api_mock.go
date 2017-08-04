@@ -268,3 +268,9 @@ func (mock *mockService) IPFSRepoSize(in struct{}, out *int) error {
 	*out = 2000
 	return nil
 }
+
+func (mock *mockService) IPFSFreeSpace(in struct{}, out *int) error {
+	// RepoSize is 2KB, StorageMax is 100KB
+	*out = 98000
+	return nil
+}
