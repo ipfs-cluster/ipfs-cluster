@@ -342,16 +342,21 @@ func setupLogging(lvl string) {
 	}
 }
 
-func setupAllocation(strategy string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
-	switch strategy {
-	case "disk", "disk-freespace":
-		informer := disk.NewInformer()
+func setupAllocation(name string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
+	switch name {
+	case "disk":
+		// set strategy to default for disk, continue through cases
+		name = "disk-freespace"
+		fallthrough
+	case "disk-freespace":
+		informer := disk.NewInformerWithMetric(disk.MetricFreeSpace, name)
 		return informer, descendalloc.NewAllocator()
 	case "disk-reposize":
-		informer := disk.NewInformerWithMetric(strategy)
+		informer := disk.NewInformerWithMetric(disk.MetricRepoSize, name)
 		return informer, ascendalloc.NewAllocator()
 	case "numpin", "pincount":
-		return numpin.NewInformer(), ascendalloc.NewAllocator()
+		informer := numpin.NewInformer()
+		return informer, ascendalloc.NewAllocator()
 	default:
 		err := errors.New("unknown allocation strategy")
 		checkErr("", err)

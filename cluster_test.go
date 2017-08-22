@@ -79,7 +79,7 @@ func (ipfs *mockConnector) PinLs(filter string) (map[string]api.IPFSPinStatus, e
 
 func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
-func (ipfs *mockConnector) FreeSpace() (int, error)                       { return 0, nil }
+func (ipfs *mockConnector) FreeSpace() (int, error)                       { return 100, nil }
 func (ipfs *mockConnector) RepoSize() (int, error)                        { return 0, nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {

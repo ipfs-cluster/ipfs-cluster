@@ -5,8 +5,6 @@
 package ascendalloc
 
 import (
-	"sort"
-
 	"github.com/ipfs/ipfs-cluster/allocator/util"
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -38,7 +36,5 @@ func (alloc AscendAllocator) Shutdown() error { return nil }
 // candidates based on their metric values (smallest to largest).
 func (alloc AscendAllocator) Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error) {
 	// sort our metrics
-	sortable := util.NewMetricSorter(candidates, false)
-	sort.Sort(sortable)
-	return sortable.Peers, nil
+	return util.SortNumeric(candidates, false), nil
 }

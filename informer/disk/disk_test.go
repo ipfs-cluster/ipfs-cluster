@@ -56,9 +56,9 @@ func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *int) error {
 }
 
 func Test(t *testing.T) {
-	inf := NewInformer()
+	inf := NewInformer("name")
 	defer inf.Shutdown()
-	if inf.Name() != DefaultMetric {
+	if inf.Type != DefaultMetric {
 		t.Error("careful when changing the name of an informer")
 	}
 	m := inf.GetMetric()
@@ -73,7 +73,7 @@ func Test(t *testing.T) {
 }
 
 func TestFreeSpace(t *testing.T) {
-	inf := NewInformerWithMetric("disk-freespace")
+	inf := NewInformerWithMetric(MetricFreeSpace, "disk-freespace")
 	if inf == nil {
 		t.Error("informer not initialized properly")
 	}
@@ -94,7 +94,7 @@ func TestFreeSpace(t *testing.T) {
 }
 
 func TestRepoSize(t *testing.T) {
-	inf := NewInformerWithMetric("disk-reposize")
+	inf := NewInformerWithMetric(MetricRepoSize, "disk-reposize")
 	if inf == nil {
 		t.Error("informer not initialized properly")
 	}
@@ -115,7 +115,7 @@ func TestRepoSize(t *testing.T) {
 }
 
 func TestWithErrors(t *testing.T) {
-	inf := NewInformer()
+	inf := NewInformer("name")
 	defer inf.Shutdown()
 	inf.SetClient(badRPCClient(t))
 	m := inf.GetMetric()

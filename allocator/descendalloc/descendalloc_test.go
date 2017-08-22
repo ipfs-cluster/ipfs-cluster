@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/informer/numpin"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -31,25 +30,25 @@ var testCases = []testcase{
 	{ // regular sort
 		candidates: map[peer.ID]api.Metric{
 			peer0: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "5",
 				Expire: inAMinute,
 				Valid:  true,
 			},
 			peer1: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "1",
 				Expire: inAMinute,
 				Valid:  true,
 			},
 			peer2: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "3",
 				Expire: inAMinute,
 				Valid:  true,
 			},
 			peer3: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "2",
 				Expire: inAMinute,
 				Valid:  true,
@@ -61,13 +60,13 @@ var testCases = []testcase{
 	{ // filter invalid
 		candidates: map[peer.ID]api.Metric{
 			peer0: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "1",
 				Expire: inAMinute,
 				Valid:  false,
 			},
 			peer1: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "5",
 				Expire: inAMinute,
 				Valid:  true,
@@ -79,13 +78,13 @@ var testCases = []testcase{
 	{ // filter bad value
 		candidates: map[peer.ID]api.Metric{
 			peer0: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "abc",
 				Expire: inAMinute,
 				Valid:  true,
 			},
 			peer1: api.Metric{
-				Name:   numpin.MetricName,
+				Name:   "some-metric",
 				Value:  "5",
 				Expire: inAMinute,
 				Valid:  true,
