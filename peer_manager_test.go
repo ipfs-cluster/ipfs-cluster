@@ -253,7 +253,9 @@ func TestClusterPeerRemoveReallocsPins(t *testing.T) {
 	}
 
 	if len(interestingCids) != nClusters-1 {
-		t.Fatal("The number of allocated Cids is not expected")
+		//t.Fatal("The number of allocated Cids is not expected")
+		t.Fatal("Expected %d allocated CIDs but got %d", nClusters-1,
+			len(interestingCids))
 	}
 
 	// Now remove cluster peer
