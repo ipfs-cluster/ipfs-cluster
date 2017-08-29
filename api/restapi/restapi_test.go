@@ -21,7 +21,7 @@ var (
 func testRESTAPI(t *testing.T) *RESTAPI {
 	//logging.SetDebugLogging()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10002")
-	rest, err := NewRESTAPI(apiMAddr)
+	rest, err := NewRESTAPI(&Config{ApiMAddr: apiMAddr})
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}

@@ -2,14 +2,13 @@
 
 test_description="Test service + ctl SSL interaction"
 
-ssl_config="`pwd`/config/ssl"
+config="`pwd`/config/ssl-basic_auth"
 
 . lib/test-lib.sh
 
 test_ipfs_init
 cleanup test_clean_ipfs
-
-test_cluster_init "$ssl_config"
+test_cluster_init "$config"
 cleanup test_clean_cluster
 
 test_expect_success "prerequisites" '
@@ -18,7 +17,7 @@ test_expect_success "prerequisites" '
 
 test_expect_success "ssl interaction succeeds" '
     id=`cluster_id`
-    ipfs-cluster-ctl --https --no-check-certificate id | egrep -q "$id"
+    ipfs-cluster-ctl --no-check-certificate --basic-auth "testuser:testpass" id | egrep -q "$id"
 '
 
 test_done

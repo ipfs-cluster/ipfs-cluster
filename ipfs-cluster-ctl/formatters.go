@@ -56,7 +56,6 @@ func textFormatObject(body []byte, format int) {
 		var obj api.Error
 		textFormatDecodeOn(body, &obj)
 		textFormatPrintError(&obj)
-
 	default:
 		var obj interface{}
 		textFormatDecodeOn(body, &obj)

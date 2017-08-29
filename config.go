@@ -74,6 +74,12 @@ type Config struct {
 	// SSLCertFile.
 	SSLKeyFile string
 
+	// BasicAuthCredentials is a map of username, password pairs used to authorize
+	// access to the REST API. It is *highly recommended* that you use this in
+	// conjunction with SSL, as the username/password sent by the client are not
+	// encrypted when using HTTP without SSL.
+	BasicAuthCredentials map[string]string
+
 	// Listen parameters for the IPFS Proxy. Used by the IPFS
 	// connector component.
 	IPFSProxyAddr ma.Multiaddr
@@ -158,6 +164,12 @@ type JSONConfig struct {
 	// SSLCertFile.
 	SSLKeyFile string `json:"ssl_key_file,omitempty"`
 
+	// BasicAuthCredentials is a map of username, password pairs used to authorize
+	// access to the REST API. It is *highly recommended* that you use this in
+	// conjunction with SSL, as the username/password sent by the client are not
+	// encrypted when using HTTP without SSL.
+	BasicAuthCredentials map[string]string `json:"basic_auth_credentials"`
+
 	// Listen address for the IPFS Proxy, which forwards requests to
 	// an IPFS daemon.
 	IPFSProxyListenMultiaddress string `json:"ipfs_proxy_listen_multiaddress"`
@@ -234,6 +246,7 @@ func (cfg *Config) ToJSONConfig() (j *JSONConfig, err error) {
 		APIListenMultiaddress:       cfg.APIAddr.String(),
 		SSLCertFile:                 cfg.SSLCertFile,
 		SSLKeyFile:                  cfg.SSLKeyFile,
+		BasicAuthCredentials:        cfg.BasicAuthCredentials,
 		IPFSProxyListenMultiaddress: cfg.IPFSProxyAddr.String(),
 		IPFSNodeMultiaddress:        cfg.IPFSNodeAddr.String(),
 		ConsensusDataFolder:         cfg.ConsensusDataFolder,
@@ -347,6 +360,7 @@ func (jcfg *JSONConfig) ToConfig() (c *Config, err error) {
 		APIAddr:                   apiAddr,
 		SSLCertFile:               jcfg.SSLCertFile,
 		SSLKeyFile:                jcfg.SSLKeyFile,
+		BasicAuthCredentials:      jcfg.BasicAuthCredentials,
 		IPFSProxyAddr:             ipfsProxyAddr,
 		IPFSNodeAddr:              ipfsNodeAddr,
 		ConsensusDataFolder:       jcfg.ConsensusDataFolder,

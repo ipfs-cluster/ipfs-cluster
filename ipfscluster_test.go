@@ -85,7 +85,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, API, 
 	cfg.ReplicationFactor = -1
 	cfg.MonitoringIntervalSeconds = 2
 
-	api, err := restapi.NewRESTAPI(cfg.APIAddr)
+	api, err := restapi.NewRESTAPI(&restapi.Config{ApiMAddr: cfg.APIAddr})
 	checkErr(t, err)
 	ipfs, err := ipfshttp.NewConnector(
 		cfg.IPFSNodeAddr,
