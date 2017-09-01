@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
@@ -94,9 +94,9 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, API, 
 	state := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(cfg.ID)
 	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
-	alloc := ascendalloc.NewAllocator()
+	alloc := descendalloc.NewAllocator()
 	disk.MetricTTL = 1 // second
-	inf := disk.NewInformer("name")
+	inf := disk.NewInformer("freespace")
 
 	return cfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
