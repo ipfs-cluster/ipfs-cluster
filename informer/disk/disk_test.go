@@ -73,8 +73,8 @@ func Test(t *testing.T) {
 }
 
 func TestFreeSpace(t *testing.T) {
-	inf := NewInformerWithMetric(MetricFreeSpace, "disk-freespace")
-	if inf == nil {
+	inf, err := NewInformerWithMetric(MetricFreeSpace, "disk-freespace")
+	if err != nil {
 		t.Error("informer not initialized properly")
 	}
 	defer inf.Shutdown()
@@ -94,8 +94,8 @@ func TestFreeSpace(t *testing.T) {
 }
 
 func TestRepoSize(t *testing.T) {
-	inf := NewInformerWithMetric(MetricRepoSize, "disk-reposize")
-	if inf == nil {
+	inf, err := NewInformerWithMetric(MetricRepoSize, "disk-reposize")
+	if err != nil {
 		t.Error("informer not initialized properly")
 	}
 	defer inf.Shutdown()

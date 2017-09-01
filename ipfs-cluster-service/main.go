@@ -349,10 +349,12 @@ func setupAllocation(name string) (ipfscluster.Informer, ipfscluster.PinAllocato
 		name = "disk-freespace"
 		fallthrough
 	case "disk-freespace":
-		informer := disk.NewInformerWithMetric(disk.MetricFreeSpace, name)
+		informer, err := disk.NewInformerWithMetric(disk.MetricFreeSpace, name)
+		checkErr("Setting up allocation strategy", err)
 		return informer, descendalloc.NewAllocator()
 	case "disk-reposize":
-		informer := disk.NewInformerWithMetric(disk.MetricRepoSize, name)
+		informer, err := disk.NewInformerWithMetric(disk.MetricRepoSize, name)
+		checkErr("Setting up allocation strategy", err)
 		return informer, ascendalloc.NewAllocator()
 	case "numpin", "pincount":
 		informer := numpin.NewInformer()

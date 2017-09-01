@@ -54,15 +54,15 @@ func NewInformer(name string) *Informer {
 
 // NewInformerWithMetric returns an Informer that uses the input MetricType. The
 // name argument has the same purpose as in NewInformer.
-func NewInformerWithMetric(metric MetricType, name string) *Informer {
+func NewInformerWithMetric(metric MetricType, name string) (*Informer, error) {
 	// check whether specified metric is supported
 	if rpc, valid := metricToRPC[metric]; valid {
 		return &Informer{
 			name:    name,
 			rpcName: rpc,
-		}
+		}, nil
 	}
-	return nil
+	return nil, fmt.Error("Error creating Informer: invalid MetricType")
 }
 
 // Name returns the user-facing name of this informer.
