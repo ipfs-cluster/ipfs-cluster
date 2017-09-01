@@ -5,6 +5,7 @@
 package disk
 
 import (
+	"errors"
 	"fmt"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -42,18 +43,17 @@ type Informer struct {
 	rpcName   string
 }
 
-// NewInformer returns an initialized Informer that uses the DefaultMetric. The
-// name argument is meant as a user-facing identifier for the Informer and can
-// be anything.
-func NewInformer(name string) *Informer {
+// NewInformer returns an initialized Informer that uses the DefaultMetric.
+func NewInformer() *Informer {
 	return &Informer{
-		name:    name,
+		name:    "disk-default",
 		rpcName: metricToRPC[DefaultMetric],
 	}
 }
 
 // NewInformerWithMetric returns an Informer that uses the input MetricType. The
-// name argument has the same purpose as in NewInformer.
+// name argument is meant as a user-facing identifier for the Informer and can
+// be anything.
 func NewInformerWithMetric(metric MetricType, name string) (*Informer, error) {
 	// check whether specified metric is supported
 	if rpc, valid := metricToRPC[metric]; valid {
@@ -62,7 +62,7 @@ func NewInformerWithMetric(metric MetricType, name string) (*Informer, error) {
 			rpcName: rpc,
 		}, nil
 	}
-	return nil, fmt.Error("Error creating Informer: invalid MetricType")
+	return nil, errors.New("Error creating Informer: invalid MetricType")
 }
 
 // Name returns the user-facing name of this informer.

@@ -96,7 +96,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, API, 
 	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
 	alloc := descendalloc.NewAllocator()
 	disk.MetricTTL = 1 // second
-	inf := disk.NewInformer("freespace")
+	inf := disk.NewInformer()
 
 	return cfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }

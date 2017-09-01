@@ -56,7 +56,7 @@ func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *int) error {
 }
 
 func Test(t *testing.T) {
-	inf := NewInformer("name")
+	inf := NewInformer()
 	defer inf.Shutdown()
 	if inf.Type != DefaultMetric {
 		t.Error("careful when changing the name of an informer")
@@ -115,7 +115,7 @@ func TestRepoSize(t *testing.T) {
 }
 
 func TestWithErrors(t *testing.T) {
-	inf := NewInformer("name")
+	inf := NewInformer()
 	defer inf.Shutdown()
 	inf.SetClient(badRPCClient(t))
 	m := inf.GetMetric()
