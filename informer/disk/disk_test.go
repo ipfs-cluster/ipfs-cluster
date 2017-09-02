@@ -49,12 +49,56 @@ func (mock *badRPCService) IPFSRepoSize(in struct{}, out *int) error {
 	return errors.New("fake error")
 }
 
+func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *int) error {
+	*out = 2
+	mock.nthCall++
+	return errors.New("fake error")
+}
+
 func Test(t *testing.T) {
 	inf := NewInformer()
 	defer inf.Shutdown()
-	if inf.Name() != "disk" {
+	if inf.Type != DefaultMetric {
 		t.Error("careful when changing the name of an informer")
 	}
+	m := inf.GetMetric()
+	if m.Valid {
+		t.Error("metric should be invalid")
+	}
+	inf.SetClient(test.NewMockRPCClient(t))
+	m = inf.GetMetric()
+	if !m.Valid {
+		t.Error("metric should be valid")
+	}
+}
+
+func TestFreeSpace(t *testing.T) {
+	inf, err := NewInformerWithMetric(MetricFreeSpace, "disk-freespace")
+	if err != nil {
+		t.Error("informer not initialized properly")
+	}
+	defer inf.Shutdown()
+	m := inf.GetMetric()
+	if m.Valid {
+		t.Error("metric should be invalid")
+	}
+	inf.SetClient(test.NewMockRPCClient(t))
+	m = inf.GetMetric()
+	if !m.Valid {
+		t.Error("metric should be valid")
+	}
+	// The mock client reports 100KB and 2 pins of 1 KB
+	if m.Value != "98000" {
+		t.Error("bad metric value")
+	}
+}
+
+func TestRepoSize(t *testing.T) {
+	inf, err := NewInformerWithMetric(MetricRepoSize, "disk-reposize")
+	if err != nil {
+		t.Error("informer not initialized properly")
+	}
+	defer inf.Shutdown()
 	m := inf.GetMetric()
 	if m.Valid {
 		t.Error("metric should be invalid")

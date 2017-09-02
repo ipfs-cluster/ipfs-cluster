@@ -1,4 +1,4 @@
-package ascendalloc
+package descendalloc
 
 import (
 	"testing"
@@ -96,7 +96,7 @@ var testCases = []testcase{
 }
 
 func Test(t *testing.T) {
-	alloc := &AscendAllocator{}
+	alloc := &DescendAllocator{}
 	for i, tc := range testCases {
 		t.Logf("Test case %d", i)
 		res, err := alloc.Allocate(testCid, tc.current, tc.candidates)
@@ -107,7 +107,7 @@ func Test(t *testing.T) {
 			t.Fatal("0 allocations")
 		}
 		for i, r := range res {
-			if e := tc.expected[i]; r != e {
+			if e := tc.expected[len(res)-i-1]; r != e {
 				t.Errorf("Expect r[%d]=%s but got %s", i, r, e)
 			}
 		}

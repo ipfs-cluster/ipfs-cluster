@@ -1,9 +1,11 @@
-// Package disk implements an ipfs-cluster informer which determines
-// the current RepoSize of the ipfs daemon datastore and returns it as an
-// api.Metric.
+// Package disk implements an ipfs-cluster informer which uses a metric (e.g.
+// RepoSize or FreeSpace of the IPFS daemon datastore) and returns it as an
+// api.Metric. The supported metrics are listed as the keys in the metricToRPC
+// map below.
 package disk
 
 import (
+	"errors"
 	"fmt"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -12,23 +14,60 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+type MetricType int
+
+const (
+	MetricFreeSpace = iota
+	MetricRepoSize
+)
+
+const DefaultMetric = MetricFreeSpace
+
 var logger = logging.Logger("diskinfo")
 
 // MetricTTL specifies how long our reported metric is valid in seconds.
 var MetricTTL = 30
 
-// MetricName specifies the name of our metric
-var MetricName = "disk"
+// metricToRPC maps from a specified metric name to the corrresponding RPC call
+var metricToRPC = map[MetricType]string{
+	MetricFreeSpace: "IPFSFreeSpace",
+	MetricRepoSize:  "IPFSRepoSize",
+}
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces.
 type Informer struct {
+	Type      MetricType
+	name      string
 	rpcClient *rpc.Client
+	rpcName   string
 }
 
-// NewInformer returns an initialized Informer.
+// NewInformer returns an initialized Informer that uses the DefaultMetric.
 func NewInformer() *Informer {
-	return &Informer{}
+	return &Informer{
+		name:    "disk-default",
+		rpcName: metricToRPC[DefaultMetric],
+	}
+}
+
+// NewInformerWithMetric returns an Informer that uses the input MetricType. The
+// name argument is meant as a user-facing identifier for the Informer and can
+// be anything.
+func NewInformerWithMetric(metric MetricType, name string) (*Informer, error) {
+	// check whether specified metric is supported
+	if rpc, valid := metricToRPC[metric]; valid {
+		return &Informer{
+			name:    name,
+			rpcName: rpc,
+		}, nil
+	}
+	return nil, errors.New("Error creating Informer: invalid MetricType")
+}
+
+// Name returns the user-facing name of this informer.
+func (disk *Informer) Name() string {
+	return disk.name
 }
 
 // SetClient provides us with an rpc.Client which allows
@@ -44,13 +83,6 @@ func (disk *Informer) Shutdown() error {
 	return nil
 }
 
-// Name returns the name of this informer.
-func (disk *Informer) Name() string {
-	return MetricName
-}
-
-// GetMetric uses the IPFSConnector the current
-// repository size and returns it in a metric.
 func (disk *Informer) GetMetric() api.Metric {
 	if disk.rpcClient == nil {
 		return api.Metric{
@@ -58,21 +90,21 @@ func (disk *Informer) GetMetric() api.Metric {
 		}
 	}
 
-	var repoSize int
+	var metric int
 	valid := true
 	err := disk.rpcClient.Call("",
 		"Cluster",
-		"IPFSRepoSize",
+		disk.rpcName,
 		struct{}{},
-		&repoSize)
+		&metric)
 	if err != nil {
 		logger.Error(err)
 		valid = false
 	}
 
 	m := api.Metric{
-		Name:  MetricName,
-		Value: fmt.Sprintf("%d", repoSize),
+		Name:  disk.name,
+		Value: fmt.Sprintf("%d", metric),
 		Valid: valid,
 	}
 

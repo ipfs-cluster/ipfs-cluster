@@ -19,6 +19,7 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api/restapi"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
@@ -331,6 +332,7 @@ var facilities = []string{
 	"consensus",
 	"pintracker",
 	"ascendalloc",
+	"descendalloc",
 	"diskinfo",
 }
 
@@ -340,12 +342,23 @@ func setupLogging(lvl string) {
 	}
 }
 
-func setupAllocation(strategy string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
-	switch strategy {
-	case "disk", "reposize":
-		return disk.NewInformer(), ascendalloc.NewAllocator()
+func setupAllocation(name string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
+	switch name {
+	case "disk":
+		// set strategy to default for disk, continue through cases
+		name = "disk-freespace"
+		fallthrough
+	case "disk-freespace":
+		informer, err := disk.NewInformerWithMetric(disk.MetricFreeSpace, name)
+		checkErr("Setting up allocation strategy", err)
+		return informer, descendalloc.NewAllocator()
+	case "disk-reposize":
+		informer, err := disk.NewInformerWithMetric(disk.MetricRepoSize, name)
+		checkErr("Setting up allocation strategy", err)
+		return informer, ascendalloc.NewAllocator()
 	case "numpin", "pincount":
-		return numpin.NewInformer(), ascendalloc.NewAllocator()
+		informer := numpin.NewInformer()
+		return informer, ascendalloc.NewAllocator()
 	default:
 		err := errors.New("unknown allocation strategy")
 		checkErr("", err)
