@@ -4,7 +4,9 @@
 
 This step creates a single-node IPFS Cluster.
 
-First initialize the configuration (see [the Cluster secret section of the `ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md#cluster-secret) for more info on entering a cluster secret):
+First initialize the configuration (see [the **Initialization** section of the
+`ipfs-cluster-service` README](../ipfs-cluster-service/dist/README.md#initialization)
+for more info on entering a cluster secret):
 
 ```
 node0 $ ipfs-cluster-service init
