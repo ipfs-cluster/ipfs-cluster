@@ -34,7 +34,7 @@ These definitions are still evolving and may change:
     * **PinTracker**: a component which tracks the pin set, makes sure that it is persisted by IPFS daemon as intended. Default: `MapPinTracker`
     * **PeerMonitor**: a component to log metrics and detect peer failures. Default: `StdPeerMonitor`
     * **PinAllocator**: a component to decide which peers should pin a CID given some metrics. Default: `NumPinAllocator`
-    * **Informer**: a component to collect metrics which are used by the `PinAllocator` and the `PinMonitor`. Default: `NumPin`
+    * **Informer**: a component to collect metrics which are used by the `PinAllocator` and the `PeerMonitor`. Default: `NumPin`
   * The **Consensus** component. This component is separate but internal to Cluster in the sense that it cannot be provided arbitrarily during initialization. The consensus component uses `go-libp2p-raft` via `go-libp2p-consensus`. While it is attempted to be agnostic from the underlying consensus implementation, it is not possible in all places. These places are however well marked.
 
 Components perform a number of functions and need to be able to communicate with eachothers: i.e.:
@@ -124,7 +124,7 @@ Notes:
 about peers. This means also ability to perform RPC requests to that peer.
 * Figure out our multiaddress in regard to the new peer (the one it sees to connect to us). This is done with an RPC request and it also
 ensure that the peer is up and reachable.
-* Trigger a consensus `LopOp` indicating that there is a new peer.
+* Trigger a consensus `LogOp` indicating that there is a new peer.
 * Send the new peer the list of cluster peers. This is an RPC request to the new peers `PeerManager` which allows to keep a tab on the current cluster peers.
 
 The consensus part has its own complexity:
