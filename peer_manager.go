@@ -66,6 +66,8 @@ func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
 			go func() {
 				time.Sleep(1 * time.Second)
 				pm.cluster.consensus.Shutdown()
+				pm.cluster.config.Bootstrap = pm.peersAddrs()
+				pm.cluster.config.Save("")
 				pm.resetPeers()
 				time.Sleep(4 * time.Second)
 				pm.cluster.Shutdown()
