@@ -90,13 +90,11 @@ This will install `ipfs-cluster-service` and `ipfs-cluster-ctl` in your `$GOPATH
 
 **`ipfs-cluster-service`** runs an ipfs-cluster peer:
 
--   Initialize with `ipfs-cluster-service init`
-    -   You will be asked to enter a cluster secret. For more on this, see [the
-        **Initialization** section of the `ipfs-cluster-service`
-        README](ipfs-cluster-service/dist/README.md#initialization).
--   Run with `ipfs-cluster-service`. Check `--help` for options
+- Initialize with `ipfs-cluster-service init`
+    - This will randomly generate a secret which should be shared among all peers.
+- Run with `ipfs-cluster-service`. Check `--help` for options
 
-For more information see the [`ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md). Also, read [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md) for full a full overview of how cluster works.
+For more information about `ipfs-cluster-service` see the [`ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md). Also, read [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md) for full a full overview of how cluster works.
 
 **`ipfs-cluster-ctl`** is used to interface with the ipfs-cluster peer:
 

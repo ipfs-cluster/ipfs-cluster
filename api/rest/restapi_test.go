@@ -1,4 +1,4 @@
-package restapi
+package rest
 
 import (
 	"bytes"
@@ -18,10 +18,15 @@ var (
 	apiHost = "http://127.0.0.1:10002" // should match testingConfig()
 )
 
-func testRESTAPI(t *testing.T) *RESTAPI {
+func testAPI(t *testing.T) *API {
 	//logging.SetDebugLogging()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10002")
-	rest, err := NewRESTAPI(&Config{ApiMAddr: apiMAddr})
+
+	cfg := &Config{}
+	cfg.Default()
+	cfg.ListenAddr = apiMAddr
+
+	rest, err := NewAPI(cfg)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
@@ -69,8 +74,8 @@ func makeDelete(t *testing.T, path string, resp interface{}) {
 	processResp(t, httpResp, err, resp)
 }
 
-func TestRESTAPIShutdown(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIShutdown(t *testing.T) {
+	rest := testAPI(t)
 	err := rest.Shutdown()
 	if err != nil {
 		t.Error("should shutdown cleanly: ", err)
@@ -80,7 +85,7 @@ func TestRESTAPIShutdown(t *testing.T) {
 }
 
 func TestRestAPIIDEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+	rest := testAPI(t)
 	defer rest.Shutdown()
 	id := api.IDSerial{}
 	makeGet(t, "/id", &id)
@@ -89,8 +94,8 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIVersionEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIVersionEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 	ver := api.Version{}
 	makeGet(t, "/version", &ver)
@@ -99,8 +104,8 @@ func TestRESTAPIVersionEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIPeerstEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIPeerstEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var list []api.IDSerial
@@ -113,8 +118,8 @@ func TestRESTAPIPeerstEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIPeerAddEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIPeerAddEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	id := api.IDSerial{}
@@ -143,15 +148,15 @@ func TestRESTAPIPeerAddEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIPeerRemoveEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIPeerRemoveEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	makeDelete(t, "/peers/"+test.TestPeerID1.Pretty(), &struct{}{})
 }
 
-func TestRESTAPIPinEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIPinEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	// test regular post
@@ -169,8 +174,8 @@ func TestRESTAPIPinEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIUnpinEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIUnpinEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	// test regular delete
@@ -188,8 +193,8 @@ func TestRESTAPIUnpinEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIAllocationsEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIAllocationsEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp []api.PinSerial
@@ -201,8 +206,8 @@ func TestRESTAPIAllocationsEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIAllocationEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIAllocationEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp api.PinSerial
@@ -218,8 +223,8 @@ func TestRESTAPIAllocationEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIStatusAllEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIStatusAllEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp []api.GlobalPinInfoSerial
@@ -231,8 +236,8 @@ func TestRESTAPIStatusAllEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIStatusEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIStatusEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp api.GlobalPinInfoSerial
@@ -250,8 +255,8 @@ func TestRESTAPIStatusEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPISyncAllEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPISyncAllEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp []api.GlobalPinInfoSerial
@@ -264,8 +269,8 @@ func TestRESTAPISyncAllEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPISyncEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPISyncEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp api.GlobalPinInfoSerial
@@ -283,8 +288,8 @@ func TestRESTAPISyncEndpoint(t *testing.T) {
 	}
 }
 
-func TestRESTAPIRecoverEndpoint(t *testing.T) {
-	rest := testRESTAPI(t)
+func TestAPIRecoverEndpoint(t *testing.T) {
+	rest := testAPI(t)
 	defer rest.Shutdown()
 
 	var resp api.GlobalPinInfoSerial

@@ -3,8 +3,6 @@ package raft
 import (
 	"context"
 	"errors"
-	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,15 +10,10 @@ import (
 
 	hashiraft "github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
-	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
 )
-
-// DefaultRaftConfig allows to tweak Raft configuration used by Cluster from
-// from the outside.
-var DefaultRaftConfig = hashiraft.DefaultConfig()
 
 // RaftMaxSnapshots indicates how many snapshots to keep in the consensus data
 // folder.
@@ -28,31 +21,6 @@ var RaftMaxSnapshots = 5
 
 // is this running 64 bits arch? https://groups.google.com/forum/#!topic/golang-nuts/vAckmhUMAdQ
 const sixtyfour = uint64(^uint(0)) == ^uint64(0)
-
-type logForwarder struct{}
-
-var raftStdLogger = log.New(&logForwarder{}, "", 0)
-var raftLogger = logging.Logger("raft")
-
-// Write forwards to our go-log logger.
-// According to https://golang.org/pkg/log/#Logger.Output
-// it is called per line.
-func (fw *logForwarder) Write(p []byte) (n int, err error) {
-	t := strings.TrimSuffix(string(p), "\n")
-	switch {
-	case strings.Contains(t, "[DEBUG]"):
-		raftLogger.Debug(strings.TrimPrefix(t, "[DEBUG] raft: "))
-	case strings.Contains(t, "[WARN]"):
-		raftLogger.Warning(strings.TrimPrefix(t, "[WARN]  raft: "))
-	case strings.Contains(t, "[ERR]"):
-		raftLogger.Error(strings.TrimPrefix(t, "[ERR] raft: "))
-	case strings.Contains(t, "[INFO]"):
-		raftLogger.Info(strings.TrimPrefix(t, "[INFO] raft: "))
-	default:
-		raftLogger.Debug(t)
-	}
-	return len(p), nil
-}
 
 // Raft performs all Raft-specific operations which are needed by Cluster but
 // are not fulfilled by the consensus interface. It should contain most of the
@@ -68,26 +36,8 @@ type Raft struct {
 	dataFolder    string
 }
 
-func defaultRaftConfig() *hashiraft.Config {
-	// These options are imposed over any Default Raft Config.
-	// Changing them causes cluster peers difficult-to-understand,
-	// behaviours, usually around the add/remove of peers.
-	// That means that changing them will make users wonder why something
-	// does not work the way it is expected to.
-	// i.e. ShutdownOnRemove will cause that no snapshot will be taken
-	// when trying to shutdown a peer after removing it from a cluster.
-	DefaultRaftConfig.DisableBootstrapAfterElect = false
-	DefaultRaftConfig.EnableSingleNode = true
-	DefaultRaftConfig.ShutdownOnRemove = false
-
-	// Set up logging
-	DefaultRaftConfig.LogOutput = ioutil.Discard
-	DefaultRaftConfig.Logger = raftStdLogger // see logging.go
-	return DefaultRaftConfig
-}
-
 // NewRaft launches a go-libp2p-raft consensus peer.
-func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.FSM) (*Raft, error) {
+func NewRaft(peers []peer.ID, host host.Host, cfg *Config, fsm hashiraft.FSM) (*Raft, error) {
 	logger.Debug("creating libp2p Raft transport")
 	transport, err := libp2praft.NewLibp2pTransportWithHost(host)
 	if err != nil {
@@ -103,6 +53,11 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 	pstore.SetPeers(peersStr)
 
 	logger.Debug("creating file snapshot store")
+	dataFolder := cfg.DataFolder
+	if dataFolder == "" {
+		dataFolder = filepath.Join(cfg.BaseDir, DefaultDataSubFolder)
+	}
+
 	err = os.MkdirAll(dataFolder, 0700)
 	if err != nil {
 		logger.Errorf("creating cosensus data folder (%s): %s",
@@ -122,9 +77,8 @@ func NewRaft(peers []peer.ID, host host.Host, dataFolder string, fsm hashiraft.F
 		return nil, err
 	}
 
-	cfg := defaultRaftConfig()
 	logger.Debug("creating Raft")
-	r, err := hashiraft.NewRaft(cfg, fsm, logStore, logStore, snapshots, pstore, transport)
+	r, err := hashiraft.NewRaft(cfg.HashiraftCfg, fsm, logStore, logStore, snapshots, pstore, transport)
 	if err != nil {
 		logger.Error("initializing raft: ", err)
 		return nil, err
@@ -302,13 +256,13 @@ func (r *Raft) RemovePeer(peer string) error {
 }
 
 // func (r *Raft) SetPeers(peers []string) error {
-// 	logger.Debugf("SetPeers(): %s", peers)
-// 	future := r.raft.SetPeers(peers)
-// 	err := future.Error()
-// 	if err != nil {
-// 		logger.Error(err)
-// 	}
-// 	return err
+//	logger.Debugf("SetPeers(): %s", peers)
+//	future := r.raft.SetPeers(peers)
+//	err := future.Error()
+//	if err != nil {
+//		logger.Error(err)
+//	}
+//	return err
 // }
 
 // Leader returns Raft's leader. It may be an empty string if

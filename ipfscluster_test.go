@@ -12,7 +12,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/restapi"
+	"github.com/ipfs/ipfs-cluster/api/rest"
+	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
@@ -60,7 +61,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft.Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
 	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
@@ -71,52 +72,50 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, API, 
 	pid, err := peer.IDFromPublicKey(pub)
 	checkErr(t, err)
 
-	cfg, _ := NewDefaultConfig()
-	cfg.ID = pid
-	cfg.PrivateKey = priv
-	cfg.ClusterSecret = clusterSecret
-	cfg.Bootstrap = []ma.Multiaddr{}
-	cfg.ClusterAddr = clusterAddr
-	cfg.APIAddr = apiAddr
-	cfg.IPFSProxyAddr = proxyAddr
-	cfg.IPFSNodeAddr = nodeAddr
-	cfg.ConsensusDataFolder = "./e2eTestRaft/" + pid.Pretty()
-	cfg.LeaveOnShutdown = false
-	cfg.ReplicationFactor = -1
-	cfg.MonitoringIntervalSeconds = 2
+	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg := testingConfigs()
 
-	api, err := restapi.NewRESTAPI(&restapi.Config{ApiMAddr: cfg.APIAddr})
+	clusterCfg.ID = pid
+	clusterCfg.PrivateKey = priv
+	clusterCfg.Secret = clusterSecret
+	clusterCfg.ListenAddr = clusterAddr
+	clusterCfg.LeaveOnShutdown = false
+	apiCfg.ListenAddr = apiAddr
+	ipfshttpCfg.ProxyAddr = proxyAddr
+	ipfshttpCfg.NodeAddr = nodeAddr
+	consensusCfg.DataFolder = "./e2eTestRaft/" + pid.Pretty()
+
+	api, err := rest.NewAPI(apiCfg)
 	checkErr(t, err)
-	ipfs, err := ipfshttp.NewConnector(
-		cfg.IPFSNodeAddr,
-		cfg.IPFSProxyAddr)
+	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(cfg.ID)
-	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
+	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
+	mon, err := basic.NewMonitor(monCfg)
+	checkErr(t, err)
 	alloc := descendalloc.NewAllocator()
-	disk.MetricTTL = 1 // second
-	inf := disk.NewInformer()
+	inf, err := disk.NewInformer(diskInfCfg)
+	checkErr(t, err)
 
-	return cfg, api, ipfs, state, tracker, mon, alloc, inf, mock
+	return clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
-func createCluster(t *testing.T, cfg *Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(cfg, api, ipfs, state, tracker, mon, alloc, inf)
+func createCluster(t *testing.T, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+	cl, err := NewCluster(clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	<-cl.Ready()
 	return cl
 }
 
 func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster, *test.IpfsMock) {
-	cfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret)
-	cl := createCluster(t, cfg, api, ipfs, state, tracker, mon, alloc, inf)
+	clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret)
+	cl := createCluster(t, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
 	return cl, mock
 }
 
 func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	os.RemoveAll("./e2eTestRaft")
 	cfgs := make([]*Config, nClusters, nClusters)
+	concfgs := make([]*raft.Config, nClusters, nClusters)
 	apis := make([]API, nClusters, nClusters)
 	ipfss := make([]IPFSConnector, nClusters, nClusters)
 	states := make([]state.State, nClusters, nClusters)
@@ -129,8 +128,9 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 	clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
 	for i := 0; i < nClusters; i++ {
-		cfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret)
-		cfgs[i] = cfg
+		clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret)
+		cfgs[i] = clusterCfg
+		concfgs[i] = consensusCfg
 		apis[i] = api
 		ipfss[i] = ipfs
 		states[i] = state
@@ -141,15 +141,15 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		ipfsMocks[i] = mock
 		addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
 			clusterPort+i,
-			cfg.ID.Pretty()))
+			clusterCfg.ID.Pretty()))
 		clusterPeers[i] = addr
 	}
 
 	// Set up the cluster using ClusterPeers
 	for i := 0; i < nClusters; i++ {
-		cfgs[i].ClusterPeers = make([]ma.Multiaddr, nClusters, nClusters)
+		cfgs[i].Peers = make([]ma.Multiaddr, nClusters, nClusters)
 		for j := 0; j < nClusters; j++ {
-			cfgs[i].ClusterPeers[j] = clusterPeers[j]
+			cfgs[i].Peers[j] = clusterPeers[j]
 		}
 	}
 
@@ -167,7 +167,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	for i := 0; i < nClusters; i++ {
 		wg.Add(1)
 		go func(i int) {
-			clusters[i] = createCluster(t, cfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
+			clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
 			wg.Done()
 		}(i)
 	}

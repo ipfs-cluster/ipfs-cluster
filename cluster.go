@@ -66,6 +66,7 @@ type Cluster struct {
 // if you need to wait until the peer is fully up.
 func NewCluster(
 	cfg *Config,
+	consensusCfg *raft.Config,
 	api API,
 	ipfs IPFSConnector,
 	st state.State,
@@ -73,6 +74,11 @@ func NewCluster(
 	monitor PeerMonitor,
 	allocator PinAllocator,
 	informer Informer) (*Cluster, error) {
+
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	host, err := makeHost(ctx, cfg)
@@ -110,7 +116,7 @@ func NewCluster(
 		return nil, err
 	}
 
-	err = c.setupConsensus()
+	err = c.setupConsensus(consensusCfg)
 	if err != nil {
 		c.Shutdown()
 		return nil, err
@@ -132,8 +138,9 @@ func NewCluster(
 func (c *Cluster) setupPeerManager() {
 	pm := newPeerManager(c)
 	c.peerManager = pm
-	if len(c.config.ClusterPeers) > 0 {
-		c.peerManager.addFromMultiaddrs(c.config.ClusterPeers)
+
+	if len(c.config.Peers) > 0 {
+		c.peerManager.addFromMultiaddrs(c.config.Peers)
 	} else {
 		c.peerManager.addFromMultiaddrs(c.config.Bootstrap)
 	}
@@ -152,23 +159,19 @@ func (c *Cluster) setupRPC() error {
 	return nil
 }
 
-func (c *Cluster) setupConsensus() error {
+func (c *Cluster) setupConsensus(consensuscfg *raft.Config) error {
 	var startPeers []peer.ID
-	if len(c.config.ClusterPeers) > 0 {
-		startPeers = peersFromMultiaddrs(c.config.ClusterPeers)
+
+	if len(c.config.Peers) > 0 {
+		startPeers = peersFromMultiaddrs(c.config.Peers)
 	} else {
 		startPeers = peersFromMultiaddrs(c.config.Bootstrap)
-	}
-
-	dataFolder := c.config.ConsensusDataFolder
-	if dataFolder == "" {
-		dataFolder = filepath.Join(filepath.Dir(c.config.path), DefaultDataFolder)
 	}
 
 	consensus, err := raft.NewConsensus(
 		append(startPeers, c.id),
 		c.host,
-		dataFolder,
+		consensuscfg,
 		c.state)
 	if err != nil {
 		logger.Errorf("error creating consensus: %s", err)
@@ -190,11 +193,8 @@ func (c *Cluster) setupRPCClients() {
 
 // syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
 func (c *Cluster) syncWatcher() {
-	stateSyncTicker := time.NewTicker(
-		time.Duration(c.config.StateSyncSeconds) * time.Second)
-
-	syncTicker := time.NewTicker(
-		time.Duration(c.config.IPFSSyncSeconds) * time.Second)
+	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
+	syncTicker := time.NewTicker(c.config.IPFSSyncInterval)
 
 	for {
 		select {
@@ -274,7 +274,7 @@ func (c *Cluster) pushInformerMetrics() {
 
 		if err != nil {
 			logger.Errorf("error broadcasting metric: %s", err)
-			// retry in 1 second
+			// retry in half second
 			timer.Stop()
 			timer.Reset(500 * time.Millisecond)
 			continue
@@ -287,14 +287,14 @@ func (c *Cluster) pushInformerMetrics() {
 }
 
 func (c *Cluster) pushPingMetrics() {
-	ticker := time.NewTicker(time.Second * time.Duration(c.config.MonitoringIntervalSeconds))
+	ticker := time.NewTicker(c.config.MonitorPingInterval)
 	for {
 		metric := api.Metric{
 			Name:  "ping",
 			Peer:  c.id,
 			Valid: true,
 		}
-		metric.SetTTL(c.config.MonitoringIntervalSeconds * 2)
+		metric.SetTTLDuration(c.config.MonitorPingInterval * 2)
 		c.broadcastMetric(metric)
 
 		select {
@@ -381,7 +381,7 @@ func (c *Cluster) ready() {
 
 func (c *Cluster) bootstrap() bool {
 	// Cases in which we do not bootstrap
-	if len(c.config.Bootstrap) == 0 || len(c.config.ClusterPeers) > 0 {
+	if len(c.config.Bootstrap) == 0 || len(c.config.Peers) > 0 {
 		return true
 	}
 
@@ -423,9 +423,8 @@ func (c *Cluster) Shutdown() error {
 		} else {
 			time.Sleep(2 * time.Second)
 		}
-		c.config.unshadow()
 		c.config.Bootstrap = c.peerManager.peersAddrs()
-		c.config.Save("")
+		c.config.NotifySave()
 		c.peerManager.resetPeers()
 	}
 
@@ -644,7 +643,8 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	err = c.rpcClient.Call(pid,
 		"Cluster",
 		"PeerAdd",
-		api.MultiaddrToSerial(multiaddrJoin(c.config.ClusterAddr, c.id)),
+		api.MultiaddrToSerial(
+			multiaddrJoin(c.config.ListenAddr, c.id)),
 		&myID)
 	if err != nil {
 		logger.Error(err)
@@ -895,9 +895,9 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	publicKey := privateKey.GetPublic()
 
 	var protec ipnet.Protector
-	if len(cfg.ClusterSecret) != 0 {
+	if len(cfg.Secret) != 0 {
 		var err error
-		clusterKey, err := clusterSecretToKey(cfg.ClusterSecret)
+		clusterKey, err := clusterSecretToKey(cfg.Secret)
 		if err != nil {
 			return nil, err
 		}
@@ -936,7 +936,7 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 
 	network, err := swarm.NewNetworkWithProtector(
 		ctx,
-		[]ma.Multiaddr{cfg.ClusterAddr},
+		[]ma.Multiaddr{cfg.ListenAddr},
 		cfg.ID,
 		ps,
 		protec,
@@ -1196,12 +1196,12 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int, blacklist []peer.ID) ([]peer
 }
 
 func (c *Cluster) backupState() {
-	if c.config.path == "" {
-		logger.Warning("Config.path unset. Skipping backup")
+	if c.config.BaseDir == "" {
+		logger.Warning("ClusterConfig BaseDir unset. Skipping backup")
 		return
 	}
 
-	folder := filepath.Dir(c.config.path)
+	folder := filepath.Dir(c.config.BaseDir)
 	err := os.MkdirAll(filepath.Join(folder, "backups"), 0700)
 	if err != nil {
 		logger.Error(err)

@@ -13,9 +13,15 @@ import (
 
 var metricCounter = 0
 
-func testPeerMonitor(t *testing.T) *StdPeerMonitor {
+func testPeerMonitor(t *testing.T) *Monitor {
 	mock := test.NewMockRPCClient(t)
-	mon := NewStdPeerMonitor(2)
+	cfg := &Config{}
+	cfg.Default()
+	cfg.CheckInterval = 2 * time.Second
+	mon, err := NewMonitor(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	mon.SetClient(mock)
 	return mon
 }

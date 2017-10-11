@@ -110,7 +110,7 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
 	fmt.Printf("%s :\n", obj.Cid)
 	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
-	for k, _ := range obj.PeerMap {
+	for k := range obj.PeerMap {
 		peers = append(peers, k)
 	}
 	peers.Sort()

@@ -27,7 +27,7 @@ test_ipfs_init() {
         echo "Docker not found"
         exit 1
     fi
-    if docker ps -a --format '{{.Names}}' | egrep -q '^ipfs$'; then
+    if docker ps --format '{{.Names}}' | egrep -q '^ipfs$'; then
         echo "ipfs container already running"
     else
         docker run --name ipfs -d -p 127.0.0.1:5001:5001 ipfs/go-ipfs > /dev/null 2>&1
@@ -67,6 +67,7 @@ test_cluster_init() {
         echo "error initializing ipfs cluster"
         exit 1
     fi
+    rm -rf "test-config/ipfs-cluster-data"
     if [ -n "$custom_config_files" ]; then
         cp -f ${custom_config_files}/* "test-config"
     fi
@@ -78,13 +79,13 @@ test_cluster_init() {
 
 test_cluster_config() {
     export CLUSTER_CONFIG_PATH="test-config/service.json"
-    export CLUSTER_CONFIG_ID=`jq --raw-output ".id" $CLUSTER_CONFIG_PATH`
-    export CLUSTER_CONFIG_PK=`jq --raw-output ".private_key" $CLUSTER_CONFIG_PATH`
+    export CLUSTER_CONFIG_ID=`jq --raw-output ".cluster.id" $CLUSTER_CONFIG_PATH`
+    export CLUSTER_CONFIG_PK=`jq --raw-output ".cluster.private_key" $CLUSTER_CONFIG_PATH`
     [ "$CLUSTER_CONFIG_ID" != "null" ] && [ "$CLUSTER_CONFIG_PK" != "null" ]
 }
 
 cluster_id() {
-    jq --raw-output ".id" test-config/service.json
+    jq --raw-output ".cluster.id" test-config/service.json
 }
 
 # Cleanup functions

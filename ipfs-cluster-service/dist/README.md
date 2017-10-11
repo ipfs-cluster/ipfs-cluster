@@ -31,42 +31,19 @@ All peers in a cluster **must share the same cluster secret**. Using an empty se
 
 After initialization, the configuration will be placed in `~/.ipfs-cluster/service.json` by default.
 
-You can add the multiaddresses for the other cluster peers the `bootstrap` variable. For example, here is a valid configuration for a single-peer cluster:
+You can add the multiaddresses for the other cluster peers to the `cluster.peers` or `cluster.bootstrap` variables (see below). A configuration example with explanations is provided in [A guide to running IPFS Cluster](https://github.com/ipfs/ipfs-cluster/blob/master/docs/ipfs-cluster-guide.md).
 
-```json
-{
-    "id": "QmXMhZ53zAoes8TYbKGn3rnm5nfWs5Wdu41Fhhfw9XmM5A",
-    "private_key": "<redacted>",
-    "cluster_secret": "<redacted>",
-    "cluster_peers": [],
-    "bootstrap": [],
-    "leave_on_shutdown": false,
-    "cluster_multiaddress": "/ip4/0.0.0.0/tcp/9096",
-    "api_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
-    "TLSCertFile": "",
-    "TLSKeyFile": "",
-    "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
-    "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-    "state_sync_seconds": 60,
-    "ipfs_sync_seconds": 130,
-    "replication_factor": -1,
-    "monitoring_interval_seconds": 15,
-    "allocation_strategy": "reposize
-}
-```
+The configuration file should probably be identical among all cluster peers, except for the `id` and `private_key` fields. Once every cluster peer has the configuration in place, you can run `ipfs-cluster-service` to start the cluster.
 
-The configuration file should probably be identical among all cluster peers, except for the `id` and `private_key` fields. Once every cluster peer has the configuration in place, you can run `ipfs-cluster-service` to start the cluster. See the [additional docs](#additional-docs) section for detailed documentation on how to build a cluster.
+#### Clusters using `cluster.peers`
 
-#### Clusters using `cluster_peers`
+The `peers` configuration variable holds a list of current cluster members. If you know the members of the cluster in advance, or you want to start a cluster fully in parallel, set `peers` in all configurations so that every peer knows the rest upon boot. Leave `bootstrap` empty. A cluster peer address looks like: `/ip4/1.2.3.4/tcp/9096/<id>`.
 
-The `cluster_peers` configuration variable holds a list of current cluster members. If you know the members of the cluster in advance, or you want to start a cluster fully in parallel, set `cluster_peers` in all configurations so that every peer knows the rest upon boot. Leave `bootstrap` empty. A cluster peer address looks like: `/ip4/1.2.3.4/tcp/9096/<id>`.
+#### Clusters using `cluster.bootstrap`
 
-#### Clusters using `bootstrap`
+When the `peers` variable is empty, the multiaddresses in `bootstrap` can be used to have a peer join an existing cluster. The peer will contact those addresses (in order) until one of them succeeds in joining it to the cluster. When the peer is shut down, it will save the current cluster peers in the `peers` configuration variable for future use (unless `leave_on_shutdown` is true, in which case it will save them in `bootstrap`)
 
-When the `cluster_peers` variable is empty, the multiaddresses `bootstrap` can be used to have a peer join an existing cluster. The peer will contact those addresses (in order) until one of them succeeds in joining it to the cluster. When the peer is shut down, it will save the current cluster peers in the `cluster_peers` configuration variable for future use.
-
-Bootstrap is a convenient method, but more prone to errors than `cluster_peers`. It can be used as well with `ipfs-cluster-service --bootstrap <multiaddress>`. Note that bootstrapping nodes with an old state (or diverging state) from the one running in the cluster may lead to problems with
-the consensus, so usually you would want to bootstrap blank nodes.
+Bootstrap is a convenient method, but more prone to errors than having a fixed set of peers. It can be used as well with `ipfs-cluster-service --bootstrap <multiaddress>`. Note that bootstrapping nodes with an old state (or diverging state) from the one running in the cluster may lead to problems with the consensus, so usually you would want to bootstrap clean nodes.
 
 ### Debugging
 

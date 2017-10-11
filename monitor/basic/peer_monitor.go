@@ -80,9 +80,9 @@ func (pmets *peerMetrics) all() []api.Metric {
 
 type metricsByPeer map[peer.ID]*peerMetrics
 
-// StdPeerMonitor is a component in charge of monitoring peers, logging
+// Monitor is a component in charge of monitoring peers, logging
 // metrics and detecting failures
-type StdPeerMonitor struct {
+type Monitor struct {
 	ctx       context.Context
 	cancel    func()
 	rpcClient *rpc.Client
@@ -94,25 +94,30 @@ type StdPeerMonitor struct {
 
 	alerts chan api.Alert
 
-	monitoringInterval int
+	config *Config
 
 	shutdownLock sync.Mutex
 	shutdown     bool
 	wg           sync.WaitGroup
 }
 
-// NewStdPeerMonitor creates a new monitor. It receives the window capacity
+// NewMonitor creates a new monitor. It receives the window capacity
 // (how many metrics to keep for each peer and type of metric) and the
 // monitoringInterval (interval between the checks that produce alerts)
 // as parameters
-func NewStdPeerMonitor(monIntervalSecs int) *StdPeerMonitor {
+func NewMonitor(cfg *Config) (*Monitor, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	if WindowCap <= 0 {
 		panic("windowCap too small")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	mon := &StdPeerMonitor{
+	mon := &Monitor{
 		ctx:      ctx,
 		cancel:   cancel,
 		rpcReady: make(chan struct{}, 1),
@@ -121,14 +126,14 @@ func NewStdPeerMonitor(monIntervalSecs int) *StdPeerMonitor {
 		windowCap: WindowCap,
 		alerts:    make(chan api.Alert, AlertChannelCap),
 
-		monitoringInterval: monIntervalSecs,
+		config: cfg,
 	}
 
 	go mon.run()
-	return mon
+	return mon, nil
 }
 
-func (mon *StdPeerMonitor) run() {
+func (mon *Monitor) run() {
 	select {
 	case <-mon.rpcReady:
 		go mon.monitor()
@@ -137,23 +142,23 @@ func (mon *StdPeerMonitor) run() {
 }
 
 // SetClient saves the given rpc.Client  for later use
-func (mon *StdPeerMonitor) SetClient(c *rpc.Client) {
+func (mon *Monitor) SetClient(c *rpc.Client) {
 	mon.rpcClient = c
 	mon.rpcReady <- struct{}{}
 }
 
 // Shutdown stops the peer monitor. It particular, it will
 // not deliver any alerts.
-func (mon *StdPeerMonitor) Shutdown() error {
+func (mon *Monitor) Shutdown() error {
 	mon.shutdownLock.Lock()
 	defer mon.shutdownLock.Unlock()
 
 	if mon.shutdown {
-		logger.Warning("StdPeerMonitor already shut down")
+		logger.Warning("Monitor already shut down")
 		return nil
 	}
 
-	logger.Info("stopping StdPeerMonitor")
+	logger.Info("stopping Monitor")
 	close(mon.rpcReady)
 	mon.cancel()
 	mon.wg.Wait()
@@ -162,7 +167,7 @@ func (mon *StdPeerMonitor) Shutdown() error {
 }
 
 // LogMetric stores a metric so it can later be retrieved.
-func (mon *StdPeerMonitor) LogMetric(m api.Metric) {
+func (mon *Monitor) LogMetric(m api.Metric) {
 	mon.metricsMux.Lock()
 	defer mon.metricsMux.Unlock()
 	name := m.Name
@@ -182,7 +187,7 @@ func (mon *StdPeerMonitor) LogMetric(m api.Metric) {
 	pmets.add(m)
 }
 
-// func (mon *StdPeerMonitor) getLastMetric(name string, p peer.ID) api.Metric {
+// func (mon *Monitor) getLastMetric(name string, p peer.ID) api.Metric {
 // 	mon.metricsMux.RLock()
 // 	defer mon.metricsMux.RUnlock()
 
@@ -210,7 +215,7 @@ func (mon *StdPeerMonitor) LogMetric(m api.Metric) {
 
 // LastMetrics returns last known VALID metrics of a given type. A metric
 // is only valid if it has not expired and belongs to a current cluster peer.
-func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
+func (mon *Monitor) LastMetrics(name string) []api.Metric {
 	// Ger current list of peers
 	var peers []peer.ID
 	err := mon.rpcClient.Call("",
@@ -252,12 +257,15 @@ func (mon *StdPeerMonitor) LastMetrics(name string) []api.Metric {
 
 // Alerts returns a channel on which alerts are sent when the
 // monitor detects a failure.
-func (mon *StdPeerMonitor) Alerts() <-chan api.Alert {
+func (mon *Monitor) Alerts() <-chan api.Alert {
 	return mon.alerts
 }
 
-func (mon *StdPeerMonitor) monitor() {
-	ticker := time.NewTicker(time.Second * time.Duration(mon.monitoringInterval))
+// monitor creates a ticker which fetches current
+// cluster peers and checks that the last metric for a peer
+// has not expired.
+func (mon *Monitor) monitor() {
+	ticker := time.NewTicker(mon.config.CheckInterval)
 	for {
 		select {
 		case <-ticker.C:
@@ -288,7 +296,7 @@ func (mon *StdPeerMonitor) monitor() {
 // This is probably the place to implement some advanced ways of detecting down
 // peers.
 // Currently easy logic, just check that all peers have a valid metric.
-func (mon *StdPeerMonitor) checkMetrics(peers []peer.ID, metricName string) {
+func (mon *Monitor) checkMetrics(peers []peer.ID, metricName string) {
 	mon.metricsMux.RLock()
 	defer mon.metricsMux.RUnlock()
 
@@ -314,7 +322,7 @@ func (mon *StdPeerMonitor) checkMetrics(peers []peer.ID, metricName string) {
 	}
 }
 
-func (mon *StdPeerMonitor) sendAlert(p peer.ID, metricName string) {
+func (mon *Monitor) sendAlert(p peer.ID, metricName string) {
 	alrt := api.Alert{
 		Peer:       p,
 		MetricName: metricName,

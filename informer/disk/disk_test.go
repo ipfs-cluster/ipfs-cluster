@@ -56,11 +56,13 @@ func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *int) error {
 }
 
 func Test(t *testing.T) {
-	inf := NewInformer()
-	defer inf.Shutdown()
-	if inf.Type != DefaultMetric {
-		t.Error("careful when changing the name of an informer")
+	cfg := &Config{}
+	cfg.Default()
+	inf, err := NewInformer(cfg)
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer inf.Shutdown()
 	m := inf.GetMetric()
 	if m.Valid {
 		t.Error("metric should be invalid")
@@ -73,9 +75,13 @@ func Test(t *testing.T) {
 }
 
 func TestFreeSpace(t *testing.T) {
-	inf, err := NewInformerWithMetric(MetricFreeSpace, "disk-freespace")
+	cfg := &Config{}
+	cfg.Default()
+	cfg.Type = MetricFreeSpace
+
+	inf, err := NewInformer(cfg)
 	if err != nil {
-		t.Error("informer not initialized properly")
+		t.Fatal(err)
 	}
 	defer inf.Shutdown()
 	m := inf.GetMetric()
@@ -94,9 +100,13 @@ func TestFreeSpace(t *testing.T) {
 }
 
 func TestRepoSize(t *testing.T) {
-	inf, err := NewInformerWithMetric(MetricRepoSize, "disk-reposize")
+	cfg := &Config{}
+	cfg.Default()
+	cfg.Type = MetricRepoSize
+
+	inf, err := NewInformer(cfg)
 	if err != nil {
-		t.Error("informer not initialized properly")
+		t.Fatal(err)
 	}
 	defer inf.Shutdown()
 	m := inf.GetMetric()
@@ -115,7 +125,12 @@ func TestRepoSize(t *testing.T) {
 }
 
 func TestWithErrors(t *testing.T) {
-	inf := NewInformer()
+	cfg := &Config{}
+	cfg.Default()
+	inf, err := NewInformer(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer inf.Shutdown()
 	inf.SetClient(badRPCClient(t))
 	m := inf.GetMetric()

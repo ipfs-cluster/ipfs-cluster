@@ -404,7 +404,13 @@ type Metric struct {
 
 // SetTTL sets Metric to expire after the given seconds
 func (m *Metric) SetTTL(seconds int) {
-	exp := time.Now().Add(time.Duration(seconds) * time.Second)
+	d := time.Duration(seconds) * time.Second
+	m.SetTTLDuration(d)
+}
+
+// SetTTLDuration sets Metric to expire after the given time.Duration
+func (m *Metric) SetTTLDuration(d time.Duration) {
+	exp := time.Now().Add(d)
 	m.Expire = exp.UTC().Format(time.RFC3339Nano)
 }
 

@@ -55,14 +55,19 @@ type Consensus struct {
 // NewConsensus builds a new ClusterConsensus component. The state
 // is used to initialize the Consensus system, so any information in it
 // is discarded.
-func NewConsensus(clusterPeers []peer.ID, host host.Host, dataFolder string, state state.State) (*Consensus, error) {
+func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state state.State) (*Consensus, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	op := &LogOp{
 		ctx: context.Background(),
 	}
 
 	logger.Infof("starting Consensus and waiting for a leader...")
 	consensus := libp2praft.NewOpLog(state, op)
-	raft, err := NewRaft(clusterPeers, host, dataFolder, consensus.FSM())
+	raft, err := NewRaft(clusterPeers, host, cfg, consensus.FSM())
 	if err != nil {
 		return nil, err
 	}
