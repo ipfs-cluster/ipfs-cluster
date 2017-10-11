@@ -425,6 +425,7 @@ func (c *Cluster) Shutdown() error {
 		}
 		/* set c.Config.Bootstrap to current peers */
 		c.config.Bootstrap = c.peerManager.peersAddrs()
+		c.config.Shadow()
 		c.config.Save("")
 		c.peerManager.resetPeers()
 	}
