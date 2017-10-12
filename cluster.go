@@ -423,6 +423,9 @@ func (c *Cluster) Shutdown() error {
 		} else {
 			time.Sleep(2 * time.Second)
 		}
+		c.config.unshadow()
+		c.config.Bootstrap = c.peerManager.peersAddrs()
+		c.config.Save("")
 		c.peerManager.resetPeers()
 	}
 
