@@ -27,7 +27,7 @@ test_ipfs_init() {
         echo "Docker not found"
         exit 1
     fi
-    if docker ps --format '{{.Names}}' | egrep -q '^ipfs$'; then
+    if docker ps -a --format '{{.Names}}' | egrep -q '^ipfs$'; then
         echo "ipfs container already running"
     else
         docker run --name ipfs -d -p 127.0.0.1:5001:5001 ipfs/go-ipfs > /dev/null 2>&1
