@@ -9,9 +9,8 @@ cleanup test_clean_ipfs
 test_cluster_init
 cleanup test_clean_cluster
 
-
 test_expect_success IPFS,CLUSTER "pin data to cluster with ctl" '
-    cid=`docker exec ipfs bash -c "echo test | ipfs add -q"`
+    cid=`docker exec ipfs sh -c "echo test | ipfs add -q"`
     ipfs-cluster-ctl pin add "$cid" &> test4 &&
     ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid" &&
     ipfs-cluster-ctl status "$cid" | grep -q -i "PINNED"

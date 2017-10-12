@@ -3,7 +3,6 @@
 test_description="Test service startup and init functionality"
 
 . lib/test-lib.sh
-
 test_ipfs_init
 cleanup test_clean_ipfs
 test_cluster_init
