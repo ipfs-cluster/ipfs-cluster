@@ -9,6 +9,7 @@ gx_bin=$(deptools)/$(gx)
 gx-go_bin=$(deptools)/$(gx-go)
 bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
 sharness = sharness/lib/sharness
+swagger = swagger/swagger
 
 # For debugging
 problematic_test = TestClustersReplicationRealloc
@@ -16,7 +17,7 @@ problematic_test = TestClustersReplicationRealloc
 export PATH := $(deptools):$(PATH)
 
 all: service ctl
-clean: rwundo clean_sharness
+clean: rwundo clean_sharness clean_swagger
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
 
@@ -81,10 +82,26 @@ clean_sharness:
 	@rm -rf ./sharness/lib/sharness
 	@rm -rf sharness/trash\ directory*
 
+swagger: $(swagger)
+	@cd api/restapi && swagger generate spec -o ../../swagger/swagger.json 
+
+
+$(swagger):
+	@echo "Installing swagger"
+	@rm -rf swagger
+	@mkdir swagger
+	@go get -u github.com/go-swagger/go-swagger/cmd/swagger
+	@cd $$GOPATH/src/github.com/go-swagger/go-swagger && go install .
+
+clean_swagger:
+	@rm -rf swagger
+	@rm -rf $$GOPATH/src/github.com/go-swagger
+	@rm $$GOPATH/bin/swagger
+
 rw: gx
 	$(gx-go_bin) rewrite
 rwundo: gx
 	$(gx-go_bin) rewrite --undo
 publish: rwundo
 	$(gx_bin) publish
-.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean
+.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean swagger clean_swagger
