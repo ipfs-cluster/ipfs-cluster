@@ -563,7 +563,7 @@ func (ipfs *Connector) Shutdown() error {
 // contains the error message.
 func (ipfs *Connector) ID() (api.IPFSID, error) {
 	id := api.IPFSID{}
-	body, err := ipfs.get("id")
+	body, err := ipfs.post("id")
 	if err != nil {
 		id.Error = err.Error()
 		return id, err
@@ -605,7 +605,7 @@ func (ipfs *Connector) Pin(hash *cid.Cid) error {
 	}
 	if !pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
-		_, err = ipfs.get(path)
+		_, err = ipfs.post(path)
 		if err == nil {
 			logger.Info("IPFS Pin request succeeded: ", hash)
 		}
@@ -624,7 +624,7 @@ func (ipfs *Connector) Unpin(hash *cid.Cid) error {
 	}
 	if pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
-		_, err := ipfs.get(path)
+		_, err := ipfs.post(path)
 		if err == nil {
 			logger.Info("IPFS Unpin request succeeded:", hash)
 		}
@@ -638,7 +638,7 @@ func (ipfs *Connector) Unpin(hash *cid.Cid) error {
 // PinLs performs a "pin ls --type typeFilter" request against the configured
 // IPFS daemon and returns a map of cid strings and their status.
 func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error) {
-	body, err := ipfs.get("pin/ls?type=" + typeFilter)
+	body, err := ipfs.post("pin/ls?type=" + typeFilter)
 
 	// Some error talking to the daemon
 	if err != nil {
@@ -664,7 +664,7 @@ func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, e
 // an api.IPFSPinStatus for that hash.
 func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=recursive", hash)
-	body, err := ipfs.get(lsPath)
+	body, err := ipfs.post(lsPath)
 
 	// Network error, daemon down
 	if body == nil && err != nil {
@@ -691,15 +691,15 @@ func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
-// get performs the heavy lifting of a get request against
+// post performs the heavy lifting of a post request against
 // the IPFS daemon.
-func (ipfs *Connector) get(path string) ([]byte, error) {
-	logger.Debugf("getting %s", path)
+func (ipfs *Connector) post(path string) ([]byte, error) {
+	logger.Debugf("posting %s", path)
 	url := fmt.Sprintf("%s/%s",
 		ipfs.apiURL(),
 		path)
 
-	res, err := http.Get(url)
+	res, err := http.Post(url, "", nil)
 	if err != nil {
 		logger.Error("error getting:", err)
 		return nil, err
@@ -756,7 +756,7 @@ func (ipfs *Connector) ConnectSwarms() error {
 			// This is a best effort attempt
 			// We ignore errors which happens
 			// when passing in a bunch of addresses
-			_, err := ipfs.get(
+			_, err := ipfs.post(
 				fmt.Sprintf("swarm/connect?arg=%s", addr))
 			if err != nil {
 				logger.Debug(err)
@@ -772,7 +772,7 @@ func (ipfs *Connector) ConnectSwarms() error {
 // a given configuration key. For example, "Datastore/StorageMax" will return
 // the value for StorageMax in the Datastore configuration object.
 func (ipfs *Connector) ConfigKey(keypath string) (interface{}, error) {
-	res, err := ipfs.get("config/show")
+	res, err := ipfs.post("config/show")
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -816,7 +816,7 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 // value is derived from the RepoSize and StorageMax values given by "repo
 // stats". The value is in bytes.
 func (ipfs *Connector) FreeSpace() (int, error) {
-	res, err := ipfs.get("repo/stat")
+	res, err := ipfs.post("repo/stat")
 	if err != nil {
 		logger.Error(err)
 		return 0, err
@@ -834,7 +834,7 @@ func (ipfs *Connector) FreeSpace() (int, error) {
 // RepoSize returns the current repository size of the ipfs daemon as
 // provided by "repo stats". The value is in bytes.
 func (ipfs *Connector) RepoSize() (int, error) {
-	res, err := ipfs.get("repo/stat")
+	res, err := ipfs.post("repo/stat")
 	if err != nil {
 		logger.Error(err)
 		return 0, err
