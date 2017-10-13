@@ -267,15 +267,6 @@ func (rest *RESTAPI) SetClient(c *rpc.Client) {
 }
 
 func (rest *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route GET /id ID
-	//
-	// Returns id of cluster peer
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
-	
 	idSerial := api.IDSerial{}
 	err := rest.rpcClient.Call("",
 		"Cluster",
@@ -287,15 +278,6 @@ func (rest *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
-
-	// swagger:route GET /version Version
-	//
-	// Returns version of cluster peer
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	var v api.Version
 	err := rest.rpcClient.Call("",
 		"Cluster",
@@ -307,14 +289,6 @@ func (rest *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route GET /peers Peers
-	//
-	// Lists all peers of cluster node
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	var peersSerial []api.IDSerial
 	err := rest.rpcClient.Call("",
 		"Cluster",
@@ -326,14 +300,6 @@ func (rest *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route POST /peers PeerAdd
-	//
-	// Adds a peer to the cluster
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
@@ -360,14 +326,6 @@ func (rest *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route DELETE /peers/{peer} PeerRemove
-	//
-	// Removes a peer from the cluster
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	if p := parsePidOrError(w, r); p != "" {
 		err := rest.rpcClient.Call("",
 			"Cluster",
@@ -379,14 +337,6 @@ func (rest *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route POST /pins/{hash} Pin
-	//
-	// Add the provided Cid to the cluster's tracking pin-set
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	if c := parseCidOrError(w, r); c.Cid != "" {
 		err := rest.rpcClient.Call("",
 			"Cluster",
@@ -398,14 +348,6 @@ func (rest *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route DELETE /pins/{hash} Unpin
-	//
-	// Delete the provided Cid from the cluster's tracking pin-set
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	if c := parseCidOrError(w, r); c.Cid != "" {
 		err := rest.rpcClient.Call("",
 			"Cluster",
@@ -417,14 +359,6 @@ func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) allocationsHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route GET /allocations Allocations
-	//
-	// Returns list of Cids managed by cluster
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	var pins []api.PinSerial
 	err := rest.rpcClient.Call("",
 		"Cluster",
@@ -435,14 +369,6 @@ func (rest *RESTAPI) allocationsHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (rest *RESTAPI) allocationHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route GET /allocations/{hash} Allocation
-	//
-	// Returns information for a single Cid managed by cluster
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	if c := parseCidOrError(w, r); c.Cid != "" {
 		var pin api.PinSerial
 		err := rest.rpcClient.Call("",
@@ -459,14 +385,6 @@ func (rest *RESTAPI) allocationHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route GET /pins StatusAll
-	//
-	// Returns GlobalPinInfo for all tracked Cids
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	var pinInfos []api.GlobalPinInfoSerial
 	err := rest.rpcClient.Call("",
 		"Cluster",
@@ -477,14 +395,6 @@ func (rest *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route GET /pins/{hash} Status
-	//
-	// Returns the GlobalPinInfo for the given Cid
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	if c := parseCidOrError(w, r); c.Cid != "" {
 		var pinInfo api.GlobalPinInfoSerial
 		err := rest.rpcClient.Call("",
@@ -497,14 +407,6 @@ func (rest *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route POST /pins/sync SyncAll
-	//
-	// Triggers all cluster peers to sync all state with their ipfs daemons
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	var pinInfos []api.GlobalPinInfoSerial
 	err := rest.rpcClient.Call("",
 		"Cluster",
@@ -515,14 +417,6 @@ func (rest *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route POST /pins/{hash}/sync Sync
-	//
-	// Triggers all cluster peers to sync the state of the provided Cid with their ipfs daemons
-	//
-	// Schemes: http, https,
-	//
-	// Responses:
-	//   200: someResponse
 	if c := parseCidOrError(w, r); c.Cid != "" {
 		var pinInfo api.GlobalPinInfoSerial
 		err := rest.rpcClient.Call("",
@@ -535,14 +429,6 @@ func (rest *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
-	// swagger:route POST /pins/{hash}/recover Recover
-	//
-	// Triggers a recover operation in all peers for the provided Cid
-	//
-	// Schemes: http, https
-	//
-	// Responses:
-	//   200: someResponse
 	if c := parseCidOrError(w, r); c.Cid != "" {
 		var pinInfo api.GlobalPinInfoSerial
 		err := rest.rpcClient.Call("",
