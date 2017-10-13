@@ -5,8 +5,6 @@ info:
     configured IPFS daemon.  Find out more on [irc.freenode.net #ipfs-cluster]"
   version: "0.1.0"
   title: "Ipfs-Cluster"
-  contact:
-    email: ipfs-cluster@protocol.ai
   license:
     name: "MIT"
     url: "https://opensource.org/licenses/MIT"
