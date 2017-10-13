@@ -1,0 +1,70 @@
+swagger: "2.0"
+info:
+  description: "ipfs-cluster-service runs an IPFS Cluster Node. A node 
+    participates in the cluster consensus and manages pinning operations to a
+    configured IPFS daemon.  Find out more on [irc.freenode.net #ipfs-cluster]"
+  version: "0.1.0"
+  title: "Ipfs-Cluster"
+  contact:
+    email: ipfs-cluster@protocol.ai
+  license:
+    name: "MIT"
+    url: "https://opensource.org/licenses/MIT"
+
+schemes:
+- "http"
+paths:
+  /allocations:
+    get:
+      summary: "Returns list of Cids managed by cluster"
+      operationId: "Allocations"
+  /allocations/{hash}:
+    get:
+      summary: "Returns information for a single Cid managed by cluster"
+      operationId: "Allocation"
+  /id:
+    get:
+      summary: "Returns id of cluster peers"
+      operationId: "ID"
+  /peers:
+    get:
+      summary: "Lists all peers of cluster node"
+      operationId: "Peers"
+    post:
+      summary: "Adds a peer to the cluster"
+      operationId: "PeerAdd"
+  /peers/{peer}:
+    delete:
+      summary: "Removes a peer from the cluster"
+      operationId: "PeerRemove"
+  /pins:
+    get:
+      summary: "Returns GlobalPinInfor for all tracked Cids"
+      operationId: "StatusAll"
+  /pins/sync:
+    post: 
+      summary: "Triggers all cluster peers to sync all state with their ipfs daemons"
+      operationId: "SyncAll"
+  /pins/{hash}:
+    get:
+      summary: "Returns the GlobalPinInfo for the given Cid"
+      operationId: "Status"
+    post:
+      summary: "Add the provided Cid to the cluster's tracking pin-set"
+      operationId: "Pin"
+    delete:
+      summary: "Delete the provided Cid from the cluster's tracking pin-set"
+      operationId: "Unpin"
+  /pins/{hash}/recover:
+    post:
+      summary: "Triggers a recover operation in all peers for the provided Cid"
+      operationId: "Recover"
+  /pins/{hash}/sync:
+    post:
+      summary: "Triggers all cluster peers to sync the state of the provided Cid with their ipfs daemons"
+      operationId: "Sync"
+  /version:
+    get:
+      summary: "Returns version of cluster peer"
+      operationId: "Version"
+
