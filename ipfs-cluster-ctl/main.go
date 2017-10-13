@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -221,6 +222,46 @@ cluster peers.
 						checkErr("parsing peer ID", err)
 						cerr := globalClient.PeerRm(p)
 						formatResponse(c, nil, cerr)
+						return nil
+					},
+				},
+				{
+					Name:  "graph",
+					Usage: "display connectivity of cluster nodes",
+					Description: `
+This command queries all connected cluster peers and their ipfs nodes to generate a
+graph of the connections.  Output is a dot file encoding the cluster's connection state
+`,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "file, f",
+							Value: "",
+							Usage: "sets an output dot-file for the connectivity graph",
+						},
+						cli.BoolFlag{
+							Name:  "all-ipfs-peers",
+							Usage: "causes the graph to mark nodes for ipfs peers not directly in the cluster",
+						},
+					},
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.GetConnectGraph()
+						if cerr != nil {
+							formatResponse(c, resp, cerr)
+							return nil
+						}
+						var w io.WriteCloser
+						var err error
+						outputPath := c.String("file")
+						if outputPath == "" {
+							w = os.Stdout
+						} else {
+							w, err = os.Create(outputPath)
+							checkErr("creating output file", err)
+						}
+						defer w.Close()
+						err = makeDot(resp, w, c.Bool("all-ipfs-peers"))
+						checkErr("printing graph", err)
+
 						return nil
 					},
 				},

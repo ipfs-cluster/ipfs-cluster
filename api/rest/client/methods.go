@@ -163,3 +163,11 @@ func (c *Client) Version() (api.Version, error) {
 	err := c.do("GET", "/version", nil, &ver)
 	return ver, err
 }
+
+// GetConnectionGraph returns an ipfs-cluster connection graph.
+// The serialized version, strings instead of pids, is returned
+func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
+	var graphS api.ConnectGraphSerial
+	err := c.do("GET", "/graph", nil, &graphS)
+	return graphS, err
+}
