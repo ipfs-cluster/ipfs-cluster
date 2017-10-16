@@ -9,7 +9,10 @@
     "api_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
     "ssl_cert_file": "test-config/server.crt",
     "ssl_key_file": "test-config/server.key",
-    "basic_auth_credentials": { "testuser" : "testpass" },
+    "basic_auth_credentials": {
+        "testuser" : "testpass",
+        "userwithoutpass": ""
+    },
     "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
     "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "state_sync_seconds": 60,
