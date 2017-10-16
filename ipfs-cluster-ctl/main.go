@@ -31,6 +31,8 @@ var (
 	defaultTimeout   = 60
 	defaultProtocol  = "http"
 	defaultTransport = http.DefaultTransport
+	defaultUsername  = ""
+	defaultPassword  = ""
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -89,7 +91,7 @@ func main() {
 		},
 		cli.BoolFlag{
 			Name:  "no-check-certificate",
-			Usage: "do not verify server TLS certificate. only valid with `--https` flag.",
+			Usage: "do not verify server TLS certificate. only valid with --https flag",
 		},
 		cli.StringFlag{
 			Name:  "encoding, enc",
@@ -105,11 +107,30 @@ func main() {
 			Name:  "debug, d",
 			Usage: "set debug log level",
 		},
+		cli.StringFlag{
+			Name: "basic-auth",
+			Usage: `<username>[:<password>] specify BasicAuth credentials for server that
+requires authorization. implies --https, which you can disable with --force-http`,
+			EnvVar: "CLUSTER_CREDENTIALS",
+		},
+		cli.BoolFlag{
+			Name:  "force-http, f",
+			Usage: "force HTTP. only valid when using BasicAuth",
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
 		defaultHost = c.String("host")
 		defaultTimeout = c.Int("timeout")
+		// check for BasicAuth credentials
+		if c.IsSet("basic-auth") {
+			defaultUsername, defaultPassword = parseCredentials(c.String("basic-auth"))
+			// turn on HTTPS unless flag says not to
+			if !c.Bool("force-http") {
+				err := c.Set("https", "true")
+				checkErr("setting HTTPS flag for BasicAuth (this should never fail)", err)
+			}
+		}
 		if c.Bool("https") {
 			defaultProtocol = "https"
 			defaultTransport = newTLSTransport(c.Bool("no-check-certificate"))
@@ -447,9 +468,12 @@ func request(method, path string, body io.Reader, args ...string) *http.Response
 	checkErr("creating request", err)
 	r.WithContext(ctx)
 
+	if len(defaultUsername) != 0 {
+		r.SetBasicAuth(defaultUsername, defaultPassword)
+	}
+
 	client := &http.Client{Transport: defaultTransport}
 	resp, err := client.Do(r)
-	checkErr(fmt.Sprintf("performing request to %s", defaultHost), err)
 
 	return resp
 }
@@ -472,6 +496,7 @@ func formatResponse(c *cli.Context, r *http.Response) {
 		case "text":
 			if r.StatusCode > 399 {
 				textFormat(body, formatError)
+				os.Exit(2)
 			} else {
 				textFormat(body, c.Int("parseAs"))
 			}
@@ -481,6 +506,21 @@ func formatResponse(c *cli.Context, r *http.Response) {
 			checkErr("decoding response", err)
 			prettyPrint(body)
 		}
+	}
+}
+
+func parseCredentials(userInput string) (string, string) {
+	credentials := strings.SplitN(userInput, ":", 2)
+	switch len(credentials) {
+	case 1:
+		// only username passed in (with no trailing `:`), return empty password
+		return credentials[0], ""
+	case 2:
+		return credentials[0], credentials[1]
+	default:
+		err := fmt.Errorf("invalid <username>[:<password>] input")
+		checkErr("parsing credentials", err)
+		return "", ""
 	}
 }
 

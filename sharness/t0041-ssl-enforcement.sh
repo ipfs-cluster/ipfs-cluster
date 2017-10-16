@@ -14,7 +14,6 @@ test_expect_success "prerequisites" '
 '
 
 test_expect_success "ssl enforced by client" '
-    test_cluster_config
     id=`cluster_id`
     test_must_fail ipfs-cluster-ctl --https --no-check-certificate id
 '

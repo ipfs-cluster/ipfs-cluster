@@ -96,6 +96,6 @@ test_clean_ipfs(){
 
 test_clean_cluster(){
     kill -1 "$CLUSTER_D_PID"
-    rm -rf test-config
+    rm -rf 'test-config'
     sleep 2
 }

@@ -56,6 +56,18 @@ type RESTAPI struct {
 	wg           sync.WaitGroup
 }
 
+// Config provide is used in the NewRESTAPI constructor to define the desired
+// parameters for the RESTAPI. The only required field is apiMAddr, the rest
+// of the fields are optional. Generally, if an optional field is empty
+// the corresponding feature will not be used.
+type Config struct {
+	// required
+	ApiMAddr ma.Multiaddr
+	// optional
+	TLS            *tls.Config
+	BasicAuthCreds map[string]string
+}
+
 type route struct {
 	Name        string
 	Method      string
@@ -67,36 +79,23 @@ type peerAddBody struct {
 	PeerMultiaddr string `json:"peer_multiaddress"`
 }
 
-// NewRESTAPI creates a new REST API component. It receives
-// the multiaddress on which the API listens.
-func NewRESTAPI(apiMAddr ma.Multiaddr) (*RESTAPI, error) {
-	n, addr, err := manet.DialArgs(apiMAddr)
+// NewRESTAPI creates a new REST API component. It receives the multiaddress on
+// which the API listens and a Config object.
+func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
+	n, addr, err := manet.DialArgs(cfg.ApiMAddr)
 	if err != nil {
 		return nil, err
 	}
-	l, err := net.Listen(n, addr)
+	var l net.Listener
+	if cfg.TLS != nil {
+		l, err = tls.Listen(n, addr, cfg.TLS)
+	} else {
+		l, err = net.Listen(n, addr)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return newRESTAPI(apiMAddr, l)
-}
 
-// NewTlsRESTAPI creates a new REST API component that uses TLS for security
-// (authentication, encryption). It receives the multiaddress on which the API
-// listens, as well as paths to certificate and private key files
-func NewTLSRESTAPI(apiMAddr ma.Multiaddr, tlsCfg *tls.Config) (*RESTAPI, error) {
-	n, addr, err := manet.DialArgs(apiMAddr)
-	if err != nil {
-		return nil, err
-	}
-	l, err := tls.Listen(n, addr, tlsCfg)
-	if err != nil {
-		return nil, err
-	}
-	return newRESTAPI(apiMAddr, l)
-}
-
-func newRESTAPI(apiMAddr ma.Multiaddr, l net.Listener) (*RESTAPI, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	s := &http.Server{
 		ReadTimeout:  RESTAPIServerReadTimeout,
@@ -111,23 +110,71 @@ func newRESTAPI(apiMAddr ma.Multiaddr, l net.Listener) (*RESTAPI, error) {
 	api := &RESTAPI{
 		ctx:      ctx,
 		cancel:   cancel,
-		apiAddr:  apiMAddr,
+		apiAddr:  cfg.ApiMAddr,
 		listener: l,
 		server:   s,
 		rpcReady: make(chan struct{}, 1),
 	}
+	api.addRoutes(router, cfg.BasicAuthCreds)
+	api.run()
 
+	return api, nil
+}
+
+func (api *RESTAPI) addRoutes(router *mux.Router, basicAuthCreds map[string]string) {
 	for _, route := range api.routes() {
+		if basicAuthCreds != nil {
+			route.HandlerFunc = basicAuth(route.HandlerFunc, basicAuthCreds)
+		}
 		router.
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(route.HandlerFunc)
 	}
-
 	api.router = router
-	api.run()
-	return api, nil
+}
+
+func basicAuth(h http.HandlerFunc, credentials map[string]string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			resp, err := unauthorizedResp()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			http.Error(w, resp, 401)
+			return
+		}
+
+		authorized := false
+		for u, p := range credentials {
+			if u == username && p == password {
+				authorized = true
+			}
+		}
+		if !authorized {
+			resp, err := unauthorizedResp()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			http.Error(w, resp, 401)
+			return
+		}
+		h.ServeHTTP(w, r)
+	}
+}
+
+func unauthorizedResp() (string, error) {
+	apiError := api.Error{
+		Code:    401,
+		Message: "Unauthorized",
+	}
+	resp, err := json.Marshal(apiError)
+	return string(resp), err
 }
 
 func (rest *RESTAPI) routes() []route {
