@@ -8,7 +8,8 @@
     "cluster_multiaddress": "/ip4/0.0.0.0/tcp/9096",
     "api_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
     "basic_auth_credentials": {
-        "testuser": "testpass"
+        "testuser": "testpass",
+        "userwithoutpass": ""
     },
     "ipfs_proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
     "ipfs_node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
