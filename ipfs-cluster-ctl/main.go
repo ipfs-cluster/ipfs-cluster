@@ -474,7 +474,7 @@ func request(method, path string, body io.Reader, args ...string) *http.Response
 
 	client := &http.Client{Transport: defaultTransport}
 	resp, err := client.Do(r)
-
+	checkErr(fmt.Sprintf("performing request to %s", defaultHost), err)
 	return resp
 }
 
