@@ -114,13 +114,13 @@ func TestValidate(t *testing.T) {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ID = ""
-	if err := cfg.Validate(); err == nil {
+	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
 	cfg.MonitorPingInterval = 0
-	if err := cfg.Validate(); err == nil {
+	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 }
