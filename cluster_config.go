@@ -159,10 +159,6 @@ func (cfg *Config) Validate() error {
 		return errors.New("No cluster.private_key set")
 	}
 
-	if cfg.Secret == nil {
-		return errors.New("cluster.secret not initialized")
-	}
-
 	if cfg.Peers == nil {
 		return errors.New("cluster.peers is undefined")
 	}

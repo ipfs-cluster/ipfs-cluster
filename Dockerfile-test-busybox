@@ -10,6 +10,11 @@ COPY . $SRC_PATH
 WORKDIR $SRC_PATH
 RUN make install
 
+RUN cd /tmp && \
+    wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 && \
+    chmod +x jq-linux64
+    
+
 #------------------------------------------------------
 FROM ipfs/go-ipfs
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -26,13 +31,19 @@ EXPOSE 9095
 EXPOSE 9096
 
 COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
-COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-ctl
-COPY --from=builder $SRC_PATH/docker/entrypoint.sh /usr/local/bin/start-daemons.sh
+COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
+COPY --from=builder $SRC_PATH/docker/test-entrypoint.sh /usr/local/bin/start-daemons.sh
+COPY --from=builder $SRC_PATH/docker/random-stopper.sh /usr/local/bin/random-stopper.sh
+COPY --from=builder $SRC_PATH/docker/random-killer.sh /usr/local/bin/random-killer.sh
+COPY --from=builder $SRC_PATH/docker/wait-killer-stopper.sh /usr/local/bin/wait-killer-stopper.sh
+COPY --from=builder $SRC_PATH/docker/cluster-restart.sh /usr/local/bin/cluster-restart.sh
+COPY --from=builder /tmp/jq-linux64 /usr/local/bin/jq
+
 
 RUN mkdir -p $IPFS_CLUSTER_PATH && \
     chown 1000:100 $IPFS_CLUSTER_PATH
 
 VOLUME $IPFS_CLUSTER_PATH
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start-daemons.sh"]
+ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]
 
 CMD ["$IPFS_CLUSTER_OPTS"]
