@@ -227,9 +227,9 @@ configuration.
 			},
 		},
 		{
-			Name:   "run",
+			Name:   "daemon",
 			Usage:  "run the IPFS Cluster peer (default)",
-			Action: run,
+			Action: daemon,
 		},
 	}
 
@@ -253,7 +253,15 @@ configuration.
 	app.Run(os.Args)
 }
 
+// run daemon() by default, or error.
 func run(c *cli.Context) error {
+	if len(c.Args()) > 0 {
+		return fmt.Errorf("Unknown subcommand. Run \"%s help\" for more info", programName)
+	}
+	return daemon(c)
+}
+
+func daemon(c *cli.Context) error {
 	// Load all the configurations
 	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
 	err := cfg.LoadJSONFromFile(configPath)
