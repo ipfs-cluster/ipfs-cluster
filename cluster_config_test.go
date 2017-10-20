@@ -96,7 +96,12 @@ func TestLoadJSON(t *testing.T) {
 func TestToJSON(t *testing.T) {
 	cfg := &Config{}
 	cfg.LoadJSON(ccfgTestJSON)
-	_, err := cfg.ToJSON()
+	newjson, err := cfg.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg = &Config{}
+	err = cfg.LoadJSON(newjson)
 	if err != nil {
 		t.Fatal(err)
 	}
