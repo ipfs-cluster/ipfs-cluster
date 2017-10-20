@@ -1,42 +1,68 @@
 FROM golang:1.9-stretch AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
-# This build state just builds the cluster binaries
+# The testing container needs bash, so we use alpine rather than
+# busybox. That means we need to mimic the whole ipfs-dockerfile rather
+# than just re-use it.
 
 ENV GOPATH     /go
 ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
 
+# Install IPFS, su-exec
+ENV SUEXEC_VERSION v0.2
+RUN go get github.com/ipfs/ipfs-update \
+    && ipfs-update install latest \
+    && cd /tmp \
+    && git clone https://github.com/ncopa/su-exec.git \
+    && cd su-exec \
+    && git checkout -q $SUEXEC_VERSION \
+    && make
+
+# install cluster
 COPY . $SRC_PATH
 WORKDIR $SRC_PATH
 RUN make install
-
 #------------------------------------------------------
-FROM ipfs/go-ipfs
+FROM debian:stretch-slim
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
-
-# This is the container which just puts the previously
-# built binaries on the go-ipfs-container.
 
 ENV GOPATH     /go
 ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
+ENV IPFS_PATH  /data/ipfs
 ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
+
+RUN mkdir -p $IPFS_CLUSTER_PATH && \
+    mkdir -p $IPFS_PATH && \
+    useradd -d $IPFS_PATH -u 1000 -g users ipfs && \
+    chown ipfs:users $IPFS_PATH && \
+    chown ipfs:users $IPFS_CLUSTER_PATH
+
+RUN apt-get update && apt-get install -y jq procps
 
 EXPOSE 9094
 EXPOSE 9095
 EXPOSE 9096
+EXPOSE 4001
+EXPOSE 4002/udp
+EXPOSE 5001
+EXPOSE 8080
+EXPOSE 8081
 
-COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
-COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-ctl
 COPY --from=builder $SRC_PATH/docker/test-entrypoint.sh /usr/local/bin/start-daemons.sh
 COPY --from=builder $SRC_PATH/docker/random-stopper.sh /usr/local/bin/random-stopper.sh
 COPY --from=builder $SRC_PATH/docker/random-killer.sh /usr/local/bin/random-killer.sh
 COPY --from=builder $SRC_PATH/docker/wait-killer-stopper.sh /usr/local/bin/wait-killer-stopper.sh
 COPY --from=builder $SRC_PATH/docker/cluster-restart.sh /usr/local/bin/cluster-restart.sh
+COPY --from=builder $GOPATH/bin/ipfs /usr/local/bin/ipfs
+COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
+COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
 
-RUN mkdir -p $IPFS_CLUSTER_PATH && \
-    chown 1000:100 $IPFS_CLUSTER_PATH
-
+VOLUME $IPFS_PATH
 VOLUME $IPFS_CLUSTER_PATH
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start-daemons.sh"]
 
+ENV IPFS_LOGGING ""
+
+ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]
 CMD ["$IPFS_CLUSTER_OPTS"]
