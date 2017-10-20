@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
@@ -20,7 +19,9 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
-	"github.com/ipfs/ipfs-cluster/api/restapi"
+	"github.com/ipfs/ipfs-cluster/api/rest"
+	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
@@ -147,11 +148,6 @@ func main() {
 	//app.Copyright = "© Protocol Labs, Inc."
 	app.Version = ipfscluster.Version
 	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:   "init",
-			Usage:  "create a default configuration and exit",
-			Hidden: true,
-		},
 		cli.StringFlag{
 			Name:   "config, c",
 			Value:  DefaultPath,
@@ -182,8 +178,8 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "alloc, a",
-			Value: "disk",
-			Usage: "allocation strategy [reposize, pincount]. Overrides the \"allocation_strategy\" value from the configuration",
+			Value: "disk-freespace",
+			Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
 		},
 	}
 
@@ -214,7 +210,19 @@ configuration.
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
-				initConfig(c.GlobalBool("force"), userSecret, userSecretDefined)
+				cfg, clustercfg, _, _, _, _, _, _ := makeConfigs()
+
+				// Generate defaults for all registered components
+				err := cfg.Default()
+				checkErr("generating default configuration", err)
+
+				// Set user secret
+				if userSecretDefined {
+					clustercfg.Secret = userSecret
+				}
+
+				// Save
+				saveConfig(cfg, c.GlobalBool("force"))
 				return nil
 			},
 		},
@@ -246,56 +254,42 @@ configuration.
 }
 
 func run(c *cli.Context) error {
-	if c.Bool("init") {
-		initConfig(c.Bool("force"), nil, false)
-		return nil
-	}
-
-	cfg, err := loadConfig()
+	// Load all the configurations
+	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+	err := cfg.LoadJSONFromFile(configPath)
 	checkErr("loading configuration", err)
-	cfg.Shadow()
 
 	if a := c.String("bootstrap"); a != "" {
-		if len(cfg.ClusterPeers) > 0 && !c.Bool("force") {
-			return errors.New("the configuration provides ClusterPeers. Use -f to ignore and proceed bootstrapping")
+		if len(clusterCfg.Peers) > 0 && !c.Bool("force") {
+			return errors.New("the configuration provides cluster.Peers. Use -f to ignore and proceed bootstrapping")
 		}
 		joinAddr, err := ma.NewMultiaddr(a)
 		if err != nil {
 			return fmt.Errorf("error parsing multiaddress: %s", err)
 		}
-		cfg.Bootstrap = []ma.Multiaddr{joinAddr}
-		cfg.ClusterPeers = []ma.Multiaddr{}
+		clusterCfg.Bootstrap = []ma.Multiaddr{joinAddr}
+		clusterCfg.Peers = []ma.Multiaddr{}
 	}
 
 	if c.Bool("leave") {
-		cfg.LeaveOnShutdown = true
+		clusterCfg.LeaveOnShutdown = true
 	}
 
-	if a := c.String("alloc"); a != "" {
-		cfg.AllocationStrategy = a
-	}
-
-	var api *restapi.RESTAPI
-	var tlsCfg *tls.Config
-	if len(cfg.SSLCertFile) != 0 || len(cfg.SSLKeyFile) != 0 {
-		tlsCfg, err = newTLSConfig(cfg.SSLCertFile, cfg.SSLKeyFile)
-		checkErr("creating TLS config: ", err)
-	}
-	apiConfig := &restapi.Config{ApiMAddr: cfg.APIAddr, TLS: tlsCfg, BasicAuthCreds: cfg.BasicAuthCredentials}
-	api, err = restapi.NewRESTAPI(apiConfig)
+	api, err := rest.NewAPI(apiCfg)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfshttp.NewConnector(
-		cfg.IPFSNodeAddr, cfg.IPFSProxyAddr)
+	proxy, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(cfg.ID)
-	mon := basic.NewStdPeerMonitor(cfg.MonitoringIntervalSeconds)
-	informer, alloc := setupAllocation(cfg.AllocationStrategy)
+	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
+	mon, err := basic.NewMonitor(monCfg)
+	checkErr("creating Monitor component", err)
+	informer, alloc := setupAllocation(c.String("alloc"), diskInfCfg, numpinInfCfg)
 
 	cluster, err := ipfscluster.NewCluster(
-		cfg,
+		clusterCfg,
+		consensusCfg,
 		api,
 		proxy,
 		state,
@@ -334,6 +328,7 @@ var facilities = []string{
 	"ascendalloc",
 	"descendalloc",
 	"diskinfo",
+	"config",
 }
 
 func setupLogging(lvl string) {
@@ -342,22 +337,19 @@ func setupLogging(lvl string) {
 	}
 }
 
-func setupAllocation(name string) (ipfscluster.Informer, ipfscluster.PinAllocator) {
+func setupAllocation(name string, diskInfCfg *disk.Config, numpinInfCfg *numpin.Config) (ipfscluster.Informer, ipfscluster.PinAllocator) {
 	switch name {
-	case "disk":
-		// set strategy to default for disk, continue through cases
-		name = "disk-freespace"
-		fallthrough
-	case "disk-freespace":
-		informer, err := disk.NewInformerWithMetric(disk.MetricFreeSpace, name)
-		checkErr("Setting up allocation strategy", err)
+	case "disk", "disk-freespace":
+		informer, err := disk.NewInformer(diskInfCfg)
+		checkErr("creating informer", err)
 		return informer, descendalloc.NewAllocator()
 	case "disk-reposize":
-		informer, err := disk.NewInformerWithMetric(disk.MetricRepoSize, name)
-		checkErr("Setting up allocation strategy", err)
+		informer, err := disk.NewInformer(diskInfCfg)
+		checkErr("creating informer", err)
 		return informer, ascendalloc.NewAllocator()
 	case "numpin", "pincount":
-		informer := numpin.NewInformer()
+		informer, err := numpin.NewInformer(numpinInfCfg)
+		checkErr("creating informer", err)
 		return informer, ascendalloc.NewAllocator()
 	default:
 		err := errors.New("unknown allocation strategy")
@@ -378,21 +370,14 @@ func setupDebug() {
 	//SetFacilityLogLevel("libp2p-raft", l)
 }
 
-func initConfig(force bool, userSecret []byte, userSecretDefined bool) {
+func saveConfig(cfg *config.Manager, force bool) {
 	if _, err := os.Stat(configPath); err == nil && !force {
-		err := fmt.Errorf("%s exists. Try running with -f", configPath)
+		err := fmt.Errorf("%s exists. Try running: %s -f init", configPath, programName)
 		checkErr("", err)
 	}
 
-	cfg, err := ipfscluster.NewDefaultConfig()
-	checkErr("creating default configuration", err)
-
-	if userSecretDefined {
-		cfg.ClusterSecret = userSecret
-	}
-
-	err = os.MkdirAll(filepath.Dir(configPath), 0700)
-	err = cfg.Save(configPath)
+	err := os.MkdirAll(filepath.Dir(configPath), 0700)
+	err = cfg.SaveJSON(configPath)
 	checkErr("saving new configuration", err)
 	out("%s configuration written to %s\n",
 		programName, configPath)
@@ -413,10 +398,6 @@ func userProvidedSecret(enterSecret bool) ([]byte, bool) {
 	return decodedSecret, true
 }
 
-func loadConfig() (*ipfscluster.Config, error) {
-	return ipfscluster.LoadConfig(configPath)
-}
-
 func promptUser(msg string) string {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Print(msg)
@@ -424,22 +405,21 @@ func promptUser(msg string) string {
 	return scanner.Text()
 }
 
-func newTLSConfig(certFile, keyFile string) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, errors.New("Error loading TLS certficate/key: " + err.Error())
-	}
-	// based on https://github.com/denji/golang-tls
-	return &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-		Certificates: []tls.Certificate{cert},
-	}, nil
+func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *basic.Config, *disk.Config, *numpin.Config) {
+	cfg := config.NewManager()
+	clusterCfg := &ipfscluster.Config{}
+	apiCfg := &rest.Config{}
+	ipfshttpCfg := &ipfshttp.Config{}
+	consensusCfg := &raft.Config{}
+	monCfg := &basic.Config{}
+	diskInfCfg := &disk.Config{}
+	numpinInfCfg := &numpin.Config{}
+	cfg.RegisterComponent(config.Cluster, clusterCfg)
+	cfg.RegisterComponent(config.API, apiCfg)
+	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
+	cfg.RegisterComponent(config.Consensus, consensusCfg)
+	cfg.RegisterComponent(config.Monitor, monCfg)
+	cfg.RegisterComponent(config.Informer, diskInfCfg)
+	cfg.RegisterComponent(config.Informer, numpinInfCfg)
+	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg, numpinInfCfg
 }

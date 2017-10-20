@@ -22,7 +22,6 @@ import (
 
 func init() {
 	_ = logging.Logger
-	ConnectSwarmsDelay = 0
 }
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
@@ -31,7 +30,13 @@ func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 		mock.Addr, mock.Port))
 	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
 
-	ipfs, err := NewConnector(nodeMAddr, proxyMAddr)
+	cfg := &Config{}
+	cfg.Default()
+	cfg.NodeAddr = nodeMAddr
+	cfg.ProxyAddr = proxyMAddr
+	cfg.ConnectSwarmsDelay = 0
+
+	ipfs, err := NewConnector(cfg)
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
@@ -586,6 +591,6 @@ func TestConfigKey(t *testing.T) {
 }
 
 func proxyURL(c *Connector) string {
-	_, addr, _ := manet.DialArgs(c.proxyMAddr)
+	_, addr, _ := manet.DialArgs(c.config.ProxyAddr)
 	return fmt.Sprintf("http://%s/api/v0", addr)
 }

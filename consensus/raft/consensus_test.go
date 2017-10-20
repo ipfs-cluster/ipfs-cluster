@@ -51,8 +51,12 @@ func makeTestingHost(t *testing.T, port int) host.Host {
 func testingConsensus(t *testing.T, port int) *Consensus {
 	h := makeTestingHost(t, port)
 	st := mapstate.NewMapState()
-	cc, err := NewConsensus([]peer.ID{h.ID()},
-		h, fmt.Sprintf("raftFolderFromTests%d", port), st)
+
+	cfg := &Config{}
+	cfg.Default()
+	cfg.DataFolder = fmt.Sprintf("raftFolderFromTests%d", port)
+
+	cc, err := NewConsensus([]peer.ID{h.ID()}, h, cfg, st)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}

@@ -19,7 +19,7 @@ var logger = logging.Logger("ascendalloc")
 // AscendAllocator extends the SimpleAllocator
 type AscendAllocator struct{}
 
-// NewAscendAllocator returns an initialized AscendAllocator
+// NewAllocator returns an initialized AscendAllocator
 func NewAllocator() AscendAllocator {
 	return AscendAllocator{}
 }

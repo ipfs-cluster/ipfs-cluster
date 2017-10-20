@@ -19,7 +19,7 @@ var logger = logging.Logger("descendalloc")
 // DescendAllocator extends the SimpleAllocator
 type DescendAllocator struct{}
 
-// NewDescendAllocator returns an initialized DescendAllocator
+// NewAllocator returns an initialized DescendAllocator
 func NewAllocator() DescendAllocator {
 	return DescendAllocator{}
 }

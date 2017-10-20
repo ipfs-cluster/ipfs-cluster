@@ -66,9 +66,8 @@ func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
 			go func() {
 				time.Sleep(1 * time.Second)
 				pm.cluster.consensus.Shutdown()
-				pm.cluster.config.unshadow()
 				pm.cluster.config.Bootstrap = pm.peersAddrs()
-				pm.cluster.config.Save("")
+				pm.cluster.config.NotifySave()
 				pm.resetPeers()
 				time.Sleep(4 * time.Second)
 				pm.cluster.Shutdown()
@@ -80,14 +79,14 @@ func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
 }
 
 func (pm *peerManager) savePeers() {
-	pm.cluster.config.ClusterPeers = pm.peersAddrs()
-	pm.cluster.config.Save("")
+	pm.cluster.config.Peers = pm.peersAddrs()
+	pm.cluster.config.NotifySave()
 }
 
 func (pm *peerManager) resetPeers() {
 	pm.m.Lock()
 	pm.peermap = make(map[peer.ID]ma.Multiaddr)
-	pm.peermap[pm.self] = pm.cluster.config.ClusterAddr
+	pm.peermap[pm.self] = pm.cluster.config.ListenAddr
 	pm.m.Unlock()
 }
 

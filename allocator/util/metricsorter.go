@@ -1,4 +1,4 @@
-// Package allocator.util is a utility package used by the allocator
+// Package util is a utility package used by the allocator
 // implementations. This package provides the SortNumeric function, which may be
 // used by an allocator to sort peers by their metric values (ascending or
 // descending).

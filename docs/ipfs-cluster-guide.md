@@ -56,23 +56,91 @@ You can deploy cluster in the way which fits you best, as both ipfs and ipfs-clu
 
 ## The configuration file
 
-The ipfs-cluster configuration file is usually found at `~/.ipfs-cluster/service.json` and holds all the configurable options for cluster.
+The ipfs-cluster configuration file is usually found at `~/.ipfs-cluster/service.json`. It holds all the configurable options for cluster and its different components.
 
-A default configuration file can be generated with `ipfs-cluster-service init`. It is recommended that you re-create the configuration file after an upgrade, to make sure that you are up to date with any new options. Tthe `-c` option to specify a different configuration folder path allows to create a default configuration in a temporary folder. Then you can compare with the existing one. Non-specified options will take default values so an old configuration will usually work anyways.
+A default configuration file can be generated with `ipfs-cluster-service init`. It is recommended that you re-create the configuration file after an upgrade, to make sure that you are up to date with any new options. The `-c` option to specify a different configuration folder path allows to create a default configuration in a temporary folder, which you can then compare with the existing one.
 
-The configuration stores a `cluster_secret` which is a 32 byte (hex-encoded) key which **must be shared by all cluster peers**. Using an empty key has security implications (see the Security section). Using different keys will prevent different peers from talking to each other.
+The `cluster` section of the configuration stores a `secret`: a 32 byte (hex-encoded) key which **must be shared by all cluster peers**. Using an empty key has security implications (see the Security section). Using different keys will prevent different peers from talking to each other.
 
-The configuration options are documented at: https://godoc.org/github.com/ipfs/ipfs-cluster#JSONConfig . It is recommended that you read them carefully before running your cluster.
+Each section of the configuration file and the options in it depend on their associated component. We offer here a quick reference of the configuration format:
+
+```json
+{
+  "cluster": { // main cluster component configuration
+    "id": "QmZyXksFG3vmLdAnmkXreMVZvxc4sNi1u21VxbRdNa2S1b", // peer ID
+    "private_key": "<base64 representation of the key>",
+    "secret": "<32-bit hex encoded secret>",
+    "peers": [], // List of peers' multiaddresses
+    "bootstrap": [], // List of bootstrap peers' multiaddresses
+    "leave_on_shutdown": false, // Abandon consensus on exit
+    "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096", // Cluster RPC listen
+    "state_sync_interval": "1m0s", // Time between state syncs
+    "ipfs_sync_interval": "2m10s", // Time between ipfs-state syncs
+    "replication_factor": -1, // Replication factor. -1 == all
+    "monitor_ping_interval": "15s" // Time between alive-pings
+  },
+  "consensus": {
+    "raft": { // Raft options, see hashicorp/raft.Configuration
+      "data_folder": "<custom consensus data folder>"
+      "heartbeat_timeout": "1s",
+      "election_timeout": "1s",
+      "commit_timeout": "50ms",
+      "max_append_entries": 64,
+      "trailing_logs": 10240,
+      "snapshot_interval": "2m0s",
+      "snapshot_threshold": 8192,
+      "leader_lease_timeout": "500ms"
+    }
+  },
+  "api": {
+    "restapi": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9094", // API listen
+      "read_timeout": "30s",
+      "read_header_timeout": "5s",
+      "write_timeout": "1m0s",
+      "idle_timeout": "2m0s",
+      "basic_auth_credentials": [ // leave null for no-basic-auth
+        "user": "pass"
+      ]
+    }
+  },
+  "ipfs_connector": {
+    "ipfshttp": {
+      "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095", // ipfs-proxy
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001", // ipfs-node location
+      "connect_swarms_delay": "7s",
+      "proxy_read_timeout": "10m0s",
+      "proxy_read_header_timeout": "5s",
+      "proxy_write_timeout": "10m0s",
+      "proxy_idle_timeout": "1m0s"
+    }
+  },
+  "monitor": {
+    "monbasic": {
+      "check_interval": "15s" // how often to check for expired metrics/alert
+    }
+  },
+  "informer": {
+    "disk": {
+      "metric_ttl": "30s", // determines how often metric is updated
+      "metric_type": "freespace" // or "reposize"
+    },
+    "numpin": {
+      "metric_ttl": "10s"
+    }
+  }
+}
+```
 
 ## Starting your cluster
 
-`ipfs-cluster-service` will launch your cluster peer. If you have not configured any `cluster_peers` in the configuration, nor any `bootstrap` addresses, a single-peer cluster will be launched.
+`ipfs-cluster-service` will launch your cluster peer. If you have not configured any `cluster.peers` in the configuration, nor any `cluster.bootstrap` addresses, a single-peer cluster will be launched.
 
-When filling in `cluster_peers` with some other peers' listening multiaddresses (i.e. `/ip4/192.168.1.103/tcp/9096/ipfs/QmQHKLBXfS7hf8o2acj7FGADoJDLat3UazucbHrgxqisim`), the initialization process will consist in joining the current cluster's consensus, waiting for a leader (either to learn or to elect one), and syncing up to the last known state.
+When filling in `peers` with some other peers' listening multiaddresses (i.e. `/ip4/192.168.1.103/tcp/9096/ipfs/QmQHKLBXfS7hf8o2acj7FGADoJDLat3UazucbHrgxqisim`), the initialization process will consist in joining the current cluster's consensus, waiting for a leader (either to learn or to elect one), and syncing up to the last known state.
 
-If you are using the `cluster_peers` configuration value, then **it is very important that the `cluster_peers` configuration value in all cluster members has the same value.** If not, your node will misbehave in not obvious ways. You can start all nodes at once when using this method. If they are not started at once, a node will be missing from the cluster, and since other peers expect it to be online, the cluster will not be in a healthy state (although it will operate if at least half of the peers are running).
+If you are using the `peers` configuration value, then **it is very important that the `peers` configuration value in all cluster members has the same value.** If not, your node will misbehave in not obvious ways. You can start all nodes at once when using this method. If they are not started at once, a node will be missing from the cluster, and since other peers expect it to be online, the cluster will not be in a healthy state (although it will operate if at least half of the peers are running).
 
-Alternatively, you can use the `bootstrap` variable to provide one or several bootstrap peers. Bootstrapping will use the given peer to request the list of cluster peers and fill-in the `cluster_peers` variable automatically. The bootstrapped peer will be, in turn, added to the cluster and made known to every other existing (and connected peer).
+Alternatively, you can use the `bootstrap` variable to provide one or several bootstrap peers. Bootstrapping will use the given peer to request the list of cluster peers and fill-in the `peers` variable automatically. The bootstrapped peer will be, in turn, added to the cluster and made known to every other existing (and connected peer).
 
 Use the `bootstrap` method only when the rest of the cluster is healthy and all peers are running. You can also launch several peers at once, as long as they are bootstrapping from the same already-running-peer. The `--bootstrap` flag allows to provide a bootsrapping peer directly when calling `ipfs-cluster-service`.
 
@@ -91,9 +159,9 @@ For example, a commit operation to the log is triggered with  `ipfs-cluster-ctl 
 
 The "peer add" and "peer remove" operations also trigger log entries and fully depend on a healthy consensus status. Modifying the cluster peers is a tricky operation because it requires informing every peer of the new peer set. If a peer is down during this operation, it is likely that it will not learn about it when it comes up again. Thus, it is recommended to bootstrap the peer again when the cluster has changed in the meantime.
 
-The consensus log data is backed in the `consensus_data_folder`. This folder stores two types of information: the [boltDB] database storing the Raft log, and the state snapshots. Snapshots from the log are performed regularly when the log grows too big (or on shutdown). When a peer is far behind in catching up with the log, Raft may opt to send a snapshot directly, rather than to send every log entry that make up the state individually.
+By default the consensus log data is backed in the `ipfs-cluster-data` subfolder, next to the main configuration file. This folder stores two types of information: the [boltDB] database storing the Raft log, and the state snapshots. Snapshots from the log are performed regularly when the log grows too big (or on shutdown). When a peer is far behind in catching up with the log, Raft may opt to send a snapshot directly, rather than to send every log entry that make up the state individually.
 
-When running a cluster peer, **it is very important that the consensus data folder does not contain any data from a different cluster setup**, or data from diverging logs. What this essentially means is that different Raft logs should not be mixed. Removing the `consensus_data_folder`, will destroy all consensus data from the peer, but, as long as the rest of the cluster is running, it will recover last state upon start by fetching it from a different cluster peer.
+When running a cluster peer, **it is very important that the consensus data folder does not contain any data from a different cluster setup**, or data from diverging logs. What this essentially means is that different Raft logs should not be mixed. Removing the `ipfs-cluster-data` folder, will destroy all consensus data from the peer, but, as long as the rest of the cluster is running, it will recover last state upon start by fetching it from a different cluster peer.
 
 On clean shutdowns, ipfs-cluster peers will save a human-readable state snapshot in the `~/.ipfs-cluster/backups` folder, which can be used to inspect the last known state for that peer.
 
@@ -118,7 +186,7 @@ In normal operation, all three states are in sync, as updates to the *shared sta
 
 ## Static cluster membership considerations
 
-We call a static cluster, that in which the set of `cluster_peers` is fixed, where "peer add"/"peer rm"/bootstrapping operations don't happen (at least normally) and where every cluster member is expected to be running all the time.
+We call a static cluster, that in which the set of `cluster.peers` is fixed, where "peer add"/"peer rm"/bootstrapping operations don't happen (at least normally) and where every cluster member is expected to be running all the time.
 
 Static clusters are a way to run ipfs-cluster in a stable fashion, since the membership of the consensus remains unchanged, they don't suffer the dangers of dynamic peer sets, where it is important that operations modifying the peer set suceed for every cluster member.
 
@@ -126,10 +194,11 @@ Static clusters expect every member peer to be up and responding. Otherwise, the
 
 ## Dynamic cluster membership considerations
 
-We call a dynamic cluster, that in which the set of `cluster_peers` changes. Nodes are bootstrapped to existing cluster peers, the "peer add" and "peer rm" operations are used and/or the `leave_on_shutdown` configuration option is enabled. This option allows a node to abandon the consensus membership when shutting down. Thus reducing the cluster size by one.
+We call a dynamic cluster, that in which the set of `cluster.peers` changes. Nodes are bootstrapped to existing cluster peers, the "peer add" and "peer rm" operations are used and/or the `cluster.leave_on_shutdown` configuration option is enabled. This option allows a node to abandon the consensus membership when shutting down. Thus reducing the cluster size by one.
 
 Dynamic clusters allow greater flexibility at the cost of stablity. Join and leave operations are tricky as they change the consensus membership and they are likely to create bad situations in unhealthy clusters. Also, bear in mind than removing a peer from the cluster will trigger a re-allocation of the pins that were associated to it. If the replication factor was 1, it is recommended to keep the ipfs daemon running so the content can actually be copied out to a daemon managed by a different peer.
 
+Peers joining an existing cluster should have a non-divergent state. That means: their consensus `ipfs-cluster-data` folder should be empty or, if not, it should contain data belonging to the existing cluster. A joining peer should have not been running on its own separately from the running cluster. When a peer leaves or is removed, any existing peers will be saved as `bootstrap` peers, so that it is not easy to start the departing peer in "single-peer-mode" by mistake: that would essentially create a diverging state, preventing it to re-join its previous cluster cleanly.
 
 The best way to diagnose and fix a broken cluster membership issue is to:
 
@@ -140,9 +209,11 @@ The best way to diagnose and fix a broken cluster membership issue is to:
 * If the peer count is different in the peers responding, identify peers with
 wrong peer count, stop them, fix `cluster_peers` manually and restart them.
 * `ipfs-cluster-ctl --enc=json peers ls` provides additional useful information, like the list of peers for every responding peer.
-* In cases were no Leader can be elected, then manual stop and editing of `cluster_peers` is necessary.
+* In cases were no Leader can be elected, then manual stop and editing of `cluster.peers` is necessary.
 
-Note that when adding a peer to an existing cluster, the new peer must be configured with the same `cluster_secret` as the rest of the cluster.
+If you have a problematic cluster peer trying to join an otherwise working cluster, the safest way is to remove the `ipfs-cluster-data` folder and to set the correct `bootstrap`. The consensus algorithm will then resend the state from scratch.
+
+Note that when adding a peer to an existing cluster, **the new peer must be configured with the same `cluster.secret` as the rest of the cluster**.
 
 
 
@@ -181,7 +252,7 @@ The process is very similar to the "Pinning an item" described above. Removed pi
 
 ipfs-cluster includes a basic monitoring component which gathers metrics and triggers alerts when a metric is no longer renewed. There are currently two types of metrics:
 
-* `informer` metrics are used to decide on allocations when a pin request arrives. Different "informers" can be configured. The default is the `reposize` informer.
+* `informer` metrics are used to decide on allocations when a pin request arrives. Different "informers" can be configured. The default is the disk informer using the `freespace` metric.
 * a `ping` metric is used to monitor peers.
 
 Every metric carries a Time-To-Live associated with it. ipfs-cluster peers pushes metrics from every peer to the cluster Leader in TTL/2 intervals. When a metric for an existing cluster peer stops arriving and previous metrics have outlived their Time-To-Live, the monitoring component triggers an alert for that metric.
@@ -227,8 +298,8 @@ Note that **this feature has not been extensively tested**.
 
 ipfs-cluster peers communicate which eachother using libp2p-encrypted streams (`secio`), with the ipfs daemon using plain http, provide an HTTP API themselves (used by `ipfs-cluster-ctl`) and an IPFS Proxy. This means that there are four endpoints to be wary about when thinking of security:
 
-* `cluster_multiaddress`, defaults to `/ip4/0.0.0.0/tcp/9096` and is the listening address to communicate with other peers (via Remote RPC calls mostly). These endpoints are protected by the `cluster_secret` specified in the configuration. Only peers holding the same secret can communicate between
-each other. If the secret is empty, then **nothing prevents anyone from sending RPC commands to the cluster RPC endpoint** and thus, controlling the cluster and the ipfs daemon (at least when it comes to pin/unpin/pin ls and swarm connect operations. ipfs-cluster administrators should therefore be careful keep this endpoint unaccessible to third-parties when no `cluster_secret` is set.
+* `cluster_multiaddress`, defaults to `/ip4/0.0.0.0/tcp/9096` and is the listening address to communicate with other peers (via Remote RPC calls mostly). These endpoints are protected by the `cluster.secret` value specified in the configuration. Only peers holding the same secret can communicate between
+each other. If the secret is empty, then **nothing prevents anyone from sending RPC commands to the cluster RPC endpoint** and thus, controlling the cluster and the ipfs daemon (at least when it comes to pin/unpin/pin ls and swarm connect operations. ipfs-cluster administrators should therefore be careful keep this endpoint unaccessible to third-parties when no `cluster.secret` is set.
 * `api_listen_multiaddress`, defaults to `/ip4/127.0.0.1/tcp/9094` and is the listening address for the HTTP API that is used by `ipfs-cluster-ctl`. The considerations for `api_listen_multiaddress` are the same as for `cluster_multiaddress`, as access to this endpoint allows to control ipfs-cluster and the ipfs daemon to a extent. By default, this endpoint listens on locahost which means it can only be used by `ipfs-cluster-ctl` running in the same host.
 * `ipfs_proxy_listen_multiaddress` defaults to `/ip4/127.0.0.1/tcp/9095`. As explained before, this endpoint offers control of ipfs-cluster pin/unpin operations and a full access to the underlying ipfs daemon. This endpoint should be treated with the same precautions as the ipfs HTTP API.
 * `ipfs_node_multiaddress` defaults to `/ip4/127.0.0.1/tcp/5001` and contains the address of the ipfs daemon HTTP API. The recommendation is running IPFS on the same host as ipfs-cluster. This way it is not necessary to make ipfs API listen on other than localhost.
@@ -293,4 +364,3 @@ When a peer stops unexpectedly:
 ### `ipfs-cluster-ctl status <cid>` does not report CID information for all peers
 
 This is usually the result of a desync between the *shared state* and the *local state*, or between the *local state* and the ipfs state. If the problem does not autocorrect itself after a couple of minutes (thanks to auto-syncing), try running `ipfs-cluster-ctl sync [cid]` for the problematic item. You can also restart your node.
-

@@ -10,21 +10,26 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-// MetricTTL specifies how long our reported metric is valid in seconds.
-var MetricTTL = 10
-
 // MetricName specifies the name of our metric
 var MetricName = "numpin"
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces
 type Informer struct {
+	config    *Config
 	rpcClient *rpc.Client
 }
 
 // NewInformer returns an initialized Informer.
-func NewInformer() *Informer {
-	return &Informer{}
+func NewInformer(cfg *Config) (*Informer, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Informer{
+		config: cfg,
+	}, nil
 }
 
 // SetClient provides us with an rpc.Client which allows
@@ -73,6 +78,6 @@ func (npi *Informer) GetMetric() api.Metric {
 		Valid: valid,
 	}
 
-	m.SetTTL(MetricTTL)
+	m.SetTTLDuration(npi.config.MetricTTL)
 	return m
 }

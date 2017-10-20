@@ -1,6 +1,6 @@
-// Package restapi implements an IPFS Cluster API component. It provides
+// Package rest implements an IPFS Cluster API component. It provides
 // a REST-ish API to interact with Cluster over HTTP.
-package restapi
+package rest
 
 import (
 	"context"
@@ -11,9 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -26,24 +25,14 @@ import (
 
 var logger = logging.Logger("restapi")
 
-// Server settings
-var (
-	// maximum duration before timing out read of the request
-	RESTAPIServerReadTimeout = 30 * time.Second
-	// maximum duration before timing out write of the response
-	RESTAPIServerWriteTimeout = 60 * time.Second
-	// server-side the amount of time a Keep-Alive connection will be
-	// kept idle before being reused
-	RESTAPIServerIdleTimeout = 120 * time.Second
-)
-
-// RESTAPI implements an API and aims to provides
+// API implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
-type RESTAPI struct {
+type API struct {
 	ctx    context.Context
 	cancel func()
 
-	apiAddr   ma.Multiaddr
+	config *Config
+
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 	router    *mux.Router
@@ -54,18 +43,6 @@ type RESTAPI struct {
 	shutdownLock sync.Mutex
 	shutdown     bool
 	wg           sync.WaitGroup
-}
-
-// Config provide is used in the NewRESTAPI constructor to define the desired
-// parameters for the RESTAPI. The only required field is apiMAddr, the rest
-// of the fields are optional. Generally, if an optional field is empty
-// the corresponding feature will not be used.
-type Config struct {
-	// required
-	ApiMAddr ma.Multiaddr
-	// optional
-	TLS            *tls.Config
-	BasicAuthCreds map[string]string
 }
 
 type route struct {
@@ -79,13 +56,19 @@ type peerAddBody struct {
 	PeerMultiaddr string `json:"peer_multiaddress"`
 }
 
-// NewRESTAPI creates a new REST API component. It receives the multiaddress on
-// which the API listens and a Config object.
-func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
-	n, addr, err := manet.DialArgs(cfg.ApiMAddr)
+// NewAPI creates a new REST API component. It receives
+// the multiaddress on which the API listens.
+func NewAPI(cfg *Config) (*API, error) {
+	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
+
+	n, addr, err := manet.DialArgs(cfg.ListenAddr)
+	if err != nil {
+		return nil, err
+	}
+
 	var l net.Listener
 	if cfg.TLS != nil {
 		l, err = tls.Listen(n, addr, cfg.TLS)
@@ -96,35 +79,40 @@ func NewRESTAPI(cfg *Config) (*RESTAPI, error) {
 		return nil, err
 	}
 
+	return newAPI(cfg, l)
+}
+
+func newAPI(cfg *Config, l net.Listener) (*API, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	s := &http.Server{
-		ReadTimeout:  RESTAPIServerReadTimeout,
-		WriteTimeout: RESTAPIServerWriteTimeout,
-		//IdleTimeout:  RESTAPIServerIdleTimeout, // TODO: Go 1.8
-		Handler: router,
+		ReadTimeout:       cfg.ReadTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		Handler:           router,
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	api := &RESTAPI{
+	api := &API{
 		ctx:      ctx,
 		cancel:   cancel,
-		apiAddr:  cfg.ApiMAddr,
+		config:   cfg,
 		listener: l,
 		server:   s,
 		rpcReady: make(chan struct{}, 1),
 	}
-	api.addRoutes(router, cfg.BasicAuthCreds)
+	api.addRoutes(router)
 	api.run()
 
 	return api, nil
 }
 
-func (api *RESTAPI) addRoutes(router *mux.Router, basicAuthCreds map[string]string) {
+func (api *API) addRoutes(router *mux.Router) {
 	for _, route := range api.routes() {
-		if basicAuthCreds != nil {
-			route.HandlerFunc = basicAuth(route.HandlerFunc, basicAuthCreds)
+		if api.config.BasicAuthCreds != nil {
+			route.HandlerFunc = basicAuth(route.HandlerFunc, api.config.BasicAuthCreds)
 		}
 		router.
 			Methods(route.Method).
@@ -169,7 +157,7 @@ func basicAuth(h http.HandlerFunc, credentials map[string]string) http.HandlerFu
 }
 
 func unauthorizedResp() (string, error) {
-	apiError := api.Error{
+	apiError := types.Error{
 		Code:    401,
 		Message: "Unauthorized",
 	}
@@ -177,106 +165,106 @@ func unauthorizedResp() (string, error) {
 	return string(resp), err
 }
 
-func (rest *RESTAPI) routes() []route {
+func (api *API) routes() []route {
 	return []route{
 		{
 			"ID",
 			"GET",
 			"/id",
-			rest.idHandler,
+			api.idHandler,
 		},
 
 		{
 			"Version",
 			"GET",
 			"/version",
-			rest.versionHandler,
+			api.versionHandler,
 		},
 
 		{
 			"Peers",
 			"GET",
 			"/peers",
-			rest.peerListHandler,
+			api.peerListHandler,
 		},
 		{
 			"PeerAdd",
 			"POST",
 			"/peers",
-			rest.peerAddHandler,
+			api.peerAddHandler,
 		},
 		{
 			"PeerRemove",
 			"DELETE",
 			"/peers/{peer}",
-			rest.peerRemoveHandler,
+			api.peerRemoveHandler,
 		},
 
 		{
 			"Allocations",
 			"GET",
 			"/allocations",
-			rest.allocationsHandler,
+			api.allocationsHandler,
 		},
 		{
 			"Allocation",
 			"GET",
 			"/allocations/{hash}",
-			rest.allocationHandler,
+			api.allocationHandler,
 		},
 		{
 			"StatusAll",
 			"GET",
 			"/pins",
-			rest.statusAllHandler,
+			api.statusAllHandler,
 		},
 		{
 			"SyncAll",
 			"POST",
 			"/pins/sync",
-			rest.syncAllHandler,
+			api.syncAllHandler,
 		},
 		{
 			"Status",
 			"GET",
 			"/pins/{hash}",
-			rest.statusHandler,
+			api.statusHandler,
 		},
 		{
 			"Pin",
 			"POST",
 			"/pins/{hash}",
-			rest.pinHandler,
+			api.pinHandler,
 		},
 		{
 			"Unpin",
 			"DELETE",
 			"/pins/{hash}",
-			rest.unpinHandler,
+			api.unpinHandler,
 		},
 		{
 			"Sync",
 			"POST",
 			"/pins/{hash}/sync",
-			rest.syncHandler,
+			api.syncHandler,
 		},
 		{
 			"Recover",
 			"POST",
 			"/pins/{hash}/recover",
-			rest.recoverHandler,
+			api.recoverHandler,
 		},
 	}
 }
 
-func (rest *RESTAPI) run() {
-	rest.wg.Add(1)
+func (api *API) run() {
+	api.wg.Add(1)
 	go func() {
-		defer rest.wg.Done()
-		<-rest.rpcReady
+		defer api.wg.Done()
+		<-api.rpcReady
 
-		logger.Infof("REST API: %s", rest.apiAddr)
-		err := rest.server.Serve(rest.listener)
+		logger.Infof("REST API: %s", api.config.ListenAddr)
+		err := api.server.Serve(api.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
 		}
@@ -284,38 +272,38 @@ func (rest *RESTAPI) run() {
 }
 
 // Shutdown stops any API listeners.
-func (rest *RESTAPI) Shutdown() error {
-	rest.shutdownLock.Lock()
-	defer rest.shutdownLock.Unlock()
+func (api *API) Shutdown() error {
+	api.shutdownLock.Lock()
+	defer api.shutdownLock.Unlock()
 
-	if rest.shutdown {
+	if api.shutdown {
 		logger.Debug("already shutdown")
 		return nil
 	}
 
 	logger.Info("stopping Cluster API")
 
-	rest.cancel()
-	close(rest.rpcReady)
+	api.cancel()
+	close(api.rpcReady)
 	// Cancel any outstanding ops
-	rest.server.SetKeepAlivesEnabled(false)
-	rest.listener.Close()
+	api.server.SetKeepAlivesEnabled(false)
+	api.listener.Close()
 
-	rest.wg.Wait()
-	rest.shutdown = true
+	api.wg.Wait()
+	api.shutdown = true
 	return nil
 }
 
 // SetClient makes the component ready to perform RPC
 // requests.
-func (rest *RESTAPI) SetClient(c *rpc.Client) {
-	rest.rpcClient = c
-	rest.rpcReady <- struct{}{}
+func (api *API) SetClient(c *rpc.Client) {
+	api.rpcClient = c
+	api.rpcReady <- struct{}{}
 }
 
-func (rest *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
-	idSerial := api.IDSerial{}
-	err := rest.rpcClient.Call("",
+func (api *API) idHandler(w http.ResponseWriter, r *http.Request) {
+	idSerial := types.IDSerial{}
+	err := api.rpcClient.Call("",
 		"Cluster",
 		"ID",
 		struct{}{},
@@ -324,9 +312,9 @@ func (rest *RESTAPI) idHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, idSerial)
 }
 
-func (rest *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
-	var v api.Version
-	err := rest.rpcClient.Call("",
+func (api *API) versionHandler(w http.ResponseWriter, r *http.Request) {
+	var v types.Version
+	err := api.rpcClient.Call("",
 		"Cluster",
 		"Version",
 		struct{}{},
@@ -335,9 +323,9 @@ func (rest *RESTAPI) versionHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, v)
 }
 
-func (rest *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
-	var peersSerial []api.IDSerial
-	err := rest.rpcClient.Call("",
+func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
+	var peersSerial []types.IDSerial
+	err := api.rpcClient.Call("",
 		"Cluster",
 		"Peers",
 		struct{}{},
@@ -346,7 +334,7 @@ func (rest *RESTAPI) peerListHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, peersSerial)
 }
 
-func (rest *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
@@ -363,18 +351,18 @@ func (rest *RESTAPI) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ids api.IDSerial
-	err = rest.rpcClient.Call("",
+	var ids types.IDSerial
+	err = api.rpcClient.Call("",
 		"Cluster",
 		"PeerAdd",
-		api.MultiaddrToSerial(mAddr),
+		types.MultiaddrToSerial(mAddr),
 		&ids)
 	sendResponse(w, err, ids)
 }
 
-func (rest *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	if p := parsePidOrError(w, r); p != "" {
-		err := rest.rpcClient.Call("",
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"PeerRemove",
 			p,
@@ -383,9 +371,9 @@ func (rest *RESTAPI) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c.Cid != "" {
-		err := rest.rpcClient.Call("",
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"Pin",
 			c,
@@ -394,9 +382,9 @@ func (rest *RESTAPI) pinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c.Cid != "" {
-		err := rest.rpcClient.Call("",
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"Unpin",
 			c,
@@ -405,9 +393,9 @@ func (rest *RESTAPI) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) allocationsHandler(w http.ResponseWriter, r *http.Request) {
-	var pins []api.PinSerial
-	err := rest.rpcClient.Call("",
+func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
+	var pins []types.PinSerial
+	err := api.rpcClient.Call("",
 		"Cluster",
 		"Pins",
 		struct{}{},
@@ -415,10 +403,10 @@ func (rest *RESTAPI) allocationsHandler(w http.ResponseWriter, r *http.Request) 
 	sendResponse(w, err, pins)
 }
 
-func (rest *RESTAPI) allocationHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pin api.PinSerial
-		err := rest.rpcClient.Call("",
+		var pin types.PinSerial
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"PinGet",
 			c,
@@ -431,9 +419,9 @@ func (rest *RESTAPI) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
-	var pinInfos []api.GlobalPinInfoSerial
-	err := rest.rpcClient.Call("",
+func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
+	var pinInfos []types.GlobalPinInfoSerial
+	err := api.rpcClient.Call("",
 		"Cluster",
 		"StatusAll",
 		struct{}{},
@@ -441,10 +429,10 @@ func (rest *RESTAPI) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, pinInfos)
 }
 
-func (rest *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo api.GlobalPinInfoSerial
-		err := rest.rpcClient.Call("",
+		var pinInfo types.GlobalPinInfoSerial
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"Status",
 			c,
@@ -453,9 +441,9 @@ func (rest *RESTAPI) statusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
-	var pinInfos []api.GlobalPinInfoSerial
-	err := rest.rpcClient.Call("",
+func (api *API) syncAllHandler(w http.ResponseWriter, r *http.Request) {
+	var pinInfos []types.GlobalPinInfoSerial
+	err := api.rpcClient.Call("",
 		"Cluster",
 		"SyncAll",
 		struct{}{},
@@ -463,10 +451,10 @@ func (rest *RESTAPI) syncAllHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, pinInfos)
 }
 
-func (rest *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo api.GlobalPinInfoSerial
-		err := rest.rpcClient.Call("",
+		var pinInfo types.GlobalPinInfoSerial
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"Sync",
 			c,
@@ -475,10 +463,10 @@ func (rest *RESTAPI) syncHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (rest *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo api.GlobalPinInfoSerial
-		err := rest.rpcClient.Call("",
+		var pinInfo types.GlobalPinInfoSerial
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"Recover",
 			c,
@@ -487,17 +475,17 @@ func (rest *RESTAPI) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func parseCidOrError(w http.ResponseWriter, r *http.Request) api.PinSerial {
+func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
 
 	_, err := cid.Decode(hash)
 	if err != nil {
 		sendErrorResponse(w, 400, "error decoding Cid: "+err.Error())
-		return api.PinSerial{Cid: ""}
+		return types.PinSerial{Cid: ""}
 	}
 
-	pin := api.PinSerial{
+	pin := types.PinSerial{
 		Cid: hash,
 	}
 
@@ -559,7 +547,7 @@ func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
 }
 
 func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
-	errorResp := api.Error{
+	errorResp := types.Error{
 		Code:    code,
 		Message: msg,
 	}

@@ -30,24 +30,6 @@ import (
 
 var logger = logging.Logger("ipfshttp")
 
-// ConnectSwarmsDelay specifies how long to wait after startup before attempting
-// to open connections from this peer's IPFS daemon to the IPFS daemons
-// of other peers.
-var ConnectSwarmsDelay = 7 * time.Second
-
-// IPFS Proxy settings
-var (
-	// maximum duration before timing out reading a full request
-	IPFSProxyServerReadTimeout = 10 * time.Minute
-	// maximum duration before timing out reading the headers of a request
-	IPFSProxyServerReadHeaderTimeout = 5 * time.Second
-	// maximum duration before timing out write of the response
-	IPFSProxyServerWriteTimeout = 10 * time.Minute
-	// server-side the amount of time a Keep-Alive connection will be
-	// kept idle before being reused
-	IPFSProxyServerIdleTimeout = 60 * time.Second
-)
-
 // Connector implements the IPFSConnector interface
 // and provides a component which does two tasks:
 //
@@ -61,9 +43,8 @@ type Connector struct {
 	ctx    context.Context
 	cancel func()
 
-	nodeMAddr  ma.Multiaddr
-	nodeAddr   string
-	proxyMAddr ma.Multiaddr
+	config   *Config
+	nodeAddr string
 
 	handlers map[string]func(http.ResponseWriter, *http.Request)
 
@@ -111,13 +92,18 @@ type ipfsAddResp struct {
 }
 
 // NewConnector creates the component and leaves it ready to be started
-func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Connector, error) {
-	_, nodeAddr, err := manet.DialArgs(ipfsNodeMAddr)
+func NewConnector(cfg *Config) (*Connector, error) {
+	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	proxyNet, proxyAddr, err := manet.DialArgs(ipfsProxyMAddr)
+	_, nodeAddr, err := manet.DialArgs(cfg.NodeAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	proxyNet, proxyAddr, err := manet.DialArgs(cfg.ProxyAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -129,26 +115,25 @@ func NewConnector(ipfsNodeMAddr ma.Multiaddr, ipfsProxyMAddr ma.Multiaddr) (*Con
 
 	smux := http.NewServeMux()
 	s := &http.Server{
-		ReadTimeout:  IPFSProxyServerReadTimeout,
-		WriteTimeout: IPFSProxyServerWriteTimeout,
-		//ReadHeaderTimeout: IPFSProxyServerReadHeaderTimeout, Go 1.8
-		//IdleTimeout:       IPFSProxyServerIdleTimeout, Go 1.8
-		Handler: smux,
+		ReadTimeout:       cfg.ProxyReadTimeout,
+		WriteTimeout:      cfg.ProxyWriteTimeout,
+		ReadHeaderTimeout: cfg.ProxyReadHeaderTimeout,
+		IdleTimeout:       cfg.ProxyIdleTimeout,
+		Handler:           smux,
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ipfs := &Connector{
-		ctx:        ctx,
-		cancel:     cancel,
-		nodeMAddr:  ipfsNodeMAddr,
-		nodeAddr:   nodeAddr,
-		proxyMAddr: ipfsProxyMAddr,
-		handlers:   make(map[string]func(http.ResponseWriter, *http.Request)),
-		rpcReady:   make(chan struct{}, 1),
-		listener:   l,
-		server:     s,
+		ctx:      ctx,
+		config:   cfg,
+		cancel:   cancel,
+		nodeAddr: nodeAddr,
+		handlers: make(map[string]func(http.ResponseWriter, *http.Request)),
+		rpcReady: make(chan struct{}, 1),
+		listener: l,
+		server:   s,
 	}
 
 	smux.HandleFunc("/", ipfs.handle)
@@ -171,8 +156,8 @@ func (ipfs *Connector) run() {
 	go func() {
 		defer ipfs.wg.Done()
 		logger.Infof("IPFS Proxy: %s -> %s",
-			ipfs.proxyMAddr,
-			ipfs.nodeMAddr)
+			ipfs.config.ProxyAddr,
+			ipfs.config.NodeAddr)
 		err := ipfs.server.Serve(ipfs.listener) // hangs here
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -187,7 +172,7 @@ func (ipfs *Connector) run() {
 		// It does not hurt to wait a little bit. i.e. think cluster
 		// peers which are started at the same time as the ipfs
 		// daemon...
-		tmr := time.NewTimer(ConnectSwarmsDelay)
+		tmr := time.NewTimer(ipfs.config.ConnectSwarmsDelay)
 		defer tmr.Stop()
 		select {
 		case <-tmr.C:

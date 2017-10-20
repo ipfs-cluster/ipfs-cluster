@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -83,17 +84,22 @@ func (ipfs *mockConnector) FreeSpace() (int, error)                       { retu
 func (ipfs *mockConnector) RepoSize() (int, error)                        { return 0, nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
+	clusterCfg, _, _, consensusCfg, monCfg, _ := testingConfigs()
+
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
-	cfg := testingConfig()
 	st := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(cfg.ID)
-	mon := basic.NewStdPeerMonitor(2)
+	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
+	monCfg.CheckInterval = 2 * time.Second
+	mon, _ := basic.NewMonitor(monCfg)
 	alloc := ascendalloc.NewAllocator()
-	inf := numpin.NewInformer()
+	numpinCfg := &numpin.Config{}
+	numpinCfg.Default()
+	inf, _ := numpin.NewInformer(numpinCfg)
 
 	cl, err := NewCluster(
-		cfg,
+		clusterCfg,
+		consensusCfg,
 		api,
 		ipfs,
 		st,
@@ -267,7 +273,10 @@ func TestClusterPeers(t *testing.T) {
 	if len(peers) != 1 {
 		t.Fatal("expected 1 peer")
 	}
-	if peers[0].ID != testingConfig().ID {
+
+	clusterCfg := &Config{}
+	clusterCfg.LoadJSON(testingClusterCfg)
+	if peers[0].ID != clusterCfg.ID {
 		t.Error("bad member")
 	}
 }

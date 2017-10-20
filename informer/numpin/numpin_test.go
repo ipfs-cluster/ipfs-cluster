@@ -29,7 +29,12 @@ func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus)
 }
 
 func Test(t *testing.T) {
-	inf := NewInformer()
+	cfg := &Config{}
+	cfg.Default()
+	inf, err := NewInformer(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	m := inf.GetMetric()
 	if m.Valid {
 		t.Error("metric should be invalid")
