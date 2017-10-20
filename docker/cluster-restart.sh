@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/sh
 
 # Restart the cluster process
 sleep 4

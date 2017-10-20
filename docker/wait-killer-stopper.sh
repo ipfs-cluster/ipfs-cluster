@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 ## Wait for cluster service process to exist and the stop the
 ## killer

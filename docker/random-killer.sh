@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/sh
 
 # $1=sleep time, $2=first command, $3=second command
 # Loop forever
