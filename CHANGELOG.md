@@ -1,6 +1,6 @@
 # ipfs-cluster changelog
 
-### 0.2.0 2017-20-10
+### 0.2.0 2017-10-23
 
 * Features:
   * Basic authentication support added to API component | [ipfs/ipfs-cluster#121](https://github.com/ipfs/ipfs-cluster/issues/121) | [ipfs/ipfs-cluster#147](https://github.com/ipfs/ipfs-cluster/issues/147) | [ipfs/ipfs-cluster#179](https://github.com/ipfs/ipfs-cluster/issues/179)
