@@ -1,5 +1,21 @@
 # IPFS Cluster - Captain's log
 
+## 20171023 | @hsanjuan
+
+We have now started the final quarter of 2017 with renewed energy and plans for ipfs-cluster. The team has grown and come up with a set of priorities for the next weeks and months. The gist of these is:
+
+* To make cluster stable and run it on production ourselves
+* To start looking into the handling of "big datasets", including IPLD integration
+* To provide users with a delightful experience with a focus in documentation and support
+
+The `v0.2.0` marks the start of this cycle and includes. Check the [changelog](CHANGELOG.md) for a list of features and bugfixes. Among them, the new configuration options in the consensus component options will allow our users to experiment in environments with larger latencies than usual.
+
+Finally, coming up in the pipeline we have:
+
+* the upgrade of Raft library to v1.0.0, which is likely to provide a much better experience with dynamic-membership clusters.
+* Swagger documentation for the Rest API.
+* Work on connectivity graphs, allowing to easily spot any connectivity problem among cluster peers.
+
 ## 20170726 | @hsanjuan
 
 Unfortunately, I have not thought of updating the Captain's log for some months. The Coinlist effort has had me very busy, which means that my time and mind were not fully focused on cluster as before. That said, there has been significant progress during this period. Much of that progress has happened thanks to @Zenground0 and @dgrisham, who have been working on cluster for most of Q2 making valuable contributions (many of them on the testing front).
