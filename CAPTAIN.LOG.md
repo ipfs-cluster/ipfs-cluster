@@ -1,6 +1,6 @@
 # IPFS Cluster - Captain's log
 
-## 20171020 | @hsanjuan
+## 20171023 | @hsanjuan
 
 We have now started the final quarter of 2017 with renewed energy and plans for ipfs-cluster. The team has grown and come up with a set of priorities for the next weeks and months. The gist of these is:
 
