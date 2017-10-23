@@ -22,27 +22,20 @@ import (
 
 var logger = logging.Logger("consensus")
 
-// LeaderTimeout specifies how long to wait before failing an operation
-// because there is no leader
-var LeaderTimeout = 15 * time.Second
-
-// CommitRetries specifies how many times we retry a failed commit until
-// we give up
-var CommitRetries = 2
-
 // Consensus handles the work of keeping a shared-state between
 // the peers of an IPFS Cluster, as well as modifying that state and
 // applying any updates in a thread-safe manner.
 type Consensus struct {
 	ctx    context.Context
 	cancel func()
+	config *Config
 
 	host host.Host
 
 	consensus consensus.OpLogConsensus
 	actor     consensus.Actor
 	baseOp    *LogOp
-	raft      *Raft
+	raft      *raftWrapper
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
@@ -67,8 +60,9 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 
 	logger.Infof("starting Consensus and waiting for a leader...")
 	consensus := libp2praft.NewOpLog(state, op)
-	raft, err := NewRaft(clusterPeers, host, cfg, consensus.FSM())
+	raft, err := newRaftWrapper(clusterPeers, host, cfg, consensus.FSM())
 	if err != nil {
+		logger.Error("error creating raft: ", err)
 		return nil, err
 	}
 	actor := libp2praft.NewActor(raft.raft)
@@ -80,6 +74,7 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 	cc := &Consensus{
 		ctx:       ctx,
 		cancel:    cancel,
+		config:    cfg,
 		host:      host,
 		consensus: consensus,
 		actor:     actor,
@@ -95,9 +90,11 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 
 // WaitForSync waits for a leader and for the state to be up to date, then returns.
 func (cc *Consensus) WaitForSync() error {
-	leaderCtx, cancel := context.WithTimeout(cc.ctx, LeaderTimeout)
+	leaderCtx, cancel := context.WithTimeout(
+		cc.ctx,
+		cc.config.WaitForLeaderTimeout)
 	defer cancel()
-	err := cc.raft.WaitForLeader(leaderCtx)
+	_, err := cc.raft.WaitForLeader(leaderCtx)
 	if err != nil {
 		return errors.New("error waiting for leader: " + err.Error())
 	}
@@ -160,26 +157,15 @@ func (cc *Consensus) Shutdown() error {
 
 	logger.Info("stopping Consensus component")
 
-	cc.cancel()
-	close(cc.rpcReady)
-
-	// Raft shutdown
-	errMsgs := ""
-	err := cc.raft.Snapshot()
+	// Raft Shutdown
+	err := cc.raft.Shutdown()
 	if err != nil {
-		errMsgs += err.Error()
-	}
-	err = cc.raft.Shutdown()
-	if err != nil {
-		errMsgs += err.Error()
-	}
-
-	if errMsgs != "" {
-		errMsgs += "Consensus shutdown unsuccessful"
-		logger.Error(errMsgs)
-		return errors.New(errMsgs)
+		logger.Error(err)
+		return err
 	}
 	cc.shutdown = true
+	cc.cancel()
+	close(cc.rpcReady)
 	return nil
 }
 
@@ -214,176 +200,155 @@ func (cc *Consensus) op(argi interface{}, t LogOpType) *LogOp {
 }
 
 // returns true if the operation was redirected to the leader
+// note that if the leader just dissappeared, the rpc call will
+// fail because we haven't heard that it's gone.
 func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, error) {
-	leader, err := cc.Leader()
-	if err != nil {
-		rctx, cancel := context.WithTimeout(cc.ctx, LeaderTimeout)
-		defer cancel()
-		err := cc.raft.WaitForLeader(rctx)
-		if err != nil {
-			return false, err
-		}
-	}
-	if leader == cc.host.ID() {
-		return false, nil
-	}
-
-	err = cc.rpcClient.Call(
-		leader,
-		"Cluster",
-		method,
-		arg,
-		&struct{}{})
-	return true, err
-}
-
-func (cc *Consensus) logOpCid(rpcOp string, opType LogOpType, pin api.Pin) error {
 	var finalErr error
-	for i := 0; i < CommitRetries; i++ {
-		logger.Debugf("Try %d", i)
-		redirected, err := cc.redirectToLeader(
-			rpcOp, pin.ToSerial())
+
+	// Retry redirects
+	for i := 0; i <= cc.config.CommitRetries; i++ {
+		logger.Debugf("redirect try %d", i)
+		leader, err := cc.Leader()
+
+		// No leader, wait for one
 		if err != nil {
-			finalErr = err
+			logger.Warningf("there seems to be no leader. Waiting for one")
+			rctx, cancel := context.WithTimeout(
+				cc.ctx,
+				cc.config.WaitForLeaderTimeout)
+			defer cancel()
+			pidstr, err := cc.raft.WaitForLeader(rctx)
+
+			// means we timed out waiting for a leader
+			// we don't retry in this case
+			if err != nil {
+				return false, errors.New("timed out waiting for leader")
+			}
+			leader, err = peer.IDB58Decode(pidstr)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		// We are the leader. Do not redirect
+		if leader == cc.host.ID() {
+			return false, nil
+		}
+
+		logger.Debugf("redirecting to leader: %s", leader)
+		finalErr = cc.rpcClient.Call(
+			leader,
+			"Cluster",
+			method,
+			arg,
+			&struct{}{})
+		if finalErr != nil {
+			logger.Error(finalErr)
+			logger.Info("retrying to redirect request to leader")
+			time.Sleep(2 * cc.config.RaftConfig.HeartbeatTimeout)
 			continue
 		}
-
-		if redirected {
-			return nil
-		}
-
-		// It seems WE are the leader.
-
-		op := cc.op(pin, opType)
-		_, err = cc.consensus.CommitOp(op)
-		if err != nil {
-			// This means the op did not make it to the log
-			finalErr = err
-			time.Sleep(200 * time.Millisecond)
-			continue
-		}
-		finalErr = nil
 		break
 	}
-	if finalErr != nil {
-		return finalErr
-	}
 
-	switch opType {
-	case LogOpPin:
-		logger.Infof("pin committed to global state: %s", pin.Cid)
-	case LogOpUnpin:
-		logger.Infof("unpin committed to global state: %s", pin.Cid)
+	// We tried to redirect, but something happened
+	return true, finalErr
+}
+
+// commit submits a cc.consensus commit. It retries upon failures.
+func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) error {
+	var finalErr error
+	for i := 0; i <= cc.config.CommitRetries; i++ {
+		logger.Debug("attempt #%d: committing %+v", i, op)
+
+		// this means we are retrying
+		if finalErr != nil {
+			logger.Error("retrying upon failed commit (retry %d): ",
+				i, finalErr)
+		}
+
+		// try to send it to the leader
+		// redirectToLeader has it's own retry loop. If this fails
+		// we're done here.
+		ok, err := cc.redirectToLeader(rpcOp, redirectArg)
+		if err != nil || ok {
+			return err
+		}
+
+		// Being here means we are the LEADER. We can commit.
+
+		// now commit the changes to our state
+		_, finalErr := cc.consensus.CommitOp(op)
+		if finalErr != nil {
+			goto RETRY
+		}
+
+		// addPeer and rmPeer need to apply the change to Raft directly.
+		switch op.Type {
+		case LogOpAddPeer:
+			pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
+			finalErr = cc.raft.AddPeer(pidstr)
+			if finalErr != nil {
+				goto RETRY
+			}
+			logger.Infof("peer committed to global state: %s", pidstr)
+		case LogOpRmPeer:
+			pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
+			finalErr = cc.raft.RemovePeer(pidstr)
+			if finalErr != nil {
+				goto RETRY
+			}
+			logger.Infof("peer removed from global state: %s", pidstr)
+		}
+		break
+
+	RETRY:
+		time.Sleep(cc.config.CommitRetryDelay)
 	}
-	return nil
+	return finalErr
 }
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
-func (cc *Consensus) LogPin(c api.Pin) error {
-	return cc.logOpCid("ConsensusLogPin", LogOpPin, c)
+func (cc *Consensus) LogPin(pin api.Pin) error {
+	op := cc.op(pin, LogOpPin)
+	err := cc.commit(op, "ConsensusLogPin", pin.ToSerial())
+	if err != nil {
+		return err
+	}
+	logger.Infof("pin committed to global state: %s", pin.Cid)
+	return nil
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) LogUnpin(c api.Pin) error {
-	return cc.logOpCid("ConsensusLogUnpin", LogOpUnpin, c)
+func (cc *Consensus) LogUnpin(pin api.Pin) error {
+	op := cc.op(pin, LogOpUnpin)
+	err := cc.commit(op, "ConsensusLogUnpin", pin.ToSerial())
+	if err != nil {
+		return err
+	}
+	logger.Infof("unpin committed to global state: %s", pin.Cid)
+	return nil
 }
 
 // LogAddPeer submits a new peer to the shared state of the cluster. It will
 // forward the operation to the leader if this is not it.
 func (cc *Consensus) LogAddPeer(addr ma.Multiaddr) error {
-	var finalErr error
-	for i := 0; i < CommitRetries; i++ {
-		logger.Debugf("Try %d", i)
-		redirected, err := cc.redirectToLeader(
-			"ConsensusLogAddPeer", api.MultiaddrToSerial(addr))
-		if err != nil {
-			finalErr = err
-			continue
-		}
-
-		if redirected {
-			return nil
-		}
-
-		// It seems WE are the leader.
-		pidStr, err := addr.ValueForProtocol(ma.P_IPFS)
-		if err != nil {
-			return err
-		}
-		pid, err := peer.IDB58Decode(pidStr)
-		if err != nil {
-			return err
-		}
-
-		// Create pin operation for the log
-		op := cc.op(addr, LogOpAddPeer)
-		_, err = cc.consensus.CommitOp(op)
-		if err != nil {
-			// This means the op did not make it to the log
-			finalErr = err
-			time.Sleep(200 * time.Millisecond)
-			continue
-		}
-		err = cc.raft.AddPeer(peer.IDB58Encode(pid))
-		if err != nil {
-			finalErr = err
-			continue
-		}
-		finalErr = nil
-		break
-	}
-	if finalErr != nil {
-		return finalErr
-	}
-	logger.Infof("peer committed to global state: %s", addr)
-	return nil
+	addrS := api.MultiaddrToSerial(addr)
+	op := cc.op(addr, LogOpAddPeer)
+	return cc.commit(op, "ConsensusLogAddPeer", addrS)
 }
 
 // LogRmPeer removes a peer from the shared state of the cluster. It will
 // forward the operation to the leader if this is not it.
 func (cc *Consensus) LogRmPeer(pid peer.ID) error {
-	var finalErr error
-	for i := 0; i < CommitRetries; i++ {
-		logger.Debugf("Try %d", i)
-		redirected, err := cc.redirectToLeader("ConsensusLogRmPeer", pid)
-		if err != nil {
-			finalErr = err
-			continue
-		}
-
-		if redirected {
-			return nil
-		}
-
-		// It seems WE are the leader.
-
-		// Create pin operation for the log
-		addr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(pid))
-		if err != nil {
-			return err
-		}
-		op := cc.op(addr, LogOpRmPeer)
-		_, err = cc.consensus.CommitOp(op)
-		if err != nil {
-			// This means the op did not make it to the log
-			finalErr = err
-			continue
-		}
-		err = cc.raft.RemovePeer(peer.IDB58Encode(pid))
-		if err != nil {
-			finalErr = err
-			time.Sleep(200 * time.Millisecond)
-			continue
-		}
-		finalErr = nil
-		break
+	// Create rmPeer operation for the log
+	addr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(pid))
+	if err != nil {
+		return err
 	}
-	if finalErr != nil {
-		return finalErr
-	}
-	logger.Infof("peer removed from global state: %s", pid)
-	return nil
+	op := cc.op(addr, LogOpRmPeer)
+	return cc.commit(op, "ConsensusLogRmPeer", pid)
 }
 
 // State retrieves the current consensus State. It may error
@@ -405,6 +370,7 @@ func (cc *Consensus) State() (state.State, error) {
 // Leader returns the peerID of the Leader of the
 // cluster. It returns an error when there is no leader.
 func (cc *Consensus) Leader() (peer.ID, error) {
+	// Note the hard-dependency on raft here...
 	raftactor := cc.actor.(*libp2praft.Actor)
 	return raftactor.Leader()
 }
@@ -413,5 +379,16 @@ func (cc *Consensus) Leader() (peer.ID, error) {
 // state with the state provided. Only the consensus leader
 // can perform this operation.
 func (cc *Consensus) Rollback(state state.State) error {
+	// This is unused. It *might* be used for upgrades.
+	// There is rather untested magic in libp2p-raft's FSM()
+	// to make this possible.
 	return cc.consensus.Rollback(state)
+}
+
+func parsePIDFromMultiaddr(addr ma.Multiaddr) string {
+	pidstr, err := addr.ValueForProtocol(ma.P_IPFS)
+	if err != nil {
+		panic("peer badly encoded")
+	}
+	return pidstr
 }

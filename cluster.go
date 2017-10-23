@@ -165,7 +165,9 @@ func (c *Cluster) setupConsensus(consensuscfg *raft.Config) error {
 	if len(c.config.Peers) > 0 {
 		startPeers = peersFromMultiaddrs(c.config.Peers)
 	} else {
-		startPeers = peersFromMultiaddrs(c.config.Bootstrap)
+		// start as single cluster before being added
+		// to the bootstrapper peers' cluster.
+		startPeers = []peer.ID{}
 	}
 
 	consensus, err := raft.NewConsensus(
@@ -259,6 +261,11 @@ func (c *Cluster) broadcastMetric(m api.Metric) error {
 // push metrics loops and pushes metrics to the leader's monitor
 func (c *Cluster) pushInformerMetrics() {
 	timer := time.NewTimer(0) // fire immediately first
+	// The following control how often to make and log
+	// a retry
+	retries := 0
+	retryDelay := 500 * time.Millisecond
+	retryWarnMod := 60
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -273,17 +280,19 @@ func (c *Cluster) pushInformerMetrics() {
 		err := c.broadcastMetric(metric)
 
 		if err != nil {
-			logger.Errorf("error broadcasting metric: %s", err)
-			// retry in half second
-			timer.Stop()
-			timer.Reset(500 * time.Millisecond)
+			if (retries % retryWarnMod) == 0 {
+				logger.Errorf("error broadcasting metric: %s", err)
+				retries++
+			}
+			// retry in retryDelay
+			timer.Reset(retryDelay)
 			continue
 		}
 
-		timer.Stop() // no need to drain C if we are here
+		retries = 0
+		// send metric again in TTL/2
 		timer.Reset(metric.GetTTL() / 2)
 	}
-	logger.Debugf("Peer %s. Finished pushInformerMetrics", c.id)
 }
 
 func (c *Cluster) pushPingMetrics() {

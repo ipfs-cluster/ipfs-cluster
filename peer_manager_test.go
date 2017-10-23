@@ -135,7 +135,10 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 
 	// Now we shutdown one member of the running cluster
 	// and try to add someone else.
-	clusters[1].Shutdown()
+	err = clusters[1].Shutdown()
+	if err != nil {
+		t.Error("Shutdown should be clean: ", err)
+	}
 	_, err = clusters[0].PeerAdd(clusterAddr(clusters[2]))
 
 	if err == nil {
@@ -194,9 +197,23 @@ func TestClusterPeerRemoveSelf(t *testing.T) {
 	defer shutdownClusters(t, clusters, mocks)
 
 	for i := 0; i < len(clusters); i++ {
+		peers := clusters[i].Peers()
+		t.Logf("Current cluster size: %d", len(peers))
+		if len(peers) != (len(clusters) - i) {
+			t.Fatal("Previous peers not removed correctly")
+		}
 		err := clusters[i].PeerRemove(clusters[i].ID().ID)
+		// Last peer member won't be able to remove itself
+		// In this case, we shut it down.
 		if err != nil {
-			t.Error(err)
+			if i != len(clusters)-1 { //not last
+				t.Error(err)
+			} else {
+				err := clusters[i].Shutdown()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 		}
 		time.Sleep(time.Second)
 		_, more := <-clusters[i].Done()
@@ -382,4 +399,72 @@ func TestClustersPeerJoinAllAtOnceWithRandomBootstrap(t *testing.T) {
 		}
 	}
 	runF(t, clusters, f2)
+}
+
+// Tests that a peer catches up on the state correctly after rejoining
+func TestClustersPeerRejoin(t *testing.T) {
+	clusters, mocks := peerManagerClusters(t)
+	defer shutdownClusters(t, clusters, mocks)
+
+	// pin something in c0
+	pin1, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(pin1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// add all clusters
+	for i := 1; i < len(clusters); i++ {
+		addr := clusterAddr(clusters[i])
+		_, err := clusters[0].PeerAdd(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	delay()
+
+	// all added peers should have the content
+	for i := 1; i < len(clusters); i++ {
+		pinfo := clusters[i].tracker.Status(pin1)
+		if pinfo.Status != api.TrackerStatusPinned {
+			t.Error("Added peers should pin the content")
+		}
+	}
+
+	clusters[0].Shutdown()
+	mocks[0].Close()
+
+	//delay()
+
+	// Pin something on the rest
+	pin2, _ := cid.Decode(test.TestCid2)
+	err = clusters[1].Pin(api.PinCid(pin2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	// Rejoin c0
+	c0, m0 := createOnePeerCluster(t, 0, testingClusterSecret)
+	clusters[0] = c0
+	mocks[0] = m0
+	addr := clusterAddr(c0)
+	_, err = clusters[1].PeerAdd(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	pinfo := clusters[0].tracker.Status(pin2)
+	if pinfo.Status != api.TrackerStatusPinned {
+		t.Error("re-joined cluster should have caught up")
+	}
+
+	pinfo = clusters[0].tracker.Status(pin1)
+	if pinfo.Status != api.TrackerStatusPinned {
+		t.Error("re-joined cluster should have original pin")
+	}
 }
