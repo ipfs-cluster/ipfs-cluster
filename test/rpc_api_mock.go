@@ -263,13 +263,13 @@ func (mock *mockService) IPFSConfigKey(in string, out *interface{}) error {
 	return nil
 }
 
-func (mock *mockService) IPFSRepoSize(in struct{}, out *int) error {
+func (mock *mockService) IPFSRepoSize(in struct{}, out *uint64) error {
 	// since we have two pins. Assume each is 1KB.
 	*out = 2000
 	return nil
 }
 
-func (mock *mockService) IPFSFreeSpace(in struct{}, out *int) error {
+func (mock *mockService) IPFSFreeSpace(in struct{}, out *uint64) error {
 	// RepoSize is 2KB, StorageMax is 100KB
 	*out = 98000
 	return nil

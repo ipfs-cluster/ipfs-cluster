@@ -43,13 +43,13 @@ func badRPCClient(t *testing.T) *rpc.Client {
 // 	return nil
 // }
 
-func (mock *badRPCService) IPFSRepoSize(in struct{}, out *int) error {
+func (mock *badRPCService) IPFSRepoSize(in struct{}, out *uint64) error {
 	*out = 2
 	mock.nthCall++
 	return errors.New("fake error")
 }
 
-func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *int) error {
+func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *uint64) error {
 	*out = 2
 	mock.nthCall++
 	return errors.New("fake error")
