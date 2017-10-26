@@ -79,10 +79,10 @@ type IPFSConnector interface {
 	ConfigKey(keypath string) (interface{}, error)
 	// FreeSpace returns the amount of remaining space on the repo, calculated from
 	//"repo stat"
-	FreeSpace() (int, error)
+	FreeSpace() (uint64, error)
 	// RepoSize returns the current repository size as expressed
 	// by "repo stat".
-	RepoSize() (int, error)
+	RepoSize() (uint64, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

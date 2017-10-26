@@ -243,14 +243,14 @@ func (rpcapi *RPCAPI) IPFSConfigKey(in string, out *interface{}) error {
 }
 
 // IPFSFreeSpace runs IPFSConnector.FreeSpace().
-func (rpcapi *RPCAPI) IPFSFreeSpace(in struct{}, out *int) error {
+func (rpcapi *RPCAPI) IPFSFreeSpace(in struct{}, out *uint64) error {
 	res, err := rpcapi.c.ipfs.FreeSpace()
 	*out = res
 	return err
 }
 
 // IPFSRepoSize runs IPFSConnector.RepoSize().
-func (rpcapi *RPCAPI) IPFSRepoSize(in struct{}, out *int) error {
+func (rpcapi *RPCAPI) IPFSRepoSize(in struct{}, out *uint64) error {
 	res, err := rpcapi.c.ipfs.RepoSize()
 	*out = res
 	return err

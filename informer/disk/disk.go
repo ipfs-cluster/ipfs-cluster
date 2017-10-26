@@ -76,7 +76,7 @@ func (disk *Informer) GetMetric() api.Metric {
 		}
 	}
 
-	var metric int
+	var metric uint64
 	valid := true
 	err := disk.rpcClient.Call("",
 		"Cluster",
