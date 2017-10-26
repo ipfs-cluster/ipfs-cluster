@@ -46,8 +46,9 @@ type mockIDResp struct {
 }
 
 type mockRepoStatResp struct {
-	RepoSize  int
-	RepoCount int
+	RepoSize   uint64
+	NumObjects uint64
+	StorageMax uint64
 }
 
 type mockConfigResp struct {
@@ -201,8 +202,9 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	case "repo/stat":
 		len := len(m.pinMap.List())
 		resp := mockRepoStatResp{
-			RepoSize:  len * 1000,
-			RepoCount: len,
+			RepoSize:   uint64(len) * 1000,
+			NumObjects: uint64(len),
+			StorageMax: 10000000000, //10 GB
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
