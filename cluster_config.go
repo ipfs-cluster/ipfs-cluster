@@ -253,6 +253,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		}
 		clusterPeers[i] = maddr
 	}
+	cfg.Peers = clusterPeers
 
 	bootstrap := make([]ma.Multiaddr, len(jcfg.Bootstrap))
 	for i := 0; i < len(jcfg.Bootstrap); i++ {
@@ -264,6 +265,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		}
 		bootstrap[i] = maddr
 	}
+	cfg.Bootstrap = bootstrap
 
 	clusterAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
 	if err != nil {
