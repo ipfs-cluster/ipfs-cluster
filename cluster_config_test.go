@@ -20,7 +20,7 @@ var ccfgTestJSON = []byte(`
         "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
         "state_sync_interval": "1m0s",
         "ipfs_sync_interval": "2m10s",
-        "replication_factor": -1,
+        "replication_factor": 5,
         "monitor_ping_interval": "2s"
 }
 `)
@@ -34,6 +34,10 @@ func TestLoadJSON(t *testing.T) {
 
 	if len(cfg.Peers) != 1 || len(cfg.Bootstrap) != 1 {
 		t.Error("expected 1 peer and 1 bootstrap")
+	}
+
+	if cfg.ReplicationFactor != 5 {
+		t.Error("expected replication factor 5")
 	}
 
 	j := &configJSON{}
@@ -98,6 +102,15 @@ func TestLoadJSON(t *testing.T) {
 	err = cfg.LoadJSON(tst)
 	if err == nil {
 		t.Error("expected error state_sync_interval")
+	}
+
+	j = &configJSON{}
+	json.Unmarshal(ccfgTestJSON, j)
+	j.ReplicationFactor = 0
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if cfg.ReplicationFactor != -1 {
+		t.Error("expected default replication factor")
 	}
 }
 

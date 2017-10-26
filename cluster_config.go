@@ -274,9 +274,11 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	}
 	cfg.ListenAddr = clusterAddr
 
-	if jcfg.ReplicationFactor == 0 {
+	if rf := jcfg.ReplicationFactor; rf == 0 {
 		logger.Warning("Replication factor set to -1 (pin everywhere)")
 		cfg.ReplicationFactor = -1
+	} else {
+		cfg.ReplicationFactor = rf
 	}
 
 	// Validation will detect problems here
