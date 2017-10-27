@@ -67,7 +67,6 @@ func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
 				time.Sleep(1 * time.Second)
 				pm.cluster.consensus.Shutdown()
 				pm.cluster.config.Bootstrap = pm.peersAddrs()
-				pm.cluster.config.NotifySave()
 				pm.resetPeers()
 				time.Sleep(4 * time.Second)
 				pm.cluster.Shutdown()
@@ -79,7 +78,9 @@ func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
 }
 
 func (pm *peerManager) savePeers() {
-	pm.cluster.config.Peers = pm.peersAddrs()
+	peers := pm.peersAddrs()
+	logger.Debugf("saving peers: %s", peers)
+	pm.cluster.config.Peers = peers
 	pm.cluster.config.NotifySave()
 }
 
@@ -116,7 +117,7 @@ func (pm *peerManager) peers() []peer.ID {
 func (pm *peerManager) peersAddrs() []ma.Multiaddr {
 	pm.m.RLock()
 	defer pm.m.RUnlock()
-	var addrs []ma.Multiaddr
+	addrs := []ma.Multiaddr{}
 	for k, addr := range pm.peermap {
 		if k != pm.self {
 			addrs = append(addrs, addr)

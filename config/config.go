@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,6 +68,9 @@ type jsonSection map[string]*json.RawMessage
 // central configuration file when doing LoadJSON(), and saved to it
 // when doing SaveJSON().
 type Manager struct {
+	ctx    context.Context
+	cancel func()
+	wg     sync.WaitGroup
 
 	// The Cluster configuration has a top-level
 	// special section.
@@ -87,17 +91,31 @@ type Manager struct {
 // NewManager returns a correctly initialized Manager
 // which is ready to accept component configurations.
 func NewManager() *Manager {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
+		ctx:      ctx,
+		cancel:   cancel,
 		sections: make(map[SectionType]Section),
 	}
 
 }
 
+func (cfg *Manager) Shutdown() {
+	cfg.cancel()
+	cfg.wg.Wait()
+}
+
 func (cfg *Manager) watchSave(save <-chan struct{}) {
+	defer cfg.wg.Done()
 	for {
 		select {
 		case <-save:
-			cfg.SaveJSON("")
+			err := cfg.SaveJSON("")
+			if err != nil {
+				logger.Error(err)
+			}
+		case <-cfg.ctx.Done():
+			return
 		}
 	}
 }
@@ -141,6 +159,9 @@ func (cfg *Manager) Default() error {
 
 // RegisterComponent lets the Manager load and save component configurations
 func (cfg *Manager) RegisterComponent(t SectionType, ccfg ComponentConfig) {
+	cfg.wg.Add(1)
+	go cfg.watchSave(ccfg.SaveCh())
+
 	if t == Cluster {
 		cfg.clusterConfig = ccfg
 		return
@@ -156,8 +177,6 @@ func (cfg *Manager) RegisterComponent(t SectionType, ccfg ComponentConfig) {
 	}
 
 	cfg.sections[t][ccfg.ConfigKey()] = ccfg
-
-	go cfg.watchSave(ccfg.SaveCh())
 }
 
 // Validate checks that all the registered componenets in this
@@ -278,8 +297,7 @@ func (cfg *Manager) SaveJSON(path string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, bs, 0600)
-	return err
+	return ioutil.WriteFile(path, bs, 0600)
 }
 
 // ToJSON provides a JSON representation of the configuration by
@@ -297,6 +315,7 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 
 	if cfg.clusterConfig != nil {
 		raw, err := cfg.clusterConfig.ToJSON()
+
 		if err != nil {
 			return nil, err
 		}
