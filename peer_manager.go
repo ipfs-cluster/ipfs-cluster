@@ -117,7 +117,7 @@ func (pm *peerManager) peers() []peer.ID {
 func (pm *peerManager) peersAddrs() []ma.Multiaddr {
 	pm.m.RLock()
 	defer pm.m.RUnlock()
-	var addrs []ma.Multiaddr
+	addrs := []ma.Multiaddr{}
 	for k, addr := range pm.peermap {
 		if k != pm.self {
 			addrs = append(addrs, addr)
