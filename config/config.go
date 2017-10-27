@@ -141,6 +141,8 @@ func (cfg *Manager) Default() error {
 
 // RegisterComponent lets the Manager load and save component configurations
 func (cfg *Manager) RegisterComponent(t SectionType, ccfg ComponentConfig) {
+	go cfg.watchSave(ccfg.SaveCh())
+
 	if t == Cluster {
 		cfg.clusterConfig = ccfg
 		return
@@ -156,8 +158,6 @@ func (cfg *Manager) RegisterComponent(t SectionType, ccfg ComponentConfig) {
 	}
 
 	cfg.sections[t][ccfg.ConfigKey()] = ccfg
-
-	go cfg.watchSave(ccfg.SaveCh())
 }
 
 // Validate checks that all the registered componenets in this
