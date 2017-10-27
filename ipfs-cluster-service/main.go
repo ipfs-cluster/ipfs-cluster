@@ -317,6 +317,7 @@ func daemon(c *cli.Context) error {
 		case <-signalChan:
 			err = cluster.Shutdown()
 			checkErr("shutting down cluster", err)
+			cfg.Shutdown()
 		case <-cluster.Done():
 			return nil
 
