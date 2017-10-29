@@ -2,12 +2,12 @@
 
 This document is an attempt to help explain why ipfs-cluster exists, why people use it and why it looks the way it does.  A lot of this summarizes old discussion scattered around other repos, issues and docs, so please read the linked documents to get the full context.
 
-##ipfs-cluster's Purpose: ipfs Coordination
+## ipfs-cluster's Purpose: ipfs Coordination
 ipfs-cluster is a tool to coordinate ipfs nodes together.  It was clearly described here during its early planning stages: https://github.com/ipfs/notes/issues/58.
 From this description ipfs-cluster can be used to coordinate any aspect of an ipfs node’s state among a group of ipfs nodes.  This includes pin sets, the current focus of the project, but could also include state related to bitswap strategies or inter-node trust models, etc.  To achieve coordination of complex state among ipfs nodes without centralization, the ipfs-cluster project relies on a consensus protocol.  Today this is raft but in the future we want to make this be pluggable.  Today the project is solely focused on coordinating pinset state: https://github.com/ipfs/ipfs-cluster/blob/master/README.md.  This is a sensible place to focus because ipfs is at its core a protocol for storing and moving data and the pinset of an ipfs node determines what data it stores and distributes.
 
 
-##A key concept: the ipfs vNode abstraction:
+## A key concept: the ipfs vNode abstraction:
 Early discussion, again in https://github.com/ipfs/notes/issues/58, outlines a particular approach that remains relevant to discussion today: ipfs-cluster as a virtual ipfs node (vNode for short).  The idea is that ipfs-cluster nodes could implement the ipfs api, only exposing state agreed upon by all nodes through consensus.  A simple example: all nodes in the cluster agree on a single peer id, and after reaching agreement all nodes respond with this id to requests on their ipfs vNode id endpoint.  A more useful example: an ipfs-cluster node gets an `add <file>` request through the ipfs vNode add endpoint, the cluster nodes coordinate adding this file, perhaps doing something clever like replicating file data across multiple nodes, and reach agreement that the data was added and pinned successfully via consensus.  After all this occurs the api endpoint returns a message indicating success.
 
 Designing ipfs-cluster to work this way has some benefits, including a familiar api for user interaction, the ability to use a cluster anywhere an ipfs node is used and the ability to make ipfs-clusters depend on other ipfs-clusters as the ipfs nodes that they coordinate.  This last property has the potential to make scaling ipfs-cluster easier; if large groups of participants can be abstracted away consensus peer group size can remain bounded as cluster participants grow arbitrarily.  It is not always the case that an ipfs api is the best user interface for adding files to ipfs-cluster.  If ipfs-cluster were to support behavior like per-pin replication configuration information, for example different pins specifying different replication factors as it does today, then the ipfs api has no endpoint to encode this information and some kind of cluster specific interface is needed  (See discussion https://botbot.me/freenode/ipfs/2017-02-09/ here for a somewhat related conversation that includes discussion of more use cases).
@@ -15,24 +15,24 @@ Designing ipfs-cluster to work this way has some benefits, including a familiar 
 Though an ipfs vNode api IS partially implemented in ipfs-cluster to the point that ipfs-clusters can be composed, only the subset of the vNode api that ipfs-cluster needs to call in order to function has received attention.  There has been some discussion, in “Other open questions” https://github.com/hsanjuan/ipfsclusterspec/blob/master/README.md, about the difficulties involved in implementing a full ipfs vNode interface, and framing the vNode interface as a separate concern from the ipfs-cluster project’s primary goal of coordinating ipfs nodes.  Today emphasis on implementing the vNode interface exists to the extent that it enables composition of ipfs-clusters, but not beyond this.
 
 
-##Use cases
+## Use cases
 These are some very WIP ipfs-cluster use cases.  Note these are not formal use cases and are more accurately groups of related use cases, they could be further decomposed into the narrower scope operations found in formal use cases.
 
-###Collaborative archiving
+### Collaborative archiving
 
-###ipfs node mirror
+### ipfs node mirror
 
-Structured data storage and distribution network
+### Structured data storage and distribution network
 
-###Application specific ipfs CDN
+### Application specific ipfs CDN
 
-###Long-distance replication and offsite backup (first reported here https://github.com/ipfs/ipfs-cluster/issues/157)
-
-
-###Pinning Rings (first reported here https://github.com/ipfs/ipfs-cluster/issues/7)
+### Long-distance replication and offsite backup (first reported here https://github.com/ipfs/ipfs-cluster/issues/157)
 
 
-###Home directories with ipfs-cluster (first reported here https://github.com/ipfs/ipfs-cluster/issues/3)
+### Pinning Rings (first reported here https://github.com/ipfs/ipfs-cluster/issues/7)
+
+
+### Home directories with ipfs-cluster (first reported here https://github.com/ipfs/ipfs-cluster/issues/3)
 
 Actors:
 	file system users
