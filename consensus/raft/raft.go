@@ -108,7 +108,6 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 
 	// Handle existing, different configuration
 	if hasState {
-		logger.Error("has state")
 		cf := r.GetConfiguration()
 		if err := cf.Error(); err != nil {
 			return nil, err
