@@ -116,17 +116,19 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 		added, removed := diffConfigurations(srvCfg, currentCfg)
 		if len(added)+len(removed) > 0 {
 			raftW.Shutdown()
-			logger.Error("Raft peers do not match cluster peers")
-			logger.Error("Aborting. Please clean this peer.")
-			logger.Errorf("Raft state peers:")
+			logger.Warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			logger.Warning("Raft peers do not match cluster peers from the configuration.")
+			logger.Warning("If problems arise, clean this peer and bootstrap it to a working cluster.")
+			logger.Warning("Raft peers peers:")
 			for _, s := range currentCfg.Servers {
-				logger.Errorf("  - %s", s.ID)
+				logger.Warningf("  - %s", s.ID)
 			}
-			logger.Errorf("Cluster configuration peers:")
+			logger.Warning("Cluster configuration peers:")
 			for _, s := range srvCfg.Servers {
-				logger.Errorf("  - %s", s.ID)
+				logger.Warningf("  - %s", s.ID)
 			}
-			return nil, errors.New("Bad cluster peers")
+			logger.Warningf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			//return nil, errors.New("Bad cluster peers")
 		}
 	}
 

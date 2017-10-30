@@ -259,7 +259,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) error {
 	var finalErr error
 	for i := 0; i <= cc.config.CommitRetries; i++ {
-		logger.Debug("attempt #%d: committing %+v", i, op)
+		logger.Debugf("attempt #%d: committing %+v", i, op)
 
 		// this means we are retrying
 		if finalErr != nil {

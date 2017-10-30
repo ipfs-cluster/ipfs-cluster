@@ -227,14 +227,7 @@ func (cfg *Config) Default() error {
 	cfg.RaftConfig = hraft.DefaultConfig()
 
 	// These options are imposed over any Default Raft Config.
-	// Changing them causes cluster peers to show
-	// difficult-to-understand behaviours,
-	// usually around the add/remove of peers.
-	// That means that changing them will make users wonder why something
-	// does not work the way it is expected to.
-	// i.e. ShutdownOnRemove will cause that no snapshot will be taken
-	// when trying to shutdown a peer after removing it from a cluster.
-	cfg.RaftConfig.ShutdownOnRemove = false
+	// cfg.RaftConfig.ShutdownOnRemove = false
 	cfg.RaftConfig.LocalID = "will_be_set_automatically"
 
 	// Set up logging
