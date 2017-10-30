@@ -53,6 +53,7 @@ type Cluster struct {
 	shutdown     bool
 	doneCh       chan struct{}
 	readyCh      chan struct{}
+	readyB       bool
 	wg           sync.WaitGroup
 
 	paMux sync.Mutex
@@ -107,6 +108,7 @@ func NewCluster(
 		informer:  informer,
 		doneCh:    make(chan struct{}),
 		readyCh:   make(chan struct{}),
+		readyB:    false,
 	}
 
 	c.setupPeerManager()
@@ -385,6 +387,7 @@ func (c *Cluster) ready() {
 		logger.Infof("    - %s", a)
 	}
 	close(c.readyCh)
+	c.readyB = true
 	logger.Info("IPFS Cluster is ready")
 }
 
@@ -423,7 +426,9 @@ func (c *Cluster) Shutdown() error {
 
 	logger.Info("shutting down IPFS Cluster")
 
-	if c.config.LeaveOnShutdown && c.consensus != nil {
+	// Only attempt to leave if consensus is initialized and cluster
+	// was ready at some point. Otherwise, it would mean bootstrap failed.
+	if c.config.LeaveOnShutdown && c.consensus != nil && c.readyB {
 		// best effort
 		logger.Warning("Attempting to leave Cluster. This may take some seconds")
 		err := c.consensus.LogRmPeer(c.id)
@@ -646,7 +651,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
-	// ClusterAddr).
+	// ListenAddr).
 	var myID api.IDSerial
 	err = c.rpcClient.Call(pid,
 		"Cluster",

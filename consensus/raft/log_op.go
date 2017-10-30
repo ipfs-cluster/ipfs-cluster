@@ -74,7 +74,6 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			"PeerManagerAddPeer",
 			op.Peer,
 			&struct{}{})
-		// TODO rebalance ops
 	case LogOpRmPeer:
 		pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
 		pid, err := peer.IDB58Decode(pidstr)
@@ -86,7 +85,6 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			"PeerManagerRmPeer",
 			pid,
 			&struct{}{})
-		// TODO rebalance ops
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}
