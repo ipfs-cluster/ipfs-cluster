@@ -423,7 +423,7 @@ func (c *Cluster) Shutdown() error {
 
 	logger.Info("shutting down IPFS Cluster")
 
-	if c.config.LeaveOnShutdown {
+	if c.config.LeaveOnShutdown && c.consensus != nil {
 		// best effort
 		logger.Warning("Attempting to leave Cluster. This may take some seconds")
 		err := c.consensus.LogRmPeer(c.id)
