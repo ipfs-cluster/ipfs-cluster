@@ -451,8 +451,11 @@ func (c *Cluster) Shutdown() error {
 		}
 	}
 
-	c.peerManager.savePeers()
-	c.backupState()
+	// Do not save anything if we were not ready
+	if c.readyB {
+		c.peerManager.savePeers()
+		c.backupState()
+	}
 
 	if err := c.monitor.Shutdown(); err != nil {
 		logger.Errorf("error stopping monitor: %s", err)
