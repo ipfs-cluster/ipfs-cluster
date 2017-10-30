@@ -285,6 +285,10 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 
 		// addPeer and rmPeer need to apply the change to Raft directly.
 		switch op.Type {
+		case LogOpPin:
+			logger.Infof("pin committed to global state: %s", op.Cid.Cid)
+		case LogOpUnpin:
+			logger.Infof("unpin committed to global state: %s", op.Cid.Cid)
 		case LogOpAddPeer:
 			pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
 			finalErr = cc.raft.AddPeer(pidstr)
@@ -316,7 +320,6 @@ func (cc *Consensus) LogPin(pin api.Pin) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("pin committed to global state: %s", pin.Cid)
 	return nil
 }
 
@@ -327,7 +330,6 @@ func (cc *Consensus) LogUnpin(pin api.Pin) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("unpin committed to global state: %s", pin.Cid)
 	return nil
 }
 
