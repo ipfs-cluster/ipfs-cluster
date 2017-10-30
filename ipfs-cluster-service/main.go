@@ -317,13 +317,15 @@ func daemon(c *cli.Context) error {
 		case <-signalChan:
 			err = cluster.Shutdown()
 			checkErr("shutting down cluster", err)
-			cfg.Shutdown()
 		case <-cluster.Done():
 			return nil
 
 			//case <-cluster.Ready():
 		}
 	}
+	// wait for configuration to be saved
+	cfg.Shutdown()
+	return nil
 }
 
 var facilities = []string{
