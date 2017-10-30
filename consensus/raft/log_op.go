@@ -1,13 +1,11 @@
 package raft
 
 import (
-	"context"
 	"errors"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -30,8 +28,7 @@ type LogOp struct {
 	Cid       api.PinSerial
 	Peer      api.MultiaddrSerial
 	Type      LogOpType
-	ctx       context.Context
-	rpcClient *rpc.Client
+	consensus *Consensus
 }
 
 // ApplyTo applies the operation to the State
@@ -50,7 +47,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.rpcClient.Go("",
+		op.consensus.rpcClient.Go("",
 			"Cluster",
 			"Track",
 			op.Cid,
@@ -62,14 +59,14 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.rpcClient.Go("",
+		op.consensus.rpcClient.Go("",
 			"Cluster",
 			"Untrack",
 			op.Cid,
 			&struct{}{},
 			nil)
 	case LogOpAddPeer:
-		op.rpcClient.Call("",
+		op.consensus.rpcClient.Call("",
 			"Cluster",
 			"PeerManagerAddPeer",
 			op.Peer,
@@ -80,7 +77,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 		if err != nil {
 			panic("could not decode a PID we ourselves encoded")
 		}
-		op.rpcClient.Call("",
+		op.consensus.rpcClient.Call("",
 			"Cluster",
 			"PeerManagerRmPeer",
 			pid,

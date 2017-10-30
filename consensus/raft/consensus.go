@@ -54,12 +54,10 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 		return nil, err
 	}
 
-	op := &LogOp{
-		ctx: context.Background(),
-	}
+	baseOp := &LogOp{}
 
 	logger.Infof("starting Consensus and waiting for a leader...")
-	consensus := libp2praft.NewOpLog(state, op)
+	consensus := libp2praft.NewOpLog(state, baseOp)
 	raft, err := newRaftWrapper(clusterPeers, host, cfg, consensus.FSM())
 	if err != nil {
 		logger.Error("error creating raft: ", err)
@@ -69,7 +67,6 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 	consensus.SetActor(actor)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	op.ctx = ctx
 
 	cc := &Consensus{
 		ctx:       ctx,
@@ -78,11 +75,13 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 		host:      host,
 		consensus: consensus,
 		actor:     actor,
-		baseOp:    op,
+		baseOp:    baseOp,
 		raft:      raft,
 		rpcReady:  make(chan struct{}, 1),
 		readyCh:   make(chan struct{}, 1),
 	}
+
+	baseOp.consensus = cc
 
 	go cc.finishBootstrap()
 	return cc, nil
@@ -172,7 +171,6 @@ func (cc *Consensus) Shutdown() error {
 // SetClient makes the component ready to perform RPC requets
 func (cc *Consensus) SetClient(c *rpc.Client) {
 	cc.rpcClient = c
-	cc.baseOp.rpcClient = c
 	cc.rpcReady <- struct{}{}
 }
 

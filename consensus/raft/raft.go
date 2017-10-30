@@ -328,15 +328,27 @@ func (rw *raftWrapper) RemovePeer(peer string) error {
 		return errors.New("cannot remove ourselves from a 1-peer cluster")
 	}
 
-	future := rw.raft.RemoveServer(
+	rmFuture := rw.raft.RemoveServer(
 		hraft.ServerID(peer),
 		0,
 		0) // TODO: Extra cfg value?
-	err = future.Error()
+	err = rmFuture.Error()
 	if err != nil {
 		logger.Error("raft cannot remove peer: ", err)
+		return err
 	}
-	return err
+
+	// make sure change is applied everywhere before continuing
+	// this makes sure that a leaving node gets the memo
+	// before we shut it down.
+	bFuture := rw.raft.Barrier(10 * time.Second)
+	err = bFuture.Error()
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 // Leader returns Raft's leader. It may be an empty string if
