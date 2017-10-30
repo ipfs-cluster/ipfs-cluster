@@ -37,8 +37,10 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
 	}
 	pm.ps.AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
 
-	if !pm.isPeer(pid) {
-		logger.Infof("new Cluster peer %s", addr.String())
+	// Only log these when we are not starting cluster (rpcClient == nil)
+	// They pollute the start up logs redundantly.
+	if !pm.isPeer(pid) && pm.cluster.rpcClient != nil {
+		logger.Infof("new peer: %s", addr.String())
 	}
 
 	pm.m.Lock()
