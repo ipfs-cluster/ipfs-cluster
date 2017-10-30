@@ -1230,10 +1230,11 @@ func (c *Cluster) backupState() {
 		logger.Error(err)
 		return
 	}
+	defer f.Close()
+
 	err = c.state.Snapshot(f)
 	if err != nil {
 		logger.Error(err)
 		return
 	}
-	defer f.Close()
 }

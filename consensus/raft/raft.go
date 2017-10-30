@@ -14,6 +14,10 @@ import (
 	p2praft "github.com/libp2p/go-libp2p-raft"
 )
 
+// ErrBadRaftState is returned when the consensus component cannot start
+// because the cluster peers do not match the raft peers.
+var ErrBadRaftState = errors.New("cluster peers do not match raft peers")
+
 // RaftMaxSnapshots indicates how many snapshots to keep in the consensus data
 // folder.
 // TODO: Maybe include this in Config. Not sure how useful it is to touch
@@ -135,18 +139,22 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 		added, removed := diffConfigurations(srvCfg, currentCfg)
 		if len(added)+len(removed) > 0 {
 			raftW.Shutdown()
-			logger.Warning("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			logger.Warning("Raft peers do not match cluster peers from the configuration.")
-			logger.Warning("If problems arise, clean this peer and bootstrap it to a working cluster.")
-			logger.Warning("Raft peers:")
+			logger.Error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			logger.Error("Raft peers do not match cluster peers from the configuration.")
+			logger.Error("This likely indicates that this peer has left the cluster and/or")
+			logger.Error("has a dirty state. Clean the raft state for this peer")
+			logger.Error("(%s)", dataFolder)
+			logger.Error("bootstrap it to a working cluster.")
+			logger.Error("Raft peers:")
 			for _, s := range currentCfg.Servers {
-				logger.Warningf("  - %s", s.ID)
+				logger.Errorf("  - %s", s.ID)
 			}
-			logger.Warning("Cluster configuration peers:")
+			logger.Error("Cluster configuration peers:")
 			for _, s := range srvCfg.Servers {
-				logger.Warningf("  - %s", s.ID)
+				logger.Errorf("  - %s", s.ID)
 			}
-			logger.Warningf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			logger.Errorf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			return nil, ErrBadRaftState
 			//return nil, errors.New("Bad cluster peers")
 		}
 	}
