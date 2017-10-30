@@ -160,7 +160,6 @@ func (cc *Consensus) Shutdown() error {
 	err := cc.raft.Shutdown()
 	if err != nil {
 		logger.Error(err)
-		return err
 	}
 	cc.shutdown = true
 	cc.cancel()
