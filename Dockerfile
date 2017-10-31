@@ -35,4 +35,5 @@ RUN mkdir -p $IPFS_CLUSTER_PATH && \
 VOLUME $IPFS_CLUSTER_PATH
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start-daemons.sh"]
 
-CMD ["$IPFS_CLUSTER_OPTS"]
+# Defaults for ipfs-cluster-service would go here
+CMD []
