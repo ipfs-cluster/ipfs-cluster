@@ -140,6 +140,21 @@ func TestConsensusLogAddPeer(t *testing.T) {
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
+
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err = cc2.raft.WaitForPeer(ctx, cc.host.ID().Pretty(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	peers, err := cc2.raft.Peers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(peers) != 2 {
+		t.Error("peer was not added")
+	}
 }
 
 func TestConsensusLogRmPeer(t *testing.T) {
@@ -159,7 +174,11 @@ func TestConsensusLogRmPeer(t *testing.T) {
 		t.Error("could not add peer:", err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 20*time.Second)
+	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cc.raft.WaitForLeader(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
@@ -181,6 +200,11 @@ func TestConsensusLogRmPeer(t *testing.T) {
 	err2 := cc.LogRmPeer(cc2.host.ID())
 	if err != nil && err2 != nil {
 		t.Error("could not remove peer:", err, err2)
+	}
+
+	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

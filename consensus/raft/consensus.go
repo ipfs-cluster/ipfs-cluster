@@ -5,6 +5,7 @@ package raft
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -209,7 +210,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 
 		// No leader, wait for one
 		if err != nil {
-			logger.Warningf("there seems to be no leader. Waiting for one")
+			logger.Warning("there seems to be no leader. Waiting for one")
 			rctx, cancel := context.WithTimeout(
 				cc.ctx,
 				cc.config.WaitForLeaderTimeout)
@@ -219,7 +220,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 			// means we timed out waiting for a leader
 			// we don't retry in this case
 			if err != nil {
-				return false, errors.New("timed out waiting for leader")
+				return false, fmt.Errorf("timed out waiting for leader: %s", err)
 			}
 			leader, err = peer.IDB58Decode(pidstr)
 			if err != nil {
@@ -232,7 +233,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 			return false, nil
 		}
 
-		logger.Debugf("redirecting to leader: %s", leader)
+		logger.Debugf("redirecting to leader: %s", leader.Pretty())
 		finalErr = cc.rpcClient.Call(
 			leader,
 			"Cluster",
@@ -241,7 +242,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 			&struct{}{})
 		if finalErr != nil {
 			logger.Error(finalErr)
-			logger.Info("retrying to redirect request to leader")
+			logger.Error("retrying to redirect request to leader")
 			time.Sleep(2 * cc.config.RaftConfig.HeartbeatTimeout)
 			continue
 		}
@@ -260,7 +261,7 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 
 		// this means we are retrying
 		if finalErr != nil {
-			logger.Error("retrying upon failed commit (retry %d): ",
+			logger.Errorf("retrying upon failed commit (retry %d): %s ",
 				i, finalErr)
 		}
 
@@ -275,7 +276,7 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 		// Being here means we are the LEADER. We can commit.
 
 		// now commit the changes to our state
-		_, finalErr := cc.consensus.CommitOp(op)
+		_, finalErr = cc.consensus.CommitOp(op)
 		if finalErr != nil {
 			goto RETRY
 		}

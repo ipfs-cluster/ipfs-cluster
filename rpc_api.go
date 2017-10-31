@@ -290,25 +290,20 @@ func (rpcapi *RPCAPI) ConsensusLogRmPeer(in peer.ID, out *struct{}) error {
 // PeerManagerAddPeer runs peerManager.addPeer().
 func (rpcapi *RPCAPI) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
 	addr := in.ToMultiaddr()
-	err := rpcapi.c.peerManager.addPeer(addr)
+	err := rpcapi.c.peerManager.addPeer(addr, true)
 	return err
 }
 
 // PeerManagerAddFromMultiaddrs runs peerManager.addFromMultiaddrs().
 func (rpcapi *RPCAPI) PeerManagerAddFromMultiaddrs(in api.MultiaddrsSerial, out *struct{}) error {
 	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.addFromMultiaddrs(addrs)
+	err := rpcapi.c.peerManager.addFromMultiaddrs(addrs, true)
 	return err
-}
-
-// PeerManagerRmPeerShutdown runs peerManager.rmPeer().
-func (rpcapi *RPCAPI) PeerManagerRmPeerShutdown(in peer.ID, out *struct{}) error {
-	return rpcapi.c.peerManager.rmPeer(in, true)
 }
 
 // PeerManagerRmPeer runs peerManager.rmPeer().
 func (rpcapi *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
-	return rpcapi.c.peerManager.rmPeer(in, false)
+	return rpcapi.c.peerManager.rmPeer(in, true)
 }
 
 // PeerManagerPeers runs peerManager.peers().

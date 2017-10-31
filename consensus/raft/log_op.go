@@ -1,7 +1,9 @@
 package raft
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -66,22 +68,46 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			&struct{}{},
 			nil)
 	case LogOpAddPeer:
+		// pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
+
 		op.consensus.rpcClient.Call("",
 			"Cluster",
 			"PeerManagerAddPeer",
 			op.Peer,
 			&struct{}{})
+
 	case LogOpRmPeer:
 		pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
 		pid, err := peer.IDB58Decode(pidstr)
 		if err != nil {
 			panic("could not decode a PID we ourselves encoded")
 		}
-		op.consensus.rpcClient.Call("",
-			"Cluster",
-			"PeerManagerRmPeer",
-			pid,
-			&struct{}{})
+
+		// Asynchronously wait for peer to be removed from raft
+		// and remove it from the peerset. Otherwise do nothing
+		go func() {
+			ctx, cancel := context.WithTimeout(op.consensus.ctx,
+				10*time.Second)
+			defer cancel()
+
+			// Do not wait if we are being removed
+			// as it may just hang waiting for a future.
+			if pid != op.consensus.host.ID() {
+				err = op.consensus.raft.WaitForPeer(ctx, pidstr, true)
+				if err != nil {
+					if err.Error() != errWaitingForSelf.Error() {
+						logger.Warningf("Peer has not been removed from raft: %s: %s", pidstr, err)
+					}
+					return
+				}
+			}
+			op.consensus.rpcClient.Call("",
+				"Cluster",
+				"PeerManagerRmPeer",
+				pid,
+				&struct{}{})
+		}()
+
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}

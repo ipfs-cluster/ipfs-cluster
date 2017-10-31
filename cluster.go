@@ -50,7 +50,8 @@ type Cluster struct {
 	informer  Informer
 
 	shutdownLock sync.Mutex
-	shutdown     bool
+	shutdownB    bool
+	shutdownOnce sync.Once
 	doneCh       chan struct{}
 	readyCh      chan struct{}
 	readyB       bool
@@ -106,6 +107,7 @@ func NewCluster(
 		monitor:   monitor,
 		allocator: allocator,
 		informer:  informer,
+		shutdownB: false,
 		doneCh:    make(chan struct{}),
 		readyCh:   make(chan struct{}),
 		readyB:    false,
@@ -142,9 +144,9 @@ func (c *Cluster) setupPeerManager() {
 	c.peerManager = pm
 
 	if len(c.config.Peers) > 0 {
-		c.peerManager.addFromMultiaddrs(c.config.Peers)
+		c.peerManager.addFromMultiaddrs(c.config.Peers, false)
 	} else {
-		c.peerManager.addFromMultiaddrs(c.config.Bootstrap)
+		c.peerManager.addFromMultiaddrs(c.config.Bootstrap, false)
 	}
 
 }
@@ -419,26 +421,22 @@ func (c *Cluster) Shutdown() error {
 	c.shutdownLock.Lock()
 	defer c.shutdownLock.Unlock()
 
-	if c.shutdown {
-		logger.Warning("Cluster is already shutdown")
+	if c.shutdownB {
+		logger.Debug("Cluster is already shutdown")
 		return nil
 	}
 
-	logger.Info("shutting down IPFS Cluster")
+	logger.Info("shutting down Cluster")
 
 	// Only attempt to leave if consensus is initialized and cluster
 	// was ready at some point. Otherwise, it would mean bootstrap failed.
 	if c.config.LeaveOnShutdown && c.consensus != nil && c.readyB {
 		// best effort
-		logger.Warning("Attempting to leave Cluster. This may take some seconds")
+		logger.Warning("attempting to leave the cluster. This may take some seconds")
 		err := c.consensus.LogRmPeer(c.id)
 		if err != nil {
 			logger.Error("leaving cluster: " + err.Error())
-		} else {
-			time.Sleep(2 * time.Second)
 		}
-		c.config.Bootstrap = c.peerManager.peersAddrs()
-		c.peerManager.resetPeers()
 	}
 
 	// Cancel contexts
@@ -453,7 +451,8 @@ func (c *Cluster) Shutdown() error {
 
 	// Do not save anything if we were not ready
 	if c.readyB {
-		c.peerManager.savePeers()
+		// peers are saved usually on addPeer/rmPeer
+		// c.peerManager.savePeers()
 		c.backupState()
 	}
 
@@ -477,7 +476,7 @@ func (c *Cluster) Shutdown() error {
 	}
 	c.wg.Wait()
 	c.host.Close() // Shutdown all network services
-	c.shutdown = true
+	c.shutdownB = true
 	close(c.doneCh)
 	return nil
 }
@@ -539,7 +538,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	// Figure out its real address if we have one
 	remoteAddr := getRemoteMultiaddr(c.host, pid, decapAddr)
 
-	err = c.peerManager.addPeer(remoteAddr)
+	err = c.peerManager.addPeer(remoteAddr, false)
 	if err != nil {
 		logger.Error(err)
 		id := api.ID{ID: pid, Error: err.Error()}
@@ -559,7 +558,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	}
 
 	// Log the new peer in the log so everyone gets it.
-	err = c.consensus.LogAddPeer(remoteAddr)
+	err = c.consensus.LogAddPeer(remoteAddr) // this will save
 	if err != nil {
 		logger.Error(err)
 		id := api.ID{ID: pid, Error: err.Error()}
@@ -602,26 +601,15 @@ func (c *Cluster) PeerRemove(pid peer.ID) error {
 		return fmt.Errorf("%s is not a peer", pid.Pretty())
 	}
 
-	// The peer is no longer among the peer set, so we can re-allocate
-	// any CIDs associated to it.
-	logger.Infof("Re-allocating all CIDs directly associated to %s", pid)
+	// We need to repin before removing the peer, otherwise, it won't
+	// be able to submit the pins.
+	logger.Infof("re-allocating all CIDs directly associated to %s", pid)
 	c.repinFromPeer(pid)
 
 	err := c.consensus.LogRmPeer(pid)
 	if err != nil {
 		logger.Error(err)
 		return err
-	}
-
-	// This is a best effort. It may fail
-	// if that peer is down
-	err = c.rpcClient.Call(pid,
-		"Cluster",
-		"PeerManagerRmPeerShutdown",
-		pid,
-		&struct{}{})
-	if err != nil {
-		logger.Error(err)
 	}
 
 	return nil
@@ -650,7 +638,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	}
 
 	// Add peer to peerstore so we can talk to it
-	c.peerManager.addPeer(addr)
+	c.peerManager.addPeer(addr, false)
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
@@ -1217,15 +1205,15 @@ func (c *Cluster) backupState() {
 		return
 	}
 
-	folder := filepath.Dir(c.config.BaseDir)
-	err := os.MkdirAll(filepath.Join(folder, "backups"), 0700)
+	folder := filepath.Join(c.config.BaseDir, "backups")
+	err := os.MkdirAll(folder, 0700)
 	if err != nil {
 		logger.Error(err)
 		logger.Error("skipping backup")
 		return
 	}
 	fname := time.Now().UTC().Format("20060102_15:04:05")
-	f, err := os.Create(filepath.Join(folder, "backups", fname))
+	f, err := os.Create(filepath.Join(folder, fname))
 	if err != nil {
 		logger.Error(err)
 		return

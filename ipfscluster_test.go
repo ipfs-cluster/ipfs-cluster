@@ -225,7 +225,7 @@ func waitForLeader(t *testing.T, clusters []*Cluster) {
 
 	// Make sure we don't check on a shutdown cluster
 	j := rand.Intn(len(clusters))
-	for clusters[j].shutdown {
+	for clusters[j].shutdownB {
 		j = rand.Intn(len(clusters))
 	}
 

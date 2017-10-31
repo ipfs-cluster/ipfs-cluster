@@ -29,7 +29,7 @@ func newPeerManager(c *Cluster) *peerManager {
 	return pm
 }
 
-func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
+func (pm *peerManager) addPeer(addr ma.Multiaddr, save bool) error {
 	logger.Debugf("adding peer %s", addr)
 	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
@@ -47,10 +47,15 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
 	pm.peermap[pid] = addr
 	pm.m.Unlock()
 
+	if save {
+		pm.savePeers()
+	}
+
+	logger.Debugf("peers after adding %s", pm.peersAddrs())
 	return nil
 }
 
-func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
+func (pm *peerManager) rmPeer(pid peer.ID, save bool) error {
 	logger.Debugf("removing peer %s", pid.Pretty())
 
 	if pm.isPeer(pid) {
@@ -61,19 +66,23 @@ func (pm *peerManager) rmPeer(pid peer.ID, selfShutdown bool) error {
 	delete(pm.peermap, pid)
 	pm.m.Unlock()
 
-	// It's ourselves. This is not very graceful
-	if pid == pm.self && selfShutdown {
-		logger.Warning("this peer has been removed from the Cluster and will shutdown itself in 5 seconds")
-		defer func() {
-			go func() {
-				time.Sleep(1 * time.Second)
-				pm.cluster.consensus.Shutdown()
-				pm.cluster.config.Bootstrap = pm.peersAddrs()
-				pm.resetPeers()
-				time.Sleep(4 * time.Second)
-				pm.cluster.Shutdown()
-			}()
-		}()
+	if pid == pm.self {
+		logger.Info("this peer has been removed and will shutdown")
+		// we are removing ourselves. Therefore we need to:
+		// - convert cluster peers to bootstrapping peers
+		// - shut ourselves down if we are not in the process
+		//
+		// Note that, if we are here, we have already been
+		// removed from the raft.
+		pm.cluster.config.Bootstrap = pm.peersAddrs()
+		pm.resetPeers()
+		time.Sleep(1 * time.Second)
+		// should block and do nothing if already doing it
+		pm.cluster.Shutdown()
+	}
+
+	if save {
+		pm.savePeers()
 	}
 
 	return nil
@@ -132,13 +141,18 @@ func (pm *peerManager) peersAddrs() []ma.Multiaddr {
 // 	return pm.addFromMultiaddrs(cfg.ClusterPeers)
 // }
 
-func (pm *peerManager) addFromMultiaddrs(addrs []ma.Multiaddr) error {
+// this resets peers!
+func (pm *peerManager) addFromMultiaddrs(addrs []ma.Multiaddr, save bool) error {
+	pm.resetPeers()
 	for _, m := range addrs {
-		err := pm.addPeer(m)
+		err := pm.addPeer(m, false)
 		if err != nil {
 			logger.Error(err)
 			return err
 		}
+	}
+	if save {
+		pm.savePeers()
 	}
 	return nil
 }

@@ -14,9 +14,13 @@ import (
 	p2praft "github.com/libp2p/go-libp2p-raft"
 )
 
-// ErrBadRaftState is returned when the consensus component cannot start
+// errBadRaftState is returned when the consensus component cannot start
 // because the cluster peers do not match the raft peers.
-var ErrBadRaftState = errors.New("cluster peers do not match raft peers")
+var errBadRaftState = errors.New("cluster peers do not match raft peers")
+
+// ErrWaitingForSelf is returned when we are waiting for ourselves to depart
+// the peer set, which won't happen
+var errWaitingForSelf = errors.New("waiting for ourselves to depart")
 
 // RaftMaxSnapshots indicates how many snapshots to keep in the consensus data
 // folder.
@@ -154,7 +158,7 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 				logger.Errorf("  - %s", s.ID)
 			}
 			logger.Errorf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			return nil, ErrBadRaftState
+			return nil, errBadRaftState
 			//return nil, errors.New("Bad cluster peers")
 		}
 	}
@@ -278,6 +282,38 @@ func (rw *raftWrapper) WaitForUpdates(ctx context.Context) error {
 				return nil
 			}
 			time.Sleep(500 * time.Millisecond)
+		}
+	}
+}
+
+func (rw *raftWrapper) WaitForPeer(ctx context.Context, pid string, depart bool) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			peers, err := rw.Peers()
+			if err != nil {
+				return err
+			}
+
+			if len(peers) == 1 && pid == peers[0] && depart {
+				return errWaitingForSelf
+			}
+
+			found := find(peers, pid)
+
+			// departing
+			if depart && !found {
+				return nil
+			}
+
+			// joining
+			if !depart && found {
+				return nil
+			}
+
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 }
