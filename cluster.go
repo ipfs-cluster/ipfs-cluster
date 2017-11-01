@@ -145,9 +145,9 @@ func (c *Cluster) setupPeerManager() {
 	c.peerManager = pm
 
 	if len(c.config.Peers) > 0 {
-		c.peerManager.addFromMultiaddrs(c.config.Peers, false)
+		c.peerManager.setFromMultiaddrs(c.config.Peers, false)
 	} else {
-		c.peerManager.addFromMultiaddrs(c.config.Bootstrap, false)
+		c.peerManager.setFromMultiaddrs(c.config.Bootstrap, false)
 	}
 
 }
@@ -588,7 +588,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		addrSerial.ToMultiaddr())
 	err = c.rpcClient.Call(pid,
 		"Cluster",
-		"PeerManagerAddFromMultiaddrs",
+		"PeerManagerSetFromMultiaddrs",
 		api.MultiaddrsToSerial(clusterPeers),
 		&struct{}{})
 	if err != nil {

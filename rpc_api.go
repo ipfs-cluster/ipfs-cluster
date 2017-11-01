@@ -294,10 +294,10 @@ func (rpcapi *RPCAPI) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) 
 	return err
 }
 
-// PeerManagerAddFromMultiaddrs runs peerManager.addFromMultiaddrs().
-func (rpcapi *RPCAPI) PeerManagerAddFromMultiaddrs(in api.MultiaddrsSerial, out *struct{}) error {
+// PeerManagerSetFromMultiaddrs runs peerManager.setFromMultiaddrs().
+func (rpcapi *RPCAPI) PeerManagerSetFromMultiaddrs(in api.MultiaddrsSerial, out *struct{}) error {
 	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.addFromMultiaddrs(addrs, true)
+	err := rpcapi.c.peerManager.setFromMultiaddrs(addrs, true)
 	return err
 }
 

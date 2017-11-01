@@ -153,11 +153,11 @@ func (pm *peerManager) peersAddrs() []ma.Multiaddr {
 }
 
 // func (pm *peerManager) addFromConfig(cfg *Config) error {
-// 	return pm.addFromMultiaddrs(cfg.ClusterPeers)
+// 	return pm.setFromMultiaddrs(cfg.ClusterPeers)
 // }
 
 // this resets peers!
-func (pm *peerManager) addFromMultiaddrs(addrs []ma.Multiaddr, save bool) error {
+func (pm *peerManager) setFromMultiaddrs(addrs []ma.Multiaddr, save bool) error {
 	pm.resetPeers()
 	for _, m := range addrs {
 		err := pm.addPeer(m, false)
