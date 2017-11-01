@@ -58,6 +58,36 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr, save bool) error {
 func (pm *peerManager) rmPeer(pid peer.ID, save bool) error {
 	logger.Debugf("removing peer %s", pid.Pretty())
 
+	// Seeing our own departure during bootstrap. Ignore that.
+	if pid == pm.self && !pm.cluster.readyB {
+		return nil
+	}
+
+	// remove ourselves, unless:
+	// - we are not ready yet (means we are boostrapping)
+	// - we have been removed (means Shutdown() with LeaveOnShutdown flag)
+	if pid == pm.self && pm.cluster.readyB && !pm.cluster.removed {
+		logger.Info("this peer has been removed and will shutdown")
+		pm.cluster.removed = true
+
+		// we are removing ourselves. Therefore we need to:
+		// - convert cluster peers to bootstrapping peers
+		// - shut ourselves down if we are not in the process
+		//
+		// Note that, if we are here, we have already been
+		// removed from the raft.
+
+		// save peers as boostrappers
+		pm.cluster.config.Bootstrap = pm.peersAddrs()
+		pm.resetPeers()
+		pm.savePeers()
+		time.Sleep(1 * time.Second)
+		// should block and do nothing if already doing it
+		pm.cluster.Shutdown()
+		return nil
+	}
+
+	// Removing a different peer
 	if pm.isPeer(pid) {
 		logger.Infof("removing Cluster peer %s", pid.Pretty())
 	}
@@ -65,22 +95,6 @@ func (pm *peerManager) rmPeer(pid peer.ID, save bool) error {
 	pm.m.Lock()
 	delete(pm.peermap, pid)
 	pm.m.Unlock()
-
-	if pid == pm.self {
-		logger.Info("this peer has been removed and will shutdown")
-		// we are removing ourselves. Therefore we need to:
-		// - convert cluster peers to bootstrapping peers
-		// - shut ourselves down if we are not in the process
-		//
-		// Note that, if we are here, we have already been
-		// removed from the raft.
-		pm.cluster.config.Bootstrap = pm.peersAddrs()
-		pm.resetPeers()
-		time.Sleep(1 * time.Second)
-		pm.cluster.removed = true
-		// should block and do nothing if already doing it
-		pm.cluster.Shutdown()
-	}
 
 	if save {
 		pm.savePeers()

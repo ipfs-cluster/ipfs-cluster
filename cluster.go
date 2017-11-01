@@ -429,16 +429,23 @@ func (c *Cluster) Shutdown() error {
 
 	logger.Info("shutting down Cluster")
 
-	// Only attempt to leave if consensus is initialized and cluster
-	// was ready at some point. Otherwise, it would mean bootstrap failed.
-	if c.config.LeaveOnShutdown && c.consensus != nil && c.readyB {
+	// Only attempt to leave if:
+	// - consensus is initialized
+	// - cluster was ready (no bootstrapping error)
+	// - We are not removed already (means PeerRemove() was called on us)
+	if c.consensus != nil && c.config.LeaveOnShutdown && c.readyB && !c.removed {
+		c.removed = true
 		// best effort
 		logger.Warning("attempting to leave the cluster. This may take some seconds")
 		err := c.consensus.LogRmPeer(c.id)
 		if err != nil {
 			logger.Error("leaving cluster: " + err.Error())
 		}
-		c.removed = true
+
+		// save peers as bootstrappers
+		c.config.Bootstrap = c.peerManager.peersAddrs()
+		c.peerManager.resetPeers()
+		c.peerManager.savePeers()
 	}
 
 	// Cancel contexts
