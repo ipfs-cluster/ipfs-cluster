@@ -375,6 +375,21 @@ func (cc *Consensus) Leader() (peer.ID, error) {
 	return raftactor.Leader()
 }
 
+// Clean removes all raft data from disk. Next time
+// a full new peer will be bootstrapped.
+func (cc *Consensus) Clean() error {
+	if !cc.shutdown {
+		return errors.New("consensus component is not shutdown")
+	}
+
+	err := cc.raft.Clean()
+	if err != nil {
+		return err
+	}
+	logger.Info("consensus data cleaned")
+	return nil
+}
+
 // Rollback replaces the current agreed-upon
 // state with the state provided. Only the consensus leader
 // can perform this operation.

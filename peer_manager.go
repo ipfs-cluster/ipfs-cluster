@@ -77,6 +77,7 @@ func (pm *peerManager) rmPeer(pid peer.ID, save bool) error {
 		pm.cluster.config.Bootstrap = pm.peersAddrs()
 		pm.resetPeers()
 		time.Sleep(1 * time.Second)
+		pm.cluster.removed = true
 		// should block and do nothing if already doing it
 		pm.cluster.Shutdown()
 	}

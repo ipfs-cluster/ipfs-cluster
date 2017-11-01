@@ -54,6 +54,8 @@ type Consensus interface {
 	// Only returns when the consensus state has all log
 	// updates applied to it
 	WaitForSync() error
+	// Clean removes all consensus data
+	Clean() error
 }
 
 // API is a component which offers an API for Cluster. This is

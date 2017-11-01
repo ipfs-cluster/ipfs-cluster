@@ -43,6 +43,7 @@ const sixtyfour = uint64(^uint(0)) == ^uint64(0)
 // if need be.
 type raftWrapper struct {
 	raft          *hraft.Raft
+	dataFolder    string
 	srvConfig     hraft.Configuration
 	transport     *hraft.NetworkTransport
 	snapshotStore hraft.SnapshotStore
@@ -125,6 +126,7 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 
 	raftW := &raftWrapper{
 		raft:          r,
+		dataFolder:    dataFolder,
 		srvConfig:     srvCfg,
 		transport:     transport,
 		snapshotStore: snap,
@@ -423,6 +425,11 @@ func (rw *raftWrapper) Peers() ([]string, error) {
 	}
 
 	return ids, nil
+}
+
+// only call when Raft is shutdown
+func (rw *raftWrapper) Clean() error {
+	return os.RemoveAll(rw.dataFolder)
 }
 
 func find(s []string, elem string) bool {

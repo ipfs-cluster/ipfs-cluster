@@ -51,7 +51,7 @@ type Cluster struct {
 
 	shutdownLock sync.Mutex
 	shutdownB    bool
-	shutdownOnce sync.Once
+	removed      bool
 	doneCh       chan struct{}
 	readyCh      chan struct{}
 	readyB       bool
@@ -108,6 +108,7 @@ func NewCluster(
 		allocator: allocator,
 		informer:  informer,
 		shutdownB: false,
+		removed:   false,
 		doneCh:    make(chan struct{}),
 		readyCh:   make(chan struct{}),
 		readyB:    false,
@@ -437,6 +438,7 @@ func (c *Cluster) Shutdown() error {
 		if err != nil {
 			logger.Error("leaving cluster: " + err.Error())
 		}
+		c.removed = true
 	}
 
 	// Cancel contexts
@@ -454,6 +456,14 @@ func (c *Cluster) Shutdown() error {
 		// peers are saved usually on addPeer/rmPeer
 		// c.peerManager.savePeers()
 		c.backupState()
+	}
+
+	// We left the cluster or were removed. Destroy the Raft state.
+	if c.removed && c.readyB {
+		err := c.consensus.Clean()
+		if err != nil {
+			logger.Error("cleaning consensus: ", err)
+		}
 	}
 
 	if err := c.monitor.Shutdown(); err != nil {
