@@ -60,7 +60,7 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
-	cc.SetClient(test.NewMockRPCClient(t))
+	cc.SetClient(test.NewMockRPCClientWithHost(t, h))
 	<-cc.Ready()
 	return cc
 }
@@ -68,18 +68,23 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 func TestShutdownConsensus(t *testing.T) {
 	// Bring it up twice to make sure shutdown cleans up properly
 	// but also to make sure raft comes up ok when re-initialized
-	defer cleanRaft(p2pPort)
 	cc := testingConsensus(t, p2pPort)
 	err := cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)
 	}
-	cc.Shutdown()
+	err = cc.Shutdown() // should be fine to shutdown twice
+	if err != nil {
+		t.Fatal("Consensus should be able to shutdown several times")
+	}
+	cleanRaft(p2pPort)
+
 	cc = testingConsensus(t, p2pPort)
 	err = cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)
 	}
+	cleanRaft(p2pPort)
 }
 
 func TestConsensusPin(t *testing.T) {
@@ -129,21 +134,77 @@ func TestConsensusLogAddPeer(t *testing.T) {
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
 	haddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", cc2.host.ID().Pretty()))
+
 	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
 	err := cc.LogAddPeer(addr.Encapsulate(haddr))
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
+
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err = cc2.raft.WaitForPeer(ctx, cc.host.ID().Pretty(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	peers, err := cc2.raft.Peers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(peers) != 2 {
+		t.Error("peer was not added")
+	}
 }
 
 func TestConsensusLogRmPeer(t *testing.T) {
 	cc := testingConsensus(t, p2pPort)
+	cc2 := testingConsensus(t, p2pPortAlt)
 	defer cleanRaft(p2pPort)
+	defer cleanRaft(p2pPortAlt)
 	defer cc.Shutdown()
+	defer cc2.Shutdown()
 
-	err := cc.LogRmPeer(test.TestPeerID1)
+	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
+	haddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", cc2.host.ID().Pretty()))
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
+
+	err := cc.LogAddPeer(addr.Encapsulate(haddr))
+	if err != nil {
+		t.Error("could not add peer:", err)
+	}
+
+	ctx, _ := context.WithTimeout(context.Background(), 20*time.Second)
+	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cc.raft.WaitForLeader(ctx)
+
+	c, _ := cid.Decode(test.TestCid1)
+	err = cc.LogPin(api.Pin{Cid: c, ReplicationFactor: -1})
+	if err != nil {
+		t.Error("could not pin after adding peer:", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	// Remove unexisting peer
+	err = cc.LogRmPeer(test.TestPeerID1)
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
+	}
+
+	// Remove real peer. At least the leader can succeed
+	err = cc2.LogRmPeer(cc.host.ID())
+	err2 := cc.LogRmPeer(cc2.host.ID())
+	if err != nil && err2 != nil {
+		t.Error("could not remove peer:", err, err2)
+	}
+
+	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

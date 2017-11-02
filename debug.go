@@ -8,6 +8,9 @@ func init() {
 		SetFacilityLogLevel(f, l)
 	}
 
+	//SetFacilityLogLevel("cluster", l)
+	//SetFacilityLogLevel("consensus", l)
+	//SetFacilityLogLevel("monitor", "INFO")
 	//SetFacilityLogLevel("raft", l)
 	//SetFacilityLogLevel("p2p-gorpc", l)
 	//SetFacilityLogLevel("swarm2", l)

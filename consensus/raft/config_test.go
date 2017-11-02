@@ -3,11 +3,15 @@ package raft
 import (
 	"encoding/json"
 	"testing"
+
+	hraft "github.com/hashicorp/raft"
 )
 
 var cfgJSON = []byte(`
 {
     "heartbeat_timeout": "1s",
+    "commit_retries": 1,
+    "wait_for_leader_timeout": "15s",
     "election_timeout": "1s",
     "commit_timeout": "50ms",
     "max_append_entries": 64,
@@ -27,47 +31,23 @@ func TestLoadJSON(t *testing.T) {
 
 	j := &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.HeartbeatTimeout = "-1"
+	j.HeartbeatTimeout = "1us"
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
 		t.Error("expected error decoding heartbeat_timeout")
 	}
 
-	j = &jsonConfig{}
-	json.Unmarshal(cfgJSON, j)
-	j.ElectionTimeout = "abc"
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error in timeout")
-	}
-
-	j = &jsonConfig{}
-	json.Unmarshal(cfgJSON, j)
-	j.CommitTimeout = "abc"
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error in timeout")
-	}
-
-	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
 	j.LeaderLeaseTimeout = "abc"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error in timeout")
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	j = &jsonConfig{}
-	json.Unmarshal(cfgJSON, j)
-	j.SnapshotInterval = "abc"
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error in snapshot_interval")
+	def := hraft.DefaultConfig()
+	if cfg.RaftConfig.LeaderLeaseTimeout != def.LeaderLeaseTimeout {
+		t.Error("expected default leader lease")
 	}
 }
 
@@ -92,13 +72,25 @@ func TestDefault(t *testing.T) {
 		t.Fatal("error validating")
 	}
 
-	cfg.HashiraftCfg.HeartbeatTimeout = 0
+	cfg.RaftConfig.HeartbeatTimeout = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.HashiraftCfg = nil
+	cfg.RaftConfig = nil
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.CommitRetries = -1
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.WaitForLeaderTimeout = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}

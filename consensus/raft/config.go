@@ -8,15 +8,21 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 
-	hashiraft "github.com/hashicorp/raft"
+	hraft "github.com/hashicorp/raft"
 )
 
 // ConfigKey is the default configuration key for holding this component's
 // configuration section.
 var configKey = "raft"
 
-// DefaultDataSubFolder is the default subfolder in which Raft's data is stored.
-var DefaultDataSubFolder = "ipfs-cluster-data"
+// Configuration defaults
+var (
+	DefaultDataSubFolder        = "ipfs-cluster-data"
+	DefaultWaitForLeaderTimeout = 15 * time.Second
+	DefaultCommitRetries        = 1
+	DefaultNetworkTimeout       = 10 * time.Second
+	DefaultCommitRetryDelay     = 200 * time.Millisecond
+)
 
 // Config allows to configure the Raft Consensus component for ipfs-cluster.
 // The component's configuration section is represented by ConfigJSON.
@@ -25,9 +31,20 @@ type Config struct {
 	config.Saver
 
 	// A Hashicorp Raft's configuration object.
-	HashiraftCfg *hashiraft.Config
+	RaftConfig *hraft.Config
 	// A folder to store Raft's data.
 	DataFolder string
+	// LeaderTimeout specifies how long to wait for a leader before
+	// failing an operation.
+	WaitForLeaderTimeout time.Duration
+	// NetworkTimeout specifies how long before a Raft network
+	// operation is timed out
+	NetworkTimeout time.Duration
+	// CommitRetries specifies how many times we retry a failed commit until
+	// we give up.
+	CommitRetries int
+	// How long to wait between retries
+	CommitRetryDelay time.Duration
 }
 
 // ConfigJSON represents a human-friendly Config
@@ -40,6 +57,18 @@ type jsonConfig struct {
 	// Storage folder for snapshots, log store etc. Used by
 	// the Raft.
 	DataFolder string `json:"data_folder,omitempty"`
+
+	// How long to wait for a leader before failing
+	WaitForLeaderTimeout string `json:"wait_for_leader_timeout"`
+
+	// How long to wait before timing out network operations
+	NetworkTimeout string `json:"network_timeout"`
+
+	// How many retries to make upon a failed commit
+	CommitRetries int `json:"commit_retries"`
+
+	// How long to wait between commit retries
+	CommitRetryDelay string `json:"commit_retry_delay"`
 
 	// HeartbeatTimeout specifies the time in follower state without
 	// a leader before we attempt an election.
@@ -56,14 +85,6 @@ type jsonConfig struct {
 	// MaxAppendEntries controls the maximum number of append entries
 	// to send at once.
 	MaxAppendEntries int `json:"max_append_entries,omitempty"`
-
-	// If we are a member of a cluster, and RemovePeer is invoked for the
-	// local node, then we forget all peers and transition into the
-	// follower state.
-	// If ShutdownOnRemove is is set, we additional shutdown Raft.
-	// Otherwise, we can become a leader of a cluster containing
-	// only this node.
-	ShutdownOnRemove bool `json:"shutdown_on_remove,omitempty"`
 
 	// TrailingLogs controls how many logs we leave after a snapshot.
 	TrailingLogs uint64 `json:"trailing_logs,omitempty"`
@@ -100,11 +121,26 @@ func (cfg *Config) ConfigKey() string {
 // Validate checks that this configuration has working values,
 // at least in appereance.
 func (cfg *Config) Validate() error {
-	if cfg.HashiraftCfg == nil {
+	if cfg.RaftConfig == nil {
 		return errors.New("No hashicorp/raft.Config")
 	}
+	if cfg.WaitForLeaderTimeout <= 0 {
+		return errors.New("wait_for_leader_timeout <= 0")
+	}
 
-	return hashiraft.ValidateConfig(cfg.HashiraftCfg)
+	if cfg.NetworkTimeout <= 0 {
+		return errors.New("network_timeout <= 0")
+	}
+
+	if cfg.CommitRetries < 0 {
+		return errors.New("commit_retries is invalid")
+	}
+
+	if cfg.CommitRetryDelay <= 0 {
+		return errors.New("commit_retry_delay is invalid")
+	}
+
+	return hraft.ValidateConfig(cfg.RaftConfig)
 }
 
 // LoadJSON parses a json-encoded configuration (see jsonConfig).
@@ -118,95 +154,84 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	cfg.setDefaults()
+	cfg.Default()
 
-	// Parse durations from strings
-	heartbeatTimeout, err := time.ParseDuration(jcfg.HeartbeatTimeout)
-	if err != nil && jcfg.HeartbeatTimeout != "" {
-		logger.Error("Error parsing heartbeat_timeout")
-		return err
+	parseDuration := func(txt string) time.Duration {
+		d, _ := time.ParseDuration(txt)
+		if txt != "" && d == 0 {
+			logger.Warningf("%s is not a valid duration. Default will be used", txt)
+		}
+		return d
 	}
 
-	electionTimeout, err := time.ParseDuration(jcfg.ElectionTimeout)
-	if err != nil && jcfg.ElectionTimeout != "" {
-		logger.Error("Error parsing election_timeout")
-		return err
-	}
+	// Parse durations. We ignore errors as 0 will take Default values.
+	waitForLeaderTimeout := parseDuration(jcfg.WaitForLeaderTimeout)
+	networkTimeout := parseDuration(jcfg.NetworkTimeout)
+	commitRetryDelay := parseDuration(jcfg.CommitRetryDelay)
+	heartbeatTimeout := parseDuration(jcfg.HeartbeatTimeout)
+	electionTimeout := parseDuration(jcfg.ElectionTimeout)
+	commitTimeout := parseDuration(jcfg.CommitTimeout)
+	snapshotInterval := parseDuration(jcfg.SnapshotInterval)
+	leaderLeaseTimeout := parseDuration(jcfg.LeaderLeaseTimeout)
 
-	commitTimeout, err := time.ParseDuration(jcfg.CommitTimeout)
-	if err != nil && jcfg.CommitTimeout != "" {
-		logger.Error("Error parsing commit_timeout")
-		return err
-	}
-
-	snapshotInterval, err := time.ParseDuration(jcfg.SnapshotInterval)
-	if err != nil && jcfg.SnapshotInterval != "" {
-		logger.Error("Error parsing snapshot_interval")
-		return err
-	}
-
-	leaderLeaseTimeout, err := time.ParseDuration(jcfg.LeaderLeaseTimeout)
-	if err != nil && jcfg.LeaderLeaseTimeout != "" {
-		logger.Error("Error parsing leader_lease_timeout")
-		return err
-	}
-
+	// Set all values in config. For some, take defaults if they are 0.
 	// Set values from jcfg if they are not 0 values
-	config.SetIfNotDefault(jcfg.DataFolder, &cfg.DataFolder)
-	config.SetIfNotDefault(heartbeatTimeout, &cfg.HashiraftCfg.HeartbeatTimeout)
-	config.SetIfNotDefault(electionTimeout, &cfg.HashiraftCfg.ElectionTimeout)
-	config.SetIfNotDefault(commitTimeout, &cfg.HashiraftCfg.CommitTimeout)
-	config.SetIfNotDefault(jcfg.MaxAppendEntries, &cfg.HashiraftCfg.MaxAppendEntries)
-	config.SetIfNotDefault(jcfg.ShutdownOnRemove, &cfg.HashiraftCfg.ShutdownOnRemove)
-	config.SetIfNotDefault(jcfg.TrailingLogs, &cfg.HashiraftCfg.TrailingLogs)
-	config.SetIfNotDefault(snapshotInterval, &cfg.HashiraftCfg.SnapshotInterval)
-	config.SetIfNotDefault(jcfg.SnapshotThreshold, &cfg.HashiraftCfg.SnapshotThreshold)
-	config.SetIfNotDefault(leaderLeaseTimeout, &cfg.HashiraftCfg.LeaderLeaseTimeout)
 
-	return nil
+	// Own values
+	config.SetIfNotDefault(jcfg.DataFolder, &cfg.DataFolder)
+	config.SetIfNotDefault(waitForLeaderTimeout, &cfg.WaitForLeaderTimeout)
+	config.SetIfNotDefault(networkTimeout, &cfg.NetworkTimeout)
+	cfg.CommitRetries = jcfg.CommitRetries
+	config.SetIfNotDefault(commitRetryDelay, &cfg.CommitRetryDelay)
+
+	// Raft values
+	config.SetIfNotDefault(heartbeatTimeout, &cfg.RaftConfig.HeartbeatTimeout)
+	config.SetIfNotDefault(electionTimeout, &cfg.RaftConfig.ElectionTimeout)
+	config.SetIfNotDefault(commitTimeout, &cfg.RaftConfig.CommitTimeout)
+	config.SetIfNotDefault(jcfg.MaxAppendEntries, &cfg.RaftConfig.MaxAppendEntries)
+	config.SetIfNotDefault(jcfg.TrailingLogs, &cfg.RaftConfig.TrailingLogs)
+	config.SetIfNotDefault(snapshotInterval, &cfg.RaftConfig.SnapshotInterval)
+	config.SetIfNotDefault(jcfg.SnapshotThreshold, &cfg.RaftConfig.SnapshotThreshold)
+	config.SetIfNotDefault(leaderLeaseTimeout, &cfg.RaftConfig.LeaderLeaseTimeout)
+
+	return cfg.Validate()
 }
 
 // ToJSON returns the pretty JSON representation of a Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
 	jcfg := &jsonConfig{}
 	jcfg.DataFolder = cfg.DataFolder
-	jcfg.HeartbeatTimeout = cfg.HashiraftCfg.HeartbeatTimeout.String()
-	jcfg.ElectionTimeout = cfg.HashiraftCfg.ElectionTimeout.String()
-	jcfg.CommitTimeout = cfg.HashiraftCfg.CommitTimeout.String()
-	jcfg.MaxAppendEntries = cfg.HashiraftCfg.MaxAppendEntries
-	jcfg.ShutdownOnRemove = cfg.HashiraftCfg.ShutdownOnRemove
-	jcfg.TrailingLogs = cfg.HashiraftCfg.TrailingLogs
-	jcfg.SnapshotInterval = cfg.HashiraftCfg.SnapshotInterval.String()
-	jcfg.SnapshotThreshold = cfg.HashiraftCfg.SnapshotThreshold
-	jcfg.LeaderLeaseTimeout = cfg.HashiraftCfg.LeaderLeaseTimeout.String()
+	jcfg.WaitForLeaderTimeout = cfg.WaitForLeaderTimeout.String()
+	jcfg.NetworkTimeout = cfg.NetworkTimeout.String()
+	jcfg.CommitRetries = cfg.CommitRetries
+	jcfg.CommitRetryDelay = cfg.CommitRetryDelay.String()
+	jcfg.HeartbeatTimeout = cfg.RaftConfig.HeartbeatTimeout.String()
+	jcfg.ElectionTimeout = cfg.RaftConfig.ElectionTimeout.String()
+	jcfg.CommitTimeout = cfg.RaftConfig.CommitTimeout.String()
+	jcfg.MaxAppendEntries = cfg.RaftConfig.MaxAppendEntries
+	jcfg.TrailingLogs = cfg.RaftConfig.TrailingLogs
+	jcfg.SnapshotInterval = cfg.RaftConfig.SnapshotInterval.String()
+	jcfg.SnapshotThreshold = cfg.RaftConfig.SnapshotThreshold
+	jcfg.LeaderLeaseTimeout = cfg.RaftConfig.LeaderLeaseTimeout.String()
 
 	return config.DefaultJSONMarshal(jcfg)
 }
 
 // Default initializes this configuration with working defaults.
 func (cfg *Config) Default() error {
-	cfg.setDefaults()
-	return nil
-}
-
-// most defaults come directly from hashiraft.DefaultConfig()
-func (cfg *Config) setDefaults() {
-	cfg.DataFolder = ""
-	cfg.HashiraftCfg = hashiraft.DefaultConfig()
+	cfg.DataFolder = "" // empty so it gets ommitted
+	cfg.WaitForLeaderTimeout = DefaultWaitForLeaderTimeout
+	cfg.NetworkTimeout = DefaultNetworkTimeout
+	cfg.CommitRetries = DefaultCommitRetries
+	cfg.CommitRetryDelay = DefaultCommitRetryDelay
+	cfg.RaftConfig = hraft.DefaultConfig()
 
 	// These options are imposed over any Default Raft Config.
-	// Changing them causes cluster peers to show
-	// difficult-to-understand behaviours,
-	// usually around the add/remove of peers.
-	// That means that changing them will make users wonder why something
-	// does not work the way it is expected to.
-	// i.e. ShutdownOnRemove will cause that no snapshot will be taken
-	// when trying to shutdown a peer after removing it from a cluster.
-	cfg.HashiraftCfg.DisableBootstrapAfterElect = false
-	cfg.HashiraftCfg.EnableSingleNode = true
-	cfg.HashiraftCfg.ShutdownOnRemove = false
+	// cfg.RaftConfig.ShutdownOnRemove = false
+	cfg.RaftConfig.LocalID = "will_be_set_automatically"
 
 	// Set up logging
-	cfg.HashiraftCfg.LogOutput = ioutil.Discard
-	cfg.HashiraftCfg.Logger = raftStdLogger // see logging.go
+	cfg.RaftConfig.LogOutput = ioutil.Discard
+	cfg.RaftConfig.Logger = raftStdLogger // see logging.go
+	return nil
 }

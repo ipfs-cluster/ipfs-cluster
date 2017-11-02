@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sync"
+	"time"
 
 	logging "github.com/ipfs/go-log"
 )
@@ -105,17 +106,37 @@ func (cfg *Manager) Shutdown() {
 	cfg.wg.Wait()
 }
 
+// this watches a save channel which is used to signal that
+// we need to store changes in the configuration.
+// because saving can be called too much, we will only
+// save at intervals of 1 save/second at most.
 func (cfg *Manager) watchSave(save <-chan struct{}) {
 	defer cfg.wg.Done()
+
+	// Save once per second mostly
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	thingsToSave := false
+	exit := false
+
 	for {
 		select {
-		case <-save:
-			err := cfg.SaveJSON("")
-			if err != nil {
-				logger.Error(err)
+		case <-ticker.C:
+			if thingsToSave {
+				err := cfg.SaveJSON("")
+				if err != nil {
+					logger.Error(err)
+				}
+				thingsToSave = false
 			}
+			if exit {
+				return
+			}
+		case <-save:
+			thingsToSave = true
 		case <-cfg.ctx.Done():
-			return
+			exit = true
 		}
 	}
 }

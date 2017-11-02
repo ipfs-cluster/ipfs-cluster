@@ -3,14 +3,13 @@ package raft
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 // Type of consensus operation
@@ -31,8 +30,7 @@ type LogOp struct {
 	Cid       api.PinSerial
 	Peer      api.MultiaddrSerial
 	Type      LogOpType
-	ctx       context.Context
-	rpcClient *rpc.Client
+	consensus *Consensus
 }
 
 // ApplyTo applies the operation to the State
@@ -46,55 +44,70 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 
 	switch op.Type {
 	case LogOpPin:
-		arg := op.Cid.ToPin()
-		err = state.Add(arg)
+		err = state.Add(op.Cid.ToPin())
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.rpcClient.Go("",
+		op.consensus.rpcClient.Go("",
 			"Cluster",
 			"Track",
-			arg.ToSerial(),
+			op.Cid,
 			&struct{}{},
 			nil)
 	case LogOpUnpin:
-		arg := op.Cid.ToPin()
-		err = state.Rm(arg.Cid)
+		err = state.Rm(op.Cid.ToPin().Cid)
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.rpcClient.Go("",
+		op.consensus.rpcClient.Go("",
 			"Cluster",
 			"Untrack",
-			arg.ToSerial(),
+			op.Cid,
 			&struct{}{},
 			nil)
 	case LogOpAddPeer:
-		addr := op.Peer.ToMultiaddr()
-		op.rpcClient.Call("",
+		// pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
+
+		op.consensus.rpcClient.Call("",
 			"Cluster",
 			"PeerManagerAddPeer",
-			api.MultiaddrToSerial(addr),
+			op.Peer,
 			&struct{}{})
-		// TODO rebalance ops
+
 	case LogOpRmPeer:
-		addr := op.Peer.ToMultiaddr()
-		pidstr, err := addr.ValueForProtocol(ma.P_IPFS)
-		if err != nil {
-			panic("peer badly encoded")
-		}
+		pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
 		pid, err := peer.IDB58Decode(pidstr)
 		if err != nil {
 			panic("could not decode a PID we ourselves encoded")
 		}
-		op.rpcClient.Call("",
-			"Cluster",
-			"PeerManagerRmPeer",
-			pid,
-			&struct{}{})
-		// TODO rebalance ops
+
+		// Asynchronously wait for peer to be removed from raft
+		// and remove it from the peerset. Otherwise do nothing
+		go func() {
+			ctx, cancel := context.WithTimeout(op.consensus.ctx,
+				10*time.Second)
+			defer cancel()
+
+			// Do not wait if we are being removed
+			// as it may just hang waiting for a future.
+			if pid != op.consensus.host.ID() {
+				err = op.consensus.raft.WaitForPeer(ctx, pidstr, true)
+				if err != nil {
+					if err.Error() != errWaitingForSelf.Error() {
+						logger.Warningf("Peer has not been removed from raft: %s: %s", pidstr, err)
+					}
+					return
+				}
+			}
+			op.consensus.rpcClient.Call("",
+				"Cluster",
+				"PeerManagerRmPeer",
+				pid,
+				&struct{}{})
+		}()
+
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}

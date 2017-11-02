@@ -50,9 +50,11 @@ type Cluster struct {
 	informer  Informer
 
 	shutdownLock sync.Mutex
-	shutdown     bool
+	shutdownB    bool
+	removed      bool
 	doneCh       chan struct{}
 	readyCh      chan struct{}
+	readyB       bool
 	wg           sync.WaitGroup
 
 	paMux sync.Mutex
@@ -105,8 +107,11 @@ func NewCluster(
 		monitor:   monitor,
 		allocator: allocator,
 		informer:  informer,
+		shutdownB: false,
+		removed:   false,
 		doneCh:    make(chan struct{}),
 		readyCh:   make(chan struct{}),
+		readyB:    false,
 	}
 
 	c.setupPeerManager()
@@ -140,9 +145,9 @@ func (c *Cluster) setupPeerManager() {
 	c.peerManager = pm
 
 	if len(c.config.Peers) > 0 {
-		c.peerManager.addFromMultiaddrs(c.config.Peers)
+		c.peerManager.setFromMultiaddrs(c.config.Peers, false)
 	} else {
-		c.peerManager.addFromMultiaddrs(c.config.Bootstrap)
+		c.peerManager.setFromMultiaddrs(c.config.Bootstrap, false)
 	}
 
 }
@@ -165,7 +170,9 @@ func (c *Cluster) setupConsensus(consensuscfg *raft.Config) error {
 	if len(c.config.Peers) > 0 {
 		startPeers = peersFromMultiaddrs(c.config.Peers)
 	} else {
-		startPeers = peersFromMultiaddrs(c.config.Bootstrap)
+		// start as single cluster before being added
+		// to the bootstrapper peers' cluster.
+		startPeers = []peer.ID{}
 	}
 
 	consensus, err := raft.NewConsensus(
@@ -259,6 +266,11 @@ func (c *Cluster) broadcastMetric(m api.Metric) error {
 // push metrics loops and pushes metrics to the leader's monitor
 func (c *Cluster) pushInformerMetrics() {
 	timer := time.NewTimer(0) // fire immediately first
+	// The following control how often to make and log
+	// a retry
+	retries := 0
+	retryDelay := 500 * time.Millisecond
+	retryWarnMod := 60
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -273,17 +285,19 @@ func (c *Cluster) pushInformerMetrics() {
 		err := c.broadcastMetric(metric)
 
 		if err != nil {
-			logger.Errorf("error broadcasting metric: %s", err)
-			// retry in half second
-			timer.Stop()
-			timer.Reset(500 * time.Millisecond)
+			if (retries % retryWarnMod) == 0 {
+				logger.Errorf("error broadcasting metric: %s", err)
+				retries++
+			}
+			// retry in retryDelay
+			timer.Reset(retryDelay)
 			continue
 		}
 
-		timer.Stop() // no need to drain C if we are here
+		retries = 0
+		// send metric again in TTL/2
 		timer.Reset(metric.GetTTL() / 2)
 	}
-	logger.Debugf("Peer %s. Finished pushInformerMetrics", c.id)
 }
 
 func (c *Cluster) pushPingMetrics() {
@@ -376,6 +390,7 @@ func (c *Cluster) ready() {
 		logger.Infof("    - %s", a)
 	}
 	close(c.readyCh)
+	c.readyB = true
 	logger.Info("IPFS Cluster is ready")
 }
 
@@ -407,24 +422,30 @@ func (c *Cluster) Shutdown() error {
 	c.shutdownLock.Lock()
 	defer c.shutdownLock.Unlock()
 
-	if c.shutdown {
-		logger.Warning("Cluster is already shutdown")
+	if c.shutdownB {
+		logger.Debug("Cluster is already shutdown")
 		return nil
 	}
 
-	logger.Info("shutting down IPFS Cluster")
+	logger.Info("shutting down Cluster")
 
-	if c.config.LeaveOnShutdown {
+	// Only attempt to leave if:
+	// - consensus is initialized
+	// - cluster was ready (no bootstrapping error)
+	// - We are not removed already (means PeerRemove() was called on us)
+	if c.consensus != nil && c.config.LeaveOnShutdown && c.readyB && !c.removed {
+		c.removed = true
 		// best effort
-		logger.Warning("Attempting to leave Cluster. This may take some seconds")
+		logger.Warning("attempting to leave the cluster. This may take some seconds")
 		err := c.consensus.LogRmPeer(c.id)
 		if err != nil {
 			logger.Error("leaving cluster: " + err.Error())
-		} else {
-			time.Sleep(2 * time.Second)
 		}
+
+		// save peers as bootstrappers
 		c.config.Bootstrap = c.peerManager.peersAddrs()
 		c.peerManager.resetPeers()
+		c.peerManager.savePeers()
 	}
 
 	// Cancel contexts
@@ -437,8 +458,20 @@ func (c *Cluster) Shutdown() error {
 		}
 	}
 
-	c.peerManager.savePeers()
-	c.backupState()
+	// Do not save anything if we were not ready
+	if c.readyB {
+		// peers are saved usually on addPeer/rmPeer
+		// c.peerManager.savePeers()
+		c.backupState()
+	}
+
+	// We left the cluster or were removed. Destroy the Raft state.
+	if c.removed && c.readyB {
+		err := c.consensus.Clean()
+		if err != nil {
+			logger.Error("cleaning consensus: ", err)
+		}
+	}
 
 	if err := c.monitor.Shutdown(); err != nil {
 		logger.Errorf("error stopping monitor: %s", err)
@@ -460,7 +493,7 @@ func (c *Cluster) Shutdown() error {
 	}
 	c.wg.Wait()
 	c.host.Close() // Shutdown all network services
-	c.shutdown = true
+	c.shutdownB = true
 	close(c.doneCh)
 	return nil
 }
@@ -522,7 +555,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	// Figure out its real address if we have one
 	remoteAddr := getRemoteMultiaddr(c.host, pid, decapAddr)
 
-	err = c.peerManager.addPeer(remoteAddr)
+	err = c.peerManager.addPeer(remoteAddr, false)
 	if err != nil {
 		logger.Error(err)
 		id := api.ID{ID: pid, Error: err.Error()}
@@ -542,7 +575,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	}
 
 	// Log the new peer in the log so everyone gets it.
-	err = c.consensus.LogAddPeer(remoteAddr)
+	err = c.consensus.LogAddPeer(remoteAddr) // this will save
 	if err != nil {
 		logger.Error(err)
 		id := api.ID{ID: pid, Error: err.Error()}
@@ -555,7 +588,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		addrSerial.ToMultiaddr())
 	err = c.rpcClient.Call(pid,
 		"Cluster",
-		"PeerManagerAddFromMultiaddrs",
+		"PeerManagerSetFromMultiaddrs",
 		api.MultiaddrsToSerial(clusterPeers),
 		&struct{}{})
 	if err != nil {
@@ -585,26 +618,15 @@ func (c *Cluster) PeerRemove(pid peer.ID) error {
 		return fmt.Errorf("%s is not a peer", pid.Pretty())
 	}
 
-	// The peer is no longer among the peer set, so we can re-allocate
-	// any CIDs associated to it.
-	logger.Infof("Re-allocating all CIDs directly associated to %s", pid)
+	// We need to repin before removing the peer, otherwise, it won't
+	// be able to submit the pins.
+	logger.Infof("re-allocating all CIDs directly associated to %s", pid)
 	c.repinFromPeer(pid)
 
 	err := c.consensus.LogRmPeer(pid)
 	if err != nil {
 		logger.Error(err)
 		return err
-	}
-
-	// This is a best effort. It may fail
-	// if that peer is down
-	err = c.rpcClient.Call(pid,
-		"Cluster",
-		"PeerManagerRmPeerShutdown",
-		pid,
-		&struct{}{})
-	if err != nil {
-		logger.Error(err)
 	}
 
 	return nil
@@ -633,11 +655,11 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	}
 
 	// Add peer to peerstore so we can talk to it
-	c.peerManager.addPeer(addr)
+	c.peerManager.addPeer(addr, false)
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
-	// ClusterAddr).
+	// ListenAddr).
 	var myID api.IDSerial
 	err = c.rpcClient.Call(pid,
 		"Cluster",
@@ -1200,23 +1222,24 @@ func (c *Cluster) backupState() {
 		return
 	}
 
-	folder := filepath.Dir(c.config.BaseDir)
-	err := os.MkdirAll(filepath.Join(folder, "backups"), 0700)
+	folder := filepath.Join(c.config.BaseDir, "backups")
+	err := os.MkdirAll(folder, 0700)
 	if err != nil {
 		logger.Error(err)
 		logger.Error("skipping backup")
 		return
 	}
 	fname := time.Now().UTC().Format("20060102_15:04:05")
-	f, err := os.Create(filepath.Join(folder, "backups", fname))
-	if err != nil {
-		logger.Error(err)
-		return
-	}
-	err = c.state.Snapshot(f)
+	f, err := os.Create(filepath.Join(folder, fname))
 	if err != nil {
 		logger.Error(err)
 		return
 	}
 	defer f.Close()
+
+	err = c.state.Snapshot(f)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 }

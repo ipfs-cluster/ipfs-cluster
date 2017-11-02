@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"context"
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
@@ -12,12 +11,14 @@ import (
 )
 
 func TestApplyToPin(t *testing.T) {
+	cc := testingConsensus(t, p2pPort)
 	op := &LogOp{
 		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpPin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
+		consensus: cc,
 	}
+	defer cleanRaft(p2pPort)
+	defer cc.Shutdown()
 
 	st := mapstate.NewMapState()
 	op.ApplyTo(st)
@@ -28,12 +29,14 @@ func TestApplyToPin(t *testing.T) {
 }
 
 func TestApplyToUnpin(t *testing.T) {
+	cc := testingConsensus(t, p2pPort)
 	op := &LogOp{
 		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpUnpin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
+		consensus: cc,
 	}
+	defer cleanRaft(p2pPort)
+	defer cc.Shutdown()
 
 	st := mapstate.NewMapState()
 	c, _ := cid.Decode(test.TestCid1)
@@ -53,10 +56,8 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &LogOp{
-		Cid:       api.PinSerial{Cid: test.TestCid1},
-		Type:      LogOpUnpin,
-		ctx:       context.Background(),
-		rpcClient: test.NewMockRPCClient(t),
+		Cid:  api.PinSerial{Cid: test.TestCid1},
+		Type: LogOpUnpin,
 	}
 
 	var st interface{}

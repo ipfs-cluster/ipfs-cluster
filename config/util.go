@@ -14,14 +14,14 @@ type Saver struct {
 // NotifySave signals the SaveCh() channel in a non-blocking fashion.
 func (sv *Saver) NotifySave() {
 	if sv.save == nil {
-		sv.save = make(chan struct{})
+		sv.save = make(chan struct{}, 10)
 	}
 
 	// Non blocking, in case no one's listening
 	select {
 	case sv.save <- struct{}{}:
 	default:
-		logger.Warning("configuration will not be saved")
+		logger.Warning("configuration save channel full")
 	}
 }
 

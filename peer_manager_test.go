@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -135,7 +137,10 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 
 	// Now we shutdown one member of the running cluster
 	// and try to add someone else.
-	clusters[1].Shutdown()
+	err = clusters[1].Shutdown()
+	if err != nil {
+		t.Error("Shutdown should be clean: ", err)
+	}
 	_, err = clusters[0].PeerAdd(clusterAddr(clusters[2]))
 
 	if err == nil {
@@ -189,14 +194,29 @@ func TestClustersPeerRemove(t *testing.T) {
 	runF(t, clusters, f)
 }
 
-func TestClusterPeerRemoveSelf(t *testing.T) {
+func TestClustersPeerRemoveSelf(t *testing.T) {
+	// this test hangs sometimes if there are problems
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
 	for i := 0; i < len(clusters); i++ {
+		peers := clusters[i].Peers()
+		t.Logf("Current cluster size: %d", len(peers))
+		if len(peers) != (len(clusters) - i) {
+			t.Fatal("Previous peers not removed correctly")
+		}
 		err := clusters[i].PeerRemove(clusters[i].ID().ID)
+		// Last peer member won't be able to remove itself
+		// In this case, we shut it down.
 		if err != nil {
-			t.Error(err)
+			if i != len(clusters)-1 { //not last
+				t.Error(err)
+			} else {
+				err := clusters[i].Shutdown()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 		}
 		time.Sleep(time.Second)
 		_, more := <-clusters[i].Done()
@@ -206,7 +226,7 @@ func TestClusterPeerRemoveSelf(t *testing.T) {
 	}
 }
 
-func TestClusterPeerRemoveReallocsPins(t *testing.T) {
+func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
 
@@ -219,8 +239,22 @@ func TestClusterPeerRemoveReallocsPins(t *testing.T) {
 		c.config.ReplicationFactor = nClusters - 1
 	}
 
-	cpeer := clusters[0]
-	clusterID := cpeer.ID().ID
+	// We choose to remove the leader, to make things even more interesting
+	leaderID, err := clusters[0].consensus.Leader()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var leader *Cluster
+	for _, cl := range clusters {
+		if id := cl.ID().ID; id == leaderID {
+			leader = cl
+			break
+		}
+	}
+	if leader == nil {
+		t.Fatal("did not find a leader?")
+	}
 
 	tmpCid, _ := cid.Decode(test.TestCid1)
 	prefix := tmpCid.Prefix()
@@ -230,7 +264,7 @@ func TestClusterPeerRemoveReallocsPins(t *testing.T) {
 	for i := 0; i < nClusters; i++ {
 		h, err := prefix.Sum(randomBytes())
 		checkErr(t, err)
-		err = cpeer.Pin(api.PinCid(h))
+		err = leader.Pin(api.PinCid(h))
 		checkErr(t, err)
 		time.Sleep(time.Second)
 	}
@@ -238,16 +272,16 @@ func TestClusterPeerRemoveReallocsPins(t *testing.T) {
 	delay()
 
 	// At this point, all peers must have 1 pin associated to them.
-	// Find out which pin is associated to cpeer.
+	// Find out which pin is associated to leader.
 	interestingCids := []*cid.Cid{}
 
-	pins := cpeer.Pins()
+	pins := leader.Pins()
 	if len(pins) != nClusters {
 		t.Fatal("expected number of tracked pins to be nClusters")
 	}
 	for _, p := range pins {
-		if containsPeer(p.Allocations, clusterID) {
-			//t.Logf("%s pins %s", clusterID, p.Cid)
+		if containsPeer(p.Allocations, leaderID) {
+			//t.Logf("%s pins %s", leaderID, p.Cid)
 			interestingCids = append(interestingCids, p.Cid)
 		}
 	}
@@ -258,21 +292,23 @@ func TestClusterPeerRemoveReallocsPins(t *testing.T) {
 			len(interestingCids))
 	}
 
-	// Now remove cluster peer
-	err := clusters[0].PeerRemove(clusterID)
+	// Now the leader removes itself
+	err = leader.PeerRemove(leaderID)
 	if err != nil {
 		t.Fatal("error removing peer:", err)
 	}
 
+	time.Sleep(time.Second)
+	waitForLeader(t, clusters)
 	delay()
 
 	for _, icid := range interestingCids {
 		// Now check that the allocations are new.
-		newPin, err := clusters[0].PinGet(icid)
+		newPin, err := clusters[1].PinGet(icid)
 		if err != nil {
 			t.Fatal("error getting the new allocations for", icid)
 		}
-		if containsPeer(newPin.Allocations, clusterID) {
+		if containsPeer(newPin.Allocations, leaderID) {
 			t.Fatal("pin should not be allocated to the removed peer")
 		}
 	}
@@ -374,7 +410,11 @@ func TestClustersPeerJoinAllAtOnceWithRandomBootstrap(t *testing.T) {
 	f2 := func(t *testing.T, c *Cluster) {
 		peers := c.Peers()
 		if len(peers) != nClusters {
-			t.Error("all peers should be connected")
+			peersIds := []peer.ID{}
+			for _, p := range peers {
+				peersIds = append(peersIds, p.ID)
+			}
+			t.Errorf("%s sees %d peers: %s", c.id, len(peers), peersIds)
 		}
 		pins := c.Pins()
 		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
@@ -382,4 +422,72 @@ func TestClustersPeerJoinAllAtOnceWithRandomBootstrap(t *testing.T) {
 		}
 	}
 	runF(t, clusters, f2)
+}
+
+// Tests that a peer catches up on the state correctly after rejoining
+func TestClustersPeerRejoin(t *testing.T) {
+	clusters, mocks := peerManagerClusters(t)
+	defer shutdownClusters(t, clusters, mocks)
+
+	// pin something in c0
+	pin1, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(pin1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// add all clusters
+	for i := 1; i < len(clusters); i++ {
+		addr := clusterAddr(clusters[i])
+		_, err := clusters[0].PeerAdd(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	delay()
+
+	// all added peers should have the content
+	for i := 1; i < len(clusters); i++ {
+		pinfo := clusters[i].tracker.Status(pin1)
+		if pinfo.Status != api.TrackerStatusPinned {
+			t.Error("Added peers should pin the content")
+		}
+	}
+
+	clusters[0].Shutdown()
+	mocks[0].Close()
+
+	//delay()
+
+	// Pin something on the rest
+	pin2, _ := cid.Decode(test.TestCid2)
+	err = clusters[1].Pin(api.PinCid(pin2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	// Rejoin c0
+	c0, m0 := createOnePeerCluster(t, 0, testingClusterSecret)
+	clusters[0] = c0
+	mocks[0] = m0
+	addr := clusterAddr(c0)
+	_, err = clusters[1].PeerAdd(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	pinfo := clusters[0].tracker.Status(pin2)
+	if pinfo.Status != api.TrackerStatusPinned {
+		t.Error("re-joined cluster should have caught up")
+	}
+
+	pinfo = clusters[0].tracker.Status(pin1)
+	if pinfo.Status != api.TrackerStatusPinned {
+		t.Error("re-joined cluster should have original pin")
+	}
 }

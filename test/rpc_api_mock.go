@@ -9,6 +9,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -21,8 +22,14 @@ type mockService struct{}
 // NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
 // a client to it.
 func NewMockRPCClient(t *testing.T) *rpc.Client {
-	s := rpc.NewServer(nil, "mock")
-	c := rpc.NewClientWithServer(nil, "mock", s)
+	return NewMockRPCClientWithHost(t, nil)
+}
+
+// NewMockRPCClientWithHost returns a mock ipfs-cluster RPC server
+// initialized with a given host.
+func NewMockRPCClientWithHost(t *testing.T, h host.Host) *rpc.Client {
+	s := rpc.NewServer(h, "mock")
+	c := rpc.NewClientWithServer(h, "mock", s)
 	err := s.RegisterName("Cluster", &mockService{})
 	if err != nil {
 		t.Fatal(err)
@@ -273,4 +280,12 @@ func (mock *mockService) IPFSFreeSpace(in struct{}, out *uint64) error {
 	// RepoSize is 2KB, StorageMax is 100KB
 	*out = 98000
 	return nil
+}
+
+func (mock *mockService) ConsensusLogAddPeer(in api.MultiaddrSerial, out *struct{}) error {
+	return errors.New("mock rpc cannot redirect")
+}
+
+func (mock *mockService) ConsensusLogRmPeer(in peer.ID, out *struct{}) error {
+	return errors.New("mock rpc cannot redirect")
 }
