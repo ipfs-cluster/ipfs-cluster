@@ -394,3 +394,12 @@ When a peer stops unexpectedly:
 ### `ipfs-cluster-ctl status <cid>` does not report CID information for all peers
 
 This is usually the result of a desync between the *shared state* and the *local state*, or between the *local state* and the ipfs state. If the problem does not autocorrect itself after a couple of minutes (thanks to auto-syncing), try running `ipfs-cluster-ctl sync [cid]` for the problematic item. You can also restart your node.
+
+### libp2p errors
+
+Since cluster is built on top of libp2p, many errors that new users face come from libp2p and have confusing messages which are not obvious at first sight. This list compiles some of them:
+
+* `dial attempt failed: misdial to <peer.ID XXXXXX> through ....`: this means that the multiaddress you are contacting has a different peer in it than expected.
+* `dial attempt failed: context deadline exceeded`: this means that the address is not reachable.
+* `dial attempt failed: incoming message was too large`: this probably means that your cluster peers are not sharing the same secret.
+* `version not supported`: this means that your nodes are running different versions of raft/cluster.
