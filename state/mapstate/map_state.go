@@ -18,7 +18,7 @@ import (
 
 // Version is the map state Version. States with old versions should
 // perform an upgrade before.
-const Version = 2
+const Version = 3
 
 var logger = logging.Logger("mapstate")
 
