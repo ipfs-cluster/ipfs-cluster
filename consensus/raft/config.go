@@ -30,6 +30,9 @@ var (
 type Config struct {
 	config.Saver
 
+	// will shutdown libp2p host on shutdown. Useful for testing
+	hostShutdown bool
+
 	// A Hashicorp Raft's configuration object.
 	RaftConfig *hraft.Config
 	// A folder to store Raft's data.
@@ -227,7 +230,7 @@ func (cfg *Config) Default() error {
 	cfg.RaftConfig = hraft.DefaultConfig()
 
 	// These options are imposed over any Default Raft Config.
-	// cfg.RaftConfig.ShutdownOnRemove = false
+	cfg.RaftConfig.ShutdownOnRemove = false
 	cfg.RaftConfig.LocalID = "will_be_set_automatically"
 
 	// Set up logging

@@ -53,7 +53,7 @@ func TestClustersPeerAdd(t *testing.T) {
 
 		if len(id.ClusterPeers) != i {
 			// ClusterPeers is originally empty and contains nodes as we add them
-			t.Log(id.ClusterPeers)
+			t.Log(i, id.ClusterPeers)
 			t.Fatal("cluster peers should be up to date with the cluster")
 		}
 	}
@@ -455,10 +455,20 @@ func TestClustersPeerRejoin(t *testing.T) {
 		}
 	}
 
-	clusters[0].Shutdown()
+	clusters[0].config.LeaveOnShutdown = true
+	err = clusters[0].Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
 	mocks[0].Close()
 
-	//delay()
+	delay()
+
+	// Forget peer so we can re-add one in same address/port
+	f := func(t *testing.T, c *Cluster) {
+		c.peerManager.rmPeer(clusters[0].id)
+	}
+	runF(t, clusters[1:], f)
 
 	// Pin something on the rest
 	pin2, _ := cid.Decode(test.TestCid2)

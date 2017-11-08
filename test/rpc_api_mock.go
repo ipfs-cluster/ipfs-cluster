@@ -224,10 +224,6 @@ func (mock *mockService) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{
 	return nil
 }
 
-func (mock *mockService) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
-	return nil
-}
-
 /* IPFSConnector methods */
 
 func (mock *mockService) IPFSPin(in api.PinSerial, out *struct{}) error {
@@ -282,10 +278,10 @@ func (mock *mockService) IPFSFreeSpace(in struct{}, out *uint64) error {
 	return nil
 }
 
-func (mock *mockService) ConsensusLogAddPeer(in api.MultiaddrSerial, out *struct{}) error {
+func (mock *mockService) ConsensusAddPeer(in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }
 
-func (mock *mockService) ConsensusLogRmPeer(in peer.ID, out *struct{}) error {
+func (mock *mockService) ConsensusRmPeer(in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }

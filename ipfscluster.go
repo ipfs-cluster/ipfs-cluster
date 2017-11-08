@@ -16,7 +16,6 @@ import (
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 // RPCProtocol is used to send libp2p messages between cluster peers
@@ -45,8 +44,8 @@ type Consensus interface {
 	LogPin(c api.Pin) error
 	// Logs an unpin operation
 	LogUnpin(c api.Pin) error
-	LogAddPeer(addr ma.Multiaddr) error
-	LogRmPeer(p peer.ID) error
+	AddPeer(p peer.ID) error
+	RmPeer(p peer.ID) error
 	State() (state.State, error)
 	// Provide a node which is responsible to perform
 	// specific tasks which must only run in 1 cluster peer
@@ -56,6 +55,8 @@ type Consensus interface {
 	WaitForSync() error
 	// Clean removes all consensus data
 	Clean() error
+	// Peers returns the peerset participating in the Consensus
+	Peers() ([]peer.ID, error)
 }
 
 // API is a component which offers an API for Cluster. This is

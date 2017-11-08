@@ -1,173 +1,81 @@
 package ipfscluster
 
 import (
-	"sync"
-	"time"
-
+	"fmt"
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// peerManager is our own local peerstore
+// peerManager provides wrappers peerset control
 type peerManager struct {
-	cluster *Cluster
-	ps      peerstore.Peerstore
-	self    peer.ID
-
-	peermap map[peer.ID]ma.Multiaddr
-	m       sync.RWMutex
+	host host.Host
 }
 
-func newPeerManager(c *Cluster) *peerManager {
-	pm := &peerManager{
-		cluster: c,
-		ps:      c.host.Peerstore(),
-		self:    c.host.ID(),
-	}
-	pm.resetPeers()
-	return pm
+func newPeerManager(h host.Host) *peerManager {
+	return &peerManager{h}
 }
 
-func (pm *peerManager) addPeer(addr ma.Multiaddr, save bool) error {
-	logger.Debugf("adding peer %s", addr)
+func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
+	logger.Debugf("adding peer address %s", addr)
 	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
 		return err
 	}
-	pm.ps.AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
-
-	// Only log these when we are not starting cluster (rpcClient == nil)
-	// They pollute the start up logs redundantly.
-	if !pm.isPeer(pid) && pm.cluster.rpcClient != nil {
-		logger.Infof("new peer: %s", addr.String())
-	}
-
-	pm.m.Lock()
-	pm.peermap[pid] = addr
-	pm.m.Unlock()
-
-	if save {
-		pm.savePeers()
-	}
-
-	logger.Debugf("peers after adding %s", pm.peersAddrs())
+	pm.host.Peerstore().AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
 	return nil
 }
 
-func (pm *peerManager) rmPeer(pid peer.ID, save bool) error {
-	logger.Debugf("removing peer %s", pid.Pretty())
-
-	// Seeing our own departure during bootstrap. Ignore that.
-	if pid == pm.self && !pm.cluster.readyB {
-		return nil
-	}
-
-	// remove ourselves, unless:
-	// - we are not ready yet (means we are boostrapping)
-	// - we have been removed (means Shutdown() with LeaveOnShutdown flag)
-	if pid == pm.self && pm.cluster.readyB && !pm.cluster.removed {
-		logger.Info("this peer has been removed and will shutdown")
-		pm.cluster.removed = true
-
-		// we are removing ourselves. Therefore we need to:
-		// - convert cluster peers to bootstrapping peers
-		// - shut ourselves down if we are not in the process
-		//
-		// Note that, if we are here, we have already been
-		// removed from the raft.
-
-		// save peers as boostrappers
-		pm.cluster.config.Bootstrap = pm.peersAddrs()
-		pm.resetPeers()
-		pm.savePeers()
-		time.Sleep(1 * time.Second)
-		// should block and do nothing if already doing it
-		pm.cluster.Shutdown()
-		return nil
-	}
-
-	// Removing a different peer
-	if pm.isPeer(pid) {
-		logger.Infof("removing Cluster peer %s", pid.Pretty())
-	}
-
-	pm.m.Lock()
-	delete(pm.peermap, pid)
-	pm.m.Unlock()
-
-	if save {
-		pm.savePeers()
-	}
-
+func (pm *peerManager) rmPeer(pid peer.ID) error {
+	logger.Debugf("forgetting peer %s", pid.Pretty())
+	pm.host.Peerstore().ClearAddrs(pid)
 	return nil
 }
 
-func (pm *peerManager) savePeers() {
-	peers := pm.peersAddrs()
-	logger.Debugf("saving peers: %s", peers)
-	pm.cluster.config.Peers = peers
-	pm.cluster.config.NotifySave()
-}
+// func (pm *peerManager) savePeers() {
+// 	peers := pm.peersAddrs()
+// 	logger.Debugf("saving peers: %s", peers)
+// 	pm.cluster.config.Peers = peers
+// 	pm.cluster.config.NotifySave()
+// }
 
-func (pm *peerManager) resetPeers() {
-	pm.m.Lock()
-	pm.peermap = make(map[peer.ID]ma.Multiaddr)
-	pm.peermap[pm.self] = pm.cluster.config.ListenAddr
-	pm.m.Unlock()
-}
+// func (pm *peerManager) isPeer(p peer.ID) bool {
+// 	if p == pm.cluster.id {
+// 		return true
+// 	}
 
-func (pm *peerManager) isPeer(p peer.ID) bool {
-	if p == pm.self {
-		return true
-	}
-
-	pm.m.RLock()
-	_, ok := pm.peermap[p]
-	pm.m.RUnlock()
-	return ok
-}
-
-// peers including ourselves
-func (pm *peerManager) peers() []peer.ID {
-	pm.m.RLock()
-	defer pm.m.RUnlock()
-	var peers []peer.ID
-	for k := range pm.peermap {
-		peers = append(peers, k)
-	}
-	return peers
-}
+// 	peers := pm.cluster.consensus.Peers()
+// 	for _, pid := range peers {
+// 		if p == pid {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 // cluster peer addresses (NOT including ourselves)
-func (pm *peerManager) peersAddrs() []ma.Multiaddr {
-	pm.m.RLock()
-	defer pm.m.RUnlock()
+func (pm *peerManager) addresses(peers []peer.ID) []ma.Multiaddr {
 	addrs := []ma.Multiaddr{}
-	for k, addr := range pm.peermap {
-		if k != pm.self {
-			addrs = append(addrs, addr)
+	if peers == nil {
+		return addrs
+	}
+
+	for _, p := range peers {
+		if p == pm.host.ID() {
+			continue
+		}
+		peerAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", peer.IDB58Encode(p)))
+		for _, a := range pm.host.Peerstore().Addrs(p) {
+			addrs = append(addrs, a.Encapsulate(peerAddr))
 		}
 	}
 	return addrs
 }
 
-// func (pm *peerManager) addFromConfig(cfg *Config) error {
-// 	return pm.setFromMultiaddrs(cfg.ClusterPeers)
-// }
-
-// this resets peers!
-func (pm *peerManager) setFromMultiaddrs(addrs []ma.Multiaddr, save bool) error {
-	pm.resetPeers()
-	for _, m := range addrs {
-		err := pm.addPeer(m, false)
-		if err != nil {
-			logger.Error(err)
-			return err
-		}
-	}
-	if save {
-		pm.savePeers()
+func (pm *peerManager) importAddresses(addrs []ma.Multiaddr) error {
+	for _, a := range addrs {
+		pm.addPeer(a)
 	}
 	return nil
 }
