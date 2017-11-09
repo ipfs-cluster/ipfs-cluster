@@ -38,7 +38,7 @@ This guide aims to collect useful considerations and information for running an 
 * ipfs-cluster: the software as a whole, usually referring to the peer which is run by `ipfs-cluster-service`.
 * ipfs: the ipfs daemon, usually `go-ipfs`.
 * peer: a member of the cluster.
-* CID: Content IDentifier. The hash that identifies an ipfs object and which ins pinned in cluster.
+* CID: Content IDentifier. The hash that identifies an ipfs object and which is pinned in cluster.
 * Pin: A CID which is tracked by cluster and "pinned" in the underlying ipfs daemons.
 * healty state: An ipfs-cluster is in healthy state when all peers are up.
 
