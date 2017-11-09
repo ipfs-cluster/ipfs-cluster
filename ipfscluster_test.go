@@ -31,7 +31,7 @@ import (
 //TestClusters*
 var (
 	// number of clusters to create
-	nClusters = 10
+	nClusters = 6
 
 	// number of pins to pin/unpin/check
 	nPins = 500
