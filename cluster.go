@@ -475,6 +475,7 @@ func (c *Cluster) bootstrap() bool {
 		}
 		logger.Error(err)
 	}
+
 	return false
 }
 
@@ -761,6 +762,16 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 		logger.Error(err)
 		return err
 	}
+
+	// Since we might call this while not ready (bootstrap), we need to save
+	// peers or we won't notice.
+	peers, err := c.consensus.Peers()
+	if err != nil {
+		logger.Error(err)
+	} else {
+		c.config.savePeers(c.peerManager.addresses(peers))
+	}
+
 	c.StateSync()
 
 	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
