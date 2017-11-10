@@ -70,6 +70,16 @@ To build the container manually you can:
 
 You can mount your local ipfs-cluster configuration and data folder by passing `-v /data/ipfs-cluster your-local-ipfs-cluster-folder` to Docker.
 
+### Install from the snap store
+
+In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
+
+```bash
+sudo snap install ipfs-cluster --edge
+```
+
+(Note that this is an experimental and unstable release, at the moment)
+
 ### Install from sources
 
 Installing from `master` is the best way to have the latest features and bugfixes. In order to install the `ipfs-cluster-service` the `ipfs-cluster-ctl` tools you will need `Go` installed in your system and the run the following commands:
