@@ -250,15 +250,25 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	}
 
 	var leader *Cluster
-	for _, cl := range clusters {
+	var leaderi int
+	for i, cl := range clusters {
 		if id := cl.ID().ID; id == leaderID {
 			leader = cl
+			leaderi = i
 			break
 		}
 	}
 	if leader == nil {
 		t.Fatal("did not find a leader?")
 	}
+
+	leaderMock := mocks[leaderi]
+
+	// Remove leader from set
+	clusters = append(clusters[:leaderi], clusters[leaderi+1:]...)
+	mocks = append(mocks[:leaderi], mocks[leaderi+1:]...)
+	defer leader.Shutdown()
+	defer leaderMock.Close()
 
 	tmpCid, _ := cid.Decode(test.TestCid1)
 	prefix := tmpCid.Prefix()
