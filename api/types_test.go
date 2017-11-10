@@ -73,13 +73,14 @@ func TestIDConv(t *testing.T) {
 	}()
 
 	id := ID{
-		ID:                 testPeerID1,
-		Addresses:          []ma.Multiaddr{testMAddr},
-		ClusterPeers:       []ma.Multiaddr{testMAddr},
-		Version:            "testv",
-		Commit:             "ab",
-		RPCProtocolVersion: "testp",
-		Error:              "teste",
+		ID:                    testPeerID1,
+		Addresses:             []ma.Multiaddr{testMAddr},
+		ClusterPeers:          []peer.ID{testPeerID2},
+		ClusterPeersAddresses: []ma.Multiaddr{testMAddr},
+		Version:               "testv",
+		Commit:                "ab",
+		RPCProtocolVersion:    "testp",
+		Error:                 "teste",
 		IPFS: IPFSID{
 			ID:        testPeerID2,
 			Addresses: []ma.Multiaddr{testMAddr},
@@ -97,8 +98,12 @@ func TestIDConv(t *testing.T) {
 		t.Error("mismatching addresses")
 	}
 
-	if !id.ClusterPeers[0].Equal(newid.ClusterPeers[0]) {
+	if id.ClusterPeers[0] != newid.ClusterPeers[0] {
 		t.Error("mismatching clusterPeers")
+	}
+
+	if !id.ClusterPeersAddresses[0].Equal(newid.ClusterPeersAddresses[0]) {
+		t.Error("mismatching clusterPeersAddresses")
 	}
 
 	if id.Version != newid.Version ||
