@@ -118,10 +118,11 @@ func (cfg *Manager) watchSave(save <-chan struct{}) {
 	defer ticker.Stop()
 
 	thingsToSave := false
-	exit := false
 
 	for {
 		select {
+		case <-save:
+			thingsToSave = true
 		case <-ticker.C:
 			if thingsToSave {
 				err := cfg.SaveJSON("")
@@ -130,13 +131,13 @@ func (cfg *Manager) watchSave(save <-chan struct{}) {
 				}
 				thingsToSave = false
 			}
-			if exit {
+
+			// Exit if we have to
+			select {
+			case <-cfg.ctx.Done():
 				return
+			default:
 			}
-		case <-save:
-			thingsToSave = true
-		case <-cfg.ctx.Done():
-			exit = true
 		}
 	}
 }

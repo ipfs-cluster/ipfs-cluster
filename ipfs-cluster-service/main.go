@@ -264,6 +264,9 @@ func run(c *cli.Context) error {
 func daemon(c *cli.Context) error {
 	// Load all the configurations
 	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+	// always wait for configuration to be saved
+	defer cfg.Shutdown()
+
 	err := cfg.LoadJSONFromFile(configPath)
 	checkErr("loading configuration", err)
 
@@ -323,8 +326,6 @@ func daemon(c *cli.Context) error {
 			//case <-cluster.Ready():
 		}
 	}
-	// wait for configuration to be saved
-	cfg.Shutdown()
 	return nil
 }
 
