@@ -230,27 +230,29 @@ func (ids *IPFSIDSerial) ToIPFSID() IPFSID {
 
 // ID holds information about the Cluster peer
 type ID struct {
-	ID                 peer.ID
-	Addresses          []ma.Multiaddr
-	ClusterPeers       []ma.Multiaddr
-	Version            string
-	Commit             string
-	RPCProtocolVersion protocol.ID
-	Error              string
-	IPFS               IPFSID
+	ID                    peer.ID
+	Addresses             []ma.Multiaddr
+	ClusterPeers          []peer.ID
+	ClusterPeersAddresses []ma.Multiaddr
+	Version               string
+	Commit                string
+	RPCProtocolVersion    protocol.ID
+	Error                 string
+	IPFS                  IPFSID
 	//PublicKey          crypto.PubKey
 }
 
 // IDSerial is the serializable ID counterpart for RPC requests
 type IDSerial struct {
-	ID                 string           `json:"id"`
-	Addresses          MultiaddrsSerial `json:"addresses"`
-	ClusterPeers       MultiaddrsSerial `json:"cluster_peers"`
-	Version            string           `json:"version"`
-	Commit             string           `json:"commit"`
-	RPCProtocolVersion string           `json:"rpc_protocol_version"`
-	Error              string           `json:"error"`
-	IPFS               IPFSIDSerial     `json:"ipfs"`
+	ID                    string           `json:"id"`
+	Addresses             MultiaddrsSerial `json:"addresses"`
+	ClusterPeers          []string         `json:"cluster_peers"`
+	ClusterPeersAddresses MultiaddrsSerial `json:"cluster_peers_addresses"`
+	Version               string           `json:"version"`
+	Commit                string           `json:"commit"`
+	RPCProtocolVersion    string           `json:"rpc_protocol_version"`
+	Error                 string           `json:"error"`
+	IPFS                  IPFSIDSerial     `json:"ipfs"`
 	//PublicKey          []byte
 }
 
@@ -261,16 +263,22 @@ func (id ID) ToSerial() IDSerial {
 	//	pkey, _ = id.PublicKey.Bytes()
 	//}
 
+	peers := make([]string, len(id.ClusterPeers), len(id.ClusterPeers))
+	for i, p := range id.ClusterPeers {
+		peers[i] = peer.IDB58Encode(p)
+	}
+
 	return IDSerial{
 		ID: peer.IDB58Encode(id.ID),
 		//PublicKey:          pkey,
-		Addresses:          MultiaddrsToSerial(id.Addresses),
-		ClusterPeers:       MultiaddrsToSerial(id.ClusterPeers),
-		Version:            id.Version,
-		Commit:             id.Commit,
-		RPCProtocolVersion: string(id.RPCProtocolVersion),
-		Error:              id.Error,
-		IPFS:               id.IPFS.ToSerial(),
+		Addresses:             MultiaddrsToSerial(id.Addresses),
+		ClusterPeers:          peers,
+		ClusterPeersAddresses: MultiaddrsToSerial(id.ClusterPeersAddresses),
+		Version:               id.Version,
+		Commit:                id.Commit,
+		RPCProtocolVersion:    string(id.RPCProtocolVersion),
+		Error:                 id.Error,
+		IPFS:                  id.IPFS.ToSerial(),
 	}
 }
 
@@ -285,8 +293,14 @@ func (ids IDSerial) ToID() ID {
 	//	id.PublicKey = pkey
 	//}
 
+	peers := make([]peer.ID, len(ids.ClusterPeers), len(ids.ClusterPeers))
+	for i, p := range ids.ClusterPeers {
+		peers[i], _ = peer.IDB58Decode(p)
+	}
+
 	id.Addresses = ids.Addresses.ToMultiaddrs()
-	id.ClusterPeers = ids.ClusterPeers.ToMultiaddrs()
+	id.ClusterPeers = peers
+	id.ClusterPeersAddresses = ids.ClusterPeersAddresses.ToMultiaddrs()
 	id.Version = ids.Version
 	id.Commit = ids.Commit
 	id.RPCProtocolVersion = protocol.ID(ids.RPCProtocolVersion)

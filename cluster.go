@@ -590,15 +590,13 @@ func (c *Cluster) ID() api.ID {
 	return api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
-		Addresses: addrs,
-		// TODO: These are not peers but addresses. There could be
-		// several addresses for a single peer. Do we want to provide
-		// only PIDs? Another key in this object for addresses?
-		ClusterPeers:       c.peerManager.addresses(peers),
-		Version:            Version,
-		Commit:             Commit,
-		RPCProtocolVersion: RPCProtocol,
-		IPFS:               ipfsID,
+		Addresses:             addrs,
+		ClusterPeers:          peers,
+		ClusterPeersAddresses: c.peerManager.addresses(peers),
+		Version:               Version,
+		Commit:                Commit,
+		RPCProtocolVersion:    RPCProtocol,
+		IPFS:                  ipfsID,
 	}
 }
 
