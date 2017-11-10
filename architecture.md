@@ -60,7 +60,7 @@ Components are organized in different submodules (i.e. `pintracker/maptracker` r
 
 ### Configuration
 
-A `config` module provides support for a central configuration file which provides configuration sections defined by each component by providing configuration objects which implementing a `ComponentConfig` interface.
+A `config` module provides support for a central configuration file which provides configuration sections defined by each component by providing configuration objects which implement a `ComponentConfig` interface.
 
 ## Applications
 

@@ -148,13 +148,13 @@ When filling in `peers` with some other peers' listening multiaddresses (i.e. `/
 
 If you are using the `peers` configuration value, then **it is very important that the `peers` configuration value in all cluster members is the same for all peers,** that is, contain the multiaddresses for the other peers in the cluster. It may contain this peer's own multiaddress too (but it will removed on the next shutdown). If `peers` is not correct for all peer members, your node might not start or misbehave in not obvious ways.
 
-You are expected to start nodes at the same time when using this method. If half of them are not started, they will fail to elect a cluster leader. If there are peers missing, the cluster will not be in a healthy state (error messages will be displayed). The cluster will operate, as long as a majority of peers is up.
+You are expected to start the majority of the nodes at the same time when using this method. If half of them are not started, they will fail to elect a cluster leader before `raft.wait_for_leader_timeout`. Then they will shut themselves down. If there are peers missing, the cluster will not be in a healthy state (error messages will be displayed). The cluster will operate, as long as a majority of peers is up.
 
 Alternatively, you can use the `bootstrap` variable to provide one or several bootstrap peers. In short, bootstrapping will use the given peer to request the list of cluster peers and fill-in the `peers` variable automatically. The bootstrapped peer will be, in turn, added to the cluster and made known to every other existing (and connected peer). You can also launch several peers at once, as long as they are bootstrapping from the same already-running-peer. The `--bootstrap` flag allows to provide a bootsrapping peer directly when calling `ipfs-cluster-service`.
 
-Use the `bootstrap` method only when the rest of the cluster is healthy and all peers are running. Bootstrapping peers should be in a `clean` state, that is, with no previous raft-data loaded.
+Use the `bootstrap` method only when the rest of the cluster is healthy and all current participating peers are running. If you need to, remove any unhealthy peers with `ipfs-cluster-ctl peers rm <pid>`. Bootstrapping peers should be in a `clean` state, that is, with no previous raft-data loaded.
 
-Once a cluster is up, peers are expected to run continiuosly. You may need to stop a peer, or it may die due to external reasons. The restart-behaviour will depend on whether the peer has left the consensus:
+Once a cluster is up, peers are expected to run continuously. You may need to stop a peer, or it may die due to external reasons. The restart-behaviour will depend on whether the peer has left the consensus:
 
 * The *default* case - peer has not been removed and `cluster.leave_on_shutdown` is `false`: in this case the peer has not left the consensus peerset, and you may start the peer again normally. Do not manually update `cluster.peers`, even if other peers have joined/left the cluster.
 * The *left the cluster* case - peer has been manually removed or `cluster.leave_on_shutdown` is `true`: in this case, unless the peer died, it has probably been removed from the consensus (you can check if its missing from `ipfs-cluster-ctl peers ls` on a running peer). This will mean that the state of the peer has been cleaned up, and the last known `cluster.peers` have been moved to `cluster.bootstrap`. When the peer is restarted, it will attempt to rejoin the cluster from which it was removed by using the addresses in `cluster.bootstrap`.
@@ -279,7 +279,7 @@ ipfs-cluster includes a basic monitoring component which gathers metrics and tri
 * `informer` metrics are used to decide on allocations when a pin request arrives. Different "informers" can be configured. The default is the disk informer using the `freespace` metric.
 * a `ping` metric is used to signal that a peer is alive.
 
-Every metric carries a Time-To-Live associated with it. This TTL can be configued in the `informers` configuration section. The `ping` metric TTL is determined by the `cluster.monitoring_ping_interval`, and equals to 2x its value.
+Every metric carries a Time-To-Live associated with it. This TTL can be configued in the `informers` configuration section. The `ping` metric TTL is determined by the `cluster.monitoring_ping_interval`, and is equal to 2x its value.
 
 Every ipfs-cluster peers push metrics to the cluster Leader regularly. This happens TTL/2 intervals for the `informer` metrics and in `cluster.monitoring_ping_interval` for the `ping` metrics.
 
@@ -324,7 +324,7 @@ Note that **this feature has not been extensively tested**, but we aim to introd
 
 ## Security
 
-ipfs-cluster peers communicate which eachother using libp2p-encrypted streams (`secio`), with the ipfs daemon using plain http, provide an HTTP API themselves (used by `ipfs-cluster-ctl`) and an IPFS Proxy. This means that there are four endpoints to be wary about when thinking of security:
+ipfs-cluster peers communicate with each other using libp2p-encrypted streams (`secio`), with the ipfs daemon using plain http, provide an HTTP API themselves (used by `ipfs-cluster-ctl`) and an IPFS Proxy. This means that there are four endpoints to be wary about when thinking of security:
 
 * `cluster.listen_multiaddress`, defaults to `/ip4/0.0.0.0/tcp/9096` and is the listening address to communicate with other peers (via Remote RPC calls mostly). These endpoints are protected by the `cluster.secret` value specified in the configuration. Only peers holding the same secret can communicate between each other. If the secret is empty, then **nothing prevents anyone from sending RPC commands to the cluster RPC endpoint** and thus, controlling the cluster and the ipfs daemon (at least when it comes to pin/unpin/pin ls and swarm connect operations. ipfs-cluster administrators should therefore be careful keep this endpoint unaccessible to third-parties when no `cluster.secret` is set.
 * `restapi.listen_multiaddress`, defaults to `/ip4/127.0.0.1/tcp/9094` and is the listening address for the HTTP API that is used by `ipfs-cluster-ctl`. The considerations for `restapi.listen_multiaddress` are the same as for `cluster.listen_multiaddress`, as access to this endpoint allows to control ipfs-cluster and the ipfs daemon to a extent. By default, this endpoint listens on locahost which means it can only be used by `ipfs-cluster-ctl` running in the same host. The REST API component provides HTTPS support for this endpoint, along with Basic Authentication. These can be used to protect an exposed API endpoint.
@@ -349,7 +349,7 @@ The upgrading procedures is something which is actively worked on and will impro
 
 Open an issue on [ipfs-cluster](https://github.com/ipfs/ipfs-cluster) or ask on [discuss.ipfs.io](https://discuss.ipfs.io).
 
-If you want to collaborate in ipfs-cluster, look at the list of open issues. The are many are conveniently marked with [HELP WANTED](https://github.com/ipfs/ipfs-cluster/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) and organized by difficulty. If in doubt, just ask!
+If you want to collaborate in ipfs-cluster, look at the list of open issues. Many are conveniently marked with [HELP WANTED](https://github.com/ipfs/ipfs-cluster/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) and organized by difficulty. If in doubt, just ask!
 
 ### Debugging
 

@@ -56,7 +56,7 @@ You can download pre-compiled binaries for your platform from the [dist.ipfs.io]
 * [Builds for `ipfs-cluster-service`](https://dist.ipfs.io/#ipfs-cluster-service)
 * [Builds for `ipfs-cluster-ctl`](https://dist.ipfs.io/#ipfs-cluster-ctl)
 
-Note that since IPFS Cluster is evolving fast, the these builds may not contain the latest features/bugfixes as they are updated on a best-effort basis.
+Note that since IPFS Cluster is evolving fast, these builds may not contain the latest features/bugfixes. Builds are updated monthly on a best-effort basis.
 
 ### Docker
 
