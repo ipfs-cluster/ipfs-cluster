@@ -81,21 +81,25 @@ func TestClustersPeerAdd(t *testing.T) {
 			t.Error("expected 1 pin everywhere")
 		}
 
-		if len(c.ID().ClusterPeers) != nClusters-1 {
+		if len(c.ID().ClusterPeers) != nClusters {
 			t.Log(c.ID().ClusterPeers)
 			t.Error("By now cluster peers should reflect all peers")
 		}
 
-		// // check that its part of the configuration
-		// if len(c.config.ClusterPeers) != nClusters-1 {
-		// 	t.Error("expected different cluster peers in the configuration")
-		// }
+		time.Sleep(2 * time.Second)
 
-		// for _, peer := range c.config.ClusterPeers {
-		// 	if peer == nil {
-		// 		t.Error("something went wrong adding peer to config")
-		// 	}
-		// }
+		// check that they are part of the configuration
+		// This only works because each peer only has one multiaddress
+		// (localhost)
+		if len(c.config.Peers) != nClusters-1 {
+			t.Error("expected different cluster peers in the configuration")
+		}
+
+		for _, peer := range c.config.Peers {
+			if peer == nil {
+				t.Error("something went wrong adding peer to config")
+			}
+		}
 	}
 	runF(t, clusters, f)
 }
