@@ -50,6 +50,7 @@ There are several ways to install ipfs-cluster. They are described in the main R
 * Download the repository and run `make install`.
 * Run the [docker ipfs/ipfs-cluster container](https://hub.docker.com/r/ipfs/ipfs-cluster/). The container includes and runs ipfs.
 * Download pre-built binaries for your platform at [dist.ipfs.io](https://dist.ipfs.io). Note that we test on Linux and ARM. We're happy to hear if other platforms are working or not. These builds may be slightly outdated compared to Docker.
+* Install from the [snapcraft.io](https://snapcraft.io) store: `sudo snap install ipfs-cluster --edge`. Note that there is no stable snap yet.
 
 You can deploy cluster in the way which fits you best, as both ipfs and ipfs-cluster have no dependencies. There are some [Ansible roles](https://github.com/hsanjuan/ansible-ipfs-cluster) available to help you.
 
