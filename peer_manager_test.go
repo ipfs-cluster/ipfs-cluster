@@ -51,7 +51,7 @@ func TestClustersPeerAdd(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if len(id.ClusterPeers) != i {
+		if len(id.ClusterPeers) != i+1 {
 			// ClusterPeers is originally empty and contains nodes as we add them
 			t.Log(i, id.ClusterPeers)
 			t.Fatal("cluster peers should be up to date with the cluster")
