@@ -58,8 +58,9 @@ type mockConfigResp struct {
 }
 
 type mockAddResp struct {
-	Name string
-	Hash string
+	Name  string
+	Hash  string
+	Bytes uint64
 }
 
 // NewIpfsMock returns a new mock.
@@ -104,6 +105,17 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, "no file in /add", 500)
 			return
+		}
+
+		query := r.URL.Query()
+		progress, ok := query["progress"]
+		if ok && len(progress) > 0 && progress[0] != "false" {
+			progressResp := mockAddResp{
+				Name:  fheader.Filename,
+				Bytes: 4,
+			}
+			j, _ := json.Marshal(progressResp)
+			w.Write(j)
 		}
 
 		resp := mockAddResp{
