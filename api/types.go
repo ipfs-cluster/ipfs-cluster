@@ -365,7 +365,7 @@ func PinCid(c *cid.Cid) Pin {
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
 	Cid               string   `json:"cid"`
-	Name              string   `json:"name,omitempty"`
+	Name              string   `json:"name"`
 	Allocations       []string `json:"allocations"`
 	Everywhere        bool     `json:"everywhere,omitempty"` // legacy
 	ReplicationFactor int      `json:"replication_factor"`
