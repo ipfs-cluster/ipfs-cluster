@@ -1,0 +1,44 @@
+name: ipfs-cluster
+version: master
+summary: Collective pinning and composition for IPFS
+description: |
+  ipfs-cluster allows to replicate content (by pinning) in multiple IPFS nodes.
+
+confinement: strict
+
+apps:
+  service:
+    command: ipfs-cluster-service
+    plugs: [home, network, network-bind]
+    aliases: [ipfs-cluster-service]
+  ctl:
+    command: ipfs-cluster-ctl
+    plugs: [network]
+    aliases: [ipfs-cluster-ctl]
+
+parts:
+  ipfs-cluster:
+    source: .
+    plugin: nil
+    build-packages: [make, wget]
+    prepare: |
+      # XXX workaround for
+      # https://forum.snapcraft.io/t/go-homedir-reads-etc-passwd-not-home/2727
+      # --elopio - 20171107
+      git apply $SNAPCRAFT_STAGE/snap-home.patch
+      mkdir -p ../go/src/github.com/ipfs/ipfs-cluster
+      cp -R . ../go/src/github.com/ipfs/ipfs-cluster
+    build: |
+      env GOPATH=$(pwd)/../go make -C ../go/src/github.com/ipfs/ipfs-cluster install
+    install: |
+      mkdir $SNAPCRAFT_PART_INSTALL/bin
+      mv ../go/bin/ipfs-cluster-service $SNAPCRAFT_PART_INSTALL/bin/
+      mv ../go/bin/ipfs-cluster-ctl $SNAPCRAFT_PART_INSTALL/bin/
+    after: [go, patches]
+  go:
+    source-tag: go1.8.3
+  patches:
+    source: snap/patches
+    plugin: dump
+    prime:
+      - -*

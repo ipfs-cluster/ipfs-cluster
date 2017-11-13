@@ -1,0 +1,26 @@
+diff --git a/ipfs-cluster-service/main.go b/ipfs-cluster-service/main.go
+index 80561f6..7144a35 100644
+--- a/ipfs-cluster-service/main.go
++++ b/ipfs-cluster-service/main.go
+@@ -6,7 +6,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/signal"
+-	"os/user"
+ 	"path/filepath"
+ 	"syscall"
+ 
+@@ -116,12 +115,8 @@ func init() {
+ 	// Set the right commit. The only way I could make this work
+ 	ipfscluster.Commit = commit
+ 
+-	usr, err := user.Current()
+-	if err != nil {
+-		panic("cannot guess the current user")
+-	}
+ 	DefaultPath = filepath.Join(
+-		usr.HomeDir,
++		os.Getenv("HOME"),
+ 		".ipfs-cluster")
+ }
+ 
