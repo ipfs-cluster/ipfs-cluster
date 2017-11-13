@@ -429,7 +429,14 @@ func (rw *raftWrapper) Peers() ([]string, error) {
 
 // only call when Raft is shutdown
 func (rw *raftWrapper) Clean() error {
-	return os.RemoveAll(rw.dataFolder)
+	dbh := newDataBackupHelper(rw.dataFolder)
+	err := dbh.makeBackup()
+	if err != nil {
+		logger.Warning(err)
+		logger.Warning("the state could not be cleaned properly")
+		logger.Warning("manual intervention may be needed before starting cluster again")
+	}
+	return nil
 }
 
 func find(s []string, elem string) bool {
