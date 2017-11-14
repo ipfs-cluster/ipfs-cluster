@@ -272,15 +272,21 @@ func (rpcapi *RPCAPI) ConsensusLogUnpin(in api.PinSerial, out *struct{}) error {
 	return rpcapi.c.consensus.LogUnpin(c)
 }
 
-// ConsensusLogAddPeer runs Consensus.LogAddPeer().
-func (rpcapi *RPCAPI) ConsensusLogAddPeer(in api.MultiaddrSerial, out *struct{}) error {
-	addr := in.ToMultiaddr()
-	return rpcapi.c.consensus.LogAddPeer(addr)
+// ConsensusAddPeer runs Consensus.AddPeer().
+func (rpcapi *RPCAPI) ConsensusAddPeer(in peer.ID, out *struct{}) error {
+	return rpcapi.c.consensus.AddPeer(in)
 }
 
-// ConsensusLogRmPeer runs Consensus.LogRmPeer().
-func (rpcapi *RPCAPI) ConsensusLogRmPeer(in peer.ID, out *struct{}) error {
-	return rpcapi.c.consensus.LogRmPeer(in)
+// ConsensusRmPeer runs Consensus.RmPeer().
+func (rpcapi *RPCAPI) ConsensusRmPeer(in peer.ID, out *struct{}) error {
+	return rpcapi.c.consensus.RmPeer(in)
+}
+
+// ConsensusPeers runs Consensus.Peers().
+func (rpcapi *RPCAPI) ConsensusPeers(in struct{}, out *[]peer.ID) error {
+	peers, err := rpcapi.c.consensus.Peers()
+	*out = peers
+	return err
 }
 
 /*
@@ -290,26 +296,15 @@ func (rpcapi *RPCAPI) ConsensusLogRmPeer(in peer.ID, out *struct{}) error {
 // PeerManagerAddPeer runs peerManager.addPeer().
 func (rpcapi *RPCAPI) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
 	addr := in.ToMultiaddr()
-	err := rpcapi.c.peerManager.addPeer(addr, true)
+	err := rpcapi.c.peerManager.addPeer(addr)
 	return err
 }
 
-// PeerManagerSetFromMultiaddrs runs peerManager.setFromMultiaddrs().
-func (rpcapi *RPCAPI) PeerManagerSetFromMultiaddrs(in api.MultiaddrsSerial, out *struct{}) error {
+// PeerManagerImportAddresses runs peerManager.importAddresses().
+func (rpcapi *RPCAPI) PeerManagerImportAddresses(in api.MultiaddrsSerial, out *struct{}) error {
 	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.setFromMultiaddrs(addrs, true)
+	err := rpcapi.c.peerManager.importAddresses(addrs)
 	return err
-}
-
-// PeerManagerRmPeer runs peerManager.rmPeer().
-func (rpcapi *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
-	return rpcapi.c.peerManager.rmPeer(in, true)
-}
-
-// PeerManagerPeers runs peerManager.peers().
-func (rpcapi *RPCAPI) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
-	*out = rpcapi.c.peerManager.peers()
-	return nil
 }
 
 /*

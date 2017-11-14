@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -162,6 +163,11 @@ func (cc *Consensus) Shutdown() error {
 	if err != nil {
 		logger.Error(err)
 	}
+
+	if cc.config.hostShutdown {
+		cc.host.Close()
+	}
+
 	cc.shutdown = true
 	cc.cancel()
 	close(cc.rpcReady)
@@ -180,20 +186,10 @@ func (cc *Consensus) Ready() <-chan struct{} {
 	return cc.readyCh
 }
 
-func (cc *Consensus) op(argi interface{}, t LogOpType) *LogOp {
-	switch argi.(type) {
-	case api.Pin:
-		return &LogOp{
-			Cid:  argi.(api.Pin).ToSerial(),
-			Type: t,
-		}
-	case ma.Multiaddr:
-		return &LogOp{
-			Peer: api.MultiaddrToSerial(argi.(ma.Multiaddr)),
-			Type: t,
-		}
-	default:
-		panic("bad type")
+func (cc *Consensus) op(pin api.Pin, t LogOpType) *LogOp {
+	return &LogOp{
+		Cid:  pin.ToSerial(),
+		Type: t,
 	}
 }
 
@@ -281,26 +277,11 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 			goto RETRY
 		}
 
-		// addPeer and rmPeer need to apply the change to Raft directly.
 		switch op.Type {
 		case LogOpPin:
 			logger.Infof("pin committed to global state: %s", op.Cid.Cid)
 		case LogOpUnpin:
 			logger.Infof("unpin committed to global state: %s", op.Cid.Cid)
-		case LogOpAddPeer:
-			pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
-			finalErr = cc.raft.AddPeer(pidstr)
-			if finalErr != nil {
-				goto RETRY
-			}
-			logger.Infof("peer committed to global state: %s", pidstr)
-		case LogOpRmPeer:
-			pidstr := parsePIDFromMultiaddr(op.Peer.ToMultiaddr())
-			finalErr = cc.raft.RemovePeer(pidstr)
-			if finalErr != nil {
-				goto RETRY
-			}
-			logger.Infof("peer removed from global state: %s", pidstr)
 		}
 		break
 
@@ -331,24 +312,54 @@ func (cc *Consensus) LogUnpin(pin api.Pin) error {
 	return nil
 }
 
-// LogAddPeer submits a new peer to the shared state of the cluster. It will
+// AddPeer adds a new peer to participate in this consensus. It will
 // forward the operation to the leader if this is not it.
-func (cc *Consensus) LogAddPeer(addr ma.Multiaddr) error {
-	addrS := api.MultiaddrToSerial(addr)
-	op := cc.op(addr, LogOpAddPeer)
-	return cc.commit(op, "ConsensusLogAddPeer", addrS)
+func (cc *Consensus) AddPeer(pid peer.ID) error {
+	var finalErr error
+	for i := 0; i <= cc.config.CommitRetries; i++ {
+		logger.Debugf("attempt #%d: AddPeer %s", i, pid.Pretty())
+		if finalErr != nil {
+			logger.Errorf("retrying to add peer. Attempt #%d failed: %s", i, finalErr)
+		}
+		ok, err := cc.redirectToLeader("ConsensusAddPeer", pid)
+		if err != nil || ok {
+			return err
+		}
+		// Being here means we are the leader and can commit
+		finalErr = cc.raft.AddPeer(peer.IDB58Encode(pid))
+		if finalErr != nil {
+			time.Sleep(cc.config.CommitRetryDelay)
+			continue
+		}
+		logger.Infof("peer added to Raft: %s", pid.Pretty())
+		break
+	}
+	return finalErr
 }
 
-// LogRmPeer removes a peer from the shared state of the cluster. It will
+// RmPeer removes a peer from this consensus. It will
 // forward the operation to the leader if this is not it.
-func (cc *Consensus) LogRmPeer(pid peer.ID) error {
-	// Create rmPeer operation for the log
-	addr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(pid))
-	if err != nil {
-		return err
+func (cc *Consensus) RmPeer(pid peer.ID) error {
+	var finalErr error
+	for i := 0; i <= cc.config.CommitRetries; i++ {
+		logger.Debugf("attempt #%d: RmPeer %s", i, pid.Pretty())
+		if finalErr != nil {
+			logger.Errorf("retrying to add peer. Attempt #%d failed: %s", i, finalErr)
+		}
+		ok, err := cc.redirectToLeader("ConsensusRmPeer", pid)
+		if err != nil || ok {
+			return err
+		}
+		// Being here means we are the leader and can commit
+		finalErr = cc.raft.RemovePeer(peer.IDB58Encode(pid))
+		if finalErr != nil {
+			time.Sleep(cc.config.CommitRetryDelay)
+			continue
+		}
+		logger.Infof("peer removed from Raft: %s", pid.Pretty())
+		break
 	}
-	op := cc.op(addr, LogOpRmPeer)
-	return cc.commit(op, "ConsensusLogRmPeer", pid)
+	return finalErr
 }
 
 // State retrieves the current consensus State. It may error
@@ -398,6 +409,30 @@ func (cc *Consensus) Rollback(state state.State) error {
 	// There is rather untested magic in libp2p-raft's FSM()
 	// to make this possible.
 	return cc.consensus.Rollback(state)
+}
+
+// Peers return the current list of peers in the consensus.
+// The list will be sorted alphabetically.
+func (cc *Consensus) Peers() ([]peer.ID, error) {
+	if cc.shutdown { // things hang a lot in this case
+		return nil, errors.New("consensus is shutdown")
+	}
+	peers := []peer.ID{}
+	raftPeers, err := cc.raft.Peers()
+	if err != nil {
+		return nil, fmt.Errorf("cannot retrieve list of peers: %s", err)
+	}
+
+	sort.Strings(raftPeers)
+
+	for _, p := range raftPeers {
+		id, err := peer.IDB58Decode(p)
+		if err != nil {
+			panic("could not decode peer")
+		}
+		peers = append(peers, id)
+	}
+	return peers, nil
 }
 
 func parsePIDFromMultiaddr(addr ma.Multiaddr) string {

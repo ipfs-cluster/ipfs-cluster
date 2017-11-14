@@ -55,6 +55,7 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.DataFolder = fmt.Sprintf("raftFolderFromTests%d", port)
+	cfg.hostShutdown = true
 
 	cc, err := NewConsensus([]peer.ID{h.ID()}, h, cfg, st)
 	if err != nil {
@@ -122,7 +123,7 @@ func TestConsensusUnpin(t *testing.T) {
 	}
 }
 
-func TestConsensusLogAddPeer(t *testing.T) {
+func TestConsensusAddPeer(t *testing.T) {
 	cc := testingConsensus(t, p2pPort)
 	cc2 := testingConsensus(t, p2pPortAlt)
 	t.Log(cc.host.ID().Pretty())
@@ -133,10 +134,9 @@ func TestConsensusLogAddPeer(t *testing.T) {
 	defer cc2.Shutdown()
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
-	haddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", cc2.host.ID().Pretty()))
 
 	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
-	err := cc.LogAddPeer(addr.Encapsulate(haddr))
+	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -157,7 +157,7 @@ func TestConsensusLogAddPeer(t *testing.T) {
 	}
 }
 
-func TestConsensusLogRmPeer(t *testing.T) {
+func TestConsensusRmPeer(t *testing.T) {
 	cc := testingConsensus(t, p2pPort)
 	cc2 := testingConsensus(t, p2pPortAlt)
 	defer cleanRaft(p2pPort)
@@ -166,10 +166,9 @@ func TestConsensusLogRmPeer(t *testing.T) {
 	defer cc2.Shutdown()
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
-	haddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", cc2.host.ID().Pretty()))
 	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
 
-	err := cc.LogAddPeer(addr.Encapsulate(haddr))
+	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
 		t.Error("could not add peer:", err)
 	}
@@ -190,14 +189,14 @@ func TestConsensusLogRmPeer(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Remove unexisting peer
-	err = cc.LogRmPeer(test.TestPeerID1)
+	err = cc.RmPeer(test.TestPeerID1)
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
 
 	// Remove real peer. At least the leader can succeed
-	err = cc2.LogRmPeer(cc.host.ID())
-	err2 := cc.LogRmPeer(cc2.host.ID())
+	err = cc2.RmPeer(cc.host.ID())
+	err2 := cc.RmPeer(cc2.host.ID())
 	if err != nil && err2 != nil {
 		t.Error("could not remove peer:", err, err2)
 	}

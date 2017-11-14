@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
@@ -36,6 +37,7 @@ const (
 // config.ComponentConfig interface.
 type Config struct {
 	config.Saver
+	lock sync.Mutex
 
 	// Libp2p ID and private key for Cluster communication (including)
 	// the Consensus component.
@@ -341,6 +343,13 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 	raw, err = json.MarshalIndent(jcfg, "", "    ")
 	return
+}
+
+func (cfg *Config) savePeers(addrs []ma.Multiaddr) {
+	cfg.lock.Lock()
+	cfg.Peers = addrs
+	cfg.lock.Unlock()
+	cfg.NotifySave()
 }
 
 // DecodeClusterSecret parses a hex-encoded string, checks that it is exactly
