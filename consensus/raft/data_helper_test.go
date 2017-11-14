@@ -24,10 +24,9 @@ func TestDataBackupHelper(t *testing.T) {
 			t.Fatal(err)
 		}
 		backups := helper.listBackups()
-		if i < RaftDataBackupKeep && len(backups) != i+1 {
-			t.Fatal("not saving enough backups")
-		} else if i >= RaftDataBackupKeep && len(backups) != RaftDataBackupKeep {
-			t.Fatal("saving too many backups")
+		if (i < RaftDataBackupKeep && len(backups) != i+1) ||
+			(i >= RaftDataBackupKeep && len(backups) != RaftDataBackupKeep) {
+			t.Fatal("incorrect number of backups saved")
 		}
 		os.MkdirAll("data_helper_testing", 0700)
 	}
