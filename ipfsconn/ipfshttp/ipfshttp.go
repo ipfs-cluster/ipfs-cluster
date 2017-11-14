@@ -87,8 +87,9 @@ type ipfsRepoStatResp struct {
 }
 
 type ipfsAddResp struct {
-	Name string
-	Hash string
+	Name  string
+	Hash  string
+	Bytes uint64
 }
 
 // NewConnector creates the component and leaves it ready to be started
@@ -361,9 +362,6 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 	// Cluster will decide where to pin based on metrics and current
 	// allocations.
 	q.Set("pin", "false")
-	// do not send progress updates. They have no use since we need to
-	// wait until the end to tell cluster to pin.
-	q.Set("progress", "false")
 	r.URL.RawQuery = q.Encode()
 
 	res, err := ipfs.proxyRequest(r)
@@ -404,6 +402,10 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, "error decoding response: "+err.Error(), 502)
 			return
+		}
+		if addResp.Bytes != 0 {
+			// This is a progress notification, so we ignore it
+			continue
 		}
 		ipfsAddResps = append(ipfsAddResps, addResp)
 	}

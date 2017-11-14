@@ -391,11 +391,24 @@ func TestProxyAdd(t *testing.T) {
 		}
 
 		var hash ipfsAddResp
-		resBytes, _ := ioutil.ReadAll(res.Body)
-		err = json.Unmarshal(resBytes, &hash)
-		if err != nil {
-			t.Fatal(err)
+
+		// We might return a progress notification, so we do it
+		// like this to ignore it easily
+		dec := json.NewDecoder(res.Body)
+		for dec.More() {
+			var resp ipfsAddResp
+			err := dec.Decode(&resp)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if resp.Bytes != 0 {
+				continue
+			} else {
+				hash = resp
+			}
 		}
+
 		if hash.Hash != test.TestCid3 {
 			t.Logf("%+v", hash)
 			t.Error("expected TestCid1 as it is hardcoded in ipfs mock")
@@ -431,37 +444,37 @@ func TestDecideRecursivePins(t *testing.T) {
 
 	tcs := []testcases{
 		{
-			[]ipfsAddResp{{"a", "cida"}},
+			[]ipfsAddResp{{"a", "cida", 0}},
 			url.Values{},
 			[]string{"cida"},
 		},
 		{
-			[]ipfsAddResp{{"a/b", "cidb"}, {"a", "cida"}},
+			[]ipfsAddResp{{"a/b", "cidb", 0}, {"a", "cida", 0}},
 			url.Values{},
 			[]string{"cida"},
 		},
 		{
-			[]ipfsAddResp{{"a/b", "cidb"}, {"c", "cidc"}, {"a", "cida"}},
+			[]ipfsAddResp{{"a/b", "cidb", 0}, {"c", "cidc", 0}, {"a", "cida", 0}},
 			url.Values{},
 			[]string{"cidc", "cida"},
 		},
 		{
-			[]ipfsAddResp{{"/a", "cida"}},
+			[]ipfsAddResp{{"/a", "cida", 0}},
 			url.Values{},
 			[]string{"cida"},
 		},
 		{
-			[]ipfsAddResp{{"a/b/c/d", "cidd"}},
+			[]ipfsAddResp{{"a/b/c/d", "cidd", 0}},
 			url.Values{},
 			[]string{"cidd"},
 		},
 		{
-			[]ipfsAddResp{{"a", "cida"}, {"b", "cidb"}, {"c", "cidc"}, {"d", "cidd"}},
+			[]ipfsAddResp{{"a", "cida", 0}, {"b", "cidb", 0}, {"c", "cidc", 0}, {"d", "cidd", 0}},
 			url.Values{},
 			[]string{"cida", "cidb", "cidc", "cidd"},
 		},
 		{
-			[]ipfsAddResp{{"a", "cida"}, {"b", "cidb"}, {"", "cidwrap"}},
+			[]ipfsAddResp{{"a", "cida", 0}, {"b", "cidb", 0}, {"", "cidwrap", 0}},
 			url.Values{
 				"wrap-in-directory": []string{"true"},
 			},
@@ -469,7 +482,7 @@ func TestDecideRecursivePins(t *testing.T) {
 		},
 		{
 
-			[]ipfsAddResp{{"b", ""}, {"a", "cida"}},
+			[]ipfsAddResp{{"b", "", 0}, {"a", "cida", 0}},
 			url.Values{},
 			[]string{"cida"},
 		},
