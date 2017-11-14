@@ -272,7 +272,9 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 		// Being here means we are the LEADER. We can commit.
 
 		// now commit the changes to our state
+		cc.shutdownLock.Lock() // do not shut down while committing
 		_, finalErr = cc.consensus.CommitOp(op)
+		cc.shutdownLock.Unlock()
 		if finalErr != nil {
 			goto RETRY
 		}
@@ -326,7 +328,9 @@ func (cc *Consensus) AddPeer(pid peer.ID) error {
 			return err
 		}
 		// Being here means we are the leader and can commit
+		cc.shutdownLock.Lock() // do not shutdown while committing
 		finalErr = cc.raft.AddPeer(peer.IDB58Encode(pid))
+		cc.shutdownLock.Unlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
 			continue
@@ -344,14 +348,16 @@ func (cc *Consensus) RmPeer(pid peer.ID) error {
 	for i := 0; i <= cc.config.CommitRetries; i++ {
 		logger.Debugf("attempt #%d: RmPeer %s", i, pid.Pretty())
 		if finalErr != nil {
-			logger.Errorf("retrying to add peer. Attempt #%d failed: %s", i, finalErr)
+			logger.Errorf("retrying to remove peer. Attempt #%d failed: %s", i, finalErr)
 		}
 		ok, err := cc.redirectToLeader("ConsensusRmPeer", pid)
 		if err != nil || ok {
 			return err
 		}
 		// Being here means we are the leader and can commit
+		cc.shutdownLock.Lock() // do not shutdown while committing
 		finalErr = cc.raft.RemovePeer(peer.IDB58Encode(pid))
+		cc.shutdownLock.Unlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
 			continue

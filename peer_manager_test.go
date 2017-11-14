@@ -230,6 +230,57 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 	}
 }
 
+func TestClustersPeerRemoveLeader(t *testing.T) {
+	// this test is like the one above, except it always
+	// removes the current leader.
+	// this test hangs sometimes if there are problems
+	clusters, mocks := createClusters(t)
+	defer shutdownClusters(t, clusters, mocks)
+
+	findLeader := func() *Cluster {
+		var l peer.ID
+		for _, c := range clusters {
+			if !c.shutdownB {
+				waitForLeader(t, clusters)
+				l, _ = c.consensus.Leader()
+			}
+		}
+		for _, c := range clusters {
+			if c.id == l {
+				return c
+			}
+		}
+		return nil
+	}
+
+	for i := 0; i < len(clusters); i++ {
+		leader := findLeader()
+		peers := leader.Peers()
+		t.Logf("Current cluster size: %d", len(peers))
+		if len(peers) != (len(clusters) - i) {
+			t.Fatal("Previous peers not removed correctly")
+		}
+		err := leader.PeerRemove(leader.id)
+		// Last peer member won't be able to remove itself
+		// In this case, we shut it down.
+		if err != nil {
+			if i != len(clusters)-1 { //not last
+				t.Error(err)
+			} else {
+				err := leader.Shutdown()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		time.Sleep(time.Second)
+		_, more := <-leader.Done()
+		if more {
+			t.Error("should be done")
+		}
+	}
+}
+
 func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
