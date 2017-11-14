@@ -662,14 +662,6 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		return id, err
 	}
 
-	// Log the new peer in the log so everyone gets it.
-	err = c.consensus.AddPeer(pid)
-	if err != nil {
-		logger.Error(err)
-		id := api.ID{ID: pid, Error: err.Error()}
-		return id, err
-	}
-
 	// Send cluster peers to the new peer.
 	clusterPeers := append(c.peerManager.addresses(peers),
 		addrSerial.ToMultiaddr())
@@ -680,6 +672,14 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		&struct{}{})
 	if err != nil {
 		logger.Error(err)
+	}
+
+	// Log the new peer in the log so everyone gets it.
+	err = c.consensus.AddPeer(pid)
+	if err != nil {
+		logger.Error(err)
+		id := api.ID{ID: pid, Error: err.Error()}
+		return id, err
 	}
 
 	// Ask the new peer to connect its IPFS daemon to the rest
