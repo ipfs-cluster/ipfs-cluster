@@ -79,7 +79,6 @@ This sections gives an overview of how some things work in Cluster. Doubts? Some
 ### Startup
 
 * Initialize the P2P host.
-* Initialize the PeerManager: needs to keep track of cluster peers.
 * Initialize Consensus: start looking for a leader asap.
 * Setup RPC in all componenets: allow them to communicate with different parts of the cluster.
 * Bootstrap: if we are bootstrapping from another node, do the dance (contact, receive cluster peers, join consensus)
@@ -125,21 +124,13 @@ Notes:
 * If it's via an API request, it involves an RPC request to the cluster main component.
 * `Cluster.PeerAdd()`
 * Figure out the real multiaddress for that peer (the one we see).
-* Let the `PeerManager` component know about the new peer. This adds it to the Libp2p host and notifies any component which needs to know
-about peers. This means also ability to perform RPC requests to that peer.
+* Broadcast the address to every cluster peer and add it to the host's libp2p peerstore. This gives each member of the cluster the ability to perform RPC requests to that peer.
 * Figure out our multiaddress in regard to the new peer (the one it sees to connect to us). This is done with an RPC request and it also
-ensure that the peer is up and reachable.
-* Trigger a consensus `LogOp` indicating that there is a new peer.
-* Send the new peer the list of cluster peers. This is an RPC request to the new peers `PeerManager` which allows to keep a tab on the current cluster peers.
+ensures that the peer is up and reachable.
+* Add the new peer to the Consensus component. This operation gets forwarded to the leader. Internally, Raft commits a configuration change to the log which contains a new peerset. Every peer gets the new peerset, including the new peer.
+* Send the list of peer multiaddresses to the new peer so it host knows how to reach them. This is a remote RPC request to the new peers' `PeerManager.ImportAddresses`
 
-The consensus part has its own complexity:
-
-* As usual, the "add peer" operation is forwarded to the Raft leader.
-* The consensus component logs such operation and also uses Raft `AddPeer` method or equivalent.
-* This results in two log entries, one internal to Raft which updates the internal Raft peerstore in all peers, and one from Cluster which is
-received by the `Apply` method. This `Apply` operation does not modify the shared `State` (like when pinning), but rather only notifies the `PeerManager` about a new peer so the nodes can be set up to talk to it.
-
-As such we are efectively using the consensus log to broadcast a PeerAdd operation. That is because this is critical and should either succeed everywhere or fail. If we performed a regular "for loop broadcast" and some peers fail, we end up with a mess that needs to be cleaned up and uncertain state. By using the consensus log, those peers which did not receive the operation have the oportunity to receive it later (on restart if they were down). There are still pitfalls to this (restoring from snapshot might result in peers with missing cluster peers) but the errors are more obvious and isolated than in other ways.
+We use the Consensus' (or rather Raft's) internal peerset as source of truth for the current cluster peers. This is just a list of peer IDs. The associated multiaddresses for those peers are broadcasted to every member. This implies that peer additions are expected to happen on healthy cluster where all peers can learn about the new peer's multiaddresses.
 
 Notes:
 
