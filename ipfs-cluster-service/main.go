@@ -124,7 +124,7 @@ func init() {
 	if home == "" {
 		usr, err := user.Current()
 		if err != nil {
-			panic("cannot get current user: ", err)
+			panic(fmt.Sprintf("cannot get current user: %s", err))
 		}
 		home = usr.HomeDir
 	}
