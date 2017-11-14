@@ -36,7 +36,7 @@ parts:
       mv ../go/bin/ipfs-cluster-ctl $SNAPCRAFT_PART_INSTALL/bin/
     after: [go, patches]
   go:
-    source-tag: go1.8.3
+    source-tag: go1.9.2
   patches:
     source: snap/patches
     plugin: dump
