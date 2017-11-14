@@ -101,9 +101,9 @@ var logger = logging.Logger("service")
 
 // Default location for the configurations and data
 var (
-	// DefaultPath is initialized to something like ~/.ipfs-cluster/service.json
+	// DefaultPath is initialized to $HOME/.ipfs-cluster
 	// and holds all the ipfs-cluster data
-	DefaultPath = ".ipfs-cluster"
+	DefaultPath string
 	// The name of the configuration file inside DefaultPath
 	DefaultConfigFile = "service.json"
 )
@@ -116,13 +116,20 @@ func init() {
 	// Set the right commit. The only way I could make this work
 	ipfscluster.Commit = commit
 
-	usr, err := user.Current()
-	if err != nil {
-		panic("cannot guess the current user")
+	// We try guessing user's home from the HOME variable. This
+	// allows HOME hacks for things like Snapcraft builds. HOME
+	// should be set in all UNIX by the OS. Alternatively, we fall back to
+	// usr.HomeDir (which should work on Windows etc.).
+	home := os.Getenv("HOME")
+	if home == "" {
+		usr, err := user.Current()
+		if err != nil {
+			panic("cannot get current user: ", err)
+		}
+		home = usr.HomeDir
 	}
-	DefaultPath = filepath.Join(
-		usr.HomeDir,
-		".ipfs-cluster")
+
+	DefaultPath = filepath.Join(home, ".ipfs-cluster")
 }
 
 func out(m string, a ...interface{}) {
