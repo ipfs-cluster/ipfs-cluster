@@ -373,10 +373,9 @@ func (c *Cluster) watchPeers() {
 			if len(peers) != len(lastPeers) {
 				save = true
 			} else {
-				for i := range peers {
-					if peers[i] != lastPeers[i] {
-						save = true
-					}
+				added, removed := diffPeers(lastPeers, peers)
+				if len(added) != 0 || len(removed) != 0 {
+					save = true
 				}
 			}
 
@@ -692,7 +691,27 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		logger.Error(err)
 	}
 
-	id, err := c.getIDForPeer(pid)
+	id := api.ID{}
+
+	// wait up to 2 seconds for new peer to catch up
+	// and return an up to date api.ID object.
+	// otherwise it might not contain the current cluster peers
+	// as it should.
+	for i := 0; i < 20; i++ {
+		id, _ = c.getIDForPeer(pid)
+		ownPeers, err := c.consensus.Peers()
+		if err != nil {
+			break
+		}
+		newNodePeers := id.ClusterPeers
+		added, removed := diffPeers(ownPeers, newNodePeers)
+		if len(added) == 0 && len(removed) == 0 {
+			break // the new peer has fully joined
+		}
+		time.Sleep(200 * time.Millisecond)
+		logger.Debugf("%s addPeer: retrying to get ID from %s",
+			c.id.Pretty(), pid.Pretty())
+	}
 	return id, nil
 }
 
@@ -1351,4 +1370,44 @@ func (c *Cluster) backupState() {
 		logger.Error(err)
 		return
 	}
+}
+
+// diffPeers returns the peerIDs added and removed from peers2 in relation to
+// peers1
+func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
+	m1 := make(map[peer.ID]struct{})
+	m2 := make(map[peer.ID]struct{})
+	added = make([]peer.ID, 0)
+	removed = make([]peer.ID, 0)
+	if peers1 == nil && peers2 == nil {
+		return
+	}
+	if peers1 == nil {
+		added = peers2
+		return
+	}
+	if peers2 == nil {
+		removed = peers1
+		return
+	}
+
+	for _, p := range peers1 {
+		m1[p] = struct{}{}
+	}
+	for _, p := range peers2 {
+		m2[p] = struct{}{}
+	}
+	for k, _ := range m1 {
+		_, ok := m2[k]
+		if !ok {
+			removed = append(removed, k)
+		}
+	}
+	for k, _ := range m2 {
+		_, ok := m1[k]
+		if !ok {
+			added = append(added, k)
+		}
+	}
+	return
 }
