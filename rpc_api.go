@@ -282,6 +282,13 @@ func (rpcapi *RPCAPI) ConsensusRmPeer(in peer.ID, out *struct{}) error {
 	return rpcapi.c.consensus.RmPeer(in)
 }
 
+// ConsensusPeers runs Consensus.Peers().
+func (rpcapi *RPCAPI) ConsensusPeers(in struct{}, out *[]peer.ID) error {
+	peers, err := rpcapi.c.consensus.Peers()
+	*out = peers
+	return err
+}
+
 /*
    Peer Manager methods
 */
@@ -297,18 +304,6 @@ func (rpcapi *RPCAPI) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) 
 func (rpcapi *RPCAPI) PeerManagerImportAddresses(in api.MultiaddrsSerial, out *struct{}) error {
 	addrs := in.ToMultiaddrs()
 	err := rpcapi.c.peerManager.importAddresses(addrs)
-	return err
-}
-
-// PeerManagerRmPeer runs peerManager.rmPeer().
-func (rpcapi *RPCAPI) PeerManagerRmPeer(in peer.ID, out *struct{}) error {
-	return rpcapi.c.peerManager.rmPeer(in)
-}
-
-// PeerManagerPeers runs cluster.consensus.Peers().
-func (rpcapi *RPCAPI) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
-	peers, err := rpcapi.c.consensus.Peers()
-	*out = peers
 	return err
 }
 

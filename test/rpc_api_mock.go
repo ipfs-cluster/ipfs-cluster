@@ -215,11 +215,6 @@ func (mock *mockService) Untrack(in api.PinSerial, out *struct{}) error {
 
 /* PeerManager methods */
 
-func (mock *mockService) PeerManagerPeers(in struct{}, out *[]peer.ID) error {
-	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
-	return nil
-}
-
 func (mock *mockService) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
 	return nil
 }
@@ -284,4 +279,9 @@ func (mock *mockService) ConsensusAddPeer(in peer.ID, out *struct{}) error {
 
 func (mock *mockService) ConsensusRmPeer(in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
+}
+
+func (mock *mockService) ConsensusPeers(in struct{}, out *[]peer.ID) error {
+	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
+	return nil
 }

@@ -220,7 +220,7 @@ func (mon *Monitor) LastMetrics(name string) []api.Metric {
 	var peers []peer.ID
 	err := mon.rpcClient.Call("",
 		"Cluster",
-		"PeerManagerPeers",
+		"ConsensusPeers",
 		struct{}{},
 		&peers)
 	if err != nil {
@@ -274,7 +274,7 @@ func (mon *Monitor) monitor() {
 			var peers []peer.ID
 			err := mon.rpcClient.Call("",
 				"Cluster",
-				"PeerManagerPeers",
+				"ConsensusPeers",
 				struct{}{},
 				&peers)
 			if err != nil {

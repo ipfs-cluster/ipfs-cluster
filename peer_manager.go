@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"fmt"
+
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
@@ -32,27 +33,6 @@ func (pm *peerManager) rmPeer(pid peer.ID) error {
 	pm.host.Peerstore().ClearAddrs(pid)
 	return nil
 }
-
-// func (pm *peerManager) savePeers() {
-// 	peers := pm.peersAddrs()
-// 	logger.Debugf("saving peers: %s", peers)
-// 	pm.cluster.config.Peers = peers
-// 	pm.cluster.config.NotifySave()
-// }
-
-// func (pm *peerManager) isPeer(p peer.ID) bool {
-// 	if p == pm.cluster.id {
-// 		return true
-// 	}
-
-// 	peers := pm.cluster.consensus.Peers()
-// 	for _, pid := range peers {
-// 		if p == pid {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
 
 // cluster peer addresses (NOT including ourselves)
 func (pm *peerManager) addresses(peers []peer.ID) []ma.Multiaddr {
