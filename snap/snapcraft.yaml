@@ -22,10 +22,6 @@ parts:
     plugin: nil
     build-packages: [make, wget]
     prepare: |
-      # XXX workaround for
-      # https://forum.snapcraft.io/t/go-homedir-reads-etc-passwd-not-home/2727
-      # --elopio - 20171107
-      git apply $SNAPCRAFT_STAGE/snap-home.patch
       mkdir -p ../go/src/github.com/ipfs/ipfs-cluster
       cp -R . ../go/src/github.com/ipfs/ipfs-cluster
     build: |
@@ -34,11 +30,6 @@ parts:
       mkdir $SNAPCRAFT_PART_INSTALL/bin
       mv ../go/bin/ipfs-cluster-service $SNAPCRAFT_PART_INSTALL/bin/
       mv ../go/bin/ipfs-cluster-ctl $SNAPCRAFT_PART_INSTALL/bin/
-    after: [go, patches]
+    after: [go]
   go:
-    source-tag: go1.8.3
-  patches:
-    source: snap/patches
-    plugin: dump
-    prime:
-      - -*
+    source-tag: go1.9.2
