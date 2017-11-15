@@ -1318,9 +1318,13 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int, blacklist []peer.ID) ([]peer
 	case needed <= 0: // set the allocations to the needed ones
 		return validAllocations[0 : len(validAllocations)+needed], nil
 	case candidatesValid < needed:
+		candidatesIds := []peer.ID{}
+		for k, _ := range candidates {
+			candidatesIds = append(candidatesIds, k)
+		}
 		err = logError(
 			"not enough candidates to allocate %s. Needed: %d. Got: %d (%s)",
-			hash, needed, candidatesValid, candidates)
+			hash, needed, candidatesValid, candidatesIds)
 		return nil, err
 	default:
 		// this will return candidate peers in order of
