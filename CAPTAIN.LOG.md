@@ -1,5 +1,23 @@
 # IPFS Cluster - Captain's log
 
+## 20171115 | @hsanjuan
+
+This update comes as our `0.3.0` release is about to be published. This release includes quite a few bug fixes, but the main change is the upgrade of the underlying Raft libraries to a recently published version.
+
+Raft 1.0.0 hardens the management of peersets and makes it more difficult to arrive to situations in which cluster peers have different, inconsistent states. These issues are usually very confusing for new users, as they manifest themselves with lots of error messages with apparently cryptic meanings, coming from Raft and LibP2P. We have embraced the new safeguards and made documentation and code changes to stress the workflows that should be followed when altering the cluster peerset. These can be summarized with:
+
+* `--bootstrap` is the method to add a peer to a running cluster as it ensures that no diverging state exists during first boot.
+* The `ipfs-cluster-data` folder is renamed whenever a peer leaves the cluster, resulting on a clean state for the next start. Peers with a dirty state will not be able to join a cluster.
+* Whenever `ipfs-cluster-data` has been initialized, `cluster.peers` should match the internal peerset from the data, or the node will not start.
+
+In the documentation, we have stressed the importance of the consensus data and described the workflows for starting peers and leaving the cluster in more detail.
+
+I'm also happy to announce that we now build and publish "snaps". [Snaps](https://snapcraft.io/) are "universal Linux packages designed to be secure, sandboxed, containerised applications isolated from the underlying system and from other applications". We are still testing them. For the moment we publish a new snap on every master build.
+
+You are welcome to check the [changelog](CHANGELOG.md) for a detailed list of other new features and bugfixes.
+
+Our upcoming work will be focused on setting up a live ipfs-cluster and run it in a "production" fashion, as well as adding more capabilities to manage the internal cluster state while offline (migrate, export, import) etc.
+
 ## 20171023 | @hsanjuan
 
 We have now started the final quarter of 2017 with renewed energy and plans for ipfs-cluster. The team has grown and come up with a set of priorities for the next weeks and months. The gist of these is:
