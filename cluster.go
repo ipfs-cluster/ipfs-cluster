@@ -344,11 +344,7 @@ func (c *Cluster) alertsHandler() {
 func (c *Cluster) watchPeers() {
 	// TODO: Config option?
 	ticker := time.NewTicker(5 * time.Second)
-	var lastPeers []peer.ID
-	lastPeers, err := c.consensus.Peers()
-	if err != nil {
-		logger.Error("starting to watch peers", err)
-	}
+	lastPeers := peersFromMultiaddrs(c.config.Peers)
 
 	for {
 		select {
