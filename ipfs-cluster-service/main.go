@@ -218,6 +218,7 @@ configuration.
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
 				cfg, clustercfg, _, _, _, _, _, _ := makeConfigs()
+				defer cfg.Shutdown() // wait for saves
 
 				// Generate defaults for all registered components
 				err := cfg.Default()

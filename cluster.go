@@ -373,17 +373,16 @@ func (c *Cluster) watchPeers() {
 			if len(peers) != len(lastPeers) {
 				save = true
 			} else {
-				for i := range peers {
-					if peers[i] != lastPeers[i] {
-						save = true
-					}
+				added, removed := diffPeers(lastPeers, peers)
+				if len(added) != 0 || len(removed) != 0 {
+					save = true
 				}
 			}
 
 			lastPeers = peers
 
 			if !hasMe {
-				logger.Info("this peer has been removed and will shutdown")
+				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
 				c.removed = true
 				c.config.Bootstrap = c.peerManager.addresses(peers)
 				c.config.savePeers([]ma.Multiaddr{})
@@ -517,9 +516,6 @@ func (c *Cluster) Shutdown() error {
 		}
 	}
 
-	// Cancel contexts
-	c.cancel()
-
 	if con := c.consensus; con != nil {
 		if err := con.Shutdown(); err != nil {
 			logger.Errorf("error stopping consensus: %s", err)
@@ -558,8 +554,12 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("error stopping PinTracker: %s", err)
 		return err
 	}
-	c.wg.Wait()
+
+	// Cancel contexts - **NOTE**: This kills the context in the
+	// libp2p HOST too!
+	c.cancel()
 	c.host.Close() // Shutdown all network services
+	c.wg.Wait()
 	c.shutdownB = true
 	close(c.doneCh)
 	return nil
@@ -662,14 +662,6 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		return id, err
 	}
 
-	// Log the new peer in the log so everyone gets it.
-	err = c.consensus.AddPeer(pid)
-	if err != nil {
-		logger.Error(err)
-		id := api.ID{ID: pid, Error: err.Error()}
-		return id, err
-	}
-
 	// Send cluster peers to the new peer.
 	clusterPeers := append(c.peerManager.addresses(peers),
 		addrSerial.ToMultiaddr())
@@ -682,6 +674,14 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		logger.Error(err)
 	}
 
+	// Log the new peer in the log so everyone gets it.
+	err = c.consensus.AddPeer(pid)
+	if err != nil {
+		logger.Error(err)
+		id := api.ID{ID: pid, Error: err.Error()}
+		return id, err
+	}
+
 	// Ask the new peer to connect its IPFS daemon to the rest
 	err = c.rpcClient.Call(pid,
 		"Cluster",
@@ -692,7 +692,27 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		logger.Error(err)
 	}
 
-	id, err := c.getIDForPeer(pid)
+	id := api.ID{}
+
+	// wait up to 2 seconds for new peer to catch up
+	// and return an up to date api.ID object.
+	// otherwise it might not contain the current cluster peers
+	// as it should.
+	for i := 0; i < 20; i++ {
+		id, _ = c.getIDForPeer(pid)
+		ownPeers, err := c.consensus.Peers()
+		if err != nil {
+			break
+		}
+		newNodePeers := id.ClusterPeers
+		added, removed := diffPeers(ownPeers, newNodePeers)
+		if len(added) == 0 && len(removed) == 0 {
+			break // the new peer has fully joined
+		}
+		time.Sleep(200 * time.Millisecond)
+		logger.Debugf("%s addPeer: retrying to get ID from %s",
+			c.id.Pretty(), pid.Pretty())
+	}
 	return id, nil
 }
 
@@ -1298,9 +1318,13 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int, blacklist []peer.ID) ([]peer
 	case needed <= 0: // set the allocations to the needed ones
 		return validAllocations[0 : len(validAllocations)+needed], nil
 	case candidatesValid < needed:
+		candidatesIds := []peer.ID{}
+		for k, _ := range candidates {
+			candidatesIds = append(candidatesIds, k)
+		}
 		err = logError(
 			"not enough candidates to allocate %s. Needed: %d. Got: %d (%s)",
-			hash, needed, candidatesValid, candidates)
+			hash, needed, candidatesValid, candidatesIds)
 		return nil, err
 	default:
 		// this will return candidate peers in order of
@@ -1351,4 +1375,44 @@ func (c *Cluster) backupState() {
 		logger.Error(err)
 		return
 	}
+}
+
+// diffPeers returns the peerIDs added and removed from peers2 in relation to
+// peers1
+func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
+	m1 := make(map[peer.ID]struct{})
+	m2 := make(map[peer.ID]struct{})
+	added = make([]peer.ID, 0)
+	removed = make([]peer.ID, 0)
+	if peers1 == nil && peers2 == nil {
+		return
+	}
+	if peers1 == nil {
+		added = peers2
+		return
+	}
+	if peers2 == nil {
+		removed = peers1
+		return
+	}
+
+	for _, p := range peers1 {
+		m1[p] = struct{}{}
+	}
+	for _, p := range peers2 {
+		m2[p] = struct{}{}
+	}
+	for k, _ := range m1 {
+		_, ok := m2[k]
+		if !ok {
+			removed = append(removed, k)
+		}
+	}
+	for k, _ := range m2 {
+		_, ok := m1[k]
+		if !ok {
+			added = append(added, k)
+		}
+	}
+	return
 }
