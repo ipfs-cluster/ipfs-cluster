@@ -27,5 +27,5 @@ deploy:
     branch: master
   provider: script
   script: docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq
-    && cd $(pwd) && snapcraft && snapcraft push *.snap --release edge"
+    && cd $(pwd) && for arch in amd64 i386 armhf arm64; do snapcraft --target-arch $arch && snapcraft push *$arch.snap --release edge && snapcraft clean; done"
   skip_cleanup: true
