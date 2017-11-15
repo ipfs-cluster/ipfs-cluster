@@ -229,7 +229,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 			return false, nil
 		}
 
-		logger.Debugf("redirecting to leader: %s", leader.Pretty())
+		logger.Debugf("redirecting %s to leader: %s", method, leader.Pretty())
 		finalErr = cc.rpcClient.Call(
 			leader,
 			"Cluster",

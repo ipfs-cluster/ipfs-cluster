@@ -382,7 +382,7 @@ func (c *Cluster) watchPeers() {
 			lastPeers = peers
 
 			if !hasMe {
-				logger.Info("this peer has been removed and will shutdown")
+				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
 				c.removed = true
 				c.config.Bootstrap = c.peerManager.addresses(peers)
 				c.config.savePeers([]ma.Multiaddr{})
@@ -516,9 +516,6 @@ func (c *Cluster) Shutdown() error {
 		}
 	}
 
-	// Cancel contexts
-	c.cancel()
-
 	if con := c.consensus; con != nil {
 		if err := con.Shutdown(); err != nil {
 			logger.Errorf("error stopping consensus: %s", err)
@@ -557,8 +554,12 @@ func (c *Cluster) Shutdown() error {
 		logger.Errorf("error stopping PinTracker: %s", err)
 		return err
 	}
-	c.wg.Wait()
+
+	// Cancel contexts - **NOTE**: This kills the context in the
+	// libp2p HOST too!
+	c.cancel()
 	c.host.Close() // Shutdown all network services
+	c.wg.Wait()
 	c.shutdownB = true
 	close(c.doneCh)
 	return nil

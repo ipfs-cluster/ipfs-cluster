@@ -222,7 +222,6 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 				}
 			}
 		}
-		time.Sleep(time.Second)
 		_, more := <-clusters[i].Done()
 		if more {
 			t.Error("should be done")
@@ -273,7 +272,6 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 				}
 			}
 		}
-		time.Sleep(time.Second)
 		_, more := <-leader.Done()
 		if more {
 			t.Error("should be done")
