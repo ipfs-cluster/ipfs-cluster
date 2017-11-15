@@ -586,7 +586,12 @@ func (c *Cluster) ID() api.ID {
 		addrs = append(addrs, multiaddrJoin(addr, c.id))
 	}
 
-	peers, _ := c.consensus.Peers()
+	peers := []peer.ID{}
+	// This method might get called very early by a remote peer
+	// and might catch us when consensus is not set
+	if c.consensus != nil {
+		peers, _ = c.consensus.Peers()
+	}
 
 	return api.ID{
 		ID: c.id,

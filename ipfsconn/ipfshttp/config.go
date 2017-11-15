@@ -17,7 +17,7 @@ const configKey = "ipfshttp"
 const (
 	DefaultProxyAddr              = "/ip4/127.0.0.1/tcp/9095"
 	DefaultNodeAddr               = "/ip4/127.0.0.1/tcp/5001"
-	DefaultConnectSwarmsDelay     = 7 * time.Second
+	DefaultConnectSwarmsDelay     = 30 * time.Second
 	DefaultProxyReadTimeout       = 10 * time.Minute
 	DefaultProxyReadHeaderTimeout = 5 * time.Second
 	DefaultProxyWriteTimeout      = 10 * time.Minute
