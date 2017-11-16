@@ -4,4 +4,4 @@
 
 set -ev
 
-docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && for arch in amd64 i386 armhf arm64; do snapcraft snap --target-arch \$arch && snapcraft clean && snapcraft push ipfs-cluster*\$arch.snap --release edge; done"
+docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh"
