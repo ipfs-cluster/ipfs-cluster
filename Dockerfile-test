@@ -16,7 +16,7 @@ RUN cd /tmp && \
     
 
 #------------------------------------------------------
-FROM ipfs/go-ipfs
+FROM ipfs/go-ipfs:master
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This is the container which just puts the previously
