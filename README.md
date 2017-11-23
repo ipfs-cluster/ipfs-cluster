@@ -60,7 +60,7 @@ Note that since IPFS Cluster is evolving fast, these builds may not contain the 
 
 ### Docker
 
-You can build or download an automated build of the ipfs-cluster docker container. This container runs both the IPFS daemon and `ipfs-cluster-service` and includes `ipfs-cluster-ctl`. To launch the latest published version on Docker run:
+You can build or download an automated build of the ipfs-cluster docker container. This container runs `ipfs-cluster-service` and includes `ipfs-cluster-ctl`. To launch the latest published version on Docker run:
 
 `$ docker run ipfs/ipfs-cluster`
 
@@ -68,7 +68,7 @@ To build the container manually you can:
 
 `$ docker build . -t ipfs-cluster`
 
-You can mount your local ipfs-cluster configuration and data folder by passing `-v /data/ipfs-cluster your-local-ipfs-cluster-folder` to Docker.
+You can mount your local ipfs-cluster configuration and data folder by passing `-v /data/ipfs-cluster your-local-ipfs-cluster-folder` to Docker. Otherwise, a new configuration will be generated. In that case, you can point it to the right IPFS location by setting `IPFS_API` like `--env IPFS_API="/ip4/1.2.3.4/tcp/5001"`.
 
 ### Install from the snap store
 
