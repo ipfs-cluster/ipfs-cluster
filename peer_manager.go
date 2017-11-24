@@ -1,12 +1,15 @@
 package ipfscluster
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 )
 
 // peerManager provides wrappers peerset control
@@ -25,6 +28,19 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
 		return err
 	}
 	pm.host.Peerstore().AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
+
+	// dns multiaddresses need to be resolved because libp2p only does that
+	// on explicit bhost.Connect().
+	if madns.Matches(addr) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+		resolvedAddrs, err := madns.Resolve(ctx, addr)
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+		pm.importAddresses(resolvedAddrs)
+	}
 	return nil
 }
 
