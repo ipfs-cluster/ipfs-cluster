@@ -2,8 +2,9 @@ package mapstate
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
+
+	msgpack "github.com/multiformats/go-multicodec/msgpack"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -69,17 +70,19 @@ func TestList(t *testing.T) {
 	}
 }
 
-func TestSnapshotRestore(t *testing.T) {
+func TestMarshalUnmarshal(t *testing.T) {
 	ms := NewMapState()
 	ms.Add(c)
-	var buf bytes.Buffer
-	err := ms.Snapshot(&buf)
+	b, err := ms.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 	ms2 := NewMapState()
-	err = ms2.Restore(&buf)
+	err = ms2.Unmarshal(b)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if ms.Version != ms2.Version {
 		t.Fatal(err)
 	}
 	get := ms2.Get(c.Cid)
@@ -89,18 +92,35 @@ func TestSnapshotRestore(t *testing.T) {
 }
 
 func TestMigrateFromV1(t *testing.T) {
-	v1 := []byte(fmt.Sprintf(`{
-  "Version": 1,
-  "PinMap": {
-    "%s": {}
-   }
-}
-`, c.Cid))
-	buf := bytes.NewBuffer(v1)
-	ms := NewMapState()
-	err := ms.Restore(buf)
+	// Construct the bytes of a v1 state
+	var v1State mapStateV1
+	v1State.PinMap = map[string]struct{}{
+		c.Cid.String(): {}}
+	v1State.Version = 1
+	buf := new(bytes.Buffer)
+	enc := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Encoder(buf)
+	err := enc.Encode(v1State)
 	if err != nil {
 		t.Fatal(err)
+	}
+	vCodec := make([]byte, 1)
+	vCodec[0] = byte(v1State.Version)
+	v1Bytes := append(vCodec, buf.Bytes()...)
+
+	// Unmarshal first to check this is v1
+	ms := NewMapState()
+	err = ms.Unmarshal(v1Bytes)
+	if err != nil {
+		t.Error(err)
+	}
+	if ms.Version != 1 {
+		t.Error("unmarshal picked up the wrong version")
+	}
+	// Migrate state to current version
+	r := bytes.NewBuffer(v1Bytes)
+	err = ms.Restore(r)
+	if err != nil {
+		t.Error(err)
 	}
 	get := ms.Get(c.Cid)
 	if get.ReplicationFactor != -1 || !get.Cid.Equals(c.Cid) {

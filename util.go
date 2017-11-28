@@ -52,6 +52,10 @@ func copyEmptyStructToIfaces(in []struct{}) []interface{} {
 	return ifaces
 }
 
+func MultiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
+	return multiaddrSplit(addr)
+}
+
 func multiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
 	pid, err := addr.ValueForProtocol(ma.P_IPFS)
 	if err != nil {

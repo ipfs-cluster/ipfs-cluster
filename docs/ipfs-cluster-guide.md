@@ -338,7 +338,7 @@ The safest way to upgrade ipfs-cluster is to stop all cluster peers, update and 
 
 As long as the *shared state* format has not changed, there is nothing preventing from stopping cluster peers separately, updating and launching them.
 
-When the shared state format has changed, a state migration will be required. ipfs-cluster will refuse to start and inform the user in this case, although this feature is yet to be implemented next time the state format changes.
+When the shared state format has changed, a state migration will be required. ipfs-cluster will refuse to start and inform the user in this case.  Currently state migrations are supported in one direction, from old state formats to the format used by the updated ipfs-cluster-service.  This is accomplished by stopping the ipfs-cluster-service daemon and running `ipfs-cluster-service state upgrade`.  Note that due to changes in state serialization introduced while implementing state migrations ipfs-cluster shared state saved before December 2017 can not be migrated with this method.
 
 The upgrading procedures is something which is actively worked on and will improve over time.
 

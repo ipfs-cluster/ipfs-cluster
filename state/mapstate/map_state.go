@@ -3,19 +3,24 @@
 package mapstate
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"io/ioutil"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	msgpack "github.com/multiformats/go-multicodec/msgpack"
 
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
+	"github.com/ipfs/ipfs-cluster/api"
 )
 
 // Version is the map state Version. States with old versions should
 // perform an upgrade before.
 const Version = 2
+
+var logger = logging.Logger("mapstate")
 
 // MapState is a very simple database to store the state of the system
 // using a Go map. It is thread safe. It implements the State interface.
@@ -92,22 +97,69 @@ func (st *MapState) Snapshot(w io.Writer) error {
 	return enc.Encode(st)
 }
 
-// Restore takes a reader and restores a snapshot. It should migrate
-// the format if it is not compatible with the current version.
+// Restore restores a snapshot from the state's internal bytes. It should
+// migrate the format if it is not compatible with the current version.
 func (st *MapState) Restore(r io.Reader) error {
-	snap, err := ioutil.ReadAll(r)
+	bs, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
 	}
-	var vonly struct{ Version int }
-	err = json.Unmarshal(snap, &vonly)
+	err = st.Unmarshal(bs)
+	if st.Version == Version { // Unmarshal restored for us
+		return nil
+	}
+	bytesNoVersion := bs[1:] // Restore is aware of encoding format
+	err = st.migrateFrom(st.Version, bytesNoVersion)
 	if err != nil {
 		return err
 	}
-	if vonly.Version == Version {
-		// we are good
-		err := json.Unmarshal(snap, st)
+	st.Version = Version
+	return nil
+}
+
+// GetVersion returns the current version of this state object.
+// It is not necessarily up to date
+func (st *MapState) GetVersion() int {
+	return st.Version
+}
+
+// Marshal encodes the state using msgpack
+func (st *MapState) Marshal() ([]byte, error) {
+	logger.Debugf("Marshal-- Marshalling state of version %d", st.Version)
+	buf := new(bytes.Buffer)
+	enc := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Encoder(buf)
+	if err := enc.Encode(st); err != nil {
+		return nil, err
+	}
+	// First byte indicates the version (probably should make this a varint
+	// if we stick to this encoding)
+	vCodec := make([]byte, 1)
+	vCodec[0] = byte(st.Version)
+	ret := append(vCodec, buf.Bytes()...)
+	logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
+	return ret, nil
+}
+
+// Unmarshal decodes the state using msgpack.  It first decodes just
+// the version number.  If this is not the current version the bytes
+// are stored within the state's internal reader, which can be migrated
+// to the current version in a later call to restore.  Note: Out of date
+// version is not an error
+func (st *MapState) Unmarshal(bs []byte) error {
+	// Check version byte
+	logger.Debugf("The incoming bytes to unmarshal: %x", bs)
+	v := int(bs[0])
+	logger.Debugf("The interpreted version: %d", v)
+	if v != Version { // snapshot is out of date
+		st.Version = v
+		return nil
+	}
+
+	// snapshot is up to date
+	buf := bytes.NewBuffer(bs[1:])
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+	if err := dec.Decode(st); err != nil {
 		return err
 	}
-	return st.migrateFrom(vonly.Version, snap)
+	return nil
 }

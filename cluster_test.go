@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -115,7 +116,10 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 }
 
 func cleanRaft() {
-	os.RemoveAll("raftFolderFromTests")
+	raftDirs, _ := filepath.Glob("raftFolderFromTests*")
+	for _, dir := range raftDirs {
+		os.RemoveAll(dir)
+	}
 }
 
 func testClusterShutdown(t *testing.T) {

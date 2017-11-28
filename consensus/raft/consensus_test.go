@@ -221,3 +221,66 @@ func TestConsensusLeader(t *testing.T) {
 		t.Errorf("expected %s but the leader appears as %s", pID, l)
 	}
 }
+
+func TestRaftLatestSnapshot(t *testing.T) {
+	cc := testingConsensus(t, p2pPort)
+	defer cleanRaft(p2pPort)
+	defer cc.Shutdown()
+
+	// Make pin 1
+	c1, _ := cid.Decode(test.TestCid1)
+	err := cc.LogPin(api.Pin{Cid: c1, ReplicationFactor: -1})
+	if err != nil {
+		t.Error("the first pin did not make it to the log:", err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+	err = cc.raft.Snapshot()
+	if err != nil {
+		t.Error("the first snapshot was not taken successfully")
+	}
+
+	// Make pin 2
+	c2, _ := cid.Decode(test.TestCid2)
+	err = cc.LogPin(api.Pin{Cid: c2, ReplicationFactor: -1})
+	if err != nil {
+		t.Error("the second pin did not make it to the log:", err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+	err = cc.raft.Snapshot()
+	if err != nil {
+		t.Error("the second snapshot was not taken successfully")
+	}
+
+	// Make pin 3
+	c3, _ := cid.Decode(test.TestCid3)
+	err = cc.LogPin(api.Pin{Cid: c3, ReplicationFactor: -1})
+	if err != nil {
+		t.Error("the third pin did not make it to the log:", err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+	err = cc.raft.Snapshot()
+	if err != nil {
+		t.Error("the third snapshot was not taken successfully")
+	}
+
+	// Call raft.LastState and ensure we get the correct state
+	snapState := mapstate.NewMapState()
+	r, snapExists, err := LastStateRaw(cc.config)
+	if !snapExists {
+		t.Fatal("No snapshot found by LastStateRaw")
+	}
+	if err != nil {
+		t.Fatal("Error while taking snapshot", err)
+	}
+	err = snapState.Restore(r)
+	if err != nil {
+		t.Fatal("Snapshot bytes returned could not restore to state")
+	}
+	pins := snapState.List()
+	if len(pins) != 3 {
+		t.Fatal("Latest snapshot not read")
+	}
+}
