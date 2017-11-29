@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -43,6 +44,9 @@ type Config struct {
 	// the Consensus component.
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
+
+	// User-defined hostname for use as human-readable identifier.
+	Hostname string
 
 	// Cluster secret for private network. Peers will be in the same cluster if and
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
@@ -100,6 +104,7 @@ type Config struct {
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
 	ID                  string   `json:"id"`
+	Hostname            string   `json:"hostname"`
 	PrivateKey          string   `json:"private_key"`
 	Secret              string   `json:"secret"`
 	Peers               []string `json:"peers"`
@@ -194,6 +199,9 @@ func (cfg *Config) Validate() error {
 
 // this just sets non-generated defaults
 func (cfg *Config) setDefaults() {
+	hostname, _ := os.Hostname()
+	cfg.Hostname = hostname
+
 	addr, _ := ma.NewMultiaddr(DefaultListenAddr)
 	cfg.ListenAddr = addr
 	cfg.Peers = []ma.Multiaddr{}
@@ -225,6 +233,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 	cfg.ID = id
+
+	if jcfg.Hostname != "" {
+		cfg.Hostname = jcfg.Hostname
+	}
 
 	pkb, err := base64.StdEncoding.DecodeString(jcfg.PrivateKey)
 	if err != nil {
@@ -330,6 +342,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 	// Set all configuration fields
 	jcfg.ID = cfg.ID.Pretty()
+	jcfg.Hostname = cfg.Hostname
 	jcfg.PrivateKey = pKey
 	jcfg.Secret = EncodeClusterSecret(cfg.Secret)
 	jcfg.Peers = clusterPeers
