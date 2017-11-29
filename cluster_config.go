@@ -392,3 +392,33 @@ func clusterSecretToKey(secret []byte) (string, error) {
 
 	return key.String(), nil
 }
+
+// BackupState backs up a state according to this configuration's options
+//func (cfg *Config) BackupState(state state.State) error {
+//	if cfg.BaseDir == "" {
+// 		msg := "ClusterConfig BaseDir unset. Skipping backup"
+// 		logger.Warning(msg)
+// 		return errors.New(msg)
+// 	}
+
+// 	folder := filepath.Join(cfg.BaseDir, "backups")
+// 	err := os.MkdirAll(folder, 0700)
+// 	if err != nil {
+// 		logger.Error(err)
+// 		logger.Error("skipping backup")
+// 		return errors.New("skipping backup")
+// 	}
+// 	fname := time.Now().UTC().Format("20060102_15:04:05")
+// 	f, err := os.Create(filepath.Join(folder, fname))
+// 	if err != nil {
+// 		logger.Error(err)
+// 		return err
+// 	}
+// 	defer f.Close()
+// 	err = state.Snapshot(f)
+// 	if err != nil {
+// 		logger.Error(err)
+// 		return err
+// 	}
+// 	return nil
+// }

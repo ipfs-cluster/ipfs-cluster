@@ -1,8 +1,10 @@
 package mapstate
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
+
+	msgpack "github.com/multiformats/go-multicodec/msgpack"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -16,10 +18,12 @@ func (st *MapState) migrateFrom(version int, snap []byte) error {
 	switch version {
 	case 1:
 		var mstv1 mapStateV1
-		err := json.Unmarshal(snap, &mstv1)
-		if err != nil {
+		buf := bytes.NewBuffer(snap)
+		dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+		if err := dec.Decode(&mstv1); err != nil {
 			return err
 		}
+
 		for k := range mstv1.PinMap {
 			st.PinMap[k] = api.PinSerial{
 				Cid:               k,

@@ -14,7 +14,7 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
@@ -239,6 +239,29 @@ configuration.
 			Usage:  "run the IPFS Cluster peer (default)",
 			Action: daemon,
 		},
+		{
+			Name:  "state",
+			Usage: "Manage ipfs-cluster-state",
+			Subcommands: []cli.Command{
+				{
+					Name:  "upgrade",
+					Usage: "upgrade the IPFS Cluster state to the current version",
+					Description: `
+
+This command upgrades the internal state of the ipfs-cluster node 
+specified in the latest raft snapshot. The state format is migrated from the 
+version of the snapshot to the version supported by the current cluster version. 
+To succesfully run an upgrade of an entire cluster, shut down each peer without
+removal, upgrade state using this command, and restart every peer.
+`,
+					Action: func(c *cli.Context) error {
+						err := upgrade()
+						checkErr("upgrading state", err)
+						return nil
+					},
+				},
+			},
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
@@ -301,6 +324,10 @@ func daemon(c *cli.Context) error {
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
+
+	err = validateVersion(clusterCfg, consensusCfg)
+	checkErr("validating version", err)
+
 	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
 	mon, err := basic.NewMonitor(monCfg)
 	checkErr("creating Monitor component", err)
@@ -342,6 +369,7 @@ var facilities = []string{
 	"cluster",
 	"restapi",
 	"ipfshttp",
+	"mapstate",
 	"monitor",
 	"consensus",
 	"pintracker",

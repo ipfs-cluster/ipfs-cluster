@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 test_description="Test failure when server not using SSL but client requests it"
 

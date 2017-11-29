@@ -6,8 +6,8 @@
 SHARNESS_LIB="lib/sharness/sharness.sh"
 
 # Daemons output will be redirected to...
-IPFS_OUTPUT="/dev/null" # change for debugging
-# IPFS_OUTPUT="/dev/stderr" # change for debugging
+IPFS_OUTPUT="/dev/null"
+# IPFS_OUTPUT="/dev/stderr" # uncomment for debugging
 
 . "$SHARNESS_LIB" || {
     echo >&2 "Cannot source: $SHARNESS_LIB"
@@ -35,7 +35,10 @@ test_ipfs_init() {
             echo "Error running go-ipfs in docker."
             exit 1
         fi
-        sleep 10
+        while ! curl -s "localhost:5001/api/v0/version" > /dev/null; do
+            sleep 0.2
+        done
+        sleep 2
     fi
     test_set_prereq IPFS
 }
@@ -71,10 +74,7 @@ test_cluster_init() {
     if [ -n "$custom_config_files" ]; then
         cp -f ${custom_config_files}/* "test-config"
     fi
-    ipfs-cluster-service --config "test-config" >"$IPFS_OUTPUT" 2>&1 &
-    export CLUSTER_D_PID=$!
-    sleep 5
-    test_set_prereq CLUSTER
+    cluster_start
 }
 
 test_cluster_config() {
@@ -88,6 +88,34 @@ cluster_id() {
     jq --raw-output ".cluster.id" test-config/service.json
 }
 
+test_confirm_v1State() {
+    V1_SNAP_PATH="../test_data/v1State"
+    V1_CRC_PATH="../test_data/v1Crc"
+    if [ -f $V1_SNAP_PATH ] && [ -f $V1_CRC_PATH ]; then
+	export V1_CRC=$(cat ../test_data/v1Crc)
+	cp $V1_SNAP_PATH v1State
+	test_set_prereq V1STATE
+    fi
+}
+
+cluster_kill(){
+    kill -1 "$CLUSTER_D_PID"
+    while pgrep ipfs-cluster-service >/dev/null; do
+        sleep 0.2
+    done
+}
+
+cluster_start(){
+    ipfs-cluster-service --config "test-config" >"$IPFS_OUTPUT" 2>&1 &
+    export CLUSTER_D_PID=$!
+    while ! curl -s 'localhost:9095/api/v0/version' >/dev/null; do
+        sleep 0.2
+    done
+    sleep 5 # wait for leader election
+    test_set_prereq CLUSTER
+}
+
+
 # Cleanup functions
 test_clean_ipfs(){
     docker kill ipfs
@@ -96,7 +124,6 @@ test_clean_ipfs(){
 }
 
 test_clean_cluster(){
-    kill -1 "$CLUSTER_D_PID"
+    cluster_kill
     rm -rf 'test-config'
-    sleep 2
 }

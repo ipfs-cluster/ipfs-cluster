@@ -9,6 +9,7 @@ var facilities = []string{
 	"restapi",
 	"ipfshttp",
 	"monitor",
+	"mapstate",
 	"consensus",
 	"raft",
 	"pintracker",

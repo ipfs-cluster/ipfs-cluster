@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,6 +13,8 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
+
+	"github.com/ipfs/ipfs-cluster/state"
 )
 
 // errBadRaftState is returned when the consensus component cannot start
@@ -332,9 +335,13 @@ func (rw *raftWrapper) Snapshot() error {
 
 // Shutdown shutdown Raft and closes the BoltDB.
 func (rw *raftWrapper) Shutdown() error {
-	future := rw.raft.Shutdown()
-	err := future.Error()
 	errMsgs := ""
+	err := rw.Snapshot()
+	if err != nil {
+		errMsgs += "could not snapshot raft: " + err.Error() + ".\n"
+	}
+	future := rw.raft.Shutdown()
+	err = future.Error()
 	if err != nil {
 		errMsgs += "could not shutdown raft: " + err.Error() + ".\n"
 	}
@@ -427,9 +434,106 @@ func (rw *raftWrapper) Peers() ([]string, error) {
 	return ids, nil
 }
 
-// only call when Raft is shutdown
-func (rw *raftWrapper) Clean() error {
-	dbh := newDataBackupHelper(rw.dataFolder)
+// latestSnapshot looks for the most recent raft snapshot stored at the
+// provided basedir.  It returns a boolean indicating if any snapshot is
+// readable, the snapshot's metadata, and a reader to the snapshot's bytes
+func latestSnapshot(raftDataFolder string) (*hraft.SnapshotMeta, io.ReadCloser, error) {
+	store, err := hraft.NewFileSnapshotStore(raftDataFolder, RaftMaxSnapshots, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	snapMetas, err := store.List()
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(snapMetas) == 0 { // no error if snapshot isn't found
+		return nil, nil, nil
+	}
+	meta, r, err := store.Open(snapMetas[0].ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return meta, r, nil
+}
+
+// LastStateRaw returns the bytes of the last snapshot stored, its metadata,
+// and a flag indicating whether any snapshot was found.
+func LastStateRaw(cfg *Config) (io.Reader, bool, error) {
+	// Read most recent snapshot
+	dataFolder, err := makeDataFolder(cfg.BaseDir, cfg.DataFolder)
+	if err != nil {
+		return nil, false, err
+	}
+	meta, r, err := latestSnapshot(dataFolder)
+	if err != nil {
+		return nil, false, err
+	}
+	if meta == nil { // no snapshots could be read
+		return nil, false, nil
+	}
+	return r, true, nil
+}
+
+// SnapshotSave saves the provided state to a snapshot in the
+// raft data path.  Old raft data is backed up and replaced
+// by the new snapshot
+func SnapshotSave(cfg *Config, newState state.State, pid peer.ID) error {
+	newStateBytes, err := p2praft.EncodeSnapshot(newState)
+	if err != nil {
+		return err
+	}
+	dataFolder, err := makeDataFolder(cfg.BaseDir, cfg.DataFolder)
+	if err != nil {
+		return err
+	}
+	meta, _, err := latestSnapshot(dataFolder)
+	if err != nil {
+		return err
+	}
+
+	// make a new raft snapshot
+	var raftSnapVersion hraft.SnapshotVersion
+	raftSnapVersion = 1 // As of hraft v1.0.0 this is always 1
+	configIndex := uint64(1)
+	var raftIndex uint64
+	var raftTerm uint64
+	var srvCfg hraft.Configuration
+	if meta != nil {
+		raftIndex = meta.Index
+		raftTerm = meta.Term
+		srvCfg = meta.Configuration
+		cleanupRaft(dataFolder)
+	} else {
+		raftIndex = uint64(1)
+		raftTerm = uint64(1)
+		srvCfg = makeServerConf([]peer.ID{pid})
+	}
+
+	snapshotStore, err := hraft.NewFileSnapshotStoreWithLogger(dataFolder, RaftMaxSnapshots, nil)
+	if err != nil {
+		return err
+	}
+	_, dummyTransport := hraft.NewInmemTransport("")
+
+	sink, err := snapshotStore.Create(raftSnapVersion, raftIndex, raftTerm, srvCfg, configIndex, dummyTransport)
+	if err != nil {
+		return err
+	}
+
+	_, err = sink.Write(newStateBytes)
+	if err != nil {
+		sink.Cancel()
+		return err
+	}
+	err = sink.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func cleanupRaft(dataFolder string) error {
+	dbh := newDataBackupHelper(dataFolder)
 	err := dbh.makeBackup()
 	if err != nil {
 		logger.Warning(err)
@@ -437,6 +541,11 @@ func (rw *raftWrapper) Clean() error {
 		logger.Warning("manual intervention may be needed before starting cluster again")
 	}
 	return nil
+}
+
+// only call when Raft is shutdown
+func (rw *raftWrapper) Clean() error {
+	return cleanupRaft(rw.dataFolder)
 }
 
 func find(s []string, elem string) bool {

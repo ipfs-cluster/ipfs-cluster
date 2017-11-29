@@ -21,9 +21,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmcjpDnmS6jGrYrTnuT4RDHUHduF97w2V8JuYs6eynbFg2",
+      "hash": "QmSzULQiTbMnt36oxzdaUUomNuTHwXa1DvnyM8o7ogJ7Hb",
       "name": "go-libp2p-raft",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
     {
       "author": "whyrusleeping",
