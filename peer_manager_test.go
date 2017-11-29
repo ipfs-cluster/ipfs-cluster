@@ -29,6 +29,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		}(i)
 	}
 	wg.Wait()
+	delay()
 	return cls, mocks
 }
 
@@ -277,6 +278,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		if more {
 			t.Error("should be done")
 		}
+		time.Sleep(time.Second)
 	}
 }
 
@@ -330,7 +332,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		checkErr(t, err)
 		err = leader.Pin(api.PinCid(h))
 		checkErr(t, err)
-		time.Sleep(time.Second)
+		time.Sleep(time.Second) // time to update the metrics
 	}
 
 	delay()
@@ -362,7 +364,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		t.Fatal("error removing peer:", err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 	waitForLeader(t, clusters)
 	delay()
 

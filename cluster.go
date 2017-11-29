@@ -1097,6 +1097,8 @@ func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
 		return nil, err
 	}
 
+	ps.AddAddr(cfg.ID, cfg.ListenAddr, peerstore.PermanentAddrTTL)
+
 	network, err := swarm.NewNetworkWithProtector(
 		ctx,
 		[]ma.Multiaddr{cfg.ListenAddr},

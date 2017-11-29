@@ -247,6 +247,7 @@ func (mon *Monitor) LastMetrics(name string) []api.Metric {
 		}
 		last, err := peerMetrics.latest()
 		if err != nil || last.Discard() {
+			logger.Warningf("no valid last metric for peer: %+v", last)
 			continue
 		}
 		metrics = append(metrics, last)
