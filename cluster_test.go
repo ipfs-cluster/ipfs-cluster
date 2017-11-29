@@ -85,12 +85,12 @@ func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { retu
 func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
-	clusterCfg, _, _, consensusCfg, monCfg, _ := testingConfigs()
+	clusterCfg, _, _, consensusCfg, trackerCfg, monCfg, _ := testingConfigs()
 
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
+	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
 	monCfg.CheckInterval = 2 * time.Second
 	mon, _ := basic.NewMonitor(monCfg)
 	alloc := ascendalloc.NewAllocator()

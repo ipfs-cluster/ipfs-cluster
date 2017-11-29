@@ -6,6 +6,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 )
 
 var testingClusterSecret, _ = DecodeClusterSecret("2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed")
@@ -59,6 +60,14 @@ var testingIpfsCfg = []byte(`{
     "proxy_idle_timeout": "1m0s"
 }`)
 
+var testingTrackerCfg = []byte(`
+{
+      "pinning_timeout": "30s",
+      "unpinning_timeout": "15s",
+      "max_pin_queue_size": 4092
+}
+`)
+
 var testingMonCfg = []byte(`{
     "check_interval": "2s"
 }`)
@@ -68,26 +77,28 @@ var testingDiskInfCfg = []byte(`{
     "metric_type": "freespace"
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *basic.Config, *disk.Config) {
-	clusterCfg, apiCfg, ipfsCfg, consensusCfg, monCfg, diskInfCfg := testingEmptyConfigs()
+func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config) {
+	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
 	consensusCfg.LoadJSON(testingRaftCfg)
+	trackerCfg.LoadJSON(testingTrackerCfg)
 	monCfg.LoadJSON(testingMonCfg)
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 
-	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, monCfg, diskInfCfg
+	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *basic.Config, *disk.Config) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	consensusCfg := &raft.Config{}
+	trackerCfg := &maptracker.Config{}
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
-	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg
+	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

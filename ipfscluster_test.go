@@ -72,7 +72,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	pid, err := peer.IDFromPublicKey(pub)
 	checkErr(t, err)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.PrivateKey = priv
@@ -89,7 +89,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
+	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
 	mon, err := basic.NewMonitor(monCfg)
 	checkErr(t, err)
 	alloc := descendalloc.NewAllocator()

@@ -3,16 +3,15 @@ package main
 import (
 	"errors"
 	"io/ioutil"
-	
+
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
-
 func upgrade() error {
-	//Load configs                                                             
-	cfg, clusterCfg, _, _, consensusCfg, _, _, _ := makeConfigs()
+	//Load configs
+	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
 	err := cfg.LoadJSONFromFile(configPath)
 	if err != nil {
 		return err
@@ -43,7 +42,6 @@ func upgrade() error {
 	}
 	return nil
 }
-
 
 func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
 	state := mapstate.NewMapState()

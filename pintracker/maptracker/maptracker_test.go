@@ -12,7 +12,9 @@ import (
 )
 
 func testMapPinTracker(t *testing.T) *MapPinTracker {
-	mpt := NewMapPinTracker(test.TestPeerID1)
+	cfg := &Config{}
+	cfg.Default()
+	mpt := NewMapPinTracker(cfg, test.TestPeerID1)
 	mpt.SetClient(test.NewMockRPCClient(t))
 	return mpt
 }
