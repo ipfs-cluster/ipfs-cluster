@@ -889,9 +889,15 @@ func (c *Cluster) Sync(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("SyncLocal", h)
 }
 
-// RecoverLocal triggers a recover operation for a given Cid
+// RecoverLocal triggers a recover operation for a given Cid.
 func (c *Cluster) RecoverLocal(h *cid.Cid) (api.PinInfo, error) {
 	return c.tracker.Recover(h)
+}
+
+// RecoverAllLocal triggers a recover operation for all Cids tracked
+// by this peer.
+func (c *Cluster) RecoverAllLocal() ([]api.PinInfo, error) {
+	return c.tracker.RecoverAll()
 }
 
 // Recover triggers a recover operation for a given Cid in all

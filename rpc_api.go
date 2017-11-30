@@ -161,6 +161,21 @@ func (rpcapi *RPCAPI) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial) er
 	return err
 }
 
+// RecoverLocal runs Cluster.RecoverLocal().
+func (rpcapi *RPCAPI) RecoverLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	c := in.ToPin().Cid
+	pinfo, err := rpcapi.c.RecoverLocal(c)
+	*out = pinfo.ToSerial()
+	return err
+}
+
+// RecoverAllLocal runs Cluster.RecoverAllLocal().
+func (rpcapi *RPCAPI) RecoverAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos, err := rpcapi.c.RecoverAllLocal()
+	*out = pinInfoSliceToSerial(pinfos)
+	return err
+}
+
 /*
    Tracker component methods
 */
@@ -195,6 +210,13 @@ func (rpcapi *RPCAPI) TrackerRecover(in api.PinSerial, out *api.PinInfoSerial) e
 	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.tracker.Recover(c)
 	*out = pinfo.ToSerial()
+	return err
+}
+
+// TrackerRecoverAll runs PinTracker.RecoverAll().
+func (rpcapi *RPCAPI) TrackerRecoverAll(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos, err := rpcapi.c.tracker.RecoverAll()
+	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
 

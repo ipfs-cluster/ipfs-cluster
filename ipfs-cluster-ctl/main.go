@@ -376,25 +376,41 @@ CIDs in error state may be manually recovered with "recover".
 			Name:  "recover",
 			Usage: "Recover tracked items in error state",
 			Description: `
-This command asks Cluster peers to re-track or re-forget an item which is in
+This command asks Cluster peers to re-track or re-forget CIDs in
 error state, usually because the IPFS pin or unpin operation has failed.
 
 The command will wait for any operations to succeed and will return the status
-of the item upon completion.
+of the item upon completion. Note that, when running on the full sets of tracked
+CIDs (without argument), it may take considerable long time.
+
+A --local flag must be passed. This will only trigger recover
+operations on the contacted peer (and not on every peer).
 `,
-			ArgsUsage: "<CID>",
-			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
+			ArgsUsage: "[CID]",
+			Flags: []cli.Flag{
+				parseFlag(formatGPInfo),
+				cli.BoolFlag{
+					Name:  "local",
+					Usage: "recover only on the contacted peer",
+				},
+			},
 			Action: func(c *cli.Context) error {
+				local := "false"
+				if c.Bool("local") {
+					local = "true"
+					c.Set("parseAs", fmt.Sprintf("%d", formatPInfo))
+				}
 				cidStr := c.Args().First()
 				var resp *http.Response
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp = request("POST", "/pins/"+cidStr+"/recover", nil)
+					resp = request("POST", "/pins/"+cidStr+"/recover?local="+local, nil)
 					formatResponse(c, resp)
 
 				} else {
-					return cli.NewExitError("A CID is required", 1)
+					resp = request("POST", "/pins/recover?local="+local, nil)
+					formatResponse(c, resp)
 				}
 				return nil
 			},

@@ -395,22 +395,35 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 // synchronously, jumping the queues.
 func (mpt *MapPinTracker) Recover(c *cid.Cid) (api.PinInfo, error) {
 	p := mpt.get(c)
-	if p.Status != api.TrackerStatusPinError &&
-		p.Status != api.TrackerStatusUnpinError {
-		return p, nil
-	}
-	logger.Infof("Recovering %s", c)
+	logger.Infof("Attempting to recover %s", c)
 	var err error
 	switch p.Status {
 	case api.TrackerStatusPinError:
 		err = mpt.pin(api.Pin{Cid: c})
 	case api.TrackerStatusUnpinError:
 		err = mpt.unpin(api.Pin{Cid: c})
+	default:
+		logger.Warningf("%s does not need recovery. Try syncing first", c)
+		return p, nil
 	}
 	if err != nil {
 		logger.Errorf("error recovering %s: %s", c, err)
 	}
 	return mpt.get(c), err
+}
+
+// RecoverAll attempts to recover all items tracked by this peer.
+func (mpt *MapPinTracker) RecoverAll() ([]api.PinInfo, error) {
+	statuses := mpt.StatusAll()
+	resp := make([]api.PinInfo, 0)
+	for _, st := range statuses {
+		r, err := mpt.Recover(st.Cid)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, r)
+	}
+	return resp, nil
 }
 
 // SetClient makes the MapPinTracker ready to perform RPC requests to

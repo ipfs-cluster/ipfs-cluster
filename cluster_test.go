@@ -293,3 +293,28 @@ func TestVersion(t *testing.T) {
 		t.Error("bad Version()")
 	}
 }
+
+func TestClusterRecoverAllLocal(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	c, _ := cid.Decode(test.TestCid1)
+	err := cl.Pin(api.PinCid(c))
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+
+	time.Sleep(time.Second)
+
+	recov, err := cl.RecoverAllLocal()
+	if err != nil {
+		t.Error("did not expect an error")
+	}
+	if len(recov) != 1 {
+		t.Fatal("there should be only one pin")
+	}
+	if recov[0].Status != api.TrackerStatusPinned {
+		t.Error("the pin should have been recovered")
+	}
+}

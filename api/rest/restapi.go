@@ -225,6 +225,12 @@ func (api *API) routes() []route {
 			api.syncAllHandler,
 		},
 		{
+			"RecoverAll",
+			"POST",
+			"/pins/recover",
+			api.recoverAllHandler,
+		},
+		{
 			"Status",
 			"GET",
 			"/pins/{hash}",
@@ -463,15 +469,48 @@ func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo types.GlobalPinInfoSerial
+func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+	if local == "true" {
+		var pinInfos []types.PinInfoSerial
 		err := api.rpcClient.Call("",
 			"Cluster",
-			"Recover",
-			c,
-			&pinInfo)
-		sendResponse(w, err, pinInfo)
+			"RecoverAllLocal",
+			struct{}{},
+			&pinInfos)
+		sendResponse(w, err, pinInfos)
+	} else {
+		sendErrorResponse(w, 400, "only requests with parameter local=true are supported")
+	}
+}
+
+func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
+	if c := parseCidOrError(w, r); c.Cid != "" {
+		queryValues := r.URL.Query()
+		local := queryValues.Get("local")
+
+		// Is it RESTful to return two different types
+		// depending on a flag? Should PinInfo
+		// be converted to a GlobalPinInfo ?
+
+		if local == "true" {
+			var pinInfo types.PinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"RecoverLocal",
+				c,
+				&pinInfo)
+			sendResponse(w, err, pinInfo)
+		} else {
+			var pinInfo types.GlobalPinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"Recover",
+				c,
+				&pinInfo)
+			sendResponse(w, err, pinInfo)
+		}
 	}
 }
 

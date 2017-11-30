@@ -225,6 +225,28 @@ func TestSyncAndRecover(t *testing.T) {
 	}
 }
 
+func TestRecoverAll(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	c := api.Pin{Cid: h1, Allocations: []peer.ID{}, ReplicationFactor: -1}
+	mpt.Track(c)
+	time.Sleep(100 * time.Millisecond)
+	mpt.set(h1, api.TrackerStatusPinError)
+	pins, err := mpt.RecoverAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 1 {
+		t.Fatal("there should be only one pin")
+	}
+	if pins[0].Status != api.TrackerStatusPinned {
+		t.Error("the pin should have been recovered")
+	}
+}
+
 func TestSyncAll(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown()

@@ -306,3 +306,21 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 		t.Error("expected different status")
 	}
 }
+
+func TestAPIRecoverAllEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	var resp []api.PinInfoSerial
+	makePost(t, "/pins/recover?local=true", []byte{}, &resp)
+
+	if len(resp) != 0 {
+		t.Fatal("bad response length")
+	}
+
+	var errResp api.Error
+	makePost(t, "/pins/recover", []byte{}, &errResp)
+	if errResp.Code != 400 {
+		t.Error("expected a different error")
+	}
+}

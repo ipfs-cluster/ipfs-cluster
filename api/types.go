@@ -143,9 +143,7 @@ func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
 	return gpi
 }
 
-// PinInfo holds information about local pins. PinInfo is
-// serialized when requesting the Global status, therefore
-// we cannot use *cid.Cid.
+// PinInfo holds information about local pins.
 type PinInfo struct {
 	Cid    *cid.Cid
 	Peer   peer.ID

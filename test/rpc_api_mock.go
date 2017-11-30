@@ -205,6 +205,22 @@ func (mock *mockService) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial)
 	return mock.Status(in, out)
 }
 
+func (mock *mockService) RecoverLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	in2 := in.ToPin()
+	*out = api.PinInfo{
+		Cid:    in2.Cid,
+		Peer:   TestPeerID1,
+		Status: api.TrackerStatusPinned,
+		TS:     time.Now(),
+	}.ToSerial()
+	return nil
+}
+
+func (mock *mockService) RecoverAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	*out = make([]api.PinInfoSerial, 0, 0)
+	return nil
+}
+
 func (mock *mockService) Track(in api.PinSerial, out *struct{}) error {
 	return nil
 }
