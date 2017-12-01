@@ -1,5 +1,19 @@
 # IPFS Cluster - Captain's log
 
+## 20171211 | @hsanjuan
+
+During the last weeks we've been working hard on making the first "live" deployment of ipfs-cluster. I am happy to announce that a 10-peer cluster runs on ipfs-gateway nodes, maintaining a >2000-length pinset.
+
+The nodes are distributed, run a vanilla ipfs-cluster docker container mounting a volume with a customized [cluster configuration](https://github.com/ipfs/infrastructure/blob/master/ipfs-cluster/service.json.tpl) which uses higher-than-default timeouts and intervals. The injection of the pin-set took a while, but enventually every pin in every node became PINNED. In one occassion, a single IPFS node hanged while pinning. After re-starting the IPFS node in question, all pins in the queue became PIN_ERRORs, but they could easily be fixed with a `recover` operation.
+
+Additionally, the [IPFS IRC Pinbot](https://github.com/ipfs/pinbot-irc) now supports cluster-pinning, by using the ipfs-cluster proxy to ipfs, which intercepts pin requests and performs them in cluster. This allowed us to re-use the `go-ipfs-api` library to interact with cluster.
+
+The first live setup has shown nevertheless that some things were missing. For example, we added `--local` flags to Sync, Status and Recover operations (and allowed a local RecoverAll). They are handy when a single node is at fault and you want to fix the pins on that specific node. We will also work on a `go-ipfs-cluster-api` library which provides a REST API client which allows to programatically interact with cluster more easily.
+
+Parallel to all this, @zenground0 has been working on state migrations. The cluster's consensus state is stored on disk via snapshots in certain format. This format might evolve in the future and we need a way to migrate between versions without losing all the state data. In the new approach, we are able to extract the state from Raft snapshots, migrate it, and create a new snapshot with the new format so that the next time cluster starts everything works. This has been a complex feature but a very important step to providing a production grade release of ipfs-cluster.
+
+Last but not least, the next release will include useful things like pin-names (a string associated to every pin) and peer names. This will allow to easily identify pins and peers by other than their multihash. They have been contributed by @te0d, who is working on https://github.com/te0d/js-ipfs-cluster-api, a JS Rest API client for our REST API, and https://github.com/te0d/bunker, a web interface to manage ipfs-cluster.
+
 ## 20171115 | @hsanjuan
 
 This update comes as our `0.3.0` release is about to be published. This release includes quite a few bug fixes, but the main change is the upgrade of the underlying Raft libraries to a recently published version.
