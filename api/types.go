@@ -239,7 +239,7 @@ type ID struct {
 	RPCProtocolVersion    protocol.ID
 	Error                 string
 	IPFS                  IPFSID
-	Name                  string
+	Peername              string
 	//PublicKey          crypto.PubKey
 }
 
@@ -254,7 +254,7 @@ type IDSerial struct {
 	RPCProtocolVersion    string           `json:"rpc_protocol_version"`
 	Error                 string           `json:"error"`
 	IPFS                  IPFSIDSerial     `json:"ipfs"`
-	Name                  string           `json:"name"`
+	Peername              string           `json:"peername"`
 	//PublicKey          []byte
 }
 
@@ -281,7 +281,7 @@ func (id ID) ToSerial() IDSerial {
 		RPCProtocolVersion:    string(id.RPCProtocolVersion),
 		Error:                 id.Error,
 		IPFS:                  id.IPFS.ToSerial(),
-		Name:                  id.Name,
+		Peername:              id.Peername,
 	}
 }
 
@@ -309,7 +309,7 @@ func (ids IDSerial) ToID() ID {
 	id.RPCProtocolVersion = protocol.ID(ids.RPCProtocolVersion)
 	id.Error = ids.Error
 	id.IPFS = ids.IPFS.ToIPFSID()
-	id.Name = ids.Name
+	id.Peername = ids.Peername
 	return id
 }
 

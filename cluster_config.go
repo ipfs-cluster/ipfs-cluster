@@ -45,8 +45,8 @@ type Config struct {
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
 
-	// User-defined hostname for use as human-readable identifier.
-	Name string
+	// User-defined peername for use as human-readable identifier.
+	Peername string
 
 	// Cluster secret for private network. Peers will be in the same cluster if and
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
@@ -104,7 +104,7 @@ type Config struct {
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
 	ID                  string   `json:"id"`
-	Name                string   `json:"hostname"`
+	Peername            string   `json:"peername"`
 	PrivateKey          string   `json:"private_key"`
 	Secret              string   `json:"secret"`
 	Peers               []string `json:"peers"`
@@ -203,7 +203,7 @@ func (cfg *Config) setDefaults() {
 	if err != nil {
 		hostname = ""
 	}
-	cfg.Name = hostname
+	cfg.Peername = hostname
 
 	addr, _ := ma.NewMultiaddr(DefaultListenAddr)
 	cfg.ListenAddr = addr
@@ -237,7 +237,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	}
 	cfg.ID = id
 
-	config.SetIfNotDefault(jcfg.Name, &cfg.Name)
+	config.SetIfNotDefault(jcfg.Peername, &cfg.Peername)
 
 	pkb, err := base64.StdEncoding.DecodeString(jcfg.PrivateKey)
 	if err != nil {
@@ -343,7 +343,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 	// Set all configuration fields
 	jcfg.ID = cfg.ID.Pretty()
-	jcfg.Name = cfg.Name
+	jcfg.Peername = cfg.Peername
 	jcfg.PrivateKey = pKey
 	jcfg.Secret = EncodeClusterSecret(cfg.Secret)
 	jcfg.Peers = clusterPeers

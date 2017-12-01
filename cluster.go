@@ -599,7 +599,7 @@ func (c *Cluster) ID() api.ID {
 		Commit:                Commit,
 		RPCProtocolVersion:    RPCProtocol,
 		IPFS:                  ipfsID,
-		Name:                  c.config.Name,
+		Peername:              c.config.Peername,
 	}
 }
 
