@@ -327,16 +327,27 @@ item.
 
 The status of a CID may not be accurate. A manual sync can be triggered
 with "sync".
+
+When the --local flag is passed, it will only fetch the status from the
+contacted cluster peer. By default, status will be fetched from all peers.
 `,
 			ArgsUsage: "[CID]",
-			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
+			Flags: []cli.Flag{
+				parseFlag(formatGPInfo),
+				localFlag(),
+			},
 			Action: func(c *cli.Context) error {
+				local := "false"
+				if c.Bool("local") {
+					local = "true"
+				}
+
 				cidStr := c.Args().First()
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
 				}
-				resp := request("GET", "/pins/"+cidStr, nil)
+				resp := request("GET", "/pins/"+cidStr+"?local="+local, nil)
 				formatResponse(c, resp)
 				return nil
 			},
@@ -355,18 +366,28 @@ have changed status because of the sync or are in error state in some node,
 therefore, the output should be empty if no operations were performed.
 
 CIDs in error state may be manually recovered with "recover".
+
+When the --local flag is passed, it will only trigger sync
+operations on the contacted peer. By default, all peers will sync.
 `,
 			ArgsUsage: "[CID]",
-			Flags:     []cli.Flag{parseFlag(formatGPInfo)},
+			Flags: []cli.Flag{
+				parseFlag(formatGPInfo),
+				localFlag(),
+			},
 			Action: func(c *cli.Context) error {
+				local := "false"
+				if c.Bool("local") {
+					local = "true"
+				}
 				cidStr := c.Args().First()
 				var resp *http.Response
 				if cidStr != "" {
 					_, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp = request("POST", "/pins/"+cidStr+"/sync", nil)
+					resp = request("POST", "/pins/"+cidStr+"/sync?local="+local, nil)
 				} else {
-					resp = request("POST", "/pins/sync", nil)
+					resp = request("POST", "/pins/sync?local="+local, nil)
 				}
 				formatResponse(c, resp)
 				return nil
@@ -383,22 +404,18 @@ The command will wait for any operations to succeed and will return the status
 of the item upon completion. Note that, when running on the full sets of tracked
 CIDs (without argument), it may take considerable long time.
 
-A --local flag must be passed. This will only trigger recover
-operations on the contacted peer (and not on every peer).
+When the --local flag is passed, it will only trigger recover
+operations on the contacted peer (as opposed to on every peer).
 `,
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				parseFlag(formatGPInfo),
-				cli.BoolFlag{
-					Name:  "local",
-					Usage: "recover only on the contacted peer",
-				},
+				localFlag(),
 			},
 			Action: func(c *cli.Context) error {
 				local := "false"
 				if c.Bool("local") {
 					local = "true"
-					c.Set("parseAs", fmt.Sprintf("%d", formatPInfo))
 				}
 				cidStr := c.Args().First()
 				var resp *http.Response
@@ -450,6 +467,13 @@ func parseFlag(t int) cli.IntFlag {
 		Name:   "parseAs",
 		Value:  t,
 		Hidden: true,
+	}
+}
+
+func localFlag() cli.BoolFlag {
+	return cli.BoolFlag{
+		Name:  "local",
+		Usage: "run operation only on the contacted peer",
 	}
 }
 
