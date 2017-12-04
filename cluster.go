@@ -883,7 +883,7 @@ func (c *Cluster) SyncAllLocal() ([]api.PinInfo, error) {
 	return syncedItems, err
 }
 
-// Sync triggers a LocalSyncCid() operation for a given Cid
+// Sync triggers a SyncLocal() operation for a given Cid.
 // in all cluster peers.
 func (c *Cluster) Sync(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("SyncLocal", h)

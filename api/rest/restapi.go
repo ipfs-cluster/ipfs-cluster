@@ -378,22 +378,22 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"Pin",
-			c,
+			ps,
 			&struct{}{})
 		sendAcceptedResponse(w, err)
 	}
 }
 
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"Unpin",
-			c,
+			ps,
 			&struct{}{})
 		sendAcceptedResponse(w, err)
 	}
@@ -410,12 +410,12 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		var pin types.PinSerial
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"PinGet",
-			c,
+			ps,
 			&pin)
 		if err != nil { // errors here are 404s
 			sendErrorResponse(w, 404, err.Error())
@@ -452,13 +452,13 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
 			err := api.rpcClient.Call("",
 				"Cluster",
 				"StatusLocal",
-				c,
+				ps,
 				&pinInfo)
 			sendResponse(w, err, pinInfoToGlobal(pinInfo))
 		} else {
@@ -466,7 +466,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 			err := api.rpcClient.Call("",
 				"Cluster",
 				"Status",
-				c,
+				ps,
 				&pinInfo)
 			sendResponse(w, err, pinInfo)
 		}
@@ -500,13 +500,13 @@ func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
 			err := api.rpcClient.Call("",
 				"Cluster",
 				"SyncLocal",
-				c,
+				ps,
 				&pinInfo)
 			sendResponse(w, err, pinInfoToGlobal(pinInfo))
 		} else {
@@ -514,7 +514,7 @@ func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
 			err := api.rpcClient.Call("",
 				"Cluster",
 				"Sync",
-				c,
+				ps,
 				&pinInfo)
 			sendResponse(w, err, pinInfo)
 		}
@@ -541,13 +541,13 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
 			err := api.rpcClient.Call("",
 				"Cluster",
 				"RecoverLocal",
-				c,
+				ps,
 				&pinInfo)
 			sendResponse(w, err, pinInfoToGlobal(pinInfo))
 		} else {
@@ -555,7 +555,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 			err := api.rpcClient.Call("",
 				"Cluster",
 				"Recover",
-				c,
+				ps,
 				&pinInfo)
 			sendResponse(w, err, pinInfo)
 		}

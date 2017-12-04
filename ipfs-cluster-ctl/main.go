@@ -402,7 +402,7 @@ error state, usually because the IPFS pin or unpin operation has failed.
 
 The command will wait for any operations to succeed and will return the status
 of the item upon completion. Note that, when running on the full sets of tracked
-CIDs (without argument), it may take considerable long time.
+CIDs (without argument), it may take a considerably long time.
 
 When the --local flag is passed, it will only trigger recover
 operations on the contacted peer (as opposed to on every peer).
