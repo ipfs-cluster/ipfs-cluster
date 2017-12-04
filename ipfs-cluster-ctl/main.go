@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -249,12 +250,18 @@ peers should pin this content.
 							Value: 0,
 							Usage: "Sets a custom replication factor for this pin",
 						},
+						cli.StringFlag{
+							Name:  "name, n",
+							Value: "",
+							Usage: "Sets a name for this pin",
+						},
 					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						_, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						query := fmt.Sprintf("?replication_factor=%d", c.Int("replication"))
+						escapedName := url.QueryEscape(c.String("name"))
+						query := fmt.Sprintf("?replication_factor=%d&name=%s", c.Int("replication"), escapedName)
 						resp := request("POST", "/pins/"+cidStr+query, nil)
 						formatResponse(c, resp)
 						if resp.StatusCode < 300 {

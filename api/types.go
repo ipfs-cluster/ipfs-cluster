@@ -348,6 +348,7 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 // future.
 type Pin struct {
 	Cid               *cid.Cid
+	Name              string
 	Allocations       []peer.ID
 	ReplicationFactor int
 }
@@ -362,6 +363,7 @@ func PinCid(c *cid.Cid) Pin {
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
 	Cid               string   `json:"cid"`
+	Name              string   `json:"name"`
 	Allocations       []string `json:"allocations"`
 	Everywhere        bool     `json:"everywhere,omitempty"` // legacy
 	ReplicationFactor int      `json:"replication_factor"`
@@ -377,6 +379,7 @@ func (pin Pin) ToSerial() PinSerial {
 
 	return PinSerial{
 		Cid:               pin.Cid.String(),
+		Name:              pin.Name,
 		Allocations:       allocs,
 		ReplicationFactor: pin.ReplicationFactor,
 	}
@@ -398,6 +401,7 @@ func (pins PinSerial) ToPin() Pin {
 
 	return Pin{
 		Cid:               c,
+		Name:              pins.Name,
 		Allocations:       allocs,
 		ReplicationFactor: pins.ReplicationFactor,
 	}

@@ -577,6 +577,8 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	}
 
 	queryValues := r.URL.Query()
+	name := queryValues.Get("name")
+	pin.Name = name
 	rplStr := queryValues.Get("replication_factor")
 	if rpl, err := strconv.Atoi(rplStr); err == nil {
 		pin.ReplicationFactor = rpl
