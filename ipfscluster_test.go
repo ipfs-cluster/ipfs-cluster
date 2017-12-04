@@ -71,10 +71,12 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	checkErr(t, err)
 	pid, err := peer.IDFromPublicKey(pub)
 	checkErr(t, err)
+	peername := fmt.Sprintf("peer_%d", i)
 
 	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
+	clusterCfg.Peername = peername
 	clusterCfg.PrivateKey = priv
 	clusterCfg.Secret = clusterSecret
 	clusterCfg.ListenAddr = clusterAddr

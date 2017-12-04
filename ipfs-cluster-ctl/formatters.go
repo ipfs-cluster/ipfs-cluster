@@ -86,7 +86,7 @@ func textFormatPrintIDSerial(obj *api.IDSerial) {
 		return
 	}
 
-	fmt.Printf("%s | Sees %d other peers\n", obj.ID, len(obj.ClusterPeers)-1)
+	fmt.Printf("%s | %s | Sees %d other peers\n", obj.ID, obj.Peername, len(obj.ClusterPeers)-1)
 	addrs := make(sort.StringSlice, 0, len(obj.Addresses))
 	for _, a := range obj.Addresses {
 		addrs = append(addrs, string(a))
