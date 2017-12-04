@@ -18,19 +18,6 @@ import (
 
 var logger = logging.Logger("pintracker")
 
-// A Pin or Unpin operation will be considered failed
-// if the Cid has stayed in Pinning or Unpinning state
-// for longer than these values.
-var (
-	PinningTimeout   = 60 * time.Minute
-	UnpinningTimeout = 15 * time.Minute
-)
-
-// PinQueueSize specifies the maximum amount of pin operations waiting
-// to be performed. If the queue is full, pins/unpins will be set to
-// pinError/unpinError.
-var PinQueueSize = 1024
-
 var (
 	errUnpinningTimeout = errors.New("unpinning operation is taking too long")
 	errPinningTimeout   = errors.New("pinning operation is taking too long")
@@ -43,6 +30,7 @@ var (
 type MapPinTracker struct {
 	mux    sync.RWMutex
 	status map[string]api.PinInfo
+	config *Config
 
 	ctx    context.Context
 	cancel func()
@@ -61,17 +49,18 @@ type MapPinTracker struct {
 
 // NewMapPinTracker returns a new object which has been correcly
 // initialized with the given configuration.
-func NewMapPinTracker(pid peer.ID) *MapPinTracker {
+func NewMapPinTracker(cfg *Config, pid peer.ID) *MapPinTracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mpt := &MapPinTracker{
 		ctx:      ctx,
 		cancel:   cancel,
 		status:   make(map[string]api.PinInfo),
+		config:   cfg,
 		rpcReady: make(chan struct{}, 1),
 		peerID:   pid,
-		pinCh:    make(chan api.Pin, PinQueueSize),
-		unpinCh:  make(chan api.Pin, PinQueueSize),
+		pinCh:    make(chan api.Pin, cfg.MaxPinQueueSize),
+		unpinCh:  make(chan api.Pin, cfg.MaxPinQueueSize),
 	}
 	go mpt.pinWorker()
 	go mpt.unpinWorker()
@@ -374,7 +363,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		case api.TrackerStatusPinning, api.TrackerStatusPinError:
 			mpt.set(c, api.TrackerStatusPinned)
 		case api.TrackerStatusUnpinning:
-			if time.Since(p.TS) > UnpinningTimeout {
+			if time.Since(p.TS) > mpt.config.UnpinningTimeout {
 				mpt.setError(c, errUnpinningTimeout)
 			}
 		case api.TrackerStatusUnpinned:
@@ -388,7 +377,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 			mpt.setError(c, errUnpinned)
 		case api.TrackerStatusPinError: // nothing, keep error as it was
 		case api.TrackerStatusPinning:
-			if time.Since(p.TS) > PinningTimeout {
+			if time.Since(p.TS) > mpt.config.PinningTimeout {
 				mpt.setError(c, errPinningTimeout)
 			}
 		case api.TrackerStatusUnpinning, api.TrackerStatusUnpinError:
@@ -406,22 +395,35 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 // synchronously, jumping the queues.
 func (mpt *MapPinTracker) Recover(c *cid.Cid) (api.PinInfo, error) {
 	p := mpt.get(c)
-	if p.Status != api.TrackerStatusPinError &&
-		p.Status != api.TrackerStatusUnpinError {
-		return p, nil
-	}
-	logger.Infof("Recovering %s", c)
+	logger.Infof("Attempting to recover %s", c)
 	var err error
 	switch p.Status {
 	case api.TrackerStatusPinError:
 		err = mpt.pin(api.Pin{Cid: c})
 	case api.TrackerStatusUnpinError:
 		err = mpt.unpin(api.Pin{Cid: c})
+	default:
+		logger.Warningf("%s does not need recovery. Try syncing first", c)
+		return p, nil
 	}
 	if err != nil {
 		logger.Errorf("error recovering %s: %s", c, err)
 	}
 	return mpt.get(c), err
+}
+
+// RecoverAll attempts to recover all items tracked by this peer.
+func (mpt *MapPinTracker) RecoverAll() ([]api.PinInfo, error) {
+	statuses := mpt.StatusAll()
+	resp := make([]api.PinInfo, 0)
+	for _, st := range statuses {
+		r, err := mpt.Recover(st.Cid)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, r)
+	}
+	return resp, nil
 }
 
 // SetClient makes the MapPinTracker ready to perform RPC requests to

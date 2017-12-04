@@ -225,6 +225,12 @@ func (api *API) routes() []route {
 			api.syncAllHandler,
 		},
 		{
+			"RecoverAll",
+			"POST",
+			"/pins/recover",
+			api.recoverAllHandler,
+		},
+		{
 			"Status",
 			"GET",
 			"/pins/{hash}",
@@ -372,22 +378,22 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"Pin",
-			c,
+			ps,
 			&struct{}{})
 		sendAcceptedResponse(w, err)
 	}
 }
 
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"Unpin",
-			c,
+			ps,
 			&struct{}{})
 		sendAcceptedResponse(w, err)
 	}
@@ -404,12 +410,12 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
 		var pin types.PinSerial
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"PinGet",
-			c,
+			ps,
 			&pin)
 		if err != nil { // errors here are 404s
 			sendErrorResponse(w, 404, err.Error())
@@ -420,58 +426,139 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
-	var pinInfos []types.GlobalPinInfoSerial
-	err := api.rpcClient.Call("",
-		"Cluster",
-		"StatusAll",
-		struct{}{},
-		&pinInfos)
-	sendResponse(w, err, pinInfos)
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if local == "true" {
+		var pinInfos []types.PinInfoSerial
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"StatusAllLocal",
+			struct{}{},
+			&pinInfos)
+		sendResponse(w, err, pinInfosToGlobal(pinInfos))
+	} else {
+		var pinInfos []types.GlobalPinInfoSerial
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"StatusAll",
+			struct{}{},
+			&pinInfos)
+		sendResponse(w, err, pinInfos)
+	}
 }
 
 func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo types.GlobalPinInfoSerial
-		err := api.rpcClient.Call("",
-			"Cluster",
-			"Status",
-			c,
-			&pinInfo)
-		sendResponse(w, err, pinInfo)
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
+		if local == "true" {
+			var pinInfo types.PinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"StatusLocal",
+				ps,
+				&pinInfo)
+			sendResponse(w, err, pinInfoToGlobal(pinInfo))
+		} else {
+			var pinInfo types.GlobalPinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"Status",
+				ps,
+				&pinInfo)
+			sendResponse(w, err, pinInfo)
+		}
 	}
 }
 
 func (api *API) syncAllHandler(w http.ResponseWriter, r *http.Request) {
-	var pinInfos []types.GlobalPinInfoSerial
-	err := api.rpcClient.Call("",
-		"Cluster",
-		"SyncAll",
-		struct{}{},
-		&pinInfos)
-	sendResponse(w, err, pinInfos)
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if local == "true" {
+		var pinInfos []types.PinInfoSerial
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"SyncAllLocal",
+			struct{}{},
+			&pinInfos)
+		sendResponse(w, err, pinInfosToGlobal(pinInfos))
+	} else {
+		var pinInfos []types.GlobalPinInfoSerial
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"SyncAll",
+			struct{}{},
+			&pinInfos)
+		sendResponse(w, err, pinInfos)
+	}
 }
 
 func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo types.GlobalPinInfoSerial
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
+		if local == "true" {
+			var pinInfo types.PinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"SyncLocal",
+				ps,
+				&pinInfo)
+			sendResponse(w, err, pinInfoToGlobal(pinInfo))
+		} else {
+			var pinInfo types.GlobalPinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"Sync",
+				ps,
+				&pinInfo)
+			sendResponse(w, err, pinInfo)
+		}
+	}
+}
+
+func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+	if local == "true" {
+		var pinInfos []types.PinInfoSerial
 		err := api.rpcClient.Call("",
 			"Cluster",
-			"Sync",
-			c,
-			&pinInfo)
-		sendResponse(w, err, pinInfo)
+			"RecoverAllLocal",
+			struct{}{},
+			&pinInfos)
+		sendResponse(w, err, pinInfosToGlobal(pinInfos))
+	} else {
+		sendErrorResponse(w, 400, "only requests with parameter local=true are supported")
 	}
 }
 
 func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
-	if c := parseCidOrError(w, r); c.Cid != "" {
-		var pinInfo types.GlobalPinInfoSerial
-		err := api.rpcClient.Call("",
-			"Cluster",
-			"Recover",
-			c,
-			&pinInfo)
-		sendResponse(w, err, pinInfo)
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if ps := parseCidOrError(w, r); ps.Cid != "" {
+		if local == "true" {
+			var pinInfo types.PinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"RecoverLocal",
+				ps,
+				&pinInfo)
+			sendResponse(w, err, pinInfoToGlobal(pinInfo))
+		} else {
+			var pinInfo types.GlobalPinInfoSerial
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"Recover",
+				ps,
+				&pinInfo)
+			sendResponse(w, err, pinInfo)
+		}
 	}
 }
 
@@ -507,6 +594,23 @@ func parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {
 		return ""
 	}
 	return pid
+}
+
+func pinInfoToGlobal(pInfo types.PinInfoSerial) types.GlobalPinInfoSerial {
+	return types.GlobalPinInfoSerial{
+		Cid: pInfo.Cid,
+		PeerMap: map[string]types.PinInfoSerial{
+			pInfo.Peer: pInfo,
+		},
+	}
+}
+
+func pinInfosToGlobal(pInfos []types.PinInfoSerial) []types.GlobalPinInfoSerial {
+	gPInfos := make([]types.GlobalPinInfoSerial, len(pInfos), len(pInfos))
+	for i, p := range pInfos {
+		gPInfos[i] = pinInfoToGlobal(p)
+	}
+	return gPInfos
 }
 
 func sendResponse(w http.ResponseWriter, rpcErr error, resp interface{}) {

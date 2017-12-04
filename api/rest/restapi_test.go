@@ -232,7 +232,14 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 	if len(resp) != 3 ||
 		resp[0].Cid != test.TestCid1 ||
 		resp[1].PeerMap[test.TestPeerID1.Pretty()].Status != "pinning" {
-		t.Errorf("unexpected statusResp:\n %+v", resp)
+		t.Errorf("unexpected statusAll resp:\n %+v", resp)
+	}
+
+	// Test local=true
+	var resp2 []api.GlobalPinInfoSerial
+	makeGet(t, "/pins?local=true", &resp2)
+	if len(resp2) != 2 {
+		t.Errorf("unexpected statusAll+local resp:\n %+v", resp)
 	}
 }
 
@@ -253,6 +260,21 @@ func TestAPIStatusEndpoint(t *testing.T) {
 	if info.Status != "pinned" {
 		t.Error("expected different status")
 	}
+
+	// Test local=true
+	var resp2 api.GlobalPinInfoSerial
+	makeGet(t, "/pins/"+test.TestCid1+"?local=true", &resp2)
+
+	if resp2.Cid != test.TestCid1 {
+		t.Error("expected the same cid")
+	}
+	info, ok = resp2.PeerMap[test.TestPeerID2.Pretty()]
+	if !ok {
+		t.Fatal("expected info for test.TestPeerID2")
+	}
+	if info.Status != "pinned" {
+		t.Error("expected different status")
+	}
 }
 
 func TestAPISyncAllEndpoint(t *testing.T) {
@@ -265,7 +287,15 @@ func TestAPISyncAllEndpoint(t *testing.T) {
 	if len(resp) != 3 ||
 		resp[0].Cid != test.TestCid1 ||
 		resp[1].PeerMap[test.TestPeerID1.Pretty()].Status != "pinning" {
-		t.Errorf("unexpected statusResp:\n %+v", resp)
+		t.Errorf("unexpected syncAll resp:\n %+v", resp)
+	}
+
+	// Test local=true
+	var resp2 []api.GlobalPinInfoSerial
+	makePost(t, "/pins/sync?local=true", []byte{}, &resp2)
+
+	if len(resp2) != 2 {
+		t.Errorf("unexpected syncAll+local resp:\n %+v", resp2)
 	}
 }
 
@@ -282,6 +312,21 @@ func TestAPISyncEndpoint(t *testing.T) {
 	info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
 	if !ok {
 		t.Fatal("expected info for test.TestPeerID1")
+	}
+	if info.Status != "pinned" {
+		t.Error("expected different status")
+	}
+
+	// Test local=true
+	var resp2 api.GlobalPinInfoSerial
+	makePost(t, "/pins/"+test.TestCid1+"/sync?local=true", []byte{}, &resp2)
+
+	if resp2.Cid != test.TestCid1 {
+		t.Error("expected the same cid")
+	}
+	info, ok = resp2.PeerMap[test.TestPeerID2.Pretty()]
+	if !ok {
+		t.Fatal("expected info for test.TestPeerID2")
 	}
 	if info.Status != "pinned" {
 		t.Error("expected different status")
@@ -304,5 +349,23 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 	}
 	if info.Status != "pinned" {
 		t.Error("expected different status")
+	}
+}
+
+func TestAPIRecoverAllEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	var resp []api.GlobalPinInfoSerial
+	makePost(t, "/pins/recover?local=true", []byte{}, &resp)
+
+	if len(resp) != 0 {
+		t.Fatal("bad response length")
+	}
+
+	var errResp api.Error
+	makePost(t, "/pins/recover", []byte{}, &errResp)
+	if errResp.Code != 400 {
+		t.Error("expected a different error")
 	}
 }

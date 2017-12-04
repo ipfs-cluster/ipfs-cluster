@@ -835,20 +835,40 @@ func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 	return infos, nil
 }
 
-// StatusAll returns the GlobalPinInfo for all tracked Cids. If an error
-// happens, the slice will contain as much information as could be fetched.
+// StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.
+// If an error happens, the slice will contain as much information as
+// could be fetched from other peers.
 func (c *Cluster) StatusAll() ([]api.GlobalPinInfo, error) {
 	return c.globalPinInfoSlice("TrackerStatusAll")
 }
 
-// Status returns the GlobalPinInfo for a given Cid. If an error happens,
-// the GlobalPinInfo should contain as much information as could be fetched.
+// StatusAllLocal returns the PinInfo for all the tracked Cids in this peer.
+func (c *Cluster) StatusAllLocal() []api.PinInfo {
+	return c.tracker.StatusAll()
+}
+
+// Status returns the GlobalPinInfo for a given Cid as fetched from all
+// current peers. If an error happens, the GlobalPinInfo should contain
+// as much information as could be fetched from the other peers.
 func (c *Cluster) Status(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("TrackerStatus", h)
 }
 
+// StatusLocal returns this peer's PinInfo for a given Cid.
+func (c *Cluster) StatusLocal(h *cid.Cid) api.PinInfo {
+	return c.tracker.Status(h)
+}
+
+// SyncAll triggers SyncAllLocal() operations in all cluster peers, making sure
+// that the state of tracked items matches the state reported by the IPFS daemon
+// and returning the results as GlobalPinInfo. If an error happens, the slice
+// will contain as much information as could be fetched from the peers.
+func (c *Cluster) SyncAll() ([]api.GlobalPinInfo, error) {
+	return c.globalPinInfoSlice("SyncAllLocal")
+}
+
 // SyncAllLocal makes sure that the current state for all tracked items
-// matches the state reported by the IPFS daemon.
+// in this peer matches the state reported by the IPFS daemon.
 //
 // SyncAllLocal returns the list of PinInfo that where updated because of
 // the operation, along with those in error states.
@@ -861,6 +881,12 @@ func (c *Cluster) SyncAllLocal() ([]api.PinInfo, error) {
 		logger.Error("Is the ipfs daemon running?")
 	}
 	return syncedItems, err
+}
+
+// Sync triggers a SyncLocal() operation for a given Cid.
+// in all cluster peers.
+func (c *Cluster) Sync(h *cid.Cid) (api.GlobalPinInfo, error) {
+	return c.globalPinInfoCid("SyncLocal", h)
 }
 
 // SyncLocal performs a local sync operation for the given Cid. This will
@@ -878,26 +904,22 @@ func (c *Cluster) SyncLocal(h *cid.Cid) (api.PinInfo, error) {
 	return pInfo, err
 }
 
-// SyncAll triggers LocalSync() operations in all cluster peers.
-func (c *Cluster) SyncAll() ([]api.GlobalPinInfo, error) {
-	return c.globalPinInfoSlice("SyncAllLocal")
-}
-
-// Sync triggers a LocalSyncCid() operation for a given Cid
-// in all cluster peers.
-func (c *Cluster) Sync(h *cid.Cid) (api.GlobalPinInfo, error) {
-	return c.globalPinInfoCid("SyncLocal", h)
-}
-
-// RecoverLocal triggers a recover operation for a given Cid
-func (c *Cluster) RecoverLocal(h *cid.Cid) (api.PinInfo, error) {
-	return c.tracker.Recover(h)
+// RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
+// by this peer.
+func (c *Cluster) RecoverAllLocal() ([]api.PinInfo, error) {
+	return c.tracker.RecoverAll()
 }
 
 // Recover triggers a recover operation for a given Cid in all
 // cluster peers.
 func (c *Cluster) Recover(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("TrackerRecover", h)
+}
+
+// RecoverLocal triggers a recover operation for a given Cid in this peer only.
+// It returns the updated PinInfo, after recovery.
+func (c *Cluster) RecoverLocal(h *cid.Cid) (api.PinInfo, error) {
+	return c.tracker.Recover(h)
 }
 
 // Pins returns the list of Cids managed by Cluster and which are part

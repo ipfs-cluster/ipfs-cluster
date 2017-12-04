@@ -108,6 +108,13 @@ func (rpcapi *RPCAPI) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) err
 	return err
 }
 
+// StatusAllLocal runs Cluster.StatusAllLocal().
+func (rpcapi *RPCAPI) StatusAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos := rpcapi.c.StatusAllLocal()
+	*out = pinInfoSliceToSerial(pinfos)
+	return nil
+}
+
 // Status runs Cluster.Status().
 func (rpcapi *RPCAPI) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	c := in.ToPin().Cid
@@ -116,25 +123,25 @@ func (rpcapi *RPCAPI) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) err
 	return err
 }
 
-// SyncAllLocal runs Cluster.SyncAllLocal().
-func (rpcapi *RPCAPI) SyncAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos, err := rpcapi.c.SyncAllLocal()
-	*out = pinInfoSliceToSerial(pinfos)
-	return err
-}
-
-// SyncLocal runs Cluster.SyncLocal().
-func (rpcapi *RPCAPI) SyncLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+// StatusLocal runs Cluster.StatusLocal().
+func (rpcapi *RPCAPI) StatusLocal(in api.PinSerial, out *api.PinInfoSerial) error {
 	c := in.ToPin().Cid
-	pinfo, err := rpcapi.c.SyncLocal(c)
+	pinfo := rpcapi.c.StatusLocal(c)
 	*out = pinfo.ToSerial()
-	return err
+	return nil
 }
 
 // SyncAll runs Cluster.SyncAll().
 func (rpcapi *RPCAPI) SyncAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	pinfos, err := rpcapi.c.SyncAll()
 	*out = globalPinInfoSliceToSerial(pinfos)
+	return err
+}
+
+// SyncAllLocal runs Cluster.SyncAllLocal().
+func (rpcapi *RPCAPI) SyncAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos, err := rpcapi.c.SyncAllLocal()
+	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
 
@@ -146,9 +153,17 @@ func (rpcapi *RPCAPI) Sync(in api.PinSerial, out *api.GlobalPinInfoSerial) error
 	return err
 }
 
-// StateSync runs Cluster.StateSync().
-func (rpcapi *RPCAPI) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos, err := rpcapi.c.StateSync()
+// SyncLocal runs Cluster.SyncLocal().
+func (rpcapi *RPCAPI) SyncLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	c := in.ToPin().Cid
+	pinfo, err := rpcapi.c.SyncLocal(c)
+	*out = pinfo.ToSerial()
+	return err
+}
+
+// RecoverAllLocal runs Cluster.RecoverAllLocal().
+func (rpcapi *RPCAPI) RecoverAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos, err := rpcapi.c.RecoverAllLocal()
 	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
@@ -158,6 +173,21 @@ func (rpcapi *RPCAPI) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial) er
 	c := in.ToPin().Cid
 	pinfo, err := rpcapi.c.Recover(c)
 	*out = pinfo.ToSerial()
+	return err
+}
+
+// RecoverLocal runs Cluster.RecoverLocal().
+func (rpcapi *RPCAPI) RecoverLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	c := in.ToPin().Cid
+	pinfo, err := rpcapi.c.RecoverLocal(c)
+	*out = pinfo.ToSerial()
+	return err
+}
+
+// StateSync runs Cluster.StateSync().
+func (rpcapi *RPCAPI) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos, err := rpcapi.c.StateSync()
+	*out = pinInfoSliceToSerial(pinfos)
 	return err
 }
 
@@ -188,6 +218,13 @@ func (rpcapi *RPCAPI) TrackerStatus(in api.PinSerial, out *api.PinInfoSerial) er
 	pinfo := rpcapi.c.tracker.Status(c)
 	*out = pinfo.ToSerial()
 	return nil
+}
+
+// TrackerRecoverAll runs PinTracker.RecoverAll().
+func (rpcapi *RPCAPI) TrackerRecoverAll(in struct{}, out *[]api.PinInfoSerial) error {
+	pinfos, err := rpcapi.c.tracker.RecoverAll()
+	*out = pinInfoSliceToSerial(pinfos)
+	return err
 }
 
 // TrackerRecover runs PinTracker.Recover().

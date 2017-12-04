@@ -118,15 +118,6 @@ func (mock *mockService) PeerRemove(in peer.ID, out *struct{}) error {
 	return nil
 }
 
-// FIXME: dup from util.go
-func globalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSerial {
-	gpis := make([]api.GlobalPinInfoSerial, len(gpi), len(gpi))
-	for i, v := range gpi {
-		gpis[i] = v.ToSerial()
-	}
-	return gpis
-}
-
 func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	c1, _ := cid.Decode(TestCid1)
 	c2, _ := cid.Decode(TestCid2)
@@ -169,6 +160,10 @@ func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) 
 	return nil
 }
 
+func (mock *mockService) StatusAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	return mock.TrackerStatusAll(in, out)
+}
+
 func (mock *mockService) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
@@ -188,12 +183,24 @@ func (mock *mockService) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) 
 	return nil
 }
 
+func (mock *mockService) StatusLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	return mock.TrackerStatus(in, out)
+}
+
 func (mock *mockService) SyncAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	return mock.StatusAll(in, out)
 }
 
+func (mock *mockService) SyncAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	return mock.StatusAllLocal(in, out)
+}
+
 func (mock *mockService) Sync(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	return mock.Status(in, out)
+}
+
+func (mock *mockService) SyncLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	return mock.StatusLocal(in, out)
 }
 
 func (mock *mockService) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
@@ -201,15 +208,77 @@ func (mock *mockService) StateSync(in struct{}, out *[]api.PinInfoSerial) error 
 	return nil
 }
 
+func (mock *mockService) RecoverAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
+	return mock.TrackerRecoverAll(in, out)
+}
+
 func (mock *mockService) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	return mock.Status(in, out)
 }
+
+func (mock *mockService) RecoverLocal(in api.PinSerial, out *api.PinInfoSerial) error {
+	return mock.TrackerRecover(in, out)
+}
+
+/* Tracker methods */
 
 func (mock *mockService) Track(in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
 func (mock *mockService) Untrack(in api.PinSerial, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) TrackerStatusAll(in struct{}, out *[]api.PinInfoSerial) error {
+	c1, _ := cid.Decode(TestCid1)
+	c3, _ := cid.Decode(TestCid3)
+
+	*out = pinInfoSliceToSerial([]api.PinInfo{
+		{
+			Cid:    c1,
+			Peer:   TestPeerID1,
+			Status: api.TrackerStatusPinned,
+			TS:     time.Now(),
+		},
+		{
+			Cid:    c3,
+			Peer:   TestPeerID1,
+			Status: api.TrackerStatusPinError,
+			TS:     time.Now(),
+		},
+	})
+	return nil
+}
+
+func (mock *mockService) TrackerStatus(in api.PinSerial, out *api.PinInfoSerial) error {
+	if in.Cid == ErrorCid {
+		return ErrBadCid
+	}
+	c1, _ := cid.Decode(TestCid1)
+
+	*out = api.PinInfo{
+		Cid:    c1,
+		Peer:   TestPeerID2,
+		Status: api.TrackerStatusPinned,
+		TS:     time.Now(),
+	}.ToSerial()
+	return nil
+}
+
+func (mock *mockService) TrackerRecoverAll(in struct{}, out *[]api.PinInfoSerial) error {
+	*out = make([]api.PinInfoSerial, 0, 0)
+	return nil
+}
+
+func (mock *mockService) TrackerRecover(in api.PinSerial, out *api.PinInfoSerial) error {
+	in2 := in.ToPin()
+	*out = api.PinInfo{
+		Cid:    in2.Cid,
+		Peer:   TestPeerID1,
+		Status: api.TrackerStatusPinned,
+		TS:     time.Now(),
+	}.ToSerial()
 	return nil
 }
 
@@ -284,4 +353,22 @@ func (mock *mockService) ConsensusRmPeer(in peer.ID, out *struct{}) error {
 func (mock *mockService) ConsensusPeers(in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
 	return nil
+}
+
+// FIXME: dup from util.go
+func globalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSerial {
+	gpis := make([]api.GlobalPinInfoSerial, len(gpi), len(gpi))
+	for i, v := range gpi {
+		gpis[i] = v.ToSerial()
+	}
+	return gpis
+}
+
+// FIXME: dup from util.go
+func pinInfoSliceToSerial(pi []api.PinInfo) []api.PinInfoSerial {
+	pis := make([]api.PinInfoSerial, len(pi), len(pi))
+	for i, v := range pi {
+		pis[i] = v.ToSerial()
+	}
+	return pis
 }

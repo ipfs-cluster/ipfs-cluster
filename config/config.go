@@ -283,6 +283,10 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 					return err
 				}
 				logger.Debugf("%s section configuration loaded", name)
+			} else {
+				logger.Warningf("%s section is empty, generating default", name)
+				component.SetBaseDir(dir)
+				component.Default()
 			}
 		}
 		return nil

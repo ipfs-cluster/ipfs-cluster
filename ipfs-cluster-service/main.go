@@ -217,7 +217,7 @@ configuration.
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
-				cfg, clustercfg, _, _, _, _, _, _ := makeConfigs()
+				cfg, clustercfg, _, _, _, _, _, _, _ := makeConfigs()
 				defer cfg.Shutdown() // wait for saves
 
 				// Generate defaults for all registered components
@@ -294,7 +294,7 @@ func run(c *cli.Context) error {
 
 func daemon(c *cli.Context) error {
 	// Load all the configurations
-	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
 	// always wait for configuration to be saved
 	defer cfg.Shutdown()
 
@@ -328,7 +328,7 @@ func daemon(c *cli.Context) error {
 	err = validateVersion(clusterCfg, consensusCfg)
 	checkErr("validating version", err)
 
-	tracker := maptracker.NewMapPinTracker(clusterCfg.ID)
+	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
 	mon, err := basic.NewMonitor(monCfg)
 	checkErr("creating Monitor component", err)
 	informer, alloc := setupAllocation(c.String("alloc"), diskInfCfg, numpinInfCfg)
@@ -453,12 +453,13 @@ func promptUser(msg string) string {
 	return scanner.Text()
 }
 
-func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *basic.Config, *disk.Config, *numpin.Config) {
+func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config) {
 	cfg := config.NewManager()
 	clusterCfg := &ipfscluster.Config{}
 	apiCfg := &rest.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	consensusCfg := &raft.Config{}
+	trackerCfg := &maptracker.Config{}
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
@@ -466,8 +467,9 @@ func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshtt
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
 	cfg.RegisterComponent(config.Consensus, consensusCfg)
+	cfg.RegisterComponent(config.PinTracker, trackerCfg)
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, monCfg, diskInfCfg, numpinInfCfg
+	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg
 }

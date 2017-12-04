@@ -13,6 +13,7 @@ const (
 	formatNone = iota
 	formatID
 	formatGPInfo
+	formatPInfo
 	formatString
 	formatVersion
 	formatPin
@@ -44,6 +45,10 @@ func textFormatObject(body []byte, format int) {
 		var obj api.GlobalPinInfoSerial
 		textFormatDecodeOn(body, &obj)
 		textFormatPrintGPinfo(&obj)
+	case formatPInfo:
+		var obj api.PinInfoSerial
+		textFormatDecodeOn(body, &obj)
+		textFormatPrintPInfo(&obj)
 	case formatVersion:
 		var obj api.Version
 		textFormatDecodeOn(body, &obj)
@@ -123,6 +128,16 @@ func textFormatPrintGPinfo(obj *api.GlobalPinInfoSerial) {
 		}
 		fmt.Printf("    > Peer %s : %s | %s\n", k, strings.ToUpper(v.Status), v.TS)
 	}
+}
+
+func textFormatPrintPInfo(obj *api.PinInfoSerial) {
+	gpinfo := api.GlobalPinInfoSerial{
+		Cid: obj.Cid,
+		PeerMap: map[string]api.PinInfoSerial{
+			obj.Peer: *obj,
+		},
+	}
+	textFormatPrintGPinfo(&gpinfo)
 }
 
 func textFormatPrintVersion(obj *api.Version) {
