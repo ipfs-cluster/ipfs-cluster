@@ -9,10 +9,18 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
-func upgrade() error {
-	//Load configs
+func upgrade() error  {
+	// Load configs
 	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
-	err := cfg.LoadJSONFromFile(configPath)
+	
+	// Execution lock
+	err := locker.lock()
+	if err != nil {
+		return err
+	}
+	defer locker.tryUnlock()
+
+	err = cfg.LoadJSONFromFile(configPath)
 	if err != nil {
 		return err
 	}

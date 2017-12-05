@@ -14,7 +14,8 @@ test_expect_success IPFS,CLUSTER "cluster-service state upgrade works" '
     ipfs-cluster-ctl pin add "$cid" &&
     sleep 5 &&
     cluster_kill &&
-    ipfs-cluster-service --config "test-config" state upgrade
+    sleep 5 &&
+    ipfs-cluster-service --debug --config "test-config" state upgrade
 '
 
 # previous test kills the cluster, we need to re-start
