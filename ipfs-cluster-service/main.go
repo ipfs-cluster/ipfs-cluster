@@ -281,7 +281,7 @@ removal, upgrade state using this command, and restart every peer.
 			setupDebug()
 		}
 
-		locker = &Locker{path: absPath}
+		locker = &lock{path: absPath}
 
 		return nil
 	}
