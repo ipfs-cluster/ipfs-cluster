@@ -12,11 +12,13 @@ import (
 
 // Configuration defaults
 var (
-	DefaultTimeout = 60 * time.Second
-	DefaultAPIAddr = "/ip4/127.0.0.1/tcp/9094"
+	DefaultTimeout  = 60 * time.Second
+	DefaultAPIAddr  = "/ip4/127.0.0.1/tcp/9094"
+	DefaultLogLevel = "info"
 )
 
-var logger = logging.Logger("apiclient")
+var loggingFacility = "apiclient"
+var logger = logging.Logger(loggingFacility)
 
 // Config allows to configure the parameters to connect
 // to the ipfs-cluster REST API.
@@ -36,7 +38,7 @@ type Config struct {
 	// Define timeout for network operations
 	Timeout time.Duration
 
-	// LogLevel defines the verbosity of the "apiclient" facility
+	// LogLevel defines the verbosity of the logging facility
 	LogLevel string
 }
 
@@ -73,7 +75,9 @@ func NewClient(cfg *Config) (*Client, error) {
 	urlPrefix += host
 
 	if lvl := cfg.LogLevel; lvl != "" {
-		logging.SetLogLevel("apiclient", lvl)
+		logging.SetLogLevel(loggingFacility, lvl)
+	} else {
+		logging.SetLogLevel(loggingFacility, DefaultLogLevel)
 	}
 
 	if cfg.Timeout == 0 {

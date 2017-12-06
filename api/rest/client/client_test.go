@@ -24,9 +24,6 @@ func testAPI(t *testing.T) *rest.API {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
 
-	// No keep alive! Otherwise tests hang with
-	// connections re-used from previous tests
-	//rest.server.SetKeepAlivesEnabled(false)
 	rest.SetClient(test.NewMockRPCClient(t))
 	return rest
 }
@@ -89,7 +86,8 @@ func TestPeers(t *testing.T) {
 func TestPeersWithError(t *testing.T) {
 	c, api := testClient(t)
 	defer api.Shutdown()
-	c, _ = NewClient(&Config{})
+	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/44444")
+	c, _ = NewClient(&Config{APIAddr: addr})
 	ids, err := c.Peers()
 	if err == nil {
 		t.Fatal("expected error")
