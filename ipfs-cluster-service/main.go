@@ -287,7 +287,7 @@ removal, upgrade state using this command, and restart every peer.
 // run daemon() by default, or error.
 func run(c *cli.Context) error {
 	if len(c.Args()) > 0 {
-		return fmt.Errorf("Unknown subcommand. Run \"%s help\" for more info", programName)
+		return fmt.Errorf("unknown subcommand. Run \"%s help\" for more info", programName)
 	}
 	return daemon(c)
 }

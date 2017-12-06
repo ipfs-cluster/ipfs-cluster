@@ -221,13 +221,13 @@ func diffConfigurations(
 	for _, s := range c2.Servers {
 		m2[s.ID] = struct{}{}
 	}
-	for k, _ := range m1 {
+	for k := range m1 {
 		_, ok := m2[k]
 		if !ok {
 			removed = append(removed, k)
 		}
 	}
-	for k, _ := range m2 {
+	for k := range m2 {
 		_, ok := m1[k]
 		if !ok {
 			added = append(added, k)

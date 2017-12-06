@@ -163,7 +163,7 @@ func (cfg *Config) Validate() error {
 	}
 
 	if cfg.PrivateKey == nil {
-		return errors.New("No cluster.private_key set")
+		return errors.New("no cluster.private_key set")
 	}
 
 	if cfg.Peers == nil {
@@ -380,7 +380,7 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	case 32:
 		return secret, nil
 	default:
-		return nil, fmt.Errorf("Input secret is %d bytes, cluster secret should be 32.", secretLen)
+		return nil, fmt.Errorf("input secret is %d bytes, cluster secret should be 32", secretLen)
 	}
 }
 
@@ -393,7 +393,7 @@ func generateClusterSecret() ([]byte, error) {
 	secretBytes := make([]byte, 32)
 	_, err := crand.Read(secretBytes)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading from rand: %v", err)
+		return nil, fmt.Errorf("error reading from rand: %v", err)
 	}
 	return secretBytes, nil
 }

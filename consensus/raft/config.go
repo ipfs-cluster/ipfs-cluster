@@ -125,7 +125,7 @@ func (cfg *Config) ConfigKey() string {
 // at least in appereance.
 func (cfg *Config) Validate() error {
 	if cfg.RaftConfig == nil {
-		return errors.New("No hashicorp/raft.Config")
+		return errors.New("no hashicorp/raft.Config")
 	}
 	if cfg.WaitForLeaderTimeout <= 0 {
 		return errors.New("wait_for_leader_timeout <= 0")

@@ -101,6 +101,8 @@ func NewManager() *Manager {
 
 }
 
+// Shutdown makes sure all configuration save operations are finished
+// before returning.
 func (cfg *Manager) Shutdown() {
 	cfg.cancel()
 	cfg.wg.Wait()

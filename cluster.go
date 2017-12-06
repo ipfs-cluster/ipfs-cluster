@@ -951,7 +951,7 @@ func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
 	}
 	pin := cState.Get(h)
 	if pin.Cid == nil {
-		return pin, errors.New("Cid is not part of the global state")
+		return pin, errors.New("cid is not part of the global state")
 	}
 	return pin, nil
 }
@@ -1343,7 +1343,7 @@ func (c *Cluster) allocate(hash *cid.Cid, repl int, blacklist []peer.ID) ([]peer
 		return validAllocations[0 : len(validAllocations)+needed], nil
 	case candidatesValid < needed:
 		candidatesIds := []peer.ID{}
-		for k, _ := range candidates {
+		for k := range candidates {
 			candidatesIds = append(candidatesIds, k)
 		}
 		err = logError(
@@ -1398,13 +1398,13 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 	for _, p := range peers2 {
 		m2[p] = struct{}{}
 	}
-	for k, _ := range m1 {
+	for k := range m1 {
 		_, ok := m2[k]
 		if !ok {
 			removed = append(removed, k)
 		}
 	}
-	for k, _ := range m2 {
+	for k := range m2 {
 		_, ok := m1[k]
 		if !ok {
 			added = append(added, k)
