@@ -253,7 +253,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	clusterSecret, err := DecodeClusterSecret(jcfg.Secret)
 	if err != nil {
-		err = fmt.Errorf("error loading cluster secret from config: ", err)
+		err = fmt.Errorf("error loading cluster secret from config: %s", err)
 		return err
 	}
 	cfg.Secret = clusterSecret

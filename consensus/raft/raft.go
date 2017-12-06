@@ -152,7 +152,7 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 			logger.Error("Raft peers do not match cluster peers from the configuration.")
 			logger.Error("This likely indicates that this peer has left the cluster and/or")
 			logger.Error("has a dirty state. Clean the raft state for this peer")
-			logger.Error("(%s)", dataFolder)
+			logger.Errorf("(%s)", dataFolder)
 			logger.Error("bootstrap it to a working cluster.")
 			logger.Error("Raft peers:")
 			for _, s := range currentCfg.Servers {

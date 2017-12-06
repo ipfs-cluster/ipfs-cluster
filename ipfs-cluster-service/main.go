@@ -361,7 +361,6 @@ func daemon(c *cli.Context) error {
 			//case <-cluster.Ready():
 		}
 	}
-	return nil
 }
 
 var facilities = []string{

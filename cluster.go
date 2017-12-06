@@ -314,7 +314,6 @@ func (c *Cluster) pushPingMetrics() {
 		case <-ticker.C:
 		}
 	}
-	logger.Debugf("Peer %s. Finished pushPingMetrics", c.id)
 }
 
 // read the alerts channel from the monitor and triggers repins
