@@ -38,7 +38,7 @@ type Component interface {
 type Consensus interface {
 	Component
 	// Returns a channel to signal that the consensus
-	// algoritm is ready
+	// algorithm is ready
 	Ready() <-chan struct{}
 	// Logs a pin operation
 	LogPin(c api.Pin) error
@@ -152,8 +152,8 @@ type PinAllocator interface {
 // and providing candidates to the PinAllocator when a pin request arrives.
 type PeerMonitor interface {
 	Component
-	// LogMetric stores a metric. Metrics are pushed reguarly from each peer
-	// to the active PeerMonitor.
+	// LogMetric stores a metric. Metrics are pushed regularly
+	// from each peer to the active PeerMonitor.
 	LogMetric(api.Metric)
 	// LastMetrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.

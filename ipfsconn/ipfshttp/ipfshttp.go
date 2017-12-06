@@ -441,7 +441,7 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 			// we need to fail the operation and make sure the
 			// user knows about it.
 			msg := "add operation was successful but "
-			msg += "an error ocurred performing the cluster "
+			msg += "an error occurred performing the cluster "
 			msg += "pin operation: " + err.Error()
 			logger.Error(msg)
 			http.Error(w, msg, 500)

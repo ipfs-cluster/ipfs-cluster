@@ -251,7 +251,7 @@ configuration.
 This command upgrades the internal state of the ipfs-cluster node 
 specified in the latest raft snapshot. The state format is migrated from the 
 version of the snapshot to the version supported by the current cluster version. 
-To succesfully run an upgrade of an entire cluster, shut down each peer without
+To successfully run an upgrade of an entire cluster, shut down each peer without
 removal, upgrade state using this command, and restart every peer.
 `,
 					Action: func(c *cli.Context) error {

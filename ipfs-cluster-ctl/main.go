@@ -535,7 +535,7 @@ func formatResponse(c *cli.Context, r *http.Response) {
 	case r.StatusCode == http.StatusAccepted:
 		logger.Debug("Request accepted")
 	case r.StatusCode == http.StatusNoContent:
-		logger.Debug("Request suceeded. Response has no content")
+		logger.Debug("Request succeeded. Response has no content")
 	default:
 		enc := c.GlobalString("encoding")
 
