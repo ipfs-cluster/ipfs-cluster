@@ -122,10 +122,10 @@ func (cfg *Config) ConfigKey() string {
 }
 
 // Validate checks that this configuration has working values,
-// at least in appereance.
+// at least in appearance.
 func (cfg *Config) Validate() error {
 	if cfg.RaftConfig == nil {
-		return errors.New("No hashicorp/raft.Config")
+		return errors.New("no hashicorp/raft.Config")
 	}
 	if cfg.WaitForLeaderTimeout <= 0 {
 		return errors.New("wait_for_leader_timeout <= 0")
@@ -222,7 +222,7 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 
 // Default initializes this configuration with working defaults.
 func (cfg *Config) Default() error {
-	cfg.DataFolder = "" // empty so it gets ommitted
+	cfg.DataFolder = "" // empty so it gets omitted
 	cfg.WaitForLeaderTimeout = DefaultWaitForLeaderTimeout
 	cfg.NetworkTimeout = DefaultNetworkTimeout
 	cfg.CommitRetries = DefaultCommitRetries

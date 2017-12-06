@@ -1,7 +1,7 @@
 // Package api holds declarations for types used in ipfs-cluster APIs to make
 // them re-usable across differen tools. This include RPC API "Serial[izable]"
 // versions for types. The Go API uses natives types, while RPC API,
-// REST APIs etc use serializable types (i.e. json format). Converstion methods
+// REST APIs etc use serializable types (i.e. json format). Conversion methods
 // exists between types.
 //
 // Note that all conversion methods ignore any parsing errors. All values must

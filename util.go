@@ -52,6 +52,8 @@ func copyEmptyStructToIfaces(in []struct{}) []interface{} {
 	return ifaces
 }
 
+// MultiaddrSplit takes a /proto/value/ipfs/id multiaddress and returns
+// the id on one side and the /proto/value multiaddress on the other.
 func MultiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
 	return multiaddrSplit(addr)
 }

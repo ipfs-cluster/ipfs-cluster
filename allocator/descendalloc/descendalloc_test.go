@@ -29,25 +29,25 @@ var inAMinute = time.Now().Add(time.Minute).Format(time.RFC3339Nano)
 var testCases = []testcase{
 	{ // regular sort
 		candidates: map[peer.ID]api.Metric{
-			peer0: api.Metric{
+			peer0: {
 				Name:   "some-metric",
 				Value:  "5",
 				Expire: inAMinute,
 				Valid:  true,
 			},
-			peer1: api.Metric{
+			peer1: {
 				Name:   "some-metric",
 				Value:  "1",
 				Expire: inAMinute,
 				Valid:  true,
 			},
-			peer2: api.Metric{
+			peer2: {
 				Name:   "some-metric",
 				Value:  "3",
 				Expire: inAMinute,
 				Valid:  true,
 			},
-			peer3: api.Metric{
+			peer3: {
 				Name:   "some-metric",
 				Value:  "2",
 				Expire: inAMinute,
@@ -59,13 +59,13 @@ var testCases = []testcase{
 	},
 	{ // filter invalid
 		candidates: map[peer.ID]api.Metric{
-			peer0: api.Metric{
+			peer0: {
 				Name:   "some-metric",
 				Value:  "1",
 				Expire: inAMinute,
 				Valid:  false,
 			},
-			peer1: api.Metric{
+			peer1: {
 				Name:   "some-metric",
 				Value:  "5",
 				Expire: inAMinute,
@@ -77,13 +77,13 @@ var testCases = []testcase{
 	},
 	{ // filter bad value
 		candidates: map[peer.ID]api.Metric{
-			peer0: api.Metric{
+			peer0: {
 				Name:   "some-metric",
 				Value:  "abc",
 				Expire: inAMinute,
 				Valid:  true,
 			},
-			peer1: api.Metric{
+			peer1: {
 				Name:   "some-metric",
 				Value:  "5",
 				Expire: inAMinute,

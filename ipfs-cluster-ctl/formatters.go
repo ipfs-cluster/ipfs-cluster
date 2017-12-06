@@ -156,7 +156,7 @@ func textFormatPrintPin(obj *api.PinSerial) {
 }
 
 func textFormatPrintError(obj *api.Error) {
-	fmt.Printf("An error ocurred:\n")
+	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)
 	fmt.Printf("  Message: %s\n", obj.Message)
 }

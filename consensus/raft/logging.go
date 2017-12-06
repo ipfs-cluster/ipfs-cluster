@@ -66,13 +66,12 @@ func (fw *logForwarder) repeated(t int, msg string) bool {
 	if !ok || last.msg != msg {
 		fw.last[t] = &lastMsg{msg, false}
 		return false
-	} else {
-		if !last.tipped {
-			fw.log(t, "NOTICE: The last RAFT log message repeats and will only be logged once")
-			last.tipped = true
-		}
-		return true
 	}
+	if !last.tipped {
+		fw.log(t, "NOTICE: The last RAFT log message repeats and will only be logged once")
+		last.tipped = true
+	}
+	return true
 }
 
 func (fw *logForwarder) log(t int, msg string) {

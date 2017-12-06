@@ -141,7 +141,8 @@ func TestConsensusAddPeer(t *testing.T) {
 		t.Error("the operation did not make it to the log:", err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	err = cc2.raft.WaitForPeer(ctx, cc.host.ID().Pretty(), false)
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +174,8 @@ func TestConsensusRmPeer(t *testing.T) {
 		t.Error("could not add peer:", err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), false)
 	if err != nil {
 		t.Fatal(err)

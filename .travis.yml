@@ -10,8 +10,10 @@ before_install:
 install:
 - go get golang.org/x/tools/cmd/cover
 - go get github.com/mattn/goveralls
+- go get github.com/golang/lint/golint
 - make deps
 script:
+- make check
 - make service && make ctl && ./coverage.sh
 - make install
 - make test_sharness && make clean_sharness
