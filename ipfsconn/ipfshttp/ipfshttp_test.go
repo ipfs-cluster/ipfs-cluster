@@ -375,7 +375,7 @@ func TestProxyAdd(t *testing.T) {
 			t.Fatal(err)
 		}
 		url := fmt.Sprintf("%s/add?"+urlQueries[i], proxyURL(ipfs))
-		req, err := http.NewRequest("POST", url, body)
+		req, _ := http.NewRequest("POST", url, body)
 		req.Header.Set("Content-Type", w.FormDataContentType())
 		reqs[i] = req
 	}

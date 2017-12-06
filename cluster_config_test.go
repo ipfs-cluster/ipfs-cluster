@@ -122,7 +122,7 @@ func TestLoadJSON(t *testing.T) {
 	json.Unmarshal(ccfgTestJSON, j)
 	j.ReplicationFactor = 0
 	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
+	cfg.LoadJSON(tst)
 	if cfg.ReplicationFactor != -1 {
 		t.Error("expected default replication factor")
 	}
