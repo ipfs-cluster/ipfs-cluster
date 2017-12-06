@@ -27,4 +27,8 @@ test_expect_success "cluster-service --version succeeds and matches ctl" '
     [ "$SERV_VERSION" = "$CTL_VERSION" ]
 '
 
+test_expect_success "starting a second cluster-service process fails" '
+    test_expect_code 1 ipfs-cluster-service --config "test-config"    
+'
+
 test_done

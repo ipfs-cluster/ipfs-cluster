@@ -139,6 +139,10 @@ func out(m string, a ...interface{}) {
 func checkErr(doing string, err error) {
 	if err != nil {
 		out("error %s: %s\n", doing, err)
+		err = locker.tryUnlock()
+		if err != nil {
+			out("error releasing execution lock: %s\n", err)
+		}
 		os.Exit(1)
 	}
 }
@@ -257,7 +261,7 @@ removal, upgrade state using this command, and restart every peer.
 					Action: func(c *cli.Context) error {
 						err := upgrade()
 						checkErr("upgrading state", err)
-						return nil
+						return err
 					},
 				},
 			},
@@ -276,6 +280,9 @@ removal, upgrade state using this command, and restart every peer.
 		if c.Bool("debug") {
 			setupDebug()
 		}
+
+		locker = &Locker{path: absPath}
+
 		return nil
 	}
 
@@ -295,10 +302,16 @@ func run(c *cli.Context) error {
 func daemon(c *cli.Context) error {
 	// Load all the configurations
 	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+	// Execution lock
+	err := locker.lock()
+	checkErr("acquiring execution lock", err)
+	defer locker.tryUnlock()
+
+	// Load all the configurations
 	// always wait for configuration to be saved
 	defer cfg.Shutdown()
 
-	err := cfg.LoadJSONFromFile(configPath)
+	err = cfg.LoadJSONFromFile(configPath)
 	checkErr("loading configuration", err)
 
 	if a := c.String("bootstrap"); a != "" {
