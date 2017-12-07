@@ -260,6 +260,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	clusterPeers := make([]ma.Multiaddr, len(jcfg.Peers))
 	for i := 0; i < len(jcfg.Peers); i++ {
+		fmt.Println([]byte(jcfg.Peers[i]))
 		maddr, err2 := ma.NewMultiaddr(jcfg.Peers[i])
 		if err2 != nil {
 			err = fmt.Errorf("error parsing multiaddress for peer %s: %s",

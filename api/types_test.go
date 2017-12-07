@@ -11,6 +11,8 @@ import (
 
 var testTime = time.Date(2017, 12, 31, 15, 45, 50, 0, time.UTC)
 var testMAddr, _ = ma.NewMultiaddr("/ip4/1.2.3.4")
+var testMAddr2, _ = ma.NewMultiaddr("/dns4/a.b.c.d")
+var testMAddr3, _ = ma.NewMultiaddr("/ip4/127.0.0.1/tcp/8081/ws/ipfs/QmSoLer265NRgSp2LA3dPaeykiS1J6DifTC88f5uVQKNAd")
 var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 var testPeerID2, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabd")
@@ -76,14 +78,14 @@ func TestIDConv(t *testing.T) {
 		ID:                    testPeerID1,
 		Addresses:             []ma.Multiaddr{testMAddr},
 		ClusterPeers:          []peer.ID{testPeerID2},
-		ClusterPeersAddresses: []ma.Multiaddr{testMAddr},
+		ClusterPeersAddresses: []ma.Multiaddr{testMAddr2},
 		Version:               "testv",
 		Commit:                "ab",
 		RPCProtocolVersion:    "testp",
 		Error:                 "teste",
 		IPFS: IPFSID{
 			ID:        testPeerID2,
-			Addresses: []ma.Multiaddr{testMAddr},
+			Addresses: []ma.Multiaddr{testMAddr3},
 			Error:     "abc",
 		},
 	}
@@ -131,7 +133,7 @@ func TestMultiaddrConv(t *testing.T) {
 			t.Fatal("paniced")
 		}
 	}()
-	addrs := []ma.Multiaddr{testMAddr}
+	addrs := []ma.Multiaddr{testMAddr2}
 	new := MultiaddrsToSerial(addrs).ToMultiaddrs()
 	if !addrs[0].Equal(new[0]) {
 		t.Error("mismatch")

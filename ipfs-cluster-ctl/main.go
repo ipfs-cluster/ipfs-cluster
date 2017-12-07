@@ -135,7 +135,8 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		if c.Bool("debug") {
 			logging.SetLogLevel("cluster-ctl", "debug")
-			logging.SetLogLevel("apiclient", "debug")
+			cfg.LogLevel = "debug"
+			logger.Debug("debug level enabled")
 		}
 
 		enc := c.String("encoding")

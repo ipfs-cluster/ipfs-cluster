@@ -389,6 +389,7 @@ var facilities = []string{
 	"descendalloc",
 	"diskinfo",
 	"config",
+	"apitypes",
 }
 
 func setupLogging(lvl string) {

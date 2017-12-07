@@ -15,6 +15,7 @@ var facilities = []string{
 	"pintracker",
 	"ascendalloc",
 	"diskinfo",
+	"apitypes",
 }
 
 // SetFacilityLogLevel sets the log level for a given module
