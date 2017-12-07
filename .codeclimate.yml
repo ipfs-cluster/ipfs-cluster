@@ -1,0 +1,19 @@
+ratings:
+  paths: 
+  - "**/*.go"
+
+engines:
+  fixme:
+    enabled: true
+    config:
+      strings:
+      - FIXME
+      - HACK
+      - XXX
+      - BUG
+  golint:
+    enabled: true
+  govet:
+    enabled: true
+  gofmt:
+    enabled: true
