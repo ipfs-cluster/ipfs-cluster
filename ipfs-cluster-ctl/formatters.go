@@ -25,18 +25,27 @@ func jsonFormatObject(resp interface{}) {
 	case api.Error:
 		jsonFormatPrint(resp.(api.Error))
 	case []api.ID:
-		for _, item := range resp.([]api.ID) {
-			jsonFormatObject(item)
+		r := resp.([]api.ID)
+		serials := make([]api.IDSerial, len(r), len(r))
+		for i, item := range r {
+			serials[i] = item.ToSerial()
 		}
+		jsonFormatPrint(serials)
 
 	case []api.GlobalPinInfo:
-		for _, item := range resp.([]api.GlobalPinInfo) {
-			jsonFormatObject(item)
+		r := resp.([]api.GlobalPinInfo)
+		serials := make([]api.GlobalPinInfoSerial, len(r), len(r))
+		for i, item := range r {
+			serials[i] = item.ToSerial()
 		}
+		jsonFormatPrint(serials)
 	case []api.Pin:
-		for _, item := range resp.([]api.Pin) {
-			jsonFormatObject(item)
+		r := resp.([]api.Pin)
+		serials := make([]api.PinSerial, len(r), len(r))
+		for i, item := range r {
+			serials[i] = item.ToSerial()
 		}
+		jsonFormatPrint(serials)
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
