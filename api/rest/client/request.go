@@ -30,18 +30,21 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 	if err != nil {
 		return nil, err
 	}
+	if c.config.DisableKeepAlives {
+		r.Close = true
+	}
 
 	if c.config.Username != "" {
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
-	client := &http.Client{Transport: c.transport}
-	return client.Do(r.WithContext(ctx))
+	return c.client.Do(r.WithContext(ctx))
 }
 
 func (c *Client) handleResponse(resp *http.Response, obj interface{}) *api.Error {
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
 	if err != nil {
 		return &api.Error{Code: resp.StatusCode, Message: err.Error()}
 	}

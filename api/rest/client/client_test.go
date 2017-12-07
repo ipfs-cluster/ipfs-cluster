@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
+	ma "github.com/multiformats/go-multiaddr"
+
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/test"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
-var apiAddr = "/ip4/127.0.0.1/tcp/10002"
+var apiAddr = "/ip4/127.0.0.1/tcp/10005"
 
 func testAPI(t *testing.T) *rest.API {
 	//logging.SetDebugLogging()
@@ -33,7 +34,8 @@ func testClient(t *testing.T) (*Client, *rest.API) {
 
 	addr, _ := ma.NewMultiaddr(apiAddr)
 	cfg := &Config{
-		APIAddr: addr,
+		APIAddr:           addr,
+		DisableKeepAlives: true,
 	}
 	c, err := NewClient(cfg)
 	if err != nil {
@@ -87,7 +89,7 @@ func TestPeersWithError(t *testing.T) {
 	c, api := testClient(t)
 	defer api.Shutdown()
 	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/44444")
-	c, _ = NewClient(&Config{APIAddr: addr})
+	c, _ = NewClient(&Config{APIAddr: addr, DisableKeepAlives: true})
 	ids, err := c.Peers()
 	if err == nil {
 		t.Fatal("expected error")

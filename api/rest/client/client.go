@@ -38,6 +38,10 @@ type Config struct {
 	// Define timeout for network operations
 	Timeout time.Duration
 
+	// Specifies if we attempt to re-use connections to the same
+	// hosts.
+	DisableKeepAlives bool
+
 	// LogLevel defines the verbosity of the logging facility
 	LogLevel string
 }
@@ -50,6 +54,7 @@ type Client struct {
 	config    *Config
 	transport http.RoundTripper
 	urlPrefix string
+	client    *http.Client
 }
 
 // NewClient initializes a client given a Config.
@@ -86,11 +91,17 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   cfg.Timeout,
+	}
+
 	return &Client{
 		ctx:       ctx,
 		cancel:    cancel,
 		urlPrefix: urlPrefix,
 		transport: tr,
 		config:    cfg,
+		client:    client,
 	}, nil
 }
