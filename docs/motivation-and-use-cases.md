@@ -32,6 +32,24 @@ These are some very WIP ipfs-cluster use cases.  Note these are not formal use c
 ### Pinning Rings (first reported here https://github.com/ipfs/ipfs-cluster/issues/7)
 
 
+### Big ipfs node for ubuntu archive seeding (reported here https://discuss.ipfs.io/t/ubuntu-archive-on-top-of-ipfs/1579)
+
+Actors:
+	admin of package-seeding cluster
+	mirror site providing package data
+	users fetching packages over ipfs
+
+Description:  An admin wishes to set up an ipfs node storing a mirror of ubuntu deb packages to support an apt transport that downloads deb packages from ipfs.  The admin wishes to download the packages and directory structure from one of the existing mirrors over http and store in ipfs.  The admin does not have a server with the 2TB of storage necessary to host the entire mirror and so cannot fit all packages on a single ipfs node.  However the admin does have access to a set of smaller servers (say 4 servers of 50GB) that together fulfill the total storage capacity of the mirror.  The admin installs ipfs-cluster on each server and then commands the cluster to download the mirror data.  During download the cluster allocates different pieces of the mirror directory to different machines, spreading load evenly.  If there is extra space on the servers then replication of packages is a bonus, but this is not a primary concern for this usecase.  The cluster hosting the mirror can be assumed stable, with a fixed number of servers all ran by a single admin or administrative body.  After packages are added to the cluster users will fetch packages by path name from the root hash (QmAAA.../mirrorDir1/mirrorDir2/package.deb), 
+
+Implied ipfs-cluster requirements
+- ipfs-cluster can handle collaborative importing, and specifically collaborative importing of directories (the entire directory can not fit in a single nodes repo)
+- ipfs-cluster can shard subgraphs of a single unixfs directory among several cluster peers' ipfs repos
+- the ipfs repo of each node shares the directory structure but not all of the directory's data.  The hashes are all preserved because the structure is the same, however certain links cannot be followed.  ( I think this is supported in ipfs right now, have to check)
+
+Thoughts:
+This use case's requirement on collaborative importing will likely make it challenging to realize, however it belongs to a pattern of commonly shared use cases and in my view it is a clear goal of cluster to eventually support this.  It opens questions about how/whether cluster should explicity handle downloads from network addresses.  Perhaps it would be beneficial to share the location address of the mirror with all peers and let each individually download.  Alternatively maybe it will make more sense to stream the download from a single peer that can multiplex the data to other peers when implementing collaborative importing. 
+
+
 ### Home directories with ipfs-cluster (first reported here https://github.com/ipfs/ipfs-cluster/issues/3)
 
 Actors:
