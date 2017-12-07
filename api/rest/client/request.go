@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -20,9 +19,6 @@ func (c *Client) do(method, path string, body io.Reader, obj interface{}) *api.E
 }
 
 func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
-	defer cancel()
-
 	urlpath := c.urlPrefix + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
@@ -38,7 +34,7 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
-	return c.client.Do(r.WithContext(ctx))
+	return c.client.Do(r)
 }
 
 func (c *Client) handleResponse(resp *http.Response, obj interface{}) *api.Error {
