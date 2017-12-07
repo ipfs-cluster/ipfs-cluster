@@ -138,6 +138,11 @@ requires authorization. implies --https, which you can disable with --force-http
 			logging.SetLogLevel("apiclient", "debug")
 		}
 
+		enc := c.String("encoding")
+		if enc != "text" && enc != "json" {
+			checkErr("", errors.New("unsupported encoding"))
+		}
+
 		globalClient, err = client.NewClient(cfg)
 		checkErr("creating API client", err)
 		return nil
@@ -495,6 +500,11 @@ func formatResponse(c *cli.Context, resp interface{}, err *api.Error) {
 			jsonFormatPrint(err)
 		default:
 			checkErr("", errors.New("unsupported encoding selected"))
+		}
+		if err.Code == 0 {
+			os.Exit(1) // problem with the call
+		} else {
+			os.Exit(2) // call went fine, response has an error
 		}
 	}
 
