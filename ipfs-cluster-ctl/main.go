@@ -487,22 +487,26 @@ func walkCommands(cmds []cli.Command, parentHelpName string) {
 	}
 }
 
-func formatResponse(c *cli.Context, resp interface{}, err *api.Error) {
+func formatResponse(c *cli.Context, resp interface{}, err error) {
 	enc := c.GlobalString("encoding")
 	if resp == nil && err == nil {
 		return
 	}
 
 	if err != nil {
+		cerr, ok := err.(*api.Error)
+		if !ok {
+			checkErr("casting *api.Error. Original error", err)
+		}
 		switch enc {
 		case "text":
-			textFormatPrintError(err)
+			textFormatPrintError(cerr)
 		case "json":
-			jsonFormatPrint(err)
+			jsonFormatPrint(cerr)
 		default:
 			checkErr("", errors.New("unsupported encoding selected"))
 		}
-		if err.Code == 0 {
+		if cerr.Code == 0 {
 			os.Exit(1) // problem with the call
 		} else {
 			os.Exit(2) // call went fine, response has an error
