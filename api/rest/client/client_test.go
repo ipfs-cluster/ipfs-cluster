@@ -50,6 +50,64 @@ func TestNewClient(t *testing.T) {
 	api.Shutdown()
 }
 
+func TestMultiaddressTakesPreference(t *testing.T) {
+	addr, _ := ma.NewMultiaddr(apiAddr)
+	cfg := &Config{
+		APIAddr:           nil,
+		DisableKeepAlives: true,
+	}
+	c, err := NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.urlPrefix != "http://127.0.0.1:9094" {
+		t.Error("default should be used")
+	}
+
+	cfg = &Config{
+		APIAddr:           addr,
+		Host:              "localhost",
+		Port:              "9094",
+		DisableKeepAlives: true,
+	}
+	c, err = NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.urlPrefix != "http://127.0.0.1:10005" {
+		t.Error("APIAddr should be used")
+	}
+
+	cfg = &Config{
+		APIAddr:           nil,
+		Host:              "localhost",
+		Port:              "9094",
+		DisableKeepAlives: true,
+	}
+	c, err = NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.urlPrefix != "http://localhost:9094" {
+		t.Error("Host Port should be used")
+	}
+
+	addr2, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234")
+	cfg = &Config{
+		APIAddr:           addr2,
+		Host:              "localhost",
+		Port:              "9094",
+		DisableKeepAlives: true,
+	}
+	c, err = NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.urlPrefix != "http://127.0.0.1:1234" {
+		t.Error("bad resolved address")
+	}
+}
+
 func TestVersion(t *testing.T) {
 	c, api := testClient(t)
 	defer api.Shutdown()
