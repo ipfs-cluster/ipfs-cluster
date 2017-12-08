@@ -2,6 +2,19 @@ ratings:
   paths: 
   - "**/*.go"
 
+checks:
+  file-lines:
+    config:
+      threshold: 500
+  method-complexity:
+    config:
+      threshold: 8
+  method-lines:
+    config:
+      threshold: 60
+  similar-code:
+    enabled: false
+  
 engines:
   fixme:
     enabled: true
