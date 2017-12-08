@@ -67,7 +67,7 @@ type Client struct {
 
 // NewClient initializes a client given a Config.
 func NewClient(cfg *Config) (*Client, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	var urlPrefix = ""
 	var tr http.RoundTripper
@@ -120,7 +120,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	return &Client{
 		ctx:       ctx,
-		cancel:    cancel,
+		cancel:    nil,
 		urlPrefix: urlPrefix,
 		transport: tr,
 		config:    cfg,
