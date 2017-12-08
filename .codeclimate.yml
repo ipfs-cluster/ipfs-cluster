@@ -9,6 +9,9 @@ checks:
   method-complexity:
     config:
       threshold: 8
+  method-lines:
+    config:
+      threshold: 60
   similar-code:
     enabled: false
   
