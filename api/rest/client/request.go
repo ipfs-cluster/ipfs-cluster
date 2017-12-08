@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-func (c *Client) do(method, path string, body io.Reader, obj interface{}) *api.Error {
+func (c *Client) do(method, path string, body io.Reader, obj interface{}) error {
 	resp, err := c.doRequest(method, path, body)
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
@@ -37,7 +37,7 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 	return c.client.Do(r)
 }
 
-func (c *Client) handleResponse(resp *http.Response, obj interface{}) *api.Error {
+func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 

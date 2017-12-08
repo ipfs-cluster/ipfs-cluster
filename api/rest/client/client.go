@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
@@ -32,8 +34,14 @@ type Config struct {
 	Username string
 	Password string
 
-	// The ipfs-cluster REST API endpoint
+	// The ipfs-cluster REST API endpoint in multiaddress form
+	// (takes precedence over host:port)
 	APIAddr ma.Multiaddr
+
+	// REST API endpoint host and port. Only valid without
+	// APIAddr
+	Host string
+	Port string
 
 	// Define timeout for network operations
 	Timeout time.Duration
@@ -59,8 +67,9 @@ type Client struct {
 
 // NewClient initializes a client given a Config.
 func NewClient(cfg *Config) (*Client, error) {
-	var urlPrefix = ""
+	ctx := context.Background()
 
+	var urlPrefix = ""
 	var tr http.RoundTripper
 	if cfg.SSL {
 		tr = newTLSTransport(cfg.NoVerifyCert)
@@ -70,13 +79,32 @@ func NewClient(cfg *Config) (*Client, error) {
 		urlPrefix += "http://"
 	}
 
-	if cfg.APIAddr == nil {
+	if cfg.Timeout == 0 {
+		cfg.Timeout = DefaultTimeout
+	}
+
+	// When no host/port/multiaddress defined, we set the default
+	if cfg.APIAddr == nil && cfg.Host == "" && cfg.Port == "" {
 		cfg.APIAddr, _ = ma.NewMultiaddr(DefaultAPIAddr)
 	}
-	_, host, err := manet.DialArgs(cfg.APIAddr)
-	if err != nil {
-		return nil, err
+
+	var host string
+	// APIAddr takes preference. If it exists, it's resolved and dial args
+	// extracted. Otherwise, host port is used.
+	if cfg.APIAddr != nil {
+		// Resolve multiaddress just in case and extract host:port
+		resolveCtx, cancel := context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+		resolved, err := madns.Resolve(resolveCtx, cfg.APIAddr)
+		cfg.APIAddr = resolved[0]
+		_, host, err = manet.DialArgs(cfg.APIAddr)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		host = fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	}
+
 	urlPrefix += host
 
 	if lvl := cfg.LogLevel; lvl != "" {
@@ -85,12 +113,6 @@ func NewClient(cfg *Config) (*Client, error) {
 		logging.SetLogLevel(loggingFacility, DefaultLogLevel)
 	}
 
-	if cfg.Timeout == 0 {
-		cfg.Timeout = DefaultTimeout
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
 	client := &http.Client{
 		Transport: tr,
 		Timeout:   cfg.Timeout,
@@ -98,7 +120,7 @@ func NewClient(cfg *Config) (*Client, error) {
 
 	return &Client{
 		ctx:       ctx,
-		cancel:    cancel,
+		cancel:    nil,
 		urlPrefix: urlPrefix,
 		transport: tr,
 		config:    cfg,

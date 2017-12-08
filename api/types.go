@@ -9,6 +9,7 @@
 package api
 
 import (
+	"fmt"
 	"time"
 
 	cid "github.com/ipfs/go-cid"
@@ -547,6 +548,6 @@ type Error struct {
 }
 
 // Error implements the error interface and returns the error's message.
-func (e Error) Error() string {
-	return e.Message
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s (%d)", e.Message, e.Code)
 }
