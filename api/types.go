@@ -450,11 +450,15 @@ func (pin Pin) ToSerial() PinSerial {
 		c = pin.Cid.String()
 	}
 
+	n := pin.Name
+	allocs := PeersToStrings(pin.Allocations)
+	rpl := pin.ReplicationFactor
+
 	return PinSerial{
 		Cid:               c,
-		Name:              pin.Name,
-		Allocations:       PeersToStrings(pin.Allocations),
-		ReplicationFactor: pin.ReplicationFactor,
+		Name:              n,
+		Allocations:       allocs,
+		ReplicationFactor: rpl,
 	}
 }
 
