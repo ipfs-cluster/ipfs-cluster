@@ -258,27 +258,29 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	}
 	cfg.Secret = clusterSecret
 
-	clusterPeers := make([]ma.Multiaddr, len(jcfg.Peers))
-	for i := 0; i < len(jcfg.Peers); i++ {
-		maddr, err2 := ma.NewMultiaddr(jcfg.Peers[i])
-		if err2 != nil {
-			err = fmt.Errorf("error parsing multiaddress for peer %s: %s",
-				jcfg.Peers[i], err2)
-			return err
+	parseMultiaddrs := func(strs []string) ([]ma.Multiaddr, error) {
+		addrs := make([]ma.Multiaddr, len(strs))
+		for i, p := range strs {
+			maddr, err := ma.NewMultiaddr(p)
+			if err != nil {
+				m := "error parsing multiaddress for peer %s: %s"
+				err = fmt.Errorf(m, p, err)
+				return nil, err
+			}
+			addrs[i] = maddr
 		}
-		clusterPeers[i] = maddr
+		return addrs, nil
+	}
+
+	clusterPeers, err := parseMultiaddrs(jcfg.Peers)
+	if err != nil {
+		return err
 	}
 	cfg.Peers = clusterPeers
 
-	bootstrap := make([]ma.Multiaddr, len(jcfg.Bootstrap))
-	for i := 0; i < len(jcfg.Bootstrap); i++ {
-		maddr, err2 := ma.NewMultiaddr(jcfg.Bootstrap[i])
-		if err2 != nil {
-			err = fmt.Errorf("error parsing multiaddress for peer %s: %s",
-				jcfg.Bootstrap[i], err2)
-			return err
-		}
-		bootstrap[i] = maddr
+	bootstrap, err := parseMultiaddrs(jcfg.Bootstrap)
+	if err != nil {
+		return err
 	}
 	cfg.Bootstrap = bootstrap
 

@@ -9,10 +9,10 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
-func upgrade() error  {
+func upgrade() error {
 	// Load configs
 	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
-	
+
 	// Execution lock
 	err := locker.lock()
 	if err != nil {

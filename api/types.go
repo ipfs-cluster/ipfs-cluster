@@ -12,10 +12,18 @@ import (
 	"time"
 
 	cid "github.com/ipfs/go-cid"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 	ma "github.com/multiformats/go-multiaddr"
+
+	// needed to parse /ws multiaddresses
+	_ "github.com/libp2p/go-ws-transport"
+	// needed to prase /dns* multiaddresses
+	_ "github.com/multiformats/go-multiaddr-dns"
 )
+
+var logger = logging.Logger("apitypes")
 
 // TrackerStatus values
 const (
@@ -121,7 +129,9 @@ type GlobalPinInfoSerial struct {
 // ToSerial converts a GlobalPinInfo to its serializable version.
 func (gpi GlobalPinInfo) ToSerial() GlobalPinInfoSerial {
 	s := GlobalPinInfoSerial{}
-	s.Cid = gpi.Cid.String()
+	if gpi.Cid != nil {
+		s.Cid = gpi.Cid.String()
+	}
 	s.PeerMap = make(map[string]PinInfoSerial)
 	for k, v := range gpi.PeerMap {
 		s.PeerMap[peer.IDB58Encode(k)] = v.ToSerial()
@@ -131,13 +141,19 @@ func (gpi GlobalPinInfo) ToSerial() GlobalPinInfoSerial {
 
 // ToGlobalPinInfo converts a GlobalPinInfoSerial to its native version.
 func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
-	c, _ := cid.Decode(gpis.Cid)
+	c, err := cid.Decode(gpis.Cid)
+	if err != nil {
+		logger.Error(gpis.Cid, err)
+	}
 	gpi := GlobalPinInfo{
 		Cid:     c,
 		PeerMap: make(map[peer.ID]PinInfo),
 	}
 	for k, v := range gpis.PeerMap {
-		p, _ := peer.IDB58Decode(k)
+		p, err := peer.IDB58Decode(k)
+		if err != nil {
+			logger.Error(k, err)
+		}
 		gpi.PeerMap[p] = v.ToPinInfo()
 	}
 	return gpi
@@ -164,9 +180,18 @@ type PinInfoSerial struct {
 
 // ToSerial converts a PinInfo to its serializable version.
 func (pi PinInfo) ToSerial() PinInfoSerial {
+	c := ""
+	if pi.Cid != nil {
+		c = pi.Cid.String()
+	}
+	p := ""
+	if pi.Peer != "" {
+		p = peer.IDB58Encode(pi.Peer)
+	}
+
 	return PinInfoSerial{
-		Cid:    pi.Cid.String(),
-		Peer:   peer.IDB58Encode(pi.Peer),
+		Cid:    c,
+		Peer:   p,
 		Status: pi.Status.String(),
 		TS:     pi.TS.UTC().Format(time.RFC3339),
 		Error:  pi.Error,
@@ -175,9 +200,18 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 
 // ToPinInfo converts a PinInfoSerial to its native version.
 func (pis PinInfoSerial) ToPinInfo() PinInfo {
-	c, _ := cid.Decode(pis.Cid)
-	p, _ := peer.IDB58Decode(pis.Peer)
-	ts, _ := time.Parse(time.RFC3339, pis.TS)
+	c, err := cid.Decode(pis.Cid)
+	if err != nil {
+		logger.Error(pis.Cid, err)
+	}
+	p, err := peer.IDB58Decode(pis.Peer)
+	if err != nil {
+		logger.Error(pis.Peer, err)
+	}
+	ts, err := time.Parse(time.RFC3339, pis.TS)
+	if err != nil {
+		logger.Error(pis.TS, err)
+	}
 	return PinInfo{
 		Cid:    c,
 		Peer:   p,
@@ -208,8 +242,13 @@ type IPFSIDSerial struct {
 
 // ToSerial converts IPFSID to a go serializable object
 func (id *IPFSID) ToSerial() IPFSIDSerial {
+	p := ""
+	if id.ID != "" {
+		p = peer.IDB58Encode(id.ID)
+	}
+
 	return IPFSIDSerial{
-		ID:        peer.IDB58Encode(id.ID),
+		ID:        p,
 		Addresses: MultiaddrsToSerial(id.Addresses),
 		Error:     id.Error,
 	}
@@ -263,16 +302,15 @@ func (id ID) ToSerial() IDSerial {
 	//	pkey, _ = id.PublicKey.Bytes()
 	//}
 
-	peers := make([]string, len(id.ClusterPeers), len(id.ClusterPeers))
-	for i, p := range id.ClusterPeers {
-		peers[i] = peer.IDB58Encode(p)
+	p := ""
+	if id.ID != "" {
+		p = peer.IDB58Encode(id.ID)
 	}
 
 	return IDSerial{
-		ID: peer.IDB58Encode(id.ID),
-		//PublicKey:          pkey,
+		ID:                    p,
 		Addresses:             MultiaddrsToSerial(id.Addresses),
-		ClusterPeers:          peers,
+		ClusterPeers:          PeersToStrings(id.ClusterPeers),
 		ClusterPeersAddresses: MultiaddrsToSerial(id.ClusterPeersAddresses),
 		Version:               id.Version,
 		Commit:                id.Commit,
@@ -280,6 +318,7 @@ func (id ID) ToSerial() IDSerial {
 		Error:                 id.Error,
 		IPFS:                  id.IPFS.ToSerial(),
 		Peername:              id.Peername,
+		//PublicKey:          pkey,
 	}
 }
 
@@ -287,20 +326,18 @@ func (id ID) ToSerial() IDSerial {
 // It will ignore any errors when parsing the fields.
 func (ids IDSerial) ToID() ID {
 	id := ID{}
-	p, _ := peer.IDB58Decode(ids.ID)
+	p, err := peer.IDB58Decode(ids.ID)
+	if err != nil {
+		logger.Error(ids.ID, err)
+	}
 	id.ID = p
 
 	//if pkey, err := crypto.UnmarshalPublicKey(ids.PublicKey); err == nil {
 	//	id.PublicKey = pkey
 	//}
 
-	peers := make([]peer.ID, len(ids.ClusterPeers), len(ids.ClusterPeers))
-	for i, p := range ids.ClusterPeers {
-		peers[i], _ = peer.IDB58Decode(p)
-	}
-
 	id.Addresses = ids.Addresses.ToMultiaddrs()
-	id.ClusterPeers = peers
+	id.ClusterPeers = StringsToPeers(ids.ClusterPeers)
 	id.ClusterPeersAddresses = ids.ClusterPeersAddresses.ToMultiaddrs()
 	id.Version = ids.Version
 	id.Commit = ids.Commit
@@ -319,13 +356,20 @@ type MultiaddrsSerial []MultiaddrSerial
 
 // MultiaddrToSerial converts a Multiaddress to its serializable form
 func MultiaddrToSerial(addr ma.Multiaddr) MultiaddrSerial {
-	return MultiaddrSerial(addr.String())
+	if addr != nil {
+		return MultiaddrSerial(addr.String())
+	}
+	return ""
 }
 
 // ToMultiaddr converts a serializable Multiaddress to its original type.
 // All errors are ignored.
 func (addrS MultiaddrSerial) ToMultiaddr() ma.Multiaddr {
-	a, _ := ma.NewMultiaddr(string(addrS))
+	str := string(addrS)
+	a, err := ma.NewMultiaddr(str)
+	if err != nil {
+		logger.Error(str, err)
+	}
 	return a
 }
 
@@ -334,7 +378,9 @@ func (addrS MultiaddrSerial) ToMultiaddr() ma.Multiaddr {
 func MultiaddrsToSerial(addrs []ma.Multiaddr) MultiaddrsSerial {
 	addrsS := make([]MultiaddrSerial, len(addrs), len(addrs))
 	for i, a := range addrs {
-		addrsS[i] = MultiaddrToSerial(a)
+		if a != nil {
+			addrsS[i] = MultiaddrToSerial(a)
+		}
 	}
 	return addrsS
 }
@@ -346,6 +392,30 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 		addrs[i] = addrS.ToMultiaddr()
 	}
 	return addrs
+}
+
+// PeersToStrings IDB58Encodes a list of peers.
+func PeersToStrings(peers []peer.ID) []string {
+	strs := make([]string, len(peers))
+	for i, p := range peers {
+		if p != "" {
+			strs[i] = peer.IDB58Encode(p)
+		}
+	}
+	return strs
+}
+
+// StringsToPeers decodes peer.IDs from strings.
+func StringsToPeers(strs []string) []peer.ID {
+	peers := make([]peer.ID, len(strs))
+	for i, p := range strs {
+		var err error
+		peers[i], err = peer.IDB58Decode(p)
+		if err != nil {
+			logger.Error(p, err)
+		}
+	}
+	return peers
 }
 
 // Pin is an argument that carries a Cid. It may carry more things in the
@@ -375,27 +445,28 @@ type PinSerial struct {
 
 // ToSerial converts a Pin to PinSerial.
 func (pin Pin) ToSerial() PinSerial {
-	lenAllocs := len(pin.Allocations)
-	allocs := make([]string, lenAllocs, lenAllocs)
-	for i, p := range pin.Allocations {
-		allocs[i] = peer.IDB58Encode(p)
+	c := ""
+	if pin.Cid != nil {
+		c = pin.Cid.String()
 	}
 
+	n := pin.Name
+	allocs := PeersToStrings(pin.Allocations)
+	rpl := pin.ReplicationFactor
+
 	return PinSerial{
-		Cid:               pin.Cid.String(),
-		Name:              pin.Name,
+		Cid:               c,
+		Name:              n,
 		Allocations:       allocs,
-		ReplicationFactor: pin.ReplicationFactor,
+		ReplicationFactor: rpl,
 	}
 }
 
 // ToPin converts a PinSerial to its native form.
 func (pins PinSerial) ToPin() Pin {
-	c, _ := cid.Decode(pins.Cid)
-	lenAllocs := len(pins.Allocations)
-	allocs := make([]peer.ID, lenAllocs, lenAllocs)
-	for i, p := range pins.Allocations {
-		allocs[i], _ = peer.IDB58Decode(p)
+	c, err := cid.Decode(pins.Cid)
+	if err != nil {
+		logger.Error(pins.Cid, err)
 	}
 
 	// legacy format management
@@ -406,7 +477,7 @@ func (pins PinSerial) ToPin() Pin {
 	return Pin{
 		Cid:               c,
 		Name:              pins.Name,
-		Allocations:       allocs,
+		Allocations:       StringsToPeers(pins.Allocations),
 		ReplicationFactor: pins.ReplicationFactor,
 	}
 }
