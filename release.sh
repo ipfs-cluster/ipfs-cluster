@@ -9,6 +9,7 @@ if [ -z $version ]; then
    exit 1  
 fi
 
+make gx-clean
 sed -i "s/const Version.*$/const Version = \"$version\"/" version.go
 sed -i "s/const Version.*$/const Version = \"$version\"/" ipfs-cluster-ctl/main.go
 git commit -S -a -m "Release $version"

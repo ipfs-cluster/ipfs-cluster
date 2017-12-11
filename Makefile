@@ -20,6 +20,9 @@ clean: rwundo clean_sharness
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
 
+gx-clean: clean
+	@rm -f $(deptools)/*
+
 install: deps
 	$(MAKE) -C ipfs-cluster-service install
 	$(MAKE) -C ipfs-cluster-ctl install
@@ -91,4 +94,4 @@ rwundo: gx
 	$(gx-go_bin) rewrite --undo
 publish: rwundo
 	$(gx_bin) publish
-.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean
+.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean
