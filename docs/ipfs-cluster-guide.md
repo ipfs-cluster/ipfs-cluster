@@ -1,6 +1,6 @@
 # A guide to running ipfs-cluster
 
-Revised for version `0.3.0`.
+Revised for version `0.3.1`.
 
 ## Index
 
@@ -334,13 +334,27 @@ ipfs-cluster peers communicate with each other using libp2p-encrypted streams (`
 
 ## Upgrading
 
-The safest way to upgrade ipfs-cluster is to stop all cluster peers, update and restart them.
+ipfs-cluster persists the shared state to disk. Therefore, any upgrade must make sure that the old format in disk is compatible in order to parse correctly. If not, a message will be printed and instructions on how to ugprade will be displayed. We offer here a few more details.
 
-As long as the *shared state* format has not changed, there is nothing preventing from stopping cluster peers separately, updating and launching them.
+### The state format has not changed
 
-When the shared state format has changed, a state migration will be required. ipfs-cluster will refuse to start and inform the user in this case.  Currently state migrations are supported in one direction, from old state formats to the format used by the updated ipfs-cluster-service.  This is accomplished by stopping the ipfs-cluster-service daemon and running `ipfs-cluster-service state upgrade`.  Note that due to changes in state serialization introduced while implementing state migrations ipfs-cluster shared state saved before December 2017 can not be migrated with this method.
+In this case, upgrading cluster requires stopping all cluster peers, updating the `ipfs-cluster-service` binary and restarting them.
 
-The upgrading procedures is something which is actively worked on and will improve over time.
+When the version numbers change, peers running different versions will not be able to communicate as the libp2p protocol that they use is tagged with the version. If you are running untagged releases (like directly from master), then you should be able to run peers built from different commits as long as they share the same `x.x.x` version number. Version numbers are only updated when an official release happens.
+
+### The state format has changed
+
+In this case, we need to perform a state upgrade.  `ipfs-cluster-service` should refuse to start if the state format is uncompatible with the new release. This procedure is a bit experimental so we recommend saving the list of your pinset (`ipfs-cluster-ctl --enc=json pin ls`) before attempting it.
+
+In order to perform the upgrade, you need to stop all peers. You can also remove/rename the `ipfs-cluster-data` in all peers except one. You will have to perform the upgrade procedure or perform the upgrade procedure in all of them.
+
+To update the state format, run `ipfs-cluster-service state upgrade`. This:
+
+* Reads the last Raft snapshot
+* Migrates to the new format
+* Deletes all previous snapshots and saves a new one in the new format.
+
+On the next run, `ipfs-cluster-service` should start normally. Any peers with a blank state should pick it up from the migrated ones as the Raft Leader sends the new snapshot to them.
 
 
 ## Troubleshooting and getting help
