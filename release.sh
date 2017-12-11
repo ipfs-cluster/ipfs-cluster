@@ -17,4 +17,5 @@ echo "Tag for Release ${version}" > tag_annotation
 echo >> tag_annotation
 git log --pretty=oneline ${lastver}..HEAD >> tag_annotation
 git tag -a -s -F tag_annotation v$version
+rm tag_annotation
 gx release $version 
