@@ -1,5 +1,24 @@
 # IPFS Cluster - Roadmap
 
+## Q4 2017
+
+The Q4 roadmap has been crystalized in the [ipfs-cluster OKRs](https://docs.google.com/spreadsheets/d/1rLxvRfdYohv-dhzVAo1xfeJOUa7uGfq6N_yyKw0iRw0/edit?usp=sharing). They can be summarized as:
+
+* Making cluster production grade
+  * Run a live deployment of ipfs-cluster
+  * Integrate it with pin-bot
+  * Run kubernetes tests in a real kubernetes cluster
+
+* Start looking into big datasets
+  * Design a strategy to handle "big files"
+  * Look into ipld/ipfs-pack
+
+* Support users
+  * Give prompt feedback
+  * Fix all bugs
+  * Improve documentation
+  * Make releases
+
 ## Q3 2017
 
 Since Q1 ipfs-cluster has made some progress with a strong effort in reaching a minimal feature set that allows to use it in production settings along with lots of focus on testing. The summary of what has been achieved can be seen in the [Captain's Log](CAPTAIN.log.md).
