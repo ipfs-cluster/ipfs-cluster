@@ -58,7 +58,7 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 
 	baseOp := &LogOp{}
 
-	logger.Infof("starting Consensus and waiting for a leader...")
+	logger.Debug("starting Consensus and waiting for a leader...")
 	consensus := libp2praft.NewOpLog(state, baseOp)
 	raft, err := newRaftWrapper(clusterPeers, host, cfg, consensus.FSM())
 	if err != nil {
@@ -113,7 +113,7 @@ func (cc *Consensus) finishBootstrap() {
 	if err != nil {
 		return
 	}
-	logger.Info("Consensus state is up to date")
+	logger.Debug("Raft state is now up to date")
 
 	// While rpc is not ready we cannot perform a sync
 	if cc.rpcClient == nil {
