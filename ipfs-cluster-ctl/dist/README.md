@@ -28,6 +28,14 @@ $ ipfs-cluster-ctl sync Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58      # re
 $ ipfs-cluster-ctl recover Qma4Lid2T1F68E3Xa3CpE6vVJDLwxXLD8RfiB9g1Tmqp58   # attempt to re-pin/unpin CIDs in error state
 ```
 
+#### Exit codes
+
+`ipfs-cluster-ctl` will exit with:
+
+* `0`: the request/operation succeeded. The output contains the response data.
+* `1`: argument error, network error or any other error which prevented the application to perform a request and obtain a response from the ipfs-cluster API. In such case, the output contains the contents of the error and the http code `0`.
+* `2`: ipfs-cluster error. The request was performed correctly but the response is an error (http status 4xx or 5xx). In such case, the output contains the contents of the error and the HTTP code associated to it.
+
 ### Debugging
 
 `ipfs-cluster-ctl` takes a `--debug` flag which allows to inspect request paths and raw response bodies.
