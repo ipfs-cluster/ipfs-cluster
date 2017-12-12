@@ -352,7 +352,7 @@ To update the state format, run `ipfs-cluster-service state upgrade`. This:
 
 * Reads the last Raft snapshot
 * Migrates to the new format
-* Deletes all previous snapshots and saves a new one in the new format.
+* Backups the `ipfs-cluster-data` folder and creates a new snapshot in the new format.
 
 On the next run, `ipfs-cluster-service` should start normally. Any peers with a blank state should pick it up from the migrated ones as the Raft Leader sends the new snapshot to them.
 
