@@ -52,7 +52,7 @@ using LibP2P. This is a simplified view of the components:
              | ipfs-cluster-ctl |
              +---------+--------+
                        |
-                       | HTTP
+                       | HTTP(s)
 ipfs-cluster-service   |                           HTTP
 +----------+--------+--v--+----------------------+      +-------------+
 | RPC/Raft | Peer 1 | API | IPFS Connector/Proxy +------> IPFS daemon |
@@ -266,6 +266,14 @@ removal, upgrade state using this command, and restart every peer.
 				},
 			},
 		},
+		{
+			Name:  "version",
+			Usage: "Print the ipfs-cluster version",
+			Action: func(c *cli.Context) error {
+				fmt.Printf("%s-%s\n", ipfscluster.Version, ipfscluster.Commit[0:8])
+				return nil
+			},
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
@@ -300,6 +308,8 @@ func run(c *cli.Context) error {
 }
 
 func daemon(c *cli.Context) error {
+	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
+
 	// Load all the configurations
 	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
 	// Execution lock

@@ -86,7 +86,7 @@ func NewCluster(
 		return nil, err
 	}
 
-	logger.Infof("IPFS Cluster v%s listening on:", Version)
+	logger.Infof("IPFS Cluster v%s-%s listening on:", Version, Commit[0:8])
 	for _, addr := range host.Addrs() {
 		logger.Infof("        %s/ipfs/%s", addr, host.ID().Pretty())
 	}
@@ -450,7 +450,7 @@ func (c *Cluster) ready() {
 	}
 	close(c.readyCh)
 	c.readyB = true
-	logger.Info("IPFS Cluster is ready")
+	logger.Info("** IPFS Cluster is READY **")
 }
 
 func (c *Cluster) bootstrap() bool {

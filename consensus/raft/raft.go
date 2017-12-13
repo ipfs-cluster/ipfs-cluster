@@ -108,7 +108,7 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 		return nil, err
 	}
 	if !hasState {
-		logger.Info("bootstrapping raft cluster")
+		logger.Info("initializing raft cluster")
 		err := hraft.BootstrapCluster(cfg.RaftConfig,
 			log, stable, snap, transport, srvCfg)
 		if err != nil {
@@ -116,7 +116,7 @@ func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM)
 			return nil, err
 		}
 	} else {
-		logger.Info("raft cluster is already bootstrapped")
+		logger.Debug("raft cluster is already initialized")
 	}
 
 	logger.Debug("creating Raft")
@@ -261,7 +261,7 @@ func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 		case <-ticker.C:
 			if l := rw.raft.Leader(); l != "" {
 				logger.Debug("waitForleaderTimer")
-				logger.Infof("Raft Leader elected: %s", l)
+				logger.Infof("Current Raft Leader: %s", l)
 				ticker.Stop()
 				return string(l), nil
 			}
@@ -273,7 +273,7 @@ func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 
 // WaitForUpdates holds until Raft has synced to the last index in the log
 func (rw *raftWrapper) WaitForUpdates(ctx context.Context) error {
-	logger.Info("Raft state is catching up")
+	logger.Debug("Raft state is catching up to the latest known version. Please wait...")
 	for {
 		select {
 		case <-ctx.Done():
