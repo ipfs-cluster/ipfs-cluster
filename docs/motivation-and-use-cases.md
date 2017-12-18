@@ -28,6 +28,28 @@ Thoughts: Perhaps cluster should support a way to allow for automatically pinnin
 
 ## Pinning Rings (first reported here https://github.com/ipfs/ipfs-cluster/issues/7)
 
+Actors:
+	users in an existing pinning ring
+	users interested in joining / leaving the pinning ring
+	a ring administrator (potentially multiple, potentially 0)
+
+Description: A collection of users interested in collaboratively storing a collection of data together make up an ipfs-cluster pinning ring by storing data on ipfs and adding each other as cluster peers.  When existing users want to add content, they simply add it to their ipfs nodes and pin with an appropriate replication strategy depending on the pinning ring's setup and the content being pinned.  Pinning rings that are short on storage may choose not to replicate, pinning rings looking for robustness may use high replication factors or fault tolerance strategies (see PR #268).
+
+The barrier for entry/exit is low, any user with an ipfs node and free space is welcome to join pinning rings.  When a new user wishes to enter, they provide a peer ID and multiaddr to either a ring administrator (or perhaps any participant) add the new peer to the cluster.  It is also possible that the pinning ring will allow the peer to add itself to the cluster.  The new peer then autodiscovers the rest of the ring's peers, joins the consensus and now this node provides storage to the cluster.  Similarly peers can leave the pinning ring without much warning.  Perhaps within cluster or perhaps out of band peers about to disconnect could signal this so that their pins are not totally dropped from the cluster.  Lots of storage and aggressive replication could be used to remove the fallout of sudden disconnections.
+
+While peers within a pinning ring are allowed the priveleges of a cluster peer such as the power to add and remove peers, unpin content across the cluster, and change replication factors, any cluster peer can audit the operations taking place by looking at the log maintained by consensus.  In the event a peer consistently misbehaves pinning rings may potentially wish to take action by somehow restricting this peer's access.  On a somewhat similar note pinning rings may also wish to grant "observe only" access to the cluster.
+
+Implied ipfs-cluster requirements:
+- support for dynamic cluster membership (exists today but potentially some bugs with lots of churn)
+- some kind of trust modeling support, potentially including associating permissions to operations and assigning permissions to peers.  Could make use of the proposed [capabilities service](https://github.com/ipfs/notes/issues/274).
+- support for byzantine consensus protocols sounds relevant
+- support for updating many uncoordinated nodes
+
+Thoughts:
+This is a particularly intersting use case as it requires more significantly new and unexplored functionality from cluster than any of the others here.  As @hsanjuan mentioned in his original write up "The key here is to understand what the trust model is in a pinning ring, how members gain and lose trust, and who can take what actions".  On a similar note a byzantine consensus protocol may greatly help keep the ring working smoothly even when some peers misbehave.  This use case also presents challenges regarding how to get nodes to update when they are managed by different individuals.  The current approach to updating requires all nodes to be shut down at the same tiem which may be unrealistic here.
+
+This would be a "dynamic" cluster with lots of peer membership churn.  ipfs-cluster will need to thoroughly work out any issues with peer membership changes for this to work well.  Additionally peer set churn makes things like fault tolerant sharding with potentially expensive data recovery algorithms hard to support as recovery might be run frequently.  My guess is that pinning with high replication factors will be better for this use case.
+
 
 ## Big ipfs node for ubuntu archive seeding (reported here https://discuss.ipfs.io/t/ubuntu-archive-on-top-of-ipfs/1579)
 
