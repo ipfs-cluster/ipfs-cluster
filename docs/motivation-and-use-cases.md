@@ -3,8 +3,32 @@
 These are some WIP ipfs-cluster use case sketches.  These are not formal use cases and are more accurately groups of related use cases; they could be further decomposed into the more narrowly scoped operations found in formal use cases.
 
 ## ipfs node mirror
+Actors:
+	ipfs user
 
-## Blockchain storage
+Description: An ipfs user with multiple machines wants to run their ipfs node with better replication or availability guarantees.  The user creates an ipfs cluster across machines.  Adding content to ipfs automatically triggers a pin in the cluster according to some predetermined replication strategy.  The user advertises multiaddresses from all the ipfs daemons as multiaddresses of the ipfs node mirror.
+
+Thoughts: This use case, like others, requires some mechanism for automatic pinning upon adding to ipfs.  Depending on the adding mechanism this might be straightforward functionality to add to cluster, for example cluster's ipfs proxy add endpoint will probably eventually do this by default.  However in some cases, such as if each machine writes to ipfs over the fuse interface, this would be more difficult.  A mirrored node could potentially advertise itself as an ipfs node and advertise the cluster ipfs proxy endpoint addresses as its multiaddresses.
+
+## Storing blockchain data
+
+Note this is a bit broader than other sketches.  It should eventually split into multiple use cases
+
+Description: A party or collection of trusted parties interested in storing a blockchain create an ipfs cluster for their particular storage needs.
+
+As one example consider a mining operation that needs access to a transaction given its hash to properly validate transactions.  Furthermore imagine the set of transactions is too large to fit on any of the mining organization's machines.  The mining organization uses an ipfs cluster to pin all of the blockchain's transactions once they are accepted into the network's history with a sufficient guarantee (e.g. wait 10 blocks before pinning).  Later on when transactions are needed for validation they are guaranteed to be available over ipfs on some of the cluster's nodes.  If fault tolerance is important the blockchain could be stored with replication that improves the odds of recovery in the face of machine failures.
+
+As another example consider a website operating as a [blockchain explorer](https://blockexplorer.com/).  Such sites act as an interface to a blockchain's data.  This site could maintain a cache of blockchain data using an ipfs cluster.  When a new hash is requested for view, the site's servers can go to the blockchain's network for the data.  After being requested, the data and hash could be stored in an ipfs cluster serving as a cache for the data.  On additional requests for this data the website's servers could go to the cluster for quicker fetching.
+
+As a last example imagine a cluster serving as a working area for searching for potentially large queries over blockchains.  For example say you want to look for all transactions that spend from unspent transactions from block X.  You could use ipld selectors to query and pin such selectors in a cluster to potentially store large amounts of data.
+
+Thoughts: to seriously support storing data for miners we would need to examine ipfs-cluster's latency more seriously as mining operations have latency requirements.  The above description does not specify how to prevent the set of pinned cids from ballooning quickly.  This use case would require some kind of sharding of the transaction set in a way that does not track every transactions pin in the cluster shared state.  Because new transactions would be added all the time this is not a simple application of basic sharding, which does one import of a huge file into shards.  ipfs-cluster could address this with a strategy for incrementally updating shard membership.  The state blow-up could also be mitigated if the cluster recursively pinned larger dags, i.e. the hash of every X blocks.  The security of go-ipfs would need to be vetted more thoroughly so that users could trust that hash lookups securely resolve to the correct data.
+
+For the second example you could also imagine a block explorer storing the entire data of the network in an ipfs cluster.  You could imagine that the block explorer is a dApp with users running ipfs and caching data and the ipfs-cluster acts as a permanent store for slower lookups.  If this becomes a serious use case we should actually investigate pain points that currently exist for block explorer websites to get a better picture of how cluster would fit in.
+
+
+
+
 
 ## ipfs CDN for dApp data
 
