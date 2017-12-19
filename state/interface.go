@@ -23,10 +23,8 @@ type State interface {
 	Has(*cid.Cid) bool
 	// Get returns the information attacthed to this pin
 	Get(*cid.Cid) api.Pin
-	// Snapshot writes a snapshot of the state to a writer
-	Snapshot(w io.Writer) error
-	// Restore restores an outdated state to the current version
-	Restore(r io.Reader) error
+	// Migrate restores the serialized format of an outdated state to the current version
+	Migrate(r io.Reader) error
 	// Return the version of this state
 	GetVersion() int
 	// Marshal serializes the state to a byte slice

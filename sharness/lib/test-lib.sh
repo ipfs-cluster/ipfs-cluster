@@ -7,7 +7,7 @@ SHARNESS_LIB="lib/sharness/sharness.sh"
 
 # Daemons output will be redirected to...
 IPFS_OUTPUT="/dev/null"
-# IPFS_OUTPUT="/dev/stderr" # uncomment for debugging
+#IPFS_OUTPUT="/dev/stderr" # uncomment for debugging
 
 . "$SHARNESS_LIB" || {
     echo >&2 "Cannot source: $SHARNESS_LIB"
@@ -95,6 +95,14 @@ test_confirm_v1State() {
 	export V1_CRC=$(cat ../test_data/v1Crc)
 	cp $V1_SNAP_PATH v1State
 	test_set_prereq V1STATE
+    fi
+}
+
+test_confirm_importState() {
+    IMP_STATE_PATH="../test_data/importState"
+    if [ -f $IMP_STATE_PATH ]; then
+	cp $IMP_STATE_PATH importState
+	test_set_prereq IMPORTSTATE
     fi
 }
 

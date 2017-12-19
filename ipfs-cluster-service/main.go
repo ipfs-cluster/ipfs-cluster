@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"os/user"
@@ -251,7 +252,6 @@ configuration.
 					Name:  "upgrade",
 					Usage: "upgrade the IPFS Cluster state to the current version",
 					Description: `
-
 This command upgrades the internal state of the ipfs-cluster node 
 specified in the latest raft snapshot. The state format is migrated from the 
 version of the snapshot to the version supported by the current cluster version. 
@@ -259,9 +259,121 @@ To successfully run an upgrade of an entire cluster, shut down each peer without
 removal, upgrade state using this command, and restart every peer.
 `,
 					Action: func(c *cli.Context) error {
-						err := upgrade()
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						err = upgrade()
 						checkErr("upgrading state", err)
-						return err
+						return nil
+					},
+				},
+				{
+					Name:  "export",
+					Usage: "save the IPFS Cluster state to a json file",
+					Description: `
+This command reads the current cluster state and saves it as json for 
+human readability and editing.  Only state formats compatible with this
+version of ipfs-cluster-service can be exported.  By default this command
+prints the state to stdout.
+`,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "file, f",
+							Value: "",
+							Usage: "sets an output file for exported state",
+						},
+					},
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						var w io.WriteCloser
+						outputPath := c.String("file")
+						if outputPath == "" {
+							// Output to stdout
+							w = os.Stdout
+						} else {
+							// Create the export file
+							w, err = os.Create(outputPath)
+							checkErr("creating output file", err)
+						}
+						defer w.Close()
+
+						err = export(w)
+						checkErr("exporting state", err)
+						return nil
+					},
+				},
+				{
+					Name:  "import",
+					Usage: "load an IPFS Cluster state from an exported state file",
+					Description: `
+This command reads in an exported state file storing the state as a persistent
+snapshot to be loaded as the cluster state when the cluster peer is restarted.
+If an argument is provided, cluster will treat it as the path of the file to
+import.  If no argument is provided cluster will read json from stdin
+`,
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						if !c.GlobalBool("force") {
+							if !yesNoPrompt("The peer's state will be replaced.  Run with -h for details.  Continue? [y/n]:") {
+								return nil
+							}
+						}
+
+						// Get the importing file path
+						importFile := c.Args().First()
+						var r io.ReadCloser
+						if importFile == "" {
+							r = os.Stdin
+							logger.Info("Reading from stdin, Ctrl-D to finish")
+						} else {
+							r, err = os.Open(importFile)
+							checkErr("reading import file", err)
+						}
+						defer r.Close()
+						err = stateImport(r)
+						checkErr("importing state", err)
+						logger.Info("the given state has been correctly imported to this peer.  Make sure all peers have consistent states")
+						return nil
+					},
+				},
+				{
+					Name:  "cleanup",
+					Usage: "cleanup persistent consensus state so cluster can start afresh",
+					Description: `
+This command removes the persistent state that is loaded on startup to determine this peer's view of the
+cluster state.  While it removes the existing state from the load path, one invocation does not permanently remove
+this state from disk.  This command renames cluster's data folder to <data-folder-name>.old.0, and rotates other
+deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
+the mth data folder (m currently defaults to 5)
+`,
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						if !c.GlobalBool("force") {
+							if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+								return nil
+							}
+						}
+
+						cfg, _, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+						err = cfg.LoadJSONFromFile(configPath)
+						checkErr("initializing configs", err)
+
+						dataFolder := filepath.Join(consensusCfg.BaseDir, raft.DefaultDataSubFolder)
+						err = raft.CleanupRaft(dataFolder)
+						checkErr("Cleaning up consensus data", err)
+						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", dataFolder)
+
+						return nil
 					},
 				},
 			},
@@ -474,6 +586,25 @@ func promptUser(msg string) string {
 	fmt.Print(msg)
 	scanner.Scan()
 	return scanner.Text()
+}
+
+// Lifted from go-ipfs/cmd/ipfs/daemon.go
+func yesNoPrompt(prompt string) bool {
+	var s string
+	for i := 0; i < 3; i++ {
+		fmt.Printf("%s ", prompt)
+		fmt.Scanf("%s", &s)
+		switch s {
+		case "y", "Y":
+			return true
+		case "n", "N":
+			return false
+		case "":
+			return false
+		}
+		fmt.Println("Please press either 'y' or 'n'")
+	}
+	return false
 }
 
 func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config) {

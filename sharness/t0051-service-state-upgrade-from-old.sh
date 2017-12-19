@@ -1,7 +1,6 @@
 #!/bin/bash
 
 test_description="Test service state upgrade v1 -> v2 and v2 -> v2"
-IPFS_OUTPUT="/dev/stderr" # change for debugging
 
 . lib/test-lib.sh
 
