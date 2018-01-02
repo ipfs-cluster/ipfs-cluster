@@ -277,7 +277,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error while taking snapshot", err)
 	}
-	err = snapState.Restore(r)
+	err = snapState.Migrate(r)
 	if err != nil {
 		t.Fatal("Snapshot bytes returned could not restore to state")
 	}

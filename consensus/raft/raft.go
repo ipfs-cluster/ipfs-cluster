@@ -502,7 +502,7 @@ func SnapshotSave(cfg *Config, newState state.State, pid peer.ID) error {
 		raftIndex = meta.Index
 		raftTerm = meta.Term
 		srvCfg = meta.Configuration
-		cleanupRaft(dataFolder)
+		CleanupRaft(dataFolder)
 	} else {
 		raftIndex = uint64(1)
 		raftTerm = uint64(1)
@@ -532,7 +532,8 @@ func SnapshotSave(cfg *Config, newState state.State, pid peer.ID) error {
 	return nil
 }
 
-func cleanupRaft(dataFolder string) error {
+// CleanupRaft moves the current data folder to a backup location
+func CleanupRaft(dataFolder string) error {
 	dbh := newDataBackupHelper(dataFolder)
 	err := dbh.makeBackup()
 	if err != nil {
@@ -545,7 +546,7 @@ func cleanupRaft(dataFolder string) error {
 
 // only call when Raft is shutdown
 func (rw *raftWrapper) Clean() error {
-	return cleanupRaft(rw.dataFolder)
+	return CleanupRaft(rw.dataFolder)
 }
 
 func find(s []string, elem string) bool {

@@ -118,7 +118,7 @@ func TestMigrateFromV1(t *testing.T) {
 	}
 	// Migrate state to current version
 	r := bytes.NewBuffer(v1Bytes)
-	err = ms.Restore(r)
+	err = ms.Migrate(r)
 	if err != nil {
 		t.Error(err)
 	}

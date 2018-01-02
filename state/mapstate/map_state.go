@@ -4,7 +4,6 @@ package mapstate
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -87,19 +86,9 @@ func (st *MapState) List() []api.Pin {
 	return cids
 }
 
-// Snapshot dumps the MapState to the given writer, in pretty json
-// format.
-func (st *MapState) Snapshot(w io.Writer) error {
-	st.pinMux.RLock()
-	defer st.pinMux.RUnlock()
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "    ")
-	return enc.Encode(st)
-}
-
-// Restore restores a snapshot from the state's internal bytes. It should
-// migrate the format if it is not compatible with the current version.
-func (st *MapState) Restore(r io.Reader) error {
+// Migrate restores a snapshot from the state's internal bytes and if
+// necessary migrates the format to the current version.
+func (st *MapState) Migrate(r io.Reader) error {
 	bs, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
