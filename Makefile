@@ -97,12 +97,12 @@ publish: rwundo
 
 docker:
 	@docker build -t cluster-image -f Dockerfile .
-	@docker run --name tmp-make-cluster -d cluster-image && sleep 2
+	@docker run --name tmp-make-cluster -d cluster-image && sleep 30
 	@docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
 	@docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
 	@docker stop tmp-make-cluster && docker rm tmp-make-cluster
 	@docker build -t cluster-image -f Dockerfile-test .
-	@docker run --name tmp-make-cluster -d cluster-image && sleep 2
+	@docker run --name tmp-make-cluster -d cluster-image && sleep 30
 	@docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
 	@docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
 	@docker stop tmp-make-cluster && docker rm tmp-make-cluster
