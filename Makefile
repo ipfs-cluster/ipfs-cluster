@@ -94,4 +94,17 @@ rwundo: gx
 	$(gx-go_bin) rewrite --undo
 publish: rwundo
 	$(gx_bin) publish
-.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean
+
+docker:
+	@docker build -t cluster-image -f Dockerfile .
+	@docker run --name tmp-make-cluster -d cluster-image && sleep 2
+	@docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
+	@docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
+	@docker stop tmp-make-cluster && docker rm tmp-make-cluster
+	@docker build -t cluster-image -f Dockerfile-test .
+	@docker run --name tmp-make-cluster -d cluster-image && sleep 2
+	@docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
+	@docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
+	@docker stop tmp-make-cluster && docker rm tmp-make-cluster
+
+.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
