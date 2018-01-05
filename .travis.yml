@@ -13,6 +13,7 @@ install:
 - go get github.com/golang/lint/golint
 - make deps
 script:
+- make docker
 - make check
 - make service && make ctl && ./coverage.sh
 - make install
