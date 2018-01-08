@@ -125,7 +125,7 @@ func (st *MapState) Marshal() ([]byte, error) {
 	vCodec := make([]byte, 1)
 	vCodec[0] = byte(st.Version)
 	ret := append(vCodec, buf.Bytes()...)
-	logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
+	// logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
 	return ret, nil
 }
 
@@ -136,7 +136,7 @@ func (st *MapState) Marshal() ([]byte, error) {
 // version is not an error
 func (st *MapState) Unmarshal(bs []byte) error {
 	// Check version byte
-	logger.Debugf("The incoming bytes to unmarshal: %x", bs)
+	// logger.Debugf("The incoming bytes to unmarshal: %x", bs)
 	v := int(bs[0])
 	logger.Debugf("The interpreted version: %d", v)
 	if v != Version { // snapshot is out of date

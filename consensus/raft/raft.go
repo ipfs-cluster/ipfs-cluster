@@ -40,6 +40,13 @@ var RaftLogCacheSize = 512
 // This is used below because raft Observers panic on 32-bit.
 const sixtyfour = uint64(^uint(0)) == ^uint64(0)
 
+// How long we wait for updates during shutdown before snapshotting
+var waitForUpdatesShutdownTimeout = 5 * time.Second
+var waitForUpdatesInterval = 100 * time.Millisecond
+
+// How many times to retry snapshotting when shutting down
+var maxShutdownSnapshotRetries = 5
+
 // raftWrapper performs all Raft-specific operations which are needed by
 // Cluster but are not fulfilled by the consensus interface. It should contain
 // most of the Raft-related stuff so it can be easily replaced in the future,
@@ -286,7 +293,7 @@ func (rw *raftWrapper) WaitForUpdates(ctx context.Context) error {
 			if lai == li {
 				return nil
 			}
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(waitForUpdatesInterval)
 		}
 	}
 }
@@ -333,13 +340,52 @@ func (rw *raftWrapper) Snapshot() error {
 	return nil
 }
 
+// snapshotOnShutdown attempts to take a snapshot before a shutdown.
+// Snapshotting might fail if the raft applied index is not the last index.
+// This waits for the updates and tries to take a snapshot when the
+// applied index is up to date.
+// It will retry if the snapshot still fails, in case more updates have arrived.
+// If waiting for updates times-out, it will not try anymore, since something
+// is wrong. This is a best-effort solution as there is no way to tell Raft
+// to stop processing entries because we want to take a snapshot before
+// shutting down.
+func (rw *raftWrapper) snapshotOnShutdown() error {
+	var err error
+	for i := 0; i < maxShutdownSnapshotRetries; i++ {
+		done := false
+		ctx, cancel := context.WithTimeout(context.Background(), waitForUpdatesShutdownTimeout)
+		err := rw.WaitForUpdates(ctx)
+		cancel()
+		if err != nil {
+			logger.Warning("timed out waiting for state updates before shutdown. Snapshotting may fail")
+			done = true // let's not wait for updates again
+		}
+
+		err = rw.Snapshot()
+		if err != nil {
+			err = errors.New("could not snapshot raft: " + err.Error())
+		} else {
+			err = nil
+			done = true
+		}
+
+		if done {
+			break
+		}
+		logger.Warningf("retrying to snapshot (%d/%d)...", i+1, maxShutdownSnapshotRetries)
+	}
+	return err
+}
+
 // Shutdown shutdown Raft and closes the BoltDB.
 func (rw *raftWrapper) Shutdown() error {
 	errMsgs := ""
-	err := rw.Snapshot()
+
+	err := rw.snapshotOnShutdown()
 	if err != nil {
-		errMsgs += "could not snapshot raft: " + err.Error() + ".\n"
+		errMsgs += err.Error() + ".\n"
 	}
+
 	future := rw.raft.Shutdown()
 	err = future.Error()
 	if err != nil {

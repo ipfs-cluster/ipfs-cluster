@@ -379,23 +379,28 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := parseCidOrError(w, r); ps.Cid != "" {
+		logger.Debugf("rest api pinHandler: %s", ps.Cid)
+
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"Pin",
 			ps,
 			&struct{}{})
 		sendAcceptedResponse(w, err)
+		logger.Debug("rest api pinHandler done")
 	}
 }
 
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := parseCidOrError(w, r); ps.Cid != "" {
+		logger.Debugf("rest api unpinHandler: %s", ps.Cid)
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"Unpin",
 			ps,
 			&struct{}{})
 		sendAcceptedResponse(w, err)
+		logger.Debug("rest api unpinHandler done")
 	}
 }
 
