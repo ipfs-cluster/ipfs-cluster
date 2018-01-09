@@ -5,9 +5,7 @@ test_description="Test service state export"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
-cleanup test_clean_cluster
 
 
 test_expect_success IPFS,CLUSTER "state export fails without snapshots" '
@@ -27,5 +25,8 @@ test_expect_success IPFS,CLUSTER,JQ "state export saves the correct state to exp
     [ -f export.json ] &&
     jq ".[].cid" export.json | grep -q "$cid"
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done

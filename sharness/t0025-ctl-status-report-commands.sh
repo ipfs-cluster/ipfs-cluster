@@ -5,9 +5,7 @@ test_description="Test ctl's status reporting functionality.  Test errors on inc
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
-cleanup test_clean_cluster
 
 test_expect_success IPFS,CLUSTER,JQ "cluster-ctl can read id" '
     id=`cluster_id`
@@ -58,5 +56,8 @@ test_expect_success IPFS,CLUSTER "pin ls succeeds" '
 test_expect_success IPFS,CLUSTER "pin ls on invalid CID fails" '
     test_must_fail ipfs-cluster-ctl pin ls XXXinvalid-CIDXXX
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done

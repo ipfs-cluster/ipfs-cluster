@@ -5,10 +5,8 @@ test_description="Test service state upgrade v1 -> v2 and v2 -> v2"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
 test_confirm_v1State
-cleanup test_clean_cluster
 
 # Make a pin and shutdown to force a snapshot. Modify snapshot files to specify
 # a snapshot of v1 state pinning "test" (it's easier than taking a new one each
@@ -29,5 +27,9 @@ test_expect_success IPFS,CLUSTER,V1STATE,JQ "cluster-service loads v1 state corr
      ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid" &&
      ipfs-cluster-ctl status "$cid" | grep -q -i "PINNED"
 '
+
+test_clean_ipfs
+test_clean_cluster
+
 
 test_done

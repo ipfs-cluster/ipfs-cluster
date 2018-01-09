@@ -4,9 +4,7 @@ test_description="Test service startup and init functionality"
 
 . lib/test-lib.sh
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
-cleanup test_clean_cluster
 
 test_expect_success "prerequisites" '
     test_have_prereq IPFS &&
@@ -30,5 +28,8 @@ test_expect_success "cluster-service --version succeeds and matches ctl" '
 test_expect_success "starting a second cluster-service process fails" '
     test_expect_code 1 ipfs-cluster-service --config "test-config"    
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done

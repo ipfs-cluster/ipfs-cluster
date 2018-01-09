@@ -5,9 +5,7 @@ test_description="Test service state 'upgrade' from current version"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
-cleanup test_clean_cluster
 
 test_expect_success IPFS,CLUSTER "cluster-service state upgrade works" '
     cid=`docker exec ipfs sh -c "echo testing | ipfs add -q"` &&
@@ -27,5 +25,8 @@ test_expect_success IPFS,CLUSTER "state is preserved after migration" '
     ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid" &&
     ipfs-cluster-ctl status "$cid" | grep -q -i "PINNED"
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done
