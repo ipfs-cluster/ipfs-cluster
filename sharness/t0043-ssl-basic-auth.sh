@@ -7,9 +7,7 @@ config="`pwd`/config/ssl-basic_auth"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init "$config"
-cleanup test_clean_cluster
 
 test_expect_success "prerequisites" '
     test_have_prereq IPFS && test_have_prereq CLUSTER
@@ -25,5 +23,8 @@ test_expect_success "ssl interaction succeeds" '
     ipfs-cluster-ctl --no-check-certificate --basic-auth "userwithoutpass" id | egrep -q "$id" &&
     ipfs-cluster-ctl --no-check-certificate --basic-auth "testuser:testpass" id | egrep -q "$id"
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done

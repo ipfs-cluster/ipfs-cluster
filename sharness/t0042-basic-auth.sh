@@ -7,9 +7,7 @@ config="`pwd`/config/basic_auth"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init "$config"
-cleanup test_clean_cluster
 
 test_expect_success "prerequisites" '
     test_have_prereq IPFS && test_have_prereq CLUSTER
@@ -40,5 +38,8 @@ test_expect_success "BasicAuth succeeds with env var credentials" '
     export CLUSTER_CREDENTIALS="testuser:testpass"
     ipfs-cluster-ctl --force-http id | egrep -q "$id"
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done

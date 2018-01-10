@@ -5,9 +5,7 @@ test_description="Test service state import"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
-cleanup test_clean_cluster
 
 test_expect_success IPFS,CLUSTER "state cleanup refreshes state on restart" '
      cid=`docker exec ipfs sh -c "echo test_54 | ipfs add -q"` &&
@@ -34,5 +32,8 @@ test_expect_success IPFS,CLUSTER "export + cleanup + import == noop" '
     ipfs-cluster-ctl status "$cid" | grep -q -i "PINNED" &&
     [ 1 -eq "$(ipfs-cluster-ctl --enc=json status | jq ". | length")" ]
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done

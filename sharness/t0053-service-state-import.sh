@@ -5,9 +5,7 @@ test_description="Test service state import"
 . lib/test-lib.sh
 
 test_ipfs_init
-cleanup test_clean_ipfs
 test_cluster_init
-cleanup test_clean_cluster
 test_confirm_importState
 
 # Kill cluster daemon but keep data folder
@@ -27,5 +25,8 @@ test_expect_success IPFS,CLUSTER,IMPORTSTATE "state import succeeds on correct f
     ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid" &&
     ipfs-cluster-ctl status "$cid" | grep -q -i "PINNED"
 '
+
+test_clean_ipfs
+test_clean_cluster
 
 test_done
