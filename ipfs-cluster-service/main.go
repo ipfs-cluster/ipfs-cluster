@@ -186,7 +186,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "loglevel, l",
 			Value: "info",
-			Usage: "set the loglevel for cluster only [critical, error, warning, info, debug]",
+			Usage: "set the loglevel for cluster components only [critical, error, warning, info, debug]",
 		},
 		cli.StringFlag{
 			Name:  "alloc, a",
@@ -396,7 +396,7 @@ the mth data folder (m currently defaults to 5)
 
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 
-		setupLogging(c.String("loglevel"))
+		setupLogLevel(c.String("loglevel"))
 		if c.Bool("debug") {
 			setupDebug()
 		}
@@ -498,24 +498,8 @@ func daemon(c *cli.Context) error {
 	}
 }
 
-var facilities = []string{
-	"service",
-	"cluster",
-	"restapi",
-	"ipfshttp",
-	"mapstate",
-	"monitor",
-	"consensus",
-	"pintracker",
-	"ascendalloc",
-	"descendalloc",
-	"diskinfo",
-	"config",
-	"apitypes",
-}
-
-func setupLogging(lvl string) {
-	for _, f := range facilities {
+func setupLogLevel(lvl string) {
+	for f := range ipfscluster.LoggingFacilities {
 		ipfscluster.SetFacilityLogLevel(f, lvl)
 	}
 }
@@ -542,15 +526,7 @@ func setupAllocation(name string, diskInfCfg *disk.Config, numpinInfCfg *numpin.
 }
 
 func setupDebug() {
-	l := "DEBUG"
-	for _, f := range facilities {
-		ipfscluster.SetFacilityLogLevel(f, l)
-	}
-
-	ipfscluster.SetFacilityLogLevel("p2p-gorpc", l)
-	ipfscluster.SetFacilityLogLevel("raft", l)
-	//SetFacilityLogLevel("swarm2", l)
-	//SetFacilityLogLevel("libp2p-raft", l)
+	ipfscluster.SetFacilityLogLevel("*", "DEBUG")
 }
 
 func saveConfig(cfg *config.Manager, force bool) {

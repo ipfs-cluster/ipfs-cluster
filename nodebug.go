@@ -2,14 +2,13 @@
 
 package ipfscluster
 
-// This is our default logs levels
+// These are our default log levels
 func init() {
-	for _, f := range facilities {
-		SetFacilityLogLevel(f, "INFO")
+	for f, l := range LoggingFacilities {
+		SetFacilityLogLevel(f, l)
 	}
 
-	SetFacilityLogLevel("raft", "ERROR")
-	SetFacilityLogLevel("p2p-gorpc", "ERROR")
-	//SetFacilityLogLevel("swarm2", l)
-	SetFacilityLogLevel("libp2p-raft", "CRITICAL")
+	for f, l := range LoggingFacilitiesExtra {
+		SetFacilityLogLevel(f, l)
+	}
 }
