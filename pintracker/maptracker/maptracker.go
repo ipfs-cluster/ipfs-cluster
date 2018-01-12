@@ -181,7 +181,7 @@ func (mpt *MapPinTracker) unsafeSetError(c *cid.Cid, err error) {
 }
 
 func (mpt *MapPinTracker) isRemote(c api.Pin) bool {
-	if c.ReplicationFactor < 0 {
+	if c.ReplicationFactorMin < 0 {
 		return false
 	}
 

@@ -422,10 +422,11 @@ func StringsToPeers(strs []string) []peer.ID {
 // Pin is an argument that carries a Cid. It may carry more things in the
 // future.
 type Pin struct {
-	Cid               *cid.Cid
-	Name              string
-	Allocations       []peer.ID
-	ReplicationFactor int
+	Cid                  *cid.Cid
+	Name                 string
+	Allocations          []peer.ID
+	ReplicationFactorMin int
+	ReplicationFactorMax int
 }
 
 // PinCid is a shorcut to create a Pin only with a Cid.
@@ -437,11 +438,12 @@ func PinCid(c *cid.Cid) Pin {
 
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
-	Cid               string   `json:"cid"`
-	Name              string   `json:"name"`
-	Allocations       []string `json:"allocations"`
-	Everywhere        bool     `json:"everywhere,omitempty"` // legacy
-	ReplicationFactor int      `json:"replication_factor"`
+	Cid                  string   `json:"cid"`
+	Name                 string   `json:"name"`
+	Allocations          []string `json:"allocations"`
+	ReplicationFactor    int      `json:"replication_factor,omitempty"` //legacy
+	ReplicationFactorMin int      `json:"replication_factor_min"`
+	ReplicationFactorMax int      `json:"replication_factor_max"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -453,13 +455,13 @@ func (pin Pin) ToSerial() PinSerial {
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
-	rpl := pin.ReplicationFactor
 
 	return PinSerial{
-		Cid:               c,
-		Name:              n,
-		Allocations:       allocs,
-		ReplicationFactor: rpl,
+		Cid:                  c,
+		Name:                 n,
+		Allocations:          allocs,
+		ReplicationFactorMin: pin.ReplicationFactorMin,
+		ReplicationFactorMax: pin.ReplicationFactorMax,
 	}
 }
 
@@ -471,15 +473,17 @@ func (pins PinSerial) ToPin() Pin {
 	}
 
 	// legacy format management
-	if pins.ReplicationFactor == 0 && pins.Everywhere {
-		pins.ReplicationFactor = -1
+	if rf := pins.ReplicationFactor; rf != 0 {
+		pins.ReplicationFactorMin = rf
+		pins.ReplicationFactorMax = rf
 	}
 
 	return Pin{
-		Cid:               c,
-		Name:              pins.Name,
-		Allocations:       StringsToPeers(pins.Allocations),
-		ReplicationFactor: pins.ReplicationFactor,
+		Cid:                  c,
+		Name:                 pins.Name,
+		Allocations:          StringsToPeers(pins.Allocations),
+		ReplicationFactorMin: pins.ReplicationFactorMin,
+		ReplicationFactorMax: pins.ReplicationFactorMax,
 	}
 }
 

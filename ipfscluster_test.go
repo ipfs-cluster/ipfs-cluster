@@ -737,7 +737,8 @@ func TestClustersReplication(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	// Why is replication factor nClusters - 1?
@@ -836,7 +837,8 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	j := rand.Intn(nClusters)
@@ -936,7 +938,8 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	j := rand.Intn(nClusters)
@@ -959,7 +962,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	if !strings.Contains(err.Error(), "not enough candidates") {
+	if !strings.Contains(err.Error(), "not enough peers to allocate") {
 		t.Error("different error than expected")
 		t.Error(err)
 	}
@@ -974,7 +977,8 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	// pin something

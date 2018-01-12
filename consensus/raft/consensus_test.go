@@ -96,7 +96,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.Pin{Cid: c, ReplicationFactor: -1})
+	err := cc.LogPin(api.Pin{Cid: c, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -186,7 +186,7 @@ func TestConsensusRmPeer(t *testing.T) {
 	cc.raft.WaitForLeader(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = cc.LogPin(api.Pin{Cid: c, ReplicationFactor: -1})
+	err = cc.LogPin(api.Pin{Cid: c, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("could not pin after adding peer:", err)
 	}
@@ -234,7 +234,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 1
 	c1, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.Pin{Cid: c1, ReplicationFactor: -1})
+	err := cc.LogPin(api.Pin{Cid: c1, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the first pin did not make it to the log:", err)
 	}
@@ -247,7 +247,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 2
 	c2, _ := cid.Decode(test.TestCid2)
-	err = cc.LogPin(api.Pin{Cid: c2, ReplicationFactor: -1})
+	err = cc.LogPin(api.Pin{Cid: c2, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the second pin did not make it to the log:", err)
 	}
@@ -260,7 +260,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 3
 	c3, _ := cid.Decode(test.TestCid3)
-	err = cc.LogPin(api.Pin{Cid: c3, ReplicationFactor: -1})
+	err = cc.LogPin(api.Pin{Cid: c3, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the third pin did not make it to the log:", err)
 	}

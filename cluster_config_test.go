@@ -21,7 +21,8 @@ var ccfgTestJSON = []byte(`
         "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
         "state_sync_interval": "1m0s",
         "ipfs_sync_interval": "2m10s",
-        "replication_factor": 5,
+        "replication_factor_min": 5,
+        "replication_factor_max": 5,
         "monitor_ping_interval": "2s"
 }
 `)
@@ -41,8 +42,8 @@ func TestLoadJSON(t *testing.T) {
 		t.Error("expected 1 peer and 1 bootstrap")
 	}
 
-	if cfg.ReplicationFactor != 5 {
-		t.Error("expected replication factor 5")
+	if cfg.ReplicationFactorMin != 5 {
+		t.Error("expected replication factor min == 5")
 	}
 
 	j := &configJSON{}
@@ -111,20 +112,51 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &configJSON{}
 	json.Unmarshal(ccfgTestJSON, j)
-	j.StateSyncInterval = ""
+	j.ReplicationFactor = 0
+	j.ReplicationFactorMin = 0
+	j.ReplicationFactorMax = 0
 	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error state_sync_interval")
+	cfg.LoadJSON(tst)
+	if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
+		t.Error("expected default replication factor")
 	}
 
 	j = &configJSON{}
 	json.Unmarshal(ccfgTestJSON, j)
-	j.ReplicationFactor = 0
+	j.ReplicationFactor = 3
 	tst, _ = json.Marshal(j)
 	cfg.LoadJSON(tst)
-	if cfg.ReplicationFactor != -1 {
-		t.Error("expected default replication factor")
+	if cfg.ReplicationFactorMin != 3 || cfg.ReplicationFactorMax != 3 {
+		t.Error("expected replicationFactor Min/Max override")
+	}
+
+	j = &configJSON{}
+	json.Unmarshal(ccfgTestJSON, j)
+	j.ReplicationFactorMin = -1
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error when only one replication factor is -1")
+	}
+
+	j = &configJSON{}
+	json.Unmarshal(ccfgTestJSON, j)
+	j.ReplicationFactorMin = 5
+	j.ReplicationFactorMax = 4
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error when only rplMin > rplMax")
+	}
+
+	j = &configJSON{}
+	json.Unmarshal(ccfgTestJSON, j)
+	j.ReplicationFactorMin = 0
+	j.ReplicationFactorMax = 0
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
+		t.Error("expected default replication factors")
 	}
 }
 
@@ -160,6 +192,19 @@ func TestValidate(t *testing.T) {
 
 	cfg.Default()
 	cfg.MonitorPingInterval = 0
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.ReplicationFactorMin = 10
+	cfg.ReplicationFactorMax = 5
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.ReplicationFactorMin = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}

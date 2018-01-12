@@ -292,7 +292,8 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	// Adjust the replication factor for re-allocation
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	// We choose to remove the leader, to make things even more interesting
