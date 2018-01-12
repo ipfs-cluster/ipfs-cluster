@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -31,15 +32,15 @@ import (
 //TestClusters*
 var (
 	// number of clusters to create
-	nClusters = 6
+	nClusters = *flag.Int("nclusters", 6, "number of clusters to use")
 
 	// number of pins to pin/unpin/check
-	nPins = 500
+	nPins = *flag.Int("npins", 500, "number of pins to pin/unpin/check")
 
 	// ports
-	clusterPort   = 20000
-	apiPort       = 20500
-	ipfsProxyPort = 21000
+	clusterPort   = 10000
+	apiPort       = 10100
+	ipfsProxyPort = 10200
 )
 
 func init() {
@@ -185,11 +186,11 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 	for i, c := range clusters {
-		m[i].Close()
 		err := c.Shutdown()
 		if err != nil {
 			t.Error(err)
 		}
+		m[i].Close()
 	}
 	os.RemoveAll("./e2eTestRaft")
 }
@@ -767,7 +768,7 @@ func TestClustersReplication(t *testing.T) {
 		if numRemote != 1 {
 			t.Errorf("We wanted 1 peer track as remote but %d do", numRemote)
 		}
-		time.Sleep(time.Second / 2) // this is for metric to be up to date
+		time.Sleep(time.Second) // this is for metric to be up to date
 	}
 
 	f := func(t *testing.T, c *Cluster) {

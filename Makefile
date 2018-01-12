@@ -68,13 +68,13 @@ check:
 	golint -set_exit_status -min_confidence 0.3 ./...
 
 test: deps
-	go test -tags silent -v ./...
+	go test -timeout 20m -tags silent -v ./...
 
 test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
 
 test_problem: deps
-	go test -tags debug -v -run $(problematic_test)
+	go test -timeout 20m -tags debug -v -run $(problematic_test)
 
 $(sharness):
 	@echo "Downloading sharness"

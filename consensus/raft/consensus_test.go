@@ -41,6 +41,7 @@ func makeTestingHost(t *testing.T, port int) host.Host {
 	ps := peerstore.NewPeerstore()
 	ps.AddPubKey(pid, pub)
 	ps.AddPrivKey(pid, priv)
+	ps.AddAddr(pid, maddr, peerstore.PermanentAddrTTL)
 	n, _ := swarm.NewNetwork(
 		context.Background(),
 		[]ma.Multiaddr{maddr},
@@ -63,6 +64,7 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 	}
 	cc.SetClient(test.NewMockRPCClientWithHost(t, h))
 	<-cc.Ready()
+	time.Sleep(2 * time.Second)
 	return cc
 }
 
@@ -135,7 +137,7 @@ func TestConsensusAddPeer(t *testing.T) {
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
 
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.PermanentAddrTTL)
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
@@ -166,8 +168,9 @@ func TestConsensusRmPeer(t *testing.T) {
 	defer cc.Shutdown()
 	defer cc2.Shutdown()
 
-	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
+	//addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPort))
+	addr2, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr2, peerstore.PermanentAddrTTL)
 
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
