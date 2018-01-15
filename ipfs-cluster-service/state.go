@@ -99,16 +99,16 @@ func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
 	} else if snapExists && err != nil {
 		logger.Error("error after reading last snapshot. Snapshot potentially corrupt.")
 	} else if snapExists && err == nil {
-		raw, err := ioutil.ReadAll(r)
-		if err != nil {
-			return err
+		raw, err2 := ioutil.ReadAll(r)
+		if err2 != nil {
+			return err2
 		}
-		err = state.Unmarshal(raw)
-		if err != nil {
+		err2 = state.Unmarshal(raw)
+		if err2 != nil {
 			logger.Error("error unmarshalling snapshot. Snapshot potentially corrupt.")
-			return err
+			return err2
 		}
-		if state.GetVersion() != state.Version {
+		if state.GetVersion() != mapstate.Version {
 			logger.Error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 			logger.Error("Out of date ipfs-cluster state is saved.")
 			logger.Error("To migrate to the new version, run ipfs-cluster-service state upgrade.")
