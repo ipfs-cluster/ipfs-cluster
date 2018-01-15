@@ -585,8 +585,17 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	name := queryValues.Get("name")
 	pin.Name = name
 	rplStr := queryValues.Get("replication_factor")
-	if rpl, err := strconv.Atoi(rplStr); err == nil {
-		pin.ReplicationFactor = rpl
+	rplStrMin := queryValues.Get("replication_factor_min")
+	rplStrMax := queryValues.Get("replication_factor_max")
+	if rplStr != "" { // override
+		rplStrMin = rplStr
+		rplStrMax = rplStr
+	}
+	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
+		pin.ReplicationFactorMin = rpl
+	}
+	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
+		pin.ReplicationFactorMax = rpl
 	}
 
 	return pin

@@ -441,7 +441,6 @@ type PinSerial struct {
 	Cid                  string   `json:"cid"`
 	Name                 string   `json:"name"`
 	Allocations          []string `json:"allocations"`
-	ReplicationFactor    int      `json:"replication_factor,omitempty"` //legacy
 	ReplicationFactorMin int      `json:"replication_factor_min"`
 	ReplicationFactorMax int      `json:"replication_factor_max"`
 }
@@ -470,12 +469,6 @@ func (pins PinSerial) ToPin() Pin {
 	c, err := cid.Decode(pins.Cid)
 	if err != nil {
 		logger.Error(pins.Cid, err)
-	}
-
-	// legacy format management
-	if rf := pins.ReplicationFactor; rf != 0 {
-		pins.ReplicationFactorMin = rf
-		pins.ReplicationFactorMax = rf
 	}
 
 	return Pin{

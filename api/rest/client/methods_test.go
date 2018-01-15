@@ -87,7 +87,7 @@ func TestPin(t *testing.T) {
 	defer api.Shutdown()
 
 	ci, _ := cid.Decode(test.TestCid1)
-	err := c.Pin(ci, 7, "hello")
+	err := c.Pin(ci, 6, 7, "hello")
 	if err != nil {
 		t.Fatal(err)
 	}
