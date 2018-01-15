@@ -22,7 +22,7 @@ var LoggingFacilities = map[string]string{
 
 // LoggingFacilitiesExtra provides logging identifiers
 // used in ipfs-cluster dependencies, which may be useful
-// for to display. Along with their default value.
+// to display. Along with their default value.
 var LoggingFacilitiesExtra = map[string]string{
 	"p2p-gorpc":   "CRITICAL",
 	"swarm2":      "ERROR",

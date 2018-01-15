@@ -504,6 +504,10 @@ func setupLogLevel(lvl string) {
 	}
 }
 
+func setupDebug() {
+	ipfscluster.SetFacilityLogLevel("*", "DEBUG")
+}
+
 func setupAllocation(name string, diskInfCfg *disk.Config, numpinInfCfg *numpin.Config) (ipfscluster.Informer, ipfscluster.PinAllocator) {
 	switch name {
 	case "disk", "disk-freespace":
@@ -523,10 +527,6 @@ func setupAllocation(name string, diskInfCfg *disk.Config, numpinInfCfg *numpin.
 		checkErr("", err)
 		return nil, nil
 	}
-}
-
-func setupDebug() {
-	ipfscluster.SetFacilityLogLevel("*", "DEBUG")
 }
 
 func saveConfig(cfg *config.Manager, force bool) {
