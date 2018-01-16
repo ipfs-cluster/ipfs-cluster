@@ -54,6 +54,10 @@ func (st *MapState) Rm(c *cid.Cid) error {
 }
 
 // Get returns Pin information for a CID.
+// The returned object has its Cid and Allocations
+// fields initialized, regardless of the
+// presence of the provided Cid in the state.
+// To check the presence, use MapState.Has(*cid.Cid).
 func (st *MapState) Get(c *cid.Cid) api.Pin {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()

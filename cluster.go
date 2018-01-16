@@ -945,8 +945,8 @@ func (c *Cluster) Pins() []api.Pin {
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
 func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
-	pin := c.getCurrentPin(h)
-	if pin.ReplicationFactorMin == 0 && pin.ReplicationFactorMax == 0 {
+	pin, ok := c.getCurrentPin(h)
+	if !ok {
 		return pin, errors.New("cid is not part of the global state")
 	}
 	return pin, nil
@@ -999,7 +999,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID) (bool, error) {
 		pin.Allocations = allocs
 	}
 
-	if c.getCurrentPin(pin.Cid).Equals(pin) {
+	if curr, _ := c.getCurrentPin(pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
 		return false, nil

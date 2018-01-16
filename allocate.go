@@ -44,7 +44,8 @@ import (
 // it will return the current ones.
 func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID) ([]peer.ID, error) {
 	// Figure out who is holding the CID
-	currentAllocs := c.getCurrentPin(hash).Allocations
+	currentPin, _ := c.getCurrentPin(hash)
+	currentAllocs := currentPin.Allocations
 	metrics, err := c.getInformerMetrics()
 	if err != nil {
 		return nil, err
@@ -83,12 +84,13 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 
 // getCurrentPin returns the Pin object for h, if we can find one
 // or builds an empty one.
-func (c *Cluster) getCurrentPin(h *cid.Cid) api.Pin {
+func (c *Cluster) getCurrentPin(h *cid.Cid) (api.Pin, bool) {
 	st, err := c.consensus.State()
 	if err != nil {
-		return api.PinCid(h)
+		return api.PinCid(h), false
 	}
-	return st.Get(h)
+	ok := st.Has(h)
+	return st.Get(h), ok
 }
 
 // getInformerMetrics returns the MonitorLastMetrics() for the
