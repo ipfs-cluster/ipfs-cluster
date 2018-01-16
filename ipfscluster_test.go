@@ -868,10 +868,62 @@ func TestClustersReplicationFactorMax(t *testing.T) {
 		}
 
 		if p.ReplicationFactorMax != nClusters-1 {
-			t.Error("rplMax should be nClusters")
+			t.Error("rplMax should be nClusters-1")
 		}
 	}
 	runF(t, clusters, f)
+}
+
+// This tests checks that repinning something that is overpinned
+// removes some allocations
+func TestClustersReplicationFactorMaxLower(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = 1
+		c.config.ReplicationFactorMax = nClusters
+	}
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	p1, err := clusters[0].PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(p1.Allocations) != nClusters {
+		t.Fatal("allocations should be nClusters")
+	}
+
+	err = clusters[0].Pin(api.Pin{
+		Cid:                  h,
+		ReplicationFactorMax: 2,
+		ReplicationFactorMin: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	p2, err := clusters[0].PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(p2.Allocations) != 2 {
+		t.Fatal("allocations should have been reduced to 2")
+	}
 }
 
 // This test checks that when not all nodes are available,
@@ -917,7 +969,7 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 		}
 
 		if len(p.Allocations) != nClusters-2 {
-			t.Error("should have pinned nClusters - 1 allocations")
+			t.Error("should have pinned nClusters-2 allocations")
 		}
 
 		if p.ReplicationFactorMin != 1 {
@@ -1017,7 +1069,7 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 	}
 }
 
-// This test checks tat repinning something that has becomed
+// This test checks that repinning something that has becomed
 // underpinned does re-allocations when it's not sufficiently
 // pinned anymore
 func TestClustersReplicationMinMaxRealloc(t *testing.T) {
@@ -1080,10 +1132,6 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 
 	secondAllocations := p.Allocations
 
-	if len(secondAllocations) != minInt(nClusters-2, 4) {
-		t.Error("pin should be allocated again to a few peers")
-	}
-
 	strings1 := api.PeersToStrings(firstAllocations)
 	strings2 := api.PeersToStrings(secondAllocations)
 	sort.Strings(strings1)
@@ -1093,6 +1141,12 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 
 	if fmt.Sprintf("%s", strings1) == fmt.Sprintf("%s", strings2) {
 		t.Error("allocations should have changed")
+	}
+
+	lenSA := len(secondAllocations)
+	expected := minInt(nClusters-2, 4)
+	if lenSA != expected {
+		t.Errorf("Inssufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
 	}
 
 	if len(secondAllocations) < 3 {

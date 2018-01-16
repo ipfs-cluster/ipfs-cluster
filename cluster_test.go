@@ -198,7 +198,11 @@ func TestClusterPin(t *testing.T) {
 
 	// test an error case
 	cl.consensus.Shutdown()
-	err = cl.Pin(api.PinCid(c))
+	err = cl.Pin(api.Pin{
+		Cid:                  c,
+		ReplicationFactorMax: 1,
+		ReplicationFactorMin: 1,
+	})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -239,7 +243,7 @@ func TestClusterPinGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !pin.Cid.Equals(c) || pin.ReplicationFactorMax != -1 || pin.ReplicationFactorMax != -1 {
+	if !pin.Cid.Equals(c) || pin.ReplicationFactorMin != -1 || pin.ReplicationFactorMax != -1 {
 		t.Error("the Pin does not look as expected")
 	}
 

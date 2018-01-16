@@ -18,6 +18,7 @@ test_expect_success IPFS,CLUSTER "state import fails on incorrect format" '
 '
 
 test_expect_success IPFS,CLUSTER,IMPORTSTATE "state import succeeds on correct format" '
+    sleep 5
     cid=`docker exec ipfs sh -c "echo test_53 | ipfs add -q"` &&
     ipfs-cluster-service -f --debug --config "test-config" state import importState &&
     cluster_start &&

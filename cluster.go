@@ -943,13 +943,8 @@ func (c *Cluster) Pins() []api.Pin {
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
 func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
-	cState, err := c.consensus.State()
-	if err != nil {
-		logger.Error(err)
-		return api.Pin{}, err
-	}
-	pin := cState.Get(h)
-	if pin.Cid == nil {
+	pin := c.getCurrentPin(h)
+	if pin.ReplicationFactorMin == 0 && pin.ReplicationFactorMax == 0 {
 		return pin, errors.New("cid is not part of the global state")
 	}
 	return pin, nil

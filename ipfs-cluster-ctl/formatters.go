@@ -159,16 +159,16 @@ func textFormatPrintVersion(obj *api.Version) {
 }
 
 func textFormatPrintPin(obj *api.PinSerial) {
-	fmt.Printf("%s | %s | Repl. Factor: %d.to.%d | Allocations: ",
-		obj.Cid, obj.Name,
-		obj.ReplicationFactorMin, obj.ReplicationFactorMax)
+	fmt.Printf("%s | %s | ", obj.Cid, obj.Name)
 
 	if obj.ReplicationFactorMin < 0 {
-		fmt.Printf("[everywhere]\n")
+		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]\n")
 	} else {
 		var sortAlloc sort.StringSlice = obj.Allocations
 		sortAlloc.Sort()
-		fmt.Printf("%s\n", sortAlloc)
+		fmt.Printf("Repl. Factor: %d->%d | Allocations: %s\n",
+			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
+			sortAlloc)
 	}
 }
 

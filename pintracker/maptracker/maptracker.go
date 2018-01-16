@@ -181,8 +181,11 @@ func (mpt *MapPinTracker) unsafeSetError(c *cid.Cid, err error) {
 }
 
 func (mpt *MapPinTracker) isRemote(c api.Pin) bool {
-	if c.ReplicationFactorMin < 0 {
+	if c.ReplicationFactorMax < 0 {
 		return false
+	}
+	if c.ReplicationFactorMax == 0 {
+		logger.Errorf("Pin with replication factor 0! %+v", c)
 	}
 
 	for _, p := range c.Allocations {
