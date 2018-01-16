@@ -401,8 +401,10 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 	list := cState.List()
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			logger.Infof("repinning %s out of %s", pin.Cid, p.Pretty())
-			c.pin(pin, []peer.ID{p}) // pin blacklisting this peer
+			ok, err := c.pin(pin, []peer.ID{p}) // pin blacklisting this peer
+			if ok && err == nil {
+				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
+			}
 		}
 	}
 }
@@ -959,12 +961,18 @@ func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(pin api.Pin) error {
-	return c.pin(pin, []peer.ID{})
+	_, err := c.pin(pin, []peer.ID{})
+	return err
 }
 
 // pin performs the actual pinning and supports a blacklist to be
-// able to evacuate a node.
-func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID) error {
+// able to evacuate a node and returns whether the pin was submitted
+// to the consensus layer or skipped (due to error or to the fact
+// that it was already valid).
+func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID) (bool, error) {
+	if pin.Cid == nil {
+		return false, errors.New("bad pin object")
+	}
 	rplMin := pin.ReplicationFactorMin
 	rplMax := pin.ReplicationFactorMax
 	if rplMin == 0 {
@@ -977,31 +985,33 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID) error {
 	}
 
 	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
-		return err
+		return false, err
 	}
 
 	switch {
 	case rplMin == -1 && rplMax == -1:
 		pin.Allocations = []peer.ID{}
-		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
 	default:
 		allocs, err := c.allocate(pin.Cid, rplMin, rplMax, blacklist)
 		if err != nil {
-			return err
-		}
-		if allocs == nil {
-			logger.Infof("Skipping repinning of %s. Replication factor is within thresholds", pin.Cid)
-			return nil
+			return false, err
 		}
 		pin.Allocations = allocs
+	}
+
+	if c.getCurrentPin(pin.Cid).Equals(pin) {
+		// skip pinning
+		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
+		return false, nil
+	}
+
+	if len(pin.Allocations) == 0 {
+		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
+	} else {
 		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 	}
 
-	err := c.consensus.LogPin(pin)
-	if err != nil {
-		return err
-	}
-	return nil
+	return true, c.consensus.LogPin(pin)
 }
 
 // Unpin makes the cluster Unpin a Cid. This implies adding the Cid

@@ -40,11 +40,11 @@ import (
 // allocate finds peers to allocate a hash using the informer and the monitor
 // it should only be used with valid replicationFactors (rplMin and rplMax
 // which are positive and rplMin <= rplMax).
-// It only returns new allocations when needed. nil, nil means current
-// are ok.
+// It always returns allocations, but if no new allocations are needed,
+// it will return the current ones.
 func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID) ([]peer.ID, error) {
 	// Figure out who is holding the CID
-	currentAllocs := c.getCurrentAllocations(hash)
+	currentAllocs := c.getCurrentPin(hash).Allocations
 	metrics, err := c.getInformerMetrics()
 	if err != nil {
 		return nil, err
@@ -67,26 +67,28 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 		}
 	}
 
-	return c.obtainAllocations(hash,
+	newAllocs, err := c.obtainAllocations(hash,
 		rplMin,
 		rplMax,
 		currentMetrics,
 		candidatesMetrics)
+	if err != nil {
+		return newAllocs, err
+	}
+	if newAllocs == nil {
+		newAllocs = currentAllocs
+	}
+	return newAllocs, nil
 }
 
-// getCurrentAllocations returns the list of peers allocated to a Cid.
-func (c *Cluster) getCurrentAllocations(h *cid.Cid) []peer.ID {
-	var allocs []peer.ID
+// getCurrentPin returns the Pin object for h, if we can find one
+// or builds an empty one.
+func (c *Cluster) getCurrentPin(h *cid.Cid) api.Pin {
 	st, err := c.consensus.State()
 	if err != nil {
-		// no state we assume it is empty. If there was other
-		// problem, we would fail to commit anyway.
-		allocs = []peer.ID{}
-	} else {
-		pin := st.Get(h)
-		allocs = pin.Allocations
+		return api.PinCid(h)
 	}
-	return allocs
+	return st.Get(h)
 }
 
 // getInformerMetrics returns the MonitorLastMetrics() for the
@@ -149,7 +151,7 @@ func (c *Cluster) obtainAllocations(
 
 	// Reminder: rplMin <= rplMax AND >0
 
-	if wanted <= 0 { // alocations above maximum threshold: drop some
+	if wanted < 0 { // alocations above maximum threshold: drop some
 		// This could be done more intelligently by dropping them
 		// according to the allocator order (i.e. free-ing peers
 		// with most used space first).
@@ -157,7 +159,7 @@ func (c *Cluster) obtainAllocations(
 	}
 
 	if needed <= 0 { // allocations are above minimal threshold
-		// We keep things as they are. Avoid any changes to the pin set.
+		// We don't provide any new allocations
 		return nil, nil
 	}
 

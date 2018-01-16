@@ -59,7 +59,7 @@ func (st *MapState) Get(c *cid.Cid) api.Pin {
 	defer st.pinMux.RUnlock()
 	pins, ok := st.PinMap[c.String()]
 	if !ok { // make sure no panics
-		return api.Pin{}
+		return api.PinCid(c)
 	}
 	return pins.ToPin()
 }

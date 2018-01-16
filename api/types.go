@@ -10,6 +10,8 @@ package api
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	cid "github.com/ipfs/go-cid"
@@ -432,7 +434,8 @@ type Pin struct {
 // PinCid is a shorcut to create a Pin only with a Cid.
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
-		Cid: c,
+		Cid:         c,
+		Allocations: []peer.ID{},
 	}
 }
 
@@ -462,6 +465,38 @@ func (pin Pin) ToSerial() PinSerial {
 		ReplicationFactorMin: pin.ReplicationFactorMin,
 		ReplicationFactorMax: pin.ReplicationFactorMax,
 	}
+}
+
+// Equals checks if two pins are the same (with the same allocations).
+// If allocations are the same but in different order, they are still
+// considered equivalent.
+func (pin Pin) Equals(pin2 Pin) bool {
+	pin1s := pin.ToSerial()
+	pin2s := pin2.ToSerial()
+
+	if pin1s.Cid != pin2s.Cid {
+		return false
+	}
+
+	if pin1s.Name != pin2s.Name {
+		return false
+	}
+
+	sort.Strings(pin1s.Allocations)
+	sort.Strings(pin2s.Allocations)
+
+	if strings.Join(pin1s.Allocations, ",") != strings.Join(pin2s.Allocations, ",") {
+		return false
+	}
+
+	if pin1s.ReplicationFactorMax != pin2s.ReplicationFactorMax {
+		return false
+	}
+
+	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
+		return false
+	}
+	return true
 }
 
 // ToPin converts a PinSerial to its native form.
