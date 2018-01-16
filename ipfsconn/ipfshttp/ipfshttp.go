@@ -177,7 +177,9 @@ func (ipfs *Connector) run() {
 		defer tmr.Stop()
 		select {
 		case <-tmr.C:
-			ipfs.ConnectSwarms()
+			// do not hang this goroutine if this call hangs
+			// otherwise we hang during shutdown
+			go ipfs.ConnectSwarms()
 		case <-ipfs.ctx.Done():
 			return
 		}

@@ -333,14 +333,14 @@ func (rpcapi *RPCAPI) ConsensusPeers(in struct{}, out *[]peer.ID) error {
 // PeerManagerAddPeer runs peerManager.addPeer().
 func (rpcapi *RPCAPI) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
 	addr := in.ToMultiaddr()
-	err := rpcapi.c.peerManager.addPeer(addr)
+	err := rpcapi.c.peerManager.addPeer(addr, false)
 	return err
 }
 
 // PeerManagerImportAddresses runs peerManager.importAddresses().
 func (rpcapi *RPCAPI) PeerManagerImportAddresses(in api.MultiaddrsSerial, out *struct{}) error {
 	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.importAddresses(addrs)
+	err := rpcapi.c.peerManager.importAddresses(addrs, false)
 	return err
 }
 

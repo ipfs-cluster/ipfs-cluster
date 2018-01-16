@@ -1,1 +1,2 @@
-golang([test: "go test -loglevel CRITICAL -v ./..."])
+golang([test: "go test -v -timeout 20m ./..."])
+

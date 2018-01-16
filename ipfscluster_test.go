@@ -79,9 +79,16 @@ func randomBytes() []byte {
 
 func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft.Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
-	clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
-	apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
-	proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
+	//
+	//clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
+	// Bind on port 0
+	clusterAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	//apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
+	// Bind on port 0
+	apiAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	// Bind on Port 0
+	// proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
+	proxyAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
 	priv, pub, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	checkErr(t, err)
@@ -163,26 +170,41 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		clusterPeers[i] = addr
 	}
 
-	// Set up the cluster using ClusterPeers
-	for i := 0; i < nClusters; i++ {
-		cfgs[i].Peers = make([]ma.Multiaddr, nClusters, nClusters)
-		for j := 0; j < nClusters; j++ {
-			cfgs[i].Peers[j] = clusterPeers[j]
-		}
-	}
+	// ----------------------------------------------------------
 
-	// Alternative way of starting using bootstrap
-	// for i := 1; i < nClusters; i++ {
-	// 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
-	// 		clusterPort,
-	// 		cfgs[0].ID.Pretty()))
-
-	// 	// Use previous cluster  for bootstrapping
-	// 	cfgs[i].Bootstrap = []ma.Multiaddr{addr}
+	// // Set up the cluster using ClusterPeers
+	// for i := 0; i < nClusters; i++ {
+	// 	cfgs[i].Peers = make([]ma.Multiaddr, nClusters, nClusters)
+	// 	for j := 0; j < nClusters; j++ {
+	// 		cfgs[i].Peers[j] = clusterPeers[j]
+	// 	}
 	// }
 
+	// var wg sync.WaitGroup
+	// for i := 0; i < nClusters; i++ {
+	// 	wg.Add(1)
+	// 	go func(i int) {
+	// 		clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
+	// 		wg.Done()
+	// 	}(i)
+	// }
+	// wg.Wait()
+
+	// ----------------------------------------------
+
+	// Alternative way of starting using bootstrap
+	// Start first node
+	clusters[0] = createCluster(t, cfgs[0], concfgs[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
+	// Find out where it binded
+	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
+	// Use first node to bootstrap
+	for i := 1; i < nClusters; i++ {
+		cfgs[i].Bootstrap = []ma.Multiaddr{bootstrapAddr}
+	}
+
+	// Start the rest
 	var wg sync.WaitGroup
-	for i := 0; i < nClusters; i++ {
+	for i := 1; i < nClusters; i++ {
 		wg.Add(1)
 		go func(i int) {
 			clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
@@ -191,10 +213,13 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	}
 	wg.Wait()
 
+	// ---------------------------------------------
+
 	// Yet an alternative way using PeerAdd
 	// for i := 1; i < nClusters; i++ {
 	// 	clusters[0].PeerAdd(clusterAddr(clusters[i]))
 	// }
+	delay()
 	delay()
 	return clusters, ipfsMocks
 }
@@ -280,6 +305,7 @@ func TestClustersPeers(t *testing.T) {
 
 	j := rand.Intn(nClusters) // choose a random cluster peer
 	peers := clusters[j].Peers()
+
 	if len(peers) != nClusters {
 		t.Fatal("expected as many peers as clusters")
 	}
@@ -1307,7 +1333,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	// pin something
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	time.Sleep(time.Second / 2) // let the pin arrive
+	time.Sleep(time.Second * 2) // let the pin arrive
 	pinLocal := 0
 	pinRemote := 0
 	var localPinner peer.ID
