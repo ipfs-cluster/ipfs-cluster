@@ -32,10 +32,12 @@ import (
 //TestClusters*
 var (
 	// number of clusters to create
-	nClusters = *flag.Int("nclusters", 6, "number of clusters to use")
+	nClusters = 6
 
 	// number of pins to pin/unpin/check
-	nPins = *flag.Int("npins", 500, "number of pins to pin/unpin/check")
+	nPins = 500
+
+	logLevel = "CRITICAL"
 
 	// ports
 	clusterPort   = 10000
@@ -44,7 +46,20 @@ var (
 )
 
 func init() {
+	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
+	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
+	flag.IntVar(&nPins, "npins", nPins, "number of pins to pin/unpin/check")
+	flag.Parse()
+
 	rand.Seed(time.Now().UnixNano())
+
+	for f := range LoggingFacilities {
+		SetFacilityLogLevel(f, logLevel)
+	}
+
+	for f := range LoggingFacilitiesExtra {
+		SetFacilityLogLevel(f, logLevel)
+	}
 }
 
 func checkErr(t *testing.T, err error) {
