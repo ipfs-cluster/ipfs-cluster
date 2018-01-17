@@ -79,7 +79,8 @@ Each section of the configuration file and the options in it depend on their ass
     "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096",         // Cluster RPC listen
     "state_sync_interval": "1m0s",                          // Time between state syncs
     "ipfs_sync_interval": "2m10s",                          // Time between ipfs-state syncs
-    "replication_factor": -1,                               // Replication factor. -1 == all
+    "replication_factor_min": -1,                           // Replication factor minimum threshold. -1 == all
+    "replication_factor_max": -1,                           // Replication factor maximum threshold. -1 == all
     "monitor_ping_interval": "15s"                          // Time between alive-pings. See cluster monitoring section
   },
   "consensus": {
@@ -217,7 +218,7 @@ Static clusters expect every member peer to be up and responding. Otherwise, the
 
 We call a dynamic cluster, that in which the set of `cluster.peers` changes. Nodes are bootstrapped to existing cluster peers (`cluster.bootstrap` option), the "peer rm" operation is used and/or the `cluster.leave_on_shutdown` configuration option is enabled. This option allows a node to abandon the consensus membership when shutting down. Thus reducing the cluster size by one.
 
-Dynamic clusters allow greater flexibility at the cost of stablity. Leave and, specially, join operations are tricky as they change the consensus membership. They are likely to fail in unhealthy clusters. All operations modifying the peerset require an elected and working leader. Also, bear in mind that removing a peer from the cluster will trigger a re-allocation of the pins that were associated to it. If the replication factor was 1, it is recommended to keep the ipfs daemon running so the content can actually be copied out to a daemon managed by a different peer.
+Dynamic clusters allow greater flexibility at the cost of stablity. Leave and, specially, join operations are tricky as they change the consensus membership. They are likely to fail in unhealthy clusters. All operations modifying the peerset require an elected and working leader. Note that peerset modifications may also trigger pin re-allocations if any of the pins from the departing cluster crosses the `replication_factor_min` threshold.
 
 Peers joining an existing cluster should not have any consensus state (contents in `./ipfs-cluster/ipfs-cluster-data`). Peers leaving a cluster are not expected to re-join it with stale consensus data. For this reason, **the consensus data folder is renamed** when a peer leaves the current cluster. For example, `ipfs-cluster-data` becomes `ipfs-cluster-data.old.0` and so on. Currently, up to 5 copies of the cluster data will be left around, with `old.0` being the most recent, and `old.4` the oldest.
 
@@ -243,11 +244,11 @@ Finally, note that when bootstrapping a peer to an existing cluster, **the new p
 
 ## Pinning an item
 
-`ipfs-cluster-ctl pin add <cid>` will tell ipfs-cluster to pin a CID.
+`ipfs-cluster-ctl pin add <cid>` will tell ipfs-cluster to pin (or re-pin) a CID.
 
 This involves:
 
-* Deciding which peers will be allocated the CID (that is, which cluster peers will ask ipfs to pin the CID). This depends on the replication factor and the allocation strategy.
+* Deciding which peers will be allocated the CID (that is, which cluster peers will ask ipfs to pin the CID). This depends on the replication factor (min and max) and the allocation strategy (more details below).
 * Forwarding the pin request to the Raft Leader.
 * Commiting the pin entry to the log.
 * *At this point, a success/failure is returned to the user, but ipfs-cluster has more things to do.*
@@ -259,6 +260,12 @@ This involves:
   * Waiting until it completes and setting the pin status to `PINNED`.
 
 Errors in the first part of the process (before the entry is commited) will be returned to the user and the whole operation is aborted. Errors in the second part of the process will result in pins with an status of `PIN_ERROR`.
+
+Deciding where a CID will be pinned (which IPFS daemon will store it - receive the allocation) is a complex process. In order to decide, all available peers (those reporting valid/non-expired metrics) are sorted by the `allocator` component, in function of the value of their metrics (provided by the `informer` component). If a CID is already allocated to some peers (in the case of a re-pinning operation), those allocations are kept.
+
+New allocations are only provided when the allocation factor (healthy peers holding the CID) is below the `replication_factor_min` threshold. In those cases, the new allocations (along with the existing valid ones), will attempt to total as much as `replication_factor_max`. When the allocation factor of a CID is within the margins indicated by the replication factors, no action is taken. The value "-1" and `replication_factor_min` and `replication_factor_max` indicates a "replicate everywhere" mode, where every peer will pin the CID.
+
+Default replication factors are specified in the configuration, but every pinned as them associated to its entry in the *shared state*. Changing the replication factor of existing pins requires re-pinning them (it does not suffice to change the configuration). You can always check the details of a pin, including its replication factors, using `ipfs-cluster-ctl pin ls <cid>`. You can use `ipfs-cluster-ctl pin add <cid>` to re-pin at any time with different replication factors. But note that the new pin will only be commited if it differs from the existing one.
 
 In order to check the status of a pin, use `ipfs-cluster-ctl status <cid>`. Retries for pins in error state can be triggered with `ipfs-cluster-ctl recover <cid>`.
 
@@ -285,7 +292,7 @@ Every ipfs-cluster peers push metrics to the cluster Leader regularly. This happ
 
 When a metric for an existing cluster peer stops arriving and previous metrics have outlived their Time-To-Live, the monitoring component triggers an alert for that metric. `monbasic.check_interval` determines how often the monitoring component checks for expired TTLs and sends these alerts. If you wish to detect expired metrics more quickly, decrease this interval. Otherwise, increase it.
 
-ipfs-cluster will react to `ping` metrics alerts by searching for pins allocated to the alerting peer and triggering re-pinning requests for them.
+ipfs-cluster will react to `ping` metrics alerts by searching for pins allocated to the alerting peer and triggering re-pinning requests for them. These re-pinning requests may result in re-allocations if the the CID's allocation factor crosses the `replication_factor_min` boundary. Otherwise, the current allocations are maintained.
 
 The monitoring and failover system in cluster is very basic and requires improvements. Failover is likely to not work properly when several nodes go offline at once (specially if the current Leader is affected). Manual re-pinning can be triggered with `ipfs-cluster-ctl pin <cid>`. `ipfs-cluster-ctl pin ls <CID>` can be used to find out the current list of peers allocated to a CID.
 
