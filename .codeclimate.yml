@@ -11,9 +11,12 @@ checks:
       threshold: 12
   method-lines:
     config:
-      threshold: 60
+      threshold: 80
   similar-code:
     enabled: false
+  return-statements:
+    config:
+      threshold: 10    
   
 engines:
   fixme:
