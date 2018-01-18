@@ -97,11 +97,7 @@ type ipfsSwarmPeersResp struct {
 }
 
 type ipfsPeer struct {
-	Addr    string
-	Peer    string
-	Latency string
-	Muxer   string
-	Streams []ipfsStream
+	Peer string
 }
 
 type ipfsStream struct {
@@ -867,14 +863,14 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 		return swarm, err
 	}
 
-	swarm.Peers = make([]peer.ID, len(peersRaw.Peers))
+	swarm = make([]peer.ID, len(peersRaw.Peers))
 	for i, p := range peersRaw.Peers {
 		pID, err := peer.IDB58Decode(p.Peer)
 		if err != nil {
 			logger.Error(err)
 			return swarm, err
 		}
-		swarm.Peers[i] = pID
+		swarm[i] = pID
 	}
 	return swarm, nil
 }

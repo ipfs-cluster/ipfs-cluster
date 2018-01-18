@@ -155,6 +155,34 @@ func TestAPIPeerRemoveEndpoint(t *testing.T) {
 	makeDelete(t, "/peers/"+test.TestPeerID1.Pretty(), &struct{}{})
 }
 
+func TestConnectGraphEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	var cg api.ConnectGraphSerial
+	makeGet(t, "/health/graph", &cg)
+	if cg.ClusterID != test.TestPeerID1.Pretty() {
+		t.Error("unexpected cluster id")
+	}
+	if len(cg.IPFSLinks) != 3 {
+		t.Error("unexpected number of ipfs peers")
+	}
+	if len(cg.ClusterLinks) != 3 {
+		t.Error("unexpected number of cluster peers")
+	}
+	if len(cg.ClustertoIPFS) != 3 {
+		t.Error("unexpected number of cluster to ipfs links")
+	}
+	// test a few link values
+	pid1 := test.TestPeerID1.Pretty()
+	pid4 := test.TestPeerID4.Pretty()
+	if _, ok := cg.ClustertoIPFS[pid1]; !ok {
+		t.Fatal("missing cluster peer 1 from cluster to peer links map")
+	}
+	if cg.ClustertoIPFS[pid1] != pid4 {
+		t.Error("unexpected ipfs peer mapped to cluster peer 1 in graph")
+	}
+}
+
 func TestAPIPinEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()

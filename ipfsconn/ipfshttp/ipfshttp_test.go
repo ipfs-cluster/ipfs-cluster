@@ -540,6 +540,26 @@ func TestConnectSwarms(t *testing.T) {
 	time.Sleep(time.Second)
 }
 
+func TestSwarmPeers(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	swarmPeers, err := ipfs.SwarmPeers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(swarmPeers) != 2 {
+		t.Fatal("expected 2 swarm peers")
+	}
+	if swarmPeers[0] != test.TestPeerID4 {
+		t.Error("unexpected swarm peer")
+	}
+	if swarmPeers[1] != test.TestPeerID5 {
+		t.Error("unexpected swarm peer")
+	}
+}
+
 func TestRepoSize(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()

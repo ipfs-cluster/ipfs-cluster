@@ -44,6 +44,14 @@ func copyPinInfoSerialSliceToIfaces(in [][]api.PinInfoSerial) []interface{} {
 	return ifaces
 }
 
+func copyIDSerialSliceToIfaces(in [][]api.IDSerial) []interface{} {
+	ifaces := make([]interface{}, len(in), len(in))
+	for i := range in {
+		ifaces[i] = &in[i]
+	}
+	return ifaces
+}
+
 func copyEmptyStructToIfaces(in []struct{}) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
