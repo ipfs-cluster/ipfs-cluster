@@ -9,8 +9,8 @@ test_cluster_init
 
 
 test_expect_success IPFS,CLUSTER "state export fails without snapshots" '
-    cluster_kill
-    sleep 5
+    cluster_kill &&
+    sleep 5 &&
     test_expect_code 1 ipfs-cluster-service --debug --config "test-config" state export
 '
 

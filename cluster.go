@@ -941,7 +941,7 @@ func (c *Cluster) Pins() []api.Pin {
 // PinGet returns information for a single Cid managed by Cluster.
 // The information is obtained from the current global state. The
 // returned api.Pin provides information about the allocations
-// assigned for the requested Cid, but does not provide indicate if
+// assigned for the requested Cid, but does not indicate if
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
 func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {

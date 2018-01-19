@@ -166,7 +166,7 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	} else {
 		var sortAlloc sort.StringSlice = obj.Allocations
 		sortAlloc.Sort()
-		fmt.Printf("Repl. Factor: %d->%d | Allocations: %s\n",
+		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s\n",
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
 	}

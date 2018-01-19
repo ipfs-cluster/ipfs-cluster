@@ -41,7 +41,10 @@ import (
 // it should only be used with valid replicationFactors (rplMin and rplMax
 // which are positive and rplMin <= rplMax).
 // It always returns allocations, but if no new allocations are needed,
-// it will return the current ones.
+// it will return the current ones. Note that allocate() does not take
+// into account if the given CID was previously in a "pin everywhere" mode,
+// and will consider such Pins as currently unallocated ones, providing
+// new allocations as available.
 func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID) ([]peer.ID, error) {
 	// Figure out who is holding the CID
 	currentPin, _ := c.getCurrentPin(hash)

@@ -1149,7 +1149,7 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 		t.Errorf("Inssufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
 	}
 
-	if len(secondAllocations) < 3 {
+	if lenSA < 3 {
 		t.Error("allocations should be more than rplMin")
 	}
 }

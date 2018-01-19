@@ -151,5 +151,9 @@ func (st *MapState) Unmarshal(bs []byte) error {
 	// snapshot is up to date
 	buf := bytes.NewBuffer(bs[1:])
 	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
-	return dec.Decode(st)
+	err := dec.Decode(st)
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }
