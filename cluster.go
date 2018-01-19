@@ -817,16 +817,34 @@ func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 	// Track items which are not tracked
 	for _, pin := range clusterPins {
 		if c.tracker.Status(pin.Cid).Status == api.TrackerStatusUnpinned {
+			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
 			changed = append(changed, pin.Cid)
 			go c.tracker.Track(pin)
 		}
 	}
 
-	// Untrack items which should not be tracked
+	// a. Untrack items which should not be tracked
+	// b. Track items which should not be remote as local
+	// c. Track items which should not be local as remote
 	for _, p := range c.tracker.StatusAll() {
-		if !cState.Has(p.Cid) {
-			changed = append(changed, p.Cid)
-			go c.tracker.Untrack(p.Cid)
+		pCid := p.Cid
+		currentPin := cState.Get(pCid)
+		has := cState.Has(pCid)
+		allocatedHere := containsPeer(currentPin.Allocations, c.id) || currentPin.ReplicationFactorMin == -1
+
+		switch {
+		case !has:
+			logger.Debugf("StateSync: Untracking %s, is not part of shared state", pCid)
+			changed = append(changed, pCid)
+			go c.tracker.Untrack(pCid)
+		case p.Status == api.TrackerStatusRemote && allocatedHere:
+			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
+			changed = append(changed, pCid)
+			go c.tracker.Track(currentPin)
+		case p.Status == api.TrackerStatusPinned && !allocatedHere:
+			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
+			changed = append(changed, pCid)
+			go c.tracker.Track(currentPin)
 		}
 	}
 
