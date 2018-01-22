@@ -401,8 +401,10 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 	list := cState.List()
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			logger.Infof("repinning %s out of %s", pin.Cid, p.Pretty())
-			c.pin(pin, []peer.ID{p}) // pin blacklisting this peer
+			ok, err := c.pin(pin, []peer.ID{p}) // pin blacklisting this peer
+			if ok && err == nil {
+				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
+			}
 		}
 	}
 }
@@ -815,16 +817,34 @@ func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 	// Track items which are not tracked
 	for _, pin := range clusterPins {
 		if c.tracker.Status(pin.Cid).Status == api.TrackerStatusUnpinned {
+			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
 			changed = append(changed, pin.Cid)
 			go c.tracker.Track(pin)
 		}
 	}
 
-	// Untrack items which should not be tracked
+	// a. Untrack items which should not be tracked
+	// b. Track items which should not be remote as local
+	// c. Track items which should not be local as remote
 	for _, p := range c.tracker.StatusAll() {
-		if !cState.Has(p.Cid) {
-			changed = append(changed, p.Cid)
-			go c.tracker.Untrack(p.Cid)
+		pCid := p.Cid
+		currentPin := cState.Get(pCid)
+		has := cState.Has(pCid)
+		allocatedHere := containsPeer(currentPin.Allocations, c.id) || currentPin.ReplicationFactorMin == -1
+
+		switch {
+		case !has:
+			logger.Debugf("StateSync: Untracking %s, is not part of shared state", pCid)
+			changed = append(changed, pCid)
+			go c.tracker.Untrack(pCid)
+		case p.Status == api.TrackerStatusRemote && allocatedHere:
+			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
+			changed = append(changed, pCid)
+			go c.tracker.Track(currentPin)
+		case p.Status == api.TrackerStatusPinned && !allocatedHere:
+			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
+			changed = append(changed, pCid)
+			go c.tracker.Track(currentPin)
 		}
 	}
 
@@ -939,17 +959,12 @@ func (c *Cluster) Pins() []api.Pin {
 // PinGet returns information for a single Cid managed by Cluster.
 // The information is obtained from the current global state. The
 // returned api.Pin provides information about the allocations
-// assigned for the requested Cid, but does not provide indicate if
+// assigned for the requested Cid, but does not indicate if
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
 func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
-	cState, err := c.consensus.State()
-	if err != nil {
-		logger.Error(err)
-		return api.Pin{}, err
-	}
-	pin := cState.Get(h)
-	if pin.Cid == nil {
+	pin, ok := c.getCurrentPin(h)
+	if !ok {
 		return pin, errors.New("cid is not part of the global state")
 	}
 	return pin, nil
@@ -964,38 +979,57 @@ func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
 func (c *Cluster) Pin(pin api.Pin) error {
-	return c.pin(pin, []peer.ID{})
+	_, err := c.pin(pin, []peer.ID{})
+	return err
 }
 
 // pin performs the actual pinning and supports a blacklist to be
-// able to evacuate a node.
-func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID) error {
-	rpl := pin.ReplicationFactor
-	if rpl == 0 {
-		rpl = c.config.ReplicationFactor
-		pin.ReplicationFactor = rpl
+// able to evacuate a node and returns whether the pin was submitted
+// to the consensus layer or skipped (due to error or to the fact
+// that it was already valid).
+func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID) (bool, error) {
+	if pin.Cid == nil {
+		return false, errors.New("bad pin object")
 	}
+	rplMin := pin.ReplicationFactorMin
+	rplMax := pin.ReplicationFactorMax
+	if rplMin == 0 {
+		rplMin = c.config.ReplicationFactorMin
+		pin.ReplicationFactorMin = rplMin
+	}
+	if rplMax == 0 {
+		rplMax = c.config.ReplicationFactorMax
+		pin.ReplicationFactorMax = rplMax
+	}
+
+	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
+		return false, err
+	}
+
 	switch {
-	case rpl == 0:
-		return errors.New("replication factor is 0")
-	case rpl < 0:
+	case rplMin == -1 && rplMax == -1:
 		pin.Allocations = []peer.ID{}
-		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
-	case rpl > 0:
-		allocs, err := c.allocate(pin.Cid, pin.ReplicationFactor, blacklist)
+	default:
+		allocs, err := c.allocate(pin.Cid, rplMin, rplMax, blacklist)
 		if err != nil {
-			return err
+			return false, err
 		}
 		pin.Allocations = allocs
+	}
+
+	if curr, _ := c.getCurrentPin(pin.Cid); curr.Equals(pin) {
+		// skip pinning
+		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
+		return false, nil
+	}
+
+	if len(pin.Allocations) == 0 {
+		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
+	} else {
 		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
-
 	}
 
-	err := c.consensus.LogPin(pin)
-	if err != nil {
-		return err
-	}
-	return nil
+	return true, c.consensus.LogPin(pin)
 }
 
 // Unpin makes the cluster Unpin a Cid. This implies adding the Cid
@@ -1274,104 +1308,6 @@ func (c *Cluster) getIDForPeer(pid peer.ID) (api.ID, error) {
 		id.Error = err.Error()
 	}
 	return id, err
-}
-
-// allocate finds peers to allocate a hash using the informer and the monitor
-// it should only be used with a positive replication factor
-func (c *Cluster) allocate(hash *cid.Cid, repl int, blacklist []peer.ID) ([]peer.ID, error) {
-	if repl <= 0 {
-		return nil, errors.New("cannot decide allocation for replication factor <= 0")
-	}
-
-	// Figure out who is currently holding this
-	var pinAllocations []peer.ID
-	st, err := c.consensus.State()
-	if err != nil {
-		// no state we assume it is empty. If there was other
-		// problem, we would fail to commit anyway.
-		pinAllocations = []peer.ID{}
-	} else {
-		pin := st.Get(hash)
-		pinAllocations = pin.Allocations
-	}
-
-	// Get the LastMetrics from the leading monitor. They are the last
-	// valid metrics from current cluster peers
-	var metrics []api.Metric
-	metricName := c.informer.Name()
-	l, err := c.consensus.Leader()
-	if err != nil {
-		return nil, errors.New("cannot determine leading Monitor")
-	}
-
-	err = c.rpcClient.Call(l,
-		"Cluster", "PeerMonitorLastMetrics",
-		metricName,
-		&metrics)
-	if err != nil {
-		return nil, err
-	}
-
-	// We must divide the metrics between current and candidates
-	current := make(map[peer.ID]api.Metric)
-	candidates := make(map[peer.ID]api.Metric)
-	validAllocations := make([]peer.ID, 0, len(pinAllocations))
-	for _, m := range metrics {
-		if m.Discard() || containsPeer(blacklist, m.Peer) {
-			// blacklisted peers do not exist for us
-			continue
-		} else if containsPeer(pinAllocations, m.Peer) {
-			current[m.Peer] = m
-			validAllocations = append(validAllocations, m.Peer)
-		} else {
-			candidates[m.Peer] = m
-		}
-	}
-
-	currentValid := len(validAllocations)
-	candidatesValid := len(candidates)
-	needed := repl - currentValid
-
-	logger.Debugf("allocate: Valid allocations: %d", currentValid)
-	logger.Debugf("allocate: Valid candidates: %d", candidatesValid)
-	logger.Debugf("allocate: Needed: %d", needed)
-
-	// If needed == 0, we don't need anything. If needed < 0, we are
-	// reducing the replication factor
-	switch {
-
-	case needed <= 0: // set the allocations to the needed ones
-		return validAllocations[0 : len(validAllocations)+needed], nil
-	case candidatesValid < needed:
-		candidatesIds := []peer.ID{}
-		for k := range candidates {
-			candidatesIds = append(candidatesIds, k)
-		}
-		err = logError(
-			"not enough candidates to allocate %s. Needed: %d. Got: %d (%s)",
-			hash, needed, candidatesValid, candidatesIds)
-		return nil, err
-	default:
-		// this will return candidate peers in order of
-		// preference according to the allocator.
-		candidateAllocs, err := c.allocator.Allocate(hash, current, candidates)
-		if err != nil {
-			return nil, logError(err.Error())
-		}
-
-		logger.Debugf("allocate: candidate allocations: %s", candidateAllocs)
-
-		// we don't have enough peers to pin
-		if got := len(candidateAllocs); got < needed {
-			err = logError(
-				"cannot find enough allocations for %s. Needed: %d. Got: %d (%s)",
-				hash, needed, got, candidateAllocs)
-			return nil, err
-		}
-
-		// the new allocations = the valid ones we had + the needed ones
-		return append(validAllocations, candidateAllocs[0:needed]...), nil
-	}
 }
 
 // diffPeers returns the peerIDs added and removed from peers2 in relation to

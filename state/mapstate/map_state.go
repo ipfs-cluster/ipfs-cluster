@@ -17,7 +17,7 @@ import (
 
 // Version is the map state Version. States with old versions should
 // perform an upgrade before.
-const Version = 2
+const Version = 3
 
 var logger = logging.Logger("mapstate")
 
@@ -54,12 +54,16 @@ func (st *MapState) Rm(c *cid.Cid) error {
 }
 
 // Get returns Pin information for a CID.
+// The returned object has its Cid and Allocations
+// fields initialized, regardless of the
+// presence of the provided Cid in the state.
+// To check the presence, use MapState.Has(*cid.Cid).
 func (st *MapState) Get(c *cid.Cid) api.Pin {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
 	pins, ok := st.PinMap[c.String()]
 	if !ok { // make sure no panics
-		return api.Pin{}
+		return api.PinCid(c)
 	}
 	return pins.ToPin()
 }
@@ -147,5 +151,9 @@ func (st *MapState) Unmarshal(bs []byte) error {
 	// snapshot is up to date
 	buf := bytes.NewBuffer(bs[1:])
 	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
-	return dec.Decode(st)
+	err := dec.Decode(st)
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }

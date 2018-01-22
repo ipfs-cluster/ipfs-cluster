@@ -16,9 +16,10 @@ var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 
 var c = api.Pin{
-	Cid:               testCid1,
-	Allocations:       []peer.ID{testPeerID1},
-	ReplicationFactor: -1,
+	Cid:                  testCid1,
+	Allocations:          []peer.ID{testPeerID1},
+	ReplicationFactorMax: -1,
+	ReplicationFactorMin: -1,
 }
 
 func TestAdd(t *testing.T) {
@@ -49,7 +50,8 @@ func TestGet(t *testing.T) {
 	get := ms.Get(c.Cid)
 	if get.Cid.String() != c.Cid.String() ||
 		get.Allocations[0] != c.Allocations[0] ||
-		get.ReplicationFactor != c.ReplicationFactor {
+		get.ReplicationFactorMax != c.ReplicationFactorMax ||
+		get.ReplicationFactorMin != c.ReplicationFactorMin {
 		t.Error("returned something different")
 	}
 }
@@ -65,7 +67,8 @@ func TestList(t *testing.T) {
 	list := ms.List()
 	if list[0].Cid.String() != c.Cid.String() ||
 		list[0].Allocations[0] != c.Allocations[0] ||
-		list[0].ReplicationFactor != c.ReplicationFactor {
+		list[0].ReplicationFactorMax != c.ReplicationFactorMax ||
+		list[0].ReplicationFactorMin != c.ReplicationFactorMin {
 		t.Error("returned something different")
 	}
 }
@@ -123,7 +126,7 @@ func TestMigrateFromV1(t *testing.T) {
 		t.Error(err)
 	}
 	get := ms.Get(c.Cid)
-	if get.ReplicationFactor != -1 || !get.Cid.Equals(c.Cid) {
+	if get.ReplicationFactorMax != -1 || get.ReplicationFactorMin != -1 || !get.Cid.Equals(c.Cid) {
 		t.Error("expected something different")
 		t.Logf("%+v", get)
 	}

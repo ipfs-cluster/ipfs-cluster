@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Sharness test framework for ipfs-cluster
 #
 # We are using sharness (https://github.com/mlafeldt/sharness)
@@ -107,7 +109,7 @@ test_confirm_importState() {
 }
 
 cluster_kill(){
-    kill -1 "$CLUSTER_D_PID"
+    kill -1 "$CLUSTER_D_PID" &>/dev/null
     while pgrep ipfs-cluster-service >/dev/null; do
         sleep 0.2
     done
@@ -126,8 +128,8 @@ cluster_start(){
 
 # Cleanup functions
 test_clean_ipfs(){
-    docker kill ipfs
-    docker rm ipfs
+    docker kill ipfs >/dev/null
+    docker rm ipfs >/dev/null
     sleep 1
 }
 

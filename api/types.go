@@ -10,6 +10,8 @@ package api
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	cid "github.com/ipfs/go-cid"
@@ -422,26 +424,28 @@ func StringsToPeers(strs []string) []peer.ID {
 // Pin is an argument that carries a Cid. It may carry more things in the
 // future.
 type Pin struct {
-	Cid               *cid.Cid
-	Name              string
-	Allocations       []peer.ID
-	ReplicationFactor int
+	Cid                  *cid.Cid
+	Name                 string
+	Allocations          []peer.ID
+	ReplicationFactorMin int
+	ReplicationFactorMax int
 }
 
 // PinCid is a shorcut to create a Pin only with a Cid.
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
-		Cid: c,
+		Cid:         c,
+		Allocations: []peer.ID{},
 	}
 }
 
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
-	Cid               string   `json:"cid"`
-	Name              string   `json:"name"`
-	Allocations       []string `json:"allocations"`
-	Everywhere        bool     `json:"everywhere,omitempty"` // legacy
-	ReplicationFactor int      `json:"replication_factor"`
+	Cid                  string   `json:"cid"`
+	Name                 string   `json:"name"`
+	Allocations          []string `json:"allocations"`
+	ReplicationFactorMin int      `json:"replication_factor_min"`
+	ReplicationFactorMax int      `json:"replication_factor_max"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -453,14 +457,46 @@ func (pin Pin) ToSerial() PinSerial {
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
-	rpl := pin.ReplicationFactor
 
 	return PinSerial{
-		Cid:               c,
-		Name:              n,
-		Allocations:       allocs,
-		ReplicationFactor: rpl,
+		Cid:                  c,
+		Name:                 n,
+		Allocations:          allocs,
+		ReplicationFactorMin: pin.ReplicationFactorMin,
+		ReplicationFactorMax: pin.ReplicationFactorMax,
 	}
+}
+
+// Equals checks if two pins are the same (with the same allocations).
+// If allocations are the same but in different order, they are still
+// considered equivalent.
+func (pin Pin) Equals(pin2 Pin) bool {
+	pin1s := pin.ToSerial()
+	pin2s := pin2.ToSerial()
+
+	if pin1s.Cid != pin2s.Cid {
+		return false
+	}
+
+	if pin1s.Name != pin2s.Name {
+		return false
+	}
+
+	sort.Strings(pin1s.Allocations)
+	sort.Strings(pin2s.Allocations)
+
+	if strings.Join(pin1s.Allocations, ",") != strings.Join(pin2s.Allocations, ",") {
+		return false
+	}
+
+	if pin1s.ReplicationFactorMax != pin2s.ReplicationFactorMax {
+		return false
+	}
+
+	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
+		return false
+	}
+	return true
 }
 
 // ToPin converts a PinSerial to its native form.
@@ -470,16 +506,12 @@ func (pins PinSerial) ToPin() Pin {
 		logger.Error(pins.Cid, err)
 	}
 
-	// legacy format management
-	if pins.ReplicationFactor == 0 && pins.Everywhere {
-		pins.ReplicationFactor = -1
-	}
-
 	return Pin{
-		Cid:               c,
-		Name:              pins.Name,
-		Allocations:       StringsToPeers(pins.Allocations),
-		ReplicationFactor: pins.ReplicationFactor,
+		Cid:                  c,
+		Name:                 pins.Name,
+		Allocations:          StringsToPeers(pins.Allocations),
+		ReplicationFactorMin: pins.ReplicationFactorMin,
+		ReplicationFactorMax: pins.ReplicationFactorMax,
 	}
 }
 
