@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Sharness test framework for ipfs-cluster
 #
 # We are using sharness (https://github.com/mlafeldt/sharness)
@@ -32,7 +34,7 @@ test_ipfs_init() {
     else
         docker run --name ipfs -d -p 127.0.0.1:5001:5001 ipfs/go-ipfs > /dev/null 2>&1
         if [ $? -ne 0 ]; then
-            echo "Error running go-ipfs in docker."
+            echo "IPFS init FAIL: Error running go-ipfs in docker."
             exit 1
         fi
         while ! curl -s "localhost:5001/api/v0/version" > /dev/null; do
@@ -57,17 +59,17 @@ test_cluster_init() {
 
     which ipfs-cluster-service >/dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo "ipfs-cluster-service not found"
+        echo "cluster init FAIL: ipfs-cluster-service not found"
         exit 1
     fi
     which ipfs-cluster-ctl >/dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo "ipfs-cluster-ctl not found"
+        echo "cluster init FAIL: ipfs-cluster-ctl not found"
         exit 1
     fi
     ipfs-cluster-service -f --config "test-config" init >"$IPFS_OUTPUT" 2>&1
     if [ $? -ne 0 ]; then
-        echo "error initializing ipfs cluster"
+        echo "cluster init FAIL: error on ipfs cluster init"
         exit 1
     fi
     rm -rf "test-config/ipfs-cluster-data"
@@ -107,7 +109,7 @@ test_confirm_importState() {
 }
 
 cluster_kill(){
-    kill -1 "$CLUSTER_D_PID"
+    kill -1 "$CLUSTER_D_PID" &>/dev/null
     while pgrep ipfs-cluster-service >/dev/null; do
         sleep 0.2
     done
@@ -126,8 +128,8 @@ cluster_start(){
 
 # Cleanup functions
 test_clean_ipfs(){
-    docker kill ipfs
-    docker rm ipfs
+    docker kill ipfs >/dev/null
+    docker rm ipfs >/dev/null
     sleep 1
 }
 

@@ -251,7 +251,17 @@ peers should pin this content.
 						cli.IntFlag{
 							Name:  "replication, r",
 							Value: 0,
-							Usage: "Sets a custom replication factor for this pin",
+							Usage: "Sets a custom replication factor (overrides -rmax and -rmin)",
+						},
+						cli.IntFlag{
+							Name:  "replication-min, rmin",
+							Value: 0,
+							Usage: "Sets the minimum replication factor for this pin",
+						},
+						cli.IntFlag{
+							Name:  "replication-max, rmax",
+							Value: 0,
+							Usage: "Sets the maximum replication factor for this pin",
 						},
 						cli.StringFlag{
 							Name:  "name, n",
@@ -263,7 +273,16 @@ peers should pin this content.
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						cerr := globalClient.Pin(ci, c.Int("replication"), c.String("name"))
+
+						rpl := c.Int("replication")
+						rplMin := c.Int("replication-min")
+						rplMax := c.Int("replication-max")
+						if rpl != 0 {
+							rplMin = rpl
+							rplMax = rpl
+						}
+
+						cerr := globalClient.Pin(ci, rplMin, rplMax, c.String("name"))
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil

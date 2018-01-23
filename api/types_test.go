@@ -184,15 +184,17 @@ func TestPinConv(t *testing.T) {
 	}()
 
 	c := Pin{
-		Cid:               testCid1,
-		Allocations:       []peer.ID{testPeerID1},
-		ReplicationFactor: -1,
+		Cid:                  testCid1,
+		Allocations:          []peer.ID{testPeerID1},
+		ReplicationFactorMax: -1,
+		ReplicationFactorMin: -1,
 	}
 
 	newc := c.ToSerial().ToPin()
 	if c.Cid.String() != newc.Cid.String() ||
 		c.Allocations[0] != newc.Allocations[0] ||
-		c.ReplicationFactor != newc.ReplicationFactor {
+		c.ReplicationFactorMin != newc.ReplicationFactorMin ||
+		c.ReplicationFactorMax != newc.ReplicationFactorMax {
 		t.Error("mismatch")
 	}
 }

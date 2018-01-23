@@ -1,0 +1,1 @@
+golang([test: "go test -loglevel CRITICAL -v ./..."])

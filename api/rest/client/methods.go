@@ -56,13 +56,14 @@ func (c *Client) PeerRm(id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *Client) Pin(ci *cid.Cid, replicationFactor int, name string) error {
+func (c *Client) Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error {
 	escName := url.QueryEscape(name)
 	err := c.do(
 		"POST",
-		fmt.Sprintf("/pins/%s?replication_factor=%d&name=%s",
+		fmt.Sprintf("/pins/%s?replication_factor_min=%d&replication_factor_max=%d&name=%s",
 			ci.String(),
-			replicationFactor,
+			replicationFactorMin,
+			replicationFactorMax,
 			escName),
 		nil, nil)
 	return err

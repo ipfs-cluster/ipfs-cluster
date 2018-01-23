@@ -700,7 +700,7 @@ func (ipfs *Connector) post(path string) ([]byte, error) {
 
 	res, err := http.Post(url, "", nil)
 	if err != nil {
-		logger.Error("error getting:", err)
+		logger.Error("error posting:", err)
 		return nil, err
 	}
 	defer res.Body.Close()

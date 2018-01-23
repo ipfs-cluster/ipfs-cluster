@@ -87,11 +87,23 @@ type Config struct {
 	// large.
 	IPFSSyncInterval time.Duration
 
-	// ReplicationFactor indicates the number of nodes that must pin content.
-	// For exampe, a replication_factor of 2 will prompt cluster to choose
-	// two nodes for each pinned hash. A replication_factor -1 will
-	// use every available node for each pin.
-	ReplicationFactor int
+	// ReplicationFactorMax indicates the target number of nodes
+	// that should pin content. For exampe, a replication_factor of
+	// 3 will have cluster allocate each pinned hash to 3 peers if
+	// possible.
+	// See also ReplicationFactorMin. A ReplicationFactorMax of -1
+	// will allocate to every available node.
+	ReplicationFactorMax int
+
+	// ReplicationFactorMin indicates the minimum number of healthy
+	// nodes pinning content. If the number of nodes available to pin
+	// is less than this threshold, an error will be returned.
+	// In the case of peer health issues, content pinned will be
+	// re-allocated if the threshold is crossed.
+	// For exampe, a ReplicationFactorMin of 2 will allocate at least
+	// two peer to hold content, and return an error if this is not
+	// possible.
+	ReplicationFactorMin int
 
 	// MonitorPingInterval is frequency by which a cluster peer pings the
 	// monitoring component. The ping metric has a TTL set to the double
@@ -103,18 +115,20 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                  string   `json:"id"`
-	Peername            string   `json:"peername"`
-	PrivateKey          string   `json:"private_key"`
-	Secret              string   `json:"secret"`
-	Peers               []string `json:"peers"`
-	Bootstrap           []string `json:"bootstrap"`
-	LeaveOnShutdown     bool     `json:"leave_on_shutdown"`
-	ListenMultiaddress  string   `json:"listen_multiaddress"`
-	StateSyncInterval   string   `json:"state_sync_interval"`
-	IPFSSyncInterval    string   `json:"ipfs_sync_interval"`
-	ReplicationFactor   int      `json:"replication_factor"`
-	MonitorPingInterval string   `json:"monitor_ping_interval"`
+	ID                   string   `json:"id"`
+	Peername             string   `json:"peername"`
+	PrivateKey           string   `json:"private_key"`
+	Secret               string   `json:"secret"`
+	Peers                []string `json:"peers"`
+	Bootstrap            []string `json:"bootstrap"`
+	LeaveOnShutdown      bool     `json:"leave_on_shutdown"`
+	ListenMultiaddress   string   `json:"listen_multiaddress"`
+	StateSyncInterval    string   `json:"state_sync_interval"`
+	IPFSSyncInterval     string   `json:"ipfs_sync_interval"`
+	ReplicationFactor    int      `json:"replication_factor,omitempty"` // legacy
+	ReplicationFactorMin int      `json:"replication_factor_min"`
+	ReplicationFactorMax int      `json:"replication_factor_max"`
+	MonitorPingInterval  string   `json:"monitor_ping_interval"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -190,10 +204,34 @@ func (cfg *Config) Validate() error {
 		return errors.New("cluster.monitoring_interval is invalid")
 	}
 
-	if cfg.ReplicationFactor < -1 {
-		return errors.New("cluster.replication_factor is invalid")
+	rfMax := cfg.ReplicationFactorMax
+	rfMin := cfg.ReplicationFactorMin
+
+	return isReplicationFactorValid(rfMin, rfMax)
+}
+
+func isReplicationFactorValid(rplMin, rplMax int) error {
+	// check Max and Min are correct
+	if rplMin == 0 || rplMax == 0 {
+		return errors.New("cluster.replication_factor_min and max must be set")
 	}
 
+	if rplMin > rplMax {
+		return errors.New("cluster.replication_factor_min is larger than max")
+	}
+
+	if rplMin < -1 {
+		return errors.New("cluster.replication_factor_min is wrong")
+	}
+
+	if rplMax < -1 {
+		return errors.New("cluster.replication_factor_max is wrong")
+	}
+
+	if (rplMin == -1 && rplMax != -1) ||
+		(rplMin != -1 && rplMax == -1) {
+		return errors.New("cluster.replication_factor_min and max must be -1 when one of them is")
+	}
 	return nil
 }
 
@@ -212,7 +250,8 @@ func (cfg *Config) setDefaults() {
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
 	cfg.IPFSSyncInterval = DefaultIPFSSyncInterval
-	cfg.ReplicationFactor = DefaultReplicationFactor
+	cfg.ReplicationFactorMin = DefaultReplicationFactor
+	cfg.ReplicationFactorMax = DefaultReplicationFactor
 	cfg.MonitorPingInterval = DefaultMonitorPingInterval
 }
 
@@ -229,6 +268,14 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	// Make sure all non-defined keys have good values.
 	cfg.setDefaults()
+
+	parseDuration := func(txt string) time.Duration {
+		d, _ := time.ParseDuration(txt)
+		if txt != "" && d == 0 {
+			logger.Warningf("%s is not a valid duration. Default will be used", txt)
+		}
+		return d
+	}
 
 	id, err := peer.IDB58Decode(jcfg.ID)
 	if err != nil {
@@ -291,22 +338,22 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	}
 	cfg.ListenAddr = clusterAddr
 
-	if rf := jcfg.ReplicationFactor; rf == 0 {
-		logger.Warning("Replication factor set to -1 (pin everywhere)")
-		cfg.ReplicationFactor = -1
-	} else {
-		cfg.ReplicationFactor = rf
+	rplMin := jcfg.ReplicationFactorMin
+	rplMax := jcfg.ReplicationFactorMax
+	if jcfg.ReplicationFactor != 0 { // read min and max
+		rplMin = jcfg.ReplicationFactor
+		rplMax = rplMin
 	}
+	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
+	config.SetIfNotDefault(rplMax, &cfg.ReplicationFactorMax)
 
-	// Validation will detect problems here
-	interval, _ := time.ParseDuration(jcfg.StateSyncInterval)
-	cfg.StateSyncInterval = interval
+	stateSyncInterval := parseDuration(jcfg.StateSyncInterval)
+	ipfsSyncInterval := parseDuration(jcfg.IPFSSyncInterval)
+	monitorPingInterval := parseDuration(jcfg.MonitorPingInterval)
 
-	interval, _ = time.ParseDuration(jcfg.IPFSSyncInterval)
-	cfg.IPFSSyncInterval = interval
-
-	interval, _ = time.ParseDuration(jcfg.MonitorPingInterval)
-	cfg.MonitorPingInterval = interval
+	config.SetIfNotDefault(stateSyncInterval, &cfg.StateSyncInterval)
+	config.SetIfNotDefault(ipfsSyncInterval, &cfg.IPFSSyncInterval)
+	config.SetIfNotDefault(monitorPingInterval, &cfg.MonitorPingInterval)
 
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
 
@@ -350,7 +397,8 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.Secret = EncodeClusterSecret(cfg.Secret)
 	jcfg.Peers = clusterPeers
 	jcfg.Bootstrap = bootstrap
-	jcfg.ReplicationFactor = cfg.ReplicationFactor
+	jcfg.ReplicationFactorMin = cfg.ReplicationFactorMin
+	jcfg.ReplicationFactorMax = cfg.ReplicationFactorMax
 	jcfg.LeaveOnShutdown = cfg.LeaveOnShutdown
 	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()

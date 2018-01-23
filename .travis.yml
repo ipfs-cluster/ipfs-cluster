@@ -1,4 +1,7 @@
 language: go
+os:
+  - linux
+#  - osx
 go:
 - '1.9'
 services:
@@ -20,8 +23,7 @@ script:
 - make test_sharness && make clean_sharness
 env:
   global:
-    - secure: M3K3y9+D933tCda7+blW3qqVV8fA6PBDRdJoQvmQc1f0XYbWinJ+bAziFp6diKkF8sMQ+cPwLMONYJuaNT2h7/PkG+sIwF0PuUo5VVCbhGmSDrn2qOjmSnfawNs8wW31f44FQA8ICka1EFZcihohoIMf0e5xZ0tXA9jqw+ngPJiRnv4zyzC3r6t4JMAZcbS9w4KTYpIev5Yj72eCvk6lGjadSVCDVXo2sVs27tNt+BSgtMXiH6Sv8GLOnN2kFspGITgivHgB/jtU6QVtFXB+cbBJJAs3lUYnzmQZ5INecbjweYll07ilwFiCVNCX67+L15gpymKGJbQggloIGyTWrAOa2TMaB/bvblzwwQZ8wE5P3Rss5L0TFkUAcdU+3BUHM+TwV4e8F9x10v1PjgWNBRJQzd1sjKKgGUBCeyCY7VeYDKn9AXI5llISgY/AAfCZwm2cbckMHZZJciMjm+U3Q1FCF+rfhlvUcMG1VEj8r9cGpmWIRjFYVm0NmpUDDNjlC3/lUfTCOOJJyM254EUw63XxabbK6EtDN1yQe8kYRcXH//2rtEwgtMBgqHVY+OOkekzGz8Ra3EBkh6jXrAQL3zKu/GwRlK7/a1OU5MQ7dWcTjbx1AQ6Zfyjg5bZ+idqPgMbqM9Zn2+OaSby8HEEXS0QeZVooDVf/6wdYO4MQ/0A=
-    - verbose=t
+  - secure: M3K3y9+D933tCda7+blW3qqVV8fA6PBDRdJoQvmQc1f0XYbWinJ+bAziFp6diKkF8sMQ+cPwLMONYJuaNT2h7/PkG+sIwF0PuUo5VVCbhGmSDrn2qOjmSnfawNs8wW31f44FQA8ICka1EFZcihohoIMf0e5xZ0tXA9jqw+ngPJiRnv4zyzC3r6t4JMAZcbS9w4KTYpIev5Yj72eCvk6lGjadSVCDVXo2sVs27tNt+BSgtMXiH6Sv8GLOnN2kFspGITgivHgB/jtU6QVtFXB+cbBJJAs3lUYnzmQZ5INecbjweYll07ilwFiCVNCX67+L15gpymKGJbQggloIGyTWrAOa2TMaB/bvblzwwQZ8wE5P3Rss5L0TFkUAcdU+3BUHM+TwV4e8F9x10v1PjgWNBRJQzd1sjKKgGUBCeyCY7VeYDKn9AXI5llISgY/AAfCZwm2cbckMHZZJciMjm+U3Q1FCF+rfhlvUcMG1VEj8r9cGpmWIRjFYVm0NmpUDDNjlC3/lUfTCOOJJyM254EUw63XxabbK6EtDN1yQe8kYRcXH//2rtEwgtMBgqHVY+OOkekzGz8Ra3EBkh6jXrAQL3zKu/GwRlK7/a1OU5MQ7dWcTjbx1AQ6Zfyjg5bZ+idqPgMbqM9Zn2+OaSby8HEEXS0QeZVooDVf/6wdYO4MQ/0A=
 after_success:
 - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv
   -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
@@ -31,5 +33,5 @@ deploy:
     branch: master
   provider: script
   script: docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq
-    && cd $(pwd) && ./snap/snap-multiarch.sh"
+    && cd $(pwd) && snapcraft && snapcraft push *.snap --release edge"
   skip_cleanup: true

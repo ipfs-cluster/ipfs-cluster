@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -36,14 +37,29 @@ var (
 	// number of pins to pin/unpin/check
 	nPins = 500
 
+	logLevel = "CRITICAL"
+
 	// ports
-	clusterPort   = 20000
-	apiPort       = 20500
-	ipfsProxyPort = 21000
+	clusterPort   = 10000
+	apiPort       = 10100
+	ipfsProxyPort = 10200
 )
 
 func init() {
+	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
+	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
+	flag.IntVar(&nPins, "npins", nPins, "number of pins to pin/unpin/check")
+	flag.Parse()
+
 	rand.Seed(time.Now().UnixNano())
+
+	for f := range LoggingFacilities {
+		SetFacilityLogLevel(f, logLevel)
+	}
+
+	for f := range LoggingFacilitiesExtra {
+		SetFacilityLogLevel(f, logLevel)
+	}
 }
 
 func checkErr(t *testing.T, err error) {
@@ -185,11 +201,11 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 	for i, c := range clusters {
-		m[i].Close()
 		err := c.Shutdown()
 		if err != nil {
 			t.Error(err)
 		}
+		m[i].Close()
 	}
 	os.RemoveAll("./e2eTestRaft")
 }
@@ -721,7 +737,8 @@ func TestClustersReplication(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	// Why is replication factor nClusters - 1?
@@ -767,7 +784,7 @@ func TestClustersReplication(t *testing.T) {
 		if numRemote != 1 {
 			t.Errorf("We wanted 1 peer track as remote but %d do", numRemote)
 		}
-		time.Sleep(time.Second / 2) // this is for metric to be up to date
+		time.Sleep(time.Second) // this is for metric to be up to date
 	}
 
 	f := func(t *testing.T, c *Cluster) {
@@ -814,13 +831,337 @@ func TestClustersReplication(t *testing.T) {
 	runF(t, clusters, f)
 }
 
+// This test checks that we pin with ReplicationFactorMax when
+// we can
+func TestClustersReplicationFactorMax(t *testing.T) {
+	if nClusters < 3 {
+		t.Skip("Need at least 3 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = 1
+		c.config.ReplicationFactorMax = nClusters - 1
+	}
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	f := func(t *testing.T, c *Cluster) {
+		p, err := c.PinGet(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(p.Allocations) != nClusters-1 {
+			t.Error("should have pinned nClusters - 1 allocations")
+		}
+
+		if p.ReplicationFactorMin != 1 {
+			t.Error("rplMin should be 1")
+		}
+
+		if p.ReplicationFactorMax != nClusters-1 {
+			t.Error("rplMax should be nClusters-1")
+		}
+	}
+	runF(t, clusters, f)
+}
+
+// This tests checks that repinning something that is overpinned
+// removes some allocations
+func TestClustersReplicationFactorMaxLower(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = 1
+		c.config.ReplicationFactorMax = nClusters
+	}
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	p1, err := clusters[0].PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(p1.Allocations) != nClusters {
+		t.Fatal("allocations should be nClusters")
+	}
+
+	err = clusters[0].Pin(api.Pin{
+		Cid:                  h,
+		ReplicationFactorMax: 2,
+		ReplicationFactorMin: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	p2, err := clusters[0].PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(p2.Allocations) != 2 {
+		t.Fatal("allocations should have been reduced to 2")
+	}
+}
+
+// This test checks that when not all nodes are available,
+// we pin in as many as we can aiming for ReplicationFactorMax
+func TestClustersReplicationFactorInBetween(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = 1
+		c.config.ReplicationFactorMax = nClusters
+	}
+
+	// Shutdown two peers
+	clusters[nClusters-1].Shutdown()
+	clusters[nClusters-2].Shutdown()
+
+	time.Sleep(time.Second) // let metric expire
+
+	waitForLeader(t, clusters)
+
+	// allow metrics to arrive to new leader
+	delay()
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	f := func(t *testing.T, c *Cluster) {
+		if c == clusters[nClusters-1] || c == clusters[nClusters-2] {
+			return
+		}
+		p, err := c.PinGet(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(p.Allocations) != nClusters-2 {
+			t.Error("should have pinned nClusters-2 allocations")
+		}
+
+		if p.ReplicationFactorMin != 1 {
+			t.Error("rplMin should be 1")
+		}
+
+		if p.ReplicationFactorMax != nClusters {
+			t.Error("rplMax should be nClusters")
+		}
+	}
+	runF(t, clusters, f)
+}
+
+// This test checks that we do not pin something for which
+// we cannot reach ReplicationFactorMin
+func TestClustersReplicationFactorMin(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters
+	}
+
+	// Shutdown two peers
+	clusters[nClusters-1].Shutdown()
+	clusters[nClusters-2].Shutdown()
+
+	time.Sleep(time.Second) // let metric expire
+
+	waitForLeader(t, clusters)
+
+	// allow metrics to arrive to new leader
+	delay()
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err == nil {
+		t.Error("Pin should have failed as rplMin cannot be satisfied")
+	}
+	t.Log(err)
+	if !strings.Contains(err.Error(), fmt.Sprintf("not enough peers to allocate CID")) {
+		t.Fatal(err)
+	}
+}
+
+// This tests checks that repinning something that has becomed
+// underpinned actually changes nothing if it's sufficiently pinned
+func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = 1
+		c.config.ReplicationFactorMax = nClusters
+	}
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Shutdown two peers
+	clusters[nClusters-1].Shutdown()
+	clusters[nClusters-2].Shutdown()
+
+	time.Sleep(time.Second) // let metric expire
+
+	waitForLeader(t, clusters)
+
+	// allow metrics to arrive to new leader
+	delay()
+
+	err = clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := clusters[0].PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(p.Allocations) != nClusters {
+		t.Error("allocations should still be nCluster even if not all available")
+	}
+
+	if p.ReplicationFactorMax != nClusters {
+		t.Error("rplMax should have not changed")
+	}
+}
+
+// This test checks that repinning something that has becomed
+// underpinned does re-allocations when it's not sufficiently
+// pinned anymore
+func TestClustersReplicationMinMaxRealloc(t *testing.T) {
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = 3
+		c.config.ReplicationFactorMax = 4
+	}
+
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[0].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	p, err := clusters[0].PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	firstAllocations := p.Allocations
+
+	peerIDMap := make(map[peer.ID]*Cluster)
+	for _, a := range clusters {
+		peerIDMap[a.id] = a
+	}
+
+	// kill two of the allocations
+	alloc1 := peerIDMap[firstAllocations[0]]
+	alloc2 := peerIDMap[firstAllocations[1]]
+	safePeer := peerIDMap[firstAllocations[2]]
+
+	alloc1.Shutdown()
+	alloc2.Shutdown()
+
+	time.Sleep(time.Second) // let metric expire
+
+	waitForLeader(t, clusters)
+
+	// allow metrics to arrive to new leader
+	delay()
+
+	// Repin - (although this might have been taken of if there was an alert
+	err = safePeer.Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = safePeer.PinGet(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secondAllocations := p.Allocations
+
+	strings1 := api.PeersToStrings(firstAllocations)
+	strings2 := api.PeersToStrings(secondAllocations)
+	sort.Strings(strings1)
+	sort.Strings(strings2)
+	t.Logf("Allocs1: %s", strings1)
+	t.Logf("Allocs2: %s", strings2)
+
+	if fmt.Sprintf("%s", strings1) == fmt.Sprintf("%s", strings2) {
+		t.Error("allocations should have changed")
+	}
+
+	lenSA := len(secondAllocations)
+	expected := minInt(nClusters-2, 4)
+	if lenSA != expected {
+		t.Errorf("Inssufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
+	}
+
+	if lenSA < 3 {
+		t.Error("allocations should be more than rplMin")
+	}
+}
+
 // In this test we check that repinning something
 // when a node has gone down will re-assign the pin
 func TestClustersReplicationRealloc(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	j := rand.Intn(nClusters)
@@ -920,7 +1261,8 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	j := rand.Intn(nClusters)
@@ -943,7 +1285,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	if !strings.Contains(err.Error(), "not enough candidates") {
+	if !strings.Contains(err.Error(), "not enough peers to allocate") {
 		t.Error("different error than expected")
 		t.Error(err)
 	}
@@ -958,7 +1300,8 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {
-		c.config.ReplicationFactor = nClusters - 1
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
 	// pin something

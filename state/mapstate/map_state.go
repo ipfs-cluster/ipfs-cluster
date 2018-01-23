@@ -17,7 +17,7 @@ import (
 
 // Version is the map state Version. States with old versions should
 // perform an upgrade before.
-const Version = 2
+const Version = 3
 
 var logger = logging.Logger("mapstate")
 
@@ -54,12 +54,16 @@ func (st *MapState) Rm(c *cid.Cid) error {
 }
 
 // Get returns Pin information for a CID.
+// The returned object has its Cid and Allocations
+// fields initialized, regardless of the
+// presence of the provided Cid in the state.
+// To check the presence, use MapState.Has(*cid.Cid).
 func (st *MapState) Get(c *cid.Cid) api.Pin {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
 	pins, ok := st.PinMap[c.String()]
 	if !ok { // make sure no panics
-		return api.Pin{}
+		return api.PinCid(c)
 	}
 	return pins.ToPin()
 }
@@ -125,7 +129,7 @@ func (st *MapState) Marshal() ([]byte, error) {
 	vCodec := make([]byte, 1)
 	vCodec[0] = byte(st.Version)
 	ret := append(vCodec, buf.Bytes()...)
-	logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
+	// logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
 	return ret, nil
 }
 
@@ -136,7 +140,7 @@ func (st *MapState) Marshal() ([]byte, error) {
 // version is not an error
 func (st *MapState) Unmarshal(bs []byte) error {
 	// Check version byte
-	logger.Debugf("The incoming bytes to unmarshal: %x", bs)
+	// logger.Debugf("The incoming bytes to unmarshal: %x", bs)
 	v := int(bs[0])
 	logger.Debugf("The interpreted version: %d", v)
 	if v != Version { // snapshot is out of date
@@ -147,5 +151,9 @@ func (st *MapState) Unmarshal(bs []byte) error {
 	// snapshot is up to date
 	buf := bytes.NewBuffer(bs[1:])
 	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
-	return dec.Decode(st)
+	err := dec.Decode(st)
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }

@@ -41,6 +41,7 @@ func makeTestingHost(t *testing.T, port int) host.Host {
 	ps := peerstore.NewPeerstore()
 	ps.AddPubKey(pid, pub)
 	ps.AddPrivKey(pid, priv)
+	ps.AddAddr(pid, maddr, peerstore.PermanentAddrTTL)
 	n, _ := swarm.NewNetwork(
 		context.Background(),
 		[]ma.Multiaddr{maddr},
@@ -63,6 +64,7 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 	}
 	cc.SetClient(test.NewMockRPCClientWithHost(t, h))
 	<-cc.Ready()
+	time.Sleep(2 * time.Second)
 	return cc
 }
 
@@ -94,7 +96,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.Pin{Cid: c, ReplicationFactor: -1})
+	err := cc.LogPin(api.Pin{Cid: c, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -135,7 +137,7 @@ func TestConsensusAddPeer(t *testing.T) {
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
 
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.PermanentAddrTTL)
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
@@ -166,8 +168,9 @@ func TestConsensusRmPeer(t *testing.T) {
 	defer cc.Shutdown()
 	defer cc2.Shutdown()
 
-	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.TempAddrTTL)
+	//addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPort))
+	addr2, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr2, peerstore.PermanentAddrTTL)
 
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
@@ -183,7 +186,7 @@ func TestConsensusRmPeer(t *testing.T) {
 	cc.raft.WaitForLeader(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = cc.LogPin(api.Pin{Cid: c, ReplicationFactor: -1})
+	err = cc.LogPin(api.Pin{Cid: c, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("could not pin after adding peer:", err)
 	}
@@ -231,7 +234,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 1
 	c1, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.Pin{Cid: c1, ReplicationFactor: -1})
+	err := cc.LogPin(api.Pin{Cid: c1, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the first pin did not make it to the log:", err)
 	}
@@ -244,7 +247,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 2
 	c2, _ := cid.Decode(test.TestCid2)
-	err = cc.LogPin(api.Pin{Cid: c2, ReplicationFactor: -1})
+	err = cc.LogPin(api.Pin{Cid: c2, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the second pin did not make it to the log:", err)
 	}
@@ -257,7 +260,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 3
 	c3, _ := cid.Decode(test.TestCid3)
-	err = cc.LogPin(api.Pin{Cid: c3, ReplicationFactor: -1})
+	err = cc.LogPin(api.Pin{Cid: c3, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Error("the third pin did not make it to the log:", err)
 	}

@@ -175,3 +175,10 @@ func containsPeer(list []peer.ID, peer peer.ID) bool {
 	}
 	return false
 }
+
+func minInt(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
