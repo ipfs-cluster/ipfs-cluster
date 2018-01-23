@@ -453,9 +453,9 @@ to check that it matches the CLI version (shown by -v).
 			Subcommands: []cli.Command{
 				{
 					Name:  "graph",
-					Usage: "display connectivity of cluster nodes",
+					Usage: "display connectivity of cluster peers",
 					Description: `
-This command queries all connected cluster peers and their ipfs nodes to generate a
+This command queries all connected cluster peers and their ipfs peers to generate a
 graph of the connections.  Output is a dot file encoding the cluster's connection state.
 `,
 					Flags: []cli.Flag{

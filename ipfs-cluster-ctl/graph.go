@@ -176,13 +176,8 @@ func sortedKeys(dict map[string][]string) []string {
 func shortID(peerString string) string {
 	pid, err := peer.IDB58Decode(peerString)
 	if err != nil {
-		// We'll truncate ourselves
-		// Should never get here but try to match with peer:String()
-		if len(peerString) < 6 {
-
-			return fmt.Sprintf("<peer.ID %s>", peerString)
-		}
-		return fmt.Sprintf("<peer.ID %s>", peerString[:6])
+		// Should never get here, panic
+		panic("shortID called on non-pid string")
 	}
 	return pid.String()
 }
