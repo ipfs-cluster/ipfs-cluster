@@ -22,11 +22,17 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-var p2pPort = 10000
-var p2pPortAlt = 11000
+func cleanRaft(idn int) {
+	os.RemoveAll(fmt.Sprintf("raftFolderFromTests-%d", idn))
+}
 
-func cleanRaft(port int) {
-	os.RemoveAll(fmt.Sprintf("raftFolderFromTests%d", port))
+func consensusListenAddr(c *Consensus) ma.Multiaddr {
+	return c.host.Addrs()[0]
+}
+
+func consensusAddr(c *Consensus) ma.Multiaddr {
+	cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", consensusListenAddr(c), c.host.ID().Pretty()))
+	return cAddr
 }
 
 func init() {
@@ -34,10 +40,13 @@ func init() {
 	//logging.SetLogLevel("consensus", "DEBUG")
 }
 
-func makeTestingHost(t *testing.T, port int) host.Host {
+func makeTestingHost(t *testing.T, idn int) host.Host {
 	priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	pid, _ := peer.IDFromPublicKey(pub)
-	maddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
+
+	//maddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", idn))
+	// Bind on random port
+	maddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	ps := peerstore.NewPeerstore()
 	ps.AddPubKey(pid, pub)
 	ps.AddPrivKey(pid, priv)
@@ -49,13 +58,13 @@ func makeTestingHost(t *testing.T, port int) host.Host {
 	return basichost.New(n)
 }
 
-func testingConsensus(t *testing.T, port int) *Consensus {
-	h := makeTestingHost(t, port)
+func testingConsensus(t *testing.T, idn int) *Consensus {
+	h := makeTestingHost(t, idn)
 	st := mapstate.NewMapState()
 
 	cfg := &Config{}
 	cfg.Default()
-	cfg.DataFolder = fmt.Sprintf("raftFolderFromTests%d", port)
+	cfg.DataFolder = fmt.Sprintf("raftFolderFromTests-%d", idn)
 	cfg.hostShutdown = true
 
 	cc, err := NewConsensus([]peer.ID{h.ID()}, h, cfg, st)
@@ -71,7 +80,7 @@ func testingConsensus(t *testing.T, port int) *Consensus {
 func TestShutdownConsensus(t *testing.T) {
 	// Bring it up twice to make sure shutdown cleans up properly
 	// but also to make sure raft comes up ok when re-initialized
-	cc := testingConsensus(t, p2pPort)
+	cc := testingConsensus(t, 1)
 	err := cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)
@@ -80,19 +89,19 @@ func TestShutdownConsensus(t *testing.T) {
 	if err != nil {
 		t.Fatal("Consensus should be able to shutdown several times")
 	}
-	cleanRaft(p2pPort)
+	cleanRaft(1)
 
-	cc = testingConsensus(t, p2pPort)
+	cc = testingConsensus(t, 1)
 	err = cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)
 	}
-	cleanRaft(p2pPort)
+	cleanRaft(1)
 }
 
 func TestConsensusPin(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
-	defer cleanRaft(p2pPort) // Remember defer runs in LIFO order
+	cc := testingConsensus(t, 1)
+	defer cleanRaft(1) // Remember defer runs in LIFO order
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
@@ -114,8 +123,8 @@ func TestConsensusPin(t *testing.T) {
 }
 
 func TestConsensusUnpin(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
-	defer cleanRaft(p2pPort)
+	cc := testingConsensus(t, 1)
+	defer cleanRaft(1)
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid2)
@@ -126,18 +135,16 @@ func TestConsensusUnpin(t *testing.T) {
 }
 
 func TestConsensusAddPeer(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
-	cc2 := testingConsensus(t, p2pPortAlt)
+	cc := testingConsensus(t, 1)
+	cc2 := testingConsensus(t, 2)
 	t.Log(cc.host.ID().Pretty())
 	t.Log(cc2.host.ID().Pretty())
-	defer cleanRaft(p2pPort)
-	defer cleanRaft(p2pPortAlt)
+	defer cleanRaft(1)
+	defer cleanRaft(2)
 	defer cc.Shutdown()
 	defer cc2.Shutdown()
 
-	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
-
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr, peerstore.PermanentAddrTTL)
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), consensusListenAddr(cc2), peerstore.PermanentAddrTTL)
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
@@ -161,16 +168,14 @@ func TestConsensusAddPeer(t *testing.T) {
 }
 
 func TestConsensusRmPeer(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
-	cc2 := testingConsensus(t, p2pPortAlt)
-	defer cleanRaft(p2pPort)
-	defer cleanRaft(p2pPortAlt)
+	cc := testingConsensus(t, 1)
+	cc2 := testingConsensus(t, 2)
+	defer cleanRaft(1)
+	defer cleanRaft(2)
 	defer cc.Shutdown()
 	defer cc2.Shutdown()
 
-	//addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPort))
-	addr2, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", p2pPortAlt))
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), addr2, peerstore.PermanentAddrTTL)
+	cc.host.Peerstore().AddAddr(cc2.host.ID(), consensusListenAddr(cc2), peerstore.PermanentAddrTTL)
 
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
@@ -213,9 +218,9 @@ func TestConsensusRmPeer(t *testing.T) {
 }
 
 func TestConsensusLeader(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
+	cc := testingConsensus(t, 1)
 	pID := cc.host.ID()
-	defer cleanRaft(p2pPort)
+	defer cleanRaft(1)
 	defer cc.Shutdown()
 	l, err := cc.Leader()
 	if err != nil {
@@ -228,8 +233,8 @@ func TestConsensusLeader(t *testing.T) {
 }
 
 func TestRaftLatestSnapshot(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
-	defer cleanRaft(p2pPort)
+	cc := testingConsensus(t, 1)
+	defer cleanRaft(1)
 	defer cc.Shutdown()
 
 	// Make pin 1

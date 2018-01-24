@@ -11,13 +11,13 @@ import (
 )
 
 func TestApplyToPin(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
+	cc := testingConsensus(t, 1)
 	op := &LogOp{
 		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpPin,
 		consensus: cc,
 	}
-	defer cleanRaft(p2pPort)
+	defer cleanRaft(1)
 	defer cc.Shutdown()
 
 	st := mapstate.NewMapState()
@@ -29,13 +29,13 @@ func TestApplyToPin(t *testing.T) {
 }
 
 func TestApplyToUnpin(t *testing.T) {
-	cc := testingConsensus(t, p2pPort)
+	cc := testingConsensus(t, 1)
 	op := &LogOp{
 		Cid:       api.PinSerial{Cid: test.TestCid1},
 		Type:      LogOpUnpin,
 		consensus: cc,
 	}
-	defer cleanRaft(p2pPort)
+	defer cleanRaft(1)
 	defer cc.Shutdown()
 
 	st := mapstate.NewMapState()
