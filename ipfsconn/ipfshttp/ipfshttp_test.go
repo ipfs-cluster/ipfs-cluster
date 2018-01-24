@@ -17,7 +17,6 @@ import (
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 func init() {
@@ -28,7 +27,7 @@ func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
 		mock.Addr, mock.Port))
-	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
+	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
 	cfg := &Config{}
 	cfg.Default()
@@ -604,6 +603,6 @@ func TestConfigKey(t *testing.T) {
 }
 
 func proxyURL(c *Connector) string {
-	_, addr, _ := manet.DialArgs(c.config.ProxyAddr)
-	return fmt.Sprintf("http://%s/api/v0", addr)
+	addr := c.listener.Addr()
+	return fmt.Sprintf("http://%s/api/v0", addr.String())
 }
