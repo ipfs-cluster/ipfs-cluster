@@ -12,6 +12,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
@@ -150,10 +151,14 @@ func (st *MapState) Unmarshal(bs []byte) error {
 
 	// snapshot is up to date
 	buf := bytes.NewBuffer(bs[1:])
+	newState := MapState{}
 	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
-	err := dec.Decode(st)
+	err := dec.Decode(&newState)
 	if err != nil {
 		logger.Error(err)
 	}
+
+	st.PinMap = newState.PinMap
+	st.Version = newState.Version
 	return err
 }
