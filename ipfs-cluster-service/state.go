@@ -27,7 +27,8 @@ func upgrade() error {
 		return err
 	}
 
-	return raft.SnapshotSave(consensusCfg, newState, clusterCfg.ID)
+	raftPeers := append(ipfscluster.PeersFromMultiaddrs(clusterCfg.Peers), clusterCfg.ID)
+	return raft.SnapshotSave(consensusCfg, newState, raftPeers)
 }
 
 func export(w io.Writer) error {
@@ -87,8 +88,8 @@ func stateImport(r io.Reader) error {
 			return err
 		}
 	}
-
-	return raft.SnapshotSave(consensusCfg, stateToImport, clusterCfg.ID)
+	raftPeers := append(ipfscluster.PeersFromMultiaddrs(clusterCfg.Peers), clusterCfg.ID)
+	return raft.SnapshotSave(consensusCfg, stateToImport, raftPeers)
 }
 
 func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
