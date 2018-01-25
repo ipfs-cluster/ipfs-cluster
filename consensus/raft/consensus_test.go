@@ -40,7 +40,7 @@ func init() {
 	//logging.SetLogLevel("consensus", "DEBUG")
 }
 
-func makeTestingHost(t *testing.T, idn int) host.Host {
+func makeTestingHost(t *testing.T) host.Host {
 	priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	pid, _ := peer.IDFromPublicKey(pub)
 
@@ -59,7 +59,7 @@ func makeTestingHost(t *testing.T, idn int) host.Host {
 }
 
 func testingConsensus(t *testing.T, idn int) *Consensus {
-	h := makeTestingHost(t, idn)
+	h := makeTestingHost(t)
 	st := mapstate.NewMapState()
 
 	cfg := &Config{}

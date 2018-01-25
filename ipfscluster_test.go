@@ -39,10 +39,10 @@ var (
 
 	logLevel = "CRITICAL"
 
-	// ports
-	clusterPort   = 10000
-	apiPort       = 10100
-	ipfsProxyPort = 10200
+	// When testing with fixed ports...
+	// clusterPort   = 10000
+	// apiPort       = 10100
+	// ipfsProxyPort = 10200
 )
 
 func init() {
@@ -151,7 +151,9 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	ipfsMocks := make([]*test.IpfsMock, nClusters, nClusters)
 	clusters := make([]*Cluster, nClusters, nClusters)
 
-	clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
+	// Uncomment when testing with fixed ports
+	// clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
+
 	for i := 0; i < nClusters; i++ {
 		clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret)
 		cfgs[i] = clusterCfg
@@ -164,10 +166,12 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		allocs[i] = alloc
 		infs[i] = inf
 		ipfsMocks[i] = mock
-		addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
-			clusterPort+i,
-			clusterCfg.ID.Pretty()))
-		clusterPeers[i] = addr
+
+		// Uncomment with testing with fixed ports and ClusterPeers
+		// addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
+		// 	clusterPort+i,
+		// 	clusterCfg.ID.Pretty()))
+		// clusterPeers[i] = addr
 	}
 
 	// ----------------------------------------------------------
