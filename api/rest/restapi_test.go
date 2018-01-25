@@ -54,8 +54,7 @@ func processResp(t *testing.T, httpResp *http.Response, err error, resp interfac
 }
 
 func apiURL(a *API) string {
-	addr := a.listener.Addr()
-	return fmt.Sprintf("http://%s", addr.String())
+	return fmt.Sprintf("http://%s", a.HTTPAddress())
 }
 
 func makeGet(t *testing.T, url string, resp interface{}) {

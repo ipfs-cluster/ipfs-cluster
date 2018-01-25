@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -9,11 +11,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
-var apiAddr = "/ip4/127.0.0.1/tcp/10005"
-
 func testAPI(t *testing.T) *rest.API {
 	//logging.SetDebugLogging()
-	apiMAddr, _ := ma.NewMultiaddr(apiAddr)
+	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
 	cfg := &rest.Config{}
 	cfg.Default()
@@ -28,12 +28,18 @@ func testAPI(t *testing.T) *rest.API {
 	return rest
 }
 
+func apiMAddr(a *rest.API) ma.Multiaddr {
+	hostPort := strings.Split(a.HTTPAddress(), ":")
+
+	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%s", hostPort[1]))
+	return addr
+}
+
 func testClient(t *testing.T) (*Client, *rest.API) {
 	api := testAPI(t)
 
-	addr, _ := ma.NewMultiaddr(apiAddr)
 	cfg := &Config{
-		APIAddr:           addr,
+		APIAddr:           apiMAddr(api),
 		DisableKeepAlives: true,
 	}
 	c, err := NewClient(cfg)
@@ -64,7 +70,7 @@ func TestDefaultAddress(t *testing.T) {
 }
 
 func TestMultiaddressPreference(t *testing.T) {
-	addr, _ := ma.NewMultiaddr(apiAddr)
+	addr, _ := ma.NewMultiaddr("/ip4/1.2.3.4/tcp/1234")
 	cfg := &Config{
 		APIAddr:           addr,
 		Host:              "localhost",
@@ -75,7 +81,7 @@ func TestMultiaddressPreference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.urlPrefix != "http://127.0.0.1:10005" {
+	if c.urlPrefix != "http://1.2.3.4:1234" {
 		t.Error("APIAddr should be used")
 	}
 }

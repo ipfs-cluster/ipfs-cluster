@@ -109,6 +109,13 @@ func newAPI(cfg *Config, l net.Listener) (*API, error) {
 	return api, nil
 }
 
+// HTTPAddress returns the HTTP(s) listening address
+// in host:port format. Useful when configured to start
+// on a random port (0).
+func (api *API) HTTPAddress() string {
+	return api.listener.Addr().String()
+}
+
 func (api *API) addRoutes(router *mux.Router) {
 	for _, route := range api.routes() {
 		if api.config.BasicAuthCreds != nil {
