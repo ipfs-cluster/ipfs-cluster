@@ -118,6 +118,28 @@ func (mock *mockService) PeerRemove(in peer.ID, out *struct{}) error {
 	return nil
 }
 
+func (mock *mockService) ConnectGraph(in struct{}, out *api.ConnectGraphSerial) error {
+	*out = api.ConnectGraphSerial{
+		ClusterID: TestPeerID1.Pretty(),
+		IPFSLinks: map[string][]string{
+			TestPeerID4.Pretty(): []string{TestPeerID5.Pretty(), TestPeerID6.Pretty()},
+			TestPeerID5.Pretty(): []string{TestPeerID4.Pretty(), TestPeerID6.Pretty()},
+			TestPeerID6.Pretty(): []string{TestPeerID4.Pretty(), TestPeerID5.Pretty()},
+		},
+		ClusterLinks: map[string][]string{
+			TestPeerID1.Pretty(): []string{TestPeerID2.Pretty(), TestPeerID3.Pretty()},
+			TestPeerID2.Pretty(): []string{TestPeerID1.Pretty(), TestPeerID3.Pretty()},
+			TestPeerID3.Pretty(): []string{TestPeerID1.Pretty(), TestPeerID2.Pretty()},
+		},
+		ClustertoIPFS: map[string]string{
+			TestPeerID1.Pretty(): TestPeerID4.Pretty(),
+			TestPeerID2.Pretty(): TestPeerID5.Pretty(),
+			TestPeerID3.Pretty(): TestPeerID6.Pretty(),
+		},
+	}
+	return nil
+}
+
 func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	c1, _ := cid.Decode(TestCid1)
 	c2, _ := cid.Decode(TestCid2)
@@ -317,6 +339,11 @@ func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus)
 }
 
 func (mock *mockService) IPFSConnectSwarms(in struct{}, out *struct{}) error {
+	return nil
+}
+
+func (mock *mockService) IPFSSwarmPeers(in struct{}, out *api.SwarmPeersSerial) error {
+	*out = []string{TestPeerID2.Pretty(), TestPeerID3.Pretty()}
 	return nil
 }
 

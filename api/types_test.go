@@ -1,6 +1,7 @@
 package api
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -16,6 +17,10 @@ var testMAddr3, _ = ma.NewMultiaddr("/ip4/127.0.0.1/tcp/8081/ws/ipfs/QmSoLer265N
 var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 var testPeerID2, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabd")
+var testPeerID3, _ = peer.IDB58Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
+var testPeerID4, _ = peer.IDB58Decode("QmZ8naDy5mEz4GLuQwjWt9MPYqHTBbsm8tQBrNSjiq6zBc")
+var testPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGjgRRjg")
+var testPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
 
 func TestTrackerFromString(t *testing.T) {
 	testcases := []string{"bug", "cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
@@ -124,6 +129,37 @@ func TestIDConv(t *testing.T) {
 	}
 	if id.IPFS.Error != newid.IPFS.Error {
 		t.Error("ipfs error mismatch")
+	}
+}
+
+func TestConnectGraphConv(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatal("paniced")
+		}
+	}()
+	cg := ConnectGraph{
+		ClusterID: testPeerID1,
+		IPFSLinks: map[peer.ID][]peer.ID{
+			testPeerID4: []peer.ID{testPeerID5, testPeerID6},
+			testPeerID5: []peer.ID{testPeerID4, testPeerID6},
+			testPeerID6: []peer.ID{testPeerID4, testPeerID5},
+		},
+		ClusterLinks: map[peer.ID][]peer.ID{
+			testPeerID1: []peer.ID{testPeerID2, testPeerID3},
+			testPeerID2: []peer.ID{testPeerID1, testPeerID3},
+			testPeerID3: []peer.ID{testPeerID1, testPeerID2},
+		},
+		ClustertoIPFS: map[peer.ID]peer.ID{
+			testPeerID1: testPeerID4,
+			testPeerID2: testPeerID5,
+			testPeerID3: testPeerID6,
+		},
+	}
+
+	cgNew := cg.ToSerial().ToConnectGraph()
+	if !reflect.DeepEqual(cg, cgNew) {
+		t.Fatal("The new connect graph should be equivalent to the old")
 	}
 }
 

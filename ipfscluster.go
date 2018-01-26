@@ -77,6 +77,8 @@ type IPFSConnector interface {
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.
 	ConnectSwarms() error
+	// SwarmPeers returns the IPFS daemon's swarm peers
+	SwarmPeers() (api.SwarmPeers, error)
 	// ConfigKey returns the value for a configuration key.
 	// Subobjects are reached with keypaths as "Parent/Child/GrandChild...".
 	ConfigKey(keypath string) (interface{}, error)

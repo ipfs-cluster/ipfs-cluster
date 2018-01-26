@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -449,6 +450,7 @@ operations on the contacted peer (as opposed to on every peer).
 				return nil
 			},
 		},
+
 		{
 			Name:  "version",
 			Usage: "Retrieve cluster version",
@@ -462,6 +464,52 @@ to check that it matches the CLI version (shown by -v).
 				resp, cerr := globalClient.Version()
 				formatResponse(c, resp, cerr)
 				return nil
+			},
+		},
+		{
+			Name:        "health",
+			Description: "Display information on clusterhealth",
+			Subcommands: []cli.Command{
+				{
+					Name:  "graph",
+					Usage: "display connectivity of cluster peers",
+					Description: `
+This command queries all connected cluster peers and their ipfs peers to generate a
+graph of the connections.  Output is a dot file encoding the cluster's connection state.
+`,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "file, f",
+							Value: "",
+							Usage: "sets an output dot-file for the connectivity graph",
+						},
+						cli.BoolFlag{
+							Name:  "all-ipfs-peers",
+							Usage: "causes the graph to mark nodes for ipfs peers not directly in the cluster",
+						},
+					},
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.GetConnectGraph()
+						if cerr != nil {
+							formatResponse(c, resp, cerr)
+							return nil
+						}
+						var w io.WriteCloser
+						var err error
+						outputPath := c.String("file")
+						if outputPath == "" {
+							w = os.Stdout
+						} else {
+							w, err = os.Create(outputPath)
+							checkErr("creating output file", err)
+						}
+						defer w.Close()
+						err = makeDot(resp, w, c.Bool("all-ipfs-peers"))
+						checkErr("printing graph", err)
+
+						return nil
+					},
+				},
 			},
 		},
 		{

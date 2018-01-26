@@ -63,6 +63,14 @@ type mockAddResp struct {
 	Bytes uint64
 }
 
+type mockSwarmPeersResp struct {
+	Peers []mockIpfsPeer
+}
+
+type mockIpfsPeer struct {
+	Peer string
+}
+
 // NewIpfsMock returns a new mock.
 func NewIpfsMock() *IpfsMock {
 	st := mapstate.NewMapState()
@@ -208,6 +216,18 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			Strings []string
 		}{
 			Strings: []string{fmt.Sprintf("connect %s success", pid)},
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "swarm/peers":
+		peer1 := mockIpfsPeer{
+			Peer: TestPeerID4.Pretty(),
+		}
+		peer2 := mockIpfsPeer{
+			Peer: TestPeerID5.Pretty(),
+		}
+		resp := mockSwarmPeersResp{
+			Peers: []mockIpfsPeer{peer1, peer2},
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)

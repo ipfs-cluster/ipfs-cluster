@@ -92,6 +92,18 @@ type ipfsAddResp struct {
 	Bytes uint64
 }
 
+type ipfsSwarmPeersResp struct {
+	Peers []ipfsPeer
+}
+
+type ipfsPeer struct {
+	Peer string
+}
+
+type ipfsStream struct {
+	Protocol string
+}
+
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(cfg *Config) (*Connector, error) {
 	err := cfg.Validate()
@@ -836,4 +848,31 @@ func (ipfs *Connector) RepoSize() (uint64, error) {
 		return 0, err
 	}
 	return stats.RepoSize, nil
+}
+
+// SwarmPeers returns the peers currently connected to this ipfs daemon
+func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
+	swarm := api.SwarmPeers{}
+	res, err := ipfs.post("swarm/peers")
+	if err != nil {
+		logger.Error(err)
+		return swarm, err
+	}
+	var peersRaw ipfsSwarmPeersResp
+	err = json.Unmarshal(res, &peersRaw)
+	if err != nil {
+		logger.Error(err)
+		return swarm, err
+	}
+
+	swarm = make([]peer.ID, len(peersRaw.Peers))
+	for i, p := range peersRaw.Peers {
+		pID, err := peer.IDB58Decode(p.Peer)
+		if err != nil {
+			logger.Error(err)
+			return swarm, err
+		}
+		swarm[i] = pID
+	}
+	return swarm, nil
 }

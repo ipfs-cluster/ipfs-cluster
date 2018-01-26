@@ -268,6 +268,100 @@ func (ids *IPFSIDSerial) ToIPFSID() IPFSID {
 	return id
 }
 
+// ConnectGraph holds information about the connectivity of the cluster
+//   To read, traverse the keys of ClusterLinks.  Each such id is one of
+//   the peers of the "ClusterID" peer running the query.  ClusterLinks[id]
+//   in turn lists the ids that peer "id" sees itself connected to.  It is
+//   possible that id is a peer of ClusterID, but ClusterID can not reach id
+//   over rpc, in which case ClusterLinks[id] == [], as id's view of its
+//   connectivity can not be retrieved.
+//
+//   Iff there was an error reading the IPFSID of the peer then id will not be a
+//   key of ClustertoIPFS or IPFSLinks. Finally iff id is a key of ClustertoIPFS
+//   then id will be a key of IPFSLinks.  In the event of a SwarmPeers error
+//   IPFSLinks[id] == [].
+type ConnectGraph struct {
+	ClusterID     peer.ID
+	IPFSLinks     map[peer.ID][]peer.ID // ipfs to ipfs links
+	ClusterLinks  map[peer.ID][]peer.ID // cluster to cluster links
+	ClustertoIPFS map[peer.ID]peer.ID   // cluster to ipfs links
+}
+
+// ConnectGraphSerial is the serializable ConnectGraph counterpart for RPC requests
+type ConnectGraphSerial struct {
+	ClusterID     string
+	IPFSLinks     map[string][]string `json:"ipfs_links"`
+	ClusterLinks  map[string][]string `json:"cluster_links"`
+	ClustertoIPFS map[string]string   `json:"cluster_to_ipfs"`
+}
+
+// ToSerial converts a ConnectGraph to its Go-serializable version
+func (cg ConnectGraph) ToSerial() ConnectGraphSerial {
+	IPFSLinksSerial := serializeLinkMap(cg.IPFSLinks)
+	ClusterLinksSerial := serializeLinkMap(cg.ClusterLinks)
+	ClustertoIPFSSerial := make(map[string]string)
+	for k, v := range cg.ClustertoIPFS {
+		ClustertoIPFSSerial[peer.IDB58Encode(k)] = peer.IDB58Encode(v)
+	}
+	return ConnectGraphSerial{
+		ClusterID:     peer.IDB58Encode(cg.ClusterID),
+		IPFSLinks:     IPFSLinksSerial,
+		ClusterLinks:  ClusterLinksSerial,
+		ClustertoIPFS: ClustertoIPFSSerial,
+	}
+}
+
+// ToConnectGraph converts a ConnectGraphSerial to a ConnectGraph
+func (cgs ConnectGraphSerial) ToConnectGraph() ConnectGraph {
+	ClustertoIPFS := make(map[peer.ID]peer.ID)
+	for k, v := range cgs.ClustertoIPFS {
+		pid1, _ := peer.IDB58Decode(k)
+		pid2, _ := peer.IDB58Decode(v)
+		ClustertoIPFS[pid1] = pid2
+	}
+	pid, _ := peer.IDB58Decode(cgs.ClusterID)
+	return ConnectGraph{
+		ClusterID:     pid,
+		IPFSLinks:     deserializeLinkMap(cgs.IPFSLinks),
+		ClusterLinks:  deserializeLinkMap(cgs.ClusterLinks),
+		ClustertoIPFS: ClustertoIPFS,
+	}
+}
+
+func serializeLinkMap(Links map[peer.ID][]peer.ID) map[string][]string {
+	LinksSerial := make(map[string][]string)
+	for k, v := range Links {
+		kS := peer.IDB58Encode(k)
+		LinksSerial[kS] = PeersToStrings(v)
+	}
+	return LinksSerial
+}
+
+func deserializeLinkMap(LinksSerial map[string][]string) map[peer.ID][]peer.ID {
+	Links := make(map[peer.ID][]peer.ID)
+	for k, v := range LinksSerial {
+		pid, _ := peer.IDB58Decode(k)
+		Links[pid] = StringsToPeers(v)
+	}
+	return Links
+}
+
+// SwarmPeers lists an ipfs daemon's peers
+type SwarmPeers []peer.ID
+
+// SwarmPeersSerial is the serialized form of SwarmPeers for RPC use
+type SwarmPeersSerial []string
+
+// ToSerial converts SwarmPeers to its Go-serializeable version
+func (swarm SwarmPeers) ToSerial() SwarmPeersSerial {
+	return PeersToStrings(swarm)
+}
+
+// ToSwarmPeers converts a SwarmPeersSerial object to SwarmPeers.
+func (swarmS SwarmPeersSerial) ToSwarmPeers() SwarmPeers {
+	return StringsToPeers(swarmS)
+}
+
 // ID holds information about the Cluster peer
 type ID struct {
 	ID                    peer.ID

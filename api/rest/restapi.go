@@ -267,6 +267,12 @@ func (api *API) routes() []route {
 			"/pins/{hash}/recover",
 			api.recoverHandler,
 		},
+		{
+			"ConnectionGraph",
+			"GET",
+			"/health/graph",
+			api.graphHandler,
+		},
 	}
 }
 
@@ -334,6 +340,16 @@ func (api *API) versionHandler(w http.ResponseWriter, r *http.Request) {
 		&v)
 
 	sendResponse(w, err, v)
+}
+
+func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
+	var graph types.ConnectGraphSerial
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"ConnectGraph",
+		struct{}{},
+		&graph)
+	sendResponse(w, err, graph)
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {

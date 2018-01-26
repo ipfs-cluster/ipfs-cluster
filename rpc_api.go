@@ -89,6 +89,13 @@ func (rpcapi *RPCAPI) PeerAdd(in api.MultiaddrSerial, out *api.IDSerial) error {
 	return err
 }
 
+// ConnectGraph runs Cluster.GetConnectGraph().
+func (rpcapi *RPCAPI) ConnectGraph(in struct{}, out *api.ConnectGraphSerial) error {
+	graph, err := rpcapi.c.ConnectGraph()
+	*out = graph.ToSerial()
+	return err
+}
+
 // PeerRemove runs Cluster.PeerRm().
 func (rpcapi *RPCAPI) PeerRemove(in peer.ID, out *struct{}) error {
 	return rpcapi.c.PeerRemove(in)
@@ -290,6 +297,13 @@ func (rpcapi *RPCAPI) IPFSFreeSpace(in struct{}, out *uint64) error {
 func (rpcapi *RPCAPI) IPFSRepoSize(in struct{}, out *uint64) error {
 	res, err := rpcapi.c.ipfs.RepoSize()
 	*out = res
+	return err
+}
+
+// IPFSSwarmPeers runs IPFSConnector.SwarmPeers().
+func (rpcapi *RPCAPI) IPFSSwarmPeers(in struct{}, out *api.SwarmPeersSerial) error {
+	res, err := rpcapi.c.ipfs.SwarmPeers()
+	*out = res.ToSerial()
 	return err
 }
 

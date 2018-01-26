@@ -210,3 +210,17 @@ func TestRecoverAll(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetConnectGraph(t *testing.T) {
+	c, api := testClient(t)
+	defer api.Shutdown()
+
+	cg, err := c.GetConnectGraph()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cg.IPFSLinks) != 3 || len(cg.ClusterLinks) != 3 ||
+		len(cg.ClustertoIPFS) != 3 {
+		t.Fatal("Bad graph")
+	}
+}

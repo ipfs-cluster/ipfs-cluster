@@ -1378,3 +1378,140 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 		t.Errorf("it should be pinned and is %s", s)
 	}
 }
+
+// Helper function for verifying cluster graph.  Will only pass if exactly the
+// peers in clusterIDs are fully connected to each other and the expected ipfs
+// mock connectivity exists.  Cluster peers not in clusterIDs are assumed to
+// be disconnected and the graph should reflect this
+func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[peer.ID]struct{}) {
+	// Check that all cluster peers see each other as peers
+	for id1, peers := range graph.ClusterLinks {
+		if _, ok := clusterIDs[id1]; !ok {
+			if len(peers) != 0 {
+				t.Errorf("disconnected peer %s is still connected in graph", id1)
+			}
+			continue
+		}
+		fmt.Printf("id: %s, peers: %v\n", id1, peers)
+		if len(peers) > len(clusterIDs)-1 {
+			t.Errorf("More peers recorded in graph than expected")
+		}
+		// Make lookup index for peers connected to id1
+		peerIndex := make(map[peer.ID]struct{})
+		for _, peer := range peers {
+			peerIndex[peer] = struct{}{}
+		}
+		for id2 := range clusterIDs {
+			if _, ok := peerIndex[id2]; id1 != id2 && !ok {
+				t.Errorf("Expected graph to see peer %s connected to peer %s", id1, id2)
+			}
+		}
+	}
+	if len(graph.ClusterLinks) != nClusters {
+		t.Errorf("Unexpected number of cluster nodes in graph")
+	}
+
+	// Check that all cluster peers are recorded as nodes in the graph
+	for id := range clusterIDs {
+		if _, ok := graph.ClusterLinks[id]; !ok {
+			t.Errorf("Expected graph to record peer %s as a node", id)
+		}
+	}
+
+	// Check that the mocked ipfs swarm is recorded
+	if len(graph.IPFSLinks) != 1 {
+		t.Error("Expected exactly one ipfs peer for all cluster nodes, the mocked peer")
+	}
+	links, ok := graph.IPFSLinks[test.TestPeerID1]
+	if !ok {
+		t.Error("Expected the mocked ipfs peer to be a node in the graph")
+	} else {
+		if len(links) != 2 || links[0] != test.TestPeerID4 ||
+			links[1] != test.TestPeerID5 {
+			t.Error("Swarm peers of mocked ipfs are not those expected")
+		}
+	}
+
+	// Check that the cluster to ipfs connections are all recorded
+	for id := range clusterIDs {
+		if ipfsID, ok := graph.ClustertoIPFS[id]; !ok {
+			t.Errorf("Expected graph to record peer %s's ipfs connection", id)
+		} else {
+			if ipfsID != test.TestPeerID1 {
+				t.Errorf("Unexpected error %s", ipfsID)
+			}
+		}
+	}
+	if len(graph.ClustertoIPFS) > len(clusterIDs) {
+		t.Error("More cluster to ipfs links recorded in graph than expected")
+	}
+}
+
+// In this test we get a cluster graph report from a random peer in a healthy
+// fully connected cluster and verify that it is formed as expected.
+func TestClustersGraphConnected(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	delay()
+	delay()
+
+	j := rand.Intn(nClusters) // choose a random cluster peer to query
+	graph, err := clusters[j].ConnectGraph()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusterIDs := make(map[peer.ID]struct{})
+	for _, c := range clusters {
+		id := c.ID().ID
+		clusterIDs[id] = struct{}{}
+	}
+	validateClusterGraph(t, graph, clusterIDs)
+}
+
+// Similar to the previous test we get a cluster graph report from a peer.
+// However now 2 peers have been shutdown and so we do not expect to see
+// them in the graph
+func TestClustersGraphUnhealthy(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	if nClusters < 5 {
+		t.Skip("Need at least 5 peers")
+	}
+
+	j := rand.Intn(nClusters) // choose a random cluster peer to query
+	// chose the clusters to shutdown
+	discon1 := -1
+	discon2 := -1
+	for i := range clusters {
+		if i != j {
+			if discon1 == -1 {
+				discon1 = i
+			} else {
+				discon2 = i
+				break
+			}
+		}
+	}
+
+	clusters[discon1].Shutdown()
+	clusters[discon2].Shutdown()
+	delay()
+	waitForLeader(t, clusters)
+	delay()
+
+	graph, err := clusters[j].ConnectGraph()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusterIDs := make(map[peer.ID]struct{})
+	for i, c := range clusters {
+		if i == discon1 || i == discon2 {
+			continue
+		}
+		id := c.ID().ID
+		clusterIDs[id] = struct{}{}
+	}
+	validateClusterGraph(t, graph, clusterIDs)
+}
