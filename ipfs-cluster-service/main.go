@@ -193,6 +193,10 @@ func main() {
 			Value: "disk-freespace",
 			Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
 		},
+		cli.BoolFlag{
+			Name:  "upgrade, u",
+			Usage: "run necessary state migrations before starting cluster service",
+		},
 	}
 
 	app.Commands = []cli.Command{
@@ -424,6 +428,13 @@ func daemon(c *cli.Context) error {
 
 	// Load all the configurations
 	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+
+	// Run any migrations
+	if c.Bool("upgrade") {
+		err := upgrade()
+		checkErr("upgrading state", err)
+	}
+
 	// Execution lock
 	err := locker.lock()
 	checkErr("acquiring execution lock", err)
