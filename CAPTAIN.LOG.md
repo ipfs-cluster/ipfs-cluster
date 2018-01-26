@@ -1,5 +1,21 @@
 # IPFS Cluster - Captain's log
 
+## 20180125 | @hsanjuan
+
+We are about to tag the `0.3.2` release and it comes with two nice features.
+
+On one side, @zenground0 has been focused in implementing state offline export and import capabilities, a complement to the state upgrades added in the last release. They allow taking the shared from an offline cluster (and in a human readable format), and place it somewhere else, or in the same place. This feature might save the day in situations when the quorum of a cluster is completely lost and peers cannot be started anymore due to the lack of master.
+
+Additionally, I have been putting some time into a new approach to replication factors. Instead of forcing cluster to store a pin an specific number of times, we now support a lower and upper bounds to the the replication factor (in the form of `replication_factor_min` and `replication_factor_max`). This feature (and great idea) was originally proposed by @segator.
+
+Having this margin means that cluster will attempt its best when pinning an item (reach the max factor), but it won't error if it cannot find enough available peers, as long as it finds more than the minimum replication factor.
+
+In the same way, a peer going offline, will not trigger a re-allocation of the CID as it did before, if the replication factor is still within the margin. This allows, for example, taking a peer offline for maintenance, without having cluster vacate all the pins associated to it (and then coming up empty).
+
+Of course, the previous behaviour can still be obtained by setting both the max and the min to the same values.
+
+Finally, it is very important to remark that we recently finished the [Sharding RFC draft](https://github.com/ipfs/ipfs-cluster/blob/master/docs/dag-sharding-rfc.md). This document outlines how we are going to approach the implementation of one of the most difficult but important features upcoming in cluster: the ability to distribute a single CID (tree) among several nodes. This will allow to use cluster to store files or archives too big for a single ipfs node. Input from the community on this draft can be provided at https://github.com/ipfs/notes/issues/278.
+
 ## 20171211 | @hsanjuan
 
 During the last weeks we've been working hard on making the first "live" deployment of ipfs-cluster. I am happy to announce that a 10-peer cluster runs on ipfs-gateway nodes, maintaining a >2000-length pinset.
