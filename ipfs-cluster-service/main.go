@@ -253,6 +253,14 @@ configuration.
 			Usage: "Manage ipfs-cluster-state",
 			Subcommands: []cli.Command{
 				{
+					Name:  "version",
+					Usage: "display the shared state format version",
+					Action: func(c *cli.Context) error {
+						fmt.Printf("%d\n", mapstate.Version)
+						return nil
+					},
+				},
+				{
 					Name:  "upgrade",
 					Usage: "upgrade the IPFS Cluster state to the current version",
 					Description: `
