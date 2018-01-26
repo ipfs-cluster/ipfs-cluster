@@ -87,10 +87,10 @@ func multiaddrJoin(addr ma.Multiaddr, p peer.ID) ma.Multiaddr {
 	return addr.Encapsulate(pidAddr)
 }
 
-// returns all the different peers in the given addresses.
+// PeersFromMultiaddrs returns all the different peers in the given addresses.
 // each peer only will appear once in the result, even if several
 // multiaddresses for it are provided.
-func peersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
+func PeersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
 	var pids []peer.ID
 	pm := make(map[peer.ID]struct{})
 	for _, addr := range addrs {

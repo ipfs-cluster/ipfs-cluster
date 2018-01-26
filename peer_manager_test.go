@@ -92,7 +92,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		// check that they are part of the configuration
 		// This only works because each peer only has one multiaddress
 		// (localhost)
-		if len(peersFromMultiaddrs(c.config.Peers)) != nClusters-1 {
+		if len(PeersFromMultiaddrs(c.config.Peers)) != nClusters-1 {
 			t.Error(c.config.Peers)
 			t.Errorf("%s: expected different cluster peers in the configuration", c.id)
 		}

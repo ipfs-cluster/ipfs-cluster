@@ -522,8 +522,10 @@ func LastStateRaw(cfg *Config) (io.Reader, bool, error) {
 
 // SnapshotSave saves the provided state to a snapshot in the
 // raft data path.  Old raft data is backed up and replaced
-// by the new snapshot
-func SnapshotSave(cfg *Config, newState state.State, pid peer.ID) error {
+// by the new snapshot.  pids contains the config-specified
+// peer ids to include in the snapshot metadata if no snapshot exists
+// from which to copy the raft metadata
+func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 	newStateBytes, err := p2praft.EncodeSnapshot(newState)
 	if err != nil {
 		return err
@@ -550,9 +552,11 @@ func SnapshotSave(cfg *Config, newState state.State, pid peer.ID) error {
 		srvCfg = meta.Configuration
 		CleanupRaft(dataFolder)
 	} else {
-		raftIndex = uint64(1)
+		// Begin the log after the index of a fresh start so that
+		// the snapshot's state propagate's during bootstrap
+		raftIndex = uint64(2)
 		raftTerm = uint64(1)
-		srvCfg = makeServerConf([]peer.ID{pid})
+		srvCfg = makeServerConf(pids)
 	}
 
 	snapshotStore, err := hraft.NewFileSnapshotStoreWithLogger(dataFolder, RaftMaxSnapshots, nil)

@@ -157,7 +157,7 @@ func (c *Cluster) setupConsensus(consensuscfg *raft.Config) error {
 	var startPeers []peer.ID
 
 	if len(c.config.Peers) > 0 {
-		startPeers = peersFromMultiaddrs(c.config.Peers)
+		startPeers = PeersFromMultiaddrs(c.config.Peers)
 	} else {
 		// start as single cluster before being added
 		// to the bootstrapper peers' cluster.
@@ -341,7 +341,7 @@ func (c *Cluster) alertsHandler() {
 func (c *Cluster) watchPeers() {
 	// TODO: Config option?
 	ticker := time.NewTicker(5 * time.Second)
-	lastPeers := peersFromMultiaddrs(c.config.Peers)
+	lastPeers := PeersFromMultiaddrs(c.config.Peers)
 
 	for {
 		select {
