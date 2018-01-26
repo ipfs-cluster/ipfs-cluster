@@ -15,13 +15,17 @@ import (
 // peerManager provides wrappers peerset control
 type peerManager struct {
 	host host.Host
+	ctx  context.Context
 }
 
 func newPeerManager(h host.Host) *peerManager {
-	return &peerManager{h}
+	return &peerManager{
+		ctx:  context.Background(),
+		host: h,
+	}
 }
 
-func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
+func (pm *peerManager) addPeer(addr ma.Multiaddr, connect bool) error {
 	logger.Debugf("adding peer address %s", addr)
 	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
@@ -39,7 +43,10 @@ func (pm *peerManager) addPeer(addr ma.Multiaddr) error {
 			logger.Error(err)
 			return err
 		}
-		pm.importAddresses(resolvedAddrs)
+		pm.importAddresses(resolvedAddrs, connect)
+	}
+	if connect {
+		pm.host.Network().DialPeer(pm.ctx, pid)
 	}
 	return nil
 }
@@ -69,9 +76,9 @@ func (pm *peerManager) addresses(peers []peer.ID) []ma.Multiaddr {
 	return addrs
 }
 
-func (pm *peerManager) importAddresses(addrs []ma.Multiaddr) error {
+func (pm *peerManager) importAddresses(addrs []ma.Multiaddr, connect bool) error {
 	for _, a := range addrs {
-		pm.addPeer(a)
+		pm.addPeer(a, connect)
 	}
 	return nil
 }

@@ -54,7 +54,7 @@ type Cluster struct {
 	readyB       bool
 	wg           sync.WaitGroup
 
-	// paMux sync.Mutex
+	paMux sync.Mutex
 }
 
 // NewCluster builds a new IPFS Cluster peer. It initializes a LibP2P host,
@@ -92,8 +92,8 @@ func NewCluster(
 	}
 
 	peerManager := newPeerManager(host)
-	peerManager.importAddresses(cfg.Peers)
-	peerManager.importAddresses(cfg.Bootstrap)
+	peerManager.importAddresses(cfg.Peers, false)
+	peerManager.importAddresses(cfg.Bootstrap, false)
 
 	c := &Cluster{
 		ctx:         ctx,
@@ -614,8 +614,8 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	// starting 10 nodes on the same box for testing
 	// causes deadlock and a global lock here
 	// seems to help.
-	// c.paMux.Lock()
-	// defer c.paMux.Unlock()
+	c.paMux.Lock()
+	defer c.paMux.Unlock()
 	logger.Debugf("peerAdd called with %s", addr)
 	pid, decapAddr, err := multiaddrSplit(addr)
 	if err != nil {
@@ -761,7 +761,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	}
 
 	// Add peer to peerstore so we can talk to it
-	c.peerManager.addPeer(addr)
+	c.peerManager.addPeer(addr, true)
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
