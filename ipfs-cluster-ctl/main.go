@@ -197,10 +197,14 @@ is also TODO
 				for i, path := range c.Args() {
 					paths[i] = path
 				}
-				// Unclear if this is ready for streaming.
-				fileArgs, err := parseFileArgs(paths)
+				// Unclear if multiFileR is ready for streaming, but hypothesis is yes.
+				// Files are all opened but not read until they are sent.
+				multiFileR, err := parseFileArgs(paths)
 				checkErr("serializing all files", err)
-				fmt.Printf("%v\n", fileArgs[paths[0]])
+				cerr := globalClient.AddMultiFile(multiFileR)
+				if cerr != nil {
+					formatResponse(c, nil, cerr)
+				}
 				return nil
 			},
 		},
