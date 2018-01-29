@@ -9,17 +9,18 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 )
 
-func parseFileArgs(paths []string) (map[string]files.File, error) {
+func parseFileArgs(paths []string) (*files.MultiFileReader, error) {
 	// logic largely drawn from go-ipfs-cmds/cli/parse.go: parseArgs
-	fileArgs := make(map[string]files.File, len(paths))
+	parsedFiles := make([]files.File, len(paths), len(paths))
 	for _, path := range paths {
 		file, err := appendFile(path)
 		if err != nil {
-			return fileArgs, err
+			return nil, err
 		}
-		fileArgs[path] = file
+		parsedFiles = append(parsedFiles, file)
 	}
-	return fileArgs, nil
+	sliceFile := files.NewSliceFile("", "", parsedFiles)
+	return files.NewMultiFileReader(sliceFile, true), nil
 }
 
 func appendFile(fpath string) (files.File, error) {
