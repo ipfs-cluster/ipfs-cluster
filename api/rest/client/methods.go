@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -171,4 +172,10 @@ func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	var graphS api.ConnectGraphSerial
 	err := c.do("GET", "/health/graph", nil, &graphS)
 	return graphS, err
+}
+
+// AddMultiFile adds new files to the ipfs cluster, importing and potentially
+// sharding underlying dags across the ipfs repos of multiple cluster peers
+func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader) error {
+	return c.doStream("POST", "/files/add", multiFileR, nil)
 }
