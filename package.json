@@ -84,6 +84,11 @@
       "hash": "QmRQaEUS4rtBy13MqyGVawe1r5Xm9UWeYo1B4Ewb2hMH8x",
       "name": "go-ipfs-api",
       "version": "1.2.5"
+    },
+    {
+      "hash": "QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM",
+      "name": "go-ipfs-cmdkit",
+      "version": "1.0.0"
     }
   ],
   "gxVersion": "0.11.0",
