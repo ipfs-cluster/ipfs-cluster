@@ -12,6 +12,9 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"mime"
 	"net"
 	"net/http"
 	"strconv"
@@ -25,6 +28,7 @@ import (
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
@@ -362,6 +366,12 @@ func (api *API) routes() []route {
 			"/health/graph",
 			api.graphHandler,
 		},
+		{
+			"FilesAdd",
+			"POST",
+			"/files/add",
+			api.addFileHandler,
+		},
 	}
 }
 
@@ -478,6 +488,49 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&graph)
 	sendResponse(w, err, graph)
+}
+
+func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
+	mediatype, _, _ := mime.ParseMediaType(contentType)
+	var f files.File
+	if mediatype == "multipart/form-data" {
+		reader, err := r.MultipartReader()
+		if err != nil {
+			fmt.Printf("The error getting a multipartreader: %s", err.Error())
+			sendAcceptedResponse(w, nil)
+			return
+		}
+
+		f = &files.MultipartFile{
+			Mediatype: mediatype,
+			Reader:    reader,
+		}
+
+	} else {
+		fmt.Printf("the mediatype: %s", mediatype)
+		sendAcceptedResponse(w, nil)
+		return
+	}
+
+	buf := make([]byte, 256)
+	for {
+		file, err := f.NextFile()
+		if err == io.EOF {
+			break
+		}
+		var n int
+		for {
+			n, err = file.Read(buf)
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf(string(buf[:n]))
+		}
+		fmt.Printf(string(buf[:n]))
+	}
+
+	sendAcceptedResponse(w, nil)
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
