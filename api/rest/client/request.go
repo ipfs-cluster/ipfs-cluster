@@ -40,7 +40,7 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 
 // eventually we may want to trigger streaming with a boolean flag.
 // keeping functions seperate for now for development simplicity.
-func (c *Client) doStreamRequest(method, path string, body io.Reader) (*http.Response, error) {
+func (c *Client) doStreamRequest(method, path string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	urlpath := c.urlPrefix + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
@@ -55,6 +55,10 @@ func (c *Client) doStreamRequest(method, path string, body io.Reader) (*http.Res
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
+	for k, v := range headers {
+		r.Header.Set(k, v)
+	}
+
 	// Here are the streaming specific modifications
 	fmt.Printf("Here is the req before mods %v\n", r)
 	r.ProtoMajor = 1
@@ -64,8 +68,8 @@ func (c *Client) doStreamRequest(method, path string, body io.Reader) (*http.Res
 	return c.client.Do(r)
 }
 
-func (c *Client) doStream(method, path string, body io.Reader, obj interface{}) error {
-	resp, err := c.doStreamRequest(method, path, body)
+func (c *Client) doStream(method, path string, body io.Reader, headers map[string]string, obj interface{}) error {
+	resp, err := c.doStreamRequest(method, path, body, headers)
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
