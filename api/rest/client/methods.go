@@ -177,5 +177,11 @@ func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
 // AddMultiFile adds new files to the ipfs cluster, importing and potentially
 // sharding underlying dags across the ipfs repos of multiple cluster peers
 func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader) error {
-	return c.doStream("POST", "/files/add", multiFileR, nil)
+	headers := make(map[string]string)
+	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
+	err := c.doStream("POST", "/files/add", multiFileR, headers, nil)
+	if err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
+	}
+	return err
 }
