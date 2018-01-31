@@ -9,11 +9,11 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 )
 
-func parseFileArgs(paths []string) (*files.MultiFileReader, error) {
+func parseFileArgs(paths []string, recursive bool) (*files.MultiFileReader, error) {
 	// logic largely drawn from go-ipfs-cmds/cli/parse.go: parseArgs
 	parsedFiles := make([]files.File, len(paths), len(paths))
 	for _, path := range paths {
-		file, err := appendFile(path)
+		file, err := appendFile(path, recursive, false) // for now no hidden support
 		if err != nil {
 			return nil, err
 		}
@@ -23,7 +23,7 @@ func parseFileArgs(paths []string) (*files.MultiFileReader, error) {
 	return files.NewMultiFileReader(sliceFile, true), nil
 }
 
-func appendFile(fpath string) (files.File, error) {
+func appendFile(fpath string, recursive, hidden bool) (files.File, error) {
 	// logic drawn from go-ipfs-cmds/cli/parse.go: appendFile
 	if fpath == "." {
 		cwd, err := os.Getwd()
@@ -45,8 +45,10 @@ func appendFile(fpath string) (files.File, error) {
 	}
 
 	if stat.IsDir() {
-		return nil, fmt.Errorf("path: %s points to dir, adding dirs not yet supported", fpath)
+		if !recursive {
+			return nil, fmt.Errorf("%s is a directory, cannot add nonrecursively.  Try with -r", fpath)
+		}
 	}
 
-	return files.NewSerialFile(path.Base(fpath), fpath, false, stat)
+	return files.NewSerialFile(path.Base(fpath), fpath, hidden, stat)
 }
