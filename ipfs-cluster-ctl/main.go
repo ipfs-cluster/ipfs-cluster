@@ -161,6 +161,12 @@ This is useful in the case several ipfs peers want to ingest the file and combin
 to host but no single peer's repo has the capacity for the entire file.  No stdin reading yet either, that
 is also TODO
 `,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "recursive, r",
+					Usage: "add directory paths recursively, default false",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				paths := make([]string, c.NArg(), c.NArg())
 				for i, path := range c.Args() {
@@ -168,7 +174,7 @@ is also TODO
 				}
 				// Unclear if multiFileR is ready for streaming, but hypothesis is yes.
 				// Files are all opened but not read until they are sent.
-				multiFileR, err := parseFileArgs(paths)
+				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
 				checkErr("serializing all files", err)
 				cerr := globalClient.AddMultiFile(multiFileR)
 				if cerr != nil {
