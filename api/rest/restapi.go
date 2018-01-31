@@ -523,10 +523,15 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		if err == io.EOF {
 			break
 		}
+		fmt.Printf("%s\n----------------\n", file.FileName())
+		if file.IsDirectory() {
+			continue
+		}
 		var n int
 		for {
 			n, err = file.Read(buf)
 			if err == io.EOF {
+				fmt.Printf("\n")
 				break
 			}
 			fmt.Printf(string(buf[:n]))
