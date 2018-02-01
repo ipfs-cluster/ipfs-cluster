@@ -121,11 +121,11 @@ C2 [label="<peer.ID Z2ckU7>" color="blue2"]
 
 /* The ipfs peers */
 I0 [label="<peer.ID PFKAGZ>" color="goldenrod"]
-I1 [label="<peer.ID VV2enw>" color="goldenrod"]
-I2 [label="<peer.ID XbiVZd>" color="goldenrod"]
-I3 [label="<peer.ID bU7273>" color="goldenrod"]
-I4 [label="<peer.ID Qmp43V>" color="goldenrod"]
-I5 [label="<peer.ID QmqRmE>" color="goldenrod"]
+I1 [label="<peer.ID QsdAdC>" color="goldenrod"]
+I2 [label="<peer.ID VV2enw>" color="goldenrod"]
+I3 [label="<peer.ID XbiVZd>" color="goldenrod"]
+I4 [label="<peer.ID bU7273>" color="goldenrod"]
+I5 [label="<peer.ID fCHNQ2>" color="goldenrod"]
 
 /* Edges representing active connections in the cluster */
 /* The connections among cluster-service peers */
@@ -137,9 +137,9 @@ C1 -> C0
 C1 -> C2
 
 /* The connections between cluster peers and their ipfs daemons */
-C0 -> I2
+C0 -> I3
 C1 -> I0
-C2 -> I3
+C2 -> I4
 
 /* The swarm peer connections among ipfs daemons in the cluster */
 I0 -> I1
@@ -147,16 +147,16 @@ I0 -> I2
 I0 -> I3
 I0 -> I4
 I0 -> I5
-I2 -> I0
-I2 -> I1
-I2 -> I3
-I2 -> I4
-I2 -> I5
 I3 -> I0
 I3 -> I1
 I3 -> I2
 I3 -> I4
 I3 -> I5
+I4 -> I0
+I4 -> I1
+I4 -> I2
+I4 -> I3
+I4 -> I5
 
  }`
 
@@ -182,23 +182,23 @@ func TestIpfsAllGraphs(t *testing.T) {
 			"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV": []string{
 				"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
 				"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
-				"QmqRmEm2rp5Ppqy9JwGiFLiu9TAm21F2y9fu8aaaaaaDBq",
+				"QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb",
 				"QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8",
-				"Qmp43VV2enwXp43VV2enwXNjfmNpTaff774yyQuu99akzp",
+				"QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD",
 			},
 			"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq": []string{
 				"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
 				"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
-				"QmqRmEm2rp5Ppqy9JwGiFLiu9TAm21F2y9fu8aaaaaaDBq",
+				"QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb",
 				"QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8",
-				"Qmp43VV2enwXp43VV2enwXNjfmNpTaff774yyQuu99akzp",
+				"QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD",
 			},
 			"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL": []string{
 				"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
 				"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-				"QmqRmEm2rp5Ppqy9JwGiFLiu9TAm21F2y9fu8aaaaaaDBq",
+				"QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb",
 				"QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8",
-				"Qmp43VV2enwXp43VV2enwXNjfmNpTaff774yyQuu99akzp",
+				"QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD",
 			},
 		},
 		ClustertoIPFS: map[string]string{
