@@ -159,7 +159,7 @@ func TestConnectGraphEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 	var cg api.ConnectGraphSerial
-	makeGet(t, "/health/graph", &cg)
+	makeGet(t, apiURL(rest)+"/health/graph", &cg)
 	if cg.ClusterID != test.TestPeerID1.Pretty() {
 		t.Error("unexpected cluster id")
 	}
