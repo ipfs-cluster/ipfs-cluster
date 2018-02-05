@@ -15,15 +15,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmefgzMbKZYsmHFkLqxgaTBG9ypeEjrdWRD5WXH4j1cWDL",
+      "hash": "QmPd5qhppUqewTQMfStvNNCFtcxiWGsnE6Vs3va6788gsX",
       "name": "go-libp2p",
-      "version": "5.0.5"
+      "version": "5.0.12"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSzULQiTbMnt36oxzdaUUomNuTHwXa1DvnyM8o7ogJ7Hb",
+      "hash": "QmSL4955VXSpbT2XYgjRPdUsBPd4RYf9qNQxwM8TRd37JW",
       "name": "go-libp2p-raft",
-      "version": "1.2.0"
+      "version": "1.2.1"
     },
     {
       "author": "whyrusleeping",
@@ -80,9 +80,9 @@
     },
     {
       "author": "ZenGround0",
-      "hash": "Qmdx8optUFievNRhUnmF4b8qXMwRMVqZ2CkrkVzB3wXhiY",
+      "hash": "QmU7hjKBg53kVjkxFFtt18Aons8NuTa7NfymRb5cAKSjXJ",
       "name": "dex",
-      "version": "0.0.0"
+      "version": "0.0.1"
     }
   ],
   "gxVersion": "0.11.0",
