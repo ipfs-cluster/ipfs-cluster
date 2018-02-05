@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"mime"
 	"net"
 	"net/http"
@@ -36,6 +35,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 	dex "github.com/zenground0/dex"
+	//	"io"
 )
 
 var logger = logging.Logger("restapi")
@@ -518,8 +518,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := dex.ImportToPrint(f)
-	/*
-		buf := make([]byte, 256)
+	/*	buf := make([]byte, 256)
 		for {
 			file, err := f.NextFile()
 			if err == io.EOF {
@@ -539,7 +538,8 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf(string(buf[:n]))
 			}
 			fmt.Printf(string(buf[:n]))
-		}*/
+		}
+	*/
 
 	sendAcceptedResponse(w, err)
 }
