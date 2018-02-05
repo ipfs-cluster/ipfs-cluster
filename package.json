@@ -26,6 +26,12 @@
       "version": "1.2.2"
     },
     {
+      "author": "whyrusleeping",
+      "hash": "QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ",
+      "name": "go-cid",
+      "version": "0.7.18"
+    },
+    {
       "author": "urfave",
       "hash": "Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA",
       "name": "cli",
@@ -92,9 +98,9 @@
     },
     {
       "author": "ZenGround0",
-      "hash": "Qmdx8optUFievNRhUnmF4b8qXMwRMVqZ2CkrkVzB3wXhiY",
+      "hash": "QmU7hjKBg53kVjkxFFtt18Aons8NuTa7NfymRb5cAKSjXJ",
       "name": "dex",
-      "version": "0.0.0"
+      "version": "0.0.1"
     }
   ],
   "gxVersion": "0.11.0",
