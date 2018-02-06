@@ -6,7 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"mime"
 	"net"
 	"net/http"
@@ -26,6 +26,7 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 	dex "github.com/zenground0/dex"
 	//	"io"
+	//	"fmt"
 )
 
 var logger = logging.Logger("restapi")
@@ -281,7 +282,7 @@ func (api *API) routes() []route {
 		{
 			"FilesAdd",
 			"POST",
-			"/files/add",
+			"/allocations",
 			api.addFileHandler,
 		},
 	}
@@ -370,8 +371,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	if mediatype == "multipart/form-data" {
 		reader, err := r.MultipartReader()
 		if err != nil {
-			fmt.Printf("The error getting a multipartreader: %s", err.Error())
-			sendAcceptedResponse(w, nil)
+			sendAcceptedResponse(w, err)
 			return
 		}
 
@@ -381,8 +381,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		fmt.Printf("the mediatype: %s", mediatype)
-		sendAcceptedResponse(w, nil)
+		sendAcceptedResponse(w, errors.New("unsupported media type"))
 		return
 	}
 
@@ -409,7 +408,9 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf(string(buf[:n]))
 		}
 	*/
-
+	// TODO: when complete this call should answer with a cid
+	// or better yet a pin-info describing the allocations
+	// of the resulting allocation
 	sendAcceptedResponse(w, err)
 }
 

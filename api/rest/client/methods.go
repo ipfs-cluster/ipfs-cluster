@@ -179,9 +179,7 @@ func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
 func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
-	err := c.doStream("POST", "/files/add", multiFileR, headers, nil)
-	if err != nil {
-		fmt.Printf("Error: %s\n", err.Error())
-	}
-	return err
+	return c.doStream("POST", "/allocations", multiFileR, headers, nil)
 }
+
+// Eventually an Add(io.Reader) method for adding raw readers as a multifile should be here.
