@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -38,8 +37,8 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 	return c.client.Do(r)
 }
 
-// eventually we may want to trigger streaming with a boolean flag.
-// keeping functions seperate for now for development simplicity.
+// eventually we may want to trigger streaming with a boolean flag in
+// a single doRequest function to prevent code duplication (same for do)
 func (c *Client) doStreamRequest(method, path string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	urlpath := c.urlPrefix + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
@@ -60,7 +59,6 @@ func (c *Client) doStreamRequest(method, path string, body io.Reader, headers ma
 	}
 
 	// Here are the streaming specific modifications
-	fmt.Printf("Here is the req before mods %v\n", r)
 	r.ProtoMajor = 1
 	r.ProtoMinor = 1
 	r.ContentLength = -1
