@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -172,3 +173,13 @@ func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	err := c.do("GET", "/health/graph", nil, &graphS)
 	return graphS, err
 }
+
+// AddMultiFile adds new files to the ipfs cluster, importing and potentially
+// sharding underlying dags across the ipfs repos of multiple cluster peers
+func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader) error {
+	headers := make(map[string]string)
+	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
+	return c.doStream("POST", "/allocations", multiFileR, headers, nil)
+}
+
+// Eventually an Add(io.Reader) method for adding raw readers as a multifile should be here.

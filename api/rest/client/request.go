@@ -37,6 +37,43 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 	return c.client.Do(r)
 }
 
+// eventually we may want to trigger streaming with a boolean flag in
+// a single doRequest function to prevent code duplication (same for do)
+func (c *Client) doStreamRequest(method, path string, body io.Reader, headers map[string]string) (*http.Response, error) {
+	urlpath := c.urlPrefix + "/" + strings.TrimPrefix(path, "/")
+	logger.Debugf("%s: %s", method, urlpath)
+
+	r, err := http.NewRequest(method, urlpath, body)
+	if err != nil {
+		return nil, err
+	}
+	if c.config.DisableKeepAlives {
+		r.Close = true
+	}
+	if c.config.Username != "" {
+		r.SetBasicAuth(c.config.Username, c.config.Password)
+	}
+
+	for k, v := range headers {
+		r.Header.Set(k, v)
+	}
+
+	// Here are the streaming specific modifications
+	r.ProtoMajor = 1
+	r.ProtoMinor = 1
+	r.ContentLength = -1
+
+	return c.client.Do(r)
+}
+
+func (c *Client) doStream(method, path string, body io.Reader, headers map[string]string, obj interface{}) error {
+	resp, err := c.doStreamRequest(method, path, body, headers)
+	if err != nil {
+		return &api.Error{Code: 0, Message: err.Error()}
+	}
+	return c.handleResponse(resp, obj)
+}
+
 func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()

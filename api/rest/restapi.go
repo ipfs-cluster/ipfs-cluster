@@ -6,6 +6,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"mime"
 	"net"
 	"net/http"
 	"strconv"
@@ -17,10 +19,14 @@ import (
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
+	dex "github.com/zenground0/dex"
+	//	"io"
+	//	"fmt"
 )
 
 var logger = logging.Logger("restapi")
@@ -273,6 +279,12 @@ func (api *API) routes() []route {
 			"/health/graph",
 			api.graphHandler,
 		},
+		{
+			"FilesAdd",
+			"POST",
+			"/allocations",
+			api.addFileHandler,
+		},
 	}
 }
 
@@ -350,6 +362,56 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&graph)
 	sendResponse(w, err, graph)
+}
+
+func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
+	mediatype, _, _ := mime.ParseMediaType(contentType)
+	var f files.File
+	if mediatype == "multipart/form-data" {
+		reader, err := r.MultipartReader()
+		if err != nil {
+			sendAcceptedResponse(w, err)
+			return
+		}
+
+		f = &files.MultipartFile{
+			Mediatype: mediatype,
+			Reader:    reader,
+		}
+
+	} else {
+		sendAcceptedResponse(w, errors.New("unsupported media type"))
+		return
+	}
+
+	err := dex.ImportToPrint(f)
+	/*	buf := make([]byte, 256)
+		for {
+			file, err := f.NextFile()
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf("%s\n----------------\n", file.FileName())
+			if file.IsDirectory() {
+				continue
+			}
+			var n int
+			for {
+				n, err = file.Read(buf)
+				if err == io.EOF {
+					fmt.Printf("\n")
+					break
+				}
+				fmt.Printf(string(buf[:n]))
+			}
+			fmt.Printf(string(buf[:n]))
+		}
+	*/
+	// TODO: when complete this call should answer with a cid
+	// or better yet a pin-info describing the allocations
+	// of the resulting allocation
+	sendAcceptedResponse(w, err)
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {

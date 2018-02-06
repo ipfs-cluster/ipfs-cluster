@@ -152,6 +152,38 @@ requires authorization. implies --https, which you can disable with --force-http
 
 	app.Commands = []cli.Command{
 		{
+			Name:  "add",
+			Usage: "ipfs-cluster-ctl add <path> ... add a file to ipfs via cluster",
+			Description: `
+Only works with file paths, no directories.  Recurisive adding not yet supported.  --shard flag not
+yet supported.  Eventually users would use this endpoint if they want the file to be sharded across the cluster.
+This is useful in the case several ipfs peers want to ingest the file and combined have enough space
+to host but no single peer's repo has the capacity for the entire file.  No stdin reading yet either, that
+is also TODO
+`,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "recursive, r",
+					Usage: "add directory paths recursively, default false",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				paths := make([]string, c.NArg(), c.NArg())
+				for i, path := range c.Args() {
+					paths[i] = path
+				}
+				// Unclear if multiFileR is ready for streaming, but hypothesis is yes.
+				// Files are all opened but not read until they are sent.
+				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
+				checkErr("serializing all files", err)
+				cerr := globalClient.AddMultiFile(multiFileR)
+				if cerr != nil {
+					formatResponse(c, nil, cerr)
+				}
+				return nil
+			},
+		},
+		{
 			Name:  "id",
 			Usage: "retrieve peer information",
 			Description: `
