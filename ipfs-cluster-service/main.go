@@ -466,7 +466,7 @@ func daemon(c *cli.Context) error {
 	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
 	mon, err := basic.NewMonitor(monCfg)
 	checkErr("creating Monitor component", err)
-	informer, alloc := setupAllocation(c.String("alloc"), diskInfCfg, numpinInfCfg)
+	informer, alloc := setupAllocation(c.GlobalString("alloc"), diskInfCfg, numpinInfCfg)
 
 	cluster, err := ipfscluster.NewCluster(
 		clusterCfg,
