@@ -4,6 +4,7 @@ package mapstate
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -99,6 +100,9 @@ func (st *MapState) Migrate(r io.Reader) error {
 		return err
 	}
 	err = st.Unmarshal(bs)
+	if err != nil {
+		return err
+	}
 	if st.Version == Version { // Unmarshal restored for us
 		return nil
 	}
@@ -142,6 +146,9 @@ func (st *MapState) Marshal() ([]byte, error) {
 func (st *MapState) Unmarshal(bs []byte) error {
 	// Check version byte
 	// logger.Debugf("The incoming bytes to unmarshal: %x", bs)
+	if len(bs) < 1 {
+		return errors.New("cannot unmarshal from empty bytes")
+	}
 	v := int(bs[0])
 	logger.Debugf("The interpreted version: %d", v)
 	if v != Version { // snapshot is out of date

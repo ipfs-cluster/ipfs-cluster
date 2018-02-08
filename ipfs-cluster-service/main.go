@@ -240,14 +240,28 @@ configuration.
 			},
 		},
 		{
-			Name:   "daemon",
-			Usage:  "run the IPFS Cluster peer (default)",
+			Name:  "daemon",
+			Usage: "run the IPFS Cluster peer (default)",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "upgrade, u",
+					Usage: "run necessary state migrations before starting cluster service",
+				},
+			},
 			Action: daemon,
 		},
 		{
 			Name:  "state",
 			Usage: "Manage ipfs-cluster-state",
 			Subcommands: []cli.Command{
+				{
+					Name:  "version",
+					Usage: "display the shared state format version",
+					Action: func(c *cli.Context) error {
+						fmt.Printf("%d\n", mapstate.Version)
+						return nil
+					},
+				},
 				{
 					Name:  "upgrade",
 					Usage: "upgrade the IPFS Cluster state to the current version",
@@ -424,6 +438,13 @@ func daemon(c *cli.Context) error {
 
 	// Load all the configurations
 	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+
+	// Run any migrations
+	if c.Bool("upgrade") {
+		err := upgrade()
+		checkErr("upgrading state", err)
+	}
+
 	// Execution lock
 	err := locker.lock()
 	checkErr("acquiring execution lock", err)

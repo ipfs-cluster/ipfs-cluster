@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,9 +16,14 @@ import (
 var errNoSnapshot = errors.New("no snapshot found")
 
 func upgrade() error {
-	newState, err := restoreStateFromDisk()
+	newState, current, err := restoreStateFromDisk()
 	if err != nil {
 		return err
+	}
+
+	if current {
+		logger.Warning("Skipping migration of up-to-date state")
+		return nil
 	}
 
 	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
@@ -32,7 +38,7 @@ func upgrade() error {
 }
 
 func export(w io.Writer) error {
-	stateToExport, err := restoreStateFromDisk()
+	stateToExport, _, err := restoreStateFromDisk()
 	if err != nil {
 		return err
 	}
@@ -40,12 +46,15 @@ func export(w io.Writer) error {
 	return exportState(stateToExport, w)
 }
 
-func restoreStateFromDisk() (*mapstate.MapState, error) {
+// restoreStateFromDisk returns a mapstate containing the latest
+// snapshot, a flag set to true when the state format has the
+// current version and an error
+func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
 	cfg, _, _, _, consensusCfg, _, _, _, _ := makeConfigs()
 
 	err := cfg.LoadJSONFromFile(configPath)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	r, snapExists, err := raft.LastStateRaw(consensusCfg)
@@ -53,17 +62,31 @@ func restoreStateFromDisk() (*mapstate.MapState, error) {
 		err = errNoSnapshot
 	}
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	stateFromSnap := mapstate.NewMapState()
-	err = stateFromSnap.Migrate(r)
+	// duplicate reader to both check version and migrate
+	var buf bytes.Buffer
+	r2 := io.TeeReader(r, &buf)
+	raw, err := ioutil.ReadAll(r2)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	err = stateFromSnap.Unmarshal(raw)
+	if err != nil {
+		return nil, false, err
+	}
+	if stateFromSnap.GetVersion() == mapstate.Version {
+		return stateFromSnap, true, nil
 	}
 
-	return stateFromSnap, nil
+	err = stateFromSnap.Migrate(&buf)
+	if err != nil {
+		return nil, false, err
+	}
 
+	return stateFromSnap, false, nil
 }
 
 func stateImport(r io.Reader) error {
