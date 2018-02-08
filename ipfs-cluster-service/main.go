@@ -193,10 +193,6 @@ func main() {
 			Value: "disk-freespace",
 			Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
 		},
-		cli.BoolFlag{
-			Name:  "upgrade, u",
-			Usage: "run necessary state migrations before starting cluster service",
-		},
 	}
 
 	app.Commands = []cli.Command{
@@ -244,8 +240,14 @@ configuration.
 			},
 		},
 		{
-			Name:   "daemon",
-			Usage:  "run the IPFS Cluster peer (default)",
+			Name:  "daemon",
+			Usage: "run the IPFS Cluster peer (default)",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "upgrade, u",
+					Usage: "run necessary state migrations before starting cluster service",
+				},
+			},
 			Action: daemon,
 		},
 		{
