@@ -14,6 +14,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 )
@@ -150,6 +151,14 @@ type PinAllocator interface {
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
 	Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error)
+}
+
+// Sharder controls the aggregation of ipfs file nodes into shards.  File
+// shards are grouped together and referenced by a cluster DAG node and
+// distributed among the cluster
+type Sharder interface {
+	Component
+	AddNode(ipld.Node) error
 }
 
 // PeerMonitor is a component in charge of monitoring the peers in the cluster
