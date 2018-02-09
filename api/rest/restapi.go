@@ -514,6 +514,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	outChan := make(chan *ipld.Node)
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		for nodePtr := range outChan {
 			node := *nodePtr
@@ -526,15 +527,17 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 				&pinS)
 
 			/* Verify that block put cid matches*/
-			if err != nil {
-				logger.Warning(err)
-			}
 			if node.String() != pinS.Cid { // node string is just cid string
 				logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", node.String(), pinS.Cid)
 			}
+			if err != nil { // error will be triggered in importer
+				logger.Error(err)
+				cancel()
+				return
+			}
 		}
 	}()
-	err := dex.ImportToChannel(f, outChan, context.Background())
+	err := dex.ImportToChannel(f, outChan, ctx)
 	/*	buf := make([]byte, 256)
 		for {
 			file, err := f.NextFile()
