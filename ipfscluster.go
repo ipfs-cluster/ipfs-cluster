@@ -88,6 +88,8 @@ type IPFSConnector interface {
 	// RepoSize returns the current repository size as expressed
 	// by "repo stat".
 	RepoSize() (uint64, error)
+	// BlockPut directly adds a block of data to the IPFS repo
+	BlockPut([]byte) (api.Pin, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
