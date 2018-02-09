@@ -43,6 +43,7 @@ type Cluster struct {
 	monitor   PeerMonitor
 	allocator PinAllocator
 	informer  Informer
+	sharder   Sharder
 
 	shutdownLock sync.Mutex
 	shutdownB    bool
@@ -71,7 +72,8 @@ func NewCluster(
 	tracker PinTracker,
 	monitor PeerMonitor,
 	allocator PinAllocator,
-	informer Informer) (*Cluster, error) {
+	informer Informer,
+	sharder Sharder) (*Cluster, error) {
 
 	err := cfg.Validate()
 	if err != nil {
@@ -114,6 +116,7 @@ func NewCluster(
 		monitor:     monitor,
 		allocator:   allocator,
 		informer:    informer,
+		sharder:     sharder,
 		peerManager: peerManager,
 		shutdownB:   false,
 		removed:     false,
@@ -191,6 +194,7 @@ func (c *Cluster) setupRPCClients() {
 	c.monitor.SetClient(c.rpcClient)
 	c.allocator.SetClient(c.rpcClient)
 	c.informer.SetClient(c.rpcClient)
+	c.sharder.SetClient(c.rpcClient)
 }
 
 // syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
