@@ -16,6 +16,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 )
@@ -176,4 +177,12 @@ type PeerMonitor interface {
 	// a problem (i.e. metrics not arriving as expected). Alerts can be used
 	// to trigger self-healing measures or re-pinnings of content.
 	Alerts() <-chan api.Alert
+}
+
+// Sharder controls the aggregation of ipfs file nodes into shards.  File
+// shards are grouped together and referenced by a cluster DAG node and
+// distributed among the cluster
+type Sharder interface {
+	Component
+	AddNode(ipld.Node) error
 }
