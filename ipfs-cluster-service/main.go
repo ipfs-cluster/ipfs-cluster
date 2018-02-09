@@ -28,6 +28,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/shard"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -494,6 +495,9 @@ func daemon(c *cli.Context) error {
 	checkErr("creating Monitor component", err)
 	informer, alloc := setupAllocation(c.GlobalString("alloc"), diskInfCfg, numpinInfCfg)
 
+	sharder, err := shard.NewSharder()
+	checkErr("creating shard component", err)
+
 	cluster, err := ipfscluster.NewCluster(
 		clusterCfg,
 		consensusCfg,
@@ -503,7 +507,8 @@ func daemon(c *cli.Context) error {
 		tracker,
 		mon,
 		alloc,
-		informer)
+		informer,
+		sharder)
 	checkErr("starting cluster", err)
 
 	signalChan := make(chan os.Signal, 20)
