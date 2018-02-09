@@ -302,6 +302,13 @@ func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.
 	return err
 }
 
+// IPFSBlockPut runs IPFSConnector.BlockPut().
+func (rpcapi *RPCAPI) IPFSBlockPut(in []byte, out *api.PinSerial) error {
+	res, err := rpcapi.c.ipfs.BlockPut(in)
+	*out = res.ToSerial()
+	return err
+}
+
 /*
    Consensus component methods
 */

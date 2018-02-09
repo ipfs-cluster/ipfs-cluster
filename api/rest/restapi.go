@@ -29,6 +29,7 @@ import (
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
+	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
@@ -515,8 +516,28 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		sendAcceptedResponse(w, errors.New("unsupported media type"))
 		return
 	}
+	outChan := make(chan *ipld.Node)
+	go func() {
+		for nodePtr := range outChan {
+			node := *nodePtr
+			/* Send block data to ipfs */
+			pinS := types.PinSerial{}
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"IPFSBlockPut",
+				node.RawData(),
+				&pinS)
 
-	err := importer.ToPrint(f)
+			/* Verify that block put cid matches*/
+			if err != nil {
+				logger.Warning(err)
+			}
+			if node.String() != pinS.Cid { // node string is just cid string
+				logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", node.String(), pinS.Cid)
+			}
+		}
+	}()
+	err := dex.ImportToChannel(f, outChan, context.Background())
 	/*	buf := make([]byte, 256)
 		for {
 			file, err := f.NextFile()
