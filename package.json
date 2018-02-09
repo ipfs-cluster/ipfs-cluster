@@ -21,7 +21,7 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSL4955VXSpbT2XYgjRPdUsBPd4RYf9qNQxwM8TRd37JW",
+      "hash": "QmecnKnXfJs23WA8o5P4ZgtSK2Hs7TayuEtM3bbfAmgVth",
       "name": "go-libp2p-raft",
       "version": "1.2.1"
     },
@@ -79,10 +79,15 @@
       "version": "1.0.0"
     },
     {
-      "author": "ZenGround0",
-      "hash": "QmeVgKnZukNJvAdJMNc5RJSdGmUVvFbHsjcfFujyFnFLMB",
-      "name": "dex",
-      "version": "0.0.2"
+      "hash": "QmRBZ9gkZBoguC8U2sCS2voe7Vu2JidDSFdAU7YK9ahu6S",
+      "name": "go-ipfs",
+      "version": "0.4.14-dev"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "Qme5bWv7wtjUNGsK2BNGVUFPKiuxWrsqrtvYwCLRw8YFES",
+      "name": "go-ipld-format",
+      "version": "0.5.3"
     }
   ],
   "gxVersion": "0.11.0",

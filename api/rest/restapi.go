@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	types "github.com/ipfs/ipfs-cluster/api"
+	importer "github.com/ipfs/ipfs-cluster/ipld-importer"
 
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -24,7 +25,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
-	dex "github.com/zenground0/dex"
 	//	"io"
 	//	"fmt"
 )
@@ -385,7 +385,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := dex.ImportToPrint(f)
+	err := importer.ToPrint(f)
 	/*	buf := make([]byte, 256)
 		for {
 			file, err := f.NextFile()
