@@ -11,18 +11,18 @@ import (
 
 var errUninit = errors.New("DAGService output channel uninitialized")
 
-// outDAGService will "add" a node by printing it.  pDAGService cannot Get nodes
-// that have already been seen and calls to Remove are noops.  Nodes are
-// recorded after being added so that they will only be printed once
+// outDAGService will "add" a node by sending through the outChan
 type outDAGService struct {
 	membership map[string]bool
 	outChan    chan<- *ipld.Node
 }
 
+// Get always returns errNotFound
 func (ods *outDAGService) Get(ctx context.Context, key *cid.Cid) (ipld.Node, error) {
 	return nil, errNotFound
 }
 
+// GetMany returns an output channel that always emits an error
 func (ods *outDAGService) GetMany(ctx context.Context, keys []*cid.Cid) <-chan *ipld.NodeOption {
 	out := make(chan *ipld.NodeOption, len(keys))
 	go func() {
@@ -32,6 +32,7 @@ func (ods *outDAGService) GetMany(ctx context.Context, keys []*cid.Cid) <-chan *
 	return out
 }
 
+// Add passes the provided node through the output channel
 func (ods *outDAGService) Add(ctx context.Context, node ipld.Node) error {
 	id := node.Cid().String()
 	_, ok := ods.membership[id]
@@ -53,6 +54,7 @@ func (ods *outDAGService) Add(ctx context.Context, node ipld.Node) error {
 	}
 }
 
+// AddMany passes the provided nodes through the output channel
 func (ods *outDAGService) AddMany(ctx context.Context, nodes []ipld.Node) error {
 	for _, node := range nodes {
 		err := ods.Add(ctx, node)

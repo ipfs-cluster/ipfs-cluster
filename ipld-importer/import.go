@@ -51,7 +51,8 @@ func ToPrint(f files.File) error {
 
 // ToChannel imports file to ipfs ipld nodes, outputting nodes on the
 // provided channel
-func ToChannel(f files.File, outChan chan<- *ipld.Node, ctx context.Context) error {
+func ToChannel(f files.File, ctx context.Context) <-chan *ipld.Node {
+	outChan := make(chan *ipld.Node)
 	dserv := &outDAGService{
 		membership: make(map[string]bool),
 		outChan:    outChan,
@@ -63,24 +64,26 @@ func ToChannel(f files.File, outChan chan<- *ipld.Node, ctx context.Context) err
 	}
 	fileAdder.Pin = false
 
-	// add all files under the root, as in ipfs
-	for {
-		file, err := f.NextFile()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return err
+	go func() {
+		defer close(outChan)
+		// add all files under the root, as in ipfs
+		for {
+			file, err := f.NextFile()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
+
+			if err := fileAdder.AddFile(file); err != nil {
+				return err
+			}
 		}
 
-		if err := fileAdder.AddFile(file); err != nil {
+		_, err = fileAdder.Finalize()
+		if !strings.Contains(err.Error(), "dagservice: block not found") {
 			return err
 		}
-	}
-
-	_, err = fileAdder.Finalize()
-	if !strings.Contains(err.Error(), "dagservice: block not found") {
-		return err
-	}
-	close(outChan)
-	return nil
+	}()
+	return outChan
 }
