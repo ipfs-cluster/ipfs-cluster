@@ -386,7 +386,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	outChan := make(chan *ipld.Node)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(api.ctx)
 	go func() {
 		for nodePtr := range outChan {
 			node := *nodePtr
