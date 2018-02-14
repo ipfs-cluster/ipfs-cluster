@@ -567,6 +567,21 @@ func TestSwarmPeers(t *testing.T) {
 	}
 }
 
+func TestBlockPut(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	data := []byte(test.TestCid4Data)
+	resp, err := ipfs.BlockPut(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Cid.String() != test.TestCid4 {
+		t.Fatal("Unexpected resulting cid")
+	}
+}
+
 func TestRepoSize(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
