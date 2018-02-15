@@ -569,7 +569,7 @@ func TestBlockPut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.Cid.String() != test.TestCid4 {
+	if resp != test.TestCid4 {
 		t.Fatal("Unexpected resulting cid")
 	}
 }

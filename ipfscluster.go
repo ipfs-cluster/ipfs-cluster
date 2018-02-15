@@ -89,7 +89,7 @@ type IPFSConnector interface {
 	// by "repo stat".
 	RepoSize() (uint64, error)
 	// BlockPut directly adds a block of data to the IPFS repo
-	BlockPut([]byte) (api.Pin, error)
+	BlockPut([]byte) (string, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

@@ -88,7 +88,7 @@ func (ipfs *mockConnector) ConnectSwarms() error                          { retu
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }
 func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
-func (ipfs *mockConnector) BlockPut(data []byte) (api.Pin, error)         { return api.Pin{}, nil }
+func (ipfs *mockConnector) BlockPut(data []byte) (string, error)          { return "", nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
 	clusterCfg, _, _, consensusCfg, trackerCfg, monCfg, _ := testingConfigs()
