@@ -13,7 +13,7 @@ var errUninit = errors.New("DAGService output channel uninitialized")
 
 // outDAGService will "add" a node by sending through the outChan
 type outDAGService struct {
-	membership map[string]bool
+	membership map[string]struct{}
 	outChan    chan<- *ipld.Node
 }
 
@@ -24,11 +24,9 @@ func (ods *outDAGService) Get(ctx context.Context, key *cid.Cid) (ipld.Node, err
 
 // GetMany returns an output channel that always emits an error
 func (ods *outDAGService) GetMany(ctx context.Context, keys []*cid.Cid) <-chan *ipld.NodeOption {
-	out := make(chan *ipld.NodeOption, len(keys))
-	go func() {
-		out <- &ipld.NodeOption{Err: fmt.Errorf("failed to fetch all nodes")}
-		return
-	}()
+	out := make(chan *ipld.NodeOption, 1)
+	out <- &ipld.NodeOption{Err: fmt.Errorf("failed to fetch all nodes")}
+	close(out)
 	return out
 }
 
@@ -39,7 +37,7 @@ func (ods *outDAGService) Add(ctx context.Context, node ipld.Node) error {
 	if ok { // already added don't add again
 		return nil
 	}
-	ods.membership[id] = true
+	ods.membership[id] = struct{}{}
 
 	// Send node on output channel
 	if ods.outChan == nil {
