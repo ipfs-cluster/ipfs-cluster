@@ -246,7 +246,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		c := cid.NewCidV0(u.Hash(data)).String()
+		c := cid.NewCidV1(cid.Raw, u.Hash(data)).String()
 		if c != TestCid4 {
 			goto ERROR
 		}

@@ -50,7 +50,7 @@ func ToPrint(f files.File) error {
 
 // ToChannel imports file to ipfs ipld nodes, outputting nodes on the
 // provided channel
-func ToChannel(f files.File, ctx context.Context) (<-chan *ipld.Node, error) {
+func ToChannel(ctx context.Context, f files.File) (<-chan *ipld.Node, error) {
 	outChan := make(chan *ipld.Node)
 	dserv := &outDAGService{
 		membership: make(map[string]struct{}),
