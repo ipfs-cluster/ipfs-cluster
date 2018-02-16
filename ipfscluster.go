@@ -159,6 +159,7 @@ type PinAllocator interface {
 type Sharder interface {
 	Component
 	AddNode(ipld.Node) error
+	Flush() error
 }
 
 // PeerMonitor is a component in charge of monitoring the peers in the cluster
