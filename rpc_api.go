@@ -346,13 +346,18 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
    Sharder methods
 */
 
-// ShardAddNode runs Sharder.AddNode().
+// ShardAddNode runs Sharder.AddNode(node).
 func (rpcapi *RPCAPI) ShardAddNode(in api.NodeSerial, out *struct{}) error {
 	node, err := in.ToIPLDNode()
 	if err != nil {
 		return err
 	}
 	return rpcapi.c.sharder.AddNode(node)
+}
+
+// ShardFlush runs Sharder.Flush().
+func (rpcapi *RPCAPI) ShardFlush(in struct{}, out *struct{}) error {
+	return rpcapi.c.sharder.Flush()
 }
 
 /*

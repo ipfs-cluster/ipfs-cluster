@@ -185,4 +185,5 @@ type PeerMonitor interface {
 type Sharder interface {
 	Component
 	AddNode(ipld.Node) error
+	Flush() error
 }
