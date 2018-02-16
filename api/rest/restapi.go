@@ -391,12 +391,21 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		node := *nodePtr
 		/* Send block data to ipfs */
 		var hash string
+		/*		c := node.Cid()
+				format, ok := cid.CodecToStr[c.Type()]
+				if !ok {
+					format = ""
+				}*/
+		b := types.BlockWithFormat{
+			Data:   node.RawData(),
+			Format: "",
+		}
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"IPFSBlockPut",
-			node.RawData(),
+			b,
 			&hash)
-		/* Verify that block put cid matches*/
+		/* Verify that block put cid matches */
 		if node.String() != hash { // node string is just cid string
 			logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", node.String(), hash)
 		}

@@ -662,6 +662,13 @@ func ToNodeSerial(node ipld.Node) NodeSerial {
 	}
 }
 
+// BlocKWithFormat specifies a block of data and how it should be
+// formatted.  An empty format string will be interpreted as "v0".
+type BlockWithFormat struct {
+	Data   []byte
+	Format string
+}
+
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
