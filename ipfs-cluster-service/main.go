@@ -223,7 +223,7 @@ configuration.
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
-				cfg, clustercfg, _, _, _, _, _, _, _ := makeConfigs()
+				cfg, clustercfg, _, _, _, _, _, _, _, _ := makeConfigs()
 				defer cfg.Shutdown() // wait for saves
 
 				// Generate defaults for all registered components
@@ -379,7 +379,7 @@ the mth data folder (m currently defaults to 5)
 							}
 						}
 
-						cfg, _, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+						cfg, _, _, _, consensusCfg, _, _, _, _, _ := makeConfigs()
 						err = cfg.LoadJSONFromFile(configPath)
 						checkErr("initializing configs", err)
 
@@ -443,7 +443,7 @@ func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	// Load all the configurations
-	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg, shardCfg := makeConfigs()
 
 	// Run any migrations
 	if c.Bool("upgrade") {
@@ -495,7 +495,7 @@ func daemon(c *cli.Context) error {
 	checkErr("creating Monitor component", err)
 	informer, alloc := setupAllocation(c.GlobalString("alloc"), diskInfCfg, numpinInfCfg)
 
-	sharder, err := shard.NewSharder()
+	sharder, err := shard.NewSharder(shardCfg)
 	checkErr("creating shard component", err)
 
 	cluster, err := ipfscluster.NewCluster(
@@ -614,7 +614,7 @@ func yesNoPrompt(prompt string) bool {
 	return false
 }
 
-func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config) {
+func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config, *shard.Config) {
 	cfg := config.NewManager()
 	clusterCfg := &ipfscluster.Config{}
 	apiCfg := &rest.Config{}
@@ -624,6 +624,7 @@ func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshtt
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
+	shardCfg := &shard.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
@@ -632,5 +633,5 @@ func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshtt
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg
+	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg, shardCfg
 }

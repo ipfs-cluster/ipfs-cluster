@@ -4,9 +4,14 @@ import (
 	//	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
+	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
+	mh "github.com/multiformats/go-multihash"
 )
+
+var logger = logging.Logger("shard")
 
 // Sharder aggregates incident ipfs file dag nodes into a shard, or group of
 // nodes.  The Sharder builds a reference node in the ipfs-cluster DAG to
@@ -19,12 +24,14 @@ type Sharder struct {
 	currentShard  ipld.Node
 	byteCount     int
 	byteThreshold int
+
+	allocSize int
 }
 
 // NewSharder returns a new sharder for use by an ipfs-cluster.  In the future
 // this may take in a shard-config
-func NewSharder() (*Sharder, error) {
-	return &Sharder{}, nil
+func NewSharder(cfg *Config) (*Sharder, error) {
+	return &Sharder{allocSize: cfg.AllocSize}, nil
 }
 
 // SetClient registers the rpcClient used by the Sharder to communicate with
@@ -36,6 +43,21 @@ func (s *Sharder) SetClient(c *rpc.Client) {
 // Shutdown shuts down the sharding component
 func (s *Sharder) Shutdown() error {
 	return nil
+}
+
+/*  what we really need to do is track links in a cluster dag
+proto object, and only after we have tallied them all up do we
+call WrapObject to serialize go slice of links into a cbor node*/
+func newClusterDAGNode() (*cbor.Node, error) {
+	return cbor.WrapObject(struct{}{}, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+}
+
+func clusterDAGAppend(clusterNode *cbor.Node, child ipld.Node) error {
+	lnk, err := ipld.MakeLink(child)
+	if err != nil {
+		return err
+	}
+
 }
 
 // AddNode
