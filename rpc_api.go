@@ -303,7 +303,7 @@ func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.
 }
 
 // IPFSBlockPut runs IPFSConnector.BlockPut().
-func (rpcapi *RPCAPI) IPFSBlockPut(in []byte, out *string) error {
+func (rpcapi *RPCAPI) IPFSBlockPut(in api.BlockWithFormat, out *string) error {
 	res, err := rpcapi.c.ipfs.BlockPut(in)
 	*out = res
 	return err

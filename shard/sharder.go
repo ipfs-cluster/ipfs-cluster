@@ -160,6 +160,12 @@ func (s *Sharder) AddNode(node ipld.Node) error {
 	if err != nil {
 		return err
 	}
+	c := node.Cid()
+	format, ok := cid.CodecToStr[c.Type()]
+	if !ok {
+		format = ""
+		logger.Warning("unsupported cid type, treating as v0")
+	}
 	if s.unInit() {
 		logger.Debug("initializing next shard of data")
 		if err := s.initShard(); err != nil {
@@ -183,8 +189,12 @@ func (s *Sharder) AddNode(node ipld.Node) error {
 	s.byteCount += size
 	s.currentShard.links = append(s.currentShard.links, node.Cid())
 	var retStr string
+	b := api.BlockWithFormat{
+		Data:   node.RawData(),
+		Format: format,
+	}
 	return s.rpcClient.Call(s.assignedPeer, "Cluster", "IPFSBlockPut",
-		node.RawData(), &retStr)
+		b, &retStr)
 }
 
 // Flush completes the allocation of the current shard of a file by adding the
@@ -203,8 +213,12 @@ func (s *Sharder) Flush() error {
 	s.byteThreshold = 0
 	s.byteCount = 0
 	var retStr string
+	b := api.BlockWithFormat{
+		Data:   shardNode.RawData(),
+		Format: "cbor",
+	}
 	err = s.rpcClient.Call(targetPeer, "Cluster", "IPFSBlockPut",
-		shardNode.RawData(), &retStr)
+		b, &retStr)
 	if err != nil {
 		return err
 	}
