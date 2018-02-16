@@ -926,14 +926,17 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 
 // BlockPut triggers an ipfs block put on the given data, inserting the block
 // into the ipfs daemon's repo.
-func (ipfs *Connector) BlockPut(data []byte) (string, error) {
-	r := ioutil.NopCloser(bytes.NewReader(data))
+func (ipfs *Connector) BlockPut(b api.BlockWithFormat) (string, error) {
+	r := ioutil.NopCloser(bytes.NewReader(b.Data))
 	rFile := files.NewReaderFile("", "", r, nil)
 	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory
 	multiFileR := files.NewMultiFileReader(sliceFile, true)
+	if b.Format == "" {
+		b.Format = "v0"
+	}
+	url := "block/put?f=" + b.Format
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
-
-	res, err := ipfs.post("block/put", contentType, multiFileR)
+	res, err := ipfs.post(url, contentType, multiFileR)
 	if err != nil {
 		return "", err
 	}
