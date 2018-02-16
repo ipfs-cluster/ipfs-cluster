@@ -14,7 +14,10 @@ import (
 	"strings"
 	"time"
 
+	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
+	dag "github.com/ipfs/go-ipfs/merkledag"
+	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
@@ -25,6 +28,11 @@ import (
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
 )
+
+func init() {
+	ipld.Register(cid.DagProtobuf, dag.DecodeProtobufBlock)
+	ipld.Register(cid.Raw, dag.DecodeRawBlock)
+}
 
 var logger = logging.Logger("apitypes")
 
@@ -592,6 +600,37 @@ func (pins PinSerial) ToPin() Pin {
 		ReplicationFactorMin: pins.ReplicationFactorMin,
 		ReplicationFactorMax: pins.ReplicationFactorMax,
 		Recursive:            pins.Recursive,
+	}
+}
+
+// NodeSerial encodes an ipld node.  The cid and raw data are bundled together
+// to be decoded into a block using NewBlockWithCid which can further be
+// decoded into an ipld node
+type NodeSerial struct {
+	CidS string
+	Data []byte
+}
+
+func (nS NodeSerial) ToIPLDNode() (ipld.Node, error) {
+	c, err := cid.Decode(nS.CidS)
+	if err != nil {
+		return nil, err
+	}
+	blk, err := blocks.NewBlockWithCid(nS.Data, c)
+	if err != nil {
+		return nil, err
+	}
+	node, err := ipld.Decode(blk)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func ToNodeSerial(node ipld.Node) NodeSerial {
+	return NodeSerial{
+		CidS: node.Cid().String(),
+		Data: node.RawData(),
 	}
 }
 

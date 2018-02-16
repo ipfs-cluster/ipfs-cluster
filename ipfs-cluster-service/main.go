@@ -227,6 +227,7 @@ configuration.
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
+
 				cfgMgr, cfgs := makeConfigs()
 				defer cfgMgr.Shutdown() // wait for saves
 
@@ -385,6 +386,7 @@ the mth data folder (m currently defaults to 5)
 
 						cfgMgr, cfgs := makeConfigs()
 						err = cfgMgr.LoadJSONFromFile(configPath)
+
 						checkErr("initializing configs", err)
 
 						dataFolder := filepath.Join(cfgs.consensusCfg.BaseDir, raft.DefaultDataSubFolder)
@@ -604,6 +606,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
+	shardCfg := &shard.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
@@ -611,8 +614,10 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.PinTracker, trackerCfg)
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
-	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg}
+        cfg.RegisterComponent(config.Informer, numpinInfCfg)
+        cfg.RegisterComponent(config.Sharder, shardCfg)
+
+	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg, shardCfg}
 }
 
 type cfgs struct {
@@ -624,6 +629,7 @@ type cfgs struct {
 	monCfg       *basic.Config
 	diskInfCfg   *disk.Config
 	numpinInfCfg *numpin.Config
+	shardCfg     *shard.Config
 }
 
 func initializeCluster(ctx context.Context, c *cli.Context, cfgs *cfgs) (*ipfscluster.Cluster, error) {
