@@ -534,7 +534,7 @@ type Pin struct {
 	Recursive            bool
 }
 
-// PinCid is a shorcut to create a Pin only with a Cid.  Default is for pin to
+// PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
@@ -635,6 +635,8 @@ type NodeSerial struct {
 	Data []byte
 }
 
+// ToIPLDNode converts a node serial to an ipld DAG node.  Data must be
+// encoded as Raw or DagCBOR (v0 or v1) for this to work
 func (nS NodeSerial) ToIPLDNode() (ipld.Node, error) {
 	c, err := cid.Decode(nS.CidS)
 	if err != nil {
@@ -651,6 +653,8 @@ func (nS NodeSerial) ToIPLDNode() (ipld.Node, error) {
 	return node, nil
 }
 
+// ToNodeSerial serializes an ipld node to its cid and block data for transport
+// over the api
 func ToNodeSerial(node ipld.Node) NodeSerial {
 	return NodeSerial{
 		CidS: node.Cid().String(),
