@@ -1,9 +1,12 @@
 package shard
 
 import (
-	//	"github.com/ipfs/ipfs-cluster/api"
+	"errors"
+
+	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -21,17 +24,22 @@ type Sharder struct {
 	rpcClient *rpc.Client
 
 	assignedPeer  peer.ID
-	currentShard  ipld.Node
-	byteCount     int
-	byteThreshold int
+	currentShard  shardObj
+	byteCount     uint64
+	byteThreshold uint64
 
-	allocSize int
+	allocSize uint64
 }
 
 // NewSharder returns a new sharder for use by an ipfs-cluster.  In the future
 // this may take in a shard-config
 func NewSharder(cfg *Config) (*Sharder, error) {
 	return &Sharder{allocSize: cfg.AllocSize}, nil
+}
+
+func (s *Sharder) unInit() bool {
+	return s.currentShard.links == nil && s.assignedPeer == peer.ID("") && s.byteCount == 0 &&
+		s.byteThreshold == 0
 }
 
 // SetClient registers the rpcClient used by the Sharder to communicate with
@@ -45,45 +53,171 @@ func (s *Sharder) Shutdown() error {
 	return nil
 }
 
-/*  what we really need to do is track links in a cluster dag
-proto object, and only after we have tallied them all up do we
-call WrapObject to serialize go slice of links into a cbor node*/
-func newClusterDAGNode() (*cbor.Node, error) {
-	return cbor.WrapObject(struct{}{}, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+// Temporary storage of links to be serialized to ipld cbor once allocation is
+// complete
+type shardObj struct {
+	links []*cid.Cid
 }
 
-func clusterDAGAppend(clusterNode *cbor.Node, child ipld.Node) error {
-	lnk, err := ipld.MakeLink(child)
+// clusterDAGCountBytes tracks the number of bytes in the serialized cluster
+// DAG node used to track this shard.  For now ignoring these bytes
+func (s *Sharder) clusterDAGCountBytes() uint64 {
+	// link size * link bytes
+	// + overhead
+	return 0
+}
+
+// getAssignment returns the pid of a cluster peer that will allocate space
+// for a new shard, along with a byte threshold determining the max size of
+// this shard.
+func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
+	// TODO: work out the relationship between shard allocations and
+	// cluster pin allocations.  For now I'm assuming that none of the cids
+	// within a shard are pinned elsewhere in the cluster, or if they are
+	// it has no effect on the independent allocation of the shard
+
+	// TODO: if a shard is redundant we won't know the root hash until
+	// after adding the whole thing and we will effectively waste work.
+	// We may not be able to avoid this, at least not in the case when
+	// we are directly adding a file and not sharding the nodes of an
+	// existing DAG with a root hash available at the start of sharding.
+	// A single shard with a different byte threshold will totally change
+	// the root hash and make this harder to catch too
+
+	// RPC to get metrics
+	var metrics []api.Metric
+	err := s.rpcClient.Call("",
+		"Cluster",
+		"GetInformerMetrics",
+		struct{}{},
+		&metrics)
+	if err != nil {
+		return peer.ID(""), 0, err
+	}
+	candidates := make(map[peer.ID]api.Metric)
+	for _, m := range metrics {
+		switch {
+		case m.Discard():
+			// discard invalid metrics
+			continue
+		default:
+			if m.Name != "freespace" {
+				logger.Warningf("Metric type not freespace but %s", m.Name)
+			}
+			candidates[m.Peer] = m
+		}
+	}
+
+	// RPC to get Allocations based on this
+	// TODO: support for repl factor > 1.  Investigate best way
+	// to build allocation abstractions (rpc endpoints, cluster
+	// functions and allocator functions) to reduce code duplication
+	// between this function and allocate.go functions.  Not too bad
+	// for now though.
+	allocs := make([]peer.ID, 0)
+	err = s.rpcClient.Call("",
+		"Cluster",
+		"Allocate",
+		candidates,
+		&allocs)
+	if err != nil {
+		return peer.ID(""), 0, err
+	}
+	if len(allocs) == 0 {
+		return peer.ID(""), 0, errors.New("allocation failed")
+	}
+
+	// For now allocSize is a config-dependent constant
+	// TODO: we could configure with more complexity across
+	// all file shards e.g.:
+	//  allocSize = if TotalSize < C1 then max(f*TotalSize, C) else TotalSize
+	// TODO: we could parametrize ipfs-cluster-ctl add --shard to take in
+	// per-file sharding configurations
+	// TODO: eventually all of this should plug into future complex extentsions
+	// of allocation configuration, including things like data center regions
+	// measured throughput of a node, or predictions of where the data will be
+	// most accessed.  It is a good start to call into alloc, but we will need
+	// to update as alloc develops.
+	return allocs[0], s.allocSize, nil
+}
+
+// initShard gets a new allocation and updates sharder state accordingly
+func (s *Sharder) initShard() error {
+	var err error
+	s.assignedPeer, s.byteThreshold, err = s.getAssignment()
+	if err != nil {
+		return err
+	}
+	s.byteCount = 0
+	s.currentShard = shardObj{}
+	return nil
+}
+
+// AddNode includes the provided node into a shard in the cluster DAG
+// that tracks this node's graph
+func (s *Sharder) AddNode(node ipld.Node) error {
+	size, err := node.Size()
+	if err != nil {
+		return err
+	}
+	if s.unInit() {
+		logger.Debug("initializing next shard of data")
+		if err := s.initShard(); err != nil {
+			return err
+		}
+	} else {
+		if s.byteCount+size+s.clusterDAGCountBytes() > s.byteThreshold {
+			logger.Debug("shard at capacity, pin cluster DAG node")
+			if err := s.Flush(); err != nil {
+				return err
+			}
+			if err := s.initShard(); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Shard is initialized and can accommodate node by config-enforced
+	// invariant that shard size is always greater than the ipfs block
+	// max chunk size
+	s.byteCount += size
+	s.currentShard.links = append(s.currentShard.links, node.Cid())
+	var retStr string
+	return s.rpcClient.Call(s.assignedPeer, "Cluster", "IPFSBlockPut",
+		node.RawData(), &retStr)
+}
+
+// Flush completes the allocation of the current shard of a file by adding the
+// clusterDAG shard node block to IPFS.  It clears sharder state in order to
+// clear the cluster sharding component to shard new files in the case the last
+// shard is being flushed.
+func (s *Sharder) Flush() error {
+	// Serialize shard node and reset state
+	shardNode, err := cbor.WrapObject(s.currentShard, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+	if err != nil {
+		return err
+	}
+	targetPeer := s.assignedPeer
+	s.currentShard = shardObj{}
+	s.assignedPeer = peer.ID("")
+	s.byteThreshold = 0
+	s.byteCount = 0
+	var retStr string
+	err = s.rpcClient.Call(targetPeer, "Cluster", "IPFSBlockPut",
+		shardNode.RawData(), &retStr)
 	if err != nil {
 		return err
 	}
 
-}
+	// Track shard node as a normal pin within cluster state
+	pinS := api.Pin{
+		Cid:                  shardNode.Cid(),
+		Allocations:          []peer.ID{targetPeer},
+		ReplicationFactorMin: 1,
+		ReplicationFactorMax: 1,
+	}.ToSerial()
 
-// AddNode
-func (s *Sharder) AddNode(node ipld.Node) error {
-
-	// If this node puts us over the byte Threshold and peer is assigned
-	// send off the cluster dag node to complete this shard
-	//    rpcClient.Call(assignedPeer, "Cluster",
-	//      "IPFSBlockPut", s.currentShard.RawData(), &api.PinSerial{})
-	//    /* Actually the above should be an object put (requires new
-	//       ipfs connector endpoint) so that all shard data is pinned*/
-	// If assignedPeer is empty OR we went over the byte Threshold, get a
-	// new assignment and reset temporary variables
-	//    s.assignedPeer, s.byteThreshold = s.getAssignment()
-	//    s.byteCount = 0; s.currentShard = newClusterGraphShardNode()
-
-	// Now we can add the provided block to the assigned node
-	// First we track this block in the cluster graph
-	//    s.currentShard.AddNodeLinkClean(node) // This is assuming the shard is an ipfs dag proto node or has the same method
-	//    byteCount = byteCount + node.Size()
-
-	// Finish by streaming the node's block over to the assigned peer
-	//  return rpcClient.Call(assignedPeer, "Cluster",
-	//    "IPFSBlockPut", node.RawData(), &api.PinSerial{})
-
-	return nil
+	return s.rpcClient.Call(targetPeer, "Cluster", "Pin", pinS, &struct{}{})
 }
 
 /* Open questions
