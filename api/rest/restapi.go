@@ -25,8 +25,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
-	//	"io"
-	//	"fmt"
 )
 
 var logger = logging.Logger("restapi")
@@ -385,32 +383,38 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := importer.ToPrint(f)
-	/*	buf := make([]byte, 256)
-		for {
-			file, err := f.NextFile()
-			if err == io.EOF {
-				break
-			}
-			fmt.Printf("%s\n----------------\n", file.FileName())
-			if file.IsDirectory() {
-				continue
-			}
-			var n int
-			for {
-				n, err = file.Read(buf)
-				if err == io.EOF {
-					fmt.Printf("\n")
-					break
-				}
-				fmt.Printf(string(buf[:n]))
-			}
-			fmt.Printf(string(buf[:n]))
+	ctx, cancel := context.WithCancel(api.ctx)
+	defer cancel()
+
+	outChan, err := importer.ToChannel(ctx, f)
+	for nodePtr := range outChan {
+		node := *nodePtr
+		/* Send block data to ipfs */
+		var hash string
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"IPFSBlockPut",
+			node.RawData(),
+			&hash)
+		/* Verify that block put cid matches*/
+		if node.String() != hash { // node string is just cid string
+			logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", node.String(), hash)
 		}
-	*/
+		if err != nil {
+			// TODO: think about how to handle this better.
+			// We may not want to stop all work after one failure
+			logger.Error(err)
+			sendAcceptedResponse(w, errors.New("error forwarding block"))
+			return
+		}
+	}
+
 	// TODO: when complete this call should answer with a cid
 	// or better yet a pin-info describing the allocations
 	// of the resulting allocation
+	//
+	// Before returning this we will need to trigger a pin
+	// probably doing the same thing as Pin if its not a sharding call
 	sendAcceptedResponse(w, err)
 }
 

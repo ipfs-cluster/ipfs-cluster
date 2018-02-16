@@ -22,6 +22,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -102,6 +103,10 @@ type ipfsPeer struct {
 
 type ipfsStream struct {
 	Protocol string
+}
+
+type ipfsBlockPutResp struct {
+	Key string
 }
 
 // NewConnector creates the component and leaves it ready to be started
@@ -564,7 +569,7 @@ func (ipfs *Connector) Shutdown() error {
 // contains the error message.
 func (ipfs *Connector) ID() (api.IPFSID, error) {
 	id := api.IPFSID{}
-	body, err := ipfs.post("id")
+	body, err := ipfs.post("id", "", nil)
 	if err != nil {
 		id.Error = err.Error()
 		return id, err
@@ -606,7 +611,7 @@ func (ipfs *Connector) Pin(hash *cid.Cid) error {
 	}
 	if !pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
-		_, err = ipfs.post(path)
+		_, err = ipfs.post(path, "", nil)
 		if err == nil {
 			logger.Info("IPFS Pin request succeeded: ", hash)
 		}
@@ -625,7 +630,7 @@ func (ipfs *Connector) Unpin(hash *cid.Cid) error {
 	}
 	if pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
-		_, err := ipfs.post(path)
+		_, err := ipfs.post(path, "", nil)
 		if err == nil {
 			logger.Info("IPFS Unpin request succeeded:", hash)
 		}
@@ -639,7 +644,7 @@ func (ipfs *Connector) Unpin(hash *cid.Cid) error {
 // PinLs performs a "pin ls --type typeFilter" request against the configured
 // IPFS daemon and returns a map of cid strings and their status.
 func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error) {
-	body, err := ipfs.post("pin/ls?type=" + typeFilter)
+	body, err := ipfs.post("pin/ls?type="+typeFilter, "", nil)
 
 	// Some error talking to the daemon
 	if err != nil {
@@ -665,7 +670,7 @@ func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, e
 // an api.IPFSPinStatus for that hash.
 func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=recursive", hash)
-	body, err := ipfs.post(lsPath)
+	body, err := ipfs.post(lsPath, "", nil)
 
 	// Network error, daemon down
 	if body == nil && err != nil {
@@ -694,13 +699,13 @@ func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 
 // post performs the heavy lifting of a post request against
 // the IPFS daemon.
-func (ipfs *Connector) post(path string) ([]byte, error) {
+func (ipfs *Connector) post(path string, contentType string, postBody io.Reader) ([]byte, error) {
 	logger.Debugf("posting %s", path)
 	url := fmt.Sprintf("%s/%s",
 		ipfs.apiURL(),
 		path)
 
-	res, err := http.Post(url, "", nil)
+	res, err := http.Post(url, contentType, postBody)
 	if err != nil {
 		logger.Error("error posting:", err)
 		return nil, err
@@ -758,7 +763,7 @@ func (ipfs *Connector) ConnectSwarms() error {
 			// We ignore errors which happens
 			// when passing in a bunch of addresses
 			_, err := ipfs.post(
-				fmt.Sprintf("swarm/connect?arg=%s", addr))
+				fmt.Sprintf("swarm/connect?arg=%s", addr), "", nil)
 			if err != nil {
 				logger.Debug(err)
 				continue
@@ -773,7 +778,7 @@ func (ipfs *Connector) ConnectSwarms() error {
 // a given configuration key. For example, "Datastore/StorageMax" will return
 // the value for StorageMax in the Datastore configuration object.
 func (ipfs *Connector) ConfigKey(keypath string) (interface{}, error) {
-	res, err := ipfs.post("config/show")
+	res, err := ipfs.post("config/show", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -817,7 +822,7 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 // value is derived from the RepoSize and StorageMax values given by "repo
 // stats". The value is in bytes.
 func (ipfs *Connector) FreeSpace() (uint64, error) {
-	res, err := ipfs.post("repo/stat")
+	res, err := ipfs.post("repo/stat", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
@@ -835,7 +840,7 @@ func (ipfs *Connector) FreeSpace() (uint64, error) {
 // RepoSize returns the current repository size of the ipfs daemon as
 // provided by "repo stats". The value is in bytes.
 func (ipfs *Connector) RepoSize() (uint64, error) {
-	res, err := ipfs.post("repo/stat")
+	res, err := ipfs.post("repo/stat", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
@@ -850,10 +855,10 @@ func (ipfs *Connector) RepoSize() (uint64, error) {
 	return stats.RepoSize, nil
 }
 
-// SwarmPeers returns the peers currently connected to this ipfs daemon
+// SwarmPeers returns the peers currently connected to this ipfs daemon.
 func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 	swarm := api.SwarmPeers{}
-	res, err := ipfs.post("swarm/peers")
+	res, err := ipfs.post("swarm/peers", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return swarm, err
@@ -875,4 +880,25 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 		swarm[i] = pID
 	}
 	return swarm, nil
+}
+
+// BlockPut triggers an ipfs block put on the given data, inserting the block
+// into the ipfs daemon's repo.
+func (ipfs *Connector) BlockPut(data []byte) (string, error) {
+	r := ioutil.NopCloser(bytes.NewReader(data))
+	rFile := files.NewReaderFile("", "", r, nil)
+	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory
+	multiFileR := files.NewMultiFileReader(sliceFile, true)
+	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
+
+	res, err := ipfs.post("block/put", contentType, multiFileR)
+	if err != nil {
+		return "", err
+	}
+	var keyRaw ipfsBlockPutResp
+	err = json.Unmarshal(res, &keyRaw)
+	if err != nil {
+		return "", err
+	}
+	return keyRaw.Key, nil
 }
