@@ -20,7 +20,7 @@ func upgrade() error {
 		return err
 	}
 
-	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _, _ := makeConfigs()
 
 	err = cfg.LoadJSONFromFile(configPath)
 	if err != nil {
@@ -41,7 +41,7 @@ func export(w io.Writer) error {
 }
 
 func restoreStateFromDisk() (*mapstate.MapState, error) {
-	cfg, _, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+	cfg, _, _, _, consensusCfg, _, _, _, _, _ := makeConfigs()
 
 	err := cfg.LoadJSONFromFile(configPath)
 	if err != nil {
@@ -67,7 +67,7 @@ func restoreStateFromDisk() (*mapstate.MapState, error) {
 }
 
 func stateImport(r io.Reader) error {
-	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _, _ := makeConfigs()
 
 	err := cfg.LoadJSONFromFile(configPath)
 	if err != nil {

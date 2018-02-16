@@ -348,6 +348,19 @@ func (rpcapi *RPCAPI) ConsensusPeers(in struct{}, out *[]peer.ID) error {
 }
 
 /*
+   Sharder methods
+*/
+
+// ShardAddNode runs Sharder.AddNode().
+func (rpcapi *RPCAPI) ShardAddNode(in api.NodeSerial, out *struct{}) error {
+	node, err := in.ToIPLDNode()
+	if err != nil {
+		return err
+	}
+	return rpcapi.c.sharder.AddNode(node)
+}
+
+/*
    Peer Manager methods
 */
 
