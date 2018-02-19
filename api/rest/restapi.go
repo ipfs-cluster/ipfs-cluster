@@ -21,6 +21,7 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
+	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -362,31 +363,7 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
-func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
-	contentType := r.Header.Get("Content-Type")
-	mediatype, _, _ := mime.ParseMediaType(contentType)
-	var f files.File
-	if mediatype == "multipart/form-data" {
-		reader, err := r.MultipartReader()
-		if err != nil {
-			sendAcceptedResponse(w, err)
-			return
-		}
-
-		f = &files.MultipartFile{
-			Mediatype: mediatype,
-			Reader:    reader,
-		}
-
-	} else {
-		sendAcceptedResponse(w, errors.New("unsupported media type"))
-		return
-	}
-
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
-
-	outChan, err := importer.ToChannel(ctx, f)
+func (api *API) addFile(ctx context.Context, outChan <-chan *ipld.Node, w http.ResponseWriter) error {
 	for nodePtr := range outChan {
 		node := *nodePtr
 		/* Send block data to ipfs */
@@ -414,7 +391,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 			// We may not want to stop all work after one failure
 			logger.Error(err)
 			sendAcceptedResponse(w, errors.New("error forwarding block"))
-			return
+			return err
 		}
 	}
 
@@ -424,6 +401,89 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	//
 	// Before returning this we will need to trigger a pin
 	// probably doing the same thing as Pin if its not a sharding call
+	//
+	// This is actually a bit tricky because right now we are not
+	// recording the root of the imported file, we could have ToChannel
+	// provide a root channel that can be read once the other channel is
+	// closed that reports the root at the end.  Probably would need to
+	// rewrite add for this to work
+	return nil
+}
+
+func (api *API) addShardedFile(ctx context.Context, outChan <-chan *ipld.Node, w http.ResponseWriter) error {
+	for nodePtr := range outChan {
+		node := *nodePtr
+		nodeS := types.NodeSerial{
+			CidS: node.Cid().String(),
+			Data: node.RawData(),
+		}
+		err := api.rpcClient.Call("",
+			"Cluster",
+			"ShardAddNode",
+			nodeS,
+			&struct{}{})
+		if err != nil {
+			// TODO: even more important than in local add,
+			// we should think about the best way to handle this
+			// as we may not want to halt sharding with one error.
+			// Retry? Carry on with missing information? Get user
+			// feedback?
+			logger.Error(err)
+			sendAcceptedResponse(w,
+				errors.New("error adding block to shard"))
+			return err
+		}
+	}
+	// Last node of final shard may not have pushed over the threshold,
+	// force clusterDAG serialization and cluster pin tracking
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"ShardFlush",
+		struct{}{},
+		&struct{}{})
+	if err != nil {
+		logger.Error(err)
+		sendAcceptedResponse(w,
+			errors.New("error flushing final shard"))
+		return err
+	}
+	return nil
+}
+
+func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
+	contentType := r.Header.Get("Content-Type")
+	mediatype, _, _ := mime.ParseMediaType(contentType)
+	var f files.File
+	if mediatype == "multipart/form-data" {
+		reader, err := r.MultipartReader()
+		if err != nil {
+			sendAcceptedResponse(w, err)
+			return
+		}
+
+		f = &files.MultipartFile{
+			Mediatype: mediatype,
+			Reader:    reader,
+		}
+
+	} else {
+		sendAcceptedResponse(w, errors.New("unsupported media type"))
+		return
+	}
+
+	ctx, cancel := context.WithCancel(api.ctx)
+	defer cancel()
+
+	outChan, err := importer.ToChannel(ctx, f)
+
+	queryValues := r.URL.Query()
+	shard := queryValues.Get("shard")
+
+	if shard == "true" {
+		api.addShardedFile(ctx, outChan, w)
+	} else {
+		api.addFile(ctx, outChan, w)
+	}
 	sendAcceptedResponse(w, err)
 }
 
