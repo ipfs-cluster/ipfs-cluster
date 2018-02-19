@@ -350,6 +350,7 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 func (rpcapi *RPCAPI) ShardAddNode(in api.NodeSerial, out *struct{}) error {
 	node, err := in.ToIPLDNode()
 	if err != nil {
+		logger.Errorf("Found error converting to ipld node: %s", err.Error())
 		return err
 	}
 	return rpcapi.c.sharder.AddNode(node)
