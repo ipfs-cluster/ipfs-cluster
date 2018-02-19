@@ -633,5 +633,6 @@ func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshtt
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
+	cfg.RegisterComponent(config.Sharder, shardCfg)
 	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg, shardCfg
 }
