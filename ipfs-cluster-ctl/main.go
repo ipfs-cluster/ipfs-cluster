@@ -197,6 +197,10 @@ is also TODO
 					Name:  "recursive, r",
 					Usage: "add directory paths recursively, default false",
 				},
+				cli.BoolFlag{
+					Name:  "shard",
+					Usage: "break the file into pieces (shards) and distributed among peers, default false",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				paths := make([]string, c.NArg(), c.NArg())
@@ -207,7 +211,7 @@ is also TODO
 				// Files are all opened but not read until they are sent.
 				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
 				checkErr("serializing all files", err)
-				cerr := globalClient.AddMultiFile(multiFileR)
+				cerr := globalClient.AddMultiFile(multiFileR, c.Bool("shard"))
 				if cerr != nil {
 					formatResponse(c, nil, cerr)
 				}

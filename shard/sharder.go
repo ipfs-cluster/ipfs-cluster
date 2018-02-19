@@ -2,6 +2,7 @@ package shard
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -34,12 +35,19 @@ type Sharder struct {
 // NewSharder returns a new sharder for use by an ipfs-cluster.  In the future
 // this may take in a shard-config
 func NewSharder(cfg *Config) (*Sharder, error) {
-	return &Sharder{allocSize: cfg.AllocSize}, nil
+	logger.Debugf("The alloc size provided: %d", cfg.AllocSize)
+	return &Sharder{allocSize: cfg.AllocSize,
+		currentShard: make(map[string]*cid.Cid),
+	}, nil
 }
 
 func (s *Sharder) unInit() bool {
-	return s.currentShard.links == nil && s.assignedPeer == peer.ID("") && s.byteCount == 0 &&
-		s.byteThreshold == 0
+	a := len(s.currentShard) == 0
+	b := s.assignedPeer == peer.ID("")
+	c := s.byteCount == 0
+	d := s.byteThreshold == 0
+	logger.Debugf("a: %t b: %t c: %t d: %t", a, b, c, d)
+	return a && b && c && d
 }
 
 // SetClient registers the rpcClient used by the Sharder to communicate with
@@ -55,9 +63,7 @@ func (s *Sharder) Shutdown() error {
 
 // Temporary storage of links to be serialized to ipld cbor once allocation is
 // complete
-type shardObj struct {
-	links []*cid.Cid
-}
+type shardObj map[string]*cid.Cid
 
 // clusterDAGCountBytes tracks the number of bytes in the serialized cluster
 // DAG node used to track this shard.  For now ignoring these bytes
@@ -149,13 +155,16 @@ func (s *Sharder) initShard() error {
 		return err
 	}
 	s.byteCount = 0
-	s.currentShard = shardObj{}
+	s.currentShard = make(map[string]*cid.Cid)
+	logger.Debugf("Within initShard. thresh: %d", s.byteThreshold)
 	return nil
 }
 
 // AddNode includes the provided node into a shard in the cluster DAG
 // that tracks this node's graph
 func (s *Sharder) AddNode(node ipld.Node) error {
+	logger.Debug("adding node to shard")
+	logger.Debugf("sharder size: %d---sharder thresh: %d", s.byteCount, s.byteThreshold)
 	size, err := node.Size()
 	if err != nil {
 		return err
@@ -166,11 +175,15 @@ func (s *Sharder) AddNode(node ipld.Node) error {
 		format = ""
 		logger.Warning("unsupported cid type, treating as v0")
 	}
+	if c.Prefix().Version == 0 {
+		format = "v0"
+	}
 	if s.unInit() {
 		logger.Debug("initializing next shard of data")
 		if err := s.initShard(); err != nil {
 			return err
 		}
+		logger.Debugf("After first init. thresh: %d", s.byteThreshold)
 	} else {
 		if s.byteCount+size+s.clusterDAGCountBytes() > s.byteThreshold {
 			logger.Debug("shard at capacity, pin cluster DAG node")
@@ -180,14 +193,18 @@ func (s *Sharder) AddNode(node ipld.Node) error {
 			if err := s.initShard(); err != nil {
 				return err
 			}
+			logger.Debugf("After flushing. thresh: %d", s.byteThreshold)
 		}
 	}
 
 	// Shard is initialized and can accommodate node by config-enforced
 	// invariant that shard size is always greater than the ipfs block
 	// max chunk size
+	logger.Debugf("Adding size: %d to byteCount at: %d", size, s.byteCount)
 	s.byteCount += size
-	s.currentShard.links = append(s.currentShard.links, node.Cid())
+
+	key := fmt.Sprintf("%d", len(s.currentShard))
+	s.currentShard[key] = node.Cid()
 	var retStr string
 	b := api.BlockWithFormat{
 		Data:   node.RawData(),
@@ -203,12 +220,15 @@ func (s *Sharder) AddNode(node ipld.Node) error {
 // shard is being flushed.
 func (s *Sharder) Flush() error {
 	// Serialize shard node and reset state
+	logger.Debugf("Flushing the current shard %v", s.currentShard)
 	shardNode, err := cbor.WrapObject(s.currentShard, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
 	if err != nil {
 		return err
 	}
+	logger.Debugf("The dag cbor Node Links: %v", shardNode.Links())
+
 	targetPeer := s.assignedPeer
-	s.currentShard = shardObj{}
+	s.currentShard = make(map[string]*cid.Cid)
 	s.assignedPeer = peer.ID("")
 	s.byteThreshold = 0
 	s.byteCount = 0
@@ -217,6 +237,7 @@ func (s *Sharder) Flush() error {
 		Data:   shardNode.RawData(),
 		Format: "cbor",
 	}
+	logger.Debugf("Here is the serialized ipld: %x", b.Data)
 	err = s.rpcClient.Call(targetPeer, "Cluster", "IPFSBlockPut",
 		b, &retStr)
 	if err != nil {
