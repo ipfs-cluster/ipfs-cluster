@@ -396,7 +396,12 @@ the mth data folder (m currently defaults to 5)
 			Name:  "version",
 			Usage: "Print the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
-				fmt.Printf("%s-%s\n", ipfscluster.Version, ipfscluster.Commit[0:8])
+				if c := ipfscluster.Commit; len(c) >= 8 {
+					fmt.Printf("%s-%s\n", ipfscluster.Version, c)
+					return nil
+				}
+
+				fmt.Printf("%s\n", ipfscluster.Version)
 				return nil
 			},
 		},
