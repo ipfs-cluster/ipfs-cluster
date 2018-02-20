@@ -1,5 +1,12 @@
 # ipfs-cluster changelog
 
+### v0.3.4 - 2018-02-20
+
+This release fixes the pre-built binaries.
+
+* Bugfixes
+  * Pre-built binaries panic on start | [ipfs/ipfs-cluster#320](https://github.com/ipfs/ipfs-cluster/issues/320)
+
 ### v0.3.3 - 2018-02-12
 
 This release includes additional `ipfs-cluster-service state` subcommands and the connectivity graph feature.
