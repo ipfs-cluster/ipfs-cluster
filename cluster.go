@@ -86,7 +86,11 @@ func NewCluster(
 		return nil, err
 	}
 
-	logger.Infof("IPFS Cluster v%s-%s listening on:", Version, Commit[0:8])
+	if c := Commit; len(c) >= 8 {
+		logger.Infof("IPFS Cluster v%s-%s listening on:", Version, Commit[0:8])
+	} else {
+		logger.Infof("IPFS Cluster v%s listening on:", Version)
+	}
 	for _, addr := range host.Addrs() {
 		logger.Infof("        %s/ipfs/%s", addr, host.ID().Pretty())
 	}
