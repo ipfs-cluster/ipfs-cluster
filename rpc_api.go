@@ -198,8 +198,8 @@ func (rpcapi *RPCAPI) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
 	return err
 }
 
-// GetInformerMetrics runs Cluster.GetInformerMetrics().
-func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
+// getInformerMetrics runs Cluster.GetInformerMetrics().
+func (rpcapi *RPCAPI) getInformerMetrics(in struct{}, out *[]api.Metric) error {
 	metrics, err := rpcapi.c.GetInformerMetrics()
 	*out = metrics
 	return err
@@ -209,12 +209,10 @@ func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
    Allocator component methods
 */
 
-// Allocate runs Allocator.Allocate(). TODO: right now this takes advantage of
-// the implementations of ascend/descend allocators not using the cid or
-// current alloc params.  Eventually all this info should be wrapped in an api
-// type and used as the input
-func (rpcapi *RPCAPI) Allocate(in map[peer.ID]api.Metric, out *[]peer.ID) error {
-	peers, err := rpcapi.c.allocator.Allocate(nil, nil, in)
+// Allocate runs Allocator.Allocate().
+func (rpcapi *RPCAPI) Allocate(in api.AllocateInfo, out *[]peer.ID) error {
+	c := in.GetCid()
+	peers, err := rpcapi.c.allocator.Allocate(c, in.Current, in.Candidates)
 	*out = peers
 	return err
 }
@@ -373,18 +371,13 @@ func (rpcapi *RPCAPI) ConsensusPeers(in struct{}, out *[]peer.ID) error {
 */
 
 // ShardAddNode runs Sharder.AddNode(node).
-func (rpcapi *RPCAPI) ShardAddNode(in api.NodeSerial, out *struct{}) error {
-	node, err := in.ToIPLDNode()
-	if err != nil {
-		logger.Errorf("Found error converting to ipld node: %s", err.Error())
-		return err
-	}
-	return rpcapi.c.sharder.AddNode(node)
+func (rpcapi *RPCAPI) ShardAddNode(in api.ShardNodeSerial, out *struct{}) error {
+	return rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
 }
 
-// ShardFlush runs Sharder.Flush().
-func (rpcapi *RPCAPI) ShardFlush(in struct{}, out *struct{}) error {
-	return rpcapi.c.sharder.Flush()
+// ShardFinalize runs Sharder.Finalize().
+func (rpcapi *RPCAPI) ShardFinalize(in string, out *struct{}) error {
+	return rpcapi.c.sharder.Finalize(in)
 }
 
 /*

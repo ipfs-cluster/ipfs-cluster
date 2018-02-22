@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -617,46 +616,37 @@ func (pins PinSerial) ToPin() Pin {
 	}
 }
 
-// NodeSerial encodes an ipld node.  The cid and raw data are bundled together
-// to be decoded into a block using NewBlockWithCid which can further be
-// decoded into an ipld node
-type NodeSerial struct {
-	CidS string
+// ShardNodeSerial encodes the info necessary to add an IPFS Block to a sharded
+// file.  This includes the cid, data, size and a sharding session id
+type ShardNodeSerial struct {
+	Cid  string
 	Data []byte
+	Size uint64
+	ID   string
 }
 
-// ToIPLDNode converts a node serial to an ipld DAG node.  Data must be
-// encoded as Raw or DagCBOR (v0 or v1) for this to work
-func (nS NodeSerial) ToIPLDNode() (ipld.Node, error) {
-	c, err := cid.Decode(nS.CidS)
-	if err != nil {
-		return nil, err
-	}
-	blk, err := blocks.NewBlockWithCid(nS.Data, c)
-	if err != nil {
-		return nil, err
-	}
-	node, err := ipld.Decode(blk)
-	if err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
-// ToNodeSerial serializes an ipld node to its cid and block data for transport
-// over the api
-func ToNodeSerial(node ipld.Node) NodeSerial {
-	return NodeSerial{
-		CidS: node.Cid().String(),
-		Data: node.RawData(),
-	}
-}
-
-// BlocKWithFormat specifies a block of data and how it should be
+// BlockWithFormat specifies a block of data and how it should be
 // formatted.  An empty format string will be interpreted as "v0".
 type BlockWithFormat struct {
 	Data   []byte
 	Format string
+}
+
+// AllocateInfo transports the information necessary to call an allocator's
+// Allocate function.
+type AllocateInfo struct {
+	Cid        string
+	Current    map[peer.ID]Metric
+	Candidates map[peer.ID]Metric
+}
+
+func (aI *AllocateInfo) GetCid() *cid.Cid {
+	if aI.Cid == "" {
+		return nil
+	}
+	// Ignoring decoding errors
+	c, _ := cid.Decode(aI.Cid)
+	return c
 }
 
 // Metric transports information about a peer.ID. It is used to decide
