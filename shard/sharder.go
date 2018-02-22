@@ -9,45 +9,45 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	mh "github.com/multiformats/go-multihash"
 )
 
-var logger = logging.Logger("shard")
+var logger = logging.Logger("sharder")
+
+type sessionState struct {
+	// State of current shard
+	assignedPeer  peer.ID
+	currentShard  shardObj
+	byteCount     uint64
+	byteThreshold uint64
+
+	// Global session state
+	shardNodes shardObj
+}
 
 // Sharder aggregates incident ipfs file dag nodes into a shard, or group of
 // nodes.  The Sharder builds a reference node in the ipfs-cluster DAG to
 // reference the nodes in a shard.  This component distributes shards among
 // cluster peers based on the decisions of the cluster allocator
 type Sharder struct {
-	rpcClient *rpc.Client
-
-	assignedPeer  peer.ID
-	currentShard  shardObj
-	byteCount     uint64
-	byteThreshold uint64
-
-	allocSize uint64
+	rpcClient   *rpc.Client
+	idToSession map[string]*sessionState
+	allocSize   uint64
+	currentID   string
 }
+
+// 		currentShard: make(map[string]*cid.Cid),
 
 // NewSharder returns a new sharder for use by an ipfs-cluster.  In the future
 // this may take in a shard-config
 func NewSharder(cfg *Config) (*Sharder, error) {
 	logger.Debugf("The alloc size provided: %d", cfg.AllocSize)
-	return &Sharder{allocSize: cfg.AllocSize,
-		currentShard: make(map[string]*cid.Cid),
+	return &Sharder{
+		allocSize:   cfg.AllocSize,
+		idToSession: make(map[string]*sessionState),
 	}, nil
-}
-
-func (s *Sharder) unInit() bool {
-	a := len(s.currentShard) == 0
-	b := s.assignedPeer == peer.ID("")
-	c := s.byteCount == 0
-	d := s.byteThreshold == 0
-	logger.Debugf("a: %t b: %t c: %t d: %t", a, b, c, d)
-	return a && b && c && d
 }
 
 // SetClient registers the rpcClient used by the Sharder to communicate with
@@ -67,7 +67,7 @@ type shardObj map[string]*cid.Cid
 
 // clusterDAGCountBytes tracks the number of bytes in the serialized cluster
 // DAG node used to track this shard.  For now ignoring these bytes
-func (s *Sharder) clusterDAGCountBytes() uint64 {
+func (s *sessionState) clusterDAGCountBytes() uint64 {
 	// link size * link bytes
 	// + overhead
 	return 0
@@ -94,7 +94,7 @@ func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
 	var metrics []api.Metric
 	err := s.rpcClient.Call("",
 		"Cluster",
-		"GetInformerMetrics",
+		"getInformerMetrics",
 		struct{}{},
 		&metrics)
 	if err != nil {
@@ -120,11 +120,17 @@ func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
 	// functions and allocator functions) to reduce code duplication
 	// between this function and allocate.go functions.  Not too bad
 	// for now though.
+	allocInfo := api.AllocateInfo{
+		"",
+		nil,
+		candidates,
+	}
+
 	allocs := make([]peer.ID, 0)
 	err = s.rpcClient.Call("",
 		"Cluster",
 		"Allocate",
-		candidates,
+		allocInfo,
 		&allocs)
 	if err != nil {
 		return peer.ID(""), 0, err
@@ -150,26 +156,62 @@ func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
 // initShard gets a new allocation and updates sharder state accordingly
 func (s *Sharder) initShard() error {
 	var err error
-	s.assignedPeer, s.byteThreshold, err = s.getAssignment()
+	session, ok := s.idToSession[s.currentID]
+	if !ok {
+		return errors.New("session ID not set on entry call")
+	}
+	session.assignedPeer, session.byteThreshold, err = s.getAssignment()
 	if err != nil {
 		return err
 	}
-	s.byteCount = 0
-	s.currentShard = make(map[string]*cid.Cid)
-	logger.Debugf("Within initShard. thresh: %d", s.byteThreshold)
+	session.byteCount = 0
+	session.currentShard = make(map[string]*cid.Cid)
 	return nil
 }
 
 // AddNode includes the provided node into a shard in the cluster DAG
 // that tracks this node's graph
-func (s *Sharder) AddNode(node ipld.Node) error {
-	logger.Debug("adding node to shard")
-	logger.Debugf("sharder size: %d---sharder thresh: %d", s.byteCount, s.byteThreshold)
-	size, err := node.Size()
+func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string) error {
+	s.currentID = id
+	c, err := cid.Decode(cidserial)
 	if err != nil {
 		return err
 	}
-	c := node.Cid()
+
+	logger.Debug("adding node to shard")
+	// Sharding session for this file is uninit
+	session, ok := s.idToSession[id]
+	if !ok {
+		logger.Debugf("Initializing sharding session for id: %s", id)
+		s.idToSession[id] = &sessionState{
+			shardNodes: make(map[string]*cid.Cid),
+		}
+		logger.Debug("Initializing first shard")
+		if err := s.initShard(); err != nil {
+			logger.Debug("Error initializing shard")
+			delete(s.idToSession, id) // never map to uninit session
+			return err
+		}
+	} else { // Data exceeds shard threshold, flush and start a new shard
+		if session.byteCount+size+session.clusterDAGCountBytes() > session.byteThreshold {
+			logger.Debug("shard at capacity, pin cluster DAG node")
+			if err := s.flush(); err != nil {
+				return err
+			}
+			if err := s.initShard(); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Shard is initialized and can accommodate node by config-enforced
+	// invariant that shard size is always greater than the ipfs block
+	// max chunk size
+	logger.Debugf("Adding size: %d to byteCount at: %d", size, session.byteCount)
+	session.byteCount += size
+
+	key := fmt.Sprintf("%d", len(session.currentShard))
+	session.currentShard[key] = c
 	format, ok := cid.CodecToStr[c.Type()]
 	if !ok {
 		format = ""
@@ -178,60 +220,77 @@ func (s *Sharder) AddNode(node ipld.Node) error {
 	if c.Prefix().Version == 0 {
 		format = "v0"
 	}
-	if s.unInit() {
-		logger.Debug("initializing next shard of data")
-		if err := s.initShard(); err != nil {
-			return err
-		}
-		logger.Debugf("After first init. thresh: %d", s.byteThreshold)
-	} else {
-		if s.byteCount+size+s.clusterDAGCountBytes() > s.byteThreshold {
-			logger.Debug("shard at capacity, pin cluster DAG node")
-			if err := s.Flush(); err != nil {
-				return err
-			}
-			if err := s.initShard(); err != nil {
-				return err
-			}
-			logger.Debugf("After flushing. thresh: %d", s.byteThreshold)
-		}
-	}
-
-	// Shard is initialized and can accommodate node by config-enforced
-	// invariant that shard size is always greater than the ipfs block
-	// max chunk size
-	logger.Debugf("Adding size: %d to byteCount at: %d", size, s.byteCount)
-	s.byteCount += size
-
-	key := fmt.Sprintf("%d", len(s.currentShard))
-	s.currentShard[key] = node.Cid()
-	var retStr string
 	b := api.BlockWithFormat{
-		Data:   node.RawData(),
+		Data:   data,
 		Format: format,
 	}
-	return s.rpcClient.Call(s.assignedPeer, "Cluster", "IPFSBlockPut",
+	var retStr string
+	return s.rpcClient.Call(session.assignedPeer, "Cluster", "IPFSBlockPut",
 		b, &retStr)
 }
 
-// Flush completes the allocation of the current shard of a file by adding the
-// clusterDAG shard node block to IPFS.  It clears sharder state in order to
-// clear the cluster sharding component to shard new files in the case the last
-// shard is being flushed.
-func (s *Sharder) Flush() error {
+// Finalize completes a sharding session.  It flushes the final shard to the
+// cluster, stores the root of the cluster DAG referencing all shard node roots
+// and frees session state
+func (s *Sharder) Finalize(id string) error {
+	s.currentID = id
+	session, ok := s.idToSession[id]
+	if !ok {
+		return errors.New("Cannot finalize untracked id")
+	}
+	// call flush
+	if err := s.flush(); err != nil {
+		return err
+	}
+
+	// construct cluster DAG root
+	shardRoot, err := cbor.WrapObject(session.shardNodes, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+	if err != nil {
+		return err
+	}
+
+	// block put the cluster DAG root in local node
+	b := api.BlockWithFormat{
+		Data:   shardRoot.RawData(),
+		Format: "cbor",
+	}
+	logger.Debugf("The serialized shard root ipld: %x", b.Data)
+	var retStr string
+	err = s.rpcClient.Call("", "Cluster", "IPFSBlockPut", b, &retStr)
+	if err != nil {
+		return err
+	}
+
+	// Pin everywhere non recursively
+	//    right now not sure if un-recursive pins exists for cluster pin
+	//    I think we need to implement this into the Pin RPCs (can add to CLI too)
+
+	// clear session state from sharder component
+	delete(s.idToSession, s.currentID)
+	return nil
+}
+
+// flush completes the allocation of the current shard of a session by adding the
+// clusterDAG shard node block to IPFS. It must only be called by an entrypoint
+// that has already set the currentID
+func (s *Sharder) flush() error {
 	// Serialize shard node and reset state
-	logger.Debugf("Flushing the current shard %v", s.currentShard)
-	shardNode, err := cbor.WrapObject(s.currentShard, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+	session, ok := s.idToSession[s.currentID]
+	if !ok {
+		return errors.New("session ID not set on entry call")
+	}
+	logger.Debugf("flushing the current shard %v", session.currentShard)
+	shardNode, err := cbor.WrapObject(session.currentShard, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
 	if err != nil {
 		return err
 	}
 	logger.Debugf("The dag cbor Node Links: %v", shardNode.Links())
 
-	targetPeer := s.assignedPeer
-	s.currentShard = make(map[string]*cid.Cid)
-	s.assignedPeer = peer.ID("")
-	s.byteThreshold = 0
-	s.byteCount = 0
+	targetPeer := session.assignedPeer
+	session.currentShard = make(map[string]*cid.Cid)
+	session.assignedPeer = peer.ID("")
+	session.byteThreshold = 0
+	session.byteCount = 0
 	var retStr string
 	b := api.BlockWithFormat{
 		Data:   shardNode.RawData(),
@@ -243,6 +302,11 @@ func (s *Sharder) Flush() error {
 	if err != nil {
 		return err
 	}
+
+	// Track shardNode within clusterDAG
+	key := fmt.Sprintf("%d", len(session.shardNodes))
+	c := shardNode.Cid()
+	session.shardNodes[key] = c
 
 	// Track shard node as a normal pin within cluster state
 	pinS := api.Pin{
