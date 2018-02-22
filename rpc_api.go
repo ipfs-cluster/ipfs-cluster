@@ -347,18 +347,13 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 */
 
 // ShardAddNode runs Sharder.AddNode(node).
-func (rpcapi *RPCAPI) ShardAddNode(in api.NodeSerial, out *struct{}) error {
-	node, err := in.ToIPLDNode()
-	if err != nil {
-		logger.Errorf("Found error converting to ipld node: %s", err.Error())
-		return err
-	}
-	return rpcapi.c.sharder.AddNode(node)
+func (rpcapi *RPCAPI) ShardAddNode(in api.ShardNodeSerial, out *struct{}) error {
+	return rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
 }
 
-// ShardFlush runs Sharder.Flush().
-func (rpcapi *RPCAPI) ShardFlush(in struct{}, out *struct{}) error {
-	return rpcapi.c.sharder.Flush()
+// ShardFinalize runs Sharder.Finalize().
+func (rpcapi *RPCAPI) ShardFinalize(in string, out *struct{}) error {
+	return rpcapi.c.sharder.Finalize(in)
 }
 
 /*

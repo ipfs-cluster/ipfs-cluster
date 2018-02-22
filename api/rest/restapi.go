@@ -12,13 +12,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"math/rand"
 	"mime"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	types "github.com/ipfs/ipfs-cluster/api"
 	importer "github.com/ipfs/ipfs-cluster/ipld-importer"
@@ -38,6 +39,10 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 var logger = logging.Logger("restapi")
 
 // Common errors
@@ -51,6 +56,9 @@ var (
 	// operations that rely on the HTTPEndpoint but it is disabled.
 	ErrHTTPEndpointNotEnabled = errors.New("the HTTP endpoint is not enabled")
 )
+
+// For making a random sharding ID
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // API implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
@@ -496,6 +504,12 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) addFile(ctx context.Context, outChan <-chan *ipld.Node, w http.ResponseWriter) error {
 	for nodePtr := range outChan {
+		select {
+		case <-ctx.Done():
+			sendErrorResponse(w, 504, "context timeout terminated add")
+			return errors.New("context timeout terminated add")
+		default:
+		}
 		node := *nodePtr
 		/* Send block data to ipfs */
 		var hash string
@@ -521,7 +535,7 @@ func (api *API) addFile(ctx context.Context, outChan <-chan *ipld.Node, w http.R
 			// TODO: think about how to handle this better.
 			// We may not want to stop all work after one failure
 			logger.Error(err)
-			sendAcceptedResponse(w, errors.New("error forwarding block"))
+			sendErrorResponse(w, 500, "error forwarding block")
 			return err
 		}
 	}
@@ -541,14 +555,39 @@ func (api *API) addFile(ctx context.Context, outChan <-chan *ipld.Node, w http.R
 	return nil
 }
 
+// Get a random string of length n.  Used to generate sharding id
+func randStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
 func (api *API) addShardedFile(ctx context.Context, outChan <-chan *ipld.Node, w http.ResponseWriter) error {
+	// chosen so pow(2, 256) ~= pow(52, X) => X = 45.  Probably over thinking
+	shardID := randStringRunes(45)
 	for nodePtr := range outChan {
-		node := *nodePtr
-		nodeS := types.NodeSerial{
-			CidS: node.Cid().String(),
-			Data: node.RawData(),
+		select {
+		case <-ctx.Done():
+			sendErrorResponse(w, 504, "internal timeout")
+			return errors.New("context timeout terminated add")
+		default:
 		}
-		err := api.rpcClient.Call("",
+		node := *nodePtr
+		size, err := node.Size()
+		if err != nil {
+			logger.Error(err)
+			sendErrorResponse(w, 500, "error getting size of node")
+			return err
+		}
+		nodeS := types.ShardNodeSerial{
+			Cid:  node.Cid().String(),
+			Data: node.RawData(),
+			Size: size,
+			ID:   shardID,
+		}
+		err = api.rpcClient.Call("",
 			"Cluster",
 			"ShardAddNode",
 			nodeS,
@@ -560,8 +599,7 @@ func (api *API) addShardedFile(ctx context.Context, outChan <-chan *ipld.Node, w
 			// Retry? Carry on with missing information? Get user
 			// feedback?
 			logger.Error(err)
-			sendAcceptedResponse(w,
-				errors.New("error adding block to shard"))
+			sendErrorResponse(w, 500, "error adding block to shard")
 			return err
 		}
 	}
@@ -569,13 +607,12 @@ func (api *API) addShardedFile(ctx context.Context, outChan <-chan *ipld.Node, w
 	// force clusterDAG serialization and cluster pin tracking
 	err := api.rpcClient.Call("",
 		"Cluster",
-		"ShardFlush",
-		struct{}{},
+		"ShardFinalize",
+		shardID,
 		&struct{}{})
 	if err != nil {
 		logger.Error(err)
-		sendAcceptedResponse(w,
-			errors.New("error flushing final shard"))
+		sendErrorResponse(w, 500, "error flushing final shard")
 		return err
 	}
 	return nil
@@ -588,7 +625,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	if mediatype == "multipart/form-data" {
 		reader, err := r.MultipartReader()
 		if err != nil {
-			sendAcceptedResponse(w, err)
+			sendErrorResponse(w, 400, err.Error())
 			return
 		}
 
@@ -596,9 +633,8 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 			Mediatype: mediatype,
 			Reader:    reader,
 		}
-
 	} else {
-		sendAcceptedResponse(w, errors.New("unsupported media type"))
+		sendErrorResponse(w, 415, "unsupported media type")
 		return
 	}
 
@@ -611,9 +647,14 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	shard := queryValues.Get("shard")
 
 	if shard == "true" {
-		api.addShardedFile(ctx, outChan, w)
+		if err := api.addShardedFile(ctx, outChan, w); err != nil {
+			return
+		}
+
 	} else {
-		api.addFile(ctx, outChan, w)
+		if err := api.addFile(ctx, outChan, w); err != nil {
+			return
+		}
 	}
 	sendAcceptedResponse(w, err)
 }

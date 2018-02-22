@@ -15,7 +15,7 @@ const (
 	IPFSChunkSize = 262158
 )
 
-// config allows to initialize a Sharder and customize some parameters
+// Config allows to initialize a Sharder and customize some parameters
 type Config struct {
 	config.Saver
 
