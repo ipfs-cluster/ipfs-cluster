@@ -14,7 +14,6 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	ipld "github.com/ipfs/go-ipld-format"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
 )
@@ -158,8 +157,8 @@ type PinAllocator interface {
 // distributed among the cluster
 type Sharder interface {
 	Component
-	AddNode(ipld.Node) error
-	Flush() error
+	AddNode(size uint64, data []byte, c string, id string) error
+	Finalize(id string) error
 }
 
 // PeerMonitor is a component in charge of monitoring the peers in the cluster

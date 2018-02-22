@@ -18,7 +18,7 @@ var LoggingFacilities = map[string]string{
 	"diskinfo":    "INFO",
 	"apitypes":    "INFO",
 	"config":      "INFO",
-	"shard":       "INFO",
+	"sharder":     "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers
