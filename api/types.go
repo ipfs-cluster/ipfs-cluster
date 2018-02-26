@@ -15,8 +15,6 @@ import (
 	"time"
 
 	cid "github.com/ipfs/go-cid"
-	dag "github.com/ipfs/go-ipfs/merkledag"
-	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
@@ -27,11 +25,6 @@ import (
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
 )
-
-func init() {
-	ipld.Register(cid.DagProtobuf, dag.DecodeProtobufBlock)
-	ipld.Register(cid.Raw, dag.DecodeRawBlock)
-}
 
 var logger = logging.Logger("apitypes")
 

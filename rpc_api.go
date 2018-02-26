@@ -200,8 +200,8 @@ func (rpcapi *RPCAPI) StateSync(ctx context.Context, in struct{}, out *[]api.Pin
 }
 
 // getInformerMetrics runs Cluster.GetInformerMetrics().
-func (rpcapi *RPCAPI) getInformerMetrics(in struct{}, out *[]api.Metric) error {
-	metrics, err := rpcapi.c.GetInformerMetrics()
+func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
+	metrics, err := rpcapi.c.getInformerMetrics()
 	*out = metrics
 	return err
 }
