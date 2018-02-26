@@ -8,10 +8,8 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
-	mh "github.com/multiformats/go-multihash"
 )
 
 var logger = logging.Logger("sharder")
@@ -65,12 +63,14 @@ func (s *Sharder) Shutdown() error {
 // complete
 type shardObj map[string]*cid.Cid
 
-// clusterDAGCountBytes tracks the number of bytes in the serialized cluster
-// DAG node used to track this shard.  For now ignoring these bytes
-func (s *sessionState) clusterDAGCountBytes() uint64 {
-	// link size * link bytes
-	// + overhead
-	return 0
+// metaDataBytes tracks the number of bytes in the serialized cluster
+// DAG node used to track this shard.  As this is called to determine
+// whether a new links can be added, metaDataBytes takes into account
+// the bytes that would be added with a new link added to the shard node
+func (s *sessionState) metaDataBytes() uint64 {
+	current := byteCount(s.currentShard)
+	new := deltaByteCount(s.currentShard)
+	return current + new
 }
 
 // getAssignment returns the pid of a cluster peer that will allocate space
@@ -194,7 +194,7 @@ func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string)
 		}
 		session = s.idToSession[id]
 	} else { // Data exceeds shard threshold, flush and start a new shard
-		if session.byteCount+size+session.clusterDAGCountBytes() > session.byteThreshold {
+		if session.byteCount+size+session.metaDataBytes() > session.byteThreshold {
 			logger.Debug("shard at capacity, pin cluster DAG node")
 			if err := s.flush(); err != nil {
 				return err
@@ -245,24 +245,26 @@ func (s *Sharder) Finalize(id string) error {
 	}
 
 	// construct cluster DAG root
-	shardRoot, err := cbor.WrapObject(session.shardNodes, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+	shardRootNodes, err := makeDAG(session.shardNodes)
 	if err != nil {
 		return err
 	}
 
-	// block put the cluster DAG root in local node
-	b := api.BlockWithFormat{
-		Data:   shardRoot.RawData(),
-		Format: "cbor",
-	}
-	logger.Debugf("The serialized shard root cid: %s", shardRoot.Cid().String())
-	var retStr string
-	err = s.rpcClient.Call("", "Cluster", "IPFSBlockPut", b, &retStr)
-	if err != nil {
-		return err
+	for _, shardRoot := range shardRootNodes {
+		// block put the cluster DAG root nodes in local node
+		b := api.BlockWithFormat{
+			Data:   shardRoot.RawData(),
+			Format: "cbor",
+		}
+		logger.Debugf("The serialized shard root cid: %s", shardRoot.Cid().String())
+		var retStr string
+		err = s.rpcClient.Call("", "Cluster", "IPFSBlockPut", b, &retStr)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Pin everywhere non recursively
+	// Pin root node of rootDAG everywhere non recursively
 	//    right now not sure if un-recursive pins exists for cluster pin
 	//    I think we need to implement this into the Pin RPCs (can add to CLI too)
 
@@ -281,37 +283,39 @@ func (s *Sharder) flush() error {
 		return errors.New("session ID not set on entry call")
 	}
 	logger.Debugf("flushing the current shard %v", session.currentShard)
-	shardNode, err := cbor.WrapObject(session.currentShard, mh.SHA2_256, mh.DefaultLengths[mh.SHA2_256])
+	shardNodes, err := makeDAG(session.currentShard)
 	if err != nil {
 		return err
 	}
-	logger.Debugf("The dag cbor Node Links: %v", shardNode.Links())
-
 	targetPeer := session.assignedPeer
 	session.currentShard = make(map[string]*cid.Cid)
 	session.assignedPeer = peer.ID("")
 	session.byteThreshold = 0
 	session.byteCount = 0
-	var retStr string
-	b := api.BlockWithFormat{
-		Data:   shardNode.RawData(),
-		Format: "cbor",
-	}
-	logger.Debugf("Here is the serialized ipld: %x", b.Data)
-	err = s.rpcClient.Call(targetPeer, "Cluster", "IPFSBlockPut",
-		b, &retStr)
-	if err != nil {
-		return err
+
+	for _, shardNode := range shardNodes {
+		logger.Debugf("The dag cbor Node Links: %v", shardNode.Links())
+		var retStr string
+		b := api.BlockWithFormat{
+			Data:   shardNode.RawData(),
+			Format: "cbor",
+		}
+		logger.Debugf("Here is the serialized ipld: %x", b.Data)
+		err = s.rpcClient.Call(targetPeer, "Cluster", "IPFSBlockPut",
+			b, &retStr)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Track shardNode within clusterDAG
+	// Track shardNodeDAG root within clusterDAG
 	key := fmt.Sprintf("%d", len(session.shardNodes))
-	c := shardNode.Cid()
+	c := shardNodes[0].Cid()
 	session.shardNodes[key] = c
 
 	// Track shard node as a normal pin within cluster state
 	pinS := api.Pin{
-		Cid:                  shardNode.Cid(),
+		Cid:                  shardNodes[0].Cid(),
 		Allocations:          []peer.ID{targetPeer},
 		ReplicationFactorMin: 1,
 		ReplicationFactorMax: 1,
