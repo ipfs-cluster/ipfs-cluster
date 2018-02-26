@@ -49,7 +49,7 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 	// Figure out who is holding the CID
 	currentPin, _ := c.getCurrentPin(hash)
 	currentAllocs := currentPin.Allocations
-	metrics, err := c.GetInformerMetrics()
+	metrics, err := c.getInformerMetrics()
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +103,9 @@ func (c *Cluster) getCurrentPin(h *cid.Cid) (api.Pin, bool) {
 	return st.Get(h), ok
 }
 
-// GetInformerMetrics returns the MonitorLastMetrics() for the
+// getInformerMetrics returns the MonitorLastMetrics() for the
 // configured informer.
-func (c *Cluster) GetInformerMetrics() ([]api.Metric, error) {
+func (c *Cluster) getInformerMetrics() ([]api.Metric, error) {
 	var metrics []api.Metric
 	metricName := c.informer.Name()
 	l, err := c.consensus.Leader()
