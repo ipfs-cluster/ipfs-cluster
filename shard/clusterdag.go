@@ -41,7 +41,7 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 		return []ipld.Node{node}, err
 	}
 	// Indirect node required
-	nodes := make([]ipld.Node, 2)
+	nodes := make([]ipld.Node, 1)
 	indirectObj := make(map[string]*cid.Cid)
 	q := len(obj) / MaxLinks
 	for i := 0; i <= q; i++ {
@@ -69,7 +69,9 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append([]ipld.Node{indirectNode}, nodes...), nil
+	nodes[0] = indirectNode
+	return nodes, nil
+
 }
 
 // byteCount returns the number of bytes the shardObj will occupy when
