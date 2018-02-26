@@ -3,7 +3,7 @@ package shard
 import (
 	"bytes"
 	"context"
-	//	"strconv"
+	"encoding/binary"
 	"testing"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -337,7 +337,101 @@ func TestInterleaveSessions(t *testing.T) {
 	}
 }
 
-// Test that by adding in enough nodes multiple shard nodes will be created
+func getManyLinksDataSet(t *testing.T) [][]byte {
+	numberData := 2*MaxLinks + MaxLinks/2
+	dataSet := make([][]byte, numberData)
+	for i := range dataSet {
+		buf := new(bytes.Buffer)
+		err := binary.Write(buf, binary.LittleEndian, uint16(i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dataSet[i] = buf.Bytes()
+	}
+	return dataSet
+}
 
 // Test many tiny dag nodes so that a shard node is too big to fit all links
 // and itself must be broken down into a tree of shard nodes.
+func TestManyLinks(t *testing.T) {
+	sharder, mockRPC := testNewSharder(t)
+	dataSet := getManyLinksDataSet(t)
+	nodes := make([]*dag.ProtoNode, len(dataSet))
+	cids := make([]string, len(dataSet))
+	sessionID := "testManyLinks"
+
+	for i, data := range dataSet {
+		nodes[i] = dag.NodeWithData(data)
+		nodes[i].SetPrefix(nil)
+		cids[i] = nodes[i].Cid().String()
+		size, err := nodes[i].Size()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+	}
+	err := sharder.Finalize(sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := make([]int, len(nodes))
+	for i := range index {
+		index[i] = i
+	}
+	// data nodes, 3 shard dag leaves, 1 shard dag root, 1 root dag node
+	if len(mockRPC.orderedPuts) != len(nodes)+5 {
+		t.Errorf("unexpected number of block puts called: %d", len(mockRPC.orderedPuts))
+	}
+	verifyNodePuts(t, dataSet, cids, mockRPC.orderedPuts, index)
+
+	// all shardNode leaves but the last should be filled to capacity
+	shardNodeLeaf1 := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)+1])
+	leafLinks1 := shardNodeLeaf1.Links()
+	shardNodeLeaf2 := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)+2])
+	leafLinks2 := shardNodeLeaf2.Links()
+	shardNodeLeaf3 := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)+3])
+	leafLinks3 := shardNodeLeaf3.Links()
+
+	if len(leafLinks1) != MaxLinks {
+		t.Errorf("First leaf should have max links, not %d",
+			len(leafLinks1))
+	}
+	if len(leafLinks2) != MaxLinks {
+		t.Errorf("Second leaf should have max links, not %d",
+			len(leafLinks2))
+	}
+	if len(leafLinks3) != MaxLinks/2 {
+		t.Errorf("Third leaf should have half max links, not %d",
+			len(leafLinks3))
+	}
+
+	// shardNodeRoot must point to shardNode leaves
+	shardNodeIndirect := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)])
+	links := shardNodeIndirect.Links()
+	if len(links) != 3 {
+		t.Fatalf("Expected 3 links in indirect got %d", len(links))
+	}
+	if links[0].Cid.String() != shardNodeLeaf1.Cid().String() ||
+		links[1].Cid.String() != shardNodeLeaf2.Cid().String() ||
+		links[2].Cid.String() != shardNodeLeaf3.Cid().String() {
+		t.Errorf("Unexpected shard leaf nodes in shard root node")
+	}
+
+	// clusterDAG root should only point to shardNode root
+	clusterRoot := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)+4])
+	links = clusterRoot.Links()
+	if len(links) != 1 {
+		t.Fatalf("Expected 1 link in root got %d", len(links))
+	}
+	if links[0].Cid.String() != shardNodeIndirect.Cid().String() {
+		t.Errorf("clusterDAG expected to link to %s, instead links to %s",
+			shardNodeIndirect.Cid().String(),
+			links[0].Cid.String())
+	}
+}
+
+// Test that by adding in enough nodes multiple shard nodes will be created
