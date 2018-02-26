@@ -94,7 +94,7 @@ func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
 	var metrics []api.Metric
 	err := s.rpcClient.Call("",
 		"Cluster",
-		"getInformerMetrics",
+		"GetInformerMetrics",
 		struct{}{},
 		&metrics)
 	if err != nil {
@@ -192,6 +192,7 @@ func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string)
 			delete(s.idToSession, id) // never map to uninit session
 			return err
 		}
+		session = s.idToSession[id]
 	} else { // Data exceeds shard threshold, flush and start a new shard
 		if session.byteCount+size+session.clusterDAGCountBytes() > session.byteThreshold {
 			logger.Debug("shard at capacity, pin cluster DAG node")
@@ -254,7 +255,7 @@ func (s *Sharder) Finalize(id string) error {
 		Data:   shardRoot.RawData(),
 		Format: "cbor",
 	}
-	logger.Debugf("The serialized shard root ipld: %x", b.Data)
+	logger.Debugf("The serialized shard root cid: %s", shardRoot.Cid().String())
 	var retStr string
 	err = s.rpcClient.Call("", "Cluster", "IPFSBlockPut", b, &retStr)
 	if err != nil {
