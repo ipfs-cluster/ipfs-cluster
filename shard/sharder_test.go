@@ -70,14 +70,14 @@ func makeTestingHost() host.Host {
 	ps.AddPubKey(pid, pub)
 	ps.AddPrivKey(pid, priv)
 	ps.AddAddr(pid, maddr, peerstore.PermanentAddrTTL)
-	mock_network, _ := swarm.NewNetwork(context.Background(),
+	mockNetwork, _ := swarm.NewNetwork(context.Background(),
 		[]ma.Multiaddr{maddr},
 		pid,
 		ps,
 		nil,
 	)
 
-	return basichost.New(mock_network)
+	return basichost.New(mockNetwork)
 }
 
 // GetInformerMetrics does nothing as mock allocator does not check metrics
@@ -142,7 +142,7 @@ func TestAddAndFinalizeShard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = sharder.AddNode(size, nodes[i].RawData(), nodes[i].Cid().String(), sessionID)
+		err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -160,23 +160,16 @@ func TestAddAndFinalizeShard(t *testing.T) {
 
 	shardNode := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)])
 	// Traverse shard node to verify all expected links are there
-	for i, link := range shardNode.Links() {
-		// TODO remove dependence on link order, and make use of the
-		// link number info that exists somewhere within the cbor object
-		// but apparently not the ipld links (is this a bug in ipld cbor?)
-		/*i, err := strconv.Atoi(link.Name)
-		if err != nil || i >= 3 {
-			t.Errorf("Unexpected link name :%s:", link.Name)
-			continue
-		}*/
-		if link.Cid.String() != cids[i] {
-			t.Errorf("Link %d should point to %s.  Instead points to %s", i, cids[i], link.Cid.String())
+	links := shardNode.Links()
+	for _, c := range cids {
+		if !linksContain(links, c) {
+			t.Errorf("expected cid %s not in shard node", c)
 		}
 	}
 
 	rootNode := cborDataToNode(t, mockRPC.orderedPuts[len(nodes)+1])
 	// Verify that clusterDAG root points to shard node
-	links := rootNode.Links()
+	links = rootNode.Links()
 	if len(links) != 1 {
 		t.Fatalf("Expected 1 link in root got %d", len(links))
 	}
@@ -184,6 +177,16 @@ func TestAddAndFinalizeShard(t *testing.T) {
 		t.Errorf("clusterDAG expected to link to %s, instead links to %s",
 			shardNode.Cid().String(), links[0].Cid.String())
 	}
+}
+
+// helper function determining whether a cid is referenced in a slice of links
+func linksContain(links []*ipld.Link, c string) bool {
+	for _, link := range links {
+		if link.Cid.String() == c {
+			return true
+		}
+	}
+	return false
 }
 
 // verifyNodePuts takes in a slice of byte slices containing the underlying data
@@ -304,11 +307,13 @@ func TestInterleaveSessions(t *testing.T) {
 
 	// verify clusterDAG for session 1
 	shardNode1 := cborDataToNode(t, mockRPC.orderedPuts[6])
-	for i, link := range shardNode1.Links() {
-		if link.Cid.String() != cids1[i] {
-			t.Errorf("Link %d should point to %s.  Instead points to %s", i, cids1[i], link.Cid.String())
+	links1 := shardNode1.Links()
+	for _, c := range cids1 {
+		if !linksContain(links1, c) {
+			t.Errorf("expected cid %s not in links of shard node of session 1", c)
 		}
 	}
+
 	rootNode1 := cborDataToNode(t, mockRPC.orderedPuts[7])
 	links := rootNode1.Links()
 	if len(links) != 1 {
@@ -321,11 +326,14 @@ func TestInterleaveSessions(t *testing.T) {
 
 	// verify clusterDAG for session 2
 	shardNode2 := cborDataToNode(t, mockRPC.orderedPuts[8])
-	for i, link := range shardNode2.Links() {
-		if link.Cid.String() != cids2[i] {
-			t.Errorf("Link %d should point to %s.  Instead points to %s", i, cids2[i], link.Cid.String())
+	// Traverse shard node to verify all expected links are there
+	links2 := shardNode2.Links()
+	for _, c := range cids2 {
+		if !linksContain(links2, c) {
+			t.Errorf("expected cid %s not in links of shard node of session 2", c)
 		}
 	}
+
 	rootNode2 := cborDataToNode(t, mockRPC.orderedPuts[9])
 	links = rootNode2.Links()
 	if len(links) != 1 {
@@ -415,9 +423,9 @@ func TestManyLinks(t *testing.T) {
 	if len(links) != 3 {
 		t.Fatalf("Expected 3 links in indirect got %d", len(links))
 	}
-	if links[0].Cid.String() != shardNodeLeaf1.Cid().String() ||
-		links[1].Cid.String() != shardNodeLeaf2.Cid().String() ||
-		links[2].Cid.String() != shardNodeLeaf3.Cid().String() {
+	if !linksContain(links, shardNodeLeaf1.Cid().String()) ||
+		!linksContain(links, shardNodeLeaf2.Cid().String()) ||
+		!linksContain(links, shardNodeLeaf3.Cid().String()) {
 		t.Errorf("Unexpected shard leaf nodes in shard root node")
 	}
 
@@ -435,3 +443,9 @@ func TestManyLinks(t *testing.T) {
 }
 
 // Test that by adding in enough nodes multiple shard nodes will be created
+/*func TestMultipleShards(t *testing.T) {
+	sharder, mockRPC := testNewSharder(t)
+	sharder.allocSize = IPFSChunkSize + IPFSChunkSize / 2
+
+
+}*/
