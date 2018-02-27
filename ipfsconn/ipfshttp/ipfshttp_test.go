@@ -565,7 +565,10 @@ func TestBlockPut(t *testing.T) {
 	defer ipfs.Shutdown()
 
 	data := []byte(test.TestCid4Data)
-	resp, err := ipfs.BlockPut(data)
+	resp, err := ipfs.BlockPut(api.BlockWithFormat{
+		Data:   data,
+		Format: "protobuf",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

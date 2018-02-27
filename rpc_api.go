@@ -198,7 +198,7 @@ func (rpcapi *RPCAPI) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
 	return err
 }
 
-// getInformerMetrics runs Cluster.GetInformerMetrics().
+// GetInformerMetrics runs Cluster.GetInformerMetrics().
 func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
 	metrics, err := rpcapi.c.getInformerMetrics()
 	*out = metrics
