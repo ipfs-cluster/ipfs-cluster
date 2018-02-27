@@ -121,9 +121,9 @@ func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
 	// between this function and allocate.go functions.  Not too bad
 	// for now though.
 	allocInfo := api.AllocateInfo{
-		"",
-		nil,
-		candidates,
+		Cid:        "",
+		Current:    nil,
+		Candidates: candidates,
 	}
 
 	allocs := make([]peer.ID, 0)
@@ -237,7 +237,7 @@ func (s *Sharder) Finalize(id string) error {
 	s.currentID = id
 	session, ok := s.idToSession[id]
 	if !ok {
-		return errors.New("Cannot finalize untracked id")
+		return errors.New("cannot finalize untracked id")
 	}
 	// call flush
 	if err := s.flush(); err != nil {

@@ -64,7 +64,7 @@ func TestToChannel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	outChan, err := ToChannel(file, context.Background())
+	outChan, err := ToChannel(context.Background(), file)
 	if err != nil {
 		t.Fatal(err)
 	}

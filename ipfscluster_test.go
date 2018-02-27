@@ -19,6 +19,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/shard"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -77,7 +78,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft.Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft.Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, Sharder, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	//
 	//clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
@@ -96,7 +97,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, sharderCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -120,20 +121,22 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
 	checkErr(t, err)
+	sharder, err := shard.NewSharder(sharderCfg)
+	checkErr(t, err)
 
-	return clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock
+	return clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock
 }
 
-func createCluster(t *testing.T, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+func createCluster(t *testing.T, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, sharder Sharder) *Cluster {
+	cl, err := NewCluster(clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder)
 	checkErr(t, err)
 	<-cl.Ready()
 	return cl
 }
 
 func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster, *test.IpfsMock) {
-	clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret)
-	cl := createCluster(t, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+	clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock := createComponents(t, nth, clusterSecret)
+	cl := createCluster(t, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder)
 	return cl, mock
 }
 
@@ -148,6 +151,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	mons := make([]PeerMonitor, nClusters, nClusters)
 	allocs := make([]PinAllocator, nClusters, nClusters)
 	infs := make([]Informer, nClusters, nClusters)
+	sharders := make([]Sharder, nClusters, nClusters)
 	ipfsMocks := make([]*test.IpfsMock, nClusters, nClusters)
 	clusters := make([]*Cluster, nClusters, nClusters)
 
@@ -155,7 +159,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
 
 	for i := 0; i < nClusters; i++ {
-		clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret)
+		clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock := createComponents(t, i, testingClusterSecret)
 		cfgs[i] = clusterCfg
 		concfgs[i] = consensusCfg
 		apis[i] = api
@@ -165,6 +169,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		mons[i] = mon
 		allocs[i] = alloc
 		infs[i] = inf
+		sharders[i] = sharder
 		ipfsMocks[i] = mock
 
 		// Uncomment with testing with fixed ports and ClusterPeers
@@ -198,7 +203,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 	// Alternative way of starting using bootstrap
 	// Start first node
-	clusters[0] = createCluster(t, cfgs[0], concfgs[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
+	clusters[0] = createCluster(t, cfgs[0], concfgs[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0], sharders[0])
 	// Find out where it binded
 	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
 	// Use first node to bootstrap
@@ -211,7 +216,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	for i := 1; i < nClusters; i++ {
 		wg.Add(1)
 		go func(i int) {
-			clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
+			clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i], sharders[i])
 			wg.Done()
 		}(i)
 	}
