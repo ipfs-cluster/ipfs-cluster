@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/shard"
 )
 
 var testingClusterSecret, _ = DecodeClusterSecret("2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed")
@@ -81,8 +82,12 @@ var testingDiskInfCfg = []byte(`{
     "metric_type": "freespace"
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
-	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg := testingEmptyConfigs()
+var testingSharderCfg = []byte(`{
+    "alloc_size": 5000000
+}`)
+
+func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config, *shard.Config) {
+	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg, sharderCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
@@ -91,11 +96,12 @@ func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *m
 	basicmonCfg.LoadJSON(testingMonCfg)
 	pubsubmonCfg.LoadJSON(testingMonCfg)
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
+	sharderCfg.LoadJSON(testingSharderCfg)
 
-	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
+	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg, sharderCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config, *shard.Config) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
@@ -104,7 +110,8 @@ func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Confi
 	basicmonCfg := &basic.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
-	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
+	sharderCfg := &shard.Config{}
+	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg, sharderCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

@@ -643,6 +643,8 @@ type AllocateInfo struct {
 	Candidates map[peer.ID]Metric
 }
 
+// GetCid decodes the cid string within AllocateInfo.  If the cid string is ""
+// then GetCid returns nil
 func (aI *AllocateInfo) GetCid() *cid.Cid {
 	if aI.Cid == "" {
 		return nil

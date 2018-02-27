@@ -22,8 +22,9 @@ import (
 	mh "github.com/multiformats/go-multihash"
 )
 
+// MaxLinks is the max number of links that, when serialized fit into a block
 const MaxLinks = 5984
-const FixedPerLink = 40
+const fixedPerLink = 40
 
 // makeDAG parses a shardObj tracking links in a shardNode to a shardNode that
 // carries links to all data nodes that this shard tracks.  In general the
@@ -85,7 +86,7 @@ func byteCount(obj shardObj) uint64 {
 	//    35 bytes for each cid
 	count := 1
 	for key := range obj {
-		count += FixedPerLink
+		count += fixedPerLink
 		count += len(key)
 	}
 	return uint64(count) + indirectCount(len(obj))
@@ -113,25 +114,23 @@ func deltaByteCount(obj shardObj) uint64 {
 	linkNum := len(obj)
 	q1 := linkNum / MaxLinks
 	q2 := (linkNum + 1) / MaxLinks
-	count := uint64(FixedPerLink)
+	count := uint64(fixedPerLink)
 	count += uint64(len(fmt.Sprintf("%d", len(obj))))
 
-	// no new nodes created by adding a link
-	if q1 == q2 {
-		return count
-	} else {
+	// new shard nodes created by adding link
+	if q1 != q2 {
 		// first new leaf node created, i.e. indirect created too
 		if q2 == 1 {
-			count += 1                // map overhead of indirect node
-			count += 1 + FixedPerLink // FixedPerLink + len("0")
+			count++                   // map overhead of indirect node
+			count += 1 + fixedPerLink // fixedPerLink + len("0")
 		}
 
 		// added to indirect node
-		count += FixedPerLink
+		count += fixedPerLink
 		count += uint64(len(fmt.Sprintf("%d", q2)))
 
 		// overhead of new leaf node
-		count += 1
-		return count
+		count++
 	}
+	return count
 }

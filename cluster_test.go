@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/shard"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -85,14 +86,14 @@ func (ipfs *mockConnector) SwarmPeers() (api.SwarmPeers, error) {
 	return []peer.ID{test.TestPeerID4, test.TestPeerID5}, nil
 }
 
-func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
-func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
-func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }
-func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
-func (ipfs *mockConnector) BlockPut(data []byte) (string, error)          { return "", nil }
+func (ipfs *mockConnector) ConnectSwarms() error                             { return nil }
+func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error)    { return nil, nil }
+func (ipfs *mockConnector) FreeSpace() (uint64, error)                       { return 100, nil }
+func (ipfs *mockConnector) RepoSize() (uint64, error)                        { return 0, nil }
+func (ipfs *mockConnector) BlockPut(bwf api.BlockWithFormat) (string, error) { return "", nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
-	clusterCfg, _, _, consensusCfg, trackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
+	clusterCfg, _, _, consensusCfg, trackerCfg, bmonCfg, psmonCfg, _, sharderCfg := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -114,6 +115,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	numpinCfg := &numpin.Config{}
 	numpinCfg.Default()
 	inf, _ := numpin.NewInformer(numpinCfg)
+	sharder, _ := shard.NewSharder(sharderCfg)
 
 	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
 
@@ -127,7 +129,8 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 		tracker,
 		mon,
 		alloc,
-		inf)
+		inf,
+		sharder)
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
