@@ -23,7 +23,6 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
-	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -372,57 +371,98 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
-func (api *API) addFile(ctx context.Context, outChan <-chan *ipld.Node, w http.ResponseWriter) error {
-	for nodePtr := range outChan {
+func (api *API) consumeImport(ctx context.Context,
+	outChan <-chan *types.NodeSerial,
+	printChan <-chan *types.AddedOutput,
+	errChan <-chan error,
+	w http.ResponseWriter) error {
+	var err error
+	openChs := 3
+	enc := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(200)
+	//	flusher, _ := w.(http.Flusher)
+	toPrint := make([]*types.AddedOutput, 0)
+
+	for {
+		if openChs == 0 {
+			break
+		}
+
+		// Consume signals from importer.  Errors resulting from
+		// consuming the importers' signals cause error objects to be
+		// streamed in the response body.  The client reads these
+		// errors and terminates the session.
+		// Codes: 1 = error, 0 = non-error response, 2 = successful
+		// termination
+		// TODO: Unlike earlier approaches this is actually systematic
+		// and handles all possible errors.  This approach is still
+		// deferring the investigation into what error handling
+		// approaches give the best UX however.
 		select {
+		// Ensure we terminate reading from importer after cancellation
+		// but do not block
 		case <-ctx.Done():
-			sendErrorResponse(w, 504, "context timeout terminated add")
-			return errors.New("context timeout terminated add")
-		default:
-		}
-		node := *nodePtr
-		/* Send block data to ipfs */
-		var hash string
-		/*		c := node.Cid()
-				format, ok := cid.CodecToStr[c.Type()]
-				if !ok {
-					format = ""
-				}*/
-		b := types.BlockWithFormat{
-			Data:   node.RawData(),
-			Format: "",
-		}
-		err := api.rpcClient.Call("",
-			"Cluster",
-			"IPFSBlockPut",
-			b,
-			&hash)
-		/* Verify that block put cid matches */
-		if node.String() != hash { // node string is just cid string
-			logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", node.String(), hash)
-		}
-		if err != nil {
-			// TODO: think about how to handle this better.
-			// We may not want to stop all work after one failure
-			logger.Error(err)
-			sendErrorResponse(w, 500, "error forwarding block")
-			return err
+			err = errors.New("context timeout terminated add")
+			return enc.Encode(types.Error{Code: 1, Message: err.Error()})
+		// Terminate session when importer throws an error
+		case err, ok := <-errChan:
+			if !ok {
+				openChs--
+				errChan = nil
+				continue
+			}
+			return enc.Encode(types.Error{Code: 1, Message: err.Error()})
+
+		// Send status information to client for user output
+		case printObj, ok := <-printChan:
+			//TODO: if we support progress bar we must update this
+			if !ok {
+				openChs--
+				printChan = nil
+				continue
+			}
+			toPrint = append(toPrint, printObj)
+			/*			err = enc.Encode(printObj)
+						if err != nil {
+							return enc.Encode(types.Error{Code: 1, Message: err.Error()})
+						}
+						flusher.Flush() // send output info immediately*/
+		// Consume ipld node output by importer
+		case outObj, ok := <-outChan:
+			if !ok {
+				openChs--
+				outChan = nil
+				continue
+			}
+			//TODO: when ipfs add starts supporting formats other than
+			// v0 (v1.cbor, v1.protobuf) we'll need to update this
+			b := types.BlockWithFormat{
+				Data:   outObj.Data,
+				Format: "",
+			}
+			var hash string
+			err := api.rpcClient.Call("",
+				"Cluster",
+				"IPFSBlockPut",
+				b,
+				&hash)
+			if outObj.Cid != hash {
+				logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
+			}
+			if err != nil {
+				return enc.Encode(types.Error{Code: 1, Message: err.Error()})
+			}
 		}
 	}
 
-	// TODO: when complete this call should answer with a cid
-	// or better yet a pin-info describing the allocations
-	// of the resulting allocation
-	//
 	// Before returning this we will need to trigger a pin
-	// probably doing the same thing as Pin if its not a sharding call
-	//
-	// This is actually a bit tricky because right now we are not
-	// recording the root of the imported file, we could have ToChannel
-	// provide a root channel that can be read once the other channel is
-	// closed that reports the root at the end.  Probably would need to
-	// rewrite add for this to work
-	return nil
+	// probably doing the same thing as Pin if it's not a sharding call
+	// Need to verify last node is the root that should be pinned
+	for _, obj := range toPrint {
+		enc.Encode(obj)
+	}
+	return enc.Encode(types.Error{Code: 2, Message: "success"})
 }
 
 // Get a random string of length n.  Used to generate sharding id
@@ -434,30 +474,24 @@ func randStringRunes(n int) string {
 	return string(b)
 }
 
-func (api *API) addShardedFile(ctx context.Context, outChan <-chan *ipld.Node, w http.ResponseWriter) error {
+func (api *API) addShardedFile(ctx context.Context,
+	outChan <-chan *types.NodeSerial, w http.ResponseWriter) error {
 	// chosen so pow(2, 256) ~= pow(52, X) => X = 45.  Probably over thinking
 	shardID := randStringRunes(45)
-	for nodePtr := range outChan {
+	for obj := range outChan {
 		select {
 		case <-ctx.Done():
 			sendErrorResponse(w, 504, "internal timeout")
 			return errors.New("context timeout terminated add")
 		default:
 		}
-		node := *nodePtr
-		size, err := node.Size()
-		if err != nil {
-			logger.Error(err)
-			sendErrorResponse(w, 500, "error getting size of node")
-			return err
-		}
 		nodeS := types.ShardNodeSerial{
-			Cid:  node.Cid().String(),
-			Data: node.RawData(),
-			Size: size,
+			Cid:  obj.Cid,
+			Data: obj.Data,
+			Size: obj.Size,
 			ID:   shardID,
 		}
-		err = api.rpcClient.Call("",
+		err := api.rpcClient.Call("",
 			"Cluster",
 			"ShardAddNode",
 			nodeS,
@@ -511,22 +545,31 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(api.ctx)
 	defer cancel()
 
-	outChan, err := importer.ToChannel(ctx, f)
-
 	queryValues := r.URL.Query()
+	trickle, _ := strconv.ParseBool(queryValues.Get("trickle"))
+	chunker := queryValues.Get("chunker")
+	raw, _ := strconv.ParseBool(queryValues.Get("raw"))
+	wrap, _ := strconv.ParseBool(queryValues.Get("wrap"))
+	progress, _ := strconv.ParseBool(queryValues.Get("progress"))
+	hidden, _ := strconv.ParseBool(queryValues.Get("hidden"))
+	silent, _ := strconv.ParseBool(queryValues.Get("silent")) // just print root hash
+	printChan, outChan, errChan := importer.ToChannel2(ctx, f, progress,
+		hidden, trickle, raw, silent, wrap, chunker)
+
 	shard := queryValues.Get("shard")
+	//	quiet := queryValues.Get("quiet") // just print hashes, no meta data
 
 	if shard == "true" {
 		if err := api.addShardedFile(ctx, outChan, w); err != nil {
 			return
 		}
-
+		sendAcceptedResponse(w, nil)
 	} else {
-		if err := api.addFile(ctx, outChan, w); err != nil {
+		if err := api.consumeImport(ctx, outChan, printChan, errChan,
+			w); err != nil {
 			return
 		}
 	}
-	sendAcceptedResponse(w, err)
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
