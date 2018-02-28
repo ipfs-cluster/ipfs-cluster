@@ -170,6 +170,38 @@ is also TODO
 					Name:  "shard",
 					Usage: "break the file into pieces (shards) and distributed among peers, default false",
 				},
+				cli.BoolFlag{
+					Name:  "quiet, q",
+					Usage: "write minimal output",
+				},
+				cli.BoolFlag{
+					Name:  "silent",
+					Usage: "write no output",
+				},
+				cli.BoolFlag{
+					Name:  "trickle, t",
+					Usage: "use trickle dag layout for dag generation",
+				},
+				cli.StringFlag{
+					Name:  "chunker, s",
+					Usage: "Chunking algorithm to use",
+				},
+				cli.BoolFlag{
+					Name:  "raw-leaves",
+					Usage: "Use raw blocks for leaves (experimental)",
+				},
+				cli.BoolFlag{
+					Name:  "wrap, w",
+					Usage: "wrap files with a directory object",
+				},
+				cli.BoolFlag{
+					Name:  "progress, p",
+					Usage: "Stream progress data",
+				},
+				cli.BoolFlag{
+					Name:  "hidden, H",
+					Usage: "include files that are hidden.  Only takes effect on recursive add",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				paths := make([]string, c.NArg(), c.NArg())
@@ -180,7 +212,12 @@ is also TODO
 				// Files are all opened but not read until they are sent.
 				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
 				checkErr("serializing all files", err)
-				cerr := globalClient.AddMultiFile(multiFileR, c.Bool("shard"))
+				cerr := globalClient.AddMultiFile(multiFileR,
+					c.Bool("shard"), c.Bool("quiet"),
+					c.Bool("silent"), c.Bool("trickle"),
+					c.String("chunker"),
+					c.Bool("raw-leaves"), c.Bool("wrap"),
+					c.Bool("progress"), c.Bool("hidden"))
 				if cerr != nil {
 					formatResponse(c, nil, cerr)
 				}
