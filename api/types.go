@@ -595,8 +595,26 @@ func (pins PinSerial) ToPin() Pin {
 	}
 }
 
+// AddedOutput carries information for displaying the standard ipfs output
+// indicating a node of a file has been added.
+type AddedOutput struct {
+	Error
+	Name  string
+	Hash  string `json:",omitempty"`
+	Bytes int64  `json:",omitempty"`
+	Size  string `json:",omitempty"`
+}
+
+// NodeSerial encodes info necessary to add an IPFS Block. This includes the
+// cid, data, and size
+type NodeSerial struct {
+	Cid  string
+	Data []byte
+	Size uint64
+}
+
 // ShardNodeSerial encodes the info necessary to add an IPFS Block to a sharded
-// file.  This includes the cid, data, size and a sharding session id
+// file.  This includes the serialized node and a sharding ID.
 type ShardNodeSerial struct {
 	Cid  string
 	Data []byte

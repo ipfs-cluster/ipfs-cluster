@@ -306,11 +306,15 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 
 // AddMultiFile adds new files to the ipfs cluster, importing and potentially
 // sharding underlying dags across the ipfs repos of multiple cluster peers
-func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader, shard bool) error {
+func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader, shard bool,
+	quiet bool, silent bool, trickle bool, chunker string,
+	raw bool, wrap bool, progress bool, hidden bool) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
-	return c.doStream("POST", fmt.Sprintf("/allocations?shard=%t", shard),
-		multiFileR, headers, nil)
+	fmtStr1 := "/allocations?shard=%t&quiet=%t&silent=%t&trickle=%t&"
+	fmtStr2 := "chunker=%s&raw=%t&wrap=%t&progress=%t&hidden=%t"
+	url := fmt.Sprintf(fmtStr1+fmtStr2, shard, quiet, silent, trickle, chunker)
+	return c.doStream("POST", url, multiFileR, headers, nil)
 }
 
 // Eventually an Add(io.Reader) method for adding raw readers as a multifile should be here.

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 )
@@ -14,7 +16,7 @@ var errUninit = errors.New("DAGService output channel uninitialized")
 // outDAGService will "add" a node by sending through the outChan
 type outDAGService struct {
 	membership map[string]struct{}
-	outChan    chan<- *ipld.Node
+	outChan    chan<- *api.NodeSerial
 }
 
 // Get always returns errNotFound
@@ -43,8 +45,17 @@ func (ods *outDAGService) Add(ctx context.Context, node ipld.Node) error {
 	if ods.outChan == nil {
 		return errUninit
 	}
+	size, err := node.Size()
+	if err != nil {
+		return err
+	}
+	nodeSerial := api.NodeSerial{
+		Cid:  id,
+		Data: node.RawData(),
+		Size: size,
+	}
 	select {
-	case ods.outChan <- &node:
+	case ods.outChan <- &nodeSerial:
 		return nil
 	case <-ctx.Done():
 		close(ods.outChan)
