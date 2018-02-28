@@ -2,6 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -72,7 +74,7 @@ func (c *Client) doStream(method, path string, body io.Reader, headers map[strin
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
-	return c.handleResponse(resp, obj)
+	return c.handleStreamResponse(resp, obj)
 }
 
 func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
@@ -110,4 +112,29 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 		}
 	}
 	return nil
+}
+
+func (c *Client) handleStreamResponse(resp *http.Response, obj interface{}) error {
+	// Read body until a termination signal (status code != 0)
+	dec := json.NewDecoder(resp.Body)
+	for {
+		var output api.AddedOutput
+		err := dec.Decode(&output)
+		if err != nil {
+			fmt.Printf("error on decode\n")
+			return err
+		}
+		if output.Code == 1 {
+			return errors.New(output.Message)
+		} else if output.Code == 2 {
+			// All done
+			fmt.Printf("Transmission complete")
+			return nil
+		} else if output.Code == 0 {
+			// TODO more mature handling of printing: e.g. in another function / combine with existing printers
+			fmt.Printf("added %s %s\n", output.Hash, output.Name)
+		} else {
+			return errors.New(fmt.Sprintf("unexpected error code: %d", output.Code))
+		}
+	}
 }
