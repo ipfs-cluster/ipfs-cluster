@@ -523,13 +523,16 @@ type Pin struct {
 	Allocations          []peer.ID
 	ReplicationFactorMin int
 	ReplicationFactorMax int
+	Recursive            bool
 }
 
-// PinCid is a shorcut to create a Pin only with a Cid.
+// PinCid is a shorcut to create a Pin only with a Cid.  Default is for pin to
+// be recursive
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
 		Allocations: []peer.ID{},
+		Recursive:   true,
 	}
 }
 
@@ -540,6 +543,7 @@ type PinSerial struct {
 	Allocations          []string `json:"allocations"`
 	ReplicationFactorMin int      `json:"replication_factor_min"`
 	ReplicationFactorMax int      `json:"replication_factor_max"`
+	Recursive            bool     `json:"recursive"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -558,6 +562,7 @@ func (pin Pin) ToSerial() PinSerial {
 		Allocations:          allocs,
 		ReplicationFactorMin: pin.ReplicationFactorMin,
 		ReplicationFactorMax: pin.ReplicationFactorMax,
+		Recursive:            pin.Recursive,
 	}
 }
 
@@ -573,6 +578,10 @@ func (pin Pin) Equals(pin2 Pin) bool {
 	}
 
 	if pin1s.Name != pin2s.Name {
+		return false
+	}
+
+	if pin1s.Recursive != pin2s.Recursive {
 		return false
 	}
 
@@ -606,6 +615,7 @@ func (pins PinSerial) ToPin() Pin {
 		Allocations:          StringsToPeers(pins.Allocations),
 		ReplicationFactorMin: pins.ReplicationFactorMin,
 		ReplicationFactorMax: pins.ReplicationFactorMax,
+		Recursive:            pins.Recursive,
 	}
 }
 

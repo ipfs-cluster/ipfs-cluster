@@ -70,7 +70,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID() (api.IPFSID, error)
-	Pin(*cid.Cid) error
+	Pin(*cid.Cid, bool) error
 	Unpin(*cid.Cid) error
 	PinLsCid(*cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)

@@ -610,7 +610,7 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(hash *cid.Cid) error {
+func (ipfs *Connector) Pin(hash *cid.Cid, recursive bool) error {
 	pinStatus, err := ipfs.PinLsCid(hash)
 	if err != nil {
 		return err
@@ -618,7 +618,7 @@ func (ipfs *Connector) Pin(hash *cid.Cid) error {
 	if !pinStatus.IsPinned() {
 		switch ipfs.config.PinMethod {
 		case "refs":
-			path := fmt.Sprintf("refs?arg=%s&recursive=true", hash)
+			path := fmt.Sprintf("refs?arg=%s&recursive=%t", hash, recursive)
 			err := ipfs.postDiscardBody(path)
 			if err != nil {
 				return err
@@ -626,7 +626,7 @@ func (ipfs *Connector) Pin(hash *cid.Cid) error {
 			logger.Debugf("Refs for %s sucessfully fetched", hash)
 		}
 
-		path := fmt.Sprintf("pin/add?arg=%s", hash)
+		path := fmt.Sprintf("pin/add?arg=%s&recursive=%t", hash, recursive)
 		_, err = ipfs.post(path)
 		if err == nil {
 			logger.Info("IPFS Pin request succeeded: ", hash)
