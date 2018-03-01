@@ -26,18 +26,6 @@ func getTestingDir() (files.File, error) {
 	return files.NewSerialFile(path.Base(fpath), fpath, false, stat)
 }
 
-// simply import and ensure no errors occur
-func TestToPrint(t *testing.T) {
-	file, err := getTestingDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ToPrint(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 var cids = [18]string{"QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
 	"Qmbp4C4KkyjVzTpZ327Ub555FEHizhJS4M17f2zCCrQMAz",
 	"QmYz38urZ99eVCxSccM63bGtDv54UWtBDWJdTxGch23khA",
@@ -64,14 +52,33 @@ func TestToChannel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	outChan, err := ToChannel(context.Background(), file)
-	if err != nil {
-		t.Fatal(err)
-	}
+	printChan, outChan, errChan := ToChannel(context.Background(), file,
+		false, false, false, false, false, false, "")
+
+	go func() { // listen on printChan so progress can be made
+		for {
+			_, ok := <-printChan
+			if !ok {
+				// channel closed, safe to exit
+				return
+			}
+		}
+	}()
+
+	go func() { // listen for errors
+		for {
+			err, ok := <-errChan
+			if !ok {
+				// channel closed, safe to exit
+				return
+			}
+			t.Fatal(err)
+		}
+	}()
 
 	check := make(map[string]struct{})
-	for node := range outChan {
-		cid := (*node).String()
+	for obj := range outChan {
+		cid := obj.Cid
 		if _, ok := check[cid]; ok {
 			t.Fatalf("Duplicate cid %s", cid)
 		}
