@@ -501,11 +501,67 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
+func (api *API) consumeLocalAdd(args map[string]string, outObj *types.NodeSerial) error {
+	//TODO: when ipfs add starts supporting formats other than
+	// v0 (v1.cbor, v1.protobuf) we'll need to update this
+	b := types.BlockWithFormat{
+		Data:   outObj.Data,
+		Format: "",
+	}
+	args["cid"] = outObj.Cid // root node stored on last call
+	var hash string
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"IPFSBlockPut",
+		b,
+		&hash)
+	if outObj.Cid != hash {
+		logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
+	}
+	return err
+}
+
+func (api *API) finishLocalAdd(args map[string]string) error {
+	// TODO: pin the root node from here, rpc.Call(pin, args["cid"])
+	return nil
+}
+
+func (api *API) consumeShardAdd(args map[string]string, outObj *types.NodeSerial) error {
+	var shardID string
+	shardID, ok := args["id"]
+	if !ok {
+		shardID = randStringRunes(45)
+		args["id"] = shardID
+	}
+	nodeS := types.ShardNodeSerial{
+		Cid:  outObj.Cid,
+		Data: outObj.Data,
+		Size: outObj.Size,
+		ID:   shardID,
+	}
+	return api.rpcClient.Call("",
+		"Cluster",
+		"ShardAddNode",
+		nodeS,
+		&struct{}{})
+}
+
+func (api *API) finishShardAdd(args map[string]string) error {
+	shardID, ok := args["id"]
+	if !ok {
+		return errors.New("bad state: shardID passed incorrectly")
+	}
+	return api.rpcClient.Call("", "Cluster", "ShardFinalize", shardID,
+		&struct{}{})
+}
+
 func (api *API) consumeImport(ctx context.Context,
 	outChan <-chan *types.NodeSerial,
 	printChan <-chan *types.AddedOutput,
 	errChan <-chan error,
-	w http.ResponseWriter) error {
+	w http.ResponseWriter,
+	consume func(map[string]string, *types.NodeSerial) error,
+	finish func(map[string]string) error) error {
 	var err error
 	openChs := 3
 	enc := json.NewEncoder(w)
@@ -513,6 +569,7 @@ func (api *API) consumeImport(ctx context.Context,
 	w.WriteHeader(200)
 	//	flusher, _ := w.(http.Flusher)
 	toPrint := make([]*types.AddedOutput, 0)
+	args := make(map[string]string)
 
 	for {
 		if openChs == 0 {
@@ -553,11 +610,14 @@ func (api *API) consumeImport(ctx context.Context,
 				continue
 			}
 			toPrint = append(toPrint, printObj)
-			/*			err = enc.Encode(printObj)
-						if err != nil {
-							return enc.Encode(types.Error{Code: 1, Message: err.Error()})
-						}
-						flusher.Flush() // send output info immediately*/
+			// TODO: figure out how to stream response concurrent with
+			// request.  This commented section succeeds in streaming
+			// a response but doing so prematurely truncates request reads.
+			/*err = enc.Encode(printObj)
+			if err != nil {
+				return enc.Encode(types.Error{Code: 1, Message: err.Error()})
+			}
+			flusher.Flush() // send output info immediately*/
 		// Consume ipld node output by importer
 		case outObj, ok := <-outChan:
 			if !ok {
@@ -565,30 +625,20 @@ func (api *API) consumeImport(ctx context.Context,
 				outChan = nil
 				continue
 			}
-			//TODO: when ipfs add starts supporting formats other than
-			// v0 (v1.cbor, v1.protobuf) we'll need to update this
-			b := types.BlockWithFormat{
-				Data:   outObj.Data,
-				Format: "",
-			}
-			var hash string
-			err := api.rpcClient.Call("",
-				"Cluster",
-				"IPFSBlockPut",
-				b,
-				&hash)
-			if outObj.Cid != hash {
-				logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
-			}
-			if err != nil {
+
+			if err := consume(args, outObj); err != nil {
 				return enc.Encode(types.Error{Code: 1, Message: err.Error()})
 			}
 		}
 	}
 
-	// Before returning this we will need to trigger a pin
-	// probably doing the same thing as Pin if it's not a sharding call
-	// Need to verify last node is the root that should be pinned
+	if err := finish(args); err != nil {
+		return enc.Encode(types.Error{Code: 1, Message: err.Error()})
+	}
+
+	// TODO: these writes will move from after imports completely read to
+	// eager writing as soon as the printable object is read from channel
+	// once we fix the req/res streaming problem
 	for _, obj := range toPrint {
 		enc.Encode(obj)
 	}
@@ -602,54 +652,6 @@ func randStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
-}
-
-func (api *API) addShardedFile(ctx context.Context,
-	outChan <-chan *types.NodeSerial, w http.ResponseWriter) error {
-	// chosen so pow(2, 256) ~= pow(52, X) => X = 45.  Probably over thinking
-	shardID := randStringRunes(45)
-	for obj := range outChan {
-		select {
-		case <-ctx.Done():
-			sendErrorResponse(w, 504, "internal timeout")
-			return errors.New("context timeout terminated add")
-		default:
-		}
-		nodeS := types.ShardNodeSerial{
-			Cid:  obj.Cid,
-			Data: obj.Data,
-			Size: obj.Size,
-			ID:   shardID,
-		}
-		err := api.rpcClient.Call("",
-			"Cluster",
-			"ShardAddNode",
-			nodeS,
-			&struct{}{})
-		if err != nil {
-			// TODO: even more important than in local add,
-			// we should think about the best way to handle this
-			// as we may not want to halt sharding with one error.
-			// Retry? Carry on with missing information? Get user
-			// feedback?
-			logger.Error(err)
-			sendErrorResponse(w, 500, "error adding block to shard")
-			return err
-		}
-	}
-	// Last node of final shard may not have pushed over the threshold,
-	// force clusterDAG serialization and cluster pin tracking
-	err := api.rpcClient.Call("",
-		"Cluster",
-		"ShardFinalize",
-		shardID,
-		&struct{}{})
-	if err != nil {
-		logger.Error(err)
-		sendErrorResponse(w, 500, "error flushing final shard")
-		return err
-	}
-	return nil
 }
 
 func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
@@ -683,21 +685,21 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	progress, _ := strconv.ParseBool(queryValues.Get("progress"))
 	hidden, _ := strconv.ParseBool(queryValues.Get("hidden"))
 	silent, _ := strconv.ParseBool(queryValues.Get("silent")) // just print root hash
-	printChan, outChan, errChan := importer.ToChannel2(ctx, f, progress,
+	printChan, outChan, errChan := importer.ToChannel(ctx, f, progress,
 		hidden, trickle, raw, silent, wrap, chunker)
 
 	shard := queryValues.Get("shard")
 	//	quiet := queryValues.Get("quiet") // just print hashes, no meta data
 
 	if shard == "true" {
-		if err := api.addShardedFile(ctx, outChan, w); err != nil {
-			return
+		if err := api.consumeImport(ctx, outChan, printChan, errChan,
+			w, api.consumeShardAdd, api.finishShardAdd); err != nil {
+			panic(err)
 		}
-		sendAcceptedResponse(w, nil)
 	} else {
 		if err := api.consumeImport(ctx, outChan, printChan, errChan,
-			w); err != nil {
-			return
+			w, api.consumeLocalAdd, api.finishLocalAdd); err != nil {
+			panic(err)
 		}
 	}
 }
