@@ -673,6 +673,7 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	queryValues := r.URL.Query()
 	name := queryValues.Get("name")
 	pin.Name = name
+	pin.Recursive = true // For now all CLI pins are recursive
 	rplStr := queryValues.Get("replication_factor")
 	rplStrMin := queryValues.Get("replication_factor_min")
 	rplStrMax := queryValues.Get("replication_factor_max")

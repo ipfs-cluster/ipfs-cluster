@@ -70,7 +70,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID() (api.IPFSID, error)
-	Pin(*cid.Cid) error
+	Pin(*cid.Cid, bool) error
 	Unpin(*cid.Cid) error
 	PinLsCid(*cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)
@@ -149,7 +149,7 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error)
+	Allocate(c *cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
 }
 
 // PeerMonitor is a component in charge of monitoring the peers in the cluster

@@ -80,7 +80,7 @@ func TestIPFSPin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(test.TestCid1)
-	err := ipfs.Pin(c)
+	err := ipfs.Pin(c, true)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}
@@ -93,7 +93,7 @@ func TestIPFSPin(t *testing.T) {
 	}
 
 	c2, _ := cid.Decode(test.ErrorCid)
-	err = ipfs.Pin(c2)
+	err = ipfs.Pin(c2, true)
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
@@ -108,7 +108,7 @@ func TestIPFSUnpin(t *testing.T) {
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
 	}
-	ipfs.Pin(c)
+	ipfs.Pin(c, true)
 	err = ipfs.Unpin(c)
 	if err != nil {
 		t.Error("expected success unpinning pinned cid")
@@ -122,7 +122,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 	c, _ := cid.Decode(test.TestCid1)
 	c2, _ := cid.Decode(test.TestCid2)
 
-	ipfs.Pin(c)
+	ipfs.Pin(c, true)
 	ips, err := ipfs.PinLsCid(c)
 	if err != nil || !ips.IsPinned() {
 		t.Error("c should appear pinned")
@@ -141,8 +141,8 @@ func TestIPFSPinLs(t *testing.T) {
 	c, _ := cid.Decode(test.TestCid1)
 	c2, _ := cid.Decode(test.TestCid2)
 
-	ipfs.Pin(c)
-	ipfs.Pin(c2)
+	ipfs.Pin(c, true)
+	ipfs.Pin(c2, true)
 	ipsMap, err := ipfs.PinLs("")
 	if err != nil {
 		t.Error("should not error")
@@ -589,7 +589,7 @@ func TestRepoSize(t *testing.T) {
 	}
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = ipfs.Pin(c)
+	err = ipfs.Pin(c, true)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}

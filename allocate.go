@@ -45,7 +45,7 @@ import (
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
 	// Figure out who is holding the CID
 	currentPin, _ := c.getCurrentPin(hash)
 	currentAllocs := currentPin.Allocations
@@ -56,6 +56,7 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 
 	currentMetrics := make(map[peer.ID]api.Metric)
 	candidatesMetrics := make(map[peer.ID]api.Metric)
+	priorityMetrics := make(map[peer.ID]api.Metric)
 
 	// Divide metrics between current and candidates.
 	for _, m := range metrics {
@@ -66,6 +67,8 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 			continue
 		case containsPeer(currentAllocs, m.Peer):
 			currentMetrics[m.Peer] = m
+		case containsPeer(prioritylist, m.Peer):
+			priorityMetrics[m.Peer] = m
 		default:
 			candidatesMetrics[m.Peer] = m
 		}
@@ -75,7 +78,8 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 		rplMin,
 		rplMax,
 		currentMetrics,
-		candidatesMetrics)
+		candidatesMetrics,
+		priorityMetrics)
 	if err != nil {
 		return newAllocs, err
 	}
@@ -136,7 +140,8 @@ func allocationError(hash *cid.Cid, needed, wanted int, candidatesValid []peer.I
 func (c *Cluster) obtainAllocations(
 	hash *cid.Cid,
 	rplMin, rplMax int,
-	currentValidMetrics, candidatesMetrics map[peer.ID]api.Metric) ([]peer.ID, error) {
+	currentValidMetrics, candidatesMetrics map[peer.ID]api.Metric,
+	priorityMetrics map[peer.ID]api.Metric) ([]peer.ID, error) {
 
 	// The list of peers in current
 	validAllocations := make([]peer.ID, 0, len(currentValidMetrics))
@@ -145,7 +150,7 @@ func (c *Cluster) obtainAllocations(
 	}
 
 	nCurrentValid := len(validAllocations)
-	nCandidatesValid := len(candidatesMetrics)
+	nCandidatesValid := len(candidatesMetrics) + len(priorityMetrics)
 	needed := rplMin - nCurrentValid // The minimum we need
 	wanted := rplMax - nCurrentValid // The maximum we want
 
@@ -170,6 +175,9 @@ func (c *Cluster) obtainAllocations(
 
 	if nCandidatesValid < needed { // not enough candidates
 		candidatesValid := []peer.ID{}
+		for k := range priorityMetrics {
+			candidatesValid = append(candidatesValid, k)
+		}
 		for k := range candidatesMetrics {
 			candidatesValid = append(candidatesValid, k)
 		}
@@ -181,7 +189,7 @@ func (c *Cluster) obtainAllocations(
 
 	// the allocator returns a list of peers ordered by priority
 	finalAllocs, err := c.allocator.Allocate(
-		hash, currentValidMetrics, candidatesMetrics)
+		hash, currentValidMetrics, candidatesMetrics, priorityMetrics)
 	if err != nil {
 		return nil, logError(err.Error())
 	}
