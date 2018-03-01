@@ -12,7 +12,7 @@ import (
 
 // ToChannel imports file to ipfs ipld nodes, outputting nodes on the
 // provided channel
-func ToChannel2(ctx context.Context, f files.File, progress bool, hidden bool,
+func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
 	trickle bool, raw bool, silent bool, wrap bool,
 	chunker string) (<-chan *api.AddedOutput, <-chan *api.NodeSerial, <-chan error) {
 
