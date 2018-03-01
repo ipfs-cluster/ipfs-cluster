@@ -134,7 +134,7 @@ func (c *Client) handleStreamResponse(resp *http.Response, obj interface{}) erro
 			// TODO more mature handling of printing: e.g. in another function / combine with existing printers
 			fmt.Printf("added %s %s\n", output.Hash, output.Name)
 		} else {
-			return errors.New(fmt.Sprintf("unexpected error code: %d", output.Code))
+			return fmt.Errorf("unexpected error code: %d", output.Code)
 		}
 	}
 }
