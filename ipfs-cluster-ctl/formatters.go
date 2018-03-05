@@ -20,6 +20,8 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.GlobalPinInfo).ToSerial())
 	case api.Pin:
 		jsonFormatPrint(resp.(api.Pin).ToSerial())
+	case api.AddedOutput:
+		jsonFormatPrint(resp.(api.AddedOutput))
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
 	case api.Error:
@@ -46,6 +48,9 @@ func jsonFormatObject(resp interface{}) {
 			serials[i] = item.ToSerial()
 		}
 		jsonFormatPrint(serials)
+	case []api.AddedOutput:
+		serials := resp.([]api.AddedOutput)
+		jsonFormatPrint(serials)
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -70,6 +75,9 @@ func textFormatObject(resp interface{}) {
 	case api.Pin:
 		serial := resp.(api.Pin).ToSerial()
 		textFormatPrintPin(&serial)
+	case api.AddedOutput:
+		serial := resp.(api.AddedOutput)
+		textFormatPrintAddedOutput(&serial)
 	case api.Version:
 		serial := resp.(api.Version)
 		textFormatPrintVersion(&serial)
@@ -80,13 +88,16 @@ func textFormatObject(resp interface{}) {
 		for _, item := range resp.([]api.ID) {
 			textFormatObject(item)
 		}
-
 	case []api.GlobalPinInfo:
 		for _, item := range resp.([]api.GlobalPinInfo) {
 			textFormatObject(item)
 		}
 	case []api.Pin:
 		for _, item := range resp.([]api.Pin) {
+			textFormatObject(item)
+		}
+	case []api.AddedOutput:
+		for _, item := range resp.([]api.AddedOutput) {
 			textFormatObject(item)
 		}
 	default:
@@ -169,6 +180,12 @@ func textFormatPrintPin(obj *api.PinSerial) {
 		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s\n",
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
+	}
+}
+
+func textFormatPrintAddedOutput(obj *api.AddedOutput) {
+	if obj.Hash != "" {
+		fmt.Printf("adding %s %s\n", obj.Hash, obj.Name)
 	}
 }
 

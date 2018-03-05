@@ -371,19 +371,16 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
-func (api *API) consumeLocalAdd(args map[string]string, outObj *types.NodeSerial) error {
+func (api *API) consumeLocalAdd(args map[string]string, outObj *types.NodeWithMeta) error {
 	//TODO: when ipfs add starts supporting formats other than
 	// v0 (v1.cbor, v1.protobuf) we'll need to update this
-	b := types.BlockWithFormat{
-		Data:   outObj.Data,
-		Format: "",
-	}
+	outObj.Format = ""
 	args["cid"] = outObj.Cid // root node stored on last call
 	var hash string
 	err := api.rpcClient.Call("",
 		"Cluster",
 		"IPFSBlockPut",
-		b,
+		*outObj,
 		&hash)
 	if outObj.Cid != hash {
 		logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
@@ -396,24 +393,20 @@ func (api *API) finishLocalAdd(args map[string]string) error {
 	return nil
 }
 
-func (api *API) consumeShardAdd(args map[string]string, outObj *types.NodeSerial) error {
+func (api *API) consumeShardAdd(args map[string]string, outObj *types.NodeWithMeta) error {
 	var shardID string
 	shardID, ok := args["id"]
-	if !ok {
-		shardID = randStringRunes(45)
-		args["id"] = shardID
-	}
-	nodeS := types.ShardNodeSerial{
-		Cid:  outObj.Cid,
-		Data: outObj.Data,
-		Size: outObj.Size,
-		ID:   shardID,
-	}
-	return api.rpcClient.Call("",
+	outObj.ID = shardID
+	var retStr string
+	err := api.rpcClient.Call("",
 		"Cluster",
-		"ShardAddNode",
-		nodeS,
-		&struct{}{})
+		"SharderAddNode",
+		*outObj,
+		&retStr)
+	if !ok {
+		args["id"] = retStr
+	}
+	return err
 }
 
 func (api *API) finishShardAdd(args map[string]string) error {
@@ -421,16 +414,16 @@ func (api *API) finishShardAdd(args map[string]string) error {
 	if !ok {
 		return errors.New("bad state: shardID passed incorrectly")
 	}
-	return api.rpcClient.Call("", "Cluster", "ShardFinalize", shardID,
+	return api.rpcClient.Call("", "Cluster", "SharderFinalize", shardID,
 		&struct{}{})
 }
 
 func (api *API) consumeImport(ctx context.Context,
-	outChan <-chan *types.NodeSerial,
+	outChan <-chan *types.NodeWithMeta,
 	printChan <-chan *types.AddedOutput,
 	errChan <-chan error,
 	w http.ResponseWriter,
-	consume func(map[string]string, *types.NodeSerial) error,
+	consume func(map[string]string, *types.NodeWithMeta) error,
 	finish func(map[string]string) error) error {
 	var err error
 	openChs := 3
@@ -548,7 +541,11 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	queryValues := r.URL.Query()
-	trickle, _ := strconv.ParseBool(queryValues.Get("trickle"))
+	layout := queryValues.Get("layout")
+	trickle := false
+	if layout == "trickle" {
+		trickle = true
+	}
 	chunker := queryValues.Get("chunker")
 	raw, _ := strconv.ParseBool(queryValues.Get("raw"))
 	wrap, _ := strconv.ParseBool(queryValues.Get("wrap"))
