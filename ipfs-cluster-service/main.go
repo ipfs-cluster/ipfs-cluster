@@ -29,7 +29,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/shard"
+	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -606,7 +606,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
-	shardCfg := &shard.Config{}
+	shardCfg := &sharder.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
@@ -652,7 +652,7 @@ func initializeCluster(ctx context.Context, c *cli.Context, cfgs *cfgs) (*ipfscl
 	checkErr("creating Monitor component", err)
 	informer, alloc := setupAllocation(c.GlobalString("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
-	sharder, err := shard.NewSharder()
+	sharder, err := sharder.NewSharder()
 	checkErr("creating shard component", err)	
 
 	return ipfscluster.NewCluster(

@@ -1,4 +1,4 @@
-package shard
+package sharder
 
 import (
 	"errors"
@@ -10,6 +10,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
+	uuid "github.com/satori/go.uuid"
 )
 
 var logger = logging.Logger("sharder")
@@ -63,15 +64,17 @@ func (s *Sharder) Shutdown() error {
 // complete
 type shardObj map[string]*cid.Cid
 
+// TODO: decide on whether this is worth including
+// see clusterDAG.go:byteCount for more thoughts on this
 // metaDataBytes tracks the number of bytes in the serialized cluster
 // DAG node used to track this shard.  As this is called to determine
 // whether a new links can be added, metaDataBytes takes into account
 // the bytes that would be added with a new link added to the shard node
-func (s *sessionState) metaDataBytes() uint64 {
+/*func (s *sessionState) metaDataBytes() uint64 {
 	current := byteCount(s.currentShard)
 	new := deltaByteCount(s.currentShard)
 	return current + new
-}
+}*/
 
 // getAssignment returns the pid of a cluster peer that will allocate space
 // for a new shard, along with a byte threshold determining the max size of
@@ -171,12 +174,20 @@ func (s *Sharder) initShard() error {
 
 // AddNode includes the provided node into a shard in the cluster DAG
 // that tracks this node's graph
-func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string) error {
+func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string) (string, error) {
+	if id == "" {
+		u, err := uuid.NewV4()
+		if err != nil {
+			return id, err
+		}
+		id = u.String()
+	}
 	s.currentID = id
 	c, err := cid.Decode(cidserial)
 	if err != nil {
-		return err
+		return id, err
 	}
+	blockSize := uint64(len(data))
 
 	logger.Debug("adding node to shard")
 	// Sharding session for this file is uninit
@@ -190,17 +201,18 @@ func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string)
 		if err := s.initShard(); err != nil {
 			logger.Debug("Error initializing shard")
 			delete(s.idToSession, id) // never map to uninit session
-			return err
+			return id, err
 		}
 		session = s.idToSession[id]
 	} else { // Data exceeds shard threshold, flush and start a new shard
-		if session.byteCount+size+session.metaDataBytes() > session.byteThreshold {
+		// TODO: evaluate whether we should count metadata bytes here too
+		if session.byteCount+blockSize > session.byteThreshold {
 			logger.Debug("shard at capacity, pin cluster DAG node")
 			if err := s.flush(); err != nil {
-				return err
+				return id, err
 			}
 			if err := s.initShard(); err != nil {
-				return err
+				return id, err
 			}
 		}
 	}
@@ -221,12 +233,12 @@ func (s *Sharder) AddNode(size uint64, data []byte, cidserial string, id string)
 	if c.Prefix().Version == 0 {
 		format = "v0"
 	}
-	b := api.BlockWithFormat{
+	b := api.NodeWithMeta{
 		Data:   data,
 		Format: format,
 	}
 	var retStr string
-	return s.rpcClient.Call(session.assignedPeer, "Cluster", "IPFSBlockPut",
+	return id, s.rpcClient.Call(session.assignedPeer, "Cluster", "IPFSBlockPut",
 		b, &retStr)
 }
 
@@ -252,7 +264,7 @@ func (s *Sharder) Finalize(id string) error {
 
 	for _, shardRoot := range shardRootNodes {
 		// block put the cluster DAG root nodes in local node
-		b := api.BlockWithFormat{
+		b := api.NodeWithMeta{
 			Data:   shardRoot.RawData(),
 			Format: "cbor",
 		}
@@ -296,7 +308,7 @@ func (s *Sharder) flush() error {
 	for _, shardNode := range shardNodes {
 		logger.Debugf("The dag cbor Node Links: %v", shardNode.Links())
 		var retStr string
-		b := api.BlockWithFormat{
+		b := api.NodeWithMeta{
 			Data:   shardNode.RawData(),
 			Format: "cbor",
 		}

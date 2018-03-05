@@ -16,7 +16,7 @@ var errUninit = errors.New("DAGService output channel uninitialized")
 // outDAGService will "add" a node by sending through the outChan
 type outDAGService struct {
 	membership map[string]struct{}
-	outChan    chan<- *api.NodeSerial
+	outChan    chan<- *api.NodeWithMeta
 }
 
 // Get always returns errNotFound
@@ -49,7 +49,7 @@ func (ods *outDAGService) Add(ctx context.Context, node ipld.Node) error {
 	if err != nil {
 		return err
 	}
-	nodeSerial := api.NodeSerial{
+	nodeSerial := api.NodeWithMeta{
 		Cid:  id,
 		Data: node.RawData(),
 		Size: size,

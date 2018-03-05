@@ -14,11 +14,11 @@ import (
 // provided channel
 func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
 	trickle bool, raw bool, silent bool, wrap bool,
-	chunker string) (<-chan *api.AddedOutput, <-chan *api.NodeSerial, <-chan error) {
+	chunker string) (<-chan *api.AddedOutput, <-chan *api.NodeWithMeta, <-chan error) {
 
 	printChan := make(chan *api.AddedOutput)
 	errChan := make(chan error)
-	outChan := make(chan *api.NodeSerial)
+	outChan := make(chan *api.NodeWithMeta)
 
 	dserv := &outDAGService{
 		membership: make(map[string]struct{}),

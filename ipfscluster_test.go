@@ -20,7 +20,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/shard"
+	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -123,7 +123,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
 	checkErr(t, err)
-	sharder, err := shard.NewSharder(sharderCfg)
+	sharder, err := sharder.NewSharder(sharderCfg)
 	checkErr(t, err)
 
 	return clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock
