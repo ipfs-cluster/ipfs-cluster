@@ -1,4 +1,4 @@
-package shard
+package sharder
 
 // clusterdag.go defines functions for handling edge cases where clusterDAG
 // metadata for a single shard cannot fit within a single shard node.  We
@@ -26,11 +26,13 @@ import (
 const MaxLinks = 5984
 const fixedPerLink = 40
 
-// makeDAG parses a shardObj tracking links in a shardNode to a shardNode that
-// carries links to all data nodes that this shard tracks.  In general the
-// shardNode may exceed the capacity of an ipfs block and will be split into
-// an indirect shardNode and shardNode leaves.  The head of the output slice
-// is always the ipld node that should be recursively pinned to track the shard
+// makeDAG parses a shardObj which stores all of the node-links a shardDAG
+// is responsible for tracking.  In general a single node of links may exceed
+// the capacity of an ipfs block.  In this case an indirect node in the
+// shardDAG is constructed that references "leaf shardNodes" that themselves
+// carry links to the data nodes being tracked. The head of the output slice
+// is always the root of the shardDAG, i.e. the ipld node that should be
+// recursively pinned to track the shard
 func makeDAG(obj shardObj) ([]ipld.Node, error) {
 	// No indirect node
 	if len(obj) <= MaxLinks {
@@ -42,15 +44,15 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 		return []ipld.Node{node}, err
 	}
 	// Indirect node required
-	nodes := make([]ipld.Node, 1)
-	indirectObj := make(map[string]*cid.Cid)
-	q := len(obj) / MaxLinks
-	for i := 0; i <= q; i++ {
+	leafNodes := make([]ipld.Node, 0)        // shardNodes with links to data
+	indirectObj := make(map[string]*cid.Cid) // shardNode with links to shardNodes
+	numFullLeaves := len(obj) / MaxLinks
+	for i := 0; i <= numFullLeaves; i++ {
 		leafObj := make(map[string]*cid.Cid)
 		for j := 0; j < MaxLinks; j++ {
 			c, ok := obj[fmt.Sprintf("%d", i*MaxLinks+j)]
 			if !ok { // finished with this leaf before filling all the way
-				if i != q {
+				if i != numFullLeaves {
 					panic("bad state, should never be here")
 				}
 				break
@@ -63,21 +65,25 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 			return nil, err
 		}
 		indirectObj[fmt.Sprintf("%d", i)] = leafNode.Cid()
-		nodes = append(nodes, leafNode)
+		leafNodes = append(leafNodes, leafNode)
 	}
 	indirectNode, err := cbor.WrapObject(indirectObj, mh.SHA2_256,
 		mh.DefaultLengths[mh.SHA2_256])
 	if err != nil {
 		return nil, err
 	}
-	nodes[0] = indirectNode
+	nodes := append([]ipld.Node{indirectNode}, leafNodes...)
 	return nodes, nil
-
 }
 
+//TODO: decide whether this is worth including.  Is precision important for
+// most usecases?  Is being a little over the shard size a serious problem?
+// Is precision worth the cost to maintain complex accounting for metadata
+// size (cid sizes will vary in general, cluster dag cbor format may
+// grow to vary unpredictably in size)
 // byteCount returns the number of bytes the shardObj will occupy when
 //serialized into an ipld DAG
-func byteCount(obj shardObj) uint64 {
+/*func byteCount(obj shardObj) uint64 {
 	// 1 byte map overhead
 	// for each entry:
 	//    1 byte indicating text
@@ -134,3 +140,4 @@ func deltaByteCount(obj shardObj) uint64 {
 	}
 	return count
 }
+*/

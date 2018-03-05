@@ -629,27 +629,13 @@ type AddedOutput struct {
 	Size  string `json:",omitempty"`
 }
 
-// NodeSerial encodes info necessary to add an IPFS Block. This includes the
-// cid, data, and size
-type NodeSerial struct {
-	Cid  string
-	Data []byte
-	Size uint64
-}
-
-// ShardNodeSerial encodes the info necessary to add an IPFS Block to a sharded
-// file.  This includes the serialized node and a sharding ID.
-type ShardNodeSerial struct {
-	Cid  string
-	Data []byte
-	Size uint64
-	ID   string
-}
-
-// BlockWithFormat specifies a block of data and how it should be
-// formatted.  An empty format string will be interpreted as "v0".
-type BlockWithFormat struct {
+// NodeWithMeta specifies a block of data and a set of optional metadata fields
+// carrying information about the encoded ipld node
+type NodeWithMeta struct {
 	Data   []byte
+	Cid    string
+	Size   uint64
+	ID     string
 	Format string
 }
 
@@ -664,9 +650,6 @@ type AllocateInfo struct {
 // GetCid decodes the cid string within AllocateInfo.  If the cid string is ""
 // then GetCid returns nil
 func (aI *AllocateInfo) GetCid() *cid.Cid {
-	if aI.Cid == "" {
-		return nil
-	}
 	// Ignoring decoding errors
 	c, _ := cid.Decode(aI.Cid)
 	return c

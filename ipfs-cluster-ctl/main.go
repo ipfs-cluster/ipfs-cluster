@@ -209,13 +209,13 @@ is also TODO
 					Name:  "silent",
 					Usage: "write no output",
 				},
-				cli.BoolFlag{
-					Name:  "trickle, t",
-					Usage: "use trickle dag layout for dag generation",
+				cli.StringFlag{
+					Name:  "layout, L",
+					Usage: "Dag layout to use for dag generation.  Currently 'trickle' is the only option supported",
 				},
 				cli.StringFlag{
 					Name:  "chunker, s",
-					Usage: "Chunking algorithm to use",
+					Usage: "Chunking algorithm to use. Either fixed block size: 'size-<size>', or rabin chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'",
 				},
 				cli.BoolFlag{
 					Name:  "raw-leaves",
@@ -243,15 +243,13 @@ is also TODO
 				// Files are all opened but not read until they are sent.
 				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
 				checkErr("serializing all files", err)
-				cerr := globalClient.AddMultiFile(multiFileR,
+				resp, cerr := globalClient.AddMultiFile(multiFileR,
 					c.Bool("shard"), c.Bool("quiet"),
-					c.Bool("silent"), c.Bool("trickle"),
+					c.Bool("silent"), c.String("layout"),
 					c.String("chunker"),
 					c.Bool("raw-leaves"), c.Bool("wrap"),
 					c.Bool("progress"), c.Bool("hidden"))
-				if cerr != nil {
-					formatResponse(c, nil, cerr)
-				}
+				formatResponse(c, resp, cerr)
 				return nil
 			},
 		},

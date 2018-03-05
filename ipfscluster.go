@@ -91,7 +91,7 @@ type IPFSConnector interface {
 	// by "repo stat".
 	RepoSize() (uint64, error)
 	// BlockPut directly adds a block of data to the IPFS repo
-	BlockPut(api.BlockWithFormat) (string, error)
+	BlockPut(api.NodeWithMeta) (string, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
@@ -183,6 +183,6 @@ type PeerMonitor interface {
 // distributed among the cluster
 type Sharder interface {
 	Component
-	AddNode(size uint64, data []byte, c string, id string) error
+	AddNode(size uint64, data []byte, c string, id string) (string, error)
 	Finalize(id string) error
 }
