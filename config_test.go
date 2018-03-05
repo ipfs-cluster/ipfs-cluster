@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/shard"
+	"github.com/ipfs/ipfs-cluster/sharder"
 )
 
 var testingClusterSecret, _ = DecodeClusterSecret("2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed")
@@ -82,7 +82,7 @@ var testingSharderCfg = []byte(`{
     "alloc_size": 5000000
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *shard.Config) {
+func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *sharder.Config) {
 	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, sharderCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
@@ -96,7 +96,7 @@ func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *m
 	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, sharderCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *shard.Config) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *sharder.Config) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
@@ -104,7 +104,7 @@ func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Confi
 	trackerCfg := &maptracker.Config{}
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
-	sharderCfg := &shard.Config{}
+	sharderCfg := &sharder.Config{}
 	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, sharderCfg
 }
 

@@ -28,7 +28,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/shard"
+	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -469,7 +469,7 @@ func daemon(c *cli.Context) error {
 	checkErr("creating Monitor component", err)
 	informer, alloc := setupAllocation(c.String("alloc"), diskInfCfg, numpinInfCfg)
 
-	sharder, err := shard.NewSharder(shardCfg)
+	sharder, err := sharder.NewSharder(shardCfg)
 	checkErr("creating shard component", err)
 
 	cluster, err := ipfscluster.NewCluster(
@@ -588,7 +588,7 @@ func yesNoPrompt(prompt string) bool {
 	return false
 }
 
-func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config, *shard.Config) {
+func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config, *sharder.Config) {
 	cfg := config.NewManager()
 	clusterCfg := &ipfscluster.Config{}
 	apiCfg := &rest.Config{}
@@ -598,7 +598,7 @@ func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshtt
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
-	shardCfg := &shard.Config{}
+	shardCfg := &sharder.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)

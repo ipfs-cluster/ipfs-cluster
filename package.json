@@ -88,6 +88,12 @@
       "hash": "Qme5bWv7wtjUNGsK2BNGVUFPKiuxWrsqrtvYwCLRw8YFES",
       "name": "go-ipld-format",
       "version": "0.5.3"
+    },
+    {
+      "author": "satori",
+      "hash": "QmcBWojPoNh4qm7zvv4qiepvCnnc7ALS9qcp7TNwwxT1gT",
+      "name": "go.uuid",
+      "version": "1.1.0"
     }
   ],
   "gxVersion": "0.11.0",

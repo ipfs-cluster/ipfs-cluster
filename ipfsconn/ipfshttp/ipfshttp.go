@@ -884,7 +884,7 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 
 // BlockPut triggers an ipfs block put on the given data, inserting the block
 // into the ipfs daemon's repo.
-func (ipfs *Connector) BlockPut(b api.BlockWithFormat) (string, error) {
+func (ipfs *Connector) BlockPut(b api.NodeWithMeta) (string, error) {
 	r := ioutil.NopCloser(bytes.NewReader(b.Data))
 	rFile := files.NewReaderFile("", "", r, nil)
 	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory

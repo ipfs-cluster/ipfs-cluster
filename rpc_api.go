@@ -327,7 +327,7 @@ func (rpcapi *RPCAPI) IPFSSwarmPeers(in struct{}, out *api.SwarmPeersSerial) err
 }
 
 // IPFSBlockPut runs IPFSConnector.BlockPut().
-func (rpcapi *RPCAPI) IPFSBlockPut(in api.BlockWithFormat, out *string) error {
+func (rpcapi *RPCAPI) IPFSBlockPut(in api.NodeWithMeta, out *string) error {
 	res, err := rpcapi.c.ipfs.BlockPut(in)
 	*out = res
 	return err
@@ -370,13 +370,15 @@ func (rpcapi *RPCAPI) ConsensusPeers(in struct{}, out *[]peer.ID) error {
    Sharder methods
 */
 
-// ShardAddNode runs Sharder.AddNode(node).
-func (rpcapi *RPCAPI) ShardAddNode(in api.ShardNodeSerial, out *struct{}) error {
-	return rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
+// SharderAddNode runs Sharder.AddNode(node).
+func (rpcapi *RPCAPI) SharderAddNode(in api.NodeWithMeta, out *string) error {
+	shardID, err := rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
+	*out = shardID
+	return err
 }
 
-// ShardFinalize runs Sharder.Finalize().
-func (rpcapi *RPCAPI) ShardFinalize(in string, out *struct{}) error {
+// SharderFinalize runs Sharder.Finalize().
+func (rpcapi *RPCAPI) SharderFinalize(in string, out *struct{}) error {
 	return rpcapi.c.sharder.Finalize(in)
 }
 

@@ -69,10 +69,10 @@ func (c *Client) doStreamRequest(method, path string, body io.Reader, headers ma
 	return c.client.Do(r)
 }
 
-func (c *Client) doStream(method, path string, body io.Reader, headers map[string]string, obj interface{}) error {
+func (c *Client) doStream(method, path string, body io.Reader, headers map[string]string, obj interface{}) ([]api.AddedOutput, error) {
 	resp, err := c.doStreamRequest(method, path, body, headers)
 	if err != nil {
-		return &api.Error{Code: 0, Message: err.Error()}
+		return nil, &api.Error{Code: 0, Message: err.Error()}
 	}
 	return c.handleStreamResponse(resp, obj)
 }
@@ -114,27 +114,30 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	return nil
 }
 
-func (c *Client) handleStreamResponse(resp *http.Response, obj interface{}) error {
+func (c *Client) handleStreamResponse(resp *http.Response, obj interface{}) ([]api.AddedOutput, error) {
 	// Read body until a termination signal (status code != 0)
+	outputs := make([]api.AddedOutput, 0)
 	dec := json.NewDecoder(resp.Body)
 	for {
 		var output api.AddedOutput
 		err := dec.Decode(&output)
+		outputs = append(outputs, output)
 		if err != nil {
-			fmt.Printf("error on decode\n")
-			return err
+			logger.Debugf("error on decode")
+			return outputs, err
 		}
 		if output.Code == 1 {
-			return errors.New(output.Message)
+			return outputs, errors.New(output.Message)
 		} else if output.Code == 2 {
 			// All done
-			fmt.Printf("Transmission complete")
-			return nil
+			logger.Debugf("add output transfer complete")
+			return outputs, nil
 		} else if output.Code == 0 {
 			// TODO more mature handling of printing: e.g. in another function / combine with existing printers
-			fmt.Printf("added %s %s\n", output.Hash, output.Name)
+			continue
 		} else {
-			return fmt.Errorf("unexpected error code: %d", output.Code)
+			return outputs, fmt.Errorf("unexpected error code: %d", output.Code)
 		}
 	}
+	return outputs, nil
 }
