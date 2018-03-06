@@ -29,7 +29,7 @@ This guide aims to collect useful considerations and information for running an 
 * [The main README](../README.md)
 * [The `ipfs-cluster-service` README](../ipfs-cluster-service/dist/README.md)
 * [The `ipfs-cluster-ctl` README](../ipfs-cluster-ctl/dist/README.md)
-* [The "How to Build and Update a Cluster" guide](../HOWTO_build_and_update_a_cluster.md)
+* [The "How to Build and Update a Cluster" guide](HOWTO_build_and_update_a_cluster.md)
 * [ipfs-cluster architecture overview](../architecture.md)
 * [Godoc documentation for ipfs-cluster](https://godoc.org/github.com/ipfs/ipfs-cluster)
 
