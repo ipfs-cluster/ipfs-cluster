@@ -712,7 +712,7 @@ func TestBlockPut(t *testing.T) {
 	defer ipfs.Shutdown()
 
 	data := []byte(test.TestCid4Data)
-	resp, err := ipfs.BlockPut(api.BlockWithFormat{
+	resp, err := ipfs.BlockPut(api.NodeWithMeta{
 		Data:   data,
 		Format: "protobuf",
 	})
