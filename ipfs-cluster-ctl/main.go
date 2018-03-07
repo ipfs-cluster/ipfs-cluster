@@ -155,11 +155,12 @@ requires authorization. implies --https, which you can disable with --force-http
 			Name:  "add",
 			Usage: "ipfs-cluster-ctl add <path> ... add a file to ipfs via cluster",
 			Description: `
-Only works with file paths, no directories.  Recurisive adding not yet supported.  --shard flag not
-yet supported.  Eventually users would use this endpoint if they want the file to be sharded across the cluster.
-This is useful in the case several ipfs peers want to ingest the file and combined have enough space
-to host but no single peer's repo has the capacity for the entire file.  No stdin reading yet either, that
-is also TODO
+Only works with file paths, no directories.  Recurisive adding not yet 
+supported.  --shard flag not yet supported.  Eventually users would use this 
+endpoint if they want the file to be sharded across the cluster. This is useful
+in the case several ipfs peers want to ingest the file and combined have enough
+space to host but no single peer's repo has the capacity for the entire file.
+No stdin reading yet either, that is also TODO
 `,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
@@ -179,12 +180,14 @@ is also TODO
 					Usage: "write no output",
 				},
 				cli.StringFlag{
-					Name:  "layout, L",
-					Usage: "Dag layout to use for dag generation.  Currently 'trickle' is the only option supported",
+					Name: "layout, L",
+					Usage: `Dag layout to use for dag generation.  Currently 'trickle' is the only option
+supported`,
 				},
 				cli.StringFlag{
-					Name:  "chunker, s",
-					Usage: "Chunking algorithm to use. Either fixed block size: 'size-<size>', or rabin chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'",
+					Name: "chunker, s",
+					Usage: `Chunking algorithm to use. Either fixed block size: 'size-<size>', or rabin 
+chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 				},
 				cli.BoolFlag{
 					Name:  "raw-leaves",
