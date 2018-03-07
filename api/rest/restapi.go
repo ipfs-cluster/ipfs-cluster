@@ -22,7 +22,7 @@ import (
 	"time"
 
 	types "github.com/ipfs/ipfs-cluster/api"
-	importer "github.com/ipfs/ipfs-cluster/ipld-importer"
+	"github.com/ipfs/ipfs-cluster/importer"
 
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"

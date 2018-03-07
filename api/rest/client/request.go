@@ -139,5 +139,4 @@ func (c *Client) handleStreamResponse(resp *http.Response, obj interface{}) ([]a
 			return outputs, fmt.Errorf("unexpected error code: %d", output.Code)
 		}
 	}
-	return outputs, nil
 }
