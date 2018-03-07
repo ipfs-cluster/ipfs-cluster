@@ -49,7 +49,8 @@ func DefaultJSONMarshal(v interface{}) ([]byte, error) {
 	return bs, nil
 }
 
-// SetIfNotDefault dest to the value of src if src is not the default value.
+// SetIfNotDefault sets dest to the value of src if src is not the default
+// value of the type.
 // dest must be a pointer.
 func SetIfNotDefault(src interface{}, dest interface{}) {
 	switch src.(type) {

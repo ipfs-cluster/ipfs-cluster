@@ -99,6 +99,33 @@ func TestIPFSPin(t *testing.T) {
 	}
 }
 
+func TestIPFSPinRefs(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+
+	ipfs.config.PinMethod = "refs"
+
+	c, _ := cid.Decode(test.TestCid1)
+	err := ipfs.Pin(c)
+	if err != nil {
+		t.Error("expected success pinning cid")
+	}
+	pinSt, err := ipfs.PinLsCid(c)
+	if err != nil {
+		t.Fatal("expected success doing ls")
+	}
+	if !pinSt.IsPinned() {
+		t.Error("cid should have been pinned")
+	}
+
+	c2, _ := cid.Decode(test.ErrorCid)
+	err = ipfs.Pin(c2)
+	if err == nil {
+		t.Error("expected error pinning cid")
+	}
+}
+
 func TestIPFSUnpin(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()

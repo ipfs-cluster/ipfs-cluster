@@ -605,6 +605,16 @@ func (ipfs *Connector) Pin(hash *cid.Cid) error {
 		return err
 	}
 	if !pinStatus.IsPinned() {
+		switch ipfs.config.PinMethod {
+		case "refs":
+			path := fmt.Sprintf("refs?arg=%s&recursive=true", hash)
+			err := ipfs.postDiscardBody(path)
+			if err != nil {
+				return err
+			}
+			logger.Debugf("Refs for %s sucessfully fetched", hash)
+		}
+
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
 		_, err = ipfs.post(path)
 		if err == nil {
@@ -721,13 +731,42 @@ func (ipfs *Connector) post(path string) ([]byte, error) {
 			msg = fmt.Sprintf("IPFS unsuccessful: %d: %s",
 				res.StatusCode, ipfsErr.Message)
 		} else {
-			msg = fmt.Sprintf("IPFS-get '%s' unsuccessful: %d: %s",
+			msg = fmt.Sprintf("IPFS-post '%s' unsuccessful: %d: %s",
 				path, res.StatusCode, body)
 		}
 
 		return body, errors.New(msg)
 	}
 	return body, nil
+}
+
+// like post() but discarding the response body after reading it
+// useful for any responses that we have to wait for but are not interested
+// in parsing
+func (ipfs *Connector) postDiscardBody(path string) error {
+	logger.Debugf("posting and discarding body: %s", path)
+	url := fmt.Sprintf("%s/%s",
+		ipfs.apiURL(),
+		path)
+
+	res, err := http.Post(url, "", nil)
+	if err != nil {
+		logger.Error("error posting:", err)
+		return err
+	}
+	defer res.Body.Close()
+	_, err = io.Copy(ioutil.Discard, res.Body)
+	if err != nil {
+		logger.Errorf("error reading response body: %s", err)
+		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("IPFS-post '%s' unsuccessful: %d", path, res.StatusCode)
+		return errors.New(msg)
+	}
+
+	return nil
 }
 
 // apiURL is a short-hand for building the url of the IPFS

@@ -121,9 +121,21 @@ Each section of the configuration file and the options in it depend on their ass
       "proxy_read_timeout": "10m0s",                          // Here and below, timeouts for network operations
       "proxy_read_header_timeout": "5s",
       "proxy_write_timeout": "10m0s",
-      "proxy_idle_timeout": "1m0s"
+      "proxy_idle_timeout": "1m0s",
+      "pin_method": "pin"                                     // Supports "pin" and "refs". "refs" will fetch all deps before pinning.
+                                                              // Use refs when GC is disabled on ipfs.
+                                                              // Increase maptracker.concurrent_pins to take advantange of concurrency.
     }
   },
+  "pin_tracker": {
+    "maptracker": {
+      "pinning_timeout": "1h0m0s",                            // How long before we transition a pinning CID to error state
+      "unpinning_timeout": "5m0s",                            // How long before we transition an unpinning CID to error state
+      "max_pin_queue_size": 4096,                             // How many pins to hold in the pinning queue
+      "concurrent_pins": 1                                    // How many concurrent pin requests we can perform.
+                                                              // Useful with ipfshttp.pin_method set to "refs"
+    }
+  }
   "monitor": {
     "monbasic": {
       "check_interval": "15s"                                 // How often to check for expired alerts. See cluster monitoring section
