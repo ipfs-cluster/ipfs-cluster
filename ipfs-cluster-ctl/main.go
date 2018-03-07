@@ -268,6 +268,10 @@ peers should pin this content.
 							Value: "",
 							Usage: "Sets a name for this pin",
 						},
+						cli.BoolFlag{
+							Name:  "no-status, ns",
+							Usage: "Prevents fetching pin status after pinning (faster, quieter)",
+						},
 					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
@@ -287,9 +291,11 @@ peers should pin this content.
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-						time.Sleep(1000 * time.Millisecond)
-						resp, cerr := globalClient.Status(ci, false)
-						formatResponse(c, resp, cerr)
+						if !c.Bool("no-status") {
+							time.Sleep(1000 * time.Millisecond)
+							resp, cerr := globalClient.Status(ci, false)
+							formatResponse(c, resp, cerr)
+						}
 						return nil
 					},
 				},
@@ -305,7 +311,12 @@ in the cluster. The CID should disappear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
 					ArgsUsage: "<CID>",
-					Flags:     []cli.Flag{},
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "no-status, ns",
+							Usage: "Prevents fetching pin status after unpinning (faster, quieter)",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
@@ -315,9 +326,11 @@ although unpinning operations in the cluster may take longer or fail.
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-						time.Sleep(1000 * time.Millisecond)
-						resp, cerr := globalClient.Status(ci, false)
-						formatResponse(c, resp, cerr)
+						if !c.Bool("no-status") {
+							time.Sleep(1000 * time.Millisecond)
+							resp, cerr := globalClient.Status(ci, false)
+							formatResponse(c, resp, cerr)
+						}
 						return nil
 					},
 				},
