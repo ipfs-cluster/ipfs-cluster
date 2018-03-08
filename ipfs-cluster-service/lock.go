@@ -30,10 +30,10 @@ func (l *lock) lock() error {
 	if err != nil {
 		logger.Debug(err)
 		l.lockCloser = nil
-		errStr := `could not obtain execution lock.  If no other process
-is running, remove ~/path/to/lock, or make sure that the config folder is 
+		errStr := fmt.Sprintf(`could not obtain execution lock.  If no other process
+is running, remove %s, or make sure that the config folder is
 writable for the user running ipfs-cluster.  Run with -d for more information
-about the error`
+about the error`, path.Join(l.path, lockFileName))
 		logger.Error(errStr)
 		return fmt.Errorf("could not obtain execution lock")
 	}
