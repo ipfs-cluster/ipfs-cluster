@@ -14,7 +14,7 @@ import (
 
 // Configuration defaults
 var (
-	DefaultTimeout  = 60 * time.Second
+	DefaultTimeout  = 120 * time.Second
 	DefaultAPIAddr  = "/ip4/127.0.0.1/tcp/9094"
 	DefaultLogLevel = "info"
 )
