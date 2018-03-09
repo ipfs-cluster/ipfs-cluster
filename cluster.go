@@ -982,19 +982,15 @@ func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
 // Pin returns an error if the operation could not be persisted
 // to the global state. Pin does not reflect the success or failure
 // of underlying IPFS daemon pinning operations.
+//
+// If the argument's allocations are non-empty then these peers are pinned with
+// priority over other peers in the cluster.  If the max repl factor is less
+// than the size of the specified peerset then peers are chosen from this set
+// in allocation order.  If the min repl factor is greater than the size of 
+// this set then the remaining peers are allocated in order from the rest of
+// the cluster.  Priority allocations are best effort.  If any priority peers
+// are unavailable then Pin will simply allocate from the rest of the cluster.
 func (c *Cluster) Pin(pin api.Pin) error {
-	_, err := c.pin(pin, []peer.ID{}, []peer.ID{})
-	return err
-}
-
-// PinTo makes the cluster Pin a Cid as in Pin.  PinTo's argument already
-// contains a set of peers that should perform the pin.  If the max repl factor
-// is less than the size of the specified peerset then peers are chosen from
-// this set in allocation order.  If the min repl factor is greater than the
-// specified peerset then peers are allocated as in Pin.  PinTo is best effort.
-// If the peers selected for pinning are unavailable then PinTo will attempt to
-// allocate other peers and will not register an error.
-func (c *Cluster) PinTo(pin api.Pin) error {
 	_, err := c.pin(pin, []peer.ID{}, pin.Allocations)
 	return err
 }
