@@ -66,7 +66,7 @@ var testingTrackerCfg = []byte(`
       "pinning_timeout": "30s",
       "unpinning_timeout": "15s",
       "max_pin_queue_size": 4092,
-      "concurrent_pins": 1,
+      "concurrent_pins": 1
 }
 `)
 
