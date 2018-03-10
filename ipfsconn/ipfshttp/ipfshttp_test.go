@@ -75,10 +75,13 @@ func TestIPFSID(t *testing.T) {
 	}
 }
 
-func TestIPFSPin(t *testing.T) {
+func testPin(t *testing.T, method string) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
+
+	ipfs.config.PinMethod = method
+
 	c, _ := cid.Decode(test.TestCid1)
 	err := ipfs.Pin(c)
 	if err != nil {
@@ -97,6 +100,11 @@ func TestIPFSPin(t *testing.T) {
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
+}
+
+func TestIPFSPin(t *testing.T) {
+	t.Run("method=pin", func(t *testing.T) { testPin(t, "pin") })
+	t.Run("method=refs", func(t *testing.T) { testPin(t, "refs") })
 }
 
 func TestIPFSUnpin(t *testing.T) {

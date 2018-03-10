@@ -63,6 +63,11 @@ type mockAddResp struct {
 	Bytes uint64
 }
 
+type mockRefsResp struct {
+	Ref string
+	Err string
+}
+
 type mockSwarmPeersResp struct {
 	Peers []mockIpfsPeer
 }
@@ -247,6 +252,17 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			}{
 				StorageMax: "10G",
 			},
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "refs":
+		query := r.URL.Query()
+		arg, ok := query["arg"]
+		if !ok {
+			goto ERROR
+		}
+		resp := mockRefsResp{
+			Ref: arg[0],
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)

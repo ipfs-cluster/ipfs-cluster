@@ -7,15 +7,12 @@ for dir in $dirs;
 do
         if ls "$dir"/*.go &> /dev/null;
         then
+            cmdflags="-timeout 20m -v -coverprofile=profile.out -covermode=count $dir"
             if [ "$dir" == "." ]; then
-                set -x
-                go test -timeout 20m -v -coverprofile=profile.out -covermode=count "$dir" -loglevel "CRITICAL"
-                set +x
-            else
-                set -x
-                go test -timeout 20m -v -coverprofile=profile.out -covermode=count "$dir"
-                set +x
+                cmdflags="-timeout 20m -v -coverprofile=profile.out -covermode=count -loglevel CRITICAL ."
             fi
+            echo go test $cmdflags
+            go test $cmdflags
             if [ $? -ne 0 ];
             then
                 exit 1

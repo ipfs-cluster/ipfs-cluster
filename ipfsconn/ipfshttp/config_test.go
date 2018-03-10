@@ -13,7 +13,8 @@ var cfgJSON = []byte(`
       "proxy_read_timeout": "10m0s",
       "proxy_read_header_timeout": "5s",
       "proxy_write_timeout": "10m0s",
-      "proxy_idle_timeout": "1m0s"
+      "proxy_idle_timeout": "1m0s",
+      "pin_method": "pin"
 }
 `)
 
@@ -85,25 +86,25 @@ func TestDefault(t *testing.T) {
 	}
 
 	cfg.Default()
-	cfg.ProxyReadTimeout = 0
+	cfg.ProxyReadTimeout = -1
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyReadHeaderTimeout = 0
+	cfg.ProxyReadHeaderTimeout = -2
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyIdleTimeout = 0
+	cfg.ProxyIdleTimeout = -1
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyWriteTimeout = 0
+	cfg.ProxyWriteTimeout = -3
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}

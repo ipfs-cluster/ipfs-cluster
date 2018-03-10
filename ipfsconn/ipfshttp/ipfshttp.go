@@ -51,8 +51,9 @@ type Connector struct {
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	listener net.Listener
-	server   *http.Server
+	listener net.Listener // proxy listener
+	server   *http.Server // proxy server
+	client   *http.Client // client to ipfs daemon
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -136,6 +137,10 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	}
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
+	c := &http.Client{
+		Timeout: 0, // TODO: configurable?
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ipfs := &Connector{
@@ -147,6 +152,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		rpcReady: make(chan struct{}, 1),
 		listener: l,
 		server:   s,
+		client:   c,
 	}
 
 	smux.HandleFunc("/", ipfs.handle)
@@ -163,6 +169,11 @@ func NewConnector(cfg *Config) (*Connector, error) {
 // we receive the rpcReady signal.
 func (ipfs *Connector) run() {
 	<-ipfs.rpcReady
+
+	// Do not shutdown while launching threads
+	// -- prevents race conditions with ipfs.wg.
+	ipfs.shutdownLock.Lock()
+	defer ipfs.shutdownLock.Unlock()
 
 	// This launches the proxy
 	ipfs.wg.Add(1)
@@ -605,6 +616,16 @@ func (ipfs *Connector) Pin(hash *cid.Cid) error {
 		return err
 	}
 	if !pinStatus.IsPinned() {
+		switch ipfs.config.PinMethod {
+		case "refs":
+			path := fmt.Sprintf("refs?arg=%s&recursive=true", hash)
+			err := ipfs.postDiscardBody(path)
+			if err != nil {
+				return err
+			}
+			logger.Debugf("Refs for %s sucessfully fetched", hash)
+		}
+
 		path := fmt.Sprintf("pin/add?arg=%s", hash)
 		_, err = ipfs.post(path)
 		if err == nil {
@@ -692,17 +713,39 @@ func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
-// post performs the heavy lifting of a post request against
-// the IPFS daemon.
-func (ipfs *Connector) post(path string) ([]byte, error) {
+func doPost(client *http.Client, apiURL, path string) (*http.Response, error) {
 	logger.Debugf("posting %s", path)
-	url := fmt.Sprintf("%s/%s",
-		ipfs.apiURL(),
-		path)
+	url := fmt.Sprintf("%s/%s", apiURL, path)
 
-	res, err := http.Post(url, "", nil)
+	res, err := client.Post(url, "", nil)
 	if err != nil {
-		logger.Error("error posting:", err)
+		logger.Error("error posting to IPFS:", err)
+	}
+	return res, err
+}
+
+// checkResponse tries to parse an error message on non StatusOK responses
+// from ipfs.
+func checkResponse(path string, code int, body []byte) error {
+	if code == http.StatusOK {
+		return nil
+	}
+
+	var ipfsErr ipfsError
+
+	if body != nil && json.Unmarshal(body, &ipfsErr) == nil {
+		return fmt.Errorf("IPFS unsuccessful: %d: %s", code, ipfsErr.Message)
+	}
+	// No error response with useful message from ipfs
+	return fmt.Errorf("IPFS-post '%s' unsuccessful: %d: %s", path, code, body)
+}
+
+// post makes a POST request against
+// the ipfs daemon, reads the full body of the response and
+// returns it after checking for errors.
+func (ipfs *Connector) post(path string) ([]byte, error) {
+	res, err := doPost(ipfs.client, ipfs.apiURL(), path)
+	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -711,23 +754,22 @@ func (ipfs *Connector) post(path string) ([]byte, error) {
 		logger.Errorf("error reading response body: %s", err)
 		return nil, err
 	}
+	return body, checkResponse(path, res.StatusCode, body)
+}
 
-	var ipfsErr ipfsError
-	decodeErr := json.Unmarshal(body, &ipfsErr)
-
-	if res.StatusCode != http.StatusOK {
-		var msg string
-		if decodeErr == nil {
-			msg = fmt.Sprintf("IPFS unsuccessful: %d: %s",
-				res.StatusCode, ipfsErr.Message)
-		} else {
-			msg = fmt.Sprintf("IPFS-get '%s' unsuccessful: %d: %s",
-				path, res.StatusCode, body)
-		}
-
-		return body, errors.New(msg)
+// postDiscardBody makes a POST requests but discards the body
+// of the response directly after reading it.
+func (ipfs *Connector) postDiscardBody(path string) error {
+	res, err := doPost(ipfs.client, ipfs.apiURL(), path)
+	if err != nil {
+		return err
 	}
-	return body, nil
+	defer res.Body.Close()
+	_, err = io.Copy(ioutil.Discard, res.Body)
+	if err != nil {
+		return err
+	}
+	return checkResponse(path, res.StatusCode, nil)
 }
 
 // apiURL is a short-hand for building the url of the IPFS

@@ -15,6 +15,7 @@ const (
 	DefaultPinningTimeout   = 60 * time.Minute
 	DefaultUnpinningTimeout = 5 * time.Minute
 	DefaultMaxPinQueueSize  = 4096
+	DefaultConcurrentPins   = 1
 )
 
 // Config allows to initialize a Monitor and customize some parameters.
@@ -28,12 +29,17 @@ type Config struct {
 	// MaxPinQueueSize specifies how many pin or unpin requests we can hold in the queue
 	// If higher, they will automatically marked with an error.
 	MaxPinQueueSize int
+	// ConcurrentPins specifies how many pin requests can be sent to the ipfs
+	// daemon in parallel. If the pinning method is "refs", it might increase
+	// speed. Unpin requests are always processed one by one.
+	ConcurrentPins int
 }
 
 type jsonConfig struct {
 	PinningTimeout   string `json:"pinning_timeout"`
 	UnpinningTimeout string `json:"unpinning_timeout"`
 	MaxPinQueueSize  int    `json:"max_pin_queue_size"`
+	ConcurrentPins   int    `json:"concurrent_pins"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -46,6 +52,7 @@ func (cfg *Config) Default() error {
 	cfg.PinningTimeout = DefaultPinningTimeout
 	cfg.UnpinningTimeout = DefaultUnpinningTimeout
 	cfg.MaxPinQueueSize = DefaultMaxPinQueueSize
+	cfg.ConcurrentPins = DefaultConcurrentPins
 	return nil
 }
 
@@ -61,6 +68,10 @@ func (cfg *Config) Validate() error {
 	if cfg.MaxPinQueueSize <= 0 {
 		return errors.New("maptracker.max_pin_queue_size too low")
 	}
+
+	if cfg.ConcurrentPins <= 0 {
+		return errors.New("maptracker.concurrent_pins is too low")
+	}
 	return nil
 }
 
@@ -70,7 +81,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	jcfg := &jsonConfig{}
 	err := json.Unmarshal(raw, jcfg)
 	if err != nil {
-		logger.Error("Error unmarshaling basic monitor config")
+		logger.Error("Error unmarshaling maptracker config")
 		return err
 	}
 
@@ -89,6 +100,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	config.SetIfNotDefault(pinningTimeo, &cfg.PinningTimeout)
 	config.SetIfNotDefault(unpinningTimeo, &cfg.UnpinningTimeout)
 	config.SetIfNotDefault(jcfg.MaxPinQueueSize, &cfg.MaxPinQueueSize)
+	config.SetIfNotDefault(jcfg.ConcurrentPins, &cfg.ConcurrentPins)
 
 	return cfg.Validate()
 }
@@ -100,6 +112,7 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 	jcfg.PinningTimeout = cfg.PinningTimeout.String()
 	jcfg.UnpinningTimeout = cfg.UnpinningTimeout.String()
 	jcfg.MaxPinQueueSize = cfg.MaxPinQueueSize
+	jcfg.ConcurrentPins = cfg.ConcurrentPins
 
 	return config.DefaultJSONMarshal(jcfg)
 }

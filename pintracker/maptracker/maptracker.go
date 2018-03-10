@@ -62,7 +62,9 @@ func NewMapPinTracker(cfg *Config, pid peer.ID) *MapPinTracker {
 		pinCh:    make(chan api.Pin, cfg.MaxPinQueueSize),
 		unpinCh:  make(chan api.Pin, cfg.MaxPinQueueSize),
 	}
-	go mpt.pinWorker()
+	for i := 0; i < mpt.config.ConcurrentPins; i++ {
+		go mpt.pinWorker()
+	}
 	go mpt.unpinWorker()
 	return mpt
 }
