@@ -147,7 +147,7 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(c *cid.Cid, current, candidates map[peer.ID]api.Metric) ([]peer.ID, error)
+	Allocate(c *cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
 }
 
 // PeerMonitor is a component in charge of monitoring the peers in the cluster

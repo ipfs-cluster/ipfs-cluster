@@ -99,7 +99,7 @@ func Test(t *testing.T) {
 	alloc := &DescendAllocator{}
 	for i, tc := range testCases {
 		t.Logf("Test case %d", i)
-		res, err := alloc.Allocate(testCid, tc.current, tc.candidates)
+		res, err := alloc.Allocate(testCid, tc.current, tc.candidates, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
