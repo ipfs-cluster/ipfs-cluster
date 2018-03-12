@@ -74,12 +74,14 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 		}
 	}
 
-	newAllocs, err := c.obtainAllocations(hash,
+	newAllocs, err := c.obtainAllocations(
+		hash,
 		rplMin,
 		rplMax,
 		currentMetrics,
 		candidatesMetrics,
-		priorityMetrics)
+		priorityMetrics,
+	)
 	if err != nil {
 		return newAllocs, err
 	}
