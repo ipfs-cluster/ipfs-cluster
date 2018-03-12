@@ -57,11 +57,12 @@ func TestToChannel(t *testing.T) {
 
 	go func() { // listen on printChan so progress can be made
 		for {
-			_, ok := <-printChan
+			obj, ok := <-printChan
 			if !ok {
 				// channel closed, safe to exit
 				return
 			}
+			fmt.Printf("PrintObj -- Name: %s, Hash: %s \n", obj.Name, obj.Hash)
 		}
 	}()
 
@@ -78,6 +79,12 @@ func TestToChannel(t *testing.T) {
 
 	check := make(map[string]struct{})
 	for obj := range outChan {
+		if len(obj.Data) > 500 {
+			fmt.Printf("Long OutObj -- Hash: %s \n", obj.Cid)
+		} else {
+			fmt.Printf("Short OutObj -- Hash: %s, Data: %s \n", obj.Cid, obj.Data)
+		}
+
 		cid := obj.Cid
 		if _, ok := check[cid]; ok {
 			t.Fatalf("Duplicate cid %s", cid)
