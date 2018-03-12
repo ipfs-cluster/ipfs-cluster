@@ -51,7 +51,7 @@ func (ipfs *mockConnector) ID() (api.IPFSID, error) {
 	}, nil
 }
 
-func (ipfs *mockConnector) Pin(c *cid.Cid) error {
+func (ipfs *mockConnector) Pin(c *cid.Cid, b bool) error {
 	if ipfs.returnError {
 		return errors.New("")
 	}
