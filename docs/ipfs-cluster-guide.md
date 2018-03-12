@@ -433,6 +433,8 @@ This is usually the result of a desync between the *shared state* and the *local
 Since cluster is built on top of libp2p, many errors that new users face come from libp2p and have confusing messages which are not obvious at first sight. This list compiles some of them:
 
 * `dial attempt failed: misdial to <peer.ID XXXXXX> through ....`: this means that the multiaddress you are contacting has a different peer in it than expected.
-* `dial attempt failed: context deadline exceeded`: this means that the address is not reachable.
+* `dial attempt failed: connection refused`: the peer is not running or not listening on the expected address/protocol/port.
+* `dial attempt failed: context deadline exceeded`: this means that the address is not reachable or that the wrong secret is being used.
+* `dial backoff`: same as above.
 * `dial attempt failed: incoming message was too large`: this probably means that your cluster peers are not sharing the same secret.
 * `version not supported`: this means that your nodes are running different versions of raft/cluster.
