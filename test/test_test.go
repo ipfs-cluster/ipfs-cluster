@@ -39,11 +39,11 @@ func TestRPCMockValid(t *testing.T) {
 			t.Errorf("%s out param should be an error", name)
 		}
 
-		if nin := mType.NumIn(); nin != oType.NumIn() || nin != 3 {
-			t.Errorf("%s: num in parameter mismatch: %d vs. %d", name, nin, oType.NumIn())
+		if nin := mType.NumIn(); nin != oType.NumIn() || nin != 4 {
+			t.Fatalf("%s: num in parameter mismatch: %d vs. %d", name, nin, oType.NumIn())
 		}
 
-		for j := 1; j < 3; j++ {
+		for j := 1; j < 4; j++ {
 			mn := mType.In(j).String()
 			on := oType.In(j).String()
 			if mn != on {

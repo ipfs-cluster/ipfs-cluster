@@ -15,21 +15,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmefgzMbKZYsmHFkLqxgaTBG9ypeEjrdWRD5WXH4j1cWDL",
+      "hash": "QmNh1kGFFdsPu79KNSaL4NUKUPb4Eiz4KHdMtFY6664RDp",
       "name": "go-libp2p",
-      "version": "5.0.5"
+      "version": "5.0.14"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSzULQiTbMnt36oxzdaUUomNuTHwXa1DvnyM8o7ogJ7Hb",
+      "hash": "QmeQA8UUz7MFqhJfEbo7MphMaSBnBcid4ByBECLcZakTtJ",
       "name": "go-libp2p-raft",
-      "version": "1.2.0"
-    },
-    {
-      "author": "whyrusleeping",
-      "hash": "QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ",
-      "name": "go-cid",
-      "version": "0.7.18"
+      "version": "1.2.2"
     },
     {
       "author": "urfave",
@@ -51,21 +45,21 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmW2qYs8uJUSAsdGrWZo1LnzAwTQjPBRKk66X9H16EABMg",
+      "hash": "QmSvGoJcmisjcXr7x47LQuC3iW8BqTjh2RaqV17MUMRXQ3",
       "name": "go-libp2p-gorpc",
-      "version": "1.0.4"
+      "version": "1.0.5"
     },
     {
       "author": "libp2p",
-      "hash": "QmcWmYQEQCrezztaQ81nXzMx2jaAEow17wdesDAjjR769r",
+      "hash": "QmenK8PgcpM2KYzEKnGx1LyN1QXawswM2F6HktCbWKuC1b",
       "name": "go-libp2p-pnet",
-      "version": "2.3.1"
+      "version": "2.3.6"
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmWi28zbQG6B1xfaaWx5cYoLn3kBFU6pQ6GWQNRV5P6dNe",
+      "hash": "QmTevRdYUfixypqMWtSKDQ3hqr3QFCbfoBx6gbSxmfWoqT",
       "name": "lock",
-      "version": "0.0.0"
+      "version": "0.0.1"
     },
     {
       "author": "ZenGround0",
