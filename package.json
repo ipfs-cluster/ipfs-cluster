@@ -56,9 +56,9 @@
       "version": "2.3.6"
     },
     {
-      "author": "whyrusleeping",
+      "author": "hsanjuan",
       "hash": "QmTevRdYUfixypqMWtSKDQ3hqr3QFCbfoBx6gbSxmfWoqT",
-      "name": "lock",
+      "name": "go4-lock",
       "version": "0.0.1"
     },
     {
