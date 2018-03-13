@@ -495,6 +495,7 @@ func daemon(c *cli.Context) error {
 	informer, alloc := setupAllocation(c.GlobalString("alloc"), diskInfCfg, numpinInfCfg)
 
 	cluster, err := ipfscluster.NewCluster(
+		nil,
 		clusterCfg,
 		consensusCfg,
 		api,

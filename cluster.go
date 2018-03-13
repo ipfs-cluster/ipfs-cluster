@@ -3,11 +3,8 @@ package ipfscluster
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
-
-	pnet "github.com/libp2p/go-libp2p-pnet"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
@@ -16,11 +13,7 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	swarm "github.com/libp2p/go-libp2p-swarm"
-	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -64,6 +57,7 @@ type Cluster struct {
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
 func NewCluster(
+	host host.Host,
 	cfg *Config,
 	consensusCfg *raft.Config,
 	api API,
@@ -80,10 +74,14 @@ func NewCluster(
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	host, err := makeHost(ctx, cfg)
-	if err != nil {
-		cancel()
-		return nil, err
+
+	if host == nil {
+		h, err := NewClusterHost(ctx, cfg)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		host = h
 	}
 
 	if c := Commit; len(c) >= 8 {
@@ -1095,71 +1093,6 @@ func (c *Cluster) Peers() []api.ID {
 		peers[i] = ps.ToID()
 	}
 	return peers
-}
-
-// makeHost makes a libp2p-host.
-func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
-	ps := peerstore.NewPeerstore()
-	privateKey := cfg.PrivateKey
-	publicKey := privateKey.GetPublic()
-
-	var protec ipnet.Protector
-	if len(cfg.Secret) != 0 {
-		var err error
-		clusterKey, err := clusterSecretToKey(cfg.Secret)
-		if err != nil {
-			return nil, err
-		}
-		protec, err = pnet.NewProtector(strings.NewReader(clusterKey))
-		if err != nil {
-			return nil, err
-		}
-		// this is in go-ipfs, not sure whether we want something like it here
-		/* go func() {
-			t := time.NewTicker(30 * time.Second)
-			<-t.C // swallow one tick
-			for {
-				select {
-				case <-t.C:
-					if ph := cfg.Host; ph != nil {
-						if len(ph.Network().Peers()) == 0 {
-							log.Warning("We are in a private network and have no peers.")
-							log.Warning("This might be a configuration mistake.")
-						}
-					}
-					case <-n.Process().Closing:
-					t.Stop()
-					return
-				}
-			}
-		}()*/
-	}
-
-	if err := ps.AddPubKey(cfg.ID, publicKey); err != nil {
-		return nil, err
-	}
-
-	if err := ps.AddPrivKey(cfg.ID, privateKey); err != nil {
-		return nil, err
-	}
-
-	ps.AddAddr(cfg.ID, cfg.ListenAddr, peerstore.PermanentAddrTTL)
-
-	network, err := swarm.NewNetworkWithProtector(
-		ctx,
-		[]ma.Multiaddr{cfg.ListenAddr},
-		cfg.ID,
-		ps,
-		protec,
-		nil,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	bhost := basichost.New(network)
-	return bhost, nil
 }
 
 // Perform an RPC request to multiple destinations

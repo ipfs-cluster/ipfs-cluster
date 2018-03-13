@@ -1,7 +1,6 @@
 package ipfscluster
 
 import (
-	"bytes"
 	crand "crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -394,7 +393,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ID = cfg.ID.Pretty()
 	jcfg.Peername = cfg.Peername
 	jcfg.PrivateKey = pKey
-	jcfg.Secret = EncodeClusterSecret(cfg.Secret)
+	jcfg.Secret = EncodeProtectorKey(cfg.Secret)
 	jcfg.Peers = clusterPeers
 	jcfg.Bootstrap = bootstrap
 	jcfg.ReplicationFactorMin = cfg.ReplicationFactorMin
@@ -434,11 +433,6 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	}
 }
 
-// EncodeClusterSecret converts a byte slice to its hex string representation.
-func EncodeClusterSecret(secretBytes []byte) string {
-	return hex.EncodeToString(secretBytes)
-}
-
 func generateClusterSecret() ([]byte, error) {
 	secretBytes := make([]byte, 32)
 	_, err := crand.Read(secretBytes)
@@ -446,13 +440,4 @@ func generateClusterSecret() ([]byte, error) {
 		return nil, fmt.Errorf("error reading from rand: %v", err)
 	}
 	return secretBytes, nil
-}
-
-func clusterSecretToKey(secret []byte) (string, error) {
-	var key bytes.Buffer
-	key.WriteString("/key/swarm/psk/1.0.0/\n")
-	key.WriteString("/base16/\n")
-	key.WriteString(EncodeClusterSecret(secret))
-
-	return key.String(), nil
 }
