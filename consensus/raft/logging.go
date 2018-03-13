@@ -63,8 +63,8 @@ func (fw *logForwarder) repeated(t int, msg string) bool {
 		fw.lastTip = make(map[int]time.Time)
 	}
 
-	// We we haven't tipped about repeated log messages
-	// in while, do it and forget the list
+	// We haven't tipped about repeated log messages
+	// in a while, do it and forget the list
 	if time.Now().After(fw.lastTip[t].Add(repeatReset)) {
 		fw.lastTip[t] = time.Now()
 		fw.lastMsgs[t] = nil
