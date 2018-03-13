@@ -26,7 +26,7 @@ const Version = "0.3.4"
 
 var (
 	defaultHost     = "/ip4/127.0.0.1/tcp/9094"
-	defaultTimeout  = 60
+	defaultTimeout  = 120
 	defaultUsername = ""
 	defaultPassword = ""
 )
