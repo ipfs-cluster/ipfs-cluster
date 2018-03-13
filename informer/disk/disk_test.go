@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -43,13 +44,13 @@ func badRPCClient(t *testing.T) *rpc.Client {
 // 	return nil
 // }
 
-func (mock *badRPCService) IPFSRepoSize(in struct{}, out *uint64) error {
+func (mock *badRPCService) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
 	*out = 2
 	mock.nthCall++
 	return errors.New("fake error")
 }
 
-func (mock *badRPCService) IPFSFreeSpace(in struct{}, out *uint64) error {
+func (mock *badRPCService) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
 	*out = 2
 	mock.nthCall++
 	return errors.New("fake error")
