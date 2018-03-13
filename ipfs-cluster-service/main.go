@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -478,6 +479,12 @@ func daemon(c *cli.Context) error {
 		clusterCfg.LeaveOnShutdown = true
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	host, err := ipfscluster.NewClusterHost(ctx, clusterCfg)
+	checkErr("creating libP2P Host", err)
+
 	api, err := rest.NewAPI(apiCfg)
 	checkErr("creating REST API component", err)
 
@@ -495,7 +502,7 @@ func daemon(c *cli.Context) error {
 	informer, alloc := setupAllocation(c.GlobalString("alloc"), diskInfCfg, numpinInfCfg)
 
 	cluster, err := ipfscluster.NewCluster(
-		nil,
+		host,
 		clusterCfg,
 		consensusCfg,
 		api,

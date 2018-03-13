@@ -554,8 +554,6 @@ func (c *Cluster) Shutdown() error {
 		return err
 	}
 
-	// Cancel contexts - **NOTE**: This kills the context in the
-	// libp2p HOST too!
 	c.cancel()
 	c.host.Close() // Shutdown all network services
 	c.wg.Wait()
