@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -37,21 +38,21 @@ func NewMockRPCClientWithHost(t *testing.T, h host.Host) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) Pin(in api.PinSerial, out *struct{}) error {
+func (mock *mockService) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
 	return nil
 }
 
-func (mock *mockService) Unpin(in api.PinSerial, out *struct{}) error {
+func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
 	return nil
 }
 
-func (mock *mockService) Pins(in struct{}, out *[]api.PinSerial) error {
+func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	*out = []api.PinSerial{
 		{
 			Cid: TestCid1,
@@ -66,7 +67,7 @@ func (mock *mockService) Pins(in struct{}, out *[]api.PinSerial) error {
 	return nil
 }
 
-func (mock *mockService) PinGet(in api.PinSerial, out *api.PinSerial) error {
+func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
 	if in.Cid == ErrorCid {
 		return errors.New("expected error when using ErrorCid")
 	}
@@ -74,7 +75,7 @@ func (mock *mockService) PinGet(in api.PinSerial, out *api.PinSerial) error {
 	return nil
 }
 
-func (mock *mockService) ID(in struct{}, out *api.IDSerial) error {
+func (mock *mockService) ID(ctx context.Context, in struct{}, out *api.IDSerial) error {
 	//_, pubkey, _ := crypto.GenerateKeyPair(
 	//	DefaultConfigCrypto,
 	//	DefaultConfigKeyLength)
@@ -92,33 +93,33 @@ func (mock *mockService) ID(in struct{}, out *api.IDSerial) error {
 	return nil
 }
 
-func (mock *mockService) Version(in struct{}, out *api.Version) error {
+func (mock *mockService) Version(ctx context.Context, in struct{}, out *api.Version) error {
 	*out = api.Version{
 		Version: "0.0.mock",
 	}
 	return nil
 }
 
-func (mock *mockService) Peers(in struct{}, out *[]api.IDSerial) error {
+func (mock *mockService) Peers(ctx context.Context, in struct{}, out *[]api.IDSerial) error {
 	id := api.IDSerial{}
-	mock.ID(in, &id)
+	mock.ID(ctx, in, &id)
 
 	*out = []api.IDSerial{id}
 	return nil
 }
 
-func (mock *mockService) PeerAdd(in api.MultiaddrSerial, out *api.IDSerial) error {
+func (mock *mockService) PeerAdd(ctx context.Context, in api.MultiaddrSerial, out *api.IDSerial) error {
 	id := api.IDSerial{}
-	mock.ID(struct{}{}, &id)
+	mock.ID(ctx, struct{}{}, &id)
 	*out = id
 	return nil
 }
 
-func (mock *mockService) PeerRemove(in peer.ID, out *struct{}) error {
+func (mock *mockService) PeerRemove(ctx context.Context, in peer.ID, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) ConnectGraph(in struct{}, out *api.ConnectGraphSerial) error {
+func (mock *mockService) ConnectGraph(ctx context.Context, in struct{}, out *api.ConnectGraphSerial) error {
 	*out = api.ConnectGraphSerial{
 		ClusterID: TestPeerID1.Pretty(),
 		IPFSLinks: map[string][]string{
@@ -140,7 +141,7 @@ func (mock *mockService) ConnectGraph(in struct{}, out *api.ConnectGraphSerial) 
 	return nil
 }
 
-func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
+func (mock *mockService) StatusAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	c1, _ := cid.Decode(TestCid1)
 	c2, _ := cid.Decode(TestCid2)
 	c3, _ := cid.Decode(TestCid3)
@@ -182,11 +183,11 @@ func (mock *mockService) StatusAll(in struct{}, out *[]api.GlobalPinInfoSerial) 
 	return nil
 }
 
-func (mock *mockService) StatusAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
-	return mock.TrackerStatusAll(in, out)
+func (mock *mockService) StatusAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
+	return mock.TrackerStatusAll(ctx, in, out)
 }
 
-func (mock *mockService) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+func (mock *mockService) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
@@ -205,54 +206,54 @@ func (mock *mockService) Status(in api.PinSerial, out *api.GlobalPinInfoSerial) 
 	return nil
 }
 
-func (mock *mockService) StatusLocal(in api.PinSerial, out *api.PinInfoSerial) error {
-	return mock.TrackerStatus(in, out)
+func (mock *mockService) StatusLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
+	return mock.TrackerStatus(ctx, in, out)
 }
 
-func (mock *mockService) SyncAll(in struct{}, out *[]api.GlobalPinInfoSerial) error {
-	return mock.StatusAll(in, out)
+func (mock *mockService) SyncAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
+	return mock.StatusAll(ctx, in, out)
 }
 
-func (mock *mockService) SyncAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
-	return mock.StatusAllLocal(in, out)
+func (mock *mockService) SyncAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
+	return mock.StatusAllLocal(ctx, in, out)
 }
 
-func (mock *mockService) Sync(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	return mock.Status(in, out)
+func (mock *mockService) Sync(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+	return mock.Status(ctx, in, out)
 }
 
-func (mock *mockService) SyncLocal(in api.PinSerial, out *api.PinInfoSerial) error {
-	return mock.StatusLocal(in, out)
+func (mock *mockService) SyncLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
+	return mock.StatusLocal(ctx, in, out)
 }
 
-func (mock *mockService) StateSync(in struct{}, out *[]api.PinInfoSerial) error {
+func (mock *mockService) StateSync(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	*out = make([]api.PinInfoSerial, 0, 0)
 	return nil
 }
 
-func (mock *mockService) RecoverAllLocal(in struct{}, out *[]api.PinInfoSerial) error {
-	return mock.TrackerRecoverAll(in, out)
+func (mock *mockService) RecoverAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
+	return mock.TrackerRecoverAll(ctx, in, out)
 }
 
-func (mock *mockService) Recover(in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	return mock.Status(in, out)
+func (mock *mockService) Recover(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+	return mock.Status(ctx, in, out)
 }
 
-func (mock *mockService) RecoverLocal(in api.PinSerial, out *api.PinInfoSerial) error {
-	return mock.TrackerRecover(in, out)
+func (mock *mockService) RecoverLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
+	return mock.TrackerRecover(ctx, in, out)
 }
 
 /* Tracker methods */
 
-func (mock *mockService) Track(in api.PinSerial, out *struct{}) error {
+func (mock *mockService) Track(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) Untrack(in api.PinSerial, out *struct{}) error {
+func (mock *mockService) Untrack(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) TrackerStatusAll(in struct{}, out *[]api.PinInfoSerial) error {
+func (mock *mockService) TrackerStatusAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	c1, _ := cid.Decode(TestCid1)
 	c3, _ := cid.Decode(TestCid3)
 
@@ -273,7 +274,7 @@ func (mock *mockService) TrackerStatusAll(in struct{}, out *[]api.PinInfoSerial)
 	return nil
 }
 
-func (mock *mockService) TrackerStatus(in api.PinSerial, out *api.PinInfoSerial) error {
+func (mock *mockService) TrackerStatus(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
 	}
@@ -288,12 +289,12 @@ func (mock *mockService) TrackerStatus(in api.PinSerial, out *api.PinInfoSerial)
 	return nil
 }
 
-func (mock *mockService) TrackerRecoverAll(in struct{}, out *[]api.PinInfoSerial) error {
+func (mock *mockService) TrackerRecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	*out = make([]api.PinInfoSerial, 0, 0)
 	return nil
 }
 
-func (mock *mockService) TrackerRecover(in api.PinSerial, out *api.PinInfoSerial) error {
+func (mock *mockService) TrackerRecover(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
 	in2 := in.ToPin()
 	*out = api.PinInfo{
 		Cid:    in2.Cid,
@@ -306,21 +307,21 @@ func (mock *mockService) TrackerRecover(in api.PinSerial, out *api.PinInfoSerial
 
 /* PeerManager methods */
 
-func (mock *mockService) PeerManagerAddPeer(in api.MultiaddrSerial, out *struct{}) error {
+func (mock *mockService) PeerManagerAddPeer(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
 	return nil
 }
 
 /* IPFSConnector methods */
 
-func (mock *mockService) IPFSPin(in api.PinSerial, out *struct{}) error {
+func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(in api.PinSerial, out *struct{}) error {
+func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) IPFSPinLsCid(in api.PinSerial, out *api.IPFSPinStatus) error {
+func (mock *mockService) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *api.IPFSPinStatus) error {
 	if in.Cid == TestCid1 || in.Cid == TestCid3 {
 		*out = api.IPFSPinStatusRecursive
 	} else {
@@ -329,7 +330,7 @@ func (mock *mockService) IPFSPinLsCid(in api.PinSerial, out *api.IPFSPinStatus) 
 	return nil
 }
 
-func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) error {
+func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m := map[string]api.IPFSPinStatus{
 		TestCid1: api.IPFSPinStatusRecursive,
 		TestCid3: api.IPFSPinStatusRecursive,
@@ -338,16 +339,16 @@ func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus)
 	return nil
 }
 
-func (mock *mockService) IPFSConnectSwarms(in struct{}, out *struct{}) error {
+func (mock *mockService) IPFSConnectSwarms(ctx context.Context, in struct{}, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockService) IPFSSwarmPeers(in struct{}, out *api.SwarmPeersSerial) error {
+func (mock *mockService) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.SwarmPeersSerial) error {
 	*out = []string{TestPeerID2.Pretty(), TestPeerID3.Pretty()}
 	return nil
 }
 
-func (mock *mockService) IPFSConfigKey(in string, out *interface{}) error {
+func (mock *mockService) IPFSConfigKey(ctx context.Context, in string, out *interface{}) error {
 	switch in {
 	case "Datastore/StorageMax":
 		*out = "100KB"
@@ -357,27 +358,27 @@ func (mock *mockService) IPFSConfigKey(in string, out *interface{}) error {
 	return nil
 }
 
-func (mock *mockService) IPFSRepoSize(in struct{}, out *uint64) error {
+func (mock *mockService) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
 	// since we have two pins. Assume each is 1KB.
 	*out = 2000
 	return nil
 }
 
-func (mock *mockService) IPFSFreeSpace(in struct{}, out *uint64) error {
+func (mock *mockService) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
 	// RepoSize is 2KB, StorageMax is 100KB
 	*out = 98000
 	return nil
 }
 
-func (mock *mockService) ConsensusAddPeer(in peer.ID, out *struct{}) error {
+func (mock *mockService) ConsensusAddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }
 
-func (mock *mockService) ConsensusRmPeer(in peer.ID, out *struct{}) error {
+func (mock *mockService) ConsensusRmPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }
 
-func (mock *mockService) ConsensusPeers(in struct{}, out *[]peer.ID) error {
+func (mock *mockService) ConsensusPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
 	return nil
 }

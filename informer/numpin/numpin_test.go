@@ -1,6 +1,7 @@
 package numpin
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -20,7 +21,7 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) IPFSPinLs(in string, out *map[string]api.IPFSPinStatus) error {
+func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	*out = map[string]api.IPFSPinStatus{
 		"QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa": api.IPFSPinStatusRecursive,
 		"QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6": api.IPFSPinStatusRecursive,
