@@ -66,6 +66,12 @@
       "hash": "QmXoatUMzVryJXW1iucE9H4BayxAKzHSyRVZPxhWwEuX8y",
       "name": "go-dot",
       "version": "0.0.0"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmYvYkxJrMzijvfE9EXsnBF26phUBpcK3cChSjucH5hXUY",
+      "name": "go-libp2p-http",
+      "version": "1.0.1"
     }
   ],
   "gxVersion": "0.11.0",

@@ -104,7 +104,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	clusterCfg.Secret = clusterSecret
 	clusterCfg.ListenAddr = clusterAddr
 	clusterCfg.LeaveOnShutdown = false
-	apiCfg.ListenAddr = apiAddr
+	apiCfg.HTTPListenAddr = apiAddr
 	ipfshttpCfg.ProxyAddr = proxyAddr
 	ipfshttpCfg.NodeAddr = nodeAddr
 	consensusCfg.DataFolder = "./e2eTestRaft/" + pid.Pretty()

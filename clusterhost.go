@@ -30,7 +30,8 @@ func NewClusterHost(ctx context.Context, cfg *Config) (host.Host, error) {
 		}
 	}
 
-	return libp2p.New(ctx,
+	return libp2p.New(
+		ctx,
 		libp2p.Identity(cfg.PrivateKey),
 		libp2p.ListenAddrs([]ma.Multiaddr{cfg.ListenAddr}...),
 		libp2p.PrivateNetwork(prot),

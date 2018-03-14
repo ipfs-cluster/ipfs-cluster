@@ -111,7 +111,7 @@ func TestLibp2pConfig(t *testing.T) {
 	}
 	cfg.ID = pid
 	cfg.PrivateKey = priv
-	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
+	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	cfg.Libp2pListenAddr = addr
 
 	err = cfg.Validate()
@@ -119,12 +119,30 @@ func TestLibp2pConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	id, _ := peer.IDB58Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
-	cfg.ID = id
+	cfgJSON, err := cfg.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cfg.LoadJSON(cfgJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test creating a new API with a libp2p config
+	rest, err := NewAPI(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rest.Shutdown()
+
+	badPid, _ := peer.IDB58Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
+	cfg.ID = badPid
 	err = cfg.Validate()
 	if err == nil {
 		t.Error("expected id-privkey mismatch")
 	}
+	cfg.ID = pid
 
 	cfg.PrivateKey = nil
 	err = cfg.Validate()
