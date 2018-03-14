@@ -20,7 +20,7 @@ func testAPI(t *testing.T) *API {
 
 	cfg := &Config{}
 	cfg.Default()
-	cfg.ListenAddr = apiMAddr
+	cfg.HTTPListenAddr = apiMAddr
 
 	rest, err := NewAPI(cfg)
 	if err != nil {

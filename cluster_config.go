@@ -179,6 +179,10 @@ func (cfg *Config) Validate() error {
 		return errors.New("no cluster.private_key set")
 	}
 
+	if !cfg.ID.MatchesPrivateKey(cfg.PrivateKey) {
+		return errors.New("cluster.ID does not match the private_key")
+	}
+
 	if cfg.Peers == nil {
 		return errors.New("cluster.peers is undefined")
 	}

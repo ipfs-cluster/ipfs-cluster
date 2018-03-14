@@ -2,6 +2,7 @@ package rest
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -17,7 +20,7 @@ const configKey = "restapi"
 
 // These are the default values for Config
 const (
-	DefaultListenAddr        = "/ip4/127.0.0.1/tcp/9094"
+	DefaultHTTPListenAddr    = "/ip4/127.0.0.1/tcp/9094"
 	DefaultReadTimeout       = 30 * time.Second
 	DefaultReadHeaderTimeout = 5 * time.Second
 	DefaultWriteTimeout      = 60 * time.Second
@@ -30,18 +33,18 @@ const (
 type Config struct {
 	config.Saver
 
-	// Listen parameters for the the Cluster HTTP API component.
-	ListenAddr ma.Multiaddr
+	// Listen address for the HTTP REST API endpoint.
+	HTTPListenAddr ma.Multiaddr
 
 	// TLS configuration for the HTTP listener
 	TLS *tls.Config
 
-	// SSLCertFile is a path to a certificate file used to secure the HTTP
-	// API endpoint. Leave empty to use plain HTTP instead.
+	// pathSSLCertFile is a path to a certificate file used to secure the
+	// HTTP API endpoint. We track it so we can write it in the JSON.
 	pathSSLCertFile string
 
-	// SSLKeyFile is a path to the private key corresponding to the
-	// SSLCertFile.
+	// pathSSLKeyFile is a path to the private key corresponding to the
+	// SSLKeyFile. We track it so we can write it in the JSON.
 	pathSSLKeyFile string
 
 	// Maximum duration before timing out reading a full request
@@ -57,20 +60,34 @@ type Config struct {
 	// kept idle before being reused
 	IdleTimeout time.Duration
 
+	// Listen address for the Libp2p REST API endpoint.
+	Libp2pListenAddr ma.Multiaddr
+
+	// ID and PrivateKey are used to create a libp2p host if we
+	// want the API component to do it (not by default).
+	ID         peer.ID
+	PrivateKey crypto.PrivKey
+
 	// BasicAuthCreds is a map of username-password pairs
 	// which are authorized to use Basic Authentication
 	BasicAuthCreds map[string]string
 }
 
 type jsonConfig struct {
-	ListenMultiaddress string            `json:"listen_multiaddress"`
-	SSLCertFile        string            `json:"ssl_cert_file,omitempty"`
-	SSLKeyFile         string            `json:"ssl_key_file,omitempty"`
-	ReadTimeout        string            `json:"read_timeout"`
-	ReadHeaderTimeout  string            `json:"read_header_timeout"`
-	WriteTimeout       string            `json:"write_timeout"`
-	IdleTimeout        string            `json:"idle_timeout"`
-	BasicAuthCreds     map[string]string `json:"basic_auth_credentials"`
+	ListenMultiaddress     string `json:"listen_multiaddress"` // backwards compat
+	HTTPListenMultiaddress string `json:"http_listen_multiaddress"`
+	SSLCertFile            string `json:"ssl_cert_file,omitempty"`
+	SSLKeyFile             string `json:"ssl_key_file,omitempty"`
+	ReadTimeout            string `json:"read_timeout"`
+	ReadHeaderTimeout      string `json:"read_header_timeout"`
+	WriteTimeout           string `json:"write_timeout"`
+	IdleTimeout            string `json:"idle_timeout"`
+
+	Libp2pListenMultiaddress string `json:"libp2p_listen_multiaddress,omitempty"`
+	ID                       string `json:"ID,omitempty"`
+	PrivateKey               string `json:"PrivateKey,omitempty"`
+
+	BasicAuthCreds map[string]string `json:"basic_auth_credentials"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of
@@ -81,14 +98,22 @@ func (cfg *Config) ConfigKey() string {
 
 // Default initializes this Config with working values.
 func (cfg *Config) Default() error {
-	listen, _ := ma.NewMultiaddr(DefaultListenAddr)
-	cfg.ListenAddr = listen
+	// http
+	httpListen, _ := ma.NewMultiaddr(DefaultHTTPListenAddr)
+	cfg.HTTPListenAddr = httpListen
 	cfg.pathSSLCertFile = ""
 	cfg.pathSSLKeyFile = ""
 	cfg.ReadTimeout = DefaultReadTimeout
 	cfg.ReadHeaderTimeout = DefaultReadHeaderTimeout
 	cfg.WriteTimeout = DefaultWriteTimeout
 	cfg.IdleTimeout = DefaultIdleTimeout
+
+	// libp2p
+	cfg.ID = ""
+	cfg.PrivateKey = nil
+	cfg.Libp2pListenAddr = nil
+
+	// Auth
 	cfg.BasicAuthCreds = nil
 
 	return nil
@@ -97,23 +122,19 @@ func (cfg *Config) Default() error {
 // Validate makes sure that all fields in this Config have
 // working values, at least in appearance.
 func (cfg *Config) Validate() error {
-	if cfg.ListenAddr == nil {
-		return errors.New("restapi.listen_multiaddress not set")
-	}
-
-	if cfg.ReadTimeout <= 0 {
+	if cfg.ReadTimeout < 0 {
 		return errors.New("restapi.read_timeout is invalid")
 	}
 
-	if cfg.ReadHeaderTimeout <= 0 {
+	if cfg.ReadHeaderTimeout < 0 {
 		return errors.New("restapi.read_header_timeout is invalid")
 	}
 
-	if cfg.WriteTimeout <= 0 {
+	if cfg.WriteTimeout < 0 {
 		return errors.New("restapi.write_timeout is invalid")
 	}
 
-	if cfg.IdleTimeout <= 0 {
+	if cfg.IdleTimeout < 0 {
 		return errors.New("restapi.idle_timeout invalid")
 	}
 
@@ -123,6 +144,16 @@ func (cfg *Config) Validate() error {
 
 	if (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil {
 		return errors.New("error loading SSL certificate or key")
+	}
+
+	if cfg.ID != "" || cfg.PrivateKey != nil || cfg.Libp2pListenAddr != nil {
+		// if one is set, all should be
+		if cfg.ID == "" || cfg.PrivateKey == nil || cfg.Libp2pListenAddr == nil {
+			return errors.New("all ID, private_key and libp2p_listen_multiaddress should be set")
+		}
+		if !cfg.ID.MatchesPrivateKey(cfg.PrivateKey) {
+			return errors.New("restapi.ID does not match private_key")
+		}
 	}
 
 	return nil
@@ -138,18 +169,28 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	// A further improvement here below is that only non-zero fields
-	// are assigned. In that case, make sure you have Defaulted
-	// everything else.
-	// cfg.Default()
+	cfg.Default()
 
-	listen, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
-	if err != nil {
-		err = fmt.Errorf("error parsing listen_multiaddress: %s", err)
-		return err
+	// HTTP config --------------------------- //
+
+	// Deal with legacy ListenMultiaddress parameter
+	httpListen := jcfg.ListenMultiaddress
+	if httpListen != "" {
+		logger.Warning("restapi.listen_multiaddress has been replaced with http_listen_multiaddress")
+	}
+	if l := jcfg.HTTPListenMultiaddress; l != "" {
+		httpListen = l
 	}
 
-	cfg.ListenAddr = listen
+	if httpListen != "" {
+		httpAddr, err := ma.NewMultiaddr(httpListen)
+		if err != nil {
+			err = fmt.Errorf("error parsing restapi.http_listen_multiaddress: %s", err)
+			return err
+		}
+		cfg.HTTPListenAddr = httpAddr
+	}
+
 	cert := jcfg.SSLCertFile
 	key := jcfg.SSLKeyFile
 	cfg.pathSSLCertFile = cert
@@ -173,19 +214,63 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		cfg.TLS = tlsCfg
 	}
 
-	// errors ignored as Validate() below will catch them
-	t, _ := time.ParseDuration(jcfg.ReadTimeout)
+	// only overwrite defaults when we can parse the time
+	// 0 is a valid value
+	t, err := time.ParseDuration(jcfg.ReadTimeout)
+	if err != nil {
+		return fmt.Errorf("error parsing restapi.read_timeout: %s", err)
+	}
 	cfg.ReadTimeout = t
 
-	t, _ = time.ParseDuration(jcfg.ReadHeaderTimeout)
+	t, err = time.ParseDuration(jcfg.ReadHeaderTimeout)
+	if err != nil {
+		return fmt.Errorf("error parsing restapi.read_header_timeout: %s", err)
+	}
 	cfg.ReadHeaderTimeout = t
 
-	t, _ = time.ParseDuration(jcfg.WriteTimeout)
+	t, err = time.ParseDuration(jcfg.WriteTimeout)
+	if err != nil {
+		return fmt.Errorf("error parsing restapi.write_timeout: %s", err)
+	}
 	cfg.WriteTimeout = t
 
-	t, _ = time.ParseDuration(jcfg.IdleTimeout)
+	t, err = time.ParseDuration(jcfg.IdleTimeout)
+	if err != nil {
+		return fmt.Errorf("error parsing restapi.idle_timeout: %s", err)
+	}
 	cfg.IdleTimeout = t
 
+	// Libp2p config ------------------ //
+	if libp2pListen := jcfg.Libp2pListenMultiaddress; libp2pListen != "" {
+		libp2pAddr, err := ma.NewMultiaddr(libp2pListen)
+		if err != nil {
+			err = fmt.Errorf("error parsing restapi.libp2p_listen_multiaddress: %s", err)
+			return err
+		}
+		cfg.Libp2pListenAddr = libp2pAddr
+	}
+
+	if jcfg.PrivateKey != "" {
+		pkb, err := base64.StdEncoding.DecodeString(jcfg.PrivateKey)
+		if err != nil {
+			return fmt.Errorf("error decoding restapi.private_key: %s", err)
+		}
+		pKey, err := crypto.UnmarshalPrivateKey(pkb)
+		if err != nil {
+			return fmt.Errorf("error parsing restapi.private_key ID: %s", err)
+		}
+		cfg.PrivateKey = pKey
+	}
+
+	if jcfg.ID != "" {
+		id, err := peer.IDB58Decode(jcfg.ID)
+		if err != nil {
+			return fmt.Errorf("error parsing restapi.ID: %s", err)
+		}
+		cfg.ID = id
+	}
+
+	// Authentication ------------------- //
 	cfg.BasicAuthCreds = jcfg.BasicAuthCreds
 
 	return cfg.Validate()
@@ -202,13 +287,28 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	}()
 
 	jcfg := &jsonConfig{}
-	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
+	jcfg.HTTPListenMultiaddress = cfg.HTTPListenAddr.String()
 	jcfg.SSLCertFile = cfg.pathSSLCertFile
 	jcfg.SSLKeyFile = cfg.pathSSLKeyFile
 	jcfg.ReadTimeout = cfg.ReadTimeout.String()
 	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
 	jcfg.WriteTimeout = cfg.WriteTimeout.String()
 	jcfg.IdleTimeout = cfg.IdleTimeout.String()
+
+	if cfg.ID != "" {
+		jcfg.ID = peer.IDB58Encode(cfg.ID)
+	}
+	if cfg.PrivateKey != nil {
+		pkeyBytes, err := cfg.PrivateKey.Bytes()
+		if err == nil {
+			pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
+			jcfg.PrivateKey = pKey
+		}
+	}
+	if cfg.Libp2pListenAddr != nil {
+		jcfg.Libp2pListenMultiaddress = cfg.Libp2pListenAddr.String()
+	}
+
 	jcfg.BasicAuthCreds = cfg.BasicAuthCreds
 
 	raw, err = config.DefaultJSONMarshal(jcfg)

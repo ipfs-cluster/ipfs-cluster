@@ -64,7 +64,7 @@ func NewAPI(cfg *Config) (*API, error) {
 		return nil, err
 	}
 
-	n, addr, err := manet.DialArgs(cfg.ListenAddr)
+	n, addr, err := manet.DialArgs(cfg.HTTPListenAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (api *API) run() {
 		defer api.wg.Done()
 		<-api.rpcReady
 
-		logger.Infof("REST API: %s", api.config.ListenAddr)
+		logger.Infof("REST API: %s", api.config.HTTPListenAddr)
 		err := api.server.Serve(api.listener)
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)

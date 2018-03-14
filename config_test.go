@@ -43,7 +43,7 @@ var testingRaftCfg = []byte(`{
 }`)
 
 var testingAPICfg = []byte(`{
-    "listen_multiaddress": "/ip4/127.0.0.1/tcp/10002",
+    "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/10002",
     "read_timeout": "30s",
     "read_header_timeout": "5s",
     "write_timeout": "1m0s",
