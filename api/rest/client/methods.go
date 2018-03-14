@@ -2,9 +2,11 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -60,12 +62,16 @@ func (c *Client) Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int
 	escName := url.QueryEscape(name)
 	err := c.do(
 		"POST",
-		fmt.Sprintf("/pins/%s?replication_factor_min=%d&replication_factor_max=%d&name=%s",
+		fmt.Sprintf(
+			"/pins/%s?replication_factor_min=%d&replication_factor_max=%d&name=%s",
 			ci.String(),
 			replicationFactorMin,
 			replicationFactorMax,
-			escName),
-		nil, nil)
+			escName,
+		),
+		nil,
+		nil,
+	)
 	return err
 }
 
@@ -171,4 +177,130 @@ func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	var graphS api.ConnectGraphSerial
 	err := c.do("GET", "/health/graph", nil, &graphS)
 	return graphS, err
+}
+
+// WaitFor is a utility function that allows for a caller to
+// wait for a paticular status for a CID. It returns a channel
+// upon which the caller can wait for the targetStatus.
+func (c *Client) WaitFor(ctx context.Context, fp StatusFilterParams) (api.GlobalPinInfo, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	sf := newStatusFilter()
+
+	go sf.pollStatus(ctx, c, fp)
+	go sf.filter(ctx, fp)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return api.GlobalPinInfo{}, ctx.Err()
+		case err := <-sf.Err:
+			return api.GlobalPinInfo{}, err
+		case <-sf.Done:
+			// drain status channel and return last status on channel
+			for {
+				if status, ok := <-sf.Out; !ok {
+					return status, nil
+				}
+			}
+		}
+	}
+}
+
+// StatusFilterParams contains the parameters required
+// to filter a stream of status results.
+type StatusFilterParams struct {
+	*cid.Cid
+	Local     bool
+	Target    api.TrackerStatus
+	CheckFreq time.Duration
+}
+
+type statusFilter struct {
+	In, Out chan api.GlobalPinInfo
+	Done    chan struct{}
+	Err     chan error
+}
+
+func newStatusFilter() *statusFilter {
+	return &statusFilter{
+		In:   make(chan api.GlobalPinInfo),
+		Out:  make(chan api.GlobalPinInfo),
+		Done: make(chan struct{}),
+		Err:  make(chan error),
+	}
+}
+
+func (sf *statusFilter) filter(ctx context.Context, fp StatusFilterParams) {
+	defer close(sf.Done)
+	defer close(sf.Out)
+
+	for {
+		select {
+		case <-ctx.Done():
+			sf.Err <- ctx.Err()
+			return
+		case gblPinInfo, more := <-sf.In:
+			if !more {
+				return
+			}
+			ok, err := statusReached(fp.Target, gblPinInfo)
+			if err != nil {
+				sf.Err <- err
+				return
+			}
+
+			if !ok {
+				sf.Out <- gblPinInfo
+				continue
+			}
+
+			sf.Out <- gblPinInfo
+			return
+		}
+	}
+}
+
+func (sf *statusFilter) pollStatus(ctx context.Context, c *Client, fp StatusFilterParams) {
+	ticker := time.NewTicker(fp.CheckFreq)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			sf.Err <- ctx.Err()
+			return
+		case <-ticker.C:
+			gblPinInfo, err := c.Status(fp.Cid, fp.Local)
+			if err != nil {
+				sf.Err <- err
+				return
+			}
+			logger.Debugf("pollStatus: status: %#v", gblPinInfo)
+			sf.In <- gblPinInfo
+		case <-sf.Done:
+			close(sf.In)
+			return
+		}
+	}
+}
+
+func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool, error) {
+	for _, pinInfo := range gblPinInfo.PeerMap {
+		switch pinInfo.Status {
+		case target:
+			continue
+		case api.TrackerStatusBug, api.TrackerStatusClusterError, api.TrackerStatusPinError, api.TrackerStatusUnpinError:
+			return false, fmt.Errorf("error has occurred while attempting to reach status: %s", target.String())
+		case api.TrackerStatusRemote:
+			if target == api.TrackerStatusPinned {
+				continue // to next pinInfo
+			}
+			return false, nil
+		default:
+			return false, nil
+		}
+	}
+	return true, nil
 }
