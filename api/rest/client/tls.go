@@ -1,13 +1,10 @@
 package client
 
-import (
-	"crypto/tls"
-	"net/http"
-)
+import "crypto/tls"
 
-func newTLSTransport(skipVerify bool) *http.Transport {
+func tlsConfig(skipVerify bool) *tls.Config {
 	// based on https://github.com/denji/golang-tls
-	tlsCfg := &tls.Config{
+	return &tls.Config{
 		MinVersion:               tls.VersionTLS12,
 		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
 		PreferServerCipherSuites: true,
@@ -18,8 +15,5 @@ func newTLSTransport(skipVerify bool) *http.Transport {
 			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 		},
 		InsecureSkipVerify: skipVerify,
-	}
-	return &http.Transport{
-		TLSClientConfig: tlsCfg,
 	}
 }
