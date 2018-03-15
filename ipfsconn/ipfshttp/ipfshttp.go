@@ -795,7 +795,7 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType str
 // postDiscardBodyCtx makes a POST requests but discards the body
 // of the response directly after reading it.
 func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) error {
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path)
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
 	if err != nil {
 		return err
 	}

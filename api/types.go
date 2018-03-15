@@ -645,6 +645,7 @@ type AllocateInfo struct {
 	Cid        string
 	Current    map[peer.ID]Metric
 	Candidates map[peer.ID]Metric
+	Priority   map[peer.ID]Metric
 }
 
 // GetCid decodes the cid string within AllocateInfo.  If the cid string is ""
