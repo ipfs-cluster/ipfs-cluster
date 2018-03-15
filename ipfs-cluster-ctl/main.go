@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -8,14 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/api/rest/client"
+
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli"
-
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/rest/client"
 )
 
 const programName = `ipfs-cluster-ctl`
@@ -81,7 +82,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost,
-			Usage: "multiaddress of the IPFS Cluster service API",
+			Usage: "multiaddress of the IPFS Cluster REST API HTTP or LibP2P endpoint",
+		},
+		cli.StringFlag{
+			Name:  "secret",
+			Value: "",
+			Usage: "cluster secret (32 byte pnet-key) as needed. Only when using the LibP2P endpoint",
 		},
 		cli.BoolFlag{
 			Name:  "https, s",
@@ -119,11 +125,37 @@ requires authorization. implies --https, which you can disable with --force-http
 
 	app.Before = func(c *cli.Context) error {
 		cfg := &client.Config{}
+
+		if c.Bool("debug") {
+			logging.SetLogLevel("cluster-ctl", "debug")
+			cfg.LogLevel = "debug"
+			logger.Debug("debug level enabled")
+		}
+
 		addr, err := ma.NewMultiaddr(c.String("host"))
 		checkErr("parsing host multiaddress", err)
-		cfg.APIAddr = addr
+
+		// Is this a peer address?
+		pid, err := addr.ValueForProtocol(ma.P_IPFS)
+		if pid != "" && err == nil {
+			logger.Debugf("Using libp2p-http to %s", addr)
+			cfg.PeerAddr = addr
+			if hexSecret := c.String("secret"); hexSecret != "" {
+				secret, err := hex.DecodeString(hexSecret)
+				checkErr("parsing secret", err)
+				cfg.ProtectorKey = secret
+			}
+		} else {
+			logger.Debugf("Using http(s) to %s", addr)
+			cfg.APIAddr = addr
+		}
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
+
+		if cfg.PeerAddr != nil && c.Bool("https") {
+			logger.Warning("Using libp2p-http. SSL flags will be ignored")
+		}
+
 		cfg.SSL = c.Bool("https")
 		cfg.NoVerifyCert = c.Bool("no-check-certificate")
 		user, pass := parseCredentials(c.String("basic-auth"))
@@ -132,12 +164,6 @@ requires authorization. implies --https, which you can disable with --force-http
 		if user != "" && !cfg.SSL && !c.Bool("force-http") {
 			logger.Warning("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
 			cfg.SSL = true
-		}
-
-		if c.Bool("debug") {
-			logging.SetLogLevel("cluster-ctl", "debug")
-			cfg.LogLevel = "debug"
-			logger.Debug("debug level enabled")
 		}
 
 		enc := c.String("encoding")
