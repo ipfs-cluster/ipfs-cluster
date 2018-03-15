@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -20,10 +21,16 @@ func testAPI(t *testing.T) *rest.API {
 	cfg := &rest.Config{}
 	cfg.Default()
 	cfg.HTTPListenAddr = apiMAddr
+	var secret [32]byte
+	prot, err := pnet.NewV1ProtectorFromBytes(&secret)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	h, err := libp2p.New(
 		context.Background(),
 		libp2p.ListenAddrs(apiMAddr),
+		libp2p.PrivateNetwork(prot),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -73,6 +80,7 @@ func testClientHTTP(t *testing.T, api *rest.API) *Client {
 func testClientLibp2p(t *testing.T, api *rest.API) *Client {
 	cfg := &Config{
 		PeerAddr:          peerMAddr(api),
+		ProtectorKey:      make([]byte, 32),
 		DisableKeepAlives: true,
 	}
 	c, err := NewClient(cfg)

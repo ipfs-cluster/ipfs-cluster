@@ -1,7 +1,6 @@
 package ipfscluster
 
 import (
-	crand "crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +14,7 @@ import (
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
+	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -159,11 +159,11 @@ func (cfg *Config) Default() error {
 	// --
 
 	// cluster secret
-	clusterSecret, err := generateClusterSecret()
+	clusterSecret, err := pnet.GenerateV1Bytes()
 	if err != nil {
 		return err
 	}
-	cfg.Secret = clusterSecret
+	cfg.Secret = (*clusterSecret)[:]
 	// --
 	return nil
 }
@@ -435,13 +435,4 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("input secret is %d bytes, cluster secret should be 32", secretLen)
 	}
-}
-
-func generateClusterSecret() ([]byte, error) {
-	secretBytes := make([]byte, 32)
-	_, err := crand.Read(secretBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error reading from rand: %v", err)
-	}
-	return secretBytes, nil
 }

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,8 +12,10 @@ import (
 	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
+	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
@@ -125,7 +128,21 @@ func (c *Client) setupHTTPClient() error {
 			return err
 		}
 
-		h, err := libp2p.New(c.ctx)
+		var prot ipnet.Protector
+		if c.config.ProtectorKey != nil && len(c.config.ProtectorKey) > 0 {
+			if len(c.config.ProtectorKey) != 32 {
+				return errors.New("Length of ProtectorKey should be 32")
+			}
+			var key [32]byte
+			copy(key[:], c.config.ProtectorKey)
+
+			prot, err = pnet.NewV1ProtectorFromBytes(&key)
+			if err != nil {
+				return err
+			}
+		}
+
+		h, err := libp2p.New(c.ctx, libp2p.PrivateNetwork(prot))
 		if err != nil {
 			return err
 		}
