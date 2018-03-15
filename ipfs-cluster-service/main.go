@@ -485,7 +485,7 @@ func daemon(c *cli.Context) error {
 	host, err := ipfscluster.NewClusterHost(ctx, clusterCfg)
 	checkErr("creating libP2P Host", err)
 
-	api, err := rest.NewAPI(apiCfg)
+	api, err := rest.NewAPIWithHost(apiCfg, host)
 	checkErr("creating REST API component", err)
 
 	proxy, err := ipfshttp.NewConnector(ipfshttpCfg)
