@@ -79,9 +79,9 @@
       "version": "1.0.0"
     },
     {
-      "hash": "QmRBZ9gkZBoguC8U2sCS2voe7Vu2JidDSFdAU7YK9ahu6S",
+      "hash": "QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR",
       "name": "go-ipfs",
-      "version": "0.4.14-dev"
+      "version": "0.4.14-rc1"
     },
     {
       "author": "whyrusleeping",
@@ -94,6 +94,24 @@
       "hash": "QmcBWojPoNh4qm7zvv4qiepvCnnc7ALS9qcp7TNwwxT1gT",
       "name": "go.uuid",
       "version": "1.1.0"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmPwNSAKhfSDEjQ2LYx8bemvnoyXYTaL96JxsAvjzphT75",
+      "name": "go-ipfs-blockstore",
+      "version": "0.0.3"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmWo8jYc19ppG7YoTsrr2kEtLRbARTJho5oNXFTR6B7Peq",
+      "name": "go-ipfs-chunker",
+      "version": "0.0.2"
+    },
+    {
+      "author": "hector",
+      "hash": "Qmb3jLEFAQrqdVgWUajqEyuuDoavkSq1XQXz6tWdFWF995",
+      "name": "go-ipfs-posinfo",
+      "version": "0.0.1"
     }
   ],
   "gxVersion": "0.11.0",

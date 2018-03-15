@@ -25,7 +25,7 @@ func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
 		outChan:    outChan,
 	}
 
-	fileAdder, err := NewAdder(ctx, nil, nil, dserv)
+	fileAdder, err := NewAdder(ctx, nil, dserv)
 	if err != nil {
 		go func() {
 			errChan <- err

@@ -127,6 +127,7 @@ func (s *Sharder) getAssignment() (peer.ID, uint64, error) {
 		Cid:        "",
 		Current:    nil,
 		Candidates: candidates,
+		Priority:   nil,
 	}
 
 	allocs := make([]peer.ID, 0)

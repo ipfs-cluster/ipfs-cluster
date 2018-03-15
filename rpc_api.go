@@ -213,7 +213,12 @@ func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
 // Allocate runs Allocator.Allocate().
 func (rpcapi *RPCAPI) Allocate(in api.AllocateInfo, out *[]peer.ID) error {
 	c := in.GetCid()
-	peers, err := rpcapi.c.allocator.Allocate(c, in.Current, in.Candidates)
+	peers, err := rpcapi.c.allocator.Allocate(
+		c,
+		in.Current,
+		in.Candidates,
+		in.Priority,
+	)
 	*out = peers
 	return err
 }

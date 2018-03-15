@@ -9,22 +9,22 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
-	ds "github.com/ipfs/go-datastore"
-	syncds "github.com/ipfs/go-datastore/sync"
-	files "github.com/ipfs/go-ipfs-cmdkit/files"
-	bstore "github.com/ipfs/go-ipfs/blocks/blockstore"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
 	"github.com/ipfs/go-ipfs/exchange/offline"
 	balanced "github.com/ipfs/go-ipfs/importer/balanced"
-	"github.com/ipfs/go-ipfs/importer/chunk"
 	ihelper "github.com/ipfs/go-ipfs/importer/helpers"
 	trickle "github.com/ipfs/go-ipfs/importer/trickle"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	mfs "github.com/ipfs/go-ipfs/mfs"
-	"github.com/ipfs/go-ipfs/pin"
-	posinfo "github.com/ipfs/go-ipfs/thirdparty/posinfo"
 	unixfs "github.com/ipfs/go-ipfs/unixfs"
+
+	cid "github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
+	syncds "github.com/ipfs/go-datastore/sync"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
+	"github.com/ipfs/go-ipfs-chunker"
+	files "github.com/ipfs/go-ipfs-cmdkit/files"
+	posinfo "github.com/ipfs/go-ipfs-posinfo"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 )
@@ -53,7 +53,7 @@ func (e *ignoreFileError) Error() string {
 }
 
 // NewAdder Returns a new Adder used for a file add operation.
-func NewAdder(ctx context.Context, p pin.Pinner, bs bstore.GCBlockstore, ds ipld.DAGService) (*Adder, error) {
+func NewAdder(ctx context.Context, bs bstore.GCBlockstore, ds ipld.DAGService) (*Adder, error) {
 	return &Adder{
 		ctx:        ctx,
 		blockstore: bs,
@@ -122,10 +122,10 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 	}
 
 	if adder.Trickle {
-		return trickle.TrickleLayout(params.New(chnk))
+		return trickle.Layout(params.New(chnk))
 	}
 
-	return balanced.BalancedLayout(params.New(chnk))
+	return balanced.Layout(params.New(chnk))
 }
 
 // RootNode returns the root node of the Added.

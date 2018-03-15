@@ -718,7 +718,6 @@ func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
-
 func doPost(client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
 	logger.Debugf("posting %s", path)
 	url := fmt.Sprintf("%s/%s", apiURL, path)
@@ -726,7 +725,7 @@ func doPost(client *http.Client, apiURL, path string, contentType string, postBo
 	if err != nil {
 		logger.Error("error posting to IPFS:", err)
 	}
-	return res, err	
+	return res, err
 }
 
 // checkResponse tries to parse an error message on non StatusOK responses
@@ -765,7 +764,7 @@ func (ipfs *Connector) post(path string, contentType string, postBody io.Reader)
 // postDiscardBody makes a POST requests but discards the body
 // of the response directly after reading it.
 func (ipfs *Connector) postDiscardBody(path string) error {
-	res, err := doPost(ipfs.client, ipfs.apiURL(), path)
+	res, err := doPost(ipfs.client, ipfs.apiURL(), path, "", nil)
 	if err != nil {
 		return err
 	}
