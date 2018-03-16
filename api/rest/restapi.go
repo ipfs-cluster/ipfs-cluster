@@ -366,33 +366,39 @@ func (api *API) routes() []route {
 func (api *API) run() {
 	if api.httpListener != nil {
 		api.wg.Add(1)
-		go func() {
-			defer api.wg.Done()
-			<-api.rpcReady
-
-			logger.Infof("REST API (HTTP): %s", api.config.HTTPListenAddr)
-			err := api.server.Serve(api.httpListener)
-			if err != nil && !strings.Contains(err.Error(), "closed network connection") {
-				logger.Error(err)
-			}
-		}()
+		go api.runHTTPServer()
 	}
 
 	if api.libp2pListener != nil {
 		api.wg.Add(1)
-		go func() {
-			defer api.wg.Done()
-			<-api.rpcReady
-			logger.Info("REST API (libp2p-http): ENABLED")
-			for _, a := range api.host.Addrs() {
-				logger.Infof("  - %s/ipfs/%s", a, api.host.ID().Pretty())
-			}
-			// TODO(h): Do we need a different server?
-			err := api.server.Serve(api.libp2pListener)
-			if err != nil && !strings.Contains(err.Error(), "context canceled") {
-				logger.Error(err)
-			}
-		}()
+		go api.runLibp2pServer()
+	}
+}
+
+// runs in goroutine from run()
+func (api *API) runHTTPServer() {
+	defer api.wg.Done()
+	<-api.rpcReady
+
+	logger.Infof("REST API (HTTP): %s", api.config.HTTPListenAddr)
+	err := api.server.Serve(api.httpListener)
+	if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+		logger.Error(err)
+	}
+}
+
+// runs in goroutine from run()
+func (api *API) runLibp2pServer() {
+	defer api.wg.Done()
+	<-api.rpcReady
+	logger.Info("REST API (libp2p-http): ENABLED")
+	for _, a := range api.host.Addrs() {
+		logger.Infof("  - %s/ipfs/%s", a, api.host.ID().Pretty())
+	}
+
+	err := api.server.Serve(api.libp2pListener)
+	if err != nil && !strings.Contains(err.Error(), "context canceled") {
+		logger.Error(err)
 	}
 }
 
