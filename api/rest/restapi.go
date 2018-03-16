@@ -40,11 +40,11 @@ var (
 	// ErrNoEndpointEnabled is returned when the API is created but
 	// no HTTPListenAddr, nor libp2p configuration fields, nor a libp2p
 	// Host are provided.
-	ErrNoEndpointsEnabled = errors.New("Neither the libp2p nor the HTTP endpoints are enabled")
+	ErrNoEndpointsEnabled = errors.New("neither the libp2p nor the HTTP endpoints are enabled")
 
 	// ErrHTTPEndpointNotEnabled is returned when trying to perform
 	// operations that rely on the HTTPEndpoint but it is disabled.
-	ErrHTTPEndpointNotEnabled = errors.New("The HTTP endpoint is not enabled")
+	ErrHTTPEndpointNotEnabled = errors.New("the HTTP endpoint is not enabled")
 )
 
 // API implements an API and aims to provides

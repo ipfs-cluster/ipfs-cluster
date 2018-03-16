@@ -131,7 +131,7 @@ func (c *Client) setupHTTPClient() error {
 		var prot ipnet.Protector
 		if c.config.ProtectorKey != nil && len(c.config.ProtectorKey) > 0 {
 			if len(c.config.ProtectorKey) != 32 {
-				return errors.New("Length of ProtectorKey should be 32")
+				return errors.New("length of ProtectorKey should be 32")
 			}
 			var key [32]byte
 			copy(key[:], c.config.ProtectorKey)
