@@ -143,9 +143,13 @@ func (cfg *Config) Validate() error {
 	}
 
 	if (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil {
-		return errors.New("error loading SSL certificate or key")
+		return errors.New("missing TLS configuration")
 	}
 
+	return cfg.validateLibp2p()
+}
+
+func (cfg *Config) validateLibp2p() error {
 	if cfg.ID != "" || cfg.PrivateKey != nil || cfg.Libp2pListenAddr != nil {
 		// if one is set, all should be
 		if cfg.ID == "" || cfg.PrivateKey == nil || cfg.Libp2pListenAddr == nil {
@@ -190,7 +194,7 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 	// Deal with legacy ListenMultiaddress parameter
 	httpListen := jcfg.ListenMultiaddress
 	if httpListen != "" {
-		logger.Warning("restapi.listen_multiaddress has been replaced with http_listen_multiaddress")
+		logger.Warning("restapi.listen_multiaddress has been replaced with http_listen_multiaddress and has been deprecated")
 	}
 	if l := jcfg.HTTPListenMultiaddress; l != "" {
 		httpListen = l
@@ -209,23 +213,9 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 	key := jcfg.SSLKeyFile
 	cfg.pathSSLCertFile = cert
 	cfg.pathSSLKeyFile = key
-
-	if cert != "" || key != "" {
-		// if one is missing, newTLSConfig will
-		// error loudly
-		if !filepath.IsAbs(cert) {
-			cert = filepath.Join(cfg.BaseDir, cert)
-		}
-		if !filepath.IsAbs(key) {
-			key = filepath.Join(cfg.BaseDir, key)
-		}
-		logger.Debug(cfg.BaseDir)
-		logger.Debug(cert, key)
-		tlsCfg, err := newTLSConfig(cert, key)
-		if err != nil {
-			return err
-		}
-		cfg.TLS = tlsCfg
+	err := cfg.tlsOptions(jcfg)
+	if err != nil {
+		return err
 	}
 
 	return config.ParseDurations(
@@ -235,6 +225,36 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 		&config.DurationOpt{jcfg.WriteTimeout, &cfg.WriteTimeout, "write_timeout"},
 		&config.DurationOpt{jcfg.IdleTimeout, &cfg.IdleTimeout, "idle_timeout"},
 	)
+}
+
+func (cfg *Config) tlsOptions(jcfg *jsonConfig) error {
+	cert := jcfg.SSLCertFile
+	key := jcfg.SSLKeyFile
+
+	if cert+key == "" {
+		return nil
+	}
+
+	cfg.pathSSLCertFile = cert
+	cfg.pathSSLKeyFile = key
+
+	if !filepath.IsAbs(cert) {
+		cert = filepath.Join(cfg.BaseDir, cert)
+	}
+
+	if !filepath.IsAbs(key) {
+		key = filepath.Join(cfg.BaseDir, key)
+	}
+
+	logger.Debug(cfg.BaseDir)
+	logger.Debug(cert, key)
+
+	tlsCfg, err := newTLSConfig(cert, key)
+	if err != nil {
+		return err
+	}
+	cfg.TLS = tlsCfg
+	return nil
 }
 
 func (cfg *Config) loadLibp2pOptions(jcfg *jsonConfig) error {
