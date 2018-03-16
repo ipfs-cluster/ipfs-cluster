@@ -3,6 +3,7 @@ package raft
 import (
 	"log"
 	"strings"
+	"time"
 
 	logging "github.com/ipfs/go-log"
 )
@@ -14,15 +15,14 @@ const (
 	err
 )
 
+const repeatPoolSize = 10
+const repeatReset = time.Minute
+
 // This provides a custom logger for Raft which intercepts Raft log messages
 // and rewrites us to our own logger (for "raft" facility).
 type logForwarder struct {
-	last map[int]*lastMsg
-}
-
-type lastMsg struct {
-	msg    string
-	tipped bool
+	lastMsgs map[int][]string
+	lastTip  map[int]time.Time
 }
 
 var raftStdLogger = log.New(&logForwarder{}, "", 0)
@@ -58,19 +58,38 @@ func (fw *logForwarder) Write(p []byte) (n int, e error) {
 }
 
 func (fw *logForwarder) repeated(t int, msg string) bool {
-	if fw.last == nil {
-		fw.last = make(map[int]*lastMsg)
+	if fw.lastMsgs == nil {
+		fw.lastMsgs = make(map[int][]string)
+		fw.lastTip = make(map[int]time.Time)
 	}
 
-	last, ok := fw.last[t]
-	if !ok || last.msg != msg {
-		fw.last[t] = &lastMsg{msg, false}
-		return false
+	// We haven't tipped about repeated log messages
+	// in a while, do it and forget the list
+	if time.Now().After(fw.lastTip[t].Add(repeatReset)) {
+		fw.lastTip[t] = time.Now()
+		fw.lastMsgs[t] = nil
+		fw.log(t, "NOTICE: Some RAFT log messages repeat and will only be logged once")
 	}
-	if !last.tipped {
-		fw.log(t, "NOTICE: The last RAFT log message repeats and will only be logged once")
-		last.tipped = true
+
+	var found string
+
+	// Do we know about this message
+	for _, lmsg := range fw.lastMsgs[t] {
+		if lmsg == msg {
+			found = lmsg
+			break
+		}
 	}
+
+	if found == "" { // new message. Add to slice.
+		if len(fw.lastMsgs[t]) >= repeatPoolSize { // drop oldest
+			fw.lastMsgs[t] = fw.lastMsgs[t][1:]
+		}
+		fw.lastMsgs[t] = append(fw.lastMsgs[t], msg)
+		return false // not-repeated
+	}
+
+	// repeated, don't log
 	return true
 }
 

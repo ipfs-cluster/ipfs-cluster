@@ -139,7 +139,7 @@ func NewCluster(
 		return nil, errors.New("bootstrap unsuccessful")
 	}
 	go func() {
-		c.ready()
+		c.ready(consensusCfg.WaitForLeaderTimeout * 2)
 		c.run()
 	}()
 	return c, nil
@@ -422,14 +422,24 @@ func (c *Cluster) run() {
 	go c.alertsHandler()
 }
 
-func (c *Cluster) ready() {
+func (c *Cluster) ready(timeout time.Duration) {
 	// We bootstrapped first because with dirty state consensus
 	// may have a peerset and not find a leader so we cannot wait
 	// for it.
-	timer := time.NewTimer(30 * time.Second)
+	timer := time.NewTimer(timeout)
 	select {
 	case <-timer.C:
-		logger.Error("consensus start timed out")
+		logger.Error("***** ipfs-cluster consensus start timed out (tips below) *****")
+		logger.Error(`
+**************************************************
+This peer was not able to become part of the cluster.
+This might be due to one or several causes:
+  - Check that there is connectivity to the "bootstrap" and "peers" multiaddresses
+  - Check that all cluster peers are using the same "secret"
+  - Check that this peer is reachable on its "listen_multiaddress"
+  - Check that there is a majority of available peers
+**************************************************
+`)
 		c.Shutdown()
 		return
 	case <-c.consensus.Ready():
