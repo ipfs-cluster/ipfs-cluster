@@ -15,7 +15,8 @@ import (
 
 var logger = logging.Logger("config")
 
-// How often to save the configuration file if it needs saving.
+// ConfigSaveInterval specifies how often to save the configuration file if
+// it needs saving.
 var ConfigSaveInterval = time.Second
 
 // The ComponentConfig interface allows components to define configurations

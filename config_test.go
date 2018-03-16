@@ -17,29 +17,30 @@ var testingClusterCfg = []byte(`{
     "secret": "2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed",
     "peers": [],
     "bootstrap": [],
-    "leave_on_shutdown": true,
+    "leave_on_shutdown": false,
     "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
     "state_sync_interval": "1m0s",
     "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,
-    "monitor_ping_interval": "1s"
+    "monitor_ping_interval": "150ms",
+    "peer_watch_interval": "100ms"
 }
 `)
 
 var testingRaftCfg = []byte(`{
     "data_folder": "raftFolderFromTests",
-    "wait_for_leader_timeout": "30s",
-    "commit_retries": 1,
-    "commit_retry_delay": "1s",
-    "network_timeout": "20s",
-    "heartbeat_timeout": "1s",
-    "election_timeout": "1s",
+    "wait_for_leader_timeout": "10s",
+    "commit_retries": 2,
+    "commit_retry_delay": "50ms",
+    "network_timeout": "5s",
+    "heartbeat_timeout": "100ms",
+    "election_timeout": "100ms",
     "commit_timeout": "50ms",
-    "max_append_entries": 64,
+    "max_append_entries": 256,
     "trailing_logs": 10240,
     "snapshot_interval": "2m0s",
     "snapshot_threshold": 8192,
-    "leader_lease_timeout": "500ms"
+    "leader_lease_timeout": "80ms"
 }`)
 
 var testingAPICfg = []byte(`{
@@ -71,11 +72,11 @@ var testingTrackerCfg = []byte(`
 `)
 
 var testingMonCfg = []byte(`{
-    "check_interval": "1s"
+    "check_interval": "400ms"
 }`)
 
 var testingDiskInfCfg = []byte(`{
-    "metric_ttl": "1s",
+    "metric_ttl": "150ms",
     "metric_type": "freespace"
 }`)
 

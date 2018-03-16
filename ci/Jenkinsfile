@@ -1,2 +1,2 @@
-golang([test: "go test -v -timeout 20m ./..."])
+golang([test: "go test -v -loglevel ERROR ./..."])
 

@@ -50,6 +50,7 @@ func makeTestingHost(t *testing.T) host.Host {
 }
 
 func testingConsensus(t *testing.T, idn int) *Consensus {
+	cleanRaft(idn)
 	h := makeTestingHost(t)
 	st := mapstate.NewMapState()
 
@@ -72,6 +73,7 @@ func TestShutdownConsensus(t *testing.T) {
 	// Bring it up twice to make sure shutdown cleans up properly
 	// but also to make sure raft comes up ok when re-initialized
 	cc := testingConsensus(t, 1)
+	defer cleanRaft(1)
 	err := cc.Shutdown()
 	if err != nil {
 		t.Fatal("Consensus cannot shutdown:", err)

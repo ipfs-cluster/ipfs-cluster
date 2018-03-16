@@ -315,7 +315,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	time.Sleep(time.Second)
+	pinDelay()
 
 	recov, err := cl.RecoverAllLocal()
 	if err != nil {
