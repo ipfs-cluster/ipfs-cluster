@@ -171,8 +171,22 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	// HTTP config --------------------------- //
+	err = cfg.loadHTTPOptions(jcfg)
+	if err != nil {
+		return err
+	}
+	err = cfg.loadLibp2pOptions(jcfg)
+	if err != nil {
+		return err
+	}
 
+	// Other options
+	cfg.BasicAuthCreds = jcfg.BasicAuthCreds
+
+	return cfg.Validate()
+}
+
+func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 	// Deal with legacy ListenMultiaddress parameter
 	httpListen := jcfg.ListenMultiaddress
 	if httpListen != "" {
@@ -239,8 +253,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return fmt.Errorf("error parsing restapi.idle_timeout: %s", err)
 	}
 	cfg.IdleTimeout = t
+	return nil
+}
 
-	// Libp2p config ------------------ //
+func (cfg *Config) loadLibp2pOptions(jcfg *jsonConfig) error {
 	if libp2pListen := jcfg.Libp2pListenMultiaddress; libp2pListen != "" {
 		libp2pAddr, err := ma.NewMultiaddr(libp2pListen)
 		if err != nil {
@@ -269,11 +285,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		}
 		cfg.ID = id
 	}
-
-	// Authentication ------------------- //
-	cfg.BasicAuthCreds = jcfg.BasicAuthCreds
-
-	return cfg.Validate()
+	return nil
 }
 
 // ToJSON produce a human-friendly JSON representation of the Config
