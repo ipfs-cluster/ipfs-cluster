@@ -2,20 +2,13 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
-	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	logging "github.com/ipfs/go-log"
-	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
@@ -80,7 +73,7 @@ type Client struct {
 	ctx       context.Context
 	cancel    func()
 	config    *Config
-	transport http.RoundTripper
+	transport *http.Transport
 	net       string
 	hostname  string
 	client    *http.Client
@@ -119,49 +112,23 @@ func (c *Client) setupHTTPClient() error {
 		c.config.Timeout = DefaultTimeout
 	}
 
-	tr := c.defaultTransport()
+	var err error
 
 	switch {
 	case c.config.PeerAddr != nil:
-		pid, addr, err := multiaddrSplit(c.config.PeerAddr)
-		if err != nil {
-			return err
-		}
-
-		var prot ipnet.Protector
-		if c.config.ProtectorKey != nil && len(c.config.ProtectorKey) > 0 {
-			if len(c.config.ProtectorKey) != 32 {
-				return errors.New("length of ProtectorKey should be 32")
-			}
-			var key [32]byte
-			copy(key[:], c.config.ProtectorKey)
-
-			prot, err = pnet.NewV1ProtectorFromBytes(&key)
-			if err != nil {
-				return err
-			}
-		}
-
-		h, err := libp2p.New(c.ctx, libp2p.PrivateNetwork(prot))
-		if err != nil {
-			return err
-		}
-
-		// This should resolve addr too.
-		h.Peerstore().AddAddr(pid, addr, peerstore.PermanentAddrTTL)
-		tr.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
-		c.net = "libp2p"
-		c.p2p = h
-		c.hostname = pid.Pretty()
+		err = c.enableLibp2p()
 	case c.config.SSL:
-		tr.TLSClientConfig = tlsConfig(c.config.NoVerifyCert)
-		c.net = "https"
+		err = c.enableTLS()
 	default:
-		c.net = "http"
+		c.defaultTransport()
+	}
+
+	if err != nil {
+		return err
 	}
 
 	c.client = &http.Client{
-		Transport: tr,
+		Transport: c.transport,
 		Timeout:   c.config.Timeout,
 	}
 	return nil
@@ -213,22 +180,4 @@ func multiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
 		return "", nil, err
 	}
 	return peerID, decapAddr, nil
-}
-
-// This is essentially a http.DefaultTransport. We should not mess
-// with it since it's a global variable, so we create our own.
-// TODO: Allow more configuration options.
-func (c *Client) defaultTransport() *http.Transport {
-	return &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
 }
