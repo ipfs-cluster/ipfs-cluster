@@ -580,7 +580,7 @@ func (c *Cluster) ID() api.ID {
 	}
 	for k := range addrsSet {
 		addr, _ := ma.NewMultiaddr(k)
-		addrs = append(addrs, multiaddrJoin(addr, c.id))
+		addrs = append(addrs, api.Libp2pMultiaddrJoin(addr, c.id))
 	}
 
 	peers := []peer.ID{}
@@ -617,7 +617,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	c.paMux.Lock()
 	defer c.paMux.Unlock()
 	logger.Debugf("peerAdd called with %s", addr)
-	pid, decapAddr, err := multiaddrSplit(addr)
+	pid, decapAddr, err := api.Libp2pMultiaddrSplit(addr)
 	if err != nil {
 		id := api.ID{
 			Error: err.Error(),
@@ -749,7 +749,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	//	return errors.New("only single-node clusters can be joined")
 	//}
 
-	pid, _, err := multiaddrSplit(addr)
+	pid, _, err := api.Libp2pMultiaddrSplit(addr)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -771,7 +771,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 		"Cluster",
 		"PeerAdd",
 		api.MultiaddrToSerial(
-			multiaddrJoin(c.config.ListenAddr, c.id)),
+			api.Libp2pMultiaddrJoin(c.config.ListenAddr, c.id)),
 		&myID)
 	if err != nil {
 		logger.Error(err)

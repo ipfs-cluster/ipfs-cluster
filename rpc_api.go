@@ -389,6 +389,6 @@ func (rpcapi *RPCAPI) RemoteMultiaddrForPeer(ctx context.Context, in peer.ID, ou
 	if len(conns) == 0 {
 		return errors.New("no connections to: " + in.Pretty())
 	}
-	*out = api.MultiaddrToSerial(multiaddrJoin(conns[0].RemoteMultiaddr(), in))
+	*out = api.MultiaddrToSerial(api.Libp2pMultiaddrJoin(conns[0].RemoteMultiaddr(), in))
 	return nil
 }

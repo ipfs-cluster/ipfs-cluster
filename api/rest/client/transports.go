@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	libp2p "github.com/libp2p/go-libp2p"
 	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
@@ -37,7 +39,7 @@ func (c *Client) defaultTransport() {
 func (c *Client) enableLibp2p() error {
 	c.defaultTransport()
 
-	pid, addr, err := multiaddrSplit(c.config.PeerAddr)
+	pid, addr, err := api.Libp2pMultiaddrSplit(c.config.PeerAddr)
 	if err != nil {
 		return err
 	}

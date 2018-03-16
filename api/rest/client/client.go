@@ -8,7 +8,6 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
@@ -160,24 +159,4 @@ func (c *Client) setupHostname() error {
 		c.hostname = fmt.Sprintf("%s:%s", c.config.Host, c.config.Port)
 	}
 	return nil
-}
-
-func multiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
-	pid, err := addr.ValueForProtocol(ma.P_IPFS)
-	if err != nil {
-		err = fmt.Errorf("invalid peer multiaddress: %s: %s", addr, err)
-		logger.Error(err)
-		return "", nil, err
-	}
-
-	ipfs, _ := ma.NewMultiaddr("/ipfs/" + pid)
-	decapAddr := addr.Decapsulate(ipfs)
-
-	peerID, err := peer.IDB58Decode(pid)
-	if err != nil {
-		err = fmt.Errorf("invalid peer ID in multiaddress: %s: %s", pid, err)
-		logger.Error(err)
-		return "", nil, err
-	}
-	return peerID, decapAddr, nil
 }

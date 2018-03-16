@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
@@ -27,7 +29,7 @@ func newPeerManager(h host.Host) *peerManager {
 
 func (pm *peerManager) addPeer(addr ma.Multiaddr, connect bool) error {
 	logger.Debugf("adding peer address %s", addr)
-	pid, decapAddr, err := multiaddrSplit(addr)
+	pid, decapAddr, err := api.Libp2pMultiaddrSplit(addr)
 	if err != nil {
 		return err
 	}

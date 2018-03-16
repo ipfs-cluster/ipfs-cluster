@@ -36,7 +36,6 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 func clusterAddr(c *Cluster) ma.Multiaddr {
 	cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", c.host.Addrs()[0], c.id.Pretty()))
 	return cAddr
-	//return multiaddrJoin(c.config.ListenAddr, c.ID().ID)
 }
 
 func TestClustersPeerAdd(t *testing.T) {
