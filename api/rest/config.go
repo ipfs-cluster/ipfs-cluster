@@ -228,32 +228,13 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 		cfg.TLS = tlsCfg
 	}
 
-	// only overwrite defaults when we can parse the time
-	// 0 is a valid value
-	t, err := time.ParseDuration(jcfg.ReadTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing restapi.read_timeout: %s", err)
-	}
-	cfg.ReadTimeout = t
-
-	t, err = time.ParseDuration(jcfg.ReadHeaderTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing restapi.read_header_timeout: %s", err)
-	}
-	cfg.ReadHeaderTimeout = t
-
-	t, err = time.ParseDuration(jcfg.WriteTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing restapi.write_timeout: %s", err)
-	}
-	cfg.WriteTimeout = t
-
-	t, err = time.ParseDuration(jcfg.IdleTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing restapi.idle_timeout: %s", err)
-	}
-	cfg.IdleTimeout = t
-	return nil
+	return config.ParseDurations(
+		"restapi",
+		&config.DurationOpt{jcfg.ReadTimeout, &cfg.ReadTimeout, "read_timeout"},
+		&config.DurationOpt{jcfg.ReadHeaderTimeout, &cfg.ReadHeaderTimeout, "read_header_timeout"},
+		&config.DurationOpt{jcfg.WriteTimeout, &cfg.WriteTimeout, "write_timeout"},
+		&config.DurationOpt{jcfg.IdleTimeout, &cfg.IdleTimeout, "idle_timeout"},
+	)
 }
 
 func (cfg *Config) loadLibp2pOptions(jcfg *jsonConfig) error {

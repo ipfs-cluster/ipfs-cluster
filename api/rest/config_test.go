@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -27,6 +28,13 @@ func TestLoadJSON(t *testing.T) {
 	err := cfg.LoadJSON(cfgJSON)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if cfg.ReadTimeout != 30*time.Second ||
+		cfg.WriteTimeout != time.Minute ||
+		cfg.ReadHeaderTimeout != 5*time.Second ||
+		cfg.IdleTimeout != 2*time.Minute {
+		t.Error("error parsing timeouts")
 	}
 
 	j := &jsonConfig{}

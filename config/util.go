@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -80,4 +81,31 @@ func SetIfNotDefault(src interface{}, dest interface{}) {
 			*dest.(*bool) = b
 		}
 	}
+}
+
+// DurationOpt provides a datatype to use with ParseDurations
+type DurationOpt struct {
+	// The duration we need to parse
+	Duration string
+	// Where to store the result
+	Dst *time.Duration
+	// A variable name associated to it for helpful errors.
+	Name string
+}
+
+// ParseDurations takes a time.Duration src and saves it to the given dst. into the given
+func ParseDurations(component string, args ...*DurationOpt) error {
+	for _, arg := range args {
+		t, err := time.ParseDuration(arg.Duration)
+		if err != nil {
+			return fmt.Errorf(
+				"error parsing %s.%s: %s",
+				component,
+				arg.Name,
+				err,
+			)
+		}
+		*arg.Dst = t
+	}
+	return nil
 }
