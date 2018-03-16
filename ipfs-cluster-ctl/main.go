@@ -46,7 +46,9 @@ specific one.
 %s uses the IPFS Cluster API to perform requests and display
 responses in a user-readable format. The location of the IPFS
 Cluster server is assumed to be %s, but can be
-configured with the --host option.
+configured with the --host option. To use the secure libp2p-http
+API endpoint, use "--host" with the full cluster libp2p listener
+address (including the "/ipfs/<peerID>" part), and --secret.
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
@@ -82,7 +84,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost,
-			Usage: "multiaddress of the IPFS Cluster REST API HTTP or LibP2P endpoint",
+			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint",
 		},
 		cli.StringFlag{
 			Name:  "secret",
