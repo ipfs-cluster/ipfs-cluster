@@ -8,6 +8,9 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
+	cid "github.com/ipfs/go-cid"
+	types "github.com/ipfs/ipfs-cluster/api"
+	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
@@ -166,7 +169,7 @@ func TestAllocations(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c *Client) {
-		pins, err := c.Allocations()
+		pins, err := c.Allocations(types.PinType(types.AllType))
 		if err != nil {
 			t.Fatal(err)
 		}
