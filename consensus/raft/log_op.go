@@ -61,7 +61,6 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			op.Cid,
 			&struct{}{},
 			nil)
-
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}

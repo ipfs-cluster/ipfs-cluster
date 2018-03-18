@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
+	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -88,6 +89,15 @@ func logError(fmtstr string, args ...interface{}) error {
 func containsPeer(list []peer.ID, peer peer.ID) bool {
 	for _, p := range list {
 		if p == peer {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCid(list []*cid.Cid, ci *cid.Cid) bool {
+	for _, c := range list {
+		if c.String() == ci.String() {
 			return true
 		}
 	}

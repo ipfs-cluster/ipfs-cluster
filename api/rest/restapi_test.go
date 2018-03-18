@@ -398,7 +398,7 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.PinSerial
-		makeGet(t, rest, url(rest)+"/allocations", &resp)
+		makeGet(t, rest, url(rest)+"/allocations?a=false", &resp)
 		if len(resp) != 3 ||
 			resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||
 			resp[2].Cid != test.TestCid3 {

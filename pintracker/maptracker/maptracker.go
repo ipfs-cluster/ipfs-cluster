@@ -199,6 +199,27 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		return nil
 	}
 
+	// TODO: Fix this for sharding
+	// FIXME: Fix this for sharding
+	// The problem is remote/unpin operation won't be cancelled
+	// but I don't know how bad is that
+	// Also, this is dup code
+	if c.Type == ShardType {
+		// cancel any other ops
+		op := mpt.optracker.TrackNewOperation(c, optracker.OperationSharded, optracker.PhaseInProgress)
+		if op == nil {
+			return nil
+		}
+		err := mpt.unpin(op)
+		op.Cancel()
+		if err != nil {
+			op.SetError(err)
+		} else {
+			op.SetPhase(optracker.PhaseDone)
+		}
+		return nil
+	}
+
 	return mpt.enqueue(c, optracker.OperationPin, mpt.pinCh)
 }
 

@@ -1,6 +1,9 @@
 package sharder
 
-// clusterdag.go defines functions for handling edge cases where clusterDAG
+// clusterdag.go defines functions for constructing and parsing ipld-cbor nodes
+// of the clusterDAG used to track sharded DAGs in ipfs-cluster
+
+// Most logic goes into handling the edge cases in which clusterDAG
 // metadata for a single shard cannot fit within a single shard node.  We
 // make the following simplifying assumption: a single shard will not track
 // more than 35,808,256 links (~2^25).  This is the limit at which the current
@@ -16,15 +19,45 @@ package sharder
 import (
 	"fmt"
 
+	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
+	dag "github.com/ipfs/go-ipfs/merkledag"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 )
 
+func init() {
+	ipld.Register(cid.DagProtobuf, dag.DecodeProtobufBlock)
+	ipld.Register(cid.Raw, dag.DecodeRawBlock)
+	ipld.Register(cid.DagCBOR, cbor.DecodeBlock) // need to decode CBOR
+}
+
 // MaxLinks is the max number of links that, when serialized fit into a block
 const MaxLinks = 5984
 const fixedPerLink = 40
+const hashFn = mh.SHA2_256
+
+// CborDataToNode parses cbor data into a clusterDAG node while making a few
+// checks
+func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
+	if format != "cbor" {
+		return nil, fmt.Errorf("unexpected shard node format %s", format)
+	}
+	shardCid, err := cid.NewPrefixV1(cid.DagCBOR, hashFn).Sum(raw)
+	if err != nil {
+		return nil, err
+	}
+	shardBlk, err := blocks.NewBlockWithCid(raw, shardCid)
+	if err != nil {
+		return nil, err
+	}
+	shardNode, err := ipld.Decode(shardBlk)
+	if err != nil {
+		return nil, err
+	}
+	return shardNode, nil
+}
 
 // makeDAG parses a shardObj which stores all of the node-links a shardDAG
 // is responsible for tracking.  In general a single node of links may exceed
@@ -36,8 +69,8 @@ const fixedPerLink = 40
 func makeDAG(obj shardObj) ([]ipld.Node, error) {
 	// No indirect node
 	if len(obj) <= MaxLinks {
-		node, err := cbor.WrapObject(obj, mh.SHA2_256,
-			mh.DefaultLengths[mh.SHA2_256])
+		node, err := cbor.WrapObject(obj, hashFn,
+			mh.DefaultLengths[hashFn])
 		if err != nil {
 			return nil, err
 		}
@@ -59,16 +92,16 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 			}
 			leafObj[fmt.Sprintf("%d", j)] = c
 		}
-		leafNode, err := cbor.WrapObject(leafObj, mh.SHA2_256,
-			mh.DefaultLengths[mh.SHA2_256])
+		leafNode, err := cbor.WrapObject(leafObj, hashFn,
+			mh.DefaultLengths[hashFn])
 		if err != nil {
 			return nil, err
 		}
 		indirectObj[fmt.Sprintf("%d", i)] = leafNode.Cid()
 		leafNodes = append(leafNodes, leafNode)
 	}
-	indirectNode, err := cbor.WrapObject(indirectObj, mh.SHA2_256,
-		mh.DefaultLengths[mh.SHA2_256])
+	indirectNode, err := cbor.WrapObject(indirectObj, hashFn,
+		mh.DefaultLengths[hashFn])
 	if err != nil {
 		return nil, err
 	}

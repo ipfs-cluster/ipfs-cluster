@@ -10,12 +10,14 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
+	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+	p2praft "github.com/libp2p/go-libp2p-raft"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -877,8 +879,8 @@ func (c *Cluster) Pins() []api.Pin {
 		logger.Error(err)
 		return []api.Pin{}
 	}
-
 	return cState.List()
+
 }
 
 // PinGet returns information for a single Cid managed by Cluster.
@@ -916,14 +918,92 @@ func (c *Cluster) Pin(pin api.Pin) error {
 	return err
 }
 
+// validate pin ensures that the metadata accompanying the cid is
+// self-consistent.  This amounts to verifying that the data structure matches
+// the expected form of the pinType carried in the pin.
+func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
+	switch pin.Type {
+	case api.DataType:
+		if pin.Clusterdag != nil ||
+			(pin.Parents != nil && pin.Parents.Len() != 0) {
+			return errors.New("data pins should not reference other pins")
+		}
+	case api.ShardType:
+		if !pin.Recursive {
+			return errors.New("must pin shards recursively")
+		}
+		// In general multiple clusterdags may reference the same shard
+		// and sharder sessions typically update a shard pin's metadata.
+		// Hence we check for an existing shard and carefully update.
+		cState, err := c.consensus.State()
+		if err != nil && err != p2praft.ErrNoState {
+			return err
+		}
+		if err == p2praft.ErrNoState || !cState.Has(pin.Cid) {
+			break
+		}
+
+		// State already tracks pin's CID
+		existing := cState.Get(pin.Cid)
+		// For now all repins of the same shard must use the same
+		// replmax and replmin.  It is unclear what the best UX is here
+		// especially if the same Shard is referenced in multiple
+		// clusterdags.  This simplistic policy avoids complexity and
+		// suits existing needs for shard pins.
+		if existing.ReplicationFactorMin != rplMin ||
+			existing.ReplicationFactorMax != rplMax {
+			return errors.New("shard update with wrong repl factors")
+		}
+	case api.CdagType:
+		if pin.Recursive {
+			return errors.New("must pin roots directly")
+		}
+		if pin.Clusterdag == nil {
+			return errors.New("roots must reference a dag")
+		}
+		if pin.Parents.Len() > 1 {
+			return errors.New("cdag nodes are referenced once")
+		}
+	case api.MetaType:
+		if len(pin.Allocations) != 0 {
+			return errors.New("meta pin should not specify allocations")
+		}
+	default:
+		return errors.New("unrecognized pin type")
+	}
+	return nil
+}
+
+// updatePinParents modifies the api.Pin input to give it the correct parents
+// so that previous additions to the pins parents are maintained after this
+// pin is committed to consensus.  If this pin carries new parents they are
+// merged with those already existing for this CID
+func (c *Cluster) updatePinParents(pin *api.Pin) error {
+	cState, err := c.consensus.State()
+	if err != nil && err != p2praft.ErrNoState {
+		return err
+	}
+	// first pin of this cid, nothing to update
+	if err == p2praft.ErrNoState || !cState.Has(pin.Cid) {
+		return nil
+	}
+	existing := cState.Get(pin.Cid)
+	// no existing parents this pin is up to date
+	if existing.Parents == nil || len(existing.Parents.Keys()) == 0 {
+		return nil
+	}
+	for _, c := range existing.Parents.Keys() {
+		pin.Parents.Add(c)
+	}
+	return nil
+}
+
 // pin performs the actual pinning and supports a blacklist to be
 // able to evacuate a node and returns whether the pin was submitted
 // to the consensus layer or skipped (due to error or to the fact
 // that it was already valid).
 func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (bool, error) {
-	if pin.Cid == nil {
-		return false, errors.New("bad pin object")
-	}
+	// Determine repl factors
 	rplMin := pin.ReplicationFactorMin
 	rplMax := pin.ReplicationFactorMax
 	if rplMin == 0 {
@@ -935,7 +1015,24 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		pin.ReplicationFactorMax = rplMax
 	}
 
+	// Validate pin
+	if pin.Cid == nil {
+		return false, errors.New("bad pin object")
+	}
 	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
+		return false, err
+	}
+	err := c.validatePin(pin, rplMin, rplMax)
+	if err != nil {
+		return false, err
+	}
+	if pin.Type == api.MetaType {
+		return true, c.consensus.LogPin(pin)
+	}
+
+	// Ensure parents do not overwrite existing and merge non-intersecting
+	err = c.updatePinParents(&pin)
+	if err != nil {
 		return false, err
 	}
 
@@ -973,16 +1070,93 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("IPFS cluster unpinning:", h)
-
-	pin := api.Pin{
-		Cid: h,
-	}
-
-	err := c.consensus.LogUnpin(pin)
+	cState, err := c.consensus.State()
 	if err != nil {
 		return err
 	}
-	return nil
+
+	if !cState.Has(h) {
+		return errors.New("cannot unpin pin uncommitted to state")
+	}
+	pin := cState.Get(h)
+
+	switch pin.Type {
+	case api.DataType:
+		return c.consensus.LogUnpin(pin)
+	case api.ShardType:
+		err := "unpinning shard cid %s before unpinning parent"
+		return errors.New(err)
+	case api.MetaType:
+		// Unpin cluster dag and referenced shards
+		err := c.unpinClusterDag(pin)
+		if err != nil {
+			return err
+		}
+		return c.consensus.LogUnpin(pin)
+	case api.CdagType:
+		err := "unpinning cluster dag root %s before unpinning parent"
+		return errors.New(err)
+	default:
+		return errors.New("unrecognized pin type")
+	}
+}
+
+// unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
+// nodes that it references.  It handles the case where multiple parents
+// reference the same metadata node, only unpinning those nodes without
+// existing references
+func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
+	if metaPin.Clusterdag == nil {
+		return errors.New("metaPin not linked to clusterdag")
+	}
+
+	cdagBytes, err := c.ipfs.BlockGet(metaPin.Clusterdag)
+	if err != nil {
+		return err
+	}
+	cdag, err := sharder.CborDataToNode(cdagBytes, "cbor")
+	if err != nil {
+		return err
+	}
+
+	// traverse all shards of cdag
+	for _, shardLink := range cdag.Links() {
+		err = c.unpinShard(metaPin.Clusterdag, shardLink.Cid)
+		if err != nil {
+			return err
+		}
+	}
+
+	// by invariant in Pin cdag has only one parent and can be unpinned
+	cdagWrap := api.PinCid(metaPin.Clusterdag)
+	return c.consensus.LogUnpin(cdagWrap)
+}
+
+func (c *Cluster) unpinShard(cdagCid, shardCid *cid.Cid) error {
+	cState, err := c.consensus.State()
+	if err != nil {
+		return err
+	}
+	if !cState.Has(cdagCid) || !cState.Has(shardCid) {
+		return errors.New("nodes of the clusterdag are not committed to the state")
+	}
+	shardPin := cState.Get(shardCid)
+	if shardPin.Parents == nil || !shardPin.Parents.Has(cdagCid) {
+		return errors.New("clusterdag references shard node but shard node does not reference clusterdag as parent")
+	}
+	// Remove the parent from the shardPin
+	for _, c := range shardPin.Parents.Keys() { //parents non-nil by check above
+		if c.String() == cdagCid.String() {
+			shardPin.Parents.Remove(c)
+			break
+		}
+	}
+
+	// Recommit state if other references exist
+	if shardPin.Parents.Len() > 0 {
+		return c.consensus.LogPin(shardPin)
+	}
+	return c.consensus.LogUnpin(shardPin)
 }
 
 // Version returns the current IPFS Cluster version.

@@ -303,8 +303,16 @@ func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.
 }
 
 // IPFSBlockPut runs IPFSConnector.BlockPut().
-func (rpcapi *RPCAPI) IPFSBlockPut(in api.NodeWithMeta, out *string) error {
+func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *string) error {
 	res, err := rpcapi.c.ipfs.BlockPut(in)
+	*out = res
+	return err
+}
+
+// IPFSBlockGet runs IPFSConnector.BlockGet().
+func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[]byte) error {
+	c := in.ToPin().Cid
+	res, err := rpcapi.c.ipfs.BlockGet(c)
 	*out = res
 	return err
 }
@@ -347,14 +355,14 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 */
 
 // SharderAddNode runs Sharder.AddNode(node).
-func (rpcapi *RPCAPI) SharderAddNode(in api.NodeWithMeta, out *string) error {
+func (rpcapi *RPCAPI) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
 	shardID, err := rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
 	*out = shardID
 	return err
 }
 
 // SharderFinalize runs Sharder.Finalize().
-func (rpcapi *RPCAPI) SharderFinalize(in string, out *struct{}) error {
+func (rpcapi *RPCAPI) SharderFinalize(ctx context.Context, in string, out *struct{}) error {
 	return rpcapi.c.sharder.Finalize(in)
 }
 

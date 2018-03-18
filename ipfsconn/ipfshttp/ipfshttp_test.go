@@ -724,6 +724,20 @@ func TestBlockPut(t *testing.T) {
 	}
 }
 
+func TestBlockGet(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+	shardCid, err := cid.Decode(test.TestShardCid)
+	data, err := ipfs.BlockGet(shardCid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, test.TestShardData) {
+		t.Fatal("unexpected data returned")
+	}
+}
+
 func TestRepoSize(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
