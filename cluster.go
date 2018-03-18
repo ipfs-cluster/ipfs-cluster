@@ -995,8 +995,18 @@ func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
 // the cluster.  Priority allocations are best effort.  If any priority peers
 // are unavailable then Pin will simply allocate from the rest of the cluster.
 func (c *Cluster) Pin(pin api.Pin) error {
-	_, err := c.pin(pin, []peer.ID{}, pin.Allocations)
-	return err
+	switch pin.Type {
+	case api.DataType, api.ShardType, api.CdagType:
+		_, err := c.pin(pin, []peer.ID{}, pin.Allocations)
+		return err
+	case api.MetaType:
+		if len(pin.Allocations) != 0 {
+			return errors.New("meta pin should not specify allocations")
+		}
+		return c.consensus.LogPin(pin)
+	default:
+		return errors.New("unrecognized pin type")
+	}
 }
 
 // pin performs the actual pinning and supports a blacklist to be
@@ -1056,16 +1066,69 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("IPFS cluster unpinning:", h)
-
-	pin := api.Pin{
-		Cid: h,
-	}
-
-	err := c.consensus.LogUnpin(pin)
+	cState, err := c.consensus.State()
 	if err != nil {
 		return err
 	}
-	return nil
+
+	if !cState.Has(h) {
+		return errors.New("cannot unpin pin uncommitted to state")
+	}
+	pin := cState.Get(h)
+
+	switch pin.Type {
+	case api.DataType:
+		return c.consensus.LogUnpin(pin)
+	case api.ShardType:
+		warn := "unpinning shard cid %s without unpinning parent"
+		logger.Warningf(warn, h.String())
+		return c.consensus.LogUnpin(pin)
+	case api.MetaType:
+		// Unpin cluster dag and referenced shards
+		c.unpinClusterDag(pin)
+		return c.consensus.LogUnpin(pin)
+	case api.CdagType:
+		warn := "unpinning cluster dag root %s without unpinning parent"
+		logger.Warningf(warn, h.String())
+		c.unpinClusterDag(pin)
+		return c.consensus.LogUnpin(pin)
+	default:
+		return errors.New("unrecognized pin type")
+	}
+}
+
+// unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
+// nodes that it references.  It handles the case where multiple parents
+// reference the same metadata node, only unpinning those nodes without
+// existing references
+func (c *Cluster) unpinClusterDag(metaPin api.Pin) {
+	// Retrieve the clusterDAG node through IPFSConn
+
+	// Read through links in clusterDAG node (maybe use sharder for this, probably can use ipld directly or maybe abstract things into a utility helpfer function?
+
+	//
+	return
+}
+
+// UpdatePin updates the shared state's view on the data included with the cid.
+// Currently only supports updating the parent cid of shard nodes
+func (c *Cluster) UpdatePin(h, parent *cid.Cid) error {
+	cState, err := c.consensus.State()
+	if err != nil {
+		return err
+	}
+	if !cState.Has(h) {
+		return errors.New("cannot update pin uncommitted to state")
+	}
+	pin := cState.Get(h)
+	if pin.Type != api.ShardType {
+		return errors.New("cannot update on non-shard type")
+	}
+	if pin.Parents == nil {
+		pin.Parents = make([]*cid.Cid, 0)
+	}
+	pin.Parents = append(pin.Parents, parent)
+	return c.consensus.LogUpdate(pin)
 }
 
 // Version returns the current IPFS Cluster version.

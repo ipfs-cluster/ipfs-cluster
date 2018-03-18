@@ -44,6 +44,8 @@ type Consensus interface {
 	LogPin(c api.Pin) error
 	// Logs an unpin operation
 	LogUnpin(c api.Pin) error
+	// Logs a pin update operation
+	LogUpdate(c api.Pin) error
 	AddPeer(p peer.ID) error
 	RmPeer(p peer.ID) error
 	State() (state.State, error)

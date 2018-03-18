@@ -48,6 +48,9 @@ const (
 	TrackerStatusUnpinned
 	// The IPFS deamon is not pinning the item but it is being tracked
 	TrackerStatusRemote
+	// The IPFS daemon is not pinning the item through this cid but it is
+	// tracked in a cluster dag
+	TrackerStatusSharded
 )
 
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
@@ -515,19 +518,65 @@ func StringsToPeers(strs []string) []peer.ID {
 	return peers
 }
 
+// CidsToStrings encodes cid.Cids to strings.
+func CidsToStrings(cids []*cid.Cid) []string {
+	strs := make([]string, len(cids))
+	for i, c := range cids {
+		strs[i] = c.String()
+	}
+	return strs
+}
+
+// StringsToCids decodes cid.Cids from strings.
+func StringsToCids(strs []string) []*cid.Cid {
+	cids := make([]*cid.Cid, len(strs))
+	var err error
+	for i, str := range strs {
+		cids[i], err = cid.Decode(str)
+		if err != nil {
+			logger.Error(str, err)
+		}
+	}
+	return cids
+}
+
+// PinType values
+const (
+	DataType = iota
+	MetaType
+	CdagType
+	ShardType
+)
+
+// PinType specifies which of four possible interpretations a pin represents.
+// DataType pins are the simplest and represent a pin in the pinset used to
+// directly track user data.  ShardType pins are metadata pins that track
+// many nodes in a user's data DAG.  ShardType pins have a parent pin, and in
+// general can have many parents.  ClusterDAG, or Cdag for short, pins are also
+// metadata pins that do not directly track user data DAGs but rather other
+// metadata pins.  CdagType pins have at least one parent.  Finally MetaType
+// pins always track the cid of the root of a user-tracked data DAG.  However
+// MetaType pins are not stored directly in the ipfs pinset.  Instead the
+// underlying DAG is tracked via the metadata pins underneath the root of a
+// CdagType pin
+type PinType int
+
 // Pin is an argument that carries a Cid. It may carry more things in the
 // future.
 type Pin struct {
 	Cid                  *cid.Cid
 	Name                 string
+	Type                 PinType
 	Allocations          []peer.ID
 	ReplicationFactorMin int
 	ReplicationFactorMax int
 	Recursive            bool
+	Parents              []*cid.Cid
+	Child                *cid.Cid
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
-// be recursive
+// be recursive and the pin to be of DataType
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
@@ -540,10 +589,13 @@ func PinCid(c *cid.Cid) Pin {
 type PinSerial struct {
 	Cid                  string   `json:"cid"`
 	Name                 string   `json:"name"`
+	Type                 int      `json:"type"`
 	Allocations          []string `json:"allocations"`
 	ReplicationFactorMin int      `json:"replication_factor_min"`
 	ReplicationFactorMax int      `json:"replication_factor_max"`
 	Recursive            bool     `json:"recursive"`
+	Parents              []string `json:"parents"`
+	Child                string   `json:"child"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -552,17 +604,25 @@ func (pin Pin) ToSerial() PinSerial {
 	if pin.Cid != nil {
 		c = pin.Cid.String()
 	}
+	child := ""
+	if pin.Child != nil {
+		child = pin.Child.String()
+	}
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
+	parents := CidsToStrings(pin.Parents)
 
 	return PinSerial{
 		Cid:                  c,
 		Name:                 n,
 		Allocations:          allocs,
+		Type:                 int(pin.Type),
 		ReplicationFactorMin: pin.ReplicationFactorMin,
 		ReplicationFactorMax: pin.ReplicationFactorMax,
 		Recursive:            pin.Recursive,
+		Parents:              parents,
+		Child:                child,
 	}
 }
 
@@ -581,6 +641,10 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
+	if pin1s.Type != pin2s.Type {
+		return false
+	}
+
 	if pin1s.Recursive != pin2s.Recursive {
 		return false
 	}
@@ -592,11 +656,21 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
+	sort.Strings(pin1s.Parents)
+	sort.Strings(pin2s.Parents)
+
+	if strings.Join(pin1s.Parents, ",") != strings.Join(pin2s.Parents, ",") {
+		return false
+	}
+
 	if pin1s.ReplicationFactorMax != pin2s.ReplicationFactorMax {
 		return false
 	}
 
 	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
+		return false
+	}
+	if pin1s.Child != pin2s.Child {
 		return false
 	}
 	return true
@@ -608,14 +682,21 @@ func (pins PinSerial) ToPin() Pin {
 	if err != nil {
 		logger.Error(pins.Cid, err)
 	}
+	child, err := cid.Decode(pins.Child)
+	if err != nil {
+		logger.Error(pins.Child, err)
+	}
 
 	return Pin{
 		Cid:                  c,
 		Name:                 pins.Name,
 		Allocations:          StringsToPeers(pins.Allocations),
+		Type:                 PinType(pins.Type),
 		ReplicationFactorMin: pins.ReplicationFactorMin,
 		ReplicationFactorMax: pins.ReplicationFactorMax,
 		Recursive:            pins.Recursive,
+		Parents:              StringsToCids(pins.Parents),
+		Child:                child,
 	}
 }
 

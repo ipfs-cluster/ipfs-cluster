@@ -134,6 +134,51 @@ func TestConsensusUnpin(t *testing.T) {
 	}
 }
 
+func TestConsensusUpdate(t *testing.T) {
+	cc := testingConsensus(t, 1)
+	defer cleanRaft(1)
+	defer cc.Shutdown()
+
+	// Pin first
+	c1, _ := cid.Decode(test.TestCid1)
+	pin := api.Pin{
+		Cid:                  c1,
+		Type:                 api.ShardType,
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+		Parents:              nil,
+	}
+	err := cc.LogPin(pin)
+	if err != nil {
+		t.Fatal("the initial operation did not make it to the log:", err)
+	}
+	time.Sleep(250 * time.Millisecond)
+
+	// Update pin
+	c2, _ := cid.Decode(test.TestCid2)
+	pin.Parents = make([]*cid.Cid, 1)
+	pin.Parents[0] = c2
+	err = cc.LogUpdate(pin)
+	if err != nil {
+		t.Error("the update op did not make it to the log:", err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+	st, err := cc.State()
+	if err != nil {
+		t.Fatal("error getting state:", err)
+	}
+
+	pins := st.List()
+	if len(pins) != 1 || pins[0].Cid.String() != test.TestCid1 {
+		t.Error("the added pin should be in the state")
+	}
+	if pins[0].Parents == nil || len(pins[0].Parents) != 1 ||
+		pins[0].Parents[0].String() != test.TestCid2 {
+		t.Error("pin updated incorrectly")
+	}
+}
+
 func TestConsensusAddPeer(t *testing.T) {
 	cc := testingConsensus(t, 1)
 	cc2 := testingConsensus(t, 2)
