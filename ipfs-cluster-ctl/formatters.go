@@ -181,6 +181,28 @@ func textFormatPrintPin(obj *api.PinSerial) {
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
 	}
+	var recStr string
+	if obj.Recursive {
+		recStr = "Recursive"
+	} else {
+		recStr = "Non-recursive"
+	}
+	fmt.Printf("| %s | ", recStr)
+
+	pinType := obj.ToPin().Type
+	typeStr := pinType.String()
+	var infoStr string
+	switch pinType {
+	case api.DataType:
+		infoStr = typeStr
+	case api.MetaType:
+		infoStr = fmt.Sprintf("%s-- clusterDAG=%s",typeStr, obj.Clusterdag)
+	case api.CdagType, api.ShardType:
+		infoStr = typeStr
+	default:
+		infoStr = ""
+	}
+	fmt.Printf("| %s ", infoStr)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {

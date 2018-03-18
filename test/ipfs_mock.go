@@ -265,6 +265,23 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
+	case "block/get":
+		query := r.URL.Query()
+		arg, ok := query["arg"]
+		if !ok {
+			goto ERROR
+		}
+		if len(arg) != 1 {
+			goto ERROR
+		}
+		switch arg[0] {
+		case TestShardCid:
+			w.Write(TestShardData)
+		case TestCdagCid:
+			w.Write(TestCdagData)
+		default:
+			goto ERROR
+		}
 	case "repo/stat":
 		len := len(m.pinMap.List())
 		resp := mockRepoStatResp{

@@ -417,9 +417,16 @@ which peers they are currently allocated. This list does not include
 any monitoring information about the IPFS status of the CIDs, it
 merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
+Metadata CIDs used to track sharded files are hidden by default.  To view
+all CIDs call with the -a flag.
 `,
 					ArgsUsage: "[CID]",
-					Flags:     []cli.Flag{},
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "all, a",
+							Usage: "display hidden CIDs",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						if cidStr != "" {
@@ -428,7 +435,11 @@ the cluster. For IPFS-status information about the pins, use "status".
 							resp, cerr := globalClient.Allocation(ci)
 							formatResponse(c, resp, cerr)
 						} else {
-							resp, cerr := globalClient.Allocations()
+							filter := api.PinType(api.DataType)
+							if c.Bool("all") {
+								filter = api.PinType(api.AllType)
+							}
+							resp, cerr := globalClient.Allocations(filter)
 							formatResponse(c, resp, cerr)
 						}
 						return nil
@@ -443,7 +454,7 @@ the cluster. For IPFS-status information about the pins, use "status".
 This command retrieves the status of the CIDs tracked by IPFS
 Cluster, including which member is pinning them and any errors.
 If a CID is provided, the status will be only fetched for a single
-item.
+item.  Metadata CIDs are included in the status response
 
 The status of a CID may not be accurate. A manual sync can be triggered
 with "sync".
