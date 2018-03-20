@@ -161,7 +161,7 @@ func (api *API) setupHTTP() error {
 
 func (api *API) setupLibp2p(ctx context.Context) error {
 	// Make new host. Override any provided existing one
-	// iif we have config for a custom one,
+	// if we have config for a custom one.
 	if api.config.Libp2pListenAddr != nil {
 		h, err := libp2p.New(
 			ctx,
