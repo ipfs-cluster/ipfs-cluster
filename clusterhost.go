@@ -11,7 +11,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// NewClusterHost creates a libp2p Host with the options in the from the
+// NewClusterHost creates a libp2p Host with the options from the
 // provided cluster configuration.
 func NewClusterHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	var prot ipnet.Protector

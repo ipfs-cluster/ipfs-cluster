@@ -89,6 +89,11 @@ func NewAPI(cfg *Config) (*API, error) {
 // NewAPIWithHost creates a new REST API component and enables
 // the libp2p-http endpoint using the given Host, if not nil.
 func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	router := mux.NewRouter().StrictSlash(true)
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
@@ -112,7 +117,7 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	api.addRoutes(router)
 
 	// Set up api.httpListener if enabled
-	err := api.setupHTTP()
+	err = api.setupHTTP()
 	if err != nil {
 		return nil, err
 	}
@@ -155,11 +160,8 @@ func (api *API) setupHTTP() error {
 }
 
 func (api *API) setupLibp2p(ctx context.Context) error {
-	if api.config.Libp2pListenAddr == nil && api.host == nil {
-		return nil
-	}
-
-	// Make new host. Override existing
+	// Make new host. Override any provided existing one
+	// iif we have config for a custom one,
 	if api.config.Libp2pListenAddr != nil {
 		h, err := libp2p.New(
 			ctx,

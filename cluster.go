@@ -76,12 +76,11 @@ func NewCluster(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if host == nil {
-		h, err := NewClusterHost(ctx, cfg)
+		host, err = NewClusterHost(ctx, cfg)
 		if err != nil {
 			cancel()
 			return nil, err
 		}
-		host = h
 	}
 
 	if c := Commit; len(c) >= 8 {
