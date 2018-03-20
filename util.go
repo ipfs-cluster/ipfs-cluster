@@ -105,9 +105,9 @@ func PeersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
 func getRemoteMultiaddr(h host.Host, pid peer.ID, addr ma.Multiaddr) ma.Multiaddr {
 	conns := h.Network().ConnsToPeer(pid)
 	if len(conns) > 0 {
-		return api.Libp2pMultiaddrJoin(conns[0].RemoteMultiaddr(), pid)
+		return api.MustLibp2pMultiaddrJoin(conns[0].RemoteMultiaddr(), pid)
 	}
-	return api.Libp2pMultiaddrJoin(addr, pid)
+	return api.MustLibp2pMultiaddrJoin(addr, pid)
 }
 
 func pinInfoSliceToSerial(pi []api.PinInfo) []api.PinInfoSerial {

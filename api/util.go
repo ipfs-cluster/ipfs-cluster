@@ -54,13 +54,14 @@ func Libp2pMultiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
 	return peerID, decapAddr, nil
 }
 
-// Libp2pMultiaddrJoin takes a LibP2P multiaddress and a peer ID and
-// encapsulates a new /ipfs/<peerID> address.
-func Libp2pMultiaddrJoin(addr ma.Multiaddr, p peer.ID) ma.Multiaddr {
+// MustLibp2pMultiaddrJoin takes a LibP2P multiaddress and a peer ID and
+// encapsulates a new /ipfs/<peerID> address. It will panic if the given
+// peer ID is bad.
+func MustLibp2pMultiaddrJoin(addr ma.Multiaddr, p peer.ID) ma.Multiaddr {
 	pidAddr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(p))
 	// let this break badly
 	if err != nil {
-		panic("called Libp2pMultiaddrJoin with bad peer!")
+		panic("called MustLibp2pMultiaddrJoin with bad peer!")
 	}
 	return addr.Encapsulate(pidAddr)
 }

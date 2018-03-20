@@ -87,6 +87,10 @@ func NewClient(cfg *Config) (*Client, error) {
 		config: cfg,
 	}
 
+	if client.config.Timeout == 0 {
+		client.config.Timeout = DefaultTimeout
+	}
+
 	err := client.setupHTTPClient()
 	if err != nil {
 		return nil, err
@@ -107,10 +111,6 @@ func NewClient(cfg *Config) (*Client, error) {
 }
 
 func (c *Client) setupHTTPClient() error {
-	if c.config.Timeout == 0 {
-		c.config.Timeout = DefaultTimeout
-	}
-
 	var err error
 
 	switch {
@@ -136,7 +136,11 @@ func (c *Client) setupHTTPClient() error {
 func (c *Client) setupHostname() error {
 	// When no host/port/multiaddress defined, we set the default
 	if c.config.APIAddr == nil && c.config.Host == "" && c.config.Port == "" {
-		c.config.APIAddr, _ = ma.NewMultiaddr(DefaultAPIAddr)
+		var err error
+		c.config.APIAddr, err = ma.NewMultiaddr(DefaultAPIAddr)
+		if err != nil {
+			return err
+		}
 	}
 
 	// PeerAddr takes precedence over APIAddr. APIAddr takes precedence
@@ -150,6 +154,9 @@ func (c *Client) setupHostname() error {
 		resolveCtx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
 		defer cancel()
 		resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
+		if err != nil {
+			return err
+		}
 		c.config.APIAddr = resolved[0]
 		_, c.hostname, err = manet.DialArgs(c.config.APIAddr)
 		if err != nil {

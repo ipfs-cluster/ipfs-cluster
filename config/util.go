@@ -93,7 +93,7 @@ type DurationOpt struct {
 	Name string
 }
 
-// ParseDurations takes a time.Duration src and saves it to the given dst. into the given
+// ParseDurations takes a time.Duration src and saves it to the given dst.
 func ParseDurations(component string, args ...*DurationOpt) error {
 	for _, arg := range args {
 		t, err := time.ParseDuration(arg.Duration)

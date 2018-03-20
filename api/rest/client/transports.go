@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"net"
@@ -14,6 +15,7 @@ import (
 	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pnet "github.com/libp2p/go-libp2p-pnet"
+	madns "github.com/multiformats/go-multiaddr-dns"
 )
 
 // This is essentially a http.DefaultTransport. We should not mess
@@ -63,8 +65,14 @@ func (c *Client) enableLibp2p() error {
 		return err
 	}
 
-	// This should resolve addr too.
-	h.Peerstore().AddAddr(pid, addr, peerstore.PermanentAddrTTL)
+	ctx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+	defer cancel()
+	resolvedAddrs, err := madns.Resolve(ctx, addr)
+	if err != nil {
+		return err
+	}
+
+	h.Peerstore().AddAddrs(pid, resolvedAddrs, peerstore.PermanentAddrTTL)
 	c.transport.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
 	c.net = "libp2p"
 	c.p2p = h

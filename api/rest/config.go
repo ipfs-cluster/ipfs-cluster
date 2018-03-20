@@ -122,27 +122,18 @@ func (cfg *Config) Default() error {
 // Validate makes sure that all fields in this Config have
 // working values, at least in appearance.
 func (cfg *Config) Validate() error {
-	if cfg.ReadTimeout < 0 {
+	switch {
+	case cfg.ReadTimeout < 0:
 		return errors.New("restapi.read_timeout is invalid")
-	}
-
-	if cfg.ReadHeaderTimeout < 0 {
+	case cfg.ReadHeaderTimeout < 0:
 		return errors.New("restapi.read_header_timeout is invalid")
-	}
-
-	if cfg.WriteTimeout < 0 {
+	case cfg.WriteTimeout < 0:
 		return errors.New("restapi.write_timeout is invalid")
-	}
-
-	if cfg.IdleTimeout < 0 {
+	case cfg.IdleTimeout < 0:
 		return errors.New("restapi.idle_timeout invalid")
-	}
-
-	if cfg.BasicAuthCreds != nil && len(cfg.BasicAuthCreds) == 0 {
+	case cfg.BasicAuthCreds != nil && len(cfg.BasicAuthCreds) == 0:
 		return errors.New("restapi.basic_auth_creds should be null or have at least one entry")
-	}
-
-	if (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil {
+	case (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil:
 		return errors.New("missing TLS configuration")
 	}
 
@@ -299,14 +290,16 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &jsonConfig{}
-	jcfg.HTTPListenMultiaddress = cfg.HTTPListenAddr.String()
-	jcfg.SSLCertFile = cfg.pathSSLCertFile
-	jcfg.SSLKeyFile = cfg.pathSSLKeyFile
-	jcfg.ReadTimeout = cfg.ReadTimeout.String()
-	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
-	jcfg.WriteTimeout = cfg.WriteTimeout.String()
-	jcfg.IdleTimeout = cfg.IdleTimeout.String()
+	jcfg := &jsonConfig{
+		HTTPListenMultiaddress: cfg.HTTPListenAddr.String(),
+		SSLCertFile:            cfg.pathSSLCertFile,
+		SSLKeyFile:             cfg.pathSSLKeyFile,
+		ReadTimeout:            cfg.ReadTimeout.String(),
+		ReadHeaderTimeout:      cfg.ReadHeaderTimeout.String(),
+		WriteTimeout:           cfg.WriteTimeout.String(),
+		IdleTimeout:            cfg.IdleTimeout.String(),
+		BasicAuthCreds:         cfg.BasicAuthCreds,
+	}
 
 	if cfg.ID != "" {
 		jcfg.ID = peer.IDB58Encode(cfg.ID)
@@ -321,8 +314,6 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	if cfg.Libp2pListenAddr != nil {
 		jcfg.Libp2pListenMultiaddress = cfg.Libp2pListenAddr.String()
 	}
-
-	jcfg.BasicAuthCreds = cfg.BasicAuthCreds
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return

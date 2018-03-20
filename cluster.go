@@ -580,7 +580,7 @@ func (c *Cluster) ID() api.ID {
 	}
 	for k := range addrsSet {
 		addr, _ := ma.NewMultiaddr(k)
-		addrs = append(addrs, api.Libp2pMultiaddrJoin(addr, c.id))
+		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
 	}
 
 	peers := []peer.ID{}
@@ -771,7 +771,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 		"Cluster",
 		"PeerAdd",
 		api.MultiaddrToSerial(
-			api.Libp2pMultiaddrJoin(c.config.ListenAddr, c.id)),
+			api.MustLibp2pMultiaddrJoin(c.config.ListenAddr, c.id)),
 		&myID)
 	if err != nil {
 		logger.Error(err)
