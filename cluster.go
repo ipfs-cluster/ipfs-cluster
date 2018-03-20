@@ -24,6 +24,11 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+// Common errors
+var (
+	ErrBootstrap = errors.New("bootstrap unsuccessful")
+)
+
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
@@ -134,9 +139,9 @@ func NewCluster(
 	c.setupRPCClients()
 	ok := c.bootstrap()
 	if !ok {
-		logger.Error("Bootstrap unsuccessful")
+		logger.Error(ErrBootstrap)
 		c.Shutdown()
-		return nil, errors.New("bootstrap unsuccessful")
+		return nil, ErrBootstrap
 	}
 	go func() {
 		c.ready(consensusCfg.WaitForLeaderTimeout * 2)
@@ -434,10 +439,11 @@ func (c *Cluster) ready(timeout time.Duration) {
 **************************************************
 This peer was not able to become part of the cluster.
 This might be due to one or several causes:
-  - Check that there is connectivity to the "bootstrap" and "peers" multiaddresses
+  - Check that there is connectivity to the "peers" multiaddresses
   - Check that all cluster peers are using the same "secret"
-  - Check that this peer is reachable on its "listen_multiaddress"
-  - Check that there is a majority of available peers
+  - Check that this peer is reachable on its "listen_multiaddress" by all peers
+  - Check that the current cluster is healthy (has a leader). Otherwise make
+    sure to start enough peers so that a leader election can happen.
 **************************************************
 `)
 		c.Shutdown()
@@ -475,14 +481,32 @@ func (c *Cluster) bootstrap() bool {
 		return true
 	}
 
+	var err error
 	for _, b := range c.config.Bootstrap {
 		logger.Infof("Bootstrapping to %s", b)
-		err := c.Join(b)
+		err = c.Join(b)
 		if err == nil {
 			return true
 		}
 		logger.Error(err)
 	}
+
+	logger.Error("***** ipfs-cluster bootstrap failed (tips below) *****")
+	logger.Errorf(`
+**************************************************
+This peer was not able to become part of the cluster. The bootstrap process
+failed for all bootstrap peers. The last error was:
+
+%s
+
+There are some common reasons for failed bootstraps:
+  - Check that there is connectivity to the "bootstrap" multiaddresses
+  - Check that the cluster "secret" is the same for all peers
+  - Check that this peer is reachable on its "listen_multiaddress" by all peers
+  - Check that all the peers in the current cluster are healthy, otherwise
+    remove unhealthy ones first and re-add them later
+**************************************************
+`, err)
 
 	return false
 }
