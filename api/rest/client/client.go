@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	shell "github.com/ipfs/go-ipfs-api"
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
 	ma "github.com/multiformats/go-multiaddr"
@@ -15,9 +17,10 @@ import (
 
 // Configuration defaults
 var (
-	DefaultTimeout  = 120 * time.Second
-	DefaultAPIAddr  = "/ip4/127.0.0.1/tcp/9094"
-	DefaultLogLevel = "info"
+	DefaultTimeout   = 120 * time.Second
+	DefaultAPIAddr   = "/ip4/127.0.0.1/tcp/9094"
+	DefaultLogLevel  = "info"
+	DefaultProxyPort = 9095
 )
 
 var loggingFacility = "apiclient"
@@ -54,6 +57,12 @@ type Config struct {
 	// (pnet), then we need to provide the key. If the peer is the
 	// cluster peer, this corresponds to the cluster secret.
 	ProtectorKey []byte
+
+	// ProxyAddr is used to obtain a go-ipfs-api Shell instance pointing
+	// to the ipfs proxy endpoint of ipfs-cluster. If empty, the location
+	// will be guessed from one of PeerAddr/APIAddr/Host,
+	// and the port used will be ipfs-cluster's proxy default port (9095)
+	ProxyAddr ma.Multiaddr
 
 	// Define timeout for network operations
 	Timeout time.Duration
@@ -97,6 +106,11 @@ func NewClient(cfg *Config) (*Client, error) {
 	}
 
 	err = client.setupHostname()
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.setupProxy()
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +178,52 @@ func (c *Client) setupHostname() error {
 		}
 	default:
 		c.hostname = fmt.Sprintf("%s:%s", c.config.Host, c.config.Port)
+		apiAddr, err := ma.NewMultiaddr(
+			fmt.Sprintf("/ip4/%s/tcp/%s", c.config.Host, c.config.Port),
+		)
+		if err != nil {
+			return err
+		}
+		c.config.APIAddr = apiAddr
 	}
 	return nil
+}
+
+func (c *Client) setupProxy() error {
+	if c.config.ProxyAddr != nil {
+		return nil
+	}
+
+	// Guess location from PeerAddr or APIAddr
+	port, err := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d", DefaultProxyPort))
+	if err != nil {
+		return err
+	}
+	var paddr ma.Multiaddr
+	switch {
+	case c.config.PeerAddr != nil:
+		paddr = ma.Split(c.config.PeerAddr)[0].Encapsulate(port)
+	case c.config.APIAddr != nil: // Host/Port setupHostname sets APIAddr
+		paddr = ma.Split(c.config.APIAddr)[0].Encapsulate(port)
+	default:
+		return errors.New("cannot find proxy address")
+	}
+
+	ctx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+	defer cancel()
+	resolved, err := madns.Resolve(ctx, paddr)
+	if err != nil {
+		return err
+	}
+
+	c.config.ProxyAddr = resolved[0]
+	return nil
+}
+
+// IPFS returns an instance of go-ipfs-api's Shell, pointing to the
+// configured ProxyAddr (or to the default ipfs-cluster's IPFS proxy port).
+// It re-uses this Client's HTTP client, thus will be constrained by
+// the same configurations affecting it (timeouts...).
+func (c *Client) IPFS() *shell.Shell {
+	return shell.NewShellWithClient(c.config.ProxyAddr.String(), c.client)
 }
