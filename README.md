@@ -82,7 +82,7 @@ sudo snap install ipfs-cluster --edge
 
 ### Install from sources
 
-Installing from `master` is the best way to have the latest features and bugfixes. In order to install the `ipfs-cluster-service` the `ipfs-cluster-ctl` tools you will need `Go` installed in your system and the run the following commands:
+Installing from `master` is the best way to have the latest features and bugfixes. In order to install the `ipfs-cluster-service` the `ipfs-cluster-ctl` tools you will need `Go1.9+` installed in your system and the run the following commands:
 
 ```
 $ go get -u -d github.com/ipfs/ipfs-cluster
