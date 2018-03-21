@@ -200,10 +200,6 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 		cfg.HTTPListenAddr = httpAddr
 	}
 
-	cert := jcfg.SSLCertFile
-	key := jcfg.SSLKeyFile
-	cfg.pathSSLCertFile = cert
-	cfg.pathSSLKeyFile = key
 	err := cfg.tlsOptions(jcfg)
 	if err != nil {
 		return err
