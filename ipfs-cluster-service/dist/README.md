@@ -37,7 +37,7 @@ The configuration file should probably be identical among all cluster peers, exc
 
 #### Clusters using `cluster.peers`
 
-The `peers` configuration variable holds a list of current cluster members. If you know the members of the cluster in advance, or you want to start a cluster fully in parallel, set `peers` in all configurations so that every peer knows the rest upon boot. Leave `bootstrap` empty. A cluster peer address looks like: `/ip4/1.2.3.4/tcp/9096/<id>`.
+The `peers` configuration variable holds a list of current cluster members. If you know the members of the cluster in advance, or you want to start a cluster fully in parallel, set `peers` in all configurations so that every peer knows the rest upon boot. Leave `bootstrap` empty. A cluster peer address looks like: `/ip4/1.2.3.4/tcp/9096/ipfs/<id>`.
 
 The list of `cluster.peers` is maintained automatically and saved by `ipfs-cluster-service` when it changes.
 
