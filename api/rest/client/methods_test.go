@@ -11,11 +11,13 @@ import (
 )
 
 func testClients(t *testing.T, api *rest.API, f func(*testing.T, *Client)) {
-	t.Run("libp2p", func(t *testing.T) {
-		f(t, testClientLibp2p(t, api))
-	})
-	t.Run("http", func(t *testing.T) {
-		f(t, testClientHTTP(t, api))
+	t.Run("in-parallel", func(t *testing.T) {
+		t.Run("libp2p", func(t *testing.T) {
+			f(t, testClientLibp2p(t, api))
+		})
+		t.Run("http", func(t *testing.T) {
+			f(t, testClientHTTP(t, api))
+		})
 	})
 }
 
