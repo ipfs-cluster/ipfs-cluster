@@ -26,15 +26,15 @@ func upgrade() error {
 		return nil
 	}
 
-	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+	cfgMgr, cfgs := makeConfigs()
 
-	err = cfg.LoadJSONFromFile(configPath)
+	err = cfgMgr.LoadJSONFromFile(configPath)
 	if err != nil {
 		return err
 	}
 
-	raftPeers := append(ipfscluster.PeersFromMultiaddrs(clusterCfg.Peers), clusterCfg.ID)
-	return raft.SnapshotSave(consensusCfg, newState, raftPeers)
+	raftPeers := append(ipfscluster.PeersFromMultiaddrs(cfgs.clusterCfg.Peers), cfgs.clusterCfg.ID)
+	return raft.SnapshotSave(cfgs.consensusCfg, newState, raftPeers)
 }
 
 func export(w io.Writer) error {
@@ -50,14 +50,14 @@ func export(w io.Writer) error {
 // snapshot, a flag set to true when the state format has the
 // current version and an error
 func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
-	cfg, _, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+	cfgMgr, cfgs := makeConfigs()
 
-	err := cfg.LoadJSONFromFile(configPath)
+	err := cfgMgr.LoadJSONFromFile(configPath)
 	if err != nil {
 		return nil, false, err
 	}
 
-	r, snapExists, err := raft.LastStateRaw(consensusCfg)
+	r, snapExists, err := raft.LastStateRaw(cfgs.consensusCfg)
 	if !snapExists {
 		err = errNoSnapshot
 	}
@@ -90,9 +90,9 @@ func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
 }
 
 func stateImport(r io.Reader) error {
-	cfg, clusterCfg, _, _, consensusCfg, _, _, _, _ := makeConfigs()
+	cfgMgr, cfgs := makeConfigs()
 
-	err := cfg.LoadJSONFromFile(configPath)
+	err := cfgMgr.LoadJSONFromFile(configPath)
 	if err != nil {
 		return err
 	}
@@ -111,8 +111,8 @@ func stateImport(r io.Reader) error {
 			return err
 		}
 	}
-	raftPeers := append(ipfscluster.PeersFromMultiaddrs(clusterCfg.Peers), clusterCfg.ID)
-	return raft.SnapshotSave(consensusCfg, stateToImport, raftPeers)
+	raftPeers := append(ipfscluster.PeersFromMultiaddrs(cfgs.clusterCfg.Peers), cfgs.clusterCfg.ID)
+	return raft.SnapshotSave(cfgs.consensusCfg, stateToImport, raftPeers)
 }
 
 func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {

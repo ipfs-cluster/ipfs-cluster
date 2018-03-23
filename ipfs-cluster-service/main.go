@@ -138,8 +138,11 @@ func out(m string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, a...)
 }
 
-func checkErr(doing string, err error) {
+func checkErr(doing string, err error, args ...interface{}) {
 	if err != nil {
+		if len(args) > 0 {
+			doing = fmt.Sprintf(doing, args)
+		}
 		out("error %s: %s\n", doing, err)
 		err = locker.tryUnlock()
 		if err != nil {
@@ -223,20 +226,20 @@ configuration.
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
-				cfg, clustercfg, _, _, _, _, _, _, _ := makeConfigs()
-				defer cfg.Shutdown() // wait for saves
+				cfgMgr, cfgs := makeConfigs()
+				defer cfgMgr.Shutdown() // wait for saves
 
 				// Generate defaults for all registered components
-				err := cfg.Default()
+				err := cfgMgr.Default()
 				checkErr("generating default configuration", err)
 
 				// Set user secret
 				if userSecretDefined {
-					clustercfg.Secret = userSecret
+					cfgs.clusterCfg.Secret = userSecret
 				}
 
 				// Save
-				saveConfig(cfg, c.GlobalBool("force"))
+				saveConfig(cfgMgr, c.GlobalBool("force"))
 				return nil
 			},
 		},
@@ -379,11 +382,11 @@ the mth data folder (m currently defaults to 5)
 							}
 						}
 
-						cfg, _, _, _, consensusCfg, _, _, _, _ := makeConfigs()
-						err = cfg.LoadJSONFromFile(configPath)
+						cfgMgr, cfgs := makeConfigs()
+						err = cfgMgr.LoadJSONFromFile(configPath)
 						checkErr("initializing configs", err)
 
-						dataFolder := filepath.Join(consensusCfg.BaseDir, raft.DefaultDataSubFolder)
+						dataFolder := filepath.Join(cfgs.consensusCfg.BaseDir, raft.DefaultDataSubFolder)
 						err = raft.CleanupRaft(dataFolder)
 						checkErr("Cleaning up consensus data", err)
 						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", dataFolder)
@@ -443,7 +446,7 @@ func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	// Load all the configurations
-	cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg := makeConfigs()
+	cfgMgr, cfgs := makeConfigs()
 
 	// Run any migrations
 	if c.Bool("upgrade") {
@@ -458,76 +461,47 @@ func daemon(c *cli.Context) error {
 
 	// Load all the configurations
 	// always wait for configuration to be saved
-	defer cfg.Shutdown()
+	defer cfgMgr.Shutdown()
 
-	err = cfg.LoadJSONFromFile(configPath)
+	err = cfgMgr.LoadJSONFromFile(configPath)
 	checkErr("loading configuration", err)
 
 	if a := c.String("bootstrap"); a != "" {
-		if len(clusterCfg.Peers) > 0 && !c.Bool("force") {
+		if len(cfgs.clusterCfg.Peers) > 0 && !c.Bool("force") {
 			return errors.New("the configuration provides cluster.Peers. Use -f to ignore and proceed bootstrapping")
 		}
 		joinAddr, err := ma.NewMultiaddr(a)
-		if err != nil {
-			return fmt.Errorf("error parsing multiaddress: %s", err)
-		}
-		clusterCfg.Bootstrap = []ma.Multiaddr{joinAddr}
-		clusterCfg.Peers = []ma.Multiaddr{}
+		checkErr("error parsing multiaddress: %s", err)
+		cfgs.clusterCfg.Bootstrap = []ma.Multiaddr{joinAddr}
+		cfgs.clusterCfg.Peers = []ma.Multiaddr{}
 	}
 
 	if c.Bool("leave") {
-		clusterCfg.LeaveOnShutdown = true
+		cfgs.clusterCfg.LeaveOnShutdown = true
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	host, err := ipfscluster.NewClusterHost(ctx, clusterCfg)
-	checkErr("creating libP2P Host", err)
-
-	api, err := rest.NewAPIWithHost(apiCfg, host)
-	checkErr("creating REST API component", err)
-
-	proxy, err := ipfshttp.NewConnector(ipfshttpCfg)
-	checkErr("creating IPFS Connector component", err)
-
-	state := mapstate.NewMapState()
-
-	err = validateVersion(clusterCfg, consensusCfg)
-	checkErr("validating version", err)
-
-	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
-	mon, err := basic.NewMonitor(monCfg)
-	checkErr("creating Monitor component", err)
-	informer, alloc := setupAllocation(c.GlobalString("alloc"), diskInfCfg, numpinInfCfg)
-
-	cluster, err := ipfscluster.NewCluster(
-		host,
-		clusterCfg,
-		consensusCfg,
-		api,
-		proxy,
-		state,
-		tracker,
-		mon,
-		alloc,
-		informer)
+	cluster, err := initializeCluster(ctx, c, cfgs)
 	checkErr("starting cluster", err)
 
 	signalChan := make(chan os.Signal, 20)
-	signal.Notify(signalChan,
+	signal.Notify(
+		signalChan,
 		syscall.SIGINT,
 		syscall.SIGTERM,
-		syscall.SIGHUP)
+		syscall.SIGHUP,
+	)
+
+	var ctrlcCount int
 	for {
 		select {
 		case <-signalChan:
-			err = cluster.Shutdown()
-			checkErr("shutting down cluster", err)
+			ctrlcCount++
+			handleCtrlC(cluster, ctrlcCount)
 		case <-cluster.Done():
 			return nil
-
-			//case <-cluster.Ready():
 		}
 	}
 }
@@ -617,7 +591,7 @@ func yesNoPrompt(prompt string) bool {
 	return false
 }
 
-func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *disk.Config, *numpin.Config) {
+func makeConfigs() (*config.Manager, *cfgs) {
 	cfg := config.NewManager()
 	clusterCfg := &ipfscluster.Config{}
 	apiCfg := &rest.Config{}
@@ -635,5 +609,74 @@ func makeConfigs() (*config.Manager, *ipfscluster.Config, *rest.Config, *ipfshtt
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg
+	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg}
+}
+
+type cfgs struct {
+	clusterCfg   *ipfscluster.Config
+	apiCfg       *rest.Config
+	ipfshttpCfg  *ipfshttp.Config
+	consensusCfg *raft.Config
+	trackerCfg   *maptracker.Config
+	monCfg       *basic.Config
+	diskInfCfg   *disk.Config
+	numpinInfCfg *numpin.Config
+}
+
+func initializeCluster(ctx context.Context, c *cli.Context, cfgs *cfgs) (*ipfscluster.Cluster, error) {
+	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
+	checkErr("creating libP2P Host", err)
+
+	api, err := rest.NewAPIWithHost(cfgs.apiCfg, host)
+	checkErr("creating REST API component", err)
+
+	proxy, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
+	checkErr("creating IPFS Connector component", err)
+
+	state := mapstate.NewMapState()
+
+	err = validateVersion(cfgs.clusterCfg, cfgs.consensusCfg)
+	checkErr("validating version", err)
+
+	tracker := maptracker.NewMapPinTracker(cfgs.trackerCfg, cfgs.clusterCfg.ID)
+	mon, err := basic.NewMonitor(cfgs.monCfg)
+	checkErr("creating Monitor component", err)
+	informer, alloc := setupAllocation(c.GlobalString("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
+
+	return ipfscluster.NewCluster(
+		host,
+		cfgs.clusterCfg,
+		cfgs.consensusCfg,
+		api,
+		proxy,
+		state,
+		tracker,
+		mon,
+		alloc,
+		informer,
+	)
+}
+
+func handleCtrlC(cluster *ipfscluster.Cluster, ctrlcCount int) {
+	switch ctrlcCount {
+	case 1:
+		go func() {
+			err := cluster.Shutdown()
+			checkErr("shutting down cluster", err)
+		}()
+	case 2:
+		out(`
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Shutdown is taking too long! Press Ctrl-c again to manually kill cluster.
+Note that this may corrupt the local cluster state.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+`)
+	case 3:
+		out("exiting cluster NOW")
+		os.Exit(-1)
+	}
 }
