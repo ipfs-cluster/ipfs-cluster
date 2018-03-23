@@ -209,7 +209,7 @@ func (rpcapi *RPCAPI) StateSync(ctx context.Context, in struct{}, out *[]api.Pin
 }
 
 // GetInformerMetrics runs Cluster.GetInformerMetrics().
-func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
+func (rpcapi *RPCAPI) GetInformerMetrics(ctx context.Context, in struct{}, out *[]api.Metric) error {
 	metrics, err := rpcapi.c.getInformerMetrics()
 	*out = metrics
 	return err
@@ -220,7 +220,7 @@ func (rpcapi *RPCAPI) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
 */
 
 // Allocate runs Allocator.Allocate().
-func (rpcapi *RPCAPI) Allocate(in api.AllocateInfo, out *[]peer.ID) error {
+func (rpcapi *RPCAPI) Allocate(ctx context.Context, in api.AllocateInfo, out *[]peer.ID) error {
 	c := in.GetCid()
 	peers, err := rpcapi.c.allocator.Allocate(
 		c,
@@ -343,7 +343,7 @@ func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.
 }
 
 // IPFSBlockPut runs IPFSConnector.BlockPut().
-func (rpcapi *RPCAPI) IPFSBlockPut(in api.NodeWithMeta, out *string) error {
+func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *string) error {
 	res, err := rpcapi.c.ipfs.BlockPut(in)
 	*out = res
 	return err
@@ -393,14 +393,14 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 */
 
 // SharderAddNode runs Sharder.AddNode(node).
-func (rpcapi *RPCAPI) SharderAddNode(in api.NodeWithMeta, out *string) error {
+func (rpcapi *RPCAPI) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
 	shardID, err := rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
 	*out = shardID
 	return err
 }
 
 // SharderFinalize runs Sharder.Finalize().
-func (rpcapi *RPCAPI) SharderFinalize(in string, out *struct{}) error {
+func (rpcapi *RPCAPI) SharderFinalize(ctx context.Context, in string, out *struct{}) error {
 	return rpcapi.c.sharder.Finalize(in)
 }
 

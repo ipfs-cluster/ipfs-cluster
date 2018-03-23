@@ -946,3 +946,9 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) (string, error) {
 	}
 	return keyRaw.Key, nil
 }
+
+// BlockGet retrieves an ipfs block with the given cid
+func (ipfs *Connector) BlockGet(c *cid.Cid) ([]byte, error) {
+	url := "block/get?arg=" + c.String()
+	return ipfs.post(url, "", nil)
+}
