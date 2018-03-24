@@ -285,7 +285,7 @@ func TestClusterUnpinShardFail(t *testing.T) {
 
 	pinDirectShard(t, cl)
 	// verify pins
-	if len(cl.Pins()) != 3 {
+	if len(cl.Pins(false)) != 3 {
 		t.Fatal("should have 3 pins")
 	}
 	// Unpinning metadata should fail
@@ -309,7 +309,7 @@ func TestClusterUnpinMeta(t *testing.T) {
 
 	pinDirectShard(t, cl)
 	// verify pins
-	if len(cl.Pins()) != 3 {
+	if len(cl.Pins(false)) != 3 {
 		t.Fatal("should have 3 pins")
 	}
 	// Unpinning from root should work
@@ -332,7 +332,7 @@ func TestClusterPins(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	pins := cl.Pins()
+	pins := cl.Pins(false)
 	if len(pins) != 1 {
 		t.Fatal("pin should be part of the state")
 	}

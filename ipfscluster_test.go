@@ -381,7 +381,7 @@ func TestClustersPin(t *testing.T) {
 	runF(t, clusters, fpinned)
 
 	// Unpin everything
-	pinList := clusters[0].Pins()
+	pinList := clusters[0].Pins(false)
 
 	for i := 0; i < nPins; i++ {
 		// test re-unpin fails
@@ -850,7 +850,7 @@ func TestClustersReplication(t *testing.T) {
 			t.Errorf("Expected 1 remote pin but got %d", numRemote)
 		}
 
-		pins := c.Pins()
+		pins := c.Pins(false)
 		for _, pin := range pins {
 			allocs := pin.Allocations
 			if len(allocs) != nClusters-1 {
@@ -1213,7 +1213,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	// Let the pin arrive
 	time.Sleep(time.Second / 2)
 
-	pin := clusters[j].Pins()[0]
+	pin := clusters[j].Pins(false)[0]
 	pinSerial := pin.ToSerial()
 	allocs := sort.StringSlice(pinSerial.Allocations)
 	allocs.Sort()
@@ -1228,7 +1228,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 
 	time.Sleep(time.Second / 2)
 
-	pin2 := clusters[j].Pins()[0]
+	pin2 := clusters[j].Pins(false)[0]
 	pinSerial2 := pin2.ToSerial()
 	allocs2 := sort.StringSlice(pinSerial2.Allocations)
 	allocs2.Sort()

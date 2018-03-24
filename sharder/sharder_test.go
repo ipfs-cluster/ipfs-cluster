@@ -73,18 +73,18 @@ func makeTestingHost() host.Host {
 }
 
 // GetInformerMetrics does nothing as mock allocator does not check metrics
-func (mock *mockRPC) GetInformerMetrics(in struct{}, out *[]api.Metric) error {
+func (mock *mockRPC) GetInformerMetrics(ctx context.Context, in struct{}, out *[]api.Metric) error {
 	return nil
 }
 
 // All pins get allocated to the mockRPC's server host
-func (mock *mockRPC) Allocate(in api.AllocateInfo, out *[]peer.ID) error {
+func (mock *mockRPC) Allocate(ctx context.Context, in api.AllocateInfo, out *[]peer.ID) error {
 	*out = []peer.ID{mock.Host.ID()}
 	return nil
 }
 
 // Record the ordered sequence of BlockPut calls for later validation
-func (mock *mockRPC) IPFSBlockPut(in api.NodeWithMeta, out *string) error {
+func (mock *mockRPC) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *string) error {
 	mock.orderedPuts[len(mock.orderedPuts)] = in
 	return nil
 }
@@ -93,7 +93,7 @@ func (mock *mockRPC) IPFSBlockPut(in api.NodeWithMeta, out *string) error {
 // TODO: once the sharder Pinning is stabalized (support for pinning to
 // specific peers and non-recursive pinning through RPC) we should validate
 // pinning calls alongside block put calls
-func (mock *mockRPC) Pin(in api.PinSerial, out *struct{}) error {
+func (mock *mockRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	return nil
 }
 

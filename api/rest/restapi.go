@@ -647,12 +647,27 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	all := queryValues.Get("a")
 	var pins []types.PinSerial
-	err := api.rpcClient.Call("",
-		"Cluster",
-		"Pins",
-		struct{}{},
-		&pins)
+	var err error
+	if all == "true" {
+		err = api.rpcClient.Call(
+			"",
+			"Cluster",
+			"Pins",
+			struct{}{},
+			&pins,
+		)
+	} else {
+		err = api.rpcClient.Call(
+			"",
+			"Cluster",
+			"PinsQuiet",
+			struct{}{},
+			&pins,
+		)
+	}
 	sendResponse(w, err, pins)
 }
 

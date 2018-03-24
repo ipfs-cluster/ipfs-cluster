@@ -181,6 +181,25 @@ func textFormatPrintPin(obj *api.PinSerial) {
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
 	}
+	var recStr string
+	if obj.Recursive {
+		recStr = "Recursive"
+	} else {
+		recStr = "Non-recursive"
+	}
+	fmt.Printf("| %s | ", recStr)
+	var typeStr string
+	switch obj.Type {
+	case 1:
+		typeStr = "Direct"
+	case 2:
+		typeStr = fmt.Sprintf("Sharded-- clusterDAG=%s", obj.Clusterdag)
+	case 3,4:
+		typeStr = "Internal"
+	default:
+		typeStr = ""
+	}
+	fmt.Printf("| %s ", typeStr)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {

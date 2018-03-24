@@ -955,14 +955,26 @@ func (c *Cluster) RecoverLocal(h *cid.Cid) (api.PinInfo, error) {
 // of the current global state. This is the source of truth as to which
 // pins are managed and their allocation, but does not indicate if
 // the item is successfully pinned. For that, use StatusAll().
-func (c *Cluster) Pins() []api.Pin {
+func (c *Cluster) Pins(quiet bool) []api.Pin {
 	cState, err := c.consensus.State()
 	if err != nil {
 		logger.Error(err)
 		return []api.Pin{}
 	}
+	pins := cState.List()
+	if !quiet {
+		return pins
+	}
+	// Filter out shard and clusterdag internal pins
+	quietPins := make([]api.Pin, 0)
+	for _, pin := range pins {
+		if pin.Type == api.CdagType || pin.Type == api.ShardType {
+			continue
+		}
+		quietPins = append(quietPins, pin)
+	}
+	return quietPins
 
-	return cState.List()
 }
 
 // PinGet returns information for a single Cid managed by Cluster.
@@ -1084,7 +1096,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 	default:
 		return false, errors.New("unrecognized pin type")
 	}
-	
+
 	switch {
 	case rplMin == -1 && rplMax == -1:
 		pin.Allocations = []peer.ID{}
@@ -1095,7 +1107,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		}
 		pin.Allocations = allocs
 	}
-	
+
 	if curr, _ := c.getCurrentPin(pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
@@ -1107,7 +1119,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 	} else {
 		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 	}
-	
+
 	return true, c.consensus.LogPin(pin)
 }
 

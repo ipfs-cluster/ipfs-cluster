@@ -42,9 +42,20 @@ func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}
 	return rpcapi.c.Unpin(c)
 }
 
-// Pins runs Cluster.Pins().
+// Pins runs Cluster.Pins(false).
 func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
-	cidList := rpcapi.c.Pins()
+	cidList := rpcapi.c.Pins(false)
+	cidSerialList := make([]api.PinSerial, 0, len(cidList))
+	for _, c := range cidList {
+		cidSerialList = append(cidSerialList, c.ToSerial())
+	}
+	*out = cidSerialList
+	return nil
+}
+
+// PinsQuiet runs Cluster.Pins(true)
+func (rpcapi *RPCAPI) PinsQuiet(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
+	cidList := rpcapi.c.Pins(true)
 	cidSerialList := make([]api.PinSerial, 0, len(cidList))
 	for _, c := range cidList {
 		cidSerialList = append(cidSerialList, c.ToSerial())
