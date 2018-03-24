@@ -116,6 +116,9 @@ func (st *mapStateV3) next() migrateable {
 			ReplicationFactorMin: v.ReplicationFactorMin,
 			ReplicationFactorMax: v.ReplicationFactorMax,
 			Recursive:            true,
+			Type:                 api.DataType,
+			Parents:              nil,
+			Clusterdag:           "",
 		}
 	}
 	return &mst4
