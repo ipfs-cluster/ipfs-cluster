@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -236,11 +235,10 @@ func pinDirectShard(t *testing.T, cl *Cluster) {
 	shardPin := api.Pin{
 		Cid:                  cShard,
 		Type:                 api.ShardType,
-		ReplicationFactorMin: 1,
-		ReplicationFactorMax: 1,
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
 		Recursive:            true,
 		Parents:              []*cid.Cid{cCdag},
-		Allocations:          []peer.ID{test.TestPeerID1},
 	}
 	err := cl.Pin(shardPin)
 	if err != nil {
@@ -374,15 +372,24 @@ func TestClusterUnpin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	fmt.Printf("length of pins initially: %d", len(cl.Pins()))
-
 	c, _ := cid.Decode(test.TestCid1)
+	// Unpin should error without pin being committed to state
 	err := cl.Unpin(c)
+	if err == nil {
+		t.Error("unpin should have failed")
+	}
+
+	// Unpin after pin should succeed
+	err = cl.Pin(api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
+	err = cl.Unpin(c)
+	if err != nil {
+		t.Error("unpin should have worked:", err)
+	}
 
-	// test an error case
+	// test another error case
 	cl.consensus.Shutdown()
 	err = cl.Unpin(c)
 	if err == nil {

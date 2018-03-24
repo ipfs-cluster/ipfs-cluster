@@ -1024,7 +1024,6 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
 		return false, err
 	}
-
 	switch pin.Type {
 	case api.DataType:
 		// Fall through
@@ -1037,12 +1036,17 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		}
 		// In general multiple clusterdags may reference the same shard
 		// and sharder sessions typically update a shard pin's metadata.
-		// Hence we check for an existing shard and carefully update
+		// Hence we check for an existing shard and carefully update.
+		var empty bool // skip check when state does not yet exist
 		cState, err := c.consensus.State()
 		if err != nil {
-			return false, err
+			if strings.Contains(err.Error(), "no state has been agreed upon yet") {
+				empty = true
+			} else {
+				return false, err
+			}
 		}
-		if cState.Has(pin.Cid) {
+		if !empty && cState.Has(pin.Cid) {
 			existing := cState.Get(pin.Cid)
 			// For now all repins of the same shard must use the same
 			// replmax and replmin.  It is unclear what the best UX is here
@@ -1080,7 +1084,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 	default:
 		return false, errors.New("unrecognized pin type")
 	}
-
+	
 	switch {
 	case rplMin == -1 && rplMax == -1:
 		pin.Allocations = []peer.ID{}
@@ -1091,7 +1095,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		}
 		pin.Allocations = allocs
 	}
-
+	
 	if curr, _ := c.getCurrentPin(pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
@@ -1103,7 +1107,7 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 	} else {
 		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 	}
-
+	
 	return true, c.consensus.LogPin(pin)
 }
 
@@ -1155,20 +1159,10 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 		return errors.New("metaPin not linked to clusterdag")
 	}
 
-	cdagWrap := api.PinCid(metaPin.Clusterdag)
-	var cdagBytes []byte
-
-	err := c.rpcClient.Call(
-		"",
-		"Cluster",
-		"IPFSBlockGet",
-		cdagWrap,
-		&cdagBytes,
-	)
+	cdagBytes, err := c.ipfs.BlockGet(metaPin.Clusterdag)
 	if err != nil {
 		return err
 	}
-
 	cdag, err := sharder.CborDataToNode(cdagBytes, "cbor")
 	if err != nil {
 		return err
@@ -1183,6 +1177,7 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 	}
 
 	// by invariant in Pin cdag has only one parent and can be unpinned
+	cdagWrap := api.PinCid(metaPin.Clusterdag)
 	return c.consensus.LogUnpin(cdagWrap)
 }
 

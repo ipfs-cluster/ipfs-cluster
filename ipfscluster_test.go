@@ -384,18 +384,22 @@ func TestClustersPin(t *testing.T) {
 	pinList := clusters[0].Pins()
 
 	for i := 0; i < nPins; i++ {
+		// test re-unpin fails
 		j := rand.Intn(nClusters) // choose a random cluster peer
 		err := clusters[j].Unpin(pinList[i].Cid)
 		if err != nil {
 			t.Errorf("error unpinning %s: %s", pinList[i].Cid, err)
 		}
-		// test re-unpin
-		err = clusters[j].Unpin(pinList[i].Cid)
-		if err != nil {
-			t.Errorf("error re-unpinning %s: %s", pinList[i].Cid, err)
-		}
-
 	}
+	delay()
+	for i := 0; i < nPins; i++ {
+		j := rand.Intn(nClusters) // choose a random cluster peer
+		err := clusters[j].Unpin(pinList[i].Cid)
+		if err == nil {
+			t.Errorf("expected error re-unpinning %s: %s", pinList[i].Cid, err)
+		}
+	}
+
 	delay()
 
 	funpinned := func(t *testing.T, c *Cluster) {
