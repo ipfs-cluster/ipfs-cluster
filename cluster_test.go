@@ -256,7 +256,7 @@ func pinDirectShard(t *testing.T, cl *Cluster) {
 		ReplicationFactorMax: -1,
 		Recursive:            false,
 		Parents:              []*cid.Cid{cMeta},
-		Child:                cShard,
+		Clusterdag:           cShard,
 	}
 	err = cl.Pin(cdagPin)
 	if err != nil {
@@ -264,9 +264,9 @@ func pinDirectShard(t *testing.T, cl *Cluster) {
 	}
 
 	metaPin := api.Pin{
-		Cid:   cMeta,
-		Type:  api.MetaType,
-		Child: cCdag,
+		Cid:        cMeta,
+		Type:       api.MetaType,
+		Clusterdag: cCdag,
 	}
 	err = cl.Pin(metaPin)
 	if err != nil {
@@ -300,7 +300,7 @@ func pinIndirectShard(t *testing.T, cl *Cluster) {
 		ReplicationFactorMax: -1,
 		Recursive:            false,
 		Parents:              []*cid.Cid{cCdagIndirect},
-		Child:                cShard,
+		Clusterdag:           cShard,
 	}
 	err = cl.Pin(cdagPin)
 	if err != nil {
@@ -314,7 +314,7 @@ func pinIndirectShard(t *testing.T, cl *Cluster) {
 		ReplicationFactorMax: -1,
 		Recursive:            false,
 		Parents:              []*cid.Cid{cMeta},
-		Child:                cCdag,
+		Clusterdag:           cCdag,
 	}
 	err = cl.Pin(indirectCdagPin)
 	if err != nil {
@@ -322,9 +322,9 @@ func pinIndirectShard(t *testing.T, cl *Cluster) {
 	}
 
 	metaPin := api.Pin{
-		Cid:   cMeta,
-		Type:  api.MetaType,
-		Child: cCdagIndirect,
+		Cid:        cMeta,
+		Type:       api.MetaType,
+		Clusterdag: cCdagIndirect,
 	}
 	err = cl.Pin(metaPin)
 	if err != nil {

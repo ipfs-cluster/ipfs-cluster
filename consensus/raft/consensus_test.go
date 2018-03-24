@@ -158,7 +158,7 @@ func TestConsensusUpdate(t *testing.T) {
 	c2, _ := cid.Decode(test.TestCid2)
 	pin.Parents = make([]*cid.Cid, 1)
 	pin.Parents[0] = c2
-	err = cc.LogUpdate(pin)
+	err = cc.LogPin(pin)
 	if err != nil {
 		t.Error("the update op did not make it to the log:", err)
 	}

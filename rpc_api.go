@@ -42,15 +42,6 @@ func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}
 	return rpcapi.c.Unpin(c)
 }
 
-// UpdatePin runs Cluster.UpdatePin().
-func (rpcapi *RPCAPI) UpdatePin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	pin := in.ToPin()
-	if pin.Parents == nil || len(pin.Parents) == 0 {
-		return errors.New("update must specify parent")
-	}
-	return rpcapi.c.UpdatePin(pin.Cid, pin.Parents[0])
-}
-
 // Pins runs Cluster.Pins().
 func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	cidList := rpcapi.c.Pins()
@@ -363,12 +354,6 @@ func (rpcapi *RPCAPI) ConsensusLogPin(ctx context.Context, in api.PinSerial, out
 func (rpcapi *RPCAPI) ConsensusLogUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin()
 	return rpcapi.c.consensus.LogUnpin(c)
-}
-
-// ConsensusLogUpdate runs Consensus.LogUpdate().
-func (rpcapi *RPCAPI) ConsensusLogUpdate(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin()
-	return rpcapi.c.consensus.LogUpdate(c)
 }
 
 // ConsensusAddPeer runs Consensus.AddPeer().

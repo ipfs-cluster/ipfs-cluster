@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ var testMAddr, _ = ma.NewMultiaddr("/ip4/1.2.3.4")
 var testMAddr2, _ = ma.NewMultiaddr("/dns4/a.b.c.d")
 var testMAddr3, _ = ma.NewMultiaddr("/ip4/127.0.0.1/tcp/8081/ws/ipfs/QmSoLer265NRgSp2LA3dPaeykiS1J6DifTC88f5uVQKNAd")
 var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
+var testCid2, _ = cid.Decode("QmYCLpFCj9Av8NFjkQogvtXspnTDFWaizLpVFEijHTH4eV")
+var testCid3, _ = cid.Decode("QmZmdA3UZKuHuy9FrWsxJ82q21nbEh97NUnxTzF5EHxZia")
+var testCid4, _ = cid.Decode("QmZbNfi13Sb2WUDMjiW1ZNhnds5KDk6mJB5hP9B5h9m5CJ")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 var testPeerID2, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabd")
 var testPeerID3, _ = peer.IDB58Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
@@ -188,14 +192,30 @@ func TestPinConv(t *testing.T) {
 		Allocations:          []peer.ID{testPeerID1},
 		ReplicationFactorMax: -1,
 		ReplicationFactorMin: -1,
+		Recursive:            true,
+		Parents:              []*cid.Cid{testCid2},
+		Name:                 "A test pin",
+		Type:                 CdagType,
+		Clusterdag:           testCid4,
 	}
 
 	newc := c.ToSerial().ToPin()
 	if c.Cid.String() != newc.Cid.String() ||
 		c.Allocations[0] != newc.Allocations[0] ||
 		c.ReplicationFactorMin != newc.ReplicationFactorMin ||
-		c.ReplicationFactorMax != newc.ReplicationFactorMax {
-		t.Error("mismatch")
+		c.ReplicationFactorMax != newc.ReplicationFactorMax ||
+		c.Recursive != newc.Recursive ||
+		len(c.Parents) != len(newc.Parents) ||
+		c.Parents[0].String() != newc.Parents[0].String() ||
+		c.Name != newc.Name || c.Type != newc.Type ||
+		c.Clusterdag.String() != newc.Clusterdag.String() {
+
+		fmt.Printf("c: %v\ncnew: %v\n", c, newc)
+		t.Fatal("mismatch")
+	}
+
+	if !c.Equals(newc) {
+		t.Error("all pin fields are equal but Equals returns false")
 	}
 }
 

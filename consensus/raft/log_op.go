@@ -13,7 +13,6 @@ import (
 const (
 	LogOpPin = iota + 1
 	LogOpUnpin
-	LogOpUpdate
 )
 
 // LogOpType expresses the type of a consensus Operation
@@ -62,16 +61,6 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			op.Cid,
 			&struct{}{},
 			nil)
-	case LogOpUpdate:
-		err = state.Rm(op.Cid.ToPin().Cid)
-		if err != nil {
-			goto ROLLBACK
-		}
-		err = state.Add(op.Cid.ToPin())
-		if err != nil {
-			goto ROLLBACK
-		}
-
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}

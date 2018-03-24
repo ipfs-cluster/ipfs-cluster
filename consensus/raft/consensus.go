@@ -284,8 +284,6 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 			logger.Infof("pin committed to global state: %s", op.Cid.Cid)
 		case LogOpUnpin:
 			logger.Infof("unpin committed to global state: %s", op.Cid.Cid)
-		case LogOpUpdate:
-			logger.Infof("pin update commited to global state: %s", op.Cid.Cid)
 		}
 		break
 
@@ -310,16 +308,6 @@ func (cc *Consensus) LogPin(pin api.Pin) error {
 func (cc *Consensus) LogUnpin(pin api.Pin) error {
 	op := cc.op(pin, LogOpUnpin)
 	err := cc.commit(op, "ConsensusLogUnpin", pin.ToSerial())
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// LogUpdate refreshes the shared state's view of a pin
-func (cc *Consensus) LogUpdate(pin api.Pin) error {
-	op := cc.op(pin, LogOpUpdate)
-	err := cc.commit(op, "ConsensusLogUpdate", pin.ToSerial())
 	if err != nil {
 		return err
 	}

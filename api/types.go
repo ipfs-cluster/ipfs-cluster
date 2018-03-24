@@ -561,6 +561,22 @@ const (
 // CdagType pin
 type PinType int
 
+// String returns a printable value to identify the PinType
+func (pT PinType) String() string {
+	switch pT {
+	case DataType:
+		return "pin"
+	case MetaType:
+		return "meta-pin"
+	case CdagType:
+		return "clusterdag-pin"
+	case ShardType:
+		return "clusterdag-shard-pin"
+	default:
+		panic("String() called on invalid shard type")
+	}
+}
+
 // Pin is an argument that carries a Cid. It may carry more things in the
 // future.
 type Pin struct {
@@ -572,7 +588,7 @@ type Pin struct {
 	ReplicationFactorMax int
 	Recursive            bool
 	Parents              []*cid.Cid
-	Child                *cid.Cid
+	Clusterdag           *cid.Cid
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
@@ -595,7 +611,7 @@ type PinSerial struct {
 	ReplicationFactorMax int      `json:"replication_factor_max"`
 	Recursive            bool     `json:"recursive"`
 	Parents              []string `json:"parents"`
-	Child                string   `json:"child"`
+	Clusterdag           string   `json:"clusterdag"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -604,9 +620,9 @@ func (pin Pin) ToSerial() PinSerial {
 	if pin.Cid != nil {
 		c = pin.Cid.String()
 	}
-	child := ""
-	if pin.Child != nil {
-		child = pin.Child.String()
+	cdag := ""
+	if pin.Clusterdag != nil {
+		cdag = pin.Clusterdag.String()
 	}
 
 	n := pin.Name
@@ -622,7 +638,7 @@ func (pin Pin) ToSerial() PinSerial {
 		ReplicationFactorMax: pin.ReplicationFactorMax,
 		Recursive:            pin.Recursive,
 		Parents:              parents,
-		Child:                child,
+		Clusterdag:           cdag,
 	}
 }
 
@@ -656,13 +672,6 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	sort.Strings(pin1s.Parents)
-	sort.Strings(pin2s.Parents)
-
-	if strings.Join(pin1s.Parents, ",") != strings.Join(pin2s.Parents, ",") {
-		return false
-	}
-
 	if pin1s.ReplicationFactorMax != pin2s.ReplicationFactorMax {
 		return false
 	}
@@ -670,9 +679,18 @@ func (pin Pin) Equals(pin2 Pin) bool {
 	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
 		return false
 	}
-	if pin1s.Child != pin2s.Child {
+
+	if pin1s.Clusterdag != pin2s.Clusterdag {
 		return false
 	}
+
+	sort.Strings(pin1s.Parents)
+	sort.Strings(pin2s.Parents)
+
+	if strings.Join(pin1s.Parents, ",") != strings.Join(pin2s.Parents, ",") {
+		return false
+	}
+
 	return true
 }
 
@@ -682,9 +700,12 @@ func (pins PinSerial) ToPin() Pin {
 	if err != nil {
 		logger.Error(pins.Cid, err)
 	}
-	child, err := cid.Decode(pins.Child)
-	if err != nil {
-		logger.Error(pins.Child, err)
+	var cdag *cid.Cid
+	if pins.Clusterdag != "" {
+		cdag, err = cid.Decode(pins.Clusterdag)
+		if err != nil {
+			logger.Error(pins.Clusterdag, err)
+		}
 	}
 
 	return Pin{
@@ -696,7 +717,7 @@ func (pins PinSerial) ToPin() Pin {
 		ReplicationFactorMax: pins.ReplicationFactorMax,
 		Recursive:            pins.Recursive,
 		Parents:              StringsToCids(pins.Parents),
-		Child:                child,
+		Clusterdag:           cdag,
 	}
 }
 
