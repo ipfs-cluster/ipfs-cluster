@@ -279,8 +279,6 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			w.Write(TestShardData)
 		case TestCdagCid:
 			w.Write(TestCdagData)
-		case TestCdagIndirectCid:
-			w.Write(TestCdagIndirectData)
 		default:
 			goto ERROR
 		}

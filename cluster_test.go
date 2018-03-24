@@ -98,8 +98,6 @@ func (ipfs *mockConnector) BlockGet(c *cid.Cid) ([]byte, error) {
 		return test.TestShardData, nil
 	case test.TestCdagCid:
 		return test.TestCdagData, nil
-	case test.TestCdagIndirectCid:
-		return test.TestCdagIndirectData, nil
 	default:
 		return nil, errors.New("block not found")
 	}
@@ -274,64 +272,6 @@ func pinDirectShard(t *testing.T, cl *Cluster) {
 	}
 }
 
-func pinIndirectShard(t *testing.T, cl *Cluster) {
-	cShard, _ := cid.Decode(test.TestShardCid)
-	cCdag, _ := cid.Decode(test.TestCdagCid)
-	cCdagIndirect, _ := cid.Decode(test.TestCdagIndirectCid)
-	cMeta, _ := cid.Decode(test.TestMetaRootCid)
-	shardPin := api.Pin{
-		Cid:                  cShard,
-		Type:                 api.ShardType,
-		ReplicationFactorMin: 1,
-		ReplicationFactorMax: 1,
-		Recursive:            true,
-		Parents:              []*cid.Cid{cCdag},
-		Allocations:          []peer.ID{test.TestPeerID1},
-	}
-	err := cl.Pin(shardPin)
-	if err != nil {
-		t.Fatal("pin should have worked:", err)
-	}
-
-	cdagPin := api.Pin{
-		Cid:                  cCdag,
-		Type:                 api.CdagType,
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-		Recursive:            false,
-		Parents:              []*cid.Cid{cCdagIndirect},
-		Clusterdag:           cShard,
-	}
-	err = cl.Pin(cdagPin)
-	if err != nil {
-		t.Fatal("pin should have worked:", err)
-	}
-
-	indirectCdagPin := api.Pin{
-		Cid:                  cCdagIndirect,
-		Type:                 api.CdagType,
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-		Recursive:            false,
-		Parents:              []*cid.Cid{cMeta},
-		Clusterdag:           cCdag,
-	}
-	err = cl.Pin(indirectCdagPin)
-	if err != nil {
-		t.Fatal("pin should have worked:", err)
-	}
-
-	metaPin := api.Pin{
-		Cid:        cMeta,
-		Type:       api.MetaType,
-		Clusterdag: cCdagIndirect,
-	}
-	err = cl.Pin(metaPin)
-	if err != nil {
-		t.Fatal("pin should have worked:", err)
-	}
-}
-
 func TestClusterPinMeta(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
@@ -370,25 +310,6 @@ func TestClusterUnpinMeta(t *testing.T) {
 	defer cl.Shutdown()
 
 	pinDirectShard(t, cl)
-	// verify pins
-	if len(cl.Pins()) != 3 {
-		t.Fatal("should have 3 pins")
-	}
-	// Unpinning from root should work
-	cMeta, _ := cid.Decode(test.TestMetaRootCid)
-
-	err := cl.Unpin(cMeta)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClusterUnpinMetaIndirectShard(t *testing.T) {
-	cl, _, _, _, _ := testingCluster(t)
-	defer cleanRaft()
-	defer cl.Shutdown()
-
-	pinIndirectShard(t, cl)
 	// verify pins
 	if len(cl.Pins()) != 3 {
 		t.Fatal("should have 3 pins")

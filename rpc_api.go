@@ -340,6 +340,14 @@ func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out
 	return err
 }
 
+// IPFSBlockGet runs IPFSConnector.BlockGet().
+func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[]byte) error {
+	c := in.ToPin().Cid
+	res, err := rpcapi.c.ipfs.BlockGet(c)
+	*out = res
+	return err
+}
+
 /*
    Consensus component methods
 */

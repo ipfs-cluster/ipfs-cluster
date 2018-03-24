@@ -10,7 +10,6 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	dag "github.com/ipfs/go-ipfs/merkledag"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/ipfs-cluster/api"
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -20,14 +19,7 @@ import (
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	ma "github.com/multiformats/go-multiaddr"
-	mh "github.com/multiformats/go-multihash"
 )
-
-func init() {
-	ipld.Register(cid.DagProtobuf, dag.DecodeProtobufBlock)
-	ipld.Register(cid.Raw, dag.DecodeRawBlock)
-	ipld.Register(cid.DagCBOR, cbor.DecodeBlock) // need to decode CBOR
-}
 
 var nodeDataSet1 = [][]byte{[]byte(`Dag Node 1`), []byte(`Dag Node 2`), []byte(`Dag Node 3`)}
 var nodeDataSet2 = [][]byte{[]byte(`Dag Node A`), []byte(`Dag Node B`), []byte(`Dag Node C`)}
@@ -230,18 +222,7 @@ func verifyNodePuts(t *testing.T,
 }
 
 func cborDataToNode(t *testing.T, putInfo api.NodeWithMeta) ipld.Node {
-	if putInfo.Format != "cbor" {
-		t.Fatalf("Unexpected shard node format %s", putInfo.Format)
-	}
-	shardCid, err := cid.NewPrefixV1(cid.DagCBOR, mh.SHA2_256).Sum(putInfo.Data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	shardBlk, err := blocks.NewBlockWithCid(putInfo.Data, shardCid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	shardNode, err := ipld.Decode(shardBlk)
+	shardNode, err := CborDataToNode(putInfo.Data, putInfo.Format)
 	if err != nil {
 		t.Fatal(err)
 	}
