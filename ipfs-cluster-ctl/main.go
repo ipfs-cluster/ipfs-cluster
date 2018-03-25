@@ -225,14 +225,23 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 				// Files are all opened but not read until they are sent.
 				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
 				checkErr("serializing all files", err)
+				// Default repl factor for file adding is 1
+				replMin := c.Int("replication-min")
+				if replMin == 0 {
+					replMin = 1
+				}
+				replMax := c.Int("replication-max")
+				if replMax == 0 {
+					replMax = 1
+				}
 				resp, cerr := globalClient.AddMultiFile(multiFileR,
 					c.Bool("shard"), c.Bool("quiet"),
 					c.Bool("silent"), c.String("layout"),
 					c.String("chunker"),
 					c.Bool("raw-leaves"), c.Bool("wrap"),
 					c.Bool("progress"), c.Bool("hidden"),
-					c.Int("replication-min"),
-					c.Int("replication-max"))
+					replMin,
+					replMax)
 				formatResponse(c, resp, cerr)
 				return nil
 			},

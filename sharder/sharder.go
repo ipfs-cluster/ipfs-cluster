@@ -26,6 +26,7 @@ type sessionState struct {
 	shardNodes shardObj
 	replMin    int
 	replMax    int
+	dataRoot   *cid.Cid
 }
 
 // Sharder aggregates incident ipfs file dag nodes into a shard, or group of
@@ -225,8 +226,13 @@ func (s *Sharder) Finalize(id string) error {
 		return errors.New("cannot finalize untracked id")
 	}
 	// call flush
-	if err := s.flush(); err != nil {
-		return err
+	if len(session.currentShard) > 0 {
+		if err := s.flush(); err != nil {
+			return err
+		}
+	}
+	if session.dataRoot == nil {
+		return errors.New("finalize called before adding any data")
 	}
 
 	// construct cluster DAG root
@@ -250,11 +256,9 @@ func (s *Sharder) Finalize(id string) error {
 	}
 
 	// Link dataDAG hash to clusterDAG root hash
-	key := fmt.Sprintf("%d", len(session.currentShard))
-	dataRoot := session.currentShard[key]
 	cdagCid := shardRootNodes[0].Cid()
 	metaPinS := api.Pin{
-		Cid:                  dataRoot,
+		Cid:                  session.dataRoot,
 		ReplicationFactorMin: session.replMin,
 		ReplicationFactorMax: session.replMax,
 		Type:                 api.MetaType,
@@ -278,7 +282,7 @@ func (s *Sharder) Finalize(id string) error {
 		ReplicationFactorMax: -1,
 		Type:                 api.CdagType,
 		Recursive:            false,
-		Parents:              []*cid.Cid{dataRoot},
+		Parents:              []*cid.Cid{session.dataRoot},
 	}.ToSerial()
 	err = s.rpcClient.Call(
 		"",
@@ -333,6 +337,10 @@ func (s *Sharder) flush() error {
 	if err != nil {
 		return err
 	}
+	// Track latest data hash
+	key := fmt.Sprintf("%d", len(session.currentShard)-1)
+	session.dataRoot = session.currentShard[key]
+
 	targetPeer := session.assignedPeer
 	session.currentShard = make(map[string]*cid.Cid)
 	session.assignedPeer = peer.ID("")
@@ -360,7 +368,7 @@ func (s *Sharder) flush() error {
 	}
 
 	// Track shardNodeDAG root within clusterDAG
-	key := fmt.Sprintf("%d", len(session.shardNodes))
+	key = fmt.Sprintf("%d", len(session.shardNodes))
 	c := shardNodes[0].Cid()
 	session.shardNodes[key] = c
 
