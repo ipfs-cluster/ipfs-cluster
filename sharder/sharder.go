@@ -26,6 +26,7 @@ type sessionState struct {
 	shardNodes shardObj
 	replMin    int
 	replMax    int
+	dataRoot   *cid.Cid
 }
 
 // Sharder aggregates incident ipfs file dag nodes into a shard, or group of
@@ -225,8 +226,13 @@ func (s *Sharder) Finalize(id string) error {
 		return errors.New("cannot finalize untracked id")
 	}
 	// call flush
-	if err := s.flush(); err != nil {
-		return err
+	if len(session.currentShard) > 0 {
+		if err := s.flush(); err != nil {
+			return err
+		}
+	}
+	if session.dataRoot == nil {
+		return errors.New("finalize called before adding any data")
 	}
 
 	// construct cluster DAG root
@@ -250,11 +256,9 @@ func (s *Sharder) Finalize(id string) error {
 	}
 
 	// Link dataDAG hash to clusterDAG root hash
-	key := fmt.Sprintf("%d", len(session.currentShard))
-	dataRoot := session.currentShard[key]
 	cdagCid := shardRootNodes[0].Cid()
 	metaPinS := api.Pin{
-		Cid:                  dataRoot,
+		Cid:                  session.dataRoot,
 		ReplicationFactorMin: session.replMin,
 		ReplicationFactorMax: session.replMax,
 		Type:                 api.MetaType,
@@ -272,13 +276,15 @@ func (s *Sharder) Finalize(id string) error {
 	}
 
 	// Pin root node of rootDAG everywhere non recursively
+	cdagParents := cid.NewSet()
+	cdagParents.Add(session.dataRoot)
 	cdagPinS := api.Pin{
 		Cid:                  cdagCid,
 		ReplicationFactorMin: -1,
 		ReplicationFactorMax: -1,
 		Type:                 api.CdagType,
 		Recursive:            false,
-		Parents:              []*cid.Cid{dataRoot},
+		Parents:              cdagParents,
 	}.ToSerial()
 	err = s.rpcClient.Call(
 		"",
@@ -292,6 +298,8 @@ func (s *Sharder) Finalize(id string) error {
 	}
 
 	// Ammend ShardPins to reference clusterDAG root hash as a Parent
+	shardParents := cid.NewSet()
+	shardParents.Add(cdagCid)
 	for _, c := range session.shardNodes {
 		pinS := api.Pin{
 			Cid:                  c,
@@ -299,7 +307,7 @@ func (s *Sharder) Finalize(id string) error {
 			ReplicationFactorMax: session.replMax,
 			Type:                 api.ShardType,
 			Recursive:            true,
-			Parents:              []*cid.Cid{cdagCid},
+			Parents:              shardParents,
 		}.ToSerial()
 
 		err = s.rpcClient.Call(
@@ -333,6 +341,10 @@ func (s *Sharder) flush() error {
 	if err != nil {
 		return err
 	}
+	// Track latest data hash
+	key := fmt.Sprintf("%d", len(session.currentShard)-1)
+	session.dataRoot = session.currentShard[key]
+
 	targetPeer := session.assignedPeer
 	session.currentShard = make(map[string]*cid.Cid)
 	session.assignedPeer = peer.ID("")
@@ -360,7 +372,7 @@ func (s *Sharder) flush() error {
 	}
 
 	// Track shardNodeDAG root within clusterDAG
-	key := fmt.Sprintf("%d", len(session.shardNodes))
+	key = fmt.Sprintf("%d", len(session.shardNodes))
 	c := shardNodes[0].Cid()
 	session.shardNodes[key] = c
 
