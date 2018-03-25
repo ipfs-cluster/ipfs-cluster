@@ -306,15 +306,26 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 
 // AddMultiFile adds new files to the ipfs cluster, importing and potentially
 // sharding underlying dags across the ipfs repos of multiple cluster peers
-func (c *Client) AddMultiFile(multiFileR *files.MultiFileReader, shard bool,
-	quiet bool, silent bool, layout string, chunker string,
-	raw bool, wrap bool, progress bool, hidden bool) ([]api.AddedOutput, error) {
+func (c *Client) AddMultiFile(
+	multiFileR *files.MultiFileReader,
+	shard bool,
+	quiet bool,
+	silent bool,
+	layout string,
+	chunker string,
+	raw bool,
+	wrap bool,
+	progress bool,
+	hidden bool,
+	replMin, replMax int) ([]api.AddedOutput, error) {
+
 	headers := make(map[string]string)
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
 	fmtStr1 := "/allocations?shard=%t&quiet=%t&silent=%t&layout=%s&"
-	fmtStr2 := "chunker=%s&raw=%t&wrap=%t&progress=%t&hidden=%t"
-	url := fmt.Sprintf(fmtStr1+fmtStr2, shard, quiet, silent, layout, chunker,
-		raw, wrap, progress, hidden)
+	fmtStr2 := "chunker=%s&raw=%t&wrap=%t&progress=%t&hidden=%t&"
+	fmtStr3 := "repl_min=%d&repl_max=%d"
+	url := fmt.Sprintf(fmtStr1+fmtStr2+fmtStr3, shard, quiet, silent, layout, chunker,
+		raw, wrap, progress, hidden, replMin, replMax)
 	return c.doStream("POST", url, multiFileR, headers, nil)
 }
 

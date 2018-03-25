@@ -236,6 +236,16 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 					Name:  "hidden, H",
 					Usage: "include files that are hidden.  Only takes effect on recursive add",
 				},
+				cli.IntFlag{
+					Name:  "replication-min, rmin",
+					Value: 0,
+					Usage: "Sets the minimum replication factor for pinning this file",
+				},
+				cli.IntFlag{
+					Name:  "replication-max, rmax",
+					Value: 0,
+					Usage: "Sets the maximum replication factor for pinning this file",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				paths := make([]string, c.NArg(), c.NArg())
@@ -251,7 +261,9 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 					c.Bool("silent"), c.String("layout"),
 					c.String("chunker"),
 					c.Bool("raw-leaves"), c.Bool("wrap"),
-					c.Bool("progress"), c.Bool("hidden"))
+					c.Bool("progress"), c.Bool("hidden"),
+					c.Int("replication-min"),
+					c.Int("replication-max"))
 				formatResponse(c, resp, cerr)
 				return nil
 			},
