@@ -501,13 +501,14 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
-func (api *API) consumeLocalAdd(args map[string]string, outObj *types.NodeWithMeta) error {
+func (api *API) consumeLocalAdd(args map[string]string, outObj *types.NodeWithMeta, replMin, replMax int) error {
 	//TODO: when ipfs add starts supporting formats other than
 	// v0 (v1.cbor, v1.protobuf) we'll need to update this
 	outObj.Format = ""
 	args["cid"] = outObj.Cid // root node stored on last call
 	var hash string
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSBlockPut",
 		*outObj,
@@ -518,17 +519,41 @@ func (api *API) consumeLocalAdd(args map[string]string, outObj *types.NodeWithMe
 	return err
 }
 
-func (api *API) finishLocalAdd(args map[string]string) error {
-	// TODO: pin the root node from here, rpc.Call(pin, args["cid"])
-	return nil
+func (api *API) finishLocalAdd(args map[string]string, replMin, replMax int) error {
+	c, ok := args["cid"]
+	if !ok {
+		return errors.New("no record of root to pin")
+	}
+
+	pinS := types.PinSerial{
+		Cid:                  c,
+		Type:                 types.DataType,
+		Recursive:            true,
+		ReplicationFactorMin: replMin,
+		ReplicationFactorMax: replMax,
+	}
+	return api.rpcClient.Call(
+		"",
+		"Cluster",
+		"Pin",
+		pinS,
+		&struct{}{},
+	)
 }
 
-func (api *API) consumeShardAdd(args map[string]string, outObj *types.NodeWithMeta) error {
+func (api *API) consumeShardAdd(
+	args map[string]string,
+	outObj *types.NodeWithMeta,
+	replMin, replMax int) error {
+
 	var shardID string
 	shardID, ok := args["id"]
 	outObj.ID = shardID
+	outObj.ReplMax = replMax
+	outObj.ReplMin = replMin
 	var retStr string
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.Call(
+		"",
 		"Cluster",
 		"SharderAddNode",
 		*outObj,
@@ -539,7 +564,7 @@ func (api *API) consumeShardAdd(args map[string]string, outObj *types.NodeWithMe
 	return err
 }
 
-func (api *API) finishShardAdd(args map[string]string) error {
+func (api *API) finishShardAdd(args map[string]string, replMin, replMax int) error {
 	shardID, ok := args["id"]
 	if !ok {
 		return errors.New("bad state: shardID passed incorrectly")
@@ -553,8 +578,11 @@ func (api *API) consumeImport(ctx context.Context,
 	printChan <-chan *types.AddedOutput,
 	errChan <-chan error,
 	w http.ResponseWriter,
-	consume func(map[string]string, *types.NodeWithMeta) error,
-	finish func(map[string]string) error) error {
+	consume func(map[string]string, *types.NodeWithMeta, int, int) error,
+	finish func(map[string]string, int, int) error,
+	replMin int,
+	replMax int) error {
+
 	var err error
 	openChs := 3
 	enc := json.NewEncoder(w)
@@ -575,10 +603,9 @@ func (api *API) consumeImport(ctx context.Context,
 		// errors and terminates the session.
 		// Codes: 1 = error, 0 = non-error response, 2 = successful
 		// termination
-		// TODO: Unlike earlier approaches this is actually systematic
-		// and handles all possible errors.  This approach is still
-		// deferring the investigation into what error handling
-		// approaches give the best UX however.
+		// TODO: We should investigate whether we should fail
+		// immediately or attempt to partially finish for best
+		// UX
 		select {
 		// Ensure we terminate reading from importer after cancellation
 		// but do not block
@@ -606,6 +633,7 @@ func (api *API) consumeImport(ctx context.Context,
 			// TODO: figure out how to stream response concurrent with
 			// request.  This commented section succeeds in streaming
 			// a response but doing so prematurely truncates request reads.
+			// Looks like this is not possible with bare HTTP (even 2.0)
 			/*err = enc.Encode(printObj)
 			if err != nil {
 				return enc.Encode(types.Error{Code: 1, Message: err.Error()})
@@ -619,13 +647,13 @@ func (api *API) consumeImport(ctx context.Context,
 				continue
 			}
 
-			if err := consume(args, outObj); err != nil {
+			if err := consume(args, outObj, replMin, replMax); err != nil {
 				return enc.Encode(types.Error{Code: 1, Message: err.Error()})
 			}
 		}
 	}
 
-	if err := finish(args); err != nil {
+	if err := finish(args, replMin, replMax); err != nil {
 		return enc.Encode(types.Error{Code: 1, Message: err.Error()})
 	}
 
@@ -687,15 +715,35 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	shard := queryValues.Get("shard")
 	//	quiet := queryValues.Get("quiet") // just print hashes, no meta data
+	replMin, _ := strconv.Atoi(queryValues.Get("repl_min"))
+	replMax, _ := strconv.Atoi(queryValues.Get("repl_max"))
 
 	if shard == "true" {
-		if err := api.consumeImport(ctx, outChan, printChan, errChan,
-			w, api.consumeShardAdd, api.finishShardAdd); err != nil {
+		if err := api.consumeImport(
+			ctx,
+			outChan,
+			printChan,
+			errChan,
+			w,
+			api.consumeShardAdd,
+			api.finishShardAdd,
+			replMin,
+			replMax,
+		); err != nil {
 			panic(err)
 		}
 	} else {
-		if err := api.consumeImport(ctx, outChan, printChan, errChan,
-			w, api.consumeLocalAdd, api.finishLocalAdd); err != nil {
+		if err := api.consumeImport(
+			ctx,
+			outChan,
+			printChan,
+			errChan,
+			w,
+			api.consumeLocalAdd,
+			api.finishLocalAdd,
+			replMin,
+			replMax,
+		); err != nil {
 			panic(err)
 		}
 	}
