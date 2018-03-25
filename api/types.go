@@ -734,11 +734,13 @@ type AddedOutput struct {
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
-	Data   []byte
-	Cid    string
-	Size   uint64
-	ID     string
-	Format string
+	Data    []byte
+	Cid     string
+	Size    uint64
+	ID      string
+	Format  string
+	ReplMin int
+	ReplMax int
 }
 
 // AllocateInfo transports the information necessary to call an allocator's
