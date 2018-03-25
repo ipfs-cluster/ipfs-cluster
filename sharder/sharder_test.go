@@ -134,7 +134,7 @@ func TestAddAndFinalizeShard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sessionID, err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID)
+		sessionID, err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID, 1, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,7 +251,7 @@ func TestInterleaveSessions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sessionID1, err = sharder.AddNode(size, nodes1[j].RawData(), cids1[j], sessionID1)
+			sessionID1, err = sharder.AddNode(size, nodes1[j].RawData(), cids1[j], sessionID1, 1, 1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -263,7 +263,7 @@ func TestInterleaveSessions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sessionID2, err = sharder.AddNode(size, nodes2[j].RawData(), cids2[j], sessionID2)
+			sessionID2, err = sharder.AddNode(size, nodes2[j].RawData(), cids2[j], sessionID2, 1, 1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -355,7 +355,7 @@ func TestManyLinks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sessionID, err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID)
+		sessionID, err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID, 1, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -439,7 +439,7 @@ func TestMultipleShards(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sessionID, err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID)
+		sessionID, err = sharder.AddNode(size, nodes[i].RawData(), cids[i], sessionID, 1, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
