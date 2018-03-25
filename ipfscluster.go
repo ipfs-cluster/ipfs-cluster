@@ -185,6 +185,6 @@ type PeerMonitor interface {
 // distributed among the cluster
 type Sharder interface {
 	Component
-	AddNode(size uint64, data []byte, c string, id string) (string, error)
+	AddNode(size uint64, data []byte, c string, id string, min int, max int) (string, error)
 	Finalize(id string) error
 }

@@ -356,7 +356,14 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 
 // SharderAddNode runs Sharder.AddNode(node).
 func (rpcapi *RPCAPI) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
-	shardID, err := rpcapi.c.sharder.AddNode(in.Size, in.Data, in.Cid, in.ID)
+	shardID, err := rpcapi.c.sharder.AddNode(
+		in.Size,
+		in.Data,
+		in.Cid,
+		in.ID,
+		in.ReplMin,
+		in.ReplMax,
+	)
 	*out = shardID
 	return err
 }
