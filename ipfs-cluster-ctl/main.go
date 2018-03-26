@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -8,14 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/api/rest/client"
+
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli"
-
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/rest/client"
 )
 
 const programName = `ipfs-cluster-ctl`
@@ -45,7 +46,10 @@ specific one.
 %s uses the IPFS Cluster API to perform requests and display
 responses in a user-readable format. The location of the IPFS
 Cluster server is assumed to be %s, but can be
-configured with the --host option.
+configured with the --host option. To use the secure libp2p-http
+API endpoint, use "--host" with the full cluster libp2p listener
+address (including the "/ipfs/<peerID>" part), and --secret (the
+32-byte cluster secret as it appears in the cluster configuration).
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
@@ -81,7 +85,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost,
-			Usage: "multiaddress of the IPFS Cluster service API",
+			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint",
+		},
+		cli.StringFlag{
+			Name:  "secret",
+			Value: "",
+			Usage: "cluster secret (32 byte pnet-key) as needed. Only when using the LibP2P endpoint",
 		},
 		cli.BoolFlag{
 			Name:  "https, s",
@@ -119,11 +128,37 @@ requires authorization. implies --https, which you can disable with --force-http
 
 	app.Before = func(c *cli.Context) error {
 		cfg := &client.Config{}
+
+		if c.Bool("debug") {
+			logging.SetLogLevel("cluster-ctl", "debug")
+			cfg.LogLevel = "debug"
+			logger.Debug("debug level enabled")
+		}
+
 		addr, err := ma.NewMultiaddr(c.String("host"))
 		checkErr("parsing host multiaddress", err)
-		cfg.APIAddr = addr
+
+		// Is this a peer address?
+		pid, err := addr.ValueForProtocol(ma.P_IPFS)
+		if pid != "" && err == nil {
+			logger.Debugf("Using libp2p-http to %s", addr)
+			cfg.PeerAddr = addr
+			if hexSecret := c.String("secret"); hexSecret != "" {
+				secret, err := hex.DecodeString(hexSecret)
+				checkErr("parsing secret", err)
+				cfg.ProtectorKey = secret
+			}
+		} else {
+			logger.Debugf("Using http(s) to %s", addr)
+			cfg.APIAddr = addr
+		}
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
+
+		if cfg.PeerAddr != nil && c.Bool("https") {
+			logger.Warning("Using libp2p-http. SSL flags will be ignored")
+		}
+
 		cfg.SSL = c.Bool("https")
 		cfg.NoVerifyCert = c.Bool("no-check-certificate")
 		user, pass := parseCredentials(c.String("basic-auth"))
@@ -132,12 +167,6 @@ requires authorization. implies --https, which you can disable with --force-http
 		if user != "" && !cfg.SSL && !c.Bool("force-http") {
 			logger.Warning("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
 			cfg.SSL = true
-		}
-
-		if c.Bool("debug") {
-			logging.SetLogLevel("cluster-ctl", "debug")
-			cfg.LogLevel = "debug"
-			logger.Debug("debug level enabled")
 		}
 
 		enc := c.String("encoding")

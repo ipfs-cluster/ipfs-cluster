@@ -60,41 +60,6 @@ func copyEmptyStructToIfaces(in []struct{}) []interface{} {
 	return ifaces
 }
 
-// MultiaddrSplit takes a /proto/value/ipfs/id multiaddress and returns
-// the id on one side and the /proto/value multiaddress on the other.
-func MultiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
-	return multiaddrSplit(addr)
-}
-
-func multiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
-	pid, err := addr.ValueForProtocol(ma.P_IPFS)
-	if err != nil {
-		err = fmt.Errorf("invalid peer multiaddress: %s: %s", addr, err)
-		logger.Error(err)
-		return "", nil, err
-	}
-
-	ipfs, _ := ma.NewMultiaddr("/ipfs/" + pid)
-	decapAddr := addr.Decapsulate(ipfs)
-
-	peerID, err := peer.IDB58Decode(pid)
-	if err != nil {
-		err = fmt.Errorf("invalid peer ID in multiaddress: %s: %s", pid, err)
-		logger.Error(err)
-		return "", nil, err
-	}
-	return peerID, decapAddr, nil
-}
-
-func multiaddrJoin(addr ma.Multiaddr, p peer.ID) ma.Multiaddr {
-	pidAddr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(p))
-	// let this break badly
-	if err != nil {
-		panic("called multiaddrJoin with bad peer!")
-	}
-	return addr.Encapsulate(pidAddr)
-}
-
 // PeersFromMultiaddrs returns all the different peers in the given addresses.
 // each peer only will appear once in the result, even if several
 // multiaddresses for it are provided.
@@ -102,7 +67,7 @@ func PeersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
 	var pids []peer.ID
 	pm := make(map[peer.ID]struct{})
 	for _, addr := range addrs {
-		pid, _, err := multiaddrSplit(addr)
+		pid, _, err := api.Libp2pMultiaddrSplit(addr)
 		if err != nil {
 			continue
 		}
@@ -140,9 +105,9 @@ func PeersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
 func getRemoteMultiaddr(h host.Host, pid peer.ID, addr ma.Multiaddr) ma.Multiaddr {
 	conns := h.Network().ConnsToPeer(pid)
 	if len(conns) > 0 {
-		return multiaddrJoin(conns[0].RemoteMultiaddr(), pid)
+		return api.MustLibp2pMultiaddrJoin(conns[0].RemoteMultiaddr(), pid)
 	}
-	return multiaddrJoin(addr, pid)
+	return api.MustLibp2pMultiaddrJoin(addr, pid)
 }
 
 func pinInfoSliceToSerial(pi []api.PinInfo) []api.PinInfoSerial {

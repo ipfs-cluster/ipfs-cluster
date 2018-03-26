@@ -154,37 +154,17 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	cfg.ProxyAddr = proxyAddr
 	cfg.NodeAddr = nodeAddr
 
-	// only overwrite defaults when we can parse the time
-	// Note for these 0 is a valid value.
-	t, err := time.ParseDuration(jcfg.ProxyReadTimeout)
+	err = config.ParseDurations(
+		"ipfshttp",
+		&config.DurationOpt{jcfg.ProxyReadTimeout, &cfg.ProxyReadTimeout, "proxy_read_timeout"},
+		&config.DurationOpt{jcfg.ProxyReadHeaderTimeout, &cfg.ProxyReadHeaderTimeout, "proxy_read_header_timeout"},
+		&config.DurationOpt{jcfg.ProxyWriteTimeout, &cfg.ProxyWriteTimeout, "proxy_write_timeout"},
+		&config.DurationOpt{jcfg.ProxyIdleTimeout, &cfg.ProxyIdleTimeout, "proxy_idle_timeout"},
+		&config.DurationOpt{jcfg.ConnectSwarmsDelay, &cfg.ConnectSwarmsDelay, "connect_swarms_delay"},
+	)
 	if err != nil {
-		return fmt.Errorf("error parsing proxy_read_timeout: %s", err)
+		return err
 	}
-	cfg.ProxyReadTimeout = t
-
-	t, err = time.ParseDuration(jcfg.ProxyReadHeaderTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing proxy_read_header_timeout: %s", err)
-	}
-	cfg.ProxyReadHeaderTimeout = t
-
-	t, err = time.ParseDuration(jcfg.ProxyWriteTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing proxy_write_timeout: %s", err)
-	}
-	cfg.ProxyWriteTimeout = t
-
-	t, err = time.ParseDuration(jcfg.ProxyIdleTimeout)
-	if err != nil {
-		return fmt.Errorf("error parsing proxy_idle_timeout: %s", err)
-	}
-	cfg.ProxyIdleTimeout = t
-
-	t, err = time.ParseDuration(jcfg.ConnectSwarmsDelay)
-	if err != nil {
-		return fmt.Errorf("error parsing connect_swarms_delay: %s", err)
-	}
-	cfg.ConnectSwarmsDelay = t
 
 	config.SetIfNotDefault(jcfg.PinMethod, &cfg.PinMethod)
 

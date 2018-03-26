@@ -22,7 +22,7 @@ import (
 
 	// needed to parse /ws multiaddresses
 	_ "github.com/libp2p/go-ws-transport"
-	// needed to prase /dns* multiaddresses
+	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
 )
 
@@ -489,30 +489,6 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 		addrs[i] = addrS.ToMultiaddr()
 	}
 	return addrs
-}
-
-// PeersToStrings IDB58Encodes a list of peers.
-func PeersToStrings(peers []peer.ID) []string {
-	strs := make([]string, len(peers))
-	for i, p := range peers {
-		if p != "" {
-			strs[i] = peer.IDB58Encode(p)
-		}
-	}
-	return strs
-}
-
-// StringsToPeers decodes peer.IDs from strings.
-func StringsToPeers(strs []string) []peer.ID {
-	peers := make([]peer.ID, len(strs))
-	for i, p := range strs {
-		var err error
-		peers[i], err = peer.IDB58Decode(p)
-		if err != nil {
-			logger.Error(p, err)
-		}
-	}
-	return peers
 }
 
 // Pin is an argument that carries a Cid. It may carry more things in the

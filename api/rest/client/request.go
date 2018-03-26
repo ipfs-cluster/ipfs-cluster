@@ -19,7 +19,7 @@ func (c *Client) do(method, path string, body io.Reader, obj interface{}) error 
 }
 
 func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
-	urlpath := c.urlPrefix + "/" + strings.TrimPrefix(path, "/")
+	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
 	r, err := http.NewRequest(method, urlpath, body)

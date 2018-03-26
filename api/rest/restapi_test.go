@@ -2,6 +2,7 @@ package rest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,26 +12,34 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
+	p2phttp "github.com/hsanjuan/go-libp2p-http"
+	libp2p "github.com/libp2p/go-libp2p"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 func testAPI(t *testing.T) *API {
-	//logging.SetDebugLogging()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	h, err := libp2p.New(context.Background(), libp2p.ListenAddrs(apiMAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := &Config{}
 	cfg.Default()
-	cfg.ListenAddr = apiMAddr
+	cfg.HTTPListenAddr = apiMAddr
 
-	rest, err := NewAPI(cfg)
+	rest, err := NewAPIWithHost(cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
 
-	// No keep alive! Otherwise tests hang with
-	// connections re-used from previous tests
+	// No keep alive for tests
 	rest.server.SetKeepAlivesEnabled(false)
 	rest.SetClient(test.NewMockRPCClient(t))
+
 	return rest
 }
 
@@ -53,25 +62,78 @@ func processResp(t *testing.T, httpResp *http.Response, err error, resp interfac
 	}
 }
 
-func apiURL(a *API) string {
-	return fmt.Sprintf("http://%s", a.HTTPAddress())
+// makes a libp2p host that knows how to talk to the rest API host.
+func makeHost(t *testing.T, rest *API) host.Host {
+	h, err := libp2p.New(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Peerstore().AddAddrs(
+		rest.Host().ID(),
+		rest.Host().Addrs(),
+		peerstore.PermanentAddrTTL,
+	)
+	return h
 }
 
-func makeGet(t *testing.T, url string, resp interface{}) {
-	httpResp, err := http.Get(url)
+type urlF func(a *API) string
+
+func httpURL(a *API) string {
+	u, _ := a.HTTPAddress()
+	return fmt.Sprintf("http://%s", u)
+}
+
+func p2pURL(a *API) string {
+	return fmt.Sprintf("libp2p://%s", peer.IDB58Encode(a.Host().ID()))
+}
+
+// supports both http and libp2p-tunneled-http
+func httpClient(t *testing.T, h host.Host) *http.Client {
+	tr := &http.Transport{}
+	if h != nil {
+		tr.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
+	}
+	return &http.Client{Transport: tr}
+}
+
+func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h)
+	httpResp, err := c.Get(url)
 	processResp(t, httpResp, err, resp)
 }
 
-func makePost(t *testing.T, url string, body []byte, resp interface{}) {
-	httpResp, err := http.Post(url, "application/json", bytes.NewReader(body))
+func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}) {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h)
+	httpResp, err := c.Post(url, "application/json", bytes.NewReader(body))
 	processResp(t, httpResp, err, resp)
 }
 
-func makeDelete(t *testing.T, url string, resp interface{}) {
+func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h)
 	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
-	c := &http.Client{}
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
+}
+
+type testF func(t *testing.T, url urlF)
+
+func testBothEndpoints(t *testing.T, test testF) {
+	t.Run("in-parallel", func(t *testing.T) {
+		t.Run("http", func(t *testing.T) {
+			t.Parallel()
+			test(t, httpURL)
+		})
+		t.Run("libp2p", func(t *testing.T) {
+			t.Parallel()
+			test(t, p2pURL)
+		})
+	})
 }
 
 func TestAPIShutdown(t *testing.T) {
@@ -82,318 +144,386 @@ func TestAPIShutdown(t *testing.T) {
 	}
 	// test shutting down twice
 	rest.Shutdown()
+
 }
 
 func TestRestAPIIDEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
-	id := api.IDSerial{}
-	makeGet(t, apiURL(rest)+"/id", &id)
-	if id.ID != test.TestPeerID1.Pretty() {
-		t.Error("expected correct id")
+
+	tf := func(t *testing.T, url urlF) {
+		id := api.IDSerial{}
+		makeGet(t, rest, url(rest)+"/id", &id)
+		if id.ID != test.TestPeerID1.Pretty() {
+			t.Error("expected correct id")
+		}
 	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIVersionEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
-	ver := api.Version{}
-	makeGet(t, apiURL(rest)+"/version", &ver)
-	if ver.Version != "0.0.mock" {
-		t.Error("expected correct version")
+
+	tf := func(t *testing.T, url urlF) {
+		ver := api.Version{}
+		makeGet(t, rest, url(rest)+"/version", &ver)
+		if ver.Version != "0.0.mock" {
+			t.Error("expected correct version")
+		}
 	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIPeerstEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var list []api.IDSerial
-	makeGet(t, apiURL(rest)+"/peers", &list)
-	if len(list) != 1 {
-		t.Fatal("expected 1 element")
+	tf := func(t *testing.T, url urlF) {
+		var list []api.IDSerial
+		makeGet(t, rest, url(rest)+"/peers", &list)
+		if len(list) != 1 {
+			t.Fatal("expected 1 element")
+		}
+		if list[0].ID != test.TestPeerID1.Pretty() {
+			t.Error("expected a different peer id list: ", list)
+		}
 	}
-	if list[0].ID != test.TestPeerID1.Pretty() {
-		t.Error("expected a different peer id list: ", list)
-	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIPeerAddEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	id := api.IDSerial{}
-	// post with valid body
-	body := fmt.Sprintf("{\"peer_multiaddress\":\"/ip4/1.2.3.4/tcp/1234/ipfs/%s\"}", test.TestPeerID1.Pretty())
-	t.Log(body)
-	makePost(t, apiURL(rest)+"/peers", []byte(body), &id)
+	tf := func(t *testing.T, url urlF) {
+		id := api.IDSerial{}
+		// post with valid body
+		body := fmt.Sprintf("{\"peer_multiaddress\":\"/ip4/1.2.3.4/tcp/1234/ipfs/%s\"}", test.TestPeerID1.Pretty())
+		t.Log(body)
+		makePost(t, rest, url(rest)+"/peers", []byte(body), &id)
 
-	if id.ID != test.TestPeerID1.Pretty() {
-		t.Error("expected correct ID")
-	}
-	if id.Error != "" {
-		t.Error("did not expect an error")
+		if id.ID != test.TestPeerID1.Pretty() {
+			t.Error("expected correct ID")
+		}
+		if id.Error != "" {
+			t.Error("did not expect an error")
+		}
+
+		// Send invalid body
+		errResp := api.Error{}
+		makePost(t, rest, url(rest)+"/peers", []byte("oeoeoeoe"), &errResp)
+		if errResp.Code != 400 {
+			t.Error("expected error with bad body")
+		}
+		// Send invalid multiaddr
+		makePost(t, rest, url(rest)+"/peers", []byte("{\"peer_multiaddress\": \"ab\"}"), &errResp)
+		if errResp.Code != 400 {
+			t.Error("expected error with bad multiaddress")
+		}
 	}
 
-	// Send invalid body
-	errResp := api.Error{}
-	makePost(t, apiURL(rest)+"/peers", []byte("oeoeoeoe"), &errResp)
-	if errResp.Code != 400 {
-		t.Error("expected error with bad body")
-	}
-	// Send invalid multiaddr
-	makePost(t, apiURL(rest)+"/peers", []byte("{\"peer_multiaddress\": \"ab\"}"), &errResp)
-	if errResp.Code != 400 {
-		t.Error("expected error with bad multiaddress")
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIPeerRemoveEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	makeDelete(t, apiURL(rest)+"/peers/"+test.TestPeerID1.Pretty(), &struct{}{})
+	tf := func(t *testing.T, url urlF) {
+		makeDelete(t, rest, url(rest)+"/peers/"+test.TestPeerID1.Pretty(), &struct{}{})
+	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestConnectGraphEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
-	var cg api.ConnectGraphSerial
-	makeGet(t, apiURL(rest)+"/health/graph", &cg)
-	if cg.ClusterID != test.TestPeerID1.Pretty() {
-		t.Error("unexpected cluster id")
+
+	tf := func(t *testing.T, url urlF) {
+		var cg api.ConnectGraphSerial
+		makeGet(t, rest, url(rest)+"/health/graph", &cg)
+		if cg.ClusterID != test.TestPeerID1.Pretty() {
+			t.Error("unexpected cluster id")
+		}
+		if len(cg.IPFSLinks) != 3 {
+			t.Error("unexpected number of ipfs peers")
+		}
+		if len(cg.ClusterLinks) != 3 {
+			t.Error("unexpected number of cluster peers")
+		}
+		if len(cg.ClustertoIPFS) != 3 {
+			t.Error("unexpected number of cluster to ipfs links")
+		}
+		// test a few link values
+		pid1 := test.TestPeerID1.Pretty()
+		pid4 := test.TestPeerID4.Pretty()
+		if _, ok := cg.ClustertoIPFS[pid1]; !ok {
+			t.Fatal("missing cluster peer 1 from cluster to peer links map")
+		}
+		if cg.ClustertoIPFS[pid1] != pid4 {
+			t.Error("unexpected ipfs peer mapped to cluster peer 1 in graph")
+		}
 	}
-	if len(cg.IPFSLinks) != 3 {
-		t.Error("unexpected number of ipfs peers")
-	}
-	if len(cg.ClusterLinks) != 3 {
-		t.Error("unexpected number of cluster peers")
-	}
-	if len(cg.ClustertoIPFS) != 3 {
-		t.Error("unexpected number of cluster to ipfs links")
-	}
-	// test a few link values
-	pid1 := test.TestPeerID1.Pretty()
-	pid4 := test.TestPeerID4.Pretty()
-	if _, ok := cg.ClustertoIPFS[pid1]; !ok {
-		t.Fatal("missing cluster peer 1 from cluster to peer links map")
-	}
-	if cg.ClustertoIPFS[pid1] != pid4 {
-		t.Error("unexpected ipfs peer mapped to cluster peer 1 in graph")
-	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIPinEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	// test regular post
-	makePost(t, apiURL(rest)+"/pins/"+test.TestCid1, []byte{}, &struct{}{})
+	tf := func(t *testing.T, url urlF) {
+		// test regular post
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1, []byte{}, &struct{}{})
 
-	errResp := api.Error{}
-	makePost(t, apiURL(rest)+"/pins/"+test.ErrorCid, []byte{}, &errResp)
-	if errResp.Message != test.ErrBadCid.Error() {
-		t.Error("expected different error: ", errResp.Message)
+		errResp := api.Error{}
+		makePost(t, rest, url(rest)+"/pins/"+test.ErrorCid, []byte{}, &errResp)
+		if errResp.Message != test.ErrBadCid.Error() {
+			t.Error("expected different error: ", errResp.Message)
+		}
+
+		makePost(t, rest, url(rest)+"/pins/abcd", []byte{}, &errResp)
+		if errResp.Code != 400 {
+			t.Error("should fail with bad Cid")
+		}
 	}
 
-	makePost(t, apiURL(rest)+"/pins/abcd", []byte{}, &errResp)
-	if errResp.Code != 400 {
-		t.Error("should fail with bad Cid")
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIUnpinEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	// test regular delete
-	makeDelete(t, apiURL(rest)+"/pins/"+test.TestCid1, &struct{}{})
+	tf := func(t *testing.T, url urlF) {
+		// test regular delete
+		makeDelete(t, rest, url(rest)+"/pins/"+test.TestCid1, &struct{}{})
 
-	errResp := api.Error{}
-	makeDelete(t, apiURL(rest)+"/pins/"+test.ErrorCid, &errResp)
-	if errResp.Message != test.ErrBadCid.Error() {
-		t.Error("expected different error: ", errResp.Message)
+		errResp := api.Error{}
+		makeDelete(t, rest, url(rest)+"/pins/"+test.ErrorCid, &errResp)
+		if errResp.Message != test.ErrBadCid.Error() {
+			t.Error("expected different error: ", errResp.Message)
+		}
+
+		makeDelete(t, rest, url(rest)+"/pins/abcd", &errResp)
+		if errResp.Code != 400 {
+			t.Error("should fail with bad Cid")
+		}
 	}
 
-	makeDelete(t, apiURL(rest)+"/pins/abcd", &errResp)
-	if errResp.Code != 400 {
-		t.Error("should fail with bad Cid")
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIAllocationsEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp []api.PinSerial
-	makeGet(t, apiURL(rest)+"/allocations", &resp)
-	if len(resp) != 3 ||
-		resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||
-		resp[2].Cid != test.TestCid3 {
-		t.Error("unexpected pin list: ", resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.PinSerial
+		makeGet(t, rest, url(rest)+"/allocations", &resp)
+		if len(resp) != 3 ||
+			resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||
+			resp[2].Cid != test.TestCid3 {
+			t.Error("unexpected pin list: ", resp)
+		}
 	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIAllocationEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp api.PinSerial
-	makeGet(t, apiURL(rest)+"/allocations/"+test.TestCid1, &resp)
-	if resp.Cid != test.TestCid1 {
-		t.Error("cid should be the same")
+	tf := func(t *testing.T, url urlF) {
+		var resp api.PinSerial
+		makeGet(t, rest, url(rest)+"/allocations/"+test.TestCid1, &resp)
+		if resp.Cid != test.TestCid1 {
+			t.Error("cid should be the same")
+		}
+
+		errResp := api.Error{}
+		makeGet(t, rest, url(rest)+"/allocations/"+test.ErrorCid, &errResp)
+		if errResp.Code != 404 {
+			t.Error("a non-pinned cid should 404")
+		}
 	}
 
-	errResp := api.Error{}
-	makeGet(t, apiURL(rest)+"/allocations/"+test.ErrorCid, &errResp)
-	if errResp.Code != 404 {
-		t.Error("a non-pinned cid should 404")
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp []api.GlobalPinInfoSerial
-	makeGet(t, apiURL(rest)+"/pins", &resp)
-	if len(resp) != 3 ||
-		resp[0].Cid != test.TestCid1 ||
-		resp[1].PeerMap[test.TestPeerID1.Pretty()].Status != "pinning" {
-		t.Errorf("unexpected statusAll resp:\n %+v", resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins", &resp)
+		if len(resp) != 3 ||
+			resp[0].Cid != test.TestCid1 ||
+			resp[1].PeerMap[test.TestPeerID1.Pretty()].Status != "pinning" {
+			t.Errorf("unexpected statusAll resp:\n %+v", resp)
+		}
+
+		// Test local=true
+		var resp2 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?local=true", &resp2)
+		if len(resp2) != 2 {
+			t.Errorf("unexpected statusAll+local resp:\n %+v", resp)
+		}
 	}
 
-	// Test local=true
-	var resp2 []api.GlobalPinInfoSerial
-	makeGet(t, apiURL(rest)+"/pins?local=true", &resp2)
-	if len(resp2) != 2 {
-		t.Errorf("unexpected statusAll+local resp:\n %+v", resp)
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIStatusEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp api.GlobalPinInfoSerial
-	makeGet(t, apiURL(rest)+"/pins/"+test.TestCid1, &resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1, &resp)
 
-	if resp.Cid != test.TestCid1 {
-		t.Error("expected the same cid")
-	}
-	info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
-	if !ok {
-		t.Fatal("expected info for test.TestPeerID1")
-	}
-	if info.Status != "pinned" {
-		t.Error("expected different status")
+		if resp.Cid != test.TestCid1 {
+			t.Error("expected the same cid")
+		}
+		info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
+		if !ok {
+			t.Fatal("expected info for test.TestPeerID1")
+		}
+		if info.Status != "pinned" {
+			t.Error("expected different status")
+		}
+
+		// Test local=true
+		var resp2 api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1+"?local=true", &resp2)
+
+		if resp2.Cid != test.TestCid1 {
+			t.Error("expected the same cid")
+		}
+		info, ok = resp2.PeerMap[test.TestPeerID2.Pretty()]
+		if !ok {
+			t.Fatal("expected info for test.TestPeerID2")
+		}
+		if info.Status != "pinned" {
+			t.Error("expected different status")
+		}
 	}
 
-	// Test local=true
-	var resp2 api.GlobalPinInfoSerial
-	makeGet(t, apiURL(rest)+"/pins/"+test.TestCid1+"?local=true", &resp2)
-
-	if resp2.Cid != test.TestCid1 {
-		t.Error("expected the same cid")
-	}
-	info, ok = resp2.PeerMap[test.TestPeerID2.Pretty()]
-	if !ok {
-		t.Fatal("expected info for test.TestPeerID2")
-	}
-	if info.Status != "pinned" {
-		t.Error("expected different status")
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPISyncAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp []api.GlobalPinInfoSerial
-	makePost(t, apiURL(rest)+"/pins/sync", []byte{}, &resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.GlobalPinInfoSerial
+		makePost(t, rest, url(rest)+"/pins/sync", []byte{}, &resp)
 
-	if len(resp) != 3 ||
-		resp[0].Cid != test.TestCid1 ||
-		resp[1].PeerMap[test.TestPeerID1.Pretty()].Status != "pinning" {
-		t.Errorf("unexpected syncAll resp:\n %+v", resp)
+		if len(resp) != 3 ||
+			resp[0].Cid != test.TestCid1 ||
+			resp[1].PeerMap[test.TestPeerID1.Pretty()].Status != "pinning" {
+			t.Errorf("unexpected syncAll resp:\n %+v", resp)
+		}
+
+		// Test local=true
+		var resp2 []api.GlobalPinInfoSerial
+		makePost(t, rest, url(rest)+"/pins/sync?local=true", []byte{}, &resp2)
+
+		if len(resp2) != 2 {
+			t.Errorf("unexpected syncAll+local resp:\n %+v", resp2)
+		}
 	}
 
-	// Test local=true
-	var resp2 []api.GlobalPinInfoSerial
-	makePost(t, apiURL(rest)+"/pins/sync?local=true", []byte{}, &resp2)
-
-	if len(resp2) != 2 {
-		t.Errorf("unexpected syncAll+local resp:\n %+v", resp2)
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPISyncEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp api.GlobalPinInfoSerial
-	makePost(t, apiURL(rest)+"/pins/"+test.TestCid1+"/sync", []byte{}, &resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp api.GlobalPinInfoSerial
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1+"/sync", []byte{}, &resp)
 
-	if resp.Cid != test.TestCid1 {
-		t.Error("expected the same cid")
-	}
-	info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
-	if !ok {
-		t.Fatal("expected info for test.TestPeerID1")
-	}
-	if info.Status != "pinned" {
-		t.Error("expected different status")
+		if resp.Cid != test.TestCid1 {
+			t.Error("expected the same cid")
+		}
+		info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
+		if !ok {
+			t.Fatal("expected info for test.TestPeerID1")
+		}
+		if info.Status != "pinned" {
+			t.Error("expected different status")
+		}
+
+		// Test local=true
+		var resp2 api.GlobalPinInfoSerial
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1+"/sync?local=true", []byte{}, &resp2)
+
+		if resp2.Cid != test.TestCid1 {
+			t.Error("expected the same cid")
+		}
+		info, ok = resp2.PeerMap[test.TestPeerID2.Pretty()]
+		if !ok {
+			t.Fatal("expected info for test.TestPeerID2")
+		}
+		if info.Status != "pinned" {
+			t.Error("expected different status")
+		}
 	}
 
-	// Test local=true
-	var resp2 api.GlobalPinInfoSerial
-	makePost(t, apiURL(rest)+"/pins/"+test.TestCid1+"/sync?local=true", []byte{}, &resp2)
-
-	if resp2.Cid != test.TestCid1 {
-		t.Error("expected the same cid")
-	}
-	info, ok = resp2.PeerMap[test.TestPeerID2.Pretty()]
-	if !ok {
-		t.Fatal("expected info for test.TestPeerID2")
-	}
-	if info.Status != "pinned" {
-		t.Error("expected different status")
-	}
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIRecoverEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp api.GlobalPinInfoSerial
-	makePost(t, apiURL(rest)+"/pins/"+test.TestCid1+"/recover", []byte{}, &resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp api.GlobalPinInfoSerial
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1+"/recover", []byte{}, &resp)
 
-	if resp.Cid != test.TestCid1 {
-		t.Error("expected the same cid")
+		if resp.Cid != test.TestCid1 {
+			t.Error("expected the same cid")
+		}
+		info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
+		if !ok {
+			t.Fatal("expected info for test.TestPeerID1")
+		}
+		if info.Status != "pinned" {
+			t.Error("expected different status")
+		}
 	}
-	info, ok := resp.PeerMap[test.TestPeerID1.Pretty()]
-	if !ok {
-		t.Fatal("expected info for test.TestPeerID1")
-	}
-	if info.Status != "pinned" {
-		t.Error("expected different status")
-	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIRecoverAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	var resp []api.GlobalPinInfoSerial
-	makePost(t, apiURL(rest)+"/pins/recover?local=true", []byte{}, &resp)
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.GlobalPinInfoSerial
+		makePost(t, rest, url(rest)+"/pins/recover?local=true", []byte{}, &resp)
 
-	if len(resp) != 0 {
-		t.Fatal("bad response length")
+		if len(resp) != 0 {
+			t.Fatal("bad response length")
+		}
+
+		var errResp api.Error
+		makePost(t, rest, url(rest)+"/pins/recover", []byte{}, &errResp)
+		if errResp.Code != 400 {
+			t.Error("expected a different error")
+		}
 	}
 
-	var errResp api.Error
-	makePost(t, apiURL(rest)+"/pins/recover", []byte{}, &errResp)
-	if errResp.Code != 400 {
-		t.Error("expected a different error")
-	}
+	testBothEndpoints(t, tf)
 }

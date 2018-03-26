@@ -3,11 +3,8 @@ package ipfscluster
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
-
-	pnet "github.com/libp2p/go-libp2p-pnet"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
@@ -16,11 +13,7 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	swarm "github.com/libp2p/go-libp2p-swarm"
-	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -69,6 +62,7 @@ type Cluster struct {
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
 func NewCluster(
+	host host.Host,
 	cfg *Config,
 	consensusCfg *raft.Config,
 	api API,
@@ -85,10 +79,13 @@ func NewCluster(
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	host, err := makeHost(ctx, cfg)
-	if err != nil {
-		cancel()
-		return nil, err
+
+	if host == nil {
+		host, err = NewClusterHost(ctx, cfg)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
 	}
 
 	if c := Commit; len(c) >= 8 {
@@ -590,8 +587,6 @@ func (c *Cluster) Shutdown() error {
 		return err
 	}
 
-	// Cancel contexts - **NOTE**: This kills the context in the
-	// libp2p HOST too!
 	c.cancel()
 	c.host.Close() // Shutdown all network services
 	c.wg.Wait()
@@ -618,7 +613,7 @@ func (c *Cluster) ID() api.ID {
 	}
 	for k := range addrsSet {
 		addr, _ := ma.NewMultiaddr(k)
-		addrs = append(addrs, multiaddrJoin(addr, c.id))
+		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
 	}
 
 	peers := []peer.ID{}
@@ -655,7 +650,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	c.paMux.Lock()
 	defer c.paMux.Unlock()
 	logger.Debugf("peerAdd called with %s", addr)
-	pid, decapAddr, err := multiaddrSplit(addr)
+	pid, decapAddr, err := api.Libp2pMultiaddrSplit(addr)
 	if err != nil {
 		id := api.ID{
 			Error: err.Error(),
@@ -787,7 +782,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	//	return errors.New("only single-node clusters can be joined")
 	//}
 
-	pid, _, err := multiaddrSplit(addr)
+	pid, _, err := api.Libp2pMultiaddrSplit(addr)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -809,7 +804,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 		"Cluster",
 		"PeerAdd",
 		api.MultiaddrToSerial(
-			multiaddrJoin(c.config.ListenAddr, c.id)),
+			api.MustLibp2pMultiaddrJoin(c.config.ListenAddr, c.id)),
 		&myID)
 	if err != nil {
 		logger.Error(err)
@@ -1129,71 +1124,6 @@ func (c *Cluster) Peers() []api.ID {
 		peers[i] = ps.ToID()
 	}
 	return peers
-}
-
-// makeHost makes a libp2p-host.
-func makeHost(ctx context.Context, cfg *Config) (host.Host, error) {
-	ps := peerstore.NewPeerstore()
-	privateKey := cfg.PrivateKey
-	publicKey := privateKey.GetPublic()
-
-	var protec ipnet.Protector
-	if len(cfg.Secret) != 0 {
-		var err error
-		clusterKey, err := clusterSecretToKey(cfg.Secret)
-		if err != nil {
-			return nil, err
-		}
-		protec, err = pnet.NewProtector(strings.NewReader(clusterKey))
-		if err != nil {
-			return nil, err
-		}
-		// this is in go-ipfs, not sure whether we want something like it here
-		/* go func() {
-			t := time.NewTicker(30 * time.Second)
-			<-t.C // swallow one tick
-			for {
-				select {
-				case <-t.C:
-					if ph := cfg.Host; ph != nil {
-						if len(ph.Network().Peers()) == 0 {
-							log.Warning("We are in a private network and have no peers.")
-							log.Warning("This might be a configuration mistake.")
-						}
-					}
-					case <-n.Process().Closing:
-					t.Stop()
-					return
-				}
-			}
-		}()*/
-	}
-
-	if err := ps.AddPubKey(cfg.ID, publicKey); err != nil {
-		return nil, err
-	}
-
-	if err := ps.AddPrivKey(cfg.ID, privateKey); err != nil {
-		return nil, err
-	}
-
-	ps.AddAddr(cfg.ID, cfg.ListenAddr, peerstore.PermanentAddrTTL)
-
-	network, err := swarm.NewNetworkWithProtector(
-		ctx,
-		[]ma.Multiaddr{cfg.ListenAddr},
-		cfg.ID,
-		ps,
-		protec,
-		nil,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	bhost := basichost.New(network)
-	return bhost, nil
 }
 
 // Perform an RPC request to multiple destinations

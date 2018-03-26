@@ -1,8 +1,6 @@
 package ipfscluster
 
 import (
-	"bytes"
-	crand "crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +14,7 @@ import (
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
+	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -160,11 +159,11 @@ func (cfg *Config) Default() error {
 	// --
 
 	// cluster secret
-	clusterSecret, err := generateClusterSecret()
+	clusterSecret, err := pnet.GenerateV1Bytes()
 	if err != nil {
 		return err
 	}
-	cfg.Secret = clusterSecret
+	cfg.Secret = (*clusterSecret)[:]
 	// --
 	return nil
 }
@@ -178,6 +177,10 @@ func (cfg *Config) Validate() error {
 
 	if cfg.PrivateKey == nil {
 		return errors.New("no cluster.private_key set")
+	}
+
+	if !cfg.ID.MatchesPrivateKey(cfg.PrivateKey) {
+		return errors.New("cluster.ID does not match the private_key")
 	}
 
 	if cfg.Peers == nil {
@@ -394,7 +397,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ID = cfg.ID.Pretty()
 	jcfg.Peername = cfg.Peername
 	jcfg.PrivateKey = pKey
-	jcfg.Secret = EncodeClusterSecret(cfg.Secret)
+	jcfg.Secret = EncodeProtectorKey(cfg.Secret)
 	jcfg.Peers = clusterPeers
 	jcfg.Bootstrap = bootstrap
 	jcfg.ReplicationFactorMin = cfg.ReplicationFactorMin
@@ -432,27 +435,4 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("input secret is %d bytes, cluster secret should be 32", secretLen)
 	}
-}
-
-// EncodeClusterSecret converts a byte slice to its hex string representation.
-func EncodeClusterSecret(secretBytes []byte) string {
-	return hex.EncodeToString(secretBytes)
-}
-
-func generateClusterSecret() ([]byte, error) {
-	secretBytes := make([]byte, 32)
-	_, err := crand.Read(secretBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error reading from rand: %v", err)
-	}
-	return secretBytes, nil
-}
-
-func clusterSecretToKey(secret []byte) (string, error) {
-	var key bytes.Buffer
-	key.WriteString("/key/swarm/psk/1.0.0/\n")
-	key.WriteString("/base16/\n")
-	key.WriteString(EncodeClusterSecret(secret))
-
-	return key.String(), nil
 }

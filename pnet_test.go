@@ -1,6 +1,10 @@
 package ipfscluster
 
-import "testing"
+import (
+	"testing"
+
+	pnet "github.com/libp2p/go-libp2p-pnet"
+)
 
 func TestClusterSecretFormat(t *testing.T) {
 	goodSecret := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -54,11 +58,11 @@ func TestSimplePNet(t *testing.T) {
 }
 
 func TestClusterSecretRequired(t *testing.T) {
-	cl1Secret, err := generateClusterSecret()
+	cl1Secret, err := pnet.GenerateV1Bytes()
 	if err != nil {
 		t.Fatal("Unable to generate cluster secret.")
 	}
-	cl1, _ := createOnePeerCluster(t, 1, cl1Secret)
+	cl1, _ := createOnePeerCluster(t, 1, (*cl1Secret)[:])
 	cl2, _ := createOnePeerCluster(t, 2, testingClusterSecret)
 	defer cleanRaft()
 	defer cl1.Shutdown()

@@ -3,6 +3,11 @@ package rest
 import (
 	"encoding/json"
 	"testing"
+	"time"
+
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var cfgJSON = []byte(`
@@ -25,10 +30,17 @@ func TestLoadJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if cfg.ReadTimeout != 30*time.Second ||
+		cfg.WriteTimeout != time.Minute ||
+		cfg.ReadHeaderTimeout != 5*time.Second ||
+		cfg.IdleTimeout != 2*time.Minute {
+		t.Error("error parsing timeouts")
+	}
+
 	j := &jsonConfig{}
 
 	json.Unmarshal(cfgJSON, j)
-	j.ListenMultiaddress = "abc"
+	j.HTTPListenMultiaddress = "abc"
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
@@ -37,7 +49,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ReadTimeout = "0"
+	j.ReadTimeout = "-1"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
@@ -60,6 +72,90 @@ func TestLoadJSON(t *testing.T) {
 	err = cfg.LoadJSON(tst)
 	if err == nil {
 		t.Error("expected error with TLS configuration")
+	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.ID = "abc"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error with ID")
+	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.Libp2pListenMultiaddress = "abc"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error with libp2p address")
+	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.PrivateKey = "abc"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error with private key")
+	}
+}
+
+func TestLibp2pConfig(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.Default()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	priv, pub, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := peer.IDFromPublicKey(pub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ID = pid
+	cfg.PrivateKey = priv
+	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	cfg.Libp2pListenAddr = addr
+
+	err = cfg.Validate()
+	if err != nil {
+		t.Error(err)
+	}
+
+	cfgJSON, err := cfg.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cfg.LoadJSON(cfgJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test creating a new API with a libp2p config
+	rest, err := NewAPI(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rest.Shutdown()
+
+	badPid, _ := peer.IDB58Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
+	cfg.ID = badPid
+	err = cfg.Validate()
+	if err == nil {
+		t.Error("expected id-privkey mismatch")
+	}
+	cfg.ID = pid
+
+	cfg.PrivateKey = nil
+	err = cfg.Validate()
+	if err == nil {
+		t.Error("expected missing private key error")
 	}
 }
 
@@ -84,13 +180,8 @@ func TestDefault(t *testing.T) {
 		t.Fatal("error validating")
 	}
 
-	cfg.ListenAddr = nil
-	if cfg.Validate() == nil {
-		t.Fatal("expected error validating")
-	}
-
 	cfg.Default()
-	cfg.IdleTimeout = 0
+	cfg.IdleTimeout = -1
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
