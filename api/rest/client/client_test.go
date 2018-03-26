@@ -118,6 +118,10 @@ func TestDefaultAddress(t *testing.T) {
 	if c.hostname != "127.0.0.1:9094" {
 		t.Error("default should be used")
 	}
+
+	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
+		t.Error("proxy address was not guessed correctly")
+	}
 }
 
 func TestMultiaddressPrecedence(t *testing.T) {
@@ -135,12 +139,16 @@ func TestMultiaddressPrecedence(t *testing.T) {
 	if c.hostname != "1.2.3.4:1234" {
 		t.Error("APIAddr should be used")
 	}
+
+	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/1.2.3.4/tcp/9095" {
+		t.Error("proxy address was not guessed correctly")
+	}
 }
 
 func TestHostPort(t *testing.T) {
 	cfg := &Config{
 		APIAddr:           nil,
-		Host:              "localhost",
+		Host:              "3.3.1.1",
 		Port:              "9094",
 		DisableKeepAlives: true,
 	}
@@ -148,8 +156,12 @@ func TestHostPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.hostname != "localhost:9094" {
+	if c.hostname != "3.3.1.1:9094" {
 		t.Error("Host Port should be used")
+	}
+
+	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/3.3.1.1/tcp/9095" {
+		t.Error("proxy address was not guessed correctly")
 	}
 }
 
@@ -167,6 +179,10 @@ func TestDNSMultiaddress(t *testing.T) {
 	}
 	if c.hostname != "127.0.0.1:1234" {
 		t.Error("bad resolved address")
+	}
+
+	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
+		t.Error("proxy address was not guessed correctly")
 	}
 }
 
@@ -186,5 +202,67 @@ func TestPeerAddress(t *testing.T) {
 	}
 	if c.hostname != "QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP" || c.net != "libp2p" {
 		t.Error("bad resolved address")
+	}
+
+	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
+		t.Error("proxy address was not guessed correctly")
+	}
+}
+
+func TestProxyAddress(t *testing.T) {
+	addr, _ := ma.NewMultiaddr("/ip4/1.3.4.5/tcp/1234")
+	cfg := &Config{
+		DisableKeepAlives: true,
+		ProxyAddr:         addr,
+	}
+	c, err := NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c.config.ProxyAddr.String() != addr.String() {
+		t.Error("proxy address was replaced")
+	}
+}
+
+func TestIPFS(t *testing.T) {
+	ipfsMock := test.NewIpfsMock()
+	defer ipfsMock.Close()
+
+	proxyAddr, err := ma.NewMultiaddr(
+		fmt.Sprintf("/ip4/%s/tcp/%d", ipfsMock.Addr, ipfsMock.Port),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		DisableKeepAlives: true,
+		ProxyAddr:         proxyAddr,
+	}
+
+	c, err := NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ipfs := c.IPFS()
+
+	err = ipfs.Pin(test.TestCid1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pins, err := ipfs.Pins()
+	if err != nil {
+		t.Error(err)
+	}
+
+	pin, ok := pins[test.TestCid1]
+	if !ok {
+		t.Error("pin should be in pin list")
+	}
+	if pin.Type != "recursive" {
+		t.Error("pin type unexpected")
 	}
 }
