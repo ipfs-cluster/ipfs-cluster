@@ -6,7 +6,7 @@ import (
 	"io"
 	"path"
 
-	filelock "go4.org/lock"
+	fslock "github.com/ipfs/go-fs-lock"
 )
 
 // The name of the file used for locking
@@ -26,7 +26,7 @@ func (l *lock) lock() error {
 	}
 	// set the lock file within this function
 	logger.Debug("checking lock")
-	lk, err := filelock.Lock(path.Join(l.path, lockFileName))
+	lk, err := fslock.Lock(l.path, lockFileName)
 	if err != nil {
 		logger.Debug(err)
 		l.lockCloser = nil
