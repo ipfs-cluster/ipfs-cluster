@@ -68,6 +68,12 @@
       "version": "0.0.0"
     },
     {
+      "author": "dignifiedquire",
+      "hash": "QmcdZD4zsP3PyNDbHkvjkvQx7dLLfbkSrRP8q5yPbDjqhj",
+      "name": "go-fs-lock",
+      "version": "0.1.1"
+    },
+    {
       "author": "hsanjuan",
       "hash": "QmYvYkxJrMzijvfE9EXsnBF26phUBpcK3cChSjucH5hXUY",
       "name": "go-libp2p-http",
