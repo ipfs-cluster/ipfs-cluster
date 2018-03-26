@@ -1,14 +1,17 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
-	ma "github.com/multiformats/go-multiaddr"
-
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	libp2p "github.com/libp2p/go-libp2p"
+	pnet "github.com/libp2p/go-libp2p-pnet"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func testAPI(t *testing.T) *rest.API {
@@ -17,9 +20,23 @@ func testAPI(t *testing.T) *rest.API {
 
 	cfg := &rest.Config{}
 	cfg.Default()
-	cfg.ListenAddr = apiMAddr
+	cfg.HTTPListenAddr = apiMAddr
+	var secret [32]byte
+	prot, err := pnet.NewV1ProtectorFromBytes(&secret)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	rest, err := rest.NewAPI(cfg)
+	h, err := libp2p.New(
+		context.Background(),
+		libp2p.ListenAddrs(apiMAddr),
+		libp2p.PrivateNetwork(prot),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rest, err := rest.NewAPIWithHost(cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
@@ -28,16 +45,26 @@ func testAPI(t *testing.T) *rest.API {
 	return rest
 }
 
+func shutdown(a *rest.API) {
+	a.Shutdown()
+	a.Host().Close()
+}
+
 func apiMAddr(a *rest.API) ma.Multiaddr {
-	hostPort := strings.Split(a.HTTPAddress(), ":")
+	listen, _ := a.HTTPAddress()
+	hostPort := strings.Split(listen, ":")
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%s", hostPort[1]))
 	return addr
 }
 
-func testClient(t *testing.T) (*Client, *rest.API) {
-	api := testAPI(t)
+func peerMAddr(a *rest.API) ma.Multiaddr {
+	listenAddr := a.Host().Addrs()[0]
+	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", a.Host().ID().Pretty()))
+	return listenAddr.Encapsulate(ipfsAddr)
+}
 
+func testClientHTTP(t *testing.T, api *rest.API) *Client {
 	cfg := &Config{
 		APIAddr:           apiMAddr(api),
 		DisableKeepAlives: true,
@@ -47,12 +74,36 @@ func testClient(t *testing.T) (*Client, *rest.API) {
 		t.Fatal(err)
 	}
 
-	return c, api
+	return c
+}
+
+func testClientLibp2p(t *testing.T, api *rest.API) *Client {
+	cfg := &Config{
+		PeerAddr:          peerMAddr(api),
+		ProtectorKey:      make([]byte, 32),
+		DisableKeepAlives: true,
+	}
+	c, err := NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return c
 }
 
 func TestNewClient(t *testing.T) {
-	_, api := testClient(t)
-	api.Shutdown()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	c := testClientHTTP(t, api)
+	if c.p2p != nil {
+		t.Error("should not use a libp2p host")
+	}
+
+	c = testClientLibp2p(t, api)
+	if c.p2p == nil {
+		t.Error("expected a libp2p host")
+	}
 }
 
 func TestDefaultAddress(t *testing.T) {
@@ -64,12 +115,12 @@ func TestDefaultAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.urlPrefix != "http://127.0.0.1:9094" {
+	if c.hostname != "127.0.0.1:9094" {
 		t.Error("default should be used")
 	}
 }
 
-func TestMultiaddressPreference(t *testing.T) {
+func TestMultiaddressPrecedence(t *testing.T) {
 	addr, _ := ma.NewMultiaddr("/ip4/1.2.3.4/tcp/1234")
 	cfg := &Config{
 		APIAddr:           addr,
@@ -81,7 +132,7 @@ func TestMultiaddressPreference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.urlPrefix != "http://1.2.3.4:1234" {
+	if c.hostname != "1.2.3.4:1234" {
 		t.Error("APIAddr should be used")
 	}
 }
@@ -97,7 +148,7 @@ func TestHostPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.urlPrefix != "http://localhost:9094" {
+	if c.hostname != "localhost:9094" {
 		t.Error("Host Port should be used")
 	}
 }
@@ -114,7 +165,26 @@ func TestDNSMultiaddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.urlPrefix != "http://127.0.0.1:1234" {
+	if c.hostname != "127.0.0.1:1234" {
+		t.Error("bad resolved address")
+	}
+}
+
+func TestPeerAddress(t *testing.T) {
+	addr2, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234")
+	peerAddr, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234/ipfs/QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP")
+	cfg := &Config{
+		APIAddr:           addr2,
+		Host:              "localhost",
+		Port:              "9094",
+		DisableKeepAlives: true,
+		PeerAddr:          peerAddr,
+	}
+	c, err := NewClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.hostname != "QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP" || c.net != "libp2p" {
 		t.Error("bad resolved address")
 	}
 }

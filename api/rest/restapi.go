@@ -1,11 +1,17 @@
 // Package rest implements an IPFS Cluster API component. It provides
-// a REST-ish API to interact with Cluster over HTTP.
+// a REST-ish API to interact with Cluster.
+//
+// rest exposes the HTTP API in two ways. The first is through a regular
+// HTTP(s) listener. The second is by tunneling HTTP through a libp2p
+// stream (thus getting an encrypted channel without the need to setup
+// TLS). Both ways can be used at the same time, or disabled.
 package rest
 
 import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"strconv"
@@ -16,14 +22,30 @@ import (
 
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	gostream "github.com/hsanjuan/go-libp2p-gostream"
+	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	libp2p "github.com/libp2p/go-libp2p"
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 var logger = logging.Logger("restapi")
+
+// Common errors
+var (
+	// ErrNoEndpointEnabled is returned when the API is created but
+	// no HTTPListenAddr, nor libp2p configuration fields, nor a libp2p
+	// Host are provided.
+	ErrNoEndpointsEnabled = errors.New("neither the libp2p nor the HTTP endpoints are enabled")
+
+	// ErrHTTPEndpointNotEnabled is returned when trying to perform
+	// operations that rely on the HTTPEndpoint but it is disabled.
+	ErrHTTPEndpointNotEnabled = errors.New("the HTTP endpoint is not enabled")
+)
 
 // API implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
@@ -37,8 +59,11 @@ type API struct {
 	rpcReady  chan struct{}
 	router    *mux.Router
 
-	listener net.Listener
-	server   *http.Server
+	server *http.Server
+	host   host.Host
+
+	httpListener   net.Listener
+	libp2pListener net.Listener
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -56,33 +81,19 @@ type peerAddBody struct {
 	PeerMultiaddr string `json:"peer_multiaddress"`
 }
 
-// NewAPI creates a new REST API component. It receives
-// the multiaddress on which the API listens.
+// NewAPI creates a new REST API component with the given configuration.
 func NewAPI(cfg *Config) (*API, error) {
+	return NewAPIWithHost(cfg, nil)
+}
+
+// NewAPIWithHost creates a new REST API component and enables
+// the libp2p-http endpoint using the given Host, if not nil.
+func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	n, addr, err := manet.DialArgs(cfg.ListenAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	var l net.Listener
-	if cfg.TLS != nil {
-		l, err = tls.Listen(n, addr, cfg.TLS)
-	} else {
-		l, err = net.Listen(n, addr)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return newAPI(cfg, l)
-}
-
-func newAPI(cfg *Config, l net.Listener) (*API, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
@@ -99,21 +110,99 @@ func newAPI(cfg *Config, l net.Listener) (*API, error) {
 		ctx:      ctx,
 		cancel:   cancel,
 		config:   cfg,
-		listener: l,
 		server:   s,
-		rpcReady: make(chan struct{}, 1),
+		host:     h,
+		rpcReady: make(chan struct{}, 2),
 	}
 	api.addRoutes(router)
-	api.run()
 
+	// Set up api.httpListener if enabled
+	err = api.setupHTTP()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set up api.libp2pListener if enabled
+	err = api.setupLibp2p(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if api.httpListener == nil && api.libp2pListener == nil {
+		return nil, ErrNoEndpointsEnabled
+	}
+
+	api.run()
 	return api, nil
+}
+
+func (api *API) setupHTTP() error {
+	if api.config.HTTPListenAddr == nil {
+		return nil
+	}
+
+	n, addr, err := manet.DialArgs(api.config.HTTPListenAddr)
+	if err != nil {
+		return err
+	}
+
+	var l net.Listener
+	if api.config.TLS != nil {
+		l, err = tls.Listen(n, addr, api.config.TLS)
+	} else {
+		l, err = net.Listen(n, addr)
+	}
+	if err != nil {
+		return err
+	}
+	api.httpListener = l
+	return nil
+}
+
+func (api *API) setupLibp2p(ctx context.Context) error {
+	// Make new host. Override any provided existing one
+	// if we have config for a custom one.
+	if api.config.Libp2pListenAddr != nil {
+		h, err := libp2p.New(
+			ctx,
+			libp2p.Identity(api.config.PrivateKey),
+			libp2p.ListenAddrs([]ma.Multiaddr{api.config.Libp2pListenAddr}...),
+		)
+		if err != nil {
+			return err
+		}
+		api.host = h
+	}
+
+	if api.host == nil {
+		return nil
+	}
+
+	l, err := gostream.Listen(api.host, p2phttp.P2PProtocol)
+	if err != nil {
+		return err
+	}
+	api.libp2pListener = l
+	return nil
 }
 
 // HTTPAddress returns the HTTP(s) listening address
 // in host:port format. Useful when configured to start
-// on a random port (0).
-func (api *API) HTTPAddress() string {
-	return api.listener.Addr().String()
+// on a random port (0). Returns error when the HTTP endpoint
+// is not enabled.
+func (api *API) HTTPAddress() (string, error) {
+	if api.httpListener == nil {
+		return "", ErrHTTPEndpointNotEnabled
+	}
+	return api.httpListener.Addr().String(), nil
+}
+
+// Host returns the libp2p Host used by the API, if any.
+// The result is either the host provided during initialization,
+// a default Host created with options from the configuration object,
+// or nil.
+func (api *API) Host() host.Host {
+	return api.host
 }
 
 func (api *API) addRoutes(router *mux.Router) {
@@ -277,17 +366,42 @@ func (api *API) routes() []route {
 }
 
 func (api *API) run() {
-	api.wg.Add(1)
-	go func() {
-		defer api.wg.Done()
-		<-api.rpcReady
+	if api.httpListener != nil {
+		api.wg.Add(1)
+		go api.runHTTPServer()
+	}
 
-		logger.Infof("REST API: %s", api.config.ListenAddr)
-		err := api.server.Serve(api.listener)
-		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
-			logger.Error(err)
-		}
-	}()
+	if api.libp2pListener != nil {
+		api.wg.Add(1)
+		go api.runLibp2pServer()
+	}
+}
+
+// runs in goroutine from run()
+func (api *API) runHTTPServer() {
+	defer api.wg.Done()
+	<-api.rpcReady
+
+	logger.Infof("REST API (HTTP): %s", api.config.HTTPListenAddr)
+	err := api.server.Serve(api.httpListener)
+	if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+		logger.Error(err)
+	}
+}
+
+// runs in goroutine from run()
+func (api *API) runLibp2pServer() {
+	defer api.wg.Done()
+	<-api.rpcReady
+	logger.Info("REST API (libp2p-http): ENABLED")
+	for _, a := range api.host.Addrs() {
+		logger.Infof("  - %s/ipfs/%s", a, api.host.ID().Pretty())
+	}
+
+	err := api.server.Serve(api.libp2pListener)
+	if err != nil && !strings.Contains(err.Error(), "context canceled") {
+		logger.Error(err)
+	}
 }
 
 // Shutdown stops any API listeners.
@@ -306,7 +420,18 @@ func (api *API) Shutdown() error {
 	close(api.rpcReady)
 	// Cancel any outstanding ops
 	api.server.SetKeepAlivesEnabled(false)
-	api.listener.Close()
+
+	if api.httpListener != nil {
+		api.httpListener.Close()
+	}
+	if api.libp2pListener != nil {
+		api.libp2pListener.Close()
+	}
+
+	// This means we created the host
+	if api.config.Libp2pListenAddr != nil {
+		api.host.Close()
+	}
 
 	api.wg.Wait()
 	api.shutdown = true
@@ -317,6 +442,9 @@ func (api *API) Shutdown() error {
 // requests.
 func (api *API) SetClient(c *rpc.Client) {
 	api.rpcClient = c
+
+	// One notification for http server and one for libp2p server.
+	api.rpcReady <- struct{}{}
 	api.rpcReady <- struct{}{}
 }
 

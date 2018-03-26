@@ -13,12 +13,10 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	swarm "github.com/libp2p/go-libp2p-swarm"
-	basichost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -41,21 +39,14 @@ func init() {
 }
 
 func makeTestingHost(t *testing.T) host.Host {
-	priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, 2048)
-	pid, _ := peer.IDFromPublicKey(pub)
-
-	//maddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", idn))
-	// Bind on random port
-	maddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	ps := peerstore.NewPeerstore()
-	ps.AddPubKey(pid, pub)
-	ps.AddPrivKey(pid, priv)
-	ps.AddAddr(pid, maddr, peerstore.PermanentAddrTTL)
-	n, _ := swarm.NewNetwork(
+	h, err := libp2p.New(
 		context.Background(),
-		[]ma.Multiaddr{maddr},
-		pid, ps, nil)
-	return basichost.New(n)
+		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h
 }
 
 func testingConsensus(t *testing.T, idn int) *Consensus {

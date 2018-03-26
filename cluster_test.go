@@ -104,6 +104,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	inf, _ := numpin.NewInformer(numpinCfg)
 
 	cl, err := NewCluster(
+		nil,
 		clusterCfg,
 		consensusCfg,
 		api,

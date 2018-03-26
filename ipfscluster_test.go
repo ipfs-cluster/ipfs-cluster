@@ -104,7 +104,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	clusterCfg.Secret = clusterSecret
 	clusterCfg.ListenAddr = clusterAddr
 	clusterCfg.LeaveOnShutdown = false
-	apiCfg.ListenAddr = apiAddr
+	apiCfg.HTTPListenAddr = apiAddr
 	ipfshttpCfg.ProxyAddr = proxyAddr
 	ipfshttpCfg.NodeAddr = nodeAddr
 	consensusCfg.DataFolder = "./e2eTestRaft/" + pid.Pretty()
@@ -125,7 +125,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 }
 
 func createCluster(t *testing.T, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+	cl, err := NewCluster(nil, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	<-cl.Ready()
 	return cl
