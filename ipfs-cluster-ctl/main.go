@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -301,6 +302,15 @@ peers should pin this content.
 							Name:  "no-status, ns",
 							Usage: "Prevents fetching pin status after pinning (faster, quieter)",
 						},
+						cli.BoolFlag{
+							Name:  "wait, w",
+							Usage: "Wait for all nodes to report a status of pinned before returning",
+						},
+						cli.DurationFlag{
+							Name:  "wait-timeout, wt",
+							Value: 0,
+							Usage: "How long to --wait (in seconds), default is indefinitely",
+						},
 					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
@@ -320,10 +330,33 @@ peers should pin this content.
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-						if !c.Bool("no-status") {
+
+						// handle boolean flags
+						switch {
+						case !c.Bool("no-status"):
 							time.Sleep(1000 * time.Millisecond)
 							resp, cerr := globalClient.Status(ci, false)
 							formatResponse(c, resp, cerr)
+						case c.Bool("wait"):
+							checkFreq := 1 * time.Second
+							waitTimeout := c.Duration("wait-timeout")
+							ctx := context.Background()
+
+							if waitTimeout > checkFreq {
+								var cancel context.CancelFunc
+								ctx, cancel = context.WithTimeout(ctx, waitTimeout)
+								defer cancel()
+							}
+
+							fp := client.StatusFilterParams{
+								Cid:       ci,
+								Local:     false,
+								Target:    api.TrackerStatusPinned,
+								CheckFreq: checkFreq,
+							}
+
+							status, cerr := globalClient.WaitFor(ctx, fp)
+							formatResponse(c, status, cerr)
 						}
 						return nil
 					},
@@ -345,6 +378,15 @@ although unpinning operations in the cluster may take longer or fail.
 							Name:  "no-status, ns",
 							Usage: "Prevents fetching pin status after unpinning (faster, quieter)",
 						},
+						cli.BoolFlag{
+							Name:  "wait, w",
+							Usage: "Wait for all nodes to report a status of unpinned before returning",
+						},
+						cli.DurationFlag{
+							Name:  "wait-timeout, wt",
+							Value: 0,
+							Usage: "How long to --wait (in seconds), default is indefinitely",
+						},
 					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
@@ -355,11 +397,35 @@ although unpinning operations in the cluster may take longer or fail.
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-						if !c.Bool("no-status") {
+
+						// handle boolean flags
+						switch {
+						case !c.Bool("no-status"):
 							time.Sleep(1000 * time.Millisecond)
 							resp, cerr := globalClient.Status(ci, false)
 							formatResponse(c, resp, cerr)
+						case c.Bool("wait"):
+							checkFreq := 1 * time.Second
+							waitTimeout := c.Duration("wait-timeout")
+							ctx := context.Background()
+
+							if waitTimeout > checkFreq {
+								var cancel context.CancelFunc
+								ctx, cancel = context.WithTimeout(ctx, waitTimeout)
+								defer cancel()
+							}
+
+							fp := client.StatusFilterParams{
+								Cid:       ci,
+								Local:     false,
+								Target:    api.TrackerStatusUnpinned,
+								CheckFreq: checkFreq,
+							}
+
+							status, cerr := globalClient.WaitFor(ctx, fp)
+							formatResponse(c, status, cerr)
 						}
+
 						return nil
 					},
 				},
