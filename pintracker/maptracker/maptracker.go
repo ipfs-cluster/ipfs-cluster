@@ -404,9 +404,11 @@ func (mpt *MapPinTracker) Recover(c *cid.Cid) (api.PinInfo, error) {
 	var err error
 	switch p.Status {
 	case api.TrackerStatusPinError:
-		err = mpt.pin(api.Pin{Cid: c})
+		// FIXME: This always recovers recursive == true
+		// but sharding will bring direct-pin objects
+		err = mpt.pin(api.PinCid(c))
 	case api.TrackerStatusUnpinError:
-		err = mpt.unpin(api.Pin{Cid: c})
+		err = mpt.unpin(api.PinCid(c))
 	default:
 		logger.Warningf("%s does not need recovery. Try syncing first", c)
 		return p, nil
