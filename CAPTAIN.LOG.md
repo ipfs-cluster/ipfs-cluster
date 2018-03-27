@@ -1,5 +1,23 @@
 # IPFS Cluster - Captain's log
 
+## 20180329 | @hsanjuan
+
+In the last two months many things have happened in the ipfs-cluster project.
+
+First, we have welcomed a new team member: @lanzafame has already started contributing
+and has resolved a few issues already included in the last release.
+
+Secondly, we have been working very hard on implementing the "sharding RFC" that I mentioned in my last update. @zenground0 has made very significant progress on this front. Sharding will be a unique feature of ipfs-cluster and will help to drive the adoption of ipfs by being able tu support huge datasets distributed among different nodes. We hope that the first "sharding" prototype is ready in the upcoming weeks.
+
+Thirdly, we have made 3 releases (the latest being `0.3.5`) which bring a diverse set of features and some bugfixes. Some of the major ones are these:
+  * `ipfs-cluster-ctl healht graph` generates a `.dot` file which allows to quickly have an overview of connectivity among the peers in the cluster.
+  * The `refs` pinning method allows to download dags in parallel and pin only when they content is already on the disk.
+  * The Rest API now exposes the HTTP endpoints through libp2p. By using a libp2p host to communicate with it, users get an encrypted connection without having to setup SSL certificates.
+
+We have also started working on the ipfs-cluster website, which we will use to provide a central and well organized place for documentation, roadmaps and other information related to the project.
+
+Happy pinning!
+
 ## 20180125 | @hsanjuan
 
 We are about to tag the `0.3.2` release and it comes with two nice features.
