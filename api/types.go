@@ -527,15 +527,15 @@ func CidsToStrings(cids []*cid.Cid) []string {
 	return strs
 }
 
-// StringsToCids decodes cid.Cids from strings.
-func StringsToCids(strs []string) []*cid.Cid {
-	cids := make([]*cid.Cid, len(strs))
-	var err error
-	for i, str := range strs {
-		cids[i], err = cid.Decode(str)
+// StringsToCidSet decodes cid.Cids from strings.
+func StringsToCidSet(strs []string) *cid.Set {
+	cids := cid.NewSet()
+	for _, str := range strs {
+		c, err := cid.Decode(str)
 		if err != nil {
 			logger.Error(str, err)
 		}
+		cids.Add(c)
 	}
 	return cids
 }
@@ -547,6 +547,8 @@ const (
 	CdagType
 	ShardType
 )
+
+const AllType = -1
 
 // PinType specifies which of four possible interpretations a pin represents.
 // DataType pins are the simplest and represent a pin in the pinset used to
@@ -561,9 +563,24 @@ const (
 // CdagType pin
 type PinType int
 
+func (pT *PinType) Parse(str string) {
+	switch str {
+	case "pin":
+		*pT = DataType
+	case "meta-pin":
+		*pT = MetaType
+	case "clusterdag-pin":
+		*pT = CdagType
+	case "shard-pin":
+		*pT = ShardType
+	case "all":
+		*pT = AllType
+	}
+}
+
 // String returns a printable value to identify the PinType
-func (pT PinType) String() string {
-	switch pT {
+func (pT *PinType) String() string {
+	switch *pT {
 	case DataType:
 		return "pin"
 	case MetaType:
@@ -572,6 +589,8 @@ func (pT PinType) String() string {
 		return "clusterdag-pin"
 	case ShardType:
 		return "shard-pin"
+	case AllType:
+		return "all"
 	default:
 		panic("String() called on invalid shard type")
 	}
@@ -587,7 +606,7 @@ type Pin struct {
 	ReplicationFactorMin int
 	ReplicationFactorMax int
 	Recursive            bool
-	Parents              []*cid.Cid
+	Parents              *cid.Set
 	Clusterdag           *cid.Cid
 }
 
@@ -596,6 +615,7 @@ type Pin struct {
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
+		Type:        DataType,
 		Allocations: []peer.ID{},
 		Recursive:   true,
 	}
@@ -627,7 +647,10 @@ func (pin Pin) ToSerial() PinSerial {
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
-	parents := CidsToStrings(pin.Parents)
+	var parents []string
+	if pin.Parents != nil {
+		parents = CidsToStrings(pin.Parents.Keys())
+	}
 
 	return PinSerial{
 		Cid:                  c,
@@ -716,20 +739,10 @@ func (pins PinSerial) ToPin() Pin {
 		ReplicationFactorMin: pins.ReplicationFactorMin,
 		ReplicationFactorMax: pins.ReplicationFactorMax,
 		Recursive:            pins.Recursive,
-		Parents:              StringsToCids(pins.Parents),
+		Parents:              StringsToCidSet(pins.Parents),
 		Clusterdag:           cdag,
 	}
 }
-
-const (
-	FilterAll   = -1
-	FilterPin   = 1
-	FilterMeta  = 2
-	FilterCdag  = 3
-	FilterShard = 4
-)
-
-type FilterType int
 
 // AddedOutput carries information for displaying the standard ipfs output
 // indicating a node of a file has been added.

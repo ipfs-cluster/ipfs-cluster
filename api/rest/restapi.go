@@ -648,27 +648,18 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 
 // filterOutPin returns true if the given pin should be filtered out according
 // to the input filter type
-func (api *API) filterOutPin(filter types.FilterType, pin types.Pin) bool {
-	switch filter {
-	case types.FilterPin:
-		return pin.Type != types.DataType
-	case types.FilterMeta:
-		return pin.Type != types.MetaType
-	case types.FilterCdag:
-		return pin.Type != types.CdagType
-	case types.FilterShard:
-		return pin.Type != types.ShardType
-	case types.FilterAll:
+func (api *API) filterOutPin(filter types.PinType, pin types.Pin) bool {
+	if filter == types.AllType {
 		return false
-	default:
-		return false // by default copy Filter All
 	}
+	return pin.Type != filter
 }
 
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
-	pintype, _ := strconv.Atoi(queryValues.Get("pintype"))
-	filter := types.FilterType(pintype)
+	pintype := queryValues.Get("pintype")
+	var filter types.PinType
+	filter.Parse(pintype)
 	var pins []types.PinSerial
 	err := api.rpcClient.Call(
 		"",

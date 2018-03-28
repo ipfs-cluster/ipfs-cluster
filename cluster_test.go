@@ -232,26 +232,30 @@ func pinDirectShard(t *testing.T, cl *Cluster) {
 	cShard, _ := cid.Decode(test.TestShardCid)
 	cCdag, _ := cid.Decode(test.TestCdagCid)
 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+	parents := cid.NewSet()
+	parents.Add(cCdag)
 	shardPin := api.Pin{
 		Cid:                  cShard,
 		Type:                 api.ShardType,
 		ReplicationFactorMin: -1,
 		ReplicationFactorMax: -1,
 		Recursive:            true,
-		Parents:              []*cid.Cid{cCdag},
+		Parents:              parents,
 	}
 	err := cl.Pin(shardPin)
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
 
+	parents = cid.NewSet()
+	parents.Add(cMeta)
 	cdagPin := api.Pin{
 		Cid:                  cCdag,
 		Type:                 api.CdagType,
 		ReplicationFactorMin: -1,
 		ReplicationFactorMax: -1,
 		Recursive:            false,
-		Parents:              []*cid.Cid{cMeta},
+		Parents:              parents,
 		Clusterdag:           cShard,
 	}
 	err = cl.Pin(cdagPin)
@@ -285,7 +289,7 @@ func TestClusterUnpinShardFail(t *testing.T) {
 
 	pinDirectShard(t, cl)
 	// verify pins
-	if len(cl.Pins(false)) != 3 {
+	if len(cl.Pins()) != 3 {
 		t.Fatal("should have 3 pins")
 	}
 	// Unpinning metadata should fail
@@ -309,7 +313,7 @@ func TestClusterUnpinMeta(t *testing.T) {
 
 	pinDirectShard(t, cl)
 	// verify pins
-	if len(cl.Pins(false)) != 3 {
+	if len(cl.Pins()) != 3 {
 		t.Fatal("should have 3 pins")
 	}
 	// Unpinning from root should work
@@ -332,7 +336,7 @@ func TestClusterPins(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	pins := cl.Pins(false)
+	pins := cl.Pins()
 	if len(pins) != 1 {
 		t.Fatal("pin should be part of the state")
 	}

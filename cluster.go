@@ -1004,10 +1004,10 @@ func (c *Cluster) Pin(pin api.Pin) error {
 // validate pin ensures that the metadata accompanying the cid is
 // self-consistent.  This amounts to verifying that the data structure matches
 // the expected form of the pinType carried in the pin.
-func (c *Cluster) validatePin(pin *api.Pin, rplMin, rplMax int) error {
+func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
 	switch pin.Type {
 	case api.DataType:
-		if pin.Clusterdag != nil || len(pin.Parents) != 0 {
+		if pin.Clusterdag != nil || pin.Parents.Len() != 0 {
 			return errors.New("data pins should not reference other pins")
 		}
 	case api.ShardType:
@@ -1036,15 +1036,6 @@ func (c *Cluster) validatePin(pin *api.Pin, rplMin, rplMax int) error {
 			existing.ReplicationFactorMax != rplMax {
 			return errors.New("shard update with wrong repl factors")
 		}
-		// Pin with union of old and new parents
-		parents := cid.NewSet()
-		for _, c := range pin.Parents {
-			parents.Add(c)
-		}
-		for _, c := range existing.Parents {
-			parents.Add(c)
-		}
-		pin.Parents = parents.Keys()
 	case api.CdagType:
 		if pin.Recursive {
 			return errors.New("must pin roots directly")
@@ -1052,7 +1043,7 @@ func (c *Cluster) validatePin(pin *api.Pin, rplMin, rplMax int) error {
 		if pin.Clusterdag == nil {
 			return errors.New("roots must reference a dag")
 		}
-		if len(pin.Parents) > 1 {
+		if pin.Parents.Len() > 1 {
 			return errors.New("cdag nodes are referenced once")
 		}
 	case api.MetaType:
@@ -1065,16 +1056,36 @@ func (c *Cluster) validatePin(pin *api.Pin, rplMin, rplMax int) error {
 	return nil
 }
 
+// updatePinParents modifies the api.Pin input to give it the correct parents
+// so that previous additions to the pins parents are maintained after this
+// pin is committed to consensus.  If this pin carries new parents they are
+// merged with those already existing for this CID
+func (c *Cluster) updatePinParents(pin *api.Pin) error {
+	cState, err := c.consensus.State()
+	if err != nil && err != p2praft.ErrNoState {
+		return err
+	}
+	// first pin of this cid, nothing to update
+	if err == p2praft.ErrNoState || !cState.Has(pin.Cid) {
+		return nil
+	}
+	existing := cState.Get(pin.Cid)
+	// no existing parents this pin is up to date
+	if existing.Parents == nil || len(existing.Parents.Keys()) == 0 {
+		return nil
+	}
+	for _, c := range existing.Parents.Keys() {
+		pin.Parents.Add(c)
+	}
+	return nil
+}
+
 // pin performs the actual pinning and supports a blacklist to be
 // able to evacuate a node and returns whether the pin was submitted
 // to the consensus layer or skipped (due to error or to the fact
 // that it was already valid).
 func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (bool, error) {
-	// Validate based on PinType
-	if pin.Cid == nil {
-		return false, errors.New("bad pin object")
-	}
-
+	// Determine repl factors
 	rplMin := pin.ReplicationFactorMin
 	rplMax := pin.ReplicationFactorMax
 	if rplMin == 0 {
@@ -1086,15 +1097,25 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		pin.ReplicationFactorMax = rplMax
 	}
 
+	// Validate pin
+	if pin.Cid == nil {
+		return false, errors.New("bad pin object")
+	}
 	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
 		return false, err
 	}
-	err := c.validatePin(&pin, rplMin, rplMax)
+	err := c.validatePin(pin, rplMin, rplMax)
 	if err != nil {
 		return false, err
 	}
 	if pin.Type == api.MetaType {
 		return true, c.consensus.LogPin(pin)
+	}
+
+	// Ensure parents do not overwrite existing and merge non-intersecting
+	err = c.updatePinParents(&pin)
+	if err != nil {
+		return false, err
 	}
 
 	switch {
@@ -1202,20 +1223,19 @@ func (c *Cluster) unpinShard(cdagCid, shardCid *cid.Cid) error {
 		return errors.New("nodes of the clusterdag are not committed to the state")
 	}
 	shardPin := cState.Get(shardCid)
-	if !containsCid(shardPin.Parents, cdagCid) {
+	if shardPin.Parents == nil || !shardPin.Parents.Has(cdagCid) {
 		return errors.New("clusterdag references shard node but shard node does not reference clusterdag as parent")
 	}
 	// Remove the parent from the shardPin
-	idx := 0
-	for i, c := range shardPin.Parents {
+	for _, c := range shardPin.Parents.Keys() { //parents non-nil by check above
 		if c.String() == cdagCid.String() {
-			idx = i
+			shardPin.Parents.Remove(c)
 			break
 		}
 	}
-	shardPin.Parents = append(shardPin.Parents[:idx], shardPin.Parents[idx+1:]...)
+
 	// Recommit state if other references exist
-	if len(shardPin.Parents) > 0 {
+	if shardPin.Parents.Len() > 0 {
 		return c.consensus.LogPin(shardPin)
 	}
 	return c.consensus.LogUnpin(shardPin)
