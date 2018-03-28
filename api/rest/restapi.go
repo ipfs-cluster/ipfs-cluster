@@ -646,27 +646,42 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// filterOutPin returns true if the given pin should be filtered out according
+// to the input filter type
+func (api *API) filterOutPin(filter types.FilterType, pin types.Pin) bool {
+	switch filter {
+	case types.FilterPin:
+		return pin.Type != types.DataType
+	case types.FilterMeta:
+		return pin.Type != types.MetaType
+	case types.FilterCdag:
+		return pin.Type != types.CdagType
+	case types.FilterShard:
+		return pin.Type != types.ShardType
+	case types.FilterAll:
+		return false
+	default:
+		return false // by default copy Filter All
+	}
+}
+
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
-	all := queryValues.Get("a")
+	pintype, _ := strconv.Atoi(queryValues.Get("pintype"))
+	filter := types.FilterType(pintype)
 	var pins []types.PinSerial
-	var err error
-	if all == "true" {
-		err = api.rpcClient.Call(
-			"",
-			"Cluster",
-			"Pins",
-			struct{}{},
-			&pins,
-		)
-	} else {
-		err = api.rpcClient.Call(
-			"",
-			"Cluster",
-			"PinsQuiet",
-			struct{}{},
-			&pins,
-		)
+	err := api.rpcClient.Call(
+		"",
+		"Cluster",
+		"Pins",
+		struct{}{},
+		&pins,
+	)
+	for i, pinS := range pins {
+		if api.filterOutPin(filter, pinS.ToPin()) {
+			// remove this pin from output
+			pins = append(pins[:i], pins[i+1:]...)
+		}
 	}
 	sendResponse(w, err, pins)
 }

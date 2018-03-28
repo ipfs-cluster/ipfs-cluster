@@ -542,7 +542,7 @@ func StringsToCids(strs []string) []*cid.Cid {
 
 // PinType values
 const (
-	DataType = iota
+	DataType = iota + 1
 	MetaType
 	CdagType
 	ShardType
@@ -571,7 +571,7 @@ func (pT PinType) String() string {
 	case CdagType:
 		return "clusterdag-pin"
 	case ShardType:
-		return "clusterdag-shard-pin"
+		return "shard-pin"
 	default:
 		panic("String() called on invalid shard type")
 	}
@@ -720,6 +720,16 @@ func (pins PinSerial) ToPin() Pin {
 		Clusterdag:           cdag,
 	}
 }
+
+const (
+	FilterAll   = -1
+	FilterPin   = 1
+	FilterMeta  = 2
+	FilterCdag  = 3
+	FilterShard = 4
+)
+
+type FilterType int
 
 // AddedOutput carries information for displaying the standard ipfs output
 // indicating a node of a file has been added.

@@ -77,9 +77,9 @@ func (c *Client) Unpin(ci *cid.Cid) error {
 
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
-func (c *Client) Allocations(hidden bool) ([]api.Pin, error) {
+func (c *Client) Allocations(pinType api.FilterType) ([]api.Pin, error) {
 	var pins []api.PinSerial
-	err := c.do("GET", fmt.Sprintf("/allocations?a=%t", hidden), nil, &pins)
+	err := c.do("GET", fmt.Sprintf("/allocations?pintype=%d", int(pinType)), nil, &pins)
 	result := make([]api.Pin, len(pins))
 	for i, p := range pins {
 		result[i] = p.ToPin()

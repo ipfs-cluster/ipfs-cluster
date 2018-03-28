@@ -36,6 +36,7 @@ func init() {
 // MaxLinks is the max number of links that, when serialized fit into a block
 const MaxLinks = 5984
 const fixedPerLink = 40
+const hashFn = mh.SHA2_256
 
 // CborDataToNode parses cbor data into a clusterDAG node while making a few
 // checks
@@ -43,7 +44,7 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 	if format != "cbor" {
 		return nil, fmt.Errorf("unexpected shard node format %s", format)
 	}
-	shardCid, err := cid.NewPrefixV1(cid.DagCBOR, mh.SHA2_256).Sum(raw)
+	shardCid, err := cid.NewPrefixV1(cid.DagCBOR, hashFn).Sum(raw)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +69,8 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 func makeDAG(obj shardObj) ([]ipld.Node, error) {
 	// No indirect node
 	if len(obj) <= MaxLinks {
-		node, err := cbor.WrapObject(obj, mh.SHA2_256,
-			mh.DefaultLengths[mh.SHA2_256])
+		node, err := cbor.WrapObject(obj, hashFn,
+			mh.DefaultLengths[hashFn])
 		if err != nil {
 			return nil, err
 		}
@@ -91,16 +92,16 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 			}
 			leafObj[fmt.Sprintf("%d", j)] = c
 		}
-		leafNode, err := cbor.WrapObject(leafObj, mh.SHA2_256,
-			mh.DefaultLengths[mh.SHA2_256])
+		leafNode, err := cbor.WrapObject(leafObj, hashFn,
+			mh.DefaultLengths[hashFn])
 		if err != nil {
 			return nil, err
 		}
 		indirectObj[fmt.Sprintf("%d", i)] = leafNode.Cid()
 		leafNodes = append(leafNodes, leafNode)
 	}
-	indirectNode, err := cbor.WrapObject(indirectObj, mh.SHA2_256,
-		mh.DefaultLengths[mh.SHA2_256])
+	indirectNode, err := cbor.WrapObject(indirectObj, hashFn,
+		mh.DefaultLengths[hashFn])
 	if err != nil {
 		return nil, err
 	}

@@ -435,7 +435,11 @@ all CIDs call with the -a flag.
 							resp, cerr := globalClient.Allocation(ci)
 							formatResponse(c, resp, cerr)
 						} else {
-							resp, cerr := globalClient.Allocations(c.Bool("all"))
+							filter := api.FilterType(api.FilterPin)
+							if c.Bool("all") {
+								filter = api.FilterType(api.FilterAll)
+							}
+							resp, cerr := globalClient.Allocations(filter)
 							formatResponse(c, resp, cerr)
 						}
 						return nil

@@ -188,18 +188,21 @@ func textFormatPrintPin(obj *api.PinSerial) {
 		recStr = "Non-recursive"
 	}
 	fmt.Printf("| %s | ", recStr)
-	var typeStr string
-	switch obj.Type {
-	case 1:
-		typeStr = "Direct"
-	case 2:
-		typeStr = fmt.Sprintf("Sharded-- clusterDAG=%s", obj.Clusterdag)
-	case 3,4:
-		typeStr = "Internal"
+
+	pinType := obj.ToPin().Type
+	typeStr := pinType.String()
+	var infoStr string
+	switch pinType {
+	case api.DataType:
+		infoStr = typeStr
+	case api.MetaType:
+		infoStr = fmt.Sprintf("%s-- clusterDAG=%s",typeStr, obj.Clusterdag)
+	case api.CdagType, api.ShardType:
+		infoStr = typeStr
 	default:
-		typeStr = ""
+		infoStr = ""
 	}
-	fmt.Printf("| %s ", typeStr)
+	fmt.Printf("| %s ", infoStr)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
