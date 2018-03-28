@@ -1,8 +1,15 @@
 package client
 
 import (
+	"context"
+	"sync"
 	"testing"
+	"time"
 
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p-peer"
+
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -13,9 +20,11 @@ import (
 func testClients(t *testing.T, api *rest.API, f func(*testing.T, *Client)) {
 	t.Run("in-parallel", func(t *testing.T) {
 		t.Run("libp2p", func(t *testing.T) {
+			t.Parallel()
 			f(t, testClientLibp2p(t, api))
 		})
 		t.Run("http", func(t *testing.T) {
+			t.Parallel()
 			f(t, testClientHTTP(t, api))
 		})
 	})
@@ -307,4 +316,116 @@ func TestGetConnectGraph(t *testing.T) {
 	}
 
 	testClients(t, api, testF)
+}
+
+type waitService struct {
+	l        sync.Mutex
+	pinStart time.Time
+}
+
+func (wait *waitService) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	wait.l.Lock()
+	defer wait.l.Unlock()
+	wait.pinStart = time.Now()
+	return nil
+}
+
+func (wait *waitService) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+	wait.l.Lock()
+	defer wait.l.Unlock()
+	c1, _ := cid.Decode(in.Cid)
+	if time.Now().After(wait.pinStart.Add(5 * time.Second)) { //pinned
+		*out = api.GlobalPinInfo{
+			Cid: c1,
+			PeerMap: map[peer.ID]api.PinInfo{
+				test.TestPeerID1: {
+					Cid:    c1,
+					Peer:   test.TestPeerID1,
+					Status: api.TrackerStatusPinned,
+					TS:     wait.pinStart,
+				},
+				test.TestPeerID2: {
+					Cid:    c1,
+					Peer:   test.TestPeerID2,
+					Status: api.TrackerStatusPinned,
+					TS:     wait.pinStart,
+				},
+			},
+		}.ToSerial()
+	} else { // pinning
+		*out = api.GlobalPinInfo{
+			Cid: c1,
+			PeerMap: map[peer.ID]api.PinInfo{
+				test.TestPeerID1: {
+					Cid:    c1,
+					Peer:   test.TestPeerID1,
+					Status: api.TrackerStatusPinning,
+					TS:     wait.pinStart,
+				},
+				test.TestPeerID2: {
+					Cid:    c1,
+					Peer:   test.TestPeerID2,
+					Status: api.TrackerStatusPinned,
+					TS:     wait.pinStart,
+				},
+			},
+		}.ToSerial()
+	}
+
+	return nil
+}
+
+func TestWaitFor(t *testing.T) {
+	tapi := testAPI(t)
+	defer shutdown(tapi)
+
+	rpcS := rpc.NewServer(nil, "wait")
+	rpcC := rpc.NewClientWithServer(nil, "wait", rpcS)
+	err := rpcS.RegisterName("Cluster", &waitService{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tapi.SetClient(rpcC)
+
+	testF := func(t *testing.T, c *Client) {
+		ci, _ := cid.Decode(test.SlowCid)
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			fp := StatusFilterParams{
+				Cid:       ci,
+				Local:     false,
+				Target:    api.TrackerStatusPinned,
+				CheckFreq: time.Second,
+			}
+			start := time.Now()
+
+			st, err := c.WaitFor(ctx, fp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if time.Now().Sub(start) <= 5*time.Second {
+				t.Fatal("slow pin should have taken at least 5 seconds")
+			}
+
+			for _, pi := range st.PeerMap {
+				if pi.Status != api.TrackerStatusPinned {
+					t.Error("pin info should show the item is pinned")
+				}
+			}
+		}()
+		err := c.Pin(ci, 0, 0, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		wg.Wait()
+	}
+
+	testClients(t, tapi, testF)
 }
