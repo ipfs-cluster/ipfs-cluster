@@ -658,8 +658,7 @@ func (api *API) filterOutPin(filter types.PinType, pin types.Pin) bool {
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	pintype := queryValues.Get("pintype")
-	var filter types.PinType
-	filter.Parse(pintype)
+	filter := types.PinTypeFromString(pintype)
 	var pins []types.PinSerial
 	err := api.rpcClient.Call(
 		"",

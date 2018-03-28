@@ -564,20 +564,22 @@ const AllType = -1
 // CdagType pin
 type PinType int
 
-// Parse is the inverse of String.  It sets a PinType's value based on an input
-// string
-func (pT *PinType) Parse(str string) {
+// PinTypeFromString is the inverse of String.  It returns the PinType value
+// corresponding to the input string
+func PinTypeFromString(str string) PinType {
 	switch str {
 	case "pin":
-		*pT = DataType
+		return DataType
 	case "meta-pin":
-		*pT = MetaType
+		return MetaType
 	case "clusterdag-pin":
-		*pT = CdagType
+		return CdagType
 	case "shard-pin":
-		*pT = ShardType
+		return ShardType
 	case "all":
-		*pT = AllType
+		return AllType
+	default:
+		return PinType(0) // invalid string
 	}
 }
 
