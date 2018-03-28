@@ -27,10 +27,11 @@ const programName = `ipfs-cluster-ctl`
 const Version = "0.3.5-rc1"
 
 var (
-	defaultHost     = "/ip4/127.0.0.1/tcp/9094"
-	defaultTimeout  = 120
-	defaultUsername = ""
-	defaultPassword = ""
+	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
+	defaultTimeout       = 120
+	defaultUsername      = ""
+	defaultPassword      = ""
+	defaultWaitCheckFreq = time.Second
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -331,33 +332,14 @@ peers should pin this content.
 							return nil
 						}
 
-						// handle boolean flags
-						switch {
-						case !c.Bool("no-status"):
-							time.Sleep(1000 * time.Millisecond)
-							resp, cerr := globalClient.Status(ci, false)
-							formatResponse(c, resp, cerr)
-						case c.Bool("wait"):
-							checkFreq := 1 * time.Second
-							waitTimeout := c.Duration("wait-timeout")
-							ctx := context.Background()
-
-							if waitTimeout > checkFreq {
-								var cancel context.CancelFunc
-								ctx, cancel = context.WithTimeout(ctx, waitTimeout)
-								defer cancel()
-							}
-
-							fp := client.StatusFilterParams{
-								Cid:       ci,
-								Local:     false,
-								Target:    api.TrackerStatusPinned,
-								CheckFreq: checkFreq,
-							}
-
-							status, cerr := globalClient.WaitFor(ctx, fp)
-							formatResponse(c, status, cerr)
-						}
+						waitAndFormatStatusResponse(
+							c,
+							c.Bool("wait"),
+							c.Bool("no-status"),
+							ci,
+							api.TrackerStatusPinned,
+							c.Duration("wait-timeout"),
+						)
 						return nil
 					},
 				},
@@ -398,34 +380,14 @@ although unpinning operations in the cluster may take longer or fail.
 							return nil
 						}
 
-						// handle boolean flags
-						switch {
-						case !c.Bool("no-status"):
-							time.Sleep(1000 * time.Millisecond)
-							resp, cerr := globalClient.Status(ci, false)
-							formatResponse(c, resp, cerr)
-						case c.Bool("wait"):
-							checkFreq := 1 * time.Second
-							waitTimeout := c.Duration("wait-timeout")
-							ctx := context.Background()
-
-							if waitTimeout > checkFreq {
-								var cancel context.CancelFunc
-								ctx, cancel = context.WithTimeout(ctx, waitTimeout)
-								defer cancel()
-							}
-
-							fp := client.StatusFilterParams{
-								Cid:       ci,
-								Local:     false,
-								Target:    api.TrackerStatusUnpinned,
-								CheckFreq: checkFreq,
-							}
-
-							status, cerr := globalClient.WaitFor(ctx, fp)
-							formatResponse(c, status, cerr)
-						}
-
+						waitAndFormatStatusResponse(
+							c,
+							c.Bool("wait"),
+							c.Bool("no-status"),
+							ci,
+							api.TrackerStatusUnpinned,
+							c.Duration("wait-timeout"),
+						)
 						return nil
 					},
 				},
@@ -711,4 +673,55 @@ func parseCredentials(userInput string) (string, string) {
 		checkErr("parsing credentials", err)
 		return "", ""
 	}
+}
+
+func waitAndFormatStatusResponse(
+	c *cli.Context,
+	wait, noStatus bool,
+	ci *cid.Cid,
+	target api.TrackerStatus,
+	timeout time.Duration,
+) {
+
+	var status api.GlobalPinInfo
+	var cerr error
+
+	if wait {
+		status, cerr = waitFor(ci, target, timeout)
+		checkErr("waiting for pin status", cerr)
+	}
+
+	if noStatus {
+		return
+	}
+
+	if status.Cid == nil { // no status from "wait"
+		time.Sleep(1000 * time.Millisecond)
+		status, cerr = globalClient.Status(ci, false)
+	}
+	formatResponse(c, status, cerr)
+}
+
+func waitFor(
+	ci *cid.Cid,
+	target api.TrackerStatus,
+	timeout time.Duration,
+) (api.GlobalPinInfo, error) {
+
+	ctx := context.Background()
+
+	if timeout > defaultWaitCheckFreq {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	fp := client.StatusFilterParams{
+		Cid:       ci,
+		Local:     false,
+		Target:    target,
+		CheckFreq: defaultWaitCheckFreq,
+	}
+
+	return globalClient.WaitFor(ctx, fp)
 }

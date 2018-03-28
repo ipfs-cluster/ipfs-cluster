@@ -251,12 +251,10 @@ func (sf *statusFilter) filter(ctx context.Context, fp StatusFilterParams) {
 				return
 			}
 
+			sf.Out <- gblPinInfo
 			if !ok {
-				sf.Out <- gblPinInfo
 				continue
 			}
-
-			sf.Out <- gblPinInfo
 			return
 		}
 	}
