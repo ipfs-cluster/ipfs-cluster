@@ -67,10 +67,6 @@ func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSe
 	return nil
 }
 
-func (mock *mockService) PinsQuiet(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
-	return mock.Pins(ctx, in, out)
-}
-
 func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
 	if in.Cid == ErrorCid {
 		return errors.New("expected error when using ErrorCid")

@@ -841,7 +841,8 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	}
 
 	pin := types.PinSerial{
-		Cid: hash,
+		Cid:  hash,
+		Type: types.DataType,
 	}
 
 	queryValues := r.URL.Query()

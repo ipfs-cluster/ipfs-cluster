@@ -948,6 +948,7 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 		Cid:                  h,
 		ReplicationFactorMax: 2,
 		ReplicationFactorMin: 1,
+		Type:                 api.DataType,
 	})
 	if err != nil {
 		t.Fatal(err)

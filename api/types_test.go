@@ -187,13 +187,15 @@ func TestPinConv(t *testing.T) {
 		}
 	}()
 
+	parents := cid.NewSet()
+	parents.Add(testCid2)
 	c := Pin{
 		Cid:                  testCid1,
 		Allocations:          []peer.ID{testPeerID1},
 		ReplicationFactorMax: -1,
 		ReplicationFactorMin: -1,
 		Recursive:            true,
-		Parents:              []*cid.Cid{testCid2},
+		Parents:              parents,
 		Name:                 "A test pin",
 		Type:                 CdagType,
 		Clusterdag:           testCid4,
@@ -205,8 +207,8 @@ func TestPinConv(t *testing.T) {
 		c.ReplicationFactorMin != newc.ReplicationFactorMin ||
 		c.ReplicationFactorMax != newc.ReplicationFactorMax ||
 		c.Recursive != newc.Recursive ||
-		len(c.Parents) != len(newc.Parents) ||
-		c.Parents[0].String() != newc.Parents[0].String() ||
+		c.Parents.Len() != newc.Parents.Len() ||
+		c.Parents.Keys()[0].String() != newc.Parents.Keys()[0].String() ||
 		c.Name != newc.Name || c.Type != newc.Type ||
 		c.Clusterdag.String() != newc.Clusterdag.String() {
 

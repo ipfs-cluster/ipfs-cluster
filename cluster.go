@@ -1007,7 +1007,8 @@ func (c *Cluster) Pin(pin api.Pin) error {
 func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
 	switch pin.Type {
 	case api.DataType:
-		if pin.Clusterdag != nil || pin.Parents.Len() != 0 {
+		if pin.Clusterdag != nil ||
+			(pin.Parents != nil && pin.Parents.Len() != 0) {
 			return errors.New("data pins should not reference other pins")
 		}
 	case api.ShardType:

@@ -108,7 +108,7 @@ func TestAllocations(t *testing.T) {
 	c, api := testClient(t)
 	defer api.Shutdown()
 
-	pins, err := c.Allocations(false)
+	pins, err := c.Allocations("all")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -548,6 +548,7 @@ const (
 	ShardType
 )
 
+// AllType is a PinType used for filtering all pin types
 const AllType = -1
 
 // PinType specifies which of four possible interpretations a pin represents.
@@ -563,6 +564,8 @@ const AllType = -1
 // CdagType pin
 type PinType int
 
+// Parse is the inverse of String.  It sets a PinType's value based on an input
+// string
 func (pT *PinType) Parse(str string) {
 	switch str {
 	case "pin":
