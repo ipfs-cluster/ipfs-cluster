@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
+	types "github.com/ipfs/ipfs-cluster/api"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs/ipfs-cluster/test"
@@ -108,7 +109,7 @@ func TestAllocations(t *testing.T) {
 	c, api := testClient(t)
 	defer api.Shutdown()
 
-	pins, err := c.Allocations()
+	pins, err := c.Allocations(types.PinType(types.AllType))
 	if err != nil {
 		t.Fatal(err)
 	}

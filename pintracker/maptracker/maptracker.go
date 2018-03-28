@@ -237,6 +237,10 @@ func (mpt *MapPinTracker) unpin(c api.Pin) error {
 // possibly trigerring Pin operations on the IPFS daemon.
 func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
+	if c.Type == api.MetaType {
+		mpt.set(c.Cid, api.TrackerStatusSharded)
+		return nil
+	}
 	if mpt.isRemote(c) {
 		if mpt.get(c.Cid).Status == api.TrackerStatusPinned {
 			mpt.unpin(c)
