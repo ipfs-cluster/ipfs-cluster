@@ -146,7 +146,7 @@ func (gpi GlobalPinInfo) ToSerial() GlobalPinInfoSerial {
 func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
 	c, err := cid.Decode(gpis.Cid)
 	if err != nil {
-		logger.Error(gpis.Cid, err)
+		logger.Debug(gpis.Cid, err)
 	}
 	gpi := GlobalPinInfo{
 		Cid:     c,
@@ -205,15 +205,15 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 func (pis PinInfoSerial) ToPinInfo() PinInfo {
 	c, err := cid.Decode(pis.Cid)
 	if err != nil {
-		logger.Error(pis.Cid, err)
+		logger.Debug(pis.Cid, err)
 	}
 	p, err := peer.IDB58Decode(pis.Peer)
 	if err != nil {
-		logger.Error(pis.Peer, err)
+		logger.Debug(pis.Peer, err)
 	}
 	ts, err := time.Parse(time.RFC3339, pis.TS)
 	if err != nil {
-		logger.Error(pis.TS, err)
+		logger.Debug(pis.TS, err)
 	}
 	return PinInfo{
 		Cid:    c,
@@ -425,7 +425,7 @@ func (ids IDSerial) ToID() ID {
 	id := ID{}
 	p, err := peer.IDB58Decode(ids.ID)
 	if err != nil {
-		logger.Error(ids.ID, err)
+		logger.Debug(ids.ID, err)
 	}
 	id.ID = p
 
@@ -582,7 +582,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 func (pins PinSerial) ToPin() Pin {
 	c, err := cid.Decode(pins.Cid)
 	if err != nil {
-		logger.Error(pins.Cid, err)
+		logger.Debug(pins.Cid, err)
 	}
 
 	return Pin{
