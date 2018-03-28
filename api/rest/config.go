@@ -84,7 +84,7 @@ type jsonConfig struct {
 	IdleTimeout            string `json:"idle_timeout"`
 
 	Libp2pListenMultiaddress string `json:"libp2p_listen_multiaddress,omitempty"`
-	ID                       string `json:"ID,omitempty"`
+	ID                       string `json:"id,omitempty"`
 	PrivateKey               string `json:"PrivateKey,omitempty"`
 
 	BasicAuthCreds map[string]string `json:"basic_auth_credentials"`
