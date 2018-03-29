@@ -389,7 +389,7 @@ func TestWaitFor(t *testing.T) {
 	tapi.SetClient(rpcC)
 
 	testF := func(t *testing.T, c *Client) {
-		ci, _ := cid.Decode(test.SlowCid)
+		ci, _ := cid.Decode(test.TestCid1)
 
 		var wg sync.WaitGroup
 		wg.Add(1)

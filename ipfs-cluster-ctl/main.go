@@ -332,13 +332,10 @@ peers should pin this content.
 							return nil
 						}
 
-						waitAndFormatStatusResponse(
+						handlePinResponseFormatFlags(
 							c,
-							c.Bool("wait"),
-							c.Bool("no-status"),
 							ci,
 							api.TrackerStatusPinned,
-							c.Duration("wait-timeout"),
 						)
 						return nil
 					},
@@ -380,13 +377,10 @@ although unpinning operations in the cluster may take longer or fail.
 							return nil
 						}
 
-						waitAndFormatStatusResponse(
+						handlePinResponseFormatFlags(
 							c,
-							c.Bool("wait"),
-							c.Bool("no-status"),
 							ci,
 							api.TrackerStatusUnpinned,
-							c.Duration("wait-timeout"),
 						)
 						return nil
 					},
@@ -675,28 +669,26 @@ func parseCredentials(userInput string) (string, string) {
 	}
 }
 
-func waitAndFormatStatusResponse(
+func handlePinResponseFormatFlags(
 	c *cli.Context,
-	wait, noStatus bool,
 	ci *cid.Cid,
 	target api.TrackerStatus,
-	timeout time.Duration,
 ) {
 
 	var status api.GlobalPinInfo
 	var cerr error
 
-	if wait {
-		status, cerr = waitFor(ci, target, timeout)
+	if c.Bool("wait") {
+		status, cerr = waitFor(ci, target, c.Duration("wait-timeout"))
 		checkErr("waiting for pin status", cerr)
 	}
 
-	if noStatus {
+	if c.Bool("no-status") {
 		return
 	}
 
 	if status.Cid == nil { // no status from "wait"
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(time.Second)
 		status, cerr = globalClient.Status(ci, false)
 	}
 	formatResponse(c, status, cerr)

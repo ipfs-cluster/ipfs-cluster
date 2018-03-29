@@ -200,11 +200,10 @@ func (c *Client) WaitFor(ctx context.Context, fp StatusFilterParams) (api.Global
 		case err := <-sf.Err:
 			return api.GlobalPinInfo{}, err
 		case st, ok := <-sf.Out:
-			if ok {
-				status = st
-			} else { // channel closed
+			if !ok { // channel closed
 				return status, nil
 			}
+			status = st
 		}
 	}
 }
