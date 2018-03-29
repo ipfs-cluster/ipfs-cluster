@@ -1,2 +1,2 @@
-golang([test: "go test -v -loglevel ERROR ./..."])
+golang([test: "go test -v ./..."])
 
