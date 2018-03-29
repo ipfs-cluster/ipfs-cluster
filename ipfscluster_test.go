@@ -32,7 +32,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-//TestClusters*
 var (
 	// number of clusters to create
 	nClusters = 5
@@ -233,7 +232,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	for i := 1; i < nClusters; i++ {
 		cfgs[i].Bootstrap = []ma.Multiaddr{bootstrapAddr}
 	}
-	waitForLeaderLoop(t, clusters[0:1])
+	waitForLeader(t, clusters[0:1])
 
 	// Start the rest
 	// We don't do this in parallel because it causes libp2p dial backoffs
@@ -276,6 +275,21 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 	wg.Wait()
 }
 
+//////////////////////////////////////
+// Delay and wait functions
+//
+// Delays are used in tests to wait for certain events to happen:
+//   * ttlDelay() waits for metrics to arrive. If you pin something
+//     and your next operation depends on updated metrics, you need to wait
+//   * pinDelay() accounts for the time necessary to pin something and for the new
+//     log entry to be visible in all cluster peers
+//   * delay just sleeps a second or two.
+//   * waitForLeader functions make sure there is a raft leader, for example,
+//     after killing the leader.
+//
+// The values for delays are a result of testing and adjusting so tests pass
+// in travis, jenkins etc., taking into account the values used in the
+// testing configuration (config_test.go).
 func delay() {
 	var d int
 	if nClusters > 10 {
@@ -296,16 +310,16 @@ func ttlDelay() {
 	time.Sleep(diskInfCfg.MetricTTL * 3)
 }
 
-// Waits for consensus to pick a new leader in case we shut it down
-// Makes sure all peers know about it.
-// Makes sure new metrics have come in for the new leader.
-func waitForLeader(t *testing.T, clusters []*Cluster) {
+// Like waitForLeader but letting metrics expire before waiting, and
+// waiting for new metrics to arrive afterwards.
+func waitForLeaderAndMetrics(t *testing.T, clusters []*Cluster) {
 	ttlDelay()
-	waitForLeaderLoop(t, clusters)
+	waitForLeader(t, clusters)
 	ttlDelay()
 }
 
-func waitForLeaderLoop(t *testing.T, clusters []*Cluster) {
+// Makes sure there is a leader and everyone knows about it.
+func waitForLeader(t *testing.T, clusters []*Cluster) {
 	timer := time.NewTimer(time.Minute)
 	ticker := time.NewTicker(100 * time.Millisecond)
 
@@ -328,6 +342,8 @@ loop:
 		}
 	}
 }
+
+/////////////////////////////////////////
 
 func TestClustersVersion(t *testing.T) {
 	clusters, mock := createClusters(t)
@@ -1038,7 +1054,7 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 	clusters[nClusters-1].Shutdown()
 	clusters[nClusters-2].Shutdown()
 
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
@@ -1088,9 +1104,9 @@ func TestClustersReplicationFactorMin(t *testing.T) {
 
 	// Shutdown two peers
 	clusters[nClusters-1].Shutdown()
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 	clusters[nClusters-2].Shutdown()
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
@@ -1129,9 +1145,9 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 
 	// Shutdown two peers
 	clusters[nClusters-1].Shutdown()
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 	clusters[nClusters-2].Shutdown()
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	err = clusters[0].Pin(api.PinCid(h))
 	if err != nil {
@@ -1199,7 +1215,7 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 	alloc1.Shutdown()
 	alloc2.Shutdown()
 
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	// Repin - (although this might have been taken of if there was an alert
 	err = safePeer.Pin(api.PinCid(h))
@@ -1301,7 +1317,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 
 	// let metrics expire and give time for the cluster to
 	// see if they have lost the leader
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	// Make sure we haven't killed our randomly
 	// selected cluster
@@ -1361,7 +1377,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	clusters[0].Shutdown()
 	clusters[1].Shutdown()
 
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	err = clusters[2].Pin(api.PinCid(h))
 	if err == nil {
@@ -1423,7 +1439,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	}
 
 	delay()
-	waitForLeader(t, clusters) // in case we killed the leader
+	waitForLeaderAndMetrics(t, clusters) // in case we killed the leader
 
 	// It should be now pinned in the remote pinner
 	if s := remotePinnerCluster.tracker.Status(h).Status; s != api.TrackerStatusPinned {
@@ -1547,7 +1563,7 @@ func TestClustersGraphUnhealthy(t *testing.T) {
 	clusters[discon1].Shutdown()
 	clusters[discon2].Shutdown()
 
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	graph, err := clusters[j].ConnectGraph()
 	if err != nil {

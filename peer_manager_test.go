@@ -211,7 +211,7 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 	defer shutdownClusters(t, clusters, mocks)
 
 	for i := 0; i < len(clusters); i++ {
-		waitForLeader(t, clusters)
+		waitForLeaderAndMetrics(t, clusters)
 		peers := clusters[i].Peers()
 		t.Logf("Current cluster size: %d", len(peers))
 		if len(peers) != (len(clusters) - i) {
@@ -248,7 +248,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		var l peer.ID
 		for _, c := range clusters {
 			if !c.shutdownB {
-				waitForLeader(t, clusters)
+				waitForLeaderAndMetrics(t, clusters)
 				l, _ = c.consensus.Leader()
 			}
 		}
@@ -371,7 +371,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		t.Fatal("error removing peer:", err)
 	}
 
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	for _, icid := range interestingCids {
 		// Now check that the allocations are new.
