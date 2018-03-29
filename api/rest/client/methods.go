@@ -191,19 +191,19 @@ func (c *Client) WaitFor(ctx context.Context, fp StatusFilterParams) (api.Global
 	go sf.pollStatus(ctx, c, fp)
 	go sf.filter(ctx, fp)
 
+	var status api.GlobalPinInfo
+
 	for {
 		select {
 		case <-ctx.Done():
 			return api.GlobalPinInfo{}, ctx.Err()
 		case err := <-sf.Err:
 			return api.GlobalPinInfo{}, err
-		case <-sf.Done:
-			// drain status channel and return last status on channel
-			for {
-				if status, ok := <-sf.Out; !ok {
-					return status, nil
-				}
+		case st, ok := <-sf.Out:
+			if !ok { // channel closed
+				return status, nil
 			}
+			status = st
 		}
 	}
 }
@@ -211,7 +211,7 @@ func (c *Client) WaitFor(ctx context.Context, fp StatusFilterParams) (api.Global
 // StatusFilterParams contains the parameters required
 // to filter a stream of status results.
 type StatusFilterParams struct {
-	*cid.Cid
+	Cid       *cid.Cid
 	Local     bool
 	Target    api.TrackerStatus
 	CheckFreq time.Duration
@@ -251,12 +251,10 @@ func (sf *statusFilter) filter(ctx context.Context, fp StatusFilterParams) {
 				return
 			}
 
+			sf.Out <- gblPinInfo
 			if !ok {
-				sf.Out <- gblPinInfo
 				continue
 			}
-
-			sf.Out <- gblPinInfo
 			return
 		}
 	}
