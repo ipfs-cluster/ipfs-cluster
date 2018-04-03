@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"path"
 
 	fslock "github.com/ipfs/go-fs-lock"
@@ -24,6 +25,11 @@ func (l *lock) lock() error {
 	if l.lockCloser != nil {
 		return fmt.Errorf("cannot acquire lock twice")
 	}
+
+	if err := l.checkConfigExists(); err != nil {
+		return err
+	}
+
 	// set the lock file within this function
 	logger.Debug("checking lock")
 	lk, err := fslock.Lock(l.path, lockFileName)
@@ -54,5 +60,17 @@ func (l *lock) tryUnlock() error {
 	}
 	logger.Debug("Successfully released execution lock")
 	l.lockCloser = nil
+	return nil
+}
+
+func (l *lock) checkConfigExists() error {
+	if _, err := os.Stat(l.path); os.IsNotExist(err) {
+		logger.Error("ipfs-cluster-service config hasn't been initialized.\nPlease run ipfs-cluster-service init")
+		return err
+	}
+	if _, err := os.Stat(fmt.Sprintf("%s/%s", l.path, "service.json")); os.IsNotExist(err) {
+		logger.Error("ipfs-cluster-service config hasn't been initialized.\nPlease run ipfs-cluster-service init")
+		return err
+	}
 	return nil
 }
