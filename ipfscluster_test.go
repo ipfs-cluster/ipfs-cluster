@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -25,17 +26,18 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-//TestClusters*
 var (
 	// number of clusters to create
-	nClusters = 6
+	nClusters = 5
 
 	// number of pins to pin/unpin/check
-	nPins = 500
+	nPins = 100
 
 	logLevel = "CRITICAL"
 
@@ -124,8 +126,8 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	return clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
-func createCluster(t *testing.T, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(nil, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+func createCluster(t *testing.T, host host.Host, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+	cl, err := NewCluster(host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	<-cl.Ready()
 	return cl
@@ -133,7 +135,7 @@ func createCluster(t *testing.T, clusterCfg *Config, consensusCfg *raft.Config, 
 
 func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster, *test.IpfsMock) {
 	clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret)
-	cl := createCluster(t, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+	cl := createCluster(t, nil, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
 	return cl, mock
 }
 
@@ -149,6 +151,8 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	allocs := make([]PinAllocator, nClusters, nClusters)
 	infs := make([]Informer, nClusters, nClusters)
 	ipfsMocks := make([]*test.IpfsMock, nClusters, nClusters)
+
+	hosts := make([]host.Host, nClusters, nClusters)
 	clusters := make([]*Cluster, nClusters, nClusters)
 
 	// Uncomment when testing with fixed ports
@@ -197,25 +201,45 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// ----------------------------------------------
 
 	// Alternative way of starting using bootstrap
+	// Create hosts
+	var err error
+	for i := 0; i < nClusters; i++ {
+		hosts[i], err = NewClusterHost(context.Background(), cfgs[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// open connections among all hosts
+	for _, h := range hosts {
+		for _, h2 := range hosts {
+			if h.ID() != h2.ID() {
+
+				h.Peerstore().AddAddrs(h2.ID(), h2.Addrs(), peerstore.PermanentAddrTTL)
+				_, err := h.Network().DialPeer(context.Background(), h2.ID())
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+
 	// Start first node
-	clusters[0] = createCluster(t, cfgs[0], concfgs[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
+	clusters[0] = createCluster(t, hosts[0], cfgs[0], concfgs[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
 	// Find out where it binded
 	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
 	// Use first node to bootstrap
 	for i := 1; i < nClusters; i++ {
 		cfgs[i].Bootstrap = []ma.Multiaddr{bootstrapAddr}
 	}
+	waitForLeader(t, clusters[0:1])
 
 	// Start the rest
-	var wg sync.WaitGroup
+	// We don't do this in parallel because it causes libp2p dial backoffs
 	for i := 1; i < nClusters; i++ {
-		wg.Add(1)
-		go func(i int) {
-			clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
-			wg.Done()
-		}(i)
+		clusters[i] = createCluster(t, hosts[i], cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
 	}
-	wg.Wait()
+	waitForLeader(t, clusters)
 
 	// ---------------------------------------------
 
@@ -223,8 +247,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// for i := 1; i < nClusters; i++ {
 	// 	clusters[0].PeerAdd(clusterAddr(clusters[i]))
 	// }
-	delay()
-	delay()
+
 	return clusters, ipfsMocks
 }
 
@@ -252,29 +275,53 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 	wg.Wait()
 }
 
+//////////////////////////////////////
+// Delay and wait functions
+//
+// Delays are used in tests to wait for certain events to happen:
+//   * ttlDelay() waits for metrics to arrive. If you pin something
+//     and your next operation depends on updated metrics, you need to wait
+//   * pinDelay() accounts for the time necessary to pin something and for the new
+//     log entry to be visible in all cluster peers
+//   * delay just sleeps a second or two.
+//   * waitForLeader functions make sure there is a raft leader, for example,
+//     after killing the leader.
+//
+// The values for delays are a result of testing and adjusting so tests pass
+// in travis, jenkins etc., taking into account the values used in the
+// testing configuration (config_test.go).
 func delay() {
 	var d int
 	if nClusters > 10 {
-		d = 8
-
-	} else if nClusters > 5 {
-		d = 5
+		d = 2000
 	} else {
-		d = nClusters
+		d = 1000
 	}
-	time.Sleep(time.Duration(d) * time.Second)
+	time.Sleep(time.Duration(d) * time.Millisecond)
 }
 
+func pinDelay() {
+	time.Sleep(400 * time.Millisecond)
+}
+
+func ttlDelay() {
+	diskInfCfg := &disk.Config{}
+	diskInfCfg.LoadJSON(testingDiskInfCfg)
+	time.Sleep(diskInfCfg.MetricTTL * 3)
+}
+
+// Like waitForLeader but letting metrics expire before waiting, and
+// waiting for new metrics to arrive afterwards.
+func waitForLeaderAndMetrics(t *testing.T, clusters []*Cluster) {
+	ttlDelay()
+	waitForLeader(t, clusters)
+	ttlDelay()
+}
+
+// Makes sure there is a leader and everyone knows about it.
 func waitForLeader(t *testing.T, clusters []*Cluster) {
 	timer := time.NewTimer(time.Minute)
-	ticker := time.NewTicker(time.Second)
-	// Wait for consensus to pick a new leader in case we shut it down
-
-	// Make sure we don't check on a shutdown cluster
-	j := rand.Intn(len(clusters))
-	for clusters[j].shutdownB {
-		j = rand.Intn(len(clusters))
-	}
+	ticker := time.NewTicker(100 * time.Millisecond)
 
 loop:
 	for {
@@ -282,13 +329,21 @@ loop:
 		case <-timer.C:
 			t.Fatal("timed out waiting for a leader")
 		case <-ticker.C:
-			_, err := clusters[j].consensus.Leader()
-			if err == nil {
-				break loop
+			for _, cl := range clusters {
+				if cl.shutdownB {
+					continue // skip shutdown clusters
+				}
+				_, err := cl.consensus.Leader()
+				if err != nil {
+					continue loop
+				}
 			}
+			break loop
 		}
 	}
 }
+
+/////////////////////////////////////////
 
 func TestClustersVersion(t *testing.T) {
 	clusters, mock := createClusters(t)
@@ -305,7 +360,6 @@ func TestClustersVersion(t *testing.T) {
 func TestClustersPeers(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
 
 	j := rand.Intn(nClusters) // choose a random cluster peer
 	peers := clusters[j].Peers()
@@ -345,6 +399,9 @@ func TestClustersPin(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	exampleCid, _ := cid.Decode(test.TestCid1)
 	prefix := exampleCid.Prefix()
+
+	ttlDelay()
+
 	for i := 0; i < nPins; i++ {
 		j := rand.Intn(nClusters)           // choose a random cluster peer
 		h, err := prefix.Sum(randomBytes()) // create random cid
@@ -359,6 +416,7 @@ func TestClustersPin(t *testing.T) {
 			t.Errorf("error repinning %s: %s", h, err)
 		}
 	}
+	delay()
 	delay()
 	fpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
@@ -378,7 +436,7 @@ func TestClustersPin(t *testing.T) {
 	// Unpin everything
 	pinList := clusters[0].Pins()
 
-	for i := 0; i < nPins; i++ {
+	for i := 0; i < len(pinList); i++ {
 		j := rand.Intn(nClusters) // choose a random cluster peer
 		err := clusters[j].Unpin(pinList[i].Cid)
 		if err != nil {
@@ -391,6 +449,7 @@ func TestClustersPin(t *testing.T) {
 		}
 
 	}
+	delay()
 	delay()
 
 	funpinned := func(t *testing.T, c *Cluster) {
@@ -408,7 +467,7 @@ func TestClustersStatusAll(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	delay()
+	pinDelay()
 	// Global status
 	f := func(t *testing.T, c *Cluster) {
 		statuses, err := c.StatusAll()
@@ -452,10 +511,11 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	delay()
+	pinDelay()
 
 	// shutdown 1 cluster peer
 	clusters[1].Shutdown()
+	delay()
 
 	f := func(t *testing.T, c *Cluster) {
 		// skip if it's the shutdown peer
@@ -513,7 +573,9 @@ func TestClustersSyncAllLocal(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
-	delay()
+	pinDelay()
+	pinDelay()
+
 	f := func(t *testing.T, c *Cluster) {
 		// Sync bad ID
 		infos, err := c.SyncAllLocal()
@@ -541,7 +603,8 @@ func TestClustersSyncLocal(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
-	delay()
+	pinDelay()
+	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		info, err := c.SyncLocal(h)
@@ -572,7 +635,8 @@ func TestClustersSyncAll(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
-	delay()
+	pinDelay()
+	pinDelay()
 
 	j := rand.Intn(nClusters) // choose a random cluster peer
 	ginfos, err := clusters[j].SyncAll()
@@ -603,7 +667,8 @@ func TestClustersSync(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
-	delay()
+	pinDelay()
+	pinDelay()
 
 	j := rand.Intn(nClusters)
 	ginfo, err := clusters[j].Sync(h)
@@ -662,10 +727,13 @@ func TestClustersRecoverLocal(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
+
+	ttlDelay()
+
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
-
-	delay()
+	pinDelay()
+	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		info, err := c.RecoverLocal(h)
@@ -694,10 +762,14 @@ func TestClustersRecover(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
 	h2, _ := cid.Decode(test.TestCid2)
+
+	ttlDelay()
+
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
 
-	delay()
+	pinDelay()
+	pinDelay()
 
 	j := rand.Intn(nClusters)
 	ginfo, err := clusters[j].Recover(h)
@@ -771,6 +843,8 @@ func TestClustersReplication(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
+	ttlDelay()
+
 	// Why is replication factor nClusters - 1?
 	// Because that way we know that pinning nCluster
 	// pins with an strategy like numpins/disk
@@ -789,7 +863,7 @@ func TestClustersReplication(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		time.Sleep(time.Second)
+		pinDelay()
 
 		// check that it is held by exactly nClusters -1 peers
 		gpi, err := clusters[j].Status(h)
@@ -814,7 +888,7 @@ func TestClustersReplication(t *testing.T) {
 		if numRemote != 1 {
 			t.Errorf("We wanted 1 peer track as remote but %d do", numRemote)
 		}
-		time.Sleep(time.Second) // this is for metric to be up to date
+		ttlDelay()
 	}
 
 	f := func(t *testing.T, c *Cluster) {
@@ -875,13 +949,15 @@ func TestClustersReplicationFactorMax(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
+	ttlDelay()
+
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	delay()
+	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		p, err := c.PinGet(h)
@@ -918,13 +994,15 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters
 	}
 
+	ttlDelay() // make sure we have places to pin
+
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	delay()
+	pinDelay()
 
 	p1, err := clusters[0].PinGet(h)
 	if err != nil {
@@ -944,7 +1022,7 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	delay()
+	pinDelay()
 
 	p2, err := clusters[0].PinGet(h)
 	if err != nil {
@@ -970,16 +1048,13 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters
 	}
 
+	ttlDelay()
+
 	// Shutdown two peers
 	clusters[nClusters-1].Shutdown()
 	clusters[nClusters-2].Shutdown()
 
-	time.Sleep(time.Second) // let metric expire
-
-	waitForLeader(t, clusters)
-
-	// allow metrics to arrive to new leader
-	delay()
+	waitForLeaderAndMetrics(t, clusters)
 
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
@@ -987,7 +1062,7 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	delay()
+	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		if c == clusters[nClusters-1] || c == clusters[nClusters-2] {
@@ -1029,14 +1104,9 @@ func TestClustersReplicationFactorMin(t *testing.T) {
 
 	// Shutdown two peers
 	clusters[nClusters-1].Shutdown()
+	waitForLeaderAndMetrics(t, clusters)
 	clusters[nClusters-2].Shutdown()
-
-	time.Sleep(time.Second) // let metric expire
-
-	waitForLeader(t, clusters)
-
-	// allow metrics to arrive to new leader
-	delay()
+	waitForLeaderAndMetrics(t, clusters)
 
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
@@ -1063,27 +1133,28 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters
 	}
 
+	ttlDelay()
+
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	pinDelay()
+
 	// Shutdown two peers
 	clusters[nClusters-1].Shutdown()
+	waitForLeaderAndMetrics(t, clusters)
 	clusters[nClusters-2].Shutdown()
-
-	time.Sleep(time.Second) // let metric expire
-
-	waitForLeader(t, clusters)
-
-	// allow metrics to arrive to new leader
-	delay()
+	waitForLeaderAndMetrics(t, clusters)
 
 	err = clusters[0].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	pinDelay()
 
 	p, err := clusters[0].PinGet(h)
 	if err != nil {
@@ -1114,13 +1185,15 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 		c.config.ReplicationFactorMax = 4
 	}
 
+	ttlDelay() // make sure metrics are in
+
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[0].Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	delay()
+	pinDelay()
 
 	p, err := clusters[0].PinGet(h)
 	if err != nil {
@@ -1142,18 +1215,15 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 	alloc1.Shutdown()
 	alloc2.Shutdown()
 
-	time.Sleep(time.Second) // let metric expire
-
-	waitForLeader(t, clusters)
-
-	// allow metrics to arrive to new leader
-	delay()
+	waitForLeaderAndMetrics(t, clusters)
 
 	// Repin - (although this might have been taken of if there was an alert
 	err = safePeer.Pin(api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	pinDelay()
 
 	p, err = safePeer.PinGet(h)
 	if err != nil {
@@ -1176,7 +1246,7 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 	lenSA := len(secondAllocations)
 	expected := minInt(nClusters-2, 4)
 	if lenSA != expected {
-		t.Errorf("Inssufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
+		t.Errorf("Insufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
 	}
 
 	if lenSA < 3 {
@@ -1194,6 +1264,8 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
+	ttlDelay()
+
 	j := rand.Intn(nClusters)
 	h, _ := cid.Decode(test.TestCid1)
 	err := clusters[j].Pin(api.PinCid(h))
@@ -1202,7 +1274,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	time.Sleep(time.Second / 2)
+	pinDelay()
 
 	pin := clusters[j].Pins()[0]
 	pinSerial := pin.ToSerial()
@@ -1217,7 +1289,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	pinDelay()
 
 	pin2 := clusters[j].Pins()[0]
 	pinSerial2 := pin2.ToSerial()
@@ -1245,10 +1317,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 
 	// let metrics expire and give time for the cluster to
 	// see if they have lost the leader
-	time.Sleep(4 * time.Second)
-	waitForLeader(t, clusters)
-	// wait for new metrics to arrive
-	time.Sleep(2 * time.Second)
+	waitForLeaderAndMetrics(t, clusters)
 
 	// Make sure we haven't killed our randomly
 	// selected cluster
@@ -1262,7 +1331,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	pinDelay()
 
 	numPinned := 0
 	for i, c := range clusters {
@@ -1303,13 +1372,12 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	// Let the pin arrive
-	time.Sleep(time.Second / 2)
+	pinDelay()
 
 	clusters[0].Shutdown()
 	clusters[1].Shutdown()
 
-	delay()
-	waitForLeader(t, clusters)
+	waitForLeaderAndMetrics(t, clusters)
 
 	err = clusters[2].Pin(api.PinCid(h))
 	if err == nil {
@@ -1337,7 +1405,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	// pin something
 	h, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(h))
-	time.Sleep(time.Second * 2) // let the pin arrive
+	pinDelay()
 	pinLocal := 0
 	pinRemote := 0
 	var localPinner peer.ID
@@ -1361,7 +1429,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 		t.Fatal("Not pinned as expected")
 	}
 
-	// find a kill the local pinner
+	// kill the local pinner
 	for _, c := range clusters {
 		if c.id == localPinner {
 			c.Shutdown()
@@ -1370,8 +1438,8 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 		}
 	}
 
-	// Sleep a monitoring interval
-	time.Sleep(6 * time.Second)
+	delay()
+	waitForLeaderAndMetrics(t, clusters) // in case we killed the leader
 
 	// It should be now pinned in the remote pinner
 	if s := remotePinnerCluster.tracker.Status(h).Status; s != api.TrackerStatusPinned {
@@ -1452,8 +1520,6 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[p
 func TestClustersGraphConnected(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	delay()
-	delay()
 
 	j := rand.Intn(nClusters) // choose a random cluster peer to query
 	graph, err := clusters[j].ConnectGraph()
@@ -1496,9 +1562,8 @@ func TestClustersGraphUnhealthy(t *testing.T) {
 
 	clusters[discon1].Shutdown()
 	clusters[discon2].Shutdown()
-	delay()
-	waitForLeader(t, clusters)
-	delay()
+
+	waitForLeaderAndMetrics(t, clusters)
 
 	graph, err := clusters[j].ConnectGraph()
 	if err != nil {

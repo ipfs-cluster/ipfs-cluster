@@ -22,7 +22,7 @@ var logger = logging.Logger("monitor")
 var AlertChannelCap = 256
 
 // WindowCap specifies how many metrics to keep for given host and metric type
-var WindowCap = 10
+var WindowCap = 100
 
 // peerMetrics is just a circular queue
 type peerMetrics struct {
@@ -55,6 +55,7 @@ func (pmets *peerMetrics) latest() (api.Metric, error) {
 	//	pmets.mux.RLock()
 	//	defer pmets.mux.RUnlock()
 	if len(pmets.window) == 0 {
+		logger.Warning("no metrics")
 		return api.Metric{}, errors.New("no metrics")
 	}
 	return pmets.window[pmets.last], nil
@@ -183,7 +184,7 @@ func (mon *Monitor) LogMetric(m api.Metric) {
 		mbyp[peer] = pmets
 	}
 
-	logger.Debugf("logged '%s' metric from '%s'. Expires on %s", name, peer, m.Expire)
+	logger.Debugf("logged '%s' metric from '%s'. Expires on %d", name, peer, m.Expire)
 	pmets.add(m)
 }
 

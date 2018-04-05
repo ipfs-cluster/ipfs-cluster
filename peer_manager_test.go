@@ -29,7 +29,6 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		}(i)
 	}
 	wg.Wait()
-	delay()
 	return cls, mocks
 }
 
@@ -65,7 +64,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	delay()
+	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		ids := c.Peers()
@@ -87,8 +86,6 @@ func TestClustersPeerAdd(t *testing.T) {
 			t.Log(c.ID().ClusterPeers)
 			t.Error("By now cluster peers should reflect all peers")
 		}
-
-		time.Sleep(2 * time.Second)
 
 		// check that they are part of the configuration
 		// This only works because each peer only has one multiaddress
@@ -214,6 +211,7 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 	defer shutdownClusters(t, clusters, mocks)
 
 	for i := 0; i < len(clusters); i++ {
+		waitForLeaderAndMetrics(t, clusters)
 		peers := clusters[i].Peers()
 		t.Logf("Current cluster size: %d", len(peers))
 		if len(peers) != (len(clusters) - i) {
@@ -250,7 +248,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		var l peer.ID
 		for _, c := range clusters {
 			if !c.shutdownB {
-				waitForLeader(t, clusters)
+				waitForLeaderAndMetrics(t, clusters)
 				l, _ = c.consensus.Leader()
 			}
 		}
@@ -286,7 +284,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		if more {
 			t.Error("should be done")
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second / 2)
 	}
 }
 
@@ -341,10 +339,10 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		checkErr(t, err)
 		err = leader.Pin(api.PinCid(h))
 		checkErr(t, err)
-		time.Sleep(time.Second) // time to update the metrics
+		ttlDelay()
 	}
 
-	delay()
+	pinDelay()
 
 	// At this point, all peers must have 1 pin associated to them.
 	// Find out which pin is associated to leader.
@@ -373,9 +371,9 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		t.Fatal("error removing peer:", err)
 	}
 
-	time.Sleep(2 * time.Second)
-	waitForLeader(t, clusters)
 	delay()
+	waitForLeaderAndMetrics(t, clusters)
+	delay() // this seems to fail when not waiting enough...
 
 	for _, icid := range interestingCids {
 		// Now check that the allocations are new.
@@ -405,7 +403,7 @@ func TestClustersPeerJoin(t *testing.T) {
 	}
 	hash, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(hash))
-	delay()
+	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		peers := c.Peers()
@@ -438,7 +436,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 
 	hash, _ := cid.Decode(test.TestCid1)
 	clusters[0].Pin(api.PinCid(hash))
-	delay()
+	pinDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
 		peers := c.Peers()
@@ -555,7 +553,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	delay()
+	pinDelay()
 
 	// Rejoin c0
 	c0, m0 := createOnePeerCluster(t, 0, testingClusterSecret)

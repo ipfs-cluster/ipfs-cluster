@@ -15,6 +15,10 @@ import (
 
 var logger = logging.Logger("config")
 
+// ConfigSaveInterval specifies how often to save the configuration file if
+// it needs saving.
+var ConfigSaveInterval = time.Second
+
 // The ComponentConfig interface allows components to define configurations
 // which can be managed as part of the ipfs-cluster configuration file by the
 // Manager.
@@ -116,7 +120,7 @@ func (cfg *Manager) watchSave(save <-chan struct{}) {
 	defer cfg.wg.Done()
 
 	// Save once per second mostly
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(ConfigSaveInterval)
 	defer ticker.Stop()
 
 	thingsToSave := false

@@ -2,6 +2,8 @@ package basic
 
 import (
 	"fmt"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -49,6 +51,58 @@ func TestPeerMonitorShutdown(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestLogMetricConcurrent(t *testing.T) {
+	pm := testPeerMonitor(t)
+	defer pm.Shutdown()
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	f := func() {
+		defer wg.Done()
+		for i := 0; i < 25; i++ {
+			mt := api.Metric{
+				Name:  "test",
+				Peer:  test.TestPeerID1,
+				Value: fmt.Sprintf("%d", time.Now().UnixNano()),
+				Valid: true,
+			}
+			mt.SetTTLDuration(150 * time.Millisecond)
+			pm.LogMetric(mt)
+			time.Sleep(75 * time.Millisecond)
+		}
+	}
+	go f()
+	go f()
+	go f()
+
+	time.Sleep(150 * time.Millisecond)
+	last := time.Now().Add(-500 * time.Millisecond)
+
+	for i := 0; i <= 20; i++ {
+		lastMtrcs := pm.LastMetrics("test")
+
+		if len(lastMtrcs) != 1 {
+			t.Error("no valid metrics", len(lastMtrcs), i)
+			time.Sleep(75 * time.Millisecond)
+			continue
+		}
+
+		n, err := strconv.Atoi(lastMtrcs[0].Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		current := time.Unix(0, int64(n))
+		if current.Before(last) {
+			t.Errorf("expected newer metric: Current: %s, Last: %s", current, last)
+		}
+		last = current
+		time.Sleep(75 * time.Millisecond)
+	}
+
+	wg.Wait()
 }
 
 func TestPeerMonitorLogMetric(t *testing.T) {

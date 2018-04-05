@@ -272,7 +272,6 @@ func (c *Cluster) pushInformerMetrics() {
 	// The following control how often to make and log
 	// a retry
 	retries := 0
-	retryDelay := 500 * time.Millisecond
 	retryWarnMod := 60
 	for {
 		select {
@@ -293,7 +292,7 @@ func (c *Cluster) pushInformerMetrics() {
 				retries++
 			}
 			// retry in retryDelay
-			timer.Reset(retryDelay)
+			timer.Reset(metric.GetTTL() / 4)
 			continue
 		}
 
@@ -345,8 +344,7 @@ func (c *Cluster) alertsHandler() {
 // detects any changes in the peerset and saves the configuration. When it
 // detects that we have been removed from the peerset, it shuts down this peer.
 func (c *Cluster) watchPeers() {
-	// TODO: Config option?
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(c.config.PeerWatchInterval)
 	lastPeers := PeersFromMultiaddrs(c.config.Peers)
 
 	for {
@@ -462,11 +460,13 @@ This might be due to one or several causes:
 	if len(peers) == 1 {
 		logger.Info("    - No other peers")
 	}
+
 	for _, p := range peers {
 		if p != c.id {
 			logger.Infof("    - %s", p.Pretty())
 		}
 	}
+
 	close(c.readyCh)
 	c.readyB = true
 	logger.Info("** IPFS Cluster is READY **")

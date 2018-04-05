@@ -7,9 +7,9 @@ for dir in $dirs;
 do
         if ls "$dir"/*.go &> /dev/null;
         then
-            cmdflags="-timeout 20m -v -coverprofile=profile.out -covermode=count $dir"
+            cmdflags="-v -coverprofile=profile.out -covermode=count $dir"
             if [ "$dir" == "." ]; then
-                cmdflags="-timeout 20m -v -coverprofile=profile.out -covermode=count -loglevel CRITICAL ."
+                cmdflags="-v -coverprofile=profile.out -covermode=count -loglevel CRITICAL ."
             fi
             echo go test $cmdflags
             go test $cmdflags
