@@ -59,11 +59,12 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 	priorityMetrics := make(map[peer.ID]api.Metric)
 
 	// Divide metrics between current and candidates.
+	// All metrics in metrics are valid (at least the
+	// moment they were compiled by the monitor)
 	for _, m := range metrics {
 		switch {
-		case m.Discard() || containsPeer(blacklist, m.Peer):
-			// discard peers with invalid metrics and
-			// those in the blacklist
+		case containsPeer(blacklist, m.Peer):
+			// discard blacklisted peers
 			continue
 		case containsPeer(currentAllocs, m.Peer):
 			currentMetrics[m.Peer] = m

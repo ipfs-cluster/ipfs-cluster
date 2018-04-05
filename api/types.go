@@ -602,8 +602,8 @@ type Metric struct {
 	Name   string
 	Peer   peer.ID // filled-in by Cluster.
 	Value  string
-	Expire string // RFC3339Nano
-	Valid  bool   // if the metric is not valid it will be discarded
+	Expire int64 // UnixNano
+	Valid  bool  // if the metric is not valid it will be discarded
 }
 
 // SetTTL sets Metric to expire after the given seconds
@@ -615,31 +615,19 @@ func (m *Metric) SetTTL(seconds int) {
 // SetTTLDuration sets Metric to expire after the given time.Duration
 func (m *Metric) SetTTLDuration(d time.Duration) {
 	exp := time.Now().Add(d)
-	m.Expire = exp.UTC().Format(time.RFC3339Nano)
+	m.Expire = exp.UnixNano()
 }
 
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
-	if m.Expire == "" {
-		return 0
-	}
-	exp, err := time.Parse(time.RFC3339Nano, m.Expire)
-	if err != nil {
-		panic(err)
-	}
-	return exp.Sub(time.Now())
+	expDate := time.Unix(0, m.Expire)
+	return expDate.Sub(time.Now())
 }
 
 // Expired returns if the Metric has expired
 func (m *Metric) Expired() bool {
-	if m.Expire == "" {
-		return true
-	}
-	exp, err := time.Parse(time.RFC3339Nano, m.Expire)
-	if err != nil {
-		panic(err)
-	}
-	return time.Now().After(exp)
+	expDate := time.Unix(0, m.Expire)
+	return time.Now().After(expDate)
 }
 
 // Discard returns if the metric not valid or has expired

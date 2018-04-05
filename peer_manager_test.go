@@ -371,7 +371,9 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		t.Fatal("error removing peer:", err)
 	}
 
+	delay()
 	waitForLeaderAndMetrics(t, clusters)
+	delay() // this seems to fail when not waiting enough...
 
 	for _, icid := range interestingCids {
 		// Now check that the allocations are new.

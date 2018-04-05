@@ -72,7 +72,7 @@ var testingTrackerCfg = []byte(`
 `)
 
 var testingMonCfg = []byte(`{
-    "check_interval": "400ms"
+    "check_interval": "300ms"
 }`)
 
 var testingDiskInfCfg = []byte(`{

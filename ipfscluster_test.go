@@ -23,12 +23,12 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
 
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
 

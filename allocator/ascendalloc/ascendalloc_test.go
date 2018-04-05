@@ -24,7 +24,7 @@ var (
 	testCid, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 )
 
-var inAMinute = time.Now().Add(time.Minute).Format(time.RFC3339Nano)
+var inAMinute = time.Now().Add(time.Minute).UnixNano()
 
 var testCases = []testcase{
 	{ // regular sort

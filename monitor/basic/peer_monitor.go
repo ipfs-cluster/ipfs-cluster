@@ -184,7 +184,7 @@ func (mon *Monitor) LogMetric(m api.Metric) {
 		mbyp[peer] = pmets
 	}
 
-	logger.Debugf("logged '%s' metric from '%s'. Expires on %s", name, peer, m.Expire)
+	logger.Debugf("logged '%s' metric from '%s'. Expires on %d", name, peer, m.Expire)
 	pmets.add(m)
 }
 
