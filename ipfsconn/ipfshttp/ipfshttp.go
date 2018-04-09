@@ -138,7 +138,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	c := &http.Client{
-		Timeout: 0, // TODO: configurable?
+		Timeout: cfg.ClientTimeout,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -710,14 +710,26 @@ func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
 	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
-func doPost(client *http.Client, apiURL, path string) (*http.Response, error) {
+func (ipfs *Connector) doPost(client *http.Client, apiURL, path string) (*http.Response, error) {
 	logger.Debugf("posting %s", path)
-	url := fmt.Sprintf("%s/%s", apiURL, path)
+	urlstr := fmt.Sprintf("%s/%s", apiURL, path)
 
-	res, err := client.Post(url, "", nil)
+	ctx, cancel := context.WithCancel(ipfs.ctx)
+	time.AfterFunc(ipfs.config.ClientPostTimeout, func() {
+		cancel()
+	})
+
+	req, err := http.NewRequest("POST", urlstr, nil)
+	if err != nil {
+		logger.Error("error creating POST request:", err)
+	}
+
+	req = req.WithContext(ctx)
+	res, err := ipfs.client.Do(req)
 	if err != nil {
 		logger.Error("error posting to IPFS:", err)
 	}
+
 	return res, err
 }
 
@@ -741,7 +753,7 @@ func checkResponse(path string, code int, body []byte) error {
 // the ipfs daemon, reads the full body of the response and
 // returns it after checking for errors.
 func (ipfs *Connector) post(path string) ([]byte, error) {
-	res, err := doPost(ipfs.client, ipfs.apiURL(), path)
+	res, err := ipfs.doPost(ipfs.client, ipfs.apiURL(), path)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +769,7 @@ func (ipfs *Connector) post(path string) ([]byte, error) {
 // postDiscardBody makes a POST requests but discards the body
 // of the response directly after reading it.
 func (ipfs *Connector) postDiscardBody(path string) error {
-	res, err := doPost(ipfs.client, ipfs.apiURL(), path)
+	res, err := ipfs.doPost(ipfs.client, ipfs.apiURL(), path)
 	if err != nil {
 		return err
 	}
