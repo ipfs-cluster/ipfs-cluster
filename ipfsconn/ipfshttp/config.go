@@ -23,6 +23,7 @@ const (
 	DefaultProxyWriteTimeout      = 10 * time.Minute
 	DefaultProxyIdleTimeout       = 60 * time.Second
 	DefaultPinMethod              = "pin"
+	DefaultClientTimeout          = 10 * time.Second
 	DefaultClientPostTimeout      = 60 * time.Second
 )
 
@@ -61,6 +62,9 @@ type Config struct {
 	PinMethod string
 
 	// IPFS Daemon HTTP Client timeout
+	ClientTimeout time.Duration
+
+	// IPFS Daemon HTTP Client POST timeout
 	ClientPostTimeout time.Duration
 }
 
@@ -73,6 +77,7 @@ type jsonConfig struct {
 	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
 	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
 	PinMethod               string `json:"pin_method"`
+	ClientTimeout           string `json:"client_timeout"`
 	ClientPostTimeout       string `json:"client_post_timeout"`
 }
 
@@ -93,6 +98,7 @@ func (cfg *Config) Default() error {
 	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
 	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
 	cfg.PinMethod = DefaultPinMethod
+	cfg.ClientTimeout = DefaultClientTimeout
 	cfg.ClientPostTimeout = DefaultClientPostTimeout
 
 	return nil
@@ -134,6 +140,10 @@ func (cfg *Config) Validate() error {
 		return errors.New("ipfshttp.pin_method invalid value")
 	}
 
+	if cfg.ClientTimeout < 0 {
+		return errors.New("ipfshttp.client_timeout invalid")
+	}
+
 	if cfg.ClientPostTimeout < 0 {
 		return errors.New("ipfshttp.client_post_timeout invalid")
 	}
@@ -171,6 +181,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		&config.DurationOpt{jcfg.ProxyWriteTimeout, &cfg.ProxyWriteTimeout, "proxy_write_timeout"},
 		&config.DurationOpt{jcfg.ProxyIdleTimeout, &cfg.ProxyIdleTimeout, "proxy_idle_timeout"},
 		&config.DurationOpt{jcfg.ConnectSwarmsDelay, &cfg.ConnectSwarmsDelay, "connect_swarms_delay"},
+		&config.DurationOpt{jcfg.ClientTimeout, &cfg.ClientTimeout, "client_timeout"},
 		&config.DurationOpt{jcfg.ClientPostTimeout, &cfg.ClientPostTimeout, "client_post_timeout"},
 	)
 	if err != nil {
@@ -202,6 +213,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
 	jcfg.PinMethod = cfg.PinMethod
+	jcfg.ClientTimeout = cfg.ClientTimeout.String()
 	jcfg.ClientPostTimeout = cfg.ClientPostTimeout.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)

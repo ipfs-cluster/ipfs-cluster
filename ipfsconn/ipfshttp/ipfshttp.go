@@ -138,7 +138,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	c := &http.Client{
-		Timeout: 0, // TODO: configurable?
+		Timeout: cfg.ClientTimeout,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
