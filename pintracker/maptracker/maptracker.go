@@ -74,7 +74,6 @@ func (mpt *MapPinTracker) pinWorker() {
 	for {
 		select {
 		case p := <-mpt.pinCh:
-			//TODO(ajl):
 			mpt.pin(p)
 		case <-mpt.ctx.Done():
 			return
