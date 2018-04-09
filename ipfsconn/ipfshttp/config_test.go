@@ -14,7 +14,8 @@ var cfgJSON = []byte(`
       "proxy_read_header_timeout": "5s",
       "proxy_write_timeout": "10m0s",
       "proxy_idle_timeout": "1m0s",
-      "pin_method": "pin"
+      "pin_method": "pin",
+      "client_post_timeout": "1m0s"
 }
 `)
 
