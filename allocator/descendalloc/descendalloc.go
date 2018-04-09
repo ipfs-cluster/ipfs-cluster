@@ -1,4 +1,4 @@
-// Package descendalloc implements an ipfscluster.util.Allocator returns
+// Package descendalloc implements an ipfscluster.PinAllocator returns
 // allocations based on sorting the metrics in descending order. Thus, peers
 // with largest metrics are first in the list. This allocator can be used with a
 // number of informers, as long as they provide a numeric metric value.

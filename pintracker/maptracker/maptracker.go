@@ -74,6 +74,7 @@ func (mpt *MapPinTracker) pinWorker() {
 	for {
 		select {
 		case p := <-mpt.pinCh:
+			//TODO(ajl):
 			mpt.pin(p)
 		case <-mpt.ctx.Done():
 			return
@@ -201,12 +202,13 @@ func (mpt *MapPinTracker) isRemote(c api.Pin) bool {
 func (mpt *MapPinTracker) pin(c api.Pin) error {
 	logger.Debugf("issuing pin call for %s", c.Cid)
 	mpt.set(c.Cid, api.TrackerStatusPinning)
-	err := mpt.rpcClient.Call("",
+	err := mpt.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSPin",
 		c.ToSerial(),
-		&struct{}{})
-
+		&struct{}{},
+	)
 	if err != nil {
 		mpt.setError(c.Cid, err)
 		return err
@@ -219,22 +221,24 @@ func (mpt *MapPinTracker) pin(c api.Pin) error {
 func (mpt *MapPinTracker) unpin(c api.Pin) error {
 	logger.Debugf("issuing unpin call for %s", c.Cid)
 	mpt.set(c.Cid, api.TrackerStatusUnpinning)
-	err := mpt.rpcClient.Call("",
+	err := mpt.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSUnpin",
 		c.ToSerial(),
-		&struct{}{})
-
+		&struct{}{},
+	)
 	if err != nil {
 		mpt.setError(c.Cid, err)
 		return err
 	}
+
 	mpt.set(c.Cid, api.TrackerStatusUnpinned)
 	return nil
 }
 
 // Track tells the MapPinTracker to start managing a Cid,
-// possibly trigerring Pin operations on the IPFS daemon.
+// possibly triggering Pin operations on the IPFS daemon.
 func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
 	if mpt.isRemote(c) {
@@ -301,11 +305,13 @@ func (mpt *MapPinTracker) StatusAll() []api.PinInfo {
 // the IPFS daemon.
 func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
 	var ips api.IPFSPinStatus
-	err := mpt.rpcClient.Call("",
+	err := mpt.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSPinLsCid",
 		api.PinCid(c).ToSerial(),
-		&ips)
+		&ips,
+	)
 	if err != nil {
 		mpt.setError(c, err)
 		return mpt.get(c), err
@@ -324,11 +330,13 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
 func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 	var ipsMap map[string]api.IPFSPinStatus
 	var pInfos []api.PinInfo
-	err := mpt.rpcClient.Call("",
+	err := mpt.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSPinLs",
 		"recursive",
-		&ipsMap)
+		&ipsMap,
+	)
 	if err != nil {
 		mpt.mux.Lock()
 		for k := range mpt.status {

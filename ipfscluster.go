@@ -119,10 +119,10 @@ type PinTracker interface {
 	// Sync makes sure that the Cid status reflect the real IPFS status.
 	// It returns the local status of the Cid.
 	Sync(*cid.Cid) (api.PinInfo, error)
-	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
-	Recover(*cid.Cid) (api.PinInfo, error)
 	// RecoverAll calls Recover() for all pins tracked.
 	RecoverAll() ([]api.PinInfo, error)
+	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
+	Recover(*cid.Cid) (api.PinInfo, error)
 }
 
 // Informer provides Metric information from a peer. The metrics produced by
@@ -142,7 +142,7 @@ type Informer interface {
 type PinAllocator interface {
 	Component
 	// Allocate returns the list of peers that should be assigned to
-	// Pin content in oder of preference (from the most preferred to the
+	// Pin content in order of preference (from the most preferred to the
 	// least). The "current" map contains valid metrics for peers
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
