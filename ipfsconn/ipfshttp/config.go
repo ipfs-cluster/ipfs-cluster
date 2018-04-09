@@ -23,6 +23,7 @@ const (
 	DefaultProxyWriteTimeout      = 10 * time.Minute
 	DefaultProxyIdleTimeout       = 60 * time.Second
 	DefaultPinMethod              = "pin"
+	DefaultClientPostTimeout      = 60 * time.Second
 )
 
 // Config is used to initialize a Connector and allows to customize
@@ -58,6 +59,9 @@ type Config struct {
 	// "refs -r" call followed by "pin/add". "refs" allows fetching in
 	// parallel but should be used with GC disabled.
 	PinMethod string
+
+	// IPFS Daemon HTTP Client timeout
+	ClientPostTimeout time.Duration
 }
 
 type jsonConfig struct {
@@ -69,6 +73,7 @@ type jsonConfig struct {
 	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
 	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
 	PinMethod               string `json:"pin_method"`
+	ClientPostTimeout       string `json:"client_post_timeout"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -88,6 +93,7 @@ func (cfg *Config) Default() error {
 	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
 	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
 	cfg.PinMethod = DefaultPinMethod
+	cfg.ClientPostTimeout = DefaultClientPostTimeout
 
 	return nil
 }
@@ -127,6 +133,10 @@ func (cfg *Config) Validate() error {
 	default:
 		return errors.New("ipfshttp.pin_method invalid value")
 	}
+
+	if cfg.ClientPostTimeout < 0 {
+		return errors.New("ipfshttp.client_post_timeout invalid")
+	}
 	return nil
 
 }
@@ -161,6 +171,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		&config.DurationOpt{jcfg.ProxyWriteTimeout, &cfg.ProxyWriteTimeout, "proxy_write_timeout"},
 		&config.DurationOpt{jcfg.ProxyIdleTimeout, &cfg.ProxyIdleTimeout, "proxy_idle_timeout"},
 		&config.DurationOpt{jcfg.ConnectSwarmsDelay, &cfg.ConnectSwarmsDelay, "connect_swarms_delay"},
+		&config.DurationOpt{jcfg.ClientPostTimeout, &cfg.ClientPostTimeout, "client_post_timeout"},
 	)
 	if err != nil {
 		return err
@@ -191,6 +202,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
 	jcfg.PinMethod = cfg.PinMethod
+	jcfg.ClientPostTimeout = cfg.ClientPostTimeout.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
