@@ -74,6 +74,7 @@ func (mpt *MapPinTracker) pinWorker() {
 	for {
 		select {
 		case p := <-mpt.pinCh:
+			mpt.set(p.Cid, api.TrackerStatusPinning)
 			mpt.pin(p)
 		case <-mpt.ctx.Done():
 			return
@@ -86,6 +87,7 @@ func (mpt *MapPinTracker) unpinWorker() {
 	for {
 		select {
 		case p := <-mpt.unpinCh:
+			mpt.set(p.Cid, api.TrackerStatusUnpinning)
 			mpt.unpin(p)
 		case <-mpt.ctx.Done():
 			return
@@ -248,7 +250,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		return nil
 	}
 
-	mpt.set(c.Cid, api.TrackerStatusPinning)
+	mpt.set(c.Cid, api.TrackerStatusPinQueued)
 	select {
 	case mpt.pinCh <- c:
 	default:
@@ -264,7 +266,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 // If the Cid is pinned locally, it will be unpinned.
 func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	logger.Debugf("untracking %s", c)
-	mpt.set(c, api.TrackerStatusUnpinning)
+	mpt.set(c, api.TrackerStatusUnpinQueued)
 	select {
 	case mpt.unpinCh <- api.PinCid(c):
 	default:
