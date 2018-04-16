@@ -49,6 +49,13 @@ test_expect_success IPFS,CLUSTER "wait for data to unpin from cluster with ctl w
     ipfs-cluster-ctl status "$cid" | grep -q -i "UNPINNED"
 '
 
+test_expect_success IPFS,CLUSTER "wait for data to pin to cluster with ctl" '
+    cid=`docker exec ipfs sh -c "dd if=/dev/urandom bs=1024 count=2048 | ipfs add -q"`
+    ipfs-cluster-ctl pin add "$cid" | grep -q -i "PINNING" &&
+    !(ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid") &&
+    ipfs-cluster-ctl pin rm "$cid" | grep -q -i "UNPINNED"
+'
+
 test_clean_ipfs
 test_clean_cluster
 
