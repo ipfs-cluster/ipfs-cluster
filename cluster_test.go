@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -51,28 +52,28 @@ func (ipfs *mockConnector) ID() (api.IPFSID, error) {
 	}, nil
 }
 
-func (ipfs *mockConnector) Pin(c *cid.Cid, b bool) error {
+func (ipfs *mockConnector) Pin(ctx context.Context, c *cid.Cid, b bool) error {
 	if ipfs.returnError {
 		return errors.New("")
 	}
 	return nil
 }
 
-func (ipfs *mockConnector) Unpin(c *cid.Cid) error {
+func (ipfs *mockConnector) Unpin(ctx context.Context, c *cid.Cid) error {
 	if ipfs.returnError {
 		return errors.New("")
 	}
 	return nil
 }
 
-func (ipfs *mockConnector) PinLsCid(c *cid.Cid) (api.IPFSPinStatus, error) {
+func (ipfs *mockConnector) PinLsCid(ctx context.Context, c *cid.Cid) (api.IPFSPinStatus, error) {
 	if ipfs.returnError {
 		return api.IPFSPinStatusError, errors.New("")
 	}
 	return api.IPFSPinStatusRecursive, nil
 }
 
-func (ipfs *mockConnector) PinLs(filter string) (map[string]api.IPFSPinStatus, error) {
+func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string]api.IPFSPinStatus, error) {
 	if ipfs.returnError {
 		return nil, errors.New("")
 	}
