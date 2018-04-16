@@ -9,6 +9,8 @@
 package ipfscluster
 
 import (
+	"context"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
@@ -70,10 +72,10 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID() (api.IPFSID, error)
-	Pin(*cid.Cid, bool) error
-	Unpin(*cid.Cid) error
-	PinLsCid(*cid.Cid) (api.IPFSPinStatus, error)
-	PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error)
+	Pin(context.Context, *cid.Cid, bool) error
+	Unpin(context.Context, *cid.Cid) error
+	PinLsCid(context.Context, *cid.Cid) (api.IPFSPinStatus, error)
+	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.
 	ConnectSwarms() error
