@@ -607,8 +607,8 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(hash *cid.Cid, recursive bool) error {
-	pinStatus, err := ipfs.PinLsCid(hash)
+func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) error {
+	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
@@ -636,8 +636,8 @@ func (ipfs *Connector) Pin(hash *cid.Cid, recursive bool) error {
 
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Unpin(hash *cid.Cid) error {
-	pinStatus, err := ipfs.PinLsCid(hash)
+func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
+	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
@@ -656,7 +656,7 @@ func (ipfs *Connector) Unpin(hash *cid.Cid) error {
 
 // PinLs performs a "pin ls --type typeFilter" request against the configured
 // IPFS daemon and returns a map of cid strings and their status.
-func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, error) {
+func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error) {
 	body, err := ipfs.post("pin/ls?type=" + typeFilter)
 
 	// Some error talking to the daemon
@@ -681,7 +681,7 @@ func (ipfs *Connector) PinLs(typeFilter string) (map[string]api.IPFSPinStatus, e
 
 // PinLsCid performs a "pin ls --type=recursive <hash> "request and returns
 // an api.IPFSPinStatus for that hash.
-func (ipfs *Connector) PinLsCid(hash *cid.Cid) (api.IPFSPinStatus, error) {
+func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPinStatus, error) {
 	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=recursive", hash)
 	body, err := ipfs.post(lsPath)
 
