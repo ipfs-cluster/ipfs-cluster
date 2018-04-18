@@ -4,13 +4,13 @@ package maptracker
 
 import "strconv"
 
-const _Operation_name = "OperationUnknownOperationPinOperationUnpinOperationSyncOperationRecover"
+const _operation_name = "operationUnknownoperationPinoperationUnpinoperationSyncoperationRecover"
 
-var _Operation_index = [...]uint8{0, 16, 28, 42, 55, 71}
+var _operation_index = [...]uint8{0, 16, 28, 42, 55, 71}
 
 func (i operation) String() string {
-	if i < 0 || i >= operation(len(_Operation_index)-1) {
+	if i < 0 || i >= operation(len(_operation_index)-1) {
 		return "operation(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Operation_name[_Operation_index[i]:_Operation_index[i+1]]
+	return _operation_name[_operation_index[i]:_operation_index[i+1]]
 }
