@@ -138,7 +138,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	c := &http.Client{
-		Timeout: cfg.ClientTimeout,
+		Timeout: cfg.ClientPostTimeout,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -608,6 +608,8 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 // Pin performs a pin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) error {
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
+	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
@@ -616,7 +618,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) e
 		switch ipfs.config.PinMethod {
 		case "refs":
 			path := fmt.Sprintf("refs?arg=%s&recursive=%t", hash, recursive)
-			err := ipfs.postDiscardBody(path)
+			err := ipfs.postDiscardBodyCtx(ctx, path)
 			if err != nil {
 				return err
 			}
@@ -624,7 +626,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) e
 		}
 
 		path := fmt.Sprintf("pin/add?arg=%s&recursive=%t", hash, recursive)
-		_, err = ipfs.post(path)
+		_, err = ipfs.postCtx(ctx, path)
 		if err == nil {
 			logger.Info("IPFS Pin request succeeded: ", hash)
 		}
@@ -637,13 +639,15 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) e
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
+	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
 	if pinStatus.IsPinned() {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
-		_, err := ipfs.post(path)
+		_, err := ipfs.postCtx(ctx, path)
 		if err == nil {
 			logger.Info("IPFS Unpin request succeeded:", hash)
 		}
@@ -711,13 +715,12 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPin
 }
 
 func (ipfs *Connector) doPost(client *http.Client, apiURL, path string) (*http.Response, error) {
+	return ipfs.doPostCtx(ipfs.ctx, client, apiURL, path)
+}
+
+func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string) (*http.Response, error) {
 	logger.Debugf("posting %s", path)
 	urlstr := fmt.Sprintf("%s/%s", apiURL, path)
-
-	ctx, cancel := context.WithCancel(ipfs.ctx)
-	time.AfterFunc(ipfs.config.ClientPostTimeout, func() {
-		cancel()
-	})
 
 	req, err := http.NewRequest("POST", urlstr, nil)
 	if err != nil {
@@ -753,7 +756,11 @@ func checkResponse(path string, code int, body []byte) error {
 // the ipfs daemon, reads the full body of the response and
 // returns it after checking for errors.
 func (ipfs *Connector) post(path string) ([]byte, error) {
-	res, err := ipfs.doPost(ipfs.client, ipfs.apiURL(), path)
+	return ipfs.postCtx(ipfs.ctx, path)
+}
+
+func (ipfs *Connector) postCtx(ctx context.Context, path string) ([]byte, error) {
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path)
 	if err != nil {
 		return nil, err
 	}
@@ -769,7 +776,11 @@ func (ipfs *Connector) post(path string) ([]byte, error) {
 // postDiscardBody makes a POST requests but discards the body
 // of the response directly after reading it.
 func (ipfs *Connector) postDiscardBody(path string) error {
-	res, err := ipfs.doPost(ipfs.client, ipfs.apiURL(), path)
+	return ipfs.postDiscardBodyCtx(ipfs.ctx, path)
+}
+
+func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) error {
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path)
 	if err != nil {
 		return err
 	}
