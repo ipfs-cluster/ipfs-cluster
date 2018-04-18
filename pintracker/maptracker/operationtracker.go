@@ -78,7 +78,7 @@ func (opt *operationTracker) cancelOperation(c *cid.Cid) {
 	}
 	opc.cancel()
 	logger.Infof("operation '%s' on cid '%s' has been cancelled", opc.op.String(), c.String())
-	delete(opt.operations, c.String())
+	opt.remove(c)
 	logger.Infof("operation '%s' on cid '%s' has been deleted", opc.op.String(), c.String())
 }
 
@@ -94,18 +94,24 @@ func (opt *operationTracker) updateOperationPhase(c *cid.Cid, p phase) {
 }
 
 func (opt *operationTracker) operationComplete(c *cid.Cid) {
-	delete(opt.operations, c.String())
+	opt.remove(c)
 }
 
 func (opt *operationTracker) set(oc operationCtx) {
 	opt.mu.Lock()
-	defer opt.mu.Unlock()
 	opt.operations[oc.cid.String()] = oc
+	opt.mu.Unlock()
 }
 
 func (opt *operationTracker) get(c *cid.Cid) (operationCtx, bool) {
 	opt.mu.RLock()
-	defer opt.mu.RUnlock()
 	opc, ok := opt.operations[c.String()]
+	opt.mu.RUnlock()
 	return opc, ok
+}
+
+func (opt *operationTracker) remove(c *cid.Cid) {
+	opt.mu.Lock()
+	delete(opt.operations, c.String())
+	opt.mu.Unlock()
 }

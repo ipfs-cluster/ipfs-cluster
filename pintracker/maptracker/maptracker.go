@@ -77,8 +77,10 @@ func (mpt *MapPinTracker) pinWorker() {
 	for {
 		select {
 		case p := <-mpt.pinCh:
-			mpt.optracker.updateOperationPhase(p.Cid, phaseInProgress)
-			mpt.pin(p)
+			if opc, ok := mpt.optracker.get(p.Cid); ok && opc.op == operationPin {
+				mpt.optracker.updateOperationPhase(p.Cid, phaseInProgress)
+				mpt.pin(p)
+			}
 		case <-mpt.ctx.Done():
 			return
 		}
@@ -90,8 +92,10 @@ func (mpt *MapPinTracker) unpinWorker() {
 	for {
 		select {
 		case p := <-mpt.unpinCh:
-			mpt.optracker.updateOperationPhase(p.Cid, phaseInProgress)
-			mpt.unpin(p)
+			if opc, ok := mpt.optracker.get(p.Cid); ok && opc.op == operationUnpin {
+				mpt.optracker.updateOperationPhase(p.Cid, phaseInProgress)
+				mpt.unpin(p)
+			}
 		case <-mpt.ctx.Done():
 			return
 		}
