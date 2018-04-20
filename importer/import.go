@@ -10,6 +10,13 @@ import (
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 )
 
+func shouldIgnore(err error) bool {
+	if strings.Contains(err.Error(), "dagservice: block not found") {
+		return true
+	}
+	return false
+}
+
 // ToChannel imports file to ipfs ipld nodes, outputting nodes on the
 // provided channel
 func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
@@ -67,7 +74,7 @@ func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
 		}
 
 		_, err := fileAdder.Finalize()
-		if err != nil && !strings.Contains(err.Error(), "dagservice: block not found") {
+		if err != nil && !shouldIgnore(err) {
 			errChan <- err
 		}
 	}()

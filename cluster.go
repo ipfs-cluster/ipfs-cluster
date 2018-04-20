@@ -1041,9 +1041,6 @@ func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
 		if pin.Recursive {
 			return errors.New("must pin roots directly")
 		}
-		if pin.Clusterdag == nil {
-			return errors.New("roots must reference a dag")
-		}
 		if pin.Parents.Len() > 1 {
 			return errors.New("cdag nodes are referenced once")
 		}
@@ -1051,6 +1048,10 @@ func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
 		if len(pin.Allocations) != 0 {
 			return errors.New("meta pin should not specify allocations")
 		}
+		if pin.Clusterdag == nil {
+			return errors.New("roots must reference a dag")
+		}
+
 	default:
 		return errors.New("unrecognized pin type")
 	}

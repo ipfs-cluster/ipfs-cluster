@@ -196,7 +196,9 @@ func (c *Client) AddMultiFile(
 	fmtStr3 := "repl_min=%d&repl_max=%d"
 	url := fmt.Sprintf(fmtStr1+fmtStr2+fmtStr3, shard, quiet, silent, layout, chunker,
 		raw, wrap, progress, hidden, replMin, replMax)
-	return c.doStream("POST", url, multiFileR, headers, nil)
+	output := make([]api.AddedOutput, 0)
+	err := c.doStream("POST", url, multiFileR, headers, &output)
+	return output, err
 }
 
 // Eventually an Add(io.Reader) method for adding raw readers as a multifile should be here.
