@@ -99,7 +99,6 @@ func NewIpfsMock() *IpfsMock {
 func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	endp := strings.TrimPrefix(p, "/api/v0/")
-	var cidStr string
 	switch endp {
 	case "id":
 		resp := mockIDResp{
@@ -138,45 +137,40 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "pin/add":
-		query := r.URL.Query()
-		arg, ok := query["arg"]
-		if !ok || len(arg) != 1 {
+		arg, ok := extractCid(r.URL)
+		if !ok {
 			goto ERROR
 		}
-		cidStr = arg[0]
-		if cidStr == ErrorCid {
+		if arg == ErrorCid {
 			goto ERROR
 		}
-		c, err := cid.Decode(cidStr)
+		c, err := cid.Decode(arg)
 		if err != nil {
 			goto ERROR
 		}
 		m.pinMap.Add(api.PinCid(c))
 		resp := mockPinResp{
-			Pins: []string{cidStr},
+			Pins: []string{arg},
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "pin/rm":
-		query := r.URL.Query()
-		arg, ok := query["arg"]
-		if !ok || len(arg) != 1 {
+		arg, ok := extractCid(r.URL)
+		if !ok {
 			goto ERROR
 		}
-		cidStr = arg[0]
-		c, err := cid.Decode(cidStr)
+		c, err := cid.Decode(arg)
 		if err != nil {
 			goto ERROR
 		}
 		m.pinMap.Rm(c)
 		resp := mockPinResp{
-			Pins: []string{cidStr},
+			Pins: []string{arg},
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "pin/ls":
-		query := r.URL.Query()
-		arg, ok := query["arg"]
+		arg, ok := extractCid(r.URL)
 		if !ok {
 			rMap := make(map[string]mockPinType)
 			pins := m.pinMap.List()
@@ -187,11 +181,8 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			w.Write(j)
 			break
 		}
-		if len(arg) != 1 {
-			goto ERROR
-		}
-		cidStr = arg[0]
 
+		cidStr := arg
 		c, err := cid.Decode(cidStr)
 		if err != nil {
 			goto ERROR
@@ -209,12 +200,11 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			w.Write(j)
 		}
 	case "swarm/connect":
-		query := r.URL.Query()
-		arg, ok := query["arg"]
+		arg, ok := extractCid(r.URL)
 		if !ok {
 			goto ERROR
 		}
-		addr := arg[0]
+		addr := arg
 		splits := strings.Split(addr, "/")
 		pid := splits[len(splits)-1]
 		resp := struct {
@@ -256,13 +246,12 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "refs":
-		query := r.URL.Query()
-		arg, ok := query["arg"]
+		arg, ok := extractCid(r.URL)
 		if !ok {
 			goto ERROR
 		}
 		resp := mockRefsResp{
-			Ref: arg[0],
+			Ref: arg,
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
@@ -280,4 +269,21 @@ ERROR:
 // the listeners are left hanging around.
 func (m *IpfsMock) Close() {
 	m.server.Close()
+}
+
+// extractCid extracts the cid argument from a url.URL, either via
+// the query string parameters or from the url path itself.
+func extractCid(u *url.URL) (string, bool) {
+	arg := u.Query().Get("arg")
+	if arg != "" {
+		return arg, true
+	}
+
+	p := strings.TrimPrefix(u.Path, "/api/v0/")
+	segs := strings.Split(p, "/")
+
+	if len(segs) > 2 {
+		return segs[len(segs)-1], true
+	}
+	return "", false
 }

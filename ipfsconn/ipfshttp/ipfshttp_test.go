@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
-
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/test"
 )
 
 func init() {
@@ -199,48 +199,100 @@ func TestIPFSProxyPin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	res, err := http.Post(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.TestCid1), "", nil)
-	if err != nil {
-		t.Fatal("should have succeeded: ", err)
+	type args struct {
+		urlPath    string
+		testCid    string
+		statusCode int
 	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		t.Error("the request should have succeeded")
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			"pin good cid query arg",
+			args{
+				"/pin/add?arg=",
+				test.TestCid1,
+				http.StatusOK,
+			},
+			test.TestCid1,
+			false,
+		},
+		{
+			"pin good cid url arg",
+			args{
+				"/pin/add/",
+				test.TestCid1,
+				http.StatusOK,
+			},
+			test.TestCid1,
+			false,
+		},
+		{
+			"pin bad cid query arg",
+			args{
+				"/pin/add?arg=",
+				test.ErrorCid,
+				http.StatusInternalServerError,
+			},
+			"",
+			true,
+		},
+		{
+			"pin bad cid url arg",
+			args{
+				"/pin/add/",
+				test.ErrorCid,
+				http.StatusInternalServerError,
+			},
+			"",
+			true,
+		},
 	}
-	resBytes, _ := ioutil.ReadAll(res.Body)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := fmt.Sprintf("%s%s%s", proxyURL(ipfs), tt.args.urlPath, tt.args.testCid)
+			res, err := http.Post(u, "", nil)
+			if err != nil {
+				t.Fatal("should have succeeded: ", err)
+			}
+			defer res.Body.Close()
 
-	var resp ipfsPinOpResp
-	err = json.Unmarshal(resBytes, &resp)
-	if err != nil {
-		t.Fatal(err)
-	}
+			if res.StatusCode != tt.args.statusCode {
+				t.Errorf("statusCode: got = %v, want %v", res.StatusCode, tt.args.statusCode)
+			}
 
-	if len(resp.Pins) != 1 || resp.Pins[0] != test.TestCid1 {
-		t.Error("wrong response")
-	}
+			resBytes, _ := ioutil.ReadAll(res.Body)
 
-	// Try with a bad cid
-	res2, err := http.Post(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid), "", nil)
-	if err != nil {
-		t.Fatal("request should work: ", err)
-	}
-	defer res2.Body.Close()
+			switch tt.wantErr {
+			case false:
+				var resp ipfsPinOpResp
+				err = json.Unmarshal(resBytes, &resp)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	t.Log(fmt.Sprintf("%s/pin/add?arg=%s", proxyURL(ipfs), test.ErrorCid))
-	if res2.StatusCode != http.StatusInternalServerError {
-		t.Error("the request should return with InternalServerError")
-	}
+				if len(resp.Pins) != 1 {
+					t.Fatalf("wrong number of pins: got = %d, want %d", len(resp.Pins), 1)
+				}
 
-	resBytes, _ = ioutil.ReadAll(res2.Body)
-	var respErr ipfsError
-	err = json.Unmarshal(resBytes, &respErr)
-	if err != nil {
-		t.Fatal(err)
-	}
+				if resp.Pins[0] != tt.want {
+					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
+				}
+			case true:
+				var respErr ipfsError
+				err = json.Unmarshal(resBytes, &respErr)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	if respErr.Message != test.ErrBadCid.Error() {
-		t.Error("wrong response")
+				if respErr.Message != test.ErrBadCid.Error() {
+					t.Errorf("wrong response: got = %s, want = %s", respErr.Message, test.ErrBadCid.Error())
+				}
+			}
+		})
 	}
 }
 
@@ -249,48 +301,100 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	res, err := http.Post(fmt.Sprintf("%s/pin/rm?arg=%s", proxyURL(ipfs), test.TestCid1), "", nil)
-	if err != nil {
-		t.Fatal("should have succeeded: ", err)
+	type args struct {
+		urlPath    string
+		testCid    string
+		statusCode int
 	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		t.Error("the request should have succeeded")
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			"unpin good cid query arg",
+			args{
+				"/pin/rm?arg=",
+				test.TestCid1,
+				http.StatusOK,
+			},
+			test.TestCid1,
+			false,
+		},
+		{
+			"unpin good cid url arg",
+			args{
+				"/pin/rm/",
+				test.TestCid1,
+				http.StatusOK,
+			},
+			test.TestCid1,
+			false,
+		},
+		{
+			"unpin bad cid query arg",
+			args{
+				"/pin/rm?arg=",
+				test.ErrorCid,
+				http.StatusInternalServerError,
+			},
+			"",
+			true,
+		},
+		{
+			"unpin bad cid url arg",
+			args{
+				"/pin/rm/",
+				test.ErrorCid,
+				http.StatusInternalServerError,
+			},
+			"",
+			true,
+		},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := fmt.Sprintf("%s%s%s", proxyURL(ipfs), tt.args.urlPath, tt.args.testCid)
+			res, err := http.Post(u, "", nil)
+			if err != nil {
+				t.Fatal("should have succeeded: ", err)
+			}
+			defer res.Body.Close()
 
-	resBytes, _ := ioutil.ReadAll(res.Body)
+			if res.StatusCode != tt.args.statusCode {
+				t.Errorf("statusCode: got = %v, want %v", res.StatusCode, tt.args.statusCode)
+			}
 
-	var resp ipfsPinOpResp
-	err = json.Unmarshal(resBytes, &resp)
-	if err != nil {
-		t.Fatal(err)
-	}
+			resBytes, _ := ioutil.ReadAll(res.Body)
 
-	if len(resp.Pins) != 1 || resp.Pins[0] != test.TestCid1 {
-		t.Error("wrong response")
-	}
+			switch tt.wantErr {
+			case false:
+				var resp ipfsPinOpResp
+				err = json.Unmarshal(resBytes, &resp)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	// Try with a bad cid
-	res2, err := http.Post(fmt.Sprintf("%s/pin/rm?arg=%s", proxyURL(ipfs), test.ErrorCid), "", nil)
-	if err != nil {
-		t.Fatal("request should work: ", err)
-	}
-	defer res2.Body.Close()
+				if len(resp.Pins) != 1 {
+					t.Fatalf("wrong number of pins: got = %d, want %d", len(resp.Pins), 1)
+				}
 
-	if res2.StatusCode != http.StatusInternalServerError {
-		t.Error("the request should return with InternalServerError")
-	}
+				if resp.Pins[0] != tt.want {
+					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
+				}
+			case true:
+				var respErr ipfsError
+				err = json.Unmarshal(resBytes, &respErr)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	resBytes, _ = ioutil.ReadAll(res2.Body)
-	var respErr ipfsError
-	err = json.Unmarshal(resBytes, &respErr)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if respErr.Message != test.ErrBadCid.Error() {
-		t.Error("wrong response")
+				if respErr.Message != test.ErrBadCid.Error() {
+					t.Errorf("wrong response: got = %s, want = %s", respErr.Message, test.ErrBadCid.Error())
+				}
+			}
+		})
 	}
 }
 
@@ -299,55 +403,84 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(ipfs), test.TestCid1), "", nil)
-	if err != nil {
-		t.Fatal("should have succeeded: ", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		t.Error("the request should have succeeded")
-	}
+	t.Run("pin/ls query arg", func(t *testing.T) {
+		res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(ipfs), test.TestCid1), "", nil)
+		if err != nil {
+			t.Fatal("should have succeeded: ", err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Error("the request should have succeeded")
+		}
 
-	resBytes, _ := ioutil.ReadAll(res.Body)
+		resBytes, _ := ioutil.ReadAll(res.Body)
+		var resp ipfsPinLsResp
+		err = json.Unmarshal(resBytes, &resp)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	var resp ipfsPinLsResp
-	err = json.Unmarshal(resBytes, &resp)
-	if err != nil {
-		t.Fatal(err)
-	}
+		_, ok := resp.Keys[test.TestCid1]
+		if len(resp.Keys) != 1 || !ok {
+			t.Error("wrong response")
+		}
+	})
 
-	_, ok := resp.Keys[test.TestCid1]
-	if len(resp.Keys) != 1 || !ok {
-		t.Error("wrong response")
-	}
+	t.Run("pin/ls url arg", func(t *testing.T) {
+		res, err := http.Post(fmt.Sprintf("%s/pin/ls/%s", proxyURL(ipfs), test.TestCid1), "", nil)
+		if err != nil {
+			t.Fatal("should have succeeded: ", err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Error("the request should have succeeded")
+		}
 
-	res2, err := http.Post(fmt.Sprintf("%s/pin/ls", proxyURL(ipfs)), "", nil)
-	if err != nil {
-		t.Fatal("should have succeeded: ", err)
-	}
-	defer res2.Body.Close()
-	if res2.StatusCode != http.StatusOK {
-		t.Error("the request should have succeeded")
-	}
+		resBytes, _ := ioutil.ReadAll(res.Body)
+		var resp ipfsPinLsResp
+		err = json.Unmarshal(resBytes, &resp)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	resBytes, _ = ioutil.ReadAll(res2.Body)
-	err = json.Unmarshal(resBytes, &resp)
-	if err != nil {
-		t.Fatal(err)
-	}
+		_, ok := resp.Keys[test.TestCid1]
+		if len(resp.Keys) != 1 || !ok {
+			t.Error("wrong response")
+		}
+	})
 
-	if len(resp.Keys) != 3 {
-		t.Error("wrong response")
-	}
+	t.Run("pin/ls all no arg", func(t *testing.T) {
+		res2, err := http.Post(fmt.Sprintf("%s/pin/ls", proxyURL(ipfs)), "", nil)
+		if err != nil {
+			t.Fatal("should have succeeded: ", err)
+		}
+		defer res2.Body.Close()
+		if res2.StatusCode != http.StatusOK {
+			t.Error("the request should have succeeded")
+		}
 
-	res3, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(ipfs), test.ErrorCid), "", nil)
-	if err != nil {
-		t.Fatal("should have succeeded: ", err)
-	}
-	defer res3.Body.Close()
-	if res3.StatusCode != http.StatusInternalServerError {
-		t.Error("the request should have failed")
-	}
+		resBytes, _ := ioutil.ReadAll(res2.Body)
+		var resp ipfsPinLsResp
+		err = json.Unmarshal(resBytes, &resp)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(resp.Keys) != 3 {
+			t.Error("wrong response")
+		}
+	})
+
+	t.Run("pin/ls bad cid query arg", func(t *testing.T) {
+		res3, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(ipfs), test.ErrorCid), "", nil)
+		if err != nil {
+			t.Fatal("should have succeeded: ", err)
+		}
+		defer res3.Body.Close()
+		if res3.StatusCode != http.StatusInternalServerError {
+			t.Error("the request should have failed")
+		}
+	})
 }
 
 func TestProxyAdd(t *testing.T) {
@@ -388,42 +521,44 @@ func TestProxyAdd(t *testing.T) {
 	}
 
 	for i := 0; i < len(urlQueries); i++ {
-		res, err := http.DefaultClient.Do(reqs[i])
-		if err != nil {
-			t.Fatal("should have succeeded: ", err)
-		}
-		defer res.Body.Close()
-		if res.StatusCode != http.StatusOK {
-			t.Fatal("Bad response status")
-		}
-
-		var hash ipfsAddResp
-
-		// We might return a progress notification, so we do it
-		// like this to ignore it easily
-		dec := json.NewDecoder(res.Body)
-		for dec.More() {
-			var resp ipfsAddResp
-			err := dec.Decode(&resp)
+		t.Run(urlQueries[i], func(t *testing.T) {
+			res, err := http.DefaultClient.Do(reqs[i])
 			if err != nil {
-				t.Fatal(err)
+				t.Fatal("should have succeeded: ", err)
+			}
+			defer res.Body.Close()
+			if res.StatusCode != http.StatusOK {
+				t.Fatalf("Bad response status: got = %d, want = %d", res.StatusCode, http.StatusOK)
 			}
 
-			if resp.Bytes != 0 {
-				continue
-			} else {
-				hash = resp
-			}
-		}
+			var hash ipfsAddResp
 
-		if hash.Hash != test.TestCid3 {
-			t.Logf("%+v", hash)
-			t.Error("expected TestCid1 as it is hardcoded in ipfs mock")
-		}
-		if hash.Name != "testfile" {
-			t.Logf("%+v", hash)
-			t.Error("expected testfile for hash name")
-		}
+			// We might return a progress notification, so we do it
+			// like this to ignore it easily
+			dec := json.NewDecoder(res.Body)
+			for dec.More() {
+				var resp ipfsAddResp
+				err := dec.Decode(&resp)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if resp.Bytes != 0 {
+					continue
+				} else {
+					hash = resp
+				}
+			}
+
+			if hash.Hash != test.TestCid3 {
+				t.Logf("%+v", hash)
+				t.Error("expected TestCid1 as it is hardcoded in ipfs mock")
+			}
+			if hash.Name != "testfile" {
+				t.Logf("%+v", hash)
+				t.Error("expected testfile for hash name")
+			}
+		})
 	}
 }
 
@@ -437,8 +572,7 @@ func TestProxyAddError(t *testing.T) {
 	}
 	res.Body.Close()
 	if res.StatusCode != http.StatusInternalServerError {
-		t.Log(res.StatusCode)
-		t.Error("expected an error")
+		t.Errorf("wrong status code: got = %d, want = %d", res.StatusCode, http.StatusInternalServerError)
 	}
 }
 
@@ -633,4 +767,73 @@ func TestConfigKey(t *testing.T) {
 func proxyURL(c *Connector) string {
 	addr := c.listener.Addr()
 	return fmt.Sprintf("http://%s/api/v0", addr.String())
+}
+
+func Test_extractArgument(t *testing.T) {
+	type args struct {
+		handlePath string
+		u          *url.URL
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  string
+		want1 bool
+	}{
+		{
+			"pin/add url arg",
+			args{
+				"add",
+				mustParseURL(fmt.Sprintf("/api/v0/pin/add/%s", test.TestCid1)),
+			},
+			test.TestCid1,
+			true,
+		},
+		{
+			"pin/add query arg",
+			args{
+				"add",
+				mustParseURL(fmt.Sprintf("/api/v0/pin/add?arg=%s", test.TestCid1)),
+			},
+			test.TestCid1,
+			true,
+		},
+		{
+			"pin/ls url arg",
+			args{
+				"pin/ls",
+				mustParseURL(fmt.Sprintf("/api/v0/pin/ls/%s", test.TestCid1)),
+			},
+			test.TestCid1,
+			true,
+		},
+		{
+			"pin/ls query arg",
+			args{
+				"pin/ls",
+				mustParseURL(fmt.Sprintf("/api/v0/pin/ls?arg=%s", test.TestCid1)),
+			},
+			test.TestCid1,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := extractArgument(tt.args.u)
+			if got != tt.want {
+				t.Errorf("extractCid() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("extractCid() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func mustParseURL(rawurl string) *url.URL {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }
