@@ -32,9 +32,6 @@ var cids = [18]string{"QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
 	"QmUwG2mfhhfBEzVtvyEvva1kc8kU4CrXphdMCdAiFNWdxy",
 	"QmRgkP4x7tXW9PyiPPxe3aqALQEs22nifkwzrm7wickdfr",
 	"QmNpCHs9zrzP4aArBzRQgjNSbMC5hYqJa1ksmbyorSu44b",
-	"QmQbg4sHm4zVHnqCS14YzNnQFVMqjZpu5XjkF7vtbzqkFW",
-	"QmcUBApwNSDg2Q2J4NXzks1HewVGFohNpPyEud7bZfo5tE",
-	"QmaKaB735eydQwnaJNuYbXRU1gVb4MJdzHp1rpUZJN67G6",
 	"QmQ6n82dRtEJVHMDLW5BSrJ6bRDXkFXj2i7Vjxy4B2PH82",
 	"QmPZLJ3CZYgxH4K1w5jdbAdxJynXn5TCB4kHy7u8uHC3fy",
 	"QmUqmcdJJodX7mPoUv9u71HoNAiegBCiCqdUZd5ZrCyLbs",
@@ -43,10 +40,15 @@ var cids = [18]string{"QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
 	"QmaytnNarHzDp1ipGyC7zd7Hw2AePmtSpLLaygQ2e9Yvqe",
 	"QmZwab9h6ADw3tv8pzXVF2yndgJpTWKrrMjJQqRkgYmCRH",
 	"QmaNfMZDZjfqjHrFCc6tZwmkqbXs1fnY9AXZ81WUztFeXm",
-	"QmY4qt6WG12qYwWeeTNhggqaNMJWp2NouuTSf79ukoobw8"}
+	// Hashes that are not printed out (chunks of files and wrapper dir)
+	"QmY4qt6WG12qYwWeeTNhggqaNMJWp2NouuTSf79ukoobw8",
+	"QmQbg4sHm4zVHnqCS14YzNnQFVMqjZpu5XjkF7vtbzqkFW",
+	"QmcUBApwNSDg2Q2J4NXzks1HewVGFohNpPyEud7bZfo5tE",
+	"QmaKaB735eydQwnaJNuYbXRU1gVb4MJdzHp1rpUZJN67G6",
+}
 
 // import and receive all blocks
-func TestToChannel(t *testing.T) {
+func TestToChannelOutput(t *testing.T) {
 	file, err := getTestingDir()
 	if err != nil {
 		t.Fatal(err)
@@ -85,6 +87,55 @@ func TestToChannel(t *testing.T) {
 		check[cid] = struct{}{}
 	}
 	if len(check) != len(cids) {
+		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, cids)
+	}
+	cidsS := cids[:]
+	for cid := range check {
+		if !contains(cidsS, cid) {
+			t.Fatalf("Unexpected cid: %s", cid)
+		}
+	}
+}
+
+func TestToChannelPrint(t *testing.T) {
+	file, err := getTestingDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	printChan, outChan, errChan := ToChannel(context.Background(), file,
+		false, false, false, false, false, false, "")
+
+	go func() { // listen on outChan so progress can be made
+		for {
+			_, ok := <-outChan
+			if !ok {
+				// channel closed, safe to exit
+				return
+			}
+		}
+	}()
+
+	go func() { // listen for errors
+		for {
+			err, ok := <-errChan
+			if !ok {
+				// channel closed, safe to exit
+				return
+			}
+			t.Fatal(err)
+		}
+	}()
+
+	check := make(map[string]struct{})
+	for obj := range printChan {
+		cid := obj.Hash
+		if _, ok := check[cid]; ok {
+			t.Fatalf("Duplicate cid %s", cid)
+		}
+		check[cid] = struct{}{}
+	}
+	if len(check) != len(cids[:14]) {
 		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, cids)
 	}
 	cidsS := cids[:]

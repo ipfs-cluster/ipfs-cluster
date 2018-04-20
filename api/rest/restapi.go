@@ -22,14 +22,12 @@ import (
 	"time"
 
 	types "github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/importer"
 
 	mux "github.com/gorilla/mux"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
@@ -666,87 +664,35 @@ func (api *API) consumeImport(ctx context.Context,
 	return enc.Encode(types.Error{Code: 2, Message: "success"})
 }
 
-// Get a random string of length n.  Used to generate sharding id
-func randStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
-
 func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	mediatype, _, _ := mime.ParseMediaType(contentType)
-	var f files.File
-	if mediatype == "multipart/form-data" {
-		reader, err := r.MultipartReader()
-		if err != nil {
-			sendErrorResponse(w, 400, err.Error())
-			return
-		}
 
-		f = &files.MultipartFile{
-			Mediatype: mediatype,
-			Reader:    reader,
-		}
-	} else {
+	if mediatype != "multipart/form-data" {
 		sendErrorResponse(w, 415, "unsupported media type")
 		return
 	}
-
-	ctx, cancel := context.WithCancel(api.ctx)
-	defer cancel()
+	reader, err := r.MultipartReader()
+	if err != nil {
+		sendErrorResponse(w, 400, err.Error())
+		return
+	}
 
 	queryValues := r.URL.Query()
-	layout := queryValues.Get("layout")
-	trickle := false
-	if layout == "trickle" {
-		trickle = true
+	fI := types.FileInfo{
+		Reader: reader,
+		Params: queryValues,
 	}
-	chunker := queryValues.Get("chunker")
-	raw, _ := strconv.ParseBool(queryValues.Get("raw"))
-	wrap, _ := strconv.ParseBool(queryValues.Get("wrap"))
-	progress, _ := strconv.ParseBool(queryValues.Get("progress"))
-	hidden, _ := strconv.ParseBool(queryValues.Get("hidden"))
-	silent, _ := strconv.ParseBool(queryValues.Get("silent")) // just print root hash
-	printChan, outChan, errChan := importer.ToChannel(ctx, f, progress,
-		hidden, trickle, raw, silent, wrap, chunker)
-
-	shard := queryValues.Get("shard")
-	//	quiet := queryValues.Get("quiet") // just print hashes, no meta data
-	replMin, _ := strconv.Atoi(queryValues.Get("repl_min"))
-	replMax, _ := strconv.Atoi(queryValues.Get("repl_max"))
-
-	if shard == "true" {
-		if err := api.consumeImport(
-			ctx,
-			outChan,
-			printChan,
-			errChan,
-			w,
-			api.consumeShardAdd,
-			api.finishShardAdd,
-			replMin,
-			replMax,
-		); err != nil {
-			panic(err)
-		}
-	} else {
-		if err := api.consumeImport(
-			ctx,
-			outChan,
-			printChan,
-			errChan,
-			w,
-			api.consumeLocalAdd,
-			api.finishLocalAdd,
-			replMin,
-			replMax,
-		); err != nil {
-			panic(err)
-		}
+	var toPrint []types.AddedOutput
+	err = api.rpcClient.Call("",
+		"Cluster",
+		"AddFile",
+		fI,
+		&toPrint)
+	if err != nil {
+		sendErrorResponse(w, 500, err.Error())
 	}
+	sendJSONResponse(w, 200, toPrint)
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
@@ -845,13 +791,14 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&pins,
 	)
-	for i, pinS := range pins {
-		if api.filterOutPin(filter, pinS.ToPin()) {
-			// remove this pin from output
-			pins = append(pins[:i], pins[i+1:]...)
+	outPins := make([]types.PinSerial, 0)
+	for _, pinS := range pins {
+		if !api.filterOutPin(filter, pinS.ToPin()) {
+			// add this pin to output
+			outPins = append(outPins, pinS)
 		}
 	}
-	sendResponse(w, err, pins)
+	sendResponse(w, err, outPins)
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {

@@ -173,11 +173,11 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	fmt.Printf("%s | %s | ", obj.Cid, obj.Name)
 
 	if obj.ReplicationFactorMin < 0 {
-		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]\n")
+		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
 	} else {
 		var sortAlloc sort.StringSlice = obj.Allocations
 		sortAlloc.Sort()
-		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s\n",
+		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s",
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
 	}
@@ -196,13 +196,13 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	case api.DataType:
 		infoStr = typeStr
 	case api.MetaType:
-		infoStr = fmt.Sprintf("%s-- clusterDAG=%s",typeStr, obj.Clusterdag)
+		infoStr = fmt.Sprintf("%s-- clusterdag=%s",typeStr, obj.Clusterdag)
 	case api.CdagType, api.ShardType:
 		infoStr = typeStr
 	default:
 		infoStr = ""
 	}
-	fmt.Printf("| %s ", infoStr)
+	fmt.Printf("%s \n", infoStr)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {

@@ -199,7 +199,7 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 			return nil, err
 		}
 	}
-
+	fmt.Printf("Output Dirs reached \n")
 	err = adder.outputDirs(name, root)
 	if err != nil {
 		return nil, err
@@ -226,6 +226,14 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 		for _, name := range names {
 			child, err := fsn.Child(name)
 			if err != nil {
+				// It is ok if adder can't fetch block to make
+				// an fsn file.  Outgoing DAGservice does not
+				// store blocks. We recognize it as a file and
+				// keep traversing the directory
+				if shouldIgnore(err) {
+					continue
+				}
+
 				return err
 			}
 
@@ -241,7 +249,6 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 		if err != nil {
 			return err
 		}
-
 		return outputDagnode(adder.Out, path, nd)
 	default:
 		return fmt.Errorf("unrecognized fsn type: %#v", fsn)
