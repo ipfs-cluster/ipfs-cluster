@@ -2,29 +2,10 @@ package importer
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	"github.com/ipfs/ipfs-cluster/test"
 )
-
-const testDir = "testingData"
-
-func getTestingDir() (files.File, error) {
-	fpath := testDir
-	stat, err := os.Lstat(fpath)
-	if err != nil {
-		return nil, err
-	}
-
-	if !stat.IsDir() {
-		return nil, fmt.Errorf("testDir should be seen as directory")
-	}
-
-	return files.NewSerialFile(path.Base(fpath), fpath, false, stat)
-}
 
 var cids = [18]string{"QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
 	"Qmbp4C4KkyjVzTpZ327Ub555FEHizhJS4M17f2zCCrQMAz",
@@ -49,7 +30,7 @@ var cids = [18]string{"QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
 
 // import and receive all blocks
 func TestToChannelOutput(t *testing.T) {
-	file, err := getTestingDir()
+	file, err := test.GetTestingDirSerial()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +79,7 @@ func TestToChannelOutput(t *testing.T) {
 }
 
 func TestToChannelPrint(t *testing.T) {
-	file, err := getTestingDir()
+	file, err := test.GetTestingDirSerial()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,6 +45,23 @@ func (mock *mockService) Pin(ctx context.Context, in api.PinSerial, out *struct{
 	return nil
 }
 
+func (mock *mockService) AddFile(ctx context.Context, in api.FileInfo, out *[]api.AddedOutput) error {
+	param := in.Params["shard"]
+
+	if len(param) == 1 && param[0] == "true" {
+		return errors.New("rpc mock error on shard")
+	}
+	*out = []api.AddedOutput{
+		api.AddedOutput{
+			Name:  "mock file",
+			Hash:  TestCid1,
+			Bytes: 0,
+			Size:  "",
+		},
+	}
+	return nil
+}
+
 func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid

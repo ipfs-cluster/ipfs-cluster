@@ -518,6 +518,7 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	toPrint, err := addSess.AddFile(api.ctx, reader, params)
 	if err != nil {
 		sendErrorResponse(w, 500, err.Error())
+		return
 	}
 	sendJSONResponse(w, 200, toPrint)
 }
