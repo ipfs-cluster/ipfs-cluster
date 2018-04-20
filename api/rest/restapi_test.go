@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -119,6 +120,11 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
+}	
+
+func makePostRaw(t *testing.T, url string, body io.Reader, contentType string, resp interface{}) {
+	httpResp, err := http.Post(url, contentType, body)
+	processResp(t, httpResp, err, resp)
 }
 
 type testF func(t *testing.T, url urlF)
@@ -227,6 +233,43 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 	}
 
 	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
+	fmtStr2 := "layout=''&chunker=''&raw=false&"
+	fmtStr3 := "&hidden=false&repl_min=-1&repl_max=-1"
+	// mock rpc returns success with these params (shard=false)
+	successUrl := apiURL(rest) + fmtStr1 + fmtStr2 + fmtStr3
+
+	// Test with bad content-type
+	body, err := test.GetTestingDirMultiReader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	errResp := api.Error{}
+	makePostRaw(t, successUrl, body, "text/html", &errResp)
+	if errResp.Code != 415 {
+		t.Error("expected error with bad content-type")
+	}
+
+	// Add a param value that leads to 500 on mock and send this param over
+	mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+	fmtStr1Bad := "/allocations?shard=true&quiet=false&silent=false&"
+	failUrl := apiURL(rest) + fmtStr1Bad + fmtStr2 + fmtStr3
+	makePostRaw(t, failUrl, body, mpContentType, &errResp)
+	if errResp.Code != 500 {
+		t.Error("expected error with params causing mockrpc AddFile fail")
+	}
+
+	// Test with a correct input
+	resp := []api.AddedOutput{}
+	makePostRaw(t, successUrl, body, mpContentType, &resp)
+	if len(resp) != 1 || resp[0].Hash != test.TestCid1 {
+		t.Fatal("unexpected addedoutput from mock rpc on api")
+	}
 }
 
 func TestAPIPeerRemoveEndpoint(t *testing.T) {

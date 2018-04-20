@@ -432,3 +432,21 @@ func TestWaitFor(t *testing.T) {
 
 	testClients(t, tapi, testF)
 }
+
+func TestAddMultiFile(t *testing.T) {
+	c, api := testClient(t)
+	defer api.Shutdown()
+
+	mfr, err := test.GetTestingDirMultiReader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := c.AddMultiFile(mfr, false, false, false, "", "", false,
+		false, -1, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || out[0].Hash != test.TestCid1 {
+		t.Fatal("unexpected addedoutput from mock rpc on api")
+	}
+}

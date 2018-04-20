@@ -225,10 +225,6 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 					Usage: "Use raw blocks for leaves (experimental)",
 				},
 				cli.BoolFlag{
-					Name:  "wrap, w",
-					Usage: "wrap files with a directory object",
-				},
-				cli.BoolFlag{
 					Name:  "progress, p",
 					Usage: "Stream progress data",
 				},
@@ -252,16 +248,15 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 				for i, path := range c.Args() {
 					paths[i] = path
 				}
-				// Unclear if multiFileR is ready for streaming, but hypothesis is yes.
 				// Files are all opened but not read until they are sent.
-				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
+				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
 				checkErr("serializing all files", err)
 				resp, cerr := globalClient.AddMultiFile(multiFileR,
 					c.Bool("shard"), c.Bool("quiet"),
 					c.Bool("silent"), c.String("layout"),
 					c.String("chunker"),
-					c.Bool("raw-leaves"), c.Bool("wrap"),
-					c.Bool("progress"), c.Bool("hidden"),
+					c.Bool("raw-leaves"),
+					c.Bool("hidden"),
 					c.Int("replication-min"),
 					c.Int("replication-max"))
 				formatResponse(c, resp, cerr)

@@ -188,8 +188,6 @@ func (a *AddSession) AddFile(ctx context.Context,
 	}
 	chunker := params.Get("chunker")
 	raw, _ := strconv.ParseBool(params.Get("raw"))
-	wrap, _ := strconv.ParseBool(params.Get("wrap"))
-	progress, _ := strconv.ParseBool(params.Get("progress"))
 	hidden, _ := strconv.ParseBool(params.Get("hidden"))
 	silent, _ := strconv.ParseBool(params.Get("silent"))
 
@@ -202,12 +200,10 @@ func (a *AddSession) AddFile(ctx context.Context,
 	printChan, outChan, errChan := importer.ToChannel(
 		ctx,
 		f,
-		progress,
 		hidden,
 		trickle,
 		raw,
 		silent,
-		wrap,
 		chunker,
 	)
 
