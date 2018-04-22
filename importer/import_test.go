@@ -7,27 +7,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
-var cids = [18]string{"QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn",
-	"Qmbp4C4KkyjVzTpZ327Ub555FEHizhJS4M17f2zCCrQMAz",
-	"QmYz38urZ99eVCxSccM63bGtDv54UWtBDWJdTxGch23khA",
-	"QmUwG2mfhhfBEzVtvyEvva1kc8kU4CrXphdMCdAiFNWdxy",
-	"QmRgkP4x7tXW9PyiPPxe3aqALQEs22nifkwzrm7wickdfr",
-	"QmNpCHs9zrzP4aArBzRQgjNSbMC5hYqJa1ksmbyorSu44b",
-	"QmQ6n82dRtEJVHMDLW5BSrJ6bRDXkFXj2i7Vjxy4B2PH82",
-	"QmPZLJ3CZYgxH4K1w5jdbAdxJynXn5TCB4kHy7u8uHC3fy",
-	"QmUqmcdJJodX7mPoUv9u71HoNAiegBCiCqdUZd5ZrCyLbs",
-	"QmbDaWrwxk93RfWSBL8ajTproNKbE2EghBLSk8199EBm1m",
-	"QmXDmRPxV9KWYLhN7bqGn143GgiNxhy9Hqc3ZPJW63xgok",
-	"QmaytnNarHzDp1ipGyC7zd7Hw2AePmtSpLLaygQ2e9Yvqe",
-	"QmZwab9h6ADw3tv8pzXVF2yndgJpTWKrrMjJQqRkgYmCRH",
-	"QmaNfMZDZjfqjHrFCc6tZwmkqbXs1fnY9AXZ81WUztFeXm",
-	// Hashes that are not printed out (chunks of files and wrapper dir)
-	"QmY4qt6WG12qYwWeeTNhggqaNMJWp2NouuTSf79ukoobw8",
-	"QmQbg4sHm4zVHnqCS14YzNnQFVMqjZpu5XjkF7vtbzqkFW",
-	"QmcUBApwNSDg2Q2J4NXzks1HewVGFohNpPyEud7bZfo5tE",
-	"QmaKaB735eydQwnaJNuYbXRU1gVb4MJdzHp1rpUZJN67G6",
-}
-
 // import and receive all blocks
 func TestToChannelOutput(t *testing.T) {
 	file, err := test.GetTestingDirSerial()
@@ -36,7 +15,7 @@ func TestToChannelOutput(t *testing.T) {
 	}
 
 	printChan, outChan, errChan := ToChannel(context.Background(), file,
-		false, false, false, false, false, false, "")
+		false, false, false, false, "")
 
 	go func() { // listen on printChan so progress can be made
 		for {
@@ -67,10 +46,10 @@ func TestToChannelOutput(t *testing.T) {
 		}
 		check[cid] = struct{}{}
 	}
-	if len(check) != len(cids) {
-		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, cids)
+	if len(check) != len(test.TestDirCids) {
+		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, test.TestDirCids)
 	}
-	cidsS := cids[:]
+	cidsS := test.TestDirCids[:]
 	for cid := range check {
 		if !contains(cidsS, cid) {
 			t.Fatalf("Unexpected cid: %s", cid)
@@ -85,7 +64,7 @@ func TestToChannelPrint(t *testing.T) {
 	}
 
 	printChan, outChan, errChan := ToChannel(context.Background(), file,
-		false, false, false, false, false, false, "")
+		false, false, false, false, "")
 
 	go func() { // listen on outChan so progress can be made
 		for {
@@ -116,10 +95,10 @@ func TestToChannelPrint(t *testing.T) {
 		}
 		check[cid] = struct{}{}
 	}
-	if len(check) != len(cids[:14]) {
-		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, cids)
+	if len(check) != len(test.TestDirCids[:15]) {
+		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, test.TestDirCids[:15])
 	}
-	cidsS := cids[:]
+	cidsS := test.TestDirCids[:15]
 	for cid := range check {
 		if !contains(cidsS, cid) {
 			t.Fatalf("Unexpected cid: %s", cid)
