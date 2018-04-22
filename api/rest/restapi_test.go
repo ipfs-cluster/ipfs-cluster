@@ -242,7 +242,7 @@ func TestAPIAddFileEndpoint(t *testing.T) {
 	fmtStr2 := "layout=''&chunker=''&raw=false&"
 	fmtStr3 := "&hidden=false&repl_min=-1&repl_max=-1"
 	// mock rpc returns success with these params (shard=false)
-	successUrl := apiURL(rest) + fmtStr1 + fmtStr2 + fmtStr3
+	successURL := apiURL(rest) + fmtStr1 + fmtStr2 + fmtStr3
 
 	// Test with bad content-type
 	body, err := test.GetTestingDirMultiReader()
@@ -258,7 +258,7 @@ func TestAPIAddFileEndpoint(t *testing.T) {
 	// Add a param value that leads to 500 on mock and send this param over
 	mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 	fmtStr1Bad := "/allocations?shard=true&quiet=false&silent=false&"
-	failUrl := apiURL(rest) + fmtStr1Bad + fmtStr2 + fmtStr3
+	failURL := apiURL(rest) + fmtStr1Bad + fmtStr2 + fmtStr3
 	makePostRaw(t, failUrl, body, mpContentType, &errResp)
 	if errResp.Code != 500 {
 		t.Error("expected error with params causing mockrpc AddFile fail")
