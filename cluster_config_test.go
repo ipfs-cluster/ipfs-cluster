@@ -23,7 +23,8 @@ var ccfgTestJSON = []byte(`
         "ipfs_sync_interval": "2m10s",
         "replication_factor_min": 5,
         "replication_factor_max": 5,
-        "monitor_ping_interval": "2s"
+        "monitor_ping_interval": "2s",
+        "disable_repinning": true
 }
 `)
 
@@ -44,6 +45,10 @@ func TestLoadJSON(t *testing.T) {
 
 	if cfg.ReplicationFactorMin != 5 {
 		t.Error("expected replication factor min == 5")
+	}
+
+	if !cfg.DisableRepinning {
+		t.Error("expected disable_repinning to be true")
 	}
 
 	j := &configJSON{}

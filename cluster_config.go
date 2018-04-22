@@ -31,6 +31,7 @@ const (
 	DefaultPeerWatchInterval   = 5 * time.Second
 	DefaultReplicationFactor   = -1
 	DefaultLeaveOnShutdown     = false
+	DefaultDisableRepinning    = false
 )
 
 // Config is the configuration object containing customizable variables to
@@ -115,6 +116,12 @@ type Config struct {
 	// file. This also affects how soon we realize that we have
 	// been removed from a cluster.
 	PeerWatchInterval time.Duration
+
+	// If true, DisableRepinning, ensures that no repinning happens
+	// when a node goes down.
+	// This is useful when doing certain types of maintainance, or simply
+	// when not wanting to rely on the monitoring system which needs a revamp.
+	DisableRepinning bool
 }
 
 // configJSON represents a Cluster configuration as it will look when it is
@@ -136,6 +143,7 @@ type configJSON struct {
 	ReplicationFactorMax int      `json:"replication_factor_max"`
 	MonitorPingInterval  string   `json:"monitor_ping_interval"`
 	PeerWatchInterval    string   `json:"peer_watch_interval"`
+	DisableRepinning     bool     `json:"disable_repinning"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -269,6 +277,7 @@ func (cfg *Config) setDefaults() {
 	cfg.ReplicationFactorMax = DefaultReplicationFactor
 	cfg.MonitorPingInterval = DefaultMonitorPingInterval
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
+	cfg.DisableRepinning = DefaultDisableRepinning
 }
 
 // LoadJSON receives a raw json-formatted configuration and
@@ -374,6 +383,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	config.SetIfNotDefault(peerWatchInterval, &cfg.PeerWatchInterval)
 
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
+	cfg.DisableRepinning = jcfg.DisableRepinning
 
 	return cfg.Validate()
 }
@@ -423,6 +433,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.IPFSSyncInterval = cfg.IPFSSyncInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
+	jcfg.DisableRepinning = cfg.DisableRepinning
 
 	raw, err = json.MarshalIndent(jcfg, "", "    ")
 	return
