@@ -1580,3 +1580,65 @@ func TestClustersGraphUnhealthy(t *testing.T) {
 	}
 	validateClusterGraph(t, graph, clusterIDs)
 }
+
+// Check that the pin is not re-assigned when a node
+// that has disabled repinning goes down.
+func TestClustersDisabledRepinning(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	for _, c := range clusters {
+		c.config.ReplicationFactorMin = nClusters - 1
+		c.config.ReplicationFactorMax = nClusters - 1
+		c.config.DisableRepinning = true
+	}
+
+	ttlDelay()
+
+	j := rand.Intn(nClusters)
+	h, _ := cid.Decode(test.TestCid1)
+	err := clusters[j].Pin(api.PinCid(h))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Let the pin arrive
+	pinDelay()
+
+	var killedClusterIndex int
+	// find someone that pinned it and kill that cluster
+	for i, c := range clusters {
+		pinfo := c.tracker.Status(h)
+		if pinfo.Status == api.TrackerStatusPinned {
+			killedClusterIndex = i
+			t.Logf("Shutting down %s", c.ID().ID)
+			c.Shutdown()
+			break
+		}
+	}
+
+	// let metrics expire and give time for the cluster to
+	// see if they have lost the leader
+	waitForLeaderAndMetrics(t, clusters)
+
+	// Make sure we haven't killed our randomly
+	// selected cluster
+	for j == killedClusterIndex {
+		j = rand.Intn(nClusters)
+	}
+
+	numPinned := 0
+	for i, c := range clusters {
+		if i == killedClusterIndex {
+			continue
+		}
+		pinfo := c.tracker.Status(h)
+		if pinfo.Status == api.TrackerStatusPinned {
+			//t.Log(pinfo.Peer.Pretty())
+			numPinned++
+		}
+	}
+
+	if numPinned != nClusters-2 {
+		t.Errorf("expected %d replicas for pin, got %d", nClusters-2, numPinned)
+	}
+}
