@@ -108,9 +108,9 @@ Each section of the configuration file and the options in it depend on their ass
       "read_header_timeout": "5s",
       "write_timeout": "1m0s",
       "idle_timeout": "2m0s",
-      "basic_auth_credentials": [                           // Leave null for no-basic-auth
+      "basic_auth_credentials": {                           // Leave null for no-basic-auth
         "user": "pass"
-      ]
+      }
     }
   },
   "ipfs_connector": {
