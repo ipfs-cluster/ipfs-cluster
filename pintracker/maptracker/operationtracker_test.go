@@ -10,13 +10,13 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
-func testOperationTracker(t *testing.T, ctx context.Context) *operationTracker {
+func testOperationTracker(ctx context.Context, t *testing.T) *operationTracker {
 	return newOperationTracker(ctx)
 }
 
 func TestOperationTracker_trackNewOperationWithCtx(t *testing.T) {
 	ctx := context.Background()
-	opt := testOperationTracker(t, ctx)
+	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
 	opt.trackNewOperationCtx(ctx, h, operationPin)
@@ -48,7 +48,7 @@ func TestOperationTracker_trackNewOperationWithCtx(t *testing.T) {
 
 func TestOperationTracker_cancelOperation(t *testing.T) {
 	ctx := context.Background()
-	opt := testOperationTracker(t, ctx)
+	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
 	opt.trackNewOperationCtx(ctx, h, operationPin)
@@ -62,7 +62,7 @@ func TestOperationTracker_cancelOperation(t *testing.T) {
 
 func TestOperationTracker_updateOperationPhase(t *testing.T) {
 	ctx := context.Background()
-	opt := testOperationTracker(t, ctx)
+	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
 	opt.trackNewOperationCtx(ctx, h, operationPin)
