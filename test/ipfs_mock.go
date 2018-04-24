@@ -19,10 +19,11 @@ import (
 
 // IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.
 type IpfsMock struct {
-	server *httptest.Server
-	Addr   string
-	Port   int
-	pinMap *mapstate.MapState
+	server     *httptest.Server
+	Addr       string
+	Port       int
+	pinMap     *mapstate.MapState
+	BlockStore map[string][]byte
 }
 
 type mockPinResp struct {
@@ -85,8 +86,10 @@ type mockBlockPutResp struct {
 // NewIpfsMock returns a new mock.
 func NewIpfsMock() *IpfsMock {
 	st := mapstate.NewMapState()
+	blocks := make(map[string][]byte)
 	m := &IpfsMock{
-		pinMap: st,
+		pinMap:     st,
+		BlockStore: blocks,
 	}
 	ts := httptest.NewServer(http.HandlerFunc(m.handler))
 	m.server = ts
@@ -246,10 +249,25 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		c := cid.NewCidV1(cid.Raw, u.Hash(data)).String()
-		if c != TestCid4 {
+		// Parse cid from data and format and add to mock block-store
+		query := r.URL.Query()
+		format, ok := query["f"]
+		if !ok || len(format) != 1 {
 			goto ERROR
 		}
+		var c string
+		hash := u.Hash(data)
+		codec, ok := cid.Codecs[format[0]]
+		if !ok {
+			goto ERROR
+		}
+		if format[0] == "v0" {
+			c = cid.NewCidV0(hash).String()
+		} else {
+			c = cid.NewCidV1(codec, hash).String()
+		}
+		m.BlockStore[c] = data
+
 		resp := mockBlockPutResp{
 			Key: c,
 		}
@@ -264,14 +282,11 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if len(arg) != 1 {
 			goto ERROR
 		}
-		switch arg[0] {
-		case TestShardCid:
-			w.Write(TestShardData)
-		case TestCdagCid:
-			w.Write(TestCdagData)
-		default:
+		data, ok := m.BlockStore[arg[0]]
+		if !ok {
 			goto ERROR
 		}
+		w.Write(data)
 	case "repo/stat":
 		len := len(m.pinMap.List())
 		resp := mockRepoStatResp{

@@ -91,7 +91,7 @@ type IPFSConnector interface {
 	// by "repo stat".
 	RepoSize() (uint64, error)
 	// BlockPut directly adds a block of data to the IPFS repo
-	BlockPut(api.NodeWithMeta) (string, error)
+	BlockPut(api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block
 	BlockGet(*cid.Cid) ([]byte, error)
 }

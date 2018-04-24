@@ -712,15 +712,13 @@ func TestBlockPut(t *testing.T) {
 	defer ipfs.Shutdown()
 
 	data := []byte(test.TestCid4Data)
-	resp, err := ipfs.BlockPut(api.NodeWithMeta{
+	err := ipfs.BlockPut(api.NodeWithMeta{
 		Data:   data,
-		Format: "protobuf",
+		Cid:    test.TestCid4,
+		Format: "raw",
 	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if resp != test.TestCid4 {
-		t.Fatal("Unexpected resulting cid")
 	}
 }
 
@@ -728,10 +726,30 @@ func TestBlockGet(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
+
 	shardCid, err := cid.Decode(test.TestShardCid)
-	data, err := ipfs.BlockGet(shardCid)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Fail when getting before putting
+	_, err = ipfs.BlockGet(shardCid)
+	if err == nil {
+		t.Fatal("expected to fail getting unput block")
+	}
+
+	// Put and then successfully get
+	err = ipfs.BlockPut(api.NodeWithMeta{
+		Data:   test.TestShardData,
+		Cid:    test.TestShardCid,
+		Format: "cbor",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := ipfs.BlockGet(shardCid)
+	if err != nil {
+		t.Error(err)
 	}
 	if !bytes.Equal(data, test.TestShardData) {
 		t.Fatal("unexpected data returned")

@@ -90,7 +90,7 @@ func (ipfs *mockConnector) ConnectSwarms() error                          { retu
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }
 func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
-func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) (string, error) { return "", nil }
+func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error           { return nil }
 
 func (ipfs *mockConnector) BlockGet(c *cid.Cid) ([]byte, error) {
 	switch c.String() {

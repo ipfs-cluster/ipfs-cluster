@@ -323,7 +323,7 @@ func TestAPIAddFileEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	errResp := api.Error{}
-	makePostRaw(t, successUrl, body, "text/html", &errResp)
+	makePostRaw(t, successURL, body, "text/html", &errResp)
 	if errResp.Code != 415 {
 		t.Error("expected error with bad content-type")
 	}
@@ -332,14 +332,14 @@ func TestAPIAddFileEndpoint(t *testing.T) {
 	mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 	fmtStr1Bad := "/allocations?shard=true&quiet=false&silent=false&"
 	failURL := apiURL(rest) + fmtStr1Bad + fmtStr2 + fmtStr3
-	makePostRaw(t, failUrl, body, mpContentType, &errResp)
+	makePostRaw(t, failURL, body, mpContentType, &errResp)
 	if errResp.Code != 500 {
 		t.Error("expected error with params causing mockrpc AddFile fail")
 	}
 
 	// Test with a correct input
 	resp := []api.AddedOutput{}
-	makePostRaw(t, successUrl, body, mpContentType, &resp)
+	makePostRaw(t, successURL, body, mpContentType, &resp)
 	if len(resp) != 1 || resp[0].Hash != test.TestCid1 {
 		t.Fatal("unexpected addedoutput from mock rpc on api")
 	}

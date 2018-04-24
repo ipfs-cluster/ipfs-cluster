@@ -37,17 +37,15 @@ func (a *AddSession) consumeLocalAdd(
 	//TODO: when ipfs add starts supporting formats other than
 	// v0 (v1.cbor, v1.protobuf) we'll need to update this
 	outObj.Format = ""
-	var hash string
+
 	err := a.rpcClient.Call(
 		"",
 		"Cluster",
 		"IPFSBlockPut",
 		*outObj,
-		&hash,
+		&struct{}{},
 	)
-	if outObj.Cid != hash {
-		a.logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
-	}
+	
 	return outObj.Cid, err // root node returned in case this is last call
 }
 
