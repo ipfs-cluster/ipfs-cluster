@@ -22,7 +22,11 @@ jobs:
         - make deps
         - ./coverage.sh
     - script:
-        - go get -u golang.org/x/lint/golint
+        - mkdir -p $GOPATH/src/golang.org/x/tools
+        - git clone --depth 1 https://github.com/golang/tools $GOPATH/src/golang.org/x/tools
+        - mkdir -p $GOPATH/src/golang.org/x/lint
+        - git clone --depth 1 https://github.com/golang/lint $GOPATH/src/golang.org/x/lint
+        - go install golang.org/x/lint/golint
         - make deps
         - make check
         - make service
