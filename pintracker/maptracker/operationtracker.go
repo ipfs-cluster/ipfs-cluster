@@ -17,8 +17,6 @@ const (
 	operationUnknown operation = iota
 	operationPin
 	operationUnpin
-	operationSync
-	operationRecover
 )
 
 //go:generate stringer -type=phase

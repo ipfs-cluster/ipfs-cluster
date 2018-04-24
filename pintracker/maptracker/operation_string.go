@@ -4,9 +4,9 @@ package maptracker
 
 import "strconv"
 
-const _operation_name = "operationUnknownoperationPinoperationUnpinoperationSyncoperationRecover"
+const _operation_name = "operationUnknownoperationPinoperationUnpin"
 
-var _operation_index = [...]uint8{0, 16, 28, 42, 55, 71}
+var _operation_index = [...]uint8{0, 16, 28, 42}
 
 func (i operation) String() string {
 	if i < 0 || i >= operation(len(_operation_index)-1) {
