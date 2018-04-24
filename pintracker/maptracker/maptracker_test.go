@@ -320,3 +320,182 @@ func TestSyncAll(t *testing.T) {
 		t.Fatal("should have synced h2")
 	}
 }
+
+func TestUntrackTrack(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	// LocalPin
+	c := api.Pin{
+		Cid:                  h1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
+	err := mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+
+	err = mpt.Untrack(h1)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTrackUntrackWithCancel(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	// LocalPin
+	c := api.Pin{
+		Cid:                  h1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
+	err := mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		opc, ok := mpt.optracker.get(c.Cid)
+		if !ok {
+			t.Fatal()
+		}
+		if opc.phase == phaseInProgress {
+			err = mpt.Untrack(h1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+
+}
+
+func TestTrackUntrackWithNoCancel(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	// LocalPin
+	c := api.Pin{
+		Cid:                  h1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
+	err := mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		for {
+			opc, _ := mpt.optracker.get(c.Cid)
+			if opc.phase == phaseQueued {
+				err = mpt.Untrack(h1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				break
+			}
+		}
+	}()
+
+}
+
+func TestUntrackTrackWithCancel(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	// LocalPin
+	c := api.Pin{
+		Cid:                  h1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
+	err := mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+
+	err = mpt.Untrack(h1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		opc, ok := mpt.optracker.get(c.Cid)
+		if !ok {
+			t.Fatal()
+		}
+		if opc.phase == phaseInProgress {
+			err = mpt.Track(c)
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+
+}
+
+func TestUntrackTrackWithNoCancel(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	// LocalPin
+	c := api.Pin{
+		Cid:                  h1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
+	err := mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second / 2)
+
+	err = mpt.Untrack(h1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		for {
+			opc, _ := mpt.optracker.get(c.Cid)
+			if opc.phase == phaseQueued {
+				err = mpt.Track(c)
+				if err != nil {
+					t.Fatal(err)
+				}
+				break
+			}
+		}
+	}()
+
+}
