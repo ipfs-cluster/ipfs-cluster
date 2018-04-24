@@ -397,6 +397,11 @@ func (c *Cluster) watchPeers() {
 
 // find all Cids pinned to a given peer and triggers re-pins on them.
 func (c *Cluster) repinFromPeer(p peer.ID) {
+	if c.config.DisableRepinning {
+		logger.Warningf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
+		return
+	}
+
 	cState, err := c.consensus.State()
 	if err != nil {
 		logger.Warning(err)

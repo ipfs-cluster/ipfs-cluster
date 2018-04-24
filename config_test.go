@@ -23,7 +23,8 @@ var testingClusterCfg = []byte(`{
     "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,
     "monitor_ping_interval": "150ms",
-    "peer_watch_interval": "100ms"
+    "peer_watch_interval": "100ms",
+    "disable_repinning": false
 }
 `)
 
