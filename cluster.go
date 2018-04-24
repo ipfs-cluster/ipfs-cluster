@@ -444,6 +444,8 @@ This might be due to one or several causes:
   - Check that this peer is reachable on its "listen_multiaddress" by all peers
   - Check that the current cluster is healthy (has a leader). Otherwise make
     sure to start enough peers so that a leader election can happen.
+  - Check that the peer you are trying to connect to is running the
+    same version of IPFS-cluster.
 **************************************************
 `)
 		c.Shutdown()
@@ -507,6 +509,8 @@ There are some common reasons for failed bootstraps:
   - Check that this peer is reachable on its "listen_multiaddress" by all peers
   - Check that all the peers in the current cluster are healthy, otherwise
     remove unhealthy ones first and re-add them later
+  - Check that the peer you are trying to connect to is running the
+    same version of IPFS-cluster.
 **************************************************
 `, err)
 
