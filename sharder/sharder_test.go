@@ -84,7 +84,7 @@ func (mock *mockRPC) Allocate(ctx context.Context, in api.AllocateInfo, out *[]p
 }
 
 // Record the ordered sequence of BlockPut calls for later validation
-func (mock *mockRPC) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *string) error {
+func (mock *mockRPC) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
 	mock.orderedPuts[len(mock.orderedPuts)] = in
 	return nil
 }

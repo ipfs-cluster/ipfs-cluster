@@ -206,13 +206,12 @@ func (s *Sharder) AddNode(
 		Data:   data,
 		Format: format,
 	}
-	var retStr string
 	return id, s.rpcClient.Call(
 		session.assignedPeer,
 		"Cluster",
 		"IPFSBlockPut",
 		b,
-		&retStr,
+		&struct{}{},
 	)
 }
 
@@ -248,8 +247,7 @@ func (s *Sharder) Finalize(id string) error {
 			Format: "cbor",
 		}
 		logger.Debugf("The serialized shard root cid: %s", shardRoot.Cid().String())
-		var retStr string
-		err = s.rpcClient.Call("", "Cluster", "IPFSBlockPut", b, &retStr)
+		err = s.rpcClient.Call("", "Cluster", "IPFSBlockPut", b, &struct{}{})
 		if err != nil {
 			return err
 		}
@@ -353,7 +351,6 @@ func (s *Sharder) flush() error {
 
 	for _, shardNode := range shardNodes {
 		logger.Debugf("The dag cbor Node Links: %v", shardNode.Links())
-		var retStr string
 		b := api.NodeWithMeta{
 			Data:   shardNode.RawData(),
 			Format: "cbor",
@@ -364,7 +361,7 @@ func (s *Sharder) flush() error {
 			"Cluster",
 			"IPFSBlockPut",
 			b,
-			&retStr,
+			&struct{}{},
 		)
 		if err != nil {
 			return err
