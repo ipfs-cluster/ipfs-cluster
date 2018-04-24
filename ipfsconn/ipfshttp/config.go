@@ -113,51 +113,52 @@ func (cfg *Config) Default() error {
 // Validate checks that the fields of this Config have sensible values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
+	var err error
 	if cfg.ProxyAddr == nil {
-		return errors.New("ipfshttp.proxy_listen_multiaddress not set")
+		err = errors.New("ipfshttp.proxy_listen_multiaddress not set")
 	}
 	if cfg.NodeAddr == nil {
-		return errors.New("ipfshttp.node_multiaddress not set")
+		err = errors.New("ipfshttp.node_multiaddress not set")
 	}
 
 	if cfg.ConnectSwarmsDelay < 0 {
-		return errors.New("ipfshttp.connect_swarms_delay is invalid")
+		err = errors.New("ipfshttp.connect_swarms_delay is invalid")
 	}
 
 	if cfg.ProxyReadTimeout < 0 {
-		return errors.New("ipfshttp.proxy_read_timeout is invalid")
+		err = errors.New("ipfshttp.proxy_read_timeout is invalid")
 	}
 
 	if cfg.ProxyReadHeaderTimeout < 0 {
-		return errors.New("ipfshttp.proxy_read_header_timeout is invalid")
+		err = errors.New("ipfshttp.proxy_read_header_timeout is invalid")
 	}
 
 	if cfg.ProxyWriteTimeout < 0 {
-		return errors.New("ipfshttp.proxy_write_timeout is invalid")
+		err = errors.New("ipfshttp.proxy_write_timeout is invalid")
 	}
 
 	if cfg.ProxyIdleTimeout < 0 {
-		return errors.New("ipfshttp.proxy_idle_timeout invalid")
+		err = errors.New("ipfshttp.proxy_idle_timeout invalid")
 	}
 
 	switch cfg.PinMethod {
 	case "refs", "pin":
 	default:
-		return errors.New("ipfshttp.pin_method invalid value")
+		err = errors.New("ipfshttp.pin_method invalid value")
 	}
 
 	if cfg.ClientPostTimeout < 0 {
-		return errors.New("ipfshttp.client_post_timeout invalid")
+		err = errors.New("ipfshttp.client_post_timeout invalid")
 	}
 
 	if cfg.PinTimeout < 0 {
-		return errors.New("ipfshttp.pin_timeout invalid")
+		err = errors.New("ipfshttp.pin_timeout invalid")
 	}
 
 	if cfg.UnpinTimeout < 0 {
-		return errors.New("ipfshttp.unpin_timeout invalid")
+		err = errors.New("ipfshttp.unpin_timeout invalid")
 	}
-	return nil
+	return err
 
 }
 
