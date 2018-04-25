@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"testing"
 
+	//	add "github.com/ipfs/ipfs-cluster/add"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -239,10 +240,9 @@ func TestAPIAddFileEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 	fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
-	fmtStr2 := "layout=''&chunker=''&raw=false&"
+	fmtStr2 := "layout=&chunker=&raw=false&"
 	fmtStr3 := "&hidden=false&repl_min=-1&repl_max=-1"
-	// mock rpc returns success with these params (shard=false)
-	successURL := apiURL(rest) + fmtStr1 + fmtStr2 + fmtStr3
+	localURL := apiURL(rest) + fmtStr1 + fmtStr2 + fmtStr3
 
 	// Test with bad content-type
 	body, err := test.GetTestingDirMultiReader()
@@ -250,25 +250,36 @@ func TestAPIAddFileEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	errResp := api.Error{}
-	makePostRaw(t, successURL, body, "text/html", &errResp)
+	makePostRaw(t, localURL, body, "text/html", &errResp)
 	if errResp.Code != 415 {
 		t.Error("expected error with bad content-type")
 	}
 
-	// Add a param value that leads to 500 on mock and send this param over
-	mpContentType := "multipart/form-data; boundary=" + body.Boundary()
-	fmtStr1Bad := "/allocations?shard=true&quiet=false&silent=false&"
-	failURL := apiURL(rest) + fmtStr1Bad + fmtStr2 + fmtStr3
-	makePostRaw(t, failURL, body, mpContentType, &errResp)
-	if errResp.Code != 500 {
-		t.Error("expected error with params causing mockrpc AddFile fail")
+	// Add local
+	body1, err := test.GetTestingDirMultiReader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := []api.AddedOutput{}
+	mpContentType := "multipart/form-data; boundary=" + body1.Boundary()
+	makePostRaw(t, localURL, body1, mpContentType, &resp)
+	if len(resp) != test.NumTestDirPrints ||
+		resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
+		t.Error("unexpected addedoutput from local add")
 	}
 
-	// Test with a correct input
-	resp := []api.AddedOutput{}
-	makePostRaw(t, successURL, body, mpContentType, &resp)
-	if len(resp) != 1 || resp[0].Hash != test.TestCid1 {
-		t.Fatal("unexpected addedoutput from mock rpc on api")
+	// Add sharded
+	body2, err := test.GetTestingDirMultiReader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mpContentType = "multipart/form-data; boundary=" + body2.Boundary()
+	fmtStr1Shard := "/allocations?shard=true&quiet=false&silent=false&"
+	shardURL := apiURL(rest) + fmtStr1Shard + fmtStr2 + fmtStr3
+	makePostRaw(t, shardURL, body2, mpContentType, &resp)
+	if len(resp) != test.NumTestDirPrints ||
+		resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
+		t.Fatal("unexpected addedoutput from sharded add")
 	}
 }
 

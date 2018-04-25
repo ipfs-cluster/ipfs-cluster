@@ -37,7 +37,6 @@ func (a *AddSession) consumeLocalAdd(
 	//TODO: when ipfs add starts supporting formats other than
 	// v0 (v1.cbor, v1.protobuf) we'll need to update this
 	outObj.Format = ""
-
 	err := a.rpcClient.Call(
 		"",
 		"Cluster",
@@ -45,7 +44,7 @@ func (a *AddSession) consumeLocalAdd(
 		*outObj,
 		&struct{}{},
 	)
-	
+
 	return outObj.Cid, err // root node returned in case this is last call
 }
 
@@ -167,7 +166,7 @@ func (a *AddSession) consumeImport(ctx context.Context,
 	if err := finish(arg, replMin, replMax); err != nil {
 		return nil, err
 	}
-	a.logger.Debugf("succeeding sharding import")
+	a.logger.Debugf("succeeding file import")
 	return toPrint, nil
 }
 

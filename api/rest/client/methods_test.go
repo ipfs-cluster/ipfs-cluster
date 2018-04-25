@@ -446,7 +446,8 @@ func TestAddMultiFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out) != 1 || out[0].Hash != test.TestCid1 {
+	if len(out) != test.NumTestDirPrints ||
+		out[len(out)-1].Hash != test.TestDirBalancedRootCID {
 		t.Fatal("unexpected addedoutput from mock rpc on api")
 	}
 }
