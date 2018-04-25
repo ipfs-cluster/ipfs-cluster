@@ -53,13 +53,6 @@ func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]api.PinSeria
 	return nil
 }
 
-// AddFile runs Cluster.AddFile
-func (rpcapi *RPCAPI) AddFile(ctx context.Context, in api.FileInfo, out *[]api.AddedOutput) error {
-	toPrint, err := rpcapi.c.AddFile(in.Reader, in.Params)
-	*out = toPrint
-	return err
-}
-
 // PinGet runs Cluster.PinGet().
 func (rpcapi *RPCAPI) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
 	cidarg := in.ToPin()

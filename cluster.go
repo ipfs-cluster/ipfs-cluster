@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"sync"
 	"time"
 
+	add "github.com/ipfs/ipfs-cluster/add"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
@@ -1158,6 +1160,15 @@ func (c *Cluster) unpinShard(cdagCid, shardCid *cid.Cid) error {
 		return c.consensus.LogPin(shardPin)
 	}
 	return c.consensus.LogUnpin(shardPin)
+}
+
+// AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer
+// pipeline is used to DAGify the file.  Depending on input parameters this
+// DAG can be added locally to the calling cluster peer's ipfs repo, or
+// sharded across the entire cluster.
+func (c *Cluster) AddFile(reader *multipart.Reader, params map[string][]string) ([]api.AddedOutput, error) {
+	addSess := add.NewAddSession(c.rpcClient, logger)
+	return addSess.AddFile(c.ctx, reader, params)
 }
 
 // Version returns the current IPFS Cluster version.
