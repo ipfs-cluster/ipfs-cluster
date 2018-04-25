@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	add "github.com/ipfs/ipfs-cluster/add"
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
@@ -382,17 +383,9 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queryValues := r.URL.Query()
-	fI := types.FileInfo{
-		Reader: reader,
-		Params: queryValues,
-	}
-	var toPrint []types.AddedOutput
-	err = api.rpcClient.Call("",
-		"Cluster",
-		"AddFile",
-		fI,
-		&toPrint)
+	params := r.URL.Query()
+	addSess := add.NewAddSession(api.rpcClient, logger)
+	toPrint, err := addSess.AddFile(api.ctx, reader, params)
 	if err != nil {
 		sendErrorResponse(w, 500, err.Error())
 	}
