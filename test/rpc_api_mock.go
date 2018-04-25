@@ -45,23 +45,6 @@ func (mock *mockService) Pin(ctx context.Context, in api.PinSerial, out *struct{
 	return nil
 }
 
-func (mock *mockService) AddFile(ctx context.Context, in api.FileInfo, out *[]api.AddedOutput) error {
-	param := in.Params["shard"]
-
-	if len(param) == 1 && param[0] == "true" {
-		return errors.New("rpc mock error on shard")
-	}
-	*out = []api.AddedOutput{
-		api.AddedOutput{
-			Name:  "mock file",
-			Hash:  TestCid1,
-			Bytes: 0,
-			Size:  "",
-		},
-	}
-	return nil
-}
-
 func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	if in.Cid == ErrorCid {
 		return ErrBadCid
@@ -403,6 +386,10 @@ func (mock *mockService) IPFSFreeSpace(ctx context.Context, in struct{}, out *ui
 	return nil
 }
 
+func (mock *mockService) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
+	return nil
+}
+
 func (mock *mockService) ConsensusAddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }
@@ -413,6 +400,15 @@ func (mock *mockService) ConsensusRmPeer(ctx context.Context, in peer.ID, out *s
 
 func (mock *mockService) ConsensusPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
+	return nil
+}
+
+func (mock *mockService) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
+	*out = "mock-shard-id"
+	return nil
+}
+
+func (mock *mockService) SharderFinalize(ctx context.Context, in string, out *struct{}) error {
 	return nil
 }
 

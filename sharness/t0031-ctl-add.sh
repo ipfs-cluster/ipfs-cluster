@@ -10,21 +10,25 @@ test_cluster_init
 test_expect_success IPFS,CLUSTER "add small file to cluster with ctl" '
     output=`ipfs-cluster-ctl add ../test_data/small_file | tail -1` &&
     cid=${output:7:47} &&
-    ipfs-cluster-ctl pin ls | grep -q "$cid"
+    ipfs-cluster-ctl pin ls | grep -q "$cid" &&
+    ipfs-cluster-ctl pin rm $cid &&
+    [[ -z "$(ipfs-cluster-ctl pin ls)" ]] 
 '
 
-test_expect_success IPFS,CLUSTER "add small file with sharding" '
-    echo "complete me"
+test_expect_success IPFS,CLUSTER "add sharded small file to cluster" '
+    output=`ipfs-cluster-ctl add --shard ../test_data/small_file | tail -1` &&
+    cid=${output:7:47} &&
+    [[ -z "$(ipfs-cluster-ctl pin ls)" ]] &&
+    ipfs-cluster-ctl pin ls -a | grep -q "$cid" &&
+    [[ $(ipfs-cluster-ctl pin ls -a | wc -l) -eq "3" ]]  &&         
+    ipfs-cluster-ctl pin rm $cid &&
+    [[ -z "$(ipfs-cluster-ctl pin ls -a)" ]] 
 '
-# add, make sure root is in ls -a
-# root not in ls
-# root is in metapin
-# follow clusterdag make sure it points to shard pin
-# follow shard pin make sure it points to the root hash and has the correct size
 
-test_expect_success IPFS,CLUSTER "add large file with sharding" '
-    echo "complete me"
+test_expect_success IPFS,CLUSTER "add same file sharded and unsharded" '
+    echo "complete ME"
 '
+								     
 
 test_clean_ipfs
 test_clean_cluster
