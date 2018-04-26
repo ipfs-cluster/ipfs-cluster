@@ -199,7 +199,6 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 			return nil, err
 		}
 	}
-	fmt.Printf("Output Dirs reached \n")
 	err = adder.outputDirs(name, root)
 	if err != nil {
 		return nil, err
@@ -209,7 +208,6 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return root.GetNode()
 }
 
