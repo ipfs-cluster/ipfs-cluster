@@ -50,5 +50,5 @@ RUN mkdir -p $IPFS_CLUSTER_PATH && \
 VOLUME $IPFS_CLUSTER_PATH
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
-# Defaults for ipfs-cluster-service would go here
-CMD []
+# Defaults for ipfs-cluster-service go here
+CMD ["daemon", "--upgrade"]
