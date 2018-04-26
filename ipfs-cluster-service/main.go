@@ -451,7 +451,9 @@ func daemon(c *cli.Context) error {
 	// Run any migrations
 	if c.Bool("upgrade") {
 		err := upgrade()
-		checkErr("upgrading state", err)
+		if err != errNoSnapshot {
+			checkErr("upgrading state", err)
+		} // otherwise continue
 	}
 
 	// Execution lock
