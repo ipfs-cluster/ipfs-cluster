@@ -30,33 +30,29 @@ func NewAddSession(rpcClient *rpc.Client, logger logging.EventLogger) *AddSessio
 }
 
 func (a *AddSession) consumeLocalAdd(
-	args map[string]string,
+	arg string,
 	outObj *api.NodeWithMeta,
 	replMin, replMax int,
-) error {
+) (string, error) {
 	//TODO: when ipfs add starts supporting formats other than
 	// v0 (v1.cbor, v1.protobuf) we'll need to update this
 	outObj.Format = ""
-	args["cid"] = outObj.Cid // root node stored on last call
 	var hash string
 	err := a.rpcClient.Call(
 		"",
 		"Cluster",
 		"IPFSBlockPut",
 		*outObj,
-		&hash)
+		&hash,
+	)
 	if outObj.Cid != hash {
 		a.logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
 	}
-	return err
+	return outObj.Cid, err // root node returned in case this is last call
 }
 
-func (a *AddSession) finishLocalAdd(
-	args map[string]string,
-	replMin, replMax int,
-) error {
-	rootCid, ok := args["cid"]
-	if !ok {
+func (a *AddSession) finishLocalAdd(rootCid string, replMin, replMax int) error {
+	if rootCid == "" {
 		return errors.New("no record of root to pin")
 	}
 
@@ -77,13 +73,10 @@ func (a *AddSession) finishLocalAdd(
 }
 
 func (a *AddSession) consumeShardAdd(
-	args map[string]string,
+	shardID string,
 	outObj *api.NodeWithMeta,
 	replMin, replMax int,
-) error {
-
-	var shardID string
-	shardID, ok := args["id"]
+) (string, error) {
 	outObj.ID = shardID
 	outObj.ReplMax = replMax
 	outObj.ReplMin = replMin
@@ -93,43 +86,40 @@ func (a *AddSession) consumeShardAdd(
 		"Cluster",
 		"SharderAddNode",
 		*outObj,
-		&retStr)
-	if !ok {
-		args["id"] = retStr
-	}
-	return err
+		&retStr,
+	)
+
+	return retStr, err
 }
 
 func (a *AddSession) finishShardAdd(
-	args map[string]string,
+	shardID string,
 	replMin, replMax int,
 ) error {
-	shardID, ok := args["id"]
-	if !ok {
+	if shardID == "" {
 		return errors.New("bad state: shardID passed incorrectly")
 	}
-	err := a.rpcClient.Call(
+	return a.rpcClient.Call(
 		"",
 		"Cluster",
 		"SharderFinalize",
 		shardID,
 		&struct{}{},
 	)
-	return err
 }
 
 func (a *AddSession) consumeImport(ctx context.Context,
 	outChan <-chan *api.NodeWithMeta,
 	printChan <-chan *api.AddedOutput,
 	errChan <-chan error,
-	consume func(map[string]string, *api.NodeWithMeta, int, int) error,
-	finish func(map[string]string, int, int) error,
+	consume func(string, *api.NodeWithMeta, int, int) (string, error),
+	finish func(string, int, int) error,
 	replMin int, replMax int,
 ) ([]api.AddedOutput, error) {
 	var err error
 	openChs := 3
 	toPrint := make([]api.AddedOutput, 0)
-	args := make(map[string]string)
+	arg := ""
 
 	for {
 		if openChs == 0 {
@@ -169,13 +159,14 @@ func (a *AddSession) consumeImport(ctx context.Context,
 				continue
 			}
 
-			if err := consume(args, outObj, replMin, replMax); err != nil {
+			arg, err = consume(arg, outObj, replMin, replMax)
+			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	if err := finish(args, replMin, replMax); err != nil {
+	if err := finish(arg, replMin, replMax); err != nil {
 		return nil, err
 	}
 	a.logger.Debugf("succeeding sharding import")
@@ -224,8 +215,8 @@ func (a *AddSession) AddFile(ctx context.Context,
 	replMin, _ := strconv.Atoi(params.Get("repl_min"))
 	replMax, _ := strconv.Atoi(params.Get("repl_max"))
 
-	var consume func(map[string]string, *api.NodeWithMeta, int, int) error
-	var finish func(map[string]string, int, int) error
+	var consume func(string, *api.NodeWithMeta, int, int) (string, error)
+	var finish func(string, int, int) error
 	if shard == "true" {
 		consume = a.consumeShardAdd
 		finish = a.finishShardAdd

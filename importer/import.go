@@ -3,7 +3,6 @@ package importer
 import (
 	"context"
 	"io"
-	"strings"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func shouldIgnore(err error) bool {
-	if strings.Contains(err.Error(), "dagservice: block not found") {
+	if err == errNotFound {
 		return true
 	}
 	return false

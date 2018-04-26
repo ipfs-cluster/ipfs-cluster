@@ -10,7 +10,6 @@ package api
 
 import (
 	"fmt"
-	"mime/multipart"
 	"regexp"
 	"sort"
 	"strings"
@@ -772,13 +771,6 @@ func (pins PinSerial) ToPin() Pin {
 		Parents:              StringsToCidSet(pins.Parents),
 		Clusterdag:           cdag,
 	}
-}
-
-// FileInfo carries a reader pointing to a file and the parameters specified
-// for adding the file to ipfs-cluster
-type FileInfo struct {
-	Reader *multipart.Reader
-	Params map[string][]string
 }
 
 // AddedOutput carries information for displaying the standard ipfs output
