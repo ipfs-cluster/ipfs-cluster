@@ -215,28 +215,6 @@ This command provides a list of the ID information of all the peers in the Clust
 					},
 				},
 				{
-					Name:  "add",
-					Usage: "add a peer to the Cluster",
-					Description: `
-This command adds a new peer to the cluster. In order for the operation to
-succeed, the new peer needs to be reachable and any other member of the cluster
-should be online. The operation returns the ID information for the new peer.
-`,
-					ArgsUsage: "<multiaddress>",
-					Flags:     []cli.Flag{},
-					Action: func(c *cli.Context) error {
-						addr := c.Args().First()
-						if addr == "" {
-							return cli.NewExitError("Error: a multiaddress argument is needed", 1)
-						}
-						maddr, err := ma.NewMultiaddr(addr)
-						checkErr("parsing multiaddress", err)
-						resp, cerr := globalClient.PeerAdd(maddr)
-						formatResponse(c, resp, cerr)
-						return nil
-					},
-				},
-				{
 					Name:  "rm",
 					Usage: "remove a peer from the Cluster",
 					Description: `
