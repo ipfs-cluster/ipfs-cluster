@@ -74,7 +74,7 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ListenMultiaddress     string `json:"listen_multiaddress"` // backwards compat
+	ListenMultiaddress     string `json:"listen_multiaddress,omitempty"` // backwards compat
 	HTTPListenMultiaddress string `json:"http_listen_multiaddress"`
 	SSLCertFile            string `json:"ssl_cert_file,omitempty"`
 	SSLKeyFile             string `json:"ssl_key_file,omitempty"`
