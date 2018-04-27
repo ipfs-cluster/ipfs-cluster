@@ -7,17 +7,14 @@ import (
 	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
 	cid "github.com/ipfs/go-cid"
 	types "github.com/ipfs/ipfs-cluster/api"
+	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/test"
-
-	cid "github.com/ipfs/go-cid"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 func testClients(t *testing.T, api *rest.API, f func(*testing.T, *Client)) {
@@ -434,20 +431,24 @@ func TestWaitFor(t *testing.T) {
 }
 
 func TestAddMultiFile(t *testing.T) {
-	c, api := testClient(t)
+	api := testAPI(t)
 	defer api.Shutdown()
 
-	mfr, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
+	testF := func(t *testing.T, c *Client) {
+		mfr, err := test.GetTestingDirMultiReader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := c.AddMultiFile(mfr, false, false, false, "", "", false,
+			false, -1, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(out) != test.NumTestDirPrints ||
+			out[len(out)-1].Hash != test.TestDirBalancedRootCID {
+			t.Fatal("unexpected addedoutput from mock rpc on api")
+		}
 	}
-	out, err := c.AddMultiFile(mfr, false, false, false, "", "", false,
-		false, -1, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(out) != test.NumTestDirPrints ||
-		out[len(out)-1].Hash != test.TestDirBalancedRootCID {
-		t.Fatal("unexpected addedoutput from mock rpc on api")
-	}
+
+	testClients(t, api, testF)
 }

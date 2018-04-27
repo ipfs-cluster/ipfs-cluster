@@ -156,11 +156,31 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	err = config.ParseDurations(
 		"ipfshttp",
-		&config.DurationOpt{jcfg.ProxyReadTimeout, &cfg.ProxyReadTimeout, "proxy_read_timeout"},
-		&config.DurationOpt{jcfg.ProxyReadHeaderTimeout, &cfg.ProxyReadHeaderTimeout, "proxy_read_header_timeout"},
-		&config.DurationOpt{jcfg.ProxyWriteTimeout, &cfg.ProxyWriteTimeout, "proxy_write_timeout"},
-		&config.DurationOpt{jcfg.ProxyIdleTimeout, &cfg.ProxyIdleTimeout, "proxy_idle_timeout"},
-		&config.DurationOpt{jcfg.ConnectSwarmsDelay, &cfg.ConnectSwarmsDelay, "connect_swarms_delay"},
+		&config.DurationOpt{
+			Duration: jcfg.ProxyReadTimeout,
+			Dst:      &cfg.ProxyReadTimeout,
+			Name:     "proxy_read_timeout",
+		},
+		&config.DurationOpt{
+			Duration: jcfg.ProxyReadHeaderTimeout,
+			Dst:      &cfg.ProxyReadHeaderTimeout,
+			Name:     "proxy_read_header_timeout",
+		},
+		&config.DurationOpt{
+			Duration: jcfg.ProxyWriteTimeout,
+			Dst:      &cfg.ProxyWriteTimeout,
+			Name:     "proxy_write_timeout",
+		},
+		&config.DurationOpt{
+			Duration: jcfg.ProxyIdleTimeout,
+			Dst:      &cfg.ProxyIdleTimeout,
+			Name:     "proxy_idle_timeout",
+		},
+		&config.DurationOpt{
+			Duration: jcfg.ConnectSwarmsDelay,
+			Dst:      &cfg.ConnectSwarmsDelay,
+			Name:     "connect_swarms_delay",
+		},
 	)
 	if err != nil {
 		return err

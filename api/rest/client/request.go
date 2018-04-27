@@ -40,7 +40,7 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 // eventually we may want to trigger streaming with a boolean flag in
 // a single doRequest function to prevent code duplication (same for do)
 func (c *Client) doStreamRequest(method, path string, body io.Reader, headers map[string]string) (*http.Response, error) {
-	urlpath := c.urlPrefix + "/" + strings.TrimPrefix(path, "/")
+	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")	
 	logger.Debugf("%s: %s", method, urlpath)
 
 	r, err := http.NewRequest(method, urlpath, body)

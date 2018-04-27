@@ -606,7 +606,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	monCfg := &basic.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
-	shardCfg := &sharder.Config{}
+	sharderCfg := &sharder.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
@@ -614,10 +614,10 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.PinTracker, trackerCfg)
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
-        cfg.RegisterComponent(config.Informer, numpinInfCfg)
-        cfg.RegisterComponent(config.Sharder, shardCfg)
+	cfg.RegisterComponent(config.Informer, numpinInfCfg)
+	cfg.RegisterComponent(config.Sharder, sharderCfg)
 
-	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg, shardCfg}
+	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg, sharderCfg}
 }
 
 type cfgs struct {
@@ -629,7 +629,7 @@ type cfgs struct {
 	monCfg       *basic.Config
 	diskInfCfg   *disk.Config
 	numpinInfCfg *numpin.Config
-	shardCfg     *shard.Config
+	sharderCfg   *sharder.Config
 }
 
 func initializeCluster(ctx context.Context, c *cli.Context, cfgs *cfgs) (*ipfscluster.Cluster, error) {
@@ -652,8 +652,8 @@ func initializeCluster(ctx context.Context, c *cli.Context, cfgs *cfgs) (*ipfscl
 	checkErr("creating Monitor component", err)
 	informer, alloc := setupAllocation(c.GlobalString("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
-	sharder, err := sharder.NewSharder()
-	checkErr("creating shard component", err)	
+	sharder, err := sharder.NewSharder(cfgs.sharderCfg)
+	checkErr("creating shard component", err)
 
 	return ipfscluster.NewCluster(
 		host,

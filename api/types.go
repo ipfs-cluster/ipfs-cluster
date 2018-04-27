@@ -494,31 +494,6 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 	return addrs
 }
 
-
-// PeersToStrings IDB58Encodes a list of peers.
-func PeersToStrings(peers []peer.ID) []string {
-	strs := make([]string, len(peers))
-	for i, p := range peers {
-		if p != "" {
-			strs[i] = peer.IDB58Encode(p)
-		}
-	}
-	return strs
-}
-
-// StringsToPeers decodes peer.IDs from strings.
-func StringsToPeers(strs []string) []peer.ID {
-	peers := make([]peer.ID, len(strs))
-	for i, p := range strs {
-		var err error
-		peers[i], err = peer.IDB58Decode(p)
-		if err != nil {
-			logger.Error(p, err)
-		}
-	}
-	return peers
-}
-
 // CidsToStrings encodes cid.Cids to strings.
 func CidsToStrings(cids []*cid.Cid) []string {
 	strs := make([]string, len(cids))
@@ -747,6 +722,33 @@ func (pins PinSerial) ToPin() Pin {
 		Recursive:            pins.Recursive,
 		Parents:              StringsToCidSet(pins.Parents),
 		Clusterdag:           cdag,
+	}
+}
+
+// AddParams contains all of the configurable parameters needed to specify the
+// importing process of a file being added to an ipfs-cluster
+type AddParams struct {
+	Layout  string
+	Chunker string
+	Raw     bool
+	Hidden  bool
+	Silent  bool
+	Shard   bool
+	Rmin    int
+	Rmax    int
+}
+
+// DefaultAddParams returns the default AddParams value
+func DefaultAddParams() AddParams {
+	return AddParams{
+		Layout:  "", // corresponds to balanced layout
+		Chunker: "",
+		Raw:     false,
+		Hidden:  false,
+		Silent:  false,
+		Shard:   false,
+		Rmin:    -1,
+		Rmax:    -1,
 	}
 }
 

@@ -11,8 +11,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"math/rand"
-	"mime"
 	"net"
 	"net/http"
 	"strconv"
@@ -497,20 +497,32 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
-	contentType := r.Header.Get("Content-Type")
-	mediatype, _, _ := mime.ParseMediaType(contentType)
-
-	if mediatype != "multipart/form-data" {
-		sendErrorResponse(w, 415, "unsupported media type")
-		return
-	}
 	reader, err := r.MultipartReader()
 	if err != nil {
 		sendErrorResponse(w, 400, err.Error())
 		return
 	}
 
-	params := r.URL.Query()
+	urlParams := r.URL.Query()
+	layout := urlParams.Get("layout")
+	chunker := urlParams.Get("chunker")
+	raw, _ := strconv.ParseBool(urlParams.Get("raw"))
+	hidden, _ := strconv.ParseBool(urlParams.Get("hidden"))
+	silent, _ := strconv.ParseBool(urlParams.Get("silent"))
+	shard, _ := strconv.ParseBool(urlParams.Get("shard"))
+	replMin, _ := strconv.Atoi(urlParams.Get("repl_min"))
+	replMax, _ := strconv.Atoi(urlParams.Get("repl_max"))
+	params := types.AddParams{
+		Layout:  layout,
+		Chunker: chunker,
+		Raw:     raw,
+		Hidden:  hidden,
+		Silent:  silent,
+		Shard:   shard,
+		Rmin:    replMin,
+		Rmax:    replMax,
+	}
+
 	addSess := add.NewAddSession(api.rpcClient, logger)
 	toPrint, err := addSess.AddFile(api.ctx, reader, params)
 	if err != nil {

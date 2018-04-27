@@ -121,10 +121,13 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
-}	
+}
 
-func makePostRaw(t *testing.T, url string, body io.Reader, contentType string, resp interface{}) {
-	httpResp, err := http.Post(url, contentType, body)
+func makePostRaw(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h)
+	httpResp, err := c.Post(url, contentType, body)
 	processResp(t, httpResp, err, resp)
 }
 
@@ -236,51 +239,70 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
-func TestAPIAddFileEndpoint(t *testing.T) {
+func TestAPIAddFileEndpointBadContentType(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
-	fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
-	fmtStr2 := "layout=&chunker=&raw=false&"
-	fmtStr3 := "&hidden=false&repl_min=-1&repl_max=-1"
-	localURL := apiURL(rest) + fmtStr1 + fmtStr2 + fmtStr3
 
-	// Test with bad content-type
-	body, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
-	}
-	errResp := api.Error{}
-	makePostRaw(t, localURL, body, "text/html", &errResp)
-	if errResp.Code != 415 {
-		t.Error("expected error with bad content-type")
+	tf := func(t *testing.T, url urlF) {
+		fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
+		fmtStr2 := "layout=&chunker=&raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		localURL := url(rest) + fmtStr1 + fmtStr2
+
+		errResp := api.Error{}
+		makePost(t, rest, localURL, []byte("test"), &errResp)
+
+		if errResp.Code != 400 {
+			t.Error("expected error with bad content-type")
+		}
 	}
 
-	// Add local
-	body1, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp := []api.AddedOutput{}
-	mpContentType := "multipart/form-data; boundary=" + body1.Boundary()
-	makePostRaw(t, localURL, body1, mpContentType, &resp)
-	if len(resp) != test.NumTestDirPrints ||
-		resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
-		t.Error("unexpected addedoutput from local add")
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointLocal(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	tf := func(t *testing.T, url urlF) {
+		fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
+		fmtStr2 := "layout=&chunker=&raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		localURL := url(rest) + fmtStr1 + fmtStr2
+		body, err := test.GetTestingDirMultiReader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp := []api.AddedOutput{}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		makePostRaw(t, rest, localURL, body, mpContentType, &resp)
+		if len(resp) != test.NumTestDirPrints ||
+			resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
+			t.Error("unexpected addedoutput from local add")
+		}
 	}
 
-	// Add sharded
-	body2, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointShard(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	tf := func(t *testing.T, url urlF) {
+		body, err := test.GetTestingDirMultiReader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		resp := []api.AddedOutput{}
+		fmtStr1 := "/allocations?shard=true&quiet=false&silent=false&"
+		fmtStr2 := "layout=&chunker=&raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		shardURL := url(rest) + fmtStr1 + fmtStr2
+		makePostRaw(t, rest, shardURL, body, mpContentType, &resp)
+		if len(resp) != test.NumTestDirPrints ||
+			resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
+			t.Fatal("unexpected addedoutput from sharded add")
+		}
 	}
-	mpContentType = "multipart/form-data; boundary=" + body2.Boundary()
-	fmtStr1Shard := "/allocations?shard=true&quiet=false&silent=false&"
-	shardURL := apiURL(rest) + fmtStr1Shard + fmtStr2 + fmtStr3
-	makePostRaw(t, shardURL, body2, mpContentType, &resp)
-	if len(resp) != test.NumTestDirPrints ||
-		resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
-		t.Fatal("unexpected addedoutput from sharded add")
-	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestAPIPeerRemoveEndpoint(t *testing.T) {

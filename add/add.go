@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"mime/multipart"
-	"net/url"
-	"strconv"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/importer"
@@ -176,17 +174,17 @@ func (a *AddSession) consumeImport(ctx context.Context,
 // sharded across the entire cluster.
 func (a *AddSession) AddFile(ctx context.Context,
 	reader *multipart.Reader,
-	params url.Values,
+	params api.AddParams,
 ) ([]api.AddedOutput, error) {
-	layout := params.Get("layout")
+	layout := params.Layout
 	trickle := false
 	if layout == "trickle" {
 		trickle = true
 	}
-	chunker := params.Get("chunker")
-	raw, _ := strconv.ParseBool(params.Get("raw"))
-	hidden, _ := strconv.ParseBool(params.Get("hidden"))
-	silent, _ := strconv.ParseBool(params.Get("silent"))
+	chunker := params.Chunker
+	raw := params.Raw
+	hidden := params.Hidden
+	silent := params.Silent
 
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
@@ -204,13 +202,13 @@ func (a *AddSession) AddFile(ctx context.Context,
 		chunker,
 	)
 
-	shard := params.Get("shard")
-	replMin, _ := strconv.Atoi(params.Get("repl_min"))
-	replMax, _ := strconv.Atoi(params.Get("repl_max"))
+	shard := params.Shard
+	replMin := params.Rmin
+	replMax := params.Rmax
 
 	var consume func(string, *api.NodeWithMeta, int, int) (string, error)
 	var finish func(string, int, int) error
-	if shard == "true" {
+	if shard {
 		consume = a.consumeShardAdd
 		finish = a.finishShardAdd
 	} else {
