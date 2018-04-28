@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -32,6 +33,7 @@ const (
 	DefaultReplicationFactor   = -1
 	DefaultLeaveOnShutdown     = false
 	DefaultDisableRepinning    = false
+	DefaultPeerstoreFile       = "peerstore"
 )
 
 // Config is the configuration object containing customizable variables to
@@ -39,7 +41,8 @@ const (
 // config.ComponentConfig interface.
 type Config struct {
 	config.Saver
-	lock sync.Mutex
+	lock          sync.Mutex
+	peerstoreLock sync.Mutex
 
 	// Libp2p ID and private key for Cluster communication (including)
 	// the Consensus component.
@@ -53,17 +56,6 @@ type Config struct {
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
 	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
 	Secret []byte
-
-	// Peers is the list of peers in the Cluster. They are used
-	// as the initial peers in the consensus. When bootstrapping a peer,
-	// Peers will be filled in automatically for the next run upon
-	// shutdown.
-	Peers []ma.Multiaddr
-
-	// Bootstrap peers multiaddresses. This peer will attempt to
-	// join the clusters of the peers in this list after booting.
-	// Leave empty for a single-peer-cluster.
-	Bootstrap []ma.Multiaddr
 
 	// Leave Cluster on shutdown. Politely informs other peers
 	// of the departure and removes itself from the consensus
@@ -122,6 +114,10 @@ type Config struct {
 	// This is useful when doing certain types of maintainance, or simply
 	// when not wanting to rely on the monitoring system which needs a revamp.
 	DisableRepinning bool
+
+	// Peerstore file specifies the file on which we persist the
+	// libp2p host peerstore addresses. This file is regularly saved.
+	PeerstoreFile string
 }
 
 // configJSON represents a Cluster configuration as it will look when it is
@@ -132,8 +128,8 @@ type configJSON struct {
 	Peername             string   `json:"peername"`
 	PrivateKey           string   `json:"private_key"`
 	Secret               string   `json:"secret"`
-	Peers                []string `json:"peers"`
-	Bootstrap            []string `json:"bootstrap"`
+	Peers                []string `json:"peers,omitempty"`     // DEPRECATED
+	Bootstrap            []string `json:"bootstrap,omitempty"` // DEPRECATED
 	LeaveOnShutdown      bool     `json:"leave_on_shutdown"`
 	ListenMultiaddress   string   `json:"listen_multiaddress"`
 	StateSyncInterval    string   `json:"state_sync_interval"`
@@ -144,6 +140,7 @@ type configJSON struct {
 	MonitorPingInterval  string   `json:"monitor_ping_interval"`
 	PeerWatchInterval    string   `json:"peer_watch_interval"`
 	DisableRepinning     bool     `json:"disable_repinning"`
+	PeerstoreFile        string   `json:"peerstore_file,omitempty"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -197,14 +194,6 @@ func (cfg *Config) Validate() error {
 
 	if !cfg.ID.MatchesPrivateKey(cfg.PrivateKey) {
 		return errors.New("cluster.ID does not match the private_key")
-	}
-
-	if cfg.Peers == nil {
-		return errors.New("cluster.peers is undefined")
-	}
-
-	if cfg.Bootstrap == nil {
-		return errors.New("cluster.bootstrap is undefined")
 	}
 
 	if cfg.ListenAddr == nil {
@@ -268,8 +257,6 @@ func (cfg *Config) setDefaults() {
 
 	addr, _ := ma.NewMultiaddr(DefaultListenAddr)
 	cfg.ListenAddr = addr
-	cfg.Peers = []ma.Multiaddr{}
-	cfg.Bootstrap = []ma.Multiaddr{}
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
 	cfg.IPFSSyncInterval = DefaultIPFSSyncInterval
@@ -278,6 +265,7 @@ func (cfg *Config) setDefaults() {
 	cfg.MonitorPingInterval = DefaultMonitorPingInterval
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
+	cfg.PeerstoreFile = "" // empty so it gets ommited.
 }
 
 // LoadJSON receives a raw json-formatted configuration and
@@ -293,6 +281,27 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	// Make sure all non-defined keys have good values.
 	cfg.setDefaults()
+	config.SetIfNotDefault(jcfg.PeerstoreFile, &cfg.PeerstoreFile)
+
+	if jcfg.Peers != nil || jcfg.Bootstrap != nil {
+		logger.Error(`
+Your configuration is using cluster.Peers and/or cluster.Bootstrap
+keys. Starting at version 0.4.0 these keys have been deprecated and replaced by
+the Peerstore file and the consensus.raft.InitialPeers key.
+
+Bootstrap keeps working but only as a flag:
+
+"ipfs-cluster-service daemon --bootstrap <comma-separated-multiaddresses>"
+
+If you want to upgrade the existing peers that belong to a cluster:
+
+* Write your peers multiaddresses in the peerstore file (1 per line): ~/.ipfs-cluster/peerstore
+* Remove Peers and Bootstrap from your configuration
+
+Please check the docs (https://cluster.ipfs.io/documentation/configuration/)
+for more information.`)
+		return errors.New("cluster.Peers and cluster.Bootstrap keys have been deprecated")
+	}
 
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
@@ -329,32 +338,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 	cfg.Secret = clusterSecret
-
-	parseMultiaddrs := func(strs []string) ([]ma.Multiaddr, error) {
-		addrs := make([]ma.Multiaddr, len(strs))
-		for i, p := range strs {
-			maddr, err := ma.NewMultiaddr(p)
-			if err != nil {
-				m := "error parsing multiaddress for peer %s: %s"
-				err = fmt.Errorf(m, p, err)
-				return nil, err
-			}
-			addrs[i] = maddr
-		}
-		return addrs, nil
-	}
-
-	clusterPeers, err := parseMultiaddrs(jcfg.Peers)
-	if err != nil {
-		return err
-	}
-	cfg.Peers = clusterPeers
-
-	bootstrap, err := parseMultiaddrs(jcfg.Bootstrap)
-	if err != nil {
-		return err
-	}
-	cfg.Bootstrap = bootstrap
 
 	clusterAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
 	if err != nil {
@@ -406,25 +389,11 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	}
 	pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
 
-	// Peers
-	clusterPeers := make([]string, len(cfg.Peers), len(cfg.Peers))
-	for i := 0; i < len(cfg.Peers); i++ {
-		clusterPeers[i] = cfg.Peers[i].String()
-	}
-
-	// Bootstrap peers
-	bootstrap := make([]string, len(cfg.Bootstrap), len(cfg.Bootstrap))
-	for i := 0; i < len(cfg.Bootstrap); i++ {
-		bootstrap[i] = cfg.Bootstrap[i].String()
-	}
-
 	// Set all configuration fields
 	jcfg.ID = cfg.ID.Pretty()
 	jcfg.Peername = cfg.Peername
 	jcfg.PrivateKey = pKey
 	jcfg.Secret = EncodeProtectorKey(cfg.Secret)
-	jcfg.Peers = clusterPeers
-	jcfg.Bootstrap = bootstrap
 	jcfg.ReplicationFactorMin = cfg.ReplicationFactorMin
 	jcfg.ReplicationFactorMax = cfg.ReplicationFactorMax
 	jcfg.LeaveOnShutdown = cfg.LeaveOnShutdown
@@ -434,16 +403,27 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
+	jcfg.PeerstoreFile = cfg.PeerstoreFile
 
 	raw, err = json.MarshalIndent(jcfg, "", "    ")
 	return
 }
 
-func (cfg *Config) savePeers(addrs []ma.Multiaddr) {
-	cfg.lock.Lock()
-	cfg.Peers = addrs
-	cfg.lock.Unlock()
-	cfg.NotifySave()
+// GetPeerstorePath returns the full path of the
+// PeerstoreFile, obtained by concatenating that value
+// with BaseDir of the configuration, if set.
+// An empty string is returned when BaseDir is not set.
+func (cfg *Config) GetPeerstorePath() string {
+	if cfg.BaseDir == "" {
+		return ""
+	}
+
+	filename := DefaultPeerstoreFile
+	if cfg.PeerstoreFile != "" {
+		filename = cfg.PeerstoreFile
+	}
+
+	return filepath.Join(cfg.BaseDir, filename)
 }
 
 // DecodeClusterSecret parses a hex-encoded string, checks that it is exactly

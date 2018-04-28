@@ -87,18 +87,21 @@ func TestClustersPeerAdd(t *testing.T) {
 			t.Error("By now cluster peers should reflect all peers")
 		}
 
-		// check that they are part of the configuration
-		// This only works because each peer only has one multiaddress
-		// (localhost)
-		if len(PeersFromMultiaddrs(c.config.Peers)) != nClusters-1 {
-			t.Error(c.config.Peers)
-			t.Errorf("%s: expected different cluster peers in the configuration", c.id)
+		// check that all peers are part of the peerstore
+		// (except ourselves)
+		addrs := c.peerManager.LoadPeerstore()
+		peerMap := make(map[peer.ID]struct{})
+		for _, a := range addrs {
+			pid, _, err := api.Libp2pMultiaddrSplit(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			peerMap[pid] = struct{}{}
 		}
 
-		for _, peer := range c.config.Peers {
-			if peer == nil {
-				t.Error("something went wrong adding peer to config")
-			}
+		if len(peerMap) != nClusters-1 {
+			t.Error(c.peerManager.LoadPeerstore())
+			t.Errorf("%s: expected different cluster peers in the peerstore", c.id)
 		}
 	}
 	runF(t, clusters, f)
@@ -173,7 +176,6 @@ func TestClustersPeerRemove(t *testing.T) {
 	}
 
 	p := clusters[1].ID().ID
-	//t.Logf("remove %s from %s", p.Pretty(), clusters[0].config.ClusterPeers)
 	err := clusters[0].PeerRemove(p)
 	if err != nil {
 		t.Error(err)
@@ -187,18 +189,11 @@ func TestClustersPeerRemove(t *testing.T) {
 			if ok {
 				t.Error("removed peer should have exited")
 			}
-			//			if len(c.config.ClusterPeers) != 0 {
-			//				t.Error("cluster peers should be empty")
-			//			}
 		} else {
 			ids := c.Peers()
 			if len(ids) != nClusters-1 {
 				t.Error("should have removed 1 peer")
 			}
-			//			if len(c.config.ClusterPeers) != nClusters-1 {
-			//				t.Log(c.config.ClusterPeers)
-			//				t.Error("should have removed peer from config")
-			//			}
 		}
 	}
 
@@ -542,7 +537,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// Forget peer so we can re-add one in same address/port
 	f := func(t *testing.T, c *Cluster) {
-		c.peerManager.rmPeer(clusters[0].id)
+		c.peerManager.RmPeer(clusters[0].id)
 	}
 	runF(t, clusters[1:], f)
 

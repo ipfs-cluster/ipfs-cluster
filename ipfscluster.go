@@ -37,8 +37,8 @@ type Component interface {
 // the Cluster main component.
 type Consensus interface {
 	Component
-	// Returns a channel to signal that the consensus
-	// algorithm is ready
+	// Returns a channel to signal that the consensus layer is ready
+	// allowing the main component to wait for it during start.
 	Ready() <-chan struct{}
 	// Logs a pin operation
 	LogPin(c api.Pin) error

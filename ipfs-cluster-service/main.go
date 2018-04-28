@@ -2,38 +2,29 @@ package main
 
 import (
 	"bufio"
-	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"os/user"
 	"path/filepath"
-	"syscall"
 
 	//	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log"
-	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
-	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
-	"github.com/ipfs/ipfs-cluster/api/rest"
-	"github.com/ipfs/ipfs-cluster/config"
-	"github.com/ipfs/ipfs-cluster/consensus/raft"
-	"github.com/ipfs/ipfs-cluster/informer/disk"
-	"github.com/ipfs/ipfs-cluster/informer/numpin"
-	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
 // ProgramName of this application
 const programName = `ipfs-cluster-service`
+
+// flag defaults
+const (
+	defaultAllocation = "disk-freespace"
+	defaultLogLevel   = "info"
+)
 
 // We store a commit id here
 var commit string
@@ -88,11 +79,11 @@ $ ipfs-cluster-service init
 
 Launch a cluster:
 
-$ ipfs-cluster-service
+$ ipfs-cluster-service daemon
 
 Launch a peer and join existing cluster:
 
-$ ipfs-cluster-service --bootstrap /ip4/192.168.1.2/tcp/9096/ipfs/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
+$ ipfs-cluster-service daemon --bootstrap /ip4/192.168.1.2/tcp/9096/ipfs/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
 `,
 	programName,
 	programName,
@@ -174,28 +165,14 @@ func main() {
 			Name:  "force, f",
 			Usage: "forcefully proceed with some actions. i.e. overwriting configuration",
 		},
-		cli.StringFlag{
-			Name:  "bootstrap, j",
-			Usage: "join a cluster providing an existing peer's `multiaddress`. Overrides the \"bootstrap\" values from the configuration",
-		},
-		cli.BoolFlag{
-			Name:   "leave, x",
-			Usage:  "remove peer from cluster on exit. Overrides \"leave_on_shutdown\"",
-			Hidden: true,
-		},
 		cli.BoolFlag{
 			Name:  "debug, d",
 			Usage: "enable full debug logging (very verbose)",
 		},
 		cli.StringFlag{
 			Name:  "loglevel, l",
-			Value: "info",
+			Value: defaultLogLevel,
 			Usage: "set the loglevel for cluster components only [critical, error, warning, info, debug]",
-		},
-		cli.StringFlag{
-			Name:  "alloc, a",
-			Value: "disk-freespace",
-			Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
 		},
 	}
 
@@ -250,6 +227,20 @@ configuration.
 				cli.BoolFlag{
 					Name:  "upgrade, u",
 					Usage: "run necessary state migrations before starting cluster service",
+				},
+				cli.StringSliceFlag{
+					Name:  "bootstrap, j",
+					Usage: "join a cluster providing an existing peers multiaddress(es)",
+				},
+				cli.BoolFlag{
+					Name:   "leave, x",
+					Usage:  "remove peer from cluster on exit. Overrides \"leave_on_shutdown\"",
+					Hidden: true,
+				},
+				cli.StringFlag{
+					Name:  "alloc, a",
+					Value: defaultAllocation,
+					Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
 				},
 			},
 			Action: daemon,
@@ -384,13 +375,11 @@ the mth data folder (m currently defaults to 5)
 
 						cfgMgr, cfgs := makeConfigs()
 						err = cfgMgr.LoadJSONFromFile(configPath)
-						checkErr("initializing configs", err)
+						checkErr("reading configuration", err)
 
-						dataFolder := filepath.Join(cfgs.consensusCfg.BaseDir, raft.DefaultDataSubFolder)
-						err = raft.CleanupRaft(dataFolder)
+						err = cleanupState(cfgs.consensusCfg)
 						checkErr("Cleaning up consensus data", err)
-						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", dataFolder)
-
+						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cfgs.consensusCfg.GetDataFolder())
 						return nil
 					},
 				},
@@ -436,120 +425,20 @@ the mth data folder (m currently defaults to 5)
 
 // run daemon() by default, or error.
 func run(c *cli.Context) error {
-	if len(c.Args()) > 0 {
-		return fmt.Errorf("unknown subcommand. Run \"%s help\" for more info", programName)
-	}
-	return daemon(c)
-}
-
-func daemon(c *cli.Context) error {
-	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
-
-	// Load all the configurations
-	cfgMgr, cfgs := makeConfigs()
-
-	// Run any migrations
-	if c.Bool("upgrade") {
-		err := upgrade()
-		if err != errNoSnapshot {
-			checkErr("upgrading state", err)
-		} // otherwise continue
-	}
-
-	// Execution lock
-	err := locker.lock()
-	checkErr("acquiring execution lock", err)
-	defer locker.tryUnlock()
-
-	// Load all the configurations
-	// always wait for configuration to be saved
-	defer cfgMgr.Shutdown()
-
-	err = cfgMgr.LoadJSONFromFile(configPath)
-	checkErr("loading configuration", err)
-
-	if a := c.String("bootstrap"); a != "" {
-		if len(cfgs.clusterCfg.Peers) > 0 && !c.Bool("force") {
-			return errors.New("the configuration provides cluster.Peers. Use -f to ignore and proceed bootstrapping")
-		}
-		joinAddr, err := ma.NewMultiaddr(a)
-		checkErr("error parsing multiaddress: %s", err)
-		cfgs.clusterCfg.Bootstrap = []ma.Multiaddr{joinAddr}
-		cfgs.clusterCfg.Peers = []ma.Multiaddr{}
-	}
-
-	if c.Bool("leave") {
-		cfgs.clusterCfg.LeaveOnShutdown = true
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cluster, err := initializeCluster(ctx, c, cfgs)
-	checkErr("starting cluster", err)
-
-	signalChan := make(chan os.Signal, 20)
-	signal.Notify(
-		signalChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGHUP,
-	)
-
-	var ctrlcCount int
-	for {
-		select {
-		case <-signalChan:
-			ctrlcCount++
-			handleCtrlC(cluster, ctrlcCount)
-		case <-cluster.Done():
-			return nil
-		}
-	}
+	cli.ShowAppHelp(c)
+	os.Exit(1)
+	return nil
 }
 
 func setupLogLevel(lvl string) {
 	for f := range ipfscluster.LoggingFacilities {
 		ipfscluster.SetFacilityLogLevel(f, lvl)
 	}
+	ipfscluster.SetFacilityLogLevel("service", lvl)
 }
 
 func setupDebug() {
 	ipfscluster.SetFacilityLogLevel("*", "DEBUG")
-}
-
-func setupAllocation(name string, diskInfCfg *disk.Config, numpinInfCfg *numpin.Config) (ipfscluster.Informer, ipfscluster.PinAllocator) {
-	switch name {
-	case "disk", "disk-freespace":
-		informer, err := disk.NewInformer(diskInfCfg)
-		checkErr("creating informer", err)
-		return informer, descendalloc.NewAllocator()
-	case "disk-reposize":
-		informer, err := disk.NewInformer(diskInfCfg)
-		checkErr("creating informer", err)
-		return informer, ascendalloc.NewAllocator()
-	case "numpin", "pincount":
-		informer, err := numpin.NewInformer(numpinInfCfg)
-		checkErr("creating informer", err)
-		return informer, ascendalloc.NewAllocator()
-	default:
-		err := errors.New("unknown allocation strategy")
-		checkErr("", err)
-		return nil, nil
-	}
-}
-
-func saveConfig(cfg *config.Manager, force bool) {
-	if _, err := os.Stat(configPath); err == nil && !force {
-		err := fmt.Errorf("%s exists. Try running: %s -f init", configPath, programName)
-		checkErr("", err)
-	}
-
-	err := os.MkdirAll(filepath.Dir(configPath), 0700)
-	err = cfg.SaveJSON(configPath)
-	checkErr("saving new configuration", err)
-	out("%s configuration written to %s\n",
-		programName, configPath)
 }
 
 func userProvidedSecret(enterSecret bool) ([]byte, bool) {
@@ -591,94 +480,4 @@ func yesNoPrompt(prompt string) bool {
 		fmt.Println("Please press either 'y' or 'n'")
 	}
 	return false
-}
-
-func makeConfigs() (*config.Manager, *cfgs) {
-	cfg := config.NewManager()
-	clusterCfg := &ipfscluster.Config{}
-	apiCfg := &rest.Config{}
-	ipfshttpCfg := &ipfshttp.Config{}
-	consensusCfg := &raft.Config{}
-	trackerCfg := &maptracker.Config{}
-	monCfg := &basic.Config{}
-	diskInfCfg := &disk.Config{}
-	numpinInfCfg := &numpin.Config{}
-	cfg.RegisterComponent(config.Cluster, clusterCfg)
-	cfg.RegisterComponent(config.API, apiCfg)
-	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
-	cfg.RegisterComponent(config.Consensus, consensusCfg)
-	cfg.RegisterComponent(config.PinTracker, trackerCfg)
-	cfg.RegisterComponent(config.Monitor, monCfg)
-	cfg.RegisterComponent(config.Informer, diskInfCfg)
-	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg}
-}
-
-type cfgs struct {
-	clusterCfg   *ipfscluster.Config
-	apiCfg       *rest.Config
-	ipfshttpCfg  *ipfshttp.Config
-	consensusCfg *raft.Config
-	trackerCfg   *maptracker.Config
-	monCfg       *basic.Config
-	diskInfCfg   *disk.Config
-	numpinInfCfg *numpin.Config
-}
-
-func initializeCluster(ctx context.Context, c *cli.Context, cfgs *cfgs) (*ipfscluster.Cluster, error) {
-	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
-	checkErr("creating libP2P Host", err)
-
-	api, err := rest.NewAPIWithHost(cfgs.apiCfg, host)
-	checkErr("creating REST API component", err)
-
-	proxy, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
-	checkErr("creating IPFS Connector component", err)
-
-	state := mapstate.NewMapState()
-
-	err = validateVersion(cfgs.clusterCfg, cfgs.consensusCfg)
-	checkErr("validating version", err)
-
-	tracker := maptracker.NewMapPinTracker(cfgs.trackerCfg, cfgs.clusterCfg.ID)
-	mon, err := basic.NewMonitor(cfgs.monCfg)
-	checkErr("creating Monitor component", err)
-	informer, alloc := setupAllocation(c.GlobalString("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
-
-	return ipfscluster.NewCluster(
-		host,
-		cfgs.clusterCfg,
-		cfgs.consensusCfg,
-		api,
-		proxy,
-		state,
-		tracker,
-		mon,
-		alloc,
-		informer,
-	)
-}
-
-func handleCtrlC(cluster *ipfscluster.Cluster, ctrlcCount int) {
-	switch ctrlcCount {
-	case 1:
-		go func() {
-			err := cluster.Shutdown()
-			checkErr("shutting down cluster", err)
-		}()
-	case 2:
-		out(`
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-Shutdown is taking too long! Press Ctrl-c again to manually kill cluster.
-Note that this may corrupt the local cluster state.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-`)
-	case 3:
-		out("exiting cluster NOW")
-		os.Exit(-1)
-	}
 }

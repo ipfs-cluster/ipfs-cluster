@@ -10,6 +10,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 )
 
@@ -33,7 +34,8 @@ func upgrade() error {
 		return err
 	}
 
-	raftPeers := append(ipfscluster.PeersFromMultiaddrs(cfgs.clusterCfg.Peers), cfgs.clusterCfg.ID)
+	pm := pstoremgr.New(nil, cfgs.clusterCfg.GetPeerstorePath())
+	raftPeers := append(ipfscluster.PeersFromMultiaddrs(pm.LoadPeerstore()), cfgs.clusterCfg.ID)
 	return raft.SnapshotSave(cfgs.consensusCfg, newState, raftPeers)
 }
 
@@ -111,7 +113,9 @@ func stateImport(r io.Reader) error {
 			return err
 		}
 	}
-	raftPeers := append(ipfscluster.PeersFromMultiaddrs(cfgs.clusterCfg.Peers), cfgs.clusterCfg.ID)
+
+	pm := pstoremgr.New(nil, cfgs.clusterCfg.GetPeerstorePath())
+	raftPeers := append(ipfscluster.PeersFromMultiaddrs(pm.LoadPeerstore()), cfgs.clusterCfg.ID)
 	return raft.SnapshotSave(cfgs.consensusCfg, stateToImport, raftPeers)
 }
 
@@ -158,4 +162,9 @@ func exportState(state *mapstate.MapState, w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	return enc.Encode(pinSerials)
+}
+
+// CleanupState cleans the state
+func cleanupState(cCfg *raft.Config) error {
+	return raft.CleanupRaft(cCfg.GetDataFolder(), cCfg.BackupsRotate)
 }

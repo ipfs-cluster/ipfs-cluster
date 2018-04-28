@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -92,21 +94,30 @@ func (ipfs *mockConnector) RepoSize() (uint64, error)                     { retu
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
 	clusterCfg, _, _, consensusCfg, trackerCfg, monCfg, _ := testingConfigs()
 
+	host, err := NewClusterHost(context.Background(), clusterCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
 	monCfg.CheckInterval = 2 * time.Second
+
+	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
 	mon, _ := basic.NewMonitor(monCfg)
 	alloc := ascendalloc.NewAllocator()
 	numpinCfg := &numpin.Config{}
 	numpinCfg.Default()
 	inf, _ := numpin.NewInformer(numpinCfg)
 
+	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
+
 	cl, err := NewCluster(
-		nil,
+		host,
 		clusterCfg,
-		consensusCfg,
+		raftcon,
 		api,
 		ipfs,
 		st,

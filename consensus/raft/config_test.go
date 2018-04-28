@@ -9,9 +9,13 @@ import (
 
 var cfgJSON = []byte(`
 {
-    "heartbeat_timeout": "1s",
-    "commit_retries": 1,
+    "init_peerset": [],
     "wait_for_leader_timeout": "15s",
+    "network_timeout": "1s",
+    "commit_retries": 1,
+    "commit_retry_delay": "200ms",
+    "backups_rotate": 5,
+    "heartbeat_timeout": "1s",
     "election_timeout": "1s",
     "commit_timeout": "50ms",
     "max_append_entries": 64,
@@ -91,6 +95,13 @@ func TestDefault(t *testing.T) {
 
 	cfg.Default()
 	cfg.WaitForLeaderTimeout = 0
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.BackupsRotate = 0
+
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
