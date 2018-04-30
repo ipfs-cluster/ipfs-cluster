@@ -138,7 +138,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	c := &http.Client{
-		Timeout: cfg.ClientPostTimeout,
+		Timeout: cfg.IPFSRequestTimeout,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -714,10 +714,6 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPin
 	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
-func (ipfs *Connector) doPost(client *http.Client, apiURL, path string) (*http.Response, error) {
-	return ipfs.doPostCtx(ipfs.ctx, client, apiURL, path)
-}
-
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string) (*http.Response, error) {
 	logger.Debugf("posting %s", path)
 	urlstr := fmt.Sprintf("%s/%s", apiURL, path)
@@ -773,12 +769,8 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string) ([]byte, error)
 	return body, checkResponse(path, res.StatusCode, body)
 }
 
-// postDiscardBody makes a POST requests but discards the body
+// postDiscardBodyCtx makes a POST requests but discards the body
 // of the response directly after reading it.
-func (ipfs *Connector) postDiscardBody(path string) error {
-	return ipfs.postDiscardBodyCtx(ipfs.ctx, path)
-}
-
 func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) error {
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path)
 	if err != nil {

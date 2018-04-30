@@ -23,7 +23,7 @@ const (
 	DefaultProxyWriteTimeout      = 10 * time.Minute
 	DefaultProxyIdleTimeout       = 60 * time.Second
 	DefaultPinMethod              = "pin"
-	DefaultClientPostTimeout      = 5 * time.Minute
+	DefaultIPFSRequestTimeout     = 5 * time.Minute
 	DefaultPinTimeout             = 24 * time.Hour
 	DefaultUnpinTimeout           = 3 * time.Hour
 )
@@ -63,7 +63,7 @@ type Config struct {
 	PinMethod string
 
 	// IPFS Daemon HTTP Client POST timeout
-	ClientPostTimeout time.Duration
+	IPFSRequestTimeout time.Duration
 
 	// Pin Operation timeout
 	PinTimeout time.Duration
@@ -81,7 +81,7 @@ type jsonConfig struct {
 	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
 	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
 	PinMethod               string `json:"pin_method"`
-	ClientPostTimeout       string `json:"client_post_timeout"`
+	IPFSRequestTimeout      string `json:"ipfs_request_timeout"`
 	PinTimeout              string `json:"pin_timeout"`
 	UnpinTimeout            string `json:"unpin_timeout"`
 }
@@ -103,7 +103,7 @@ func (cfg *Config) Default() error {
 	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
 	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
 	cfg.PinMethod = DefaultPinMethod
-	cfg.ClientPostTimeout = DefaultClientPostTimeout
+	cfg.IPFSRequestTimeout = DefaultIPFSRequestTimeout
 	cfg.PinTimeout = DefaultPinTimeout
 	cfg.UnpinTimeout = DefaultUnpinTimeout
 
@@ -147,8 +147,8 @@ func (cfg *Config) Validate() error {
 		err = errors.New("ipfshttp.pin_method invalid value")
 	}
 
-	if cfg.ClientPostTimeout < 0 {
-		err = errors.New("ipfshttp.client_post_timeout invalid")
+	if cfg.IPFSRequestTimeout < 0 {
+		err = errors.New("ipfshttp.ipfs_request_timeout invalid")
 	}
 
 	if cfg.PinTimeout < 0 {
@@ -192,7 +192,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		&config.DurationOpt{jcfg.ProxyWriteTimeout, &cfg.ProxyWriteTimeout, "proxy_write_timeout"},
 		&config.DurationOpt{jcfg.ProxyIdleTimeout, &cfg.ProxyIdleTimeout, "proxy_idle_timeout"},
 		&config.DurationOpt{jcfg.ConnectSwarmsDelay, &cfg.ConnectSwarmsDelay, "connect_swarms_delay"},
-		&config.DurationOpt{jcfg.ClientPostTimeout, &cfg.ClientPostTimeout, "client_post_timeout"},
+		&config.DurationOpt{jcfg.IPFSRequestTimeout, &cfg.IPFSRequestTimeout, "ipfs_request_timeout"},
 		&config.DurationOpt{jcfg.PinTimeout, &cfg.PinTimeout, "pin_timeout"},
 		&config.DurationOpt{jcfg.UnpinTimeout, &cfg.UnpinTimeout, "unpin_timeout"},
 	)
@@ -225,7 +225,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
 	jcfg.PinMethod = cfg.PinMethod
-	jcfg.ClientPostTimeout = cfg.ClientPostTimeout.String()
+	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
 	jcfg.PinTimeout = cfg.PinTimeout.String()
 	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
 
