@@ -296,7 +296,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		}
 	}
 
-	mpt.set(c.Cid, api.TrackerStatusPinning)
+	mpt.set(c.Cid, api.TrackerStatusPinQueued)
 	select {
 	case mpt.pinCh <- c:
 		mpt.optracker.trackNewOperationCtx(mpt.ctx, c.Cid, operationPin)
@@ -326,7 +326,7 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 			}
 		}
 	}
-	mpt.set(c, api.TrackerStatusUnpinning)
+	mpt.set(c, api.TrackerStatusUnpinQueued)
 	select {
 	case mpt.unpinCh <- api.PinCid(c):
 		mpt.optracker.trackNewOperationCtx(mpt.ctx, c, operationUnpin)
