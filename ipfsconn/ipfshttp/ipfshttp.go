@@ -156,9 +156,11 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	}
 
 	smux.HandleFunc("/", ipfs.defaultHandler)
+	smux.HandleFunc("/api/v0/pin/add", ipfs.pinHandler) // required for go1.9 as it doesn't redirect query args correctly
 	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)
+	smux.HandleFunc("/api/v0/pin/rm", ipfs.unpinHandler) // required for go1.9 as it doesn't redirect query args correctly
 	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler)
-	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // to handle /pin/ls for all pins
+	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // required to handle /pin/ls for all pins
 	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
 	smux.HandleFunc("/api/v0/add", ipfs.addHandler)
 	smux.HandleFunc("/api/v0/add/", ipfs.addHandler)
