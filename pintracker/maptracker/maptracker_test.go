@@ -55,7 +55,7 @@ func TestTrack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(100 * time.Millisecond) // let it be pinned
+	time.Sleep(200 * time.Millisecond) // let it be pinned
 
 	st := mpt.Status(h)
 	if st.Status != api.TrackerStatusPinned {
@@ -74,7 +74,7 @@ func TestTrack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(100 * time.Millisecond) // let it be unpinned
+	time.Sleep(200 * time.Millisecond) // let it be unpinned
 
 	st = mpt.Status(h)
 	if st.Status != api.TrackerStatusRemote {
@@ -165,7 +165,7 @@ func TestStatusAll(t *testing.T) {
 	}
 	mpt.Track(c)
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	stAll := mpt.StatusAll()
 	if len(stAll) != 2 {
@@ -386,6 +386,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 func TestTrackUntrackWithNoCancel(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown()
+	done := make(chan struct{})
 
 	h1, _ := cid.Decode(test.TestCid1)
 
@@ -403,6 +404,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	go func() {
+		defer close(done)
 		for {
 			opc, _ := mpt.optracker.get(c.Cid)
 			if opc.phase == phaseQueued {
@@ -414,7 +416,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 			}
 		}
 	}()
-
+	<-done
 }
 
 func TestUntrackTrackWithCancel(t *testing.T) {
@@ -462,6 +464,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 func TestUntrackTrackWithNoCancel(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown()
+	done := make(chan struct{})
 
 	h1, _ := cid.Decode(test.TestCid1)
 
@@ -486,6 +489,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	}
 
 	go func() {
+		defer close(done)
 		for {
 			opc, _ := mpt.optracker.get(c.Cid)
 			if opc.phase == phaseQueued {
@@ -497,5 +501,5 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 			}
 		}
 	}()
-
+	<-done
 }
