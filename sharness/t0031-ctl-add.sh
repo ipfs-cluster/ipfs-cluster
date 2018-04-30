@@ -26,7 +26,11 @@ test_expect_success IPFS,CLUSTER "add sharded small file to cluster" '
 '
 
 test_expect_success IPFS,CLUSTER "add same file sharded and unsharded" '
-    echo "complete ME"
+    output=`ipfs-cluster-ctl add --shard ../test_data/small_file | tail -1` &&
+    cid=${output:7:47} &&
+    test_expect_code 2 ipfs-cluster-ctl add ../test_data/small_file &&
+    ipfs-cluster-ctl pin rm $cid &&
+    ipfs-cluster-ctl add ../test_data/small_file
 '
 								     
 
