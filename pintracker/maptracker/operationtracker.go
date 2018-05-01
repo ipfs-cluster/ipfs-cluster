@@ -52,14 +52,15 @@ func newOperationCtxWithContext(ctx context.Context, c *cid.Cid, op operation) o
 type operationTracker struct {
 	ctx context.Context
 
-	mu         sync.RWMutex
-	operations map[string]operationCtx
+	// mu         sync.RWMutex
+	// operations map[string]operationCtx
+	operations sync.Map
 }
 
 func newOperationTracker(ctx context.Context) *operationTracker {
 	return &operationTracker{
-		ctx:        ctx,
-		operations: make(map[string]operationCtx),
+		ctx: ctx,
+		// operations: make(map[string]operationCtx),
 	}
 }
 
@@ -96,20 +97,27 @@ func (opt *operationTracker) operationComplete(c *cid.Cid) {
 }
 
 func (opt *operationTracker) set(oc operationCtx) {
-	opt.mu.Lock()
-	opt.operations[oc.cid.String()] = oc
-	opt.mu.Unlock()
+	// opt.mu.Lock()
+	// opt.operations[oc.cid.String()] = oc
+	// opt.mu.Unlock()
+	opt.operations.Store(oc.cid.String(), oc)
 }
 
 func (opt *operationTracker) get(c *cid.Cid) (operationCtx, bool) {
-	opt.mu.RLock()
-	opc, ok := opt.operations[c.String()]
-	opt.mu.RUnlock()
+	// opt.mu.RLock()
+	// opc, ok := opt.operations[c.String()]
+	// opt.mu.RUnlock()
+	opcv, ok := opt.operations.Load(c.String())
+	if !ok {
+		return operationCtx{}, false
+	}
+	opc := opcv.(operationCtx)
 	return opc, ok
 }
 
 func (opt *operationTracker) remove(c *cid.Cid) {
-	opt.mu.Lock()
-	delete(opt.operations, c.String())
-	opt.mu.Unlock()
+	// opt.mu.Lock()
+	// delete(opt.operations, c.String())
+	// opt.mu.Unlock()
+	opt.operations.Delete(c.String())
 }
