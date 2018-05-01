@@ -155,11 +155,15 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		client:   c,
 	}
 
-	smux.HandleFunc("/", ipfs.handle)
-	ipfs.handlers["/api/v0/pin/add"] = ipfs.pinHandler
-	ipfs.handlers["/api/v0/pin/rm"] = ipfs.unpinHandler
-	ipfs.handlers["/api/v0/pin/ls"] = ipfs.pinLsHandler
-	ipfs.handlers["/api/v0/add"] = ipfs.addHandler
+	smux.HandleFunc("/", ipfs.defaultHandler)
+	smux.HandleFunc("/api/v0/pin/add", ipfs.pinHandler) // required for go1.9 as it doesn't redirect query args correctly
+	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)
+	smux.HandleFunc("/api/v0/pin/rm", ipfs.unpinHandler) // required for go1.9 as it doesn't redirect query args correctly
+	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler)
+	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // required to handle /pin/ls for all pins
+	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
+	smux.HandleFunc("/api/v0/add", ipfs.addHandler)
+	smux.HandleFunc("/api/v0/add/", ipfs.addHandler)
 
 	go ipfs.run()
 	return ipfs, nil
@@ -179,9 +183,11 @@ func (ipfs *Connector) run() {
 	ipfs.wg.Add(1)
 	go func() {
 		defer ipfs.wg.Done()
-		logger.Infof("IPFS Proxy: %s -> %s",
+		logger.Infof(
+			"IPFS Proxy: %s -> %s",
 			ipfs.config.ProxyAddr,
-			ipfs.config.NodeAddr)
+			ipfs.config.NodeAddr,
+		)
 		err := ipfs.server.Serve(ipfs.listener) // hangs here
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
@@ -207,17 +213,6 @@ func (ipfs *Connector) run() {
 			return
 		}
 	}()
-}
-
-// This will run a custom handler if we have one for a URL.Path, or
-// otherwise just proxy the requests.
-func (ipfs *Connector) handle(w http.ResponseWriter, r *http.Request) {
-	if customHandler, ok := ipfs.handlers[r.URL.Path]; ok {
-		customHandler(w, r)
-	} else {
-		ipfs.defaultHandler(w, r)
-	}
-
 }
 
 func (ipfs *Connector) proxyRequest(r *http.Request) (*http.Response, error) {
@@ -282,26 +277,26 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 }
 
 func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
-	argA := r.URL.Query()["arg"]
-	if len(argA) == 0 {
+	arg, ok := extractArgument(r.URL)
+	if !ok {
 		ipfsErrorResponder(w, "Error: bad argument")
 		return
 	}
-	arg := argA[0]
 	_, err := cid.Decode(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing CID: "+err.Error())
 		return
 	}
 
-	err = ipfs.rpcClient.Call("",
+	err = ipfs.rpcClient.Call(
+		"",
 		"Cluster",
 		op,
 		api.PinSerial{
 			Cid: arg,
 		},
-		&struct{}{})
-
+		&struct{}{},
+	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error())
 		return
@@ -329,24 +324,23 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
-	q := r.URL.Query()
-	arg := q.Get("arg")
-	if arg != "" {
+	arg, ok := extractArgument(r.URL)
+	if ok {
 		c, err := cid.Decode(arg)
 		if err != nil {
 			ipfsErrorResponder(w, err.Error())
 			return
 		}
 		var pin api.PinSerial
-		err = ipfs.rpcClient.Call("",
+		err = ipfs.rpcClient.Call(
+			"",
 			"Cluster",
 			"PinGet",
 			api.PinCid(c).ToSerial(),
-			&pin)
+			&pin,
+		)
 		if err != nil {
-			ipfsErrorResponder(w, fmt.Sprintf(
-				"Error: path '%s' is not pinned",
-				arg))
+			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg))
 			return
 		}
 		pinLs.Keys[pin.Cid] = ipfsPinType{
@@ -354,12 +348,13 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var pins []api.PinSerial
-		err := ipfs.rpcClient.Call("",
+		err := ipfs.rpcClient.Call(
+			"",
 			"Cluster",
 			"Pins",
 			struct{}{},
-			&pins)
-
+			&pins,
+		)
 		if err != nil {
 			ipfsErrorResponder(w, err.Error())
 			return
@@ -455,13 +450,15 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Debugf("proxy /add request and will pin %s", pinHashes)
 	for _, pin := range pinHashes {
-		err := ipfs.rpcClient.Call("",
+		err := ipfs.rpcClient.Call(
+			"",
 			"Cluster",
 			"Pin",
 			api.PinSerial{
 				Cid: pin,
 			},
-			&struct{}{})
+			&struct{}{},
+		)
 		if err != nil {
 			// we need to fail the operation and make sure the
 			// user knows about it.
@@ -782,11 +779,13 @@ func (ipfs *Connector) apiURL() string {
 // triggers ipfs swarm connect requests
 func (ipfs *Connector) ConnectSwarms() error {
 	var idsSerial []api.IDSerial
-	err := ipfs.rpcClient.Call("",
+	err := ipfs.rpcClient.Call(
+		"",
 		"Cluster",
 		"Peers",
 		struct{}{},
-		&idsSerial)
+		&idsSerial,
+	)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -799,8 +798,7 @@ func (ipfs *Connector) ConnectSwarms() error {
 			// This is a best effort attempt
 			// We ignore errors which happens
 			// when passing in a bunch of addresses
-			_, err := ipfs.post(
-				fmt.Sprintf("swarm/connect?arg=%s", addr))
+			_, err := ipfs.post(fmt.Sprintf("swarm/connect?arg=%s", addr))
 			if err != nil {
 				logger.Debug(err)
 				continue
@@ -917,4 +915,25 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 		swarm[i] = pID
 	}
 	return swarm, nil
+}
+
+// extractArgument extracts the cid argument from a url.URL, either via
+// the query string parameters or from the url path itself.
+func extractArgument(u *url.URL) (string, bool) {
+	arg := u.Query().Get("arg")
+	if arg != "" {
+		return arg, true
+	}
+
+	p := strings.TrimPrefix(u.Path, "/api/v0/")
+	segs := strings.Split(p, "/")
+
+	if len(segs) > 2 {
+		warnMsg := "You are using an undocumented form of the IPFS API."
+		warnMsg += "Consider passing your command arguments"
+		warnMsg += "with the '?arg=' query parameter"
+		logger.Warning(warnMsg)
+		return segs[len(segs)-1], true
+	}
+	return "", false
 }
