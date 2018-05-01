@@ -5,7 +5,6 @@ package basic
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/monitor/util"
 )
 
 var logger = logging.Logger("monitor")
@@ -21,65 +21,10 @@ var logger = logging.Logger("monitor")
 // AlertChannelCap specifies how much buffer the alerts channel has.
 var AlertChannelCap = 256
 
-// WindowCap specifies how many metrics to keep for given host and metric type
-var WindowCap = 100
+// DefaultWindowCap sets the amount of metrics to store per peer.
+var DefaultWindowCap = 25
 
-// peerMetrics is just a circular queue
-type peerMetrics struct {
-	last   int
-	window []api.Metric
-	//	mux    sync.RWMutex
-}
-
-func newPeerMetrics(windowCap int) *peerMetrics {
-	w := make([]api.Metric, 0, windowCap)
-	return &peerMetrics{0, w}
-}
-
-func (pmets *peerMetrics) add(m api.Metric) {
-	//	pmets.mux.Lock()
-	//	defer pmets.mux.Unlock()
-	if len(pmets.window) < cap(pmets.window) {
-		pmets.window = append(pmets.window, m)
-		pmets.last = len(pmets.window) - 1
-		return
-	}
-
-	// len == cap
-	pmets.last = (pmets.last + 1) % cap(pmets.window)
-	pmets.window[pmets.last] = m
-	return
-}
-
-func (pmets *peerMetrics) latest() (api.Metric, error) {
-	//	pmets.mux.RLock()
-	//	defer pmets.mux.RUnlock()
-	if len(pmets.window) == 0 {
-		logger.Warning("no metrics")
-		return api.Metric{}, errors.New("no metrics")
-	}
-	return pmets.window[pmets.last], nil
-}
-
-// ordered from newest to oldest
-func (pmets *peerMetrics) all() []api.Metric {
-	//	pmets.mux.RLock()
-	//	pmets.mux.RUnlock()
-	wlen := len(pmets.window)
-	res := make([]api.Metric, 0, wlen)
-	if wlen == 0 {
-		return res
-	}
-	for i := pmets.last; i >= 0; i-- {
-		res = append(res, pmets.window[i])
-	}
-	for i := wlen; i > pmets.last; i-- {
-		res = append(res, pmets.window[i])
-	}
-	return res
-}
-
-type metricsByPeer map[peer.ID]*peerMetrics
+type metricsByPeer map[peer.ID]*util.MetricsWindow
 
 // Monitor is a component in charge of monitoring peers, logging
 // metrics and detecting failures
@@ -112,7 +57,7 @@ func NewMonitor(cfg *Config) (*Monitor, error) {
 		return nil, err
 	}
 
-	if WindowCap <= 0 {
+	if DefaultWindowCap <= 0 {
 		panic("windowCap too small")
 	}
 
@@ -124,7 +69,7 @@ func NewMonitor(cfg *Config) (*Monitor, error) {
 		rpcReady: make(chan struct{}, 1),
 
 		metrics:   make(map[string]metricsByPeer),
-		windowCap: WindowCap,
+		windowCap: DefaultWindowCap,
 		alerts:    make(chan api.Alert, AlertChannelCap),
 
 		config: cfg,
@@ -178,14 +123,16 @@ func (mon *Monitor) LogMetric(m api.Metric) {
 		mbyp = make(metricsByPeer)
 		mon.metrics[name] = mbyp
 	}
-	pmets, ok := mbyp[peer]
+	window, ok := mbyp[peer]
 	if !ok {
-		pmets = newPeerMetrics(mon.windowCap)
-		mbyp[peer] = pmets
+		// We always lock the outer map, so we can use unsafe
+		// MetricsWindow.
+		window = util.NewMetricsWindow(mon.windowCap, false)
+		mbyp[peer] = window
 	}
 
 	logger.Debugf("logged '%s' metric from '%s'. Expires on %d", name, peer, m.Expire)
-	pmets.add(m)
+	window.Add(m)
 }
 
 // func (mon *Monitor) getLastMetric(name string, p peer.ID) api.Metric {
@@ -203,11 +150,11 @@ func (mon *Monitor) LogMetric(m api.Metric) {
 // 		return emptyMetric
 // 	}
 
-// 	pmets, ok := mbyp[p]
+// 	window, ok := mbyp[p]
 // 	if !ok {
 // 		return emptyMetric
 // 	}
-// 	metric, err := pmets.latest()
+// 	metric, err := window.Latest()
 // 	if err != nil {
 // 		return emptyMetric
 // 	}
@@ -242,11 +189,11 @@ func (mon *Monitor) LastMetrics(name string) []api.Metric {
 
 	// only show metrics for current set of peers
 	for _, peer := range peers {
-		peerMetrics, ok := mbyp[peer]
+		window, ok := mbyp[peer]
 		if !ok {
 			continue
 		}
-		last, err := peerMetrics.latest()
+		last, err := window.Latest()
 		if err != nil || last.Discard() {
 			logger.Warningf("no valid last metric for peer: %+v", last)
 			continue
@@ -308,11 +255,11 @@ func (mon *Monitor) checkMetrics(peers []peer.ID, metricName string) {
 	// for each of the given current peers
 	for _, p := range peers {
 		// get metrics for that peer
-		pMetrics, ok := metricsByPeer[p]
+		window, ok := metricsByPeer[p]
 		if !ok { // no metrics from this peer
 			continue
 		}
-		last, err := pMetrics.latest()
+		last, err := window.Latest()
 		if err != nil { // no metrics for this peer
 			continue
 		}
