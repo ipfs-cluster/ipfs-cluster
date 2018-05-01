@@ -1,4 +1,4 @@
-# ipfs-cluster
+# IPFS Cluster
 
 
 [![Made by](https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square)](https://protocol.ai)
@@ -10,162 +10,53 @@
 [![Build Status](https://travis-ci.org/ipfs/ipfs-cluster.svg?branch=master)](https://travis-ci.org/ipfs/ipfs-cluster)
 [![Coverage Status](https://coveralls.io/repos/github/ipfs/ipfs-cluster/badge.svg?branch=master)](https://coveralls.io/github/ipfs/ipfs-cluster?branch=master)
 
+> Pinset orchestration for IPFS.
 
-> Collective pinning and composition for IPFS.
+<p align="center">
+<img src="https://cluster.ipfs.io/cluster/png/IPFS_Cluster_color_no_text.png" alt="logo" width="300" height="300" />
+</p>
 
-**THIS SOFTWARE IS ALPHA**
+IPFS Cluster allows to allocate, replicate and track Pins across a cluster of IPFS daemons.
 
-`ipfs-cluster` allows to replicate content (by pinning) in multiple IPFS nodes:
+It provides:
 
-* Works on top of the IPFS daemon by running one cluster peer per IPFS node (`ipfs-cluster-service`)
-* A `replication_factor` controls how many times a CID is pinned in the cluster
-* Re-pins stuff in a different place when a peer goes down
-* Provides an HTTP API and a command-line wrapper (`ipfs-cluster-ctl`)
-* Provides an IPFS daemon API Proxy which intercepts any "pin"/"unpin" requests and does cluster pinning instead
-* The IPFS Proxy allows to build cluster composition, with a cluster peer acting as an IPFS daemon for another higher-level cluster.
-* Peers share the state using Raft-based consensus. Uses the LibP2P stack (`go-libp2p-raft`, `go-libp2p-rpc`...)
-
+* A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs`.
+* A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
 
 ## Table of Contents
 
-- [Maintainers and Roadmap](#maintainers-and-roadmap)
+- [Documentation](#documentation)
+- [News & Roadmap](#news--roadmap)
 - [Install](#install)
-  - [Pre-compiled binaries](#pre-compiled-binaries)
-  - [Docker](#docker)
-  - [Install from sources](#install-from-sources)
 - [Usage](#usage)
-  - [`Quickstart`](#quickstart)
-  - [`Go`](#go)
-  - [`Additional docs`](#additional-docs)
-- [API](#api)
-- [Architecture](#api)
 - [Contribute](#contribute)
 - [License](#license)
 
 
-## Maintainers and Roadmap
+## Documentation
 
-This project is captained by [@hsanjuan](https://github.com/hsanjuan). See the [captain's log](CAPTAIN.LOG.md) for a written summary of current status and upcoming features. You can also check out the project's [Roadmap](ROADMAP.md) for a high level overview of what's coming and the project's [Waffle Board](https://waffle.io/ipfs/ipfs-cluster) to see what issues are being worked on at the moment.
+Please visit https://cluster.ipfs.io/documentation/ to access user documentation, guides and any other resources, including detailed **download** and **usage** instructions.
+
+## News & Roadmap
+
+We regularly post project updates to https://cluster.ipfs.io/news/ .
+
+The most up-to-date *Roadmap* is available at https://cluster.ipfs.io/roadmap/ .
 
 ## Install
 
-### Pre-compiled binaries
-
-You can download pre-compiled binaries for your platform from the [dist.ipfs.io](https://dist.ipfs.io) website:
-
-* [Builds for `ipfs-cluster-service`](https://dist.ipfs.io/#ipfs-cluster-service)
-* [Builds for `ipfs-cluster-ctl`](https://dist.ipfs.io/#ipfs-cluster-ctl)
-
-Note that since IPFS Cluster is evolving fast, these builds may not contain the latest features/bugfixes. Builds are updated monthly on a best-effort basis.
-
-### Docker
-
-You can build or download an automated build of the ipfs-cluster docker container. This container runs `ipfs-cluster-service` and includes `ipfs-cluster-ctl`. To launch the latest published version on Docker run:
-
-`$ docker run ipfs/ipfs-cluster`
-
-To build the container manually you can:
-
-`$ docker build . -t ipfs-cluster`
-
-You can mount your local ipfs-cluster configuration and data folder by passing `-v /data/ipfs-cluster your-local-ipfs-cluster-folder` to Docker. Otherwise, a new configuration will be generated. In that case, you can point it to the right IPFS location by setting `IPFS_API` like `--env IPFS_API="/ip4/1.2.3.4/tcp/5001"`.
-
-### Install from the snap store
-
-In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
-
-```bash
-sudo snap install ipfs-cluster --edge
-```
-
-(Note that this is an experimental and unstable release, at the moment)
-
-### Install from sources
-
-Installing from `master` is the best way to have the latest features and bugfixes. In order to install the `ipfs-cluster-service` the `ipfs-cluster-ctl` tools you will need `Go1.9+` installed in your system and the run the following commands:
-
-```
-$ go get -u -d github.com/ipfs/ipfs-cluster
-$ cd $GOPATH/src/github.com/ipfs/ipfs-cluster
-$ make install
-```
-
-This will install `ipfs-cluster-service` and `ipfs-cluster-ctl` in your `$GOPATH/bin` folder. See the usage below.
+Instructions for different installation methods (including from source) are available at https://cluster.ipfs.io/documentation/download .
 
 ## Usage
 
-![ipfs-cluster-usage](https://ipfs.io/ipfs/QmVMKD39fYJG9QGyyFkGN3QuZRg3EfuuxqkG1scCo9ZUHp/cluster-mgmt.gif)
+Extensive usage information is provided at https://cluster.ipfs.io/documentation/ , including:
 
-### Quickstart
-
-** Remember: Start your ipfs daemon before running ipfs-cluster **
-
-**`ipfs-cluster-service`** runs an ipfs-cluster peer:
-
-- Initialize with `ipfs-cluster-service init`
-    - This will randomly generate a secret which should be shared among all peers.
-- Run with `ipfs-cluster-service`. Check `--help` for options
-
-For more information about `ipfs-cluster-service` see the [`ipfs-cluster-service` README](ipfs-cluster-service/dist/README.md). Also, read [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md) for full a full overview of how cluster works.
-
-**`ipfs-cluster-ctl`** is used to interface with the ipfs-cluster peer:
-
-```
-ipfs-cluster-ctl id                    # see peer information
-ipfs-cluster-ctl pin add <cid>         # Pin a CID in ipfs-cluster
-ipfs-cluster-ctl pin rm <cid>          # Upin a CID
-ipfs-cluster-ctl ls                    # See current pins and allocations
-ipfs-cluster-ctl status <cid>          # See information from every allocation for a CID.
-```
-
-For information on how to manage and perform operations on an IPFS Cluster peer see the [`ipfs-cluster-ctl` README](ipfs-cluster-ctl/dist/README.md).
-
-### Go
-
-IPFS Cluster nodes can be launched directly from Go. The `Cluster` object provides methods to interact with the cluster and perform actions.
-
-Documentation and examples on how to use IPFS Cluster from Go can be found in [godoc.org/github.com/ipfs/ipfs-cluster](https://godoc.org/github.com/ipfs/ipfs-cluster).
-
-### Additional docs
-
-You can find more information and detailed guides:
-
-* [A guide to running IPFS Cluster](docs/ipfs-cluster-guide.md)
-* [Building and updating an IPFS Cluster](docs/HOWTO_build_and_update_a_cluster.md)
-
-Note: please contribute to improve and add more documentation!
-
-## API
-
-TODO: Swagger
-
-This is a quick summary of API endpoints offered by the Rest API component (these may change before 1.0):
-
-|Method|Endpoint            |Comment|
-|------|--------------------|-------|
-|GET   |/id                 |Cluster peer information|
-|GET   |/version            |Cluster version|
-|GET   |/peers              |Cluster peers|
-|POST  |/peers              |Add new peer|
-|DELETE|/peers/{peerID}     |Remove a peer|
-|GET   |/allocations        |List of pins and their allocations (consensus-shared state)|
-|GET   |/allocations/{cid}  |Show a single pin and its allocations (from the consensus-shared state)|
-|GET   |/pins               |Status of all tracked CIDs|
-|POST  |/pins/sync          |Sync all|
-|GET   |/pins/{cid}         |Status of single CID|
-|POST  |/pins/{cid}         |Pin CID|
-|DELETE|/pins/{cid}         |Unpin CID|
-|POST  |/pins/{cid}/sync    |Sync CID|
-|POST  |/pins/{cid}/recover |Recover CID|
-
-
-## Architecture
-
-The best place to get an overview of how cluster works, what components exist etc. is the [architecture.md](architecture.md) doc.
+* [Docs for `ipfs-cluster-service`](https://cluster.ipfs.io/documentation/ipfs-cluster-service/)
+* [Docs for `ipfs-cluster-ctl`](https://cluster.ipfs.io/documentation/ipfs-cluster-ctl/)
 
 ## Contribute
 
-PRs accepted.
+PRs accepted. As part of the IPFS project, we have some [contribution guidelines](https://cluster.ipfs.io/developer/contribute).
 
 Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
