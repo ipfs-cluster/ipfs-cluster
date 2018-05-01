@@ -4,6 +4,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 )
 
 // ConnectGraph returns a description of which cluster peers and ipfs
@@ -20,8 +21,18 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	}
 
 	peersSerials := make([][]api.IDSerial, len(members), len(members))
-	errs := c.multiRPC(members, "Cluster", "Peers", struct{}{},
-		copyIDSerialSliceToIfaces(peersSerials))
+
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	defer rpcutil.Multicancel(cancels)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		members,
+		"Cluster",
+		"Peers",
+		struct{}{},
+		rpcutil.CopyIDSerialSliceToIfaces(peersSerials),
+	)
 
 	for i, err := range errs {
 		p := members[i]

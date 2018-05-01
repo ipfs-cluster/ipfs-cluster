@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -176,59 +177,6 @@ func (c *Cluster) syncWatcher() {
 	}
 }
 
-func (c *Cluster) broadcastMetric(m api.Metric) error {
-	peers, err := c.consensus.Peers()
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-	leader, err := c.consensus.Leader()
-	if err != nil {
-		return err
-	}
-
-	if m.Discard() {
-		logger.Warningf("discarding invalid metric: %+v", m)
-		return nil
-	}
-
-	// If a peer is down, the rpc call will get locked. Therefore,
-	// we need to do it async. This way we keep broadcasting
-	// even if someone is down. Eventually those requests will
-	// timeout in libp2p and the errors logged.
-	go func() {
-		if leader == c.id {
-			// Leader needs to broadcast its metric to everyone
-			// in case it goes down (new leader will have to detect this node went down)
-			logger.Debugf("Leader %s about to broadcast metric %s to %s. Expires: %d", c.id, m.Name, peers, m.Expire)
-			errs := c.multiRPC(peers,
-				"Cluster",
-				"PeerMonitorLogMetric",
-				m,
-				copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
-			for i, e := range errs {
-				if e != nil {
-					logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
-				}
-			}
-			logger.Debugf("Leader %s broadcasted metric %s to %s. Expires: %s", c.id, m.Name, peers, m.Expire)
-		} else {
-			// non-leaders just need to forward their metrics to the leader
-			logger.Debugf("Peer %s about to send metric %s to %s. Expires: %s", c.id, m.Name, leader, m.Expire)
-
-			err := c.rpcClient.Call(leader,
-				"Cluster", "PeerMonitorLogMetric",
-				m, &struct{}{})
-			if err != nil {
-				logger.Error(err)
-			}
-			logger.Debugf("Peer %s sent metric %s to %s. Expires: %s", c.id, m.Name, leader, m.Expire)
-
-		}
-	}()
-	return nil
-}
-
 // push metrics loops and pushes metrics to the leader's monitor
 func (c *Cluster) pushInformerMetrics() {
 	timer := time.NewTimer(0) // fire immediately first
@@ -247,14 +195,14 @@ func (c *Cluster) pushInformerMetrics() {
 		metric := c.informer.GetMetric()
 		metric.Peer = c.id
 
-		err := c.broadcastMetric(metric)
+		err := c.monitor.PublishMetric(metric)
 
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
 				logger.Errorf("error broadcasting metric: %s", err)
 				retries++
 			}
-			// retry in retryDelay
+			// retry sooner
 			timer.Reset(metric.GetTTL() / 4)
 			continue
 		}
@@ -274,7 +222,7 @@ func (c *Cluster) pushPingMetrics() {
 			Valid: true,
 		}
 		metric.SetTTLDuration(c.config.MonitorPingInterval * 2)
-		c.broadcastMetric(metric)
+		c.monitor.PublishMetric(metric)
 
 		select {
 		case <-c.ctx.Done():
@@ -602,10 +550,17 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		return api.ID{Error: err.Error()}, err
 	}
 
-	errs := c.multiRPC(peers, "Cluster",
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(peers))
+	defer rpcutil.Multicancel(cancels)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		peers,
+		"Cluster",
 		"PeerManagerAddPeer",
 		api.MultiaddrToSerial(remoteAddr),
-		copyEmptyStructToIfaces(make([]struct{}, len(peers), len(peers))))
+		rpcutil.RPCDiscardReplies(len(peers)),
+	)
 
 	brk := false
 	for i, e := range errs {
@@ -1039,8 +994,17 @@ func (c *Cluster) Peers() []api.ID {
 	peersSerial := make([]api.IDSerial, len(members), len(members))
 	peers := make([]api.ID, len(members), len(members))
 
-	errs := c.multiRPC(members, "Cluster", "ID", struct{}{},
-		copyIDSerialsToIfaces(peersSerial))
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	defer rpcutil.Multicancel(cancels)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		members,
+		"Cluster",
+		"ID",
+		struct{}{},
+		rpcutil.CopyIDSerialsToIfaces(peersSerial),
+	)
 
 	for i, err := range errs {
 		if err != nil {
@@ -1053,32 +1017,6 @@ func (c *Cluster) Peers() []api.ID {
 		peers[i] = ps.ToID()
 	}
 	return peers
-}
-
-// Perform an RPC request to multiple destinations
-func (c *Cluster) multiRPC(dests []peer.ID, svcName, svcMethod string, args interface{}, reply []interface{}) []error {
-	if len(dests) != len(reply) {
-		panic("must have matching dests and replies")
-	}
-	var wg sync.WaitGroup
-	errs := make([]error, len(dests), len(dests))
-
-	for i := range dests {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			err := c.rpcClient.Call(
-				dests[i],
-				svcName,
-				svcMethod,
-				args,
-				reply[i])
-			errs[i] = err
-		}(i)
-	}
-	wg.Wait()
-	return errs
-
 }
 
 func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo, error) {
@@ -1097,10 +1035,18 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo
 	arg := api.Pin{
 		Cid: h,
 	}
-	errs := c.multiRPC(members,
+
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	defer rpcutil.Multicancel(cancels)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		members,
 		"Cluster",
-		method, arg.ToSerial(),
-		copyPinInfoSerialToIfaces(replies))
+		method,
+		arg.ToSerial(),
+		rpcutil.CopyPinInfoSerialToIfaces(replies),
+	)
 
 	for i, rserial := range replies {
 		e := errs[i]
@@ -1150,10 +1096,18 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 	}
 
 	replies := make([][]api.PinInfoSerial, len(members), len(members))
-	errs := c.multiRPC(members,
+
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	defer rpcutil.Multicancel(cancels)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		members,
 		"Cluster",
-		method, struct{}{},
-		copyPinInfoSerialSliceToIfaces(replies))
+		method,
+		struct{}{},
+		rpcutil.CopyPinInfoSerialSliceToIfaces(replies),
+	)
 
 	mergePins := func(pins []api.PinInfoSerial) {
 		for _, pserial := range pins {

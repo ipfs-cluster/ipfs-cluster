@@ -152,18 +152,26 @@ type PinAllocator interface {
 	Allocate(c *cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
 }
 
-// PeerMonitor is a component in charge of monitoring the peers in the cluster
-// and providing candidates to the PinAllocator when a pin request arrives.
+// PeerMonitor is a component in charge of publishing peers metrics and
+// reading metrics from other peers in the cluster. The PinAllocator will
+// use the metrics provided by the monitor as candidates for Pin allocations.
+//
+// The PeerMonitor component also provides an Alert channel which is signaled
+// when a metric is no longer received and the monitor judges identifies it
+// as a problem.
 type PeerMonitor interface {
 	Component
-	// LogMetric stores a metric. Metrics are pushed regularly
-	// from each peer to the active PeerMonitor.
-	LogMetric(api.Metric)
+	// LogMetric stores a metric. It can be used to manually inject
+	// a metric to a monitor.
+	LogMetric(api.Metric) error
+	// PublishMetric sends a metric to the rest of the peers.
+	// How to send it, and to who, is to be decided by the implementation.
+	PublishMetric(api.Metric) error
 	// LastMetrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
 	LastMetrics(name string) []api.Metric
 	// Alerts delivers alerts generated when this peer monitor detects
-	// a problem (i.e. metrics not arriving as expected). Alerts are used to
-	// trigger rebalancing operations.
+	// a problem (i.e. metrics not arriving as expected). Alerts can be used
+	// to trigger self-healing measures or re-pinnings of content.
 	Alerts() <-chan api.Alert
 }

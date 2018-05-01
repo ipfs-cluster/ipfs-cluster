@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+// ErrNoMetrics is returned when there are no metrics in a MetricsWindow.
 var ErrNoMetrics = errors.New("no metrics have been added to this window")
 
 // MetricsWindow implements a circular queue to store metrics.

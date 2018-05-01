@@ -14,6 +14,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/util"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 )
 
 var logger = logging.Logger("monitor")
@@ -113,7 +114,7 @@ func (mon *Monitor) Shutdown() error {
 }
 
 // LogMetric stores a metric so it can later be retrieved.
-func (mon *Monitor) LogMetric(m api.Metric) {
+func (mon *Monitor) LogMetric(m api.Metric) error {
 	mon.metricsMux.Lock()
 	defer mon.metricsMux.Unlock()
 	name := m.Name
@@ -133,6 +134,76 @@ func (mon *Monitor) LogMetric(m api.Metric) {
 
 	logger.Debugf("logged '%s' metric from '%s'. Expires on %d", name, peer, m.Expire)
 	window.Add(m)
+	return nil
+}
+
+// PublishMetric broadcasts a metric to all current cluster peers.
+func (mon *Monitor) PublishMetric(m api.Metric) error {
+	if m.Discard() {
+		logger.Warningf("discarding invalid metric: %+v", m)
+		return nil
+	}
+
+	peers, err := mon.getPeers()
+	if err != nil {
+		logger.Error("PublishPeers could not list peers:", err)
+	}
+
+	ctxs, cancels := rpcutil.CtxsWithTimeout(mon.ctx, len(peers), m.GetTTL())
+	defer rpcutil.Multicancel(cancels)
+
+	// If a peer is down, the rpc call will get locked. Therefore,
+	// we need to do it async. This way we keep broadcasting
+	// even if someone is down. Eventually those requests will
+	// timeout in libp2p and the errors logged.
+	go func() {
+		logger.Debugf(
+			"broadcasting metric %s to %s. Expires: %d",
+			m.Name,
+			peers,
+			m.Expire,
+		)
+		errs := mon.rpcClient.MultiCall(
+			ctxs,
+			peers,
+			"Cluster",
+			"PeerMonitorLogMetric",
+			m,
+			rpcutil.RPCDiscardReplies(len(peers)),
+		)
+		for i, e := range errs {
+			if e != nil {
+				logger.Errorf("error pushing metric to %s: %s", peers[i].Pretty(), e)
+			}
+		}
+		logger.Debugf(
+			"broadcasted metric %s to [%s]. Expires: %d",
+			m.Name,
+			peers,
+			m.Expire,
+		)
+	}()
+	return nil
+}
+
+// getPeers gets the current list of peers from the consensus component
+func (mon *Monitor) getPeers() ([]peer.ID, error) {
+	// Ger current list of peers
+	var peers []peer.ID
+	err := mon.rpcClient.Call("",
+		"Cluster",
+		"ConsensusPeers",
+		struct{}{},
+		&peers)
+	return peers, err
+}
+
+func copyEmptyStructToIfaces(in []struct{}) []interface{} {
+	ifaces := make([]interface{}, len(in), len(in))
+	for i := range in {
+		ifaces[i] = &in[i]
+	}
+	return ifaces
 }
 
 // func (mon *Monitor) getLastMetric(name string, p peer.ID) api.Metric {
@@ -164,13 +235,7 @@ func (mon *Monitor) LogMetric(m api.Metric) {
 // LastMetrics returns last known VALID metrics of a given type. A metric
 // is only valid if it has not expired and belongs to a current cluster peer.
 func (mon *Monitor) LastMetrics(name string) []api.Metric {
-	// Ger current list of peers
-	var peers []peer.ID
-	err := mon.rpcClient.Call("",
-		"Cluster",
-		"ConsensusPeers",
-		struct{}{},
-		&peers)
+	peers, err := mon.getPeers()
 	if err != nil {
 		logger.Errorf("LastMetrics could not list peers: %s", err)
 		return []api.Metric{}

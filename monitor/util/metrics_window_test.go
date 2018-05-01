@@ -7,7 +7,7 @@ import (
 )
 
 func TestMetricsWindow(t *testing.T) {
-	mw := NewMetricsWindow(4)
+	mw := NewMetricsWindow(4, true)
 
 	_, err := mw.Latest()
 	if err != ErrNoMetrics {
