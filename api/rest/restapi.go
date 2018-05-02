@@ -508,7 +508,6 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 	chunker := urlParams.Get("chunker")
 	raw, _ := strconv.ParseBool(urlParams.Get("raw"))
 	hidden, _ := strconv.ParseBool(urlParams.Get("hidden"))
-	silent, _ := strconv.ParseBool(urlParams.Get("silent"))
 	shard, _ := strconv.ParseBool(urlParams.Get("shard"))
 	replMin, _ := strconv.Atoi(urlParams.Get("repl_min"))
 	replMax, _ := strconv.Atoi(urlParams.Get("repl_max"))
@@ -517,7 +516,6 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 		Chunker: chunker,
 		Raw:     raw,
 		Hidden:  hidden,
-		Silent:  silent,
 		Shard:   shard,
 		Rmin:    replMin,
 		Rmax:    replMax,

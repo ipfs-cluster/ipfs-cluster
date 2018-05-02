@@ -184,7 +184,6 @@ func (a *AddSession) AddFile(ctx context.Context,
 	chunker := params.Chunker
 	raw := params.Raw
 	hidden := params.Hidden
-	silent := params.Silent
 
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
@@ -198,7 +197,6 @@ func (a *AddSession) AddFile(ctx context.Context,
 		hidden,
 		trickle,
 		raw,
-		silent,
 		chunker,
 	)
 
