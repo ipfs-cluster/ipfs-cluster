@@ -317,8 +317,8 @@ func TestAPIAddFileEndpointBadContentType(t *testing.T) {
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
-		fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
-		fmtStr2 := "layout=&chunker=&raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/allocations?shard=false&layout=&chunker=&"
+		fmtStr2 := "raw=false&hidden=false&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1 + fmtStr2
 
 		errResp := api.Error{}
@@ -336,8 +336,8 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 	tf := func(t *testing.T, url urlF) {
-		fmtStr1 := "/allocations?shard=false&quiet=false&silent=false&"
-		fmtStr2 := "layout=&chunker=&raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/allocations?shard=false&layout=&chunker=&"
+		fmtStr2 := "raw=false&hidden=false&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1 + fmtStr2
 		body, err := test.GetTestingDirMultiReader()
 		if err != nil {
@@ -365,8 +365,8 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 		}
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		resp := []api.AddedOutput{}
-		fmtStr1 := "/allocations?shard=true&quiet=false&silent=false&"
-		fmtStr2 := "layout=&chunker=&raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/allocations?shard=true&layout=&chunker=&"
+		fmtStr2 := "raw=false&hidden=false&repl_min=-1&repl_max=-1"
 		shardURL := url(rest) + fmtStr1 + fmtStr2
 		makePostRaw(t, rest, shardURL, body, mpContentType, &resp)
 		if len(resp) != test.NumTestDirPrints ||

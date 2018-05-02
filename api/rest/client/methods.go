@@ -309,8 +309,6 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 func (c *Client) AddMultiFile(
 	multiFileR *files.MultiFileReader,
 	shard bool,
-	quiet bool,
-	silent bool,
 	layout string,
 	chunker string,
 	raw bool,
@@ -319,10 +317,10 @@ func (c *Client) AddMultiFile(
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
-	fmtStr1 := "/allocations?shard=%t&quiet=%t&silent=%t&layout=%s&"
+	fmtStr1 := "/allocations?shard=%t&layout=%s&"
 	fmtStr2 := "chunker=%s&raw=%t&hidden=%t&repl_min=%d&repl_max=%d"
-	url := fmt.Sprintf(fmtStr1+fmtStr2, shard, quiet, silent, layout, chunker,
-		raw, hidden, replMin, replMax)
+	url := fmt.Sprintf(fmtStr1+fmtStr2, shard, layout, chunker, raw, hidden,
+		replMin, replMax)
 	output := make([]api.AddedOutput, 0)
 	err := c.doStream("POST", url, multiFileR, headers, &output)
 	return output, err

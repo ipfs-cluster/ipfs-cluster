@@ -16,7 +16,7 @@ func TestToChannelOutput(t *testing.T) {
 	}
 
 	printChan, outChan, errChan := ToChannel(context.Background(), file,
-		false, false, false, false, "")
+		false, false, false, "")
 
 	go func() { // listen on printChan so progress can be made
 		for {
@@ -44,7 +44,7 @@ func TestToChannelPrint(t *testing.T) {
 	}
 
 	printChan, outChan, errChan := ToChannel(context.Background(), file,
-		false, false, false, false, "")
+		false, false, false, "")
 
 	go listenErrCh(t, errChan)
 

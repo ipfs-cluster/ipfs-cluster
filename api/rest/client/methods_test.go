@@ -439,8 +439,7 @@ func TestAddMultiFile(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		out, err := c.AddMultiFile(mfr, false, false, false, "", "", false,
-			false, -1, -1)
+		out, err := c.AddMultiFile(mfr, false, "", "", false, false, -1, -1)
 		if err != nil {
 			t.Fatal(err)
 		}

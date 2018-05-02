@@ -780,7 +780,6 @@ type AddParams struct {
 	Chunker string
 	Raw     bool
 	Hidden  bool
-	Silent  bool
 	Shard   bool
 	Rmin    int
 	Rmax    int
@@ -793,7 +792,6 @@ func DefaultAddParams() AddParams {
 		Chunker: "",
 		Raw:     false,
 		Hidden:  false,
-		Silent:  false,
 		Shard:   false,
 		Rmin:    -1,
 		Rmax:    -1,
@@ -808,6 +806,7 @@ type AddedOutput struct {
 	Hash  string `json:",omitempty"`
 	Bytes int64  `json:",omitempty"`
 	Size  string `json:",omitempty"`
+	Quiet bool
 }
 
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
