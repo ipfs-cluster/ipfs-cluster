@@ -46,14 +46,14 @@ func TestOperationTracker_trackNewOperationWithCtx(t *testing.T) {
 	}
 }
 
-func TestOperationTracker_cancelOperation(t *testing.T) {
+func TestOperationTracker_finish(t *testing.T) {
 	ctx := context.Background()
 	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
 	opt.trackNewOperationCtx(ctx, h, operationPin)
 
-	opt.cancelOperation(h)
+	opt.finish(h)
 	_, ok := opt.get(h)
 	if ok {
 		t.Error("cancelling operation failed to remove it from the map of ongoing operation")

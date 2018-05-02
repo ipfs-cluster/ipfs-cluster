@@ -240,7 +240,7 @@ func (mpt *MapPinTracker) pin(c api.Pin) error {
 	}
 
 	mpt.set(c.Cid, api.TrackerStatusPinned)
-	mpt.optracker.operationComplete(c.Cid)
+	mpt.optracker.finish(c.Cid)
 	return nil
 }
 
@@ -271,7 +271,7 @@ func (mpt *MapPinTracker) unpin(c api.Pin) error {
 	}
 
 	mpt.set(c.Cid, api.TrackerStatusUnpinned)
-	mpt.optracker.operationComplete(c.Cid)
+	mpt.optracker.finish(c.Cid)
 	return nil
 }
 
@@ -296,10 +296,10 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		if opc.op == operationUnpin {
 			switch opc.phase {
 			case phaseQueued:
-				mpt.optracker.cancelOperation(c.Cid)
+				mpt.optracker.finish(c.Cid)
 				return nil
 			case phaseInProgress:
-				mpt.optracker.cancelOperation(c.Cid)
+				mpt.optracker.finish(c.Cid)
 				// NOTE: this may leave the api.PinInfo in an error state
 				// so a pin operation needs to be run on it (same as Recover)
 			}
@@ -314,7 +314,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 	default:
 		err := errors.New("pin queue is full")
 		mpt.setError(c.Cid, err)
-		mpt.optracker.cancelOperation(c.Cid)
+		mpt.optracker.finish(c.Cid)
 		logger.Error(err.Error())
 		return err
 	}
@@ -327,14 +327,13 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	logger.Debugf("untracking %s", c)
 	if opc, ok := mpt.optracker.get(c); ok {
 		if opc.op == operationPin {
+			mpt.optracker.finish(c) // cancel it
+
 			switch opc.phase {
 			case phaseQueued:
-				mpt.optracker.cancelOperation(c)
 				return nil
 			case phaseInProgress:
-				mpt.optracker.cancelOperation(c)
-				// NOTE: this may leave the api.PinInfo in an error state
-				// so a pin operation needs to be run on it (same as Recover)
+				// continues below to run a full unpin
 			}
 		}
 	}
@@ -351,7 +350,7 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	default:
 		err := errors.New("unpin queue is full")
 		mpt.setError(c, err)
-		mpt.optracker.cancelOperation(c)
+		mpt.optracker.finish(c)
 		logger.Error(err.Error())
 		return err
 	}
