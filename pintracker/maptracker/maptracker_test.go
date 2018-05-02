@@ -1,15 +1,55 @@
 package maptracker
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
+
+type mockService struct {
+	rpcClient *rpc.Client
+}
+
+func mockRPCClient(t *testing.T) *rpc.Client {
+	s := rpc.NewServer(nil, "mock")
+	c := rpc.NewClientWithServer(nil, "mock", s)
+	err := s.RegisterName("Cluster", &mockService{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	c := in.ToPin().Cid
+	if c.String() == test.TestSlowCid1 {
+		time.Sleep(2 * time.Second)
+	}
+	return nil
+}
+
+func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	c := in.ToPin().Cid
+	if c.String() == test.TestSlowCid1 {
+		time.Sleep(2 * time.Second)
+	}
+	return nil
+}
+
+func testSlowMapPinTracker(t *testing.T) *MapPinTracker {
+	cfg := &Config{}
+	cfg.Default()
+	mpt := NewMapPinTracker(cfg, test.TestPeerID1)
+	mpt.SetClient(mockRPCClient(t))
+	return mpt
+}
 
 func testMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
@@ -372,7 +412,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 		if !ok {
 			t.Fatal()
 		}
-		if opc.phase == phaseInProgress {
+		if opc.phase == phaseInProgress && opc.op == operationPin {
 			err = mpt.Untrack(h1)
 			if err != nil {
 				t.Fatal(err)
@@ -384,11 +424,20 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 }
 
 func TestTrackUntrackWithNoCancel(t *testing.T) {
-	mpt := testMapPinTracker(t)
+	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown()
 	done := make(chan struct{})
 
+	s1, _ := cid.Decode(test.TestSlowCid1)
 	h1, _ := cid.Decode(test.TestCid1)
+
+	// SlowLocalPin
+	sc := api.Pin{
+		Cid:                  s1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
 
 	// LocalPin
 	c := api.Pin{
@@ -398,7 +447,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		ReplicationFactorMax: -1,
 	}
 
-	err := mpt.Track(c)
+	err := mpt.Track(sc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +456,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		defer close(done)
 		for {
 			opc, _ := mpt.optracker.get(c.Cid)
-			if opc.phase == phaseQueued {
+			if opc.phase == phaseQueued && opc.op == operationPin {
 				err = mpt.Untrack(h1)
 				if err != nil {
 					t.Fatal(err)
@@ -416,6 +465,12 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 			}
 		}
 	}()
+
+	err = mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	<-done
 }
 
@@ -423,7 +478,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown()
 
-	h1, _ := cid.Decode(test.TestCid1)
+	h1, _ := cid.Decode(test.TestSlowCid1)
 
 	// LocalPin
 	c := api.Pin{
@@ -450,7 +505,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 		if !ok {
 			t.Fatal()
 		}
-		if opc.phase == phaseInProgress {
+		if opc.phase == phaseInProgress && opc.op == operationUnpin {
 			err = mpt.Track(c)
 			if err != nil {
 				t.Fatal(err)
@@ -462,11 +517,20 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 }
 
 func TestUntrackTrackWithNoCancel(t *testing.T) {
-	mpt := testMapPinTracker(t)
+	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown()
 	done := make(chan struct{})
 
+	s1, _ := cid.Decode(test.TestSlowCid1)
 	h1, _ := cid.Decode(test.TestCid1)
+
+	// SlowLocalPin
+	sc := api.Pin{
+		Cid:                  s1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
 
 	// LocalPin
 	c := api.Pin{
@@ -476,12 +540,22 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 		ReplicationFactorMax: -1,
 	}
 
-	err := mpt.Track(c)
+	err := mpt.Track(sc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	err = mpt.Track(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	err = mpt.Untrack(s1)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = mpt.Untrack(h1)
 	if err != nil {
@@ -491,8 +565,12 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	go func() {
 		defer close(done)
 		for {
-			opc, _ := mpt.optracker.get(c.Cid)
-			if opc.phase == phaseQueued {
+			opc, ok := mpt.optracker.get(c.Cid)
+			if !ok {
+				time.Sleep(1)
+				continue
+			}
+			if opc.phase == phaseQueued && opc.op == operationUnpin {
 				err = mpt.Track(c)
 				if err != nil {
 					t.Fatal(err)
@@ -501,5 +579,6 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 			}
 		}
 	}()
+
 	<-done
 }
