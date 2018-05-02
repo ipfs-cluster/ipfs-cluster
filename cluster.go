@@ -177,13 +177,20 @@ func (c *Cluster) syncWatcher() {
 	}
 }
 
-// push metrics loops and pushes metrics to the leader's monitor
+// pushInformerMetrics loops and publishes informers metrics using the
+// cluster monitor. Metrics are pushed normally at a TTL/2 rate. If an error
+// occurs, they are pushed at a TTL/4 rate.
 func (c *Cluster) pushInformerMetrics() {
 	timer := time.NewTimer(0) // fire immediately first
-	// The following control how often to make and log
-	// a retry
+
+	// retries counts how many retries we have made
 	retries := 0
-	retryWarnMod := 60
+	// retryWarnMod controls how often do we log
+	// "error broadcasting metric".
+	// It will do it in the first error, and then on every
+	// 10th.
+	retryWarnMod := 10
+
 	for {
 		select {
 		case <-c.ctx.Done():
