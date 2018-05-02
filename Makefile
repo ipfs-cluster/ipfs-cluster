@@ -19,6 +19,7 @@ all: service ctl
 clean: rwundo clean_sharness
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
+	@rm -rf ./test/testingData
 
 gx-clean: clean
 	@rm -f $(deptools)/*
