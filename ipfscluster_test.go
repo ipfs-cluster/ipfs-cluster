@@ -301,7 +301,7 @@ func delay() {
 }
 
 func pinDelay() {
-	time.Sleep(700 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 }
 
 func ttlDelay() {
@@ -418,8 +418,6 @@ func TestClustersPin(t *testing.T) {
 	}
 	delay()
 	delay()
-	delay()
-	delay()
 	fpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
 		for _, v := range status {
@@ -451,7 +449,6 @@ func TestClustersPin(t *testing.T) {
 		}
 
 	}
-	delay()
 	delay()
 	delay()
 	funpinned := func(t *testing.T, c *Cluster) {
@@ -605,7 +602,6 @@ func TestClustersSyncLocal(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 	clusters[0].Pin(api.PinCid(h))
 	clusters[0].Pin(api.PinCid(h2))
-	pinDelay()
 	pinDelay()
 	pinDelay()
 
@@ -811,7 +807,6 @@ func TestClustersRecover(t *testing.T) {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
 
-	pinDelay()
 	for _, c := range clusters {
 		inf, ok := ginfo.PeerMap[c.host.ID()]
 		if !ok {
@@ -913,6 +908,7 @@ func TestClustersReplication(t *testing.T) {
 		}
 		if numLocal != nClusters-1 {
 			t.Errorf("Expected %d local pins but got %d", nClusters-1, numLocal)
+			t.Error(pinfos)
 		}
 
 		if numRemote != 1 {
