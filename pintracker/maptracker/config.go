@@ -3,7 +3,6 @@ package maptracker
 import (
 	"encoding/json"
 	"errors"
-	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
 )
@@ -12,21 +11,14 @@ const configKey = "maptracker"
 
 // Default values for this Config.
 const (
-	DefaultPinningTimeout   = 60 * time.Minute
-	DefaultUnpinningTimeout = 5 * time.Minute
-	DefaultMaxPinQueueSize  = 4096
-	DefaultConcurrentPins   = 1
+	DefaultMaxPinQueueSize = 4096
+	DefaultConcurrentPins  = 1
 )
 
 // Config allows to initialize a Monitor and customize some parameters.
 type Config struct {
 	config.Saver
 
-	// PinningTimeout specifies how long to wait before a pinning state becomes a pin error
-	PinningTimeout time.Duration
-	// UnpinningTimeout specifies how long to wait before an unpinning state becomes a pin error
-	UnpinningTimeout time.Duration
-	// MaxPinQueueSize specifies how many pin or unpin requests we can hold in the queue
 	// If higher, they will automatically marked with an error.
 	MaxPinQueueSize int
 	// ConcurrentPins specifies how many pin requests can be sent to the ipfs
@@ -36,10 +28,8 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	PinningTimeout   string `json:"pinning_timeout"`
-	UnpinningTimeout string `json:"unpinning_timeout"`
-	MaxPinQueueSize  int    `json:"max_pin_queue_size"`
-	ConcurrentPins   int    `json:"concurrent_pins"`
+	MaxPinQueueSize int `json:"max_pin_queue_size"`
+	ConcurrentPins  int `json:"concurrent_pins"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -49,8 +39,6 @@ func (cfg *Config) ConfigKey() string {
 
 // Default sets the fields of this Config to sensible values.
 func (cfg *Config) Default() error {
-	cfg.PinningTimeout = DefaultPinningTimeout
-	cfg.UnpinningTimeout = DefaultUnpinningTimeout
 	cfg.MaxPinQueueSize = DefaultMaxPinQueueSize
 	cfg.ConcurrentPins = DefaultConcurrentPins
 	return nil
@@ -59,12 +47,6 @@ func (cfg *Config) Default() error {
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
-	if cfg.PinningTimeout <= 0 {
-		return errors.New("maptracker.pinning_timeout too low")
-	}
-	if cfg.UnpinningTimeout <= 0 {
-		return errors.New("maptracker.unpinning_timeout too low")
-	}
 	if cfg.MaxPinQueueSize <= 0 {
 		return errors.New("maptracker.max_pin_queue_size too low")
 	}
@@ -87,18 +69,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	parseDuration := func(txt string) time.Duration {
-		d, _ := time.ParseDuration(txt)
-		if txt != "" && d == 0 {
-			logger.Warningf("%s is not a valid duration. Default will be used", txt)
-		}
-		return d
-	}
-
-	pinningTimeo := parseDuration(jcfg.PinningTimeout)
-	unpinningTimeo := parseDuration(jcfg.UnpinningTimeout)
-	config.SetIfNotDefault(pinningTimeo, &cfg.PinningTimeout)
-	config.SetIfNotDefault(unpinningTimeo, &cfg.UnpinningTimeout)
 	config.SetIfNotDefault(jcfg.MaxPinQueueSize, &cfg.MaxPinQueueSize)
 	config.SetIfNotDefault(jcfg.ConcurrentPins, &cfg.ConcurrentPins)
 
@@ -109,8 +79,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 func (cfg *Config) ToJSON() ([]byte, error) {
 	jcfg := &jsonConfig{}
 
-	jcfg.PinningTimeout = cfg.PinningTimeout.String()
-	jcfg.UnpinningTimeout = cfg.UnpinningTimeout.String()
 	jcfg.MaxPinQueueSize = cfg.MaxPinQueueSize
 	jcfg.ConcurrentPins = cfg.ConcurrentPins
 

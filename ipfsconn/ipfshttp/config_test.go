@@ -16,8 +16,8 @@ var cfgJSON = []byte(`
       "proxy_idle_timeout": "1m0s",
       "pin_method": "pin",
       "ipfs_request_timeout": "5m0s",
-	  "pin_timeout": "24h",
-	  "unpin_timeout": "3h"
+      "pin_timeout": "24h",
+      "unpin_timeout": "3h"
 }
 `)
 

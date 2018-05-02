@@ -7,9 +7,8 @@ import (
 
 var cfgJSON = []byte(`
 {
-      "pinning_timeout": "30s",
-      "unpinning_timeout": "15s",
-      "max_pin_queue_size": 4092
+      "max_pin_queue_size": 4092,
+      "concurrent_pins": 2
 }
 `)
 
@@ -23,14 +22,14 @@ func TestLoadJSON(t *testing.T) {
 	j := &jsonConfig{}
 
 	json.Unmarshal(cfgJSON, j)
-	j.PinningTimeout = "-10"
+	j.ConcurrentPins = 10
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err != nil {
 		t.Error("did not expect an error")
 	}
-	if cfg.PinningTimeout != DefaultPinningTimeout {
-		t.Error("expected default pinning_timeout")
+	if cfg.ConcurrentPins != 10 {
+		t.Error("expected 10 concurrent pins")
 	}
 }
 
@@ -55,7 +54,7 @@ func TestDefault(t *testing.T) {
 		t.Fatal("error validating")
 	}
 
-	cfg.UnpinningTimeout = 0
+	cfg.ConcurrentPins = -2
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}

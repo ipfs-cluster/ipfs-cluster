@@ -78,7 +78,10 @@ func (mpt *MapPinTracker) pinWorker() {
 		select {
 		case p := <-mpt.pinCh:
 			if opc, ok := mpt.optracker.get(p.Cid); ok && opc.op == operationPin {
-				mpt.optracker.updateOperationPhase(p.Cid, phaseInProgress)
+				mpt.optracker.updateOperationPhase(
+					p.Cid,
+					phaseInProgress,
+				)
 				mpt.pin(p)
 			}
 		case <-mpt.ctx.Done():
@@ -93,7 +96,10 @@ func (mpt *MapPinTracker) unpinWorker() {
 		select {
 		case p := <-mpt.unpinCh:
 			if opc, ok := mpt.optracker.get(p.Cid); ok && opc.op == operationUnpin {
-				mpt.optracker.updateOperationPhase(p.Cid, phaseInProgress)
+				mpt.optracker.updateOperationPhase(
+					p.Cid,
+					phaseInProgress,
+				)
 				mpt.unpin(p)
 			}
 		case <-mpt.ctx.Done():
@@ -446,10 +452,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		case api.TrackerStatusPinned: // nothing
 		case api.TrackerStatusPinning, api.TrackerStatusPinError:
 			mpt.set(c, api.TrackerStatusPinned)
-		case api.TrackerStatusUnpinning:
-			if time.Since(p.TS) > mpt.config.UnpinningTimeout {
-				mpt.setError(c, errUnpinningTimeout)
-			}
+		case api.TrackerStatusUnpinning: // nothing
 		case api.TrackerStatusUnpinned:
 			mpt.setError(c, errPinned)
 		case api.TrackerStatusUnpinError: // nothing, keep error as it was
@@ -460,10 +463,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		case api.TrackerStatusPinned:
 			mpt.setError(c, errUnpinned)
 		case api.TrackerStatusPinError: // nothing, keep error as it was
-		case api.TrackerStatusPinning:
-			if time.Since(p.TS) > mpt.config.PinningTimeout {
-				mpt.setError(c, errPinningTimeout)
-			}
+		case api.TrackerStatusPinning: // nothing
 		case api.TrackerStatusUnpinning, api.TrackerStatusUnpinError:
 			mpt.set(c, api.TrackerStatusUnpinned)
 		case api.TrackerStatusUnpinned: // nothing
