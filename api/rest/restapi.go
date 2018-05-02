@@ -508,12 +508,36 @@ func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	urlParams := r.URL.Query()
 	layout := urlParams.Get("layout")
+	if layout != "" && layout != "trickle" && layout != "balanced" {
+		sendErrorResponse(w, 400, "parameter trickle invalid")
+		return
+	}
 	chunker := urlParams.Get("chunker")
-	raw, _ := strconv.ParseBool(urlParams.Get("raw"))
-	hidden, _ := strconv.ParseBool(urlParams.Get("hidden"))
-	shard, _ := strconv.ParseBool(urlParams.Get("shard"))
-	replMin, _ := strconv.Atoi(urlParams.Get("repl_min"))
-	replMax, _ := strconv.Atoi(urlParams.Get("repl_max"))
+	raw, err := strconv.ParseBool(urlParams.Get("raw"))
+	if err != nil {
+		sendErrorResponse(w, 400, "parameter raw invalid")
+		return
+	}
+	hidden, err := strconv.ParseBool(urlParams.Get("hidden"))
+	if err != nil {
+		sendErrorResponse(w, 400, "parameter hidden invalid")
+		return
+	}
+	shard, err := strconv.ParseBool(urlParams.Get("shard"))
+	if err != nil {
+		sendErrorResponse(w, 400, "parameter shard invalid")
+		return
+	}
+	replMin, err := strconv.Atoi(urlParams.Get("repl_min"))
+	if err != nil || replMin < -1 {
+		sendErrorResponse(w, 400, "parameter replMin invalid")
+		return
+	}
+	replMax, err := strconv.Atoi(urlParams.Get("repl_max"))
+	if err != nil || replMax < -1 {
+		sendErrorResponse(w, 400, "parameter replMax invalid")
+		return
+	}
 	params := types.AddParams{
 		Layout:  layout,
 		Chunker: chunker,
