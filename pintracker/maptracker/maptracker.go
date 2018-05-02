@@ -25,6 +25,10 @@ var (
 	errUnpinned         = errors.New("the item is unexpectedly not pinned on IPFS")
 )
 
+func init() {
+	logging.SetLogLevel("pintracker", "debug")
+}
+
 // MapPinTracker is a PinTracker implementation which uses a Go map
 // to store the status of the tracked Cids. This component is thread-safe.
 type MapPinTracker struct {

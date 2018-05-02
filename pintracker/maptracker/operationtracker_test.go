@@ -23,10 +23,10 @@ func TestOperationTracker_trackNewOperationWithCtx(t *testing.T) {
 
 	opc, ok := opt.get(h)
 	if !ok {
-		t.Errorf("operationCtx wasn't set in operationTracker")
+		t.Errorf("operation wasn't set in operationTracker")
 	}
 
-	testopc1 := operationCtx{
+	testopc1 := operation{
 		cid:   h,
 		op:    operationPin,
 		phase: phaseQueued,
