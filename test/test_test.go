@@ -60,3 +60,11 @@ func TestRPCMockValid(t *testing.T) {
 		}
 	}
 }
+
+// Test that testing directory is created without error
+func TestGenerateTestDirs(t *testing.T) {
+	_, err := GetTestingDirSerial()
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"testing"
 
+	//	add "github.com/ipfs/ipfs-cluster/add"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -121,6 +123,14 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	processResp(t, httpResp, err, resp)
 }
 
+func makePostRaw(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h)
+	httpResp, err := c.Post(url, contentType, body)
+	processResp(t, httpResp, err, resp)
+}
+
 type testF func(t *testing.T, url urlF)
 
 func testBothEndpoints(t *testing.T, test testF) {
@@ -223,6 +233,72 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 		makePost(t, rest, url(rest)+"/peers", []byte("{\"peer_multiaddress\": \"ab\"}"), &errResp)
 		if errResp.Code != 400 {
 			t.Error("expected error with bad multiaddress")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointBadContentType(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	tf := func(t *testing.T, url urlF) {
+		fmtStr1 := "/allocations?shard=false&layout=&chunker=&"
+		fmtStr2 := "raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		localURL := url(rest) + fmtStr1 + fmtStr2
+
+		errResp := api.Error{}
+		makePost(t, rest, localURL, []byte("test"), &errResp)
+
+		if errResp.Code != 400 {
+			t.Error("expected error with bad content-type")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointLocal(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	tf := func(t *testing.T, url urlF) {
+		fmtStr1 := "/allocations?shard=false&layout=&chunker=&"
+		fmtStr2 := "raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		localURL := url(rest) + fmtStr1 + fmtStr2
+		body, err := test.GetTestingDirMultiReader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp := []api.AddedOutput{}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		makePostRaw(t, rest, localURL, body, mpContentType, &resp)
+		if len(resp) != test.NumTestDirPrints ||
+			resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
+			t.Error("unexpected addedoutput from local add")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointShard(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	tf := func(t *testing.T, url urlF) {
+		body, err := test.GetTestingDirMultiReader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		resp := []api.AddedOutput{}
+		fmtStr1 := "/allocations?shard=true&layout=&chunker=&"
+		fmtStr2 := "raw=false&hidden=false&repl_min=-1&repl_max=-1"
+		shardURL := url(rest) + fmtStr1 + fmtStr2
+		makePostRaw(t, rest, shardURL, body, mpContentType, &resp)
+		if len(resp) != test.NumTestDirPrints ||
+			resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
+			t.Fatal("unexpected addedoutput from sharded add")
 		}
 	}
 

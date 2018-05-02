@@ -18,9 +18,9 @@ func shouldIgnore(err error) bool {
 
 // ToChannel imports file to ipfs ipld nodes, outputting nodes on the
 // provided channel
-func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
-	trickle bool, raw bool, silent bool, wrap bool,
-	chunker string) (<-chan *api.AddedOutput, <-chan *api.NodeWithMeta, <-chan error) {
+func ToChannel(ctx context.Context, f files.File, hidden bool,
+	trickle bool, raw bool, chunker string) (<-chan *api.AddedOutput,
+	<-chan *api.NodeWithMeta, <-chan error) {
 
 	printChan := make(chan *api.AddedOutput)
 	errChan := make(chan error)
@@ -38,12 +38,12 @@ func ToChannel(ctx context.Context, f files.File, progress bool, hidden bool,
 		}()
 		return printChan, outChan, errChan
 	}
-	//	fileAdder.Progress = progress //TODO get progress working eventually.  dont need complexity right now
 	fileAdder.Hidden = hidden
 	fileAdder.Trickle = trickle
 	fileAdder.RawLeaves = raw
-	fileAdder.Silent = silent
-	fileAdder.Wrap = wrap
+	// Files added in one session are wrapped.  This is because if files
+	// are sharded together then the share one logical clusterDAG root hash
+	fileAdder.Wrap = true
 	fileAdder.Chunker = chunker
 	fileAdder.Out = printChan
 

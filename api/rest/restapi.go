@@ -11,8 +11,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"math/rand"
-	"mime"
 	"net"
 	"net/http"
 	"strconv"
@@ -497,24 +497,59 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
-	contentType := r.Header.Get("Content-Type")
-	mediatype, _, _ := mime.ParseMediaType(contentType)
-
-	if mediatype != "multipart/form-data" {
-		sendErrorResponse(w, 415, "unsupported media type")
-		return
-	}
 	reader, err := r.MultipartReader()
 	if err != nil {
 		sendErrorResponse(w, 400, err.Error())
 		return
 	}
 
-	params := r.URL.Query()
+	urlParams := r.URL.Query()
+	layout := urlParams.Get("layout")
+	if layout != "" && layout != "trickle" && layout != "balanced" {
+		sendErrorResponse(w, 400, "parameter trickle invalid")
+		return
+	}
+	chunker := urlParams.Get("chunker")
+	raw, err := strconv.ParseBool(urlParams.Get("raw"))
+	if err != nil {
+		sendErrorResponse(w, 400, "parameter raw invalid")
+		return
+	}
+	hidden, err := strconv.ParseBool(urlParams.Get("hidden"))
+	if err != nil {
+		sendErrorResponse(w, 400, "parameter hidden invalid")
+		return
+	}
+	shard, err := strconv.ParseBool(urlParams.Get("shard"))
+	if err != nil {
+		sendErrorResponse(w, 400, "parameter shard invalid")
+		return
+	}
+	replMin, err := strconv.Atoi(urlParams.Get("repl_min"))
+	if err != nil || replMin < -1 {
+		sendErrorResponse(w, 400, "parameter replMin invalid")
+		return
+	}
+	replMax, err := strconv.Atoi(urlParams.Get("repl_max"))
+	if err != nil || replMax < -1 {
+		sendErrorResponse(w, 400, "parameter replMax invalid")
+		return
+	}
+	params := types.AddParams{
+		Layout:  layout,
+		Chunker: chunker,
+		Raw:     raw,
+		Hidden:  hidden,
+		Shard:   shard,
+		Rmin:    replMin,
+		Rmax:    replMax,
+	}
+
 	addSess := add.NewAddSession(api.rpcClient, logger)
 	toPrint, err := addSess.AddFile(api.ctx, reader, params)
 	if err != nil {
 		sendErrorResponse(w, 500, err.Error())
+		return
 	}
 	sendJSONResponse(w, 200, toPrint)
 }

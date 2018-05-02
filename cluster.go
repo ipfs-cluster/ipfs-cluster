@@ -1045,6 +1045,22 @@ func (c *Cluster) Pin(pin api.Pin) error {
 // self-consistent.  This amounts to verifying that the data structure matches
 // the expected form of the pinType carried in the pin.
 func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
+	// In general validation requires access to the existing state.
+	// Multiple clusterdags may reference the same shard, sharder sessions
+	// update a shard pin's metadata and the same cid should not be
+	// tracked by different pin types
+	cState, err := c.consensus.State()
+	if err != nil && err != p2praft.ErrNoState {
+		return err
+	}
+	cPinExists := err != p2praft.ErrNoState && cState.Has(pin.Cid)
+	if cPinExists {
+		existing := cState.Get(pin.Cid)
+		if existing.Type != pin.Type {
+			return errors.New("cannot repin CID with different tracking method, clear state with pin rm to proceed")
+		}
+	}
+
 	switch pin.Type {
 	case api.DataType:
 		if pin.Clusterdag != nil ||
@@ -1055,15 +1071,11 @@ func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
 		if !pin.Recursive {
 			return errors.New("must pin shards recursively")
 		}
-		// In general multiple clusterdags may reference the same shard
-		// and sharder sessions typically update a shard pin's metadata.
-		// Hence we check for an existing shard and carefully update.
-		cState, err := c.consensus.State()
-		if err != nil && err != p2praft.ErrNoState {
-			return err
+		if pin.Clusterdag != nil {
+			return errors.New("shard pin should not reference cdag")
 		}
-		if err == p2praft.ErrNoState || !cState.Has(pin.Cid) {
-			break
+		if !cPinExists {
+			return nil
 		}
 
 		// State already tracks pin's CID
@@ -1081,7 +1093,7 @@ func (c *Cluster) validatePin(pin api.Pin, rplMin, rplMax int) error {
 		if pin.Recursive {
 			return errors.New("must pin roots directly")
 		}
-		if pin.Parents.Len() > 1 {
+		if pin.Parents == nil || pin.Parents.Len() != 1 {
 			return errors.New("cdag nodes are referenced once")
 		}
 	case api.MetaType:
@@ -1208,7 +1220,7 @@ func (c *Cluster) Unpin(h *cid.Cid) error {
 	case api.DataType:
 		return c.consensus.LogUnpin(pin)
 	case api.ShardType:
-		err := "unpinning shard cid %s before unpinning parent"
+		err := "unpinning shard CID before unpinning parent"
 		return errors.New(err)
 	case api.MetaType:
 		// Unpin cluster dag and referenced shards
@@ -1218,7 +1230,7 @@ func (c *Cluster) Unpin(h *cid.Cid) error {
 		}
 		return c.consensus.LogUnpin(pin)
 	case api.CdagType:
-		err := "unpinning cluster dag root %s before unpinning parent"
+		err := "unpinning cluster dag root CID before unpinning parent"
 		return errors.New(err)
 	default:
 		return errors.New("unrecognized pin type")
@@ -1287,7 +1299,7 @@ func (c *Cluster) unpinShard(cdagCid, shardCid *cid.Cid) error {
 // pipeline is used to DAGify the file.  Depending on input parameters this
 // DAG can be added locally to the calling cluster peer's ipfs repo, or
 // sharded across the entire cluster.
-func (c *Cluster) AddFile(reader *multipart.Reader, params map[string][]string) ([]api.AddedOutput, error) {
+func (c *Cluster) AddFile(reader *multipart.Reader, params api.AddParams) ([]api.AddedOutput, error) {
 	addSess := add.NewAddSession(c.rpcClient, logger)
 	return addSess.AddFile(c.ctx, reader, params)
 }

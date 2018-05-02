@@ -106,10 +106,6 @@ type ipfsStream struct {
 	Protocol string
 }
 
-type ipfsBlockPutResp struct {
-	Key string
-}
-
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(cfg *Config) (*Connector, error) {
 	err := cfg.Validate()
@@ -925,7 +921,7 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 
 // BlockPut triggers an ipfs block put on the given data, inserting the block
 // into the ipfs daemon's repo.
-func (ipfs *Connector) BlockPut(b api.NodeWithMeta) (string, error) {
+func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 	r := ioutil.NopCloser(bytes.NewReader(b.Data))
 	rFile := files.NewReaderFile("", "", r, nil)
 	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory
@@ -935,16 +931,8 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) (string, error) {
 	}
 	url := "block/put?f=" + b.Format
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
-	res, err := ipfs.post(url, contentType, multiFileR)
-	if err != nil {
-		return "", err
-	}
-	var keyRaw ipfsBlockPutResp
-	err = json.Unmarshal(res, &keyRaw)
-	if err != nil {
-		return "", err
-	}
-	return keyRaw.Key, nil
+	_, err := ipfs.post(url, contentType, multiFileR)
+	return err
 }
 
 // BlockGet retrieves an ipfs block with the given cid

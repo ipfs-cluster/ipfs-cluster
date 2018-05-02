@@ -370,6 +370,10 @@ func (mock *mockService) IPFSFreeSpace(ctx context.Context, in struct{}, out *ui
 	return nil
 }
 
+func (mock *mockService) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
+	return nil
+}
+
 func (mock *mockService) ConsensusAddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }
@@ -380,6 +384,15 @@ func (mock *mockService) ConsensusRmPeer(ctx context.Context, in peer.ID, out *s
 
 func (mock *mockService) ConsensusPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
+	return nil
+}
+
+func (mock *mockService) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
+	*out = "mock-shard-id"
+	return nil
+}
+
+func (mock *mockService) SharderFinalize(ctx context.Context, in string, out *struct{}) error {
 	return nil
 }
 

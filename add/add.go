@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"mime/multipart"
-	"net/url"
-	"strconv"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/importer"
@@ -37,17 +35,14 @@ func (a *AddSession) consumeLocalAdd(
 	//TODO: when ipfs add starts supporting formats other than
 	// v0 (v1.cbor, v1.protobuf) we'll need to update this
 	outObj.Format = ""
-	var hash string
 	err := a.rpcClient.Call(
 		"",
 		"Cluster",
 		"IPFSBlockPut",
 		*outObj,
-		&hash,
+		&struct{}{},
 	)
-	if outObj.Cid != hash {
-		a.logger.Warningf("mismatch. node cid: %s\nrpc cid: %s", outObj.Cid, hash)
-	}
+
 	return outObj.Cid, err // root node returned in case this is last call
 }
 
@@ -169,7 +164,7 @@ func (a *AddSession) consumeImport(ctx context.Context,
 	if err := finish(arg, replMin, replMax); err != nil {
 		return nil, err
 	}
-	a.logger.Debugf("succeeding sharding import")
+	a.logger.Debugf("succeeding file import")
 	return toPrint, nil
 }
 
@@ -179,19 +174,16 @@ func (a *AddSession) consumeImport(ctx context.Context,
 // sharded across the entire cluster.
 func (a *AddSession) AddFile(ctx context.Context,
 	reader *multipart.Reader,
-	params url.Values,
+	params api.AddParams,
 ) ([]api.AddedOutput, error) {
-	layout := params.Get("layout")
+	layout := params.Layout
 	trickle := false
 	if layout == "trickle" {
 		trickle = true
 	}
-	chunker := params.Get("chunker")
-	raw, _ := strconv.ParseBool(params.Get("raw"))
-	wrap, _ := strconv.ParseBool(params.Get("wrap"))
-	progress, _ := strconv.ParseBool(params.Get("progress"))
-	hidden, _ := strconv.ParseBool(params.Get("hidden"))
-	silent, _ := strconv.ParseBool(params.Get("silent"))
+	chunker := params.Chunker
+	raw := params.Raw
+	hidden := params.Hidden
 
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
@@ -202,22 +194,19 @@ func (a *AddSession) AddFile(ctx context.Context,
 	printChan, outChan, errChan := importer.ToChannel(
 		ctx,
 		f,
-		progress,
 		hidden,
 		trickle,
 		raw,
-		silent,
-		wrap,
 		chunker,
 	)
 
-	shard := params.Get("shard")
-	replMin, _ := strconv.Atoi(params.Get("repl_min"))
-	replMax, _ := strconv.Atoi(params.Get("repl_max"))
+	shard := params.Shard
+	replMin := params.Rmin
+	replMax := params.Rmax
 
 	var consume func(string, *api.NodeWithMeta, int, int) (string, error)
 	var finish func(string, int, int) error
-	if shard == "true" {
+	if shard {
 		consume = a.consumeShardAdd
 		finish = a.finishShardAdd
 	} else {

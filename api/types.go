@@ -494,31 +494,6 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 	return addrs
 }
 
-
-// PeersToStrings IDB58Encodes a list of peers.
-func PeersToStrings(peers []peer.ID) []string {
-	strs := make([]string, len(peers))
-	for i, p := range peers {
-		if p != "" {
-			strs[i] = peer.IDB58Encode(p)
-		}
-	}
-	return strs
-}
-
-// StringsToPeers decodes peer.IDs from strings.
-func StringsToPeers(strs []string) []peer.ID {
-	peers := make([]peer.ID, len(strs))
-	for i, p := range strs {
-		var err error
-		peers[i], err = peer.IDB58Decode(p)
-		if err != nil {
-			logger.Error(p, err)
-		}
-	}
-	return peers
-}
-
 // CidsToStrings encodes cid.Cids to strings.
 func CidsToStrings(cids []*cid.Cid) []string {
 	strs := make([]string, len(cids))
@@ -750,6 +725,31 @@ func (pins PinSerial) ToPin() Pin {
 	}
 }
 
+// AddParams contains all of the configurable parameters needed to specify the
+// importing process of a file being added to an ipfs-cluster
+type AddParams struct {
+	Layout  string
+	Chunker string
+	Raw     bool
+	Hidden  bool
+	Shard   bool
+	Rmin    int
+	Rmax    int
+}
+
+// DefaultAddParams returns the default AddParams value
+func DefaultAddParams() AddParams {
+	return AddParams{
+		Layout:  "", // corresponds to balanced layout
+		Chunker: "",
+		Raw:     false,
+		Hidden:  false,
+		Shard:   false,
+		Rmin:    -1,
+		Rmax:    -1,
+	}
+}
+
 // AddedOutput carries information for displaying the standard ipfs output
 // indicating a node of a file has been added.
 type AddedOutput struct {
@@ -758,6 +758,7 @@ type AddedOutput struct {
 	Hash  string `json:",omitempty"`
 	Bytes int64  `json:",omitempty"`
 	Size  string `json:",omitempty"`
+	Quiet bool
 }
 
 // NodeWithMeta specifies a block of data and a set of optional metadata fields

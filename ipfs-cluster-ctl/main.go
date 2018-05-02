@@ -196,19 +196,15 @@ No stdin reading yet either, that is also TODO
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "recursive, r",
-					Usage: "add directory paths recursively, default false",
+					Usage: "Add directory paths recursively, default false",
 				},
 				cli.BoolFlag{
 					Name:  "shard",
-					Usage: "break the file into pieces (shards) and distributed among peers, default false",
+					Usage: "Break the file into pieces (shards) and distributed among peers, default false",
 				},
 				cli.BoolFlag{
-					Name:  "quiet, q",
-					Usage: "write minimal output",
-				},
-				cli.BoolFlag{
-					Name:  "silent",
-					Usage: "write no output",
+					Name:  "only-hashes",
+					Usage: "Write newline separated list of  hashes to output",
 				},
 				cli.StringFlag{
 					Name: "layout, L",
@@ -225,16 +221,12 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 					Usage: "Use raw blocks for leaves (experimental)",
 				},
 				cli.BoolFlag{
-					Name:  "wrap, w",
-					Usage: "wrap files with a directory object",
-				},
-				cli.BoolFlag{
 					Name:  "progress, p",
 					Usage: "Stream progress data",
 				},
 				cli.BoolFlag{
 					Name:  "hidden, H",
-					Usage: "include files that are hidden.  Only takes effect on recursive add",
+					Usage: "Include files that are hidden.  Only takes effect on recursive add",
 				},
 				cli.IntFlag{
 					Name:  "replication-min, rmin",
@@ -252,18 +244,22 @@ chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
 				for i, path := range c.Args() {
 					paths[i] = path
 				}
-				// Unclear if multiFileR is ready for streaming, but hypothesis is yes.
 				// Files are all opened but not read until they are sent.
-				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"))
+				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
 				checkErr("serializing all files", err)
 				resp, cerr := globalClient.AddMultiFile(multiFileR,
-					c.Bool("shard"), c.Bool("quiet"),
-					c.Bool("silent"), c.String("layout"),
+					c.Bool("shard"), c.String("layout"),
 					c.String("chunker"),
-					c.Bool("raw-leaves"), c.Bool("wrap"),
-					c.Bool("progress"), c.Bool("hidden"),
+					c.Bool("raw-leaves"),
+					c.Bool("hidden"),
 					c.Int("replication-min"),
-					c.Int("replication-max"))
+					c.Int("replication-max"),
+				)
+				if c.Bool("only-hashes") {
+					for i := range resp {
+						resp[i].Quiet = true
+					}
+				}
 				formatResponse(c, resp, cerr)
 				return nil
 			},
