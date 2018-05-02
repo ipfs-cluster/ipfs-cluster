@@ -296,13 +296,15 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		}
 	}
 
+	mpt.optracker.trackNewOperationCtx(mpt.ctx, c.Cid, operationPin)
 	mpt.set(c.Cid, api.TrackerStatusPinQueued)
+
 	select {
 	case mpt.pinCh <- c:
-		mpt.optracker.trackNewOperationCtx(mpt.ctx, c.Cid, operationPin)
 	default:
 		err := errors.New("pin queue is full")
 		mpt.setError(c.Cid, err)
+		mpt.optracker.cancelOperation(c.Cid)
 		logger.Error(err.Error())
 		return err
 	}
@@ -331,13 +333,15 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 		return nil
 	}
 
+	mpt.optracker.trackNewOperationCtx(mpt.ctx, c, operationUnpin)
 	mpt.set(c, api.TrackerStatusUnpinQueued)
+
 	select {
 	case mpt.unpinCh <- api.PinCid(c):
-		mpt.optracker.trackNewOperationCtx(mpt.ctx, c, operationUnpin)
 	default:
 		err := errors.New("unpin queue is full")
 		mpt.setError(c, err)
+		mpt.optracker.cancelOperation(c)
 		logger.Error(err.Error())
 		return err
 	}
