@@ -11,11 +11,25 @@ import (
 )
 
 func (c *Client) do(method, path string, body io.Reader, obj interface{}) error {
+	c.ctx = logger.Start(c.ctx, path)
+	logger.SetTags(c.ctx, map[string]interface{}{
+		"http.method": method,
+	})
+	defer logger.Finish(c.ctx)
+
 	resp, err := c.doRequest(method, path, body)
 	if err != nil {
+		logger.SetErr(c.ctx, err)
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
-	return c.handleResponse(resp, obj)
+
+	logger.SetTag(c.ctx, "http.status_code", resp.StatusCode)
+
+	err = c.handleResponse(resp, obj)
+	if err != nil {
+		logger.SetErr(c.ctx, err)
+	}
+	return err
 }
 
 func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {

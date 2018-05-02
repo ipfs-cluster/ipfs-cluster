@@ -214,7 +214,7 @@ func (api *API) addRoutes(router *mux.Router) {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(route.HandlerFunc)
+			Handler(withTracing(route.HandlerFunc))
 	}
 	api.router = router
 }
@@ -248,6 +248,15 @@ func basicAuth(h http.HandlerFunc, credentials map[string]string) http.HandlerFu
 			http.Error(w, resp, 401)
 			return
 		}
+		h.ServeHTTP(w, r)
+	}
+}
+
+func withTracing(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r = r.WithContext(logger.Start(r.Context(), r.URL.Path))
+		defer logger.Finish(r.Context())
+		logger.SetTag(r.Context(), "http.method", r.Method)
 		h.ServeHTTP(w, r)
 	}
 }

@@ -73,6 +73,8 @@ type Config struct {
 
 	// LogLevel defines the verbosity of the logging facility
 	LogLevel string
+
+	Context context.Context
 }
 
 // Client provides methods to interact with the ipfs-cluster API. Use
@@ -91,6 +93,9 @@ type Client struct {
 // NewClient initializes a client given a Config.
 func NewClient(cfg *Config) (*Client, error) {
 	ctx := context.Background()
+	if cfg.Context != nil {
+		ctx = cfg.Context
+	}
 	client := &Client{
 		ctx:    ctx,
 		config: cfg,

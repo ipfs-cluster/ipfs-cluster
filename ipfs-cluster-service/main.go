@@ -15,6 +15,7 @@ import (
 	//	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log"
+	writer "github.com/ipfs/go-log/writer"
 	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli"
 
@@ -196,6 +197,11 @@ func main() {
 			Name:  "alloc, a",
 			Value: "disk-freespace",
 			Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
+		},
+		cli.StringFlag{
+			Name:  "trace-out",
+			Value: "",
+			Usage: "output path for tracing result. If not provided, results will be written to std.",
 		},
 	}
 
@@ -444,6 +450,14 @@ func run(c *cli.Context) error {
 
 func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
+
+	writerCloser := os.Stdout
+	if c.String("trace-out") != "" {
+		f, err := os.OpenFile(c.String("trace-out"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		checkErr("opening trace output file", err)
+		writerCloser = f
+	}
+	writer.WriterGroup.AddWriter(writerCloser)
 
 	// Load all the configurations
 	cfgMgr, cfgs := makeConfigs()

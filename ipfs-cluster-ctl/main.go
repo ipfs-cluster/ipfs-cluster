@@ -15,6 +15,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	writer "github.com/ipfs/go-log/writer"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli"
@@ -126,10 +127,37 @@ requires authorization. implies --https, which you can disable with --force-http
 			Name:  "force-http, f",
 			Usage: "force HTTP. only valid when using BasicAuth",
 		},
+		cli.StringFlag{
+			Name:  "trace-out",
+			Value: "",
+			Usage: "output path for tracing result. If not provided, results will be written to std.",
+		},
 	}
+
+	rootCtx := context.Background()
 
 	app.Before = func(c *cli.Context) error {
 		cfg := &client.Config{}
+
+		rootSpanName := "ctl"
+		args := c.Args()
+		if args.Present() {
+			rootSpanName = "ctl-" + args.First()
+		}
+
+		writerCloser := os.Stdout
+		if c.String("trace-out") != "" {
+			f, err := os.OpenFile(c.String("trace-out"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			checkErr("opening trace output file", err)
+			writerCloser = f
+		}
+		writer.WriterGroup.AddWriter(writerCloser)
+
+		rootCtx = logger.Start(rootCtx, rootSpanName)
+		ctx := logger.Start(rootCtx, "init")
+		defer logger.Finish(ctx)
+
+		cfg.Context = ctx
 
 		if c.Bool("debug") {
 			logging.SetLogLevel("cluster-ctl", "debug")
@@ -178,6 +206,11 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		globalClient, err = client.NewClient(cfg)
 		checkErr("creating API client", err)
+		return nil
+	}
+
+	app.After = func(c *cli.Context) error {
+		logger.Finish(rootCtx)
 		return nil
 	}
 
