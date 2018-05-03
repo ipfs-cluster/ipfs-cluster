@@ -97,6 +97,10 @@ func (ipfs *mockConnector) BlockGet(c *cid.Cid) ([]byte, error) {
 		return test.TestShardData, nil
 	case test.TestCdagCid:
 		return test.TestCdagData, nil
+	case test.TestShardCid2:
+		return test.TestShard2Data, nil
+	case test.TestCdagCid2:
+		return test.TestCdagData2, nil
 	default:
 		return nil, errors.New("block not found")
 	}
@@ -229,26 +233,32 @@ func TestClusterPin(t *testing.T) {
 	}
 }
 
-func pinDirectShard(t *testing.T, cl *Cluster) {
+func singleShardedPin(t *testing.T, cl *Cluster) {
 	cShard, _ := cid.Decode(test.TestShardCid)
 	cCdag, _ := cid.Decode(test.TestCdagCid)
 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
-	parents := cid.NewSet()
-	parents.Add(cCdag)
-	shardPin := api.Pin{
-		Cid:                  cShard,
-		Type:                 api.ShardType,
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-		Recursive:            true,
-		Parents:              parents,
-	}
-	err := cl.Pin(shardPin)
-	if err != nil {
-		t.Fatal("pin should have worked:", err)
+	pinMeta(t, cl, []*cid.Cid{cShard}, cCdag, cMeta)
+}
+
+func pinMeta(t *testing.T, cl *Cluster, shardCids []*cid.Cid, cCdag, cMeta *cid.Cid) {
+	for _, cShard := range shardCids {
+		parents := cid.NewSet()
+		parents.Add(cCdag)
+		shardPin := api.Pin{
+			Cid:                  cShard,
+			Type:                 api.ShardType,
+			ReplicationFactorMin: -1,
+			ReplicationFactorMax: -1,
+			Recursive:            true,
+			Parents:              parents,
+		}
+		err := cl.Pin(shardPin)
+		if err != nil {
+			t.Fatal("shard pin should have worked:", err)
+		}
 	}
 
-	parents = cid.NewSet()
+	parents := cid.NewSet()
 	parents.Add(cMeta)
 	cdagPin := api.Pin{
 		Cid:                  cCdag,
@@ -257,9 +267,8 @@ func pinDirectShard(t *testing.T, cl *Cluster) {
 		ReplicationFactorMax: -1,
 		Recursive:            false,
 		Parents:              parents,
-		Clusterdag:           cShard,
 	}
-	err = cl.Pin(cdagPin)
+	err := cl.Pin(cdagPin)
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -280,7 +289,7 @@ func TestClusterPinMeta(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	pinDirectShard(t, cl)
+	singleShardedPin(t, cl)
 }
 
 func TestClusterUnpinShardFail(t *testing.T) {
@@ -288,7 +297,7 @@ func TestClusterUnpinShardFail(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	pinDirectShard(t, cl)
+	singleShardedPin(t, cl)
 	// verify pins
 	if len(cl.Pins()) != 3 {
 		t.Fatal("should have 3 pins")
@@ -312,7 +321,7 @@ func TestClusterUnpinMeta(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	pinDirectShard(t, cl)
+	singleShardedPin(t, cl)
 	// verify pins
 	if len(cl.Pins()) != 3 {
 		t.Fatal("should have 3 pins")
@@ -323,6 +332,118 @@ func TestClusterUnpinMeta(t *testing.T) {
 	err := cl.Unpin(cMeta)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func pinTwoParentsOneShard(t *testing.T, cl *Cluster) {
+	singleShardedPin(t, cl)
+
+	cShard, _ := cid.Decode(test.TestShardCid)
+	cShard2, _ := cid.Decode(test.TestShardCid2)
+	cCdag2, _ := cid.Decode(test.TestCdagCid2)
+	cMeta2, _ := cid.Decode(test.TestMetaRootCid2)
+	pinMeta(t, cl, []*cid.Cid{cShard, cShard2}, cCdag2, cMeta2)
+
+	shardPin, err := cl.PinGet(cShard)
+	if err != nil {
+		t.Fatal("pin should be in state")
+	}
+	if shardPin.Parents.Len() != 2 {
+		t.Fatal("unexpected parent set in shared shard")
+	}
+
+	shardPin2, err := cl.PinGet(cShard2)
+	if shardPin2.Parents.Len() != 1 {
+		t.Fatal("unexpected parent set in unshared shard")
+	}
+	if err != nil {
+		t.Fatal("pin should be in state")
+	}
+}
+
+func TestClusterPinShardTwoParents(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	pinTwoParentsOneShard(t, cl)
+
+	cShard, _ := cid.Decode(test.TestShardCid)
+	shardPin, err := cl.PinGet(cShard)
+	if err != nil {
+		t.Fatal("double pinned shard should be pinned")
+	}
+	if shardPin.Parents == nil || shardPin.Parents.Len() != 2 {
+		t.Fatal("double pinned shard should have two parents")
+	}
+}
+
+func TestClusterUnpinShardSecondParent(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	pinTwoParentsOneShard(t, cl)
+	if len(cl.Pins()) != 6 {
+		t.Fatal("should have 6 pins")
+	}
+	cMeta2, _ := cid.Decode(test.TestMetaRootCid2)
+	err := cl.Unpin(cMeta2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pinDelay()
+
+	if len(cl.Pins()) != 3 {
+		t.Fatal("should have 3 pins")
+	}
+
+	cShard, _ := cid.Decode(test.TestShardCid)
+	cCdag, _ := cid.Decode(test.TestCdagCid)
+	shardPin, err := cl.PinGet(cShard)
+	if err != nil {
+		t.Fatal("double pinned shard node should still be pinned")
+	}
+	if shardPin.Parents == nil || shardPin.Parents.Len() != 1 ||
+		!shardPin.Parents.Has(cCdag) {
+		t.Fatalf("shard node should have single original parent %v", shardPin.Parents.Keys())
+	}
+}
+
+func TestClusterUnpinShardFirstParent(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	pinTwoParentsOneShard(t, cl)
+	if len(cl.Pins()) != 6 {
+		t.Fatal("should have 6 pins")
+	}
+
+	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+	err := cl.Unpin(cMeta)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(cl.Pins()) != 4 {
+		t.Fatal("should have 4 pins")
+	}
+
+	cShard, _ := cid.Decode(test.TestShardCid)
+	cShard2, _ := cid.Decode(test.TestShardCid2)
+	cCdag2, _ := cid.Decode(test.TestCdagCid2)
+	shardPin, err := cl.PinGet(cShard)
+	if err != nil {
+		t.Fatal("double pinned shard node should still be pinned")
+	}
+	if shardPin.Parents == nil || shardPin.Parents.Len() != 1 ||
+		!shardPin.Parents.Has(cCdag2) {
+		t.Fatal("shard node should have single original parent")
+	}
+	_, err = cl.PinGet(cShard2)
+	if err != nil {
+		t.Fatal("other shard shoud still be pinned too")
 	}
 }
 
