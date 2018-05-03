@@ -19,12 +19,17 @@ var (
 	// ipfs mock fails when pinning this CID.
 	ErrorCid = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc"
 	// Shard and Cdag Cids
-	TestShardCid    = "zdpuAoiNm1ntWx6jpgcReTiCWFHJSTpvTw4bAAn9p6yDnznqh"
-	TestCdagCid     = "zdpuApF6HZBu8rscHSVJ7ra3VSYWc5dJnnxt42bGKyZ1a4qPo"
-	TestMetaRootCid = "QmYCLpFCj9Av8NFjkQogvtXspnTDFWaizLpVFEijHTH4eV"
+	TestShardCid     = "zdpuAoiNm1ntWx6jpgcReTiCWFHJSTpvTw4bAAn9p6yDnznqh"
+	TestShardCid2    = "zdpuAmUorxmxhrk96mVxQTuUi6QioKzKQKK8XvzU5WURU4Qea"
+	TestCdagCid      = "zdpuAyVKsP6xvx1p81pKi7faxUs2GuD2ZG4o3CwMycvCLyuhK"
+	TestCdagCid2     = "zdpuAynm14qkpVPMMazNjkz3nJYhtTXJ3TpRp5aEkoMHBwmKc"
+	TestMetaRootCid  = "QmYCLpFCj9Av8NFjkQogvtXspnTDFWaizLpVFEijHTH4eV"
+	TestMetaRootCid2 = "QmUatEiCFxtckNae8XyDVGwL1WZq8cVKTMacDkqz8zAE3q"
 
-	TestShardData, _ = hex.DecodeString("a16130d82a58230012209273fd63ec94bed5abb219b2d9cb010cabe4af7b0177292d4335eff50464060a")
-	TestCdagData, _  = hex.DecodeString("a16130d82a5825000171122030e9b9b4f1bc4b5a3759a93b4e77983cd053f84174e1b0cd628dc6c32fb0da14")
+	TestShardData, _  = hex.DecodeString("a16130d82a58230012209273fd63ec94bed5abb219b2d9cb010cabe4af7b0177292d4335eff50464060a")
+	TestShard2Data, _ = hex.DecodeString("a26130d82a5823001220a736215b7487e753686cc4e965ca62dc45d46303ef35349aee69a647c22ac57f6131d82a58230012205ccb8c75199ea2b1ef52a03ecaaa3186dd04fe0f8133aa0b2d5195c3c0844a10")
+	TestCdagData, _   = hex.DecodeString("a16130d82a5825000171122030e9b9b4f1bc4b5a3759a93b4e77983cd053f84174e1b0cd628dc6c32fb0da14")
+	TestCdagData2, _  = hex.DecodeString("a26130d82a582500017112200fb89a9189514be1d5418e0890367992b651af390f06d3751c672cba6c00b4276131d82a5825000171122030e9b9b4f1bc4b5a3759a93b4e77983cd053f84174e1b0cd628dc6c32fb0da14")
 
 	TestPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 	TestPeerID2, _ = peer.IDB58Decode("QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6")
