@@ -460,6 +460,77 @@ func TestClusterUnpinShardFirstParent(t *testing.T) {
 	}
 }
 
+func TestClusterPinTwoMethodsFail(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	// First pin normally then sharding pin fails
+	c, _ := cid.Decode(test.TestMetaRootCid)
+	err := cl.Pin(api.PinCid(c))
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+
+	cCdag, _ := cid.Decode(test.TestCdagCid)
+	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+	metaPin := api.Pin{
+		Cid:        cMeta,
+		Type:       api.MetaType,
+		Clusterdag: cCdag,
+	}
+	err = cl.Pin(metaPin)
+	if err == nil {
+		t.Fatal("pin should have failed:", err)
+	}
+
+	err = cl.Unpin(c)
+	if err != nil {
+		t.Fatal("unpin should have worked:", err)
+	}
+
+	singleShardedPin(t, cl)
+	err = cl.Pin(api.PinCid(c))
+	if err == nil {
+		t.Fatal("pin should have failed:", err)
+	}
+}
+
+func TestClusterRePinShard(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	cCdag, _ := cid.Decode(test.TestCdagCid)
+	cShard, _ := cid.Decode(test.TestShardCid)
+	shardPin := api.Pin{
+		Cid:                  cShard,
+		Type:                 api.ShardType,
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+		Recursive:            true,
+	}
+	err := cl.Pin(shardPin)
+	if err != nil {
+		t.Fatal("shard pin should have worked:", err)
+	}
+
+	parents := cid.NewSet()
+	parents.Add(cCdag)
+	shardPin.Parents = parents
+	err = cl.Pin(shardPin)
+	if err != nil {
+		t.Fatal("repinning shard pin with different parents should have worked:", err)
+	}
+
+	shardPin.ReplicationFactorMin = 3
+	shardPin.ReplicationFactorMax = 5
+	err = cl.Pin(shardPin)
+	if err == nil {
+		t.Fatal("repinning shard pin with different repl factors should have failed:", err)
+	}
+}
+
 func TestClusterPins(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
