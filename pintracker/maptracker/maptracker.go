@@ -281,7 +281,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
 	if mpt.isRemote(c) {
 		if mpt.get(c.Cid).Status == api.TrackerStatusPinned {
-			mpt.optracker.trackNewOperationCtx(
+			mpt.optracker.trackNewOperation(
 				mpt.ctx,
 				c.Cid,
 				operationUnpin,
@@ -306,7 +306,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		}
 	}
 
-	mpt.optracker.trackNewOperationCtx(mpt.ctx, c.Cid, operationPin)
+	mpt.optracker.trackNewOperation(mpt.ctx, c.Cid, operationPin)
 	mpt.set(c.Cid, api.TrackerStatusPinQueued)
 
 	select {
@@ -342,7 +342,7 @@ func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 		return nil
 	}
 
-	mpt.optracker.trackNewOperationCtx(mpt.ctx, c, operationUnpin)
+	mpt.optracker.trackNewOperation(mpt.ctx, c, operationUnpin)
 	mpt.set(c, api.TrackerStatusUnpinQueued)
 
 	select {

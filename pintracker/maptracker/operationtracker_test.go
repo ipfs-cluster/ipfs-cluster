@@ -19,7 +19,7 @@ func TestOperationTracker_trackNewOperationWithCtx(t *testing.T) {
 	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
-	opt.trackNewOperationCtx(ctx, h, operationPin)
+	opt.trackNewOperation(ctx, h, operationPin)
 
 	opc, ok := opt.get(h)
 	if !ok {
@@ -51,7 +51,7 @@ func TestOperationTracker_finish(t *testing.T) {
 	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
-	opt.trackNewOperationCtx(ctx, h, operationPin)
+	opt.trackNewOperation(ctx, h, operationPin)
 
 	opt.finish(h)
 	_, ok := opt.get(h)
@@ -65,7 +65,7 @@ func TestOperationTracker_updateOperationPhase(t *testing.T) {
 	opt := testOperationTracker(ctx, t)
 
 	h, _ := cid.Decode(test.TestCid1)
-	opt.trackNewOperationCtx(ctx, h, operationPin)
+	opt.trackNewOperation(ctx, h, operationPin)
 
 	opt.updateOperationPhase(h, phaseInProgress)
 	opc, ok := opt.get(h)

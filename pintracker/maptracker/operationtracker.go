@@ -38,7 +38,7 @@ type operation struct {
 	cancel func()
 }
 
-func newOperationCtxWithContext(ctx context.Context, c *cid.Cid, op operationType) operation {
+func newOperationWithContext(ctx context.Context, c *cid.Cid, op operationType) operation {
 	ctx, cancel := context.WithCancel(ctx)
 	return operation{
 		cid:    c,
@@ -64,8 +64,8 @@ func newOperationTracker(ctx context.Context) *operationTracker {
 }
 
 //TODO(ajl): return error or bool if there is already an ongoing operation
-func (opt *operationTracker) trackNewOperationCtx(ctx context.Context, c *cid.Cid, op operationType) {
-	op2 := newOperationCtxWithContext(ctx, c, op)
+func (opt *operationTracker) trackNewOperation(ctx context.Context, c *cid.Cid, op operationType) {
+	op2 := newOperationWithContext(ctx, c, op)
 	logger.Debugf(
 		"'%s' on cid '%s' has been created with phase '%s'",
 		op.String(),
