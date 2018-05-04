@@ -2,6 +2,7 @@ package maptracker
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,13 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+)
+
+var (
+	pinCancelCid      = test.TestCid3
+	unpinCancelCid    = test.TestCid2
+	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
+	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
 )
 
 type mockService struct {
@@ -29,16 +37,22 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 
 func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin().Cid
-	if c.String() == test.TestSlowCid1 {
+	switch c.String() {
+	case test.TestSlowCid1:
 		time.Sleep(2 * time.Second)
+	case pinCancelCid:
+		return ErrPinCancelCid
 	}
 	return nil
 }
 
 func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin().Cid
-	if c.String() == test.TestSlowCid1 {
+	switch c.String() {
+	case test.TestSlowCid1:
 		time.Sleep(2 * time.Second)
+	case unpinCancelCid:
+		return ErrUnpinCancelCid
 	}
 	return nil
 }
@@ -415,12 +429,18 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	}
 
 	if opc.phase == phaseInProgress && opc.op == operationPin {
-		err = mpt.Untrack(slowPinCid)
-		if err != nil {
-			t.Fatal(err)
+		go func() {
+			err = mpt.Untrack(slowPinCid)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}()
+		select {
+		case <-opc.ctx.Done():
+			return
+		case <-time.Tick(100 * time.Millisecond):
+			t.Errorf("operation context should have been cancelled by now")
 		}
-		// TODO: verify that context was cancelled while
-		// doing the pin operation.
 	} else {
 		t.Error("slowPin should be pinning and is:", opc.phase)
 	}
@@ -431,7 +451,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	defer mpt.Shutdown()
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
-	fastPinCid, _ := cid.Decode(test.TestCid1)
+	fastPinCid, _ := cid.Decode(pinCancelCid)
 
 	// SlowLocalPin
 	slowPin := api.Pin{
@@ -466,8 +486,10 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// TODO: verify no Pin operation was received by RPC
-		// as this was cancelled by queued.
+		pi := mpt.get(fastPinCid)
+		if pi.Error == ErrPinCancelCid.Error() {
+			t.Fatal(ErrPinCancelCid)
+		}
 	} else {
 		t.Error("fastPin should be queued to pin")
 	}
@@ -506,9 +528,6 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO: verify the context while cancelled while
-	// doing the RPC pin call
-
 	time.Sleep(100 * time.Millisecond)
 
 	opc, ok := mpt.optracker.get(slowPin.Cid)
@@ -517,14 +536,18 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	}
 
 	if opc.phase == phaseInProgress && opc.op == operationUnpin {
-		err = mpt.Track(slowPin)
-		if err != nil {
-			t.Fatal(err)
+		go func() {
+			err = mpt.Track(slowPin)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}()
+		select {
+		case <-opc.ctx.Done():
+			return
+		case <-time.Tick(100 * time.Millisecond):
+			t.Errorf("operation context should have been cancelled by now")
 		}
-
-		// TODO: verify the context while cancelled while
-		// doing the RPC unpin call
-
 	} else {
 		t.Error("slowPin should be in unpinning")
 	}
@@ -536,7 +559,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	defer mpt.Shutdown()
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
-	fastPinCid, _ := cid.Decode(test.TestCid1)
+	fastPinCid, _ := cid.Decode(unpinCancelCid)
 
 	// SlowLocalPin
 	slowPin := api.Pin{
@@ -587,8 +610,10 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// TODO: verify RPC did not receive Unpin as this
-		// was cancelled whiled queued.
+		pi := mpt.get(fastPinCid)
+		if pi.Error == ErrUnpinCancelCid.Error() {
+			t.Fatal(ErrUnpinCancelCid)
+		}
 	} else {
 		t.Error("c should be queued to unpin")
 	}
