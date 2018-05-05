@@ -8,6 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"strings"
+	"crypto/x509"
+	"crypto/tls"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -18,6 +21,11 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
+)
+
+const(
+	SSLCertFile = "test/server.crt"
+	SSLKeyFile = "test/server.key"
 )
 
 func testAPI(t *testing.T) *API {
@@ -34,6 +42,35 @@ func testAPI(t *testing.T) *API {
 	rest, err := NewAPIWithHost(cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
+	}
+
+	// No keep alive for tests
+	rest.server.SetKeepAlivesEnabled(false)
+	rest.SetClient(test.NewMockRPCClient(t))
+
+	return rest
+}
+
+func testHTTPSAPI(t *testing.T) *API {
+	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	h, err := libp2p.New(context.Background(), libp2p.ListenAddrs(apiMAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{}
+	cfg.Default()
+	cfg.pathSSLCertFile = SSLCertFile
+	cfg.pathSSLKeyFile = SSLKeyFile
+	cfg.TLS, err = newTLSConfig(cfg.pathSSLCertFile, cfg.pathSSLKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HTTPListenAddr = apiMAddr
+
+	rest, err := NewAPIWithHost(cfg, h)
+	if err != nil {
+		t.Fatal("should be able to create a new https Api: ", err)
 	}
 
 	// No keep alive for tests
@@ -87,19 +124,37 @@ func p2pURL(a *API) string {
 	return fmt.Sprintf("libp2p://%s", peer.IDB58Encode(a.Host().ID()))
 }
 
-// supports both http and libp2p-tunneled-http
-func httpClient(t *testing.T, h host.Host) *http.Client {
+func httpsURL(a *API) string {
+	u, _ := a.HTTPAddress()
+	return fmt.Sprintf("https://%s", u)
+}
+
+// supports both http/https and libp2p-tunneled-http
+func httpClient(t *testing.T, h host.Host, isHTTPS bool) *http.Client {
 	tr := &http.Transport{}
+	if isHTTPS {
+		certpool := x509.NewCertPool()
+		cert, err := ioutil.ReadFile(SSLCertFile)
+		if err != nil {
+			t.Fatal("error reading cert for https client: ", err)
+		}
+		certpool.AppendCertsFromPEM(cert)
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: certpool,
+			}}
+	}
 	if h != nil {
 		tr.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
 	}
 	return &http.Client{Transport: tr}
 }
 
+
 func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
-	c := httpClient(t, h)
+	c := httpClient(t, h, strings.HasPrefix(url, "https"))
 	httpResp, err := c.Get(url)
 	processResp(t, httpResp, err, resp)
 }
@@ -107,7 +162,7 @@ func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
-	c := httpClient(t, h)
+	c := httpClient(t, h, strings.HasPrefix(url, "https"))
 	httpResp, err := c.Post(url, "application/json", bytes.NewReader(body))
 	processResp(t, httpResp, err, resp)
 }
@@ -115,7 +170,7 @@ func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}
 func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
-	c := httpClient(t, h)
+	c := httpClient(t, h, strings.HasPrefix(url, "https"))
 	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
@@ -136,6 +191,15 @@ func testBothEndpoints(t *testing.T, test testF) {
 	})
 }
 
+func testHTTPSEndPoint(t *testing.T, test testF) {
+	t.Run("in-parallel", func(t *testing.T) {
+		t.Run("https", func(t *testing.T) {
+			t.Parallel()
+			test(t, httpsURL)
+		})
+	})
+}
+
 func TestAPIShutdown(t *testing.T) {
 	rest := testAPI(t)
 	err := rest.Shutdown()
@@ -149,6 +213,7 @@ func TestAPIShutdown(t *testing.T) {
 
 func TestRestAPIIDEndpoint(t *testing.T) {
 	rest := testAPI(t)
+	httpsrest := testHTTPSAPI(t)
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
@@ -159,7 +224,16 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 		}
 	}
 
+	httpstf := func(t *testing.T, url urlF) {
+		id := api.IDSerial{}
+		makeGet(t, httpsrest, url(httpsrest)+"/id", &id)
+		if id.ID != test.TestPeerID1.Pretty() {
+			t.Error("expected correct id")
+		}
+	}
+
 	testBothEndpoints(t, tf)
+	testHTTPSEndPoint(t, httpstf)
 }
 
 func TestAPIVersionEndpoint(t *testing.T) {
