@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 )
 
@@ -23,6 +24,7 @@ type cfgs struct {
 	consensusCfg *raft.Config
 	trackerCfg   *maptracker.Config
 	monCfg       *basic.Config
+	pubsubmonCfg *pubsubmon.Config
 	diskInfCfg   *disk.Config
 	numpinInfCfg *numpin.Config
 }
@@ -35,6 +37,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	consensusCfg := &raft.Config{}
 	trackerCfg := &maptracker.Config{}
 	monCfg := &basic.Config{}
+	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
@@ -43,9 +46,10 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.Consensus, consensusCfg)
 	cfg.RegisterComponent(config.PinTracker, trackerCfg)
 	cfg.RegisterComponent(config.Monitor, monCfg)
+	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg, numpinInfCfg}
+	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, pubsubmonCfg, diskInfCfg, numpinInfCfg}
 }
 
 func saveConfig(cfg *config.Manager, force bool) {

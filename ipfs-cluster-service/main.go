@@ -23,6 +23,7 @@ const programName = `ipfs-cluster-service`
 // flag defaults
 const (
 	defaultAllocation = "disk-freespace"
+	defaultMonitor    = "pubsub"
 	defaultLogLevel   = "info"
 )
 
@@ -241,6 +242,12 @@ configuration.
 					Name:  "alloc, a",
 					Value: defaultAllocation,
 					Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
+				},
+				cli.StringFlag{
+					Name:   "monitor",
+					Value:  defaultMonitor,
+					Hidden: true,
+					Usage:  "peer monitor to use [basic,pubsub].",
 				},
 			},
 			Action: daemon,

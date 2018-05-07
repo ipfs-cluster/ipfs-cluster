@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	host "github.com/libp2p/go-libp2p-host"
 	"github.com/urfave/cli"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
@@ -19,6 +20,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
@@ -124,8 +126,7 @@ func createCluster(
 	checkErr("creating consensus component", err)
 
 	tracker := maptracker.NewMapPinTracker(cfgs.trackerCfg, cfgs.clusterCfg.ID)
-	mon, err := basic.NewMonitor(cfgs.monCfg)
-	checkErr("creating Monitor component", err)
+	mon := setupMonitor(c.String("monitor"), host, cfgs.monCfg, cfgs.pubsubmonCfg)
 	informer, alloc := setupAllocation(c.String("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
 	ipfscluster.ReadyTimeout = cfgs.consensusCfg.WaitForLeaderTimeout + 5*time.Second
@@ -201,7 +202,8 @@ Note that this may corrupt the local cluster state.
 	}
 }
 
-func setupAllocation(name string,
+func setupAllocation(
+	name string,
 	diskInfCfg *disk.Config,
 	numpinInfCfg *numpin.Config,
 ) (ipfscluster.Informer, ipfscluster.PinAllocator) {
@@ -223,4 +225,27 @@ func setupAllocation(name string,
 		checkErr("", err)
 		return nil, nil
 	}
+}
+
+func setupMonitor(
+	name string,
+	h host.Host,
+	basicCfg *basic.Config,
+	pubsubCfg *pubsubmon.Config,
+) ipfscluster.PeerMonitor {
+	switch name {
+	case "basic":
+		mon, err := basic.NewMonitor(basicCfg)
+		checkErr("creating monitor", err)
+		return mon
+	case "pubsub":
+		mon, err := pubsubmon.New(h, pubsubCfg)
+		checkErr("creating monitor", err)
+		return mon
+	default:
+		err := errors.New("unknown monitor type")
+		checkErr("", err)
+		return nil
+	}
+
 }
