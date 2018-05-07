@@ -28,8 +28,6 @@ var AlertChannelCap = 256
 // DefaultWindowCap sets the amount of metrics to store per peer.
 var DefaultWindowCap = 25
 
-type metricsByPeer map[peer.ID]*util.MetricsWindow
-
 // Monitor is a component in charge of monitoring peers, logging
 // metrics and detecting failures
 type Monitor struct {
@@ -38,11 +36,12 @@ type Monitor struct {
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	metrics    map[string]metricsByPeer
+	metrics    util.Metrics
 	metricsMux sync.RWMutex
 	windowCap  int
 
-	alerts chan api.Alert
+	checker *util.MetricsChecker
+	alerts  chan api.Alert
 
 	config *Config
 
@@ -67,16 +66,19 @@ func NewMonitor(cfg *Config) (*Monitor, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	alertCh := make(chan api.Alert, AlertChannelCap)
+	metrics := make(util.Metrics)
+
 	mon := &Monitor{
 		ctx:      ctx,
 		cancel:   cancel,
 		rpcReady: make(chan struct{}, 1),
 
-		metrics:   make(map[string]metricsByPeer),
+		metrics:   metrics,
 		windowCap: DefaultWindowCap,
-		alerts:    make(chan api.Alert, AlertChannelCap),
-
-		config: cfg,
+		checker:   util.NewMetricsChecker(metrics, alertCh),
+		alerts:    alertCh,
+		config:    cfg,
 	}
 
 	go mon.run()
@@ -124,7 +126,7 @@ func (mon *Monitor) LogMetric(m api.Metric) error {
 	peer := m.Peer
 	mbyp, ok := mon.metrics[name]
 	if !ok {
-		mbyp = make(metricsByPeer)
+		mbyp = make(util.PeerMetrics)
 		mon.metrics[name] = mbyp
 	}
 	window, ok := mbyp[peer]
@@ -212,14 +214,6 @@ func (mon *Monitor) getPeers() ([]peer.ID, error) {
 	return peers, err
 }
 
-func copyEmptyStructToIfaces(in []struct{}) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
-
 // func (mon *Monitor) getLastMetric(name string, p peer.ID) api.Metric {
 // 	mon.metricsMux.RLock()
 // 	defer mon.metricsMux.RUnlock()
@@ -298,66 +292,17 @@ func (mon *Monitor) monitor() {
 		select {
 		case <-ticker.C:
 			logger.Debug("monitoring tick")
-			// Get current peers
-			var peers []peer.ID
-			err := mon.rpcClient.Call("",
-				"Cluster",
-				"ConsensusPeers",
-				struct{}{},
-				&peers)
+			peers, err := mon.getPeers()
 			if err != nil {
 				logger.Error(err)
 				break
 			}
-
-			for k := range mon.metrics {
-				logger.Debug("check metrics ", k)
-				mon.checkMetrics(peers, k)
-			}
+			mon.metricsMux.RLock()
+			mon.checker.CheckMetrics(peers)
+			mon.metricsMux.RUnlock()
 		case <-mon.ctx.Done():
 			ticker.Stop()
 			return
 		}
-	}
-}
-
-// This is probably the place to implement some advanced ways of detecting down
-// peers.
-// Currently easy logic, just check that all peers have a valid metric.
-func (mon *Monitor) checkMetrics(peers []peer.ID, metricName string) {
-	mon.metricsMux.RLock()
-	defer mon.metricsMux.RUnlock()
-
-	// get metric windows for peers
-	metricsByPeer := mon.metrics[metricName]
-
-	// for each of the given current peers
-	for _, p := range peers {
-		// get metrics for that peer
-		window, ok := metricsByPeer[p]
-		if !ok { // no metrics from this peer
-			continue
-		}
-		last, err := window.Latest()
-		if err != nil { // no metrics for this peer
-			continue
-		}
-		// send alert if metric is expired (but was valid at some point)
-		if last.Valid && last.Expired() {
-			logger.Debugf("Metric %s from peer %s expired at %s", metricName, p, last.Expire)
-			mon.sendAlert(p, metricName)
-		}
-	}
-}
-
-func (mon *Monitor) sendAlert(p peer.ID, metricName string) {
-	alrt := api.Alert{
-		Peer:       p,
-		MetricName: metricName,
-	}
-	select {
-	case mon.alerts <- alrt:
-	default:
-		logger.Error("alert channel is full")
 	}
 }
