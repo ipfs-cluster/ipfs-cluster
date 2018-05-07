@@ -2,6 +2,7 @@ package ipfshttp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -76,6 +77,7 @@ func TestIPFSID(t *testing.T) {
 }
 
 func testPin(t *testing.T, method string) {
+	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
@@ -83,11 +85,11 @@ func testPin(t *testing.T, method string) {
 	ipfs.config.PinMethod = method
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := ipfs.Pin(c, true)
+	err := ipfs.Pin(ctx, c, true)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}
-	pinSt, err := ipfs.PinLsCid(c)
+	pinSt, err := ipfs.PinLsCid(ctx, c)
 	if err != nil {
 		t.Fatal("expected success doing ls")
 	}
@@ -96,7 +98,7 @@ func testPin(t *testing.T, method string) {
 	}
 
 	c2, _ := cid.Decode(test.ErrorCid)
-	err = ipfs.Pin(c2, true)
+	err = ipfs.Pin(ctx, c2, true)
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
@@ -108,50 +110,53 @@ func TestIPFSPin(t *testing.T) {
 }
 
 func TestIPFSUnpin(t *testing.T) {
+	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(test.TestCid1)
-	err := ipfs.Unpin(c)
+	err := ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
 	}
-	ipfs.Pin(c, true)
-	err = ipfs.Unpin(c)
+	ipfs.Pin(ctx, c, true)
+	err = ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning pinned cid")
 	}
 }
 
 func TestIPFSPinLsCid(t *testing.T) {
+	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(test.TestCid1)
 	c2, _ := cid.Decode(test.TestCid2)
 
-	ipfs.Pin(c, true)
-	ips, err := ipfs.PinLsCid(c)
+	ipfs.Pin(ctx, c, true)
+	ips, err := ipfs.PinLsCid(ctx, c)
 	if err != nil || !ips.IsPinned() {
 		t.Error("c should appear pinned")
 	}
 
-	ips, err = ipfs.PinLsCid(c2)
+	ips, err = ipfs.PinLsCid(ctx, c2)
 	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
 	}
 }
 
 func TestIPFSPinLs(t *testing.T) {
+	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 	c, _ := cid.Decode(test.TestCid1)
 	c2, _ := cid.Decode(test.TestCid2)
 
-	ipfs.Pin(c, true)
-	ipfs.Pin(c2, true)
-	ipsMap, err := ipfs.PinLs("")
+	ipfs.Pin(ctx, c, true)
+	ipfs.Pin(ctx, c2, true)
+	ipsMap, err := ipfs.PinLs(ctx, "")
 	if err != nil {
 		t.Error("should not error")
 	}
@@ -702,6 +707,7 @@ func TestSwarmPeers(t *testing.T) {
 }
 
 func TestRepoSize(t *testing.T) {
+	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
@@ -716,7 +722,7 @@ func TestRepoSize(t *testing.T) {
 	}
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = ipfs.Pin(c, true)
+	err = ipfs.Pin(ctx, c, true)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}

@@ -344,8 +344,9 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	pinDelay()
 
-	// At this point, all peers must have 1 pin associated to them.
-	// Find out which pin is associated to leader.
+	// At this point, all peers must have nClusters -1  pins
+	// associated to them.
+	// Find out which pins are associated to the leader.
 	interestingCids := []*cid.Cid{}
 
 	pins := leader.Pins()

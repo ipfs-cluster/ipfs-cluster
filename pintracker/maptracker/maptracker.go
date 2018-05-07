@@ -32,6 +32,8 @@ type MapPinTracker struct {
 	status map[string]api.PinInfo
 	config *Config
 
+	optracker *operationTracker
+
 	ctx    context.Context
 	cancel func()
 
@@ -53,14 +55,15 @@ func NewMapPinTracker(cfg *Config, pid peer.ID) *MapPinTracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mpt := &MapPinTracker{
-		ctx:      ctx,
-		cancel:   cancel,
-		status:   make(map[string]api.PinInfo),
-		config:   cfg,
-		rpcReady: make(chan struct{}, 1),
-		peerID:   pid,
-		pinCh:    make(chan api.Pin, cfg.MaxPinQueueSize),
-		unpinCh:  make(chan api.Pin, cfg.MaxPinQueueSize),
+		ctx:       ctx,
+		cancel:    cancel,
+		status:    make(map[string]api.PinInfo),
+		config:    cfg,
+		optracker: newOperationTracker(ctx),
+		rpcReady:  make(chan struct{}, 1),
+		peerID:    pid,
+		pinCh:     make(chan api.Pin, cfg.MaxPinQueueSize),
+		unpinCh:   make(chan api.Pin, cfg.MaxPinQueueSize),
 	}
 	for i := 0; i < mpt.config.ConcurrentPins; i++ {
 		go mpt.pinWorker()
@@ -74,7 +77,13 @@ func (mpt *MapPinTracker) pinWorker() {
 	for {
 		select {
 		case p := <-mpt.pinCh:
-			mpt.pin(p)
+			if opc, ok := mpt.optracker.get(p.Cid); ok && opc.op == operationPin {
+				mpt.optracker.updateOperationPhase(
+					p.Cid,
+					phaseInProgress,
+				)
+				mpt.pin(p)
+			}
 		case <-mpt.ctx.Done():
 			return
 		}
@@ -86,7 +95,13 @@ func (mpt *MapPinTracker) unpinWorker() {
 	for {
 		select {
 		case p := <-mpt.unpinCh:
-			mpt.unpin(p)
+			if opc, ok := mpt.optracker.get(p.Cid); ok && opc.op == operationUnpin {
+				mpt.optracker.updateOperationPhase(
+					p.Cid,
+					phaseInProgress,
+				)
+				mpt.unpin(p)
+			}
 		case <-mpt.ctx.Done():
 			return
 		}
@@ -201,56 +216,105 @@ func (mpt *MapPinTracker) isRemote(c api.Pin) bool {
 func (mpt *MapPinTracker) pin(c api.Pin) error {
 	logger.Debugf("issuing pin call for %s", c.Cid)
 	mpt.set(c.Cid, api.TrackerStatusPinning)
-	err := mpt.rpcClient.Call("",
+
+	var ctx context.Context
+	opc, ok := mpt.optracker.get(c.Cid)
+	if !ok {
+		logger.Debug("pin operation wasn't being tracked")
+		ctx = mpt.ctx
+	} else {
+		ctx = opc.ctx
+	}
+
+	err := mpt.rpcClient.CallContext(
+		ctx,
+		"",
 		"Cluster",
 		"IPFSPin",
 		c.ToSerial(),
-		&struct{}{})
-
+		&struct{}{},
+	)
 	if err != nil {
 		mpt.setError(c.Cid, err)
 		return err
 	}
 
 	mpt.set(c.Cid, api.TrackerStatusPinned)
+	mpt.optracker.finish(c.Cid)
 	return nil
 }
 
 func (mpt *MapPinTracker) unpin(c api.Pin) error {
 	logger.Debugf("issuing unpin call for %s", c.Cid)
 	mpt.set(c.Cid, api.TrackerStatusUnpinning)
-	err := mpt.rpcClient.Call("",
+
+	var ctx context.Context
+	opc, ok := mpt.optracker.get(c.Cid)
+	if !ok {
+		logger.Debug("pin operation wasn't being tracked")
+		ctx = mpt.ctx
+	} else {
+		ctx = opc.ctx
+	}
+
+	err := mpt.rpcClient.CallContext(
+		ctx,
+		"",
 		"Cluster",
 		"IPFSUnpin",
 		c.ToSerial(),
-		&struct{}{})
-
+		&struct{}{},
+	)
 	if err != nil {
 		mpt.setError(c.Cid, err)
 		return err
 	}
+
 	mpt.set(c.Cid, api.TrackerStatusUnpinned)
+	mpt.optracker.finish(c.Cid)
 	return nil
 }
 
 // Track tells the MapPinTracker to start managing a Cid,
-// possibly trigerring Pin operations on the IPFS daemon.
+// possibly triggering Pin operations on the IPFS daemon.
 func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
 	if mpt.isRemote(c) {
 		if mpt.get(c.Cid).Status == api.TrackerStatusPinned {
+			mpt.optracker.trackNewOperation(
+				mpt.ctx,
+				c.Cid,
+				operationUnpin,
+			)
 			mpt.unpin(c)
 		}
 		mpt.set(c.Cid, api.TrackerStatusRemote)
 		return nil
 	}
 
-	mpt.set(c.Cid, api.TrackerStatusPinning)
+	if opc, ok := mpt.optracker.get(c.Cid); ok {
+		if opc.op == operationUnpin {
+			switch opc.phase {
+			case phaseQueued:
+				mpt.optracker.finish(c.Cid)
+				return nil
+			case phaseInProgress:
+				mpt.optracker.finish(c.Cid)
+				// NOTE: this may leave the api.PinInfo in an error state
+				// so a pin operation needs to be run on it (same as Recover)
+			}
+		}
+	}
+
+	mpt.optracker.trackNewOperation(mpt.ctx, c.Cid, operationPin)
+	mpt.set(c.Cid, api.TrackerStatusPinQueued)
+
 	select {
 	case mpt.pinCh <- c:
 	default:
 		err := errors.New("pin queue is full")
 		mpt.setError(c.Cid, err)
+		mpt.optracker.finish(c.Cid)
 		logger.Error(err.Error())
 		return err
 	}
@@ -261,12 +325,32 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 // If the Cid is pinned locally, it will be unpinned.
 func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
 	logger.Debugf("untracking %s", c)
-	mpt.set(c, api.TrackerStatusUnpinning)
+	if opc, ok := mpt.optracker.get(c); ok {
+		if opc.op == operationPin {
+			mpt.optracker.finish(c) // cancel it
+
+			switch opc.phase {
+			case phaseQueued:
+				return nil
+			case phaseInProgress:
+				// continues below to run a full unpin
+			}
+		}
+	}
+
+	if pinStatus := mpt.get(c); pinStatus.Status == api.TrackerStatusUnpinned {
+		return nil
+	}
+
+	mpt.optracker.trackNewOperation(mpt.ctx, c, operationUnpin)
+	mpt.set(c, api.TrackerStatusUnpinQueued)
+
 	select {
 	case mpt.unpinCh <- api.PinCid(c):
 	default:
 		err := errors.New("unpin queue is full")
 		mpt.setError(c, err)
+		mpt.optracker.finish(c)
 		logger.Error(err.Error())
 		return err
 	}
@@ -301,11 +385,13 @@ func (mpt *MapPinTracker) StatusAll() []api.PinInfo {
 // the IPFS daemon.
 func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
 	var ips api.IPFSPinStatus
-	err := mpt.rpcClient.Call("",
+	err := mpt.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSPinLsCid",
 		api.PinCid(c).ToSerial(),
-		&ips)
+		&ips,
+	)
 	if err != nil {
 		mpt.setError(c, err)
 		return mpt.get(c), err
@@ -324,11 +410,13 @@ func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
 func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 	var ipsMap map[string]api.IPFSPinStatus
 	var pInfos []api.PinInfo
-	err := mpt.rpcClient.Call("",
+	err := mpt.rpcClient.Call(
+		"",
 		"Cluster",
 		"IPFSPinLs",
 		"recursive",
-		&ipsMap)
+		&ipsMap,
+	)
 	if err != nil {
 		mpt.mux.Lock()
 		for k := range mpt.status {
@@ -367,10 +455,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		case api.TrackerStatusPinned: // nothing
 		case api.TrackerStatusPinning, api.TrackerStatusPinError:
 			mpt.set(c, api.TrackerStatusPinned)
-		case api.TrackerStatusUnpinning:
-			if time.Since(p.TS) > mpt.config.UnpinningTimeout {
-				mpt.setError(c, errUnpinningTimeout)
-			}
+		case api.TrackerStatusUnpinning: // nothing
 		case api.TrackerStatusUnpinned:
 			mpt.setError(c, errPinned)
 		case api.TrackerStatusUnpinError: // nothing, keep error as it was
@@ -381,10 +466,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		case api.TrackerStatusPinned:
 			mpt.setError(c, errUnpinned)
 		case api.TrackerStatusPinError: // nothing, keep error as it was
-		case api.TrackerStatusPinning:
-			if time.Since(p.TS) > mpt.config.PinningTimeout {
-				mpt.setError(c, errPinningTimeout)
-			}
+		case api.TrackerStatusPinning: // nothing
 		case api.TrackerStatusUnpinning, api.TrackerStatusUnpinError:
 			mpt.set(c, api.TrackerStatusUnpinned)
 		case api.TrackerStatusUnpinned: // nothing

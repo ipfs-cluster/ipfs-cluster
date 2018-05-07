@@ -251,26 +251,26 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out 
 func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin().Cid
 	r := in.ToPin().Recursive
-	return rpcapi.c.ipfs.Pin(c, r)
+	return rpcapi.c.ipfs.Pin(ctx, c, r)
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
 func (rpcapi *RPCAPI) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin().Cid
-	return rpcapi.c.ipfs.Unpin(c)
+	return rpcapi.c.ipfs.Unpin(ctx, c)
 }
 
 // IPFSPinLsCid runs IPFSConnector.PinLsCid().
 func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *api.IPFSPinStatus) error {
 	c := in.ToPin().Cid
-	b, err := rpcapi.c.ipfs.PinLsCid(c)
+	b, err := rpcapi.c.ipfs.PinLsCid(ctx, c)
 	*out = b
 	return err
 }
 
 // IPFSPinLs runs IPFSConnector.PinLs().
 func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	m, err := rpcapi.c.ipfs.PinLs(in)
+	m, err := rpcapi.c.ipfs.PinLs(ctx, in)
 	*out = m
 	return err
 }

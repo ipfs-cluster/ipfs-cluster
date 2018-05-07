@@ -301,7 +301,7 @@ func delay() {
 }
 
 func pinDelay() {
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 }
 
 func ttlDelay() {
@@ -451,7 +451,6 @@ func TestClustersPin(t *testing.T) {
 	}
 	delay()
 	delay()
-
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
 		if l := len(status); l != 0 {
@@ -909,6 +908,7 @@ func TestClustersReplication(t *testing.T) {
 		}
 		if numLocal != nClusters-1 {
 			t.Errorf("Expected %d local pins but got %d", nClusters-1, numLocal)
+			t.Error(pinfos)
 		}
 
 		if numRemote != 1 {

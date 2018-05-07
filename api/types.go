@@ -46,8 +46,12 @@ const (
 	TrackerStatusUnpinning
 	// The IPFS daemon is not pinning the item
 	TrackerStatusUnpinned
-	// The IPFS deamon is not pinning the item but it is being tracked
+	// The IPFS daemon is not pinning the item but it is being tracked
 	TrackerStatusRemote
+	// The item has been queued for pinning on the IPFS daemon
+	TrackerStatusPinQueued
+	// The item has been queued for unpinning on the IPFS daemon
+	TrackerStatusUnpinQueued
 )
 
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
@@ -63,6 +67,8 @@ var trackerStatusString = map[TrackerStatus]string{
 	TrackerStatusUnpinning:    "unpinning",
 	TrackerStatusUnpinned:     "unpinned",
 	TrackerStatusRemote:       "remote",
+	TrackerStatusPinQueued:    "pin_queued",
+	TrackerStatusUnpinQueued:  "unpin_queued",
 }
 
 // String converts a TrackerStatus into a readable string.

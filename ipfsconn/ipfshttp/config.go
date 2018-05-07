@@ -23,6 +23,9 @@ const (
 	DefaultProxyWriteTimeout      = 10 * time.Minute
 	DefaultProxyIdleTimeout       = 60 * time.Second
 	DefaultPinMethod              = "pin"
+	DefaultIPFSRequestTimeout     = 5 * time.Minute
+	DefaultPinTimeout             = 24 * time.Hour
+	DefaultUnpinTimeout           = 3 * time.Hour
 )
 
 // Config is used to initialize a Connector and allows to customize
@@ -58,6 +61,15 @@ type Config struct {
 	// "refs -r" call followed by "pin/add". "refs" allows fetching in
 	// parallel but should be used with GC disabled.
 	PinMethod string
+
+	// IPFS Daemon HTTP Client POST timeout
+	IPFSRequestTimeout time.Duration
+
+	// Pin Operation timeout
+	PinTimeout time.Duration
+
+	// Unpin Operation timeout
+	UnpinTimeout time.Duration
 }
 
 type jsonConfig struct {
@@ -69,6 +81,9 @@ type jsonConfig struct {
 	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
 	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
 	PinMethod               string `json:"pin_method"`
+	IPFSRequestTimeout      string `json:"ipfs_request_timeout"`
+	PinTimeout              string `json:"pin_timeout"`
+	UnpinTimeout            string `json:"unpin_timeout"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -88,6 +103,9 @@ func (cfg *Config) Default() error {
 	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
 	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
 	cfg.PinMethod = DefaultPinMethod
+	cfg.IPFSRequestTimeout = DefaultIPFSRequestTimeout
+	cfg.PinTimeout = DefaultPinTimeout
+	cfg.UnpinTimeout = DefaultUnpinTimeout
 
 	return nil
 }
@@ -95,39 +113,52 @@ func (cfg *Config) Default() error {
 // Validate checks that the fields of this Config have sensible values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
+	var err error
 	if cfg.ProxyAddr == nil {
-		return errors.New("ipfshttp.proxy_listen_multiaddress not set")
+		err = errors.New("ipfshttp.proxy_listen_multiaddress not set")
 	}
 	if cfg.NodeAddr == nil {
-		return errors.New("ipfshttp.node_multiaddress not set")
+		err = errors.New("ipfshttp.node_multiaddress not set")
 	}
 
 	if cfg.ConnectSwarmsDelay < 0 {
-		return errors.New("ipfshttp.connect_swarms_delay is invalid")
+		err = errors.New("ipfshttp.connect_swarms_delay is invalid")
 	}
 
 	if cfg.ProxyReadTimeout < 0 {
-		return errors.New("ipfshttp.proxy_read_timeout is invalid")
+		err = errors.New("ipfshttp.proxy_read_timeout is invalid")
 	}
 
 	if cfg.ProxyReadHeaderTimeout < 0 {
-		return errors.New("ipfshttp.proxy_read_header_timeout is invalid")
+		err = errors.New("ipfshttp.proxy_read_header_timeout is invalid")
 	}
 
 	if cfg.ProxyWriteTimeout < 0 {
-		return errors.New("ipfshttp.proxy_write_timeout is invalid")
+		err = errors.New("ipfshttp.proxy_write_timeout is invalid")
 	}
 
 	if cfg.ProxyIdleTimeout < 0 {
-		return errors.New("ipfshttp.proxy_idle_timeout invalid")
+		err = errors.New("ipfshttp.proxy_idle_timeout invalid")
 	}
 
 	switch cfg.PinMethod {
 	case "refs", "pin":
 	default:
-		return errors.New("ipfshttp.pin_method invalid value")
+		err = errors.New("ipfshttp.pin_method invalid value")
 	}
-	return nil
+
+	if cfg.IPFSRequestTimeout < 0 {
+		err = errors.New("ipfshttp.ipfs_request_timeout invalid")
+	}
+
+	if cfg.PinTimeout < 0 {
+		err = errors.New("ipfshttp.pin_timeout invalid")
+	}
+
+	if cfg.UnpinTimeout < 0 {
+		err = errors.New("ipfshttp.unpin_timeout invalid")
+	}
+	return err
 
 }
 
@@ -161,6 +192,9 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		&config.DurationOpt{jcfg.ProxyWriteTimeout, &cfg.ProxyWriteTimeout, "proxy_write_timeout"},
 		&config.DurationOpt{jcfg.ProxyIdleTimeout, &cfg.ProxyIdleTimeout, "proxy_idle_timeout"},
 		&config.DurationOpt{jcfg.ConnectSwarmsDelay, &cfg.ConnectSwarmsDelay, "connect_swarms_delay"},
+		&config.DurationOpt{jcfg.IPFSRequestTimeout, &cfg.IPFSRequestTimeout, "ipfs_request_timeout"},
+		&config.DurationOpt{jcfg.PinTimeout, &cfg.PinTimeout, "pin_timeout"},
+		&config.DurationOpt{jcfg.UnpinTimeout, &cfg.UnpinTimeout, "unpin_timeout"},
 	)
 	if err != nil {
 		return err
@@ -191,6 +225,9 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
 	jcfg.PinMethod = cfg.PinMethod
+	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
+	jcfg.PinTimeout = cfg.PinTimeout.String()
+	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
