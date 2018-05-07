@@ -47,10 +47,17 @@ type Consensus struct {
 	shutdown     bool
 }
 
-// NewConsensus builds a new ClusterConsensus component. The state
-// is used to initialize the Consensus system, so any information in it
-// is discarded.
-func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state state.State) (*Consensus, error) {
+// NewConsensus builds a new ClusterConsensus component using Raft. The state
+// is used to initialize the Consensus system, so any information
+// in it is discarded once the raft state is loaded.
+// The singlePeer parameter controls whether this Raft peer is be expected to
+// join a cluster or it should run on its own.
+func NewConsensus(
+	host host.Host,
+	cfg *Config,
+	state state.State,
+	staging bool, // this peer must not be bootstrapped if no state exists
+) (*Consensus, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -60,7 +67,7 @@ func NewConsensus(clusterPeers []peer.ID, host host.Host, cfg *Config, state sta
 
 	logger.Debug("starting Consensus and waiting for a leader...")
 	consensus := libp2praft.NewOpLog(state, baseOp)
-	raft, err := newRaftWrapper(clusterPeers, host, cfg, consensus.FSM())
+	raft, err := newRaftWrapper(host, cfg, consensus.FSM(), staging)
 	if err != nil {
 		logger.Error("error creating raft: ", err)
 		return nil, err
@@ -95,10 +102,31 @@ func (cc *Consensus) WaitForSync() error {
 		cc.ctx,
 		cc.config.WaitForLeaderTimeout)
 	defer cancel()
+
+	// 1 - wait for leader
+	// 2 - wait until we are a Voter
+	// 3 - wait until last index is applied
+
+	// From raft docs:
+
+	// once a staging server receives enough log entries to be sufficiently
+	// caught up to the leader's log, the leader will invoke a  membership
+	// change to change the Staging server to a Voter
+
+	// Thus, waiting to be a Voter is a guarantee that we have a reasonable
+	// up to date state. Otherwise, we might return too early (see
+	// https://github.com/ipfs/ipfs-cluster/issues/378)
+
 	_, err := cc.raft.WaitForLeader(leaderCtx)
 	if err != nil {
 		return errors.New("error waiting for leader: " + err.Error())
 	}
+
+	err = cc.raft.WaitForVoter(cc.ctx)
+	if err != nil {
+		return errors.New("error waiting to become a Voter: " + err.Error())
+	}
+
 	err = cc.raft.WaitForUpdates(cc.ctx)
 	if err != nil {
 		return errors.New("error waiting for consensus updates: " + err.Error())
@@ -107,15 +135,10 @@ func (cc *Consensus) WaitForSync() error {
 }
 
 // waits until there is a consensus leader and syncs the state
-// to the tracker
+// to the tracker. If errors happen, this will return and never
+// signal the component as Ready.
 func (cc *Consensus) finishBootstrap() {
-	err := cc.WaitForSync()
-	if err != nil {
-		return
-	}
-	logger.Debug("Raft state is now up to date")
-
-	// While rpc is not ready we cannot perform a sync
+	// wait until we have RPC to perform any actions.
 	if cc.rpcClient == nil {
 		select {
 		case <-cc.ctx.Done():
@@ -124,24 +147,20 @@ func (cc *Consensus) finishBootstrap() {
 		}
 	}
 
-	st, err := cc.State()
-	_ = st
-	// only check sync if we have a state
-	// avoid error on new running clusters
+	// Sometimes bootstrap is a no-op. It only applies when
+	// no state exists and staging=false.
+	_, err := cc.raft.Bootstrap()
 	if err != nil {
-		logger.Debug("skipping state sync: ", err)
-	} else {
-		var pInfoSerial []api.PinInfoSerial
-		cc.rpcClient.Go(
-			"",
-			"Cluster",
-			"StateSync",
-			struct{}{},
-			&pInfoSerial,
-			nil)
+		return
 	}
-	cc.readyCh <- struct{}{}
+
+	err = cc.WaitForSync()
+	if err != nil {
+		return
+	}
+	logger.Debug("Raft state is now up to date")
 	logger.Debug("consensus ready")
+	cc.readyCh <- struct{}{}
 }
 
 // Shutdown stops the component so it will not process any
@@ -403,7 +422,6 @@ func (cc *Consensus) Clean() error {
 	if err != nil {
 		return err
 	}
-	logger.Info("consensus data cleaned")
 	return nil
 }
 

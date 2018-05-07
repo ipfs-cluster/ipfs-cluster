@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -47,156 +48,194 @@ var waitForUpdatesInterval = 100 * time.Millisecond
 // How many times to retry snapshotting when shutting down
 var maxShutdownSnapshotRetries = 5
 
-// raftWrapper performs all Raft-specific operations which are needed by
-// Cluster but are not fulfilled by the consensus interface. It should contain
-// most of the Raft-related stuff so it can be easily replaced in the future,
-// if need be.
+// raftWrapper wraps the hraft.Raft object and related things like the
+// different stores used or the hraft.Configuration.
+// Its methods provide functionality for working with Raft.
 type raftWrapper struct {
 	raft          *hraft.Raft
-	dataFolder    string
-	srvConfig     hraft.Configuration
+	config        *Config
+	host          host.Host
+	serverConfig  hraft.Configuration
 	transport     *hraft.NetworkTransport
 	snapshotStore hraft.SnapshotStore
 	logStore      hraft.LogStore
 	stableStore   hraft.StableStore
 	boltdb        *raftboltdb.BoltStore
+	staging       bool
 }
 
-// newRaft launches a go-libp2p-raft consensus peer.
-func newRaftWrapper(peers []peer.ID, host host.Host, cfg *Config, fsm hraft.FSM) (*raftWrapper, error) {
+// newRaftWrapper creates a Raft instance and initializes
+// everything leaving it ready to use. Note, that Bootstrap() should be called
+// to make sure the raft instance is usable.
+func newRaftWrapper(
+	host host.Host,
+	cfg *Config,
+	fsm hraft.FSM,
+	staging bool,
+) (*raftWrapper, error) {
+
+	raftW := &raftWrapper{}
+	raftW.config = cfg
+	raftW.host = host
+	raftW.staging = staging
 	// Set correct LocalID
 	cfg.RaftConfig.LocalID = hraft.ServerID(peer.IDB58Encode(host.ID()))
 
-	// Prepare data folder
-	dataFolder, err := makeDataFolder(cfg.BaseDir, cfg.DataFolder)
-	if err != nil {
-		return nil, err
-	}
-	srvCfg := makeServerConf(peers)
-
-	logger.Debug("creating libp2p Raft transport")
-	transport, err := p2praft.NewLibp2pTransport(host, cfg.NetworkTimeout)
+	df := cfg.GetDataFolder()
+	err := makeDataFolder(df)
 	if err != nil {
 		return nil, err
 	}
 
-	var log hraft.LogStore
-	var stable hraft.StableStore
-	var snap hraft.SnapshotStore
+	raftW.makeServerConfig()
 
-	logger.Debug("creating raft snapshot store")
-	snapstore, err := hraft.NewFileSnapshotStoreWithLogger(
-		dataFolder, RaftMaxSnapshots, raftStdLogger)
+	err = raftW.makeTransport()
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debug("creating BoltDB store")
-	store, err := raftboltdb.NewBoltStore(
-		filepath.Join(dataFolder, "raft.db"))
+	err = raftW.makeStores()
 	if err != nil {
 		return nil, err
-	}
-
-	// wraps the store in a LogCache to improve performance.
-	// See consul/agent/consul/serger.go
-	cacheStore, err := hraft.NewLogCache(RaftLogCacheSize, store)
-	if err != nil {
-		return nil, err
-	}
-
-	stable = store
-	log = cacheStore
-	snap = snapstore
-
-	logger.Debug("checking for existing raft states")
-	hasState, err := hraft.HasExistingState(log, stable, snap)
-	if err != nil {
-		return nil, err
-	}
-	if !hasState {
-		logger.Info("initializing raft cluster")
-		err := hraft.BootstrapCluster(cfg.RaftConfig,
-			log, stable, snap, transport, srvCfg)
-		if err != nil {
-			logger.Error("bootstrapping cluster: ", err)
-			return nil, err
-		}
-	} else {
-		logger.Debug("raft cluster is already initialized")
 	}
 
 	logger.Debug("creating Raft")
-	r, err := hraft.NewRaft(cfg.RaftConfig,
-		fsm, log, stable, snap, transport)
+	raftW.raft, err = hraft.NewRaft(
+		cfg.RaftConfig,
+		fsm,
+		raftW.logStore,
+		raftW.stableStore,
+		raftW.snapshotStore,
+		raftW.transport,
+	)
 	if err != nil {
 		logger.Error("initializing raft: ", err)
 		return nil, err
 	}
 
-	raftW := &raftWrapper{
-		raft:          r,
-		dataFolder:    dataFolder,
-		srvConfig:     srvCfg,
-		transport:     transport,
-		snapshotStore: snap,
-		logStore:      log,
-		stableStore:   stable,
-		boltdb:        store,
-	}
-
-	// Handle existing, different configuration
-	if hasState {
-		cf := r.GetConfiguration()
-		if err := cf.Error(); err != nil {
-			return nil, err
-		}
-		currentCfg := cf.Configuration()
-		added, removed := diffConfigurations(srvCfg, currentCfg)
-		if len(added)+len(removed) > 0 {
-			raftW.Shutdown()
-			logger.Error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			logger.Error("Raft peers do not match cluster peers from the configuration.")
-			logger.Error("This likely indicates that this peer has left the cluster and/or")
-			logger.Error("has a dirty state. Clean the raft state for this peer")
-			logger.Errorf("(%s)", dataFolder)
-			logger.Error("bootstrap it to a working cluster.")
-			logger.Error("Raft peers:")
-			for _, s := range currentCfg.Servers {
-				logger.Errorf("  - %s", s.ID)
-			}
-			logger.Error("Cluster configuration peers:")
-			for _, s := range srvCfg.Servers {
-				logger.Errorf("  - %s", s.ID)
-			}
-			logger.Errorf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			return nil, errBadRaftState
-			//return nil, errors.New("Bad cluster peers")
-		}
-	}
-
 	return raftW, nil
 }
 
-// returns the folder path after creating it.
-// if folder is empty, it uses baseDir+Default.
-func makeDataFolder(baseDir, folder string) (string, error) {
-	if folder == "" {
-		folder = filepath.Join(baseDir, DefaultDataSubFolder)
-	}
-
+// makeDataFolder creates the folder that is meant
+// to store Raft data.
+func makeDataFolder(folder string) error {
 	err := os.MkdirAll(folder, 0700)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return folder, nil
+	return nil
 }
 
-// create Raft servers configuration
+func (rw *raftWrapper) makeTransport() (err error) {
+	logger.Debug("creating libp2p Raft transport")
+	rw.transport, err = p2praft.NewLibp2pTransport(
+		rw.host,
+		rw.config.NetworkTimeout,
+	)
+	return err
+}
+
+func (rw *raftWrapper) makeStores() error {
+	logger.Debug("creating BoltDB store")
+	df := rw.config.GetDataFolder()
+	store, err := raftboltdb.NewBoltStore(filepath.Join(df, "raft.db"))
+	if err != nil {
+		return err
+	}
+
+	// wraps the store in a LogCache to improve performance.
+	// See consul/agent/consul/server.go
+	cacheStore, err := hraft.NewLogCache(RaftLogCacheSize, store)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug("creating raft snapshot store")
+	snapstore, err := hraft.NewFileSnapshotStoreWithLogger(
+		df,
+		RaftMaxSnapshots,
+		raftStdLogger,
+	)
+	if err != nil {
+		return err
+	}
+
+	rw.logStore = cacheStore
+	rw.stableStore = store
+	rw.snapshotStore = snapstore
+	rw.boltdb = store
+	return nil
+}
+
+// Bootstrap calls BootstrapCluster on the Raft instance with a valid
+// Configuration (generated from InitPeerset) when Raft has no state
+// and we are not setting up a staging peer. It returns if Raft
+// was boostrapped (true) and an error.
+func (rw *raftWrapper) Bootstrap() (bool, error) {
+	logger.Debug("checking for existing raft states")
+	hasState, err := hraft.HasExistingState(
+		rw.logStore,
+		rw.stableStore,
+		rw.snapshotStore,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	if hasState {
+		logger.Debug("raft cluster is already initialized")
+
+		// Inform the user that we are working with a pre-existing peerset
+		logger.Info("existing Raft state found! raft.InitPeerset will be ignored")
+		cf := rw.raft.GetConfiguration()
+		if err := cf.Error(); err != nil {
+			logger.Debug(err)
+			return false, err
+		}
+		currentCfg := cf.Configuration()
+		srvs := ""
+		for _, s := range currentCfg.Servers {
+			srvs += fmt.Sprintf("        %s\n", s.ID)
+		}
+
+		logger.Debugf("Current Raft Peerset:\n%s\n", srvs)
+		return false, nil
+	}
+
+	if rw.staging {
+		logger.Debug("staging servers do not need initialization")
+		logger.Info("peer is ready to join a cluster")
+		return false, nil
+	}
+
+	voters := ""
+	for _, s := range rw.serverConfig.Servers {
+		voters += fmt.Sprintf("        %s\n", s.ID)
+	}
+
+	logger.Infof("initializing raft cluster with the following voters:\n%s\n", voters)
+
+	future := rw.raft.BootstrapCluster(rw.serverConfig)
+	if err := future.Error(); err != nil {
+		logger.Error("bootstrapping cluster: ", err)
+		return true, err
+	}
+	return true, nil
+}
+
+// create Raft servers configuration. The result is used
+// by Bootstrap() when it proceeds to Bootstrap.
+func (rw *raftWrapper) makeServerConfig() {
+	rw.serverConfig = makeServerConf(append(rw.config.InitPeerset, rw.host.ID()))
+}
+
+// creates a server configuration with all peers as Voters.
 func makeServerConf(peers []peer.ID) hraft.Configuration {
 	sm := make(map[string]struct{})
 
 	servers := make([]hraft.Server, 0)
+
+	// Servers are peers + self. We avoid duplicate entries below
 	for _, pid := range peers {
 		p := peer.IDB58Encode(pid)
 		_, ok := sm[p]
@@ -209,38 +248,7 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 			})
 		}
 	}
-	return hraft.Configuration{
-		Servers: servers,
-	}
-}
-
-// diffConfigurations returns the serverIDs added and removed from
-// c2 in relation to c1.
-func diffConfigurations(
-	c1, c2 hraft.Configuration) (added, removed []hraft.ServerID) {
-	m1 := make(map[hraft.ServerID]struct{})
-	m2 := make(map[hraft.ServerID]struct{})
-	added = make([]hraft.ServerID, 0)
-	removed = make([]hraft.ServerID, 0)
-	for _, s := range c1.Servers {
-		m1[s.ID] = struct{}{}
-	}
-	for _, s := range c2.Servers {
-		m2[s.ID] = struct{}{}
-	}
-	for k := range m1 {
-		_, ok := m2[k]
-		if !ok {
-			removed = append(removed, k)
-		}
-	}
-	for k := range m2 {
-		_, ok := m1[k]
-		if !ok {
-			added = append(added, k)
-		}
-	}
-	return
+	return hraft.Configuration{Servers: servers}
 }
 
 // WaitForLeader holds until Raft says we have a leader.
@@ -276,6 +284,38 @@ func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 			return "", ctx.Err()
 		}
 	}
+}
+
+func (rw *raftWrapper) WaitForVoter(ctx context.Context) error {
+	logger.Debug("waiting until we are promoted to a voter")
+
+	pid := hraft.ServerID(peer.IDB58Encode(rw.host.ID()))
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			configFuture := rw.raft.GetConfiguration()
+			if err := configFuture.Error(); err != nil {
+				return err
+			}
+
+			if isVoter(pid, configFuture.Configuration()) {
+				return nil
+			}
+
+			time.Sleep(waitForUpdatesInterval)
+		}
+	}
+}
+
+func isVoter(srvID hraft.ServerID, cfg hraft.Configuration) bool {
+	for _, server := range cfg.Servers {
+		if server.ID == srvID && server.Suffrage == hraft.Voter {
+			return true
+		}
+	}
+	return false
 }
 
 // WaitForUpdates holds until Raft has synced to the last index in the log
@@ -481,8 +521,8 @@ func (rw *raftWrapper) Peers() ([]string, error) {
 }
 
 // latestSnapshot looks for the most recent raft snapshot stored at the
-// provided basedir.  It returns a boolean indicating if any snapshot is
-// readable, the snapshot's metadata, and a reader to the snapshot's bytes
+// provided basedir.  It returns the snapshot's metadata, and a reader
+// to the snapshot's bytes
 func latestSnapshot(raftDataFolder string) (*hraft.SnapshotMeta, io.ReadCloser, error) {
 	store, err := hraft.NewFileSnapshotStore(raftDataFolder, RaftMaxSnapshots, nil)
 	if err != nil {
@@ -506,10 +546,12 @@ func latestSnapshot(raftDataFolder string) (*hraft.SnapshotMeta, io.ReadCloser, 
 // and a flag indicating whether any snapshot was found.
 func LastStateRaw(cfg *Config) (io.Reader, bool, error) {
 	// Read most recent snapshot
-	dataFolder, err := makeDataFolder(cfg.BaseDir, cfg.DataFolder)
-	if err != nil {
-		return nil, false, err
+	dataFolder := cfg.GetDataFolder()
+	if _, err := os.Stat(dataFolder); os.IsNotExist(err) {
+		// nothing to read
+		return nil, false, nil
 	}
+
 	meta, r, err := latestSnapshot(dataFolder)
 	if err != nil {
 		return nil, false, err
@@ -530,7 +572,8 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 	if err != nil {
 		return err
 	}
-	dataFolder, err := makeDataFolder(cfg.BaseDir, cfg.DataFolder)
+	dataFolder := cfg.GetDataFolder()
+	err = makeDataFolder(dataFolder)
 	if err != nil {
 		return err
 	}
@@ -550,7 +593,7 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 		raftIndex = meta.Index
 		raftTerm = meta.Term
 		srvCfg = meta.Configuration
-		CleanupRaft(dataFolder)
+		CleanupRaft(dataFolder, cfg.BackupsRotate)
 	} else {
 		// Begin the log after the index of a fresh start so that
 		// the snapshot's state propagate's during bootstrap
@@ -583,9 +626,19 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 }
 
 // CleanupRaft moves the current data folder to a backup location
-func CleanupRaft(dataFolder string) error {
-	dbh := newDataBackupHelper(dataFolder)
-	err := dbh.makeBackup()
+func CleanupRaft(dataFolder string, keep int) error {
+	meta, _, err := latestSnapshot(dataFolder)
+	if meta == nil && err == nil {
+		// no snapshots at all. Avoid creating backups
+		// from empty state folders.
+		logger.Infof("cleaning empty Raft data folder (%s)", dataFolder)
+		os.RemoveAll(dataFolder)
+		return nil
+	}
+
+	logger.Infof("cleaning and backing up Raft data folder (%s)", dataFolder)
+	dbh := newDataBackupHelper(dataFolder, keep)
+	err = dbh.makeBackup()
 	if err != nil {
 		logger.Warning(err)
 		logger.Warning("the state could not be cleaned properly")
@@ -596,7 +649,7 @@ func CleanupRaft(dataFolder string) error {
 
 // only call when Raft is shutdown
 func (rw *raftWrapper) Clean() error {
-	return CleanupRaft(rw.dataFolder)
+	return CleanupRaft(rw.config.GetDataFolder(), rw.config.BackupsRotate)
 }
 
 func find(s []string, elem string) bool {

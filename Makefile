@@ -96,15 +96,15 @@ publish: rwundo
 	$(gx_bin) publish
 
 docker:
-	@docker build -t cluster-image -f Dockerfile .
-	@docker run --name tmp-make-cluster -d cluster-image && sleep 8
-	@docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
-	@docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
-	@docker stop tmp-make-cluster && docker rm tmp-make-cluster
-	@docker build -t cluster-image -f Dockerfile-test .
-	@docker run --name tmp-make-cluster -d cluster-image && sleep 8
-	@docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
-	@docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
-	@docker stop tmp-make-cluster && docker rm tmp-make-cluster
+	docker build -t cluster-image -f Dockerfile .
+	docker run --name tmp-make-cluster -d --rm cluster-image && sleep 4
+	docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
+	docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
+	docker kill tmp-make-cluster
+	docker build -t cluster-image-test -f Dockerfile-test .
+	docker run --name tmp-make-cluster-test -d --rm cluster-image && sleep 8
+	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-ctl version"
+	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
+	docker kill tmp-make-cluster-test
 
 .PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker

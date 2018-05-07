@@ -15,7 +15,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -59,13 +58,12 @@ func testingConsensus(t *testing.T, idn int) *Consensus {
 	cfg.DataFolder = fmt.Sprintf("raftFolderFromTests-%d", idn)
 	cfg.hostShutdown = true
 
-	cc, err := NewConsensus([]peer.ID{h.ID()}, h, cfg, st)
+	cc, err := NewConsensus(h, cfg, st, false)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
 	cc.SetClient(test.NewMockRPCClientWithHost(t, h))
 	<-cc.Ready()
-	time.Sleep(2 * time.Second)
 	return cc
 }
 

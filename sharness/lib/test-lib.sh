@@ -116,7 +116,7 @@ cluster_kill(){
 }
 
 cluster_start(){
-    ipfs-cluster-service --config "test-config" >"$IPFS_OUTPUT" 2>&1 &
+    ipfs-cluster-service --config "test-config" daemon >"$IPFS_OUTPUT" 2>&1 &
     export CLUSTER_D_PID=$!
     while ! curl -s 'localhost:9095/api/v0/version' >/dev/null; do
         sleep 0.2

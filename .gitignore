@@ -8,6 +8,7 @@ sharness/test-results
 sharness/trash*
 
 raftFolderFromTest*
+peerstore
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o

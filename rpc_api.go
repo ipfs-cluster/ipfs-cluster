@@ -349,14 +349,14 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 // PeerManagerAddPeer runs peerManager.addPeer().
 func (rpcapi *RPCAPI) PeerManagerAddPeer(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
 	addr := in.ToMultiaddr()
-	err := rpcapi.c.peerManager.addPeer(addr, false)
+	err := rpcapi.c.peerManager.ImportPeer(addr, false)
 	return err
 }
 
 // PeerManagerImportAddresses runs peerManager.importAddresses().
 func (rpcapi *RPCAPI) PeerManagerImportAddresses(ctx context.Context, in api.MultiaddrsSerial, out *struct{}) error {
 	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.importAddresses(addrs, false)
+	err := rpcapi.c.peerManager.ImportPeers(addrs, false)
 	return err
 }
 

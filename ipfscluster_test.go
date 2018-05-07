@@ -79,7 +79,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft.Config, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	//
 	//clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
@@ -106,6 +106,13 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	clusterCfg.Secret = clusterSecret
 	clusterCfg.ListenAddr = clusterAddr
 	clusterCfg.LeaveOnShutdown = false
+	clusterCfg.SetBaseDir("./e2eTestRaft/" + pid.Pretty())
+
+	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
+
+	host, err := NewClusterHost(context.Background(), clusterCfg)
+	checkErr(t, err)
+
 	apiCfg.HTTPListenAddr = apiAddr
 	ipfshttpCfg.ProxyAddr = proxyAddr
 	ipfshttpCfg.NodeAddr = nodeAddr
@@ -122,27 +129,29 @@ func createComponents(t *testing.T, i int, clusterSecret []byte) (*Config, *raft
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
 	checkErr(t, err)
+	raftCon, err := raft.NewConsensus(host, consensusCfg, state, staging)
+	checkErr(t, err)
 
-	return clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock
+	return host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
-func createCluster(t *testing.T, host host.Host, clusterCfg *Config, consensusCfg *raft.Config, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+	cl, err := NewCluster(host, clusterCfg, raftCons, api, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
-	<-cl.Ready()
 	return cl
 }
 
 func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster, *test.IpfsMock) {
-	clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret)
-	cl := createCluster(t, nil, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+	host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret, false)
+	cl := createCluster(t, host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
+	<-cl.Ready()
 	return cl, mock
 }
 
 func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	os.RemoveAll("./e2eTestRaft")
 	cfgs := make([]*Config, nClusters, nClusters)
-	concfgs := make([]*raft.Config, nClusters, nClusters)
+	raftCons := make([]*raft.Consensus, nClusters, nClusters)
 	apis := make([]API, nClusters, nClusters)
 	ipfss := make([]IPFSConnector, nClusters, nClusters)
 	states := make([]state.State, nClusters, nClusters)
@@ -159,9 +168,11 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// clusterPeers := make([]ma.Multiaddr, nClusters, nClusters)
 
 	for i := 0; i < nClusters; i++ {
-		clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret)
+		// staging = true for all except first (i==0)
+		host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret, i != 0)
+		hosts[i] = host
 		cfgs[i] = clusterCfg
-		concfgs[i] = consensusCfg
+		raftCons[i] = raftCon
 		apis[i] = api
 		ipfss[i] = ipfs
 		states[i] = state
@@ -170,44 +181,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		allocs[i] = alloc
 		infs[i] = inf
 		ipfsMocks[i] = mock
-
-		// Uncomment with testing with fixed ports and ClusterPeers
-		// addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d/ipfs/%s",
-		// 	clusterPort+i,
-		// 	clusterCfg.ID.Pretty()))
-		// clusterPeers[i] = addr
-	}
-
-	// ----------------------------------------------------------
-
-	// // Set up the cluster using ClusterPeers
-	// for i := 0; i < nClusters; i++ {
-	// 	cfgs[i].Peers = make([]ma.Multiaddr, nClusters, nClusters)
-	// 	for j := 0; j < nClusters; j++ {
-	// 		cfgs[i].Peers[j] = clusterPeers[j]
-	// 	}
-	// }
-
-	// var wg sync.WaitGroup
-	// for i := 0; i < nClusters; i++ {
-	// 	wg.Add(1)
-	// 	go func(i int) {
-	// 		clusters[i] = createCluster(t, cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
-	// 		wg.Done()
-	// 	}(i)
-	// }
-	// wg.Wait()
-
-	// ----------------------------------------------
-
-	// Alternative way of starting using bootstrap
-	// Create hosts
-	var err error
-	for i := 0; i < nClusters; i++ {
-		hosts[i], err = NewClusterHost(context.Background(), cfgs[i])
-		if err != nil {
-			t.Fatal(err)
-		}
 	}
 
 	// open connections among all hosts
@@ -225,28 +198,21 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	}
 
 	// Start first node
-	clusters[0] = createCluster(t, hosts[0], cfgs[0], concfgs[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
-	// Find out where it binded
+	clusters[0] = createCluster(t, hosts[0], cfgs[0], raftCons[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
+	<-clusters[0].Ready()
 	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
-	// Use first node to bootstrap
-	for i := 1; i < nClusters; i++ {
-		cfgs[i].Bootstrap = []ma.Multiaddr{bootstrapAddr}
-	}
-	waitForLeader(t, clusters[0:1])
 
-	// Start the rest
-	// We don't do this in parallel because it causes libp2p dial backoffs
+	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
-		clusters[i] = createCluster(t, hosts[i], cfgs[i], concfgs[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
+		clusters[i] = createCluster(t, hosts[i], cfgs[i], raftCons[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
+		err := clusters[i].Join(bootstrapAddr)
+		if err != nil {
+			logger.Error(err)
+			t.Fatal(err)
+		}
+		<-clusters[i].Ready()
 	}
 	waitForLeader(t, clusters)
-
-	// ---------------------------------------------
-
-	// Yet an alternative way using PeerAdd
-	// for i := 1; i < nClusters; i++ {
-	// 	clusters[0].PeerAdd(clusterAddr(clusters[i]))
-	// }
 
 	return clusters, ipfsMocks
 }

@@ -3,11 +3,12 @@ package ipfscluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -17,10 +18,11 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// Common errors
-var (
-	ErrBootstrap = errors.New("bootstrap unsuccessful")
-)
+// ReadyTimeout specifies the time before giving up
+// during startup (waiting for consensus to be ready)
+// It may need adjustment according to timeouts in the
+// consensus layer.
+var ReadyTimeout = 30 * time.Second
 
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
@@ -33,7 +35,7 @@ type Cluster struct {
 	host        host.Host
 	rpcServer   *rpc.Server
 	rpcClient   *rpc.Client
-	peerManager *peerManager
+	peerManager *pstoremgr.Manager
 
 	consensus Consensus
 	api       API
@@ -64,7 +66,7 @@ type Cluster struct {
 func NewCluster(
 	host host.Host,
 	cfg *Config,
-	consensusCfg *raft.Config,
+	consensus Consensus,
 	api API,
 	ipfs IPFSConnector,
 	st state.State,
@@ -78,35 +80,31 @@ func NewCluster(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	if host == nil {
-		host, err = NewClusterHost(ctx, cfg)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
+		return nil, errors.New("cluster host is nil")
+	}
+
+	listenAddrs := ""
+	for _, addr := range host.Addrs() {
+		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
 	}
 
 	if c := Commit; len(c) >= 8 {
-		logger.Infof("IPFS Cluster v%s-%s listening on:", Version, Commit[0:8])
+		logger.Infof("IPFS Cluster v%s-%s listening on:\n%s\n", Version, Commit[0:8], listenAddrs)
 	} else {
-		logger.Infof("IPFS Cluster v%s listening on:", Version)
-	}
-	for _, addr := range host.Addrs() {
-		logger.Infof("        %s/ipfs/%s", addr, host.ID().Pretty())
+		logger.Infof("IPFS Cluster v%s listening on:\n%s\n", Version, listenAddrs)
 	}
 
-	peerManager := newPeerManager(host)
-	peerManager.importAddresses(cfg.Peers, false)
-	peerManager.importAddresses(cfg.Bootstrap, false)
+	peerManager := pstoremgr.New(host, cfg.GetPeerstorePath())
 
+	ctx, cancel := context.WithCancel(context.Background())
 	c := &Cluster{
 		ctx:         ctx,
 		cancel:      cancel,
 		id:          host.ID(),
 		config:      cfg,
 		host:        host,
+		consensus:   consensus,
 		api:         api,
 		ipfs:        ipfs,
 		state:       st,
@@ -128,20 +126,9 @@ func NewCluster(
 		return nil, err
 	}
 
-	err = c.setupConsensus(consensusCfg)
-	if err != nil {
-		c.Shutdown()
-		return nil, err
-	}
 	c.setupRPCClients()
-	ok := c.bootstrap()
-	if !ok {
-		logger.Error(ErrBootstrap)
-		c.Shutdown()
-		return nil, ErrBootstrap
-	}
 	go func() {
-		c.ready(consensusCfg.WaitForLeaderTimeout * 2)
+		c.ready(ReadyTimeout)
 		c.run()
 	}()
 	return c, nil
@@ -156,30 +143,6 @@ func (c *Cluster) setupRPC() error {
 	c.rpcServer = rpcServer
 	rpcClient := rpc.NewClientWithServer(c.host, RPCProtocol, rpcServer)
 	c.rpcClient = rpcClient
-	return nil
-}
-
-func (c *Cluster) setupConsensus(consensuscfg *raft.Config) error {
-	var startPeers []peer.ID
-
-	if len(c.config.Peers) > 0 {
-		startPeers = PeersFromMultiaddrs(c.config.Peers)
-	} else {
-		// start as single cluster before being added
-		// to the bootstrapper peers' cluster.
-		startPeers = []peer.ID{}
-	}
-
-	consensus, err := raft.NewConsensus(
-		append(startPeers, c.id),
-		c.host,
-		consensuscfg,
-		c.state)
-	if err != nil {
-		logger.Errorf("error creating consensus: %s", err)
-		return err
-	}
-	c.consensus = consensus
 	return nil
 }
 
@@ -237,7 +200,7 @@ func (c *Cluster) broadcastMetric(m api.Metric) error {
 		if leader == c.id {
 			// Leader needs to broadcast its metric to everyone
 			// in case it goes down (new leader will have to detect this node went down)
-			logger.Debugf("Leader %s about to broadcast metric %s to %s. Expires: %s", c.id, m.Name, peers, m.Expire)
+			logger.Debugf("Leader %s about to broadcast metric %s to %s. Expires: %d", c.id, m.Name, peers, m.Expire)
 			errs := c.multiRPC(peers,
 				"Cluster",
 				"PeerMonitorLogMetric",
@@ -345,7 +308,7 @@ func (c *Cluster) alertsHandler() {
 // detects that we have been removed from the peerset, it shuts down this peer.
 func (c *Cluster) watchPeers() {
 	ticker := time.NewTicker(c.config.PeerWatchInterval)
-	lastPeers := PeersFromMultiaddrs(c.config.Peers)
+	lastPeers := PeersFromMultiaddrs(c.peerManager.LoadPeerstore())
 
 	for {
 		select {
@@ -381,15 +344,13 @@ func (c *Cluster) watchPeers() {
 			if !hasMe {
 				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
 				c.removed = true
-				c.config.Bootstrap = c.peerManager.addresses(peers)
-				c.config.savePeers([]ma.Multiaddr{})
 				go c.Shutdown()
 				return
 			}
 
 			if save {
-				logger.Info("peerset change detected")
-				c.config.savePeers(c.peerManager.addresses(peers))
+				logger.Info("peerset change detected. Saving peers addresses")
+				c.peerManager.SavePeerstoreForPeers(peers)
 			}
 		}
 	}
@@ -439,18 +400,23 @@ func (c *Cluster) ready(timeout time.Duration) {
 **************************************************
 This peer was not able to become part of the cluster.
 This might be due to one or several causes:
+  - Check the logs above this message for errors
   - Check that there is connectivity to the "peers" multiaddresses
   - Check that all cluster peers are using the same "secret"
   - Check that this peer is reachable on its "listen_multiaddress" by all peers
   - Check that the current cluster is healthy (has a leader). Otherwise make
     sure to start enough peers so that a leader election can happen.
-  - Check that the peer you are trying to connect to is running the
+  - Check that the peer(s) you are trying to connect to is running the
     same version of IPFS-cluster.
 **************************************************
 `)
 		c.Shutdown()
 		return
 	case <-c.consensus.Ready():
+		// Consensus ready means the state is up to date so we can sync
+		// it to the tracker. We ignore errors (normal when state
+		// doesn't exist in new peers).
+		c.StateSync()
 	case <-c.ctx.Done():
 		return
 	}
@@ -479,44 +445,6 @@ This might be due to one or several causes:
 	logger.Info("** IPFS Cluster is READY **")
 }
 
-func (c *Cluster) bootstrap() bool {
-	// Cases in which we do not bootstrap
-	if len(c.config.Bootstrap) == 0 || len(c.config.Peers) > 0 {
-		return true
-	}
-
-	var err error
-	for _, b := range c.config.Bootstrap {
-		logger.Infof("Bootstrapping to %s", b)
-		err = c.Join(b)
-		if err == nil {
-			return true
-		}
-		logger.Error(err)
-	}
-
-	logger.Error("***** ipfs-cluster bootstrap failed (tips below) *****")
-	logger.Errorf(`
-**************************************************
-This peer was not able to become part of the cluster. The bootstrap process
-failed for all bootstrap peers. The last error was:
-
-%s
-
-There are some common reasons for failed bootstraps:
-  - Check that there is connectivity to the "bootstrap" multiaddresses
-  - Check that the cluster "secret" is the same for all peers
-  - Check that this peer is reachable on its "listen_multiaddress" by all peers
-  - Check that all the peers in the current cluster are healthy, otherwise
-    remove unhealthy ones first and re-add them later
-  - Check that the peer you are trying to connect to is running the
-    same version of IPFS-cluster.
-**************************************************
-`, err)
-
-	return false
-}
-
 // Ready returns a channel which signals when this peer is
 // fully initialized (including consensus).
 func (c *Cluster) Ready() <-chan struct{} {
@@ -538,10 +466,10 @@ func (c *Cluster) Shutdown() error {
 	// Only attempt to leave if:
 	// - consensus is initialized
 	// - cluster was ready (no bootstrapping error)
-	// - We are not removed already (means watchPeers() called uss)
+	// - We are not removed already (means watchPeers() called us)
 	if c.consensus != nil && c.config.LeaveOnShutdown && c.readyB && !c.removed {
 		c.removed = true
-		peers, err := c.consensus.Peers()
+		_, err := c.consensus.Peers()
 		if err == nil {
 			// best effort
 			logger.Warning("attempting to leave the cluster. This may take some seconds")
@@ -549,9 +477,6 @@ func (c *Cluster) Shutdown() error {
 			if err != nil {
 				logger.Error("leaving cluster: " + err.Error())
 			}
-			// save peers as bootstrappers
-			c.config.Bootstrap = c.peerManager.addresses(peers)
-			c.config.savePeers([]ma.Multiaddr{})
 		}
 	}
 
@@ -637,7 +562,7 @@ func (c *Cluster) ID() api.ID {
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
 		ClusterPeers:          peers,
-		ClusterPeersAddresses: c.peerManager.addresses(peers),
+		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
 		Version:               Version,
 		Commit:                Commit,
 		RPCProtocolVersion:    RPCProtocol,
@@ -708,7 +633,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	}
 
 	// Send cluster peers to the new peer.
-	clusterPeers := append(c.peerManager.addresses(peers),
+	clusterPeers := append(c.peerManager.PeersAddresses(peers),
 		addrSerial.ToMultiaddr())
 	err = c.rpcClient.Call(pid,
 		"Cluster",
@@ -786,11 +711,6 @@ func (c *Cluster) PeerRemove(pid peer.ID) error {
 func (c *Cluster) Join(addr ma.Multiaddr) error {
 	logger.Debugf("Join(%s)", addr)
 
-	//if len(c.peerManager.peers()) > 1 {
-	//	logger.Error(c.peerManager.peers())
-	//	return errors.New("only single-node clusters can be joined")
-	//}
-
 	pid, _, err := api.Libp2pMultiaddrSplit(addr)
 	if err != nil {
 		logger.Error(err)
@@ -803,7 +723,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	}
 
 	// Add peer to peerstore so we can talk to it
-	c.peerManager.addPeer(addr, true)
+	c.peerManager.ImportPeer(addr, true)
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
@@ -834,7 +754,7 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	if err != nil {
 		logger.Error(err)
 	} else {
-		c.config.savePeers(c.peerManager.addresses(peers))
+		c.peerManager.SavePeerstoreForPeers(peers)
 	}
 
 	c.StateSync()

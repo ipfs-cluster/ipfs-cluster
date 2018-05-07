@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -393,10 +394,13 @@ func (api *API) runHTTPServer() {
 func (api *API) runLibp2pServer() {
 	defer api.wg.Done()
 	<-api.rpcReady
-	logger.Info("REST API (libp2p-http): ENABLED")
+
+	listenMsg := ""
 	for _, a := range api.host.Addrs() {
-		logger.Infof("  - %s/ipfs/%s", a, api.host.ID().Pretty())
+		listenMsg += fmt.Sprintf("        %s/ipfs/%s\n", a, api.host.ID().Pretty())
 	}
+
+	logger.Infof("REST API (libp2p-http): ENABLED. Listening on:\n%s\n", listenMsg)
 
 	err := api.server.Serve(api.libp2pListener)
 	if err != nil && !strings.Contains(err.Error(), "context canceled") {
