@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/util"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
+
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var logger = logging.Logger("monitor")
@@ -206,11 +206,13 @@ func (mon *Monitor) PublishMetric(m api.Metric) error {
 func (mon *Monitor) getPeers() ([]peer.ID, error) {
 	// Ger current list of peers
 	var peers []peer.ID
-	err := mon.rpcClient.Call("",
+	err := mon.rpcClient.Call(
+		"",
 		"Cluster",
 		"ConsensusPeers",
 		struct{}{},
-		&peers)
+		&peers,
+	)
 	return peers, err
 }
 
