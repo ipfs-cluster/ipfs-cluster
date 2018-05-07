@@ -18,7 +18,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
@@ -124,7 +124,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	state := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
-	mon, err := basic.NewMonitor(monCfg)
+	mon, err := pubsubmon.New(host, monCfg)
 	checkErr(t, err)
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)

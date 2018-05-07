@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
+	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -106,7 +106,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	monCfg.CheckInterval = 2 * time.Second
 
 	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
-	mon, _ := basic.NewMonitor(monCfg)
+	mon, _ := pubsubmon.New(host, monCfg)
 	alloc := ascendalloc.NewAllocator()
 	numpinCfg := &numpin.Config{}
 	numpinCfg.Default()
