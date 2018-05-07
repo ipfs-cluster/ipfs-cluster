@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 func TestMetricsChecker(t *testing.T) {
@@ -21,7 +22,7 @@ func TestMetricsChecker(t *testing.T) {
 		Value: "1",
 		Valid: true,
 	}
-	metr.SetTTL(2)
+	metr.SetTTL(2 * time.Second)
 
 	metrics["test"] = make(PeerMetrics)
 	metrics["test"][test.TestPeerID1] = NewMetricsWindow(5, true)

@@ -209,7 +209,7 @@ func TestMetric(t *testing.T) {
 		t.Error("metric should be expired")
 	}
 
-	m.SetTTL(1)
+	m.SetTTL(1 * time.Second)
 	if m.Expired() {
 		t.Error("metric should not be expired")
 	}
@@ -221,7 +221,7 @@ func TestMetric(t *testing.T) {
 		t.Error("metric should be expired")
 	}
 
-	m.SetTTL(30)
+	m.SetTTL(30 * time.Second)
 	m.Valid = true
 
 	if m.Discard() {

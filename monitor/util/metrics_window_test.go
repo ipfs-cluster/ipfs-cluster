@@ -2,6 +2,7 @@ package util
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -24,7 +25,7 @@ func TestMetricsWindow(t *testing.T) {
 		Value: "1",
 		Valid: true,
 	}
-	metr.SetTTL(5)
+	metr.SetTTL(5 * time.Second)
 
 	mw.Add(metr)
 

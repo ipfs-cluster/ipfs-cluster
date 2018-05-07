@@ -94,6 +94,6 @@ func (disk *Informer) GetMetric() api.Metric {
 		Valid: valid,
 	}
 
-	m.SetTTLDuration(disk.config.MetricTTL)
+	m.SetTTL(disk.config.MetricTTL)
 	return m
 }

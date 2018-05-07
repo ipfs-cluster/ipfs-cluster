@@ -35,7 +35,7 @@ func newMetric(n string, p peer.ID) api.Metric {
 		Value: fmt.Sprintf("%d", metricCounter),
 		Valid: true,
 	}
-	m.SetTTL(5)
+	m.SetTTL(5 * time.Second)
 	metricCounter++
 	return m
 }
@@ -69,7 +69,7 @@ func TestLogMetricConcurrent(t *testing.T) {
 				Value: fmt.Sprintf("%d", time.Now().UnixNano()),
 				Valid: true,
 			}
-			mt.SetTTLDuration(150 * time.Millisecond)
+			mt.SetTTL(150 * time.Millisecond)
 			pm.LogMetric(mt)
 			time.Sleep(75 * time.Millisecond)
 		}

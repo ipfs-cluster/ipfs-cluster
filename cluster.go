@@ -228,7 +228,7 @@ func (c *Cluster) pushPingMetrics() {
 			Peer:  c.id,
 			Valid: true,
 		}
-		metric.SetTTLDuration(c.config.MonitorPingInterval * 2)
+		metric.SetTTL(c.config.MonitorPingInterval * 2)
 		c.monitor.PublishMetric(metric)
 
 		select {
