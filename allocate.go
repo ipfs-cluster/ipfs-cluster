@@ -12,11 +12,10 @@ import (
 
 // This file gathers allocation logic used when pinning or re-pinning
 // to find which peers should be allocated to a Cid. Allocation is constrained
-// by ReplicationFactorMin and ReplicationFactorMax parametres obtained
+// by ReplicationFactorMin and ReplicationFactorMax parameters obtained
 // from the Pin object.
 
-//The allocation
-// process has several steps:
+// The allocation process has several steps:
 //
 // * Find which peers are pinning a CID
 // * Obtain the last values for the configured informer metrics from the
@@ -164,7 +163,7 @@ func (c *Cluster) obtainAllocations(
 
 	// Reminder: rplMin <= rplMax AND >0
 
-	if wanted < 0 { // alocations above maximum threshold: drop some
+	if wanted < 0 { // allocations above maximum threshold: drop some
 		// This could be done more intelligently by dropping them
 		// according to the allocator order (i.e. free-ing peers
 		// with most used space first).
