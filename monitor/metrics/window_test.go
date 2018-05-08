@@ -1,4 +1,4 @@
-package util
+package metrics
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestMetricsWindow(t *testing.T) {
-	mw := NewMetricsWindow(4, true)
+	mw := NewWindow(4, true)
 
 	_, err := mw.Latest()
 	if err != ErrNoMetrics {

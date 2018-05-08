@@ -1,5 +1,7 @@
-// Package util provides common functionality for monitoring components.
-package util
+// Package metrics provides common functionality for working with metrics,
+// particulary useful for monitoring components. It includes types to store,
+// check and filter metrics.
+package metrics
 
 import (
 	"errors"
@@ -8,11 +10,14 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-// ErrNoMetrics is returned when there are no metrics in a MetricsWindow.
+// DefaultWindowCap sets the amount of metrics to store per peer.
+var DefaultWindowCap = 25
+
+// ErrNoMetrics is returned when there are no metrics in a Window.
 var ErrNoMetrics = errors.New("no metrics have been added to this window")
 
-// MetricsWindow implements a circular queue to store metrics.
-type MetricsWindow struct {
+// Window implements a circular queue to store metrics.
+type Window struct {
 	last int
 
 	safe       bool
@@ -20,12 +25,16 @@ type MetricsWindow struct {
 	window     []api.Metric
 }
 
-// NewMetricsWindow creates an instance with the given
+// NewWindow creates an instance with the given
 // window capacity. The safe indicates whether we use a lock
 // for concurrent operations.
-func NewMetricsWindow(windowCap int, safe bool) *MetricsWindow {
+func NewWindow(windowCap int, safe bool) *Window {
+	if windowCap <= 0 {
+		panic("invalid windowCap")
+	}
+
 	w := make([]api.Metric, 0, windowCap)
-	return &MetricsWindow{
+	return &Window{
 		last:   0,
 		safe:   safe,
 		window: w,
@@ -35,7 +44,7 @@ func NewMetricsWindow(windowCap int, safe bool) *MetricsWindow {
 // Add adds a new metric to the window. If the window capacity
 // has been reached, the oldest metric (by the time it was added),
 // will be discarded.
-func (mw *MetricsWindow) Add(m api.Metric) {
+func (mw *Window) Add(m api.Metric) {
 	if mw.safe {
 		mw.windowLock.Lock()
 		defer mw.windowLock.Unlock()
@@ -54,7 +63,7 @@ func (mw *MetricsWindow) Add(m api.Metric) {
 
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
-func (mw *MetricsWindow) Latest() (api.Metric, error) {
+func (mw *Window) Latest() (api.Metric, error) {
 	if mw.safe {
 		mw.windowLock.Lock()
 		defer mw.windowLock.Unlock()
@@ -68,7 +77,7 @@ func (mw *MetricsWindow) Latest() (api.Metric, error) {
 // All returns all the metrics in the window, in the inverse order
 // they were Added. That is, result[0] will be the last added
 // metric.
-func (mw *MetricsWindow) All() []api.Metric {
+func (mw *Window) All() []api.Metric {
 	if mw.safe {
 		mw.windowLock.Lock()
 		defer mw.windowLock.Unlock()

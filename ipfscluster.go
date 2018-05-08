@@ -167,9 +167,9 @@ type PeerMonitor interface {
 	// PublishMetric sends a metric to the rest of the peers.
 	// How to send it, and to who, is to be decided by the implementation.
 	PublishMetric(api.Metric) error
-	// LastMetrics returns a map with the latest metrics of matching name
+	// LastestMetrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
-	LastMetrics(name string) []api.Metric
+	LastestMetrics(name string) []api.Metric
 	// Alerts delivers alerts generated when this peer monitor detects
 	// a problem (i.e. metrics not arriving as expected). Alerts can be used
 	// to trigger self-healing measures or re-pinnings of content.

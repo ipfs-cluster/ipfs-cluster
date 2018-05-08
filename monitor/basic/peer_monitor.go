@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/monitor/util"
+	"github.com/ipfs/ipfs-cluster/monitor/metrics"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -22,12 +21,6 @@ import (
 
 var logger = logging.Logger("monitor")
 
-// AlertChannelCap specifies how much buffer the alerts channel has.
-var AlertChannelCap = 256
-
-// DefaultWindowCap sets the amount of metrics to store per peer.
-var DefaultWindowCap = 25
-
 // Monitor is a component in charge of monitoring peers, logging
 // metrics and detecting failures
 type Monitor struct {
@@ -36,12 +29,8 @@ type Monitor struct {
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	metrics    util.Metrics
-	metricsMux sync.RWMutex
-	windowCap  int
-
-	checker *util.MetricsChecker
-	alerts  chan api.Alert
+	metrics *metrics.Store
+	checker *metrics.Checker
 
 	config *Config
 
@@ -50,35 +39,26 @@ type Monitor struct {
 	wg           sync.WaitGroup
 }
 
-// NewMonitor creates a new monitor. It receives the window capacity
-// (how many metrics to keep for each peer and type of metric) and the
-// monitoringInterval (interval between the checks that produce alerts)
-// as parameters
+// NewMonitor creates a new monitor using the given config.
 func NewMonitor(cfg *Config) (*Monitor, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	if DefaultWindowCap <= 0 {
-		panic("windowCap too small")
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
-	alertCh := make(chan api.Alert, AlertChannelCap)
-	metrics := make(util.Metrics)
+	mtrs := metrics.NewStore()
+	checker := metrics.NewChecker(mtrs)
 
 	mon := &Monitor{
 		ctx:      ctx,
 		cancel:   cancel,
 		rpcReady: make(chan struct{}, 1),
 
-		metrics:   metrics,
-		windowCap: DefaultWindowCap,
-		checker:   util.NewMetricsChecker(metrics, alertCh),
-		alerts:    alertCh,
-		config:    cfg,
+		metrics: mtrs,
+		checker: checker,
+		config:  cfg,
 	}
 
 	go mon.run()
@@ -88,7 +68,7 @@ func NewMonitor(cfg *Config) (*Monitor, error) {
 func (mon *Monitor) run() {
 	select {
 	case <-mon.rpcReady:
-		go mon.monitor()
+		go mon.checker.Watch(mon.ctx, mon.getPeers, mon.config.CheckInterval)
 	case <-mon.ctx.Done():
 	}
 }
@@ -120,25 +100,8 @@ func (mon *Monitor) Shutdown() error {
 
 // LogMetric stores a metric so it can later be retrieved.
 func (mon *Monitor) LogMetric(m api.Metric) error {
-	mon.metricsMux.Lock()
-	defer mon.metricsMux.Unlock()
-	name := m.Name
-	peer := m.Peer
-	mbyp, ok := mon.metrics[name]
-	if !ok {
-		mbyp = make(util.PeerMetrics)
-		mon.metrics[name] = mbyp
-	}
-	window, ok := mbyp[peer]
-	if !ok {
-		// We always lock the outer map, so we can use unsafe
-		// MetricsWindow.
-		window = util.NewMetricsWindow(mon.windowCap, false)
-		mbyp[peer] = window
-	}
-
-	logger.Debugf("logged '%s' metric from '%s'. Expires on %d", name, peer, m.Expire)
-	window.Add(m)
+	mon.metrics.Add(m)
+	logger.Debugf("basic monitor logged '%s' metric from '%s'. Expires on %d", m.Name, m.Peer, m.Expire)
 	return nil
 }
 
@@ -151,7 +114,7 @@ func (mon *Monitor) PublishMetric(m api.Metric) error {
 
 	peers, err := mon.getPeers()
 	if err != nil {
-		logger.Error("PublishPeers could not list peers:", err)
+		return err
 	}
 
 	ctxs, cancels := rpcutil.CtxsWithTimeout(mon.ctx, len(peers), m.GetTTL()/2)
@@ -204,7 +167,6 @@ func (mon *Monitor) PublishMetric(m api.Metric) error {
 
 // getPeers gets the current list of peers from the consensus component
 func (mon *Monitor) getPeers() ([]peer.ID, error) {
-	// Ger current list of peers
 	var peers []peer.ID
 	err := mon.rpcClient.Call(
 		"",
@@ -213,98 +175,28 @@ func (mon *Monitor) getPeers() ([]peer.ID, error) {
 		struct{}{},
 		&peers,
 	)
+	if err != nil {
+		logger.Error(err)
+	}
 	return peers, err
 }
 
-// func (mon *Monitor) getLastMetric(name string, p peer.ID) api.Metric {
-// 	mon.metricsMux.RLock()
-// 	defer mon.metricsMux.RUnlock()
+// LatestMetrics returns last known VALID metrics of a given type. A metric
+// is only valid if it has not expired and belongs to a current cluster peers.
+func (mon *Monitor) LatestMetrics(name string) []api.Metric {
+	latest := mon.metrics.Latest(name)
 
-// 	emptyMetric := api.Metric{
-// 		Name:  name,
-// 		Peer:  p,
-// 		Valid: false,
-// 	}
-
-// 	mbyp, ok := mon.metrics[name]
-// 	if !ok {
-// 		return emptyMetric
-// 	}
-
-// 	window, ok := mbyp[p]
-// 	if !ok {
-// 		return emptyMetric
-// 	}
-// 	metric, err := window.Latest()
-// 	if err != nil {
-// 		return emptyMetric
-// 	}
-// 	return metric
-// }
-
-// LastMetrics returns last known VALID metrics of a given type. A metric
-// is only valid if it has not expired and belongs to a current cluster peer.
-func (mon *Monitor) LastMetrics(name string) []api.Metric {
+	// Make sure we only return metrics in the current peerset
 	peers, err := mon.getPeers()
 	if err != nil {
-		logger.Errorf("LastMetrics could not list peers: %s", err)
 		return []api.Metric{}
 	}
 
-	mon.metricsMux.RLock()
-	defer mon.metricsMux.RUnlock()
-
-	mbyp, ok := mon.metrics[name]
-	if !ok {
-		logger.Warningf("LastMetrics: No %s metrics", name)
-		return []api.Metric{}
-	}
-
-	metrics := make([]api.Metric, 0, len(mbyp))
-
-	// only show metrics for current set of peers
-	for _, peer := range peers {
-		window, ok := mbyp[peer]
-		if !ok {
-			continue
-		}
-		last, err := window.Latest()
-		if err != nil || last.Discard() {
-			logger.Warningf("no valid last metric for peer: %+v", last)
-			continue
-		}
-		metrics = append(metrics, last)
-
-	}
-	return metrics
+	return metrics.PeersetFilter(latest, peers)
 }
 
 // Alerts returns a channel on which alerts are sent when the
 // monitor detects a failure.
 func (mon *Monitor) Alerts() <-chan api.Alert {
-	return mon.alerts
-}
-
-// monitor creates a ticker which fetches current
-// cluster peers and checks that the last metric for a peer
-// has not expired.
-func (mon *Monitor) monitor() {
-	ticker := time.NewTicker(mon.config.CheckInterval)
-	for {
-		select {
-		case <-ticker.C:
-			logger.Debug("monitoring tick")
-			peers, err := mon.getPeers()
-			if err != nil {
-				logger.Error(err)
-				break
-			}
-			mon.metricsMux.RLock()
-			mon.checker.CheckMetrics(peers)
-			mon.metricsMux.RUnlock()
-		case <-mon.ctx.Done():
-			ticker.Stop()
-			return
-		}
-	}
+	return mon.checker.Alerts()
 }
