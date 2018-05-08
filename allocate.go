@@ -48,10 +48,7 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 	// Figure out who is holding the CID
 	currentPin, _ := c.getCurrentPin(hash)
 	currentAllocs := currentPin.Allocations
-	metrics, err := c.getInformerMetrics()
-	if err != nil {
-		return nil, err
-	}
+	metrics := c.monitor.LatestMetrics(c.informer.Name())
 
 	currentMetrics := make(map[peer.ID]api.Metric)
 	candidatesMetrics := make(map[peer.ID]api.Metric)
@@ -100,26 +97,6 @@ func (c *Cluster) getCurrentPin(h *cid.Cid) (api.Pin, bool) {
 	}
 	ok := st.Has(h)
 	return st.Get(h), ok
-}
-
-// getInformerMetrics returns the MonitorLastMetrics() for the
-// configured informer.
-func (c *Cluster) getInformerMetrics() ([]api.Metric, error) {
-	var metrics []api.Metric
-	metricName := c.informer.Name()
-	l, err := c.consensus.Leader()
-	if err != nil {
-		return nil, errors.New("cannot determine leading Monitor")
-	}
-
-	err = c.rpcClient.Call(l,
-		"Cluster", "PeerMonitorLastMetrics",
-		metricName,
-		&metrics)
-	if err != nil {
-		return nil, err
-	}
-	return metrics, nil
 }
 
 // allocationError logs an allocation error

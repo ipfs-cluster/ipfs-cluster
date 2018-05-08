@@ -318,8 +318,8 @@ func (mock *mockService) PeerMonitorLogMetric(ctx context.Context, in api.Metric
 	return nil
 }
 
-// PeerMonitorLastMetrics runs PeerMonitor.LastMetrics().
-func (mock *mockService) PeerMonitorLastMetrics(ctx context.Context, in string, out *[]api.Metric) error {
+// PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
+func (mock *mockService) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
 	m := api.Metric{
 		Name:  "test",
 		Peer:  TestPeerID1,
