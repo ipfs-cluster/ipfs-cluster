@@ -85,6 +85,7 @@ func TestLogMetricConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
+	// Insert 25 metrics
 	f := func() {
 		defer wg.Done()
 		for i := 0; i < 25; i++ {
@@ -103,12 +104,14 @@ func TestLogMetricConcurrent(t *testing.T) {
 	go f()
 	go f()
 
-	time.Sleep(150 * time.Millisecond)
+	// Wait for at least two metrics to be inserted
+	time.Sleep(200 * time.Millisecond)
 	last := time.Now().Add(-500 * time.Millisecond)
 
 	for i := 0; i <= 20; i++ {
 		lastMtrcs := pm.LatestMetrics("test")
 
+		// There should always 1 valid LatestMetric "test"
 		if len(lastMtrcs) != 1 {
 			t.Error("no valid metrics", len(lastMtrcs), i)
 			time.Sleep(75 * time.Millisecond)
@@ -119,6 +122,9 @@ func TestLogMetricConcurrent(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		// The timestamp of the metric cannot be older than
+		// the timestamp from the last
 		current := time.Unix(0, int64(n))
 		if current.Before(last) {
 			t.Errorf("expected newer metric: Current: %s, Last: %s", current, last)

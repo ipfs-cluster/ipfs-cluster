@@ -31,7 +31,6 @@ func NewWindow(windowCap int) *Window {
 	w := make([]api.Metric, 0, windowCap)
 	return &Window{
 		last:   0,
-		safe:   safe,
 		window: w,
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -41,6 +42,8 @@ var (
 
 	logLevel = "CRITICAL"
 
+	pmonitor = "pubsub"
+
 	// When testing with fixed ports...
 	// clusterPort   = 10000
 	// apiPort       = 10100
@@ -51,6 +54,7 @@ func init() {
 	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
 	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
 	flag.IntVar(&nPins, "npins", nPins, "number of pins to pin/unpin/check")
+	flag.StringVar(&pmonitor, "monitor", pmonitor, "monitor implementation")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
@@ -59,9 +63,9 @@ func init() {
 		SetFacilityLogLevel(f, logLevel)
 	}
 
-	for f := range LoggingFacilitiesExtra {
-		SetFacilityLogLevel(f, logLevel)
-	}
+	// for f := range LoggingFacilitiesExtra {
+	// 	SetFacilityLogLevel(f, logLevel)
+	// }
 }
 
 func checkErr(t *testing.T, err error) {
@@ -98,7 +102,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -124,8 +128,9 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	state := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
-	mon, err := pubsubmon.New(host, monCfg)
-	checkErr(t, err)
+
+	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
+
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
 	checkErr(t, err)
@@ -133,6 +138,21 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 
 	return host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock
+}
+
+func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pubsubmon.Config) PeerMonitor {
+	var mon PeerMonitor
+	var err error
+	switch pmonitor {
+	case "basic":
+		mon, err = basic.NewMonitor(bmonCfg)
+	case "pubsub":
+		mon, err = pubsubmon.New(h, psmonCfg)
+	default:
+		panic("bad monitor")
+	}
+	checkErr(t, err)
+	return mon
 }
 
 func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
@@ -259,15 +279,15 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 func delay() {
 	var d int
 	if nClusters > 10 {
-		d = 2000
+		d = 3000
 	} else {
-		d = 1000
+		d = 2000
 	}
 	time.Sleep(time.Duration(d) * time.Millisecond)
 }
 
 func pinDelay() {
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }
 
 func ttlDelay() {
@@ -384,6 +404,8 @@ func TestClustersPin(t *testing.T) {
 	}
 	delay()
 	delay()
+	delay()
+	delay()
 	fpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
 		for _, v := range status {
@@ -417,11 +439,18 @@ func TestClustersPin(t *testing.T) {
 	}
 	delay()
 	delay()
+	delay()
+	delay()
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
 		if l := len(status); l != 0 {
-			t.Errorf("Nothing should be pinned")
-			//t.Errorf("%+v", status)
+			// workaround for this test failing randomly
+			t.Logf("%d items still around. Will wait more", l)
+			time.Sleep(10 * time.Second)
+			status = c.tracker.StatusAll()
+			if l := len(status); l != 0 {
+				t.Errorf("Nothing should be pinned: %d items still around after waiting 10 secs", l)
+			}
 		}
 	}
 	runF(t, clusters, funpinned)

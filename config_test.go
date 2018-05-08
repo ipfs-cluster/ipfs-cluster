@@ -5,6 +5,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
+	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 )
@@ -80,28 +81,30 @@ var testingDiskInfCfg = []byte(`{
     "metric_type": "freespace"
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *pubsubmon.Config, *disk.Config) {
-	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg := testingEmptyConfigs()
+func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
+	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
 	consensusCfg.LoadJSON(testingRaftCfg)
 	trackerCfg.LoadJSON(testingTrackerCfg)
-	monCfg.LoadJSON(testingMonCfg)
+	basicmonCfg.LoadJSON(testingMonCfg)
+	pubsubmonCfg.LoadJSON(testingMonCfg)
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 
-	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg
+	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *pubsubmon.Config, *disk.Config) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	consensusCfg := &raft.Config{}
 	trackerCfg := &maptracker.Config{}
-	monCfg := &pubsubmon.Config{}
+	basicmonCfg := &basic.Config{}
+	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
-	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, diskInfCfg
+	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
 }
 
 // func TestConfigDefault(t *testing.T) {
