@@ -558,7 +558,7 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 	}
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(peers))
-	defer rpcutil.Multicancel(cancels)
+	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
@@ -1002,7 +1002,7 @@ func (c *Cluster) Peers() []api.ID {
 	peers := make([]api.ID, len(members), len(members))
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
-	defer rpcutil.Multicancel(cancels)
+	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
@@ -1044,7 +1044,7 @@ func (c *Cluster) globalPinInfoCid(method string, h *cid.Cid) (api.GlobalPinInfo
 	}
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
-	defer rpcutil.Multicancel(cancels)
+	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
@@ -1105,7 +1105,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 	replies := make([][]api.PinInfoSerial, len(members), len(members))
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
-	defer rpcutil.Multicancel(cancels)
+	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,

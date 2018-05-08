@@ -118,7 +118,7 @@ func (mon *Monitor) PublishMetric(m api.Metric) error {
 	}
 
 	ctxs, cancels := rpcutil.CtxsWithTimeout(mon.ctx, len(peers), m.GetTTL()/2)
-	defer rpcutil.Multicancel(cancels)
+	defer rpcutil.MultiCancel(cancels)
 
 	logger.Debugf(
 		"broadcasting metric %s to %s. Expires: %d",

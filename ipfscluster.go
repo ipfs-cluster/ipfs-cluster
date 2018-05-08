@@ -152,12 +152,12 @@ type PinAllocator interface {
 	Allocate(c *cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
 }
 
-// PeerMonitor is a component in charge of publishing peers metrics and
+// PeerMonitor is a component in charge of publishing a peer's metrics and
 // reading metrics from other peers in the cluster. The PinAllocator will
 // use the metrics provided by the monitor as candidates for Pin allocations.
 //
 // The PeerMonitor component also provides an Alert channel which is signaled
-// when a metric is no longer received and the monitor judges identifies it
+// when a metric is no longer received and the monitor identifies it
 // as a problem.
 type PeerMonitor interface {
 	Component

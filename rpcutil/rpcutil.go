@@ -45,9 +45,9 @@ func CtxsWithCancel(
 	return ctxs, cancels
 }
 
-// Multicancel calls all the provided CancelFuncs. It
+// MultiCancel calls all the provided CancelFuncs. It
 // is useful with "defer Multicancel()"
-func Multicancel(cancels []context.CancelFunc) {
+func MultiCancel(cancels []context.CancelFunc) {
 	for _, cancel := range cancels {
 		cancel()
 	}

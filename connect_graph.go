@@ -23,7 +23,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	peersSerials := make([][]api.IDSerial, len(members), len(members))
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
-	defer rpcutil.Multicancel(cancels)
+	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
