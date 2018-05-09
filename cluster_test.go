@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -92,7 +91,7 @@ func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { retu
 func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
-	clusterCfg, _, _, consensusCfg, trackerCfg, monCfg, _ := testingConfigs()
+	clusterCfg, _, _, consensusCfg, trackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -103,10 +102,13 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
 	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
-	monCfg.CheckInterval = 2 * time.Second
 
 	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
-	mon, _ := basic.NewMonitor(monCfg)
+
+	bmonCfg.CheckInterval = 2 * time.Second
+	psmonCfg.CheckInterval = 2 * time.Second
+	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
+
 	alloc := ascendalloc.NewAllocator()
 	numpinCfg := &numpin.Config{}
 	numpinCfg.Default()

@@ -11,55 +11,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-// The copy functions below are used in calls to Cluste.multiRPC()
-// func copyPIDsToIfaces(in []peer.ID) []interface{} {
-// 	ifaces := make([]interface{}, len(in), len(in))
-// 	for i := range in {
-// 		ifaces[i] = &in[i]
-// 	}
-// 	return ifaces
-// }
-
-func copyIDSerialsToIfaces(in []api.IDSerial) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
-
-func copyPinInfoSerialToIfaces(in []api.PinInfoSerial) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
-
-func copyPinInfoSerialSliceToIfaces(in [][]api.PinInfoSerial) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
-
-func copyIDSerialSliceToIfaces(in [][]api.IDSerial) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
-
-func copyEmptyStructToIfaces(in []struct{}) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
-
 // PeersFromMultiaddrs returns all the different peers in the given addresses.
 // each peer only will appear once in the result, even if several
 // multiaddresses for it are provided.

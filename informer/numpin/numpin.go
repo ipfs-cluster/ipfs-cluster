@@ -78,6 +78,6 @@ func (npi *Informer) GetMetric() api.Metric {
 		Valid: valid,
 	}
 
-	m.SetTTLDuration(npi.config.MetricTTL)
+	m.SetTTL(npi.config.MetricTTL)
 	return m
 }

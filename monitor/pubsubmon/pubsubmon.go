@@ -1,25 +1,29 @@
-// Package basic implements a basic PeerMonitor component for IPFS Cluster. This
-// component is in charge of logging metrics and triggering alerts when a peer
-// goes down.
-package basic
+// Package pubsubmon implements a PeerMonitor component for IPFS Cluster that
+// uses PubSub to send and receive metrics.
+package pubsubmon
 
 import (
+	"bytes"
 	"context"
-	"errors"
-	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	logging "github.com/ipfs/go-log"
+	floodsub "github.com/libp2p/go-floodsub"
+	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+	msgpack "github.com/multiformats/go-multicodec/msgpack"
 )
 
 var logger = logging.Logger("monitor")
+
+// PubsubTopic specifies the topic used to publish Cluster metrics.
+var PubsubTopic = "monitor.metrics"
+
+var msgpackHandle = msgpack.DefaultMsgpackHandle()
 
 // Monitor is a component in charge of monitoring peers, logging
 // metrics and detecting failures
@@ -28,6 +32,10 @@ type Monitor struct {
 	cancel    func()
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
+
+	host         host.Host
+	pubsub       *floodsub.PubSub
+	subscription *floodsub.Subscription
 
 	metrics *metrics.Store
 	checker *metrics.Checker
@@ -39,8 +47,8 @@ type Monitor struct {
 	wg           sync.WaitGroup
 }
 
-// NewMonitor creates a new monitor using the given config.
-func NewMonitor(cfg *Config) (*Monitor, error) {
+// New creates a new PubSub monitor, using the given host and config.
+func New(h host.Host, cfg *Config) (*Monitor, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -51,10 +59,26 @@ func NewMonitor(cfg *Config) (*Monitor, error) {
 	mtrs := metrics.NewStore()
 	checker := metrics.NewChecker(mtrs)
 
+	pubsub, err := floodsub.NewFloodSub(ctx, h)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	subscription, err := pubsub.Subscribe(PubsubTopic)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
 	mon := &Monitor{
 		ctx:      ctx,
 		cancel:   cancel,
 		rpcReady: make(chan struct{}, 1),
+
+		host:         h,
+		pubsub:       pubsub,
+		subscription: subscription,
 
 		metrics: mtrs,
 		checker: checker,
@@ -68,8 +92,45 @@ func NewMonitor(cfg *Config) (*Monitor, error) {
 func (mon *Monitor) run() {
 	select {
 	case <-mon.rpcReady:
+		go mon.logFromPubsub()
 		go mon.checker.Watch(mon.ctx, mon.getPeers, mon.config.CheckInterval)
 	case <-mon.ctx.Done():
+	}
+}
+
+// logFromPubsub logs metrics received in the subscribed topic.
+func (mon *Monitor) logFromPubsub() {
+	for {
+		select {
+		case <-mon.ctx.Done():
+			return
+		default:
+			msg, err := mon.subscription.Next(mon.ctx)
+			if err != nil { // context cancelled enters here
+				continue
+			}
+
+			data := msg.GetData()
+			buf := bytes.NewBuffer(data)
+			dec := msgpack.Multicodec(msgpackHandle).Decoder(buf)
+			metric := api.Metric{}
+			err = dec.Decode(&metric)
+			if err != nil {
+				logger.Error(err)
+				continue
+			}
+			logger.Debugf(
+				"received pubsub metric '%s' from '%s'",
+				metric.Name,
+				metric.Peer,
+			)
+
+			err = mon.LogMetric(metric)
+			if err != nil {
+				logger.Error(err)
+				continue
+			}
+		}
 	}
 }
 
@@ -92,7 +153,9 @@ func (mon *Monitor) Shutdown() error {
 
 	logger.Info("stopping Monitor")
 	close(mon.rpcReady)
+
 	mon.cancel()
+
 	mon.wg.Wait()
 	mon.shutdown = true
 	return nil
@@ -101,7 +164,7 @@ func (mon *Monitor) Shutdown() error {
 // LogMetric stores a metric so it can later be retrieved.
 func (mon *Monitor) LogMetric(m api.Metric) error {
 	mon.metrics.Add(m)
-	logger.Debugf("basic monitor logged '%s' metric from '%s'. Expires on %d", m.Name, m.Peer, m.Expire)
+	logger.Debugf("pubsub mon logged '%s' metric from '%s'. Expires on %d", m.Name, m.Peer, m.Expire)
 	return nil
 }
 
@@ -112,56 +175,27 @@ func (mon *Monitor) PublishMetric(m api.Metric) error {
 		return nil
 	}
 
-	peers, err := mon.getPeers()
+	var b bytes.Buffer
+
+	enc := msgpack.Multicodec(msgpackHandle).Encoder(&b)
+	err := enc.Encode(m)
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
-	ctxs, cancels := rpcutil.CtxsWithTimeout(mon.ctx, len(peers), m.GetTTL()/2)
-	defer rpcutil.MultiCancel(cancels)
-
 	logger.Debugf(
-		"broadcasting metric %s to %s. Expires: %d",
+		"publishing metric %s to pubsub. Expires: %d",
 		m.Name,
-		peers,
 		m.Expire,
 	)
 
-	// This may hang if one of the calls does, but we will return when the
-	// context expires.
-	errs := mon.rpcClient.MultiCall(
-		ctxs,
-		peers,
-		"Cluster",
-		"PeerMonitorLogMetric",
-		m,
-		rpcutil.RPCDiscardReplies(len(peers)),
-	)
-
-	var errStrs []string
-
-	for i, e := range errs {
-		if e != nil {
-			errStr := fmt.Sprintf(
-				"error pushing metric to %s: %s",
-				peers[i].Pretty(),
-				e,
-			)
-			logger.Errorf(errStr)
-			errStrs = append(errStrs, errStr)
-		}
+	err = mon.pubsub.Publish(PubsubTopic, b.Bytes())
+	if err != nil {
+		logger.Error(err)
+		return err
 	}
 
-	if len(errStrs) > 0 {
-		return errors.New(strings.Join(errStrs, "\n"))
-	}
-
-	logger.Debugf(
-		"broadcasted metric %s to [%s]. Expires: %d",
-		m.Name,
-		peers,
-		m.Expire,
-	)
 	return nil
 }
 

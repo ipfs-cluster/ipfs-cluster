@@ -311,6 +311,27 @@ func (mock *mockService) PeerManagerAddPeer(ctx context.Context, in api.Multiadd
 	return nil
 }
 
+/* PeerMonitor methods */
+
+// PeerMonitorLogMetric runs PeerMonitor.LogMetric().
+func (mock *mockService) PeerMonitorLogMetric(ctx context.Context, in api.Metric, out *struct{}) error {
+	return nil
+}
+
+// PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
+func (mock *mockService) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
+	m := api.Metric{
+		Name:  "test",
+		Peer:  TestPeerID1,
+		Value: "0",
+		Valid: true,
+	}
+	m.SetTTL(2 * time.Second)
+	last := []api.Metric{m}
+	*out = last
+	return nil
+}
+
 /* IPFSConnector methods */
 
 func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {

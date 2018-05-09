@@ -3,14 +3,14 @@ package rest
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"testing"
 	"strings"
-	"crypto/x509"
-	"crypto/tls"
+	"testing"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -23,9 +23,9 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-const(
+const (
 	SSLCertFile = "test/server.crt"
-	SSLKeyFile = "test/server.key"
+	SSLKeyFile  = "test/server.key"
 )
 
 func testAPI(t *testing.T) *API {
@@ -149,7 +149,6 @@ func httpClient(t *testing.T, h host.Host, isHTTPS bool) *http.Client {
 	}
 	return &http.Client{Transport: tr}
 }
-
 
 func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)

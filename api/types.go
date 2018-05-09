@@ -612,14 +612,8 @@ type Metric struct {
 	Valid  bool  // if the metric is not valid it will be discarded
 }
 
-// SetTTL sets Metric to expire after the given seconds
-func (m *Metric) SetTTL(seconds int) {
-	d := time.Duration(seconds) * time.Second
-	m.SetTTLDuration(d)
-}
-
-// SetTTLDuration sets Metric to expire after the given time.Duration
-func (m *Metric) SetTTLDuration(d time.Duration) {
+// SetTTL sets Metric to expire after the given time.Duration
+func (m *Metric) SetTTL(d time.Duration) {
 	exp := time.Now().Add(d)
 	m.Expire = exp.UnixNano()
 }

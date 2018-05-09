@@ -370,9 +370,9 @@ func (rpcapi *RPCAPI) PeerMonitorLogMetric(ctx context.Context, in api.Metric, o
 	return nil
 }
 
-// PeerMonitorLastMetrics runs PeerMonitor.LastMetrics().
-func (rpcapi *RPCAPI) PeerMonitorLastMetrics(ctx context.Context, in string, out *[]api.Metric) error {
-	*out = rpcapi.c.monitor.LastMetrics(in)
+// PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
+func (rpcapi *RPCAPI) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
+	*out = rpcapi.c.monitor.LatestMetrics(in)
 	return nil
 }
 
