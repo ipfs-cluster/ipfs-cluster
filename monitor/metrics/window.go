@@ -5,7 +5,6 @@ package metrics
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -18,17 +17,13 @@ var ErrNoMetrics = errors.New("no metrics have been added to this window")
 
 // Window implements a circular queue to store metrics.
 type Window struct {
-	last int
-
-	safe       bool
-	windowLock sync.RWMutex
-	window     []api.Metric
+	last   int
+	window []api.Metric
 }
 
 // NewWindow creates an instance with the given
-// window capacity. The safe indicates whether we use a lock
-// for concurrent operations.
-func NewWindow(windowCap int, safe bool) *Window {
+// window capacity.
+func NewWindow(windowCap int) *Window {
 	if windowCap <= 0 {
 		panic("invalid windowCap")
 	}
@@ -45,10 +40,6 @@ func NewWindow(windowCap int, safe bool) *Window {
 // has been reached, the oldest metric (by the time it was added),
 // will be discarded.
 func (mw *Window) Add(m api.Metric) {
-	if mw.safe {
-		mw.windowLock.Lock()
-		defer mw.windowLock.Unlock()
-	}
 	if len(mw.window) < cap(mw.window) {
 		mw.window = append(mw.window, m)
 		mw.last = len(mw.window) - 1
@@ -64,10 +55,6 @@ func (mw *Window) Add(m api.Metric) {
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
 func (mw *Window) Latest() (api.Metric, error) {
-	if mw.safe {
-		mw.windowLock.Lock()
-		defer mw.windowLock.Unlock()
-	}
 	if len(mw.window) == 0 {
 		return api.Metric{}, ErrNoMetrics
 	}
@@ -78,10 +65,6 @@ func (mw *Window) Latest() (api.Metric, error) {
 // they were Added. That is, result[0] will be the last added
 // metric.
 func (mw *Window) All() []api.Metric {
-	if mw.safe {
-		mw.windowLock.Lock()
-		defer mw.windowLock.Unlock()
-	}
 	wlen := len(mw.window)
 	res := make([]api.Metric, 0, wlen)
 	if wlen == 0 {

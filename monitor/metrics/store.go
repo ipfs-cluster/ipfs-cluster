@@ -40,7 +40,7 @@ func (mtrs *Store) Add(m api.Metric) {
 	if !ok {
 		// We always lock the outer map, so we can use unsafe
 		// Window.
-		window = NewWindow(DefaultWindowCap, false)
+		window = NewWindow(DefaultWindowCap)
 		mbyp[peer] = window
 	}
 
