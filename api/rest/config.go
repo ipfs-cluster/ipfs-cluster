@@ -207,10 +207,10 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 
 	return config.ParseDurations(
 		"restapi",
-		&config.DurationOpt{jcfg.ReadTimeout, &cfg.ReadTimeout, "read_timeout"},
-		&config.DurationOpt{jcfg.ReadHeaderTimeout, &cfg.ReadHeaderTimeout, "read_header_timeout"},
-		&config.DurationOpt{jcfg.WriteTimeout, &cfg.WriteTimeout, "write_timeout"},
-		&config.DurationOpt{jcfg.IdleTimeout, &cfg.IdleTimeout, "idle_timeout"},
+		&config.DurationOpt{Duration: jcfg.ReadTimeout, Dst: &cfg.ReadTimeout, Name: "read_timeout"},
+		&config.DurationOpt{Duration: jcfg.ReadHeaderTimeout, Dst: &cfg.ReadHeaderTimeout, Name: "read_header_timeout"},
+		&config.DurationOpt{Duration: jcfg.WriteTimeout, Dst: &cfg.WriteTimeout, Name: "write_timeout"},
+		&config.DurationOpt{Duration: jcfg.IdleTimeout, Dst: &cfg.IdleTimeout, Name: "idle_timeout"},
 	)
 }
 
