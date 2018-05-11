@@ -440,11 +440,10 @@ func TestClustersPin(t *testing.T) {
 	delay()
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
-		if l := len(status); l != 0 {
-			status = c.tracker.StatusAll()
-			if l := len(status); l != 0 {
-				t.Errorf("Nothing should be pinned: %d items still around after waiting 10 secs", l)
-			}
+		for _, v := range status {
+			t.Errorf("%s should have been unpinned but it is %s",
+				v.Cid,
+				v.Status.String())
 		}
 	}
 	runF(t, clusters, funpinned)
