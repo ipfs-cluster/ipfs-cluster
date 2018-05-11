@@ -441,6 +441,7 @@ func TestClustersPin(t *testing.T) {
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
 		for _, v := range status {
+			fmt.Println(v)
 			t.Errorf("%s should have been unpinned but it is %s",
 				v.Cid,
 				v.Status.String())

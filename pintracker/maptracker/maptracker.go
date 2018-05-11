@@ -83,7 +83,7 @@ func (mpt *MapPinTracker) pinWorker() {
 					p.Cid,
 					phaseInProgress,
 				)
-				fmt.Println("tracker pinning:", p.Cid)
+				fmt.Println("tracker pinning:", mpt.peerID, p.Cid)
 				mpt.pin(p)
 			}
 		case <-mpt.ctx.Done():
@@ -102,7 +102,7 @@ func (mpt *MapPinTracker) unpinWorker() {
 					p.Cid,
 					phaseInProgress,
 				)
-				fmt.Println("tracker unpinning:", p.Cid)
+				fmt.Println("tracker unpinning:", mpt.peerID, p.Cid)
 				mpt.unpin(p)
 			}
 		case <-mpt.ctx.Done():
@@ -137,6 +137,8 @@ func (mpt *MapPinTracker) set(c *cid.Cid, s api.TrackerStatus) {
 }
 
 func (mpt *MapPinTracker) unsafeSet(c *cid.Cid, s api.TrackerStatus) {
+	fmt.Println("set:", mpt.peerID, c, s)
+
 	if s == api.TrackerStatusUnpinned {
 		delete(mpt.status, c.String())
 		return
@@ -452,6 +454,7 @@ func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 }
 
 func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
+	fmt.Println("syncStatus:", mpt.peerID, c)
 	p := mpt.get(c)
 	if ips.IsPinned() {
 		switch p.Status {
