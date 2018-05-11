@@ -38,7 +38,7 @@ var (
 	nClusters = 5
 
 	// number of pins to pin/unpin/check
-	nPins = 100
+	nPins = 500
 
 	logLevel = "CRITICAL"
 
