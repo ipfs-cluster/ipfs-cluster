@@ -5,6 +5,7 @@ package maptracker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -82,6 +83,7 @@ func (mpt *MapPinTracker) pinWorker() {
 					p.Cid,
 					phaseInProgress,
 				)
+				fmt.Println("tracker pinning:", p.Cid)
 				mpt.pin(p)
 			}
 		case <-mpt.ctx.Done():
@@ -100,6 +102,7 @@ func (mpt *MapPinTracker) unpinWorker() {
 					p.Cid,
 					phaseInProgress,
 				)
+				fmt.Println("tracker unpinning:", p.Cid)
 				mpt.unpin(p)
 			}
 		case <-mpt.ctx.Done():
