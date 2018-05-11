@@ -608,6 +608,8 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 // Pin performs a pin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) error {
+	fmt.Println("ipfs pinning:", hash)
+
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
 	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
@@ -639,6 +641,8 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) e
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
+	fmt.Println("ipfs unpinning:", hash)
+
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
 	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)

@@ -2,6 +2,7 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -55,6 +56,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
+		fmt.Println("logop untrack:", op.Cid)
 		op.consensus.rpcClient.Go("",
 			"Cluster",
 			"Untrack",
