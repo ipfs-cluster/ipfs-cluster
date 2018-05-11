@@ -20,27 +20,27 @@ jobs:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
-        - ./coverage.sh
-    - script:
-        - go get -u github.com/mattn/goveralls
-        - go get -u golang.org/x/tools/cmd/cover
-        - make deps
-        - go test -v . -monitor basic
-    - script:
-        - go get -u github.com/golang/lint/golint
-        - make deps
-        - make check
-        - make service
-        - make ctl
-    - script:
-        - make docker
-    - script:
-        - sudo apt-get update
-        - sudo apt-get install -y jq curl
-        - make deps
-        - make install
-        - docker pull ipfs/go-ipfs
-        - make test_sharness && make clean_sharness
+        - go test -v -run TestClustersPin .
+    # - script:
+    #     - go get -u github.com/mattn/goveralls
+    #     - go get -u golang.org/x/tools/cmd/cover
+    #     - make deps
+    #     - go test -v . -monitor basic
+    # - script:
+    #     - go get -u github.com/golang/lint/golint
+    #     - make deps
+    #     - make check
+    #     - make service
+    #     - make ctl
+    # - script:
+    #     - make docker
+    # - script:
+    #     - sudo apt-get update
+    #     - sudo apt-get install -y jq curl
+    #     - make deps
+    #     - make install
+    #     - docker pull ipfs/go-ipfs
+    #     - make test_sharness && make clean_sharness
 
 env:
   global:

@@ -1,2 +1,2 @@
-golang([test: "go test -v ./..."])
+golang([test: "go test -v -run TestClustersPin"])
 
