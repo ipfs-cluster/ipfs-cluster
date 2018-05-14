@@ -403,16 +403,11 @@ func TestClustersPin(t *testing.T) {
 		}
 	}
 	delay()
-	delay()
-	delay()
-	delay()
 	fpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
 		for _, v := range status {
 			if v.Status != api.TrackerStatusPinned {
-				t.Errorf("%s should have been pinned but it is %s",
-					v.Cid,
-					v.Status.String())
+				t.Errorf("%s should have been pinned but it is %s", v.Cid, v.Status)
 			}
 		}
 		if l := len(status); l != nPins {
@@ -438,19 +433,10 @@ func TestClustersPin(t *testing.T) {
 
 	}
 	delay()
-	delay()
-	delay()
-	delay()
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
-		if l := len(status); l != 0 {
-			// workaround for this test failing randomly
-			t.Logf("%d items still around. Will wait more", l)
-			time.Sleep(10 * time.Second)
-			status = c.tracker.StatusAll()
-			if l := len(status); l != 0 {
-				t.Errorf("Nothing should be pinned: %d items still around after waiting 10 secs", l)
-			}
+		for _, v := range status {
+			t.Errorf("%s should have been unpinned but it is %s", v.Cid, v.Status)
 		}
 	}
 	runF(t, clusters, funpinned)
