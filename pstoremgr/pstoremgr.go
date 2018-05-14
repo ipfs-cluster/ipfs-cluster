@@ -184,7 +184,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 		}
 		addr, err := ma.NewMultiaddr(addrStr)
 		if err != nil {
-			logger.Error(
+			logger.Errorf(
 				"error parsing multiaddress from %s: %s",
 				pm.peerstorePath,
 				err,
