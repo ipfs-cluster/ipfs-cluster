@@ -1,5 +1,5 @@
-gx_version=v0.12.1
-gx-go_version=v1.6.0
+gx_version=v0.13.0
+gx-go_version=v1.7.0
 
 deptools=deptools
 
@@ -39,23 +39,23 @@ ctl: deps
 
 $(gx_bin):
 	@echo "Downloading gx"
-	@mkdir -p ./$(deptools)
-	@rm -f $(deptools)/gx
-	@wget -nc -q -O $(gx_bin).tgz https://dist.ipfs.io/gx/$(gx_version)/$(gx)_$(bin_env).tar.gz
-	@tar -zxf $(gx_bin).tgz -C $(deptools) --strip-components=1 gx/gx
-	@mv $(deptools)/gx $(gx_bin)
-	@ln -s $(gx) $(deptools)/gx
-	@rm $(gx_bin).tgz
+	mkdir -p ./$(deptools)
+	rm -f $(deptools)/gx
+	wget -nc -O $(gx_bin).tgz https://dist.ipfs.io/gx/$(gx_version)/$(gx)_$(bin_env).tar.gz
+	tar -zxf $(gx_bin).tgz -C $(deptools) --strip-components=1 gx/gx
+	mv $(deptools)/gx $(gx_bin)
+	ln -s $(gx) $(deptools)/gx
+	rm $(gx_bin).tgz
 
 $(gx-go_bin):
 	@echo "Downloading gx-go"
-	@mkdir -p ./$(deptools)
-	@rm -f $(deptools)/gx-go
-	@wget -nc -q -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
-	@tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
-	@mv $(deptools)/gx-go $(gx-go_bin)
-	@ln -s $(gx-go) $(deptools)/gx-go
-	@rm $(gx-go_bin).tgz
+	mkdir -p ./$(deptools)
+	rm -f $(deptools)/gx-go
+	wget -nc -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
+	tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
+	mv $(deptools)/gx-go $(gx-go_bin)
+	ln -s $(gx-go) $(deptools)/gx-go
+	rm $(gx-go_bin).tgz
 
 gx: $(gx_bin) $(gx-go_bin)
 
