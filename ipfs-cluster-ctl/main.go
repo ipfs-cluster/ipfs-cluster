@@ -78,12 +78,7 @@ func checkErr(doing string, err error) {
 }
 
 func main() {
-	app := cli.NewApp()
-	app.Name = programName
-	app.Usage = "CLI for IPFS Cluster"
-	app.Description = Description
-	app.Version = Version
-	app.Flags = []cli.Flag{
+	globalFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost,
@@ -128,59 +123,13 @@ requires authorization. implies --https, which you can disable with --force-http
 		},
 	}
 
-	app.Before = func(c *cli.Context) error {
-		cfg := &client.Config{}
-
-		if c.Bool("debug") {
-			logging.SetLogLevel("cluster-ctl", "debug")
-			cfg.LogLevel = "debug"
-			logger.Debug("debug level enabled")
-		}
-
-		addr, err := ma.NewMultiaddr(c.String("host"))
-		checkErr("parsing host multiaddress", err)
-
-		// Is this a peer address?
-		pid, err := addr.ValueForProtocol(ma.P_IPFS)
-		if pid != "" && err == nil {
-			logger.Debugf("Using libp2p-http to %s", addr)
-			cfg.PeerAddr = addr
-			if hexSecret := c.String("secret"); hexSecret != "" {
-				secret, err := hex.DecodeString(hexSecret)
-				checkErr("parsing secret", err)
-				cfg.ProtectorKey = secret
-			}
-		} else {
-			logger.Debugf("Using http(s) to %s", addr)
-			cfg.APIAddr = addr
-		}
-
-		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
-
-		if cfg.PeerAddr != nil && c.Bool("https") {
-			logger.Warning("Using libp2p-http. SSL flags will be ignored")
-		}
-
-		cfg.SSL = c.Bool("https")
-		cfg.NoVerifyCert = c.Bool("no-check-certificate")
-		user, pass := parseCredentials(c.String("basic-auth"))
-		cfg.Username = user
-		cfg.Password = pass
-		if user != "" && !cfg.SSL && !c.Bool("force-http") {
-			logger.Warning("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
-			cfg.SSL = true
-		}
-
-		enc := c.String("encoding")
-		if enc != "text" && enc != "json" {
-			checkErr("", errors.New("unsupported encoding"))
-		}
-
-		globalClient, err = client.NewClient(cfg)
-		checkErr("creating API client", err)
-		return nil
-	}
-
+	app := cli.NewApp()
+	app.Name = programName
+	app.Usage = "CLI for IPFS Cluster"
+	app.Description = Description
+	app.Version = Version
+	app.Flags = globalFlags
+	app.Before = parseGlobalFlags
 	app.Commands = []cli.Command{
 		{
 			Name:  "id",
@@ -189,7 +138,8 @@ requires authorization. implies --https, which you can disable with --force-http
 This command displays information about the peer that the tool is contacting
 (usually running in localhost).
 `,
-			Flags: []cli.Flag{},
+			Flags:  append([]cli.Flag{}, globalFlags...),
+			Before: parseGlobalFlags,
 			Action: func(c *cli.Context) error {
 				resp, cerr := globalClient.ID()
 				formatResponse(c, resp, cerr)
@@ -206,7 +156,8 @@ This command displays information about the peer that the tool is contacting
 					Description: `
 This command provides a list of the ID information of all the peers in the Cluster.
 `,
-					Flags:     []cli.Flag{},
+					Flags:     append([]cli.Flag{}, globalFlags...),
+					Before:    parseGlobalFlags,
 					ArgsUsage: " ",
 					Action: func(c *cli.Context) error {
 						resp, cerr := globalClient.Peers()
@@ -224,7 +175,8 @@ operation to succeed, otherwise some nodes may be left with an outdated list of
 cluster peers.
 `,
 					ArgsUsage: "<peer ID>",
-					Flags:     []cli.Flag{},
+					Flags:     append([]cli.Flag{}, globalFlags...),
+					Before:    parseGlobalFlags,
 					Action: func(c *cli.Context) error {
 						pid := c.Args().First()
 						p, err := peer.IDB58Decode(pid)
@@ -256,7 +208,7 @@ and 0 means use cluster's default setting. Positive values indicate how many
 peers should pin this content.
 `,
 					ArgsUsage: "<CID>",
-					Flags: []cli.Flag{
+					Flags: append([]cli.Flag{
 						cli.IntFlag{
 							Name:  "replication, r",
 							Value: 0,
@@ -290,7 +242,8 @@ peers should pin this content.
 							Value: 0,
 							Usage: "How long to --wait (in seconds), default is indefinitely",
 						},
-					},
+					}, globalFlags...),
+					Before: parseGlobalFlags,
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
@@ -330,7 +283,7 @@ in the cluster. The CID should disappear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
 					ArgsUsage: "<CID>",
-					Flags: []cli.Flag{
+					Flags: append([]cli.Flag{
 						cli.BoolFlag{
 							Name:  "no-status, ns",
 							Usage: "Prevents fetching pin status after unpinning (faster, quieter)",
@@ -344,7 +297,8 @@ although unpinning operations in the cluster may take longer or fail.
 							Value: 0,
 							Usage: "How long to --wait (in seconds), default is indefinitely",
 						},
-					},
+					}, globalFlags...),
+					Before: parseGlobalFlags,
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
@@ -374,7 +328,8 @@ merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
 `,
 					ArgsUsage: "[CID]",
-					Flags:     []cli.Flag{},
+					Flags:     append([]cli.Flag{}, globalFlags...),
+					Before:    parseGlobalFlags,
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						if cidStr != "" {
@@ -407,9 +362,10 @@ When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
 `,
 			ArgsUsage: "[CID]",
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				localFlag(),
-			},
+			}, globalFlags...),
+			Before: parseGlobalFlags,
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
@@ -443,9 +399,10 @@ When the --local flag is passed, it will only trigger sync
 operations on the contacted peer. By default, all peers will sync.
 `,
 			ArgsUsage: "[CID]",
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				localFlag(),
-			},
+			}, globalFlags...),
+			Before: parseGlobalFlags,
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
@@ -475,9 +432,10 @@ When the --local flag is passed, it will only trigger recover
 operations on the contacted peer (as opposed to on every peer).
 `,
 			ArgsUsage: "[CID]",
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				localFlag(),
-			},
+			}, globalFlags...),
+			Before: parseGlobalFlags,
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
@@ -501,7 +459,8 @@ This command retrieves the IPFS Cluster version and can be used
 to check that it matches the CLI version (shown by -v).
 `,
 			ArgsUsage: " ",
-			Flags:     []cli.Flag{},
+			Flags:     append([]cli.Flag{}, globalFlags...),
+			Before:    parseGlobalFlags,
 			Action: func(c *cli.Context) error {
 				resp, cerr := globalClient.Version()
 				formatResponse(c, resp, cerr)
@@ -519,7 +478,7 @@ to check that it matches the CLI version (shown by -v).
 This command queries all connected cluster peers and their ipfs peers to generate a
 graph of the connections.  Output is a dot file encoding the cluster's connection state.
 `,
-					Flags: []cli.Flag{
+					Flags: append([]cli.Flag{
 						cli.StringFlag{
 							Name:  "file, f",
 							Value: "",
@@ -529,7 +488,8 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 							Name:  "all-ipfs-peers",
 							Usage: "causes the graph to mark nodes for ipfs peers not directly in the cluster",
 						},
-					},
+					}, globalFlags...),
+					Before: parseGlobalFlags,
 					Action: func(c *cli.Context) error {
 						resp, cerr := globalClient.GetConnectGraph()
 						if cerr != nil {
@@ -567,6 +527,59 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 	}
 
 	app.Run(os.Args)
+}
+
+func parseGlobalFlags(c *cli.Context) error {
+	cfg := &client.Config{}
+
+	if c.Bool("debug") {
+		logging.SetLogLevel("cluster-ctl", "debug")
+		cfg.LogLevel = "debug"
+		logger.Debug("debug level enabled")
+	}
+
+	addr, err := ma.NewMultiaddr(c.String("host"))
+	checkErr("parsing host multiaddress", err)
+
+	// Is this a peer address?
+	pid, err := addr.ValueForProtocol(ma.P_IPFS)
+	if pid != "" && err == nil {
+		logger.Debugf("Using libp2p-http to %s", addr)
+		cfg.PeerAddr = addr
+		if hexSecret := c.String("secret"); hexSecret != "" {
+			secret, err := hex.DecodeString(hexSecret)
+			checkErr("parsing secret", err)
+			cfg.ProtectorKey = secret
+		}
+	} else {
+		logger.Debugf("Using http(s) to %s", addr)
+		cfg.APIAddr = addr
+	}
+
+	cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
+
+	if cfg.PeerAddr != nil && c.Bool("https") {
+		logger.Warning("Using libp2p-http. SSL flags will be ignored")
+	}
+
+	cfg.SSL = c.Bool("https")
+	cfg.NoVerifyCert = c.Bool("no-check-certificate")
+	user, pass := parseCredentials(c.String("basic-auth"))
+	cfg.Username = user
+	cfg.Password = pass
+	if user != "" && !cfg.SSL && !c.Bool("force-http") {
+		logger.Warning("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
+		cfg.SSL = true
+	}
+
+	enc := c.String("encoding")
+	if enc != "text" && enc != "json" {
+		checkErr("", errors.New("unsupported encoding"))
+	}
+
+	globalClient, err = client.NewClient(cfg)
+	checkErr("creating API client", err)
+	return nil
 }
 
 func parseFlag(t int) cli.IntFlag {
