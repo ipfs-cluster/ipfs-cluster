@@ -726,31 +726,36 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 }
 
 // StateSync syncs the consensus state to the Pin Tracker, ensuring
-// that every Cid that should be tracked is tracked. It returns
-// PinInfo for Cids which were added or deleted.
-func (c *Cluster) StateSync() ([]api.PinInfo, error) {
+// that every Cid in the shared state is tracked and that the Pin Tracker
+// is not tracking more Cids than it should.
+func (c *Cluster) StateSync() error {
 	cState, err := c.consensus.State()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	logger.Debug("syncing state to tracker")
 	clusterPins := cState.List()
-	var changed []*cid.Cid
+
+	trackedPins := c.tracker.StatusAll()
+	trackedPinsMap := make(map[string]int)
+	for i, tpin := range trackedPins {
+		trackedPinsMap[tpin.Cid.String()] = i
+	}
 
 	// Track items which are not tracked
 	for _, pin := range clusterPins {
-		if c.tracker.Status(pin.Cid).Status == api.TrackerStatusUnpinned {
+		_, tracked := trackedPinsMap[pin.Cid.String()]
+		if !tracked {
 			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			changed = append(changed, pin.Cid)
-			go c.tracker.Track(pin)
+			c.tracker.Track(pin)
 		}
 	}
 
 	// a. Untrack items which should not be tracked
 	// b. Track items which should not be remote as local
 	// c. Track items which should not be local as remote
-	for _, p := range c.tracker.StatusAll() {
+	for _, p := range trackedPins {
 		pCid := p.Cid
 		currentPin := cState.Get(pCid)
 		has := cState.Has(pCid)
@@ -759,24 +764,17 @@ func (c *Cluster) StateSync() ([]api.PinInfo, error) {
 		switch {
 		case !has:
 			logger.Debugf("StateSync: Untracking %s, is not part of shared state", pCid)
-			changed = append(changed, pCid)
-			go c.tracker.Untrack(pCid)
+			c.tracker.Untrack(pCid)
 		case p.Status == api.TrackerStatusRemote && allocatedHere:
 			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			changed = append(changed, pCid)
-			go c.tracker.Track(currentPin)
+			c.tracker.Track(currentPin)
 		case p.Status == api.TrackerStatusPinned && !allocatedHere:
 			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			changed = append(changed, pCid)
-			go c.tracker.Track(currentPin)
+			c.tracker.Track(currentPin)
 		}
 	}
 
-	var infos []api.PinInfo
-	for _, h := range changed {
-		infos = append(infos, c.tracker.Status(h))
-	}
-	return infos, nil
+	return nil
 }
 
 // StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.

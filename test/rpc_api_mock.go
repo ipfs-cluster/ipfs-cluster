@@ -226,11 +226,6 @@ func (mock *mockService) SyncLocal(ctx context.Context, in api.PinSerial, out *a
 	return mock.StatusLocal(ctx, in, out)
 }
 
-func (mock *mockService) StateSync(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	*out = make([]api.PinInfoSerial, 0, 0)
-	return nil
-}
-
 func (mock *mockService) RecoverAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	return mock.TrackerRecoverAll(ctx, in, out)
 }
