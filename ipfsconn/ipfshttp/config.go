@@ -22,7 +22,7 @@ const (
 	DefaultProxyReadHeaderTimeout = 5 * time.Second
 	DefaultProxyWriteTimeout      = 10 * time.Minute
 	DefaultProxyIdleTimeout       = 60 * time.Second
-	DefaultPinMethod              = "pin"
+	DefaultPinMethod              = "refs"
 	DefaultIPFSRequestTimeout     = 5 * time.Minute
 	DefaultPinTimeout             = 24 * time.Hour
 	DefaultUnpinTimeout           = 3 * time.Hour
