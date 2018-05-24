@@ -192,13 +192,6 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *a
 	return err
 }
 
-// StateSync runs Cluster.StateSync().
-func (rpcapi *RPCAPI) StateSync(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
-	pinfos, err := rpcapi.c.StateSync()
-	*out = pinInfoSliceToSerial(pinfos)
-	return err
-}
-
 /*
    Tracker component methods
 */
