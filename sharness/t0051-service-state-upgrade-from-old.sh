@@ -18,7 +18,7 @@ test_expect_success IPFS,CLUSTER,V1STATE,JQ "cluster-service loads v1 state corr
      ipfs-cluster-ctl pin add "$cid2" &&
      cluster_kill &&
      sleep 15 &&
-     SNAP_DIR=`find test-config/ipfs-cluster-data/snapshots/ -maxdepth 1 -mindepth 1 | head -n 1` &&
+     SNAP_DIR=`find test-config/raft/snapshots/ -maxdepth 1 -mindepth 1 | head -n 1` &&
      cp v1State "$SNAP_DIR/state.bin" &&
      cat "$SNAP_DIR/meta.json" | jq --arg CRC "$V1_CRC" '"'"'.CRC = $CRC'"'"' > tmp.json &&
      cp tmp.json "$SNAP_DIR/meta.json" &&

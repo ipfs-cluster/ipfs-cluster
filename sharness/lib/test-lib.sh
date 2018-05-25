@@ -72,7 +72,7 @@ test_cluster_init() {
         echo "cluster init FAIL: error on ipfs cluster init"
         exit 1
     fi
-    rm -rf "test-config/ipfs-cluster-data"
+    rm -rf "test-config/raft"
     if [ -n "$custom_config_files" ]; then
         cp -f ${custom_config_files}/* "test-config"
     fi

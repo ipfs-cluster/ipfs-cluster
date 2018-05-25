@@ -20,7 +20,7 @@ var configKey = "raft"
 
 // Configuration defaults
 var (
-	DefaultDataSubFolder        = "ipfs-cluster-data"
+	DefaultDataSubFolder        = "raft"
 	DefaultWaitForLeaderTimeout = 15 * time.Second
 	DefaultCommitRetries        = 1
 	DefaultNetworkTimeout       = 10 * time.Second
