@@ -330,6 +330,9 @@ func (mock *mockService) PeerMonitorLatestMetrics(ctx context.Context, in string
 /* IPFSConnector methods */
 
 func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+	if in.Cid == ErrorCid {
+		return ErrBadCid
+	}
 	return nil
 }
 
@@ -349,7 +352,7 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out
 func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m := map[string]api.IPFSPinStatus{
 		TestCid1: api.IPFSPinStatusRecursive,
-		TestCid3: api.IPFSPinStatusRecursive,
+		// TestCid3: api.IPFSPinStatusRecursive,
 	}
 	*out = m
 	return nil

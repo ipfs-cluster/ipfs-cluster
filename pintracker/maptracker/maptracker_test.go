@@ -11,6 +11,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/optracker"
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
@@ -423,12 +424,12 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond) // let pinning start
 
-	opc, ok := mpt.optracker.get(slowPin.Cid)
+	opc, ok := mpt.optracker.Get(slowPin.Cid)
 	if !ok {
 		t.Fatal("slowPin should be tracked")
 	}
 
-	if opc.phase == phaseInProgress && opc.op == operationPin {
+	if opc.Phase == optracker.PhaseInProgress && opc.Op == optracker.OperationPin {
 		go func() {
 			err = mpt.Untrack(slowPinCid)
 			if err != nil {
@@ -436,13 +437,13 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 			}
 		}()
 		select {
-		case <-opc.ctx.Done():
+		case <-opc.Ctx.Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
 		}
 	} else {
-		t.Error("slowPin should be pinning and is:", opc.phase)
+		t.Error("slowPin should be pinning and is:", opc.Phase)
 	}
 }
 
@@ -480,8 +481,8 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	// fastPin should be queued because slow pin is pinning
-	opc, _ := mpt.optracker.get(fastPin.Cid)
-	if opc.phase == phaseQueued && opc.op == operationPin {
+	opc, _ := mpt.optracker.Get(fastPin.Cid)
+	if opc.Phase == optracker.PhaseQueued && opc.Op == optracker.OperationPin {
 		err = mpt.Untrack(fastPinCid)
 		if err != nil {
 			t.Fatal(err)
@@ -494,7 +495,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		t.Error("fastPin should be queued to pin")
 	}
 
-	_, ok := mpt.optracker.get(fastPin.Cid)
+	_, ok := mpt.optracker.Get(fastPin.Cid)
 	if ok {
 		t.Error("fastPin should have been removed from tracker")
 	}
@@ -530,12 +531,12 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	opc, ok := mpt.optracker.get(slowPin.Cid)
+	opc, ok := mpt.optracker.Get(slowPin.Cid)
 	if !ok {
 		t.Fatal("expected slowPin to be tracked")
 	}
 
-	if opc.phase == phaseInProgress && opc.op == operationUnpin {
+	if opc.Phase == optracker.PhaseInProgress && opc.Op == optracker.OperationUnpin {
 		go func() {
 			err = mpt.Track(slowPin)
 			if err != nil {
@@ -543,7 +544,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 			}
 		}()
 		select {
-		case <-opc.ctx.Done():
+		case <-opc.Ctx.Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -599,12 +600,12 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	opc, ok := mpt.optracker.get(fastPin.Cid)
+	opc, ok := mpt.optracker.Get(fastPin.Cid)
 	if !ok {
 		t.Fatal("c untrack operation should be tracked")
 	}
 
-	if opc.phase == phaseQueued && opc.op == operationUnpin {
+	if opc.Phase == optracker.PhaseQueued && opc.Op == optracker.OperationUnpin {
 		err = mpt.Track(fastPin)
 		if err != nil {
 			t.Fatal(err)
