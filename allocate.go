@@ -119,8 +119,10 @@ func allocationError(hash *cid.Cid, needed, wanted int, candidatesValid []peer.I
 func (c *Cluster) obtainAllocations(
 	hash *cid.Cid,
 	rplMin, rplMax int,
-	currentValidMetrics, candidatesMetrics map[peer.ID]api.Metric,
-	priorityMetrics map[peer.ID]api.Metric) ([]peer.ID, error) {
+	currentValidMetrics map[peer.ID]api.Metric,
+	candidatesMetrics map[peer.ID]api.Metric,
+	priorityMetrics map[peer.ID]api.Metric,
+) ([]peer.ID, error) {
 
 	// The list of peers in current
 	validAllocations := make([]peer.ID, 0, len(currentValidMetrics))
