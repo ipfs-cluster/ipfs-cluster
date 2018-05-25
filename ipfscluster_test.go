@@ -63,9 +63,9 @@ func init() {
 		SetFacilityLogLevel(f, logLevel)
 	}
 
-	// for f := range LoggingFacilitiesExtra {
-	// 	SetFacilityLogLevel(f, logLevel)
-	// }
+	for f := range LoggingFacilitiesExtra {
+		SetFacilityLogLevel(f, logLevel)
+	}
 }
 
 func checkErr(t *testing.T, err error) {
@@ -717,9 +717,13 @@ func TestClustersRecoverLocal(t *testing.T) {
 
 	f := func(t *testing.T, c *Cluster) {
 		info, err := c.RecoverLocal(h)
-		if err == nil {
-			t.Error("expected an error recovering")
+		if err != nil {
+			t.Fatal(err)
 		}
+		// Wait for queue to be processed
+		delay()
+
+		info = c.StatusLocal(h)
 		if info.Status != api.TrackerStatusPinError {
 			t.Errorf("element is %s and not PinError", info.Status)
 		}
@@ -752,12 +756,21 @@ func TestClustersRecover(t *testing.T) {
 	pinDelay()
 
 	j := rand.Intn(nClusters)
-	ginfo, err := clusters[j].Recover(h)
+	_, err := clusters[j].Recover(h)
 	if err != nil {
 		// we always attempt to return a valid response
 		// with errors contained in GlobalPinInfo
 		t.Fatal("did not expect an error")
 	}
+
+	// Wait for queue to be processed
+	delay()
+
+	ginfo, err := clusters[j].Status(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	pinfo, ok := ginfo.PeerMap[clusters[j].host.ID()]
 	if !ok {
 		t.Fatal("should have info for this host")

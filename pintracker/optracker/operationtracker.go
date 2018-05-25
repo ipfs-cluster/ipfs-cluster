@@ -1,8 +1,14 @@
+// Package optracker implements functionality to track the status of pin and
+// operations as needed by implementations of the pintracker component.
+// It particularly allows to obtain status information for a given Cid,
+// to skip re-tracking already ongoing operations, or to cancel ongoing
+// operations when contradictory ones arrive.
 package optracker
 
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -13,272 +19,141 @@ import (
 
 var logger = logging.Logger("optracker")
 
-//go:generate stringer -type=OperationType
-
-// OperationType represents the kinds of operations that the PinTracker
-// performs and the operationTracker tracks the status of.
-type OperationType int
-
-const (
-	// OperationUnknown represents an unknown operation.
-	OperationUnknown OperationType = iota
-	// OperationPin represents a pin operation.
-	OperationPin
-	// OperationUnpin represents an unpin operation.
-	OperationUnpin
-)
-
-//go:generate stringer -type=Phase
-
-// Phase represents the multiple phase that an operation can be in.
-type Phase int
-
-const (
-	// PhaseError represents an error state.
-	PhaseError Phase = iota
-	// PhaseQueued represents the queued phase of an operation.
-	PhaseQueued
-	// PhaseInProgress represents the operation as in progress.
-	PhaseInProgress
-)
-
-// Operation represents an ongoing operation involving a
-// particular Cid. It provides the type and phase of operation
-// and a way to mark the operation finished (also used to cancel).
-type Operation struct {
-	Cid    *cid.Cid
-	Op     OperationType
-	Phase  Phase
-	Ctx    context.Context
-	cancel func()
-}
-
-// NewOperation creates a new Operation.
-func NewOperation(ctx context.Context, c *cid.Cid, op OperationType) Operation {
-	ctx, cancel := context.WithCancel(ctx)
-	return Operation{
-		Cid:    c,
-		Op:     op,
-		Phase:  PhaseQueued,
-		Ctx:    ctx,
-		cancel: cancel, // use *OperationTracker.Finish() instead
-	}
-}
-
 // OperationTracker tracks and manages all inflight Operations.
 type OperationTracker struct {
-	ctx context.Context
+	ctx context.Context // parent context for all ops
+	pid peer.ID
 
 	mu         sync.RWMutex
-	operations map[string]Operation
+	operations map[string]*Operation
 }
 
 // NewOperationTracker creates a new OperationTracker.
-func NewOperationTracker(ctx context.Context) *OperationTracker {
+func NewOperationTracker(ctx context.Context, pid peer.ID) *OperationTracker {
 	return &OperationTracker{
 		ctx:        ctx,
-		operations: make(map[string]Operation),
+		pid:        pid,
+		operations: make(map[string]*Operation),
 	}
 }
 
-// TrackNewOperation tracks a new operation, adding it to the OperationTracker's
-// map of inflight operations.
-func (opt *OperationTracker) TrackNewOperation(ctx context.Context, c *cid.Cid, op OperationType) {
-	op2 := NewOperation(ctx, c, op)
-	logger.Debugf(
-		"'%s' on cid '%s' has been created with phase '%s'",
-		op.String(),
-		c.String(),
-		op2.Phase.String(),
-	)
-	opt.Set(op2)
-}
+// TrackNewOperation creates and stores a new operation when no operation for
+// the same pin Cid exists unless an ongoing operation of the same type exists.
+// Otherwise it will cancel and replace existing operations with new ones.
+func (opt *OperationTracker) TrackNewOperation(pin api.Pin, typ OperationType, ph Phase) *Operation {
+	cidStr := pin.Cid.String()
 
-// UpdateOperationPhase updates the phase of the operation associated with
-// the provided Cid.
-func (opt *OperationTracker) UpdateOperationPhase(c *cid.Cid, p Phase) {
-	opc, ok := opt.Get(c)
-	if !ok {
-		logger.Debugf(
-			"attempted to update non-existent operation with cid: %s",
-			c.String(),
-		)
-		return
-	}
-	opc.Phase = p
-	opt.Set(opc)
-	logger.Debugf(
-		"'%s' on cid '%s' has been updated to phase '%s'",
-		opc.Op.String(),
-		c.String(),
-		p.String(),
-	)
-}
-
-// SetError sets the phase of the operation to PhaseError and cancels
-// the operation context. Error is similar to Finish but doesn't
-// delete the operation from the map.
-func (opt *OperationTracker) SetError(c *cid.Cid) Operation {
-	logger.Debugf("optracker: setting operation in error state: %s", c)
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
 
-	opc, ok := opt.operations[c.String()]
-	if !ok {
-		logger.Debugf(
-			"attempted to remove non-existent operation with cid: %s",
-			c.String(),
-		)
-		return Operation{}
+	op, ok := opt.operations[cidStr]
+	if ok { // operation exists
+		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
+			return nil // an ongoing operation of the same sign exists
+		}
+		op.cancel() // cancel ongoing operation and replace it
 	}
 
-	opc.Phase = PhaseError
-	logger.Debugf(
-		"'%s' on cid '%s' has been updated to phase '%s'",
-		opc.Op.String(),
-		c.String(),
-		PhaseError,
-	)
-	opc.cancel()
-	return opc
+	op2 := NewOperation(opt.ctx, pin, typ, ph)
+	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, cidStr, ph)
+	opt.operations[cidStr] = op2
+	return op2
 }
 
-// RemoveErroredOperations removes operations that have errored from
-// the map.
-func (opt *OperationTracker) RemoveErroredOperations(c *cid.Cid) {
+// Clean deletes an operation from the tracker if it is the one we are tracking
+// (compares pointers)
+func (opt *OperationTracker) Clean(op *Operation) {
+	cidStr := op.Cid().String()
+
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
+	op2, ok := opt.operations[cidStr]
+	if ok && op == op2 { // same pointer
+		delete(opt.operations, cidStr)
+	}
+}
 
-	if opc, ok := opt.operations[c.String()]; ok && opc.Phase == PhaseError {
-		delete(opt.operations, c.String())
-		logger.Debugf(
-			"'%s' on cid '%s' has been removed",
-			opc.Op.String(),
-			c.String(),
-		)
+// Status returns the TrackerStatus associated to the last operation known
+// with the given Cid. It returns false if we are not tracking any operation
+// for the given Cid.
+func (opt *OperationTracker) Status(c *cid.Cid) (api.TrackerStatus, bool) {
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	op, ok := opt.operations[c.String()]
+	if !ok {
+		return 0, false
 	}
 
-	logger.Debugf(
-		"attempted to remove non-errored operation with cid: %s",
-		c.String(),
-	)
-	return
+	return op.ToTrackerStatus(), true
 }
 
-// Finish cancels the operation context and removes it from the map.
-// If the Operations Phase has been set to PhaseError, the operation
-// context will be cancelled but the operation won't be removed from
-// the map.
-func (opt *OperationTracker) Finish(c *cid.Cid) {
+// SetError transitions an operation for a Cid into PhaseError if its Status
+// is PhaseDone. Any other phases are considered in-flight and not touched.
+// For things already in error, the error message is updated.
+func (opt *OperationTracker) SetError(c *cid.Cid, err error) {
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
-
-	opc, ok := opt.operations[c.String()]
+	op, ok := opt.operations[c.String()]
 	if !ok {
-		logger.Debugf(
-			"attempted to remove non-existent operation with cid: %s",
-			c.String(),
-		)
 		return
 	}
 
-	if opc.Phase != PhaseError {
-		opc.cancel()
-		delete(opt.operations, c.String())
-		logger.Debugf(
-			"'%s' on cid '%s' has been removed",
-			opc.Op.String(),
-			c.String(),
-		)
+	if ph := op.Phase(); ph == PhaseDone || ph == PhaseError {
+		op.SetPhase(PhaseError)
+		op.SetError(err)
 	}
 }
 
-// Set sets the operation in the OperationTrackers map.
-func (opt *OperationTracker) Set(oc Operation) {
-	opt.mu.Lock()
-	opt.operations[oc.Cid.String()] = oc
-	opt.mu.Unlock()
+func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
+	if op == nil {
+		return api.PinInfo{
+			Cid:    nil,
+			Peer:   opt.pid,
+			Status: api.TrackerStatusUnpinned,
+			TS:     time.Now(),
+			Error:  "",
+		}
+	}
+
+	return api.PinInfo{
+		Cid:    op.Cid(),
+		Peer:   opt.pid,
+		Status: op.ToTrackerStatus(),
+		TS:     op.Timestamp(),
+		Error:  op.Error(),
+	}
 }
 
-// Get gets the operation associated with the Cid. If the
-// there is no associated operation, Get will return Operation{}, false.
-func (opt *OperationTracker) Get(c *cid.Cid) (Operation, bool) {
+// Get returns a PinInfo object for Cid.
+func (opt *OperationTracker) Get(c *cid.Cid) api.PinInfo {
 	opt.mu.RLock()
-	opc, ok := opt.operations[c.String()]
-	opt.mu.RUnlock()
-	return opc, ok
+	defer opt.mu.RUnlock()
+	op := opt.operations[c.String()]
+	pInfo := opt.unsafePinInfo(op)
+	if pInfo.Cid == nil {
+		pInfo.Cid = c
+	}
+	return pInfo
 }
 
-// GetAll gets all inflight operations.
-func (opt *OperationTracker) GetAll() []Operation {
-	var ops []Operation
+// GetAll returns PinInfo objets for all known operations
+func (opt *OperationTracker) GetAll() []api.PinInfo {
+	var pinfos []api.PinInfo
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	for _, op := range opt.operations {
-		ops = append(ops, op)
+		pinfos = append(pinfos, opt.unsafePinInfo(op))
 	}
-	return ops
+	return pinfos
 }
 
-// Filter returns a slice that only contains operations
-// with the matching filter. Note, only supports
-// filters of type OperationType or Phase, any other type
-// will result in a nil slice being returned.
-func (opt *OperationTracker) Filter(filter interface{}) []Operation {
-	var ops []Operation
+// GetOpContext gets the context of an operation, if any.
+func (opt *OperationTracker) GetOpContext(c *cid.Cid) context.Context {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
-	for _, op := range opt.operations {
-		switch filter.(type) {
-		case OperationType:
-			if op.Op == filter {
-				ops = append(ops, op)
-			}
-		case Phase:
-			if op.Phase == filter {
-				ops = append(ops, op)
-			}
-		default:
-		}
+	op, ok := opt.operations[c.String()]
+	if !ok {
+		return nil
 	}
-	return ops
-}
-
-// ToPinInfo converts an operation to an api.PinInfo.
-func (op Operation) ToPinInfo(pid peer.ID) api.PinInfo {
-	return api.PinInfo{Cid: op.Cid, Peer: pid, Status: op.ToTrackerStatus()}
-}
-
-// ToTrackerStatus converts an operation and it's phase to
-// the most approriate api.TrackerStatus.
-func (op Operation) ToTrackerStatus() api.TrackerStatus {
-	switch op.Op {
-	case OperationPin:
-		switch op.Phase {
-		case PhaseError:
-			return api.TrackerStatusPinError
-		case PhaseQueued:
-			return api.TrackerStatusPinQueued
-		case PhaseInProgress:
-			return api.TrackerStatusPinning
-		default:
-			logger.Debugf("couldn't match operation to tracker status")
-			return api.TrackerStatusBug
-		}
-	case OperationUnpin:
-		switch op.Phase {
-		case PhaseError:
-			return api.TrackerStatusUnpinError
-		case PhaseQueued:
-			return api.TrackerStatusUnpinQueued
-		case PhaseInProgress:
-			return api.TrackerStatusUnpinning
-		default:
-			logger.Debugf("couldn't match operation to tracker status")
-			return api.TrackerStatusBug
-		}
-	default:
-		logger.Debugf("couldn't match operation to tracker status")
-		return api.TrackerStatusBug
-	}
+	return op.Context()
 }

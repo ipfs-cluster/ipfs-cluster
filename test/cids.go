@@ -1,6 +1,9 @@
 package test
 
-import peer "github.com/libp2p/go-libp2p-peer"
+import (
+	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
+)
 
 // Common variables used all around tests.
 var (
@@ -18,3 +21,10 @@ var (
 	TestPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGjgRRjg")
 	TestPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
 )
+
+// MustDecodeCid provides a test helper that ignores
+// errors from cid.Decode.
+func MustDecodeCid(v string) *cid.Cid {
+	c, _ := cid.Decode(v)
+	return c
+}

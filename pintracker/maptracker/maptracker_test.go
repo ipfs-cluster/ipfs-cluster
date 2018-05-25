@@ -3,6 +3,8 @@ package maptracker
 import (
 	"context"
 	"errors"
+	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -60,6 +62,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *s
 func testSlowMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
+	cfg.ConcurrentPins = 1
 	mpt := NewMapPinTracker(cfg, test.TestPeerID1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
@@ -68,6 +71,7 @@ func testSlowMapPinTracker(t *testing.T) *MapPinTracker {
 func testMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
+	cfg.ConcurrentPins = 1
 	mpt := NewMapPinTracker(cfg, test.TestPeerID1)
 	mpt.SetClient(test.NewMockRPCClient(t))
 	return mpt
@@ -261,6 +265,7 @@ func TestSyncAndRecover(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// IPFSPinLS RPC returns unpinned for anything != Cid1 or Cid3
 	info, err := mpt.Sync(h2)
 	if err != nil {
 		t.Fatal(err)
@@ -277,15 +282,6 @@ func TestSyncAndRecover(t *testing.T) {
 		t.Error("expected pinned")
 	}
 
-	mpt.set(h1, api.TrackerStatusPinning)
-	info, err = mpt.Sync(h1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Status != api.TrackerStatusPinned {
-		t.Error("expected pinned")
-	}
-
 	info, err = mpt.Recover(h1)
 	if err != nil {
 		t.Fatal(err)
@@ -294,10 +290,14 @@ func TestSyncAndRecover(t *testing.T) {
 		t.Error("expected pinned")
 	}
 
-	info, err = mpt.Recover(h2)
+	_, err = mpt.Recover(h2)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	info = mpt.Status(h2)
 	if info.Status != api.TrackerStatusPinned {
 		t.Error("expected pinned")
 	}
@@ -317,7 +317,7 @@ func TestRecoverAll(t *testing.T) {
 	}
 	mpt.Track(c)
 	time.Sleep(100 * time.Millisecond)
-	mpt.set(h1, api.TrackerStatusPinError)
+	mpt.optracker.SetError(h1, errors.New("fakeerror"))
 	pins, err := mpt.RecoverAll()
 	if err != nil {
 		t.Fatal(err)
@@ -325,7 +325,11 @@ func TestRecoverAll(t *testing.T) {
 	if len(pins) != 1 {
 		t.Fatal("there should be only one pin")
 	}
-	if pins[0].Status != api.TrackerStatusPinned {
+
+	time.Sleep(100 * time.Millisecond)
+	info := mpt.Status(h1)
+
+	if info.Status != api.TrackerStatusPinned {
 		t.Error("the pin should have been recovered")
 	}
 }
@@ -423,12 +427,12 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond) // let pinning start
 
-	opc, ok := mpt.optracker.get(slowPin.Cid)
-	if !ok {
+	pInfo := mpt.Status(slowPin.Cid)
+	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("slowPin should be tracked")
 	}
 
-	if opc.phase == phaseInProgress && opc.op == operationPin {
+	if pInfo.Status == api.TrackerStatusPinning {
 		go func() {
 			err = mpt.Untrack(slowPinCid)
 			if err != nil {
@@ -436,13 +440,13 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 			}
 		}()
 		select {
-		case <-opc.ctx.Done():
+		case <-mpt.optracker.GetOpContext(slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
 		}
 	} else {
-		t.Error("slowPin should be pinning and is:", opc.phase)
+		t.Error("slowPin should be pinning and is:", pInfo.Status)
 	}
 }
 
@@ -480,23 +484,24 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	// fastPin should be queued because slow pin is pinning
-	opc, _ := mpt.optracker.get(fastPin.Cid)
-	if opc.phase == phaseQueued && opc.op == operationPin {
+	pInfo := mpt.Status(fastPinCid)
+	if pInfo.Status == api.TrackerStatusPinQueued {
 		err = mpt.Untrack(fastPinCid)
 		if err != nil {
 			t.Fatal(err)
 		}
-		pi := mpt.get(fastPinCid)
+		pi := mpt.Status(fastPinCid)
 		if pi.Error == ErrPinCancelCid.Error() {
 			t.Fatal(ErrPinCancelCid)
 		}
 	} else {
-		t.Error("fastPin should be queued to pin")
+		t.Error("fastPin should be queued to pin:", pInfo.Status)
 	}
 
-	_, ok := mpt.optracker.get(fastPin.Cid)
-	if ok {
-		t.Error("fastPin should have been removed from tracker")
+	time.Sleep(100 * time.Millisecond)
+	pInfo = mpt.Status(fastPinCid)
+	if pInfo.Status != api.TrackerStatusUnpinned {
+		t.Error("fastPin should have been removed from tracker:", pInfo.Status)
 	}
 }
 
@@ -530,12 +535,12 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	opc, ok := mpt.optracker.get(slowPin.Cid)
-	if !ok {
+	pInfo := mpt.Status(slowPinCid)
+	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("expected slowPin to be tracked")
 	}
 
-	if opc.phase == phaseInProgress && opc.op == operationUnpin {
+	if pInfo.Status == api.TrackerStatusUnpinning {
 		go func() {
 			err = mpt.Track(slowPin)
 			if err != nil {
@@ -543,7 +548,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 			}
 		}()
 		select {
-		case <-opc.ctx.Done():
+		case <-mpt.optracker.GetOpContext(slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -599,22 +604,67 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	opc, ok := mpt.optracker.get(fastPin.Cid)
-	if !ok {
+	pInfo := mpt.Status(fastPinCid)
+	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("c untrack operation should be tracked")
 	}
 
-	if opc.phase == phaseQueued && opc.op == operationUnpin {
+	if pInfo.Status == api.TrackerStatusUnpinQueued {
 		err = mpt.Track(fastPin)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		pi := mpt.get(fastPinCid)
+		pi := mpt.Status(fastPinCid)
 		if pi.Error == ErrUnpinCancelCid.Error() {
 			t.Fatal(ErrUnpinCancelCid)
 		}
 	} else {
 		t.Error("c should be queued to unpin")
+	}
+}
+
+func TestTrackUntrackConcurrent(t *testing.T) {
+	mpt := testMapPinTracker(t)
+	defer mpt.Shutdown()
+
+	h1, _ := cid.Decode(test.TestCid1)
+
+	// LocalPin
+	c := api.Pin{
+		Cid:                  h1,
+		Allocations:          []peer.ID{},
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				var err error
+				op := rand.Intn(2)
+				if op == 1 {
+					err = mpt.Track(c)
+				} else {
+					err = mpt.Untrack(c.Cid)
+				}
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	time.Sleep(200 * time.Millisecond)
+	st := mpt.Status(h1)
+	t.Log(st.Status)
+	if st.Status != api.TrackerStatusUnpinned && st.Status != api.TrackerStatusPinned {
+		t.Fatal("should be pinned or unpinned")
 	}
 }
