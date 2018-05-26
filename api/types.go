@@ -10,10 +10,10 @@ package api
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
-	"regexp"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
