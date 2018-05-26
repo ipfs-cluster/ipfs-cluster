@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 	"time"
-  "regexp"
+	"regexp"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -104,12 +104,12 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-  // Since indirect statuses are of the form "indirect through <cid>", match with a regexp
-  var ind, _ = regexp.MatchString(t, "^indirect")
+	// Since indirect statuses are of the form "indirect through <cid>", match with a regexp
+	var ind, _ = regexp.MatchString(t, "^indirect")
 	// TODO: This is only used in the http_connector to parse
 	// ipfs-daemon-returned values. Maybe it should be extended.
 	switch {
-  case ind:
+	case ind:
 		return IPFSPinStatusIndirect
 	case t == "direct":
 		return IPFSPinStatusDirect
