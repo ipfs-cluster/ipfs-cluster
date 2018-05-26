@@ -105,7 +105,7 @@ type IPFSPinStatus int
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
 	// Since indirect statuses are of the form "indirect through <cid>", match with a regexp
-	var ind, _ = regexp.MatchString(t, "^indirect")
+	var ind, _ = regexp.MatchString("^indirect", t)
 	// TODO: This is only used in the http_connector to parse
 	// ipfs-daemon-returned values. Maybe it should be extended.
 	switch {
