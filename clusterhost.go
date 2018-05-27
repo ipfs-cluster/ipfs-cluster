@@ -32,9 +32,7 @@ func NewClusterHost(ctx context.Context, cfg *Config) (host.Host, error) {
 		libp2p.Identity(cfg.PrivateKey),
 		libp2p.ListenAddrs([]ma.Multiaddr{cfg.ListenAddr}...),
 		libp2p.PrivateNetwork(prot),
-		// FIXME: Enable when libp2p >= 5.0.16
-		// https://github.com/libp2p/go-libp2p/pull/293
-		//libp2p.NATPortMap(),
+		libp2p.NATPortMap(),
 	)
 }
 
