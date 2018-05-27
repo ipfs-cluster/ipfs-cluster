@@ -198,6 +198,7 @@ Note that this may corrupt the local cluster state.
 `)
 	case 3:
 		out("exiting cluster NOW")
+		locker.tryUnlock()
 		os.Exit(-1)
 	}
 }
