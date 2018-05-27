@@ -18,6 +18,7 @@ var LoggingFacilities = map[string]string{
 	"diskinfo":    "INFO",
 	"apitypes":    "INFO",
 	"config":      "INFO",
+	"optracker":   "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers
