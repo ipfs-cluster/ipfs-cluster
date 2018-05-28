@@ -3,6 +3,7 @@
 # Updates the Version variables, commits, tags, signs and "gx release" the package
 
 set -e
+set -x
 
 version="$1"
 
