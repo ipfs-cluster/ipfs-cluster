@@ -2,7 +2,7 @@
 // operations as needed by implementations of the pintracker component.
 // It particularly allows to obtain status information for a given Cid,
 // to skip re-tracking already ongoing operations, or to cancel ongoing
-// operations when contradictory ones arrive.
+// operations when opposing ones arrive.
 package optracker
 
 import (
@@ -37,9 +37,11 @@ func NewOperationTracker(ctx context.Context, pid peer.ID) *OperationTracker {
 	}
 }
 
-// TrackNewOperation creates and stores a new operation when no operation for
-// the same pin Cid exists unless an ongoing operation of the same type exists.
-// Otherwise it will cancel and replace existing operations with new ones.
+// TrackNewOperation will create, track and return a new operation unless
+// one already exists to do the same thing, in which case nil is returned.
+//
+// If an operation exists it is of different type, it is
+// cancelled and the new one replaces it in the tracker.
 func (opt *OperationTracker) TrackNewOperation(pin api.Pin, typ OperationType, ph Phase) *Operation {
 	cidStr := pin.Cid.String()
 
@@ -51,7 +53,7 @@ func (opt *OperationTracker) TrackNewOperation(pin api.Pin, typ OperationType, p
 		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
 			return nil // an ongoing operation of the same sign exists
 		}
-		op.cancel() // cancel ongoing operation and replace it
+		op.Cancel() // cancel ongoing operation and replace it
 	}
 
 	op2 := NewOperation(opt.ctx, pin, typ, ph)

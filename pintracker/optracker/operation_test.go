@@ -20,14 +20,15 @@ func TestOperation(t *testing.T) {
 	if op.Phase() != PhaseQueued {
 		t.Error("bad phase")
 	}
-	op.SetPhase(PhaseInProgress)
-	if op.Phase() != PhaseInProgress {
-		t.Error("bad phase")
-	}
 
 	op.SetError(errors.New("fake error"))
 	if op.Error() != "fake error" {
 		t.Error("bad error")
+	}
+
+	op.SetPhase(PhaseInProgress)
+	if op.Phase() != PhaseInProgress {
+		t.Error("bad phase")
 	}
 
 	if op.Type() != OperationUnpin {

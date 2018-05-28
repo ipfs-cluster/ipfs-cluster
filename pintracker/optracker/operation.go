@@ -50,13 +50,15 @@ type Operation struct {
 	ctx    context.Context
 	cancel func()
 
-	mu sync.RWMutex
-
+	// RO fields
 	opType OperationType
-	phase  Phase
-	ts     time.Time
 	pin    api.Pin
-	error  string
+
+	// RW fields
+	mu    sync.RWMutex
+	phase Phase
+	error string
+	ts    time.Time
 }
 
 // NewOperation creates a new Operation.
@@ -64,7 +66,7 @@ func NewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase)
 	ctx, cancel := context.WithCancel(ctx)
 	return &Operation{
 		ctx:    ctx,
-		cancel: cancel, // use *OperationTracker.Finish() instead
+		cancel: cancel,
 
 		pin:    pin,
 		opType: typ,
@@ -113,11 +115,12 @@ func (op *Operation) Error() string {
 	return op.error
 }
 
-// SetError sets an error message.
-// It updates the timestamp, but does not update the phase.
+// SetError sets the phase to PhaseError along with
+// an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
 	op.mu.Lock()
 	defer op.mu.Unlock()
+	op.phase = PhaseError
 	op.error = err.Error()
 	op.ts = time.Now()
 }

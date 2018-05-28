@@ -62,15 +62,15 @@ func NewMapPinTracker(cfg *Config, pid peer.ID) *MapPinTracker {
 	}
 
 	for i := 0; i < mpt.config.ConcurrentPins; i++ {
-		go mpt.pinWorker(mpt.pin, mpt.pinCh)
+		go mpt.opWorker(mpt.pin, mpt.pinCh)
 	}
-	go mpt.pinWorker(mpt.unpin, mpt.unpinCh)
+	go mpt.opWorker(mpt.unpin, mpt.unpinCh)
 	return mpt
 }
 
 // receives a pin Function (pin or unpin) and a channel.
 // Used for both pinning and unpinning
-func (mpt *MapPinTracker) pinWorker(pinF func(*optracker.Operation) error, opChan chan *optracker.Operation) {
+func (mpt *MapPinTracker) opWorker(pinF func(*optracker.Operation) error, opChan chan *optracker.Operation) {
 	for {
 		select {
 		case op := <-opChan:
@@ -87,7 +87,6 @@ func (mpt *MapPinTracker) pinWorker(pinF func(*optracker.Operation) error, opCha
 					// we were cancelled. Move on.
 					continue
 				}
-				op.SetPhase(optracker.PhaseError)
 				op.SetError(err)
 				op.Cancel()
 				continue
@@ -123,22 +122,6 @@ func (mpt *MapPinTracker) Shutdown() error {
 	mpt.wg.Wait()
 	mpt.shutdown = true
 	return nil
-}
-
-func (mpt *MapPinTracker) isRemote(c api.Pin) bool {
-	if c.ReplicationFactorMax < 0 {
-		return false
-	}
-	if c.ReplicationFactorMax == 0 {
-		logger.Errorf("Pin with replication factor 0! %+v", c)
-	}
-
-	for _, p := range c.Allocations {
-		if p == mpt.peerID {
-			return false
-		}
-	}
-	return true
 }
 
 func (mpt *MapPinTracker) pin(op *optracker.Operation) error {
@@ -185,7 +168,6 @@ func (mpt *MapPinTracker) enqueue(c api.Pin, typ optracker.OperationType, ch cha
 	case ch <- op:
 	default:
 		err := errors.New("queue is full")
-		op.SetPhase(optracker.PhaseError)
 		op.SetError(err)
 		op.Cancel()
 		logger.Error(err.Error())
@@ -210,7 +192,6 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		err := mpt.unpin(op)
 		op.Cancel()
 		if err != nil {
-			op.SetPhase(optracker.PhaseError)
 			op.SetError(err)
 		} else {
 			op.SetPhase(optracker.PhaseDone)
