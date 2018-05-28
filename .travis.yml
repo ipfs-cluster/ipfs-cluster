@@ -3,7 +3,7 @@ os:
   - linux
 #  - osx
 go:
-- '1.9'
+- '1.10.x'
 services:
 - docker
 
@@ -20,7 +20,8 @@ jobs:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
-        - ./coverage.sh
+        - go test -v -coverprofile=coverage.out -covermode=count ./...
+        - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
     - script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
