@@ -69,7 +69,9 @@ func pinInfoSliceToSerial(pi []api.PinInfo) []api.PinInfoSerial {
 	return pis
 }
 
-func globalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSerial {
+// GlobalPinInfoSliceToSerial is a helper function for serializing a slice of
+// api.GlobalPinInfos.
+func GlobalPinInfoSliceToSerial(gpi []api.GlobalPinInfo) []api.GlobalPinInfoSerial {
 	gpis := make([]api.GlobalPinInfoSerial, len(gpi), len(gpi))
 	for i, v := range gpi {
 		gpis[i] = v.ToSerial()

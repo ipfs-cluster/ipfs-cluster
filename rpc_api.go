@@ -112,7 +112,7 @@ func (rpcapi *RPCAPI) Join(ctx context.Context, in api.MultiaddrSerial, out *str
 // StatusAll runs Cluster.StatusAll().
 func (rpcapi *RPCAPI) StatusAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	pinfos, err := rpcapi.c.StatusAll()
-	*out = globalPinInfoSliceToSerial(pinfos)
+	*out = GlobalPinInfoSliceToSerial(pinfos)
 	return err
 }
 
@@ -142,7 +142,7 @@ func (rpcapi *RPCAPI) StatusLocal(ctx context.Context, in api.PinSerial, out *ap
 // SyncAll runs Cluster.SyncAll().
 func (rpcapi *RPCAPI) SyncAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
 	pinfos, err := rpcapi.c.SyncAll()
-	*out = globalPinInfoSliceToSerial(pinfos)
+	*out = GlobalPinInfoSliceToSerial(pinfos)
 	return err
 }
 

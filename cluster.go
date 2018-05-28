@@ -74,7 +74,8 @@ func NewCluster(
 	tracker PinTracker,
 	monitor PeerMonitor,
 	allocator PinAllocator,
-	informer Informer) (*Cluster, error) {
+	informer Informer,
+) (*Cluster, error) {
 
 	err := cfg.Validate()
 	if err != nil {
