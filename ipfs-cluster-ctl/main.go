@@ -24,7 +24,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.4.0-rc1"
+const Version = "0.4.0-rc2"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
