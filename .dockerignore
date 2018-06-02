@@ -1,1 +1,8 @@
 Dockerfile*
+Jenkinsfile*
+.git/
+.idea/
+*.iml
+.gx/
+.snapcraft/
+test/test-acceptance.sh

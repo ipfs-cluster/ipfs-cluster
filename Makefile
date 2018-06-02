@@ -1,3 +1,11 @@
+NAME := ipfs-cluster-test
+REGISTRY := docker.io/controlplane
+GIT_TAG ?= $(shell bash -c 'TAG=$$(git tag | tail -n1); echo "$${TAG:-none}"')
+
+CONTAINER_TAG ?= $(GIT_TAG)
+CONTAINER_NAME := $(REGISTRY)/$(NAME):$(CONTAINER_TAG)
+CONTAINER_NAME_LATEST := $(REGISTRY)/$(NAME):latest
+
 gx_version=v0.13.0
 gx-go_version=v1.7.0
 
@@ -76,6 +84,10 @@ test_sharness: $(sharness)
 test_problem: deps
 	go test -timeout 20m -loglevel "DEBUG" -v -run $(problematic_test)
 
+test_acceptance: ## run acceptance tests
+	@echo "+ $@"
+	./test/test-acceptance.sh
+
 $(sharness):
 	@echo "Downloading sharness"
 	@wget -q -O sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/master.tar.gz
@@ -107,4 +119,21 @@ docker:
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
 
-.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
+docker-build-test-image: ## builds the test docker image
+	@echo "+ $@"
+	docker build -f Dockerfile-test --tag "$(CONTAINER_NAME)" .
+	docker tag "$(CONTAINER_NAME)" "$(CONTAINER_NAME_LATEST)"
+	@echo "Successfully tagged $(CONTAINER_NAME) as $(CONTAINER_NAME_LATEST)"
+
+docker-push-test-image: ## pushes the test docker image
+	@echo "+ $@"
+	docker push "$(CONTAINER_NAME)"
+	docker push "$(CONTAINER_NAME_LATEST)"
+
+help: ## parse jobs and descriptions from this Makefile
+	@grep -E '^[ a-zA-Z0-9_-]+:([^=]|$$)' $(MAKEFILE_LIST) \
+		| grep -Ev '^help\b[[:space:]]*:' \
+		| sort \
+		| awk 'BEGIN {FS = ":.*?##"}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker docker-build-test docker-push-test help
