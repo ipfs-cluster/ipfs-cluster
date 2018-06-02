@@ -32,7 +32,7 @@ var logger = logging.Logger("apitypes")
 // TrackerStatus values
 const (
 	// IPFSStatus should never take this value
-	TrackerStatusBug = iota
+	TrackerStatusBug TrackerStatus = iota
 	// The cluster node is offline or not responding
 	TrackerStatusClusterError
 	// An error occurred pinning
@@ -90,7 +90,7 @@ func TrackerStatusFromString(str string) TrackerStatus {
 
 // IPFSPinStatus values
 const (
-	IPFSPinStatusBug = iota
+	IPFSPinStatusBug IPFSPinStatus = iota
 	IPFSPinStatusError
 	IPFSPinStatusDirect
 	IPFSPinStatusRecursive
