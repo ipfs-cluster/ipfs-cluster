@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -21,6 +22,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -40,9 +42,11 @@ var (
 	// number of pins to pin/unpin/check
 	nPins = 100
 
-	logLevel = "CRITICAL"
+	logLevel               = "CRITICAL"
+	customLogLvlFacilities = logFacilities{}
 
 	pmonitor = "pubsub"
+	ptracker = "stateless"
 
 	// When testing with fixed ports...
 	// clusterPort   = 10000
@@ -50,21 +54,54 @@ var (
 	// ipfsProxyPort = 10200
 )
 
+type logFacilities []string
+
+// String is the method to format the flag's value, part of the flag.Value interface.
+func (lg *logFacilities) String() string {
+	return fmt.Sprint(*lg)
+}
+
+// Set is the method to set the flag value, part of the flag.Value interface.
+func (lg *logFacilities) Set(value string) error {
+	if len(*lg) > 0 {
+		return errors.New("logFacilities flag already set")
+	}
+	for _, lf := range strings.Split(value, ",") {
+		*lg = append(*lg, lf)
+	}
+	return nil
+}
+
 func init() {
+	flag.Var(&customLogLvlFacilities, "logfacs", "use -logLevel for only the following log facilities; comma-separated")
 	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
 	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
 	flag.IntVar(&nPins, "npins", nPins, "number of pins to pin/unpin/check")
 	flag.StringVar(&pmonitor, "monitor", pmonitor, "monitor implementation")
+	flag.StringVar(&ptracker, "tracker", ptracker, "tracker implementation")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
 
-	for f := range LoggingFacilities {
-		SetFacilityLogLevel(f, logLevel)
+	if len(customLogLvlFacilities) < 0 {
+		for f := range LoggingFacilities {
+			SetFacilityLogLevel(f, logLevel)
+		}
+
+		for f := range LoggingFacilitiesExtra {
+			SetFacilityLogLevel(f, logLevel)
+		}
 	}
 
-	for f := range LoggingFacilitiesExtra {
-		SetFacilityLogLevel(f, logLevel)
+	for _, f := range customLogLvlFacilities {
+		if _, ok := LoggingFacilities[f]; ok {
+			SetFacilityLogLevel(f, logLevel)
+			continue
+		}
+		if _, ok := LoggingFacilitiesExtra[f]; ok {
+			SetFacilityLogLevel(f, logLevel)
+			continue
+		}
 	}
 }
 
@@ -102,7 +139,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -127,7 +164,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
+	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg)
 
 	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
 
@@ -153,6 +190,19 @@ func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pub
 	}
 	checkErr(t, err)
 	return mon
+}
+
+func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config) PinTracker {
+	var ptrkr PinTracker
+	switch ptracker {
+	case "map":
+		ptrkr = maptracker.NewMapPinTracker(mptCfg, pid)
+	case "stateless":
+		ptrkr = stateless.New(sptCfg, pid)
+	default:
+		panic("bad pintracker")
+	}
+	return ptrkr
 }
 
 func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
@@ -569,11 +619,11 @@ func TestClustersSyncAllLocal(t *testing.T) {
 			t.Error(err)
 		}
 		if len(infos) != 1 {
-			t.Fatal("expected 1 elem slice")
+			t.Fatalf("expected 1 elem slice, got = %d", len(infos))
 		}
 		// Last-known state may still be pinning
 		if infos[0].Status != api.TrackerStatusPinError && infos[0].Status != api.TrackerStatusPinning {
-			t.Error("element should be in Pinning or PinError state")
+			t.Errorf("element should be in Pinning or PinError state, got = %v", infos[0].Status)
 		}
 	}
 	// Test Local syncs
@@ -628,7 +678,7 @@ func TestClustersSyncAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ginfos) != 1 {
-		t.Fatal("expected globalsync to have 1 elements")
+		t.Fatalf("expected globalsync to have 1 elements, got = %d", len(ginfos))
 	}
 	if ginfos[0].Cid.String() != test.ErrorCid {
 		t.Error("expected globalsync to have problems with test.ErrorCid")
