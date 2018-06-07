@@ -63,7 +63,7 @@ func (opt *OperationTracker) TrackNewOperation(pin api.Pin, typ OperationType, p
 }
 
 // Clean deletes an operation from the tracker if it is the one we are tracking
-// (compares pointers)
+// (compares pointers).
 func (opt *OperationTracker) Clean(op *Operation) {
 	cidStr := op.Cid().String()
 
@@ -138,7 +138,51 @@ func (opt *OperationTracker) Get(c *cid.Cid) api.PinInfo {
 	return pInfo
 }
 
-// GetAll returns PinInfo objets for all known operations
+// FilterGet returns a PinInfo for Cid, only if the Phase or OperationType
+// match what the associated Operation has. Note, only supports
+// filters of type OperationType or Phase, any other type
+// will result in a nil slice being returned.
+func (opt *OperationTracker) FilterGet(c *cid.Cid, filter interface{}) (api.PinInfo, bool) {
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	op, ok := opt.operations[c.String()]
+	if !ok {
+		return api.PinInfo{}, false
+	}
+
+	var pi api.PinInfo
+	switch f := filter.(type) {
+	case OperationType:
+		if op.Type() != f {
+			return api.PinInfo{}, false
+		}
+		pi = opt.unsafePinInfo(op)
+	case Phase:
+		if op.Phase() != f {
+			return api.PinInfo{}, false
+		}
+		pi = opt.unsafePinInfo(op)
+	default:
+		return api.PinInfo{}, false
+	}
+
+	return pi, ok
+}
+
+// GetExists returns a PinInfo object for a Cid only if there exists
+// an associated Operation.
+func (opt *OperationTracker) GetExists(c *cid.Cid) (api.PinInfo, bool) {
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	op, ok := opt.operations[c.String()]
+	if !ok {
+		return api.PinInfo{}, false
+	}
+	pInfo := opt.unsafePinInfo(op)
+	return pInfo, true
+}
+
+// GetAll returns PinInfo objets for all known operations.
 func (opt *OperationTracker) GetAll() []api.PinInfo {
 	var pinfos []api.PinInfo
 	opt.mu.RLock()
@@ -149,8 +193,15 @@ func (opt *OperationTracker) GetAll() []api.PinInfo {
 	return pinfos
 }
 
-// GetOpContext gets the context of an operation, if any.
-func (opt *OperationTracker) GetOpContext(c *cid.Cid) context.Context {
+// GetOp returns the operations associated with the provided cid.
+func (opt *OperationTracker) GetOp(c *cid.Cid) *Operation {
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	return opt.operations[c.String()]
+}
+
+// OpContext gets the context of an operation, if any.
+func (opt *OperationTracker) OpContext(c *cid.Cid) context.Context {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c.String()]
@@ -158,4 +209,74 @@ func (opt *OperationTracker) GetOpContext(c *cid.Cid) context.Context {
 		return nil
 	}
 	return op.Context()
+}
+
+// Filter returns a slice of api.PinInfos that had associated
+// Operations that matched the provided filter. Note, only supports
+// filters of type OperationType or Phase, any other type
+// will result in a nil slice being returned.
+func (opt *OperationTracker) Filter(filters ...interface{}) []api.PinInfo {
+	var pinfos []api.PinInfo
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	ops := filterOpsMap(opt.operations, filters)
+	for _, op := range ops {
+		pinfos = append(pinfos, opt.unsafePinInfo(op))
+	}
+	return pinfos
+}
+
+// FilterOps returns a slice that only contains operations
+// with the matching filter. Note, only supports
+// filters of type OperationType or Phase, any other type
+// will result in a nil slice being returned.
+func (opt *OperationTracker) FilterOps(filters ...interface{}) []*Operation {
+	var fltops []*Operation
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	for _, op := range filterOpsMap(opt.operations, filters) {
+		fltops = append(fltops, op)
+	}
+	return fltops
+}
+
+func filterOpsMap(ops map[string]*Operation, filters []interface{}) map[string]*Operation {
+	fltops := make(map[string]*Operation)
+	if len(filters) < 1 {
+		return nil
+	}
+
+	if len(filters) == 1 {
+		switch f := filters[0].(type) {
+		case OperationType:
+			for _, op := range ops {
+				if op.Type() == f {
+					fltops[op.Cid().String()] = op
+				}
+			}
+		case Phase:
+			for _, op := range ops {
+				if op.Phase() == f {
+					fltops[op.Cid().String()] = op
+				}
+			}
+		}
+		return fltops
+	}
+
+	mainFilter, filters := filters[0], filters[1:]
+	for _, op := range ops {
+		switch mainFilter.(type) {
+		case OperationType:
+			if op.Type() == mainFilter {
+				fltops[op.Cid().String()] = op
+			}
+		case Phase:
+			if op.Phase() == mainFilter {
+				fltops[op.Cid().String()] = op
+			}
+		}
+	}
+
+	return filterOpsMap(fltops, filters)
 }

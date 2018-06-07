@@ -54,22 +54,23 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	*out = []api.PinSerial{
-		{
-			Cid: TestCid1,
-		},
-		{
-			Cid: TestCid2,
-		},
-		{
-			Cid: TestCid3,
-		},
+		{Cid: TestCid1, ReplicationFactorMax: -1},
+		{Cid: TestCid2},
+		{Cid: TestCid3, ReplicationFactorMax: -1},
 	}
 	return nil
 }
 
 func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
-	if in.Cid == ErrorCid {
+	switch in.Cid {
+	case ErrorCid:
 		return errors.New("expected error when using ErrorCid")
+	case TestCid1:
+		*out = api.Pin{Cid: MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
+		return nil
+	case TestCid3:
+		*out = api.Pin{Cid: MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
+		return nil
 	}
 	*out = in
 	return nil

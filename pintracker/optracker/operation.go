@@ -136,7 +136,7 @@ func (op *Operation) Pin() api.Pin {
 }
 
 // Timestamp returns the time when this operation was
-// last modified (phase changed, error was set...)
+// last modified (phase changed, error was set...).
 func (op *Operation) Timestamp() time.Time {
 	op.mu.RLock()
 	defer op.mu.RUnlock()

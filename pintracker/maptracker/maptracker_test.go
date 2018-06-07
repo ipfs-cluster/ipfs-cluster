@@ -440,7 +440,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 			}
 		}()
 		select {
-		case <-mpt.optracker.GetOpContext(slowPinCid).Done():
+		case <-mpt.optracker.OpContext(slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -548,7 +548,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 			}
 		}()
 		select {
-		case <-mpt.optracker.GetOpContext(slowPinCid).Done():
+		case <-mpt.optracker.OpContext(slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")

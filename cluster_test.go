@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -77,7 +77,10 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string
 	if ipfs.returnError {
 		return nil, errors.New("")
 	}
-	m := make(map[string]api.IPFSPinStatus)
+	m := map[string]api.IPFSPinStatus{
+		test.TestCid1: api.IPFSPinStatusRecursive,
+		test.TestCid3: api.IPFSPinStatusRecursive,
+	}
 	return m, nil
 }
 
@@ -90,8 +93,8 @@ func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { retu
 func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }
 func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
 
-func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
-	clusterCfg, _, _, consensusCfg, trackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
+func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.State, PinTracker) {
+	clusterCfg, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -101,7 +104,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
+	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg)
 
 	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
 
@@ -126,7 +129,8 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 		tracker,
 		mon,
 		alloc,
-		inf)
+		inf,
+	)
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}
@@ -323,7 +327,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	defer cl.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cl.Pin(api.PinCid(c))
+	err := cl.Pin(api.Pin{Cid: c, ReplicationFactorMax: -1})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -335,9 +339,9 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 		t.Error("did not expect an error")
 	}
 	if len(recov) != 1 {
-		t.Fatal("there should be only one pin")
+		t.Fatalf("there should be only one pin, got = %d", len(recov))
 	}
 	if recov[0].Status != api.TrackerStatusPinned {
-		t.Error("the pin should have been recovered")
+		t.Errorf("the pin should have been recovered, got = %v", recov[0].Status)
 	}
 }

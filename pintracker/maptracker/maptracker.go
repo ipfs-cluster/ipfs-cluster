@@ -375,3 +375,8 @@ func (mpt *MapPinTracker) SetClient(c *rpc.Client) {
 	mpt.rpcClient = c
 	mpt.rpcReady <- struct{}{}
 }
+
+// OpContext exports the internal optracker's OpContext method.
+func (mpt *MapPinTracker) OpContext(c *cid.Cid) context.Context {
+	return mpt.optracker.OpContext(c)
+}
