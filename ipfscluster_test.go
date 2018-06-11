@@ -83,7 +83,7 @@ func init() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if len(customLogLvlFacilities) < 0 {
+	if len(customLogLvlFacilities) <= 0 {
 		for f := range LoggingFacilities {
 			SetFacilityLogLevel(f, logLevel)
 		}

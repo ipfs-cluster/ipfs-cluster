@@ -193,11 +193,22 @@ func (opt *OperationTracker) GetAll() []api.PinInfo {
 	return pinfos
 }
 
-// GetOp returns the operations associated with the provided cid.
-func (opt *OperationTracker) GetOp(c *cid.Cid) *Operation {
+// CleanError removes the associated Operation, if it is
+// in PhaseError.
+func (opt *OperationTracker) CleanError(c *cid.Cid) {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
-	return opt.operations[c.String()]
+	errop, ok := opt.operations[c.String()]
+	if !ok {
+		return
+	}
+
+	if errop.Phase() != PhaseError {
+		return
+	}
+
+	opt.Clean(errop)
+	return
 }
 
 // OpContext gets the context of an operation, if any.
