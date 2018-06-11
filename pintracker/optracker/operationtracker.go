@@ -247,36 +247,27 @@ func filterOpsMap(ops map[string]*Operation, filters []interface{}) map[string]*
 	}
 
 	if len(filters) == 1 {
-		switch f := filters[0].(type) {
-		case OperationType:
-			for _, op := range ops {
-				if op.Type() == f {
-					fltops[op.Cid().String()] = op
-				}
-			}
-		case Phase:
-			for _, op := range ops {
-				if op.Phase() == f {
-					fltops[op.Cid().String()] = op
-				}
-			}
-		}
+		filter(ops, fltops, filters[0])
 		return fltops
 	}
 
 	mainFilter, filters := filters[0], filters[1:]
-	for _, op := range ops {
-		switch mainFilter.(type) {
+	filter(ops, fltops, mainFilter)
+
+	return filterOpsMap(fltops, filters)
+}
+
+func filter(in, out map[string]*Operation, filter interface{}) {
+	for _, op := range in {
+		switch filter.(type) {
 		case OperationType:
-			if op.Type() == mainFilter {
-				fltops[op.Cid().String()] = op
+			if op.Type() == filter {
+				out[op.Cid().String()] = op
 			}
 		case Phase:
-			if op.Phase() == mainFilter {
-				fltops[op.Cid().String()] = op
+			if op.Phase() == filter {
+				out[op.Cid().String()] = op
 			}
 		}
 	}
-
-	return filterOpsMap(fltops, filters)
 }
