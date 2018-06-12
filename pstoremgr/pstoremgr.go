@@ -27,7 +27,7 @@ var logger = logging.Logger("pstoremgr")
 
 // Timeouts for network operations triggered by the Manager
 var (
-	DNSTimeout     = 2 * time.Second
+	DNSTimeout     = 5 * time.Second
 	ConnectTimeout = 10 * time.Second
 )
 
