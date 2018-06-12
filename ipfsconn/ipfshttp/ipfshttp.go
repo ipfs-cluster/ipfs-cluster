@@ -25,8 +25,12 @@ import (
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
 )
+
+// DNSTimeout is used when resolving DNS multiaddresses in this module
+var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfshttp")
 
@@ -112,7 +116,20 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		return nil, err
 	}
 
-	_, nodeAddr, err := manet.DialArgs(cfg.NodeAddr)
+	nodeMAddr := cfg.NodeAddr
+	// dns multiaddresses need to be resolved first
+	if madns.Matches(nodeMAddr) {
+		ctx, cancel := context.WithTimeout(context.Background(), DNSTimeout)
+		defer cancel()
+		resolvedAddrs, err := madns.Resolve(ctx, cfg.NodeAddr)
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
+		nodeMAddr = resolvedAddrs[0]
+	}
+
+	_, nodeAddr, err := manet.DialArgs(nodeMAddr)
 	if err != nil {
 		return nil, err
 	}
