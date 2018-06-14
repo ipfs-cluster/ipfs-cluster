@@ -19,7 +19,7 @@ func verifyOutput(t *testing.T, outStr string, trueStr string) {
 	sort.Strings(outLines)
 	sort.Strings(trueLines)
 	if len(outLines) != len(trueLines) {
-		fmt.Printf("expected: %s\n actual: %s", trueStr, outStr)		
+		fmt.Printf("expected: %s\n actual: %s", trueStr, outStr)
 		t.Fatal("Number of output lines does not match expectation")
 	}
 	for i := range outLines {
@@ -98,9 +98,9 @@ func TestSimpleIpfsGraphs(t *testing.T) {
 			},
 		},
 		ClustertoIPFS: map[string]string{
-			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD":"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ":"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu":"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
+			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD": "QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
+			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ": "QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
+			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu": "QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
 		},
 	}
 	buf := new(bytes.Buffer)
@@ -160,7 +160,6 @@ I4 -> I5
 
  }`
 
-
 func TestIpfsAllGraphs(t *testing.T) {
 	cg := api.ConnectGraphSerial{
 		ClusterID: "QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
@@ -202,9 +201,9 @@ func TestIpfsAllGraphs(t *testing.T) {
 			},
 		},
 		ClustertoIPFS: map[string]string{
-			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD":"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ":"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu":"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
+			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD": "QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
+			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ": "QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
+			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu": "QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
 		},
 	}
 
@@ -213,5 +212,5 @@ func TestIpfsAllGraphs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	verifyOutput(t, buf.String(), allIpfs)	
+	verifyOutput(t, buf.String(), allIpfs)
 }
