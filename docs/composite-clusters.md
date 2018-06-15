@@ -20,6 +20,7 @@ Because each ipfs-cluster peer is attached to an IPFS daemon, using the IPFS HTT
 
 The most straightforward cluster composition topology consists of a regular ipfs-cluster where the IPFS-endpoints for each cluster peer point to underlying, separate ipfs-clusters.
 
+![multi-ring](https://user-images.githubusercontent.com/5515260/34314895-d0c03504-e746-11e7-8b22-5c19b6bec210.png)
 
 #### Uses
 
@@ -47,7 +48,7 @@ In this scenario, the ipfs-cluster setup has reached a number of peers which deg
 
 In this topology, each cluster peers uses as ipfs daemon another cluster peer from a different cluster, but all underlying peers belong to the same cluster.
 
-Todo: drawing
+![cylinder](https://user-images.githubusercontent.com/5515260/34315191-994f57d6-e74a-11e7-8ad8-e510d46363a1.png)
 
 #### Uses
 
@@ -68,6 +69,8 @@ This is a specific case of **inverse multi-ring topology** described below, with
 ### 3. Multiple clusters have their cluster peers attached to peers from a single cluster (inverse multi-ring)
 
 In this topology, we have several overclusters which all share the same undercluster.
+
+![inverse-multiring](https://user-images.githubusercontent.com/5515260/34315475-f9351e9e-e74d-11e7-9049-24f09d7c27a8.png)
 
 #### Uses
 
