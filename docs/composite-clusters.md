@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The idea of composite ipfs-clusters is based on the capacity of a cluster node to provide an ipfs-proxy endpoint in which HTTP requests are partially hijacked and used to trigger cluster operations or retrieve cluster information. This means that ipfs-clusters offers a partial ipfs-compatible API.
+The idea of composite ipfs-clusters is based on the capacity of a cluster node to provide an ipfs-proxy endpoint in which HTTP requests are partially hijacked and used to trigger cluster operations or retrieve cluster information. This means that ipfs-clusters offers a partial IPFS API.
 
 If this API were to be completely handled by cluster (at least for all the applicable endpoints in which cluster may play a part), we would find that an IPFS API endpoint could be instead an ipfs-cluster peer, and it could be used to control an ipfs-cluster.
 
@@ -12,15 +12,14 @@ Because each ipfs-cluster peer is attached to an IPFS daemon, using the IPFS HTT
 
 * Overcluster: the cluster at the top of a cluster composition topology
 * Undercluster(s): the clusters at the bottom of a cluster composition topology
-* "Peer attached to a peer": A cluster peer that uses the ipfs-proxy-endpoint provided by another peer as its IPFS daemon address.
+* "Peer attached to a peer": A cluster peer that uses the ipfs-proxy-endpoint provided by another cluster daemon as its IPFS daemon address.
 
 ## Topologies
 
-### Each cluster peer attached to a peer from different underlying clusters (multi-ring clusters)
+### 1. Each cluster peer attached to a peer from different underlying clusters (multi-ring clusters)
 
 The most straightforward cluster composition topology consists of a regular ipfs-cluster where the IPFS-endpoints for each cluster peer point to underlying, separate ipfs-clusters.
 
-Todo: add drawing
 
 #### Uses
 
@@ -30,7 +29,7 @@ In this scenario, each of the underlying clusters belong to a different party. T
 
 ##### Creating handling regional ipfs-clusters
 
-In this scenario, each of the undercluster represents an ipfs-cluster deployment in a different datacenter, or a different region. The obercluster can thus distribute content to all different regions, and each region functions independently regarding the replication factor and resources allocated to it. This may be a useful usecase for geo-allocation and CDNs. The overcluster migth be configured with high-latency settings, but the undercluster might be tuned for intra-datacenter operation.
+In this scenario, each of the undercluster represents an ipfs-cluster deployment in a different datacenter, or a different region. The overcluster can thus distribute content to all different regions, and each region functions independently regarding the replication factor and resources allocated to it. This may be a useful usecase for geo-allocation and CDNs. The overcluster migth be configured with high-latency settings, but the undercluster might be tuned for intra-datacenter operation.
 
 It would be possible to implement geo-allocation as a new ipfs-cluster informer/allocator pair, but this is not supported yet. This usecase allows to implement this scenario in an alternative way.
 
@@ -44,7 +43,7 @@ In this scenario, the ipfs-cluster setup has reached a number of peers which deg
 
 
 
-### Each cluster peer attached to a peer from other but unique cluster (cylinder clusters)
+### 2. Each cluster peer attached to a peer from other but unique cluster (cylinder clusters)
 
 In this topology, each cluster peers uses as ipfs daemon another cluster peer from a different cluster, but all underlying peers belong to the same cluster.
 
@@ -58,7 +57,7 @@ In this case, each cluster uses a different allocator/informer metric. The overc
 
 ##### Double-cluster
 
-In this case (and given an allocate-everywhere replication factor), the obercluster and the undercluster would maintain the same state. The overcluster could be take offline, be upgraded, point to the real ipfs daemons and replace the undercluster, which could then be taken offline. Of course, pinning and unpinning operations would not need to be allowed when there is no overcluster, or manual sync of the state should be needed when it comes back up. It is not very clear if this is a useful usecase.
+In this case (and given an allocate-everywhere replication factor), the overcluster and the undercluster would maintain the same state. The overcluster could be taken offline, be upgraded, point to the real ipfs daemons and replace the undercluster, which could then be taken offline. Of course, pinning and unpinning operations would not need to be allowed when there is no overcluster, or manual sync of the state should be needed when it comes back up. It is not very clear if this is a useful usecase.
 
 ##### Pyramid pinning
 
@@ -66,7 +65,7 @@ In a cylinder cluster, pin requests to the overcluster are tracked by all the un
 
 This is a specific case of **inverse multi-ring topology** described below, with a single overcluster.
 
-### Multiple clusters have their cluster peers attached to peers from a single cluster (inverse multi-ring)
+### 3. Multiple clusters have their cluster peers attached to peers from a single cluster (inverse multi-ring)
 
 In this topology, we have several overclusters which all share the same undercluster.
 
@@ -74,12 +73,12 @@ In this topology, we have several overclusters which all share the same underclu
 
 ##### Data partitioning
 
-A group of parties may which to share a common cluster. With an inverse multi-ring setup, each party will mantain their own pinset in their own cluster, but it will use a common infrastructure (the undercluster), which is shared with others. Each overcluster may administer how cluster APIs are exposed and what authentication to use.
+A group of parties may wish to share a common cluster. With an inverse multi-ring setup, each party will mantain their own pinset in their own cluster, but it will use a common infrastructure (the undercluster), which is shared with others. Each overcluster may administer how cluster APIs are exposed and what authentication to use.
 
 In this case, the undercluster needs to be able to scale to be able to handle the pinsets from all the overclusters. The overclusters are probably small, with several nodes just for redundancy, connected to several of the undercluster peers.
 
 
-### Each cluster peer attached to peers from its own cluster (inception clusters)
+### 4. Each cluster peer attached to peers from its own cluster (inception clusters)
 
 In this case, each cluster peers uses as ipfs daemon another cluster peer from the same cluster. overcluster == undercluster.
 
@@ -127,3 +126,18 @@ If the overcluster asks one of the peers to pin, it would in turn ask the overcl
 * Would it be worth adding composition-specific allocators?
 * Does compositing facilitate implementation of things like RAID stripping?
 
+
+## State of the art and TO-DOs
+
+Currently, IPFS Cluster offers basic support for topologies (specially the interesting 1 and 3). However:
+
+* The proxy feature is very basic and has some fundamental issues
+* There is no authentication or channel encryption (ipfs itself does not support this). You could only place a reverse proxy + SSL in front of it.
+* We are missing implementation of some endpoints
+
+Having a basic, but working, composition will imply fixing the following issues:
+
+* Hijack the repo/stat endpoint (and any others used by cluster) https://github.com/ipfs/ipfs-cluster/issues/466
+* Extract the proxy and make it an API module (this may require rpc streaming) https://github.com/ipfs/ipfs-cluster/issues/453
+* Mimic header policies from go-ipfs https://github.com/ipfs/ipfs-cluster/issues/382
+* In/out streaming (i.e. /add should be streamed to ipfs and the output streamed out of it). Right now, full requests are read).
