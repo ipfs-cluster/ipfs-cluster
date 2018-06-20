@@ -13,15 +13,26 @@ cache:
 
 install: true
 
+stages:
+  - name: coverage
+    if: fork = false
+
 jobs:
   include:
-    - stage: "build and test (1: tests+coverage (all) | 2: tests (w/basic monitor) | 3: checks | 4: docker | 5: sharness)"
+    - stage: coverage
       script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
-        - go test -v -coverprofile=coverage.out -covermode=count ./...
         - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+
+jobs:
+  include:
+    - stage: "build and test (1: tests (all) | 2: coverage | 3: tests (w/basic monitor) | 4: checks | 5: docker | 6: sharness)"
+      script:
+        - go get -u golang.org/x/tools/cmd/cover
+        - make deps
+        - go test -v -coverprofile=coverage.out -covermode=count ./...
     - script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
