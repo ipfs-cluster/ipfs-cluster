@@ -21,11 +21,11 @@ jobs:
         - make deps
         - go test -v -coverprofile=coverage.out -covermode=count ./...
     - script:
+        if: fork = false
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
-        if: fork = false
     - script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
