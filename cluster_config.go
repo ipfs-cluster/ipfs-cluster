@@ -26,7 +26,7 @@ const (
 	DefaultConfigCrypto        = crypto.RSA
 	DefaultConfigKeyLength     = 2048
 	DefaultListenAddr          = "/ip4/0.0.0.0/tcp/9096"
-	DefaultStateSyncInterval   = 60 * time.Second
+	DefaultStateSyncInterval   = 600 * time.Second
 	DefaultIPFSSyncInterval    = 130 * time.Second
 	DefaultMonitorPingInterval = 15 * time.Second
 	DefaultPeerWatchInterval   = 5 * time.Second
