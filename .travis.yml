@@ -21,7 +21,7 @@ jobs:
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - go test -v -coverprofile=coverage.out -covermode=count ./...
-        - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+        - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
     - script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
