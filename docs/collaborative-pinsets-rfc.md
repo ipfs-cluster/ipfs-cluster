@@ -107,7 +107,7 @@ Currently the allocations for a Cid are part of the shared state and consist of 
 
 In a scenario where peers come and go and come back, this strategy feels suboptimal (although it would work on principle). We should probably work on an allocator component which can efficiently track and handle allocations as peers come and go. For example, if the minimum allocation factor cannot be reached, cluster should still pin the items and track them as underpinned and, as new peers join, it should allocate underpinned items to them. As peers go away, cluster should efficiently identify which pins need re-allocation.
 
-Perhaps the whole allocation format should be re-thought, allowing each of the peers to detect suballocated items and track them, and then informing the allocator that they are going to worry about it. This is, again, a difficult problem which Filecoin has solved properly by providing a market where peers can offer to store content.
+Perhaps the whole allocation format should be re-thought, allowing each of the peers to detect items which have not reached a high-enough replication factor and tracking them. Then these peers would inform the allocator that they are going to worry about the items. This is, again, a difficult problem which Filecoin has solved properly by providing a market where peers can offer to store content.
 
 
 ## Prototype: ipfs blockchain and pubsub
@@ -126,6 +126,6 @@ Ideally it will have a super-easy setup:
 
 1. Run the go-ipfs daemon
 2. `ipfs-cluster-service init --template /ipns/Qmxxx`
-2. `ipfs-cluster-service daemon`
+3. `ipfs-cluster-service daemon`
 
 This will fetch configuration template with pre-filled "trusted" peers and the optimal configuration for the collaborative pinset cluster will be provided.
