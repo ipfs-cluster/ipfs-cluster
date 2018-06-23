@@ -585,6 +585,69 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// defined groups / aliases for filtering
+var filterGroups = map[string][]string{
+	"error":  {"error", "pin_error", "unpin_error", "cluster_error"},
+	"queued": {"queued", "pin_queued", "unpin_queued"},
+}
+
+// check if any of the strings in matches are in the list
+func anyStringInSlice(matches, list []string) bool {
+	for _, b := range list {
+		for _, d := range matches {
+			if len(b) > 0 && d == b {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func checkFilterMatches(filterList []string, value string) bool {
+	// in case we have not defined any alises for the passed string, just use the string itself
+	if alias, exists := filterGroups[value]; exists {
+		return anyStringInSlice(alias, filterList)
+	}
+	return anyStringInSlice([]string{value}, filterList)
+}
+
+func filterStatusAll(filter string, pinInfos []types.GlobalPinInfoSerial) []types.GlobalPinInfoSerial {
+	if filter == "" {
+		return pinInfos
+	}
+	filterList := strings.Split(strings.ToLower(filter), ",")
+	for i := len(pinInfos) - 1; i >= 0; i-- {
+		removeThisEntry := true
+		for _, entry := range pinInfos[i].PeerMap {
+			if checkFilterMatches(filterList, entry.Status) {
+				removeThisEntry = false
+				break
+			}
+		}
+		// if we get to this point, no peers matched, so remove the group
+		if removeThisEntry == true {
+			pinInfos = append(pinInfos[:i], pinInfos[i+1:]...)
+		}
+	}
+	return pinInfos
+}
+
+func filterStatus(filter string, pinInfos []types.PinInfoSerial) []types.PinInfoSerial {
+	if filter == "" {
+		return pinInfos
+	}
+	filterList := strings.Split(strings.ToLower(filter), ",")
+	for i := len(pinInfos) - 1; i >= 0; i-- {
+		if checkFilterMatches(filterList, pinInfos[i].Status) {
+			// one peer matched, so we can just exit
+			break
+		}
+		pinInfos = append(pinInfos[:i], pinInfos[i+1:]...)
+
+	}
+	return pinInfos
+}
+
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
@@ -596,6 +659,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			"StatusAllLocal",
 			struct{}{},
 			&pinInfos)
+		pinInfos = filterStatus(queryValues.Get("filter"), pinInfos)
 		sendResponse(w, err, pinInfosToGlobal(pinInfos))
 	} else {
 		var pinInfos []types.GlobalPinInfoSerial
@@ -604,6 +668,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			"StatusAll",
 			struct{}{},
 			&pinInfos)
+		pinInfos = filterStatusAll(queryValues.Get("filter"), pinInfos)
 		sendResponse(w, err, pinInfos)
 	}
 }

@@ -94,6 +94,11 @@ func main() {
 			Value: "",
 			Usage: "cluster secret (32 byte pnet-key) as needed. Only when using the LibP2P endpoint",
 		},
+		cli.StringFlag{
+			Name:  "filter",
+			Value: "",
+			Usage: "filter for the 'status' command, may be one of status flags like 'pinned', 'error', 'queued' or a comma separated list",
+		},
 		cli.BoolFlag{
 			Name:  "https, s",
 			Usage: "use https to connect to the API",
@@ -174,6 +179,11 @@ requires authorization. implies --https, which you can disable with --force-http
 		enc := c.String("encoding")
 		if enc != "text" && enc != "json" {
 			checkErr("", errors.New("unsupported encoding"))
+		}
+
+		filter := c.String("filter")
+		if filter != "" {
+			cfg.Filter = filter
 		}
 
 		globalClient, err = client.NewClient(cfg)
