@@ -71,6 +71,9 @@ type Config struct {
 	// BasicAuthCreds is a map of username-password pairs
 	// which are authorized to use Basic Authentication
 	BasicAuthCreds map[string]string
+
+	// List of filters for limiting results from ipfs-cluster-ctl
+	Filter string
 }
 
 type jsonConfig struct {
