@@ -111,7 +111,7 @@ func (c *Client) Status(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
 // StatusAll gathers Status() for all tracked items.
 func (c *Client) StatusAll(local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
-	err := c.do("GET", fmt.Sprintf("/pins?local=%t", local), nil, &gpis)
+	err := c.do("GET", fmt.Sprintf("/pins?local=%t&filter=%s", local, c.config.Filter), nil, &gpis)
 	result := make([]api.GlobalPinInfo, len(gpis))
 	for i, p := range gpis {
 		result[i] = p.ToGlobalPinInfo()
