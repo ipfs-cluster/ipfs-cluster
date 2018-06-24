@@ -73,6 +73,9 @@ type Config struct {
 
 	// LogLevel defines the verbosity of the logging facility
 	LogLevel string
+
+	// List of filters for limiting results from ipfs-cluster-ctl
+	Filter string
 }
 
 // Client provides methods to interact with the ipfs-cluster API. Use
