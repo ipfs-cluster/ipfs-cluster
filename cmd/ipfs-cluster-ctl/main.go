@@ -101,7 +101,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "filter",
 			Value: "",
-			Usage: "filter for the 'status' command, may be one of status flags like 'pinned', 'error', 'queued' or a comma separated list",
+			Usage: "filter for the 'status' command, may be one of status flags or a comma separated list",
 		},
 		cli.BoolFlag{
 			Name:  "https, s",
