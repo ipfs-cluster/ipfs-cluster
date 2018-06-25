@@ -684,14 +684,3 @@ type Error struct {
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s (%d)", e.Message, e.Code)
 }
-
-// CidNotInGlobalStateError allows for the differentiation of network
-// and rpc errors from an error indicating that the Pin isn't in the
-// global state.
-type CidNotInGlobalStateError struct {
-	Cid *cid.Cid
-}
-
-func (c *CidNotInGlobalStateError) Error() string {
-	return fmt.Sprintf("cid is not part of the global state: %s", c.Cid)
-}

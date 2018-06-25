@@ -138,37 +138,6 @@ func (opt *OperationTracker) Get(c *cid.Cid) api.PinInfo {
 	return pInfo
 }
 
-// FilterGet returns a PinInfo for Cid, only if the Phase or OperationType
-// match what the associated Operation has. Note, only supports
-// filters of type OperationType or Phase, any other type
-// will result in a nil slice being returned.
-func (opt *OperationTracker) FilterGet(c *cid.Cid, filter interface{}) (api.PinInfo, bool) {
-	opt.mu.RLock()
-	defer opt.mu.RUnlock()
-	op, ok := opt.operations[c.String()]
-	if !ok {
-		return api.PinInfo{}, false
-	}
-
-	var pi api.PinInfo
-	switch f := filter.(type) {
-	case OperationType:
-		if op.Type() != f {
-			return api.PinInfo{}, false
-		}
-		pi = opt.unsafePinInfo(op)
-	case Phase:
-		if op.Phase() != f {
-			return api.PinInfo{}, false
-		}
-		pi = opt.unsafePinInfo(op)
-	default:
-		return api.PinInfo{}, false
-	}
-
-	return pi, ok
-}
-
 // GetExists returns a PinInfo object for a Cid only if there exists
 // an associated Operation.
 func (opt *OperationTracker) GetExists(c *cid.Cid) (api.PinInfo, bool) {
@@ -211,6 +180,17 @@ func (opt *OperationTracker) CleanError(c *cid.Cid) {
 	return
 }
 
+// CleanAllDone deletes any operation from the tracker that is in PhaseDone.
+func (opt *OperationTracker) CleanAllDone() {
+	opt.mu.Lock()
+	defer opt.mu.Unlock()
+	for _, op := range opt.operations {
+		if op.Phase() == PhaseDone {
+			delete(opt.operations, op.Cid().String())
+		}
+	}
+}
+
 // OpContext gets the context of an operation, if any.
 func (opt *OperationTracker) OpContext(c *cid.Cid) context.Context {
 	opt.mu.RLock()
@@ -237,11 +217,11 @@ func (opt *OperationTracker) Filter(filters ...interface{}) []api.PinInfo {
 	return pinfos
 }
 
-// FilterOps returns a slice that only contains operations
+// filterOps returns a slice that only contains operations
 // with the matching filter. Note, only supports
 // filters of type OperationType or Phase, any other type
 // will result in a nil slice being returned.
-func (opt *OperationTracker) FilterOps(filters ...interface{}) []*Operation {
+func (opt *OperationTracker) filterOps(filters ...interface{}) []*Operation {
 	var fltops []*Operation
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()

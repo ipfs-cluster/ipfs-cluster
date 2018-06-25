@@ -888,7 +888,7 @@ func (c *Cluster) Pins() []api.Pin {
 func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
 	pin, ok := c.getCurrentPin(h)
 	if !ok {
-		return pin, &api.CidNotInGlobalStateError{Cid: h}
+		return pin, errors.New("cid is not part of the global state")
 	}
 	return pin, nil
 }

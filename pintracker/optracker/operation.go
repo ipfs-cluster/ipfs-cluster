@@ -193,3 +193,30 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		return api.TrackerStatusBug
 	}
 }
+
+// TrackerStatusToOperationPhase takes an api.TrackerStatus and
+// converts it to an OpType and Phase.
+func TrackerStatusToOperationPhase(status api.TrackerStatus) (OperationType, Phase) {
+	switch status {
+	case api.TrackerStatusPinError:
+		return OperationPin, PhaseError
+	case api.TrackerStatusPinQueued:
+		return OperationPin, PhaseQueued
+	case api.TrackerStatusPinning:
+		return OperationPin, PhaseInProgress
+	case api.TrackerStatusPinned:
+		return OperationPin, PhaseDone
+	case api.TrackerStatusUnpinError:
+		return OperationUnpin, PhaseError
+	case api.TrackerStatusUnpinQueued:
+		return OperationUnpin, PhaseQueued
+	case api.TrackerStatusUnpinning:
+		return OperationUnpin, PhaseInProgress
+	case api.TrackerStatusUnpinned:
+		return OperationUnpin, PhaseDone
+	case api.TrackerStatusRemote:
+		return OperationRemote, PhaseDone
+	default:
+		return OperationUnknown, PhaseError
+	}
+}

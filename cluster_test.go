@@ -327,7 +327,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	defer cl.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cl.Pin(api.Pin{Cid: c, ReplicationFactorMax: -1})
+	err := cl.Pin(api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}

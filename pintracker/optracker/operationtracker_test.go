@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
@@ -204,7 +202,7 @@ func TestOperationTracker_OpContext(t *testing.T) {
 	}
 }
 
-func TestOperationTracker_FilterOps(t *testing.T) {
+func TestOperationTracker_filterOps(t *testing.T) {
 	ctx := context.Background()
 	testOpsMap := map[string]*Operation{
 		test.TestCid1: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid1)), opType: OperationPin, phase: PhaseQueued},
@@ -216,7 +214,7 @@ func TestOperationTracker_FilterOps(t *testing.T) {
 	t.Run("filter ops to pin operations", func(t *testing.T) {
 		wantLen := 2
 		wantOp := OperationPin
-		got := opt.FilterOps(wantOp)
+		got := opt.filterOps(wantOp)
 		if len(got) != wantLen {
 			t.Errorf("want: %d %s operations; got: %d", wantLen, wantOp.String(), len(got))
 		}
@@ -230,7 +228,7 @@ func TestOperationTracker_FilterOps(t *testing.T) {
 	t.Run("filter ops to in progress phase", func(t *testing.T) {
 		wantLen := 2
 		wantPhase := PhaseInProgress
-		got := opt.FilterOps(PhaseInProgress)
+		got := opt.filterOps(PhaseInProgress)
 		if len(got) != wantLen {
 			t.Errorf("want: %d %s operations; got: %d", wantLen, wantPhase.String(), len(got))
 		}
@@ -245,7 +243,7 @@ func TestOperationTracker_FilterOps(t *testing.T) {
 		wantLen := 1
 		wantPhase := PhaseQueued
 		wantOp := OperationPin
-		got := opt.FilterOps(OperationPin, PhaseQueued)
+		got := opt.filterOps(OperationPin, PhaseQueued)
 		if len(got) != wantLen {
 			t.Errorf("want: %d %s operations; got: %d", wantLen, wantPhase.String(), len(got))
 		}
@@ -259,61 +257,4 @@ func TestOperationTracker_FilterOps(t *testing.T) {
 			}
 		}
 	})
-}
-
-func TestOperationTracker_FilterGet(t *testing.T) {
-	ctx := context.Background()
-	testOpsMap := map[string]*Operation{
-		test.TestCid1: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid1)), opType: OperationPin, phase: PhaseQueued},
-		test.TestCid2: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid2)), opType: OperationPin, phase: PhaseInProgress},
-		test.TestCid3: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid3)), opType: OperationUnpin, phase: PhaseError},
-	}
-	opt := &OperationTracker{ctx: ctx, operations: testOpsMap}
-
-	type args struct {
-		c      *cid.Cid
-		filter interface{}
-	}
-	tests := []struct {
-		name   string
-		args   args
-		want   api.PinInfo
-		wantOk bool
-	}{
-		{
-			"filter get to pin operation",
-			args{
-				test.MustDecodeCid(test.TestCid1),
-				OperationPin,
-			},
-			opt.unsafePinInfo(testOpsMap[test.TestCid1]),
-			true,
-		},
-		{
-			"filter get to in progress phase",
-			args{
-				test.MustDecodeCid(test.TestCid3),
-				OperationPin,
-			},
-			opt.unsafePinInfo(testOpsMap[test.TestCid3]),
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := opt.FilterGet(tt.args.c, tt.args.filter)
-			if ok != tt.wantOk {
-				t.Fatalf("wantOk: %v; got: %v", tt.wantOk, ok)
-				t.FailNow()
-			}
-			if tt.wantOk {
-				if got.Cid.String() != tt.want.Cid.String() {
-					t.Errorf("want: %v; got: %v", tt.want.Cid, got.Cid)
-				}
-				if got.Status != tt.want.Status {
-					t.Errorf("want: %v; got: %v", tt.want.Status, got.Status)
-				}
-			}
-		})
-	}
 }

@@ -22,13 +22,13 @@ type mockService struct{}
 
 // NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
 // a client to it.
-func NewMockRPCClient(t *testing.T) *rpc.Client {
+func NewMockRPCClient(t testing.TB) *rpc.Client {
 	return NewMockRPCClientWithHost(t, nil)
 }
 
 // NewMockRPCClientWithHost returns a mock ipfs-cluster RPC server
 // initialized with a given host.
-func NewMockRPCClientWithHost(t *testing.T, h host.Host) *rpc.Client {
+func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
 	s := rpc.NewServer(h, "mock")
 	c := rpc.NewClientWithServer(h, "mock", s)
 	err := s.RegisterName("Cluster", &mockService{})
