@@ -31,7 +31,7 @@ type mockService struct {
 	rpcClient *rpc.Client
 }
 
-func mockRPCClient(t *testing.T) *rpc.Client {
+func mockRPCClient(t testing.TB) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
 	err := s.RegisterName("Cluster", &mockService{})
@@ -198,7 +198,7 @@ var sortPinInfoByCid = func(p []api.PinInfo) {
 	})
 }
 
-func testSlowMapPinTracker(t *testing.T) *maptracker.MapPinTracker {
+func testSlowMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
 	cfg := &maptracker.Config{}
 	cfg.Default()
 	mpt := maptracker.NewMapPinTracker(cfg, test.TestPeerID1)
@@ -206,7 +206,7 @@ func testSlowMapPinTracker(t *testing.T) *maptracker.MapPinTracker {
 	return mpt
 }
 
-func testMapPinTracker(t *testing.T) *maptracker.MapPinTracker {
+func testMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
 	cfg := &maptracker.Config{}
 	cfg.Default()
 	mpt := maptracker.NewMapPinTracker(cfg, test.TestPeerID1)
@@ -214,7 +214,7 @@ func testMapPinTracker(t *testing.T) *maptracker.MapPinTracker {
 	return mpt
 }
 
-func testSlowStatelessPinTracker(t *testing.T) *stateless.Tracker {
+func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
 	mpt := stateless.New(cfg, test.TestPeerID1)
@@ -222,7 +222,7 @@ func testSlowStatelessPinTracker(t *testing.T) *stateless.Tracker {
 	return mpt
 }
 
-func testStatelessPinTracker(t *testing.T) *stateless.Tracker {
+func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
 	spt := stateless.New(cfg, test.TestPeerID1)
@@ -261,6 +261,42 @@ func TestPinTracker_Track(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.args.tracker.Track(tt.args.c); (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.Track() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func BenchmarkPinTracker_Track(b *testing.B) {
+	type args struct {
+		c       api.Pin
+		tracker ipfscluster.PinTracker
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			"basic stateless track",
+			args{
+				api.PinCid(test.MustDecodeCid(test.TestCid1)),
+				testStatelessPinTracker(b),
+			},
+		},
+		{
+			"basic map track",
+			args{
+				api.PinCid(test.MustDecodeCid(test.TestCid1)),
+				testMapPinTracker(b),
+			},
+		},
+	}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if err := tt.args.tracker.Track(tt.args.c); err != nil {
+					b.Errorf("PinTracker.Track() error = %v", err)
+				}
 			}
 		})
 	}
@@ -418,6 +454,37 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				if got[i].Status != tt.want[i].Status {
 					t.Errorf("for cid %v:\n got: %s\nwant: %s", got[i].Cid, got[i].Status, tt.want[i].Status)
 				}
+			}
+		})
+	}
+}
+
+func BenchmarkPinTracker_StatusAll(b *testing.B) {
+	type args struct {
+		tracker ipfscluster.PinTracker
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			"basic stateless track",
+			args{
+				testStatelessPinTracker(b),
+			},
+		},
+		{
+			"basic map track",
+			args{
+				testMapPinTracker(b),
+			},
+		},
+	}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				tt.args.tracker.StatusAll()
 			}
 		})
 	}

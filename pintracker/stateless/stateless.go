@@ -66,24 +66,18 @@ func New(cfg *Config, pid peer.ID) *Tracker {
 // Used for both pinning and unpinning
 func (spt *Tracker) opWorker(pinF func(*optracker.Operation) error, opChan chan *optracker.Operation) {
 	logger.Debug("entering opworker")
-	ticker := time.NewTicker(1 * time.Second) //TODO(ajl): make config var
+	ticker := time.NewTicker(10 * time.Second) //TODO(ajl): make config var
 	for {
 		select {
 		case <-ticker.C:
 			// every tick, clear out all Done operations
-			doneOps := spt.optracker.FilterOps(optracker.PhaseDone)
-			for _, doneOp := range doneOps {
-				spt.optracker.Clean(doneOp)
-			}
+			spt.optracker.CleanAllDone()
 		case op := <-opChan:
 			if cont := applyPinF(pinF, op); cont {
 				continue
 			}
 
-			switch op.Type() {
-			case optracker.OperationUnpin, optracker.OperationRemote:
-				spt.optracker.Clean(op)
-			}
+			spt.optracker.Clean(op)
 		case <-spt.ctx.Done():
 			return
 		}
@@ -277,7 +271,7 @@ func (spt *Tracker) Status(c *cid.Cid) api.PinInfo {
 		&gpin,
 	)
 	if err != nil {
-		if _, ok := err.(*api.CidNotInGlobalStateError); ok {
+		if !rpc.IsRPCError(err) {
 			return api.PinInfo{}
 		}
 		logger.Error(err)
@@ -327,15 +321,15 @@ func (spt *Tracker) SyncAll() ([]api.PinInfo, error) {
 		return nil, err
 	}
 
-	for _, p := range spt.optracker.FilterOps(optracker.OperationPin, optracker.PhaseError) {
-		if _, ok := localpis[p.Cid().String()]; ok {
-			spt.optracker.Clean(p)
+	for _, p := range spt.optracker.Filter(optracker.OperationPin, optracker.PhaseError) {
+		if _, ok := localpis[p.Cid.String()]; ok {
+			spt.optracker.CleanError(p.Cid)
 		}
 	}
 
-	for _, p := range spt.optracker.FilterOps(optracker.OperationUnpin, optracker.PhaseError) {
-		if _, ok := localpis[p.Cid().String()]; ok {
-			spt.optracker.Clean(p)
+	for _, p := range spt.optracker.Filter(optracker.OperationUnpin, optracker.PhaseError) {
+		if _, ok := localpis[p.Cid.String()]; !ok {
+			spt.optracker.CleanError(p.Cid)
 		}
 	}
 
@@ -344,7 +338,63 @@ func (spt *Tracker) SyncAll() ([]api.PinInfo, error) {
 
 // Sync returns the updated local status for the given Cid.
 func (spt *Tracker) Sync(c *cid.Cid) (api.PinInfo, error) {
-	return spt.Status(c), nil
+	oppi, ok := spt.optracker.GetExists(c)
+	if !ok {
+		return spt.Status(c), nil
+	}
+
+	if oppi.Status == api.TrackerStatusUnpinError {
+		// check global state to see if cluster should even be caring about
+		// the provided cid
+		var gpin api.PinSerial
+		err := spt.rpcClient.Call(
+			"",
+			"Cluster",
+			"PinGet",
+			api.PinCid(c).ToSerial(),
+			&gpin,
+		)
+		if err != nil {
+			// if not rpc error means it isn't in the global state
+			if !rpc.IsRPCError(err) {
+				spt.optracker.CleanError(c)
+				return api.PinInfo{}, nil
+			}
+			logger.Error(err)
+			return api.PinInfo{}, err
+		}
+		// check if pin is a remote pin
+		if gpin.ToPin().IsRemotePin(spt.peerID) {
+			return api.PinInfo{}, nil
+		}
+	}
+
+	if oppi.Status == api.TrackerStatusPinError {
+		// else attempt to get status from ipfs node
+		var ips api.IPFSPinStatus
+		err := spt.rpcClient.Call(
+			"",
+			"Cluster",
+			"IPFSPinLsCid",
+			api.PinCid(c).ToSerial(),
+			&ips,
+		)
+		if err != nil {
+			logger.Error(err)
+			return api.PinInfo{}, err
+		}
+		if ips.ToTrackerStatus() == api.TrackerStatusPinned {
+			spt.optracker.CleanError(c)
+			pi := api.PinInfo{
+				Cid:    c,
+				Peer:   spt.peerID,
+				Status: ips.ToTrackerStatus(),
+			}
+			return pi, nil
+		}
+	}
+
+	return spt.optracker.Get(c), nil
 }
 
 // RecoverAll attempts to recover all items tracked by this peer.
@@ -366,7 +416,7 @@ func (spt *Tracker) RecoverAll() ([]api.PinInfo, error) {
 // only when it is done.
 func (spt *Tracker) Recover(c *cid.Cid) (api.PinInfo, error) {
 	logger.Infof("Attempting to recover %s", c)
-	pInfo, ok := spt.getError(c)
+	pInfo, ok := spt.optracker.GetExists(c)
 	if !ok {
 		return spt.Status(c), nil
 	}
@@ -382,12 +432,7 @@ func (spt *Tracker) Recover(c *cid.Cid) (api.PinInfo, error) {
 		return spt.Status(c), err
 	}
 
-	pi, ok := spt.optracker.GetExists(c)
-	if !ok {
-		return spt.Status(c), nil
-	}
-
-	return pi, nil
+	return spt.Status(c), nil
 }
 
 func (spt *Tracker) ipfsStatusAll() (map[string]api.PinInfo, error) {
@@ -414,6 +459,7 @@ func (spt *Tracker) ipfsStatusAll() (map[string]api.PinInfo, error) {
 			Cid:    c,
 			Peer:   spt.peerID,
 			Status: ips.ToTrackerStatus(),
+			TS:     time.Now(),
 		}
 		pins[cidstr] = p
 	}
@@ -427,21 +473,21 @@ func (spt *Tracker) localStatus(incRemote bool) (map[string]api.PinInfo, error) 
 	pininfos := make(map[string]api.PinInfo)
 
 	// get shared state
-	var csps []api.PinSerial
+	var statePinsSerial []api.PinSerial
 	err := spt.rpcClient.Call(
 		"",
 		"Cluster",
 		"Pins",
 		struct{}{},
-		&csps,
+		&statePinsSerial,
 	)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
-	var cspis []api.Pin
-	for _, p := range csps {
-		cspis = append(cspis, p.ToPin())
+	var statePins []api.Pin
+	for _, p := range statePinsSerial {
+		statePins = append(statePins, p.ToPin())
 	}
 
 	// get statuses from ipfs node first
@@ -451,10 +497,11 @@ func (spt *Tracker) localStatus(incRemote bool) (map[string]api.PinInfo, error) 
 		return nil, err
 	}
 
-	for _, p := range cspis {
+	for _, p := range statePins {
+		pCid := p.Cid.String()
 		if p.IsRemotePin(spt.peerID) && incRemote {
 			// add pin to pininfos with a status of remote
-			pininfos[p.Cid.String()] = api.PinInfo{
+			pininfos[pCid] = api.PinInfo{
 				Cid:    p.Cid,
 				Peer:   spt.peerID,
 				Status: api.TrackerStatusRemote,
@@ -462,28 +509,19 @@ func (spt *Tracker) localStatus(incRemote bool) (map[string]api.PinInfo, error) 
 			continue
 		}
 		// lookup p in localpis
-		if lp, ok := localpis[p.Cid.String()]; ok {
-			pininfos[p.Cid.String()] = lp
+		if lp, ok := localpis[pCid]; ok {
+			pininfos[pCid] = lp
 		}
 	}
 	return pininfos, nil
-}
-
-func (spt *Tracker) getError(c *cid.Cid) (api.PinInfo, bool) {
-	return spt.optracker.FilterGet(c, optracker.PhaseError)
 }
 
 func (spt *Tracker) getErrorsAll() []api.PinInfo {
 	return spt.optracker.Filter(optracker.PhaseError)
 }
 
-func (spt *Tracker) removeError(c *cid.Cid) {
-	spt.optracker.CleanError(c)
-	return
-}
-
 // OpContext exports the internal optracker's OpContext method.
-// Primarily for testing purposes.
+// For testing purposes only.
 func (spt *Tracker) OpContext(c *cid.Cid) context.Context {
 	return spt.optracker.OpContext(c)
 }
