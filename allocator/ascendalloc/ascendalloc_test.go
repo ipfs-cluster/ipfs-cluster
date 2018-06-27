@@ -1,6 +1,7 @@
 package ascendalloc
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -96,10 +97,11 @@ var testCases = []testcase{
 }
 
 func Test(t *testing.T) {
+	ctx := context.Background()
 	alloc := &AscendAllocator{}
 	for i, tc := range testCases {
 		t.Logf("Test case %d", i)
-		res, err := alloc.Allocate(testCid, tc.current, tc.candidates, nil)
+		res, err := alloc.Allocate(ctx, testCid, tc.current, tc.candidates, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

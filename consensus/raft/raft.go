@@ -14,6 +14,7 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/state"
 )
@@ -268,6 +269,9 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 // WaitForLeader holds until Raft says we have a leader.
 // Returns uf ctx is cancelled.
 func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForLeader")
+	defer span.End()
+
 	obsCh := make(chan hraft.Observation, 1)
 	if sixtyfour { // 32-bit systems don't support observers
 		observer := hraft.NewObserver(obsCh, false, nil)
@@ -301,6 +305,9 @@ func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 }
 
 func (rw *raftWrapper) WaitForVoter(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForVoter")
+	defer span.End()
+
 	logger.Debug("waiting until we are promoted to a voter")
 
 	pid := hraft.ServerID(peer.IDB58Encode(rw.host.ID()))
@@ -334,6 +341,9 @@ func isVoter(srvID hraft.ServerID, cfg hraft.Configuration) bool {
 
 // WaitForUpdates holds until Raft has synced to the last index in the log
 func (rw *raftWrapper) WaitForUpdates(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForUpdates")
+	defer span.End()
+
 	logger.Debug("Raft state is catching up to the latest known version. Please wait...")
 	for {
 		select {
@@ -353,12 +363,15 @@ func (rw *raftWrapper) WaitForUpdates(ctx context.Context) error {
 }
 
 func (rw *raftWrapper) WaitForPeer(ctx context.Context, pid string, depart bool) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForPeer")
+	defer span.End()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			peers, err := rw.Peers()
+			peers, err := rw.Peers(ctx)
 			if err != nil {
 				return err
 			}
@@ -432,7 +445,10 @@ func (rw *raftWrapper) snapshotOnShutdown() error {
 }
 
 // Shutdown shutdown Raft and closes the BoltDB.
-func (rw *raftWrapper) Shutdown() error {
+func (rw *raftWrapper) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/Shutdown")
+	defer span.End()
+
 	errMsgs := ""
 
 	err := rw.snapshotOnShutdown()
@@ -459,10 +475,13 @@ func (rw *raftWrapper) Shutdown() error {
 }
 
 // AddPeer adds a peer to Raft
-func (rw *raftWrapper) AddPeer(peer string) error {
+func (rw *raftWrapper) AddPeer(ctx context.Context, peer string) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/AddPeer")
+	defer span.End()
+
 	// Check that we don't have it to not waste
 	// log entries if so.
-	peers, err := rw.Peers()
+	peers, err := rw.Peers(ctx)
 	if err != nil {
 		return err
 	}
@@ -475,7 +494,8 @@ func (rw *raftWrapper) AddPeer(peer string) error {
 		hraft.ServerID(peer),
 		hraft.ServerAddress(peer),
 		0,
-		0) // TODO: Extra cfg value?
+		0,
+	) // TODO: Extra cfg value?
 	err = future.Error()
 	if err != nil {
 		logger.Error("raft cannot add peer: ", err)
@@ -484,10 +504,13 @@ func (rw *raftWrapper) AddPeer(peer string) error {
 }
 
 // RemovePeer removes a peer from Raft
-func (rw *raftWrapper) RemovePeer(peer string) error {
+func (rw *raftWrapper) RemovePeer(ctx context.Context, peer string) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/RemovePeer")
+	defer span.End()
+
 	// Check that we have it to not waste
 	// log entries if we don't.
-	peers, err := rw.Peers()
+	peers, err := rw.Peers(ctx)
 	if err != nil {
 		return err
 	}
@@ -503,7 +526,8 @@ func (rw *raftWrapper) RemovePeer(peer string) error {
 	rmFuture := rw.raft.RemoveServer(
 		hraft.ServerID(peer),
 		0,
-		0) // TODO: Extra cfg value?
+		0,
+	) // TODO: Extra cfg value?
 	err = rmFuture.Error()
 	if err != nil {
 		logger.Error("raft cannot remove peer: ", err)
@@ -515,11 +539,17 @@ func (rw *raftWrapper) RemovePeer(peer string) error {
 
 // Leader returns Raft's leader. It may be an empty string if
 // there is no leader or it is unknown.
-func (rw *raftWrapper) Leader() string {
+func (rw *raftWrapper) Leader(ctx context.Context) string {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/Leader")
+	defer span.End()
+
 	return string(rw.raft.Leader())
 }
 
-func (rw *raftWrapper) Peers() ([]string, error) {
+func (rw *raftWrapper) Peers(ctx context.Context) ([]string, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/raft/Peers")
+	defer span.End()
+
 	ids := make([]string, 0)
 
 	configFuture := rw.raft.GetConfiguration()

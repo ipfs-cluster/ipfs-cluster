@@ -68,7 +68,7 @@ func TestCheckerWatch(t *testing.T) {
 	metr.SetTTL(100 * time.Millisecond)
 	metrics.Add(metr)
 
-	peersF := func() ([]peer.ID, error) {
+	peersF := func(context.Context) ([]peer.ID, error) {
 		return []peer.ID{test.TestPeerID1}, nil
 	}
 

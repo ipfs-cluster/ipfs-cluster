@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -12,12 +13,16 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"go.opencensus.io/trace"
 )
 
 var errNoSnapshot = errors.New("no snapshot found")
 
-func upgrade() error {
-	newState, current, err := restoreStateFromDisk()
+func upgrade(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "daemon/upgrade")
+	defer span.End()
+
+	newState, current, err := restoreStateFromDisk(ctx)
 	if err != nil {
 		return err
 	}
@@ -39,19 +44,25 @@ func upgrade() error {
 	return raft.SnapshotSave(cfgs.consensusCfg, newState, raftPeers)
 }
 
-func export(w io.Writer) error {
-	stateToExport, _, err := restoreStateFromDisk()
+func export(ctx context.Context, w io.Writer) error {
+	ctx, span := trace.StartSpan(ctx, "daemon/export")
+	defer span.End()
+
+	stateToExport, _, err := restoreStateFromDisk(ctx)
 	if err != nil {
 		return err
 	}
 
-	return exportState(stateToExport, w)
+	return exportState(ctx, stateToExport, w)
 }
 
 // restoreStateFromDisk returns a mapstate containing the latest
 // snapshot, a flag set to true when the state format has the
 // current version and an error
-func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
+func restoreStateFromDisk(ctx context.Context) (*mapstate.MapState, bool, error) {
+	ctx, span := trace.StartSpan(ctx, "daemon/restoreStateFromDisk")
+	defer span.End()
+
 	cfgMgr, cfgs := makeConfigs()
 
 	err := cfgMgr.LoadJSONFromFile(configPath)
@@ -83,7 +94,7 @@ func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
 		return stateFromSnap, true, nil
 	}
 
-	err = stateFromSnap.Migrate(&buf)
+	err = stateFromSnap.Migrate(ctx, &buf)
 	if err != nil {
 		return nil, false, err
 	}
@@ -91,7 +102,10 @@ func restoreStateFromDisk() (*mapstate.MapState, bool, error) {
 	return stateFromSnap, false, nil
 }
 
-func stateImport(r io.Reader) error {
+func stateImport(ctx context.Context, r io.Reader) error {
+	ctx, span := trace.StartSpan(ctx, "daemon/stateImport")
+	defer span.End()
+
 	cfgMgr, cfgs := makeConfigs()
 
 	err := cfgMgr.LoadJSONFromFile(configPath)
@@ -108,7 +122,7 @@ func stateImport(r io.Reader) error {
 
 	stateToImport := mapstate.NewMapState()
 	for _, pS := range pinSerials {
-		err = stateToImport.Add(pS.ToPin())
+		err = stateToImport.Add(ctx, pS.ToPin())
 		if err != nil {
 			return err
 		}
@@ -119,7 +133,10 @@ func stateImport(r io.Reader) error {
 	return raft.SnapshotSave(cfgs.consensusCfg, stateToImport, raftPeers)
 }
 
-func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
+func validateVersion(ctx context.Context, cfg *ipfscluster.Config, cCfg *raft.Config) error {
+	ctx, span := trace.StartSpan(ctx, "daemon/validateVersion")
+	defer span.End()
+
 	state := mapstate.NewMapState()
 	r, snapExists, err := raft.LastStateRaw(cCfg)
 	if !snapExists && err != nil {
@@ -150,9 +167,12 @@ func validateVersion(cfg *ipfscluster.Config, cCfg *raft.Config) error {
 }
 
 // ExportState saves a json representation of a state
-func exportState(state *mapstate.MapState, w io.Writer) error {
+func exportState(ctx context.Context, state *mapstate.MapState, w io.Writer) error {
+	ctx, span := trace.StartSpan(ctx, "daemon/exportState")
+	defer span.End()
+
 	// Serialize pins
-	pins := state.List()
+	pins := state.List(ctx)
 	pinSerials := make([]api.PinSerial, len(pins), len(pins))
 	for i, pin := range pins {
 		pinSerials[i] = pin.ToSerial()

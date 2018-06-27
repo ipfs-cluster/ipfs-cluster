@@ -30,18 +30,19 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 }
 
 func Test(t *testing.T) {
+	ctx := context.Background()
 	cfg := &Config{}
 	cfg.Default()
 	inf, err := NewInformer(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := inf.GetMetric()
+	m := inf.GetMetric(ctx)
 	if m.Valid {
 		t.Error("metric should be invalid")
 	}
 	inf.SetClient(mockRPCClient(t))
-	m = inf.GetMetric()
+	m = inf.GetMetric(ctx)
 	if !m.Valid {
 		t.Error("metric should be valid")
 	}

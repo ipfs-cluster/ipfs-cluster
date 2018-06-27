@@ -10,6 +10,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
+	"go.opencensus.io/trace"
 
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -101,12 +102,15 @@ func (mon *Monitor) run() {
 
 // logFromPubsub logs metrics received in the subscribed topic.
 func (mon *Monitor) logFromPubsub() {
+	ctx, span := trace.StartSpan(mon.ctx, "monitor/pubsub/logFromPubsub")
+	defer span.End()
+
 	for {
 		select {
-		case <-mon.ctx.Done():
+		case <-ctx.Done():
 			return
 		default:
-			msg, err := mon.subscription.Next(mon.ctx)
+			msg, err := mon.subscription.Next(ctx)
 			if err != nil { // context cancelled enters here
 				continue
 			}
@@ -126,7 +130,7 @@ func (mon *Monitor) logFromPubsub() {
 				metric.Peer,
 			)
 
-			err = mon.LogMetric(metric)
+			err = mon.LogMetric(ctx, metric)
 			if err != nil {
 				logger.Error(err)
 				continue
@@ -143,7 +147,10 @@ func (mon *Monitor) SetClient(c *rpc.Client) {
 
 // Shutdown stops the peer monitor. It particular, it will
 // not deliver any alerts.
-func (mon *Monitor) Shutdown() error {
+func (mon *Monitor) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/Shutdown")
+	defer span.End()
+
 	mon.shutdownLock.Lock()
 	defer mon.shutdownLock.Unlock()
 
@@ -163,14 +170,20 @@ func (mon *Monitor) Shutdown() error {
 }
 
 // LogMetric stores a metric so it can later be retrieved.
-func (mon *Monitor) LogMetric(m api.Metric) error {
+func (mon *Monitor) LogMetric(ctx context.Context, m api.Metric) error {
+	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/LogMetric")
+	defer span.End()
+
 	mon.metrics.Add(m)
 	logger.Debugf("pubsub mon logged '%s' metric from '%s'. Expires on %d", m.Name, m.Peer, m.Expire)
 	return nil
 }
 
 // PublishMetric broadcasts a metric to all current cluster peers.
-func (mon *Monitor) PublishMetric(m api.Metric) error {
+func (mon *Monitor) PublishMetric(ctx context.Context, m api.Metric) error {
+	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/PublishMetric")
+	defer span.End()
+
 	if m.Discard() {
 		logger.Warningf("discarding invalid metric: %+v", m)
 		return nil
@@ -201,9 +214,13 @@ func (mon *Monitor) PublishMetric(m api.Metric) error {
 }
 
 // getPeers gets the current list of peers from the consensus component
-func (mon *Monitor) getPeers() ([]peer.ID, error) {
+func (mon *Monitor) getPeers(ctx context.Context) ([]peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/getPeers")
+	defer span.End()
+
 	var peers []peer.ID
-	err := mon.rpcClient.Call(
+	err := mon.rpcClient.CallContext(
+		ctx,
 		"",
 		"Cluster",
 		"ConsensusPeers",
@@ -218,11 +235,14 @@ func (mon *Monitor) getPeers() ([]peer.ID, error) {
 
 // LatestMetrics returns last known VALID metrics of a given type. A metric
 // is only valid if it has not expired and belongs to a current cluster peers.
-func (mon *Monitor) LatestMetrics(name string) []api.Metric {
+func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []api.Metric {
+	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/LatestMetrics")
+	defer span.End()
+
 	latest := mon.metrics.Latest(name)
 
 	// Make sure we only return metrics in the current peerset
-	peers, err := mon.getPeers()
+	peers, err := mon.getPeers(ctx)
 	if err != nil {
 		return []api.Metric{}
 	}

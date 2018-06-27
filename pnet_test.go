@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"context"
 	"testing"
 )
 
@@ -34,6 +35,7 @@ func TestClusterSecretFormat(t *testing.T) {
 }
 
 func TestSimplePNet(t *testing.T) {
+	ctx := context.Background()
 	clusters, mocks := peerManagerClusters(t)
 	defer cleanRaft()
 	defer shutdownClusters(t, clusters, mocks)
@@ -42,15 +44,15 @@ func TestSimplePNet(t *testing.T) {
 		t.Skip("need at least 2 nodes for this test")
 	}
 
-	_, err := clusters[0].PeerAdd(clusters[1].id)
+	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(clusters[0].Peers()) != len(clusters[1].Peers()) {
+	if len(clusters[0].Peers(ctx)) != len(clusters[1].Peers(ctx)) {
 		t.Fatal("Expected same number of peers")
 	}
-	if len(clusters[0].Peers()) != 2 {
+	if len(clusters[0].Peers(ctx)) != 2 {
 		t.Fatal("Expected 2 peers")
 	}
 }

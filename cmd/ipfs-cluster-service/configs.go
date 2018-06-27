@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
+	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 )
@@ -30,6 +31,8 @@ type cfgs struct {
 	pubsubmonCfg        *pubsubmon.Config
 	diskInfCfg          *disk.Config
 	numpinInfCfg        *numpin.Config
+	metricsCfg          *observations.MetricsConfig
+	tracingCfg          *observations.TracingConfig
 }
 
 func makeConfigs() (*config.Manager, *cfgs) {
@@ -45,6 +48,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
+	metricsCfg := &observations.MetricsConfig{}
+	tracingCfg := &observations.TracingConfig{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.API, ipfsproxyCfg)
@@ -56,6 +61,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
+	cfg.RegisterComponent(config.Observations, metricsCfg)
+	cfg.RegisterComponent(config.Observations, tracingCfg)
 	return cfg, &cfgs{
 		clusterCfg,
 		apiCfg,
@@ -68,6 +75,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 		pubsubmonCfg,
 		diskInfCfg,
 		numpinInfCfg,
+		metricsCfg,
+		tracingCfg,
 	}
 }
 
@@ -76,4 +85,22 @@ func saveConfig(cfg *config.Manager) {
 	err = cfg.SaveJSON(configPath)
 	checkErr("saving new configuration", err)
 	out("%s configuration written to %s\n", programName, configPath)
+}
+
+func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
+	// tracingFlag represents the cli flag passed to ipfs-cluster-service daemon.
+	// It takes priority. If false, fallback to config file value.
+	tracingValue := tracingFlag
+	if !tracingFlag {
+		tracingValue = cfgs.tracingCfg.EnableTracing
+	}
+	// propagate to any other interested configuration
+	cfgs.tracingCfg.EnableTracing = tracingValue
+	cfgs.clusterCfg.Tracing = tracingValue
+	cfgs.consensusCfg.Tracing = tracingValue
+	cfgs.apiCfg.Tracing = tracingValue
+	cfgs.ipfshttpCfg.Tracing = tracingValue
+	cfgs.ipfsproxyCfg.Tracing = tracingValue
+
+	return cfgs
 }

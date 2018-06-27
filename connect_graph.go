@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	peer "github.com/libp2p/go-libp2p-peer"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
@@ -10,19 +11,22 @@ import (
 // ConnectGraph returns a description of which cluster peers and ipfs
 // daemons are connected to each other
 func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
+	ctx, span := trace.StartSpan(c.ctx, "cluster/ConnectGraph")
+	defer span.End()
+
 	cg := api.ConnectGraph{
 		IPFSLinks:     make(map[peer.ID][]peer.ID),
 		ClusterLinks:  make(map[peer.ID][]peer.ID),
 		ClustertoIPFS: make(map[peer.ID]peer.ID),
 	}
-	members, err := c.consensus.Peers()
+	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		return cg, err
 	}
 
 	peersSerials := make([][]api.IDSerial, len(members), len(members))
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(members))
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(

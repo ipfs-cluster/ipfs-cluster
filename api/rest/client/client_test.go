@@ -16,6 +16,7 @@ import (
 )
 
 func testAPI(t *testing.T) *rest.API {
+	ctx := context.Background()
 	//logging.SetDebugLogging()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
@@ -37,7 +38,7 @@ func testAPI(t *testing.T) *rest.API {
 		t.Fatal(err)
 	}
 
-	rest, err := rest.NewAPIWithHost(cfg, h)
+	rest, err := rest.NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new Api: ", err)
 	}
@@ -47,7 +48,8 @@ func testAPI(t *testing.T) *rest.API {
 }
 
 func shutdown(a *rest.API) {
-	a.Shutdown()
+	ctx := context.Background()
+	a.Shutdown(ctx)
 	a.Host().Close()
 }
 
@@ -264,6 +266,7 @@ func TestProxyAddress(t *testing.T) {
 }
 
 func TestIPFS(t *testing.T) {
+	ctx := context.Background()
 	ipfsMock := test.NewIpfsMock()
 	defer ipfsMock.Close()
 
@@ -284,7 +287,7 @@ func TestIPFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	dc := c.(*defaultClient)
-	ipfs := dc.IPFS()
+	ipfs := dc.IPFS(ctx)
 
 	err = ipfs.Pin(test.TestCid1)
 	if err != nil {

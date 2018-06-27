@@ -66,21 +66,23 @@ func testPeerMonitorWithHost(t *testing.T, h host.Host) *Monitor {
 }
 
 func TestPeerMonitorShutdown(t *testing.T) {
+	ctx := context.Background()
 	pm := testPeerMonitor(t)
-	err := pm.Shutdown()
+	err := pm.Shutdown(ctx)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = pm.Shutdown()
+	err = pm.Shutdown(ctx)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestLogMetricConcurrent(t *testing.T) {
+	ctx := context.Background()
 	pm := testPeerMonitor(t)
-	defer pm.Shutdown()
+	defer pm.Shutdown(ctx)
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -96,7 +98,7 @@ func TestLogMetricConcurrent(t *testing.T) {
 				Valid: true,
 			}
 			mt.SetTTL(150 * time.Millisecond)
-			pm.LogMetric(mt)
+			pm.LogMetric(ctx, mt)
 			time.Sleep(75 * time.Millisecond)
 		}
 	}
@@ -109,7 +111,7 @@ func TestLogMetricConcurrent(t *testing.T) {
 	last := time.Now().Add(-500 * time.Millisecond)
 
 	for i := 0; i <= 20; i++ {
-		lastMtrcs := pm.LatestMetrics("test")
+		lastMtrcs := pm.LatestMetrics(ctx, "test")
 
 		// There should always 1 valid LatestMetric "test"
 		if len(lastMtrcs) != 1 {
@@ -137,28 +139,29 @@ func TestLogMetricConcurrent(t *testing.T) {
 }
 
 func TestPeerMonitorLogMetric(t *testing.T) {
+	ctx := context.Background()
 	pm := testPeerMonitor(t)
-	defer pm.Shutdown()
+	defer pm.Shutdown(ctx)
 	mf := newMetricFactory()
 
 	// dont fill window
-	pm.LogMetric(mf.newMetric("test", test.TestPeerID1))
-	pm.LogMetric(mf.newMetric("test", test.TestPeerID2))
-	pm.LogMetric(mf.newMetric("test", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test", test.TestPeerID1))
+	pm.LogMetric(ctx, mf.newMetric("test", test.TestPeerID2))
+	pm.LogMetric(ctx, mf.newMetric("test", test.TestPeerID3))
 
 	// fill window
-	pm.LogMetric(mf.newMetric("test2", test.TestPeerID3))
-	pm.LogMetric(mf.newMetric("test2", test.TestPeerID3))
-	pm.LogMetric(mf.newMetric("test2", test.TestPeerID3))
-	pm.LogMetric(mf.newMetric("test2", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
 
-	latestMetrics := pm.LatestMetrics("testbad")
+	latestMetrics := pm.LatestMetrics(ctx, "testbad")
 	if len(latestMetrics) != 0 {
 		t.Logf("%+v", latestMetrics)
 		t.Error("metrics should be empty")
 	}
 
-	latestMetrics = pm.LatestMetrics("test")
+	latestMetrics = pm.LatestMetrics(ctx, "test")
 	if len(latestMetrics) != 3 {
 		t.Error("metrics should correspond to 3 hosts")
 	}
@@ -182,7 +185,7 @@ func TestPeerMonitorLogMetric(t *testing.T) {
 		}
 	}
 
-	latestMetrics = pm.LatestMetrics("test2")
+	latestMetrics = pm.LatestMetrics(ctx, "test2")
 	if len(latestMetrics) != 1 {
 		t.Fatal("should only be one metric")
 	}
@@ -192,18 +195,19 @@ func TestPeerMonitorLogMetric(t *testing.T) {
 }
 
 func TestPeerMonitorPublishMetric(t *testing.T) {
+	ctx := context.Background()
 	h, err := libp2p.New(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	pm := testPeerMonitorWithHost(t, h)
-	defer pm.Shutdown()
+	defer pm.Shutdown(ctx)
 	defer h.Close()
 	mf := newMetricFactory()
 
 	metric := mf.newMetric("test", test.TestPeerID1)
-	err = pm.PublishMetric(metric)
+	err = pm.PublishMetric(ctx, metric)
 
 	// Note mock rpc returns 3 consensus peers and we cannot
 	// push to those so an error is in order and indicates
@@ -214,13 +218,14 @@ func TestPeerMonitorPublishMetric(t *testing.T) {
 }
 
 func TestPeerMonitorAlerts(t *testing.T) {
+	ctx := context.Background()
 	pm := testPeerMonitor(t)
-	defer pm.Shutdown()
+	defer pm.Shutdown(ctx)
 	mf := newMetricFactory()
 
 	mtr := mf.newMetric("test", test.TestPeerID1)
 	mtr.SetTTL(0)
-	pm.LogMetric(mtr)
+	pm.LogMetric(ctx, mtr)
 	time.Sleep(time.Second)
 	timeout := time.NewTimer(time.Second * 5)
 

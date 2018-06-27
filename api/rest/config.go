@@ -112,6 +112,9 @@ type Config struct {
 	CORSExposedHeaders   []string
 	CORSAllowCredentials bool
 	CORSMaxAge           time.Duration
+
+	// Tracing flag used to skip tracing specific paths when not enabled.
+	Tracing bool
 }
 
 type jsonConfig struct {
