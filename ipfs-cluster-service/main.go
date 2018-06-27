@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
+	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
 
-	//	_ "net/http/pprof"
+	_ "expvar"
+	_ "net/http/pprof"
 
 	logging "github.com/ipfs/go-log"
 	cli "github.com/urfave/cli"
@@ -145,9 +148,9 @@ func checkErr(doing string, err error, args ...interface{}) {
 }
 
 func main() {
-	// go func() {
-	//	log.Println(http.ListenAndServe("localhost:6060", nil))
-	// }()
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 
 	app := cli.NewApp()
 	app.Name = programName
