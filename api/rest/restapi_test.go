@@ -641,6 +641,28 @@ func TestAPIStatusEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIStatusAllFilterEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=error", &resp)
+		if len(resp) != 1 {
+			t.Errorf("unexpected statusAll resp:\n %+v", resp)
+		}
+
+		// Test local=true
+		var resp2 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?local=true&filter=error", &resp2)
+		if len(resp2) != 1 {
+			t.Errorf("unexpected statusAll+local resp:\n %+v \n %d", resp2, len(resp2))
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestAPISyncAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()

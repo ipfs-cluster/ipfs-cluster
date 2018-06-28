@@ -675,59 +675,52 @@ var filterGroups = map[string][]string{
 	"queued": {"queued", "pin_queued", "unpin_queued"},
 }
 
-// check if any of the strings in matches are in the list
-func anyStringInSlice(matches, list []string) bool {
-	for _, b := range list {
-		for _, d := range matches {
-			if len(b) > 0 && d == b {
-				return true
+func parseAllFilters(raw_filters string) map[string]bool {
+	// given the initial string of filters, return a slice of all individual strings
+	// to match on. This includes replacing alises
+	rawFilterList := strings.Split(strings.ToLower(raw_filters), ",")
+	var filterList = map[string]bool{}
+
+	for _, raw_filter := range rawFilterList {
+		if alias_slice, exists := filterGroups[raw_filter]; exists {
+			for _, alias := range alias_slice {
+				filterList[alias] = true
 			}
+		} else {
+			filterList[raw_filter] = true
 		}
 	}
-	return false
-}
+	return filterList
 
-func checkFilterMatches(filterList []string, value string) bool {
-	// in case we have not defined any alises for the passed string, just use the string itself
-	if alias, exists := filterGroups[value]; exists {
-		return anyStringInSlice(alias, filterList)
-	}
-	return anyStringInSlice([]string{value}, filterList)
 }
 
 func filterStatusAll(filter string, pinInfos []types.GlobalPinInfoSerial) []types.GlobalPinInfoSerial {
 	if filter == "" {
 		return pinInfos
 	}
-	filterList := strings.Split(strings.ToLower(filter), ",")
-	for i := len(pinInfos) - 1; i >= 0; i-- {
-		removeThisEntry := true
-		for _, entry := range pinInfos[i].PeerMap {
-			if checkFilterMatches(filterList, entry.Status) {
-				removeThisEntry = false
-				break
+	filterList := parseAllFilters(filter)
+	var filtered []types.GlobalPinInfoSerial
+NEXTPI:
+	for _, pi := range pinInfos {
+		for _, entry := range pi.PeerMap {
+			if _, exists := filterList[entry.Status]; exists {
+				filtered = append(filtered, pi)
+				continue NEXTPI
 			}
 		}
-		// if we get to this point, no peers matched, so remove the group
-		if removeThisEntry == true {
-			pinInfos = append(pinInfos[:i], pinInfos[i+1:]...)
-		}
 	}
-	return pinInfos
+	return filtered
 }
 
 func filterStatus(filter string, pinInfos []types.PinInfoSerial) []types.PinInfoSerial {
 	if filter == "" {
 		return pinInfos
 	}
-	filterList := strings.Split(strings.ToLower(filter), ",")
+	filterList := parseAllFilters(filter)
 	for i := len(pinInfos) - 1; i >= 0; i-- {
-		if checkFilterMatches(filterList, pinInfos[i].Status) {
-			// one peer matched, so we can just exit
-			break
+		if _, exists := filterList[pinInfos[i].Status]; !exists {
+			pinInfos = append(pinInfos[:i], pinInfos[i+1:]...)
 		}
-		pinInfos = append(pinInfos[:i], pinInfos[i+1:]...)
-
 	}
 	return pinInfos
 }
