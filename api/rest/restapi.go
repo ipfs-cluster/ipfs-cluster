@@ -675,19 +675,19 @@ var filterGroups = map[string][]string{
 	"queued": {"queued", "pin_queued", "unpin_queued"},
 }
 
-func parseAllFilters(raw_filters string) map[string]bool {
+func parseAllFilters(rawFilters string) map[string]bool {
 	// given the initial string of filters, return a slice of all individual strings
 	// to match on. This includes replacing alises
-	rawFilterList := strings.Split(strings.ToLower(raw_filters), ",")
+	rawFilterList := strings.Split(strings.ToLower(rawFilters), ",")
 	var filterList = map[string]bool{}
 
-	for _, raw_filter := range rawFilterList {
-		if alias_slice, exists := filterGroups[raw_filter]; exists {
-			for _, alias := range alias_slice {
+	for _, rawFilter := range rawFilterList {
+		if aliasSlice, exists := filterGroups[rawFilter]; exists {
+			for _, alias := range aliasSlice {
 				filterList[alias] = true
 			}
 		} else {
-			filterList[raw_filter] = true
+			filterList[rawFilter] = true
 		}
 	}
 	return filterList
