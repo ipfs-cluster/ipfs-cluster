@@ -53,7 +53,7 @@ func (a *AddSession) finishLocalAdd(rootCid string, replMin, replMax int) error 
 
 	pinS := api.PinSerial{
 		Cid:                  rootCid,
-		Type:                 api.DataType,
+		Type:                 int(api.DataType),
 		Recursive:            true,
 		ReplicationFactorMin: replMin,
 		ReplicationFactorMax: replMax,

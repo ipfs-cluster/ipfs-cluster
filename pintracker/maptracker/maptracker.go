@@ -204,7 +204,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 	// The problem is remote/unpin operation won't be cancelled
 	// but I don't know how bad is that
 	// Also, this is dup code
-	if c.Type == ShardType {
+	if c.Type == api.ShardType {
 		// cancel any other ops
 		op := mpt.optracker.TrackNewOperation(c, optracker.OperationSharded, optracker.PhaseInProgress)
 		if op == nil {

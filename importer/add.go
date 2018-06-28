@@ -9,8 +9,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
-	"github.com/ipfs/go-ipfs/exchange/offline"
 	balanced "github.com/ipfs/go-ipfs/importer/balanced"
 	ihelper "github.com/ipfs/go-ipfs/importer/helpers"
 	trickle "github.com/ipfs/go-ipfs/importer/trickle"

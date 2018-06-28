@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/sharder"
 )
 
 type cfgs struct {
@@ -27,6 +28,7 @@ type cfgs struct {
 	pubsubmonCfg *pubsubmon.Config
 	diskInfCfg   *disk.Config
 	numpinInfCfg *numpin.Config
+	sharderCfg   *sharder.Config
 }
 
 func makeConfigs() (*config.Manager, *cfgs) {
@@ -40,6 +42,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
+	sharderCfg := &sharder.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
@@ -49,7 +52,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, pubsubmonCfg, diskInfCfg, numpinInfCfg}
+	cfg.RegisterComponent(config.Sharder, sharderCfg)
+	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, pubsubmonCfg, diskInfCfg, numpinInfCfg, sharderCfg}
 }
 
 func saveConfig(cfg *config.Manager, force bool) {

@@ -518,30 +518,6 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 	return addrs
 }
 
-// PeersToStrings IDB58Encodes a list of peers.
-func PeersToStrings(peers []peer.ID) []string {
-	strs := make([]string, len(peers))
-	for i, p := range peers {
-		if p != "" {
-			strs[i] = peer.IDB58Encode(p)
-		}
-	}
-	return strs
-}
-
-// StringsToPeers decodes peer.IDs from strings.
-func StringsToPeers(strs []string) []peer.ID {
-	peers := make([]peer.ID, len(strs))
-	for i, p := range strs {
-		var err error
-		peers[i], err = peer.IDB58Decode(p)
-		if err != nil {
-			logger.Error(p, err)
-		}
-	}
-	return peers
-}
-
 // CidsToStrings encodes cid.Cids to strings.
 func CidsToStrings(cids []*cid.Cid) []string {
 	strs := make([]string, len(cids))
@@ -566,7 +542,8 @@ func StringsToCidSet(strs []string) *cid.Set {
 
 // PinType values
 const (
-	DataType PinType = iota + 1
+	BadType PinType = iota
+	DataType
 	MetaType
 	CdagType
 	ShardType
@@ -603,7 +580,7 @@ func PinTypeFromString(str string) PinType {
 	case "all":
 		return AllType
 	default:
-		return PinType(0) // invalid string
+		return BadType
 	}
 }
 

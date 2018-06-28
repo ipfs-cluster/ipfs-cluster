@@ -10,6 +10,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
+
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -42,9 +43,9 @@ type Sharder struct {
 
 // 		currentShard: make(map[string]*cid.Cid),
 
-// NewSharder returns a new sharder for use by an ipfs-cluster.  In the future
+// New returns a new sharder for use by an ipfs-cluster.  In the future
 // this may take in a shard-config
-func NewSharder(cfg *Config) (*Sharder, error) {
+func New(cfg *Config) (*Sharder, error) {
 	logger.Debugf("The alloc size provided: %d", cfg.AllocSize)
 	return &Sharder{
 		allocSize:   cfg.AllocSize,

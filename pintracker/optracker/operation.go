@@ -25,6 +25,9 @@ const (
 	OperationUnpin
 	// OperationRemote represents an noop operation
 	OperationRemote
+	// OperationSharded represents a pin which points to shard
+	// FIXME
+	OperationSharded
 )
 
 //go:generate stringer -type=Phase

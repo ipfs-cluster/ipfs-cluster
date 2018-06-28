@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -828,7 +829,7 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 
 	pin := types.PinSerial{
 		Cid:  hash,
-		Type: types.DataType,
+		Type: int(types.DataType),
 	}
 
 	queryValues := r.URL.Query()

@@ -26,12 +26,6 @@
       "version": "1.2.10"
     },
     {
-      "author": "whyrusleeping",
-      "hash": "QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ",
-      "name": "go-cid",
-      "version": "0.7.18"
-    },
-    {
       "author": "urfave",
       "hash": "Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA",
       "name": "cli",
@@ -81,9 +75,9 @@
     },
     {
       "author": "ipfs",
-      "hash": "QmXmEFbXmC6ExXg3H8MV2FhminVLWf9qJYUdr83DnNCy86",
+      "hash": "QmZqrWkDmNwNzQYQdfLHMiKGbVo4jQwNib2iUBzWqGc9JE",
       "name": "go-ipfs-api",
-      "version": "1.2.8"
+      "version": "1.2.9"
     },
     {
       "author": "whyrusleeping",
@@ -98,20 +92,15 @@
       "version": "0.7.21"
     },
     {
-      "hash": "QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM",
+      "hash": "QmdE4gMduCKCGAcczM2F5ioYDfdeKuPix138wrES1YSr7f",
       "name": "go-ipfs-cmdkit",
-      "version": "1.0.0"
-    },
-    {
-      "hash": "QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR",
-      "name": "go-ipfs",
-      "version": "0.4.14-rc1"
+      "version": "1.1.1"
     },
     {
       "author": "whyrusleeping",
-      "hash": "Qme5bWv7wtjUNGsK2BNGVUFPKiuxWrsqrtvYwCLRw8YFES",
+      "hash": "QmWi2BYBL5gJ3CiAiQchg6rn1A8iBsrWy51EYxvHVjFvLb",
       "name": "go-ipld-format",
-      "version": "0.5.3"
+      "version": "0.5.4"
     },
     {
       "author": "satori",
@@ -121,21 +110,26 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmPwNSAKhfSDEjQ2LYx8bemvnoyXYTaL96JxsAvjzphT75",
+      "hash": "QmdpuJBPBZ6sLPj9BQpn3Rpi38BT2cF1QMiUfyzNWeySW4",
       "name": "go-ipfs-blockstore",
-      "version": "0.0.3"
+      "version": "0.0.8"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmWo8jYc19ppG7YoTsrr2kEtLRbARTJho5oNXFTR6B7Peq",
+      "hash": "QmXnzH7wowyLZy8XJxxaQCVTgLMcDXdMBznmsrmQWCyiQV",
       "name": "go-ipfs-chunker",
-      "version": "0.0.2"
+      "version": "0.0.6"
     },
     {
       "author": "hector",
-      "hash": "Qmb3jLEFAQrqdVgWUajqEyuuDoavkSq1XQXz6tWdFWF995",
+      "hash": "QmUWsXLvYYDAaoAt9TPZpFX4ffHHMg46AHrz1ZLTN5ABbe",
       "name": "go-ipfs-posinfo",
-      "version": "0.0.1"
+      "version": "0.0.2"
+    },
+    {
+      "hash": "QmdmoY2foMtfYWLE4PWUzAjcPRNMLMM4Q4wdAE27s9JLxv",
+      "name": "go-ipfs",
+      "version": "0.4.16-rc1"
     }
   ],
   "gxVersion": "0.11.0",
