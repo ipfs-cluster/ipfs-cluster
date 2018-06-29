@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
@@ -30,11 +29,6 @@ func consensusListenAddr(c *Consensus) ma.Multiaddr {
 func consensusAddr(c *Consensus) ma.Multiaddr {
 	cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", consensusListenAddr(c), c.host.ID().Pretty()))
 	return cAddr
-}
-
-func init() {
-	_ = logging.LevelDebug
-	//logging.SetLogLevel("consensus", "DEBUG")
 }
 
 func makeTestingHost(t *testing.T) host.Host {
