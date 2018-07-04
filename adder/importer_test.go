@@ -1,11 +1,11 @@
-package importer
+package adder
 
 import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/test"
 )
 
 // import and receive all blocks
@@ -76,8 +76,6 @@ func listenErrCh(t *testing.T, errChan <-chan error) {
 		t.Fatal(err)
 	}
 }
-	
-
 
 // testChannelOutput is a utility for shared functionality of output and print
 // channel testing
@@ -85,7 +83,7 @@ func testChannelOutput(t *testing.T, objs []interface{}, expected []string) {
 	check := make(map[string]struct{})
 	for _, obj := range objs {
 		var cid string
-		switch obj := obj.(type){
+		switch obj := obj.(type) {
 		case *api.AddedOutput:
 			cid = obj.Hash
 		case *api.NodeWithMeta:

@@ -298,7 +298,7 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		ipfsErrorResponder(w, "Error: bad argument")
 		return
 	}
-	_, err := cid.Decode(arg)
+	c, err := cid.Decode(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing CID: "+err.Error())
 		return
@@ -308,9 +308,7 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		"",
 		"Cluster",
 		op,
-		api.PinSerial{
-			Cid: arg,
-		},
+		api.PinCid(c).ToSerial(),
 		&struct{}{},
 	)
 	if err != nil {
@@ -625,33 +623,45 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) error {
+func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, maxDepth int) error {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
 	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
-	if !pinStatus.IsPinned() {
-		switch ipfs.config.PinMethod {
-		case "refs":
-			path := fmt.Sprintf("refs?arg=%s&recursive=%t", hash, recursive)
-			err := ipfs.postDiscardBodyCtx(ctx, path)
-			if err != nil {
-				return err
-			}
-			logger.Debugf("Refs for %s sucessfully fetched", hash)
-		}
 
-		path := fmt.Sprintf("pin/add?arg=%s&recursive=%t", hash, recursive)
-		_, err = ipfs.postCtx(ctx, path, "", nil)
-		if err == nil {
-			logger.Info("IPFS Pin request succeeded: ", hash)
-		}
-		return err
+	if pinStatus.IsPinned(maxDepth) {
+		logger.Debug("IPFS object is already pinned: ", hash)
+		return nil
 	}
-	logger.Debug("IPFS object is already pinned: ", hash)
-	return nil
+
+	var pinArgs string
+	switch {
+	case maxDepth < 0:
+		pinArgs = "recursive=true"
+	case maxDepth == 0:
+		pinArgs = "recursive=false"
+	default:
+		pinArgs = fmt.Sprintf("recursive=true&max-depth=%d", maxDepth)
+	}
+
+	switch ipfs.config.PinMethod {
+	case "refs": // do refs -r first
+		path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs)
+		err := ipfs.postDiscardBodyCtx(ctx, path)
+		if err != nil {
+			return err
+		}
+		logger.Debugf("Refs for %s sucessfully fetched", hash)
+	}
+
+	path := fmt.Sprintf("pin/add?arg=%s&%s", hash, pinArgs)
+	_, err = ipfs.postCtx(ctx, path, "", nil)
+	if err == nil {
+		logger.Info("IPFS Pin request succeeded: ", hash)
+	}
+	return err
 }
 
 // Unpin performs an unpin request against the configured IPFS
@@ -663,7 +673,7 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
 	if err != nil {
 		return err
 	}
-	if pinStatus.IsPinned() {
+	if pinStatus.IsPinned(-1) {
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 		_, err := ipfs.postCtx(ctx, path, "", nil)
 		if err == nil {

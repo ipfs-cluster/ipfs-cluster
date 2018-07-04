@@ -1,4 +1,5 @@
-package importer
+// The ipfsadd package is a simplified copy of go-ipfs/core/coreunix/add.go
+package ipfsadd
 
 import (
 	"context"
@@ -9,25 +10,30 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
-	bserv "github.com/ipfs/go-ipfs/blockservice"
+	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-chunker"
+	files "github.com/ipfs/go-ipfs-cmdkit/files"
+	posinfo "github.com/ipfs/go-ipfs-posinfo"
 	balanced "github.com/ipfs/go-ipfs/importer/balanced"
 	ihelper "github.com/ipfs/go-ipfs/importer/helpers"
 	trickle "github.com/ipfs/go-ipfs/importer/trickle"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	mfs "github.com/ipfs/go-ipfs/mfs"
 	unixfs "github.com/ipfs/go-ipfs/unixfs"
-
-	cid "github.com/ipfs/go-cid"
-	ds "github.com/ipfs/go-datastore"
-	syncds "github.com/ipfs/go-datastore/sync"
-	bstore "github.com/ipfs/go-ipfs-blockstore"
-	"github.com/ipfs/go-ipfs-chunker"
-	files "github.com/ipfs/go-ipfs-cmdkit/files"
-	posinfo "github.com/ipfs/go-ipfs-posinfo"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 )
+
+// FIXME
+// // error used to i
+// var errNotFound = errors.New("dagservice: block not found")
+
+// func shouldIgnore(err error) bool {
+// 	if err == errNotFound {
+// 		return true
+// 	}
+// 	return false
+// }
 
 var log = logging.Logger("coreunix")
 
@@ -53,10 +59,9 @@ func (e *ignoreFileError) Error() string {
 }
 
 // NewAdder Returns a new Adder used for a file add operation.
-func NewAdder(ctx context.Context, bs bstore.GCBlockstore, ds ipld.DAGService) (*Adder, error) {
+func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
 	return &Adder{
 		ctx:        ctx,
-		blockstore: bs,
 		dagService: ds,
 		Progress:   false,
 		Hidden:     true,
@@ -69,7 +74,6 @@ func NewAdder(ctx context.Context, bs bstore.GCBlockstore, ds ipld.DAGService) (
 // Adder holds the switches passed to the `add` command.
 type Adder struct {
 	ctx        context.Context
-	blockstore bstore.GCBlockstore
 	dagService ipld.DAGService
 	Out        chan *api.AddedOutput
 	Progress   bool
@@ -228,9 +232,12 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 				// an fsn file.  Outgoing DAGservice does not
 				// store blocks. We recognize it as a file and
 				// keep traversing the directory
-				if shouldIgnore(err) {
-					continue
-				}
+				//if shouldIgnore(err) {
+				//	continue
+				//}
+				// FIXME
+				fmt.Println("fixme:", err)
+				continue
 
 				return err
 			}
@@ -406,14 +413,6 @@ func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	}
 
 	return nil
-}
-
-// NewMemoryDagService builds and returns a new mem-datastore.
-func NewMemoryDagService() ipld.DAGService {
-	// build mem-datastore for editor's intermediary nodes
-	bs := bstore.NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
-	bsrv := bserv.New(bs, offline.Exchange(bs))
-	return dag.NewDAGService(bsrv)
 }
 
 type progressReader struct {

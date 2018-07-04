@@ -23,7 +23,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
-	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -132,9 +131,6 @@ func createCluster(
 
 	ipfscluster.ReadyTimeout = cfgs.consensusCfg.WaitForLeaderTimeout + 5*time.Second
 
-	sharder, err := sharder.New(cfgs.sharderCfg)
-	checkErr("creating Sharder component", err)
-
 	return ipfscluster.NewCluster(
 		host,
 		cfgs.clusterCfg,
@@ -146,7 +142,6 @@ func createCluster(
 		mon,
 		alloc,
 		informer,
-		sharder,
 	)
 }
 

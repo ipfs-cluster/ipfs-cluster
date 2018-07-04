@@ -192,6 +192,28 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *a
 	return err
 }
 
+// Allocate returns allocations for the given Pin.
+func (rpcapi *RPCAPI) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	pin := in.ToPin()
+	err := rpcapi.c.setupPin(&pin)
+	if err != nil {
+		return err
+	}
+	allocs, err := rpcapi.c.allocate(
+		pin.Cid,
+		pin.ReplicationFactorMin,
+		pin.ReplicationFactorMax,
+		[]peer.ID{}, // blacklist
+		[]peer.ID{}, // prio list
+	)
+	if err != nil {
+		return err
+	}
+
+	*out = api.PeersToStrings(allocs)
+	return nil
+}
+
 /*
    Tracker component methods
 */
@@ -221,7 +243,7 @@ func (rpcapi *RPCAPI) TrackerStatus(ctx context.Context, in api.PinSerial, out *
 	return nil
 }
 
-// TrackerRecoverAll runs PinTracker.RecoverAll().
+// TrackerRecoverAll runs PinTracker.RecoverAll().f
 func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	pinfos, err := rpcapi.c.tracker.RecoverAll()
 	*out = pinInfoSliceToSerial(pinfos)
@@ -243,8 +265,8 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out 
 // IPFSPin runs IPFSConnector.Pin().
 func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin().Cid
-	r := in.ToPin().Recursive
-	return rpcapi.c.ipfs.Pin(ctx, c, r)
+	depth := in.ToPin().MaxDepth
+	return rpcapi.c.ipfs.Pin(ctx, c, depth)
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
@@ -346,29 +368,6 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 	peers, err := rpcapi.c.consensus.Peers()
 	*out = peers
 	return err
-}
-
-/*
-   Sharder methods
-*/
-
-// SharderAddNode runs Sharder.AddNode(node).
-func (rpcapi *RPCAPI) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
-	shardID, err := rpcapi.c.sharder.AddNode(
-		in.Size,
-		in.Data,
-		in.Cid,
-		in.ID,
-		in.ReplMin,
-		in.ReplMax,
-	)
-	*out = shardID
-	return err
-}
-
-// SharderFinalize runs Sharder.Finalize().
-func (rpcapi *RPCAPI) SharderFinalize(ctx context.Context, in string, out *struct{}) error {
-	return rpcapi.c.sharder.Finalize(in)
 }
 
 /*

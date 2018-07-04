@@ -92,6 +92,7 @@ func TrackerStatusFromString(str string) TrackerStatus {
 }
 
 // IPFSPinStatus values
+// FIXME include maxdepth
 const (
 	IPFSPinStatusBug IPFSPinStatus = iota
 	IPFSPinStatusError
@@ -107,25 +108,37 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-	// Since indirect statuses are of the form "indirect through <cid>", use a regexp to match
+	// Since indirect statuses are of the form "indirect through <cid>",
+	// use a regexp to match
 	var ind, _ = regexp.MatchString("^indirect", t)
+	var rec, _ = regexp.MatchString("^recursive", t)
 	// TODO: This is only used in the http_connector to parse
 	// ipfs-daemon-returned values. Maybe it should be extended.
 	switch {
 	case ind:
 		return IPFSPinStatusIndirect
+	case rec:
+		// FIXME: Maxdepth?
+		return IPFSPinStatusRecursive
 	case t == "direct":
 		return IPFSPinStatusDirect
-	case t == "recursive":
-		return IPFSPinStatusRecursive
 	default:
 		return IPFSPinStatusBug
 	}
 }
 
-// IsPinned returns true if the status is Direct or Recursive
-func (ips IPFSPinStatus) IsPinned() bool {
-	return ips == IPFSPinStatusDirect || ips == IPFSPinStatusRecursive
+// IsPinned returns true if the item is pinned as expected by the
+// maxDepth parameter.
+func (ips IPFSPinStatus) IsPinned(maxDepth int) bool {
+	switch {
+	case maxDepth < 0:
+		return ips == IPFSPinStatusRecursive
+	case maxDepth == 0:
+		return ips == IPFSPinStatusDirect
+	case maxDepth > 0: // FIXME
+		return ips == IPFSPinStatusRecursive
+	}
+	return false
 }
 
 // ToTrackerStatus converts the IPFSPinStatus value to the
@@ -540,29 +553,52 @@ func StringsToCidSet(strs []string) *cid.Set {
 	return cids
 }
 
-// PinType values
+// PinType values. See PinType documentation for further explanation.
 const (
+	// BadType type showing up anywhere indicates a bug
 	BadType PinType = iota
+	// DataType is a regular, non-sharded pin. It has no parents
+	// and no ClusterDAG associated. It is pinned recursively
+	// in allocated peers.
 	DataType
+	// MetaType tracks the original CID of a sharded DAG and points
+	// to its ClusterDAG. It has no parents.
 	MetaType
-	CdagType
+	// ClusterDAGType pins carry the CID if the root node that points to
+	// all the shard-root-nodes of the shards in which a DAG has been
+	// divided. It has a parent (the MetaType).
+	// ClusterDAGType pins are pinned directly everywhere.
+	ClusterDAGType
+	// ShardType pins carry the root CID of a shard, which points
+	// to individual blocks on the original DAG that the user is adding,
+	// which has been sharded.
+	// Their parent is the ClusterDAGType pin.
+	// ShardTypes are pinned with MaxDepth=1 (root and
+	// direct children only).
 	ShardType
 )
 
 // AllType is a PinType used for filtering all pin types
-const AllType = -1
+const AllType PinType = -1
 
-// PinType specifies which of four possible interpretations a pin represents.
-// DataType pins are the simplest and represent a pin in the pinset used to
-// directly track user data.  ShardType pins are metadata pins that track
-// many nodes in a user's data DAG.  ShardType pins have a parent pin, and in
-// general can have many parents.  ClusterDAG, or Cdag for short, pins are also
-// metadata pins that do not directly track user data DAGs but rather other
-// metadata pins.  CdagType pins have at least one parent.  Finally MetaType
-// pins always track the cid of the root of a user-tracked data DAG.  However
-// MetaType pins are not stored directly in the ipfs pinset.  Instead the
-// underlying DAG is tracked via the metadata pins underneath the root of a
-// CdagType pin
+// PinType specifies which sort of Pin object we are dealing with.
+// In practice, the PinType decides how a Pin object is treated by the
+// PinTracker.
+// See descriptions above.
+// A sharded Pin would look like:
+//
+// [ Meta ] (not pinned on IPFS, only present in cluster state)
+//   |
+//   v
+// [ Cluster DAG ] (pinned everywhere in "direct")
+//   |      ..  |
+//   v          v
+// [Shard1] .. [ShardN] (allocated to peers and pinned with max-depth=2
+// | | .. |    | | .. |
+// v v .. v    v v .. v
+// [][]..[]    [][]..[] Blocks (indirectly pinned on ipfs, not tracked in cluster)
+//
+//
 type PinType int
 
 // PinTypeFromString is the inverse of String.  It returns the PinType value
@@ -574,7 +610,7 @@ func PinTypeFromString(str string) PinType {
 	case "meta-pin":
 		return MetaType
 	case "clusterdag-pin":
-		return CdagType
+		return ClusterDAGType
 	case "shard-pin":
 		return ShardType
 	case "all":
@@ -591,7 +627,7 @@ func (pT *PinType) String() string {
 		return "pin"
 	case MetaType:
 		return "meta-pin"
-	case CdagType:
+	case ClusterDAGType:
 		return "clusterdag-pin"
 	case ShardType:
 		return "shard-pin"
@@ -602,18 +638,36 @@ func (pT *PinType) String() string {
 	}
 }
 
-// Pin is an argument that carries a Cid. It may carry more things in the
-// future.
+// PinOptions wraps user-defined options for Pins
+type PinOptions struct {
+	ReplicationFactorMin int    `json:"replication_factor_min"`
+	ReplicationFactorMax int    `json:"replication_factor_max"`
+	Name                 string `json:"name"`
+	ShardSize            uint64 `json:"shard_size"`
+}
+
+// Pin carries all the information associated to a CID that is pinned
+// in IPFS Cluster.
 type Pin struct {
-	Cid                  *cid.Cid
-	Name                 string
-	Type                 PinType
-	Allocations          []peer.ID
-	ReplicationFactorMin int
-	ReplicationFactorMax int
-	Recursive            bool
-	Parents              *cid.Set
-	Clusterdag           *cid.Cid
+	PinOptions
+
+	Cid *cid.Cid
+
+	// See PinType comments
+	Type PinType
+
+	// The peers to which this pin is allocated
+	Allocations []peer.ID
+
+	// MaxDepth associated to this pin. -1 means
+	// recursive.
+	MaxDepth int
+
+	// For certain types of pin, a pointer to parents.
+	Parents *cid.Set
+
+	// For MetaType pins, a pointer to the Cluster DAG (sharded tree)
+	ClusterDAG *cid.Cid
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
@@ -623,21 +677,29 @@ func PinCid(c *cid.Cid) Pin {
 		Cid:         c,
 		Type:        DataType,
 		Allocations: []peer.ID{},
-		Recursive:   true,
+		MaxDepth:    -1,
 	}
+}
+
+func PinWithOpts(c *cid.Cid, opts PinOptions) Pin {
+	p := PinCid(c)
+	p.ReplicationFactorMin = opts.ReplicationFactorMin
+	p.ReplicationFactorMax = opts.ReplicationFactorMax
+	p.Name = opts.Name
+	p.ShardSize = opts.ShardSize
+	return p
 }
 
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
-	Cid                  string   `json:"cid"`
-	Name                 string   `json:"name"`
-	Type                 int      `json:"type"`
-	Allocations          []string `json:"allocations"`
-	ReplicationFactorMin int      `json:"replication_factor_min"`
-	ReplicationFactorMax int      `json:"replication_factor_max"`
-	Recursive            bool     `json:"recursive"`
-	Parents              []string `json:"parents"`
-	Clusterdag           string   `json:"clusterdag"`
+	PinOptions
+
+	Cid         string   `json:"cid"`
+	Type        int      `json:"type"`
+	Allocations []string `json:"allocations"`
+	MaxDepth    int      `json:"max_depth"`
+	Parents     []string `json:"parents"`
+	ClusterDAG  string   `json:"clusterdag"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -647,8 +709,8 @@ func (pin Pin) ToSerial() PinSerial {
 		c = pin.Cid.String()
 	}
 	cdag := ""
-	if pin.Clusterdag != nil {
-		cdag = pin.Clusterdag.String()
+	if pin.ClusterDAG != nil {
+		cdag = pin.ClusterDAG.String()
 	}
 
 	n := pin.Name
@@ -659,15 +721,18 @@ func (pin Pin) ToSerial() PinSerial {
 	}
 
 	return PinSerial{
-		Cid:                  c,
-		Name:                 n,
-		Allocations:          allocs,
-		Type:                 int(pin.Type),
-		ReplicationFactorMin: pin.ReplicationFactorMin,
-		ReplicationFactorMax: pin.ReplicationFactorMax,
-		Recursive:            pin.Recursive,
-		Parents:              parents,
-		Clusterdag:           cdag,
+		Cid:         c,
+		Allocations: allocs,
+		Type:        int(pin.Type),
+		MaxDepth:    pin.MaxDepth,
+		Parents:     parents,
+		ClusterDAG:  cdag,
+		PinOptions: PinOptions{
+			Name:                 n,
+			ReplicationFactorMin: pin.ReplicationFactorMin,
+			ReplicationFactorMax: pin.ReplicationFactorMax,
+			ShardSize:            pin.ShardSize,
+		},
 	}
 }
 
@@ -690,7 +755,11 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.Recursive != pin2s.Recursive {
+	if pin1s.MaxDepth != pin2s.MaxDepth {
+		return false
+	}
+
+	if pin1s.ShardSize != pin2s.ShardSize {
 		return false
 	}
 
@@ -709,7 +778,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.Clusterdag != pin2s.Clusterdag {
+	if pin1s.ClusterDAG != pin2s.ClusterDAG {
 		return false
 	}
 
@@ -730,48 +799,26 @@ func (pins PinSerial) ToPin() Pin {
 		logger.Debug(pins.Cid, err)
 	}
 	var cdag *cid.Cid
-	if pins.Clusterdag != "" {
-		cdag, err = cid.Decode(pins.Clusterdag)
+	if pins.ClusterDAG != "" {
+		cdag, err = cid.Decode(pins.ClusterDAG)
 		if err != nil {
-			logger.Error(pins.Clusterdag, err)
+			logger.Error(pins.ClusterDAG, err)
 		}
 	}
 
 	return Pin{
-		Cid:                  c,
-		Name:                 pins.Name,
-		Allocations:          StringsToPeers(pins.Allocations),
-		Type:                 PinType(pins.Type),
-		ReplicationFactorMin: pins.ReplicationFactorMin,
-		ReplicationFactorMax: pins.ReplicationFactorMax,
-		Recursive:            pins.Recursive,
-		Parents:              StringsToCidSet(pins.Parents),
-		Clusterdag:           cdag,
-	}
-}
-
-// AddParams contains all of the configurable parameters needed to specify the
-// importing process of a file being added to an ipfs-cluster
-type AddParams struct {
-	Layout  string
-	Chunker string
-	Raw     bool
-	Hidden  bool
-	Shard   bool
-	Rmin    int
-	Rmax    int
-}
-
-// DefaultAddParams returns the default AddParams value
-func DefaultAddParams() AddParams {
-	return AddParams{
-		Layout:  "", // corresponds to balanced layout
-		Chunker: "",
-		Raw:     false,
-		Hidden:  false,
-		Shard:   false,
-		Rmin:    -1,
-		Rmax:    -1,
+		Cid:         c,
+		Allocations: StringsToPeers(pins.Allocations),
+		Type:        PinType(pins.Type),
+		MaxDepth:    pins.MaxDepth,
+		Parents:     StringsToCidSet(pins.Parents),
+		ClusterDAG:  cdag,
+		PinOptions: PinOptions{
+			Name:                 pins.Name,
+			ReplicationFactorMin: pins.ReplicationFactorMin,
+			ReplicationFactorMax: pins.ReplicationFactorMax,
+			ShardSize:            pins.ShardSize,
+		},
 	}
 }
 
@@ -789,13 +836,12 @@ type AddedOutput struct {
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
-	Data    []byte
-	Cid     string
-	Size    uint64
-	ID      string
-	Format  string
-	ReplMin int
-	ReplMax int
+	ShardingSession int
+
+	Data   []byte
+	Cid    string
+	Size   uint64
+	Format string
 }
 
 // AllocateInfo transports the information necessary to call an allocator's

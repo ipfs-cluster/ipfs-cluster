@@ -182,11 +182,15 @@ func textFormatPrintPin(obj *api.PinSerial) {
 			sortAlloc)
 	}
 	var recStr string
-	if obj.Recursive {
+	switch obj.MaxDepth {
+	case 0:
+		recStr = "Direct"
+	case -1:
 		recStr = "Recursive"
-	} else {
-		recStr = "Non-recursive"
+	default:
+		recStr = fmt.Sprintf("Recursive-%d", obj.MaxDepth)
 	}
+
 	fmt.Printf("| %s | ", recStr)
 
 	pinType := obj.ToPin().Type
@@ -196,8 +200,8 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	case api.DataType:
 		infoStr = typeStr
 	case api.MetaType:
-		infoStr = fmt.Sprintf("%s-- clusterdag=%s",typeStr, obj.Clusterdag)
-	case api.CdagType, api.ShardType:
+		infoStr = fmt.Sprintf("%s-- clusterdag=%s", typeStr, obj.ClusterDAG)
+	case api.ClusterDAGType, api.ShardType:
 		infoStr = typeStr
 	default:
 		infoStr = ""
@@ -209,10 +213,10 @@ func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 	if obj.Hash != "" {
 		if obj.Quiet {
 			fmt.Printf("%s\n", obj.Hash)
-		} else{
+		} else {
 			fmt.Printf("adding %s %s\n", obj.Hash, obj.Name)
 		}
-	} 
+	}
 }
 
 func textFormatPrintError(obj *api.Error) {

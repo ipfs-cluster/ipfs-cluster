@@ -181,6 +181,20 @@ func (mpt *MapPinTracker) enqueue(c api.Pin, typ optracker.OperationType, ch cha
 func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
 
+	// TODO: Fix this for sharding
+	// FIXME: Fix this for sharding
+	// The problem is remote/unpin operation won't be cancelled
+	// but I don't know how bad is that
+	// Also, this is dup code
+
+	// Sharded pins are never pinned. A sharded pin cannot turn into
+	// something else or viceversa like it happens with Remote pins.
+	// Thus we just mark as sharded
+	if c.Type == api.MetaType {
+		mpt.optracker.TrackNewOperation(c, optracker.OperationSharded, optracker.PhaseDone)
+		return nil
+	}
+
 	// Trigger unpin whenever something remote is tracked
 	// Note, IPFSConn checks with pin/ls before triggering
 	// pin/rm.
@@ -188,27 +202,6 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 		op := mpt.optracker.TrackNewOperation(c, optracker.OperationRemote, optracker.PhaseInProgress)
 		if op == nil {
 			return nil // ongoing unpin
-		}
-		err := mpt.unpin(op)
-		op.Cancel()
-		if err != nil {
-			op.SetError(err)
-		} else {
-			op.SetPhase(optracker.PhaseDone)
-		}
-		return nil
-	}
-
-	// TODO: Fix this for sharding
-	// FIXME: Fix this for sharding
-	// The problem is remote/unpin operation won't be cancelled
-	// but I don't know how bad is that
-	// Also, this is dup code
-	if c.Type == api.ShardType {
-		// cancel any other ops
-		op := mpt.optracker.TrackNewOperation(c, optracker.OperationSharded, optracker.PhaseInProgress)
-		if op == nil {
-			return nil
 		}
 		err := mpt.unpin(op)
 		op.Cancel()
@@ -322,7 +315,8 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		status = api.TrackerStatusUnpinned
 	}
 
-	if ips.IsPinned() {
+	if ips.IsPinned(-1) { // FIXME FIXME FIXME: how much do we want to check
+		// that something is pinned as EXPECTED (with right max depth).
 		switch status {
 		case api.TrackerStatusPinError:
 			// If an item that we wanted to pin is pinned, we mark it so

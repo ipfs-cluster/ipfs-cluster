@@ -37,14 +37,22 @@ import (
 //       ReplicationFactorMin.
 
 // allocate finds peers to allocate a hash using the informer and the monitor
-// it should only be used with valid replicationFactors (rplMin and rplMax
-// which are positive and rplMin <= rplMax).
+// it should only be used with valid replicationFactors (if rplMin and rplMax
+// are > 0, then rplMin <= rplMax).
 // It always returns allocations, but if no new allocations are needed,
 // it will return the current ones. Note that allocate() does not take
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
 func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
+	if (rplMin + rplMax) == 0 {
+		return nil, fmt.Errorf("bad replication factors: %d/%d", rplMin, rplMax)
+	}
+
+	if rplMin < 0 && rplMax < 0 { // allocate everywhere
+		return []peer.ID{}, nil
+	}
+
 	// Figure out who is holding the CID
 	currentPin, _ := c.getCurrentPin(hash)
 	currentAllocs := currentPin.Allocations

@@ -72,7 +72,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID() (api.IPFSID, error)
-	Pin(context.Context, *cid.Cid, bool) error
+	Pin(context.Context, *cid.Cid, int) error
 	Unpin(context.Context, *cid.Cid) error
 	PinLsCid(context.Context, *cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
@@ -178,13 +178,4 @@ type PeerMonitor interface {
 	// a problem (i.e. metrics not arriving as expected). Alerts can be used
 	// to trigger self-healing measures or re-pinnings of content.
 	Alerts() <-chan api.Alert
-}
-
-// Sharder controls the aggregation of ipfs file nodes into shards.  File
-// shards are grouped together and referenced by a cluster DAG node and
-// distributed among the cluster
-type Sharder interface {
-	Component
-	AddNode(size uint64, data []byte, c string, id string, min int, max int) (string, error)
-	Finalize(id string) error
 }

@@ -25,8 +25,8 @@ const (
 	OperationUnpin
 	// OperationRemote represents an noop operation
 	OperationRemote
-	// OperationSharded represents a pin which points to shard
-	// FIXME
+	// OperationSharded represents a meta pin. We don't
+	// pin these.
 	OperationSharded
 )
 
@@ -192,6 +192,8 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		}
 	case OperationRemote:
 		return api.TrackerStatusRemote
+	case OperationSharded:
+		return api.TrackerStatusSharded
 	default:
 		return api.TrackerStatusBug
 	}

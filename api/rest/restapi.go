@@ -21,7 +21,9 @@ import (
 	"sync"
 	"time"
 
-	add "github.com/ipfs/ipfs-cluster/add"
+	"github.com/ipfs/ipfs-cluster/adder"
+	"github.com/ipfs/ipfs-cluster/adder/local"
+	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
@@ -320,6 +322,12 @@ func (api *API) routes() []route {
 			api.allocationHandler,
 		},
 		{
+			"Allocate",
+			"POST",
+			"/allocations",
+			api.addHandler,
+		},
+		{
 			"StatusAll",
 			"GET",
 			"/pins",
@@ -372,12 +380,6 @@ func (api *API) routes() []route {
 			"GET",
 			"/health/graph",
 			api.graphHandler,
-		},
-		{
-			"FilesAdd",
-			"POST",
-			"/allocations",
-			api.addFileHandler,
 		},
 	}
 }
@@ -500,62 +502,29 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
-func (api *API) addFileHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	reader, err := r.MultipartReader()
 	if err != nil {
 		sendErrorResponse(w, 400, err.Error())
 		return
 	}
 
-	urlParams := r.URL.Query()
-	layout := urlParams.Get("layout")
-	if layout != "" && layout != "trickle" && layout != "balanced" {
-		sendErrorResponse(w, 400, "parameter trickle invalid")
-		return
-	}
-	chunker := urlParams.Get("chunker")
-	raw, err := strconv.ParseBool(urlParams.Get("raw"))
+	params, err := adder.ParamsFromQuery(r.URL.Query())
 	if err != nil {
-		sendErrorResponse(w, 400, "parameter raw invalid")
+		sendErrorResponse(w, 400, err.Error())
 		return
-	}
-	hidden, err := strconv.ParseBool(urlParams.Get("hidden"))
-	if err != nil {
-		sendErrorResponse(w, 400, "parameter hidden invalid")
-		return
-	}
-	shard, err := strconv.ParseBool(urlParams.Get("shard"))
-	if err != nil {
-		sendErrorResponse(w, 400, "parameter shard invalid")
-		return
-	}
-	replMin, err := strconv.Atoi(urlParams.Get("repl_min"))
-	if err != nil || replMin < -1 {
-		sendErrorResponse(w, 400, "parameter replMin invalid")
-		return
-	}
-	replMax, err := strconv.Atoi(urlParams.Get("repl_max"))
-	if err != nil || replMax < -1 {
-		sendErrorResponse(w, 400, "parameter replMax invalid")
-		return
-	}
-	params := types.AddParams{
-		Layout:  layout,
-		Chunker: chunker,
-		Raw:     raw,
-		Hidden:  hidden,
-		Shard:   shard,
-		Rmin:    replMin,
-		Rmax:    replMax,
 	}
 
-	addSess := add.NewAddSession(api.rpcClient, logger)
-	toPrint, err := addSess.AddFile(api.ctx, reader, params)
-	if err != nil {
-		sendErrorResponse(w, 500, err.Error())
-		return
+	var add adder.Adder
+	if params.Shard {
+		add = sharding.New(api.rpcClient)
+	} else {
+		add = local.New(api.rpcClient)
 	}
-	sendJSONResponse(w, 200, toPrint)
+
+	err = add.FromMultipart(api.ctx, reader, params)
+	// TODO: progress?
+	sendEmptyResponse(w, err)
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
@@ -835,7 +804,7 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	queryValues := r.URL.Query()
 	name := queryValues.Get("name")
 	pin.Name = name
-	pin.Recursive = true // For now all CLI pins are recursive
+	pin.MaxDepth = -1 // For now, all pins are recursive
 	rplStr := queryValues.Get("replication_factor")
 	rplStrMin := queryValues.Get("replication_factor_min")
 	rplStrMax := queryValues.Get("replication_factor_max")

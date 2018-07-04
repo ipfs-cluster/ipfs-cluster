@@ -1,6 +1,6 @@
-package sharder
+package sharding
 
-// clusterdag.go defines functions for constructing and parsing ipld-cbor nodes
+// dag.go defines functions for constructing and parsing ipld-cbor nodes
 // of the clusterDAG used to track sharded DAGs in ipfs-cluster
 
 // Most logic goes into handling the edge cases in which clusterDAG
@@ -17,13 +17,18 @@ package sharder
 // multiple levels of indirection.
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
+	peer "github.com/libp2p/go-libp2p-peer"
 	mh "github.com/multiformats/go-multihash"
 )
 
@@ -66,11 +71,13 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 // carry links to the data nodes being tracked. The head of the output slice
 // is always the root of the shardDAG, i.e. the ipld node that should be
 // recursively pinned to track the shard
-func makeDAG(obj shardObj) ([]ipld.Node, error) {
+func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
 	// No indirect node
-	if len(obj) <= MaxLinks {
-		node, err := cbor.WrapObject(obj, hashFn,
-			mh.DefaultLengths[hashFn])
+	if len(dagObj) <= MaxLinks {
+		node, err := cbor.WrapObject(
+			dagObj,
+			hashFn, mh.DefaultLengths[hashFn],
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -79,11 +86,11 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 	// Indirect node required
 	leafNodes := make([]ipld.Node, 0)        // shardNodes with links to data
 	indirectObj := make(map[string]*cid.Cid) // shardNode with links to shardNodes
-	numFullLeaves := len(obj) / MaxLinks
+	numFullLeaves := len(dagObj) / MaxLinks
 	for i := 0; i <= numFullLeaves; i++ {
 		leafObj := make(map[string]*cid.Cid)
 		for j := 0; j < MaxLinks; j++ {
-			c, ok := obj[fmt.Sprintf("%d", i*MaxLinks+j)]
+			c, ok := dagObj[fmt.Sprintf("%d", i*MaxLinks+j)]
 			if !ok { // finished with this leaf before filling all the way
 				if i != numFullLeaves {
 					panic("bad state, should never be here")
@@ -107,6 +114,29 @@ func makeDAG(obj shardObj) ([]ipld.Node, error) {
 	}
 	nodes := append([]ipld.Node{indirectNode}, leafNodes...)
 	return nodes, nil
+}
+
+func putDAG(ctx context.Context, rpcC *rpc.Client, nodes []ipld.Node, dest peer.ID) error {
+	for _, n := range nodes {
+		logger.Debugf("The dag cbor Node Links: %v", n.Links())
+		b := api.NodeWithMeta{
+			Data:   n.RawData(),
+			Format: "cbor",
+		}
+		logger.Debugf("Here is the serialized ipld: %x", b.Data)
+		err := rpcC.CallContext(
+			ctx,
+			dest,
+			"Cluster",
+			"IPFSBlockPut",
+			b,
+			&struct{}{},
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //TODO: decide whether this is worth including.  Is precision important for
