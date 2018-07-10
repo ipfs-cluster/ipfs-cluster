@@ -59,13 +59,13 @@ spec:
           livenessProbe:
             tcpSocket:
               port: swarm
-            initialDelaySeconds: 5
+            initialDelaySeconds: 7
             timeoutSeconds: 5
             periodSeconds: 15
           readinessProbe:
             tcpSocket:
               port: http
-            initialDelaySeconds: 7
+            initialDelaySeconds: 15
             timeoutSeconds: 5
             periodSeconds: 15
           volumeMounts:

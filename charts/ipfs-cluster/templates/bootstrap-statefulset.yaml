@@ -46,7 +46,7 @@ spec:
           readinessProbe:
             tcpSocket:
               port: http
-            initialDelaySeconds: 7
+            initialDelaySeconds: 5
             timeoutSeconds: 5
             periodSeconds: 15
           volumeMounts:
