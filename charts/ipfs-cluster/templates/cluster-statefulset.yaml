@@ -45,7 +45,7 @@ spec:
               mountPath: /custom
       containers:
         - name: ipfs
-          image: "ipfs/go-ipfs:{{ .Values.image.tag }}"
+          image: "ipfs/go-ipfs:{{ .Values.image.ipfsTag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: swarm

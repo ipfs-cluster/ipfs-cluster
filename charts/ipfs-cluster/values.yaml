@@ -6,6 +6,7 @@ replicaCount: 1
 
 image:
   tag: latest
+  ipfsTag: latest
   pullPolicy: IfNotPresent
 
 secretEnv:
