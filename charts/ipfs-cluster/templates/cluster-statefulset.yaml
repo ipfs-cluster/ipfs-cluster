@@ -9,7 +9,11 @@ metadata:
     heritage: {{ .Release.Service }}
 spec:
   serviceName: {{ template "ipfs-cluster.fullname" . }}
+  {{- if gt .Values.replicaCount 1.0 }}
   replicas: {{ .Values.replicaCount }}
+  {{- else }}
+  replicas: 0
+  {{- end }}
   selector:
     matchLabels:
       app: {{ template "ipfs-cluster.name" . }}
@@ -20,6 +24,21 @@ spec:
         app: {{ template "ipfs-cluster.name" . }}
         release: {{ .Release.Name }}
     spec:
+      initContainers:
+        - name: create-conf
+          image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
+          volumeMounts:
+            - name: cluster-storage
+              mountPath: /data/ipfs-cluster
+          args: ["version"]
+        - name: get-bootstrap-multiaddr
+          image: "alpine:latest"
+          volumeMounts:
+            - name: cluster-storage
+              mountPath: /data/ipfs-cluster
+            - name: bootstrap-script
+              mountPath: /bootstrap-script.sh
+          command: ["sh", "/bootstrap-script.sh"]
       containers:
         - name: ipfs
           image: "ipfs/go-ipfs:{{ .Values.image.tag }}"
@@ -40,13 +59,13 @@ spec:
           livenessProbe:
             tcpSocket:
               port: swarm
-            initialDelaySeconds: 15
+            initialDelaySeconds: 5
             timeoutSeconds: 5
             periodSeconds: 15
           readinessProbe:
             tcpSocket:
               port: http
-            initialDelaySeconds: 20
+            initialDelaySeconds: 7
             timeoutSeconds: 5
             periodSeconds: 15
           volumeMounts:
@@ -85,6 +104,23 @@ spec:
               name: cluster-storage
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+      volumes:
+      - name: bootstrap-script
+        configMap:
+          name: {{ template "ipfs-cluster.fullname" . }}-set-bootstrap-conf
+
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
 
 
   volumeClaimTemplates:
@@ -104,16 +140,3 @@ spec:
         resources:
           requests:
             storage: {{ .Values.persistence.size }}
-
-    {{- with .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.affinity }}
-      affinity:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.tolerations }}
-      tolerations:
-{{ toYaml . | indent 8 }}
-    {{- end }}
