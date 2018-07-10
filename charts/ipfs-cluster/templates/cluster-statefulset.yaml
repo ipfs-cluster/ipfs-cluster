@@ -85,6 +85,9 @@ spec:
           image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["sh", "/custom/entrypoint.sh"]
+          envFrom:
+            - secretRef:
+                name: {{ template "hera-instances.fullname" . }}-env
           ports:
             - name: ipfs-cluster-4
               containerPort: 9094

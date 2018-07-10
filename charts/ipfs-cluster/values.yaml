@@ -8,6 +8,9 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
+secretEnv:
+  CLUSTER_SECRET: CHANGE_ME_OK?
+
 service:
   type: LoadBalancer
 
