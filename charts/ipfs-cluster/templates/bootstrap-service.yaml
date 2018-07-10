@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "ipfs-cluster.fullname" . }}-bootstrap
+  labels:
+    app: {{ template "ipfs-cluster.name" . }}
+    chart: {{ template "ipfs-cluster.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: swarm
+      targetPort: swarm
+      port: 4001
+    - name: swarm-udp
+      targetPort: swarm-udp
+      port: 4002
+    - name: ws
+      targetPort: ws
+      port: 8081
+    - name: http
+      targetPort: http
+      port: 8080
+    - name: ipfs-cluster-4
+      targetPort: ipfs-cluster-4
+      port: 9094
+    - name: ipfs-cluster-5
+      targetPort: ipfs-cluster-5
+      port: 9095
+    - name: ipfs-cluster-6
+      targetPort: ipfs-cluster-6
+      port: 9096
+  selector:
+    app: {{ template "ipfs-cluster.name" . }}
+    release: {{ .Release.Name }}
