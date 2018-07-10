@@ -5,6 +5,8 @@ metadata:
 data:
   bootstrap-script.sh: |
     #!/bin/sh
+    set -e
+    set -x
     apk -U add curl jq sed
     MULTIADDR=$(curl http://{{ template "ipfs-cluster.fullname" . }}-bootstrap:9094/id | jq .id -r)
     echo "$MULTIADDR" >> /data/ipfs-cluster/bootsrapp_id
