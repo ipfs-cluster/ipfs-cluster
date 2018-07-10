@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ template "ipfs-cluster.fullname" . }}-bootstrap
   labels:
-    app: {{ template "ipfs-cluster.name" . }}
+    app: {{ template "ipfs-cluster.name" . }}-bootstrap
     chart: {{ template "ipfs-cluster.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -32,5 +32,5 @@ spec:
       targetPort: ipfs-cluster-6
       port: 9096
   selector:
-    app: {{ template "ipfs-cluster.name" . }}
+    app: {{ template "ipfs-cluster.name" . }}-bootstrap
     release: {{ .Release.Name }}

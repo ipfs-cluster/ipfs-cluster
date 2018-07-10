@@ -3,7 +3,7 @@ kind: StatefulSet
 metadata:
   name: {{ template "ipfs-cluster.fullname" . }}-bootstrap
   labels:
-    app: {{ template "ipfs-cluster.name" . }}
+    app: {{ template "ipfs-cluster.name" . }}-bootstrap
     chart: {{ template "ipfs-cluster.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -12,12 +12,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "ipfs-cluster.name" . }}
+      app: {{ template "ipfs-cluster.name" . }}-bootstrap
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "ipfs-cluster.name" . }}
+        app: {{ template "ipfs-cluster.name" . }}-bootstrap
         release: {{ .Release.Name }}
     spec:
       containers:
