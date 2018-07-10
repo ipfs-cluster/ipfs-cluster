@@ -7,11 +7,19 @@ data:
     #!/bin/sh
     set -e
     set -x
-    apk -U add curl jq sed
-    MULTIADDR=$(curl http://{{ template "ipfs-cluster.fullname" . }}-bootstrap:9094/id | jq .id -r)
-    echo "$MULTIADDR" > /data/ipfs-cluster/bootsrapp_id
-    # sed -i -e "s;\"bootstrap\": \[\];\"bootstrap\": [\"/dns4/{{ template "ipfs-cluster.fullname" . }}-bootstrap/tcp/9096/ipfs/${MULTIADDR}\"];" /data/ipfs-cluster/service.json
     echo "Erin an Lorenzo are sorry about this!"
+    apk -U add curl jq sed
+
+    # ensures that the bootstrap_id file is not there
+    rm /data/ipfs-cluster/bootsrapp_id || true
+    # Tries to download the ID from the bootstrap node
+    curl http://{{ template "ipfs-cluster.fullname" . }}-bootstrap:9094/id | jq .id -r > /data/ipfs-cluster/bootsrapp_id
+
+    # If the file is not there, forces an exit 1, causing the initContainer to
+    # fail miserabily
+    if [ ! -f /data/ipfs-cluster/bootsrapp_id ]; then
+      exit 1
+    fi
   entrypoint.sh: |
     #!/bin/sh
     # This is a custom entrypoint for k8s designed to connect to the bootstrap
