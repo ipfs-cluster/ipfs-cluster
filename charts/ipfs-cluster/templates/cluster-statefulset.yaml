@@ -87,7 +87,7 @@ spec:
           command: ["sh", "/custom/entrypoint.sh"]
           envFrom:
             - secretRef:
-                name: {{ template "hera-instances.fullname" . }}-env
+                name: {{ template "ipfs-cluster.fullname" . }}-env
           ports:
             - name: ipfs-cluster-4
               containerPort: 9094
