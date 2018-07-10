@@ -19,20 +19,13 @@ data:
     # allow changes on the fly.
 
     BOOTSTRAP_MULTIADDR=$(cat /data/ipfs-cluster/bootsrapp_id)
-    BOOTSTRAP_ADDR=/dns4/{{ template "ipfs-cluster.fullname" . }}-bootstrap/tcp/9094/ipfs/$BOOTSTRAP_MULTIADDR
+    BOOTSTRAP_ADDR=/dns4/{{ template "ipfs-cluster.fullname" . }}-bootstrap/tcp/9096/ipfs/$BOOTSTRAP_MULTIADDR
 
     set -e
     user=ipfs
 
     if [ -n "$DOCKER_DEBUG" ]; then
        set -x
-    fi
-
-    if [ `id -u` -eq 0 ]; then
-        echo "Changing user to $user"
-        # ensure directories are writable
-        su-exec "$user" test -w "${IPFS_CLUSTER_PATH}" || chown -R -- "$user" "${IPFS_CLUSTER_PATH}"
-        exec su-exec "$user" "$0" $@
     fi
 
     # Only ipfs user can get here
