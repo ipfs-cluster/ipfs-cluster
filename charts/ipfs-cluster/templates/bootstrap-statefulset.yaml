@@ -7,6 +7,10 @@ metadata:
     chart: {{ template "ipfs-cluster.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5001"
+    prometheus.io/path: "debug/metrics/prometheus"
 spec:
   serviceName: {{ template "ipfs-cluster.fullname" . }}-bootstrap
   replicas: 1
@@ -31,6 +35,9 @@ spec:
             - name: swarm-udp
               protocol: UDP
               containerPort: 4002
+            - name: api
+              protocol: UDP
+              containerPort: 5001
             - name: ws
               protocol: TCP
               containerPort: 8081
