@@ -27,18 +27,18 @@ spec:
       initContainers:
         - name: create-conf
           image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
+          args: ["version"]
           volumeMounts:
             - name: cluster-storage
               mountPath: /data/ipfs-cluster
-          args: ["version"]
         - name: get-bootstrap-multiaddr
           image: "alpine:latest"
+          command: ["sh", "/custom/bootstrap-script.sh"]
           volumeMounts:
             - name: cluster-storage
               mountPath: /data/ipfs-cluster
             - name: bootstrap-script
-              mountPath: /bootstrap-script.sh
-          command: ["sh", "/bootstrap-script.sh"]
+              mountPath: /custom
       containers:
         - name: ipfs
           image: "ipfs/go-ipfs:{{ .Values.image.tag }}"
@@ -102,6 +102,8 @@ spec:
           volumeMounts:
             - mountPath: /data/ipfs-cluster
               name: cluster-storage
+            - name: bootstrap-script
+              mountPath: /custom
           resources:
 {{ toYaml .Values.resources | indent 12 }}
       volumes:

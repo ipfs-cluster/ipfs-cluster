@@ -9,6 +9,6 @@ data:
     set -x
     apk -U add curl jq sed
     MULTIADDR=$(curl http://{{ template "ipfs-cluster.fullname" . }}-bootstrap:9094/id | jq .id -r)
-    echo "$MULTIADDR" >> /data/ipfs-cluster/bootsrapp_id
+    echo "$MULTIADDR" > /data/ipfs-cluster/bootsrapp_id
     # sed -i -e "s;\"bootstrap\": \[\];\"bootstrap\": [\"/dns4/{{ template "ipfs-cluster.fullname" . }}-bootstrap/tcp/9096/ipfs/${MULTIADDR}\"];" /data/ipfs-cluster/service.json
     echo "Erin an Lorenzo are sorry about this!"
