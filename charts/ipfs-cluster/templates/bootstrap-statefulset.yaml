@@ -65,6 +65,9 @@ spec:
         - name: ipfs-cluster
           image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - secretRef:
+                name: {{ template "ipfs-cluster.fullname" . }}-env
           ports:
             - name: ipfs-cluster-4
               containerPort: 9094
