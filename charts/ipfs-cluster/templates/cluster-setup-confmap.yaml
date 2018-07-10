@@ -14,6 +14,10 @@ data:
     echo "Erin an Lorenzo are sorry about this!"
   entrypoint.sh: |
     #!/bin/sh
+    # This is a custom entrypoint for k8s designed to connect to the bootstrap
+    # node running in the cluster. It has been set up using a configmap to
+    # allow changes on the fly.
+
     BOOTSTRAP_MULTIADDR=$(cat /data/ipfs-cluster/bootsrapp_id)
     BOOTSTRAP_ADDR=/dns4/{{ template "ipfs-cluster.fullname" . }}-bootstrap/tcp/9094/ipfs/$BOOTSTRAP_MULTIADDR
 
