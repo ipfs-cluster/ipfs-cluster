@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "ipfs-cluster.fullname" . }}
+  labels:
+    app: {{ template "ipfs-cluster.name" . }}
+    chart: {{ template "ipfs-cluster.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  serviceName: {{ template "ipfs-cluster.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "ipfs-cluster.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "ipfs-cluster.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: ipfs
+          image: "ipfs/go-ipfs:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: swarm
+              protocol: TCP
+              containerPort: 4001
+            - name: swarm-udp
+              protocol: UDP
+              containerPort: 4002
+            - name: ws
+              protocol: TCP
+              containerPort: 8081
+            - name: http
+              protocol: TCP
+              containerPort: 8080
+          livenessProbe:
+            tcpSocket:
+              port: swarm
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - mountPath: /data/ipfs
+              name: ipfs-storage
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+        - name: ipfs-cluster
+          image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: ipfs-cluster-4
+              containerPort: 9094
+              protocol: TCP
+            - name: ipfs-cluster-5
+              containerPort: 9095
+              protocol: TCP
+            - name: ipfs-cluster-6
+              containerPort: 9096
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 9094
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: 9094
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - mountPath: /data/ipfs-cluster
+              name: cluster-storage
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+
+  volumeClaimTemplates:
+    - metadata:
+        name: cluster-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: ipfs-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
