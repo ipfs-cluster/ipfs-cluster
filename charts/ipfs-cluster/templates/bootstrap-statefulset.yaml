@@ -105,7 +105,7 @@ spec:
         persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
         resources:
           requests:
-            storage: 1Gi
+            storage: {{ .Values.persistence.clusterSize }}
     - metadata:
         name: ipfs-storage
       spec:
@@ -113,7 +113,7 @@ spec:
         persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
         resources:
           requests:
-            storage: {{ .Values.persistence.size }}
+            storage: {{ .Values.persistence.ipfsSize }}
 
     {{- with .Values.nodeSelector }}
       nodeSelector:

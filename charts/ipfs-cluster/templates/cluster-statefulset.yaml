@@ -12,7 +12,11 @@ metadata:
     prometheus.io/port: "5001"
     prometheus.io/path: "debug/metrics/prometheus"
 spec:
+  # Deploy this in parallel
+  podManagementPolicy: Parallel
   serviceName: {{ template "ipfs-cluster.fullname" . }}
+  # If we have one single node, just use the bootstrap node and scale This
+  # to 0 replicas.
   {{- if gt .Values.replicaCount 1.0 }}
   replicas: {{ .Values.replicaCount }}
   {{- else }}
@@ -28,6 +32,12 @@ spec:
         app: {{ template "ipfs-cluster.name" . }}
         release: {{ .Release.Name }}
     spec:
+      # Init containers are used to prepare the clusters:
+      # The firest container `create-conf` will just ensure that the
+      # service.json is populated
+      # The second container `get-bootstrap-multiaddr` will run a custom script
+      # designed to extract the multiaddr of the bootstrap node in order to
+      # connect to it. Plz check the config map to know more how it works.
       initContainers:
         - name: create-conf
           image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
@@ -147,7 +157,7 @@ spec:
         persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
         resources:
           requests:
-            storage: 1Gi
+            storage: {{ .Values.persistence.clusterSize }}
     - metadata:
         name: ipfs-storage
       spec:
@@ -155,4 +165,4 @@ spec:
         persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
         resources:
           requests:
-            storage: {{ .Values.persistence.size }}
+            storage: {{ .Values.persistence.ipfsSize }}

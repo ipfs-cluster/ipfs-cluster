@@ -1,7 +1,5 @@
-# Default values for ipfs-cluster.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
+# How many nodes do we want to set up? If bigger than 1 it will deploy a
+# bootstrap node need for raft.
 replicaCount: 1
 
 image:
@@ -9,6 +7,7 @@ image:
   ipfsTag: latest
   pullPolicy: IfNotPresent
 
+# Insert here the secret environment that will be used by ipfs-cluster
 secretEnv:
   CLUSTER_SECRET: CHANGE_ME_OK?
 
@@ -22,15 +21,18 @@ ingress:
     # kubernetes.io/tls-acme: "true"
   path: /
   hosts:
-    - chart-example.local
+    - ipfs.rocks
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
 
 persistence:
-  reclaimPolicy: Retain
-  size: 10Gi
+  reclaimPolicy: Delete
+  # ClusterSize specifies the persistent volume size for ipfs-cluster data
+  clusterSize: 1Gi
+  # ClusterSize specifies the persistent volume size for go-ipfs data
+  ipfsSize: 10Gi
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
