@@ -28,6 +28,11 @@ else
         sed -i "s;/ip4/127\.0\.0\.1/tcp/5001;$IPFS_API;" "${IPFS_CLUSTER_PATH}/service.json"
     fi
 
+    # If CLUSTER_BOOTSTRAP is defined, add the value in the service.json
+    if [ ! -z "$CLUSTER_BOOTSTRAP" ]; then
+      sed -i -e "s;\"bootstrap\": \[\];\"bootstrap\": [\"${CLUSTER_BOOTSTRAP}\"];" "${IPFS_CLUSTER_PATH}/service.json"
+    fi
+
     echo "Warning: By default, the API and Proxy endpoints will listen on 0.0.0.0!"
     sed -i 's;127\.0\.0\.1/tcp/9094;0.0.0.0/tcp/9094;' "${IPFS_CLUSTER_PATH}/service.json"
     sed -i 's;127\.0\.0\.1/tcp/9095;0.0.0.0/tcp/9095;' "${IPFS_CLUSTER_PATH}/service.json"
