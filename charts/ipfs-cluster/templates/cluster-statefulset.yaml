@@ -32,6 +32,9 @@ spec:
         - name: create-conf
           image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
           args: ["version"]
+          envFrom:
+            - secretRef:
+                name: {{ template "ipfs-cluster.fullname" . }}-env
           volumeMounts:
             - name: cluster-storage
               mountPath: /data/ipfs-cluster
