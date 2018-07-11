@@ -38,4 +38,4 @@ data:
 
     # Only ipfs user can get here
     ipfs-cluster-service --version
-    exec ipfs-cluster-service daemon --upgrade --bootstrap $BOOTSTRAP_ADDR
+    exec ipfs-cluster-service daemon --upgrade --bootstrap $BOOTSTRAP_ADDR --leave
