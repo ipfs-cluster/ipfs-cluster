@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "ipfs-cluster.fullname" . }}
+  labels:
+    app: {{ template "ipfs-cluster.name" . }}
+    chart: {{ template "ipfs-cluster.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5001"
+    prometheus.io/path: "debug/metrics/prometheus"
+spec:
+  # Deploy this in parallel
+  podManagementPolicy: Parallel
+  serviceName: {{ template "ipfs-cluster.fullname" . }}
+  # If we have one single node, just use the bootstrap node and scale This
+  # to 0 replicas.
+  {{- if gt .Values.replicaCount 1.0 }}
+  replicas: {{ .Values.replicaCount }}
+  {{- else }}
+  replicas: 0
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ template "ipfs-cluster.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "ipfs-cluster.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      # Init containers are used to prepare the clusters:
+      # The firest container `create-conf` will just ensure that the
+      # service.json is populated
+      # The second container `get-bootstrap-multiaddr` will run a custom script
+      # designed to extract the multiaddr of the bootstrap node in order to
+      # connect to it. Plz check the config map to know more how it works.
+      initContainers:
+        - name: create-conf
+          image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
+          args: ["version"]
+          envFrom:
+            - secretRef:
+                name: {{ template "ipfs-cluster.fullname" . }}-env
+          volumeMounts:
+            - name: cluster-storage
+              mountPath: /data/ipfs-cluster
+        - name: get-bootstrap-multiaddr
+          image: "alpine:latest"
+          command: ["sh", "/custom/bootstrap-script.sh"]
+          volumeMounts:
+            - name: cluster-storage
+              mountPath: /data/ipfs-cluster
+            - name: bootstrap-script
+              mountPath: /custom
+      containers:
+        - name: ipfs
+          image: "ipfs/go-ipfs:{{ .Values.image.ipfsTag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: swarm
+              protocol: TCP
+              containerPort: 4001
+            - name: swarm-udp
+              protocol: UDP
+              containerPort: 4002
+            - name: api
+              protocol: TCP
+              containerPort: 5001
+            - name: ws
+              protocol: TCP
+              containerPort: 8081
+            - name: http
+              protocol: TCP
+              containerPort: 8080
+          livenessProbe:
+            tcpSocket:
+              port: swarm
+            initialDelaySeconds: 7
+            timeoutSeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - mountPath: /data/ipfs
+              name: ipfs-storage
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+        - name: ipfs-cluster
+          image: "ipfs/ipfs-cluster:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "/custom/entrypoint.sh"]
+          envFrom:
+            - secretRef:
+                name: {{ template "ipfs-cluster.fullname" . }}-env
+          ports:
+            - name: ipfs-cluster-4
+              containerPort: 9094
+              protocol: TCP
+            - name: ipfs-cluster-5
+              containerPort: 9095
+              protocol: TCP
+            - name: ipfs-cluster-6
+              containerPort: 9096
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 9094
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: 9094
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - mountPath: /data/ipfs-cluster
+              name: cluster-storage
+            - name: bootstrap-script
+              mountPath: /custom
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+      - name: bootstrap-script
+        configMap:
+          name: {{ template "ipfs-cluster.fullname" . }}-set-bootstrap-conf
+
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+
+
+  volumeClaimTemplates:
+    - metadata:
+        name: cluster-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.clusterSize }}
+    - metadata:
+        name: ipfs-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        persistentVolumeReclaimPolicy: {{ .Values.persistence.reclaimPolicy }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.ipfsSize }}

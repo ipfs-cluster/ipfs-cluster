@@ -1,0 +1,53 @@
+# How many nodes do we want to set up? If bigger than 1 it will deploy a
+# bootstrap node need for raft.
+replicaCount: 1
+
+image:
+  tag: latest
+  ipfsTag: latest
+  pullPolicy: IfNotPresent
+
+# Insert here the secret environment that will be used by ipfs-cluster
+secretEnv:
+  CLUSTER_SECRET: CHANGE_ME_OK?
+
+service:
+  type: LoadBalancer
+
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  path: /
+  hosts:
+    - ipfs.rocks
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+persistence:
+  reclaimPolicy: Delete
+  # ClusterSize specifies the persistent volume size for ipfs-cluster data
+  clusterSize: 1Gi
+  # ClusterSize specifies the persistent volume size for go-ipfs data
+  ipfsSize: 10Gi
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

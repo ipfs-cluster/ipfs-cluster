@@ -1,0 +1,25 @@
+Congrats your ipfs-cluster is getting deployed...
+
+You will be able to access your ipfs-cluster by:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  $ ipfs-cluster-ctl -l /dns4/{{ . }}{{ $.Values.ingress.path }}/tcp/9094
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  $ export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "ipfs-cluster.fullname" . }}-bootstrap)
+  $ export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  $ ipfs-cluster-ctl -l /ip4/$NODE_IP/tcp/$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  $ export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ template "ipfs-cluster.fullname" . }}-bootstrap -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  $ ipfs-cluster-ctl -l /ip4/$SERVICE_IP/tcp/9094
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        You can watch the status of by running 'kubectl get svc -w {{ template "ipfs-cluster.fullname" . }}-bootstrap'
+
+{{- else if contains "ClusterIP" .Values.service.type }}
+  $ export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "ipfs-cluster.name" . }}-bootstrap,release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  $ kubectl port-forward $POD_NAME 9094:9094 &
+  $ ipfs-cluster-ctl id
+{{- end }}
+
+Please be patient while all the components are getting deployed!

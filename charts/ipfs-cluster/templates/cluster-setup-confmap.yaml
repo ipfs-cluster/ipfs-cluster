@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "ipfs-cluster.fullname" . }}-set-bootstrap-conf
+data:
+  bootstrap-script.sh: |
+    #!/bin/sh
+    set -e
+    set -x
+    echo "Erin an Lorenzo are sorry about this! Please share some <3 "
+    apk -U add curl jq sed
+
+    # ensures that the bootstrap_id file is not there
+    rm /data/ipfs-cluster/bootsrapp_id || true
+    # Tries to download the ID from the bootstrap node
+    curl http://{{ template "ipfs-cluster.fullname" . }}-bootstrap:9094/id | jq .id -r > /data/ipfs-cluster/bootsrapp_id
+
+    # If the file is not there, forces an exit 1, causing the initContainer to
+    # fail miserabily
+    if [ ! -f /data/ipfs-cluster/bootsrapp_id ]; then
+      exit 1
+    fi
+  entrypoint.sh: |
+    #!/bin/sh
+    # This is a custom entrypoint for k8s designed to connect to the bootstrap
+    # node running in the cluster. It has been set up using a configmap to
+    # allow changes on the fly.
+
+    BOOTSTRAP_MULTIADDR=$(cat /data/ipfs-cluster/bootsrapp_id)
+    BOOTSTRAP_ADDR=/dns4/{{ template "ipfs-cluster.fullname" . }}-bootstrap/tcp/9096/ipfs/$BOOTSTRAP_MULTIADDR
+
+    set -e
+    user=ipfs
+
+    if [ -n "$DOCKER_DEBUG" ]; then
+       set -x
+    fi
+
+    # Only ipfs user can get here
+    ipfs-cluster-service --version
+    exec ipfs-cluster-service daemon --upgrade --bootstrap $BOOTSTRAP_ADDR --leave
