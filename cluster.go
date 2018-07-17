@@ -357,13 +357,20 @@ func (c *Cluster) ready(timeout time.Duration) {
 This peer was not able to become part of the cluster.
 This might be due to one or several causes:
   - Check the logs above this message for errors
-  - Check that there is connectivity to the "peers" multiaddresses
+  - Check that there is connectivity to the bootstrapper when Joining a cluster
+  - Check that there is connectivity to the rest of the peers
+  - Check the bootstrap peer logs to see if this peer connected to it or not
+  - Check that there is connectivity from the rest of peers to this one
+    (as needed, if NAT hole punching is not possible or not working)
+  - Check that addresses in the "peerstore" file are correct for the current
+    peers.
   - Check that all cluster peers are using the same "secret"
-  - Check that this peer is reachable on its "listen_multiaddress" by all peers
   - Check that the current cluster is healthy (has a leader). Otherwise make
     sure to start enough peers so that a leader election can happen.
   - Check that the peer(s) you are trying to connect to is running the
     same version of IPFS-cluster.
+  - If not errors were shown, or you are under a very slow connection,
+    increase the "wait_for_leader_timeout" value.
 **************************************************
 `)
 		c.Shutdown()
