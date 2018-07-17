@@ -108,26 +108,26 @@ func (imp *Importer) Go(ctx context.Context) error {
 			case <-ctx.Done():
 				imp.errors <- ctx.Err()
 				return
-			}
-
-			f, err := imp.files.NextFile()
-			if err != nil {
-				if err == io.EOF {
-					break // time to finalize
+			default:
+				f, err := imp.files.NextFile()
+				if err != nil {
+					if err == io.EOF {
+						goto FINALIZE // time to finalize
+					}
+					imp.errors <- err
+					return
 				}
-				imp.errors <- err
-				return
-			}
 
-			if err := ipfsAdder.AddFile(f); err != nil {
-				imp.errors <- err
-				return
+				if err := ipfsAdder.AddFile(f); err != nil {
+					imp.errors <- err
+					return
+				}
 			}
 		}
-
+	FINALIZE:
 		_, err := ipfsAdder.Finalize()
 		if err != nil {
-			if !isNotFound(err) {
+			if isNotFound(err) {
 				fmt.Println("fixme importer.go", err)
 			} else {
 				imp.errors <- err
@@ -144,6 +144,7 @@ func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, erro
 
 	errors := imp.Errors()
 	blocks := imp.Blocks()
+	output := imp.Output()
 
 	err := imp.Go(ctx)
 	if err != nil {
@@ -156,19 +157,22 @@ func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, erro
 			return retVal, ctx.Err()
 		case err, ok := <-errors:
 			if ok {
+				fmt.Println(err)
 				return retVal, err
 			}
 		case node, ok := <-blocks:
 			if !ok {
-				break // finished importing
+				goto BREAK // finished importing
 			}
-			retVal, err := blockF(ctx, node)
+			retVal, err = blockF(ctx, node)
 			if err != nil {
 				return retVal, err
 			}
+		case <-output:
+			// TODO
 		}
 	}
-
+BREAK:
 	// grab any last errors from errors if necessary
 	// (this waits for errors to be closed)
 	err = <-errors

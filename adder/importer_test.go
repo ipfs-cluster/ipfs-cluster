@@ -8,107 +8,69 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
-// import and receive all blocks
-func TestToChannelOutput(t *testing.T) {
-	file, err := test.GetTestingDirSerial()
+func TestImporter(t *testing.T) {
+	f := test.GetTestingDirSerial(t)
+	p := DefaultParams()
+
+	imp, err := NewImporter(f, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	printChan, outChan, errChan := ToChannel(context.Background(), file,
-		false, false, false, "")
+	expectedCids := test.TestDirCids[:]
+	resultCids := make(map[string]struct{})
 
-	go func() { // listen on printChan so progress can be made
-		for {
-			_, ok := <-printChan
-			if !ok {
-				// channel closed, safe to exit
-				return
-			}
-		}
-	}()
-
-	go listenErrCh(t, errChan)
-
-	objs := make([]interface{}, 0)
-	for obj := range outChan {
-		objs = append(objs, obj)
+	blockHandler := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
+		resultCids[n.Cid] = struct{}{}
+		return n.Cid, nil
 	}
-	testChannelOutput(t, objs, test.TestDirCids[:])
-}
 
-func TestToChannelPrint(t *testing.T) {
-	file, err := test.GetTestingDirSerial()
+	_, err = imp.Run(context.Background(), blockHandler)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	printChan, outChan, errChan := ToChannel(context.Background(), file,
-		false, false, false, "")
+	// for i, c := range expectedCids {
+	// 	fmt.Printf("%d: %s\n", i, c)
+	// }
 
-	go listenErrCh(t, errChan)
+	// for c := range resultCids {
+	// 	fmt.Printf("%s\n", c)
+	// }
 
-	go func() { // listen on outChan so progress can be made
-		for {
-			_, ok := <-outChan
-			if !ok {
-				// channel closed, safe to exit
-				return
-			}
-		}
-	}()
-	objs := make([]interface{}, 0)
-	for obj := range printChan {
-		objs = append(objs, obj)
+	if len(expectedCids) != len(resultCids) {
+		t.Fatal("unexpected number of blocks imported")
 	}
-	testChannelOutput(t, objs, test.TestDirCids[:15])
-}
 
-// listenErrCh listens on the error channel until closed and raise any errors
-// that show up
-func listenErrCh(t *testing.T, errChan <-chan error) {
-	for {
-		err, ok := <-errChan
+	for _, c := range expectedCids {
+		_, ok := resultCids[c]
 		if !ok {
-			// channel closed, safe to exit
-			return
+			t.Fatal("unexpected block emitted:", c)
 		}
+
+	}
+}
+
+func TestImporter_DoubleStart(t *testing.T) {
+	f := test.GetTestingDirSerial(t)
+	p := DefaultParams()
+
+	imp, err := NewImporter(f, p)
+	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-// testChannelOutput is a utility for shared functionality of output and print
-// channel testing
-func testChannelOutput(t *testing.T, objs []interface{}, expected []string) {
-	check := make(map[string]struct{})
-	for _, obj := range objs {
-		var cid string
-		switch obj := obj.(type) {
-		case *api.AddedOutput:
-			cid = obj.Hash
-		case *api.NodeWithMeta:
-			cid = obj.Cid
-		}
-		if _, ok := check[cid]; ok {
-			t.Fatalf("Duplicate cid %s", cid)
-		}
-		check[cid] = struct{}{}
+	blockHandler := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
+		return "", nil
 	}
-	if len(check) != len(expected) {
-		t.Fatalf("Witnessed cids: %v\nExpected cids: %v", check, test.TestDirCids[:15])
-	}
-	for cid := range check {
-		if !contains(expected, cid) {
-			t.Fatalf("Unexpected cid: %s", cid)
-		}
-	}
-}
 
-func contains(slice []string, s string) bool {
-	for _, a := range slice {
-		if a == s {
-			return true
-		}
+	_, err = imp.Run(context.Background(), blockHandler)
+	if err != nil {
+		t.Fatal(err)
 	}
-	return false
+
+	_, err = imp.Run(context.Background(), blockHandler)
+	if err == nil {
+		t.Fatal("expected an error: cannot run importer twice")
+	}
 }

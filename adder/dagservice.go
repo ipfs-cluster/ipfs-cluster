@@ -100,24 +100,24 @@ func (dag *adderDAGService) RemoveMany(ctx context.Context, keys []*cid.Cid) err
 	return nil
 }
 
-// printDAGService will "add" a node by printing it.  printDAGService cannot Get nodes
-// that have already been seen and calls to Remove are noops.  Nodes are
-// recorded after being added so that they will only be printed once.
-type printDAGService struct {
-	ads ipld.DAGService
-}
+// // printDAGService will "add" a node by printing it.  printDAGService cannot Get nodes
+// // that have already been seen and calls to Remove are noops.  Nodes are
+// // recorded after being added so that they will only be printed once.
+// type printDAGService struct {
+// 	ads ipld.DAGService
+// }
 
-func newPDagService() *printDAGService {
-	ch := make(chan *api.NodeWithMeta)
-	ads := newAdderDAGService(ch)
+// func newPDagService() *printDAGService {
+// 	ch := make(chan *api.NodeWithMeta)
+// 	ads := newAdderDAGService(ch)
 
-	go func() {
-		for n := range ch {
-			fmt.Printf(n.Cid, " | ", n.Size)
-		}
-	}()
+// 	go func() {
+// 		for n := range ch {
+// 			fmt.Printf(n.Cid, " | ", n.Size)
+// 		}
+// 	}()
 
-	return &printDAGService{
-		ads: ads,
-	}
-}
+// 	return &printDAGService{
+// 		ads: ads,
+// 	}
+// }
