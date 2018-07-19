@@ -221,13 +221,18 @@ func (sth *ShardingTestHelper) makeRandFile(t *testing.T, kbs int) os.FileInfo {
 //
 // The total size in ext4 is ~3420160 Bytes = ~3340 kB = ~3.4MB
 func (sth *ShardingTestHelper) GetTreeMultiReader(t *testing.T) *files.MultiFileReader {
+	sf := sth.GetTreeSerialFile(t)
+	slf := files.NewSliceFile("", "", []files.File{sf})
+	return files.NewMultiFileReader(slf, true)
+}
+
+func (sth *ShardingTestHelper) GetTreeSerialFile(t *testing.T) files.File {
 	st := sth.makeTree(t)
 	sf, err := files.NewSerialFile(shardingTestTree, sth.path(shardingTestTree), false, st)
 	if err != nil {
 		t.Fatal(err)
 	}
-	slf := files.NewSliceFile("", "", []files.File{sf})
-	return files.NewMultiFileReader(slf, true)
+	return sf
 }
 
 // GetRandFileMultiReader creates and returns a MultiFileReader for

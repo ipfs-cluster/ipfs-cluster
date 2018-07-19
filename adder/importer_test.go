@@ -9,7 +9,10 @@ import (
 )
 
 func TestImporter(t *testing.T) {
-	f := test.GetShardingDirSerial(t)
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean()
+
+	f := sth.GetTreeSerialFile(t)
 	p := DefaultParams()
 
 	imp, err := NewImporter(f, p)
@@ -52,7 +55,10 @@ func TestImporter(t *testing.T) {
 }
 
 func TestImporter_DoubleStart(t *testing.T) {
-	f := test.GetShardingDirSerial(t)
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean()
+
+	f := sth.GetTreeSerialFile(t)
 	p := DefaultParams()
 
 	imp, err := NewImporter(f, p)

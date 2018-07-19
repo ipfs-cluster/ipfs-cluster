@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"errors"
 	"mime/multipart"
 	"sync"
 	"testing"
@@ -25,6 +26,14 @@ func (rpcs *testRPC) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out 
 
 func (rpcs *testRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	rpcs.pins.Store(in.Cid, in)
+	return nil
+}
+
+func (rpcs *testRPC) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	if in.ReplicationFactorMin > 1 {
+		return errors.New("we can only replicate to 1 peer")
+	}
+	*out = []string{""}
 	return nil
 }
 

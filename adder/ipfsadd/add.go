@@ -24,17 +24,6 @@ import (
 	logging "github.com/ipfs/go-log"
 )
 
-// FIXME
-// // error used to i
-// var errNotFound = errors.New("dagservice: block not found")
-
-// func shouldIgnore(err error) bool {
-// 	if err == errNotFound {
-// 		return true
-// 	}
-// 	return false
-// }
-
 var log = logging.Logger("coreunix")
 
 // how many bytes of progress to wait before sending a progress update message

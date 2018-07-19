@@ -20,6 +20,7 @@ var LoggingFacilities = map[string]string{
 	"config":      "INFO",
 	"addshard":    "INFO",
 	"addlocal":    "INFO",
+	"adder":       "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers

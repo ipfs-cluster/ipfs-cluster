@@ -3,7 +3,6 @@ package adder
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 
@@ -128,12 +127,7 @@ func (imp *Importer) Go(ctx context.Context) error {
 	FINALIZE:
 		_, err := ipfsAdder.Finalize()
 		if err != nil {
-			// FIXME: check if we ever get this error here
-			if isNotFound(err) {
-				fmt.Println("fixme importer.go", err)
-			} else {
-				imp.errors <- err
-			}
+			imp.errors <- err
 		}
 	}()
 	return nil
@@ -171,7 +165,7 @@ func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, erro
 				return retVal, err
 			}
 		case <-output:
-			// TODO
+			// TODO(hector): handle output?
 		}
 	}
 BREAK:

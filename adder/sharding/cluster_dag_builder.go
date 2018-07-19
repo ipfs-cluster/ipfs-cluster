@@ -168,6 +168,7 @@ func (cdb *clusterDAGBuilder) finalize() error {
 	// 	pin.Type = api.ShardType
 	// 	pin.Parents = shardParents
 	// 	// FIXME: We don't know anymore the shard pin maxDepth
+	//      // so we'd need to get the pin first.
 	// 	err := cdb.pin(pin)
 	// 	if err != nil {
 	// 		return err

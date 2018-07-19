@@ -8,8 +8,11 @@ import (
 	"mime/multipart"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
@@ -28,25 +31,62 @@ func New(rpc *rpc.Client) *Adder {
 	}
 }
 
+func (a *Adder) putBlock(ctx context.Context, n *api.NodeWithMeta, dests []peer.ID) error {
+	logger.Debugf("put block: %s", n.Cid)
+	c, err := cid.Decode(n.Cid)
+	if err != nil {
+		return err
+	}
+
+	format, ok := cid.CodecToStr[c.Type()]
+	if !ok {
+		format = ""
+		logger.Warning("unsupported cid type, treating as v0")
+	}
+	if c.Prefix().Version == 0 {
+		format = "v0"
+	}
+	n.Format = format
+
+	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(dests))
+	defer rpcutil.MultiCancel(cancels)
+
+	logger.Debugf("block put %s", n.Cid)
+	errs := a.rpcClient.MultiCall(
+		ctxs,
+		dests,
+		"Cluster",
+		"IPFSBlockPut",
+		*n,
+		rpcutil.RPCDiscardReplies(len(dests)),
+	)
+	return rpcutil.CheckErrs(errs)
+}
+
 func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
 		Reader:    r,
 	}
 
-	// TODO: it should send it to the best allocation
-	// TODO: Allocate()
+	var allocsStr []string
+	err := a.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"Allocate",
+		api.PinWithOpts(nil, p.PinOptions).ToSerial(),
+		&allocsStr,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	allocations := api.StringsToPeers(allocsStr)
+
 	localBlockPut := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
 		retVal := n.Cid
-		err := a.rpcClient.CallContext(
-			ctx,
-			"",
-			"Cluster",
-			"IPFSBlockPut",
-			*n,
-			&struct{}{},
-		)
-		return retVal, err
+		return retVal, a.putBlock(ctx, n, allocations)
 	}
 
 	importer, err := adder.NewImporter(f, p)

@@ -29,18 +29,19 @@ func DefaultParams() *Params {
 		Hidden:    false,
 		Shard:     false,
 		PinOptions: api.PinOptions{
-			ReplicationFactorMin: -1,
-			ReplicationFactorMax: -1,
+			ReplicationFactorMin: 0,
+			ReplicationFactorMax: 0,
 			Name:                 "",
-			ShardSize:            100 * 1024 * 1024, // FIXME
+			ShardSize:            100 * 1024 * 1024, // 100 MB
 		},
 	}
 }
 
 // ParamsFromQuery parses the Params object from
 // a URL.Query().
-// FIXME? Defaults?
 func ParamsFromQuery(query url.Values) (*Params, error) {
+	params := DefaultParams()
+
 	layout := query.Get("layout")
 	switch layout {
 	case "trickle":
@@ -48,47 +49,60 @@ func ParamsFromQuery(query url.Values) (*Params, error) {
 	default:
 		return nil, errors.New("parameter trickle invalid")
 	}
+	params.Layout = layout
 
 	chunker := query.Get("chunker")
+	params.Chunker = chunker
 	name := query.Get("name")
-	raw, err := strconv.ParseBool(query.Get("raw"))
-	if err != nil {
-		return nil, errors.New("parameter raw invalid")
-	}
-	hidden, err := strconv.ParseBool(query.Get("hidden"))
-	if err != nil {
-		return nil, errors.New("parameter hidden invalid")
-	}
-	shard, err := strconv.ParseBool(query.Get("shard"))
-	if err != nil {
-		return nil, errors.New("parameter shard invalid")
-	}
-	replMin, err := strconv.Atoi(query.Get("repl_min"))
-	if err != nil || replMin < -1 {
-		return nil, errors.New("parameter repl_min invalid")
-	}
-	replMax, err := strconv.Atoi(query.Get("repl_max"))
-	if err != nil || replMax < -1 {
-		return nil, errors.New("parameter repl_max invalid")
+	params.Name = name
+
+	if v := query.Get("raw"); v != "" {
+		raw, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.New("parameter raw invalid")
+		}
+		params.RawLeaves = raw
 	}
 
-	shardSize, err := strconv.ParseUint(query.Get("shard_size"), 10, 64)
-	if err != nil {
-		return nil, errors.New("parameter shard_size is invalid")
+	if v := query.Get("hidden"); v != "" {
+		hidden, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.New("parameter hidden invalid")
+		}
+		params.Hidden = hidden
 	}
 
-	params := &Params{
-		Layout:    layout,
-		Chunker:   chunker,
-		RawLeaves: raw,
-		Hidden:    hidden,
-		Shard:     shard,
-		PinOptions: api.PinOptions{
-			ReplicationFactorMin: replMin,
-			ReplicationFactorMax: replMax,
-			Name:                 name,
-			ShardSize:            shardSize,
-		},
+	if v := query.Get("shard"); v != "" {
+		shard, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.New("parameter shard invalid")
+		}
+		params.Shard = shard
 	}
+
+	if v := query.Get("repl_min"); v != "" {
+		replMin, err := strconv.Atoi(v)
+		if err != nil || replMin < -1 {
+			return nil, errors.New("parameter repl_min invalid")
+		}
+		params.ReplicationFactorMin = replMin
+	}
+
+	if v := query.Get("repl_max"); v != "" {
+		replMax, err := strconv.Atoi(v)
+		if err != nil || replMax < -1 {
+			return nil, errors.New("parameter repl_max invalid")
+		}
+		params.ReplicationFactorMax = replMax
+	}
+
+	if v := query.Get("shard_size"); v != "" {
+		shardSize, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return nil, errors.New("parameter shard_size is invalid")
+		}
+		params.ShardSize = shardSize
+	}
+
 	return params, nil
 }
