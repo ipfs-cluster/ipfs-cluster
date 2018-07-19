@@ -29,8 +29,6 @@ func (rpcs *testRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) e
 }
 
 func TestFromMultipart(t *testing.T) {
-	defer test.CleanShardingDir(t)
-
 	t.Run("balanced", func(t *testing.T) {
 		rpcObj := &testRPC{}
 		server := rpc.NewServer(nil, "mock")
@@ -42,11 +40,19 @@ func TestFromMultipart(t *testing.T) {
 
 		add := New(client)
 
-		mr := test.GetShardingDirMultiReader(t)
+		sth := test.NewShardingTestHelper()
+		defer sth.Clean()
+		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
-		err = add.FromMultipart(context.Background(), r, adder.DefaultParams())
+		params := adder.DefaultParams()
+		params.ShardSize = 0
+		rootCid, err := add.FromMultipart(context.Background(), r, adder.DefaultParams())
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		if rootCid.String() != test.ShardingDirBalancedRootCID {
+			t.Fatal("bad root cid")
 		}
 
 		expected := test.ShardingDirCids[:]
@@ -73,15 +79,20 @@ func TestFromMultipart(t *testing.T) {
 		client := rpc.NewClientWithServer(nil, "mock", server)
 
 		add := New(client)
-
-		mr := test.GetShardingDirMultiReader(t)
+		sth := test.NewShardingTestHelper()
+		defer sth.Clean()
+		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
 		p := adder.DefaultParams()
 		p.Layout = "trickle"
 
-		err = add.FromMultipart(context.Background(), r, p)
+		rootCid, err := add.FromMultipart(context.Background(), r, p)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		if rootCid.String() != test.ShardingDirTrickleRootCID {
+			t.Fatal("bad root cid")
 		}
 
 		_, ok := rpcObj.pins.Load(test.ShardingDirTrickleRootCID)

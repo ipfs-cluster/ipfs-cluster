@@ -4,6 +4,8 @@ package rpcutil
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -127,4 +129,22 @@ func CopyEmptyStructToIfaces(in []struct{}) []interface{} {
 func RPCDiscardReplies(n int) []interface{} {
 	replies := make([]struct{}, n, n)
 	return CopyEmptyStructToIfaces(replies)
+}
+
+// CheckErrs returns nil if all the errors in a slice are nil, otherwise
+// it returns a single error formed by joining the error messages existing
+// in the slice with a line-break.
+func CheckErrs(errs []error) error {
+	errMsg := ""
+
+	for _, e := range errs {
+		if e != nil {
+			errMsg += fmt.Sprintf("%s\n", e.Error())
+		}
+	}
+
+	if len(errMsg) > 0 {
+		return errors.New(errMsg)
+	}
+	return nil
 }

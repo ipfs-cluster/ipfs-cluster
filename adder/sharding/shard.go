@@ -2,11 +2,11 @@ package sharding
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
+	humanize "github.com/dustin/go-humanize"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -16,8 +16,9 @@ import (
 // a peer to be block-put and will be part of the same shard in the
 // cluster DAG.
 type shard struct {
-	rpc      *rpc.Client
-	destPeer peer.ID
+	rpc         *rpc.Client
+	allocations []peer.ID
+	pinOptions  api.PinOptions
 	// dagNode represents a node with links and will be converted
 	// to Cbor.
 	dagNode     map[string]*cid.Cid
@@ -25,40 +26,35 @@ type shard struct {
 	sizeLimit   uint64
 }
 
-func newShard(ctx context.Context, rpc *rpc.Client, sizeLimit uint64) (*shard, error) {
+func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard, error) {
 	var allocs []string
-	// TODO: before it figured out how much freespace there is in the node
-	// and set the maximum shard size to that.
-	// I have dropped that functionality.
-	// It would involve getting metrics manually.
 	err := rpc.CallContext(
 		ctx,
 		"",
 		"Cluster",
 		"Allocate",
-		api.PinSerial{
-			Cid: "",
-			PinOptions: api.PinOptions{
-				ReplicationFactorMin: 1,
-				ReplicationFactorMax: int(^uint(0) >> 1), //max int
-			},
-		},
+		api.PinWithOpts(nil, opts).ToSerial(),
 		&allocs,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(allocs) < 1 { // redundant
-		return nil, errors.New("cannot allocate new shard")
+	if allocs == nil || len(allocs) == 0 {
+		// This would mean that the empty cid is part of the shared state somehow.
+		panic("allocations for new shard cannot be empty without error")
 	}
+
+	// TODO (hector): get latest metrics for allocations, adjust sizeLimit
+	// to minumum. This can be done later.
 
 	return &shard{
 		rpc:         rpc,
-		destPeer:    api.StringsToPeers(allocs)[0],
+		allocations: api.StringsToPeers(allocs),
+		pinOptions:  opts,
 		dagNode:     make(map[string]*cid.Cid),
 		currentSize: 0,
-		sizeLimit:   sizeLimit,
+		sizeLimit:   opts.ShardSize,
 	}, nil
 }
 
@@ -67,45 +63,62 @@ func newShard(ctx context.Context, rpc *rpc.Client, sizeLimit uint64) (*shard, e
 func (sh *shard) AddLink(c *cid.Cid, s uint64) {
 	linkN := len(sh.dagNode)
 	linkName := fmt.Sprintf("%d", linkN)
+	logger.Debugf("shard: add link: %s", linkName)
+
 	sh.dagNode[linkName] = c
 	sh.currentSize += s
 }
 
-// DestPeer returns the peer ID on which blocks are put for this shard.
-func (sh *shard) DestPeer() peer.ID {
-	return sh.destPeer
+// Allocations returns the peer IDs on which blocks are put for this shard.
+func (sh *shard) Allocations() []peer.ID {
+	return sh.allocations
 }
 
 // Flush completes the allocation of this shard by building a CBOR node
 // and adding it to IPFS, then pinning it in cluster. It returns the Cid of the
 // shard.
-func (sh *shard) Flush(ctx context.Context, opts api.PinOptions, shardN int) (*cid.Cid, error) {
-	logger.Debug("flushing shard")
+func (sh *shard) Flush(ctx context.Context, shardN int) (*cid.Cid, error) {
+	logger.Debugf("shard %d: flush", shardN)
 	nodes, err := makeDAG(sh.dagNode)
 	if err != nil {
 		return nil, err
 	}
 
-	putDAG(ctx, sh.rpc, nodes, sh.destPeer)
+	err = putDAG(ctx, sh.rpc, nodes, sh.allocations)
+	if err != nil {
+		return nil, err
+	}
 
 	rootCid := nodes[0].Cid()
-	pin := api.PinWithOpts(rootCid, opts)
-	pin.Name = fmt.Sprintf("%s-shard-%d", opts.Name, shardN)
-	// this sets dest peer as priority allocation
-	pin.Allocations = []peer.ID{sh.destPeer}
+	pin := api.PinWithOpts(rootCid, sh.pinOptions)
+	pin.Name = fmt.Sprintf("%s-shard-%d", sh.pinOptions.Name, shardN)
+	// this sets allocations as priority allocation
+	pin.Allocations = sh.allocations
 	pin.Type = api.ShardType
 	pin.MaxDepth = 1
+	pin.ShardSize = sh.Size()           // use current size, not the limit
 	if len(nodes) > len(sh.dagNode)+1 { // using an indirect graph
 		pin.MaxDepth = 2
 	}
 
-	err = sh.rpc.Call(
-		sh.destPeer,
+	logger.Debugf("Shard %d: pinning shard DAG: %s", shardN, rootCid)
+	logger.Debugf("%+v", pin)
+	err = sh.rpc.CallContext(
+		ctx,
+		"", // use ourself to pin
 		"Cluster",
 		"Pin",
 		pin.ToSerial(),
 		&struct{}{},
 	)
+
+	logger.Infof("shard #%d (%s) completed and flushed. Total size: %s. Links: %d",
+		shardN,
+		rootCid,
+		humanize.Bytes(sh.Size()),
+		len(sh.dagNode),
+	)
+
 	return rootCid, err
 }
 

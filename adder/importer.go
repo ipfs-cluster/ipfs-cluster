@@ -118,6 +118,7 @@ func (imp *Importer) Go(ctx context.Context) error {
 					return
 				}
 
+				logger.Debugf("ipfsAdder AddFile(%s)", f.FullPath())
 				if err := ipfsAdder.AddFile(f); err != nil {
 					imp.errors <- err
 					return
@@ -127,6 +128,7 @@ func (imp *Importer) Go(ctx context.Context) error {
 	FINALIZE:
 		_, err := ipfsAdder.Finalize()
 		if err != nil {
+			// FIXME: check if we ever get this error here
 			if isNotFound(err) {
 				fmt.Println("fixme importer.go", err)
 			} else {
@@ -157,7 +159,7 @@ func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, erro
 			return retVal, ctx.Err()
 		case err, ok := <-errors:
 			if ok {
-				fmt.Println(err)
+				logger.Error(err)
 				return retVal, err
 			}
 		case node, ok := <-blocks:

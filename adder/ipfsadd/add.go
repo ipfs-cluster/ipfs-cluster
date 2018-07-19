@@ -228,18 +228,14 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 		for _, name := range names {
 			child, err := fsn.Child(name)
 			if err != nil {
-				// It is ok if adder can't fetch block to make
-				// an fsn file.  Outgoing DAGservice does not
-				// store blocks. We recognize it as a file and
-				// keep traversing the directory
-				//if shouldIgnore(err) {
-				//	continue
-				//}
-				// FIXME
-				fmt.Println("fixme:", err)
+				// This fails when Child is of type *mfs.File
+				// because it tries to get them from the DAG
+				// service (does not implement this and returns
+				// a "not found" error)
+				// *mfs.Files are ignored in the recursive call
+				// anyway.
+				// For Cluster, we just ignore errors here.
 				continue
-
-				return err
 			}
 
 			childpath := gopath.Join(path, name)

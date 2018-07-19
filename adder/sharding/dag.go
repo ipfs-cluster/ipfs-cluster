@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	blocks "github.com/ipfs/go-block-format"
@@ -116,30 +117,37 @@ func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
 	return nodes, nil
 }
 
-func putDAG(ctx context.Context, rpcC *rpc.Client, nodes []ipld.Node, dest peer.ID) error {
+func putDAG(ctx context.Context, rpcC *rpc.Client, nodes []ipld.Node, dests []peer.ID) error {
 	for _, n := range nodes {
-		logger.Debugf("The dag cbor Node Links: %v", n.Links())
+		//logger.Debugf("The dag cbor Node Links: %+v", n.Links())
 		b := api.NodeWithMeta{
+			Cid:    n.Cid().String(), // Tests depend on this.
 			Data:   n.RawData(),
 			Format: "cbor",
 		}
-		logger.Debugf("Here is the serialized ipld: %x", b.Data)
-		err := rpcC.CallContext(
-			ctx,
-			dest,
+		//logger.Debugf("Here is the serialized ipld: %x", b.Data)
+
+		ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(dests))
+		defer rpcutil.MultiCancel(cancels)
+
+		logger.Debugf("DAG block put %s", n.Cid())
+		errs := rpcC.MultiCall(
+			ctxs,
+			dests,
 			"Cluster",
 			"IPFSBlockPut",
 			b,
-			&struct{}{},
+			rpcutil.RPCDiscardReplies(len(dests)),
 		)
-		if err != nil {
+
+		if err := rpcutil.CheckErrs(errs); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-//TODO: decide whether this is worth including.  Is precision important for
+// TODO: decide whether this is worth including. Is precision important for
 // most usecases?  Is being a little over the shard size a serious problem?
 // Is precision worth the cost to maintain complex accounting for metadata
 // size (cid sizes will vary in general, cluster dag cbor format may

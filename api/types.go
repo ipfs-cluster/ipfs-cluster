@@ -838,10 +838,15 @@ type AddedOutput struct {
 type NodeWithMeta struct {
 	ShardingSession int
 
-	Data   []byte
-	Cid    string
-	Size   uint64
-	Format string
+	Data    []byte
+	Cid     string
+	CumSize uint64 //Cumulative size
+	Format  string
+}
+
+// Returns how big is the block
+func (n *NodeWithMeta) Size() uint64 {
+	return uint64(len(n.Data))
 }
 
 // AllocateInfo transports the information necessary to call an allocator's

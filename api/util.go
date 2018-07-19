@@ -25,7 +25,7 @@ func StringsToPeers(strs []string) []peer.ID {
 		var err error
 		peers[i], err = peer.IDB58Decode(p)
 		if err != nil {
-			logger.Error(p, err)
+			logger.Debugf("'%s': %s", p, err)
 		}
 	}
 	return peers

@@ -48,13 +48,9 @@ func (dag *adderDAGService) Add(ctx context.Context, node ipld.Node) error {
 		return err
 	}
 	nodeSerial := api.NodeWithMeta{
-		Cid:  node.Cid().String(),
-		Data: node.RawData(),
-		Size: size,
-	}
-
-	if uint64(len(nodeSerial.Data)) != size {
-		logger.Warningf("fixme: node size doesnt match raw data length")
+		Cid:     node.Cid().String(),
+		Data:    node.RawData(),
+		CumSize: size,
 	}
 
 	select {

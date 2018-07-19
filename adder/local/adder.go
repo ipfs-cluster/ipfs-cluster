@@ -4,8 +4,10 @@ package local
 
 import (
 	"context"
+	"errors"
 	"mime/multipart"
 
+	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -26,13 +28,14 @@ func New(rpc *rpc.Client) *Adder {
 	}
 }
 
-func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) error {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
 		Reader:    r,
 	}
 
 	// TODO: it should send it to the best allocation
+	// TODO: Allocate()
 	localBlockPut := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
 		retVal := n.Cid
 		err := a.rpcClient.CallContext(
@@ -48,21 +51,22 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder
 
 	importer, err := adder.NewImporter(f, p)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	lastCid, err := importer.Run(ctx, localBlockPut)
+	lastCidStr, err := importer.Run(ctx, localBlockPut)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if lastCid == "" {
-		panic("nothing imported")
+	lastCid, err := cid.Decode(lastCidStr)
+	if err != nil {
+		return nil, errors.New("nothing imported. Invalid Cid!")
 	}
 
 	// Finally, cluster pin the result
 	pinS := api.PinSerial{
-		Cid:      lastCid,
+		Cid:      lastCidStr,
 		Type:     int(api.DataType),
 		MaxDepth: -1,
 		PinOptions: api.PinOptions{
@@ -71,11 +75,13 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder
 			Name:                 p.Name,
 		},
 	}
-	return a.rpcClient.Call(
+	err = a.rpcClient.CallContext(
+		ctx,
 		"",
 		"Cluster",
 		"Pin",
 		pinS,
 		&struct{}{},
 	)
+	return lastCid, err
 }

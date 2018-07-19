@@ -9,7 +9,7 @@ import (
 )
 
 func TestImporter(t *testing.T) {
-	f := test.GetTestingDirSerial(t)
+	f := test.GetShardingDirSerial(t)
 	p := DefaultParams()
 
 	imp, err := NewImporter(f, p)
@@ -17,7 +17,7 @@ func TestImporter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedCids := test.TestDirCids[:]
+	expectedCids := test.ShardingDirCids[:]
 	resultCids := make(map[string]struct{})
 
 	blockHandler := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
@@ -52,7 +52,7 @@ func TestImporter(t *testing.T) {
 }
 
 func TestImporter_DoubleStart(t *testing.T) {
-	f := test.GetTestingDirSerial(t)
+	f := test.GetShardingDirSerial(t)
 	p := DefaultParams()
 
 	imp, err := NewImporter(f, p)

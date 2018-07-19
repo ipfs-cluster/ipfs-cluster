@@ -130,6 +130,12 @@
       "hash": "QmdmoY2foMtfYWLE4PWUzAjcPRNMLMM4Q4wdAE27s9JLxv",
       "name": "go-ipfs",
       "version": "0.4.16-rc1"
+    },
+    {
+      "author": "dustin",
+      "hash": "QmPSBJL4momYnE7DcUyk2DVhD6rH488ZmHBGLbxNdhU44K",
+      "name": "go-humanize",
+      "version": "0.0.0"
     }
   ],
   "gxVersion": "0.11.0",

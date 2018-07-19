@@ -5,7 +5,10 @@ package sharding
 
 import (
 	"context"
+	"fmt"
 	"mime/multipart"
+
+	cid "github.com/ipfs/go-cid"
 
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -27,7 +30,9 @@ func New(rpc *rpc.Client) *Adder {
 	}
 }
 
-func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) error {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
+	logger.Debugf("adding from multipart with params: %+v", p)
+
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
 		Reader:    r,
@@ -47,23 +52,50 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder
 	blockSink := dagBuilder.Blocks()
 
 	blockHandle := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
-		blockSink <- n
-		return "", nil
+		logger.Debugf("handling block %s (size %d)", n.Cid, n.Size())
+		select {
+		case <-dagBuilder.Done():
+			return "", dagBuilder.Err()
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case dagBuilder.Blocks() <- n:
+			return n.Cid, nil
+		}
 	}
 
+	logger.Debug("creating importer")
 	importer, err := adder.NewImporter(f, p)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = importer.Run(ctx, blockHandle)
+	logger.Infof("importing file to Cluster (name '%s')", p.Name)
+	rootCidStr, err := importer.Run(ctx, blockHandle)
 	if err != nil {
-		return err
+		logger.Error("Importing aborted: ", err)
+		return nil, err
 	}
 
 	// Trigger shard finalize
 	close(blockSink)
 
-	<-dagBuilder.Done() // wait for the builder to finish
-	return nil
+	select {
+	case <-dagBuilder.Done(): // wait for the builder to finish
+		err = dagBuilder.Err()
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+
+	if err != nil {
+		logger.Info("import process finished with error: ", err)
+		return nil, err
+	}
+
+	rootCid, err := cid.Decode(rootCidStr)
+	if err != nil {
+		return nil, fmt.Errorf("bad root cid: %s", err)
+	}
+
+	logger.Info("import process finished successfully")
+	return rootCid, nil
 }
