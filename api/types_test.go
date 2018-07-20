@@ -190,29 +190,31 @@ func TestPinConv(t *testing.T) {
 	parents := cid.NewSet()
 	parents.Add(testCid2)
 	c := Pin{
-		Cid:                  testCid1,
-		Allocations:          []peer.ID{testPeerID1},
-		ReplicationFactorMax: -1,
-		ReplicationFactorMin: -1,
-		Recursive:            true,
-		Parents:              parents,
-		Name:                 "A test pin",
-		Type:                 CdagType,
-		Clusterdag:           testCid4,
+		Cid:         testCid1,
+		Type:        ClusterDAGType,
+		Allocations: []peer.ID{testPeerID1},
+		Parents:     parents,
+		MaxDepth:    -1,
+		ClusterDAG:  testCid4,
+		PinOptions: PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: -1,
+			Name:                 "A test pin",
+		},
 	}
 
 	newc := c.ToSerial().ToPin()
-	if c.Cid.String() != newc.Cid.String() ||
+	if !c.Cid.Equals(newc.Cid) ||
 		c.Allocations[0] != newc.Allocations[0] ||
 		c.ReplicationFactorMin != newc.ReplicationFactorMin ||
 		c.ReplicationFactorMax != newc.ReplicationFactorMax ||
-		c.Recursive != newc.Recursive ||
+		c.MaxDepth != newc.MaxDepth ||
 		c.Parents.Len() != newc.Parents.Len() ||
 		c.Parents.Keys()[0].String() != newc.Parents.Keys()[0].String() ||
 		c.Name != newc.Name || c.Type != newc.Type ||
-		c.Clusterdag.String() != newc.Clusterdag.String() {
+		!c.ClusterDAG.Equals(newc.ClusterDAG) {
 
-		fmt.Printf("c: %v\ncnew: %v\n", c, newc)
+		fmt.Printf("c: %+v\ncnew: %+v\n", c, newc)
 		t.Fatal("mismatch")
 	}
 
