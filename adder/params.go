@@ -46,6 +46,8 @@ func ParamsFromQuery(query url.Values) (*Params, error) {
 	switch layout {
 	case "trickle":
 	case "balanced":
+	case "":
+		// nothing
 	default:
 		return nil, errors.New("parameter trickle invalid")
 	}

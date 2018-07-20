@@ -522,8 +522,10 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		add = local.New(api.rpcClient)
 	}
 
-	err = add.FromMultipart(api.ctx, reader, params)
+	c, err := add.FromMultipart(api.ctx, reader, params)
+	_ = c
 	// TODO: progress?
+	// TODO: Return root?
 	sendEmptyResponse(w, err)
 }
 

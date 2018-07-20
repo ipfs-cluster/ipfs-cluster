@@ -238,6 +238,14 @@ func (mock *mockService) RecoverLocal(ctx context.Context, in api.PinSerial, out
 	return mock.TrackerRecover(ctx, in, out)
 }
 
+func (rpcapi *mockService) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	if in.ReplicationFactorMin > 1 {
+		return errors.New("ReplMin too high: can only mock-allocate to 1")
+	}
+	*out = []string{""} // local peer
+	return nil
+}
+
 /* Tracker methods */
 
 func (mock *mockService) Track(ctx context.Context, in api.PinSerial, out *struct{}) error {
@@ -400,15 +408,6 @@ func (mock *mockService) ConsensusRmPeer(ctx context.Context, in peer.ID, out *s
 
 func (mock *mockService) ConsensusPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
 	*out = []peer.ID{TestPeerID1, TestPeerID2, TestPeerID3}
-	return nil
-}
-
-func (mock *mockService) SharderAddNode(ctx context.Context, in api.NodeWithMeta, out *string) error {
-	*out = "mock-shard-id"
-	return nil
-}
-
-func (mock *mockService) SharderFinalize(ctx context.Context, in string, out *struct{}) error {
 	return nil
 }
 
