@@ -8,9 +8,10 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	types "github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
+
+	types "github.com/ipfs/ipfs-cluster/api"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
@@ -435,18 +436,17 @@ func TestAddMultiFile(t *testing.T) {
 	defer api.Shutdown()
 
 	testF := func(t *testing.T, c *Client) {
-		mfr, err := test.GetTestingDirMultiReader()
+		sth := test.NewShardingTestHelper()
+		mfr := sth.GetTreeMultiReader(t)
+		err := c.AddMultiFile(mfr, -1, -1, "test", false, 1024, "", "", false, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		out, err := c.AddMultiFile(mfr, false, "", "", false, false, -1, -1)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(out) != test.NumTestDirPrints ||
-			out[len(out)-1].Hash != test.TestDirBalancedRootCID {
-			t.Fatal("unexpected addedoutput from mock rpc on api")
-		}
+		// TODO: output handling
+		// if len(out) != test.NumTestDirPrints ||
+		// 	out[len(out)-1].Hash != test.TestDirBalancedRootCID {
+		// 	t.Fatal("unexpected addedoutput from mock rpc on api")
+		// }
 	}
 
 	testClients(t, api, testF)

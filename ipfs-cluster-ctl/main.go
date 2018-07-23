@@ -12,6 +12,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
+	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -32,6 +33,7 @@ var (
 	defaultUsername      = ""
 	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
+	defaultShardSize     = 100 * 1024 * 1024
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -183,90 +185,8 @@ requires authorization. implies --https, which you can disable with --force-http
 
 	app.Commands = []cli.Command{
 		{
-			Name:  "add",
-			Usage: "ipfs-cluster-ctl add <path> ... add a file to ipfs via cluster",
-			Description: `
-Only works with file paths, no directories.  Recurisive adding not yet 
-supported.  --shard flag not yet supported.  Eventually users would use this 
-endpoint if they want the file to be sharded across the cluster. This is useful
-in the case several ipfs peers want to ingest the file and combined have enough
-space to host but no single peer's repo has the capacity for the entire file.
-No stdin reading yet either, that is also TODO
-`,
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  "recursive, r",
-					Usage: "Add directory paths recursively, default false",
-				},
-				cli.BoolFlag{
-					Name:  "shard",
-					Usage: "Break the file into pieces (shards) and distributed among peers, default false",
-				},
-				cli.BoolFlag{
-					Name:  "only-hashes",
-					Usage: "Write newline separated list of  hashes to output",
-				},
-				cli.StringFlag{
-					Name: "layout, L",
-					Usage: `Dag layout to use for dag generation.  Currently 'trickle' is the only option
-supported`,
-				},
-				cli.StringFlag{
-					Name: "chunker, s",
-					Usage: `Chunking algorithm to use. Either fixed block size: 'size-<size>', or rabin 
-chunker: 'rabin-<min>-<avg>-<max>'.  Default is 'size-262144'`,
-				},
-				cli.BoolFlag{
-					Name:  "raw-leaves",
-					Usage: "Use raw blocks for leaves (experimental)",
-				},
-				cli.BoolFlag{
-					Name:  "progress, p",
-					Usage: "Stream progress data",
-				},
-				cli.BoolFlag{
-					Name:  "hidden, H",
-					Usage: "Include files that are hidden.  Only takes effect on recursive add",
-				},
-				cli.IntFlag{
-					Name:  "replication-min, rmin",
-					Value: 0,
-					Usage: "Sets the minimum replication factor for pinning this file",
-				},
-				cli.IntFlag{
-					Name:  "replication-max, rmax",
-					Value: 0,
-					Usage: "Sets the maximum replication factor for pinning this file",
-				},
-			},
-			Action: func(c *cli.Context) error {
-				paths := make([]string, c.NArg(), c.NArg())
-				for i, path := range c.Args() {
-					paths[i] = path
-				}
-				// Files are all opened but not read until they are sent.
-				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
-				checkErr("serializing all files", err)
-				resp, cerr := globalClient.AddMultiFile(multiFileR,
-					c.Bool("shard"), c.String("layout"),
-					c.String("chunker"),
-					c.Bool("raw-leaves"),
-					c.Bool("hidden"),
-					c.Int("replication-min"),
-					c.Int("replication-max"),
-				)
-				if c.Bool("only-hashes") {
-					for i := range resp {
-						resp[i].Quiet = true
-					}
-				}
-				formatResponse(c, resp, cerr)
-				return nil
-			},
-		},
-		{
 			Name:  "id",
-			Usage: "retrieve peer information",
+			Usage: "Retrieve peer information",
 			Description: `
 This command displays information about the peer that the tool is contacting
 (usually running in localhost).
@@ -280,7 +200,8 @@ This command displays information about the peer that the tool is contacting
 		},
 		{
 			Name:        "peers",
-			Description: "list and manage IPFS Cluster peers",
+			Usage:       "List and manage IPFS Cluster peers",
+			Description: "List and manage IPFS Cluster peers",
 			Subcommands: []cli.Command{
 				{
 					Name:  "ls",
@@ -319,12 +240,139 @@ cluster peers.
 			},
 		},
 		{
+			Name:      "add",
+			Usage:     "Add a file or directory to ipfs and pin it in the cluster",
+			ArgsUsage: "<path>",
+			Description: `
+Adds allows to add and replicate content to several ipfs daemons, performing 
+a Cluster Pin operation on success.
+
+Cluster Add is equivalent to "ipfs add" in terms of DAG building, and supports
+the same options for adjusting the chunker, the DAG layout etc. It will,
+however, send send the content directly to the destination ipfs daemons
+to which it is allocated. This may not be the local daemon (depends on the
+allocator). Once the adding process is finished, the content has been fully
+added to all allocations and pinned in them. This makes cluster add slower
+than a local ipfs add.
+
+Cluster Add supports handling huge files and sharding the resulting DAG among
+several ipfs daemons (--shard). In this case, a single ipfs daemon will not 
+contain the full dag, but only parts of it (shards). Desired shard size can
+be provided with the --shard-size flag.
+
+We recommend setting a --name for sharded pins. Otherwise, it will be 
+automatically generated.
+`,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "recursive, r",
+					Usage: "Add directory paths recursively",
+				},
+				cli.StringFlag{
+					Name:  "name, n",
+					Value: "",
+					Usage: "Sets a name for this pin",
+				},
+				cli.IntFlag{
+					Name:  "replication-min, rmin",
+					Value: 0,
+					Usage: "Sets the minimum replication factor for pinning this file",
+				},
+				cli.IntFlag{
+					Name:  "replication-max, rmax",
+					Value: 0,
+					Usage: "Sets the maximum replication factor for pinning this file",
+				},
+				cli.BoolFlag{
+					Name:  "shard",
+					Usage: "Break the file into pieces (shards) and distributed among peers",
+				},
+				cli.IntFlag{
+					Name:  "shard-size",
+					Value: defaultShardSize,
+					Usage: "Sets the maximum replication factor for pinning this file",
+				},
+				// cli.BoolFlag{
+				// 	Name:  "only-hashes",
+				// 	Usage: "Write newline separated list of  hashes to output",
+				// },
+				cli.StringFlag{
+					Name:  "layout, L",
+					Usage: "Dag layout to use for dag generation: balanced or trickle",
+					Value: "balanced",
+				},
+				cli.StringFlag{
+					Name:  "chunker, s",
+					Usage: "Chunker selection. Fixed block size: 'size-<size>', or rabin chunker: 'rabin-<min>-<avg>-<max>'",
+					Value: "size-262144",
+				},
+				cli.BoolFlag{
+					Name:  "raw-leaves",
+					Usage: "Use raw blocks for leaves (experimental)",
+				},
+				// cli.BoolFlag{
+				// 	Name:  "progress, p",
+				// 	Usage: "Stream progress data",
+				// },
+				cli.BoolFlag{
+					Name:  "hidden, H",
+					Usage: "Include files that are hidden.  Only takes effect on recursive add",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				shard := c.Bool("shard")
+				name := c.String("name")
+				if shard && name == "" {
+					randName, err := uuid.NewV4()
+					if err != nil {
+						return err
+					}
+					// take only first letters
+					name = "sharded-" + strings.Split(randName.String(), "-")[0]
+				}
+
+				paths := make([]string, c.NArg(), c.NArg())
+				for i, path := range c.Args() {
+					paths[i] = path
+				}
+
+				if len(paths) == 0 {
+					checkErr("", errors.New("need at least one path"))
+				}
+
+				// Files are all opened but not read until they are sent.
+				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
+				checkErr("serializing all files", err)
+				cerr := globalClient.AddMultiFile(
+					multiFileR,
+					c.Int("replication-min"),
+					c.Int("replication-max"),
+					name,
+					shard,
+					c.Int("shard-size"),
+					c.String("layout"),
+					c.String("chunker"),
+					c.Bool("raw-leaves"),
+					c.Bool("hidden"),
+				)
+				// TODO: output control
+				// if c.Bool("only-hashes") {
+				// 	for i := range resp {
+				// 		resp[i].Quiet = true
+				// 	}
+				// }
+				formatResponse(c, nil, cerr)
+				return nil
+			},
+		},
+		{
 			Name:        "pin",
-			Description: "add, remove or list items managed by IPFS Cluster",
+			Usage:       "Pin and unpin and list items in IPFS Cluster",
+			Description: "Pin and unpin and list items in IPFS Cluster",
 			Subcommands: []cli.Command{
 				{
 					Name:  "add",
-					Usage: "Track a CID (pin)",
+					Usage: "Cluster Pin",
 					Description: `
 This command tells IPFS Cluster to start managing a CID. Depending on
 the pinning strategy, this will trigger IPFS pin requests. The CID will
@@ -402,7 +450,7 @@ peers should pin this content.
 				},
 				{
 					Name:  "rm",
-					Usage: "Stop tracking a CID (unpin)",
+					Usage: "Cluster Unpin",
 					Description: `
 This command tells IPFS Cluster to no longer manage a CID. This will
 trigger unpinning operations in all the IPFS nodes holding the content.
@@ -447,15 +495,15 @@ although unpinning operations in the cluster may take longer or fail.
 				},
 				{
 					Name:  "ls",
-					Usage: "List tracked CIDs",
+					Usage: "List items in the cluster pinset",
 					Description: `
 This command will list the CIDs which are tracked by IPFS Cluster and to
 which peers they are currently allocated. This list does not include
 any monitoring information about the IPFS status of the CIDs, it
 merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
-Metadata CIDs used to track sharded files are hidden by default.  To view
-all CIDs call with the -a flag.
+
+Pins related to sharded DAGs are hidden by default (--all to show).
 `,
 					ArgsUsage: "[CID]",
 					Flags: []cli.Flag{
@@ -603,11 +651,12 @@ to check that it matches the CLI version (shown by -v).
 		},
 		{
 			Name:        "health",
-			Description: "Display information on clusterhealth",
+			Usage:       "Cluster monitoring information",
+			Description: "Cluster monitoring information",
 			Subcommands: []cli.Command{
 				{
 					Name:  "graph",
-					Usage: "display connectivity of cluster peers",
+					Usage: "create a graph displaying connectivity of cluster peers",
 					Description: `
 This command queries all connected cluster peers and their ipfs peers to generate a
 graph of the connections.  Output is a dot file encoding the cluster's connection state.

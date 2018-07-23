@@ -31,6 +31,13 @@ func consensusAddr(c *Consensus) ma.Multiaddr {
 	return cAddr
 }
 
+func testPin(c *cid.Cid) api.Pin {
+	p := api.PinCid(c)
+	p.ReplicationFactorMin = -1
+	p.ReplicationFactorMax = -1
+	return p
+}
+
 func makeTestingHost(t *testing.T) host.Host {
 	h, err := libp2p.New(
 		context.Background(),
@@ -90,7 +97,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cc.Shutdown()
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.Pin{Cid: c, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
+	err := cc.LogPin(testPin(c))
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -126,13 +133,8 @@ func TestConsensusUpdate(t *testing.T) {
 
 	// Pin first
 	c1, _ := cid.Decode(test.TestCid1)
-	pin := api.Pin{
-		Cid:                  c1,
-		Type:                 api.ShardType,
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-		Parents:              nil,
-	}
+	pin := testPin(c1)
+	pin.Type = api.ShardType
 	err := cc.LogPin(pin)
 	if err != nil {
 		t.Fatal("the initial operation did not make it to the log:", err)
@@ -221,7 +223,7 @@ func TestConsensusRmPeer(t *testing.T) {
 	cc.raft.WaitForLeader(ctx)
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = cc.LogPin(api.Pin{Cid: c, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
+	err = cc.LogPin(testPin(c))
 	if err != nil {
 		t.Error("could not pin after adding peer:", err)
 	}
@@ -269,7 +271,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 1
 	c1, _ := cid.Decode(test.TestCid1)
-	err := cc.LogPin(api.Pin{Cid: c1, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
+	err := cc.LogPin(testPin(c1))
 	if err != nil {
 		t.Error("the first pin did not make it to the log:", err)
 	}
@@ -282,7 +284,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 2
 	c2, _ := cid.Decode(test.TestCid2)
-	err = cc.LogPin(api.Pin{Cid: c2, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
+	err = cc.LogPin(testPin(c2))
 	if err != nil {
 		t.Error("the second pin did not make it to the log:", err)
 	}
@@ -295,7 +297,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 
 	// Make pin 3
 	c3, _ := cid.Decode(test.TestCid3)
-	err = cc.LogPin(api.Pin{Cid: c3, ReplicationFactorMin: -1, ReplicationFactorMax: -1})
+	err = cc.LogPin(testPin(c3))
 	if err != nil {
 		t.Error("the third pin did not make it to the log:", err)
 	}

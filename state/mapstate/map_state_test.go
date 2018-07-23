@@ -16,10 +16,14 @@ var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 
 var c = api.Pin{
-	Cid:                  testCid1,
-	Allocations:          []peer.ID{testPeerID1},
-	ReplicationFactorMax: -1,
-	ReplicationFactorMin: -1,
+	Cid:         testCid1,
+	Allocations: []peer.ID{testPeerID1},
+	MaxDepth:    -1,
+	PinOptions: api.PinOptions{
+		ReplicationFactorMax: -1,
+		ReplicationFactorMin: -1,
+		Name:                 "test",
+	},
 }
 
 func TestAdd(t *testing.T) {

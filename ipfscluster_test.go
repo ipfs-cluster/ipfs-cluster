@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
@@ -22,7 +23,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -85,7 +85,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, Sharder, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	//
 	//clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
@@ -104,7 +104,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, bmonCfg, psmonCfg, diskInfCfg, sharderCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -139,10 +139,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	raftCon, err := raft.NewConsensus(host, consensusCfg, state, staging)
 	checkErr(t, err)
 
-	sharder, err := sharder.NewSharder(sharderCfg)
-	checkErr(t, err)
-
-	return host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock
+	return host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
 func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pubsubmon.Config) PeerMonitor {
@@ -167,8 +164,8 @@ func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *r
 }
 
 func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster, *test.IpfsMock) {
-	host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock := createComponents(t, nth, clusterSecret, false)
-	cl := createCluster(t, host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, sharder)
+	host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, nth, clusterSecret, false)
+	cl := createCluster(t, host, clusterCfg, consensusCfg, api, ipfs, state, tracker, mon, alloc, inf)
 	<-cl.Ready()
 	return cl, mock
 }
@@ -184,7 +181,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	mons := make([]PeerMonitor, nClusters, nClusters)
 	allocs := make([]PinAllocator, nClusters, nClusters)
 	infs := make([]Informer, nClusters, nClusters)
-	sharders := make([]Sharder, nClusters, nClusters)
 	ipfsMocks := make([]*test.IpfsMock, nClusters, nClusters)
 
 	hosts := make([]host.Host, nClusters, nClusters)
@@ -195,7 +191,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 	for i := 0; i < nClusters; i++ {
 		// staging = true for all except first (i==0)
-		host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, sharder, mock := createComponents(t, i, testingClusterSecret, i != 0)
+		host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret, i != 0)
 		hosts[i] = host
 		cfgs[i] = clusterCfg
 		raftCons[i] = raftCon
@@ -206,7 +202,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		mons[i] = mon
 		allocs[i] = alloc
 		infs[i] = inf
-		sharders[i] = sharder
 		ipfsMocks[i] = mock
 	}
 
@@ -225,13 +220,13 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	}
 
 	// Start first node
-	clusters[0] = createCluster(t, hosts[0], cfgs[0], raftCons[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0], sharders[0])
+	clusters[0] = createCluster(t, hosts[0], cfgs[0], raftCons[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
 	<-clusters[0].Ready()
 	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
 
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
-		clusters[i] = createCluster(t, hosts[i], cfgs[i], raftCons[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i], sharders[i])
+		clusters[i] = createCluster(t, hosts[i], cfgs[i], raftCons[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i])
 		err := clusters[i].Join(bootstrapAddr)
 		if err != nil {
 			logger.Error(err)
@@ -1784,7 +1779,7 @@ func TestClustersAddFileShard(t *testing.T) {
 		if !ok {
 			t.Fatalf("ipfs does not store cdag data")
 		}
-		cdagNode, err := sharder.CborDataToNode(cdagBytes, "cbor")
+		cdagNode, err := sharding.CborDataToNode(cdagBytes, "cbor")
 		if err != nil {
 			t.Fatalf("cdag bytes cannot be parsed to ipld-cbor node")
 		}

@@ -85,7 +85,7 @@ func testPin(t *testing.T, method string) {
 	ipfs.config.PinMethod = method
 
 	c, _ := cid.Decode(test.TestCid1)
-	err := ipfs.Pin(ctx, c, true)
+	err := ipfs.Pin(ctx, c, -1)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}
@@ -93,12 +93,12 @@ func testPin(t *testing.T, method string) {
 	if err != nil {
 		t.Fatal("expected success doing ls")
 	}
-	if !pinSt.IsPinned() {
+	if !pinSt.IsPinned(-1) {
 		t.Error("cid should have been pinned")
 	}
 
 	c2, _ := cid.Decode(test.ErrorCid)
-	err = ipfs.Pin(ctx, c2, true)
+	err = ipfs.Pin(ctx, c2, -1)
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
@@ -119,7 +119,7 @@ func TestIPFSUnpin(t *testing.T) {
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
 	}
-	ipfs.Pin(ctx, c, true)
+	ipfs.Pin(ctx, c, -1)
 	err = ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning pinned cid")
@@ -134,9 +134,9 @@ func TestIPFSPinLsCid(t *testing.T) {
 	c, _ := cid.Decode(test.TestCid1)
 	c2, _ := cid.Decode(test.TestCid2)
 
-	ipfs.Pin(ctx, c, true)
+	ipfs.Pin(ctx, c, -1)
 	ips, err := ipfs.PinLsCid(ctx, c)
-	if err != nil || !ips.IsPinned() {
+	if err != nil || !ips.IsPinned(-1) {
 		t.Error("c should appear pinned")
 	}
 
@@ -154,8 +154,8 @@ func TestIPFSPinLs(t *testing.T) {
 	c, _ := cid.Decode(test.TestCid1)
 	c2, _ := cid.Decode(test.TestCid2)
 
-	ipfs.Pin(ctx, c, true)
-	ipfs.Pin(ctx, c2, true)
+	ipfs.Pin(ctx, c, -1)
+	ipfs.Pin(ctx, c2, -1)
 	ipsMap, err := ipfs.PinLs(ctx, "")
 	if err != nil {
 		t.Error("should not error")
@@ -165,7 +165,7 @@ func TestIPFSPinLs(t *testing.T) {
 		t.Fatal("the map does not contain expected keys")
 	}
 
-	if !ipsMap[test.TestCid1].IsPinned() || !ipsMap[test.TestCid2].IsPinned() {
+	if !ipsMap[test.TestCid1].IsPinned(-1) || !ipsMap[test.TestCid2].IsPinned(-1) {
 		t.Error("c1 and c2 should appear pinned")
 	}
 }
@@ -772,7 +772,7 @@ func TestRepoSize(t *testing.T) {
 	}
 
 	c, _ := cid.Decode(test.TestCid1)
-	err = ipfs.Pin(ctx, c, true)
+	err = ipfs.Pin(ctx, c, -1)
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}

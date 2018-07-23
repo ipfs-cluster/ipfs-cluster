@@ -13,7 +13,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/sharder"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -23,8 +22,7 @@ import (
 )
 
 type mockComponent struct {
-	rpcClient   *rpc.Client
-	returnError bool
+	rpcClient *rpc.Client
 }
 
 func (c *mockComponent) Shutdown() error {
@@ -42,43 +40,54 @@ type mockAPI struct {
 
 type mockConnector struct {
 	mockComponent
+
+	pins   sync.Map
+	blocks sync.Map
 }
 
 func (ipfs *mockConnector) ID() (api.IPFSID, error) {
-	if ipfs.returnError {
-		return api.IPFSID{}, errors.New("")
-	}
 	return api.IPFSID{
 		ID: test.TestPeerID1,
 	}, nil
 }
 
-func (ipfs *mockConnector) Pin(ctx context.Context, c *cid.Cid, b bool) error {
-	if ipfs.returnError {
-		return errors.New("")
-	}
+func (ipfs *mockConnector) Pin(ctx context.Context, c *cid.Cid, maxDepth int) error {
+	ipfs.pins.Store(c.String(), maxDepth)
 	return nil
 }
 
 func (ipfs *mockConnector) Unpin(ctx context.Context, c *cid.Cid) error {
-	if ipfs.returnError {
-		return errors.New("")
-	}
+	ipfs.pins.Delete(c.String())
 	return nil
 }
 
 func (ipfs *mockConnector) PinLsCid(ctx context.Context, c *cid.Cid) (api.IPFSPinStatus, error) {
-	if ipfs.returnError {
-		return api.IPFSPinStatusError, errors.New("")
+	dI, ok := ipfs.pins.Load(c.String())
+	depth := dI.(int)
+	if !ok {
+		return api.IPFSPinStatusUnpinned, nil
+	}
+	if depth == 0 {
+		return api.IPFSPinStatusDirect, nil
 	}
 	return api.IPFSPinStatusRecursive, nil
 }
 
 func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string]api.IPFSPinStatus, error) {
-	if ipfs.returnError {
-		return nil, errors.New("")
-	}
 	m := make(map[string]api.IPFSPinStatus)
+	var st api.IPFSPinStatus
+	ipfs.pins.Range(func(k, v) bool {
+		switch v.(int) {
+		case 0:
+			st = IPFSPinStatusDirect
+		default:
+			st = IPFSPinStatusRecursive
+		}
+
+		m[k] = st
+		return true
+	})
+
 	return m, nil
 }
 
@@ -90,25 +99,22 @@ func (ipfs *mockConnector) ConnectSwarms() error                          { retu
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }
 func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
-func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error           { return nil }
+
+func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error {
+	ipfs.blocks.Store(nwm.Cid, nwm.Data)
+	return nil
+}
 
 func (ipfs *mockConnector) BlockGet(c *cid.Cid) ([]byte, error) {
-	switch c.String() {
-	case test.TestShardCid:
-		return test.TestShardData, nil
-	case test.TestCdagCid:
-		return test.TestCdagData, nil
-	case test.TestShardCid2:
-		return test.TestShard2Data, nil
-	case test.TestCdagCid2:
-		return test.TestCdagData2, nil
-	default:
-		return nil, errors.New("block not found")
+	d, ok := ipfs.blocks.Load(c.String())
+	if !ok {
+		errors.New("block not found")
 	}
+	return d.([]byte)
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate.MapState, *maptracker.MapPinTracker) {
-	clusterCfg, _, _, consensusCfg, trackerCfg, bmonCfg, psmonCfg, _, sharderCfg := testingConfigs()
+	clusterCfg, _, _, consensusCfg, trackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -130,7 +136,6 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 	numpinCfg := &numpin.Config{}
 	numpinCfg.Default()
 	inf, _ := numpin.NewInformer(numpinCfg)
-	sharder, _ := sharder.NewSharder(sharderCfg)
 
 	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
 
@@ -145,7 +150,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, *mapstate
 		mon,
 		alloc,
 		inf,
-		sharder)
+	)
 	if err != nil {
 		t.Fatal("cannot create cluster:", err)
 	}

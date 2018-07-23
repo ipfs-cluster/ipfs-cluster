@@ -8,6 +8,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
+
 // Params contains all of the configurable parameters needed to specify the
 // importing process of a file being added to an ipfs-cluster
 type Params struct {
@@ -32,7 +34,7 @@ func DefaultParams() *Params {
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
 			Name:                 "",
-			ShardSize:            100 * 1024 * 1024, // 100 MB
+			ShardSize:            DefaultShardSize, // 100 MB
 		},
 	}
 }
