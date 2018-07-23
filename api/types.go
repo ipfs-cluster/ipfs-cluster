@@ -557,22 +557,21 @@ func StringsToCidSet(strs []string) *cid.Set {
 const (
 	// BadType type showing up anywhere indicates a bug
 	BadType PinType = iota
-	// DataType is a regular, non-sharded pin. It has no parents
-	// and no ClusterDAG associated. It is pinned recursively
-	// in allocated peers.
+	// DataType is a regular, non-sharded pin. It is pinned recursively.
+	// It has no associated reference.
 	DataType
-	// MetaType tracks the original CID of a sharded DAG and points
-	// to its ClusterDAG. It has no parents.
+	// MetaType tracks the original CID of a sharded DAG. Its Reference
+	// points to the Cluster DAG CID.
 	MetaType
 	// ClusterDAGType pins carry the CID if the root node that points to
 	// all the shard-root-nodes of the shards in which a DAG has been
-	// divided. It has a parent (the MetaType).
+	// divided. Its Reference carries the MetaType CID.
 	// ClusterDAGType pins are pinned directly everywhere.
 	ClusterDAGType
 	// ShardType pins carry the root CID of a shard, which points
 	// to individual blocks on the original DAG that the user is adding,
 	// which has been sharded.
-	// Their parent is the ClusterDAGType pin.
+	// They carry a Reference to the previous shard.
 	// ShardTypes are pinned with MaxDepth=1 (root and
 	// direct children only).
 	ShardType
@@ -663,11 +662,11 @@ type Pin struct {
 	// recursive.
 	MaxDepth int
 
-	// For certain types of pin, a pointer to parents.
-	Parents *cid.Set
-
-	// For MetaType pins, a pointer to the Cluster DAG (sharded tree)
-	ClusterDAG *cid.Cid
+	// We carry a reference CID to this pin. For
+	// ClusterDAGs, it is the MetaPin CID. For the
+	// MetaPin it is the ClusterDAG CID. For Shards,
+	// it is the previous shard CID.
+	Reference *cid.Cid
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
@@ -698,8 +697,7 @@ type PinSerial struct {
 	Type        int      `json:"type"`
 	Allocations []string `json:"allocations"`
 	MaxDepth    int      `json:"max_depth"`
-	Parents     []string `json:"parents"`
-	ClusterDAG  string   `json:"clusterdag"`
+	Reference   string   `json:"reference"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -708,25 +706,20 @@ func (pin Pin) ToSerial() PinSerial {
 	if pin.Cid != nil {
 		c = pin.Cid.String()
 	}
-	cdag := ""
-	if pin.ClusterDAG != nil {
-		cdag = pin.ClusterDAG.String()
+	ref := ""
+	if pin.Reference != nil {
+		ref = pin.Reference.String()
 	}
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
-	var parents []string
-	if pin.Parents != nil {
-		parents = CidsToStrings(pin.Parents.Keys())
-	}
 
 	return PinSerial{
 		Cid:         c,
 		Allocations: allocs,
 		Type:        int(pin.Type),
 		MaxDepth:    pin.MaxDepth,
-		Parents:     parents,
-		ClusterDAG:  cdag,
+		Reference:   ref,
 		PinOptions: PinOptions{
 			Name:                 n,
 			ReplicationFactorMin: pin.ReplicationFactorMin,
@@ -778,14 +771,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.ClusterDAG != pin2s.ClusterDAG {
-		return false
-	}
-
-	sort.Strings(pin1s.Parents)
-	sort.Strings(pin2s.Parents)
-
-	if strings.Join(pin1s.Parents, ",") != strings.Join(pin2s.Parents, ",") {
+	if pin1s.Reference != pin2s.Reference {
 		return false
 	}
 
@@ -798,11 +784,11 @@ func (pins PinSerial) ToPin() Pin {
 	if err != nil {
 		logger.Debug(pins.Cid, err)
 	}
-	var cdag *cid.Cid
-	if pins.ClusterDAG != "" {
-		cdag, err = cid.Decode(pins.ClusterDAG)
+	var ref *cid.Cid
+	if pins.Reference != "" {
+		ref, err = cid.Decode(pins.Reference)
 		if err != nil {
-			logger.Error(pins.ClusterDAG, err)
+			logger.Warning(pins.Reference, err)
 		}
 	}
 
@@ -811,8 +797,7 @@ func (pins PinSerial) ToPin() Pin {
 		Allocations: StringsToPeers(pins.Allocations),
 		Type:        PinType(pins.Type),
 		MaxDepth:    pins.MaxDepth,
-		Parents:     StringsToCidSet(pins.Parents),
-		ClusterDAG:  cdag,
+		Reference:   ref,
 		PinOptions: PinOptions{
 			Name:                 pins.Name,
 			ReplicationFactorMin: pins.ReplicationFactorMin,

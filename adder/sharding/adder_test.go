@@ -45,6 +45,22 @@ func (rpcs *testRPC) Allocate(ctx context.Context, in api.PinSerial, out *[]stri
 	return nil
 }
 
+func (rpcs *testRPC) PinGet(c *cid.Cid) (api.Pin, error) {
+	pI, ok := rpcs.pins.Load(c.String())
+	if !ok {
+		return api.Pin{}, errors.New("not found")
+	}
+	return pI.(api.PinSerial).ToPin(), nil
+}
+
+func (rpcs *testRPC) BlockGet(c *cid.Cid) ([]byte, error) {
+	bI, ok := rpcs.blocks.Load(c.String())
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return bI.([]byte), nil
+}
+
 func makeAdder(t *testing.T, multiReaderF func(*testing.T) *files.MultiFileReader) (*Adder, *testRPC, *multipart.Reader) {
 	rpcObj := &testRPC{}
 	server := rpc.NewServer(nil, "mock")
@@ -60,69 +76,6 @@ func makeAdder(t *testing.T, multiReaderF func(*testing.T) *files.MultiFileReade
 	r := multipart.NewReader(mr, mr.Boundary())
 	return add, rpcObj, r
 
-}
-
-// Given a rootCid it performs common checks and returns a map with all the blocks.
-func verifyShards(t *testing.T, rootCid *cid.Cid, rpcObj *testRPC, expectedShards int) map[string]struct{} {
-	metaPinI, ok := rpcObj.pins.Load(rootCid.String())
-	if !ok {
-		t.Fatal("meta pin was not pinned")
-	}
-
-	metaPin := metaPinI.(api.PinSerial)
-	if api.PinType(metaPin.Type) != api.MetaType {
-		t.Fatal("bad MetaPin type")
-	}
-
-	clusterPinI, ok := rpcObj.pins.Load(metaPin.ClusterDAG)
-	if !ok {
-		t.Fatal("cluster pin was not pinned")
-	}
-	clusterPin := clusterPinI.(api.PinSerial)
-	if api.PinType(clusterPin.Type) != api.ClusterDAGType {
-		t.Fatal("bad ClusterDAGPin type")
-	}
-
-	clusterDAGBlock, ok := rpcObj.blocks.Load(clusterPin.Cid)
-	if !ok {
-		t.Fatal("cluster pin was not stored")
-	}
-
-	clusterDAGNode, err := CborDataToNode(clusterDAGBlock.([]byte), "cbor")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	shards := clusterDAGNode.Links()
-	if len(shards) != expectedShards {
-		t.Fatal("bad number of shards")
-	}
-
-	shardBlocks := make(map[string]struct{})
-	for _, sh := range shards {
-		shardPinI, ok := rpcObj.pins.Load(sh.Cid.String())
-		if !ok {
-			t.Fatal("shard was not pinned:", sh.Cid)
-		}
-		shardPin := shardPinI.(api.PinSerial)
-		shardBlock, ok := rpcObj.blocks.Load(shardPin.Cid)
-		if !ok {
-			t.Fatal("shard block was not stored")
-		}
-		shardNode, err := CborDataToNode(shardBlock.([]byte), "cbor")
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, l := range shardNode.Links() {
-			ci := l.Cid.String()
-			_, ok := shardBlocks[ci]
-			if ok {
-				t.Fatal("block belongs to two shards:", ci)
-			}
-			shardBlocks[ci] = struct{}{}
-		}
-	}
-	return shardBlocks
 }
 
 func TestFromMultipart(t *testing.T) {
@@ -160,7 +113,10 @@ func TestFromMultipart(t *testing.T) {
 
 		// 14 has been obtained by carefully observing the logs
 		// making sure that splitting happens in the right place.
-		shardBlocks := verifyShards(t, rootCid, rpcObj, 14)
+		shardBlocks, err := VerifyShards(t, rootCid, rpcObj, rpcObj, 14)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for _, ci := range test.ShardingDirCids {
 			_, ok := shardBlocks[ci]
 			if !ok {
@@ -204,7 +160,10 @@ func TestFromMultipart(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		shardBlocks := verifyShards(t, rootCid, rpcObj, 29)
+		shardBlocks, err := VerifyShards(t, rootCid, rpcObj, rpcObj, 29)
+		if err != nil {
+			t.Fatal(err)
+		}
 		_ = shardBlocks
 	})
 

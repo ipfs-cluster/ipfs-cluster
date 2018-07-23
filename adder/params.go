@@ -34,7 +34,7 @@ func DefaultParams() *Params {
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
 			Name:                 "",
-			ShardSize:            DefaultShardSize, // 100 MB
+			ShardSize:            DefaultShardSize,
 		},
 	}
 }

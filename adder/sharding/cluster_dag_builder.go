@@ -30,6 +30,8 @@ type clusterDAGBuilder struct {
 
 	// Current shard being built
 	currentShard *shard
+	// Last flushed shard CID
+	previousShard *cid.Cid
 
 	// shard tracking
 	shards map[string]*cid.Cid
@@ -98,23 +100,33 @@ func (cdb *clusterDAGBuilder) pin(p api.Pin) error {
 	)
 }
 
+// flushes the cdb.currentShard and returns the LastLink()
+func (cdb *clusterDAGBuilder) flushCurrentShard() (*cid.Cid, error) {
+	shard := cdb.currentShard
+	if shard == nil {
+		return nil, errors.New("cannot flush a nil shard")
+	}
+
+	lens := len(cdb.shards)
+
+	shardCid, err := shard.Flush(cdb.ctx, lens, cdb.previousShard)
+	if err != nil {
+		return shardCid, err
+	}
+	cdb.totalSize += shard.Size()
+	cdb.shards[fmt.Sprintf("%d", lens)] = shardCid
+	cdb.previousShard = shardCid
+	cdb.currentShard = nil
+	return shard.LastLink(), nil
+}
+
 // finalize is used to signal that we need to wrap up this clusterDAG
 //. It is called when the Blocks() channel is closed.
 func (cdb *clusterDAGBuilder) finalize() error {
-	lastShard := cdb.currentShard
-	if lastShard == nil {
-		return errors.New("cannot finalize a ClusterDAG with no shards")
-	}
-
-	lastShardCid, err := lastShard.Flush(cdb.ctx, len(cdb.shards))
+	dataRootCid, err := cdb.flushCurrentShard()
 	if err != nil {
 		return err
 	}
-
-	cdb.totalSize += lastShard.Size()
-
-	// Do not forget this shard
-	cdb.shards[fmt.Sprintf("%d", len(cdb.shards))] = lastShardCid
 
 	clusterDAGNodes, err := makeDAG(cdb.shards)
 	if err != nil {
@@ -127,7 +139,6 @@ func (cdb *clusterDAGBuilder) finalize() error {
 		return err
 	}
 
-	dataRootCid := lastShard.LastLink()
 	clusterDAG := clusterDAGNodes[0].Cid()
 
 	// Pin the ClusterDAG
@@ -137,8 +148,7 @@ func (cdb *clusterDAGBuilder) finalize() error {
 	clusterDAGPin.MaxDepth = 0 // pin direct
 	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", cdb.pinOpts.Name)
 	clusterDAGPin.Type = api.ClusterDAGType
-	clusterDAGPin.Parents = cid.NewSet()
-	clusterDAGPin.Parents.Add(dataRootCid)
+	clusterDAGPin.Reference = dataRootCid
 	err = cdb.pin(clusterDAGPin)
 	if err != nil {
 		return err
@@ -147,7 +157,7 @@ func (cdb *clusterDAGBuilder) finalize() error {
 	// Pin the META pin
 	metaPin := api.PinWithOpts(dataRootCid, cdb.pinOpts)
 	metaPin.Type = api.MetaType
-	metaPin.ClusterDAG = clusterDAG
+	metaPin.Reference = clusterDAG
 	metaPin.MaxDepth = 0 // irrelevant. Meta-pins are not pinned
 	err = cdb.pin(metaPin)
 	if err != nil {
@@ -253,17 +263,10 @@ func (cdb *clusterDAGBuilder) ingestBlock(n *api.NodeWithMeta) error {
 		return errors.New("block doesn't fit in empty shard: shard size too small?")
 	}
 
-	// otherwise, shard considered full. Flush and pin result
-	logger.Debugf("flushing shard %d", len(cdb.shards))
-	shardCid, err := shard.Flush(cdb.ctx, len(cdb.shards))
+	_, err = cdb.flushCurrentShard()
 	if err != nil {
 		return err
 	}
-	cdb.totalSize += shard.Size()
-
-	// Do not forget this shard
-	cdb.shards[fmt.Sprintf("%d", len(cdb.shards))] = shardCid
-	cdb.currentShard = nil
 	return cdb.ingestBlock(n) // <-- retry ingest
 }
 

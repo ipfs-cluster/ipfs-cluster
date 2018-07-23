@@ -143,8 +143,7 @@ func TestConsensusUpdate(t *testing.T) {
 
 	// Update pin
 	c2, _ := cid.Decode(test.TestCid2)
-	pin.Parents = cid.NewSet()
-	pin.Parents.Add(c2)
+	pin.Reference = c2
 	err = cc.LogPin(pin)
 	if err != nil {
 		t.Error("the update op did not make it to the log:", err)
@@ -160,8 +159,7 @@ func TestConsensusUpdate(t *testing.T) {
 	if len(pins) != 1 || pins[0].Cid.String() != test.TestCid1 {
 		t.Error("the added pin should be in the state")
 	}
-	if pins[0].Parents == nil || pins[0].Parents.Len() != 1 ||
-		!pins[0].Parents.Has(c2) {
+	if !pins[0].Reference.Equals(c2) {
 		t.Error("pin updated incorrectly")
 	}
 }

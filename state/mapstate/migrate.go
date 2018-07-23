@@ -113,8 +113,7 @@ func (st *mapStateV3) next() migrateable {
 			Cid:         v.Cid,
 			Allocations: v.Allocations,
 			Type:        int(api.DataType),
-			Parents:     nil,
-			ClusterDAG:  "",
+			Reference:   "",
 			PinOptions: api.PinOptions{
 				ReplicationFactorMin: v.ReplicationFactorMin,
 				ReplicationFactorMax: v.ReplicationFactorMax,

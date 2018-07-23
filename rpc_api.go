@@ -206,6 +206,7 @@ func (rpcapi *RPCAPI) Allocate(ctx context.Context, in api.PinSerial, out *[]str
 		[]peer.ID{}, // blacklist
 		[]peer.ID{}, // prio list
 	)
+
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"mime/multipart"
 	"os"
 	"sort"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
@@ -1013,12 +1011,9 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 		t.Fatal("allocations should be nClusters")
 	}
 
-	err = clusters[0].Pin(api.Pin{
-		Cid:                  h,
-		ReplicationFactorMax: 2,
-		ReplicationFactorMin: 1,
-		Type:                 api.DataType,
-	})
+	pin := api.PinCid(h)
+	pin.ReplicationFactorMin = 1
+	pin.ReplicationFactorMax = 2
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1644,166 +1639,162 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	}
 }
 
-func filePinnedThunk(pinnedCid *cid.Cid, numPins int) func(*testing.T, *Cluster) {
-	return func(t *testing.T, c *Cluster) {
-		v := c.tracker.Status(pinnedCid)
-		if v.Status != api.TrackerStatusPinned {
-			t.Errorf("%s should have been pinned but it is %s",
-				v.Cid,
-				v.Status.String())
-		}
-		allStatus := c.tracker.StatusAll()
-		if len(allStatus) != numPins {
-			t.Errorf("Expected %d pins from local file add but got %d", numPins, len(allStatus))
-		}
-	}
-}
+// func filePinnedThunk(pinnedCid *cid.Cid, numPins int) func(*testing.T, *Cluster) {
+// 	return func(t *testing.T, c *Cluster) {
+// 		v := c.StatusLocal(pinnedCid)
+// 		if v.Status != api.TrackerStatusPinned {
+// 			t.Errorf("%s should have been pinned but it is %s",
+// 				v.Cid,
+// 				v.Status.String())
+// 		}
+// 		allStatus := c.tracker.StatusAll()
+// 		if len(allStatus) != numPins {
+// 			t.Errorf("Expected %d pins from local file add but got %d", numPins, len(allStatus))
+// 		}
+// 	}
+// }
 
-func TestClustersAddFileLocal(t *testing.T) {
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
+// func TestClustersAddFileLocal(t *testing.T) {
+// 	clusters, mock := createClusters(t)
+// 	defer shutdownClusters(t, clusters, mock)
+// 	sth := test.NewShardingTestHelper()
+// 	defer sth.Clean()
 
-	// Add the testing directory locally to a random cluster node with
-	// default parameters
-	j := rand.Intn(nClusters)
-	multiFileR, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
-	}
-	multiPartR := multipart.NewReader(multiFileR, multiFileR.Boundary())
-	params := api.DefaultAddParams()
+// 	// Add the testing directory locally to a random cluster node with
+// 	// default parameters
+// 	j := rand.Intn(nClusters)
+// 	mfr := sth.GetTreeMultiReader(t)
+// 	multiPartR := multipart.NewReader(mfr, mfr.Boundary())
 
-	output, err := clusters[j].AddFile(multiPartR, params)
-	if err != nil {
-		t.Error(err)
-	}
-	delay()
-	if len(output) != test.NumTestDirPrints {
-		t.Error("Unexpected number of lines output")
-	}
-	rootCid, _ := cid.Decode(test.TestDirBalancedRootCID)
+// 	t.Run("balanced", func(t *testing.T) {
+// 		params := adder.DefaultParams()
+// 		params.Shard = false
 
-	runF(t, clusters, filePinnedThunk(rootCid, 1))
+// 		rootCid, err := clusters[j].AddFile(multiPartR, params)
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		pinDelay()
 
-}
-func TestClustersAddTrickleLocal(t *testing.T) {
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
+// 		if rootCid.String() != test.ShardingDirBalancedRootCID {
+// 			t.Fatal("bad root cid")
+// 		}
 
-	// Add the testing directory locally to a random cluster node with
-	// default parameters
-	j := rand.Intn(nClusters)
-	multiFileR, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 		runF(t, clusters, filePinnedThunk(rootCid, 1))
+// 	})
 
-	params := api.DefaultAddParams()
-	params.Layout = "trickle"
+// 	t.Run("trickle", func(t *testing.T) {
+// 		params := adder.DefaultParams()
+// 		params.Shard = false
+// 		params.Layout = "trickle"
 
-	multiPartR := multipart.NewReader(multiFileR, multiFileR.Boundary())
-	_, err = clusters[j].AddFile(multiPartR, params)
-	if err != nil {
-		t.Error(err)
-	}
-	delay()
+// 		rootCid, err := clusters[j].AddFile(multiPartR, params)
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		pinDelay()
 
-	trickleRoot, _ := cid.Decode(test.TestDirTrickleRootCID)
-	runF(t, clusters, filePinnedThunk(trickleRoot, 1))
-}
+// 		if rootCid.String() != test.ShardingDirTrickleRootCID {
+// 			t.Fatal("bad root cid")
+// 		}
 
-func TestClustersAddFileShard(t *testing.T) {
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
+// 		runF(t, clusters, filePinnedThunk(rootCid, 1))
+// 	})
 
-	// Add the testing directory sharded across nodes
-	j := rand.Intn(nClusters)
-	multiFileR, err := test.GetTestingDirMultiReader()
-	if err != nil {
-		t.Fatal(err)
-	}
-	multiPartR := multipart.NewReader(multiFileR, multiFileR.Boundary())
-	params := api.DefaultAddParams()
-	params.Shard = true
+// }
 
-	_, err = clusters[j].AddFile(multiPartR, params)
-	if err != nil {
-		t.Error(err)
-	}
-	delay()
+// func TestClustersAddFileShard(t *testing.T) {
+// 	clusters, mock := createClusters(t)
+// 	defer shutdownClusters(t, clusters, mock)
 
-	rootCid, _ := cid.Decode(test.TestDirBalancedRootCID)
+// 	// Add the testing directory sharded across nodes
+// 	j := rand.Intn(nClusters)
+// 	multiFileR, err := test.GetTestingDirMultiReader()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	multiPartR := multipart.NewReader(multiFileR, multiFileR.Boundary())
+// 	params := api.DefaultAddParams()
+// 	params.Shard = true
 
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	_, err = clusters[j].AddFile(multiPartR, params)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	delay()
 
-	fShardsPinned := func(t *testing.T, c *Cluster) {
-		// Verify that consensus state has the expected pinset
-		metaPin, err := c.PinGet(rootCid)
-		if err != nil {
-			t.Fatalf("data root not tracked in pinset")
-		}
-		if metaPin.Type != api.MetaType {
-			t.Errorf("unexpected data root pin type: %s",
-				metaPin.Type.String())
-		}
-		if metaPin.Recursive {
-			t.Errorf("unexected recursively pinned data root")
-		}
-		if metaPin.Parents.Len() != 0 {
-			t.Errorf("unexpected parents of data root")
-		}
-		cdagCid := metaPin.Clusterdag
-		if cdagCid == nil {
-			t.Fatalf("no clusterdag pinned for data root")
-		}
+// 	rootCid, _ := cid.Decode(test.TestDirBalancedRootCID)
 
-		// Check that the clusterdag pointed to by data root is pinned
-		cdagPin, err := c.PinGet(cdagCid)
-		if err != nil {
-			t.Fatalf("clusterDAG not tracked in pinset")
-		}
-		if cdagPin.Type != api.CdagType {
-			t.Errorf("unexpected clusterdag root pin type: %s", cdagPin.Type.String())
-		}
-		if cdagPin.Recursive {
-			t.Errorf("unexected recursively pinned clusterdag root")
-		}
-		if cdagPin.Parents.Len() != 1 {
-			t.Errorf("unexpected parent set size of %d", cdagPin.Parents.Len())
-		}
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-		// Gather shards from clusterDAG data
-		cdagBytes, ok := mock[j].BlockStore[cdagCid.String()]
-		if !ok {
-			t.Fatalf("ipfs does not store cdag data")
-		}
-		cdagNode, err := sharding.CborDataToNode(cdagBytes, "cbor")
-		if err != nil {
-			t.Fatalf("cdag bytes cannot be parsed to ipld-cbor node")
-		}
+// 	fShardsPinned := func(t *testing.T, c *Cluster) {
+// 		// Verify that consensus state has the expected pinset
+// 		metaPin, err := c.PinGet(rootCid)
+// 		if err != nil {
+// 			t.Fatalf("data root not tracked in pinset")
+// 		}
+// 		if metaPin.Type != api.MetaType {
+// 			t.Errorf("unexpected data root pin type: %s",
+// 				metaPin.Type.String())
+// 		}
+// 		if metaPin.Recursive {
+// 			t.Errorf("unexected recursively pinned data root")
+// 		}
+// 		if metaPin.Parents.Len() != 0 {
+// 			t.Errorf("unexpected parents of data root")
+// 		}
+// 		cdagCid := metaPin.Clusterdag
+// 		if cdagCid == nil {
+// 			t.Fatalf("no clusterdag pinned for data root")
+// 		}
 
-		// Check that all shards in the clusterDAG are pinned
-		for _, shardLink := range cdagNode.Links() {
-			shardPin, err := c.PinGet(shardLink.Cid)
-			if err != nil {
-				t.Fatalf("at least one shard node not tracked in pinset")
-			}
-			if shardPin.Type != api.ShardType {
-				t.Errorf("unexpected shard pin type: %s", shardPin.Type.String())
-			}
-			if shardPin.Parents.Len() != 1 {
-				t.Errorf("unexpected parent set size of %d", shardPin.Parents.Len())
-			}
-		}
+// 		// Check that the clusterdag pointed to by data root is pinned
+// 		cdagPin, err := c.PinGet(cdagCid)
+// 		if err != nil {
+// 			t.Fatalf("clusterDAG not tracked in pinset")
+// 		}
+// 		if cdagPin.Type != api.CdagType {
+// 			t.Errorf("unexpected clusterdag root pin type: %s", cdagPin.Type.String())
+// 		}
+// 		if cdagPin.Recursive {
+// 			t.Errorf("unexected recursively pinned clusterdag root")
+// 		}
+// 		if cdagPin.Parents.Len() != 1 {
+// 			t.Errorf("unexpected parent set size of %d", cdagPin.Parents.Len())
+// 		}
 
-		// Check that these are the only pins tracked
-		numPins := len(cdagNode.Links()) + 2
-		allStatus := c.tracker.StatusAll()
-		if len(allStatus) != numPins {
-			t.Errorf("Expected %d pins from local file add but got %d", numPins, len(allStatus))
-		}
-	}
-	runF(t, clusters, fShardsPinned)
-}
+// 		// Gather shards from clusterDAG data
+// 		cdagBytes, ok := mock[j].BlockStore[cdagCid.String()]
+// 		if !ok {
+// 			t.Fatalf("ipfs does not store cdag data")
+// 		}
+// 		cdagNode, err := sharding.CborDataToNode(cdagBytes, "cbor")
+// 		if err != nil {
+// 			t.Fatalf("cdag bytes cannot be parsed to ipld-cbor node")
+// 		}
+
+// 		// Check that all shards in the clusterDAG are pinned
+// 		for _, shardLink := range cdagNode.Links() {
+// 			shardPin, err := c.PinGet(shardLink.Cid)
+// 			if err != nil {
+// 				t.Fatalf("at least one shard node not tracked in pinset")
+// 			}
+// 			if shardPin.Type != api.ShardType {
+// 				t.Errorf("unexpected shard pin type: %s", shardPin.Type.String())
+// 			}
+// 			if shardPin.Parents.Len() != 1 {
+// 				t.Errorf("unexpected parent set size of %d", shardPin.Parents.Len())
+// 			}
+// 		}
+
+// 		// Check that these are the only pins tracked
+// 		numPins := len(cdagNode.Links()) + 2
+// 		allStatus := c.tracker.StatusAll()
+// 		if len(allStatus) != numPins {
+// 			t.Errorf("Expected %d pins from local file add but got %d", numPins, len(allStatus))
+// 		}
+// 	}
+// 	runF(t, clusters, fShardsPinned)
+// }

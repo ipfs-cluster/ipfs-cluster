@@ -200,7 +200,7 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	case api.DataType:
 		infoStr = typeStr
 	case api.MetaType:
-		infoStr = fmt.Sprintf("%s-- clusterdag=%s", typeStr, obj.ClusterDAG)
+		infoStr = fmt.Sprintf("%s-- clusterdag=%s", typeStr, obj.Reference)
 	case api.ClusterDAGType, api.ShardType:
 		infoStr = typeStr
 	default:

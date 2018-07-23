@@ -111,16 +111,16 @@ func minInt(x, y int) int {
 	return y
 }
 
-// updatePinParents modifies the api.Pin input to give it the correct parents
-// so that previous additions to the pins parents are maintained after this
-// pin is committed to consensus.  If this pin carries new parents they are
-// merged with those already existing for this CID.
-func updatePinParents(pin *api.Pin, existing api.Pin) {
-	// no existing parents this pin is up to date
-	if existing.Parents == nil || len(existing.Parents.Keys()) == 0 {
-		return
-	}
-	for _, c := range existing.Parents.Keys() {
-		pin.Parents.Add(c)
-	}
-}
+// // updatePinParents modifies the api.Pin input to give it the correct parents
+// // so that previous additions to the pins parents are maintained after this
+// // pin is committed to consensus.  If this pin carries new parents they are
+// // merged with those already existing for this CID.
+// func updatePinParents(pin *api.Pin, existing *api.Pin) {
+// 	// no existing parents this pin is up to date
+// 	if existing.Parents == nil || len(existing.Parents.Keys()) == 0 {
+// 		return
+// 	}
+// 	for _, c := range existing.Parents.Keys() {
+// 		pin.Parents.Add(c)
+// 	}
+// }

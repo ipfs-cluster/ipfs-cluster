@@ -187,15 +187,12 @@ func TestPinConv(t *testing.T) {
 		}
 	}()
 
-	parents := cid.NewSet()
-	parents.Add(testCid2)
 	c := Pin{
 		Cid:         testCid1,
 		Type:        ClusterDAGType,
 		Allocations: []peer.ID{testPeerID1},
-		Parents:     parents,
+		Reference:   testCid2,
 		MaxDepth:    -1,
-		ClusterDAG:  testCid4,
 		PinOptions: PinOptions{
 			ReplicationFactorMax: -1,
 			ReplicationFactorMin: -1,
@@ -209,10 +206,8 @@ func TestPinConv(t *testing.T) {
 		c.ReplicationFactorMin != newc.ReplicationFactorMin ||
 		c.ReplicationFactorMax != newc.ReplicationFactorMax ||
 		c.MaxDepth != newc.MaxDepth ||
-		c.Parents.Len() != newc.Parents.Len() ||
-		c.Parents.Keys()[0].String() != newc.Parents.Keys()[0].String() ||
-		c.Name != newc.Name || c.Type != newc.Type ||
-		!c.ClusterDAG.Equals(newc.ClusterDAG) {
+		!c.Reference.Equals(newc.Reference) ||
+		c.Name != newc.Name || c.Type != newc.Type {
 
 		fmt.Printf("c: %+v\ncnew: %+v\n", c, newc)
 		t.Fatal("mismatch")

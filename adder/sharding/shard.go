@@ -40,9 +40,13 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 		return nil, err
 	}
 
-	if allocs == nil || len(allocs) == 0 {
+	if opts.ReplicationFactorMin > 0 && (allocs == nil || len(allocs) == 0) {
 		// This would mean that the empty cid is part of the shared state somehow.
 		panic("allocations for new shard cannot be empty without error")
+	}
+
+	if opts.ReplicationFactorMin < 0 {
+		logger.Warning("Shard is set to replicate everywhere ,which doesn't make sense for sharding")
 	}
 
 	// TODO (hector): get latest metrics for allocations, adjust sizeLimit
@@ -77,7 +81,7 @@ func (sh *shard) Allocations() []peer.ID {
 // Flush completes the allocation of this shard by building a CBOR node
 // and adding it to IPFS, then pinning it in cluster. It returns the Cid of the
 // shard.
-func (sh *shard) Flush(ctx context.Context, shardN int) (*cid.Cid, error) {
+func (sh *shard) Flush(ctx context.Context, shardN int, prev *cid.Cid) (*cid.Cid, error) {
 	logger.Debugf("shard %d: flush", shardN)
 	nodes, err := makeDAG(sh.dagNode)
 	if err != nil {
@@ -95,6 +99,7 @@ func (sh *shard) Flush(ctx context.Context, shardN int) (*cid.Cid, error) {
 	// this sets allocations as priority allocation
 	pin.Allocations = sh.allocations
 	pin.Type = api.ShardType
+	pin.Reference = prev
 	pin.MaxDepth = 1
 	pin.ShardSize = sh.Size()           // use current size, not the limit
 	if len(nodes) > len(sh.dagNode)+1 { // using an indirect graph
