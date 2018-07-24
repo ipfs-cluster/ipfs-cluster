@@ -98,10 +98,11 @@ func (imp *Importer) addFiles(ctx context.Context, ipfsAdder *ipfsadd.Adder) {
 			return
 		default:
 			err := imp.addFile(ipfsAdder)
+			if err == io.EOF {
+				goto FINALIZE
+			}
+
 			if err != nil {
-				if err == io.EOF {
-					goto FINALIZE
-				}
 				imp.errors <- err
 				return
 			}
