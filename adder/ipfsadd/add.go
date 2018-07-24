@@ -1,4 +1,4 @@
-// The ipfsadd package is a simplified copy of go-ipfs/core/coreunix/add.go
+// Package ipfsadd is a simplified copy of go-ipfs/core/coreunix/add.go
 package ipfsadd
 
 import (

@@ -670,7 +670,7 @@ type Pin struct {
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
-// be recursive and the pin to be of DataType
+// be recursive and the pin to be of DataType.
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
@@ -680,6 +680,8 @@ func PinCid(c *cid.Cid) Pin {
 	}
 }
 
+// PinWithOpts creates a new Pin calling PinCid(c) and then sets
+// its PinOptions fields with the given options.
 func PinWithOpts(c *cid.Cid, opts PinOptions) Pin {
 	p := PinCid(c)
 	p.ReplicationFactorMin = opts.ReplicationFactorMin
@@ -825,11 +827,12 @@ type NodeWithMeta struct {
 
 	Data    []byte
 	Cid     string
-	CumSize uint64 //Cumulative size
+	CumSize uint64 // Cumulative size
 	Format  string
 }
 
-// Returns how big is the block
+// Size returns how big is the block. It is different from CumSize, which
+// records the size of the underlying tree.
 func (n *NodeWithMeta) Size() uint64 {
 	return uint64(len(n.Data))
 }

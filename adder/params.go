@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+// DefaultShardSize is the shard size for params objects created with DefaultParams().
 var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 
 // Params contains all of the configurable parameters needed to specify the

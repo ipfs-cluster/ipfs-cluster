@@ -74,11 +74,14 @@ func (imp *Importer) start() bool {
 	return !retVal
 }
 
-// ImportFile chunks a File and sends the results (blocks) to the
-// importer channels.
+// Go starts a goroutine which reads the blocks as outputted by the
+// ipfsadd module called with the parameters of this importer. The blocks,
+// errors and output are placed in the respective importer channels for
+// further processing. When there are no more blocks, or an error happen,
+// the channels will be closed.
 func (imp *Importer) Go(ctx context.Context) error {
 	if !imp.start() {
-		return errors.New("importing process already started or finished.")
+		return errors.New("importing process already started or finished")
 	}
 
 	dagsvc := newAdderDAGService(imp.blocks)
@@ -133,7 +136,8 @@ func (imp *Importer) Go(ctx context.Context) error {
 	return nil
 }
 
-// Run calls the given BlockHandler every node read from the importer.
+// Run triggers the importing process (calling Go) and  calls the given BlockHandler
+// on every node read from the importer.
 // It returns the value returned by the last-called BlockHandler.
 func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, error) {
 	var retVal string

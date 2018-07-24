@@ -42,7 +42,7 @@ func VerifyShards(t *testing.T, rootCid *cid.Cid, pins MockPinStore, ipfs MockBl
 	}
 
 	if !clusterPin.Reference.Equals(metaPin.Cid) {
-		return nil, fmt.Errorf("ClusterDAG should reference the MetaPin")
+		return nil, fmt.Errorf("clusterDAG should reference the MetaPin")
 	}
 
 	clusterDAGBlock, err := ipfs.BlockGet(clusterPin.Cid)

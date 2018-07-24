@@ -10,6 +10,7 @@ import (
 
 var logger = logging.Logger("adder")
 
+// Adder represents a module capable of adding content to IPFS Cluster.
 type Adder interface {
 	// FromMultipart adds from a multipart reader and returns
 	// the resulting CID.

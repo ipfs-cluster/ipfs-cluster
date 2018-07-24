@@ -981,14 +981,14 @@ func (c *Cluster) setupPin(pin *api.Pin) error {
 			return errors.New("must pin roots directly")
 		}
 		if pin.Reference == nil {
-			return errors.New("ClusterDAG pins should reference a Meta pin")
+			return errors.New("clusterDAG pins should reference a Meta pin")
 		}
 	case api.MetaType:
 		if pin.Allocations != nil && len(pin.Allocations) != 0 {
 			return errors.New("meta pin should not specify allocations")
 		}
 		if pin.Reference == nil {
-			return errors.New("MetaPins should reference a ClusterDAG")
+			return errors.New("metaPins should reference a ClusterDAG")
 		}
 
 	default:

@@ -1,4 +1,4 @@
-// package sharding implements a sharding adder that chunks and
+// Package sharding implements a sharding adder that chunks and
 // shards content while it's added, creating Cluster DAGs and
 // pinning them.
 package sharding
@@ -20,16 +20,23 @@ import (
 
 var logger = logging.Logger("addshard")
 
+// Adder is an implementation of IPFS Cluster's Adder interface which
+// shards content while adding among several IPFS Cluster peers,
+// creating a Cluster DAG to track and pin that content selectively
+// in the IPFS daemons allocated to it.
 type Adder struct {
 	rpcClient *rpc.Client
 }
 
+// New returns a new Adder, which uses the given rpc client to perform
+// Allocate, IPFSBlockPut and Pin requests to other cluster components.
 func New(rpc *rpc.Client) *Adder {
 	return &Adder{
 		rpcClient: rpc,
 	}
 }
 
+// FromMultipart allows to add (and shard) a file encoded as multipart.
 func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", p)
 

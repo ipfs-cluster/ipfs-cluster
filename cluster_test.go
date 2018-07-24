@@ -112,7 +112,7 @@ func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error {
 func (ipfs *mockConnector) BlockGet(c *cid.Cid) ([]byte, error) {
 	d, ok := ipfs.blocks.Load(c.String())
 	if !ok {
-		errors.New("block not found")
+		return nil, errors.New("block not found")
 	}
 	return d.([]byte), nil
 }

@@ -21,10 +21,15 @@ import (
 
 var logger = logging.Logger("addlocal")
 
+// Adder is an implementation of IPFS Cluster Adder interface,
+// which allows adding content directly to IPFS daemons attached
+// to the Cluster (without sharding).
 type Adder struct {
 	rpcClient *rpc.Client
 }
 
+// New returns a new Adder with the given rpc Client. The client is used
+// to perform calls to IPFSBlockPut and Pin content on Cluster.
 func New(rpc *rpc.Client) *Adder {
 	return &Adder{
 		rpcClient: rpc,
@@ -63,6 +68,7 @@ func (a *Adder) putBlock(ctx context.Context, n *api.NodeWithMeta, dests []peer.
 	return rpcutil.CheckErrs(errs)
 }
 
+// FromMultipart allows to add a file encoded as multipart.
 func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
@@ -101,7 +107,7 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder
 
 	lastCid, err := cid.Decode(lastCidStr)
 	if err != nil {
-		return nil, errors.New("nothing imported. Invalid Cid!")
+		return nil, errors.New("nothing imported: invalid Cid")
 	}
 
 	// Finally, cluster pin the result
