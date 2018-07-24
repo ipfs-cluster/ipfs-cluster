@@ -8,7 +8,7 @@ checks:
       threshold: 500
   method-complexity:
     config:
-      threshold: 12
+      threshold: 15
   method-lines:
     config:
       threshold: 80
@@ -16,7 +16,10 @@ checks:
     enabled: false
   return-statements:
     config:
-      threshold: 10    
+      threshold: 10
+  argument-count:
+    config:
+      threshold: 6
   
 engines:
   fixme:

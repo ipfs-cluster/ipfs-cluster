@@ -22,7 +22,8 @@ type MockBlockStore interface {
 }
 
 // VerifyShards checks that a sharded CID has been correctly formed and stored.
-// This is a helper function for testing.
+// This is a helper function for testing. It returns a map with all the blocks
+// from all shards.
 func VerifyShards(t *testing.T, rootCid *cid.Cid, pins MockPinStore, ipfs MockBlockStore, expectedShards int) (map[string]struct{}, error) {
 	metaPin, err := pins.PinGet(rootCid)
 	if err != nil {

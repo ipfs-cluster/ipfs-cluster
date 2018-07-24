@@ -74,6 +74,46 @@ func (imp *Importer) start() bool {
 	return !retVal
 }
 
+func (imp *Importer) addFile(ipfsAdder *ipfsadd.Adder) error {
+	f, err := imp.files.NextFile()
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("ipfsAdder AddFile(%s)", f.FullPath())
+	return ipfsAdder.AddFile(f)
+}
+
+func (imp *Importer) addFiles(ctx context.Context, ipfsAdder *ipfsadd.Adder) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	defer close(imp.output)
+	defer close(imp.blocks)
+	defer close(imp.errors)
+
+	for {
+		select {
+		case <-ctx.Done():
+			imp.errors <- ctx.Err()
+			return
+		default:
+			err := imp.addFile(ipfsAdder)
+			if err != nil {
+				if err == io.EOF {
+					goto FINALIZE
+				}
+				imp.errors <- err
+				return
+			}
+		}
+	}
+FINALIZE:
+	_, err := ipfsAdder.Finalize()
+	if err != nil {
+		imp.errors <- err
+	}
+}
+
 // Go starts a goroutine which reads the blocks as outputted by the
 // ipfsadd module called with the parameters of this importer. The blocks,
 // errors and output are placed in the respective importer channels for
@@ -98,41 +138,7 @@ func (imp *Importer) Go(ctx context.Context) error {
 	ipfsAdder.Chunker = imp.params.Chunker
 	ipfsAdder.Out = imp.output
 
-	go func() {
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-		defer close(imp.output)
-		defer close(imp.blocks)
-		defer close(imp.errors)
-
-		for {
-			select {
-			case <-ctx.Done():
-				imp.errors <- ctx.Err()
-				return
-			default:
-				f, err := imp.files.NextFile()
-				if err != nil {
-					if err == io.EOF {
-						goto FINALIZE // time to finalize
-					}
-					imp.errors <- err
-					return
-				}
-
-				logger.Debugf("ipfsAdder AddFile(%s)", f.FullPath())
-				if err := ipfsAdder.AddFile(f); err != nil {
-					imp.errors <- err
-					return
-				}
-			}
-		}
-	FINALIZE:
-		_, err := ipfsAdder.Finalize()
-		if err != nil {
-			imp.errors <- err
-		}
-	}()
+	go imp.addFiles(ctx, ipfsAdder)
 	return nil
 }
 

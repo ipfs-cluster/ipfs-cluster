@@ -65,6 +65,17 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 	return shardNode, nil
 }
 
+func makeDAGSimple(dagObj map[string]*cid.Cid) (ipld.Node, error) {
+	node, err := cbor.WrapObject(
+		dagObj,
+		hashFn, mh.DefaultLengths[hashFn],
+	)
+	if err != nil {
+		return nil, err
+	}
+	return node, err
+}
+
 // makeDAG parses a shardObj which stores all of the node-links a shardDAG
 // is responsible for tracking.  In general a single node of links may exceed
 // the capacity of an ipfs block.  In this case an indirect node in the
@@ -75,14 +86,8 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
 	// No indirect node
 	if len(dagObj) <= MaxLinks {
-		node, err := cbor.WrapObject(
-			dagObj,
-			hashFn, mh.DefaultLengths[hashFn],
-		)
-		if err != nil {
-			return nil, err
-		}
-		return []ipld.Node{node}, err
+		n, err := makeDAGSimple(dagObj)
+		return []ipld.Node{n}, err
 	}
 	// Indirect node required
 	leafNodes := make([]ipld.Node, 0)        // shardNodes with links to data
@@ -100,16 +105,14 @@ func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
 			}
 			leafObj[fmt.Sprintf("%d", j)] = c
 		}
-		leafNode, err := cbor.WrapObject(leafObj, hashFn,
-			mh.DefaultLengths[hashFn])
+		leafNode, err := makeDAGSimple(leafObj)
 		if err != nil {
 			return nil, err
 		}
 		indirectObj[fmt.Sprintf("%d", i)] = leafNode.Cid()
 		leafNodes = append(leafNodes, leafNode)
 	}
-	indirectNode, err := cbor.WrapObject(indirectObj, hashFn,
-		mh.DefaultLengths[hashFn])
+	indirectNode, err := makeDAGSimple(indirectObj)
 	if err != nil {
 		return nil, err
 	}

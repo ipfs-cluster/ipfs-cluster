@@ -917,11 +917,8 @@ func (c *Cluster) Pin(pin api.Pin) error {
 	return err
 }
 
-// setupPin ensures that the Pin object is fit for pinning. We check
-// and set the replication factors and ensure that the pinType matches the
-// metadata consistently.
-func (c *Cluster) setupPin(pin *api.Pin) error {
-	// Determine repl factors
+// sets the default replication factor in a pin when it's set to 0
+func (c *Cluster) setupReplicationFactor(pin *api.Pin) error {
 	rplMin := pin.ReplicationFactorMin
 	rplMax := pin.ReplicationFactorMax
 	if rplMin == 0 {
@@ -933,22 +930,11 @@ func (c *Cluster) setupPin(pin *api.Pin) error {
 		pin.ReplicationFactorMax = rplMax
 	}
 
-	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
-		return err
-	}
+	return isReplicationFactorValid(rplMin, rplMax)
+}
 
-	// We ensure that if the given pin exists already, it is not of
-	// different type (i.e. sharding and already locally pinned item)
-	var existing *api.Pin
-	cState, err := c.consensus.State()
-	if err == nil && pin.Cid != nil && cState.Has(pin.Cid) {
-		pinTmp := cState.Get(pin.Cid)
-		existing = &pinTmp
-		if existing.Type != pin.Type {
-			return errors.New("cannot repin CID with different tracking method, clear state with pin rm to proceed")
-		}
-	}
-
+// basic checks on the pin type to check it's well-formed.
+func checkPinType(pin *api.Pin) error {
 	switch pin.Type {
 	case api.DataType:
 		if pin.Reference != nil {
@@ -958,24 +944,13 @@ func (c *Cluster) setupPin(pin *api.Pin) error {
 		if pin.MaxDepth != 1 {
 			return errors.New("must pin shards go depth 1")
 		}
-		//if pin.Reference != nil {
-		//	return errors.New("shard pin should not reference cdag")
+		// FIXME: indirect shard pins could have max-depth 2
+		// FIXME: repinning a shard type will overwrite replication
+		//        factor from previous:
+		// if existing.ReplicationFactorMin != rplMin ||
+		//	existing.ReplicationFactorMax != rplMax {
+		//	return errors.New("shard update with wrong repl factors")
 		//}
-		if existing == nil {
-			return nil
-		}
-
-		// State already tracks pin's CID
-		// For now all repins of the same shard must use the same
-		// replmax and replmin.  It is unclear what the best UX is here
-		// especially if the same Shard is referenced in multiple
-		// clusterdags.  This simplistic policy avoids complexity and
-		// suits existing needs for shard pins.
-		// Safest idea: use the largest min and max
-		if existing.ReplicationFactorMin != rplMin ||
-			existing.ReplicationFactorMax != rplMax {
-			return errors.New("shard update with wrong repl factors")
-		}
 	case api.ClusterDAGType:
 		if pin.MaxDepth != 0 {
 			return errors.New("must pin roots directly")
@@ -995,6 +970,30 @@ func (c *Cluster) setupPin(pin *api.Pin) error {
 		return errors.New("unrecognized pin type")
 	}
 	return nil
+}
+
+// setupPin ensures that the Pin object is fit for pinning. We check
+// and set the replication factors and ensure that the pinType matches the
+// metadata consistently.
+func (c *Cluster) setupPin(pin *api.Pin) error {
+	err := c.setupReplicationFactor(pin)
+	if err != nil {
+		return err
+	}
+
+	// We ensure that if the given pin exists already, it is not of
+	// different type (i.e. sharding and already locally pinned item)
+	var existing *api.Pin
+	cState, err := c.consensus.State()
+	if err == nil && pin.Cid != nil && cState.Has(pin.Cid) {
+		pinTmp := cState.Get(pin.Cid)
+		existing = &pinTmp
+		if existing.Type != pin.Type {
+			return errors.New("cannot repin CID with different tracking method, clear state with pin rm to proceed")
+		}
+	}
+
+	return checkPinType(pin)
 }
 
 // pin performs the actual pinning and supports a blacklist to be

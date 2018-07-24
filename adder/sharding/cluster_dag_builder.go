@@ -188,32 +188,39 @@ func (cdb *clusterDAGBuilder) finalize() error {
 	return nil
 }
 
+// returns the value for continue in ingestBlocks()
+func (cdb *clusterDAGBuilder) handleBlock(n *api.NodeWithMeta, more bool) bool {
+	if !more {
+		err := cdb.finalize()
+		if err != nil {
+			logger.Error(err)
+			cdb.error = err
+		}
+		return false
+	}
+	err := cdb.ingestBlock(n)
+	if err != nil {
+		logger.Error(err)
+		cdb.error = err
+		return false
+	}
+	return true
+}
+
 func (cdb *clusterDAGBuilder) ingestBlocks() {
 	// if this function returns, it means we are Done().
 	// we auto-cancel ourselves in that case.
 	// if it was due to an error, it will be in Err().
 	defer cdb.Cancel()
 
-	for {
+	cont := true
+
+	for cont {
 		select {
 		case <-cdb.ctx.Done(): // cancelled from outside
 			return
 		case n, ok := <-cdb.blocks:
-			if !ok {
-				err := cdb.finalize()
-				if err != nil {
-					logger.Error(err)
-					cdb.error = err
-				}
-				return // will cancel on defer
-			}
-			err := cdb.ingestBlock(n)
-			if err != nil {
-				logger.Error(err)
-				cdb.error = err
-				return // will cancel on defer
-			}
-			// continue with next block
+			cont = cdb.handleBlock(n, ok)
 		}
 	}
 }

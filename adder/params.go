@@ -2,6 +2,7 @@ package adder
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
 
@@ -40,6 +41,28 @@ func DefaultParams() *Params {
 	}
 }
 
+func parseBoolParam(q url.Values, name string, dest *bool) error {
+	if v := q.Get(name); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("parameter %s invalid", name)
+		}
+		*dest = b
+	}
+	return nil
+}
+
+func parseIntParam(q url.Values, name string, dest *int) error {
+	if v := q.Get(name); v != "" {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("parameter %s invalid", name)
+		}
+		*dest = i
+	}
+	return nil
+}
+
 // ParamsFromQuery parses the Params object from
 // a URL.Query().
 func ParamsFromQuery(query url.Values) (*Params, error) {
@@ -61,44 +84,25 @@ func ParamsFromQuery(query url.Values) (*Params, error) {
 	name := query.Get("name")
 	params.Name = name
 
-	if v := query.Get("raw"); v != "" {
-		raw, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, errors.New("parameter raw invalid")
-		}
-		params.RawLeaves = raw
+	err := parseBoolParam(query, "raw", &params.RawLeaves)
+	if err != nil {
+		return nil, err
 	}
-
-	if v := query.Get("hidden"); v != "" {
-		hidden, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, errors.New("parameter hidden invalid")
-		}
-		params.Hidden = hidden
+	err = parseBoolParam(query, "hidden", &params.Hidden)
+	if err != nil {
+		return nil, err
 	}
-
-	if v := query.Get("shard"); v != "" {
-		shard, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, errors.New("parameter shard invalid")
-		}
-		params.Shard = shard
+	err = parseBoolParam(query, "shard", &params.Shard)
+	if err != nil {
+		return nil, err
 	}
-
-	if v := query.Get("repl_min"); v != "" {
-		replMin, err := strconv.Atoi(v)
-		if err != nil || replMin < -1 {
-			return nil, errors.New("parameter repl_min invalid")
-		}
-		params.ReplicationFactorMin = replMin
+	err = parseIntParam(query, "repl_min", &params.ReplicationFactorMin)
+	if err != nil {
+		return nil, err
 	}
-
-	if v := query.Get("repl_max"); v != "" {
-		replMax, err := strconv.Atoi(v)
-		if err != nil || replMax < -1 {
-			return nil, errors.New("parameter repl_max invalid")
-		}
-		params.ReplicationFactorMax = replMax
+	err = parseIntParam(query, "repl_max", &params.ReplicationFactorMax)
+	if err != nil {
+		return nil, err
 	}
 
 	if v := query.Get("shard_size"); v != "" {
