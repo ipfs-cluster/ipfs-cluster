@@ -1014,6 +1014,7 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 	pin := api.PinCid(h)
 	pin.ReplicationFactorMin = 1
 	pin.ReplicationFactorMax = 2
+	err = clusters[0].Pin(pin)
 	if err != nil {
 		t.Fatal(err)
 	}
