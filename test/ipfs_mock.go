@@ -40,6 +40,10 @@ type ipfsErr struct {
 	Message string
 }
 
+type mockResolveResp struct {
+  cid       *cid.Cid
+}
+
 type mockIDResp struct {
 	ID        string
 	Addresses []string

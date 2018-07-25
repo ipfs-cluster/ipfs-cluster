@@ -1214,3 +1214,24 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 	}
 	return
 }
+
+func (c *Cluster) PinPath(path string, pin api.Pin) error {
+	ci, err := c.ipfs.Resolve(path)
+
+	if err != nil {
+		return err
+	}
+
+	pin.Cid = ci
+	return c.Pin(pin)
+}
+
+func (c *Cluster) UnpinPath(path string) {
+	ci, err := c.ipfs.Resolve(path)
+
+	if err != nil {
+		logger.Error(err)
+	}
+
+	c.Unpin(ci)
+}
