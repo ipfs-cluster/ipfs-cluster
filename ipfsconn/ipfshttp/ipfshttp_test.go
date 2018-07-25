@@ -1,4 +1,4 @@
-package ipfshttp
+p*out =ackage ipfshttp
 
 import (
 	"bytes"
