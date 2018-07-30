@@ -23,6 +23,14 @@ It provides:
 * A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs`.
 * A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
 
+---
+
+### Are you using IPFS Cluster?
+
+Please participate in the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
+
+---
+
 ## Table of Contents
 
 - [Documentation](#documentation)
