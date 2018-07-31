@@ -35,6 +35,7 @@ Please participate in the [IPFS Cluster user registry](https://docs.google.com/f
 
 - [Documentation](#documentation)
 - [News & Roadmap](#news--roadmap)
+- [User Feedback](#feedback)
 - [Install](#install)
 - [Usage](#usage)
 - [Contribute](#contribute)
@@ -50,6 +51,10 @@ Please visit https://cluster.ipfs.io/documentation/ to access user documentation
 We regularly post project updates to https://cluster.ipfs.io/news/ .
 
 The most up-to-date *Roadmap* is available at https://cluster.ipfs.io/roadmap/ .
+
+## User Feedback
+
+Are you an IPFS Cluster user? Let us know about your setup by contributing to the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
 
 ## Install
 
