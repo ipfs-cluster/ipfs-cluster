@@ -76,7 +76,7 @@ func makeDAGSimple(dagObj map[string]*cid.Cid) (ipld.Node, error) {
 	return node, err
 }
 
-// makeDAG parses a shardObj which stores all of the node-links a shardDAG
+// makeDAG parses a dagObj which stores all of the node-links a shardDAG
 // is responsible for tracking.  In general a single node of links may exceed
 // the capacity of an ipfs block.  In this case an indirect node in the
 // shardDAG is constructed that references "leaf shardNodes" that themselves
@@ -84,6 +84,7 @@ func makeDAGSimple(dagObj map[string]*cid.Cid) (ipld.Node, error) {
 // is always the root of the shardDAG, i.e. the ipld node that should be
 // recursively pinned to track the shard
 func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
+	// FIXME: Do we really have a size limitation for cbor blocks?
 	// No indirect node
 	if len(dagObj) <= MaxLinks {
 		n, err := makeDAGSimple(dagObj)
@@ -155,9 +156,9 @@ func putDAG(ctx context.Context, rpcC *rpc.Client, nodes []ipld.Node, dests []pe
 // Is precision worth the cost to maintain complex accounting for metadata
 // size (cid sizes will vary in general, cluster dag cbor format may
 // grow to vary unpredictably in size)
-// byteCount returns the number of bytes the shardObj will occupy when
+// byteCount returns the number of bytes the dagObj will occupy when
 //serialized into an ipld DAG
-/*func byteCount(obj shardObj) uint64 {
+/*func byteCount(obj dagObj) uint64 {
 	// 1 byte map overhead
 	// for each entry:
 	//    1 byte indicating text
@@ -189,8 +190,8 @@ func indirectCount(linkNum int) uint64 {
 }
 
 // Return the number of bytes added to the total shard node metadata DAG when
-// adding a new link to the given shardObj.
-func deltaByteCount(obj shardObj) uint64 {
+// adding a new link to the given dagObj.
+func deltaByteCount(obj dagObj) uint64 {
 	linkNum := len(obj)
 	q1 := linkNum / MaxLinks
 	q2 := (linkNum + 1) / MaxLinks
