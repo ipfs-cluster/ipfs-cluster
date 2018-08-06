@@ -215,6 +215,7 @@ func (sth *ShardingTestHelper) makeTree(t *testing.T) os.FileInfo {
 			t.Fatal(err)
 		}
 		sth.randFile(t, f, fileSizes[i])
+		f.Sync()
 		f.Close()
 	}
 
@@ -251,6 +252,7 @@ func (sth *ShardingTestHelper) makeRandFile(t *testing.T, kbs int) os.FileInfo {
 		t.Fatal(err)
 	}
 	defer f.Close()
+	defer f.Sync()
 	sth.randFile(t, f, kbs)
 	st, err := f.Stat()
 	if err != nil {
