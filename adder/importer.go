@@ -31,10 +31,7 @@ type Importer struct {
 }
 
 // NewImporter sets up an Importer ready to Go().
-func NewImporter(
-	f files.File,
-	p *Params,
-) (*Importer, error) {
+func NewImporter(f files.File, p *Params) (*Importer, error) {
 	output := make(chan *api.AddedOutput, 1)
 	blocks := make(chan *api.NodeWithMeta, 1)
 	errors := make(chan error, 1)

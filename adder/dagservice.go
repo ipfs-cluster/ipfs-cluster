@@ -17,8 +17,8 @@ func isNotFound(err error) bool {
 	return err == errNotFound
 }
 
-// adderDAGService implemengs a DAG Service and
-// outputs any nodes added using this service to an Added.
+// adderDAGService implements a DAG Service and
+// outputs any nodes added using this service to an Adder.
 type adderDAGService struct {
 	addedSet  *cid.Set
 	addedChan chan<- *api.NodeWithMeta

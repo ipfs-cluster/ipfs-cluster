@@ -553,6 +553,9 @@ func StringsToCidSet(strs []string) *cid.Set {
 	return cids
 }
 
+// AllType is a PinType used for filtering all pin types
+const AllType PinType = -1
+
 // PinType values. See PinType documentation for further explanation.
 const (
 	// BadType type showing up anywhere indicates a bug
@@ -577,9 +580,6 @@ const (
 	ShardType
 )
 
-// AllType is a PinType used for filtering all pin types
-const AllType PinType = -1
-
 // PinType specifies which sort of Pin object we are dealing with.
 // In practice, the PinType decides how a Pin object is treated by the
 // PinTracker.
@@ -592,7 +592,7 @@ const AllType PinType = -1
 // [ Cluster DAG ] (pinned everywhere in "direct")
 //   |      ..  |
 //   v          v
-// [Shard1] .. [ShardN] (allocated to peers and pinned with max-depth=2
+// [Shard1] .. [ShardN] (allocated to peers and pinned with max-depth=1
 // | | .. |    | | .. |
 // v v .. v    v v .. v
 // [][]..[]    [][]..[] Blocks (indirectly pinned on ipfs, not tracked in cluster)
@@ -823,8 +823,6 @@ type AddedOutput struct {
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
-	ShardingSession int
-
 	Data    []byte
 	Cid     string
 	CumSize uint64 // Cumulative size
