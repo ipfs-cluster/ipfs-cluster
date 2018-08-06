@@ -22,7 +22,7 @@ type State interface {
 	// Has returns true if the state is holding information for a Cid
 	Has(*cid.Cid) bool
 	// Get returns the information attacthed to this pin
-	Get(*cid.Cid) api.Pin
+	Get(*cid.Cid) (api.Pin, bool)
 	// Migrate restores the serialized format of an outdated state to the current version
 	Migrate(r io.Reader) error
 	// Return the version of this state

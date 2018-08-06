@@ -135,7 +135,8 @@ func (ips IPFSPinStatus) IsPinned(maxDepth int) bool {
 		return ips == IPFSPinStatusRecursive
 	case maxDepth == 0:
 		return ips == IPFSPinStatusDirect
-	case maxDepth > 0: // FIXME
+	case maxDepth > 0:
+		// FIXME: when we know how ipfs returns partial pins.
 		return ips == IPFSPinStatusRecursive
 	}
 	return false

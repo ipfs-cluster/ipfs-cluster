@@ -51,7 +51,7 @@ func TestGet(t *testing.T) {
 	}()
 	ms := NewMapState()
 	ms.Add(c)
-	get := ms.Get(c.Cid)
+	get, _ := ms.Get(c.Cid)
 	if get.Cid.String() != c.Cid.String() ||
 		get.Allocations[0] != c.Allocations[0] ||
 		get.ReplicationFactorMax != c.ReplicationFactorMax ||
@@ -92,7 +92,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 	if ms.Version != ms2.Version {
 		t.Fatal(err)
 	}
-	get := ms2.Get(c.Cid)
+	get, _ := ms2.Get(c.Cid)
 	if get.Allocations[0] != testPeerID1 {
 		t.Error("expected different peer id")
 	}
@@ -129,7 +129,7 @@ func TestMigrateFromV1(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	get := ms.Get(c.Cid)
+	get, _ := ms.Get(c.Cid)
 	if get.ReplicationFactorMax != -1 || get.ReplicationFactorMin != -1 || !get.Cid.Equals(c.Cid) {
 		t.Error("expected something different")
 		t.Logf("%+v", get)

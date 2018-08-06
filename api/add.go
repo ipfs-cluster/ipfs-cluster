@@ -10,7 +10,7 @@ import (
 // DefaultShardSize is the shard size for params objects created with DefaultParams().
 var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 
-// Params contains all of the configurable parameters needed to specify the
+// AddParams contains all of the configurable parameters needed to specify the
 // importing process of a file being added to an ipfs-cluster
 type AddParams struct {
 	PinOptions
@@ -134,6 +134,7 @@ func (p *AddParams) ToQueryString() string {
 	return query
 }
 
+// Equals checks if p equals p2.
 func (p *AddParams) Equals(p2 *AddParams) bool {
 	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
 		p.ReplicationFactorMax == p2.ReplicationFactorMax &&

@@ -54,7 +54,7 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 	}
 
 	// Figure out who is holding the CID
-	currentPin, _ := c.getCurrentPin(hash)
+	currentPin, _ := c.PinGet(hash)
 	currentAllocs := currentPin.Allocations
 	metrics := c.monitor.LatestMetrics(c.informer.Name())
 
@@ -94,17 +94,6 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 		newAllocs = currentAllocs
 	}
 	return newAllocs, nil
-}
-
-// getCurrentPin returns the Pin object for h, if we can find one
-// or builds an empty one.
-func (c *Cluster) getCurrentPin(h *cid.Cid) (api.Pin, bool) {
-	st, err := c.consensus.State()
-	if err != nil {
-		return api.PinCid(h), false
-	}
-	ok := st.Has(h)
-	return st.Get(h), ok
 }
 
 // allocationError logs an allocation error
