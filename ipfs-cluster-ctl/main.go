@@ -33,7 +33,7 @@ var (
 	defaultUsername      = ""
 	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
-	defaultShardSize     = 100 * 1024 * 1024
+	defaultAddParams     = api.DefaultAddParams()
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -270,26 +270,26 @@ automatically generated.
 				},
 				cli.StringFlag{
 					Name:  "name, n",
-					Value: "",
+					Value: defaultAddParams.Name,
 					Usage: "Sets a name for this pin",
 				},
 				cli.IntFlag{
 					Name:  "replication-min, rmin",
-					Value: 0,
+					Value: defaultAddParams.ReplicationFactorMin,
 					Usage: "Sets the minimum replication factor for pinning this file",
 				},
 				cli.IntFlag{
 					Name:  "replication-max, rmax",
-					Value: 0,
+					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
 				cli.BoolFlag{
 					Name:  "shard",
 					Usage: "Break the file into pieces (shards) and distributed among peers",
 				},
-				cli.IntFlag{
+				cli.Uint64Flag{
 					Name:  "shard-size",
-					Value: defaultShardSize,
+					Value: defaultAddParams.ShardSize,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
 				// cli.BoolFlag{
@@ -298,13 +298,13 @@ automatically generated.
 				// },
 				cli.StringFlag{
 					Name:  "layout, L",
+					Value: defaultAddParams.Layout,
 					Usage: "Dag layout to use for dag generation: balanced or trickle",
-					Value: "balanced",
 				},
 				cli.StringFlag{
 					Name:  "chunker, s",
 					Usage: "Chunker selection. Fixed block size: 'size-<size>', or rabin chunker: 'rabin-<min>-<avg>-<max>'",
-					Value: "size-262144",
+					Value: defaultAddParams.Chunker,
 				},
 				cli.BoolFlag{
 					Name:  "raw-leaves",
@@ -343,17 +343,19 @@ automatically generated.
 				// Files are all opened but not read until they are sent.
 				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
 				checkErr("serializing all files", err)
+				p := api.DefaultAddParams()
+				p.ReplicationFactorMin = c.Int("replication-min")
+				p.ReplicationFactorMax = c.Int("replication-max")
+				p.Name = name
+				p.Shard = shard
+				p.ShardSize = c.Uint64("shard-size")
+				p.Layout = c.String("layout")
+				p.Chunker = c.String("chunker")
+				p.RawLeaves = c.Bool("raw-leaves")
+				p.Hidden = c.Bool("hidden")
 				cerr := globalClient.AddMultiFile(
 					multiFileR,
-					c.Int("replication-min"),
-					c.Int("replication-max"),
-					name,
-					shard,
-					c.Int("shard-size"),
-					c.String("layout"),
-					c.String("chunker"),
-					c.Bool("raw-leaves"),
-					c.Bool("hidden"),
+					p,
 				)
 				// TODO: output control
 				// if c.Bool("only-hashes") {

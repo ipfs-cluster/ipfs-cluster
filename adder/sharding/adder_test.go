@@ -7,7 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -86,7 +85,7 @@ func TestFromMultipart(t *testing.T) {
 		add, rpcObj, r := makeAdder(t, sth.GetTreeMultiReader)
 		_ = rpcObj
 
-		p := adder.DefaultParams()
+		p := api.DefaultAddParams()
 		// Total data is about
 		p.ShardSize = 1024 * 300 // 300kB
 		p.Name = "testingFile"
@@ -147,7 +146,7 @@ func TestFromMultipart(t *testing.T) {
 		add, rpcObj, r := makeAdder(t, mrF)
 		_ = rpcObj
 
-		p := adder.DefaultParams()
+		p := api.DefaultAddParams()
 		// Total data is about
 		p.ShardSize = 1024 * 1024 * 2 // 2MB
 		p.Name = "testingFile"
@@ -172,13 +171,13 @@ func TestFromMultipart(t *testing.T) {
 func TestFromMultipart_Errors(t *testing.T) {
 	type testcase struct {
 		name   string
-		params *adder.Params
+		params *api.AddParams
 	}
 
 	tcs := []*testcase{
 		&testcase{
 			name: "bad chunker",
-			params: &adder.Params{
+			params: &api.AddParams{
 				Layout:    "",
 				Chunker:   "aweee",
 				RawLeaves: false,
@@ -194,7 +193,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 		},
 		&testcase{
 			name: "shard size too small",
-			params: &adder.Params{
+			params: &api.AddParams{
 				Layout:    "",
 				Chunker:   "",
 				RawLeaves: false,
@@ -210,7 +209,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 		},
 		&testcase{
 			name: "replication too high",
-			params: &adder.Params{
+			params: &api.AddParams{
 				Layout:    "",
 				Chunker:   "",
 				RawLeaves: false,
@@ -242,7 +241,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	add, _, r := makeAdder(t, sth.GetTreeMultiReader)
-	_, err := add.FromMultipart(ctx, r, adder.DefaultParams())
+	_, err := add.FromMultipart(ctx, r, api.DefaultAddParams())
 	if err != ctx.Err() {
 		t.Error("expected context error:", err)
 	}

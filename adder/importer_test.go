@@ -13,7 +13,7 @@ func TestImporter(t *testing.T) {
 	defer sth.Clean()
 
 	f := sth.GetTreeSerialFile(t)
-	p := DefaultParams()
+	p := api.DefaultAddParams()
 
 	imp, err := NewImporter(f, p)
 	if err != nil {
@@ -59,7 +59,7 @@ func TestImporter_DoubleStart(t *testing.T) {
 	defer sth.Clean()
 
 	f := sth.GetTreeSerialFile(t)
-	p := DefaultParams()
+	p := api.DefaultAddParams()
 
 	imp, err := NewImporter(f, p)
 	if err != nil {

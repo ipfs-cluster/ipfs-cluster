@@ -7,16 +7,15 @@ import (
 	"errors"
 	"mime/multipart"
 
-	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	cid "github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var logger = logging.Logger("addlocal")
@@ -69,7 +68,7 @@ func (a *Adder) putBlock(ctx context.Context, n *api.NodeWithMeta, dests []peer.
 }
 
 // FromMultipart allows to add a file encoded as multipart.
-func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.AddParams) (*cid.Cid, error) {
 	f := &files.MultipartFile{
 		Mediatype: "multipart/form-data",
 		Reader:    r,

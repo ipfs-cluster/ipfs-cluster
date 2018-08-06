@@ -6,10 +6,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/ipfs/go-ipfs-cmdkit/files"
-
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
+
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 )
 
 // BlockHandler is a function used to process a block as is received by the
@@ -23,7 +23,7 @@ type Importer struct {
 	started    bool
 
 	files  files.File
-	params *Params
+	params *api.AddParams
 
 	output chan *api.AddedOutput
 	blocks chan *api.NodeWithMeta
@@ -31,7 +31,7 @@ type Importer struct {
 }
 
 // NewImporter sets up an Importer ready to Go().
-func NewImporter(f files.File, p *Params) (*Importer, error) {
+func NewImporter(f files.File, p *api.AddParams) (*Importer, error) {
 	output := make(chan *api.AddedOutput, 1)
 	blocks := make(chan *api.NodeWithMeta, 1)
 	errors := make(chan error, 1)

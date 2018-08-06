@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -262,7 +261,7 @@ func TestAddFile(t *testing.T) {
 	defer sth.Clean()
 
 	t.Run("local", func(t *testing.T) {
-		params := adder.DefaultParams()
+		params := api.DefaultAddParams()
 		params.Shard = false
 		params.Name = "testlocal"
 		mfr := sth.GetTreeMultiReader(t)
@@ -290,7 +289,7 @@ func TestAddFile(t *testing.T) {
 	})
 
 	t.Run("shard", func(t *testing.T) {
-		params := adder.DefaultParams()
+		params := api.DefaultAddParams()
 		params.Shard = true
 		params.Name = "testshard"
 		mfr := sth.GetTreeMultiReader(t)
@@ -318,7 +317,7 @@ func TestUnpinShard(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean()
 
-	params := adder.DefaultParams()
+	params := api.DefaultAddParams()
 	params.Shard = true
 	params.Name = "testshard"
 	mfr := sth.GetTreeMultiReader(t)

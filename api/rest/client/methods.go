@@ -308,36 +308,19 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 // sharding underlying dags across the ipfs repos of multiple cluster peers.
 func (c *Client) AddMultiFile(
 	multiFileR *files.MultiFileReader,
-	replicationFactorMin int,
-	replicationFactorMax int,
-	name string,
-	shard bool,
-	shardSize int,
-	layout string,
-	chunker string,
-	raw bool,
-	hidden bool,
+	params *api.AddParams,
 ) error {
-
 	headers := make(map[string]string)
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
-	fmtStr := "/allocations?repl_min=%d&repl_max=%d&name=%s&"
-	fmtStr += "shard=%t&shard-size=%d&"
-	fmtStr += "layout=%s&chunker=%s&raw=%t&hidden=%t"
-	url := fmt.Sprintf(
-		fmtStr,
-		replicationFactorMin,
-		replicationFactorMax,
-		name,
-		shard,
-		shardSize,
-		layout,
-		chunker,
-		raw,
-		hidden,
-	)
+	queryStr := params.ToQueryString()
 	output := make([]api.AddedOutput, 0)
-	err := c.doStream("POST", url, multiFileR, headers, &output)
+	err := c.doStream(
+		"POST",
+		"/allocations?"+queryStr,
+		multiFileR,
+		headers,
+		&output,
+	)
 	// TODO: handle output
 	return err
 }

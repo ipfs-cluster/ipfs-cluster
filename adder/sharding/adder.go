@@ -8,13 +8,12 @@ import (
 	"fmt"
 	"mime/multipart"
 
-	cid "github.com/ipfs/go-cid"
-
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	cid "github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -37,7 +36,7 @@ func New(rpc *rpc.Client) *Adder {
 }
 
 // FromMultipart allows to add (and shard) a file encoded as multipart.
-func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *adder.Params) (*cid.Cid, error) {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.AddParams) (*cid.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", p)
 
 	f := &files.MultipartFile{

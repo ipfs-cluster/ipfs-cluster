@@ -7,7 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -53,9 +52,9 @@ func TestFromMultipart(t *testing.T) {
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
-		params := adder.DefaultParams()
+		params := api.DefaultAddParams()
 		params.ShardSize = 0
-		rootCid, err := add.FromMultipart(context.Background(), r, adder.DefaultParams())
+		rootCid, err := add.FromMultipart(context.Background(), r, api.DefaultAddParams())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -92,7 +91,7 @@ func TestFromMultipart(t *testing.T) {
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
-		p := adder.DefaultParams()
+		p := api.DefaultAddParams()
 		p.Layout = "trickle"
 
 		rootCid, err := add.FromMultipart(context.Background(), r, p)

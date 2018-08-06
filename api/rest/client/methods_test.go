@@ -438,7 +438,22 @@ func TestAddMultiFile(t *testing.T) {
 	testF := func(t *testing.T, c *Client) {
 		sth := test.NewShardingTestHelper()
 		mfr := sth.GetTreeMultiReader(t)
-		err := c.AddMultiFile(mfr, -1, -1, "test", false, 1024, "", "", false, false)
+
+		p := &types.AddParams{
+			PinOptions: types.PinOptions{
+				ReplicationFactorMin: -1,
+				ReplicationFactorMax: -1,
+				Name:                 "test",
+				ShardSize:            1024,
+			},
+			Shard:     false,
+			Layout:    "",
+			Chunker:   "",
+			RawLeaves: false,
+			Hidden:    false,
+		}
+
+		err := c.AddMultiFile(mfr, p)
 		if err != nil {
 			t.Fatal(err)
 		}

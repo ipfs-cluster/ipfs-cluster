@@ -509,7 +509,7 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params, err := adder.ParamsFromQuery(r.URL.Query())
+	params, err := types.AddParamsFromQuery(r.URL.Query())
 	if err != nil {
 		sendErrorResponse(w, 400, err.Error())
 		return

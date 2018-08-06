@@ -1123,7 +1123,7 @@ func (c *Cluster) unpinShard(cdagCid, shardCid *cid.Cid) error {
 // pipeline is used to DAGify the file.  Depending on input parameters this
 // DAG can be added locally to the calling cluster peer's ipfs repo, or
 // sharded across the entire cluster.
-func (c *Cluster) AddFile(reader *multipart.Reader, params *adder.Params) (*cid.Cid, error) {
+func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (*cid.Cid, error) {
 	var add adder.Adder
 	if params.Shard {
 		add = sharding.New(c.rpcClient)

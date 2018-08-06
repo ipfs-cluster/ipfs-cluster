@@ -1,12 +1,10 @@
-package adder
+package api
 
 import (
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
-
-	"github.com/ipfs/ipfs-cluster/api"
 )
 
 // DefaultShardSize is the shard size for params objects created with DefaultParams().
@@ -14,8 +12,8 @@ var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 
 // Params contains all of the configurable parameters needed to specify the
 // importing process of a file being added to an ipfs-cluster
-type Params struct {
-	api.PinOptions
+type AddParams struct {
+	PinOptions
 
 	Layout    string
 	Chunker   string
@@ -24,15 +22,15 @@ type Params struct {
 	Shard     bool
 }
 
-// DefaultParams returns a Params object with standard defaults
-func DefaultParams() *Params {
-	return &Params{
+// DefaultAddParams returns a AddParams object with standard defaults
+func DefaultAddParams() *AddParams {
+	return &AddParams{
 		Layout:    "", // corresponds to balanced layout
-		Chunker:   "",
+		Chunker:   "size-262144",
 		RawLeaves: false,
 		Hidden:    false,
 		Shard:     false,
-		PinOptions: api.PinOptions{
+		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
 			Name:                 "",
@@ -63,10 +61,10 @@ func parseIntParam(q url.Values, name string, dest *int) error {
 	return nil
 }
 
-// ParamsFromQuery parses the Params object from
+// AddParamsFromQuery parses the AddParams object from
 // a URL.Query().
-func ParamsFromQuery(query url.Values) (*Params, error) {
-	params := DefaultParams()
+func AddParamsFromQuery(query url.Values) (*AddParams, error) {
+	params := DefaultAddParams()
 
 	layout := query.Get("layout")
 	switch layout {
@@ -114,4 +112,36 @@ func ParamsFromQuery(query url.Values) (*Params, error) {
 	}
 
 	return params, nil
+}
+
+// ToQueryString returns a url query string (key=value&key2=value2&...)
+func (p *AddParams) ToQueryString() string {
+	fmtStr := "repl_min=%d&repl_max=%d&name=%s&"
+	fmtStr += "shard=%t&shard_size=%d&"
+	fmtStr += "layout=%s&chunker=%s&raw=%t&hidden=%t"
+	query := fmt.Sprintf(
+		fmtStr,
+		p.ReplicationFactorMin,
+		p.ReplicationFactorMax,
+		p.Name,
+		p.Shard,
+		p.ShardSize,
+		p.Layout,
+		p.Chunker,
+		p.RawLeaves,
+		p.Hidden,
+	)
+	return query
+}
+
+func (p *AddParams) Equals(p2 *AddParams) bool {
+	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
+		p.ReplicationFactorMax == p2.ReplicationFactorMax &&
+		p.Name == p2.Name &&
+		p.Shard == p2.Shard &&
+		p.ShardSize == p2.ShardSize &&
+		p.Layout == p2.Layout &&
+		p.Chunker == p2.Chunker &&
+		p.RawLeaves == p2.RawLeaves &&
+		p.Hidden == p2.Hidden
 }
