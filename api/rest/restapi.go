@@ -517,16 +517,45 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	var add adder.Adder
 	if params.Shard {
-		add = sharding.New(api.rpcClient)
+		add = sharding.New(api.rpcClient, false)
 	} else {
-		add = local.New(api.rpcClient)
+		add = local.New(api.rpcClient, false)
 	}
+
+	enc := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for v := range add.Output() {
+			err := enc.Encode(v)
+			if err != nil {
+				logger.Error(err)
+			}
+		}
+	}()
 
 	c, err := add.FromMultipart(api.ctx, reader, params)
 	_ = c
-	// TODO: progress?
-	// TODO: Return root?
-	sendEmptyResponse(w, err)
+
+	wg.Wait()
+
+	if err != nil {
+		errorResp := types.AddedOutput{
+			Error: types.Error{
+				Code:    500,
+				Message: err.Error(),
+			},
+		}
+		if err := enc.Encode(errorResp); err != nil {
+			logger.Error(err)
+		}
+	}
+
+	return
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
@@ -852,16 +881,16 @@ func pinInfosToGlobal(pInfos []types.PinInfoSerial) []types.GlobalPinInfoSerial 
 	return gPInfos
 }
 
-func sendResponse(w http.ResponseWriter, rpcErr error, resp interface{}) {
-	if checkRPCErr(w, rpcErr) {
+func sendResponse(w http.ResponseWriter, err error, resp interface{}) {
+	if checkErr(w, err) {
 		sendJSONResponse(w, 200, resp)
 	}
 }
 
-// checkRPCErr takes care of returning standard error responses if we
+// checkErr takes care of returning standard error responses if we
 // pass an error to it. It returns true when everythings OK (no error
 // was handled), or false otherwise.
-func checkRPCErr(w http.ResponseWriter, err error) bool {
+func checkErr(w http.ResponseWriter, err error) bool {
 	if err != nil {
 		sendErrorResponse(w, 500, err.Error())
 		return false
@@ -869,14 +898,14 @@ func checkRPCErr(w http.ResponseWriter, err error) bool {
 	return true
 }
 
-func sendEmptyResponse(w http.ResponseWriter, rpcErr error) {
-	if checkRPCErr(w, rpcErr) {
+func sendEmptyResponse(w http.ResponseWriter, err error) {
+	if checkErr(w, err) {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func sendAcceptedResponse(w http.ResponseWriter, rpcErr error) {
-	if checkRPCErr(w, rpcErr) {
+func sendAcceptedResponse(w http.ResponseWriter, err error) {
+	if checkErr(w, err) {
 		w.WriteHeader(http.StatusAccepted)
 	}
 }
@@ -885,7 +914,7 @@ func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		panic(err)
+		logger.Error(err)
 	}
 }
 
@@ -896,4 +925,20 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 	}
 	logger.Errorf("sending error response: %d: %s", code, msg)
 	sendJSONResponse(w, code, errorResp)
+}
+
+func sendStreamResponse(w http.ResponseWriter, err error, resp <-chan interface{}) {
+	if !checkErr(w, err) {
+		return
+	}
+
+	enc := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
+	for v := range resp {
+		err := enc.Encode(v)
+		if err != nil {
+			logger.Error(err)
+		}
+	}
 }

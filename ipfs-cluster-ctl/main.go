@@ -353,10 +353,20 @@ automatically generated.
 				p.Chunker = c.String("chunker")
 				p.RawLeaves = c.Bool("raw-leaves")
 				p.Hidden = c.Bool("hidden")
+
+				out := make(chan *api.AddedOutput, 1)
+				go func() {
+					for v := range out {
+						formatResponse(c, v, nil)
+					}
+				}()
+
 				cerr := globalClient.AddMultiFile(
 					multiFileR,
 					p,
+					out,
 				)
+
 				// TODO: output control
 				// if c.Bool("only-hashes") {
 				// 	for i := range resp {

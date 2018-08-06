@@ -10,36 +10,42 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-func (c *Client) do(method, path string, body io.Reader, obj interface{}) error {
-	resp, err := c.doRequest(method, path, body)
+type responseDecoder func(d *json.Decoder) error
+
+func (c *Client) do(
+	method, path string,
+	headers map[string]string,
+	body io.Reader,
+	obj interface{},
+) error {
+
+	resp, err := c.doRequest(method, path, headers, body)
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
 	return c.handleResponse(resp, obj)
 }
 
-func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
-	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
-	logger.Debugf("%s: %s", method, urlpath)
+func (c *Client) doStream(
+	method, path string,
+	headers map[string]string,
+	body io.Reader,
+	outHandler responseDecoder,
+) error {
 
-	r, err := http.NewRequest(method, urlpath, body)
+	resp, err := c.doRequest(method, path, headers, body)
 	if err != nil {
-		return nil, err
+		return &api.Error{Code: 0, Message: err.Error()}
 	}
-	if c.config.DisableKeepAlives {
-		r.Close = true
-	}
-
-	if c.config.Username != "" {
-		r.SetBasicAuth(c.config.Username, c.config.Password)
-	}
-
-	return c.client.Do(r)
+	return c.handleStreamResponse(resp, outHandler)
 }
 
-// eventually we may want to trigger streaming with a boolean flag in
-// a single doRequest function to prevent code duplication (same for do)
-func (c *Client) doStreamRequest(method, path string, body io.Reader, headers map[string]string) (*http.Response, error) {
+func (c *Client) doRequest(
+	method, path string,
+	headers map[string]string,
+	body io.Reader,
+) (*http.Response, error) {
+
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
@@ -50,29 +56,25 @@ func (c *Client) doStreamRequest(method, path string, body io.Reader, headers ma
 	if c.config.DisableKeepAlives {
 		r.Close = true
 	}
+
 	if c.config.Username != "" {
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
-	for k, v := range headers {
-		r.Header.Set(k, v)
+	if headers != nil {
+		for k, v := range headers {
+			r.Header.Set(k, v)
+		}
 	}
 
 	r.ProtoMajor = 1
 	r.ProtoMinor = 1
-	r.ContentLength = -1
+	if body != nil {
+		r.ContentLength = -1 // this lets go use "chunked".
+	}
 
 	return c.client.Do(r)
 }
-
-func (c *Client) doStream(method, path string, body io.Reader, headers map[string]string, obj interface{}) error {
-	resp, err := c.doStreamRequest(method, path, body, headers)
-	if err != nil {
-		return &api.Error{Code: 0, Message: err.Error()}
-	}
-	return c.handleResponse(resp, obj)
-}
-
 func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
@@ -105,6 +107,34 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 				Code:    resp.StatusCode,
 				Message: err.Error(),
 			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) handleStreamResponse(resp *http.Response, handler responseDecoder) error {
+	if resp.StatusCode > 399 {
+		return c.handleResponse(resp, nil)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return &api.Error{
+			Code:    500,
+			Message: "expected streaming response with code 200",
+		}
+	}
+
+	dec := json.NewDecoder(resp.Body)
+	for {
+		err := handler(dec)
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			logger.Error(err)
+			return err
 		}
 	}
 	return nil

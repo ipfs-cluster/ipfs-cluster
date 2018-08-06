@@ -10,6 +10,17 @@ import (
 // DefaultShardSize is the shard size for params objects created with DefaultParams().
 var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 
+// AddedOutput carries information for displaying the standard ipfs output
+// indicating a node of a file has been added.
+type AddedOutput struct {
+	Error
+	Name  string
+	Hash  string `json:",omitempty"`
+	Bytes int64  `json:",omitempty"`
+	Size  string `json:",omitempty"`
+	Quiet bool
+}
+
 // AddParams contains all of the configurable parameters needed to specify the
 // importing process of a file being added to an ipfs-cluster
 type AddParams struct {

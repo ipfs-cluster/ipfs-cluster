@@ -239,7 +239,7 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 		if err != nil {
 			return err
 		}
-		return outputDagnode(adder.Out, path, nd)
+		return outputDagnode(adder.ctx, adder.Out, path, nd)
 	default:
 		return fmt.Errorf("unrecognized fsn type: %#v", fsn)
 	}
@@ -276,7 +276,7 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	}
 
 	if !adder.Silent {
-		return outputDagnode(adder.Out, path, node)
+		return outputDagnode(adder.ctx, adder.Out, path, node)
 	}
 	return nil
 }
@@ -380,7 +380,13 @@ func (adder *Adder) addDir(dir files.File) error {
 }
 
 // outputDagnode sends dagnode info over the output channel
-func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
+func outputDagnode(ctx context.Context, out chan *api.AddedOutput, name string, dn ipld.Node) error {
+	// Ugly,but I don't want my program to crash because
+	// this is trying to write to close channels.
+	defer func() {
+		recover()
+	}()
+
 	if out == nil {
 		return nil
 	}
@@ -389,6 +395,15 @@ func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	s, err := dn.Size()
 	if err != nil {
 		return err
+	}
+
+	// This thing keeps trying to print
+	// even when importing is cancelled.
+	// Panics on closed channel.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 
 	out <- &api.AddedOutput{

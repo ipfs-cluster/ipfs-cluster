@@ -69,7 +69,12 @@ func makeAdder(t *testing.T, multiReaderF func(*testing.T) *files.MultiFileReade
 	}
 	client := rpc.NewClientWithServer(nil, "mock", server)
 
-	add := New(client)
+	add := New(client, false)
+	go func() {
+		for v := range add.Output() {
+			t.Logf("Output: Name: %s. Cid: %s. Size: %s", v.Name, v.Hash, v.Size)
+		}
+	}()
 
 	mr := multiReaderF(t)
 	r := multipart.NewReader(mr, mr.Boundary())

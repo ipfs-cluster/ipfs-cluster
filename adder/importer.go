@@ -31,8 +31,7 @@ type Importer struct {
 }
 
 // NewImporter sets up an Importer ready to Go().
-func NewImporter(f files.File, p *api.AddParams) (*Importer, error) {
-	output := make(chan *api.AddedOutput, 1)
+func NewImporter(f files.File, p *api.AddParams, out chan *api.AddedOutput) (*Importer, error) {
 	blocks := make(chan *api.NodeWithMeta, 1)
 	errors := make(chan error, 1)
 
@@ -40,16 +39,10 @@ func NewImporter(f files.File, p *api.AddParams) (*Importer, error) {
 		started: false,
 		files:   f,
 		params:  p,
-		output:  output,
+		output:  out,
 		blocks:  blocks,
 		errors:  errors,
 	}, nil
-}
-
-// Output returns a channel where information about each
-// added block is sent.
-func (imp *Importer) Output() <-chan *api.AddedOutput {
-	return imp.output
 }
 
 // Blocks returns a channel where each imported block is sent.
@@ -82,9 +75,6 @@ func (imp *Importer) addFile(ipfsAdder *ipfsadd.Adder) error {
 }
 
 func (imp *Importer) addFiles(ctx context.Context, ipfsAdder *ipfsadd.Adder) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	defer close(imp.output)
 	defer close(imp.blocks)
 	defer close(imp.errors)
 
@@ -148,7 +138,6 @@ func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, erro
 
 	errors := imp.Errors()
 	blocks := imp.Blocks()
-	output := imp.Output()
 
 	err := imp.Go(ctx)
 	if err != nil {
@@ -172,8 +161,6 @@ func (imp *Importer) Run(ctx context.Context, blockF BlockHandler) (string, erro
 			if err != nil {
 				return retVal, err
 			}
-		case <-output:
-			// TODO(hector): handle output?
 		}
 	}
 BREAK:

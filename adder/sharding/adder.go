@@ -18,6 +18,7 @@ import (
 )
 
 var logger = logging.Logger("addshard")
+var outputBuffer = 200
 
 // Adder is an implementation of IPFS Cluster's Adder interface which
 // shards content while adding among several IPFS Cluster peers,
@@ -25,14 +26,30 @@ var logger = logging.Logger("addshard")
 // in the IPFS daemons allocated to it.
 type Adder struct {
 	rpcClient *rpc.Client
+
+	output chan *api.AddedOutput
 }
 
 // New returns a new Adder, which uses the given rpc client to perform
 // Allocate, IPFSBlockPut and Pin requests to other cluster components.
-func New(rpc *rpc.Client) *Adder {
+func New(rpc *rpc.Client, discardOutput bool) *Adder {
+	output := make(chan *api.AddedOutput, outputBuffer)
+	if discardOutput {
+		go func() {
+			for range output {
+			}
+		}()
+	}
+
 	return &Adder{
 		rpcClient: rpc,
+		output:    output,
 	}
+}
+
+// Output returns a channel for output updates during the adding process.
+func (a *Adder) Output() <-chan *api.AddedOutput {
+	return a.output
 }
 
 // FromMultipart allows to add (and shard) a file encoded as multipart.
@@ -43,6 +60,11 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.A
 		Mediatype: "multipart/form-data",
 		Reader:    r,
 	}
+	defer close(a.output)
+	defer f.Close()
+
+	ctxRun, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
 
 	pinOpts := api.PinOptions{
 		ReplicationFactorMin: p.ReplicationFactorMin,
@@ -51,11 +73,9 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.A
 		ShardSize:            p.ShardSize,
 	}
 
-	dagBuilder := newClusterDAGBuilder(a.rpcClient, pinOpts)
+	dagBuilder := newClusterDAGBuilder(a.rpcClient, pinOpts, a.output)
 	// Always stop the builder
 	defer dagBuilder.Cancel()
-
-	blockSink := dagBuilder.Blocks()
 
 	blockHandle := func(ctx context.Context, n *api.NodeWithMeta) (string, error) {
 		logger.Debugf("handling block %s (size %d)", n.Cid, n.Size())
@@ -70,20 +90,21 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.A
 	}
 
 	logger.Debug("creating importer")
-	importer, err := adder.NewImporter(f, p)
+	importer, err := adder.NewImporter(f, p, a.output)
 	if err != nil {
 		return nil, err
 	}
 
 	logger.Infof("importing file to Cluster (name '%s')", p.Name)
-	rootCidStr, err := importer.Run(ctx, blockHandle)
+	rootCidStr, err := importer.Run(ctxRun, blockHandle)
 	if err != nil {
+		cancelRun()
 		logger.Error("Importing aborted: ", err)
 		return nil, err
 	}
 
 	// Trigger shard finalize
-	close(blockSink)
+	close(dagBuilder.Blocks())
 
 	select {
 	case <-dagBuilder.Done(): // wait for the builder to finish

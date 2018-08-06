@@ -810,17 +810,6 @@ func (pins PinSerial) ToPin() Pin {
 	}
 }
 
-// AddedOutput carries information for displaying the standard ipfs output
-// indicating a node of a file has been added.
-type AddedOutput struct {
-	Error
-	Name  string
-	Hash  string `json:",omitempty"`
-	Bytes int64  `json:",omitempty"`
-	Size  string `json:",omitempty"`
-	Quiet bool
-}
-
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {

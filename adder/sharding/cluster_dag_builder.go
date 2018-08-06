@@ -38,9 +38,11 @@ type clusterDAGBuilder struct {
 
 	startTime time.Time
 	totalSize uint64
+
+	output chan *api.AddedOutput
 }
 
-func newClusterDAGBuilder(rpc *rpc.Client, opts api.PinOptions) *clusterDAGBuilder {
+func newClusterDAGBuilder(rpc *rpc.Client, opts api.PinOptions, output chan *api.AddedOutput) *clusterDAGBuilder {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// By caching one node don't block sending something
@@ -55,6 +57,7 @@ func newClusterDAGBuilder(rpc *rpc.Client, opts api.PinOptions) *clusterDAGBuild
 		pinOpts:   opts,
 		shards:    make(map[string]*cid.Cid),
 		startTime: time.Now(),
+		output:    output,
 	}
 	go cdb.ingestBlocks()
 	return cdb
@@ -117,6 +120,12 @@ func (cdb *clusterDAGBuilder) flushCurrentShard() (*cid.Cid, error) {
 	cdb.shards[fmt.Sprintf("%d", lens)] = shardCid
 	cdb.previousShard = shardCid
 	cdb.currentShard = nil
+	cdb.output <- &api.AddedOutput{
+		Name: fmt.Sprintf("shard-%d", lens),
+		Hash: shardCid.String(),
+		Size: fmt.Sprintf("%d", shard.Size()),
+	}
+
 	return shard.LastLink(), nil
 }
 
@@ -140,6 +149,12 @@ func (cdb *clusterDAGBuilder) finalize() error {
 	}
 
 	clusterDAG := clusterDAGNodes[0].Cid()
+
+	cdb.output <- &api.AddedOutput{
+		Name: fmt.Sprintf("%s-clusterDAG", cdb.pinOpts.Name),
+		Hash: clusterDAG.String(),
+		Size: fmt.Sprintf("%d", cdb.totalSize),
+	}
 
 	// Pin the ClusterDAG
 	clusterDAGPin := api.PinCid(clusterDAG)

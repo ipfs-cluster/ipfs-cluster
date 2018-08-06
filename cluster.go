@@ -1112,9 +1112,9 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (*cid.Cid, error) {
 	var add adder.Adder
 	if params.Shard {
-		add = sharding.New(c.rpcClient)
+		add = sharding.New(c.rpcClient, true)
 	} else {
-		add = local.New(c.rpcClient)
+		add = local.New(c.rpcClient, true)
 	}
 	return add.FromMultipart(c.ctx, reader, params)
 }

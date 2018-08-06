@@ -19,20 +19,37 @@ import (
 )
 
 var logger = logging.Logger("addlocal")
+var outputBuffer = 200
 
 // Adder is an implementation of IPFS Cluster Adder interface,
 // which allows adding content directly to IPFS daemons attached
 // to the Cluster (without sharding).
 type Adder struct {
 	rpcClient *rpc.Client
+
+	output chan *api.AddedOutput
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
 // to perform calls to IPFSBlockPut and Pin content on Cluster.
-func New(rpc *rpc.Client) *Adder {
+func New(rpc *rpc.Client, discardOutput bool) *Adder {
+	output := make(chan *api.AddedOutput, outputBuffer)
+	if discardOutput {
+		go func() {
+			for range output {
+			}
+		}()
+	}
+
 	return &Adder{
 		rpcClient: rpc,
+		output:    output,
 	}
+}
+
+// Output returns a channel for output updates during the adding process.
+func (a *Adder) Output() <-chan *api.AddedOutput {
+	return a.output
 }
 
 func (a *Adder) putBlock(ctx context.Context, n *api.NodeWithMeta, dests []peer.ID) error {
@@ -73,6 +90,11 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.A
 		Mediatype: "multipart/form-data",
 		Reader:    r,
 	}
+	defer close(a.output)
+	defer f.Close()
+
+	ctxRun, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
 
 	var allocsStr []string
 	err := a.rpcClient.CallContext(
@@ -94,13 +116,14 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader, p *api.A
 		return retVal, a.putBlock(ctx, n, allocations)
 	}
 
-	importer, err := adder.NewImporter(f, p)
+	importer, err := adder.NewImporter(f, p, a.output)
 	if err != nil {
 		return nil, err
 	}
 
-	lastCidStr, err := importer.Run(ctx, localBlockPut)
+	lastCidStr, err := importer.Run(ctxRun, localBlockPut)
 	if err != nil {
+		cancelRun()
 		return nil, err
 	}
 

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	//	add "github.com/ipfs/ipfs-cluster/add"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -84,7 +83,7 @@ func testHTTPSAPI(t *testing.T) *API {
 
 func processResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
 	if err != nil {
-		t.Fatal("error making get request: ", err)
+		t.Fatal("error making request: ", err)
 	}
 	body, err := ioutil.ReadAll(httpResp.Body)
 	defer httpResp.Body.Close()
@@ -97,6 +96,30 @@ func processResp(t *testing.T, httpResp *http.Response, err error, resp interfac
 		if err != nil {
 			t.Error(string(body))
 			t.Fatal("error parsing json: ", err)
+		}
+	}
+}
+
+func processStreamingResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
+	if err != nil {
+		t.Fatal("error making streaming request: ", err)
+	}
+
+	if httpResp.StatusCode > 399 {
+		// normal response with error
+		processResp(t, httpResp, err, resp)
+		return
+	}
+
+	defer httpResp.Body.Close()
+	dec := json.NewDecoder(httpResp.Body)
+	for {
+		err := dec.Decode(&resp)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 }
@@ -181,12 +204,12 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	processResp(t, httpResp, err, resp)
 }
 
-func makePostRaw(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
+func makeStreamingPost(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
 	httpResp, err := c.Post(url, contentType, body)
-	processResp(t, httpResp, err, resp)
+	processStreamingResp(t, httpResp, err, resp)
 }
 
 type testF func(t *testing.T, url urlF)
@@ -343,15 +366,9 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 		localURL := url(rest) + fmtStr1
 		sth := test.NewShardingTestHelper()
 		body := sth.GetTreeMultiReader(t)
-		resp := []api.AddedOutput{}
+		resp := api.AddedOutput{}
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
-		makePostRaw(t, rest, localURL, body, mpContentType, &resp)
-
-		// TODO: output handling
-		// if len(resp) != test.NumTestDirPrints ||
-		// 	resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
-		// 	t.Error("unexpected addedoutput from local add")
-		// }
+		makeStreamingPost(t, rest, localURL, body, mpContentType, &resp)
 	}
 
 	testBothEndpoints(t, tf)
@@ -364,14 +381,10 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 		sth := test.NewShardingTestHelper()
 		body := sth.GetTreeMultiReader(t)
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
-		resp := []api.AddedOutput{}
+		resp := api.AddedOutput{}
 		fmtStr1 := "/allocations?shard=true&repl_min=-1&repl_max=-1"
 		shardURL := url(rest) + fmtStr1
-		makePostRaw(t, rest, shardURL, body, mpContentType, &resp)
-		// if len(resp) != test.NumTestDirPrints ||
-		// 	resp[len(resp)-1].Hash != test.TestDirBalancedRootCID {
-		// 	t.Fatal("unexpected addedoutput from sharded add")
-		// }
+		makeStreamingPost(t, rest, shardURL, body, mpContentType, &resp)
 	}
 
 	testBothEndpoints(t, tf)

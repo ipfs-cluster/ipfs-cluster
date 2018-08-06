@@ -17,4 +17,8 @@ type Adder interface {
 	// FromMultipart adds from a multipart reader and returns
 	// the resulting CID.
 	FromMultipart(context.Context, *multipart.Reader, *api.AddParams) (*cid.Cid, error)
+
+	// Output returns a channel from which to read updates during the adding
+	// process.
+	Output() <-chan *api.AddedOutput
 }

@@ -46,7 +46,7 @@ func TestFromMultipart(t *testing.T) {
 		}
 		client := rpc.NewClientWithServer(nil, "mock", server)
 
-		add := New(client)
+		add := New(client, true)
 
 		sth := test.NewShardingTestHelper()
 		defer sth.Clean()
@@ -86,7 +86,7 @@ func TestFromMultipart(t *testing.T) {
 		}
 		client := rpc.NewClientWithServer(nil, "mock", server)
 
-		add := New(client)
+		add := New(client, true)
 		sth := test.NewShardingTestHelper()
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)

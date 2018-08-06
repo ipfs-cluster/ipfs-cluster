@@ -453,15 +453,22 @@ func TestAddMultiFile(t *testing.T) {
 			Hidden:    false,
 		}
 
-		err := c.AddMultiFile(mfr, p)
+		out := make(chan *types.AddedOutput, 1)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for v := range out {
+				t.Logf("output: Name: %s. Hash: %s", v.Name, v.Hash)
+			}
+		}()
+
+		err := c.AddMultiFile(mfr, p, out)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// TODO: output handling
-		// if len(out) != test.NumTestDirPrints ||
-		// 	out[len(out)-1].Hash != test.TestDirBalancedRootCID {
-		// 	t.Fatal("unexpected addedoutput from mock rpc on api")
-		// }
+
+		wg.Wait()
 	}
 
 	testClients(t, api, testF)

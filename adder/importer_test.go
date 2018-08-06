@@ -15,7 +15,12 @@ func TestImporter(t *testing.T) {
 	f := sth.GetTreeSerialFile(t)
 	p := api.DefaultAddParams()
 
-	imp, err := NewImporter(f, p)
+	out := make(chan *api.AddedOutput)
+	go func() {
+		for range out {
+		}
+	}()
+	imp, err := NewImporter(f, p, out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +66,12 @@ func TestImporter_DoubleStart(t *testing.T) {
 	f := sth.GetTreeSerialFile(t)
 	p := api.DefaultAddParams()
 
-	imp, err := NewImporter(f, p)
+	out := make(chan *api.AddedOutput)
+	go func() {
+		for range out {
+		}
+	}()
+	imp, err := NewImporter(f, p, out)
 	if err != nil {
 		t.Fatal(err)
 	}
