@@ -344,7 +344,7 @@ func TestAPIAddFileEndpointBadContentType(t *testing.T) {
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
-		fmtStr1 := "/allocations?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1
 
 		errResp := api.Error{}
@@ -362,7 +362,7 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 	tf := func(t *testing.T, url urlF) {
-		fmtStr1 := "/allocations?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1
 		sth := test.NewShardingTestHelper()
 		body := sth.GetTreeMultiReader(t)
@@ -382,7 +382,7 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 		body := sth.GetTreeMultiReader(t)
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		resp := api.AddedOutput{}
-		fmtStr1 := "/allocations?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
 		shardURL := url(rest) + fmtStr1
 		makeStreamingPost(t, rest, shardURL, body, mpContentType, &resp)
 	}

@@ -338,7 +338,7 @@ func (c *Client) AddMultiFile(
 
 	err := c.doStream(
 		"POST",
-		"/allocations?"+queryStr,
+		"/add?"+queryStr,
 		headers,
 		multiFileR,
 		handler,

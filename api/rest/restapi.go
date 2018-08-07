@@ -308,7 +308,12 @@ func (api *API) routes() []route {
 			"/peers/{peer}",
 			api.peerRemoveHandler,
 		},
-
+		{
+			"Add",
+			"POST",
+			"/add",
+			api.addHandler,
+		},
 		{
 			"Allocations",
 			"GET",
@@ -320,12 +325,6 @@ func (api *API) routes() []route {
 			"GET",
 			"/allocations/{hash}",
 			api.allocationHandler,
-		},
-		{
-			"Allocate",
-			"POST",
-			"/allocations",
-			api.addHandler,
 		},
 		{
 			"StatusAll",
