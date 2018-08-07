@@ -111,14 +111,14 @@ func (a *Adder) FromFiles(f files.File) (*cid.Cid, error) {
 			}
 		}
 	}
+
 FINALIZE:
 	_, err = ipfsAdder.Finalize()
 	if err != nil {
 		return nil, err
 	}
 
-	root, err := a.dags.Finalize(a.ctx)
-	return root, err
+	return a.dags.Finalize(a.ctx)
 }
 
 func addFile(fs files.File, ipfsAdder *ipfsadd.Adder) error {
