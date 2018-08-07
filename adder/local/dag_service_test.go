@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -36,7 +37,7 @@ func (rpcs *testRPC) Allocate(ctx context.Context, in api.PinSerial, out *[]stri
 	return nil
 }
 
-func TestFromMultipart(t *testing.T) {
+func TestAdd(t *testing.T) {
 	t.Run("balanced", func(t *testing.T) {
 		rpcObj := &testRPC{}
 		server := rpc.NewServer(nil, "mock")
@@ -45,16 +46,17 @@ func TestFromMultipart(t *testing.T) {
 			t.Fatal(err)
 		}
 		client := rpc.NewClientWithServer(nil, "mock", server)
+		params := api.DefaultAddParams()
 
-		add := New(client, true)
+		dags := New(client, params.PinOptions)
+		add := adder.New(context.Background(), dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
-		params := api.DefaultAddParams()
-		params.ShardSize = 0
-		rootCid, err := add.FromMultipart(context.Background(), r, api.DefaultAddParams())
+
+		rootCid, err := add.FromMultipart(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,16 +87,18 @@ func TestFromMultipart(t *testing.T) {
 			t.Fatal(err)
 		}
 		client := rpc.NewClientWithServer(nil, "mock", server)
+		params := api.DefaultAddParams()
+		params.Layout = "trickle"
 
-		add := New(client, true)
+		dags := New(client, params.PinOptions)
+		add := adder.New(context.Background(), dags, params, nil)
+
 		sth := test.NewShardingTestHelper()
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
-		p := api.DefaultAddParams()
-		p.Layout = "trickle"
 
-		rootCid, err := add.FromMultipart(context.Background(), r, p)
+		rootCid, err := add.FromMultipart(r)
 		if err != nil {
 			t.Fatal(err)
 		}

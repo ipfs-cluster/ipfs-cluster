@@ -1113,13 +1113,14 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 // DAG can be added locally to the calling cluster peer's ipfs repo, or
 // sharded across the entire cluster.
 func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (*cid.Cid, error) {
-	var add adder.Adder
+	var dags adder.ClusterDAGService
 	if params.Shard {
-		add = sharding.New(c.rpcClient, true)
+		dags = sharding.New(c.rpcClient, params.PinOptions, nil)
 	} else {
-		add = local.New(c.rpcClient, true)
+		dags = local.New(c.rpcClient, params.PinOptions)
 	}
-	return add.FromMultipart(c.ctx, reader, params)
+	add := adder.New(c.ctx, dags, params, nil)
+	return add.FromMultipart(reader)
 }
 
 // Version returns the current IPFS Cluster version.

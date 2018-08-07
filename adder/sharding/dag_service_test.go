@@ -7,12 +7,12 @@ import (
 	"sync"
 	"testing"
 
+	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -60,7 +60,7 @@ func (rpcs *testRPC) BlockGet(c *cid.Cid) ([]byte, error) {
 	return bI.([]byte), nil
 }
 
-func makeAdder(t *testing.T, multiReaderF func(*testing.T) *files.MultiFileReader) (*Adder, *testRPC, *multipart.Reader) {
+func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
 	rpcObj := &testRPC{}
 	server := rpc.NewServer(nil, "mock")
 	err := server.RegisterName("Cluster", rpcObj)
@@ -69,17 +69,18 @@ func makeAdder(t *testing.T, multiReaderF func(*testing.T) *files.MultiFileReade
 	}
 	client := rpc.NewClientWithServer(nil, "mock", server)
 
-	add := New(client, false)
+	out := make(chan *api.AddedOutput, 1)
+
+	dags := New(client, params.PinOptions, out)
+	add := adder.New(context.Background(), dags, params, out)
+
 	go func() {
-		for v := range add.Output() {
+		for v := range out {
 			t.Logf("Output: Name: %s. Cid: %s. Size: %s", v.Name, v.Hash, v.Size)
 		}
 	}()
 
-	mr := multiReaderF(t)
-	r := multipart.NewReader(mr, mr.Boundary())
-	return add, rpcObj, r
-
+	return add, rpcObj
 }
 
 func TestFromMultipart(t *testing.T) {
@@ -87,9 +88,6 @@ func TestFromMultipart(t *testing.T) {
 	defer sth.Clean()
 
 	t.Run("Test tree", func(t *testing.T) {
-		add, rpcObj, r := makeAdder(t, sth.GetTreeMultiReader)
-		_ = rpcObj
-
 		p := api.DefaultAddParams()
 		// Total data is about
 		p.ShardSize = 1024 * 300 // 300kB
@@ -98,7 +96,13 @@ func TestFromMultipart(t *testing.T) {
 		p.ReplicationFactorMin = 1
 		p.ReplicationFactorMax = 2
 
-		rootCid, err := add.FromMultipart(context.Background(), r, p)
+		add, rpcObj := makeAdder(t, p)
+		_ = rpcObj
+
+		mr := sth.GetTreeMultiReader(t)
+		r := multipart.NewReader(mr, mr.Boundary())
+
+		rootCid, err := add.FromMultipart(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,12 +149,6 @@ func TestFromMultipart(t *testing.T) {
 	})
 
 	t.Run("Test file", func(t *testing.T) {
-		mrF := func(t *testing.T) *files.MultiFileReader {
-			return sth.GetRandFileMultiReader(t, 1024*50) // 50 MB
-		}
-		add, rpcObj, r := makeAdder(t, mrF)
-		_ = rpcObj
-
 		p := api.DefaultAddParams()
 		// Total data is about
 		p.ShardSize = 1024 * 1024 * 2 // 2MB
@@ -159,7 +157,13 @@ func TestFromMultipart(t *testing.T) {
 		p.ReplicationFactorMin = 1
 		p.ReplicationFactorMax = 2
 
-		rootCid, err := add.FromMultipart(context.Background(), r, p)
+		add, rpcObj := makeAdder(t, p)
+		_ = rpcObj
+
+		mr := sth.GetRandFileMultiReader(t, 1024*50) // 50 MB
+		r := multipart.NewReader(mr, mr.Boundary())
+
+		rootCid, err := add.FromMultipart(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -233,21 +237,16 @@ func TestFromMultipart_Errors(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean()
 	for _, tc := range tcs {
-		add, _, r := makeAdder(t, sth.GetTreeMultiReader)
-		_, err := add.FromMultipart(context.Background(), r, tc.params)
+		add, rpcObj := makeAdder(t, tc.params)
+		_ = rpcObj
+
+		f := sth.GetTreeSerialFile(t)
+
+		_, err := add.FromFiles(f)
 		if err == nil {
 			t.Error(tc.name, ": expected an error")
 		} else {
 			t.Log(tc.name, ":", err)
 		}
-	}
-
-	// Test running with a cancelled context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	add, _, r := makeAdder(t, sth.GetTreeMultiReader)
-	_, err := add.FromMultipart(ctx, r, api.DefaultAddParams())
-	if err != ctx.Err() {
-		t.Error("expected context error:", err)
 	}
 }

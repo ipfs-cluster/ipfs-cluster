@@ -514,11 +514,13 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var add adder.Adder
+	output := make(chan *types.AddedOutput, 200)
+	var dags adder.ClusterDAGService
+
 	if params.Shard {
-		add = sharding.New(api.rpcClient, false)
+		dags = sharding.New(api.rpcClient, params.PinOptions, output)
 	} else {
-		add = local.New(api.rpcClient, false)
+		dags = local.New(api.rpcClient, params.PinOptions)
 	}
 
 	enc := json.NewEncoder(w)
@@ -529,7 +531,7 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for v := range add.Output() {
+		for v := range output {
 			err := enc.Encode(v)
 			if err != nil {
 				logger.Error(err)
@@ -537,7 +539,8 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	c, err := add.FromMultipart(api.ctx, reader, params)
+	add := adder.New(api.ctx, dags, params, output)
+	c, err := add.FromMultipart(reader)
 	_ = c
 
 	wg.Wait()
