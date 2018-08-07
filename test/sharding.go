@@ -147,12 +147,6 @@ func makeDir(t *testing.T, path string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f, err := os.Open(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		f.Sync()
-		f.Close()
 	}
 }
 
@@ -225,10 +219,16 @@ func (sth *ShardingTestHelper) makeTree(t *testing.T) os.FileInfo {
 		f.Close()
 	}
 
-	st, err := os.Stat(basepath)
+	f, err := os.Open(basepath)
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.Sync()
+	st, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
 	return st
 }
 
