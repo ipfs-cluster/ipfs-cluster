@@ -197,4 +197,5 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 	default:
 		return api.TrackerStatusBug
 	}
+
 }

@@ -367,12 +367,6 @@ automatically generated.
 					out,
 				)
 
-				// TODO: output control
-				// if c.Bool("only-hashes") {
-				// 	for i := range resp {
-				// 		resp[i].Quiet = true
-				// 	}
-				// }
 				formatResponse(c, nil, cerr)
 				return nil
 			},

@@ -35,6 +35,11 @@ var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfshttp")
 
+// updateMetricsMod only makes updates to informer metrics
+// on the nth occasion. So, for example, for every BlockPut,
+// only the 10th will trigger a SendInformerMetrics call.
+var updateMetricMod = 10
+
 // Connector implements the IPFSConnector interface
 // and provides a component which does two tasks:
 //
@@ -59,6 +64,9 @@ type Connector struct {
 	listener net.Listener // proxy listener
 	server   *http.Server // proxy server
 	client   *http.Client // client to ipfs daemon
+
+	updateMetricMutex sync.Mutex
+	updateMetricCount int
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -636,6 +644,8 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, maxDepth int) err
 		return nil
 	}
 
+	defer ipfs.updateInformerMetric()
+
 	var pinArgs string
 	switch {
 	case maxDepth < 0:
@@ -669,11 +679,13 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, maxDepth int) err
 func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
 	defer cancel()
+
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
 	if pinStatus.IsPinned(-1) {
+		defer ipfs.updateInformerMetric()
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 		_, err := ipfs.postCtx(ctx, path, "", nil)
 		if err == nil {
@@ -981,6 +993,8 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
+	defer ipfs.updateInformerMetric()
+
 	r := ioutil.NopCloser(bytes.NewReader(b.Data))
 	rFile := files.NewReaderFile("", "", r, nil)
 	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory
@@ -990,6 +1004,7 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 	}
 	url := "block/put?f=" + b.Format
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
+
 	_, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
 	return err
 }
@@ -1021,4 +1036,41 @@ func extractArgument(u *url.URL) (string, bool) {
 		return segs[len(segs)-1], true
 	}
 	return "", false
+}
+
+// Returns true every updateMetricsMod-th time that we
+// call this function.
+func (ipfs *Connector) shouldUpdateMetric() bool {
+	ipfs.updateMetricMutex.Lock()
+	defer ipfs.updateMetricMutex.Unlock()
+	ipfs.updateMetricCount++
+	if ipfs.updateMetricCount%updateMetricMod == 0 {
+		ipfs.updateMetricCount = 0
+		return true
+
+	}
+	return false
+}
+
+// Trigger a broadcast of the local informer metrics.
+func (ipfs *Connector) updateInformerMetric() error {
+	if !ipfs.shouldUpdateMetric() {
+		return nil
+	}
+
+	var metric api.Metric
+
+	err := ipfs.rpcClient.GoContext(
+		ipfs.ctx,
+		"",
+		"Cluster",
+		"SendInformerMetric",
+		struct{}{},
+		&metric,
+		nil,
+	)
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }

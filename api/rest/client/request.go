@@ -137,5 +137,4 @@ func (c *Client) handleStreamResponse(resp *http.Response, handler responseDecod
 			return err
 		}
 	}
-	return nil
 }

@@ -215,6 +215,13 @@ func (rpcapi *RPCAPI) Allocate(ctx context.Context, in api.PinSerial, out *[]str
 	return nil
 }
 
+// SendInformerMetric runs Cluster.sendInformerMetric().
+func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+	m, err := rpcapi.c.sendInformerMetric()
+	*out = m
+	return err
+}
+
 /*
    Tracker component methods
 */

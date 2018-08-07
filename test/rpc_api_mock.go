@@ -246,6 +246,10 @@ func (mock *mockService) Allocate(ctx context.Context, in api.PinSerial, out *[]
 	return nil
 }
 
+func (mock *mockService) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+	return nil
+}
+
 /* Tracker methods */
 
 func (mock *mockService) Track(ctx context.Context, in api.PinSerial, out *struct{}) error {

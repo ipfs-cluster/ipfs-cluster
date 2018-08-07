@@ -181,6 +181,12 @@ func (c *Cluster) syncWatcher() {
 	}
 }
 
+func (c *Cluster) sendInformerMetric() (api.Metric, error) {
+	metric := c.informer.GetMetric()
+	metric.Peer = c.id
+	return metric, c.monitor.PublishMetric(metric)
+}
+
 // pushInformerMetrics loops and publishes informers metrics using the
 // cluster monitor. Metrics are pushed normally at a TTL/2 rate. If an error
 // occurs, they are pushed at a TTL/4 rate.
@@ -203,10 +209,7 @@ func (c *Cluster) pushInformerMetrics() {
 			// wait
 		}
 
-		metric := c.informer.GetMetric()
-		metric.Peer = c.id
-
-		err := c.monitor.PublishMetric(metric)
+		metric, err := c.sendInformerMetric()
 
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {

@@ -112,8 +112,6 @@ func IPFSPinStatusFromString(t string) IPFSPinStatus {
 	// use a regexp to match
 	var ind, _ = regexp.MatchString("^indirect", t)
 	var rec, _ = regexp.MatchString("^recursive", t)
-	// TODO: This is only used in the http_connector to parse
-	// ipfs-daemon-returned values. Maybe it should be extended.
 	switch {
 	case ind:
 		return IPFSPinStatusIndirect
