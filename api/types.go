@@ -823,23 +823,6 @@ func (n *NodeWithMeta) Size() uint64 {
 	return uint64(len(n.Data))
 }
 
-// AllocateInfo transports the information necessary to call an allocator's
-// Allocate function.
-type AllocateInfo struct {
-	Cid        string
-	Current    map[peer.ID]Metric
-	Candidates map[peer.ID]Metric
-	Priority   map[peer.ID]Metric
-}
-
-// GetCid decodes the cid string within AllocateInfo.  If the cid string is ""
-// then GetCid returns nil
-func (aI *AllocateInfo) GetCid() *cid.Cid {
-	// Ignoring decoding errors
-	c, _ := cid.Decode(aI.Cid)
-	return c
-}
-
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
