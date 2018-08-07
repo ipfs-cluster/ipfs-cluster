@@ -147,6 +147,12 @@ func makeDir(t *testing.T, path string) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Sync()
+		f.Close()
 	}
 }
 
