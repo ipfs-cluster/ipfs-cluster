@@ -30,7 +30,6 @@ type DAGService struct {
 
 	dests   []peer.ID
 	pinOpts api.PinOptions
-	lastCid *cid.Cid
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
@@ -63,20 +62,14 @@ func (dag *DAGService) Add(ctx context.Context, node ipld.Node) error {
 		CumSize: size,
 	}
 
-	dag.lastCid = node.Cid()
-
 	return adder.PutBlock(ctx, dag.rpcClient, nodeSerial, dag.dests)
 }
 
 // Finalize pins the last Cid added to this DAGService.
-func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
-	if dag.lastCid == nil {
-		return nil, errors.New("nothing was added")
-	}
-
+func (dag *DAGService) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
 	// Cluster pin the result
 	pinS := api.PinSerial{
-		Cid:        dag.lastCid.String(),
+		Cid:        root.String(),
 		Type:       int(api.DataType),
 		MaxDepth:   -1,
 		PinOptions: dag.pinOpts,
@@ -84,7 +77,7 @@ func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
 
 	dag.dests = nil
 
-	return dag.lastCid, dag.rpcClient.CallContext(
+	return root, dag.rpcClient.CallContext(
 		ctx,
 		"",
 		"Cluster",

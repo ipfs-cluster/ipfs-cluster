@@ -86,21 +86,25 @@ func (dag *DAGService) Add(ctx context.Context, node ipld.Node) error {
 
 // Finalize finishes sharding, creates the cluster DAG and pins it along
 // with the meta pin for the root node of the content.
-func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
-	dataRootCid, err := dag.flushCurrentShard(ctx)
+func (dag *DAGService) Finalize(ctx context.Context, dataRoot *cid.Cid) (*cid.Cid, error) {
+	lastCid, err := dag.flushCurrentShard(ctx)
 	if err != nil {
-		return dataRootCid, err
+		return lastCid, err
+	}
+
+	if !lastCid.Equals(dataRoot) {
+		logger.Warningf("the last added CID (%s) is not the IPFS data root (%s). This is only normal when adding a single file without wrapping in directory.", lastCid, dataRoot)
 	}
 
 	clusterDAGNodes, err := makeDAG(dag.shards)
 	if err != nil {
-		return dataRootCid, err
+		return dataRoot, err
 	}
 
 	// PutDAG to ourselves
 	err = putDAG(ctx, dag.rpcClient, clusterDAGNodes, []peer.ID{""})
 	if err != nil {
-		return dataRootCid, err
+		return dataRoot, err
 	}
 
 	clusterDAG := clusterDAGNodes[0].Cid()
@@ -118,20 +122,20 @@ func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
 	clusterDAGPin.MaxDepth = 0 // pin direct
 	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", dag.pinOpts.Name)
 	clusterDAGPin.Type = api.ClusterDAGType
-	clusterDAGPin.Reference = dataRootCid
+	clusterDAGPin.Reference = dataRoot
 	err = adder.Pin(ctx, dag.rpcClient, clusterDAGPin)
 	if err != nil {
-		return dataRootCid, err
+		return dataRoot, err
 	}
 
 	// Pin the META pin
-	metaPin := api.PinWithOpts(dataRootCid, dag.pinOpts)
+	metaPin := api.PinWithOpts(dataRoot, dag.pinOpts)
 	metaPin.Type = api.MetaType
 	metaPin.Reference = clusterDAG
 	metaPin.MaxDepth = 0 // irrelevant. Meta-pins are not pinned
 	err = adder.Pin(ctx, dag.rpcClient, metaPin)
 	if err != nil {
-		return dataRootCid, err
+		return dataRoot, err
 	}
 
 	// Log some stats
@@ -155,7 +159,7 @@ func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
 	// 	}
 	// }
 
-	return dataRootCid, nil
+	return dataRoot, nil
 }
 
 // ingests a block to the current shard. If it get's full, it

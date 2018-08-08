@@ -284,10 +284,10 @@ automatically generated.
 					Value: defaultAddParams.Layout,
 					Usage: "Dag layout to use for dag generation: balanced or trickle",
 				},
-				// 				cli.BoolFlag{
-				// 					Name:  "wrap-with-directory, w",
-				// g					Usage: "Wrap files with a directory object",
-				// 				},
+				cli.BoolFlag{
+					Name:  "wrap-with-directory, w",
+					Usage: "Wrap a single added file with a directory object.",
+				},
 				cli.BoolFlag{
 					Name:  "hidden, H",
 					Usage: "Include files that are hidden.  Only takes effect on recursive add",
@@ -368,8 +368,7 @@ automatically generated.
 				p.Chunker = c.String("chunker")
 				p.RawLeaves = c.Bool("raw-leaves")
 				p.Hidden = c.Bool("hidden")
-				//p.Wrap = c.Bool("wrap-with-directory") || len(paths) > 1
-				p.Wrap = true
+				p.Wrap = c.Bool("wrap-with-directory") || len(paths) > 1
 
 				out := make(chan *api.AddedOutput, 1)
 				var wg sync.WaitGroup

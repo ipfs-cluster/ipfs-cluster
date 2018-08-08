@@ -2,7 +2,6 @@ package adder
 
 import (
 	"context"
-	"errors"
 	"mime/multipart"
 	"sync"
 	"testing"
@@ -18,12 +17,10 @@ import (
 type mockCDagServ struct {
 	BaseDAGService
 	resultCids map[string]struct{}
-	lastCid    *cid.Cid
 }
 
 func (dag *mockCDagServ) Add(ctx context.Context, node ipld.Node) error {
 	dag.resultCids[node.Cid().String()] = struct{}{}
-	dag.lastCid = node.Cid()
 	return nil
 }
 
@@ -37,11 +34,8 @@ func (dag *mockCDagServ) AddMany(ctx context.Context, nodes []ipld.Node) error {
 	return nil
 }
 
-func (dag *mockCDagServ) Finalize(ctx context.Context) (*cid.Cid, error) {
-	if dag.lastCid == nil {
-		return nil, errors.New("nothing added")
-	}
-	return dag.lastCid, nil
+func (dag *mockCDagServ) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
+	return root, nil
 }
 
 func TestAdder(t *testing.T) {

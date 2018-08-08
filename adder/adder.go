@@ -21,7 +21,9 @@ var logger = logging.Logger("adder")
 // add implementation.
 type ClusterDAGService interface {
 	ipld.DAGService
-	Finalize(context.Context) (*cid.Cid, error)
+	// Finalize receives the IPFS content root CID as
+	// returned by the ipfs adder.
+	Finalize(ctx context.Context, ipfsRoot *cid.Cid) (*cid.Cid, error)
 }
 
 // Adder is used to add content to IPFS Cluster using an implementation of
@@ -104,8 +106,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	ipfsAdder.Hidden = a.params.Hidden
 	ipfsAdder.Trickle = a.params.Layout == "trickle"
 	ipfsAdder.RawLeaves = a.params.RawLeaves
-	ipfsAdder.Wrap = true // FIXME: adding fails when !wrap( see ipfsadd.go)
-	//ipfsAdder.Wrap = a.params.Wrap
+	ipfsAdder.Wrap = a.params.Wrap
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 
@@ -126,17 +127,17 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	}
 
 FINALIZE:
-	_, err = ipfsAdder.Finalize()
+	adderRoot, err := ipfsAdder.Finalize()
 	if err != nil {
 		return nil, err
 	}
-	rootCid, err := a.dags.Finalize(a.ctx)
+	clusterRoot, err := a.dags.Finalize(a.ctx, adderRoot.Cid())
 	if err != nil {
 		logger.Error("error finalizing adder:", err)
 		return nil, err
 	}
-	logger.Infof("%s successfully added to cluster", rootCid)
-	return rootCid, nil
+	logger.Infof("%s successfully added to cluster", clusterRoot)
+	return clusterRoot, nil
 }
 
 func addFile(fs files.File, ipfsAdder *ipfsadd.Adder) error {

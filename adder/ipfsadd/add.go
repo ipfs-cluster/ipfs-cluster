@@ -78,6 +78,7 @@ type Adder struct {
 	tempRoot   *cid.Cid
 	Prefix     *cid.Prefix
 	liveNodes  uint64
+	lastFile   mfs.FSNode
 }
 
 func (adder *Adder) mfsRoot() (*mfs.Root, error) {
@@ -166,7 +167,12 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 
 	var name string
 	if !adder.Wrap {
-		children, err := root.(*mfs.Directory).ListNames(adder.ctx)
+		rootdir, ok := root.(*mfs.Directory)
+		if !ok {
+			return nil, fmt.Errorf("root is not a directory")
+		}
+
+		children, err := rootdir.ListNames(adder.ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -174,22 +180,15 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 		if len(children) == 0 {
 			return nil, fmt.Errorf("expected at least one child dir, got none")
 		}
-
 		name = children[0]
-
-		mr, err := adder.mfsRoot()
+		root, err = rootdir.Child(name)
 		if err != nil {
-			return nil, err
-		}
-
-		dir, ok := mr.GetValue().(*mfs.Directory)
-		if !ok {
-			return nil, fmt.Errorf("root is not a directory")
-		}
-
-		root, err = dir.Child(name)
-		if err != nil {
-			return nil, err
+			// Cluster: use the last file we added
+			// if we have one.
+			if adder.lastFile == nil {
+				return nil, err
+			}
+			root = adder.lastFile
 		}
 	}
 	err = adder.outputDirs(name, root)
@@ -274,6 +273,15 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	if err := mfs.PutNode(mr, path, node); err != nil {
 		return err
 	}
+
+	// Cluster: cache the last file added.
+	// This avoids using the DAGService to get the first children
+	// if the MFS root when not wrapping.
+	lastFile, err := mfs.NewFile(path, node, nil, adder.dagService)
+	if err != nil {
+		return err
+	}
+	adder.lastFile = lastFile
 
 	if !adder.Silent {
 		return outputDagnode(adder.ctx, adder.Out, path, node)
@@ -381,12 +389,6 @@ func (adder *Adder) addDir(dir files.File) error {
 
 // outputDagnode sends dagnode info over the output channel
 func outputDagnode(ctx context.Context, out chan *api.AddedOutput, name string, dn ipld.Node) error {
-	// Ugly,but I don't want my program to crash because
-	// this is trying to write to close channels.
-	defer func() {
-		recover()
-	}()
-
 	if out == nil {
 		return nil
 	}
