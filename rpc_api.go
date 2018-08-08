@@ -192,13 +192,25 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *a
 	return err
 }
 
-// Allocate returns allocations for the given Pin.
-func (rpcapi *RPCAPI) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+// Allocate returns allocations for blocks. This is used in the adders.
+// It's different from pin allocations when ReplicationFactor < 0.
+func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
 	pin := in.ToPin()
 	err := rpcapi.c.setupPin(&pin)
 	if err != nil {
 		return err
 	}
+
+	// Return the current peer list.
+	if pin.ReplicationFactorMin < 0 {
+		peers, err := rpcapi.c.consensus.Peers()
+		if err != nil {
+			return err
+		}
+		*out = api.PeersToStrings(peers)
+		return nil
+	}
+
 	allocs, err := rpcapi.c.allocate(
 		pin.Cid,
 		pin.ReplicationFactorMin,

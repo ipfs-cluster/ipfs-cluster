@@ -18,9 +18,9 @@ const (
 	DefaultProxyAddr              = "/ip4/127.0.0.1/tcp/9095"
 	DefaultNodeAddr               = "/ip4/127.0.0.1/tcp/5001"
 	DefaultConnectSwarmsDelay     = 30 * time.Second
-	DefaultProxyReadTimeout       = 10 * time.Minute
+	DefaultProxyReadTimeout       = 0
 	DefaultProxyReadHeaderTimeout = 5 * time.Second
-	DefaultProxyWriteTimeout      = 10 * time.Minute
+	DefaultProxyWriteTimeout      = 0
 	DefaultProxyIdleTimeout       = 60 * time.Second
 	DefaultPinMethod              = "refs"
 	DefaultIPFSRequestTimeout     = 5 * time.Minute

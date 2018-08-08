@@ -539,8 +539,8 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	add := adder.New(api.ctx, dags, params, output)
-	c, err := add.FromMultipart(reader)
+	add := adder.New(dags, params, output)
+	c, err := add.FromMultipart(api.ctx, reader)
 	_ = c
 
 	wg.Wait()
@@ -838,9 +838,18 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	name := queryValues.Get("name")
 	pin.Name = name
 	pin.MaxDepth = -1 // For now, all pins are recursive
-	rplStr := queryValues.Get("replication_factor")
-	rplStrMin := queryValues.Get("replication_factor_min")
-	rplStrMax := queryValues.Get("replication_factor_max")
+	rplStr := queryValues.Get("replication")
+	if rplStr == "" { // compat <= 0.4.0
+		rplStr = queryValues.Get("replication_factor")
+	}
+	rplStrMin := queryValues.Get("replication-min")
+	if rplStrMin == "" { // compat <= 0.4.0
+		rplStrMin = queryValues.Get("replication_factor_min")
+	}
+	rplStrMax := queryValues.Get("replication-max")
+	if rplStrMax == "" { // compat <= 0.4.0
+		rplStrMax = queryValues.Get("replication_factor_max")
+	}
 	if rplStr != "" { // override
 		rplStrMin = rplStr
 		rplStrMax = rplStr

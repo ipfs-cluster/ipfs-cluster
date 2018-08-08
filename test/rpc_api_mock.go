@@ -238,7 +238,7 @@ func (mock *mockService) RecoverLocal(ctx context.Context, in api.PinSerial, out
 	return mock.TrackerRecover(ctx, in, out)
 }
 
-func (mock *mockService) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+func (mock *mockService) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("replMin too high: can only mock-allocate to 1")
 	}

@@ -46,9 +46,9 @@ var testingRaftCfg = []byte(`{
 
 var testingAPICfg = []byte(`{
     "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/10002",
-    "read_timeout": "30s",
+    "read_timeout": "0",
     "read_header_timeout": "5s",
-    "write_timeout": "1m0s",
+    "write_timeout": "0",
     "idle_timeout": "2m0s"
 }`)
 
@@ -56,9 +56,9 @@ var testingIpfsCfg = []byte(`{
     "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/10001",
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
-    "proxy_read_timeout": "10m0s",
+    "proxy_read_timeout": "0",
     "proxy_read_header_timeout": "10m0s",
-    "proxy_write_timeout": "10m0s",
+    "proxy_write_timeout": "0",
     "proxy_idle_timeout": "1m0s",
     "pin_method": "pin",
     "pin_timeout": "30s",

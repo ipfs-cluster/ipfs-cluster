@@ -1119,8 +1119,8 @@ func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (*cid
 	} else {
 		dags = local.New(c.rpcClient, params.PinOptions)
 	}
-	add := adder.New(c.ctx, dags, params, nil)
-	return add.FromMultipart(reader)
+	add := adder.New(dags, params, nil)
+	return add.FromMultipart(c.ctx, reader)
 }
 
 // Version returns the current IPFS Cluster version.

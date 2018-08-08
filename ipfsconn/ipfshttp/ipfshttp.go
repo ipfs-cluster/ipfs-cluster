@@ -991,6 +991,7 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 // BlockPut triggers an ipfs block put on the given data, inserting the block
 // into the ipfs daemon's repo.
 func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
+	logger.Debugf("putting block to IPFS: %s", b.Cid)
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	defer ipfs.updateInformerMetric()

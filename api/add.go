@@ -30,6 +30,7 @@ type AddParams struct {
 	Chunker   string
 	RawLeaves bool
 	Hidden    bool
+	Wrap      bool
 	Shard     bool
 }
 
@@ -40,6 +41,7 @@ func DefaultAddParams() *AddParams {
 		Chunker:   "size-262144",
 		RawLeaves: false,
 		Hidden:    false,
+		Wrap:      false,
 		Shard:     false,
 		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
@@ -93,7 +95,7 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	name := query.Get("name")
 	params.Name = name
 
-	err := parseBoolParam(query, "raw", &params.RawLeaves)
+	err := parseBoolParam(query, "raw-leaves", &params.RawLeaves)
 	if err != nil {
 		return nil, err
 	}
@@ -101,20 +103,24 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = parseBoolParam(query, "wrap-with-directory", &params.Wrap)
+	if err != nil {
+		return nil, err
+	}
 	err = parseBoolParam(query, "shard", &params.Shard)
 	if err != nil {
 		return nil, err
 	}
-	err = parseIntParam(query, "repl_min", &params.ReplicationFactorMin)
+	err = parseIntParam(query, "replication-min", &params.ReplicationFactorMin)
 	if err != nil {
 		return nil, err
 	}
-	err = parseIntParam(query, "repl_max", &params.ReplicationFactorMax)
+	err = parseIntParam(query, "replication-max", &params.ReplicationFactorMax)
 	if err != nil {
 		return nil, err
 	}
 
-	if v := query.Get("shard_size"); v != "" {
+	if v := query.Get("shard-size"); v != "" {
 		shardSize, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
 			return nil, errors.New("parameter shard_size is invalid")
@@ -127,9 +133,10 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 
 // ToQueryString returns a url query string (key=value&key2=value2&...)
 func (p *AddParams) ToQueryString() string {
-	fmtStr := "repl_min=%d&repl_max=%d&name=%s&"
-	fmtStr += "shard=%t&shard_size=%d&"
-	fmtStr += "layout=%s&chunker=%s&raw=%t&hidden=%t"
+	fmtStr := "replication-min=%d&replication-max=%d&name=%s&"
+	fmtStr += "shard=%t&shard-size=%d&"
+	fmtStr += "layout=%s&chunker=%s&raw-leaves=%t&hidden=%t&"
+	fmtStr += "wrap-with-directory=%t"
 	query := fmt.Sprintf(
 		fmtStr,
 		p.ReplicationFactorMin,
@@ -141,6 +148,7 @@ func (p *AddParams) ToQueryString() string {
 		p.Chunker,
 		p.RawLeaves,
 		p.Hidden,
+		p.Wrap,
 	)
 	return query
 }
@@ -155,5 +163,6 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 		p.Layout == p2.Layout &&
 		p.Chunker == p2.Chunker &&
 		p.RawLeaves == p2.RawLeaves &&
-		p.Hidden == p2.Hidden
+		p.Hidden == p2.Hidden &&
+		p.Wrap == p2.Wrap
 }

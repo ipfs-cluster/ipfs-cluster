@@ -64,7 +64,7 @@ func (c *Client) Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int
 	err := c.do(
 		"POST",
 		fmt.Sprintf(
-			"/pins/%s?replication_factor_min=%d&replication_factor_max=%d&name=%s",
+			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
 			ci.String(),
 			replicationFactorMin,
 			replicationFactorMax,

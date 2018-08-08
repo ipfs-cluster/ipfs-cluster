@@ -17,10 +17,11 @@ import (
 
 // Configuration defaults
 var (
-	DefaultTimeout   = 120 * time.Second
+	DefaultTimeout   = 0
 	DefaultAPIAddr   = "/ip4/127.0.0.1/tcp/9094"
 	DefaultLogLevel  = "info"
 	DefaultProxyPort = 9095
+	ResolveTimeout   = 30 * time.Second
 )
 
 var loggingFacility = "apiclient"
@@ -96,10 +97,6 @@ func NewClient(cfg *Config) (*Client, error) {
 		config: cfg,
 	}
 
-	if client.config.Timeout == 0 {
-		client.config.Timeout = DefaultTimeout
-	}
-
 	err := client.setupHTTPClient()
 	if err != nil {
 		return nil, err
@@ -165,7 +162,7 @@ func (c *Client) setupHostname() error {
 		// Taken care of in setupHTTPClient
 	case c.config.APIAddr != nil:
 		// Resolve multiaddress just in case and extract host:port
-		resolveCtx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+		resolveCtx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 		defer cancel()
 		resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
 		if err != nil {
@@ -209,7 +206,7 @@ func (c *Client) setupProxy() error {
 		return errors.New("cannot find proxy address")
 	}
 
-	ctx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+	ctx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
 	resolved, err := madns.Resolve(ctx, paddr)
 	if err != nil {

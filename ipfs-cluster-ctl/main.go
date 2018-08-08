@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -29,7 +30,7 @@ const Version = "0.4.0"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
-	defaultTimeout       = 120
+	defaultTimeout       = 0
 	defaultUsername      = ""
 	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
@@ -244,29 +245,61 @@ cluster peers.
 			Usage:     "Add a file or directory to ipfs and pin it in the cluster",
 			ArgsUsage: "<path>",
 			Description: `
-Adds allows to add and replicate content to several ipfs daemons, performing 
+Add allows to add and replicate content to several ipfs daemons, performing
 a Cluster Pin operation on success.
 
 Cluster Add is equivalent to "ipfs add" in terms of DAG building, and supports
 the same options for adjusting the chunker, the DAG layout etc. It will,
-however, send send the content directly to the destination ipfs daemons
-to which it is allocated. This may not be the local daemon (depends on the
-allocator). Once the adding process is finished, the content has been fully
+allocate the cluster pin first and then send the content directly to the
+allocated peers.
+
+This may not be the local daemon (depends on the allocator). Once the
+ adding process is finished, the content has been fully
 added to all allocations and pinned in them. This makes cluster add slower
-than a local ipfs add.
+than a local ipfs add, but the result is a fully replicated CID on completion.
 
 Cluster Add supports handling huge files and sharding the resulting DAG among
-several ipfs daemons (--shard). In this case, a single ipfs daemon will not 
+several ipfs daemons (--shard). In this case, a single ipfs daemon will not
 contain the full dag, but only parts of it (shards). Desired shard size can
 be provided with the --shard-size flag.
 
-We recommend setting a --name for sharded pins. Otherwise, it will be 
+We recommend setting a --name for sharded pins. Otherwise, it will be
 automatically generated.
 `,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "recursive, r",
 					Usage: "Add directory paths recursively",
+				},
+				cli.BoolFlag{
+					Name:  "quiet, q",
+					Usage: "Write only hashes to output (one per line)",
+				},
+				cli.BoolFlag{
+					Name:  "quieter, Q",
+					Usage: "Write only final hash to output",
+				},
+				cli.StringFlag{
+					Name:  "layout",
+					Value: defaultAddParams.Layout,
+					Usage: "Dag layout to use for dag generation: balanced or trickle",
+				},
+				cli.BoolFlag{
+					Name:  "wrap-with-directory, w",
+					Usage: "Wrap files with a directory object",
+				},
+				cli.BoolFlag{
+					Name:  "hidden, H",
+					Usage: "Include files that are hidden.  Only takes effect on recursive add",
+				},
+				cli.StringFlag{
+					Name:  "chunker, s",
+					Usage: "'size-<size>' or 'rabin-<min>-<avg>-<max>'",
+					Value: defaultAddParams.Chunker,
+				},
+				cli.BoolFlag{
+					Name:  "raw-leaves",
+					Usage: "Use raw blocks for leaves (experimental)",
 				},
 				cli.StringFlag{
 					Name:  "name, n",
@@ -283,41 +316,22 @@ automatically generated.
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
-				cli.BoolFlag{
-					Name:  "shard",
-					Usage: "Break the file into pieces (shards) and distributed among peers",
-				},
-				cli.Uint64Flag{
-					Name:  "shard-size",
-					Value: defaultAddParams.ShardSize,
-					Usage: "Sets the maximum replication factor for pinning this file",
-				},
+				// TODO: Uncomment when sharding is supported.
 				// cli.BoolFlag{
-				// 	Name:  "only-hashes",
-				// 	Usage: "Write newline separated list of  hashes to output",
+				//	Name:  "shard",
+				//	Usage: "Break the file into pieces (shards) and distributed among peers",
 				// },
-				cli.StringFlag{
-					Name:  "layout, L",
-					Value: defaultAddParams.Layout,
-					Usage: "Dag layout to use for dag generation: balanced or trickle",
-				},
-				cli.StringFlag{
-					Name:  "chunker, s",
-					Usage: "Chunker selection. Fixed block size: 'size-<size>', or rabin chunker: 'rabin-<min>-<avg>-<max>'",
-					Value: defaultAddParams.Chunker,
-				},
-				cli.BoolFlag{
-					Name:  "raw-leaves",
-					Usage: "Use raw blocks for leaves (experimental)",
-				},
+				// cli.Uint64Flag{
+				//	Name:  "shard-size",
+				//	Value: defaultAddParams.ShardSize,
+				//	Usage: "Sets the maximum replication factor for pinning this file",
+				// },
+				// TODO: Figure progress over total bar.
 				// cli.BoolFlag{
-				// 	Name:  "progress, p",
-				// 	Usage: "Stream progress data",
+				//	Name:  "progress, p",
+				//	Usage: "Stream progress data",
 				// },
-				cli.BoolFlag{
-					Name:  "hidden, H",
-					Usage: "Include files that are hidden.  Only takes effect on recursive add",
-				},
+
 			},
 			Action: func(c *cli.Context) error {
 				shard := c.Bool("shard")
@@ -347,17 +361,45 @@ automatically generated.
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
 				p.Name = name
-				p.Shard = shard
-				p.ShardSize = c.Uint64("shard-size")
+				//p.Shard = shard
+				//p.ShardSize = c.Uint64("shard-size")
+				p.Shard = false
 				p.Layout = c.String("layout")
 				p.Chunker = c.String("chunker")
 				p.RawLeaves = c.Bool("raw-leaves")
 				p.Hidden = c.Bool("hidden")
+				p.Wrap = c.Bool("wrap-with-directory") || len(paths) > 1
 
 				out := make(chan *api.AddedOutput, 1)
+				var wg sync.WaitGroup
+				wg.Add(1)
 				go func() {
+					defer wg.Done()
+					var last string
 					for v := range out {
-						formatResponse(c, v, nil)
+						// Print everything when doing json
+						if c.GlobalString("encoding") != "text" {
+							formatResponse(c, *v, nil)
+							continue
+						}
+
+						// Print last hash only
+						if c.Bool("quieter") {
+							last = v.Hash
+							continue
+						}
+
+						// Print hashes only
+						if c.Bool("quiet") {
+							fmt.Println(v.Hash)
+							continue
+						}
+
+						// Format normal text representation of AddedOutput
+						formatResponse(c, *v, nil)
+					}
+					if last != "" {
+						fmt.Println(last)
 					}
 				}()
 
@@ -366,9 +408,9 @@ automatically generated.
 					p,
 					out,
 				)
-
+				wg.Wait()
 				formatResponse(c, nil, cerr)
-				return nil
+				return cerr
 			},
 		},
 		{
