@@ -29,7 +29,7 @@ func (rpcs *testRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) e
 	return nil
 }
 
-func (rpcs *testRPC) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("we can only replicate to 1 peer")
 	}
@@ -49,14 +49,14 @@ func TestAdd(t *testing.T) {
 		params := api.DefaultAddParams()
 
 		dags := New(client, params.PinOptions)
-		add := adder.New(context.Background(), dags, params, nil)
+		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
 
-		rootCid, err := add.FromMultipart(r)
+		rootCid, err := add.FromMultipart(context.Background(), r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -91,14 +91,14 @@ func TestAdd(t *testing.T) {
 		params.Layout = "trickle"
 
 		dags := New(client, params.PinOptions)
-		add := adder.New(context.Background(), dags, params, nil)
+		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
 		defer sth.Clean()
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
 
-		rootCid, err := add.FromMultipart(r)
+		rootCid, err := add.FromMultipart(context.Background(), r)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -119,7 +119,7 @@ func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
 	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", dag.pinOpts.Name)
 	clusterDAGPin.Type = api.ClusterDAGType
 	clusterDAGPin.Reference = dataRootCid
-	err = dag.pin(ctx, clusterDAGPin)
+	err = adder.Pin(ctx, dag.rpcClient, clusterDAGPin)
 	if err != nil {
 		return dataRootCid, err
 	}
@@ -129,7 +129,7 @@ func (dag *DAGService) Finalize(ctx context.Context) (*cid.Cid, error) {
 	metaPin.Type = api.MetaType
 	metaPin.Reference = clusterDAG
 	metaPin.MaxDepth = 0 // irrelevant. Meta-pins are not pinned
-	err = dag.pin(ctx, metaPin)
+	err = adder.Pin(ctx, dag.rpcClient, metaPin)
 	if err != nil {
 		return dataRootCid, err
 	}
@@ -267,18 +267,6 @@ func (dag *DAGService) flushCurrentShard(ctx context.Context) (*cid.Cid, error) 
 	})
 
 	return shard.LastLink(), nil
-}
-
-// shortcut to pin something in Cluster
-func (dag *DAGService) pin(ctx context.Context, p api.Pin) error {
-	return dag.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Pin",
-		p.ToSerial(),
-		&struct{}{},
-	)
 }
 
 // AddMany calls Add for every given node.

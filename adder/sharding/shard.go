@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	humanize "github.com/dustin/go-humanize"
@@ -27,15 +28,7 @@ type shard struct {
 }
 
 func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard, error) {
-	var allocs []string
-	err := rpc.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Allocate",
-		api.PinWithOpts(nil, opts).ToSerial(),
-		&allocs,
-	)
+	allocs, err := adder.BlockAllocate(ctx, rpc, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +47,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 
 	return &shard{
 		rpc:         rpc,
-		allocations: api.StringsToPeers(allocs),
+		allocations: allocs,
 		pinOptions:  opts,
 		dagNode:     make(map[string]*cid.Cid),
 		currentSize: 0,
@@ -106,25 +99,14 @@ func (sh *shard) Flush(ctx context.Context, shardN int, prev *cid.Cid) (*cid.Cid
 		pin.MaxDepth = 2
 	}
 
-	logger.Debugf("Shard %d: pinning shard DAG: %s", shardN, rootCid)
-	logger.Debugf("%+v", pin)
-	err = sh.rpc.CallContext(
-		ctx,
-		"", // use ourself to pin
-		"Cluster",
-		"Pin",
-		pin.ToSerial(),
-		&struct{}{},
-	)
-
-	logger.Infof("shard #%d (%s) completed and flushed. Total size: %s. Links: %d",
+	logger.Infof("shard #%d (%s) completed. Total size: %s. Links: %d",
 		shardN,
 		rootCid,
 		humanize.Bytes(sh.Size()),
 		len(sh.dagNode),
 	)
 
-	return rootCid, err
+	return rootCid, adder.Pin(ctx, sh.rpc, pin)
 }
 
 // Size returns this shard's current size.

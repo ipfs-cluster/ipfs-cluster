@@ -16,7 +16,6 @@ import (
 
 // PutBlock sends a NodeWithMeta to the given destinations.
 func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests []peer.ID) error {
-	logger.Debugf("put block: %s", n.Cid)
 	c, err := cid.Decode(n.Cid)
 	if err != nil {
 		return err
@@ -35,7 +34,7 @@ func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests [
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(dests))
 	defer rpcutil.MultiCancel(cancels)
 
-	logger.Debugf("block put %s", n.Cid)
+	logger.Debugf("block put %s to %s", n.Cid, dests)
 	errs := rpc.MultiCall(
 		ctxs,
 		dests,
@@ -45,6 +44,36 @@ func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests [
 		rpcutil.RPCDiscardReplies(len(dests)),
 	)
 	return rpcutil.CheckErrs(errs)
+}
+
+// BlockAllocate helps allocating blocks to peers.
+func BlockAllocate(ctx context.Context, rpc *rpc.Client, pinOpts api.PinOptions) ([]peer.ID, error) {
+	// Find where to allocate this file
+	var allocsStr []string
+	err := rpc.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"BlockAllocate",
+		api.PinWithOpts(nil, pinOpts).ToSerial(),
+		&allocsStr,
+	)
+	return api.StringsToPeers(allocsStr), err
+}
+
+func Pin(ctx context.Context, rpc *rpc.Client, pin api.Pin) error {
+	if pin.ReplicationFactorMin < 0 {
+		pin.Allocations = []peer.ID{}
+	}
+	logger.Debugf("adder pinning %+v", pin)
+	return rpc.CallContext(
+		ctx,
+		"", // use ourself to pin
+		"Cluster",
+		"Pin",
+		pin.ToSerial(),
+		&struct{}{},
+	)
 }
 
 // ErrDAGNotFound is returned whenever we try to get a block from the DAGService.

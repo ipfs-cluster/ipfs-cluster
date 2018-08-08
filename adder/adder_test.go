@@ -57,9 +57,9 @@ func TestAdder(t *testing.T) {
 		resultCids: make(map[string]struct{}),
 	}
 
-	adder := New(context.Background(), dags, p, nil)
+	adder := New(dags, p, nil)
 
-	root, err := adder.FromMultipart(r)
+	root, err := adder.FromMultipart(context.Background(), r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,14 +91,14 @@ func TestAdder_DoubleStart(t *testing.T) {
 		resultCids: make(map[string]struct{}),
 	}
 
-	adder := New(context.Background(), dags, p, nil)
-	_, err := adder.FromFiles(f)
+	adder := New(dags, p, nil)
+	_, err := adder.FromFiles(context.Background(), f)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	f = sth.GetTreeSerialFile(t)
-	_, err = adder.FromFiles(f)
+	_, err = adder.FromFiles(context.Background(), f)
 	if err == nil {
 		t.Fatal("expected an error: cannot run importer twice")
 	}
@@ -118,12 +118,12 @@ func TestAdder_ContextCancelled(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	adder := New(ctx, dags, p, nil)
+	adder := New(dags, p, nil)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := adder.FromMultipart(r)
+		_, err := adder.FromMultipart(ctx, r)
 		if err == nil {
 			t.Error("expected a context cancelled error")
 		}

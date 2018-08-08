@@ -17,8 +17,8 @@ import (
 var logger = logging.Logger("adder")
 
 // ClusterDAGService is an implementation of ipld.DAGService plus a Finalize
-// method. ClusterDAGServices can be used to create Adders with different
-// add implementations.
+// method. ClusterDAGServices can be used to provide Adders with a different
+// add implementation.
 type ClusterDAGService interface {
 	ipld.DAGService
 	Finalize(context.Context) (*cid.Cid, error)
@@ -33,17 +33,21 @@ type Adder struct {
 	dags ClusterDAGService
 
 	params *api.AddParams
+
+	// AddedOutput updates are placed on this channel
+	// whenever a block is processed. They contain information
+	// about the block, the CID, the Name etc. and are mostly
+	// meant to be streamed back to the user.
 	output chan *api.AddedOutput
 }
 
-// New returns a new Adder with the given ClusterDAGService, add optios and a
+// New returns a new Adder with the given ClusterDAGService, add options and a
 // channel to send updates during the adding process.
 //
 // An Adder may only be used once.
-func New(ctx context.Context, ds ClusterDAGService, p *api.AddParams, out chan *api.AddedOutput) *Adder {
-	ctx2, cancel := context.WithCancel(ctx)
-
-	// Discard all output
+func New(ds ClusterDAGService, p *api.AddParams, out chan *api.AddedOutput) *Adder {
+	// Discard all progress update output as the caller has not provided
+	// a channel for them to listen on.
 	if out == nil {
 		out = make(chan *api.AddedOutput, 100)
 		go func() {
@@ -53,17 +57,21 @@ func New(ctx context.Context, ds ClusterDAGService, p *api.AddParams, out chan *
 	}
 
 	return &Adder{
-		ctx:    ctx2,
-		cancel: cancel,
 		dags:   ds,
 		params: p,
 		output: out,
 	}
 }
 
+func (a *Adder) setContext(ctx context.Context) {
+	ctxc, cancel := context.WithCancel(ctx)
+	a.ctx = ctxc
+	a.cancel = cancel
+}
+
 // FromMultipart adds content from a multipart.Reader. The adder will
 // no longer be usable after calling this method.
-func (a *Adder) FromMultipart(r *multipart.Reader) (*cid.Cid, error) {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (*cid.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", a.params)
 
 	f := &files.MultipartFile{
@@ -71,13 +79,15 @@ func (a *Adder) FromMultipart(r *multipart.Reader) (*cid.Cid, error) {
 		Reader:    r,
 	}
 	defer f.Close()
-	return a.FromFiles(f)
+	return a.FromFiles(ctx, f)
 }
 
 // FromFiles adds content from a files.File. The adder will no longer
 // be usable after calling this method.
-func (a *Adder) FromFiles(f files.File) (*cid.Cid, error) {
+func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	logger.Debugf("adding from files")
+	a.setContext(ctx)
+
 	if a.ctx.Err() != nil { // don't allow running twice
 		return nil, a.ctx.Err()
 	}
@@ -93,7 +103,7 @@ func (a *Adder) FromFiles(f files.File) (*cid.Cid, error) {
 	ipfsAdder.Hidden = a.params.Hidden
 	ipfsAdder.Trickle = a.params.Layout == "trickle"
 	ipfsAdder.RawLeaves = a.params.RawLeaves
-	ipfsAdder.Wrap = true
+	ipfsAdder.Wrap = a.params.Wrap
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 

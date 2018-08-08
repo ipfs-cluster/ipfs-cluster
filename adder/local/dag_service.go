@@ -46,21 +46,11 @@ func New(rpc *rpc.Client, opts api.PinOptions) *DAGService {
 // Add puts the given node in the destination peers.
 func (dag *DAGService) Add(ctx context.Context, node ipld.Node) error {
 	if dag.dests == nil {
-		// Find where to allocate this file
-		var allocsStr []string
-		err := dag.rpcClient.CallContext(
-			ctx,
-			"",
-			"Cluster",
-			"Allocate",
-			api.PinWithOpts(nil, dag.pinOpts).ToSerial(),
-			&allocsStr,
-		)
+		dests, err := adder.BlockAllocate(ctx, dag.rpcClient, dag.pinOpts)
 		if err != nil {
 			return err
 		}
-
-		dag.dests = api.StringsToPeers(allocsStr)
+		dag.dests = dests
 	}
 
 	size, err := node.Size()

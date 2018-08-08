@@ -36,7 +36,7 @@ func (rpcs *testRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) e
 	return nil
 }
 
-func (rpcs *testRPC) Allocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("we can only replicate to 1 peer")
 	}
@@ -72,7 +72,7 @@ func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
 	out := make(chan *api.AddedOutput, 1)
 
 	dags := New(client, params.PinOptions, out)
-	add := adder.New(context.Background(), dags, params, out)
+	add := adder.New(dags, params, out)
 
 	go func() {
 		for v := range out {
@@ -102,7 +102,7 @@ func TestFromMultipart(t *testing.T) {
 		mr := sth.GetTreeMultiReader(t)
 		r := multipart.NewReader(mr, mr.Boundary())
 
-		rootCid, err := add.FromMultipart(r)
+		rootCid, err := add.FromMultipart(context.Background(), r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -163,7 +163,7 @@ func TestFromMultipart(t *testing.T) {
 		mr := sth.GetRandFileMultiReader(t, 1024*50) // 50 MB
 		r := multipart.NewReader(mr, mr.Boundary())
 
-		rootCid, err := add.FromMultipart(r)
+		rootCid, err := add.FromMultipart(context.Background(), r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,7 +242,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 
 		f := sth.GetTreeSerialFile(t)
 
-		_, err := add.FromFiles(f)
+		_, err := add.FromFiles(context.Background(), f)
 		if err == nil {
 			t.Error(tc.name, ": expected an error")
 		} else {
