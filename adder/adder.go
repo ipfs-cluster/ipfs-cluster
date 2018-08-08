@@ -97,13 +97,15 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 
 	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dags)
 	if err != nil {
+		logger.Error(err)
 		return nil, err
 	}
 
 	ipfsAdder.Hidden = a.params.Hidden
 	ipfsAdder.Trickle = a.params.Layout == "trickle"
 	ipfsAdder.RawLeaves = a.params.RawLeaves
-	ipfsAdder.Wrap = a.params.Wrap
+	ipfsAdder.Wrap = true // FIXME: adding fails when !wrap( see ipfsadd.go)
+	//ipfsAdder.Wrap = a.params.Wrap
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 
