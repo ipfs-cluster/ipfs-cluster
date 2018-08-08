@@ -192,7 +192,7 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *a
 	return err
 }
 
-// Allocate returns allocations for blocks. This is used in the adders.
+// BlockAllocate returns allocations for blocks. This is used in the adders.
 // It's different from pin allocations when ReplicationFactor < 0.
 func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
 	pin := in.ToPin()

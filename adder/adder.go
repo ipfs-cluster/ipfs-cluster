@@ -117,6 +117,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 				goto FINALIZE
 			}
 			if err != nil {
+				logger.Error("error adding to cluster: ", err)
 				return nil, err
 			}
 		}
@@ -127,8 +128,13 @@ FINALIZE:
 	if err != nil {
 		return nil, err
 	}
-
-	return a.dags.Finalize(a.ctx)
+	rootCid, err := a.dags.Finalize(a.ctx)
+	if err != nil {
+		logger.Error("error finalizing adder:", err)
+		return nil, err
+	}
+	logger.Infof("%s successfully added to cluster", rootCid)
+	return rootCid, nil
 }
 
 func addFile(fs files.File, ipfsAdder *ipfsadd.Adder) error {

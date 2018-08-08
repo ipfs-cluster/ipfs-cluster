@@ -61,6 +61,7 @@ func BlockAllocate(ctx context.Context, rpc *rpc.Client, pinOpts api.PinOptions)
 	return api.StringsToPeers(allocsStr), err
 }
 
+// Pin helps sending local RPC pin requests.
 func Pin(ctx context.Context, rpc *rpc.Client, pin api.Pin) error {
 	if pin.ReplicationFactorMin < 0 {
 		pin.Allocations = []peer.ID{}
