@@ -145,6 +145,7 @@ func addFile(fs files.File, ipfsAdder *ipfsadd.Adder) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	logger.Debugf("ipfsAdder AddFile(%s)", f.FullPath())
 	return ipfsAdder.AddFile(f)

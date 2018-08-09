@@ -365,7 +365,8 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1
 		sth := test.NewShardingTestHelper()
-		body := sth.GetTreeMultiReader(t)
+		body, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		resp := api.AddedOutput{}
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		makeStreamingPost(t, rest, localURL, body, mpContentType, &resp)
@@ -379,7 +380,8 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 	defer rest.Shutdown()
 	tf := func(t *testing.T, url urlF) {
 		sth := test.NewShardingTestHelper()
-		body := sth.GetTreeMultiReader(t)
+		body, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		resp := api.AddedOutput{}
 		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"

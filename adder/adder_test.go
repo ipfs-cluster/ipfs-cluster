@@ -40,9 +40,10 @@ func (dag *mockCDagServ) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid,
 
 func TestAdder(t *testing.T) {
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 
-	mr := sth.GetTreeMultiReader(t)
+	mr, closer := sth.GetTreeMultiReader(t)
+	defer closer.Close()
 	r := multipart.NewReader(mr, mr.Boundary())
 	p := api.DefaultAddParams()
 	expectedCids := test.ShardingDirCids[:]
@@ -76,7 +77,7 @@ func TestAdder(t *testing.T) {
 
 func TestAdder_DoubleStart(t *testing.T) {
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 
 	f := sth.GetTreeSerialFile(t)
 	p := api.DefaultAddParams()
@@ -88,6 +89,7 @@ func TestAdder_DoubleStart(t *testing.T) {
 	adder := New(dags, p, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	_, err := adder.FromFiles(ctx, f)
+	f.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +97,7 @@ func TestAdder_DoubleStart(t *testing.T) {
 
 	f = sth.GetTreeSerialFile(t)
 	_, err = adder.FromFiles(ctx, f)
+	f.Close()
 	if err == nil {
 		t.Fatal("expected an error: cannot run importer twice")
 	}
@@ -102,9 +105,10 @@ func TestAdder_DoubleStart(t *testing.T) {
 
 func TestAdder_ContextCancelled(t *testing.T) {
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 
-	mr := sth.GetRandFileMultiReader(t, 50000) // 50 MB
+	mr, closer := sth.GetRandFileMultiReader(t, 50000) // 50 MB
+	defer closer.Close()
 	r := multipart.NewReader(mr, mr.Boundary())
 
 	p := api.DefaultAddParams()

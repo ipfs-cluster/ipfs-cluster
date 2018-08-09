@@ -258,13 +258,14 @@ func TestAddFile(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 
 	t.Run("local", func(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Shard = false
 		params.Name = "testlocal"
-		mfr := sth.GetTreeMultiReader(t)
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
 		c, err := cl.AddFile(r, params)
 		if err != nil {
@@ -292,7 +293,8 @@ func TestAddFile(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Shard = true
 		params.Name = "testshard"
-		mfr := sth.GetTreeMultiReader(t)
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
 		c, err := cl.AddFile(r, params)
 		if err != nil {
@@ -315,12 +317,13 @@ func TestUnpinShard(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 
 	params := api.DefaultAddParams()
 	params.Shard = true
 	params.Name = "testshard"
-	mfr := sth.GetTreeMultiReader(t)
+	mfr, closer := sth.GetTreeMultiReader(t)
+	defer closer.Close()
 	r := multipart.NewReader(mfr, mfr.Boundary())
 	root, err := cl.AddFile(r, params)
 	if err != nil {

@@ -437,7 +437,8 @@ func TestAddMultiFile(t *testing.T) {
 
 	testF := func(t *testing.T, c *Client) {
 		sth := test.NewShardingTestHelper()
-		mfr := sth.GetTreeMultiReader(t)
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 
 		p := &types.AddParams{
 			PinOptions: types.PinOptions{

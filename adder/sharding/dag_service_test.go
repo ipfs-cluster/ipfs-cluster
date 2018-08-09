@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	logging.SetLogLevel("addshard", "INFO")
+	logging.SetLogLevel("shardingdags", "INFO")
 	logging.SetLogLevel("adder", "INFO")
 }
 
@@ -85,7 +85,7 @@ func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
 
 func TestFromMultipart(t *testing.T) {
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 
 	t.Run("Test tree", func(t *testing.T) {
 		p := api.DefaultAddParams()
@@ -99,7 +99,8 @@ func TestFromMultipart(t *testing.T) {
 		add, rpcObj := makeAdder(t, p)
 		_ = rpcObj
 
-		mr := sth.GetTreeMultiReader(t)
+		mr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		r := multipart.NewReader(mr, mr.Boundary())
 
 		rootCid, err := add.FromMultipart(context.Background(), r)
@@ -160,7 +161,8 @@ func TestFromMultipart(t *testing.T) {
 		add, rpcObj := makeAdder(t, p)
 		_ = rpcObj
 
-		mr := sth.GetRandFileMultiReader(t, 1024*50) // 50 MB
+		mr, closer := sth.GetRandFileMultiReader(t, 1024*50) // 50 MB
+		defer closer.Close()
 		r := multipart.NewReader(mr, mr.Boundary())
 
 		rootCid, err := add.FromMultipart(context.Background(), r)
@@ -235,7 +237,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 	}
 
 	sth := test.NewShardingTestHelper()
-	defer sth.Clean()
+	defer sth.Clean(t)
 	for _, tc := range tcs {
 		add, rpcObj := makeAdder(t, tc.params)
 		_ = rpcObj
@@ -248,5 +250,6 @@ func TestFromMultipart_Errors(t *testing.T) {
 		} else {
 			t.Log(tc.name, ":", err)
 		}
+		f.Close()
 	}
 }

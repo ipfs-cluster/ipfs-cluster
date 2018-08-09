@@ -53,8 +53,9 @@ func TestAdd(t *testing.T) {
 		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
-		defer sth.Clean()
-		mr := sth.GetTreeMultiReader(t)
+		defer sth.Clean(t)
+		mr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		r := multipart.NewReader(mr, mr.Boundary())
 
 		rootCid, err := add.FromMultipart(context.Background(), r)
@@ -95,8 +96,9 @@ func TestAdd(t *testing.T) {
 		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
-		defer sth.Clean()
-		mr := sth.GetTreeMultiReader(t)
+		defer sth.Clean(t)
+		mr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
 		r := multipart.NewReader(mr, mr.Boundary())
 
 		rootCid, err := add.FromMultipart(context.Background(), r)
