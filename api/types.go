@@ -552,33 +552,6 @@ func StringsToCidSet(strs []string) *cid.Set {
 	return cids
 }
 
-// AllType is a PinType used for filtering all pin types
-const AllType PinType = -1
-
-// PinType values. See PinType documentation for further explanation.
-const (
-	// BadType type showing up anywhere indicates a bug
-	BadType PinType = iota
-	// DataType is a regular, non-sharded pin. It is pinned recursively.
-	// It has no associated reference.
-	DataType
-	// MetaType tracks the original CID of a sharded DAG. Its Reference
-	// points to the Cluster DAG CID.
-	MetaType
-	// ClusterDAGType pins carry the CID if the root node that points to
-	// all the shard-root-nodes of the shards in which a DAG has been
-	// divided. Its Reference carries the MetaType CID.
-	// ClusterDAGType pins are pinned directly everywhere.
-	ClusterDAGType
-	// ShardType pins carry the root CID of a shard, which points
-	// to individual blocks on the original DAG that the user is adding,
-	// which has been sharded.
-	// They carry a Reference to the previous shard.
-	// ShardTypes are pinned with MaxDepth=1 (root and
-	// direct children only).
-	ShardType
-)
-
 // PinType specifies which sort of Pin object we are dealing with.
 // In practice, the PinType decides how a Pin object is treated by the
 // PinTracker.
@@ -598,6 +571,33 @@ const (
 //
 //
 type PinType int
+
+// PinType values. See PinType documentation for further explanation.
+const (
+	// BadType type showing up anywhere indicates a bug
+	BadType PinType = 1 << iota
+	// DataType is a regular, non-sharded pin. It is pinned recursively.
+	// It has no associated reference.
+	DataType
+	// MetaType tracks the original CID of a sharded DAG. Its Reference
+	// points to the Cluster DAG CID.
+	MetaType
+	// ClusterDAGType pins carry the CID of the root node that points to
+	// all the shard-root-nodes of the shards in which a DAG has been
+	// divided. Its Reference carries the MetaType CID.
+	// ClusterDAGType pins are pinned directly everywhere.
+	ClusterDAGType
+	// ShardType pins carry the root CID of a shard, which points
+	// to individual blocks on the original DAG that the user is adding,
+	// which has been sharded.
+	// They carry a Reference to the previous shard.
+	// ShardTypes are pinned with MaxDepth=1 (root and
+	// direct children only).
+	ShardType
+)
+
+// AllType is a PinType used for filtering all pin types
+const AllType PinType = DataType | MetaType | ClusterDAGType | ShardType
 
 // PinTypeFromString is the inverse of String.  It returns the PinType value
 // corresponding to the input string

@@ -43,13 +43,13 @@ func New(rpc *rpc.Client, opts api.PinOptions) *DAGService {
 }
 
 // Add puts the given node in the destination peers.
-func (dag *DAGService) Add(ctx context.Context, node ipld.Node) error {
-	if dag.dests == nil {
-		dests, err := adder.BlockAllocate(ctx, dag.rpcClient, dag.pinOpts)
+func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
+	if dgs.dests == nil {
+		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.pinOpts)
 		if err != nil {
 			return err
 		}
-		dag.dests = dests
+		dgs.dests = dests
 	}
 
 	size, err := node.Size()
@@ -62,22 +62,22 @@ func (dag *DAGService) Add(ctx context.Context, node ipld.Node) error {
 		CumSize: size,
 	}
 
-	return adder.PutBlock(ctx, dag.rpcClient, nodeSerial, dag.dests)
+	return adder.PutBlock(ctx, dgs.rpcClient, nodeSerial, dgs.dests)
 }
 
 // Finalize pins the last Cid added to this DAGService.
-func (dag *DAGService) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
+func (dgs *DAGService) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
 	// Cluster pin the result
 	pinS := api.PinSerial{
 		Cid:        root.String(),
 		Type:       int(api.DataType),
 		MaxDepth:   -1,
-		PinOptions: dag.pinOpts,
+		PinOptions: dgs.pinOpts,
 	}
 
-	dag.dests = nil
+	dgs.dests = nil
 
-	return root, dag.rpcClient.CallContext(
+	return root, dgs.rpcClient.CallContext(
 		ctx,
 		"",
 		"Cluster",
@@ -88,9 +88,9 @@ func (dag *DAGService) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, e
 }
 
 // AddMany calls Add for every given node.
-func (dag *DAGService) AddMany(ctx context.Context, nodes []ipld.Node) error {
+func (dgs *DAGService) AddMany(ctx context.Context, nodes []ipld.Node) error {
 	for _, node := range nodes {
-		err := dag.Add(ctx, node)
+		err := dgs.Add(ctx, node)
 		if err != nil {
 			return err
 		}

@@ -1048,7 +1048,6 @@ func (ipfs *Connector) shouldUpdateMetric() bool {
 	if ipfs.updateMetricCount%updateMetricMod == 0 {
 		ipfs.updateMetricCount = 0
 		return true
-
 	}
 	return false
 }

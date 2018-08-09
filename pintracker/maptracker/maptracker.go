@@ -185,7 +185,7 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 	// something else or viceversa like it happens with Remote pins so
 	// we just track them.
 	if c.Type == api.MetaType {
-		mpt.optracker.TrackNewOperation(c, optracker.OperationSharded, optracker.PhaseDone)
+		mpt.optracker.TrackNewOperation(c, optracker.OperationShard, optracker.PhaseDone)
 		return nil
 	}
 

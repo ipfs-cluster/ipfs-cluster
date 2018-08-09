@@ -67,8 +67,6 @@ func (c *Client) doRequest(
 		}
 	}
 
-	r.ProtoMajor = 1
-	r.ProtoMinor = 1
 	if body != nil {
 		r.ContentLength = -1 // this lets go use "chunked".
 	}
@@ -90,7 +88,7 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	case resp.StatusCode == http.StatusNoContent:
 		logger.Debug("Request suceeded. Response has no content")
 	default:
-		if resp.StatusCode > 399 {
+		if resp.StatusCode > 399 && resp.StatusCode < 600 {
 			var apiErr api.Error
 			err = json.Unmarshal(body, &apiErr)
 			if err != nil {
@@ -113,7 +111,7 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 }
 
 func (c *Client) handleStreamResponse(resp *http.Response, handler responseDecoder) error {
-	if resp.StatusCode > 399 {
+	if resp.StatusCode > 399 && resp.StatusCode < 600 {
 		return c.handleResponse(resp, nil)
 	}
 

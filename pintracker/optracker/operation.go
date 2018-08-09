@@ -25,9 +25,9 @@ const (
 	OperationUnpin
 	// OperationRemote represents an noop operation
 	OperationRemote
-	// OperationSharded represents a meta pin. We don't
+	// OperationShard represents a meta pin. We don't
 	// pin these.
-	OperationSharded
+	OperationShard
 )
 
 //go:generate stringer -type=Phase
@@ -192,7 +192,7 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		}
 	case OperationRemote:
 		return api.TrackerStatusRemote
-	case OperationSharded:
+	case OperationShard:
 		return api.TrackerStatusSharded
 	default:
 		return api.TrackerStatusBug

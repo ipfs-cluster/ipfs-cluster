@@ -504,13 +504,13 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	reader, err := r.MultipartReader()
 	if err != nil {
-		sendErrorResponse(w, 400, err.Error())
+		sendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	params, err := types.AddParamsFromQuery(r.URL.Query())
 	if err != nil {
-		sendErrorResponse(w, 400, err.Error())
+		sendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -548,7 +548,7 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errorResp := types.AddedOutput{
 			Error: types.Error{
-				Code:    500,
+				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 			},
 		}
@@ -903,7 +903,7 @@ func sendResponse(w http.ResponseWriter, err error, resp interface{}) {
 // was handled), or false otherwise.
 func checkErr(w http.ResponseWriter, err error) bool {
 	if err != nil {
-		sendErrorResponse(w, 500, err.Error())
+		sendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return false
 	}
 	return true

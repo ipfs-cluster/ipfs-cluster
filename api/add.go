@@ -8,7 +8,7 @@ import (
 )
 
 // DefaultShardSize is the shard size for params objects created with DefaultParams().
-var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
+var DefaultShardSize = uint64(100 * 1024 * 1024 * 1024) // 100 MB
 
 // AddedOutput carries information for displaying the standard ipfs output
 // indicating a node of a file has been added.
@@ -81,9 +81,7 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 
 	layout := query.Get("layout")
 	switch layout {
-	case "trickle":
-	case "balanced":
-	case "":
+	case "trickle", "balanced", "":
 		// nothing
 	default:
 		return nil, errors.New("parameter trickle invalid")

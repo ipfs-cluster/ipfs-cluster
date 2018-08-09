@@ -14,17 +14,17 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
-type mockCDagServ struct {
+type mockCDAGServ struct {
 	BaseDAGService
 	resultCids map[string]struct{}
 }
 
-func (dag *mockCDagServ) Add(ctx context.Context, node ipld.Node) error {
+func (dag *mockCDAGServ) Add(ctx context.Context, node ipld.Node) error {
 	dag.resultCids[node.Cid().String()] = struct{}{}
 	return nil
 }
 
-func (dag *mockCDagServ) AddMany(ctx context.Context, nodes []ipld.Node) error {
+func (dag *mockCDAGServ) AddMany(ctx context.Context, nodes []ipld.Node) error {
 	for _, node := range nodes {
 		err := dag.Add(ctx, node)
 		if err != nil {
@@ -34,7 +34,7 @@ func (dag *mockCDagServ) AddMany(ctx context.Context, nodes []ipld.Node) error {
 	return nil
 }
 
-func (dag *mockCDagServ) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
+func (dag *mockCDAGServ) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
 	return root, nil
 }
 
@@ -48,7 +48,7 @@ func TestAdder(t *testing.T) {
 	p := api.DefaultAddParams()
 	expectedCids := test.ShardingDirCids[:]
 
-	dags := &mockCDagServ{
+	dags := &mockCDAGServ{
 		resultCids: make(map[string]struct{}),
 	}
 
@@ -82,7 +82,7 @@ func TestAdder_DoubleStart(t *testing.T) {
 	f := sth.GetTreeSerialFile(t)
 	p := api.DefaultAddParams()
 
-	dags := &mockCDagServ{
+	dags := &mockCDAGServ{
 		resultCids: make(map[string]struct{}),
 	}
 
@@ -113,7 +113,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 
 	p := api.DefaultAddParams()
 
-	dags := &mockCDagServ{
+	dags := &mockCDAGServ{
 		resultCids: make(map[string]struct{}),
 	}
 

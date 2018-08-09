@@ -65,7 +65,7 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 	return shardNode, nil
 }
 
-func makeDAGSimple(dagObj map[string]*cid.Cid) (ipld.Node, error) {
+func makeDAGSimple(ctx context.Context, dagObj map[string]*cid.Cid) (ipld.Node, error) {
 	node, err := cbor.WrapObject(
 		dagObj,
 		hashFn, mh.DefaultLengths[hashFn],
@@ -83,11 +83,13 @@ func makeDAGSimple(dagObj map[string]*cid.Cid) (ipld.Node, error) {
 // carry links to the data nodes being tracked. The head of the output slice
 // is always the root of the shardDAG, i.e. the ipld node that should be
 // recursively pinned to track the shard
-func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
-	// FIXME: Do we really have a size limitation for cbor blocks?
+func makeDAG(ctx context.Context, dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
+	// FIXME: We have a 4MB limit on the block size enforced by bitswap:
+	// https://github.com/libp2p/go-libp2p-net/blob/master/interface.go#L20
+
 	// No indirect node
 	if len(dagObj) <= MaxLinks {
-		n, err := makeDAGSimple(dagObj)
+		n, err := makeDAGSimple(ctx, dagObj)
 		return []ipld.Node{n}, err
 	}
 	// Indirect node required
@@ -106,14 +108,14 @@ func makeDAG(dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
 			}
 			leafObj[fmt.Sprintf("%d", j)] = c
 		}
-		leafNode, err := makeDAGSimple(leafObj)
+		leafNode, err := makeDAGSimple(ctx, leafObj)
 		if err != nil {
 			return nil, err
 		}
 		indirectObj[fmt.Sprintf("%d", i)] = leafNode.Cid()
 		leafNodes = append(leafNodes, leafNode)
 	}
-	indirectNode, err := makeDAGSimple(indirectObj)
+	indirectNode, err := makeDAGSimple(ctx, indirectObj)
 	if err != nil {
 		return nil, err
 	}

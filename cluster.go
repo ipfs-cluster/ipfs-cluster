@@ -1032,7 +1032,8 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		pin.ReplicationFactorMin,
 		pin.ReplicationFactorMax,
 		blacklist,
-		prioritylist)
+		prioritylist,
+	)
 	if err != nil {
 		return false, err
 	}
@@ -1326,7 +1327,7 @@ func (c *Cluster) cidsFromMetaPin(h *cid.Cid) ([]*cid.Cid, error) {
 		return nil, err
 	}
 
-	list := make([]*cid.Cid, 0)
+	list := []*cid.Cid{}
 	list = append(list, h)
 
 	pin, ok := cState.Get(h)

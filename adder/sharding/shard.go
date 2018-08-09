@@ -57,7 +57,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 
 // AddLink tries to add a new block to this shard if it's not full.
 // Returns true if the block was added
-func (sh *shard) AddLink(c *cid.Cid, s uint64) {
+func (sh *shard) AddLink(ctx context.Context, c *cid.Cid, s uint64) {
 	linkN := len(sh.dagNode)
 	linkName := fmt.Sprintf("%d", linkN)
 	logger.Debugf("shard: add link: %s", linkName)
@@ -76,7 +76,7 @@ func (sh *shard) Allocations() []peer.ID {
 // shard.
 func (sh *shard) Flush(ctx context.Context, shardN int, prev *cid.Cid) (*cid.Cid, error) {
 	logger.Debugf("shard %d: flush", shardN)
-	nodes, err := makeDAG(sh.dagNode)
+	nodes, err := makeDAG(ctx, sh.dagNode)
 	if err != nil {
 		return nil, err
 	}

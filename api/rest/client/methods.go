@@ -331,7 +331,6 @@ func (c *Client) AddMultiFile(
 		}
 		select {
 		case out <- &obj:
-			//default:
 		}
 		return nil
 	}
