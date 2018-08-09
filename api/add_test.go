@@ -6,7 +6,7 @@ import (
 )
 
 func TestAddParams_FromQuery(t *testing.T) {
-	qStr := "layout=balanced&chunker=size-262144&name=test&raw=true&hidden=true&shard=true&repl_min=2&repl_max=4&shard_size=1"
+	qStr := "layout=balanced&chunker=size-262144&name=test&raw-leaves=true&hidden=true&shard=true&replication-min=2&replication-max=4&shard-size=1"
 
 	q, err := url.ParseQuery(qStr)
 	if err != nil {

@@ -47,6 +47,7 @@ func TestAdd(t *testing.T) {
 		}
 		client := rpc.NewClientWithServer(nil, "mock", server)
 		params := api.DefaultAddParams()
+		params.Wrap = true
 
 		dags := New(client, params.PinOptions)
 		add := adder.New(dags, params, nil)
@@ -61,7 +62,7 @@ func TestAdd(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if rootCid.String() != test.ShardingDirBalancedRootCID {
+		if rootCid.String() != test.ShardingDirBalancedRootCIDWrapped {
 			t.Fatal("bad root cid")
 		}
 
@@ -73,7 +74,7 @@ func TestAdd(t *testing.T) {
 			}
 		}
 
-		_, ok := rpcObj.pins.Load(test.ShardingDirBalancedRootCID)
+		_, ok := rpcObj.pins.Load(test.ShardingDirBalancedRootCIDWrapped)
 		if !ok {
 			t.Error("the tree wasn't pinned")
 		}

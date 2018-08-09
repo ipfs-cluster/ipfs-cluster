@@ -65,7 +65,7 @@ func (c *Client) enableLibp2p() error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+	ctx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
 	resolvedAddrs, err := madns.Resolve(ctx, addr)
 	if err != nil {

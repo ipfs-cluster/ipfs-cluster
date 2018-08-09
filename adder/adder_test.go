@@ -86,13 +86,15 @@ func TestAdder_DoubleStart(t *testing.T) {
 	}
 
 	adder := New(dags, p, nil)
-	_, err := adder.FromFiles(context.Background(), f)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := adder.FromFiles(ctx, f)
 	if err != nil {
 		t.Fatal(err)
 	}
+	cancel()
 
 	f = sth.GetTreeSerialFile(t)
-	_, err = adder.FromFiles(context.Background(), f)
+	_, err = adder.FromFiles(ctx, f)
 	if err == nil {
 		t.Fatal("expected an error: cannot run importer twice")
 	}

@@ -22,8 +22,9 @@ var (
 	TestShardCid     = "zdpuAoiNm1ntWx6jpgcReTiCWFHJSTpvTw4bAAn9p6yDnznqh"
 	TestShardData, _ = hex.DecodeString("a16130d82a58230012209273fd63ec94bed5abb219b2d9cb010cabe4af7b0177292d4335eff50464060a")
 
-	ShardingDirBalancedRootCID = "QmbfGRPTUd7L1xsAZZ1A3kUFP1zkEZ9kHdb6AGaajBzGGX"
-	ShardingDirTrickleRootCID  = "QmcqtKBVCrgZBXksfYzUxmw6S2rkyQhEhckqFBAUBcS1qz"
+	ShardingDirBalancedRootCID        = "QmdHXJgxeCFf6qDZqYYmMesV2DbZCVPEdEhj2oVTxP1y7Y"
+	ShardingDirBalancedRootCIDWrapped = "QmbfGRPTUd7L1xsAZZ1A3kUFP1zkEZ9kHdb6AGaajBzGGX"
+	ShardingDirTrickleRootCID         = "QmYMbx56GFNBDAaAMchtjmWjDTdqNKCSGuFxtRosiPgJL6"
 
 	// These hashes should match all the blocks produced when adding
 	// the files resulting from GetShardingDir*
