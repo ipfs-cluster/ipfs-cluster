@@ -32,7 +32,7 @@ type Adder struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	dags ClusterDAGService
+	dgs ClusterDAGService
 
 	params *api.AddParams
 
@@ -97,7 +97,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	defer a.cancel()
 	defer close(a.output)
 
-	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dags)
+	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dgs)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -131,7 +131,7 @@ FINALIZE:
 	if err != nil {
 		return nil, err
 	}
-	clusterRoot, err := a.dags.Finalize(a.ctx, adderRoot.Cid())
+	clusterRoot, err := a.dgs.Finalize(a.ctx, adderRoot.Cid())
 	if err != nil {
 		logger.Error("error finalizing adder:", err)
 		return nil, err
