@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	cid "github.com/ipfs/go-cid"
@@ -84,9 +85,29 @@ func (c *Client) Unpin(ci *cid.Cid) error {
 
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
-func (c *Client) Allocations(pinType api.PinType) ([]api.Pin, error) {
+func (c *Client) Allocations(filter api.PinType) ([]api.Pin, error) {
 	var pins []api.PinSerial
-	err := c.do("GET", fmt.Sprintf("/allocations?pintype=%s", pinType.String()), nil, nil, &pins)
+
+	types := []api.PinType{
+		api.DataType,
+		api.MetaType,
+		api.ClusterDAGType,
+		api.ShardType,
+	}
+
+	var strFilter []string
+
+	if filter == api.AllType {
+		strFilter = []string{"all"}
+	} else {
+		for _, t := range types {
+			if t&filter > 0 { // the filter includes this type
+				strFilter = append(strFilter, t.String())
+			}
+		}
+	}
+
+	err := c.do("GET", fmt.Sprintf("/allocations?filter=%s", strings.Join(strFilter, ",")), nil, nil, &pins)
 	result := make([]api.Pin, len(pins))
 	for i, p := range pins {
 		result[i] = p.ToPin()

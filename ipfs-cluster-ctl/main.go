@@ -551,13 +551,19 @@ any monitoring information about the IPFS status of the CIDs, it
 merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
 
-Pins related to sharded DAGs are hidden by default (--all to show).
+The filter only takes effect when listing all pins. The possible values are:
+  - all
+  - pin
+  - meta-pin
+  - clusterdag-pin
+  - shard-pin
 `,
 					ArgsUsage: "[CID]",
 					Flags: []cli.Flag{
-						cli.BoolFlag{
-							Name:  "all, a",
-							Usage: "display hidden CIDs",
+						cli.StringFlag{
+							Name:  "filter",
+							Usage: "Comma separated list of pin types. See help above.",
+							Value: "pin",
 						},
 					},
 					Action: func(c *cli.Context) error {
@@ -568,10 +574,12 @@ Pins related to sharded DAGs are hidden by default (--all to show).
 							resp, cerr := globalClient.Allocation(ci)
 							formatResponse(c, resp, cerr)
 						} else {
-							filter := api.PinType(api.DataType)
-							if c.Bool("all") {
-								filter = api.PinType(api.AllType)
+							var filter api.PinType = 0
+							strFilter := strings.Split(c.String("filter"), ",")
+							for _, f := range strFilter {
+								filter |= api.PinTypeFromString(f)
 							}
+
 							resp, cerr := globalClient.Allocations(filter)
 							formatResponse(c, resp, cerr)
 						}

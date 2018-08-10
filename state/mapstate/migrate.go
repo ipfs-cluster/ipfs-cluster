@@ -112,7 +112,7 @@ func (st *mapStateV3) next() migrateable {
 		mst4.PinMap[k] = api.PinSerial{
 			Cid:         v.Cid,
 			Allocations: v.Allocations,
-			Type:        int(api.DataType),
+			Type:        uint64(api.DataType),
 			Reference:   "",
 			PinOptions: api.PinOptions{
 				ReplicationFactorMin: v.ReplicationFactorMin,

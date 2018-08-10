@@ -53,16 +53,14 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 }
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
+	cid1 := MustDecodeCid(TestCid1)
+	cid2 := MustDecodeCid(TestCid2)
+	cid3 := MustDecodeCid(TestCid3)
+
 	*out = []api.PinSerial{
-		{
-			Cid: TestCid1,
-		},
-		{
-			Cid: TestCid2,
-		},
-		{
-			Cid: TestCid3,
-		},
+		api.PinCid(cid1).ToSerial(),
+		api.PinCid(cid2).ToSerial(),
+		api.PinCid(cid3).ToSerial(),
 	}
 	return nil
 }

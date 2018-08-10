@@ -570,7 +570,7 @@ func StringsToCidSet(strs []string) *cid.Set {
 // [][]..[]    [][]..[] Blocks (indirectly pinned on ipfs, not tracked in cluster)
 //
 //
-type PinType int
+type PinType uint64
 
 // PinType values. See PinType documentation for further explanation.
 const (
@@ -619,8 +619,8 @@ func PinTypeFromString(str string) PinType {
 }
 
 // String returns a printable value to identify the PinType
-func (pT *PinType) String() string {
-	switch *pT {
+func (pT PinType) String() string {
+	switch pT {
 	case DataType:
 		return "pin"
 	case MetaType:
@@ -632,7 +632,7 @@ func (pT *PinType) String() string {
 	case AllType:
 		return "all"
 	default:
-		panic("String() called on invalid shard type")
+		return "bad-type"
 	}
 }
 
@@ -695,7 +695,7 @@ type PinSerial struct {
 	PinOptions
 
 	Cid         string   `json:"cid"`
-	Type        int      `json:"type"`
+	Type        uint64   `json:"type"`
 	Allocations []string `json:"allocations"`
 	MaxDepth    int      `json:"max_depth"`
 	Reference   string   `json:"reference"`
@@ -718,7 +718,7 @@ func (pin Pin) ToSerial() PinSerial {
 	return PinSerial{
 		Cid:         c,
 		Allocations: allocs,
-		Type:        int(pin.Type),
+		Type:        uint64(pin.Type),
 		MaxDepth:    pin.MaxDepth,
 		Reference:   ref,
 		PinOptions: PinOptions{

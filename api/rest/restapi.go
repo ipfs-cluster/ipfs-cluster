@@ -635,19 +635,13 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// filterOutPin returns true if the given pin should be filtered out according
-// to the input filter type
-func (api *API) filterOutPin(filter types.PinType, pin types.Pin) bool {
-	if filter == types.AllType {
-		return false
-	}
-	return pin.Type != filter
-}
-
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
-	pintype := queryValues.Get("pintype")
-	filter := types.PinTypeFromString(pintype)
+	filterStr := queryValues.Get("filter")
+	var filter types.PinType = 0
+	for _, f := range strings.Split(filterStr, ",") {
+		filter |= types.PinTypeFromString(f)
+	}
 	var pins []types.PinSerial
 	err := api.rpcClient.Call(
 		"",
@@ -658,7 +652,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	)
 	outPins := make([]types.PinSerial, 0)
 	for _, pinS := range pins {
-		if !api.filterOutPin(filter, pinS.ToPin()) {
+		if uint64(filter)&pinS.Type > 0 {
 			// add this pin to output
 			outPins = append(outPins, pinS)
 		}
@@ -831,7 +825,7 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 
 	pin := types.PinSerial{
 		Cid:  hash,
-		Type: int(types.DataType),
+		Type: uint64(types.DataType),
 	}
 
 	queryValues := r.URL.Query()

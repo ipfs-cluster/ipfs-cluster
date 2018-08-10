@@ -167,7 +167,7 @@ func TestAllocations(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c *Client) {
-		pins, err := c.Allocations(types.AllType)
+		pins, err := c.Allocations(types.DataType | types.MetaType)
 		if err != nil {
 			t.Fatal(err)
 		}
