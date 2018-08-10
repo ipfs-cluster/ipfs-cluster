@@ -92,7 +92,6 @@ func TestAdder_DoubleStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cancel()
 
 	f = sth.GetTreeSerialFile(t)
 	_, err = adder.FromFiles(context.Background(), f)

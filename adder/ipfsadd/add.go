@@ -11,17 +11,17 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipfs-chunker"
+	chunker "github.com/ipfs/go-ipfs-chunker"
 	files "github.com/ipfs/go-ipfs-cmdkit/files"
 	posinfo "github.com/ipfs/go-ipfs-posinfo"
-	balanced "github.com/ipfs/go-ipfs/importer/balanced"
-	ihelper "github.com/ipfs/go-ipfs/importer/helpers"
-	trickle "github.com/ipfs/go-ipfs/importer/trickle"
-	dag "github.com/ipfs/go-ipfs/merkledag"
 	mfs "github.com/ipfs/go-ipfs/mfs"
-	unixfs "github.com/ipfs/go-ipfs/unixfs"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
+	dag "github.com/ipfs/go-merkledag"
+	unixfs "github.com/ipfs/go-unixfs"
+	balanced "github.com/ipfs/go-unixfs/importer/balanced"
+	ihelper "github.com/ipfs/go-unixfs/importer/helpers"
+	trickle "github.com/ipfs/go-unixfs/importer/trickle"
 )
 
 var log = logging.Logger("coreunix")
@@ -30,22 +30,6 @@ var log = logging.Logger("coreunix")
 const progressReaderIncrement = 1024 * 256
 
 var liveCacheSize = uint64(256 << 10)
-
-type hiddenFileError struct {
-	fileName string
-}
-
-func (e *hiddenFileError) Error() string {
-	return fmt.Sprintf("%s is a hidden file", e.fileName)
-}
-
-type ignoreFileError struct {
-	fileName string
-}
-
-func (e *ignoreFileError) Error() string {
-	return fmt.Sprintf("%s is an ignored file", e.fileName)
-}
 
 // NewAdder Returns a new Adder used for a file add operation.
 func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
@@ -102,7 +86,7 @@ func (adder *Adder) SetMfsRoot(r *mfs.Root) {
 
 // Constructs a node from reader's data, and adds it. Doesn't pin.
 func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
-	chnk, err := chunk.FromString(reader, adder.Chunker)
+	chnk, err := chunker.FromString(reader, adder.Chunker)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +117,7 @@ func (adder *Adder) RootNode() (ipld.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	root, err := mr.GetValue().GetNode()
+	root, err := mr.GetDirectory().GetNode()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +142,10 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	root := mr.GetValue()
+
+	var root mfs.FSNode
+	rootdir := mr.GetDirectory()
+	root = rootdir
 
 	err = root.Flush()
 	if err != nil {
@@ -167,11 +154,6 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 
 	var name string
 	if !adder.Wrap {
-		rootdir, ok := root.(*mfs.Directory)
-		if !ok {
-			return nil, fmt.Errorf("root is not a directory")
-		}
-
 		children, err := rootdir.ListNames(adder.ctx)
 		if err != nil {
 			return nil, err
@@ -180,6 +162,8 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 		if len(children) == 0 {
 			return nil, fmt.Errorf("expected at least one child dir, got none")
 		}
+
+		// Replace root with the first child
 		name = children[0]
 		root, err = rootdir.Child(name)
 		if err != nil {
@@ -191,6 +175,7 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 			root = adder.lastFile
 		}
 	}
+
 	err = adder.outputDirs(name, root)
 	if err != nil {
 		return nil, err
@@ -200,6 +185,7 @@ func (adder *Adder) Finalize() (ipld.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return root.GetNode()
 }
 
@@ -238,7 +224,7 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 		if err != nil {
 			return err
 		}
-		return outputDagnode(adder.ctx, adder.Out, path, nd)
+		return outputDagnode(adder.Out, path, nd)
 	default:
 		return fmt.Errorf("unrecognized fsn type: %#v", fsn)
 	}
@@ -284,13 +270,17 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	adder.lastFile = lastFile
 
 	if !adder.Silent {
-		return outputDagnode(adder.ctx, adder.Out, path, node)
+		return outputDagnode(adder.Out, path, node)
 	}
 	return nil
 }
 
-// AddFile adds a file to the dagservice and outputs through the outchan
+// AddFile adds the given file while respecting the adder.
 func (adder *Adder) AddFile(file files.File) error {
+	return adder.addFile(file)
+}
+
+func (adder *Adder) addFile(file files.File) error {
 	if adder.liveNodes >= liveCacheSize {
 		// TODO: A smarter cache that uses some sort of lru cache with an eviction handler
 		mr, err := adder.mfsRoot()
@@ -378,7 +368,7 @@ func (adder *Adder) addDir(dir files.File) error {
 			log.Infof("%s is hidden, skipping", file.FileName())
 			continue
 		}
-		err = adder.AddFile(file)
+		err = adder.addFile(file)
 		if err != nil {
 			return err
 		}
@@ -388,28 +378,18 @@ func (adder *Adder) addDir(dir files.File) error {
 }
 
 // outputDagnode sends dagnode info over the output channel
-func outputDagnode(ctx context.Context, out chan *api.AddedOutput, name string, dn ipld.Node) error {
+func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil
 	}
 
-	c := dn.Cid()
 	s, err := dn.Size()
 	if err != nil {
 		return err
 	}
 
-	// This thing keeps trying to print
-	// even when importing is cancelled.
-	// Panics on closed channel.
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
 	out <- &api.AddedOutput{
-		Hash: c.String(),
+		Hash: dn.Cid().String(),
 		Name: name,
 		Size: strconv.FormatUint(s, 10),
 	}

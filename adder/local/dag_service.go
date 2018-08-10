@@ -68,12 +68,8 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 // Finalize pins the last Cid added to this DAGService.
 func (dgs *DAGService) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
 	// Cluster pin the result
-	pinS := api.PinSerial{
-		Cid:        root.String(),
-		Type:       int(api.DataType),
-		MaxDepth:   -1,
-		PinOptions: dgs.pinOpts,
-	}
+	rootPin := api.PinWithOpts(root, dgs.pinOpts)
+	rootPin.Allocations = dgs.dests
 
 	dgs.dests = nil
 
@@ -82,7 +78,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, e
 		"",
 		"Cluster",
 		"Pin",
-		pinS,
+		rootPin.ToSerial(),
 		&struct{}{},
 	)
 }

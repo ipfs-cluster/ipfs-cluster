@@ -18,7 +18,6 @@ type AddedOutput struct {
 	Hash  string `json:",omitempty"`
 	Bytes int64  `json:",omitempty"`
 	Size  string `json:",omitempty"`
-	Quiet bool
 }
 
 // AddParams contains all of the configurable parameters needed to specify the

@@ -59,7 +59,7 @@ func New(ds ClusterDAGService, p *api.AddParams, out chan *api.AddedOutput) *Add
 	}
 
 	return &Adder{
-		dags:   ds,
+		dgs:    ds,
 		params: p,
 		output: out,
 	}
