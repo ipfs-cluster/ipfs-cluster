@@ -638,7 +638,7 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	filterStr := queryValues.Get("filter")
-	var filter types.PinType = 0
+	var filter types.PinType
 	for _, f := range strings.Split(filterStr, ",") {
 		filter |= types.PinTypeFromString(f)
 	}

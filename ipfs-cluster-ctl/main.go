@@ -574,7 +574,7 @@ The filter only takes effect when listing all pins. The possible values are:
 							resp, cerr := globalClient.Allocation(ci)
 							formatResponse(c, resp, cerr)
 						} else {
-							var filter api.PinType = 0
+							var filter api.PinType
 							strFilter := strings.Split(c.String("filter"), ",")
 							for _, f := range strFilter {
 								filter |= api.PinTypeFromString(f)
