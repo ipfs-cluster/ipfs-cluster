@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -21,6 +20,7 @@ var (
 	DefaultAPIAddr   = "/ip4/127.0.0.1/tcp/9094"
 	DefaultLogLevel  = "info"
 	DefaultProxyPort = 9095
+	DefaultPort      = 9094
 )
 
 var loggingFacility = "apiclient"
@@ -39,19 +39,19 @@ type Config struct {
 	Password string
 
 	// The ipfs-cluster REST API endpoint in multiaddress form
-	// (takes precedence over host:port). Only valid without PeerAddr.
+	// (takes precedence over host:port). It this address contains
+	// an /ipfs/, /p2p/ or /dnsaddr, the API will be contacted
+	// through a libp2p tunnel, thus getting encryption for
+	// free. The latter overrides any SSL configurations.
 	APIAddr ma.Multiaddr
+
+	// PeerAddr is deprecated. It's aliased to APIAddr
+	PeerAddr ma.Multiaddr
 
 	// REST API endpoint host and port. Only valid without
 	// APIAddr and PeerAddr
 	Host string
 	Port string
-
-	// The ipfs-cluster REST API peer address (usually
-	// the same as the cluster peer). This will use libp2p
-	// to tunnel HTTP requests, thus getting encryption for
-	// free. It overseeds APIAddr, Host/Port, and SSL configurations.
-	PeerAddr ma.Multiaddr
 
 	// If PeerAddr is provided, and the peer uses private networks
 	// (pnet), then we need to provide the key. If the peer is the
@@ -60,7 +60,7 @@ type Config struct {
 
 	// ProxyAddr is used to obtain a go-ipfs-api Shell instance pointing
 	// to the ipfs proxy endpoint of ipfs-cluster. If empty, the location
-	// will be guessed from one of PeerAddr/APIAddr/Host,
+	// will be guessed from one of APIAddr/Host,
 	// and the port used will be ipfs-cluster's proxy default port (9095)
 	ProxyAddr ma.Multiaddr
 
@@ -100,7 +100,25 @@ func NewClient(cfg *Config) (*Client, error) {
 		client.config.Timeout = DefaultTimeout
 	}
 
-	err := client.setupHTTPClient()
+	if paddr := client.config.PeerAddr; paddr != nil {
+		client.config.APIAddr = paddr
+	}
+
+	if client.config.Port == "" {
+		client.config.Port = fmt.Sprintf("%d", DefaultPort)
+	}
+
+	err := client.setupAPIAddr()
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.resolveAPIAddr()
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.setupHTTPClient()
 	if err != nil {
 		return nil, err
 	}
@@ -124,11 +142,44 @@ func NewClient(cfg *Config) (*Client, error) {
 	return client, nil
 }
 
+func (c *Client) setupAPIAddr() error {
+	var addr ma.Multiaddr
+	var err error
+	if c.config.APIAddr == nil {
+		if c.config.Host == "" { //default
+			addr, err = ma.NewMultiaddr(DefaultAPIAddr)
+		} else {
+			addrStr := fmt.Sprintf("/dns4/%s/tcp/%s", c.config.Host, c.config.Port)
+			addr, err = ma.NewMultiaddr(addrStr)
+		}
+		c.config.APIAddr = addr
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) resolveAPIAddr() error {
+	resolveCtx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+	defer cancel()
+	resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
+	if err != nil {
+		return err
+	}
+
+	if len(resolved) == 0 {
+		return fmt.Errorf("resolving %s returned 0 results", c.config.APIAddr)
+	}
+
+	c.config.APIAddr = resolved[0]
+	return nil
+}
+
 func (c *Client) setupHTTPClient() error {
 	var err error
 
 	switch {
-	case c.config.PeerAddr != nil:
+	case IsPeerAddress(c.config.APIAddr):
 		err = c.enableLibp2p()
 	case c.config.SSL:
 		err = c.enableTLS()
@@ -148,43 +199,14 @@ func (c *Client) setupHTTPClient() error {
 }
 
 func (c *Client) setupHostname() error {
-	// When no host/port/multiaddress defined, we set the default
-	if c.config.APIAddr == nil && c.config.Host == "" && c.config.Port == "" {
-		var err error
-		c.config.APIAddr, err = ma.NewMultiaddr(DefaultAPIAddr)
+	// Extract host:port form APIAddr or use Host:Port.
+	// For libp2p, hostname is set in enableLibp2p()
+	if !IsPeerAddress(c.config.APIAddr) {
+		_, hostname, err := manet.DialArgs(c.config.APIAddr)
 		if err != nil {
 			return err
 		}
-	}
-
-	// PeerAddr takes precedence over APIAddr. APIAddr takes precedence
-	// over Host/Port. APIAddr is resolved and dial args
-	// extracted.
-	switch {
-	case c.config.PeerAddr != nil:
-		// Taken care of in setupHTTPClient
-	case c.config.APIAddr != nil:
-		// Resolve multiaddress just in case and extract host:port
-		resolveCtx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
-		defer cancel()
-		resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
-		if err != nil {
-			return err
-		}
-		c.config.APIAddr = resolved[0]
-		_, c.hostname, err = manet.DialArgs(c.config.APIAddr)
-		if err != nil {
-			return err
-		}
-	default:
-		c.hostname = fmt.Sprintf("%s:%s", c.config.Host, c.config.Port)
-		apiAddr, err := ma.NewMultiaddr(
-			fmt.Sprintf("/ip4/%s/tcp/%s", c.config.Host, c.config.Port),
-		)
-		if err != nil {
-			return err
-		}
-		c.config.APIAddr = apiAddr
+		c.hostname = hostname
 	}
 	return nil
 }
@@ -194,29 +216,12 @@ func (c *Client) setupProxy() error {
 		return nil
 	}
 
-	// Guess location from PeerAddr or APIAddr
+	// Guess location from  APIAddr
 	port, err := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d", DefaultProxyPort))
 	if err != nil {
 		return err
 	}
-	var paddr ma.Multiaddr
-	switch {
-	case c.config.PeerAddr != nil:
-		paddr = ma.Split(c.config.PeerAddr)[0].Encapsulate(port)
-	case c.config.APIAddr != nil: // Host/Port setupHostname sets APIAddr
-		paddr = ma.Split(c.config.APIAddr)[0].Encapsulate(port)
-	default:
-		return errors.New("cannot find proxy address")
-	}
-
-	ctx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
-	defer cancel()
-	resolved, err := madns.Resolve(ctx, paddr)
-	if err != nil {
-		return err
-	}
-
-	c.config.ProxyAddr = resolved[0]
+	c.config.ProxyAddr = ma.Split(c.config.APIAddr)[0].Encapsulate(port)
 	return nil
 }
 
@@ -226,4 +231,15 @@ func (c *Client) setupProxy() error {
 // the same configurations affecting it (timeouts...).
 func (c *Client) IPFS() *shell.Shell {
 	return shell.NewShellWithClient(c.config.ProxyAddr.String(), c.client)
+}
+
+// IsPeerAddress detects if the given multiaddress identifies a libp2p peer,
+// either because it has the /p2p/ protocol or because it uses /dnsaddr/
+func IsPeerAddress(addr ma.Multiaddr) bool {
+	if addr == nil {
+		return false
+	}
+	pid, err := addr.ValueForProtocol(ma.P_IPFS)
+	dnsaddr, err2 := addr.ValueForProtocol(madns.DnsaddrProtocol.Code)
+	return (pid != "" && err == nil) || (dnsaddr != "" && err2 == nil)
 }
