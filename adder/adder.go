@@ -66,9 +66,11 @@ func New(ds ClusterDAGService, p *api.AddParams, out chan *api.AddedOutput) *Add
 }
 
 func (a *Adder) setContext(ctx context.Context) {
-	ctxc, cancel := context.WithCancel(ctx)
-	a.ctx = ctxc
-	a.cancel = cancel
+	if a.ctx == nil { // only allows first context
+		ctxc, cancel := context.WithCancel(ctx)
+		a.ctx = ctxc
+		a.cancel = cancel
+	}
 }
 
 // FromMultipart adds content from a multipart.Reader. The adder will
