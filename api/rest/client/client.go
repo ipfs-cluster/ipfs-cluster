@@ -42,7 +42,7 @@ type Config struct {
 	// (takes precedence over host:port). It this address contains
 	// an /ipfs/, /p2p/ or /dnsaddr, the API will be contacted
 	// through a libp2p tunnel, thus getting encryption for
-	// free. The latter overrides any SSL configurations.
+	// free. Using the libp2p tunnel will ignore any configurations.
 	APIAddr ma.Multiaddr
 
 	// PeerAddr is deprecated. It's aliased to APIAddr
