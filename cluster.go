@@ -1327,8 +1327,7 @@ func (c *Cluster) cidsFromMetaPin(h *cid.Cid) ([]*cid.Cid, error) {
 		return nil, err
 	}
 
-	list := []*cid.Cid{}
-	list = append(list, h)
+	list := []*cid.Cid{h}
 
 	pin, ok := cState.Get(h)
 	if !ok {
