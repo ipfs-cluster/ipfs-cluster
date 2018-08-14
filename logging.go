@@ -21,6 +21,7 @@ var LoggingFacilities = map[string]string{
 	"shardingdags": "INFO",
 	"localdags":    "INFO",
 	"adder":        "INFO",
+	"optracker":    "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers

@@ -11,7 +11,7 @@ const configKey = "maptracker"
 
 // Default values for this Config.
 const (
-	DefaultMaxPinQueueSize = 4096
+	DefaultMaxPinQueueSize = 50000
 	DefaultConcurrentPins  = 10
 )
 

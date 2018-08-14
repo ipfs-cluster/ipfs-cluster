@@ -11,8 +11,8 @@ const configKey = "stateless"
 
 // Default values for this Config.
 const (
-	DefaultMaxPinQueueSize = 4096
-	DefaultConcurrentPins  = 1
+	DefaultMaxPinQueueSize = 50000
+	DefaultConcurrentPins  = 10
 )
 
 // Config allows to initialize a Monitor and customize some parameters.

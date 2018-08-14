@@ -24,6 +24,7 @@ const programName = `ipfs-cluster-service`
 const (
 	defaultAllocation = "disk-freespace"
 	defaultMonitor    = "pubsub"
+	defaultPinTracker = "map"
 	defaultLogLevel   = "info"
 )
 
@@ -249,6 +250,12 @@ configuration.
 					Value:  defaultMonitor,
 					Hidden: true,
 					Usage:  "peer monitor to use [basic,pubsub].",
+				},
+				cli.StringFlag{
+					Name:   "pintracker",
+					Value:  defaultPinTracker,
+					Hidden: true,
+					Usage:  "pintracker to use [map,stateless].",
 				},
 			},
 			Action: daemon,
