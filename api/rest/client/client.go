@@ -16,10 +16,11 @@ import (
 
 // Configuration defaults
 var (
-	DefaultTimeout   = 120 * time.Second
+	DefaultTimeout   = 0
 	DefaultAPIAddr   = "/ip4/127.0.0.1/tcp/9094"
 	DefaultLogLevel  = "info"
 	DefaultProxyPort = 9095
+	ResolveTimeout   = 30 * time.Second
 	DefaultPort      = 9094
 )
 
@@ -96,10 +97,6 @@ func NewClient(cfg *Config) (*Client, error) {
 		config: cfg,
 	}
 
-	if client.config.Timeout == 0 {
-		client.config.Timeout = DefaultTimeout
-	}
-
 	if paddr := client.config.PeerAddr; paddr != nil {
 		client.config.APIAddr = paddr
 	}
@@ -160,7 +157,7 @@ func (c *Client) setupAPIAddr() error {
 }
 
 func (c *Client) resolveAPIAddr() error {
-	resolveCtx, cancel := context.WithTimeout(c.ctx, c.config.Timeout)
+	resolveCtx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
 	resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
 	if err != nil {

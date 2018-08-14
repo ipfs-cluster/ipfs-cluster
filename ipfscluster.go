@@ -72,7 +72,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID() (api.IPFSID, error)
-	Pin(context.Context, *cid.Cid, bool) error
+	Pin(context.Context, *cid.Cid, int) error
 	Unpin(context.Context, *cid.Cid) error
 	PinLsCid(context.Context, *cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
@@ -90,6 +90,10 @@ type IPFSConnector interface {
 	// RepoSize returns the current repository size as expressed
 	// by "repo stat".
 	RepoSize() (uint64, error)
+	// BlockPut directly adds a block of data to the IPFS repo
+	BlockPut(api.NodeWithMeta) error
+	// BlockGet retrieves the raw data of an IPFS block
+	BlockGet(*cid.Cid) ([]byte, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

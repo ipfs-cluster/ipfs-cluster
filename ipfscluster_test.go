@@ -420,18 +420,22 @@ func TestClustersPin(t *testing.T) {
 	pinList := clusters[0].Pins()
 
 	for i := 0; i < len(pinList); i++ {
+		// test re-unpin fails
 		j := rand.Intn(nClusters) // choose a random cluster peer
 		err := clusters[j].Unpin(pinList[i].Cid)
 		if err != nil {
 			t.Errorf("error unpinning %s: %s", pinList[i].Cid, err)
 		}
-		// test re-unpin
-		err = clusters[j].Unpin(pinList[i].Cid)
-		if err != nil {
-			t.Errorf("error re-unpinning %s: %s", pinList[i].Cid, err)
-		}
-
 	}
+	delay()
+	for i := 0; i < nPins; i++ {
+		j := rand.Intn(nClusters) // choose a random cluster peer
+		err := clusters[j].Unpin(pinList[i].Cid)
+		if err == nil {
+			t.Errorf("expected error re-unpinning %s: %s", pinList[i].Cid, err)
+		}
+	}
+
 	delay()
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
@@ -1007,11 +1011,10 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 		t.Fatal("allocations should be nClusters")
 	}
 
-	err = clusters[0].Pin(api.Pin{
-		Cid:                  h,
-		ReplicationFactorMax: 2,
-		ReplicationFactorMin: 1,
-	})
+	pin := api.PinCid(h)
+	pin.ReplicationFactorMin = 1
+	pin.ReplicationFactorMax = 2
+	err = clusters[0].Pin(pin)
 	if err != nil {
 		t.Fatal(err)
 	}

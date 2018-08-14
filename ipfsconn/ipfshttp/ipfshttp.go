@@ -22,6 +22,7 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -33,6 +34,11 @@ import (
 var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfshttp")
+
+// updateMetricsMod only makes updates to informer metrics
+// on the nth occasion. So, for example, for every BlockPut,
+// only the 10th will trigger a SendInformerMetrics call.
+var updateMetricMod = 10
 
 // Connector implements the IPFSConnector interface
 // and provides a component which does two tasks:
@@ -58,6 +64,9 @@ type Connector struct {
 	listener net.Listener // proxy listener
 	server   *http.Server // proxy server
 	client   *http.Client // client to ipfs daemon
+
+	updateMetricMutex sync.Mutex
+	updateMetricCount int
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -297,7 +306,7 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		ipfsErrorResponder(w, "Error: bad argument")
 		return
 	}
-	_, err := cid.Decode(arg)
+	c, err := cid.Decode(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing CID: "+err.Error())
 		return
@@ -307,9 +316,7 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		"",
 		"Cluster",
 		op,
-		api.PinSerial{
-			Cid: arg,
-		},
+		api.PinCid(c).ToSerial(),
 		&struct{}{},
 	)
 	if err != nil {
@@ -589,7 +596,7 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	id := api.IPFSID{}
-	body, err := ipfs.postCtx(ctx, "id")
+	body, err := ipfs.postCtx(ctx, "id", "", nil)
 	if err != nil {
 		id.Error = err.Error()
 		return id, err
@@ -624,33 +631,47 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) error {
+func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, maxDepth int) error {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
 	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
-	if !pinStatus.IsPinned() {
-		switch ipfs.config.PinMethod {
-		case "refs":
-			path := fmt.Sprintf("refs?arg=%s&recursive=%t", hash, recursive)
-			err := ipfs.postDiscardBodyCtx(ctx, path)
-			if err != nil {
-				return err
-			}
-			logger.Debugf("Refs for %s sucessfully fetched", hash)
-		}
 
-		path := fmt.Sprintf("pin/add?arg=%s&recursive=%t", hash, recursive)
-		_, err = ipfs.postCtx(ctx, path)
-		if err == nil {
-			logger.Info("IPFS Pin request succeeded: ", hash)
-		}
-		return err
+	if pinStatus.IsPinned(maxDepth) {
+		logger.Debug("IPFS object is already pinned: ", hash)
+		return nil
 	}
-	logger.Debug("IPFS object is already pinned: ", hash)
-	return nil
+
+	defer ipfs.updateInformerMetric()
+
+	var pinArgs string
+	switch {
+	case maxDepth < 0:
+		pinArgs = "recursive=true"
+	case maxDepth == 0:
+		pinArgs = "recursive=false"
+	default:
+		pinArgs = fmt.Sprintf("recursive=true&max-depth=%d", maxDepth)
+	}
+
+	switch ipfs.config.PinMethod {
+	case "refs": // do refs -r first
+		path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs)
+		err := ipfs.postDiscardBodyCtx(ctx, path)
+		if err != nil {
+			return err
+		}
+		logger.Debugf("Refs for %s sucessfully fetched", hash)
+	}
+
+	path := fmt.Sprintf("pin/add?arg=%s&%s", hash, pinArgs)
+	_, err = ipfs.postCtx(ctx, path, "", nil)
+	if err == nil {
+		logger.Info("IPFS Pin request succeeded: ", hash)
+	}
+	return err
 }
 
 // Unpin performs an unpin request against the configured IPFS
@@ -658,13 +679,15 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, recursive bool) e
 func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
 	defer cancel()
+
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
-	if pinStatus.IsPinned() {
+	if pinStatus.IsPinned(-1) {
+		defer ipfs.updateInformerMetric()
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
-		_, err := ipfs.postCtx(ctx, path)
+		_, err := ipfs.postCtx(ctx, path, "", nil)
 		if err == nil {
 			logger.Info("IPFS Unpin request succeeded:", hash)
 		}
@@ -680,7 +703,7 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
 func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error) {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	body, err := ipfs.postCtx(ctx, "pin/ls?type="+typeFilter)
+	body, err := ipfs.postCtx(ctx, "pin/ls?type="+typeFilter, "", nil)
 
 	// Some error talking to the daemon
 	if err != nil {
@@ -708,7 +731,7 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPin
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=recursive", hash)
-	body, err := ipfs.postCtx(ctx, lsPath)
+	body, err := ipfs.postCtx(ctx, lsPath, "", nil)
 
 	// Network error, daemon down
 	if body == nil && err != nil {
@@ -735,15 +758,16 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPin
 	return api.IPFSPinStatusFromString(pinObj.Type), nil
 }
 
-func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string) (*http.Response, error) {
+func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
 	logger.Debugf("posting %s", path)
 	urlstr := fmt.Sprintf("%s/%s", apiURL, path)
 
-	req, err := http.NewRequest("POST", urlstr, nil)
+	req, err := http.NewRequest("POST", urlstr, postBody)
 	if err != nil {
 		logger.Error("error creating POST request:", err)
 	}
 
+	req.Header.Set("Content-Type", contentType)
 	req = req.WithContext(ctx)
 	res, err := ipfs.client.Do(req)
 	if err != nil {
@@ -772,8 +796,8 @@ func checkResponse(path string, code int, body []byte) error {
 // postCtx makes a POST request against
 // the ipfs daemon, reads the full body of the response and
 // returns it after checking for errors.
-func (ipfs *Connector) postCtx(ctx context.Context, path string) ([]byte, error) {
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path)
+func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType string, postBody io.Reader) ([]byte, error) {
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, contentType, postBody)
 	if err != nil {
 		return nil, err
 	}
@@ -789,7 +813,7 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string) ([]byte, error)
 // postDiscardBodyCtx makes a POST requests but discards the body
 // of the response directly after reading it.
 func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) error {
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path)
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
 	if err != nil {
 		return err
 	}
@@ -832,7 +856,12 @@ func (ipfs *Connector) ConnectSwarms() error {
 			// This is a best effort attempt
 			// We ignore errors which happens
 			// when passing in a bunch of addresses
-			_, err := ipfs.postCtx(ctx, fmt.Sprintf("swarm/connect?arg=%s", addr))
+			_, err := ipfs.postCtx(
+				ctx,
+				fmt.Sprintf("swarm/connect?arg=%s", addr),
+				"",
+				nil,
+			)
 			if err != nil {
 				logger.Debug(err)
 				continue
@@ -849,7 +878,7 @@ func (ipfs *Connector) ConnectSwarms() error {
 func (ipfs *Connector) ConfigKey(keypath string) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "config/show")
+	res, err := ipfs.postCtx(ctx, "config/show", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -895,7 +924,7 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 func (ipfs *Connector) FreeSpace() (uint64, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "repo/stat")
+	res, err := ipfs.postCtx(ctx, "repo/stat", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
@@ -915,7 +944,7 @@ func (ipfs *Connector) FreeSpace() (uint64, error) {
 func (ipfs *Connector) RepoSize() (uint64, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "repo/stat")
+	res, err := ipfs.postCtx(ctx, "repo/stat", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
@@ -930,12 +959,12 @@ func (ipfs *Connector) RepoSize() (uint64, error) {
 	return stats.RepoSize, nil
 }
 
-// SwarmPeers returns the peers currently connected to this ipfs daemon
+// SwarmPeers returns the peers currently connected to this ipfs daemon.
 func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	swarm := api.SwarmPeers{}
-	res, err := ipfs.postCtx(ctx, "swarm/peers")
+	res, err := ipfs.postCtx(ctx, "swarm/peers", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return swarm, err
@@ -959,6 +988,36 @@ func (ipfs *Connector) SwarmPeers() (api.SwarmPeers, error) {
 	return swarm, nil
 }
 
+// BlockPut triggers an ipfs block put on the given data, inserting the block
+// into the ipfs daemon's repo.
+func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
+	logger.Debugf("putting block to IPFS: %s", b.Cid)
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	defer ipfs.updateInformerMetric()
+
+	r := ioutil.NopCloser(bytes.NewReader(b.Data))
+	rFile := files.NewReaderFile("", "", r, nil)
+	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory
+	multiFileR := files.NewMultiFileReader(sliceFile, true)
+	if b.Format == "" {
+		b.Format = "v0"
+	}
+	url := "block/put?f=" + b.Format
+	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
+
+	_, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
+	return err
+}
+
+// BlockGet retrieves an ipfs block with the given cid
+func (ipfs *Connector) BlockGet(c *cid.Cid) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "block/get?arg=" + c.String()
+	return ipfs.postCtx(ctx, url, "", nil)
+}
+
 // extractArgument extracts the cid argument from a url.URL, either via
 // the query string parameters or from the url path itself.
 func extractArgument(u *url.URL) (string, bool) {
@@ -978,4 +1037,40 @@ func extractArgument(u *url.URL) (string, bool) {
 		return segs[len(segs)-1], true
 	}
 	return "", false
+}
+
+// Returns true every updateMetricsMod-th time that we
+// call this function.
+func (ipfs *Connector) shouldUpdateMetric() bool {
+	ipfs.updateMetricMutex.Lock()
+	defer ipfs.updateMetricMutex.Unlock()
+	ipfs.updateMetricCount++
+	if ipfs.updateMetricCount%updateMetricMod == 0 {
+		ipfs.updateMetricCount = 0
+		return true
+	}
+	return false
+}
+
+// Trigger a broadcast of the local informer metrics.
+func (ipfs *Connector) updateInformerMetric() error {
+	if !ipfs.shouldUpdateMetric() {
+		return nil
+	}
+
+	var metric api.Metric
+
+	err := ipfs.rpcClient.GoContext(
+		ipfs.ctx,
+		"",
+		"Cluster",
+		"SendInformerMetric",
+		struct{}{},
+		&metric,
+		nil,
+	)
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }

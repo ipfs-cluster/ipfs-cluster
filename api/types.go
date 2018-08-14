@@ -53,6 +53,9 @@ const (
 	TrackerStatusPinQueued
 	// The item has been queued for unpinning on the IPFS daemon
 	TrackerStatusUnpinQueued
+	// The IPFS daemon is not pinning the item through this cid but it is
+	// tracked in a cluster dag
+	TrackerStatusSharded
 )
 
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
@@ -89,6 +92,7 @@ func TrackerStatusFromString(str string) TrackerStatus {
 }
 
 // IPFSPinStatus values
+// FIXME include maxdepth
 const (
 	IPFSPinStatusBug IPFSPinStatus = iota
 	IPFSPinStatusError
@@ -104,25 +108,36 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-	// Since indirect statuses are of the form "indirect through <cid>", use a regexp to match
+	// Since indirect statuses are of the form "indirect through <cid>",
+	// use a regexp to match
 	var ind, _ = regexp.MatchString("^indirect", t)
-	// TODO: This is only used in the http_connector to parse
-	// ipfs-daemon-returned values. Maybe it should be extended.
+	var rec, _ = regexp.MatchString("^recursive", t)
 	switch {
 	case ind:
 		return IPFSPinStatusIndirect
+	case rec:
+		// FIXME: Maxdepth?
+		return IPFSPinStatusRecursive
 	case t == "direct":
 		return IPFSPinStatusDirect
-	case t == "recursive":
-		return IPFSPinStatusRecursive
 	default:
 		return IPFSPinStatusBug
 	}
 }
 
-// IsPinned returns true if the status is Direct or Recursive
-func (ips IPFSPinStatus) IsPinned() bool {
-	return ips == IPFSPinStatusDirect || ips == IPFSPinStatusRecursive
+// IsPinned returns true if the item is pinned as expected by the
+// maxDepth parameter.
+func (ips IPFSPinStatus) IsPinned(maxDepth int) bool {
+	switch {
+	case maxDepth < 0:
+		return ips == IPFSPinStatusRecursive
+	case maxDepth == 0:
+		return ips == IPFSPinStatusDirect
+	case maxDepth > 0:
+		// FIXME: when we know how ipfs returns partial pins.
+		return ips == IPFSPinStatusRecursive
+	}
+	return false
 }
 
 // ToTrackerStatus converts the IPFSPinStatus value to the
@@ -515,35 +530,175 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 	return addrs
 }
 
-// Pin is an argument that carries a Cid. It may carry more things in the
-// future.
-type Pin struct {
-	Cid                  *cid.Cid
-	Name                 string
-	Allocations          []peer.ID
-	ReplicationFactorMin int
-	ReplicationFactorMax int
-	Recursive            bool
+// CidsToStrings encodes cid.Cids to strings.
+func CidsToStrings(cids []*cid.Cid) []string {
+	strs := make([]string, len(cids))
+	for i, c := range cids {
+		strs[i] = c.String()
+	}
+	return strs
 }
 
-// PinCid is a shorcut to create a Pin only with a Cid.  Default is for pin to
-// be recursive
+// StringsToCidSet decodes cid.Cids from strings.
+func StringsToCidSet(strs []string) *cid.Set {
+	cids := cid.NewSet()
+	for _, str := range strs {
+		c, err := cid.Decode(str)
+		if err != nil {
+			logger.Error(str, err)
+		}
+		cids.Add(c)
+	}
+	return cids
+}
+
+// PinType specifies which sort of Pin object we are dealing with.
+// In practice, the PinType decides how a Pin object is treated by the
+// PinTracker.
+// See descriptions above.
+// A sharded Pin would look like:
+//
+// [ Meta ] (not pinned on IPFS, only present in cluster state)
+//   |
+//   v
+// [ Cluster DAG ] (pinned everywhere in "direct")
+//   |      ..  |
+//   v          v
+// [Shard1] .. [ShardN] (allocated to peers and pinned with max-depth=1
+// | | .. |    | | .. |
+// v v .. v    v v .. v
+// [][]..[]    [][]..[] Blocks (indirectly pinned on ipfs, not tracked in cluster)
+//
+//
+type PinType uint64
+
+// PinType values. See PinType documentation for further explanation.
+const (
+	// BadType type showing up anywhere indicates a bug
+	BadType PinType = 1 << iota
+	// DataType is a regular, non-sharded pin. It is pinned recursively.
+	// It has no associated reference.
+	DataType
+	// MetaType tracks the original CID of a sharded DAG. Its Reference
+	// points to the Cluster DAG CID.
+	MetaType
+	// ClusterDAGType pins carry the CID of the root node that points to
+	// all the shard-root-nodes of the shards in which a DAG has been
+	// divided. Its Reference carries the MetaType CID.
+	// ClusterDAGType pins are pinned directly everywhere.
+	ClusterDAGType
+	// ShardType pins carry the root CID of a shard, which points
+	// to individual blocks on the original DAG that the user is adding,
+	// which has been sharded.
+	// They carry a Reference to the previous shard.
+	// ShardTypes are pinned with MaxDepth=1 (root and
+	// direct children only).
+	ShardType
+)
+
+// AllType is a PinType used for filtering all pin types
+const AllType PinType = DataType | MetaType | ClusterDAGType | ShardType
+
+// PinTypeFromString is the inverse of String.  It returns the PinType value
+// corresponding to the input string
+func PinTypeFromString(str string) PinType {
+	switch str {
+	case "pin":
+		return DataType
+	case "meta-pin":
+		return MetaType
+	case "clusterdag-pin":
+		return ClusterDAGType
+	case "shard-pin":
+		return ShardType
+	case "all":
+		return AllType
+	default:
+		return BadType
+	}
+}
+
+// String returns a printable value to identify the PinType
+func (pT PinType) String() string {
+	switch pT {
+	case DataType:
+		return "pin"
+	case MetaType:
+		return "meta-pin"
+	case ClusterDAGType:
+		return "clusterdag-pin"
+	case ShardType:
+		return "shard-pin"
+	case AllType:
+		return "all"
+	default:
+		return "bad-type"
+	}
+}
+
+// PinOptions wraps user-defined options for Pins
+type PinOptions struct {
+	ReplicationFactorMin int    `json:"replication_factor_min"`
+	ReplicationFactorMax int    `json:"replication_factor_max"`
+	Name                 string `json:"name"`
+	ShardSize            uint64 `json:"shard_size"`
+}
+
+// Pin carries all the information associated to a CID that is pinned
+// in IPFS Cluster.
+type Pin struct {
+	PinOptions
+
+	Cid *cid.Cid
+
+	// See PinType comments
+	Type PinType
+
+	// The peers to which this pin is allocated
+	Allocations []peer.ID
+
+	// MaxDepth associated to this pin. -1 means
+	// recursive.
+	MaxDepth int
+
+	// We carry a reference CID to this pin. For
+	// ClusterDAGs, it is the MetaPin CID. For the
+	// MetaPin it is the ClusterDAG CID. For Shards,
+	// it is the previous shard CID.
+	Reference *cid.Cid
+}
+
+// PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
+// be recursive and the pin to be of DataType.
 func PinCid(c *cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
+		Type:        DataType,
 		Allocations: []peer.ID{},
-		Recursive:   true,
+		MaxDepth:    -1,
 	}
+}
+
+// PinWithOpts creates a new Pin calling PinCid(c) and then sets
+// its PinOptions fields with the given options.
+func PinWithOpts(c *cid.Cid, opts PinOptions) Pin {
+	p := PinCid(c)
+	p.ReplicationFactorMin = opts.ReplicationFactorMin
+	p.ReplicationFactorMax = opts.ReplicationFactorMax
+	p.Name = opts.Name
+	p.ShardSize = opts.ShardSize
+	return p
 }
 
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
-	Cid                  string   `json:"cid"`
-	Name                 string   `json:"name"`
-	Allocations          []string `json:"allocations"`
-	ReplicationFactorMin int      `json:"replication_factor_min"`
-	ReplicationFactorMax int      `json:"replication_factor_max"`
-	Recursive            bool     `json:"recursive"`
+	PinOptions
+
+	Cid         string   `json:"cid"`
+	Type        uint64   `json:"type"`
+	Allocations []string `json:"allocations"`
+	MaxDepth    int      `json:"max_depth"`
+	Reference   string   `json:"reference"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -552,17 +707,26 @@ func (pin Pin) ToSerial() PinSerial {
 	if pin.Cid != nil {
 		c = pin.Cid.String()
 	}
+	ref := ""
+	if pin.Reference != nil {
+		ref = pin.Reference.String()
+	}
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
 
 	return PinSerial{
-		Cid:                  c,
-		Name:                 n,
-		Allocations:          allocs,
-		ReplicationFactorMin: pin.ReplicationFactorMin,
-		ReplicationFactorMax: pin.ReplicationFactorMax,
-		Recursive:            pin.Recursive,
+		Cid:         c,
+		Allocations: allocs,
+		Type:        uint64(pin.Type),
+		MaxDepth:    pin.MaxDepth,
+		Reference:   ref,
+		PinOptions: PinOptions{
+			Name:                 n,
+			ReplicationFactorMin: pin.ReplicationFactorMin,
+			ReplicationFactorMax: pin.ReplicationFactorMax,
+			ShardSize:            pin.ShardSize,
+		},
 	}
 }
 
@@ -581,7 +745,15 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.Recursive != pin2s.Recursive {
+	if pin1s.Type != pin2s.Type {
+		return false
+	}
+
+	if pin1s.MaxDepth != pin2s.MaxDepth {
+		return false
+	}
+
+	if pin1s.ShardSize != pin2s.ShardSize {
 		return false
 	}
 
@@ -599,6 +771,11 @@ func (pin Pin) Equals(pin2 Pin) bool {
 	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
 		return false
 	}
+
+	if pin1s.Reference != pin2s.Reference {
+		return false
+	}
+
 	return true
 }
 
@@ -608,15 +785,42 @@ func (pins PinSerial) ToPin() Pin {
 	if err != nil {
 		logger.Debug(pins.Cid, err)
 	}
+	var ref *cid.Cid
+	if pins.Reference != "" {
+		ref, err = cid.Decode(pins.Reference)
+		if err != nil {
+			logger.Warning(pins.Reference, err)
+		}
+	}
 
 	return Pin{
-		Cid:                  c,
-		Name:                 pins.Name,
-		Allocations:          StringsToPeers(pins.Allocations),
-		ReplicationFactorMin: pins.ReplicationFactorMin,
-		ReplicationFactorMax: pins.ReplicationFactorMax,
-		Recursive:            pins.Recursive,
+		Cid:         c,
+		Allocations: StringsToPeers(pins.Allocations),
+		Type:        PinType(pins.Type),
+		MaxDepth:    pins.MaxDepth,
+		Reference:   ref,
+		PinOptions: PinOptions{
+			Name:                 pins.Name,
+			ReplicationFactorMin: pins.ReplicationFactorMin,
+			ReplicationFactorMax: pins.ReplicationFactorMax,
+			ShardSize:            pins.ShardSize,
+		},
 	}
+}
+
+// NodeWithMeta specifies a block of data and a set of optional metadata fields
+// carrying information about the encoded ipld node
+type NodeWithMeta struct {
+	Data    []byte
+	Cid     string
+	CumSize uint64 // Cumulative size
+	Format  string
+}
+
+// Size returns how big is the block. It is different from CumSize, which
+// records the size of the underlying tree.
+func (n *NodeWithMeta) Size() uint64 {
+	return uint64(len(n.Data))
 }
 
 // Metric transports information about a peer.ID. It is used to decide

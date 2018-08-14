@@ -60,14 +60,17 @@ func (st *MapState) Rm(c *cid.Cid) error {
 // fields initialized, regardless of the
 // presence of the provided Cid in the state.
 // To check the presence, use MapState.Has(*cid.Cid).
-func (st *MapState) Get(c *cid.Cid) api.Pin {
+func (st *MapState) Get(c *cid.Cid) (api.Pin, bool) {
+	if c == nil {
+		return api.PinCid(c), false
+	}
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
 	pins, ok := st.PinMap[c.String()]
 	if !ok { // make sure no panics
-		return api.PinCid(c)
+		return api.PinCid(c), false
 	}
-	return pins.ToPin()
+	return pins.ToPin(), true
 }
 
 // Has returns true if the Cid belongs to the State.

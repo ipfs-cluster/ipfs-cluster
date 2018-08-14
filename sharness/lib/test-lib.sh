@@ -45,6 +45,10 @@ test_ipfs_init() {
     test_set_prereq IPFS
 }
 
+ipfsCmd() {
+    docker exec -i ipfs ipfs $@
+}
+
 test_ipfs_running() {
     if curl -s "localhost:5001/api/v0/version" > /dev/null; then
         test_set_prereq IPFS

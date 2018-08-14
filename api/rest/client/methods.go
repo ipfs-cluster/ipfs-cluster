@@ -6,25 +6,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipfs-cmdkit/files"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // ID returns information about the cluster Peer.
 func (c *Client) ID() (api.ID, error) {
 	var id api.IDSerial
-	err := c.do("GET", "/id", nil, &id)
+	err := c.do("GET", "/id", nil, nil, &id)
 	return id.ToID(), err
 }
 
 // Peers requests ID information for all cluster peers.
 func (c *Client) Peers() ([]api.ID, error) {
 	var ids []api.IDSerial
-	err := c.do("GET", "/peers", nil, &ids)
+	err := c.do("GET", "/peers", nil, nil, &ids)
 	result := make([]api.ID, len(ids))
 	for i, id := range ids {
 		result[i] = id.ToID()
@@ -46,13 +48,13 @@ func (c *Client) PeerAdd(pid peer.ID) (api.ID, error) {
 	enc.Encode(body)
 
 	var id api.IDSerial
-	err := c.do("POST", "/peers", &buf, &id)
+	err := c.do("POST", "/peers", nil, &buf, &id)
 	return id.ToID(), err
 }
 
 // PeerRm removes a current peer from the cluster
 func (c *Client) PeerRm(id peer.ID) error {
-	return c.do("DELETE", fmt.Sprintf("/peers/%s", id.Pretty()), nil, nil)
+	return c.do("DELETE", fmt.Sprintf("/peers/%s", id.Pretty()), nil, nil, nil)
 }
 
 // Pin tracks a Cid with the given replication factor and a name for
@@ -62,12 +64,13 @@ func (c *Client) Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int
 	err := c.do(
 		"POST",
 		fmt.Sprintf(
-			"/pins/%s?replication_factor_min=%d&replication_factor_max=%d&name=%s",
+			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
 			ci.String(),
 			replicationFactorMin,
 			replicationFactorMax,
 			escName,
 		),
+		nil,
 		nil,
 		nil,
 	)
@@ -76,14 +79,34 @@ func (c *Client) Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int
 
 // Unpin untracks a Cid from cluster.
 func (c *Client) Unpin(ci *cid.Cid) error {
-	return c.do("DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil)
+	return c.do("DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
 }
 
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
-func (c *Client) Allocations() ([]api.Pin, error) {
+func (c *Client) Allocations(filter api.PinType) ([]api.Pin, error) {
 	var pins []api.PinSerial
-	err := c.do("GET", "/allocations", nil, &pins)
+
+	types := []api.PinType{
+		api.DataType,
+		api.MetaType,
+		api.ClusterDAGType,
+		api.ShardType,
+	}
+
+	var strFilter []string
+
+	if filter == api.AllType {
+		strFilter = []string{"all"}
+	} else {
+		for _, t := range types {
+			if t&filter > 0 { // the filter includes this type
+				strFilter = append(strFilter, t.String())
+			}
+		}
+	}
+
+	err := c.do("GET", fmt.Sprintf("/allocations?filter=%s", strings.Join(strFilter, ",")), nil, nil, &pins)
 	result := make([]api.Pin, len(pins))
 	for i, p := range pins {
 		result[i] = p.ToPin()
@@ -94,7 +117,7 @@ func (c *Client) Allocations() ([]api.Pin, error) {
 // Allocation returns the current allocations for a given Cid.
 func (c *Client) Allocation(ci *cid.Cid) (api.Pin, error) {
 	var pin api.PinSerial
-	err := c.do("GET", fmt.Sprintf("/allocations/%s", ci.String()), nil, &pin)
+	err := c.do("GET", fmt.Sprintf("/allocations/%s", ci.String()), nil, nil, &pin)
 	return pin.ToPin(), err
 }
 
@@ -103,14 +126,14 @@ func (c *Client) Allocation(ci *cid.Cid) (api.Pin, error) {
 // is fetched from all cluster peers.
 func (c *Client) Status(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
 	var gpi api.GlobalPinInfoSerial
-	err := c.do("GET", fmt.Sprintf("/pins/%s?local=%t", ci.String(), local), nil, &gpi)
+	err := c.do("GET", fmt.Sprintf("/pins/%s?local=%t", ci.String(), local), nil, nil, &gpi)
 	return gpi.ToGlobalPinInfo(), err
 }
 
 // StatusAll gathers Status() for all tracked items.
 func (c *Client) StatusAll(local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
-	err := c.do("GET", fmt.Sprintf("/pins?local=%t", local), nil, &gpis)
+	err := c.do("GET", fmt.Sprintf("/pins?local=%t", local), nil, nil, &gpis)
 	result := make([]api.GlobalPinInfo, len(gpis))
 	for i, p := range gpis {
 		result[i] = p.ToGlobalPinInfo()
@@ -123,7 +146,7 @@ func (c *Client) StatusAll(local bool) ([]api.GlobalPinInfo, error) {
 // happens on the current peer, otherwise it happens on every cluster peer.
 func (c *Client) Sync(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
 	var gpi api.GlobalPinInfoSerial
-	err := c.do("POST", fmt.Sprintf("/pins/%s/sync?local=%t", ci.String(), local), nil, &gpi)
+	err := c.do("POST", fmt.Sprintf("/pins/%s/sync?local=%t", ci.String(), local), nil, nil, &gpi)
 	return gpi.ToGlobalPinInfo(), err
 }
 
@@ -133,7 +156,7 @@ func (c *Client) Sync(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
 // it happens on every cluster peer.
 func (c *Client) SyncAll(local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
-	err := c.do("POST", fmt.Sprintf("/pins/sync?local=%t", local), nil, &gpis)
+	err := c.do("POST", fmt.Sprintf("/pins/sync?local=%t", local), nil, nil, &gpis)
 	result := make([]api.GlobalPinInfo, len(gpis))
 	for i, p := range gpis {
 		result[i] = p.ToGlobalPinInfo()
@@ -146,7 +169,7 @@ func (c *Client) SyncAll(local bool) ([]api.GlobalPinInfo, error) {
 // it happens on every cluster peer.
 func (c *Client) Recover(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
 	var gpi api.GlobalPinInfoSerial
-	err := c.do("POST", fmt.Sprintf("/pins/%s/recover?local=%t", ci.String(), local), nil, &gpi)
+	err := c.do("POST", fmt.Sprintf("/pins/%s/recover?local=%t", ci.String(), local), nil, nil, &gpi)
 	return gpi.ToGlobalPinInfo(), err
 }
 
@@ -155,7 +178,7 @@ func (c *Client) Recover(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
 // everywhere.
 func (c *Client) RecoverAll(local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
-	err := c.do("POST", fmt.Sprintf("/pins/recover?local=%t", local), nil, &gpis)
+	err := c.do("POST", fmt.Sprintf("/pins/recover?local=%t", local), nil, nil, &gpis)
 	result := make([]api.GlobalPinInfo, len(gpis))
 	for i, p := range gpis {
 		result[i] = p.ToGlobalPinInfo()
@@ -166,7 +189,7 @@ func (c *Client) RecoverAll(local bool) ([]api.GlobalPinInfo, error) {
 // Version returns the ipfs-cluster peer's version.
 func (c *Client) Version() (api.Version, error) {
 	var ver api.Version
-	err := c.do("GET", "/version", nil, &ver)
+	err := c.do("GET", "/version", nil, nil, &ver)
 	return ver, err
 }
 
@@ -174,7 +197,7 @@ func (c *Client) Version() (api.Version, error) {
 // The serialized version, strings instead of pids, is returned
 func (c *Client) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	var graphS api.ConnectGraphSerial
-	err := c.do("GET", "/health/graph", nil, &graphS)
+	err := c.do("GET", "/health/graph", nil, nil, &graphS)
 	return graphS, err
 }
 
@@ -301,3 +324,45 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 	}
 	return true, nil
 }
+
+// AddMultiFile adds new files to the cluster, importing and potentially
+// sharding underlying dags across the ipfs daemons of multiple cluster peers.
+// Progress can be tracked by passing a channel onto which deliver AddedOutput
+// updates.
+func (c *Client) AddMultiFile(
+	multiFileR *files.MultiFileReader,
+	params *api.AddParams,
+	out chan<- *api.AddedOutput,
+) error {
+	defer close(out)
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
+	queryStr := params.ToQueryString()
+
+	handler := func(dec *json.Decoder) error {
+		if out == nil {
+			return nil
+		}
+		var obj api.AddedOutput
+		err := dec.Decode(&obj)
+		if err != nil {
+			return err
+		}
+		select {
+		case out <- &obj:
+		}
+		return nil
+	}
+
+	err := c.doStream(
+		"POST",
+		"/add?"+queryStr,
+		headers,
+		multiFileR,
+		handler,
+	)
+	return err
+}
+
+// TODO: Eventually an Add(io.Reader) method for adding raw readers as a multifile should be here.

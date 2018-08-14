@@ -8,10 +8,12 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
+	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -28,10 +30,11 @@ const Version = "0.4.0"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
-	defaultTimeout       = 120
+	defaultTimeout       = 0
 	defaultUsername      = ""
 	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
+	defaultAddParams     = api.DefaultAddParams()
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -176,7 +179,7 @@ requires authorization. implies --https, which you can disable with --force-http
 	app.Commands = []cli.Command{
 		{
 			Name:  "id",
-			Usage: "retrieve peer information",
+			Usage: "Retrieve peer information",
 			Description: `
 This command displays information about the peer that the tool is contacting
 (usually running in localhost).
@@ -190,7 +193,8 @@ This command displays information about the peer that the tool is contacting
 		},
 		{
 			Name:        "peers",
-			Description: "list and manage IPFS Cluster peers",
+			Usage:       "List and manage IPFS Cluster peers",
+			Description: "List and manage IPFS Cluster peers",
 			Subcommands: []cli.Command{
 				{
 					Name:  "ls",
@@ -229,12 +233,186 @@ cluster peers.
 			},
 		},
 		{
+			Name:      "add",
+			Usage:     "Add a file or directory to ipfs and pin it in the cluster",
+			ArgsUsage: "<path>",
+			Description: `
+Add allows to add and replicate content to several ipfs daemons, performing
+a Cluster Pin operation on success.
+
+Cluster Add is equivalent to "ipfs add" in terms of DAG building, and supports
+the same options for adjusting the chunker, the DAG layout etc. It will,
+allocate the cluster pin first and then send the content directly to the
+allocated peers.
+
+This may not be the local daemon (depends on the allocator). Once the
+ adding process is finished, the content has been fully
+added to all allocations and pinned in them. This makes cluster add slower
+than a local ipfs add, but the result is a fully replicated CID on completion.
+
+Cluster Add supports handling huge files and sharding the resulting DAG among
+several ipfs daemons (--shard). In this case, a single ipfs daemon will not
+contain the full dag, but only parts of it (shards). Desired shard size can
+be provided with the --shard-size flag.
+
+We recommend setting a --name for sharded pins. Otherwise, it will be
+automatically generated.
+`,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "recursive, r",
+					Usage: "Add directory paths recursively",
+				},
+				cli.BoolFlag{
+					Name:  "quiet, q",
+					Usage: "Write only hashes to output (one per line)",
+				},
+				cli.BoolFlag{
+					Name:  "quieter, Q",
+					Usage: "Write only final hash to output",
+				},
+				cli.StringFlag{
+					Name:  "layout",
+					Value: defaultAddParams.Layout,
+					Usage: "Dag layout to use for dag generation: balanced or trickle",
+				},
+				cli.BoolFlag{
+					Name:  "wrap-with-directory, w",
+					Usage: "Wrap a single added file with a directory object.",
+				},
+				cli.BoolFlag{
+					Name:  "hidden, H",
+					Usage: "Include files that are hidden.  Only takes effect on recursive add",
+				},
+				cli.StringFlag{
+					Name:  "chunker, s",
+					Usage: "'size-<size>' or 'rabin-<min>-<avg>-<max>'",
+					Value: defaultAddParams.Chunker,
+				},
+				cli.BoolFlag{
+					Name:  "raw-leaves",
+					Usage: "Use raw blocks for leaves (experimental)",
+				},
+				cli.StringFlag{
+					Name:  "name, n",
+					Value: defaultAddParams.Name,
+					Usage: "Sets a name for this pin",
+				},
+				cli.IntFlag{
+					Name:  "replication-min, rmin",
+					Value: defaultAddParams.ReplicationFactorMin,
+					Usage: "Sets the minimum replication factor for pinning this file",
+				},
+				cli.IntFlag{
+					Name:  "replication-max, rmax",
+					Value: defaultAddParams.ReplicationFactorMax,
+					Usage: "Sets the maximum replication factor for pinning this file",
+				},
+				// TODO: Uncomment when sharding is supported.
+				// cli.BoolFlag{
+				//	Name:  "shard",
+				//	Usage: "Break the file into pieces (shards) and distributed among peers",
+				// },
+				// cli.Uint64Flag{
+				//	Name:  "shard-size",
+				//	Value: defaultAddParams.ShardSize,
+				//	Usage: "Sets the maximum replication factor for pinning this file",
+				// },
+				// TODO: Figure progress over total bar.
+				// cli.BoolFlag{
+				//	Name:  "progress, p",
+				//	Usage: "Stream progress data",
+				// },
+
+			},
+			Action: func(c *cli.Context) error {
+				shard := c.Bool("shard")
+				name := c.String("name")
+				if shard && name == "" {
+					randName, err := uuid.NewV4()
+					if err != nil {
+						return err
+					}
+					// take only first letters
+					name = "sharded-" + strings.Split(randName.String(), "-")[0]
+				}
+
+				paths := make([]string, c.NArg(), c.NArg())
+				for i, path := range c.Args() {
+					paths[i] = path
+				}
+
+				if len(paths) == 0 {
+					checkErr("", errors.New("need at least one path"))
+				}
+
+				// Files are all opened but not read until they are sent.
+				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
+				checkErr("serializing all files", err)
+				p := api.DefaultAddParams()
+				p.ReplicationFactorMin = c.Int("replication-min")
+				p.ReplicationFactorMax = c.Int("replication-max")
+				p.Name = name
+				//p.Shard = shard
+				//p.ShardSize = c.Uint64("shard-size")
+				p.Shard = false
+				p.Layout = c.String("layout")
+				p.Chunker = c.String("chunker")
+				p.RawLeaves = c.Bool("raw-leaves")
+				p.Hidden = c.Bool("hidden")
+				p.Wrap = c.Bool("wrap-with-directory") || len(paths) > 1
+
+				out := make(chan *api.AddedOutput, 1)
+				var wg sync.WaitGroup
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					var last string
+					for v := range out {
+						// Print everything when doing json
+						if c.GlobalString("encoding") != "text" {
+							formatResponse(c, *v, nil)
+							continue
+						}
+
+						// Print last hash only
+						if c.Bool("quieter") {
+							last = v.Hash
+							continue
+						}
+
+						// Print hashes only
+						if c.Bool("quiet") {
+							fmt.Println(v.Hash)
+							continue
+						}
+
+						// Format normal text representation of AddedOutput
+						formatResponse(c, *v, nil)
+					}
+					if last != "" {
+						fmt.Println(last)
+					}
+				}()
+
+				cerr := globalClient.AddMultiFile(
+					multiFileR,
+					p,
+					out,
+				)
+				wg.Wait()
+				formatResponse(c, nil, cerr)
+				return cerr
+			},
+		},
+		{
 			Name:        "pin",
-			Description: "add, remove or list items managed by IPFS Cluster",
+			Usage:       "Pin and unpin and list items in IPFS Cluster",
+			Description: "Pin and unpin and list items in IPFS Cluster",
 			Subcommands: []cli.Command{
 				{
 					Name:  "add",
-					Usage: "Track a CID (pin)",
+					Usage: "Cluster Pin",
 					Description: `
 This command tells IPFS Cluster to start managing a CID. Depending on
 the pinning strategy, this will trigger IPFS pin requests. The CID will
@@ -312,7 +490,7 @@ peers should pin this content.
 				},
 				{
 					Name:  "rm",
-					Usage: "Stop tracking a CID (unpin)",
+					Usage: "Cluster Unpin",
 					Description: `
 This command tells IPFS Cluster to no longer manage a CID. This will
 trigger unpinning operations in all the IPFS nodes holding the content.
@@ -357,16 +535,29 @@ although unpinning operations in the cluster may take longer or fail.
 				},
 				{
 					Name:  "ls",
-					Usage: "List tracked CIDs",
+					Usage: "List items in the cluster pinset",
 					Description: `
 This command will list the CIDs which are tracked by IPFS Cluster and to
 which peers they are currently allocated. This list does not include
 any monitoring information about the IPFS status of the CIDs, it
 merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
+
+The filter only takes effect when listing all pins. The possible values are:
+  - all
+  - pin
+  - meta-pin
+  - clusterdag-pin
+  - shard-pin
 `,
 					ArgsUsage: "[CID]",
-					Flags:     []cli.Flag{},
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "filter",
+							Usage: "Comma separated list of pin types. See help above.",
+							Value: "pin",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						if cidStr != "" {
@@ -375,7 +566,13 @@ the cluster. For IPFS-status information about the pins, use "status".
 							resp, cerr := globalClient.Allocation(ci)
 							formatResponse(c, resp, cerr)
 						} else {
-							resp, cerr := globalClient.Allocations()
+							var filter api.PinType
+							strFilter := strings.Split(c.String("filter"), ",")
+							for _, f := range strFilter {
+								filter |= api.PinTypeFromString(f)
+							}
+
+							resp, cerr := globalClient.Allocations(filter)
 							formatResponse(c, resp, cerr)
 						}
 						return nil
@@ -390,7 +587,7 @@ the cluster. For IPFS-status information about the pins, use "status".
 This command retrieves the status of the CIDs tracked by IPFS
 Cluster, including which member is pinning them and any errors.
 If a CID is provided, the status will be only fetched for a single
-item.
+item.  Metadata CIDs are included in the status response
 
 The status of a CID may not be accurate. A manual sync can be triggered
 with "sync".
@@ -502,11 +699,12 @@ to check that it matches the CLI version (shown by -v).
 		},
 		{
 			Name:        "health",
-			Description: "Display information on clusterhealth",
+			Usage:       "Cluster monitoring information",
+			Description: "Cluster monitoring information",
 			Subcommands: []cli.Command{
 				{
 					Name:  "graph",
-					Usage: "display connectivity of cluster peers",
+					Usage: "create a graph displaying connectivity of cluster peers",
 					Description: `
 This command queries all connected cluster peers and their ipfs peers to generate a
 graph of the connections.  Output is a dot file encoding the cluster's connection state.

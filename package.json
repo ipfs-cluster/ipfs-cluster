@@ -15,15 +15,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmZ86eLPtXkQ1Dfa992Q8NpXArUoWWh3y728JDcWvzRrvC",
+      "hash": "QmUDzeFgYrRmHL2hUB6NZmqcBVQtUzETwmFRUc9onfSSHr",
       "name": "go-libp2p",
-      "version": "6.0.5"
+      "version": "6.0.8"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmT7PtJAUxMJwHzfvuxK5AFxZhcxPP2VpegSxafNQU5Prs",
+      "hash": "Qma1GvD8sVdAaawmhh6rCM9fhqHuxoXZqLDPJNmD1YK8mZ",
       "name": "go-libp2p-raft",
-      "version": "1.2.10"
+      "version": "1.2.12"
     },
     {
       "author": "urfave",
@@ -45,15 +45,15 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "Qmb8tTGhxUEcevnFMmuoRHkJb1GzmQ64umAorJvMvqYcPG",
+      "hash": "QmSXkfCpd7nWZahenZ544zsJV29VPooaJnQZfKu5qgga8E",
       "name": "go-libp2p-gorpc",
-      "version": "1.0.13"
+      "version": "1.0.16"
     },
     {
       "author": "libp2p",
-      "hash": "QmRGvSwDpN4eunxgDNfmQhayZ6Z9F5a2v31V2D7y77osLg",
+      "hash": "QmZaQ3K9PRd5sYYoG1xbTGPtd3N7TYiKBRmcBUTsx8HVET",
       "name": "go-libp2p-pnet",
-      "version": "3.0.1"
+      "version": "3.0.2"
     },
     {
       "author": "ZenGround0",
@@ -63,27 +63,27 @@
     },
     {
       "author": "dignifiedquire",
-      "hash": "QmYzCZUe9CBDkyPNPcRNqXQK8KKhtUfXvc88PkFujAEJPe",
+      "hash": "QmZzgxSj8QpR58KmdeNj97eD66X6xeDAFNjpP2xTY9oKeQ",
       "name": "go-fs-lock",
-      "version": "0.1.6"
+      "version": "0.1.7"
     },
     {
       "author": "hsanjuan",
-      "hash": "Qme9ESLovb9Tmv5E7ysqL2qLykitGA7D3rokk3uorAtP3E",
+      "hash": "QmSMWoH8wKuViGUe2ZDr3kDijbzkk81nY71zV1ApibFLxF",
       "name": "go-libp2p-http",
-      "version": "1.0.7"
+      "version": "1.0.8"
     },
     {
       "author": "ipfs",
-      "hash": "QmXmEFbXmC6ExXg3H8MV2FhminVLWf9qJYUdr83DnNCy86",
+      "hash": "QmPBf1azRsvCAMqEwZn3GMW5So5VHxW7hFMb5jz8sE7yFY",
       "name": "go-ipfs-api",
-      "version": "1.2.8"
+      "version": "1.3.2"
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmUue5mTYaG3kzpyqqZppG2UjDAMYtxxD5b1JLmtNMYbUq",
+      "hash": "QmPqk5grMduFU1Cj5onoB4GyV9XRsSG82KtX4wQs8Gd3XA",
       "name": "go-libp2p-floodsub",
-      "version": "100.9.20"
+      "version": "100.9.24"
     },
     {
       "author": "whyrusleeping",
@@ -92,9 +92,50 @@
       "version": "0.7.22"
     },
     {
-      "hash": "QmQYwRL1T9dJtdCScoeRQwwvScbJTcWqnXhq4dYQ6Cu5vX",
+      "author": "satori",
+      "hash": "QmcBWojPoNh4qm7zvv4qiepvCnnc7ALS9qcp7TNwwxT1gT",
+      "name": "go.uuid",
+      "version": "1.1.0"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "Qmc3UwSvJkntxu2gKDPCqJEzmhqVeJtTbrVxJm6tsdmMF1",
+      "name": "go-ipfs-chunker",
+      "version": "0.0.8"
+    },
+    {
+      "author": "hector",
+      "hash": "QmSHjPDw8yNgLZ7cBfX7w3Smn7PHwYhNEpd4LHQQxUg35L",
+      "name": "go-ipfs-posinfo",
+      "version": "0.0.3"
+    },
+    {
+      "hash": "QmPmdpQJRbpWM65XTrKMvpDDjqfSBVwnpQwij1Wq8xwHzk",
+      "name": "go-ipfs",
+      "version": "0.4.18-dev"
+    },
+    {
+      "author": "dustin",
+      "hash": "QmPSBJL4momYnE7DcUyk2DVhD6rH488ZmHBGLbxNdhU44K",
+      "name": "go-humanize",
+      "version": "0.0.0"
+    },
+    {
+      "author": "why",
+      "hash": "QmWJRM6rLjXGEXb5JkKu17Y68eJtCFcKPyRhb8JH2ELZ2Q",
+      "name": "go-unixfs",
+      "version": "1.0.6"
+    },
+    {
+      "author": "why",
+      "hash": "QmXkZeJmx4c3ddjw81DQMUpM1e5LjAack5idzZYWUb2qAJ",
+      "name": "go-merkledag",
+      "version": "1.0.6"
+    },
+    {
+      "hash": "QmZAsayEQakfFbHyakgHRKHwBTWrwuSBTfaMyxJZUG97VC",
       "name": "go-libp2p-kad-dht",
-      "version": "4.2.6"
+      "version": "4.3.1"
     }
   ],
   "gxVersion": "0.11.0",

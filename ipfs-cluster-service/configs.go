@@ -49,7 +49,17 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
-	return cfg, &cfgs{clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, monCfg, pubsubmonCfg, diskInfCfg, numpinInfCfg}
+	return cfg, &cfgs{
+		clusterCfg,
+		apiCfg,
+		ipfshttpCfg,
+		consensusCfg,
+		trackerCfg,
+		monCfg,
+		pubsubmonCfg,
+		diskInfCfg,
+		numpinInfCfg,
+	}
 }
 
 func saveConfig(cfg *config.Manager, force bool) {

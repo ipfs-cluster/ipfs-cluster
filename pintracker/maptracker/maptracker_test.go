@@ -59,6 +59,14 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *s
 	return nil
 }
 
+func testPin(c *cid.Cid, min, max int, allocs ...peer.ID) api.Pin {
+	pin := api.PinCid(c)
+	pin.ReplicationFactorMin = min
+	pin.ReplicationFactorMax = max
+	pin.Allocations = allocs
+	return pin
+}
+
 func testSlowMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
@@ -101,12 +109,7 @@ func TestTrack(t *testing.T) {
 	h, _ := cid.Decode(test.TestCid1)
 
 	// Let's tart with a local pin
-	c := api.Pin{
-		Cid:                  h,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := testPin(h, -1, -1)
 
 	err := mpt.Track(c)
 	if err != nil {
@@ -121,12 +124,7 @@ func TestTrack(t *testing.T) {
 	}
 
 	// Unpin and set remote
-	c = api.Pin{
-		Cid:                  h,
-		Allocations:          []peer.ID{test.TestPeerID2},
-		ReplicationFactorMin: 1,
-		ReplicationFactorMax: 1,
-	}
+	c = testPin(h, 1, 1, test.TestPeerID2)
 	err = mpt.Track(c)
 	if err != nil {
 		t.Fatal(err)
@@ -148,12 +146,7 @@ func TestUntrack(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 
 	// LocalPin
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := testPin(h1, -1, -1)
 
 	err := mpt.Track(c)
 	if err != nil {
@@ -161,12 +154,7 @@ func TestUntrack(t *testing.T) {
 	}
 
 	// Remote pin
-	c = api.Pin{
-		Cid:                  h2,
-		Allocations:          []peer.ID{test.TestPeerID2},
-		ReplicationFactorMin: 1,
-		ReplicationFactorMax: 1,
-	}
+	c = testPin(h2, 1, 1, test.TestPeerID2)
 	err = mpt.Track(c)
 	if err != nil {
 		t.Fatal(err)
@@ -208,19 +196,9 @@ func TestStatusAll(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 
 	// LocalPin
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := testPin(h1, -1, -1)
 	mpt.Track(c)
-	c = api.Pin{
-		Cid:                  h2,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: 1,
-		ReplicationFactorMax: 1,
-	}
+	c = testPin(h2, 1, 1)
 	mpt.Track(c)
 
 	time.Sleep(200 * time.Millisecond)
@@ -248,19 +226,9 @@ func TestSyncAndRecover(t *testing.T) {
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
 
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := testPin(h1, -1, -1)
 	mpt.Track(c)
-	c = api.Pin{
-		Cid:                  h2,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c = testPin(h2, -1, -1)
 	mpt.Track(c)
 
 	time.Sleep(100 * time.Millisecond)
@@ -309,12 +277,7 @@ func TestRecoverAll(t *testing.T) {
 
 	h1, _ := cid.Decode(test.TestCid1)
 
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := testPin(h1, -1, -1)
 	mpt.Track(c)
 	time.Sleep(100 * time.Millisecond)
 	mpt.optracker.SetError(h1, errors.New("fakeerror"))
@@ -351,20 +314,9 @@ func TestSyncAll(t *testing.T) {
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
 
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
-
+	c := testPin(h1, -1, -1)
 	mpt.Track(c)
-	c = api.Pin{
-		Cid:                  h2,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c = testPin(h2, -1, -1)
 	mpt.Track(c)
 
 	time.Sleep(100 * time.Millisecond)
@@ -386,13 +338,7 @@ func TestUntrackTrack(t *testing.T) {
 	h1, _ := cid.Decode(test.TestCid1)
 
 	// LocalPin
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
-
+	c := testPin(h1, -1, -1)
 	err := mpt.Track(c)
 	if err != nil {
 		t.Fatal(err)
@@ -413,12 +359,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 
 	// LocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := testPin(slowPinCid, -1, -1)
 
 	err := mpt.Track(slowPin)
 	if err != nil {
@@ -458,20 +399,10 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	fastPinCid, _ := cid.Decode(pinCancelCid)
 
 	// SlowLocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := testPin(slowPinCid, -1, -1)
 
 	// LocalPin
-	fastPin := api.Pin{
-		Cid:                  fastPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	fastPin := testPin(fastPinCid, -1, -1)
 
 	err := mpt.Track(slowPin)
 	if err != nil {
@@ -512,12 +443,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 
 	// LocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := testPin(slowPinCid, -1, -1)
 
 	err := mpt.Track(slowPin)
 	if err != nil {
@@ -567,20 +493,10 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	fastPinCid, _ := cid.Decode(unpinCancelCid)
 
 	// SlowLocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := testPin(slowPinCid, -1, -1)
 
 	// LocalPin
-	fastPin := api.Pin{
-		Cid:                  fastPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	fastPin := testPin(fastPinCid, -1, -1)
 
 	err := mpt.Track(slowPin)
 	if err != nil {
@@ -631,12 +547,7 @@ func TestTrackUntrackConcurrent(t *testing.T) {
 	h1, _ := cid.Decode(test.TestCid1)
 
 	// LocalPin
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := testPin(h1, -1, -1)
 
 	var wg sync.WaitGroup
 

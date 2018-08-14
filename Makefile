@@ -19,6 +19,7 @@ all: service ctl
 clean: rwundo clean_sharness
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
+	@rm -rf ./test/testingData
 
 gx-clean: clean
 	@rm -f $(deptools)/*
@@ -78,7 +79,7 @@ test_problem: deps
 
 $(sharness):
 	@echo "Downloading sharness"
-	@wget -q -O sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/master.tar.gz
+	@curl -L -s -o sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/master.tar.gz
 	@cd sharness/lib; tar -zxf sharness.tar.gz; cd ../..
 	@mv sharness/lib/sharness-master sharness/lib/sharness
 	@rm sharness/lib/sharness.tar.gz

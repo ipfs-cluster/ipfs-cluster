@@ -21,9 +21,9 @@ const configKey = "restapi"
 // These are the default values for Config
 const (
 	DefaultHTTPListenAddr    = "/ip4/127.0.0.1/tcp/9094"
-	DefaultReadTimeout       = 30 * time.Second
+	DefaultReadTimeout       = 0
 	DefaultReadHeaderTimeout = 5 * time.Second
-	DefaultWriteTimeout      = 60 * time.Second
+	DefaultWriteTimeout      = 0
 	DefaultIdleTimeout       = 120 * time.Second
 )
 

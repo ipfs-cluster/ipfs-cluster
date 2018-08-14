@@ -181,15 +181,24 @@ func (mpt *MapPinTracker) enqueue(c api.Pin, typ optracker.OperationType, ch cha
 func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
 
+	// Sharded pins are never pinned. A sharded pin cannot turn into
+	// something else or viceversa like it happens with Remote pins so
+	// we just track them.
+	if c.Type == api.MetaType {
+		mpt.optracker.TrackNewOperation(c, optracker.OperationShard, optracker.PhaseDone)
+		return nil
+	}
+
 	// Trigger unpin whenever something remote is tracked
 	// Note, IPFSConn checks with pin/ls before triggering
-	// pin/rm.
+	// pin/rm, so this actually does not always trigger unpin
+	// to ipfs.
 	if util.IsRemotePin(c, mpt.peerID) {
 		op := mpt.optracker.TrackNewOperation(c, optracker.OperationRemote, optracker.PhaseInProgress)
 		if op == nil {
-			return nil // ongoing unpin
+			return nil // Ongoing operationRemote / PhaseInProgress
 		}
-		err := mpt.unpin(op)
+		err := mpt.unpin(op) // unpin all the time, even if not pinned
 		op.Cancel()
 		if err != nil {
 			op.SetError(err)
@@ -301,7 +310,21 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 		status = api.TrackerStatusUnpinned
 	}
 
-	if ips.IsPinned() {
+	// TODO(hector): for sharding, we may need to check that a shard
+	// is pinned to the right depth. For now, we assumed that if it's pinned
+	// in some way, then it must be right (including direct).
+	pinned := func(i api.IPFSPinStatus) bool {
+		switch i {
+		case api.IPFSPinStatusRecursive:
+			return i.IsPinned(-1)
+		case api.IPFSPinStatusDirect:
+			return i.IsPinned(0)
+		default:
+			return i.IsPinned(1) // Pinned with depth 1 or more.
+		}
+	}
+
+	if pinned(ips) {
 		switch status {
 		case api.TrackerStatusPinError:
 			// If an item that we wanted to pin is pinned, we mark it so

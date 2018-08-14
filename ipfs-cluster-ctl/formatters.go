@@ -20,6 +20,8 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.GlobalPinInfo).ToSerial())
 	case api.Pin:
 		jsonFormatPrint(resp.(api.Pin).ToSerial())
+	case api.AddedOutput:
+		jsonFormatPrint(resp.(api.AddedOutput))
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
 	case api.Error:
@@ -46,6 +48,9 @@ func jsonFormatObject(resp interface{}) {
 			serials[i] = item.ToSerial()
 		}
 		jsonFormatPrint(serials)
+	case []api.AddedOutput:
+		serials := resp.([]api.AddedOutput)
+		jsonFormatPrint(serials)
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -70,6 +75,9 @@ func textFormatObject(resp interface{}) {
 	case api.Pin:
 		serial := resp.(api.Pin).ToSerial()
 		textFormatPrintPin(&serial)
+	case api.AddedOutput:
+		serial := resp.(api.AddedOutput)
+		textFormatPrintAddedOutput(&serial)
 	case api.Version:
 		serial := resp.(api.Version)
 		textFormatPrintVersion(&serial)
@@ -80,13 +88,16 @@ func textFormatObject(resp interface{}) {
 		for _, item := range resp.([]api.ID) {
 			textFormatObject(item)
 		}
-
 	case []api.GlobalPinInfo:
 		for _, item := range resp.([]api.GlobalPinInfo) {
 			textFormatObject(item)
 		}
 	case []api.Pin:
 		for _, item := range resp.([]api.Pin) {
+			textFormatObject(item)
+		}
+	case []api.AddedOutput:
+		for _, item := range resp.([]api.AddedOutput) {
 			textFormatObject(item)
 		}
 	default:
@@ -162,14 +173,48 @@ func textFormatPrintPin(obj *api.PinSerial) {
 	fmt.Printf("%s | %s | ", obj.Cid, obj.Name)
 
 	if obj.ReplicationFactorMin < 0 {
-		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]\n")
+		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
 	} else {
 		var sortAlloc sort.StringSlice = obj.Allocations
 		sortAlloc.Sort()
-		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s\n",
+		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s",
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
 	}
+	var recStr string
+	switch obj.MaxDepth {
+	case 0:
+		recStr = "Direct"
+	case -1:
+		recStr = "Recursive"
+	default:
+		recStr = fmt.Sprintf("Recursive-%d", obj.MaxDepth)
+	}
+
+	fmt.Printf("| %s | ", recStr)
+
+	pinType := obj.ToPin().Type
+	typeStr := pinType.String()
+	var infoStr string
+	switch pinType {
+	case api.DataType:
+		infoStr = typeStr
+	case api.MetaType:
+		infoStr = fmt.Sprintf("%s-- clusterdag=%s", typeStr, obj.Reference)
+	case api.ClusterDAGType, api.ShardType:
+		infoStr = typeStr
+	default:
+		infoStr = ""
+	}
+	fmt.Printf("%s \n", infoStr)
+}
+
+func textFormatPrintAddedOutput(obj *api.AddedOutput) {
+	if obj.Error.Message != "" {
+		fmt.Println(obj.Error.Error())
+		return
+	}
+	fmt.Printf("added %s %s\n", obj.Hash, obj.Name)
 }
 
 func textFormatPrintError(obj *api.Error) {

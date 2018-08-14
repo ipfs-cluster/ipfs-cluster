@@ -7,14 +7,15 @@ import (
 	"time"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
+	ma "github.com/multiformats/go-multiaddr"
+
+	types "github.com/ipfs/ipfs-cluster/api"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/test"
-
-	cid "github.com/ipfs/go-cid"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 func testClients(t *testing.T, api *rest.API, f func(*testing.T, *Client)) {
@@ -165,7 +166,7 @@ func TestAllocations(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c *Client) {
-		pins, err := c.Allocations()
+		pins, err := c.Allocations(types.DataType | types.MetaType)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -427,4 +428,48 @@ func TestWaitFor(t *testing.T) {
 	}
 
 	testClients(t, tapi, testF)
+}
+
+func TestAddMultiFile(t *testing.T) {
+	api := testAPI(t)
+	defer api.Shutdown()
+
+	testF := func(t *testing.T, c *Client) {
+		sth := test.NewShardingTestHelper()
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+
+		p := &types.AddParams{
+			PinOptions: types.PinOptions{
+				ReplicationFactorMin: -1,
+				ReplicationFactorMax: -1,
+				Name:                 "test",
+				ShardSize:            1024,
+			},
+			Shard:     false,
+			Layout:    "",
+			Chunker:   "",
+			RawLeaves: false,
+			Hidden:    false,
+		}
+
+		out := make(chan *types.AddedOutput, 1)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for v := range out {
+				t.Logf("output: Name: %s. Hash: %s", v.Name, v.Hash)
+			}
+		}()
+
+		err := c.AddMultiFile(mfr, p, out)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		wg.Wait()
+	}
+
+	testClients(t, api, testF)
 }

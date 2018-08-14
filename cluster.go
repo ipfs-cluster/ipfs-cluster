@@ -4,9 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/adder"
+	"github.com/ipfs/ipfs-cluster/adder/local"
+	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
@@ -79,7 +83,6 @@ func NewCluster(
 	allocator PinAllocator,
 	informer Informer,
 ) (*Cluster, error) {
-
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -199,6 +202,12 @@ func (c *Cluster) syncWatcher() {
 	}
 }
 
+func (c *Cluster) sendInformerMetric() (api.Metric, error) {
+	metric := c.informer.GetMetric()
+	metric.Peer = c.id
+	return metric, c.monitor.PublishMetric(metric)
+}
+
 // pushInformerMetrics loops and publishes informers metrics using the
 // cluster monitor. Metrics are pushed normally at a TTL/2 rate. If an error
 // occurs, they are pushed at a TTL/4 rate.
@@ -221,10 +230,7 @@ func (c *Cluster) pushInformerMetrics() {
 			// wait
 		}
 
-		metric := c.informer.GetMetric()
-		metric.Peer = c.id
-
-		err := c.monitor.PublishMetric(metric)
+		metric, err := c.sendInformerMetric()
 
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
@@ -712,8 +718,7 @@ func (c *Cluster) StateSync() error {
 	// c. Track items which should not be local as remote
 	for _, p := range trackedPins {
 		pCid := p.Cid
-		currentPin := cState.Get(pCid)
-		has := cState.Has(pCid)
+		currentPin, has := cState.Get(pCid)
 		allocatedHere := containsPeer(currentPin.Allocations, c.id) || currentPin.ReplicationFactorMin == -1
 
 		switch {
@@ -786,19 +791,34 @@ func (c *Cluster) Sync(h *cid.Cid) (api.GlobalPinInfo, error) {
 	return c.globalPinInfoCid("SyncLocal", h)
 }
 
+// used for RecoverLocal and SyncLocal.
+func (c *Cluster) localPinInfoOp(
+	h *cid.Cid,
+	f func(*cid.Cid) (api.PinInfo, error),
+) (pInfo api.PinInfo, err error) {
+	cids, err := c.cidsFromMetaPin(h)
+	if err != nil {
+		return api.PinInfo{}, err
+	}
+
+	for _, ci := range cids {
+		pInfo, err = f(ci)
+		if err != nil {
+			logger.Error("tracker.SyncCid() returned with error: ", err)
+			logger.Error("Is the ipfs daemon running?")
+			break
+		}
+	}
+	// return the last pInfo/err, should be the root Cid if everything ok
+	return pInfo, err
+
+}
+
 // SyncLocal performs a local sync operation for the given Cid. This will
 // tell the tracker to verify the status of the Cid against the IPFS daemon.
 // It returns the updated PinInfo for the Cid.
-func (c *Cluster) SyncLocal(h *cid.Cid) (api.PinInfo, error) {
-	var err error
-	pInfo, err := c.tracker.Sync(h)
-	// Despite errors, trackers provides an updated PinInfo so
-	// we just log it.
-	if err != nil {
-		logger.Error("tracker.SyncCid() returned with error: ", err)
-		logger.Error("Is the ipfs daemon running?")
-	}
-	return pInfo, err
+func (c *Cluster) SyncLocal(h *cid.Cid) (pInfo api.PinInfo, err error) {
+	return c.localPinInfoOp(h, c.tracker.Sync)
 }
 
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
@@ -815,8 +835,8 @@ func (c *Cluster) Recover(h *cid.Cid) (api.GlobalPinInfo, error) {
 
 // RecoverLocal triggers a recover operation for a given Cid in this peer only.
 // It returns the updated PinInfo, after recovery.
-func (c *Cluster) RecoverLocal(h *cid.Cid) (api.PinInfo, error) {
-	return c.tracker.Recover(h)
+func (c *Cluster) RecoverLocal(h *cid.Cid) (pInfo api.PinInfo, err error) {
+	return c.localPinInfoOp(h, c.tracker.Recover)
 }
 
 // Pins returns the list of Cids managed by Cluster and which are part
@@ -829,8 +849,8 @@ func (c *Cluster) Pins() []api.Pin {
 		logger.Error(err)
 		return []api.Pin{}
 	}
-
 	return cState.List()
+
 }
 
 // PinGet returns information for a single Cid managed by Cluster.
@@ -840,7 +860,11 @@ func (c *Cluster) Pins() []api.Pin {
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
 func (c *Cluster) PinGet(h *cid.Cid) (api.Pin, error) {
-	pin, ok := c.getCurrentPin(h)
+	st, err := c.consensus.State()
+	if err != nil {
+		return api.PinCid(h), err
+	}
+	pin, ok := st.Get(h)
 	if !ok {
 		return pin, errors.New("cid is not part of the global state")
 	}
@@ -868,14 +892,8 @@ func (c *Cluster) Pin(pin api.Pin) error {
 	return err
 }
 
-// pin performs the actual pinning and supports a blacklist to be
-// able to evacuate a node and returns whether the pin was submitted
-// to the consensus layer or skipped (due to error or to the fact
-// that it was already valid).
-func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (bool, error) {
-	if pin.Cid == nil {
-		return false, errors.New("bad pin object")
-	}
+// sets the default replication factor in a pin when it's set to 0
+func (c *Cluster) setupReplicationFactor(pin *api.Pin) error {
 	rplMin := pin.ReplicationFactorMin
 	rplMax := pin.ReplicationFactorMax
 	if rplMin == 0 {
@@ -887,22 +905,95 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		pin.ReplicationFactorMax = rplMax
 	}
 
-	if err := isReplicationFactorValid(rplMin, rplMax); err != nil {
+	return isReplicationFactorValid(rplMin, rplMax)
+}
+
+// basic checks on the pin type to check it's well-formed.
+func checkPinType(pin *api.Pin) error {
+	switch pin.Type {
+	case api.DataType:
+		if pin.Reference != nil {
+			return errors.New("data pins should not reference other pins")
+		}
+	case api.ShardType:
+		if pin.MaxDepth != 1 {
+			return errors.New("must pin shards go depth 1")
+		}
+		// FIXME: indirect shard pins could have max-depth 2
+		// FIXME: repinning a shard type will overwrite replication
+		//        factor from previous:
+		// if existing.ReplicationFactorMin != rplMin ||
+		//	existing.ReplicationFactorMax != rplMax {
+		//	return errors.New("shard update with wrong repl factors")
+		//}
+	case api.ClusterDAGType:
+		if pin.MaxDepth != 0 {
+			return errors.New("must pin roots directly")
+		}
+		if pin.Reference == nil {
+			return errors.New("clusterDAG pins should reference a Meta pin")
+		}
+	case api.MetaType:
+		if pin.Allocations != nil && len(pin.Allocations) != 0 {
+			return errors.New("meta pin should not specify allocations")
+		}
+		if pin.Reference == nil {
+			return errors.New("metaPins should reference a ClusterDAG")
+		}
+
+	default:
+		return errors.New("unrecognized pin type")
+	}
+	return nil
+}
+
+// setupPin ensures that the Pin object is fit for pinning. We check
+// and set the replication factors and ensure that the pinType matches the
+// metadata consistently.
+func (c *Cluster) setupPin(pin *api.Pin) error {
+	err := c.setupReplicationFactor(pin)
+	if err != nil {
+		return err
+	}
+
+	existing, err := c.PinGet(pin.Cid)
+	if err == nil && existing.Type != pin.Type { // it exists
+		return errors.New("cannot repin CID with different tracking method, clear state with pin rm to proceed")
+	}
+	return checkPinType(pin)
+}
+
+// pin performs the actual pinning and supports a blacklist to be
+// able to evacuate a node and returns whether the pin was submitted
+// to the consensus layer or skipped (due to error or to the fact
+// that it was already valid).
+func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (bool, error) {
+	if pin.Cid == nil {
+		return false, errors.New("bad pin object")
+	}
+
+	// setup pin might produce some side-effects to our pin
+	err := c.setupPin(&pin)
+	if err != nil {
 		return false, err
 	}
-
-	switch {
-	case rplMin == -1 && rplMax == -1:
-		pin.Allocations = []peer.ID{}
-	default:
-		allocs, err := c.allocate(pin.Cid, rplMin, rplMax, blacklist, prioritylist)
-		if err != nil {
-			return false, err
-		}
-		pin.Allocations = allocs
+	if pin.Type == api.MetaType {
+		return true, c.consensus.LogPin(pin)
 	}
 
-	if curr, _ := c.getCurrentPin(pin.Cid); curr.Equals(pin) {
+	allocs, err := c.allocate(
+		pin.Cid,
+		pin.ReplicationFactorMin,
+		pin.ReplicationFactorMax,
+		blacklist,
+		prioritylist,
+	)
+	if err != nil {
+		return false, err
+	}
+	pin.Allocations = allocs
+
+	if curr, _ := c.PinGet(pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
 		return false, nil
@@ -925,16 +1016,66 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h *cid.Cid) error {
 	logger.Info("IPFS cluster unpinning:", h)
-
-	pin := api.Pin{
-		Cid: h,
+	pin, err := c.PinGet(h)
+	if err != nil {
+		return fmt.Errorf("cannot unpin pin uncommitted to state: %s", err)
 	}
 
-	err := c.consensus.LogUnpin(pin)
+	switch pin.Type {
+	case api.DataType:
+		return c.consensus.LogUnpin(pin)
+	case api.ShardType:
+		err := "cannot unpin a shard direclty. Unpin content root CID instead."
+		return errors.New(err)
+	case api.MetaType:
+		// Unpin cluster dag and referenced shards
+		err := c.unpinClusterDag(pin)
+		if err != nil {
+			return err
+		}
+		return c.consensus.LogUnpin(pin)
+	case api.ClusterDAGType:
+		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
+		return errors.New(err)
+	default:
+		return errors.New("unrecognized pin type")
+	}
+}
+
+// unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
+// nodes that it references.  It handles the case where multiple parents
+// reference the same metadata node, only unpinning those nodes without
+// existing references
+func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
+	cids, err := c.cidsFromMetaPin(metaPin.Cid)
 	if err != nil {
 		return err
 	}
+
+	// TODO: FIXME: potentially unpinning shards which are referenced
+	// by other clusterDAGs.
+	for _, ci := range cids {
+		err = c.consensus.LogUnpin(api.PinCid(ci))
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer
+// pipeline is used to DAGify the file.  Depending on input parameters this
+// DAG can be added locally to the calling cluster peer's ipfs repo, or
+// sharded across the entire cluster.
+func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (*cid.Cid, error) {
+	var dags adder.ClusterDAGService
+	if params.Shard {
+		dags = sharding.New(c.rpcClient, params.PinOptions, nil)
+	} else {
+		dags = local.New(c.rpcClient, params.PinOptions)
+	}
+	add := adder.New(dags, params, nil)
+	return add.FromMultipart(c.ctx, reader)
 }
 
 // Version returns the current IPFS Cluster version.
@@ -1127,6 +1268,50 @@ func (c *Cluster) getIDForPeer(pid peer.ID) (api.ID, error) {
 		id.Error = err.Error()
 	}
 	return id, err
+}
+
+// cidsFromMetaPin expands a meta-pin and returns a list of Cids that
+// Cluster handles for it: the ShardPins, the ClusterDAG and the MetaPin, in
+// that order (the MetaPin is the last element).
+// It returns a slice with only the given Cid if it's not a known Cid or not a
+// MetaPin.
+func (c *Cluster) cidsFromMetaPin(h *cid.Cid) ([]*cid.Cid, error) {
+	cState, err := c.consensus.State()
+	if err != nil {
+		return nil, err
+	}
+
+	list := []*cid.Cid{h}
+
+	pin, ok := cState.Get(h)
+	if !ok {
+		return list, nil
+	}
+
+	if pin.Type != api.MetaType {
+		return list, nil
+	}
+
+	list = append([]*cid.Cid{pin.Reference}, list...)
+	clusterDagPin, err := c.PinGet(pin.Reference)
+	if err != nil {
+		return list, fmt.Errorf("could not get clusterDAG pin from state. Malformed pin?: %s", err)
+	}
+
+	clusterDagBlock, err := c.ipfs.BlockGet(clusterDagPin.Cid)
+	if err != nil {
+		return list, fmt.Errorf("error reading clusterDAG block from ipfs: %s", err)
+	}
+
+	clusterDagNode, err := sharding.CborDataToNode(clusterDagBlock, "cbor")
+	if err != nil {
+		return list, fmt.Errorf("error parsing clusterDAG block: %s", err)
+	}
+	for _, l := range clusterDagNode.Links() {
+		list = append([]*cid.Cid{l.Cid}, list...)
+	}
+
+	return list, nil
 }
 
 // diffPeers returns the peerIDs added and removed from peers2 in relation to

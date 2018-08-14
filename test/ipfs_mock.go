@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,14 +14,16 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
 	cid "github.com/ipfs/go-cid"
+	u "github.com/ipfs/go-ipfs-util"
 )
 
 // IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.
 type IpfsMock struct {
-	server *httptest.Server
-	Addr   string
-	Port   int
-	pinMap *mapstate.MapState
+	server     *httptest.Server
+	Addr       string
+	Port       int
+	pinMap     *mapstate.MapState
+	BlockStore map[string][]byte
 }
 
 type mockPinResp struct {
@@ -76,11 +79,17 @@ type mockIpfsPeer struct {
 	Peer string
 }
 
+type mockBlockPutResp struct {
+	Key string
+}
+
 // NewIpfsMock returns a new mock.
 func NewIpfsMock() *IpfsMock {
 	st := mapstate.NewMapState()
+	blocks := make(map[string][]byte)
 	m := &IpfsMock{
-		pinMap: st,
+		pinMap:     st,
+		BlockStore: blocks,
 	}
 	ts := httptest.NewServer(http.HandlerFunc(m.handler))
 	m.server = ts
@@ -226,6 +235,58 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
+	case "block/put":
+		// Get the data and retun the hash
+		mpr, err := r.MultipartReader()
+		if err != nil {
+			goto ERROR
+		}
+		part, err := mpr.NextPart()
+		if err != nil {
+			goto ERROR
+		}
+		data, err := ioutil.ReadAll(part)
+		if err != nil {
+			goto ERROR
+		}
+		// Parse cid from data and format and add to mock block-store
+		query := r.URL.Query()
+		format, ok := query["f"]
+		if !ok || len(format) != 1 {
+			goto ERROR
+		}
+		var c string
+		hash := u.Hash(data)
+		codec, ok := cid.Codecs[format[0]]
+		if !ok {
+			goto ERROR
+		}
+		if format[0] == "v0" {
+			c = cid.NewCidV0(hash).String()
+		} else {
+			c = cid.NewCidV1(codec, hash).String()
+		}
+		m.BlockStore[c] = data
+
+		resp := mockBlockPutResp{
+			Key: c,
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "block/get":
+		query := r.URL.Query()
+		arg, ok := query["arg"]
+		if !ok {
+			goto ERROR
+		}
+		if len(arg) != 1 {
+			goto ERROR
+		}
+		data, ok := m.BlockStore[arg[0]]
+		if !ok {
+			goto ERROR
+		}
+		w.Write(data)
 	case "repo/stat":
 		len := len(m.pinMap.List())
 		resp := mockRepoStatResp{

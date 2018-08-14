@@ -191,6 +191,48 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *a
 	return err
 }
 
+// BlockAllocate returns allocations for blocks. This is used in the adders.
+// It's different from pin allocations when ReplicationFactor < 0.
+func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	pin := in.ToPin()
+	err := rpcapi.c.setupPin(&pin)
+	if err != nil {
+		return err
+	}
+
+	// Return the current peer list.
+	if pin.ReplicationFactorMin < 0 {
+		peers, err := rpcapi.c.consensus.Peers()
+		if err != nil {
+			return err
+		}
+		*out = api.PeersToStrings(peers)
+		return nil
+	}
+
+	allocs, err := rpcapi.c.allocate(
+		pin.Cid,
+		pin.ReplicationFactorMin,
+		pin.ReplicationFactorMax,
+		[]peer.ID{}, // blacklist
+		[]peer.ID{}, // prio list
+	)
+
+	if err != nil {
+		return err
+	}
+
+	*out = api.PeersToStrings(allocs)
+	return nil
+}
+
+// SendInformerMetric runs Cluster.sendInformerMetric().
+func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+	m, err := rpcapi.c.sendInformerMetric()
+	*out = m
+	return err
+}
+
 /*
    Tracker component methods
 */
@@ -220,7 +262,7 @@ func (rpcapi *RPCAPI) TrackerStatus(ctx context.Context, in api.PinSerial, out *
 	return nil
 }
 
-// TrackerRecoverAll runs PinTracker.RecoverAll().
+// TrackerRecoverAll runs PinTracker.RecoverAll().f
 func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	pinfos, err := rpcapi.c.tracker.RecoverAll()
 	*out = pinInfoSliceToSerial(pinfos)
@@ -242,8 +284,8 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out 
 // IPFSPin runs IPFSConnector.Pin().
 func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
 	c := in.ToPin().Cid
-	r := in.ToPin().Recursive
-	return rpcapi.c.ipfs.Pin(ctx, c, r)
+	depth := in.ToPin().MaxDepth
+	return rpcapi.c.ipfs.Pin(ctx, c, depth)
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
@@ -298,6 +340,19 @@ func (rpcapi *RPCAPI) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64
 func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.SwarmPeersSerial) error {
 	res, err := rpcapi.c.ipfs.SwarmPeers()
 	*out = res.ToSerial()
+	return err
+}
+
+// IPFSBlockPut runs IPFSConnector.BlockPut().
+func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
+	return rpcapi.c.ipfs.BlockPut(in)
+}
+
+// IPFSBlockGet runs IPFSConnector.BlockGet().
+func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[]byte) error {
+	c := in.ToPin().Cid
+	res, err := rpcapi.c.ipfs.BlockGet(c)
+	*out = res
 	return err
 }
 

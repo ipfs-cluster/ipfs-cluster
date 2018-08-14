@@ -10,15 +10,42 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-func (c *Client) do(method, path string, body io.Reader, obj interface{}) error {
-	resp, err := c.doRequest(method, path, body)
+type responseDecoder func(d *json.Decoder) error
+
+func (c *Client) do(
+	method, path string,
+	headers map[string]string,
+	body io.Reader,
+	obj interface{},
+) error {
+
+	resp, err := c.doRequest(method, path, headers, body)
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
 	return c.handleResponse(resp, obj)
 }
 
-func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
+func (c *Client) doStream(
+	method, path string,
+	headers map[string]string,
+	body io.Reader,
+	outHandler responseDecoder,
+) error {
+
+	resp, err := c.doRequest(method, path, headers, body)
+	if err != nil {
+		return &api.Error{Code: 0, Message: err.Error()}
+	}
+	return c.handleStreamResponse(resp, outHandler)
+}
+
+func (c *Client) doRequest(
+	method, path string,
+	headers map[string]string,
+	body io.Reader,
+) (*http.Response, error) {
+
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
@@ -34,9 +61,18 @@ func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response,
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
+	if headers != nil {
+		for k, v := range headers {
+			r.Header.Set(k, v)
+		}
+	}
+
+	if body != nil {
+		r.ContentLength = -1 // this lets go use "chunked".
+	}
+
 	return c.client.Do(r)
 }
-
 func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
@@ -52,7 +88,7 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 	case resp.StatusCode == http.StatusNoContent:
 		logger.Debug("Request suceeded. Response has no content")
 	default:
-		if resp.StatusCode > 399 {
+		if resp.StatusCode > 399 && resp.StatusCode < 600 {
 			var apiErr api.Error
 			err = json.Unmarshal(body, &apiErr)
 			if err != nil {
@@ -72,4 +108,31 @@ func (c *Client) handleResponse(resp *http.Response, obj interface{}) error {
 		}
 	}
 	return nil
+}
+
+func (c *Client) handleStreamResponse(resp *http.Response, handler responseDecoder) error {
+	if resp.StatusCode > 399 && resp.StatusCode < 600 {
+		return c.handleResponse(resp, nil)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return &api.Error{
+			Code:    500,
+			Message: "expected streaming response with code 200",
+		}
+	}
+
+	dec := json.NewDecoder(resp.Body)
+	for {
+		err := handler(dec)
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+	}
 }

@@ -53,16 +53,14 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 }
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
+	cid1 := MustDecodeCid(TestCid1)
+	cid2 := MustDecodeCid(TestCid2)
+	cid3 := MustDecodeCid(TestCid3)
+
 	*out = []api.PinSerial{
-		{
-			Cid: TestCid1,
-		},
-		{
-			Cid: TestCid2,
-		},
-		{
-			Cid: TestCid3,
-		},
+		api.PinCid(cid1).ToSerial(),
+		api.PinCid(cid2).ToSerial(),
+		api.PinCid(cid3).ToSerial(),
 	}
 	return nil
 }
@@ -238,6 +236,18 @@ func (mock *mockService) RecoverLocal(ctx context.Context, in api.PinSerial, out
 	return mock.TrackerRecover(ctx, in, out)
 }
 
+func (mock *mockService) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	if in.ReplicationFactorMin > 1 {
+		return errors.New("replMin too high: can only mock-allocate to 1")
+	}
+	*out = []string{""} // local peer
+	return nil
+}
+
+func (mock *mockService) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+	return nil
+}
+
 /* Tracker methods */
 
 func (mock *mockService) Track(ctx context.Context, in api.PinSerial, out *struct{}) error {
@@ -377,6 +387,10 @@ func (mock *mockService) IPFSRepoSize(ctx context.Context, in struct{}, out *uin
 func (mock *mockService) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
 	// RepoSize is 2KB, StorageMax is 100KB
 	*out = 98000
+	return nil
+}
+
+func (mock *mockService) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
 	return nil
 }
 

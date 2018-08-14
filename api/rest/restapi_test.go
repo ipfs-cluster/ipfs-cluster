@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -82,7 +83,7 @@ func testHTTPSAPI(t *testing.T) *API {
 
 func processResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
 	if err != nil {
-		t.Fatal("error making get request: ", err)
+		t.Fatal("error making request: ", err)
 	}
 	body, err := ioutil.ReadAll(httpResp.Body)
 	defer httpResp.Body.Close()
@@ -95,6 +96,30 @@ func processResp(t *testing.T, httpResp *http.Response, err error, resp interfac
 		if err != nil {
 			t.Error(string(body))
 			t.Fatal("error parsing json: ", err)
+		}
+	}
+}
+
+func processStreamingResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
+	if err != nil {
+		t.Fatal("error making streaming request: ", err)
+	}
+
+	if httpResp.StatusCode > 399 {
+		// normal response with error
+		processResp(t, httpResp, err, resp)
+		return
+	}
+
+	defer httpResp.Body.Close()
+	dec := json.NewDecoder(httpResp.Body)
+	for {
+		err := dec.Decode(&resp)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 }
@@ -129,6 +154,10 @@ func httpsURL(a *API) string {
 	return fmt.Sprintf("https://%s", u)
 }
 
+func isHTTPS(url string) bool {
+	return strings.HasPrefix(url, "https")
+}
+
 // supports both http/https and libp2p-tunneled-http
 func httpClient(t *testing.T, h host.Host, isHTTPS bool) *http.Client {
 	tr := &http.Transport{}
@@ -153,7 +182,7 @@ func httpClient(t *testing.T, h host.Host, isHTTPS bool) *http.Client {
 func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
-	c := httpClient(t, h, strings.HasPrefix(url, "https"))
+	c := httpClient(t, h, isHTTPS(url))
 	httpResp, err := c.Get(url)
 	processResp(t, httpResp, err, resp)
 }
@@ -161,7 +190,7 @@ func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
-	c := httpClient(t, h, strings.HasPrefix(url, "https"))
+	c := httpClient(t, h, isHTTPS(url))
 	httpResp, err := c.Post(url, "application/json", bytes.NewReader(body))
 	processResp(t, httpResp, err, resp)
 }
@@ -169,10 +198,18 @@ func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}
 func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
-	c := httpClient(t, h, strings.HasPrefix(url, "https"))
+	c := httpClient(t, h, isHTTPS(url))
 	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
+}
+
+func makeStreamingPost(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h, isHTTPS(url))
+	httpResp, err := c.Post(url, contentType, body)
+	processStreamingResp(t, httpResp, err, resp)
 }
 
 type testF func(t *testing.T, url urlF)
@@ -302,6 +339,59 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIAddFileEndpointBadContentType(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	tf := func(t *testing.T, url urlF) {
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		localURL := url(rest) + fmtStr1
+
+		errResp := api.Error{}
+		makePost(t, rest, localURL, []byte("test"), &errResp)
+
+		if errResp.Code != 400 {
+			t.Error("expected error with bad content-type")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointLocal(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	tf := func(t *testing.T, url urlF) {
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		localURL := url(rest) + fmtStr1
+		sth := test.NewShardingTestHelper()
+		body, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		resp := api.AddedOutput{}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		makeStreamingPost(t, rest, localURL, body, mpContentType, &resp)
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpointShard(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+	tf := func(t *testing.T, url urlF) {
+		sth := test.NewShardingTestHelper()
+		body, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		resp := api.AddedOutput{}
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		shardURL := url(rest) + fmtStr1
+		makeStreamingPost(t, rest, shardURL, body, mpContentType, &resp)
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestAPIPeerRemoveEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
@@ -398,7 +488,7 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.PinSerial
-		makeGet(t, rest, url(rest)+"/allocations", &resp)
+		makeGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp)
 		if len(resp) != 3 ||
 			resp[0].Cid != test.TestCid1 || resp[1].Cid != test.TestCid2 ||
 			resp[2].Cid != test.TestCid3 {

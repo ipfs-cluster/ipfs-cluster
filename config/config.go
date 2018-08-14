@@ -52,6 +52,7 @@ const (
 	Monitor
 	Allocator
 	Informer
+	Sharder
 )
 
 // SectionType specifies to which section a component configuration belongs.
@@ -161,6 +162,7 @@ type jsonConfig struct {
 	Monitor    jsonSection      `json:"monitor,omitempty"`
 	Allocator  jsonSection      `json:"allocator,omitempty"`
 	Informer   jsonSection      `json:"informer,omitempty"`
+	Sharder    jsonSection      `json:"sharder,omitempty"`
 }
 
 // Default generates a default configuration by generating defaults for all
@@ -309,6 +311,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	loadCompJSON(sections[Monitor], jcfg.Monitor)
 	loadCompJSON(sections[Allocator], jcfg.Allocator)
 	loadCompJSON(sections[Informer], jcfg.Informer)
+	loadCompJSON(sections[Sharder], jcfg.Informer)
 	return cfg.Validate()
 }
 
@@ -394,6 +397,8 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 			err = updateJSONConfigs(v, &jcfg.Allocator)
 		case Informer:
 			err = updateJSONConfigs(v, &jcfg.Informer)
+		case Sharder:
+			err = updateJSONConfigs(v, &jcfg.Sharder)
 		}
 		if err != nil {
 			return nil, err

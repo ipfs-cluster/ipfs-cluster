@@ -110,12 +110,15 @@ func (st *mapStateV3) next() migrateable {
 	mst4.PinMap = make(map[string]api.PinSerial)
 	for k, v := range st.PinMap {
 		mst4.PinMap[k] = api.PinSerial{
-			Cid:                  v.Cid,
-			Name:                 v.Name,
-			Allocations:          v.Allocations,
-			ReplicationFactorMin: v.ReplicationFactorMin,
-			ReplicationFactorMax: v.ReplicationFactorMax,
-			Recursive:            true,
+			Cid:         v.Cid,
+			Allocations: v.Allocations,
+			Type:        uint64(api.DataType),
+			Reference:   "",
+			PinOptions: api.PinOptions{
+				ReplicationFactorMin: v.ReplicationFactorMin,
+				ReplicationFactorMax: v.ReplicationFactorMax,
+				Name:                 v.Name,
+			},
 		}
 	}
 	return &mst4

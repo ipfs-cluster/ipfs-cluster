@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
+	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -94,9 +95,32 @@ func containsPeer(list []peer.ID, peer peer.ID) bool {
 	return false
 }
 
+func containsCid(list []*cid.Cid, ci *cid.Cid) bool {
+	for _, c := range list {
+		if c.String() == ci.String() {
+			return true
+		}
+	}
+	return false
+}
+
 func minInt(x, y int) int {
 	if x < y {
 		return x
 	}
 	return y
 }
+
+// // updatePinParents modifies the api.Pin input to give it the correct parents
+// // so that previous additions to the pins parents are maintained after this
+// // pin is committed to consensus.  If this pin carries new parents they are
+// // merged with those already existing for this CID.
+// func updatePinParents(pin *api.Pin, existing *api.Pin) {
+// 	// no existing parents this pin is up to date
+// 	if existing.Parents == nil || len(existing.Parents.Keys()) == 0 {
+// 		return
+// 	}
+// 	for _, c := range existing.Parents.Keys() {
+// 		pin.Parents.Add(c)
+// 	}
+// }

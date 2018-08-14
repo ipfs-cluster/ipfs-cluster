@@ -13,12 +13,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/ipfs/ipfs-cluster/adder"
+	"github.com/ipfs/ipfs-cluster/adder/local"
+	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
@@ -34,6 +39,10 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 var logger = logging.Logger("restapi")
 
 // Common errors
@@ -47,6 +56,9 @@ var (
 	// operations that rely on the HTTPEndpoint but it is disabled.
 	ErrHTTPEndpointNotEnabled = errors.New("the HTTP endpoint is not enabled")
 )
+
+// For making a random sharding ID
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // API implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
@@ -296,7 +308,12 @@ func (api *API) routes() []route {
 			"/peers/{peer}",
 			api.peerRemoveHandler,
 		},
-
+		{
+			"Add",
+			"POST",
+			"/add",
+			api.addHandler,
+		},
 		{
 			"Allocations",
 			"GET",
@@ -484,6 +501,65 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, err, graph)
 }
 
+func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
+	reader, err := r.MultipartReader()
+	if err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	params, err := types.AddParamsFromQuery(r.URL.Query())
+	if err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	output := make(chan *types.AddedOutput, 200)
+	var dags adder.ClusterDAGService
+
+	if params.Shard {
+		dags = sharding.New(api.rpcClient, params.PinOptions, output)
+	} else {
+		dags = local.New(api.rpcClient, params.PinOptions)
+	}
+
+	enc := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for v := range output {
+			err := enc.Encode(v)
+			if err != nil {
+				logger.Error(err)
+			}
+		}
+	}()
+
+	add := adder.New(dags, params, output)
+	c, err := add.FromMultipart(api.ctx, reader)
+	_ = c
+
+	wg.Wait()
+
+	if err != nil {
+		errorResp := types.AddedOutput{
+			Error: types.Error{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			},
+		}
+		if err := enc.Encode(errorResp); err != nil {
+			logger.Error(err)
+		}
+	}
+
+	return
+}
+
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
 	var peersSerial []types.IDSerial
 	err := api.rpcClient.Call("",
@@ -560,13 +636,28 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	filterStr := queryValues.Get("filter")
+	var filter types.PinType
+	for _, f := range strings.Split(filterStr, ",") {
+		filter |= types.PinTypeFromString(f)
+	}
 	var pins []types.PinSerial
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.Call(
+		"",
 		"Cluster",
 		"Pins",
 		struct{}{},
-		&pins)
-	sendResponse(w, err, pins)
+		&pins,
+	)
+	outPins := make([]types.PinSerial, 0)
+	for _, pinS := range pins {
+		if uint64(filter)&pinS.Type > 0 {
+			// add this pin to output
+			outPins = append(outPins, pinS)
+		}
+	}
+	sendResponse(w, err, outPins)
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
@@ -733,16 +824,26 @@ func parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	}
 
 	pin := types.PinSerial{
-		Cid: hash,
+		Cid:  hash,
+		Type: uint64(types.DataType),
 	}
 
 	queryValues := r.URL.Query()
 	name := queryValues.Get("name")
 	pin.Name = name
-	pin.Recursive = true // For now all CLI pins are recursive
-	rplStr := queryValues.Get("replication_factor")
-	rplStrMin := queryValues.Get("replication_factor_min")
-	rplStrMax := queryValues.Get("replication_factor_max")
+	pin.MaxDepth = -1 // For now, all pins are recursive
+	rplStr := queryValues.Get("replication")
+	if rplStr == "" { // compat <= 0.4.0
+		rplStr = queryValues.Get("replication_factor")
+	}
+	rplStrMin := queryValues.Get("replication-min")
+	if rplStrMin == "" { // compat <= 0.4.0
+		rplStrMin = queryValues.Get("replication_factor_min")
+	}
+	rplStrMax := queryValues.Get("replication-max")
+	if rplStrMax == "" { // compat <= 0.4.0
+		rplStrMax = queryValues.Get("replication_factor_max")
+	}
 	if rplStr != "" { // override
 		rplStrMin = rplStr
 		rplStrMax = rplStr
@@ -785,31 +886,31 @@ func pinInfosToGlobal(pInfos []types.PinInfoSerial) []types.GlobalPinInfoSerial 
 	return gPInfos
 }
 
-func sendResponse(w http.ResponseWriter, rpcErr error, resp interface{}) {
-	if checkRPCErr(w, rpcErr) {
+func sendResponse(w http.ResponseWriter, err error, resp interface{}) {
+	if checkErr(w, err) {
 		sendJSONResponse(w, 200, resp)
 	}
 }
 
-// checkRPCErr takes care of returning standard error responses if we
+// checkErr takes care of returning standard error responses if we
 // pass an error to it. It returns true when everythings OK (no error
 // was handled), or false otherwise.
-func checkRPCErr(w http.ResponseWriter, err error) bool {
+func checkErr(w http.ResponseWriter, err error) bool {
 	if err != nil {
-		sendErrorResponse(w, 500, err.Error())
+		sendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return false
 	}
 	return true
 }
 
-func sendEmptyResponse(w http.ResponseWriter, rpcErr error) {
-	if checkRPCErr(w, rpcErr) {
+func sendEmptyResponse(w http.ResponseWriter, err error) {
+	if checkErr(w, err) {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func sendAcceptedResponse(w http.ResponseWriter, rpcErr error) {
-	if checkRPCErr(w, rpcErr) {
+func sendAcceptedResponse(w http.ResponseWriter, err error) {
+	if checkErr(w, err) {
 		w.WriteHeader(http.StatusAccepted)
 	}
 }
@@ -818,7 +919,7 @@ func sendJSONResponse(w http.ResponseWriter, code int, resp interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		panic(err)
+		logger.Error(err)
 	}
 }
 
@@ -829,4 +930,20 @@ func sendErrorResponse(w http.ResponseWriter, code int, msg string) {
 	}
 	logger.Errorf("sending error response: %d: %s", code, msg)
 	sendJSONResponse(w, code, errorResp)
+}
+
+func sendStreamResponse(w http.ResponseWriter, err error, resp <-chan interface{}) {
+	if !checkErr(w, err) {
+		return
+	}
+
+	enc := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
+	for v := range resp {
+		err := enc.Encode(v)
+		if err != nil {
+			logger.Error(err)
+		}
+	}
 }
