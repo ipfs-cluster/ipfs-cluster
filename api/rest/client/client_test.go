@@ -79,7 +79,7 @@ func testClientHTTP(t *testing.T, api *rest.API) *Client {
 
 func testClientLibp2p(t *testing.T, api *rest.API) *Client {
 	cfg := &Config{
-		PeerAddr:          peerMAddr(api),
+		APIAddr:           peerMAddr(api),
 		ProtectorKey:      make([]byte, 32),
 		DisableKeepAlives: true,
 	}
@@ -187,14 +187,12 @@ func TestDNSMultiaddress(t *testing.T) {
 }
 
 func TestPeerAddress(t *testing.T) {
-	addr2, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234")
 	peerAddr, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234/ipfs/QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP")
 	cfg := &Config{
-		APIAddr:           addr2,
+		APIAddr:           peerAddr,
 		Host:              "localhost",
 		Port:              "9094",
 		DisableKeepAlives: true,
-		PeerAddr:          peerAddr,
 	}
 	c, err := NewClient(cfg)
 	if err != nil {
