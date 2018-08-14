@@ -131,6 +131,11 @@
       "hash": "QmXkZeJmx4c3ddjw81DQMUpM1e5LjAack5idzZYWUb2qAJ",
       "name": "go-merkledag",
       "version": "1.0.6"
+    },
+    {
+      "hash": "QmQYwRL1T9dJtdCScoeRQwwvScbJTcWqnXhq4dYQ6Cu5vX",
+      "name": "go-libp2p-kad-dht",
+      "version": "4.2.6"
     }
   ],
   "gxVersion": "0.11.0",

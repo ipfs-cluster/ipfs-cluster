@@ -41,7 +41,7 @@ func (c *Client) defaultTransport() {
 func (c *Client) enableLibp2p() error {
 	c.defaultTransport()
 
-	pid, addr, err := api.Libp2pMultiaddrSplit(c.config.PeerAddr)
+	pid, addr, err := api.Libp2pMultiaddrSplit(c.config.APIAddr)
 	if err != nil {
 		return err
 	}

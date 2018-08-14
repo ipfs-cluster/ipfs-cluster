@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"context"
-	"errors"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
@@ -83,9 +82,9 @@ func (rpcapi *RPCAPI) Peers(ctx context.Context, in struct{}, out *[]api.IDSeria
 }
 
 // PeerAdd runs Cluster.PeerAdd().
-func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in api.MultiaddrSerial, out *api.IDSerial) error {
-	addr := in.ToMultiaddr()
-	id, err := rpcapi.c.PeerAdd(addr)
+func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in string, out *api.IDSerial) error {
+	pid, _ := peer.IDB58Decode(in)
+	id, err := rpcapi.c.PeerAdd(pid)
 	*out = id.ToSerial()
 	return err
 }
@@ -391,24 +390,6 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 }
 
 /*
-   Peer Manager methods
-*/
-
-// PeerManagerAddPeer runs peerManager.addPeer().
-func (rpcapi *RPCAPI) PeerManagerAddPeer(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
-	addr := in.ToMultiaddr()
-	err := rpcapi.c.peerManager.ImportPeer(addr, false)
-	return err
-}
-
-// PeerManagerImportAddresses runs peerManager.importAddresses().
-func (rpcapi *RPCAPI) PeerManagerImportAddresses(ctx context.Context, in api.MultiaddrsSerial, out *struct{}) error {
-	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.ImportPeers(addrs, false)
-	return err
-}
-
-/*
    PeerMonitor
 */
 
@@ -421,22 +402,5 @@ func (rpcapi *RPCAPI) PeerMonitorLogMetric(ctx context.Context, in api.Metric, o
 // PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
 func (rpcapi *RPCAPI) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
 	*out = rpcapi.c.monitor.LatestMetrics(in)
-	return nil
-}
-
-/*
-   Other
-*/
-
-// RemoteMultiaddrForPeer returns the multiaddr of a peer as seen by this peer.
-// This is necessary for a peer to figure out which of its multiaddresses the
-// peers are seeing (also when crossing NATs). It should be called from
-// the peer the IN parameter indicates.
-func (rpcapi *RPCAPI) RemoteMultiaddrForPeer(ctx context.Context, in peer.ID, out *api.MultiaddrSerial) error {
-	conns := rpcapi.c.host.Network().ConnsToPeer(in)
-	if len(conns) == 0 {
-		return errors.New("no connections to: " + in.Pretty())
-	}
-	*out = api.MultiaddrToSerial(api.MustLibp2pMultiaddrJoin(conns[0].RemoteMultiaddr(), in))
 	return nil
 }

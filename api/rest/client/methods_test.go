@@ -105,8 +105,7 @@ func TestPeerAdd(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c *Client) {
-		addr, _ := ma.NewMultiaddr("/ip4/1.2.3.4/tcp/1234/ipfs/" + test.TestPeerID1.Pretty())
-		id, err := c.PeerAdd(addr)
+		id, err := c.PeerAdd(test.TestPeerID1)
 		if err != nil {
 			t.Fatal(err)
 		}

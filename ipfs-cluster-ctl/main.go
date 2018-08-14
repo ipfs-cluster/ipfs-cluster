@@ -143,24 +143,16 @@ requires authorization. implies --https, which you can disable with --force-http
 		addr, err := ma.NewMultiaddr(c.String("host"))
 		checkErr("parsing host multiaddress", err)
 
-		// Is this a peer address?
-		pid, err := addr.ValueForProtocol(ma.P_IPFS)
-		if pid != "" && err == nil {
-			logger.Debugf("Using libp2p-http to %s", addr)
-			cfg.PeerAddr = addr
-			if hexSecret := c.String("secret"); hexSecret != "" {
-				secret, err := hex.DecodeString(hexSecret)
-				checkErr("parsing secret", err)
-				cfg.ProtectorKey = secret
-			}
-		} else {
-			logger.Debugf("Using http(s) to %s", addr)
-			cfg.APIAddr = addr
+		cfg.APIAddr = addr
+		if hexSecret := c.String("secret"); hexSecret != "" {
+			secret, err := hex.DecodeString(hexSecret)
+			checkErr("parsing secret", err)
+			cfg.ProtectorKey = secret
 		}
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
 
-		if cfg.PeerAddr != nil && c.Bool("https") {
+		if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
 			logger.Warning("Using libp2p-http. SSL flags will be ignored")
 		}
 

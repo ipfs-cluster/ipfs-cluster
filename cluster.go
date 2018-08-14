@@ -19,7 +19,9 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-host"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	peer "github.com/libp2p/go-libp2p-peer"
+	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -38,6 +40,7 @@ type Cluster struct {
 	id          peer.ID
 	config      *Config
 	host        host.Host
+	dht         *dht.IpfsDHT
 	rpcServer   *rpc.Server
 	rpcClient   *rpc.Client
 	peerManager *pstoremgr.Manager
@@ -89,6 +92,8 @@ func NewCluster(
 		return nil, errors.New("cluster host is nil")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
 		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
@@ -100,15 +105,32 @@ func NewCluster(
 		logger.Infof("IPFS Cluster v%s listening on:\n%s\n", Version, listenAddrs)
 	}
 
+	// Note, we already loaded peers from peerstore into the host
+	// in daemon.go.
 	peerManager := pstoremgr.New(host, cfg.GetPeerstorePath())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	idht, err := dht.New(ctx, host)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	// Let the DHT be maintained regularly
+	err = idht.Bootstrap(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	rHost := routedhost.Wrap(host, idht)
+
 	c := &Cluster{
 		ctx:         ctx,
 		cancel:      cancel,
 		id:          host.ID(),
 		config:      cfg,
-		host:        host,
+		host:        rHost,
+		dht:         idht,
 		consensus:   consensus,
 		api:         api,
 		ipfs:        ipfs,
@@ -130,7 +152,6 @@ func NewCluster(
 		c.Shutdown()
 		return nil, err
 	}
-
 	c.setupRPCClients()
 	go func() {
 		c.ready(ReadyTimeout)
@@ -270,7 +291,6 @@ func (c *Cluster) alertsHandler() {
 // detects that we have been removed from the peerset, it shuts down this peer.
 func (c *Cluster) watchPeers() {
 	ticker := time.NewTicker(c.config.PeerWatchInterval)
-	lastPeers := PeersFromMultiaddrs(c.peerManager.LoadPeerstore())
 
 	for {
 		select {
@@ -278,7 +298,6 @@ func (c *Cluster) watchPeers() {
 			return
 		case <-ticker.C:
 			logger.Debugf("%s watching peers", c.id)
-			save := false
 			hasMe := false
 			peers, err := c.consensus.Peers()
 			if err != nil {
@@ -292,27 +311,11 @@ func (c *Cluster) watchPeers() {
 				}
 			}
 
-			if len(peers) != len(lastPeers) {
-				save = true
-			} else {
-				added, removed := diffPeers(lastPeers, peers)
-				if len(added) != 0 || len(removed) != 0 {
-					save = true
-				}
-			}
-
-			lastPeers = peers
-
 			if !hasMe {
 				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
 				c.removed = true
 				go c.Shutdown()
 				return
-			}
-
-			if save {
-				logger.Info("peerset change detected. Saving peers addresses")
-				c.peerManager.SavePeerstoreForPeers(peers)
 			}
 		}
 	}
@@ -425,6 +428,12 @@ func (c *Cluster) Shutdown() error {
 
 	logger.Info("shutting down Cluster")
 
+	// Try to store peerset file for all known peers whatsoever
+	// if we got ready (otherwise, don't overwrite anything)
+	if c.readyB {
+		c.peerManager.SavePeerstoreForPeers(c.host.Peerstore().Peers())
+	}
+
 	// Only attempt to leave if:
 	// - consensus is initialized
 	// - cluster was ready (no bootstrapping error)
@@ -448,13 +457,6 @@ func (c *Cluster) Shutdown() error {
 			return err
 		}
 	}
-
-	// Do not save anything if we were not ready
-	// if c.readyB {
-	// 	// peers are saved usually on addPeer/rmPeer
-	// 	// c.peerManager.savePeers()
-	// 	c.config.BackupState(c.state)
-	//}
 
 	// We left the cluster or were removed. Destroy the Raft state.
 	if c.removed && c.readyB {
@@ -535,86 +537,24 @@ func (c *Cluster) ID() api.ID {
 
 // PeerAdd adds a new peer to this Cluster.
 //
-// The new peer must be reachable. It will be added to the
-// consensus and will receive the shared state (including the
-// list of peers). The new peer should be a single-peer cluster,
-// preferable without any relevant state.
-func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
+// For it to work well, the new peer should be discoverable
+// (part of our peerstore or connected to one of the existing peers)
+// and reachable. Since PeerAdd allows to add peers which are
+// not running, or reachable, it is recommended to call Join() from the
+// new peer instead.
+//
+// The new peer ID will be passed to the consensus
+// component to be added to the peerset.
+func (c *Cluster) PeerAdd(pid peer.ID) (api.ID, error) {
 	// starting 10 nodes on the same box for testing
 	// causes deadlock and a global lock here
 	// seems to help.
 	c.paMux.Lock()
 	defer c.paMux.Unlock()
-	logger.Debugf("peerAdd called with %s", addr)
-	pid, decapAddr, err := api.Libp2pMultiaddrSplit(addr)
-	if err != nil {
-		id := api.ID{
-			Error: err.Error(),
-		}
-		return id, err
-	}
-
-	// Figure out its real address if we have one
-	remoteAddr := getRemoteMultiaddr(c.host, pid, decapAddr)
-
-	// whisper address to everyone, including ourselves
-	peers, err := c.consensus.Peers()
-	if err != nil {
-		logger.Error(err)
-		return api.ID{Error: err.Error()}, err
-	}
-
-	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(peers))
-	defer rpcutil.MultiCancel(cancels)
-
-	errs := c.rpcClient.MultiCall(
-		ctxs,
-		peers,
-		"Cluster",
-		"PeerManagerAddPeer",
-		api.MultiaddrToSerial(remoteAddr),
-		rpcutil.RPCDiscardReplies(len(peers)),
-	)
-
-	brk := false
-	for i, e := range errs {
-		if e != nil {
-			brk = true
-			logger.Errorf("%s: %s", peers[i].Pretty(), e)
-		}
-	}
-	if brk {
-		msg := "error broadcasting new peer's address: all cluster members need to be healthy for this operation to succeed. Try removing any unhealthy peers. Check the logs for more information about the error."
-		logger.Error(msg)
-		id := api.ID{ID: pid, Error: "error broadcasting new peer's address"}
-		return id, errors.New(msg)
-	}
-
-	// Figure out our address to that peer. This also
-	// ensures that it is reachable
-	var addrSerial api.MultiaddrSerial
-	err = c.rpcClient.Call(pid, "Cluster",
-		"RemoteMultiaddrForPeer", c.id, &addrSerial)
-	if err != nil {
-		logger.Error(err)
-		id := api.ID{ID: pid, Error: err.Error()}
-		return id, err
-	}
-
-	// Send cluster peers to the new peer.
-	clusterPeers := append(c.peerManager.PeersAddresses(peers),
-		addrSerial.ToMultiaddr())
-	err = c.rpcClient.Call(pid,
-		"Cluster",
-		"PeerManagerImportAddresses",
-		api.MultiaddrsToSerial(clusterPeers),
-		&struct{}{})
-	if err != nil {
-		logger.Error(err)
-	}
+	logger.Debugf("peerAdd called with %s", pid.Pretty())
 
 	// Log the new peer in the log so everyone gets it.
-	err = c.consensus.AddPeer(pid)
+	err := c.consensus.AddPeer(pid)
 	if err != nil {
 		logger.Error(err)
 		id := api.ID{ID: pid, Error: err.Error()}
@@ -645,20 +585,21 @@ func (c *Cluster) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
 		}
 		newNodePeers := id.ClusterPeers
 		added, removed := diffPeers(ownPeers, newNodePeers)
-		if len(added) == 0 && len(removed) == 0 {
+		if len(added) == 0 && len(removed) == 0 && containsPeer(ownPeers, pid) {
 			break // the new peer has fully joined
 		}
 		time.Sleep(200 * time.Millisecond)
 		logger.Debugf("%s addPeer: retrying to get ID from %s",
 			c.id.Pretty(), pid.Pretty())
 	}
+	logger.Info("Peer added ", pid.Pretty())
 	return id, nil
 }
 
 // PeerRemove removes a peer from this Cluster.
 //
-// The peer will be removed from the consensus peerset, all it's content
-// will be re-pinned and the peer it will shut itself down.
+// The peer will be removed from the consensus peerset.
+// This may first trigger repinnings for all content if not disabled.
 func (c *Cluster) PeerRemove(pid peer.ID) error {
 	// We need to repin before removing the peer, otherwise, it won't
 	// be able to submit the pins.
@@ -670,13 +611,14 @@ func (c *Cluster) PeerRemove(pid peer.ID) error {
 		logger.Error(err)
 		return err
 	}
-
+	logger.Info("Peer removed ", pid.Pretty())
 	return nil
 }
 
-// Join adds this peer to an existing cluster. The calling peer should
-// be a single-peer cluster node. This is almost equivalent to calling
-// PeerAdd on the destination cluster.
+// Join adds this peer to an existing cluster by bootstrapping to a
+// given multiaddress. It works by calling PeerAdd on the destination
+// cluster and making sure that the new peer is ready to discover and contact
+// the rest.
 func (c *Cluster) Join(addr ma.Multiaddr) error {
 	logger.Debugf("Join(%s)", addr)
 
@@ -701,13 +643,34 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	err = c.rpcClient.Call(pid,
 		"Cluster",
 		"PeerAdd",
-		api.MultiaddrToSerial(
-			api.MustLibp2pMultiaddrJoin(c.config.ListenAddr, c.id)),
+		peer.IDB58Encode(c.id),
 		&myID)
 	if err != nil {
 		logger.Error(err)
 		return err
 	}
+
+	// We need to trigger a DHT bootstrap asap for this peer to not be
+	// lost if the peer it bootstrapped to goes down. We do this manually
+	// by triggering 1 round of bootstrap in the background.
+	// Note that our regular bootstrap process is still running in the
+	// background since we created the cluster.
+	go func() {
+		ch := make(chan time.Time)
+		bstCfg := dht.DefaultBootstrapConfig
+		dhtBstCtx, cancel := context.WithTimeout(c.ctx, bstCfg.Timeout*2)
+		defer cancel()
+		proc, err := c.dht.BootstrapOnSignal(bstCfg, ch)
+		if err != nil {
+			logger.Error(err)
+		}
+		ch <- time.Now() // boostrap
+		defer close(ch)
+		select {
+		case <-dhtBstCtx.Done(): // shut down the process
+			proc.Close()
+		}
+	}()
 
 	// wait for leader and for state to catch up
 	// then sync
@@ -715,15 +678,6 @@ func (c *Cluster) Join(addr ma.Multiaddr) error {
 	if err != nil {
 		logger.Error(err)
 		return err
-	}
-
-	// Since we might call this while not ready (bootstrap), we need to save
-	// peers or we won't notice.
-	peers, err := c.consensus.Peers()
-	if err != nil {
-		logger.Error(err)
-	} else {
-		c.peerManager.SavePeerstoreForPeers(peers)
 	}
 
 	c.StateSync()

@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs-cmdkit/files"
 	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
-
-	"github.com/ipfs/ipfs-cluster/api"
 )
 
 // ID returns information about the cluster Peer.
@@ -36,13 +35,13 @@ func (c *Client) Peers() ([]api.ID, error) {
 }
 
 type peerAddBody struct {
-	Addr string `json:"peer_multiaddress"`
+	PeerID string `json:"peer_id"`
 }
 
 // PeerAdd adds a new peer to the cluster.
-func (c *Client) PeerAdd(addr ma.Multiaddr) (api.ID, error) {
-	addrStr := addr.String()
-	body := peerAddBody{addrStr}
+func (c *Client) PeerAdd(pid peer.ID) (api.ID, error) {
+	pidStr := peer.IDB58Encode(pid)
+	body := peerAddBody{pidStr}
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

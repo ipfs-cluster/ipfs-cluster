@@ -91,7 +91,7 @@ type route struct {
 }
 
 type peerAddBody struct {
-	PeerMultiaddr string `json:"peer_multiaddress"`
+	PeerID string `json:"peer_id"`
 }
 
 // NewAPI creates a new REST API component with the given configuration.
@@ -582,9 +582,9 @@ func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mAddr, err := ma.NewMultiaddr(addInfo.PeerMultiaddr)
+	_, err = peer.IDB58Decode(addInfo.PeerID)
 	if err != nil {
-		sendErrorResponse(w, 400, "error decoding peer_multiaddress")
+		sendErrorResponse(w, 400, "error decoding peer_id")
 		return
 	}
 
@@ -592,7 +592,7 @@ func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 	err = api.rpcClient.Call("",
 		"Cluster",
 		"PeerAdd",
-		types.MultiaddrToSerial(mAddr),
+		addInfo.PeerID,
 		&ids)
 	sendResponse(w, err, ids)
 }
