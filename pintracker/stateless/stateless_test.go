@@ -5,7 +5,6 @@ import (
 	"errors"
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"sort"
 	"testing"
 	"time"
@@ -19,6 +18,10 @@ var (
 	unpinCancelCid    = test.TestCid2
 	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
+	pinOpts           = api.PinOptions{
+		ReplicationFactorMax: -1,
+		ReplicationFactorMin: -1,
+	}
 )
 
 type mockService struct {
@@ -77,8 +80,8 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	*out = []api.PinSerial{
-		{Cid: test.TestCid1, ReplicationFactorMax: -1},
-		{Cid: test.TestCid3, ReplicationFactorMax: -1},
+		api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts).ToSerial(),
+		api.PinWithOpts(test.MustDecodeCid(test.TestCid3), pinOpts).ToSerial(),
 	}
 	return nil
 }
@@ -87,14 +90,12 @@ func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.
 	switch in.Cid {
 	case test.ErrorCid:
 		return errors.New("expected error when using ErrorCid")
-	case test.TestCid1:
-		*out = api.Pin{Cid: test.MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
+	case test.TestCid1, test.TestCid2:
+		*out = api.PinWithOpts(test.MustDecodeCid(in.Cid), pinOpts).ToSerial()
 		return nil
-	case test.TestCid2:
-		*out = api.Pin{Cid: test.MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
-		return nil
+	default:
+		return errors.New("not found")
 	}
-	*out = in
 	return nil
 }
 
@@ -138,12 +139,7 @@ func TestUntrackTrack(t *testing.T) {
 	h1 := test.MustDecodeCid(test.TestCid1)
 
 	// LocalPin
-	c := api.Pin{
-		Cid:                  h1,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	c := api.PinWithOpts(h1, pinOpts)
 
 	err := spt.Track(c)
 	if err != nil {
@@ -165,12 +161,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	slowPinCid := test.MustDecodeCid(test.TestSlowCid1)
 
 	// LocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
 
 	err := spt.Track(slowPin)
 	if err != nil {
@@ -210,20 +201,10 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	fastPinCid := test.MustDecodeCid(pinCancelCid)
 
 	// SlowLocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
 
 	// LocalPin
-	fastPin := api.Pin{
-		Cid:                  fastPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	fastPin := api.PinWithOpts(fastPinCid, pinOpts)
 
 	err := spt.Track(slowPin)
 	if err != nil {
@@ -266,12 +247,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	slowPinCid := test.MustDecodeCid(test.TestSlowCid1)
 
 	// LocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
 
 	err := spt.Track(slowPin)
 	if err != nil {
@@ -321,20 +297,10 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	fastPinCid := test.MustDecodeCid(unpinCancelCid)
 
 	// SlowLocalPin
-	slowPin := api.Pin{
-		Cid:                  slowPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
 
 	// LocalPin
-	fastPin := api.Pin{
-		Cid:                  fastPinCid,
-		Allocations:          []peer.ID{},
-		ReplicationFactorMin: -1,
-		ReplicationFactorMax: -1,
-	}
+	fastPin := api.PinWithOpts(fastPinCid, pinOpts)
 
 	err := spt.Track(slowPin)
 	if err != nil {
@@ -451,7 +417,7 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 			}
 
 			for _, c := range tt.args.cs {
-				err := tt.args.tracker.Track(api.Pin{Cid: c, ReplicationFactorMax: -1})
+				err := tt.args.tracker.Track(api.PinWithOpts(c, pinOpts))
 				if err != nil {
 					t.Fatal(err)
 				}

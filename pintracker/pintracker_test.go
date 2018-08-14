@@ -25,6 +25,10 @@ var (
 	unpinCancelCid    = test.TestCid2
 	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
+	pinOpts           = api.PinOptions{
+		ReplicationFactorMax: -1,
+		ReplicationFactorMin: -1,
+	}
 )
 
 type mockService struct {
@@ -171,8 +175,8 @@ func (mock *mockService) StatusAll(ctx context.Context, in struct{}, out *[]api.
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	*out = []api.PinSerial{
-		{Cid: test.TestCid1, ReplicationFactorMax: -1},
-		{Cid: test.TestCid3, ReplicationFactorMax: -1},
+		api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts).ToSerial(),
+		api.PinWithOpts(test.MustDecodeCid(test.TestCid3), pinOpts).ToSerial(),
 	}
 	return nil
 }
@@ -181,11 +185,8 @@ func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.
 	switch in.Cid {
 	case test.ErrorCid:
 		return errors.New("expected error when using ErrorCid")
-	case test.TestCid1:
-		*out = api.Pin{Cid: test.MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
-		return nil
-	case test.TestCid2:
-		*out = api.Pin{Cid: test.MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
+	case test.TestCid1, test.TestCid2:
+		*out = api.PinWithOpts(test.MustDecodeCid(in.Cid), pinOpts).ToSerial()
 		return nil
 	}
 	*out = in
@@ -243,7 +244,7 @@ func TestPinTracker_Track(t *testing.T) {
 		{
 			"basic stateless track",
 			args{
-				api.PinCid(test.MustDecodeCid(test.TestCid1)),
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testStatelessPinTracker(t),
 			},
 			false,
@@ -251,7 +252,7 @@ func TestPinTracker_Track(t *testing.T) {
 		{
 			"basic map track",
 			args{
-				api.PinCid(test.MustDecodeCid(test.TestCid1)),
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testMapPinTracker(t),
 			},
 			false,
@@ -278,14 +279,14 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 		{
 			"basic stateless track",
 			args{
-				api.PinCid(test.MustDecodeCid(test.TestCid1)),
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testStatelessPinTracker(b),
 			},
 		},
 		{
 			"basic map track",
 			args{
-				api.PinCid(test.MustDecodeCid(test.TestCid1)),
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testMapPinTracker(b),
 			},
 		},
@@ -351,12 +352,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"basic stateless statusall",
 			args{
-				api.Pin{
-					Cid:                  test.MustDecodeCid(test.TestCid1),
-					Allocations:          []peer.ID{},
-					ReplicationFactorMin: -1,
-					ReplicationFactorMax: -1,
-				},
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testStatelessPinTracker(t),
 			},
 			[]api.PinInfo{
@@ -377,12 +373,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"basic map statusall",
 			args{
-				api.Pin{
-					Cid:                  test.MustDecodeCid(test.TestCid1),
-					Allocations:          []peer.ID{},
-					ReplicationFactorMin: -1,
-					ReplicationFactorMax: -1,
-				},
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testMapPinTracker(t),
 			},
 			[]api.PinInfo{
@@ -395,12 +386,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"slow stateless statusall",
 			args{
-				api.Pin{
-					Cid:                  test.MustDecodeCid(test.TestCid1),
-					Allocations:          []peer.ID{},
-					ReplicationFactorMin: -1,
-					ReplicationFactorMax: -1,
-				},
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testSlowStatelessPinTracker(t),
 			},
 			[]api.PinInfo{
@@ -413,12 +399,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"slow map statusall",
 			args{
-				api.Pin{
-					Cid:                  test.MustDecodeCid(test.TestCid1),
-					Allocations:          []peer.ID{},
-					ReplicationFactorMin: -1,
-					ReplicationFactorMax: -1,
-				},
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testSlowMapPinTracker(t),
 			},
 			[]api.PinInfo{
@@ -523,6 +504,29 @@ func TestPinTracker_Status(t *testing.T) {
 			},
 		},
 		{
+			"basic stateless status/unpinned",
+			args{
+				test.MustDecodeCid(test.TestCid4),
+				testStatelessPinTracker(t),
+			},
+			api.PinInfo{
+				Cid:    test.MustDecodeCid(test.TestCid4),
+				Status: api.TrackerStatusUnpinned,
+			},
+		},
+		{
+			"basic map status/unpinned",
+			args{
+				test.MustDecodeCid(test.TestCid4),
+				testMapPinTracker(t),
+			},
+			api.PinInfo{
+				Cid:    test.MustDecodeCid(test.TestCid4),
+				Status: api.TrackerStatusUnpinned,
+			},
+		},
+
+		{
 			"slow stateless status",
 			args{
 				test.MustDecodeCid(test.TestCid1),
@@ -551,12 +555,7 @@ func TestPinTracker_Status(t *testing.T) {
 			case *maptracker.MapPinTracker:
 				// the Track preps the internal map of the MapPinTracker
 				// not required by the Stateless impl
-				pin := api.Pin{
-					Cid:                  test.MustDecodeCid(test.TestCid1),
-					Allocations:          []peer.ID{},
-					ReplicationFactorMin: -1,
-					ReplicationFactorMax: -1,
-				}
+				pin := api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts)
 				if err := tt.args.tracker.Track(pin); err != nil {
 					t.Errorf("PinTracker.Track() error = %v", err)
 				}
@@ -685,7 +684,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 			}
 
 			for _, c := range tt.args.cs {
-				err := tt.args.tracker.Track(api.PinCid(c))
+				err := tt.args.tracker.Track(api.PinWithOpts(c, pinOpts))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -772,12 +771,7 @@ func TestPinTracker_Sync(t *testing.T) {
 			switch tt.args.tracker.(type) {
 			case *maptracker.MapPinTracker:
 				// the Track preps the internal map of the MapPinTracker; not required by the Stateless impl
-				pin := api.Pin{
-					Cid:                  test.MustDecodeCid(test.TestCid1),
-					Allocations:          []peer.ID{},
-					ReplicationFactorMin: -1,
-					ReplicationFactorMax: -1,
-				}
+				pin := api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts)
 				if err := tt.args.tracker.Track(pin); err != nil {
 					t.Errorf("PinTracker.Track() error = %v", err)
 				}
@@ -839,7 +833,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			"basic map recoverall",
 			args{
 				testMapPinTracker(t),
-				api.Pin{Cid: test.MustDecodeCid(test.TestCid1), ReplicationFactorMax: -1},
+				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 			},
 			[]api.PinInfo{
 				api.PinInfo{
@@ -980,7 +974,7 @@ func TestUntrackTrack(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.args.tracker.Track(api.PinCid(tt.args.c))
+			err := tt.args.tracker.Track(api.PinWithOpts(tt.args.c, pinOpts))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1033,11 +1027,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := api.Pin{
-				Cid:                  tt.args.c,
-				ReplicationFactorMax: -1,
-				ReplicationFactorMin: -1,
-			}
+			p := api.PinWithOpts(tt.args.c, pinOpts)
 			err := tt.args.tracker.Track(p)
 			if err != nil {
 				t.Fatal(err)

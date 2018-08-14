@@ -271,15 +271,31 @@ func (spt *Tracker) Status(c *cid.Cid) api.PinInfo {
 		&gpin,
 	)
 	if err != nil {
-		if !rpc.IsRPCError(err) {
-			return api.PinInfo{}
+		if rpc.IsRPCError(err) {
+			logger.Error(err)
+			return api.PinInfo{
+				Cid:    c,
+				Status: api.TrackerStatusClusterError,
+				Error:  err.Error(),
+				TS:     time.Now(),
+			}
 		}
-		logger.Error(err)
+		// not part of global state. we should not care about
+		return api.PinInfo{
+			Cid:    c,
+			Status: api.TrackerStatusUnpinned,
+			TS:     time.Now(),
+		}
 	}
 
 	// check if pin is a remote pin
 	if gpin.ToPin().IsRemotePin(spt.peerID) {
-		return api.PinInfo{Cid: c, Peer: spt.peerID, Status: api.TrackerStatusRemote, TS: time.Now()}
+		return api.PinInfo{
+			Cid:    c,
+			Peer:   spt.peerID,
+			Status: api.TrackerStatusRemote,
+			TS:     time.Now(),
+		}
 	}
 
 	// else attempt to get status from ipfs node

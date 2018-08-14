@@ -53,14 +53,15 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 }
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
-	cid1 := MustDecodeCid(TestCid1)
-	cid2 := MustDecodeCid(TestCid2)
-	cid3 := MustDecodeCid(TestCid3)
+	opts := api.PinOptions{
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
 
 	*out = []api.PinSerial{
-		api.PinCid(cid1).ToSerial(),
-		api.PinCid(cid2).ToSerial(),
-		api.PinCid(cid3).ToSerial(),
+		api.PinWithOpts(MustDecodeCid(TestCid1), opts).ToSerial(),
+		api.PinCid(MustDecodeCid(TestCid2)).ToSerial(),
+		api.PinWithOpts(MustDecodeCid(TestCid3), opts).ToSerial(),
 	}
 	return nil
 }
@@ -69,14 +70,20 @@ func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.
 	switch in.Cid {
 	case ErrorCid:
 		return errors.New("expected error when using ErrorCid")
-	case TestCid1:
-		*out = api.Pin{Cid: MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
+	case TestCid1, TestCid3:
+		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
+		p.ReplicationFactorMin = -1
+		p.ReplicationFactorMax = -1
+		*out = p
 		return nil
-	case TestCid3:
-		*out = api.Pin{Cid: MustDecodeCid(in.Cid), ReplicationFactorMax: -1}.ToSerial()
-		return nil
+	case TestCid2: // This is a remote pin
+		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
+		p.ReplicationFactorMin = 1
+		p.ReplicationFactorMax = 1
+		*out = p
+	default:
+		return errors.New("not found")
 	}
-	*out = in
 	return nil
 }
 

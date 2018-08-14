@@ -782,7 +782,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 // IsRemotePin determines whether a Pin's ReplicationFactor has
 // been met, so as to either pin or unpin it from the peer.
 func (pin Pin) IsRemotePin(pid peer.ID) bool {
-	if pin.ReplicationFactorMax < 0 {
+	if pin.ReplicationFactorMax < 0 || pin.ReplicationFactorMin < 0 {
 		return false
 	}
 
