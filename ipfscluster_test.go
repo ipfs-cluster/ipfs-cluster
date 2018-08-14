@@ -46,7 +46,7 @@ var (
 	customLogLvlFacilities = logFacilities{}
 
 	pmonitor = "pubsub"
-	ptracker = "stateless"
+	ptracker = "map"
 
 	// When testing with fixed ports...
 	// clusterPort   = 10000

@@ -15,7 +15,7 @@ install: true
 
 jobs:
   include:
-    - stage: "build and test (1: tests+coverage (all) | 2: tests (w/basic monitor) | 3: checks | 4: docker | 5: sharness)"
+    - stage: "build and test (1: tests+coverage (all) | 2: tests (w/basic monitor) | 3: tests (w/stateless tracker) | 4: checks | 5: docker | 6: sharness)"
       script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
@@ -27,6 +27,11 @@ jobs:
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - go test -v . -monitor basic
+    - script:
+        - go get -u github.com/mattn/goveralls
+        - go get -u golang.org/x/tools/cmd/cover
+        - make deps
+        - go test -v . -tracker stateless
     - script:
         - go get -u github.com/golang/lint/golint
         - make deps
