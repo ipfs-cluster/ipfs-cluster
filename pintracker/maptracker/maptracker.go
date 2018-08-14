@@ -275,11 +275,17 @@ func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 		&ipsMap,
 	)
 	if err != nil {
-		// set everything as error
+		// set pinning or unpinning ops to error, since we can't
+		// verify them
 		pInfos := mpt.optracker.GetAll()
 		for _, pInfo := range pInfos {
-			mpt.optracker.SetError(pInfo.Cid, err)
-			results = append(results, mpt.optracker.Get(pInfo.Cid))
+			op, _ := optracker.TrackerStatusToOperationPhase(pInfo.Status)
+			if op == optracker.OperationPin || op == optracker.OperationUnpin {
+				mpt.optracker.SetError(pInfo.Cid, err)
+				results = append(results, mpt.optracker.Get(pInfo.Cid))
+			} else {
+				results = append(results, pInfo)
+			}
 		}
 		return results, nil
 	}

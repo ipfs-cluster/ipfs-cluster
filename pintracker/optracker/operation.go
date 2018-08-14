@@ -222,6 +222,8 @@ func TrackerStatusToOperationPhase(status api.TrackerStatus) (OperationType, Pha
 		return OperationUnpin, PhaseDone
 	case api.TrackerStatusRemote:
 		return OperationRemote, PhaseDone
+	case api.TrackerStatusSharded:
+		return OperationShard, PhaseDone
 	default:
 		return OperationUnknown, PhaseError
 	}
