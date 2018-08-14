@@ -108,7 +108,7 @@ func (mock *mockService) Peers(ctx context.Context, in struct{}, out *[]api.IDSe
 	return nil
 }
 
-func (mock *mockService) PeerAdd(ctx context.Context, in api.MultiaddrSerial, out *api.IDSerial) error {
+func (mock *mockService) PeerAdd(ctx context.Context, in string, out *api.IDSerial) error {
 	id := api.IDSerial{}
 	mock.ID(ctx, struct{}{}, &id)
 	*out = id
@@ -297,12 +297,6 @@ func (mock *mockService) TrackerRecover(ctx context.Context, in api.PinSerial, o
 		Status: api.TrackerStatusPinned,
 		TS:     time.Now(),
 	}.ToSerial()
-	return nil
-}
-
-/* PeerManager methods */
-
-func (mock *mockService) PeerManagerAddPeer(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
 	return nil
 }
 

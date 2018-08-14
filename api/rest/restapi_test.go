@@ -275,7 +275,7 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url urlF) {
 		id := api.IDSerial{}
 		// post with valid body
-		body := fmt.Sprintf("{\"peer_multiaddress\":\"/ip4/1.2.3.4/tcp/1234/ipfs/%s\"}", test.TestPeerID1.Pretty())
+		body := fmt.Sprintf("{\"peer_id\":\"%s\"}", test.TestPeerID1.Pretty())
 		t.Log(body)
 		makePost(t, rest, url(rest)+"/peers", []byte(body), &id)
 
@@ -292,10 +292,10 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 		if errResp.Code != 400 {
 			t.Error("expected error with bad body")
 		}
-		// Send invalid multiaddr
-		makePost(t, rest, url(rest)+"/peers", []byte("{\"peer_multiaddress\": \"ab\"}"), &errResp)
+		// Send invalid peer id
+		makePost(t, rest, url(rest)+"/peers", []byte("{\"peer_id\": \"ab\"}"), &errResp)
 		if errResp.Code != 400 {
-			t.Error("expected error with bad multiaddress")
+			t.Error("expected error with bad peer_id")
 		}
 	}
 
