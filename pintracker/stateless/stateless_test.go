@@ -3,11 +3,12 @@ package stateless
 import (
 	"context"
 	"errors"
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
-	cid "github.com/ipfs/go-cid"
 	"sort"
 	"testing"
 	"time"
+
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
+	cid "github.com/ipfs/go-cid"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -96,7 +97,6 @@ func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.
 	default:
 		return errors.New("not found")
 	}
-	return nil
 }
 
 func testSlowStatelessPinTracker(t *testing.T) *Tracker {
