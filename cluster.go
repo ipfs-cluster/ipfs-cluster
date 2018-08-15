@@ -304,6 +304,11 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
+			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
+			if alrt.MetricName != pingMetricName {
+				continue // only handle ping alerts
+			}
+
 			cState, err := c.consensus.State(c.ctx)
 			if err != nil {
 				logger.Warning(err)
@@ -374,7 +379,7 @@ func (c *Cluster) watchPeers() {
 			if !hasMe {
 				c.shutdownLock.Lock()
 				defer c.shutdownLock.Unlock()
-				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
+				logger.Info("peer no longer in peerset. Initiating shutdown")
 				c.removed = true
 				go c.Shutdown(c.ctx)
 				return

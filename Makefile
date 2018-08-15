@@ -71,7 +71,7 @@ test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
 
 test_problem: gx-deps
-	go test -timeout 20m -loglevel "DEBUG" -v -run $(problematic_test)
+	go test -loglevel "DEBUG" -v -run $(problematic_test)
 
 $(sharness):
 	@echo "Downloading sharness"
