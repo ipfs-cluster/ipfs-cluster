@@ -191,13 +191,70 @@ func TestOperationTracker_GetAll(t *testing.T) {
 	}
 }
 
-func TestOperationTracker_GetOpContext(t *testing.T) {
+func TestOperationTracker_OpContext(t *testing.T) {
 	opt := testOperationTracker(t)
 	h := test.MustDecodeCid(test.TestCid1)
 	op := opt.TrackNewOperation(api.PinCid(h), OperationPin, PhaseInProgress)
 	ctx1 := op.Context()
-	ctx2 := opt.GetOpContext(h)
+	ctx2 := opt.OpContext(h)
 	if ctx1 != ctx2 {
 		t.Fatal("didn't get the right context")
 	}
+}
+
+func TestOperationTracker_filterOps(t *testing.T) {
+	ctx := context.Background()
+	testOpsMap := map[string]*Operation{
+		test.TestCid1: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid1)), opType: OperationPin, phase: PhaseQueued},
+		test.TestCid2: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid2)), opType: OperationPin, phase: PhaseInProgress},
+		test.TestCid3: &Operation{pin: api.PinCid(test.MustDecodeCid(test.TestCid3)), opType: OperationUnpin, phase: PhaseInProgress},
+	}
+	opt := &OperationTracker{ctx: ctx, operations: testOpsMap}
+
+	t.Run("filter ops to pin operations", func(t *testing.T) {
+		wantLen := 2
+		wantOp := OperationPin
+		got := opt.filterOps(wantOp)
+		if len(got) != wantLen {
+			t.Errorf("want: %d %s operations; got: %d", wantLen, wantOp.String(), len(got))
+		}
+		for i := range got {
+			if got[i].Type() != wantOp {
+				t.Errorf("want: %v; got: %v", wantOp.String(), got[i])
+			}
+		}
+	})
+
+	t.Run("filter ops to in progress phase", func(t *testing.T) {
+		wantLen := 2
+		wantPhase := PhaseInProgress
+		got := opt.filterOps(PhaseInProgress)
+		if len(got) != wantLen {
+			t.Errorf("want: %d %s operations; got: %d", wantLen, wantPhase.String(), len(got))
+		}
+		for i := range got {
+			if got[i].Phase() != wantPhase {
+				t.Errorf("want: %s; got: %v", wantPhase.String(), got[i])
+			}
+		}
+	})
+
+	t.Run("filter ops to queued pins", func(t *testing.T) {
+		wantLen := 1
+		wantPhase := PhaseQueued
+		wantOp := OperationPin
+		got := opt.filterOps(OperationPin, PhaseQueued)
+		if len(got) != wantLen {
+			t.Errorf("want: %d %s operations; got: %d", wantLen, wantPhase.String(), len(got))
+		}
+		for i := range got {
+			if got[i].Phase() != wantPhase {
+				t.Errorf("want: %s; got: %v", wantPhase.String(), got[i])
+			}
+
+			if got[i].Type() != wantOp {
+				t.Errorf("want: %s; got: %v", wantOp.String(), got[i])
+			}
+		}
+	})
 }

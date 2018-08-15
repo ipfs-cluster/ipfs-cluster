@@ -779,6 +779,21 @@ func (pin Pin) Equals(pin2 Pin) bool {
 	return true
 }
 
+// IsRemotePin determines whether a Pin's ReplicationFactor has
+// been met, so as to either pin or unpin it from the peer.
+func (pin Pin) IsRemotePin(pid peer.ID) bool {
+	if pin.ReplicationFactorMax < 0 || pin.ReplicationFactorMin < 0 {
+		return false
+	}
+
+	for _, p := range pin.Allocations {
+		if p == pid {
+			return false
+		}
+	}
+	return true
+}
+
 // ToPin converts a PinSerial to its native form.
 func (pins PinSerial) ToPin() Pin {
 	c, err := cid.Decode(pins.Cid)

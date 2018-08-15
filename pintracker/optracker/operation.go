@@ -139,7 +139,7 @@ func (op *Operation) Pin() api.Pin {
 }
 
 // Timestamp returns the time when this operation was
-// last modified (phase changed, error was set...)
+// last modified (phase changed, error was set...).
 func (op *Operation) Timestamp() time.Time {
 	op.mu.RLock()
 	defer op.mu.RUnlock()
@@ -198,4 +198,33 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		return api.TrackerStatusBug
 	}
 
+}
+
+// TrackerStatusToOperationPhase takes an api.TrackerStatus and
+// converts it to an OpType and Phase.
+func TrackerStatusToOperationPhase(status api.TrackerStatus) (OperationType, Phase) {
+	switch status {
+	case api.TrackerStatusPinError:
+		return OperationPin, PhaseError
+	case api.TrackerStatusPinQueued:
+		return OperationPin, PhaseQueued
+	case api.TrackerStatusPinning:
+		return OperationPin, PhaseInProgress
+	case api.TrackerStatusPinned:
+		return OperationPin, PhaseDone
+	case api.TrackerStatusUnpinError:
+		return OperationUnpin, PhaseError
+	case api.TrackerStatusUnpinQueued:
+		return OperationUnpin, PhaseQueued
+	case api.TrackerStatusUnpinning:
+		return OperationUnpin, PhaseInProgress
+	case api.TrackerStatusUnpinned:
+		return OperationUnpin, PhaseDone
+	case api.TrackerStatusRemote:
+		return OperationRemote, PhaseDone
+	case api.TrackerStatusSharded:
+		return OperationShard, PhaseDone
+	default:
+		return OperationUnknown, PhaseError
+	}
 }

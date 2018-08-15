@@ -15,18 +15,20 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 )
 
 type cfgs struct {
-	clusterCfg   *ipfscluster.Config
-	apiCfg       *rest.Config
-	ipfshttpCfg  *ipfshttp.Config
-	consensusCfg *raft.Config
-	trackerCfg   *maptracker.Config
-	monCfg       *basic.Config
-	pubsubmonCfg *pubsubmon.Config
-	diskInfCfg   *disk.Config
-	numpinInfCfg *numpin.Config
+	clusterCfg          *ipfscluster.Config
+	apiCfg              *rest.Config
+	ipfshttpCfg         *ipfshttp.Config
+	consensusCfg        *raft.Config
+	maptrackerCfg       *maptracker.Config
+	statelessTrackerCfg *stateless.Config
+	monCfg              *basic.Config
+	pubsubmonCfg        *pubsubmon.Config
+	diskInfCfg          *disk.Config
+	numpinInfCfg        *numpin.Config
 }
 
 func makeConfigs() (*config.Manager, *cfgs) {
@@ -35,7 +37,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	apiCfg := &rest.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	consensusCfg := &raft.Config{}
-	trackerCfg := &maptracker.Config{}
+	maptrackerCfg := &maptracker.Config{}
+	statelessCfg := &stateless.Config{}
 	monCfg := &basic.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
@@ -44,7 +47,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
 	cfg.RegisterComponent(config.Consensus, consensusCfg)
-	cfg.RegisterComponent(config.PinTracker, trackerCfg)
+	cfg.RegisterComponent(config.PinTracker, maptrackerCfg)
+	cfg.RegisterComponent(config.PinTracker, statelessCfg)
 	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
@@ -54,7 +58,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 		apiCfg,
 		ipfshttpCfg,
 		consensusCfg,
-		trackerCfg,
+		maptrackerCfg,
+		statelessCfg,
 		monCfg,
 		pubsubmonCfg,
 		diskInfCfg,

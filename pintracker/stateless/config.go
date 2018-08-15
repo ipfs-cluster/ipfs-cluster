@@ -1,4 +1,4 @@
-package maptracker
+package stateless
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/config"
 )
 
-const configKey = "maptracker"
+const configKey = "stateless"
 
 // Default values for this Config.
 const (
@@ -48,11 +48,11 @@ func (cfg *Config) Default() error {
 // at least in appearance.
 func (cfg *Config) Validate() error {
 	if cfg.MaxPinQueueSize <= 0 {
-		return errors.New("maptracker.max_pin_queue_size too low")
+		return errors.New("statelesstracker.max_pin_queue_size too low")
 	}
 
 	if cfg.ConcurrentPins <= 0 {
-		return errors.New("maptracker.concurrent_pins is too low")
+		return errors.New("statelesstracker.concurrent_pins is too low")
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	jcfg := &jsonConfig{}
 	err := json.Unmarshal(raw, jcfg)
 	if err != nil {
-		logger.Error("Error unmarshaling maptracker config")
+		logger.Error("Error unmarshaling statelesstracker config")
 		return err
 	}
 

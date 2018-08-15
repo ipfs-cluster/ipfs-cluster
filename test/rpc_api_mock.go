@@ -22,13 +22,13 @@ type mockService struct{}
 
 // NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
 // a client to it.
-func NewMockRPCClient(t *testing.T) *rpc.Client {
+func NewMockRPCClient(t testing.TB) *rpc.Client {
 	return NewMockRPCClientWithHost(t, nil)
 }
 
 // NewMockRPCClientWithHost returns a mock ipfs-cluster RPC server
 // initialized with a given host.
-func NewMockRPCClientWithHost(t *testing.T, h host.Host) *rpc.Client {
+func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
 	s := rpc.NewServer(h, "mock")
 	c := rpc.NewClientWithServer(h, "mock", s)
 	err := s.RegisterName("Cluster", &mockService{})
@@ -53,23 +53,37 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 }
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
-	cid1 := MustDecodeCid(TestCid1)
-	cid2 := MustDecodeCid(TestCid2)
-	cid3 := MustDecodeCid(TestCid3)
+	opts := api.PinOptions{
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
 
 	*out = []api.PinSerial{
-		api.PinCid(cid1).ToSerial(),
-		api.PinCid(cid2).ToSerial(),
-		api.PinCid(cid3).ToSerial(),
+		api.PinWithOpts(MustDecodeCid(TestCid1), opts).ToSerial(),
+		api.PinCid(MustDecodeCid(TestCid2)).ToSerial(),
+		api.PinWithOpts(MustDecodeCid(TestCid3), opts).ToSerial(),
 	}
 	return nil
 }
 
 func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
-	if in.Cid == ErrorCid {
+	switch in.Cid {
+	case ErrorCid:
 		return errors.New("expected error when using ErrorCid")
+	case TestCid1, TestCid3:
+		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
+		p.ReplicationFactorMin = -1
+		p.ReplicationFactorMax = -1
+		*out = p
+		return nil
+	case TestCid2: // This is a remote pin
+		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
+		p.ReplicationFactorMin = 1
+		p.ReplicationFactorMax = 1
+		*out = p
+	default:
+		return errors.New("not found")
 	}
-	*out = in
 	return nil
 }
 
