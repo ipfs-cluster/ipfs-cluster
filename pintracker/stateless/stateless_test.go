@@ -211,6 +211,9 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Otherwise fails when running with -race
+	time.Sleep(300 * time.Millisecond)
+
 	err = spt.Track(fastPin)
 	if err != nil {
 		t.Fatal(err)
