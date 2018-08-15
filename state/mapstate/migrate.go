@@ -107,18 +107,15 @@ func (st *mapStateV3) unmarshal(bs []byte) error {
 
 func (st *mapStateV3) next() migrateable {
 	var mst4 mapStateV4
-	mst4.PinMap = make(map[string]api.PinSerial)
+	mst4.PinMap = make(map[string]pinSerialV4)
 	for k, v := range st.PinMap {
-		mst4.PinMap[k] = api.PinSerial{
-			Cid:         v.Cid,
-			Allocations: v.Allocations,
-			Type:        uint64(api.DataType),
-			Reference:   "",
-			PinOptions: api.PinOptions{
-				ReplicationFactorMin: v.ReplicationFactorMin,
-				ReplicationFactorMax: v.ReplicationFactorMax,
-				Name:                 v.Name,
-			},
+		mst4.PinMap[k] = pinSerialV4{
+			Cid:                  v.Cid,
+			Name:                 v.Name,
+			Allocations:          v.Allocations,
+			ReplicationFactorMin: v.ReplicationFactorMin,
+			ReplicationFactorMax: v.ReplicationFactorMax,
+			Recursive:            true,
 		}
 	}
 	return &mst4
@@ -126,8 +123,17 @@ func (st *mapStateV3) next() migrateable {
 
 /* V4 */
 
+type pinSerialV4 struct {
+	Cid                  string   `json:"cid"`
+	Name                 string   `json:"name"`
+	Allocations          []string `json:"allocations"`
+	ReplicationFactorMin int      `json:"replication_factor_min"`
+	ReplicationFactorMax int      `json:"replication_factor_max"`
+	Recursive            bool     `json:"recursive"`
+}
+
 type mapStateV4 struct {
-	PinMap  map[string]api.PinSerial
+	PinMap  map[string]pinSerialV4
 	Version int
 }
 
@@ -138,10 +144,67 @@ func (st *mapStateV4) unmarshal(bs []byte) error {
 }
 
 func (st *mapStateV4) next() migrateable {
+	var mst5 mapStateV5
+	mst5.PinMap = make(map[string]api.PinSerial)
+	for k, v := range st.PinMap {
+		pinsv5 := api.PinSerial{}
+		pinsv5.Cid = v.Cid
+		pinsv5.Type = uint64(api.DataType)
+		pinsv5.Allocations = v.Allocations
+		if v.Recursive {
+			pinsv5.MaxDepth = -1
+		} else {
+			pinsv5.MaxDepth = 0
+		}
+
+		// Options
+		pinsv5.Name = v.Name
+		pinsv5.ReplicationFactorMin = v.ReplicationFactorMin
+		pinsv5.ReplicationFactorMax = v.ReplicationFactorMax
+
+		mst5.PinMap[k] = pinsv5
+	}
+	return &mst5
+}
+
+/* V5 */
+
+// Uncomment for next migration
+// type pinOptionsV5 struct {
+// 	ReplicationFactorMin int    `json:"replication_factor_min"`
+// 	ReplicationFactorMax int    `json:"replication_factor_max"`
+// 	Name                 string `json:"name"`
+// 	ShardSize            uint64 `json:"shard_size"`
+// }
+
+// type pinSerialV5 struct {
+// 	pinOptionsV5
+
+// 	Cid         string   `json:"cid"`
+// 	Type        uint64   `json:"type"`
+// 	Allocations []string `json:"allocations"`
+// 	MaxDepth    int      `json:"max_depth"`
+// 	Reference   string   `json:"reference"`
+// }
+
+type mapStateV5 struct {
+	PinMap  map[string]api.PinSerial
+	Version int
+}
+
+func (st *mapStateV5) unmarshal(bs []byte) error {
+	buf := bytes.NewBuffer(bs)
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+	return dec.Decode(st)
+}
+
+func (st *mapStateV5) next() migrateable {
 	return nil
 }
 
-func finalCopy(st *MapState, internal *mapStateV4) {
+// Migrate code
+
+func finalCopy(st *MapState, internal *mapStateV5) {
 	for k, v := range internal.PinMap {
 		st.PinMap[k] = v
 	}
@@ -159,6 +222,9 @@ func (st *MapState) migrateFrom(version int, snap []byte) error {
 	case 3:
 		var mst3 mapStateV3
 		m = &mst3
+	case 4:
+		var mst4 mapStateV4
+		m = &mst4
 	default:
 		return errors.New("version migration not supported")
 	}
@@ -171,11 +237,11 @@ func (st *MapState) migrateFrom(version int, snap []byte) error {
 	for {
 		next = m.next()
 		if next == nil {
-			mst4, ok := m.(*mapStateV4)
+			mst5, ok := m.(*mapStateV5)
 			if !ok {
 				return errors.New("migration ended prematurely")
 			}
-			finalCopy(st, mst4)
+			finalCopy(st, mst5)
 			return nil
 		}
 		m = next
