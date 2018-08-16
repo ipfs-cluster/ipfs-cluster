@@ -111,6 +111,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	ipfsAdder.Wrap = a.params.Wrap
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
+	ipfsAdder.Progress = a.params.Progress
 
 	for {
 		select {

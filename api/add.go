@@ -31,6 +31,7 @@ type AddParams struct {
 	Hidden    bool
 	Wrap      bool
 	Shard     bool
+	Progress  bool
 }
 
 // DefaultAddParams returns a AddParams object with standard defaults
@@ -42,6 +43,7 @@ func DefaultAddParams() *AddParams {
 		Hidden:    false,
 		Wrap:      false,
 		Shard:     false,
+		Progress:  false,
 		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
@@ -108,6 +110,12 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = parseBoolParam(query, "progress", &params.Progress)
+	if err != nil {
+		return nil, err
+	}
+
 	err = parseIntParam(query, "replication-min", &params.ReplicationFactorMin)
 	if err != nil {
 		return nil, err
@@ -133,7 +141,7 @@ func (p *AddParams) ToQueryString() string {
 	fmtStr := "replication-min=%d&replication-max=%d&name=%s&"
 	fmtStr += "shard=%t&shard-size=%d&"
 	fmtStr += "layout=%s&chunker=%s&raw-leaves=%t&hidden=%t&"
-	fmtStr += "wrap-with-directory=%t"
+	fmtStr += "wrap-with-directory=%t&progress=%t"
 	query := fmt.Sprintf(
 		fmtStr,
 		p.ReplicationFactorMin,
@@ -146,6 +154,7 @@ func (p *AddParams) ToQueryString() string {
 		p.RawLeaves,
 		p.Hidden,
 		p.Wrap,
+		p.Progress,
 	)
 	return query
 }

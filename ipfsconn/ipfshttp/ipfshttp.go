@@ -13,11 +13,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/adder"
+	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -284,7 +285,7 @@ func (ipfs *Connector) proxyResponse(w http.ResponseWriter, res *http.Response, 
 func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
 	res, err := ipfs.proxyRequest(r)
 	if err != nil {
-		http.Error(w, "error forwarding request: "+err.Error(), 500)
+		ipfsErrorResponder(w, "error forwarding request: "+err.Error())
 		return
 	}
 	ipfs.proxyResponse(w, res, res.Body)
@@ -396,165 +397,89 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle some request options
-	q := r.URL.Query()
-	// Remember if the user does not want cluster/ipfs to pin
-	doNotPin := q.Get("pin") == "false"
-	// make sure the local peer does not pin.
-	// Cluster will decide where to pin based on metrics and current
-	// allocations.
-	q.Set("pin", "false")
-	r.URL.RawQuery = q.Encode()
-
-	res, err := ipfs.proxyRequest(r)
+	reader, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, "error forwarding request: "+err.Error(), 500)
-		return
-	}
-	defer res.Body.Close()
-
-	// Shortcut some cases where there is nothing else to do
-	if scode := res.StatusCode; scode != http.StatusOK {
-		logger.Warningf("proxy /add request returned %d", scode)
-		ipfs.proxyResponse(w, res, res.Body)
+		ipfsErrorResponder(w, "error reading request: "+err.Error())
 		return
 	}
 
-	if doNotPin {
-		logger.Debug("proxy /add requests has pin==false")
-		ipfs.proxyResponse(w, res, res.Body)
+	q := r.URL.Query()
+	if q.Get("only-hash") == "true" {
+		ipfsErrorResponder(w, "only-hash is not supported when adding to cluster")
+	}
+
+	unpin := q.Get("pin") == "false"
+
+	// Luckily, most IPFS add query params are compatible with cluster's
+	// /add params. We can parse most of them directly from the query.
+	params, err := api.AddParamsFromQuery(q)
+	if err != nil {
+		ipfsErrorResponder(w, "error parsing options:"+err.Error())
 		return
 	}
-
-	// The ipfs-add response is a streaming-like body where
-	// { "Name" : "filename", "Hash": "cid" } objects are provided
-	// for every added object.
-
-	// We will need to re-read the response in order to re-play it to
-	// the client at the end, therefore we make a copy in bodyCopy
-	// while decoding.
-	bodyCopy := new(bytes.Buffer)
-	bodyReader := io.TeeReader(res.Body, bodyCopy)
-
-	ipfsAddResps := []ipfsAddResp{}
-	dec := json.NewDecoder(bodyReader)
-	for dec.More() {
-		var addResp ipfsAddResp
-		err := dec.Decode(&addResp)
-		if err != nil {
-			http.Error(w, "error decoding response: "+err.Error(), 502)
-			return
-		}
-		if addResp.Bytes != 0 {
-			// This is a progress notification, so we ignore it
-			continue
-		}
-		ipfsAddResps = append(ipfsAddResps, addResp)
+	trickle := q.Get("trickle")
+	if trickle == "true" {
+		params.Layout = "trickle"
 	}
 
-	if len(ipfsAddResps) == 0 {
-		logger.Warning("proxy /add request response was OK but empty")
-		ipfs.proxyResponse(w, res, bodyCopy)
-		return
-	}
+	logger.Warningf("Proxy/add does not support all IPFS params. Current options: %+v", params)
 
-	// An ipfs-add call can add multiple files and pin multiple items.
-	// The go-ipfs api is not perfectly behaved here (i.e. when passing in
-	// two directories to pin). There is no easy way to know for sure what
-	// has been pinned recursively and what not.
-	// Usually when pinning a directory, the recursive pin comes last.
-	// But we may just be pinning different files and no directories.
-	// In that case, we need to recursively pin them separately.
-	// decideRecursivePins() takes a conservative approach. It
-	// works on the regular use-cases. Otherwise, it might pin
-	// more things than it should.
-	pinHashes := decideRecursivePins(ipfsAddResps, r.URL.Query())
+	output := make(chan *api.AddedOutput, 200)
+	dags := local.New(ipfs.rpcClient, params.PinOptions)
 
-	logger.Debugf("proxy /add request and will pin %s", pinHashes)
-	for _, pin := range pinHashes {
-		err := ipfs.rpcClient.Call(
-			"",
-			"Cluster",
-			"Pin",
-			api.PinSerial{
-				Cid: pin,
-			},
-			&struct{}{},
-		)
-		if err != nil {
-			// we need to fail the operation and make sure the
-			// user knows about it.
-			msg := "add operation was successful but "
-			msg += "an error occurred performing the cluster "
-			msg += "pin operation: " + err.Error()
-			logger.Error(msg)
-			http.Error(w, msg, 500)
-			return
-		}
-	}
-	// Finally, send the original response back
-	ipfs.proxyResponse(w, res, bodyCopy)
-}
+	enc := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
-// decideRecursivePins takes the answers from ipfsAddResp and
-// figures out which of the pinned items need to be pinned
-// recursively in cluster. That is, it guesses which items
-// ipfs would have pinned recursively.
-// When adding multiple files+directories, it may end up
-// pinning more than it should because ipfs API does not
-// behave well in these cases.
-// It should work well for regular usecases: pin 1 file,
-// pin 1 directory, pin several files.
-func decideRecursivePins(added []ipfsAddResp, q url.Values) []string {
-	// When wrap-in-directory, return last element only.
-	_, ok := q["wrap-in-directory"]
-	if ok && q.Get("wrap-in-directory") == "true" {
-		return []string{
-			added[len(added)-1].Hash,
-		}
-	}
-
-	toPin := []string{}
-	baseFolders := make(map[string]struct{})
-	// Guess base folder names
-	baseFolder := func(path string) string {
-		slashed := filepath.ToSlash(path)
-		parts := strings.Split(slashed, "/")
-		if len(parts) == 0 {
-			return ""
-		}
-		if parts[0] == "" && len(parts) > 1 {
-			return parts[1]
-		}
-		return parts[0]
-	}
-
-	for _, add := range added {
-		if add.Hash == "" {
-			continue
-		}
-		b := baseFolder(add.Name)
-		if b != "" {
-			baseFolders[b] = struct{}{}
-		}
-	}
-	for _, add := range added {
-		if add.Hash == "" {
-			continue
-		}
-		_, ok := baseFolders[add.Name]
-		if ok { // it's a base folder, pin it
-			toPin = append(toPin, add.Hash)
-		} else { // otherwise, pin if there is no
-			// basefolder to it.
-			b := baseFolder(add.Name)
-			_, ok := baseFolders[b]
-			if !ok {
-				toPin = append(toPin, add.Hash)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for v := range output {
+			err := enc.Encode(v)
+			if err != nil {
+				logger.Error(err)
 			}
 		}
+	}()
+
+	add := adder.New(dags, params, output)
+	c, err := add.FromMultipart(ipfs.ctx, reader)
+
+	wg.Wait()
+
+	sendAddingError := func(err error) {
+		errorResp := ipfsError{
+			Message: err.Error(),
+		}
+		if err := enc.Encode(errorResp); err != nil {
+			logger.Error(err)
+		}
 	}
-	return toPin
+
+	if err != nil {
+		sendAddingError(err)
+		return
+	}
+
+	if !unpin {
+		return
+	}
+
+	// Unpin because the user doesn't want to pin
+	time.Sleep(100 * time.Millisecond)
+	err = ipfs.rpcClient.CallContext(
+		ipfs.ctx,
+		"",
+		"Cluster",
+		"Unpin",
+		api.PinCid(c).ToSerial(),
+		&struct{}{},
+	)
+	if err != nil {
+		sendAddingError(err)
+		return
+	}
 }
 
 // SetClient makes the component ready to perform RPC
