@@ -406,7 +406,9 @@ This might be due to one or several causes:
 	}
 
 	close(c.readyCh)
+	c.shutdownLock.Lock()
 	c.readyB = true
+	c.shutdownLock.Unlock()
 	logger.Info("** IPFS Cluster is READY **")
 }
 
