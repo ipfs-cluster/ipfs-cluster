@@ -103,6 +103,7 @@ func init() {
 			continue
 		}
 	}
+	ReadyTimeout = 11 * time.Second
 }
 
 func checkErr(t *testing.T, err error) {
@@ -148,8 +149,6 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	clusterCfg.ListenAddr = clusterAddr
 	clusterCfg.LeaveOnShutdown = false
 	clusterCfg.SetBaseDir("./e2eTestRaft/" + pid.Pretty())
-
-	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	checkErr(t, err)
