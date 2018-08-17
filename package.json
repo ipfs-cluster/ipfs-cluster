@@ -69,9 +69,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSMWoH8wKuViGUe2ZDr3kDijbzkk81nY71zV1ApibFLxF",
+      "hash": "QmeyKL7WDSPhnhozCB3oC51j5pDs7DnCGWPyVaxgwpncA6",
       "name": "go-libp2p-http",
-      "version": "1.0.8"
+      "version": "1.1.0"
     },
     {
       "author": "ipfs",
@@ -150,3 +150,4 @@
   "releaseCmd": "git commit -S -a -m \"gx publish $VERSION\"",
   "version": "0.4.0"
 }
+

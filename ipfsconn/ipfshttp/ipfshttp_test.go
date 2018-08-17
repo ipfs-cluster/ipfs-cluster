@@ -518,16 +518,19 @@ func TestProxyAdd(t *testing.T) {
 
 	reqs := make([]*http.Request, len(testcases), len(testcases))
 
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
 	for i, tc := range testcases {
-		sth := test.NewShardingTestHelper()
 		mr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		cType := "multipart/form-data; boundary=" + mr.Boundary()
 		url := fmt.Sprintf("%s/add?"+tc.query, proxyURL(ipfs))
 		req, _ := http.NewRequest("POST", url, mr)
 		req.Header.Set("Content-Type", cType)
+		req.ContentLength = -1
+		req.Close = true
 		reqs[i] = req
-
 	}
 
 	for i, tc := range testcases {

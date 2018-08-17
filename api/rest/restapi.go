@@ -21,9 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/adder/local"
-	"github.com/ipfs/ipfs-cluster/adder/sharding"
+	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
@@ -514,36 +512,13 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output := make(chan *types.AddedOutput, 200)
-	var dags adder.ClusterDAGService
-
-	if params.Shard {
-		dags = sharding.New(api.rpcClient, params.PinOptions, output)
-	} else {
-		dags = local.New(api.rpcClient, params.PinOptions)
-	}
-
-	enc := json.NewEncoder(w)
-	w.Header().Add("Content-Type", "application/octet-stream")
-	w.WriteHeader(http.StatusOK)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for v := range output {
-			err := enc.Encode(v)
-			if err != nil {
-				logger.Error(err)
-			}
-		}
-	}()
-
-	add := adder.New(dags, params, output)
-	c, err := add.FromMultipart(api.ctx, reader)
-	_ = c
-
-	wg.Wait()
+	_, err = adderutils.AddMultipartHTTPHandler(
+		api.ctx,
+		api.rpcClient,
+		params,
+		reader,
+		w,
+	)
 
 	if err != nil {
 		errorResp := types.AddedOutput{
@@ -552,6 +527,8 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 				Message: err.Error(),
 			},
 		}
+		enc := json.NewEncoder(w)
+
 		if err := enc.Encode(errorResp); err != nil {
 			logger.Error(err)
 		}

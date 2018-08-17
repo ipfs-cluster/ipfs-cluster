@@ -17,8 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/adder/local"
+	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -424,38 +423,23 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Warningf("Proxy/add does not support all IPFS params. Current options: %+v", params)
 
-	output := make(chan *api.AddedOutput, 200)
-	dags := local.New(ipfs.rpcClient, params.PinOptions)
-
-	enc := json.NewEncoder(w)
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for v := range output {
-			err := enc.Encode(v)
-			if err != nil {
-				logger.Error(err)
-			}
-		}
-	}()
-
-	add := adder.New(dags, params, output)
-	c, err := add.FromMultipart(ipfs.ctx, reader)
-
-	wg.Wait()
-
 	sendAddingError := func(err error) {
 		errorResp := ipfsError{
 			Message: err.Error(),
 		}
+		enc := json.NewEncoder(w)
 		if err := enc.Encode(errorResp); err != nil {
 			logger.Error(err)
 		}
 	}
+
+	root, err := adderutils.AddMultipartHTTPHandler(
+		ipfs.ctx,
+		ipfs.rpcClient,
+		params,
+		reader,
+		w,
+	)
 
 	if err != nil {
 		sendAddingError(err)
@@ -473,7 +457,7 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 		"",
 		"Cluster",
 		"Unpin",
-		api.PinCid(c).ToSerial(),
+		api.PinCid(root).ToSerial(),
 		&struct{}{},
 	)
 	if err != nil {
