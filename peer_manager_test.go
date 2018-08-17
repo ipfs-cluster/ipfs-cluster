@@ -535,7 +535,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// add all clusters
 	for i := 1; i < len(clusters); i++ {
-		_, err := clusters[0].PeerAdd(clusters[i].id)
+		err := clusters[i].Join(clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
 		}
