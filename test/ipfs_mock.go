@@ -288,10 +288,15 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write(data)
 	case "repo/stat":
+		sizeOnly := r.URL.Query().Get("size-only")
 		len := len(m.pinMap.List())
+		numObjs := uint64(len)
+		if sizeOnly == "true" {
+			numObjs = 0
+		}
 		resp := mockRepoStatResp{
 			RepoSize:   uint64(len) * 1000,
-			NumObjects: uint64(len),
+			NumObjects: numObjs,
 			StorageMax: 10000000000, //10 GB
 		}
 		j, _ := json.Marshal(resp)

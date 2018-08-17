@@ -97,7 +97,6 @@ type ipfsIDResp struct {
 type ipfsRepoStatResp struct {
 	RepoSize   uint64
 	StorageMax uint64
-	NumObjects uint64
 }
 
 type ipfsAddResp struct {
@@ -924,7 +923,7 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 func (ipfs *Connector) FreeSpace() (uint64, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "repo/stat", "", nil)
+	res, err := ipfs.postCtx(ctx, "repo/stat?size-only=true", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
@@ -944,7 +943,7 @@ func (ipfs *Connector) FreeSpace() (uint64, error) {
 func (ipfs *Connector) RepoSize() (uint64, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "repo/stat", "", nil)
+	res, err := ipfs.postCtx(ctx, "repo/stat?size-only=true", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return 0, err
