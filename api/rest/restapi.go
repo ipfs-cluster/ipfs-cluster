@@ -531,10 +531,15 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		flusher, canFlush := w.(http.Flusher)
 		for v := range output {
 			err := enc.Encode(v)
 			if err != nil {
 				logger.Error(err)
+			}
+			if canFlush {
+				flusher.Flush()
 			}
 		}
 	}()
