@@ -161,7 +161,9 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		IdleTimeout:       cfg.ProxyIdleTimeout,
 		Handler:           smux,
 	}
-	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
+
+	// See: https://github.com/ipfs/go-ipfs/issues/5168
+	s.SetKeepAlivesEnabled(false) // A reminder that this can be changed
 
 	c := &http.Client{} // timeouts are handled by context timeouts
 

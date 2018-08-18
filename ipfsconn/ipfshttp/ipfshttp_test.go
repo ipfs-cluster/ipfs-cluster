@@ -39,6 +39,8 @@ func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
+
+	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.SetClient(test.NewMockRPCClient(t))
 	return ipfs, mock
 }
@@ -528,8 +530,6 @@ func TestProxyAdd(t *testing.T) {
 		url := fmt.Sprintf("%s/add?"+tc.query, proxyURL(ipfs))
 		req, _ := http.NewRequest("POST", url, mr)
 		req.Header.Set("Content-Type", cType)
-		req.ContentLength = -1
-		req.Close = true
 		reqs[i] = req
 	}
 

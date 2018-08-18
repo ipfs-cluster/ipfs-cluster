@@ -39,7 +39,11 @@ func AddMultipartHTTPHandler(
 	}
 
 	enc := json.NewEncoder(w)
-	w.Header().Add("Content-Type", "application/octet-stream")
+	// This must be application/json otherwise go-ipfs client
+	// will break.
+	w.Header().Add("Content-Type", "application/json")
+	// Browsers should not cache when streaming content.
+	w.Header().Add("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)
 
 	var wg sync.WaitGroup

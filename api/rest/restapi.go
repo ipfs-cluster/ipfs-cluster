@@ -113,7 +113,9 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 		IdleTimeout:       cfg.IdleTimeout,
 		Handler:           router,
 	}
-	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
+
+	// See: https://github.com/ipfs/go-ipfs/issues/5168
+	s.SetKeepAlivesEnabled(false)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
