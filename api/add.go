@@ -25,6 +25,7 @@ type AddedOutput struct {
 type AddParams struct {
 	PinOptions
 
+	Recursive bool
 	Layout    string
 	Chunker   string
 	RawLeaves bool
@@ -37,6 +38,7 @@ type AddParams struct {
 // DefaultAddParams returns a AddParams object with standard defaults
 func DefaultAddParams() *AddParams {
 	return &AddParams{
+		Recursive: false,
 		Layout:    "", // corresponds to balanced layout
 		Chunker:   "size-262144",
 		RawLeaves: false,
@@ -94,7 +96,12 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	name := query.Get("name")
 	params.Name = name
 
-	err := parseBoolParam(query, "raw-leaves", &params.RawLeaves)
+	err := parseBoolParam(query, "recursive", &params.Recursive)
+	if err != nil {
+		return nil, err
+	}
+
+	err = parseBoolParam(query, "raw-leaves", &params.RawLeaves)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +146,7 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 // ToQueryString returns a url query string (key=value&key2=value2&...)
 func (p *AddParams) ToQueryString() string {
 	fmtStr := "replication-min=%d&replication-max=%d&name=%s&"
-	fmtStr += "shard=%t&shard-size=%d&"
+	fmtStr += "shard=%t&shard-size=%d&recursive=%t&"
 	fmtStr += "layout=%s&chunker=%s&raw-leaves=%t&hidden=%t&"
 	fmtStr += "wrap-with-directory=%t&progress=%t"
 	query := fmt.Sprintf(
@@ -149,6 +156,7 @@ func (p *AddParams) ToQueryString() string {
 		p.Name,
 		p.Shard,
 		p.ShardSize,
+		p.Recursive,
 		p.Layout,
 		p.Chunker,
 		p.RawLeaves,
@@ -164,6 +172,7 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
 		p.ReplicationFactorMax == p2.ReplicationFactorMax &&
 		p.Name == p2.Name &&
+		p.Recursive == p2.Recursive &&
 		p.Shard == p2.Shard &&
 		p.ShardSize == p2.ShardSize &&
 		p.Layout == p2.Layout &&

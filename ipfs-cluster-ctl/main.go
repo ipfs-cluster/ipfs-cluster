@@ -238,26 +238,31 @@ cluster peers.
 			ArgsUsage: "<path>",
 			Description: `
 Add allows to add and replicate content to several ipfs daemons, performing
-a Cluster Pin operation on success.
+a Cluster Pin operation on success. It takes elements from local paths as
+well as from web URLs (accessed with a GET request). Providing several
+arguments will automatically set --wrap-in-directory.
 
 Cluster Add is equivalent to "ipfs add" in terms of DAG building, and supports
-the same options for adjusting the chunker, the DAG layout etc. It will,
-allocate the cluster pin first and then send the content directly to the
-allocated peers.
+the same options for adjusting the chunker, the DAG layout etc. However,
+it will allocate the content and send it directly to the allocated peers (among
+which may not necessarily be the local ipfs daemon).
 
-This may not be the local daemon (depends on the allocator). Once the
- adding process is finished, the content has been fully
-added to all allocations and pinned in them. This makes cluster add slower
-than a local ipfs add, but the result is a fully replicated CID on completion.
+Once the adding process is finished, the content is fully added to all
+allocations and pinned in them. This makes cluster add slower than a local
+ipfs add, but the result is a fully replicated CID on completion.
+If you prefer faster adding, add directly to the local IPFS and trigger a
+ cluster "pin add".
 
-Cluster Add supports handling huge files and sharding the resulting DAG among
-several ipfs daemons (--shard). In this case, a single ipfs daemon will not
-contain the full dag, but only parts of it (shards). Desired shard size can
-be provided with the --shard-size flag.
-
-We recommend setting a --name for sharded pins. Otherwise, it will be
-automatically generated.
 `,
+			/*
+				Cluster Add supports handling huge files and sharding the resulting DAG among
+				several ipfs daemons (--shard). In this case, a single ipfs daemon will not
+				contain the full dag, but only parts of it (shards). Desired shard size can
+				be provided with the --shard-size flag.
+
+				We recommend setting a --name for sharded pins. Otherwise, it will be
+				automatically generated.
+			*/
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "recursive, r",
@@ -278,7 +283,7 @@ automatically generated.
 				},
 				cli.BoolFlag{
 					Name:  "wrap-with-directory, w",
-					Usage: "Wrap a single added file with a directory object.",
+					Usage: "Wrap a with a directory object.",
 				},
 				cli.BoolFlag{
 					Name:  "hidden, H",
@@ -337,6 +342,7 @@ automatically generated.
 					name = "sharded-" + strings.Split(randName.String(), "-")[0]
 				}
 
+				// Read arguments (paths)
 				paths := make([]string, c.NArg(), c.NArg())
 				for i, path := range c.Args() {
 					paths[i] = path
@@ -346,9 +352,7 @@ automatically generated.
 					checkErr("", errors.New("need at least one path"))
 				}
 
-				// Files are all opened but not read until they are sent.
-				multiFileR, err := parseFileArgs(paths, c.Bool("recursive"), c.Bool("hidden"))
-				checkErr("serializing all files", err)
+				// Setup AddParams
 				p := api.DefaultAddParams()
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
@@ -356,6 +360,7 @@ automatically generated.
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false
+				p.Recursive = c.Bool("recursive")
 				p.Layout = c.String("layout")
 				p.Chunker = c.String("chunker")
 				p.RawLeaves = c.Bool("raw-leaves")
@@ -395,11 +400,7 @@ automatically generated.
 					}
 				}()
 
-				cerr := globalClient.AddMultiFile(
-					multiFileR,
-					p,
-					out,
-				)
+				cerr := globalClient.Add(paths, p, out)
 				wg.Wait()
 				formatResponse(c, nil, cerr)
 				return cerr

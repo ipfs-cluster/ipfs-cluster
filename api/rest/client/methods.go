@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -325,10 +328,76 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 	return true, nil
 }
 
-// AddMultiFile adds new files to the cluster, importing and potentially
-// sharding underlying dags across the ipfs daemons of multiple cluster peers.
-// Progress can be tracked by passing a channel onto which deliver AddedOutput
-// updates.
+// logic drawn from go-ipfs-cmds/cli/parse.go: appendFile
+func makeSerialFile(fpath string, params *api.AddParams) (files.File, error) {
+	if fpath == "." {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		cwd, err = filepath.EvalSymlinks(cwd)
+		if err != nil {
+			return nil, err
+		}
+		fpath = cwd
+	}
+
+	fpath = filepath.ToSlash(filepath.Clean(fpath))
+
+	stat, err := os.Lstat(fpath)
+	if err != nil {
+		return nil, err
+	}
+
+	if stat.IsDir() {
+		if !params.Recursive {
+			return nil, fmt.Errorf("%s is a directory, but we are not adding with --recursive", fpath)
+		}
+	}
+
+	return files.NewSerialFile(path.Base(fpath), fpath, params.Hidden, stat)
+}
+
+// Add imports files to the cluster from the given paths. A path can
+// either be a local filesystem location or an web url (http:// or https://).
+// In the latter case, the destination will be downloaded with a GET request.
+// The AddParams allow to control different options, like enabling the
+// sharding the resulting DAG across the IPFS daemons of multiple cluster
+// peers. The output channel will receive regular updates as the adding
+// process progresses.
+func (c *Client) Add(
+	paths []string,
+	params *api.AddParams,
+	out chan<- *api.AddedOutput,
+) error {
+
+	addFiles := make([]files.File, len(paths), len(paths))
+	for i, path := range paths {
+		u, err := url.Parse(path)
+		if err != nil {
+			return fmt.Errorf("error parsing path: %s", err)
+		}
+		var addFile files.File
+		if strings.HasPrefix(u.Scheme, "http") {
+			addFile = newWebFile(u)
+		} else {
+			addFile, err = makeSerialFile(path, params)
+			if err != nil {
+				return err
+			}
+		}
+		addFiles[i] = addFile
+	}
+
+	sliceFile := files.NewSliceFile("", "", addFiles)
+	// If `form` is set to true, the multipart data will have
+	// a Content-Type of 'multipart/form-data', if `form` is false,
+	// the Content-Type will be 'multipart/mixed'.
+	mfr := files.NewMultiFileReader(sliceFile, true)
+	return c.AddMultiFile(mfr, params, out)
+}
+
+// AddMultiFile imports new files from a MultiFileReader. See Add().
 func (c *Client) AddMultiFile(
 	multiFileR *files.MultiFileReader,
 	params *api.AddParams,
@@ -364,5 +433,3 @@ func (c *Client) AddMultiFile(
 	)
 	return err
 }
-
-// TODO: Eventually an Add(io.Reader) method for adding raw readers as a multifile should be here.
