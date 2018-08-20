@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"testing"
@@ -40,6 +39,8 @@ func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	if err != nil {
 		t.Fatal("creating an IPFSConnector should work: ", err)
 	}
+
+	ipfs.server.SetKeepAlivesEnabled(false)
 	ipfs.SetClient(test.NewMockRPCClient(t))
 	return ipfs, mock
 }
@@ -489,44 +490,51 @@ func TestIPFSProxyPinLs(t *testing.T) {
 }
 
 func TestProxyAdd(t *testing.T) {
-	// TODO: find a way to ensure that the calls to
-	// rpc-api "Pin" happened.
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	urlQueries := []string{
-		"",
-		"pin=false",
-		"progress=true",
-		"wrap-with-directory",
+	type testcase struct {
+		query       string
+		expectedCid string
 	}
 
-	reqs := make([]*http.Request, len(urlQueries), len(urlQueries))
+	testcases := []testcase{
+		testcase{
+			query:       "",
+			expectedCid: test.ShardingDirBalancedRootCID,
+		},
+		testcase{
+			query:       "progress=true",
+			expectedCid: test.ShardingDirBalancedRootCID,
+		},
+		testcase{
+			query:       "wrap-with-directory=true",
+			expectedCid: test.ShardingDirBalancedRootCIDWrapped,
+		},
+		testcase{
+			query:       "trickle=true",
+			expectedCid: test.ShardingDirTrickleRootCID,
+		},
+	}
 
-	for i := 0; i < len(urlQueries); i++ {
-		body := new(bytes.Buffer)
-		w := multipart.NewWriter(body)
-		part, err := w.CreateFormFile("file", "testfile")
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, err = part.Write([]byte("this is a multipart file"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = w.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		url := fmt.Sprintf("%s/add?"+urlQueries[i], proxyURL(ipfs))
-		req, _ := http.NewRequest("POST", url, body)
-		req.Header.Set("Content-Type", w.FormDataContentType())
+	reqs := make([]*http.Request, len(testcases), len(testcases))
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	for i, tc := range testcases {
+		mr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		cType := "multipart/form-data; boundary=" + mr.Boundary()
+		url := fmt.Sprintf("%s/add?"+tc.query, proxyURL(ipfs))
+		req, _ := http.NewRequest("POST", url, mr)
+		req.Header.Set("Content-Type", cType)
 		reqs[i] = req
 	}
 
-	for i := 0; i < len(urlQueries); i++ {
-		t.Run(urlQueries[i], func(t *testing.T) {
+	for i, tc := range testcases {
+		t.Run(tc.query, func(t *testing.T) {
 			res, err := http.DefaultClient.Do(reqs[i])
 			if err != nil {
 				t.Fatal("should have succeeded: ", err)
@@ -536,32 +544,18 @@ func TestProxyAdd(t *testing.T) {
 				t.Fatalf("Bad response status: got = %d, want = %d", res.StatusCode, http.StatusOK)
 			}
 
-			var hash ipfsAddResp
-
-			// We might return a progress notification, so we do it
-			// like this to ignore it easily
+			var resp api.AddedOutput
 			dec := json.NewDecoder(res.Body)
 			for dec.More() {
-				var resp ipfsAddResp
 				err := dec.Decode(&resp)
 				if err != nil {
 					t.Fatal(err)
 				}
-
-				if resp.Bytes != 0 {
-					continue
-				} else {
-					hash = resp
-				}
 			}
 
-			if hash.Hash != test.TestCid3 {
-				t.Logf("%+v", hash)
-				t.Error("expected TestCid1 as it is hardcoded in ipfs mock")
-			}
-			if hash.Name != "testfile" {
-				t.Logf("%+v", hash)
-				t.Error("expected testfile for hash name")
+			if resp.Hash != tc.expectedCid {
+				t.Logf("%+v", resp.Hash)
+				t.Error("expected CID does not match")
 			}
 		})
 	}
@@ -578,73 +572,6 @@ func TestProxyAddError(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusInternalServerError {
 		t.Errorf("wrong status code: got = %d, want = %d", res.StatusCode, http.StatusInternalServerError)
-	}
-}
-
-func TestDecideRecursivePins(t *testing.T) {
-	type testcases struct {
-		addResps []ipfsAddResp
-		query    url.Values
-		expect   []string
-	}
-
-	tcs := []testcases{
-		{
-			[]ipfsAddResp{{"a", "cida", 0}},
-			url.Values{},
-			[]string{"cida"},
-		},
-		{
-			[]ipfsAddResp{{"a/b", "cidb", 0}, {"a", "cida", 0}},
-			url.Values{},
-			[]string{"cida"},
-		},
-		{
-			[]ipfsAddResp{{"a/b", "cidb", 0}, {"c", "cidc", 0}, {"a", "cida", 0}},
-			url.Values{},
-			[]string{"cidc", "cida"},
-		},
-		{
-			[]ipfsAddResp{{"/a", "cida", 0}},
-			url.Values{},
-			[]string{"cida"},
-		},
-		{
-			[]ipfsAddResp{{"a/b/c/d", "cidd", 0}},
-			url.Values{},
-			[]string{"cidd"},
-		},
-		{
-			[]ipfsAddResp{{"a", "cida", 0}, {"b", "cidb", 0}, {"c", "cidc", 0}, {"d", "cidd", 0}},
-			url.Values{},
-			[]string{"cida", "cidb", "cidc", "cidd"},
-		},
-		{
-			[]ipfsAddResp{{"a", "cida", 0}, {"b", "cidb", 0}, {"", "cidwrap", 0}},
-			url.Values{
-				"wrap-in-directory": []string{"true"},
-			},
-			[]string{"cidwrap"},
-		},
-		{
-
-			[]ipfsAddResp{{"b", "", 0}, {"a", "cida", 0}},
-			url.Values{},
-			[]string{"cida"},
-		},
-	}
-
-	for i, tc := range tcs {
-		r := decideRecursivePins(tc.addResps, tc.query)
-		for j, ritem := range r {
-			if len(r) != len(tc.expect) {
-				t.Errorf("testcase %d failed", i)
-				break
-			}
-			if tc.expect[j] != ritem {
-				t.Errorf("testcase %d failed for item %d", i, j)
-			}
-		}
 	}
 }
 

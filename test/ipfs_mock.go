@@ -118,33 +118,6 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
-	case "add":
-		c, _ := cid.Decode(TestCid3)
-		// add also pins
-		m.pinMap.Add(api.PinCid(c))
-		_, fheader, err := r.FormFile("file")
-		if err != nil {
-			http.Error(w, "no file in /add", 500)
-			return
-		}
-
-		query := r.URL.Query()
-		progress, ok := query["progress"]
-		if ok && len(progress) > 0 && progress[0] != "false" {
-			progressResp := mockAddResp{
-				Name:  fheader.Filename,
-				Bytes: 4,
-			}
-			j, _ := json.Marshal(progressResp)
-			w.Write(j)
-		}
-
-		resp := mockAddResp{
-			Name: fheader.Filename,
-			Hash: TestCid3,
-		}
-		j, _ := json.Marshal(resp)
-		w.Write(j)
 	case "pin/add":
 		arg, ok := extractCid(r.URL)
 		if !ok {
