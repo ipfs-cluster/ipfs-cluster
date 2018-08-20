@@ -656,10 +656,9 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPin
 			return api.IPFSPinStatusError, err
 		}
 
-		// Pin not found. Try next type
-		if err != nil {
-			continue
-
+		// Pin found. Do not keep looking.
+		if err == nil {
+			break
 		}
 	}
 
