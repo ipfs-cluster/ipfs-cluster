@@ -724,21 +724,35 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string
 	return statusMap, nil
 }
 
-// PinLsCid performs a "pin ls --type=recursive <hash> "request and returns
-// an api.IPFSPinStatus for that hash.
+// PinLsCid performs a "pin ls <hash>" request. It first tries with
+// "type=recursive" and then, if not found, with "type=direct". It returns an
+// api.IPFSPinStatus for that hash.
 func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPinStatus, error) {
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
-	defer cancel()
-	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=recursive", hash)
-	body, err := ipfs.postCtx(ctx, lsPath, "", nil)
-
-	// Network error, daemon down
-	if body == nil && err != nil {
-		return api.IPFSPinStatusError, err
+	pinLsType := func(pinType string) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
+		defer cancel()
+		lsPath := fmt.Sprintf("pin/ls?arg=%s&type=%s", hash, pinType)
+		return ipfs.postCtx(ctx, lsPath, "", nil)
 	}
 
-	// Pin not found likely here
-	if err != nil { // Not pinned
+	var body []byte
+	var err error
+	// FIXME: Sharding may need to check more pin types here.
+	for _, pinType := range []string{"recursive", "direct"} {
+		body, err = pinLsType(pinType)
+		// Network error, daemon down
+		if body == nil && err != nil {
+			return api.IPFSPinStatusError, err
+		}
+
+		// Pin not found. Try next type
+		if err != nil {
+			continue
+
+		}
+	}
+
+	if err != nil { // we could not find the pin
 		return api.IPFSPinStatusUnpinned, nil
 	}
 
