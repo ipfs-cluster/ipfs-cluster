@@ -796,7 +796,7 @@ func formatResponse(c *cli.Context, resp interface{}, err error) {
 	if err != nil {
 		cerr, ok := err.(*api.Error)
 		if !ok {
-			checkErr("casting *api.Error. Original error", err)
+			checkErr("", err)
 		}
 		switch enc {
 		case "text":

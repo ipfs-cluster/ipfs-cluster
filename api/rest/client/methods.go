@@ -351,7 +351,7 @@ func makeSerialFile(fpath string, params *api.AddParams) (files.File, error) {
 
 	if stat.IsDir() {
 		if !params.Recursive {
-			return nil, fmt.Errorf("%s is a directory, but we are not adding with --recursive", fpath)
+			return nil, fmt.Errorf("%s is a directory, but Recursive option is not set", fpath)
 		}
 	}
 
@@ -375,6 +375,7 @@ func (c *Client) Add(
 	for i, path := range paths {
 		u, err := url.Parse(path)
 		if err != nil {
+			close(out)
 			return fmt.Errorf("error parsing path: %s", err)
 		}
 		var addFile files.File
@@ -383,6 +384,7 @@ func (c *Client) Add(
 		} else {
 			addFile, err = makeSerialFile(path, params)
 			if err != nil {
+				close(out)
 				return err
 			}
 		}
