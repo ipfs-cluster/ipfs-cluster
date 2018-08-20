@@ -127,9 +127,12 @@ func TestMigrateFromV1(t *testing.T) {
 	r := bytes.NewBuffer(v1Bytes)
 	err = ms.Migrate(r)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	get, _ := ms.Get(c.Cid)
+	get, ok := ms.Get(c.Cid)
+	if !ok {
+		t.Fatal("migrated state does not contain cid")
+	}
 	if get.ReplicationFactorMax != -1 || get.ReplicationFactorMin != -1 || !get.Cid.Equals(c.Cid) {
 		t.Error("expected something different")
 		t.Logf("%+v", get)
