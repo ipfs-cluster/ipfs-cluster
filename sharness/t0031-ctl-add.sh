@@ -63,7 +63,7 @@ test_expect_success IPFS,CLUSTER "check add folders" '
 test_expect_success IPFS,CLUSTER "check pin after locally added" '
     mkdir testFolder3
     echo "abc" > testFolder3/abc.txt
-    cid=`ipfs-cluster-ctl add --quieter testFolder3`
+    cid=`ipfs-cluster-ctl add -r --quieter testFolder3`
     ipfs-cluster-ctl pin ls | grep -q -i "$cid"
 '
 
