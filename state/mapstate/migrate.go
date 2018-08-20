@@ -151,11 +151,12 @@ func (st *mapStateV4) next() migrateable {
 		pinsv5.Cid = v.Cid
 		pinsv5.Type = uint64(api.DataType)
 		pinsv5.Allocations = v.Allocations
-		if v.Recursive {
-			pinsv5.MaxDepth = -1
-		} else {
-			pinsv5.MaxDepth = 0
-		}
+
+		// Encountered pins with Recursive=false
+		// in previous states. Since we do not support
+		// non recursive pins yet, we fix it by
+		// harcoding MaxDepth.
+		pinsv5.MaxDepth = -1
 
 		// Options
 		pinsv5.Name = v.Name
