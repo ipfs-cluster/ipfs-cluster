@@ -75,9 +75,9 @@
     },
     {
       "author": "ipfs",
-      "hash": "QmPBf1azRsvCAMqEwZn3GMW5So5VHxW7hFMb5jz8sE7yFY",
+      "hash": "QmUqnGhnMokZjDZ4nXQbxKubeDyaPWVU5nkKs1Gtgtr2ie",
       "name": "go-ipfs-api",
-      "version": "1.3.2"
+      "version": "1.3.4"
     },
     {
       "author": "whyrusleeping",
@@ -87,9 +87,9 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmYVNvtQkeZ6AKSwDrjQTs432QtL6umrrK41EBq3cu7iSP",
+      "hash": "QmYjnkEL7i731PirfVH1sis89evN7jt4otSHw5D2xXXwUV",
       "name": "go-cid",
-      "version": "0.7.22"
+      "version": "0.7.25"
     },
     {
       "author": "satori",
@@ -99,20 +99,15 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "Qmc3UwSvJkntxu2gKDPCqJEzmhqVeJtTbrVxJm6tsdmMF1",
+      "hash": "QmWbCAB5f3LDumj4ncz1UCHSiyXrXxkMxZB6Wv35xi4P8z",
       "name": "go-ipfs-chunker",
-      "version": "0.0.8"
+      "version": "0.0.10"
     },
     {
       "author": "hector",
-      "hash": "QmSHjPDw8yNgLZ7cBfX7w3Smn7PHwYhNEpd4LHQQxUg35L",
+      "hash": "QmdBpJ5VTfL79VwKDU93z7fyZJ3mm4UaBHrE73CWRw2Bjd",
       "name": "go-ipfs-posinfo",
-      "version": "0.0.3"
-    },
-    {
-      "hash": "QmPmdpQJRbpWM65XTrKMvpDDjqfSBVwnpQwij1Wq8xwHzk",
-      "name": "go-ipfs",
-      "version": "0.4.18-dev"
+      "version": "0.0.5"
     },
     {
       "author": "dustin",
@@ -122,20 +117,20 @@
     },
     {
       "author": "why",
-      "hash": "QmWJRM6rLjXGEXb5JkKu17Y68eJtCFcKPyRhb8JH2ELZ2Q",
+      "hash": "QmWv8MYwgPK4zXYv1et1snWJ6FWGqaL6xY2y9X1bRSKBxk",
       "name": "go-unixfs",
-      "version": "1.0.6"
+      "version": "1.0.10"
     },
     {
       "author": "why",
-      "hash": "QmXkZeJmx4c3ddjw81DQMUpM1e5LjAack5idzZYWUb2qAJ",
+      "hash": "QmQzSpSjkdGHW6WFBhUG6P3t9K8yv7iucucT1cQaqJ6tgd",
       "name": "go-merkledag",
-      "version": "1.0.6"
+      "version": "1.0.9"
     },
     {
-      "hash": "QmZAsayEQakfFbHyakgHRKHwBTWrwuSBTfaMyxJZUG97VC",
+      "hash": "QmdP3wKxB6x6vJ57tDrewAJF2qv4ULejCZ6dspJRnk3993",
       "name": "go-libp2p-kad-dht",
-      "version": "4.3.1"
+      "version": "4.3.4"
     },
     {
       "hash": "Qmbq7kGxgcpALGLPaWDyTa6KUq5kBUKdEvkvPZcBkJoLex",
@@ -146,6 +141,12 @@
       "hash": "QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky",
       "name": "go-ipfs-cmdkit",
       "version": "1.1.3"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmQeLRo7dHKpmREWkAUXRAri4Bro3BqrDVJJHjHHmKSHMc",
+      "name": "go-mfs",
+      "version": "0.0.1"
     }
   ],
   "gxVersion": "0.11.0",
