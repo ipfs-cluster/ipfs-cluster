@@ -392,15 +392,13 @@ func (mock *mockService) IPFSConfigKey(ctx context.Context, in string, out *inte
 	return nil
 }
 
-func (mock *mockService) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
-	// since we have two pins. Assume each is 1KB.
-	*out = 2000
-	return nil
-}
-
-func (mock *mockService) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
-	// RepoSize is 2KB, StorageMax is 100KB
-	*out = 98000
+func (mock *mockService) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
+	// since we have two pins. Assume each is 1000B.
+	stat := api.IPFSRepoStat{
+		StorageMax: 100000,
+		RepoSize:   2000,
+	}
+	*out = stat
 	return nil
 }
 

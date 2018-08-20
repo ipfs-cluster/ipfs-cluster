@@ -84,12 +84,9 @@ type IPFSConnector interface {
 	// ConfigKey returns the value for a configuration key.
 	// Subobjects are reached with keypaths as "Parent/Child/GrandChild...".
 	ConfigKey(keypath string) (interface{}, error)
-	// FreeSpace returns the amount of remaining space on the repo, calculated from
-	//"repo stat"
-	FreeSpace() (uint64, error)
-	// RepoSize returns the current repository size as expressed
-	// by "repo stat".
-	RepoSize() (uint64, error)
+	// RepoStat returns the current repository size and max limit as
+	// provided by "repo stat".
+	RepoStat() (api.IPFSRepoStat, error)
 	// BlockPut directly adds a block of data to the IPFS repo
 	BlockPut(api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block
