@@ -322,16 +322,9 @@ func (rpcapi *RPCAPI) IPFSConfigKey(ctx context.Context, in string, out *interfa
 	return err
 }
 
-// IPFSFreeSpace runs IPFSConnector.FreeSpace().
-func (rpcapi *RPCAPI) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
-	res, err := rpcapi.c.ipfs.FreeSpace()
-	*out = res
-	return err
-}
-
-// IPFSRepoSize runs IPFSConnector.RepoSize().
-func (rpcapi *RPCAPI) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
-	res, err := rpcapi.c.ipfs.RepoSize()
+// IPFSRepoStat runs IPFSConnector.RepoStat().
+func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
+	res, err := rpcapi.c.ipfs.RepoStat()
 	*out = res
 	return err
 }

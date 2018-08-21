@@ -888,3 +888,9 @@ type Error struct {
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s (%d)", e.Message, e.Code)
 }
+
+// IPFSRepoStat wraps information about the IPFS repository.
+type IPFSRepoStat struct {
+	RepoSize   uint64
+	StorageMax uint64
+}

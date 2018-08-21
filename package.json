@@ -45,9 +45,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSXkfCpd7nWZahenZ544zsJV29VPooaJnQZfKu5qgga8E",
+      "hash": "QmW56LEPdtdETprHG5h5qcJpp6qNYuytzyqbEctGdbGfSF",
       "name": "go-libp2p-gorpc",
-      "version": "1.0.16"
+      "version": "1.0.17"
     },
     {
       "author": "libp2p",

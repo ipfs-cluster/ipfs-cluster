@@ -60,7 +60,7 @@ func (cfg *Config) Validate() error {
 		return errors.New("disk.metric_ttl is invalid")
 	}
 
-	if _, ok := metricToRPC[cfg.Type]; !ok {
+	if cfg.Type.String() == "" {
 		return errors.New("disk.metric_type is invalid")
 	}
 	return nil

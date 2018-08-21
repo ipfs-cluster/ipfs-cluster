@@ -7,11 +7,11 @@ import (
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
 type badRPCService struct {
-	nthCall int
 }
 
 func badRPCClient(t *testing.T) *rpc.Client {
@@ -24,35 +24,7 @@ func badRPCClient(t *testing.T) *rpc.Client {
 	return c
 }
 
-// func (mock *badRPCService) IPFSConfigKey(in string, out *interface{}) error {
-// 	mock.nthCall++
-// 	switch mock.nthCall {
-// 	case 1:
-// 		return errors.New("fake error the first time you use this mock")
-// 	case 2:
-// 		// don't set out
-// 		return nil
-// 	case 3:
-// 		// don't set to string
-// 		*out = 3
-// 	case 4:
-// 		// non parseable string
-// 		*out = "abc"
-// 	default:
-// 		*out = "10KB"
-// 	}
-// 	return nil
-// }
-
-func (mock *badRPCService) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
-	*out = 2
-	mock.nthCall++
-	return errors.New("fake error")
-}
-
-func (mock *badRPCService) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
-	*out = 2
-	mock.nthCall++
+func (mock *badRPCService) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
 	return errors.New("fake error")
 }
 

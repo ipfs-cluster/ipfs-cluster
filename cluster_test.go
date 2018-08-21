@@ -98,10 +98,12 @@ func (ipfs *mockConnector) SwarmPeers() (api.SwarmPeers, error) {
 	return []peer.ID{test.TestPeerID4, test.TestPeerID5}, nil
 }
 
+func (ipfs *mockConnector) RepoStat() (api.IPFSRepoStat, error) {
+	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
+}
+
 func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
-func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }
-func (ipfs *mockConnector) RepoSize() (uint64, error)                     { return 0, nil }
 
 func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error {
 	ipfs.blocks.Store(nwm.Cid, nwm.Data)

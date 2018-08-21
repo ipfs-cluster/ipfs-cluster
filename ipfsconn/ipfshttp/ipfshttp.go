@@ -19,6 +19,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
@@ -92,11 +93,6 @@ type ipfsPinOpResp struct {
 type ipfsIDResp struct {
 	ID        string
 	Addresses []string
-}
-
-type ipfsRepoStatResp struct {
-	RepoSize   uint64
-	StorageMax uint64
 }
 
 type ipfsAddResp struct {
@@ -189,6 +185,8 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
 	smux.HandleFunc("/api/v0/add", ipfs.addHandler)
 	smux.HandleFunc("/api/v0/add/", ipfs.addHandler)
+	smux.HandleFunc("/api/v0/repo/stat", ipfs.repoStatHandler)
+	smux.HandleFunc("/api/v0/repo/stat/", ipfs.repoStatHandler)
 
 	go ipfs.run()
 	return ipfs, nil
@@ -465,6 +463,56 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 		sendAddingError(err)
 		return
 	}
+}
+
+func (ipfs *Connector) repoStatHandler(w http.ResponseWriter, r *http.Request) {
+	var peers []peer.ID
+	err := ipfs.rpcClient.Call(
+		"",
+		"Cluster",
+		"ConsensusPeers",
+		struct{}{},
+		&peers,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	ctxs, cancels := rpcutil.CtxsWithTimeout(ipfs.ctx, len(peers), ipfs.config.IPFSRequestTimeout)
+	defer rpcutil.MultiCancel(cancels)
+
+	repoStats := make([]api.IPFSRepoStat, len(peers), len(peers))
+	repoStatsIfaces := make([]interface{}, len(repoStats), len(repoStats))
+	for i := range repoStats {
+		repoStatsIfaces[i] = &repoStats[i]
+	}
+
+	errs := ipfs.rpcClient.MultiCall(
+		ctxs,
+		peers,
+		"Cluster",
+		"IPFSRepoStat",
+		struct{}{},
+		repoStatsIfaces,
+	)
+
+	totalStats := api.IPFSRepoStat{}
+
+	for i, err := range errs {
+		if err != nil {
+			logger.Errorf("%s repo/stat errored: %s", peers[i], err)
+			continue
+		}
+		totalStats.RepoSize += repoStats[i].RepoSize
+		totalStats.StorageMax += repoStats[i].StorageMax
+	}
+
+	resBytes, _ := json.Marshal(totalStats)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
 }
 
 // SetClient makes the component ready to perform RPC
@@ -841,45 +889,24 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 	}
 }
 
-// FreeSpace returns the amount of unused space in the ipfs repository. This
-// value is derived from the RepoSize and StorageMax values given by "repo
-// stats". The value is in bytes.
-func (ipfs *Connector) FreeSpace() (uint64, error) {
+// RepoStat returns the DiskUsage and StorageMax repo/stat values from the
+// ipfs daemon, in bytes, wrapped as an IPFSRepoStat object.
+func (ipfs *Connector) RepoStat() (api.IPFSRepoStat, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	res, err := ipfs.postCtx(ctx, "repo/stat?size-only=true", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return 0, err
+		return api.IPFSRepoStat{}, err
 	}
 
-	var stats ipfsRepoStatResp
+	var stats api.IPFSRepoStat
 	err = json.Unmarshal(res, &stats)
 	if err != nil {
 		logger.Error(err)
-		return 0, err
+		return stats, err
 	}
-	return stats.StorageMax - stats.RepoSize, nil
-}
-
-// RepoSize returns the current repository size of the ipfs daemon as
-// provided by "repo stats". The value is in bytes.
-func (ipfs *Connector) RepoSize() (uint64, error) {
-	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
-	defer cancel()
-	res, err := ipfs.postCtx(ctx, "repo/stat?size-only=true", "", nil)
-	if err != nil {
-		logger.Error(err)
-		return 0, err
-	}
-
-	var stats ipfsRepoStatResp
-	err = json.Unmarshal(res, &stats)
-	if err != nil {
-		logger.Error(err)
-		return 0, err
-	}
-	return stats.RepoSize, nil
+	return stats, nil
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.

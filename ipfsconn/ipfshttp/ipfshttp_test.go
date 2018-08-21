@@ -489,6 +489,35 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	})
 }
 
+func TestProxyRepoStat(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+	res, err := http.Post(fmt.Sprintf("%s/repo/stat", proxyURL(ipfs)), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Error("request should have succeeded")
+	}
+
+	resBytes, _ := ioutil.ReadAll(res.Body)
+	var stat api.IPFSRepoStat
+	err = json.Unmarshal(resBytes, &stat)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The mockRPC returns 3 peers. Since no host is set,
+	// all calls are local.
+	if stat.RepoSize != 6000 || stat.StorageMax != 300000 {
+		t.Errorf("expected different stats: %+v", stat)
+	}
+
+}
+
 func TestProxyAdd(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
@@ -683,18 +712,18 @@ func TestBlockGet(t *testing.T) {
 	}
 }
 
-func TestRepoSize(t *testing.T) {
+func TestRepoStat(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
 
-	s, err := ipfs.RepoSize()
+	s, err := ipfs.RepoStat()
 	if err != nil {
 		t.Fatal(err)
 	}
 	// See the ipfs mock implementation
-	if s != 0 {
+	if s.RepoSize != 0 {
 		t.Error("expected 0 bytes of size")
 	}
 
@@ -704,11 +733,11 @@ func TestRepoSize(t *testing.T) {
 		t.Error("expected success pinning cid")
 	}
 
-	s, err = ipfs.RepoSize()
+	s, err = ipfs.RepoStat()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s != 1000 {
+	if s.RepoSize != 1000 {
 		t.Error("expected 1000 bytes of size")
 	}
 }
