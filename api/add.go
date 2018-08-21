@@ -25,27 +25,31 @@ type AddedOutput struct {
 type AddParams struct {
 	PinOptions
 
-	Recursive bool
-	Layout    string
-	Chunker   string
-	RawLeaves bool
-	Hidden    bool
-	Wrap      bool
-	Shard     bool
-	Progress  bool
+	Recursive  bool
+	Layout     string
+	Chunker    string
+	RawLeaves  bool
+	Hidden     bool
+	Wrap       bool
+	Shard      bool
+	Progress   bool
+	CidVersion int
+	HashFun    string
 }
 
 // DefaultAddParams returns a AddParams object with standard defaults
 func DefaultAddParams() *AddParams {
 	return &AddParams{
-		Recursive: false,
-		Layout:    "", // corresponds to balanced layout
-		Chunker:   "size-262144",
-		RawLeaves: false,
-		Hidden:    false,
-		Wrap:      false,
-		Shard:     false,
-		Progress:  false,
+		Recursive:  false,
+		Layout:     "", // corresponds to balanced layout
+		Chunker:    "size-262144",
+		RawLeaves:  false,
+		Hidden:     false,
+		Wrap:       false,
+		Shard:      false,
+		Progress:   false,
+		CidVersion: 0,
+		HashFun:    "sha2-256",
 		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
@@ -96,6 +100,11 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	name := query.Get("name")
 	params.Name = name
 
+	hashF := query.Get("hash")
+	if hashF != "" {
+		params.HashFun = hashF
+	}
+
 	err := parseBoolParam(query, "recursive", &params.Recursive)
 	if err != nil {
 		return nil, err
@@ -132,6 +141,11 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
+	err = parseIntParam(query, "cid-version", &params.CidVersion)
+	if err != nil {
+		return nil, err
+	}
+
 	if v := query.Get("shard-size"); v != "" {
 		shardSize, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
@@ -148,7 +162,8 @@ func (p *AddParams) ToQueryString() string {
 	fmtStr := "replication-min=%d&replication-max=%d&name=%s&"
 	fmtStr += "shard=%t&shard-size=%d&recursive=%t&"
 	fmtStr += "layout=%s&chunker=%s&raw-leaves=%t&hidden=%t&"
-	fmtStr += "wrap-with-directory=%t&progress=%t"
+	fmtStr += "wrap-with-directory=%t&progress=%t&"
+	fmtStr += "cid-version=%d&hash=%s"
 	query := fmt.Sprintf(
 		fmtStr,
 		p.ReplicationFactorMin,
@@ -163,6 +178,8 @@ func (p *AddParams) ToQueryString() string {
 		p.Hidden,
 		p.Wrap,
 		p.Progress,
+		p.CidVersion,
+		p.HashFun,
 	)
 	return query
 }
@@ -179,5 +196,7 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 		p.Chunker == p2.Chunker &&
 		p.RawLeaves == p2.RawLeaves &&
 		p.Hidden == p2.Hidden &&
-		p.Wrap == p2.Wrap
+		p.Wrap == p2.Wrap &&
+		p.CidVersion == p2.CidVersion &&
+		p.HashFun == p2.HashFun
 }

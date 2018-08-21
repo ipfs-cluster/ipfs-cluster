@@ -33,6 +33,9 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
     ipfs-cluster-ctl add --quiet -r testFolder >> cidscluster.txt
     ipfs-cluster-ctl add --quiet -r -w testFolder >> cidscluster.txt
 
+    ipfs-cluster-ctl add --quiet --cid-version 1 -r testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add --quiet --hash sha3-512 -r testFolder >> cidscluster.txt
+
     ipfsCmd add --quiet /tmp/smallfile.bin > cidsipfs.txt
     ipfsCmd add --quiet -w /tmp/smallfile.bin >> cidsipfs.txt
     ipfsCmd add --quiet --raw-leaves -w /tmp/smallfile.bin >> cidsipfs.txt
@@ -46,6 +49,9 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
 
     ipfsCmd add --quiet -r /tmp/testFolder >> cidsipfs.txt
     ipfsCmd add --quiet -r -w /tmp/testFolder >> cidsipfs.txt
+
+    ipfsCmd add --quiet --cid-version 1 -r /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add --quiet --hash sha3-512 -r /tmp/testFolder >> cidsipfs.txt
 
     test_cmp cidscluster.txt cidsipfs.txt
 '

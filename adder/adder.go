@@ -2,8 +2,10 @@ package adder
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"mime/multipart"
+	"strings"
 
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -12,6 +14,8 @@ import (
 	files "github.com/ipfs/go-ipfs-cmdkit/files"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
+	merkledag "github.com/ipfs/go-merkledag"
+	multihash "github.com/multiformats/go-multihash"
 )
 
 var logger = logging.Logger("adder")
@@ -112,6 +116,20 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 	ipfsAdder.Progress = a.params.Progress
+
+	// Set up prefix
+	prefix, err := merkledag.PrefixForCidVersion(a.params.CidVersion)
+	if err != nil {
+		return nil, fmt.Errorf("bad CID Version: %s", err)
+	}
+
+	hashFunCode, ok := multihash.Names[strings.ToLower(a.params.HashFun)]
+	if !ok {
+		return nil, fmt.Errorf("unrecognized hash function: %s", a.params.HashFun)
+	}
+	prefix.MhType = hashFunCode
+	prefix.MhLength = -1
+	ipfsAdder.CidBuilder = &prefix
 
 	for {
 		select {

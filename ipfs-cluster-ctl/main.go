@@ -298,6 +298,16 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 					Name:  "raw-leaves",
 					Usage: "Use raw blocks for leaves (experimental)",
 				},
+				cli.IntFlag{
+					Name:  "cid-version",
+					Usage: "CID version. Non default implies raw-leaves",
+					Value: defaultAddParams.CidVersion,
+				},
+				cli.StringFlag{
+					Name:  "hash",
+					Usage: "Hash function to use. Implies cid-version=1.",
+					Value: defaultAddParams.HashFun,
+				},
 				cli.StringFlag{
 					Name:  "name, n",
 					Value: defaultAddParams.Name,
@@ -366,6 +376,14 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 				p.RawLeaves = c.Bool("raw-leaves")
 				p.Hidden = c.Bool("hidden")
 				p.Wrap = c.Bool("wrap-with-directory") || len(paths) > 1
+				p.CidVersion = c.Int("cid-version")
+				p.HashFun = c.String("hash")
+				if p.HashFun != defaultAddParams.HashFun {
+					p.CidVersion = 1
+				}
+				if p.CidVersion > 0 {
+					p.RawLeaves = true
+				}
 
 				out := make(chan *api.AddedOutput, 1)
 				var wg sync.WaitGroup
