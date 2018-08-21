@@ -380,7 +380,7 @@ func (c *Client) Add(
 		}
 		var addFile files.File
 		if strings.HasPrefix(u.Scheme, "http") {
-			addFile = newWebFile(u)
+			addFile = files.NewWebFile(u)
 		} else {
 			addFile, err = makeSerialFile(path, params)
 			if err != nil {
