@@ -147,11 +147,11 @@ func textFormatPrintGPInfo(obj *api.GlobalPinInfoSerial) {
 
 	for _, k := range peers {
 		v := obj.PeerMap[k]
+		fmt.Printf("    > Peer %s : %s", k, strings.ToUpper(v.Status))
 		if v.Error != "" {
-			fmt.Printf("    > Peer %s : ERROR | %s\n", k, v.Error)
-			continue
+			fmt.Printf(": %s", v.Error)
 		}
-		fmt.Printf("    > Peer %s : %s | %s\n", k, strings.ToUpper(v.Status), v.TS)
+		fmt.Printf(" | %s\n", v.TS)
 	}
 }
 
@@ -170,7 +170,7 @@ func textFormatPrintVersion(obj *api.Version) {
 }
 
 func textFormatPrintPin(obj *api.PinSerial) {
-	fmt.Printf("%s | %s | ", obj.Cid, obj.Name)
+	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, strings.ToUpper(obj.ToPin().Type.String()))
 
 	if obj.ReplicationFactorMin < 0 {
 		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
@@ -191,22 +191,7 @@ func textFormatPrintPin(obj *api.PinSerial) {
 		recStr = fmt.Sprintf("Recursive-%d", obj.MaxDepth)
 	}
 
-	fmt.Printf("| %s | ", recStr)
-
-	pinType := obj.ToPin().Type
-	typeStr := pinType.String()
-	var infoStr string
-	switch pinType {
-	case api.DataType:
-		infoStr = typeStr
-	case api.MetaType:
-		infoStr = fmt.Sprintf("%s-- clusterdag=%s", typeStr, obj.Reference)
-	case api.ClusterDAGType, api.ShardType:
-		infoStr = typeStr
-	default:
-		infoStr = ""
-	}
-	fmt.Printf("%s \n", infoStr)
+	fmt.Printf(" | %s\n", recStr)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
