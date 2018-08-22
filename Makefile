@@ -1,5 +1,5 @@
 gx_version=v0.13.0
-gx-go_version=v1.7.0
+gx-go_version=v1.8.0
 
 deptools=deptools
 
