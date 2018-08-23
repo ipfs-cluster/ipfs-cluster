@@ -1,3 +1,6 @@
+// Package stateless implements a PinTracker component for IPFS Cluster, which
+// aims to reduce the memory footprint when handling really large cluster
+// states.
 package stateless
 
 import (

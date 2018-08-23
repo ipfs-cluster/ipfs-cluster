@@ -1,3 +1,5 @@
+// Package adder implements functionality to add content to IPFS daemons
+// managed by the Cluster.
 package adder
 
 import (
