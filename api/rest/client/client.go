@@ -1,3 +1,6 @@
+// Package client provides a Go Client for the IPFS Cluster API provided
+// by the "api/rest" component. It supports both the HTTP(s) endpoint and
+// the libp2p-http endpoint.
 package client
 
 import (

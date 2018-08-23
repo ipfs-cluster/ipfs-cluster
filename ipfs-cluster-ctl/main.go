@@ -1,3 +1,4 @@
+// The ipfs-cluster-ctl application.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// The ipfs-cluster-service application.
 package main
 
 import (

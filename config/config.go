@@ -1,3 +1,6 @@
+// Package config provides interfaces and utilities for different Cluster
+// components to register, read,  write and validate configuration sections
+// stored in a central configuration file.
 package config
 
 import (
