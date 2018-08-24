@@ -1,5 +1,79 @@
 # IPFS Cluster Changelog
 
+### v0.5.0 - 2018-08-23
+
+#### Summary
+
+IPFS Cluster version 0.5.0 is a major release which includes a major feature: **adding content to IPFS directly through Cluster**.
+
+This functionality is provided by `ipfs-cluster-ctl add` and by the API endpoint `/add`. The upload format (multipart) is similar to the IPFS `/add` endpoint, as well as the options (chunker, layout...). Cluster `add` generates the same DAG as `ipfs add` would, but it sends the added blocks directly to their allocations, pinning them on completion. The pin happens very quickly, as content is already locally available in the allocated peers.
+
+The release also includes most of the needed code for the [Sharding feature](https://cluster.ipfs.io/developer/rfcs/dag-sharding-rfc/), but it is not yet usable/enabled, pending features from go-ipfs.
+
+The 0.5.0 release additionally includes a new experimental PinTracker implementation: the `stateless` pin tracker. The stateless pin tracker relies on the IPFS pinset and the cluster state to keep track of pins, rather than keeping an in-memory copy of the cluster pinset, thus reducing the memory usage when having huge pinsets. It can be enabled with `ipfs-cluster-service daemon --pintracker stateless`.
+
+The last major feature is the use of a DHT as routing layer for cluster peers. This means that peers should be able to discover each others as long as they are connected to one cluster peer. This simplifies the setup requirements for starting a cluster and helps avoiding situations which make the cluster unhealthy.
+
+This release requires a state upgrade migration. It can be performed with `ipfs-cluster-service state upgrade` or simply launching the daemon with `ipfs-cluster-service daemon --upgrade`.
+
+#### List of changes
+
+##### Features
+
+  * Libp2p upgrades (up to v6) | [ipfs/ipfs-cluster#456](https://github.com/ipfs/ipfs-cluster/issues/456) | [ipfs/ipfs-cluster#482](https://github.com/ipfs/ipfs-cluster/issues/482)
+  * Support `/dns` multiaddresses for `node_multiaddress` | [ipfs/ipfs-cluster#462](https://github.com/ipfs/ipfs-cluster/issues/462) | [ipfs/ipfs-cluster#463](https://github.com/ipfs/ipfs-cluster/issues/463)
+  * Increase `state_sync_interval` to 10 minutes | [ipfs/ipfs-cluster#468](https://github.com/ipfs/ipfs-cluster/issues/468) | [ipfs/ipfs-cluster#469](https://github.com/ipfs/ipfs-cluster/issues/469)
+  * Auto-interpret libp2p addresses in `rest/client`'s `APIAddr` configuration option | [ipfs/ipfs-cluster#498](https://github.com/ipfs/ipfs-cluster/issues/498)
+  * Resolve `APIAddr` (for `/dnsaddr` usage) in `rest/client` | [ipfs/ipfs-cluster#498](https://github.com/ipfs/ipfs-cluster/issues/498)
+  * Support for adding content to Cluster and sharding (sharding is disabled) | [ipfs/ipfs-cluster#484](https://github.com/ipfs/ipfs-cluster/issues/484) | [ipfs/ipfs-cluster#503](https://github.com/ipfs/ipfs-cluster/issues/503) | [ipfs/ipfs-cluster#495](https://github.com/ipfs/ipfs-cluster/issues/495) | [ipfs/ipfs-cluster#504](https://github.com/ipfs/ipfs-cluster/issues/504) | [ipfs/ipfs-cluster#509](https://github.com/ipfs/ipfs-cluster/issues/509) | [ipfs/ipfs-cluster#511](https://github.com/ipfs/ipfs-cluster/issues/511) | [ipfs/ipfs-cluster#518](https://github.com/ipfs/ipfs-cluster/issues/518)
+  * `stateless` PinTracker [ipfs/ipfs-cluster#308](https://github.com/ipfs/ipfs-cluster/issues/308) | [ipfs/ipfs-cluster#460](https://github.com/ipfs/ipfs-cluster/issues/460)
+  * Add `size-only=true` to `repo/stat` calls | [ipfs/ipfs-cluster#507](https://github.com/ipfs/ipfs-cluster/issues/507)
+  * Enable DHT-based peer discovery and routing for cluster peers | [ipfs/ipfs-cluster#489](https://github.com/ipfs/ipfs-cluster/issues/489) | [ipfs/ipfs-cluster#508](https://github.com/ipfs/ipfs-cluster/issues/508)
+  * Gx-go upgrade | [ipfs/ipfs-cluster#517](https://github.com/ipfs/ipfs-cluster/issues/517)
+
+##### Bugfixes
+
+  * Fix type for constants | [ipfs/ipfs-cluster#455](https://github.com/ipfs/ipfs-cluster/issues/455)
+  * Gofmt fix | [ipfs/ipfs-cluster#464](https://github.com/ipfs/ipfs-cluster/issues/464)
+  * Fix tests for forked repositories | [ipfs/ipfs-cluster#465](https://github.com/ipfs/ipfs-cluster/issues/465) | [ipfs/ipfs-cluster#472](https://github.com/ipfs/ipfs-cluster/issues/472)
+  * Fix resolve panic on `rest/client` | [ipfs/ipfs-cluster#498](https://github.com/ipfs/ipfs-cluster/issues/498)
+  * Fix remote pins stuck in error state | [ipfs/ipfs-cluster#500](https://github.com/ipfs/ipfs-cluster/issues/500) | [ipfs/ipfs-cluster#460](https://github.com/ipfs/ipfs-cluster/issues/460)
+  * Fix running some tests with `-race` | [ipfs/ipfs-cluster#340](https://github.com/ipfs/ipfs-cluster/issues/340) | [ipfs/ipfs-cluster#458](https://github.com/ipfs/ipfs-cluster/issues/458)
+  * Fix ipfs proxy `/add` endpoint | [ipfs/ipfs-cluster#495](https://github.com/ipfs/ipfs-cluster/issues/495) | [ipfs/ipfs-cluster#81](https://github.com/ipfs/ipfs-cluster/issues/81) | [ipfs/ipfs-cluster#505](https://github.com/ipfs/ipfs-cluster/issues/505)
+  * Fix ipfs proxy not hijacking `repo/stat` | [ipfs/ipfs-cluster#466](https://github.com/ipfs/ipfs-cluster/issues/466) | [ipfs/ipfs-cluster#514](https://github.com/ipfs/ipfs-cluster/issues/514)
+  * Fix some godoc comments | [ipfs/ipfs-cluster#519](https://github.com/ipfs/ipfs-cluster/issues/519)
+
+#### Upgrading notices
+
+##### Configuration files
+
+**IMPORTANT**: `0s` is the new default for the `read_timeout` and `write_timeout` values in the `restapi` configuration section, as well as `proxy_read_timeout` and `proxy_write_timeout` options in the `ipfshttp` section. Adding files to cluster (via the REST api or the proxy) is likely to timeout otherwise.
+
+The `peerstore` file (in the configuration folder), no longer requires listing the multiaddresses for all cluster peers when initializing the cluster with a fixed peerset. It only requires the multiaddresses for one other cluster peer. The rest will be inferred using the DHT. The peerstore file is updated only on clean shutdown, and will store all known multiaddresses, even if not pertaining to cluster peers.
+
+The new `stateless` PinTracker implementation uses a new configuration subsection in the `pin_tracker` key. This is only generated with `ipfs-cluster-service init`. When not present, a default configuration will be used (and a warning printed).
+
+The `state_sync_interval` default has been increased to 10 minutes, as frequent syncing is not needed with the improvements in the PinTracker. Users are welcome to update this setting.
+
+
+##### REST API
+
+The `/add` endpoint has been added. The `replication_factor_min` and `replication_factor_max` options (in `POST allocations/<cid>`) have been deprecated and subsititued for `replication-min` and `replication-max`, although backwards comaptibility is kept.
+
+Keep Alive has been disabled for the HTTP servers, as a bug in Go's HTTP client implementation may result adding corrupted content (and getting corrupted DAGs). However, while the libp2p API endpoint also suffers this, it will only close libp2p streams. Thus the performance impact on the libp2p-http endpoint should be minimal.
+
+##### Go APIs
+
+The `Config.PeerAddr` key in the `rest/client` module is deprecated. `APIAddr` should be used for both HTTP and LibP2P API endpoints. The type of address is automatically detected.
+
+The IPFSConnector `Pin` call now receives an integer instead of a `Recursive` flag. It indicates the maximum depth to which something should be pinned. The only supported value is `-1` (meaning recursive). `BlockGet` and `BlockPut` calls have been added to the IPFSConnector component.
+
+##### Other
+
+As noted above, upgrade to `state` format version 5 is needed before starting the cluster service.
+
+---
+
 ### v0.4.0 - 2018-05-30
 
 #### Summary
