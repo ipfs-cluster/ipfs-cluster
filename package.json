@@ -4,7 +4,8 @@
     "url": "https://github.com/ipfs/ipfs-cluster"
   },
   "gx": {
-    "dvcsimport": "github.com/ipfs/ipfs-cluster"
+    "dvcsimport": "github.com/ipfs/ipfs-cluster",
+    "goversion": "1.10"
   },
   "gxDependencies": [
     {

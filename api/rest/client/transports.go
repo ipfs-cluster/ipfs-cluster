@@ -22,7 +22,7 @@ import (
 // with it since it's a global variable, and we don't know who else uses
 // it, so we create our own.
 // TODO: Allow more configuration options.
-func (c *Client) defaultTransport() {
+func (c *defaultClient) defaultTransport() {
 	c.transport = &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -38,7 +38,7 @@ func (c *Client) defaultTransport() {
 	c.net = "http"
 }
 
-func (c *Client) enableLibp2p() error {
+func (c *defaultClient) enableLibp2p() error {
 	c.defaultTransport()
 
 	pid, addr, err := api.Libp2pMultiaddrSplit(c.config.APIAddr)
@@ -80,7 +80,7 @@ func (c *Client) enableLibp2p() error {
 	return nil
 }
 
-func (c *Client) enableTLS() error {
+func (c *defaultClient) enableTLS() error {
 	c.defaultTransport()
 	// based on https://github.com/denji/golang-tls
 	c.transport.TLSClientConfig = &tls.Config{

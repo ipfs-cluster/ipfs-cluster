@@ -9,9 +9,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ipfs/go-ipfs-cmdkit/files"
+	"github.com/ipfs/ipfs-cluster/api"
+
+	cid "github.com/ipfs/go-cid"
 	shell "github.com/ipfs/go-ipfs-api"
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
@@ -29,6 +34,71 @@ var (
 
 var loggingFacility = "apiclient"
 var logger = logging.Logger(loggingFacility)
+
+// Client interface defines the interface to be used by API clients to
+// interact with the ipfs-cluster-service
+type Client interface {
+	// ID returns information about the cluster Peer.
+	ID() (api.ID, error)
+
+	// Peers requests ID information for all cluster peers.
+	Peers() ([]api.ID, error)
+	// PeerAdd adds a new peer to the cluster.
+	PeerAdd(pid peer.ID) (api.ID, error)
+	// PeerRm removes a current peer from the cluster
+	PeerRm(id peer.ID) error
+
+	// Add imports files to the cluster from the given paths.
+	Add(paths []string, params *api.AddParams, out chan<- *api.AddedOutput) error
+	// AddMultiFile imports new files from a MultiFileReader.
+	AddMultiFile(multiFileR *files.MultiFileReader, params *api.AddParams, out chan<- *api.AddedOutput) error
+
+	// Pin tracks a Cid with the given replication factor and a name for
+	// human-friendliness.
+	Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error
+	// Unpin untracks a Cid from cluster.
+	Unpin(ci *cid.Cid) error
+
+	// Allocations returns the consensus state listing all tracked items
+	// and the peers that should be pinning them.
+	Allocations(filter api.PinType) ([]api.Pin, error)
+	// Allocation returns the current allocations for a given Cid.
+	Allocation(ci *cid.Cid) (api.Pin, error)
+
+	// Status returns the current ipfs state for a given Cid. If local is true,
+	// the information affects only the current peer, otherwise the information
+	// is fetched from all cluster peers.
+	Status(ci *cid.Cid, local bool) (api.GlobalPinInfo, error)
+	// StatusAll gathers Status() for all tracked items.
+	StatusAll(local bool) ([]api.GlobalPinInfo, error)
+
+	// Sync makes sure the state of a Cid corresponds to the state reported
+	// by the ipfs daemon, and returns it. If local is true, this operation
+	// only happens on the current peer, otherwise it happens on every
+	// cluster peer.
+	Sync(ci *cid.Cid, local bool) (api.GlobalPinInfo, error)
+	// SyncAll triggers Sync() operations for all tracked items. It only
+	// returns informations for items that were de-synced or have an error
+	// state. If local is true, the operation is limited to the current
+	// peer. Otherwise it happens on every cluster peer.
+	SyncAll(local bool) ([]api.GlobalPinInfo, error)
+
+	// Recover retriggers pin or unpin ipfs operations for a Cid in error
+	// state.  If local is true, the operation is limited to the current
+	// peer, otherwise it happens on every cluster peer.
+	Recover(ci *cid.Cid, local bool) (api.GlobalPinInfo, error)
+	// RecoverAll triggers Recover() operations on all tracked items. If
+	// local is true, the operation is limited to the current peer.
+	// Otherwise, it happens everywhere.
+	RecoverAll(local bool) ([]api.GlobalPinInfo, error)
+
+	// Version returns the ipfs-cluster peer's version.
+	Version() (api.Version, error)
+
+	// GetConnectGraph returns an ipfs-cluster connection graph.  The
+	// serialized version, strings instead of pids, is returned
+	GetConnectGraph() (api.ConnectGraphSerial, error)
+}
 
 // Config allows to configure the parameters to connect
 // to the ipfs-cluster REST API.
@@ -79,9 +149,9 @@ type Config struct {
 	LogLevel string
 }
 
-// Client provides methods to interact with the ipfs-cluster API. Use
-// NewClient() to create one.
-type Client struct {
+// DefaultClient provides methods to interact with the ipfs-cluster API. Use
+// NewDefaultClient() to create one.
+type defaultClient struct {
 	ctx       context.Context
 	cancel    func()
 	config    *Config
@@ -92,10 +162,10 @@ type Client struct {
 	p2p       host.Host
 }
 
-// NewClient initializes a client given a Config.
-func NewClient(cfg *Config) (*Client, error) {
+// NewDefaultClient initializes a client given a Config.
+func NewDefaultClient(cfg *Config) (Client, error) {
 	ctx := context.Background()
-	client := &Client{
+	client := &defaultClient{
 		ctx:    ctx,
 		config: cfg,
 	}
@@ -142,7 +212,7 @@ func NewClient(cfg *Config) (*Client, error) {
 	return client, nil
 }
 
-func (c *Client) setupAPIAddr() error {
+func (c *defaultClient) setupAPIAddr() error {
 	var addr ma.Multiaddr
 	var err error
 	if c.config.APIAddr == nil {
@@ -159,7 +229,7 @@ func (c *Client) setupAPIAddr() error {
 	return nil
 }
 
-func (c *Client) resolveAPIAddr() error {
+func (c *defaultClient) resolveAPIAddr() error {
 	resolveCtx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
 	resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
@@ -175,7 +245,7 @@ func (c *Client) resolveAPIAddr() error {
 	return nil
 }
 
-func (c *Client) setupHTTPClient() error {
+func (c *defaultClient) setupHTTPClient() error {
 	var err error
 
 	switch {
@@ -198,7 +268,7 @@ func (c *Client) setupHTTPClient() error {
 	return nil
 }
 
-func (c *Client) setupHostname() error {
+func (c *defaultClient) setupHostname() error {
 	// Extract host:port form APIAddr or use Host:Port.
 	// For libp2p, hostname is set in enableLibp2p()
 	if !IsPeerAddress(c.config.APIAddr) {
@@ -211,12 +281,12 @@ func (c *Client) setupHostname() error {
 	return nil
 }
 
-func (c *Client) setupProxy() error {
+func (c *defaultClient) setupProxy() error {
 	if c.config.ProxyAddr != nil {
 		return nil
 	}
 
-	// Guess location from  APIAddr
+	// Guess location from	APIAddr
 	port, err := ma.NewMultiaddr(fmt.Sprintf("/tcp/%d", DefaultProxyPort))
 	if err != nil {
 		return err
@@ -229,7 +299,7 @@ func (c *Client) setupProxy() error {
 // configured ProxyAddr (or to the default ipfs-cluster's IPFS proxy port).
 // It re-uses this Client's HTTP client, thus will be constrained by
 // the same configurations affecting it (timeouts...).
-func (c *Client) IPFS() *shell.Shell {
+func (c *defaultClient) IPFS() *shell.Shell {
 	return shell.NewShellWithClient(c.config.ProxyAddr.String(), c.client)
 }
 
