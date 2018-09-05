@@ -126,7 +126,7 @@ func createCluster(
 	)
 	checkErr("creating consensus component", err)
 
-	tracker := setupPinTracker(c.String("pintracker"), host, cfgs.maptrackerCfg, cfgs.statelessTrackerCfg)
+	tracker := setupPinTracker(c.String("pintracker"), host, cfgs.maptrackerCfg, cfgs.statelessTrackerCfg, cfgs.clusterCfg.Peername)
 	mon := setupMonitor(c.String("monitor"), host, cfgs.monCfg, cfgs.pubsubmonCfg)
 	informer, alloc := setupAllocation(c.String("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
@@ -259,14 +259,15 @@ func setupPinTracker(
 	h host.Host,
 	mapCfg *maptracker.Config,
 	statelessCfg *stateless.Config,
+	peerName string,
 ) ipfscluster.PinTracker {
 	switch name {
 	case "map":
-		ptrk := maptracker.NewMapPinTracker(mapCfg, h.ID())
+		ptrk := maptracker.NewMapPinTracker(mapCfg, h.ID(), peerName)
 		logger.Debug("map pintracker loaded")
 		return ptrk
 	case "stateless":
-		ptrk := stateless.New(statelessCfg, h.ID())
+		ptrk := stateless.New(statelessCfg, h.ID(), peerName)
 		logger.Debug("stateless pintracker loaded")
 		return ptrk
 	default:

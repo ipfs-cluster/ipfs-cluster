@@ -203,21 +203,23 @@ func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
 
 // PinInfo holds information about local pins.
 type PinInfo struct {
-	Cid    cid.Cid
-	Peer   peer.ID
-	Status TrackerStatus
-	TS     time.Time
-	Error  string
+	Cid      cid.Cid
+	Peer     peer.ID
+	Status   TrackerStatus
+	TS       time.Time
+	Error    string
+	PeerName string
 }
 
 // PinInfoSerial is a serializable version of PinInfo.
 // information is marked as
 type PinInfoSerial struct {
-	Cid    string `json:"cid"`
-	Peer   string `json:"peer"`
-	Status string `json:"status"`
-	TS     string `json:"timestamp"`
-	Error  string `json:"error"`
+	Cid      string `json:"cid"`
+	Peer     string `json:"peer"`
+	Status   string `json:"status"`
+	TS       string `json:"timestamp"`
+	Error    string `json:"error"`
+	PeerName string `json:"peername"`
 }
 
 // ToSerial converts a PinInfo to its serializable version.

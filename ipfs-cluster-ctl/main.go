@@ -601,6 +601,7 @@ The filter only takes effect when listing all pins. The possible values are:
 			},
 		},
 		{
+			// This could be one
 			Name:  "status",
 			Usage: "Retrieve the status of tracked items",
 			Description: `
@@ -634,6 +635,7 @@ contacted cluster peer. By default, status will be fetched from all peers.
 			},
 		},
 		{
+			// Anothere
 			Name:  "sync",
 			Usage: "Sync status of tracked items",
 			Description: `
@@ -692,6 +694,7 @@ operations on the contacted peer (as opposed to on every peer).
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
+					// This one too
 					resp, cerr := globalClient.Recover(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {

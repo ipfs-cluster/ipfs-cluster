@@ -47,14 +47,14 @@ type MapPinTracker struct {
 
 // NewMapPinTracker returns a new object which has been correcly
 // initialized with the given configuration.
-func NewMapPinTracker(cfg *Config, pid peer.ID) *MapPinTracker {
+func NewMapPinTracker(cfg *Config, pid peer.ID, peerName string) *MapPinTracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mpt := &MapPinTracker{
 		ctx:       ctx,
 		cancel:    cancel,
 		config:    cfg,
-		optracker: optracker.NewOperationTracker(ctx, pid),
+		optracker: optracker.NewOperationTracker(ctx, pid, peerName),
 		rpcReady:  make(chan struct{}, 1),
 		peerID:    pid,
 		pinCh:     make(chan *optracker.Operation, cfg.MaxPinQueueSize),
