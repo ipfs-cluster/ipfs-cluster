@@ -1,0 +1,312 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
+	cli "github.com/urfave/cli"
+
+	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/state/mapstate"
+)
+
+func setFlags(app *cli.App) {
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:   "config, c",
+			Value:  DefaultPath,
+			Usage:  "path to the configuration and data `FOLDER`",
+			EnvVar: "IPFS_CLUSTER_PATH",
+		},
+		cli.BoolFlag{
+			Name:  "force, f",
+			Usage: "forcefully proceed with some actions. i.e. overwriting configuration",
+		},
+		cli.BoolFlag{
+			Name:  "debug, d",
+			Usage: "enable full debug logging (very verbose)",
+		},
+		cli.StringFlag{
+			Name:  "loglevel, l",
+			Value: defaultLogLevel,
+			Usage: "set the loglevel for cluster components only [critical, error, warning, info, debug]",
+		},
+	}
+}
+
+func setCommand(app *cli.App) {
+	app.Commands = []cli.Command{
+		{
+			Name:  "init",
+			Usage: "create a default configuration and exit",
+			Description: fmt.Sprintf(`
+This command will initialize a new service.json configuration file
+for %s.
+
+By default, %s requires a cluster secret. This secret will be
+automatically generated, but can be manually provided with --custom-secret
+(in which case it will be prompted), or by setting the CLUSTER_SECRET
+environment variable.
+
+The private key for the libp2p node is randomly generated in all cases.
+
+Note that the --force first-level-flag allows to overwrite an existing
+configuration.
+`, programName, programName),
+			ArgsUsage: " ",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "custom-secret, s",
+					Usage: "prompt for the cluster secret",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
+
+				cfgMgr, cfgs := makeConfigs()
+				defer cfgMgr.Shutdown() // wait for saves
+
+				// Generate defaults for all registered components
+				err := cfgMgr.Default()
+				checkErr("generating default configuration", err)
+
+				// Set user secret
+				if userSecretDefined {
+					cfgs.clusterCfg.Secret = userSecret
+				}
+
+				// Save
+				saveConfig(cfgMgr, c.GlobalBool("force"))
+				return nil
+			},
+		},
+		{
+			Name:  "daemon",
+			Usage: "run the IPFS Cluster peer (default)",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "upgrade, u",
+					Usage: "run necessary state migrations before starting cluster service",
+				},
+				cli.StringSliceFlag{
+					Name:  "bootstrap, j",
+					Usage: "join a cluster providing an existing peers multiaddress(es)",
+				},
+				cli.BoolFlag{
+					Name:   "leave, x",
+					Usage:  "remove peer from cluster on exit. Overrides \"leave_on_shutdown\"",
+					Hidden: true,
+				},
+				cli.StringFlag{
+					Name:  "alloc, a",
+					Value: defaultAllocation,
+					Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
+				},
+				cli.StringFlag{
+					Name:   "monitor",
+					Value:  defaultMonitor,
+					Hidden: true,
+					Usage:  "peer monitor to use [basic,pubsub].",
+				},
+				cli.StringFlag{
+					Name:   "pintracker",
+					Value:  defaultPinTracker,
+					Hidden: true,
+					Usage:  "pintracker to use [map,stateless].",
+				},
+			},
+			Action: daemon,
+		},
+		{
+			Name:  "state",
+			Usage: "Manage ipfs-cluster-state",
+			Subcommands: []cli.Command{
+				{
+					Name:  "version",
+					Usage: "display the shared state format version",
+					Action: func(c *cli.Context) error {
+						fmt.Printf("%d\n", mapstate.Version)
+						return nil
+					},
+				},
+				{
+					Name:  "upgrade",
+					Usage: "upgrade the IPFS Cluster state to the current version",
+					Description: `
+This command upgrades the internal state of the ipfs-cluster node 
+specified in the latest raft snapshot. The state format is migrated from the 
+version of the snapshot to the version supported by the current cluster version. 
+To successfully run an upgrade of an entire cluster, shut down each peer without
+removal, upgrade state using this command, and restart every peer.
+`,
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						err = upgrade()
+						checkErr("upgrading state", err)
+						return nil
+					},
+				},
+				{
+					Name:  "export",
+					Usage: "save the IPFS Cluster state to a json file",
+					Description: `
+This command reads the current cluster state and saves it as json for 
+human readability and editing.  Only state formats compatible with this
+version of ipfs-cluster-service can be exported.  By default this command
+prints the state to stdout.
+`,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "file, f",
+							Value: "",
+							Usage: "sets an output file for exported state",
+						},
+					},
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						var w io.WriteCloser
+						outputPath := c.String("file")
+						if outputPath == "" {
+							// Output to stdout
+							w = os.Stdout
+						} else {
+							// Create the export file
+							w, err = os.Create(outputPath)
+							checkErr("creating output file", err)
+						}
+						defer w.Close()
+
+						err = export(w)
+						checkErr("exporting state", err)
+						return nil
+					},
+				},
+				{
+					Name:  "import",
+					Usage: "load an IPFS Cluster state from an exported state file",
+					Description: `
+This command reads in an exported state file storing the state as a persistent
+snapshot to be loaded as the cluster state when the cluster peer is restarted.
+If an argument is provided, cluster will treat it as the path of the file to
+import.  If no argument is provided cluster will read json from stdin
+`,
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						if !c.GlobalBool("force") {
+							if !yesNoPrompt("The peer's state will be replaced.  Run with -h for details.  Continue? [y/n]:") {
+								return nil
+							}
+						}
+
+						// Get the importing file path
+						importFile := c.Args().First()
+						var r io.ReadCloser
+						if importFile == "" {
+							r = os.Stdin
+							logger.Info("Reading from stdin, Ctrl-D to finish")
+						} else {
+							r, err = os.Open(importFile)
+							checkErr("reading import file", err)
+						}
+						defer r.Close()
+						err = stateImport(r)
+						checkErr("importing state", err)
+						logger.Info("the given state has been correctly imported to this peer.  Make sure all peers have consistent states")
+						return nil
+					},
+				},
+				{
+					Name:  "cleanup",
+					Usage: "cleanup persistent consensus state so cluster can start afresh",
+					Description: `
+This command removes the persistent state that is loaded on startup to determine this peer's view of the
+cluster state.  While it removes the existing state from the load path, one invocation does not permanently remove
+this state from disk.  This command renames cluster's data folder to <data-folder-name>.old.0, and rotates other
+deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
+the mth data folder (m currently defaults to 5)
+`,
+					Action: func(c *cli.Context) error {
+						err := locker.lock()
+						checkErr("acquiring execution lock", err)
+						defer locker.tryUnlock()
+
+						if !c.GlobalBool("force") {
+							if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+								return nil
+							}
+						}
+
+						cfgMgr, cfgs := makeConfigs()
+						err = cfgMgr.LoadJSONFromFile(configPath)
+						checkErr("reading configuration", err)
+
+						err = cleanupState(cfgs.consensusCfg)
+						checkErr("Cleaning up consensus data", err)
+						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cfgs.consensusCfg.GetDataFolder())
+						return nil
+					},
+				},
+			},
+		},
+		{
+			Name:  "version",
+			Usage: "Print the ipfs-cluster version",
+			Action: func(c *cli.Context) error {
+				if c := ipfscluster.Commit; len(c) >= 8 {
+					fmt.Printf("%s-%s\n", ipfscluster.Version, c)
+					return nil
+				}
+
+				fmt.Printf("%s\n", ipfscluster.Version)
+				return nil
+			},
+		},
+	}
+}
+
+func prepareApp() *cli.App {
+	// go func() {
+	//	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
+
+	app := cli.NewApp()
+	app.Name = programName
+	app.Usage = "IPFS Cluster node"
+	app.Description = Description
+	//app.Copyright = "© Protocol Labs, Inc."
+	app.Version = ipfscluster.Version
+	setFlags(app)
+	setCommand(app)
+	app.Before = func(c *cli.Context) error {
+		absPath, err := filepath.Abs(c.String("config"))
+		if err != nil {
+			return err
+		}
+
+		configPath = filepath.Join(absPath, DefaultConfigFile)
+
+		setupLogLevel(c.String("loglevel"))
+		if c.Bool("debug") {
+			setupDebug()
+		}
+
+		locker = &lock{path: absPath}
+
+		return nil
+	}
+
+	app.Action = run
+
+	return app
+}
