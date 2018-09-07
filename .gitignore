@@ -6,6 +6,7 @@ deptools
 sharness/lib/sharness
 sharness/test-results
 sharness/trash*
+vendor/
 
 raftFolderFromTest*
 peerstore
