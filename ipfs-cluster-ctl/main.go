@@ -623,11 +623,13 @@ contacted cluster peer. By default, status will be fetched from all peers.
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
+					println("Yo man")
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
 					resp, cerr := globalClient.Status(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
+					println("No man")
 					resp, cerr := globalClient.StatusAll(c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}

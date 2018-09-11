@@ -660,6 +660,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	local := queryValues.Get("local")
 
 	if local == "true" {
+		println("restapi true")
 		var pinInfos []types.PinInfoSerial
 		err := api.rpcClient.Call("",
 			"Cluster",
@@ -668,6 +669,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			&pinInfos)
 		sendResponse(w, err, pinInfosToGlobal(pinInfos))
 	} else {
+		println("restapi false")
 		var pinInfos []types.GlobalPinInfoSerial
 		err := api.rpcClient.Call("",
 			"Cluster",

@@ -1172,11 +1172,12 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 		if r.Status == api.TrackerStatusBug {
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			pin.PeerMap[members[i]] = api.PinInfo{
-				Cid:    h,
-				Peer:   members[i],
-				Status: api.TrackerStatusClusterError,
-				TS:     time.Now(),
-				Error:  e.Error(),
+				Cid:      h,
+				Peer:     members[i],
+				Status:   api.TrackerStatusClusterError,
+				TS:       time.Now(),
+				Error:    e.Error(),
+				PeerName: c.config.Peername,
 			}
 		} else { // there was an rpc error, but got a valid response :S
 			r.Error = e.Error()
@@ -1214,6 +1215,7 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 
 	mergePins := func(pins []api.PinInfoSerial) {
 		for _, pserial := range pins {
+			println("peername" + pserial.PeerName)
 			p := pserial.ToPinInfo()
 			item, ok := fullMap[pserial.Cid]
 			if !ok {
@@ -1235,6 +1237,9 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
 		} else {
+			for _, k := range r {
+				println("merging " + k.PeerName)
+			}
 			mergePins(r)
 		}
 	}

@@ -227,6 +227,7 @@ func (mpt *MapPinTracker) Status(c cid.Cid) api.PinInfo {
 // StatusAll returns information for all Cids tracked by this
 // MapPinTracker.
 func (mpt *MapPinTracker) StatusAll() []api.PinInfo {
+	println("maptracker")
 	return mpt.optracker.GetAll()
 }
 

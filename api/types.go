@@ -234,11 +234,12 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 	}
 
 	return PinInfoSerial{
-		Cid:    c,
-		Peer:   p,
-		Status: pi.Status.String(),
-		TS:     pi.TS.UTC().Format(time.RFC3339),
-		Error:  pi.Error,
+		Cid:      c,
+		Peer:     p,
+		Status:   pi.Status.String(),
+		TS:       pi.TS.UTC().Format(time.RFC3339),
+		Error:    pi.Error,
+		PeerName: pi.PeerName,
 	}
 }
 
@@ -257,11 +258,12 @@ func (pis PinInfoSerial) ToPinInfo() PinInfo {
 		logger.Debug(pis.TS, err)
 	}
 	return PinInfo{
-		Cid:    c,
-		Peer:   p,
-		Status: TrackerStatusFromString(pis.Status),
-		TS:     ts,
-		Error:  pis.Error,
+		Cid:      c,
+		Peer:     p,
+		Status:   TrackerStatusFromString(pis.Status),
+		TS:       ts,
+		Error:    pis.Error,
+		PeerName: pis.PeerName,
 	}
 }
 
