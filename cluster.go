@@ -1215,7 +1215,6 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 
 	mergePins := func(pins []api.PinInfoSerial) {
 		for _, pserial := range pins {
-			println("peername" + pserial.PeerName)
 			p := pserial.ToPinInfo()
 			item, ok := fullMap[pserial.Cid]
 			if !ok {
@@ -1237,9 +1236,6 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
 		} else {
-			for _, k := range r {
-				println("merging " + k.PeerName)
-			}
 			mergePins(r)
 		}
 	}

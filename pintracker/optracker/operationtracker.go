@@ -110,7 +110,6 @@ func (opt *OperationTracker) SetError(c cid.Cid, err error) {
 
 func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
 	if op == nil {
-		println("Are we here")
 		return api.PinInfo{
 			Cid:      cid.Undef,
 			Peer:     opt.pid,
@@ -120,7 +119,6 @@ func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
 			PeerName: opt.peerName,
 		}
 	}
-	println("Then I guess we are we here" + opt.peerName)
 	return api.PinInfo{
 		Cid:      op.Cid(),
 		Peer:     opt.pid,
@@ -162,8 +160,6 @@ func (opt *OperationTracker) GetAll() []api.PinInfo {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	for _, op := range opt.operations {
-		pi := opt.unsafePinInfo(op)
-		println("operationTracker" + pi.PeerName)
 		pinfos = append(pinfos, opt.unsafePinInfo(op))
 	}
 	return pinfos
