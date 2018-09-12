@@ -163,7 +163,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg)
+	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
 	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
 
@@ -191,13 +191,13 @@ func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pub
 	return mon
 }
 
-func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config) PinTracker {
+func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config, peerName string) PinTracker {
 	var ptrkr PinTracker
 	switch ptracker {
 	case "map":
-		ptrkr = maptracker.NewMapPinTracker(mptCfg, pid)
+		ptrkr = maptracker.NewMapPinTracker(mptCfg, pid, peerName)
 	case "stateless":
-		ptrkr = stateless.New(sptCfg, pid)
+		ptrkr = stateless.New(sptCfg, pid, peerName)
 	default:
 		panic("bad pintracker")
 	}

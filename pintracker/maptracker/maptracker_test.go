@@ -71,7 +71,7 @@ func testSlowMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	mpt := NewMapPinTracker(cfg, test.TestPeerID1)
+	mpt := NewMapPinTracker(cfg, test.TestPeerID1, test.TestPeerName1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
 }
@@ -80,7 +80,7 @@ func testMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	mpt := NewMapPinTracker(cfg, test.TestPeerID1)
+	mpt := NewMapPinTracker(cfg, test.TestPeerID1, test.TestPeerName1)
 	mpt.SetClient(test.NewMockRPCClient(t))
 	return mpt
 }

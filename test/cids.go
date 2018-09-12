@@ -22,6 +22,13 @@ var (
 	TestPeerID4, _ = peer.IDB58Decode("QmZ8naDy5mEz4GLuQwjWt9MPYqHTBbsm8tQBrNSjiq6zBc")
 	TestPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGjgRRjg")
 	TestPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
+
+	TestPeerName1 = "TestPeer1"
+	TestPeerName2 = "TestPeer2"
+	TestPeerName3 = "TestPeer3"
+	TestPeerName4 = "TestPeer4"
+	TestPeerName5 = "TestPeer5"
+	TestPeerName6 = "TestPeer6"
 )
 
 // MustDecodeCid provides a test helper that ignores

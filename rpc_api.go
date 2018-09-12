@@ -134,7 +134,6 @@ func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.Glo
 func (rpcapi *RPCAPI) StatusLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
 	c := in.ToPin().Cid
 	pinfo := rpcapi.c.StatusLocal(c)
-	pinfo.PeerName = rpcapi.c.config.Peername
 	*out = pinfo.ToSerial()
 	return nil
 }
