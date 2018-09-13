@@ -74,7 +74,7 @@ type dotWriter struct {
 	ipfsNodes    map[string]*dot.VertexDescription
 
 	w        io.Writer
-	dotGraph dot.DotGraph
+	dotGraph dot.Graph
 
 	ipfsEdges        map[string][]string
 	clusterEdges     map[string][]string
