@@ -15,7 +15,7 @@ problematic_test = TestClustersReplicationRealloc
 
 export PATH := $(deptools):$(PATH)
 
-all: service ctl
+all: build
 clean: rwundo clean_sharness
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
