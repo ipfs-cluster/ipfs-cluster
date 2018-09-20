@@ -108,6 +108,6 @@ docker:
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
 
-prcheck: deps check service ctl test intall test_sharness
+prcheck: deps check service ctl test install test_sharness
 
 .PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
