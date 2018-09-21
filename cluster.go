@@ -1174,10 +1174,10 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 			pin.PeerMap[members[i]] = api.PinInfo{
 				Cid:      h,
 				Peer:     members[i],
+				PeerName: string(members[i]),
 				Status:   api.TrackerStatusClusterError,
 				TS:       time.Now(),
 				Error:    e.Error(),
-				PeerName: c.config.Peername,
 			}
 		} else { // there was an rpc error, but got a valid response :S
 			r.Error = e.Error()

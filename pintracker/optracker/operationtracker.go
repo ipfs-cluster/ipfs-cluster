@@ -113,19 +113,19 @@ func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
 		return api.PinInfo{
 			Cid:      cid.Undef,
 			Peer:     opt.pid,
+			PeerName: opt.peerName,
 			Status:   api.TrackerStatusUnpinned,
 			TS:       time.Now(),
 			Error:    "",
-			PeerName: opt.peerName,
 		}
 	}
 	return api.PinInfo{
 		Cid:      op.Cid(),
 		Peer:     opt.pid,
+		PeerName: opt.peerName,
 		Status:   op.ToTrackerStatus(),
 		TS:       op.Timestamp(),
 		Error:    op.Error(),
-		PeerName: opt.peerName,
 	}
 }
 
