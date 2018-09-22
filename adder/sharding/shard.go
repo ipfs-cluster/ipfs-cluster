@@ -22,7 +22,7 @@ type shard struct {
 	pinOptions  api.PinOptions
 	// dagNode represents a node with links and will be converted
 	// to Cbor.
-	dagNode     map[string]*cid.Cid
+	dagNode     map[string]cid.Cid
 	currentSize uint64
 	sizeLimit   uint64
 }
@@ -49,7 +49,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 		rpc:         rpc,
 		allocations: allocs,
 		pinOptions:  opts,
-		dagNode:     make(map[string]*cid.Cid),
+		dagNode:     make(map[string]cid.Cid),
 		currentSize: 0,
 		sizeLimit:   opts.ShardSize,
 	}, nil
@@ -57,7 +57,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 
 // AddLink tries to add a new block to this shard if it's not full.
 // Returns true if the block was added
-func (sh *shard) AddLink(ctx context.Context, c *cid.Cid, s uint64) {
+func (sh *shard) AddLink(ctx context.Context, c cid.Cid, s uint64) {
 	linkN := len(sh.dagNode)
 	linkName := fmt.Sprintf("%d", linkN)
 	logger.Debugf("shard: add link: %s", linkName)
@@ -74,16 +74,16 @@ func (sh *shard) Allocations() []peer.ID {
 // Flush completes the allocation of this shard by building a CBOR node
 // and adding it to IPFS, then pinning it in cluster. It returns the Cid of the
 // shard.
-func (sh *shard) Flush(ctx context.Context, shardN int, prev *cid.Cid) (*cid.Cid, error) {
+func (sh *shard) Flush(ctx context.Context, shardN int, prev cid.Cid) (cid.Cid, error) {
 	logger.Debugf("shard %d: flush", shardN)
 	nodes, err := makeDAG(ctx, sh.dagNode)
 	if err != nil {
-		return nil, err
+		return cid.Undef, err
 	}
 
 	err = putDAG(ctx, sh.rpc, nodes, sh.allocations)
 	if err != nil {
-		return nil, err
+		return cid.Undef, err
 	}
 
 	rootCid := nodes[0].Cid()
@@ -123,7 +123,7 @@ func (sh *shard) Limit() uint64 {
 // the last link of the last shard is the data root for the
 // full sharded DAG (the CID that would have resulted from
 // adding the content to a single IPFS daemon).
-func (sh *shard) LastLink() *cid.Cid {
+func (sh *shard) LastLink() cid.Cid {
 	l := len(sh.dagNode)
 	lastLink := fmt.Sprintf("%d", l-1)
 	return sh.dagNode[lastLink]

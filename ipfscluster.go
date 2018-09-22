@@ -72,9 +72,9 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID() (api.IPFSID, error)
-	Pin(context.Context, *cid.Cid, int) error
-	Unpin(context.Context, *cid.Cid) error
-	PinLsCid(context.Context, *cid.Cid) (api.IPFSPinStatus, error)
+	Pin(context.Context, cid.Cid, int) error
+	Unpin(context.Context, cid.Cid) error
+	PinLsCid(context.Context, cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.
@@ -90,7 +90,7 @@ type IPFSConnector interface {
 	// BlockPut directly adds a block of data to the IPFS repo
 	BlockPut(api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block
-	BlockGet(*cid.Cid) ([]byte, error)
+	BlockGet(cid.Cid) ([]byte, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
@@ -111,21 +111,21 @@ type PinTracker interface {
 	Track(api.Pin) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
-	Untrack(*cid.Cid) error
+	Untrack(cid.Cid) error
 	// StatusAll returns the list of pins with their local status.
 	StatusAll() []api.PinInfo
 	// Status returns the local status of a given Cid.
-	Status(*cid.Cid) api.PinInfo
+	Status(cid.Cid) api.PinInfo
 	// SyncAll makes sure that all tracked Cids reflect the real IPFS status.
 	// It returns the list of pins which were updated by the call.
 	SyncAll() ([]api.PinInfo, error)
 	// Sync makes sure that the Cid status reflect the real IPFS status.
 	// It returns the local status of the Cid.
-	Sync(*cid.Cid) (api.PinInfo, error)
+	Sync(cid.Cid) (api.PinInfo, error)
 	// RecoverAll calls Recover() for all pins tracked.
 	RecoverAll() ([]api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
-	Recover(*cid.Cid) (api.PinInfo, error)
+	Recover(cid.Cid) (api.PinInfo, error)
 }
 
 // Informer provides Metric information from a peer. The metrics produced by
@@ -150,7 +150,7 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(c *cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
+	Allocate(c cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
 }
 
 // PeerMonitor is a component in charge of publishing a peer's metrics and

@@ -34,7 +34,7 @@ func (dag *mockCDAGServ) AddMany(ctx context.Context, nodes []ipld.Node) error {
 	return nil
 }
 
-func (dag *mockCDAGServ) Finalize(ctx context.Context, root *cid.Cid) (*cid.Cid, error) {
+func (dag *mockCDAGServ) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
 	return root, nil
 }
 

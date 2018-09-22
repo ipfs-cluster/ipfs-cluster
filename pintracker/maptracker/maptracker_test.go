@@ -59,7 +59,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *s
 	return nil
 }
 
-func testPin(c *cid.Cid, min, max int, allocs ...peer.ID) api.Pin {
+func testPin(c cid.Cid, min, max int, allocs ...peer.ID) api.Pin {
 	pin := api.PinCid(c)
 	pin.ReplicationFactorMin = min
 	pin.ReplicationFactorMax = max

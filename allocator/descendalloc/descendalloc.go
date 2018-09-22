@@ -34,7 +34,7 @@ func (alloc DescendAllocator) Shutdown() error { return nil }
 // carry a numeric value such as "used disk". We do not pay attention to
 // the metrics of the currently allocated peers and we just sort the
 // candidates based on their metric values (largest to smallest).
-func (alloc DescendAllocator) Allocate(c *cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error) {
+func (alloc DescendAllocator) Allocate(c cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error) {
 	// sort our metrics
 	first := util.SortNumeric(priority, true)
 	last := util.SortNumeric(candidates, true)

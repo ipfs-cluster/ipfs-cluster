@@ -158,7 +158,7 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid     *cid.Cid
+	Cid     cid.Cid
 	PeerMap map[peer.ID]PinInfo
 }
 
@@ -171,7 +171,7 @@ type GlobalPinInfoSerial struct {
 // ToSerial converts a GlobalPinInfo to its serializable version.
 func (gpi GlobalPinInfo) ToSerial() GlobalPinInfoSerial {
 	s := GlobalPinInfoSerial{}
-	if gpi.Cid != nil {
+	if gpi.Cid.Defined() {
 		s.Cid = gpi.Cid.String()
 	}
 	s.PeerMap = make(map[string]PinInfoSerial)
@@ -203,7 +203,7 @@ func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
 
 // PinInfo holds information about local pins.
 type PinInfo struct {
-	Cid    *cid.Cid
+	Cid    cid.Cid
 	Peer   peer.ID
 	Status TrackerStatus
 	TS     time.Time
@@ -223,7 +223,7 @@ type PinInfoSerial struct {
 // ToSerial converts a PinInfo to its serializable version.
 func (pi PinInfo) ToSerial() PinInfoSerial {
 	c := ""
-	if pi.Cid != nil {
+	if pi.Cid.Defined() {
 		c = pi.Cid.String()
 	}
 	p := ""
@@ -531,7 +531,7 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 }
 
 // CidsToStrings encodes cid.Cids to strings.
-func CidsToStrings(cids []*cid.Cid) []string {
+func CidsToStrings(cids []cid.Cid) []string {
 	strs := make([]string, len(cids))
 	for i, c := range cids {
 		strs[i] = c.String()
@@ -649,7 +649,7 @@ type PinOptions struct {
 type Pin struct {
 	PinOptions
 
-	Cid *cid.Cid
+	Cid cid.Cid
 
 	// See PinType comments
 	Type PinType
@@ -665,12 +665,12 @@ type Pin struct {
 	// ClusterDAGs, it is the MetaPin CID. For the
 	// MetaPin it is the ClusterDAG CID. For Shards,
 	// it is the previous shard CID.
-	Reference *cid.Cid
+	Reference cid.Cid
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive and the pin to be of DataType.
-func PinCid(c *cid.Cid) Pin {
+func PinCid(c cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
 		Type:        DataType,
@@ -681,7 +681,7 @@ func PinCid(c *cid.Cid) Pin {
 
 // PinWithOpts creates a new Pin calling PinCid(c) and then sets
 // its PinOptions fields with the given options.
-func PinWithOpts(c *cid.Cid, opts PinOptions) Pin {
+func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
 	p := PinCid(c)
 	p.ReplicationFactorMin = opts.ReplicationFactorMin
 	p.ReplicationFactorMax = opts.ReplicationFactorMax
@@ -704,11 +704,11 @@ type PinSerial struct {
 // ToSerial converts a Pin to PinSerial.
 func (pin Pin) ToSerial() PinSerial {
 	c := ""
-	if pin.Cid != nil {
+	if pin.Cid.Defined() {
 		c = pin.Cid.String()
 	}
 	ref := ""
-	if pin.Reference != nil {
+	if pin.Reference.Defined() {
 		ref = pin.Reference.String()
 	}
 
@@ -800,7 +800,7 @@ func (pins PinSerial) ToPin() Pin {
 	if err != nil {
 		logger.Debug(pins.Cid, err)
 	}
-	var ref *cid.Cid
+	var ref cid.Cid
 	if pins.Reference != "" {
 		ref, err = cid.Decode(pins.Reference)
 		if err != nil {

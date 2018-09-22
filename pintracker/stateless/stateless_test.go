@@ -238,7 +238,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	pi := spt.optracker.Get(fastPin.Cid)
-	if pi.Cid == nil {
+	if pi.Cid == cid.Undef {
 		t.Error("fastPin should have been removed from tracker")
 	}
 }
@@ -269,7 +269,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	pi := spt.optracker.Get(slowPin.Cid)
-	if pi.Cid == nil {
+	if pi.Cid == cid.Undef {
 		t.Fatal("expected slowPin to be tracked")
 	}
 
@@ -328,7 +328,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	}
 
 	pi := spt.optracker.Get(fastPin.Cid)
-	if pi.Cid == nil {
+	if pi.Cid == cid.Undef {
 		t.Fatal("c untrack operation should be tracked")
 	}
 
@@ -355,7 +355,7 @@ var sortPinInfoByCid = func(p []api.PinInfo) {
 
 func TestStatelessTracker_SyncAll(t *testing.T) {
 	type args struct {
-		cs      []*cid.Cid
+		cs      []cid.Cid
 		tracker *Tracker
 	}
 	tests := []struct {
@@ -367,7 +367,7 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 		{
 			"basic stateless syncall",
 			args{
-				[]*cid.Cid{
+				[]cid.Cid{
 					test.MustDecodeCid(test.TestCid1),
 					test.MustDecodeCid(test.TestCid2),
 				},
@@ -388,7 +388,7 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 		{
 			"slow stateless syncall",
 			args{
-				[]*cid.Cid{
+				[]cid.Cid{
 					test.MustDecodeCid(test.TestCid1),
 					test.MustDecodeCid(test.TestCid2),
 				},

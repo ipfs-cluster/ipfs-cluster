@@ -305,7 +305,7 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 
 func TestPinTracker_Untrack(t *testing.T) {
 	type args struct {
-		c       *cid.Cid
+		c       cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -473,7 +473,7 @@ func BenchmarkPinTracker_StatusAll(b *testing.B) {
 
 func TestPinTracker_Status(t *testing.T) {
 	type args struct {
-		c       *cid.Cid
+		c       cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -577,7 +577,7 @@ func TestPinTracker_Status(t *testing.T) {
 
 func TestPinTracker_SyncAll(t *testing.T) {
 	type args struct {
-		cs      []*cid.Cid
+		cs      []cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -589,7 +589,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 		{
 			"basic stateless syncall",
 			args{
-				[]*cid.Cid{
+				[]cid.Cid{
 					test.MustDecodeCid(test.TestCid1),
 					test.MustDecodeCid(test.TestCid2),
 				},
@@ -610,7 +610,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 		{
 			"basic map syncall",
 			args{
-				[]*cid.Cid{
+				[]cid.Cid{
 					test.MustDecodeCid(test.TestCid1),
 					test.MustDecodeCid(test.TestCid2),
 				},
@@ -631,7 +631,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 		{
 			"slow stateless syncall",
 			args{
-				[]*cid.Cid{
+				[]cid.Cid{
 					test.MustDecodeCid(test.TestCid1),
 					test.MustDecodeCid(test.TestCid2),
 				},
@@ -652,7 +652,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 		{
 			"slow map syncall",
 			args{
-				[]*cid.Cid{
+				[]cid.Cid{
 					test.MustDecodeCid(test.TestCid1),
 					test.MustDecodeCid(test.TestCid2),
 				},
@@ -708,7 +708,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 
 func TestPinTracker_Sync(t *testing.T) {
 	type args struct {
-		c       *cid.Cid
+		c       cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -887,7 +887,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 
 func TestPinTracker_Recover(t *testing.T) {
 	type args struct {
-		c       *cid.Cid
+		c       cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -938,7 +938,7 @@ func TestPinTracker_Recover(t *testing.T) {
 
 func TestUntrackTrack(t *testing.T) {
 	type args struct {
-		c       *cid.Cid
+		c       cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -991,7 +991,7 @@ func TestUntrackTrack(t *testing.T) {
 
 func TestTrackUntrackWithCancel(t *testing.T) {
 	type args struct {
-		c       *cid.Cid
+		c       cid.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {

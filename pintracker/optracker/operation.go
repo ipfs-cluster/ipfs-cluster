@@ -80,7 +80,7 @@ func NewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase)
 }
 
 // Cid returns the Cid associated to this operation.
-func (op *Operation) Cid() *cid.Cid {
+func (op *Operation) Cid() cid.Cid {
 	op.mu.RLock()
 	defer op.mu.RUnlock()
 	return op.pin.Cid

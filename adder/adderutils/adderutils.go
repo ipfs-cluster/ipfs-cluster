@@ -28,7 +28,7 @@ func AddMultipartHTTPHandler(
 	params *api.AddParams,
 	reader *multipart.Reader,
 	w http.ResponseWriter,
-) (*cid.Cid, error) {
+) (cid.Cid, error) {
 	var dags adder.ClusterDAGService
 	output := make(chan *api.AddedOutput, 200)
 	flusher, flush := w.(http.Flusher)

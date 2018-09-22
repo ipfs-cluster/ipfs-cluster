@@ -59,7 +59,7 @@ type Adder struct {
 	Chunker    string
 	root       ipld.Node
 	mroot      *mfs.Root
-	tempRoot   *cid.Cid
+	tempRoot   cid.Cid
 	Prefix     *cid.Prefix
 	CidBuilder cid.Builder
 	liveNodes  uint64

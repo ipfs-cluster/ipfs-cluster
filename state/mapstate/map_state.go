@@ -48,7 +48,7 @@ func (st *MapState) Add(c api.Pin) error {
 }
 
 // Rm removes a Cid from the internal map.
-func (st *MapState) Rm(c *cid.Cid) error {
+func (st *MapState) Rm(c cid.Cid) error {
 	st.pinMux.Lock()
 	defer st.pinMux.Unlock()
 	delete(st.PinMap, c.String())
@@ -59,9 +59,9 @@ func (st *MapState) Rm(c *cid.Cid) error {
 // The returned object has its Cid and Allocations
 // fields initialized, regardless of the
 // presence of the provided Cid in the state.
-// To check the presence, use MapState.Has(*cid.Cid).
-func (st *MapState) Get(c *cid.Cid) (api.Pin, bool) {
-	if c == nil {
+// To check the presence, use MapState.Has(cid.Cid).
+func (st *MapState) Get(c cid.Cid) (api.Pin, bool) {
+	if !c.Defined() {
 		return api.PinCid(c), false
 	}
 	st.pinMux.RLock()
@@ -74,7 +74,7 @@ func (st *MapState) Get(c *cid.Cid) (api.Pin, bool) {
 }
 
 // Has returns true if the Cid belongs to the State.
-func (st *MapState) Has(c *cid.Cid) bool {
+func (st *MapState) Has(c cid.Cid) bool {
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
 	_, ok := st.PinMap[c.String()]

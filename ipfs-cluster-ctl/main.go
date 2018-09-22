@@ -859,7 +859,7 @@ func parseCredentials(userInput string) (string, string) {
 
 func handlePinResponseFormatFlags(
 	c *cli.Context,
-	ci *cid.Cid,
+	ci cid.Cid,
 	target api.TrackerStatus,
 ) {
 
@@ -875,7 +875,7 @@ func handlePinResponseFormatFlags(
 		return
 	}
 
-	if status.Cid == nil { // no status from "wait"
+	if status.Cid == cid.Undef { // no status from "wait"
 		time.Sleep(time.Second)
 		status, cerr = globalClient.Status(ci, false)
 	}
@@ -883,7 +883,7 @@ func handlePinResponseFormatFlags(
 }
 
 func waitFor(
-	ci *cid.Cid,
+	ci cid.Cid,
 	target api.TrackerStatus,
 	timeout time.Duration,
 ) (api.GlobalPinInfo, error) {

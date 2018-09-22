@@ -65,7 +65,7 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 	return shardNode, nil
 }
 
-func makeDAGSimple(ctx context.Context, dagObj map[string]*cid.Cid) (ipld.Node, error) {
+func makeDAGSimple(ctx context.Context, dagObj map[string]cid.Cid) (ipld.Node, error) {
 	node, err := cbor.WrapObject(
 		dagObj,
 		hashFn, mh.DefaultLengths[hashFn],
@@ -83,7 +83,7 @@ func makeDAGSimple(ctx context.Context, dagObj map[string]*cid.Cid) (ipld.Node, 
 // carry links to the data nodes being tracked. The head of the output slice
 // is always the root of the shardDAG, i.e. the ipld node that should be
 // recursively pinned to track the shard
-func makeDAG(ctx context.Context, dagObj map[string]*cid.Cid) ([]ipld.Node, error) {
+func makeDAG(ctx context.Context, dagObj map[string]cid.Cid) ([]ipld.Node, error) {
 	// FIXME: We have a 4MB limit on the block size enforced by bitswap:
 	// https://github.com/libp2p/go-libp2p-net/blob/master/interface.go#L20
 
@@ -93,11 +93,11 @@ func makeDAG(ctx context.Context, dagObj map[string]*cid.Cid) ([]ipld.Node, erro
 		return []ipld.Node{n}, err
 	}
 	// Indirect node required
-	leafNodes := make([]ipld.Node, 0)        // shardNodes with links to data
-	indirectObj := make(map[string]*cid.Cid) // shardNode with links to shardNodes
+	leafNodes := make([]ipld.Node, 0)       // shardNodes with links to data
+	indirectObj := make(map[string]cid.Cid) // shardNode with links to shardNodes
 	numFullLeaves := len(dagObj) / MaxLinks
 	for i := 0; i <= numFullLeaves; i++ {
-		leafObj := make(map[string]*cid.Cid)
+		leafObj := make(map[string]cid.Cid)
 		for j := 0; j < MaxLinks; j++ {
 			c, ok := dagObj[fmt.Sprintf("%d", i*MaxLinks+j)]
 			if !ok { // finished with this leaf before filling all the way
@@ -182,7 +182,7 @@ func indirectCount(linkNum int) uint64 {
 	if q == 0 { // no indirect node needed
 		return 0
 	}
-	dummyIndirect := make(map[string]*cid.Cid)
+	dummyIndirect := make(map[string]cid.Cid)
 	for key := 0; key <= q; key++ {
 		dummyIndirect[fmt.Sprintf("%d", key)] = nil
 	}

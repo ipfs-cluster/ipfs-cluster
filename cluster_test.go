@@ -54,17 +54,17 @@ func (ipfs *mockConnector) ID() (api.IPFSID, error) {
 	}, nil
 }
 
-func (ipfs *mockConnector) Pin(ctx context.Context, c *cid.Cid, maxDepth int) error {
+func (ipfs *mockConnector) Pin(ctx context.Context, c cid.Cid, maxDepth int) error {
 	ipfs.pins.Store(c.String(), maxDepth)
 	return nil
 }
 
-func (ipfs *mockConnector) Unpin(ctx context.Context, c *cid.Cid) error {
+func (ipfs *mockConnector) Unpin(ctx context.Context, c cid.Cid) error {
 	ipfs.pins.Delete(c.String())
 	return nil
 }
 
-func (ipfs *mockConnector) PinLsCid(ctx context.Context, c *cid.Cid) (api.IPFSPinStatus, error) {
+func (ipfs *mockConnector) PinLsCid(ctx context.Context, c cid.Cid) (api.IPFSPinStatus, error) {
 	dI, ok := ipfs.pins.Load(c.String())
 	if !ok {
 		return api.IPFSPinStatusUnpinned, nil
@@ -110,7 +110,7 @@ func (ipfs *mockConnector) BlockPut(nwm api.NodeWithMeta) error {
 	return nil
 }
 
-func (ipfs *mockConnector) BlockGet(c *cid.Cid) ([]byte, error) {
+func (ipfs *mockConnector) BlockGet(c cid.Cid) ([]byte, error) {
 	d, ok := ipfs.blocks.Load(c.String())
 	if !ok {
 		return nil, errors.New("block not found")
@@ -338,7 +338,7 @@ func TestUnpinShard(t *testing.T) {
 	sharding.VerifyShards(t, root, cl, cl.ipfs, 14)
 
 	// skipping errors, VerifyShards has checked
-	pinnedCids := []*cid.Cid{}
+	pinnedCids := []cid.Cid{}
 	pinnedCids = append(pinnedCids, root)
 	metaPin, _ := cl.PinGet(root)
 	cDag, _ := cl.PinGet(metaPin.Reference)
@@ -394,10 +394,10 @@ func TestUnpinShard(t *testing.T) {
 // 	cShard, _ := cid.Decode(test.TestShardCid)
 // 	cCdag, _ := cid.Decode(test.TestCdagCid)
 // 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
-// 	pinMeta(t, cl, []*cid.Cid{cShard}, cCdag, cMeta)
+// 	pinMeta(t, cl, []cid.Cid{cShard}, cCdag, cMeta)
 // }
 
-// func pinMeta(t *testing.T, cl *Cluster, shardCids []*cid.Cid, cCdag, cMeta *cid.Cid) {
+// func pinMeta(t *testing.T, cl *Cluster, shardCids []cid.Cid, cCdag, cMeta cid.Cid) {
 // 	for _, cShard := range shardCids {
 // 		shardPin := api.Pin{
 // 			Cid:      cShard,
@@ -499,7 +499,7 @@ func TestUnpinShard(t *testing.T) {
 // 	cShard2, _ := cid.Decode(test.TestShardCid2)
 // 	cCdag2, _ := cid.Decode(test.TestCdagCid2)
 // 	cMeta2, _ := cid.Decode(test.TestMetaRootCid2)
-// 	pinMeta(t, cl, []*cid.Cid{cShard, cShard2}, cCdag2, cMeta2)
+// 	pinMeta(t, cl, []cid.Cid{cShard, cShard2}, cCdag2, cMeta2)
 
 // 	shardPin, err := cl.PinGet(cShard)
 // 	if err != nil {

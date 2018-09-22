@@ -55,7 +55,7 @@ func BlockAllocate(ctx context.Context, rpc *rpc.Client, pinOpts api.PinOptions)
 		"",
 		"Cluster",
 		"BlockAllocate",
-		api.PinWithOpts(nil, pinOpts).ToSerial(),
+		api.PinWithOpts(cid.Undef, pinOpts).ToSerial(),
 		&allocsStr,
 	)
 	return api.StringsToPeers(allocsStr), err
@@ -87,12 +87,12 @@ type BaseDAGService struct {
 }
 
 // Get always returns errNotFound
-func (dag BaseDAGService) Get(ctx context.Context, key *cid.Cid) (ipld.Node, error) {
+func (dag BaseDAGService) Get(ctx context.Context, key cid.Cid) (ipld.Node, error) {
 	return nil, ErrDAGNotFound
 }
 
 // GetMany returns an output channel that always emits an error
-func (dag BaseDAGService) GetMany(ctx context.Context, keys []*cid.Cid) <-chan *ipld.NodeOption {
+func (dag BaseDAGService) GetMany(ctx context.Context, keys []cid.Cid) <-chan *ipld.NodeOption {
 	out := make(chan *ipld.NodeOption, 1)
 	out <- &ipld.NodeOption{Err: fmt.Errorf("failed to fetch all nodes")}
 	close(out)
@@ -100,11 +100,11 @@ func (dag BaseDAGService) GetMany(ctx context.Context, keys []*cid.Cid) <-chan *
 }
 
 // Remove is a nop
-func (dag BaseDAGService) Remove(ctx context.Context, key *cid.Cid) error {
+func (dag BaseDAGService) Remove(ctx context.Context, key cid.Cid) error {
 	return nil
 }
 
 // RemoveMany is a nop
-func (dag BaseDAGService) RemoveMany(ctx context.Context, keys []*cid.Cid) error {
+func (dag BaseDAGService) RemoveMany(ctx context.Context, keys []cid.Cid) error {
 	return nil
 }

@@ -41,10 +41,10 @@ type DAGService struct {
 	// Current shard being built
 	currentShard *shard
 	// Last flushed shard CID
-	previousShard *cid.Cid
+	previousShard cid.Cid
 
 	// shard tracking
-	shards map[string]*cid.Cid
+	shards map[string]cid.Cid
 
 	startTime time.Time
 	totalSize uint64
@@ -58,7 +58,7 @@ func New(rpc *rpc.Client, opts api.PinOptions, out chan<- *api.AddedOutput) *DAG
 		pinOpts:   opts,
 		output:    out,
 		addedSet:  cid.NewSet(),
-		shards:    make(map[string]*cid.Cid),
+		shards:    make(map[string]cid.Cid),
 		startTime: time.Now(),
 	}
 }
@@ -86,7 +86,7 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 
 // Finalize finishes sharding, creates the cluster DAG and pins it along
 // with the meta pin for the root node of the content.
-func (dgs *DAGService) Finalize(ctx context.Context, dataRoot *cid.Cid) (*cid.Cid, error) {
+func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid, error) {
 	lastCid, err := dgs.flushCurrentShard(ctx)
 	if err != nil {
 		return lastCid, err
@@ -214,7 +214,7 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n *api.NodeWithMeta) err
 	return dgs.ingestBlock(ctx, n) // <-- retry ingest
 }
 
-func (dgs *DAGService) logStats(metaPin, clusterDAGPin *cid.Cid) {
+func (dgs *DAGService) logStats(metaPin, clusterDAGPin cid.Cid) {
 	duration := time.Since(dgs.startTime)
 	seconds := uint64(duration) / uint64(time.Second)
 	var rate string
@@ -252,10 +252,10 @@ func (dgs *DAGService) sendOutput(ao *api.AddedOutput) {
 }
 
 // flushes the dgs.currentShard and returns the LastLink()
-func (dgs *DAGService) flushCurrentShard(ctx context.Context) (*cid.Cid, error) {
+func (dgs *DAGService) flushCurrentShard(ctx context.Context) (cid.Cid, error) {
 	shard := dgs.currentShard
 	if shard == nil {
-		return nil, errors.New("cannot flush a nil shard")
+		return cid.Undef, errors.New("cannot flush a nil shard")
 	}
 
 	lens := len(dgs.shards)

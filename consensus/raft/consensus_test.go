@@ -31,7 +31,7 @@ func consensusAddr(c *Consensus) ma.Multiaddr {
 	return cAddr
 }
 
-func testPin(c *cid.Cid) api.Pin {
+func testPin(c cid.Cid) api.Pin {
 	p := api.PinCid(c)
 	p.ReplicationFactorMin = -1
 	p.ReplicationFactorMax = -1
