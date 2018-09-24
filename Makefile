@@ -15,7 +15,7 @@ problematic_test = TestClustersReplicationRealloc
 
 export PATH := $(deptools):$(PATH)
 
-all: service ctl
+all: build
 clean: rwundo clean_sharness
 	$(MAKE) -C ipfs-cluster-service clean
 	$(MAKE) -C ipfs-cluster-ctl clean
@@ -107,5 +107,7 @@ docker:
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-ctl version"
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
+
+prcheck: deps check service ctl test
 
 .PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
