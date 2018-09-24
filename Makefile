@@ -28,6 +28,10 @@ install: deps
 	$(MAKE) -C ipfs-cluster-service install
 	$(MAKE) -C ipfs-cluster-ctl install
 
+docker_install: docker_deps
+	$(MAKE) -C ipfs-cluster-service install
+	$(MAKE) -C ipfs-cluster-ctl install
+
 build: deps
 	go build -ldflags "-X ipfscluster.Commit=$(shell git rev-parse HEAD)"
 	$(MAKE) -C ipfs-cluster-service build
@@ -62,6 +66,13 @@ gx: $(gx_bin) $(gx-go_bin)
 
 deps: gx
 	$(gx_bin) install --global
+	$(gx-go_bin) rewrite
+
+# Run this target before building the docker image 
+# and then gx won't attempt to pull all deps 
+# from the network each time
+docker_deps: gx
+	$(gx_bin) install --local
 	$(gx-go_bin) rewrite
 
 check:
