@@ -17,30 +17,30 @@ export PATH := $(deptools):$(PATH)
 
 all: build
 clean: rwundo clean_sharness
-	$(MAKE) -C ipfs-cluster-service clean
-	$(MAKE) -C ipfs-cluster-ctl clean
+	$(MAKE) -C cmd/ipfs-cluster-service clean
+	$(MAKE) -C cmd/ipfs-cluster-ctl clean
 	@rm -rf ./test/testingData
 
 gx-clean: clean
 	@rm -f $(deptools)/*
 
 install: deps
-	$(MAKE) -C ipfs-cluster-service install
-	$(MAKE) -C ipfs-cluster-ctl install
+	$(MAKE) -C cmd/ipfs-cluster-service install
+	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
 docker_install: docker_deps
-	$(MAKE) -C ipfs-cluster-service install
-	$(MAKE) -C ipfs-cluster-ctl install
+	$(MAKE) -C cmd/ipfs-cluster-service install
+	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
 build: deps
 	go build -ldflags "-X ipfscluster.Commit=$(shell git rev-parse HEAD)"
-	$(MAKE) -C ipfs-cluster-service build
-	$(MAKE) -C ipfs-cluster-ctl build
+	$(MAKE) -C cmd/ipfs-cluster-service build
+	$(MAKE) -C cmd/ipfs-cluster-ctl build
 
 service: deps
-	$(MAKE) -C ipfs-cluster-service ipfs-cluster-service
+	$(MAKE) -C cmd/ipfs-cluster-service ipfs-cluster-service
 ctl: deps
-	$(MAKE) -C ipfs-cluster-ctl ipfs-cluster-ctl
+	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
 
 $(gx_bin):
 	@echo "Downloading gx"
