@@ -236,7 +236,7 @@ func (spt *Tracker) Track(c api.Pin) error {
 
 // Untrack tells the StatelessPinTracker to stop managing a Cid.
 // If the Cid is pinned locally, it will be unpinned.
-func (spt *Tracker) Untrack(c *cid.Cid) error {
+func (spt *Tracker) Untrack(c cid.Cid) error {
 	logger.Debugf("untracking %s", c)
 	return spt.enqueue(api.PinCid(c), optracker.OperationUnpin)
 }
@@ -264,7 +264,7 @@ func (spt *Tracker) StatusAll() []api.PinInfo {
 }
 
 // Status returns information for a Cid pinned to the local IPFS node.
-func (spt *Tracker) Status(c *cid.Cid) api.PinInfo {
+func (spt *Tracker) Status(c cid.Cid) api.PinInfo {
 	// check if c has an inflight operation or errorred operation in optracker
 	if oppi, ok := spt.optracker.GetExists(c); ok {
 		// if it does return the status of the operation
@@ -379,7 +379,7 @@ func (spt *Tracker) SyncAll() ([]api.PinInfo, error) {
 }
 
 // Sync returns the updated local status for the given Cid.
-func (spt *Tracker) Sync(c *cid.Cid) (api.PinInfo, error) {
+func (spt *Tracker) Sync(c cid.Cid) (api.PinInfo, error) {
 	oppi, ok := spt.optracker.GetExists(c)
 	if !ok {
 		return spt.Status(c), nil
@@ -480,7 +480,7 @@ func (spt *Tracker) RecoverAll() ([]api.PinInfo, error) {
 // Recover will re-track or re-untrack a Cid in error state,
 // possibly retriggering an IPFS pinning operation and returning
 // only when it is done.
-func (spt *Tracker) Recover(c *cid.Cid) (api.PinInfo, error) {
+func (spt *Tracker) Recover(c cid.Cid) (api.PinInfo, error) {
 	logger.Infof("Attempting to recover %s", c)
 	pInfo, ok := spt.optracker.GetExists(c)
 	if !ok {
@@ -600,6 +600,6 @@ func (spt *Tracker) getErrorsAll() []api.PinInfo {
 
 // OpContext exports the internal optracker's OpContext method.
 // For testing purposes only.
-func (spt *Tracker) OpContext(c *cid.Cid) context.Context {
+func (spt *Tracker) OpContext(c cid.Cid) context.Context {
 	return spt.optracker.OpContext(c)
 }

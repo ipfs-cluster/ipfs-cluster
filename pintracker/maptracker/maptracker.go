@@ -213,14 +213,14 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 
 // Untrack tells the MapPinTracker to stop managing a Cid.
 // If the Cid is pinned locally, it will be unpinned.
-func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
+func (mpt *MapPinTracker) Untrack(c cid.Cid) error {
 	logger.Debugf("untracking %s", c)
 	return mpt.enqueue(api.PinCid(c), optracker.OperationUnpin, mpt.unpinCh)
 }
 
 // Status returns information for a Cid tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) Status(c *cid.Cid) api.PinInfo {
+func (mpt *MapPinTracker) Status(c cid.Cid) api.PinInfo {
 	return mpt.optracker.Get(c)
 }
 
@@ -238,7 +238,7 @@ func (mpt *MapPinTracker) StatusAll() []api.PinInfo {
 // Pins in error states can be recovered with Recover().
 // An error is returned if we are unable to contact
 // the IPFS daemon.
-func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
+func (mpt *MapPinTracker) Sync(c cid.Cid) (api.PinInfo, error) {
 	var ips api.IPFSPinStatus
 	err := mpt.rpcClient.Call(
 		"",
@@ -310,7 +310,7 @@ func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 	return results, nil
 }
 
-func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
+func (mpt *MapPinTracker) syncStatus(c cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
 	status, ok := mpt.optracker.Status(c)
 	if !ok {
 		status = api.TrackerStatusUnpinned
@@ -370,7 +370,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 
 // Recover will re-queue a Cid in error state for the failed operation,
 // possibly retriggering an IPFS pinning operation.
-func (mpt *MapPinTracker) Recover(c *cid.Cid) (api.PinInfo, error) {
+func (mpt *MapPinTracker) Recover(c cid.Cid) (api.PinInfo, error) {
 	logger.Infof("Attempting to recover %s", c)
 	pInfo := mpt.optracker.Get(c)
 	var err error
@@ -407,6 +407,6 @@ func (mpt *MapPinTracker) SetClient(c *rpc.Client) {
 
 // OpContext exports the internal optracker's OpContext method.
 // For testing purposes only.
-func (mpt *MapPinTracker) OpContext(c *cid.Cid) context.Context {
+func (mpt *MapPinTracker) OpContext(c cid.Cid) context.Context {
 	return mpt.optracker.OpContext(c)
 }

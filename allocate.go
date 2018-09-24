@@ -44,7 +44,7 @@ import (
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(hash cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
 	if (rplMin + rplMax) == 0 {
 		return nil, fmt.Errorf("bad replication factors: %d/%d", rplMin, rplMax)
 	}
@@ -97,7 +97,7 @@ func (c *Cluster) allocate(hash *cid.Cid, rplMin, rplMax int, blacklist []peer.I
 }
 
 // allocationError logs an allocation error
-func allocationError(hash *cid.Cid, needed, wanted int, candidatesValid []peer.ID) error {
+func allocationError(hash cid.Cid, needed, wanted int, candidatesValid []peer.ID) error {
 	logger.Errorf("Not enough candidates to allocate %s:", hash)
 	logger.Errorf("  Needed: %d", needed)
 	logger.Errorf("  Wanted: %d", wanted)
@@ -114,7 +114,7 @@ func allocationError(hash *cid.Cid, needed, wanted int, candidatesValid []peer.I
 }
 
 func (c *Cluster) obtainAllocations(
-	hash *cid.Cid,
+	hash cid.Cid,
 	rplMin, rplMax int,
 	currentValidMetrics map[peer.ID]api.Metric,
 	candidatesMetrics map[peer.ID]api.Metric,
@@ -167,7 +167,11 @@ func (c *Cluster) obtainAllocations(
 
 	// the allocator returns a list of peers ordered by priority
 	finalAllocs, err := c.allocator.Allocate(
-		hash, currentValidMetrics, candidatesMetrics, priorityMetrics)
+		hash,
+		currentValidMetrics,
+		candidatesMetrics,
+		priorityMetrics,
+	)
 	if err != nil {
 		return nil, logError(err.Error())
 	}

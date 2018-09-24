@@ -589,7 +589,7 @@ func (ipfs *Connector) ID() (api.IPFSID, error) {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, maxDepth int) error {
+func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) error {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
 	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
@@ -634,7 +634,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash *cid.Cid, maxDepth int) err
 
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
+func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
 	defer cancel()
 
@@ -686,7 +686,7 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string
 // PinLsCid performs a "pin ls <hash>" request. It first tries with
 // "type=recursive" and then, if not found, with "type=direct". It returns an
 // api.IPFSPinStatus for that hash.
-func (ipfs *Connector) PinLsCid(ctx context.Context, hash *cid.Cid) (api.IPFSPinStatus, error) {
+func (ipfs *Connector) PinLsCid(ctx context.Context, hash cid.Cid) (api.IPFSPinStatus, error) {
 	pinLsType := func(pinType string) ([]byte, error) {
 		ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 		defer cancel()
@@ -961,7 +961,7 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 }
 
 // BlockGet retrieves an ipfs block with the given cid
-func (ipfs *Connector) BlockGet(c *cid.Cid) ([]byte, error) {
+func (ipfs *Connector) BlockGet(c cid.Cid) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	url := "block/get?arg=" + c.String()

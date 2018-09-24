@@ -78,7 +78,7 @@ func (opt *OperationTracker) Clean(op *Operation) {
 // Status returns the TrackerStatus associated to the last operation known
 // with the given Cid. It returns false if we are not tracking any operation
 // for the given Cid.
-func (opt *OperationTracker) Status(c *cid.Cid) (api.TrackerStatus, bool) {
+func (opt *OperationTracker) Status(c cid.Cid) (api.TrackerStatus, bool) {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c.String()]
@@ -92,7 +92,7 @@ func (opt *OperationTracker) Status(c *cid.Cid) (api.TrackerStatus, bool) {
 // SetError transitions an operation for a Cid into PhaseError if its Status
 // is PhaseDone. Any other phases are considered in-flight and not touched.
 // For things already in error, the error message is updated.
-func (opt *OperationTracker) SetError(c *cid.Cid, err error) {
+func (opt *OperationTracker) SetError(c cid.Cid, err error) {
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
 	op, ok := opt.operations[c.String()]
@@ -109,7 +109,7 @@ func (opt *OperationTracker) SetError(c *cid.Cid, err error) {
 func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
 	if op == nil {
 		return api.PinInfo{
-			Cid:    nil,
+			Cid:    cid.Undef,
 			Peer:   opt.pid,
 			Status: api.TrackerStatusUnpinned,
 			TS:     time.Now(),
@@ -127,12 +127,12 @@ func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
 }
 
 // Get returns a PinInfo object for Cid.
-func (opt *OperationTracker) Get(c *cid.Cid) api.PinInfo {
+func (opt *OperationTracker) Get(c cid.Cid) api.PinInfo {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op := opt.operations[c.String()]
 	pInfo := opt.unsafePinInfo(op)
-	if pInfo.Cid == nil {
+	if !pInfo.Cid.Defined() {
 		pInfo.Cid = c
 	}
 	return pInfo
@@ -140,7 +140,7 @@ func (opt *OperationTracker) Get(c *cid.Cid) api.PinInfo {
 
 // GetExists returns a PinInfo object for a Cid only if there exists
 // an associated Operation.
-func (opt *OperationTracker) GetExists(c *cid.Cid) (api.PinInfo, bool) {
+func (opt *OperationTracker) GetExists(c cid.Cid) (api.PinInfo, bool) {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c.String()]
@@ -164,7 +164,7 @@ func (opt *OperationTracker) GetAll() []api.PinInfo {
 
 // CleanError removes the associated Operation, if it is
 // in PhaseError.
-func (opt *OperationTracker) CleanError(c *cid.Cid) {
+func (opt *OperationTracker) CleanError(c cid.Cid) {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	errop, ok := opt.operations[c.String()]
@@ -192,7 +192,7 @@ func (opt *OperationTracker) CleanAllDone() {
 }
 
 // OpContext gets the context of an operation, if any.
-func (opt *OperationTracker) OpContext(c *cid.Cid) context.Context {
+func (opt *OperationTracker) OpContext(c cid.Cid) context.Context {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c.String()]

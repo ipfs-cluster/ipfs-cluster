@@ -29,7 +29,7 @@ type ClusterDAGService interface {
 	ipld.DAGService
 	// Finalize receives the IPFS content root CID as
 	// returned by the ipfs adder.
-	Finalize(ctx context.Context, ipfsRoot *cid.Cid) (*cid.Cid, error)
+	Finalize(ctx context.Context, ipfsRoot cid.Cid) (cid.Cid, error)
 }
 
 // Adder is used to add content to IPFS Cluster using an implementation of
@@ -81,7 +81,7 @@ func (a *Adder) setContext(ctx context.Context) {
 
 // FromMultipart adds content from a multipart.Reader. The adder will
 // no longer be usable after calling this method.
-func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (*cid.Cid, error) {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", a.params)
 
 	f := &files.MultipartFile{
@@ -94,12 +94,12 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (*cid.Ci
 
 // FromFiles adds content from a files.File. The adder will no longer
 // be usable after calling this method.
-func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
+func (a *Adder) FromFiles(ctx context.Context, f files.File) (cid.Cid, error) {
 	logger.Debugf("adding from files")
 	a.setContext(ctx)
 
 	if a.ctx.Err() != nil { // don't allow running twice
-		return nil, a.ctx.Err()
+		return cid.Undef, a.ctx.Err()
 	}
 
 	defer a.cancel()
@@ -108,7 +108,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dgs)
 	if err != nil {
 		logger.Error(err)
-		return nil, err
+		return cid.Undef, err
 	}
 
 	ipfsAdder.Hidden = a.params.Hidden
@@ -122,12 +122,12 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	// Set up prefix
 	prefix, err := merkledag.PrefixForCidVersion(a.params.CidVersion)
 	if err != nil {
-		return nil, fmt.Errorf("bad CID Version: %s", err)
+		return cid.Undef, fmt.Errorf("bad CID Version: %s", err)
 	}
 
 	hashFunCode, ok := multihash.Names[strings.ToLower(a.params.HashFun)]
 	if !ok {
-		return nil, fmt.Errorf("unrecognized hash function: %s", a.params.HashFun)
+		return cid.Undef, fmt.Errorf("unrecognized hash function: %s", a.params.HashFun)
 	}
 	prefix.MhType = hashFunCode
 	prefix.MhLength = -1
@@ -136,7 +136,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 	for {
 		select {
 		case <-a.ctx.Done():
-			return nil, a.ctx.Err()
+			return cid.Undef, a.ctx.Err()
 		default:
 			err := addFile(f, ipfsAdder)
 			if err == io.EOF {
@@ -144,7 +144,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 			}
 			if err != nil {
 				logger.Error("error adding to cluster: ", err)
-				return nil, err
+				return cid.Undef, err
 			}
 		}
 	}
@@ -152,12 +152,12 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (*cid.Cid, error) {
 FINALIZE:
 	adderRoot, err := ipfsAdder.Finalize()
 	if err != nil {
-		return nil, err
+		return cid.Undef, err
 	}
 	clusterRoot, err := a.dgs.Finalize(a.ctx, adderRoot.Cid())
 	if err != nil {
 		logger.Error("error finalizing adder:", err)
-		return nil, err
+		return cid.Undef, err
 	}
 	logger.Infof("%s successfully added to cluster", clusterRoot)
 	return clusterRoot, nil
