@@ -202,10 +202,14 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *
 
 	// Return the current peer list.
 	if pin.ReplicationFactorMin < 0 {
-		peers, err := rpcapi.c.consensus.Peers()
-		if err != nil {
-			return err
+		// Returned metrics are Valid and belong to current
+		// Cluster peers.
+		metrics := rpcapi.c.monitor.LatestMetrics(pingMetricName)
+		peers := make([]peer.ID, len(metrics), len(metrics))
+		for i, m := range metrics {
+			peers[i] = m.Peer
 		}
+
 		*out = api.PeersToStrings(peers)
 		return nil
 	}
