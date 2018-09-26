@@ -225,7 +225,7 @@ func TestClusterID(t *testing.T) {
 	if id.ID == "" {
 		t.Error("expected a cluster ID")
 	}
-	if id.Version != Version {
+	if id.Version != Version.String() {
 		t.Error("version should match current version")
 	}
 	//if id.PublicKey == nil {
@@ -771,7 +771,7 @@ func TestVersion(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
-	if cl.Version() != Version {
+	if cl.Version() != Version.String() {
 		t.Error("bad Version()")
 	}
 }
