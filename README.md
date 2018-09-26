@@ -16,7 +16,7 @@
 <img src="https://cluster.ipfs.io/cluster/png/IPFS_Cluster_color_no_text.png" alt="logo" width="300" height="300" />
 </p>
 
-IPFS Cluster allows to allocate, replicate and track Pins across a cluster of IPFS daemons.
+IPFS Cluster is a stand-alone application and a CLI client that allocates, replicates, and tracks pins across a cluster of IPFS daemons.
 
 It provides:
 
