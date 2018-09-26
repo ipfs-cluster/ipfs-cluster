@@ -203,21 +203,23 @@ func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
 
 // PinInfo holds information about local pins.
 type PinInfo struct {
-	Cid    cid.Cid
-	Peer   peer.ID
-	Status TrackerStatus
-	TS     time.Time
-	Error  string
+	Cid      cid.Cid
+	Peer     peer.ID
+	PeerName string
+	Status   TrackerStatus
+	TS       time.Time
+	Error    string
 }
 
 // PinInfoSerial is a serializable version of PinInfo.
 // information is marked as
 type PinInfoSerial struct {
-	Cid    string `json:"cid"`
-	Peer   string `json:"peer"`
-	Status string `json:"status"`
-	TS     string `json:"timestamp"`
-	Error  string `json:"error"`
+	Cid      string `json:"cid"`
+	Peer     string `json:"peer"`
+	PeerName string `json:"peername"`
+	Status   string `json:"status"`
+	TS       string `json:"timestamp"`
+	Error    string `json:"error"`
 }
 
 // ToSerial converts a PinInfo to its serializable version.
@@ -232,11 +234,12 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 	}
 
 	return PinInfoSerial{
-		Cid:    c,
-		Peer:   p,
-		Status: pi.Status.String(),
-		TS:     pi.TS.UTC().Format(time.RFC3339),
-		Error:  pi.Error,
+		Cid:      c,
+		Peer:     p,
+		PeerName: pi.PeerName,
+		Status:   pi.Status.String(),
+		TS:       pi.TS.UTC().Format(time.RFC3339),
+		Error:    pi.Error,
 	}
 }
 
@@ -255,11 +258,12 @@ func (pis PinInfoSerial) ToPinInfo() PinInfo {
 		logger.Debug(pis.TS, err)
 	}
 	return PinInfo{
-		Cid:    c,
-		Peer:   p,
-		Status: TrackerStatusFromString(pis.Status),
-		TS:     ts,
-		Error:  pis.Error,
+		Cid:      c,
+		Peer:     p,
+		PeerName: pis.PeerName,
+		Status:   TrackerStatusFromString(pis.Status),
+		TS:       ts,
+		Error:    pis.Error,
 	}
 }
 

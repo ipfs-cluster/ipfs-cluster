@@ -11,8 +11,7 @@ import (
 
 func testOperationTracker(t *testing.T) *OperationTracker {
 	ctx := context.Background()
-	pid := test.TestPeerID1
-	return NewOperationTracker(ctx, pid)
+	return NewOperationTracker(ctx, test.TestPeerID1, test.TestPeerName1)
 }
 
 func TestOperationTracker_TrackNewOperation(t *testing.T) {

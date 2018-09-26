@@ -102,7 +102,7 @@ func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.
 func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
-	mpt := New(cfg, test.TestPeerID1)
+	mpt := New(cfg, test.TestPeerID1, test.TestPeerName1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
 }
@@ -110,7 +110,7 @@ func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 func testStatelessPinTracker(t testing.TB) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
-	spt := New(cfg, test.TestPeerID1)
+	spt := New(cfg, test.TestPeerID1, test.TestPeerName1)
 	spt.SetClient(test.NewMockRPCClient(t))
 	return spt
 }

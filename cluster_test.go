@@ -129,7 +129,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 	api := &mockAPI{}
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
-	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg)
+	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
 	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
 

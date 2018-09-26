@@ -44,7 +44,7 @@ type Tracker struct {
 }
 
 // New creates a new StatelessPinTracker.
-func New(cfg *Config, pid peer.ID) *Tracker {
+func New(cfg *Config, pid peer.ID, peerName string) *Tracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	spt := &Tracker{
@@ -52,7 +52,7 @@ func New(cfg *Config, pid peer.ID) *Tracker {
 		peerID:    pid,
 		ctx:       ctx,
 		cancel:    cancel,
-		optracker: optracker.NewOperationTracker(ctx, pid),
+		optracker: optracker.NewOperationTracker(ctx, pid, peerName),
 		rpcReady:  make(chan struct{}, 1),
 		pinCh:     make(chan *optracker.Operation, cfg.MaxPinQueueSize),
 		unpinCh:   make(chan *optracker.Operation, cfg.MaxPinQueueSize),

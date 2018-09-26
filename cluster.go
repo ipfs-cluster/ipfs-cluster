@@ -1172,11 +1172,12 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 		if r.Status == api.TrackerStatusBug {
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			pin.PeerMap[members[i]] = api.PinInfo{
-				Cid:    h,
-				Peer:   members[i],
-				Status: api.TrackerStatusClusterError,
-				TS:     time.Now(),
-				Error:  e.Error(),
+				Cid:      h,
+				Peer:     members[i],
+				PeerName: members[i].String(),
+				Status:   api.TrackerStatusClusterError,
+				TS:       time.Now(),
+				Error:    e.Error(),
 			}
 		} else { // there was an rpc error, but got a valid response :S
 			r.Error = e.Error()

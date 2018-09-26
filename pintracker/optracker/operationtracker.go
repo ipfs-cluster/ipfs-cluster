@@ -21,18 +21,20 @@ var logger = logging.Logger("optracker")
 
 // OperationTracker tracks and manages all inflight Operations.
 type OperationTracker struct {
-	ctx context.Context // parent context for all ops
-	pid peer.ID
+	ctx      context.Context // parent context for all ops
+	pid      peer.ID
+	peerName string
 
 	mu         sync.RWMutex
 	operations map[string]*Operation
 }
 
 // NewOperationTracker creates a new OperationTracker.
-func NewOperationTracker(ctx context.Context, pid peer.ID) *OperationTracker {
+func NewOperationTracker(ctx context.Context, pid peer.ID, peerName string) *OperationTracker {
 	return &OperationTracker{
 		ctx:        ctx,
 		pid:        pid,
+		peerName:   peerName,
 		operations: make(map[string]*Operation),
 	}
 }
@@ -109,20 +111,21 @@ func (opt *OperationTracker) SetError(c cid.Cid, err error) {
 func (opt *OperationTracker) unsafePinInfo(op *Operation) api.PinInfo {
 	if op == nil {
 		return api.PinInfo{
-			Cid:    cid.Undef,
-			Peer:   opt.pid,
-			Status: api.TrackerStatusUnpinned,
-			TS:     time.Now(),
-			Error:  "",
+			Cid:      cid.Undef,
+			Peer:     opt.pid,
+			PeerName: opt.peerName,
+			Status:   api.TrackerStatusUnpinned,
+			TS:       time.Now(),
+			Error:    "",
 		}
 	}
-
 	return api.PinInfo{
-		Cid:    op.Cid(),
-		Peer:   opt.pid,
-		Status: op.ToTrackerStatus(),
-		TS:     op.Timestamp(),
-		Error:  op.Error(),
+		Cid:      op.Cid(),
+		Peer:     opt.pid,
+		PeerName: opt.peerName,
+		Status:   op.ToTrackerStatus(),
+		TS:       op.Timestamp(),
+		Error:    op.Error(),
 	}
 }
 

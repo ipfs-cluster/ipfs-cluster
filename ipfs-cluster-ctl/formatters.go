@@ -147,7 +147,11 @@ func textFormatPrintGPInfo(obj *api.GlobalPinInfoSerial) {
 
 	for _, k := range peers {
 		v := obj.PeerMap[k]
-		fmt.Printf("    > Peer %s : %s", k, strings.ToUpper(v.Status))
+		if len(v.PeerName) > 0 {
+			fmt.Printf("    > %-15s : %s", v.PeerName, strings.ToUpper(v.Status))
+		} else {
+			fmt.Printf("    > %-15s : %s", k, strings.ToUpper(v.Status))
+		}
 		if v.Error != "" {
 			fmt.Printf(": %s", v.Error)
 		}
