@@ -1174,7 +1174,7 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 			pin.PeerMap[members[i]] = api.PinInfo{
 				Cid:      h,
 				Peer:     members[i],
-				PeerName: string(members[i]),
+				PeerName: members[i].String(),
 				Status:   api.TrackerStatusClusterError,
 				TS:       time.Now(),
 				Error:    e.Error(),
