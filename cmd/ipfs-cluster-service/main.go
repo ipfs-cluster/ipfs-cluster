@@ -208,23 +208,6 @@ configuration.
 				},
 			},
 			Action: func(c *cli.Context) error {
-				if c.GlobalBool("force") {
-					err := locker.lock()
-					checkErr("acquiring execution lock", err)
-					defer locker.tryUnlock()
-
-					if yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
-						cfgMgr, cfgs := makeConfigs()
-						err = cfgMgr.LoadJSONFromFile(configPath)
-						checkErr("reading configuration", err)
-
-						err = cleanupState(cfgs.consensusCfg)
-						checkErr("Cleaning up consensus data", err)
-						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cfgs.consensusCfg.GetDataFolder())
-					}
-
-				}
-
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
 
 				cfgMgr, cfgs := makeConfigs()
@@ -241,6 +224,14 @@ configuration.
 
 				// Save
 				saveConfig(cfgMgr, c.GlobalBool("force"))
+
+				// Clean up state
+				if c.GlobalBool("force") {
+					err = cleanupState(cfgs.consensusCfg)
+					checkErr("Cleaning up consensus data", err)
+					logger.Warningf("the %s folder has been rotated. Starting with an empty state", cfgs.consensusCfg.GetDataFolder())
+
+				}
 				return nil
 			},
 		},
