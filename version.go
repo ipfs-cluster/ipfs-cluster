@@ -1,8 +1,17 @@
 package ipfscluster
 
+import (
+	"fmt"
+
+	semver "github.com/blang/semver"
+	protocol "github.com/libp2p/go-libp2p-protocol"
+)
+
 // Version is the current cluster version. Version alignment between
 // components, apis and tools ensures compatibility among them.
-const Version = "0.5.0"
+var Version = semver.MustParse("0.5.0")
 
-// Commit is the current build commit of cluster. See Makefile.
-var Commit = "00000000" // actual commit set during builds.
+// RPCProtocol is used to send libp2p messages between cluster peers
+var RPCProtocol = protocol.ID(
+	fmt.Sprintf("/ipfscluster/%d.%d/rpc", Version.Major, Version.Minor),
+)

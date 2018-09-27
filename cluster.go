@@ -99,11 +99,7 @@ func NewCluster(
 		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
 	}
 
-	if c := Commit; len(c) >= 8 {
-		logger.Infof("IPFS Cluster v%s-%s listening on:\n%s\n", Version, Commit[0:8], listenAddrs)
-	} else {
-		logger.Infof("IPFS Cluster v%s listening on:\n%s\n", Version, listenAddrs)
-	}
+	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", Version, listenAddrs)
 
 	// Note, we already loaded peers from peerstore into the host
 	// in daemon.go.
@@ -529,8 +525,7 @@ func (c *Cluster) ID() api.ID {
 		Addresses:             addrs,
 		ClusterPeers:          peers,
 		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
-		Version:               Version,
-		Commit:                Commit,
+		Version:               Version.String(),
 		RPCProtocolVersion:    RPCProtocol,
 		IPFS:                  ipfsID,
 		Peername:              c.config.Peername,
@@ -1082,7 +1077,7 @@ func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (cid.
 
 // Version returns the current IPFS Cluster version.
 func (c *Cluster) Version() string {
-	return Version
+	return Version.String()
 }
 
 // Peers returns the IDs of the members of this Cluster.

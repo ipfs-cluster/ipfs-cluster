@@ -385,7 +385,7 @@ func TestClustersVersion(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	f := func(t *testing.T, c *Cluster) {
 		v := c.Version()
-		if v != Version {
+		if v != Version.String() {
 			t.Error("Bad version")
 		}
 	}

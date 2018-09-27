@@ -147,6 +147,12 @@
       "hash": "QmRkrpnhZqDxTxwGCsDbuZMr7uCFZHH6SGfrcjgEQwxF3t",
       "name": "go-mfs",
       "version": "0.1.1"
+    },
+    {
+      "author": "blang",
+      "hash": "QmYRGECuvQnRX73fcvPnGbYijBcGN2HbKZQ7jh26qmLiHG",
+      "name": "semver",
+      "version": "3.5.1"
     }
   ],
   "gxVersion": "0.11.0",

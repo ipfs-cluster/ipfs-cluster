@@ -17,11 +17,7 @@ import (
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 )
-
-// RPCProtocol is used to send libp2p messages between cluster peers
-var RPCProtocol = protocol.ID("/ipfscluster/" + Version + "/rpc")
 
 // Component represents a piece of ipfscluster. Cluster components
 // usually run their own goroutines (a http server for example). They

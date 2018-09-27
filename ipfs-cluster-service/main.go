@@ -11,11 +11,12 @@ import (
 
 	//	_ "net/http/pprof"
 
-	logging "github.com/ipfs/go-log"
-	cli "github.com/urfave/cli"
-
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
+
+	semver "github.com/blang/semver"
+	logging "github.com/ipfs/go-log"
+	cli "github.com/urfave/cli"
 )
 
 // ProgramName of this application
@@ -109,8 +110,10 @@ var (
 )
 
 func init() {
-	// Set the right commit. The only way I could make this work
-	ipfscluster.Commit = commit
+	// Set build information.
+	if build, err := semver.NewBuildVersion(commit); err == nil {
+		ipfscluster.Version.Build = []string{"git" + build}
+	}
 
 	// We try guessing user's home from the HOME variable. This
 	// allows HOME hacks for things like Snapcraft builds. HOME
@@ -156,7 +159,7 @@ func main() {
 	app.Usage = "IPFS Cluster node"
 	app.Description = Description
 	//app.Copyright = "© Protocol Labs, Inc."
-	app.Version = ipfscluster.Version
+	app.Version = ipfscluster.Version.String()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "config, c",
@@ -405,11 +408,6 @@ the mth data folder (m currently defaults to 5)
 			Name:  "version",
 			Usage: "Print the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
-				if c := ipfscluster.Commit; len(c) >= 8 {
-					fmt.Printf("%s-%s\n", ipfscluster.Version, c)
-					return nil
-				}
-
 				fmt.Printf("%s\n", ipfscluster.Version)
 				return nil
 			},
