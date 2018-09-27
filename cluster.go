@@ -31,6 +31,8 @@ import (
 // consensus layer.
 var ReadyTimeout = 30 * time.Second
 
+var pingMetricName = "ping"
+
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
@@ -248,7 +250,7 @@ func (c *Cluster) pushPingMetrics() {
 	ticker := time.NewTicker(c.config.MonitorPingInterval)
 	for {
 		metric := api.Metric{
-			Name:  "ping",
+			Name:  pingMetricName,
 			Peer:  c.id,
 			Valid: true,
 		}
@@ -275,7 +277,7 @@ func (c *Cluster) alertsHandler() {
 			if err == nil && leader == c.id {
 				logger.Warningf("Peer %s received alert for %s in %s", c.id, alrt.MetricName, alrt.Peer.Pretty())
 				switch alrt.MetricName {
-				case "ping":
+				case pingMetricName:
 					c.repinFromPeer(alrt.Peer)
 				}
 			}
