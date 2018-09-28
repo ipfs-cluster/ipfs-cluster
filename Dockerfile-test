@@ -1,4 +1,4 @@
-FROM golang:1.10-stretch AS builder
+FROM golang:1.11-stretch AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This build state just builds the cluster binaries
