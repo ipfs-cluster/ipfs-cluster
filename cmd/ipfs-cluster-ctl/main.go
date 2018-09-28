@@ -40,7 +40,7 @@ var (
 
 var logger = logging.Logger("cluster-ctl")
 
-var globalClient *client.Client
+var globalClient client.Client
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
@@ -172,7 +172,7 @@ requires authorization. implies --https, which you can disable with --force-http
 			checkErr("", errors.New("unsupported encoding"))
 		}
 
-		globalClient, err = client.NewClient(cfg)
+		globalClient, err = client.NewDefaultClient(cfg)
 		checkErr("creating API client", err)
 		return nil
 	}
@@ -494,7 +494,7 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						cerr := globalClient.Pin(ci, rplMin, rplMax, c.String("name"))
+						cerr := globalClient.Pin(&ci, rplMin, rplMax, c.String("name"))
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
@@ -539,7 +539,7 @@ although unpinning operations in the cluster may take longer or fail.
 						cidStr := c.Args().First()
 						ci, err := cid.Decode(cidStr)
 						checkErr("parsing cid", err)
-						cerr := globalClient.Unpin(ci)
+						cerr := globalClient.Unpin(&ci)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
@@ -583,7 +583,7 @@ The filter only takes effect when listing all pins. The possible values are:
 						if cidStr != "" {
 							ci, err := cid.Decode(cidStr)
 							checkErr("parsing cid", err)
-							resp, cerr := globalClient.Allocation(ci)
+							resp, cerr := globalClient.Allocation(&ci)
 							formatResponse(c, resp, cerr)
 						} else {
 							var filter api.PinType
@@ -624,7 +624,7 @@ contacted cluster peer. By default, status will be fetched from all peers.
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Status(ci, c.Bool("local"))
+					resp, cerr := globalClient.Status(&ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
 					resp, cerr := globalClient.StatusAll(c.Bool("local"))
@@ -660,7 +660,7 @@ operations on the contacted peer. By default, all peers will sync.
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Sync(ci, c.Bool("local"))
+					resp, cerr := globalClient.Sync(&ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
 					resp, cerr := globalClient.SyncAll(c.Bool("local"))
@@ -692,7 +692,7 @@ operations on the contacted peer (as opposed to on every peer).
 				if cidStr != "" {
 					ci, err := cid.Decode(cidStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Recover(ci, c.Bool("local"))
+					resp, cerr := globalClient.Recover(&ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
 					resp, cerr := globalClient.RecoverAll(c.Bool("local"))
@@ -877,7 +877,7 @@ func handlePinResponseFormatFlags(
 
 	if status.Cid == cid.Undef { // no status from "wait"
 		time.Sleep(time.Second)
-		status, cerr = globalClient.Status(ci, false)
+		status, cerr = globalClient.Status(&ci, false)
 	}
 	formatResponse(c, status, cerr)
 }
@@ -903,5 +903,5 @@ func waitFor(
 		CheckFreq: defaultWaitCheckFreq,
 	}
 
-	return globalClient.WaitFor(ctx, fp)
+	return client.WaitFor(ctx, globalClient, fp)
 }
