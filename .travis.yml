@@ -55,9 +55,21 @@ jobs:
         - make install
         - docker pull ipfs/go-ipfs
         - make test_sharness && make clean_sharness
-    - stage: "Snapcraft deployment stage"
+    - stage: "Snapcraft deployment stage (Stable)"
       name: "Deploy Snapcraft"
-      if: branch = master
+      if: (NOT type IN (pull_request)) AND (branch = master) AND (fork = false) AND (tag =~ ^v\d+\.\d+\.\d+$)
+      script:
+        - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && snapcraft && snapcraft push *.snap --release stable"
+    - stage: "Snapcraft deployment stage (Candidate)"
+      name: "Deploy Snapcraft"
+      if: (NOT type IN (pull_request)) AND (branch = master) AND (fork = false) AND (tag =~ ^v\d+\.\d+\.\d+-rc\d+$)
+      script:
+        - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && snapcraft && snapcraft push *.snap --release stable"
+    - stage: "Snapcraft deployment stage (Edge)"
+      name: "Deploy Snapcraft"
+      if: (NOT type IN (pull_request)) AND (branch = master) AND (fork = false) AND (tag IS NOT present)
       script:
         - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
         - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && snapcraft && snapcraft push *.snap --release edge"
