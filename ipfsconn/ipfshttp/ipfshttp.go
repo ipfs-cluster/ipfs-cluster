@@ -158,6 +158,8 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
+	// See: https://github.com/ipfs/ipfs-cluster/issues/548
+	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(false) // A reminder that this can be changed
 
 	c := &http.Client{} // timeouts are handled by context timeouts
