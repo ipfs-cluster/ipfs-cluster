@@ -202,6 +202,7 @@ var sortPinInfoByCid = func(p []api.PinInfo) {
 func testSlowMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
 	cfg := &maptracker.Config{}
 	cfg.Default()
+	cfg.ConcurrentPins = 1
 	mpt := maptracker.NewMapPinTracker(cfg, test.TestPeerID1, test.TestPeerName1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
@@ -210,6 +211,7 @@ func testSlowMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
 func testMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
 	cfg := &maptracker.Config{}
 	cfg.Default()
+	cfg.ConcurrentPins = 1
 	mpt := maptracker.NewMapPinTracker(cfg, test.TestPeerID1, test.TestPeerName1)
 	mpt.SetClient(test.NewMockRPCClient(t))
 	return mpt
