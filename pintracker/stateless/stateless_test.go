@@ -102,6 +102,7 @@ func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.
 func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
+	cfg.ConcurrentPins = 1
 	mpt := New(cfg, test.TestPeerID1, test.TestPeerName1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
@@ -110,6 +111,7 @@ func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 func testStatelessPinTracker(t testing.TB) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
+	cfg.ConcurrentPins = 1
 	spt := New(cfg, test.TestPeerID1, test.TestPeerName1)
 	spt.SetClient(test.NewMockRPCClient(t))
 	return spt
@@ -193,6 +195,11 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	}
 }
 
+// This tracks a slow CID and then tracks a fast/normal one.
+// Because we are pinning the slow CID, the fast one will stay
+// queued. We proceed to untrack it then. Since it was never
+// "pinning", it should simply be unqueued (or ignored), and no
+// cancelling of the pinning operation happens (unlike on WithCancel).
 func TestTrackUntrackWithNoCancel(t *testing.T) {
 	spt := testSlowStatelessPinTracker(t)
 	defer spt.Shutdown()
@@ -234,7 +241,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		// 	t.Fatal(ErrPinCancelCid)
 		// }
 	} else {
-		t.Error("fastPin should be queued to pin")
+		t.Errorf("fastPin should be queued to pin but is %s", fastPInfo.Status)
 	}
 
 	pi := spt.optracker.Get(fastPin.Cid)
