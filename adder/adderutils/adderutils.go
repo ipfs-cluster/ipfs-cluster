@@ -44,6 +44,10 @@ func AddMultipartHTTPHandler(
 	w.Header().Add("Content-Type", "application/json")
 	// Browsers should not cache when streaming content.
 	w.Header().Add("Cache-Control", "no-cache")
+	// We need to ask the clients to close the connection
+	// (no keep-alive) of things break badly when adding.
+	// https://github.com/ipfs/go-ipfs-cmds/pull/116
+	w.Header().Set("Connection", "close")
 	w.WriteHeader(http.StatusOK)
 
 	var wg sync.WaitGroup

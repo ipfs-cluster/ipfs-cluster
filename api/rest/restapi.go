@@ -115,7 +115,9 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
-	s.SetKeepAlivesEnabled(false)
+	// See: https://github.com/ipfs/ipfs-cluster/issues/548
+	// on why this is re-enabled.
+	s.SetKeepAlivesEnabled(true)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
