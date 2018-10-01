@@ -137,7 +137,7 @@ func TestPin(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Pin(&ci, 6, 7, "hello")
+		err := c.Pin(ci, 6, 7, "hello")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -152,7 +152,7 @@ func TestUnpin(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Unpin(&ci)
+		err := c.Unpin(ci)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -184,7 +184,7 @@ func TestAllocation(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Allocation(&ci)
+		pin, err := c.Allocation(ci)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -202,7 +202,7 @@ func TestStatus(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Status(&ci, false)
+		pin, err := c.Status(ci, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -238,7 +238,7 @@ func TestSync(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Sync(&ci, false)
+		pin, err := c.Sync(ci, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -274,7 +274,7 @@ func TestRecover(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Recover(&ci, false)
+		pin, err := c.Recover(ci, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -420,7 +420,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(&ci, 0, 0, "test")
+		err := c.Pin(ci, 0, 0, "test")
 		if err != nil {
 			t.Fatal(err)
 		}
