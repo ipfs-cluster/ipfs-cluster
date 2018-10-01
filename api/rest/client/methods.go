@@ -62,7 +62,7 @@ func (c *defaultClient) PeerRm(id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *defaultClient) Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error {
+func (c *defaultClient) Pin(ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error {
 	escName := url.QueryEscape(name)
 	err := c.do(
 		"POST",
@@ -81,7 +81,7 @@ func (c *defaultClient) Pin(ci *cid.Cid, replicationFactorMin, replicationFactor
 }
 
 // Unpin untracks a Cid from cluster.
-func (c *defaultClient) Unpin(ci *cid.Cid) error {
+func (c *defaultClient) Unpin(ci cid.Cid) error {
 	return c.do("DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
 }
 
@@ -118,7 +118,7 @@ func (c *defaultClient) Allocations(filter api.PinType) ([]api.Pin, error) {
 }
 
 // Allocation returns the current allocations for a given Cid.
-func (c *defaultClient) Allocation(ci *cid.Cid) (api.Pin, error) {
+func (c *defaultClient) Allocation(ci cid.Cid) (api.Pin, error) {
 	var pin api.PinSerial
 	err := c.do("GET", fmt.Sprintf("/allocations/%s", ci.String()), nil, nil, &pin)
 	return pin.ToPin(), err
@@ -127,7 +127,7 @@ func (c *defaultClient) Allocation(ci *cid.Cid) (api.Pin, error) {
 // Status returns the current ipfs state for a given Cid. If local is true,
 // the information affects only the current peer, otherwise the information
 // is fetched from all cluster peers.
-func (c *defaultClient) Status(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (c *defaultClient) Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
 	var gpi api.GlobalPinInfoSerial
 	err := c.do("GET", fmt.Sprintf("/pins/%s?local=%t", ci.String(), local), nil, nil, &gpi)
 	return gpi.ToGlobalPinInfo(), err
@@ -147,7 +147,7 @@ func (c *defaultClient) StatusAll(local bool) ([]api.GlobalPinInfo, error) {
 // Sync makes sure the state of a Cid corresponds to the state reported by
 // the ipfs daemon, and returns it. If local is true, this operation only
 // happens on the current peer, otherwise it happens on every cluster peer.
-func (c *defaultClient) Sync(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (c *defaultClient) Sync(ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
 	var gpi api.GlobalPinInfoSerial
 	err := c.do("POST", fmt.Sprintf("/pins/%s/sync?local=%t", ci.String(), local), nil, nil, &gpi)
 	return gpi.ToGlobalPinInfo(), err
@@ -170,7 +170,7 @@ func (c *defaultClient) SyncAll(local bool) ([]api.GlobalPinInfo, error) {
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
-func (c *defaultClient) Recover(ci *cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (c *defaultClient) Recover(ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
 	var gpi api.GlobalPinInfoSerial
 	err := c.do("POST", fmt.Sprintf("/pins/%s/recover?local=%t", ci.String(), local), nil, nil, &gpi)
 	return gpi.ToGlobalPinInfo(), err
@@ -295,7 +295,7 @@ func (sf *statusFilter) pollStatus(ctx context.Context, c Client, fp StatusFilte
 			sf.Err <- ctx.Err()
 			return
 		case <-ticker.C:
-			gblPinInfo, err := c.Status(&fp.Cid, fp.Local)
+			gblPinInfo, err := c.Status(fp.Cid, fp.Local)
 			if err != nil {
 				sf.Err <- err
 				return

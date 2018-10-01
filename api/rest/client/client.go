@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-ipfs-cmdkit/files"
+
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
@@ -46,7 +47,7 @@ type Client interface {
 	// PeerAdd adds a new peer to the cluster.
 	PeerAdd(pid peer.ID) (api.ID, error)
 	// PeerRm removes a current peer from the cluster
-	PeerRm(id peer.ID) error
+	PeerRm(pid peer.ID) error
 
 	// Add imports files to the cluster from the given paths.
 	Add(paths []string, params *api.AddParams, out chan<- *api.AddedOutput) error
@@ -55,20 +56,20 @@ type Client interface {
 
 	// Pin tracks a Cid with the given replication factor and a name for
 	// human-friendliness.
-	Pin(ci *cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error
+	Pin(ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error
 	// Unpin untracks a Cid from cluster.
-	Unpin(ci *cid.Cid) error
+	Unpin(ci cid.Cid) error
 
 	// Allocations returns the consensus state listing all tracked items
 	// and the peers that should be pinning them.
 	Allocations(filter api.PinType) ([]api.Pin, error)
 	// Allocation returns the current allocations for a given Cid.
-	Allocation(ci *cid.Cid) (api.Pin, error)
+	Allocation(ci cid.Cid) (api.Pin, error)
 
 	// Status returns the current ipfs state for a given Cid. If local is true,
 	// the information affects only the current peer, otherwise the information
 	// is fetched from all cluster peers.
-	Status(ci *cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
 	StatusAll(local bool) ([]api.GlobalPinInfo, error)
 
@@ -76,7 +77,7 @@ type Client interface {
 	// by the ipfs daemon, and returns it. If local is true, this operation
 	// only happens on the current peer, otherwise it happens on every
 	// cluster peer.
-	Sync(ci *cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Sync(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// SyncAll triggers Sync() operations for all tracked items. It only
 	// returns informations for items that were de-synced or have an error
 	// state. If local is true, the operation is limited to the current
@@ -86,7 +87,7 @@ type Client interface {
 	// Recover retriggers pin or unpin ipfs operations for a Cid in error
 	// state.  If local is true, the operation is limited to the current
 	// peer, otherwise it happens on every cluster peer.
-	Recover(ci *cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Recover(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// RecoverAll triggers Recover() operations on all tracked items. If
 	// local is true, the operation is limited to the current peer.
 	// Otherwise, it happens everywhere.
