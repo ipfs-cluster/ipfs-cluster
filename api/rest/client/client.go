@@ -96,6 +96,10 @@ type Client interface {
 	// Version returns the ipfs-cluster peer's version.
 	Version() (api.Version, error)
 
+	// IPFS returns an instance of go-ipfs-api's Shell, pointing to a
+	// Cluster's IPFS proxy endpoint.
+	IPFS() *shell.Shell
+
 	// GetConnectGraph returns an ipfs-cluster connection graph.  The
 	// serialized version, strings instead of pids, is returned
 	GetConnectGraph() (api.ConnectGraphSerial, error)
@@ -297,7 +301,7 @@ func (c *defaultClient) setupProxy() error {
 }
 
 // IPFS returns an instance of go-ipfs-api's Shell, pointing to the
-// configured ProxyAddr (or to the default ipfs-cluster's IPFS proxy port).
+// configured ProxyAddr (or to the default Cluster's IPFS proxy port).
 // It re-uses this Client's HTTP client, thus will be constrained by
 // the same configurations affecting it (timeouts...).
 func (c *defaultClient) IPFS() *shell.Shell {
