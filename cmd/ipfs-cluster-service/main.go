@@ -226,11 +226,10 @@ configuration.
 				saveConfig(cfgMgr, c.GlobalBool("force"))
 
 				// Clean up state
-				if c.GlobalBool("force") {
+				if c.GlobalBool("force") && yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
 					err = cleanupState(cfgs.consensusCfg)
 					checkErr("Cleaning up consensus data", err)
 					logger.Warningf("the %s folder has been rotated. Starting with an empty state", cfgs.consensusCfg.GetDataFolder())
-
 				}
 				return nil
 			},
