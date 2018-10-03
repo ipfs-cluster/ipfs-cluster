@@ -385,6 +385,12 @@ func (api *API) routes() []route {
 			"/health/graph",
 			api.graphHandler,
 		},
+		{
+			"PeerMonitorLatestMetrics",
+			"GET",
+			"/health/metrics/{name}",
+			api.metricsHandler,
+		},
 	}
 }
 
@@ -504,6 +510,19 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&graph)
 	api.sendResponse(w, autoStatus, err, graph)
+}
+
+func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	var metrics []types.Metric
+	err := api.rpcClient.Call("",
+		"Cluster",
+		"PeerMonitorLatestMetrics",
+		name,
+		&metrics)
+	sendResponse(w, err, metrics)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
