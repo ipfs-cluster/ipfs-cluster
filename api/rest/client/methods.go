@@ -204,9 +204,14 @@ func (c *defaultClient) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	return graphS, err
 }
 
-// WaitFor is a utility function that allows for a caller to
-// wait for a paticular status for a CID. It returns a channel
-// upon which the caller can wait for the targetStatus.
+// WaitFor is a utility function that allows for a caller to wait for a
+// paticular status for a CID (as defined by StatusFilterParams).
+// It returns the final status for that CID and an error, if there was.
+//
+// WaitFor works by calling Status() repeatedly and checking that all
+// peers have transitioned to the target TrackerStatus or are Remote.
+// If an error of some type happens, WaitFor returns immediately with an
+// empty GlobalPinInfo.
 func WaitFor(ctx context.Context, c Client, fp StatusFilterParams) (api.GlobalPinInfo, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
