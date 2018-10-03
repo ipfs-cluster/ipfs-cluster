@@ -573,7 +573,7 @@ func TestProxyAdd(t *testing.T) {
 				t.Fatalf("Bad response status: got = %d, want = %d", res.StatusCode, http.StatusOK)
 			}
 
-			var resp api.AddedOutput
+			var resp ipfsAddResp
 			dec := json.NewDecoder(res.Body)
 			for dec.More() {
 				err := dec.Decode(&resp)

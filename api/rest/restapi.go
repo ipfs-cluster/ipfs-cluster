@@ -516,27 +516,15 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = adderutils.AddMultipartHTTPHandler(
+	// any errors sent as trailer
+	adderutils.AddMultipartHTTPHandler(
 		api.ctx,
 		api.rpcClient,
 		params,
 		reader,
 		w,
+		nil,
 	)
-
-	if err != nil {
-		errorResp := types.AddedOutput{
-			Error: types.Error{
-				Code:    http.StatusInternalServerError,
-				Message: err.Error(),
-			},
-		}
-		enc := json.NewEncoder(w)
-
-		if err := enc.Encode(errorResp); err != nil {
-			logger.Error(err)
-		}
-	}
 
 	return
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	gopath "path"
-	"strconv"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -390,9 +389,9 @@ func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	}
 
 	out <- &api.AddedOutput{
-		Hash: dn.Cid().String(),
+		Cid:  dn.Cid().String(),
 		Name: name,
-		Size: strconv.FormatUint(s, 10),
+		Size: s,
 	}
 
 	return nil
@@ -413,7 +412,7 @@ func (i *progressReader) Read(p []byte) (int, error) {
 		i.lastProgress = i.bytes
 		i.out <- &api.AddedOutput{
 			Name:  i.file.FileName(),
-			Bytes: i.bytes,
+			Bytes: uint64(i.bytes),
 		}
 	}
 

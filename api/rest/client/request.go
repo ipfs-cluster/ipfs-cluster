@@ -119,7 +119,7 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 
 	if resp.StatusCode != http.StatusOK {
 		return &api.Error{
-			Code:    500,
+			Code:    resp.StatusCode,
 			Message: "expected streaming response with code 200",
 		}
 	}
@@ -128,11 +128,21 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 	for {
 		err := handler(dec)
 		if err == io.EOF {
-			return nil
+			// we need to check trailers
+			break
 		}
 		if err != nil {
 			logger.Error(err)
 			return err
 		}
 	}
+
+	errTrailer := resp.Trailer.Get("X-Stream-Error")
+	if errTrailer != "" {
+		return &api.Error{
+			Code:    500,
+			Message: errTrailer,
+		}
+	}
+	return nil
 }
