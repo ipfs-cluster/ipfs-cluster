@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -148,6 +149,14 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		return nil, err
 	}
 
+	nodeHTTPAddr := "http://" + nodeAddr
+	proxyURL, err := url.Parse(nodeHTTPAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	proxyHandler := httputil.NewSingleHostReverseProxy(proxyURL)
+
 	smux := http.NewServeMux()
 	s := &http.Server{
 		ReadTimeout:       cfg.ProxyReadTimeout,
@@ -178,10 +187,8 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		client:   c,
 	}
 
-	smux.HandleFunc("/", ipfs.defaultHandler)
-	smux.HandleFunc("/api/v0/pin/add", ipfs.pinHandler) // required for go1.9 as it doesn't redirect query args correctly
+	smux.Handle("/", proxyHandler)
 	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)
-	smux.HandleFunc("/api/v0/pin/rm", ipfs.unpinHandler) // required for go1.9 as it doesn't redirect query args correctly
 	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler)
 	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // required to handle /pin/ls for all pins
 	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
@@ -238,58 +245,6 @@ func (ipfs *Connector) run() {
 			return
 		}
 	}()
-}
-
-func (ipfs *Connector) proxyRequest(r *http.Request) (*http.Response, error) {
-	newURL := *r.URL
-	newURL.Host = ipfs.nodeAddr
-	newURL.Scheme = "http"
-
-	proxyReq, err := http.NewRequest(r.Method, newURL.String(), r.Body)
-	if err != nil {
-		logger.Error("error creating proxy request: ", err)
-		return nil, err
-	}
-
-	for k, v := range r.Header {
-		for _, s := range v {
-			proxyReq.Header.Add(k, s)
-		}
-	}
-
-	res, err := http.DefaultTransport.RoundTrip(proxyReq)
-	if err != nil {
-		logger.Error("error forwarding request: ", err)
-		return nil, err
-	}
-	return res, nil
-}
-
-// Writes a response to a ResponseWriter using the given body
-// (which maybe resp.Body or a copy if it was already used).
-func (ipfs *Connector) proxyResponse(w http.ResponseWriter, res *http.Response, body io.Reader) {
-	// Set response headers
-	for k, v := range res.Header {
-		for _, s := range v {
-			w.Header().Add(k, s)
-		}
-	}
-
-	w.WriteHeader(res.StatusCode)
-
-	// And copy body
-	io.Copy(w, body)
-}
-
-// defaultHandler just proxies the requests.
-func (ipfs *Connector) defaultHandler(w http.ResponseWriter, r *http.Request) {
-	res, err := ipfs.proxyRequest(r)
-	if err != nil {
-		ipfsErrorResponder(w, "error forwarding request: "+err.Error())
-		return
-	}
-	ipfs.proxyResponse(w, res, res.Body)
-	res.Body.Close()
 }
 
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
