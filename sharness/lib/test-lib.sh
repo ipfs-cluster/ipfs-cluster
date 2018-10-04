@@ -71,7 +71,7 @@ test_cluster_init() {
         echo "cluster init FAIL: ipfs-cluster-ctl not found"
         exit 1
     fi
-    printf "y" | ipfs-cluster-service -f --config "test-config" init >"$IPFS_OUTPUT" 2>&1
+    ipfs-cluster-service -f --config "test-config" init >"$IPFS_OUTPUT" 2>&1
     if [ $? -ne 0 ]; then
         echo "cluster init FAIL: error on ipfs cluster init"
         exit 1

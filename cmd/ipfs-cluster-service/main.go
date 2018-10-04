@@ -206,12 +206,41 @@ configuration.
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret",
 				},
+				cli.BoolFlag{
+					Name:  "force, f",
+					Usage: "forcefully proceed (without prompting) with overwriting configuration and cleaning up state",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
 
 				cfgMgr, cfgs := makeConfigs()
 				defer cfgMgr.Shutdown() // wait for saves
+
+				var alreadyInitialized bool
+				if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+					alreadyInitialized = true
+				}
+
+				if alreadyInitialized {
+					// acquire lock for config folder
+					err := locker.lock()
+					checkErr("acquiring execution lock", err)
+					defer locker.tryUnlock()
+
+					if !c.Bool("force") {
+						if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+							return nil
+						}
+					}
+
+					err = cfgMgr.LoadJSONFromFile(configPath)
+					checkErr("reading configuration", err)
+
+					err = cleanupState(cfgs.consensusCfg)
+					checkErr("Cleaning up consensus data", err)
+					logger.Warningf("the %s folder has been rotated. Starting with an empty state", cfgs.consensusCfg.GetDataFolder())
+				}
 
 				// Generate defaults for all registered components
 				err := cfgMgr.Default()
@@ -223,14 +252,7 @@ configuration.
 				}
 
 				// Save
-				saveConfig(cfgMgr, c.GlobalBool("force"))
-
-				// Clean up state
-				if c.GlobalBool("force") && yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
-					err = cleanupState(cfgs.consensusCfg)
-					checkErr("Cleaning up consensus data", err)
-					logger.Warningf("the %s folder has been rotated. Starting with an empty state", cfgs.consensusCfg.GetDataFolder())
-				}
+				saveConfig(cfgMgr)
 				return nil
 			},
 		},

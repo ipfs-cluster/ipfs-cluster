@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -67,12 +66,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	}
 }
 
-func saveConfig(cfg *config.Manager, force bool) {
-	if _, err := os.Stat(configPath); err == nil && !force {
-		err := fmt.Errorf("%s exists. Try running: %s -f init", configPath, programName)
-		checkErr("", err)
-	}
-
+func saveConfig(cfg *config.Manager) {
 	err := os.MkdirAll(filepath.Dir(configPath), 0700)
 	err = cfg.SaveJSON(configPath)
 	checkErr("saving new configuration", err)
