@@ -206,10 +206,6 @@ configuration.
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret",
 				},
-				cli.BoolFlag{
-					Name:  "force, f",
-					Usage: "forcefully proceed (without prompting) with overwriting configuration and cleaning up state",
-				},
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
@@ -372,12 +368,18 @@ snapshot to be loaded as the cluster state when the cluster peer is restarted.
 If an argument is provided, cluster will treat it as the path of the file to
 import.  If no argument is provided cluster will read json from stdin
 `,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "force, f",
+							Usage: "forcefully proceed with replacing peer state with the exported state, without prompting",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						if !c.GlobalBool("force") {
+						if !c.Bool("force") {
 							if !yesNoPrompt("The peer's state will be replaced.  Run with -h for details.  Continue? [y/n]:") {
 								return nil
 							}
@@ -410,12 +412,18 @@ this state from disk.  This command renames cluster's data folder to <data-folde
 deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
 the mth data folder (m currently defaults to 5)
 `,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "force, f",
+							Usage: "forcefully proceed with rotating peer state without prompting",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						if !c.GlobalBool("force") {
+						if !c.Bool("force") {
 							if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
 								return nil
 							}
