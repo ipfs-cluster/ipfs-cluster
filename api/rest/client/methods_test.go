@@ -459,7 +459,7 @@ func TestAddMultiFile(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for v := range out {
-				t.Logf("output: Name: %s. Hash: %s", v.Name, v.Hash)
+				t.Logf("output: Name: %s. Hash: %s", v.Name, v.Cid)
 			}
 		}()
 

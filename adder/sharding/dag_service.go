@@ -111,8 +111,8 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 
 	dgs.sendOutput(&api.AddedOutput{
 		Name: fmt.Sprintf("%s-clusterDAG", dgs.pinOpts.Name),
-		Hash: clusterDAG.String(),
-		Size: fmt.Sprintf("%d", dgs.totalSize),
+		Cid:  clusterDAG.String(),
+		Size: dgs.totalSize,
 	})
 
 	// Pin the ClusterDAG
@@ -270,8 +270,8 @@ func (dgs *DAGService) flushCurrentShard(ctx context.Context) (cid.Cid, error) {
 	dgs.currentShard = nil
 	dgs.sendOutput(&api.AddedOutput{
 		Name: fmt.Sprintf("shard-%d", lens),
-		Hash: shardCid.String(),
-		Size: fmt.Sprintf("%d", shard.Size()),
+		Cid:  shardCid.String(),
+		Size: shard.Size(),
 	})
 
 	return shard.LastLink(), nil

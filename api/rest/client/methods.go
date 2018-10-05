@@ -416,6 +416,8 @@ func (c *defaultClient) AddMultiFile(
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
 	queryStr := params.ToQueryString()
 
+	// our handler decodes an AddedOutput and puts it
+	// in the out channel.
 	handler := func(dec *json.Decoder) error {
 		if out == nil {
 			return nil
@@ -425,9 +427,7 @@ func (c *defaultClient) AddMultiFile(
 		if err != nil {
 			return err
 		}
-		select {
-		case out <- &obj:
-		}
+		out <- &obj
 		return nil
 	}
 

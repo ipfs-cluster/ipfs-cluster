@@ -13,11 +13,10 @@ var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 // AddedOutput carries information for displaying the standard ipfs output
 // indicating a node of a file has been added.
 type AddedOutput struct {
-	Error
-	Name  string
-	Hash  string `json:",omitempty"`
-	Bytes int64  `json:",omitempty"`
-	Size  string `json:",omitempty"`
+	Name  string `json:"name"`
+	Cid   string `json:"cid,omitempty"`
+	Bytes uint64 `json:"bytes,omitempty"`
+	Size  uint64 `json:"size,omitempty"`
 }
 
 // AddParams contains all of the configurable parameters needed to specify the

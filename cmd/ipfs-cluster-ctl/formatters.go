@@ -199,11 +199,7 @@ func textFormatPrintPin(obj *api.PinSerial) {
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
-	if obj.Error.Message != "" {
-		fmt.Println(obj.Error.Error())
-		return
-	}
-	fmt.Printf("added %s %s\n", obj.Hash, obj.Name)
+	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
 }
 
 func textFormatPrintError(obj *api.Error) {

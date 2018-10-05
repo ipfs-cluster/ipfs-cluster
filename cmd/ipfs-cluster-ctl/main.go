@@ -401,13 +401,13 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 
 						// Print last hash only
 						if c.Bool("quieter") {
-							last = v.Hash
+							last = v.Cid
 							continue
 						}
 
 						// Print hashes only
 						if c.Bool("quiet") {
-							fmt.Println(v.Hash)
+							fmt.Println(v.Cid)
 							continue
 						}
 

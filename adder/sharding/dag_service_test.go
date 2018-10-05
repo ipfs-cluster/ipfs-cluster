@@ -76,7 +76,7 @@ func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
 
 	go func() {
 		for v := range out {
-			t.Logf("Output: Name: %s. Cid: %s. Size: %s", v.Name, v.Hash, v.Size)
+			t.Logf("Output: Name: %s. Cid: %s. Size: %d", v.Name, v.Cid, v.Size)
 		}
 	}()
 

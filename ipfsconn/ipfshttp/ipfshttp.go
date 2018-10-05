@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -96,10 +97,12 @@ type ipfsIDResp struct {
 	Addresses []string
 }
 
+// From https://github.com/ipfs/go-ipfs/blob/master/core/coreunix/add.go#L49
 type ipfsAddResp struct {
 	Name  string
-	Hash  string
-	Bytes uint64
+	Hash  string `json:",omitempty"`
+	Bytes int64  `json:",omitempty"`
+	Size  string `json:",omitempty"`
 }
 
 type ipfsSwarmPeersResp struct {
@@ -379,14 +382,16 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Warningf("Proxy/add does not support all IPFS params. Current options: %+v", params)
 
-	sendAddingError := func(err error) {
-		errorResp := ipfsError{
-			Message: err.Error(),
+	outputTransform := func(in *api.AddedOutput) interface{} {
+		r := &ipfsAddResp{
+			Name:  in.Name,
+			Hash:  in.Cid,
+			Bytes: int64(in.Bytes),
 		}
-		enc := json.NewEncoder(w)
-		if err := enc.Encode(errorResp); err != nil {
-			logger.Error(err)
+		if in.Size != 0 {
+			r.Size = strconv.FormatUint(in.Size, 10)
 		}
+		return r
 	}
 
 	root, err := adderutils.AddMultipartHTTPHandler(
@@ -395,10 +400,11 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 		params,
 		reader,
 		w,
+		outputTransform,
 	)
 
+	// any errors have been sent as Trailer
 	if err != nil {
-		sendAddingError(err)
 		return
 	}
 
@@ -417,7 +423,7 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 		&struct{}{},
 	)
 	if err != nil {
-		sendAddingError(err)
+		w.Header().Set("X-Stream-Error", err.Error())
 		return
 	}
 }
