@@ -225,7 +225,7 @@ configuration.
 					defer locker.tryUnlock()
 
 					if !c.Bool("force") {
-						if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+						if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.\nConfiguration(service.json) will be overwritten.  Continue? [y/n]:") {
 							return nil
 						}
 					}
