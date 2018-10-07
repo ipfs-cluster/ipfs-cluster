@@ -103,6 +103,10 @@ type Client interface {
 	// GetConnectGraph returns an ipfs-cluster connection graph.  The
 	// serialized version, strings instead of pids, is returned
 	GetConnectGraph() (api.ConnectGraphSerial, error)
+
+	// PeerMonitorLatestMetrics returns a map with the latest metrics of matching name
+	// for the current cluster peers.
+	PeerMonitorLatestMetrics(name string) ([]api.Metric, error)
 }
 
 // Config allows to configure the parameters to connect
