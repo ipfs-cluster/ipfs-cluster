@@ -3,19 +3,26 @@ package pubsubmon
 import (
 	"context"
 	"fmt"
+
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	floodsub "github.com/libp2p/go-floodsub"
 	libp2p "github.com/libp2p/go-libp2p"
 	peer "github.com/libp2p/go-libp2p-peer"
-
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
+
+func init() {
+	// GossipSub needs to heartbeat to discover newly connected hosts
+	// This speeds things up a little.
+	floodsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
+}
 
 type metricFactory struct {
 	l       sync.Mutex
