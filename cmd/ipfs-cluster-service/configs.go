@@ -60,6 +60,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	return cfg, &cfgs{
 		clusterCfg,
 		apiCfg,
+		ipfsproxyCfg,
 		ipfshttpCfg,
 		consensusCfg,
 		maptrackerCfg,

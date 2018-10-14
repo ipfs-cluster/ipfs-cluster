@@ -177,6 +177,7 @@ func (c *Cluster) setupRPCClients() {
 	c.tracker.SetClient(c.rpcClient)
 	c.ipfs.SetClient(c.rpcClient)
 	c.api.SetClient(c.rpcClient)
+	c.proxy.SetClient(c.rpcClient)
 	c.consensus.SetClient(c.rpcClient)
 	c.monitor.SetClient(c.rpcClient)
 	c.allocator.SetClient(c.rpcClient)

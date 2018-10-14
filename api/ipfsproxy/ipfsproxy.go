@@ -7,21 +7,22 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"net/rpc"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
 	peer "github.com/libp2p/go-libp2p-peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
+
+	"github.com/ipfs/ipfs-cluster/adder/adderutils"
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module

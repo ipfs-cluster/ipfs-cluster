@@ -163,6 +163,32 @@ func (ipfs *Connector) run() {
 	}()
 }
 
+// SetClient makes the component ready to perform RPC
+// requests.
+func (ipfs *Connector) SetClient(c *rpc.Client) {
+	ipfs.rpcClient = c
+	ipfs.rpcReady <- struct{}{}
+}
+
+// Shutdown stops any listeners and stops the component from taking
+// any requests.
+func (ipfs *Connector) Shutdown() error {
+	ipfs.shutdownLock.Lock()
+	defer ipfs.shutdownLock.Unlock()
+
+	if ipfs.shutdown {
+		logger.Debug("already shutdown")
+		return nil
+	}
+
+	ipfs.cancel()
+	close(ipfs.rpcReady)
+
+	ipfs.wg.Wait()
+	ipfs.shutdown = true
+	return nil
+}
+
 // ID performs an ID request against the configured
 // IPFS daemon. It returns the fetched information.
 // If the request fails, or the parsing fails, it

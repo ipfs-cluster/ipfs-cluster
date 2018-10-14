@@ -9,6 +9,7 @@ var logger = logging.Logger("cluster")
 var LoggingFacilities = map[string]string{
 	"cluster":      "INFO",
 	"restapi":      "INFO",
+	"ipfsproxy":    "INFO",
 	"ipfshttp":     "INFO",
 	"monitor":      "INFO",
 	"mapstate":     "INFO",

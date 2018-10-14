@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/config"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/ipfs/ipfs-cluster/config"
 )
 
 const configKey = "ipfsproxy"
@@ -46,6 +47,19 @@ type Config struct {
 	// Server-side amount of time a Keep-Alive connection will be
 	// kept idle before being reused
 	ProxyIdleTimeout time.Duration
+
+	// IPFS Daemon HTTP Client POST timeout
+	IPFSRequestTimeout time.Duration
+}
+
+type jsonConfig struct {
+	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress"`
+	NodeMultiaddress        string `json:"node_multiaddress"`
+	ProxyReadTimeout        string `json:"proxy_read_timeout"`
+	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout"`
+	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
+	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
+	IPFSRequestTimeout      string `json:"ipfs_request_timeout"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
