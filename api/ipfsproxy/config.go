@@ -23,13 +23,12 @@ const (
 	DefaultIPFSRequestTimeout     = 5 * time.Minute
 )
 
-// Config is used to initialize a Connector and allows to customize
-// its behaviour. It implements the config.ComponentConfig interface.
+// Config allows to customize behaviour of IPFSProxy.
+// It implements the config.ComponentConfig interface.
 type Config struct {
 	config.Saver
 
-	// Listen parameters for the IPFS Proxy. Used by the IPFS
-	// connector component.
+	// Listen parameters for the IPFS Proxy.
 	ProxyAddr ma.Multiaddr
 
 	// Host/Port for the IPFS daemon.
@@ -37,6 +36,7 @@ type Config struct {
 
 	// Maximum duration before timing out reading a full request
 	ProxyReadTimeout time.Duration
+
 	// Maximum duration before timing out reading the headers of a request
 	ProxyReadHeaderTimeout time.Duration
 
@@ -138,8 +138,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	config.SetIfNotDefault(jcfg.PinMethod, &cfg.PinMethod)
-
 	return cfg.Validate()
 }
 
@@ -161,7 +159,6 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ProxyReadHeaderTimeout = cfg.ProxyReadHeaderTimeout.String()
 	jcfg.ProxyWriteTimeout = cfg.ProxyWriteTimeout.String()
 	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
-	jcfg.PinMethod = cfg.PinMethod
 	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)

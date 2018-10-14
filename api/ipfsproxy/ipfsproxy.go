@@ -76,6 +76,7 @@ type ipfsAddResp struct {
 	Size  string `json:",omitempty"`
 }
 
+// NewIPFSProxy returns and IPFSProxy component
 func NewIPFSProxy(cfg *Config) (*IPFSProxy, error) {
 	err := cfg.Validate()
 	if err != nil {
@@ -144,7 +145,9 @@ func NewIPFSProxy(cfg *Config) (*IPFSProxy, error) {
 		server:   s,
 	}
 	smux.Handle("/", proxyHandler)
+	smux.HandleFunc("/api/v0/pin/add", ipfs.pinHandler)
 	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)
+	smux.HandleFunc("/api/v0/pin/rm", ipfs.unpinHandler)
 	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler)
 	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // required to handle /pin/ls for all pins
 	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
