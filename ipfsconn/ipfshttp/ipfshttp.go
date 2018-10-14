@@ -11,7 +11,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -585,27 +584,6 @@ func (ipfs *Connector) BlockGet(c cid.Cid) ([]byte, error) {
 	defer cancel()
 	url := "block/get?arg=" + c.String()
 	return ipfs.postCtx(ctx, url, "", nil)
-}
-
-// extractArgument extracts the cid argument from a url.URL, either via
-// the query string parameters or from the url path itself.
-func extractArgument(u *url.URL) (string, bool) {
-	arg := u.Query().Get("arg")
-	if arg != "" {
-		return arg, true
-	}
-
-	p := strings.TrimPrefix(u.Path, "/api/v0/")
-	segs := strings.Split(p, "/")
-
-	if len(segs) > 2 {
-		warnMsg := "You are using an undocumented form of the IPFS API."
-		warnMsg += "Consider passing your command arguments"
-		warnMsg += "with the '?arg=' query parameter"
-		logger.Warning(warnMsg)
-		return segs[len(segs)-1], true
-	}
-	return "", false
 }
 
 // Returns true every updateMetricsMod-th time that we
