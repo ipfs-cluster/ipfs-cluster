@@ -15,17 +15,12 @@ const configKey = "ipfshttp"
 
 // Default values for Config.
 const (
-	DefaultProxyAddr              = "/ip4/127.0.0.1/tcp/9095"
-	DefaultNodeAddr               = "/ip4/127.0.0.1/tcp/5001"
-	DefaultConnectSwarmsDelay     = 30 * time.Second
-	DefaultProxyReadTimeout       = 0
-	DefaultProxyReadHeaderTimeout = 5 * time.Second
-	DefaultProxyWriteTimeout      = 0
-	DefaultProxyIdleTimeout       = 60 * time.Second
-	DefaultPinMethod              = "refs"
-	DefaultIPFSRequestTimeout     = 5 * time.Minute
-	DefaultPinTimeout             = 24 * time.Hour
-	DefaultUnpinTimeout           = 3 * time.Hour
+	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
+	DefaultConnectSwarmsDelay = 30 * time.Second
+	DefaultPinMethod          = "refs"
+	DefaultIPFSRequestTimeout = 5 * time.Minute
+	DefaultPinTimeout         = 24 * time.Hour
+	DefaultUnpinTimeout       = 3 * time.Hour
 )
 
 // Config is used to initialize a Connector and allows to customize

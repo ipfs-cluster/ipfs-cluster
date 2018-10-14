@@ -187,8 +187,7 @@ func (ipfs *IPFSProxy) Shutdown() error {
 	return nil
 }
 
-// launches proxy and connects all ipfs daemons when
-// we receive the rpcReady signal.
+// launches proxy when we receive the rpcReady signal.
 func (ipfs *IPFSProxy) run() {
 	<-ipfs.rpcReady
 
@@ -223,7 +222,7 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	return
 }
 
-func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
+func (ipfs *IPFSProxy) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
 	arg, ok := extractArgument(r.URL)
 	if !ok {
 		ipfsErrorResponder(w, "Error: bad argument")
@@ -257,15 +256,15 @@ func (ipfs *Connector) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 	return
 }
 
-func (ipfs *Connector) pinHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *IPFSProxy) pinHandler(w http.ResponseWriter, r *http.Request) {
 	ipfs.pinOpHandler("Pin", w, r)
 }
 
-func (ipfs *Connector) unpinHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *IPFSProxy) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	ipfs.pinOpHandler("Unpin", w, r)
 }
 
-func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *IPFSProxy) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
@@ -318,7 +317,7 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resBytes)
 }
 
-func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *IPFSProxy) addHandler(w http.ResponseWriter, r *http.Request) {
 	reader, err := r.MultipartReader()
 	if err != nil {
 		ipfsErrorResponder(w, "error reading request: "+err.Error())
@@ -392,7 +391,7 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ipfs *Connector) repoStatHandler(w http.ResponseWriter, r *http.Request) {
+func (ipfs *IPFSProxy) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	var peers []peer.ID
 	err := ipfs.rpcClient.Call(
 		"",

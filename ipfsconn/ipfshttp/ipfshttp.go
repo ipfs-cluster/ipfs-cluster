@@ -133,7 +133,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	return ipfs, nil
 }
 
-// launches proxy and connects all ipfs daemons when
+// launches connects all ipfs daemons when
 // we receive the rpcReady signal.
 func (ipfs *Connector) run() {
 	<-ipfs.rpcReady

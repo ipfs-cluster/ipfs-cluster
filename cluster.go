@@ -49,6 +49,7 @@ type Cluster struct {
 
 	consensus Consensus
 	api       API
+	proxy     API
 	ipfs      IPFSConnector
 	state     state.State
 	tracker   PinTracker
@@ -78,6 +79,7 @@ func NewCluster(
 	cfg *Config,
 	consensus Consensus,
 	api API,
+	proxy API,
 	ipfs IPFSConnector,
 	st state.State,
 	tracker PinTracker,
@@ -131,6 +133,7 @@ func NewCluster(
 		dht:         idht,
 		consensus:   consensus,
 		api:         api,
+		proxy:       proxy,
 		ipfs:        ipfs,
 		state:       st,
 		tracker:     tracker,
