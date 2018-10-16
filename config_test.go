@@ -50,7 +50,19 @@ var testingAPICfg = []byte(`{
     "read_timeout": "0",
     "read_header_timeout": "5s",
     "write_timeout": "0",
-    "idle_timeout": "2m0s"
+    "idle_timeout": "2m0s",
+    "headers": {
+      "Access-Control-Allow-Headers": [
+        "X-Requested-With",
+        "Range"
+      ],
+      "Access-Control-Allow-Methods": [
+        "GET"
+      ],
+      "Access-Control-Allow-Origin": [
+        "*"
+      ]
+    }
 }`)
 
 var testingIpfsCfg = []byte(`{
