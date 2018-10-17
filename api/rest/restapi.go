@@ -863,7 +863,7 @@ func pinInfosToGlobal(pInfos []types.PinInfoSerial) []types.GlobalPinInfoSerial 
 // sendResponse wraps all the logic for writing the response to a request:
 // * Write configured headers
 // * Write application/json content type
-// * Write status: determined automatically if given 0
+// * Write status: determined automatically if given "autoStatus"
 // * Write an error if there is or write the response if there is
 func (api *API) sendResponse(
 	w http.ResponseWriter,
