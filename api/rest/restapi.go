@@ -193,7 +193,7 @@ func (api *API) setupLibp2p(ctx context.Context) error {
 		return nil
 	}
 
-	l, err := gostream.Listen(api.host, p2phttp.P2PProtocol)
+	l, err := gostream.Listen(api.host, p2phttp.DefaultP2PProtocol)
 	if err != nil {
 		return err
 	}
