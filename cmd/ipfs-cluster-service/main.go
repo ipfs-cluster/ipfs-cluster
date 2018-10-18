@@ -30,7 +30,10 @@ const (
 	defaultLogLevel   = "info"
 )
 
-const stateCleanupPrompt = "The peer's state will be removed from the load path.  Existing pins may be lost.\nConfiguration(service.json) will be overwritten.  Continue? [y/n]:"
+const (
+	stateCleanupPrompt           = "The peer's state will be removed from the load path.  Existing pins may be lost."
+	configurationOverwritePrompt = "Configuration(service.json) will be overwritten."
+)
 
 // We store a commit id here
 var commit string
@@ -226,16 +229,15 @@ configuration.
 					checkErr("acquiring execution lock", err)
 					defer locker.tryUnlock()
 
-					if !c.Bool("force") && !yesNoPrompt(stateCleanupPrompt) {
+					if !c.Bool("force") && !yesNoPrompt(fmt.Sprintf("%s\n%s Continue? [y/n]:", stateCleanupPrompt, configurationOverwritePrompt)) {
 						return nil
 					}
 
 					err = cfgMgr.LoadJSONFromFile(configPath)
 					checkErr("reading configuration", err)
 
-					warn, err := cleanupState(cfgs.consensusCfg)
+					err = cleanupState(cfgs.consensusCfg)
 					checkErr("Cleaning up consensus data", err)
-					logger.Warningf(warn)
 				}
 
 				// Generate defaults for all registered components
@@ -424,7 +426,7 @@ the mth data folder (m currently defaults to 5)
 						defer locker.tryUnlock()
 
 						if !c.Bool("force") {
-							if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+							if !yesNoPrompt(fmt.Sprintf("%s Continue? [y/n]:", stateCleanupPrompt)) {
 								return nil
 							}
 						}
@@ -433,9 +435,8 @@ the mth data folder (m currently defaults to 5)
 						err = cfgMgr.LoadJSONFromFile(configPath)
 						checkErr("reading configuration", err)
 
-						warn, err := cleanupState(cfgs.consensusCfg)
+						err = cleanupState(cfgs.consensusCfg)
 						checkErr("Cleaning up consensus data", err)
-						logger.Warningf(warn)
 						return nil
 					},
 				},

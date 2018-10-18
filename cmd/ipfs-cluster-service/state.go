@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -166,11 +165,11 @@ func exportState(state *mapstate.MapState, w io.Writer) error {
 }
 
 // CleanupState cleans the state
-func cleanupState(cCfg *raft.Config) (string, error) {
+func cleanupState(cCfg *raft.Config) error {
 	err := raft.CleanupRaft(cCfg.GetDataFolder(), cCfg.BackupsRotate)
-	if err != nil {
-		return "", err
+	if err == nil {
+		logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cCfg.GetDataFolder())
 	}
 
-	return fmt.Sprintf("the %s folder has been rotated. Next start will use an empty state", cCfg.GetDataFolder()), nil
+	return err
 }
