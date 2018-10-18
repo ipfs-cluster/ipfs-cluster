@@ -25,12 +25,12 @@ import (
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	libp2p "github.com/libp2p/go-libp2p"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -196,7 +196,7 @@ func (api *API) setupLibp2p(ctx context.Context) error {
 		return nil
 	}
 
-	l, err := gostream.Listen(api.host, p2phttp.P2PProtocol)
+	l, err := gostream.Listen(api.host, p2phttp.DefaultP2PProtocol)
 	if err != nil {
 		return err
 	}

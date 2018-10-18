@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 func init() {

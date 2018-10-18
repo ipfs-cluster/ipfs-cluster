@@ -16,8 +16,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	peer "github.com/libp2p/go-libp2p-peer"

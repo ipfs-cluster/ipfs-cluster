@@ -13,9 +13,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/api"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 var logger = logging.Logger("adder")

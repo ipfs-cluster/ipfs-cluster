@@ -10,9 +10,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	logging "github.com/ipfs/go-log"
 	floodsub "github.com/libp2p/go-floodsub"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	msgpack "github.com/multiformats/go-multicodec/msgpack"

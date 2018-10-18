@@ -39,7 +39,7 @@ jobs:
         - go test -v . -tracker stateless
     - name: "Golint and go vet"
       script:
-        - go get -u github.com/golang/lint/golint
+        - go get -u golang.org/x/lint/golint
         - make deps
         - make check
         - make service
