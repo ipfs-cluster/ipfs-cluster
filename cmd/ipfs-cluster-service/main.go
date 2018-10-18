@@ -30,6 +30,8 @@ const (
 	defaultLogLevel   = "info"
 )
 
+const stateCleanupPrompt = "The peer's state will be removed from the load path.  Existing pins may be lost.\nConfiguration(service.json) will be overwritten.  Continue? [y/n]:"
+
 // We store a commit id here
 var commit string
 
@@ -224,18 +226,16 @@ configuration.
 					checkErr("acquiring execution lock", err)
 					defer locker.tryUnlock()
 
-					if !c.Bool("force") {
-						if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.\nConfiguration(service.json) will be overwritten.  Continue? [y/n]:") {
-							return nil
-						}
+					if !c.Bool("force") && !yesNoPrompt(stateCleanupPrompt) {
+						return nil
 					}
 
 					err = cfgMgr.LoadJSONFromFile(configPath)
 					checkErr("reading configuration", err)
 
-					err = cleanupState(cfgs.consensusCfg)
+					warn, err := cleanupState(cfgs.consensusCfg)
 					checkErr("Cleaning up consensus data", err)
-					logger.Warningf("the %s folder has been rotated. Starting with an empty state", cfgs.consensusCfg.GetDataFolder())
+					logger.Warningf(warn)
 				}
 
 				// Generate defaults for all registered components
@@ -371,7 +371,7 @@ import.  If no argument is provided cluster will read json from stdin
 					Flags: []cli.Flag{
 						cli.BoolFlag{
 							Name:  "force, f",
-							Usage: "forcefully proceed with replacing peer state with the exported state, without prompting",
+							Usage: "forcefully proceed with replacing the current state with the given one, without prompting",
 						},
 					},
 					Action: func(c *cli.Context) error {
@@ -433,9 +433,9 @@ the mth data folder (m currently defaults to 5)
 						err = cfgMgr.LoadJSONFromFile(configPath)
 						checkErr("reading configuration", err)
 
-						err = cleanupState(cfgs.consensusCfg)
+						warn, err := cleanupState(cfgs.consensusCfg)
 						checkErr("Cleaning up consensus data", err)
-						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cfgs.consensusCfg.GetDataFolder())
+						logger.Warningf(warn)
 						return nil
 					},
 				},
