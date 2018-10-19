@@ -782,7 +782,6 @@ func (c *Cluster) SyncAllLocal() ([]api.PinInfo, error) {
 	// They encapsulate the error.
 	if err != nil {
 		logger.Error("tracker.Sync() returned with error: ", err)
-		logger.Error("Is the ipfs daemon running?")
 	}
 	return syncedItems, err
 }
@@ -798,6 +797,7 @@ func (c *Cluster) localPinInfoOp(
 	h cid.Cid,
 	f func(cid.Cid) (api.PinInfo, error),
 ) (pInfo api.PinInfo, err error) {
+
 	cids, err := c.cidsFromMetaPin(h)
 	if err != nil {
 		return api.PinInfo{}, err
@@ -806,8 +806,7 @@ func (c *Cluster) localPinInfoOp(
 	for _, ci := range cids {
 		pInfo, err = f(ci)
 		if err != nil {
-			logger.Error("tracker.SyncCid() returned with error: ", err)
-			logger.Error("Is the ipfs daemon running?")
+			logger.Error("tracker operation returned with error: ", err)
 			break
 		}
 	}
@@ -1031,7 +1030,7 @@ func (c *Cluster) Unpin(h cid.Cid) error {
 		return errors.New(err)
 	case api.MetaType:
 		// Unpin cluster dag and referenced shards
-		err := c.unpinClusterDag(pin)
+		err := c.unpinClusterDAG(pin)
 		if err != nil {
 			return err
 		}
@@ -1044,19 +1043,38 @@ func (c *Cluster) Unpin(h cid.Cid) error {
 	}
 }
 
-// unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
+// unpinClusterDAG unpins the clusterDAG metadata node and the shard metadata
 // nodes that it references.  It handles the case where multiple parents
 // reference the same metadata node, only unpinning those nodes without
 // existing references
-func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
+func (c *Cluster) unpinClusterDAG(metaPin api.Pin) error {
 	cids, err := c.cidsFromMetaPin(metaPin.Cid)
 	if err != nil {
 		return err
 	}
 
-	// TODO: FIXME: potentially unpinning shards which are referenced
-	// by other clusterDAGs.
+	// shardMap counts how many times our shards are referenced by meta pins
+	shardMap := make(map[cid.Cid]int)
+	pins := c.Pins()
+	for _, p := range pins {
+		if p.Type != api.ClusterDAGType {
+			continue
+		}
+		shards, err := c.getShards(p.Cid)
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+		for _, sh := range shards {
+			shardMap[sh] = shardMap[sh] + 1
+		}
+	}
+
 	for _, ci := range cids {
+		// do not unpin shards with more than 1 reference
+		if n := shardMap[ci]; n > 1 {
+			continue
+		}
 		err = c.consensus.LogUnpin(api.PinCid(ci))
 		if err != nil {
 			return err
@@ -1284,6 +1302,7 @@ func (c *Cluster) cidsFromMetaPin(h cid.Cid) ([]cid.Cid, error) {
 		return nil, err
 	}
 
+	// Prepend metaPin CID
 	list := []cid.Cid{h}
 
 	pin, ok := cState.Get(h)
@@ -1295,25 +1314,39 @@ func (c *Cluster) cidsFromMetaPin(h cid.Cid) ([]cid.Cid, error) {
 		return list, nil
 	}
 
+	// prepend clusterDAG CID
 	list = append([]cid.Cid{pin.Reference}, list...)
-	clusterDagPin, err := c.PinGet(pin.Reference)
+	shards, err := c.getShards(pin.Reference)
 	if err != nil {
-		return list, fmt.Errorf("could not get clusterDAG pin from state. Malformed pin?: %s", err)
+		return list, err
 	}
 
-	clusterDagBlock, err := c.ipfs.BlockGet(clusterDagPin.Cid)
+	// prepend shard CIDs
+	list = append(shards, list...)
+
+	return list, nil
+}
+
+func (c *Cluster) getShards(clusterDAGCid cid.Cid) ([]cid.Cid, error) {
+	clusterDAGPin, err := c.PinGet(clusterDAGCid)
+	list := []cid.Cid{}
+	if err != nil {
+		return list, fmt.Errorf("could not get clusterDAG pin object from state: %s", err)
+	}
+
+	clusterDAGBlock, err := c.ipfs.BlockGet(clusterDAGPin.Cid)
 	if err != nil {
 		return list, fmt.Errorf("error reading clusterDAG block from ipfs: %s", err)
 	}
 
-	clusterDagNode, err := sharding.CborDataToNode(clusterDagBlock, "cbor")
+	clusterDAGNode, err := sharding.CborDataToNode(clusterDAGBlock, "cbor")
 	if err != nil {
 		return list, fmt.Errorf("error parsing clusterDAG block: %s", err)
 	}
-	for _, l := range clusterDagNode.Links() {
-		list = append([]cid.Cid{l.Cid}, list...)
-	}
 
+	for _, l := range clusterDAGNode.Links() {
+		list = append(list, l.Cid)
+	}
 	return list, nil
 }
 

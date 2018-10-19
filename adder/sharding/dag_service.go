@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/adder"
@@ -92,9 +91,13 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 		return lastCid, err
 	}
 
-	if !lastCid.Equals(dataRoot) {
-		logger.Warningf("the last added CID (%s) is not the IPFS data root (%s). This is only normal when adding a single file without wrapping in directory.", lastCid, dataRoot)
-	}
+	// The IPFS Adder leaks the CID wrap. It's added to the DAGService,
+	// but the first children is returned when not wrapping.
+	// Thus, we comment this warning, but leave it as an explanation on why
+	// lastCid and dataRoot are different, also when adding a directory.
+	// if !lastCid.Equals(dataRoot) {
+	// 	logger.Warningf("the last added CID (%s) is not the IPFS data root (%s). This is only normal when adding a single file without wrapping in directory.", lastCid, dataRoot)
+	// }
 
 	clusterDAGNodes, err := makeDAG(ctx, dgs.shards)
 	if err != nil {
@@ -191,7 +194,7 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n *api.NodeWithMeta) err
 		return adder.PutBlock(ctx, dgs.rpcClient, n, shard.Allocations())
 	}
 
-	logger.Debugf("shard %d full: block: %d. shard: %d. limit: %d",
+	logger.Infof("shard #%d full: block: %d. shard: %d. limit: %d",
 		len(dgs.shards),
 		n.Size(),
 		shard.Size(),
