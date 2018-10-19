@@ -137,7 +137,7 @@ func TestPin(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Pin(ci, 6, 7, "hello")
+		err := c.Pin(ci, 6, 7, "hello there")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -443,7 +443,7 @@ func TestAddMultiFile(t *testing.T) {
 			PinOptions: types.PinOptions{
 				ReplicationFactorMin: -1,
 				ReplicationFactorMax: -1,
-				Name:                 "test",
+				Name:                 "test something",
 				ShardSize:            1024,
 			},
 			Shard:     false,
