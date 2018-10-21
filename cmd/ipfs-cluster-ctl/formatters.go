@@ -216,12 +216,7 @@ func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
-	fmt.Printf("{\n")
-	fmt.Printf("	Peer:   %s\n", (obj.Peer).String())
-	fmt.Printf("	Value:  %s\n", obj.Value)
-	fmt.Printf("	Expire: %d\n", obj.Expire)
-	fmt.Printf("	Expire: %t\n", obj.Valid)
-	fmt.Printf("}\n")
+	fmt.Printf("%s: %s | Expire : %d\n", obj.Peer.Pretty(), obj.Value, obj.Expire)
 }
 
 func textFormatPrintError(obj *api.Error) {

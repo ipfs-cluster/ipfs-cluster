@@ -386,9 +386,9 @@ func (api *API) routes() []route {
 			api.graphHandler,
 		},
 		{
-			"PeerMonitorLatestMetrics",
+			"Metrics",
 			"GET",
-			"/health/metrics/{name}",
+			"/monitor/metrics/{name}",
 			api.metricsHandler,
 		},
 	}
@@ -522,7 +522,7 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		"PeerMonitorLatestMetrics",
 		name,
 		&metrics)
-	sendResponse(w, err, metrics)
+	api.sendResponse(w, autoStatus, err, metrics)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {

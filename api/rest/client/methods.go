@@ -204,11 +204,11 @@ func (c *defaultClient) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	return graphS, err
 }
 
-// PeerMonitorLatestMetrics returns a map with the latest metrics of matching name
+// Metrics returns a map with the latest metrics of matching name
 // for the current cluster peers.
-func (c *defaultClient) PeerMonitorLatestMetrics(name string) ([]api.Metric, error) {
+func (c *defaultClient) Metrics(name string) ([]api.Metric, error) {
 	var metrics []api.Metric
-	err := c.do("GET", fmt.Sprintf("/health/metrics/%s", name), nil, nil, &metrics)
+	err := c.do("GET", fmt.Sprintf("/monitor/metrics/%s", name), nil, nil, &metrics)
 	return metrics, err
 }
 

@@ -764,14 +764,14 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 				},
 				{
 					Name:  "metrics",
-					Usage: "Get latest metrics of matching name for the current cluster peers.",
+					Usage: "List latest metrics logged by this peer",
 					Description: `
-This command would show the peers and the last list of metrics logged for each as
-returned by the Peer Monitor, in a friendly way.
+This commands displays the latest valid metrics of the given type logged
+by this peer for all current cluster peers.
 `,
 					ArgsUsage: "Metric name",
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.PeerMonitorLatestMetrics(c.Args().First())
+						resp, cerr := globalClient.Metrics(c.Args().First())
 						formatResponse(c, resp, cerr)
 						return nil
 					},

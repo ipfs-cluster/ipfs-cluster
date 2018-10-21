@@ -104,9 +104,9 @@ type Client interface {
 	// serialized version, strings instead of pids, is returned
 	GetConnectGraph() (api.ConnectGraphSerial, error)
 
-	// PeerMonitorLatestMetrics returns a map with the latest metrics of matching name
+	// Metrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
-	PeerMonitorLatestMetrics(name string) ([]api.Metric, error)
+	Metrics(name string) ([]api.Metric, error)
 }
 
 // Config allows to configure the parameters to connect
