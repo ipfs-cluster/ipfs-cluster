@@ -24,6 +24,9 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.AddedOutput))
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
+	case api.Metric:
+		serial := resp.(api.Metric)
+		textFormatPrintMetric(&serial)
 	case api.Error:
 		jsonFormatPrint(resp.(api.Error))
 	case []api.ID:
@@ -50,6 +53,9 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(serials)
 	case []api.AddedOutput:
 		serials := resp.([]api.AddedOutput)
+		jsonFormatPrint(serials)
+	case []api.Metric:
+		serials := resp.([]api.Metric)
 		jsonFormatPrint(serials)
 	default:
 		checkErr("", errors.New("unsupported type returned"))
@@ -84,6 +90,9 @@ func textFormatObject(resp interface{}) {
 	case api.Error:
 		serial := resp.(api.Error)
 		textFormatPrintError(&serial)
+	case api.Metric:
+		serial := resp.(api.Metric)
+		textFormatPrintMetric(&serial)
 	case []api.ID:
 		for _, item := range resp.([]api.ID) {
 			textFormatObject(item)
@@ -98,6 +107,10 @@ func textFormatObject(resp interface{}) {
 		}
 	case []api.AddedOutput:
 		for _, item := range resp.([]api.AddedOutput) {
+			textFormatObject(item)
+		}
+	case []api.Metric:
+		for _, item := range resp.([]api.Metric) {
 			textFormatObject(item)
 		}
 	default:
@@ -200,6 +213,10 @@ func textFormatPrintPin(obj *api.PinSerial) {
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
+}
+
+func textFormatPrintMetric(obj *api.Metric) {
+	fmt.Printf("%s: %s | Expire : %d\n", obj.Peer.Pretty(), obj.Value, obj.Expire)
 }
 
 func textFormatPrintError(obj *api.Error) {

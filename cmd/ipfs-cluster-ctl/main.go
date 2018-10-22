@@ -762,6 +762,20 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 						return nil
 					},
 				},
+				{
+					Name:  "metrics",
+					Usage: "List latest metrics logged by this peer",
+					Description: `
+This commands displays the latest valid metrics of the given type logged
+by this peer for all current cluster peers.
+`,
+					ArgsUsage: "Metric name",
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.Metrics(c.Args().First())
+						formatResponse(c, resp, cerr)
+						return nil
+					},
+				},
 			},
 		},
 		{

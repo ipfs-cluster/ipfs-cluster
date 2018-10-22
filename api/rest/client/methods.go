@@ -204,6 +204,14 @@ func (c *defaultClient) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	return graphS, err
 }
 
+// Metrics returns a map with the latest metrics of matching name
+// for the current cluster peers.
+func (c *defaultClient) Metrics(name string) ([]api.Metric, error) {
+	var metrics []api.Metric
+	err := c.do("GET", fmt.Sprintf("/monitor/metrics/%s", name), nil, nil, &metrics)
+	return metrics, err
+}
+
 // WaitFor is a utility function that allows for a caller to wait for a
 // paticular status for a CID (as defined by StatusFilterParams).
 // It returns the final status for that CID and an error, if there was.
