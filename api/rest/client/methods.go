@@ -109,7 +109,8 @@ func (c *defaultClient) Allocations(filter api.PinType) ([]api.Pin, error) {
 		}
 	}
 
-	err := c.do("GET", fmt.Sprintf("/allocations?filter=%s", strings.Join(strFilter, ",")), nil, nil, &pins)
+	f := url.QueryEscape(strings.Join(strFilter, ","))
+	err := c.do("GET", fmt.Sprintf("/allocations?filter=%s", f), nil, nil, &pins)
 	result := make([]api.Pin, len(pins))
 	for i, p := range pins {
 		result[i] = p.ToPin()
