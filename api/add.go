@@ -158,29 +158,22 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 
 // ToQueryString returns a url query string (key=value&key2=value2&...)
 func (p *AddParams) ToQueryString() string {
-	fmtStr := "replication-min=%d&replication-max=%d&name=%s&"
-	fmtStr += "shard=%t&shard-size=%d&recursive=%t&"
-	fmtStr += "layout=%s&chunker=%s&raw-leaves=%t&hidden=%t&"
-	fmtStr += "wrap-with-directory=%t&progress=%t&"
-	fmtStr += "cid-version=%d&hash=%s"
-	query := fmt.Sprintf(
-		fmtStr,
-		p.ReplicationFactorMin,
-		p.ReplicationFactorMax,
-		p.Name,
-		p.Shard,
-		p.ShardSize,
-		p.Recursive,
-		p.Layout,
-		p.Chunker,
-		p.RawLeaves,
-		p.Hidden,
-		p.Wrap,
-		p.Progress,
-		p.CidVersion,
-		p.HashFun,
-	)
-	return query
+	query := url.Values{}
+	query.Set("replication-min", fmt.Sprintf("%d", p.ReplicationFactorMin))
+	query.Set("replication-max", fmt.Sprintf("%d", p.ReplicationFactorMax))
+	query.Set("name", p.Name)
+	query.Set("shard", fmt.Sprintf("%t", p.Shard))
+	query.Set("shard-size", fmt.Sprintf("%d", p.ShardSize))
+	query.Set("recursive", fmt.Sprintf("%t", p.Recursive))
+	query.Set("layout", p.Layout)
+	query.Set("chunker", p.Chunker)
+	query.Set("raw-leaves", fmt.Sprintf("%t", p.RawLeaves))
+	query.Set("hidden", fmt.Sprintf("%t", p.Hidden))
+	query.Set("wrap-with-directory", fmt.Sprintf("%t", p.Wrap))
+	query.Set("progress", fmt.Sprintf("%t", p.Progress))
+	query.Set("cid-version", fmt.Sprintf("%d", p.CidVersion))
+	query.Set("hash", p.HashFun)
+	return query.Encode()
 }
 
 // Equals checks if p equals p2.
