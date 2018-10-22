@@ -30,6 +30,11 @@ const (
 	defaultLogLevel   = "info"
 )
 
+const (
+	stateCleanupPrompt           = "The peer's state will be removed from the load path.  Existing pins may be lost."
+	configurationOverwritePrompt = "Configuration(service.json) will be overwritten."
+)
+
 // We store a commit id here
 var commit string
 
@@ -213,6 +218,28 @@ configuration.
 				cfgMgr, cfgs := makeConfigs()
 				defer cfgMgr.Shutdown() // wait for saves
 
+				var alreadyInitialized bool
+				if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+					alreadyInitialized = true
+				}
+
+				if alreadyInitialized {
+					// acquire lock for config folder
+					err := locker.lock()
+					checkErr("acquiring execution lock", err)
+					defer locker.tryUnlock()
+
+					if !c.Bool("force") && !yesNoPrompt(fmt.Sprintf("%s\n%s Continue? [y/n]:", stateCleanupPrompt, configurationOverwritePrompt)) {
+						return nil
+					}
+
+					err = cfgMgr.LoadJSONFromFile(configPath)
+					checkErr("reading configuration", err)
+
+					err = cleanupState(cfgs.consensusCfg)
+					checkErr("Cleaning up consensus data", err)
+				}
+
 				// Generate defaults for all registered components
 				err := cfgMgr.Default()
 				checkErr("generating default configuration", err)
@@ -223,7 +250,7 @@ configuration.
 				}
 
 				// Save
-				saveConfig(cfgMgr, c.GlobalBool("force"))
+				saveConfig(cfgMgr)
 				return nil
 			},
 		},
@@ -343,12 +370,18 @@ snapshot to be loaded as the cluster state when the cluster peer is restarted.
 If an argument is provided, cluster will treat it as the path of the file to
 import.  If no argument is provided cluster will read json from stdin
 `,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "force, f",
+							Usage: "forcefully proceed with replacing the current state with the given one, without prompting",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						if !c.GlobalBool("force") {
+						if !c.Bool("force") {
 							if !yesNoPrompt("The peer's state will be replaced.  Run with -h for details.  Continue? [y/n]:") {
 								return nil
 							}
@@ -381,13 +414,19 @@ this state from disk.  This command renames cluster's data folder to <data-folde
 deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
 the mth data folder (m currently defaults to 5)
 `,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "force, f",
+							Usage: "forcefully proceed with rotating peer state without prompting",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						if !c.GlobalBool("force") {
-							if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+						if !c.Bool("force") {
+							if !yesNoPrompt(fmt.Sprintf("%s Continue? [y/n]:", stateCleanupPrompt)) {
 								return nil
 							}
 						}
@@ -398,7 +437,6 @@ the mth data folder (m currently defaults to 5)
 
 						err = cleanupState(cfgs.consensusCfg)
 						checkErr("Cleaning up consensus data", err)
-						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cfgs.consensusCfg.GetDataFolder())
 						return nil
 					},
 				},
