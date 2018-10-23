@@ -93,6 +93,13 @@ docker:
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
 
+docker-compose:
+	docker-compose up -d
+	sleep 20
+	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
+	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
+	docker-compose down
+
 prcheck: deps check service ctl test
 
 .PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
