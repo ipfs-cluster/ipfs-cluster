@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 func jsonFormatObject(resp interface{}) {
@@ -216,7 +218,8 @@ func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
-	fmt.Printf("%s: %s | Expire : %d\n", obj.Peer.Pretty(), obj.Value, obj.Expire)
+	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
+	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
 func textFormatPrintError(obj *api.Error) {

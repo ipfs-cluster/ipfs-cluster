@@ -205,12 +205,12 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *
 		// Returned metrics are Valid and belong to current
 		// Cluster peers.
 		metrics := rpcapi.c.monitor.LatestMetrics(pingMetricName)
-		peers := make([]peer.ID, len(metrics), len(metrics))
+		peers := make([]string, len(metrics), len(metrics))
 		for i, m := range metrics {
-			peers[i] = m.Peer
+			peers[i] = peer.IDB58Encode(m.Peer)
 		}
 
-		*out = api.PeersToStrings(peers)
+		*out = peers
 		return nil
 	}
 

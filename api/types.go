@@ -9,6 +9,8 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -847,10 +849,10 @@ func (n *NodeWithMeta) Size() uint64 {
 // the Value, which should be interpreted by the PinAllocator.
 type Metric struct {
 	Name   string
-	Peer   peer.ID // filled-in by Cluster.
+	Peer   peer.ID
 	Value  string
-	Expire int64 // UnixNano
-	Valid  bool  // if the metric is not valid it will be discarded
+	Expire int64
+	Valid  bool
 }
 
 // SetTTL sets Metric to expire after the given time.Duration
@@ -874,6 +876,51 @@ func (m *Metric) Expired() bool {
 // Discard returns if the metric not valid or has expired
 func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
+}
+
+// helper for JSON marshaling. The Metric type is already
+// serializable, but not pretty to humans (API).
+type metricSerial struct {
+	Name   string `json:"name"`
+	Peer   string `json:"peer"`
+	Value  string `json:"value"`
+	Expire int64  `json:"expire"`
+	Valid  bool   `json:"valid"`
+}
+
+// MarshalJSON allows a Metric to produce a JSON representation
+// of itself.
+func (m *Metric) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&metricSerial{
+		Name:   m.Name,
+		Peer:   peer.IDB58Encode(m.Peer),
+		Value:  m.Value,
+		Expire: m.Expire,
+	})
+}
+
+// UnmarshalJSON decodes JSON on top of the Metric.
+func (m *Metric) UnmarshalJSON(j []byte) error {
+	if bytes.Equal(j, []byte("null")) {
+		return nil
+	}
+
+	ms := &metricSerial{}
+	err := json.Unmarshal(j, ms)
+	if err != nil {
+		return err
+	}
+
+	p, err := peer.IDB58Decode(ms.Peer)
+	if err != nil {
+		return err
+	}
+
+	m.Name = ms.Name
+	m.Peer = p
+	m.Value = ms.Value
+	m.Expire = ms.Expire
+	return nil
 }
 
 // Alert carries alerting information about a peer. WIP.
