@@ -133,11 +133,6 @@
       "version": "4.4.8"
     },
     {
-      "hash": "QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky",
-      "name": "go-ipfs-cmdkit",
-      "version": "1.1.3"
-    },
-    {
       "author": "hsanjuan",
       "hash": "QmP2sH3hdhseUsoNBhAZSCkeUvTGgYXxvZjSB2s7yg4aoD",
       "name": "go-mfs",
@@ -148,6 +143,12 @@
       "hash": "QmYRGECuvQnRX73fcvPnGbYijBcGN2HbKZQ7jh26qmLiHG",
       "name": "semver",
       "version": "3.5.1"
+    },
+    {
+      "author": "magik6k",
+      "hash": "QmZMWMvWMVKCbHetJ4RgndbuEF1io2UpUxwQwtNjtYPzSC",
+      "name": "go-ipfs-files",
+      "version": "1.0.1"
     }
   ],
   "gxVersion": "0.11.0",

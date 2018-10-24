@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	files "github.com/ipfs/go-ipfs-files"
 )
 
 const shardingTestDir = "shardTesting"

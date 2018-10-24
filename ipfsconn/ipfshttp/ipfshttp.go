@@ -24,7 +24,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	cid "github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	files "github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
