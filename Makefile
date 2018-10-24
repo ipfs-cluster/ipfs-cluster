@@ -93,8 +93,9 @@ docker:
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
 
+
 docker-compose:
-	docker-compose up -d
+	CLUSTER_SECRET=$(shell od -vN 32 -An -tx1 /dev/urandom | tr -d ' \n') docker-compose up -d
 	sleep 20
 	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
 	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2

@@ -38,8 +38,7 @@ services:
     depends_on:
       - ipfs0
     environment:
-      # Change this! Same for all peers!
-      CLUSTER_SECRET: adc72159e0ce63350c13de6a5e4d3b2f500232a770cb8c3e7829fc514d89d109 
+      CLUSTER_SECRET: ${CLUSTER_SECRET} # From shell variable
       IPFS_API: /dns4/ipfs0/tcp/5001
     ports:
           - "127.0.0.1:9094:9094" # API
@@ -69,8 +68,7 @@ services:
       - cluster0
       - ipfs1
     environment:
-      # Change this! Same for all peers!
-      CLUSTER_SECRET: adc72159e0ce63350c13de6a5e4d3b2f500232a770cb8c3e7829fc514d89d109
+      CLUSTER_SECRET: ${CLUSTER_SECRET} # From shell variable
       IPFS_API: /dns4/ipfs1/tcp/5001
     ports:
           - "127.0.0.1:9194:9094" # API
