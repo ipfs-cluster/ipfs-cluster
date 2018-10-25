@@ -44,9 +44,10 @@ jobs:
         - make check
         - make service
         - make ctl
-    - name: "Docker build"
+    - name: "Docker and Compose build"
       script:
         - make docker
+        - make docker-compose
     - name: "Sharness"
       script:
         - sudo apt-get update
