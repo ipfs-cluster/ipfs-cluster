@@ -4,7 +4,7 @@ summary: Collective pinning and composition for IPFS
 description: |
   ipfs-cluster allows to replicate content (by pinning) in multiple IPFS nodes.
 
-confinement: classic
+confinement: strict
 
 apps:
   service:
