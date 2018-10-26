@@ -275,7 +275,10 @@ func (c *Cluster) alertsHandler() {
 			// only the leader handles alerts
 			leader, err := c.consensus.Leader()
 			if err == nil && leader == c.id {
-				logger.Warningf("Peer %s received alert for %s in %s", c.id, alrt.MetricName, alrt.Peer.Pretty())
+				logger.Warningf(
+					"Peer %s received alert for %s in %s",
+					c.id, alrt.MetricName, alrt.Peer,
+				)
 				switch alrt.MetricName {
 				case pingMetricName:
 					c.repinFromPeer(alrt.Peer)

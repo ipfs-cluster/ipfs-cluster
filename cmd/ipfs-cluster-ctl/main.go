@@ -768,10 +768,21 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 					Description: `
 This commands displays the latest valid metrics of the given type logged
 by this peer for all current cluster peers.
+
+Currently supported metrics depend on the informer component used,
+but usually are:
+
+- freespace
+- ping
 `,
-					ArgsUsage: "Metric name",
+					ArgsUsage: "<metric name>",
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.Metrics(c.Args().First())
+						metric := c.Args().First()
+						if metric == "" {
+							checkErr("", errors.New("provide a metric name"))
+						}
+
+						resp, cerr := globalClient.Metrics(metric)
 						formatResponse(c, resp, cerr)
 						return nil
 					},

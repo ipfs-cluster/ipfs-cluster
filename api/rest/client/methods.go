@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -205,9 +206,12 @@ func (c *defaultClient) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	return graphS, err
 }
 
-// Metrics returns a map with the latest metrics of matching name
+// Metrics returns a map with the latest valid metrics of the given name
 // for the current cluster peers.
 func (c *defaultClient) Metrics(name string) ([]api.Metric, error) {
+	if name == "" {
+		return nil, errors.New("bad metric name")
+	}
 	var metrics []api.Metric
 	err := c.do("GET", fmt.Sprintf("/monitor/metrics/%s", name), nil, nil, &metrics)
 	return metrics, err
