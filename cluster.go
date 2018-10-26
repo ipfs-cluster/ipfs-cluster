@@ -313,6 +313,8 @@ func (c *Cluster) watchPeers() {
 			}
 
 			if !hasMe {
+				c.shutdownLock.Lock()
+				defer c.shutdownLock.Unlock()
 				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
 				c.removed = true
 				go c.Shutdown()
