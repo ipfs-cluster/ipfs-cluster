@@ -149,6 +149,12 @@
       "hash": "QmZMWMvWMVKCbHetJ4RgndbuEF1io2UpUxwQwtNjtYPzSC",
       "name": "go-ipfs-files",
       "version": "1.0.1"
+    },
+    {
+      "author": "lanzafame",
+      "hash": "QmVPrFJ6dYJyt7uULgE7wouhvXDzYBZVjYvjMCE5Uqxgfy",
+      "name": "envconfig",
+      "version": "0.0.0"
     }
   ],
   "gxVersion": "0.11.0",
