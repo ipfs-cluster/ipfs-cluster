@@ -15,20 +15,10 @@ import (
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 func cleanRaft(idn int) {
 	os.RemoveAll(fmt.Sprintf("raftFolderFromTests-%d", idn))
-}
-
-func consensusListenAddr(c *Consensus) ma.Multiaddr {
-	return c.host.Addrs()[0]
-}
-
-func consensusAddr(c *Consensus) ma.Multiaddr {
-	cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", consensusListenAddr(c), c.host.ID().Pretty()))
-	return cAddr
 }
 
 func testPin(c cid.Cid) api.Pin {
@@ -174,7 +164,7 @@ func TestConsensusAddPeer(t *testing.T) {
 	defer cc.Shutdown()
 	defer cc2.Shutdown()
 
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), consensusListenAddr(cc2), peerstore.PermanentAddrTTL)
+	cc.host.Peerstore().AddAddrs(cc2.host.ID(), cc2.host.Addrs(), peerstore.PermanentAddrTTL)
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
@@ -205,7 +195,7 @@ func TestConsensusRmPeer(t *testing.T) {
 	defer cc.Shutdown()
 	defer cc2.Shutdown()
 
-	cc.host.Peerstore().AddAddr(cc2.host.ID(), consensusListenAddr(cc2), peerstore.PermanentAddrTTL)
+	cc.host.Peerstore().AddAddrs(cc2.host.ID(), cc2.host.Addrs(), peerstore.PermanentAddrTTL)
 
 	err := cc.AddPeer(cc2.host.ID())
 	if err != nil {

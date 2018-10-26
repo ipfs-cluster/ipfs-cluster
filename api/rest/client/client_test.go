@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	peer "github.com/libp2p/go-libp2p-peer"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -59,9 +60,13 @@ func apiMAddr(a *rest.API) ma.Multiaddr {
 }
 
 func peerMAddr(a *rest.API) ma.Multiaddr {
-	listenAddr := a.Host().Addrs()[0]
-	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", a.Host().ID().Pretty()))
-	return listenAddr.Encapsulate(ipfsAddr)
+	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", peer.IDB58Encode(a.Host().ID())))
+	for _, a := range a.Host().Addrs() {
+		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
+			return a.Encapsulate(ipfsAddr)
+		}
+	}
+	return nil
 }
 
 func testClientHTTP(t *testing.T, api *rest.API) *defaultClient {
@@ -87,7 +92,6 @@ func testClientLibp2p(t *testing.T, api *rest.API) *defaultClient {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	return c.(*defaultClient)
 }
 
