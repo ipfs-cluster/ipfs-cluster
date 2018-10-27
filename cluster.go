@@ -1190,7 +1190,7 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 }
 
 func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error) {
-	var infos []api.GlobalPinInfo
+	infos := make([]api.GlobalPinInfo, 0)
 	fullMap := make(map[string]api.GlobalPinInfo)
 
 	members, err := c.consensus.Peers()

@@ -328,7 +328,7 @@ func (ipfs *Connector) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			Type: "recursive",
 		}
 	} else {
-		var pins []api.PinSerial
+		pins := make([]api.PinSerial, 0)
 		err := ipfs.rpcClient.Call(
 			"",
 			"Cluster",
@@ -429,7 +429,7 @@ func (ipfs *Connector) addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ipfs *Connector) repoStatHandler(w http.ResponseWriter, r *http.Request) {
-	var peers []peer.ID
+	peers := make([]peer.ID, 0)
 	err := ipfs.rpcClient.Call(
 		"",
 		"Cluster",
@@ -770,7 +770,7 @@ func (ipfs *Connector) apiURL() string {
 func (ipfs *Connector) ConnectSwarms() error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	var idsSerial []api.IDSerial
+	idsSerial := make([]api.IDSerial, 0)
 	err := ipfs.rpcClient.Call(
 		"",
 		"Cluster",
