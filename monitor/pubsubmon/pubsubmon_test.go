@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	floodsub "github.com/libp2p/go-floodsub"
 	libp2p "github.com/libp2p/go-libp2p"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -21,7 +21,7 @@ import (
 func init() {
 	// GossipSub needs to heartbeat to discover newly connected hosts
 	// This speeds things up a little.
-	floodsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
+	pubsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
 }
 
 type metricFactory struct {
