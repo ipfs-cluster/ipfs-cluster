@@ -105,9 +105,9 @@
     },
     {
       "author": "hector",
-      "hash": "QmPG32VXR5jmpo9q8R9FNdR4Ae97Ky9CiZE6SctJLUB79H",
+      "hash": "QmQyUyYcpKG1u53V7N25qRTGw5XwaAxTMKXbduqHotQztg",
       "name": "go-ipfs-posinfo",
-      "version": "0.1.0"
+      "version": "0.1.2"
     },
     {
       "author": "dustin",
@@ -117,15 +117,15 @@
     },
     {
       "author": "why",
-      "hash": "QmTJUySFxXjh54zEoFbzQEmGD3yj89XKS3A28y7Nqsn1TC",
+      "hash": "QmfB3oNXGGq9S4B2a9YeCajoATms3Zw2VvDm8fK7VeLSV8",
       "name": "go-unixfs",
-      "version": "1.1.15"
+      "version": "1.1.16"
     },
     {
       "author": "why",
-      "hash": "QmY8BMUSpCwNiTmFhACmC9Bt1qT63cHP35AoQAus4x14qH",
+      "hash": "QmSei8kFMfqdJq7Q68d2LMnHbTWKKg2daA29ezUYFAUNgc",
       "name": "go-merkledag",
-      "version": "1.1.13"
+      "version": "1.1.15"
     },
     {
       "hash": "QmQHnqaNULV8WeUGgh97o9K3KAW6kWQmDyNf9UuikgnPTe",
@@ -134,9 +134,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmcctvPwYdaJvM4VefQnKAfU2ppSVfjpECvBVVEm18qk68",
+      "hash": "QmTFCS9QwPQEihtjqi6zTX5n21J5y1yQwc3hnk7t3hZDLN",
       "name": "go-mfs",
-      "version": "0.1.15"
+      "version": "0.1.17"
     },
     {
       "author": "blang",
