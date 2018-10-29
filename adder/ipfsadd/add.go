@@ -91,6 +91,8 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 		return nil, err
 	}
 
+	// Cluster: we don't do batching.
+
 	params := ihelper.DagBuilderParams{
 		Dagserv:    adder.dagService,
 		RawLeaves:  adder.RawLeaves,
