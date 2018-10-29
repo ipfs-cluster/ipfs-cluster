@@ -81,12 +81,6 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "Qmc71UCoZWor2ADQAWjNnrSVgEtPpEsQbCXf9Gs7WWz7MV",
-      "name": "go-libp2p-floodsub",
-      "version": "100.10.2"
-    },
-    {
-      "author": "whyrusleeping",
       "hash": "QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7",
       "name": "go-cid",
       "version": "0.9.0"
@@ -155,6 +149,12 @@
       "hash": "QmYgGtLm9WJRgh6iuaZap8qVC1gqixFbZCNfhjLNBhWMCm",
       "name": "envconfig",
       "version": "1.3.1"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmYmrxfax5xGfLF6SL2Bq7SDEzFZFyNcLvGi8ExdC5iiko",
+      "name": "go-libp2p-pubsub",
+      "version": "100.11.3"
     }
   ],
   "gxVersion": "0.11.0",
