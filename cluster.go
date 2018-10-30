@@ -56,15 +56,18 @@ type Cluster struct {
 	allocator PinAllocator
 	informer  Informer
 
+	doneCh  chan struct{}
+	readyCh chan struct{}
+	readyB  bool
+	wg      sync.WaitGroup
+
+	// peerAdd
+	paMux sync.Mutex
+
+	// shutdown function and related variables
 	shutdownLock sync.Mutex
 	shutdownB    bool
 	removed      bool
-	doneCh       chan struct{}
-	readyCh      chan struct{}
-	readyB       bool
-	wg           sync.WaitGroup
-
-	paMux sync.Mutex
 }
 
 // NewCluster builds a new IPFS Cluster peer. It initializes a LibP2P host,
