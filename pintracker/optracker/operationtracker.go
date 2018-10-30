@@ -94,6 +94,7 @@ func (opt *OperationTracker) Status(c cid.Cid) (api.TrackerStatus, bool) {
 // SetError transitions an operation for a Cid into PhaseError if its Status
 // is PhaseDone. Any other phases are considered in-flight and not touched.
 // For things already in error, the error message is updated.
+// Remote pins are ignored too.
 func (opt *OperationTracker) SetError(c cid.Cid, err error) {
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
@@ -102,7 +103,14 @@ func (opt *OperationTracker) SetError(c cid.Cid, err error) {
 		return
 	}
 
-	if ph := op.Phase(); ph == PhaseDone || ph == PhaseError {
+	ph := op.Phase()
+	ty := op.Type()
+
+	if ty == OperationRemote {
+		return
+	}
+
+	if ph == PhaseDone || ph == PhaseError {
 		op.SetPhase(PhaseError)
 		op.SetError(err)
 	}
