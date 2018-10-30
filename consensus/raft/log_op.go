@@ -43,11 +43,9 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	// api.PinSerial, which don't get copied when passed.
 	pinS := op.Cid.Clone()
 
-	pin := pinS.ToPin()
-
 	switch op.Type {
 	case LogOpPin:
-		err = state.Add(pin)
+		err = state.Add(pinS.ToPin())
 		if err != nil {
 			goto ROLLBACK
 		}
