@@ -43,33 +43,35 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	// api.PinSerial, which don't get copied when passed.
 	pinS := op.Cid.Clone()
 
-	pin := pinS.ToPin()
-
 	switch op.Type {
 	case LogOpPin:
-		err = state.Add(pin)
+		err = state.Add(pinS.ToPin())
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go("",
+		op.consensus.rpcClient.Go(
+			"",
 			"Cluster",
 			"Track",
 			pinS,
 			&struct{}{},
-			nil)
+			nil,
+		)
 	case LogOpUnpin:
-		err = state.Rm(pin.Cid)
+		err = state.Rm(pinS.DecodeCid())
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go("",
+		op.consensus.rpcClient.Go(
+			"",
 			"Cluster",
 			"Untrack",
 			pinS,
 			&struct{}{},
-			nil)
+			nil,
+		)
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}

@@ -838,6 +838,16 @@ func (pins PinSerial) Clone() PinSerial {
 	return new
 }
 
+// DecodeCid retrieves just the cid from a PinSerial without
+// allocating a Pin.
+func (pins PinSerial) DecodeCid() cid.Cid {
+	c, err := cid.Decode(pins.Cid)
+	if err != nil {
+		logger.Debug(pins.Cid, err)
+	}
+	return c
+}
+
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
