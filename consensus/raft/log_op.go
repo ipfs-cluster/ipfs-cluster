@@ -50,24 +50,28 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go("",
+		op.consensus.rpcClient.Go(
+			"",
 			"Cluster",
 			"Track",
 			pinS,
 			&struct{}{},
-			nil)
+			nil,
+		)
 	case LogOpUnpin:
-		err = state.Rm(pin.Cid)
+		err = state.Rm(pinS.DecodeCid())
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go("",
+		op.consensus.rpcClient.Go(
+			"",
 			"Cluster",
 			"Untrack",
 			pinS,
 			&struct{}{},
-			nil)
+			nil,
+		)
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}
