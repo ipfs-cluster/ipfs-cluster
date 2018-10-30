@@ -829,6 +829,15 @@ func (pins PinSerial) ToPin() Pin {
 	}
 }
 
+// Clone returns a deep copy of the PinSerial.
+func (pins PinSerial) Clone() PinSerial {
+	new := pins // this copy all the simple fields.
+	// slices are pointers. We need to explicitally copy them.
+	new.Allocations = make([]string, len(pins.Allocations))
+	copy(new.Allocations, pins.Allocations)
+	return new
+}
+
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {

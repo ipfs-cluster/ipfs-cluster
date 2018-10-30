@@ -56,15 +56,18 @@ type Cluster struct {
 	allocator PinAllocator
 	informer  Informer
 
+	doneCh  chan struct{}
+	readyCh chan struct{}
+	readyB  bool
+	wg      sync.WaitGroup
+
+	// peerAdd
+	paMux sync.Mutex
+
+	// shutdown function and related variables
 	shutdownLock sync.Mutex
 	shutdownB    bool
 	removed      bool
-	doneCh       chan struct{}
-	readyCh      chan struct{}
-	readyB       bool
-	wg           sync.WaitGroup
-
-	paMux sync.Mutex
 }
 
 // NewCluster builds a new IPFS Cluster peer. It initializes a LibP2P host,
@@ -313,6 +316,8 @@ func (c *Cluster) watchPeers() {
 			}
 
 			if !hasMe {
+				c.shutdownLock.Lock()
+				defer c.shutdownLock.Unlock()
 				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
 				c.removed = true
 				go c.Shutdown()
@@ -1093,11 +1098,12 @@ func (c *Cluster) Peers() []api.ID {
 		logger.Error("an empty list of peers will be returned")
 		return []api.ID{}
 	}
+	lenMembers := len(members)
 
-	peersSerial := make([]api.IDSerial, len(members), len(members))
-	peers := make([]api.ID, len(members), len(members))
+	peersSerial := make([]api.IDSerial, lenMembers, lenMembers)
+	peers := make([]api.ID, lenMembers, lenMembers)
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
@@ -1133,13 +1139,14 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 		logger.Error(err)
 		return api.GlobalPinInfo{}, err
 	}
+	lenMembers := len(members)
 
-	replies := make([]api.PinInfoSerial, len(members), len(members))
+	replies := make([]api.PinInfoSerial, lenMembers, lenMembers)
 	arg := api.Pin{
 		Cid: h,
 	}
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
@@ -1190,7 +1197,7 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 }
 
 func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error) {
-	var infos []api.GlobalPinInfo
+	infos := make([]api.GlobalPinInfo, 0)
 	fullMap := make(map[string]api.GlobalPinInfo)
 
 	members, err := c.consensus.Peers()
@@ -1198,10 +1205,11 @@ func (c *Cluster) globalPinInfoSlice(method string) ([]api.GlobalPinInfo, error)
 		logger.Error(err)
 		return []api.GlobalPinInfo{}, err
 	}
+	lenMembers := len(members)
 
-	replies := make([][]api.PinInfoSerial, len(members), len(members))
+	replies := make([][]api.PinInfoSerial, lenMembers, lenMembers)
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, len(members))
+	ctxs, cancels := rpcutil.CtxsWithCancel(c.ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
