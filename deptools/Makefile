@@ -1,5 +1,5 @@
-gx_version=v0.13.0
-gx-go_version=v1.8.0
+gx_version=v0.14.1
+gx-go_version=v1.9.0
 gateway=https://ipfs.io
 local_gateway=http://127.0.0.1:8080
 dist=dist.ipfs.io
