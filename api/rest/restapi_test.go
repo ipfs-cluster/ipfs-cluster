@@ -377,10 +377,20 @@ func TestAPIAddFileEndpointBadContentType(t *testing.T) {
 func TestAPIAddFileEndpointLocal(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	// This writes generates the testing files and
+	// writes them to disk.
+	// This is necessary here because we run tests
+	// in parallel, and otherwise a write-race might happen.
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+
 	tf := func(t *testing.T, url urlF) {
 		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1
-		sth := test.NewShardingTestHelper()
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		resp := api.AddedOutput{}
@@ -394,8 +404,18 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 func TestAPIAddFileEndpointShard(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	// This writes generates the testing files and
+	// writes them to disk.
+	// This is necessary here because we run tests
+	// in parallel, and otherwise a write-race might happen.
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+
 	tf := func(t *testing.T, url urlF) {
-		sth := test.NewShardingTestHelper()
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()

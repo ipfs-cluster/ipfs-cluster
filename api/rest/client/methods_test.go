@@ -436,6 +436,7 @@ func TestAddMultiFile(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		sth := test.NewShardingTestHelper()
+		defer sth.Clean(t)
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 
