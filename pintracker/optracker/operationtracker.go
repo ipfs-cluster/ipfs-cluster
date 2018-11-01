@@ -103,14 +103,11 @@ func (opt *OperationTracker) SetError(c cid.Cid, err error) {
 		return
 	}
 
-	ph := op.Phase()
-	ty := op.Type()
-
-	if ty == OperationRemote {
+	if ty := op.Type(); ty == OperationRemote {
 		return
 	}
 
-	if ph == PhaseDone || ph == PhaseError {
+	if ph := op.Phase(); ph == PhaseDone || ph == PhaseError {
 		op.SetPhase(PhaseError)
 		op.SetError(err)
 	}
