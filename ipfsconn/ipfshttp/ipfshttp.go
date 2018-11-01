@@ -186,6 +186,9 @@ func (ipfs *Connector) Shutdown() error {
 
 	ipfs.wg.Wait()
 	ipfs.shutdown = true
+
+	logger.Info("stopping IPFS Connector")
+
 	return nil
 }
 

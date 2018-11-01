@@ -21,7 +21,6 @@ const (
 	DefaultProxyReadHeaderTimeout = 5 * time.Second
 	DefaultProxyWriteTimeout      = 0
 	DefaultProxyIdleTimeout       = 60 * time.Second
-	DefaultIPFSRequestTimeout     = 5 * time.Minute
 )
 
 // Config allows to customize behaviour of IPFSProxy.
@@ -47,9 +46,6 @@ type Config struct {
 	// Server-side amount of time a Keep-Alive connection will be
 	// kept idle before being reused
 	ProxyIdleTimeout time.Duration
-
-	// IPFS Daemon HTTP Client POST timeout
-	IPFSRequestTimeout time.Duration
 }
 
 type jsonConfig struct {
@@ -59,7 +55,6 @@ type jsonConfig struct {
 	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout"`
 	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
 	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
-	IPFSRequestTimeout      string `json:"ipfs_request_timeout"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -77,7 +72,6 @@ func (cfg *Config) Default() error {
 	cfg.ProxyReadHeaderTimeout = DefaultProxyReadHeaderTimeout
 	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
 	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
-	cfg.IPFSRequestTimeout = DefaultIPFSRequestTimeout
 
 	return nil
 }
@@ -107,10 +101,6 @@ func (cfg *Config) Validate() error {
 
 	if cfg.ProxyIdleTimeout < 0 {
 		err = errors.New("ipfshttp.proxy_idle_timeout invalid")
-	}
-
-	if cfg.IPFSRequestTimeout < 0 {
-		err = errors.New("ipfshttp.ipfs_request_timeout invalid")
 	}
 
 	return err
@@ -146,7 +136,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		&config.DurationOpt{Duration: jcfg.ProxyReadHeaderTimeout, Dst: &cfg.ProxyReadHeaderTimeout, Name: "proxy_read_header_timeout"},
 		&config.DurationOpt{Duration: jcfg.ProxyWriteTimeout, Dst: &cfg.ProxyWriteTimeout, Name: "proxy_write_timeout"},
 		&config.DurationOpt{Duration: jcfg.ProxyIdleTimeout, Dst: &cfg.ProxyIdleTimeout, Name: "proxy_idle_timeout"},
-		&config.DurationOpt{Duration: jcfg.IPFSRequestTimeout, Dst: &cfg.IPFSRequestTimeout, Name: "ipfs_request_timeout"},
 	)
 	if err != nil {
 		return err
@@ -173,7 +162,6 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ProxyReadHeaderTimeout = cfg.ProxyReadHeaderTimeout.String()
 	jcfg.ProxyWriteTimeout = cfg.ProxyWriteTimeout.String()
 	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
-	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return

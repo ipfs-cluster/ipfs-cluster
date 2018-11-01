@@ -111,11 +111,13 @@ func createCluster(
 	api, err := rest.NewAPIWithHost(cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)
 
+	proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
+	checkErr("creating IPFS Proxy component", err)
+
+	apis := []ipfscluster.API{api, proxy}
+
 	connector, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
 	checkErr("creating IPFS Connector component", err)
-
-	proxy, err := ipfsproxy.NewIPFSProxy(cfgs.ipfsproxyCfg)
-	checkErr("creating IPFS Proxy component", err)
 
 	state := mapstate.NewMapState()
 
@@ -140,8 +142,7 @@ func createCluster(
 		host,
 		cfgs.clusterCfg,
 		raftcon,
-		api,
-		proxy,
+		apis,
 		connector,
 		state,
 		tracker,

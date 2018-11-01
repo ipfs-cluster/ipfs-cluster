@@ -30,12 +30,12 @@ var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfsproxy")
 
-// IPFSProxy offers an IPFS API, hijacking some interesting requests
+// Server offers an IPFS API, hijacking some interesting requests
 // and forwarding the rest to the ipfs daemon
 // it proxies HTTP requests to the configured IPFS
 // daemon. It is able to intercept these requests though, and
 // perform extra operations on them.
-type IPFSProxy struct {
+type Server struct {
 	ctx    context.Context
 	cancel func()
 
@@ -77,8 +77,8 @@ type ipfsAddResp struct {
 	Size  string `json:",omitempty"`
 }
 
-// NewIPFSProxy returns and IPFSProxy component
-func NewIPFSProxy(cfg *Config) (*IPFSProxy, error) {
+// New returns and ipfs Proxy component
+func New(cfg *Config) (*Server, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -132,11 +132,11 @@ func NewIPFSProxy(cfg *Config) (*IPFSProxy, error) {
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
 	// See: https://github.com/ipfs/ipfs-cluster/issues/548
 	// on why this is re-enabled.
-	s.SetKeepAlivesEnabled(false) // A reminder that this can be changed
+	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	ipfs := &IPFSProxy{
+	proxy := &Server{
 		ctx:      ctx,
 		config:   cfg,
 		cancel:   cancel,
@@ -146,70 +146,68 @@ func NewIPFSProxy(cfg *Config) (*IPFSProxy, error) {
 		server:   s,
 	}
 	smux.Handle("/", proxyHandler)
-	smux.HandleFunc("/api/v0/pin/add", ipfs.pinHandler)
-	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)
-	smux.HandleFunc("/api/v0/pin/rm", ipfs.unpinHandler)
-	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler)
-	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // required to handle /pin/ls for all pins
-	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
-	smux.HandleFunc("/api/v0/add", ipfs.addHandler)
-	smux.HandleFunc("/api/v0/add/", ipfs.addHandler)
-	smux.HandleFunc("/api/v0/repo/stat", ipfs.repoStatHandler)
-	smux.HandleFunc("/api/v0/repo/stat/", ipfs.repoStatHandler)
+	smux.HandleFunc("/api/v0/pin/add/", proxy.pinHandler)
+	smux.HandleFunc("/api/v0/pin/rm/", proxy.unpinHandler)
+	smux.HandleFunc("/api/v0/pin/ls", proxy.pinLsHandler) // required to handle /pin/ls for all pins
+	smux.HandleFunc("/api/v0/pin/ls/", proxy.pinLsHandler)
+	smux.HandleFunc("/api/v0/add", proxy.addHandler)
+	smux.HandleFunc("/api/v0/add/", proxy.addHandler)
+	smux.HandleFunc("/api/v0/repo/stat", proxy.repoStatHandler)
+	smux.HandleFunc("/api/v0/repo/stat/", proxy.repoStatHandler)
 
-	go ipfs.run()
-	return ipfs, nil
+	go proxy.run()
+	return proxy, nil
 }
 
 // SetClient makes the component ready to perform RPC
 // requests.
-func (ipfs *IPFSProxy) SetClient(c *rpc.Client) {
-	ipfs.rpcClient = c
-	ipfs.rpcReady <- struct{}{}
+func (proxy *Server) SetClient(c *rpc.Client) {
+	proxy.rpcClient = c
+	proxy.rpcReady <- struct{}{}
 }
 
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
-func (ipfs *IPFSProxy) Shutdown() error {
-	ipfs.shutdownLock.Lock()
-	defer ipfs.shutdownLock.Unlock()
+func (proxy *Server) Shutdown() error {
+	proxy.shutdownLock.Lock()
+	defer proxy.shutdownLock.Unlock()
 
-	if ipfs.shutdown {
+	if proxy.shutdown {
 		logger.Debug("already shutdown")
 		return nil
 	}
 
 	logger.Info("stopping IPFS Proxy")
 
-	ipfs.cancel()
-	close(ipfs.rpcReady)
-	ipfs.server.SetKeepAlivesEnabled(false)
-	ipfs.listener.Close()
+	proxy.cancel()
+	close(proxy.rpcReady)
+	proxy.server.SetKeepAlivesEnabled(false)
+	proxy.listener.Close()
 
-	ipfs.wg.Wait()
-	ipfs.shutdown = true
+	proxy.wg.Wait()
+	proxy.shutdown = true
 	return nil
 }
 
 // launches proxy when we receive the rpcReady signal.
-func (ipfs *IPFSProxy) run() {
-	<-ipfs.rpcReady
+func (proxy *Server) run() {
+	<-proxy.rpcReady
 
 	// Do not shutdown while launching threads
-	// -- prevents race conditions with ipfs.wg.
-	ipfs.shutdownLock.Lock()
-	defer ipfs.shutdownLock.Unlock()
+	// -- prevents race conditions with proxy.wg.
+	proxy.shutdownLock.Lock()
+	defer proxy.shutdownLock.Unlock()
 
 	// This launches the proxy
-	ipfs.wg.Add(1)
+	proxy.wg.Add(1)
 	go func() {
-		defer ipfs.wg.Done()
+		defer proxy.wg.Done()
 		logger.Infof(
 			"IPFS Proxy: %s -> %s",
-			ipfs.config.ProxyAddr,
-			ipfs.config.NodeAddr,
+			proxy.config.ProxyAddr,
+			proxy.config.NodeAddr,
 		)
-		err := ipfs.server.Serve(ipfs.listener) // hangs here
+		err := proxy.server.Serve(proxy.listener) // hangs here
 		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 			logger.Error(err)
 		}
@@ -226,7 +224,7 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	return
 }
 
-func (ipfs *IPFSProxy) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
+func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
 	arg, ok := extractArgument(r.URL)
 	if !ok {
 		ipfsErrorResponder(w, "Error: bad argument")
@@ -238,7 +236,7 @@ func (ipfs *IPFSProxy) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	err = ipfs.rpcClient.Call(
+	err = proxy.rpcClient.Call(
 		"",
 		"Cluster",
 		op,
@@ -260,15 +258,15 @@ func (ipfs *IPFSProxy) pinOpHandler(op string, w http.ResponseWriter, r *http.Re
 	return
 }
 
-func (ipfs *IPFSProxy) pinHandler(w http.ResponseWriter, r *http.Request) {
-	ipfs.pinOpHandler("Pin", w, r)
+func (proxy *Server) pinHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.pinOpHandler("Pin", w, r)
 }
 
-func (ipfs *IPFSProxy) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	ipfs.pinOpHandler("Unpin", w, r)
+func (proxy *Server) unpinHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.pinOpHandler("Unpin", w, r)
 }
 
-func (ipfs *IPFSProxy) pinLsHandler(w http.ResponseWriter, r *http.Request) {
+func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
@@ -280,7 +278,7 @@ func (ipfs *IPFSProxy) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var pin api.PinSerial
-		err = ipfs.rpcClient.Call(
+		err = proxy.rpcClient.Call(
 			"",
 			"Cluster",
 			"PinGet",
@@ -296,7 +294,7 @@ func (ipfs *IPFSProxy) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var pins []api.PinSerial
-		err := ipfs.rpcClient.Call(
+		err := proxy.rpcClient.Call(
 			"",
 			"Cluster",
 			"Pins",
@@ -321,7 +319,7 @@ func (ipfs *IPFSProxy) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resBytes)
 }
 
-func (ipfs *IPFSProxy) addHandler(w http.ResponseWriter, r *http.Request) {
+func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	reader, err := r.MultipartReader()
 	if err != nil {
 		ipfsErrorResponder(w, "error reading request: "+err.Error())
@@ -362,8 +360,8 @@ func (ipfs *IPFSProxy) addHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	root, err := adderutils.AddMultipartHTTPHandler(
-		ipfs.ctx,
-		ipfs.rpcClient,
+		proxy.ctx,
+		proxy.rpcClient,
 		params,
 		reader,
 		w,
@@ -381,8 +379,8 @@ func (ipfs *IPFSProxy) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Unpin because the user doesn't want to pin
 	time.Sleep(100 * time.Millisecond)
-	err = ipfs.rpcClient.CallContext(
-		ipfs.ctx,
+	err = proxy.rpcClient.CallContext(
+		proxy.ctx,
 		"",
 		"Cluster",
 		"Unpin",
@@ -395,9 +393,9 @@ func (ipfs *IPFSProxy) addHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ipfs *IPFSProxy) repoStatHandler(w http.ResponseWriter, r *http.Request) {
+func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	var peers []peer.ID
-	err := ipfs.rpcClient.Call(
+	err := proxy.rpcClient.Call(
 		"",
 		"Cluster",
 		"ConsensusPeers",
@@ -409,7 +407,7 @@ func (ipfs *IPFSProxy) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctxs, cancels := rpcutil.CtxsWithTimeout(ipfs.ctx, len(peers), ipfs.config.IPFSRequestTimeout)
+	ctxs, cancels := rpcutil.CtxsWithCancel(proxy.ctx, len(peers))
 	defer rpcutil.MultiCancel(cancels)
 
 	repoStats := make([]api.IPFSRepoStat, len(peers), len(peers))
@@ -418,7 +416,7 @@ func (ipfs *IPFSProxy) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 		repoStatsIfaces[i] = &repoStats[i]
 	}
 
-	errs := ipfs.rpcClient.MultiCall(
+	errs := proxy.rpcClient.MultiCall(
 		ctxs,
 		peers,
 		"Cluster",
