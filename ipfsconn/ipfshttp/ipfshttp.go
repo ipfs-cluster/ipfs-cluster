@@ -191,14 +191,14 @@ func NewConnector(cfg *Config) (*Connector, error) {
 	}
 
 	smux.Handle("/", proxyHandler)
-	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)
-	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler)
-	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler) // required to handle /pin/ls for all pins
-	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler)
+	smux.HandleFunc("/api/v0/pin/add", ipfs.pinHandler)   // add?arg=xxx
+	smux.HandleFunc("/api/v0/pin/add/", ipfs.pinHandler)  // add/xxx
+	smux.HandleFunc("/api/v0/pin/rm", ipfs.unpinHandler)  // rm?arg=xxx
+	smux.HandleFunc("/api/v0/pin/rm/", ipfs.unpinHandler) // rm/xxx
+	smux.HandleFunc("/api/v0/pin/ls", ipfs.pinLsHandler)  // required to handle /pin/ls for all pins
+	smux.HandleFunc("/api/v0/pin/ls/", ipfs.pinLsHandler) // ls/xxx
 	smux.HandleFunc("/api/v0/add", ipfs.addHandler)
-	smux.HandleFunc("/api/v0/add/", ipfs.addHandler)
 	smux.HandleFunc("/api/v0/repo/stat", ipfs.repoStatHandler)
-	smux.HandleFunc("/api/v0/repo/stat/", ipfs.repoStatHandler)
 
 	go ipfs.run()
 	return ipfs, nil
