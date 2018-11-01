@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.7.0 - 2018-10-25
+### v0.7.0 - 2018-11-01
 
 #### Summary
 
