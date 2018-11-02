@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/adder"
@@ -50,6 +51,18 @@ func AddMultipartHTTPHandler(
 	// Custom header which breaks js-ipfs-api if not set
 	// https://github.com/ipfs-shipyard/ipfs-companion/issues/600
 	w.Header().Set("X-Chunked-Output", "1")
+
+	// Set allowed headers and expose them. CORS.
+	allowedHeadersArr := []string{
+		"X-Chunked-Output",
+		"Content-Range",
+		"X-Stream-Output",
+	}
+
+	allowedHeaders := strings.Join(allowedHeadersArr, ", ")
+
+	w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
+	w.Header().Set("Access-Control-Expose-Headers", allowedHeaders)
 
 	// Used by go-ipfs to signal errors half-way through the stream.
 	w.Header().Set("Trailer", "X-Stream-Error")
