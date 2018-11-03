@@ -257,3 +257,45 @@ func TestMetric(t *testing.T) {
 		t.Error("looks like a bad ttl")
 	}
 }
+
+func BenchmarkPinSerial_ToPin(b *testing.B) {
+	pin := Pin{
+		Cid:         testCid1,
+		Type:        ClusterDAGType,
+		Allocations: []peer.ID{testPeerID1},
+		Reference:   testCid2,
+		MaxDepth:    -1,
+		PinOptions: PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: -1,
+			Name:                 "A test pin",
+		},
+	}
+	pinS := pin.ToSerial()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pinS.ToPin()
+	}
+}
+
+func BenchmarkPinSerial_DecodeCid(b *testing.B) {
+	pin := Pin{
+		Cid:         testCid1,
+		Type:        ClusterDAGType,
+		Allocations: []peer.ID{testPeerID1},
+		Reference:   testCid2,
+		MaxDepth:    -1,
+		PinOptions: PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: -1,
+			Name:                 "A test pin",
+		},
+	}
+	pinS := pin.ToSerial()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pinS.DecodeCid()
+	}
+}

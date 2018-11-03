@@ -5,16 +5,17 @@ package pubsubmon
 import (
 	"bytes"
 	"context"
+
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	logging "github.com/ipfs/go-log"
-	floodsub "github.com/libp2p/go-floodsub"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
 )
 
@@ -34,8 +35,8 @@ type Monitor struct {
 	rpcReady  chan struct{}
 
 	host         host.Host
-	pubsub       *floodsub.PubSub
-	subscription *floodsub.Subscription
+	pubsub       *pubsub.PubSub
+	subscription *pubsub.Subscription
 
 	metrics *metrics.Store
 	checker *metrics.Checker
@@ -59,7 +60,7 @@ func New(h host.Host, cfg *Config) (*Monitor, error) {
 	mtrs := metrics.NewStore()
 	checker := metrics.NewChecker(mtrs)
 
-	pubsub, err := floodsub.NewFloodSub(ctx, h)
+	pubsub, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		cancel()
 		return nil, err

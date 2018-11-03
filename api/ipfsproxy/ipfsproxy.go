@@ -146,14 +146,14 @@ func New(cfg *Config) (*Server, error) {
 		server:   s,
 	}
 	smux.Handle("/", proxyHandler)
-	smux.HandleFunc("/api/v0/pin/add/", proxy.pinHandler)
-	smux.HandleFunc("/api/v0/pin/rm/", proxy.unpinHandler)
-	smux.HandleFunc("/api/v0/pin/ls", proxy.pinLsHandler) // required to handle /pin/ls for all pins
-	smux.HandleFunc("/api/v0/pin/ls/", proxy.pinLsHandler)
+	smux.HandleFunc("/api/v0/pin/add", proxy.pinHandler)   // add?arg=xxx
+	smux.HandleFunc("/api/v0/pin/add/", proxy.pinHandler)  // add/xxx
+	smux.HandleFunc("/api/v0/pin/rm", proxy.unpinHandler)  // rm?arg=xxx
+	smux.HandleFunc("/api/v0/pin/rm/", proxy.unpinHandler) // rm/xxx
+	smux.HandleFunc("/api/v0/pin/ls", proxy.pinLsHandler)  // required to handle /pin/ls for all pins
+	smux.HandleFunc("/api/v0/pin/ls/", proxy.pinLsHandler) // ls/xxx
 	smux.HandleFunc("/api/v0/add", proxy.addHandler)
-	smux.HandleFunc("/api/v0/add/", proxy.addHandler)
 	smux.HandleFunc("/api/v0/repo/stat", proxy.repoStatHandler)
-	smux.HandleFunc("/api/v0/repo/stat/", proxy.repoStatHandler)
 
 	go proxy.run()
 	return proxy, nil
@@ -293,7 +293,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			Type: "recursive",
 		}
 	} else {
-		var pins []api.PinSerial
+		pins := make([]api.PinSerial, 0)
 		err := proxy.rpcClient.Call(
 			"",
 			"Cluster",
@@ -394,7 +394,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
-	var peers []peer.ID
+	peers := make([]peer.ID, 0)
 	err := proxy.rpcClient.Call(
 		"",
 		"Cluster",

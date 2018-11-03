@@ -33,14 +33,14 @@ var simpleIpfs = `digraph cluster {
 
 /* The nodes of the connectivity graph */
 /* The cluster-service peers */
-C0 [label="<peer.ID UBuxVH>" color="blue2"]
-C1 [label="<peer.ID V35Ljb>" color="blue2"]
-C2 [label="<peer.ID Z2ckU7>" color="blue2"]
+C0 [label="<peer.ID Qm*eqhEhD>" color="blue2"]
+C1 [label="<peer.ID Qm*cgHDQJ>" color="blue2"]
+C2 [label="<peer.ID Qm*6MQmJu>" color="blue2"]
 
 /* The ipfs peers */
-I0 [label="<peer.ID PFKAGZ>" color="goldenrod"]
-I1 [label="<peer.ID XbiVZd>" color="goldenrod"]
-I2 [label="<peer.ID bU7273>" color="goldenrod"]
+I0 [label="<peer.ID Qm*N5LSsq>" color="goldenrod"]
+I1 [label="<peer.ID Qm*R3DZDV>" color="goldenrod"]
+I2 [label="<peer.ID Qm*wbBsuL>" color="goldenrod"]
 
 /* Edges representing active connections in the cluster */
 /* The connections among cluster-service peers */
@@ -115,17 +115,17 @@ var allIpfs = `digraph cluster {
 
 /* The nodes of the connectivity graph */
 /* The cluster-service peers */
-C0 [label="<peer.ID UBuxVH>" color="blue2"]
-C1 [label="<peer.ID V35Ljb>" color="blue2"]
-C2 [label="<peer.ID Z2ckU7>" color="blue2"]
+C0 [label="<peer.ID Qm*eqhEhD>" color="blue2"]
+C1 [label="<peer.ID Qm*cgHDQJ>" color="blue2"]
+C2 [label="<peer.ID Qm*6MQmJu>" color="blue2"]
 
 /* The ipfs peers */
-I0 [label="<peer.ID PFKAGZ>" color="goldenrod"]
-I1 [label="<peer.ID QsdAdC>" color="goldenrod"]
-I2 [label="<peer.ID VV2enw>" color="goldenrod"]
-I3 [label="<peer.ID XbiVZd>" color="goldenrod"]
-I4 [label="<peer.ID bU7273>" color="goldenrod"]
-I5 [label="<peer.ID fCHNQ2>" color="goldenrod"]
+I0 [label="<peer.ID Qm*N5LSsq>" color="goldenrod"]
+I1 [label="<peer.ID Qm*S8xccb>" color="goldenrod"]
+I2 [label="<peer.ID Qm*aaanM8>" color="goldenrod"]
+I3 [label="<peer.ID Qm*R3DZDV>" color="goldenrod"]
+I4 [label="<peer.ID Qm*wbBsuL>" color="goldenrod"]
+I5 [label="<peer.ID Qm*tWZdeD>" color="goldenrod"]
 
 /* Edges representing active connections in the cluster */
 /* The connections among cluster-service peers */

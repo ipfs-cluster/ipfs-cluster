@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
+
 	"github.com/ipfs/ipfs-cluster/config"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -240,8 +242,7 @@ func isReplicationFactorValid(rplMin, rplMax int) error {
 		return errors.New("cluster.replication_factor_max is wrong")
 	}
 
-	if (rplMin == -1 && rplMax != -1) ||
-		(rplMin != -1 && rplMax == -1) {
+	if (rplMin == -1 && rplMax != -1) || (rplMin != -1 && rplMax == -1) {
 		return errors.New("cluster.replication_factor_min and max must be -1 when one of them is")
 	}
 	return nil
@@ -279,9 +280,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	// Make sure all non-defined keys have good values.
 	cfg.setDefaults()
-	config.SetIfNotDefault(jcfg.PeerstoreFile, &cfg.PeerstoreFile)
 
 	if jcfg.Peers != nil || jcfg.Bootstrap != nil {
 		logger.Error(`
@@ -303,6 +302,12 @@ for more information.`)
 		return errors.New("cluster.Peers and cluster.Bootstrap keys have been deprecated")
 	}
 
+	// override json config with env var
+	err = envconfig.Process(cfg.ConfigKey(), jcfg)
+	if err != nil {
+		return err
+	}
+
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
 		if txt != "" && d == 0 {
@@ -310,6 +315,8 @@ for more information.`)
 		}
 		return d
 	}
+
+	config.SetIfNotDefault(jcfg.PeerstoreFile, &cfg.PeerstoreFile)
 
 	id, err := peer.IDB58Decode(jcfg.ID)
 	if err != nil {

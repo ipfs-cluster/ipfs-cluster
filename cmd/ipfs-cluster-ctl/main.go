@@ -27,7 +27,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.6.0"
+const Version = "0.7.0"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -759,6 +759,31 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 						err = makeDot(resp, w, c.Bool("all-ipfs-peers"))
 						checkErr("printing graph", err)
 
+						return nil
+					},
+				},
+				{
+					Name:  "metrics",
+					Usage: "List latest metrics logged by this peer",
+					Description: `
+This commands displays the latest valid metrics of the given type logged
+by this peer for all current cluster peers.
+
+Currently supported metrics depend on the informer component used,
+but usually are:
+
+- freespace
+- ping
+`,
+					ArgsUsage: "<metric name>",
+					Action: func(c *cli.Context) error {
+						metric := c.Args().First()
+						if metric == "" {
+							checkErr("", errors.New("provide a metric name"))
+						}
+
+						resp, cerr := globalClient.Metrics(metric)
+						formatResponse(c, resp, cerr)
 						return nil
 					},
 				},

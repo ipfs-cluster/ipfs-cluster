@@ -92,9 +92,10 @@ func (c *defaultClient) handleResponse(resp *http.Response, obj interface{}) err
 			var apiErr api.Error
 			err = json.Unmarshal(body, &apiErr)
 			if err != nil {
+				// not json. 404s etc.
 				return &api.Error{
 					Code:    resp.StatusCode,
-					Message: err.Error(),
+					Message: string(body),
 				}
 			}
 			return &apiErr

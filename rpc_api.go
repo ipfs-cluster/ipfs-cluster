@@ -37,7 +37,7 @@ func (rpcapi *RPCAPI) Pin(ctx context.Context, in api.PinSerial, out *struct{}) 
 
 // Unpin runs Cluster.Unpin().
 func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	return rpcapi.c.Unpin(c)
 }
 
@@ -124,7 +124,7 @@ func (rpcapi *RPCAPI) StatusAllLocal(ctx context.Context, in struct{}, out *[]ap
 
 // Status runs Cluster.Status().
 func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.Status(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -132,7 +132,7 @@ func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.Glo
 
 // StatusLocal runs Cluster.StatusLocal().
 func (rpcapi *RPCAPI) StatusLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo := rpcapi.c.StatusLocal(c)
 	*out = pinfo.ToSerial()
 	return nil
@@ -154,7 +154,7 @@ func (rpcapi *RPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]api.
 
 // Sync runs Cluster.Sync().
 func (rpcapi *RPCAPI) Sync(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.Sync(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -162,7 +162,7 @@ func (rpcapi *RPCAPI) Sync(ctx context.Context, in api.PinSerial, out *api.Globa
 
 // SyncLocal runs Cluster.SyncLocal().
 func (rpcapi *RPCAPI) SyncLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.SyncLocal(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -177,7 +177,7 @@ func (rpcapi *RPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]a
 
 // Recover runs Cluster.Recover().
 func (rpcapi *RPCAPI) Recover(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.Recover(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -185,7 +185,7 @@ func (rpcapi *RPCAPI) Recover(ctx context.Context, in api.PinSerial, out *api.Gl
 
 // RecoverLocal runs Cluster.RecoverLocal().
 func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.RecoverLocal(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -205,12 +205,12 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *
 		// Returned metrics are Valid and belong to current
 		// Cluster peers.
 		metrics := rpcapi.c.monitor.LatestMetrics(pingMetricName)
-		peers := make([]peer.ID, len(metrics), len(metrics))
+		peers := make([]string, len(metrics), len(metrics))
 		for i, m := range metrics {
-			peers[i] = m.Peer
+			peers[i] = peer.IDB58Encode(m.Peer)
 		}
 
-		*out = api.PeersToStrings(peers)
+		*out = peers
 		return nil
 	}
 
@@ -248,7 +248,7 @@ func (rpcapi *RPCAPI) Track(ctx context.Context, in api.PinSerial, out *struct{}
 
 // Untrack runs PinTracker.Untrack().
 func (rpcapi *RPCAPI) Untrack(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	return rpcapi.c.tracker.Untrack(c)
 }
 
@@ -260,7 +260,7 @@ func (rpcapi *RPCAPI) TrackerStatusAll(ctx context.Context, in struct{}, out *[]
 
 // TrackerStatus runs PinTracker.Status().
 func (rpcapi *RPCAPI) TrackerStatus(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo := rpcapi.c.tracker.Status(c)
 	*out = pinfo.ToSerial()
 	return nil
@@ -275,7 +275,7 @@ func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[
 
 // TrackerRecover runs PinTracker.Recover().
 func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.tracker.Recover(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -287,20 +287,20 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out 
 
 // IPFSPin runs IPFSConnector.Pin().
 func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	depth := in.ToPin().MaxDepth
 	return rpcapi.c.ipfs.Pin(ctx, c, depth)
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
 func (rpcapi *RPCAPI) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	return rpcapi.c.ipfs.Unpin(ctx, c)
 }
 
 // IPFSPinLsCid runs IPFSConnector.PinLsCid().
 func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *api.IPFSPinStatus) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	b, err := rpcapi.c.ipfs.PinLsCid(ctx, c)
 	*out = b
 	return err
@@ -347,7 +347,7 @@ func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out
 
 // IPFSBlockGet runs IPFSConnector.BlockGet().
 func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[]byte) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	res, err := rpcapi.c.ipfs.BlockGet(c)
 	*out = res
 	return err

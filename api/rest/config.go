@@ -27,6 +27,15 @@ const (
 	DefaultIdleTimeout       = 120 * time.Second
 )
 
+// These are the default values for Config.
+var (
+	DefaultHeaders = map[string][]string{
+		"Access-Control-Allow-Headers": []string{"X-Requested-With", "Range"},
+		"Access-Control-Allow-Methods": []string{"GET"},
+		"Access-Control-Allow-Origin":  []string{"*"},
+	}
+)
+
 // Config is used to intialize the API object and allows to
 // customize the behaviour of it. It implements the config.ComponentConfig
 // interface.
@@ -71,6 +80,10 @@ type Config struct {
 	// BasicAuthCreds is a map of username-password pairs
 	// which are authorized to use Basic Authentication
 	BasicAuthCreds map[string]string
+
+	// Headers provides customization for the headers returned
+	// by the API. By default it sets a CORS policy.
+	Headers map[string][]string
 }
 
 type jsonConfig struct {
@@ -87,7 +100,8 @@ type jsonConfig struct {
 	ID                       string `json:"id,omitempty"`
 	PrivateKey               string `json:"private_key,omitempty"`
 
-	BasicAuthCreds map[string]string `json:"basic_auth_credentials"`
+	BasicAuthCreds map[string]string   `json:"basic_auth_credentials"`
+	Headers        map[string][]string `json:"headers"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of
@@ -115,6 +129,9 @@ func (cfg *Config) Default() error {
 
 	// Auth
 	cfg.BasicAuthCreds = nil
+
+	// Headers
+	cfg.Headers = DefaultHeaders
 
 	return nil
 }
@@ -177,6 +194,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	// Other options
 	cfg.BasicAuthCreds = jcfg.BasicAuthCreds
+	cfg.Headers = jcfg.Headers
 
 	return cfg.Validate()
 }
@@ -295,6 +313,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		WriteTimeout:           cfg.WriteTimeout.String(),
 		IdleTimeout:            cfg.IdleTimeout.String(),
 		BasicAuthCreds:         cfg.BasicAuthCreds,
+		Headers:                cfg.Headers,
 	}
 
 	if cfg.ID != "" {

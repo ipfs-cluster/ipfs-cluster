@@ -50,8 +50,14 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 }
 
 func clusterAddr(c *Cluster) ma.Multiaddr {
-	cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", c.host.Addrs()[0], c.id.Pretty()))
-	return cAddr
+	for _, a := range c.host.Addrs() {
+		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
+			p := peer.IDB58Encode(c.id)
+			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", a, p))
+			return cAddr
+		}
+	}
+	return nil
 }
 
 func TestClustersPeerAdd(t *testing.T) {

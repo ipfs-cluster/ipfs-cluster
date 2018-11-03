@@ -9,12 +9,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ipfs/go-ipfs-cmdkit/files"
-
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	shell "github.com/ipfs/go-ipfs-api"
+	files "github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -103,6 +102,10 @@ type Client interface {
 	// GetConnectGraph returns an ipfs-cluster connection graph.  The
 	// serialized version, strings instead of pids, is returned
 	GetConnectGraph() (api.ConnectGraphSerial, error)
+
+	// Metrics returns a map with the latest metrics of matching name
+	// for the current cluster peers.
+	Metrics(name string) ([]api.Metric, error)
 }
 
 // Config allows to configure the parameters to connect

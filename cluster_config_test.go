@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 )
 
@@ -23,118 +24,178 @@ var ccfgTestJSON = []byte(`
 `)
 
 func TestLoadJSON(t *testing.T) {
-	cfg := &Config{}
-	err := cfg.LoadJSON(ccfgTestJSON)
-	if err != nil {
-		t.Fatal(err)
+	loadJSON := func(t *testing.T) (*Config, error) {
+		cfg := &Config{}
+		err := cfg.LoadJSON(ccfgTestJSON)
+		if err != nil {
+			return cfg, err
+		}
+		return cfg, nil
 	}
 
-	if cfg.Peername != "testpeer" {
-		t.Error("expected peername 'testpeer'")
+	t.Run("basic", func(t *testing.T) {
+		cfg := &Config{}
+		err := cfg.LoadJSON(ccfgTestJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("peername", func(t *testing.T) {
+		cfg, err := loadJSON(t)
+		if err != nil {
+			t.Error(err)
+		}
+		if cfg.Peername != "testpeer" {
+			t.Error("expected peername 'testpeer'")
+		}
+	})
+
+	t.Run("expected replication factor", func(t *testing.T) {
+		cfg, err := loadJSON(t)
+		if err != nil {
+			t.Error(err)
+		}
+		if cfg.ReplicationFactorMin != 5 {
+			t.Error("expected replication factor min == 5")
+		}
+	})
+
+	t.Run("expected disable_repinning", func(t *testing.T) {
+		cfg, err := loadJSON(t)
+		if err != nil {
+			t.Error(err)
+		}
+		if !cfg.DisableRepinning {
+			t.Error("expected disable_repinning to be true")
+		}
+	})
+
+	loadJSON2 := func(t *testing.T, f func(j *configJSON)) (*Config, error) {
+		cfg := &Config{}
+		j := &configJSON{}
+		json.Unmarshal(ccfgTestJSON, j)
+		f(j)
+		tst, err := json.Marshal(j)
+		if err != nil {
+			return cfg, err
+		}
+		err = cfg.LoadJSON(tst)
+		if err != nil {
+			return cfg, err
+		}
+		return cfg, nil
 	}
 
-	if cfg.ReplicationFactorMin != 5 {
-		t.Error("expected replication factor min == 5")
-	}
+	t.Run("bad id", func(t *testing.T) {
+		_, err := loadJSON2(t, func(j *configJSON) { j.ID = "abc" })
+		if err == nil {
+			t.Error("expected error decoding ID")
+		}
+	})
 
-	if !cfg.DisableRepinning {
-		t.Error("expected disable_repinning to be true")
-	}
+	t.Run("empty default peername", func(t *testing.T) {
+		cfg, err := loadJSON2(t, func(j *configJSON) { j.Peername = "" })
+		if err != nil {
+			t.Error(err)
+		}
+		if cfg.Peername == "" {
+			t.Error("expected default peername")
+		}
+	})
 
-	j := &configJSON{}
+	t.Run("bad private key", func(t *testing.T) {
+		_, err := loadJSON2(t, func(j *configJSON) { j.PrivateKey = "abc" })
+		if err == nil {
+			t.Error("expected error parsing private key")
+		}
+	})
 
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ID = "abc"
-	tst, _ := json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error decoding ID")
-	}
+	t.Run("bad listen multiaddress", func(t *testing.T) {
+		_, err := loadJSON2(t, func(j *configJSON) { j.ListenMultiaddress = "abc" })
+		if err == nil {
+			t.Error("expected error parsing listen_multiaddress")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.Peername = ""
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if cfg.Peername == "" {
-		t.Error("expected default peername")
-	}
+	t.Run("bad secret", func(t *testing.T) {
+		_, err := loadJSON2(t, func(j *configJSON) { j.Secret = "abc" })
+		if err == nil {
+			t.Error("expected error decoding secret")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.PrivateKey = "abc"
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error parsing private key")
-	}
+	t.Run("default replication factors", func(t *testing.T) {
+		cfg, err := loadJSON2(
+			t,
+			func(j *configJSON) {
+				j.ReplicationFactor = 0
+				j.ReplicationFactorMin = 0
+				j.ReplicationFactorMax = 0
+			},
+		)
+		if err != nil {
+			t.Error(err)
+		}
+		if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
+			t.Error("expected default replication factor")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ListenMultiaddress = "abc"
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error parsing listen_multiaddress")
-	}
+	t.Run("replication factor min/max override", func(t *testing.T) {
+		cfg, err := loadJSON2(t, func(j *configJSON) { j.ReplicationFactor = 3 })
+		if err != nil {
+			t.Error(err)
+		}
+		if cfg.ReplicationFactorMin != 3 || cfg.ReplicationFactorMax != 3 {
+			t.Error("expected replicationFactor Min/Max override")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.Secret = "abc"
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error decoding secret")
-	}
+	t.Run("only replication factor min set to -1", func(t *testing.T) {
+		_, err := loadJSON2(t, func(j *configJSON) { j.ReplicationFactorMin = -1 })
+		if err == nil {
+			t.Error("expected error when only one replication factor is -1")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ReplicationFactor = 0
-	j.ReplicationFactorMin = 0
-	j.ReplicationFactorMax = 0
-	tst, _ = json.Marshal(j)
-	cfg.LoadJSON(tst)
-	if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
-		t.Error("expected default replication factor")
-	}
+	t.Run("replication factor min > max", func(t *testing.T) {
+		_, err := loadJSON2(
+			t,
+			func(j *configJSON) {
+				j.ReplicationFactorMin = 5
+				j.ReplicationFactorMax = 4
+			},
+		)
+		if err == nil {
+			t.Error("expected error when only rplMin > rplMax")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ReplicationFactor = 3
-	tst, _ = json.Marshal(j)
-	cfg.LoadJSON(tst)
-	if cfg.ReplicationFactorMin != 3 || cfg.ReplicationFactorMax != 3 {
-		t.Error("expected replicationFactor Min/Max override")
-	}
+	t.Run("default replication factor", func(t *testing.T) {
+		cfg, err := loadJSON2(
+			t,
+			func(j *configJSON) {
+				j.ReplicationFactorMin = 0
+				j.ReplicationFactorMax = 0
+			},
+		)
+		if err != nil {
+			t.Error(err)
+		}
+		if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
+			t.Error("expected default replication factors")
+		}
+	})
 
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ReplicationFactorMin = -1
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error when only one replication factor is -1")
-	}
-
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ReplicationFactorMin = 5
-	j.ReplicationFactorMax = 4
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if err == nil {
-		t.Error("expected error when only rplMin > rplMax")
-	}
-
-	j = &configJSON{}
-	json.Unmarshal(ccfgTestJSON, j)
-	j.ReplicationFactorMin = 0
-	j.ReplicationFactorMax = 0
-	tst, _ = json.Marshal(j)
-	err = cfg.LoadJSON(tst)
-	if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
-		t.Error("expected default replication factors")
-	}
+	t.Run("env var override", func(t *testing.T) {
+		os.Setenv("CLUSTER_PEERNAME", "envsetpeername")
+		cfg := &Config{}
+		cfg.LoadJSON(ccfgTestJSON)
+		if cfg.Peername != "envsetpeername" {
+			t.Fatal("failed to override peername with env var")
+		}
+	})
 }
 
 func TestToJSON(t *testing.T) {

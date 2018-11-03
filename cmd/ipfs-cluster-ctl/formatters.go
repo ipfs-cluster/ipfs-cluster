@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 func jsonFormatObject(resp interface{}) {
@@ -24,6 +26,9 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.AddedOutput))
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
+	case api.Metric:
+		serial := resp.(api.Metric)
+		textFormatPrintMetric(&serial)
 	case api.Error:
 		jsonFormatPrint(resp.(api.Error))
 	case []api.ID:
@@ -50,6 +55,9 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(serials)
 	case []api.AddedOutput:
 		serials := resp.([]api.AddedOutput)
+		jsonFormatPrint(serials)
+	case []api.Metric:
+		serials := resp.([]api.Metric)
 		jsonFormatPrint(serials)
 	default:
 		checkErr("", errors.New("unsupported type returned"))
@@ -84,6 +92,9 @@ func textFormatObject(resp interface{}) {
 	case api.Error:
 		serial := resp.(api.Error)
 		textFormatPrintError(&serial)
+	case api.Metric:
+		serial := resp.(api.Metric)
+		textFormatPrintMetric(&serial)
 	case []api.ID:
 		for _, item := range resp.([]api.ID) {
 			textFormatObject(item)
@@ -98,6 +109,10 @@ func textFormatObject(resp interface{}) {
 		}
 	case []api.AddedOutput:
 		for _, item := range resp.([]api.AddedOutput) {
+			textFormatObject(item)
+		}
+	case []api.Metric:
+		for _, item := range resp.([]api.Metric) {
 			textFormatObject(item)
 		}
 	default:
@@ -200,6 +215,11 @@ func textFormatPrintPin(obj *api.PinSerial) {
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
+}
+
+func textFormatPrintMetric(obj *api.Metric) {
+	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
+	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
 func textFormatPrintError(obj *api.Error) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,7 +16,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipfs-cmdkit/files"
+	files "github.com/ipfs/go-ipfs-files"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -109,7 +110,8 @@ func (c *defaultClient) Allocations(filter api.PinType) ([]api.Pin, error) {
 		}
 	}
 
-	err := c.do("GET", fmt.Sprintf("/allocations?filter=%s", strings.Join(strFilter, ",")), nil, nil, &pins)
+	f := url.QueryEscape(strings.Join(strFilter, ","))
+	err := c.do("GET", fmt.Sprintf("/allocations?filter=%s", f), nil, nil, &pins)
 	result := make([]api.Pin, len(pins))
 	for i, p := range pins {
 		result[i] = p.ToPin()
@@ -202,6 +204,17 @@ func (c *defaultClient) GetConnectGraph() (api.ConnectGraphSerial, error) {
 	var graphS api.ConnectGraphSerial
 	err := c.do("GET", "/health/graph", nil, nil, &graphS)
 	return graphS, err
+}
+
+// Metrics returns a map with the latest valid metrics of the given name
+// for the current cluster peers.
+func (c *defaultClient) Metrics(name string) ([]api.Metric, error) {
+	if name == "" {
+		return nil, errors.New("bad metric name")
+	}
+	var metrics []api.Metric
+	err := c.do("GET", fmt.Sprintf("/monitor/metrics/%s", name), nil, nil, &metrics)
+	return metrics, err
 }
 
 // WaitFor is a utility function that allows for a caller to wait for a

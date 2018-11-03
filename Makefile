@@ -1,14 +1,7 @@
-gx_version=v0.13.0
-gx-go_version=v1.8.0
-
 deptools=deptools
-
-gx=gx_$(gx_version)
-gx-go=gx-go_$(gx-go_version)
-gx_bin=$(deptools)/$(gx)
-gx-go_bin=$(deptools)/$(gx-go)
-bin_env=$(shell go env GOHOSTOS)-$(shell go env GOHOSTARCH)
 sharness = sharness/lib/sharness
+gx=$(deptools)/gx
+gx-go=$(deptools)/gx-go
 
 # For debugging
 problematic_test = TestClustersReplicationRealloc
@@ -20,9 +13,6 @@ clean: rwundo clean_sharness
 	$(MAKE) -C cmd/ipfs-cluster-service clean
 	$(MAKE) -C cmd/ipfs-cluster-ctl clean
 	@rm -rf ./test/testingData
-
-gx-clean: clean
-	@rm -f $(deptools)/*
 
 install: deps
 	$(MAKE) -C cmd/ipfs-cluster-service install
@@ -42,38 +32,22 @@ service: deps
 ctl: deps
 	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
 
-$(gx_bin):
-	@echo "Downloading gx"
-	mkdir -p ./$(deptools)
-	rm -f $(deptools)/gx
-	wget -nc -O $(gx_bin).tgz https://dist.ipfs.io/gx/$(gx_version)/$(gx)_$(bin_env).tar.gz
-	tar -zxf $(gx_bin).tgz -C $(deptools) --strip-components=1 gx/gx
-	mv $(deptools)/gx $(gx_bin)
-	ln -s $(gx) $(deptools)/gx
-	rm $(gx_bin).tgz
+gx-clean: clean
+	$(MAKE) -C $(deptools) gx-clean
 
-$(gx-go_bin):
-	@echo "Downloading gx-go"
-	mkdir -p ./$(deptools)
-	rm -f $(deptools)/gx-go
-	wget -nc -O $(gx-go_bin).tgz https://dist.ipfs.io/gx-go/$(gx-go_version)/$(gx-go)_$(bin_env).tar.gz
-	tar -zxf $(gx-go_bin).tgz -C $(deptools) --strip-components=1 gx-go/gx-go
-	mv $(deptools)/gx-go $(gx-go_bin)
-	ln -s $(gx-go) $(deptools)/gx-go
-	rm $(gx-go_bin).tgz
-
-gx: $(gx_bin) $(gx-go_bin)
+gx:
+	$(MAKE) -C $(deptools) gx
 
 deps: gx
-	$(gx_bin) install --global
-	$(gx-go_bin) rewrite
+	$(gx) install --global
+	$(gx-go) rewrite
 
 # Run this target before building the docker image 
 # and then gx won't attempt to pull all deps 
 # from the network each time
 docker_deps: gx
-	$(gx_bin) install --local
-	$(gx-go_bin) rewrite
+	$(gx) install --local
+	$(gx-go) rewrite
 
 check:
 	go vet ./...
@@ -101,11 +75,11 @@ clean_sharness:
 	@rm -rf sharness/trash\ directory*
 
 rw: gx
-	$(gx-go_bin) rewrite
+	$(gx-go) rewrite
 rwundo: gx
-	$(gx-go_bin) rewrite --undo
+	$(gx-go) rewrite --undo
 publish: rwundo
-	$(gx_bin) publish
+	$(gx) publish
 
 docker:
 	docker build -t cluster-image -f Dockerfile .
@@ -118,6 +92,14 @@ docker:
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-ctl version"
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
+
+
+docker-compose:
+	CLUSTER_SECRET=$(shell od -vN 32 -An -tx1 /dev/urandom | tr -d ' \n') docker-compose up -d
+	sleep 20
+	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
+	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
+	docker-compose down
 
 prcheck: deps check service ctl test
 

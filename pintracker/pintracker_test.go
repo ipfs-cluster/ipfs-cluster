@@ -9,15 +9,16 @@ import (
 	"testing"
 	"time"
 
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 var (
@@ -60,6 +61,9 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out
 	switch in.Cid {
 	case test.TestCid1, test.TestCid2:
 		*out = api.IPFSPinStatusRecursive
+	case test.TestCid4:
+		*out = api.IPFSPinStatusError
+		return errors.New("an ipfs error")
 	default:
 		*out = api.IPFSPinStatusUnpinned
 	}
@@ -82,94 +86,6 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 		test.TestCid1: api.IPFSPinStatusRecursive,
 	}
 	*out = m
-	return nil
-}
-
-func (mock *mockService) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	switch in.Cid {
-	case test.ErrorCid:
-		return test.ErrBadCid
-	case test.TestCid1:
-		c1, _ := cid.Decode(test.TestCid1)
-		*out = api.GlobalPinInfo{
-			Cid: c1,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    c1,
-					Peer:   test.TestPeerID1,
-					Status: api.TrackerStatusPinned,
-					TS:     time.Now(),
-				},
-			},
-		}.ToSerial()
-		// case test.TestSlowCid1:
-		//	sc1 := test.MustDecodeCid(test.TestSlowCid1)
-		// 	*out = api.GlobalPinInfo{
-		// 		Cid: sc1,
-		// 		PeerMap: map[peer.ID]api.PinInfo{
-		// 			test.TestPeerID1: {
-		// 				Cid:    sc1,
-		// 				Peer:   test.TestPeerID1,
-		// 				Status: api.TrackerStatusPinned,
-		// 				TS:     time.Now(),
-		// 			},
-		// 		},
-		// 	}.ToSerial()
-	}
-	return nil
-}
-
-func (mock *mockService) StatusAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfoSerial) error {
-	c1, _ := cid.Decode(test.TestCid1)
-	c2, _ := cid.Decode(test.TestCid2)
-	c3, _ := cid.Decode(test.TestCid3)
-	slowC1 := test.MustDecodeCid(test.TestSlowCid1)
-	*out = ipfscluster.GlobalPinInfoSliceToSerial([]api.GlobalPinInfo{
-		{
-			Cid: c1,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    c1,
-					Peer:   test.TestPeerID1,
-					Status: api.TrackerStatusPinned,
-					TS:     time.Now(),
-				},
-			},
-		},
-		{
-			Cid: c2,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    c2,
-					Peer:   test.TestPeerID1,
-					Status: api.TrackerStatusPinning,
-					TS:     time.Now(),
-				},
-			},
-		},
-		{
-			Cid: c3,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    c3,
-					Peer:   test.TestPeerID1,
-					Status: api.TrackerStatusPinError,
-					TS:     time.Now(),
-				},
-			},
-		},
-		{
-			Cid: slowC1,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    slowC1,
-					Peer:   test.TestPeerID1,
-					Status: api.TrackerStatusPinning,
-					TS:     time.Now(),
-				},
-			},
-		},
-	})
 	return nil
 }
 
@@ -1067,4 +983,50 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPinTracker_RemoteIgnoresError(t *testing.T) {
+	testF := func(t *testing.T, pt ipfscluster.PinTracker) {
+		remoteCid := test.MustDecodeCid(test.TestCid4)
+
+		remote := api.PinWithOpts(remoteCid, pinOpts)
+		remote.Allocations = []peer.ID{test.TestPeerID2}
+		remote.ReplicationFactorMin = 1
+		remote.ReplicationFactorMax = 1
+
+		err := pt.Track(remote)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Sync triggers IPFSPinLs which will return an error
+		// (see mock)
+		pi, err := pt.Sync(remoteCid)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if pi.Status != api.TrackerStatusRemote || pi.Error != "" {
+			t.Error("Remote pin should not be in error")
+		}
+
+		pi = pt.Status(remoteCid)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if pi.Status != api.TrackerStatusRemote || pi.Error != "" {
+			t.Error("Remote pin should not be in error")
+		}
+	}
+
+	t.Run("basic pintracker", func(t *testing.T) {
+		pt := testMapPinTracker(t)
+		testF(t, pt)
+	})
+
+	t.Run("stateless pintracker", func(t *testing.T) {
+		pt := testStatelessPinTracker(t)
+		testF(t, pt)
+	})
 }

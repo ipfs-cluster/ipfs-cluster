@@ -39,14 +39,15 @@ jobs:
         - go test -v . -tracker stateless
     - name: "Golint and go vet"
       script:
-        - go get -u github.com/golang/lint/golint
+        - go get -u golang.org/x/lint/golint
         - make deps
         - make check
         - make service
         - make ctl
-    - name: "Docker build"
+    - name: "Docker and Compose build"
       script:
         - make docker
+        - make docker-compose
     - name: "Sharness"
       script:
         - sudo apt-get update
@@ -60,17 +61,16 @@ jobs:
       if: (NOT type IN (pull_request)) AND (fork = false) AND (tag =~ ^v\d+\.\d+\.\d+$)
       script:
         - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
-        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh stable"
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh edge" # should be stable
     - stage: "Snapcraft deployment stage (Candidate)"
       name: "Deploy Snapcraft"
       if: (NOT type IN (pull_request)) AND (fork = false) AND (tag =~ ^v\d+\.\d+\.\d+-rc\d+$)
       script:
         - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
-        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh candidate"
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh edge" # should be candidate
     - stage: "Snapcraft deployment stage (Edge)"
       name: "Deploy Snapcraft"
       if: (NOT type IN (pull_request)) AND (branch = master) AND (fork = false) AND (tag IS NOT present)
       script:
         - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
         - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh edge"
-

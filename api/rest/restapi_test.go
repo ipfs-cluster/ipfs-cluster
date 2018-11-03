@@ -124,6 +124,17 @@ func processStreamingResp(t *testing.T, httpResp *http.Response, err error, resp
 	}
 }
 
+func checkHeaders(t *testing.T, rest *API, url string, headers http.Header) {
+	for k, v := range rest.config.Headers {
+		if strings.Join(v, ",") != strings.Join(headers[k], ",") {
+			t.Errorf("%s does not show configured headers: %s", url, k)
+		}
+	}
+	if headers.Get("Content-Type") != "application/json" {
+		t.Errorf("%s is not application/json", url)
+	}
+}
+
 // makes a libp2p host that knows how to talk to the rest API host.
 func makeHost(t *testing.T, rest *API) host.Host {
 	h, err := libp2p.New(context.Background())
@@ -185,6 +196,7 @@ func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 	c := httpClient(t, h, isHTTPS(url))
 	httpResp, err := c.Get(url)
 	processResp(t, httpResp, err, resp)
+	checkHeaders(t, rest, url, httpResp.Header)
 }
 
 func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}) {
@@ -193,6 +205,7 @@ func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}
 	c := httpClient(t, h, isHTTPS(url))
 	httpResp, err := c.Post(url, "application/json", bytes.NewReader(body))
 	processResp(t, httpResp, err, resp)
+	checkHeaders(t, rest, url, httpResp.Header)
 }
 
 func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
@@ -202,6 +215,7 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
+	checkHeaders(t, rest, url, httpResp.Header)
 }
 
 func makeStreamingPost(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
@@ -210,6 +224,7 @@ func makeStreamingPost(t *testing.T, rest *API, url string, body io.Reader, cont
 	c := httpClient(t, h, isHTTPS(url))
 	httpResp, err := c.Post(url, contentType, body)
 	processStreamingResp(t, httpResp, err, resp)
+	checkHeaders(t, rest, url, httpResp.Header)
 }
 
 type testF func(t *testing.T, url urlF)
@@ -251,6 +266,7 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	httpsrest := testHTTPSAPI(t)
 	defer rest.Shutdown()
+	defer httpsrest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
 		id := api.IDSerial{}
@@ -361,10 +377,20 @@ func TestAPIAddFileEndpointBadContentType(t *testing.T) {
 func TestAPIAddFileEndpointLocal(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	// This writes generates the testing files and
+	// writes them to disk.
+	// This is necessary here because we run tests
+	// in parallel, and otherwise a write-race might happen.
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+
 	tf := func(t *testing.T, url urlF) {
 		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
 		localURL := url(rest) + fmtStr1
-		sth := test.NewShardingTestHelper()
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		resp := api.AddedOutput{}
@@ -378,8 +404,18 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 func TestAPIAddFileEndpointShard(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	// This writes generates the testing files and
+	// writes them to disk.
+	// This is necessary here because we run tests
+	// in parallel, and otherwise a write-race might happen.
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+
 	tf := func(t *testing.T, url urlF) {
-		sth := test.NewShardingTestHelper()
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()

@@ -269,7 +269,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// Start first node
 	clusters[0] = createCluster(t, hosts[0], cfgs[0], raftCons[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
 	<-clusters[0].Ready()
-	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
+	bootstrapAddr := clusterAddr(clusters[0])
 
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
