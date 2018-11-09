@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -99,6 +100,35 @@ func TestLoadJSON(t *testing.T) {
 	err = cfg.LoadJSON(tst)
 	if err == nil {
 		t.Error("expected error with private key")
+	}
+}
+
+func TestLoadJSONEnvConfig(t *testing.T) {
+	username := "admin"
+	password := "thisaintmypassword"
+	user1 := "user1"
+	user1pass := "user1passwd"
+	os.Setenv("CLUSTER_RESTAPI_BASICAUTHCREDS", username+":"+password+","+user1+":"+user1pass)
+	cfg := &Config{}
+	err := cfg.LoadJSON(cfgJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := cfg.BasicAuthCreds[username]; !ok {
+		t.Fatalf("username '%s' not set in BasicAuthCreds map: %v", username, cfg.BasicAuthCreds)
+	}
+
+	if _, ok := cfg.BasicAuthCreds[user1]; !ok {
+		t.Fatalf("username '%s' not set in BasicAuthCreds map: %v", user1, cfg.BasicAuthCreds)
+	}
+
+	if gotpasswd := cfg.BasicAuthCreds[username]; gotpasswd != password {
+		t.Errorf("password not what was set in env var, got: %s, want: %s", gotpasswd, password)
+	}
+
+	if gotpasswd := cfg.BasicAuthCreds[user1]; gotpasswd != user1pass {
+		t.Errorf("password not what was set in env var, got: %s, want: %s", gotpasswd, user1pass)
 	}
 }
 
