@@ -81,26 +81,26 @@ func (cfg *Config) Default() error {
 func (cfg *Config) Validate() error {
 	var err error
 	if cfg.ProxyAddr == nil {
-		err = errors.New("ipfshttp.proxy_listen_multiaddress not set")
+		err = errors.New("ipfsproxy.proxy_listen_multiaddress not set")
 	}
 	if cfg.NodeAddr == nil {
-		err = errors.New("ipfshttp.node_multiaddress not set")
+		err = errors.New("ipfsproxy.node_multiaddress not set")
 	}
 
 	if cfg.ProxyReadTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_read_timeout is invalid")
+		err = errors.New("ipfsproxy.proxy_read_timeout is invalid")
 	}
 
 	if cfg.ProxyReadHeaderTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_read_header_timeout is invalid")
+		err = errors.New("ipfsproxy.proxy_read_header_timeout is invalid")
 	}
 
 	if cfg.ProxyWriteTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_write_timeout is invalid")
+		err = errors.New("ipfsproxy.proxy_write_timeout is invalid")
 	}
 
 	if cfg.ProxyIdleTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_idle_timeout invalid")
+		err = errors.New("ipfsproxy.proxy_idle_timeout invalid")
 	}
 
 	return err
