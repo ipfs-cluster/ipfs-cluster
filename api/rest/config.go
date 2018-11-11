@@ -11,12 +11,15 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 
+	"github.com/kelseyhightower/envconfig"
+
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 const configKey = "restapi"
+const envConfigKey = "cluster_restapi"
 
 // These are the default values for Config
 const (
@@ -182,6 +185,12 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	}
 
 	cfg.Default()
+
+	// override json config with env var
+	err = envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
 
 	err = cfg.loadHTTPOptions(jcfg)
 	if err != nil {
