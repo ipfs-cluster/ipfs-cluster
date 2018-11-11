@@ -112,7 +112,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	jcfg := &jsonConfig{}
 	err := json.Unmarshal(raw, jcfg)
 	if err != nil {
-		logger.Error("Error unmarshaling ipfshttp config")
+		logger.Error("Error unmarshaling ipfsproxy config")
 		return err
 	}
 

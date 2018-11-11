@@ -41,6 +41,10 @@ type mockAPI struct {
 	mockComponent
 }
 
+type mockProxy struct {
+	mockComponent
+}
+
 type mockConnector struct {
 	mockComponent
 
@@ -119,7 +123,7 @@ func (ipfs *mockConnector) BlockGet(c cid.Cid) ([]byte, error) {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.State, PinTracker) {
-	clusterCfg, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
+	clusterCfg, _, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -127,6 +131,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 	}
 
 	api := &mockAPI{}
+	proxy := &mockProxy{}
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
 	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
@@ -148,7 +153,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 		host,
 		clusterCfg,
 		raftcon,
-		api,
+		[]API{api, proxy},
 		ipfs,
 		st,
 		tracker,
