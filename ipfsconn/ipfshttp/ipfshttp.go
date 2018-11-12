@@ -181,13 +181,13 @@ func (ipfs *Connector) Shutdown() error {
 		return nil
 	}
 
+	logger.Info("stopping IPFS Connector")
+
 	ipfs.cancel()
 	close(ipfs.rpcReady)
 
 	ipfs.wg.Wait()
 	ipfs.shutdown = true
-
-	logger.Info("stopping IPFS Connector")
 
 	return nil
 }

@@ -131,7 +131,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	cfg.NodeAddr = nodeAddr
 
 	err = config.ParseDurations(
-		"ipfshttp",
+		"ipfsproxy",
 		&config.DurationOpt{Duration: jcfg.ProxyReadTimeout, Dst: &cfg.ProxyReadTimeout, Name: "proxy_read_timeout"},
 		&config.DurationOpt{Duration: jcfg.ProxyReadHeaderTimeout, Dst: &cfg.ProxyReadHeaderTimeout, Name: "proxy_read_header_timeout"},
 		&config.DurationOpt{Duration: jcfg.ProxyWriteTimeout, Dst: &cfg.ProxyWriteTimeout, Name: "proxy_write_timeout"},
