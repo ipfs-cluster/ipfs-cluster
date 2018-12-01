@@ -594,16 +594,19 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 	defer ipfs.updateInformerMetric()
 
 	r := ioutil.NopCloser(bytes.NewReader(b.Data))
-	rFile := files.NewReaderFile("", "", r, nil)
-	sliceFile := files.NewSliceFile("", "", []files.File{rFile}) // IPFS reqs require a wrapping directory
-	multiFileR := files.NewMultiFileReader(sliceFile, true)
+	rFile := files.NewReaderFile(r, nil)
+	sliceFile := files.NewSliceFile([]files.DirEntry{files.FileEntry("", rFile)}) // IPFS reqs require a wrapping directory
+	multiFileR, err := files.NewMultiFileReader(sliceFile, true)
+	if err != nil {
+		return err
+	}
 	if b.Format == "" {
 		b.Format = "v0"
 	}
 	url := "block/put?f=" + b.Format
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 
-	_, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
+	_, err = ipfs.postCtx(ctx, url, contentType, multiFileR)
 	return err
 }
 
