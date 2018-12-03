@@ -16,14 +16,14 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-files"
-	logging "github.com/ipfs/go-log"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
-	madns "github.com/multiformats/go-multiaddr-dns"
-	manet "github.com/multiformats/go-multiaddr-net"
+	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
+	rpc "gx/ipfs/QmPYiV9nwnXPxdn9zDgY4d9yaHwTS414sUb1K6nvQVHqqo/go-libp2p-gorpc"
+	files "gx/ipfs/QmPhx9B9cuaXc4vuw62567BF5NxfpsdD1AVE9HbTn7t1Y6/go-ipfs-files"
+	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
+	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
+	logging "gx/ipfs/QmZChCsSt8DctjceaL56Eibc29CVQq4dGKRXC5JRZ6Ppae/go-log"
+	manet "gx/ipfs/Qmaabb1tJZ2CX5cp6MuuiGgns71NYoxdgQP6Xdid1dVceC/go-multiaddr-net"
+	madns "gx/ipfs/QmeHJXPqCNzSFbVkYM1uQLuM2L5FyJB9zukQ7EeqRP8ZC9/go-multiaddr-dns"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module

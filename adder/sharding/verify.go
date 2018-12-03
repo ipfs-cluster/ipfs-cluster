@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
 )
 
 // MockPinStore is used in VerifyShards

@@ -11,12 +11,12 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
 
-	logging "github.com/ipfs/go-log"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	msgpack "github.com/multiformats/go-multicodec/msgpack"
+	rpc "gx/ipfs/QmPYiV9nwnXPxdn9zDgY4d9yaHwTS414sUb1K6nvQVHqqo/go-libp2p-gorpc"
+	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
+	msgpack "gx/ipfs/QmYMiyZRYDmhMr2phMc4FGrYbsyzvR751BgeobnWroiq2z/go-multicodec/msgpack"
+	pubsub "gx/ipfs/QmYmrxfax5xGfLF6SL2Bq7SDEzFZFyNcLvGi8ExdC5iiko/go-libp2p-pubsub"
+	logging "gx/ipfs/QmZChCsSt8DctjceaL56Eibc29CVQq4dGKRXC5JRZ6Ppae/go-log"
+	host "gx/ipfs/QmdJfsSbKSZnMkfZ1kpopiyB9i3Hd6cp8VKWZmtWPa7Moc/go-libp2p-host"
 )
 
 var logger = logging.Logger("monitor")

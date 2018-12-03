@@ -6,7 +6,7 @@ package state
 import (
 	"io"
 
-	cid "github.com/ipfs/go-cid"
+	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	files "github.com/ipfs/go-ipfs-files"
+	files "gx/ipfs/QmPhx9B9cuaXc4vuw62567BF5NxfpsdD1AVE9HbTn7t1Y6/go-ipfs-files"
 )
 
 const shardingTestDir = "shardTesting"
@@ -123,6 +123,8 @@ func (sth *ShardingTestHelper) GetRandFileMultiReader(t *testing.T, kbs int) (*f
 	return files.NewMultiFileReader(slf, true), sf
 }
 
+// GetRandFileReader creates and returns a directory containing a testing
+// random file of the given size (in kbs)
 func (sth *ShardingTestHelper) GetRandFileReader(t *testing.T, kbs int) (files.Directory, io.Closer) {
 	st := sth.makeRandFile(t, kbs)
 	sf, err := files.NewSerialFile(sth.path(shardingTestFile), false, st)

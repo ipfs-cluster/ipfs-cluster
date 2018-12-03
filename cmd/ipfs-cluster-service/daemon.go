@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	host "github.com/libp2p/go-libp2p-host"
-	"github.com/urfave/cli"
+	"gx/ipfs/Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA/cli"
+	host "gx/ipfs/QmdJfsSbKSZnMkfZ1kpopiyB9i3Hd6cp8VKWZmtWPa7Moc/go-libp2p-host"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
@@ -27,7 +27,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
-	ma "github.com/multiformats/go-multiaddr"
+	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
 )
 
 func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {

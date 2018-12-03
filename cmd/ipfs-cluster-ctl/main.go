@@ -14,13 +14,13 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
-	uuid "github.com/satori/go.uuid"
+	uuid "gx/ipfs/QmcBWojPoNh4qm7zvv4qiepvCnnc7ALS9qcp7TNwwxT1gT/go.uuid"
 
-	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
-	cli "github.com/urfave/cli"
+	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
+	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
+	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
+	logging "gx/ipfs/QmZChCsSt8DctjceaL56Eibc29CVQq4dGKRXC5JRZ6Ppae/go-log"
+	cli "gx/ipfs/Qmc1AtgBdoUHP8oYSqU81NRYdzohmF45t5XNwVMvhCxsBA/cli"
 )
 
 const programName = `ipfs-cluster-ctl`

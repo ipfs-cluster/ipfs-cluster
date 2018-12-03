@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"errors"
 
-	msgpack "github.com/multiformats/go-multicodec/msgpack"
+	msgpack "gx/ipfs/QmYMiyZRYDmhMr2phMc4FGrYbsyzvR751BgeobnWroiq2z/go-multicodec/msgpack"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

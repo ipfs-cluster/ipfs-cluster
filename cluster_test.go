@@ -19,9 +19,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
+	rpc "gx/ipfs/QmPYiV9nwnXPxdn9zDgY4d9yaHwTS414sUb1K6nvQVHqqo/go-libp2p-gorpc"
+	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
 )
 
 type mockComponent struct {

@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 
-	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p-host"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
-	pnet "github.com/libp2p/go-libp2p-pnet"
-	ma "github.com/multiformats/go-multiaddr"
+	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
+	libp2p "gx/ipfs/QmUDTcnDp2WssbmiDLC6aYurUeyt7QeRakHUQMxA2mZ5iB/go-libp2p"
+	ipnet "gx/ipfs/QmW7Ump7YyBMr712Ta3iEVh3ZYcfVvJaPryfbCnyE826b4/go-libp2p-interface-pnet"
+	pnet "gx/ipfs/QmY4Q5JC4vxLEi8EpVxJM4rcRryEVtH1zRKVTAm6BKV1pg/go-libp2p-pnet"
+	host "gx/ipfs/QmdJfsSbKSZnMkfZ1kpopiyB9i3Hd6cp8VKWZmtWPa7Moc/go-libp2p-host"
 )
 
 // NewClusterHost creates a libp2p Host with the options from the

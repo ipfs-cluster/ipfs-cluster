@@ -11,12 +11,12 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-files"
-	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
-	merkledag "github.com/ipfs/go-merkledag"
-	multihash "github.com/multiformats/go-multihash"
+	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
+	files "gx/ipfs/QmPhx9B9cuaXc4vuw62567BF5NxfpsdD1AVE9HbTn7t1Y6/go-ipfs-files"
+	multihash "gx/ipfs/QmPnFwZ2JXKnXgMw8CdBPxn7FWh6LLdjUjxV1fKHuJnkr8/go-multihash"
+	ipld "gx/ipfs/QmR7TcHkR9nxkUorfi8XMTAMLUK7GiP64TWWBzY3aacc1o/go-ipld-format"
+	merkledag "gx/ipfs/QmSei8kFMfqdJq7Q68d2LMnHbTWKKg2daA29ezUYFAUNgc/go-merkledag"
+	logging "gx/ipfs/QmZChCsSt8DctjceaL56Eibc29CVQq4dGKRXC5JRZ6Ppae/go-log"
 )
 
 var logger = logging.Logger("adder")

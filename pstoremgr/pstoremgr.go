@@ -15,12 +15,12 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	logging "github.com/ipfs/go-log"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	ma "github.com/multiformats/go-multiaddr"
-	madns "github.com/multiformats/go-multiaddr-dns"
+	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
+	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
+	peerstore "gx/ipfs/QmTTJcDL3gsnGDALjh2fDGg1onGRUdVgNL2hU2WEZcVrMX/go-libp2p-peerstore"
+	logging "gx/ipfs/QmZChCsSt8DctjceaL56Eibc29CVQq4dGKRXC5JRZ6Ppae/go-log"
+	host "gx/ipfs/QmdJfsSbKSZnMkfZ1kpopiyB9i3Hd6cp8VKWZmtWPa7Moc/go-libp2p-host"
+	madns "gx/ipfs/QmeHJXPqCNzSFbVkYM1uQLuM2L5FyJB9zukQ7EeqRP8ZC9/go-multiaddr-dns"
 )
 
 var logger = logging.Logger("pstoremgr")

@@ -6,7 +6,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	consensus "github.com/libp2p/go-libp2p-consensus"
+	consensus "gx/ipfs/QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt/go-libp2p-consensus"
 )
 
 // Type of consensus operation
