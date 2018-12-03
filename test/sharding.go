@@ -97,8 +97,10 @@ func NewShardingTestHelper() *ShardingTestHelper {
 // The total size in ext4 is ~3420160 Bytes = ~3340 kB = ~3.4MB
 func (sth *ShardingTestHelper) GetTreeMultiReader(t *testing.T) (*files.MultiFileReader, io.Closer) {
 	sf := sth.GetTreeSerialFile(t)
-	slf := files.NewSliceFile([]files.DirEntry{files.FileEntry(shardingTestTree, sf)})
-	return files.NewMultiFileReader(slf, true), sf
+
+	return files.NewMultiFileReader(files.DirFrom(map[string]files.Node{
+		shardingTestTree: sf,
+	}), true), sf
 }
 
 // GetTreeSerialFile returns a files.SerialFile pointing to the testing
@@ -127,7 +129,7 @@ func (sth *ShardingTestHelper) GetRandFileReader(t *testing.T, kbs int) (files.D
 	if err != nil {
 		t.Fatal(err)
 	}
-	slf := files.NewSliceFile([]files.DirEntry{files.FileEntry("randomfile", sf)})
+	slf := files.DirFrom(map[string]files.Node{"randomfile": sf})
 	return slf, sf
 }
 

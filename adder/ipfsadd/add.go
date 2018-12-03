@@ -298,12 +298,12 @@ func (adder *Adder) addFile(path string, nd files.Node) error {
 	}
 	adder.liveNodes++
 
-	if dir, ok := nd.(files.Directory); ok {
+	if dir := files.ToDir(nd); dir != nil {
 		return adder.addDir(path, dir)
 	}
 
 	// case for symlink
-	if s, ok := nd.(*files.Symlink); ok {
+	if s := files.ToSymlink(nd); s != nil {
 		sdata, err := unixfs.SymlinkData(s.Target)
 		if err != nil {
 			return err
@@ -318,8 +318,8 @@ func (adder *Adder) addFile(path string, nd files.Node) error {
 
 		return adder.addNode(dagnode, path)
 	}
-	file, ok := nd.(files.File)
-	if !ok {
+	file := files.ToFile(nd)
+	if file == nil {
 		return errors.New("expected a regular file")
 	}
 

@@ -111,9 +111,9 @@ func TestAdder_ContextCancelled(t *testing.T) {
 	defer closer.Close()
 	defer st.Close()
 
-	slf := files.NewSliceFile([]files.DirEntry{
-		files.FileEntry("a", lg),
-		files.FileEntry("b", st),
+	slf := files.DirFrom(map[string]files.Node{
+		"a": lg,
+		"b": st,
 	})
 	mr := files.NewMultiFileReader(slf, true)
 

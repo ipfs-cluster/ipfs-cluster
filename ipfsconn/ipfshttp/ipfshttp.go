@@ -3,7 +3,6 @@
 package ipfshttp
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -593,10 +592,9 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 	defer cancel()
 	defer ipfs.updateInformerMetric()
 
-	r := ioutil.NopCloser(bytes.NewReader(b.Data))
-	rFile := files.NewReaderFile(r, nil)
-	sliceFile := files.NewSliceFile([]files.DirEntry{files.FileEntry("", rFile)}) // IPFS reqs require a wrapping directory
-	multiFileR := files.NewMultiFileReader(sliceFile, true)
+	multiFileR := files.NewMultiFileReader(files.DirFrom(map[string]files.Node{ // IPFS reqs require a wrapping directory
+		"": files.FileFrom(b.Data),
+	}), true)
 	if b.Format == "" {
 		b.Format = "v0"
 	}
