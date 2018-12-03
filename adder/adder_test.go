@@ -115,10 +115,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 		files.FileEntry("a", lg),
 		files.FileEntry("b", st),
 	})
-	mr, err := files.NewMultiFileReader(slf, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mr := files.NewMultiFileReader(slf, true)
 
 	r := multipart.NewReader(mr, mr.Boundary())
 

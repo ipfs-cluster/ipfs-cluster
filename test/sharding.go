@@ -98,11 +98,7 @@ func NewShardingTestHelper() *ShardingTestHelper {
 func (sth *ShardingTestHelper) GetTreeMultiReader(t *testing.T) (*files.MultiFileReader, io.Closer) {
 	sf := sth.GetTreeSerialFile(t)
 	slf := files.NewSliceFile([]files.DirEntry{files.FileEntry(shardingTestTree, sf)})
-	mfr, err := files.NewMultiFileReader(slf, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return mfr, sf
+	return files.NewMultiFileReader(slf, true), sf
 }
 
 // GetTreeSerialFile returns a files.SerialFile pointing to the testing
@@ -122,11 +118,7 @@ func (sth *ShardingTestHelper) GetTreeSerialFile(t *testing.T) files.Directory {
 // file is different every time.
 func (sth *ShardingTestHelper) GetRandFileMultiReader(t *testing.T, kbs int) (*files.MultiFileReader, io.Closer) {
 	slf, sf := sth.GetRandFileReader(t, kbs)
-	mfr, err := files.NewMultiFileReader(slf, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return mfr, sf
+	return files.NewMultiFileReader(slf, true), sf
 }
 
 func (sth *ShardingTestHelper) GetRandFileReader(t *testing.T, kbs int) (files.Directory, io.Closer) {

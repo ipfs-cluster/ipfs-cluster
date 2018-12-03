@@ -415,11 +415,7 @@ func (c *defaultClient) Add(
 	// If `form` is set to true, the multipart data will have
 	// a Content-Type of 'multipart/form-data', if `form` is false,
 	// the Content-Type will be 'multipart/mixed'.
-	mfr, err := files.NewMultiFileReader(sliceFile, true)
-	if err != nil {
-		return err
-	}
-	return c.AddMultiFile(mfr, params, out)
+	return c.AddMultiFile(files.NewMultiFileReader(sliceFile, true), params, out)
 }
 
 // AddMultiFile imports new files from a MultiFileReader. See Add().
