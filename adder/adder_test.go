@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
@@ -105,8 +106,20 @@ func TestAdder_ContextCancelled(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
-	mr, closer := sth.GetRandFileMultiReader(t, 50000) // 50 MB
+	lg, closer := sth.GetRandFileReader(t, 50000) // 50 MB
+	st := sth.GetTreeSerialFile(t)
 	defer closer.Close()
+	defer st.Close()
+
+	slf := files.NewSliceFile([]files.DirEntry{
+		files.FileEntry("a", lg),
+		files.FileEntry("b", st),
+	})
+	mr, err := files.NewMultiFileReader(slf, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	r := multipart.NewReader(mr, mr.Boundary())
 
 	p := api.DefaultAddParams()
