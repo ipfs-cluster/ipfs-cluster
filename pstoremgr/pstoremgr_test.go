@@ -7,8 +7,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
-	libp2p "gx/ipfs/QmUDTcnDp2WssbmiDLC6aYurUeyt7QeRakHUQMxA2mZ5iB/go-libp2p"
+	libp2p "github.com/libp2p/go-libp2p"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var pid = "QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc"

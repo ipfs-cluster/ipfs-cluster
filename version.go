@@ -3,8 +3,8 @@ package ipfscluster
 import (
 	"fmt"
 
-	semver "gx/ipfs/QmYRGECuvQnRX73fcvPnGbYijBcGN2HbKZQ7jh26qmLiHG/semver"
-	protocol "gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
+	semver "github.com/blang/semver"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 )
 
 // Version is the current cluster version. Version alignment between

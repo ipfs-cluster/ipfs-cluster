@@ -15,9 +15,9 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "gx/ipfs/QmPSQnBKM9g7BaUcZCvswUJVscQ1ipjmwxN5PXCjkp9EQ7/go-cid"
-	files "gx/ipfs/QmPhx9B9cuaXc4vuw62567BF5NxfpsdD1AVE9HbTn7t1Y6/go-ipfs-files"
-	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
+	cid "github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // ID returns information about the cluster Peer.

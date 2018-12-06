@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	hraft "gx/ipfs/QmWh13Q23jcK2okVexqB49r8DsAKsC3etMgkp8b5ABj9wR/raft"
+	hraft "github.com/hashicorp/raft"
 )
 
 var cfgJSON = []byte(`

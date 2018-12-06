@@ -6,8 +6,8 @@ import (
 	"io"
 	"sort"
 
-	dot "gx/ipfs/QmPuuqyMyoadGDkefg7L11kAwmvQykrHiRkuLjQRpa1bqF/go-dot"
-	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
+	dot "github.com/zenground0/go-dot"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )

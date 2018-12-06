@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
 
-	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
-	hraft "gx/ipfs/QmWh13Q23jcK2okVexqB49r8DsAKsC3etMgkp8b5ABj9wR/raft"
+	hraft "github.com/hashicorp/raft"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // ConfigKey is the default configuration key for holding this component's

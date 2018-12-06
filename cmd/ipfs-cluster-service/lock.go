@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	fslock "gx/ipfs/Qmc4w3gm2TqoEbTYjpPs5FXP8DEB6cuvZWPy6bUTKiht7a/go-fs-lock"
+	fslock "github.com/ipfs/go-fs-lock"
 )
 
 // lock logic heavily inspired by go-ipfs/repo/fsrepo/lock/lock.go

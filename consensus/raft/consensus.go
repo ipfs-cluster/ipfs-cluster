@@ -13,13 +13,13 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	rpc "gx/ipfs/QmPYiV9nwnXPxdn9zDgY4d9yaHwTS414sUb1K6nvQVHqqo/go-libp2p-gorpc"
-	ma "gx/ipfs/QmT4U94DnD8FRfqr21obWY32HLM5VExccPKMjQHofeYqr9/go-multiaddr"
-	peer "gx/ipfs/QmTRhk7cgjUf2gfQ3p2M9KPECNZEW9XUrmHcFCgog4cPgB/go-libp2p-peer"
-	consensus "gx/ipfs/QmZ88KbrvZMJpXaNwAGffswcYKz8EbeafzAFGMCA6MEZKt/go-libp2p-consensus"
-	logging "gx/ipfs/QmZChCsSt8DctjceaL56Eibc29CVQq4dGKRXC5JRZ6Ppae/go-log"
-	libp2praft "gx/ipfs/Qmc2WbBR7qA8tYfXwEQKgiHWNn3tZS3e2BhaqqsPoghzYP/go-libp2p-raft"
-	host "gx/ipfs/QmdJfsSbKSZnMkfZ1kpopiyB9i3Hd6cp8VKWZmtWPa7Moc/go-libp2p-host"
+	logging "github.com/ipfs/go-log"
+	consensus "github.com/libp2p/go-libp2p-consensus"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
+	host "github.com/libp2p/go-libp2p-host"
+	peer "github.com/libp2p/go-libp2p-peer"
+	libp2praft "github.com/libp2p/go-libp2p-raft"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var logger = logging.Logger("consensus")
