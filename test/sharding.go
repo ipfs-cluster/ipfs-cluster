@@ -22,8 +22,8 @@ var (
 	ShardingDirTrickleRootCID         = "QmYMbx56GFNBDAaAMchtjmWjDTdqNKCSGuFxtRosiPgJL6"
 
 	// These hashes should match all the blocks produced when adding
-	// the files resulting from GetShardingDir*
-	// They have been obtained by adding the "shardTesting" folder
+	// the files resulting from shardingTestDir/shadringTestTree folder.
+	// They have been obtained by adding the that folder
 	// to go-ipfs (with wrap=true and default parameters). Then doing
 	// `refs -r` on the result. It contains the wrapping folder hash.
 	ShardingDirCids = [29]string{
@@ -112,12 +112,33 @@ func (sth *ShardingTestHelper) GetTreeSerialFile(t *testing.T) files.File {
 	return sf
 }
 
+type limReaderCloser struct {
+	io.Reader
+	io.Closer
+}
+
 // GetRandFileMultiReader creates and returns a MultiFileReader for
 // a testing random file of the given size (in kbs). The random
-// file is different every time.
+// file is created once. Subsequent calls will read the same test file
+// up to the given kbs.
 func (sth *ShardingTestHelper) GetRandFileMultiReader(t *testing.T, kbs int) (*files.MultiFileReader, io.Closer) {
-	st := sth.makeRandFile(t, kbs)
-	sf, err := files.NewSerialFile("randomfile", sth.path(shardingTestFile), false, st)
+	var sf files.File
+	var err error
+	path := sth.path(shardingTestFile)
+
+	if !fileExists(t, path) {
+		st := sth.makeRandFile(t, kbs)
+		sf, err = files.NewSerialFile("randomfile", path, false, st)
+	} else {
+		f, err2 := os.Open(path)
+		if err2 != nil {
+			t.Fatal(err)
+		}
+
+		limReader := io.LimitReader(f, int64(kbs*1024))
+		sf, err = files.NewReaderPathFile("randomfile", path, limReaderCloser{limReader, f}, nil)
+	}
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,6 +161,15 @@ func folderExists(t *testing.T, path string) bool {
 		t.Fatal(err)
 	} else if !st.IsDir() {
 		t.Fatalf("%s is not a directory", path)
+	}
+	return true
+}
+
+func fileExists(t *testing.T, path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	} else if err != nil {
+		t.Fatal(err)
 	}
 	return true
 }

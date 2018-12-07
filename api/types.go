@@ -598,7 +598,8 @@ const (
 	// which has been sharded.
 	// They carry a Reference to the previous shard.
 	// ShardTypes are pinned with MaxDepth=1 (root and
-	// direct children only).
+	// direct children only), or 2, if there were too many children
+	// for the shard and it's multileveled.
 	ShardType
 )
 
