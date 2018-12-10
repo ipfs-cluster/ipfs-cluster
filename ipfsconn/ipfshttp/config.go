@@ -15,27 +15,18 @@ const configKey = "ipfshttp"
 
 // Default values for Config.
 const (
-	DefaultProxyAddr              = "/ip4/127.0.0.1/tcp/9095"
-	DefaultNodeAddr               = "/ip4/127.0.0.1/tcp/5001"
-	DefaultConnectSwarmsDelay     = 30 * time.Second
-	DefaultProxyReadTimeout       = 0
-	DefaultProxyReadHeaderTimeout = 5 * time.Second
-	DefaultProxyWriteTimeout      = 0
-	DefaultProxyIdleTimeout       = 60 * time.Second
-	DefaultPinMethod              = "refs"
-	DefaultIPFSRequestTimeout     = 5 * time.Minute
-	DefaultPinTimeout             = 24 * time.Hour
-	DefaultUnpinTimeout           = 3 * time.Hour
+	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
+	DefaultConnectSwarmsDelay = 30 * time.Second
+	DefaultPinMethod          = "refs"
+	DefaultIPFSRequestTimeout = 5 * time.Minute
+	DefaultPinTimeout         = 24 * time.Hour
+	DefaultUnpinTimeout       = 3 * time.Hour
 )
 
 // Config is used to initialize a Connector and allows to customize
 // its behaviour. It implements the config.ComponentConfig interface.
 type Config struct {
 	config.Saver
-
-	// Listen parameters for the IPFS Proxy. Used by the IPFS
-	// connector component.
-	ProxyAddr ma.Multiaddr
 
 	// Host/Port for the IPFS daemon.
 	NodeAddr ma.Multiaddr
@@ -44,18 +35,6 @@ type Config struct {
 	// attempting to open connections from this peer's IPFS daemon to the
 	// IPFS daemons of other peers.
 	ConnectSwarmsDelay time.Duration
-
-	// Maximum duration before timing out reading a full request
-	ProxyReadTimeout time.Duration
-	// Maximum duration before timing out reading the headers of a request
-	ProxyReadHeaderTimeout time.Duration
-
-	// Maximum duration before timing out write of the response
-	ProxyWriteTimeout time.Duration
-
-	// Server-side amount of time a Keep-Alive connection will be
-	// kept idle before being reused
-	ProxyIdleTimeout time.Duration
 
 	// "pin" or "refs". "pin" uses a "pin/add" call. "refs" uses a
 	// "refs -r" call followed by "pin/add". "refs" allows fetching in
@@ -73,17 +52,20 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress"`
-	NodeMultiaddress        string `json:"node_multiaddress"`
-	ConnectSwarmsDelay      string `json:"connect_swarms_delay"`
-	ProxyReadTimeout        string `json:"proxy_read_timeout"`
-	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout"`
-	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
-	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
-	PinMethod               string `json:"pin_method"`
-	IPFSRequestTimeout      string `json:"ipfs_request_timeout"`
-	PinTimeout              string `json:"pin_timeout"`
-	UnpinTimeout            string `json:"unpin_timeout"`
+	NodeMultiaddress   string `json:"node_multiaddress"`
+	ConnectSwarmsDelay string `json:"connect_swarms_delay"`
+	PinMethod          string `json:"pin_method"`
+	IPFSRequestTimeout string `json:"ipfs_request_timeout"`
+	PinTimeout         string `json:"pin_timeout"`
+	UnpinTimeout       string `json:"unpin_timeout"`
+
+	// Fields below are only to maintain compatibility
+	// They can be removed in future
+	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress,omitempty"`
+	ProxyReadTimeout        string `json:"proxy_read_timeout,omitempty"`
+	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout,omitempty"`
+	ProxyWriteTimeout       string `json:"proxy_write_timeout,omitempty"`
+	ProxyIdleTimeout        string `json:"proxy_idle_timeout,omitempty"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -93,15 +75,9 @@ func (cfg *Config) ConfigKey() string {
 
 // Default sets the fields of this Config to sensible default values.
 func (cfg *Config) Default() error {
-	proxy, _ := ma.NewMultiaddr(DefaultProxyAddr)
 	node, _ := ma.NewMultiaddr(DefaultNodeAddr)
-	cfg.ProxyAddr = proxy
 	cfg.NodeAddr = node
 	cfg.ConnectSwarmsDelay = DefaultConnectSwarmsDelay
-	cfg.ProxyReadTimeout = DefaultProxyReadTimeout
-	cfg.ProxyReadHeaderTimeout = DefaultProxyReadHeaderTimeout
-	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
-	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
 	cfg.PinMethod = DefaultPinMethod
 	cfg.IPFSRequestTimeout = DefaultIPFSRequestTimeout
 	cfg.PinTimeout = DefaultPinTimeout
@@ -114,31 +90,12 @@ func (cfg *Config) Default() error {
 // at least in appearance.
 func (cfg *Config) Validate() error {
 	var err error
-	if cfg.ProxyAddr == nil {
-		err = errors.New("ipfshttp.proxy_listen_multiaddress not set")
-	}
 	if cfg.NodeAddr == nil {
 		err = errors.New("ipfshttp.node_multiaddress not set")
 	}
 
 	if cfg.ConnectSwarmsDelay < 0 {
 		err = errors.New("ipfshttp.connect_swarms_delay is invalid")
-	}
-
-	if cfg.ProxyReadTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_read_timeout is invalid")
-	}
-
-	if cfg.ProxyReadHeaderTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_read_header_timeout is invalid")
-	}
-
-	if cfg.ProxyWriteTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_write_timeout is invalid")
-	}
-
-	if cfg.ProxyIdleTimeout < 0 {
-		err = errors.New("ipfshttp.proxy_idle_timeout invalid")
 	}
 
 	switch cfg.PinMethod {
@@ -173,24 +130,15 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	proxyAddr, err := ma.NewMultiaddr(jcfg.ProxyListenMultiaddress)
-	if err != nil {
-		return fmt.Errorf("error parsing ipfs_proxy_listen_multiaddress: %s", err)
-	}
 	nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
 	if err != nil {
 		return fmt.Errorf("error parsing ipfs_node_multiaddress: %s", err)
 	}
 
-	cfg.ProxyAddr = proxyAddr
 	cfg.NodeAddr = nodeAddr
 
 	err = config.ParseDurations(
 		"ipfshttp",
-		&config.DurationOpt{Duration: jcfg.ProxyReadTimeout, Dst: &cfg.ProxyReadTimeout, Name: "proxy_read_timeout"},
-		&config.DurationOpt{Duration: jcfg.ProxyReadHeaderTimeout, Dst: &cfg.ProxyReadHeaderTimeout, Name: "proxy_read_header_timeout"},
-		&config.DurationOpt{Duration: jcfg.ProxyWriteTimeout, Dst: &cfg.ProxyWriteTimeout, Name: "proxy_write_timeout"},
-		&config.DurationOpt{Duration: jcfg.ProxyIdleTimeout, Dst: &cfg.ProxyIdleTimeout, Name: "proxy_idle_timeout"},
 		&config.DurationOpt{Duration: jcfg.ConnectSwarmsDelay, Dst: &cfg.ConnectSwarmsDelay, Name: "connect_swarms_delay"},
 		&config.DurationOpt{Duration: jcfg.IPFSRequestTimeout, Dst: &cfg.IPFSRequestTimeout, Name: "ipfs_request_timeout"},
 		&config.DurationOpt{Duration: jcfg.PinTimeout, Dst: &cfg.PinTimeout, Name: "pin_timeout"},
@@ -217,12 +165,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg := &jsonConfig{}
 
 	// Set all configuration fields
-	jcfg.ProxyListenMultiaddress = cfg.ProxyAddr.String()
 	jcfg.NodeMultiaddress = cfg.NodeAddr.String()
-	jcfg.ProxyReadTimeout = cfg.ProxyReadTimeout.String()
-	jcfg.ProxyReadHeaderTimeout = cfg.ProxyReadHeaderTimeout.String()
-	jcfg.ProxyWriteTimeout = cfg.ProxyWriteTimeout.String()
-	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
 	jcfg.PinMethod = cfg.PinMethod
 	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
