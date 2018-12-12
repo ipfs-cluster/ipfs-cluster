@@ -15,12 +15,12 @@ const configKey = "ipfsproxy"
 
 // Default values for Config.
 const (
-	DefaultProxyAddr              = "/ip4/127.0.0.1/tcp/9095"
-	DefaultNodeAddr               = "/ip4/127.0.0.1/tcp/5001"
-	DefaultProxyReadTimeout       = 0
-	DefaultProxyReadHeaderTimeout = 5 * time.Second
-	DefaultProxyWriteTimeout      = 0
-	DefaultProxyIdleTimeout       = 60 * time.Second
+	DefaultListenAddr        = "/ip4/127.0.0.1/tcp/9095"
+	DefaultNodeAddr          = "/ip4/127.0.0.1/tcp/5001"
+	DefaultReadTimeout       = 0
+	DefaultReadHeaderTimeout = 5 * time.Second
+	DefaultWriteTimeout      = 0
+	DefaultIdleTimeout       = 60 * time.Second
 )
 
 // Config allows to customize behaviour of IPFSProxy.
@@ -29,32 +29,38 @@ type Config struct {
 	config.Saver
 
 	// Listen parameters for the IPFS Proxy.
-	ProxyAddr ma.Multiaddr
+	ListenAddr ma.Multiaddr
 
 	// Host/Port for the IPFS daemon.
 	NodeAddr ma.Multiaddr
 
 	// Maximum duration before timing out reading a full request
-	ProxyReadTimeout time.Duration
+	ReadTimeout time.Duration
 
 	// Maximum duration before timing out reading the headers of a request
-	ProxyReadHeaderTimeout time.Duration
+	ReadHeaderTimeout time.Duration
 
 	// Maximum duration before timing out write of the response
-	ProxyWriteTimeout time.Duration
+	WriteTimeout time.Duration
 
 	// Server-side amount of time a Keep-Alive connection will be
 	// kept idle before being reused
-	ProxyIdleTimeout time.Duration
+	IdleTimeout time.Duration
 }
 
 type jsonConfig struct {
-	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress"`
+	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress,omitempty"`
 	NodeMultiaddress        string `json:"node_multiaddress"`
-	ProxyReadTimeout        string `json:"proxy_read_timeout"`
-	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout"`
-	ProxyWriteTimeout       string `json:"proxy_write_timeout"`
-	ProxyIdleTimeout        string `json:"proxy_idle_timeout"`
+	ProxyReadTimeout        string `json:"proxy_read_timeout,omitempty"`
+	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout,omitempty"`
+	ProxyWriteTimeout       string `json:"proxy_write_timeout,omitempty"`
+	ProxyIdleTimeout        string `json:"proxy_idle_timeout,omitempty"`
+
+	ListenMultiaddress string `json:"listen_multiaddress"`
+	ReadTimeout        string `json:"read_timeout"`
+	ReadHeaderTimeout  string `json:"read_header_timeout"`
+	WriteTimeout       string `json:"write_timeout"`
+	IdleTimeout        string `json:"idle_timeout"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -64,14 +70,20 @@ func (cfg *Config) ConfigKey() string {
 
 // Default sets the fields of this Config to sensible default values.
 func (cfg *Config) Default() error {
-	proxy, _ := ma.NewMultiaddr(DefaultProxyAddr)
-	node, _ := ma.NewMultiaddr(DefaultNodeAddr)
-	cfg.ProxyAddr = proxy
+	proxy, err := ma.NewMultiaddr(DefaultListenAddr)
+	if err != nil {
+		return err
+	}
+	node, err := ma.NewMultiaddr(DefaultNodeAddr)
+	if err != nil {
+		return err
+	}
+	cfg.ListenAddr = proxy
 	cfg.NodeAddr = node
-	cfg.ProxyReadTimeout = DefaultProxyReadTimeout
-	cfg.ProxyReadHeaderTimeout = DefaultProxyReadHeaderTimeout
-	cfg.ProxyWriteTimeout = DefaultProxyWriteTimeout
-	cfg.ProxyIdleTimeout = DefaultProxyIdleTimeout
+	cfg.ReadTimeout = DefaultReadTimeout
+	cfg.ReadHeaderTimeout = DefaultReadHeaderTimeout
+	cfg.WriteTimeout = DefaultWriteTimeout
+	cfg.IdleTimeout = DefaultIdleTimeout
 
 	return nil
 }
@@ -80,27 +92,27 @@ func (cfg *Config) Default() error {
 // at least in appearance.
 func (cfg *Config) Validate() error {
 	var err error
-	if cfg.ProxyAddr == nil {
-		err = errors.New("ipfsproxy.proxy_listen_multiaddress not set")
+	if cfg.ListenAddr == nil {
+		err = errors.New("ipfsproxy.listen_multiaddress not set")
 	}
 	if cfg.NodeAddr == nil {
 		err = errors.New("ipfsproxy.node_multiaddress not set")
 	}
 
-	if cfg.ProxyReadTimeout < 0 {
-		err = errors.New("ipfsproxy.proxy_read_timeout is invalid")
+	if cfg.ReadTimeout < 0 {
+		err = errors.New("ipfsproxy.read_timeout is invalid")
 	}
 
-	if cfg.ProxyReadHeaderTimeout < 0 {
-		err = errors.New("ipfsproxy.proxy_read_header_timeout is invalid")
+	if cfg.ReadHeaderTimeout < 0 {
+		err = errors.New("ipfsproxy.read_header_timeout is invalid")
 	}
 
-	if cfg.ProxyWriteTimeout < 0 {
-		err = errors.New("ipfsproxy.proxy_write_timeout is invalid")
+	if cfg.WriteTimeout < 0 {
+		err = errors.New("ipfsproxy.write_timeout is invalid")
 	}
 
-	if cfg.ProxyIdleTimeout < 0 {
-		err = errors.New("ipfsproxy.proxy_idle_timeout invalid")
+	if cfg.IdleTimeout < 0 {
+		err = errors.New("ipfsproxy.idle_timeout invalid")
 	}
 
 	return err
@@ -116,26 +128,49 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	cfg.Default()
+	if jcfg.ListenMultiaddress == "" {
+		jcfg.ListenMultiaddress = jcfg.ProxyListenMultiaddress
+	}
 
-	proxyAddr, err := ma.NewMultiaddr(jcfg.ProxyListenMultiaddress)
+	if jcfg.ReadTimeout == "" {
+		jcfg.ReadTimeout = jcfg.ProxyReadTimeout
+	}
+
+	if jcfg.ReadHeaderTimeout == "" {
+		jcfg.ReadHeaderTimeout = jcfg.ProxyReadHeaderTimeout
+	}
+
+	if jcfg.WriteTimeout == "" {
+		jcfg.WriteTimeout = jcfg.ProxyWriteTimeout
+	}
+
+	if jcfg.IdleTimeout == "" {
+		jcfg.IdleTimeout = jcfg.ProxyIdleTimeout
+	}
+
+	err = cfg.Default()
 	if err != nil {
-		return fmt.Errorf("error parsing ipfs_proxy_listen_multiaddress: %s", err)
+		return fmt.Errorf("error setting config to default values: %s", err)
+	}
+
+	proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
+	if err != nil {
+		return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)
 	}
 	nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
 	if err != nil {
-		return fmt.Errorf("error parsing ipfs_node_multiaddress: %s", err)
+		return fmt.Errorf("error parsing ipfs node_multiaddress: %s", err)
 	}
 
-	cfg.ProxyAddr = proxyAddr
+	cfg.ListenAddr = proxyAddr
 	cfg.NodeAddr = nodeAddr
 
 	err = config.ParseDurations(
 		"ipfsproxy",
-		&config.DurationOpt{Duration: jcfg.ProxyReadTimeout, Dst: &cfg.ProxyReadTimeout, Name: "proxy_read_timeout"},
-		&config.DurationOpt{Duration: jcfg.ProxyReadHeaderTimeout, Dst: &cfg.ProxyReadHeaderTimeout, Name: "proxy_read_header_timeout"},
-		&config.DurationOpt{Duration: jcfg.ProxyWriteTimeout, Dst: &cfg.ProxyWriteTimeout, Name: "proxy_write_timeout"},
-		&config.DurationOpt{Duration: jcfg.ProxyIdleTimeout, Dst: &cfg.ProxyIdleTimeout, Name: "proxy_idle_timeout"},
+		&config.DurationOpt{Duration: jcfg.ReadTimeout, Dst: &cfg.ReadTimeout, Name: "read_timeout"},
+		&config.DurationOpt{Duration: jcfg.ReadHeaderTimeout, Dst: &cfg.ReadHeaderTimeout, Name: "read_header_timeout"},
+		&config.DurationOpt{Duration: jcfg.WriteTimeout, Dst: &cfg.WriteTimeout, Name: "write_timeout"},
+		&config.DurationOpt{Duration: jcfg.IdleTimeout, Dst: &cfg.IdleTimeout, Name: "idle_timeout"},
 	)
 	if err != nil {
 		return err
@@ -156,12 +191,12 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg := &jsonConfig{}
 
 	// Set all configuration fields
-	jcfg.ProxyListenMultiaddress = cfg.ProxyAddr.String()
+	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
 	jcfg.NodeMultiaddress = cfg.NodeAddr.String()
-	jcfg.ProxyReadTimeout = cfg.ProxyReadTimeout.String()
-	jcfg.ProxyReadHeaderTimeout = cfg.ProxyReadHeaderTimeout.String()
-	jcfg.ProxyWriteTimeout = cfg.ProxyWriteTimeout.String()
-	jcfg.ProxyIdleTimeout = cfg.ProxyIdleTimeout.String()
+	jcfg.ReadTimeout = cfg.ReadTimeout.String()
+	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
+	jcfg.WriteTimeout = cfg.WriteTimeout.String()
+	jcfg.IdleTimeout = cfg.IdleTimeout.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return

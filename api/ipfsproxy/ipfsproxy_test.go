@@ -28,7 +28,7 @@ func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.NodeAddr = nodeMAddr
-	cfg.ProxyAddr = proxyMAddr
+	cfg.ListenAddr = proxyMAddr
 
 	proxy, err := New(cfg)
 	if err != nil {

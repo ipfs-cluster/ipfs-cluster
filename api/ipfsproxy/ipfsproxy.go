@@ -102,7 +102,7 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	proxyNet, proxyAddr, err := manet.DialArgs(cfg.ProxyAddr)
+	proxyNet, proxyAddr, err := manet.DialArgs(cfg.ListenAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -122,10 +122,10 @@ func New(cfg *Config) (*Server, error) {
 
 	smux := http.NewServeMux()
 	s := &http.Server{
-		ReadTimeout:       cfg.ProxyReadTimeout,
-		WriteTimeout:      cfg.ProxyWriteTimeout,
-		ReadHeaderTimeout: cfg.ProxyReadHeaderTimeout,
-		IdleTimeout:       cfg.ProxyIdleTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
 		Handler:           smux,
 	}
 
@@ -204,7 +204,7 @@ func (proxy *Server) run() {
 		defer proxy.wg.Done()
 		logger.Infof(
 			"IPFS Proxy: %s -> %s",
-			proxy.config.ProxyAddr,
+			proxy.config.ListenAddr,
 			proxy.config.NodeAddr,
 		)
 		err := proxy.server.Serve(proxy.listener) // hangs here
