@@ -45,7 +45,7 @@ COPY --from=builder /tmp/jq-linux64 /usr/local/bin/jq
 COPY --from=builder /bin/bash /bin/bash
 COPY --from=builder /lib/x86_64-linux-gnu/libtinfo.so.5 /lib64/libtinfo.so.5
 
-
+USER root
 
 RUN mkdir -p $IPFS_CLUSTER_PATH && \
     chown 1000:100 $IPFS_CLUSTER_PATH
