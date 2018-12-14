@@ -897,9 +897,9 @@ func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
-// helper for JSON marshaling. The Metric type is already
+// MetricSerial is a helper for JSON marshaling. The Metric type is already
 // serializable, but not pretty to humans (API).
-type metricSerial struct {
+type MetricSerial struct {
 	Name   string `json:"name"`
 	Peer   string `json:"peer"`
 	Value  string `json:"value"`
@@ -910,7 +910,7 @@ type metricSerial struct {
 // MarshalJSON allows a Metric to produce a JSON representation
 // of itself.
 func (m *Metric) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&metricSerial{
+	return json.Marshal(&MetricSerial{
 		Name:   m.Name,
 		Peer:   peer.IDB58Encode(m.Peer),
 		Value:  m.Value,
@@ -924,7 +924,7 @@ func (m *Metric) UnmarshalJSON(j []byte) error {
 		return nil
 	}
 
-	ms := &metricSerial{}
+	ms := &MetricSerial{}
 	err := json.Unmarshal(j, ms)
 	if err != nil {
 		return err

@@ -42,7 +42,7 @@ func testAPI(t *testing.T) *API {
 
 	rest, err := NewAPIWithHost(cfg, h)
 	if err != nil {
-		t.Fatal("should be able to create a new Api: ", err)
+		t.Fatal("should be able to create a new API: ", err)
 	}
 
 	// No keep alive for tests
@@ -556,6 +556,30 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIMetricsEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	tf := func(t *testing.T, url urlF) {
+		for _, metricsType := range []string{"freespace", "ping"} {
+			var resp []api.MetricSerial
+			makeGet(t, rest, url(rest)+"/monitor/metrics/"+metricsType, &resp)
+			if len(resp) == 0 {
+				t.Fatal("No metrics found")
+			}
+			for _, m := range resp {
+				if m.Name != "test" {
+					t.Error("Unexpected metric name: ", m.Name)
+				}
+				if m.Peer != test.TestPeerID1.Pretty() {
+					t.Error("Unexpected peer id: ", m.Peer)
+				}
+			}
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
