@@ -5,7 +5,6 @@ package adder
 import (
 	"context"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"strings"
 
@@ -84,17 +83,17 @@ func (a *Adder) setContext(ctx context.Context) {
 func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", a.params)
 
-	f := &files.MultipartFile{
-		Mediatype: "multipart/form-data",
-		Reader:    r,
+	f, err := files.NewFileFromPartReader(r, "multipart/form-data")
+	if err != nil {
+		return cid.Undef, err
 	}
 	defer f.Close()
 	return a.FromFiles(ctx, f)
 }
 
-// FromFiles adds content from a files.File. The adder will no longer
+// FromFiles adds content from a files.Directory. The adder will no longer
 // be usable after calling this method.
-func (a *Adder) FromFiles(ctx context.Context, f files.File) (cid.Cid, error) {
+func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, error) {
 	logger.Debugf("adding from files")
 	a.setContext(ctx)
 
@@ -133,23 +132,24 @@ func (a *Adder) FromFiles(ctx context.Context, f files.File) (cid.Cid, error) {
 	prefix.MhLength = -1
 	ipfsAdder.CidBuilder = &prefix
 
-	for {
+	it := f.Entries()
+	for it.Next() {
 		select {
 		case <-a.ctx.Done():
 			return cid.Undef, a.ctx.Err()
 		default:
-			err := addFile(f, ipfsAdder)
-			if err == io.EOF {
-				goto FINALIZE
-			}
-			if err != nil {
+			logger.Debugf("ipfsAdder AddFile(%s)", it.Name())
+
+			if ipfsAdder.AddFile(it.Name(), it.Node()); err != nil {
 				logger.Error("error adding to cluster: ", err)
 				return cid.Undef, err
 			}
 		}
 	}
+	if it.Err() != nil {
+		return cid.Undef, it.Err()
+	}
 
-FINALIZE:
 	adderRoot, err := ipfsAdder.Finalize()
 	if err != nil {
 		return cid.Undef, err
@@ -161,15 +161,4 @@ FINALIZE:
 	}
 	logger.Infof("%s successfully added to cluster", clusterRoot)
 	return clusterRoot, nil
-}
-
-func addFile(fs files.File, ipfsAdder *ipfsadd.Adder) error {
-	f, err := fs.NextFile()
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	logger.Debugf("ipfsAdder AddFile(%s)", f.FullPath())
-	return ipfsAdder.AddFile(f)
 }

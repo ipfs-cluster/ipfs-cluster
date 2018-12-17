@@ -64,7 +64,7 @@ func TestAdd(t *testing.T) {
 		}
 
 		if rootCid.String() != test.ShardingDirBalancedRootCIDWrapped {
-			t.Fatal("bad root cid")
+			t.Fatal("bad root cid: ", rootCid)
 		}
 
 		expected := test.ShardingDirCids[:]
