@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs/ipfs-cluster/config"
 )
 
-const configKey = "ipfsproxy"
+const (
+	configKey    = "ipfsproxy"
+	envConfigKey = "cluster_ipfsproxy"
+)
 
 // Default values for Config.
 const (
@@ -49,18 +53,45 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress,omitempty"`
-	NodeMultiaddress        string `json:"node_multiaddress"`
-	ProxyReadTimeout        string `json:"proxy_read_timeout,omitempty"`
-	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout,omitempty"`
-	ProxyWriteTimeout       string `json:"proxy_write_timeout,omitempty"`
-	ProxyIdleTimeout        string `json:"proxy_idle_timeout,omitempty"`
+	NodeMultiaddress string `json:"node_multiaddress"`
 
 	ListenMultiaddress string `json:"listen_multiaddress"`
 	ReadTimeout        string `json:"read_timeout"`
 	ReadHeaderTimeout  string `json:"read_header_timeout"`
 	WriteTimeout       string `json:"write_timeout"`
 	IdleTimeout        string `json:"idle_timeout"`
+
+	// Below fields are only here to maintain backward compatibility
+	// They will be removed in future
+	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress,omitempty"`
+	ProxyReadTimeout        string `json:"proxy_read_timeout,omitempty"`
+	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout,omitempty"`
+	ProxyWriteTimeout       string `json:"proxy_write_timeout,omitempty"`
+	ProxyIdleTimeout        string `json:"proxy_idle_timeout,omitempty"`
+}
+
+// toNewFields converts json config written in old style (fields starting with `proxy_`)
+// to new style (without `proxy_`)
+func (jcfg *jsonConfig) toNewFields() {
+	if jcfg.ListenMultiaddress == "" {
+		jcfg.ListenMultiaddress = jcfg.ProxyListenMultiaddress
+	}
+
+	if jcfg.ReadTimeout == "" {
+		jcfg.ReadTimeout = jcfg.ProxyReadTimeout
+	}
+
+	if jcfg.ReadHeaderTimeout == "" {
+		jcfg.ReadHeaderTimeout = jcfg.ProxyReadHeaderTimeout
+	}
+
+	if jcfg.WriteTimeout == "" {
+		jcfg.WriteTimeout = jcfg.ProxyWriteTimeout
+	}
+
+	if jcfg.IdleTimeout == "" {
+		jcfg.IdleTimeout = jcfg.ProxyIdleTimeout
+	}
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -128,29 +159,19 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	if jcfg.ListenMultiaddress == "" {
-		jcfg.ListenMultiaddress = jcfg.ProxyListenMultiaddress
-	}
-
-	if jcfg.ReadTimeout == "" {
-		jcfg.ReadTimeout = jcfg.ProxyReadTimeout
-	}
-
-	if jcfg.ReadHeaderTimeout == "" {
-		jcfg.ReadHeaderTimeout = jcfg.ProxyReadHeaderTimeout
-	}
-
-	if jcfg.WriteTimeout == "" {
-		jcfg.WriteTimeout = jcfg.ProxyWriteTimeout
-	}
-
-	if jcfg.IdleTimeout == "" {
-		jcfg.IdleTimeout = jcfg.ProxyIdleTimeout
-	}
+	// This is here only here to maintain backward compatibility
+	// This won't be needed after removing old style fields(starting with `proxy_`)
+	jcfg.toNewFields()
 
 	err = cfg.Default()
 	if err != nil {
 		return fmt.Errorf("error setting config to default values: %s", err)
+	}
+
+	// override json config with env var
+	err = envconfig.Process("cluster_ipfsproxy", jcfg)
+	if err != nil {
+		return err
 	}
 
 	proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)

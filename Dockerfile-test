@@ -50,6 +50,8 @@ USER root
 RUN mkdir -p $IPFS_CLUSTER_PATH && \
     chown 1000:100 $IPFS_CLUSTER_PATH
 
+USER ipfs
+
 VOLUME $IPFS_CLUSTER_PATH
 ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]
 
