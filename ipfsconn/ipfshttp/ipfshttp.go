@@ -592,9 +592,13 @@ func (ipfs *Connector) BlockPut(b api.NodeWithMeta) error {
 	defer cancel()
 	defer ipfs.updateInformerMetric()
 
-	multiFileR := files.NewMultiFileReader(files.DirFrom(map[string]files.Node{ // IPFS reqs require a wrapping directory
-		"": files.FileFrom(b.Data),
-	}), true)
+	mapDir := files.NewMapDirectory(
+		map[string]files.Node{ // IPFS reqs require a wrapping directory
+			"": files.NewBytesFile(b.Data),
+		},
+	)
+
+	multiFileR := files.NewMultiFileReader(mapDir, true)
 	if b.Format == "" {
 		b.Format = "v0"
 	}

@@ -411,7 +411,7 @@ func (c *defaultClient) Add(
 		addFiles[i] = files.FileEntry(name, addFile)
 	}
 
-	sliceFile := files.NewSliceFile(addFiles)
+	sliceFile := files.NewSliceDirectory(addFiles)
 	// If `form` is set to true, the multipart data will have
 	// a Content-Type of 'multipart/form-data', if `form` is false,
 	// the Content-Type will be 'multipart/mixed'.
