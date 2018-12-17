@@ -67,22 +67,17 @@ var testingAPICfg = []byte(`{
 }`)
 
 var testingProxyCfg = []byte(`{
-    "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/10001",
+    "listen_multiaddress": "/ip4/127.0.0.1/tcp/10001",
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-    "proxy_read_timeout": "0",
-    "proxy_read_header_timeout": "10m0s",
-    "proxy_write_timeout": "0",
-    "proxy_idle_timeout": "1m0s"
+    "read_timeout": "0",
+    "read_header_timeout": "10m0s",
+    "write_timeout": "0",
+    "idle_timeout": "1m0s"
 }`)
 
 var testingIpfsCfg = []byte(`{
-    "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/10001",
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
-    "proxy_read_timeout": "0",
-    "proxy_read_header_timeout": "10m0s",
-    "proxy_write_timeout": "0",
-    "proxy_idle_timeout": "1m0s",
     "pin_method": "pin",
     "pin_timeout": "30s",
     "unpin_timeout": "15s"

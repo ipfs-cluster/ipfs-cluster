@@ -78,31 +78,31 @@ func TestDefault(t *testing.T) {
 	}
 
 	cfg.Default()
-	cfg.ProxyAddr = nil
+	cfg.ListenAddr = nil
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyReadTimeout = -1
+	cfg.ReadTimeout = -1
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyReadHeaderTimeout = -2
+	cfg.ReadHeaderTimeout = -2
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyIdleTimeout = -1
+	cfg.IdleTimeout = -1
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
 
 	cfg.Default()
-	cfg.ProxyWriteTimeout = -3
+	cfg.WriteTimeout = -3
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}

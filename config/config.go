@@ -318,13 +318,15 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	loadSectionJSON(sections[API], jcfg.API)
 	// Should we change hardcoded "ipfsproxy" to something else
 	if _, ok := jcfg.API["ipfsproxy"]; !ok {
-		loadCompJSON("ipfsproxy", sections[API]["ipfsproxy"], jcfg.IPFSConn)
+		loadCompJSON("ipfshttp", sections[API]["ipfsproxy"], jcfg.IPFSConn)
 		logger.Warning(`
-			The IPFS proxy functionality has been extracted as a separate component and now uses
-			its own configuration section ("ipfsproxy" in the "api" section).
+The IPFS proxy functionality has been extracted as a separate component
+and now uses its own configuration section ("ipfsproxy" in the "api" section).
 
-			To keep compatibility, since you did not define an "ipfsproxy" section, the proxy configuration is taken from the "ipfshttp" section as before, but this will be removed in future versions.
-			`)
+To keep compatibility, since you did not define an "ipfsproxy" section, the
+proxy configuration is taken from the "ipfshttp" section as before, but this
+will be removed in future versions.
+`)
 	}
 	loadSectionJSON(sections[IPFSConn], jcfg.IPFSConn)
 	loadSectionJSON(sections[State], jcfg.State)
