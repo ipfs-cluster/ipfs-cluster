@@ -59,7 +59,15 @@ test_expect_success IPFS,CLUSTER "pin ls on invalid CID fails" '
 
 test_expect_success IPFS,CLUSTER "health graph succeeds and prints as expected" '
     ipfs-cluster-ctl health graph | grep -q "C0 -> I0"
+'
 
+test_expect_success IPFS,CLUSTER "health metrics with metric name must succeed" '
+    ipfs-cluster-ctl health metrics ping &&
+    ipfs-cluster-ctl health metrics freespace
+'
+
+test_expect_success IPFS,CLUSTER "health metrics without metric name fails" '
+    test_must_fail ipfs-cluster-ctl health metrics
 '
 
 test_clean_ipfs

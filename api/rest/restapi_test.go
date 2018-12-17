@@ -580,6 +580,7 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 
 	testBothEndpoints(t, tf)
 }
+
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()

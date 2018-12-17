@@ -322,7 +322,6 @@ func TestMetrics(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
-	//metricsList := []string{"freespace", "ping"}
 	testF := func(t *testing.T, c Client) {
 		for _, metricsType := range []string{"freespace", "ping"} {
 			m, err := c.Metrics(metricsType)
