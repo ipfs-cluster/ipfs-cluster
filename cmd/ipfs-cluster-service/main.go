@@ -13,6 +13,7 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
@@ -117,7 +118,7 @@ var (
 func init() {
 	// Set build information.
 	if build, err := semver.NewBuildVersion(commit); err == nil {
-		ipfscluster.Version.Build = []string{"git" + build}
+		version.Version.Build = []string{"git" + build}
 	}
 
 	// We try guessing user's home from the HOME variable. This
@@ -164,7 +165,7 @@ func main() {
 	app.Usage = "IPFS Cluster node"
 	app.Description = Description
 	//app.Copyright = "© Protocol Labs, Inc."
-	app.Version = ipfscluster.Version.String()
+	app.Version = version.Version.String()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "config, c",
@@ -446,7 +447,7 @@ the mth data folder (m currently defaults to 5)
 			Name:  "version",
 			Usage: "Print the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
-				fmt.Printf("%s\n", ipfscluster.Version)
+				fmt.Printf("%s\n", version.Version)
 				return nil
 			},
 		},

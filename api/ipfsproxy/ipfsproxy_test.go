@@ -6,13 +6,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
-
-	logging "github.com/ipfs/go-log"
-	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func init() {
@@ -38,12 +39,6 @@ func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
 	proxy.server.SetKeepAlivesEnabled(false)
 	proxy.SetClient(test.NewMockRPCClient(t))
 	return proxy, mock
-}
-
-func TestNewProxy(t *testing.T) {
-	ipfs, mock := testIPFSProxy(t)
-	defer mock.Close()
-	defer ipfs.Shutdown()
 }
 
 func TestIPFSProxyVersion(t *testing.T) {
@@ -577,4 +572,24 @@ func mustParseURL(rawurl string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func TestHeaderExtraction(t *testing.T) {
+	proxy, mock := testIPFSProxy(t)
+	defer mock.Close()
+	defer proxy.Shutdown()
+
+	res, err := http.Post(fmt.Sprintf("%s/pin/ls", proxyURL(proxy)), "", nil)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	res.Body.Close()
+
+	if res.Header.Get("Access-Control-Allow-Headers") != "test-allow-header" {
+		t.Error("the proxy should have extracted headers from ipfs")
+	}
+
+	if !strings.HasPrefix(res.Header.Get("Server"), "ipfs-cluster") {
+		t.Error("wrong value for Server header")
+	}
 }
