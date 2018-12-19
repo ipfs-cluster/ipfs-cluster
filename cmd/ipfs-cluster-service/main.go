@@ -446,7 +446,7 @@ the mth data folder (m currently defaults to 5)
 			Name:  "version",
 			Usage: "Print the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
-				fmt.Printf("%s\n", ipfscluster.Version)
+				fmt.Printf("hive.cluster-%s\n", ipfscluster.Version)
 				return nil
 			},
 		},
