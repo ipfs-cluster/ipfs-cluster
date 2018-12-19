@@ -221,6 +221,10 @@ func NewDefaultClient(cfg *Config) (Client, error) {
 }
 
 func (c *defaultClient) setupAPIAddr() error {
+	if c.config.APIAddr != nil {
+		return nil // already setup by user
+	}
+
 	var addr ma.Multiaddr
 	var err error
 	if c.config.APIAddr == nil {
@@ -238,6 +242,12 @@ func (c *defaultClient) setupAPIAddr() error {
 }
 
 func (c *defaultClient) resolveAPIAddr() error {
+	// Only resolve libp2p addresses. For HTTP addresses, we let
+	// the default client handle any resolving. We extract the hostname
+	// in setupHostname()
+	if !IsPeerAddress(c.config.APIAddr) {
+		return nil
+	}
 	resolveCtx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
 	resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
@@ -279,13 +289,14 @@ func (c *defaultClient) setupHTTPClient() error {
 func (c *defaultClient) setupHostname() error {
 	// Extract host:port form APIAddr or use Host:Port.
 	// For libp2p, hostname is set in enableLibp2p()
-	if !IsPeerAddress(c.config.APIAddr) {
-		_, hostname, err := manet.DialArgs(c.config.APIAddr)
-		if err != nil {
-			return err
-		}
-		c.hostname = hostname
+	if IsPeerAddress(c.config.APIAddr) {
+		return nil
 	}
+	_, hostname, err := manet.DialArgs(c.config.APIAddr)
+	if err != nil {
+		return err
+	}
+	c.hostname = hostname
 	return nil
 }
 

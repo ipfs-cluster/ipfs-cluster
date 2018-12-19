@@ -185,12 +185,12 @@ func TestDNSMultiaddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	dc := c.(*defaultClient)
-	if dc.hostname != "127.0.0.1:1234" {
-		t.Error("bad resolved address")
+	if dc.hostname != "localhost:1234" {
+		t.Error("address should not be resolved")
 	}
 
-	if dc.config.ProxyAddr == nil || dc.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
-		t.Error("proxy address was not guessed correctly")
+	if paddr := dc.config.ProxyAddr; paddr == nil || paddr.String() != "/dns4/localhost/tcp/9095" {
+		t.Error("proxy address was not guessed correctly: ", paddr)
 	}
 }
 
