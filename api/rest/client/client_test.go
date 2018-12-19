@@ -152,23 +152,54 @@ func TestMultiaddressPrecedence(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
-	cfg := &Config{
-		APIAddr:           nil,
-		Host:              "3.3.1.1",
-		Port:              "9094",
-		DisableKeepAlives: true,
-	}
-	c, err := NewDefaultClient(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dc := c.(*defaultClient)
-	if dc.hostname != "3.3.1.1:9094" {
-		t.Error("Host Port should be used")
+
+	type testcase struct {
+		host              string
+		port              string
+		expectedHostname  string
+		expectedProxyAddr string
 	}
 
-	if dc.config.ProxyAddr == nil || dc.config.ProxyAddr.String() != "/ip4/3.3.1.1/tcp/9095" {
-		t.Error("proxy address was not guessed correctly")
+	testcases := []testcase{
+		testcase{
+			host:              "3.3.1.1",
+			port:              "9094",
+			expectedHostname:  "3.3.1.1:9094",
+			expectedProxyAddr: "/ip4/3.3.1.1/tcp/9095",
+		},
+		testcase{
+			host:              "ipfs.io",
+			port:              "9094",
+			expectedHostname:  "ipfs.io:9094",
+			expectedProxyAddr: "/dns4/ipfs.io/tcp/9095",
+		},
+		testcase{
+			host:              "2001:db8::1",
+			port:              "9094",
+			expectedHostname:  "[2001:db8::1]:9094",
+			expectedProxyAddr: "/ip6/2001:db8::1/tcp/9095",
+		},
+	}
+
+	for _, tc := range testcases {
+		cfg := &Config{
+			APIAddr:           nil,
+			Host:              tc.host,
+			Port:              tc.port,
+			DisableKeepAlives: true,
+		}
+		c, err := NewDefaultClient(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dc := c.(*defaultClient)
+		if dc.hostname != tc.expectedHostname {
+			t.Error("Host Port should be used")
+		}
+
+		if paddr := dc.config.ProxyAddr; paddr == nil || paddr.String() != tc.expectedProxyAddr {
+			t.Error("proxy address was not guessed correctly: ", paddr)
+		}
 	}
 }
 

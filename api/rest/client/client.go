@@ -6,6 +6,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -227,18 +228,27 @@ func (c *defaultClient) setupAPIAddr() error {
 
 	var addr ma.Multiaddr
 	var err error
-	if c.config.APIAddr == nil {
-		if c.config.Host == "" { //default
-			addr, err = ma.NewMultiaddr(DefaultAPIAddr)
-		} else {
-			addrStr := fmt.Sprintf("/dns4/%s/tcp/%s", c.config.Host, c.config.Port)
-			addr, err = ma.NewMultiaddr(addrStr)
-		}
+
+	if c.config.Host == "" { //default
+		addr, err := ma.NewMultiaddr(DefaultAPIAddr)
 		c.config.APIAddr = addr
 		return err
 	}
 
-	return nil
+	var addrStr string
+	ip := net.ParseIP(c.config.Host)
+	switch {
+	case ip == nil:
+		addrStr = fmt.Sprintf("/dns4/%s/tcp/%s", c.config.Host, c.config.Port)
+	case ip.To4() != nil:
+		addrStr = fmt.Sprintf("/ip4/%s/tcp/%s", c.config.Host, c.config.Port)
+	default:
+		addrStr = fmt.Sprintf("/ip6/%s/tcp/%s", c.config.Host, c.config.Port)
+	}
+
+	addr, err = ma.NewMultiaddr(addrStr)
+	c.config.APIAddr = addr
+	return err
 }
 
 func (c *defaultClient) resolveAPIAddr() error {
