@@ -1,4 +1,4 @@
-package ipfscluster
+package version
 
 import (
 	"fmt"

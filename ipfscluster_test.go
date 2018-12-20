@@ -26,6 +26,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -378,7 +379,7 @@ func TestClustersVersion(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	f := func(t *testing.T, c *Cluster) {
 		v := c.Version()
-		if v != Version.String() {
+		if v != version.Version.String() {
 			t.Error("Bad version")
 		}
 	}

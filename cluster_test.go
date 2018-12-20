@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -230,7 +231,7 @@ func TestClusterID(t *testing.T) {
 	if id.ID == "" {
 		t.Error("expected a cluster ID")
 	}
-	if id.Version != Version.String() {
+	if id.Version != version.Version.String() {
 		t.Error("version should match current version")
 	}
 	//if id.PublicKey == nil {
@@ -776,7 +777,7 @@ func TestVersion(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
-	if cl.Version() != Version.String() {
+	if cl.Version() != version.Version.String() {
 		t.Error("bad Version()")
 	}
 }

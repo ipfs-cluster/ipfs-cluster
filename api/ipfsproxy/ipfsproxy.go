@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
@@ -13,22 +14,31 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/adder/adderutils"
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/rpcutil"
+	"github.com/ipfs/ipfs-cluster/version"
+
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
-
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module
 var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfsproxy")
+
+var ipfsHeaderList = []string{
+	"Server",
+	"Access-Control-Allow-Headers",
+	"Access-Control-Expose-Headers",
+	"Trailer",
+	"Vary",
+}
 
 // Server offers an IPFS API, hijacking some interesting requests
 // and forwarding the rest to the ipfs daemon
@@ -48,9 +58,36 @@ type Server struct {
 	listener net.Listener // proxy listener
 	server   *http.Server // proxy server
 
+	onceHeaders sync.Once
+	ipfsHeaders sync.Map
+
 	shutdownLock sync.Mutex
 	shutdown     bool
 	wg           sync.WaitGroup
+}
+
+// An http.Handler through which all proxied calls
+// must pass (wraps the actual handler).
+type proxyHandler struct {
+	server  *Server
+	handler http.Handler
+}
+
+// ServeHTTP extracts interesting headers returned by IPFS responses
+// and stores them in our cache.
+func (ph *proxyHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	ph.handler.ServeHTTP(rw, req)
+
+	hdrs := make(http.Header)
+	ok := ph.server.setIPFSHeaders(hdrs)
+	if !ok {
+		// we are missing some headers we want, try
+		// to copy the ones coming on this proxied request.
+		srcHeaders := rw.Header()
+		for _, k := range ipfsHeaderList {
+			ph.server.ipfsHeaders.Store(k, srcHeaders[k])
+		}
+	}
 }
 
 type ipfsError struct {
@@ -118,8 +155,6 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	proxyHandler := httputil.NewSingleHostReverseProxy(proxyURL)
-
 	smux := http.NewServeMux()
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
@@ -145,6 +180,12 @@ func New(cfg *Config) (*Server, error) {
 		listener: l,
 		server:   s,
 	}
+
+	proxyHandler := &proxyHandler{
+		server:  proxy,
+		handler: httputil.NewSingleHostReverseProxy(proxyURL),
+	}
+
 	smux.Handle("/", proxyHandler)
 	smux.HandleFunc("/api/v0/pin/add", proxy.pinHandler)   // add?arg=xxx
 	smux.HandleFunc("/api/v0/pin/add/", proxy.pinHandler)  // add/xxx
@@ -218,13 +259,50 @@ func (proxy *Server) run() {
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	res := ipfsError{errMsg}
 	resBytes, _ := json.Marshal(res)
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write(resBytes)
 	return
 }
 
+// setIPFSHeaders adds the known IPFS Headers to the destination
+// and returns true if we could set all the headers in the list.
+func (proxy *Server) setIPFSHeaders(dest http.Header) bool {
+	r := true
+	for _, h := range ipfsHeaderList {
+		v, ok := proxy.ipfsHeaders.Load(h)
+		if !ok {
+			r = false
+			continue
+		}
+		dest[h] = v.([]string)
+	}
+	return r
+}
+
+// Set headers that all hijacked endpoints share.
+func (proxy *Server) setHeaders(dest http.Header) {
+	if ok := proxy.setIPFSHeaders(dest); !ok {
+		req, err := http.NewRequest("POST", "/api/v0/version", nil)
+		if err != nil {
+			logger.Error(err)
+		} else {
+			// We use the Recorder() ResponseWriter to simply
+			// save implementing one ourselves.
+			// This uses our proxy handler to trigger a proxied
+			// request which will record the headers once completed.
+			proxy.server.Handler.ServeHTTP(httptest.NewRecorder(), req)
+			proxy.setIPFSHeaders(dest)
+		}
+	}
+
+	// Set Cluster global headers for all hijacked requests
+	dest.Set("Content-Type", "application/json")
+	dest.Set("Server", fmt.Sprintf("ipfs-cluster/ipfsproxy/%s", version.Version))
+}
+
 func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
 	arg, ok := extractArgument(r.URL)
 	if !ok {
 		ipfsErrorResponder(w, "Error: bad argument")
@@ -252,7 +330,6 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 		Pins: []string{arg},
 	}
 	resBytes, _ := json.Marshal(res)
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 	return
@@ -267,6 +344,8 @@ func (proxy *Server) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
@@ -314,12 +393,13 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBytes, _ := json.Marshal(pinLs)
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 }
 
 func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
 	reader, err := r.MultipartReader()
 	if err != nil {
 		ipfsErrorResponder(w, "error reading request: "+err.Error())
@@ -394,6 +474,8 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
 	peers := make([]peer.ID, 0)
 	err := proxy.rpcClient.Call(
 		"",
@@ -437,7 +519,6 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBytes, _ := json.Marshal(totalStats)
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 	return

@@ -107,6 +107,8 @@ func NewIpfsMock() *IpfsMock {
 // FIXME: what if IPFS API changes?
 func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
+	w.Header().Set("Access-Control-Allow-Headers", "test-allow-header")
+	w.Header().Set("Server", "ipfs-mock")
 	endp := strings.TrimPrefix(p, "/api/v0/")
 	switch endp {
 	case "id":

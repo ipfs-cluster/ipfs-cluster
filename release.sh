@@ -13,7 +13,7 @@ if [ -z $version ]; then
 fi
 
 make gx-clean
-sed -i "s/Version = semver\.MustParse.*$/Version = semver.MustParse(\"$version\")/" version.go
+sed -i "s/Version = semver\.MustParse.*$/Version = semver.MustParse(\"$version\")/" version/version.go
 sed -i "s/const Version.*$/const Version = \"$version\"/" cmd/ipfs-cluster-ctl/main.go
 git commit -S -a -m "Release $version"
 lastver=`git tag -l | grep -E 'v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1`
