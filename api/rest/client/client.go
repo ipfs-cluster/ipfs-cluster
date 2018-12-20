@@ -71,7 +71,7 @@ type Client interface {
 	// is fetched from all cluster peers.
 	Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
-	StatusAll(local bool) ([]api.GlobalPinInfo, error)
+	StatusAll(filter string, local bool) ([]api.GlobalPinInfo, error)
 
 	// Sync makes sure the state of a Cid corresponds to the state reported
 	// by the ipfs daemon, and returns it. If local is true, this operation
@@ -156,9 +156,6 @@ type Config struct {
 
 	// LogLevel defines the verbosity of the logging facility
 	LogLevel string
-
-	// List of filters for limiting results from ipfs-cluster-ctl
-	Filter string
 }
 
 // DefaultClient provides methods to interact with the ipfs-cluster API. Use

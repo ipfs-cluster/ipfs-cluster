@@ -669,85 +669,74 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// defined groups / aliases for filtering
-var filterGroups = map[string][]string{
-	"error":  {"error", "pin_error", "unpin_error", "cluster_error"},
-	"queued": {"queued", "pin_queued", "unpin_queued"},
-}
-
-func parseAllFilters(rawFilters string) map[string]bool {
-	// given the initial string of filters, return a slice of all individual strings
-	// to match on. This includes replacing alises
-	rawFilterList := strings.Split(strings.ToLower(rawFilters), ",")
-	var filterList = map[string]bool{}
-
-	for _, rawFilter := range rawFilterList {
-		if aliasSlice, exists := filterGroups[rawFilter]; exists {
-			for _, alias := range aliasSlice {
-				filterList[alias] = true
-			}
-		} else {
-			filterList[rawFilter] = true
+func match(filters []string, status string) bool {
+	for _, filter := range filters {
+		if status == filter {
+			return true
 		}
-	}
-	return filterList
-
-}
-
-func filterStatusAll(filter string, pinInfos []types.GlobalPinInfoSerial) []types.GlobalPinInfoSerial {
-	if filter == "" {
-		return pinInfos
-	}
-	filterList := parseAllFilters(filter)
-	var filtered []types.GlobalPinInfoSerial
-NEXTPI:
-	for _, pi := range pinInfos {
-		for _, entry := range pi.PeerMap {
-			if _, exists := filterList[entry.Status]; exists {
-				filtered = append(filtered, pi)
-				continue NEXTPI
+		if filter == "queued" || filter == "error" {
+			if strings.Contains(status, filter) {
+				return true
 			}
 		}
 	}
-	return filtered
+	return false
 }
 
-func filterStatus(filter string, pinInfos []types.PinInfoSerial) []types.PinInfoSerial {
+func globalPinInfosByStatus(filter string, globalPinInfos []types.GlobalPinInfoSerial) []types.GlobalPinInfoSerial {
 	if filter == "" {
-		return pinInfos
+		return globalPinInfos
 	}
-	filterList := parseAllFilters(filter)
-	for i := len(pinInfos) - 1; i >= 0; i-- {
-		if _, exists := filterList[pinInfos[i].Status]; !exists {
-			pinInfos = append(pinInfos[:i], pinInfos[i+1:]...)
+	filters := strings.Split(strings.ToLower(filter), ",")
+
+	var filteredGlobalPinInfos []types.GlobalPinInfoSerial
+
+	for _, globalPinInfo := range globalPinInfos {
+		for _, pinInfo := range globalPinInfo.PeerMap {
+			if match(filters, pinInfo.Status) {
+				filteredGlobalPinInfos = append(filteredGlobalPinInfos, globalPinInfo)
+				break
+			}
 		}
 	}
-	return pinInfos
+
+	return filteredGlobalPinInfos
 }
 
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
+	var globalPinInfos []types.GlobalPinInfoSerial
+
 	if local == "true" {
 		var pinInfos []types.PinInfoSerial
+
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"StatusAllLocal",
 			struct{}{},
 			&pinInfos)
-		pinInfos = filterStatus(queryValues.Get("filter"), pinInfos)
-		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
+		if err != nil {
+			api.sendResponse(w, autoStatus, err, nil)
+			return
+		}
+		globalPinInfos = pinInfosToGlobal(pinInfos)
 	} else {
-		var pinInfos []types.GlobalPinInfoSerial
 		err := api.rpcClient.Call("",
 			"Cluster",
 			"StatusAll",
 			struct{}{},
-			&pinInfos)
-		pinInfos = filterStatusAll(queryValues.Get("filter"), pinInfos)
-		api.sendResponse(w, autoStatus, err, pinInfos)
+			&globalPinInfos)
+		if err != nil {
+			api.sendResponse(w, autoStatus, err, nil)
+			return
+		}
 	}
+
+	globalPinInfos = globalPinInfosByStatus(queryValues.Get("filter"), globalPinInfos)
+
+	api.sendResponse(w, autoStatus, nil, globalPinInfos)
 }
 
 func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {

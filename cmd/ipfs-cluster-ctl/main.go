@@ -98,11 +98,6 @@ func main() {
 			Value: "",
 			Usage: "cluster secret (32 byte pnet-key) as needed. Only when using the LibP2P endpoint",
 		},
-		cli.StringFlag{
-			Name:  "filter",
-			Value: "",
-			Usage: "filter for the 'status' command, may be one of status flags or a comma separated list",
-		},
 		cli.BoolFlag{
 			Name:  "https, s",
 			Usage: "use https to connect to the API",
@@ -175,11 +170,6 @@ requires authorization. implies --https, which you can disable with --force-http
 		enc := c.String("encoding")
 		if enc != "text" && enc != "json" {
 			checkErr("", errors.New("unsupported encoding"))
-		}
-
-		filter := c.String("filter")
-		if filter != "" {
-			cfg.Filter = filter
 		}
 
 		globalClient, err = client.NewDefaultClient(cfg)
@@ -624,10 +614,24 @@ with "sync".
 
 When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
+
+When the --filter is passed, it will only fetch the peer information
+where status of the pin matches with the filter value.
+Valid filter values are tracker status types("pinned", "pin_error", "unpinning" etc),
+an alias of tracker status type (queued or error), comma separated list of
+tracker status type and/or it aliases ("error,pinning")
+On passing invalid filter value no status information will be shown
+List of tracker status types
+https://github.com/ipfs/ipfs-cluster/blob/319c41cbf195b0453b8d1987991280d3121bac93/api/types.go#L66
+
 `,
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),
+				cli.StringFlag{
+					Name:  "filter",
+					Usage: "Comma seperated list of type tracker status and their aliases",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
@@ -637,7 +641,7 @@ contacted cluster peer. By default, status will be fetched from all peers.
 					resp, cerr := globalClient.Status(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.StatusAll(c.Bool("local"))
+					resp, cerr := globalClient.StatusAll(c.String("filter"), c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil

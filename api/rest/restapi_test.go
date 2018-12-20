@@ -596,7 +596,38 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		var resp2 []api.GlobalPinInfoSerial
 		makeGet(t, rest, url(rest)+"/pins?local=true", &resp2)
 		if len(resp2) != 2 {
-			t.Errorf("unexpected statusAll+local resp:\n %+v", resp)
+			t.Errorf("unexpected statusAll+local resp:\n %+v", resp2)
+		}
+
+		// Test with filter
+		var resp3 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=queue", &resp3)
+		if len(resp3) != 0 {
+			t.Errorf("unexpected statusAll+filter=queue resp:\n %+v", resp3)
+		}
+
+		var resp4 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=pinned", &resp4)
+		if len(resp4) != 1 {
+			t.Errorf("unexpected statusAll+filter=pinned resp:\n %+v", resp4)
+		}
+
+		var resp5 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=pin_error", &resp5)
+		if len(resp5) != 1 {
+			t.Errorf("unexpected statusAll+filter=pin_error resp:\n %+v", resp5)
+		}
+
+		var resp6 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=error", &resp6)
+		if len(resp6) != 1 {
+			t.Errorf("unexpected statusAll+filter=error resp:\n %+v", resp6)
+		}
+
+		var resp7 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=error,pinned", &resp7)
+		if len(resp7) != 2 {
+			t.Errorf("unexpected statusAll+filter=error,pinned resp:\n %+v", resp7)
 		}
 	}
 
@@ -635,28 +666,6 @@ func TestAPIStatusEndpoint(t *testing.T) {
 		}
 		if info.Status != "pinned" {
 			t.Error("expected different status")
-		}
-	}
-
-	testBothEndpoints(t, tf)
-}
-
-func TestAPIStatusAllFilterEndpoint(t *testing.T) {
-	rest := testAPI(t)
-	defer rest.Shutdown()
-
-	tf := func(t *testing.T, url urlF) {
-		var resp []api.GlobalPinInfoSerial
-		makeGet(t, rest, url(rest)+"/pins?filter=error", &resp)
-		if len(resp) != 1 {
-			t.Errorf("unexpected statusAll resp:\n %+v", resp)
-		}
-
-		// Test local=true
-		var resp2 []api.GlobalPinInfoSerial
-		makeGet(t, rest, url(rest)+"/pins?local=true&filter=error", &resp2)
-		if len(resp2) != 1 {
-			t.Errorf("unexpected statusAll+local resp:\n %+v \n %d", resp2, len(resp2))
 		}
 	}
 

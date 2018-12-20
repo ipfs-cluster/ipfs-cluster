@@ -219,7 +219,7 @@ func TestStatusAll(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pins, err := c.StatusAll(false)
+		pins, err := c.StatusAll("", false)
 		if err != nil {
 			t.Fatal(err)
 		}
