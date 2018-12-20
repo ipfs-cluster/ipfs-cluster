@@ -78,11 +78,11 @@ type proxyHandler struct {
 func (ph *proxyHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	ph.handler.ServeHTTP(rw, req)
 
-	// If the "Server" header is not there, we did not do
-	// successful Header extraction yet. In this case
-	// we copy all interesting (ipfsHeaderList) headers
-	// from the proxyResponse.
-	if !ph.server.ipfsHeadersKnown() {
+	hdrs := make(http.Header)
+	ok := ph.server.setIPFSHeaders(hdrs)
+	if !ok {
+		// we are missing some headers we want, try
+		// to copy the ones coming on this proxied request.
 		srcHeaders := rw.Header()
 		for _, k := range ipfsHeaderList {
 			ph.server.ipfsHeaders.Store(k, srcHeaders[k])
@@ -264,26 +264,24 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	return
 }
 
-// returns whether we have successfully extracted headers from
-// an IPFS proxied call that we can replicate.
-// For simplicity and speed, we assume that if we have one of them
-// we probably have the rest.
-// At the time of writing, the headers we extract are global to
-// any IPFS API responses. This approach can miss the case in
-// which, for example, only the "Server" header comes back, but not
-// the other ones we want. This would be bad if that case ever happens,
-// but there is nothing assuring us that retriggering new requests to
-// IPFS will actually get the missing headers, so we may be left
-// with superflous calls to IPFS all the time which do not help at all,
-// a worse scenario.
-func (proxy *Server) ipfsHeadersKnown() bool {
-	_, ok := proxy.ipfsHeaders.Load(ipfsHeaderList[0])
-	return ok
+// setIPFSHeaders adds the known IPFS Headers to the destination
+// and returns true if we could set all the headers in the list.
+func (proxy *Server) setIPFSHeaders(dest http.Header) bool {
+	r := true
+	for _, h := range ipfsHeaderList {
+		v, ok := proxy.ipfsHeaders.Load(h)
+		if !ok {
+			r = false
+			continue
+		}
+		dest[h] = v.([]string)
+	}
+	return r
 }
 
 // Set headers that all hijacked endpoints share.
 func (proxy *Server) setHeaders(dest http.Header) {
-	if !proxy.ipfsHeadersKnown() { // make a request to fetch them
+	if ok := proxy.setIPFSHeaders(dest); !ok {
 		req, err := http.NewRequest("POST", "/api/v0/version", nil)
 		if err != nil {
 			logger.Error(err)
@@ -293,16 +291,9 @@ func (proxy *Server) setHeaders(dest http.Header) {
 			// This uses our proxy handler to trigger a proxied
 			// request which will record the headers once completed.
 			proxy.server.Handler.ServeHTTP(httptest.NewRecorder(), req)
+			proxy.setIPFSHeaders(dest)
 		}
 	}
-
-	// Copy ipfs headers
-	proxy.ipfsHeaders.Range(func(k, v interface{}) bool {
-		ks := k.(string)
-		vs := v.([]string)
-		dest[ks] = vs
-		return true
-	})
 
 	// Set Cluster global headers for all hijacked requests
 	dest.Set("Content-Type", "application/json")
