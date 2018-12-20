@@ -227,6 +227,32 @@ func TestStatusAll(t *testing.T) {
 		if len(pins) == 0 {
 			t.Error("there should be some pins")
 		}
+
+		// With local true
+		pins, err = c.StatusAll("", true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 2 {
+			t.Error("there should be two pins")
+		}
+
+		// With filter option
+		pins, err = c.StatusAll("pinning", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 1 {
+			t.Error("there should be one pin")
+		}
+
+		pins, err = c.StatusAll("pinned,error", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 2 {
+			t.Error("there should be two pins")
+		}
 	}
 
 	testClients(t, api, testF)

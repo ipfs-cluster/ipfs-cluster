@@ -623,7 +623,6 @@ tracker status type and/or it aliases ("error,pinning")
 On passing invalid filter value no status information will be shown
 List of tracker status types
 https://github.com/ipfs/ipfs-cluster/blob/319c41cbf195b0453b8d1987991280d3121bac93/api/types.go#L66
-
 `,
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
