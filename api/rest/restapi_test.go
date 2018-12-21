@@ -561,19 +561,17 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
-		for _, metricsType := range []string{"freespace", "ping"} {
-			var resp []api.MetricSerial
-			makeGet(t, rest, url(rest)+"/monitor/metrics/"+metricsType, &resp)
-			if len(resp) == 0 {
-				t.Fatal("No metrics found")
+		var resp []api.MetricSerial
+		makeGet(t, rest, url(rest)+"/monitor/metrics/somemetricstype", &resp)
+		if len(resp) == 0 {
+			t.Fatal("No metrics found")
+		}
+		for _, m := range resp {
+			if m.Name != "test" {
+				t.Error("Unexpected metric name: ", m.Name)
 			}
-			for _, m := range resp {
-				if m.Name != "test" {
-					t.Error("Unexpected metric name: ", m.Name)
-				}
-				if m.Peer != test.TestPeerID1.Pretty() {
-					t.Error("Unexpected peer id: ", m.Peer)
-				}
+			if m.Peer != test.TestPeerID1.Pretty() {
+				t.Error("Unexpected peer id: ", m.Peer)
 			}
 		}
 	}

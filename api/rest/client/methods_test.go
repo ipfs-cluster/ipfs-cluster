@@ -323,15 +323,13 @@ func TestMetrics(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		for _, metricsType := range []string{"freespace", "ping"} {
-			m, err := c.Metrics(metricsType)
-			if err != nil {
-				t.Fatal(err)
-			}
+		m, err := c.Metrics("somemetricstype")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-			if len(m) == 0 {
-				t.Fatal("No metrics found")
-			}
+		if len(m) == 0 {
+			t.Fatal("No metrics found")
 		}
 	}
 
