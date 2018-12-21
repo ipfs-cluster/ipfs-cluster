@@ -347,7 +347,7 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 }
 
 // logic drawn from go-ipfs-cmds/cli/parse.go: appendFile
-func makeSerialFile(fpath string, params *api.AddParams) (files.File, error) {
+func makeSerialFile(fpath string, params *api.AddParams) (files.Node, error) {
 	if fpath == "." {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -373,7 +373,7 @@ func makeSerialFile(fpath string, params *api.AddParams) (files.File, error) {
 		}
 	}
 
-	return files.NewSerialFile(path.Base(fpath), fpath, params.Hidden, stat)
+	return files.NewSerialFile(fpath, params.Hidden, stat)
 }
 
 // Add imports files to the cluster from the given paths. A path can
@@ -389,32 +389,33 @@ func (c *defaultClient) Add(
 	out chan<- *api.AddedOutput,
 ) error {
 
-	addFiles := make([]files.File, len(paths), len(paths))
-	for i, path := range paths {
-		u, err := url.Parse(path)
+	addFiles := make([]files.DirEntry, len(paths), len(paths))
+	for i, p := range paths {
+		u, err := url.Parse(p)
 		if err != nil {
 			close(out)
 			return fmt.Errorf("error parsing path: %s", err)
 		}
-		var addFile files.File
+		name := path.Base(p)
+		var addFile files.Node
 		if strings.HasPrefix(u.Scheme, "http") {
 			addFile = files.NewWebFile(u)
+			name = path.Base(u.Path)
 		} else {
-			addFile, err = makeSerialFile(path, params)
+			addFile, err = makeSerialFile(p, params)
 			if err != nil {
 				close(out)
 				return err
 			}
 		}
-		addFiles[i] = addFile
+		addFiles[i] = files.FileEntry(name, addFile)
 	}
 
-	sliceFile := files.NewSliceFile("", "", addFiles)
+	sliceFile := files.NewSliceDirectory(addFiles)
 	// If `form` is set to true, the multipart data will have
 	// a Content-Type of 'multipart/form-data', if `form` is false,
 	// the Content-Type will be 'multipart/mixed'.
-	mfr := files.NewMultiFileReader(sliceFile, true)
-	return c.AddMultiFile(mfr, params, out)
+	return c.AddMultiFile(files.NewMultiFileReader(sliceFile, true), params, out)
 }
 
 // AddMultiFile imports new files from a MultiFileReader. See Add().

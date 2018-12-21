@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
@@ -20,6 +21,7 @@ import (
 type cfgs struct {
 	clusterCfg          *ipfscluster.Config
 	apiCfg              *rest.Config
+	ipfsproxyCfg        *ipfsproxy.Config
 	ipfshttpCfg         *ipfshttp.Config
 	consensusCfg        *raft.Config
 	maptrackerCfg       *maptracker.Config
@@ -34,6 +36,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg := config.NewManager()
 	clusterCfg := &ipfscluster.Config{}
 	apiCfg := &rest.Config{}
+	ipfsproxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	consensusCfg := &raft.Config{}
 	maptrackerCfg := &maptracker.Config{}
@@ -44,6 +47,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	numpinInfCfg := &numpin.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
+	cfg.RegisterComponent(config.API, ipfsproxyCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
 	cfg.RegisterComponent(config.Consensus, consensusCfg)
 	cfg.RegisterComponent(config.PinTracker, maptrackerCfg)
@@ -55,6 +59,7 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	return cfg, &cfgs{
 		clusterCfg,
 		apiCfg,
+		ipfsproxyCfg,
 		ipfshttpCfg,
 		consensusCfg,
 		maptrackerCfg,

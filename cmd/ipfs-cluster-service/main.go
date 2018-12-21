@@ -13,6 +13,7 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
@@ -117,7 +118,7 @@ var (
 func init() {
 	// Set build information.
 	if build, err := semver.NewBuildVersion(commit); err == nil {
-		ipfscluster.Version.Build = []string{"git" + build}
+		version.Version.Build = []string{"git" + build}
 	}
 
 	// We try guessing user's home from the HOME variable. This
@@ -164,7 +165,7 @@ func main() {
 	app.Usage = "IPFS Cluster node"
 	app.Description = Description
 	//app.Copyright = "© Protocol Labs, Inc."
-	app.Version = ipfscluster.Version.String()
+	app.Version = version.Version.String()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "config, c",
@@ -307,9 +308,9 @@ configuration.
 					Name:  "upgrade",
 					Usage: "upgrade the IPFS Cluster state to the current version",
 					Description: `
-This command upgrades the internal state of the ipfs-cluster node 
-specified in the latest raft snapshot. The state format is migrated from the 
-version of the snapshot to the version supported by the current cluster version. 
+This command upgrades the internal state of the ipfs-cluster node
+specified in the latest raft snapshot. The state format is migrated from the
+version of the snapshot to the version supported by the current cluster version.
 To successfully run an upgrade of an entire cluster, shut down each peer without
 removal, upgrade state using this command, and restart every peer.
 `,
@@ -327,7 +328,7 @@ removal, upgrade state using this command, and restart every peer.
 					Name:  "export",
 					Usage: "save the IPFS Cluster state to a json file",
 					Description: `
-This command reads the current cluster state and saves it as json for 
+This command reads the current cluster state and saves it as json for
 human readability and editing.  Only state formats compatible with this
 version of ipfs-cluster-service can be exported.  By default this command
 prints the state to stdout.
@@ -411,7 +412,7 @@ import.  If no argument is provided cluster will read json from stdin
 This command removes the persistent state that is loaded on startup to determine this peer's view of the
 cluster state.  While it removes the existing state from the load path, one invocation does not permanently remove
 this state from disk.  This command renames cluster's data folder to <data-folder-name>.old.0, and rotates other
-deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
+deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting
 the mth data folder (m currently defaults to 5)
 `,
 					Flags: []cli.Flag{
@@ -446,7 +447,7 @@ the mth data folder (m currently defaults to 5)
 			Name:  "version",
 			Usage: "Print the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
-				fmt.Printf("hive.cluster-%s\n", ipfscluster.Version)
+				fmt.Printf("%s+hive.cluster\n", version.Version)
 				return nil
 			},
 		},

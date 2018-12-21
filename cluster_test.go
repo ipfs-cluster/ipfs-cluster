@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -38,6 +39,10 @@ func (c *mockComponent) SetClient(client *rpc.Client) {
 }
 
 type mockAPI struct {
+	mockComponent
+}
+
+type mockProxy struct {
 	mockComponent
 }
 
@@ -119,7 +124,7 @@ func (ipfs *mockConnector) BlockGet(c cid.Cid) ([]byte, error) {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.State, PinTracker) {
-	clusterCfg, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
+	clusterCfg, _, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, _ := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -127,6 +132,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 	}
 
 	api := &mockAPI{}
+	proxy := &mockProxy{}
 	ipfs := &mockConnector{}
 	st := mapstate.NewMapState()
 	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
@@ -148,7 +154,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 		host,
 		clusterCfg,
 		raftcon,
-		api,
+		[]API{api, proxy},
 		ipfs,
 		st,
 		tracker,
@@ -225,7 +231,7 @@ func TestClusterID(t *testing.T) {
 	if id.ID == "" {
 		t.Error("expected a cluster ID")
 	}
-	if id.Version != Version.String() {
+	if id.Version != version.Version.String() {
 		t.Error("version should match current version")
 	}
 	//if id.PublicKey == nil {
@@ -771,7 +777,7 @@ func TestVersion(t *testing.T) {
 	cl, _, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown()
-	if cl.Version() != Version.String() {
+	if cl.Version() != version.Version.String() {
 		t.Error("bad Version()")
 	}
 }

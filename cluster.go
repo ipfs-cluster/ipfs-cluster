@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -48,7 +49,7 @@ type Cluster struct {
 	peerManager *pstoremgr.Manager
 
 	consensus Consensus
-	api       API
+	apis      []API
 	ipfs      IPFSConnector
 	state     state.State
 	tracker   PinTracker
@@ -80,7 +81,7 @@ func NewCluster(
 	host host.Host,
 	cfg *Config,
 	consensus Consensus,
-	api API,
+	apis []API,
 	ipfs IPFSConnector,
 	st state.State,
 	tracker PinTracker,
@@ -104,7 +105,7 @@ func NewCluster(
 		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
 	}
 
-	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", Version, listenAddrs)
+	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
 
 	// Note, we already loaded peers from peerstore into the host
 	// in daemon.go.
@@ -133,7 +134,7 @@ func NewCluster(
 		host:        rHost,
 		dht:         idht,
 		consensus:   consensus,
-		api:         api,
+		apis:        apis,
 		ipfs:        ipfs,
 		state:       st,
 		tracker:     tracker,
@@ -162,13 +163,13 @@ func NewCluster(
 }
 
 func (c *Cluster) setupRPC() error {
-	rpcServer := rpc.NewServer(c.host, RPCProtocol)
+	rpcServer := rpc.NewServer(c.host, version.RPCProtocol)
 	err := rpcServer.RegisterName("Cluster", &RPCAPI{c})
 	if err != nil {
 		return err
 	}
 	c.rpcServer = rpcServer
-	rpcClient := rpc.NewClientWithServer(c.host, RPCProtocol, rpcServer)
+	rpcClient := rpc.NewClientWithServer(c.host, version.RPCProtocol, rpcServer)
 	c.rpcClient = rpcClient
 	return nil
 }
@@ -176,7 +177,9 @@ func (c *Cluster) setupRPC() error {
 func (c *Cluster) setupRPCClients() {
 	c.tracker.SetClient(c.rpcClient)
 	c.ipfs.SetClient(c.rpcClient)
-	c.api.SetClient(c.rpcClient)
+	for _, api := range c.apis {
+		api.SetClient(c.rpcClient)
+	}
 	c.consensus.SetClient(c.rpcClient)
 	c.monitor.SetClient(c.rpcClient)
 	c.allocator.SetClient(c.rpcClient)
@@ -479,10 +482,13 @@ func (c *Cluster) Shutdown() error {
 		return err
 	}
 
-	if err := c.api.Shutdown(); err != nil {
-		logger.Errorf("error stopping API: %s", err)
-		return err
+	for _, api := range c.apis {
+		if err := api.Shutdown(); err != nil {
+			logger.Errorf("error stopping API: %s", err)
+			return err
+		}
 	}
+
 	if err := c.ipfs.Shutdown(); err != nil {
 		logger.Errorf("error stopping IPFS Connector: %s", err)
 		return err
@@ -535,8 +541,8 @@ func (c *Cluster) ID() api.ID {
 		Addresses:             addrs,
 		ClusterPeers:          peers,
 		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
-		Version:               Version.String(),
-		RPCProtocolVersion:    RPCProtocol,
+		Version:               version.Version.String(),
+		RPCProtocolVersion:    version.RPCProtocol,
 		IPFS:                  ipfsID,
 		Peername:              c.config.Peername,
 	}
@@ -1087,7 +1093,7 @@ func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (cid.
 
 // Version returns the current IPFS Cluster version.
 func (c *Cluster) Version() string {
-	return Version.String()
+	return version.Version.String()
 }
 
 // Peers returns the IDs of the members of this Cluster.

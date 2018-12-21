@@ -26,6 +26,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -121,7 +122,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, []API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	//
 	//clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
@@ -140,7 +141,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -154,12 +155,16 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 
 	apiCfg.HTTPListenAddr = apiAddr
-	ipfshttpCfg.ProxyAddr = proxyAddr
+	ipfsproxyCfg.ListenAddr = proxyAddr
+	ipfsproxyCfg.NodeAddr = nodeAddr
 	ipfshttpCfg.NodeAddr = nodeAddr
 	consensusCfg.DataFolder = "./e2eTestRaft/" + pid.Pretty()
 
 	api, err := rest.NewAPI(apiCfg)
 	checkErr(t, err)
+	ipfsProxy, err := rest.NewAPI(apiCfg)
+	checkErr(t, err)
+
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
@@ -173,7 +178,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	raftCon, err := raft.NewConsensus(host, consensusCfg, state, staging)
 	checkErr(t, err)
 
-	return host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock
+	return host, clusterCfg, raftCon, []API{api, ipfsProxy}, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
 func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pubsubmon.Config) PeerMonitor {
@@ -204,8 +209,8 @@ func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg
 	return ptrkr
 }
 
-func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(host, clusterCfg, raftCons, api, ipfs, state, tracker, mon, alloc, inf)
+func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, apis []API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+	cl, err := NewCluster(host, clusterCfg, raftCons, apis, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	return cl
 }
@@ -221,7 +226,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	os.RemoveAll("./e2eTestRaft")
 	cfgs := make([]*Config, nClusters, nClusters)
 	raftCons := make([]*raft.Consensus, nClusters, nClusters)
-	apis := make([]API, nClusters, nClusters)
+	apis := make([][]API, nClusters, nClusters)
 	ipfss := make([]IPFSConnector, nClusters, nClusters)
 	states := make([]state.State, nClusters, nClusters)
 	trackers := make([]PinTracker, nClusters, nClusters)
@@ -238,18 +243,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 	for i := 0; i < nClusters; i++ {
 		// staging = true for all except first (i==0)
-		host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret, i != 0)
-		hosts[i] = host
-		cfgs[i] = clusterCfg
-		raftCons[i] = raftCon
-		apis[i] = api
-		ipfss[i] = ipfs
-		states[i] = state
-		trackers[i] = tracker
-		mons[i] = mon
-		allocs[i] = alloc
-		infs[i] = inf
-		ipfsMocks[i] = mock
+		hosts[i], cfgs[i], raftCons[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i], ipfsMocks[i] = createComponents(t, i, testingClusterSecret, i != 0)
 	}
 
 	// open connections among all hosts
@@ -385,7 +379,7 @@ func TestClustersVersion(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	f := func(t *testing.T, c *Cluster) {
 		v := c.Version()
-		if v != Version.String() {
+		if v != version.Version.String() {
 			t.Error("Bad version")
 		}
 	}

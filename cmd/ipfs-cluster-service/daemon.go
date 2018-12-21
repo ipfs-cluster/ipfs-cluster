@@ -14,6 +14,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
+	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
@@ -110,7 +111,12 @@ func createCluster(
 	api, err := rest.NewAPIWithHost(cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
+	proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
+	checkErr("creating IPFS Proxy component", err)
+
+	apis := []ipfscluster.API{api, proxy}
+
+	connector, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
@@ -136,8 +142,8 @@ func createCluster(
 		host,
 		cfgs.clusterCfg,
 		raftcon,
-		api,
-		proxy,
+		apis,
+		connector,
 		state,
 		tracker,
 		mon,
