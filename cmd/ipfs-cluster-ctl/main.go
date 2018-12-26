@@ -617,19 +617,19 @@ contacted cluster peer. By default, status will be fetched from all peers.
 
 When the --filter is passed, it will only fetch the peer information
 where status of the pin matches with the filter value.
-Valid filter values are tracker status types("pinned", "pin_error", "unpinning" etc),
-an alias of tracker status type (queued or error), comma separated list of
-tracker status type and/or it aliases ("error,pinning")
-On passing invalid filter value no status information will be shown
-List of tracker status types
-https://github.com/ipfs/ipfs-cluster/blob/319c41cbf195b0453b8d1987991280d3121bac93/api/types.go#L66
+Valid filter values are tracker status types(full list of tracker status
+types includes "bug", "cluster_error", "pin_error", "unpin_error", "pinned",
+"pinning", "unpinning", "remote", "pin_queued" and "unpin_queued"), an
+alias of tracker status type ("queued" or "error"), comma separated list of
+tracker status type and/or it aliases ("error,pinning"). On passing invalid
+filter value will throw an error.
 `,
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),
 				cli.StringFlag{
 					Name:  "filter",
-					Usage: "Comma seperated list of type tracker status and their aliases",
+					Usage: "Comma-separated list of filters",
 				},
 			},
 			Action: func(c *cli.Context) error {

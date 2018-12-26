@@ -137,12 +137,17 @@ func (c *defaultClient) Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error
 
 // StatusAll gathers Status() for all tracked items.
 // If valid filter value is provided, it would fetch only those status information
-// where status is matching the filter value
+// where status is matching the filter value.
 // Valid filter values are tracker status type, an alias of tracker status type
-// (queued or error), comma separated list of track status type and/or it aliases
+// (queued or error), comma separated list of track status type and/or it aliases.
 func (c *defaultClient) StatusAll(filter string, local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
-	err := c.do("GET", fmt.Sprintf("/pins?local=%t&filter=%s", local, filter), nil, nil, &gpis)
+
+	if !api.IsFilterValid(filter) {
+		return make([]api.GlobalPinInfo, len(gpis)), errors.New("invalid filter value")
+	}
+
+	err := c.do("GET", fmt.Sprintf("/pins?local=%t&filter=%s", local, url.QueryEscape(filter)), nil, nil, &gpis)
 	result := make([]api.GlobalPinInfo, len(gpis))
 	for i, p := range gpis {
 		result[i] = p.ToGlobalPinInfo()

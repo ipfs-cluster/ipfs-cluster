@@ -601,9 +601,9 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 
 		// Test with filter
 		var resp3 []api.GlobalPinInfoSerial
-		makeGet(t, rest, url(rest)+"/pins?filter=queue", &resp3)
+		makeGet(t, rest, url(rest)+"/pins?filter=queued", &resp3)
 		if len(resp3) != 0 {
-			t.Errorf("unexpected statusAll+filter=queue resp:\n %+v", resp3)
+			t.Errorf("unexpected statusAll+filter=queued resp:\n %+v", resp3)
 		}
 
 		var resp4 []api.GlobalPinInfoSerial

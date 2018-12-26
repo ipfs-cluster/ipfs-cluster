@@ -482,33 +482,42 @@ func (api *API) SetClient(c *rpc.Client) {
 
 func (api *API) idHandler(w http.ResponseWriter, r *http.Request) {
 	idSerial := types.IDSerial{}
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
 		"Cluster",
 		"ID",
 		struct{}{},
-		&idSerial)
+		&idSerial,
+	)
 
 	api.sendResponse(w, autoStatus, err, idSerial)
 }
 
 func (api *API) versionHandler(w http.ResponseWriter, r *http.Request) {
 	var v types.Version
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
 		"Cluster",
 		"Version",
 		struct{}{},
-		&v)
+		&v,
+	)
 
 	api.sendResponse(w, autoStatus, err, v)
 }
 
 func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 	var graph types.ConnectGraphSerial
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
 		"Cluster",
 		"ConnectGraph",
 		struct{}{},
-		&graph)
+		&graph,
+	)
 	api.sendResponse(w, autoStatus, err, graph)
 }
 
@@ -517,11 +526,14 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	name := vars["name"]
 
 	var metrics []types.Metric
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
 		"Cluster",
 		"PeerMonitorLatestMetrics",
 		name,
-		&metrics)
+		&metrics,
+	)
 	api.sendResponse(w, autoStatus, err, metrics)
 }
 
@@ -555,12 +567,14 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
 	var peersSerial []types.IDSerial
-	err := api.rpcClient.Call("",
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
 		"Cluster",
 		"Peers",
 		struct{}{},
-		&peersSerial)
-
+		&peersSerial,
+	)
 	api.sendResponse(w, autoStatus, err, peersSerial)
 }
 
@@ -582,21 +596,27 @@ func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ids types.IDSerial
-	err = api.rpcClient.Call("",
+	err = api.rpcClient.CallContext(
+		r.Context(),
+		"",
 		"Cluster",
 		"PeerAdd",
 		addInfo.PeerID,
-		&ids)
+		&ids,
+	)
 	api.sendResponse(w, autoStatus, err, ids)
 }
 
 func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	if p := api.parsePidOrError(w, r); p != "" {
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"PeerRemove",
 			p,
-			&struct{}{})
+			&struct{}{},
+		)
 		api.sendResponse(w, autoStatus, err, nil)
 	}
 }
@@ -605,11 +625,14 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		logger.Debugf("rest api pinHandler: %s", ps.Cid)
 
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"Pin",
 			ps,
-			&struct{}{})
+			&struct{}{},
+		)
 		api.sendResponse(w, http.StatusAccepted, err, nil)
 		logger.Debug("rest api pinHandler done")
 	}
@@ -618,11 +641,14 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		logger.Debugf("rest api unpinHandler: %s", ps.Cid)
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"Unpin",
 			ps,
-			&struct{}{})
+			&struct{}{},
+		)
 		api.sendResponse(w, http.StatusAccepted, err, nil)
 		logger.Debug("rest api unpinHandler done")
 	}
@@ -636,7 +662,8 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 		filter |= types.PinTypeFromString(f)
 	}
 	var pins []types.PinSerial
-	err := api.rpcClient.Call(
+	err := api.rpcClient.CallContext(
+		r.Context(),
 		"",
 		"Cluster",
 		"Pins",
@@ -656,11 +683,14 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		var pin types.PinSerial
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"PinGet",
 			ps,
-			&pin)
+			&pin,
+		)
 		if err != nil { // errors here are 404s
 			api.sendResponse(w, http.StatusNotFound, err, nil)
 			return
@@ -709,32 +739,43 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	var globalPinInfos []types.GlobalPinInfoSerial
 
+	filter := queryValues.Get("filter")
+	if !types.IsFilterValid(filter) {
+		api.sendResponse(w, autoStatus, errors.New("invalid filter value"), globalPinInfos)
+	}
+
 	if local == "true" {
 		var pinInfos []types.PinInfoSerial
 
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"StatusAllLocal",
 			struct{}{},
-			&pinInfos)
+			&pinInfos,
+		)
 		if err != nil {
 			api.sendResponse(w, autoStatus, err, nil)
 			return
 		}
 		globalPinInfos = pinInfosToGlobal(pinInfos)
 	} else {
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"StatusAll",
 			struct{}{},
-			&globalPinInfos)
+			&globalPinInfos,
+		)
 		if err != nil {
 			api.sendResponse(w, autoStatus, err, nil)
 			return
 		}
 	}
 
-	globalPinInfos = globalPinInfosByStatus(queryValues.Get("filter"), globalPinInfos)
+	globalPinInfos = globalPinInfosByStatus(filter, globalPinInfos)
 
 	api.sendResponse(w, autoStatus, nil, globalPinInfos)
 }
@@ -746,19 +787,25 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
-			err := api.rpcClient.Call("",
+			err := api.rpcClient.CallContext(
+				r.Context(),
+				"",
 				"Cluster",
 				"StatusLocal",
 				ps,
-				&pinInfo)
+				&pinInfo,
+			)
 			api.sendResponse(w, autoStatus, err, pinInfoToGlobal(pinInfo))
 		} else {
 			var pinInfo types.GlobalPinInfoSerial
-			err := api.rpcClient.Call("",
+			err := api.rpcClient.CallContext(
+				r.Context(),
+				"",
 				"Cluster",
 				"Status",
 				ps,
-				&pinInfo)
+				&pinInfo,
+			)
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
 	}
@@ -770,19 +817,25 @@ func (api *API) syncAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	if local == "true" {
 		var pinInfos []types.PinInfoSerial
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"SyncAllLocal",
 			struct{}{},
-			&pinInfos)
+			&pinInfos,
+		)
 		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
 	} else {
 		var pinInfos []types.GlobalPinInfoSerial
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"SyncAll",
 			struct{}{},
-			&pinInfos)
+			&pinInfos,
+		)
 		api.sendResponse(w, autoStatus, err, pinInfos)
 	}
 }
@@ -794,19 +847,25 @@ func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
-			err := api.rpcClient.Call("",
+			err := api.rpcClient.CallContext(
+				r.Context(),
+				"",
 				"Cluster",
 				"SyncLocal",
 				ps,
-				&pinInfo)
+				&pinInfo,
+			)
 			api.sendResponse(w, autoStatus, err, pinInfoToGlobal(pinInfo))
 		} else {
 			var pinInfo types.GlobalPinInfoSerial
-			err := api.rpcClient.Call("",
+			err := api.rpcClient.CallContext(
+				r.Context(),
+				"",
 				"Cluster",
 				"Sync",
 				ps,
-				&pinInfo)
+				&pinInfo,
+			)
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
 	}
@@ -817,11 +876,14 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 	local := queryValues.Get("local")
 	if local == "true" {
 		var pinInfos []types.PinInfoSerial
-		err := api.rpcClient.Call("",
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
 			"Cluster",
 			"RecoverAllLocal",
 			struct{}{},
-			&pinInfos)
+			&pinInfos,
+		)
 		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
 	} else {
 		api.sendResponse(w, http.StatusBadRequest, errors.New("only requests with parameter local=true are supported"), nil)
@@ -835,19 +897,25 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		if local == "true" {
 			var pinInfo types.PinInfoSerial
-			err := api.rpcClient.Call("",
+			err := api.rpcClient.CallContext(
+				r.Context(),
+				"",
 				"Cluster",
 				"RecoverLocal",
 				ps,
-				&pinInfo)
+				&pinInfo,
+			)
 			api.sendResponse(w, autoStatus, err, pinInfoToGlobal(pinInfo))
 		} else {
 			var pinInfo types.GlobalPinInfoSerial
-			err := api.rpcClient.Call("",
+			err := api.rpcClient.CallContext(
+				r.Context(),
+				"",
 				"Cluster",
 				"Recover",
 				ps,
-				&pinInfo)
+				&pinInfo,
+			)
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
 	}

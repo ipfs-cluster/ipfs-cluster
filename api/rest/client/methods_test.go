@@ -253,6 +253,11 @@ func TestStatusAll(t *testing.T) {
 		if len(pins) != 2 {
 			t.Error("there should be two pins")
 		}
+
+		pins, err = c.StatusAll("invalidfilter", false)
+		if err == nil {
+			t.Fatal("expected error")
+		}
 	}
 
 	testClients(t, api, testF)

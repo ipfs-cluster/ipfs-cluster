@@ -93,6 +93,36 @@ func TrackerStatusFromString(str string) TrackerStatus {
 	return TrackerStatusBug
 }
 
+func IsFilterValid(filter string) bool {
+	if filter == "" {
+		return true
+	}
+
+	filters := strings.Split(strings.ToLower(filter), ",")
+	var valid bool
+
+	for _, v := range filters {
+		valid = false
+		if v == "queued" || v == "error" {
+			valid = true
+			continue
+		}
+
+		for _, v1 := range trackerStatusString {
+			if v1 == v {
+				valid = true
+				break
+			}
+		}
+
+		if valid == false {
+			return false
+		}
+	}
+
+	return true
+}
+
 // IPFSPinStatus values
 // FIXME include maxdepth
 const (
