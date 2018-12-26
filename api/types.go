@@ -93,6 +93,7 @@ func TrackerStatusFromString(str string) TrackerStatus {
 	return TrackerStatusBug
 }
 
+// IsFilterValid checks if given filter is valid
 func IsFilterValid(filter string) bool {
 	if filter == "" {
 		return true
@@ -108,8 +109,8 @@ func IsFilterValid(filter string) bool {
 			continue
 		}
 
-		for _, v1 := range trackerStatusString {
-			if v1 == v {
+		for _, tracker := range trackerStatusString {
+			if tracker == v {
 				valid = true
 				break
 			}
