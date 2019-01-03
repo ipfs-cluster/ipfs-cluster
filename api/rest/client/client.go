@@ -6,6 +6,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -221,23 +222,42 @@ func NewDefaultClient(cfg *Config) (Client, error) {
 }
 
 func (c *defaultClient) setupAPIAddr() error {
+	if c.config.APIAddr != nil {
+		return nil // already setup by user
+	}
+
 	var addr ma.Multiaddr
 	var err error
-	if c.config.APIAddr == nil {
-		if c.config.Host == "" { //default
-			addr, err = ma.NewMultiaddr(DefaultAPIAddr)
-		} else {
-			addrStr := fmt.Sprintf("/dns4/%s/tcp/%s", c.config.Host, c.config.Port)
-			addr, err = ma.NewMultiaddr(addrStr)
-		}
+
+	if c.config.Host == "" { //default
+		addr, err := ma.NewMultiaddr(DefaultAPIAddr)
 		c.config.APIAddr = addr
 		return err
 	}
 
-	return nil
+	var addrStr string
+	ip := net.ParseIP(c.config.Host)
+	switch {
+	case ip == nil:
+		addrStr = fmt.Sprintf("/dns4/%s/tcp/%s", c.config.Host, c.config.Port)
+	case ip.To4() != nil:
+		addrStr = fmt.Sprintf("/ip4/%s/tcp/%s", c.config.Host, c.config.Port)
+	default:
+		addrStr = fmt.Sprintf("/ip6/%s/tcp/%s", c.config.Host, c.config.Port)
+	}
+
+	addr, err = ma.NewMultiaddr(addrStr)
+	c.config.APIAddr = addr
+	return err
 }
 
 func (c *defaultClient) resolveAPIAddr() error {
+	// Only resolve libp2p addresses. For HTTP addresses, we let
+	// the default client handle any resolving. We extract the hostname
+	// in setupHostname()
+	if !IsPeerAddress(c.config.APIAddr) {
+		return nil
+	}
 	resolveCtx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
 	resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
@@ -279,13 +299,14 @@ func (c *defaultClient) setupHTTPClient() error {
 func (c *defaultClient) setupHostname() error {
 	// Extract host:port form APIAddr or use Host:Port.
 	// For libp2p, hostname is set in enableLibp2p()
-	if !IsPeerAddress(c.config.APIAddr) {
-		_, hostname, err := manet.DialArgs(c.config.APIAddr)
-		if err != nil {
-			return err
-		}
-		c.hostname = hostname
+	if IsPeerAddress(c.config.APIAddr) {
+		return nil
 	}
+	_, hostname, err := manet.DialArgs(c.config.APIAddr)
+	if err != nil {
+		return err
+	}
+	c.hostname = hostname
 	return nil
 }
 
