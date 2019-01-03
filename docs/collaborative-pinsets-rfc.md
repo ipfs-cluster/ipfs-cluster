@@ -33,17 +33,17 @@ The consensus component is defined by the following interface:
 
 ```go
 type Consensus interface {
-	Component
-	Ready() <-chan struct{}
-	LogPin(c api.Pin) error
-	LogUnpin(c api.Pin) error
-	AddPeer(p peer.ID) error
-	RmPeer(p peer.ID) error
-	State() (state.State, error)
-	Leader() (peer.ID, error)
-	WaitForSync() error
-	Clean() error
-	Peers() ([]peer.ID, error)
+    Component
+    Ready() <-chan struct{}
+    LogPin(c api.Pin) error
+    LogUnpin(c api.Pin) error
+    AddPeer(p peer.ID) error
+    RmPeer(p peer.ID) error
+    State() (state.State, error)
+    Leader() (peer.ID, error)
+    WaitForSync() error
+    Clean() error
+    Peers() ([]peer.ID, error)
 }
 ```
 
@@ -51,12 +51,12 @@ This is essentially a wrapper of the go-libp2p-consensus which adds functionalit
 
 The purpose of Raft is to maintain a shared state by providing a distributed append-only log. In a Raft cluster, the log is maintained by an elected Leader, compacted and snapshotted convieniently. IPFS Cluster has spent significant efforts in detaching the state representation from raft, and allowing transformations (upgrades) to run indepedently, based solely on the "state component".
 
-### A new consensus component using a blockchain
+### A new consensus component using a IPFS-backed CRDTs
 
 In order to be consistent with how components are meant to interact with each-other, it makes sense to implement the shared state maintenance in a new `go-libp2p-consensus` implementation. The main pain points in a collaborative cluster will be:
 
-* Security: all peers should not be able to control or influence the behaviour of all other peers (including updating the state). For this, we will introduce the notion of a *trusted peerset*.
-* Scalability: this consensus layer should support very large number of peers, efficient broadcast of state updates. For this we will introduce a blockchain-based consensus layer and improvements on how we interact with other peers over RPC.
+* Security: all peers should not be able to control or influence the behaviour of all other peers (including updating the state). For this, we will introduce the notion of a *trusted peerset* along with RPC endpoint authorization.
+* Scalability: this consensus layer should support very large number of peers, efficient broadcast of state updates. For this we will introduce a CRDT-based "consensus" layer (it's not consensus per-se) and rely on improved Pubsub mechanisms as provided by libp2p.
 
 ### Security: Authentication and authorization for collaborative pinning
 
@@ -65,14 +65,14 @@ In a collaborative pinset scenario, we probably want to have a limited set of pe
 * Limit modifications of the state to the  **trusted peerset**, being the rest of cluster peers just "followers".
 * Limit the internal RPC API to the **trusted peerset**
 
-We can address the first problem by signing state upgrades (along with a variable number, to avoid replay attacks), allowing any peer to authenticate them (as needed). In libp2p, peers can obtain the public key and verify the signatures for the peers they trust by simply connecting to them.
+We can address the first problem by signing state upgrades, allowing any peer to authenticate them (as needed). Libp2p pubsub allows sending signed messages so receiving peers can obtain the public key and verify the signatures.
 
 For the second point, we have to consider the internal RPC API surface. Until now, it is assumed that all cluster peers can contact and use the RPC endpoints of all others. This is however very problematic as it would allow any peer for example to trigger ipfs pin/unpins anywhere. For this reason, we propose **authenticated RPC endpoints**, which will only allow a set of trusted peers to execute any of the RPC calls. This can be added as a feature of libp2p-gorpc, taking advantage of the authentication information provided by libp2p. Note, we will have to do UI adjustments so that non-trusted peers receive appropiate errors when they don't have rights to perform certain operations.
 
 
 ### Scalability
 
-First, we need to address the **scalability of the shared state** and updates to it. Using any of the many blockchains that support custom data payloads (like ethereum) to maintain the shared state addresses the scalability problem for the maintance of the shared state. Essentially, blockchains are scalable a consensus mechanism to maintain a shared state which grows stronger with the number of peers participating in it.
+First, we need to address the **scalability of the shared state** and updates to it. For this we will store the state in IPFS so that every peer can retrieve it and copy it. Participating peers will regularly transmit CIDs pointing to the state so that every new peer can fetch it. Updates to the state will be broadcasted via pubsub. Because the state will be CRDT-based, all peers will eventually converge to the same version of it.
 
 Secondly, we need to address the **scalability problem for inter-peer communications**: for example, sending metrics so that pins can be allocated, or retrieving the status of an item over a very large number of peers will be a problem. In a `pin everywhere` scenario though, where allocations (thus metrics) are not needed, this becomes much smaller. All in all, we should avoid that all peers connect to a single trusted peer (or connect to all other peers). Ideally, peers would be connected only to a subset or would be able to join the cluster by just `bootstrapping` to any other peer, without necessarily keeping permanent connections active to the trusted peers.
 
@@ -110,14 +110,62 @@ In a scenario where peers come and go and come back, this strategy feels subopti
 Perhaps the whole allocation format should be re-thought, allowing each of the peers to detect items which have not reached a high-enough replication factor and tracking them. Then these peers would inform the allocator that they are going to worry about the items. This is, again, a difficult problem which Filecoin has solved properly by providing a market where peers can offer to store content.
 
 
-## Prototype: ipfs blockchain and pubsub
+## Prototype for the consensus compoenent
 
-The easiest way to approach the proposal above is with a prototype that uses IPFS to store a blockchain and pubsub to announce the current blockchain head. We can inform of new chain heads by publishing a new message using pubsub that points to the chain head's CID. These messages will be signed by one of the **trusted peers**. We can also use all peers to automatically backup the chain. In the case of conflicts, the longest chain will win.
+If we are to implement the state using CRDTs we should first define it as a CRDT type. The state is a map from CID to PinInfo.
 
-Each chain block contains a sequential set of LogOp very much in the fashion of the current Raft log. The consensus layer, upon receiving a pubsub message with a new chain head:
+In CRDTs, Maps are simply implemented as Sets of Keys but we should provide a consistent way to choose the right value when
+there are several entries for the same key. For this we propose to use the optimized Add-Wins OR-Set from the delta-CRDTs paper, backing the deltas on IPFS in the same fashion as `ipfs-log`. This allows us to, for the moment,
+skip the implementation of the per-object casual consistency algorithm. We will distributes the deltas using signed-pubsub-messages.
+The current log head will be regularly broadcasted when the state does not receive any other updates.
 
-* Verifies it's signed by a trusted peer
-* If height > current -> processes the chain and so on
+The implementation will require storage of two separate sets of elements:
+
+* The tagged set s with elements (peerID, counter, CID[+value])
+* The causal context set c with elements (peerID, counter)
+
+This will need key-value stores indexed by peerID+counter. We will additionally need a regularly CID-indexed `State` mapped
+to the tagged set s. A priori, any modifications to S should be reflected in the `State`. The `State` can be used to store the
+pin info which is prevalent from all that we have (we can base it on the counter).
+
+Following this, let's see how the new consensus methods would look like:
+
+* CRDT type:
+  * will carry a counter which must be persisted to disk and survice across sessions.
+  * Two maps (s,c) persisted to disk and indexed by "peerID+n".
+  * A reference to the state
+  * A reference to the latest ipfs HEADs
+  * It must subscribe to a pubsub topic (configurable)
+    * Upon receiving a message: check that it's signed by a trusted peer and that signature is valid
+    * IPFS block get the IPFS Cid and its parents until we have the block.
+      * What if we have the blocks in IPFS but we cleaned the state and we have not processed them?
+      * Keep track in a cache of processed block-CIDs?
+    * Deserialize deltas from the blocks we did not have
+    * Perform unions in the best way (probably enough to just apply in order).
+    * Store ipfs heads or the ipfs CID if branches did not diverge.
+
+* LogPin:
+  * Generate [(peerID, n+1, api.Pin), (peerID, n+1)] delta. Store n+1. Each N should only be used once (lock).
+  * Update s and c sets. Update the State.
+  * Generate new ipfs block with previous heads as parents. Block put to ipfs. Update head to block CID.
+  * Broadcast delta+blockCID using signed-pubsub.
+
+* LogUnpin:
+  * Generate [{}, c] delta by collecting all (peerID, n) associated to CID. (worth having an extra set indexed by CID? in memory?)
+  * Update s and c sets. Update the State.
+  * Generate new ipfs block with previous heads as parents. Block put to ipfs. Update head to block CID
+  * Broadcast using signed-pubsub
+
+* AddPeer/RmPeer: no-ops!
+* WaitForSync: no-ops. We will sync as we get information. We can have peers re-broadcast heads on intervals.
+* Clean:
+  * trash everything that is on disk
+  * including the State (?). Not sure if this is consensus layer business.
+
+* Peers: either return just [self] or pick the list of peers with valid pings from metrics.
+
+Worth saying that crdt operations (subscription, logpin, logunpin) should be mostly atomic.
+
 
 
 ## UX in collaborative pinsets
