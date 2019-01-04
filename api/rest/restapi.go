@@ -699,20 +699,6 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func match(filters []string, status string) bool {
-	for _, filter := range filters {
-		if status == filter {
-			return true
-		}
-		if filter == "queued" || filter == "error" {
-			if strings.Contains(status, filter) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func globalPinInfosByStatus(filter string, globalPinInfos []types.GlobalPinInfoSerial) []types.GlobalPinInfoSerial {
 	if filter == "" {
 		return globalPinInfos
@@ -723,7 +709,9 @@ func globalPinInfosByStatus(filter string, globalPinInfos []types.GlobalPinInfoS
 
 	for _, globalPinInfo := range globalPinInfos {
 		for _, pinInfo := range globalPinInfo.PeerMap {
-			if match(filters, pinInfo.Status) {
+			// silenced the error because we should have detected earlier if filters were invalid
+			pass, _ := types.Match(filters, pinInfo.Status)
+			if pass {
 				filteredGlobalPinInfos = append(filteredGlobalPinInfos, globalPinInfo)
 				break
 			}

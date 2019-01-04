@@ -11,6 +11,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -34,7 +35,7 @@ var logger = logging.Logger("apitypes")
 // TrackerStatus values
 const (
 	// IPFSStatus should never take this value
-	TrackerStatusBug TrackerStatus = iota
+	TrackerStatusBug TrackerStatus = 1 << iota
 	// The cluster node is offline or not responding
 	TrackerStatusClusterError
 	// An error occurred pinning
@@ -60,6 +61,12 @@ const (
 	TrackerStatusSharded
 )
 
+// Composite TrackerStatus
+const (
+	TrackerStatusError  = TrackerStatusClusterError | TrackerStatusPinError | TrackerStatusUnpinError
+	TrackerStatusQueued = TrackerStatusPinQueued | TrackerStatusUnpinQueued
+)
+
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
 type TrackerStatus int
 
@@ -68,6 +75,7 @@ var trackerStatusString = map[TrackerStatus]string{
 	TrackerStatusClusterError: "cluster_error",
 	TrackerStatusPinError:     "pin_error",
 	TrackerStatusUnpinError:   "unpin_error",
+	TrackerStatusError:        "error",
 	TrackerStatusPinned:       "pinned",
 	TrackerStatusPinning:      "pinning",
 	TrackerStatusUnpinning:    "unpinning",
@@ -75,11 +83,21 @@ var trackerStatusString = map[TrackerStatus]string{
 	TrackerStatusRemote:       "remote",
 	TrackerStatusPinQueued:    "pin_queued",
 	TrackerStatusUnpinQueued:  "unpin_queued",
+	TrackerStatusQueued:       "queued",
 }
 
 // String converts a TrackerStatus into a readable string.
 func (st TrackerStatus) String() string {
 	return trackerStatusString[st]
+}
+
+// isValid checks if given tracker status is valid
+func (st TrackerStatus) isValid() bool {
+	if st == TrackerStatusBug {
+		return false
+	}
+
+	return true
 }
 
 // TrackerStatusFromString parses a string and returns the matching
@@ -93,6 +111,17 @@ func TrackerStatusFromString(str string) TrackerStatus {
 	return TrackerStatusBug
 }
 
+// TrackerStatusListString returns a string containing list of all
+// tracker status values
+func TrackerStatusListString() string {
+	var list strings.Builder
+	for _, v := range trackerStatusString {
+		list.WriteString(v + ", ")
+	}
+
+	return list.String()
+}
+
 // IsFilterValid checks if given filter is valid
 func IsFilterValid(filter string) bool {
 	if filter == "" {
@@ -100,28 +129,32 @@ func IsFilterValid(filter string) bool {
 	}
 
 	filters := strings.Split(strings.ToLower(filter), ",")
-	var valid bool
 
 	for _, v := range filters {
-		valid = false
-		if v == "queued" || v == "error" {
-			valid = true
-			continue
-		}
-
-		for _, tracker := range trackerStatusString {
-			if tracker == v {
-				valid = true
-				break
-			}
-		}
-
-		if valid == false {
+		if !TrackerStatusFromString(v).isValid() {
 			return false
 		}
 	}
 
 	return true
+}
+
+// Match checks if given tracker status matches with the provided filters
+func Match(filters []string, status string) (bool, error) {
+	trackerStatus := TrackerStatusFromString(status)
+	if trackerStatus == TrackerStatusBug {
+		return false, errors.New("invalid tracker status string")
+	}
+	for _, filter := range filters {
+		trackerStatusFilter := TrackerStatusFromString(filter)
+		if trackerStatusFilter == TrackerStatusBug {
+			return false, errors.New("invalid tracker status filter value")
+		}
+		if trackerStatus == trackerStatusFilter {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // IPFSPinStatus values

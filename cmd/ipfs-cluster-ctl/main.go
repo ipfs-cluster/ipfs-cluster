@@ -617,13 +617,12 @@ contacted cluster peer. By default, status will be fetched from all peers.
 
 When the --filter is passed, it will only fetch the peer information
 where status of the pin matches with the filter value.
-Valid filter values are tracker status types(full list of tracker status
-types includes "bug", "cluster_error", "pin_error", "unpin_error", "pinned",
-"pinning", "unpinning", "remote", "pin_queued" and "unpin_queued"), an
+Valid filter values are tracker status types, an
 alias of tracker status type ("queued" or "error"), comma separated list of
 tracker status type and/or it aliases ("error,pinning"). On passing invalid
 filter value will throw an error.
-`,
+Full list of tracker status types includes
+` + api.TrackerStatusListString(),
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),

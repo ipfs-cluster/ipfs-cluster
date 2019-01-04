@@ -139,7 +139,7 @@ func (c *defaultClient) Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error
 // If valid filter value is provided, it would fetch only those status information
 // where status is matching the filter value.
 // Valid filter values are tracker status type, an alias of tracker status type
-// (queued or error), comma separated list of track status type and/or it aliases.
+// (queued or error), comma separated list of tracker status type and/or it aliases.
 func (c *defaultClient) StatusAll(filter string, local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
 
