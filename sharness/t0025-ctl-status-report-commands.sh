@@ -57,11 +57,6 @@ test_expect_success IPFS,CLUSTER "pin ls on invalid CID fails" '
     test_must_fail ipfs-cluster-ctl pin ls XXXinvalid-CIDXXX
 '
 
-test_expect_success IPFS,CLUSTER "health graph succeeds and prints as expected" '
-    ipfs-cluster-ctl health graph | grep -q "C0 -> I0"
-
-'
-
 test_clean_ipfs
 test_clean_cluster
 
