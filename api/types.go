@@ -115,8 +115,15 @@ func TrackerStatusFromString(str string) TrackerStatus {
 // tracker status values
 func TrackerStatusListString() string {
 	var list strings.Builder
+	counter := 0
 	for _, v := range trackerStatusString {
+		counter += (len(v) + 2)
 		list.WriteString(v + ", ")
+
+		if counter > 90 {
+			list.WriteString("\n")
+			counter = 0
+		}
 	}
 
 	return list.String()
