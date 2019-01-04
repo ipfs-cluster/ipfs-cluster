@@ -200,10 +200,14 @@ func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 }
 
 func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}) {
+	makePostWithContentType(t, rest, url, body, "application/json", resp)
+}
+
+func makePostWithContentType(t *testing.T, rest *API, url string, body []byte, contentType string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Post(url, "application/json", bytes.NewReader(body))
+	httpResp, err := c.Post(url, contentType, bytes.NewReader(body))
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
@@ -381,7 +385,7 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
-	// This writes generates the testing files and
+	// This generates the testing files and
 	// writes them to disk.
 	// This is necessary here because we run tests
 	// in parallel, and otherwise a write-race might happen.
@@ -389,13 +393,18 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 	closer.Close()
 
 	tf := func(t *testing.T, url urlF) {
-		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=false&repl_min=-1&repl_max=-1&stream-channels=true"
 		localURL := url(rest) + fmtStr1
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		resp := api.AddedOutput{}
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		makeStreamingPost(t, rest, localURL, body, mpContentType, &resp)
+
+		// resp will contain the last object from the streaming
+		if resp.Cid != test.ShardingDirBalancedRootCID {
+			t.Error("Bad Cid after adding: ", resp.Cid)
+		}
 	}
 
 	testBothEndpoints(t, tf)
@@ -408,7 +417,7 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
-	// This writes generates the testing files and
+	// This generates the testing files and
 	// writes them to disk.
 	// This is necessary here because we run tests
 	// in parallel, and otherwise a write-race might happen.
@@ -420,9 +429,45 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 		defer closer.Close()
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		resp := api.AddedOutput{}
-		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1&stream-channels=true"
 		shardURL := url(rest) + fmtStr1
 		makeStreamingPost(t, rest, shardURL, body, mpContentType, &resp)
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	// This generates the testing files and
+	// writes them to disk.
+	// This is necessary here because we run tests
+	// in parallel, and otherwise a write-race might happen.
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+
+	tf := func(t *testing.T, url urlF) {
+		body, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		fullBody, err := ioutil.ReadAll(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		resp := []api.AddedOutput{}
+		fmtStr1 := "/add?shard=false&repl_min=-1&repl_max=-1&stream-channels=false"
+		shardURL := url(rest) + fmtStr1
+
+		makePostWithContentType(t, rest, shardURL, fullBody, mpContentType, &resp)
+		lastHash := resp[len(resp)-1]
+		if lastHash.Cid != test.ShardingDirBalancedRootCID {
+			t.Error("Bad Cid after adding: ", lastHash.Cid)
+		}
 	}
 
 	testBothEndpoints(t, tf)
