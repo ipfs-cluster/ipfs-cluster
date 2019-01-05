@@ -621,8 +621,10 @@ Valid filter values are tracker status types, an
 alias of tracker status type ("queued" or "error"), comma separated list of
 tracker status type and/or it aliases ("error,pinning"). On passing invalid
 filter value will throw an error.
+
 Full list of tracker status types includes
-` + api.TrackerStatusListString(),
+
+` + trackerStatusAllString(api.TrackerStatusAll()),
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),

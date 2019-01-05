@@ -61,7 +61,7 @@ const (
 	TrackerStatusSharded
 )
 
-// Composite TrackerStatus
+// Composite TrackerStatus.
 const (
 	TrackerStatusError  = TrackerStatusClusterError | TrackerStatusPinError | TrackerStatusUnpinError
 	TrackerStatusQueued = TrackerStatusPinQueued | TrackerStatusUnpinQueued
@@ -91,13 +91,15 @@ func (st TrackerStatus) String() string {
 	return trackerStatusString[st]
 }
 
-// isValid checks if given tracker status is valid
-func (st TrackerStatus) isValid() bool {
-	if st == TrackerStatusBug {
-		return false
-	}
+// IsValid checks if given tracker status is valid.
+func (st TrackerStatus) IsValid() bool {
+	return st != TrackerStatusBug
+}
 
-	return true
+// Match returns true if the tracker status matches the given filter.
+// For example TrackerStatusPinError will match TrackerStatusPinError and TrackerStatusError
+func (st TrackerStatus) Match(filter TrackerStatus) bool {
+	return st&filter > 0
 }
 
 // TrackerStatusFromString parses a string and returns the matching
@@ -111,25 +113,18 @@ func TrackerStatusFromString(str string) TrackerStatus {
 	return TrackerStatusBug
 }
 
-// TrackerStatusListString returns a string containing list of all
-// tracker status values
-func TrackerStatusListString() string {
-	var list strings.Builder
-	counter := 0
-	for _, v := range trackerStatusString {
-		counter += (len(v) + 2)
-		list.WriteString(v + ", ")
-
-		if counter > 90 {
-			list.WriteString("\n")
-			counter = 0
-		}
+// TrackerStatusAll returns a string containing list of all
+// tracker status values.
+func TrackerStatusAll() []TrackerStatus {
+	list := make([]TrackerStatus, 0)
+	for k := range trackerStatusString {
+		list = append(list, k)
 	}
 
-	return list.String()
+	return list
 }
 
-// IsFilterValid checks if given filter is valid
+// IsFilterValid checks if given filter is valid.
 func IsFilterValid(filter string) bool {
 	if filter == "" {
 		return true
@@ -138,7 +133,7 @@ func IsFilterValid(filter string) bool {
 	filters := strings.Split(strings.ToLower(filter), ",")
 
 	for _, v := range filters {
-		if !TrackerStatusFromString(v).isValid() {
+		if !TrackerStatusFromString(v).IsValid() {
 			return false
 		}
 	}
@@ -146,22 +141,30 @@ func IsFilterValid(filter string) bool {
 	return true
 }
 
-// Match checks if given tracker status matches with the provided filters
-func Match(filters []string, status string) (bool, error) {
+func toCombinedFilter(filter string) TrackerStatus {
+	filters := strings.Split(strings.ToLower(filter), ",")
+
+	var combinedFilter TrackerStatus
+	for _, v := range filters {
+		combinedFilter |= TrackerStatusFromString(strings.TrimSpace(v))
+	}
+
+	return combinedFilter
+}
+
+// Match checks if given tracker status matches with the provided filters.
+func Match(filter string, status string) (bool, error) {
+	combinedFilter := toCombinedFilter(filter)
+	if !combinedFilter.IsValid() {
+		return false, errors.New("invalid tracker status filter value")
+	}
+
 	trackerStatus := TrackerStatusFromString(status)
-	if trackerStatus == TrackerStatusBug {
-		return false, errors.New("invalid tracker status string")
+	if !trackerStatus.IsValid() {
+		return false, errors.New("invalid tracker status value")
 	}
-	for _, filter := range filters {
-		trackerStatusFilter := TrackerStatusFromString(filter)
-		if trackerStatusFilter == TrackerStatusBug {
-			return false, errors.New("invalid tracker status filter value")
-		}
-		if trackerStatus == trackerStatusFilter {
-			return true, nil
-		}
-	}
-	return false, nil
+
+	return trackerStatus.Match(combinedFilter), nil
 }
 
 // IPFSPinStatus values

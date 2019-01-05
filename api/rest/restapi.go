@@ -703,14 +703,13 @@ func globalPinInfosByStatus(filter string, globalPinInfos []types.GlobalPinInfoS
 	if filter == "" {
 		return globalPinInfos
 	}
-	filters := strings.Split(strings.ToLower(filter), ",")
 
 	var filteredGlobalPinInfos []types.GlobalPinInfoSerial
 
 	for _, globalPinInfo := range globalPinInfos {
 		for _, pinInfo := range globalPinInfo.PeerMap {
 			// silenced the error because we should have detected earlier if filters were invalid
-			pass, _ := types.Match(filters, pinInfo.Status)
+			pass, _ := types.Match(filter, pinInfo.Status)
 			if pass {
 				filteredGlobalPinInfos = append(filteredGlobalPinInfos, globalPinInfo)
 				break

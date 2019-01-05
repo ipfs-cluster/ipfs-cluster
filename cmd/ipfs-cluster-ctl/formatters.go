@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-peer"
+
+	"github.com/ipfs/ipfs-cluster/api"
 )
 
 func jsonFormatObject(resp interface{}) {
@@ -226,4 +227,13 @@ func textFormatPrintError(obj *api.Error) {
 	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)
 	fmt.Printf("  Message: %s\n", obj.Message)
+}
+
+func trackerStatusAllString(list []api.TrackerStatus) string {
+	var builder strings.Builder
+	for _, ts := range list {
+		builder.WriteString("- " + ts.String() + "\n")
+	}
+
+	return builder.String()
 }
