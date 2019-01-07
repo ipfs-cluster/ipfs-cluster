@@ -138,7 +138,8 @@ func (c *defaultClient) Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error
 // StatusAll gathers Status() for all tracked items. If a filter is
 // provided, only entries matching the given filter statuses
 // will be returned. A filter can be built by merging TrackerStatuses with
-// a bitwise OR operation (st1 | st2 | ...).
+// a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
+// api.TrackerStatusUndefined), means all.
 func (c *defaultClient) StatusAll(filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
 
