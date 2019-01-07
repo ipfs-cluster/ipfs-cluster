@@ -1169,7 +1169,7 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 
 		// Potentially rserial is empty. But ToPinInfo ignores all
 		// errors from underlying libraries. In that case .Status
-		// will be TrackerStatusBug (0)
+		// will be TrackerStatusUndefined (0)
 		r := rserial.ToPinInfo()
 
 		// No error. Parse and continue
@@ -1182,7 +1182,7 @@ func (c *Cluster) globalPinInfoCid(method string, h cid.Cid) (api.GlobalPinInfo,
 
 		// In this case, we had no answer at all. The contacted peer
 		// must be offline or unreachable.
-		if r.Status == api.TrackerStatusBug {
+		if r.Status == api.TrackerStatusUndefined {
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			pin.PeerMap[members[i]] = api.PinInfo{
 				Cid:      h,

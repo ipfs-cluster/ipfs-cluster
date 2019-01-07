@@ -615,22 +615,17 @@ with "sync".
 When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
 
-When the --filter is passed, it will only fetch the peer information
-where status of the pin matches with the filter value.
-Valid filter values are tracker status types, an
-alias of tracker status type ("queued" or "error"), comma separated list of
-tracker status type and/or it aliases ("error,pinning"). On passing invalid
-filter value will throw an error.
+When the --filter flag is passed, it will only fetch the peer information
+where status of the pin matches at least one of the filter values (a comma
+separated list). The following are valid status values:
 
-Full list of tracker status types includes
-
-` + trackerStatusAllString(api.TrackerStatusAll()),
+` + trackerStatusAllString(),
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),
 				cli.StringFlag{
 					Name:  "filter",
-					Usage: "Comma-separated list of filters",
+					Usage: "comma-separated list of filters",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -641,7 +636,10 @@ Full list of tracker status types includes
 					resp, cerr := globalClient.Status(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.StatusAll(c.String("filter"), c.Bool("local"))
+					resp, cerr := globalClient.StatusAll(
+						api.TrackerStatusFromString(c.String("filter")),
+						c.Bool("local"),
+					)
 					formatResponse(c, resp, cerr)
 				}
 				return nil

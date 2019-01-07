@@ -135,19 +135,22 @@ func (c *defaultClient) Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error
 	return gpi.ToGlobalPinInfo(), err
 }
 
-// StatusAll gathers Status() for all tracked items.
-// If valid filter value is provided, it would fetch only those status information
-// where status is matching the filter value.
-// Valid filter values are tracker status type, an alias of tracker status type
-// (queued or error), comma separated list of tracker status type and/or it aliases.
-func (c *defaultClient) StatusAll(filter string, local bool) ([]api.GlobalPinInfo, error) {
+// StatusAll gathers Status() for all tracked items. If a filter is
+// provided, only entries matching the given filter statuses
+// will be returned. A filter can be built by merging TrackerStatuses with
+// a bitwise OR operation (st1 | st2 | ...).
+func (c *defaultClient) StatusAll(filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
 	var gpis []api.GlobalPinInfoSerial
 
-	if !api.IsFilterValid(filter) {
-		return make([]api.GlobalPinInfo, len(gpis)), errors.New("invalid filter value")
+	filterStr := ""
+	if filter != api.TrackerStatusUndefined { // undefined filter means "all"
+		filterStr = filter.String()
+		if filterStr == "" {
+			return nil, errors.New("invalid filter value")
+		}
 	}
 
-	err := c.do("GET", fmt.Sprintf("/pins?local=%t&filter=%s", local, url.QueryEscape(filter)), nil, nil, &gpis)
+	err := c.do("GET", fmt.Sprintf("/pins?local=%t&filter=%s", local, url.QueryEscape(filterStr)), nil, nil, &gpis)
 	result := make([]api.GlobalPinInfo, len(gpis))
 	for i, p := range gpis {
 		result[i] = p.ToGlobalPinInfo()
@@ -341,7 +344,7 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo) (bool
 		switch pinInfo.Status {
 		case target:
 			continue
-		case api.TrackerStatusBug, api.TrackerStatusClusterError, api.TrackerStatusPinError, api.TrackerStatusUnpinError:
+		case api.TrackerStatusUndefined, api.TrackerStatusClusterError, api.TrackerStatusPinError, api.TrackerStatusUnpinError:
 			return false, fmt.Errorf("error has occurred while attempting to reach status: %s", target.String())
 		case api.TrackerStatusRemote:
 			if target == api.TrackerStatusPinned {

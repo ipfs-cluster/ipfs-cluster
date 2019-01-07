@@ -229,11 +229,12 @@ func textFormatPrintError(obj *api.Error) {
 	fmt.Printf("  Message: %s\n", obj.Message)
 }
 
-func trackerStatusAllString(list []api.TrackerStatus) string {
-	var builder strings.Builder
-	for _, ts := range list {
-		builder.WriteString("- " + ts.String() + "\n")
+func trackerStatusAllString() string {
+	var strs []string
+	for _, st := range api.TrackerStatusAll() {
+		strs = append(strs, "  - "+st.String())
 	}
 
-	return builder.String()
+	sort.Strings(strs)
+	return strings.Join(strs, "\n")
 }

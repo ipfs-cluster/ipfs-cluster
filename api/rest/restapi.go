@@ -699,8 +699,11 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func globalPinInfosByStatus(filter string, globalPinInfos []types.GlobalPinInfoSerial) []types.GlobalPinInfoSerial {
-	if filter == "" {
+// filterGlobalPinInfos takes a GlobalPinInfo slice and discards
+// any item in it which does not carry a PinInfo matching the
+// filter (OR-wise).
+func filterGlobalPinInfos(globalPinInfos []types.GlobalPinInfoSerial, filter types.TrackerStatus) []types.GlobalPinInfoSerial {
+	if filter == types.TrackerStatusUndefined {
 		return globalPinInfos
 	}
 
@@ -708,9 +711,9 @@ func globalPinInfosByStatus(filter string, globalPinInfos []types.GlobalPinInfoS
 
 	for _, globalPinInfo := range globalPinInfos {
 		for _, pinInfo := range globalPinInfo.PeerMap {
+			st := types.TrackerStatusFromString(pinInfo.Status)
 			// silenced the error because we should have detected earlier if filters were invalid
-			pass, _ := types.Match(filter, pinInfo.Status)
-			if pass {
+			if st.Match(filter) {
 				filteredGlobalPinInfos = append(filteredGlobalPinInfos, globalPinInfo)
 				break
 			}
@@ -726,9 +729,11 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	var globalPinInfos []types.GlobalPinInfoSerial
 
-	filter := queryValues.Get("filter")
-	if !types.IsFilterValid(filter) {
-		api.sendResponse(w, autoStatus, errors.New("invalid filter value"), globalPinInfos)
+	filterStr := queryValues.Get("filter")
+	filter := types.TrackerStatusFromString(filterStr)
+	if filter == types.TrackerStatusUndefined && filterStr != "" {
+		api.sendResponse(w, autoStatus, errors.New("invalid filter value"), nil)
+		return
 	}
 
 	if local == "true" {
@@ -762,7 +767,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	globalPinInfos = globalPinInfosByStatus(filter, globalPinInfos)
+	globalPinInfos = filterGlobalPinInfos(globalPinInfos, filter)
 
 	api.sendResponse(w, autoStatus, nil, globalPinInfos)
 }
