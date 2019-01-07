@@ -428,6 +428,9 @@ func (c *defaultClient) AddMultiFile(
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "multipart/form-data; boundary=" + multiFileR.Boundary()
+
+	// This method must run with StreamChannels set.
+	params.StreamChannels = true
 	queryStr := params.ToQueryString()
 
 	// our handler decodes an AddedOutput and puts it
