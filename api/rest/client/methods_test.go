@@ -466,11 +466,12 @@ func TestAddMultiFile(t *testing.T) {
 				Name:                 "test something",
 				ShardSize:            1024,
 			},
-			Shard:     false,
-			Layout:    "",
-			Chunker:   "",
-			RawLeaves: false,
-			Hidden:    false,
+			Shard:          false,
+			Layout:         "",
+			Chunker:        "",
+			RawLeaves:      false,
+			Hidden:         false,
+			StreamChannels: true,
 		}
 
 		out := make(chan *types.AddedOutput, 1)

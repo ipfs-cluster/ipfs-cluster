@@ -391,31 +391,29 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					var last string
+					var last *api.AddedOutput
 					for v := range out {
-						// Print everything when doing json
-						if c.GlobalString("encoding") != "text" {
-							formatResponse(c, *v, nil)
-							continue
-						}
-
-						// Print last hash only
 						if c.Bool("quieter") {
-							last = v.Cid
+							last = v
 							continue
 						}
 
 						// Print hashes only
-						if c.Bool("quiet") {
+						if c.Bool("quiet") && c.GlobalString("encoding") == "text" {
 							fmt.Println(v.Cid)
 							continue
 						}
 
-						// Format normal text representation of AddedOutput
+						// Print things normally otherwise
+						// "quiet" does not apply for json
 						formatResponse(c, *v, nil)
 					}
-					if last != "" {
-						fmt.Println(last)
+					if last != nil { // "quieter"
+						if c.GlobalString("encoding") == "text" {
+							fmt.Println(last.Cid)
+						} else {
+							formatResponse(c, *last, nil)
+						}
 					}
 				}()
 
