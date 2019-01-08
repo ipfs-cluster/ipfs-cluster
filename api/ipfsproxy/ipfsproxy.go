@@ -218,14 +218,14 @@ func New(cfg *Config) (*Server, error) {
 	smux.HandleFunc("/api/v0/files/flush/", proxy.filesFlushHandler)
 	smux.HandleFunc("/api/v0/files/ls", proxy.filesLsHandler)
 	smux.HandleFunc("/api/v0/files/ls/", proxy.filesLsHandler)
-	// smux.HandleFunc("/api/v0/files/mkdir", proxy.filesMkdirHandler)
-	// smux.HandleFunc("/api/v0/files/mkdir/", proxy.filesMkdirHandler)
-	// smux.HandleFunc("/api/v0/files/mv", proxy.filesMvHandler)
-	// smux.HandleFunc("/api/v0/files/mv/", proxy.filesMvHandler)
+	smux.HandleFunc("/api/v0/files/mkdir", proxy.filesMkdirHandler)
+	smux.HandleFunc("/api/v0/files/mkdir/", proxy.filesMkdirHandler)
+	smux.HandleFunc("/api/v0/files/mv", proxy.filesMvHandler)
+	smux.HandleFunc("/api/v0/files/mv/", proxy.filesMvHandler)
 	// smux.HandleFunc("/api/v0/files/read", proxy.filesReadHandler)
 	// smux.HandleFunc("/api/v0/files/read/", proxy.filesReadHandler)
-	// smux.HandleFunc("/api/v0/files/rm", proxy.filesRmHandler)
-	// smux.HandleFunc("/api/v0/files/rm/", proxy.filesRmHandler)
+	smux.HandleFunc("/api/v0/files/rm", proxy.filesRmHandler)
+	smux.HandleFunc("/api/v0/files/rm/", proxy.filesRmHandler)
 	// smux.HandleFunc("/api/v0/files/stat", proxy.filesStatHandler)
 	// smux.HandleFunc("/api/v0/files/stat/", proxy.filesStatHandler)
 	// smux.HandleFunc("/api/v0/files/write", proxy.filesWriteHandler)
@@ -787,40 +787,35 @@ func (proxy *Server) filesMkdirHandler(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	oldUID := q.Get("uid")
-	if oldUID == "" {
+	uid := q.Get("uid")
+	if uid == "" {
 		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
 		return
 	}
 
-	randName, err := uuid.NewV4()
-	if err != nil {
-		ipfsErrorResponder(w, err.Error())
-		return
+	path := q.Get("path")
+	if path == "" {
+		path = "/"
 	}
-	newUID := "uid-" + randName.String()
 
-	UIDLogIn := api.UIDLogIn{}
-	err = proxy.rpcClient.Call(
+	parents := q.Get("parents")
+	if parents == "" {
+		parents = "false"
+	}
+
+	err := proxy.rpcClient.Call(
 		"",
 		"Cluster",
-		"UidLogIn",
-		[]string{oldUID, newUID},
-		&UIDLogIn,
+		"IPFSFilesMkdir",
+		[]string{uid, path, parents},
+		&struct{}{},
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error())
 		return
 	}
 
-	res := ipfsUidLogInResp{
-		UID:    UIDLogIn.UID,
-		OldUID: UIDLogIn.OldUID,
-		PeerID: UIDLogIn.PeerID,
-	}
-	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
-	w.Write(resBytes)
 	return
 }
 
@@ -829,40 +824,35 @@ func (proxy *Server) filesMvHandler(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	oldUID := q.Get("uid")
-	if oldUID == "" {
+	uid := q.Get("uid")
+	if uid == "" {
 		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
 		return
 	}
 
-	randName, err := uuid.NewV4()
-	if err != nil {
-		ipfsErrorResponder(w, err.Error())
-		return
+	source := q.Get("source")
+	if source == "" {
+		source = "/"
 	}
-	newUID := "uid-" + randName.String()
 
-	UIDLogIn := api.UIDLogIn{}
-	err = proxy.rpcClient.Call(
+	dest := q.Get("dest")
+	if dest == "" {
+		dest = "/"
+	}
+
+	err := proxy.rpcClient.Call(
 		"",
 		"Cluster",
-		"UidLogIn",
-		[]string{oldUID, newUID},
-		&UIDLogIn,
+		"IPFSFilesMv",
+		[]string{uid, source, dest},
+		&struct{}{},
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error())
 		return
 	}
 
-	res := ipfsUidLogInResp{
-		UID:    UIDLogIn.UID,
-		OldUID: UIDLogIn.OldUID,
-		PeerID: UIDLogIn.PeerID,
-	}
-	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
-	w.Write(resBytes)
 	return
 }
 
@@ -913,40 +903,40 @@ func (proxy *Server) filesRmHandler(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	oldUID := q.Get("uid")
-	if oldUID == "" {
+	uid := q.Get("uid")
+	if uid == "" {
 		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
 		return
 	}
 
-	randName, err := uuid.NewV4()
-	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+	path := q.Get("path")
+	if path == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
 		return
 	}
-	newUID := "uid-" + randName.String()
+	if path == "/" {
+		ipfsErrorResponder(w, "can not remove path: "+path)
+		return
+	}
 
-	UIDLogIn := api.UIDLogIn{}
-	err = proxy.rpcClient.Call(
+	recursive := q.Get("recursive")
+	if recursive == "" {
+		recursive = "false"
+	}
+
+	err := proxy.rpcClient.Call(
 		"",
 		"Cluster",
-		"UidLogIn",
-		[]string{oldUID, newUID},
-		&UIDLogIn,
+		"IPFSFilesRm",
+		[]string{uid, path, recursive},
+		&struct{}{},
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error())
 		return
 	}
 
-	res := ipfsUidLogInResp{
-		UID:    UIDLogIn.UID,
-		OldUID: UIDLogIn.OldUID,
-		PeerID: UIDLogIn.PeerID,
-	}
-	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
-	w.Write(resBytes)
 	return
 }
 

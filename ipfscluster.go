@@ -97,14 +97,14 @@ type IPFSConnector interface {
 	FilesFlush([]string) error
 	// FilesLs is used to list files
 	FilesLs([]string) (api.FilesLs, error)
-	// // UidLogIn is used to change uid
-	// FilesMkdir([]string) (api.UIDLogIn, error)
-	// // UidLogIn is used to change uid
-	// FilesMv([]string) (api.UIDLogIn, error)
+	// FilesMkdir creates directory in IFPS peer
+	FilesMkdir([]string) error
+	// FilesMv moves file in IPFS peer
+	FilesMv([]string) error
 	// // UidLogIn is used to change uid
 	// FileRead([]string) (api.UIDLogIn, error)
-	// // UidLogIn is used to change uid
-	// FilesRm([]string) (api.UIDLogIn, error)
+	// FilesRm remove directory from IPFS peer
+	FilesRm([]string) error
 	// // UidLogIn is used to change uid
 	// FilesStat([]string) (api.UIDLogIn, error)
 	// // UidLogIn is used to change uid

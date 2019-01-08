@@ -386,6 +386,24 @@ func (rpcapi *RPCAPI) IPFSFilesLs(ctx context.Context, in []string, out *api.Fil
 	return err
 }
 
+// FilesMkdir runs IPFSConnector.FilesMkdir().
+func (rpcapi *RPCAPI) IPFSFilesMkdir(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesMkdir(in)
+	return err
+}
+
+// FilesMv runs IPFSConnector.FilesMv().
+func (rpcapi *RPCAPI) IPFSFilesMv(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesMv(in)
+	return err
+}
+
+// FilesRm runs IPFSConnector.FilesRm().
+func (rpcapi *RPCAPI) IPFSFilesRm(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesRm(in)
+	return err
+}
+
 /*
    Consensus component methods
 */

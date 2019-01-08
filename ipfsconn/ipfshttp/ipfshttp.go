@@ -788,3 +788,45 @@ func (ipfs *Connector) FilesLs(l []string) (api.FilesLs, error) {
 
 	return lsrsp, nil
 }
+
+func (ipfs *Connector) FilesMkdir(mk []string) error {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/mkdir?arg=" + "/nodes/" + mk[0] + mk[1] + "&parents=" + mk[2]
+
+	_, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return HiveError(err, mk[0])
+	}
+
+	return nil
+}
+
+func (ipfs *Connector) FilesMv(mv []string) error {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/mv?arg=" + "/nodes/" + mv[0] + mv[1] + "&arg=" + "/nodes/" + mv[0] + mv[2]
+
+	_, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return HiveError(err, mv[0])
+	}
+
+	return nil
+}
+
+func (ipfs *Connector) FilesRm(rm []string) error {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/rm?arg=" + "/nodes/" + rm[0] + rm[1] + "&recursive=" + rm[2]
+
+	_, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return HiveError(err, rm[0])
+	}
+
+	return nil
+}
