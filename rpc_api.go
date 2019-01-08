@@ -367,6 +367,25 @@ func (rpcapi *RPCAPI) UidLogIn(ctx context.Context, in []string, out *api.UIDLog
 	return err
 }
 
+// FilesCp runs IPFSConnector.FilesCp().
+func (rpcapi *RPCAPI) IPFSFilesCp(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesCp(in)
+	return err
+}
+
+// FilesFlush runs IPFSConnector.FilesFlush().
+func (rpcapi *RPCAPI) IPFSFilesFlush(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesFlush(in)
+	return err
+}
+
+// FilesLs runs IPFSConnector.FilesLs().
+func (rpcapi *RPCAPI) IPFSFilesLs(ctx context.Context, in []string, out *api.FilesLs) error {
+	res, err := rpcapi.c.ipfs.FilesLs(in)
+	*out = res
+	return err
+}
+
 /*
    Consensus component methods
 */

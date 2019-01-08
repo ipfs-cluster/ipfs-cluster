@@ -977,3 +977,15 @@ type UIDLogIn struct {
 	OldUID string
 	PeerID string
 }
+
+// FilesLs wraps files/ls entries in the Hive Cluster.
+type FilesLs struct {
+	Entries []FileLsEntrie
+}
+
+type FileLsEntrie struct {
+	Name string
+	Type int
+	Size uint64
+	Hash string
+}

@@ -212,6 +212,24 @@ func New(cfg *Config) (*Server, error) {
 	smux.HandleFunc("/api/v0/uid/new/", proxy.uidNewHandler)
 	smux.HandleFunc("/api/v0/uid/login", proxy.uidLogInHandler)
 	smux.HandleFunc("/api/v0/uid/login/", proxy.uidLogInHandler)
+	smux.HandleFunc("/api/v0/files/cp", proxy.filesCpHandler)
+	smux.HandleFunc("/api/v0/files/cp/", proxy.filesCpHandler)
+	smux.HandleFunc("/api/v0/files/flush", proxy.filesFlushHandler)
+	smux.HandleFunc("/api/v0/files/flush/", proxy.filesFlushHandler)
+	smux.HandleFunc("/api/v0/files/ls", proxy.filesLsHandler)
+	smux.HandleFunc("/api/v0/files/ls/", proxy.filesLsHandler)
+	// smux.HandleFunc("/api/v0/files/mkdir", proxy.filesMkdirHandler)
+	// smux.HandleFunc("/api/v0/files/mkdir/", proxy.filesMkdirHandler)
+	// smux.HandleFunc("/api/v0/files/mv", proxy.filesMvHandler)
+	// smux.HandleFunc("/api/v0/files/mv/", proxy.filesMvHandler)
+	// smux.HandleFunc("/api/v0/files/read", proxy.filesReadHandler)
+	// smux.HandleFunc("/api/v0/files/read/", proxy.filesReadHandler)
+	// smux.HandleFunc("/api/v0/files/rm", proxy.filesRmHandler)
+	// smux.HandleFunc("/api/v0/files/rm/", proxy.filesRmHandler)
+	// smux.HandleFunc("/api/v0/files/stat", proxy.filesStatHandler)
+	// smux.HandleFunc("/api/v0/files/stat/", proxy.filesStatHandler)
+	// smux.HandleFunc("/api/v0/files/write", proxy.filesWriteHandler)
+	// smux.HandleFunc("/api/v0/files/write/", proxy.filesWriteHandler)
 
 	go proxy.run()
 	return proxy, nil
@@ -616,6 +634,365 @@ func (proxy *Server) uidNewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) uidLogInHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesCpHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	uid := q.Get("uid")
+	if uid == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	source := q.Get("source")
+	if source == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	dest := q.Get("dest")
+	if dest == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	err := proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"IPFSFilesCp",
+		[]string{uid, source, dest},
+		&struct{}{},
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
+func (proxy *Server) filesFlushHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	uid := q.Get("uid")
+	if uid == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	path := q.Get("path")
+	if path == "" {
+		path = "/"
+	}
+
+	err := proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"IPFSFilesFlush",
+		[]string{uid, path},
+		&struct{}{},
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
+func (proxy *Server) filesLsHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	FilesLs := api.FilesLs{}
+
+	q := r.URL.Query()
+
+	uid := q.Get("uid")
+	if uid == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	path := q.Get("path")
+	if path == "" {
+		path = "/"
+	}
+
+	err := proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"IPFSFilesLs",
+		[]string{uid, path},
+		&FilesLs,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	resBytes, _ := json.Marshal(FilesLs)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesMkdirHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesMvHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesReadHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesRmHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesStatHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) filesWriteHandler(w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header())
 
 	q := r.URL.Query()

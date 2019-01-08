@@ -91,6 +91,24 @@ type IPFSConnector interface {
 	UidNew(name string) (api.UIDSecret, error)
 	// UidLogIn is used to change uid
 	UidLogIn([]string) (api.UIDLogIn, error)
+	// FilesCp is used to copy file
+	FilesCp([]string) error
+	// FilesFlush is used to change uid
+	FilesFlush([]string) error
+	// FilesLs is used to list files
+	FilesLs([]string) (api.FilesLs, error)
+	// // UidLogIn is used to change uid
+	// FilesMkdir([]string) (api.UIDLogIn, error)
+	// // UidLogIn is used to change uid
+	// FilesMv([]string) (api.UIDLogIn, error)
+	// // UidLogIn is used to change uid
+	// FileRead([]string) (api.UIDLogIn, error)
+	// // UidLogIn is used to change uid
+	// FilesRm([]string) (api.UIDLogIn, error)
+	// // UidLogIn is used to change uid
+	// FilesStat([]string) (api.UIDLogIn, error)
+	// // UidLogIn is used to change uid
+	// FilesWrite([]string) (api.UIDLogIn, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

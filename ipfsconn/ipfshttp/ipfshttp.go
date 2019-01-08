@@ -665,12 +665,32 @@ func (ipfs *Connector) updateInformerMetric() error {
 	return err
 }
 
+type hiveErrorString struct {
+	s string
+}
+
+func (e *hiveErrorString) Error() string {
+	return e.s
+}
+
+func HiveError(err error, uid string) error {
+	e := err.Error()
+	return &hiveErrorString{strings.Replace(e, "/nodes/"+uid, "", -1)}
+}
+
 func (ipfs *Connector) UidNew(name string) (api.UIDSecret, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	secret := api.UIDSecret{}
 	url := "key/gen?arg=" + name + "&type=rsa"
 	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	url = "files/mkdir?arg=/nodes/" + name + "&parents=true"
+	_, err = ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
 		return secret, err
@@ -700,6 +720,13 @@ func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
 		return secret, err
 	}
 
+	url = "files/mv?arg=/nodes/" + l[0] + "&arg=/nodes/" + l[1]
+	_, err = ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
 	var keyRename ipfsKeyRenameResp
 	err = json.Unmarshal(res, &keyRename)
 	if err != nil {
@@ -712,4 +739,52 @@ func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
 	secret.PeerID = keyRename.Id
 
 	return secret, nil
+}
+
+func (ipfs *Connector) FilesCp(l []string) error {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/cp?arg=" + l[1] + "&arg=" + "/nodes/" + l[0] + l[2]
+	_, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return HiveError(err, l[0])
+	}
+
+	return nil
+}
+
+func (ipfs *Connector) FilesFlush(l []string) error {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/flush?arg=" + "/nodes/" + l[0] + l[1]
+
+	_, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return HiveError(err, l[0])
+	}
+
+	return nil
+}
+
+func (ipfs *Connector) FilesLs(l []string) (api.FilesLs, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/ls?arg=" + "/nodes/" + l[0] + l[1]
+	lsrsp := api.FilesLs{}
+
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return lsrsp, HiveError(err, l[0])
+	}
+
+	err = json.Unmarshal(res, &lsrsp)
+	if err != nil {
+		logger.Error(err)
+		return lsrsp, err
+	}
+
+	return lsrsp, nil
 }
