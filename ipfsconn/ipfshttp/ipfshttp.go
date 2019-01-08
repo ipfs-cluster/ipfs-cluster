@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	gopath "github.com/ipfs/go-path"
+
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
@@ -75,6 +77,10 @@ type ipfsPinLsResp struct {
 type ipfsIDResp struct {
 	ID        string
 	Addresses []string
+}
+
+type ipfsResolveResp struct {
+	Path string `json:"Path"`
 }
 
 type ipfsSwarmPeersResp struct {
@@ -553,6 +559,48 @@ func (ipfs *Connector) RepoStat() (api.IPFSRepoStat, error) {
 		return stats, err
 	}
 	return stats, nil
+}
+
+// Resolve accepts ipfs or ipns path and resolves it into a cid
+func (ipfs *Connector) Resolve(path string) (cid.Cid, error) {
+	validPath, err := gopath.ParsePath(path)
+	if err != nil {
+		logger.Error("could not parse path")
+		return cid.Cid{}, err
+	}
+
+	if strings.HasPrefix(path, "/ipfs") && validPath.IsJustAKey() {
+		ci, _, err := gopath.SplitAbsPath(validPath)
+		return ci, err
+	}
+
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	res, err := ipfs.postCtx(ctx, "resolve?arg="+path, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return cid.Cid{}, err
+	}
+
+	var resolveResp ipfsResolveResp
+	err = json.Unmarshal(res, &resolveResp)
+	if err != nil {
+		logger.Error(err)
+		return cid.Cid{}, err
+	}
+
+	validPath, err = gopath.ParsePath(resolveResp.Path)
+	if err != nil {
+		logger.Error("could not parse path")
+		return cid.Cid{}, err
+	}
+
+	if validPath.IsJustAKey() {
+		ci, _, err := gopath.SplitAbsPath(validPath)
+		return ci, err
+	}
+
+	return cid.Cid{}, errors.New("Invalid path")
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.

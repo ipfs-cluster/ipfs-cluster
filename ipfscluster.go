@@ -83,6 +83,8 @@ type IPFSConnector interface {
 	// RepoStat returns the current repository size and max limit as
 	// provided by "repo stat".
 	RepoStat() (api.IPFSRepoStat, error)
+	// Resolve returns a cid given a path
+	Resolve(path string) (cid.Cid, error)
 	// BlockPut directly adds a block of data to the IPFS repo
 	BlockPut(api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block

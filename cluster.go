@@ -1076,6 +1076,11 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 	return nil
 }
 
+// Resolve resolves given string path into a cid
+func (c *Cluster) Resolve(path string) (cid.Cid, error) {
+	return c.ipfs.Resolve(path)
+}
+
 // AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer
 // pipeline is used to DAGify the file.  Depending on input parameters this
 // DAG can be added locally to the calling cluster peer's ipfs repo, or

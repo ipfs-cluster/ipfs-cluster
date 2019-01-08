@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"context"
 
+	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -310,6 +311,13 @@ func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *a
 func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m, err := rpcapi.c.ipfs.PinLs(ctx, in)
 	*out = m
+	return err
+}
+
+//IPFSResolve runs IPFSConnector.Resolve()
+func (rpcapi *RPCAPI) IPFSResolve(ctx context.Context, in string, out *cid.Cid) error {
+	res, err := rpcapi.c.ipfs.Resolve(in)
+	*out = res
 	return err
 }
 
