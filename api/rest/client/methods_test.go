@@ -219,13 +219,44 @@ func TestStatusAll(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pins, err := c.StatusAll(false)
+		pins, err := c.StatusAll(0, false)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if len(pins) == 0 {
 			t.Error("there should be some pins")
+		}
+
+		// With local true
+		pins, err = c.StatusAll(0, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 2 {
+			t.Error("there should be two pins")
+		}
+
+		// With filter option
+		pins, err = c.StatusAll(types.TrackerStatusPinning, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 1 {
+			t.Error("there should be one pin")
+		}
+
+		pins, err = c.StatusAll(types.TrackerStatusPinned|types.TrackerStatusError, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 2 {
+			t.Error("there should be two pins")
+		}
+
+		pins, err = c.StatusAll(1<<25, false)
+		if err == nil {
+			t.Error("expected an error")
 		}
 	}
 
