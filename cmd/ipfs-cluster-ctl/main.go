@@ -636,10 +636,12 @@ separated list). The following are valid status values:
 					resp, cerr := globalClient.Status(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.StatusAll(
-						api.TrackerStatusFromString(c.String("filter")),
-						c.Bool("local"),
-					)
+					filterFlag := c.String("filter")
+					filter := api.TrackerStatusFromString(c.String("filter"))
+					if filter == api.TrackerStatusUndefined && filterFlag != "" {
+						checkErr("parsing filter flag", errors.New("invalid filter name"))
+					}
+					resp, cerr := globalClient.StatusAll(filter, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil
