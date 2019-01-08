@@ -27,7 +27,7 @@ var testPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGj
 var testPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
 
 func TestTrackerFromString(t *testing.T) {
-	testcases := []string{"bug", "cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
+	testcases := []string{"undefined", "cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
 	for i, tc := range testcases {
 		if TrackerStatusFromString(tc).String() != TrackerStatus(1<<uint(i)).String() {
 			t.Errorf("%s does not match  TrackerStatus %d", tc, i)
