@@ -964,3 +964,16 @@ type IPFSRepoStat struct {
 	RepoSize   uint64
 	StorageMax uint64
 }
+
+// UIDSecret wraps node register keys in the Hive Cluster.
+type UIDSecret struct {
+	UID    string
+	PeerID string
+}
+
+// UIDLogIn wraps node keys renaming in the Hive Cluster.
+type UIDLogIn struct {
+	UID    string
+	OldUID string
+	PeerID string
+}

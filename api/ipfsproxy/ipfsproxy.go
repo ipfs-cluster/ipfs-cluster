@@ -25,6 +25,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
+	uuid "github.com/satori/go.uuid"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module
@@ -114,6 +115,17 @@ type ipfsAddResp struct {
 	Size  string `json:",omitempty"`
 }
 
+type ipfsUidNewResp struct {
+	UID    string
+	PeerID string
+}
+
+type ipfsUidLogInResp struct {
+	OldUID string
+	UID    string
+	PeerID string
+}
+
 // New returns and ipfs Proxy component
 func New(cfg *Config) (*Server, error) {
 	err := cfg.Validate()
@@ -195,6 +207,11 @@ func New(cfg *Config) (*Server, error) {
 	smux.HandleFunc("/api/v0/pin/ls/", proxy.pinLsHandler) // ls/xxx
 	smux.HandleFunc("/api/v0/add", proxy.addHandler)
 	smux.HandleFunc("/api/v0/repo/stat", proxy.repoStatHandler)
+
+	smux.HandleFunc("/api/v0/uid/new", proxy.uidNewHandler)
+	smux.HandleFunc("/api/v0/uid/new/", proxy.uidNewHandler)
+	smux.HandleFunc("/api/v0/uid/login", proxy.uidLogInHandler)
+	smux.HandleFunc("/api/v0/uid/login/", proxy.uidLogInHandler)
 
 	go proxy.run()
 	return proxy, nil
@@ -543,4 +560,99 @@ func extractArgument(u *url.URL) (string, bool) {
 		return segs[len(segs)-1], true
 	}
 	return "", false
+}
+
+func extractUID(u *url.URL) (string, bool) {
+	uid := u.Query().Get("uid")
+	if uid != "" {
+		return uid, true
+	}
+
+	p := strings.TrimPrefix(u.Path, "/api/v0/")
+	segs := strings.Split(p, "/")
+
+	if len(segs) > 2 {
+		warnMsg := "You are using an undocumented form of the IPFS API."
+		warnMsg += "Consider passing your command arguments"
+		warnMsg += "with the '?arg=' query parameter"
+		logger.Warning(warnMsg)
+		return segs[len(segs)-1], true
+	}
+	return "", false
+}
+
+func (proxy *Server) uidNewHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	UIDSecret := api.UIDSecret{}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	name := "uid-" + randName.String()
+
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidNew",
+		name,
+		&UIDSecret,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidNewResp{
+		UID:    UIDSecret.UID,
+		PeerID: UIDSecret.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) uidLogInHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
 }

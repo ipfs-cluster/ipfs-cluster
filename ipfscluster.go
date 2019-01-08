@@ -87,6 +87,10 @@ type IPFSConnector interface {
 	BlockPut(api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block
 	BlockGet(cid.Cid) ([]byte, error)
+	// UidNew registers a uid in hive cluster
+	UidNew(name string) (api.UIDSecret, error)
+	// UidLogIn is used to change uid
+	UidLogIn([]string) (api.UIDLogIn, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

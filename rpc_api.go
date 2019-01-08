@@ -353,6 +353,20 @@ func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[
 	return err
 }
 
+// UidNew runs IPFSConnector.UidNew().
+func (rpcapi *RPCAPI) UidNew(ctx context.Context, in string, out *api.UIDSecret) error {
+	res, err := rpcapi.c.ipfs.UidNew(in)
+	*out = res
+	return err
+}
+
+// UidLogIn runs IPFSConnector.UidLogIn().
+func (rpcapi *RPCAPI) UidLogIn(ctx context.Context, in []string, out *api.UIDLogIn) error {
+	res, err := rpcapi.c.ipfs.UidLogIn(in)
+	*out = res
+	return err
+}
+
 /*
    Consensus component methods
 */

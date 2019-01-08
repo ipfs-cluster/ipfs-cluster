@@ -89,6 +89,18 @@ type ipfsStream struct {
 	Protocol string
 }
 
+type ipfsKeyGenResp struct {
+	Name string
+	Id   string
+}
+
+type ipfsKeyRenameResp struct {
+	Was       string
+	Now       string
+	Id        string
+	Overwrite bool
+}
+
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(cfg *Config) (*Connector, error) {
 	err := cfg.Validate()
@@ -651,4 +663,53 @@ func (ipfs *Connector) updateInformerMetric() error {
 		logger.Error(err)
 	}
 	return err
+}
+
+func (ipfs *Connector) UidNew(name string) (api.UIDSecret, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	secret := api.UIDSecret{}
+	url := "key/gen?arg=" + name + "&type=rsa"
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	var keyGen ipfsKeyGenResp
+	err = json.Unmarshal(res, &keyGen)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	secret.UID = keyGen.Name
+	secret.PeerID = keyGen.Id
+
+	return secret, nil
+}
+
+func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	secret := api.UIDLogIn{}
+	url := "key/rename?arg=" + l[0] + "&arg=" + l[1]
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	var keyRename ipfsKeyRenameResp
+	err = json.Unmarshal(res, &keyRename)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	secret.UID = keyRename.Now
+	secret.OldUID = keyRename.Was
+	secret.PeerID = keyRename.Id
+
+	return secret, nil
 }
