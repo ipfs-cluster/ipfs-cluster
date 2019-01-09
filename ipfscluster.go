@@ -74,7 +74,6 @@ type IPFSConnector interface {
 	ID() (api.IPFSID, error)
 	Pin(context.Context, *cid.Cid, bool) error
 	Unpin(context.Context, *cid.Cid) error
-	Resolve(pinPath string) (*cid.Cid, error)
 	PinLsCid(context.Context, *cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to

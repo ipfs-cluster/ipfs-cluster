@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-ipfs-path"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/hsanjuan/go-libp2p-gorpc"
@@ -67,10 +66,6 @@ type Connector struct {
 
 type ipfsError struct {
 	Message string
-}
-
-type ipfsResolveResp struct {
-  cid    *cid.Cid
 }
 
 type ipfsPinType struct {
@@ -678,40 +673,6 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash *cid.Cid) error {
 
 	logger.Debug("IPFS object is already unpinned: ", hash)
 	return nil
-}
-
-//Resolve path and returns a cid
-func (ipfs *Connector) Resolve(pinPath string) (*cid.Cid, error) {
-  validPath, err := path.ParsePath(pinPath)
-
-	if err != nil {
-		logger.Error("cannot parse path")
-		return nil, err
-	}
-
-	if !validPath.IsJustAKey() {
-		ci, _, err := path.SplitAbsPath(validPath)
-		return ci, err
-	}
-
-	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
-	defer cancel()
-	res, err := ipfs.postCtx(ctx, "resolve?arg="+validPath.String())
-
-  var resolveRaw ipfsResolveResp
-  err = json.Unmarshal(res, &resolveRaw)
-
-  if err != nil {
-    logger.Error(err)
-    return nil, err
-  }
-
-  fmt.Printf("%s\n", body)
-
-	//Parse body response {}
-	//return cid, err
-
-	return resolveRaw.cid, nil
 }
 
 // PinLs performs a "pin ls --type typeFilter" request against the configured

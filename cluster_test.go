@@ -85,15 +85,6 @@ func (ipfs *mockConnector) SwarmPeers() (api.SwarmPeers, error) {
 	return []peer.ID{test.TestPeerID4, test.TestPeerID5}, nil
 }
 
-func (ipfs *mockConnector) Resolve(pinPath string) (*cid.Cid, error) {
-	if ipfs.returnError {
-		return nil, errors.New("")
-	}
-
-	//Do I use the ipfsmock type here?
-	return nil, nil
-}
-
 func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 func (ipfs *mockConnector) FreeSpace() (uint64, error)                    { return 100, nil }

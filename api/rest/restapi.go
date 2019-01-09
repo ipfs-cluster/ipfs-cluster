@@ -346,30 +346,6 @@ func (api *API) routes() []route {
 			api.unpinHandler,
 		},
 		{
-			"PathPin",
-			"POST",
-			"/pins/ipfs/{path}",
-			api.pinPathHandler,
-		},
-		{
-			"PathUnpin",
-			"DELETE",
-			"/pins/ifps/{path}",
-			api.unpinPathHandler,
-		},
-		{
-			"PathPin",
-			"POST",
-			"/pins/ipns/{path}",
-			api.pinPathHandler,
-		},
-		{
-			"PathUnpin",
-			"DELETE",
-			"/pins/ipns/{path}",
-			api.unpinPathHandler,
-		},
-		{
 			"Sync",
 			"POST",
 			"/pins/{hash}/sync",
@@ -580,35 +556,6 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			&struct{}{})
 		sendAcceptedResponse(w, err)
 		logger.Debug("rest api unpinHandler done")
-	}
-}
-
-func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
-
-	//So Here instead of using parseCidOrError, we would want to write another parser to retrieve both the path and the cid from the request?
-	if ps := parseCidOrError(w, r); ps.Cid != "" {
-		logger.Debugf("rest api pinPathHandler: %s", ps.Cid)
-
-		err := api.rpcClient.Call("",
-			"Cluster",
-			"PinPath",
-			ps,
-			&struct{}{})
-		sendAcceptedResponse(w, err)
-		logger.Debug("rest api pinPathHandler done")
-	}
-}
-
-func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
-	if ps := parseCidOrError(w, r); ps.Cid != "" {
-		logger.Debugf("rest api unpinPathHandler: %s", ps.Cid)
-		err := api.rpcClient.Call("",
-			"Cluster",
-			"UnpinPath",
-			ps,
-			&struct{}{})
-		sendAcceptedResponse(w, err)
-		logger.Debug("rest api unpinPathHandler done")
 	}
 }
 
