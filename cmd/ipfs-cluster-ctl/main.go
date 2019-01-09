@@ -252,7 +252,7 @@ Once the adding process is finished, the content is fully added to all
 allocations and pinned in them. This makes cluster add slower than a local
 ipfs add, but the result is a fully replicated CID on completion.
 If you prefer faster adding, add directly to the local IPFS and trigger a
- cluster "pin add".
+cluster "pin add".
 
 `,
 			/*
@@ -276,6 +276,10 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 				cli.BoolFlag{
 					Name:  "quieter, Q",
 					Usage: "Write only final hash to output",
+				},
+				cli.BoolFlag{
+					Name:  "no-stream",
+					Usage: "Buffer output locally. Produces a valid slice with --enc=json.",
 				},
 				cli.StringFlag{
 					Name:  "layout",
@@ -391,29 +395,36 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					var last *api.AddedOutput
+
+					var buffered []addedOutputQuiet
+					var lastBuf = make([]addedOutputQuiet, 1, 1)
+					var qq = c.Bool("quieter")
+					var q = c.Bool("quiet") || qq
+					var bufferResults = !c.Bool("stream")
 					for v := range out {
-						if c.Bool("quieter") {
-							last = v
+						added := addedOutputQuiet{v, q}
+						lastBuf[0] = added
+						if bufferResults {
+							buffered = append(buffered, added)
 							continue
 						}
-
-						// Print hashes only
-						if c.Bool("quiet") && c.GlobalString("encoding") == "text" {
-							fmt.Println(v.Cid)
-							continue
+						if !qq { // print things
+							formatResponse(c, added, nil)
 						}
-
-						// Print things normally otherwise
-						// "quiet" does not apply for json
-						formatResponse(c, *v, nil)
 					}
-					if last != nil { // "quieter"
-						if c.GlobalString("encoding") == "text" {
-							fmt.Println(last.Cid)
-						} else {
-							formatResponse(c, *last, nil)
+					if lastBuf[0].added == nil {
+						return // no elements at all
+					}
+					if bufferResults { // we buffered.
+						if qq { // [last elem]
+							formatResponse(c, lastBuf, nil)
+							return
 						}
+						// [all elems]
+						formatResponse(c, buffered, nil)
+					} else if qq { // we already printed unless Quieter
+						formatResponse(c, lastBuf[0], nil)
+						return
 					}
 				}()
 
