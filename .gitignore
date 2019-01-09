@@ -1,14 +1,18 @@
 tag_annotation
 coverage.out
-ipfs-cluster-service/ipfs-cluster-service
-ipfs-cluster-ctl/ipfs-cluster-ctl
-deptools
+cmd/ipfs-cluster-service/ipfs-cluster-service
+cmd/ipfs-cluster-ctl/ipfs-cluster-ctl
+deptools/gx*
 sharness/lib/sharness
 sharness/test-results
 sharness/trash*
+vendor/
+
 
 raftFolderFromTest*
 peerstore
+shardTesting
+compose
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o

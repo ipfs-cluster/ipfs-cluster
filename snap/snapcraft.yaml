@@ -25,7 +25,7 @@ parts:
       mkdir -p ../go/src/github.com/ipfs/ipfs-cluster
       cp -R . ../go/src/github.com/ipfs/ipfs-cluster
     build: |
-      env GOPATH=$(pwd)/../go CC=$ARCH_TRIPLET-gcc CXX=$ARCH_TRIPLET-g++ CGO_ENABLED=1 GOARCH=$TARGET_GOARCH make -C ../go/src/github.com/ipfs/ipfs-cluster install
+      env GOPATH=$(pwd)/../go CC=$SNAP_ARCH_TRIPLET-gcc CXX=$SNAP_ARCH_TRIPLET-g++ CGO_ENABLED=1 GOARCH=$TARGET_GOARCH make -C ../go/src/github.com/ipfs/ipfs-cluster install
     install: |
       mkdir $SNAPCRAFT_PART_INSTALL/bin
       for file in $(find ../go/bin/ -type f); do
@@ -33,4 +33,4 @@ parts:
       done
     after: [go]
   go:
-    source-tag: go1.9.2
+    source-tag: go1.11

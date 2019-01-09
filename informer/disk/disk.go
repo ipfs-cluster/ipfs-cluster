@@ -5,8 +5,8 @@ package disk
 import (
 	"fmt"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	logging "github.com/ipfs/go-log"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -22,12 +22,6 @@ const (
 )
 
 var logger = logging.Logger("diskinfo")
-
-// metricToRPC maps from a specified metric name to the corrresponding RPC call
-var metricToRPC = map[MetricType]string{
-	MetricFreeSpace: "IPFSFreeSpace",
-	MetricRepoSize:  "IPFSRepoSize",
-}
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces.
@@ -76,16 +70,26 @@ func (disk *Informer) GetMetric() api.Metric {
 		}
 	}
 
+	var repoStat api.IPFSRepoStat
 	var metric uint64
+
 	valid := true
+
 	err := disk.rpcClient.Call("",
 		"Cluster",
-		metricToRPC[disk.config.Type],
+		"IPFSRepoStat",
 		struct{}{},
-		&metric)
+		&repoStat)
 	if err != nil {
 		logger.Error(err)
 		valid = false
+	} else {
+		switch disk.config.Type {
+		case MetricFreeSpace:
+			metric = repoStat.StorageMax - repoStat.RepoSize
+		case MetricRepoSize:
+			metric = repoStat.RepoSize
+		}
 	}
 
 	m := api.Metric{

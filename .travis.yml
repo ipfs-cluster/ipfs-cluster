@@ -3,9 +3,11 @@ os:
   - linux
 #  - osx
 go:
-- '1.10.x'
+- '1.11.x'
 services:
 - docker
+
+sudo: required
 
 cache:
   directories:
@@ -15,42 +17,60 @@ install: true
 
 jobs:
   include:
-    - stage: "build and test (1: tests+coverage (all) | 2: tests (w/basic monitor) | 3: checks | 4: docker | 5: sharness)"
+    - stage: "Testing stage"
+      name: "Tests (all modules) + Coverage"
       script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - go test -v -coverprofile=coverage.out -covermode=count ./...
         - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
-    - script:
+    - name: "Main Tests with basic monitor"
+      script:
         - go get -u github.com/mattn/goveralls
         - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - go test -v . -monitor basic
-    - script:
-        - go get -u github.com/golang/lint/golint
+    - name: "Main Tests with stateless tracker"
+      script:
+        - go get -u github.com/mattn/goveralls
+        - go get -u golang.org/x/tools/cmd/cover
+        - make deps
+        - go test -v . -tracker stateless
+    - name: "Golint and go vet"
+      script:
+        - go get -u golang.org/x/lint/golint
         - make deps
         - make check
         - make service
         - make ctl
-    - script:
+    - name: "Docker and Compose build"
+      script:
         - make docker
-    - script:
+        - make docker-compose
+    - name: "Sharness"
+      script:
         - sudo apt-get update
         - sudo apt-get install -y jq curl
         - make deps
         - make install
         - docker pull ipfs/go-ipfs
         - make test_sharness && make clean_sharness
-
-after_success:
-- openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv
-  -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
-sudo: required
-deploy:
-  'on':
-    branch: master
-  provider: script
-  script: docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq
-    && cd $(pwd) && snapcraft && snapcraft push *.snap --release edge"
-  skip_cleanup: true
+    - stage: "Snapcraft deployment stage (Stable)"
+      name: "Deploy Snapcraft"
+      if: (NOT type IN (pull_request)) AND (fork = false) AND (tag =~ ^v\d+\.\d+\.\d+$)
+      script:
+        - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh edge" # should be stable
+    - stage: "Snapcraft deployment stage (Candidate)"
+      name: "Deploy Snapcraft"
+      if: (NOT type IN (pull_request)) AND (fork = false) AND (tag =~ ^v\d+\.\d+\.\d+-rc\d+$)
+      script:
+        - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh edge" # should be candidate
+    - stage: "Snapcraft deployment stage (Edge)"
+      name: "Deploy Snapcraft"
+      if: (NOT type IN (pull_request)) AND (branch = master) AND (fork = false) AND (tag IS NOT present)
+      script:
+        - openssl aes-256-cbc -K $encrypted_5a1cb914c6c9_key -iv $encrypted_5a1cb914c6c9_iv -in .snapcraft/travis_snapcraft.cfg -out .snapcraft/snapcraft.cfg -d
+        - docker run -v $(pwd):$(pwd) -t snapcore/snapcraft sh -c "apt update -qq && cd $(pwd) && ./snap/snap-multiarch.sh edge"

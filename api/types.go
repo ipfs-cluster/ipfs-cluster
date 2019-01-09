@@ -9,6 +9,8 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -29,12 +31,21 @@ import (
 
 var logger = logging.Logger("apitypes")
 
+func init() {
+	// intialize trackerStatusString
+	stringTrackerStatus = make(map[string]TrackerStatus)
+	for k, v := range trackerStatusString {
+		stringTrackerStatus[v] = k
+	}
+}
+
 // TrackerStatus values
 const (
-	// IPFSStatus should never take this value
-	TrackerStatusBug TrackerStatus = iota
+	// IPFSStatus should never take this value.
+	// When used as a filter. It means "all".
+	TrackerStatusUndefined TrackerStatus = 0
 	// The cluster node is offline or not responding
-	TrackerStatusClusterError
+	TrackerStatusClusterError TrackerStatus = 1 << iota
 	// An error occurred pinning
 	TrackerStatusPinError
 	// An error occurred unpinning
@@ -53,16 +64,26 @@ const (
 	TrackerStatusPinQueued
 	// The item has been queued for unpinning on the IPFS daemon
 	TrackerStatusUnpinQueued
+	// The IPFS daemon is not pinning the item through this cid but it is
+	// tracked in a cluster dag
+	TrackerStatusSharded
+)
+
+// Composite TrackerStatus.
+const (
+	TrackerStatusError  = TrackerStatusClusterError | TrackerStatusPinError | TrackerStatusUnpinError
+	TrackerStatusQueued = TrackerStatusPinQueued | TrackerStatusUnpinQueued
 )
 
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
 type TrackerStatus int
 
 var trackerStatusString = map[TrackerStatus]string{
-	TrackerStatusBug:          "bug",
+	TrackerStatusUndefined:    "undefined",
 	TrackerStatusClusterError: "cluster_error",
 	TrackerStatusPinError:     "pin_error",
 	TrackerStatusUnpinError:   "unpin_error",
+	TrackerStatusError:        "error",
 	TrackerStatusPinned:       "pinned",
 	TrackerStatusPinning:      "pinning",
 	TrackerStatusUnpinning:    "unpinning",
@@ -70,25 +91,70 @@ var trackerStatusString = map[TrackerStatus]string{
 	TrackerStatusRemote:       "remote",
 	TrackerStatusPinQueued:    "pin_queued",
 	TrackerStatusUnpinQueued:  "unpin_queued",
+	TrackerStatusQueued:       "queued",
 }
 
+// values autofilled in init()
+var stringTrackerStatus map[string]TrackerStatus
+
 // String converts a TrackerStatus into a readable string.
+// If the given TrackerStatus is a filter (with several
+// bits set), it will return a comma-separated list.
 func (st TrackerStatus) String() string {
-	return trackerStatusString[st]
+	var values []string
+
+	// simple and known composite values
+	if v, ok := trackerStatusString[st]; ok {
+		return v
+	}
+
+	// other filters
+	for k, v := range trackerStatusString {
+		if st&k > 0 {
+			values = append(values, v)
+		}
+	}
+
+	return strings.Join(values, ",")
+}
+
+// Match returns true if the tracker status matches the given filter.
+// For example TrackerStatusPinError will match TrackerStatusPinError
+// and TrackerStatusError
+func (st TrackerStatus) Match(filter TrackerStatus) bool {
+	return filter == 0 || st&filter > 0
 }
 
 // TrackerStatusFromString parses a string and returns the matching
-// TrackerStatus value.
+// TrackerStatus value. The string can be a comma-separated list
+// representing a TrackerStatus filter. Unknown status names are
+// ignored.
 func TrackerStatusFromString(str string) TrackerStatus {
-	for k, v := range trackerStatusString {
-		if v == str {
-			return k
+	values := strings.Split(strings.Replace(str, " ", "", -1), ",")
+	var status TrackerStatus
+	for _, v := range values {
+		st, ok := stringTrackerStatus[v]
+		if ok {
+			status |= st
 		}
 	}
-	return TrackerStatusBug
+	return status
+}
+
+// TrackerStatusAll all known TrackerStatus values.
+func TrackerStatusAll() []TrackerStatus {
+	var list []TrackerStatus
+	for k := range trackerStatusString {
+		if k != TrackerStatusUndefined {
+			list = append(list, k)
+		}
+	}
+
+	return list
 }
 
 // IPFSPinStatus values
+// FIXME include maxdepth
 const (
 	IPFSPinStatusBug IPFSPinStatus = iota
 	IPFSPinStatusError
@@ -104,25 +170,36 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-	// Since indirect statuses are of the form "indirect through <cid>", use a regexp to match
+	// Since indirect statuses are of the form "indirect through <cid>",
+	// use a regexp to match
 	var ind, _ = regexp.MatchString("^indirect", t)
-	// TODO: This is only used in the http_connector to parse
-	// ipfs-daemon-returned values. Maybe it should be extended.
+	var rec, _ = regexp.MatchString("^recursive", t)
 	switch {
 	case ind:
 		return IPFSPinStatusIndirect
+	case rec:
+		// FIXME: Maxdepth?
+		return IPFSPinStatusRecursive
 	case t == "direct":
 		return IPFSPinStatusDirect
-	case t == "recursive":
-		return IPFSPinStatusRecursive
 	default:
 		return IPFSPinStatusBug
 	}
 }
 
-// IsPinned returns true if the status is Direct or Recursive
-func (ips IPFSPinStatus) IsPinned() bool {
-	return ips == IPFSPinStatusDirect || ips == IPFSPinStatusRecursive
+// IsPinned returns true if the item is pinned as expected by the
+// maxDepth parameter.
+func (ips IPFSPinStatus) IsPinned(maxDepth int) bool {
+	switch {
+	case maxDepth < 0:
+		return ips == IPFSPinStatusRecursive
+	case maxDepth == 0:
+		return ips == IPFSPinStatusDirect
+	case maxDepth > 0:
+		// FIXME: when we know how ipfs returns partial pins.
+		return ips == IPFSPinStatusRecursive
+	}
+	return false
 }
 
 // ToTrackerStatus converts the IPFSPinStatus value to the
@@ -136,14 +213,14 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 	IPFSPinStatusRecursive: TrackerStatusPinned,
 	IPFSPinStatusIndirect:  TrackerStatusUnpinned,
 	IPFSPinStatusUnpinned:  TrackerStatusUnpinned,
-	IPFSPinStatusBug:       TrackerStatusBug,
+	IPFSPinStatusBug:       TrackerStatusUndefined,
 	IPFSPinStatusError:     TrackerStatusClusterError, //TODO(ajl): check suitability
 }
 
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid     *cid.Cid
+	Cid     cid.Cid
 	PeerMap map[peer.ID]PinInfo
 }
 
@@ -156,7 +233,7 @@ type GlobalPinInfoSerial struct {
 // ToSerial converts a GlobalPinInfo to its serializable version.
 func (gpi GlobalPinInfo) ToSerial() GlobalPinInfoSerial {
 	s := GlobalPinInfoSerial{}
-	if gpi.Cid != nil {
+	if gpi.Cid.Defined() {
 		s.Cid = gpi.Cid.String()
 	}
 	s.PeerMap = make(map[string]PinInfoSerial)
@@ -188,27 +265,29 @@ func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
 
 // PinInfo holds information about local pins.
 type PinInfo struct {
-	Cid    *cid.Cid
-	Peer   peer.ID
-	Status TrackerStatus
-	TS     time.Time
-	Error  string
+	Cid      cid.Cid
+	Peer     peer.ID
+	PeerName string
+	Status   TrackerStatus
+	TS       time.Time
+	Error    string
 }
 
 // PinInfoSerial is a serializable version of PinInfo.
 // information is marked as
 type PinInfoSerial struct {
-	Cid    string `json:"cid"`
-	Peer   string `json:"peer"`
-	Status string `json:"status"`
-	TS     string `json:"timestamp"`
-	Error  string `json:"error"`
+	Cid      string `json:"cid"`
+	Peer     string `json:"peer"`
+	PeerName string `json:"peername"`
+	Status   string `json:"status"`
+	TS       string `json:"timestamp"`
+	Error    string `json:"error"`
 }
 
 // ToSerial converts a PinInfo to its serializable version.
 func (pi PinInfo) ToSerial() PinInfoSerial {
 	c := ""
-	if pi.Cid != nil {
+	if pi.Cid.Defined() {
 		c = pi.Cid.String()
 	}
 	p := ""
@@ -217,11 +296,12 @@ func (pi PinInfo) ToSerial() PinInfoSerial {
 	}
 
 	return PinInfoSerial{
-		Cid:    c,
-		Peer:   p,
-		Status: pi.Status.String(),
-		TS:     pi.TS.UTC().Format(time.RFC3339),
-		Error:  pi.Error,
+		Cid:      c,
+		Peer:     p,
+		PeerName: pi.PeerName,
+		Status:   pi.Status.String(),
+		TS:       pi.TS.UTC().Format(time.RFC3339),
+		Error:    pi.Error,
 	}
 }
 
@@ -240,11 +320,12 @@ func (pis PinInfoSerial) ToPinInfo() PinInfo {
 		logger.Debug(pis.TS, err)
 	}
 	return PinInfo{
-		Cid:    c,
-		Peer:   p,
-		Status: TrackerStatusFromString(pis.Status),
-		TS:     ts,
-		Error:  pis.Error,
+		Cid:      c,
+		Peer:     p,
+		PeerName: pis.PeerName,
+		Status:   TrackerStatusFromString(pis.Status),
+		TS:       ts,
+		Error:    pis.Error,
 	}
 }
 
@@ -515,54 +596,203 @@ func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
 	return addrs
 }
 
-// Pin is an argument that carries a Cid. It may carry more things in the
-// future.
-type Pin struct {
-	Cid                  *cid.Cid
-	Name                 string
-	Allocations          []peer.ID
-	ReplicationFactorMin int
-	ReplicationFactorMax int
-	Recursive            bool
+// CidsToStrings encodes cid.Cids to strings.
+func CidsToStrings(cids []cid.Cid) []string {
+	strs := make([]string, len(cids))
+	for i, c := range cids {
+		strs[i] = c.String()
+	}
+	return strs
 }
 
-// PinCid is a shorcut to create a Pin only with a Cid.  Default is for pin to
-// be recursive
-func PinCid(c *cid.Cid) Pin {
+// StringsToCidSet decodes cid.Cids from strings.
+func StringsToCidSet(strs []string) *cid.Set {
+	cids := cid.NewSet()
+	for _, str := range strs {
+		c, err := cid.Decode(str)
+		if err != nil {
+			logger.Error(str, err)
+		}
+		cids.Add(c)
+	}
+	return cids
+}
+
+// PinType specifies which sort of Pin object we are dealing with.
+// In practice, the PinType decides how a Pin object is treated by the
+// PinTracker.
+// See descriptions above.
+// A sharded Pin would look like:
+//
+// [ Meta ] (not pinned on IPFS, only present in cluster state)
+//   |
+//   v
+// [ Cluster DAG ] (pinned everywhere in "direct")
+//   |      ..  |
+//   v          v
+// [Shard1] .. [ShardN] (allocated to peers and pinned with max-depth=1
+// | | .. |    | | .. |
+// v v .. v    v v .. v
+// [][]..[]    [][]..[] Blocks (indirectly pinned on ipfs, not tracked in cluster)
+//
+//
+type PinType uint64
+
+// PinType values. See PinType documentation for further explanation.
+const (
+	// BadType type showing up anywhere indicates a bug
+	BadType PinType = 1 << iota
+	// DataType is a regular, non-sharded pin. It is pinned recursively.
+	// It has no associated reference.
+	DataType
+	// MetaType tracks the original CID of a sharded DAG. Its Reference
+	// points to the Cluster DAG CID.
+	MetaType
+	// ClusterDAGType pins carry the CID of the root node that points to
+	// all the shard-root-nodes of the shards in which a DAG has been
+	// divided. Its Reference carries the MetaType CID.
+	// ClusterDAGType pins are pinned directly everywhere.
+	ClusterDAGType
+	// ShardType pins carry the root CID of a shard, which points
+	// to individual blocks on the original DAG that the user is adding,
+	// which has been sharded.
+	// They carry a Reference to the previous shard.
+	// ShardTypes are pinned with MaxDepth=1 (root and
+	// direct children only).
+	ShardType
+)
+
+// AllType is a PinType used for filtering all pin types
+const AllType PinType = DataType | MetaType | ClusterDAGType | ShardType
+
+// PinTypeFromString is the inverse of String.  It returns the PinType value
+// corresponding to the input string
+func PinTypeFromString(str string) PinType {
+	switch str {
+	case "pin":
+		return DataType
+	case "meta-pin":
+		return MetaType
+	case "clusterdag-pin":
+		return ClusterDAGType
+	case "shard-pin":
+		return ShardType
+	case "all":
+		return AllType
+	default:
+		return BadType
+	}
+}
+
+// String returns a printable value to identify the PinType
+func (pT PinType) String() string {
+	switch pT {
+	case DataType:
+		return "pin"
+	case MetaType:
+		return "meta-pin"
+	case ClusterDAGType:
+		return "clusterdag-pin"
+	case ShardType:
+		return "shard-pin"
+	case AllType:
+		return "all"
+	default:
+		return "bad-type"
+	}
+}
+
+// PinOptions wraps user-defined options for Pins
+type PinOptions struct {
+	ReplicationFactorMin int    `json:"replication_factor_min"`
+	ReplicationFactorMax int    `json:"replication_factor_max"`
+	Name                 string `json:"name"`
+	ShardSize            uint64 `json:"shard_size"`
+}
+
+// Pin carries all the information associated to a CID that is pinned
+// in IPFS Cluster.
+type Pin struct {
+	PinOptions
+
+	Cid cid.Cid
+
+	// See PinType comments
+	Type PinType
+
+	// The peers to which this pin is allocated
+	Allocations []peer.ID
+
+	// MaxDepth associated to this pin. -1 means
+	// recursive.
+	MaxDepth int
+
+	// We carry a reference CID to this pin. For
+	// ClusterDAGs, it is the MetaPin CID. For the
+	// MetaPin it is the ClusterDAG CID. For Shards,
+	// it is the previous shard CID.
+	Reference cid.Cid
+}
+
+// PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
+// be recursive and the pin to be of DataType.
+func PinCid(c cid.Cid) Pin {
 	return Pin{
 		Cid:         c,
+		Type:        DataType,
 		Allocations: []peer.ID{},
-		Recursive:   true,
+		MaxDepth:    -1,
 	}
+}
+
+// PinWithOpts creates a new Pin calling PinCid(c) and then sets
+// its PinOptions fields with the given options.
+func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
+	p := PinCid(c)
+	p.ReplicationFactorMin = opts.ReplicationFactorMin
+	p.ReplicationFactorMax = opts.ReplicationFactorMax
+	p.Name = opts.Name
+	p.ShardSize = opts.ShardSize
+	return p
 }
 
 // PinSerial is a serializable version of Pin
 type PinSerial struct {
-	Cid                  string   `json:"cid"`
-	Name                 string   `json:"name"`
-	Allocations          []string `json:"allocations"`
-	ReplicationFactorMin int      `json:"replication_factor_min"`
-	ReplicationFactorMax int      `json:"replication_factor_max"`
-	Recursive            bool     `json:"recursive"`
+	PinOptions
+
+	Cid         string   `json:"cid"`
+	Type        uint64   `json:"type"`
+	Allocations []string `json:"allocations"`
+	MaxDepth    int      `json:"max_depth"`
+	Reference   string   `json:"reference"`
 }
 
 // ToSerial converts a Pin to PinSerial.
 func (pin Pin) ToSerial() PinSerial {
 	c := ""
-	if pin.Cid != nil {
+	if pin.Cid.Defined() {
 		c = pin.Cid.String()
+	}
+	ref := ""
+	if pin.Reference.Defined() {
+		ref = pin.Reference.String()
 	}
 
 	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
 
 	return PinSerial{
-		Cid:                  c,
-		Name:                 n,
-		Allocations:          allocs,
-		ReplicationFactorMin: pin.ReplicationFactorMin,
-		ReplicationFactorMax: pin.ReplicationFactorMax,
-		Recursive:            pin.Recursive,
+		Cid:         c,
+		Allocations: allocs,
+		Type:        uint64(pin.Type),
+		MaxDepth:    pin.MaxDepth,
+		Reference:   ref,
+		PinOptions: PinOptions{
+			Name:                 n,
+			ReplicationFactorMin: pin.ReplicationFactorMin,
+			ReplicationFactorMax: pin.ReplicationFactorMax,
+			ShardSize:            pin.ShardSize,
+		},
 	}
 }
 
@@ -581,7 +811,15 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.Recursive != pin2s.Recursive {
+	if pin1s.Type != pin2s.Type {
+		return false
+	}
+
+	if pin1s.MaxDepth != pin2s.MaxDepth {
+		return false
+	}
+
+	if pin1s.ShardSize != pin2s.ShardSize {
 		return false
 	}
 
@@ -599,6 +837,26 @@ func (pin Pin) Equals(pin2 Pin) bool {
 	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
 		return false
 	}
+
+	if pin1s.Reference != pin2s.Reference {
+		return false
+	}
+
+	return true
+}
+
+// IsRemotePin determines whether a Pin's ReplicationFactor has
+// been met, so as to either pin or unpin it from the peer.
+func (pin Pin) IsRemotePin(pid peer.ID) bool {
+	if pin.ReplicationFactorMax < 0 || pin.ReplicationFactorMin < 0 {
+		return false
+	}
+
+	for _, p := range pin.Allocations {
+		if p == pid {
+			return false
+		}
+	}
 	return true
 }
 
@@ -608,15 +866,61 @@ func (pins PinSerial) ToPin() Pin {
 	if err != nil {
 		logger.Debug(pins.Cid, err)
 	}
+	var ref cid.Cid
+	if pins.Reference != "" {
+		ref, err = cid.Decode(pins.Reference)
+		if err != nil {
+			logger.Warning(pins.Reference, err)
+		}
+	}
 
 	return Pin{
-		Cid:                  c,
-		Name:                 pins.Name,
-		Allocations:          StringsToPeers(pins.Allocations),
-		ReplicationFactorMin: pins.ReplicationFactorMin,
-		ReplicationFactorMax: pins.ReplicationFactorMax,
-		Recursive:            pins.Recursive,
+		Cid:         c,
+		Allocations: StringsToPeers(pins.Allocations),
+		Type:        PinType(pins.Type),
+		MaxDepth:    pins.MaxDepth,
+		Reference:   ref,
+		PinOptions: PinOptions{
+			Name:                 pins.Name,
+			ReplicationFactorMin: pins.ReplicationFactorMin,
+			ReplicationFactorMax: pins.ReplicationFactorMax,
+			ShardSize:            pins.ShardSize,
+		},
 	}
+}
+
+// Clone returns a deep copy of the PinSerial.
+func (pins PinSerial) Clone() PinSerial {
+	new := pins // this copy all the simple fields.
+	// slices are pointers. We need to explicitally copy them.
+	new.Allocations = make([]string, len(pins.Allocations))
+	copy(new.Allocations, pins.Allocations)
+	return new
+}
+
+// DecodeCid retrieves just the cid from a PinSerial without
+// allocating a Pin.
+func (pins PinSerial) DecodeCid() cid.Cid {
+	c, err := cid.Decode(pins.Cid)
+	if err != nil {
+		logger.Debug(pins.Cid, err)
+	}
+	return c
+}
+
+// NodeWithMeta specifies a block of data and a set of optional metadata fields
+// carrying information about the encoded ipld node
+type NodeWithMeta struct {
+	Data    []byte
+	Cid     string
+	CumSize uint64 // Cumulative size
+	Format  string
+}
+
+// Size returns how big is the block. It is different from CumSize, which
+// records the size of the underlying tree.
+func (n *NodeWithMeta) Size() uint64 {
+	return uint64(len(n.Data))
 }
 
 // Metric transports information about a peer.ID. It is used to decide
@@ -624,10 +928,10 @@ func (pins PinSerial) ToPin() Pin {
 // the Value, which should be interpreted by the PinAllocator.
 type Metric struct {
 	Name   string
-	Peer   peer.ID // filled-in by Cluster.
+	Peer   peer.ID
 	Value  string
-	Expire int64 // UnixNano
-	Valid  bool  // if the metric is not valid it will be discarded
+	Expire int64
+	Valid  bool
 }
 
 // SetTTL sets Metric to expire after the given time.Duration
@@ -653,6 +957,51 @@ func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
+// MetricSerial is a helper for JSON marshaling. The Metric type is already
+// serializable, but not pretty to humans (API).
+type MetricSerial struct {
+	Name   string `json:"name"`
+	Peer   string `json:"peer"`
+	Value  string `json:"value"`
+	Expire int64  `json:"expire"`
+	Valid  bool   `json:"valid"`
+}
+
+// MarshalJSON allows a Metric to produce a JSON representation
+// of itself.
+func (m *Metric) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&MetricSerial{
+		Name:   m.Name,
+		Peer:   peer.IDB58Encode(m.Peer),
+		Value:  m.Value,
+		Expire: m.Expire,
+	})
+}
+
+// UnmarshalJSON decodes JSON on top of the Metric.
+func (m *Metric) UnmarshalJSON(j []byte) error {
+	if bytes.Equal(j, []byte("null")) {
+		return nil
+	}
+
+	ms := &MetricSerial{}
+	err := json.Unmarshal(j, ms)
+	if err != nil {
+		return err
+	}
+
+	p, err := peer.IDB58Decode(ms.Peer)
+	if err != nil {
+		return err
+	}
+
+	m.Name = ms.Name
+	m.Peer = p
+	m.Value = ms.Value
+	m.Expire = ms.Expire
+	return nil
+}
+
 // Alert carries alerting information about a peer. WIP.
 type Alert struct {
 	Peer       peer.ID
@@ -668,4 +1017,10 @@ type Error struct {
 // Error implements the error interface and returns the error's message.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s (%d)", e.Message, e.Code)
+}
+
+// IPFSRepoStat wraps information about the IPFS repository.
+type IPFSRepoStat struct {
+	RepoSize   uint64
+	StorageMax uint64
 }

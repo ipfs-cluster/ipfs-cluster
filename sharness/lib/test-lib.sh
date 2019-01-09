@@ -2,7 +2,7 @@
 
 # Sharness test framework for ipfs-cluster
 #
-# We are using sharness (https://github.com/mlafeldt/sharness)
+# We are using sharness (https://github.com/chriscool/sharness)
 # which was extracted from the Git test framework.
 
 SHARNESS_LIB="lib/sharness/sharness.sh"
@@ -43,6 +43,10 @@ test_ipfs_init() {
         sleep 2
     fi
     test_set_prereq IPFS
+}
+
+ipfsCmd() {
+    docker exec -i ipfs ipfs $@
 }
 
 test_ipfs_running() {

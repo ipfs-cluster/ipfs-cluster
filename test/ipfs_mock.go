@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,14 +14,16 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
 	cid "github.com/ipfs/go-cid"
+	u "github.com/ipfs/go-ipfs-util"
 )
 
 // IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.
 type IpfsMock struct {
-	server *httptest.Server
-	Addr   string
-	Port   int
-	pinMap *mapstate.MapState
+	server     *httptest.Server
+	Addr       string
+	Port       int
+	pinMap     *mapstate.MapState
+	BlockStore map[string][]byte
 }
 
 type mockPinResp struct {
@@ -76,11 +79,17 @@ type mockIpfsPeer struct {
 	Peer string
 }
 
+type mockBlockPutResp struct {
+	Key string
+}
+
 // NewIpfsMock returns a new mock.
 func NewIpfsMock() *IpfsMock {
 	st := mapstate.NewMapState()
+	blocks := make(map[string][]byte)
 	m := &IpfsMock{
-		pinMap: st,
+		pinMap:     st,
+		BlockStore: blocks,
 	}
 	ts := httptest.NewServer(http.HandlerFunc(m.handler))
 	m.server = ts
@@ -98,6 +107,8 @@ func NewIpfsMock() *IpfsMock {
 // FIXME: what if IPFS API changes?
 func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
+	w.Header().Set("Access-Control-Allow-Headers", "test-allow-header")
+	w.Header().Set("Server", "ipfs-mock")
 	endp := strings.TrimPrefix(p, "/api/v0/")
 	switch endp {
 	case "id":
@@ -106,33 +117,6 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
 			},
-		}
-		j, _ := json.Marshal(resp)
-		w.Write(j)
-	case "add":
-		c, _ := cid.Decode(TestCid3)
-		// add also pins
-		m.pinMap.Add(api.PinCid(c))
-		_, fheader, err := r.FormFile("file")
-		if err != nil {
-			http.Error(w, "no file in /add", 500)
-			return
-		}
-
-		query := r.URL.Query()
-		progress, ok := query["progress"]
-		if ok && len(progress) > 0 && progress[0] != "false" {
-			progressResp := mockAddResp{
-				Name:  fheader.Filename,
-				Bytes: 4,
-			}
-			j, _ := json.Marshal(progressResp)
-			w.Write(j)
-		}
-
-		resp := mockAddResp{
-			Name: fheader.Filename,
-			Hash: TestCid3,
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
@@ -226,11 +210,68 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
+	case "block/put":
+		// Get the data and retun the hash
+		mpr, err := r.MultipartReader()
+		if err != nil {
+			goto ERROR
+		}
+		part, err := mpr.NextPart()
+		if err != nil {
+			goto ERROR
+		}
+		data, err := ioutil.ReadAll(part)
+		if err != nil {
+			goto ERROR
+		}
+		// Parse cid from data and format and add to mock block-store
+		query := r.URL.Query()
+		format, ok := query["f"]
+		if !ok || len(format) != 1 {
+			goto ERROR
+		}
+		var c string
+		hash := u.Hash(data)
+		codec, ok := cid.Codecs[format[0]]
+		if !ok {
+			goto ERROR
+		}
+		if format[0] == "v0" {
+			c = cid.NewCidV0(hash).String()
+		} else {
+			c = cid.NewCidV1(codec, hash).String()
+		}
+		m.BlockStore[c] = data
+
+		resp := mockBlockPutResp{
+			Key: c,
+		}
+		j, _ := json.Marshal(resp)
+		w.Write(j)
+	case "block/get":
+		query := r.URL.Query()
+		arg, ok := query["arg"]
+		if !ok {
+			goto ERROR
+		}
+		if len(arg) != 1 {
+			goto ERROR
+		}
+		data, ok := m.BlockStore[arg[0]]
+		if !ok {
+			goto ERROR
+		}
+		w.Write(data)
 	case "repo/stat":
+		sizeOnly := r.URL.Query().Get("size-only")
 		len := len(m.pinMap.List())
+		numObjs := uint64(len)
+		if sizeOnly == "true" {
+			numObjs = 0
+		}
 		resp := mockRepoStatResp{
 			RepoSize:   uint64(len) * 1000,
-			NumObjects: uint64(len),
+			NumObjects: numObjs,
 			StorageMax: 10000000000, //10 GB
 		}
 		j, _ := json.Marshal(resp)

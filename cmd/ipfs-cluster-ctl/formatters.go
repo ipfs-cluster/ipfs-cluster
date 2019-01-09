@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -20,8 +23,13 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.GlobalPinInfo).ToSerial())
 	case api.Pin:
 		jsonFormatPrint(resp.(api.Pin).ToSerial())
+	case api.AddedOutput:
+		jsonFormatPrint(resp.(api.AddedOutput))
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
+	case api.Metric:
+		serial := resp.(api.Metric)
+		textFormatPrintMetric(&serial)
 	case api.Error:
 		jsonFormatPrint(resp.(api.Error))
 	case []api.ID:
@@ -45,6 +53,12 @@ func jsonFormatObject(resp interface{}) {
 		for i, item := range r {
 			serials[i] = item.ToSerial()
 		}
+		jsonFormatPrint(serials)
+	case []api.AddedOutput:
+		serials := resp.([]api.AddedOutput)
+		jsonFormatPrint(serials)
+	case []api.Metric:
+		serials := resp.([]api.Metric)
 		jsonFormatPrint(serials)
 	default:
 		checkErr("", errors.New("unsupported type returned"))
@@ -70,23 +84,36 @@ func textFormatObject(resp interface{}) {
 	case api.Pin:
 		serial := resp.(api.Pin).ToSerial()
 		textFormatPrintPin(&serial)
+	case api.AddedOutput:
+		serial := resp.(api.AddedOutput)
+		textFormatPrintAddedOutput(&serial)
 	case api.Version:
 		serial := resp.(api.Version)
 		textFormatPrintVersion(&serial)
 	case api.Error:
 		serial := resp.(api.Error)
 		textFormatPrintError(&serial)
+	case api.Metric:
+		serial := resp.(api.Metric)
+		textFormatPrintMetric(&serial)
 	case []api.ID:
 		for _, item := range resp.([]api.ID) {
 			textFormatObject(item)
 		}
-
 	case []api.GlobalPinInfo:
 		for _, item := range resp.([]api.GlobalPinInfo) {
 			textFormatObject(item)
 		}
 	case []api.Pin:
 		for _, item := range resp.([]api.Pin) {
+			textFormatObject(item)
+		}
+	case []api.AddedOutput:
+		for _, item := range resp.([]api.AddedOutput) {
+			textFormatObject(item)
+		}
+	case []api.Metric:
+		for _, item := range resp.([]api.Metric) {
 			textFormatObject(item)
 		}
 	default:
@@ -136,11 +163,15 @@ func textFormatPrintGPInfo(obj *api.GlobalPinInfoSerial) {
 
 	for _, k := range peers {
 		v := obj.PeerMap[k]
-		if v.Error != "" {
-			fmt.Printf("    > Peer %s : ERROR | %s\n", k, v.Error)
-			continue
+		if len(v.PeerName) > 0 {
+			fmt.Printf("    > %-15s : %s", v.PeerName, strings.ToUpper(v.Status))
+		} else {
+			fmt.Printf("    > %-15s : %s", k, strings.ToUpper(v.Status))
 		}
-		fmt.Printf("    > Peer %s : %s | %s\n", k, strings.ToUpper(v.Status), v.TS)
+		if v.Error != "" {
+			fmt.Printf(": %s", v.Error)
+		}
+		fmt.Printf(" | %s\n", v.TS)
 	}
 }
 
@@ -159,21 +190,51 @@ func textFormatPrintVersion(obj *api.Version) {
 }
 
 func textFormatPrintPin(obj *api.PinSerial) {
-	fmt.Printf("%s | %s | ", obj.Cid, obj.Name)
+	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, strings.ToUpper(obj.ToPin().Type.String()))
 
 	if obj.ReplicationFactorMin < 0 {
-		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]\n")
+		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
 	} else {
 		var sortAlloc sort.StringSlice = obj.Allocations
 		sortAlloc.Sort()
-		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s\n",
+		fmt.Printf("Repl. Factor: %d--%d | Allocations: %s",
 			obj.ReplicationFactorMin, obj.ReplicationFactorMax,
 			sortAlloc)
 	}
+	var recStr string
+	switch obj.MaxDepth {
+	case 0:
+		recStr = "Direct"
+	case -1:
+		recStr = "Recursive"
+	default:
+		recStr = fmt.Sprintf("Recursive-%d", obj.MaxDepth)
+	}
+
+	fmt.Printf(" | %s\n", recStr)
+}
+
+func textFormatPrintAddedOutput(obj *api.AddedOutput) {
+	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
+}
+
+func textFormatPrintMetric(obj *api.Metric) {
+	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
+	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
 func textFormatPrintError(obj *api.Error) {
 	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)
 	fmt.Printf("  Message: %s\n", obj.Message)
+}
+
+func trackerStatusAllString() string {
+	var strs []string
+	for _, st := range api.TrackerStatusAll() {
+		strs = append(strs, "  - "+st.String())
+	}
+
+	sort.Strings(strs)
+	return strings.Join(strs, "\n")
 }

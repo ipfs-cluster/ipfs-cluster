@@ -1,6 +1,8 @@
 package ipfscluster
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestClusterSecretFormat(t *testing.T) {
 	goodSecret := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -40,7 +42,7 @@ func TestSimplePNet(t *testing.T) {
 		t.Skip("need at least 2 nodes for this test")
 	}
 
-	_, err := clusters[0].PeerAdd(clusterAddr(clusters[1]))
+	_, err := clusters[0].PeerAdd(clusters[1].id)
 	if err != nil {
 		t.Fatal(err)
 	}

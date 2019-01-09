@@ -14,6 +14,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
+	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
@@ -22,6 +23,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
@@ -109,7 +111,12 @@ func createCluster(
 	api, err := rest.NewAPIWithHost(cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
+	proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
+	checkErr("creating IPFS Proxy component", err)
+
+	apis := []ipfscluster.API{api, proxy}
+
+	connector, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
 	checkErr("creating IPFS Connector component", err)
 
 	state := mapstate.NewMapState()
@@ -125,7 +132,7 @@ func createCluster(
 	)
 	checkErr("creating consensus component", err)
 
-	tracker := maptracker.NewMapPinTracker(cfgs.trackerCfg, host.ID())
+	tracker := setupPinTracker(c.String("pintracker"), host, cfgs.maptrackerCfg, cfgs.statelessTrackerCfg, cfgs.clusterCfg.Peername)
 	mon := setupMonitor(c.String("monitor"), host, cfgs.monCfg, cfgs.pubsubmonCfg)
 	informer, alloc := setupAllocation(c.String("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
@@ -135,8 +142,8 @@ func createCluster(
 		host,
 		cfgs.clusterCfg,
 		raftcon,
-		api,
-		proxy,
+		apis,
+		connector,
 		state,
 		tracker,
 		mon,
@@ -238,10 +245,12 @@ func setupMonitor(
 	case "basic":
 		mon, err := basic.NewMonitor(basicCfg)
 		checkErr("creating monitor", err)
+		logger.Debug("basic monitor loaded")
 		return mon
 	case "pubsub":
 		mon, err := pubsubmon.New(h, pubsubCfg)
 		checkErr("creating monitor", err)
+		logger.Debug("pubsub monitor loaded")
 		return mon
 	default:
 		err := errors.New("unknown monitor type")
@@ -249,4 +258,27 @@ func setupMonitor(
 		return nil
 	}
 
+}
+
+func setupPinTracker(
+	name string,
+	h host.Host,
+	mapCfg *maptracker.Config,
+	statelessCfg *stateless.Config,
+	peerName string,
+) ipfscluster.PinTracker {
+	switch name {
+	case "map":
+		ptrk := maptracker.NewMapPinTracker(mapCfg, h.ID(), peerName)
+		logger.Debug("map pintracker loaded")
+		return ptrk
+	case "stateless":
+		ptrk := stateless.New(statelessCfg, h.ID(), peerName)
+		logger.Debug("stateless pintracker loaded")
+		return ptrk
+	default:
+		err := errors.New("unknown pintracker type")
+		checkErr("", err)
+		return nil
+	}
 }

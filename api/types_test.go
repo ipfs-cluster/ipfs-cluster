@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ var testMAddr, _ = ma.NewMultiaddr("/ip4/1.2.3.4")
 var testMAddr2, _ = ma.NewMultiaddr("/dns4/a.b.c.d")
 var testMAddr3, _ = ma.NewMultiaddr("/ip4/127.0.0.1/tcp/8081/ws/ipfs/QmSoLer265NRgSp2LA3dPaeykiS1J6DifTC88f5uVQKNAd")
 var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
+var testCid2, _ = cid.Decode("QmYCLpFCj9Av8NFjkQogvtXspnTDFWaizLpVFEijHTH4eV")
+var testCid3, _ = cid.Decode("QmZmdA3UZKuHuy9FrWsxJ82q21nbEh97NUnxTzF5EHxZia")
+var testCid4, _ = cid.Decode("QmZbNfi13Sb2WUDMjiW1ZNhnds5KDk6mJB5hP9B5h9m5CJ")
 var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 var testPeerID2, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabd")
 var testPeerID3, _ = peer.IDB58Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
@@ -23,11 +27,16 @@ var testPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGj
 var testPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
 
 func TestTrackerFromString(t *testing.T) {
-	testcases := []string{"bug", "cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
+	testcases := []string{"cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
 	for i, tc := range testcases {
-		if TrackerStatusFromString(tc).String() != TrackerStatus(i).String() {
+		if TrackerStatusFromString(tc).String() != TrackerStatus(1<<uint(i+1)).String() {
 			t.Errorf("%s does not match  TrackerStatus %d", tc, i)
 		}
+	}
+
+	if TrackerStatusFromString("") != TrackerStatusUndefined ||
+		TrackerStatusFromString("xyz") != TrackerStatusUndefined {
+		t.Error("expected tracker status undefined for bad strings")
 	}
 }
 
@@ -184,18 +193,33 @@ func TestPinConv(t *testing.T) {
 	}()
 
 	c := Pin{
-		Cid:                  testCid1,
-		Allocations:          []peer.ID{testPeerID1},
-		ReplicationFactorMax: -1,
-		ReplicationFactorMin: -1,
+		Cid:         testCid1,
+		Type:        ClusterDAGType,
+		Allocations: []peer.ID{testPeerID1},
+		Reference:   testCid2,
+		MaxDepth:    -1,
+		PinOptions: PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: -1,
+			Name:                 "A test pin",
+		},
 	}
 
 	newc := c.ToSerial().ToPin()
-	if c.Cid.String() != newc.Cid.String() ||
+	if !c.Cid.Equals(newc.Cid) ||
 		c.Allocations[0] != newc.Allocations[0] ||
 		c.ReplicationFactorMin != newc.ReplicationFactorMin ||
-		c.ReplicationFactorMax != newc.ReplicationFactorMax {
-		t.Error("mismatch")
+		c.ReplicationFactorMax != newc.ReplicationFactorMax ||
+		c.MaxDepth != newc.MaxDepth ||
+		!c.Reference.Equals(newc.Reference) ||
+		c.Name != newc.Name || c.Type != newc.Type {
+
+		fmt.Printf("c: %+v\ncnew: %+v\n", c, newc)
+		t.Fatal("mismatch")
+	}
+
+	if !c.Equals(newc) {
+		t.Error("all pin fields are equal but Equals returns false")
 	}
 }
 
@@ -236,5 +260,47 @@ func TestMetric(t *testing.T) {
 	ttl := m.GetTTL()
 	if ttl > 30*time.Second || ttl < 29*time.Second {
 		t.Error("looks like a bad ttl")
+	}
+}
+
+func BenchmarkPinSerial_ToPin(b *testing.B) {
+	pin := Pin{
+		Cid:         testCid1,
+		Type:        ClusterDAGType,
+		Allocations: []peer.ID{testPeerID1},
+		Reference:   testCid2,
+		MaxDepth:    -1,
+		PinOptions: PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: -1,
+			Name:                 "A test pin",
+		},
+	}
+	pinS := pin.ToSerial()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pinS.ToPin()
+	}
+}
+
+func BenchmarkPinSerial_DecodeCid(b *testing.B) {
+	pin := Pin{
+		Cid:         testCid1,
+		Type:        ClusterDAGType,
+		Allocations: []peer.ID{testPeerID1},
+		Reference:   testCid2,
+		MaxDepth:    -1,
+		PinOptions: PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: -1,
+			Name:                 "A test pin",
+		},
+	}
+	pinS := pin.ToSerial()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pinS.DecodeCid()
 	}
 }

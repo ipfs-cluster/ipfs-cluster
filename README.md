@@ -16,12 +16,20 @@
 <img src="https://cluster.ipfs.io/cluster/png/IPFS_Cluster_color_no_text.png" alt="logo" width="300" height="300" />
 </p>
 
-IPFS Cluster allows to allocate, replicate and track Pins across a cluster of IPFS daemons.
+IPFS Cluster is a stand-alone application and a CLI client that allocates, replicates, and tracks pins across a cluster of IPFS daemons.
 
 It provides:
 
 * A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs`.
 * A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
+
+---
+
+### Are you using IPFS Cluster?
+
+Please participate in the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
+
+---
 
 ## Table of Contents
 

@@ -13,9 +13,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	logging "github.com/ipfs/go-log"
 	consensus "github.com/libp2p/go-libp2p-consensus"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
@@ -43,7 +43,7 @@ type Consensus struct {
 	rpcReady  chan struct{}
 	readyCh   chan struct{}
 
-	shutdownLock sync.Mutex
+	shutdownLock sync.RWMutex
 	shutdown     bool
 }
 
@@ -139,12 +139,10 @@ func (cc *Consensus) WaitForSync() error {
 // signal the component as Ready.
 func (cc *Consensus) finishBootstrap() {
 	// wait until we have RPC to perform any actions.
-	if cc.rpcClient == nil {
-		select {
-		case <-cc.ctx.Done():
-			return
-		case <-cc.rpcReady:
-		}
+	select {
+	case <-cc.ctx.Done():
+		return
+	case <-cc.rpcReady:
 	}
 
 	// Sometimes bootstrap is a no-op. It only applies when
@@ -291,9 +289,9 @@ func (cc *Consensus) commit(op *LogOp, rpcOp string, redirectArg interface{}) er
 		// Being here means we are the LEADER. We can commit.
 
 		// now commit the changes to our state
-		cc.shutdownLock.Lock() // do not shut down while committing
+		cc.shutdownLock.RLock() // do not shut down while committing
 		_, finalErr = cc.consensus.CommitOp(op)
-		cc.shutdownLock.Unlock()
+		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			goto RETRY
 		}
@@ -347,9 +345,9 @@ func (cc *Consensus) AddPeer(pid peer.ID) error {
 			return err
 		}
 		// Being here means we are the leader and can commit
-		cc.shutdownLock.Lock() // do not shutdown while committing
+		cc.shutdownLock.RLock() // do not shutdown while committing
 		finalErr = cc.raft.AddPeer(peer.IDB58Encode(pid))
-		cc.shutdownLock.Unlock()
+		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
 			continue
@@ -374,9 +372,9 @@ func (cc *Consensus) RmPeer(pid peer.ID) error {
 			return err
 		}
 		// Being here means we are the leader and can commit
-		cc.shutdownLock.Lock() // do not shutdown while committing
+		cc.shutdownLock.RLock() // do not shutdown while committing
 		finalErr = cc.raft.RemovePeer(peer.IDB58Encode(pid))
-		cc.shutdownLock.Unlock()
+		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
 			continue
@@ -414,6 +412,8 @@ func (cc *Consensus) Leader() (peer.ID, error) {
 // Clean removes all raft data from disk. Next time
 // a full new peer will be bootstrapped.
 func (cc *Consensus) Clean() error {
+	cc.shutdownLock.RLock()
+	defer cc.shutdownLock.RUnlock()
 	if !cc.shutdown {
 		return errors.New("consensus component is not shutdown")
 	}
@@ -438,6 +438,9 @@ func (cc *Consensus) Rollback(state state.State) error {
 // Peers return the current list of peers in the consensus.
 // The list will be sorted alphabetically.
 func (cc *Consensus) Peers() ([]peer.ID, error) {
+	cc.shutdownLock.RLock() // prevent shutdown while here
+	defer cc.shutdownLock.RUnlock()
+
 	if cc.shutdown { // things hang a lot in this case
 		return nil, errors.New("consensus is shutdown")
 	}

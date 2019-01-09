@@ -1,3 +1,4 @@
+// The ipfs-cluster-service application.
 package main
 
 import (
@@ -10,11 +11,13 @@ import (
 
 	//	_ "net/http/pprof"
 
-	logging "github.com/ipfs/go-log"
-	cli "github.com/urfave/cli"
-
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/version"
+
+	semver "github.com/blang/semver"
+	logging "github.com/ipfs/go-log"
+	cli "github.com/urfave/cli"
 )
 
 // ProgramName of this application
@@ -24,7 +27,13 @@ const programName = `ipfs-cluster-service`
 const (
 	defaultAllocation = "disk-freespace"
 	defaultMonitor    = "pubsub"
+	defaultPinTracker = "map"
 	defaultLogLevel   = "info"
+)
+
+const (
+	stateCleanupPrompt           = "The peer's state will be removed from the load path.  Existing pins may be lost."
+	configurationOverwritePrompt = "Configuration(service.json) will be overwritten."
 )
 
 // We store a commit id here
@@ -107,8 +116,10 @@ var (
 )
 
 func init() {
-	// Set the right commit. The only way I could make this work
-	ipfscluster.Commit = commit
+	// Set build information.
+	if build, err := semver.NewBuildVersion(commit); err == nil {
+		version.Version.Build = []string{"git" + build}
+	}
 
 	// We try guessing user's home from the HOME variable. This
 	// allows HOME hacks for things like Snapcraft builds. HOME
@@ -154,7 +165,7 @@ func main() {
 	app.Usage = "IPFS Cluster node"
 	app.Description = Description
 	//app.Copyright = "© Protocol Labs, Inc."
-	app.Version = ipfscluster.Version
+	app.Version = version.Version.String()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "config, c",
@@ -204,8 +215,31 @@ configuration.
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
+
 				cfgMgr, cfgs := makeConfigs()
 				defer cfgMgr.Shutdown() // wait for saves
+
+				var alreadyInitialized bool
+				if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+					alreadyInitialized = true
+				}
+
+				if alreadyInitialized {
+					// acquire lock for config folder
+					err := locker.lock()
+					checkErr("acquiring execution lock", err)
+					defer locker.tryUnlock()
+
+					if !c.Bool("force") && !yesNoPrompt(fmt.Sprintf("%s\n%s Continue? [y/n]:", stateCleanupPrompt, configurationOverwritePrompt)) {
+						return nil
+					}
+
+					err = cfgMgr.LoadJSONFromFile(configPath)
+					checkErr("reading configuration", err)
+
+					err = cleanupState(cfgs.consensusCfg)
+					checkErr("Cleaning up consensus data", err)
+				}
 
 				// Generate defaults for all registered components
 				err := cfgMgr.Default()
@@ -217,7 +251,7 @@ configuration.
 				}
 
 				// Save
-				saveConfig(cfgMgr, c.GlobalBool("force"))
+				saveConfig(cfgMgr)
 				return nil
 			},
 		},
@@ -248,6 +282,12 @@ configuration.
 					Value:  defaultMonitor,
 					Hidden: true,
 					Usage:  "peer monitor to use [basic,pubsub].",
+				},
+				cli.StringFlag{
+					Name:   "pintracker",
+					Value:  defaultPinTracker,
+					Hidden: true,
+					Usage:  "pintracker to use [map,stateless].",
 				},
 			},
 			Action: daemon,
@@ -331,12 +371,18 @@ snapshot to be loaded as the cluster state when the cluster peer is restarted.
 If an argument is provided, cluster will treat it as the path of the file to
 import.  If no argument is provided cluster will read json from stdin
 `,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "force, f",
+							Usage: "forcefully proceed with replacing the current state with the given one, without prompting",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						if !c.GlobalBool("force") {
+						if !c.Bool("force") {
 							if !yesNoPrompt("The peer's state will be replaced.  Run with -h for details.  Continue? [y/n]:") {
 								return nil
 							}
@@ -369,13 +415,19 @@ this state from disk.  This command renames cluster's data folder to <data-folde
 deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
 the mth data folder (m currently defaults to 5)
 `,
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "force, f",
+							Usage: "forcefully proceed with rotating peer state without prompting",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						if !c.GlobalBool("force") {
-							if !yesNoPrompt("The peer's state will be removed from the load path.  Existing pins may be lost.  Continue? [y/n]:") {
+						if !c.Bool("force") {
+							if !yesNoPrompt(fmt.Sprintf("%s Continue? [y/n]:", stateCleanupPrompt)) {
 								return nil
 							}
 						}
@@ -386,7 +438,6 @@ the mth data folder (m currently defaults to 5)
 
 						err = cleanupState(cfgs.consensusCfg)
 						checkErr("Cleaning up consensus data", err)
-						logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cfgs.consensusCfg.GetDataFolder())
 						return nil
 					},
 				},
@@ -396,12 +447,7 @@ the mth data folder (m currently defaults to 5)
 			Name:  "version",
 			Usage: "Print the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
-				if c := ipfscluster.Commit; len(c) >= 8 {
-					fmt.Printf("%s-%s\n", ipfscluster.Version, c)
-					return nil
-				}
-
-				fmt.Printf("%s\n", ipfscluster.Version)
+				fmt.Printf("%s\n", version.Version)
 				return nil
 			},
 		},

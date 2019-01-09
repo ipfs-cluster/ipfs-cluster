@@ -36,32 +36,42 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 		panic("received unexpected state type")
 	}
 
+	// Copy the Cid. We are about to pass it to go-routines
+	// that will make things with it (read its fields). However,
+	// as soon as ApplyTo is done, the next operation will be deserealized
+	// on top of "op". This can cause data races with the slices in
+	// api.PinSerial, which don't get copied when passed.
+	pinS := op.Cid.Clone()
+
 	switch op.Type {
 	case LogOpPin:
-		err = state.Add(op.Cid.ToPin())
+		err = state.Add(pinS.ToPin())
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go("",
+		op.consensus.rpcClient.Go(
+			"",
 			"Cluster",
 			"Track",
-			op.Cid,
+			pinS,
 			&struct{}{},
-			nil)
+			nil,
+		)
 	case LogOpUnpin:
-		err = state.Rm(op.Cid.ToPin().Cid)
+		err = state.Rm(pinS.DecodeCid())
 		if err != nil {
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
-		op.consensus.rpcClient.Go("",
+		op.consensus.rpcClient.Go(
+			"",
 			"Cluster",
 			"Untrack",
-			op.Cid,
+			pinS,
 			&struct{}{},
-			nil)
-
+			nil,
+		)
 	default:
 		logger.Error("unknown LogOp type. Ignoring")
 	}

@@ -10,6 +10,8 @@ var (
 	TestCid1     = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq"
 	TestCid2     = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma"
 	TestCid3     = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb"
+	TestCid4     = "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57"
+	TestCid4Data = "Cid4Data" // Cid resulting from block put NOT ipfs add
 	TestSlowCid1 = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd"
 	// ErrorCid is meant to be used as a Cid which causes errors. i.e. the
 	// ipfs mock fails when pinning this CID.
@@ -20,11 +22,18 @@ var (
 	TestPeerID4, _ = peer.IDB58Decode("QmZ8naDy5mEz4GLuQwjWt9MPYqHTBbsm8tQBrNSjiq6zBc")
 	TestPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGjgRRjg")
 	TestPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
+
+	TestPeerName1 = "TestPeer1"
+	TestPeerName2 = "TestPeer2"
+	TestPeerName3 = "TestPeer3"
+	TestPeerName4 = "TestPeer4"
+	TestPeerName5 = "TestPeer5"
+	TestPeerName6 = "TestPeer6"
 )
 
 // MustDecodeCid provides a test helper that ignores
 // errors from cid.Decode.
-func MustDecodeCid(v string) *cid.Cid {
+func MustDecodeCid(v string) cid.Cid {
 	c, _ := cid.Decode(v)
 	return c
 }

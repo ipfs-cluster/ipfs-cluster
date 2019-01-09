@@ -25,6 +25,9 @@ const (
 	OperationUnpin
 	// OperationRemote represents an noop operation
 	OperationRemote
+	// OperationShard represents a meta pin. We don't
+	// pin these.
+	OperationShard
 )
 
 //go:generate stringer -type=Phase
@@ -77,7 +80,7 @@ func NewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase)
 }
 
 // Cid returns the Cid associated to this operation.
-func (op *Operation) Cid() *cid.Cid {
+func (op *Operation) Cid() cid.Cid {
 	op.mu.RLock()
 	defer op.mu.RUnlock()
 	return op.pin.Cid
@@ -136,7 +139,7 @@ func (op *Operation) Pin() api.Pin {
 }
 
 // Timestamp returns the time when this operation was
-// last modified (phase changed, error was set...)
+// last modified (phase changed, error was set...).
 func (op *Operation) Timestamp() time.Time {
 	op.mu.RLock()
 	defer op.mu.RUnlock()
@@ -172,7 +175,7 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		case PhaseDone:
 			return api.TrackerStatusPinned
 		default:
-			return api.TrackerStatusBug
+			return api.TrackerStatusUndefined
 		}
 	case OperationUnpin:
 		switch ph {
@@ -185,11 +188,43 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		case PhaseDone:
 			return api.TrackerStatusUnpinned
 		default:
-			return api.TrackerStatusBug
+			return api.TrackerStatusUndefined
 		}
 	case OperationRemote:
 		return api.TrackerStatusRemote
+	case OperationShard:
+		return api.TrackerStatusSharded
 	default:
-		return api.TrackerStatusBug
+		return api.TrackerStatusUndefined
+	}
+
+}
+
+// TrackerStatusToOperationPhase takes an api.TrackerStatus and
+// converts it to an OpType and Phase.
+func TrackerStatusToOperationPhase(status api.TrackerStatus) (OperationType, Phase) {
+	switch status {
+	case api.TrackerStatusPinError:
+		return OperationPin, PhaseError
+	case api.TrackerStatusPinQueued:
+		return OperationPin, PhaseQueued
+	case api.TrackerStatusPinning:
+		return OperationPin, PhaseInProgress
+	case api.TrackerStatusPinned:
+		return OperationPin, PhaseDone
+	case api.TrackerStatusUnpinError:
+		return OperationUnpin, PhaseError
+	case api.TrackerStatusUnpinQueued:
+		return OperationUnpin, PhaseQueued
+	case api.TrackerStatusUnpinning:
+		return OperationUnpin, PhaseInProgress
+	case api.TrackerStatusUnpinned:
+		return OperationUnpin, PhaseDone
+	case api.TrackerStatusRemote:
+		return OperationRemote, PhaseDone
+	case api.TrackerStatusSharded:
+		return OperationShard, PhaseDone
+	default:
+		return OperationUnknown, PhaseError
 	}
 }

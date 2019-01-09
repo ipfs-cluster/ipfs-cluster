@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -21,9 +22,11 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
@@ -40,9 +43,11 @@ var (
 	// number of pins to pin/unpin/check
 	nPins = 100
 
-	logLevel = "CRITICAL"
+	logLevel               = "CRITICAL"
+	customLogLvlFacilities = logFacilities{}
 
 	pmonitor = "pubsub"
+	ptracker = "map"
 
 	// When testing with fixed ports...
 	// clusterPort   = 10000
@@ -50,22 +55,56 @@ var (
 	// ipfsProxyPort = 10200
 )
 
+type logFacilities []string
+
+// String is the method to format the flag's value, part of the flag.Value interface.
+func (lg *logFacilities) String() string {
+	return fmt.Sprint(*lg)
+}
+
+// Set is the method to set the flag value, part of the flag.Value interface.
+func (lg *logFacilities) Set(value string) error {
+	if len(*lg) > 0 {
+		return errors.New("logFacilities flag already set")
+	}
+	for _, lf := range strings.Split(value, ",") {
+		*lg = append(*lg, lf)
+	}
+	return nil
+}
+
 func init() {
+	flag.Var(&customLogLvlFacilities, "logfacs", "use -logLevel for only the following log facilities; comma-separated")
 	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
 	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
 	flag.IntVar(&nPins, "npins", nPins, "number of pins to pin/unpin/check")
 	flag.StringVar(&pmonitor, "monitor", pmonitor, "monitor implementation")
+	flag.StringVar(&ptracker, "tracker", ptracker, "tracker implementation")
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
 
-	for f := range LoggingFacilities {
-		SetFacilityLogLevel(f, logLevel)
+	if len(customLogLvlFacilities) <= 0 {
+		for f := range LoggingFacilities {
+			SetFacilityLogLevel(f, logLevel)
+		}
+
+		for f := range LoggingFacilitiesExtra {
+			SetFacilityLogLevel(f, logLevel)
+		}
 	}
 
-	for f := range LoggingFacilitiesExtra {
-		SetFacilityLogLevel(f, logLevel)
+	for _, f := range customLogLvlFacilities {
+		if _, ok := LoggingFacilities[f]; ok {
+			SetFacilityLogLevel(f, logLevel)
+			continue
+		}
+		if _, ok := LoggingFacilitiesExtra[f]; ok {
+			SetFacilityLogLevel(f, logLevel)
+			continue
+		}
 	}
+	ReadyTimeout = 11 * time.Second
 }
 
 func checkErr(t *testing.T, err error) {
@@ -83,7 +122,7 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
+func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (host.Host, *Config, *raft.Consensus, []API, IPFSConnector, state.State, PinTracker, PeerMonitor, PinAllocator, Informer, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	//
 	//clusterAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", clusterPort+i))
@@ -102,7 +141,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, diskInfCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -112,22 +151,24 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	clusterCfg.LeaveOnShutdown = false
 	clusterCfg.SetBaseDir("./e2eTestRaft/" + pid.Pretty())
 
-	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
-
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	checkErr(t, err)
 
 	apiCfg.HTTPListenAddr = apiAddr
-	ipfshttpCfg.ProxyAddr = proxyAddr
+	ipfsproxyCfg.ListenAddr = proxyAddr
+	ipfsproxyCfg.NodeAddr = nodeAddr
 	ipfshttpCfg.NodeAddr = nodeAddr
 	consensusCfg.DataFolder = "./e2eTestRaft/" + pid.Pretty()
 
 	api, err := rest.NewAPI(apiCfg)
 	checkErr(t, err)
+	ipfsProxy, err := rest.NewAPI(apiCfg)
+	checkErr(t, err)
+
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
 	state := mapstate.NewMapState()
-	tracker := maptracker.NewMapPinTracker(trackerCfg, clusterCfg.ID)
+	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
 	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
 
@@ -137,7 +178,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	raftCon, err := raft.NewConsensus(host, consensusCfg, state, staging)
 	checkErr(t, err)
 
-	return host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock
+	return host, clusterCfg, raftCon, []API{api, ipfsProxy}, ipfs, state, tracker, mon, alloc, inf, mock
 }
 
 func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pubsubmon.Config) PeerMonitor {
@@ -155,8 +196,21 @@ func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pub
 	return mon
 }
 
-func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, api API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
-	cl, err := NewCluster(host, clusterCfg, raftCons, api, ipfs, state, tracker, mon, alloc, inf)
+func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config, peerName string) PinTracker {
+	var ptrkr PinTracker
+	switch ptracker {
+	case "map":
+		ptrkr = maptracker.NewMapPinTracker(mptCfg, pid, peerName)
+	case "stateless":
+		ptrkr = stateless.New(sptCfg, pid, peerName)
+	default:
+		panic("bad pintracker")
+	}
+	return ptrkr
+}
+
+func createCluster(t *testing.T, host host.Host, clusterCfg *Config, raftCons *raft.Consensus, apis []API, ipfs IPFSConnector, state state.State, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer) *Cluster {
+	cl, err := NewCluster(host, clusterCfg, raftCons, apis, ipfs, state, tracker, mon, alloc, inf)
 	checkErr(t, err)
 	return cl
 }
@@ -172,7 +226,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	os.RemoveAll("./e2eTestRaft")
 	cfgs := make([]*Config, nClusters, nClusters)
 	raftCons := make([]*raft.Consensus, nClusters, nClusters)
-	apis := make([]API, nClusters, nClusters)
+	apis := make([][]API, nClusters, nClusters)
 	ipfss := make([]IPFSConnector, nClusters, nClusters)
 	states := make([]state.State, nClusters, nClusters)
 	trackers := make([]PinTracker, nClusters, nClusters)
@@ -189,18 +243,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 
 	for i := 0; i < nClusters; i++ {
 		// staging = true for all except first (i==0)
-		host, clusterCfg, raftCon, api, ipfs, state, tracker, mon, alloc, inf, mock := createComponents(t, i, testingClusterSecret, i != 0)
-		hosts[i] = host
-		cfgs[i] = clusterCfg
-		raftCons[i] = raftCon
-		apis[i] = api
-		ipfss[i] = ipfs
-		states[i] = state
-		trackers[i] = tracker
-		mons[i] = mon
-		allocs[i] = alloc
-		infs[i] = inf
-		ipfsMocks[i] = mock
+		hosts[i], cfgs[i], raftCons[i], apis[i], ipfss[i], states[i], trackers[i], mons[i], allocs[i], infs[i], ipfsMocks[i] = createComponents(t, i, testingClusterSecret, i != 0)
 	}
 
 	// open connections among all hosts
@@ -220,7 +263,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// Start first node
 	clusters[0] = createCluster(t, hosts[0], cfgs[0], raftCons[0], apis[0], ipfss[0], states[0], trackers[0], mons[0], allocs[0], infs[0])
 	<-clusters[0].Ready()
-	bootstrapAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", clusters[0].host.Addrs()[0], clusters[0].id.Pretty()))
+	bootstrapAddr := clusterAddr(clusters[0])
 
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
@@ -336,7 +379,7 @@ func TestClustersVersion(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	f := func(t *testing.T, c *Cluster) {
 		v := c.Version()
-		if v != Version {
+		if v != version.Version.String() {
 			t.Error("Bad version")
 		}
 	}
@@ -420,18 +463,22 @@ func TestClustersPin(t *testing.T) {
 	pinList := clusters[0].Pins()
 
 	for i := 0; i < len(pinList); i++ {
+		// test re-unpin fails
 		j := rand.Intn(nClusters) // choose a random cluster peer
 		err := clusters[j].Unpin(pinList[i].Cid)
 		if err != nil {
 			t.Errorf("error unpinning %s: %s", pinList[i].Cid, err)
 		}
-		// test re-unpin
-		err = clusters[j].Unpin(pinList[i].Cid)
-		if err != nil {
-			t.Errorf("error re-unpinning %s: %s", pinList[i].Cid, err)
-		}
-
 	}
+	delay()
+	for i := 0; i < nPins; i++ {
+		j := rand.Intn(nClusters) // choose a random cluster peer
+		err := clusters[j].Unpin(pinList[i].Cid)
+		if err == nil {
+			t.Errorf("expected error re-unpinning %s: %s", pinList[i].Cid, err)
+		}
+	}
+
 	delay()
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll()
@@ -565,11 +612,11 @@ func TestClustersSyncAllLocal(t *testing.T) {
 			t.Error(err)
 		}
 		if len(infos) != 1 {
-			t.Fatal("expected 1 elem slice")
+			t.Fatalf("expected 1 elem slice, got = %d", len(infos))
 		}
 		// Last-known state may still be pinning
 		if infos[0].Status != api.TrackerStatusPinError && infos[0].Status != api.TrackerStatusPinning {
-			t.Error("element should be in Pinning or PinError state")
+			t.Errorf("element should be in Pinning or PinError state, got = %v", infos[0].Status)
 		}
 	}
 	// Test Local syncs
@@ -624,7 +671,7 @@ func TestClustersSyncAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ginfos) != 1 {
-		t.Fatal("expected globalsync to have 1 elements")
+		t.Fatalf("expected globalsync to have 1 elements, got = %d", len(ginfos))
 	}
 	if ginfos[0].Cid.String() != test.ErrorCid {
 		t.Error("expected globalsync to have problems with test.ErrorCid")
@@ -1007,11 +1054,10 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 		t.Fatal("allocations should be nClusters")
 	}
 
-	err = clusters[0].Pin(api.Pin{
-		Cid:                  h,
-		ReplicationFactorMax: 2,
-		ReplicationFactorMin: 1,
-	})
+	pin := api.PinCid(h)
+	pin.ReplicationFactorMin = 1
+	pin.ReplicationFactorMax = 2
+	err = clusters[0].Pin(pin)
 	if err != nil {
 		t.Fatal(err)
 	}

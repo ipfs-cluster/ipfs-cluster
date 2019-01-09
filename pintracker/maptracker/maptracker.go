@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/util"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -47,14 +47,14 @@ type MapPinTracker struct {
 
 // NewMapPinTracker returns a new object which has been correcly
 // initialized with the given configuration.
-func NewMapPinTracker(cfg *Config, pid peer.ID) *MapPinTracker {
+func NewMapPinTracker(cfg *Config, pid peer.ID, peerName string) *MapPinTracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mpt := &MapPinTracker{
 		ctx:       ctx,
 		cancel:    cancel,
 		config:    cfg,
-		optracker: optracker.NewOperationTracker(ctx, pid),
+		optracker: optracker.NewOperationTracker(ctx, pid, peerName),
 		rpcReady:  make(chan struct{}, 1),
 		peerID:    pid,
 		pinCh:     make(chan *optracker.Operation, cfg.MaxPinQueueSize),
@@ -181,15 +181,24 @@ func (mpt *MapPinTracker) enqueue(c api.Pin, typ optracker.OperationType, ch cha
 func (mpt *MapPinTracker) Track(c api.Pin) error {
 	logger.Debugf("tracking %s", c.Cid)
 
+	// Sharded pins are never pinned. A sharded pin cannot turn into
+	// something else or viceversa like it happens with Remote pins so
+	// we just track them.
+	if c.Type == api.MetaType {
+		mpt.optracker.TrackNewOperation(c, optracker.OperationShard, optracker.PhaseDone)
+		return nil
+	}
+
 	// Trigger unpin whenever something remote is tracked
 	// Note, IPFSConn checks with pin/ls before triggering
-	// pin/rm.
+	// pin/rm, so this actually does not always trigger unpin
+	// to ipfs.
 	if util.IsRemotePin(c, mpt.peerID) {
 		op := mpt.optracker.TrackNewOperation(c, optracker.OperationRemote, optracker.PhaseInProgress)
 		if op == nil {
-			return nil // ongoing unpin
+			return nil // Ongoing operationRemote / PhaseInProgress
 		}
-		err := mpt.unpin(op)
+		err := mpt.unpin(op) // unpin all the time, even if not pinned
 		op.Cancel()
 		if err != nil {
 			op.SetError(err)
@@ -204,14 +213,14 @@ func (mpt *MapPinTracker) Track(c api.Pin) error {
 
 // Untrack tells the MapPinTracker to stop managing a Cid.
 // If the Cid is pinned locally, it will be unpinned.
-func (mpt *MapPinTracker) Untrack(c *cid.Cid) error {
+func (mpt *MapPinTracker) Untrack(c cid.Cid) error {
 	logger.Debugf("untracking %s", c)
 	return mpt.enqueue(api.PinCid(c), optracker.OperationUnpin, mpt.unpinCh)
 }
 
 // Status returns information for a Cid tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) Status(c *cid.Cid) api.PinInfo {
+func (mpt *MapPinTracker) Status(c cid.Cid) api.PinInfo {
 	return mpt.optracker.Get(c)
 }
 
@@ -229,7 +238,7 @@ func (mpt *MapPinTracker) StatusAll() []api.PinInfo {
 // Pins in error states can be recovered with Recover().
 // An error is returned if we are unable to contact
 // the IPFS daemon.
-func (mpt *MapPinTracker) Sync(c *cid.Cid) (api.PinInfo, error) {
+func (mpt *MapPinTracker) Sync(c cid.Cid) (api.PinInfo, error) {
 	var ips api.IPFSPinStatus
 	err := mpt.rpcClient.Call(
 		"",
@@ -266,11 +275,17 @@ func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 		&ipsMap,
 	)
 	if err != nil {
-		// set everything as error
+		// set pinning or unpinning ops to error, since we can't
+		// verify them
 		pInfos := mpt.optracker.GetAll()
 		for _, pInfo := range pInfos {
-			mpt.optracker.SetError(pInfo.Cid, err)
-			results = append(results, mpt.optracker.Get(pInfo.Cid))
+			op, _ := optracker.TrackerStatusToOperationPhase(pInfo.Status)
+			if op == optracker.OperationPin || op == optracker.OperationUnpin {
+				mpt.optracker.SetError(pInfo.Cid, err)
+				results = append(results, mpt.optracker.Get(pInfo.Cid))
+			} else {
+				results = append(results, pInfo)
+			}
 		}
 		return results, nil
 	}
@@ -295,13 +310,27 @@ func (mpt *MapPinTracker) SyncAll() ([]api.PinInfo, error) {
 	return results, nil
 }
 
-func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
+func (mpt *MapPinTracker) syncStatus(c cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
 	status, ok := mpt.optracker.Status(c)
 	if !ok {
 		status = api.TrackerStatusUnpinned
 	}
 
-	if ips.IsPinned() {
+	// TODO(hector): for sharding, we may need to check that a shard
+	// is pinned to the right depth. For now, we assumed that if it's pinned
+	// in some way, then it must be right (including direct).
+	pinned := func(i api.IPFSPinStatus) bool {
+		switch i {
+		case api.IPFSPinStatusRecursive:
+			return i.IsPinned(-1)
+		case api.IPFSPinStatusDirect:
+			return i.IsPinned(0)
+		default:
+			return i.IsPinned(1) // Pinned with depth 1 or more.
+		}
+	}
+
+	if pinned(ips) {
 		switch status {
 		case api.TrackerStatusPinError:
 			// If an item that we wanted to pin is pinned, we mark it so
@@ -341,7 +370,7 @@ func (mpt *MapPinTracker) syncStatus(c *cid.Cid, ips api.IPFSPinStatus) api.PinI
 
 // Recover will re-queue a Cid in error state for the failed operation,
 // possibly retriggering an IPFS pinning operation.
-func (mpt *MapPinTracker) Recover(c *cid.Cid) (api.PinInfo, error) {
+func (mpt *MapPinTracker) Recover(c cid.Cid) (api.PinInfo, error) {
 	logger.Infof("Attempting to recover %s", c)
 	pInfo := mpt.optracker.Get(c)
 	var err error
@@ -374,4 +403,10 @@ func (mpt *MapPinTracker) RecoverAll() ([]api.PinInfo, error) {
 func (mpt *MapPinTracker) SetClient(c *rpc.Client) {
 	mpt.rpcClient = c
 	mpt.rpcReady <- struct{}{}
+}
+
+// OpContext exports the internal optracker's OpContext method.
+// For testing purposes only.
+func (mpt *MapPinTracker) OpContext(c cid.Cid) context.Context {
+	return mpt.optracker.OpContext(c)
 }

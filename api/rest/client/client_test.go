@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	peer "github.com/libp2p/go-libp2p-peer"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -59,39 +60,42 @@ func apiMAddr(a *rest.API) ma.Multiaddr {
 }
 
 func peerMAddr(a *rest.API) ma.Multiaddr {
-	listenAddr := a.Host().Addrs()[0]
-	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", a.Host().ID().Pretty()))
-	return listenAddr.Encapsulate(ipfsAddr)
+	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", peer.IDB58Encode(a.Host().ID())))
+	for _, a := range a.Host().Addrs() {
+		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
+			return a.Encapsulate(ipfsAddr)
+		}
+	}
+	return nil
 }
 
-func testClientHTTP(t *testing.T, api *rest.API) *Client {
+func testClientHTTP(t *testing.T, api *rest.API) *defaultClient {
 	cfg := &Config{
 		APIAddr:           apiMAddr(api),
 		DisableKeepAlives: true,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return c
+	return c.(*defaultClient)
 }
 
-func testClientLibp2p(t *testing.T, api *rest.API) *Client {
+func testClientLibp2p(t *testing.T, api *rest.API) *defaultClient {
 	cfg := &Config{
-		PeerAddr:          peerMAddr(api),
+		APIAddr:           peerMAddr(api),
 		ProtectorKey:      make([]byte, 32),
 		DisableKeepAlives: true,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	return c
+	return c.(*defaultClient)
 }
 
-func TestNewClient(t *testing.T) {
+func TestNewDefaultClient(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
@@ -111,15 +115,16 @@ func TestDefaultAddress(t *testing.T) {
 		APIAddr:           nil,
 		DisableKeepAlives: true,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.hostname != "127.0.0.1:9094" {
+	dc := c.(*defaultClient)
+	if dc.hostname != "127.0.0.1:9094" {
 		t.Error("default should be used")
 	}
 
-	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
+	if dc.config.ProxyAddr == nil || dc.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
 		t.Error("proxy address was not guessed correctly")
 	}
 }
@@ -132,36 +137,69 @@ func TestMultiaddressPrecedence(t *testing.T) {
 		Port:              "9094",
 		DisableKeepAlives: true,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.hostname != "1.2.3.4:1234" {
+	dc := c.(*defaultClient)
+	if dc.hostname != "1.2.3.4:1234" {
 		t.Error("APIAddr should be used")
 	}
 
-	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/1.2.3.4/tcp/9095" {
+	if dc.config.ProxyAddr == nil || dc.config.ProxyAddr.String() != "/ip4/1.2.3.4/tcp/9095" {
 		t.Error("proxy address was not guessed correctly")
 	}
 }
 
 func TestHostPort(t *testing.T) {
-	cfg := &Config{
-		APIAddr:           nil,
-		Host:              "3.3.1.1",
-		Port:              "9094",
-		DisableKeepAlives: true,
-	}
-	c, err := NewClient(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.hostname != "3.3.1.1:9094" {
-		t.Error("Host Port should be used")
+
+	type testcase struct {
+		host              string
+		port              string
+		expectedHostname  string
+		expectedProxyAddr string
 	}
 
-	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/3.3.1.1/tcp/9095" {
-		t.Error("proxy address was not guessed correctly")
+	testcases := []testcase{
+		testcase{
+			host:              "3.3.1.1",
+			port:              "9094",
+			expectedHostname:  "3.3.1.1:9094",
+			expectedProxyAddr: "/ip4/3.3.1.1/tcp/9095",
+		},
+		testcase{
+			host:              "ipfs.io",
+			port:              "9094",
+			expectedHostname:  "ipfs.io:9094",
+			expectedProxyAddr: "/dns4/ipfs.io/tcp/9095",
+		},
+		testcase{
+			host:              "2001:db8::1",
+			port:              "9094",
+			expectedHostname:  "[2001:db8::1]:9094",
+			expectedProxyAddr: "/ip6/2001:db8::1/tcp/9095",
+		},
+	}
+
+	for _, tc := range testcases {
+		cfg := &Config{
+			APIAddr:           nil,
+			Host:              tc.host,
+			Port:              tc.port,
+			DisableKeepAlives: true,
+		}
+		c, err := NewDefaultClient(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dc := c.(*defaultClient)
+		if dc.hostname != tc.expectedHostname {
+			t.Error("Host Port should be used")
+		}
+
+		if paddr := dc.config.ProxyAddr; paddr == nil || paddr.String() != tc.expectedProxyAddr {
+			t.Error("proxy address was not guessed correctly: ", paddr)
+		}
 	}
 }
 
@@ -173,38 +211,38 @@ func TestDNSMultiaddress(t *testing.T) {
 		Port:              "9094",
 		DisableKeepAlives: true,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.hostname != "127.0.0.1:1234" {
-		t.Error("bad resolved address")
+	dc := c.(*defaultClient)
+	if dc.hostname != "localhost:1234" {
+		t.Error("address should not be resolved")
 	}
 
-	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
-		t.Error("proxy address was not guessed correctly")
+	if paddr := dc.config.ProxyAddr; paddr == nil || paddr.String() != "/dns4/localhost/tcp/9095" {
+		t.Error("proxy address was not guessed correctly: ", paddr)
 	}
 }
 
 func TestPeerAddress(t *testing.T) {
-	addr2, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234")
 	peerAddr, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234/ipfs/QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP")
 	cfg := &Config{
-		APIAddr:           addr2,
+		APIAddr:           peerAddr,
 		Host:              "localhost",
 		Port:              "9094",
 		DisableKeepAlives: true,
-		PeerAddr:          peerAddr,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.hostname != "QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP" || c.net != "libp2p" {
+	dc := c.(*defaultClient)
+	if dc.hostname != "QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP" || dc.net != "libp2p" {
 		t.Error("bad resolved address")
 	}
 
-	if c.config.ProxyAddr == nil || c.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
+	if dc.config.ProxyAddr == nil || dc.config.ProxyAddr.String() != "/ip4/127.0.0.1/tcp/9095" {
 		t.Error("proxy address was not guessed correctly")
 	}
 }
@@ -215,12 +253,12 @@ func TestProxyAddress(t *testing.T) {
 		DisableKeepAlives: true,
 		ProxyAddr:         addr,
 	}
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if c.config.ProxyAddr.String() != addr.String() {
+	dc := c.(*defaultClient)
+	if dc.config.ProxyAddr.String() != addr.String() {
 		t.Error("proxy address was replaced")
 	}
 }
@@ -241,12 +279,12 @@ func TestIPFS(t *testing.T) {
 		ProxyAddr:         proxyAddr,
 	}
 
-	c, err := NewClient(cfg)
+	c, err := NewDefaultClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	ipfs := c.IPFS()
+	dc := c.(*defaultClient)
+	ipfs := dc.IPFS()
 
 	err = ipfs.Pin(test.TestCid1)
 	if err != nil {

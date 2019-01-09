@@ -1,3 +1,4 @@
+// The ipfs-cluster-ctl application.
 package main
 
 import (
@@ -8,10 +9,12 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
+	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -24,19 +27,20 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.4.0"
+const Version = "0.7.0"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
-	defaultTimeout       = 120
+	defaultTimeout       = 0
 	defaultUsername      = ""
 	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
+	defaultAddParams     = api.DefaultAddParams()
 )
 
 var logger = logging.Logger("cluster-ctl")
 
-var globalClient *client.Client
+var globalClient client.Client
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
@@ -140,24 +144,16 @@ requires authorization. implies --https, which you can disable with --force-http
 		addr, err := ma.NewMultiaddr(c.String("host"))
 		checkErr("parsing host multiaddress", err)
 
-		// Is this a peer address?
-		pid, err := addr.ValueForProtocol(ma.P_IPFS)
-		if pid != "" && err == nil {
-			logger.Debugf("Using libp2p-http to %s", addr)
-			cfg.PeerAddr = addr
-			if hexSecret := c.String("secret"); hexSecret != "" {
-				secret, err := hex.DecodeString(hexSecret)
-				checkErr("parsing secret", err)
-				cfg.ProtectorKey = secret
-			}
-		} else {
-			logger.Debugf("Using http(s) to %s", addr)
-			cfg.APIAddr = addr
+		cfg.APIAddr = addr
+		if hexSecret := c.String("secret"); hexSecret != "" {
+			secret, err := hex.DecodeString(hexSecret)
+			checkErr("parsing secret", err)
+			cfg.ProtectorKey = secret
 		}
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
 
-		if cfg.PeerAddr != nil && c.Bool("https") {
+		if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
 			logger.Warning("Using libp2p-http. SSL flags will be ignored")
 		}
 
@@ -176,7 +172,7 @@ requires authorization. implies --https, which you can disable with --force-http
 			checkErr("", errors.New("unsupported encoding"))
 		}
 
-		globalClient, err = client.NewClient(cfg)
+		globalClient, err = client.NewDefaultClient(cfg)
 		checkErr("creating API client", err)
 		return nil
 	}
@@ -184,7 +180,7 @@ requires authorization. implies --https, which you can disable with --force-http
 	app.Commands = []cli.Command{
 		{
 			Name:  "id",
-			Usage: "retrieve peer information",
+			Usage: "Retrieve peer information",
 			Description: `
 This command displays information about the peer that the tool is contacting
 (usually running in localhost).
@@ -198,7 +194,8 @@ This command displays information about the peer that the tool is contacting
 		},
 		{
 			Name:        "peers",
-			Description: "list and manage IPFS Cluster peers",
+			Usage:       "List and manage IPFS Cluster peers",
+			Description: "List and manage IPFS Cluster peers",
 			Subcommands: []cli.Command{
 				{
 					Name:  "ls",
@@ -237,12 +234,203 @@ cluster peers.
 			},
 		},
 		{
+			Name:      "add",
+			Usage:     "Add a file or directory to ipfs and pin it in the cluster",
+			ArgsUsage: "<path>",
+			Description: `
+Add allows to add and replicate content to several ipfs daemons, performing
+a Cluster Pin operation on success. It takes elements from local paths as
+well as from web URLs (accessed with a GET request). Providing several
+arguments will automatically set --wrap-in-directory.
+
+Cluster Add is equivalent to "ipfs add" in terms of DAG building, and supports
+the same options for adjusting the chunker, the DAG layout etc. However,
+it will allocate the content and send it directly to the allocated peers (among
+which may not necessarily be the local ipfs daemon).
+
+Once the adding process is finished, the content is fully added to all
+allocations and pinned in them. This makes cluster add slower than a local
+ipfs add, but the result is a fully replicated CID on completion.
+If you prefer faster adding, add directly to the local IPFS and trigger a
+ cluster "pin add".
+
+`,
+			/*
+				Cluster Add supports handling huge files and sharding the resulting DAG among
+				several ipfs daemons (--shard). In this case, a single ipfs daemon will not
+				contain the full dag, but only parts of it (shards). Desired shard size can
+				be provided with the --shard-size flag.
+
+				We recommend setting a --name for sharded pins. Otherwise, it will be
+				automatically generated.
+			*/
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "recursive, r",
+					Usage: "Add directory paths recursively",
+				},
+				cli.BoolFlag{
+					Name:  "quiet, q",
+					Usage: "Write only hashes to output (one per line)",
+				},
+				cli.BoolFlag{
+					Name:  "quieter, Q",
+					Usage: "Write only final hash to output",
+				},
+				cli.StringFlag{
+					Name:  "layout",
+					Value: defaultAddParams.Layout,
+					Usage: "Dag layout to use for dag generation: balanced or trickle",
+				},
+				cli.BoolFlag{
+					Name:  "wrap-with-directory, w",
+					Usage: "Wrap a with a directory object.",
+				},
+				cli.BoolFlag{
+					Name:  "hidden, H",
+					Usage: "Include files that are hidden.  Only takes effect on recursive add",
+				},
+				cli.StringFlag{
+					Name:  "chunker, s",
+					Usage: "'size-<size>' or 'rabin-<min>-<avg>-<max>'",
+					Value: defaultAddParams.Chunker,
+				},
+				cli.BoolFlag{
+					Name:  "raw-leaves",
+					Usage: "Use raw blocks for leaves (experimental)",
+				},
+				cli.IntFlag{
+					Name:  "cid-version",
+					Usage: "CID version. Non default implies raw-leaves",
+					Value: defaultAddParams.CidVersion,
+				},
+				cli.StringFlag{
+					Name:  "hash",
+					Usage: "Hash function to use. Implies cid-version=1.",
+					Value: defaultAddParams.HashFun,
+				},
+				cli.StringFlag{
+					Name:  "name, n",
+					Value: defaultAddParams.Name,
+					Usage: "Sets a name for this pin",
+				},
+				cli.IntFlag{
+					Name:  "replication-min, rmin",
+					Value: defaultAddParams.ReplicationFactorMin,
+					Usage: "Sets the minimum replication factor for pinning this file",
+				},
+				cli.IntFlag{
+					Name:  "replication-max, rmax",
+					Value: defaultAddParams.ReplicationFactorMax,
+					Usage: "Sets the maximum replication factor for pinning this file",
+				},
+				// TODO: Uncomment when sharding is supported.
+				// cli.BoolFlag{
+				//	Name:  "shard",
+				//	Usage: "Break the file into pieces (shards) and distributed among peers",
+				// },
+				// cli.Uint64Flag{
+				//	Name:  "shard-size",
+				//	Value: defaultAddParams.ShardSize,
+				//	Usage: "Sets the maximum replication factor for pinning this file",
+				// },
+				// TODO: Figure progress over total bar.
+				// cli.BoolFlag{
+				//	Name:  "progress, p",
+				//	Usage: "Stream progress data",
+				// },
+
+			},
+			Action: func(c *cli.Context) error {
+				shard := c.Bool("shard")
+				name := c.String("name")
+				if shard && name == "" {
+					randName, err := uuid.NewV4()
+					if err != nil {
+						return err
+					}
+					// take only first letters
+					name = "sharded-" + strings.Split(randName.String(), "-")[0]
+				}
+
+				// Read arguments (paths)
+				paths := make([]string, c.NArg(), c.NArg())
+				for i, path := range c.Args() {
+					paths[i] = path
+				}
+
+				if len(paths) == 0 {
+					checkErr("", errors.New("need at least one path"))
+				}
+
+				// Setup AddParams
+				p := api.DefaultAddParams()
+				p.ReplicationFactorMin = c.Int("replication-min")
+				p.ReplicationFactorMax = c.Int("replication-max")
+				p.Name = name
+				//p.Shard = shard
+				//p.ShardSize = c.Uint64("shard-size")
+				p.Shard = false
+				p.Recursive = c.Bool("recursive")
+				p.Layout = c.String("layout")
+				p.Chunker = c.String("chunker")
+				p.RawLeaves = c.Bool("raw-leaves")
+				p.Hidden = c.Bool("hidden")
+				p.Wrap = c.Bool("wrap-with-directory") || len(paths) > 1
+				p.CidVersion = c.Int("cid-version")
+				p.HashFun = c.String("hash")
+				if p.HashFun != defaultAddParams.HashFun {
+					p.CidVersion = 1
+				}
+				if p.CidVersion > 0 {
+					p.RawLeaves = true
+				}
+
+				out := make(chan *api.AddedOutput, 1)
+				var wg sync.WaitGroup
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					var last *api.AddedOutput
+					for v := range out {
+						if c.Bool("quieter") {
+							last = v
+							continue
+						}
+
+						// Print hashes only
+						if c.Bool("quiet") && c.GlobalString("encoding") == "text" {
+							fmt.Println(v.Cid)
+							continue
+						}
+
+						// Print things normally otherwise
+						// "quiet" does not apply for json
+						formatResponse(c, *v, nil)
+					}
+					if last != nil { // "quieter"
+						if c.GlobalString("encoding") == "text" {
+							fmt.Println(last.Cid)
+						} else {
+							formatResponse(c, *last, nil)
+						}
+					}
+				}()
+
+				cerr := globalClient.Add(paths, p, out)
+				wg.Wait()
+				formatResponse(c, nil, cerr)
+				return cerr
+			},
+		},
+		{
 			Name:        "pin",
-			Description: "add, remove or list items managed by IPFS Cluster",
+			Usage:       "Pin and unpin and list items in IPFS Cluster",
+			Description: "Pin and unpin and list items in IPFS Cluster",
 			Subcommands: []cli.Command{
 				{
 					Name:  "add",
-					Usage: "Track a CID (pin)",
+					Usage: "Cluster Pin",
 					Description: `
 This command tells IPFS Cluster to start managing a CID. Depending on
 the pinning strategy, this will trigger IPFS pin requests. The CID will
@@ -320,7 +508,7 @@ peers should pin this content.
 				},
 				{
 					Name:  "rm",
-					Usage: "Stop tracking a CID (unpin)",
+					Usage: "Cluster Unpin",
 					Description: `
 This command tells IPFS Cluster to no longer manage a CID. This will
 trigger unpinning operations in all the IPFS nodes holding the content.
@@ -365,16 +553,29 @@ although unpinning operations in the cluster may take longer or fail.
 				},
 				{
 					Name:  "ls",
-					Usage: "List tracked CIDs",
+					Usage: "List items in the cluster pinset",
 					Description: `
 This command will list the CIDs which are tracked by IPFS Cluster and to
 which peers they are currently allocated. This list does not include
 any monitoring information about the IPFS status of the CIDs, it
 merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
+
+The filter only takes effect when listing all pins. The possible values are:
+  - all
+  - pin
+  - meta-pin
+  - clusterdag-pin
+  - shard-pin
 `,
 					ArgsUsage: "[CID]",
-					Flags:     []cli.Flag{},
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "filter",
+							Usage: "Comma separated list of pin types. See help above.",
+							Value: "pin",
+						},
+					},
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						if cidStr != "" {
@@ -383,7 +584,13 @@ the cluster. For IPFS-status information about the pins, use "status".
 							resp, cerr := globalClient.Allocation(ci)
 							formatResponse(c, resp, cerr)
 						} else {
-							resp, cerr := globalClient.Allocations()
+							var filter api.PinType
+							strFilter := strings.Split(c.String("filter"), ",")
+							for _, f := range strFilter {
+								filter |= api.PinTypeFromString(f)
+							}
+
+							resp, cerr := globalClient.Allocations(filter)
 							formatResponse(c, resp, cerr)
 						}
 						return nil
@@ -398,17 +605,26 @@ the cluster. For IPFS-status information about the pins, use "status".
 This command retrieves the status of the CIDs tracked by IPFS
 Cluster, including which member is pinning them and any errors.
 If a CID is provided, the status will be only fetched for a single
-item.
+item.  Metadata CIDs are included in the status response
 
 The status of a CID may not be accurate. A manual sync can be triggered
 with "sync".
 
 When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
-`,
+
+When the --filter flag is passed, it will only fetch the peer information
+where status of the pin matches at least one of the filter values (a comma
+separated list). The following are valid status values:
+
+` + trackerStatusAllString(),
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),
+				cli.StringFlag{
+					Name:  "filter",
+					Usage: "comma-separated list of filters",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
@@ -418,7 +634,12 @@ contacted cluster peer. By default, status will be fetched from all peers.
 					resp, cerr := globalClient.Status(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.StatusAll(c.Bool("local"))
+					filterFlag := c.String("filter")
+					filter := api.TrackerStatusFromString(c.String("filter"))
+					if filter == api.TrackerStatusUndefined && filterFlag != "" {
+						checkErr("parsing filter flag", errors.New("invalid filter name"))
+					}
+					resp, cerr := globalClient.StatusAll(filter, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil
@@ -510,11 +731,12 @@ to check that it matches the CLI version (shown by -v).
 		},
 		{
 			Name:        "health",
-			Description: "Display information on clusterhealth",
+			Usage:       "Cluster monitoring information",
+			Description: "Cluster monitoring information",
 			Subcommands: []cli.Command{
 				{
 					Name:  "graph",
-					Usage: "display connectivity of cluster peers",
+					Usage: "create a graph displaying connectivity of cluster peers",
 					Description: `
 This command queries all connected cluster peers and their ipfs peers to generate a
 graph of the connections.  Output is a dot file encoding the cluster's connection state.
@@ -549,6 +771,31 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 						err = makeDot(resp, w, c.Bool("all-ipfs-peers"))
 						checkErr("printing graph", err)
 
+						return nil
+					},
+				},
+				{
+					Name:  "metrics",
+					Usage: "List latest metrics logged by this peer",
+					Description: `
+This commands displays the latest valid metrics of the given type logged
+by this peer for all current cluster peers.
+
+Currently supported metrics depend on the informer component used,
+but usually are:
+
+- freespace
+- ping
+`,
+					ArgsUsage: "<metric name>",
+					Action: func(c *cli.Context) error {
+						metric := c.Args().First()
+						if metric == "" {
+							checkErr("", errors.New("provide a metric name"))
+						}
+
+						resp, cerr := globalClient.Metrics(metric)
+						formatResponse(c, resp, cerr)
 						return nil
 					},
 				},
@@ -605,7 +852,7 @@ func formatResponse(c *cli.Context, resp interface{}, err error) {
 	if err != nil {
 		cerr, ok := err.(*api.Error)
 		if !ok {
-			checkErr("casting *api.Error. Original error", err)
+			checkErr("", err)
 		}
 		switch enc {
 		case "text":
@@ -649,7 +896,7 @@ func parseCredentials(userInput string) (string, string) {
 
 func handlePinResponseFormatFlags(
 	c *cli.Context,
-	ci *cid.Cid,
+	ci cid.Cid,
 	target api.TrackerStatus,
 ) {
 
@@ -665,7 +912,7 @@ func handlePinResponseFormatFlags(
 		return
 	}
 
-	if status.Cid == nil { // no status from "wait"
+	if status.Cid == cid.Undef { // no status from "wait"
 		time.Sleep(time.Second)
 		status, cerr = globalClient.Status(ci, false)
 	}
@@ -673,7 +920,7 @@ func handlePinResponseFormatFlags(
 }
 
 func waitFor(
-	ci *cid.Cid,
+	ci cid.Cid,
 	target api.TrackerStatus,
 	timeout time.Duration,
 ) (api.GlobalPinInfo, error) {
@@ -693,5 +940,5 @@ func waitFor(
 		CheckFreq: defaultWaitCheckFreq,
 	}
 
-	return globalClient.WaitFor(ctx, fp)
+	return client.WaitFor(ctx, globalClient, fp)
 }

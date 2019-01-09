@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
@@ -8,6 +9,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
+	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 )
 
 var testingClusterSecret, _ = DecodeClusterSecret("2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed")
@@ -46,20 +48,36 @@ var testingRaftCfg = []byte(`{
 
 var testingAPICfg = []byte(`{
     "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/10002",
-    "read_timeout": "30s",
+    "read_timeout": "0",
     "read_header_timeout": "5s",
-    "write_timeout": "1m0s",
-    "idle_timeout": "2m0s"
+    "write_timeout": "0",
+    "idle_timeout": "2m0s",
+    "headers": {
+      "Access-Control-Allow-Headers": [
+        "X-Requested-With",
+        "Range"
+      ],
+      "Access-Control-Allow-Methods": [
+        "GET"
+      ],
+      "Access-Control-Allow-Origin": [
+        "*"
+      ]
+    }
+}`)
+
+var testingProxyCfg = []byte(`{
+    "listen_multiaddress": "/ip4/127.0.0.1/tcp/10001",
+    "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+    "read_timeout": "0",
+    "read_header_timeout": "10m0s",
+    "write_timeout": "0",
+    "idle_timeout": "1m0s"
 }`)
 
 var testingIpfsCfg = []byte(`{
-    "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/10001",
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
-    "proxy_read_timeout": "10m0s",
-    "proxy_read_header_timeout": "10m0s",
-    "proxy_write_timeout": "10m0s",
-    "proxy_idle_timeout": "1m0s",
     "pin_method": "pin",
     "pin_timeout": "30s",
     "unpin_timeout": "15s"
@@ -81,30 +99,34 @@ var testingDiskInfCfg = []byte(`{
     "metric_type": "freespace"
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
-	clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg := testingEmptyConfigs()
+func testingConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
+	clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, basicmonCfg, pubsubmonCfg, diskInfCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
+	proxyCfg.LoadJSON(testingProxyCfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
 	consensusCfg.LoadJSON(testingRaftCfg)
-	trackerCfg.LoadJSON(testingTrackerCfg)
+	maptrackerCfg.LoadJSON(testingTrackerCfg)
+	statelesstrkrCfg.LoadJSON(testingTrackerCfg)
 	basicmonCfg.LoadJSON(testingMonCfg)
 	pubsubmonCfg.LoadJSON(testingMonCfg)
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 
-	return clusterCfg, apiCfg, ipfsCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
+	return clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *basic.Config, *pubsubmon.Config, *disk.Config) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
+	proxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	consensusCfg := &raft.Config{}
-	trackerCfg := &maptracker.Config{}
+	maptrackerCfg := &maptracker.Config{}
+	statelessCfg := &stateless.Config{}
 	basicmonCfg := &basic.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
-	return clusterCfg, apiCfg, ipfshttpCfg, consensusCfg, trackerCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
+	return clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelessCfg, basicmonCfg, pubsubmonCfg, diskInfCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

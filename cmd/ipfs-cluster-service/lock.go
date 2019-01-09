@@ -1,4 +1,3 @@
-// lock logic heavily inspired by go-ipfs/repo/fsrepo/lock/lock.go
 package main
 
 import (
@@ -9,6 +8,8 @@ import (
 
 	fslock "github.com/ipfs/go-fs-lock"
 )
+
+// lock logic heavily inspired by go-ipfs/repo/fsrepo/lock/lock.go
 
 // The name of the file used for locking
 const lockFileName = "cluster.lock"

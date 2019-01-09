@@ -2,8 +2,8 @@ package ipfscluster
 
 import (
 	"context"
-	"errors"
 
+	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -38,7 +38,7 @@ func (rpcapi *RPCAPI) Pin(ctx context.Context, in api.PinSerial, out *struct{}) 
 
 // Unpin runs Cluster.Unpin().
 func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	return rpcapi.c.Unpin(c)
 }
 
@@ -83,9 +83,9 @@ func (rpcapi *RPCAPI) Peers(ctx context.Context, in struct{}, out *[]api.IDSeria
 }
 
 // PeerAdd runs Cluster.PeerAdd().
-func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in api.MultiaddrSerial, out *api.IDSerial) error {
-	addr := in.ToMultiaddr()
-	id, err := rpcapi.c.PeerAdd(addr)
+func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in string, out *api.IDSerial) error {
+	pid, _ := peer.IDB58Decode(in)
+	id, err := rpcapi.c.PeerAdd(pid)
 	*out = id.ToSerial()
 	return err
 }
@@ -125,7 +125,7 @@ func (rpcapi *RPCAPI) StatusAllLocal(ctx context.Context, in struct{}, out *[]ap
 
 // Status runs Cluster.Status().
 func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.Status(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -133,7 +133,7 @@ func (rpcapi *RPCAPI) Status(ctx context.Context, in api.PinSerial, out *api.Glo
 
 // StatusLocal runs Cluster.StatusLocal().
 func (rpcapi *RPCAPI) StatusLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo := rpcapi.c.StatusLocal(c)
 	*out = pinfo.ToSerial()
 	return nil
@@ -155,7 +155,7 @@ func (rpcapi *RPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]api.
 
 // Sync runs Cluster.Sync().
 func (rpcapi *RPCAPI) Sync(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.Sync(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -163,7 +163,7 @@ func (rpcapi *RPCAPI) Sync(ctx context.Context, in api.PinSerial, out *api.Globa
 
 // SyncLocal runs Cluster.SyncLocal().
 func (rpcapi *RPCAPI) SyncLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.SyncLocal(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -178,7 +178,7 @@ func (rpcapi *RPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]a
 
 // Recover runs Cluster.Recover().
 func (rpcapi *RPCAPI) Recover(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.Recover(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -186,9 +186,55 @@ func (rpcapi *RPCAPI) Recover(ctx context.Context, in api.PinSerial, out *api.Gl
 
 // RecoverLocal runs Cluster.RecoverLocal().
 func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.RecoverLocal(c)
 	*out = pinfo.ToSerial()
+	return err
+}
+
+// BlockAllocate returns allocations for blocks. This is used in the adders.
+// It's different from pin allocations when ReplicationFactor < 0.
+func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	pin := in.ToPin()
+	err := rpcapi.c.setupPin(&pin)
+	if err != nil {
+		return err
+	}
+
+	// Return the current peer list.
+	if pin.ReplicationFactorMin < 0 {
+		// Returned metrics are Valid and belong to current
+		// Cluster peers.
+		metrics := rpcapi.c.monitor.LatestMetrics(pingMetricName)
+		peers := make([]string, len(metrics), len(metrics))
+		for i, m := range metrics {
+			peers[i] = peer.IDB58Encode(m.Peer)
+		}
+
+		*out = peers
+		return nil
+	}
+
+	allocs, err := rpcapi.c.allocate(
+		pin.Cid,
+		pin.ReplicationFactorMin,
+		pin.ReplicationFactorMax,
+		[]peer.ID{}, // blacklist
+		[]peer.ID{}, // prio list
+	)
+
+	if err != nil {
+		return err
+	}
+
+	*out = api.PeersToStrings(allocs)
+	return nil
+}
+
+// SendInformerMetric runs Cluster.sendInformerMetric().
+func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+	m, err := rpcapi.c.sendInformerMetric()
+	*out = m
 	return err
 }
 
@@ -203,7 +249,7 @@ func (rpcapi *RPCAPI) Track(ctx context.Context, in api.PinSerial, out *struct{}
 
 // Untrack runs PinTracker.Untrack().
 func (rpcapi *RPCAPI) Untrack(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	return rpcapi.c.tracker.Untrack(c)
 }
 
@@ -215,13 +261,13 @@ func (rpcapi *RPCAPI) TrackerStatusAll(ctx context.Context, in struct{}, out *[]
 
 // TrackerStatus runs PinTracker.Status().
 func (rpcapi *RPCAPI) TrackerStatus(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo := rpcapi.c.tracker.Status(c)
 	*out = pinfo.ToSerial()
 	return nil
 }
 
-// TrackerRecoverAll runs PinTracker.RecoverAll().
+// TrackerRecoverAll runs PinTracker.RecoverAll().f
 func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfoSerial) error {
 	pinfos, err := rpcapi.c.tracker.RecoverAll()
 	*out = pinInfoSliceToSerial(pinfos)
@@ -230,7 +276,7 @@ func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[
 
 // TrackerRecover runs PinTracker.Recover().
 func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out *api.PinInfoSerial) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	pinfo, err := rpcapi.c.tracker.Recover(c)
 	*out = pinfo.ToSerial()
 	return err
@@ -242,20 +288,20 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in api.PinSerial, out 
 
 // IPFSPin runs IPFSConnector.Pin().
 func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
-	r := in.ToPin().Recursive
-	return rpcapi.c.ipfs.Pin(ctx, c, r)
+	c := in.DecodeCid()
+	depth := in.ToPin().MaxDepth
+	return rpcapi.c.ipfs.Pin(ctx, c, depth)
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
 func (rpcapi *RPCAPI) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	return rpcapi.c.ipfs.Unpin(ctx, c)
 }
 
 // IPFSPinLsCid runs IPFSConnector.PinLsCid().
 func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *api.IPFSPinStatus) error {
-	c := in.ToPin().Cid
+	c := in.DecodeCid()
 	b, err := rpcapi.c.ipfs.PinLsCid(ctx, c)
 	*out = b
 	return err
@@ -265,6 +311,13 @@ func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *a
 func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m, err := rpcapi.c.ipfs.PinLs(ctx, in)
 	*out = m
+	return err
+}
+
+//IPFSResolve runs IPFSConnector.Resolve()
+func (rpcapi *RPCAPI) IPFSResolve(ctx context.Context, in string, out *cid.Cid) error {
+	res, err := rpcapi.c.ipfs.Resolve(in)
+	*out = res
 	return err
 }
 
@@ -281,16 +334,9 @@ func (rpcapi *RPCAPI) IPFSConfigKey(ctx context.Context, in string, out *interfa
 	return err
 }
 
-// IPFSFreeSpace runs IPFSConnector.FreeSpace().
-func (rpcapi *RPCAPI) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
-	res, err := rpcapi.c.ipfs.FreeSpace()
-	*out = res
-	return err
-}
-
-// IPFSRepoSize runs IPFSConnector.RepoSize().
-func (rpcapi *RPCAPI) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
-	res, err := rpcapi.c.ipfs.RepoSize()
+// IPFSRepoStat runs IPFSConnector.RepoStat().
+func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
+	res, err := rpcapi.c.ipfs.RepoStat()
 	*out = res
 	return err
 }
@@ -299,6 +345,19 @@ func (rpcapi *RPCAPI) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64
 func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *api.SwarmPeersSerial) error {
 	res, err := rpcapi.c.ipfs.SwarmPeers()
 	*out = res.ToSerial()
+	return err
+}
+
+// IPFSBlockPut runs IPFSConnector.BlockPut().
+func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
+	return rpcapi.c.ipfs.BlockPut(in)
+}
+
+// IPFSBlockGet runs IPFSConnector.BlockGet().
+func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[]byte) error {
+	c := in.DecodeCid()
+	res, err := rpcapi.c.ipfs.BlockGet(c)
+	*out = res
 	return err
 }
 
@@ -336,24 +395,6 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
 }
 
 /*
-   Peer Manager methods
-*/
-
-// PeerManagerAddPeer runs peerManager.addPeer().
-func (rpcapi *RPCAPI) PeerManagerAddPeer(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
-	addr := in.ToMultiaddr()
-	err := rpcapi.c.peerManager.ImportPeer(addr, false)
-	return err
-}
-
-// PeerManagerImportAddresses runs peerManager.importAddresses().
-func (rpcapi *RPCAPI) PeerManagerImportAddresses(ctx context.Context, in api.MultiaddrsSerial, out *struct{}) error {
-	addrs := in.ToMultiaddrs()
-	err := rpcapi.c.peerManager.ImportPeers(addrs, false)
-	return err
-}
-
-/*
    PeerMonitor
 */
 
@@ -366,22 +407,5 @@ func (rpcapi *RPCAPI) PeerMonitorLogMetric(ctx context.Context, in api.Metric, o
 // PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
 func (rpcapi *RPCAPI) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
 	*out = rpcapi.c.monitor.LatestMetrics(in)
-	return nil
-}
-
-/*
-   Other
-*/
-
-// RemoteMultiaddrForPeer returns the multiaddr of a peer as seen by this peer.
-// This is necessary for a peer to figure out which of its multiaddresses the
-// peers are seeing (also when crossing NATs). It should be called from
-// the peer the IN parameter indicates.
-func (rpcapi *RPCAPI) RemoteMultiaddrForPeer(ctx context.Context, in peer.ID, out *api.MultiaddrSerial) error {
-	conns := rpcapi.c.host.Network().ConnsToPeer(in)
-	if len(conns) == 0 {
-		return errors.New("no connections to: " + in.Pretty())
-	}
-	*out = api.MultiaddrToSerial(api.MustLibp2pMultiaddrJoin(conns[0].RemoteMultiaddr(), in))
 	return nil
 }

@@ -1,4 +1,4 @@
-FROM golang:1.10-stretch AS builder
+FROM golang:1.11-stretch AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This dockerfile builds and runs ipfs-cluster-service.
@@ -8,7 +8,7 @@ ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
 
 COPY . $SRC_PATH
 WORKDIR $SRC_PATH
-RUN make install
+RUN make docker_install
 
 ENV SUEXEC_VERSION v0.2
 ENV TINI_VERSION v0.16.1

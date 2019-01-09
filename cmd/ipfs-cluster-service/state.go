@@ -166,5 +166,10 @@ func exportState(state *mapstate.MapState, w io.Writer) error {
 
 // CleanupState cleans the state
 func cleanupState(cCfg *raft.Config) error {
-	return raft.CleanupRaft(cCfg.GetDataFolder(), cCfg.BackupsRotate)
+	err := raft.CleanupRaft(cCfg.GetDataFolder(), cCfg.BackupsRotate)
+	if err == nil {
+		logger.Warningf("the %s folder has been rotated.  Next start will use an empty state", cCfg.GetDataFolder())
+	}
+
+	return err
 }

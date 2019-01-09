@@ -60,3 +60,13 @@ func TestRPCMockValid(t *testing.T) {
 		}
 	}
 }
+
+// Test that testing directory is created without error
+func TestGenerateTestDirs(t *testing.T) {
+	sth := NewShardingTestHelper()
+	defer sth.Clean(t)
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+	_, closer = sth.GetRandFileMultiReader(t, 2)
+	closer.Close()
+}

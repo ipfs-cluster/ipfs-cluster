@@ -1,4 +1,4 @@
-FROM golang:1.10-stretch AS builder
+FROM golang:1.11-stretch AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This build state just builds the cluster binaries
@@ -45,10 +45,12 @@ COPY --from=builder /tmp/jq-linux64 /usr/local/bin/jq
 COPY --from=builder /bin/bash /bin/bash
 COPY --from=builder /lib/x86_64-linux-gnu/libtinfo.so.5 /lib64/libtinfo.so.5
 
-
+USER root
 
 RUN mkdir -p $IPFS_CLUSTER_PATH && \
     chown 1000:100 $IPFS_CLUSTER_PATH
+
+USER ipfs
 
 VOLUME $IPFS_CLUSTER_PATH
 ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]

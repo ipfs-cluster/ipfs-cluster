@@ -8,8 +8,8 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	rpc "github.com/hsanjuan/go-libp2p-gorpc"
 	cid "github.com/ipfs/go-cid"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -22,13 +22,13 @@ type mockService struct{}
 
 // NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
 // a client to it.
-func NewMockRPCClient(t *testing.T) *rpc.Client {
+func NewMockRPCClient(t testing.TB) *rpc.Client {
 	return NewMockRPCClientWithHost(t, nil)
 }
 
 // NewMockRPCClientWithHost returns a mock ipfs-cluster RPC server
 // initialized with a given host.
-func NewMockRPCClientWithHost(t *testing.T, h host.Host) *rpc.Client {
+func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
 	s := rpc.NewServer(h, "mock")
 	c := rpc.NewClientWithServer(h, "mock", s)
 	err := s.RegisterName("Cluster", &mockService{})
@@ -53,25 +53,37 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 }
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
+	opts := api.PinOptions{
+		ReplicationFactorMin: -1,
+		ReplicationFactorMax: -1,
+	}
+
 	*out = []api.PinSerial{
-		{
-			Cid: TestCid1,
-		},
-		{
-			Cid: TestCid2,
-		},
-		{
-			Cid: TestCid3,
-		},
+		api.PinWithOpts(MustDecodeCid(TestCid1), opts).ToSerial(),
+		api.PinCid(MustDecodeCid(TestCid2)).ToSerial(),
+		api.PinWithOpts(MustDecodeCid(TestCid3), opts).ToSerial(),
 	}
 	return nil
 }
 
 func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
-	if in.Cid == ErrorCid {
+	switch in.Cid {
+	case ErrorCid:
 		return errors.New("expected error when using ErrorCid")
+	case TestCid1, TestCid3:
+		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
+		p.ReplicationFactorMin = -1
+		p.ReplicationFactorMax = -1
+		*out = p
+		return nil
+	case TestCid2: // This is a remote pin
+		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
+		p.ReplicationFactorMin = 1
+		p.ReplicationFactorMax = 1
+		*out = p
+	default:
+		return errors.New("not found")
 	}
-	*out = in
 	return nil
 }
 
@@ -108,7 +120,7 @@ func (mock *mockService) Peers(ctx context.Context, in struct{}, out *[]api.IDSe
 	return nil
 }
 
-func (mock *mockService) PeerAdd(ctx context.Context, in api.MultiaddrSerial, out *api.IDSerial) error {
+func (mock *mockService) PeerAdd(ctx context.Context, in string, out *api.IDSerial) error {
 	id := api.IDSerial{}
 	mock.ID(ctx, struct{}{}, &id)
 	*out = id
@@ -238,6 +250,18 @@ func (mock *mockService) RecoverLocal(ctx context.Context, in api.PinSerial, out
 	return mock.TrackerRecover(ctx, in, out)
 }
 
+func (mock *mockService) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+	if in.ReplicationFactorMin > 1 {
+		return errors.New("replMin too high: can only mock-allocate to 1")
+	}
+	*out = []string{""} // local peer
+	return nil
+}
+
+func (mock *mockService) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+	return nil
+}
+
 /* Tracker methods */
 
 func (mock *mockService) Track(ctx context.Context, in api.PinSerial, out *struct{}) error {
@@ -297,12 +321,6 @@ func (mock *mockService) TrackerRecover(ctx context.Context, in api.PinSerial, o
 		Status: api.TrackerStatusPinned,
 		TS:     time.Now(),
 	}.ToSerial()
-	return nil
-}
-
-/* PeerManager methods */
-
-func (mock *mockService) PeerManagerAddPeer(ctx context.Context, in api.MultiaddrSerial, out *struct{}) error {
 	return nil
 }
 
@@ -374,15 +392,17 @@ func (mock *mockService) IPFSConfigKey(ctx context.Context, in string, out *inte
 	return nil
 }
 
-func (mock *mockService) IPFSRepoSize(ctx context.Context, in struct{}, out *uint64) error {
-	// since we have two pins. Assume each is 1KB.
-	*out = 2000
+func (mock *mockService) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
+	// since we have two pins. Assume each is 1000B.
+	stat := api.IPFSRepoStat{
+		StorageMax: 100000,
+		RepoSize:   2000,
+	}
+	*out = stat
 	return nil
 }
 
-func (mock *mockService) IPFSFreeSpace(ctx context.Context, in struct{}, out *uint64) error {
-	// RepoSize is 2KB, StorageMax is 100KB
-	*out = 98000
+func (mock *mockService) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
 	return nil
 }
 

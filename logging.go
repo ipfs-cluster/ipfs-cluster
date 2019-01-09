@@ -7,17 +7,22 @@ var logger = logging.Logger("cluster")
 // LoggingFacilities provides a list of logging identifiers
 // used by cluster and their default logging level.
 var LoggingFacilities = map[string]string{
-	"cluster":     "INFO",
-	"restapi":     "INFO",
-	"ipfshttp":    "INFO",
-	"monitor":     "INFO",
-	"mapstate":    "INFO",
-	"consensus":   "INFO",
-	"pintracker":  "INFO",
-	"ascendalloc": "INFO",
-	"diskinfo":    "INFO",
-	"apitypes":    "INFO",
-	"config":      "INFO",
+	"cluster":      "INFO",
+	"restapi":      "INFO",
+	"ipfsproxy":    "INFO",
+	"ipfshttp":     "INFO",
+	"monitor":      "INFO",
+	"mapstate":     "INFO",
+	"consensus":    "INFO",
+	"pintracker":   "INFO",
+	"ascendalloc":  "INFO",
+	"diskinfo":     "INFO",
+	"apitypes":     "INFO",
+	"config":       "INFO",
+	"shardingdags": "INFO",
+	"localdags":    "INFO",
+	"adder":        "INFO",
+	"optracker":    "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers
