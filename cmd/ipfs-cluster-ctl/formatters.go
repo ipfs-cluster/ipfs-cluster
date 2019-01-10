@@ -31,8 +31,8 @@ func jsonFormatObject(resp interface{}) {
 	case api.AddedOutput:
 		jsonFormatPrint(resp.(api.AddedOutput))
 	case addedOutputQuiet:
-		// print original object as in json it does
-		// not make sense quiet output.
+		// print original object as in JSON it does
+		// not make sense to have a human "quiet" output.
 		jsonFormatPrint(resp.(addedOutputQuiet).added)
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
@@ -66,7 +66,9 @@ func jsonFormatObject(resp interface{}) {
 	case []api.AddedOutput:
 		serials := resp.([]api.AddedOutput)
 		jsonFormatPrint(serials)
-	case []addedOutputQuiet: // print original output
+	case []addedOutputQuiet:
+		// print original objects as in JSON it makes
+		// no sense to have a human "quiet" output
 		serials := resp.([]addedOutputQuiet)
 		var actual []*api.AddedOutput
 		for _, s := range serials {

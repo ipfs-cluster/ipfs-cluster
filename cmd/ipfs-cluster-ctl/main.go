@@ -279,7 +279,7 @@ cluster "pin add".
 				},
 				cli.BoolFlag{
 					Name:  "no-stream",
-					Usage: "Buffer output locally. Produces a valid slice with --enc=json.",
+					Usage: "Buffer output locally. Produces a valid JSON array with --enc=json.",
 				},
 				cli.StringFlag{
 					Name:  "layout",
@@ -400,7 +400,7 @@ cluster "pin add".
 					var lastBuf = make([]addedOutputQuiet, 1, 1)
 					var qq = c.Bool("quieter")
 					var q = c.Bool("quiet") || qq
-					var bufferResults = !c.Bool("stream")
+					var bufferResults = c.Bool("no-stream")
 					for v := range out {
 						added := addedOutputQuiet{v, q}
 						lastBuf[0] = added
