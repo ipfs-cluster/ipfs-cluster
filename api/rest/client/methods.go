@@ -86,6 +86,43 @@ func (c *defaultClient) Unpin(ci cid.Cid) error {
 	return c.do("DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
 }
 
+// PinPath resolves given path into a cid and performs the pin operation.
+func (c *defaultClient) PinPath(pinPath string, replicationFactorMin, replicationFactorMax int, name string) (cid.Cid, error) {
+	var ci cid.Cid
+	pinPath = strings.TrimSuffix(
+		strings.TrimPrefix(strings.TrimSpace(pinPath), "/"),
+		"/",
+	)
+	escName := url.QueryEscape(name)
+	err := c.do(
+		"POST",
+		fmt.Sprintf(
+			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
+			pinPath,
+			replicationFactorMin,
+			replicationFactorMax,
+			escName,
+		),
+		nil,
+		nil,
+		&ci,
+	)
+
+	return ci, err
+}
+
+// UnpinPath resolves given path into a cid and performs the unpin operation.
+func (c *defaultClient) UnpinPath(unPinPath string) (cid.Cid, error) {
+	unPinPath = strings.TrimSuffix(
+		strings.TrimPrefix(strings.TrimSpace(unPinPath), "/"),
+		"/",
+	)
+	var ci cid.Cid
+	err := c.do("DELETE", fmt.Sprintf("/pins/%s", unPinPath), nil, nil, &ci)
+
+	return ci, err
+}
+
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
 func (c *defaultClient) Allocations(filter api.PinType) ([]api.Pin, error) {

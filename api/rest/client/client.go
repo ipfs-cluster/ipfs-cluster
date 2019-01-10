@@ -60,6 +60,11 @@ type Client interface {
 	// Unpin untracks a Cid from cluster.
 	Unpin(ci cid.Cid) error
 
+	// PinPath resolves given path into a cid and performs the pin operation.
+	PinPath(pinPath string, replicationFactorMin, replicationFactorMax int, name string) (cid.Cid, error)
+	// UnpinPath resolves given path into a cid and performs the unpin operation.
+	UnpinPath(pinPath string) (cid.Cid, error)
+
 	// Allocations returns the consensus state listing all tracked items
 	// and the peers that should be pinning them.
 	Allocations(filter api.PinType) ([]api.Pin, error)

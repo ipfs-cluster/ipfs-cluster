@@ -569,7 +569,7 @@ func (ipfs *Connector) Resolve(path string) (cid.Cid, error) {
 		return cid.Cid{}, err
 	}
 
-	if strings.HasPrefix(path, "/ipfs") && validPath.IsJustAKey() {
+	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
 		ci, _, err := gopath.SplitAbsPath(validPath)
 		return ci, err
 	}
@@ -585,13 +585,13 @@ func (ipfs *Connector) Resolve(path string) (cid.Cid, error) {
 	var resolveResp ipfsResolveResp
 	err = json.Unmarshal(res, &resolveResp)
 	if err != nil {
-		logger.Error(err)
+		logger.Error("could not unmarshal response: " + err.Error())
 		return cid.Cid{}, err
 	}
 
 	validPath, err = gopath.ParsePath(resolveResp.Path)
 	if err != nil {
-		logger.Error("could not parse path")
+		logger.Error("could not parse path: " + err.Error())
 		return cid.Cid{}, err
 	}
 

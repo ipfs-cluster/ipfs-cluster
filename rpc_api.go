@@ -42,6 +42,21 @@ func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}
 	return rpcapi.c.Unpin(c)
 }
 
+// PinPath resolves path into a cid and runs Cluster.Pin().
+func (rpcapi *RPCAPI) PinPath(ctx context.Context, in []interface{}, out *cid.Cid) error {
+	path, pin := in[0].(string), in[1].(api.PinSerial)
+	ci, err := rpcapi.c.PinPath(path, pin.ToPin())
+	*out = ci
+	return err
+}
+
+// UnpinPath resolves path into a cid and runs Cluster.Unpin().
+func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in string, out *cid.Cid) error {
+	ci, err := rpcapi.c.UnpinPath(in)
+	*out = ci
+	return err
+}
+
 // Pins runs Cluster.Pins().
 func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	cidList := rpcapi.c.Pins()
