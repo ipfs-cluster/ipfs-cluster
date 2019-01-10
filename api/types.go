@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"regexp"
 	"sort"
 	"strings"
@@ -988,4 +989,20 @@ type FileLsEntrie struct {
 	Type int
 	Size uint64
 	Hash string
+}
+
+type FilesStat struct {
+	Hash           string
+	Size           uint64
+	CumulativeSize uint64
+	Blocks         int
+	Type           string
+	WithLocality   bool
+	Local          bool
+	SizeLocal      uint64
+}
+
+type FilesWrite struct {
+	MultipartReader *multipart.Reader
+	Params          []string
 }

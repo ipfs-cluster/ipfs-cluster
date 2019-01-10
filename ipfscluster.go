@@ -101,14 +101,14 @@ type IPFSConnector interface {
 	FilesMkdir([]string) error
 	// FilesMv moves file in IPFS peer
 	FilesMv([]string) error
-	// // UidLogIn is used to change uid
-	// FileRead([]string) (api.UIDLogIn, error)
+	// FilesRead reads file
+	FilesRead([]string) ([]byte, error)
 	// FilesRm remove directory from IPFS peer
 	FilesRm([]string) error
-	// // UidLogIn is used to change uid
-	// FilesStat([]string) (api.UIDLogIn, error)
-	// // UidLogIn is used to change uid
-	// FilesWrite([]string) (api.UIDLogIn, error)
+	// FilesStat fetchs file statistics
+	FilesStat([]string) (api.FilesStat, error)
+	// FilesWrite writes file
+	FilesWrite(api.FilesWrite) error
 }
 
 // Peered represents a component which needs to be aware of the peers

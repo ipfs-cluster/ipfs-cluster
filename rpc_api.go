@@ -398,9 +398,29 @@ func (rpcapi *RPCAPI) IPFSFilesMv(ctx context.Context, in []string, out *struct{
 	return err
 }
 
+// FilesRead runs IPFSConnector.FilesRead().
+func (rpcapi *RPCAPI) IPFSFilesRead(ctx context.Context, in []string, out *[]byte) error {
+	res, err := rpcapi.c.ipfs.FilesRead(in)
+	*out = res
+	return err
+}
+
 // FilesRm runs IPFSConnector.FilesRm().
 func (rpcapi *RPCAPI) IPFSFilesRm(ctx context.Context, in []string, out *struct{}) error {
 	err := rpcapi.c.ipfs.FilesRm(in)
+	return err
+}
+
+// FilesStat runs IPFSConnector.FilesStat().
+func (rpcapi *RPCAPI) IPFSFilesStat(ctx context.Context, in []string, out *api.FilesStat) error {
+	res, err := rpcapi.c.ipfs.FilesStat(in)
+	*out = res
+	return err
+}
+
+// FilesWrite runs IPFSConnector.FilesWrite().
+func (rpcapi *RPCAPI) IPFSFilesWrite(ctx context.Context, in api.FilesWrite, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesWrite(in)
 	return err
 }
 

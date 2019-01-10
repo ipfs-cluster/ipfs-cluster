@@ -673,11 +673,12 @@ func (e *hiveErrorString) Error() string {
 	return e.s
 }
 
-func HiveError(err error, uid string) error {
+func hiveError(err error, uid string) error {
 	e := err.Error()
 	return &hiveErrorString{strings.Replace(e, "/nodes/"+uid, "", -1)}
 }
 
+// create a virtual id.
 func (ipfs *Connector) UidNew(name string) (api.UIDSecret, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -709,6 +710,7 @@ func (ipfs *Connector) UidNew(name string) (api.UIDSecret, error) {
 	return secret, nil
 }
 
+// log in Hive cluster and get new id
 func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -741,6 +743,7 @@ func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
 	return secret, nil
 }
 
+// copy file to Hive
 func (ipfs *Connector) FilesCp(l []string) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -748,12 +751,13 @@ func (ipfs *Connector) FilesCp(l []string) error {
 	_, err := ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
-		return HiveError(err, l[0])
+		return hiveError(err, l[0])
 	}
 
 	return nil
 }
 
+// file flushs
 func (ipfs *Connector) FilesFlush(l []string) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -762,12 +766,13 @@ func (ipfs *Connector) FilesFlush(l []string) error {
 	_, err := ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
-		return HiveError(err, l[0])
+		return hiveError(err, l[0])
 	}
 
 	return nil
 }
 
+// list file or directory
 func (ipfs *Connector) FilesLs(l []string) (api.FilesLs, error) {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -777,7 +782,7 @@ func (ipfs *Connector) FilesLs(l []string) (api.FilesLs, error) {
 	res, err := ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
-		return lsrsp, HiveError(err, l[0])
+		return lsrsp, hiveError(err, l[0])
 	}
 
 	err = json.Unmarshal(res, &lsrsp)
@@ -789,6 +794,7 @@ func (ipfs *Connector) FilesLs(l []string) (api.FilesLs, error) {
 	return lsrsp, nil
 }
 
+// create a directotry
 func (ipfs *Connector) FilesMkdir(mk []string) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -797,12 +803,13 @@ func (ipfs *Connector) FilesMkdir(mk []string) error {
 	_, err := ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
-		return HiveError(err, mk[0])
+		return hiveError(err, mk[0])
 	}
 
 	return nil
 }
 
+// move files
 func (ipfs *Connector) FilesMv(mv []string) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -811,12 +818,34 @@ func (ipfs *Connector) FilesMv(mv []string) error {
 	_, err := ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
-		return HiveError(err, mv[0])
+		return hiveError(err, mv[0])
 	}
 
 	return nil
 }
 
+// read file
+func (ipfs *Connector) FilesRead(l []string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	url := "files/read?arg=" + "/nodes/" + l[0] + l[1]
+	if l[2] != "" {
+		url = url + "&offset=" + l[2]
+	}
+	if l[3] != "" {
+		url = url + "&count=" + l[3]
+	}
+
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return nil, hiveError(err, l[0])
+	}
+
+	return res, nil
+}
+
+// remove file
 func (ipfs *Connector) FilesRm(rm []string) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
@@ -825,7 +854,96 @@ func (ipfs *Connector) FilesRm(rm []string) error {
 	_, err := ipfs.postCtx(ctx, url, "", nil)
 	if err != nil {
 		logger.Error(err)
-		return HiveError(err, rm[0])
+		return hiveError(err, rm[0])
+	}
+
+	return nil
+}
+
+// get file statistic
+func (ipfs *Connector) FilesStat(st []string) (api.FilesStat, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+
+	FilesStat := api.FilesStat{}
+	url := "files/stat?arg=" + "/nodes/" + st[0] + st[1]
+
+	if st[2] != "" {
+		url = url + "&format=" + st[2]
+	}
+	if st[3] != "" {
+		url = url + "&hash=" + st[3]
+	}
+	if st[4] != "" {
+		url = url + "&size=" + st[4]
+	}
+	if st[5] != "" {
+		url = url + "&with-local=" + st[5]
+	}
+
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return FilesStat, hiveError(err, st[0])
+	}
+
+	err = json.Unmarshal(res, &FilesStat)
+	if err != nil {
+		logger.Error(err)
+		return FilesStat, err
+	}
+
+	return FilesStat, nil
+}
+
+// write file
+func (ipfs *Connector) FilesWrite(fr api.FilesWrite) error {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+
+	url := "files/write?arg=" + "/nodes/" + fr.Params[0] + fr.Params[1]
+
+	if fr.Params[2] != "" {
+		url = url + "&offset=" + fr.Params[2]
+	}
+	if fr.Params[3] != "" {
+		url = url + "&create=" + fr.Params[3]
+	}
+	if fr.Params[4] != "" {
+		url = url + "&truncate=" + fr.Params[4]
+	}
+	if fr.Params[5] != "" {
+		url = url + "&count=" + fr.Params[5]
+	}
+	if fr.Params[6] != "" {
+		url = url + "&raw-leaves=" + fr.Params[6]
+	}
+	if fr.Params[7] != "" {
+		url = url + "&cid-version=" + fr.Params[7]
+	}
+	if fr.Params[8] != "" {
+		url = url + "&hash=" + fr.Params[8]
+	}
+
+	multiFileR := fr.MultipartReader
+
+	for {
+		part, err := multiFileR.NextPart()
+		// if err == io.EOF {
+		// 	logger.Error(err)
+		// 	return nil
+		// } else
+		if err != nil {
+			logger.Error(err)
+			return hiveError(err, fr.Params[0])
+		}
+
+		contentType := "multipart/form-data; boundary=" + "------------------"
+		_, err = ipfs.postCtx(ctx, url, contentType, part)
+		if err != nil {
+			logger.Error(err)
+			return hiveError(err, fr.Params[0])
+		}
 	}
 
 	return nil
