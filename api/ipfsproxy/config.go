@@ -27,6 +27,7 @@ const (
 	DefaultWriteTimeout       = 0
 	DefaultIdleTimeout        = 60 * time.Second
 	DefaultExtractHeadersPath = "/api/v0/version"
+	DefaultExtractHeadersTTL  = 5 * time.Minute
 )
 
 // Config allows to customize behaviour of IPFSProxy.
@@ -67,8 +68,12 @@ type Config struct {
 	// on the IPFS daemon so that they are used in hijacked responses,
 	// this request path will be used. Defaults to /version. This will
 	// trigger a single request to extract those headers and remember them
-	// for future requests.
+	// for future requests (until TTL expires).
 	ExtractHeadersPath string
+
+	// Establishes how long we should remember extracted headers before we
+	// refresh them with a new request. 0 means always.
+	ExtractHeadersTTL time.Duration
 }
 
 type jsonConfig struct {
@@ -83,6 +88,7 @@ type jsonConfig struct {
 
 	ExtractHeadersExtra []string `json:"extract_headers_extra,omitempty"`
 	ExtractHeadersPath  string   `json:"extract_headers_path,omitempty"`
+	ExtractHeadersTTL   string   `json:"extract_headers_ttl,omitempty"`
 
 	// Below fields are only here to maintain backward compatibility
 	// They will be removed in future
@@ -140,6 +146,7 @@ func (cfg *Config) Default() error {
 	cfg.IdleTimeout = DefaultIdleTimeout
 	cfg.ExtractHeadersExtra = nil
 	cfg.ExtractHeadersPath = DefaultExtractHeadersPath
+	cfg.ExtractHeadersTTL = DefaultExtractHeadersTTL
 
 	return nil
 }
@@ -173,6 +180,10 @@ func (cfg *Config) Validate() error {
 
 	if cfg.ExtractHeadersPath == "" {
 		err = errors.New("ipfsproxy.extract_headers_path should not be empty")
+	}
+
+	if cfg.ExtractHeadersTTL < 0 {
+		err = errors.New("ipfsproxy.extract_headers_ttl is invalid")
 	}
 
 	return err
@@ -221,6 +232,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		&config.DurationOpt{Duration: jcfg.ReadHeaderTimeout, Dst: &cfg.ReadHeaderTimeout, Name: "read_header_timeout"},
 		&config.DurationOpt{Duration: jcfg.WriteTimeout, Dst: &cfg.WriteTimeout, Name: "write_timeout"},
 		&config.DurationOpt{Duration: jcfg.IdleTimeout, Dst: &cfg.IdleTimeout, Name: "idle_timeout"},
+		&config.DurationOpt{Duration: jcfg.ExtractHeadersTTL, Dst: &cfg.ExtractHeadersTTL, Name: "extract_header_ttl"},
 	)
 	if err != nil {
 		return err
@@ -252,6 +264,10 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
 	jcfg.WriteTimeout = cfg.WriteTimeout.String()
 	jcfg.IdleTimeout = cfg.IdleTimeout.String()
+
+	jcfg.ExtractHeadersExtra = cfg.ExtractHeadersExtra
+	jcfg.ExtractHeadersPath = cfg.ExtractHeadersPath
+	jcfg.ExtractHeadersTTL = cfg.ExtractHeadersTTL.String()
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
