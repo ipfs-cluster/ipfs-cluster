@@ -492,7 +492,7 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // slashHandler returns a handler which converts a /a/b/c/<argument> request
-// into an /a/b/c/<argument>/?arg=<argument> one. And uses the given origHandler
+// into an /a/b/c/<argument>?arg=<argument> one. And uses the given origHandler
 // for it. Our handlers expect that arguments are passed in the ?arg query
 // value.
 func slashHandler(origHandler http.HandlerFunc) http.HandlerFunc {

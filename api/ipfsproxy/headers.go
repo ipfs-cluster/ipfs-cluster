@@ -132,14 +132,14 @@ func (proxy *Server) copyHeadersFromIPFSWithRequest(
 }
 
 // setHeaders sets some headers for all hijacked endpoints:
-// - First we fix CORs headers by making an OPTIONS request to IPFS with the
+// - First, we fix CORs headers by making an OPTIONS request to IPFS with the
 //   same Origin. Our objective is to get headers for non-preflight requests
 //   only (the ones we hijack).
-// - Second we add any of the one-time-extracted headers that we deem necessary
-//   or the user needs from IPFS (in case of custom headers), or i by ours.
+// - Second, we add any of the one-time-extracted headers that we deem necessary
+//   or the user needs from IPFS (in case of custom headers).
 //   This may trigger a single POST request to ExtractHeaderPath if they
-//   were not extracted before.
-// - Third we set our own headers.
+//   were not extracted before or TTL has expired.
+// - Third, we set our own headers.
 func (proxy *Server) setHeaders(dest http.Header, srcRequest *http.Request) {
 	proxy.setCORSHeaders(dest, srcRequest)
 	proxy.setAdditionalIpfsHeaders(dest, srcRequest)
