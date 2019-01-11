@@ -55,7 +55,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ExtractHeadersTTL = -10
+	j.ExtractHeadersTTL = "-10"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {

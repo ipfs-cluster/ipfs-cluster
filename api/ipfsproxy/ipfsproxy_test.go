@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -30,7 +31,10 @@ func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
 	cfg.Default()
 	cfg.NodeAddr = nodeMAddr
 	cfg.ListenAddr = proxyMAddr
-	cfg.ExtractHeadersExtra = []string{test.IpfsCustomHeaderName}
+	cfg.ExtractHeadersExtra = []string{
+		test.IpfsCustomHeaderName,
+		test.IpfsTimeHeaderName,
+	}
 
 	proxy, err := New(cfg)
 	if err != nil {
@@ -518,6 +522,7 @@ func mustParseURL(rawurl string) *url.URL {
 
 func TestHeaderExtraction(t *testing.T) {
 	proxy, mock := testIPFSProxy(t)
+	proxy.config.ExtractHeadersTTL = time.Second
 	defer mock.Close()
 	defer proxy.Shutdown()
 
@@ -553,5 +558,26 @@ func TestHeaderExtraction(t *testing.T) {
 
 	if !strings.HasPrefix(res.Header.Get("Server"), "ipfs-cluster") {
 		t.Error("wrong value for Server header")
+	}
+
+	// Test ExtractHeaderTTL
+	t1 := res.Header.Get(test.IpfsTimeHeaderName)
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	t2 := res.Header.Get(test.IpfsTimeHeaderName)
+	if t1 != t2 {
+		t.Error("should have cached the headers during TTL")
+	}
+	time.Sleep(1200 * time.Millisecond)
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	res.Body.Close()
+	t3 := res.Header.Get(test.IpfsTimeHeaderName)
+	if t3 == t2 {
+		t.Error("should have refreshed the headers after TTL")
 	}
 }

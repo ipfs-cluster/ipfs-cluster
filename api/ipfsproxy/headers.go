@@ -3,6 +3,7 @@ package ipfsproxy
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/version"
 )
@@ -45,6 +46,8 @@ var extractHeadersDefault = []string{
 	"Access-Control-Expose-Headers",
 }
 
+const ipfsHeadersTimestampKey = "proxyHeadersTS"
+
 // ipfsHeaders returns all the headers we want to extract-once from IPFS: a
 // concatenation of extractHeadersDefault and config.ExtractHeadersExtra.
 func (proxy *Server) ipfsHeaders() []string {
@@ -57,14 +60,47 @@ func (proxy *Server) rememberIPFSHeaders(hdrs http.Header) {
 	for _, h := range proxy.ipfsHeaders() {
 		proxy.ipfsHeadersStore.Store(h, hdrs[h])
 	}
+	// use the sync map to store the ts
+	proxy.ipfsHeadersStore.Store(ipfsHeadersTimestampKey, time.Now())
+}
+
+// returns whether we can consider that whatever headers we are
+// storing have a valid TTL still.
+func (proxy *Server) headersWithinTTL() bool {
+	ttl := proxy.config.ExtractHeadersTTL
+	if ttl == 0 {
+		return true
+	}
+
+	tsRaw, ok := proxy.ipfsHeadersStore.Load(ipfsHeadersTimestampKey)
+	if !ok {
+		return false
+	}
+
+	ts, ok := tsRaw.(time.Time)
+	if !ok {
+		return false
+	}
+
+	lifespan := time.Since(ts)
+	return lifespan < ttl
 }
 
 // rememberIPFSHeaders adds the known IPFS Headers to the destination
-// and returns true if we could set all the headers in the list.
+// and returns true if we could set all the headers in the list and
+// the TTL has not expired.
 // False is used to determine if we need to make a request to try
 // to extract these headers.
 func (proxy *Server) setIPFSHeaders(dest http.Header) bool {
 	r := true
+
+	if !proxy.headersWithinTTL() {
+		r = false
+		// still set those headers we can set in the destination.
+		// We do our best there, since maybe the ipfs daemon
+		// is down and what we have now is all we can use.
+	}
+
 	for _, h := range proxy.ipfsHeaders() {
 		v, ok := proxy.ipfsHeadersStore.Load(h)
 		if !ok {

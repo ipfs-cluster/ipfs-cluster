@@ -9,10 +9,12 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/rs/cors"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
-	"github.com/rs/cors"
 
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
@@ -20,6 +22,7 @@ import (
 
 var (
 	IpfsCustomHeaderName  = "X-Custom-Header"
+	IpfsTimeHeaderName    = "X-Time-Now"
 	IpfsCustomHeaderValue = "42"
 	IpfsACAOrigin         = "myorigin"
 )
@@ -128,6 +131,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	w.Header().Set(IpfsCustomHeaderName, IpfsCustomHeaderValue)
 	w.Header().Set("Server", "ipfs-mock")
+	w.Header().Set(IpfsTimeHeaderName, fmt.Sprintf("%d", time.Now().Unix()))
 	endp := strings.TrimPrefix(p, "/api/v0/")
 	switch endp {
 	case "id":
