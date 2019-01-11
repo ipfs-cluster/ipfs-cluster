@@ -52,8 +52,8 @@ var (
 		"X-Chunked-Output",
 		"X-Content-Length",
 	}
-	DefaultCORSAllowCredentials               = true
-	DefaultCORSMaxAge           time.Duration = 0
+	DefaultCORSAllowCredentials = true
+	DefaultCORSMaxAge           time.Duration // 0. Means always.
 )
 
 // Config is used to intialize the API object and allows to
