@@ -60,7 +60,7 @@ type Config struct {
 	// A list of custom headers that should be extracted from
 	// IPFS daemon responses and re-used in responses from hijacked paths.
 	// This is only useful if the user has configured custom headers
-	// in the IFPS daemon. CORS-related headers are already
+	// in the IPFS daemon. CORS-related headers are already
 	// taken care of by the proxy.
 	ExtractHeadersExtra []string
 

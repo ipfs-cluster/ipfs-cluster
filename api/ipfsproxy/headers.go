@@ -86,7 +86,7 @@ func (proxy *Server) headersWithinTTL() bool {
 	return lifespan < ttl
 }
 
-// rememberIPFSHeaders adds the known IPFS Headers to the destination
+// setIPFSHeaders adds the known IPFS Headers to the destination
 // and returns true if we could set all the headers in the list and
 // the TTL has not expired.
 // False is used to determine if we need to make a request to try

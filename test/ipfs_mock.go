@@ -20,7 +20,8 @@ import (
 	u "github.com/ipfs/go-ipfs-util"
 )
 
-var (
+// Some values used by the ipfs mock
+const (
 	IpfsCustomHeaderName  = "X-Custom-Header"
 	IpfsTimeHeaderName    = "X-Time-Now"
 	IpfsCustomHeaderValue = "42"
