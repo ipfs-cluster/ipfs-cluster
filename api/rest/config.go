@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/rs/cors"
 
 	"github.com/kelseyhightower/envconfig"
 
@@ -38,7 +40,11 @@ var (
 // CORS defaults
 var (
 	DefaultCORSAllowedOrigins = []string{"*"}
-	DefaultCORSAllowedMethods = []string{"GET"}
+	DefaultCORSAllowedMethods = []string{
+		http.MethodGet,
+	}
+	// rs/cors this will set sensible defaults when empty:
+	// {"Origin", "Accept", "Content-Type", "X-Requested-With"}
 	DefaultCORSAllowedHeaders = []string{}
 	DefaultCORSExposedHeaders = []string{
 		"Content-Type",
@@ -46,7 +52,7 @@ var (
 		"X-Chunked-Output",
 		"X-Content-Length",
 	}
-	DefaultCORSAllowCredentials               = false
+	DefaultCORSAllowCredentials               = true
 	DefaultCORSMaxAge           time.Duration = 0
 )
 
@@ -390,6 +396,20 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
+}
+
+func (cfg *Config) corsOptions() *cors.Options {
+	maxAgeSeconds := int(cfg.CORSMaxAge / time.Second)
+
+	return &cors.Options{
+		AllowedOrigins:   cfg.CORSAllowedOrigins,
+		AllowedMethods:   cfg.CORSAllowedMethods,
+		AllowedHeaders:   cfg.CORSAllowedHeaders,
+		ExposedHeaders:   cfg.CORSExposedHeaders,
+		AllowCredentials: cfg.CORSAllowCredentials,
+		MaxAge:           maxAgeSeconds,
+		Debug:            false,
+	}
 }
 
 func newTLSConfig(certFile, keyFile string) (*tls.Config, error) {

@@ -23,6 +23,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
+	"github.com/rs/cors"
 
 	mux "github.com/gorilla/mux"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
@@ -109,12 +110,14 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
+	c := cors.New(*cfg.corsOptions())
+	withCorsRouter := c.Handler(router)
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           router,
+		Handler:           withCorsRouter,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168

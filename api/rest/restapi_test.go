@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -25,8 +26,9 @@ import (
 )
 
 const (
-	SSLCertFile = "test/server.crt"
-	SSLKeyFile  = "test/server.key"
+	SSLCertFile  = "test/server.crt"
+	SSLKeyFile   = "test/server.key"
+	clientOrigin = "myorigin"
 )
 
 func testAPI(t *testing.T) *API {
@@ -39,6 +41,10 @@ func testAPI(t *testing.T) *API {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.HTTPListenAddr = apiMAddr
+	cfg.CORSAllowedOrigins = []string{clientOrigin}
+	cfg.CORSAllowedMethods = []string{"GET", "POST", "DELETE"}
+	//cfg.CORSAllowedHeaders = []string{"Content-Type"}
+	cfg.CORSMaxAge = 10 * time.Minute
 
 	rest, err := NewAPIWithHost(cfg, h)
 	if err != nil {
@@ -133,6 +139,10 @@ func checkHeaders(t *testing.T, rest *API, url string, headers http.Header) {
 	if headers.Get("Content-Type") != "application/json" {
 		t.Errorf("%s is not application/json", url)
 	}
+
+	if eh := headers.Get("Access-Control-Expose-Headers"); eh == "" {
+		t.Error("AC-Expose-Headers not set")
+	}
 }
 
 // makes a libp2p host that knows how to talk to the rest API host.
@@ -194,7 +204,9 @@ func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Get(url)
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("Origin", clientOrigin)
+	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
@@ -207,7 +219,10 @@ func makePostWithContentType(t *testing.T, rest *API, url string, body []byte, c
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Post(url, contentType, bytes.NewReader(body))
+	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Origin", clientOrigin)
+	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
@@ -216,17 +231,32 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
+	req, _ := http.NewRequest(http.MethodDelete, url, bytes.NewReader([]byte{}))
+	req.Header.Set("Origin", clientOrigin)
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
+}
+
+func makeOptions(t *testing.T, rest *API, url string, reqHeaders http.Header) http.Header {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h, isHTTPS(url))
+	req, _ := http.NewRequest(http.MethodOptions, url, nil)
+	req.Header = reqHeaders
+	httpResp, err := c.Do(req)
+	processResp(t, httpResp, err, nil)
+	return httpResp.Header
 }
 
 func makeStreamingPost(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Post(url, contentType, body)
+	req, _ := http.NewRequest(http.MethodPost, url, body)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Origin", clientOrigin)
+	httpResp, err := c.Do(req)
 	processStreamingResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
@@ -821,6 +851,58 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 		if errResp.Code != 400 {
 			t.Error("expected a different error")
 		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestCORS(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	type testcase struct {
+		method string
+		path   string
+	}
+
+	tf := func(t *testing.T, url urlF) {
+		reqHeaders := make(http.Header)
+		reqHeaders.Set("Origin", "myorigin")
+		reqHeaders.Set("Access-Control-Request-Headers", "Content-Type")
+
+		for _, tc := range []testcase{
+			testcase{"GET", "/pins"},
+			//			testcase{},
+		} {
+			reqHeaders.Set("Access-Control-Request-Method", tc.method)
+			headers := makeOptions(t, rest, url(rest)+tc.path, reqHeaders)
+			aorigin := headers.Get("Access-Control-Allow-Origin")
+			amethods := headers.Get("Access-Control-Allow-Methods")
+			aheaders := headers.Get("Access-Control-Allow-Headers")
+			acreds := headers.Get("Access-Control-Allow-Credentials")
+			maxage := headers.Get("Access-Control-Max-Age")
+
+			if aorigin != "myorigin" {
+				t.Error("Bad ACA-Origin:", aorigin)
+			}
+
+			if amethods != tc.method {
+				t.Error("Bad ACA-Methods:", amethods)
+			}
+
+			if aheaders != "Content-Type" {
+				t.Error("Bad ACA-Headers:", aheaders)
+			}
+
+			if acreds != "true" {
+				t.Error("Bad ACA-Credentials:", acreds)
+			}
+
+			if maxage != "600" {
+				t.Error("Bad AC-Max-Age:", maxage)
+			}
+		}
+
 	}
 
 	testBothEndpoints(t, tf)
