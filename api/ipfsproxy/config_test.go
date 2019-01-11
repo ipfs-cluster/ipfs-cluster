@@ -28,11 +28,11 @@ func TestLoadJSON(t *testing.T) {
 
 	j := &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ProxyListenMultiaddress = "abc"
+	j.ListenMultiaddress = "abc"
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
-		t.Error("expected error decoding proxy_listen_multiaddress")
+		t.Error("expected error decoding listen_multiaddress")
 	}
 
 	j = &jsonConfig{}
@@ -46,11 +46,11 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ProxyReadTimeout = "-aber"
+	j.ReadTimeout = "-aber"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
-		t.Error("expected error in proxy_read_timeout")
+		t.Error("expected error in read_timeout")
 	}
 
 	j = &jsonConfig{}
