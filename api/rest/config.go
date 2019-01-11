@@ -279,6 +279,9 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 	cfg.CORSAllowedHeaders = jcfg.CORSAllowedHeaders
 	cfg.CORSExposedHeaders = jcfg.CORSExposedHeaders
 	cfg.CORSAllowCredentials = jcfg.CORSAllowCredentials
+	if jcfg.CORSMaxAge == "" { // compatibility
+		jcfg.CORSMaxAge = "0s"
+	}
 
 	return config.ParseDurations(
 		"restapi",
