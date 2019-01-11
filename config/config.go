@@ -46,7 +46,7 @@ type ComponentConfig interface {
 // These are the component configuration types
 // supported by the Manager.
 const (
-	Cluster = iota
+	Cluster SectionType = iota
 	Consensus
 	API
 	IPFSConn
@@ -55,11 +55,20 @@ const (
 	Monitor
 	Allocator
 	Informer
-	Sharder
+	endTypes // keep this at the end
 )
 
 // SectionType specifies to which section a component configuration belongs.
 type SectionType int
+
+// SectionTypes returns the list of supported SectionTypes
+func SectionTypes() []SectionType {
+	var l []SectionType
+	for i := Cluster; i < endTypes; i++ {
+		l = append(l, i)
+	}
+	return l
+}
 
 // Section is a section of which stores
 // component-specific configurations.
@@ -165,7 +174,29 @@ type jsonConfig struct {
 	Monitor    jsonSection      `json:"monitor,omitempty"`
 	Allocator  jsonSection      `json:"allocator,omitempty"`
 	Informer   jsonSection      `json:"informer,omitempty"`
-	Sharder    jsonSection      `json:"sharder,omitempty"`
+}
+
+func (jcfg *jsonConfig) getSection(i SectionType) jsonSection {
+	switch i {
+	case Consensus:
+		return jcfg.Consensus
+	case API:
+		return jcfg.API
+	case IPFSConn:
+		return jcfg.IPFSConn
+	case State:
+		return jcfg.State
+	case PinTracker:
+		return jcfg.PinTracker
+	case Monitor:
+		return jcfg.Monitor
+	case Allocator:
+		return jcfg.Allocator
+	case Informer:
+		return jcfg.Informer
+	default:
+		return nil
+	}
 }
 
 // Default generates a default configuration by generating defaults for all
@@ -279,7 +310,10 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	// Load Cluster section. Needs to have been registered
 	if cfg.clusterConfig != nil && jcfg.Cluster != nil {
 		cfg.clusterConfig.SetBaseDir(dir)
-		cfg.clusterConfig.LoadJSON([]byte(*jcfg.Cluster))
+		err = cfg.clusterConfig.LoadJSON([]byte(*jcfg.Cluster))
+		if err != nil {
+			return err
+		}
 	}
 
 	loadCompJSON := func(name string, component ComponentConfig, jsonSection jsonSection) error {
@@ -313,9 +347,17 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	}
 
 	sections := cfg.sections
-	// will skip checking errors and trust Validate()
-	loadSectionJSON(sections[Consensus], jcfg.Consensus)
-	loadSectionJSON(sections[API], jcfg.API)
+
+	for _, t := range SectionTypes() {
+		if t == Cluster {
+			continue
+		}
+		err := loadSectionJSON(sections[t], jcfg.getSection(t))
+		if err != nil {
+			return err
+		}
+	}
+
 	// Should we change hardcoded "ipfsproxy" to something else
 	if _, ok := jcfg.API["ipfsproxy"]; !ok {
 		loadCompJSON("ipfshttp", sections[API]["ipfsproxy"], jcfg.IPFSConn)
@@ -328,13 +370,6 @@ proxy configuration is taken from the "ipfshttp" section as before, but this
 will be removed in future versions.
 `)
 	}
-	loadSectionJSON(sections[IPFSConn], jcfg.IPFSConn)
-	loadSectionJSON(sections[State], jcfg.State)
-	loadSectionJSON(sections[PinTracker], jcfg.PinTracker)
-	loadSectionJSON(sections[Monitor], jcfg.Monitor)
-	loadSectionJSON(sections[Allocator], jcfg.Allocator)
-	loadSectionJSON(sections[Informer], jcfg.Informer)
-	loadSectionJSON(sections[Sharder], jcfg.Informer)
 	return cfg.Validate()
 }
 
@@ -420,8 +455,6 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 			err = updateJSONConfigs(v, &jcfg.Allocator)
 		case Informer:
 			err = updateJSONConfigs(v, &jcfg.Informer)
-		case Sharder:
-			err = updateJSONConfigs(v, &jcfg.Sharder)
 		}
 		if err != nil {
 			return nil, err
