@@ -97,7 +97,8 @@ type DurationOpt struct {
 func ParseDurations(component string, args ...*DurationOpt) error {
 	for _, arg := range args {
 		if arg.Duration == "" {
-			*arg.Dst = 0
+			// don't do anything. Let the destination field
+			// stay at its default.
 			continue
 		}
 		t, err := time.ParseDuration(arg.Duration)
