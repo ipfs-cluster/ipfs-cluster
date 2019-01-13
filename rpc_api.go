@@ -353,6 +353,77 @@ func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in api.PinSerial, out *[
 	return err
 }
 
+// UidNew runs IPFSConnector.UidNew().
+func (rpcapi *RPCAPI) UidNew(ctx context.Context, in string, out *api.UIDSecret) error {
+	res, err := rpcapi.c.ipfs.UidNew(in)
+	*out = res
+	return err
+}
+
+// UidLogIn runs IPFSConnector.UidLogIn().
+func (rpcapi *RPCAPI) UidLogIn(ctx context.Context, in []string, out *api.UIDLogIn) error {
+	res, err := rpcapi.c.ipfs.UidLogIn(in)
+	*out = res
+	return err
+}
+
+// FilesCp runs IPFSConnector.FilesCp().
+func (rpcapi *RPCAPI) IPFSFilesCp(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesCp(in)
+	return err
+}
+
+// FilesFlush runs IPFSConnector.FilesFlush().
+func (rpcapi *RPCAPI) IPFSFilesFlush(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesFlush(in)
+	return err
+}
+
+// FilesLs runs IPFSConnector.FilesLs().
+func (rpcapi *RPCAPI) IPFSFilesLs(ctx context.Context, in []string, out *api.FilesLs) error {
+	res, err := rpcapi.c.ipfs.FilesLs(in)
+	*out = res
+	return err
+}
+
+// FilesMkdir runs IPFSConnector.FilesMkdir().
+func (rpcapi *RPCAPI) IPFSFilesMkdir(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesMkdir(in)
+	return err
+}
+
+// FilesMv runs IPFSConnector.FilesMv().
+func (rpcapi *RPCAPI) IPFSFilesMv(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesMv(in)
+	return err
+}
+
+// FilesRead runs IPFSConnector.FilesRead().
+func (rpcapi *RPCAPI) IPFSFilesRead(ctx context.Context, in []string, out *[]byte) error {
+	res, err := rpcapi.c.ipfs.FilesRead(in)
+	*out = res
+	return err
+}
+
+// FilesRm runs IPFSConnector.FilesRm().
+func (rpcapi *RPCAPI) IPFSFilesRm(ctx context.Context, in []string, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesRm(in)
+	return err
+}
+
+// FilesStat runs IPFSConnector.FilesStat().
+func (rpcapi *RPCAPI) IPFSFilesStat(ctx context.Context, in []string, out *api.FilesStat) error {
+	res, err := rpcapi.c.ipfs.FilesStat(in)
+	*out = res
+	return err
+}
+
+// FilesWrite runs IPFSConnector.FilesWrite().
+func (rpcapi *RPCAPI) IPFSFilesWrite(ctx context.Context, in api.FilesWrite, out *struct{}) error {
+	err := rpcapi.c.ipfs.FilesWrite(in)
+	return err
+}
+
 /*
    Consensus component methods
 */

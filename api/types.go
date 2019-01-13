@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"regexp"
 	"sort"
 	"strings"
@@ -963,4 +964,45 @@ func (e *Error) Error() string {
 type IPFSRepoStat struct {
 	RepoSize   uint64
 	StorageMax uint64
+}
+
+// UIDSecret wraps node register keys in the Hive Cluster.
+type UIDSecret struct {
+	UID    string
+	PeerID string
+}
+
+// UIDLogIn wraps node keys renaming in the Hive Cluster.
+type UIDLogIn struct {
+	UID    string
+	OldUID string
+	PeerID string
+}
+
+// FilesLs wraps files/ls entries in the Hive Cluster.
+type FilesLs struct {
+	Entries []FileLsEntrie
+}
+
+type FileLsEntrie struct {
+	Name string
+	Type int
+	Size uint64
+	Hash string
+}
+
+type FilesStat struct {
+	Hash           string
+	Size           uint64
+	CumulativeSize uint64
+	Blocks         int
+	Type           string
+	WithLocality   bool
+	Local          bool
+	SizeLocal      uint64
+}
+
+type FilesWrite struct {
+	MultipartReader *multipart.Reader
+	Params          []string
 }

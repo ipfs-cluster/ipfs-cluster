@@ -87,6 +87,28 @@ type IPFSConnector interface {
 	BlockPut(api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block
 	BlockGet(cid.Cid) ([]byte, error)
+	// UidNew registers a uid in hive cluster
+	UidNew(name string) (api.UIDSecret, error)
+	// UidLogIn is used to change uid
+	UidLogIn([]string) (api.UIDLogIn, error)
+	// FilesCp is used to copy file
+	FilesCp([]string) error
+	// FilesFlush is used to change uid
+	FilesFlush([]string) error
+	// FilesLs is used to list files
+	FilesLs([]string) (api.FilesLs, error)
+	// FilesMkdir creates directory in IFPS peer
+	FilesMkdir([]string) error
+	// FilesMv moves file in IPFS peer
+	FilesMv([]string) error
+	// FilesRead reads file
+	FilesRead([]string) ([]byte, error)
+	// FilesRm remove directory from IPFS peer
+	FilesRm([]string) error
+	// FilesStat fetchs file statistics
+	FilesStat([]string) (api.FilesStat, error)
+	// FilesWrite writes file
+	FilesWrite(api.FilesWrite) error
 }
 
 // Peered represents a component which needs to be aware of the peers

@@ -20,7 +20,11 @@ func NewClusterHost(ctx context.Context, cfg *Config) (host.Host, error) {
 	// Create protector if we have a secret.
 	if cfg.Secret != nil && len(cfg.Secret) > 0 {
 		var key [32]byte
+		hiveFlag := []byte("hive.cluster")
 		copy(key[:], cfg.Secret)
+		for i := 0; i < len(hiveFlag); i++ {
+			key[i] ^= hiveFlag[i]
+		}
 		prot, err = pnet.NewV1ProtectorFromBytes(&key)
 		if err != nil {
 			return nil, err
