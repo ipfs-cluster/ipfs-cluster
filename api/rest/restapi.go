@@ -670,11 +670,15 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var ci cid.Cid
 	pinPath, ps := api.parsePathOrError(w, r)
 	logger.Debugf("rest api pinPathHandler: %s", pinPath)
+
 	err := api.rpcClient.Call(
 		"",
 		"Cluster",
 		"PinPath",
-		[]interface{}{pinPath, ps},
+		types.PinPath{
+			PinOpts: ps,
+			Path:    pinPath,
+		},
 		&ci,
 	)
 

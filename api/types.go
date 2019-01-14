@@ -734,6 +734,12 @@ type Pin struct {
 	Reference cid.Cid
 }
 
+// PinPath is a wrapper for holding pin serial and path of the content
+type PinPath struct {
+	PinOpts PinSerial
+	Path    string
+}
+
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive and the pin to be of DataType.
 func PinCid(c cid.Cid) Pin {

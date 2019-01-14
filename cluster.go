@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
+	gopath "github.com/ipfs/go-path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -1078,11 +1080,26 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 
 // PinPath accepts a path string resolves it into a cid and makes cluster pin it
 func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
-	ci, err := c.ipfs.Resolve(path)
+	var ci cid.Cid
+	validPath, err := gopath.ParsePath(path)
 	if err != nil {
-		fmt.Println("Resolve" + err.Error())
-		return cid.Cid{}, err
+		logger.Error("could not parse path")
+		return cid.Undef, err
 	}
+
+	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
+		ci, _, err = gopath.SplitAbsPath(validPath)
+		if err != nil {
+			return cid.Undef, err
+		}
+	} else {
+		ci, err = c.ipfs.Resolve(path)
+		if err != nil {
+			fmt.Println("Resolve" + err.Error())
+			return cid.Undef, err
+		}
+	}
+
 	logger.Infof("path %s resolved into cid %s", path, ci.String())
 
 	p.Cid = ci
@@ -1091,10 +1108,26 @@ func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
 
 // UnpinPath accepts a path string resolves it into a cit and makes the cluster unpin it
 func (c *Cluster) UnpinPath(path string) (cid.Cid, error) {
-	ci, err := c.ipfs.Resolve(path)
+	var ci cid.Cid
+	validPath, err := gopath.ParsePath(path)
 	if err != nil {
-		return cid.Cid{}, err
+		logger.Error("could not parse path")
+		return cid.Undef, err
 	}
+
+	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
+		ci, _, err = gopath.SplitAbsPath(validPath)
+		if err != nil {
+			return cid.Undef, err
+		}
+	} else {
+		ci, err = c.ipfs.Resolve(path)
+		if err != nil {
+			fmt.Println("Resolve" + err.Error())
+			return cid.Undef, err
+		}
+	}
+
 	logger.Infof("path %s resolved into cid %s", path, ci.String())
 
 	return ci, c.Unpin(ci)
