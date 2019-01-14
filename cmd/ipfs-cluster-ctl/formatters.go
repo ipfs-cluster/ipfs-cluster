@@ -13,6 +13,11 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+type addedOutputQuiet struct {
+	added *api.AddedOutput
+	quiet bool
+}
+
 func jsonFormatObject(resp interface{}) {
 	switch resp.(type) {
 	case nil:
@@ -25,6 +30,10 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.Pin).ToSerial())
 	case api.AddedOutput:
 		jsonFormatPrint(resp.(api.AddedOutput))
+	case addedOutputQuiet:
+		// print original object as in JSON it does
+		// not make sense to have a human "quiet" output.
+		jsonFormatPrint(resp.(addedOutputQuiet).added)
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
 	case api.Metric:
@@ -57,6 +66,15 @@ func jsonFormatObject(resp interface{}) {
 	case []api.AddedOutput:
 		serials := resp.([]api.AddedOutput)
 		jsonFormatPrint(serials)
+	case []addedOutputQuiet:
+		// print original objects as in JSON it makes
+		// no sense to have a human "quiet" output
+		serials := resp.([]addedOutputQuiet)
+		var actual []*api.AddedOutput
+		for _, s := range serials {
+			actual = append(actual, s.added)
+		}
+		jsonFormatPrint(actual)
 	case []api.Metric:
 		serials := resp.([]api.Metric)
 		jsonFormatPrint(serials)
@@ -87,6 +105,9 @@ func textFormatObject(resp interface{}) {
 	case api.AddedOutput:
 		serial := resp.(api.AddedOutput)
 		textFormatPrintAddedOutput(&serial)
+	case addedOutputQuiet:
+		serial := resp.(addedOutputQuiet)
+		textFormatPrintAddedOutputQuiet(&serial)
 	case api.Version:
 		serial := resp.(api.Version)
 		textFormatPrintVersion(&serial)
@@ -110,6 +131,10 @@ func textFormatObject(resp interface{}) {
 		}
 	case []api.AddedOutput:
 		for _, item := range resp.([]api.AddedOutput) {
+			textFormatObject(item)
+		}
+	case []addedOutputQuiet:
+		for _, item := range resp.([]addedOutputQuiet) {
 			textFormatObject(item)
 		}
 	case []api.Metric:
@@ -216,6 +241,14 @@ func textFormatPrintPin(obj *api.PinSerial) {
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
+}
+
+func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
+	if obj.quiet {
+		fmt.Printf("%s\n", obj.added.Cid)
+	} else {
+		textFormatPrintAddedOutput(obj.added)
+	}
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
