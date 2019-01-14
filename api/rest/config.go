@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/rs/cors"
 
 	"github.com/kelseyhightower/envconfig"
 
@@ -32,11 +34,26 @@ const (
 
 // These are the default values for Config.
 var (
-	DefaultHeaders = map[string][]string{
-		"Access-Control-Allow-Headers": []string{"X-Requested-With", "Range"},
-		"Access-Control-Allow-Methods": []string{"GET"},
-		"Access-Control-Allow-Origin":  []string{"*"},
+	DefaultHeaders = map[string][]string{}
+)
+
+// CORS defaults
+var (
+	DefaultCORSAllowedOrigins = []string{"*"}
+	DefaultCORSAllowedMethods = []string{
+		http.MethodGet,
 	}
+	// rs/cors this will set sensible defaults when empty:
+	// {"Origin", "Accept", "Content-Type", "X-Requested-With"}
+	DefaultCORSAllowedHeaders = []string{}
+	DefaultCORSExposedHeaders = []string{
+		"Content-Type",
+		"X-Stream-Output",
+		"X-Chunked-Output",
+		"X-Content-Length",
+	}
+	DefaultCORSAllowCredentials = true
+	DefaultCORSMaxAge           time.Duration // 0. Means always.
 )
 
 // Config is used to intialize the API object and allows to
@@ -85,8 +102,16 @@ type Config struct {
 	BasicAuthCreds map[string]string
 
 	// Headers provides customization for the headers returned
-	// by the API. By default it sets a CORS policy.
+	// by the API on existing routes.
 	Headers map[string][]string
+
+	// CORS header management
+	CORSAllowedOrigins   []string
+	CORSAllowedMethods   []string
+	CORSAllowedHeaders   []string
+	CORSExposedHeaders   []string
+	CORSAllowCredentials bool
+	CORSMaxAge           time.Duration
 }
 
 type jsonConfig struct {
@@ -105,6 +130,13 @@ type jsonConfig struct {
 
 	BasicAuthCreds map[string]string   `json:"basic_auth_credentials"`
 	Headers        map[string][]string `json:"headers"`
+
+	CORSAllowedOrigins   []string `json:"cors_allowed_origins"`
+	CORSAllowedMethods   []string `json:"cors_allowed_methods"`
+	CORSAllowedHeaders   []string `json:"cors_allowed_headers"`
+	CORSExposedHeaders   []string `json:"cors_exposed_headers"`
+	CORSAllowCredentials bool     `json:"cors_allow_credentials"`
+	CORSMaxAge           string   `json:"cors_max_age"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of
@@ -136,6 +168,13 @@ func (cfg *Config) Default() error {
 	// Headers
 	cfg.Headers = DefaultHeaders
 
+	cfg.CORSAllowedOrigins = DefaultCORSAllowedOrigins
+	cfg.CORSAllowedMethods = DefaultCORSAllowedMethods
+	cfg.CORSAllowedHeaders = DefaultCORSAllowedHeaders
+	cfg.CORSExposedHeaders = DefaultCORSExposedHeaders
+	cfg.CORSAllowCredentials = DefaultCORSAllowCredentials
+	cfg.CORSMaxAge = DefaultCORSMaxAge
+
 	return nil
 }
 
@@ -154,7 +193,9 @@ func (cfg *Config) Validate() error {
 	case cfg.BasicAuthCreds != nil && len(cfg.BasicAuthCreds) == 0:
 		return errors.New("restapi.basic_auth_creds should be null or have at least one entry")
 	case (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil:
-		return errors.New("missing TLS configuration")
+		return errors.New("restapi: missing TLS configuration")
+	case (cfg.CORSMaxAge < 0):
+		return errors.New("restapi.cors_max_age is invalid")
 	}
 
 	return cfg.validateLibp2p()
@@ -232,12 +273,23 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 		return err
 	}
 
+	// CORS
+	cfg.CORSAllowedOrigins = jcfg.CORSAllowedOrigins
+	cfg.CORSAllowedMethods = jcfg.CORSAllowedMethods
+	cfg.CORSAllowedHeaders = jcfg.CORSAllowedHeaders
+	cfg.CORSExposedHeaders = jcfg.CORSExposedHeaders
+	cfg.CORSAllowCredentials = jcfg.CORSAllowCredentials
+	if jcfg.CORSMaxAge == "" { // compatibility
+		jcfg.CORSMaxAge = "0s"
+	}
+
 	return config.ParseDurations(
 		"restapi",
 		&config.DurationOpt{Duration: jcfg.ReadTimeout, Dst: &cfg.ReadTimeout, Name: "read_timeout"},
 		&config.DurationOpt{Duration: jcfg.ReadHeaderTimeout, Dst: &cfg.ReadHeaderTimeout, Name: "read_header_timeout"},
 		&config.DurationOpt{Duration: jcfg.WriteTimeout, Dst: &cfg.WriteTimeout, Name: "write_timeout"},
 		&config.DurationOpt{Duration: jcfg.IdleTimeout, Dst: &cfg.IdleTimeout, Name: "idle_timeout"},
+		&config.DurationOpt{Duration: jcfg.CORSMaxAge, Dst: &cfg.CORSMaxAge, Name: "cors_max_age"},
 	)
 }
 
@@ -323,6 +375,12 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		IdleTimeout:            cfg.IdleTimeout.String(),
 		BasicAuthCreds:         cfg.BasicAuthCreds,
 		Headers:                cfg.Headers,
+		CORSAllowedOrigins:     cfg.CORSAllowedOrigins,
+		CORSAllowedMethods:     cfg.CORSAllowedMethods,
+		CORSAllowedHeaders:     cfg.CORSAllowedHeaders,
+		CORSExposedHeaders:     cfg.CORSExposedHeaders,
+		CORSAllowCredentials:   cfg.CORSAllowCredentials,
+		CORSMaxAge:             cfg.CORSMaxAge.String(),
 	}
 
 	if cfg.ID != "" {
@@ -341,6 +399,20 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
+}
+
+func (cfg *Config) corsOptions() *cors.Options {
+	maxAgeSeconds := int(cfg.CORSMaxAge / time.Second)
+
+	return &cors.Options{
+		AllowedOrigins:   cfg.CORSAllowedOrigins,
+		AllowedMethods:   cfg.CORSAllowedMethods,
+		AllowedHeaders:   cfg.CORSAllowedHeaders,
+		ExposedHeaders:   cfg.CORSExposedHeaders,
+		AllowCredentials: cfg.CORSAllowCredentials,
+		MaxAge:           maxAgeSeconds,
+		Debug:            false,
+	}
 }
 
 func newTLSConfig(certFile, keyFile string) (*tls.Config, error) {
