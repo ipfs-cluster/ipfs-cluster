@@ -21,8 +21,8 @@ test_expect_success IPFS,CLUSTER "health metrics without metric name fails" '
 '
 
 test_expect_success IPFS,CLUSTER "list latest metrics logged by this peer" '
-    pid=`docker exec ipfs sh -c "ipfs id" | jq ".ID"`
-    ipfs-cluster-ctl health metrics freespace | grep -q "$pid: [0-9]* | Expire: .*T.*Z"
+    pid=`ipfs-cluster-ctl --enc=json id | jq -r ".id"`
+    ipfs-cluster-ctl health metrics freespace | grep -q -E "^$pid: [0-9]+ | Expire: .+T.+Z"
 '
 
 test_clean_ipfs
