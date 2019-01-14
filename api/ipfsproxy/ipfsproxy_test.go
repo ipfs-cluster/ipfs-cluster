@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -30,6 +31,10 @@ func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
 	cfg.Default()
 	cfg.NodeAddr = nodeMAddr
 	cfg.ListenAddr = proxyMAddr
+	cfg.ExtractHeadersExtra = []string{
+		test.IpfsCustomHeaderName,
+		test.IpfsTimeHeaderName,
+	}
 
 	proxy, err := New(cfg)
 	if err != nil {
@@ -50,12 +55,12 @@ func TestIPFSProxyVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
+	defer res.Body.Close()
+	resBytes, _ := ioutil.ReadAll(res.Body)
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
+		t.Fatal(string(resBytes))
 	}
-	defer res.Body.Close()
-
-	resBytes, _ := ioutil.ReadAll(res.Body)
 
 	var resp struct {
 		Version string
@@ -319,6 +324,8 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		fmt.Println(string(resBytes))
+
 		_, ok := resp.Keys[test.TestCid1]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
@@ -505,67 +512,6 @@ func TestIPFSProxy(t *testing.T) {
 	}
 }
 
-func Test_extractArgument(t *testing.T) {
-	type args struct {
-		handlePath string
-		u          *url.URL
-	}
-	tests := []struct {
-		name  string
-		args  args
-		want  string
-		want1 bool
-	}{
-		{
-			"pin/add url arg",
-			args{
-				"add",
-				mustParseURL(fmt.Sprintf("/api/v0/pin/add/%s", test.TestCid1)),
-			},
-			test.TestCid1,
-			true,
-		},
-		{
-			"pin/add query arg",
-			args{
-				"add",
-				mustParseURL(fmt.Sprintf("/api/v0/pin/add?arg=%s", test.TestCid1)),
-			},
-			test.TestCid1,
-			true,
-		},
-		{
-			"pin/ls url arg",
-			args{
-				"pin/ls",
-				mustParseURL(fmt.Sprintf("/api/v0/pin/ls/%s", test.TestCid1)),
-			},
-			test.TestCid1,
-			true,
-		},
-		{
-			"pin/ls query arg",
-			args{
-				"pin/ls",
-				mustParseURL(fmt.Sprintf("/api/v0/pin/ls?arg=%s", test.TestCid1)),
-			},
-			test.TestCid1,
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := extractArgument(tt.args.u)
-			if got != tt.want {
-				t.Errorf("extractCid() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("extractCid() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
-
 func mustParseURL(rawurl string) *url.URL {
 	u, err := url.Parse(rawurl)
 	if err != nil {
@@ -576,20 +522,62 @@ func mustParseURL(rawurl string) *url.URL {
 
 func TestHeaderExtraction(t *testing.T) {
 	proxy, mock := testIPFSProxy(t)
+	proxy.config.ExtractHeadersTTL = time.Second
 	defer mock.Close()
 	defer proxy.Shutdown()
 
-	res, err := http.Post(fmt.Sprintf("%s/pin/ls", proxyURL(proxy)), "", nil)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/pin/ls", proxyURL(proxy)), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Origin", test.IpfsACAOrigin)
+
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
 	res.Body.Close()
 
-	if res.Header.Get("Access-Control-Allow-Headers") != "test-allow-header" {
-		t.Error("the proxy should have extracted headers from ipfs")
+	for k, v := range res.Header {
+		t.Logf("%s: %s", k, v)
+	}
+
+	if h := res.Header.Get("Access-Control-Allow-Origin"); h != test.IpfsACAOrigin {
+		t.Error("We did not find out the AC-Allow-Origin header: ", h)
+	}
+
+	for _, h := range corsHeaders {
+		if v := res.Header.Get(h); v == "" {
+			t.Error("We did not set CORS header: ", h)
+		}
+	}
+
+	if res.Header.Get(test.IpfsCustomHeaderName) != test.IpfsCustomHeaderValue {
+		t.Error("the proxy should have extracted custom headers from ipfs")
 	}
 
 	if !strings.HasPrefix(res.Header.Get("Server"), "ipfs-cluster") {
 		t.Error("wrong value for Server header")
+	}
+
+	// Test ExtractHeaderTTL
+	t1 := res.Header.Get(test.IpfsTimeHeaderName)
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	t2 := res.Header.Get(test.IpfsTimeHeaderName)
+	if t1 != t2 {
+		t.Error("should have cached the headers during TTL")
+	}
+	time.Sleep(1200 * time.Millisecond)
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	res.Body.Close()
+	t3 := res.Header.Get(test.IpfsTimeHeaderName)
+	if t3 == t2 {
+		t.Error("should have refreshed the headers after TTL")
 	}
 }

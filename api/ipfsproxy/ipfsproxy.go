@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
@@ -17,8 +16,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
-	"github.com/ipfs/ipfs-cluster/version"
 
+	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -32,14 +31,6 @@ var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfsproxy")
 
-var ipfsHeaderList = []string{
-	"Server",
-	"Access-Control-Allow-Headers",
-	"Access-Control-Expose-Headers",
-	"Trailer",
-	"Vary",
-}
-
 // Server offers an IPFS API, hijacking some interesting requests
 // and forwarding the rest to the ipfs daemon
 // it proxies HTTP requests to the configured IPFS
@@ -49,45 +40,22 @@ type Server struct {
 	ctx    context.Context
 	cancel func()
 
-	config   *Config
-	nodeAddr string
+	config     *Config
+	nodeScheme string
+	nodeAddr   string
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	listener net.Listener // proxy listener
-	server   *http.Server // proxy server
+	listener         net.Listener      // proxy listener
+	server           *http.Server      // proxy server
+	ipfsRoundTripper http.RoundTripper // allows to talk to IPFS
 
-	onceHeaders sync.Once
-	ipfsHeaders sync.Map
+	ipfsHeadersStore sync.Map
 
 	shutdownLock sync.Mutex
 	shutdown     bool
 	wg           sync.WaitGroup
-}
-
-// An http.Handler through which all proxied calls
-// must pass (wraps the actual handler).
-type proxyHandler struct {
-	server  *Server
-	handler http.Handler
-}
-
-// ServeHTTP extracts interesting headers returned by IPFS responses
-// and stores them in our cache.
-func (ph *proxyHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	ph.handler.ServeHTTP(rw, req)
-
-	hdrs := make(http.Header)
-	ok := ph.server.setIPFSHeaders(hdrs)
-	if !ok {
-		// we are missing some headers we want, try
-		// to copy the ones coming on this proxied request.
-		srcHeaders := rw.Header()
-		for _, k := range ipfsHeaderList {
-			ph.server.ipfsHeaders.Store(k, srcHeaders[k])
-		}
-	}
 }
 
 type ipfsError struct {
@@ -149,19 +117,23 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	nodeHTTPAddr := "http://" + nodeAddr
+	nodeScheme := "http"
+	if cfg.NodeHTTPS {
+		nodeScheme = "https"
+	}
+	nodeHTTPAddr := fmt.Sprintf("%s://%s", nodeScheme, nodeAddr)
 	proxyURL, err := url.Parse(nodeHTTPAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	smux := http.NewServeMux()
+	router := mux.NewRouter()
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           smux,
+		Handler:           router,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
@@ -169,32 +141,67 @@ func New(cfg *Config) (*Server, error) {
 	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
+	reverseProxy := httputil.NewSingleHostReverseProxy(proxyURL)
+	reverseProxy.Transport = http.DefaultTransport
 	ctx, cancel := context.WithCancel(context.Background())
-
 	proxy := &Server{
-		ctx:      ctx,
-		config:   cfg,
-		cancel:   cancel,
-		nodeAddr: nodeAddr,
-		rpcReady: make(chan struct{}, 1),
-		listener: l,
-		server:   s,
+		ctx:              ctx,
+		config:           cfg,
+		cancel:           cancel,
+		nodeAddr:         nodeHTTPAddr,
+		nodeScheme:       nodeScheme,
+		rpcReady:         make(chan struct{}, 1),
+		listener:         l,
+		server:           s,
+		ipfsRoundTripper: reverseProxy.Transport,
 	}
 
-	proxyHandler := &proxyHandler{
-		server:  proxy,
-		handler: httputil.NewSingleHostReverseProxy(proxyURL),
-	}
+	// Ideally, we should only intercept POST requests, but
+	// people may be calling the API with GET or worse, PUT
+	// because IPFS has been allowing this traditionally.
+	// The main idea here is that we do not intercept
+	// OPTIONS requests (or HEAD).
+	hijackSubrouter := router.
+		Methods(http.MethodPost, http.MethodGet, http.MethodPut).
+		PathPrefix("/api/v0").
+		Subrouter()
 
-	smux.Handle("/", proxyHandler)
-	smux.HandleFunc("/api/v0/pin/add", proxy.pinHandler)   // add?arg=xxx
-	smux.HandleFunc("/api/v0/pin/add/", proxy.pinHandler)  // add/xxx
-	smux.HandleFunc("/api/v0/pin/rm", proxy.unpinHandler)  // rm?arg=xxx
-	smux.HandleFunc("/api/v0/pin/rm/", proxy.unpinHandler) // rm/xxx
-	smux.HandleFunc("/api/v0/pin/ls", proxy.pinLsHandler)  // required to handle /pin/ls for all pins
-	smux.HandleFunc("/api/v0/pin/ls/", proxy.pinLsHandler) // ls/xxx
-	smux.HandleFunc("/api/v0/add", proxy.addHandler)
-	smux.HandleFunc("/api/v0/repo/stat", proxy.repoStatHandler)
+	// Add hijacked routes
+	hijackSubrouter.
+		Path("/pin/add/{arg}").
+		HandlerFunc(slashHandler(proxy.pinHandler)).
+		Name("PinAddSlash") // supports people using the API wrong.
+	hijackSubrouter.
+		Path("/pin/add").
+		HandlerFunc(proxy.pinHandler).
+		Name("PinAdd")
+	hijackSubrouter.
+		Path("/pin/rm/{arg}").
+		HandlerFunc(slashHandler(proxy.unpinHandler)).
+		Name("PinRmSlash") // supports people using the API wrong.
+	hijackSubrouter.
+		Path("/pin/rm").
+		HandlerFunc(proxy.unpinHandler).
+		Name("PinRm")
+	hijackSubrouter.
+		Path("/pin/ls/{arg}").
+		HandlerFunc(slashHandler(proxy.pinLsHandler)).
+		Name("PinLsSlash") // supports people using the API wrong.
+	hijackSubrouter.
+		Path("/pin/ls").
+		HandlerFunc(proxy.pinLsHandler).
+		Name("PinLs")
+	hijackSubrouter.
+		Path("/add").
+		HandlerFunc(proxy.addHandler).
+		Name("Add")
+	hijackSubrouter.
+		Path("/repo/stat").
+		HandlerFunc(proxy.repoStatHandler).
+		Name("RepoStat")
+
+	// Everything else goes to the IPFS daemon.
+	router.PathPrefix("/").Handler(reverseProxy)
 
 	go proxy.run()
 	return proxy, nil
@@ -255,7 +262,7 @@ func (proxy *Server) run() {
 	}()
 }
 
-// Handlers
+// ipfsErrorResponder writes an http error response just like IPFS would.
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	res := ipfsError{errMsg}
 	resBytes, _ := json.Marshal(res)
@@ -264,50 +271,10 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
 	return
 }
 
-// setIPFSHeaders adds the known IPFS Headers to the destination
-// and returns true if we could set all the headers in the list.
-func (proxy *Server) setIPFSHeaders(dest http.Header) bool {
-	r := true
-	for _, h := range ipfsHeaderList {
-		v, ok := proxy.ipfsHeaders.Load(h)
-		if !ok {
-			r = false
-			continue
-		}
-		dest[h] = v.([]string)
-	}
-	return r
-}
-
-// Set headers that all hijacked endpoints share.
-func (proxy *Server) setHeaders(dest http.Header) {
-	if ok := proxy.setIPFSHeaders(dest); !ok {
-		req, err := http.NewRequest("POST", "/api/v0/version", nil)
-		if err != nil {
-			logger.Error(err)
-		} else {
-			// We use the Recorder() ResponseWriter to simply
-			// save implementing one ourselves.
-			// This uses our proxy handler to trigger a proxied
-			// request which will record the headers once completed.
-			proxy.server.Handler.ServeHTTP(httptest.NewRecorder(), req)
-			proxy.setIPFSHeaders(dest)
-		}
-	}
-
-	// Set Cluster global headers for all hijacked requests
-	dest.Set("Content-Type", "application/json")
-	dest.Set("Server", fmt.Sprintf("ipfs-cluster/ipfsproxy/%s", version.Version))
-}
-
 func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
-	proxy.setHeaders(w.Header())
+	proxy.setHeaders(w.Header(), r)
 
-	arg, ok := extractArgument(r.URL)
-	if !ok {
-		ipfsErrorResponder(w, "Error: bad argument")
-		return
-	}
+	arg := r.URL.Query().Get("arg")
 	c, err := cid.Decode(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing CID: "+err.Error())
@@ -344,13 +311,13 @@ func (proxy *Server) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
-	proxy.setHeaders(w.Header())
+	proxy.setHeaders(w.Header(), r)
 
 	pinLs := ipfsPinLsResp{}
 	pinLs.Keys = make(map[string]ipfsPinType)
 
-	arg, ok := extractArgument(r.URL)
-	if ok {
+	arg := r.URL.Query().Get("arg")
+	if arg != "" {
 		c, err := cid.Decode(arg)
 		if err != nil {
 			ipfsErrorResponder(w, err.Error())
@@ -398,7 +365,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
-	proxy.setHeaders(w.Header())
+	proxy.setHeaders(w.Header(), r)
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -474,7 +441,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
-	proxy.setHeaders(w.Header())
+	proxy.setHeaders(w.Header(), r)
 
 	peers := make([]peer.ID, 0)
 	err := proxy.rpcClient.Call(
@@ -524,23 +491,40 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// extractArgument extracts the cid argument from a url.URL, either via
-// the query string parameters or from the url path itself.
-func extractArgument(u *url.URL) (string, bool) {
-	arg := u.Query().Get("arg")
-	if arg != "" {
-		return arg, true
-	}
-
-	p := strings.TrimPrefix(u.Path, "/api/v0/")
-	segs := strings.Split(p, "/")
-
-	if len(segs) > 2 {
-		warnMsg := "You are using an undocumented form of the IPFS API."
+// slashHandler returns a handler which converts a /a/b/c/<argument> request
+// into an /a/b/c/<argument>?arg=<argument> one. And uses the given origHandler
+// for it. Our handlers expect that arguments are passed in the ?arg query
+// value.
+func slashHandler(origHandler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		warnMsg := "You are using an undocumented form of the IPFS API. "
 		warnMsg += "Consider passing your command arguments"
 		warnMsg += "with the '?arg=' query parameter"
-		logger.Warning(warnMsg)
-		return segs[len(segs)-1], true
+		logger.Error(warnMsg)
+
+		vars := mux.Vars(r)
+		arg := vars["arg"]
+
+		// IF we needed to modify the request path, we could do
+		// something along these lines. This is not the case
+		// at the moment. We just need to set the query argument.
+		//
+		// route := mux.CurrentRoute(r)
+		// path, err := route.GetPathTemplate()
+		// if err != nil {
+		// 	// I'd like to panic, but I don' want to kill a full
+		// 	// peer just because of a buggy use.
+		// 	logger.Critical("BUG: wrong use of slashHandler")
+		// 	origHandler(w, r) // proceed as nothing
+		// 	return
+		// }
+		// fixedPath := strings.TrimSuffix(path, "/{arg}")
+		// r.URL.Path = url.PathEscape(fixedPath)
+		// r.URL.RawPath = fixedPath
+
+		q := r.URL.Query()
+		q.Set("arg", arg)
+		r.URL.RawQuery = q.Encode()
+		origHandler(w, r)
 	}
-	return "", false
 }

@@ -7,12 +7,15 @@ import (
 
 var cfgJSON = []byte(`
 {
-      "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
       "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-      "proxy_read_timeout": "10m0s",
-      "proxy_read_header_timeout": "5s",
-      "proxy_write_timeout": "10m0s",
-      "proxy_idle_timeout": "1m0s"
+      "read_timeout": "10m0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "10m0s",
+      "idle_timeout": "1m0s",
+      "extract_headers_extra": [],
+      "extract_headers_path": "/api/v0/version",
+      "extract_headers_ttl": "5m"
 }
 `)
 
@@ -25,11 +28,11 @@ func TestLoadJSON(t *testing.T) {
 
 	j := &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ProxyListenMultiaddress = "abc"
+	j.ListenMultiaddress = "abc"
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
-		t.Error("expected error decoding proxy_listen_multiaddress")
+		t.Error("expected error decoding listen_multiaddress")
 	}
 
 	j = &jsonConfig{}
@@ -43,11 +46,20 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ProxyReadTimeout = "-aber"
+	j.ReadTimeout = "-aber"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
-		t.Error("expected error in proxy_read_timeout")
+		t.Error("expected error in read_timeout")
+	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.ExtractHeadersTTL = "-10"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error in extract_headers_ttl")
 	}
 }
 
@@ -103,6 +115,12 @@ func TestDefault(t *testing.T) {
 
 	cfg.Default()
 	cfg.WriteTimeout = -3
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.ExtractHeadersPath = ""
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
