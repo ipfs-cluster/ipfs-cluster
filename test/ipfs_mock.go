@@ -9,12 +9,23 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/rs/cors"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
+)
+
+// Some values used by the ipfs mock
+const (
+	IpfsCustomHeaderName  = "X-Custom-Header"
+	IpfsTimeHeaderName    = "X-Time-Now"
+	IpfsCustomHeaderValue = "42"
+	IpfsACAOrigin         = "myorigin"
 )
 
 // IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.
@@ -91,7 +102,19 @@ func NewIpfsMock() *IpfsMock {
 		pinMap:     st,
 		BlockStore: blocks,
 	}
-	ts := httptest.NewServer(http.HandlerFunc(m.handler))
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", m.handler)
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{IpfsACAOrigin},
+		AllowedMethods:   []string{"POST"},
+		ExposedHeaders:   []string{"X-Stream-Output", "X-Chunked-Output", "X-Content-Length"},
+		AllowCredentials: true, // because IPFS does it, even if for no reason.
+	})
+	corsHandler := c.Handler(mux)
+
+	ts := httptest.NewServer(corsHandler)
 	m.server = ts
 
 	url, _ := url.Parse(ts.URL)
@@ -107,8 +130,9 @@ func NewIpfsMock() *IpfsMock {
 // FIXME: what if IPFS API changes?
 func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
-	w.Header().Set("Access-Control-Allow-Headers", "test-allow-header")
+	w.Header().Set(IpfsCustomHeaderName, IpfsCustomHeaderValue)
 	w.Header().Set("Server", "ipfs-mock")
+	w.Header().Set(IpfsTimeHeaderName, fmt.Sprintf("%d", time.Now().Unix()))
 	endp := strings.TrimPrefix(p, "/api/v0/")
 	switch endp {
 	case "id":

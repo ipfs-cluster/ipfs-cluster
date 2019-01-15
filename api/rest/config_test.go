@@ -13,14 +13,20 @@ import (
 
 var cfgJSON = []byte(`
 {
-      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/12122",
       "ssl_cert_file": "test/server.crt",
       "ssl_key_file": "test/server.key",
       "read_timeout": "30s",
       "read_header_timeout": "5s",
       "write_timeout": "1m0s",
       "idle_timeout": "2m0s",
-      "basic_auth_credentials": null
+      "basic_auth_credentials": null,
+      "cors_allowed_origins": ["myorigin"],
+      "cors_allowed_methods": ["GET"],
+      "cors_allowed_headers": ["X-Custom"],
+      "cors_exposed_headers": ["X-Chunked-Output"],
+      "cors_allow_credentials": false,
+      "cors_max_age": "1s"
 }
 `)
 

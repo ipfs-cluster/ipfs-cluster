@@ -39,9 +39,9 @@
     },
     {
       "author": "gorilla",
-      "hash": "QmVrBjGjskzhW7HRfC56f4mT3nmNBHj2WWnEXr39G7Y6w8",
+      "hash": "QmXEPZmhs4r1rab3e2LqnrLvTFKCMEwC5SyEa3xTFJDqtU",
       "name": "mux",
-      "version": "1.3.0"
+      "version": "1.6.2"
     },
     {
       "author": "hsanjuan",
@@ -155,6 +155,12 @@
       "hash": "QmeP7Gybon3hs9KhoxSFvzqAHQS6xgyKYvsnjqktaXX3QN",
       "name": "go-libp2p-pubsub",
       "version": "100.11.9"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmNNk4iczWp8Q4R1mXQ2mrrjQvWisYqMqbW1an8qGbJZsM",
+      "name": "cors",
+      "version": "1.6.0"
     }
   ],
   "gxVersion": "0.11.0",
@@ -162,6 +168,6 @@
   "license": "MIT",
   "name": "ipfs-cluster",
   "releaseCmd": "git commit -S -a -m \"gx publish $VERSION\"",
-  "version": "0.7.0"
+  "version": "0.8.0-rc1"
 }
 
