@@ -161,6 +161,74 @@ func TestUnpin(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func TestPinPath(t *testing.T) {
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		_, err := c.PinPath(test.TestPathIPFS1, 6, 7, "hello there")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.PinPath(test.TestPathIPFS3, 6, 7, "hello there")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.PinPath(test.TestPathIPNS1, 6, 7, "hello there")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.PinPath(test.TestPathIPLD2, 6, 7, "hello there")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.PinPath(test.TestInvalidPath1, 6, 7, "hello there")
+		if err == nil {
+			t.Fatal(err)
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
+func TestUnpinPath(t *testing.T) {
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		_, err := c.UnpinPath(test.TestPathIPFS1)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.UnpinPath(test.TestPathIPFS3)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.UnpinPath(test.TestPathIPNS1)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.UnpinPath(test.TestPathIPLD2)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = c.UnpinPath(test.TestInvalidPath1)
+		if err == nil {
+			t.Fatal(err)
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
 func TestAllocations(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)

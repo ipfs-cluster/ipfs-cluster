@@ -287,6 +287,25 @@ func TestRepoStat(t *testing.T) {
 	}
 }
 
+func TestResolve(t *testing.T) {
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown()
+	time.Sleep(2 * time.Second)
+
+	s, err := ipfs.Resolve(test.TestPathIPFS2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s == cid.Undef {
+		t.Error("expected cid not to be undefined")
+	}
+
+	if s != test.MustDecodeCid(test.TestCid5) {
+		t.Error("expected different cid")
+	}
+}
+
 func TestConfigKey(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()

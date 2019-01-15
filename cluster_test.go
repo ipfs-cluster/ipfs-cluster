@@ -107,6 +107,9 @@ func (ipfs *mockConnector) RepoStat() (api.IPFSRepoStat, error) {
 	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
+func (ipfs *mockConnector) Resolve(path string) (cid.Cid, error) {
+	return test.MustDecodeCid(test.TestCid5), nil
+}
 func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
@@ -258,6 +261,35 @@ func TestClusterPin(t *testing.T) {
 	err = cl.Pin(pin)
 	if err == nil {
 		t.Error("expected an error but things worked")
+	}
+}
+
+func TestClusterPinPath(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	ci, err := cl.PinPath(test.TestPathIPFS2, api.Pin{
+		Type: api.DataType,
+	})
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+	if ci == cid.Undef {
+		t.Error("cid shouldn't have been undefined")
+	}
+
+	// test an error case
+	cl.consensus.Shutdown()
+	pin := api.PinCid(ci)
+	pin.ReplicationFactorMax = 1
+	pin.ReplicationFactorMin = 1
+	ci, err = cl.PinPath(test.TestPathIPFS2, pin)
+	if err == nil {
+		t.Error("expected an error but things worked")
+	}
+	if ci == cid.Undef {
+		t.Error("cid shouldn't have been undefined")
 	}
 }
 
@@ -754,6 +786,50 @@ func TestClusterUnpin(t *testing.T) {
 	err = cl.Unpin(c)
 	if err == nil {
 		t.Error("expected an error but things worked")
+	}
+}
+
+func TestClusterUnpinPath(t *testing.T) {
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown()
+
+	// Unpin should error without pin being committed to state
+	ci, err := cl.UnpinPath(test.TestPathIPFS2)
+	if err == nil {
+		t.Error("unpin with path should have failed")
+	}
+	if ci == cid.Undef {
+		t.Error("cid shouldn't have been undefined")
+	}
+
+	// Unpin after pin should succeed
+	ci, err = cl.PinPath(test.TestPathIPFS2, api.Pin{
+		Type: api.DataType,
+	})
+	if err != nil {
+		t.Fatal("pin with should have worked:", err)
+	}
+	if ci == cid.Undef {
+		t.Error("cid shouldn't have been undefined")
+	}
+
+	ci, err = cl.UnpinPath(test.TestPathIPFS2)
+	if err != nil {
+		t.Error("unpin with path should have worked:", err)
+	}
+	if ci == cid.Undef {
+		t.Error("cid shouldn't have been undefined")
+	}
+
+	// test another error case
+	cl.consensus.Shutdown()
+	ci, err = cl.UnpinPath(test.TestPathIPFS2)
+	if err == nil {
+		t.Error("expected an error but things worked")
+	}
+	if ci == cid.Undef {
+		t.Error("cid shouldn't have been undefined")
 	}
 }
 

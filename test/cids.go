@@ -29,6 +29,17 @@ var (
 	TestPeerName4 = "TestPeer4"
 	TestPeerName5 = "TestPeer5"
 	TestPeerName6 = "TestPeer6"
+
+	TestCid5      = "QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY"
+	TestPathIPFS1 = "/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY"
+	TestPathIPFS2 = "/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif"
+	TestPathIPFS3 = "/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif/"
+	TestPathIPNS1 = "/ipns/QmbmSAQNnfGcBAB8M8AsSPxd1TY7cpT9hZ398kXAScn2Ka"
+	TestPathIPNS2 = "/ipns/QmbmSAQNnfGcBAB8M8AsSPxd1TY7cpT9hZ398kXAScn2Ka/"
+	TestPathIPLD1 = "/ipld/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY"
+	TestPathIPLD2 = "/ipld/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
+
+	TestInvalidPath1 = "/invalidkeytype/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
 )
 
 // MustDecodeCid provides a test helper that ignores

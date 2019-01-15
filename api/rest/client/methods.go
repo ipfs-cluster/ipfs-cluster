@@ -89,16 +89,12 @@ func (c *defaultClient) Unpin(ci cid.Cid) error {
 // PinPath resolves given path into a cid and performs the pin operation.
 func (c *defaultClient) PinPath(pinPath string, replicationFactorMin, replicationFactorMax int, name string) (cid.Cid, error) {
 	var ci cid.Cid
-	pinPath = strings.TrimSuffix(
-		strings.TrimPrefix(strings.TrimSpace(pinPath), "/"),
-		"/",
-	)
 	escName := url.QueryEscape(name)
 	err := c.do(
 		"POST",
 		fmt.Sprintf(
 			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
-			pinPath,
+			api.TrimToPath(pinPath),
 			replicationFactorMin,
 			replicationFactorMax,
 			escName,
@@ -112,13 +108,9 @@ func (c *defaultClient) PinPath(pinPath string, replicationFactorMin, replicatio
 }
 
 // UnpinPath resolves given path into a cid and performs the unpin operation.
-func (c *defaultClient) UnpinPath(unPinPath string) (cid.Cid, error) {
-	unPinPath = strings.TrimSuffix(
-		strings.TrimPrefix(strings.TrimSpace(unPinPath), "/"),
-		"/",
-	)
+func (c *defaultClient) UnpinPath(unpinPath string) (cid.Cid, error) {
 	var ci cid.Cid
-	err := c.do("DELETE", fmt.Sprintf("/pins/%s", unPinPath), nil, nil, &ci)
+	err := c.do("DELETE", fmt.Sprintf("/pins/%s", api.TrimToPath(unpinPath)), nil, nil, &ci)
 
 	return ci, err
 }

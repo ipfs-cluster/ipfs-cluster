@@ -300,6 +300,8 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
+	case "resolve":
+		w.Write([]byte("{\"Path\":\"" + TestPathIPFS1 + "\"}"))
 	case "config/show":
 		resp := mockConfigResp{
 			Datastore: struct {

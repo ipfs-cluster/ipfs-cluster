@@ -52,6 +52,18 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 	return nil
 }
 
+func (mock *mockService) PinPath(ctx context.Context, in api.PinPath, out *cid.Cid) error {
+	ci := MustDecodeCid(TestCid5)
+	*out = ci
+	return nil
+}
+
+func (mock *mockService) UnpinPath(ctx context.Context, in string, out *cid.Cid) error {
+	ci := MustDecodeCid(TestCid5)
+	*out = ci
+	return nil
+}
+
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
 	opts := api.PinOptions{
 		ReplicationFactorMin: -1,
@@ -370,6 +382,12 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 		TestCid3: api.IPFSPinStatusRecursive,
 	}
 	*out = m
+	return nil
+}
+
+func (mock *mockService) IPFSResolve(ctx context.Context, in string, out *cid.Cid) error {
+	ci := MustDecodeCid(TestPathIPFS2)
+	*out = ci
 	return nil
 }
 
