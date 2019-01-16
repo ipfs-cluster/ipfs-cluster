@@ -1080,27 +1080,10 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 
 // PinPath accepts a path string resolves it into a cid and makes cluster pin it
 func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
-	var ci cid.Cid
-	validPath, err := gopath.ParsePath(path)
+	ci, err := c.Resolve(path)
 	if err != nil {
-		logger.Error("could not parse path")
-		return cid.Undef, err
+		return ci, err
 	}
-
-	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
-		ci, _, err = gopath.SplitAbsPath(validPath)
-		if err != nil {
-			return cid.Undef, err
-		}
-	} else {
-		ci, err = c.ipfs.Resolve(path)
-		if err != nil {
-			fmt.Println("Resolve" + err.Error())
-			return cid.Undef, err
-		}
-	}
-
-	logger.Infof("path %s resolved into cid %s", path, ci.String())
 
 	p.Cid = ci
 	return ci, c.Pin(p)
@@ -1108,6 +1091,15 @@ func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
 
 // UnpinPath accepts a path string resolves it into a cit and makes the cluster unpin it
 func (c *Cluster) UnpinPath(path string) (cid.Cid, error) {
+	ci, err := c.Resolve(path)
+	if err != nil {
+		return ci, err
+	}
+	return ci, c.Unpin(ci)
+}
+
+// Resolve resolves given string path into a cid
+func (c *Cluster) Resolve(path string) (cid.Cid, error) {
 	var ci cid.Cid
 	validPath, err := gopath.ParsePath(path)
 	if err != nil {
@@ -1130,12 +1122,7 @@ func (c *Cluster) UnpinPath(path string) (cid.Cid, error) {
 
 	logger.Infof("path %s resolved into cid %s", path, ci.String())
 
-	return ci, c.Unpin(ci)
-}
-
-// Resolve resolves given string path into a cid
-func (c *Cluster) Resolve(path string) (cid.Cid, error) {
-	return c.ipfs.Resolve(path)
+	return ci, nil
 }
 
 // AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer

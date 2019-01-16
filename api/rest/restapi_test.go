@@ -576,9 +576,10 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
-		// test regular post
 		var ci cid.Cid
 		ciKnown := test.MustDecodeCid(test.TestCid5).String()
+
+		// test regular post
 		makePost(t, rest, url(rest)+"/pins/"+api.TrimToPath(test.TestPathIPFS2), []byte{}, &ci)
 		if ci.String() != ciKnown {
 			t.Error("expected different cid")
@@ -622,6 +623,7 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 	tf := func(t *testing.T, url urlF) {
 		var ci cid.Cid
 		ciKnown := test.MustDecodeCid(test.TestCid5).String()
+
 		// test regular delete
 		makeDelete(t, rest, url(rest)+"/pins/"+api.TrimToPath(test.TestPathIPFS2), &ci)
 		if ci.String() != ciKnown {
