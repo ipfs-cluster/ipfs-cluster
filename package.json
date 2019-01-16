@@ -168,6 +168,6 @@
   "license": "MIT",
   "name": "ipfs-cluster",
   "releaseCmd": "git commit -S -a -m \"gx publish $VERSION\"",
-  "version": "0.8.0-rc1"
+  "version": "0.8.0"
 }
 
