@@ -601,7 +601,7 @@ func (ipfs *Connector) Resolve(path string) (cid.Cid, error) {
 		return ci, err
 	}
 
-	return cid.Undef, errors.New("Invalid path")
+	return cid.Undef, errors.New("invalid path")
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.
