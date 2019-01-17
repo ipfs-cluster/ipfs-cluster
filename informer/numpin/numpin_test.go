@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api/rest"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api/rest"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	peer "github.com/libp2p/go-libp2p-peer"

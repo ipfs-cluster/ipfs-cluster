@@ -11,7 +11,7 @@ import (
 
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 // Instances of migrateable can be read from a serialized format and migrated

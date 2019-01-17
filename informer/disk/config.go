@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/config"
 )
 
 const configKey = "disk"

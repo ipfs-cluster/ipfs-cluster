@@ -5,7 +5,7 @@ import (
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 // RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster

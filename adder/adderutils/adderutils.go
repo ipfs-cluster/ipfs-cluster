@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/adder/local"
-	"github.com/ipfs/ipfs-cluster/adder/sharding"
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/adder"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/adder/local"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/adder/sharding"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"

@@ -7,7 +7,7 @@ import (
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 // MetricName specifies the name of our metric

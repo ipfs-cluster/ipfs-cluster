@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"

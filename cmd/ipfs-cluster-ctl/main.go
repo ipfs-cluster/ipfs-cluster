@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/rest/client"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api/rest/client"
 	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
@@ -58,7 +58,7 @@ address (including the "/ipfs/<peerID>" part), and --secret (the
 32-byte cluster secret as it appears in the cluster configuration).
 
 For feedback, bug reports or any additional information, visit
-https://github.com/ipfs/ipfs-cluster.
+https://github.com/elastos/Elastos.NET.Hive.Cluster.
 `,
 	programName,
 	programName,

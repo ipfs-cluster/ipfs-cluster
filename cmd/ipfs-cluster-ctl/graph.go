@@ -9,7 +9,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	dot "github.com/zenground0/go-dot"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 /*

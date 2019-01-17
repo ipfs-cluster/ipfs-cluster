@@ -1,73 +1,63 @@
-# IPFS Cluster
+Elastos Hive Cluster
+==========================
 
+## Introduction
 
-[![Made by](https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square)](https://protocol.ai)
-[![Main project](https://img.shields.io/badge/project-ipfs-blue.svg?style=flat-square)](http://github.com/ipfs/ipfs)
-[![IRC channel](https://img.shields.io/badge/freenode-%23ipfs--cluster-blue.svg?style=flat-square)](http://webchat.freenode.net/?channels=%23ipfs-cluster)
-[![standard-readme compliant](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
-[![GoDoc](https://godoc.org/github.com/ipfs/ipfs-cluster?status.svg)](https://godoc.org/github.com/ipfs/ipfs-cluster)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ipfs/ipfs-cluster)](https://goreportcard.com/report/github.com/ipfs/ipfs-cluster)
-[![Build Status](https://travis-ci.org/ipfs/ipfs-cluster.svg?branch=master)](https://travis-ci.org/ipfs/ipfs-cluster)
-[![Coverage Status](https://coveralls.io/repos/github/ipfs/ipfs-cluster/badge.svg?branch=master)](https://coveralls.io/github/ipfs/ipfs-cluster?branch=master)
+Elastos Hive Cluster is a decentralized File Storage Service that based on IPFS cluster. Hive Cluster use IPFS and IPFS-cluster as the base infrastructure to save Elastos data.  Hive Cluster is also a stand-alone application as same as IPFS Cluster.
 
-> Pinset orchestration for IPFS.
+The typical IPFS peer is a resource hunger program. If you install IPFS daemon to your mobile device, it will take up resources and slow down your device. We are creating Hive project, which uses IPFS cluster as the Elastos App storage backend, and can be used in a low resources consumption scenario.
 
-<p align="center">
-<img src="https://cluster.ipfs.io/cluster/png/IPFS_Cluster_color_no_text.png" alt="logo" width="300" height="300" />
-</p>
+The project distils from the IPFS Cluster, but it will have many differences with the IPFS Cluster.
 
-IPFS Cluster is a stand-alone application and a CLI client that allocates, replicates, and tracks pins across a cluster of IPFS daemons.
+Elastos Hive Cluster maintains a big IPFS pinset for sharing. It can serve numerous virtual IPFS peers with only one running a real IPFS peer.
 
-It provides:
-
-* A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs`.
-* A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
-
----
-
-### Are you using IPFS Cluster?
-
-Please participate in the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
-
----
+Hive Cluster is not only a pinset manager but also a backend for multiple IPFS clients.
 
 ## Table of Contents
 
-- [Documentation](#documentation)
-- [News & Roadmap](#news--roadmap)
+- [Introduction](#introduction)
 - [Install](#install)
 - [Usage](#usage)
-- [Contribute](#contribute)
+- [Contribution](#contribution)
+- [Acknowledgments](#acknowledgments)
 - [License](#license)
-
-
-## Documentation
-
-Please visit https://cluster.ipfs.io/documentation/ to access user documentation, guides and any other resources, including detailed **download** and **usage** instructions.
-
-## News & Roadmap
-
-We regularly post project updates to https://cluster.ipfs.io/news/ .
-
-The most up-to-date *Roadmap* is available at https://cluster.ipfs.io/roadmap/ .
 
 ## Install
 
-Instructions for different installation methods (including from source) are available at https://cluster.ipfs.io/documentation/download .
+The following requirements apply to the installation from source:
+
+- Go 1.11+
+- Git
+- IPFS or internet connectivity (to download depedencies).
+
+In order to build and install IPFS Cluster in Unix systems follow the steps:
+
+```shell
+$ git clone https://github.com/elastos/Elastos.NET.Hive.Cluster.git $GOPATH/src/github.com/elastos/Elastos.NET.Hive.Cluster
+$ cd $GOPATH/src/github.com/elastos/Elastos.NET.Hive.Cluster
+$ make install
+```
+After the dependencies have been downloaded, ipfs-cluster-service and ipfs-cluster-ctl will be installed to your $GOPATH/bin (it uses go install).
+
+If you would rather have them built locally, use make build instead. You can run make clean to remove any generated artifacts and rewrite the import paths to their original form.
+
+Note that when the ipfs daemon is running locally on its default ports, the build process will use it to fetch gx, gx-go and all the needed dependencies directly from IPFS.
 
 ## Usage
 
-Extensive usage information is provided at https://cluster.ipfs.io/documentation/ , including:
-
+ipfs-cluster-service is a command line program, please refer to the docs from https://cluster.ipfs.io.
 * [Docs for `ipfs-cluster-service`](https://cluster.ipfs.io/documentation/ipfs-cluster-service/)
-* [Docs for `ipfs-cluster-ctl`](https://cluster.ipfs.io/documentation/ipfs-cluster-ctl/)
 
-## Contribute
+Hive Cluster uses HTTP interface to serve numerous clients. About HTTP API, please refer to 
+* [HTTP API] TODO
 
-PRs accepted. As part of the IPFS project, we have some [contribution guidelines](https://cluster.ipfs.io/developer/contribute).
+## Contribution
 
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+We welcome contributions to the Elastos Hive Project.
+
+## Acknowledgments
+
+A sincere thank you to all teams and projects that we rely on directly or indirectly.
 
 ## License
-
-MIT © Protocol Labs, Inc.
+This project is licensed under the terms of the [MIT license](https://github.com/elastos/Elastos.Hive.Cluster/blob/master/LICENSE).

@@ -5,9 +5,9 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/state/mapstate"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 )
 
 func TestApplyToPin(t *testing.T) {

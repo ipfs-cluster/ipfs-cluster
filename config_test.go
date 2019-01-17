@@ -1,15 +1,15 @@
 package ipfscluster
 
 import (
-	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
-	"github.com/ipfs/ipfs-cluster/api/rest"
-	"github.com/ipfs/ipfs-cluster/consensus/raft"
-	"github.com/ipfs/ipfs-cluster/informer/disk"
-	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
-	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api/ipfsproxy"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api/rest"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/consensus/raft"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/informer/disk"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/ipfsconn/ipfshttp"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/monitor/basic"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/monitor/pubsubmon"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/pintracker/maptracker"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/pintracker/stateless"
 )
 
 var testingClusterSecret, _ = DecodeClusterSecret("2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed")

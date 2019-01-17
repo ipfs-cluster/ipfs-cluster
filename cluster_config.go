@@ -13,7 +13,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/config"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"

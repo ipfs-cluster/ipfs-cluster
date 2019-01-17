@@ -6,7 +6,7 @@ package metrics
 import (
 	"errors"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 // DefaultWindowCap sets the amount of metrics to store per peer.

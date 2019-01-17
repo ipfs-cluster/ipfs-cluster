@@ -3,8 +3,8 @@ package raft
 import (
 	"errors"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/state"
 
 	consensus "github.com/libp2p/go-libp2p-consensus"
 )

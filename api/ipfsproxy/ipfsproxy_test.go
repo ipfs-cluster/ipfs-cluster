@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"

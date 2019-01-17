@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	libp2p "github.com/libp2p/go-libp2p"

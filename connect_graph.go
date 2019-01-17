@@ -3,8 +3,8 @@ package ipfscluster
 import (
 	peer "github.com/libp2p/go-libp2p-peer"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/rpcutil"
 )
 
 // ConnectGraph returns a description of which cluster peers and ipfs

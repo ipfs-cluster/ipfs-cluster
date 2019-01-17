@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
+	ipfscluster "github.com/elastos/Elastos.NET.Hive.Cluster"
 )
 
 func TestIpfsMock(t *testing.T) {

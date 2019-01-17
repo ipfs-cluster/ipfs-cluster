@@ -5,8 +5,8 @@
 package ascendalloc
 
 import (
-	"github.com/ipfs/ipfs-cluster/allocator/util"
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/allocator/util"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"

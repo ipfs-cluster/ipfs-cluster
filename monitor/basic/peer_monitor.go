@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/monitor/metrics"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/monitor/metrics"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/rpcutil"
 
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"

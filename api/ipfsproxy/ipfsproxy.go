@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
-	"github.com/ipfs/ipfs-cluster/version"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/adder/adderutils"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/rpcutil"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -177,7 +177,7 @@ func New(cfg *Config) (*Server, error) {
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
-	// See: https://github.com/ipfs/ipfs-cluster/issues/548
+	// See: https://github.com/elastos/Elastos.NET.Hive.Cluster/issues/548
 	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 

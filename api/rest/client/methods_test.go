@@ -11,11 +11,11 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 
-	types "github.com/ipfs/ipfs-cluster/api"
+	types "github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/rest"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api/rest"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 )
 
 func testClients(t *testing.T, api *rest.API, f func(*testing.T, Client)) {

@@ -14,8 +14,8 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 )
 
 func init() {

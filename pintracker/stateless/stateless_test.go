@@ -10,8 +10,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 )
 
 var (

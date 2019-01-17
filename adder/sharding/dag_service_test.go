@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	adder "github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	adder "github.com/elastos/Elastos.NET.Hive.Cluster/adder"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"

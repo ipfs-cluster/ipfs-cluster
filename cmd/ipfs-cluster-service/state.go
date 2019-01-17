@@ -7,11 +7,11 @@ import (
 	"io"
 	"io/ioutil"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/consensus/raft"
-	"github.com/ipfs/ipfs-cluster/pstoremgr"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	ipfscluster "github.com/elastos/Elastos.NET.Hive.Cluster"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/consensus/raft"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/pstoremgr"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/state/mapstate"
 )
 
 var errNoSnapshot = errors.New("no snapshot found")

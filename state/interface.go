@@ -8,7 +8,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 // State is used by the Consensus component to keep track of

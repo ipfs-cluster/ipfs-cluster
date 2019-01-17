@@ -1,10 +1,10 @@
 {
   "author": "hsanjuan",
   "bugs": {
-    "url": "https://github.com/ipfs/ipfs-cluster"
+    "url": "https://github.com/elastos/Elastos.NET.Hive.Cluster"
   },
   "gx": {
-    "dvcsimport": "github.com/ipfs/ipfs-cluster"
+    "dvcsimport": "github.com/elastos/Elastos.NET.Hive.Cluster"
   },
   "gxDependencies": [
     {

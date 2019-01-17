@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	libp2p "github.com/libp2p/go-libp2p"

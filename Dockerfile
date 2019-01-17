@@ -4,7 +4,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # This dockerfile builds and runs ipfs-cluster-service.
 
 ENV GOPATH     /go
-ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
+ENV SRC_PATH   $GOPATH/src/github.com/elastos/Elastos.NET.Hive.Cluster
 
 COPY . $SRC_PATH
 WORKDIR $SRC_PATH
@@ -30,7 +30,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # built binaries on the go-ipfs-container.
 
 ENV GOPATH     /go
-ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
+ENV SRC_PATH   /go/src/github.com/elastos/Elastos.NET.Hive.Cluster
 ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
 
 EXPOSE 9094
