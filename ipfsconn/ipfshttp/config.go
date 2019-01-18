@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/config"
 
 	ma "github.com/multiformats/go-multiaddr"
 )

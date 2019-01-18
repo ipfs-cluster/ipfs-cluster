@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 
-	adder "github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/api"
+	adder "github.com/elastos/Elastos.NET.Hive.Cluster/adder"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"

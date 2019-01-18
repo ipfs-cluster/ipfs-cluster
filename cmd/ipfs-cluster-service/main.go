@@ -11,9 +11,9 @@ import (
 
 	//	_ "net/http/pprof"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
-	"github.com/ipfs/ipfs-cluster/version"
+	ipfscluster "github.com/elastos/Elastos.NET.Hive.Cluster"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/state/mapstate"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/version"
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
@@ -78,7 +78,7 @@ initialized with "init" and its default location is
  ~/%s/%s.
 
 For feedback, bug reports or any additional information, visit
-https://github.com/ipfs/ipfs-cluster.
+https://github.com/elastos/Elastos.NET.Hive.Cluster.
 
 
 EXAMPLES

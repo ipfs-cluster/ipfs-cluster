@@ -15,7 +15,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
 
-	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/state"
 )
 
 // errBadRaftState is returned when the consensus component cannot start

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/state"
 
 	logging "github.com/ipfs/go-log"
 	consensus "github.com/libp2p/go-libp2p-consensus"
@@ -115,7 +115,7 @@ func (cc *Consensus) WaitForSync() error {
 
 	// Thus, waiting to be a Voter is a guarantee that we have a reasonable
 	// up to date state. Otherwise, we might return too early (see
-	// https://github.com/ipfs/ipfs-cluster/issues/378)
+	// https://github.com/elastos/Elastos.NET.Hive.Cluster/issues/378)
 
 	_, err := cc.raft.WaitForLeader(leaderCtx)
 	if err != nil {

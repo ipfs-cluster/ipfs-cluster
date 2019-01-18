@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/pintracker/optracker"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"

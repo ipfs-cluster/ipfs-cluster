@@ -11,11 +11,11 @@ import (
 
 	peer "github.com/libp2p/go-libp2p-peer"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
-	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
-	"github.com/ipfs/ipfs-cluster/test"
+	ipfscluster "github.com/elastos/Elastos.NET.Hive.Cluster"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/pintracker/maptracker"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/pintracker/stateless"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
 
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"

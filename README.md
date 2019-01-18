@@ -1,73 +1,183 @@
-# IPFS Cluster
+# Elastos Hive Cluster
 
+[![img](https://camo.githubusercontent.com/9ff0f4b787066b705774659143d8b88f485119ff/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6d61646525323062792d456c6173746f732532306f72672d626c75652e7376673f7374796c653d666c61742d737175617265)](http://elastos.org)
+[![img](https://camo.githubusercontent.com/85d19725dcd92c6f77a1d72a2e9b2b49c36489ab/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f70726f6a6563742d486976652d626c75652e7376673f7374796c653d666c61742d737175617265)](http://elastos.org/)
+[![standard-readme compliant](https://camo.githubusercontent.com/a7e665f337914171fa0b60a110690af78fc5d943/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f7374616e646172642d2d726561646d652d4f4b2d677265656e2e7376673f7374796c653d666c61742d737175617265)](https://github.com/RichardLitt/standard-readme)
+[![Build Status](https://camo.githubusercontent.com/d95d2cf5f0f2c8ebf5697026daaa4cbfaab6521e/68747470733a2f2f7472617669732d63692e6f72672f656c6173746f732f456c6173746f732e4e45542e486976652e495046532e7376673f6272616e63683d6d6173746572)](https://travis-ci.org/elastos/Elastos.NET.Hive.Cluster)
 
-[![Made by](https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square)](https://protocol.ai)
-[![Main project](https://img.shields.io/badge/project-ipfs-blue.svg?style=flat-square)](http://github.com/ipfs/ipfs)
-[![IRC channel](https://img.shields.io/badge/freenode-%23ipfs--cluster-blue.svg?style=flat-square)](http://webchat.freenode.net/?channels=%23ipfs-cluster)
-[![standard-readme compliant](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
-[![GoDoc](https://godoc.org/github.com/ipfs/ipfs-cluster?status.svg)](https://godoc.org/github.com/ipfs/ipfs-cluster)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ipfs/ipfs-cluster)](https://goreportcard.com/report/github.com/ipfs/ipfs-cluster)
-[![Build Status](https://travis-ci.org/ipfs/ipfs-cluster.svg?branch=master)](https://travis-ci.org/ipfs/ipfs-cluster)
-[![Coverage Status](https://coveralls.io/repos/github/ipfs/ipfs-cluster/badge.svg?branch=master)](https://coveralls.io/github/ipfs/ipfs-cluster?branch=master)
+## Introduction
 
-> Pinset orchestration for IPFS.
+Elastos Hive Cluster is a decentralized File Storage Service that based on IPFS cluster. Hive Cluster use IPFS and IPFS-cluster as the base infrastructure to save Elastos data.  Hive Cluster is also a stand-alone application as same as IPFS Cluster.
 
-<p align="center">
-<img src="https://cluster.ipfs.io/cluster/png/IPFS_Cluster_color_no_text.png" alt="logo" width="300" height="300" />
-</p>
+The typical IPFS peer is a resource hunger program. If you install IPFS daemon to your mobile device, it will take up resources and slow down your device. We are creating Hive project, which uses IPFS cluster as the Elastos App storage backend, and can be used in a low resources consumption scenario.
 
-IPFS Cluster is a stand-alone application and a CLI client that allocates, replicates, and tracks pins across a cluster of IPFS daemons.
+The project distils from the IPFS Cluster, but it will have many differences with the IPFS Cluster.
 
-It provides:
+Elastos Hive Cluster maintains a big IPFS pinset for sharing. It can serve numerous virtual IPFS peers with only one running a real IPFS peer.
 
-* A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs`.
-* A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
-
----
-
-### Are you using IPFS Cluster?
-
-Please participate in the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
-
----
+Hive Cluster is not only a pinset manager but also a backend for multiple IPFS clients.
 
 ## Table of Contents
 
-- [Documentation](#documentation)
-- [News & Roadmap](#news--roadmap)
+- [Introduction](#introduction)
 - [Install](#install)
+  - [Install Go](#Install-Go)
+  - [Download Source](#Download-Source)
+  - [Build Cluster](#Build-Cluster)
 - [Usage](#usage)
-- [Contribute](#contribute)
+- [Get Started](#Get-Started)
+  - [Initialize config files](#Initialize-config-files)
+  - [Run as daemon](#Run-as-daemon)
+- [Contribution](#contribution)
+- [Acknowledgments](#acknowledgments)
 - [License](#license)
-
-
-## Documentation
-
-Please visit https://cluster.ipfs.io/documentation/ to access user documentation, guides and any other resources, including detailed **download** and **usage** instructions.
-
-## News & Roadmap
-
-We regularly post project updates to https://cluster.ipfs.io/news/ .
-
-The most up-to-date *Roadmap* is available at https://cluster.ipfs.io/roadmap/ .
 
 ## Install
 
-Instructions for different installation methods (including from source) are available at https://cluster.ipfs.io/documentation/download .
+The following requirements apply to the installation from source:
+
+- Git
+- Go 1.11+
+- IPFS or internet connectivity (to download depedencies).
+
+#### Install Go
+
+The build process for cluster requires Go 1.10 or higher. Download propriate binary archive from [golang.org](https://golang.org/dl),  and install it onto specific directory:
+
+```
+$ curl go1.11.4.linux-amd64.tar.gz -o golang.tar.gz
+$ tar -xzvf golang.tar.gz -C YOUR-INSTALL-PATH
+```
+
+Then add path  **YOUR-INSTALL-PATH/go/bin**  to user environment variable **PATH**.
+
+```
+$ export PATH="YOUR-INSTALL-PATH/go/bin:$PATH"
+```
+
+Besides that, build environment for `golang` projects must be required to setup:
+
+```
+$ export GOPATH="YOUR-GO-PATH"
+$ export PATH="$GOPATH/bin:$PATH"
+```
+
+In convinience,  just add these lines to your profile `$HOME/.profile`, then validate it with the command:
+
+```
+$ . $HOME/.profile
+$ go version
+```
+
+Then use **export** command to check if it validated or not.
+
+**Notice** : If you run into trouble, see the [Go install instructions](https://golang.org/doc/install).
+
+#### Download Source
+
+There are two ways to setup your source code. One is directly to download source code under `$GOPATH` environment as below:
+
+```
+$ cd $GOPATH/src/github.com/elastos
+$ git clone https://github.com/elastos/Elastos.NET.Hive.Cluster.git
+```
+
+The other way is to download source to specific location, and then create linkage to that directory underp propriate `$GOPATH` environment:
+
+```
+$ cd YOUR-PATH
+$ git clone https://github.com/elastos/Elastos.NET.Hive.Cluster.git 
+$ cd $GOPATH/src/github.com/elastos
+$ link -s YOUR-PATH/Elastos.NET.Hive.Cluster Elastos.NET.Hive.Cluster
+```
+
+#### Build Cluster
+
+To build Cluster with the following commands:
+
+```
+$ cd $GOPATH/src/github.com/elastos/Elastos.NET.Hive.Cluster
+$ make
+$ make install
+```
+
+After installation, **ipfs-cluster-service** and **ipfs-cluster-ctl**  would be generated under the directory `$GOPATH/bin`
+
+If you would rather have them built locally, use make build instead. You can run make clean to remove any generated artifacts and rewrite the import paths to their original form.
+
+Note that when the ipfs daemon is running locally on its default ports, the build process will use it to fetch gx, gx-go and all the needed dependencies directly from IPFS.
 
 ## Usage
 
-Extensive usage information is provided at https://cluster.ipfs.io/documentation/ , including:
+**ipfs-cluster-service** is a command line program to start cluster daemon, while **ipfs-cluster-ctl**  is the client application to manage the cluster nodes and perform actions. 
 
-* [Docs for `ipfs-cluster-service`](https://cluster.ipfs.io/documentation/ipfs-cluster-service/)
-* [Docs for `ipfs-cluster-ctl`](https://cluster.ipfs.io/documentation/ipfs-cluster-ctl/)
+Run the following commands with `hep` options to see more usages:
 
-## Contribute
+```
+$ ipfs-cluster-service help
+...
+$ ipfs-cluster-ctl help
+...
+```
 
-PRs accepted. As part of the IPFS project, we have some [contribution guidelines](https://cluster.ipfs.io/developer/contribute).
+Details about ipfs cluster please refer to the docs from https://cluster.ipfs.io.
 
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+Hive cluster uses HTTP interface to serve numerous clients. About HTTP API, please refer to 
+* [HTTP API](TODO)
+
+## Get Started
+
+Hive cluster have to be running before starting Hive cluster. About how to  run Hive IPFS daemon, please refer to [Elastos Hive IPFS](https://github.com/elastos/Elastos.NET.Hive.IPFS.git#README.md).
+
+#### Initialize config files
+
+To start using Cluster, you must first initialize Cluster's config files on your system, which would be done with the command below:
+
+```
+$ ipfs-cluster-service init
+$ ls $HOME/.ipfs-cluster
+service.json
+```
+
+See `ipfs-cluster-service help` for more information on the optional arguments it takes.
+
+#### Run as Daemon
+
+After initialization and configure, try to run **ipfs-cluster-service** daemon:
+
+```shell
+$ ipfs-cluster-service daemon &
+```
+
+then you can use **ipfs-cluster-ctl** program to check if cluster is running
+
+```shell
+$ ipfs-cluster-ctl id
+QmUGXgnUcqgZf9Js7GrvFP1uz7G6soq3urWk9Gz237DsQm | guest | Sees 1 other peers
+  > Addresses:
+    - /ip4/127.0.0.1/tcp/9096/ipfs/QmUGXgnUcqgZf9Js7GrvFP1uz7G6soq3urWk9Gz237DsQm
+    - /ip4/222.222.222.222/tcp/9096/ipfs/QmUGXgnUcqgZf9Js7GrvFP1uz7G6soq3urWk9Gz237DsQm
+    - /p2p-circuit/ipfs/QmUGXgnUcqgZf9Js7GrvFP1uz7G6soq3urWk9Gz237DsQm
+  > IPFS: QmSPDCbxBSq7PYAnemABL7VpGRkpqBX9NT1AovEmzaXkvM
+    - /ip4/127.0.0.1/tcp/4001/ipfs/QmSPDCbxBSq7PYAnemABL7VpGRkpqBX9NT1AovEmzaXkvM
+    - /ip4/222.222.222.222/tcp/4001/ipfs/QmSPDCbxBSq7PYAnemABL7VpGRkpqBX9NT1AovEmzaXkvM
+    - /ip6/::1/tcp/4001/ipfs/QmSPDCbxBSq7PYAnemABL7VpGRkpqBX9NT1AovEmzaXkvM
+```
+
+You also can run **ipfs-cluster-service** as a slave cluster node with following command:
+
+```shell
+$ ipfs-cluster-service daemon --bootstrap /ip4/222.222.222.222/tcp/9096/ipfs/QmNTD6Zbhdao
+DmjQqGJrp8dKEPvtBQGzRxwWHNcmvNYsbK &
+```
+
+## Contribution
+
+We welcome contributions to the Elastos Hive Project.
+
+## Acknowledgments
+
+A sincere thank you to all teams and projects that we rely on directly or indirectly.
 
 ## License
-
-MIT © Protocol Labs, Inc.
+This project is licensed under the terms of the [MIT license](https://github.com/elastos/Elastos.Hive.Cluster/blob/master/LICENSE).

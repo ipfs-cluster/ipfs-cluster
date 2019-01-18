@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
 
 func verifyOutput(t *testing.T, outStr string, trueStr string) {

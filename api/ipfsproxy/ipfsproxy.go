@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
-	"github.com/ipfs/ipfs-cluster/version"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/adder/adderutils"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/rpcutil"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/version"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -634,6 +634,48 @@ func (proxy *Server) uidNewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (proxy *Server) uidLogInHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	q := r.URL.Query()
+
+	oldUID := q.Get("uid")
+	if oldUID == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	randName, err := uuid.NewV4()
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	newUID := "uid-" + randName.String()
+
+	UIDLogIn := api.UIDLogIn{}
+	err = proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"UidLogIn",
+		[]string{oldUID, newUID},
+		&UIDLogIn,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	res := ipfsUidLogInResp{
+		UID:    UIDLogIn.UID,
+		OldUID: UIDLogIn.OldUID,
+		PeerID: UIDLogIn.PeerID,
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
+func (proxy *Server) uidHandler(w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header())
 
 	q := r.URL.Query()

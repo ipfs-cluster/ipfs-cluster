@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	types "github.com/ipfs/ipfs-cluster/api"
+	"github.com/elastos/Elastos.NET.Hive.Cluster/adder/adderutils"
+	types "github.com/elastos/Elastos.NET.Hive.Cluster/api"
 
 	mux "github.com/gorilla/mux"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
@@ -118,7 +118,7 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
-	// See: https://github.com/ipfs/ipfs-cluster/issues/548
+	// See: https://github.com/elastos/Elastos.NET.Hive.Cluster/issues/548
 	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(true)
 

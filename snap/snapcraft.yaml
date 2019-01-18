@@ -22,10 +22,10 @@ parts:
     plugin: nil
     build-packages: [make, wget]
     prepare: |
-      mkdir -p ../go/src/github.com/ipfs/ipfs-cluster
-      cp -R . ../go/src/github.com/ipfs/ipfs-cluster
+      mkdir -p ../go/src/github.com/elastos/Elastos.NET.Hive.Cluster
+      cp -R . ../go/src/github.com/elastos/Elastos.NET.Hive.Cluster
     build: |
-      env GOPATH=$(pwd)/../go CC=$SNAP_ARCH_TRIPLET-gcc CXX=$SNAP_ARCH_TRIPLET-g++ CGO_ENABLED=1 GOARCH=$TARGET_GOARCH make -C ../go/src/github.com/ipfs/ipfs-cluster install
+      env GOPATH=$(pwd)/../go CC=$SNAP_ARCH_TRIPLET-gcc CXX=$SNAP_ARCH_TRIPLET-g++ CGO_ENABLED=1 GOARCH=$TARGET_GOARCH make -C ../go/src/github.com/elastos/Elastos.NET.Hive.Cluster install
     install: |
       mkdir $SNAPCRAFT_PART_INSTALL/bin
       for file in $(find ../go/bin/ -type f); do
