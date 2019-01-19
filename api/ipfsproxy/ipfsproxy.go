@@ -215,6 +215,8 @@ func New(cfg *Config) (*Server, error) {
 	smux.HandleFunc("/api/v0/uid/new/", proxy.uidNewHandler)
 	smux.HandleFunc("/api/v0/uid/login", proxy.uidLogInHandler)
 	smux.HandleFunc("/api/v0/uid/login/", proxy.uidLogInHandler)
+	smux.HandleFunc("/api/v0/uid/info", proxy.uidInfoHandler)
+	smux.HandleFunc("/api/v0/uid/info/", proxy.uidInfoHandler)
 
 	smux.HandleFunc("/api/v0/file/add", proxy.addHandler)
 	smux.HandleFunc("/api/v0/file/add/", proxy.addHandler)
@@ -691,43 +693,31 @@ func (proxy *Server) uidLogInHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (proxy *Server) uidHandler(w http.ResponseWriter, r *http.Request) {
+func (proxy *Server) uidInfoHandler(w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header())
 
 	q := r.URL.Query()
 
-	oldUID := q.Get("uid")
-	if oldUID == "" {
+	uid := q.Get("uid")
+	if uid == "" {
 		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
 		return
 	}
 
-	randName, err := uuid.NewV4()
-	if err != nil {
-		ipfsErrorResponder(w, err.Error())
-		return
-	}
-	newUID := "uid-" + randName.String()
-
-	UIDLogIn := api.UIDLogIn{}
-	err = proxy.rpcClient.Call(
+	UIDSecret := api.UIDSecret{}
+	err := proxy.rpcClient.Call(
 		"",
 		"Cluster",
-		"UidLogIn",
-		[]string{oldUID, newUID},
-		&UIDLogIn,
+		"UidInfo",
+		uid,
+		&UIDSecret,
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error())
 		return
 	}
 
-	res := ipfsUidLogInResp{
-		UID:    UIDLogIn.UID,
-		OldUID: UIDLogIn.OldUID,
-		PeerID: UIDLogIn.PeerID,
-	}
-	resBytes, _ := json.Marshal(res)
+	resBytes, _ := json.Marshal(UIDSecret)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 	return

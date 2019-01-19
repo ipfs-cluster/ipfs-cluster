@@ -101,6 +101,14 @@ type ipfsKeyRenameResp struct {
 	Overwrite bool
 }
 
+type ipfsKeyListResp struct {
+	Keys []ipfsKey
+}
+type ipfsKey struct {
+	Name string
+	Id   string
+}
+
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(cfg *Config) (*Connector, error) {
 	err := cfg.Validate()
@@ -739,6 +747,37 @@ func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
 	secret.UID = keyRename.Now
 	secret.OldUID = keyRename.Was
 	secret.PeerID = keyRename.Id
+
+	return secret, nil
+}
+
+// log in Hive cluster and get new id
+func (ipfs *Connector) UidInfo(uid string) (api.UIDSecret, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+
+	secret := api.UIDSecret{}
+	url := "key/list"
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	var keyList ipfsKeyListResp
+	err = json.Unmarshal(res, &keyList)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	for _, key := range keyList.Keys {
+		if key.Name == uid {
+			secret.UID = key.Name
+			secret.PeerID = key.Id
+			break
+		}
+	}
 
 	return secret, nil
 }

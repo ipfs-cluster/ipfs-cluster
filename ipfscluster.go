@@ -91,6 +91,8 @@ type IPFSConnector interface {
 	UidNew(name string) (api.UIDSecret, error)
 	// UidLogIn is used to change uid
 	UidLogIn([]string) (api.UIDLogIn, error)
+	// UidInfo get uid Name and Id
+	UidInfo(uid string) (api.UIDSecret, error)
 	// FileGet downloads file from ipfs service
 	FileGet(fg []string) ([]byte, error)
 	// FilesCp is used to copy file
