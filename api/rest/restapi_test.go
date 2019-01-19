@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 	"github.com/elastos/Elastos.NET.Hive.Cluster/test"
@@ -25,8 +26,9 @@ import (
 )
 
 const (
-	SSLCertFile = "test/server.crt"
-	SSLKeyFile  = "test/server.key"
+	SSLCertFile  = "test/server.crt"
+	SSLKeyFile   = "test/server.key"
+	clientOrigin = "myorigin"
 )
 
 func testAPI(t *testing.T) *API {
@@ -39,10 +41,14 @@ func testAPI(t *testing.T) *API {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.HTTPListenAddr = apiMAddr
+	cfg.CORSAllowedOrigins = []string{clientOrigin}
+	cfg.CORSAllowedMethods = []string{"GET", "POST", "DELETE"}
+	//cfg.CORSAllowedHeaders = []string{"Content-Type"}
+	cfg.CORSMaxAge = 10 * time.Minute
 
 	rest, err := NewAPIWithHost(cfg, h)
 	if err != nil {
-		t.Fatal("should be able to create a new Api: ", err)
+		t.Fatal("should be able to create a new API: ", err)
 	}
 
 	// No keep alive for tests
@@ -133,6 +139,10 @@ func checkHeaders(t *testing.T, rest *API, url string, headers http.Header) {
 	if headers.Get("Content-Type") != "application/json" {
 		t.Errorf("%s is not application/json", url)
 	}
+
+	if eh := headers.Get("Access-Control-Expose-Headers"); eh == "" {
+		t.Error("AC-Expose-Headers not set")
+	}
 }
 
 // makes a libp2p host that knows how to talk to the rest API host.
@@ -194,16 +204,25 @@ func makeGet(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Get(url)
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("Origin", clientOrigin)
+	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
 
 func makePost(t *testing.T, rest *API, url string, body []byte, resp interface{}) {
+	makePostWithContentType(t, rest, url, body, "application/json", resp)
+}
+
+func makePostWithContentType(t *testing.T, rest *API, url string, body []byte, contentType string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Post(url, "application/json", bytes.NewReader(body))
+	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Origin", clientOrigin)
+	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
@@ -212,17 +231,32 @@ func makeDelete(t *testing.T, rest *API, url string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	req, _ := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
+	req, _ := http.NewRequest(http.MethodDelete, url, bytes.NewReader([]byte{}))
+	req.Header.Set("Origin", clientOrigin)
 	httpResp, err := c.Do(req)
 	processResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
+}
+
+func makeOptions(t *testing.T, rest *API, url string, reqHeaders http.Header) http.Header {
+	h := makeHost(t, rest)
+	defer h.Close()
+	c := httpClient(t, h, isHTTPS(url))
+	req, _ := http.NewRequest(http.MethodOptions, url, nil)
+	req.Header = reqHeaders
+	httpResp, err := c.Do(req)
+	processResp(t, httpResp, err, nil)
+	return httpResp.Header
 }
 
 func makeStreamingPost(t *testing.T, rest *API, url string, body io.Reader, contentType string, resp interface{}) {
 	h := makeHost(t, rest)
 	defer h.Close()
 	c := httpClient(t, h, isHTTPS(url))
-	httpResp, err := c.Post(url, contentType, body)
+	req, _ := http.NewRequest(http.MethodPost, url, body)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Origin", clientOrigin)
+	httpResp, err := c.Do(req)
 	processStreamingResp(t, httpResp, err, resp)
 	checkHeaders(t, rest, url, httpResp.Header)
 }
@@ -381,7 +415,7 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
-	// This writes generates the testing files and
+	// This generates the testing files and
 	// writes them to disk.
 	// This is necessary here because we run tests
 	// in parallel, and otherwise a write-race might happen.
@@ -389,13 +423,18 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 	closer.Close()
 
 	tf := func(t *testing.T, url urlF) {
-		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=false&repl_min=-1&repl_max=-1&stream-channels=true"
 		localURL := url(rest) + fmtStr1
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		resp := api.AddedOutput{}
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		makeStreamingPost(t, rest, localURL, body, mpContentType, &resp)
+
+		// resp will contain the last object from the streaming
+		if resp.Cid != test.ShardingDirBalancedRootCID {
+			t.Error("Bad Cid after adding: ", resp.Cid)
+		}
 	}
 
 	testBothEndpoints(t, tf)
@@ -408,7 +447,7 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
-	// This writes generates the testing files and
+	// This generates the testing files and
 	// writes them to disk.
 	// This is necessary here because we run tests
 	// in parallel, and otherwise a write-race might happen.
@@ -420,9 +459,45 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 		defer closer.Close()
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		resp := api.AddedOutput{}
-		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1&stream-channels=true"
 		shardURL := url(rest) + fmtStr1
 		makeStreamingPost(t, rest, shardURL, body, mpContentType, &resp)
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	// This generates the testing files and
+	// writes them to disk.
+	// This is necessary here because we run tests
+	// in parallel, and otherwise a write-race might happen.
+	_, closer := sth.GetTreeMultiReader(t)
+	closer.Close()
+
+	tf := func(t *testing.T, url urlF) {
+		body, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		fullBody, err := ioutil.ReadAll(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
+		resp := []api.AddedOutput{}
+		fmtStr1 := "/add?shard=false&repl_min=-1&repl_max=-1&stream-channels=false"
+		shardURL := url(rest) + fmtStr1
+
+		makePostWithContentType(t, rest, shardURL, fullBody, mpContentType, &resp)
+		lastHash := resp[len(resp)-1]
+		if lastHash.Cid != test.ShardingDirBalancedRootCID {
+			t.Error("Bad Cid after adding: ", lastHash.Cid)
+		}
 	}
 
 	testBothEndpoints(t, tf)
@@ -556,6 +631,29 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIMetricsEndpoint(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.MetricSerial
+		makeGet(t, rest, url(rest)+"/monitor/metrics/somemetricstype", &resp)
+		if len(resp) == 0 {
+			t.Fatal("No metrics found")
+		}
+		for _, m := range resp {
+			if m.Name != "test" {
+				t.Error("Unexpected metric name: ", m.Name)
+			}
+			if m.Peer != test.TestPeerID1.Pretty() {
+				t.Error("Unexpected peer id: ", m.Peer)
+			}
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
@@ -573,7 +671,38 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		var resp2 []api.GlobalPinInfoSerial
 		makeGet(t, rest, url(rest)+"/pins?local=true", &resp2)
 		if len(resp2) != 2 {
-			t.Errorf("unexpected statusAll+local resp:\n %+v", resp)
+			t.Errorf("unexpected statusAll+local resp:\n %+v", resp2)
+		}
+
+		// Test with filter
+		var resp3 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=queued", &resp3)
+		if len(resp3) != 0 {
+			t.Errorf("unexpected statusAll+filter=queued resp:\n %+v", resp3)
+		}
+
+		var resp4 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=pinned", &resp4)
+		if len(resp4) != 1 {
+			t.Errorf("unexpected statusAll+filter=pinned resp:\n %+v", resp4)
+		}
+
+		var resp5 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=pin_error", &resp5)
+		if len(resp5) != 1 {
+			t.Errorf("unexpected statusAll+filter=pin_error resp:\n %+v", resp5)
+		}
+
+		var resp6 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=error", &resp6)
+		if len(resp6) != 1 {
+			t.Errorf("unexpected statusAll+filter=error resp:\n %+v", resp6)
+		}
+
+		var resp7 []api.GlobalPinInfoSerial
+		makeGet(t, rest, url(rest)+"/pins?filter=error,pinned", &resp7)
+		if len(resp7) != 2 {
+			t.Errorf("unexpected statusAll+filter=error,pinned resp:\n %+v", resp7)
 		}
 	}
 
@@ -722,6 +851,58 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 		if errResp.Code != 400 {
 			t.Error("expected a different error")
 		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestCORS(t *testing.T) {
+	rest := testAPI(t)
+	defer rest.Shutdown()
+
+	type testcase struct {
+		method string
+		path   string
+	}
+
+	tf := func(t *testing.T, url urlF) {
+		reqHeaders := make(http.Header)
+		reqHeaders.Set("Origin", "myorigin")
+		reqHeaders.Set("Access-Control-Request-Headers", "Content-Type")
+
+		for _, tc := range []testcase{
+			testcase{"GET", "/pins"},
+			//			testcase{},
+		} {
+			reqHeaders.Set("Access-Control-Request-Method", tc.method)
+			headers := makeOptions(t, rest, url(rest)+tc.path, reqHeaders)
+			aorigin := headers.Get("Access-Control-Allow-Origin")
+			amethods := headers.Get("Access-Control-Allow-Methods")
+			aheaders := headers.Get("Access-Control-Allow-Headers")
+			acreds := headers.Get("Access-Control-Allow-Credentials")
+			maxage := headers.Get("Access-Control-Max-Age")
+
+			if aorigin != "myorigin" {
+				t.Error("Bad ACA-Origin:", aorigin)
+			}
+
+			if amethods != tc.method {
+				t.Error("Bad ACA-Methods:", amethods)
+			}
+
+			if aheaders != "Content-Type" {
+				t.Error("Bad ACA-Headers:", aheaders)
+			}
+
+			if acreds != "true" {
+				t.Error("Bad ACA-Credentials:", acreds)
+			}
+
+			if maxage != "600" {
+				t.Error("Bad AC-Max-Age:", maxage)
+			}
+		}
+
 	}
 
 	testBothEndpoints(t, tf)

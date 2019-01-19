@@ -69,7 +69,7 @@ func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSe
 func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
 	switch in.Cid {
 	case ErrorCid:
-		return errors.New("expected error when using ErrorCid")
+		return errors.New("this is an expected error when using ErrorCid")
 	case TestCid1, TestCid3:
 		p := api.PinCid(MustDecodeCid(in.Cid)).ToSerial()
 		p.ReplicationFactorMin = -1

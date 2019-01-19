@@ -8,9 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 	peer "github.com/libp2p/go-libp2p-peer"
+
+	"github.com/elastos/Elastos.NET.Hive.Cluster/api"
 )
+
+type addedOutputQuiet struct {
+	added *api.AddedOutput
+	quiet bool
+}
 
 func jsonFormatObject(resp interface{}) {
 	switch resp.(type) {
@@ -24,6 +30,10 @@ func jsonFormatObject(resp interface{}) {
 		jsonFormatPrint(resp.(api.Pin).ToSerial())
 	case api.AddedOutput:
 		jsonFormatPrint(resp.(api.AddedOutput))
+	case addedOutputQuiet:
+		// print original object as in JSON it does
+		// not make sense to have a human "quiet" output.
+		jsonFormatPrint(resp.(addedOutputQuiet).added)
 	case api.Version:
 		jsonFormatPrint(resp.(api.Version))
 	case api.Metric:
@@ -56,6 +66,15 @@ func jsonFormatObject(resp interface{}) {
 	case []api.AddedOutput:
 		serials := resp.([]api.AddedOutput)
 		jsonFormatPrint(serials)
+	case []addedOutputQuiet:
+		// print original objects as in JSON it makes
+		// no sense to have a human "quiet" output
+		serials := resp.([]addedOutputQuiet)
+		var actual []*api.AddedOutput
+		for _, s := range serials {
+			actual = append(actual, s.added)
+		}
+		jsonFormatPrint(actual)
 	case []api.Metric:
 		serials := resp.([]api.Metric)
 		jsonFormatPrint(serials)
@@ -86,6 +105,9 @@ func textFormatObject(resp interface{}) {
 	case api.AddedOutput:
 		serial := resp.(api.AddedOutput)
 		textFormatPrintAddedOutput(&serial)
+	case addedOutputQuiet:
+		serial := resp.(addedOutputQuiet)
+		textFormatPrintAddedOutputQuiet(&serial)
 	case api.Version:
 		serial := resp.(api.Version)
 		textFormatPrintVersion(&serial)
@@ -109,6 +131,10 @@ func textFormatObject(resp interface{}) {
 		}
 	case []api.AddedOutput:
 		for _, item := range resp.([]api.AddedOutput) {
+			textFormatObject(item)
+		}
+	case []addedOutputQuiet:
+		for _, item := range resp.([]addedOutputQuiet) {
 			textFormatObject(item)
 		}
 	case []api.Metric:
@@ -217,6 +243,14 @@ func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
 }
 
+func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
+	if obj.quiet {
+		fmt.Printf("%s\n", obj.added.Cid)
+	} else {
+		textFormatPrintAddedOutput(obj.added)
+	}
+}
+
 func textFormatPrintMetric(obj *api.Metric) {
 	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
@@ -226,4 +260,14 @@ func textFormatPrintError(obj *api.Error) {
 	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)
 	fmt.Printf("  Message: %s\n", obj.Message)
+}
+
+func trackerStatusAllString() string {
+	var strs []string
+	for _, st := range api.TrackerStatusAll() {
+		strs = append(strs, "  - "+st.String())
+	}
+
+	sort.Strings(strs)
+	return strings.Join(strs, "\n")
 }

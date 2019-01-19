@@ -31,12 +31,21 @@ import (
 
 var logger = logging.Logger("apitypes")
 
+func init() {
+	// intialize trackerStatusString
+	stringTrackerStatus = make(map[string]TrackerStatus)
+	for k, v := range trackerStatusString {
+		stringTrackerStatus[v] = k
+	}
+}
+
 // TrackerStatus values
 const (
-	// IPFSStatus should never take this value
-	TrackerStatusBug TrackerStatus = iota
+	// IPFSStatus should never take this value.
+	// When used as a filter. It means "all".
+	TrackerStatusUndefined TrackerStatus = 0
 	// The cluster node is offline or not responding
-	TrackerStatusClusterError
+	TrackerStatusClusterError TrackerStatus = 1 << iota
 	// An error occurred pinning
 	TrackerStatusPinError
 	// An error occurred unpinning
@@ -60,14 +69,21 @@ const (
 	TrackerStatusSharded
 )
 
+// Composite TrackerStatus.
+const (
+	TrackerStatusError  = TrackerStatusClusterError | TrackerStatusPinError | TrackerStatusUnpinError
+	TrackerStatusQueued = TrackerStatusPinQueued | TrackerStatusUnpinQueued
+)
+
 // TrackerStatus represents the status of a tracked Cid in the PinTracker
 type TrackerStatus int
 
 var trackerStatusString = map[TrackerStatus]string{
-	TrackerStatusBug:          "bug",
+	TrackerStatusUndefined:    "undefined",
 	TrackerStatusClusterError: "cluster_error",
 	TrackerStatusPinError:     "pin_error",
 	TrackerStatusUnpinError:   "unpin_error",
+	TrackerStatusError:        "error",
 	TrackerStatusPinned:       "pinned",
 	TrackerStatusPinning:      "pinning",
 	TrackerStatusUnpinning:    "unpinning",
@@ -75,22 +91,66 @@ var trackerStatusString = map[TrackerStatus]string{
 	TrackerStatusRemote:       "remote",
 	TrackerStatusPinQueued:    "pin_queued",
 	TrackerStatusUnpinQueued:  "unpin_queued",
+	TrackerStatusQueued:       "queued",
 }
 
+// values autofilled in init()
+var stringTrackerStatus map[string]TrackerStatus
+
 // String converts a TrackerStatus into a readable string.
+// If the given TrackerStatus is a filter (with several
+// bits set), it will return a comma-separated list.
 func (st TrackerStatus) String() string {
-	return trackerStatusString[st]
+	var values []string
+
+	// simple and known composite values
+	if v, ok := trackerStatusString[st]; ok {
+		return v
+	}
+
+	// other filters
+	for k, v := range trackerStatusString {
+		if st&k > 0 {
+			values = append(values, v)
+		}
+	}
+
+	return strings.Join(values, ",")
+}
+
+// Match returns true if the tracker status matches the given filter.
+// For example TrackerStatusPinError will match TrackerStatusPinError
+// and TrackerStatusError
+func (st TrackerStatus) Match(filter TrackerStatus) bool {
+	return filter == 0 || st&filter > 0
 }
 
 // TrackerStatusFromString parses a string and returns the matching
-// TrackerStatus value.
+// TrackerStatus value. The string can be a comma-separated list
+// representing a TrackerStatus filter. Unknown status names are
+// ignored.
 func TrackerStatusFromString(str string) TrackerStatus {
-	for k, v := range trackerStatusString {
-		if v == str {
-			return k
+	values := strings.Split(strings.Replace(str, " ", "", -1), ",")
+	var status TrackerStatus
+	for _, v := range values {
+		st, ok := stringTrackerStatus[v]
+		if ok {
+			status |= st
 		}
 	}
-	return TrackerStatusBug
+	return status
+}
+
+// TrackerStatusAll all known TrackerStatus values.
+func TrackerStatusAll() []TrackerStatus {
+	var list []TrackerStatus
+	for k := range trackerStatusString {
+		if k != TrackerStatusUndefined {
+			list = append(list, k)
+		}
+	}
+
+	return list
 }
 
 // IPFSPinStatus values
@@ -153,7 +213,7 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 	IPFSPinStatusRecursive: TrackerStatusPinned,
 	IPFSPinStatusIndirect:  TrackerStatusUnpinned,
 	IPFSPinStatusUnpinned:  TrackerStatusUnpinned,
-	IPFSPinStatusBug:       TrackerStatusBug,
+	IPFSPinStatusBug:       TrackerStatusUndefined,
 	IPFSPinStatusError:     TrackerStatusClusterError, //TODO(ajl): check suitability
 }
 
@@ -897,9 +957,9 @@ func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
-// helper for JSON marshaling. The Metric type is already
+// MetricSerial is a helper for JSON marshaling. The Metric type is already
 // serializable, but not pretty to humans (API).
-type metricSerial struct {
+type MetricSerial struct {
 	Name   string `json:"name"`
 	Peer   string `json:"peer"`
 	Value  string `json:"value"`
@@ -910,7 +970,7 @@ type metricSerial struct {
 // MarshalJSON allows a Metric to produce a JSON representation
 // of itself.
 func (m *Metric) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&metricSerial{
+	return json.Marshal(&MetricSerial{
 		Name:   m.Name,
 		Peer:   peer.IDB58Encode(m.Peer),
 		Value:  m.Value,
@@ -924,7 +984,7 @@ func (m *Metric) UnmarshalJSON(j []byte) error {
 		return nil
 	}
 
-	ms := &metricSerial{}
+	ms := &MetricSerial{}
 	err := json.Unmarshal(j, ms)
 	if err != nil {
 		return err

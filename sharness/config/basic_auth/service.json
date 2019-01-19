@@ -24,10 +24,18 @@
     }
   },
   "api": {
+    "ipfsproxy": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "read_timeout": "10m0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "10m0s",
+      "idle_timeout": "1m0s"
+    },
     "restapi": {
       "ssl_cert_file": "",
       "ssl_key_file": "",
-      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
+      "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
       "read_timeout": "30s",
       "read_header_timeout": "5s",
       "write_timeout": "1m0s",
@@ -35,22 +43,49 @@
       "basic_auth_credentials": {
         "testuser": "testpass",
         "userwithoutpass": ""
-      }
+      },
+      "cors_allowed_origins": [
+        "*"
+      ],
+      "cors_allowed_methods": [
+        "GET"
+      ],
+      "cors_allowed_headers": [],
+      "cors_exposed_headers": [
+        "Content-Type",
+        "X-Stream-Output",
+        "X-Chunked-Output",
+        "X-Content-Length"
+      ],
+      "cors_allow_credentials": true,
+      "cors_max_age": "0s"
     }
   },
   "ipfs_connector": {
     "ipfshttp": {
-      "proxy_listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
       "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-      "connect_swarms_delay": "7s",
-      "proxy_read_timeout": "10m0s",
-      "proxy_read_header_timeout": "5s",
-      "proxy_write_timeout": "10m0s",
-      "proxy_idle_timeout": "1m0s"
+      "connect_swarms_delay": "30s",
+      "pin_method": "refs",
+      "ipfs_request_timeout": "5m0s",
+      "pin_timeout": "24h0m0s",
+      "unpin_timeout": "3h0m0s"
+    }
+  },
+  "pin_tracker": {
+    "maptracker": {
+      "max_pin_queue_size": 50000,
+      "concurrent_pins": 10
+    },
+    "stateless": {
+      "max_pin_queue_size": 50000,
+      "concurrent_pins": 10
     }
   },
   "monitor": {
     "monbasic": {
+      "check_interval": "15s"
+    },
+    "pubsubmon": {
       "check_interval": "15s"
     }
   },

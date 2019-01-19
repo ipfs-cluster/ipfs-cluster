@@ -27,7 +27,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.7.0"
+const Version = "0.8.0"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -252,7 +252,7 @@ Once the adding process is finished, the content is fully added to all
 allocations and pinned in them. This makes cluster add slower than a local
 ipfs add, but the result is a fully replicated CID on completion.
 If you prefer faster adding, add directly to the local IPFS and trigger a
- cluster "pin add".
+cluster "pin add".
 
 `,
 			/*
@@ -276,6 +276,10 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 				cli.BoolFlag{
 					Name:  "quieter, Q",
 					Usage: "Write only final hash to output",
+				},
+				cli.BoolFlag{
+					Name:  "no-stream",
+					Usage: "Buffer output locally. Produces a valid JSON array with --enc=json.",
 				},
 				cli.StringFlag{
 					Name:  "layout",
@@ -391,31 +395,36 @@ If you prefer faster adding, add directly to the local IPFS and trigger a
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					var last string
+
+					var buffered []addedOutputQuiet
+					var lastBuf = make([]addedOutputQuiet, 1, 1)
+					var qq = c.Bool("quieter")
+					var q = c.Bool("quiet") || qq
+					var bufferResults = c.Bool("no-stream")
 					for v := range out {
-						// Print everything when doing json
-						if c.GlobalString("encoding") != "text" {
-							formatResponse(c, *v, nil)
+						added := addedOutputQuiet{v, q}
+						lastBuf[0] = added
+						if bufferResults {
+							buffered = append(buffered, added)
 							continue
 						}
-
-						// Print last hash only
-						if c.Bool("quieter") {
-							last = v.Cid
-							continue
+						if !qq { // print things
+							formatResponse(c, added, nil)
 						}
-
-						// Print hashes only
-						if c.Bool("quiet") {
-							fmt.Println(v.Cid)
-							continue
-						}
-
-						// Format normal text representation of AddedOutput
-						formatResponse(c, *v, nil)
 					}
-					if last != "" {
-						fmt.Println(last)
+					if lastBuf[0].added == nil {
+						return // no elements at all
+					}
+					if bufferResults { // we buffered.
+						if qq { // [last elem]
+							formatResponse(c, lastBuf, nil)
+							return
+						}
+						// [all elems]
+						formatResponse(c, buffered, nil)
+					} else if qq { // we already printed unless Quieter
+						formatResponse(c, lastBuf[0], nil)
+						return
 					}
 				}()
 
@@ -614,10 +623,19 @@ with "sync".
 
 When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
-`,
+
+When the --filter flag is passed, it will only fetch the peer information
+where status of the pin matches at least one of the filter values (a comma
+separated list). The following are valid status values:
+
+` + trackerStatusAllString(),
 			ArgsUsage: "[CID]",
 			Flags: []cli.Flag{
 				localFlag(),
+				cli.StringFlag{
+					Name:  "filter",
+					Usage: "comma-separated list of filters",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
@@ -627,7 +645,12 @@ contacted cluster peer. By default, status will be fetched from all peers.
 					resp, cerr := globalClient.Status(ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.StatusAll(c.Bool("local"))
+					filterFlag := c.String("filter")
+					filter := api.TrackerStatusFromString(c.String("filter"))
+					if filter == api.TrackerStatusUndefined && filterFlag != "" {
+						checkErr("parsing filter flag", errors.New("invalid filter name"))
+					}
+					resp, cerr := globalClient.StatusAll(filter, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil

@@ -175,7 +175,7 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		case PhaseDone:
 			return api.TrackerStatusPinned
 		default:
-			return api.TrackerStatusBug
+			return api.TrackerStatusUndefined
 		}
 	case OperationUnpin:
 		switch ph {
@@ -188,14 +188,14 @@ func (op *Operation) ToTrackerStatus() api.TrackerStatus {
 		case PhaseDone:
 			return api.TrackerStatusUnpinned
 		default:
-			return api.TrackerStatusBug
+			return api.TrackerStatusUndefined
 		}
 	case OperationRemote:
 		return api.TrackerStatusRemote
 	case OperationShard:
 		return api.TrackerStatusSharded
 	default:
-		return api.TrackerStatusBug
+		return api.TrackerStatusUndefined
 	}
 
 }

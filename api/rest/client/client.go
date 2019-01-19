@@ -71,7 +71,7 @@ type Client interface {
 	// is fetched from all cluster peers.
 	Status(ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
-	StatusAll(local bool) ([]api.GlobalPinInfo, error)
+	StatusAll(filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error)
 
 	// Sync makes sure the state of a Cid corresponds to the state reported
 	// by the ipfs daemon, and returns it. If local is true, this operation

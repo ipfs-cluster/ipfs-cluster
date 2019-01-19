@@ -219,13 +219,44 @@ func TestStatusAll(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pins, err := c.StatusAll(false)
+		pins, err := c.StatusAll(0, false)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if len(pins) == 0 {
 			t.Error("there should be some pins")
+		}
+
+		// With local true
+		pins, err = c.StatusAll(0, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 2 {
+			t.Error("there should be two pins")
+		}
+
+		// With filter option
+		pins, err = c.StatusAll(types.TrackerStatusPinning, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 1 {
+			t.Error("there should be one pin")
+		}
+
+		pins, err = c.StatusAll(types.TrackerStatusPinned|types.TrackerStatusError, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 2 {
+			t.Error("there should be two pins")
+		}
+
+		pins, err = c.StatusAll(1<<25, false)
+		if err == nil {
+			t.Error("expected an error")
 		}
 	}
 
@@ -312,6 +343,24 @@ func TestGetConnectGraph(t *testing.T) {
 		if len(cg.IPFSLinks) != 3 || len(cg.ClusterLinks) != 3 ||
 			len(cg.ClustertoIPFS) != 3 {
 			t.Fatal("Bad graph")
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
+func TestMetrics(t *testing.T) {
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		m, err := c.Metrics("somemetricstype")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(m) == 0 {
+			t.Fatal("No metrics found")
 		}
 	}
 
@@ -448,11 +497,12 @@ func TestAddMultiFile(t *testing.T) {
 				Name:                 "test something",
 				ShardSize:            1024,
 			},
-			Shard:     false,
-			Layout:    "",
-			Chunker:   "",
-			RawLeaves: false,
-			Hidden:    false,
+			Shard:          false,
+			Layout:         "",
+			Chunker:        "",
+			RawLeaves:      false,
+			Hidden:         false,
+			StreamChannels: true,
 		}
 
 		out := make(chan *types.AddedOutput, 1)
