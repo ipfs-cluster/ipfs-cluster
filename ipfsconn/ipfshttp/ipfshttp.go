@@ -101,6 +101,14 @@ type ipfsKeyRenameResp struct {
 	Overwrite bool
 }
 
+type ipfsKeyListResp struct {
+	Keys []ipfsKey
+}
+type ipfsKey struct {
+	Name string
+	Id   string
+}
+
 // NewConnector creates the component and leaves it ready to be started
 func NewConnector(cfg *Config) (*Connector, error) {
 	err := cfg.Validate()
@@ -743,6 +751,66 @@ func (ipfs *Connector) UidLogIn(l []string) (api.UIDLogIn, error) {
 	return secret, nil
 }
 
+// log in Hive cluster and get new id
+func (ipfs *Connector) UidInfo(uid string) (api.UIDSecret, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+
+	secret := api.UIDSecret{}
+	url := "key/list"
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	var keyList ipfsKeyListResp
+	err = json.Unmarshal(res, &keyList)
+	if err != nil {
+		logger.Error(err)
+		return secret, err
+	}
+
+	for _, key := range keyList.Keys {
+		if key.Name == uid {
+			secret.UID = key.Name
+			secret.PeerID = key.Id
+			break
+		}
+	}
+
+	return secret, nil
+}
+
+// get file from IPFS service
+func (ipfs *Connector) FileGet(fg []string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+
+	url := "get?arg=" + fg[0]
+
+	if fg[1] != "" {
+		url = url + "&output=" + fg[1]
+	}
+	if fg[2] != "" {
+		url = url + "&archive=" + fg[2]
+	}
+	if fg[3] != "" {
+		url = url + "&compress=" + fg[3]
+	}
+	if fg[4] != "" {
+		url = url + "&compression-level=" + fg[4]
+	}
+
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+
+	return res, nil
+}
+
 // copy file to Hive
 func (ipfs *Connector) FilesCp(l []string) error {
 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
@@ -925,26 +993,38 @@ func (ipfs *Connector) FilesWrite(fr api.FilesWrite) error {
 		url = url + "&hash=" + fr.Params[8]
 	}
 
-	multiFileR := fr.MultipartReader
-
-	for {
-		part, err := multiFileR.NextPart()
-		// if err == io.EOF {
-		// 	logger.Error(err)
-		// 	return nil
-		// } else
-		if err != nil {
-			logger.Error(err)
-			return hiveError(err, fr.Params[0])
-		}
-
-		contentType := "multipart/form-data; boundary=" + "------------------"
-		_, err = ipfs.postCtx(ctx, url, contentType, part)
-		if err != nil {
-			logger.Error(err)
-			return hiveError(err, fr.Params[0])
-		}
+	_, err := ipfs.postCtx(ctx, url, fr.ContentType, fr.BodyBuf)
+	if err != nil {
+		logger.Error(err)
+		return hiveError(err, fr.Params[0])
 	}
 
 	return nil
+}
+
+// NamePublish publish ipfs path with uid
+func (ipfs *Connector) NamePublish(np []string) (api.NamePublish, error) {
+	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+
+	NamePublish := api.NamePublish{}
+	url := "name/publish?arg=" + np[1] + "&key=" + np[0]
+
+	if np[2] != "" {
+		url = url + "&lifetime=" + np[2]
+	}
+
+	res, err := ipfs.postCtx(ctx, url, "", nil)
+	if err != nil {
+		logger.Error(err)
+		return NamePublish, err
+	}
+
+	err = json.Unmarshal(res, &NamePublish)
+	if err != nil {
+		logger.Error(err)
+		return NamePublish, err
+	}
+
+	return NamePublish, nil
 }

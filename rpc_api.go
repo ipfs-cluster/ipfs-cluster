@@ -367,6 +367,13 @@ func (rpcapi *RPCAPI) UidLogIn(ctx context.Context, in []string, out *api.UIDLog
 	return err
 }
 
+// UidInfo runs IPFSConnector.UidInfo().
+func (rpcapi *RPCAPI) UidInfo(ctx context.Context, in string, out *api.UIDSecret) error {
+	res, err := rpcapi.c.ipfs.UidInfo(in)
+	*out = res
+	return err
+}
+
 // FilesCp runs IPFSConnector.FilesCp().
 func (rpcapi *RPCAPI) IPFSFilesCp(ctx context.Context, in []string, out *struct{}) error {
 	err := rpcapi.c.ipfs.FilesCp(in)
@@ -421,6 +428,13 @@ func (rpcapi *RPCAPI) IPFSFilesStat(ctx context.Context, in []string, out *api.F
 // FilesWrite runs IPFSConnector.FilesWrite().
 func (rpcapi *RPCAPI) IPFSFilesWrite(ctx context.Context, in api.FilesWrite, out *struct{}) error {
 	err := rpcapi.c.ipfs.FilesWrite(in)
+	return err
+}
+
+// IPFSNamePublish runs IPFSConnector.IPFSNamePublish().
+func (rpcapi *RPCAPI) IPFSNamePublish(ctx context.Context, in []string, out *api.NamePublish) error {
+	res, err := rpcapi.c.ipfs.NamePublish(in)
+	*out = res
 	return err
 }
 
