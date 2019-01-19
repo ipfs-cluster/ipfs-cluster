@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"mime/multipart"
 	"regexp"
 	"sort"
 	"strings"
@@ -1003,6 +1002,12 @@ type FilesStat struct {
 }
 
 type FilesWrite struct {
-	MultipartReader *multipart.Reader
-	Params          []string
+	ContentType string
+	BodyBuf     *bytes.Buffer
+	Params      []string
+}
+
+type NamePublish struct {
+	Name  string
+	Value string
 }

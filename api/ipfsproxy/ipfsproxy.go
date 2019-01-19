@@ -1,9 +1,12 @@
 package ipfsproxy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -212,6 +215,12 @@ func New(cfg *Config) (*Server, error) {
 	smux.HandleFunc("/api/v0/uid/new/", proxy.uidNewHandler)
 	smux.HandleFunc("/api/v0/uid/login", proxy.uidLogInHandler)
 	smux.HandleFunc("/api/v0/uid/login/", proxy.uidLogInHandler)
+
+	smux.HandleFunc("/api/v0/file/add", proxy.addHandler)
+	smux.HandleFunc("/api/v0/file/add/", proxy.addHandler)
+	smux.HandleFunc("/api/v0/file/get", proxy.fileGetHandler)
+	smux.HandleFunc("/api/v0/file/get/", proxy.fileGetHandler)
+
 	smux.HandleFunc("/api/v0/files/cp", proxy.filesCpHandler)
 	smux.HandleFunc("/api/v0/files/cp/", proxy.filesCpHandler)
 	smux.HandleFunc("/api/v0/files/flush", proxy.filesFlushHandler)
@@ -230,6 +239,13 @@ func New(cfg *Config) (*Server, error) {
 	smux.HandleFunc("/api/v0/files/stat/", proxy.filesStatHandler)
 	smux.HandleFunc("/api/v0/files/write", proxy.filesWriteHandler)
 	smux.HandleFunc("/api/v0/files/write/", proxy.filesWriteHandler)
+
+	smux.HandleFunc("/api/v0/name/publish", proxy.namePublishHandler)
+	smux.HandleFunc("/api/v0/name/publish/", proxy.namePublishHandler)
+	// smux.HandleFunc("/api/v0/message/pub", proxy.messagePubHandler)
+	// smux.HandleFunc("/api/v0/message/pub/", proxy.messagePubHandler)
+	// smux.HandleFunc("/api/v0/message/sub", proxy.messageSubHandler)
+	// smux.HandleFunc("/api/v0/message/sub/", proxy.messageSubHandler)
 
 	go proxy.run()
 	return proxy, nil
@@ -717,6 +733,41 @@ func (proxy *Server) uidHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (proxy *Server) fileGetHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	var FileGet []byte
+
+	q := r.URL.Query()
+
+	arg := q.Get("arg")
+	if arg == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	output := q.Get("output")
+	archive := q.Get("archive")
+	compress := q.Get("compress")
+	compressionLevel := q.Get("compression-level")
+
+	err := proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"IPFSFileGet",
+		[]string{arg, output, archive, compress, compressionLevel},
+		&FileGet,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(FileGet)
+	return
+}
+
 func (proxy *Server) filesCpHandler(w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header())
 
@@ -1052,9 +1103,37 @@ func (proxy *Server) filesWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	bodyBuf := &bytes.Buffer{}
+	writer := multipart.NewWriter(bodyBuf)
+
+	fileWriter, err := writer.CreateFormFile("file", "upload")
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	for {
+		part, err := multipartReader.NextPart()
+		if part == nil {
+			break
+		}
+
+		if err != nil {
+			logger.Error(err)
+			ipfsErrorResponder(w, err.Error())
+			return
+		}
+
+		io.Copy(fileWriter, part)
+	}
+
+	contentType := writer.FormDataContentType()
+	writer.Close()
+
 	FilesWrite := api.FilesWrite{
-		MultipartReader: multipartReader,
-		Params:          []string{uid, path, offset, create, truncate, count, rawLeaves, cidVersion, hash}}
+		ContentType: contentType,
+		BodyBuf:     bodyBuf,
+		Params:      []string{uid, path, offset, create, truncate, count, rawLeaves, cidVersion, hash}}
 
 	err = proxy.rpcClient.Call(
 		"",
@@ -1069,5 +1148,44 @@ func (proxy *Server) filesWriteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	return
+}
+
+func (proxy *Server) namePublishHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header())
+
+	NamePublish := api.NamePublish{}
+
+	q := r.URL.Query()
+
+	uid := q.Get("uid")
+	if uid == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	path := q.Get("path")
+	if path == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	lifetime := q.Get("lifetime")
+
+	err := proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"IPFSNamePublish",
+		[]string{uid, path, lifetime},
+		&NamePublish,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	resBytes, _ := json.Marshal(NamePublish)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
 	return
 }

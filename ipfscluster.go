@@ -91,6 +91,8 @@ type IPFSConnector interface {
 	UidNew(name string) (api.UIDSecret, error)
 	// UidLogIn is used to change uid
 	UidLogIn([]string) (api.UIDLogIn, error)
+	// FileGet downloads file from ipfs service
+	FileGet(fg []string) ([]byte, error)
 	// FilesCp is used to copy file
 	FilesCp([]string) error
 	// FilesFlush is used to change uid
@@ -109,6 +111,8 @@ type IPFSConnector interface {
 	FilesStat([]string) (api.FilesStat, error)
 	// FilesWrite writes file
 	FilesWrite(api.FilesWrite) error
+	// NamePublish publish ipfs path with uid
+	NamePublish(np []string) (api.NamePublish, error)
 }
 
 // Peered represents a component which needs to be aware of the peers

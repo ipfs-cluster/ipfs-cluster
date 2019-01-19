@@ -424,6 +424,13 @@ func (rpcapi *RPCAPI) IPFSFilesWrite(ctx context.Context, in api.FilesWrite, out
 	return err
 }
 
+// IPFSNamePublish runs IPFSConnector.IPFSNamePublish().
+func (rpcapi *RPCAPI) IPFSNamePublish(ctx context.Context, in []string, out *api.NamePublish) error {
+	res, err := rpcapi.c.ipfs.NamePublish(in)
+	*out = res
+	return err
+}
+
 /*
    Consensus component methods
 */
