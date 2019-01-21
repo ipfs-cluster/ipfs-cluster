@@ -161,6 +161,12 @@
       "hash": "QmNNk4iczWp8Q4R1mXQ2mrrjQvWisYqMqbW1an8qGbJZsM",
       "name": "cors",
       "version": "1.6.0"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmQine7gvHncNevKtG9QXxf3nXcwSj6aDDmMm52mHofEEp",
+      "name": "tar-utils",
+      "version": "0.0.3"
     }
   ],
   "gxVersion": "0.11.0",
@@ -168,6 +174,6 @@
   "license": "MIT",
   "name": "ipfs-cluster",
   "releaseCmd": "git commit -S -a -m \"gx publish $VERSION\"",
-  "version": "0.8.0"
+  "version": "0.1.1-hive-alpha"
 }
 

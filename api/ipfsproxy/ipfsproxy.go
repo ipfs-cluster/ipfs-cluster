@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +30,7 @@ import (
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
 	uuid "github.com/satori/go.uuid"
+	tar "github.com/whyrusleeping/tar-utils"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module
@@ -236,6 +239,10 @@ func New(cfg *Config) (*Server, error) {
 		Path("/file/get").
 		HandlerFunc(proxy.fileGetHandler).
 		Name("FileGet")
+	hijackSubrouter.
+		Path("/file/cat").
+		HandlerFunc(proxy.fileCatHandler).
+		Name("FileCat")
 
 	hijackSubrouter.
 		Path("/files/cp").
@@ -765,6 +772,71 @@ func (proxy *Server) fileGetHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(FileGet)
+	return
+}
+
+func (proxy *Server) fileCatHandler(w http.ResponseWriter, r *http.Request) {
+	proxy.setHeaders(w.Header(), r)
+
+	var FileGet []byte
+
+	q := r.URL.Query()
+
+	arg := q.Get("arg")
+	if arg == "" {
+		ipfsErrorResponder(w, "error reading request: "+r.URL.String())
+		return
+	}
+
+	output := q.Get("output")
+	archive := q.Get("archive")
+	compress := q.Get("compress")
+	compressionLevel := q.Get("compression-level")
+
+	err := proxy.rpcClient.Call(
+		"",
+		"Cluster",
+		"IPFSFileGet",
+		[]string{arg, output, archive, compress, compressionLevel},
+		&FileGet,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	// create io.Reader
+	rspbuf := bytes.NewReader(FileGet)
+
+	// create path
+	fpath, err := ioutil.TempDir("", "ipfsget")
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+	defer os.RemoveAll(fpath)
+
+	// extract
+	extractor := &tar.Extractor{Path: fpath}
+	extractor.Extract(rspbuf)
+
+	// read files from the path
+	files, err := ioutil.ReadDir(fpath)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	for _, file := range files {
+		buf, err := ioutil.ReadFile(fpath + "/" + file.Name())
+		if err != nil {
+			ipfsErrorResponder(w, err.Error())
+			return
+		}
+		w.Write(buf)
+	}
+
 	return
 }
 
