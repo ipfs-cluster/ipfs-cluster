@@ -49,22 +49,34 @@ test_expect_success IPFS,CLUSTER "wait for data to unpin from cluster with ctl w
     ipfs-cluster-ctl status "$cid" | grep -q -i "UNPINNED"
 '
 
-test_expect_success IPFS,CLUSTER "pin and unpin data to cluster with ctl using ipfs/ipns/ipld paths" '
+test_expect_success IPFS,CLUSTER "pin data to cluster with ctl using ipfs paths" '
     cid=(`docker exec ipfs sh -c "mkdir -p test1/test2 && touch test1/test2/test3.txt && ipfs add -qr test1"`)
     ipfs-cluster-ctl pin add "/ipfs/${cid[2]}/test2/test3.txt" &&
     ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}" &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "PINNED"
-    ipfs-cluster-ctl pin rm "/ipfs/${cid[2]}/test2/test3.txt" &&
+'
+
+test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipfs paths" '
+    removed=(`ipfs-cluster-ctl pin rm "/ipfs/${cid[2]}/test2/test3.txt"`) &&
+    echo "${removed[0]}" | grep -q "${cid[0]}" &&
     !(ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}") &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "UNPINNED"
+'
+
+test_expect_success IPFS,CLUSTER "pin data to cluster with ctl using ipns paths" '
     name=`docker exec ipfs sh -c "ipfs name publish -Q ${cid[0]}"`
     ipfs-cluster-ctl pin add "/ipns/$name" &&
     ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}" &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "PINNED"
-    ipfs-cluster-ctl pin rm "/ipns/$name" &&
+'
+
+test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipns paths" '
+    removed=(`ipfs-cluster-ctl pin rm "/ipns/$name"`) &&
+    echo "${removed[0]}" | grep -q "${cid[0]}" &&
     !(ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}") &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "UNPINNED"
 '
+
 test_clean_ipfs
 test_clean_cluster
 

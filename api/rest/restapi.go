@@ -374,16 +374,16 @@ func (api *API) routes() []route {
 			api.pinHandler,
 		},
 		{
-			"Unpin",
-			"DELETE",
-			"/pins/{hash}",
-			api.unpinHandler,
-		},
-		{
 			"PinPath",
 			"POST",
 			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
 			api.pinPathHandler,
+		},
+		{
+			"Unpin",
+			"DELETE",
+			"/pins/{hash}",
+			api.unpinHandler,
 		},
 		{
 			"UnpinPath",
@@ -679,7 +679,7 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
-	var ci cid.Cid
+	var resolvedPath string
 	pinPath, ps := api.parsePathOrError(w, r)
 	logger.Debugf("rest api pinPathHandler: %s", pinPath)
 
@@ -687,19 +687,19 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 		"",
 		"Cluster",
 		"PinPath",
-		types.PinPath{
+		types.PinSerialWithPath{
 			PinOpts: ps,
 			Path:    pinPath,
 		},
-		&ci,
+		&resolvedPath,
 	)
 
-	api.sendResponse(w, http.StatusOK, err, &ci)
+	api.sendResponse(w, http.StatusOK, err, &resolvedPath)
 	logger.Debug("rest api pinPathHandler done")
 }
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
-	var ci cid.Cid
+	var resolvedPath string
 	unpinPath, _ := api.parsePathOrError(w, r)
 	logger.Debugf("rest api unpinPathHandler: %s", unpinPath)
 	err := api.rpcClient.Call(
@@ -707,9 +707,9 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 		"Cluster",
 		"UnpinPath",
 		unpinPath,
-		&ci,
+		&resolvedPath,
 	)
-	api.sendResponse(w, http.StatusOK, err, ci)
+	api.sendResponse(w, http.StatusOK, err, resolvedPath)
 	logger.Debug("rest api unpinPathHandler done")
 }
 

@@ -583,25 +583,21 @@ func (ipfs *Connector) Resolve(path string) (cid.Cid, error) {
 		return cid.Undef, err
 	}
 
-	var resolveResp ipfsResolveResp
-	err = json.Unmarshal(res, &resolveResp)
+	var resp ipfsResolveResp
+	err = json.Unmarshal(res, &resp)
 	if err != nil {
 		logger.Error("could not unmarshal response: " + err.Error())
 		return cid.Undef, err
 	}
 
-	validPath, err = gopath.ParsePath(resolveResp.Path)
+	validPath, err = gopath.ParsePath(resp.Path)
 	if err != nil {
 		logger.Error("could not parse path: " + err.Error())
 		return cid.Undef, err
 	}
 
-	if validPath.IsJustAKey() {
-		ci, _, err := gopath.SplitAbsPath(validPath)
-		return ci, err
-	}
-
-	return cid.Undef, errors.New("invalid path")
+	ci, _, err := gopath.SplitAbsPath(validPath)
+	return ci, err
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.

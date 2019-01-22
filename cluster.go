@@ -1080,7 +1080,7 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 
 // PinPath accepts a path string resolves it into a cid and makes cluster pin it
 func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
-	ci, err := c.Resolve(path)
+	ci, err := c.resolve(path)
 	if err != nil {
 		return ci, err
 	}
@@ -1091,15 +1091,15 @@ func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
 
 // UnpinPath accepts a path string resolves it into a cit and makes the cluster unpin it
 func (c *Cluster) UnpinPath(path string) (cid.Cid, error) {
-	ci, err := c.Resolve(path)
+	ci, err := c.resolve(path)
 	if err != nil {
 		return ci, err
 	}
 	return ci, c.Unpin(ci)
 }
 
-// Resolve resolves given string path into a cid
-func (c *Cluster) Resolve(path string) (cid.Cid, error) {
+// resolve resolves given string path into a cid
+func (c *Cluster) resolve(path string) (cid.Cid, error) {
 	var ci cid.Cid
 	validPath, err := gopath.ParsePath(path)
 	if err != nil {

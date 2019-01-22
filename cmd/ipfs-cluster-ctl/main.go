@@ -493,11 +493,10 @@ peers should pin this content.
 						},
 					},
 					Action: func(c *cli.Context) error {
-						cidOrPath := c.Args().First()
-						ci, errCid := cid.Decode(cidOrPath)
-						path, errPath := gopath.ParsePath(cidOrPath)
-						if errCid != nil && errPath != nil {
-							out("error parsing cid: %s\nerror parsing path: %s\n", errCid, errPath)
+						pinPath := c.Args().First()
+						path, err := gopath.ParsePath(pinPath)
+						if err != nil {
+							out("error parsing path: %s\n", err)
 							os.Exit(1)
 						}
 
@@ -509,19 +508,10 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						if errCid == nil {
-							cerr := globalClient.Pin(ci, rplMin, rplMax, c.String("name"))
-							if cerr != nil {
-								formatResponse(c, nil, cerr)
-								return nil
-							}
-						} else if errPath == nil {
-							var cerr error
-							ci, cerr = globalClient.PinPath(path.String(), rplMin, rplMax, c.String("name"))
-							if cerr != nil {
-								formatResponse(c, nil, cerr)
-								return nil
-							}
+						ci, cerr := globalClient.PinPath(path.String(), rplMin, rplMax, c.String("name"))
+						if cerr != nil {
+							formatResponse(c, nil, cerr)
+							return nil
 						}
 
 						handlePinResponseFormatFlags(
@@ -560,27 +550,17 @@ although unpinning operations in the cluster may take longer or fail.
 						},
 					},
 					Action: func(c *cli.Context) error {
-						cidOrPath := c.Args().First()
-						ci, errCid := cid.Decode(cidOrPath)
-						path, errPath := gopath.ParsePath(cidOrPath)
-						if errCid != nil && errPath != nil {
-							out("error parsing cid: %s\nerror parsing path: %s\n", errCid, errPath)
+						unpinPath := c.Args().First()
+						path, err := gopath.ParsePath(unpinPath)
+						if err != nil {
+							out("error parsing path: %s\n", err)
 							os.Exit(1)
 						}
 
-						if errCid == nil {
-							cerr := globalClient.Unpin(ci)
-							if cerr != nil {
-								formatResponse(c, nil, cerr)
-								return nil
-							}
-						} else if errPath == nil {
-							var cerr error
-							ci, cerr = globalClient.UnpinPath(path.String())
-							if cerr != nil {
-								formatResponse(c, nil, cerr)
-								return nil
-							}
+						ci, cerr := globalClient.UnpinPath(path.String())
+						if cerr != nil {
+							formatResponse(c, nil, cerr)
+							return nil
 						}
 
 						handlePinResponseFormatFlags(

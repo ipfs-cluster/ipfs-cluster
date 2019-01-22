@@ -275,8 +275,8 @@ func TestClusterPinPath(t *testing.T) {
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
-	if ci == cid.Undef {
-		t.Error("cid shouldn't have been undefined")
+	if ci.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", ci.String())
 	}
 
 	// test an error case
@@ -288,8 +288,8 @@ func TestClusterPinPath(t *testing.T) {
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
-	if ci == cid.Undef {
-		t.Error("cid shouldn't have been undefined")
+	if ci.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", ci.String())
 	}
 }
 
@@ -799,8 +799,8 @@ func TestClusterUnpinPath(t *testing.T) {
 	if err == nil {
 		t.Error("unpin with path should have failed")
 	}
-	if ci == cid.Undef {
-		t.Error("cid shouldn't have been undefined")
+	if ci.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", ci.String())
 	}
 
 	// Unpin after pin should succeed
@@ -810,26 +810,16 @@ func TestClusterUnpinPath(t *testing.T) {
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}
-	if ci == cid.Undef {
-		t.Error("cid shouldn't have been undefined")
+	if ci.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", ci.String())
 	}
 
 	ci, err = cl.UnpinPath(test.TestPathIPFS2)
 	if err != nil {
 		t.Error("unpin with path should have worked:", err)
 	}
-	if ci == cid.Undef {
-		t.Error("cid shouldn't have been undefined")
-	}
-
-	// test another error case
-	cl.consensus.Shutdown()
-	ci, err = cl.UnpinPath(test.TestPathIPFS2)
-	if err == nil {
-		t.Error("expected an error but things worked")
-	}
-	if ci == cid.Undef {
-		t.Error("cid shouldn't have been undefined")
+	if ci.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", ci.String())
 	}
 }
 

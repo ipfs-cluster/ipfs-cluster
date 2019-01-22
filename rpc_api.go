@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"context"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -43,16 +42,16 @@ func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}
 }
 
 // PinPath resolves path into a cid and runs Cluster.Pin().
-func (rpcapi *RPCAPI) PinPath(ctx context.Context, in api.PinPath, out *cid.Cid) error {
+func (rpcapi *RPCAPI) PinPath(ctx context.Context, in api.PinSerialWithPath, out *string) error {
 	ci, err := rpcapi.c.PinPath(in.Path, in.PinOpts.ToPin())
-	*out = ci
+	*out = ci.String()
 	return err
 }
 
 // UnpinPath resolves path into a cid and runs Cluster.Unpin().
-func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in string, out *cid.Cid) error {
+func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in string, out *string) error {
 	ci, err := rpcapi.c.UnpinPath(in)
-	*out = ci
+	*out = ci.String()
 	return err
 }
 
@@ -325,13 +324,6 @@ func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *a
 func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m, err := rpcapi.c.ipfs.PinLs(ctx, in)
 	*out = m
-	return err
-}
-
-//IPFSResolve runs IPFSConnector.Resolve()
-func (rpcapi *RPCAPI) IPFSResolve(ctx context.Context, in string, out *cid.Cid) error {
-	res, err := rpcapi.c.ipfs.Resolve(in)
-	*out = res
 	return err
 }
 
