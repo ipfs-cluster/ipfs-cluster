@@ -18,7 +18,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
-	cid "github.com/ipfs/go-cid"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -576,17 +575,15 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
-		var ci cid.Cid
-		ciKnown := test.MustDecodeCid(test.TestCid5).String()
+		var ci api.CidSerial
 
 		// test regular post
-		makePost(t, rest, url(rest)+"/pins/"+api.TrimToPath(test.TestPathIPFS2), []byte{}, &ci)
-		if ci.String() != ciKnown {
-			t.Error("expected different cid")
-		}
-		makePost(t, rest, url(rest)+"/pins/"+api.TrimToPath(test.TestPathIPNS2), []byte{}, &ci)
-		if ci.String() != ciKnown {
-			t.Error("expected different cid")
+		testPaths := test.Paths()
+		for _, testPath := range testPaths {
+			makePost(t, rest, url(rest)+"/pins/"+api.TrimSlacesAndSpaces(testPath), []byte{}, &ci)
+			if ci.CidTarget != test.TestCid5 {
+				t.Error("expected different cid")
+			}
 		}
 	}
 
@@ -621,18 +618,15 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 	defer rest.Shutdown()
 
 	tf := func(t *testing.T, url urlF) {
-		var ci cid.Cid
-		ciKnown := test.MustDecodeCid(test.TestCid5).String()
+		var ci api.CidSerial
 
 		// test regular delete
-		makeDelete(t, rest, url(rest)+"/pins/"+api.TrimToPath(test.TestPathIPFS2), &ci)
-		if ci.String() != ciKnown {
-			t.Error("expected different cid")
-		}
-
-		makeDelete(t, rest, url(rest)+"/pins/"+api.TrimToPath(test.TestPathIPNS2), &ci)
-		if ci.String() != ciKnown {
-			t.Error("expected different cid")
+		testPaths := test.Paths()
+		for _, testPath := range testPaths {
+			makeDelete(t, rest, url(rest)+"/pins/"+api.TrimSlacesAndSpaces(testPath), &ci)
+			if ci.CidTarget != test.TestCid5 {
+				t.Error("expected different cid")
+			}
 		}
 	}
 

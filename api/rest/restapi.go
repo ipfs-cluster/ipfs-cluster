@@ -679,8 +679,8 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
-	var resolvedPath string
-	pinPath, ps := api.parsePathOrError(w, r)
+	var ci types.CidSerial
+	pinPath, ps := api.parsePath(w, r)
 	logger.Debugf("rest api pinPathHandler: %s", pinPath)
 
 	err := api.rpcClient.Call(
@@ -691,25 +691,25 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 			PinOpts: ps,
 			Path:    pinPath,
 		},
-		&resolvedPath,
+		&ci,
 	)
 
-	api.sendResponse(w, http.StatusOK, err, &resolvedPath)
+	api.sendResponse(w, http.StatusOK, err, &ci)
 	logger.Debug("rest api pinPathHandler done")
 }
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
-	var resolvedPath string
-	unpinPath, _ := api.parsePathOrError(w, r)
+	var ci types.CidSerial
+	unpinPath, _ := api.parsePath(w, r)
 	logger.Debugf("rest api unpinPathHandler: %s", unpinPath)
 	err := api.rpcClient.Call(
 		"",
 		"Cluster",
 		"UnpinPath",
 		unpinPath,
-		&resolvedPath,
+		&ci,
 	)
-	api.sendResponse(w, http.StatusOK, err, resolvedPath)
+	api.sendResponse(w, http.StatusOK, err, ci)
 	logger.Debug("rest api unpinPathHandler done")
 }
 
@@ -1008,7 +1008,7 @@ func (api *API) parsePinSerial(w http.ResponseWriter, r *http.Request, hash stri
 	return pin
 }
 
-func (api *API) parsePathOrError(w http.ResponseWriter, r *http.Request) (string, types.PinSerial) {
+func (api *API) parsePath(w http.ResponseWriter, r *http.Request) (string, types.PinSerial) {
 	vars := mux.Vars(r)
 	pinPath := "/" + vars["keyType"] + "/" + vars["path"]
 

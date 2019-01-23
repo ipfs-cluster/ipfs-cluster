@@ -88,13 +88,14 @@ func (c *defaultClient) Unpin(ci cid.Cid) error {
 
 // PinPath resolves given path into a cid and performs the pin operation.
 func (c *defaultClient) PinPath(pinPath string, replicationFactorMin, replicationFactorMax int, name string) (cid.Cid, error) {
-	var ci string
+	var ci api.CidSerial
+
 	escName := url.QueryEscape(name)
 	err := c.do(
 		"POST",
 		fmt.Sprintf(
 			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
-			api.TrimToPath(pinPath),
+			api.TrimSlacesAndSpaces(pinPath),
 			replicationFactorMin,
 			replicationFactorMax,
 			escName,
@@ -107,18 +108,18 @@ func (c *defaultClient) PinPath(pinPath string, replicationFactorMin, replicatio
 		return cid.Undef, err
 	}
 
-	return cid.Decode(ci)
+	return cid.Decode(ci.CidTarget)
 }
 
 // UnpinPath resolves given path into a cid and performs the unpin operation.
 func (c *defaultClient) UnpinPath(unpinPath string) (cid.Cid, error) {
-	var ci string
-	err := c.do("DELETE", fmt.Sprintf("/pins/%s", api.TrimToPath(unpinPath)), nil, nil, &ci)
+	var ci api.CidSerial
+	err := c.do("DELETE", fmt.Sprintf("/pins/%s", api.TrimSlacesAndSpaces(unpinPath)), nil, nil, &ci)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	return cid.Decode(ci)
+	return cid.Decode(ci.CidTarget)
 }
 
 // Allocations returns the consensus state listing all tracked items and

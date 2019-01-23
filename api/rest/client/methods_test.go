@@ -166,27 +166,16 @@ func TestPinPath(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		_, err := c.PinPath(test.TestPathIPFS1, 6, 7, "hello there")
-		if err != nil {
-			t.Error(err)
+		testPaths := test.Paths()
+
+		for _, testPath := range testPaths {
+			_, err := c.PinPath(testPath, 6, 7, "hello there")
+			if err != nil {
+				t.Error(err)
+			}
 		}
 
-		_, err = c.PinPath(test.TestPathIPFS3, 6, 7, "hello there")
-		if err != nil {
-			t.Error(err)
-		}
-
-		_, err = c.PinPath(test.TestPathIPNS1, 6, 7, "hello there")
-		if err != nil {
-			t.Error(err)
-		}
-
-		_, err = c.PinPath(test.TestPathIPLD2, 6, 7, "hello there")
-		if err != nil {
-			t.Error(err)
-		}
-
-		_, err = c.PinPath(test.TestInvalidPath1, 6, 7, "hello there")
+		_, err := c.PinPath(test.TestInvalidPath1, 6, 7, "hello there")
 		if err == nil {
 			t.Error(err)
 		}
@@ -200,27 +189,16 @@ func TestUnpinPath(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		_, err := c.UnpinPath(test.TestPathIPFS1)
-		if err != nil {
-			t.Error(err)
+		testPaths := test.Paths()
+
+		for _, testPath := range testPaths {
+			_, err := c.UnpinPath(testPath)
+			if err != nil {
+				t.Error(err)
+			}
 		}
 
-		_, err = c.UnpinPath(test.TestPathIPFS3)
-		if err != nil {
-			t.Error(err)
-		}
-
-		_, err = c.UnpinPath(test.TestPathIPNS1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		_, err = c.UnpinPath(test.TestPathIPLD2)
-		if err != nil {
-			t.Error(err)
-		}
-
-		_, err = c.UnpinPath(test.TestInvalidPath1)
+		_, err := c.UnpinPath(test.TestInvalidPath1)
 		if err == nil {
 			t.Error(err)
 		}

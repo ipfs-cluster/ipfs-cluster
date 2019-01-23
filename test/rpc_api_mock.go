@@ -52,15 +52,17 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 	return nil
 }
 
-func (mock *mockService) PinPath(ctx context.Context, in api.PinSerialWithPath, out *cid.Cid) error {
-	ci := MustDecodeCid(TestCid5)
-	*out = ci
+func (mock *mockService) PinPath(ctx context.Context, in api.PinSerialWithPath, out *api.CidSerial) error {
+	*out = api.CidSerial{
+		CidTarget: TestCid5,
+	}
 	return nil
 }
 
-func (mock *mockService) UnpinPath(ctx context.Context, in string, out *cid.Cid) error {
-	ci := MustDecodeCid(TestCid5)
-	*out = ci
+func (mock *mockService) UnpinPath(ctx context.Context, in string, out *api.CidSerial) error {
+	*out = api.CidSerial{
+		CidTarget: TestCid5,
+	}
 	return nil
 }
 

@@ -740,6 +740,11 @@ type PinSerialWithPath struct {
 	Path    string    `json:"Path"`
 }
 
+// CidSerial is a serializable struct for cid as used in "github.com/ipfs/go-cid"
+type CidSerial struct {
+	CidTarget string `json:"/"`
+}
+
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive and the pin to be of DataType.
 func PinCid(c cid.Cid) Pin {

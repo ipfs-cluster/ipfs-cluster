@@ -67,9 +67,9 @@ func MustLibp2pMultiaddrJoin(addr ma.Multiaddr, p peer.ID) ma.Multiaddr {
 	return addr.Encapsulate(pidAddr)
 }
 
-// TrimToPath trims any leading and trailing spaces and backslaces to give the path
+// TrimSlacesAndSpaces trims any leading and trailing spaces and backslaces to give the path
 // that can be added to a url string
-func TrimToPath(p string) string {
+func TrimSlacesAndSpaces(p string) string {
 	return strings.TrimSuffix(
 		strings.TrimPrefix(strings.TrimSpace(p), "/"),
 		"/",

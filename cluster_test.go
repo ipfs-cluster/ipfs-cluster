@@ -273,23 +273,19 @@ func TestClusterPinPath(t *testing.T) {
 		Type: api.DataType,
 	})
 	if err != nil {
-		t.Fatal("pin should have worked:", err)
+		t.Error("pin should have worked:", err)
 	}
 	if ci.String() != test.TestCid5 {
 		t.Error("expected a different cid, found", ci.String())
 	}
 
 	// test an error case
-	cl.consensus.Shutdown()
-	pin := api.PinCid(ci)
-	pin.ReplicationFactorMax = 1
-	pin.ReplicationFactorMin = 1
-	ci, err = cl.PinPath(test.TestPathIPFS2, pin)
+	pin := api.Pin{
+		Type: api.DataType,
+	}
+	_, err = cl.PinPath(test.TestInvalidPath1, pin)
 	if err == nil {
 		t.Error("expected an error but things worked")
-	}
-	if ci.String() != test.TestCid5 {
-		t.Error("expected a different cid, found", ci.String())
 	}
 }
 

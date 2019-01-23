@@ -295,10 +295,7 @@ func TestResolve(t *testing.T) {
 
 	s, err := ipfs.Resolve(test.TestPathIPFS2)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if s == cid.Undef {
-		t.Error("expected cid not to be undefined")
+		t.Error(err)
 	}
 
 	if s != test.MustDecodeCid(test.TestCid5) {
