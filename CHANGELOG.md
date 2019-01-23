@@ -1,10 +1,164 @@
 # IPFS Cluster Changelog
 
+### v0.8.0 - 2019-01-16
+
+#### Summary
+
+IPFS Cluster version 0.8.0 comes with a few useful features and some bugfixes.
+A significant amount of work has been put to correctly handle CORS in both the
+REST API and the IPFS Proxy endpoint, fixing some long-standing issues (we
+hope once are for all).
+
+There has also been heavy work under the hood to separate the IPFS HTTP
+Connector (the HTTP client to the IPFS daemon) from the IPFS proxy, which is
+essentially an additional Cluster API. Check the configuration changes section
+below for more information about how this affects the configuration file.
+
+Finally we have some useful small features:
+
+* The `ipfs-cluster-ctl status --filter` option allows to just list those
+items which are still `pinning` or `queued` or `error` etc. You can combine
+multiple filters. This translates to a new `filter` query parameter in the
+`/pins` API endpoint.
+* The `stream-channels=false` query parameter for the `/add` endpoint will let
+the API buffer the output when adding and return a valid JSON array once done,
+making this API endpoint behave like a regular, non-streaming one.
+`ipfs-cluster-ctl add --no-stream` acts similarly, but buffering on the client
+side. Note that this will cause in-memory buffering of potentially very large
+responses when the number of added files is very large, but should be
+perfectly fine for regular usage.
+* The `ipfs-cluster-ctl add --quieter` flag now applies to the JSON output
+too, allowing the user to just get the last added entry JSON object when
+adding a file, which is always the root hash.
+
+#### List of changes
+
+##### Features
+
+  * IPFS Proxy extraction to its own `API` component: `ipfsproxy` | [ipfs/ipfs-cluster#453](https://github.com/ipfs/ipfs-cluster/issues/453) | [ipfs/ipfs-cluster#576](https://github.com/ipfs/ipfs-cluster/issues/576) | [ipfs/ipfs-cluster#616](https://github.com/ipfs/ipfs-cluster/issues/616) | [ipfs/ipfs-cluster#617](https://github.com/ipfs/ipfs-cluster/issues/617)
+  * Add full CORS handling to `restapi` | [ipfs/ipfs-cluster#639](https://github.com/ipfs/ipfs-cluster/issues/639) | [ipfs/ipfs-cluster#640](https://github.com/ipfs/ipfs-cluster/issues/640)
+  * `restapi` configuration section entries can be overriden from environment variables | [ipfs/ipfs-cluster#609](https://github.com/ipfs/ipfs-cluster/issues/609)
+  * Update to `go-ipfs-files` 2.0 | [ipfs/ipfs-cluster#613](https://github.com/ipfs/ipfs-cluster/issues/613)
+  * Tests for the `/monitor/metrics` endpoint | [ipfs/ipfs-cluster#587](https://github.com/ipfs/ipfs-cluster/issues/587) | [ipfs/ipfs-cluster#622](https://github.com/ipfs/ipfs-cluster/issues/622)
+  * Support `stream-channels=fase` query parameter in `/add` | [ipfs/ipfs-cluster#632](https://github.com/ipfs/ipfs-cluster/issues/632) | [ipfs/ipfs-cluster#633](https://github.com/ipfs/ipfs-cluster/issues/633)
+  * Support server side `/pins` filtering  | [ipfs/ipfs-cluster#445](https://github.com/ipfs/ipfs-cluster/issues/445) | [ipfs/ipfs-cluster#478](https://github.com/ipfs/ipfs-cluster/issues/478) | [ipfs/ipfs-cluster#627](https://github.com/ipfs/ipfs-cluster/issues/627)
+  * `ipfs-cluster-ctl add --no-stream` option | [ipfs/ipfs-cluster#632](https://github.com/ipfs/ipfs-cluster/issues/632) | [ipfs/ipfs-cluster#637](https://github.com/ipfs/ipfs-cluster/issues/637)
+  * Upgrade dependencies and libp2p to version 6.0.29 | [ipfs/ipfs-cluster#624](https://github.com/ipfs/ipfs-cluster/issues/624)
+
+##### Bug fixes
+
+ * Respect IPFS daemon response headers on non-proxied calls | [ipfs/ipfs-cluster#382](https://github.com/ipfs/ipfs-cluster/issues/382) | [ipfs/ipfs-cluster#623](https://github.com/ipfs/ipfs-cluster/issues/623) | [ipfs/ipfs-cluster#638](https://github.com/ipfs/ipfs-cluster/issues/638)
+ * Fix `ipfs-cluster-ctl` usage with HTTPs and `/dns*` hostnames | [ipfs/ipfs-cluster#626](https://github.com/ipfs/ipfs-cluster/issues/626)
+ * Minor fixes in sharness | [ipfs/ipfs-cluster#641](https://github.com/ipfs/ipfs-cluster/issues/641) | [ipfs/ipfs-cluster#643](https://github.com/ipfs/ipfs-cluster/issues/643)
+ * Fix error handling when parsing the configuration | [ipfs/ipfs-cluster#642](https://github.com/ipfs/ipfs-cluster/issues/642)
+ 
+  
+
+#### Upgrading notices
+
+This release comes with some configuration changes that are important to notice,
+even though the peers will start with the same configurations as before.
+
+##### Configuration changes
+
+##### `ipfsproxy` section
+
+This version introduces a separate `ipfsproxy` API component. This is
+reflected in the `service.json` configuration, which now includes a new
+`ipfsproxy` subsection under the `api` section. By default it looks like:
+
+```js
+    "ipfsproxy": {
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+      "read_timeout": "0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "1m0s"
+   }
+```
+
+We have however added the necessary safeguards to keep backwards compatibility
+for this release. If the `ipfsproxy` section is empty, it will be picked up from
+the `ipfshttp` section as before. An ugly warning will be printed in this case.
+
+Based on the above, the `ipfshttp` configuration section loses the
+proxy-related options. Note that `node_multiaddress` stays in both component
+configurations and should likely be the same in most cases, but you can now
+potentially proxy requests to a different daemon than the one used by the
+cluster peer.
+
+Additional hidden configuration options to manage custom header extraction
+from the IPFS daemon (for power users) have been added to the `ipfsproxy`
+section but are not shown by default when initializing empty
+configurations. See the documentation for more details.
+
+###### `restapi` section
+
+The introduction of proper CORS handling in the `restapi` component introduces
+a number of new keys:
+
+```js
+      "cors_allowed_origins": [
+        "*"
+      ],
+      "cors_allowed_methods": [
+        "GET"
+      ],
+      "cors_allowed_headers": [],
+      "cors_exposed_headers": [
+        "Content-Type",
+        "X-Stream-Output",
+        "X-Chunked-Output",
+        "X-Content-Length"
+      ],
+      "cors_allow_credentials": true,
+      "cors_max_age": "0s"
+```
+
+Note that CORS will be essentially unconfigured when these keys are not
+defined.
+
+The `headers` key, which was used before to add some CORS related headers
+manually, takes a new empty default. **We recommend emptying `headers` from
+any CORS-related value.**
+
+
+##### REST API
+
+The REST API is fully backwards compatible:
+
+* The `GET /pins` endpoint takes a new `?filter=<filter>` option. See
+  `ipfs-cluster-ctl status --help` for acceptable values.
+* The `POST /add` endpoint accepts a new `?stream-channels=<true|false>`
+  option. By default it is set to `true`.
+
+##### Go APIs
+
+The signature for the `StatusAll` method in the REST `client` module has
+changed to include a `filter` parameter.
+
+There may have been other minimal changes to internal exported Go APIs, but
+should not affect users.
+
+##### Other
+
+Proxy requests which are handled by the Cluster peer (`/pin/ls`, `/pin/add`,
+`/pin/rm`, `/repo/stat` and `/add`) will now attempt to fully mimic ipfs
+responses to the header level. This is done by triggering CORS pre-flight for
+every hijacked request along with an occasional regular request to `/version`
+to extract other headers (and possibly custom ones).
+
+The practical result is that the proxy now behaves correctly when dropped
+instead of IPFS into CORS-aware contexts (like the browser).
+
+---
+
 ### v0.7.0 - 2018-11-01
 
 #### Summary
 
-IPFS version 0.7.0 is a maintenance release that includes a few bugfixes and some small features.
+IPFS Cluster version 0.7.0 is a maintenance release that includes a few bugfixes and some small features.
 
 Note that the REST API response format for the `/add` endpoint has changed. Thus all clients need to be upgraded to deal with the new format. The `rest/api/client` has been accordingly updated.
 
