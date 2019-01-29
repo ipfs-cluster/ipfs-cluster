@@ -61,9 +61,10 @@ type Client interface {
 	Unpin(ci cid.Cid) error
 
 	// PinPath resolves given path into a cid and performs the pin operation.
-	PinPath(pinPath string, replicationFactorMin, replicationFactorMax int, name string) (cid.Cid, error)
+	PinPath(opts api.PinOptionsWithPath) (api.Pin, error)
 	// UnpinPath resolves given path into a cid and performs the unpin operation.
-	UnpinPath(pinPath string) (cid.Cid, error)
+	// It returns api.Pin of the given cid before it is unpinned.
+	UnpinPath(path string) (api.Pin, error)
 
 	// Allocations returns the consensus state listing all tracked items
 	// and the peers that should be pinning them.

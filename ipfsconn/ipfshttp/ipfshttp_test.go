@@ -291,13 +291,12 @@ func TestResolve(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown()
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second)
 
 	s, err := ipfs.Resolve(test.TestPathIPFS2)
 	if err != nil {
 		t.Error(err)
 	}
-
 	if s != test.MustDecodeCid(test.TestCid5) {
 		t.Error("expected different cid")
 	}

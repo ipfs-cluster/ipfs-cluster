@@ -81,7 +81,7 @@ type ipfsIDResp struct {
 }
 
 type ipfsResolveResp struct {
-	Path string `json:"Path"`
+	Path string
 }
 
 type ipfsSwarmPeersResp struct {
@@ -590,13 +590,7 @@ func (ipfs *Connector) Resolve(path string) (cid.Cid, error) {
 		return cid.Undef, err
 	}
 
-	validPath, err = gopath.ParsePath(resp.Path)
-	if err != nil {
-		logger.Error("could not parse path: " + err.Error())
-		return cid.Undef, err
-	}
-
-	ci, _, err := gopath.SplitAbsPath(validPath)
+	ci, _, err := gopath.SplitAbsPath(gopath.FromString(resp.Path))
 	return ci, err
 }
 

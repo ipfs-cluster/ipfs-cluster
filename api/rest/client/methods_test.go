@@ -165,19 +165,58 @@ func TestPinPath(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
+	opts := types.PinOptionsWithPath{
+		PinOptions: types.PinOptions{
+			ReplicationFactorMin: 6,
+			ReplicationFactorMax: 7,
+			Name:                 "hello there",
+		},
+	}
+
+	testCases := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		// Uncomment after removing logic Pin and Unpin with cid
+		// {
+		// 	"cid string as path",
+		// 	test.TestCid5,
+		// 	false,
+		// },
+		{
+			"IPFS path with just a cid string, but with starting with /ipfs/",
+			test.TestPathIPFS1,
+			false,
+		},
+		{
+			"IPFS path with cid string of a ancenstor directory and relative file path from there",
+			test.TestPathIPFS2,
+			false,
+		},
+		{
+			"IPNS path",
+			test.TestPathIPNS2,
+			false,
+		},
+		{
+			"IPLD path",
+			test.TestPathIPLD2,
+			false,
+		},
+		{
+			"invalid path",
+			test.TestInvalidPath1,
+			true,
+		},
+	}
 	testF := func(t *testing.T, c Client) {
-		testPaths := test.Paths()
 
-		for _, testPath := range testPaths {
-			_, err := c.PinPath(testPath, 6, 7, "hello there")
-			if err != nil {
-				t.Error(err)
+		for _, test := range testCases {
+			opts.Path = test.path
+			if _, err := c.PinPath(opts); (err != nil) != test.wantErr {
+				t.Errorf("test name = %s,\n error = %v,\n wantErr = %v,\n path = %s\n", test.name, err, test.wantErr, test.path)
 			}
-		}
-
-		_, err := c.PinPath(test.TestInvalidPath1, 6, 7, "hello there")
-		if err == nil {
-			t.Error(err)
 		}
 	}
 
@@ -188,19 +227,49 @@ func TestUnpinPath(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
+	testCases := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		// Uncomment after removing logic Pin and Unpin with cid
+		// {
+		// 	"cid string as path",
+		// 	test.TestCid5,
+		// 	false,
+		// },
+		{
+			"IPFS path with just a cid string, but with starting with /ipfs/",
+			test.TestPathIPFS1,
+			false,
+		},
+		{
+			"IPFS path with cid string of a ancenstor directory and relative file path from there",
+			test.TestPathIPFS2,
+			false,
+		},
+		{
+			"IPNS path",
+			test.TestPathIPNS2,
+			false,
+		},
+		{
+			"IPLD path",
+			test.TestPathIPLD2,
+			false,
+		},
+		{
+			"invalid path",
+			test.TestInvalidPath1,
+			true,
+		},
+	}
+
 	testF := func(t *testing.T, c Client) {
-		testPaths := test.Paths()
-
-		for _, testPath := range testPaths {
-			_, err := c.UnpinPath(testPath)
-			if err != nil {
-				t.Error(err)
+		for _, test := range testCases {
+			if _, err := c.UnpinPath(test.path); (err != nil) != test.wantErr {
+				t.Errorf("test name = %s,\n error = %v,\n wantErr = %v,\n path = %s\n", test.name, err, test.wantErr, test.path)
 			}
-		}
-
-		_, err := c.UnpinPath(test.TestInvalidPath1)
-		if err == nil {
-			t.Error(err)
 		}
 	}
 

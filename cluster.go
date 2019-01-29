@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
-	gopath "github.com/ipfs/go-path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -1078,51 +1076,37 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 	return nil
 }
 
-// PinPath accepts a path string resolves it into a cid and makes cluster pin it
-func (c *Cluster) PinPath(path string, p api.Pin) (cid.Cid, error) {
+// PinPath accepts a path string resolves it into a cid and makes cluster pin it.
+// It returns the expected Pin struct of given cid after the cid is pinned.
+func (c *Cluster) PinPath(path string, p api.Pin) (api.Pin, error) {
 	ci, err := c.resolve(path)
 	if err != nil {
-		return ci, err
+		return api.Pin{}, err
 	}
 
 	p.Cid = ci
-	return ci, c.Pin(p)
+	return p, c.Pin(p)
 }
 
-// UnpinPath accepts a path string resolves it into a cit and makes the cluster unpin it
-func (c *Cluster) UnpinPath(path string) (cid.Cid, error) {
+// UnpinPath accepts a path string resolves it into a cid and makes the cluster unpin it.
+// It returns the Pin struct of the cid before the cid is unpinned.
+func (c *Cluster) UnpinPath(path string) (api.Pin, error) {
 	ci, err := c.resolve(path)
 	if err != nil {
-		return ci, err
+		return api.Pin{}, err
 	}
-	return ci, c.Unpin(ci)
+
+	pin, err := c.PinGet(ci)
+	if err != nil {
+		return api.Pin{}, err
+	}
+
+	return pin, c.Unpin(ci)
 }
 
 // resolve resolves given string path into a cid
 func (c *Cluster) resolve(path string) (cid.Cid, error) {
-	var ci cid.Cid
-	validPath, err := gopath.ParsePath(path)
-	if err != nil {
-		logger.Error("could not parse path")
-		return cid.Undef, err
-	}
-
-	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
-		ci, _, err = gopath.SplitAbsPath(validPath)
-		if err != nil {
-			return cid.Undef, err
-		}
-	} else {
-		ci, err = c.ipfs.Resolve(path)
-		if err != nil {
-			fmt.Println("Resolve" + err.Error())
-			return cid.Undef, err
-		}
-	}
-
-	logger.Infof("path %s resolved into cid %s", path, ci.String())
-
-	return ci, nil
+	return c.ipfs.Resolve(path)
 }
 
 // AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer

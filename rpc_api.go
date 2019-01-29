@@ -42,20 +42,23 @@ func (rpcapi *RPCAPI) Unpin(ctx context.Context, in api.PinSerial, out *struct{}
 }
 
 // PinPath resolves path into a cid and runs Cluster.Pin().
-func (rpcapi *RPCAPI) PinPath(ctx context.Context, in api.PinSerialWithPath, out *api.CidSerial) error {
-	ci, err := rpcapi.c.PinPath(in.Path, in.PinOpts.ToPin())
-	*out = api.CidSerial{
-		CidTarget: ci.String(),
-	}
+func (rpcapi *RPCAPI) PinPath(ctx context.Context, in api.PinOptionsWithPath, out *api.PinSerial) error {
+	pin, err := rpcapi.c.PinPath(
+		in.Path,
+		api.Pin{
+			PinOptions: in.PinOptions,
+			MaxDepth:   -1,
+			Type:       api.DataType,
+		},
+	)
+	*out = pin.ToSerial()
 	return err
 }
 
 // UnpinPath resolves path into a cid and runs Cluster.Unpin().
-func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in string, out *api.CidSerial) error {
-	ci, err := rpcapi.c.UnpinPath(in)
-	*out = api.CidSerial{
-		CidTarget: ci.String(),
-	}
+func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in string, out *api.PinSerial) error {
+	pin, err := rpcapi.c.UnpinPath(in)
+	*out = pin.ToSerial()
 	return err
 }
 

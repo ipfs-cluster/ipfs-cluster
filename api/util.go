@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"strings"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -65,13 +64,4 @@ func MustLibp2pMultiaddrJoin(addr ma.Multiaddr, p peer.ID) ma.Multiaddr {
 		panic("called MustLibp2pMultiaddrJoin with bad peer!")
 	}
 	return addr.Encapsulate(pidAddr)
-}
-
-// TrimSlacesAndSpaces trims any leading and trailing spaces and backslaces to give the path
-// that can be added to a url string
-func TrimSlacesAndSpaces(p string) string {
-	return strings.TrimSuffix(
-		strings.TrimPrefix(strings.TrimSpace(p), "/"),
-		"/",
-	)
 }

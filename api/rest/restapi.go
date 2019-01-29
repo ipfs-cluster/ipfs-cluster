@@ -350,10 +350,22 @@ func (api *API) routes() []route {
 			api.statusAllHandler,
 		},
 		{
+			"Sync",
+			"POST",
+			"/pins/{hash}/sync",
+			api.syncHandler,
+		},
+		{
 			"SyncAll",
 			"POST",
 			"/pins/sync",
 			api.syncAllHandler,
+		},
+		{
+			"Recover",
+			"POST",
+			"/pins/{hash}/recover",
+			api.recoverHandler,
 		},
 		{
 			"RecoverAll",
@@ -376,7 +388,7 @@ func (api *API) routes() []route {
 		{
 			"PinPath",
 			"POST",
-			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
+			"/pins/{path:.*}",
 			api.pinPathHandler,
 		},
 		{
@@ -388,20 +400,8 @@ func (api *API) routes() []route {
 		{
 			"UnpinPath",
 			"DELETE",
-			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
+			"/pins/{path:.*}",
 			api.unpinPathHandler,
-		},
-		{
-			"Sync",
-			"POST",
-			"/pins/{hash}/sync",
-			api.syncHandler,
-		},
-		{
-			"Recover",
-			"POST",
-			"/pins/{hash}/recover",
-			api.recoverHandler,
 		},
 		{
 			"ConnectionGraph",
@@ -679,37 +679,33 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
-	var ci types.CidSerial
-	pinPath, ps := api.parsePath(w, r)
-	logger.Debugf("rest api pinPathHandler: %s", pinPath)
-
+	var pin types.PinSerial
+	pinOpts := api.parsePathAndOptions(w, r)
+	logger.Debugf("rest api pinPathHandler: %s", pinOpts.Path)
 	err := api.rpcClient.Call(
 		"",
 		"Cluster",
 		"PinPath",
-		types.PinSerialWithPath{
-			PinOpts: ps,
-			Path:    pinPath,
-		},
-		&ci,
+		pinOpts,
+		&pin,
 	)
 
-	api.sendResponse(w, http.StatusOK, err, &ci)
+	api.sendResponse(w, http.StatusOK, err, &pin)
 	logger.Debug("rest api pinPathHandler done")
 }
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
-	var ci types.CidSerial
-	unpinPath, _ := api.parsePath(w, r)
-	logger.Debugf("rest api unpinPathHandler: %s", unpinPath)
+	var pin types.PinSerial
+	pinOpts := api.parsePathAndOptions(w, r)
+	logger.Debugf("rest api unpinPathHandler: %s", pinOpts.Path)
 	err := api.rpcClient.Call(
 		"",
 		"Cluster",
 		"UnpinPath",
-		unpinPath,
-		&ci,
+		pinOpts.Path,
+		&pin,
 	)
-	api.sendResponse(w, http.StatusOK, err, ci)
+	api.sendResponse(w, http.StatusOK, err, pin)
 	logger.Debug("rest api unpinPathHandler done")
 }
 
@@ -972,7 +968,54 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *API) parsePinSerial(w http.ResponseWriter, r *http.Request, hash string) types.PinSerial {
+func (api *API) parsePathAndOptions(w http.ResponseWriter, r *http.Request) types.PinOptionsWithPath {
+	vars := mux.Vars(r)
+	path := vars["path"]
+	if strings.HasPrefix(path, "ipfs") || strings.HasPrefix(path, "ipns") || strings.HasPrefix(path, "ipld") {
+		path = "/" + path
+	}
+
+	var pinOpts types.PinOptionsWithPath
+
+	pinOpts.Path = path
+	queryValues := r.URL.Query()
+	pinOpts.Name = queryValues.Get("name")
+	rplStr := queryValues.Get("replication")
+	if rplStr == "" { // compat <= 0.4.0
+		rplStr = queryValues.Get("replication_factor")
+	}
+	rplStrMin := queryValues.Get("replication-min")
+	if rplStrMin == "" { // compat <= 0.4.0
+		rplStrMin = queryValues.Get("replication_factor_min")
+	}
+	rplStrMax := queryValues.Get("replication-max")
+	if rplStrMax == "" { // compat <= 0.4.0
+		rplStrMax = queryValues.Get("replication_factor_max")
+	}
+	if rplStr != "" { // override
+		rplStrMin = rplStr
+		rplStrMax = rplStr
+	}
+	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
+		pinOpts.ReplicationFactorMin = rpl
+	}
+	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
+		pinOpts.ReplicationFactorMax = rpl
+	}
+
+	return pinOpts
+}
+
+func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
+	vars := mux.Vars(r)
+	hash := vars["hash"]
+
+	_, err := cid.Decode(hash)
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding Cid: "+err.Error()), nil)
+		return types.PinSerial{Cid: ""}
+	}
+
 	pin := types.PinSerial{
 		Cid:  hash,
 		Type: uint64(types.DataType),
@@ -1006,26 +1049,6 @@ func (api *API) parsePinSerial(w http.ResponseWriter, r *http.Request, hash stri
 	}
 
 	return pin
-}
-
-func (api *API) parsePath(w http.ResponseWriter, r *http.Request) (string, types.PinSerial) {
-	vars := mux.Vars(r)
-	pinPath := "/" + vars["keyType"] + "/" + vars["path"]
-
-	return pinPath, api.parsePinSerial(w, r, "")
-}
-
-func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
-	vars := mux.Vars(r)
-	hash := vars["hash"]
-
-	_, err := cid.Decode(hash)
-	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding Cid: "+err.Error()), nil)
-		return types.PinSerial{Cid: ""}
-	}
-
-	return api.parsePinSerial(w, r, hash)
 }
 
 func (api *API) parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {

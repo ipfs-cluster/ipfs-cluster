@@ -269,21 +269,20 @@ func TestClusterPinPath(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	ci, err := cl.PinPath(test.TestPathIPFS2, api.Pin{
+	pin, err := cl.PinPath(test.TestPathIPFS2, api.Pin{
 		Type: api.DataType,
 	})
 	if err != nil {
-		t.Error("pin should have worked:", err)
+		t.Fatal("pin should have worked:", err)
 	}
-	if ci.String() != test.TestCid5 {
-		t.Error("expected a different cid, found", ci.String())
+	if pin.Cid.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
 	// test an error case
-	pin := api.Pin{
+	_, err = cl.PinPath(test.TestInvalidPath1, api.Pin{
 		Type: api.DataType,
-	}
-	_, err = cl.PinPath(test.TestInvalidPath1, pin)
+	})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -791,31 +790,28 @@ func TestClusterUnpinPath(t *testing.T) {
 	defer cl.Shutdown()
 
 	// Unpin should error without pin being committed to state
-	ci, err := cl.UnpinPath(test.TestPathIPFS2)
+	_, err := cl.UnpinPath(test.TestPathIPFS2)
 	if err == nil {
 		t.Error("unpin with path should have failed")
 	}
-	if ci.String() != test.TestCid5 {
-		t.Error("expected a different cid, found", ci.String())
-	}
 
 	// Unpin after pin should succeed
-	ci, err = cl.PinPath(test.TestPathIPFS2, api.Pin{
+	pin, err := cl.PinPath(test.TestPathIPFS2, api.Pin{
 		Type: api.DataType,
 	})
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}
-	if ci.String() != test.TestCid5 {
-		t.Error("expected a different cid, found", ci.String())
+	if pin.Cid.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
-	ci, err = cl.UnpinPath(test.TestPathIPFS2)
+	pin, err = cl.UnpinPath(test.TestPathIPFS2)
 	if err != nil {
 		t.Error("unpin with path should have worked:", err)
 	}
-	if ci.String() != test.TestCid5 {
-		t.Error("expected a different cid, found", ci.String())
+	if pin.Cid.String() != test.TestCid5 {
+		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 }
 

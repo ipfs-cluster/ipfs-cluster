@@ -87,39 +87,35 @@ func (c *defaultClient) Unpin(ci cid.Cid) error {
 }
 
 // PinPath resolves given path into a cid and performs the pin operation.
-func (c *defaultClient) PinPath(pinPath string, replicationFactorMin, replicationFactorMax int, name string) (cid.Cid, error) {
-	var ci api.CidSerial
-
-	escName := url.QueryEscape(name)
+func (c *defaultClient) PinPath(opts api.PinOptionsWithPath) (api.Pin, error) {
+	var pin api.PinSerial
+	escName := url.QueryEscape(opts.Name)
 	err := c.do(
 		"POST",
-		fmt.Sprintf(
-			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
-			api.TrimSlacesAndSpaces(pinPath),
-			replicationFactorMin,
-			replicationFactorMax,
-			escName,
+		path.Clean(
+			fmt.Sprintf(
+				"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
+				strings.TrimSuffix(opts.Path, "/"), // path.Clean() does not remove trailing slash. A valid ipfs path can contain a trailing slash.
+				opts.ReplicationFactorMin,
+				opts.ReplicationFactorMax,
+				escName,
+			),
 		),
 		nil,
 		nil,
-		&ci,
+		&pin,
 	)
-	if err != nil {
-		return cid.Undef, err
-	}
 
-	return cid.Decode(ci.CidTarget)
+	return pin.ToPin(), err
 }
 
 // UnpinPath resolves given path into a cid and performs the unpin operation.
-func (c *defaultClient) UnpinPath(unpinPath string) (cid.Cid, error) {
-	var ci api.CidSerial
-	err := c.do("DELETE", fmt.Sprintf("/pins/%s", api.TrimSlacesAndSpaces(unpinPath)), nil, nil, &ci)
-	if err != nil {
-		return cid.Undef, err
-	}
+// It returns api.Pin of the given cid before it is unpinned.
+func (c *defaultClient) UnpinPath(p string) (api.Pin, error) {
+	var pin api.PinSerial
+	err := c.do("DELETE", path.Clean(fmt.Sprintf("/pins/%s", strings.TrimSuffix(p, "/"))), nil, nil, &pin)
 
-	return cid.Decode(ci.CidTarget)
+	return pin.ToPin(), err
 }
 
 // Allocations returns the consensus state listing all tracked items and

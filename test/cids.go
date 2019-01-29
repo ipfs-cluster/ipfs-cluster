@@ -42,11 +42,6 @@ var (
 	TestInvalidPath1 = "/invalidkeytype/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
 )
 
-// Paths gives sample IPFS/IPNS/IPLD paths for testing
-func Paths() []string {
-	return []string{TestPathIPFS1, TestPathIPFS2, TestPathIPFS3, TestPathIPNS1, TestPathIPNS2, TestPathIPLD1, TestPathIPLD2}
-}
-
 // MustDecodeCid provides a test helper that ignores
 // errors from cid.Decode.
 func MustDecodeCid(v string) cid.Cid {

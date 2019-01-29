@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-
 	cid "github.com/ipfs/go-cid"
+	gopath "github.com/ipfs/go-path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
+
+	"github.com/ipfs/ipfs-cluster/api"
 )
 
 // ErrBadCid is returned when using ErrorCid. Operations with that CID always
@@ -52,17 +53,21 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 	return nil
 }
 
-func (mock *mockService) PinPath(ctx context.Context, in api.PinSerialWithPath, out *api.CidSerial) error {
-	*out = api.CidSerial{
-		CidTarget: TestCid5,
+func (mock *mockService) PinPath(ctx context.Context, in api.PinOptionsWithPath, out *api.PinSerial) error {
+	_, err := gopath.ParsePath(in.Path)
+	if err != nil {
+		return err
 	}
+	*out = api.PinCid(MustDecodeCid(TestCid5)).ToSerial()
 	return nil
 }
 
-func (mock *mockService) UnpinPath(ctx context.Context, in string, out *api.CidSerial) error {
-	*out = api.CidSerial{
-		CidTarget: TestCid5,
+func (mock *mockService) UnpinPath(ctx context.Context, in string, out *api.PinSerial) error {
+	_, err := gopath.ParsePath(in)
+	if err != nil {
+		return err
 	}
+	*out = api.PinCid(MustDecodeCid(TestCid5)).ToSerial()
 	return nil
 }
 

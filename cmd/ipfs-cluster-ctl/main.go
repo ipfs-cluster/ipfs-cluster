@@ -493,12 +493,9 @@ peers should pin this content.
 						},
 					},
 					Action: func(c *cli.Context) error {
-						pinPath := c.Args().First()
-						path, err := gopath.ParsePath(pinPath)
-						if err != nil {
-							out("error parsing path: %s\n", err)
-							os.Exit(1)
-						}
+						arg := c.Args().First()
+						path, err := gopath.ParsePath(arg)
+						checkErr("parsing path "+arg, err)
 
 						rpl := c.Int("replication")
 						rplMin := c.Int("replication-min")
@@ -508,12 +505,20 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						ci, cerr := globalClient.PinPath(path.String(), rplMin, rplMax, c.String("name"))
+						opts := api.PinOptionsWithPath{
+							Path: path.String(),
+							PinOptions: api.PinOptions{
+								ReplicationFactorMin: rplMin,
+								ReplicationFactorMax: rplMax,
+								Name:                 c.String("Name"),
+							},
+						}
+						pin, cerr := globalClient.PinPath(opts)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-
+						ci := pin.Cid
 						handlePinResponseFormatFlags(
 							c,
 							ci,
@@ -550,19 +555,16 @@ although unpinning operations in the cluster may take longer or fail.
 						},
 					},
 					Action: func(c *cli.Context) error {
-						unpinPath := c.Args().First()
-						path, err := gopath.ParsePath(unpinPath)
-						if err != nil {
-							out("error parsing path: %s\n", err)
-							os.Exit(1)
-						}
+						arg := c.Args().First()
+						path, err := gopath.ParsePath(arg)
+						checkErr("parsing path "+arg, err)
 
-						ci, cerr := globalClient.UnpinPath(path.String())
+						pin, cerr := globalClient.UnpinPath(path.String())
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-
+						ci := pin.Cid
 						handlePinResponseFormatFlags(
 							c,
 							ci,

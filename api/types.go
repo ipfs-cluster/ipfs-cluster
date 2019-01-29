@@ -734,15 +734,10 @@ type Pin struct {
 	Reference cid.Cid
 }
 
-// PinSerialWithPath is a wrapper for holding pin serial and path of the content
-type PinSerialWithPath struct {
-	PinOpts PinSerial `json:"pin"`
-	Path    string    `json:"Path"`
-}
-
-// CidSerial is a serializable struct for cid as used in "github.com/ipfs/go-cid"
-type CidSerial struct {
-	CidTarget string `json:"/"`
+// PinOptionsWithPath is a wrapper for holding pin options and path of the content
+type PinOptionsWithPath struct {
+	PinOptions
+	Path string `json:"path"`
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
