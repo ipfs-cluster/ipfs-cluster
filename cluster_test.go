@@ -20,6 +20,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/version"
 
+	gopath "github.com/ipfs/go-path"
+
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -108,6 +110,11 @@ func (ipfs *mockConnector) RepoStat() (api.IPFSRepoStat, error) {
 }
 
 func (ipfs *mockConnector) Resolve(path string) (cid.Cid, error) {
+	_, err := gopath.ParsePath(path)
+	if err != nil {
+		return cid.Undef, err
+	}
+
 	return test.MustDecodeCid(test.TestCid5), nil
 }
 func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
