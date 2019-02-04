@@ -1,6 +1,7 @@
 package sharding
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -12,20 +13,21 @@ import (
 // MockPinStore is used in VerifyShards
 type MockPinStore interface {
 	// Gets a pin
-	PinGet(cid.Cid) (api.Pin, error)
+	PinGet(context.Context, cid.Cid) (api.Pin, error)
 }
 
 // MockBlockStore is used in VerifyShards
 type MockBlockStore interface {
 	// Gets a block
-	BlockGet(cid.Cid) ([]byte, error)
+	BlockGet(context.Context, cid.Cid) ([]byte, error)
 }
 
 // VerifyShards checks that a sharded CID has been correctly formed and stored.
 // This is a helper function for testing. It returns a map with all the blocks
 // from all shards.
 func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlockStore, expectedShards int) (map[string]struct{}, error) {
-	metaPin, err := pins.PinGet(rootCid)
+	ctx := context.Background()
+	metaPin, err := pins.PinGet(ctx, rootCid)
 	if err != nil {
 		return nil, fmt.Errorf("meta pin was not pinned: %s", err)
 	}
@@ -34,7 +36,7 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 		return nil, fmt.Errorf("bad MetaPin type")
 	}
 
-	clusterPin, err := pins.PinGet(metaPin.Reference)
+	clusterPin, err := pins.PinGet(ctx, metaPin.Reference)
 	if err != nil {
 		return nil, fmt.Errorf("cluster pin was not pinned: %s", err)
 	}
@@ -46,7 +48,7 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 		return nil, fmt.Errorf("clusterDAG should reference the MetaPin")
 	}
 
-	clusterDAGBlock, err := ipfs.BlockGet(clusterPin.Cid)
+	clusterDAGBlock, err := ipfs.BlockGet(ctx, clusterPin.Cid)
 	if err != nil {
 		return nil, fmt.Errorf("cluster pin was not stored: %s", err)
 	}
@@ -70,7 +72,7 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 			return nil, err
 		}
 
-		shardPin, err := pins.PinGet(sh.Cid)
+		shardPin, err := pins.PinGet(ctx, sh.Cid)
 		if err != nil {
 			return nil, fmt.Errorf("shard was not pinned: %s %s", sh.Cid, err)
 		}
@@ -80,7 +82,7 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 		}
 		ref = shardPin.Cid
 
-		shardBlock, err := ipfs.BlockGet(shardPin.Cid)
+		shardBlock, err := ipfs.BlockGet(ctx, shardPin.Cid)
 		if err != nil {
 			return nil, fmt.Errorf("shard block was not stored: %s", err)
 		}

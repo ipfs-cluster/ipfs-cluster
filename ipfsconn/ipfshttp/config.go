@@ -49,6 +49,9 @@ type Config struct {
 
 	// Unpin Operation timeout
 	UnpinTimeout time.Duration
+
+	// Tracing flag used to skip tracing specific paths when not enabled.
+	Tracing bool
 }
 
 type jsonConfig struct {

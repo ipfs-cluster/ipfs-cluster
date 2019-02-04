@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"testing"
 
 	cid "github.com/ipfs/go-cid"
@@ -11,6 +12,7 @@ import (
 )
 
 func TestApplyToPin(t *testing.T) {
+	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	op := &LogOp{
 		Cid:       api.PinSerial{Cid: test.TestCid1},
@@ -18,17 +20,18 @@ func TestApplyToPin(t *testing.T) {
 		consensus: cc,
 	}
 	defer cleanRaft(1)
-	defer cc.Shutdown()
+	defer cc.Shutdown(ctx)
 
 	st := mapstate.NewMapState()
 	op.ApplyTo(st)
-	pins := st.List()
+	pins := st.List(ctx)
 	if len(pins) != 1 || pins[0].Cid.String() != test.TestCid1 {
 		t.Error("the state was not modified correctly")
 	}
 }
 
 func TestApplyToUnpin(t *testing.T) {
+	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	op := &LogOp{
 		Cid:       api.PinSerial{Cid: test.TestCid1},
@@ -36,13 +39,13 @@ func TestApplyToUnpin(t *testing.T) {
 		consensus: cc,
 	}
 	defer cleanRaft(1)
-	defer cc.Shutdown()
+	defer cc.Shutdown(ctx)
 
 	st := mapstate.NewMapState()
 	c, _ := cid.Decode(test.TestCid1)
-	st.Add(testPin(c))
+	st.Add(ctx, testPin(c))
 	op.ApplyTo(st)
-	pins := st.List()
+	pins := st.List(ctx)
 	if len(pins) != 0 {
 		t.Error("the state was not modified correctly")
 	}

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"go.opencensus.io/trace"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 
@@ -74,13 +76,13 @@ func (spt *Tracker) opWorker(pinF func(*optracker.Operation) error, opChan chan 
 		select {
 		case <-ticker.C:
 			// every tick, clear out all Done operations
-			spt.optracker.CleanAllDone()
+			spt.optracker.CleanAllDone(spt.ctx)
 		case op := <-opChan:
 			if cont := applyPinF(pinF, op); cont {
 				continue
 			}
 
-			spt.optracker.Clean(op)
+			spt.optracker.Clean(op.Context(), op)
 		case <-spt.ctx.Done():
 			return
 		}
@@ -112,9 +114,12 @@ func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) b
 }
 
 func (spt *Tracker) pin(op *optracker.Operation) error {
+	ctx, span := trace.StartSpan(op.Context(), "tracker/stateless/pin")
+	defer span.End()
+
 	logger.Debugf("issuing pin call for %s", op.Cid())
 	err := spt.rpcClient.CallContext(
-		op.Context(),
+		ctx,
 		"",
 		"Cluster",
 		"IPFSPin",
@@ -128,9 +133,12 @@ func (spt *Tracker) pin(op *optracker.Operation) error {
 }
 
 func (spt *Tracker) unpin(op *optracker.Operation) error {
+	ctx, span := trace.StartSpan(op.Context(), "tracker/stateless/unpin")
+	defer span.End()
+
 	logger.Debugf("issuing unpin call for %s", op.Cid())
 	err := spt.rpcClient.CallContext(
-		op.Context(),
+		ctx,
 		"",
 		"Cluster",
 		"IPFSUnpin",
@@ -144,9 +152,12 @@ func (spt *Tracker) unpin(op *optracker.Operation) error {
 }
 
 // Enqueue puts a new operation on the queue, unless ongoing exists.
-func (spt *Tracker) enqueue(c api.Pin, typ optracker.OperationType) error {
+func (spt *Tracker) enqueue(ctx context.Context, c api.Pin, typ optracker.OperationType) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/enqueue")
+	defer span.End()
+
 	logger.Debugf("entering enqueue: pin: %+v", c)
-	op := spt.optracker.TrackNewOperation(c, typ, optracker.PhaseQueued)
+	op := spt.optracker.TrackNewOperation(ctx, c, typ, optracker.PhaseQueued)
 	if op == nil {
 		return nil // ongoing pin operation.
 	}
@@ -183,7 +194,11 @@ func (spt *Tracker) SetClient(c *rpc.Client) {
 
 // Shutdown finishes the services provided by the StatelessPinTracker
 // and cancels any active context.
-func (spt *Tracker) Shutdown() error {
+func (spt *Tracker) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Shutdown")
+	_ = ctx
+	defer span.End()
+
 	spt.shutdownMu.Lock()
 	defer spt.shutdownMu.Unlock()
 
@@ -202,14 +217,17 @@ func (spt *Tracker) Shutdown() error {
 
 // Track tells the StatelessPinTracker to start managing a Cid,
 // possibly triggering Pin operations on the IPFS daemon.
-func (spt *Tracker) Track(c api.Pin) error {
+func (spt *Tracker) Track(ctx context.Context, c api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Track")
+	defer span.End()
+
 	logger.Debugf("tracking %s", c.Cid)
 
 	// Sharded pins are never pinned. A sharded pin cannot turn into
 	// something else or viceversa like it happens with Remote pins so
 	// we just track them.
 	if c.Type == api.MetaType {
-		spt.optracker.TrackNewOperation(c, optracker.OperationShard, optracker.PhaseDone)
+		spt.optracker.TrackNewOperation(ctx, c, optracker.OperationShard, optracker.PhaseDone)
 		return nil
 	}
 
@@ -217,7 +235,7 @@ func (spt *Tracker) Track(c api.Pin) error {
 	// Note, IPFSConn checks with pin/ls before triggering
 	// pin/rm.
 	if c.IsRemotePin(spt.peerID) {
-		op := spt.optracker.TrackNewOperation(c, optracker.OperationRemote, optracker.PhaseInProgress)
+		op := spt.optracker.TrackNewOperation(ctx, c, optracker.OperationRemote, optracker.PhaseInProgress)
 		if op == nil {
 			return nil // ongoing unpin
 		}
@@ -231,19 +249,25 @@ func (spt *Tracker) Track(c api.Pin) error {
 		return nil
 	}
 
-	return spt.enqueue(c, optracker.OperationPin)
+	return spt.enqueue(ctx, c, optracker.OperationPin)
 }
 
 // Untrack tells the StatelessPinTracker to stop managing a Cid.
 // If the Cid is pinned locally, it will be unpinned.
-func (spt *Tracker) Untrack(c cid.Cid) error {
+func (spt *Tracker) Untrack(ctx context.Context, c cid.Cid) error {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Untrack")
+	defer span.End()
+
 	logger.Debugf("untracking %s", c)
-	return spt.enqueue(api.PinCid(c), optracker.OperationUnpin)
+	return spt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin)
 }
 
 // StatusAll returns information for all Cids pinned to the local IPFS node.
-func (spt *Tracker) StatusAll() []api.PinInfo {
-	pininfos, err := spt.localStatus(true)
+func (spt *Tracker) StatusAll(ctx context.Context) []api.PinInfo {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/StatusAll")
+	defer span.End()
+
+	pininfos, err := spt.localStatus(ctx, true)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -252,7 +276,7 @@ func (spt *Tracker) StatusAll() []api.PinInfo {
 	// get all inflight operations from optracker and
 	// put them into the map, deduplicating any already 'pinned' items with
 	// their inflight operation
-	for _, infop := range spt.optracker.GetAll() {
+	for _, infop := range spt.optracker.GetAll(ctx) {
 		pininfos[infop.Cid.String()] = infop
 	}
 
@@ -264,9 +288,12 @@ func (spt *Tracker) StatusAll() []api.PinInfo {
 }
 
 // Status returns information for a Cid pinned to the local IPFS node.
-func (spt *Tracker) Status(c cid.Cid) api.PinInfo {
+func (spt *Tracker) Status(ctx context.Context, c cid.Cid) api.PinInfo {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Status")
+	defer span.End()
+
 	// check if c has an inflight operation or errorred operation in optracker
-	if oppi, ok := spt.optracker.GetExists(c); ok {
+	if oppi, ok := spt.optracker.GetExists(ctx, c); ok {
 		// if it does return the status of the operation
 		return oppi
 	}
@@ -355,34 +382,40 @@ func (spt *Tracker) Status(c cid.Cid) api.PinInfo {
 // were updated or have errors. Cids in error states can be recovered
 // with Recover().
 // An error is returned if we are unable to contact the IPFS daemon.
-func (spt *Tracker) SyncAll() ([]api.PinInfo, error) {
+func (spt *Tracker) SyncAll(ctx context.Context) ([]api.PinInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/SyncAll")
+	defer span.End()
+
 	// get ipfs status for all
-	localpis, err := spt.localStatus(false)
+	localpis, err := spt.localStatus(ctx, false)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
 
-	for _, p := range spt.optracker.Filter(optracker.OperationPin, optracker.PhaseError) {
+	for _, p := range spt.optracker.Filter(ctx, optracker.OperationPin, optracker.PhaseError) {
 		if _, ok := localpis[p.Cid.String()]; ok {
-			spt.optracker.CleanError(p.Cid)
+			spt.optracker.CleanError(ctx, p.Cid)
 		}
 	}
 
-	for _, p := range spt.optracker.Filter(optracker.OperationUnpin, optracker.PhaseError) {
+	for _, p := range spt.optracker.Filter(ctx, optracker.OperationUnpin, optracker.PhaseError) {
 		if _, ok := localpis[p.Cid.String()]; !ok {
-			spt.optracker.CleanError(p.Cid)
+			spt.optracker.CleanError(ctx, p.Cid)
 		}
 	}
 
-	return spt.getErrorsAll(), nil
+	return spt.getErrorsAll(ctx), nil
 }
 
 // Sync returns the updated local status for the given Cid.
-func (spt *Tracker) Sync(c cid.Cid) (api.PinInfo, error) {
-	oppi, ok := spt.optracker.GetExists(c)
+func (spt *Tracker) Sync(ctx context.Context, c cid.Cid) (api.PinInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Sync")
+	defer span.End()
+
+	oppi, ok := spt.optracker.GetExists(ctx, c)
 	if !ok {
-		return spt.Status(c), nil
+		return spt.Status(ctx, c), nil
 	}
 
 	if oppi.Status == api.TrackerStatusUnpinError {
@@ -408,7 +441,7 @@ func (spt *Tracker) Sync(c cid.Cid) (api.PinInfo, error) {
 				}, err
 			}
 			// it isn't in the global state
-			spt.optracker.CleanError(c)
+			spt.optracker.CleanError(ctx, c)
 			return api.PinInfo{
 				Cid:    c,
 				Peer:   spt.peerID,
@@ -418,7 +451,7 @@ func (spt *Tracker) Sync(c cid.Cid) (api.PinInfo, error) {
 		}
 		// check if pin is a remote pin
 		if gpin.ToPin().IsRemotePin(spt.peerID) {
-			spt.optracker.CleanError(c)
+			spt.optracker.CleanError(ctx, c)
 			return api.PinInfo{
 				Cid:    c,
 				Peer:   spt.peerID,
@@ -449,7 +482,7 @@ func (spt *Tracker) Sync(c cid.Cid) (api.PinInfo, error) {
 			}, err
 		}
 		if ips.ToTrackerStatus() == api.TrackerStatusPinned {
-			spt.optracker.CleanError(c)
+			spt.optracker.CleanError(ctx, c)
 			pi := api.PinInfo{
 				Cid:    c,
 				Peer:   spt.peerID,
@@ -460,15 +493,18 @@ func (spt *Tracker) Sync(c cid.Cid) (api.PinInfo, error) {
 		}
 	}
 
-	return spt.optracker.Get(c), nil
+	return spt.optracker.Get(ctx, c), nil
 }
 
 // RecoverAll attempts to recover all items tracked by this peer.
-func (spt *Tracker) RecoverAll() ([]api.PinInfo, error) {
-	statuses := spt.StatusAll()
+func (spt *Tracker) RecoverAll(ctx context.Context) ([]api.PinInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/RecoverAll")
+	defer span.End()
+
+	statuses := spt.StatusAll(ctx)
 	resp := make([]api.PinInfo, 0)
 	for _, st := range statuses {
-		r, err := spt.Recover(st.Cid)
+		r, err := spt.Recover(ctx, st.Cid)
 		if err != nil {
 			return resp, err
 		}
@@ -480,30 +516,37 @@ func (spt *Tracker) RecoverAll() ([]api.PinInfo, error) {
 // Recover will re-track or re-untrack a Cid in error state,
 // possibly retriggering an IPFS pinning operation and returning
 // only when it is done.
-func (spt *Tracker) Recover(c cid.Cid) (api.PinInfo, error) {
+func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (api.PinInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Recover")
+	defer span.End()
+
 	logger.Infof("Attempting to recover %s", c)
-	pInfo, ok := spt.optracker.GetExists(c)
+	pInfo, ok := spt.optracker.GetExists(ctx, c)
 	if !ok {
-		return spt.Status(c), nil
+		return spt.Status(ctx, c), nil
 	}
 
 	var err error
 	switch pInfo.Status {
 	case api.TrackerStatusPinError:
-		err = spt.enqueue(api.PinCid(c), optracker.OperationPin)
+		err = spt.enqueue(ctx, api.PinCid(c), optracker.OperationPin)
 	case api.TrackerStatusUnpinError:
-		err = spt.enqueue(api.PinCid(c), optracker.OperationUnpin)
+		err = spt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin)
 	}
 	if err != nil {
-		return spt.Status(c), err
+		return spt.Status(ctx, c), err
 	}
 
-	return spt.Status(c), nil
+	return spt.Status(ctx, c), nil
 }
 
-func (spt *Tracker) ipfsStatusAll() (map[string]api.PinInfo, error) {
+func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]api.PinInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
+	defer span.End()
+
 	var ipsMap map[string]api.IPFSPinStatus
-	err := spt.rpcClient.Call(
+	err := spt.rpcClient.CallContext(
+		ctx,
 		"",
 		"Cluster",
 		"IPFSPinLs",
@@ -535,12 +578,16 @@ func (spt *Tracker) ipfsStatusAll() (map[string]api.PinInfo, error) {
 // localStatus returns a joint set of consensusState and ipfsStatus
 // marking pins which should be meta or remote and leaving any ipfs pins that
 // aren't in the consensusState out.
-func (spt *Tracker) localStatus(incExtra bool) (map[string]api.PinInfo, error) {
+func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]api.PinInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/localStatus")
+	defer span.End()
+
 	pininfos := make(map[string]api.PinInfo)
 
 	// get shared state
 	var statePinsSerial []api.PinSerial
-	err := spt.rpcClient.Call(
+	err := spt.rpcClient.CallContext(
+		ctx,
 		"",
 		"Cluster",
 		"Pins",
@@ -557,7 +604,7 @@ func (spt *Tracker) localStatus(incExtra bool) (map[string]api.PinInfo, error) {
 	}
 
 	// get statuses from ipfs node first
-	localpis, err := spt.ipfsStatusAll()
+	localpis, err := spt.ipfsStatusAll(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -594,12 +641,12 @@ func (spt *Tracker) localStatus(incExtra bool) (map[string]api.PinInfo, error) {
 	return pininfos, nil
 }
 
-func (spt *Tracker) getErrorsAll() []api.PinInfo {
-	return spt.optracker.Filter(optracker.PhaseError)
+func (spt *Tracker) getErrorsAll(ctx context.Context) []api.PinInfo {
+	return spt.optracker.Filter(ctx, optracker.PhaseError)
 }
 
 // OpContext exports the internal optracker's OpContext method.
 // For testing purposes only.
-func (spt *Tracker) OpContext(c cid.Cid) context.Context {
-	return spt.optracker.OpContext(c)
+func (spt *Tracker) OpContext(ctx context.Context, c cid.Cid) context.Context {
+	return spt.optracker.OpContext(ctx, c)
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
+	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
@@ -43,12 +44,15 @@ func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {
 func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Load all the configurations
 	cfgMgr, cfgs := makeConfigs()
 
 	// Run any migrations
 	if c.Bool("upgrade") {
-		err := upgrade()
+		err := upgrade(ctx)
 		if err != errNoSnapshot {
 			checkErr("upgrading state", err)
 		} // otherwise continue
@@ -68,6 +72,12 @@ func daemon(c *cli.Context) error {
 	err = cfgMgr.LoadJSONFromFile(configPath)
 	checkErr("loading configuration", err)
 
+	if c.Bool("stats") {
+		cfgs.metricsCfg.EnableStats = true
+	}
+
+	cfgs = propagateTracingConfig(cfgs, c.Bool("tracing"))
+
 	// Cleanup state if bootstrapping
 	raftStaging := false
 	if len(bootstraps) > 0 {
@@ -79,9 +89,6 @@ func daemon(c *cli.Context) error {
 		cfgs.clusterCfg.LeaveOnShutdown = true
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	cluster, err := createCluster(ctx, c, cfgs, raftStaging)
 	checkErr("starting cluster", err)
 
@@ -90,9 +97,9 @@ func daemon(c *cli.Context) error {
 	// and timeout. So this can happen in background and we
 	// avoid worrying about error handling here (since Cluster
 	// will realize).
-	go bootstrap(cluster, bootstraps)
+	go bootstrap(ctx, cluster, bootstraps)
 
-	return handleSignals(cluster)
+	return handleSignals(ctx, cluster)
 }
 
 func createCluster(
@@ -101,6 +108,11 @@ func createCluster(
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
+	err := observations.SetupMetrics(cfgs.metricsCfg)
+	checkErr("setting up Metrics", err)
+
+	tracer, err := observations.SetupTracing(cfgs.tracingCfg)
+	checkErr("setting up Tracing", err)
 
 	host, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
@@ -108,7 +120,7 @@ func createCluster(
 	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
 	peerstoreMgr.ImportPeersFromPeerstore(false)
 
-	api, err := rest.NewAPIWithHost(cfgs.apiCfg, host)
+	api, err := rest.NewAPIWithHost(ctx, cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)
 
 	proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
@@ -121,7 +133,7 @@ func createCluster(
 
 	state := mapstate.NewMapState()
 
-	err = validateVersion(cfgs.clusterCfg, cfgs.consensusCfg)
+	err = validateVersion(ctx, cfgs.clusterCfg, cfgs.consensusCfg)
 	checkErr("validating version", err)
 
 	raftcon, err := raft.NewConsensus(
@@ -149,22 +161,23 @@ func createCluster(
 		mon,
 		alloc,
 		informer,
+		tracer,
 	)
 }
 
 // bootstrap will bootstrap this peer to one of the bootstrap addresses
 // if there are any.
-func bootstrap(cluster *ipfscluster.Cluster, bootstraps []ma.Multiaddr) {
+func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []ma.Multiaddr) {
 	for _, bstrap := range bootstraps {
 		logger.Infof("Bootstrapping to %s", bstrap)
-		err := cluster.Join(bstrap)
+		err := cluster.Join(ctx, bstrap)
 		if err != nil {
 			logger.Errorf("bootstrap to %s failed: %s", bstrap, err)
 		}
 	}
 }
 
-func handleSignals(cluster *ipfscluster.Cluster) error {
+func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
 		signalChan,
@@ -178,18 +191,18 @@ func handleSignals(cluster *ipfscluster.Cluster) error {
 		select {
 		case <-signalChan:
 			ctrlcCount++
-			handleCtrlC(cluster, ctrlcCount)
+			handleCtrlC(ctx, cluster, ctrlcCount)
 		case <-cluster.Done():
 			return nil
 		}
 	}
 }
 
-func handleCtrlC(cluster *ipfscluster.Cluster, ctrlcCount int) {
+func handleCtrlC(ctx context.Context, cluster *ipfscluster.Cluster, ctrlcCount int) {
 	switch ctrlcCount {
 	case 1:
 		go func() {
-			err := cluster.Shutdown()
+			err := cluster.Shutdown(ctx)
 			checkErr("shutting down cluster", err)
 		}()
 	case 2:

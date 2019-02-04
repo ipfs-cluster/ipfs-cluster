@@ -1,6 +1,7 @@
 package ipfsproxy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -47,9 +48,10 @@ func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
 }
 
 func TestIPFSProxyVersion(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	res, err := http.Post(fmt.Sprintf("%s/version", proxyURL(proxy)), "", nil)
 	if err != nil {
@@ -76,9 +78,10 @@ func TestIPFSProxyVersion(t *testing.T) {
 }
 
 func TestIPFSProxyPin(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	type args struct {
 		urlPath    string
@@ -178,9 +181,10 @@ func TestIPFSProxyPin(t *testing.T) {
 }
 
 func TestIPFSProxyUnpin(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	type args struct {
 		urlPath    string
@@ -280,9 +284,10 @@ func TestIPFSProxyUnpin(t *testing.T) {
 }
 
 func TestIPFSProxyPinLs(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	t.Run("pin/ls query arg", func(t *testing.T) {
 		res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(proxy), test.TestCid1), "", nil)
@@ -367,9 +372,10 @@ func TestIPFSProxyPinLs(t *testing.T) {
 }
 
 func TestProxyRepoStat(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 	res, err := http.Post(fmt.Sprintf("%s/repo/stat", proxyURL(proxy)), "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -396,9 +402,10 @@ func TestProxyRepoStat(t *testing.T) {
 }
 
 func TestProxyAdd(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	type testcase struct {
 		query       string
@@ -468,9 +475,10 @@ func TestProxyAdd(t *testing.T) {
 }
 
 func TestProxyAddError(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 	res, err := http.Post(fmt.Sprintf("%s/add?recursive=true", proxyURL(proxy)), "", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -482,9 +490,10 @@ func TestProxyAddError(t *testing.T) {
 }
 
 func TestProxyError(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	res, err := http.Post(fmt.Sprintf("%s/bad/command", proxyURL(proxy)), "", nil)
 	if err != nil {
@@ -502,12 +511,13 @@ func proxyURL(c *Server) string {
 }
 
 func TestIPFSProxy(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	defer mock.Close()
-	if err := proxy.Shutdown(); err != nil {
+	if err := proxy.Shutdown(ctx); err != nil {
 		t.Error("expected a clean shutdown")
 	}
-	if err := proxy.Shutdown(); err != nil {
+	if err := proxy.Shutdown(ctx); err != nil {
 		t.Error("expected a second clean shutdown")
 	}
 }
@@ -521,10 +531,11 @@ func mustParseURL(rawurl string) *url.URL {
 }
 
 func TestHeaderExtraction(t *testing.T) {
+	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)
 	proxy.config.ExtractHeadersTTL = time.Second
 	defer mock.Close()
-	defer proxy.Shutdown()
+	defer proxy.Shutdown(ctx)
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/pin/ls", proxyURL(proxy)), nil)
 	if err != nil {

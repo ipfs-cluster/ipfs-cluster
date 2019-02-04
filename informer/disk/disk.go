@@ -3,12 +3,14 @@
 package disk
 
 import (
+	"context"
 	"fmt"
 
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 )
 
 // MetricType identifies the type of metric to fetch from the IPFS daemon.
@@ -55,14 +57,20 @@ func (disk *Informer) SetClient(c *rpc.Client) {
 
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
-func (disk *Informer) Shutdown() error {
+func (disk *Informer) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "informer/disk/Shutdown")
+	defer span.End()
+
 	disk.rpcClient = nil
 	return nil
 }
 
 // GetMetric returns the metric obtained by this
 // Informer.
-func (disk *Informer) GetMetric() api.Metric {
+func (disk *Informer) GetMetric(ctx context.Context) api.Metric {
+	ctx, span := trace.StartSpan(ctx, "informer/disk/GetMetric")
+	defer span.End()
+
 	if disk.rpcClient == nil {
 		return api.Metric{
 			Name:  disk.Name(),
@@ -75,11 +83,14 @@ func (disk *Informer) GetMetric() api.Metric {
 
 	valid := true
 
-	err := disk.rpcClient.Call("",
+	err := disk.rpcClient.CallContext(
+		ctx,
+		"",
 		"Cluster",
 		"IPFSRepoStat",
 		struct{}{},
-		&repoStat)
+		&repoStat,
+	)
 	if err != nil {
 		logger.Error(err)
 		valid = false

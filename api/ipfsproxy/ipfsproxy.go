@@ -13,6 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/trace"
+
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
@@ -127,13 +131,28 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
+	var handler http.Handler
 	router := mux.NewRouter()
+	handler = router
+
+	if cfg.Tracing {
+		handler = &ochttp.Handler{
+			IsPublicEndpoint: true,
+			Propagation:      &tracecontext.HTTPFormat{},
+			Handler:          router,
+			StartOptions:     trace.StartOptions{SpanKind: trace.SpanKindServer},
+			FormatSpanName: func(req *http.Request) string {
+				return "proxy:" + req.Host + ":" + req.URL.Path + ":" + req.Method
+			},
+		}
+	}
+
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           router,
+		Handler:           handler,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
@@ -216,7 +235,7 @@ func (proxy *Server) SetClient(c *rpc.Client) {
 
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
-func (proxy *Server) Shutdown() error {
+func (proxy *Server) Shutdown(ctx context.Context) error {
 	proxy.shutdownLock.Lock()
 	defer proxy.shutdownLock.Unlock()
 

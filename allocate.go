@@ -1,11 +1,13 @@
 package ipfscluster
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -44,7 +46,10 @@ import (
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(hash cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "cluster/allocate")
+	defer span.End()
+
 	if (rplMin + rplMax) == 0 {
 		return nil, fmt.Errorf("bad replication factors: %d/%d", rplMin, rplMax)
 	}
@@ -54,9 +59,9 @@ func (c *Cluster) allocate(hash cid.Cid, rplMin, rplMax int, blacklist []peer.ID
 	}
 
 	// Figure out who is holding the CID
-	currentPin, _ := c.PinGet(hash)
+	currentPin, _ := c.PinGet(ctx, hash)
 	currentAllocs := currentPin.Allocations
-	metrics := c.monitor.LatestMetrics(c.informer.Name())
+	metrics := c.monitor.LatestMetrics(ctx, c.informer.Name())
 
 	currentMetrics := make(map[peer.ID]api.Metric)
 	candidatesMetrics := make(map[peer.ID]api.Metric)
@@ -80,6 +85,7 @@ func (c *Cluster) allocate(hash cid.Cid, rplMin, rplMax int, blacklist []peer.ID
 	}
 
 	newAllocs, err := c.obtainAllocations(
+		ctx,
 		hash,
 		rplMin,
 		rplMax,
@@ -114,12 +120,15 @@ func allocationError(hash cid.Cid, needed, wanted int, candidatesValid []peer.ID
 }
 
 func (c *Cluster) obtainAllocations(
+	ctx context.Context,
 	hash cid.Cid,
 	rplMin, rplMax int,
 	currentValidMetrics map[peer.ID]api.Metric,
 	candidatesMetrics map[peer.ID]api.Metric,
 	priorityMetrics map[peer.ID]api.Metric,
 ) ([]peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "cluster/obtainAllocations")
+	defer span.End()
 
 	// The list of peers in current
 	validAllocations := make([]peer.ID, 0, len(currentValidMetrics))
@@ -167,6 +176,7 @@ func (c *Cluster) obtainAllocations(
 
 	// the allocator returns a list of peers ordered by priority
 	finalAllocs, err := c.allocator.Allocate(
+		ctx,
 		hash,
 		currentValidMetrics,
 		candidatesMetrics,

@@ -1,11 +1,14 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -13,13 +16,14 @@ import (
 type responseDecoder func(d *json.Decoder) error
 
 func (c *defaultClient) do(
+	ctx context.Context,
 	method, path string,
 	headers map[string]string,
 	body io.Reader,
 	obj interface{},
 ) error {
 
-	resp, err := c.doRequest(method, path, headers, body)
+	resp, err := c.doRequest(ctx, method, path, headers, body)
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
@@ -27,13 +31,14 @@ func (c *defaultClient) do(
 }
 
 func (c *defaultClient) doStream(
+	ctx context.Context,
 	method, path string,
 	headers map[string]string,
 	body io.Reader,
 	outHandler responseDecoder,
 ) error {
 
-	resp, err := c.doRequest(method, path, headers, body)
+	resp, err := c.doRequest(ctx, method, path, headers, body)
 	if err != nil {
 		return &api.Error{Code: 0, Message: err.Error()}
 	}
@@ -41,10 +46,17 @@ func (c *defaultClient) doStream(
 }
 
 func (c *defaultClient) doRequest(
+	ctx context.Context,
 	method, path string,
 	headers map[string]string,
 	body io.Reader,
 ) (*http.Response, error) {
+	span := trace.FromContext(ctx)
+	span.AddAttributes(
+		trace.StringAttribute("method", method),
+		trace.StringAttribute("path", path),
+	)
+	defer span.End()
 
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
@@ -70,6 +82,9 @@ func (c *defaultClient) doRequest(
 	if body != nil {
 		r.ContentLength = -1 // this lets go use "chunked".
 	}
+
+	ctx = trace.NewContext(ctx, span)
+	r = r.WithContext(ctx)
 
 	return c.client.Do(r)
 }

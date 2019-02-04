@@ -2,6 +2,7 @@ package mapstate
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
@@ -27,31 +28,34 @@ var c = api.Pin{
 }
 
 func TestAdd(t *testing.T) {
+	ctx := context.Background()
 	ms := NewMapState()
-	ms.Add(c)
-	if !ms.Has(c.Cid) {
+	ms.Add(ctx, c)
+	if !ms.Has(ctx, c.Cid) {
 		t.Error("should have added it")
 	}
 }
 
 func TestRm(t *testing.T) {
+	ctx := context.Background()
 	ms := NewMapState()
-	ms.Add(c)
-	ms.Rm(c.Cid)
-	if ms.Has(c.Cid) {
+	ms.Add(ctx, c)
+	ms.Rm(ctx, c.Cid)
+	if ms.Has(ctx, c.Cid) {
 		t.Error("should have removed it")
 	}
 }
 
 func TestGet(t *testing.T) {
+	ctx := context.Background()
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatal("paniced")
 		}
 	}()
 	ms := NewMapState()
-	ms.Add(c)
-	get, _ := ms.Get(c.Cid)
+	ms.Add(ctx, c)
+	get, _ := ms.Get(ctx, c.Cid)
 	if get.Cid.String() != c.Cid.String() ||
 		get.Allocations[0] != c.Allocations[0] ||
 		get.ReplicationFactorMax != c.ReplicationFactorMax ||
@@ -61,14 +65,15 @@ func TestGet(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
+	ctx := context.Background()
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatal("paniced")
 		}
 	}()
 	ms := NewMapState()
-	ms.Add(c)
-	list := ms.List()
+	ms.Add(ctx, c)
+	list := ms.List(ctx)
 	if list[0].Cid.String() != c.Cid.String() ||
 		list[0].Allocations[0] != c.Allocations[0] ||
 		list[0].ReplicationFactorMax != c.ReplicationFactorMax ||
@@ -78,8 +83,9 @@ func TestList(t *testing.T) {
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
+	ctx := context.Background()
 	ms := NewMapState()
-	ms.Add(c)
+	ms.Add(ctx, c)
 	b, err := ms.Marshal()
 	if err != nil {
 		t.Fatal(err)
@@ -92,13 +98,14 @@ func TestMarshalUnmarshal(t *testing.T) {
 	if ms.Version != ms2.Version {
 		t.Fatal(err)
 	}
-	get, _ := ms2.Get(c.Cid)
+	get, _ := ms2.Get(ctx, c.Cid)
 	if get.Allocations[0] != testPeerID1 {
 		t.Error("expected different peer id")
 	}
 }
 
 func TestMigrateFromV1(t *testing.T) {
+	ctx := context.Background()
 	// Construct the bytes of a v1 state
 	var v1State mapStateV1
 	v1State.PinMap = map[string]struct{}{
@@ -125,11 +132,11 @@ func TestMigrateFromV1(t *testing.T) {
 	}
 	// Migrate state to current version
 	r := bytes.NewBuffer(v1Bytes)
-	err = ms.Migrate(r)
+	err = ms.Migrate(ctx, r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	get, ok := ms.Get(c.Cid)
+	get, ok := ms.Get(ctx, c.Cid)
 	if !ok {
 		t.Fatal("migrated state does not contain cid")
 	}

@@ -120,6 +120,9 @@ type Config struct {
 	// Peerstore file specifies the file on which we persist the
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
+
+	// Tracing flag used to skip tracing specific paths when not enabled.
+	Tracing bool
 }
 
 // configJSON represents a Cluster configuration as it will look when it is

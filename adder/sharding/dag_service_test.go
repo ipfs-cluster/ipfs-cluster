@@ -44,7 +44,7 @@ func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.PinSerial, out *[
 	return nil
 }
 
-func (rpcs *testRPC) PinGet(c cid.Cid) (api.Pin, error) {
+func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (api.Pin, error) {
 	pI, ok := rpcs.pins.Load(c.String())
 	if !ok {
 		return api.Pin{}, errors.New("not found")
@@ -52,7 +52,7 @@ func (rpcs *testRPC) PinGet(c cid.Cid) (api.Pin, error) {
 	return pI.(api.PinSerial).ToPin(), nil
 }
 
-func (rpcs *testRPC) BlockGet(c cid.Cid) ([]byte, error) {
+func (rpcs *testRPC) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
 	bI, ok := rpcs.blocks.Load(c.String())
 	if !ok {
 		return nil, errors.New("not found")

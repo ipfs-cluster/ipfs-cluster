@@ -3,11 +3,13 @@
 package numpin
 
 import (
+	"context"
 	"fmt"
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 )
 
 // MetricName specifies the name of our metric
@@ -40,7 +42,10 @@ func (npi *Informer) SetClient(c *rpc.Client) {
 
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
-func (npi *Informer) Shutdown() error {
+func (npi *Informer) Shutdown(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "informer/numpin/Shutdown")
+	defer span.End()
+
 	npi.rpcClient = nil
 	return nil
 }
@@ -53,7 +58,10 @@ func (npi *Informer) Name() string {
 // GetMetric contacts the IPFSConnector component and
 // requests the `pin ls` command. We return the number
 // of pins in IPFS.
-func (npi *Informer) GetMetric() api.Metric {
+func (npi *Informer) GetMetric(ctx context.Context) api.Metric {
+	ctx, span := trace.StartSpan(ctx, "informer/numpin/GetMetric")
+	defer span.End()
+
 	if npi.rpcClient == nil {
 		return api.Metric{
 			Valid: false,
@@ -64,11 +72,14 @@ func (npi *Informer) GetMetric() api.Metric {
 
 	// make use of the RPC API to obtain information
 	// about the number of pins in IPFS. See RPCAPI docs.
-	err := npi.rpcClient.Call("", // Local call
+	err := npi.rpcClient.CallContext(
+		ctx,
+		"",          // Local call
 		"Cluster",   // Service name
 		"IPFSPinLs", // Method name
 		"recursive", // in arg
-		&pinMap)     // out arg
+		&pinMap,     // out arg
+	)
 
 	valid := err == nil
 

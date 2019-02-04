@@ -8,6 +8,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 )
 
 //go:generate stringer -type=OperationType
@@ -66,6 +67,9 @@ type Operation struct {
 
 // NewOperation creates a new Operation.
 func NewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase) *Operation {
+	ctx, span := trace.StartSpan(ctx, "optracker/NewOperation")
+	defer span.End()
+
 	ctx, cancel := context.WithCancel(ctx)
 	return &Operation{
 		ctx:    ctx,
@@ -93,6 +97,9 @@ func (op *Operation) Context() context.Context {
 
 // Cancel will cancel the context associated to this operation.
 func (op *Operation) Cancel() {
+	ctx, span := trace.StartSpan(op.ctx, "optracker/Cancel")
+	_ = ctx
+	defer span.End()
 	op.cancel()
 }
 
@@ -105,6 +112,9 @@ func (op *Operation) Phase() Phase {
 
 // SetPhase changes the Phase and updates the timestamp.
 func (op *Operation) SetPhase(ph Phase) {
+	ctx, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
+	_ = ctx
+	defer span.End()
 	op.mu.Lock()
 	defer op.mu.Unlock()
 	op.phase = ph
@@ -121,6 +131,9 @@ func (op *Operation) Error() string {
 // SetError sets the phase to PhaseError along with
 // an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
+	ctx, span := trace.StartSpan(op.ctx, "optracker/SetError")
+	_ = ctx
+	defer span.End()
 	op.mu.Lock()
 	defer op.mu.Unlock()
 	op.phase = PhaseError
@@ -149,6 +162,9 @@ func (op *Operation) Timestamp() time.Time {
 // Cancelled returns whether the context for this
 // operation has been cancelled.
 func (op *Operation) Cancelled() bool {
+	ctx, span := trace.StartSpan(op.ctx, "optracker/Cancelled")
+	_ = ctx
+	defer span.End()
 	select {
 	case <-op.ctx.Done():
 		return true
