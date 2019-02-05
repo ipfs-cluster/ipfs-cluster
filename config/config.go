@@ -178,26 +178,26 @@ type jsonConfig struct {
 	Observations jsonSection      `json:"observations,omitempty"`
 }
 
-func (jcfg *jsonConfig) getSection(i SectionType) jsonSection {
+func (jcfg *jsonConfig) getSection(i SectionType) *jsonSection {
 	switch i {
 	case Consensus:
-		return jcfg.Consensus
+		return &jcfg.Consensus
 	case API:
-		return jcfg.API
+		return &jcfg.API
 	case IPFSConn:
-		return jcfg.IPFSConn
+		return &jcfg.IPFSConn
 	case State:
-		return jcfg.State
+		return &jcfg.State
 	case PinTracker:
-		return jcfg.PinTracker
+		return &jcfg.PinTracker
 	case Monitor:
-		return jcfg.Monitor
+		return &jcfg.Monitor
 	case Allocator:
-		return jcfg.Allocator
+		return &jcfg.Allocator
 	case Informer:
-		return jcfg.Informer
+		return &jcfg.Informer
 	case Observations:
-		return jcfg.Observations
+		return &jcfg.Observations
 	default:
 		return nil
 	}
@@ -356,7 +356,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 		if t == Cluster {
 			continue
 		}
-		err := loadSectionJSON(sections[t], jcfg.getSection(t))
+		err := loadSectionJSON(sections[t], *jcfg.getSection(t))
 		if err != nil {
 			return err
 		}
@@ -445,7 +445,7 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 			continue
 		}
 		jsection := jcfg.getSection(t)
-		err := updateJSONConfigs(cfg.sections[t], &jsection)
+		err := updateJSONConfigs(cfg.sections[t], jsection)
 		if err != nil {
 			return nil, err
 		}
