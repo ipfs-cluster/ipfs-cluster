@@ -734,8 +734,8 @@ type Pin struct {
 	Reference cid.Cid
 }
 
-// PinOptionsWithPath is a wrapper for holding pin options and path of the content
-type PinOptionsWithPath struct {
+// PinPath is a wrapper for holding pin options and path of the content.
+type PinPath struct {
 	PinOptions
 	Path string `json:"path"`
 }

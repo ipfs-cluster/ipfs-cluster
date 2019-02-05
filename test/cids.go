@@ -40,6 +40,10 @@ var (
 	TestPathIPLD2 = "/ipld/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
 
 	TestInvalidPath1 = "/invalidkeytype/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
+	TestInvalidPath2 = "/ipfs/invalidhash"
+	TestInvalidPath3 = "/ipfs/"
+
+	TestCidResolved = MustDecodeCid(TestCid5)
 )
 
 // MustDecodeCid provides a test helper that ignores

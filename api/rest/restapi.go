@@ -16,6 +16,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
+	"github.com/ipfs/ipfs-cluster/api"
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
@@ -31,6 +33,7 @@ import (
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	gopath "github.com/ipfs/go-path"
 	libp2p "github.com/libp2p/go-libp2p"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
@@ -388,7 +391,7 @@ func (api *API) routes() []route {
 		{
 			"PinPath",
 			"POST",
-			"/pins/{path:.*}",
+			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
 			api.pinPathHandler,
 		},
 		{
@@ -400,7 +403,7 @@ func (api *API) routes() []route {
 		{
 			"UnpinPath",
 			"DELETE",
-			"/pins/{path:.*}",
+			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
 			api.unpinPathHandler,
 		},
 		{
@@ -680,33 +683,35 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.PinSerial
-	pinOpts := api.parsePathAndOptions(w, r)
-	logger.Debugf("rest api pinPathHandler: %s", pinOpts.Path)
-	err := api.rpcClient.Call(
-		"",
-		"Cluster",
-		"PinPath",
-		pinOpts,
-		&pin,
-	)
+	if pinOpts := api.parsePathAndOptions(w, r); pinOpts.Path != "" {
+		logger.Debugf("rest api pinPathHandler: %s", pinOpts.Path)
+		err := api.rpcClient.Call(
+			"",
+			"Cluster",
+			"PinPath",
+			pinOpts,
+			&pin,
+		)
 
-	api.sendResponse(w, http.StatusOK, err, &pin)
-	logger.Debug("rest api pinPathHandler done")
+		api.sendResponse(w, http.StatusOK, err, &pin)
+		logger.Debug("rest api pinPathHandler done")
+	}
 }
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.PinSerial
-	pinOpts := api.parsePathAndOptions(w, r)
-	logger.Debugf("rest api unpinPathHandler: %s", pinOpts.Path)
-	err := api.rpcClient.Call(
-		"",
-		"Cluster",
-		"UnpinPath",
-		pinOpts.Path,
-		&pin,
-	)
-	api.sendResponse(w, http.StatusOK, err, pin)
-	logger.Debug("rest api unpinPathHandler done")
+	if pinOpts := api.parsePathAndOptions(w, r); pinOpts.Path != "" {
+		logger.Debugf("rest api unpinPathHandler: %s", pinOpts.Path)
+		err := api.rpcClient.Call(
+			"",
+			"Cluster",
+			"UnpinPath",
+			pinOpts.Path,
+			&pin,
+		)
+		api.sendResponse(w, http.StatusOK, err, pin)
+		logger.Debug("rest api unpinPathHandler done")
+	}
 }
 
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -968,17 +973,9 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *API) parsePathAndOptions(w http.ResponseWriter, r *http.Request) types.PinOptionsWithPath {
-	vars := mux.Vars(r)
-	path := vars["path"]
-	if strings.HasPrefix(path, "ipfs") || strings.HasPrefix(path, "ipns") || strings.HasPrefix(path, "ipld") {
-		path = "/" + path
-	}
+func pinOptionsFromQuery(queryValues url.Values) api.PinOptions {
+	var pinOpts api.PinOptions
 
-	var pinOpts types.PinOptionsWithPath
-
-	pinOpts.Path = path
-	queryValues := r.URL.Query()
 	pinOpts.Name = queryValues.Get("name")
 	rplStr := queryValues.Get("replication")
 	if rplStr == "" { // compat <= 0.4.0
@@ -1006,6 +1003,23 @@ func (api *API) parsePathAndOptions(w http.ResponseWriter, r *http.Request) type
 	return pinOpts
 }
 
+func (api *API) parsePathAndOptions(w http.ResponseWriter, r *http.Request) types.PinPath {
+	vars := mux.Vars(r)
+	path := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/") // With a trailing slash we would get `Moved Permanenet` and redirect would not be followed
+
+	_, err := gopath.ParsePath(path)
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, errors.New("error parsing path: "+err.Error()), nil)
+		return types.PinPath{}
+	}
+
+	var pinOpts types.PinPath
+	pinOpts.Path = path
+	pinOpts.PinOptions = pinOptionsFromQuery(r.URL.Query())
+
+	return pinOpts
+}
+
 func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
@@ -1021,32 +1035,8 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.Pi
 		Type: uint64(types.DataType),
 	}
 
-	queryValues := r.URL.Query()
-	name := queryValues.Get("name")
-	pin.Name = name
+	pin.PinOptions = pinOptionsFromQuery(r.URL.Query())
 	pin.MaxDepth = -1 // For now, all pins are recursive
-	rplStr := queryValues.Get("replication")
-	if rplStr == "" { // compat <= 0.4.0
-		rplStr = queryValues.Get("replication_factor")
-	}
-	rplStrMin := queryValues.Get("replication-min")
-	if rplStrMin == "" { // compat <= 0.4.0
-		rplStrMin = queryValues.Get("replication_factor_min")
-	}
-	rplStrMax := queryValues.Get("replication-max")
-	if rplStrMax == "" { // compat <= 0.4.0
-		rplStrMax = queryValues.Get("replication_factor_max")
-	}
-	if rplStr != "" { // override
-		rplStrMin = rplStr
-		rplStrMax = rplStr
-	}
-	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
-		pin.ReplicationFactorMin = rpl
-	}
-	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
-		pin.ReplicationFactorMax = rpl
-	}
 
 	return pin
 }

@@ -86,20 +86,30 @@ func (c *defaultClient) Unpin(ci cid.Cid) error {
 	return c.do("DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
 }
 
+// CleanPath gives a path string that can be readily appended to a url string
+func CleanPath(p string) string {
+	path := strings.TrimPrefix(path.Clean(p), "/")
+
+	// for converting a cid string to ipfs path
+	if !(strings.HasPrefix(path, "ipfs") || strings.HasPrefix(path, "ipns") || strings.HasPrefix(path, "ipld")) {
+		return "ipfs/" + path
+	}
+
+	return path
+}
+
 // PinPath resolves given path into a cid and performs the pin operation.
-func (c *defaultClient) PinPath(opts api.PinOptionsWithPath) (api.Pin, error) {
+func (c *defaultClient) PinPath(opts api.PinPath) (api.Pin, error) {
 	var pin api.PinSerial
 	escName := url.QueryEscape(opts.Name)
 	err := c.do(
 		"POST",
-		path.Clean(
-			fmt.Sprintf(
-				"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
-				strings.TrimSuffix(opts.Path, "/"), // path.Clean() does not remove trailing slash. A valid ipfs path can contain a trailing slash.
-				opts.ReplicationFactorMin,
-				opts.ReplicationFactorMax,
-				escName,
-			),
+		fmt.Sprintf(
+			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
+			CleanPath(opts.Path),
+			opts.ReplicationFactorMin,
+			opts.ReplicationFactorMax,
+			escName,
 		),
 		nil,
 		nil,
@@ -113,7 +123,7 @@ func (c *defaultClient) PinPath(opts api.PinOptionsWithPath) (api.Pin, error) {
 // It returns api.Pin of the given cid before it is unpinned.
 func (c *defaultClient) UnpinPath(p string) (api.Pin, error) {
 	var pin api.PinSerial
-	err := c.do("DELETE", path.Clean(fmt.Sprintf("/pins/%s", strings.TrimSuffix(p, "/"))), nil, nil, &pin)
+	err := c.do("DELETE", fmt.Sprintf("/pins/%s", CleanPath(p)), nil, nil, &pin)
 
 	return pin.ToPin(), err
 }

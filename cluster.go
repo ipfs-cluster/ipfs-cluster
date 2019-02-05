@@ -345,7 +345,7 @@ func (c *Cluster) repinFromPeer(p peer.ID) {
 	list := cState.List()
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			ok, err := c.pin(pin, []peer.ID{p}, []peer.ID{}) // pin blacklisting this peer
+			_, ok, err := c.pin(pin, []peer.ID{p}, []peer.ID{}) // pin blacklisting this peer
 			if ok && err == nil {
 				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
 			}
@@ -901,7 +901,7 @@ func (c *Cluster) PinGet(h cid.Cid) (api.Pin, error) {
 // the cluster.  Priority allocations are best effort.  If any priority peers
 // are unavailable then Pin will simply allocate from the rest of the cluster.
 func (c *Cluster) Pin(pin api.Pin) error {
-	_, err := c.pin(pin, []peer.ID{}, pin.Allocations)
+	_, _, err := c.pin(pin, []peer.ID{}, pin.Allocations)
 	return err
 }
 
@@ -980,18 +980,18 @@ func (c *Cluster) setupPin(pin *api.Pin) error {
 // able to evacuate a node and returns whether the pin was submitted
 // to the consensus layer or skipped (due to error or to the fact
 // that it was already valid).
-func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (bool, error) {
+func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (api.Pin, bool, error) {
 	if pin.Cid == cid.Undef {
-		return false, errors.New("bad pin object")
+		return pin, false, errors.New("bad pin object")
 	}
 
 	// setup pin might produce some side-effects to our pin
 	err := c.setupPin(&pin)
 	if err != nil {
-		return false, err
+		return pin, false, err
 	}
 	if pin.Type == api.MetaType {
-		return true, c.consensus.LogPin(pin)
+		return pin, true, c.consensus.LogPin(pin)
 	}
 
 	allocs, err := c.allocate(
@@ -1002,14 +1002,14 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		prioritylist,
 	)
 	if err != nil {
-		return false, err
+		return pin, false, err
 	}
 	pin.Allocations = allocs
 
 	if curr, _ := c.PinGet(pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
-		return false, nil
+		return pin, false, nil
 	}
 
 	if len(pin.Allocations) == 0 {
@@ -1018,7 +1018,35 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 	}
 
-	return true, c.consensus.LogPin(pin)
+	return pin, true, c.consensus.LogPin(pin)
+}
+
+func (c *Cluster) unpin(h cid.Cid) (api.Pin, error) {
+	logger.Info("IPFS cluster unpinning:", h)
+	pin, err := c.PinGet(h)
+	if err != nil {
+		return pin, fmt.Errorf("cannot unpin pin uncommitted to state: %s", err)
+	}
+
+	switch pin.Type {
+	case api.DataType:
+		return pin, c.consensus.LogUnpin(pin)
+	case api.ShardType:
+		err := "cannot unpin a shard direclty. Unpin content root CID instead."
+		return pin, errors.New(err)
+	case api.MetaType:
+		// Unpin cluster dag and referenced shards
+		err := c.unpinClusterDag(pin)
+		if err != nil {
+			return pin, err
+		}
+		return pin, c.consensus.LogUnpin(pin)
+	case api.ClusterDAGType:
+		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
+		return pin, errors.New(err)
+	default:
+		return pin, errors.New("unrecognized pin type")
+	}
 }
 
 // Unpin makes the cluster Unpin a Cid. This implies adding the Cid
@@ -1028,31 +1056,8 @@ func (c *Cluster) pin(pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) 
 // to the global state. Unpin does not reflect the success or failure
 // of underlying IPFS daemon unpinning operations.
 func (c *Cluster) Unpin(h cid.Cid) error {
-	logger.Info("IPFS cluster unpinning:", h)
-	pin, err := c.PinGet(h)
-	if err != nil {
-		return fmt.Errorf("cannot unpin pin uncommitted to state: %s", err)
-	}
-
-	switch pin.Type {
-	case api.DataType:
-		return c.consensus.LogUnpin(pin)
-	case api.ShardType:
-		err := "cannot unpin a shard direclty. Unpin content root CID instead."
-		return errors.New(err)
-	case api.MetaType:
-		// Unpin cluster dag and referenced shards
-		err := c.unpinClusterDag(pin)
-		if err != nil {
-			return err
-		}
-		return c.consensus.LogUnpin(pin)
-	case api.ClusterDAGType:
-		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
-		return errors.New(err)
-	default:
-		return errors.New("unrecognized pin type")
-	}
+	_, err := c.unpin(h)
+	return err
 }
 
 // unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
@@ -1079,34 +1084,25 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 // PinPath accepts a path string resolves it into a cid and makes cluster pin it.
 // It returns the expected Pin struct of given cid after the cid is pinned.
 func (c *Cluster) PinPath(path string, p api.Pin) (api.Pin, error) {
-	ci, err := c.resolve(path)
+	ci, err := c.ipfs.Resolve(path)
 	if err != nil {
 		return api.Pin{}, err
 	}
 
 	p.Cid = ci
-	return p, c.Pin(p)
+	p, _, err = c.pin(p, []peer.ID{}, p.Allocations)
+	return p, err
 }
 
 // UnpinPath accepts a path string resolves it into a cid and makes the cluster unpin it.
 // It returns the Pin struct of the cid before the cid is unpinned.
 func (c *Cluster) UnpinPath(path string) (api.Pin, error) {
-	ci, err := c.resolve(path)
+	ci, err := c.ipfs.Resolve(path)
 	if err != nil {
 		return api.Pin{}, err
 	}
 
-	pin, err := c.PinGet(ci)
-	if err != nil {
-		return api.Pin{}, err
-	}
-
-	return pin, c.Unpin(ci)
-}
-
-// resolve resolves given string path into a cid
-func (c *Cluster) resolve(path string) (cid.Cid, error) {
-	return c.ipfs.Resolve(path)
+	return c.unpin(ci)
 }
 
 // AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer

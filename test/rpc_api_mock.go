@@ -53,12 +53,15 @@ func (mock *mockService) Unpin(ctx context.Context, in api.PinSerial, out *struc
 	return nil
 }
 
-func (mock *mockService) PinPath(ctx context.Context, in api.PinOptionsWithPath, out *api.PinSerial) error {
+func (mock *mockService) PinPath(ctx context.Context, in api.PinPath, out *api.PinSerial) error {
 	_, err := gopath.ParsePath(in.Path)
 	if err != nil {
 		return err
 	}
-	*out = api.PinCid(MustDecodeCid(TestCid5)).ToSerial()
+	*out = api.PinSerial{
+		PinOptions: in.PinOptions,
+		Cid:        TestCid5,
+	}
 	return nil
 }
 

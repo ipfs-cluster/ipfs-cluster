@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path"
 	"strings"
 	"testing"
 	"time"
@@ -571,52 +570,45 @@ func TestAPIPinEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+type pathCase struct {
+	path    string
+	wantErr bool
+	code    int
+}
+
+func casesForPath() []pathCase {
+	return []pathCase{
+		{
+			"/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY?replication-min=6&replication-max=7&name=hello+there",
+			false,
+			http.StatusOK,
+		},
+		{
+			"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif?replication-min=6&replication-max=7&name=hello+there",
+			false,
+			http.StatusOK,
+		},
+		{
+			"/ipfs/invalidhash",
+			true,
+			http.StatusBadRequest,
+		},
+		// TODO: Test StatusNotFound and a case with trailing slash with paths
+		// test.TestPathIPNS2, test.TestPathIPLD2, test.TestInvalidPath1
+	}
+}
+
 func TestAPIPinEndpointWithPath(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	testCases := []struct {
-		name    string
-		path    string
-		wantErr bool
-		code    int
-	}{
-		// Uncomment after removing logic Pin and Unpin with cid
-		// {
-		// 	"cid string as path",
-		// 	test.TestCid5,
-		// 	false,
-		// 	0,
-		// },
-		{
-			"IPFS path with just a cid string, but with starting with /ipfs/",
-			test.TestPathIPFS1,
-			false,
-			0,
-		},
-		{
-			"IPFS path with cid string of a ancenstor directory and relative file path from there",
-			test.TestPathIPFS2,
-			false,
-			0,
-		},
-		{
-			"IPNS path",
-			test.TestPathIPNS2,
-			false,
-			0,
-		},
-		{
-			"IPLD path",
-			test.TestPathIPLD2,
-			false,
-			0,
-		},
-		{
-			"invalid path",
-			test.TestInvalidPath1,
-			true,
-			http.StatusInternalServerError,
+	testCases := casesForPath()
+	resultantPin := api.Pin{
+		Cid: test.TestCidResolved,
+		PinOptions: api.PinOptions{
+			ReplicationFactorMin: 6,
+			ReplicationFactorMax: 7,
+			Name:                 "hello there",
 		},
 	}
 
@@ -624,15 +616,15 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 		for _, testCase := range testCases {
 			if testCase.wantErr {
 				errResp := api.Error{}
-				makePost(t, rest, url(rest)+path.Clean("/pins/"+testCase.path), []byte{}, &errResp)
+				makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &errResp)
 				if errResp.Code != testCase.code {
-					t.Errorf("expected different status code, expected: %d, actual: %d, test name:, %s, path: %s\n", testCase.code, errResp.Code, testCase.name, testCase.path)
+					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
 				}
 			} else {
 				pin := api.PinSerial{}
-				makePost(t, rest, url(rest)+path.Clean("/pins/"+testCase.path), []byte{}, &pin)
-				if pin.Cid != test.TestCid5 {
-					t.Errorf("expected different cid, expected: %s, actual: %s, test name:, %s, path: %s\n", test.TestCid5, pin.Cid, testCase.name, testCase.path)
+				makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &pin)
+				if !pin.ToPin().Equals(resultantPin) {
+					t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
 				}
 			}
 		}
@@ -668,63 +660,21 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
+	testCases := casesForPath()
+
 	tf := func(t *testing.T, url urlF) {
-		testCases := []struct {
-			name    string
-			path    string
-			wantErr bool
-			code    int
-		}{
-			// Uncomment after removing logic Pin and Unpin with cid
-			// {
-			// 	"cid string as path",
-			// 	test.TestCid5,
-			// 	false,
-			// 	0,
-			// },
-			{
-				"IPFS path with just a cid string, but with starting with /ipfs/",
-				test.TestPathIPFS1,
-				false,
-				0,
-			},
-			{
-				"IPFS path with cid string of a ancenstor directory and relative file path from there",
-				test.TestPathIPFS2,
-				false,
-				0,
-			},
-			{
-				"IPNS path",
-				test.TestPathIPNS2,
-				false,
-				0,
-			},
-			{
-				"IPLD path",
-				test.TestPathIPLD2,
-				false,
-				0,
-			},
-			{
-				"invalid path",
-				test.TestInvalidPath1,
-				true,
-				http.StatusInternalServerError,
-			},
-		}
 		for _, testCase := range testCases {
 			if testCase.wantErr {
 				errResp := api.Error{}
-				makeDelete(t, rest, url(rest)+path.Clean("/pins/"+testCase.path), &errResp)
+				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &errResp)
 				if errResp.Code != testCase.code {
-					t.Errorf("expected different status code, expected: %d, actual: %d, test name:, %s, path: %s\n", testCase.code, errResp.Code, testCase.name, testCase.path)
+					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
 				}
 			} else {
 				pin := api.PinSerial{}
-				makeDelete(t, rest, url(rest)+path.Clean("/pins/"+testCase.path), &pin)
+				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
 				if pin.Cid != test.TestCid5 {
-					t.Errorf("expected different cid, expected: %s, actual: %s, test name:, %s, path: %s\n", test.TestCid5, pin.Cid, testCase.name, testCase.path)
+					t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCid5, pin.Cid, testCase.path)
 				}
 			}
 

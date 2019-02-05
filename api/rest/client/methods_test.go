@@ -161,11 +161,49 @@ func TestUnpin(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+type pathCase struct {
+	path    string
+	wantErr bool
+}
+
+func casesForPath() []pathCase {
+	return []pathCase{
+		{
+			test.TestCid5,
+			false,
+		},
+		{
+			test.TestPathIPFS1,
+			false,
+		},
+		{
+			test.TestPathIPFS2,
+			false,
+		},
+		{
+			test.TestPathIPNS2,
+			false,
+		},
+		{
+			test.TestPathIPLD2,
+			false,
+		},
+		{
+			test.TestInvalidPath1,
+			true,
+		},
+		{
+			"/ipfs//QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif/",
+			false,
+		},
+	}
+}
+
 func TestPinPath(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
-	opts := types.PinOptionsWithPath{
+	opts := types.PinPath{
 		PinOptions: types.PinOptions{
 			ReplicationFactorMin: 6,
 			ReplicationFactorMax: 7,
@@ -173,50 +211,25 @@ func TestPinPath(t *testing.T) {
 		},
 	}
 
-	testCases := []struct {
-		name    string
-		path    string
-		wantErr bool
-	}{
-		// Uncomment after removing logic Pin and Unpin with cid
-		// {
-		// 	"cid string as path",
-		// 	test.TestCid5,
-		// 	false,
-		// },
-		{
-			"IPFS path with just a cid string, but with starting with /ipfs/",
-			test.TestPathIPFS1,
-			false,
-		},
-		{
-			"IPFS path with cid string of a ancenstor directory and relative file path from there",
-			test.TestPathIPFS2,
-			false,
-		},
-		{
-			"IPNS path",
-			test.TestPathIPNS2,
-			false,
-		},
-		{
-			"IPLD path",
-			test.TestPathIPLD2,
-			false,
-		},
-		{
-			"invalid path",
-			test.TestInvalidPath1,
-			true,
-		},
+	resultantPin := types.Pin{
+		Cid:        test.TestCidResolved,
+		PinOptions: opts.PinOptions,
 	}
+
+	testCases := casesForPath()
+
 	testF := func(t *testing.T, c Client) {
 
-		for _, test := range testCases {
-			opts.Path = test.path
-			if _, err := c.PinPath(opts); (err != nil) != test.wantErr {
-				t.Errorf("test name = %s,\n error = %v,\n wantErr = %v,\n path = %s\n", test.name, err, test.wantErr, test.path)
+		for _, testCase := range testCases {
+			opts.Path = testCase.path
+			pin, err := c.PinPath(opts)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("test error = %v, wantErr = %v, path = %s\n", err, testCase.wantErr, testCase.path)
 			}
+			if !testCase.wantErr && !pin.Equals(resultantPin) {
+				t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
+			}
+
 		}
 	}
 
@@ -227,48 +240,16 @@ func TestUnpinPath(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
-	testCases := []struct {
-		name    string
-		path    string
-		wantErr bool
-	}{
-		// Uncomment after removing logic Pin and Unpin with cid
-		// {
-		// 	"cid string as path",
-		// 	test.TestCid5,
-		// 	false,
-		// },
-		{
-			"IPFS path with just a cid string, but with starting with /ipfs/",
-			test.TestPathIPFS1,
-			false,
-		},
-		{
-			"IPFS path with cid string of a ancenstor directory and relative file path from there",
-			test.TestPathIPFS2,
-			false,
-		},
-		{
-			"IPNS path",
-			test.TestPathIPNS2,
-			false,
-		},
-		{
-			"IPLD path",
-			test.TestPathIPLD2,
-			false,
-		},
-		{
-			"invalid path",
-			test.TestInvalidPath1,
-			true,
-		},
-	}
+	testCases := casesForPath()
 
 	testF := func(t *testing.T, c Client) {
-		for _, test := range testCases {
-			if _, err := c.UnpinPath(test.path); (err != nil) != test.wantErr {
-				t.Errorf("test name = %s,\n error = %v,\n wantErr = %v,\n path = %s\n", test.name, err, test.wantErr, test.path)
+		for _, testCase := range testCases {
+			pin, err := c.UnpinPath(testCase.path)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("test error = %v, wantErr = %v, path = %s\n", err, testCase.wantErr, testCase.path)
+			}
+			if !testCase.wantErr && pin.Cid != test.TestCidResolved {
+				t.Errorf("expected a different cid, path: %s, expected: %s, found: %s\n", testCase.path, test.TestCid5, pin.Cid.String())
 			}
 		}
 	}

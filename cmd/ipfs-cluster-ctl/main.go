@@ -505,7 +505,7 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						opts := api.PinOptionsWithPath{
+						opts := api.PinPath{
 							Path: path.String(),
 							PinOptions: api.PinOptions{
 								ReplicationFactorMin: rplMin,
@@ -518,10 +518,9 @@ peers should pin this content.
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-						ci := pin.Cid
 						handlePinResponseFormatFlags(
 							c,
-							ci,
+							pin,
 							api.TrackerStatusPinned,
 						)
 						return nil
@@ -564,10 +563,9 @@ although unpinning operations in the cluster may take longer or fail.
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-						ci := pin.Cid
 						handlePinResponseFormatFlags(
 							c,
-							ci,
+							pin,
 							api.TrackerStatusUnpinned,
 						)
 						return nil
@@ -918,7 +916,7 @@ func parseCredentials(userInput string) (string, string) {
 
 func handlePinResponseFormatFlags(
 	c *cli.Context,
-	ci cid.Cid,
+	pin api.Pin,
 	target api.TrackerStatus,
 ) {
 
@@ -926,17 +924,19 @@ func handlePinResponseFormatFlags(
 	var cerr error
 
 	if c.Bool("wait") {
-		status, cerr = waitFor(ci, target, c.Duration("wait-timeout"))
+		status, cerr = waitFor(pin.Cid, target, c.Duration("wait-timeout"))
 		checkErr("waiting for pin status", cerr)
 	}
 
 	if c.Bool("no-status") {
+		pinSerial := pin.ToSerial()
+		textFormatPrintPin(&pinSerial)
 		return
 	}
 
 	if status.Cid == cid.Undef { // no status from "wait"
 		time.Sleep(time.Second)
-		status, cerr = globalClient.Status(ci, false)
+		status, cerr = globalClient.Status(pin.Cid, false)
 	}
 	formatResponse(c, status, cerr)
 }

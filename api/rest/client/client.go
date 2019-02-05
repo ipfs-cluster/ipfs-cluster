@@ -61,7 +61,7 @@ type Client interface {
 	Unpin(ci cid.Cid) error
 
 	// PinPath resolves given path into a cid and performs the pin operation.
-	PinPath(opts api.PinOptionsWithPath) (api.Pin, error)
+	PinPath(opts api.PinPath) (api.Pin, error)
 	// UnpinPath resolves given path into a cid and performs the unpin operation.
 	// It returns api.Pin of the given cid before it is unpinned.
 	UnpinPath(path string) (api.Pin, error)
