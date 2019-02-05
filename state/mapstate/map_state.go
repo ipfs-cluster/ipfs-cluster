@@ -4,6 +4,7 @@ package mapstate
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	logging "github.com/ipfs/go-log"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/trace"
 )
 
 // Version is the map state Version. States with old versions should
@@ -40,7 +42,10 @@ func NewMapState() *MapState {
 }
 
 // Add adds a Pin to the internal map.
-func (st *MapState) Add(c api.Pin) error {
+func (st *MapState) Add(ctx context.Context, c api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "state/map/Add")
+	defer span.End()
+
 	st.pinMux.Lock()
 	defer st.pinMux.Unlock()
 	st.PinMap[c.Cid.String()] = c.ToSerial()
@@ -48,7 +53,10 @@ func (st *MapState) Add(c api.Pin) error {
 }
 
 // Rm removes a Cid from the internal map.
-func (st *MapState) Rm(c cid.Cid) error {
+func (st *MapState) Rm(ctx context.Context, c cid.Cid) error {
+	ctx, span := trace.StartSpan(ctx, "state/map/Rm")
+	defer span.End()
+
 	st.pinMux.Lock()
 	defer st.pinMux.Unlock()
 	delete(st.PinMap, c.String())
@@ -60,7 +68,10 @@ func (st *MapState) Rm(c cid.Cid) error {
 // fields initialized, regardless of the
 // presence of the provided Cid in the state.
 // To check the presence, use MapState.Has(cid.Cid).
-func (st *MapState) Get(c cid.Cid) (api.Pin, bool) {
+func (st *MapState) Get(ctx context.Context, c cid.Cid) (api.Pin, bool) {
+	ctx, span := trace.StartSpan(ctx, "state/map/Get")
+	defer span.End()
+
 	if !c.Defined() {
 		return api.PinCid(c), false
 	}
@@ -74,7 +85,10 @@ func (st *MapState) Get(c cid.Cid) (api.Pin, bool) {
 }
 
 // Has returns true if the Cid belongs to the State.
-func (st *MapState) Has(c cid.Cid) bool {
+func (st *MapState) Has(ctx context.Context, c cid.Cid) bool {
+	ctx, span := trace.StartSpan(ctx, "state/map/Has")
+	defer span.End()
+
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
 	_, ok := st.PinMap[c.String()]
@@ -82,7 +96,10 @@ func (st *MapState) Has(c cid.Cid) bool {
 }
 
 // List provides the list of tracked Pins.
-func (st *MapState) List() []api.Pin {
+func (st *MapState) List(ctx context.Context) []api.Pin {
+	ctx, span := trace.StartSpan(ctx, "state/map/List")
+	defer span.End()
+
 	st.pinMux.RLock()
 	defer st.pinMux.RUnlock()
 	cids := make([]api.Pin, 0, len(st.PinMap))
@@ -97,7 +114,10 @@ func (st *MapState) List() []api.Pin {
 
 // Migrate restores a snapshot from the state's internal bytes and if
 // necessary migrates the format to the current version.
-func (st *MapState) Migrate(r io.Reader) error {
+func (st *MapState) Migrate(ctx context.Context, r io.Reader) error {
+	ctx, span := trace.StartSpan(ctx, "state/map/Migrate")
+	defer span.End()
+
 	bs, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
@@ -126,6 +146,10 @@ func (st *MapState) GetVersion() int {
 
 // Marshal encodes the state using msgpack
 func (st *MapState) Marshal() ([]byte, error) {
+	// FIXME: Re-enable this span when raft Marshable interface has contexts
+	//ctx, span := trace.StartSpan(ctx, "state/map/Marshal")
+	//defer span.End()
+
 	logger.Debugf("Marshal-- Marshalling state of version %d", st.Version)
 	buf := new(bytes.Buffer)
 	enc := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Encoder(buf)
@@ -137,7 +161,7 @@ func (st *MapState) Marshal() ([]byte, error) {
 	vCodec := make([]byte, 1)
 	vCodec[0] = byte(st.Version)
 	ret := append(vCodec, buf.Bytes()...)
-	// logger.Debugf("Marshal-- The final marshaled bytes: %x", ret)
+	//logger.Debugf("Marshal-- The final marshaled bytes: %x\n", ret)
 	return ret, nil
 }
 
@@ -147,6 +171,10 @@ func (st *MapState) Marshal() ([]byte, error) {
 // to the current version in a later call to restore.  Note: Out of date
 // version is not an error
 func (st *MapState) Unmarshal(bs []byte) error {
+	// FIXME: Re-enable this span when raft Marshable interface has contexts
+	// ctx, span := trace.StartSpan(ctx, "state/map/Unmarshal")
+	// defer span.End()
+
 	// Check version byte
 	// logger.Debugf("The incoming bytes to unmarshal: %x", bs)
 	if len(bs) < 1 {

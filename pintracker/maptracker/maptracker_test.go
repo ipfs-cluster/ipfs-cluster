@@ -86,61 +86,65 @@ func testMapPinTracker(t *testing.T) *MapPinTracker {
 }
 
 func TestNew(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 }
 
 func TestShutdown(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	err := mpt.Shutdown()
+	err := mpt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = mpt.Shutdown()
+	err = mpt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestTrack(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h, _ := cid.Decode(test.TestCid1)
 
 	// Let's tart with a local pin
 	c := testPin(h, -1, -1)
 
-	err := mpt.Track(c)
+	err := mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(200 * time.Millisecond) // let it be pinned
 
-	st := mpt.Status(h)
+	st := mpt.Status(context.Background(), h)
 	if st.Status != api.TrackerStatusPinned {
 		t.Fatalf("cid should be pinned and is %s", st.Status)
 	}
 
 	// Unpin and set remote
 	c = testPin(h, 1, 1, test.TestPeerID2)
-	err = mpt.Track(c)
+	err = mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(200 * time.Millisecond) // let it be unpinned
 
-	st = mpt.Status(h)
+	st = mpt.Status(context.Background(), h)
 	if st.Status != api.TrackerStatusRemote {
 		t.Fatalf("cid should be pinned and is %s", st.Status)
 	}
 }
 
 func TestUntrack(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
@@ -148,62 +152,63 @@ func TestUntrack(t *testing.T) {
 	// LocalPin
 	c := testPin(h1, -1, -1)
 
-	err := mpt.Track(c)
+	err := mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Remote pin
 	c = testPin(h2, 1, 1, test.TestPeerID2)
-	err = mpt.Track(c)
+	err = mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(time.Second / 2)
 
-	err = mpt.Untrack(h2)
+	err = mpt.Untrack(context.Background(), h2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = mpt.Untrack(h1)
+	err = mpt.Untrack(context.Background(), h1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = mpt.Untrack(h1)
+	err = mpt.Untrack(context.Background(), h1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(time.Second / 2)
 
-	st := mpt.Status(h1)
+	st := mpt.Status(context.Background(), h1)
 	if st.Status != api.TrackerStatusUnpinned {
 		t.Fatalf("cid should be unpinned and is %s", st.Status)
 	}
 
-	st = mpt.Status(h2)
+	st = mpt.Status(context.Background(), h2)
 	if st.Status != api.TrackerStatusUnpinned {
 		t.Fatalf("cid should be unpinned and is %s", st.Status)
 	}
 }
 
 func TestStatusAll(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 	c = testPin(h2, 1, 1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 
 	time.Sleep(200 * time.Millisecond)
 
-	stAll := mpt.StatusAll()
+	stAll := mpt.StatusAll(context.Background())
 	if len(stAll) != 2 {
 		t.Logf("%+v", stAll)
 		t.Fatal("expected 2 pins")
@@ -220,21 +225,22 @@ func TestStatusAll(t *testing.T) {
 }
 
 func TestSyncAndRecover(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 	h2, _ := cid.Decode(test.TestCid2)
 
 	c := testPin(h1, -1, -1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 	c = testPin(h2, -1, -1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 
 	time.Sleep(100 * time.Millisecond)
 
 	// IPFSPinLS RPC returns unpinned for anything != Cid1 or Cid3
-	info, err := mpt.Sync(h2)
+	info, err := mpt.Sync(context.Background(), h2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +248,7 @@ func TestSyncAndRecover(t *testing.T) {
 		t.Error("expected pin_error")
 	}
 
-	info, err = mpt.Sync(h1)
+	info, err = mpt.Sync(context.Background(), h1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +256,7 @@ func TestSyncAndRecover(t *testing.T) {
 		t.Error("expected pinned")
 	}
 
-	info, err = mpt.Recover(h1)
+	info, err = mpt.Recover(context.Background(), h1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,30 +264,31 @@ func TestSyncAndRecover(t *testing.T) {
 		t.Error("expected pinned")
 	}
 
-	_, err = mpt.Recover(h2)
+	_, err = mpt.Recover(context.Background(), h2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
-	info = mpt.Status(h2)
+	info = mpt.Status(context.Background(), h2)
 	if info.Status != api.TrackerStatusPinned {
 		t.Error("expected pinned")
 	}
 }
 
 func TestRecoverAll(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 
 	c := testPin(h1, -1, -1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 	time.Sleep(100 * time.Millisecond)
-	mpt.optracker.SetError(h1, errors.New("fakeerror"))
-	pins, err := mpt.RecoverAll()
+	mpt.optracker.SetError(context.Background(), h1, errors.New("fakeerror"))
+	pins, err := mpt.RecoverAll(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +297,7 @@ func TestRecoverAll(t *testing.T) {
 	}
 
 	time.Sleep(100 * time.Millisecond)
-	info := mpt.Status(h1)
+	info := mpt.Status(context.Background(), h1)
 
 	if info.Status != api.TrackerStatusPinned {
 		t.Error("the pin should have been recovered")
@@ -298,10 +305,11 @@ func TestRecoverAll(t *testing.T) {
 }
 
 func TestSyncAll(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
-	synced, err := mpt.SyncAll()
+	synced, err := mpt.SyncAll(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,13 +323,13 @@ func TestSyncAll(t *testing.T) {
 	h2, _ := cid.Decode(test.TestCid2)
 
 	c := testPin(h1, -1, -1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 	c = testPin(h2, -1, -1)
-	mpt.Track(c)
+	mpt.Track(context.Background(), c)
 
 	time.Sleep(100 * time.Millisecond)
 
-	synced, err = mpt.SyncAll()
+	synced, err = mpt.SyncAll(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,56 +340,58 @@ func TestSyncAll(t *testing.T) {
 }
 
 func TestUntrackTrack(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
-	err := mpt.Track(c)
+	err := mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(time.Second / 2)
 
-	err = mpt.Untrack(h1)
+	err = mpt.Untrack(context.Background(), h1)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestTrackUntrackWithCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 
 	// LocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
 
-	err := mpt.Track(slowPin)
+	err := mpt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(100 * time.Millisecond) // let pinning start
 
-	pInfo := mpt.Status(slowPin.Cid)
+	pInfo := mpt.Status(context.Background(), slowPin.Cid)
 	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("slowPin should be tracked")
 	}
 
 	if pInfo.Status == api.TrackerStatusPinning {
 		go func() {
-			err = mpt.Untrack(slowPinCid)
+			err = mpt.Untrack(context.Background(), slowPinCid)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}()
 		select {
-		case <-mpt.optracker.OpContext(slowPinCid).Done():
+		case <-mpt.optracker.OpContext(context.Background(), slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -392,8 +402,9 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 }
 
 func TestTrackUntrackWithNoCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 	fastPinCid, _ := cid.Decode(pinCancelCid)
@@ -404,24 +415,24 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	// LocalPin
 	fastPin := testPin(fastPinCid, -1, -1)
 
-	err := mpt.Track(slowPin)
+	err := mpt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = mpt.Track(fastPin)
+	err = mpt.Track(context.Background(), fastPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// fastPin should be queued because slow pin is pinning
-	pInfo := mpt.Status(fastPinCid)
+	pInfo := mpt.Status(context.Background(), fastPinCid)
 	if pInfo.Status == api.TrackerStatusPinQueued {
-		err = mpt.Untrack(fastPinCid)
+		err = mpt.Untrack(context.Background(), fastPinCid)
 		if err != nil {
 			t.Fatal(err)
 		}
-		pi := mpt.Status(fastPinCid)
+		pi := mpt.Status(context.Background(), fastPinCid)
 		if pi.Error == ErrPinCancelCid.Error() {
 			t.Fatal(ErrPinCancelCid)
 		}
@@ -430,22 +441,23 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	time.Sleep(100 * time.Millisecond)
-	pInfo = mpt.Status(fastPinCid)
+	pInfo = mpt.Status(context.Background(), fastPinCid)
 	if pInfo.Status != api.TrackerStatusUnpinned {
 		t.Error("fastPin should have been removed from tracker:", pInfo.Status)
 	}
 }
 
 func TestUntrackTrackWithCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 
 	// LocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
 
-	err := mpt.Track(slowPin)
+	err := mpt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,27 +466,27 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 
 	// Untrack should cancel the ongoing request
 	// and unpin right away
-	err = mpt.Untrack(slowPinCid)
+	err = mpt.Untrack(context.Background(), slowPinCid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
-	pInfo := mpt.Status(slowPinCid)
+	pInfo := mpt.Status(context.Background(), slowPinCid)
 	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("expected slowPin to be tracked")
 	}
 
 	if pInfo.Status == api.TrackerStatusUnpinning {
 		go func() {
-			err = mpt.Track(slowPin)
+			err = mpt.Track(context.Background(), slowPin)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}()
 		select {
-		case <-mpt.optracker.OpContext(slowPinCid).Done():
+		case <-mpt.optracker.OpContext(context.Background(), slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
 			t.Errorf("operation context should have been cancelled by now")
@@ -486,8 +498,9 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 }
 
 func TestUntrackTrackWithNoCancel(t *testing.T) {
+	ctx := context.Background()
 	mpt := testSlowMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
 	fastPinCid, _ := cid.Decode(unpinCancelCid)
@@ -498,40 +511,40 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	// LocalPin
 	fastPin := testPin(fastPinCid, -1, -1)
 
-	err := mpt.Track(slowPin)
+	err := mpt.Track(context.Background(), slowPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = mpt.Track(fastPin)
+	err = mpt.Track(context.Background(), fastPin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(3 * time.Second)
 
-	err = mpt.Untrack(slowPin.Cid)
+	err = mpt.Untrack(context.Background(), slowPin.Cid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = mpt.Untrack(fastPin.Cid)
+	err = mpt.Untrack(context.Background(), fastPin.Cid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pInfo := mpt.Status(fastPinCid)
+	pInfo := mpt.Status(context.Background(), fastPinCid)
 	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("c untrack operation should be tracked")
 	}
 
 	if pInfo.Status == api.TrackerStatusUnpinQueued {
-		err = mpt.Track(fastPin)
+		err = mpt.Track(context.Background(), fastPin)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		pi := mpt.Status(fastPinCid)
+		pi := mpt.Status(context.Background(), fastPinCid)
 		if pi.Error == ErrUnpinCancelCid.Error() {
 			t.Fatal(ErrUnpinCancelCid)
 		}
@@ -541,8 +554,9 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 }
 
 func TestTrackUntrackConcurrent(t *testing.T) {
+	ctx := context.Background()
 	mpt := testMapPinTracker(t)
-	defer mpt.Shutdown()
+	defer mpt.Shutdown(ctx)
 
 	h1, _ := cid.Decode(test.TestCid1)
 
@@ -559,9 +573,9 @@ func TestTrackUntrackConcurrent(t *testing.T) {
 				var err error
 				op := rand.Intn(2)
 				if op == 1 {
-					err = mpt.Track(c)
+					err = mpt.Track(context.Background(), c)
 				} else {
-					err = mpt.Untrack(c.Cid)
+					err = mpt.Untrack(context.Background(), c.Cid)
 				}
 				if err != nil {
 					t.Error(err)
@@ -573,7 +587,7 @@ func TestTrackUntrackConcurrent(t *testing.T) {
 	wg.Wait()
 
 	time.Sleep(200 * time.Millisecond)
-	st := mpt.Status(h1)
+	st := mpt.Status(context.Background(), h1)
 	t.Log(st.Status)
 	if st.Status != api.TrackerStatusUnpinned && st.Status != api.TrackerStatusPinned {
 		t.Fatal("should be pinned or unpinned")

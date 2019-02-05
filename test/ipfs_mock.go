@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -129,6 +130,7 @@ func NewIpfsMock() *IpfsMock {
 
 // FIXME: what if IPFS API changes?
 func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
 	p := r.URL.Path
 	w.Header().Set(IpfsCustomHeaderName, IpfsCustomHeaderValue)
 	w.Header().Set("Server", "ipfs-mock")
@@ -156,7 +158,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.Add(api.PinCid(c))
+		m.pinMap.Add(ctx, api.PinCid(c))
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
@@ -171,7 +173,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.Rm(c)
+		m.pinMap.Rm(ctx, c)
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
@@ -181,7 +183,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		arg, ok := extractCid(r.URL)
 		if !ok {
 			rMap := make(map[string]mockPinType)
-			pins := m.pinMap.List()
+			pins := m.pinMap.List(ctx)
 			for _, p := range pins {
 				rMap[p.Cid.String()] = mockPinType{"recursive"}
 			}
@@ -195,7 +197,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		ok = m.pinMap.Has(c)
+		ok = m.pinMap.Has(ctx, c)
 		if ok {
 			rMap := make(map[string]mockPinType)
 			rMap[cidStr] = mockPinType{"recursive"}
@@ -288,7 +290,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 	case "repo/stat":
 		sizeOnly := r.URL.Query().Get("size-only")
-		len := len(m.pinMap.List())
+		len := len(m.pinMap.List(ctx))
 		numObjs := uint64(len)
 		if sizeOnly == "true" {
 			numObjs = 0

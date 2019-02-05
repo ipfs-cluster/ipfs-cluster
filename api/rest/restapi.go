@@ -22,6 +22,10 @@ import (
 
 	"github.com/rs/cors"
 
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/trace"
+
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 
@@ -98,13 +102,13 @@ type peerAddBody struct {
 }
 
 // NewAPI creates a new REST API component with the given configuration.
-func NewAPI(cfg *Config) (*API, error) {
-	return NewAPIWithHost(cfg, nil)
+func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
+	return NewAPIWithHost(ctx, cfg, nil)
 }
 
 // NewAPIWithHost creates a new REST API component and enables
 // the libp2p-http endpoint using the given Host, if not nil.
-func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
+func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -118,6 +122,15 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 		cfg.BasicAuthCreds,
 		cors.New(*cfg.corsOptions()).Handler(router),
 	)
+	if cfg.Tracing {
+		handler = &ochttp.Handler{
+			IsPublicEndpoint: true,
+			Propagation:      &tracecontext.HTTPFormat{},
+			Handler:          handler,
+			StartOptions:     trace.StartOptions{SpanKind: trace.SpanKindServer},
+			FormatSpanName:   func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
+		}
+	}
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
@@ -131,7 +144,7 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(true)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	api := &API{
 		ctx:      ctx,
@@ -144,7 +157,7 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 	api.addRoutes(router)
 
 	// Set up api.httpListener if enabled
-	err = api.setupHTTP()
+	err = api.setupHTTP(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -159,11 +172,11 @@ func NewAPIWithHost(cfg *Config, h host.Host) (*API, error) {
 		return nil, ErrNoEndpointsEnabled
 	}
 
-	api.run()
+	api.run(ctx)
 	return api, nil
 }
 
-func (api *API) setupHTTP() error {
+func (api *API) setupHTTP(ctx context.Context) error {
 	if api.config.HTTPListenAddr == nil {
 		return nil
 	}
@@ -238,7 +251,12 @@ func (api *API) addRoutes(router *mux.Router) {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(route.HandlerFunc)
+			Handler(
+				ochttp.WithRouteTag(
+					http.HandlerFunc(route.HandlerFunc),
+					"/"+route.Name,
+				),
+			)
 	}
 	api.router = router
 }
@@ -418,20 +436,20 @@ func (api *API) routes() []route {
 	}
 }
 
-func (api *API) run() {
+func (api *API) run(ctx context.Context) {
 	if api.httpListener != nil {
 		api.wg.Add(1)
-		go api.runHTTPServer()
+		go api.runHTTPServer(ctx)
 	}
 
 	if api.libp2pListener != nil {
 		api.wg.Add(1)
-		go api.runLibp2pServer()
+		go api.runLibp2pServer(ctx)
 	}
 }
 
 // runs in goroutine from run()
-func (api *API) runHTTPServer() {
+func (api *API) runHTTPServer(ctx context.Context) {
 	defer api.wg.Done()
 	<-api.rpcReady
 
@@ -443,7 +461,7 @@ func (api *API) runHTTPServer() {
 }
 
 // runs in goroutine from run()
-func (api *API) runLibp2pServer() {
+func (api *API) runLibp2pServer(ctx context.Context) {
 	defer api.wg.Done()
 	<-api.rpcReady
 
@@ -461,7 +479,10 @@ func (api *API) runLibp2pServer() {
 }
 
 // Shutdown stops any API listeners.
-func (api *API) Shutdown() error {
+func (api *API) Shutdown(ctx context.Context) error {
+	_, span := trace.StartSpan(ctx, "restapi/Shutdown")
+	defer span.End()
+
 	api.shutdownLock.Lock()
 	defer api.shutdownLock.Unlock()
 
@@ -578,7 +599,7 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	// any errors sent as trailer
 	adderutils.AddMultipartHTTPHandler(
-		api.ctx,
+		r.Context(),
 		api.rpcClient,
 		params,
 		reader,
@@ -599,6 +620,7 @@ func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&peersSerial,
 	)
+
 	api.sendResponse(w, autoStatus, err, peersSerial)
 }
 
@@ -648,7 +670,7 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		logger.Debugf("rest api pinHandler: %s", ps.Cid)
-
+		// span.AddAttributes(trace.StringAttribute("cid", ps.Cid))
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -665,6 +687,7 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	if ps := api.parseCidOrError(w, r); ps.Cid != "" {
 		logger.Debugf("rest api unpinHandler: %s", ps.Cid)
+		// span.AddAttributes(trace.StringAttribute("cid", ps.Cid))
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -703,7 +726,7 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"UnpinPath",
-			pinpath,
+			pinpath.Path,
 			&pin,
 		)
 		api.sendResponse(w, http.StatusOK, err, pin)

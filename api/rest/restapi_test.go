@@ -32,8 +32,9 @@ const (
 )
 
 func testAPI(t *testing.T) *API {
+	ctx := context.Background()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	h, err := libp2p.New(context.Background(), libp2p.ListenAddrs(apiMAddr))
+	h, err := libp2p.New(ctx, libp2p.ListenAddrs(apiMAddr))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +47,7 @@ func testAPI(t *testing.T) *API {
 	//cfg.CORSAllowedHeaders = []string{"Content-Type"}
 	cfg.CORSMaxAge = 10 * time.Minute
 
-	rest, err := NewAPIWithHost(cfg, h)
+	rest, err := NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new API: ", err)
 	}
@@ -59,8 +60,9 @@ func testAPI(t *testing.T) *API {
 }
 
 func testHTTPSAPI(t *testing.T) *API {
+	ctx := context.Background()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	h, err := libp2p.New(context.Background(), libp2p.ListenAddrs(apiMAddr))
+	h, err := libp2p.New(ctx, libp2p.ListenAddrs(apiMAddr))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +77,7 @@ func testHTTPSAPI(t *testing.T) *API {
 	}
 	cfg.HTTPListenAddr = apiMAddr
 
-	rest, err := NewAPIWithHost(cfg, h)
+	rest, err := NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
 		t.Fatal("should be able to create a new https Api: ", err)
 	}
@@ -286,21 +288,23 @@ func testHTTPSEndPoint(t *testing.T, test testF) {
 }
 
 func TestAPIShutdown(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	err := rest.Shutdown()
+	err := rest.Shutdown(ctx)
 	if err != nil {
 		t.Error("should shutdown cleanly: ", err)
 	}
 	// test shutting down twice
-	rest.Shutdown()
+	rest.Shutdown(ctx)
 
 }
 
 func TestRestAPIIDEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
 	httpsrest := testHTTPSAPI(t)
-	defer rest.Shutdown()
-	defer httpsrest.Shutdown()
+	defer rest.Shutdown(ctx)
+	defer httpsrest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		id := api.IDSerial{}
@@ -323,8 +327,9 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 }
 
 func TestAPIVersionEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		ver := api.Version{}
@@ -338,8 +343,9 @@ func TestAPIVersionEndpoint(t *testing.T) {
 }
 
 func TestAPIPeerstEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var list []api.IDSerial
@@ -356,8 +362,9 @@ func TestAPIPeerstEndpoint(t *testing.T) {
 }
 
 func TestAPIPeerAddEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		id := api.IDSerial{}
@@ -390,8 +397,9 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 }
 
 func TestAPIAddFileEndpointBadContentType(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1"
@@ -409,8 +417,9 @@ func TestAPIAddFileEndpointBadContentType(t *testing.T) {
 }
 
 func TestAPIAddFileEndpointLocal(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
@@ -441,8 +450,9 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 }
 
 func TestAPIAddFileEndpointShard(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
@@ -468,8 +478,9 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 }
 
 func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
@@ -504,8 +515,9 @@ func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
 }
 
 func TestAPIPeerRemoveEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		makeDelete(t, rest, url(rest)+"/peers/"+test.TestPeerID1.Pretty(), &struct{}{})
@@ -515,8 +527,9 @@ func TestAPIPeerRemoveEndpoint(t *testing.T) {
 }
 
 func TestConnectGraphEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var cg api.ConnectGraphSerial
@@ -548,8 +561,9 @@ func TestConnectGraphEndpoint(t *testing.T) {
 }
 
 func TestAPIPinEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		// test regular post
@@ -597,8 +611,9 @@ var pathTestCases = []pathCase{
 }
 
 func TestAPIPinEndpointWithPath(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	resultantPin := api.Pin{
 		Cid: test.MustDecodeCid(test.TestCidResolved),
@@ -631,8 +646,9 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 }
 
 func TestAPIUnpinEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		// test regular delete
@@ -654,8 +670,9 @@ func TestAPIUnpinEndpoint(t *testing.T) {
 }
 
 func TestAPIUnpinEndpointWithPath(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		for _, testCase := range pathTestCases {
@@ -680,8 +697,9 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 }
 
 func TestAPIAllocationsEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.PinSerial
@@ -697,8 +715,9 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 }
 
 func TestAPIAllocationEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.PinSerial
@@ -718,8 +737,9 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 }
 
 func TestAPIMetricsEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.MetricSerial
@@ -741,8 +761,9 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 }
 
 func TestAPIStatusAllEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.GlobalPinInfoSerial
@@ -796,8 +817,9 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 }
 
 func TestAPIStatusEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfoSerial
@@ -834,8 +856,9 @@ func TestAPIStatusEndpoint(t *testing.T) {
 }
 
 func TestAPISyncAllEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.GlobalPinInfoSerial
@@ -860,8 +883,9 @@ func TestAPISyncAllEndpoint(t *testing.T) {
 }
 
 func TestAPISyncEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfoSerial
@@ -898,8 +922,9 @@ func TestAPISyncEndpoint(t *testing.T) {
 }
 
 func TestAPIRecoverEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfoSerial
@@ -921,8 +946,9 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 }
 
 func TestAPIRecoverAllEndpoint(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
 		var resp []api.GlobalPinInfoSerial
@@ -943,8 +969,9 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 }
 
 func TestCORS(t *testing.T) {
+	ctx := context.Background()
 	rest := testAPI(t)
-	defer rest.Shutdown()
+	defer rest.Shutdown(ctx)
 
 	type testcase struct {
 		method string

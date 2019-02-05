@@ -4,6 +4,7 @@ package state
 
 // State represents the shared state of the cluster and it
 import (
+	"context"
 	"io"
 
 	cid "github.com/ipfs/go-cid"
@@ -15,17 +16,17 @@ import (
 // objects which objects are pinned. This component should be thread safe.
 type State interface {
 	// Add adds a pin to the State
-	Add(api.Pin) error
+	Add(context.Context, api.Pin) error
 	// Rm removes a pin from the State
-	Rm(cid.Cid) error
+	Rm(context.Context, cid.Cid) error
 	// List lists all the pins in the state
-	List() []api.Pin
+	List(context.Context) []api.Pin
 	// Has returns true if the state is holding information for a Cid
-	Has(cid.Cid) bool
+	Has(context.Context, cid.Cid) bool
 	// Get returns the information attacthed to this pin
-	Get(cid.Cid) (api.Pin, bool)
+	Get(context.Context, cid.Cid) (api.Pin, bool)
 	// Migrate restores the serialized format of an outdated state to the current version
-	Migrate(r io.Reader) error
+	Migrate(ctx context.Context, r io.Reader) error
 	// Return the version of this state
 	GetVersion() int
 	// Marshal serializes the state to a byte slice

@@ -61,6 +61,10 @@ type Config struct {
 
 	// A Hashicorp Raft's configuration object.
 	RaftConfig *hraft.Config
+
+	// Tracing enables propagation of contexts across binary boundary in
+	// consensus component
+	Tracing bool
 }
 
 // ConfigJSON represents a human-friendly Config

@@ -45,21 +45,15 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmTfA73jjmEphGCYGYyZksqy4vRKdv9sKJLKb6WzbCBqJB",
+      "hash": "QmeZoNDg6yos4DESSzHsYNXKwjLomUxK2CL9PPxAjPj5iJ",
       "name": "go-libp2p-gorpc",
-      "version": "1.0.25"
+      "version": "1.1.0"
     },
     {
       "author": "libp2p",
       "hash": "QmY4Q5JC4vxLEi8EpVxJM4rcRryEVtH1zRKVTAm6BKV1pg",
       "name": "go-libp2p-pnet",
       "version": "3.0.4"
-    },
-    {
-      "author": "ZenGround0",
-      "hash": "QmPuuqyMyoadGDkefg7L11kAwmvQykrHiRkuLjQRpa1bqF",
-      "name": "go-dot",
-      "version": "0.0.1"
     },
     {
       "author": "dignifiedquire",
@@ -161,6 +155,24 @@
       "hash": "QmNNk4iczWp8Q4R1mXQ2mrrjQvWisYqMqbW1an8qGbJZsM",
       "name": "cors",
       "version": "1.6.0"
+    },
+    {
+      "author": "ZenGround0",
+      "hash": "QmPuuqyMyoadGDkefg7L11kAwmvQykrHiRkuLjQRpa1bqF",
+      "name": "go-dot",
+      "version": "0.0.1"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmP8ibs3yQcaPYwz3ZWggPeU6o8vb8iWQrY348zvP3XU6G",
+      "name": "go.opencensus.io",
+      "version": "0.19.0"
+    },
+    {
+      "author": "lanzafame",
+      "hash": "QmafPUA9RPADvFhFiY584v3dbYsQKeGYJDeA5yeQvgkhFE",
+      "name": "go-libp2p-ocgorpc",
+      "version": "0.1.4"
     }
   ],
   "gxVersion": "0.11.0",

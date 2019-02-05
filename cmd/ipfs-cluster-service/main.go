@@ -3,13 +3,12 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
-
-	//	_ "net/http/pprof"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
@@ -156,10 +155,6 @@ func checkErr(doing string, err error, args ...interface{}) {
 }
 
 func main() {
-	// go func() {
-	//	log.Println(http.ListenAndServe("localhost:6060", nil))
-	// }()
-
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "IPFS Cluster node"
@@ -289,6 +284,14 @@ configuration.
 					Hidden: true,
 					Usage:  "pintracker to use [map,stateless].",
 				},
+				cli.BoolFlag{
+					Name:  "stats",
+					Usage: "enable stats collection",
+				},
+				cli.BoolFlag{
+					Name:  "tracing",
+					Usage: "enable tracing collection",
+				},
 			},
 			Action: daemon,
 		},
@@ -308,18 +311,19 @@ configuration.
 					Name:  "upgrade",
 					Usage: "upgrade the IPFS Cluster state to the current version",
 					Description: `
-This command upgrades the internal state of the ipfs-cluster node 
-specified in the latest raft snapshot. The state format is migrated from the 
-version of the snapshot to the version supported by the current cluster version. 
+This command upgrades the internal state of the ipfs-cluster node
+specified in the latest raft snapshot. The state format is migrated from the
+version of the snapshot to the version supported by the current cluster version.
 To successfully run an upgrade of an entire cluster, shut down each peer without
 removal, upgrade state using this command, and restart every peer.
 `,
 					Action: func(c *cli.Context) error {
+						ctx := context.Background()
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
 
-						err = upgrade()
+						err = upgrade(ctx)
 						checkErr("upgrading state", err)
 						return nil
 					},
@@ -328,7 +332,7 @@ removal, upgrade state using this command, and restart every peer.
 					Name:  "export",
 					Usage: "save the IPFS Cluster state to a json file",
 					Description: `
-This command reads the current cluster state and saves it as json for 
+This command reads the current cluster state and saves it as json for
 human readability and editing.  Only state formats compatible with this
 version of ipfs-cluster-service can be exported.  By default this command
 prints the state to stdout.
@@ -341,6 +345,7 @@ prints the state to stdout.
 						},
 					},
 					Action: func(c *cli.Context) error {
+						ctx := context.Background()
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
@@ -357,7 +362,7 @@ prints the state to stdout.
 						}
 						defer w.Close()
 
-						err = export(w)
+						err = export(ctx, w)
 						checkErr("exporting state", err)
 						return nil
 					},
@@ -378,6 +383,7 @@ import.  If no argument is provided cluster will read json from stdin
 						},
 					},
 					Action: func(c *cli.Context) error {
+						ctx := context.Background()
 						err := locker.lock()
 						checkErr("acquiring execution lock", err)
 						defer locker.tryUnlock()
@@ -399,7 +405,7 @@ import.  If no argument is provided cluster will read json from stdin
 							checkErr("reading import file", err)
 						}
 						defer r.Close()
-						err = stateImport(r)
+						err = stateImport(ctx, r)
 						checkErr("importing state", err)
 						logger.Info("the given state has been correctly imported to this peer.  Make sure all peers have consistent states")
 						return nil
@@ -412,7 +418,7 @@ import.  If no argument is provided cluster will read json from stdin
 This command removes the persistent state that is loaded on startup to determine this peer's view of the
 cluster state.  While it removes the existing state from the load path, one invocation does not permanently remove
 this state from disk.  This command renames cluster's data folder to <data-folder-name>.old.0, and rotates other
-deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting 
+deprecated data folders to <data-folder-name>.old.<n+1>, etc for some rotation factor before permanatly deleting
 the mth data folder (m currently defaults to 5)
 `,
 					Flags: []cli.Flag{

@@ -69,12 +69,12 @@ func (mc *Checker) Alerts() <-chan api.Alert {
 // Watch will trigger regular CheckPeers on the given interval. It will call
 // peersF to obtain a peerset. It can be stopped by cancelling the context.
 // Usually you want to launch this in a goroutine.
-func (mc *Checker) Watch(ctx context.Context, peersF func() ([]peer.ID, error), interval time.Duration) {
+func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]peer.ID, error), interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	for {
 		select {
 		case <-ticker.C:
-			peers, err := peersF()
+			peers, err := peersF(ctx)
 			if err != nil {
 				continue
 			}

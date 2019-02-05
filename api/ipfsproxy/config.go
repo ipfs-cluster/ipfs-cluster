@@ -74,6 +74,9 @@ type Config struct {
 	// Establishes how long we should remember extracted headers before we
 	// refresh them with a new request. 0 means always.
 	ExtractHeadersTTL time.Duration
+
+	// Tracing flag used to skip tracing specific paths when not enabled.
+	Tracing bool
 }
 
 type jsonConfig struct {
