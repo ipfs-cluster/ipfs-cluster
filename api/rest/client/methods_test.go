@@ -137,7 +137,12 @@ func TestPin(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Pin(ci, 6, 7, "hello there")
+		opts := types.PinOptions{
+			ReplicationFactorMin: 6,
+			ReplicationFactorMax: 7,
+			Name:                 "hello there",
+		}
+		err := c.Pin(ci, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -166,68 +171,69 @@ type pathCase struct {
 	wantErr bool
 }
 
-func casesForPath() []pathCase {
-	return []pathCase{
-		{
-			test.TestCid5,
-			false,
-		},
-		{
-			test.TestPathIPFS1,
-			false,
-		},
-		{
-			test.TestPathIPFS2,
-			false,
-		},
-		{
-			test.TestPathIPNS2,
-			false,
-		},
-		{
-			test.TestPathIPLD2,
-			false,
-		},
-		{
-			test.TestInvalidPath1,
-			true,
-		},
-		{
-			"/ipfs//QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif/",
-			false,
-		},
-	}
+var pathTestCases = []pathCase{
+	{
+		test.TestCidResolved,
+		false,
+	},
+	{
+		test.TestPathIPFS1,
+		false,
+	},
+	{
+		test.TestPathIPFS2,
+		false,
+	},
+	{
+		test.TestPathIPNS2,
+		false,
+	},
+	{
+		test.TestPathIPLD2,
+		false,
+	},
+	{
+		test.TestInvalidPath1,
+		true,
+	},
+	{
+		"/ipfs//QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif/",
+		false,
+	},
 }
 
 func TestPinPath(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
-	opts := types.PinPath{
-		PinOptions: types.PinOptions{
-			ReplicationFactorMin: 6,
-			ReplicationFactorMax: 7,
-			Name:                 "hello there",
-		},
+	opts := types.PinOptions{
+		ReplicationFactorMin: 6,
+		ReplicationFactorMax: 7,
+		Name:                 "hello there",
 	}
 
 	resultantPin := types.Pin{
-		Cid:        test.TestCidResolved,
-		PinOptions: opts.PinOptions,
+		Cid:        test.MustDecodeCid(test.TestCidResolved),
+		PinOptions: opts,
 	}
-
-	testCases := casesForPath()
 
 	testF := func(t *testing.T, c Client) {
 
-		for _, testCase := range testCases {
-			opts.Path = testCase.path
-			pin, err := c.PinPath(opts)
-			if (err != nil) != testCase.wantErr {
-				t.Errorf("test error = %v, wantErr = %v, path = %s\n", err, testCase.wantErr, testCase.path)
+		for _, testCase := range pathTestCases {
+			p := testCase.path
+			pin, err := c.PinPath(p, opts)
+			if err != nil {
+				if testCase.wantErr {
+					continue
+				} else {
+					t.Fatalf("unexpected error %s: %s", p, err)
+				}
 			}
-			if !testCase.wantErr && !pin.Equals(resultantPin) {
-				t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
+
+			if !pin.Equals(resultantPin) {
+				t.Errorf("expected different pin: %s", p)
+				t.Errorf("expected: %+v", resultantPin.ToSerial())
+				t.Errorf("actual: %+v", pin.ToSerial())
 			}
 
 		}
@@ -240,16 +246,20 @@ func TestUnpinPath(t *testing.T) {
 	api := testAPI(t)
 	defer shutdown(api)
 
-	testCases := casesForPath()
-
 	testF := func(t *testing.T, c Client) {
-		for _, testCase := range testCases {
-			pin, err := c.UnpinPath(testCase.path)
-			if (err != nil) != testCase.wantErr {
-				t.Errorf("test error = %v, wantErr = %v, path = %s\n", err, testCase.wantErr, testCase.path)
+		for _, testCase := range pathTestCases {
+			p := testCase.path
+			pin, err := c.UnpinPath(p)
+			if err != nil {
+				if testCase.wantErr {
+					continue
+				} else {
+					t.Fatalf("unepected error %s: %s", p, err)
+				}
 			}
-			if !testCase.wantErr && pin.Cid != test.TestCidResolved {
-				t.Errorf("expected a different cid, path: %s, expected: %s, found: %s\n", testCase.path, test.TestCid5, pin.Cid.String())
+
+			if pin.Cid.String() != test.TestCidResolved {
+				t.Errorf("bad resolved Cid: %s, %s", p, pin.Cid)
 			}
 		}
 	}
@@ -565,7 +575,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(ci, 0, 0, "test")
+		err := c.Pin(ci, types.PinOptions{0, 0, "test", 0})
 		if err != nil {
 			t.Fatal(err)
 		}

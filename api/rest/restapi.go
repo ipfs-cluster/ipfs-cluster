@@ -16,8 +16,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +23,6 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	"github.com/ipfs/ipfs-cluster/api"
 	types "github.com/ipfs/ipfs-cluster/api"
 
 	mux "github.com/gorilla/mux"
@@ -683,30 +680,30 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.PinSerial
-	if pinOpts := api.parsePathAndOptions(w, r); pinOpts.Path != "" {
-		logger.Debugf("rest api pinPathHandler: %s", pinOpts.Path)
+	if pinpath := api.parsePinPathOrError(w, r); pinpath.Path != "" {
+		logger.Debugf("rest api pinPathHandler: %s", pinpath.Path)
 		err := api.rpcClient.Call(
 			"",
 			"Cluster",
 			"PinPath",
-			pinOpts,
+			pinpath,
 			&pin,
 		)
 
-		api.sendResponse(w, http.StatusOK, err, &pin)
+		api.sendResponse(w, http.StatusOK, err, pin)
 		logger.Debug("rest api pinPathHandler done")
 	}
 }
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.PinSerial
-	if pinOpts := api.parsePathAndOptions(w, r); pinOpts.Path != "" {
-		logger.Debugf("rest api unpinPathHandler: %s", pinOpts.Path)
+	if pinpath := api.parsePinPathOrError(w, r); pinpath.Path != "" {
+		logger.Debugf("rest api unpinPathHandler: %s", pinpath.Path)
 		err := api.rpcClient.Call(
 			"",
 			"Cluster",
 			"UnpinPath",
-			pinOpts.Path,
+			pinpath,
 			&pin,
 		)
 		api.sendResponse(w, http.StatusOK, err, pin)
@@ -973,51 +970,19 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pinOptionsFromQuery(queryValues url.Values) api.PinOptions {
-	var pinOpts api.PinOptions
-
-	pinOpts.Name = queryValues.Get("name")
-	rplStr := queryValues.Get("replication")
-	if rplStr == "" { // compat <= 0.4.0
-		rplStr = queryValues.Get("replication_factor")
-	}
-	rplStrMin := queryValues.Get("replication-min")
-	if rplStrMin == "" { // compat <= 0.4.0
-		rplStrMin = queryValues.Get("replication_factor_min")
-	}
-	rplStrMax := queryValues.Get("replication-max")
-	if rplStrMax == "" { // compat <= 0.4.0
-		rplStrMax = queryValues.Get("replication_factor_max")
-	}
-	if rplStr != "" { // override
-		rplStrMin = rplStr
-		rplStrMax = rplStr
-	}
-	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
-		pinOpts.ReplicationFactorMin = rpl
-	}
-	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
-		pinOpts.ReplicationFactorMax = rpl
-	}
-
-	return pinOpts
-}
-
-func (api *API) parsePathAndOptions(w http.ResponseWriter, r *http.Request) types.PinPath {
+func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) types.PinPath {
 	vars := mux.Vars(r)
-	path := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/") // With a trailing slash we would get `Moved Permanenet` and redirect would not be followed
+	urlpath := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/")
 
-	_, err := gopath.ParsePath(path)
+	path, err := gopath.ParsePath(urlpath)
 	if err != nil {
 		api.sendResponse(w, http.StatusBadRequest, errors.New("error parsing path: "+err.Error()), nil)
 		return types.PinPath{}
 	}
 
-	var pinOpts types.PinPath
-	pinOpts.Path = path
-	pinOpts.PinOptions = pinOptionsFromQuery(r.URL.Query())
-
-	return pinOpts
+	pinPath := types.PinPath{Path: path.String()}
+	pinPath.PinOptions.FromQuery(r.URL.Query())
+	return pinPath
 }
 
 func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
@@ -1035,9 +1000,8 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.Pi
 		Type: uint64(types.DataType),
 	}
 
-	pin.PinOptions = pinOptionsFromQuery(r.URL.Query())
+	pin.PinOptions.FromQuery(r.URL.Query())
 	pin.MaxDepth = -1 // For now, all pins are recursive
-
 	return pin
 }
 

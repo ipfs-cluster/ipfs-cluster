@@ -56,12 +56,12 @@ type Client interface {
 
 	// Pin tracks a Cid with the given replication factor and a name for
 	// human-friendliness.
-	Pin(ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error
+	Pin(ci cid.Cid, opts api.PinOptions) error
 	// Unpin untracks a Cid from cluster.
 	Unpin(ci cid.Cid) error
 
 	// PinPath resolves given path into a cid and performs the pin operation.
-	PinPath(opts api.PinPath) (api.Pin, error)
+	PinPath(path string, opts api.PinOptions) (api.Pin, error)
 	// UnpinPath resolves given path into a cid and performs the unpin operation.
 	// It returns api.Pin of the given cid before it is unpinned.
 	UnpinPath(path string) (api.Pin, error)

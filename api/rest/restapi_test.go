@@ -576,35 +576,32 @@ type pathCase struct {
 	code    int
 }
 
-func casesForPath() []pathCase {
-	return []pathCase{
-		{
-			"/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY?replication-min=6&replication-max=7&name=hello+there",
-			false,
-			http.StatusOK,
-		},
-		{
-			"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif?replication-min=6&replication-max=7&name=hello+there",
-			false,
-			http.StatusOK,
-		},
-		{
-			"/ipfs/invalidhash",
-			true,
-			http.StatusBadRequest,
-		},
-		// TODO: Test StatusNotFound and a case with trailing slash with paths
-		// test.TestPathIPNS2, test.TestPathIPLD2, test.TestInvalidPath1
-	}
+var pathTestCases = []pathCase{
+	{
+		"/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY?replication-min=6&replication-max=7&name=hello+there",
+		false,
+		http.StatusOK,
+	},
+	{
+		"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif?replication-min=6&replication-max=7&name=hello+there",
+		false,
+		http.StatusOK,
+	},
+	{
+		"/ipfs/invalidhash",
+		true,
+		http.StatusBadRequest,
+	},
+	// TODO: Test StatusNotFound and a case with trailing slash with paths
+	// test.TestPathIPNS2, test.TestPathIPLD2, test.TestInvalidPath1
 }
 
 func TestAPIPinEndpointWithPath(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	testCases := casesForPath()
 	resultantPin := api.Pin{
-		Cid: test.TestCidResolved,
+		Cid: test.MustDecodeCid(test.TestCidResolved),
 		PinOptions: api.PinOptions{
 			ReplicationFactorMin: 6,
 			ReplicationFactorMax: 7,
@@ -613,7 +610,7 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	}
 
 	tf := func(t *testing.T, url urlF) {
-		for _, testCase := range testCases {
+		for _, testCase := range pathTestCases {
 			if testCase.wantErr {
 				errResp := api.Error{}
 				makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &errResp)
@@ -660,10 +657,8 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown()
 
-	testCases := casesForPath()
-
 	tf := func(t *testing.T, url urlF) {
-		for _, testCase := range testCases {
+		for _, testCase := range pathTestCases {
 			if testCase.wantErr {
 				errResp := api.Error{}
 				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &errResp)
@@ -673,8 +668,8 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 			} else {
 				pin := api.PinSerial{}
 				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
-				if pin.Cid != test.TestCid5 {
-					t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCid5, pin.Cid, testCase.path)
+				if pin.Cid != test.TestCidResolved {
+					t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCidResolved, pin.Cid, testCase.path)
 				}
 			}
 

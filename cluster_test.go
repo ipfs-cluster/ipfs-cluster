@@ -115,7 +115,7 @@ func (ipfs *mockConnector) Resolve(path string) (cid.Cid, error) {
 		return cid.Undef, err
 	}
 
-	return test.MustDecodeCid(test.TestCid5), nil
+	return test.MustDecodeCid(test.TestCidResolved), nil
 }
 func (ipfs *mockConnector) ConnectSwarms() error                          { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
@@ -276,20 +276,16 @@ func TestClusterPinPath(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown()
 
-	pin, err := cl.PinPath(test.TestPathIPFS2, api.Pin{
-		Type: api.DataType,
-	})
+	pin, err := cl.PinPath(api.PinPath{Path: test.TestPathIPFS2})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCid5 {
+	if pin.Cid.String() != test.TestCidResolved {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
 	// test an error case
-	_, err = cl.PinPath(test.TestInvalidPath1, api.Pin{
-		Type: api.DataType,
-	})
+	_, err = cl.PinPath(api.PinPath{Path: test.TestInvalidPath1})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -803,13 +799,11 @@ func TestClusterUnpinPath(t *testing.T) {
 	}
 
 	// Unpin after pin should succeed
-	pin, err := cl.PinPath(test.TestPathIPFS2, api.Pin{
-		Type: api.DataType,
-	})
+	pin, err := cl.PinPath(api.PinPath{Path: test.TestPathIPFS2})
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCid5 {
+	if pin.Cid.String() != test.TestCidResolved {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
@@ -817,7 +811,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	if err != nil {
 		t.Error("unpin with path should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCid5 {
+	if pin.Cid.String() != test.TestCidResolved {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 }

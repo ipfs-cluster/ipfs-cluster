@@ -297,7 +297,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if s != test.MustDecodeCid(test.TestCid5) {
+	if s.String() != test.TestCidResolved {
 		t.Error("expected different cid")
 	}
 }

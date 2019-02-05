@@ -17,6 +17,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
+	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -63,16 +64,13 @@ func (c *defaultClient) PeerRm(id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *defaultClient) Pin(ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error {
-	escName := url.QueryEscape(name)
+func (c *defaultClient) Pin(ci cid.Cid, opts api.PinOptions) error {
 	err := c.do(
 		"POST",
 		fmt.Sprintf(
-			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
+			"/pins/%s?%s",
 			ci.String(),
-			replicationFactorMin,
-			replicationFactorMax,
-			escName,
+			opts.ToQuery(),
 		),
 		nil,
 		nil,
@@ -86,30 +84,20 @@ func (c *defaultClient) Unpin(ci cid.Cid) error {
 	return c.do("DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
 }
 
-// CleanPath gives a path string that can be readily appended to a url string
-func CleanPath(p string) string {
-	path := strings.TrimPrefix(path.Clean(p), "/")
-
-	// for converting a cid string to ipfs path
-	if !(strings.HasPrefix(path, "ipfs") || strings.HasPrefix(path, "ipns") || strings.HasPrefix(path, "ipld")) {
-		return "ipfs/" + path
+// PinPath allows to pin an element by the given IPFS path.
+func (c *defaultClient) PinPath(path string, opts api.PinOptions) (api.Pin, error) {
+	var pin api.PinSerial
+	ipfspath, err := gopath.ParsePath(path)
+	if err != nil {
+		return api.Pin{}, err
 	}
 
-	return path
-}
-
-// PinPath resolves given path into a cid and performs the pin operation.
-func (c *defaultClient) PinPath(opts api.PinPath) (api.Pin, error) {
-	var pin api.PinSerial
-	escName := url.QueryEscape(opts.Name)
-	err := c.do(
+	err = c.do(
 		"POST",
 		fmt.Sprintf(
-			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
-			CleanPath(opts.Path),
-			opts.ReplicationFactorMin,
-			opts.ReplicationFactorMax,
-			escName,
+			"/pins%s?%s",
+			ipfspath.String(),
+			opts.ToQuery(),
 		),
 		nil,
 		nil,
@@ -119,12 +107,16 @@ func (c *defaultClient) PinPath(opts api.PinPath) (api.Pin, error) {
 	return pin.ToPin(), err
 }
 
-// UnpinPath resolves given path into a cid and performs the unpin operation.
-// It returns api.Pin of the given cid before it is unpinned.
+// UnpinPath allows to unpin an item by providing its IPFS path.
+// It returns the unpinned api.Pin information of the resolved Cid.
 func (c *defaultClient) UnpinPath(p string) (api.Pin, error) {
 	var pin api.PinSerial
-	err := c.do("DELETE", fmt.Sprintf("/pins/%s", CleanPath(p)), nil, nil, &pin)
+	ipfspath, err := gopath.ParsePath(p)
+	if err != nil {
+		return api.Pin{}, err
+	}
 
+	err = c.do("DELETE", fmt.Sprintf("/pins%s", ipfspath.String()), nil, nil, &pin)
 	return pin.ToPin(), err
 }
 

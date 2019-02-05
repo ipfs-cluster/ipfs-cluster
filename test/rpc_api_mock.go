@@ -60,7 +60,7 @@ func (mock *mockService) PinPath(ctx context.Context, in api.PinPath, out *api.P
 	}
 	*out = api.PinSerial{
 		PinOptions: in.PinOptions,
-		Cid:        TestCid5,
+		Cid:        TestCidResolved,
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func (mock *mockService) UnpinPath(ctx context.Context, in string, out *api.PinS
 	if err != nil {
 		return err
 	}
-	*out = api.PinCid(MustDecodeCid(TestCid5)).ToSerial()
+	*out = api.PinCid(MustDecodeCid(TestCidResolved)).ToSerial()
 	return nil
 }
 

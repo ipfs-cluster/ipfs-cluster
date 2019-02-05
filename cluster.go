@@ -1081,21 +1081,22 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 	return nil
 }
 
-// PinPath accepts a path string resolves it into a cid and makes cluster pin it.
-// It returns the expected Pin struct of given cid after the cid is pinned.
-func (c *Cluster) PinPath(path string, p api.Pin) (api.Pin, error) {
-	ci, err := c.ipfs.Resolve(path)
+// PinPath pins an CID resolved from its IPFS Path. It returns the resolved
+// Pin object.
+func (c *Cluster) PinPath(path api.PinPath) (api.Pin, error) {
+	ci, err := c.ipfs.Resolve(path.Path)
 	if err != nil {
 		return api.Pin{}, err
 	}
 
-	p.Cid = ci
+	p := api.PinCid(ci)
+	p.PinOptions = path.PinOptions
 	p, _, err = c.pin(p, []peer.ID{}, p.Allocations)
 	return p, err
 }
 
-// UnpinPath accepts a path string resolves it into a cid and makes the cluster unpin it.
-// It returns the Pin struct of the cid before the cid is unpinned.
+// UnpinPath unpins a CID resolved from its IPFS Path. If returns the
+// previously pinned Pin object.
 func (c *Cluster) UnpinPath(path string) (api.Pin, error) {
 	ci, err := c.ipfs.Resolve(path)
 	if err != nil {

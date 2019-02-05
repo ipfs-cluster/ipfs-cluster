@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	gopath "github.com/ipfs/go-path"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 	uuid "github.com/satori/go.uuid"
@@ -494,9 +492,6 @@ peers should pin this content.
 					},
 					Action: func(c *cli.Context) error {
 						arg := c.Args().First()
-						path, err := gopath.ParsePath(arg)
-						checkErr("parsing path "+arg, err)
-
 						rpl := c.Int("replication")
 						rplMin := c.Int("replication-min")
 						rplMax := c.Int("replication-max")
@@ -505,15 +500,13 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						opts := api.PinPath{
-							Path: path.String(),
-							PinOptions: api.PinOptions{
-								ReplicationFactorMin: rplMin,
-								ReplicationFactorMax: rplMax,
-								Name:                 c.String("Name"),
-							},
+						opts := api.PinOptions{
+							ReplicationFactorMin: rplMin,
+							ReplicationFactorMax: rplMax,
+							Name:                 c.String("Name"),
 						}
-						pin, cerr := globalClient.PinPath(opts)
+
+						pin, cerr := globalClient.PinPath(arg, opts)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
@@ -555,10 +548,7 @@ although unpinning operations in the cluster may take longer or fail.
 					},
 					Action: func(c *cli.Context) error {
 						arg := c.Args().First()
-						path, err := gopath.ParsePath(arg)
-						checkErr("parsing path "+arg, err)
-
-						pin, cerr := globalClient.UnpinPath(path.String())
+						pin, cerr := globalClient.UnpinPath(arg)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
@@ -930,7 +920,7 @@ func handlePinResponseFormatFlags(
 
 	if c.Bool("no-status") {
 		pinSerial := pin.ToSerial()
-		textFormatPrintPin(&pinSerial)
+		formatResponse(c, pinSerial, nil)
 		return
 	}
 
