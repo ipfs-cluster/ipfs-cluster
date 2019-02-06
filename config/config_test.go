@@ -38,18 +38,9 @@ func setupConfigManager() *config.Manager {
 	cfg := config.NewManager()
 	mockCfg := &mockCfg{}
 	cfg.RegisterComponent(config.Cluster, mockCfg)
-	cfg.RegisterComponent(config.API, mockCfg)
-	cfg.RegisterComponent(config.API, mockCfg)
-	cfg.RegisterComponent(config.IPFSConn, mockCfg)
-	cfg.RegisterComponent(config.Consensus, mockCfg)
-	cfg.RegisterComponent(config.PinTracker, mockCfg)
-	cfg.RegisterComponent(config.PinTracker, mockCfg)
-	cfg.RegisterComponent(config.Monitor, mockCfg)
-	cfg.RegisterComponent(config.Monitor, mockCfg)
-	cfg.RegisterComponent(config.Informer, mockCfg)
-	cfg.RegisterComponent(config.Informer, mockCfg)
-	cfg.RegisterComponent(config.Observations, mockCfg)
-	cfg.RegisterComponent(config.Observations, mockCfg)
+	for _, sect := range config.SectionTypes() {
+		cfg.RegisterComponent(sect, mockCfg)
+	}
 	return cfg
 }
 
@@ -73,12 +64,22 @@ func TestManager_ToJSON(t *testing.T) {
       "a": "b"
     }
   },
+  "state": {
+    "mock": {
+      "a": "b"
+    }
+  },
   "pin_tracker": {
     "mock": {
       "a": "b"
     }
   },
   "monitor": {
+    "mock": {
+      "a": "b"
+    }
+  },
+  "allocator": {
     "mock": {
       "a": "b"
     }
