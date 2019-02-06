@@ -193,20 +193,16 @@ var pathTestCases = []pathCase{
 		false,
 	},
 	{
-		test.TestPathIPNS2,
+		test.TestPathIPNS1,
 		false,
 	},
 	{
-		test.TestPathIPLD2,
+		test.TestPathIPLD1,
 		false,
 	},
 	{
 		test.TestInvalidPath1,
 		true,
-	},
-	{
-		"/ipfs//QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif/",
-		false,
 	},
 }
 

@@ -42,6 +42,8 @@ var (
 	TestInvalidPath1 = "/invalidkeytype/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
 	TestInvalidPath2 = "/ipfs/invalidhash"
 	TestInvalidPath3 = "/ipfs/"
+
+	TestResolvedPath = "/ipfs/zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc"
 )
 
 // MustDecodeCid provides a test helper that ignores

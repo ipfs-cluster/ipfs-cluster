@@ -305,7 +305,7 @@ func TestResolve(t *testing.T) {
 		t.Error(err)
 	}
 	if s.String() != test.TestCidResolved {
-		t.Error("expected different cid")
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.TestCidResolved, s.String())
 	}
 }
 
