@@ -721,7 +721,7 @@ func (po *PinOptions) ToQuery() string {
 	return q.Encode()
 }
 
-// PinOptionsFromQuery is the inverse of ToQuery().
+// FromQuery is the inverse of ToQuery().
 func (po *PinOptions) FromQuery(q url.Values) {
 	po.Name = q.Get("name")
 	rplStr := q.Get("replication")
