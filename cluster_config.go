@@ -186,6 +186,19 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg := &configJSON{}
+
+	err := envconfig.Process(cfg.ConfigKey(), jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyConfigJSON(jcfg)
+}
+
 // Validate will check that the values of this config
 // seem to be working ones.
 func (cfg *Config) Validate() error {
@@ -311,6 +324,10 @@ for more information.`)
 		return err
 	}
 
+	return cfg.applyConfigJSON(jcfg)
+}
+
+func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
 		if txt != "" && d == 0 {

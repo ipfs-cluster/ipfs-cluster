@@ -181,6 +181,19 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg := &jsonConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate makes sure that all fields in this Config have
 // working values, at least in appearance.
 func (cfg *Config) Validate() error {
@@ -236,7 +249,11 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	err = cfg.loadHTTPOptions(jcfg)
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
+	err := cfg.loadHTTPOptions(jcfg)
 	if err != nil {
 		return err
 	}

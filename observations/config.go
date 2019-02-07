@@ -58,6 +58,13 @@ func (cfg *MetricsConfig) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *MetricsConfig) ApplyEnvVars() error {
+	// doesn't read any config from env
+	return nil
+}
+
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *MetricsConfig) Validate() error {
@@ -156,6 +163,13 @@ func (cfg *TracingConfig) Default() error {
 	cfg.JaegerAgentEndpoint = agentAddr
 	cfg.TracingSamplingProb = DefaultTracingSamplingProb
 	cfg.TracingServiceName = DefaultTracingServiceName
+	return nil
+}
+
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *TracingConfig) ApplyEnvVars() error {
+	// doesn't read any config from env
 	return nil
 }
 

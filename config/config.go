@@ -34,6 +34,8 @@ type ComponentConfig interface {
 	ToJSON() ([]byte, error)
 	// Sets default working values
 	Default() error
+	// Sets values from environment variables
+	ApplyEnvVars() error
 	// Allows this component to work under a subfolder
 	SetBaseDir(string)
 	// Checks that the configuration is valid
@@ -222,6 +224,30 @@ func (cfg *Manager) Default() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// ApplyEnvVars overrides configuration fields with any values found
+// in environment variables.
+func (cfg *Manager) ApplyEnvVars() error {
+	for _, section := range cfg.sections {
+		for k, compcfg := range section {
+			logger.Debugf("applying environment variables conf for %s", k)
+			err := compcfg.ApplyEnvVars()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if cfg.clusterConfig != nil {
+		logger.Debugf("applying environment variables conf for cluster")
+		err := cfg.clusterConfig.ApplyEnvVars()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

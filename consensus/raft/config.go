@@ -272,6 +272,13 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	// doesn't read any config from env
+	return nil
+}
+
 // GetDataFolder returns the Raft data folder that we are using.
 func (cfg *Config) GetDataFolder() string {
 	if cfg.DataFolder == "" {

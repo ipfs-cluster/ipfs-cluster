@@ -38,6 +38,13 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	// doesn't read any config from env
+	return nil
+}
+
 // Validate checks that the fields of this configuration have
 // sensible values.
 func (cfg *Config) Validate() error {

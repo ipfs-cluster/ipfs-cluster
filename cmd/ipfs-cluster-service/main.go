@@ -240,6 +240,9 @@ configuration.
 				err := cfgMgr.Default()
 				checkErr("generating default configuration", err)
 
+				err = cfgMgr.ApplyEnvVars()
+				checkErr("applying environment variables to configuration", err)
+
 				// Set user secret
 				if userSecretDefined {
 					cfgs.clusterCfg.Secret = userSecret
@@ -501,18 +504,14 @@ func setupDebug() {
 }
 
 func userProvidedSecret(enterSecret bool) ([]byte, bool) {
-	var secret string
 	if enterSecret {
-		secret = promptUser("Enter cluster secret (32-byte hex string): ")
-	} else if envSecret, envSecretDefined := os.LookupEnv("CLUSTER_SECRET"); envSecretDefined {
-		secret = envSecret
-	} else {
-		return nil, false
+		secret := promptUser("Enter cluster secret (32-byte hex string): ")
+		decodedSecret, err := ipfscluster.DecodeClusterSecret(secret)
+		checkErr("parsing user-provided secret", err)
+		return decodedSecret, true
 	}
 
-	decodedSecret, err := ipfscluster.DecodeClusterSecret(secret)
-	checkErr("parsing user-provided secret", err)
-	return decodedSecret, true
+	return nil, false
 }
 
 func promptUser(msg string) string {
