@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/kelseyhightower/envconfig"
 )
 
 const configKey = "monbasic"
+const envConfigKey = "cluster_monbasic"
 
 // Default values for this Config.
 const (
@@ -40,8 +42,14 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	// doesn't read any config from env
-	return nil
+	jcfg := &jsonConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // Validate checks that the fields of this Config have working values,
@@ -63,6 +71,12 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
+	cfg.Default()
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	interval, _ := time.ParseDuration(jcfg.CheckInterval)
 	cfg.CheckInterval = interval
 

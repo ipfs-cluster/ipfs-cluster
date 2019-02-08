@@ -12,6 +12,7 @@ import (
 )
 
 const configKey = "ipfshttp"
+const envConfigKey = "cluster_ipfshttp"
 
 // Default values for Config.
 const (
@@ -140,6 +141,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
 	if err != nil {
 		return fmt.Errorf("error parsing ipfs_node_multiaddress: %s", err)

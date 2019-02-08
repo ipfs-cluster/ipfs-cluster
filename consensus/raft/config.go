@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/kelseyhightower/envconfig"
 
 	hraft "github.com/hashicorp/raft"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -17,6 +18,7 @@ import (
 // ConfigKey is the default configuration key for holding this component's
 // configuration section.
 var configKey = "raft"
+var envConfigKey = "cluster_raft"
 
 // Configuration defaults
 var (
@@ -185,6 +187,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
 		if txt != "" && d == 0 {
@@ -275,8 +281,14 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	// doesn't read any config from env
-	return nil
+	jcfg := &jsonConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // GetDataFolder returns the Raft data folder that we are using.

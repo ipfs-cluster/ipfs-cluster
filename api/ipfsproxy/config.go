@@ -157,8 +157,14 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	// doesn't read any config from env
-	return nil
+	jcfg := &jsonConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // Validate checks that the fields of this Config have sensible values,
@@ -217,12 +223,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return fmt.Errorf("error setting config to default values: %s", err)
 	}
 
-	// override json config with env var
-	err = envconfig.Process("cluster_ipfsproxy", jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyJSONConfig(jcfg)
+}
 
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
 	if err != nil {
 		return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)

@@ -61,8 +61,14 @@ func (cfg *MetricsConfig) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *MetricsConfig) ApplyEnvVars() error {
-	// doesn't read any config from env
-	return nil
+	jcfg := &jsonMetricsConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // Validate checks that the fields of this Config have working values,
@@ -91,13 +97,11 @@ func (cfg *MetricsConfig) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	// override json config with env var
-	err = envconfig.Process(envConfigKey, jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyJSONConfig(jcfg)
+}
 
-	err = cfg.loadMetricsOptions(jcfg)
+func (cfg *MetricsConfig) applyJSONConfig(jcfg *jsonMetricsConfig) error {
+	err := cfg.loadMetricsOptions(jcfg)
 	if err != nil {
 		return err
 	}
@@ -169,8 +173,14 @@ func (cfg *TracingConfig) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *TracingConfig) ApplyEnvVars() error {
-	// doesn't read any config from env
-	return nil
+	jcfg := &jsonTracingConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // Validate checks that the fields of this Config have working values,
@@ -199,13 +209,11 @@ func (cfg *TracingConfig) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	// override json config with env var
-	err = envconfig.Process(envConfigKey, jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyJSONConfig(jcfg)
+}
 
-	err = cfg.loadTracingOptions(jcfg)
+func (cfg *TracingConfig) applyJSONConfig(jcfg *jsonTracingConfig) error {
+	err := cfg.loadTracingOptions(jcfg)
 	if err != nil {
 		return err
 	}
