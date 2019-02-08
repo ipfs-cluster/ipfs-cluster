@@ -318,12 +318,6 @@ for more information.`)
 		return errors.New("cluster.Peers and cluster.Bootstrap keys have been deprecated")
 	}
 
-	// override json config with env var
-	err = envconfig.Process(cfg.ConfigKey(), jcfg)
-	if err != nil {
-		return err
-	}
-
 	return cfg.applyConfigJSON(jcfg)
 }
 

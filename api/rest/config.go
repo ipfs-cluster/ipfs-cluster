@@ -243,12 +243,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	// override json config with env var
-	err = envconfig.Process(envConfigKey, jcfg)
-	if err != nil {
-		return err
-	}
-
 	return cfg.applyJSONConfig(jcfg)
 }
 
