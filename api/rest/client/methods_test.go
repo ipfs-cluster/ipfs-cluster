@@ -217,10 +217,7 @@ func TestPinPath(t *testing.T) {
 		Name:                 "hello there",
 	}
 
-	resultantPin := types.Pin{
-		Cid:        test.MustDecodeCid(test.TestCidResolved),
-		PinOptions: opts,
-	}
+	resultantPin := types.PinWithOpts(test.MustDecodeCid(test.TestCidResolved), opts)
 
 	testF := func(t *testing.T, c Client) {
 
@@ -230,9 +227,8 @@ func TestPinPath(t *testing.T) {
 			if err != nil {
 				if testCase.wantErr {
 					continue
-				} else {
-					t.Fatalf("unexpected error %s: %s", p, err)
 				}
+				t.Fatalf("unexpected error %s: %s", p, err)
 			}
 
 			if !pin.Equals(resultantPin) {
@@ -259,9 +255,8 @@ func TestUnpinPath(t *testing.T) {
 			if err != nil {
 				if testCase.wantErr {
 					continue
-				} else {
-					t.Fatalf("unepected error %s: %s", p, err)
 				}
+				t.Fatalf("unepected error %s: %s", p, err)
 			}
 
 			if pin.Cid.String() != test.TestCidResolved {

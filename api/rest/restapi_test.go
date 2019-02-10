@@ -615,14 +615,14 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown(ctx)
 
-	resultantPin := api.Pin{
-		Cid: test.MustDecodeCid(test.TestCidResolved),
-		PinOptions: api.PinOptions{
+	resultantPin := api.PinWithOpts(
+		test.MustDecodeCid(test.TestCidResolved),
+		api.PinOptions{
 			ReplicationFactorMin: 6,
 			ReplicationFactorMax: 7,
 			Name:                 "hello there",
 		},
-	}
+	)
 
 	tf := func(t *testing.T, url urlF) {
 		for _, testCase := range pathTestCases {
@@ -632,12 +632,12 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 				if errResp.Code != testCase.code {
 					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
 				}
-			} else {
-				pin := api.PinSerial{}
-				makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &pin)
-				if !pin.ToPin().Equals(resultantPin) {
-					t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
-				}
+				continue
+			}
+			pin := api.PinSerial{}
+			makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &pin)
+			if !pin.ToPin().Equals(resultantPin) {
+				t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
 			}
 		}
 	}
@@ -682,14 +682,13 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 				if errResp.Code != testCase.code {
 					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
 				}
-			} else {
-				pin := api.PinSerial{}
-				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
-				if pin.Cid != test.TestCidResolved {
-					t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCidResolved, pin.Cid, testCase.path)
-				}
+				continue
 			}
-
+			pin := api.PinSerial{}
+			makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
+			if pin.Cid != test.TestCidResolved {
+				t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCidResolved, pin.Cid, testCase.path)
+			}
 		}
 	}
 
