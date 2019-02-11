@@ -322,14 +322,6 @@ for more information.`)
 }
 
 func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
-	parseDuration := func(txt string) time.Duration {
-		d, _ := time.ParseDuration(txt)
-		if txt != "" && d == 0 {
-			logger.Warningf("%s is not a valid duration. Default will be used", txt)
-		}
-		return d
-	}
-
 	config.SetIfNotDefault(jcfg.PeerstoreFile, &cfg.PeerstoreFile)
 
 	id, err := peer.IDB58Decode(jcfg.ID)
@@ -376,15 +368,15 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
 	config.SetIfNotDefault(rplMax, &cfg.ReplicationFactorMax)
 
-	stateSyncInterval := parseDuration(jcfg.StateSyncInterval)
-	ipfsSyncInterval := parseDuration(jcfg.IPFSSyncInterval)
-	monitorPingInterval := parseDuration(jcfg.MonitorPingInterval)
-	peerWatchInterval := parseDuration(jcfg.PeerWatchInterval)
-
-	config.SetIfNotDefault(stateSyncInterval, &cfg.StateSyncInterval)
-	config.SetIfNotDefault(ipfsSyncInterval, &cfg.IPFSSyncInterval)
-	config.SetIfNotDefault(monitorPingInterval, &cfg.MonitorPingInterval)
-	config.SetIfNotDefault(peerWatchInterval, &cfg.PeerWatchInterval)
+	err = config.ParseDurations("cluster",
+		&config.DurationOpt{Duration: jcfg.StateSyncInterval, Dst: &cfg.StateSyncInterval, Name: "state_sync_interval"},
+		&config.DurationOpt{Duration: jcfg.IPFSSyncInterval, Dst: &cfg.IPFSSyncInterval, Name: "ipfs_sync_interval"},
+		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
+		&config.DurationOpt{Duration: jcfg.PeerWatchInterval, Dst: &cfg.PeerWatchInterval, Name: "peer_watch_interval"},
+	)
+	if err != nil {
+		return err
+	}
 
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
 	cfg.DisableRepinning = jcfg.DisableRepinning
