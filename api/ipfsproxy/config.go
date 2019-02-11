@@ -82,7 +82,7 @@ type Config struct {
 type jsonConfig struct {
 	ListenMultiaddress string `json:"listen_multiaddress"`
 	NodeMultiaddress   string `json:"node_multiaddress"`
-	NodeHTTPS          string `json:"node_https,omitempty"`
+	NodeHTTPS          bool   `json:"node_https,omitempty"`
 
 	ReadTimeout       string `json:"read_timeout"`
 	ReadHeaderTimeout string `json:"read_header_timeout"`
@@ -278,6 +278,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
 	jcfg.WriteTimeout = cfg.WriteTimeout.String()
 	jcfg.IdleTimeout = cfg.IdleTimeout.String()
+	jcfg.NodeHTTPS = cfg.NodeHTTPS
 
 	jcfg.ExtractHeadersExtra = cfg.ExtractHeadersExtra
 	jcfg.ExtractHeadersPath = cfg.ExtractHeadersPath
