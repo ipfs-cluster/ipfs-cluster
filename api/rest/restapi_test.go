@@ -586,23 +586,37 @@ func TestAPIPinEndpoint(t *testing.T) {
 
 type pathCase struct {
 	path    string
+	opts    api.PinOptions
 	wantErr bool
 	code    int
 }
 
+func (p *pathCase) WithQuery() string {
+	return p.path + "?" + p.opts.ToQuery()
+}
+
+var testPinOpts = api.PinOptions{
+	ReplicationFactorMax: 7,
+	ReplicationFactorMin: 6,
+	Name:                 "hello there",
+}
+
 var pathTestCases = []pathCase{
 	{
-		"/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY?replication-min=6&replication-max=7&name=hello+there",
+		"/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY",
+		testPinOpts,
 		false,
 		http.StatusOK,
 	},
 	{
-		"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif?replication-min=6&replication-max=7&name=hello+there",
+		"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif",
+		testPinOpts,
 		false,
 		http.StatusOK,
 	},
 	{
 		"/ipfs/invalidhash",
+		testPinOpts,
 		true,
 		http.StatusBadRequest,
 	},
@@ -617,25 +631,21 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 
 	resultantPin := api.PinWithOpts(
 		test.MustDecodeCid(test.TestCidResolved),
-		api.PinOptions{
-			ReplicationFactorMin: 6,
-			ReplicationFactorMax: 7,
-			Name:                 "hello there",
-		},
+		testPinOpts,
 	)
 
 	tf := func(t *testing.T, url urlF) {
 		for _, testCase := range pathTestCases {
 			if testCase.wantErr {
 				errResp := api.Error{}
-				makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &errResp)
+				makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &errResp)
 				if errResp.Code != testCase.code {
 					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
 				}
 				continue
 			}
 			pin := api.PinSerial{}
-			makePost(t, rest, url(rest)+"/pins"+testCase.path, []byte{}, &pin)
+			makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &pin)
 			if !pin.ToPin().Equals(resultantPin) {
 				t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
 			}
