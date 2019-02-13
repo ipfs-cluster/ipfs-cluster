@@ -14,7 +14,8 @@ import (
 
 const metricsConfigKey = "metrics"
 const tracingConfigKey = "tracing"
-const envConfigKey = "cluster_observations"
+const metricsEnvConfigKey = "cluster_metrics"
+const tracingEnvConfigKey = "cluster_tracing"
 
 // Default values for this Config.
 const (
@@ -63,7 +64,7 @@ func (cfg *MetricsConfig) Default() error {
 func (cfg *MetricsConfig) ApplyEnvVars() error {
 	jcfg := &jsonMetricsConfig{}
 
-	err := envconfig.Process(envConfigKey, jcfg)
+	err := envconfig.Process(metricsEnvConfigKey, jcfg)
 	if err != nil {
 		return err
 	}
@@ -175,7 +176,7 @@ func (cfg *TracingConfig) Default() error {
 func (cfg *TracingConfig) ApplyEnvVars() error {
 	jcfg := &jsonTracingConfig{}
 
-	err := envconfig.Process(envConfigKey, jcfg)
+	err := envconfig.Process(tracingEnvConfigKey, jcfg)
 	if err != nil {
 		return err
 	}
