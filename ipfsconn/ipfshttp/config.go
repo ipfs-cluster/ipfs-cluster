@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
+
 	"github.com/ipfs/ipfs-cluster/config"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -93,8 +95,14 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	// doesn't read any config from env
-	return nil
+	jcfg := &jsonConfig{}
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // Validate checks that the fields of this Config have sensible values,
