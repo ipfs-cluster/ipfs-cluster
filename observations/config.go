@@ -18,29 +18,29 @@ const envConfigKey = "cluster_observations"
 
 // Default values for this Config.
 const (
-	DefaultEnableStats            = false
-	DefaultPrometheusEndpoint     = "/ip4/0.0.0.0/tcp/8888"
-	DefaultStatsReportingInterval = 2 * time.Second
+	DefaultEnableStats        = false
+	DefaultPrometheusEndpoint = "/ip4/0.0.0.0/tcp/8888"
+	DefaultReportingInterval  = 2 * time.Second
 
 	DefaultEnableTracing       = false
 	DefaultJaegerAgentEndpoint = "/ip4/0.0.0.0/udp/6831"
-	DefaultTracingSamplingProb = 0.3
-	DefaultTracingServiceName  = "cluster-daemon"
+	DefaultSamplingProb        = 0.3
+	DefaultServiceName         = "cluster-daemon"
 )
 
 // MetricsConfig configures metrics collection.
 type MetricsConfig struct {
 	config.Saver
 
-	EnableStats            bool
-	PrometheusEndpoint     ma.Multiaddr
-	StatsReportingInterval time.Duration
+	EnableStats        bool
+	PrometheusEndpoint ma.Multiaddr
+	ReportingInterval  time.Duration
 }
 
 type jsonMetricsConfig struct {
-	EnableStats            bool   `json:"enable_stats"`
-	PrometheusEndpoint     string `json:"prometheus_endpoint"`
-	StatsReportingInterval string `json:"reporting_interval"`
+	EnableStats        bool   `json:"enable_stats"`
+	PrometheusEndpoint string `json:"prometheus_endpoint"`
+	ReportingInterval  string `json:"reporting_interval"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -53,7 +53,7 @@ func (cfg *MetricsConfig) Default() error {
 	cfg.EnableStats = DefaultEnableStats
 	endpointAddr, _ := ma.NewMultiaddr(DefaultPrometheusEndpoint)
 	cfg.PrometheusEndpoint = endpointAddr
-	cfg.StatsReportingInterval = DefaultStatsReportingInterval
+	cfg.ReportingInterval = DefaultReportingInterval
 
 	return nil
 }
@@ -65,7 +65,7 @@ func (cfg *MetricsConfig) Validate() error {
 		if cfg.PrometheusEndpoint == nil {
 			return errors.New("metrics.prometheus_endpoint is undefined")
 		}
-		if cfg.StatsReportingInterval < 0 {
+		if cfg.ReportingInterval < 0 {
 			return errors.New("metrics.reporting_interval is invalid")
 		}
 	}
@@ -109,8 +109,8 @@ func (cfg *MetricsConfig) loadMetricsOptions(jcfg *jsonMetricsConfig) error {
 	return config.ParseDurations(
 		metricsConfigKey,
 		&config.DurationOpt{
-			Duration: jcfg.StatsReportingInterval,
-			Dst:      &cfg.StatsReportingInterval,
+			Duration: jcfg.ReportingInterval,
+			Dst:      &cfg.ReportingInterval,
 			Name:     "metrics.reporting_interval",
 		},
 	)
@@ -119,9 +119,9 @@ func (cfg *MetricsConfig) loadMetricsOptions(jcfg *jsonMetricsConfig) error {
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *MetricsConfig) ToJSON() ([]byte, error) {
 	jcfg := &jsonMetricsConfig{
-		EnableStats:            cfg.EnableStats,
-		PrometheusEndpoint:     cfg.PrometheusEndpoint.String(),
-		StatsReportingInterval: cfg.StatsReportingInterval.String(),
+		EnableStats:        cfg.EnableStats,
+		PrometheusEndpoint: cfg.PrometheusEndpoint.String(),
+		ReportingInterval:  cfg.ReportingInterval.String(),
 	}
 
 	return config.DefaultJSONMarshal(jcfg)
@@ -133,15 +133,15 @@ type TracingConfig struct {
 
 	EnableTracing       bool
 	JaegerAgentEndpoint ma.Multiaddr
-	TracingSamplingProb float64
-	TracingServiceName  string
+	SamplingProb        float64
+	ServiceName         string
 }
 
 type jsonTracingConfig struct {
 	EnableTracing       bool    `json:"enable_tracing"`
 	JaegerAgentEndpoint string  `json:"jaeger_agent_endpoint"`
-	TracingSamplingProb float64 `json:"sampling_prob"`
-	TracingServiceName  string  `json:"service_name"`
+	SamplingProb        float64 `json:"sampling_prob"`
+	ServiceName         string  `json:"service_name"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -154,8 +154,8 @@ func (cfg *TracingConfig) Default() error {
 	cfg.EnableTracing = DefaultEnableTracing
 	agentAddr, _ := ma.NewMultiaddr(DefaultJaegerAgentEndpoint)
 	cfg.JaegerAgentEndpoint = agentAddr
-	cfg.TracingSamplingProb = DefaultTracingSamplingProb
-	cfg.TracingServiceName = DefaultTracingServiceName
+	cfg.SamplingProb = DefaultSamplingProb
+	cfg.ServiceName = DefaultServiceName
 	return nil
 }
 
@@ -166,7 +166,7 @@ func (cfg *TracingConfig) Validate() error {
 		if cfg.JaegerAgentEndpoint == nil {
 			return errors.New("tracing.jaeger_agent_endpoint is undefined")
 		}
-		if cfg.TracingSamplingProb < 0 {
+		if cfg.SamplingProb < 0 {
 			return errors.New("tracing.sampling_prob is invalid")
 		}
 	}
@@ -206,8 +206,8 @@ func (cfg *TracingConfig) loadTracingOptions(jcfg *jsonTracingConfig) error {
 		return fmt.Errorf("loadTracingOptions: JaegerAgentEndpoint multiaddr: %v", err)
 	}
 	cfg.JaegerAgentEndpoint = agentAddr
-	cfg.TracingSamplingProb = jcfg.TracingSamplingProb
-	cfg.TracingServiceName = jcfg.TracingServiceName
+	cfg.SamplingProb = jcfg.SamplingProb
+	cfg.ServiceName = jcfg.ServiceName
 
 	return nil
 }
@@ -217,8 +217,8 @@ func (cfg *TracingConfig) ToJSON() ([]byte, error) {
 	jcfg := &jsonTracingConfig{
 		EnableTracing:       cfg.EnableTracing,
 		JaegerAgentEndpoint: cfg.JaegerAgentEndpoint.String(),
-		TracingSamplingProb: cfg.TracingSamplingProb,
-		TracingServiceName:  cfg.TracingServiceName,
+		SamplingProb:        cfg.SamplingProb,
+		ServiceName:         cfg.ServiceName,
 	}
 
 	return config.DefaultJSONMarshal(jcfg)
