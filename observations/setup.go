@@ -78,7 +78,7 @@ func setupMetrics(cfg *MetricsConfig) error {
 
 	// register prometheus with opencensus
 	view.RegisterExporter(pe)
-	view.SetReportingPeriod(cfg.StatsReportingInterval)
+	view.SetReportingPeriod(cfg.ReportingInterval)
 
 	// register the metrics views of interest
 	if err := view.Register(DefaultViews...); err != nil {
@@ -142,7 +142,7 @@ func setupTracing(cfg *TracingConfig) (*jaeger.Exporter, error) {
 	je, err := jaeger.NewExporter(jaeger.Options{
 		AgentEndpoint: agentAddr,
 		Process: jaeger.Process{
-			ServiceName: cfg.TracingServiceName,
+			ServiceName: cfg.ServiceName,
 		},
 	})
 	if err != nil {
@@ -152,6 +152,6 @@ func setupTracing(cfg *TracingConfig) (*jaeger.Exporter, error) {
 	// register jaeger with opencensus
 	trace.RegisterExporter(je)
 	// configure tracing
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.TracingSamplingProb)})
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.SamplingProb)})
 	return je, nil
 }
