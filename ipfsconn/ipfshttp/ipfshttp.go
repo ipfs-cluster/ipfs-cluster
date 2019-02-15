@@ -693,7 +693,7 @@ func (ipfs *Connector) updateInformerMetric(ctx context.Context) error {
 	var metric api.Metric
 
 	err := ipfs.rpcClient.GoContext(
-		ctx,
+		ipfs.ctx,
 		"",
 		"Cluster",
 		"SendInformerMetric",
