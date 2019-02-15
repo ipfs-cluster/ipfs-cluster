@@ -189,9 +189,12 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	jcfg := &configJSON{}
+	jcfg, err := cfg.toConfigJSON()
+	if err != nil {
+		return err
+	}
 
-	err := envconfig.Process(cfg.ConfigKey(), jcfg)
+	err = envconfig.Process(cfg.ConfigKey(), jcfg)
 	if err != nil {
 		return err
 	}
@@ -386,6 +389,16 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 
 // ToJSON generates a human-friendly version of Config.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
+	jcfg, err := cfg.toConfigJSON()
+	if err != nil {
+		return
+	}
+
+	raw, err = json.MarshalIndent(jcfg, "", "    ")
+	return
+}
+
+func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	// Multiaddress String() may panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -393,7 +406,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &configJSON{}
+	jcfg = &configJSON{}
 
 	// Private Key
 	pkeyBytes, err := cfg.PrivateKey.Bytes()
@@ -418,7 +431,6 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
 
-	raw, err = json.MarshalIndent(jcfg, "", "    ")
 	return
 }
 

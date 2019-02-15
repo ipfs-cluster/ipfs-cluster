@@ -50,7 +50,7 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	jcfg := &jsonConfig{}
+	jcfg := cfg.toJSONConfig()
 
 	err := envconfig.Process(envConfigKey, jcfg)
 	if err != nil {
@@ -97,10 +97,14 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
-	jcfg := &jsonConfig{}
-
-	jcfg.MaxPinQueueSize = cfg.MaxPinQueueSize
-	jcfg.ConcurrentPins = cfg.ConcurrentPins
+	jcfg := cfg.toJSONConfig()
 
 	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *Config) toJSONConfig() *jsonConfig {
+	return &jsonConfig{
+		MaxPinQueueSize: cfg.MaxPinQueueSize,
+		ConcurrentPins:  cfg.ConcurrentPins,
+	}
 }

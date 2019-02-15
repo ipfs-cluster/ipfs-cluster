@@ -95,9 +95,12 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	jcfg := &jsonConfig{}
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return err
+	}
 
-	err := envconfig.Process(envConfigKey, jcfg)
+	err = envconfig.Process(envConfigKey, jcfg)
 	if err != nil {
 		return err
 	}
@@ -178,6 +181,16 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return
+	}
+
+	raw, err = config.DefaultJSONMarshal(jcfg)
+	return
+}
+
+func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	// Multiaddress String() may panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -185,7 +198,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &jsonConfig{}
+	jcfg = &jsonConfig{}
 
 	// Set all configuration fields
 	jcfg.NodeMultiaddress = cfg.NodeAddr.String()
@@ -195,6 +208,5 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.PinTimeout = cfg.PinTimeout.String()
 	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
 
-	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
 }

@@ -62,7 +62,7 @@ func (cfg *MetricsConfig) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *MetricsConfig) ApplyEnvVars() error {
-	jcfg := &jsonMetricsConfig{}
+	jcfg := cfg.toJSONConfig()
 
 	err := envconfig.Process(metricsEnvConfigKey, jcfg)
 	if err != nil {
@@ -130,13 +130,17 @@ func (cfg *MetricsConfig) loadMetricsOptions(jcfg *jsonMetricsConfig) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *MetricsConfig) ToJSON() ([]byte, error) {
-	jcfg := &jsonMetricsConfig{
+	jcfg := cfg.toJSONConfig()
+
+	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *MetricsConfig) toJSONConfig() *jsonMetricsConfig {
+	return &jsonMetricsConfig{
 		EnableStats:        cfg.EnableStats,
 		PrometheusEndpoint: cfg.PrometheusEndpoint.String(),
 		ReportingInterval:  cfg.ReportingInterval.String(),
 	}
-
-	return config.DefaultJSONMarshal(jcfg)
 }
 
 // TracingConfig configures tracing.
@@ -174,7 +178,7 @@ func (cfg *TracingConfig) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *TracingConfig) ApplyEnvVars() error {
-	jcfg := &jsonTracingConfig{}
+	jcfg := cfg.toJSONConfig()
 
 	err := envconfig.Process(tracingEnvConfigKey, jcfg)
 	if err != nil {
@@ -237,12 +241,16 @@ func (cfg *TracingConfig) loadTracingOptions(jcfg *jsonTracingConfig) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *TracingConfig) ToJSON() ([]byte, error) {
-	jcfg := &jsonTracingConfig{
+	jcfg := cfg.toJSONConfig()
+
+	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *TracingConfig) toJSONConfig() *jsonTracingConfig {
+	return &jsonTracingConfig{
 		EnableTracing:       cfg.EnableTracing,
 		JaegerAgentEndpoint: cfg.JaegerAgentEndpoint.String(),
 		SamplingProb:        cfg.SamplingProb,
 		ServiceName:         cfg.ServiceName,
 	}
-
-	return config.DefaultJSONMarshal(jcfg)
 }

@@ -184,9 +184,12 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	jcfg := &jsonConfig{}
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return err
+	}
 
-	err := envconfig.Process(envConfigKey, jcfg)
+	err = envconfig.Process(envConfigKey, jcfg)
 	if err != nil {
 		return err
 	}
@@ -372,6 +375,16 @@ func (cfg *Config) loadLibp2pOptions(jcfg *jsonConfig) error {
 // ToJSON produce a human-friendly JSON representation of the Config
 // object.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return
+	}
+
+	raw, err = config.DefaultJSONMarshal(jcfg)
+	return
+}
+
+func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	// Multiaddress String() may panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -379,7 +392,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &jsonConfig{
+	jcfg = &jsonConfig{
 		HTTPListenMultiaddress: cfg.HTTPListenAddr.String(),
 		SSLCertFile:            cfg.pathSSLCertFile,
 		SSLKeyFile:             cfg.pathSSLKeyFile,
@@ -411,7 +424,6 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		jcfg.Libp2pListenMultiaddress = cfg.Libp2pListenAddr.String()
 	}
 
-	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
 }
 

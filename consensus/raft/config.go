@@ -236,7 +236,13 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 // ToJSON returns the pretty JSON representation of a Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
-	jcfg := &jsonConfig{
+	jcfg := cfg.toJSONConfig()
+
+	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *Config) toJSONConfig() *jsonConfig {
+	return &jsonConfig{
 		DataFolder:           cfg.DataFolder,
 		InitPeerset:          api.PeersToStrings(cfg.InitPeerset),
 		WaitForLeaderTimeout: cfg.WaitForLeaderTimeout.String(),
@@ -253,8 +259,6 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 		SnapshotThreshold:    cfg.RaftConfig.SnapshotThreshold,
 		LeaderLeaseTimeout:   cfg.RaftConfig.LeaderLeaseTimeout.String(),
 	}
-
-	return config.DefaultJSONMarshal(jcfg)
 }
 
 // Default initializes this configuration with working defaults.
@@ -281,7 +285,7 @@ func (cfg *Config) Default() error {
 // ApplyEnvVars fills in any Config fields found
 // as environment variables.
 func (cfg *Config) ApplyEnvVars() error {
-	jcfg := &jsonConfig{}
+	jcfg := cfg.toJSONConfig()
 
 	err := envconfig.Process(envConfigKey, jcfg)
 	if err != nil {
