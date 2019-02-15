@@ -442,7 +442,7 @@ the mth data folder (m currently defaults to 5)
 						}
 
 						cfgMgr, cfgs := makeConfigs()
-						err = cfgMgr.LoadJSONFromFile(configPath)
+						err = cfgMgr.LoadJSONFileAndEnv(configPath)
 						checkErr("reading configuration", err)
 
 						err = cleanupState(cfgs.consensusCfg)

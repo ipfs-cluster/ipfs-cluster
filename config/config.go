@@ -322,6 +322,17 @@ func (cfg *Manager) LoadJSONFromFile(path string) error {
 	return err
 }
 
+// LoadJSONFileAndEnv calls LoadJSONFromFile followed by ApplyEnvVars,
+// reading and parsing a Configuration file and then overriding fields
+// with any values found in environment variables.
+func (cfg *Manager) LoadJSONFileAndEnv(path string) error {
+	if err := cfg.LoadJSONFromFile(path); err != nil {
+		return err
+	}
+
+	return cfg.ApplyEnvVars()
+}
+
 // LoadJSON parses configurations for all registered components,
 // In order to work, component configurations must have been registered
 // beforehand with RegisterComponent.

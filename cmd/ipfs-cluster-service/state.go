@@ -34,7 +34,7 @@ func upgrade(ctx context.Context) error {
 
 	cfgMgr, cfgs := makeConfigs()
 
-	err = cfgMgr.LoadJSONFromFile(configPath)
+	err = cfgMgr.LoadJSONFileAndEnv(configPath)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func restoreStateFromDisk(ctx context.Context) (*mapstate.MapState, bool, error)
 
 	cfgMgr, cfgs := makeConfigs()
 
-	err := cfgMgr.LoadJSONFromFile(configPath)
+	err := cfgMgr.LoadJSONFileAndEnv(configPath)
 	if err != nil {
 		return nil, false, err
 	}
@@ -108,7 +108,7 @@ func stateImport(ctx context.Context, r io.Reader) error {
 
 	cfgMgr, cfgs := makeConfigs()
 
-	err := cfgMgr.LoadJSONFromFile(configPath)
+	err := cfgMgr.LoadJSONFileAndEnv(configPath)
 	if err != nil {
 		return err
 	}

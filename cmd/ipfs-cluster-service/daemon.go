@@ -69,7 +69,7 @@ func daemon(c *cli.Context) error {
 	// always wait for configuration to be saved
 	defer cfgMgr.Shutdown()
 
-	err = cfgMgr.LoadJSONFromFile(configPath)
+	err = cfgMgr.LoadJSONFileAndEnv(configPath)
 	checkErr("loading configuration", err)
 
 	if c.Bool("stats") {
