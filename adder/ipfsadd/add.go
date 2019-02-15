@@ -102,11 +102,16 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 		CidBuilder: adder.CidBuilder,
 	}
 
-	if adder.Trickle {
-		return trickle.Layout(params.New(chnk))
+	dbh, err := params.New(chnk)
+	if err != nil {
+		return nil, err
 	}
 
-	return balanced.Layout(params.New(chnk))
+	if adder.Trickle {
+		return trickle.Layout(dbh)
+	}
+
+	return balanced.Layout(dbh)
 }
 
 // RootNode returns the root node of the Added.
