@@ -78,7 +78,7 @@ func setupMetrics(cfg *MetricsConfig) error {
 
 	// register prometheus with opencensus
 	view.RegisterExporter(pe)
-	view.SetReportingPeriod(cfg.StatsReportingInterval)
+	view.SetReportingPeriod(cfg.ReportingInterval)
 
 	// register the metrics views of interest
 	if err := view.Register(DefaultViews...); err != nil {
@@ -116,15 +116,15 @@ func setupMetrics(cfg *MetricsConfig) error {
 		mux.Handle("/metrics", pe)
 		mux.Handle("/debug/vars", expvar.Handler())
 		mux.HandleFunc("/debug/pprof", pprof.Index)
-		mux.HandleFunc("/debug/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/profile", pprof.Profile)
-		mux.HandleFunc("/debug/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/trace", pprof.Trace)
-		mux.Handle("/debug/block", pprof.Handler("block"))
-		mux.Handle("/debug/goroutine", pprof.Handler("goroutine"))
-		mux.Handle("/debug/heap", pprof.Handler("heap"))
-		mux.Handle("/debug/mutex", pprof.Handler("mutex"))
-		mux.Handle("/debug/threadcreate", pprof.Handler("threadcreate"))
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mux.Handle("/debug/pprof/block", pprof.Handler("block"))
+		mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 		if err := http.ListenAndServe(promAddr, mux); err != nil {
 			logger.Fatalf("Failed to run Prometheus /metrics endpoint: %v", err)
 		}
@@ -142,7 +142,7 @@ func setupTracing(cfg *TracingConfig) (*jaeger.Exporter, error) {
 	je, err := jaeger.NewExporter(jaeger.Options{
 		AgentEndpoint: agentAddr,
 		Process: jaeger.Process{
-			ServiceName: cfg.TracingServiceName,
+			ServiceName: cfg.ServiceName,
 		},
 	})
 	if err != nil {
@@ -152,6 +152,6 @@ func setupTracing(cfg *TracingConfig) (*jaeger.Exporter, error) {
 	// register jaeger with opencensus
 	trace.RegisterExporter(je)
 	// configure tracing
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.TracingSamplingProb)})
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.SamplingProb)})
 	return je, nil
 }
