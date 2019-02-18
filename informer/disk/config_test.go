@@ -2,7 +2,9 @@ package disk
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
@@ -79,5 +81,15 @@ func TestDefault(t *testing.T) {
 	cfg.Type = MetricRepoSize
 	if cfg.Validate() != nil {
 		t.Fatal("MetricRepoSize is a valid type")
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_DISK_METRICTTL", "22s")
+	cfg := &Config{}
+	cfg.ApplyEnvVars()
+
+	if cfg.MetricTTL != 22*time.Second {
+		t.Fatal("failed to override metric_ttl with env var")
 	}
 }
