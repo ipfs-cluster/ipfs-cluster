@@ -1,24 +1,24 @@
 # IPFS Cluster Changelog
 
-### v0.9.0 - 2019-02-08
+### v0.9.0 - 2019-02-18
 
 #### Summary
 
-IPFS Cluster version 0.9.0 comes with one big new feature, [OpenCensus](https://opencensus.io) support! This allows for the collection of distributed traces and metrics from the IPFS Cluster application as well as supporting libraries. Currently, we support the use of [Jaeger]() as the tracing backend and [Prometheus]() as the metrics backend. Support for other [OpenCensus backends](https://opencensus.io/exporters/) will be added as requested by the community.
+IPFS Cluster version 0.9.0 comes with one big new feature, [OpenCensus](https://opencensus.io) support! This allows for the collection of distributed traces and metrics from the IPFS Cluster application as well as supporting libraries. Currently, we support the use of [Jaeger](https://jaegertracing.io) as the tracing backend and [Prometheus](https://prometheus.io) as the metrics backend. Support for other [OpenCensus backends](https://opencensus.io/exporters/) will be added as requested by the community.
 
 #### List of changes
 
 ##### Features
 
-  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase [ipfs/ipfs-cluster#486](https://github.com/ipfs/ipfs-cluster/issues/486).
+  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase | [ipfs/ipfs-cluster#486](https://github.com/ipfs/ipfs-cluster/issues/486) | [ipfs/ipfs-cluster#658](https://github.com/ipfs/ipfs-cluster/issues/658) | [ipfs/ipfs-cluster#659](https://github.com/ipfs/ipfs-cluster/issues/659).
 
-##### Fixes
+##### Bug Fixes
 
-  * Fixing of `ToJSON` [ipfs/ipfs-cluster#658](https://github.com/ipfs/ipfs-cluster/issues/658) [ipfs/ipfs-cluster#659](https://github.com/ipfs/ipfs-cluster/issues/659).
+No existing bugs were fixed.
 
 ##### Deprecated
 
-  * The snap distribution of IPFS Cluster has been removed [ipfs/ipfs-cluster#593](https://github.com/ipfs/ipfs-cluster/issues/593) [ipfs/ipfs-cluster#649](https://github.com/ipfs/ipfs-cluster/issues/649).
+  * The snap distribution of IPFS Cluster has been removed | [ipfs/ipfs-cluster#593](https://github.com/ipfs/ipfs-cluster/issues/593) | [ipfs/ipfs-cluster#649](https://github.com/ipfs/ipfs-cluster/issues/649).
 
 #### Upgrading notices
 
@@ -59,7 +59,83 @@ No changes to the REST API.
 
 ##### Go APIs
 
-No changes to the Go APIs.
+The Go APIs had the minor change of having a `context.Context` parameter added as the first argument 
+to those that didn't already have it. This was to enable the proporgation of tracing and metric
+values.
+
+The following is a list of interfaces and their methods that were affected by this change:
+ - Component
+    - Shutdown
+ - Consensus
+    - Ready
+    - LogPin
+    - LogUnpin
+    - AddPeer
+    - RmPeer
+    - State
+    - Leader
+    - WaitForSync
+    - Clean
+    - Peers
+ - IpfsConnector
+    - ID
+    - ConnectSwarm
+    - SwarmPeers
+    - RepoStat
+    - BlockPut
+    - BlockGet
+ - Peered
+    - AddPeer
+    - RmPeer
+ - PinTracker
+    - Track
+    - Untrack
+    - StatusAll
+    - Status
+    - SyncAll
+    - Sync
+    - RecoverAll
+    - Recover
+ - Informer
+    - GetMetric
+ - PinAllocator
+    - Allocate
+ - PeerMonitor
+    - LogMetric
+    - PublishMetric
+    - LatestMetrics
+ - state.State
+    - Add
+    - Rm
+    - List
+    - Has
+    - Get
+    - Migrate
+ - rest.Client
+    - ID
+    - Peers
+    - PeerAdd
+    - PeerRm
+    - Add
+    - AddMultiFile
+    - Pin
+    - Unpin
+    - Allocations
+    - Allocation
+    - Status
+    - StatusAll
+    - Sync
+    - SyncAll
+    - Recover
+    - RecoverAll
+    - Version
+    - IPFS
+    - GetConnectGraph
+    - Metrics
+
+These interface changes were also made in the respective implementations.
+All export methods of the Cluster type also had these changes made.
+
 
 ##### Other
 
