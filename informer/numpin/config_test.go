@@ -2,7 +2,9 @@ package numpin
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
@@ -53,5 +55,15 @@ func TestDefault(t *testing.T) {
 	cfg.MetricTTL = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_NUMPIN_METRICTTL", "22s")
+	cfg := &Config{}
+	cfg.ApplyEnvVars()
+
+	if cfg.MetricTTL != 22*time.Second {
+		t.Fatal("failed to override metric_ttl with env var")
 	}
 }
