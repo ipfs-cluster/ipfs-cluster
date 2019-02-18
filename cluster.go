@@ -1112,9 +1112,9 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 }
 
 // pin performs the actual pinning and supports a blacklist to be
-// able to evacuate a node and returns whether the pin was submitted
+// able to evacuate a node and returns the pin object that it tried to pin, whether the pin was submitted
 // to the consensus layer or skipped (due to error or to the fact
-// that it was already valid).
+// that it was already valid) and errror.
 func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (api.Pin, bool, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pin")
 	defer span.End()
@@ -1233,6 +1233,10 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 // PinPath pins an CID resolved from its IPFS Path. It returns the resolved
 // Pin object.
 func (c *Cluster) PinPath(ctx context.Context, path api.PinPath) (api.Pin, error) {
+	_, span := trace.StartSpan(ctx, "cluster/PinPath")
+	defer span.End()
+
+	ctx = trace.NewContext(c.ctx, span)
 	ci, err := c.ipfs.Resolve(ctx, path.Path)
 	if err != nil {
 		return api.Pin{}, err
@@ -1247,6 +1251,10 @@ func (c *Cluster) PinPath(ctx context.Context, path api.PinPath) (api.Pin, error
 // UnpinPath unpins a CID resolved from its IPFS Path. If returns the
 // previously pinned Pin object.
 func (c *Cluster) UnpinPath(ctx context.Context, path string) (api.Pin, error) {
+	_, span := trace.StartSpan(ctx, "cluster/UnpinPath")
+	defer span.End()
+
+	ctx = trace.NewContext(c.ctx, span)
 	ci, err := c.ipfs.Resolve(ctx, path)
 	if err != nil {
 		return api.Pin{}, err

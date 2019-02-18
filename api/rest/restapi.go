@@ -705,7 +705,8 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.PinSerial
 	if pinpath := api.parsePinPathOrError(w, r); pinpath.Path != "" {
 		logger.Debugf("rest api pinPathHandler: %s", pinpath.Path)
-		err := api.rpcClient.Call(
+		err := api.rpcClient.CallContext(
+			r.Context(),
 			"",
 			"Cluster",
 			"PinPath",
@@ -722,7 +723,8 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.PinSerial
 	if pinpath := api.parsePinPathOrError(w, r); pinpath.Path != "" {
 		logger.Debugf("rest api unpinPathHandler: %s", pinpath.Path)
-		err := api.rpcClient.Call(
+		err := api.rpcClient.CallContext(
+			r.Context(),
 			"",
 			"Cluster",
 			"UnpinPath",

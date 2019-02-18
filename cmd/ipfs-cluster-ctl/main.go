@@ -524,7 +524,7 @@ peers should pin this content.
 						opts := api.PinOptions{
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
-							Name:                 c.String("Name"),
+							Name:                 c.String("name"),
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)

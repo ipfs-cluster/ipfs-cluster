@@ -606,6 +606,9 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
 
 // Resolve accepts ipfs or ipns path and resolves it into a cid
 func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Resolve")
+	defer span.End()
+
 	validPath, err := gopath.ParsePath(path)
 	if err != nil {
 		logger.Error("could not parse path: " + err.Error())
@@ -617,7 +620,7 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error
 		return ci, err
 	}
 
-	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.IPFSRequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(path), "", nil)
 	if err != nil {

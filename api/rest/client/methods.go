@@ -106,6 +106,9 @@ func (c *defaultClient) Unpin(ctx context.Context, ci cid.Cid) error {
 
 // PinPath allows to pin an element by the given IPFS path.
 func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOptions) (api.Pin, error) {
+	ctx, span := trace.StartSpan(ctx, "client/PinPath")
+	defer span.End()
+
 	var pin api.PinSerial
 	ipfspath, err := gopath.ParsePath(path)
 	if err != nil {
@@ -131,6 +134,9 @@ func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOp
 // UnpinPath allows to unpin an item by providing its IPFS path.
 // It returns the unpinned api.Pin information of the resolved Cid.
 func (c *defaultClient) UnpinPath(ctx context.Context, p string) (api.Pin, error) {
+	ctx, span := trace.StartSpan(ctx, "client/UnpinPath")
+	defer span.End()
+
 	var pin api.PinSerial
 	ipfspath, err := gopath.ParsePath(p)
 	if err != nil {
