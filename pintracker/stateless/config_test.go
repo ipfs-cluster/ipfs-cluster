@@ -2,6 +2,7 @@ package stateless
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 )
 
@@ -57,5 +58,15 @@ func TestDefault(t *testing.T) {
 	cfg.ConcurrentPins = -2
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_STATELESS_CONCURRENTPINS", "22")
+	cfg := &Config{}
+	cfg.ApplyEnvVars()
+
+	if cfg.ConcurrentPins != 22 {
+		t.Fatal("failed to override concurrent_pins with env var")
 	}
 }
