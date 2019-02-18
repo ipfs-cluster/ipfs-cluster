@@ -2,7 +2,9 @@ package pubsubmon
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
@@ -53,5 +55,15 @@ func TestDefault(t *testing.T) {
 	cfg.CheckInterval = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_PUBSUBMON_CHECKINTERVAL", "22s")
+	cfg := &Config{}
+	cfg.ApplyEnvVars()
+
+	if cfg.CheckInterval != 22*time.Second {
+		t.Fatal("failed to override check_interval with env var")
 	}
 }
