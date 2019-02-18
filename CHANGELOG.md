@@ -10,11 +10,11 @@ IPFS Cluster version 0.9.0 comes with one big new feature, [OpenCensus](https://
 
 ##### Features
 
-  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase | [ipfs/ipfs-cluster#486](https://github.com/ipfs/ipfs-cluster/issues/486) | [ipfs/ipfs-cluster#658](https://github.com/ipfs/ipfs-cluster/issues/658) | [ipfs/ipfs-cluster#659](https://github.com/ipfs/ipfs-cluster/issues/659).
+  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase | [ipfs/ipfs-cluster#486](https://github.com/ipfs/ipfs-cluster/issues/486) | [ipfs/ipfs-cluster#658](https://github.com/ipfs/ipfs-cluster/issues/658) | [ipfs/ipfs-cluster#659](https://github.com/ipfs/ipfs-cluster/issues/659) | [ipfs/ipfs-cluster#676](https://github.com/ipfs/ipfs-cluster/issues/676) | [ipfs/ipfs-cluster#671](https://github.com/ipfs/ipfs-cluster/issues/671) | [ipfs/ipfs-cluster#674](https://github.com/ipfs/ipfs-cluster/issues/674)
 
 ##### Bug Fixes
 
-No existing bugs were fixed.
+No bugs were fixed from the previous release.
 
 ##### Deprecated
 
