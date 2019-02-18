@@ -2,6 +2,7 @@ package raft
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	hraft "github.com/hashicorp/raft"
@@ -104,5 +105,16 @@ func TestDefault(t *testing.T) {
 
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_RAFT_COMMITRETRIES", "300")
+	cfg := &Config{}
+	cfg.Default()
+	cfg.ApplyEnvVars()
+
+	if cfg.CommitRetries != 300 {
+		t.Fatal("failed to override commit_retries with env var")
 	}
 }
