@@ -30,6 +30,10 @@ func (m *mockCfg) Default() error {
 	return nil
 }
 
+func (m *mockCfg) ApplyEnvVars() error {
+	return nil
+}
+
 func (m *mockCfg) Validate() error {
 	return nil
 }

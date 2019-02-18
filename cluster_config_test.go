@@ -187,15 +187,6 @@ func TestLoadJSON(t *testing.T) {
 			t.Error("expected default replication factors")
 		}
 	})
-
-	t.Run("env var override", func(t *testing.T) {
-		os.Setenv("CLUSTER_PEERNAME", "envsetpeername")
-		cfg := &Config{}
-		cfg.LoadJSON(ccfgTestJSON)
-		if cfg.Peername != "envsetpeername" {
-			t.Fatal("failed to override peername with env var")
-		}
-	})
 }
 
 func TestToJSON(t *testing.T) {
@@ -217,6 +208,16 @@ func TestDefault(t *testing.T) {
 	cfg.Default()
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_PEERNAME", "envsetpeername")
+	cfg := &Config{}
+	cfg.Default()
+	cfg.ApplyEnvVars()
+	if cfg.Peername != "envsetpeername" {
+		t.Fatal("failed to override peername with env var")
 	}
 }
 
