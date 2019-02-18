@@ -2,7 +2,9 @@ package ipfshttp
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
@@ -57,5 +59,16 @@ func TestDefault(t *testing.T) {
 	cfg.NodeAddr = nil
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+}
+
+func TestApplyEnvVar(t *testing.T) {
+	os.Setenv("CLUSTER_IPFSHTTP_PINTIMEOUT", "22m")
+	cfg := &Config{}
+	cfg.Default()
+	cfg.ApplyEnvVars()
+
+	if cfg.PinTimeout != 22*time.Minute {
+		t.Fatal("failed to override pin_timeout with env var")
 	}
 }
