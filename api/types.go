@@ -17,6 +17,9 @@ import (
 	"strings"
 	"time"
 
+	pb "github.com/ipfs/ipfs-cluster/api/pb"
+
+	proto "github.com/gogo/protobuf/proto"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -704,10 +707,11 @@ func (pT PinType) String() string {
 
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
-	ReplicationFactorMin int    `json:"replication_factor_min"`
-	ReplicationFactorMax int    `json:"replication_factor_max"`
-	Name                 string `json:"name"`
-	ShardSize            uint64 `json:"shard_size"`
+	ReplicationFactorMin int               `json:"replication_factor_min" codec:"rn,omitempty"`
+	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
+	Name                 string            `json:"name" codec:"n,omitempty"`
+	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
+	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 }
 
 // Pin carries all the information associated to a CID that is pinned
@@ -749,10 +753,7 @@ func PinCid(c cid.Cid) Pin {
 // its PinOptions fields with the given options.
 func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
 	p := PinCid(c)
-	p.ReplicationFactorMin = opts.ReplicationFactorMin
-	p.ReplicationFactorMax = opts.ReplicationFactorMax
-	p.Name = opts.Name
-	p.ShardSize = opts.ShardSize
+	p.PinOptions = opts
 	return p
 }
 
@@ -760,11 +761,11 @@ func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
 type PinSerial struct {
 	PinOptions
 
-	Cid         string   `json:"cid"`
-	Type        uint64   `json:"type"`
-	Allocations []string `json:"allocations"`
-	MaxDepth    int      `json:"max_depth"`
-	Reference   string   `json:"reference"`
+	Cid         string   `json:"cid" codec:"c,omitempty"`
+	Type        uint64   `json:"type" codec:"t,omitempty"`
+	Allocations []string `json:"allocations" codec:"a,omitempty"`
+	MaxDepth    int      `json:"max_depth" codec:"d,omitempty"`
+	Reference   string   `json:"reference" codec:"r,omitempty"`
 }
 
 // ToSerial converts a Pin to PinSerial.
@@ -778,7 +779,6 @@ func (pin Pin) ToSerial() PinSerial {
 		ref = pin.Reference.String()
 	}
 
-	n := pin.Name
 	allocs := PeersToStrings(pin.Allocations)
 
 	return PinSerial{
@@ -787,13 +787,91 @@ func (pin Pin) ToSerial() PinSerial {
 		Type:        uint64(pin.Type),
 		MaxDepth:    pin.MaxDepth,
 		Reference:   ref,
-		PinOptions: PinOptions{
-			Name:                 n,
-			ReplicationFactorMin: pin.ReplicationFactorMin,
-			ReplicationFactorMax: pin.ReplicationFactorMax,
-			ShardSize:            pin.ShardSize,
-		},
+		PinOptions:  pin.PinOptions,
 	}
+}
+
+func convertPinType(t PinType) pb.Pin_PinType {
+	var i pb.Pin_PinType
+	for t != 1 {
+		if t == 0 {
+			return pb.Pin_BadType
+		}
+		t = t >> 1
+		i++
+	}
+	return i
+}
+
+// ProtoMarshal marshals this Pin using probobuf.
+func (pin *Pin) ProtoMarshal() ([]byte, error) {
+	allocs := make([][]byte, len(pin.Allocations), len(pin.Allocations))
+	for i, pid := range pin.Allocations {
+		bs, err := pid.Marshal()
+		if err != nil {
+			return nil, err
+		}
+		allocs[i] = bs
+	}
+
+	pbPin := &pb.Pin{
+		Cid:                  pin.Cid.Bytes(),
+		Type:                 convertPinType(pin.Type),
+		Allocations:          allocs,
+		MaxDepth:             int32(pin.MaxDepth),
+		Reference:            pin.Reference.Bytes(),
+		ReplicationFactorMin: int32(pin.ReplicationFactorMin),
+		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
+		Name:                 pin.Name,
+		ShardSize:            pin.ShardSize,
+		Metadata:             pin.Metadata,
+	}
+	return proto.Marshal(pbPin)
+}
+
+// ProtoUnmarshal unmarshals this fields from protobuf-encoded bytes.
+func (pin *Pin) ProtoUnmarshal(data []byte) error {
+	pbPin := pb.Pin{}
+	err := proto.Unmarshal(data, &pbPin)
+	if err != nil {
+		return err
+	}
+	ci, err := cid.Cast(pbPin.GetCid())
+	if err != nil {
+		pin.Cid = cid.Undef
+	} else {
+		pin.Cid = ci
+	}
+
+	pin.Type = 1 << uint64(pbPin.GetType())
+
+	pbAllocs := pbPin.GetAllocations()
+	lenAllocs := len(pbAllocs)
+	allocs := make([]peer.ID, lenAllocs, lenAllocs)
+	for i, pidb := range pbAllocs {
+		pid, err := peer.IDFromBytes(pidb)
+		if err != nil {
+			return err
+		}
+		allocs[i] = pid
+	}
+
+	pin.Allocations = allocs
+	pin.MaxDepth = int(pbPin.GetMaxDepth())
+	ref, err := cid.Cast(pbPin.GetReference())
+	if err != nil {
+		pin.Reference = cid.Undef
+
+	} else {
+		pin.Reference = ref
+	}
+	pin.Reference = ref
+	pin.ReplicationFactorMin = int(pbPin.GetReplicationFactorMin())
+	pin.ReplicationFactorMax = int(pbPin.GetReplicationFactorMax())
+	pin.Name = pbPin.GetName()
+	pin.ShardSize = pbPin.GetShardSize()
+	pin.Metadata = pbPin.GetMetadata()
+	return nil
 }
 
 // Equals checks if two pins are the same (with the same allocations).

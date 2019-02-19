@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -303,4 +304,48 @@ func BenchmarkPinSerial_DecodeCid(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		pinS.DecodeCid()
 	}
+}
+
+func TestConvertPinType(t *testing.T) {
+	for _, t1 := range []PinType{BadType, ShardType} {
+		i := convertPinType(t1)
+		t2 := PinType(1 << uint64(i))
+		if t2 != t1 {
+			t.Error("bad conversion")
+		}
+	}
+}
+
+func checkDupTags(t *testing.T, name string, typ reflect.Type, tags map[string]struct{}) {
+	if tags == nil {
+		tags = make(map[string]struct{})
+	}
+	for i := 0; i < typ.NumField(); i++ {
+		f := typ.Field(i)
+
+		if f.Type.Kind() == reflect.Struct && f.Anonymous {
+			checkDupTags(t, name, f.Type, tags)
+			continue
+		}
+
+		tag := f.Tag.Get(name)
+		if tag == "" {
+			continue
+		}
+		val := strings.Split(tag, ",")[0]
+
+		t.Logf("%s: '%s:%s'", f.Name, name, val)
+		_, ok := tags[val]
+		if ok {
+			t.Errorf("%s: tag %s already used", f.Name, val)
+		}
+		tags[val] = struct{}{}
+	}
+}
+
+// TestPinTags checks that we are not re-using the same codec tag for
+// different fields in the Pin object.
+func TestPinTags(t *testing.T) {
+	typ := reflect.TypeOf(PinSerial{})
+	checkDupTags(t, "codec", typ, nil)
 }

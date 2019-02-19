@@ -1,0 +1,23 @@
+syntax = "proto3";
+package api.pb;
+
+message Pin {
+  bytes Cid = 1;
+  enum PinType {
+    BadType = 0; // 1 << iota
+    DataType = 1; // 2 << iota
+    MetaType = 2;
+    ClusterDAGType = 3;
+    ShardType = 4;
+  }
+  PinType Type = 2;
+  repeated bytes Allocations = 3;
+  sint32 MaxDepth = 4;
+  bytes Reference = 5;
+  reserved 6,7;
+  sint32 ReplicationFactorMin = 8;
+  sint32 ReplicationFactorMax = 9;
+  string Name = 10;
+  uint64 ShardSize = 11;
+  map<string, string> Metadata = 12;
+}

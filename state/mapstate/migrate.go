@@ -6,8 +6,9 @@ package mapstate
 // - add a case to the switch statement for the previous format version
 // - update the code copying the from mapStateVx to mapState
 import (
-	"bytes"
+	"context"
 	"errors"
+	"io"
 
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
 
@@ -18,7 +19,7 @@ import (
 // to other state formats
 type migrateable interface {
 	next() migrateable
-	unmarshal([]byte) error
+	unmarshal(io.Reader) error
 }
 
 /* V1 */
@@ -29,9 +30,8 @@ type mapStateV1 struct {
 }
 
 // Unmarshal the serialization of a v1 state
-func (st *mapStateV1) unmarshal(bs []byte) error {
-	buf := bytes.NewBuffer(bs)
-	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+func (st *mapStateV1) unmarshal(r io.Reader) error {
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(r)
 	return dec.Decode(st)
 }
 
@@ -63,9 +63,8 @@ type mapStateV2 struct {
 	Version int
 }
 
-func (st *mapStateV2) unmarshal(bs []byte) error {
-	buf := bytes.NewBuffer(bs)
-	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+func (st *mapStateV2) unmarshal(r io.Reader) error {
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(r)
 	return dec.Decode(st)
 }
 
@@ -99,9 +98,8 @@ type mapStateV3 struct {
 	Version int
 }
 
-func (st *mapStateV3) unmarshal(bs []byte) error {
-	buf := bytes.NewBuffer(bs)
-	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+func (st *mapStateV3) unmarshal(r io.Reader) error {
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(r)
 	return dec.Decode(st)
 }
 
@@ -137,9 +135,8 @@ type mapStateV4 struct {
 	Version int
 }
 
-func (st *mapStateV4) unmarshal(bs []byte) error {
-	buf := bytes.NewBuffer(bs)
-	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+func (st *mapStateV4) unmarshal(r io.Reader) error {
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(r)
 	return dec.Decode(st)
 }
 
@@ -170,48 +167,37 @@ func (st *mapStateV4) next() migrateable {
 
 /* V5 */
 
-// Uncomment for next migration
-// type pinOptionsV5 struct {
-// 	ReplicationFactorMin int    `json:"replication_factor_min"`
-// 	ReplicationFactorMax int    `json:"replication_factor_max"`
-// 	Name                 string `json:"name"`
-// 	ShardSize            uint64 `json:"shard_size"`
-// }
-
-// type pinSerialV5 struct {
-// 	pinOptionsV5
-
-// 	Cid         string   `json:"cid"`
-// 	Type        uint64   `json:"type"`
-// 	Allocations []string `json:"allocations"`
-// 	MaxDepth    int      `json:"max_depth"`
-// 	Reference   string   `json:"reference"`
-// }
-
 type mapStateV5 struct {
-	PinMap  map[string]api.PinSerial
+	PinMap  map[string]api.PinSerial // this has not changed
 	Version int
 }
 
-func (st *mapStateV5) unmarshal(bs []byte) error {
-	buf := bytes.NewBuffer(bs)
-	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(buf)
+func (st *mapStateV5) unmarshal(r io.Reader) error {
+	dec := msgpack.Multicodec(msgpack.DefaultMsgpackHandle()).Decoder(r)
 	return dec.Decode(st)
 }
 
 func (st *mapStateV5) next() migrateable {
-	return nil
+	v6 := NewMapState()
+	for _, v := range st.PinMap {
+		v6.Add(context.Background(), v.ToPin())
+	}
+	return v6.(*MapState)
+}
+
+// Last time we use this migration approach.
+func (st *MapState) next() migrateable { return nil }
+func (st *MapState) unmarshal(r io.Reader) error {
+	return st.dst.Unmarshal(r)
 }
 
 // Migrate code
 
-func finalCopy(st *MapState, internal *mapStateV5) {
-	for k, v := range internal.PinMap {
-		st.PinMap[k] = v
-	}
+func finalCopy(st *MapState, internal *MapState) {
+	st.dst = internal.dst
 }
 
-func (st *MapState) migrateFrom(version int, snap []byte) error {
+func (st *MapState) migrateFrom(version int, snap io.Reader) error {
 	var m, next migrateable
 	switch version {
 	case 1:
@@ -226,6 +212,9 @@ func (st *MapState) migrateFrom(version int, snap []byte) error {
 	case 4:
 		var mst4 mapStateV4
 		m = &mst4
+	case 5:
+		var mst5 mapStateV5
+		m = &mst5
 	default:
 		return errors.New("version migration not supported")
 	}
@@ -238,11 +227,11 @@ func (st *MapState) migrateFrom(version int, snap []byte) error {
 	for {
 		next = m.next()
 		if next == nil {
-			mst5, ok := m.(*mapStateV5)
+			mst6, ok := m.(*MapState)
 			if !ok {
 				return errors.New("migration ended prematurely")
 			}
-			finalCopy(st, mst5)
+			finalCopy(st, mst6)
 			return nil
 		}
 		m = next

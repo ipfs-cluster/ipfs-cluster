@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/cors"
-
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
+	cors "github.com/rs/cors"
 )
 
 // Some values used by the ipfs mock
@@ -34,7 +34,7 @@ type IpfsMock struct {
 	server     *httptest.Server
 	Addr       string
 	Port       int
-	pinMap     *mapstate.MapState
+	pinMap     state.State
 	BlockStore map[string][]byte
 }
 
