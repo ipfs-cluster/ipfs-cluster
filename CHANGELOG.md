@@ -1,5 +1,148 @@
 # IPFS Cluster Changelog
 
+### v0.9.0 - 2019-02-18
+
+#### Summary
+
+IPFS Cluster version 0.9.0 comes with one big new feature, [OpenCensus](https://opencensus.io) support! This allows for the collection of distributed traces and metrics from the IPFS Cluster application as well as supporting libraries. Currently, we support the use of [Jaeger](https://jaegertracing.io) as the tracing backend and [Prometheus](https://prometheus.io) as the metrics backend. Support for other [OpenCensus backends](https://opencensus.io/exporters/) will be added as requested by the community.
+
+#### List of changes
+
+##### Features
+
+  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase | [ipfs/ipfs-cluster#486](https://github.com/ipfs/ipfs-cluster/issues/486) | [ipfs/ipfs-cluster#658](https://github.com/ipfs/ipfs-cluster/issues/658) | [ipfs/ipfs-cluster#659](https://github.com/ipfs/ipfs-cluster/issues/659) | [ipfs/ipfs-cluster#676](https://github.com/ipfs/ipfs-cluster/issues/676) | [ipfs/ipfs-cluster#671](https://github.com/ipfs/ipfs-cluster/issues/671) | [ipfs/ipfs-cluster#674](https://github.com/ipfs/ipfs-cluster/issues/674)
+
+##### Bug Fixes
+
+No bugs were fixed from the previous release.
+
+##### Deprecated
+
+  * The snap distribution of IPFS Cluster has been removed | [ipfs/ipfs-cluster#593](https://github.com/ipfs/ipfs-cluster/issues/593) | [ipfs/ipfs-cluster#649](https://github.com/ipfs/ipfs-cluster/issues/649).
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes to the existing configuration.
+
+There are two new configuration sections with this release:
+
+###### `tracing` section
+
+The `tracing` section configures the use of Jaeger as a tracing backend.
+
+```js
+    "tracing": {
+      "enable_tracing": false,
+      "jaeger_agent_endpoint": "/ip4/0.0.0.0/udp/6831",
+      "sampling_prob": 0.3,
+      "service_name": "cluster-daemon"
+    }
+```
+
+###### `metrics` section
+
+The `metrics` section configures the use of Prometheus as a metrics collector.
+
+```js
+    "metrics": {
+      "enable_stats": false,
+      "prometheus_endpoint": "/ip4/0.0.0.0/tcp/8888",
+      "reporting_interval": "2s"
+    }
+```
+
+##### REST API
+
+No changes to the REST API.
+
+##### Go APIs
+
+The Go APIs had the minor change of having a `context.Context` parameter added as the first argument 
+to those that didn't already have it. This was to enable the proporgation of tracing and metric
+values.
+
+The following is a list of interfaces and their methods that were affected by this change:
+ - Component
+    - Shutdown
+ - Consensus
+    - Ready
+    - LogPin
+    - LogUnpin
+    - AddPeer
+    - RmPeer
+    - State
+    - Leader
+    - WaitForSync
+    - Clean
+    - Peers
+ - IpfsConnector
+    - ID
+    - ConnectSwarm
+    - SwarmPeers
+    - RepoStat
+    - BlockPut
+    - BlockGet
+ - Peered
+    - AddPeer
+    - RmPeer
+ - PinTracker
+    - Track
+    - Untrack
+    - StatusAll
+    - Status
+    - SyncAll
+    - Sync
+    - RecoverAll
+    - Recover
+ - Informer
+    - GetMetric
+ - PinAllocator
+    - Allocate
+ - PeerMonitor
+    - LogMetric
+    - PublishMetric
+    - LatestMetrics
+ - state.State
+    - Add
+    - Rm
+    - List
+    - Has
+    - Get
+    - Migrate
+ - rest.Client
+    - ID
+    - Peers
+    - PeerAdd
+    - PeerRm
+    - Add
+    - AddMultiFile
+    - Pin
+    - Unpin
+    - Allocations
+    - Allocation
+    - Status
+    - StatusAll
+    - Sync
+    - SyncAll
+    - Recover
+    - RecoverAll
+    - Version
+    - IPFS
+    - GetConnectGraph
+    - Metrics
+
+These interface changes were also made in the respective implementations.
+All export methods of the Cluster type also had these changes made.
+
+
+##### Other
+
+No other things.
+
+---
+
 ### v0.8.0 - 2019-01-16
 
 #### Summary
@@ -51,8 +194,8 @@ adding a file, which is always the root hash.
  * Fix `ipfs-cluster-ctl` usage with HTTPs and `/dns*` hostnames | [ipfs/ipfs-cluster#626](https://github.com/ipfs/ipfs-cluster/issues/626)
  * Minor fixes in sharness | [ipfs/ipfs-cluster#641](https://github.com/ipfs/ipfs-cluster/issues/641) | [ipfs/ipfs-cluster#643](https://github.com/ipfs/ipfs-cluster/issues/643)
  * Fix error handling when parsing the configuration | [ipfs/ipfs-cluster#642](https://github.com/ipfs/ipfs-cluster/issues/642)
- 
-  
+
+
 
 #### Upgrading notices
 
@@ -176,7 +319,7 @@ Note that the REST API response format for the `/add` endpoint has changed. Thus
   * Support overwriting configuration values in the `cluster` section with environmental values | [ipfs/ipfs-cluster#575](https://github.com/ipfs/ipfs-cluster/issues/575) | [ipfs/ipfs-cluster#596](https://github.com/ipfs/ipfs-cluster/issues/596)
   * Set snaps to `classic` confinement mode and revert it since approval never arrived | [ipfs/ipfs-cluster#579](https://github.com/ipfs/ipfs-cluster/issues/579) | [ipfs/ipfs-cluster#594](https://github.com/ipfs/ipfs-cluster/issues/594)
 * Use Go's reverse proxy library in the proxy endpoint | [ipfs/ipfs-cluster#570](https://github.com/ipfs/ipfs-cluster/issues/570) | [ipfs/ipfs-cluster#605](https://github.com/ipfs/ipfs-cluster/issues/605)
-  
+
 
 ##### Bug fixes
 
@@ -379,7 +522,7 @@ whether an item is pinning (a request to ipfs is ongoing) vs. pin-queued (waitin
 * Broadcasting of monitoring metrics using PubSub: we have added a new `monitor` implementation that uses PubSub (rather than RPC broadcasting). With the upcoming improvements to PubSub this means that we can do efficient broadcasting of metrics while at the same time not requiring peers to have RPC permissions, which is preparing the ground for collaborative clusters.
 * We have launched the IPFS Cluster website: https://cluster.ipfs.io . We moved most of the documentation over there, expanded it and updated it.
 
-#### List of changes 
+#### List of changes
 
 ##### Features
 

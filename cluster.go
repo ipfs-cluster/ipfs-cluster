@@ -739,20 +739,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// Note that our regular bootstrap process is still running in the
 	// background since we created the cluster.
 	go func() {
-		ch := make(chan time.Time)
-		bstCfg := dht.DefaultBootstrapConfig
-		dhtBstCtx, cancel := context.WithTimeout(ctx, bstCfg.Timeout*2)
-		defer cancel()
-		proc, err := c.dht.BootstrapOnSignal(bstCfg, ch)
-		if err != nil {
-			logger.Error(err)
-		}
-		ch <- time.Now() // boostrap
-		defer close(ch)
-		select {
-		case <-dhtBstCtx.Done(): // shut down the process
-			proc.Close()
-		}
+		c.dht.BootstrapOnce(c.ctx, dht.DefaultBootstrapConfig)
 	}()
 
 	// wait for leader and for state to catch up

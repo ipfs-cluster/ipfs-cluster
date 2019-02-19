@@ -14,6 +14,7 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
+
 	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/state"
@@ -612,12 +613,8 @@ func LastStateRaw(cfg *Config) (io.Reader, bool, error) {
 // peer ids to include in the snapshot metadata if no snapshot exists
 // from which to copy the raft metadata
 func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
-	newStateBytes, err := p2praft.EncodeSnapshot(newState)
-	if err != nil {
-		return err
-	}
 	dataFolder := cfg.GetDataFolder()
-	err = makeDataFolder(dataFolder)
+	err := makeDataFolder(dataFolder)
 	if err != nil {
 		return err
 	}
@@ -657,7 +654,7 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 		return err
 	}
 
-	_, err = sink.Write(newStateBytes)
+	err = p2praft.EncodeSnapshot(newState, sink)
 	if err != nil {
 		sink.Cancel()
 		return err
