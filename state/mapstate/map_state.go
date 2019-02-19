@@ -45,6 +45,7 @@ func NewMapState() state.State {
 	if err != nil {
 		panic(err)
 	}
+	dsSt.SetVersion(Version)
 	return &MapState{dsSt}
 }
 

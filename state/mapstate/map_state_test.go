@@ -107,7 +107,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		t.Fatal(err)
 	}
 	if ms.GetVersion() != ms2.GetVersion() {
-		t.Fatal(err)
+		t.Fatal("version mismatch", ms.GetVersion(), ms2.GetVersion())
 	}
 	get, ok := ms2.Get(ctx, c.Cid)
 	if !ok {
