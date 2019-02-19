@@ -82,7 +82,7 @@ type Config struct {
 type jsonConfig struct {
 	ListenMultiaddress string `json:"listen_multiaddress"`
 	NodeMultiaddress   string `json:"node_multiaddress"`
-	NodeHTTPS          string `json:"node_https,omitempty"`
+	NodeHTTPS          bool   `json:"node_https,omitempty"`
 
 	ReadTimeout       string `json:"read_timeout"`
 	ReadHeaderTimeout string `json:"read_header_timeout"`
@@ -154,6 +154,22 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return err
+	}
+
+	err = envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this Config have sensible values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
@@ -210,12 +226,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return fmt.Errorf("error setting config to default values: %s", err)
 	}
 
-	// override json config with env var
-	err = envconfig.Process("cluster_ipfsproxy", jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyJSONConfig(jcfg)
+}
 
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
 	if err != nil {
 		return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)
@@ -251,6 +265,16 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return
+	}
+
+	raw, err = config.DefaultJSONMarshal(jcfg)
+	return
+}
+
+func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	// Multiaddress String() may panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -258,7 +282,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &jsonConfig{}
+	jcfg = &jsonConfig{}
 
 	// Set all configuration fields
 	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
@@ -267,11 +291,11 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
 	jcfg.WriteTimeout = cfg.WriteTimeout.String()
 	jcfg.IdleTimeout = cfg.IdleTimeout.String()
+	jcfg.NodeHTTPS = cfg.NodeHTTPS
 
 	jcfg.ExtractHeadersExtra = cfg.ExtractHeadersExtra
 	jcfg.ExtractHeadersPath = cfg.ExtractHeadersPath
 	jcfg.ExtractHeadersTTL = cfg.ExtractHeadersTTL.String()
 
-	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
 }

@@ -34,6 +34,8 @@ type ComponentConfig interface {
 	ToJSON() ([]byte, error)
 	// Sets default working values
 	Default() error
+	// Sets values from environment variables
+	ApplyEnvVars() error
 	// Allows this component to work under a subfolder
 	SetBaseDir(string)
 	// Checks that the configuration is valid
@@ -225,6 +227,30 @@ func (cfg *Manager) Default() error {
 	return nil
 }
 
+// ApplyEnvVars overrides configuration fields with any values found
+// in environment variables.
+func (cfg *Manager) ApplyEnvVars() error {
+	for _, section := range cfg.sections {
+		for k, compcfg := range section {
+			logger.Debugf("applying environment variables conf for %s", k)
+			err := compcfg.ApplyEnvVars()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if cfg.clusterConfig != nil {
+		logger.Debugf("applying environment variables conf for cluster")
+		err := cfg.clusterConfig.ApplyEnvVars()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // RegisterComponent lets the Manager load and save component configurations
 func (cfg *Manager) RegisterComponent(t SectionType, ccfg ComponentConfig) {
 	cfg.wg.Add(1)
@@ -294,6 +320,17 @@ func (cfg *Manager) LoadJSONFromFile(path string) error {
 
 	err = cfg.LoadJSON(file)
 	return err
+}
+
+// LoadJSONFileAndEnv calls LoadJSONFromFile followed by ApplyEnvVars,
+// reading and parsing a Configuration file and then overriding fields
+// with any values found in environment variables.
+func (cfg *Manager) LoadJSONFileAndEnv(path string) error {
+	if err := cfg.LoadJSONFromFile(path); err != nil {
+		return err
+	}
+
+	return cfg.ApplyEnvVars()
 }
 
 // LoadJSON parses configurations for all registered components,

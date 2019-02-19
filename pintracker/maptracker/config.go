@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/kelseyhightower/envconfig"
+
 	"github.com/ipfs/ipfs-cluster/config"
 )
 
 const configKey = "maptracker"
+const envConfigKey = "cluster_maptracker"
 
 // Default values for this Config.
 const (
@@ -44,6 +47,19 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg := cfg.toJSONConfig()
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
@@ -69,6 +85,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	config.SetIfNotDefault(jcfg.MaxPinQueueSize, &cfg.MaxPinQueueSize)
 	config.SetIfNotDefault(jcfg.ConcurrentPins, &cfg.ConcurrentPins)
 
@@ -77,10 +97,14 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
-	jcfg := &jsonConfig{}
-
-	jcfg.MaxPinQueueSize = cfg.MaxPinQueueSize
-	jcfg.ConcurrentPins = cfg.ConcurrentPins
+	jcfg := cfg.toJSONConfig()
 
 	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *Config) toJSONConfig() *jsonConfig {
+	return &jsonConfig{
+		MaxPinQueueSize: cfg.MaxPinQueueSize,
+		ConcurrentPins:  cfg.ConcurrentPins,
+	}
 }

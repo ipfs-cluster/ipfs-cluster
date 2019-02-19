@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
+
 	"github.com/ipfs/ipfs-cluster/config"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 const configKey = "ipfshttp"
+const envConfigKey = "cluster_ipfshttp"
 
 // Default values for Config.
 const (
@@ -89,6 +92,22 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return err
+	}
+
+	err = envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this Config have sensible values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
@@ -133,6 +152,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
 	if err != nil {
 		return fmt.Errorf("error parsing ipfs_node_multiaddress: %s", err)
@@ -158,6 +181,16 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return
+	}
+
+	raw, err = config.DefaultJSONMarshal(jcfg)
+	return
+}
+
+func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	// Multiaddress String() may panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -165,7 +198,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &jsonConfig{}
+	jcfg = &jsonConfig{}
 
 	// Set all configuration fields
 	jcfg.NodeMultiaddress = cfg.NodeAddr.String()
@@ -175,6 +208,5 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.PinTimeout = cfg.PinTimeout.String()
 	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
 
-	raw, err = config.DefaultJSONMarshal(jcfg)
 	return
 }

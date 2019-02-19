@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/kelseyhightower/envconfig"
 )
 
 const configKey = "pubsubmon"
+const envConfigKey = "cluster_pubsubmon"
 
 // Default values for this Config.
 const (
@@ -37,6 +39,19 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg := cfg.toJSONConfig()
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *Config) Validate() error {
@@ -56,6 +71,12 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
+	cfg.Default()
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	interval, _ := time.ParseDuration(jcfg.CheckInterval)
 	cfg.CheckInterval = interval
 
@@ -64,9 +85,13 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
-	jcfg := &jsonConfig{}
-
-	jcfg.CheckInterval = cfg.CheckInterval.String()
+	jcfg := cfg.toJSONConfig()
 
 	return json.MarshalIndent(jcfg, "", "    ")
+}
+
+func (cfg *Config) toJSONConfig() *jsonConfig {
+	return &jsonConfig{
+		CheckInterval: cfg.CheckInterval.String(),
+	}
 }

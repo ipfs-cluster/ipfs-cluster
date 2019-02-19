@@ -186,6 +186,22 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg, err := cfg.toConfigJSON()
+	if err != nil {
+		return err
+	}
+
+	err = envconfig.Process(cfg.ConfigKey(), jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyConfigJSON(jcfg)
+}
+
 // Validate will check that the values of this config
 // seem to be working ones.
 func (cfg *Config) Validate() error {
@@ -305,20 +321,10 @@ for more information.`)
 		return errors.New("cluster.Peers and cluster.Bootstrap keys have been deprecated")
 	}
 
-	// override json config with env var
-	err = envconfig.Process(cfg.ConfigKey(), jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyConfigJSON(jcfg)
+}
 
-	parseDuration := func(txt string) time.Duration {
-		d, _ := time.ParseDuration(txt)
-		if txt != "" && d == 0 {
-			logger.Warningf("%s is not a valid duration. Default will be used", txt)
-		}
-		return d
-	}
-
+func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	config.SetIfNotDefault(jcfg.PeerstoreFile, &cfg.PeerstoreFile)
 
 	id, err := peer.IDB58Decode(jcfg.ID)
@@ -365,15 +371,15 @@ for more information.`)
 	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
 	config.SetIfNotDefault(rplMax, &cfg.ReplicationFactorMax)
 
-	stateSyncInterval := parseDuration(jcfg.StateSyncInterval)
-	ipfsSyncInterval := parseDuration(jcfg.IPFSSyncInterval)
-	monitorPingInterval := parseDuration(jcfg.MonitorPingInterval)
-	peerWatchInterval := parseDuration(jcfg.PeerWatchInterval)
-
-	config.SetIfNotDefault(stateSyncInterval, &cfg.StateSyncInterval)
-	config.SetIfNotDefault(ipfsSyncInterval, &cfg.IPFSSyncInterval)
-	config.SetIfNotDefault(monitorPingInterval, &cfg.MonitorPingInterval)
-	config.SetIfNotDefault(peerWatchInterval, &cfg.PeerWatchInterval)
+	err = config.ParseDurations("cluster",
+		&config.DurationOpt{Duration: jcfg.StateSyncInterval, Dst: &cfg.StateSyncInterval, Name: "state_sync_interval"},
+		&config.DurationOpt{Duration: jcfg.IPFSSyncInterval, Dst: &cfg.IPFSSyncInterval, Name: "ipfs_sync_interval"},
+		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
+		&config.DurationOpt{Duration: jcfg.PeerWatchInterval, Dst: &cfg.PeerWatchInterval, Name: "peer_watch_interval"},
+	)
+	if err != nil {
+		return err
+	}
 
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
 	cfg.DisableRepinning = jcfg.DisableRepinning
@@ -383,6 +389,16 @@ for more information.`)
 
 // ToJSON generates a human-friendly version of Config.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
+	jcfg, err := cfg.toConfigJSON()
+	if err != nil {
+		return
+	}
+
+	raw, err = json.MarshalIndent(jcfg, "", "    ")
+	return
+}
+
+func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	// Multiaddress String() may panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -390,7 +406,7 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 		}
 	}()
 
-	jcfg := &configJSON{}
+	jcfg = &configJSON{}
 
 	// Private Key
 	pkeyBytes, err := cfg.PrivateKey.Bytes()
@@ -415,7 +431,6 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
 
-	raw, err = json.MarshalIndent(jcfg, "", "    ")
 	return
 }
 

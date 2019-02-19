@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/kelseyhightower/envconfig"
 )
 
 const configKey = "numpin"
+const envConfigKey = "cluster_numpin"
 
 // These are the default values for a Config.
 const (
@@ -38,6 +40,19 @@ func (cfg *Config) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg := cfg.toJSONConfig()
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this configuration have
 // sensible values.
 func (cfg *Config) Validate() error {
@@ -56,6 +71,12 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		return err
 	}
 
+	cfg.Default()
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	t, _ := time.ParseDuration(jcfg.MetricTTL)
 	cfg.MetricTTL = t
 
@@ -64,9 +85,13 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
-	jcfg := &jsonConfig{}
-
-	jcfg.MetricTTL = cfg.MetricTTL.String()
+	jcfg := cfg.toJSONConfig()
 
 	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *Config) toJSONConfig() *jsonConfig {
+	return &jsonConfig{
+		MetricTTL: cfg.MetricTTL.String(),
+	}
 }

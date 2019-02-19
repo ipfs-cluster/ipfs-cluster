@@ -2,7 +2,9 @@ package ipfsproxy
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
@@ -123,5 +125,16 @@ func TestDefault(t *testing.T) {
 	cfg.ExtractHeadersPath = ""
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+}
+
+func TestApplyEnvVars(t *testing.T) {
+	os.Setenv("CLUSTER_IPFSPROXY_IDLETIMEOUT", "22s")
+	cfg := &Config{}
+	cfg.Default()
+	cfg.ApplyEnvVars()
+
+	if cfg.IdleTimeout != 22*time.Second {
+		t.Error("failed to override idle_timeout with env var")
 	}
 }

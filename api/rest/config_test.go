@@ -110,14 +110,15 @@ func TestLoadJSON(t *testing.T) {
 	}
 }
 
-func TestLoadJSONEnvConfig(t *testing.T) {
+func TestApplyEnvVars(t *testing.T) {
 	username := "admin"
 	password := "thisaintmypassword"
 	user1 := "user1"
 	user1pass := "user1passwd"
 	os.Setenv("CLUSTER_RESTAPI_BASICAUTHCREDS", username+":"+password+","+user1+":"+user1pass)
 	cfg := &Config{}
-	err := cfg.LoadJSON(cfgJSON)
+	cfg.Default()
+	err := cfg.ApplyEnvVars()
 	if err != nil {
 		t.Fatal(err)
 	}

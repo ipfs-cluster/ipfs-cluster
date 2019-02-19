@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/kelseyhightower/envconfig"
 
 	hraft "github.com/hashicorp/raft"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -17,6 +18,7 @@ import (
 // ConfigKey is the default configuration key for holding this component's
 // configuration section.
 var configKey = "raft"
+var envConfigKey = "cluster_raft"
 
 // Configuration defaults
 var (
@@ -185,6 +187,10 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
+	return cfg.applyJSONConfig(jcfg)
+}
+
+func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
 		if txt != "" && d == 0 {
@@ -230,7 +236,13 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 // ToJSON returns the pretty JSON representation of a Config.
 func (cfg *Config) ToJSON() ([]byte, error) {
-	jcfg := &jsonConfig{
+	jcfg := cfg.toJSONConfig()
+
+	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *Config) toJSONConfig() *jsonConfig {
+	return &jsonConfig{
 		DataFolder:           cfg.DataFolder,
 		InitPeerset:          api.PeersToStrings(cfg.InitPeerset),
 		WaitForLeaderTimeout: cfg.WaitForLeaderTimeout.String(),
@@ -247,8 +259,6 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 		SnapshotThreshold:    cfg.RaftConfig.SnapshotThreshold,
 		LeaderLeaseTimeout:   cfg.RaftConfig.LeaderLeaseTimeout.String(),
 	}
-
-	return config.DefaultJSONMarshal(jcfg)
 }
 
 // Default initializes this configuration with working defaults.
@@ -270,6 +280,19 @@ func (cfg *Config) Default() error {
 	cfg.RaftConfig.LogOutput = ioutil.Discard
 	cfg.RaftConfig.Logger = raftStdLogger // see logging.go
 	return nil
+}
+
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *Config) ApplyEnvVars() error {
+	jcfg := cfg.toJSONConfig()
+
+	err := envconfig.Process(envConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
 }
 
 // GetDataFolder returns the Raft data folder that we are using.

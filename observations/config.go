@@ -14,7 +14,8 @@ import (
 
 const metricsConfigKey = "metrics"
 const tracingConfigKey = "tracing"
-const envConfigKey = "cluster_observations"
+const metricsEnvConfigKey = "cluster_metrics"
+const tracingEnvConfigKey = "cluster_tracing"
 
 // Default values for this Config.
 const (
@@ -58,6 +59,19 @@ func (cfg *MetricsConfig) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *MetricsConfig) ApplyEnvVars() error {
+	jcfg := cfg.toJSONConfig()
+
+	err := envconfig.Process(metricsEnvConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *MetricsConfig) Validate() error {
@@ -84,13 +98,11 @@ func (cfg *MetricsConfig) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	// override json config with env var
-	err = envconfig.Process(envConfigKey, jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyJSONConfig(jcfg)
+}
 
-	err = cfg.loadMetricsOptions(jcfg)
+func (cfg *MetricsConfig) applyJSONConfig(jcfg *jsonMetricsConfig) error {
+	err := cfg.loadMetricsOptions(jcfg)
 	if err != nil {
 		return err
 	}
@@ -118,13 +130,17 @@ func (cfg *MetricsConfig) loadMetricsOptions(jcfg *jsonMetricsConfig) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *MetricsConfig) ToJSON() ([]byte, error) {
-	jcfg := &jsonMetricsConfig{
+	jcfg := cfg.toJSONConfig()
+
+	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *MetricsConfig) toJSONConfig() *jsonMetricsConfig {
+	return &jsonMetricsConfig{
 		EnableStats:        cfg.EnableStats,
 		PrometheusEndpoint: cfg.PrometheusEndpoint.String(),
 		ReportingInterval:  cfg.ReportingInterval.String(),
 	}
-
-	return config.DefaultJSONMarshal(jcfg)
 }
 
 // TracingConfig configures tracing.
@@ -159,6 +175,19 @@ func (cfg *TracingConfig) Default() error {
 	return nil
 }
 
+// ApplyEnvVars fills in any Config fields found
+// as environment variables.
+func (cfg *TracingConfig) ApplyEnvVars() error {
+	jcfg := cfg.toJSONConfig()
+
+	err := envconfig.Process(tracingEnvConfigKey, jcfg)
+	if err != nil {
+		return err
+	}
+
+	return cfg.applyJSONConfig(jcfg)
+}
+
 // Validate checks that the fields of this Config have working values,
 // at least in appearance.
 func (cfg *TracingConfig) Validate() error {
@@ -185,13 +214,11 @@ func (cfg *TracingConfig) LoadJSON(raw []byte) error {
 
 	cfg.Default()
 
-	// override json config with env var
-	err = envconfig.Process(envConfigKey, jcfg)
-	if err != nil {
-		return err
-	}
+	return cfg.applyJSONConfig(jcfg)
+}
 
-	err = cfg.loadTracingOptions(jcfg)
+func (cfg *TracingConfig) applyJSONConfig(jcfg *jsonTracingConfig) error {
+	err := cfg.loadTracingOptions(jcfg)
 	if err != nil {
 		return err
 	}
@@ -214,12 +241,16 @@ func (cfg *TracingConfig) loadTracingOptions(jcfg *jsonTracingConfig) error {
 
 // ToJSON generates a human-friendly JSON representation of this Config.
 func (cfg *TracingConfig) ToJSON() ([]byte, error) {
-	jcfg := &jsonTracingConfig{
+	jcfg := cfg.toJSONConfig()
+
+	return config.DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *TracingConfig) toJSONConfig() *jsonTracingConfig {
+	return &jsonTracingConfig{
 		EnableTracing:       cfg.EnableTracing,
 		JaegerAgentEndpoint: cfg.JaegerAgentEndpoint.String(),
 		SamplingProb:        cfg.SamplingProb,
 		ServiceName:         cfg.ServiceName,
 	}
-
-	return config.DefaultJSONMarshal(jcfg)
 }
