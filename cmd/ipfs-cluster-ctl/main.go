@@ -943,8 +943,7 @@ func handlePinResponseFormatFlags(
 	}
 
 	if c.Bool("no-status") {
-		pinSerial := pin.ToSerial()
-		formatResponse(c, pinSerial, nil)
+		formatResponse(c, pin, nil)
 		return
 	}
 
