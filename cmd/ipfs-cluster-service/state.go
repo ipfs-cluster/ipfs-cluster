@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -78,19 +79,23 @@ func restoreStateFromDisk(ctx context.Context) (state.State, bool, error) {
 		return nil, false, err
 	}
 
+	full, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, false, err
+	}
+
 	stateFromSnap := mapstate.NewMapState()
 	// duplicate reader to both check version and migrate
-	var buf bytes.Buffer
-	r2 := io.TeeReader(r, &buf)
-	err = stateFromSnap.Unmarshal(r2)
+	reader1 := bytes.NewReader(full)
+	err = stateFromSnap.Unmarshal(reader1)
 	if err != nil {
 		return nil, false, err
 	}
 	if stateFromSnap.GetVersion() == mapstate.Version {
 		return stateFromSnap, true, nil
 	}
-
-	err = stateFromSnap.Migrate(ctx, &buf)
+	reader2 := bytes.NewReader(full)
+	err = stateFromSnap.Migrate(ctx, reader2)
 	if err != nil {
 		return nil, false, err
 	}
@@ -150,7 +155,7 @@ func validateVersion(ctx context.Context, cfg *ipfscluster.Config, cCfg *raft.Co
 			logger.Error("Out of date ipfs-cluster state is saved.")
 			logger.Error("To migrate to the new version, run ipfs-cluster-service state upgrade.")
 			logger.Error("To launch a node without this state, rename the consensus data directory.")
-			logger.Error("Hint, the default is .ipfs-cluster/ipfs-cluster-data.")
+			logger.Error("Hint: the default is .ipfs-cluster/raft.")
 			logger.Error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 			err = errors.New("outdated state version stored")
 		}

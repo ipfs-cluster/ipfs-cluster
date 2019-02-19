@@ -41,7 +41,7 @@ func NewMapState() state.State {
 	mapDs := ds.NewMapDatastore()
 	mutexDs := sync.MutexWrap(mapDs)
 
-	dsSt, err := dsstate.New(mutexDs, Version, "", dsstate.DefaultHandle())
+	dsSt, err := dsstate.New(mutexDs, "", dsstate.DefaultHandle())
 	if err != nil {
 		panic(err)
 	}
@@ -160,6 +160,8 @@ func (st *MapState) Unmarshal(r io.Reader) error {
 	// Try to unmarshal normally
 	err = st.dst.Unmarshal(iobuf)
 	if err == nil {
+		// Set current version
+		st.dst.SetVersion(Version)
 		return nil
 	}
 

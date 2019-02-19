@@ -10,9 +10,9 @@ import (
 	"errors"
 	"io"
 
-	msgpack "github.com/multiformats/go-multicodec/msgpack"
-
 	"github.com/ipfs/ipfs-cluster/api"
+
+	msgpack "github.com/multiformats/go-multicodec/msgpack"
 )
 
 // Instances of migrateable can be read from a serialized format and migrated
@@ -142,9 +142,9 @@ func (st *mapStateV4) unmarshal(r io.Reader) error {
 
 func (st *mapStateV4) next() migrateable {
 	var mst5 mapStateV5
-	mst5.PinMap = make(map[string]api.PinSerial)
+	mst5.PinMap = make(map[string]pinSerialV5)
 	for k, v := range st.PinMap {
-		pinsv5 := api.PinSerial{}
+		pinsv5 := pinSerialV5{}
 		pinsv5.Cid = v.Cid
 		pinsv5.Type = uint64(api.DataType)
 		pinsv5.Allocations = v.Allocations
@@ -167,8 +167,25 @@ func (st *mapStateV4) next() migrateable {
 
 /* V5 */
 
+type pinOptionsV5 struct {
+	ReplicationFactorMin int    `json:"replication_factor_min"`
+	ReplicationFactorMax int    `json:"replication_factor_max"`
+	Name                 string `json:"name"`
+	ShardSize            uint64 `json:"shard_size"`
+}
+
+type pinSerialV5 struct {
+	pinOptionsV5
+
+	Cid         string   `json:"cid"`
+	Type        uint64   `json:"type"`
+	Allocations []string `json:"allocations"`
+	MaxDepth    int      `json:"max_depth"`
+	Reference   string   `json:"reference"`
+}
+
 type mapStateV5 struct {
-	PinMap  map[string]api.PinSerial // this has not changed
+	PinMap  map[string]pinSerialV5
 	Version int
 }
 
@@ -179,8 +196,22 @@ func (st *mapStateV5) unmarshal(r io.Reader) error {
 
 func (st *mapStateV5) next() migrateable {
 	v6 := NewMapState()
-	for _, v := range st.PinMap {
-		v6.Add(context.Background(), v.ToPin())
+	for k, v := range st.PinMap {
+		logger.Infof("migrating", k, v.Cid)
+		// we need to convert because we added codec struct fields
+		// and thus serialization is not the same.
+		p := api.PinSerial{}
+		p.Cid = v.Cid
+		p.Type = v.Type
+		p.Allocations = v.Allocations
+		p.MaxDepth = v.MaxDepth
+		p.Reference = v.Reference
+		p.ReplicationFactorMax = v.ReplicationFactorMax
+		p.ReplicationFactorMin = v.ReplicationFactorMin
+		p.Name = v.Name
+		p.ShardSize = v.ShardSize
+
+		v6.Add(context.Background(), p.ToPin())
 	}
 	return v6.(*MapState)
 }

@@ -4,7 +4,6 @@ package dsstate
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -43,15 +42,13 @@ func DefaultHandle() codec.Handle {
 
 // New returns a new state using the given datastore.
 //
-// The version number is used to set the state version in the cases where the
-// state is new.
+// All keys are namespaced with the given string when written. Thus the same
+// go-datastore can be sharded for different uses.
 //
-// All keys are namespaced with the given string, allowing that this datastore
-// can be sharded in different namespaces.
 //
 // The Handle controls options for the serialization of items and the state
 // itself.
-func New(dstore ds.Datastore, version int, namespace string, handle codec.Handle) (*State, error) {
+func New(dstore ds.Datastore, namespace string, handle codec.Handle) (*State, error) {
 	if handle == nil {
 		handle = DefaultHandle()
 	}
@@ -60,20 +57,9 @@ func New(dstore ds.Datastore, version int, namespace string, handle codec.Handle
 		ds:          dstore,
 		codecHandle: handle,
 		namespace:   ds.NewKey(namespace),
+		version:     0, // TODO: Remove when all migrated
 	}
 
-	curVersion := st.GetVersion()
-	if curVersion < 0 {
-		return nil, errors.New("error reading state version")
-	}
-
-	// initialize
-	if curVersion == 0 {
-		err := st.SetVersion(version)
-		if err != nil {
-			return nil, err
-		}
-	}
 	return st, nil
 }
 
@@ -149,7 +135,6 @@ func (st *State) List(ctx context.Context) []api.Pin {
 	defer results.Close()
 
 	var pins []api.Pin
-	versionKey := st.versionKey()
 
 	for r := range results.Next() {
 		if r.Error != nil {
@@ -157,10 +142,6 @@ func (st *State) List(ctx context.Context) []api.Pin {
 			return pins
 		}
 		k := ds.NewKey(r.Key)
-		if k.Equal(versionKey) {
-			continue
-		}
-
 		ci, err := st.unkey(k)
 		if err != nil {
 			logger.Error("key: ", k, "error: ", err)
@@ -187,34 +168,13 @@ func (st *State) Migrate(ctx context.Context, r io.Reader) error {
 	return nil
 }
 
-func (st *State) versionKey() ds.Key {
-	return st.namespace.Child(ds.NewKey("/version"))
-}
-
 // GetVersion returns the current state version.
 func (st *State) GetVersion() int {
-	v, err := st.ds.Get(st.versionKey())
-	if err != nil {
-		if err == ds.ErrNotFound {
-			return 0 // fine
-		}
-		logger.Error("error getting version: ", err)
-		return -1
-	}
-	if len(v) != 1 {
-		logger.Error("bad version length")
-		return -1
-	}
-	return int(v[0])
+	return st.version
 }
 
 // SetVersion allows to manually modify the state version.
 func (st *State) SetVersion(v int) error {
-	err := st.ds.Put(st.versionKey(), []byte{byte(v)})
-	if err != nil {
-		logger.Error("error storing version:", v)
-		return err
-	}
 	st.version = v
 	return nil
 }
