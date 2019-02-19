@@ -15,15 +15,15 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmebEmt23jQxrwnqBkFL4qbpE8EnnQunpv5U32LS5ESus1",
+      "hash": "QmcNGX5RaxPPCYwa6yGXM1EcUbrreTTinixLcYGmMwf1sx",
       "name": "go-libp2p",
-      "version": "6.0.33"
+      "version": "6.0.35"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmSnRHkPTKzg3hmDALUDU53a4VwCYDajMp182yxT8J9i1b",
+      "hash": "QmXj4JdhFtZLp6A5VUDSvrCVwnQA4ARFQFRmLKLNdq3Q25",
       "name": "go-libp2p-raft",
-      "version": "1.2.17"
+      "version": "1.2.18"
     },
     {
       "author": "urfave",
@@ -45,33 +45,33 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmWx64AFXzgJFwXZjr2nMk4FH9ZaS71Bij8pvM42tSHDPQ",
+      "hash": "QmZhf82zn6zK8LkGHSRPLc8xMdgmzPUmHHD5TP1pF1PMCt",
       "name": "go-libp2p-gorpc",
-      "version": "1.1.1"
+      "version": "1.1.2"
     },
     {
       "author": "libp2p",
-      "hash": "QmY4Q5JC4vxLEi8EpVxJM4rcRryEVtH1zRKVTAm6BKV1pg",
+      "hash": "QmTwDsJUPioMKoiuXkAmiPxL1i4tjuG5vkxJgNpiHpXb3Y",
       "name": "go-libp2p-pnet",
-      "version": "3.0.4"
+      "version": "3.0.5"
     },
     {
       "author": "dignifiedquire",
-      "hash": "Qmctxy7Q5h5ohCy8TwxrqWCrDY36MNkN71hPozExc4Yxem",
+      "hash": "QmdDpQpe8RHu9qBiFWPaBvSAUr2kRLWipEjzDqAMfWqwFQ",
       "name": "go-fs-lock",
-      "version": "0.1.10"
+      "version": "0.1.11"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmbaG5aJzUQtpukF9fxrM6q2ZeCPrZxtdnudEcdiEaeL2n",
+      "hash": "QmYZJAgzELw6KpnLQL4GL67NGgSjX125BgfVa3tTF7JJeX",
       "name": "go-libp2p-http",
-      "version": "1.1.12"
+      "version": "1.1.14"
     },
     {
       "author": "ipfs",
-      "hash": "QmQ3af9LPzwoxAVhaTYCcAso5mkLHXhzCRvb14AZeDpztv",
+      "hash": "QmZs5KbsFE53hpGKhKdrYb9j5iRgMhLSsYBF7w8d6wuJHW",
       "name": "go-ipfs-api",
-      "version": "1.4.6"
+      "version": "1.4.7"
     },
     {
       "author": "whyrusleeping",
@@ -87,9 +87,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmR4QQVkBZsZENRjYFVi8dEtPL3daZRNKk24m4r6WKJHNm",
+      "hash": "QmXivYDjgMqNQXbEQVC7TMuZnRADCa71ABQUQxWPZPTLbd",
       "name": "go-ipfs-chunker",
-      "version": "0.1.4"
+      "version": "0.1.5"
     },
     {
       "author": "hector",
@@ -98,33 +98,27 @@
       "version": "0.1.4"
     },
     {
-      "author": "dustin",
-      "hash": "QmPSBJL4momYnE7DcUyk2DVhD6rH488ZmHBGLbxNdhU44K",
-      "name": "go-humanize",
-      "version": "0.0.0"
-    },
-    {
       "author": "why",
-      "hash": "QmSygPSC63Uka8z9PYokAS4thiMAor17vhXUTi4qmKHh6P",
+      "hash": "QmcTSz9ByVBLGkQBNgxFPvKAjMFriKX8PiyhHfjXQzPN23",
       "name": "go-unixfs",
-      "version": "1.3.5"
+      "version": "1.3.7"
     },
     {
       "author": "why",
-      "hash": "QmQvMsV5aPyd7eMd3U1hvAUhZEupG3rXbVZn7ppU5RE6bt",
+      "hash": "Qmccmovpo9isKeaaDzcxvT7mVJN1uKwn2xzSs1y8hb6PEs",
       "name": "go-merkledag",
-      "version": "1.1.30"
+      "version": "1.1.32"
     },
     {
-      "hash": "QmS5Tvk8Adz1qPkCBCbiScty9KPbMSMCSTbFK4TVvatKqi",
+      "hash": "QmfM7kwroZsKhKFmnJagPvM28MZMyKxG3QV2AqfvZvEEqS",
       "name": "go-libp2p-kad-dht",
-      "version": "4.4.24"
+      "version": "4.4.26"
     },
     {
       "author": "hsanjuan",
-      "hash": "QmavpuPmHfsY4JFTQFZZQJi8NfFRPPwLnxqdcgP3zTR4JV",
+      "hash": "QmZNLCLH3arRfvNPJRy5Hgs3cUywnhio1dVZmEadBzDS4g",
       "name": "go-mfs",
-      "version": "0.1.43"
+      "version": "0.1.45"
     },
     {
       "author": "blang",
@@ -146,9 +140,9 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmYf91XhvoCY4YSQ6DB48yw8iYE4AKurGJ5JAptvWPeJKy",
+      "hash": "QmepvmmYNM6q4RaUiwEikQFhgMFHXg2PLhx2E9iaRd3jmS",
       "name": "go-libp2p-pubsub",
-      "version": "100.11.11"
+      "version": "0.11.13"
     },
     {
       "author": "hsanjuan",
@@ -164,15 +158,15 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmP8ibs3yQcaPYwz3ZWggPeU6o8vb8iWQrY348zvP3XU6G",
+      "hash": "QmNVpHFt7QmabuVQyguf8AbkLDZoFh7ifBYztqijYT1Sd2",
       "name": "go.opencensus.io",
       "version": "0.19.0"
     },
     {
       "author": "lanzafame",
-      "hash": "QmdskNBvMoZBkVzeXJnGFQjQsjH224GhmgLuUupxYNYNLF",
+      "hash": "QmTNoJsB2QwS9FCe9jetrZMpTbuLjMZbAZCXLaUQ4CSX9Z",
       "name": "go-libp2p-ocgorpc",
-      "version": "0.1.5"
+      "version": "0.1.6"
     }
   ],
   "gxVersion": "0.11.0",
