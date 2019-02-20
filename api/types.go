@@ -707,13 +707,56 @@ func (pT PinType) String() string {
 	}
 }
 
+var pinOptionsMetaPrefix = "meta-"
+
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
 	ReplicationFactorMin int               `json:"replication_factor_min" codec:"rn,omitempty"`
 	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
 	Name                 string            `json:"name" codec:"n,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
+	UserAllocations      []string          `json:"user_allocations" codec:"ua,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
+}
+
+// Equals returns true of two PinOption objects are equivalent.
+func (po *PinOptions) Equals(po2 *PinOptions) bool {
+	if po.ReplicationFactorMax != po2.ReplicationFactorMax {
+		return false
+	}
+
+	if po.ReplicationFactorMin != po2.ReplicationFactorMin {
+		return false
+	}
+
+	if po.ShardSize != po2.ShardSize {
+		return false
+	}
+
+	lenAllocs1 := len(po.UserAllocations)
+	lenAllocs2 := len(po2.UserAllocations)
+	if lenAllocs1 != lenAllocs2 {
+		return false
+	}
+
+	// avoid side effecs in the original objects
+	allocs1 := make([]string, lenAllocs1, lenAllocs1)
+	allocs2 := make([]string, lenAllocs2, lenAllocs2)
+	copy(allocs1, po.UserAllocations)
+	copy(allocs2, po2.UserAllocations)
+	sort.Strings(allocs1)
+	sort.Strings(allocs2)
+	if strings.Join(allocs1, ",") != strings.Join(allocs2, ",") {
+		return false
+	}
+
+	for k, v := range po.Metadata {
+		v2 := po2.Metadata[k]
+		if k != "" && v != v2 {
+			return false
+		}
+	}
+	return true
 }
 
 // ToQuery returns the PinOption as query arguments.
@@ -722,6 +765,14 @@ func (po *PinOptions) ToQuery() string {
 	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
+	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
+	q.Set("user-allocations", strings.Join(po.UserAllocations, ","))
+	for k, v := range po.Metadata {
+		if k == "" {
+			continue
+		}
+		q.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
+	}
 	return q.Encode()
 }
 
@@ -749,6 +800,26 @@ func (po *PinOptions) FromQuery(q url.Values) {
 	}
 	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
 		po.ReplicationFactorMax = rpl
+	}
+
+	if shsize, err := strconv.ParseUint(q.Get("shard-size"), 10, 64); err == nil {
+		po.ShardSize = shsize
+	}
+
+	if allocs := q.Get("user-allocations"); allocs != "" {
+		po.UserAllocations = strings.Split(allocs, ",")
+	}
+
+	po.Metadata = make(map[string]string)
+	for k := range q {
+		if !strings.HasPrefix(k, pinOptionsMetaPrefix) {
+			continue
+		}
+		metaKey := strings.TrimPrefix(k, pinOptionsMetaPrefix)
+		if metaKey == "" {
+			continue
+		}
+		po.Metadata[metaKey] = q.Get(k)
 	}
 }
 
@@ -858,17 +929,22 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		allocs[i] = bs
 	}
 
-	pbPin := &pb.Pin{
-		Cid:                  pin.Cid.Bytes(),
-		Type:                 convertPinType(pin.Type),
-		Allocations:          allocs,
-		MaxDepth:             int32(pin.MaxDepth),
-		Reference:            pin.Reference.Bytes(),
+	opts := &pb.PinOptions{
 		ReplicationFactorMin: int32(pin.ReplicationFactorMin),
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
 		Name:                 pin.Name,
 		ShardSize:            pin.ShardSize,
+		UserAllocations:      pin.UserAllocations,
 		Metadata:             pin.Metadata,
+	}
+
+	pbPin := &pb.Pin{
+		Cid:         pin.Cid.Bytes(),
+		Type:        convertPinType(pin.Type),
+		Allocations: allocs,
+		MaxDepth:    int32(pin.MaxDepth),
+		Reference:   pin.Reference.Bytes(),
+		Options:     opts,
 	}
 	return proto.Marshal(pbPin)
 }
@@ -910,11 +986,14 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 		pin.Reference = ref
 	}
 	pin.Reference = ref
-	pin.ReplicationFactorMin = int(pbPin.GetReplicationFactorMin())
-	pin.ReplicationFactorMax = int(pbPin.GetReplicationFactorMax())
-	pin.Name = pbPin.GetName()
-	pin.ShardSize = pbPin.GetShardSize()
-	pin.Metadata = pbPin.GetMetadata()
+
+	opts := pbPin.GetOptions()
+	pin.ReplicationFactorMin = int(opts.GetReplicationFactorMin())
+	pin.ReplicationFactorMax = int(opts.GetReplicationFactorMax())
+	pin.Name = opts.GetName()
+	pin.ShardSize = opts.GetShardSize()
+	pin.UserAllocations = opts.GetUserAllocations()
+	pin.Metadata = opts.GetMetadata()
 	return nil
 }
 
@@ -941,7 +1020,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.ShardSize != pin2s.ShardSize {
+	if pin1s.Reference != pin2s.Reference {
 		return false
 	}
 
@@ -952,19 +1031,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 		return false
 	}
 
-	if pin1s.ReplicationFactorMax != pin2s.ReplicationFactorMax {
-		return false
-	}
-
-	if pin1s.ReplicationFactorMin != pin2s.ReplicationFactorMin {
-		return false
-	}
-
-	if pin1s.Reference != pin2s.Reference {
-		return false
-	}
-
-	return true
+	return pin.PinOptions.Equals(&pin2.PinOptions)
 }
 
 // IsRemotePin determines whether a Pin's ReplicationFactor has

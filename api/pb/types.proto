@@ -14,10 +14,14 @@ message Pin {
   repeated bytes Allocations = 3;
   sint32 MaxDepth = 4;
   bytes Reference = 5;
-  reserved 6,7;
-  sint32 ReplicationFactorMin = 8;
-  sint32 ReplicationFactorMax = 9;
-  string Name = 10;
-  uint64 ShardSize = 11;
-  map<string, string> Metadata = 12;
+  PinOptions Options = 6;
+}
+
+message PinOptions {
+  sint32 ReplicationFactorMin = 1;
+  sint32 ReplicationFactorMax = 2;
+  string Name = 3;
+  uint64 ShardSize = 4;
+  repeated string UserAllocations = 5;
+  map<string, string> Metadata = 6;
 }
