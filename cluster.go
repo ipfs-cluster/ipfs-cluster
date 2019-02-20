@@ -739,7 +739,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// Note that our regular bootstrap process is still running in the
 	// background since we created the cluster.
 	go func() {
-		c.dht.BootstrapOnce(c.ctx, dht.DefaultBootstrapConfig)
+		c.dht.BootstrapOnce(ctx, dht.DefaultBootstrapConfig)
 	}()
 
 	// wait for leader and for state to catch up
@@ -1093,7 +1093,7 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 
 	existing, err := c.PinGet(ctx, pin.Cid)
 	if err == nil && existing.Type != pin.Type { // it exists
-		return errors.New("cannot repin CID with different tracking method, clear state with pin rm to proceed")
+		return fmt.Errorf("cannot repin CID with different tracking method, clear state with pin rm to proceed. New: %s. Was: %s", pin.Type, existing.Type)
 	}
 	return checkPinType(pin)
 }

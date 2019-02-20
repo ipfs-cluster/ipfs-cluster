@@ -98,7 +98,7 @@ func TestConsensusPin(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 	st, err := cc.State(ctx)
 	if err != nil {
-		t.Fatal("error gettinng state:", err)
+		t.Fatal("error getting state:", err)
 	}
 
 	pins := st.List(ctx)
@@ -228,14 +228,14 @@ func TestConsensusRmPeer(t *testing.T) {
 	// Remove unexisting peer
 	err = cc.RmPeer(ctx, test.TestPeerID1)
 	if err != nil {
-		t.Error("the operation did not make it to the log:", err)
+		t.Fatal("the operation did not make it to the log:", err)
 	}
 
 	// Remove real peer. At least the leader can succeed
 	err = cc2.RmPeer(ctx, cc.host.ID())
 	err2 := cc.RmPeer(ctx, cc2.host.ID())
 	if err != nil && err2 != nil {
-		t.Error("could not remove peer:", err, err2)
+		t.Fatal("could not remove peer:", err, err2)
 	}
 
 	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), true)

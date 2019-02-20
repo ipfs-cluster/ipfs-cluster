@@ -66,6 +66,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	case LogOpPin:
 		err = state.Add(ctx, pinS.ToPin())
 		if err != nil {
+			logger.Error(err)
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
@@ -81,6 +82,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	case LogOpUnpin:
 		err = state.Rm(ctx, pinS.DecodeCid())
 		if err != nil {
+			logger.Error(err)
 			goto ROLLBACK
 		}
 		// Async, we let the PinTracker take care of any problems
