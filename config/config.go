@@ -58,6 +58,7 @@ const (
 	Allocator
 	Informer
 	Observations
+	Datastore
 	endTypes // keep this at the end
 )
 
@@ -178,6 +179,7 @@ type jsonConfig struct {
 	Allocator    jsonSection      `json:"allocator,omitempty"`
 	Informer     jsonSection      `json:"informer,omitempty"`
 	Observations jsonSection      `json:"observations,omitempty"`
+	Datastore    jsonSection      `json:"datastore,omitempty"`
 }
 
 func (jcfg *jsonConfig) getSection(i SectionType) *jsonSection {
@@ -200,6 +202,8 @@ func (jcfg *jsonConfig) getSection(i SectionType) *jsonSection {
 		return &jcfg.Informer
 	case Observations:
 		return &jcfg.Observations
+	case Datastore:
+		return &jcfg.Datastore
 	default:
 		return nil
 	}

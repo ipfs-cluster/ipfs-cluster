@@ -10,11 +10,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/state"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
@@ -96,8 +98,12 @@ type mockBlockPutResp struct {
 }
 
 // NewIpfsMock returns a new mock.
-func NewIpfsMock() *IpfsMock {
-	st := mapstate.NewMapState()
+func NewIpfsMock(t *testing.T) *IpfsMock {
+	store := inmem.New()
+	st, err := dsstate.New(store, "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
 	blocks := make(map[string][]byte)
 	m := &IpfsMock{
 		pinMap:     st,
@@ -183,7 +189,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		arg, ok := extractCid(r.URL)
 		if !ok {
 			rMap := make(map[string]mockPinType)
-			pins := m.pinMap.List(ctx)
+			pins, err := m.pinMap.List(ctx)
+			if err != nil {
+				goto ERROR
+			}
 			for _, p := range pins {
 				rMap[p.Cid.String()] = mockPinType{"recursive"}
 			}
@@ -197,7 +206,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		ok = m.pinMap.Has(ctx, c)
+		ok, err = m.pinMap.Has(ctx, c)
+		if err != nil {
+			goto ERROR
+		}
 		if ok {
 			rMap := make(map[string]mockPinType)
 			rMap[cidStr] = mockPinType{"recursive"}
@@ -290,7 +302,11 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 	case "repo/stat":
 		sizeOnly := r.URL.Query().Get("size-only")
-		len := len(m.pinMap.List(ctx))
+		list, err := m.pinMap.List(ctx)
+		if err != nil {
+			goto ERROR
+		}
+		len := len(list)
 		numObjs := uint64(len)
 		if sizeOnly == "true" {
 			numObjs = 0

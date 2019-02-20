@@ -20,6 +20,7 @@ import (
 )
 
 var _ state.State = (*State)(nil)
+var _ state.BatchingState = (*BatchingState)(nil)
 
 var logger = logging.Logger("dsstate")
 
@@ -28,7 +29,8 @@ var logger = logging.Logger("dsstate")
 // in it. It also provides serialization methods for the whole
 // state which are datastore-independent.
 type State struct {
-	ds          ds.Datastore
+	dsRead      ds.Read
+	dsWrite     ds.Write
 	codecHandle codec.Handle
 	namespace   ds.Key
 	version     int
@@ -45,19 +47,18 @@ func DefaultHandle() codec.Handle {
 // All keys are namespaced with the given string when written. Thus the same
 // go-datastore can be sharded for different uses.
 //
-//
-// The Handle controls options for the serialization of items and the state
-// itself.
+// The Handle controls options for the serialization of the full state
+// (marshaling/unmarshaling).
 func New(dstore ds.Datastore, namespace string, handle codec.Handle) (*State, error) {
 	if handle == nil {
 		handle = DefaultHandle()
 	}
 
 	st := &State{
-		ds:          dstore,
+		dsRead:      dstore,
+		dsWrite:     dstore,
 		codecHandle: handle,
 		namespace:   ds.NewKey(namespace),
-		version:     0, // TODO: Remove when all migrated
 	}
 
 	return st, nil
@@ -72,7 +73,7 @@ func (st *State) Add(ctx context.Context, c *api.Pin) error {
 	if err != nil {
 		return err
 	}
-	return st.ds.Put(st.key(c.Cid), ps)
+	return st.dsWrite.Put(st.key(c.Cid), ps)
 }
 
 // Rm removes an existing Pin. It is a no-op when the
@@ -81,7 +82,7 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Rm")
 	defer span.End()
 
-	err := st.ds.Delete(st.key(c))
+	err := st.dsWrite.Delete(st.key(c))
 	if err == ds.ErrNotFound {
 		return nil
 	}
@@ -91,36 +92,39 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 // Get returns a Pin from the store and whether it
 // was present. When not present, a default pin
 // is returned.
-func (st *State) Get(ctx context.Context, c cid.Cid) (*api.Pin, bool) {
+func (st *State) Get(ctx context.Context, c cid.Cid) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Get")
 	defer span.End()
 
-	v, err := st.ds.Get(st.key(c))
+	v, err := st.dsRead.Get(st.key(c))
 	if err != nil {
-		return api.PinCid(c), false
+		if err == ds.ErrNotFound {
+			return nil, state.ErrNotFound
+		}
+		return nil, err
 	}
 	p, err := st.deserializePin(c, v)
 	if err != nil {
-		return api.PinCid(c), false
+		return nil, err
 	}
-	return p, true
+	return p, nil
 }
 
 // Has returns whether a Cid is stored.
-func (st *State) Has(ctx context.Context, c cid.Cid) bool {
+func (st *State) Has(ctx context.Context, c cid.Cid) (bool, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Has")
 	defer span.End()
 
-	ok, err := st.ds.Has(st.key(c))
+	ok, err := st.dsRead.Has(st.key(c))
 	if err != nil {
-		logger.Error(err)
+		return false, err
 	}
-	return ok && err == nil
+	return ok, nil
 }
 
 // List returns the unsorted list of all Pins that have been added to the
 // datastore.
-func (st *State) List(ctx context.Context) []*api.Pin {
+func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/List")
 	defer span.End()
 
@@ -128,9 +132,9 @@ func (st *State) List(ctx context.Context) []*api.Pin {
 		Prefix: st.namespace.String(),
 	}
 
-	results, err := st.ds.Query(q)
+	results, err := st.dsRead.Query(q)
 	if err != nil {
-		return []*api.Pin{}
+		return nil, err
 	}
 	defer results.Close()
 
@@ -139,13 +143,12 @@ func (st *State) List(ctx context.Context) []*api.Pin {
 	for r := range results.Next() {
 		if r.Error != nil {
 			logger.Errorf("error in query result: %s", r.Error)
-			return pins
+			return pins, r.Error
 		}
 		k := ds.NewKey(r.Key)
 		ci, err := st.unkey(k)
 		if err != nil {
-			logger.Error("key: ", k, "error: ", err)
-			logger.Error(string(r.Value))
+			logger.Warning("bad key (ignoring). key: ", k, "error: ", err)
 			continue
 		}
 
@@ -157,7 +160,7 @@ func (st *State) List(ctx context.Context) []*api.Pin {
 
 		pins = append(pins, p)
 	}
-	return pins
+	return pins, nil
 }
 
 // Migrate migrates an older state version to the current one.
@@ -165,17 +168,6 @@ func (st *State) List(ctx context.Context) []*api.Pin {
 func (st *State) Migrate(ctx context.Context, r io.Reader) error {
 	ctx, span := trace.StartSpan(ctx, "state/map/Migrate")
 	defer span.End()
-	return nil
-}
-
-// GetVersion returns the current state version.
-func (st *State) GetVersion() int {
-	return st.version
-}
-
-// SetVersion allows to manually modify the state version.
-func (st *State) SetVersion(v int) error {
-	st.version = v
 	return nil
 }
 
@@ -192,7 +184,7 @@ func (st *State) Marshal(w io.Writer) error {
 		Prefix: st.namespace.String(),
 	}
 
-	results, err := st.ds.Query(q)
+	results, err := st.dsRead.Query(q)
 	if err != nil {
 		return err
 	}
@@ -234,7 +226,7 @@ func (st *State) Unmarshal(r io.Reader) error {
 			return err
 		}
 		k := st.namespace.Child(ds.NewKey(entry.Key))
-		err := st.ds.Put(k, entry.Value)
+		err := st.dsWrite.Put(k, entry.Value)
 		if err != nil {
 			logger.Error("error adding unmarshaled key to datastore:", err)
 			return err
@@ -268,4 +260,49 @@ func (st *State) deserializePin(c cid.Cid, buf []byte) (*api.Pin, error) {
 	err := p.ProtoUnmarshal(buf)
 	p.Cid = c
 	return p, err
+}
+
+// BatchingState implements the IPFS Cluster "state" interface by wrapping a
+// batching go-datastore. All writes are batched and only written disk
+// when Commit() is called.
+type BatchingState struct {
+	*State
+	batch ds.Batch
+}
+
+// NewBatching returns a new batching statate using the given datastore.
+//
+// All keys are namespaced with the given string when written. Thus the same
+// go-datastore can be sharded for different uses.
+//
+// The Handle controls options for the serialization of the full state
+// (marshaling/unmarshaling).
+func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*BatchingState, error) {
+	if handle == nil {
+		handle = DefaultHandle()
+	}
+
+	batch, err := dstore.Batch()
+	if err != nil {
+		return nil, err
+	}
+
+	st := &State{
+		dsRead:      dstore,
+		dsWrite:     batch,
+		codecHandle: handle,
+		namespace:   ds.NewKey(namespace),
+	}
+
+	bst := &BatchingState{}
+	bst.State = st
+	bst.batch = batch
+	return bst, nil
+}
+
+// Commit persists the batched write operations.
+func (bst *BatchingState) Commit(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "state/dsstate/Commit")
+	defer span.End()
+	return bst.batch.Commit()
 }

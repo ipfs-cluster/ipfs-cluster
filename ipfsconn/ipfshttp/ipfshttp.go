@@ -710,6 +710,27 @@ func (ipfs *Connector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) 
 	return ipfs.postCtx(ctx, url, "", nil)
 }
 
+// // FetchRefs asks IPFS to download blocks recursively to the given depth.
+// // It discards the response, but waits until it completes.
+// func (ipfs *Connector) FetchRefs(ctx context.Context, c cid.Cid, maxDepth int) error {
+// 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.PinTimeout)
+// 	defer cancel()
+
+// 	q := url.Values{}
+// 	q.Set("recursive", "true")
+// 	q.Set("unique", "false") // same memory on IPFS side
+// 	q.Set("max-depth", fmt.Sprintf("%d", maxDepth))
+// 	q.Set("arg", c.String())
+
+// 	url := fmt.Sprintf("refs?%s", q.Encode())
+// 	err := ipfs.postDiscardBodyCtx(ctx, url)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	logger.Debugf("refs for %s sucessfully fetched", c)
+// 	return nil
+// }
+
 // Returns true every updateMetricsMod-th time that we
 // call this function.
 func (ipfs *Connector) shouldUpdateMetric() bool {

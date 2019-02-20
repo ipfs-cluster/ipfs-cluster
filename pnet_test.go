@@ -36,9 +36,10 @@ func TestClusterSecretFormat(t *testing.T) {
 
 func TestSimplePNet(t *testing.T) {
 	ctx := context.Background()
-	clusters, mocks := peerManagerClusters(t)
+	clusters, mocks, boot := peerManagerClusters(t)
 	defer cleanRaft()
 	defer shutdownClusters(t, clusters, mocks)
+	defer boot.Close()
 
 	if len(clusters) < 2 {
 		t.Skip("need at least 2 nodes for this test")

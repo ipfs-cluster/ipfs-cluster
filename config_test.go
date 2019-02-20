@@ -3,7 +3,9 @@ package ipfscluster
 import (
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
+	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
@@ -46,6 +48,15 @@ var testingRaftCfg = []byte(`{
     "leader_lease_timeout": "80ms"
 }`)
 
+var testingCrdtCfg = []byte(`{
+    "cluster_name": "crdt-test",
+    "rebroadcast_interval": "150ms"
+}`)
+
+var testingBadgerCfg = []byte(`{
+    "folder": "badgerFromTests"
+}`)
+
 var testingAPICfg = []byte(`{
     "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/10002",
     "read_timeout": "0",
@@ -85,8 +96,8 @@ var testingIpfsCfg = []byte(`{
 
 var testingTrackerCfg = []byte(`
 {
-      "max_pin_queue_size": 4092,
-      "concurrent_pins": 1
+    "max_pin_queue_size": 4092,
+    "concurrent_pins": 1
 }
 `)
 
@@ -100,37 +111,41 @@ var testingDiskInfCfg = []byte(`{
 }`)
 
 var testingTracerCfg = []byte(`{
-	"enable_tracing": false
+    "enable_tracing": false
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
-	clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
+func testingConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *raft.Config, *crdt.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
+	clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	proxyCfg.LoadJSON(testingProxyCfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
-	consensusCfg.LoadJSON(testingRaftCfg)
+	badgerCfg.LoadJSON(testingBadgerCfg)
+	raftCfg.LoadJSON(testingRaftCfg)
+	crdtCfg.LoadJSON(testingCrdtCfg)
 	maptrackerCfg.LoadJSON(testingTrackerCfg)
 	statelesstrkrCfg.LoadJSON(testingTrackerCfg)
 	pubsubmonCfg.LoadJSON(testingMonCfg)
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 	tracingCfg.LoadJSON(testingTracerCfg)
 
-	return clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg
+	return clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *raft.Config, *crdt.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	proxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
-	consensusCfg := &raft.Config{}
+	badgerCfg := &badger.Config{}
+	raftCfg := &raft.Config{}
+	crdtCfg := &crdt.Config{}
 	maptrackerCfg := &maptracker.Config{}
 	statelessCfg := &stateless.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	tracingCfg := &observations.TracingConfig{}
-	return clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelessCfg, pubsubmonCfg, diskInfCfg, tracingCfg
+	return clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelessCfg, pubsubmonCfg, diskInfCfg, tracingCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

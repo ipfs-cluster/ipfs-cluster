@@ -66,7 +66,10 @@ func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in *api.PinPath, out *api.P
 
 // Pins runs Cluster.Pins().
 func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
-	cidList := rpcapi.c.Pins(ctx)
+	cidList, err := rpcapi.c.Pins(ctx)
+	if err != nil {
+		return err
+	}
 	*out = cidList
 	return nil
 }

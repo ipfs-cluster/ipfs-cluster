@@ -233,7 +233,7 @@ func (mpt *MapPinTracker) Untrack(ctx context.Context, c cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/map/Untrack")
 	defer span.End()
 
-	logger.Debugf("untracking %s", c)
+	logger.Infof("untracking %s", c)
 	return mpt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin, mpt.unpinCh)
 }
 

@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -43,14 +44,13 @@ func testingConsensus(t *testing.T, idn int) *Consensus {
 	ctx := context.Background()
 	cleanRaft(idn)
 	h := makeTestingHost(t)
-	st := mapstate.NewMapState()
 
 	cfg := &Config{}
 	cfg.Default()
 	cfg.DataFolder = fmt.Sprintf("raftFolderFromTests-%d", idn)
 	cfg.hostShutdown = true
 
-	cc, err := NewConsensus(h, cfg, st, false)
+	cc, err := NewConsensus(h, cfg, inmem.New(), false)
 	if err != nil {
 		t.Fatal("cannot create Consensus:", err)
 	}
@@ -100,7 +100,10 @@ func TestConsensusPin(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins := st.List(ctx)
+	pins, err := st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -146,7 +149,10 @@ func TestConsensusUpdate(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins := st.List(ctx)
+	pins, err := st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -298,7 +304,10 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	}
 
 	// Call raft.LastState and ensure we get the correct state
-	snapState := mapstate.NewMapState()
+	snapState, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, snapExists, err := LastStateRaw(cc.config)
 	if !snapExists {
 		t.Fatal("No snapshot found by LastStateRaw")
@@ -306,11 +315,14 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error while taking snapshot", err)
 	}
-	err = snapState.Migrate(ctx, r)
+	err = snapState.Unmarshal(r)
 	if err != nil {
 		t.Fatal("Snapshot bytes returned could not restore to state: ", err)
 	}
-	pins := snapState.List(ctx)
+	pins, err := snapState.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(pins) != 3 {
 		t.Fatal("Latest snapshot not read")
 	}

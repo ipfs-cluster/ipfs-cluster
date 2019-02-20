@@ -15,7 +15,9 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 
+	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -25,7 +27,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-var logger = logging.Logger("consensus")
+var logger = logging.Logger("raft")
 
 // Consensus handles the work of keeping a shared-state between
 // the peers of an IPFS Cluster, as well as modifying that state and
@@ -50,15 +52,20 @@ type Consensus struct {
 	shutdown     bool
 }
 
-// NewConsensus builds a new ClusterConsensus component using Raft. The state
-// is used to initialize the Consensus system, so any information
-// in it is discarded once the raft state is loaded.
-// The singlePeer parameter controls whether this Raft peer is be expected to
-// join a cluster or it should run on its own.
+// NewConsensus builds a new ClusterConsensus component using Raft.
+//
+// Raft saves state snapshots regularly and persists log data in a bolt
+// datastore. Therefore, unless memory usage is a concern, it is recommended
+// to use an in-memory go-datastore as store parameter.
+//
+// The staging parameter controls if the Raft peer should start in
+// staging mode (used when joining a new Raft peerset with other peers).
+//
+// The store parameter should be a thread-safe datastore.
 func NewConsensus(
 	host host.Host,
 	cfg *Config,
-	state state.State,
+	store ds.Datastore,
 	staging bool, // this peer must not be bootstrapped if no state exists
 ) (*Consensus, error) {
 	err := cfg.Validate()
@@ -66,9 +73,16 @@ func NewConsensus(
 		return nil, err
 	}
 
-	baseOp := &LogOp{tracing: cfg.Tracing}
-
 	logger.Debug("starting Consensus and waiting for a leader...")
+	baseOp := &LogOp{tracing: cfg.Tracing}
+	state, err := dsstate.New(
+		store,
+		cfg.DatastoreNamespace,
+		dsstate.DefaultHandle(),
+	)
+	if err != nil {
+		return nil, err
+	}
 	consensus := libp2praft.NewOpLog(state, baseOp)
 	raft, err := newRaftWrapper(host, cfg, consensus.FSM(), staging)
 	if err != nil {
@@ -385,6 +399,7 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
 		finalErr = cc.raft.AddPeer(ctx, peer.IDB58Encode(pid))
+
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
@@ -426,15 +441,20 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 	return finalErr
 }
 
-// State retrieves the current consensus State. It may error
-// if no State has been agreed upon or the state is not
-// consistent. The returned State is the last agreed-upon
-// State known by this node.
-func (cc *Consensus) State(ctx context.Context) (state.State, error) {
+// State retrieves the current consensus State. It may error if no State has
+// been agreed upon or the state is not consistent. The returned State is the
+// last agreed-upon State known by this node. No writes are allowed, as all
+// writes to the shared state should happen through the Consensus component
+// methods.
+func (cc *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 	ctx, span := trace.StartSpan(ctx, "consensus/State")
 	defer span.End()
 
 	st, err := cc.consensus.GetLogHead()
+	if err == libp2praft.ErrNoState {
+		return state.Empty(), nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -456,8 +476,7 @@ func (cc *Consensus) Leader(ctx context.Context) (peer.ID, error) {
 	return raftactor.Leader()
 }
 
-// Clean removes all raft data from disk. Next time
-// a full new peer will be bootstrapped.
+// Clean removes the Raft persisted state.
 func (cc *Consensus) Clean(ctx context.Context) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/Clean")
 	defer span.End()
@@ -468,11 +487,7 @@ func (cc *Consensus) Clean(ctx context.Context) error {
 		return errors.New("consensus component is not shutdown")
 	}
 
-	err := cc.raft.Clean()
-	if err != nil {
-		return err
-	}
-	return nil
+	return CleanupRaft(cc.config)
 }
 
 // Rollback replaces the current agreed-upon
@@ -521,4 +536,29 @@ func parsePIDFromMultiaddr(addr ma.Multiaddr) string {
 		panic("peer badly encoded")
 	}
 	return pidstr
+}
+
+// OfflineState state returns a cluster state by reading the Raft data and
+// writing it to the given datastore which is then wrapped as a state.State.
+// Usually an in-memory datastore suffices. The given datastore should be
+// thread-safe.
+func OfflineState(cfg *Config, store ds.Datastore) (state.State, error) {
+	r, snapExists, err := LastStateRaw(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	st, err := dsstate.New(store, cfg.DatastoreNamespace, dsstate.DefaultHandle())
+	if err != nil {
+		return nil, err
+	}
+	if !snapExists {
+		return st, nil
+	}
+
+	err = st.Unmarshal(r)
+	if err != nil {
+		return nil, err
+	}
+	return st, nil
 }
