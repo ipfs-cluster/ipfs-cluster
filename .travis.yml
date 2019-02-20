@@ -20,21 +20,16 @@ jobs:
     - stage: "Testing stage"
       name: "Tests (all modules) + Coverage"
       script:
-        - go get -u github.com/mattn/goveralls
-        - go get -u golang.org/x/tools/cmd/cover
         - make deps
-        - go test -v -coverprofile=coverage.out -covermode=count ./...
-        - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
+        - go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+      after_success:
+        - bash <(curl -s https://codecov.io/bash)
     - name: "Main Tests with basic monitor"
       script:
-        - go get -u github.com/mattn/goveralls
-        - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - go test -v . -monitor basic
     - name: "Main Tests with stateless tracker"
       script:
-        - go get -u github.com/mattn/goveralls
-        - go get -u golang.org/x/tools/cmd/cover
         - make deps
         - go test -v . -tracker stateless
     - name: "Golint and go vet"
