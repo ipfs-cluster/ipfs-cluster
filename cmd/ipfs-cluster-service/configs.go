@@ -95,6 +95,8 @@ func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
 		tracingValue = cfgs.tracingCfg.EnableTracing
 	}
 	// propagate to any other interested configuration
+	cfgs.tracingCfg.ClusterID = cfgs.clusterCfg.ID.Pretty()
+	cfgs.tracingCfg.ClusterPeername = cfgs.clusterCfg.Peername
 	cfgs.tracingCfg.EnableTracing = tracingValue
 	cfgs.clusterCfg.Tracing = tracingValue
 	cfgs.consensusCfg.Tracing = tracingValue

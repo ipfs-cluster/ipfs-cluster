@@ -142,7 +142,10 @@ func setupTracing(cfg *TracingConfig) (*jaeger.Exporter, error) {
 	je, err := jaeger.NewExporter(jaeger.Options{
 		AgentEndpoint: agentAddr,
 		Process: jaeger.Process{
-			ServiceName: cfg.ServiceName,
+			ServiceName: cfg.ServiceName + "-" + cfg.ClusterPeername,
+			Tags: []jaeger.Tag{
+				jaeger.StringTag("cluster_id", cfg.ClusterID),
+			},
 		},
 	})
 	if err != nil {

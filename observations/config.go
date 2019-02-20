@@ -8,8 +8,9 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 
-	"github.com/ipfs/ipfs-cluster/config"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/ipfs/ipfs-cluster/config"
 )
 
 const metricsConfigKey = "metrics"
@@ -151,6 +152,8 @@ type TracingConfig struct {
 	JaegerAgentEndpoint ma.Multiaddr
 	SamplingProb        float64
 	ServiceName         string
+	ClusterID           string
+	ClusterPeername     string
 }
 
 type jsonTracingConfig struct {
