@@ -729,17 +729,8 @@ func (po *PinOptions) ToQuery() string {
 func (po *PinOptions) FromQuery(q url.Values) {
 	po.Name = q.Get("name")
 	rplStr := q.Get("replication")
-	if rplStr == "" { // compat <= 0.4.0
-		rplStr = q.Get("replication_factor")
-	}
 	rplStrMin := q.Get("replication-min")
-	if rplStrMin == "" { // compat <= 0.4.0
-		rplStrMin = q.Get("replication_factor_min")
-	}
 	rplStrMax := q.Get("replication-max")
-	if rplStrMax == "" { // compat <= 0.4.0
-		rplStrMax = q.Get("replication_factor_max")
-	}
 	if rplStr != "" { // override
 		rplStrMin = rplStr
 		rplStrMax = rplStr

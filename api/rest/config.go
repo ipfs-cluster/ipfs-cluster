@@ -118,7 +118,6 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ListenMultiaddress     string `json:"listen_multiaddress,omitempty"` // backwards compat
 	HTTPListenMultiaddress string `json:"http_listen_multiaddress"`
 	SSLCertFile            string `json:"ssl_cert_file,omitempty"`
 	SSLKeyFile             string `json:"ssl_key_file,omitempty"`
@@ -267,16 +266,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 }
 
 func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
-	// Deal with legacy ListenMultiaddress parameter
-	httpListen := jcfg.ListenMultiaddress
-	if httpListen != "" {
-		logger.Warning("restapi.listen_multiaddress has been replaced with http_listen_multiaddress and has been deprecated")
-	}
-	if l := jcfg.HTTPListenMultiaddress; l != "" {
-		httpListen = l
-	}
-
-	if httpListen != "" {
+	if httpListen := jcfg.HTTPListenMultiaddress; httpListen != "" {
 		httpAddr, err := ma.NewMultiaddr(httpListen)
 		if err != nil {
 			err = fmt.Errorf("error parsing restapi.http_listen_multiaddress: %s", err)

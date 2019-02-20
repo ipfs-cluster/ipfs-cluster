@@ -129,7 +129,6 @@ func TestLoadJSON(t *testing.T) {
 		cfg, err := loadJSON2(
 			t,
 			func(j *configJSON) {
-				j.ReplicationFactor = 0
 				j.ReplicationFactorMin = 0
 				j.ReplicationFactorMax = 0
 			},
@@ -139,16 +138,6 @@ func TestLoadJSON(t *testing.T) {
 		}
 		if cfg.ReplicationFactorMin != -1 || cfg.ReplicationFactorMax != -1 {
 			t.Error("expected default replication factor")
-		}
-	})
-
-	t.Run("replication factor min/max override", func(t *testing.T) {
-		cfg, err := loadJSON2(t, func(j *configJSON) { j.ReplicationFactor = 3 })
-		if err != nil {
-			t.Error(err)
-		}
-		if cfg.ReplicationFactorMin != 3 || cfg.ReplicationFactorMax != 3 {
-			t.Error("expected replicationFactor Min/Max override")
 		}
 	})
 

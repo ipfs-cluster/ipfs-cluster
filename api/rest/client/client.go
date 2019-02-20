@@ -125,7 +125,7 @@ type Client interface {
 // Config allows to configure the parameters to connect
 // to the ipfs-cluster REST API.
 type Config struct {
-	// Enable SSL support. Only valid without PeerAddr.
+	// Enable SSL support. Only valid without APIAddr.
 	SSL bool
 	// Skip certificate verification (insecure)
 	NoVerifyCert bool
@@ -141,17 +141,14 @@ type Config struct {
 	// free. Using the libp2p tunnel will ignore any configurations.
 	APIAddr ma.Multiaddr
 
-	// PeerAddr is deprecated. It's aliased to APIAddr
-	PeerAddr ma.Multiaddr
-
 	// REST API endpoint host and port. Only valid without
-	// APIAddr and PeerAddr
+	// APIAddr.
 	Host string
 	Port string
 
-	// If PeerAddr is provided, and the peer uses private networks
-	// (pnet), then we need to provide the key. If the peer is the
-	// cluster peer, this corresponds to the cluster secret.
+	// If APIAddr is provided, and the peer uses private networks (pnet),
+	// then we need to provide the key. If the peer is the cluster peer,
+	// this corresponds to the cluster secret.
 	ProtectorKey []byte
 
 	// ProxyAddr is used to obtain a go-ipfs-api Shell instance pointing
@@ -190,10 +187,6 @@ func NewDefaultClient(cfg *Config) (Client, error) {
 	client := &defaultClient{
 		ctx:    ctx,
 		config: cfg,
-	}
-
-	if paddr := client.config.PeerAddr; paddr != nil {
-		client.config.APIAddr = paddr
 	}
 
 	if client.config.Port == "" {

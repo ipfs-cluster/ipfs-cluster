@@ -64,14 +64,6 @@ type jsonConfig struct {
 	IPFSRequestTimeout string `json:"ipfs_request_timeout"`
 	PinTimeout         string `json:"pin_timeout"`
 	UnpinTimeout       string `json:"unpin_timeout"`
-
-	// Fields below are only to maintain compatibility
-	// They can be removed in future
-	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress,omitempty"`
-	ProxyReadTimeout        string `json:"proxy_read_timeout,omitempty"`
-	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout,omitempty"`
-	ProxyWriteTimeout       string `json:"proxy_write_timeout,omitempty"`
-	ProxyIdleTimeout        string `json:"proxy_idle_timeout,omitempty"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.

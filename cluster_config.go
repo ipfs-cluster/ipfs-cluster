@@ -129,23 +129,20 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                   string   `json:"id"`
-	Peername             string   `json:"peername"`
-	PrivateKey           string   `json:"private_key"`
-	Secret               string   `json:"secret"`
-	Peers                []string `json:"peers,omitempty"`     // DEPRECATED
-	Bootstrap            []string `json:"bootstrap,omitempty"` // DEPRECATED
-	LeaveOnShutdown      bool     `json:"leave_on_shutdown"`
-	ListenMultiaddress   string   `json:"listen_multiaddress"`
-	StateSyncInterval    string   `json:"state_sync_interval"`
-	IPFSSyncInterval     string   `json:"ipfs_sync_interval"`
-	ReplicationFactor    int      `json:"replication_factor,omitempty"` // legacy
-	ReplicationFactorMin int      `json:"replication_factor_min"`
-	ReplicationFactorMax int      `json:"replication_factor_max"`
-	MonitorPingInterval  string   `json:"monitor_ping_interval"`
-	PeerWatchInterval    string   `json:"peer_watch_interval"`
-	DisableRepinning     bool     `json:"disable_repinning"`
-	PeerstoreFile        string   `json:"peerstore_file,omitempty"`
+	ID                   string `json:"id"`
+	Peername             string `json:"peername"`
+	PrivateKey           string `json:"private_key"`
+	Secret               string `json:"secret"`
+	LeaveOnShutdown      bool   `json:"leave_on_shutdown"`
+	ListenMultiaddress   string `json:"listen_multiaddress"`
+	StateSyncInterval    string `json:"state_sync_interval"`
+	IPFSSyncInterval     string `json:"ipfs_sync_interval"`
+	ReplicationFactorMin int    `json:"replication_factor_min"`
+	ReplicationFactorMax int    `json:"replication_factor_max"`
+	MonitorPingInterval  string `json:"monitor_ping_interval"`
+	PeerWatchInterval    string `json:"peer_watch_interval"`
+	DisableRepinning     bool   `json:"disable_repinning"`
+	PeerstoreFile        string `json:"peerstore_file,omitempty"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -301,26 +298,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 	cfg.setDefaults()
 
-	if jcfg.Peers != nil || jcfg.Bootstrap != nil {
-		logger.Error(`
-Your configuration is using cluster.Peers and/or cluster.Bootstrap
-keys. Starting at version 0.4.0 these keys have been deprecated and replaced by
-the Peerstore file and the consensus.raft.InitialPeers key.
-
-Bootstrap keeps working but only as a flag:
-
-"ipfs-cluster-service daemon --bootstrap <comma-separated-multiaddresses>"
-
-If you want to upgrade the existing peers that belong to a cluster:
-
-* Write your peers multiaddresses in the peerstore file (1 per line): ~/.ipfs-cluster/peerstore
-* Remove Peers and Bootstrap from your configuration
-
-Please check the docs (https://cluster.ipfs.io/documentation/configuration/)
-for more information.`)
-		return errors.New("cluster.Peers and cluster.Bootstrap keys have been deprecated")
-	}
-
 	return cfg.applyConfigJSON(jcfg)
 }
 
@@ -364,10 +341,6 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 
 	rplMin := jcfg.ReplicationFactorMin
 	rplMax := jcfg.ReplicationFactorMax
-	if jcfg.ReplicationFactor != 0 { // read min and max
-		rplMin = jcfg.ReplicationFactor
-		rplMax = rplMin
-	}
 	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
 	config.SetIfNotDefault(rplMax, &cfg.ReplicationFactorMax)
 
