@@ -512,10 +512,7 @@ peers should pin this content.
 						},
 					},
 					Action: func(c *cli.Context) error {
-						cidStr := c.Args().First()
-						ci, err := cid.Decode(cidStr)
-						checkErr("parsing cid", err)
-
+						arg := c.Args().First()
 						rpl := c.Int("replication")
 						rplMin := c.Int("replication-min")
 						rplMax := c.Int("replication-max")
@@ -524,16 +521,21 @@ peers should pin this content.
 							rplMax = rpl
 						}
 
-						cerr := globalClient.Pin(ctx, ci, rplMin, rplMax, c.String("name"))
+						opts := api.PinOptions{
+							ReplicationFactorMin: rplMin,
+							ReplicationFactorMax: rplMax,
+							Name:                 c.String("name"),
+						}
+
+						pin, cerr := globalClient.PinPath(ctx, arg, opts)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-
 						handlePinResponseFormatFlags(
 							ctx,
 							c,
-							ci,
+							pin,
 							api.TrackerStatusPinned,
 						)
 						return nil
@@ -567,20 +569,16 @@ although unpinning operations in the cluster may take longer or fail.
 						},
 					},
 					Action: func(c *cli.Context) error {
-
-						cidStr := c.Args().First()
-						ci, err := cid.Decode(cidStr)
-						checkErr("parsing cid", err)
-						cerr := globalClient.Unpin(ctx, ci)
+						arg := c.Args().First()
+						pin, cerr := globalClient.UnpinPath(ctx, arg)
 						if cerr != nil {
 							formatResponse(c, nil, cerr)
 							return nil
 						}
-
 						handlePinResponseFormatFlags(
 							ctx,
 							c,
-							ci,
+							pin,
 							api.TrackerStatusUnpinned,
 						)
 						return nil
@@ -932,7 +930,7 @@ func parseCredentials(userInput string) (string, string) {
 func handlePinResponseFormatFlags(
 	ctx context.Context,
 	c *cli.Context,
-	ci cid.Cid,
+	pin api.Pin,
 	target api.TrackerStatus,
 ) {
 
@@ -940,17 +938,18 @@ func handlePinResponseFormatFlags(
 	var cerr error
 
 	if c.Bool("wait") {
-		status, cerr = waitFor(ci, target, c.Duration("wait-timeout"))
+		status, cerr = waitFor(pin.Cid, target, c.Duration("wait-timeout"))
 		checkErr("waiting for pin status", cerr)
 	}
 
 	if c.Bool("no-status") {
+		formatResponse(c, pin, nil)
 		return
 	}
 
 	if status.Cid == cid.Undef { // no status from "wait"
 		time.Sleep(time.Second)
-		status, cerr = globalClient.Status(ctx, ci, false)
+		status, cerr = globalClient.Status(ctx, pin.Cid, false)
 	}
 	formatResponse(c, status, cerr)
 }

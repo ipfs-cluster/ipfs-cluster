@@ -10,9 +10,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	gopath "github.com/ipfs/go-path"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
@@ -81,6 +84,10 @@ type ipfsPinLsResp struct {
 type ipfsIDResp struct {
 	ID        string
 	Addresses []string
+}
+
+type ipfsResolveResp struct {
+	Path string
 }
 
 type ipfsSwarmPeersResp struct {
@@ -595,6 +602,41 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
 		return stats, err
 	}
 	return stats, nil
+}
+
+// Resolve accepts ipfs or ipns path and resolves it into a cid
+func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Resolve")
+	defer span.End()
+
+	validPath, err := gopath.ParsePath(path)
+	if err != nil {
+		logger.Error("could not parse path: " + err.Error())
+		return cid.Undef, err
+	}
+
+	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
+		ci, _, err := gopath.SplitAbsPath(validPath)
+		return ci, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
+	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(path), "", nil)
+	if err != nil {
+		logger.Error(err)
+		return cid.Undef, err
+	}
+
+	var resp ipfsResolveResp
+	err = json.Unmarshal(res, &resp)
+	if err != nil {
+		logger.Error("could not unmarshal response: " + err.Error())
+		return cid.Undef, err
+	}
+
+	ci, _, err := gopath.SplitAbsPath(gopath.FromString(resp.Path))
+	return ci, err
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.

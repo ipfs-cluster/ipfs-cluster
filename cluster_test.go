@@ -20,6 +20,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/version"
 
+	gopath "github.com/ipfs/go-path"
+
 	cid "github.com/ipfs/go-cid"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -107,6 +109,14 @@ func (ipfs *mockConnector) RepoStat(ctx context.Context) (api.IPFSRepoStat, erro
 	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
+func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
+	_, err := gopath.ParsePath(path)
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	return test.MustDecodeCid(test.TestCidResolved), nil
+}
 func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
@@ -266,6 +276,27 @@ func TestClusterPin(t *testing.T) {
 	pin.ReplicationFactorMax = 1
 	pin.ReplicationFactorMin = 1
 	err = cl.Pin(ctx, pin)
+	if err == nil {
+		t.Error("expected an error but things worked")
+	}
+}
+
+func TestClusterPinPath(t *testing.T) {
+	ctx := context.Background()
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown(ctx)
+
+	pin, err := cl.PinPath(ctx, api.PinPath{Path: test.TestPathIPFS2})
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+	if pin.Cid.String() != test.TestCidResolved {
+		t.Error("expected a different cid, found", pin.Cid.String())
+	}
+
+	// test an error case
+	_, err = cl.PinPath(ctx, api.PinPath{Path: test.TestInvalidPath1})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -769,6 +800,36 @@ func TestClusterUnpin(t *testing.T) {
 	err = cl.Unpin(ctx, c)
 	if err == nil {
 		t.Error("expected an error but things worked")
+	}
+}
+
+func TestClusterUnpinPath(t *testing.T) {
+	ctx := context.Background()
+	cl, _, _, _, _ := testingCluster(t)
+	defer cleanRaft()
+	defer cl.Shutdown(ctx)
+
+	// Unpin should error without pin being committed to state
+	_, err := cl.UnpinPath(ctx, test.TestPathIPFS2)
+	if err == nil {
+		t.Error("unpin with path should have failed")
+	}
+
+	// Unpin after pin should succeed
+	pin, err := cl.PinPath(ctx, api.PinPath{Path: test.TestPathIPFS2})
+	if err != nil {
+		t.Fatal("pin with should have worked:", err)
+	}
+	if pin.Cid.String() != test.TestCidResolved {
+		t.Error("expected a different cid, found", pin.Cid.String())
+	}
+
+	pin, err = cl.UnpinPath(ctx, test.TestPathIPFS2)
+	if err != nil {
+		t.Error("unpin with path should have worked:", err)
+	}
+	if pin.Cid.String() != test.TestCidResolved {
+		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 }
 

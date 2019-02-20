@@ -16,12 +16,12 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/rs/cors"
+
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
@@ -34,6 +34,7 @@ import (
 	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	gopath "github.com/ipfs/go-path"
 	libp2p "github.com/libp2p/go-libp2p"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
@@ -367,10 +368,22 @@ func (api *API) routes() []route {
 			api.statusAllHandler,
 		},
 		{
+			"Sync",
+			"POST",
+			"/pins/{hash}/sync",
+			api.syncHandler,
+		},
+		{
 			"SyncAll",
 			"POST",
 			"/pins/sync",
 			api.syncAllHandler,
+		},
+		{
+			"Recover",
+			"POST",
+			"/pins/{hash}/recover",
+			api.recoverHandler,
 		},
 		{
 			"RecoverAll",
@@ -391,22 +404,22 @@ func (api *API) routes() []route {
 			api.pinHandler,
 		},
 		{
+			"PinPath",
+			"POST",
+			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
+			api.pinPathHandler,
+		},
+		{
 			"Unpin",
 			"DELETE",
 			"/pins/{hash}",
 			api.unpinHandler,
 		},
 		{
-			"Sync",
-			"POST",
-			"/pins/{hash}/sync",
-			api.syncHandler,
-		},
-		{
-			"Recover",
-			"POST",
-			"/pins/{hash}/recover",
-			api.recoverHandler,
+			"UnpinPath",
+			"DELETE",
+			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
+			api.unpinPathHandler,
 		},
 		{
 			"ConnectionGraph",
@@ -688,6 +701,41 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
+	var pin types.PinSerial
+	if pinpath := api.parsePinPathOrError(w, r); pinpath.Path != "" {
+		logger.Debugf("rest api pinPathHandler: %s", pinpath.Path)
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"Cluster",
+			"PinPath",
+			pinpath,
+			&pin,
+		)
+
+		api.sendResponse(w, http.StatusOK, err, pin)
+		logger.Debug("rest api pinPathHandler done")
+	}
+}
+
+func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
+	var pin types.PinSerial
+	if pinpath := api.parsePinPathOrError(w, r); pinpath.Path != "" {
+		logger.Debugf("rest api unpinPathHandler: %s", pinpath.Path)
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"Cluster",
+			"UnpinPath",
+			pinpath.Path,
+			&pin,
+		)
+		api.sendResponse(w, http.StatusOK, err, pin)
+		logger.Debug("rest api unpinPathHandler done")
+	}
+}
+
 func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	filterStr := queryValues.Get("filter")
@@ -947,6 +995,21 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) types.PinPath {
+	vars := mux.Vars(r)
+	urlpath := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/")
+
+	path, err := gopath.ParsePath(urlpath)
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, errors.New("error parsing path: "+err.Error()), nil)
+		return types.PinPath{}
+	}
+
+	pinPath := types.PinPath{Path: path.String()}
+	pinPath.PinOptions.FromQuery(r.URL.Query())
+	return pinPath
+}
+
 func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.PinSerial {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
@@ -962,33 +1025,8 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) types.Pi
 		Type: uint64(types.DataType),
 	}
 
-	queryValues := r.URL.Query()
-	name := queryValues.Get("name")
-	pin.Name = name
+	pin.PinOptions.FromQuery(r.URL.Query())
 	pin.MaxDepth = -1 // For now, all pins are recursive
-	rplStr := queryValues.Get("replication")
-	if rplStr == "" { // compat <= 0.4.0
-		rplStr = queryValues.Get("replication_factor")
-	}
-	rplStrMin := queryValues.Get("replication-min")
-	if rplStrMin == "" { // compat <= 0.4.0
-		rplStrMin = queryValues.Get("replication_factor_min")
-	}
-	rplStrMax := queryValues.Get("replication-max")
-	if rplStrMax == "" { // compat <= 0.4.0
-		rplStrMax = queryValues.Get("replication_factor_max")
-	}
-	if rplStr != "" { // override
-		rplStrMin = rplStr
-		rplStrMax = rplStr
-	}
-	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
-		pin.ReplicationFactorMin = rpl
-	}
-	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
-		pin.ReplicationFactorMax = rpl
-	}
-
 	return pin
 }
 

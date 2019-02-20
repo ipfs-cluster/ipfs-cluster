@@ -144,7 +144,12 @@ func TestPin(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Pin(ctx, ci, 6, 7, "hello there")
+		opts := types.PinOptions{
+			ReplicationFactorMin: 6,
+			ReplicationFactorMax: 7,
+			Name:                 "hello there",
+		}
+		err := c.Pin(ctx, ci, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -163,6 +168,100 @@ func TestUnpin(t *testing.T) {
 		err := c.Unpin(ctx, ci)
 		if err != nil {
 			t.Fatal(err)
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
+type pathCase struct {
+	path    string
+	wantErr bool
+}
+
+var pathTestCases = []pathCase{
+	{
+		test.TestCidResolved,
+		false,
+	},
+	{
+		test.TestPathIPFS1,
+		false,
+	},
+	{
+		test.TestPathIPFS2,
+		false,
+	},
+	{
+		test.TestPathIPNS1,
+		false,
+	},
+	{
+		test.TestPathIPLD1,
+		false,
+	},
+	{
+		test.TestInvalidPath1,
+		true,
+	},
+}
+
+func TestPinPath(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	opts := types.PinOptions{
+		ReplicationFactorMin: 6,
+		ReplicationFactorMax: 7,
+		Name:                 "hello there",
+	}
+
+	resultantPin := types.PinWithOpts(test.MustDecodeCid(test.TestCidResolved), opts)
+
+	testF := func(t *testing.T, c Client) {
+
+		for _, testCase := range pathTestCases {
+			p := testCase.path
+			pin, err := c.PinPath(ctx, p, opts)
+			if err != nil {
+				if testCase.wantErr {
+					continue
+				}
+				t.Fatalf("unexpected error %s: %s", p, err)
+			}
+
+			if !pin.Equals(resultantPin) {
+				t.Errorf("expected different pin: %s", p)
+				t.Errorf("expected: %+v", resultantPin.ToSerial())
+				t.Errorf("actual: %+v", pin.ToSerial())
+			}
+
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
+func TestUnpinPath(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		for _, testCase := range pathTestCases {
+			p := testCase.path
+			pin, err := c.UnpinPath(ctx, p)
+			if err != nil {
+				if testCase.wantErr {
+					continue
+				}
+				t.Fatalf("unepected error %s: %s", p, err)
+			}
+
+			if pin.Cid.String() != test.TestCidResolved {
+				t.Errorf("bad resolved Cid: %s, %s", p, pin.Cid)
+			}
 		}
 	}
 
@@ -488,7 +587,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(ctx, ci, 0, 0, "test")
+		err := c.Pin(ctx, ci, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
 		if err != nil {
 			t.Fatal(err)
 		}

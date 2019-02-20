@@ -19,6 +19,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
+	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -77,20 +78,17 @@ func (c *defaultClient) PeerRm(ctx context.Context, id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, replicationFactorMin, replicationFactorMax int, name string) error {
+func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) error {
 	ctx, span := trace.StartSpan(ctx, "client/Pin")
 	defer span.End()
 
-	escName := url.QueryEscape(name)
 	err := c.do(
 		ctx,
 		"POST",
 		fmt.Sprintf(
-			"/pins/%s?replication-min=%d&replication-max=%d&name=%s",
+			"/pins/%s?%s",
 			ci.String(),
-			replicationFactorMin,
-			replicationFactorMax,
-			escName,
+			opts.ToQuery(),
 		),
 		nil,
 		nil,
@@ -104,6 +102,49 @@ func (c *defaultClient) Unpin(ctx context.Context, ci cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "client/Unpin")
 	defer span.End()
 	return c.do(ctx, "DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
+}
+
+// PinPath allows to pin an element by the given IPFS path.
+func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOptions) (api.Pin, error) {
+	ctx, span := trace.StartSpan(ctx, "client/PinPath")
+	defer span.End()
+
+	var pin api.PinSerial
+	ipfspath, err := gopath.ParsePath(path)
+	if err != nil {
+		return api.Pin{}, err
+	}
+
+	err = c.do(
+		ctx,
+		"POST",
+		fmt.Sprintf(
+			"/pins%s?%s",
+			ipfspath.String(),
+			opts.ToQuery(),
+		),
+		nil,
+		nil,
+		&pin,
+	)
+
+	return pin.ToPin(), err
+}
+
+// UnpinPath allows to unpin an item by providing its IPFS path.
+// It returns the unpinned api.Pin information of the resolved Cid.
+func (c *defaultClient) UnpinPath(ctx context.Context, p string) (api.Pin, error) {
+	ctx, span := trace.StartSpan(ctx, "client/UnpinPath")
+	defer span.End()
+
+	var pin api.PinSerial
+	ipfspath, err := gopath.ParsePath(p)
+	if err != nil {
+		return api.Pin{}, err
+	}
+
+	err = c.do(ctx, "DELETE", fmt.Sprintf("/pins%s", ipfspath.String()), nil, nil, &pin)
+	return pin.ToPin(), err
 }
 
 // Allocations returns the consensus state listing all tracked items and

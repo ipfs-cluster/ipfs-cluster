@@ -7,12 +7,13 @@ import (
 
 // Common variables used all around tests.
 var (
-	TestCid1     = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq"
-	TestCid2     = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma"
-	TestCid3     = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb"
-	TestCid4     = "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57"
-	TestCid4Data = "Cid4Data" // Cid resulting from block put NOT ipfs add
-	TestSlowCid1 = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd"
+	TestCid1        = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq"
+	TestCid2        = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma"
+	TestCid3        = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb"
+	TestCid4        = "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57"
+	TestCid4Data    = "Cid4Data" // Cid resulting from block put NOT ipfs add
+	TestSlowCid1    = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd"
+	TestCidResolved = "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc"
 	// ErrorCid is meant to be used as a Cid which causes errors. i.e. the
 	// ipfs mock fails when pinning this CID.
 	ErrorCid       = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc"
@@ -29,6 +30,18 @@ var (
 	TestPeerName4 = "TestPeer4"
 	TestPeerName5 = "TestPeer5"
 	TestPeerName6 = "TestPeer6"
+
+	TestPathIPFS1 = "/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY"
+	TestPathIPFS2 = "/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif"
+	TestPathIPFS3 = "/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif/"
+	TestPathIPNS1 = "/ipns/QmbmSAQNnfGcBAB8M8AsSPxd1TY7cpT9hZ398kXAScn2Ka"
+	TestPathIPNS2 = "/ipns/QmbmSAQNnfGcBAB8M8AsSPxd1TY7cpT9hZ398kXAScn2Ka/"
+	TestPathIPLD1 = "/ipld/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY"
+	TestPathIPLD2 = "/ipld/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
+
+	TestInvalidPath1 = "/invalidkeytype/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY/"
+	TestInvalidPath2 = "/ipfs/invalidhash"
+	TestInvalidPath3 = "/ipfs/"
 )
 
 // MustDecodeCid provides a test helper that ignores

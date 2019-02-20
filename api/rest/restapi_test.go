@@ -584,6 +584,77 @@ func TestAPIPinEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+type pathCase struct {
+	path    string
+	opts    api.PinOptions
+	wantErr bool
+	code    int
+}
+
+func (p *pathCase) WithQuery() string {
+	return p.path + "?" + p.opts.ToQuery()
+}
+
+var testPinOpts = api.PinOptions{
+	ReplicationFactorMax: 7,
+	ReplicationFactorMin: 6,
+	Name:                 "hello there",
+}
+
+var pathTestCases = []pathCase{
+	{
+		"/ipfs/QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY",
+		testPinOpts,
+		false,
+		http.StatusOK,
+	},
+	{
+		"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif",
+		testPinOpts,
+		false,
+		http.StatusOK,
+	},
+	{
+		"/ipfs/invalidhash",
+		testPinOpts,
+		true,
+		http.StatusBadRequest,
+	},
+	// TODO: Test StatusNotFound and a case with trailing slash with paths
+	// test.TestPathIPNS2, test.TestPathIPLD2, test.TestInvalidPath1
+}
+
+func TestAPIPinEndpointWithPath(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	resultantPin := api.PinWithOpts(
+		test.MustDecodeCid(test.TestCidResolved),
+		testPinOpts,
+	)
+
+	tf := func(t *testing.T, url urlF) {
+		for _, testCase := range pathTestCases {
+			if testCase.wantErr {
+				errResp := api.Error{}
+				makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &errResp)
+				if errResp.Code != testCase.code {
+					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
+				}
+				continue
+			}
+			pin := api.PinSerial{}
+			makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &pin)
+			if !pin.ToPin().Equals(resultantPin) {
+				t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin.ToSerial(), pin, testCase.path)
+			}
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestAPIUnpinEndpoint(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)
@@ -602,6 +673,32 @@ func TestAPIUnpinEndpoint(t *testing.T) {
 		makeDelete(t, rest, url(rest)+"/pins/abcd", &errResp)
 		if errResp.Code != 400 {
 			t.Error("should fail with bad Cid")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIUnpinEndpointWithPath(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url urlF) {
+		for _, testCase := range pathTestCases {
+			if testCase.wantErr {
+				errResp := api.Error{}
+				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &errResp)
+				if errResp.Code != testCase.code {
+					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
+				}
+				continue
+			}
+			pin := api.PinSerial{}
+			makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
+			if pin.Cid != test.TestCidResolved {
+				t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCidResolved, pin.Cid, testCase.path)
+			}
 		}
 	}
 

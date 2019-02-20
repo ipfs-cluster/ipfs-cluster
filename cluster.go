@@ -381,7 +381,7 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 	list := cState.List(ctx)
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			ok, err := c.pin(ctx, pin, []peer.ID{p}, []peer.ID{}) // pin blacklisting this peer
+			_, ok, err := c.pin(ctx, pin, []peer.ID{p}, []peer.ID{}) // pin blacklisting this peer
 			if ok && err == nil {
 				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
 			}
@@ -1020,7 +1020,7 @@ func (c *Cluster) Pin(ctx context.Context, pin api.Pin) error {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
-	_, err := c.pin(ctx, pin, []peer.ID{}, pin.Allocations)
+	_, _, err := c.pin(ctx, pin, []peer.ID{}, pin.Allocations)
 	return err
 }
 
@@ -1099,24 +1099,24 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 }
 
 // pin performs the actual pinning and supports a blacklist to be
-// able to evacuate a node and returns whether the pin was submitted
+// able to evacuate a node and returns the pin object that it tried to pin, whether the pin was submitted
 // to the consensus layer or skipped (due to error or to the fact
-// that it was already valid).
-func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (bool, error) {
+// that it was already valid) and errror.
+func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (api.Pin, bool, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pin")
 	defer span.End()
 
 	if pin.Cid == cid.Undef {
-		return false, errors.New("bad pin object")
+		return pin, false, errors.New("bad pin object")
 	}
 
 	// setup pin might produce some side-effects to our pin
 	err := c.setupPin(ctx, &pin)
 	if err != nil {
-		return false, err
+		return pin, false, err
 	}
 	if pin.Type == api.MetaType {
-		return true, c.consensus.LogPin(ctx, pin)
+		return pin, true, c.consensus.LogPin(ctx, pin)
 	}
 
 	allocs, err := c.allocate(
@@ -1128,14 +1128,14 @@ func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, pri
 		prioritylist,
 	)
 	if err != nil {
-		return false, err
+		return pin, false, err
 	}
 	pin.Allocations = allocs
 
 	if curr, _ := c.PinGet(ctx, pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
-		return false, nil
+		return pin, false, nil
 	}
 
 	if len(pin.Allocations) == 0 {
@@ -1144,7 +1144,39 @@ func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, pri
 		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
 	}
 
-	return true, c.consensus.LogPin(ctx, pin)
+	return pin, true, c.consensus.LogPin(ctx, pin)
+}
+
+func (c *Cluster) unpin(ctx context.Context, h cid.Cid) (api.Pin, error) {
+	_, span := trace.StartSpan(ctx, "cluster/unpin")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	logger.Info("IPFS cluster unpinning:", h)
+	pin, err := c.PinGet(ctx, h)
+	if err != nil {
+		return pin, fmt.Errorf("cannot unpin pin uncommitted to state: %s", err)
+	}
+
+	switch pin.Type {
+	case api.DataType:
+		return pin, c.consensus.LogUnpin(ctx, pin)
+	case api.ShardType:
+		err := "cannot unpin a shard direclty. Unpin content root CID instead."
+		return pin, errors.New(err)
+	case api.MetaType:
+		// Unpin cluster dag and referenced shards
+		err := c.unpinClusterDag(pin)
+		if err != nil {
+			return pin, err
+		}
+		return pin, c.consensus.LogUnpin(ctx, pin)
+	case api.ClusterDAGType:
+		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
+		return pin, errors.New(err)
+	default:
+		return pin, errors.New("unrecognized pin type")
+	}
 }
 
 // Unpin makes the cluster Unpin a Cid. This implies adding the Cid
@@ -1157,32 +1189,8 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) error {
 	_, span := trace.StartSpan(ctx, "cluster/Unpin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
-
-	logger.Info("IPFS cluster unpinning:", h)
-	pin, err := c.PinGet(ctx, h)
-	if err != nil {
-		return fmt.Errorf("cannot unpin pin uncommitted to state: %s", err)
-	}
-
-	switch pin.Type {
-	case api.DataType:
-		return c.consensus.LogUnpin(ctx, pin)
-	case api.ShardType:
-		err := "cannot unpin a shard direclty. Unpin content root CID instead."
-		return errors.New(err)
-	case api.MetaType:
-		// Unpin cluster dag and referenced shards
-		err := c.unpinClusterDag(pin)
-		if err != nil {
-			return err
-		}
-		return c.consensus.LogUnpin(ctx, pin)
-	case api.ClusterDAGType:
-		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
-		return errors.New(err)
-	default:
-		return errors.New("unrecognized pin type")
-	}
+	_, err := c.unpin(ctx, h)
+	return err
 }
 
 // unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
@@ -1207,6 +1215,39 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 		}
 	}
 	return nil
+}
+
+// PinPath pins an CID resolved from its IPFS Path. It returns the resolved
+// Pin object.
+func (c *Cluster) PinPath(ctx context.Context, path api.PinPath) (api.Pin, error) {
+	_, span := trace.StartSpan(ctx, "cluster/PinPath")
+	defer span.End()
+
+	ctx = trace.NewContext(c.ctx, span)
+	ci, err := c.ipfs.Resolve(ctx, path.Path)
+	if err != nil {
+		return api.Pin{}, err
+	}
+
+	p := api.PinCid(ci)
+	p.PinOptions = path.PinOptions
+	p, _, err = c.pin(ctx, p, []peer.ID{}, p.Allocations)
+	return p, err
+}
+
+// UnpinPath unpins a CID resolved from its IPFS Path. If returns the
+// previously pinned Pin object.
+func (c *Cluster) UnpinPath(ctx context.Context, path string) (api.Pin, error) {
+	_, span := trace.StartSpan(ctx, "cluster/UnpinPath")
+	defer span.End()
+
+	ctx = trace.NewContext(c.ctx, span)
+	ci, err := c.ipfs.Resolve(ctx, path)
+	if err != nil {
+		return api.Pin{}, err
+	}
+
+	return c.unpin(ctx, ci)
 }
 
 // AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer

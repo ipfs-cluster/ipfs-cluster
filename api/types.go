@@ -12,8 +12,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -710,6 +712,42 @@ type PinOptions struct {
 	ShardSize            uint64 `json:"shard_size"`
 }
 
+// ToQuery returns the PinOption as query arguments.
+func (po *PinOptions) ToQuery() string {
+	q := url.Values{}
+	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
+	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
+	q.Set("name", po.Name)
+	return q.Encode()
+}
+
+// FromQuery is the inverse of ToQuery().
+func (po *PinOptions) FromQuery(q url.Values) {
+	po.Name = q.Get("name")
+	rplStr := q.Get("replication")
+	if rplStr == "" { // compat <= 0.4.0
+		rplStr = q.Get("replication_factor")
+	}
+	rplStrMin := q.Get("replication-min")
+	if rplStrMin == "" { // compat <= 0.4.0
+		rplStrMin = q.Get("replication_factor_min")
+	}
+	rplStrMax := q.Get("replication-max")
+	if rplStrMax == "" { // compat <= 0.4.0
+		rplStrMax = q.Get("replication_factor_max")
+	}
+	if rplStr != "" { // override
+		rplStrMin = rplStr
+		rplStrMax = rplStr
+	}
+	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
+		po.ReplicationFactorMin = rpl
+	}
+	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
+		po.ReplicationFactorMax = rpl
+	}
+}
+
 // Pin carries all the information associated to a CID that is pinned
 // in IPFS Cluster.
 type Pin struct {
@@ -732,6 +770,12 @@ type Pin struct {
 	// MetaPin it is the ClusterDAG CID. For Shards,
 	// it is the previous shard CID.
 	Reference cid.Cid
+}
+
+// PinPath is a wrapper for holding pin options and path of the content.
+type PinPath struct {
+	PinOptions
+	Path string `json:"path"`
 }
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to

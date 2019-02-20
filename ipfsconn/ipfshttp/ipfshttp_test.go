@@ -294,6 +294,21 @@ func TestRepoStat(t *testing.T) {
 	}
 }
 
+func TestResolve(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+
+	s, err := ipfs.Resolve(ctx, test.TestPathIPFS2)
+	if err != nil {
+		t.Error(err)
+	}
+	if s.String() != test.TestCidResolved {
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.TestCidResolved, s.String())
+	}
+}
+
 func TestConfigKey(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
