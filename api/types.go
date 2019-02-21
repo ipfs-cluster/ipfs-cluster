@@ -739,7 +739,7 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 		return false
 	}
 
-	// avoid side effecs in the original objects
+	// avoid side effects in the original objects
 	allocs1 := make([]string, lenAllocs1, lenAllocs1)
 	allocs2 := make([]string, lenAllocs2, lenAllocs2)
 	copy(allocs1, po.UserAllocations)
