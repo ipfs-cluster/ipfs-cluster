@@ -719,7 +719,7 @@ type PinOptions struct {
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 }
 
-// Equals returns true of two PinOption objects are equivalent.
+// Equals returns true if two PinOption objects are equivalent.
 func (po *PinOptions) Equals(po2 *PinOptions) bool {
 	if po.ReplicationFactorMax != po2.ReplicationFactorMax {
 		return false
