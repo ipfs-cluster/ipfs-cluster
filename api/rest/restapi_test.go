@@ -599,6 +599,7 @@ var testPinOpts = api.PinOptions{
 	ReplicationFactorMax: 7,
 	ReplicationFactorMin: 6,
 	Name:                 "hello there",
+	UserAllocations:      []string{"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt", "QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt"},
 }
 
 var pathTestCases = []pathCase{

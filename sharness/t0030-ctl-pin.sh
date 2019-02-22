@@ -78,6 +78,16 @@ test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipns path
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "UNPINNED"
 '
 
+test_expect_success IPFS,CLUSTER "pin data to cluster with user allocations" '
+    pid=`ipfs-cluster-ctl --enc=json id | jq -r ".id"`
+    ipfs-cluster-ctl pin add --allocations ${pid} -r 1 "${cid[0]}"
+    ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}" &&
+    ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "PINNED"
+    allocations=`ipfs-cluster-ctl --enc=json pin ls | jq .[0].allocations[]`
+    echo $allocations | wc -w | grep -q 1 &&
+    echo $allocations | grep -q ${pid}
+'
+
 test_clean_ipfs
 test_clean_cluster
 
