@@ -934,8 +934,8 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
 		Name:                 pin.Name,
 		ShardSize:            pin.ShardSize,
-		UserAllocations:      pin.UserAllocations,
-		Metadata:             pin.Metadata,
+		// UserAllocations:      pin.UserAllocations,
+		Metadata: pin.Metadata,
 	}
 
 	pbPin := &pb.Pin{
@@ -992,7 +992,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	pin.ReplicationFactorMax = int(opts.GetReplicationFactorMax())
 	pin.Name = opts.GetName()
 	pin.ShardSize = opts.GetShardSize()
-	pin.UserAllocations = opts.GetUserAllocations()
+	// pin.UserAllocations = opts.GetUserAllocations()
 	pin.Metadata = opts.GetMetadata()
 	return nil
 }
