@@ -1069,12 +1069,7 @@ func (pins PinSerial) ToPin() Pin {
 		Type:        PinType(pins.Type),
 		MaxDepth:    pins.MaxDepth,
 		Reference:   ref,
-		PinOptions: PinOptions{
-			Name:                 pins.Name,
-			ReplicationFactorMin: pins.ReplicationFactorMin,
-			ReplicationFactorMax: pins.ReplicationFactorMax,
-			ShardSize:            pins.ShardSize,
-		},
+		PinOptions:  pins.PinOptions,
 	}
 }
 
