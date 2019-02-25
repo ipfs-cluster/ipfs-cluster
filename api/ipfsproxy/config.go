@@ -92,38 +92,6 @@ type jsonConfig struct {
 	ExtractHeadersExtra []string `json:"extract_headers_extra,omitempty"`
 	ExtractHeadersPath  string   `json:"extract_headers_path,omitempty"`
 	ExtractHeadersTTL   string   `json:"extract_headers_ttl,omitempty"`
-
-	// Below fields are only here to maintain backward compatibility
-	// They will be removed in future
-	ProxyListenMultiaddress string `json:"proxy_listen_multiaddress,omitempty"`
-	ProxyReadTimeout        string `json:"proxy_read_timeout,omitempty"`
-	ProxyReadHeaderTimeout  string `json:"proxy_read_header_timeout,omitempty"`
-	ProxyWriteTimeout       string `json:"proxy_write_timeout,omitempty"`
-	ProxyIdleTimeout        string `json:"proxy_idle_timeout,omitempty"`
-}
-
-// toNewFields converts json config written in old style (fields starting with `proxy_`)
-// to new style (without `proxy_`)
-func (jcfg *jsonConfig) toNewFields() {
-	if jcfg.ListenMultiaddress == "" {
-		jcfg.ListenMultiaddress = jcfg.ProxyListenMultiaddress
-	}
-
-	if jcfg.ReadTimeout == "" {
-		jcfg.ReadTimeout = jcfg.ProxyReadTimeout
-	}
-
-	if jcfg.ReadHeaderTimeout == "" {
-		jcfg.ReadHeaderTimeout = jcfg.ProxyReadHeaderTimeout
-	}
-
-	if jcfg.WriteTimeout == "" {
-		jcfg.WriteTimeout = jcfg.ProxyWriteTimeout
-	}
-
-	if jcfg.IdleTimeout == "" {
-		jcfg.IdleTimeout = jcfg.ProxyIdleTimeout
-	}
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -216,10 +184,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 		logger.Error("Error unmarshaling ipfsproxy config")
 		return err
 	}
-
-	// This is here only here to maintain backward compatibility
-	// This won't be needed after removing old style fields(starting with `proxy_`)
-	jcfg.toNewFields()
 
 	err = cfg.Default()
 	if err != nil {

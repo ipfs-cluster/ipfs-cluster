@@ -118,28 +118,10 @@ func newRaftWrapper(
 	return raftW, nil
 }
 
-// makeDataFolder creates the folder that is meant
-// to store Raft data.
+// makeDataFolder creates the folder that is meant to store Raft data. Ensures
+// we always set 0700 mode.
 func makeDataFolder(folder string) error {
-	// TODO(hector): Remove raft datafolder migration hack
-	// in the future
-	baseDir := filepath.Dir(folder)
-	legacyFolder := filepath.Join(baseDir, "ipfs-cluster-data")
-
-	if _, err := os.Stat(legacyFolder); err == nil {
-		// legacy data folder exists. Rename
-		logger.Warningf("Renaming legacy data folder: %s -> %s", legacyFolder, folder)
-		err := os.Rename(legacyFolder, folder)
-		if err != nil {
-			return err
-		}
-	}
-
-	err := os.MkdirAll(folder, 0700)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.MkdirAll(folder, 0700)
 }
 
 func (rw *raftWrapper) makeTransport() (err error) {
