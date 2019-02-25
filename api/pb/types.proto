@@ -22,6 +22,6 @@ message PinOptions {
   sint32 ReplicationFactorMax = 2;
   string Name = 3;
   uint64 ShardSize = 4;
-  reserved 5;
+  reserved 5; // reserved for UserAllocations
   map<string, string> Metadata = 6;
 }
