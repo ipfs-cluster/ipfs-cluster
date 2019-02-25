@@ -474,6 +474,11 @@ in the cluster and should be part of the list offered by "pin ls".
 An optional replication factor can be provided: -1 means "pin everywhere"
 and 0 means use cluster's default setting. Positive values indicate how many
 peers should pin this content.
+
+An optional allocations argument can be provided, allocations should be a
+comma-separated list of peer IDs on which we want to pin. Peers in allocations
+are prioritized over automatically-determined ones, but replication factors
+would stil be respected.
 `,
 					ArgsUsage: "<CID>",
 					Flags: []cli.Flag{
@@ -491,6 +496,10 @@ peers should pin this content.
 							Name:  "replication-max, rmax",
 							Value: 0,
 							Usage: "Sets the maximum replication factor for this pin",
+						},
+						cli.StringSliceFlag{
+							Name:  "allocations, allocs",
+							Usage: "Optional comma-separated list of peer IDs",
 						},
 						cli.StringFlag{
 							Name:  "name, n",
@@ -525,6 +534,7 @@ peers should pin this content.
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
+							UserAllocations:      c.StringSlice("allocations"),
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)

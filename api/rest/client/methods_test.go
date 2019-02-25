@@ -215,6 +215,7 @@ func TestPinPath(t *testing.T) {
 		ReplicationFactorMin: 6,
 		ReplicationFactorMax: 7,
 		Name:                 "hello there",
+		UserAllocations:      []string{"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt", "QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt"},
 	}
 
 	resultantPin := types.PinWithOpts(test.MustDecodeCid(test.TestCidResolved), opts)

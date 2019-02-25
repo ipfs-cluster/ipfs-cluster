@@ -1020,7 +1020,7 @@ func (c *Cluster) Pin(ctx context.Context, pin api.Pin) error {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
-	_, _, err := c.pin(ctx, pin, []peer.ID{}, pin.Allocations)
+	_, _, err := c.pin(ctx, pin, []peer.ID{}, api.StringsToPeers(pin.UserAllocations))
 	return err
 }
 
@@ -1231,7 +1231,7 @@ func (c *Cluster) PinPath(ctx context.Context, path api.PinPath) (api.Pin, error
 
 	p := api.PinCid(ci)
 	p.PinOptions = path.PinOptions
-	p, _, err = c.pin(ctx, p, []peer.ID{}, p.Allocations)
+	p, _, err = c.pin(ctx, p, []peer.ID{}, api.StringsToPeers(p.UserAllocations))
 	return p, err
 }
 
