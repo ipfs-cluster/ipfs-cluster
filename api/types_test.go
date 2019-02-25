@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -348,4 +349,54 @@ func checkDupTags(t *testing.T, name string, typ reflect.Type, tags map[string]s
 func TestPinTags(t *testing.T) {
 	typ := reflect.TypeOf(PinSerial{})
 	checkDupTags(t, "codec", typ, nil)
+}
+
+func TestPinOptionsQuery(t *testing.T) {
+	testcases := []*PinOptions{
+		&PinOptions{
+			ReplicationFactorMax: 3,
+			ReplicationFactorMin: 2,
+			Name:                 "abc",
+			ShardSize:            33,
+			UserAllocations:      []string{"host1", "host2"},
+			Metadata: map[string]string{
+				"hello":  "bye",
+				"hello2": "bye2",
+			},
+		},
+		&PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: 0,
+			Name:                 "",
+			ShardSize:            0,
+			UserAllocations:      []string{},
+			Metadata:             nil,
+		},
+		&PinOptions{
+			ReplicationFactorMax: -1,
+			ReplicationFactorMin: 0,
+			Name:                 "",
+			ShardSize:            0,
+			UserAllocations:      nil,
+			Metadata: map[string]string{
+				"": "bye",
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		queryStr := tc.ToQuery()
+		q, err := url.ParseQuery(queryStr)
+		if err != nil {
+			t.Error("error parsing query", err)
+		}
+		po2 := &PinOptions{}
+		po2.FromQuery(q)
+		if !tc.Equals(po2) {
+			t.Error("expected equal PinOptions")
+			t.Error(queryStr)
+			t.Errorf("%+v\n", tc)
+			t.Errorf("%+v\n", po2)
+		}
+	}
 }
