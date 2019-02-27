@@ -7,16 +7,16 @@ import (
 
 // Common variables used all around tests.
 var (
-	TestCid1        = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq"
-	TestCid2        = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma"
-	TestCid3        = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb"
-	TestCid4        = "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57"
-	TestCid4Data    = "Cid4Data" // Cid resulting from block put NOT ipfs add
-	TestSlowCid1    = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd"
-	TestCidResolved = "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc"
+	TestCid1, _        = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
+	TestCid2, _        = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma")
+	TestCid3, _        = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb")
+	TestCid4, _        = cid.Decode("zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57")
+	TestCid4Data       = "Cid4Data" // Cid resulting from block put NOT ipfs add
+	TestSlowCid1, _    = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd")
+	TestCidResolved, _ = cid.Decode("zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc")
 	// ErrorCid is meant to be used as a Cid which causes errors. i.e. the
 	// ipfs mock fails when pinning this CID.
-	ErrorCid       = "QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc"
+	ErrorCid, _    = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc")
 	TestPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 	TestPeerID2, _ = peer.IDB58Decode("QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6")
 	TestPeerID3, _ = peer.IDB58Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
@@ -43,10 +43,3 @@ var (
 	TestInvalidPath2 = "/ipfs/invalidhash"
 	TestInvalidPath3 = "/ipfs/"
 )
-
-// MustDecodeCid provides a test helper that ignores
-// errors from cid.Decode.
-func MustDecodeCid(v string) cid.Cid {
-	c, _ := cid.Decode(v)
-	return c
-}

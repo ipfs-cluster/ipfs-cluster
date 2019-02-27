@@ -40,14 +40,14 @@ func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
 }
 
 func (mock *mockService) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
-	if in.Cid.String() == ErrorCid {
+	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
 	return nil
 }
 
-func (mock *mockService) Unpin(ctx context.Context, in cid.Cid, out *struct{}) error {
-	if in.String() == ErrorCid {
+func (mock *mockService) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
 	return nil
@@ -58,7 +58,7 @@ func (mock *mockService) PinPath(ctx context.Context, in *api.PinPath, out *api.
 	if err != nil {
 		return err
 	}
-	*out = *api.PinWithOpts(MustDecodeCid(TestCidResolved), in.PinOptions)
+	*out = *api.PinWithOpts(TestCidResolved, in.PinOptions)
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (mock *mockService) UnpinPath(ctx context.Context, in string, out *api.Pin)
 	if err != nil {
 		return err
 	}
-	*out = *api.PinCid(MustDecodeCid(TestCidResolved))
+	*out = *api.PinCid(TestCidResolved)
 	return nil
 }
 
@@ -78,24 +78,24 @@ func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin)
 	}
 
 	*out = []*api.Pin{
-		api.PinWithOpts(MustDecodeCid(TestCid1), opts),
-		api.PinCid(MustDecodeCid(TestCid2)),
-		api.PinWithOpts(MustDecodeCid(TestCid3), opts),
+		api.PinWithOpts(TestCid1, opts),
+		api.PinCid(TestCid2),
+		api.PinWithOpts(TestCid3, opts),
 	}
 	return nil
 }
 
 func (mock *mockService) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
 	switch in.String() {
-	case ErrorCid:
+	case ErrorCid.String():
 		return errors.New("this is an expected error when using ErrorCid")
-	case TestCid1, TestCid3:
+	case TestCid1.String(), TestCid3.String():
 		p := api.PinCid(in)
 		p.ReplicationFactorMin = -1
 		p.ReplicationFactorMax = -1
 		*out = *p
 		return nil
-	case TestCid2: // This is a remote pin
+	case TestCid2.String(): // This is a remote pin
 		p := api.PinCid(in)
 		p.ReplicationFactorMin = 1
 		p.ReplicationFactorMax = 1
@@ -173,16 +173,13 @@ func (mock *mockService) ConnectGraph(ctx context.Context, in struct{}, out *api
 }
 
 func (mock *mockService) StatusAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	c1, _ := cid.Decode(TestCid1)
-	c2, _ := cid.Decode(TestCid2)
-	c3, _ := cid.Decode(TestCid3)
 	pid := peer.IDB58Encode(TestPeerID1)
 	*out = []*api.GlobalPinInfo{
 		{
-			Cid: c1,
+			Cid: TestCid1,
 			PeerMap: map[string]*api.PinInfo{
 				pid: {
-					Cid:    c1,
+					Cid:    TestCid1,
 					Peer:   TestPeerID1,
 					Status: api.TrackerStatusPinned,
 					TS:     time.Now(),
@@ -190,10 +187,10 @@ func (mock *mockService) StatusAll(ctx context.Context, in struct{}, out *[]*api
 			},
 		},
 		{
-			Cid: c2,
+			Cid: TestCid2,
 			PeerMap: map[string]*api.PinInfo{
 				pid: {
-					Cid:    c2,
+					Cid:    TestCid2,
 					Peer:   TestPeerID1,
 					Status: api.TrackerStatusPinning,
 					TS:     time.Now(),
@@ -201,10 +198,10 @@ func (mock *mockService) StatusAll(ctx context.Context, in struct{}, out *[]*api
 			},
 		},
 		{
-			Cid: c3,
+			Cid: TestCid3,
 			PeerMap: map[string]*api.PinInfo{
 				pid: {
-					Cid:    c3,
+					Cid:    TestCid3,
 					Peer:   TestPeerID1,
 					Status: api.TrackerStatusPinError,
 					TS:     time.Now(),
@@ -220,7 +217,7 @@ func (mock *mockService) StatusAllLocal(ctx context.Context, in struct{}, out *[
 }
 
 func (mock *mockService) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
-	if in.String() == ErrorCid {
+	if in.Equals(ErrorCid) {
 		return ErrBadCid
 	}
 	*out = api.GlobalPinInfo{
@@ -292,18 +289,15 @@ func (mock *mockService) Untrack(ctx context.Context, in *api.Pin, out *struct{}
 }
 
 func (mock *mockService) TrackerStatusAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	c1, _ := cid.Decode(TestCid1)
-	c3, _ := cid.Decode(TestCid3)
-
 	*out = []*api.PinInfo{
 		{
-			Cid:    c1,
+			Cid:    TestCid1,
 			Peer:   TestPeerID1,
 			Status: api.TrackerStatusPinned,
 			TS:     time.Now(),
 		},
 		{
-			Cid:    c3,
+			Cid:    TestCid3,
 			Peer:   TestPeerID1,
 			Status: api.TrackerStatusPinError,
 			TS:     time.Now(),
@@ -313,7 +307,7 @@ func (mock *mockService) TrackerStatusAll(ctx context.Context, in struct{}, out 
 }
 
 func (mock *mockService) TrackerStatus(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
-	if in.String() == ErrorCid {
+	if in.Equals(ErrorCid) {
 		return ErrBadCid
 	}
 
@@ -373,7 +367,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct
 }
 
 func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	if in.String() == TestCid1 || in.String() == TestCid3 {
+	if in.Equals(TestCid1) || in.Equals(TestCid3) {
 		*out = api.IPFSPinStatusRecursive
 	} else {
 		*out = api.IPFSPinStatusUnpinned
@@ -383,8 +377,8 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.
 
 func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m := map[string]api.IPFSPinStatus{
-		TestCid1: api.IPFSPinStatusRecursive,
-		TestCid3: api.IPFSPinStatusRecursive,
+		TestCid1.String(): api.IPFSPinStatusRecursive,
+		TestCid3.String(): api.IPFSPinStatusRecursive,
 	}
 	*out = m
 	return nil

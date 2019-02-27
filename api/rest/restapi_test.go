@@ -565,10 +565,10 @@ func TestAPIPinEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		// test regular post
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1, []byte{}, &struct{}{})
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String(), []byte{}, &struct{}{})
 
 		errResp := api.Error{}
-		makePost(t, rest, url(rest)+"/pins/"+test.ErrorCid, []byte{}, &errResp)
+		makePost(t, rest, url(rest)+"/pins/"+test.ErrorCid.String(), []byte{}, &errResp)
 		if errResp.Message != test.ErrBadCid.Error() {
 			t.Error("expected different error: ", errResp.Message)
 		}
@@ -629,7 +629,7 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	resultantPin := api.PinWithOpts(
-		test.MustDecodeCid(test.TestCidResolved),
+		test.TestCidResolved,
 		testPinOpts,
 	)
 
@@ -661,10 +661,10 @@ func TestAPIUnpinEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		// test regular delete
-		makeDelete(t, rest, url(rest)+"/pins/"+test.TestCid1, &struct{}{})
+		makeDelete(t, rest, url(rest)+"/pins/"+test.TestCid1.String(), &struct{}{})
 
 		errResp := api.Error{}
-		makeDelete(t, rest, url(rest)+"/pins/"+test.ErrorCid, &errResp)
+		makeDelete(t, rest, url(rest)+"/pins/"+test.ErrorCid.String(), &errResp)
 		if errResp.Message != test.ErrBadCid.Error() {
 			t.Error("expected different error: ", errResp.Message)
 		}
@@ -695,7 +695,7 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 			}
 			pin := api.Pin{}
 			makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
-			if pin.Cid.String() != test.TestCidResolved {
+			if !pin.Cid.Equals(test.TestCidResolved) {
 				t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCidResolved, pin.Cid, testCase.path)
 			}
 		}
@@ -713,8 +713,8 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 		var resp []*api.Pin
 		makeGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp)
 		if len(resp) != 3 ||
-			resp[0].Cid.String() != test.TestCid1 || resp[1].Cid.String() != test.TestCid2 ||
-			resp[2].Cid.String() != test.TestCid3 {
+			!resp[0].Cid.Equals(test.TestCid1) || !resp[1].Cid.Equals(test.TestCid2) ||
+			!resp[2].Cid.Equals(test.TestCid3) {
 			t.Error("unexpected pin list: ", resp)
 		}
 	}
@@ -729,13 +729,13 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.Pin
-		makeGet(t, rest, url(rest)+"/allocations/"+test.TestCid1, &resp)
-		if resp.Cid.String() != test.TestCid1 {
+		makeGet(t, rest, url(rest)+"/allocations/"+test.TestCid1.String(), &resp)
+		if !resp.Cid.Equals(test.TestCid1) {
 			t.Errorf("cid should be the same: %s %s", resp.Cid, test.TestCid1)
 		}
 
 		errResp := api.Error{}
-		makeGet(t, rest, url(rest)+"/allocations/"+test.ErrorCid, &errResp)
+		makeGet(t, rest, url(rest)+"/allocations/"+test.ErrorCid.String(), &errResp)
 		if errResp.Code != 404 {
 			t.Error("a non-pinned cid should 404")
 		}
@@ -778,7 +778,7 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		makeGet(t, rest, url(rest)+"/pins", &resp)
 
 		if len(resp) != 3 ||
-			resp[0].Cid.String() != test.TestCid1 ||
+			!resp[0].Cid.Equals(test.TestCid1) ||
 			resp[1].PeerMap[peer.IDB58Encode(test.TestPeerID1)].Status.String() != "pinning" {
 			t.Errorf("unexpected statusAll resp")
 		}
@@ -832,9 +832,9 @@ func TestAPIStatusEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfo
-		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1, &resp)
+		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1.String(), &resp)
 
-		if resp.Cid.String() != test.TestCid1 {
+		if !resp.Cid.Equals(test.TestCid1) {
 			t.Error("expected the same cid")
 		}
 		info, ok := resp.PeerMap[peer.IDB58Encode(test.TestPeerID1)]
@@ -847,9 +847,9 @@ func TestAPIStatusEndpoint(t *testing.T) {
 
 		// Test local=true
 		var resp2 api.GlobalPinInfo
-		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1+"?local=true", &resp2)
+		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"?local=true", &resp2)
 
-		if resp2.Cid.String() != test.TestCid1 {
+		if !resp2.Cid.Equals(test.TestCid1) {
 			t.Error("expected the same cid")
 		}
 		info, ok = resp2.PeerMap[peer.IDB58Encode(test.TestPeerID2)]
@@ -874,7 +874,7 @@ func TestAPISyncAllEndpoint(t *testing.T) {
 		makePost(t, rest, url(rest)+"/pins/sync", []byte{}, &resp)
 
 		if len(resp) != 3 ||
-			resp[0].Cid.String() != test.TestCid1 ||
+			!resp[0].Cid.Equals(test.TestCid1) ||
 			resp[1].PeerMap[peer.IDB58Encode(test.TestPeerID1)].Status.String() != "pinning" {
 			t.Errorf("unexpected syncAll resp:\n %+v", resp)
 		}
@@ -898,9 +898,9 @@ func TestAPISyncEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfo
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1+"/sync", []byte{}, &resp)
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"/sync", []byte{}, &resp)
 
-		if resp.Cid.String() != test.TestCid1 {
+		if !resp.Cid.Equals(test.TestCid1) {
 			t.Error("expected the same cid")
 		}
 		info, ok := resp.PeerMap[peer.IDB58Encode(test.TestPeerID1)]
@@ -913,9 +913,9 @@ func TestAPISyncEndpoint(t *testing.T) {
 
 		// Test local=true
 		var resp2 api.GlobalPinInfo
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1+"/sync?local=true", []byte{}, &resp2)
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"/sync?local=true", []byte{}, &resp2)
 
-		if resp2.Cid.String() != test.TestCid1 {
+		if !resp2.Cid.Equals(test.TestCid1) {
 			t.Error("expected the same cid")
 		}
 		info, ok = resp2.PeerMap[peer.IDB58Encode(test.TestPeerID2)]
@@ -937,9 +937,9 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfo
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1+"/recover", []byte{}, &resp)
+		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"/recover", []byte{}, &resp)
 
-		if resp.Cid.String() != test.TestCid1 {
+		if !resp.Cid.Equals(test.TestCid1) {
 			t.Error("expected the same cid")
 		}
 		info, ok := resp.PeerMap[peer.IDB58Encode(test.TestPeerID1)]

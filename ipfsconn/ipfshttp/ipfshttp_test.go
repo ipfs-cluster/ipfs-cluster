@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -67,9 +66,6 @@ func TestIPFSID(t *testing.T) {
 	if err == nil {
 		t.Error("expected an error")
 	}
-	if id.Error != err.Error() {
-		t.Error("error messages should match")
-	}
 }
 
 func testPin(t *testing.T, method string) {
@@ -80,7 +76,7 @@ func testPin(t *testing.T, method string) {
 
 	ipfs.config.PinMethod = method
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err := ipfs.Pin(ctx, c, -1)
 	if err != nil {
 		t.Error("expected success pinning cid")
@@ -93,7 +89,7 @@ func testPin(t *testing.T, method string) {
 		t.Error("cid should have been pinned")
 	}
 
-	c2, _ := cid.Decode(test.ErrorCid)
+	c2 := test.ErrorCid
 	err = ipfs.Pin(ctx, c2, -1)
 	if err == nil {
 		t.Error("expected error pinning cid")
@@ -110,7 +106,7 @@ func TestIPFSUnpin(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err := ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
@@ -127,8 +123,8 @@ func TestIPFSPinLsCid(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-	c, _ := cid.Decode(test.TestCid1)
-	c2, _ := cid.Decode(test.TestCid2)
+	c := test.TestCid1
+	c2 := test.TestCid2
 
 	ipfs.Pin(ctx, c, -1)
 	ips, err := ipfs.PinLsCid(ctx, c)
@@ -147,8 +143,8 @@ func TestIPFSPinLs(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-	c, _ := cid.Decode(test.TestCid1)
-	c2, _ := cid.Decode(test.TestCid2)
+	c := test.TestCid1
+	c2 := test.TestCid2
 
 	ipfs.Pin(ctx, c, -1)
 	ipfs.Pin(ctx, c2, -1)
@@ -161,7 +157,7 @@ func TestIPFSPinLs(t *testing.T) {
 		t.Fatal("the map does not contain expected keys")
 	}
 
-	if !ipsMap[test.TestCid1].IsPinned(-1) || !ipsMap[test.TestCid2].IsPinned(-1) {
+	if !ipsMap[test.TestCid1.String()].IsPinned(-1) || !ipsMap[test.TestCid2.String()].IsPinned(-1) {
 		t.Error("c1 and c2 should appear pinned")
 	}
 }
@@ -221,7 +217,7 @@ func TestBlockPut(t *testing.T) {
 	data := []byte(test.TestCid4Data)
 	err := ipfs.BlockPut(ctx, &api.NodeWithMeta{
 		Data:   data,
-		Cid:    test.MustDecodeCid(test.TestCid4),
+		Cid:    test.TestCid4,
 		Format: "raw",
 	})
 	if err != nil {
@@ -235,12 +231,9 @@ func TestBlockGet(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	shardCid, err := cid.Decode(test.TestShardCid)
-	if err != nil {
-		t.Fatal(err)
-	}
+	shardCid := test.TestShardCid
 	// Fail when getting before putting
-	_, err = ipfs.BlockGet(ctx, shardCid)
+	_, err := ipfs.BlockGet(ctx, shardCid)
 	if err == nil {
 		t.Fatal("expected to fail getting unput block")
 	}
@@ -248,7 +241,7 @@ func TestBlockGet(t *testing.T) {
 	// Put and then successfully get
 	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
 		Data:   test.TestShardData,
-		Cid:    test.MustDecodeCid(test.TestShardCid),
+		Cid:    test.TestShardCid,
 		Format: "cbor",
 	})
 	if err != nil {
@@ -279,7 +272,7 @@ func TestRepoStat(t *testing.T) {
 		t.Error("expected 0 bytes of size")
 	}
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err = ipfs.Pin(ctx, c, -1)
 	if err != nil {
 		t.Error("expected success pinning cid")
@@ -304,7 +297,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if s.String() != test.TestCidResolved {
+	if !s.Equals(test.TestCidResolved) {
 		t.Errorf("expected different cid, expected: %s, found: %s\n", test.TestCidResolved, s.String())
 	}
 }

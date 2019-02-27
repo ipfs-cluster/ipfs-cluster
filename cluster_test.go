@@ -115,7 +115,7 @@ func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, e
 		return cid.Undef, err
 	}
 
-	return test.MustDecodeCid(test.TestCidResolved), nil
+	return test.TestCidResolved, nil
 }
 func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
@@ -218,7 +218,7 @@ func TestClusterStateSync(t *testing.T) {
 		t.Fatal("expected an error as there is no state to sync")
 	}
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err = cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -264,7 +264,7 @@ func TestClusterPin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -291,7 +291,7 @@ func TestClusterPinPath(t *testing.T) {
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCidResolved {
+	if !pin.Cid.Equals(test.TestCidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
@@ -730,7 +730,7 @@ func TestClusterPins(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -751,7 +751,7 @@ func TestClusterPinGet(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -765,8 +765,7 @@ func TestClusterPinGet(t *testing.T) {
 		t.Error("the Pin does not look as expected")
 	}
 
-	c2, _ := cid.Decode(test.TestCid2)
-	_, err = cl.PinGet(ctx, c2)
+	_, err = cl.PinGet(ctx, test.TestCid2)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -778,7 +777,7 @@ func TestClusterUnpin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.TestCid1
 	// Unpin should error without pin being committed to state
 	err := cl.Unpin(ctx, c)
 	if err == nil {
@@ -820,7 +819,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCidResolved {
+	if !pin.Cid.Equals(test.TestCidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
@@ -828,7 +827,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	if err != nil {
 		t.Error("unpin with path should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCidResolved {
+	if !pin.Cid.Equals(test.TestCidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 }
@@ -866,8 +865,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
-	err := cl.Pin(ctx, api.PinCid(c))
+	err := cl.Pin(ctx, api.PinCid(test.TestCid1))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}

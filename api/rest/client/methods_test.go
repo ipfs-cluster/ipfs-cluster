@@ -143,13 +143,12 @@ func TestPin(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
 		opts := types.PinOptions{
 			ReplicationFactorMin: 6,
 			ReplicationFactorMax: 7,
 			Name:                 "hello there",
 		}
-		err := c.Pin(ctx, ci, opts)
+		err := c.Pin(ctx, test.TestCid1, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -164,8 +163,7 @@ func TestUnpin(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
-		err := c.Unpin(ctx, ci)
+		err := c.Unpin(ctx, test.TestCid1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -181,7 +179,7 @@ type pathCase struct {
 
 var pathTestCases = []pathCase{
 	{
-		test.TestCidResolved,
+		test.TestCidResolved.String(),
 		false,
 	},
 	{
@@ -218,7 +216,7 @@ func TestPinPath(t *testing.T) {
 		UserAllocations:      []string{"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt", "QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt"},
 	}
 
-	resultantPin := types.PinWithOpts(test.MustDecodeCid(test.TestCidResolved), opts)
+	resultantPin := types.PinWithOpts(test.TestCidResolved, opts)
 
 	testF := func(t *testing.T, c Client) {
 
@@ -260,7 +258,7 @@ func TestUnpinPath(t *testing.T) {
 				t.Fatalf("unepected error %s: %s", p, err)
 			}
 
-			if pin.Cid.String() != test.TestCidResolved {
+			if !pin.Cid.Equals(test.TestCidResolved) {
 				t.Errorf("bad resolved Cid: %s, %s", p, pin.Cid)
 			}
 		}
@@ -293,12 +291,11 @@ func TestAllocation(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Allocation(ctx, ci)
+		pin, err := c.Allocation(ctx, test.TestCid1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if pin.Cid.String() != test.TestCid1 {
+		if !pin.Cid.Equals(test.TestCid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -312,12 +309,11 @@ func TestStatus(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Status(ctx, ci, false)
+		pin, err := c.Status(ctx, test.TestCid1, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if pin.Cid.String() != test.TestCid1 {
+		if !pin.Cid.Equals(test.TestCid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -381,12 +377,11 @@ func TestSync(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Sync(ctx, ci, false)
+		pin, err := c.Sync(ctx, test.TestCid1, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if pin.Cid.String() != test.TestCid1 {
+		if !pin.Cid.Equals(test.TestCid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -419,12 +414,11 @@ func TestRecover(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
-		pin, err := c.Recover(ctx, ci, false)
+		pin, err := c.Recover(ctx, test.TestCid1, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if pin.Cid.String() != test.TestCid1 {
+		if !pin.Cid.Equals(test.TestCid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -556,7 +550,6 @@ func TestWaitFor(t *testing.T) {
 	tapi.SetClient(rpcC)
 
 	testF := func(t *testing.T, c Client) {
-		ci, _ := cid.Decode(test.TestCid1)
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -566,7 +559,7 @@ func TestWaitFor(t *testing.T) {
 			defer cancel()
 
 			fp := StatusFilterParams{
-				Cid:       ci,
+				Cid:       test.TestCid1,
 				Local:     false,
 				Target:    api.TrackerStatusPinned,
 				CheckFreq: time.Second,
@@ -587,7 +580,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(ctx, ci, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
+		err := c.Pin(ctx, test.TestCid1, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
 		if err != nil {
 			t.Fatal(err)
 		}

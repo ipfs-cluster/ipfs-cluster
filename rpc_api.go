@@ -346,8 +346,8 @@ func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) e
 }
 
 // IPFSUnpin runs IPFSConnector.Unpin().
-func (rpcapi *RPCAPI) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{}) error {
-	return rpcapi.c.ipfs.Unpin(ctx, in)
+func (rpcapi *RPCAPI) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	return rpcapi.c.ipfs.Unpin(ctx, in.Cid)
 }
 
 // IPFSPinLsCid runs IPFSConnector.PinLsCid().

@@ -151,7 +151,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			goto ERROR
 		}
-		if arg == ErrorCid {
+		if arg == ErrorCid.String() {
 			goto ERROR
 		}
 		c, err := cid.Decode(arg)
@@ -303,7 +303,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "resolve":
-		w.Write([]byte("{\"Path\":\"" + "/ipfs/" + TestCidResolved + "\"}"))
+		w.Write([]byte("{\"Path\":\"" + "/ipfs/" + TestCidResolved.String() + "\"}"))
 	case "config/show":
 		resp := mockConfigResp{
 			Datastore: struct {

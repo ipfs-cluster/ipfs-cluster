@@ -49,9 +49,9 @@ func mockRPCClient(t testing.TB) *rpc.Client {
 func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	c := in.Cid
 	switch c.String() {
-	case test.TestSlowCid1:
+	case test.TestSlowCid1.String():
 		time.Sleep(3 * time.Second)
-	case pinCancelCid:
+	case pinCancelCid.String():
 		return ErrPinCancelCid
 	}
 	return nil
@@ -59,9 +59,9 @@ func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}
 
 func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
 	switch in.String() {
-	case test.TestCid1, test.TestCid2:
+	case test.TestCid1.String(), test.TestCid2.String():
 		*out = api.IPFSPinStatusRecursive
-	case test.TestCid4:
+	case test.TestCid4.String():
 		*out = api.IPFSPinStatusError
 		return errors.New("an ipfs error")
 	default:
@@ -70,11 +70,11 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{}) error {
-	switch in.String() {
-	case test.TestSlowCid1:
+func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	switch in.Cid.String() {
+	case test.TestSlowCid1.String():
 		time.Sleep(3 * time.Second)
-	case unpinCancelCid:
+	case unpinCancelCid.String():
 		return ErrUnpinCancelCid
 	}
 	return nil
@@ -82,7 +82,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{
 
 func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m := map[string]api.IPFSPinStatus{
-		test.TestCid1: api.IPFSPinStatusRecursive,
+		test.TestCid1.String(): api.IPFSPinStatusRecursive,
 	}
 	*out = m
 	return nil
@@ -90,17 +90,17 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
 	*out = []*api.Pin{
-		api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
-		api.PinWithOpts(test.MustDecodeCid(test.TestCid3), pinOpts),
+		api.PinWithOpts(test.TestCid1, pinOpts),
+		api.PinWithOpts(test.TestCid3, pinOpts),
 	}
 	return nil
 }
 
 func (mock *mockService) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
 	switch in.String() {
-	case test.ErrorCid:
+	case test.ErrorCid.String():
 		return errors.New("expected error when using ErrorCid")
-	case test.TestCid1, test.TestCid2:
+	case test.TestCid1.String(), test.TestCid2.String():
 		pin := api.PinWithOpts(in, pinOpts)
 		*out = *pin
 		return nil
@@ -163,7 +163,7 @@ func TestPinTracker_Track(t *testing.T) {
 		{
 			"basic stateless track",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testStatelessPinTracker(t),
 			},
 			false,
@@ -171,7 +171,7 @@ func TestPinTracker_Track(t *testing.T) {
 		{
 			"basic map track",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testMapPinTracker(t),
 			},
 			false,
@@ -198,14 +198,14 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 		{
 			"basic stateless track",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testStatelessPinTracker(b),
 			},
 		},
 		{
 			"basic map track",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testMapPinTracker(b),
 			},
 		},
@@ -235,7 +235,7 @@ func TestPinTracker_Untrack(t *testing.T) {
 		{
 			"basic stateless untrack",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testStatelessPinTracker(t),
 			},
 			false,
@@ -243,7 +243,7 @@ func TestPinTracker_Untrack(t *testing.T) {
 		{
 			"basic map untrack",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testMapPinTracker(t),
 			},
 			false,
@@ -271,20 +271,20 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"basic stateless statusall",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testStatelessPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid2),
+					Cid:    test.TestCid2,
 					Status: api.TrackerStatusRemote,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid3),
+					Cid:    test.TestCid3,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -292,12 +292,12 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"basic map statusall",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testMapPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -305,12 +305,12 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"slow stateless statusall",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testSlowStatelessPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -318,12 +318,12 @@ func TestPinTracker_StatusAll(t *testing.T) {
 		{
 			"slow map statusall",
 			args{
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 				testSlowMapPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -403,44 +403,44 @@ func TestPinTracker_Status(t *testing.T) {
 		{
 			"basic stateless status",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 		},
 		{
 			"basic map status",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 		},
 		{
 			"basic stateless status/unpinned",
 			args{
-				test.MustDecodeCid(test.TestCid4),
+				test.TestCid4,
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid4),
+				Cid:    test.TestCid4,
 				Status: api.TrackerStatusUnpinned,
 			},
 		},
 		{
 			"basic map status/unpinned",
 			args{
-				test.MustDecodeCid(test.TestCid4),
+				test.TestCid4,
 				testMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid4),
+				Cid:    test.TestCid4,
 				Status: api.TrackerStatusUnpinned,
 			},
 		},
@@ -448,22 +448,22 @@ func TestPinTracker_Status(t *testing.T) {
 		{
 			"slow stateless status",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testSlowStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 		},
 		{
 			"slow map status",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testSlowMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 		},
@@ -474,7 +474,7 @@ func TestPinTracker_Status(t *testing.T) {
 			case *maptracker.MapPinTracker:
 				// the Track preps the internal map of the MapPinTracker
 				// not required by the Stateless impl
-				pin := api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts)
+				pin := api.PinWithOpts(test.TestCid1, pinOpts)
 				if err := tt.args.tracker.Track(context.Background(), pin); err != nil {
 					t.Errorf("PinTracker.Track() error = %v", err)
 				}
@@ -509,18 +509,18 @@ func TestPinTracker_SyncAll(t *testing.T) {
 			"basic stateless syncall",
 			args{
 				[]cid.Cid{
-					test.MustDecodeCid(test.TestCid1),
-					test.MustDecodeCid(test.TestCid2),
+					test.TestCid1,
+					test.TestCid2,
 				},
 				testStatelessPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid2),
+					Cid:    test.TestCid2,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -530,18 +530,18 @@ func TestPinTracker_SyncAll(t *testing.T) {
 			"basic map syncall",
 			args{
 				[]cid.Cid{
-					test.MustDecodeCid(test.TestCid1),
-					test.MustDecodeCid(test.TestCid2),
+					test.TestCid1,
+					test.TestCid2,
 				},
 				testMapPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid2),
+					Cid:    test.TestCid2,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -551,18 +551,18 @@ func TestPinTracker_SyncAll(t *testing.T) {
 			"slow stateless syncall",
 			args{
 				[]cid.Cid{
-					test.MustDecodeCid(test.TestCid1),
-					test.MustDecodeCid(test.TestCid2),
+					test.TestCid1,
+					test.TestCid2,
 				},
 				testSlowStatelessPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid2),
+					Cid:    test.TestCid2,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -572,18 +572,18 @@ func TestPinTracker_SyncAll(t *testing.T) {
 			"slow map syncall",
 			args{
 				[]cid.Cid{
-					test.MustDecodeCid(test.TestCid1),
-					test.MustDecodeCid(test.TestCid2),
+					test.TestCid1,
+					test.TestCid2,
 				},
 				testSlowMapPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid2),
+					Cid:    test.TestCid2,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -639,11 +639,11 @@ func TestPinTracker_Sync(t *testing.T) {
 		{
 			"basic stateless sync",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -651,11 +651,11 @@ func TestPinTracker_Sync(t *testing.T) {
 		{
 			"basic map sync",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -663,11 +663,11 @@ func TestPinTracker_Sync(t *testing.T) {
 		{
 			"slow stateless sync",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testSlowStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -675,11 +675,11 @@ func TestPinTracker_Sync(t *testing.T) {
 		{
 			"slow map sync",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testSlowMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -690,7 +690,7 @@ func TestPinTracker_Sync(t *testing.T) {
 			switch tt.args.tracker.(type) {
 			case *maptracker.MapPinTracker:
 				// the Track preps the internal map of the MapPinTracker; not required by the Stateless impl
-				pin := api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts)
+				pin := api.PinWithOpts(test.TestCid1, pinOpts)
 				if err := tt.args.tracker.Track(context.Background(), pin); err != nil {
 					t.Errorf("PinTracker.Track() error = %v", err)
 				}
@@ -734,15 +734,15 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid2),
+					Cid:    test.TestCid2,
 					Status: api.TrackerStatusRemote,
 				},
 				{
-					Cid:    test.MustDecodeCid(test.TestCid3),
+					Cid:    test.TestCid3,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -752,11 +752,11 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			"basic map recoverall",
 			args{
 				testMapPinTracker(t),
-				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+				api.PinWithOpts(test.TestCid1, pinOpts),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.MustDecodeCid(test.TestCid1),
+					Cid:    test.TestCid1,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -818,11 +818,11 @@ func TestPinTracker_Recover(t *testing.T) {
 		{
 			"basic stateless recover",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -830,11 +830,11 @@ func TestPinTracker_Recover(t *testing.T) {
 		{
 			"basic map recover",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -869,11 +869,11 @@ func TestUntrackTrack(t *testing.T) {
 		{
 			"basic stateless untrack track",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -881,11 +881,11 @@ func TestUntrackTrack(t *testing.T) {
 		{
 			"basic map untrack track",
 			args{
-				test.MustDecodeCid(test.TestCid1),
+				test.TestCid1,
 				testMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestCid1),
+				Cid:    test.TestCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -922,11 +922,11 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 		{
 			"slow stateless tracker untrack w/ cancel",
 			args{
-				test.MustDecodeCid(test.TestSlowCid1),
+				test.TestSlowCid1,
 				testSlowStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestSlowCid1),
+				Cid:    test.TestSlowCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -934,11 +934,11 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 		{
 			"slow map tracker untrack w/ cancel",
 			args{
-				test.MustDecodeCid(test.TestSlowCid1),
+				test.TestSlowCid1,
 				testSlowMapPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.MustDecodeCid(test.TestSlowCid1),
+				Cid:    test.TestSlowCid1,
 				Status: api.TrackerStatusPinned,
 			},
 			false,
@@ -989,7 +989,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 	ctx := context.Background()
 	testF := func(t *testing.T, pt ipfscluster.PinTracker) {
-		remoteCid := test.MustDecodeCid(test.TestCid4)
+		remoteCid := test.TestCid4
 
 		remote := api.PinWithOpts(remoteCid, pinOpts)
 		remote.Allocations = []peer.ID{test.TestPeerID2}

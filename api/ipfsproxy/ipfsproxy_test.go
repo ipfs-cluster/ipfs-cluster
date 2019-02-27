@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	cid "github.com/ipfs/go-cid"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -85,13 +87,13 @@ func TestIPFSProxyPin(t *testing.T) {
 
 	type args struct {
 		urlPath    string
-		testCid    string
+		testCid    cid.Cid
 		statusCode int
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    cid.Cid
 		wantErr bool
 	}{
 		{
@@ -121,7 +123,7 @@ func TestIPFSProxyPin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 		{
@@ -131,13 +133,18 @@ func TestIPFSProxyPin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := fmt.Sprintf("%s%s%s", proxyURL(proxy), tt.args.urlPath, tt.args.testCid)
+			u := fmt.Sprintf(
+				"%s%s%s",
+				proxyURL(proxy),
+				tt.args.urlPath,
+				tt.args.testCid,
+			)
 			res, err := http.Post(u, "", nil)
 			if err != nil {
 				t.Fatal("should have succeeded: ", err)
@@ -162,7 +169,7 @@ func TestIPFSProxyPin(t *testing.T) {
 					t.Fatalf("wrong number of pins: got = %d, want %d", len(resp.Pins), 1)
 				}
 
-				if resp.Pins[0] != tt.want {
+				if resp.Pins[0] != tt.want.String() {
 					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
 				}
 			case true:
@@ -188,13 +195,13 @@ func TestIPFSProxyUnpin(t *testing.T) {
 
 	type args struct {
 		urlPath    string
-		testCid    string
+		testCid    cid.Cid
 		statusCode int
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    cid.Cid
 		wantErr bool
 	}{
 		{
@@ -224,7 +231,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 		{
@@ -234,7 +241,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 	}
@@ -265,7 +272,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 					t.Fatalf("wrong number of pins: got = %d, want %d", len(resp.Pins), 1)
 				}
 
-				if resp.Pins[0] != tt.want {
+				if resp.Pins[0] != tt.want.String() {
 					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
 				}
 			case true:
@@ -306,7 +313,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, ok := resp.Keys[test.TestCid1]
+		_, ok := resp.Keys[test.TestCid1.String()]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
 		}
@@ -329,7 +336,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, ok := resp.Keys[test.TestCid1]
+		_, ok := resp.Keys[test.TestCid1.String()]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
 		}

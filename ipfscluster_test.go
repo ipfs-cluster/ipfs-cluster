@@ -29,7 +29,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/version"
 
-	cid "github.com/ipfs/go-cid"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -437,8 +436,7 @@ func TestClustersPin(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	exampleCid, _ := cid.Decode(test.TestCid1)
-	prefix := exampleCid.Prefix()
+	prefix := test.TestCid1.Prefix()
 
 	ttlDelay()
 
@@ -504,7 +502,7 @@ func TestClustersStatusAll(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	clusters[0].Pin(ctx, api.PinCid(h))
 	pinDelay()
 	// Global status
@@ -516,7 +514,7 @@ func TestClustersStatusAll(t *testing.T) {
 		if len(statuses) != 1 {
 			t.Fatal("bad status. Expected one item")
 		}
-		if statuses[0].Cid.String() != test.TestCid1 {
+		if !statuses[0].Cid.Equals(h) {
 			t.Error("bad cid in status")
 		}
 		info := statuses[0].PeerMap
@@ -551,7 +549,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	clusters[0].Pin(ctx, api.PinCid(h))
 	pinDelay()
 
@@ -581,7 +579,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 		pid := peer.IDB58Encode(clusters[1].ID(ctx).ID)
 		errst := stts.PeerMap[pid]
 
-		if errst.Cid.String() != test.TestCid1 {
+		if !errst.Cid.Equals(h) {
 			t.Error("errored pinInfo should have a good cid")
 		}
 
@@ -601,7 +599,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			t.Error("erroring status should be ClusterError")
 		}
 
-		if pinfo.Cid.String() != test.TestCid1 {
+		if !pinfo.Cid.Equals(h) {
 			t.Error("errored status should have a good cid")
 		}
 
@@ -613,10 +611,8 @@ func TestClustersSyncAllLocal(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
-	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(ctx, api.PinCid(h))
-	clusters[0].Pin(ctx, api.PinCid(h2))
+	clusters[0].Pin(ctx, api.PinCid(test.ErrorCid)) // This cid always fails
+	clusters[0].Pin(ctx, api.PinCid(test.TestCid2))
 	pinDelay()
 	pinDelay()
 
@@ -644,8 +640,8 @@ func TestClustersSyncLocal(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
-	h2, _ := cid.Decode(test.TestCid2)
+	h := test.ErrorCid
+	h2 := test.TestCid2
 	clusters[0].Pin(ctx, api.PinCid(h))
 	clusters[0].Pin(ctx, api.PinCid(h2))
 	pinDelay()
@@ -677,10 +673,8 @@ func TestClustersSyncAll(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
-	h2, _ := cid.Decode(test.TestCid2)
-	clusters[0].Pin(ctx, api.PinCid(h))
-	clusters[0].Pin(ctx, api.PinCid(h2))
+	clusters[0].Pin(ctx, api.PinCid(test.ErrorCid))
+	clusters[0].Pin(ctx, api.PinCid(test.TestCid2))
 	pinDelay()
 	pinDelay()
 
@@ -692,7 +686,7 @@ func TestClustersSyncAll(t *testing.T) {
 	if len(ginfos) != 1 {
 		t.Fatalf("expected globalsync to have 1 elements, got = %d", len(ginfos))
 	}
-	if ginfos[0].Cid.String() != test.ErrorCid {
+	if !ginfos[0].Cid.Equals(test.ErrorCid) {
 		t.Error("expected globalsync to have problems with test.ErrorCid")
 	}
 	for _, c := range clusters {
@@ -710,8 +704,8 @@ func TestClustersSync(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
-	h2, _ := cid.Decode(test.TestCid2)
+	h := test.ErrorCid // This cid always fails
+	h2 := test.TestCid2
 	clusters[0].Pin(ctx, api.PinCid(h))
 	clusters[0].Pin(ctx, api.PinCid(h2))
 	pinDelay()
@@ -732,7 +726,7 @@ func TestClustersSync(t *testing.T) {
 		t.Error("pinInfo error should not be empty")
 	}
 
-	if ginfo.Cid.String() != test.ErrorCid {
+	if !ginfo.Cid.Equals(h) {
 		t.Error("GlobalPinInfo should be for test.ErrorCid")
 	}
 
@@ -754,7 +748,7 @@ func TestClustersSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ginfo.Cid.String() != test.TestCid2 {
+	if !ginfo.Cid.Equals(h2) {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
 
@@ -773,8 +767,8 @@ func TestClustersRecoverLocal(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
-	h2, _ := cid.Decode(test.TestCid2)
+	h := test.ErrorCid // This cid always fails
+	h2 := test.TestCid2
 
 	ttlDelay()
 
@@ -813,8 +807,8 @@ func TestClustersRecover(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h, _ := cid.Decode(test.ErrorCid) // This cid always fails
-	h2, _ := cid.Decode(test.TestCid2)
+	h := test.ErrorCid // This cid always fails
+	h2 := test.TestCid2
 
 	ttlDelay()
 
@@ -866,7 +860,7 @@ func TestClustersRecover(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ginfo.Cid.String() != test.TestCid2 {
+	if !ginfo.Cid.Equals(h2) {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
 
@@ -915,8 +909,7 @@ func TestClustersReplication(t *testing.T) {
 	// will result in each peer holding locally exactly
 	// nCluster pins.
 
-	tmpCid, _ := cid.Decode(test.TestCid1)
-	prefix := tmpCid.Prefix()
+	prefix := test.TestCid1.Prefix()
 
 	for i := 0; i < nClusters; i++ {
 		// Pick a random cluster and hash
@@ -1017,7 +1010,7 @@ func TestClustersReplicationFactorMax(t *testing.T) {
 
 	ttlDelay()
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1063,7 +1056,7 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 
 	ttlDelay() // make sure we have places to pin
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1123,7 +1116,7 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 
 	waitForLeaderAndMetrics(t, clusters)
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1176,7 +1169,7 @@ func TestClustersReplicationFactorMin(t *testing.T) {
 	clusters[nClusters-2].Shutdown(ctx)
 	waitForLeaderAndMetrics(t, clusters)
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err == nil {
 		t.Error("Pin should have failed as rplMin cannot be satisfied")
@@ -1204,7 +1197,7 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 
 	ttlDelay()
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1257,7 +1250,7 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 
 	ttlDelay() // make sure metrics are in
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1338,7 +1331,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	ttlDelay()
 
 	j := rand.Intn(nClusters)
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1435,7 +1428,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	j := rand.Intn(nClusters)
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1474,7 +1467,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	}
 
 	// pin something
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	clusters[0].Pin(ctx, api.PinCid(h))
 	pinDelay()
 	pinLocal := 0
@@ -1670,7 +1663,7 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	ttlDelay()
 
 	j := rand.Intn(nClusters)
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)

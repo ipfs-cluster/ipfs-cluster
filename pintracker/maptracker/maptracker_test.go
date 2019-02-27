@@ -39,19 +39,19 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 
 func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
-	case test.TestSlowCid1:
+	case test.TestSlowCid1.String():
 		time.Sleep(2 * time.Second)
-	case pinCancelCid:
+	case pinCancelCid.String():
 		return ErrPinCancelCid
 	}
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{}) error {
-	switch in.String() {
-	case test.TestSlowCid1:
+func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	switch in.Cid.String() {
+	case test.TestSlowCid1.String():
 		time.Sleep(2 * time.Second)
-	case unpinCancelCid:
+	case unpinCancelCid.String():
 		return ErrUnpinCancelCid
 	}
 	return nil
@@ -107,7 +107,7 @@ func TestTrack(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.TestCid1
 
 	// Let's tart with a local pin
 	c := testPin(h, -1, -1)
@@ -144,8 +144,8 @@ func TestUntrack(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1, _ := cid.Decode(test.TestCid1)
-	h2, _ := cid.Decode(test.TestCid2)
+	h1 := test.TestCid1
+	h2 := test.TestCid2
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
@@ -195,8 +195,8 @@ func TestStatusAll(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1, _ := cid.Decode(test.TestCid1)
-	h2, _ := cid.Decode(test.TestCid2)
+	h1 := test.TestCid1
+	h2 := test.TestCid2
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
@@ -227,8 +227,8 @@ func TestSyncAndRecover(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1, _ := cid.Decode(test.TestCid1)
-	h2, _ := cid.Decode(test.TestCid2)
+	h1 := test.TestCid1
+	h2 := test.TestCid2
 
 	c := testPin(h1, -1, -1)
 	mpt.Track(context.Background(), c)
@@ -280,7 +280,7 @@ func TestRecoverAll(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1, _ := cid.Decode(test.TestCid1)
+	h1 := test.TestCid1
 
 	c := testPin(h1, -1, -1)
 	mpt.Track(context.Background(), c)
@@ -317,8 +317,8 @@ func TestSyncAll(t *testing.T) {
 		t.Fatal("should not have synced anything when it tracks nothing")
 	}
 
-	h1, _ := cid.Decode(test.TestCid1)
-	h2, _ := cid.Decode(test.TestCid2)
+	h1 := test.TestCid1
+	h2 := test.TestCid2
 
 	c := testPin(h1, -1, -1)
 	mpt.Track(context.Background(), c)
@@ -342,7 +342,7 @@ func TestUntrackTrack(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1, _ := cid.Decode(test.TestCid1)
+	h1 := test.TestCid1
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
@@ -364,7 +364,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
+	slowPinCid := test.TestSlowCid1
 
 	// LocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
@@ -404,8 +404,8 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
-	fastPinCid, _ := cid.Decode(pinCancelCid)
+	slowPinCid := test.TestSlowCid1
+	fastPinCid := pinCancelCid
 
 	// SlowLocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
@@ -450,7 +450,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
+	slowPinCid := test.TestSlowCid1
 
 	// LocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
@@ -500,8 +500,8 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid, _ := cid.Decode(test.TestSlowCid1)
-	fastPinCid, _ := cid.Decode(unpinCancelCid)
+	slowPinCid := test.TestSlowCid1
+	fastPinCid := unpinCancelCid
 
 	// SlowLocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
@@ -556,7 +556,7 @@ func TestTrackUntrackConcurrent(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1, _ := cid.Decode(test.TestCid1)
+	h1 := test.TestCid1
 
 	// LocalPin
 	c := testPin(h1, -1, -1)

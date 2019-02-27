@@ -142,7 +142,7 @@ func (spt *Tracker) unpin(op *optracker.Operation) error {
 		"",
 		"Cluster",
 		"IPFSUnpin",
-		op.Pin().Cid,
+		op.Pin(),
 		&struct{}{},
 	)
 	if err != nil {
