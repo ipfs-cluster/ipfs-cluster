@@ -16,6 +16,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	defer span.End()
 
 	cg := api.ConnectGraph{
+		ClusterID:     c.host.ID(),
 		IPFSLinks:     make(map[string][]peer.ID),
 		ClusterLinks:  make(map[string][]peer.ID),
 		ClustertoIPFS: make(map[string]peer.ID),
