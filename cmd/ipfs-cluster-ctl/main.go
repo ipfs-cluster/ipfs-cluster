@@ -957,7 +957,7 @@ func handlePinResponseFormatFlags(
 		return
 	}
 
-	if status.Cid == cid.Undef { // no status from "wait"
+	if status == nil { // no status from "wait"
 		time.Sleep(time.Second)
 		status, cerr = globalClient.Status(ctx, pin.Cid, false)
 	}

@@ -38,7 +38,7 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 	}
 
 	if metaPin.Reference == nil {
-		return nil, errors.New("MetaPin.Reference is unset")
+		return nil, errors.New("metaPin.Reference is unset")
 	}
 
 	clusterPin, err := pins.PinGet(ctx, *metaPin.Reference)

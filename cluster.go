@@ -1492,7 +1492,7 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 	}
 
 	if pin.Reference == nil {
-		return nil, errors.New("MetaPin.Reference is unset")
+		return nil, errors.New("metaPin.Reference is unset")
 	}
 	list = append([]cid.Cid{*pin.Reference}, list...)
 	clusterDagPin, err := c.PinGet(ctx, *pin.Reference)
