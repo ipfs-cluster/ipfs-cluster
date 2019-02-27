@@ -30,8 +30,8 @@ type LogOp struct {
 	TagCtx    []byte            `codec:"t,omitempty"`
 	Cid       *api.Pin          `codec:"c,omitempty"`
 	Type      LogOpType         `codec:"p,omitempty"`
-	consensus *Consensus        `codec:-`
-	tracing   bool              `codec:-`
+	consensus *Consensus        `codec:"-"`
+	tracing   bool              `codec:"-"`
 }
 
 // ApplyTo applies the operation to the State
