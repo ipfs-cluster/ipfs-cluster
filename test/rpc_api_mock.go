@@ -287,7 +287,7 @@ func (mock *mockService) Track(ctx context.Context, in *api.Pin, out *struct{}) 
 	return nil
 }
 
-func (mock *mockService) Untrack(ctx context.Context, in cid.Cid, out *struct{}) error {
+func (mock *mockService) Untrack(ctx context.Context, in *api.Pin, out *struct{}) error {
 	return nil
 }
 
@@ -368,7 +368,7 @@ func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{}) error {
+func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	return nil
 }
 

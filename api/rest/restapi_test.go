@@ -781,12 +781,6 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 			resp[0].Cid.String() != test.TestCid1 ||
 			resp[1].PeerMap[peer.IDB58Encode(test.TestPeerID1)].Status.String() != "pinning" {
 			t.Errorf("unexpected statusAll resp")
-			for _, gpi := range resp {
-				t.Errorf("%s:\n", gpi.Cid)
-				for k, v := range gpi.PeerMap {
-					t.Errorf("%s: %+v\n", k, v)
-				}
-			}
 		}
 
 		// Test local=true

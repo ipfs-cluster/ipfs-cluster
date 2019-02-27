@@ -697,7 +697,7 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"Unpin",
-			pin.Cid,
+			pin,
 			&struct{}{},
 		)
 		api.sendResponse(w, http.StatusAccepted, err, nil)

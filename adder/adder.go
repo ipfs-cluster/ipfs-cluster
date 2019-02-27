@@ -94,7 +94,7 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid
 // FromFiles adds content from a files.Directory. The adder will no longer
 // be usable after calling this method.
 func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, error) {
-	logger.Error("adding from files")
+	logger.Debug("adding from files")
 	a.setContext(ctx)
 
 	if a.ctx.Err() != nil { // don't allow running twice

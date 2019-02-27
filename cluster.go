@@ -1378,7 +1378,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]*api
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
-		return []*api.GlobalPinInfo{}, err
+		return nil, err
 	}
 	lenMembers := len(members)
 
@@ -1398,6 +1398,9 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]*api
 
 	mergePins := func(pins []*api.PinInfo) {
 		for _, p := range pins {
+			if p == nil {
+				continue
+			}
 			item, ok := fullMap[p.Cid]
 			if !ok {
 				fullMap[p.Cid] = &api.GlobalPinInfo{

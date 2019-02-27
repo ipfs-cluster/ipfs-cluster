@@ -26,10 +26,10 @@ type LogOpType int
 // It implements the consensus.Op interface and it is used by the
 // Consensus component.
 type LogOp struct {
-	SpanCtx   trace.SpanContext `codec:"sctx,omitempty"`
-	TagCtx    []byte            `codec:"tctx,omitempty"`
-	Cid       *api.Pin          `codec:"p,omitempty"`
-	Type      LogOpType         `codec:"t,omitempty"`
+	SpanCtx   trace.SpanContext `codec:"s,omitempty"`
+	TagCtx    []byte            `codec:"t,omitempty"`
+	Cid       *api.Pin          `codec:"c,omitempty"`
+	Type      LogOpType         `codec:"p,omitempty"`
 	consensus *Consensus        `codec:-`
 	tracing   bool              `codec:-`
 }
@@ -91,7 +91,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			"",
 			"Cluster",
 			"Untrack",
-			pin.Cid,
+			pin,
 			&struct{}{},
 			nil,
 		)

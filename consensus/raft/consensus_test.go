@@ -95,7 +95,7 @@ func TestConsensusPin(t *testing.T) {
 		t.Error("the operation did not make it to the log:", err)
 	}
 
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 	st, err := cc.State(ctx)
 	if err != nil {
 		t.Fatal("error getting state:", err)

@@ -300,15 +300,11 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var rpcArg interface{} = api.PinCid(c)
-	if op == "Unpin" {
-		rpcArg = c
-	}
 	err = proxy.rpcClient.Call(
 		"",
 		"Cluster",
 		op,
-		rpcArg,
+		api.PinCid(c),
 		&struct{}{},
 	)
 	if err != nil {
@@ -485,6 +481,7 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	repoStats := make([]*api.IPFSRepoStat, len(peers), len(peers))
 	repoStatsIfaces := make([]interface{}, len(repoStats), len(repoStats))
 	for i := range repoStats {
+		repoStats[i] = &api.IPFSRepoStat{}
 		repoStatsIfaces[i] = repoStats[i]
 	}
 
