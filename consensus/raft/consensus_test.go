@@ -21,7 +21,7 @@ func cleanRaft(idn int) {
 	os.RemoveAll(fmt.Sprintf("raftFolderFromTests-%d", idn))
 }
 
-func testPin(c cid.Cid) api.Pin {
+func testPin(c cid.Cid) *api.Pin {
 	p := api.PinCid(c)
 	p.ReplicationFactorMin = -1
 	p.ReplicationFactorMax = -1
@@ -95,7 +95,7 @@ func TestConsensusPin(t *testing.T) {
 		t.Error("the operation did not make it to the log:", err)
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 	st, err := cc.State(ctx)
 	if err != nil {
 		t.Fatal("error getting state:", err)
@@ -138,7 +138,7 @@ func TestConsensusUpdate(t *testing.T) {
 
 	// Update pin
 	c2, _ := cid.Decode(test.TestCid2)
-	pin.Reference = c2
+	pin.Reference = &c2
 	err = cc.LogPin(ctx, pin)
 	if err != nil {
 		t.Error("the update op did not make it to the log:", err)

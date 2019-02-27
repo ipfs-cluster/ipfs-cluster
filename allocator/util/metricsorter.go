@@ -16,7 +16,7 @@ import (
 // SortNumeric returns a list of peers sorted by their metric values. If reverse
 // is false (true), peers will be sorted from smallest to largest (largest to
 // smallest) metric
-func SortNumeric(candidates map[peer.ID]api.Metric, reverse bool) []peer.ID {
+func SortNumeric(candidates map[peer.ID]*api.Metric, reverse bool) []peer.ID {
 	vMap := make(map[peer.ID]uint64)
 	peers := make([]peer.ID, 0, len(candidates))
 	for k, v := range candidates {

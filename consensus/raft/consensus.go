@@ -215,9 +215,9 @@ func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
 	return cc.readyCh
 }
 
-func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
+func (cc *Consensus) op(ctx context.Context, pin *api.Pin, t LogOpType) *LogOp {
 	return &LogOp{
-		Cid:  pin.ToSerial(),
+		Cid:  pin,
 		Type: t,
 	}
 }
@@ -272,8 +272,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 			&struct{}{},
 		)
 		if finalErr != nil {
-			logger.Error(finalErr)
-			logger.Error("retrying to redirect request to leader")
+			logger.Errorf("retrying to redirect request to leader: %s", finalErr)
 			time.Sleep(2 * cc.config.RaftConfig.HeartbeatTimeout)
 			continue
 		}
@@ -342,12 +341,12 @@ func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redire
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
-func (cc *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
+func (cc *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/LogPin")
 	defer span.End()
 
 	op := cc.op(ctx, pin, LogOpPin)
-	err := cc.commit(ctx, op, "ConsensusLogPin", pin.ToSerial())
+	err := cc.commit(ctx, op, "ConsensusLogPin", pin)
 	if err != nil {
 		return err
 	}
@@ -355,12 +354,12 @@ func (cc *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) LogUnpin(ctx context.Context, pin api.Pin) error {
+func (cc *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/LogUnpin")
 	defer span.End()
 
 	op := cc.op(ctx, pin, LogOpUnpin)
-	err := cc.commit(ctx, op, "ConsensusLogUnpin", pin.ToSerial())
+	err := cc.commit(ctx, op, "ConsensusLogUnpin", pin)
 	if err != nil {
 		return err
 	}

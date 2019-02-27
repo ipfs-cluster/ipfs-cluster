@@ -219,9 +219,9 @@ func TestBlockPut(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 
 	data := []byte(test.TestCid4Data)
-	err := ipfs.BlockPut(ctx, api.NodeWithMeta{
+	err := ipfs.BlockPut(ctx, &api.NodeWithMeta{
 		Data:   data,
-		Cid:    test.TestCid4,
+		Cid:    test.MustDecodeCid(test.TestCid4),
 		Format: "raw",
 	})
 	if err != nil {
@@ -246,9 +246,9 @@ func TestBlockGet(t *testing.T) {
 	}
 
 	// Put and then successfully get
-	err = ipfs.BlockPut(ctx, api.NodeWithMeta{
+	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
 		Data:   test.TestShardData,
-		Cid:    test.TestShardCid,
+		Cid:    test.MustDecodeCid(test.TestShardCid),
 		Format: "cbor",
 	})
 	if err != nil {

@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	peer "github.com/libp2p/go-libp2p-peer"
+
 	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -15,16 +16,16 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	defer span.End()
 
 	cg := api.ConnectGraph{
-		IPFSLinks:     make(map[peer.ID][]peer.ID),
-		ClusterLinks:  make(map[peer.ID][]peer.ID),
-		ClustertoIPFS: make(map[peer.ID]peer.ID),
+		IPFSLinks:     make(map[string][]peer.ID),
+		ClusterLinks:  make(map[string][]peer.ID),
+		ClustertoIPFS: make(map[string]peer.ID),
 	}
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		return cg, err
 	}
 
-	peersSerials := make([][]api.IDSerial, len(members), len(members))
+	peers := make([][]*api.ID, len(members), len(members))
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(members))
 	defer rpcutil.MultiCancel(cancels)
@@ -35,22 +36,22 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 		"Cluster",
 		"Peers",
 		struct{}{},
-		rpcutil.CopyIDSerialSliceToIfaces(peersSerials),
+		rpcutil.CopyIDSliceToIfaces(peers),
 	)
 
 	for i, err := range errs {
-		p := members[i]
+		p := peer.IDB58Encode(members[i])
 		cg.ClusterLinks[p] = make([]peer.ID, 0)
 		if err != nil { // Only setting cluster connections when no error occurs
-			logger.Debugf("RPC error reaching cluster peer %s: %s", p.Pretty(), err.Error())
+			logger.Debugf("RPC error reaching cluster peer %s: %s", p, err.Error())
 			continue
 		}
 
-		selfConnection, pID := c.recordClusterLinks(&cg, p, peersSerials[i])
+		selfConnection, pID := c.recordClusterLinks(&cg, p, peers[i])
 
 		// IPFS connections
 		if !selfConnection {
-			logger.Warningf("cluster peer %s not its own peer.  No ipfs info ", p.Pretty())
+			logger.Warningf("cluster peer %s not its own peer.  No ipfs info ", p)
 			continue
 		}
 		c.recordIPFSLinks(&cg, pID)
@@ -59,16 +60,15 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	return cg, nil
 }
 
-func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p peer.ID, sPeers []api.IDSerial) (bool, api.ID) {
+func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []*api.ID) (bool, *api.ID) {
 	selfConnection := false
-	var pID api.ID
-	for _, sID := range sPeers {
-		id := sID.ToID()
+	var pID *api.ID
+	for _, id := range peers {
 		if id.Error != "" {
-			logger.Debugf("Peer %s errored connecting to its peer %s", p.Pretty(), id.ID.Pretty())
+			logger.Debugf("Peer %s errored connecting to its peer %s", p, id.ID.Pretty())
 			continue
 		}
-		if id.ID == p {
+		if peer.IDB58Encode(id.ID) == p {
 			selfConnection = true
 			pID = id
 		} else {
@@ -78,27 +78,31 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p peer.ID, sPeers []a
 	return selfConnection, pID
 }
 
-func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID api.ID) {
+func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID *api.ID) {
 	ipfsID := pID.IPFS.ID
 	if pID.IPFS.Error != "" { // Only setting ipfs connections when no error occurs
 		logger.Warningf("ipfs id: %s has error: %s. Skipping swarm connections", ipfsID.Pretty(), pID.IPFS.Error)
 		return
 	}
-	if _, ok := cg.IPFSLinks[pID.ID]; ok {
+
+	pid := peer.IDB58Encode(pID.ID)
+	ipfsPid := peer.IDB58Encode(ipfsID)
+
+	if _, ok := cg.IPFSLinks[pid]; ok {
 		logger.Warningf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID.Pretty())
 	}
-	cg.ClustertoIPFS[pID.ID] = ipfsID
-	cg.IPFSLinks[ipfsID] = make([]peer.ID, 0)
-	var swarmPeersS api.SwarmPeersSerial
-	err := c.rpcClient.Call(pID.ID,
+	cg.ClustertoIPFS[pid] = ipfsID
+	cg.IPFSLinks[ipfsPid] = make([]peer.ID, 0)
+	var swarmPeers []peer.ID
+	err := c.rpcClient.Call(
+		pID.ID,
 		"Cluster",
 		"IPFSSwarmPeers",
 		struct{}{},
-		&swarmPeersS,
+		&swarmPeers,
 	)
 	if err != nil {
 		return
 	}
-	swarmPeers := swarmPeersS.ToSwarmPeers()
-	cg.IPFSLinks[ipfsID] = swarmPeers
+	cg.IPFSLinks[ipfsPid] = swarmPeers
 }

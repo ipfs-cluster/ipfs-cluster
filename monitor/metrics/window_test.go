@@ -7,6 +7,17 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
+func makeMetric(value string) *api.Metric {
+	metr := &api.Metric{
+		Name:  "test",
+		Peer:  "peer1",
+		Value: value,
+		Valid: true,
+	}
+	metr.SetTTL(5 * time.Second)
+	return metr
+}
+
 func TestMetricsWindow(t *testing.T) {
 	mw := NewWindow(4)
 
@@ -19,15 +30,7 @@ func TestMetricsWindow(t *testing.T) {
 		t.Error("expected 0 metrics")
 	}
 
-	metr := api.Metric{
-		Name:  "test",
-		Peer:  "peer1",
-		Value: "1",
-		Valid: true,
-	}
-	metr.SetTTL(5 * time.Second)
-
-	mw.Add(metr)
+	mw.Add(makeMetric("1"))
 
 	metr2, err := mw.Latest()
 	if err != nil {
@@ -38,10 +41,8 @@ func TestMetricsWindow(t *testing.T) {
 		t.Error("expected different value")
 	}
 
-	metr.Value = "2"
-	mw.Add(metr)
-	metr.Value = "3"
-	mw.Add(metr)
+	mw.Add(makeMetric("2"))
+	mw.Add(makeMetric("3"))
 
 	all := mw.All()
 	if len(all) != 3 {
@@ -56,10 +57,8 @@ func TestMetricsWindow(t *testing.T) {
 		t.Error("older metric should be second")
 	}
 
-	metr.Value = "4"
-	mw.Add(metr)
-	metr.Value = "5"
-	mw.Add(metr)
+	mw.Add(makeMetric("4"))
+	mw.Add(makeMetric("5"))
 
 	all = mw.All()
 	if len(all) != 4 {

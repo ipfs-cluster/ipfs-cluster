@@ -47,12 +47,12 @@ var logger = logging.Logger(loggingFacility)
 // metrics and tracing of requests through the API.
 type Client interface {
 	// ID returns information about the cluster Peer.
-	ID(context.Context) (api.ID, error)
+	ID(context.Context) (*api.ID, error)
 
 	// Peers requests ID information for all cluster peers.
-	Peers(context.Context) ([]api.ID, error)
+	Peers(context.Context) ([]*api.ID, error)
 	// PeerAdd adds a new peer to the cluster.
-	PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error)
+	PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error)
 	// PeerRm removes a current peer from the cluster
 	PeerRm(ctx context.Context, pid peer.ID) error
 
@@ -68,58 +68,57 @@ type Client interface {
 	Unpin(ctx context.Context, ci cid.Cid) error
 
 	// PinPath resolves given path into a cid and performs the pin operation.
-	PinPath(ctx context.Context, path string, opts api.PinOptions) (api.Pin, error)
+	PinPath(ctx context.Context, path string, opts api.PinOptions) (*api.Pin, error)
 	// UnpinPath resolves given path into a cid and performs the unpin operation.
 	// It returns api.Pin of the given cid before it is unpinned.
-	UnpinPath(ctx context.Context, path string) (api.Pin, error)
+	UnpinPath(ctx context.Context, path string) (*api.Pin, error)
 
 	// Allocations returns the consensus state listing all tracked items
 	// and the peers that should be pinning them.
-	Allocations(ctx context.Context, filter api.PinType) ([]api.Pin, error)
+	Allocations(ctx context.Context, filter api.PinType) ([]*api.Pin, error)
 	// Allocation returns the current allocations for a given Cid.
-	Allocation(ctx context.Context, ci cid.Cid) (api.Pin, error)
+	Allocation(ctx context.Context, ci cid.Cid) (*api.Pin, error)
 
 	// Status returns the current ipfs state for a given Cid. If local is true,
 	// the information affects only the current peer, otherwise the information
 	// is fetched from all cluster peers.
-	Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Status(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
-	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error)
+	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error)
 
 	// Sync makes sure the state of a Cid corresponds to the state reported
 	// by the ipfs daemon, and returns it. If local is true, this operation
 	// only happens on the current peer, otherwise it happens on every
 	// cluster peer.
-	Sync(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Sync(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error)
 	// SyncAll triggers Sync() operations for all tracked items. It only
 	// returns informations for items that were de-synced or have an error
 	// state. If local is true, the operation is limited to the current
 	// peer. Otherwise it happens on every cluster peer.
-	SyncAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error)
+	SyncAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error)
 
 	// Recover retriggers pin or unpin ipfs operations for a Cid in error
 	// state.  If local is true, the operation is limited to the current
 	// peer, otherwise it happens on every cluster peer.
-	Recover(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Recover(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error)
 	// RecoverAll triggers Recover() operations on all tracked items. If
 	// local is true, the operation is limited to the current peer.
 	// Otherwise, it happens everywhere.
-	RecoverAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error)
+	RecoverAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error)
 
 	// Version returns the ipfs-cluster peer's version.
-	Version(context.Context) (api.Version, error)
+	Version(context.Context) (*api.Version, error)
 
 	// IPFS returns an instance of go-ipfs-api's Shell, pointing to a
 	// Cluster's IPFS proxy endpoint.
 	IPFS(context.Context) *shell.Shell
 
-	// GetConnectGraph returns an ipfs-cluster connection graph.  The
-	// serialized version, strings instead of pids, is returned
-	GetConnectGraph(context.Context) (api.ConnectGraphSerial, error)
+	// GetConnectGraph returns an ipfs-cluster connection graph.
+	GetConnectGraph(context.Context) (*api.ConnectGraph, error)
 
 	// Metrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
-	Metrics(ctx context.Context, name string) ([]api.Metric, error)
+	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
 }
 
 // Config allows to configure the parameters to connect

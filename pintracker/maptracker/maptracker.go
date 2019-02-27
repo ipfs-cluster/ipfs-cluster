@@ -139,7 +139,7 @@ func (mpt *MapPinTracker) pin(op *optracker.Operation) error {
 		"",
 		"Cluster",
 		"IPFSPin",
-		op.Pin().ToSerial(),
+		op.Pin(),
 		&struct{}{},
 	)
 	if err != nil {
@@ -158,7 +158,7 @@ func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
 		"",
 		"Cluster",
 		"IPFSUnpin",
-		op.Pin().ToSerial(),
+		op.Pin().Cid,
 		&struct{}{},
 	)
 	if err != nil {
@@ -168,7 +168,7 @@ func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
 }
 
 // puts a new operation on the queue, unless ongoing exists
-func (mpt *MapPinTracker) enqueue(ctx context.Context, c api.Pin, typ optracker.OperationType, ch chan *optracker.Operation) error {
+func (mpt *MapPinTracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.OperationType, ch chan *optracker.Operation) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/map/enqueue")
 	defer span.End()
 
@@ -191,7 +191,7 @@ func (mpt *MapPinTracker) enqueue(ctx context.Context, c api.Pin, typ optracker.
 
 // Track tells the MapPinTracker to start managing a Cid,
 // possibly triggering Pin operations on the IPFS daemon.
-func (mpt *MapPinTracker) Track(ctx context.Context, c api.Pin) error {
+func (mpt *MapPinTracker) Track(ctx context.Context, c *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/map/Track")
 	defer span.End()
 
@@ -239,7 +239,7 @@ func (mpt *MapPinTracker) Untrack(ctx context.Context, c cid.Cid) error {
 
 // Status returns information for a Cid tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) Status(ctx context.Context, c cid.Cid) api.PinInfo {
+func (mpt *MapPinTracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/Status")
 	defer span.End()
 
@@ -248,7 +248,7 @@ func (mpt *MapPinTracker) Status(ctx context.Context, c cid.Cid) api.PinInfo {
 
 // StatusAll returns information for all Cids tracked by this
 // MapPinTracker.
-func (mpt *MapPinTracker) StatusAll(ctx context.Context) []api.PinInfo {
+func (mpt *MapPinTracker) StatusAll(ctx context.Context) []*api.PinInfo {
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/StatusAll")
 	defer span.End()
 
@@ -263,7 +263,7 @@ func (mpt *MapPinTracker) StatusAll(ctx context.Context) []api.PinInfo {
 // Pins in error states can be recovered with Recover().
 // An error is returned if we are unable to contact
 // the IPFS daemon.
-func (mpt *MapPinTracker) Sync(ctx context.Context, c cid.Cid) (api.PinInfo, error) {
+func (mpt *MapPinTracker) Sync(ctx context.Context, c cid.Cid) (*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/Sync")
 	defer span.End()
 
@@ -272,7 +272,7 @@ func (mpt *MapPinTracker) Sync(ctx context.Context, c cid.Cid) (api.PinInfo, err
 		"",
 		"Cluster",
 		"IPFSPinLsCid",
-		api.PinCid(c).ToSerial(),
+		c,
 		&ips,
 	)
 
@@ -292,12 +292,12 @@ func (mpt *MapPinTracker) Sync(ctx context.Context, c cid.Cid) (api.PinInfo, err
 // were updated or have errors. Cids in error states can be recovered
 // with Recover().
 // An error is returned if we are unable to contact the IPFS daemon.
-func (mpt *MapPinTracker) SyncAll(ctx context.Context) ([]api.PinInfo, error) {
+func (mpt *MapPinTracker) SyncAll(ctx context.Context) ([]*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/SyncAll")
 	defer span.End()
 
 	var ipsMap map[string]api.IPFSPinStatus
-	var results []api.PinInfo
+	var results []*api.PinInfo
 	err := mpt.rpcClient.Call(
 		"",
 		"Cluster",
@@ -323,7 +323,7 @@ func (mpt *MapPinTracker) SyncAll(ctx context.Context) ([]api.PinInfo, error) {
 
 	status := mpt.StatusAll(ctx)
 	for _, pInfoOrig := range status {
-		var pInfoNew api.PinInfo
+		var pInfoNew *api.PinInfo
 		c := pInfoOrig.Cid
 		ips, ok := ipsMap[c.String()]
 		if !ok {
@@ -341,7 +341,7 @@ func (mpt *MapPinTracker) SyncAll(ctx context.Context) ([]api.PinInfo, error) {
 	return results, nil
 }
 
-func (mpt *MapPinTracker) syncStatus(ctx context.Context, c cid.Cid, ips api.IPFSPinStatus) api.PinInfo {
+func (mpt *MapPinTracker) syncStatus(ctx context.Context, c cid.Cid, ips api.IPFSPinStatus) *api.PinInfo {
 	status, ok := mpt.optracker.Status(ctx, c)
 	if !ok {
 		status = api.TrackerStatusUnpinned
@@ -403,7 +403,7 @@ func (mpt *MapPinTracker) syncStatus(ctx context.Context, c cid.Cid, ips api.IPF
 
 // Recover will re-queue a Cid in error state for the failed operation,
 // possibly retriggering an IPFS pinning operation.
-func (mpt *MapPinTracker) Recover(ctx context.Context, c cid.Cid) (api.PinInfo, error) {
+func (mpt *MapPinTracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/Recover")
 	defer span.End()
 
@@ -421,12 +421,12 @@ func (mpt *MapPinTracker) Recover(ctx context.Context, c cid.Cid) (api.PinInfo, 
 }
 
 // RecoverAll attempts to recover all items tracked by this peer.
-func (mpt *MapPinTracker) RecoverAll(ctx context.Context) ([]api.PinInfo, error) {
+func (mpt *MapPinTracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/RecoverAll")
 	defer span.End()
 
 	pInfos := mpt.optracker.GetAll(ctx)
-	var results []api.PinInfo
+	var results []*api.PinInfo
 	for _, pInfo := range pInfos {
 		res, err := mpt.Recover(ctx, pInfo.Cid)
 		results = append(results, res)

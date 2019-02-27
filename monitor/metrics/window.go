@@ -18,7 +18,7 @@ var ErrNoMetrics = errors.New("no metrics have been added to this window")
 // Window implements a circular queue to store metrics.
 type Window struct {
 	last   int
-	window []api.Metric
+	window []*api.Metric
 }
 
 // NewWindow creates an instance with the given
@@ -28,7 +28,7 @@ func NewWindow(windowCap int) *Window {
 		panic("invalid windowCap")
 	}
 
-	w := make([]api.Metric, 0, windowCap)
+	w := make([]*api.Metric, 0, windowCap)
 	return &Window{
 		last:   0,
 		window: w,
@@ -38,7 +38,7 @@ func NewWindow(windowCap int) *Window {
 // Add adds a new metric to the window. If the window capacity
 // has been reached, the oldest metric (by the time it was added),
 // will be discarded.
-func (mw *Window) Add(m api.Metric) {
+func (mw *Window) Add(m *api.Metric) {
 	if len(mw.window) < cap(mw.window) {
 		mw.window = append(mw.window, m)
 		mw.last = len(mw.window) - 1
@@ -53,9 +53,9 @@ func (mw *Window) Add(m api.Metric) {
 
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
-func (mw *Window) Latest() (api.Metric, error) {
+func (mw *Window) Latest() (*api.Metric, error) {
 	if len(mw.window) == 0 {
-		return api.Metric{}, ErrNoMetrics
+		return nil, ErrNoMetrics
 	}
 	return mw.window[mw.last], nil
 }
@@ -63,9 +63,9 @@ func (mw *Window) Latest() (api.Metric, error) {
 // All returns all the metrics in the window, in the inverse order
 // they were Added. That is, result[0] will be the last added
 // metric.
-func (mw *Window) All() []api.Metric {
+func (mw *Window) All() []*api.Metric {
 	wlen := len(mw.window)
-	res := make([]api.Metric, 0, wlen)
+	res := make([]*api.Metric, 0, wlen)
 	if wlen == 0 {
 		return res
 	}

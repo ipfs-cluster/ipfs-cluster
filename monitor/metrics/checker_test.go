@@ -15,7 +15,7 @@ func TestChecker(t *testing.T) {
 	metrics := NewStore()
 	checker := NewChecker(metrics)
 
-	metr := api.Metric{
+	metr := &api.Metric{
 		Name:  "test",
 		Peer:  test.TestPeerID1,
 		Value: "1",
@@ -59,7 +59,7 @@ func TestCheckerWatch(t *testing.T) {
 	metrics := NewStore()
 	checker := NewChecker(metrics)
 
-	metr := api.Metric{
+	metr := &api.Metric{
 		Name:  "test",
 		Peer:  test.TestPeerID1,
 		Value: "1",

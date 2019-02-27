@@ -13,6 +13,7 @@ var LoggingFacilities = map[string]string{
 	"ipfshttp":     "INFO",
 	"monitor":      "INFO",
 	"mapstate":     "INFO",
+	"dsstate":      "INFO",
 	"consensus":    "INFO",
 	"pintracker":   "INFO",
 	"ascendalloc":  "INFO",

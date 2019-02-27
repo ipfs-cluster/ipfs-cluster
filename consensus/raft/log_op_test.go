@@ -15,7 +15,7 @@ func TestApplyToPin(t *testing.T) {
 	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	op := &LogOp{
-		Cid:       api.PinSerial{Cid: test.TestCid1},
+		Cid:       api.PinCid(test.MustDecodeCid(test.TestCid1)),
 		Type:      LogOpPin,
 		consensus: cc,
 	}
@@ -34,7 +34,7 @@ func TestApplyToUnpin(t *testing.T) {
 	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	op := &LogOp{
-		Cid:       api.PinSerial{Cid: test.TestCid1},
+		Cid:       api.PinCid(test.MustDecodeCid(test.TestCid1)),
 		Type:      LogOpUnpin,
 		consensus: cc,
 	}
@@ -59,7 +59,7 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &LogOp{
-		Cid:  api.PinSerial{Cid: test.TestCid1},
+		Cid:  api.PinCid(test.MustDecodeCid(test.TestCid1)),
 		Type: LogOpUnpin,
 	}
 

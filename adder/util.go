@@ -16,17 +16,12 @@ import (
 
 // PutBlock sends a NodeWithMeta to the given destinations.
 func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests []peer.ID) error {
-	c, err := cid.Decode(n.Cid)
-	if err != nil {
-		return err
-	}
-
-	format, ok := cid.CodecToStr[c.Type()]
+	format, ok := cid.CodecToStr[n.Cid.Type()]
 	if !ok {
 		format = ""
 		logger.Warning("unsupported cid type, treating as v0")
 	}
-	if c.Prefix().Version == 0 {
+	if n.Cid.Prefix().Version == 0 {
 		format = "v0"
 	}
 	n.Format = format
@@ -40,7 +35,7 @@ func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests [
 		dests,
 		"Cluster",
 		"IPFSBlockPut",
-		*n,
+		n,
 		rpcutil.RPCDiscardReplies(len(dests)),
 	)
 	return rpcutil.CheckErrs(errs)
@@ -49,20 +44,20 @@ func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests [
 // BlockAllocate helps allocating blocks to peers.
 func BlockAllocate(ctx context.Context, rpc *rpc.Client, pinOpts api.PinOptions) ([]peer.ID, error) {
 	// Find where to allocate this file
-	var allocsStr []string
+	var allocsStr []peer.ID
 	err := rpc.CallContext(
 		ctx,
 		"",
 		"Cluster",
 		"BlockAllocate",
-		api.PinWithOpts(cid.Undef, pinOpts).ToSerial(),
+		api.PinWithOpts(cid.Undef, pinOpts),
 		&allocsStr,
 	)
-	return api.StringsToPeers(allocsStr), err
+	return allocsStr, err
 }
 
 // Pin helps sending local RPC pin requests.
-func Pin(ctx context.Context, rpc *rpc.Client, pin api.Pin) error {
+func Pin(ctx context.Context, rpc *rpc.Client, pin *api.Pin) error {
 	if pin.ReplicationFactorMin < 0 {
 		pin.Allocations = []peer.ID{}
 	}
@@ -72,7 +67,7 @@ func Pin(ctx context.Context, rpc *rpc.Client, pin api.Pin) error {
 		"", // use ourself to pin
 		"Cluster",
 		"Pin",
-		pin.ToSerial(),
+		pin,
 		&struct{}{},
 	)
 }

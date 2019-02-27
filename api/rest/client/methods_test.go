@@ -96,7 +96,7 @@ func TestPeersWithError(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		if ids == nil || len(ids) != 0 {
+		if ids != nil {
 			t.Fatal("expected no ids")
 		}
 	}
@@ -234,8 +234,8 @@ func TestPinPath(t *testing.T) {
 
 			if !pin.Equals(resultantPin) {
 				t.Errorf("expected different pin: %s", p)
-				t.Errorf("expected: %+v", resultantPin.ToSerial())
-				t.Errorf("actual: %+v", pin.ToSerial())
+				t.Errorf("expected: %+v", resultantPin)
+				t.Errorf("actual: %+v", pin)
 			}
 
 		}
@@ -490,53 +490,52 @@ type waitService struct {
 	pinStart time.Time
 }
 
-func (wait *waitService) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
+func (wait *waitService) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	wait.pinStart = time.Now()
 	return nil
 }
 
-func (wait *waitService) Status(ctx context.Context, in api.PinSerial, out *api.GlobalPinInfoSerial) error {
+func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
-	c1, _ := cid.Decode(in.Cid)
 	if time.Now().After(wait.pinStart.Add(5 * time.Second)) { //pinned
 		*out = api.GlobalPinInfo{
-			Cid: c1,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    c1,
+			Cid: in,
+			PeerMap: map[string]*api.PinInfo{
+				peer.IDB58Encode(test.TestPeerID1): {
+					Cid:    in,
 					Peer:   test.TestPeerID1,
 					Status: api.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
-				test.TestPeerID2: {
-					Cid:    c1,
+				peer.IDB58Encode(test.TestPeerID2): {
+					Cid:    in,
 					Peer:   test.TestPeerID2,
 					Status: api.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
 			},
-		}.ToSerial()
+		}
 	} else { // pinning
 		*out = api.GlobalPinInfo{
-			Cid: c1,
-			PeerMap: map[peer.ID]api.PinInfo{
-				test.TestPeerID1: {
-					Cid:    c1,
+			Cid: in,
+			PeerMap: map[string]*api.PinInfo{
+				peer.IDB58Encode(test.TestPeerID1): {
+					Cid:    in,
 					Peer:   test.TestPeerID1,
 					Status: api.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
-				test.TestPeerID2: {
-					Cid:    c1,
+				peer.IDB58Encode(test.TestPeerID2): {
+					Cid:    in,
 					Peer:   test.TestPeerID2,
 					Status: api.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
 			},
-		}.ToSerial()
+		}
 	}
 
 	return nil

@@ -329,8 +329,6 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Println(string(resBytes))
-
 		_, ok := resp.Keys[test.TestCid1]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")

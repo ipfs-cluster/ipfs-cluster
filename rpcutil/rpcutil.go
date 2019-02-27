@@ -68,21 +68,22 @@ func CopyPIDsToIfaces(in []peer.ID) []interface{} {
 	return ifaces
 }
 
-// CopyIDSerialsToIfaces converts an api.IDSerial slice to an empty interface
+// CopyIDsToIfaces converts an api.ID slice to an empty interface
 // slice using pointers to each elements of the original slice.
 // Useful to handle gorpc.MultiCall() replies.
-func CopyIDSerialsToIfaces(in []api.IDSerial) []interface{} {
+func CopyIDsToIfaces(in []*api.ID) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
-		ifaces[i] = &in[i]
+		in[i] = &api.ID{}
+		ifaces[i] = in[i]
 	}
 	return ifaces
 }
 
-// CopyIDSerialSliceToIfaces converts an api.IDSerial slice of slices
+// CopyIDSliceToIfaces converts an api.ID slice of slices
 // to an empty interface slice using pointers to each elements of the
 // original slice. Useful to handle gorpc.MultiCall() replies.
-func CopyIDSerialSliceToIfaces(in [][]api.IDSerial) []interface{} {
+func CopyIDSliceToIfaces(in [][]*api.ID) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
@@ -90,21 +91,22 @@ func CopyIDSerialSliceToIfaces(in [][]api.IDSerial) []interface{} {
 	return ifaces
 }
 
-// CopyPinInfoSerialToIfaces converts an api.PinInfoSerial slice to
+// CopyPinInfoToIfaces converts an api.PinInfo slice to
 // an empty interface slice using pointers to each elements of
 // the original slice. Useful to handle gorpc.MultiCall() replies.
-func CopyPinInfoSerialToIfaces(in []api.PinInfoSerial) []interface{} {
+func CopyPinInfoToIfaces(in []*api.PinInfo) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
-		ifaces[i] = &in[i]
+		in[i] = &api.PinInfo{}
+		ifaces[i] = in[i]
 	}
 	return ifaces
 }
 
-// CopyPinInfoSerialSliceToIfaces converts an api.PinInfoSerial slice of slices
+// CopyPinInfoSliceToIfaces converts an api.PinInfo slice of slices
 // to an empty interface slice using pointers to each elements of the original
 // slice. Useful to handle gorpc.MultiCall() replies.
-func CopyPinInfoSerialSliceToIfaces(in [][]api.PinInfoSerial) []interface{} {
+func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
 		ifaces[i] = &in[i]

@@ -64,11 +64,11 @@ func New(dstore ds.Datastore, namespace string, handle codec.Handle) (*State, er
 }
 
 // Add adds a new Pin or replaces an existing one.
-func (st *State) Add(ctx context.Context, c api.Pin) error {
+func (st *State) Add(ctx context.Context, c *api.Pin) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Add")
 	defer span.End()
 
-	ps, err := st.serializePin(&c)
+	ps, err := st.serializePin(c)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 // Get returns a Pin from the store and whether it
 // was present. When not present, a default pin
 // is returned.
-func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, bool) {
+func (st *State) Get(ctx context.Context, c cid.Cid) (*api.Pin, bool) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Get")
 	defer span.End()
 
@@ -103,7 +103,7 @@ func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, bool) {
 	if err != nil {
 		return api.PinCid(c), false
 	}
-	return *p, true
+	return p, true
 }
 
 // Has returns whether a Cid is stored.
@@ -120,7 +120,7 @@ func (st *State) Has(ctx context.Context, c cid.Cid) bool {
 
 // List returns the unsorted list of all Pins that have been added to the
 // datastore.
-func (st *State) List(ctx context.Context) []api.Pin {
+func (st *State) List(ctx context.Context) []*api.Pin {
 	_, span := trace.StartSpan(ctx, "state/dsstate/List")
 	defer span.End()
 
@@ -130,11 +130,11 @@ func (st *State) List(ctx context.Context) []api.Pin {
 
 	results, err := st.ds.Query(q)
 	if err != nil {
-		return []api.Pin{}
+		return []*api.Pin{}
 	}
 	defer results.Close()
 
-	var pins []api.Pin
+	var pins []*api.Pin
 
 	for r := range results.Next() {
 		if r.Error != nil {
@@ -155,7 +155,7 @@ func (st *State) List(ctx context.Context) []api.Pin {
 			continue
 		}
 
-		pins = append(pins, *p)
+		pins = append(pins, p)
 	}
 	return pins
 }

@@ -46,8 +46,8 @@ func mockRPCClient(t testing.TB) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
+func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	c := in.Cid
 	switch c.String() {
 	case test.TestSlowCid1:
 		time.Sleep(3 * time.Second)
@@ -57,8 +57,8 @@ func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *str
 	return nil
 }
 
-func (mock *mockService) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out *api.IPFSPinStatus) error {
-	switch in.Cid {
+func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
+	switch in.String() {
 	case test.TestCid1, test.TestCid2:
 		*out = api.IPFSPinStatusRecursive
 	case test.TestCid4:
@@ -70,9 +70,8 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in api.PinSerial, out
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
-	switch c.String() {
+func (mock *mockService) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{}) error {
+	switch in.String() {
 	case test.TestSlowCid1:
 		time.Sleep(3 * time.Second)
 	case unpinCancelCid:
@@ -89,27 +88,29 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 	return nil
 }
 
-func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]api.PinSerial) error {
-	*out = []api.PinSerial{
-		api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts).ToSerial(),
-		api.PinWithOpts(test.MustDecodeCid(test.TestCid3), pinOpts).ToSerial(),
+func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
+	*out = []*api.Pin{
+		api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
+		api.PinWithOpts(test.MustDecodeCid(test.TestCid3), pinOpts),
 	}
 	return nil
 }
 
-func (mock *mockService) PinGet(ctx context.Context, in api.PinSerial, out *api.PinSerial) error {
-	switch in.Cid {
+func (mock *mockService) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
+	switch in.String() {
 	case test.ErrorCid:
 		return errors.New("expected error when using ErrorCid")
 	case test.TestCid1, test.TestCid2:
-		*out = api.PinWithOpts(test.MustDecodeCid(in.Cid), pinOpts).ToSerial()
+		pin := api.PinWithOpts(in, pinOpts)
+		*out = *pin
 		return nil
 	}
-	*out = in
+	pin := api.PinCid(in)
+	*out = *pin
 	return nil
 }
 
-var sortPinInfoByCid = func(p []api.PinInfo) {
+var sortPinInfoByCid = func(p []*api.PinInfo) {
 	sort.Slice(p, func(i, j int) bool {
 		return p[i].Cid.String() < p[j].Cid.String()
 	})
@@ -151,7 +152,7 @@ func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 
 func TestPinTracker_Track(t *testing.T) {
 	type args struct {
-		c       api.Pin
+		c       *api.Pin
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -187,7 +188,7 @@ func TestPinTracker_Track(t *testing.T) {
 
 func BenchmarkPinTracker_Track(b *testing.B) {
 	type args struct {
-		c       api.Pin
+		c       *api.Pin
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -259,13 +260,13 @@ func TestPinTracker_Untrack(t *testing.T) {
 
 func TestPinTracker_StatusAll(t *testing.T) {
 	type args struct {
-		c       api.Pin
+		c       *api.Pin
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
 		name string
 		args args
-		want []api.PinInfo
+		want []*api.PinInfo
 	}{
 		{
 			"basic stateless statusall",
@@ -273,16 +274,16 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testStatelessPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid2),
 					Status: api.TrackerStatusRemote,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid3),
 					Status: api.TrackerStatusPinned,
 				},
@@ -294,8 +295,8 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testMapPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
@@ -307,8 +308,8 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testSlowStatelessPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
@@ -320,8 +321,8 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 				testSlowMapPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
@@ -501,7 +502,7 @@ func TestPinTracker_SyncAll(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []api.PinInfo
+		want    []*api.PinInfo
 		wantErr bool
 	}{
 		{
@@ -513,12 +514,12 @@ func TestPinTracker_SyncAll(t *testing.T) {
 				},
 				testStatelessPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid2),
 					Status: api.TrackerStatusPinned,
 				},
@@ -534,12 +535,12 @@ func TestPinTracker_SyncAll(t *testing.T) {
 				},
 				testMapPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid2),
 					Status: api.TrackerStatusPinned,
 				},
@@ -555,12 +556,12 @@ func TestPinTracker_SyncAll(t *testing.T) {
 				},
 				testSlowStatelessPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid2),
 					Status: api.TrackerStatusPinned,
 				},
@@ -576,12 +577,12 @@ func TestPinTracker_SyncAll(t *testing.T) {
 				},
 				testSlowMapPinTracker(t),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid2),
 					Status: api.TrackerStatusPinned,
 				},
@@ -717,30 +718,30 @@ func TestPinTracker_Sync(t *testing.T) {
 func TestPinTracker_RecoverAll(t *testing.T) {
 	type args struct {
 		tracker ipfscluster.PinTracker
-		pin     api.Pin // only used by maptracker
+		pin     *api.Pin // only used by maptracker
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    []api.PinInfo
+		want    []*api.PinInfo
 		wantErr bool
 	}{
 		{
 			"basic stateless recoverall",
 			args{
 				testStatelessPinTracker(t),
-				api.Pin{},
+				&api.Pin{},
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid2),
 					Status: api.TrackerStatusRemote,
 				},
-				api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid3),
 					Status: api.TrackerStatusPinned,
 				},
@@ -753,8 +754,8 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 				testMapPinTracker(t),
 				api.PinWithOpts(test.MustDecodeCid(test.TestCid1), pinOpts),
 			},
-			[]api.PinInfo{
-				api.PinInfo{
+			[]*api.PinInfo{
+				{
 					Cid:    test.MustDecodeCid(test.TestCid1),
 					Status: api.TrackerStatusPinned,
 				},

@@ -9,7 +9,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -26,7 +25,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-peer"
 	protocol "github.com/libp2p/go-libp2p-protocol"
-	ma "github.com/multiformats/go-multiaddr"
+	multiaddr "github.com/multiformats/go-multiaddr"
 
 	// needed to parse /ws multiaddresses
 	_ "github.com/libp2p/go-ws-transport"
@@ -130,6 +129,23 @@ func (st TrackerStatus) Match(filter TrackerStatus) bool {
 	return filter == 0 || st&filter > 0
 }
 
+// MarshalJSON uses the string representation of TrackerStatus for JSON
+// encoding.
+func (st TrackerStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(st.String())
+}
+
+// UnmarshalJSON sets a tracker status from its JSON representation.
+func (st *TrackerStatus) UnmarshalJSON(data []byte) error {
+	var v string
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		return err
+	}
+	*st = TrackerStatusFromString(v)
+	return nil
+}
+
 // TrackerStatusFromString parses a string and returns the matching
 // TrackerStatus value. The string can be a comma-separated list
 // representing a TrackerStatus filter. Unknown status names are
@@ -225,157 +241,26 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid     cid.Cid
-	PeerMap map[peer.ID]PinInfo
-}
-
-// GlobalPinInfoSerial is the serializable version of GlobalPinInfo.
-type GlobalPinInfoSerial struct {
-	Cid     string                   `json:"cid"`
-	PeerMap map[string]PinInfoSerial `json:"peer_map"`
-}
-
-// ToSerial converts a GlobalPinInfo to its serializable version.
-func (gpi GlobalPinInfo) ToSerial() GlobalPinInfoSerial {
-	s := GlobalPinInfoSerial{}
-	if gpi.Cid.Defined() {
-		s.Cid = gpi.Cid.String()
-	}
-	s.PeerMap = make(map[string]PinInfoSerial)
-	for k, v := range gpi.PeerMap {
-		s.PeerMap[peer.IDB58Encode(k)] = v.ToSerial()
-	}
-	return s
-}
-
-// ToGlobalPinInfo converts a GlobalPinInfoSerial to its native version.
-func (gpis GlobalPinInfoSerial) ToGlobalPinInfo() GlobalPinInfo {
-	c, err := cid.Decode(gpis.Cid)
-	if err != nil {
-		logger.Debug(gpis.Cid, err)
-	}
-	gpi := GlobalPinInfo{
-		Cid:     c,
-		PeerMap: make(map[peer.ID]PinInfo),
-	}
-	for k, v := range gpis.PeerMap {
-		p, err := peer.IDB58Decode(k)
-		if err != nil {
-			logger.Error(k, err)
-		}
-		gpi.PeerMap[p] = v.ToPinInfo()
-	}
-	return gpi
+	Cid cid.Cid `json:"cid" codec:"c,omitempty"`
+	// https://github.com/golang/go/issues/28827
+	// Peer IDs are of string Kind(). We can't use peer IDs here
+	// as Go ignores TextMarshaler.
+	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
 }
 
 // PinInfo holds information about local pins.
 type PinInfo struct {
-	Cid      cid.Cid
-	Peer     peer.ID
-	PeerName string
-	Status   TrackerStatus
-	TS       time.Time
-	Error    string
-}
-
-// PinInfoSerial is a serializable version of PinInfo.
-// information is marked as
-type PinInfoSerial struct {
-	Cid      string `json:"cid"`
-	Peer     string `json:"peer"`
-	PeerName string `json:"peername"`
-	Status   string `json:"status"`
-	TS       string `json:"timestamp"`
-	Error    string `json:"error"`
-}
-
-// ToSerial converts a PinInfo to its serializable version.
-func (pi PinInfo) ToSerial() PinInfoSerial {
-	c := ""
-	if pi.Cid.Defined() {
-		c = pi.Cid.String()
-	}
-	p := ""
-	if pi.Peer != "" {
-		p = peer.IDB58Encode(pi.Peer)
-	}
-
-	return PinInfoSerial{
-		Cid:      c,
-		Peer:     p,
-		PeerName: pi.PeerName,
-		Status:   pi.Status.String(),
-		TS:       pi.TS.UTC().Format(time.RFC3339),
-		Error:    pi.Error,
-	}
-}
-
-// ToPinInfo converts a PinInfoSerial to its native version.
-func (pis PinInfoSerial) ToPinInfo() PinInfo {
-	c, err := cid.Decode(pis.Cid)
-	if err != nil {
-		logger.Debug(pis.Cid, err)
-	}
-	p, err := peer.IDB58Decode(pis.Peer)
-	if err != nil {
-		logger.Debug(pis.Peer, err)
-	}
-	ts, err := time.Parse(time.RFC3339, pis.TS)
-	if err != nil {
-		logger.Debug(pis.TS, err)
-	}
-	return PinInfo{
-		Cid:      c,
-		Peer:     p,
-		PeerName: pis.PeerName,
-		Status:   TrackerStatusFromString(pis.Status),
-		TS:       ts,
-		Error:    pis.Error,
-	}
+	Cid      cid.Cid       `json:"cid" codec:"c,omitempty"`
+	Peer     peer.ID       `json:"peer" codec:"p,omitempty"`
+	PeerName string        `json:"peername" codec:"pn,omitempty"`
+	Status   TrackerStatus `json:"status" codec:"st,omitempty"`
+	TS       time.Time     `json:"timestamp" codec:"ts,omitempty"`
+	Error    string        `json:"error" codec:"e,omitempty"`
 }
 
 // Version holds version information
 type Version struct {
-	Version string `json:"Version"`
-}
-
-// IPFSID is used to store information about the underlying IPFS daemon
-type IPFSID struct {
-	ID        peer.ID
-	Addresses []ma.Multiaddr
-	Error     string
-}
-
-// IPFSIDSerial is the serializable IPFSID for RPC requests
-type IPFSIDSerial struct {
-	ID        string           `json:"id"`
-	Addresses MultiaddrsSerial `json:"addresses"`
-	Error     string           `json:"error"`
-}
-
-// ToSerial converts IPFSID to a go serializable object
-func (id *IPFSID) ToSerial() IPFSIDSerial {
-	p := ""
-	if id.ID != "" {
-		p = peer.IDB58Encode(id.ID)
-	}
-
-	return IPFSIDSerial{
-		ID:        p,
-		Addresses: MultiaddrsToSerial(id.Addresses),
-		Error:     id.Error,
-	}
-}
-
-// ToIPFSID converts an IPFSIDSerial to IPFSID
-func (ids *IPFSIDSerial) ToIPFSID() IPFSID {
-	id := IPFSID{}
-	if pID, err := peer.IDB58Decode(ids.ID); err == nil {
-		id.ID = pID
-	}
-	id.Addresses = ids.Addresses.ToMultiaddrs()
-	id.Error = ids.Error
-	return id
+	Version string `json:"Version" codec:"v,omitempty"`
 }
 
 // ConnectGraph holds information about the connectivity of the cluster
@@ -391,236 +276,72 @@ func (ids *IPFSIDSerial) ToIPFSID() IPFSID {
 //   then id will be a key of IPFSLinks.  In the event of a SwarmPeers error
 //   IPFSLinks[id] == [].
 type ConnectGraph struct {
-	ClusterID     peer.ID
-	IPFSLinks     map[peer.ID][]peer.ID // ipfs to ipfs links
-	ClusterLinks  map[peer.ID][]peer.ID // cluster to cluster links
-	ClustertoIPFS map[peer.ID]peer.ID   // cluster to ipfs links
+	ClusterID peer.ID
+	// ipfs to ipfs links
+	IPFSLinks map[string][]peer.ID `json:"ipfs_links" codec:"il,omitempty"`
+	// cluster to cluster links
+	ClusterLinks map[string][]peer.ID `json:"cluster_links" codec:"cl,omitempty"`
+	// cluster to ipfs links
+	ClustertoIPFS map[string]peer.ID `json:"cluster_to_ipfs" codec:"ci,omitempty"`
 }
 
-// ConnectGraphSerial is the serializable ConnectGraph counterpart for RPC requests
-type ConnectGraphSerial struct {
-	ClusterID     string
-	IPFSLinks     map[string][]string `json:"ipfs_links"`
-	ClusterLinks  map[string][]string `json:"cluster_links"`
-	ClustertoIPFS map[string]string   `json:"cluster_to_ipfs"`
+// Multiaddr is a utility type wrapping a Multiaddress
+type Multiaddr struct {
+	multiaddr.Multiaddr
 }
 
-// ToSerial converts a ConnectGraph to its Go-serializable version
-func (cg ConnectGraph) ToSerial() ConnectGraphSerial {
-	IPFSLinksSerial := serializeLinkMap(cg.IPFSLinks)
-	ClusterLinksSerial := serializeLinkMap(cg.ClusterLinks)
-	ClustertoIPFSSerial := make(map[string]string)
-	for k, v := range cg.ClustertoIPFS {
-		ClustertoIPFSSerial[peer.IDB58Encode(k)] = peer.IDB58Encode(v)
-	}
-	return ConnectGraphSerial{
-		ClusterID:     peer.IDB58Encode(cg.ClusterID),
-		IPFSLinks:     IPFSLinksSerial,
-		ClusterLinks:  ClusterLinksSerial,
-		ClustertoIPFS: ClustertoIPFSSerial,
-	}
+func NewMultiaddr(mstr string) (Multiaddr, error) {
+	m, err := multiaddr.NewMultiaddr(mstr)
+	return Multiaddr{Multiaddr: m}, err
 }
 
-// ToConnectGraph converts a ConnectGraphSerial to a ConnectGraph
-func (cgs ConnectGraphSerial) ToConnectGraph() ConnectGraph {
-	ClustertoIPFS := make(map[peer.ID]peer.ID)
-	for k, v := range cgs.ClustertoIPFS {
-		pid1, _ := peer.IDB58Decode(k)
-		pid2, _ := peer.IDB58Decode(v)
-		ClustertoIPFS[pid1] = pid2
-	}
-	pid, _ := peer.IDB58Decode(cgs.ClusterID)
-	return ConnectGraph{
-		ClusterID:     pid,
-		IPFSLinks:     deserializeLinkMap(cgs.IPFSLinks),
-		ClusterLinks:  deserializeLinkMap(cgs.ClusterLinks),
-		ClustertoIPFS: ClustertoIPFS,
-	}
+func NewMultiaddrWithValue(ma multiaddr.Multiaddr) Multiaddr {
+	return Multiaddr{Multiaddr: ma}
 }
 
-func serializeLinkMap(Links map[peer.ID][]peer.ID) map[string][]string {
-	LinksSerial := make(map[string][]string)
-	for k, v := range Links {
-		kS := peer.IDB58Encode(k)
-		LinksSerial[kS] = PeersToStrings(v)
-	}
-	return LinksSerial
+func (maddr Multiaddr) MarshalJSON() ([]byte, error) {
+	return maddr.Multiaddr.MarshalJSON()
 }
 
-func deserializeLinkMap(LinksSerial map[string][]string) map[peer.ID][]peer.ID {
-	Links := make(map[peer.ID][]peer.ID)
-	for k, v := range LinksSerial {
-		pid, _ := peer.IDB58Decode(k)
-		Links[pid] = StringsToPeers(v)
-	}
-	return Links
+func (maddr *Multiaddr) UnmarshalJSON(data []byte) error {
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	return maddr.Multiaddr.UnmarshalJSON(data)
 }
 
-// SwarmPeers lists an ipfs daemon's peers
-type SwarmPeers []peer.ID
-
-// SwarmPeersSerial is the serialized form of SwarmPeers for RPC use
-type SwarmPeersSerial []string
-
-// ToSerial converts SwarmPeers to its Go-serializeable version
-func (swarm SwarmPeers) ToSerial() SwarmPeersSerial {
-	return PeersToStrings(swarm)
+func (maddr Multiaddr) MarshalBinary() ([]byte, error) {
+	return maddr.Multiaddr.MarshalBinary()
+}
+func (maddr *Multiaddr) UnmarshalBinary(data []byte) error {
+	datacopy := make([]byte, len(data)) // This is super important
+	copy(datacopy, data)
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	return maddr.Multiaddr.UnmarshalBinary(datacopy)
 }
 
-// ToSwarmPeers converts a SwarmPeersSerial object to SwarmPeers.
-func (swarmS SwarmPeersSerial) ToSwarmPeers() SwarmPeers {
-	return StringsToPeers(swarmS)
+func (maddr Multiaddr) Value() multiaddr.Multiaddr {
+	return maddr.Multiaddr
 }
 
 // ID holds information about the Cluster peer
 type ID struct {
-	ID                    peer.ID
-	Addresses             []ma.Multiaddr
-	ClusterPeers          []peer.ID
-	ClusterPeersAddresses []ma.Multiaddr
-	Version               string
-	Commit                string
-	RPCProtocolVersion    protocol.ID
-	Error                 string
-	IPFS                  IPFSID
-	Peername              string
+	ID                    peer.ID     `json:"id" codec:"i,omitempty"`
+	Addresses             []Multiaddr `json:"addresses" codec:"a,omitempty"`
+	ClusterPeers          []peer.ID   `json:"cluster_peers" codec:"cp,omitempty"`
+	ClusterPeersAddresses []Multiaddr `json:"cluster_peers_addresses" codec:"cpa,omitempty"`
+	Version               string      `json:"version" codec:"v,omitempty"`
+	Commit                string      `json:"commit" codec:"c,omitempty"`
+	RPCProtocolVersion    protocol.ID `json:"rpc_protocol_version" codec:"rv,omitempty"`
+	Error                 string      `json:"error" codec:"e,omitempty"`
+	IPFS                  IPFSID      `json:"ipfs" codec:"ip,omitempty"`
+	Peername              string      `json:"peername" codec:"pn,omitempty"`
 	//PublicKey          crypto.PubKey
 }
 
-// IDSerial is the serializable ID counterpart for RPC requests
-type IDSerial struct {
-	ID                    string           `json:"id"`
-	Addresses             MultiaddrsSerial `json:"addresses"`
-	ClusterPeers          []string         `json:"cluster_peers"`
-	ClusterPeersAddresses MultiaddrsSerial `json:"cluster_peers_addresses"`
-	Version               string           `json:"version"`
-	Commit                string           `json:"commit"`
-	RPCProtocolVersion    string           `json:"rpc_protocol_version"`
-	Error                 string           `json:"error"`
-	IPFS                  IPFSIDSerial     `json:"ipfs"`
-	Peername              string           `json:"peername"`
-	//PublicKey          []byte
-}
-
-// ToSerial converts an ID to its Go-serializable version
-func (id ID) ToSerial() IDSerial {
-	//var pkey []byte
-	//if id.PublicKey != nil {
-	//	pkey, _ = id.PublicKey.Bytes()
-	//}
-
-	p := ""
-	if id.ID != "" {
-		p = peer.IDB58Encode(id.ID)
-	}
-
-	return IDSerial{
-		ID:                    p,
-		Addresses:             MultiaddrsToSerial(id.Addresses),
-		ClusterPeers:          PeersToStrings(id.ClusterPeers),
-		ClusterPeersAddresses: MultiaddrsToSerial(id.ClusterPeersAddresses),
-		Version:               id.Version,
-		Commit:                id.Commit,
-		RPCProtocolVersion:    string(id.RPCProtocolVersion),
-		Error:                 id.Error,
-		IPFS:                  id.IPFS.ToSerial(),
-		Peername:              id.Peername,
-		//PublicKey:          pkey,
-	}
-}
-
-// ToID converts an IDSerial object to ID.
-// It will ignore any errors when parsing the fields.
-func (ids IDSerial) ToID() ID {
-	id := ID{}
-	p, err := peer.IDB58Decode(ids.ID)
-	if err != nil {
-		logger.Debug(ids.ID, err)
-	}
-	id.ID = p
-
-	//if pkey, err := crypto.UnmarshalPublicKey(ids.PublicKey); err == nil {
-	//	id.PublicKey = pkey
-	//}
-
-	id.Addresses = ids.Addresses.ToMultiaddrs()
-	id.ClusterPeers = StringsToPeers(ids.ClusterPeers)
-	id.ClusterPeersAddresses = ids.ClusterPeersAddresses.ToMultiaddrs()
-	id.Version = ids.Version
-	id.Commit = ids.Commit
-	id.RPCProtocolVersion = protocol.ID(ids.RPCProtocolVersion)
-	id.Error = ids.Error
-	id.IPFS = ids.IPFS.ToIPFSID()
-	id.Peername = ids.Peername
-	return id
-}
-
-// MultiaddrSerial is a Multiaddress in a serializable form
-type MultiaddrSerial string
-
-// MultiaddrsSerial is an array of Multiaddresses in serializable form
-type MultiaddrsSerial []MultiaddrSerial
-
-// MultiaddrToSerial converts a Multiaddress to its serializable form
-func MultiaddrToSerial(addr ma.Multiaddr) MultiaddrSerial {
-	if addr != nil {
-		return MultiaddrSerial(addr.String())
-	}
-	return ""
-}
-
-// ToMultiaddr converts a serializable Multiaddress to its original type.
-// All errors are ignored.
-func (addrS MultiaddrSerial) ToMultiaddr() ma.Multiaddr {
-	str := string(addrS)
-	a, err := ma.NewMultiaddr(str)
-	if err != nil {
-		logger.Error(str, err)
-	}
-	return a
-}
-
-// MultiaddrsToSerial converts a slice of Multiaddresses to its
-// serializable form.
-func MultiaddrsToSerial(addrs []ma.Multiaddr) MultiaddrsSerial {
-	addrsS := make([]MultiaddrSerial, len(addrs), len(addrs))
-	for i, a := range addrs {
-		if a != nil {
-			addrsS[i] = MultiaddrToSerial(a)
-		}
-	}
-	return addrsS
-}
-
-// ToMultiaddrs converts MultiaddrsSerial back to a slice of Multiaddresses
-func (addrsS MultiaddrsSerial) ToMultiaddrs() []ma.Multiaddr {
-	addrs := make([]ma.Multiaddr, len(addrsS), len(addrsS))
-	for i, addrS := range addrsS {
-		addrs[i] = addrS.ToMultiaddr()
-	}
-	return addrs
-}
-
-// CidsToStrings encodes cid.Cids to strings.
-func CidsToStrings(cids []cid.Cid) []string {
-	strs := make([]string, len(cids))
-	for i, c := range cids {
-		strs[i] = c.String()
-	}
-	return strs
-}
-
-// StringsToCidSet decodes cid.Cids from strings.
-func StringsToCidSet(strs []string) *cid.Set {
-	cids := cid.NewSet()
-	for _, str := range strs {
-		c, err := cid.Decode(str)
-		if err != nil {
-			logger.Error(str, err)
-		}
-		cids.Add(c)
-	}
-	return cids
+// IPFSID is used to store information about the underlying IPFS daemon
+type IPFSID struct {
+	ID        peer.ID     `json:"id" codec:"i,omitempty"`
+	Addresses []Multiaddr `json:"addresses" codec:"a,omitempty"`
+	Error     string      `json:"error" codec:"e,omitempty"`
 }
 
 // PinType specifies which sort of Pin object we are dealing with.
@@ -819,23 +540,24 @@ func (po *PinOptions) FromQuery(q url.Values) {
 type Pin struct {
 	PinOptions
 
-	Cid cid.Cid
+	Cid cid.Cid `json:"cid" codec:"c"`
 
 	// See PinType comments
-	Type PinType
+	Type PinType `json:"type" codec:"t,omitempty"`
 
 	// The peers to which this pin is allocated
-	Allocations []peer.ID
+	Allocations []peer.ID `json:"allocations" codec:"a,omitempty"`
 
 	// MaxDepth associated to this pin. -1 means
 	// recursive.
-	MaxDepth int
+	MaxDepth int `json:"max_depth" codec:"d,omitempty"`
 
 	// We carry a reference CID to this pin. For
 	// ClusterDAGs, it is the MetaPin CID. For the
 	// MetaPin it is the ClusterDAG CID. For Shards,
 	// it is the previous shard CID.
-	Reference cid.Cid
+	// When not needed the pointer is nil
+	Reference *cid.Cid `json:"reference" codec:"r,omitempty"`
 }
 
 // PinPath is a wrapper for holding pin options and path of the content.
@@ -846,8 +568,8 @@ type PinPath struct {
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive and the pin to be of DataType.
-func PinCid(c cid.Cid) Pin {
-	return Pin{
+func PinCid(c cid.Cid) *Pin {
+	return &Pin{
 		Cid:         c,
 		Type:        DataType,
 		Allocations: []peer.ID{},
@@ -857,44 +579,10 @@ func PinCid(c cid.Cid) Pin {
 
 // PinWithOpts creates a new Pin calling PinCid(c) and then sets
 // its PinOptions fields with the given options.
-func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
+func PinWithOpts(c cid.Cid, opts PinOptions) *Pin {
 	p := PinCid(c)
 	p.PinOptions = opts
 	return p
-}
-
-// PinSerial is a serializable version of Pin
-type PinSerial struct {
-	PinOptions
-
-	Cid         string   `json:"cid" codec:"c,omitempty"`
-	Type        uint64   `json:"type" codec:"t,omitempty"`
-	Allocations []string `json:"allocations" codec:"a,omitempty"`
-	MaxDepth    int      `json:"max_depth" codec:"d,omitempty"`
-	Reference   string   `json:"reference" codec:"r,omitempty"`
-}
-
-// ToSerial converts a Pin to PinSerial.
-func (pin Pin) ToSerial() PinSerial {
-	c := ""
-	if pin.Cid.Defined() {
-		c = pin.Cid.String()
-	}
-	ref := ""
-	if pin.Reference.Defined() {
-		ref = pin.Reference.String()
-	}
-
-	allocs := PeersToStrings(pin.Allocations)
-
-	return PinSerial{
-		Cid:         c,
-		Allocations: allocs,
-		Type:        uint64(pin.Type),
-		MaxDepth:    pin.MaxDepth,
-		Reference:   ref,
-		PinOptions:  pin.PinOptions,
-	}
 }
 
 func convertPinType(t PinType) pb.Pin_PinType {
@@ -934,8 +622,10 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		Type:        convertPinType(pin.Type),
 		Allocations: allocs,
 		MaxDepth:    int32(pin.MaxDepth),
-		Reference:   pin.Reference.Bytes(),
 		Options:     opts,
+	}
+	if ref := pin.Reference; ref != nil {
+		pbPin.Reference = ref.Bytes()
 	}
 	return proto.Marshal(pbPin)
 }
@@ -971,12 +661,11 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	pin.MaxDepth = int(pbPin.GetMaxDepth())
 	ref, err := cid.Cast(pbPin.GetReference())
 	if err != nil {
-		pin.Reference = cid.Undef
+		pin.Reference = nil
 
 	} else {
-		pin.Reference = ref
+		pin.Reference = &ref
 	}
-	pin.Reference = ref
 
 	opts := pbPin.GetOptions()
 	pin.ReplicationFactorMin = int(opts.GetReplicationFactorMin())
@@ -991,34 +680,37 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 // Equals checks if two pins are the same (with the same allocations).
 // If allocations are the same but in different order, they are still
 // considered equivalent.
-func (pin Pin) Equals(pin2 Pin) bool {
-	pin1s := pin.ToSerial()
-	pin2s := pin2.ToSerial()
-
-	if pin1s.Cid != pin2s.Cid {
+func (pin *Pin) Equals(pin2 *Pin) bool {
+	if pin == nil && pin2 != nil || pin2 == nil && pin != nil {
 		return false
 	}
 
-	if pin1s.Name != pin2s.Name {
+	if !pin.Cid.Equals(pin2.Cid) {
 		return false
 	}
 
-	if pin1s.Type != pin2s.Type {
+	if pin.Name != pin2.Name {
 		return false
 	}
 
-	if pin1s.MaxDepth != pin2s.MaxDepth {
+	if pin.Type != pin2.Type {
 		return false
 	}
 
-	if pin1s.Reference != pin2s.Reference {
+	if pin.MaxDepth != pin2.MaxDepth {
 		return false
 	}
 
-	sort.Strings(pin1s.Allocations)
-	sort.Strings(pin2s.Allocations)
+	if pin.Reference != pin2.Reference {
+		return false
+	}
 
-	if strings.Join(pin1s.Allocations, ",") != strings.Join(pin2s.Allocations, ",") {
+	allocs1 := PeersToStrings(pin.Allocations)
+	sort.Strings(allocs1)
+	allocs2 := PeersToStrings(pin2.Allocations)
+	sort.Strings(allocs2)
+
+	if strings.Join(allocs1, ",") != strings.Join(allocs2, ",") {
 		return false
 	}
 
@@ -1027,7 +719,7 @@ func (pin Pin) Equals(pin2 Pin) bool {
 
 // IsRemotePin determines whether a Pin's ReplicationFactor has
 // been met, so as to either pin or unpin it from the peer.
-func (pin Pin) IsRemotePin(pid peer.ID) bool {
+func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 	if pin.ReplicationFactorMax < 0 || pin.ReplicationFactorMin < 0 {
 		return false
 	}
@@ -1040,56 +732,13 @@ func (pin Pin) IsRemotePin(pid peer.ID) bool {
 	return true
 }
 
-// ToPin converts a PinSerial to its native form.
-func (pins PinSerial) ToPin() Pin {
-	c, err := cid.Decode(pins.Cid)
-	if err != nil {
-		logger.Debug(pins.Cid, err)
-	}
-	var ref cid.Cid
-	if pins.Reference != "" {
-		ref, err = cid.Decode(pins.Reference)
-		if err != nil {
-			logger.Warning(pins.Reference, err)
-		}
-	}
-
-	return Pin{
-		Cid:         c,
-		Allocations: StringsToPeers(pins.Allocations),
-		Type:        PinType(pins.Type),
-		MaxDepth:    pins.MaxDepth,
-		Reference:   ref,
-		PinOptions:  pins.PinOptions,
-	}
-}
-
-// Clone returns a deep copy of the PinSerial.
-func (pins PinSerial) Clone() PinSerial {
-	new := pins // this copy all the simple fields.
-	// slices are pointers. We need to explicitally copy them.
-	new.Allocations = make([]string, len(pins.Allocations))
-	copy(new.Allocations, pins.Allocations)
-	return new
-}
-
-// DecodeCid retrieves just the cid from a PinSerial without
-// allocating a Pin.
-func (pins PinSerial) DecodeCid() cid.Cid {
-	c, err := cid.Decode(pins.Cid)
-	if err != nil {
-		logger.Debug(pins.Cid, err)
-	}
-	return c
-}
-
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
-	Data    []byte
-	Cid     string
-	CumSize uint64 // Cumulative size
-	Format  string
+	Data    []byte  `codec:"d,omitempty"`
+	Cid     cid.Cid `codec:"c, omitempty"`
+	CumSize uint64  `codec:"s,omitempty"` // Cumulative size
+	Format  string  `codec:"f,omitempty"`
 }
 
 // Size returns how big is the block. It is different from CumSize, which
@@ -1102,11 +751,11 @@ func (n *NodeWithMeta) Size() uint64 {
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
 type Metric struct {
-	Name   string
-	Peer   peer.ID
-	Value  string
-	Expire int64
-	Valid  bool
+	Name   string  `json:"name" codec:"n,omitempty"`
+	Peer   peer.ID `json:"peer" codec:"p,omitempty"`
+	Value  string  `json:"value" codec:"v,omitempty"`
+	Expire int64   `json:"expire" codec:"e,omitempty"`
+	Valid  bool    `json:"valid" codec:"d,omitempty"`
 }
 
 // SetTTL sets Metric to expire after the given time.Duration
@@ -1132,51 +781,6 @@ func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
-// MetricSerial is a helper for JSON marshaling. The Metric type is already
-// serializable, but not pretty to humans (API).
-type MetricSerial struct {
-	Name   string `json:"name"`
-	Peer   string `json:"peer"`
-	Value  string `json:"value"`
-	Expire int64  `json:"expire"`
-	Valid  bool   `json:"valid"`
-}
-
-// MarshalJSON allows a Metric to produce a JSON representation
-// of itself.
-func (m *Metric) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&MetricSerial{
-		Name:   m.Name,
-		Peer:   peer.IDB58Encode(m.Peer),
-		Value:  m.Value,
-		Expire: m.Expire,
-	})
-}
-
-// UnmarshalJSON decodes JSON on top of the Metric.
-func (m *Metric) UnmarshalJSON(j []byte) error {
-	if bytes.Equal(j, []byte("null")) {
-		return nil
-	}
-
-	ms := &MetricSerial{}
-	err := json.Unmarshal(j, ms)
-	if err != nil {
-		return err
-	}
-
-	p, err := peer.IDB58Decode(ms.Peer)
-	if err != nil {
-		return err
-	}
-
-	m.Name = ms.Name
-	m.Peer = p
-	m.Value = ms.Value
-	m.Expire = ms.Expire
-	return nil
-}
-
 // Alert carries alerting information about a peer. WIP.
 type Alert struct {
 	Peer       peer.ID
@@ -1185,8 +789,8 @@ type Alert struct {
 
 // Error can be used by APIs to return errors.
 type Error struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int    `json:"code" codec:"o,omitempty"`
+	Message string `json:"message" codec:"m,omitempty"`
 }
 
 // Error implements the error interface and returns the error's message.
@@ -1196,6 +800,6 @@ func (e *Error) Error() string {
 
 // IPFSRepoStat wraps information about the IPFS repository.
 type IPFSRepoStat struct {
-	RepoSize   uint64
-	StorageMax uint64
+	RepoSize   uint64 `codec:"r,omitempty"`
+	StorageMax uint64 `codec:"s, omitempty"`
 }

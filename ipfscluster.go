@@ -39,9 +39,9 @@ type Consensus interface {
 	// allowing the main component to wait for it during start.
 	Ready(context.Context) <-chan struct{}
 	// Logs a pin operation
-	LogPin(ctx context.Context, c api.Pin) error
+	LogPin(ctx context.Context, c *api.Pin) error
 	// Logs an unpin operation
-	LogUnpin(ctx context.Context, c api.Pin) error
+	LogUnpin(ctx context.Context, c *api.Pin) error
 	AddPeer(ctx context.Context, p peer.ID) error
 	RmPeer(ctx context.Context, p peer.ID) error
 	State(context.Context) (state.State, error)
@@ -67,7 +67,7 @@ type API interface {
 // an IPFS daemon. This is a base component.
 type IPFSConnector interface {
 	Component
-	ID(context.Context) (api.IPFSID, error)
+	ID(context.Context) (*api.IPFSID, error)
 	Pin(context.Context, cid.Cid, int) error
 	Unpin(context.Context, cid.Cid) error
 	PinLsCid(context.Context, cid.Cid) (api.IPFSPinStatus, error)
@@ -76,17 +76,17 @@ type IPFSConnector interface {
 	// other peers IPFS daemons.
 	ConnectSwarms(context.Context) error
 	// SwarmPeers returns the IPFS daemon's swarm peers
-	SwarmPeers(context.Context) (api.SwarmPeers, error)
+	SwarmPeers(context.Context) ([]peer.ID, error)
 	// ConfigKey returns the value for a configuration key.
 	// Subobjects are reached with keypaths as "Parent/Child/GrandChild...".
 	ConfigKey(keypath string) (interface{}, error)
 	// RepoStat returns the current repository size and max limit as
 	// provided by "repo stat".
-	RepoStat(context.Context) (api.IPFSRepoStat, error)
+	RepoStat(context.Context) (*api.IPFSRepoStat, error)
 	// Resolve returns a cid given a path
 	Resolve(context.Context, string) (cid.Cid, error)
 	// BlockPut directly adds a block of data to the IPFS repo
-	BlockPut(context.Context, api.NodeWithMeta) error
+	BlockPut(context.Context, *api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block
 	BlockGet(context.Context, cid.Cid) ([]byte, error)
 }
@@ -106,24 +106,24 @@ type PinTracker interface {
 	Component
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
-	Track(context.Context, api.Pin) error
+	Track(context.Context, *api.Pin) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
 	Untrack(context.Context, cid.Cid) error
 	// StatusAll returns the list of pins with their local status.
-	StatusAll(context.Context) []api.PinInfo
+	StatusAll(context.Context) []*api.PinInfo
 	// Status returns the local status of a given Cid.
-	Status(context.Context, cid.Cid) api.PinInfo
+	Status(context.Context, cid.Cid) *api.PinInfo
 	// SyncAll makes sure that all tracked Cids reflect the real IPFS status.
 	// It returns the list of pins which were updated by the call.
-	SyncAll(context.Context) ([]api.PinInfo, error)
+	SyncAll(context.Context) ([]*api.PinInfo, error)
 	// Sync makes sure that the Cid status reflect the real IPFS status.
 	// It returns the local status of the Cid.
-	Sync(context.Context, cid.Cid) (api.PinInfo, error)
+	Sync(context.Context, cid.Cid) (*api.PinInfo, error)
 	// RecoverAll calls Recover() for all pins tracked.
-	RecoverAll(context.Context) ([]api.PinInfo, error)
+	RecoverAll(context.Context) ([]*api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
-	Recover(context.Context, cid.Cid) (api.PinInfo, error)
+	Recover(context.Context, cid.Cid) (*api.PinInfo, error)
 }
 
 // Informer provides Metric information from a peer. The metrics produced by
@@ -133,7 +133,7 @@ type PinTracker interface {
 type Informer interface {
 	Component
 	Name() string
-	GetMetric(context.Context) api.Metric
+	GetMetric(context.Context) *api.Metric
 }
 
 // PinAllocator decides where to pin certain content. In order to make such
@@ -148,7 +148,7 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority map[peer.ID]api.Metric) ([]peer.ID, error)
+	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority map[peer.ID]*api.Metric) ([]peer.ID, error)
 }
 
 // PeerMonitor is a component in charge of publishing a peer's metrics and
@@ -162,17 +162,17 @@ type PeerMonitor interface {
 	Component
 	// LogMetric stores a metric. It can be used to manually inject
 	// a metric to a monitor.
-	LogMetric(context.Context, api.Metric) error
+	LogMetric(context.Context, *api.Metric) error
 	// PublishMetric sends a metric to the rest of the peers.
 	// How to send it, and to who, is to be decided by the implementation.
-	PublishMetric(context.Context, api.Metric) error
+	PublishMetric(context.Context, *api.Metric) error
 	// LatestMetrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
-	LatestMetrics(ctx context.Context, name string) []api.Metric
+	LatestMetrics(ctx context.Context, name string) []*api.Metric
 	// Alerts delivers alerts generated when this peer monitor detects
 	// a problem (i.e. metrics not arriving as expected). Alerts can be used
 	// to trigger self-healing measures or re-pinnings of content.
-	Alerts() <-chan api.Alert
+	Alerts() <-chan *api.Alert
 }
 
 // Tracer implements Component as a way

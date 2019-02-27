@@ -76,7 +76,7 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 		return err
 	}
 	nodeSerial := &api.NodeWithMeta{
-		Cid:     node.Cid().String(),
+		Cid:     node.Cid(),
 		Data:    node.RawData(),
 		CumSize: size,
 	}
@@ -122,7 +122,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	clusterDAGPin.MaxDepth = 0 // pin direct
 	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", dgs.pinOpts.Name)
 	clusterDAGPin.Type = api.ClusterDAGType
-	clusterDAGPin.Reference = dataRoot
+	clusterDAGPin.Reference = &dataRoot
 	err = adder.Pin(ctx, dgs.rpcClient, clusterDAGPin)
 	if err != nil {
 		return dataRoot, err
@@ -131,7 +131,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	// Pin the META pin
 	metaPin := api.PinWithOpts(dataRoot, dgs.pinOpts)
 	metaPin.Type = api.MetaType
-	metaPin.Reference = clusterDAG
+	metaPin.Reference = &clusterDAG
 	metaPin.MaxDepth = 0 // irrelevant. Meta-pins are not pinned
 	err = adder.Pin(ctx, dgs.rpcClient, metaPin)
 	if err != nil {
@@ -180,14 +180,9 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n *api.NodeWithMeta) err
 
 	logger.Debugf("ingesting block %s in shard %d (%s)", n.Cid, len(dgs.shards), dgs.pinOpts.Name)
 
-	c, err := cid.Decode(n.Cid)
-	if err != nil {
-		return err
-	}
-
 	// add the block to it if it fits and return
 	if shard.Size()+n.Size() < shard.Limit() {
-		shard.AddLink(ctx, c, n.Size())
+		shard.AddLink(ctx, n.Cid, n.Size())
 		return adder.PutBlock(ctx, dgs.rpcClient, n, shard.Allocations())
 	}
 
@@ -207,7 +202,7 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n *api.NodeWithMeta) err
 		return errors.New("block doesn't fit in empty shard: shard size too small?")
 	}
 
-	_, err = dgs.flushCurrentShard(ctx)
+	_, err := dgs.flushCurrentShard(ctx)
 	if err != nil {
 		return err
 	}

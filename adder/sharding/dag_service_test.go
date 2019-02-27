@@ -10,6 +10,7 @@ import (
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -26,30 +27,32 @@ type testRPC struct {
 	pins   sync.Map
 }
 
-func (rpcs *testRPC) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
-	rpcs.blocks.Store(in.Cid, in.Data)
+func (rpcs *testRPC) IPFSBlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+	rpcs.blocks.Store(in.Cid.String(), in.Data)
 	return nil
 }
 
-func (rpcs *testRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	rpcs.pins.Store(in.Cid, in)
+func (rpcs *testRPC) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	rpcs.pins.Store(in.Cid.String(), in)
 	return nil
 }
 
-func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+func (rpcs *testRPC) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("we can only replicate to 1 peer")
 	}
-	*out = []string{""}
+	// it does not matter since we use host == nil for RPC, so it uses the
+	// local one in all cases
+	*out = []peer.ID{test.TestPeerID1}
 	return nil
 }
 
-func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (api.Pin, error) {
+func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (*api.Pin, error) {
 	pI, ok := rpcs.pins.Load(c.String())
 	if !ok {
-		return api.Pin{}, errors.New("not found")
+		return nil, errors.New("not found")
 	}
-	return pI.(api.PinSerial).ToPin(), nil
+	return pI.(*api.Pin), nil
 }
 
 func (rpcs *testRPC) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
@@ -110,7 +113,7 @@ func TestFromMultipart(t *testing.T) {
 
 		// Print all pins
 		// rpcObj.pins.Range(func(k, v interface{}) bool {
-		// 	p := v.(api.PinSerial)
+		// 	p := v.(*api.Pin)
 		// 	j, _ := config.DefaultJSONMarshal(p)
 		// 	fmt.Printf("%s", j)
 		// 	return true

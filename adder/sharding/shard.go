@@ -92,7 +92,7 @@ func (sh *shard) Flush(ctx context.Context, shardN int, prev cid.Cid) (cid.Cid, 
 	// this sets allocations as priority allocation
 	pin.Allocations = sh.allocations
 	pin.Type = api.ShardType
-	pin.Reference = prev
+	pin.Reference = &prev
 	pin.MaxDepth = 1
 	pin.ShardSize = sh.Size()           // use current size, not the limit
 	if len(nodes) > len(sh.dagNode)+1 { // using an indirect graph

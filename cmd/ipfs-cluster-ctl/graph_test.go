@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
@@ -66,45 +68,58 @@ I2 -> I1
 
  }`
 
+var (
+	pid1, _ = peer.IDB58Decode("QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD")
+	pid2, _ = peer.IDB58Decode("QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ")
+	pid3, _ = peer.IDB58Decode("QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu")
+	pid4, _ = peer.IDB58Decode("QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV")
+	pid5, _ = peer.IDB58Decode("QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq")
+	pid6, _ = peer.IDB58Decode("QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL")
+
+	pid7, _ = peer.IDB58Decode("QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb")
+	pid8, _ = peer.IDB58Decode("QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8")
+	pid9, _ = peer.IDB58Decode("QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD")
+)
+
 func TestSimpleIpfsGraphs(t *testing.T) {
-	cg := api.ConnectGraphSerial{
-		ClusterID: "QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
-		ClusterLinks: map[string][]string{
-			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD": []string{
-				"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ",
-				"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu",
+	cg := api.ConnectGraph{
+		ClusterID: pid1,
+		ClusterLinks: map[string][]peer.ID{
+			peer.IDB58Encode(pid1): []peer.ID{
+				pid2,
+				pid3,
 			},
-			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ": []string{
-				"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
-				"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu",
+			peer.IDB58Encode(pid2): []peer.ID{
+				pid1,
+				pid3,
 			},
-			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu": []string{
-				"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
-				"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ",
-			},
-		},
-		IPFSLinks: map[string][]string{
-			"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV": []string{
-				"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-				"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
-			},
-			"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq": []string{
-				"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-				"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
-			},
-			"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL": []string{
-				"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-				"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
+			peer.IDB58Encode(pid3): []peer.ID{
+				pid1,
+				pid2,
 			},
 		},
-		ClustertoIPFS: map[string]string{
-			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD": "QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ": "QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu": "QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
+		IPFSLinks: map[string][]peer.ID{
+			peer.IDB58Encode(pid4): []peer.ID{
+				pid5,
+				pid6,
+			},
+			peer.IDB58Encode(pid5): []peer.ID{
+				pid4,
+				pid6,
+			},
+			peer.IDB58Encode(pid6): []peer.ID{
+				pid4,
+				pid5,
+			},
+		},
+		ClustertoIPFS: map[string]peer.ID{
+			peer.IDB58Encode(pid1): pid4,
+			peer.IDB58Encode(pid2): pid5,
+			peer.IDB58Encode(pid3): pid6,
 		},
 	}
 	buf := new(bytes.Buffer)
-	err := makeDot(cg, buf, false)
+	err := makeDot(&cg, buf, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,54 +176,54 @@ I4 -> I5
  }`
 
 func TestIpfsAllGraphs(t *testing.T) {
-	cg := api.ConnectGraphSerial{
-		ClusterID: "QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
-		ClusterLinks: map[string][]string{
-			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD": []string{
-				"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ",
-				"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu",
+	cg := api.ConnectGraph{
+		ClusterID: pid1,
+		ClusterLinks: map[string][]peer.ID{
+			peer.IDB58Encode(pid1): []peer.ID{
+				pid2,
+				pid3,
 			},
-			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ": []string{
-				"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
-				"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu",
+			peer.IDB58Encode(pid2): []peer.ID{
+				pid1,
+				pid3,
 			},
-			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu": []string{
-				"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD",
-				"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ",
-			},
-		},
-		IPFSLinks: map[string][]string{
-			"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV": []string{
-				"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-				"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
-				"QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb",
-				"QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8",
-				"QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD",
-			},
-			"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq": []string{
-				"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-				"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
-				"QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb",
-				"QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8",
-				"QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD",
-			},
-			"QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL": []string{
-				"QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-				"QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-				"QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb",
-				"QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8",
-				"QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD",
+			peer.IDB58Encode(pid3): []peer.ID{
+				pid1,
+				pid2,
 			},
 		},
-		ClustertoIPFS: map[string]string{
-			"QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD": "QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV",
-			"QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ": "QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq",
-			"QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu": "QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL",
+		IPFSLinks: map[string][]peer.ID{
+			peer.IDB58Encode(pid4): []peer.ID{
+				pid5,
+				pid6,
+				pid7,
+				pid8,
+				pid9,
+			},
+			peer.IDB58Encode(pid5): []peer.ID{
+				pid4,
+				pid6,
+				pid7,
+				pid8,
+				pid9,
+			},
+			peer.IDB58Encode(pid6): []peer.ID{
+				pid4,
+				pid5,
+				pid7,
+				pid8,
+				pid9,
+			},
+		},
+		ClustertoIPFS: map[string]peer.ID{
+			peer.IDB58Encode(pid1): pid4,
+			peer.IDB58Encode(pid2): pid5,
+			peer.IDB58Encode(pid3): pid6,
 		},
 	}
 
 	buf := new(bytes.Buffer)
-	err := makeDot(cg, buf, true)
+	err := makeDot(&cg, buf, true)
 	if err != nil {
 		t.Fatal(err)
 	}

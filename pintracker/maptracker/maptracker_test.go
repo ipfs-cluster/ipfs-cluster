@@ -37,9 +37,8 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
-	switch c.String() {
+func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	switch in.Cid.String() {
 	case test.TestSlowCid1:
 		time.Sleep(2 * time.Second)
 	case pinCancelCid:
@@ -48,9 +47,8 @@ func (mock *mockService) IPFSPin(ctx context.Context, in api.PinSerial, out *str
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	c := in.ToPin().Cid
-	switch c.String() {
+func (mock *mockService) IPFSUnpin(ctx context.Context, in cid.Cid, out *struct{}) error {
+	switch in.String() {
 	case test.TestSlowCid1:
 		time.Sleep(2 * time.Second)
 	case unpinCancelCid:
@@ -59,7 +57,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in api.PinSerial, out *s
 	return nil
 }
 
-func testPin(c cid.Cid, min, max int, allocs ...peer.ID) api.Pin {
+func testPin(c cid.Cid, min, max int, allocs ...peer.ID) *api.Pin {
 	pin := api.PinCid(c)
 	pin.ReplicationFactorMin = min
 	pin.ReplicationFactorMax = max

@@ -55,8 +55,8 @@ type mockConnector struct {
 	blocks sync.Map
 }
 
-func (ipfs *mockConnector) ID(ctx context.Context) (api.IPFSID, error) {
-	return api.IPFSID{
+func (ipfs *mockConnector) ID(ctx context.Context) (*api.IPFSID, error) {
+	return &api.IPFSID{
 		ID: test.TestPeerID1,
 	}, nil
 }
@@ -101,12 +101,12 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string
 	return m, nil
 }
 
-func (ipfs *mockConnector) SwarmPeers(ctx context.Context) (api.SwarmPeers, error) {
+func (ipfs *mockConnector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 	return []peer.ID{test.TestPeerID4, test.TestPeerID5}, nil
 }
 
-func (ipfs *mockConnector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
-	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
+func (ipfs *mockConnector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) {
+	return &api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
 func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
@@ -120,8 +120,8 @@ func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, e
 func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
-func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm api.NodeWithMeta) error {
-	ipfs.blocks.Store(nwm.Cid, nwm.Data)
+func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm *api.NodeWithMeta) error {
+	ipfs.blocks.Store(nwm.Cid.String(), nwm.Data)
 	return nil
 }
 
@@ -287,7 +287,7 @@ func TestClusterPinPath(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	pin, err := cl.PinPath(ctx, api.PinPath{Path: test.TestPathIPFS2})
+	pin, err := cl.PinPath(ctx, &api.PinPath{Path: test.TestPathIPFS2})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -296,7 +296,7 @@ func TestClusterPinPath(t *testing.T) {
 	}
 
 	// test an error case
-	_, err = cl.PinPath(ctx, api.PinPath{Path: test.TestInvalidPath1})
+	_, err = cl.PinPath(ctx, &api.PinPath{Path: test.TestInvalidPath1})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -390,7 +390,7 @@ func TestUnpinShard(t *testing.T) {
 	pinnedCids := []cid.Cid{}
 	pinnedCids = append(pinnedCids, root)
 	metaPin, _ := cl.PinGet(ctx, root)
-	cDag, _ := cl.PinGet(ctx, metaPin.Reference)
+	cDag, _ := cl.PinGet(ctx, *metaPin.Reference)
 	pinnedCids = append(pinnedCids, cDag.Cid)
 	cDagBlock, _ := cl.ipfs.BlockGet(ctx, cDag.Cid)
 	cDagNode, _ := sharding.CborDataToNode(cDagBlock, "cbor")
@@ -816,7 +816,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	}
 
 	// Unpin after pin should succeed
-	pin, err := cl.PinPath(ctx, api.PinPath{Path: test.TestPathIPFS2})
+	pin, err := cl.PinPath(ctx, &api.PinPath{Path: test.TestPathIPFS2})
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}

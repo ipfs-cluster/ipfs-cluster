@@ -39,19 +39,21 @@ var errUnfinishedWrite = errors.New("could not complete write of line to output"
 var errUnknownNodeType = errors.New("unsupported node type. Expected cluster or ipfs")
 var errCorruptOrdering = errors.New("expected pid to have an ordering within dot writer")
 
-func makeDot(cg api.ConnectGraphSerial, w io.Writer, allIpfs bool) error {
-	ipfsEdges := make(map[string][]string)
+func makeDot(cg *api.ConnectGraph, w io.Writer, allIpfs bool) error {
+	ipfsEdges := make(map[string][]peer.ID)
 	for k, v := range cg.IPFSLinks {
-		ipfsEdges[k] = make([]string, 0)
+		ipfsEdges[k] = make([]peer.ID, 0)
 		for _, id := range v {
-			if _, ok := cg.IPFSLinks[id]; ok || allIpfs {
+			strPid := peer.IDB58Encode(id)
+
+			if _, ok := cg.IPFSLinks[strPid]; ok || allIpfs {
 				ipfsEdges[k] = append(ipfsEdges[k], id)
 			}
 			if allIpfs { // include all swarm peers in the graph
-				if _, ok := ipfsEdges[id]; !ok {
+				if _, ok := ipfsEdges[strPid]; !ok {
 					// if id in IPFSLinks this will be overwritten
 					// if id not in IPFSLinks this will stay blank
-					ipfsEdges[id] = make([]string, 0)
+					ipfsEdges[strPid] = make([]peer.ID, 0)
 				}
 			}
 		}
@@ -76,15 +78,16 @@ type dotWriter struct {
 	w        io.Writer
 	dotGraph dot.Graph
 
-	ipfsEdges        map[string][]string
-	clusterEdges     map[string][]string
-	clusterIpfsEdges map[string]string
+	ipfsEdges        map[string][]peer.ID
+	clusterEdges     map[string][]peer.ID
+	clusterIpfsEdges map[string]peer.ID
 }
 
 // writes nodes to dot file output and creates and stores an ordering over nodes
 func (dW *dotWriter) addNode(id string, nT nodeType) error {
 	var node dot.VertexDescription
-	node.Label = shortID(id)
+	pid, _ := peer.IDB58Decode(id)
+	node.Label = pid.String()
 	switch nT {
 	case tCluster:
 		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))
@@ -130,7 +133,7 @@ func (dW *dotWriter) print() error {
 	for k, v := range dW.clusterEdges {
 		for _, id := range v {
 			toNode := dW.clusterNodes[k]
-			fromNode := dW.clusterNodes[id]
+			fromNode := dW.clusterNodes[peer.IDB58Encode(id)]
 			dW.dotGraph.AddEdge(toNode, fromNode, true)
 		}
 	}
@@ -140,7 +143,7 @@ func (dW *dotWriter) print() error {
 	// Write cluster to ipfs edges
 	for k, id := range dW.clusterIpfsEdges {
 		toNode := dW.clusterNodes[k]
-		fromNode := dW.ipfsNodes[id]
+		fromNode := dW.ipfsNodes[peer.IDB58Encode(id)]
 		dW.dotGraph.AddEdge(toNode, fromNode, true)
 	}
 	dW.dotGraph.AddNewLine()
@@ -150,14 +153,14 @@ func (dW *dotWriter) print() error {
 	for k, v := range dW.ipfsEdges {
 		for _, id := range v {
 			toNode := dW.ipfsNodes[k]
-			fromNode := dW.ipfsNodes[id]
+			fromNode := dW.ipfsNodes[peer.IDB58Encode(id)]
 			dW.dotGraph.AddEdge(toNode, fromNode, true)
 		}
 	}
 	return dW.dotGraph.WriteDot(dW.w)
 }
 
-func sortedKeys(dict map[string][]string) []string {
+func sortedKeys(dict map[string][]peer.ID) []string {
 	keys := make([]string, len(dict), len(dict))
 	i := 0
 	for k := range dict {
@@ -166,18 +169,4 @@ func sortedKeys(dict map[string][]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-// truncate the provided peer id string to the 3 last characters.  Odds of
-// pairwise collisions are less than 1 in 200,000 so with 70 cluster peers
-// the chances of a collision are still less than 1 in 100 (birthday paradox).
-// As clusters grow bigger than this we can provide a flag for including
-// more characters.
-func shortID(peerString string) string {
-	pid, err := peer.IDB58Decode(peerString)
-	if err != nil {
-		// Should never get here, panic
-		panic("shortID called on non-pid string")
-	}
-	return pid.String()
 }
