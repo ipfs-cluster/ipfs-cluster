@@ -13,7 +13,7 @@ func TestStoreLatest(t *testing.T) {
 
 	metr := &api.Metric{
 		Name:  "test",
-		Peer:  test.TestPeerID1,
+		Peer:  test.PeerID1,
 		Value: "1",
 		Valid: true,
 	}

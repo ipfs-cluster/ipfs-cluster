@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	pinCancelCid      = test.TestCid3
-	unpinCancelCid    = test.TestCid2
+	pinCancelCid      = test.Cid3
+	unpinCancelCid    = test.Cid2
 	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
 )
@@ -39,7 +39,7 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 
 func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
-	case test.TestSlowCid1.String():
+	case test.SlowCid1.String():
 		time.Sleep(2 * time.Second)
 	case pinCancelCid.String():
 		return ErrPinCancelCid
@@ -49,7 +49,7 @@ func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}
 
 func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
-	case test.TestSlowCid1.String():
+	case test.SlowCid1.String():
 		time.Sleep(2 * time.Second)
 	case unpinCancelCid.String():
 		return ErrUnpinCancelCid
@@ -69,7 +69,7 @@ func testSlowMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	mpt := NewMapPinTracker(cfg, test.TestPeerID1, test.TestPeerName1)
+	mpt := NewMapPinTracker(cfg, test.PeerID1, test.PeerName1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
 }
@@ -78,7 +78,7 @@ func testMapPinTracker(t *testing.T) *MapPinTracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	mpt := NewMapPinTracker(cfg, test.TestPeerID1, test.TestPeerName1)
+	mpt := NewMapPinTracker(cfg, test.PeerID1, test.PeerName1)
 	mpt.SetClient(test.NewMockRPCClient(t))
 	return mpt
 }
@@ -107,7 +107,7 @@ func TestTrack(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h := test.TestCid1
+	h := test.Cid1
 
 	// Let's tart with a local pin
 	c := testPin(h, -1, -1)
@@ -125,7 +125,7 @@ func TestTrack(t *testing.T) {
 	}
 
 	// Unpin and set remote
-	c = testPin(h, 1, 1, test.TestPeerID2)
+	c = testPin(h, 1, 1, test.PeerID2)
 	err = mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
@@ -144,8 +144,8 @@ func TestUntrack(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1 := test.TestCid1
-	h2 := test.TestCid2
+	h1 := test.Cid1
+	h2 := test.Cid2
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
@@ -156,7 +156,7 @@ func TestUntrack(t *testing.T) {
 	}
 
 	// Remote pin
-	c = testPin(h2, 1, 1, test.TestPeerID2)
+	c = testPin(h2, 1, 1, test.PeerID2)
 	err = mpt.Track(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
@@ -195,8 +195,8 @@ func TestStatusAll(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1 := test.TestCid1
-	h2 := test.TestCid2
+	h1 := test.Cid1
+	h2 := test.Cid2
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
@@ -227,8 +227,8 @@ func TestSyncAndRecover(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1 := test.TestCid1
-	h2 := test.TestCid2
+	h1 := test.Cid1
+	h2 := test.Cid2
 
 	c := testPin(h1, -1, -1)
 	mpt.Track(context.Background(), c)
@@ -280,7 +280,7 @@ func TestRecoverAll(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1 := test.TestCid1
+	h1 := test.Cid1
 
 	c := testPin(h1, -1, -1)
 	mpt.Track(context.Background(), c)
@@ -317,8 +317,8 @@ func TestSyncAll(t *testing.T) {
 		t.Fatal("should not have synced anything when it tracks nothing")
 	}
 
-	h1 := test.TestCid1
-	h2 := test.TestCid2
+	h1 := test.Cid1
+	h2 := test.Cid2
 
 	c := testPin(h1, -1, -1)
 	mpt.Track(context.Background(), c)
@@ -342,7 +342,7 @@ func TestUntrackTrack(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1 := test.TestCid1
+	h1 := test.Cid1
 
 	// LocalPin
 	c := testPin(h1, -1, -1)
@@ -364,7 +364,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 
 	// LocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
@@ -404,7 +404,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 	fastPinCid := pinCancelCid
 
 	// SlowLocalPin
@@ -450,7 +450,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 
 	// LocalPin
 	slowPin := testPin(slowPinCid, -1, -1)
@@ -500,7 +500,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	mpt := testSlowMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 	fastPinCid := unpinCancelCid
 
 	// SlowLocalPin
@@ -556,7 +556,7 @@ func TestTrackUntrackConcurrent(t *testing.T) {
 	mpt := testMapPinTracker(t)
 	defer mpt.Shutdown(ctx)
 
-	h1 := test.TestCid1
+	h1 := test.Cid1
 
 	// LocalPin
 	c := testPin(h1, -1, -1)

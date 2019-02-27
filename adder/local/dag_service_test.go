@@ -37,7 +37,7 @@ func (rpcs *testRPC) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer
 	}
 	// it does not matter since we use host == nil for RPC, so it uses the
 	// local one in all cases.
-	*out = []peer.ID{test.TestPeerID1}
+	*out = []peer.ID{test.PeerID1}
 	return nil
 }
 

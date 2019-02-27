@@ -13,7 +13,7 @@ func TestApplyToPin(t *testing.T) {
 	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	op := &LogOp{
-		Cid:       api.PinCid(test.TestCid1),
+		Cid:       api.PinCid(test.Cid1),
 		Type:      LogOpPin,
 		consensus: cc,
 	}
@@ -23,7 +23,7 @@ func TestApplyToPin(t *testing.T) {
 	st := mapstate.NewMapState()
 	op.ApplyTo(st)
 	pins := st.List(ctx)
-	if len(pins) != 1 || !pins[0].Cid.Equals(test.TestCid1) {
+	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the state was not modified correctly")
 	}
 }
@@ -32,7 +32,7 @@ func TestApplyToUnpin(t *testing.T) {
 	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	op := &LogOp{
-		Cid:       api.PinCid(test.TestCid1),
+		Cid:       api.PinCid(test.Cid1),
 		Type:      LogOpUnpin,
 		consensus: cc,
 	}
@@ -40,7 +40,7 @@ func TestApplyToUnpin(t *testing.T) {
 	defer cc.Shutdown(ctx)
 
 	st := mapstate.NewMapState()
-	st.Add(ctx, testPin(test.TestCid1))
+	st.Add(ctx, testPin(test.Cid1))
 	op.ApplyTo(st)
 	pins := st.List(ctx)
 	if len(pins) != 0 {
@@ -56,7 +56,7 @@ func TestApplyToBadState(t *testing.T) {
 	}()
 
 	op := &LogOp{
-		Cid:  api.PinCid(test.TestCid1),
+		Cid:  api.PinCid(test.Cid1),
 		Type: LogOpUnpin,
 	}
 

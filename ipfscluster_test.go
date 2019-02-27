@@ -436,7 +436,7 @@ func TestClustersPin(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	prefix := test.TestCid1.Prefix()
+	prefix := test.Cid1.Prefix()
 
 	ttlDelay()
 
@@ -502,7 +502,7 @@ func TestClustersStatusAll(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h := test.TestCid1
+	h := test.Cid1
 	clusters[0].Pin(ctx, api.PinCid(h))
 	pinDelay()
 	// Global status
@@ -549,7 +549,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h := test.TestCid1
+	h := test.Cid1
 	clusters[0].Pin(ctx, api.PinCid(h))
 	pinDelay()
 
@@ -612,7 +612,7 @@ func TestClustersSyncAllLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	clusters[0].Pin(ctx, api.PinCid(test.ErrorCid)) // This cid always fails
-	clusters[0].Pin(ctx, api.PinCid(test.TestCid2))
+	clusters[0].Pin(ctx, api.PinCid(test.Cid2))
 	pinDelay()
 	pinDelay()
 
@@ -641,7 +641,7 @@ func TestClustersSyncLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h := test.ErrorCid
-	h2 := test.TestCid2
+	h2 := test.Cid2
 	clusters[0].Pin(ctx, api.PinCid(h))
 	clusters[0].Pin(ctx, api.PinCid(h2))
 	pinDelay()
@@ -674,7 +674,7 @@ func TestClustersSyncAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	clusters[0].Pin(ctx, api.PinCid(test.ErrorCid))
-	clusters[0].Pin(ctx, api.PinCid(test.TestCid2))
+	clusters[0].Pin(ctx, api.PinCid(test.Cid2))
 	pinDelay()
 	pinDelay()
 
@@ -705,7 +705,7 @@ func TestClustersSync(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h := test.ErrorCid // This cid always fails
-	h2 := test.TestCid2
+	h2 := test.Cid2
 	clusters[0].Pin(ctx, api.PinCid(h))
 	clusters[0].Pin(ctx, api.PinCid(h2))
 	pinDelay()
@@ -768,7 +768,7 @@ func TestClustersRecoverLocal(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h := test.ErrorCid // This cid always fails
-	h2 := test.TestCid2
+	h2 := test.Cid2
 
 	ttlDelay()
 
@@ -808,7 +808,7 @@ func TestClustersRecover(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h := test.ErrorCid // This cid always fails
-	h2 := test.TestCid2
+	h2 := test.Cid2
 
 	ttlDelay()
 
@@ -909,7 +909,7 @@ func TestClustersReplication(t *testing.T) {
 	// will result in each peer holding locally exactly
 	// nCluster pins.
 
-	prefix := test.TestCid1.Prefix()
+	prefix := test.Cid1.Prefix()
 
 	for i := 0; i < nClusters; i++ {
 		// Pick a random cluster and hash
@@ -1010,7 +1010,7 @@ func TestClustersReplicationFactorMax(t *testing.T) {
 
 	ttlDelay()
 
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1056,7 +1056,7 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 
 	ttlDelay() // make sure we have places to pin
 
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1116,7 +1116,7 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 
 	waitForLeaderAndMetrics(t, clusters)
 
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1169,7 +1169,7 @@ func TestClustersReplicationFactorMin(t *testing.T) {
 	clusters[nClusters-2].Shutdown(ctx)
 	waitForLeaderAndMetrics(t, clusters)
 
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err == nil {
 		t.Error("Pin should have failed as rplMin cannot be satisfied")
@@ -1197,7 +1197,7 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 
 	ttlDelay()
 
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1250,7 +1250,7 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 
 	ttlDelay() // make sure metrics are in
 
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1331,7 +1331,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	ttlDelay()
 
 	j := rand.Intn(nClusters)
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1428,7 +1428,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	}
 
 	j := rand.Intn(nClusters)
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -1467,7 +1467,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	}
 
 	// pin something
-	h := test.TestCid1
+	h := test.Cid1
 	clusters[0].Pin(ctx, api.PinCid(h))
 	pinDelay()
 	pinLocal := 0
@@ -1555,12 +1555,12 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 	if len(graph.IPFSLinks) != 1 {
 		t.Error("Expected exactly one ipfs peer for all cluster nodes, the mocked peer")
 	}
-	links, ok := graph.IPFSLinks[peer.IDB58Encode(test.TestPeerID1)]
+	links, ok := graph.IPFSLinks[peer.IDB58Encode(test.PeerID1)]
 	if !ok {
 		t.Error("Expected the mocked ipfs peer to be a node in the graph")
 	} else {
-		if len(links) != 2 || links[0] != test.TestPeerID4 ||
-			links[1] != test.TestPeerID5 {
+		if len(links) != 2 || links[0] != test.PeerID4 ||
+			links[1] != test.PeerID5 {
 			t.Error("Swarm peers of mocked ipfs are not those expected")
 		}
 	}
@@ -1570,7 +1570,7 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 		if ipfsID, ok := graph.ClustertoIPFS[id]; !ok {
 			t.Errorf("Expected graph to record peer %s's ipfs connection", id)
 		} else {
-			if ipfsID != test.TestPeerID1 {
+			if ipfsID != test.PeerID1 {
 				t.Errorf("Unexpected error %s", ipfsID)
 			}
 		}
@@ -1663,7 +1663,7 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	ttlDelay()
 
 	j := rand.Intn(nClusters)
-	h := test.TestCid1
+	h := test.Cid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)

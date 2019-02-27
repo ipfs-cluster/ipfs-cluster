@@ -308,7 +308,7 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url urlF) {
 		id := api.ID{}
 		makeGet(t, rest, url(rest)+"/id", &id)
-		if id.ID.Pretty() != test.TestPeerID1.Pretty() {
+		if id.ID.Pretty() != test.PeerID1.Pretty() {
 			t.Error("expected correct id")
 		}
 	}
@@ -316,7 +316,7 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 	httpstf := func(t *testing.T, url urlF) {
 		id := api.ID{}
 		makeGet(t, httpsrest, url(httpsrest)+"/id", &id)
-		if id.ID.Pretty() != test.TestPeerID1.Pretty() {
+		if id.ID.Pretty() != test.PeerID1.Pretty() {
 			t.Error("expected correct id")
 		}
 	}
@@ -352,7 +352,7 @@ func TestAPIPeerstEndpoint(t *testing.T) {
 		if len(list) != 1 {
 			t.Fatal("expected 1 element")
 		}
-		if list[0].ID.Pretty() != test.TestPeerID1.Pretty() {
+		if list[0].ID.Pretty() != test.PeerID1.Pretty() {
 			t.Error("expected a different peer id list: ", list)
 		}
 	}
@@ -368,10 +368,10 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url urlF) {
 		id := api.ID{}
 		// post with valid body
-		body := fmt.Sprintf("{\"peer_id\":\"%s\"}", test.TestPeerID1.Pretty())
+		body := fmt.Sprintf("{\"peer_id\":\"%s\"}", test.PeerID1.Pretty())
 		t.Log(body)
 		makePost(t, rest, url(rest)+"/peers", []byte(body), &id)
-		if id.ID.Pretty() != test.TestPeerID1.Pretty() {
+		if id.ID.Pretty() != test.PeerID1.Pretty() {
 			t.Error("expected correct ID")
 		}
 		if id.Error != "" {
@@ -518,7 +518,7 @@ func TestAPIPeerRemoveEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
-		makeDelete(t, rest, url(rest)+"/peers/"+test.TestPeerID1.Pretty(), &struct{}{})
+		makeDelete(t, rest, url(rest)+"/peers/"+test.PeerID1.Pretty(), &struct{}{})
 	}
 
 	testBothEndpoints(t, tf)
@@ -532,7 +532,7 @@ func TestConnectGraphEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url urlF) {
 		var cg api.ConnectGraph
 		makeGet(t, rest, url(rest)+"/health/graph", &cg)
-		if cg.ClusterID.Pretty() != test.TestPeerID1.Pretty() {
+		if cg.ClusterID.Pretty() != test.PeerID1.Pretty() {
 			t.Error("unexpected cluster id")
 		}
 		if len(cg.IPFSLinks) != 3 {
@@ -545,8 +545,8 @@ func TestConnectGraphEndpoint(t *testing.T) {
 			t.Error("unexpected number of cluster to ipfs links")
 		}
 		// test a few link values
-		pid1 := test.TestPeerID1
-		pid4 := test.TestPeerID4
+		pid1 := test.PeerID1
+		pid4 := test.PeerID4
 		if _, ok := cg.ClustertoIPFS[peer.IDB58Encode(pid1)]; !ok {
 			t.Fatal("missing cluster peer 1 from cluster to peer links map")
 		}
@@ -565,7 +565,7 @@ func TestAPIPinEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		// test regular post
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String(), []byte{}, &struct{}{})
+		makePost(t, rest, url(rest)+"/pins/"+test.Cid1.String(), []byte{}, &struct{}{})
 
 		errResp := api.Error{}
 		makePost(t, rest, url(rest)+"/pins/"+test.ErrorCid.String(), []byte{}, &errResp)
@@ -620,7 +620,7 @@ var pathTestCases = []pathCase{
 		http.StatusBadRequest,
 	},
 	// TODO: Test StatusNotFound and a case with trailing slash with paths
-	// test.TestPathIPNS2, test.TestPathIPLD2, test.TestInvalidPath1
+	// test.PathIPNS2, test.PathIPLD2, test.InvalidPath1
 }
 
 func TestAPIPinEndpointWithPath(t *testing.T) {
@@ -629,7 +629,7 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	resultantPin := api.PinWithOpts(
-		test.TestCidResolved,
+		test.CidResolved,
 		testPinOpts,
 	)
 
@@ -661,7 +661,7 @@ func TestAPIUnpinEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		// test regular delete
-		makeDelete(t, rest, url(rest)+"/pins/"+test.TestCid1.String(), &struct{}{})
+		makeDelete(t, rest, url(rest)+"/pins/"+test.Cid1.String(), &struct{}{})
 
 		errResp := api.Error{}
 		makeDelete(t, rest, url(rest)+"/pins/"+test.ErrorCid.String(), &errResp)
@@ -695,8 +695,8 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 			}
 			pin := api.Pin{}
 			makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
-			if !pin.Cid.Equals(test.TestCidResolved) {
-				t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.TestCidResolved, pin.Cid, testCase.path)
+			if !pin.Cid.Equals(test.CidResolved) {
+				t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.CidResolved, pin.Cid, testCase.path)
 			}
 		}
 	}
@@ -713,8 +713,8 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 		var resp []*api.Pin
 		makeGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp)
 		if len(resp) != 3 ||
-			!resp[0].Cid.Equals(test.TestCid1) || !resp[1].Cid.Equals(test.TestCid2) ||
-			!resp[2].Cid.Equals(test.TestCid3) {
+			!resp[0].Cid.Equals(test.Cid1) || !resp[1].Cid.Equals(test.Cid2) ||
+			!resp[2].Cid.Equals(test.Cid3) {
 			t.Error("unexpected pin list: ", resp)
 		}
 	}
@@ -729,9 +729,9 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.Pin
-		makeGet(t, rest, url(rest)+"/allocations/"+test.TestCid1.String(), &resp)
-		if !resp.Cid.Equals(test.TestCid1) {
-			t.Errorf("cid should be the same: %s %s", resp.Cid, test.TestCid1)
+		makeGet(t, rest, url(rest)+"/allocations/"+test.Cid1.String(), &resp)
+		if !resp.Cid.Equals(test.Cid1) {
+			t.Errorf("cid should be the same: %s %s", resp.Cid, test.Cid1)
 		}
 
 		errResp := api.Error{}
@@ -759,7 +759,7 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 			if m.Name != "test" {
 				t.Error("Unexpected metric name: ", m.Name)
 			}
-			if m.Peer.Pretty() != test.TestPeerID1.Pretty() {
+			if m.Peer.Pretty() != test.PeerID1.Pretty() {
 				t.Error("Unexpected peer id: ", m.Peer)
 			}
 		}
@@ -778,8 +778,8 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		makeGet(t, rest, url(rest)+"/pins", &resp)
 
 		if len(resp) != 3 ||
-			!resp[0].Cid.Equals(test.TestCid1) ||
-			resp[1].PeerMap[peer.IDB58Encode(test.TestPeerID1)].Status.String() != "pinning" {
+			!resp[0].Cid.Equals(test.Cid1) ||
+			resp[1].PeerMap[peer.IDB58Encode(test.PeerID1)].Status.String() != "pinning" {
 			t.Errorf("unexpected statusAll resp")
 		}
 
@@ -832,14 +832,14 @@ func TestAPIStatusEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfo
-		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1.String(), &resp)
+		makeGet(t, rest, url(rest)+"/pins/"+test.Cid1.String(), &resp)
 
-		if !resp.Cid.Equals(test.TestCid1) {
+		if !resp.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.IDB58Encode(test.TestPeerID1)]
+		info, ok := resp.PeerMap[peer.IDB58Encode(test.PeerID1)]
 		if !ok {
-			t.Fatal("expected info for test.TestPeerID1")
+			t.Fatal("expected info for test.PeerID1")
 		}
 		if info.Status.String() != "pinned" {
 			t.Error("expected different status")
@@ -847,14 +847,14 @@ func TestAPIStatusEndpoint(t *testing.T) {
 
 		// Test local=true
 		var resp2 api.GlobalPinInfo
-		makeGet(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"?local=true", &resp2)
+		makeGet(t, rest, url(rest)+"/pins/"+test.Cid1.String()+"?local=true", &resp2)
 
-		if !resp2.Cid.Equals(test.TestCid1) {
+		if !resp2.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok = resp2.PeerMap[peer.IDB58Encode(test.TestPeerID2)]
+		info, ok = resp2.PeerMap[peer.IDB58Encode(test.PeerID2)]
 		if !ok {
-			t.Fatal("expected info for test.TestPeerID2")
+			t.Fatal("expected info for test.PeerID2")
 		}
 		if info.Status.String() != "pinned" {
 			t.Error("expected different status")
@@ -874,8 +874,8 @@ func TestAPISyncAllEndpoint(t *testing.T) {
 		makePost(t, rest, url(rest)+"/pins/sync", []byte{}, &resp)
 
 		if len(resp) != 3 ||
-			!resp[0].Cid.Equals(test.TestCid1) ||
-			resp[1].PeerMap[peer.IDB58Encode(test.TestPeerID1)].Status.String() != "pinning" {
+			!resp[0].Cid.Equals(test.Cid1) ||
+			resp[1].PeerMap[peer.IDB58Encode(test.PeerID1)].Status.String() != "pinning" {
 			t.Errorf("unexpected syncAll resp:\n %+v", resp)
 		}
 
@@ -898,14 +898,14 @@ func TestAPISyncEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfo
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"/sync", []byte{}, &resp)
+		makePost(t, rest, url(rest)+"/pins/"+test.Cid1.String()+"/sync", []byte{}, &resp)
 
-		if !resp.Cid.Equals(test.TestCid1) {
+		if !resp.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.IDB58Encode(test.TestPeerID1)]
+		info, ok := resp.PeerMap[peer.IDB58Encode(test.PeerID1)]
 		if !ok {
-			t.Fatal("expected info for test.TestPeerID1")
+			t.Fatal("expected info for test.PeerID1")
 		}
 		if info.Status.String() != "pinned" {
 			t.Error("expected different status")
@@ -913,14 +913,14 @@ func TestAPISyncEndpoint(t *testing.T) {
 
 		// Test local=true
 		var resp2 api.GlobalPinInfo
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"/sync?local=true", []byte{}, &resp2)
+		makePost(t, rest, url(rest)+"/pins/"+test.Cid1.String()+"/sync?local=true", []byte{}, &resp2)
 
-		if !resp2.Cid.Equals(test.TestCid1) {
+		if !resp2.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok = resp2.PeerMap[peer.IDB58Encode(test.TestPeerID2)]
+		info, ok = resp2.PeerMap[peer.IDB58Encode(test.PeerID2)]
 		if !ok {
-			t.Fatal("expected info for test.TestPeerID2")
+			t.Fatal("expected info for test.PeerID2")
 		}
 		if info.Status.String() != "pinned" {
 			t.Error("expected different status")
@@ -937,14 +937,14 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url urlF) {
 		var resp api.GlobalPinInfo
-		makePost(t, rest, url(rest)+"/pins/"+test.TestCid1.String()+"/recover", []byte{}, &resp)
+		makePost(t, rest, url(rest)+"/pins/"+test.Cid1.String()+"/recover", []byte{}, &resp)
 
-		if !resp.Cid.Equals(test.TestCid1) {
+		if !resp.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.IDB58Encode(test.TestPeerID1)]
+		info, ok := resp.PeerMap[peer.IDB58Encode(test.PeerID1)]
 		if !ok {
-			t.Fatal("expected info for test.TestPeerID1")
+			t.Fatal("expected info for test.PeerID1")
 		}
 		if info.Status.String() != "pinned" {
 			t.Error("expected different status")

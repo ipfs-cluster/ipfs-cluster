@@ -52,7 +52,7 @@ func TestIPFSID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id.ID != test.TestPeerID1 {
+	if id.ID != test.PeerID1 {
 		t.Error("expected testPeerID")
 	}
 	if len(id.Addresses) != 1 {
@@ -76,7 +76,7 @@ func testPin(t *testing.T, method string) {
 
 	ipfs.config.PinMethod = method
 
-	c := test.TestCid1
+	c := test.Cid1
 	err := ipfs.Pin(ctx, c, -1)
 	if err != nil {
 		t.Error("expected success pinning cid")
@@ -106,7 +106,7 @@ func TestIPFSUnpin(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-	c := test.TestCid1
+	c := test.Cid1
 	err := ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
@@ -123,8 +123,8 @@ func TestIPFSPinLsCid(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-	c := test.TestCid1
-	c2 := test.TestCid2
+	c := test.Cid1
+	c2 := test.Cid2
 
 	ipfs.Pin(ctx, c, -1)
 	ips, err := ipfs.PinLsCid(ctx, c)
@@ -143,8 +143,8 @@ func TestIPFSPinLs(t *testing.T) {
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-	c := test.TestCid1
-	c2 := test.TestCid2
+	c := test.Cid1
+	c2 := test.Cid2
 
 	ipfs.Pin(ctx, c, -1)
 	ipfs.Pin(ctx, c2, -1)
@@ -157,7 +157,7 @@ func TestIPFSPinLs(t *testing.T) {
 		t.Fatal("the map does not contain expected keys")
 	}
 
-	if !ipsMap[test.TestCid1.String()].IsPinned(-1) || !ipsMap[test.TestCid2.String()].IsPinned(-1) {
+	if !ipsMap[test.Cid1.String()].IsPinned(-1) || !ipsMap[test.Cid2.String()].IsPinned(-1) {
 		t.Error("c1 and c2 should appear pinned")
 	}
 }
@@ -200,10 +200,10 @@ func TestSwarmPeers(t *testing.T) {
 	if len(swarmPeers) != 2 {
 		t.Fatal("expected 2 swarm peers")
 	}
-	if swarmPeers[0] != test.TestPeerID4 {
+	if swarmPeers[0] != test.PeerID4 {
 		t.Error("unexpected swarm peer")
 	}
-	if swarmPeers[1] != test.TestPeerID5 {
+	if swarmPeers[1] != test.PeerID5 {
 		t.Error("unexpected swarm peer")
 	}
 }
@@ -214,10 +214,10 @@ func TestBlockPut(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	data := []byte(test.TestCid4Data)
+	data := []byte(test.Cid4Data)
 	err := ipfs.BlockPut(ctx, &api.NodeWithMeta{
 		Data:   data,
-		Cid:    test.TestCid4,
+		Cid:    test.Cid4,
 		Format: "raw",
 	})
 	if err != nil {
@@ -231,7 +231,7 @@ func TestBlockGet(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	shardCid := test.TestShardCid
+	shardCid := test.ShardCid
 	// Fail when getting before putting
 	_, err := ipfs.BlockGet(ctx, shardCid)
 	if err == nil {
@@ -240,8 +240,8 @@ func TestBlockGet(t *testing.T) {
 
 	// Put and then successfully get
 	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
-		Data:   test.TestShardData,
-		Cid:    test.TestShardCid,
+		Data:   test.ShardData,
+		Cid:    test.ShardCid,
 		Format: "cbor",
 	})
 	if err != nil {
@@ -252,7 +252,7 @@ func TestBlockGet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !bytes.Equal(data, test.TestShardData) {
+	if !bytes.Equal(data, test.ShardData) {
 		t.Fatal("unexpected data returned")
 	}
 }
@@ -272,7 +272,7 @@ func TestRepoStat(t *testing.T) {
 		t.Error("expected 0 bytes of size")
 	}
 
-	c := test.TestCid1
+	c := test.Cid1
 	err = ipfs.Pin(ctx, c, -1)
 	if err != nil {
 		t.Error("expected success pinning cid")
@@ -293,12 +293,12 @@ func TestResolve(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	s, err := ipfs.Resolve(ctx, test.TestPathIPFS2)
+	s, err := ipfs.Resolve(ctx, test.PathIPFS2)
 	if err != nil {
 		t.Error(err)
 	}
-	if !s.Equals(test.TestCidResolved) {
-		t.Errorf("expected different cid, expected: %s, found: %s\n", test.TestCidResolved, s.String())
+	if !s.Equals(test.CidResolved) {
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.CidResolved, s.String())
 	}
 }
 

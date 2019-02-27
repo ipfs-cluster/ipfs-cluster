@@ -12,8 +12,8 @@ import (
 
 func TestOperation(t *testing.T) {
 	tim := time.Now().Add(-2 * time.Second)
-	op := NewOperation(context.Background(), api.PinCid(test.TestCid1), OperationUnpin, PhaseQueued)
-	if !op.Cid().Equals(test.TestCid1) {
+	op := NewOperation(context.Background(), api.PinCid(test.Cid1), OperationUnpin, PhaseQueued)
+	if !op.Cid().Equals(test.Cid1) {
 		t.Error("bad cid")
 	}
 	if op.Phase() != PhaseQueued {

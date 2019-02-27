@@ -100,20 +100,20 @@ func TestIPFSProxyPin(t *testing.T) {
 			"pin good cid query arg",
 			args{
 				"/pin/add?arg=",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
 			"pin good cid url arg",
 			args{
 				"/pin/add/",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
@@ -208,20 +208,20 @@ func TestIPFSProxyUnpin(t *testing.T) {
 			"unpin good cid query arg",
 			args{
 				"/pin/rm?arg=",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
 			"unpin good cid url arg",
 			args{
 				"/pin/rm/",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
@@ -297,7 +297,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	defer proxy.Shutdown(ctx)
 
 	t.Run("pin/ls query arg", func(t *testing.T) {
-		res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(proxy), test.TestCid1), "", nil)
+		res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(proxy), test.Cid1), "", nil)
 		if err != nil {
 			t.Fatal("should have succeeded: ", err)
 		}
@@ -313,14 +313,14 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, ok := resp.Keys[test.TestCid1.String()]
+		_, ok := resp.Keys[test.Cid1.String()]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
 		}
 	})
 
 	t.Run("pin/ls url arg", func(t *testing.T) {
-		res, err := http.Post(fmt.Sprintf("%s/pin/ls/%s", proxyURL(proxy), test.TestCid1), "", nil)
+		res, err := http.Post(fmt.Sprintf("%s/pin/ls/%s", proxyURL(proxy), test.Cid1), "", nil)
 		if err != nil {
 			t.Fatal("should have succeeded: ", err)
 		}
@@ -336,7 +336,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, ok := resp.Keys[test.TestCid1.String()]
+		_, ok := resp.Keys[test.Cid1.String()]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
 		}

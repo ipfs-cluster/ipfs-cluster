@@ -89,7 +89,7 @@ func TestConsensusPin(t *testing.T) {
 	defer cleanRaft(1) // Remember defer runs in LIFO order
 	defer cc.Shutdown(ctx)
 
-	err := cc.LogPin(ctx, testPin(test.TestCid1))
+	err := cc.LogPin(ctx, testPin(test.Cid1))
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -101,7 +101,7 @@ func TestConsensusPin(t *testing.T) {
 	}
 
 	pins := st.List(ctx)
-	if len(pins) != 1 || !pins[0].Cid.Equals(test.TestCid1) {
+	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
 }
@@ -112,7 +112,7 @@ func TestConsensusUnpin(t *testing.T) {
 	defer cleanRaft(1)
 	defer cc.Shutdown(ctx)
 
-	err := cc.LogUnpin(ctx, api.PinCid(test.TestCid1))
+	err := cc.LogUnpin(ctx, api.PinCid(test.Cid1))
 	if err != nil {
 		t.Error("the operation did not make it to the log:", err)
 	}
@@ -125,7 +125,7 @@ func TestConsensusUpdate(t *testing.T) {
 	defer cc.Shutdown(ctx)
 
 	// Pin first
-	pin := testPin(test.TestCid1)
+	pin := testPin(test.Cid1)
 	pin.Type = api.ShardType
 	err := cc.LogPin(ctx, pin)
 	if err != nil {
@@ -134,7 +134,7 @@ func TestConsensusUpdate(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	// Update pin
-	pin.Reference = &test.TestCid2
+	pin.Reference = &test.Cid2
 	err = cc.LogPin(ctx, pin)
 	if err != nil {
 		t.Error("the update op did not make it to the log:", err)
@@ -147,10 +147,10 @@ func TestConsensusUpdate(t *testing.T) {
 	}
 
 	pins := st.List(ctx)
-	if len(pins) != 1 || !pins[0].Cid.Equals(test.TestCid1) {
+	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
-	if !pins[0].Reference.Equals(test.TestCid2) {
+	if !pins[0].Reference.Equals(test.Cid2) {
 		t.Error("pin updated incorrectly")
 	}
 }
@@ -213,7 +213,7 @@ func TestConsensusRmPeer(t *testing.T) {
 	}
 	cc.raft.WaitForLeader(ctx)
 
-	err = cc.LogPin(ctx, testPin(test.TestCid1))
+	err = cc.LogPin(ctx, testPin(test.Cid1))
 	if err != nil {
 		t.Error("could not pin after adding peer:", err)
 	}
@@ -221,7 +221,7 @@ func TestConsensusRmPeer(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Remove unexisting peer
-	err = cc.RmPeer(ctx, test.TestPeerID1)
+	err = cc.RmPeer(ctx, test.PeerID1)
 	if err != nil {
 		t.Fatal("the operation did not make it to the log:", err)
 	}
@@ -262,7 +262,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	defer cc.Shutdown(ctx)
 
 	// Make pin 1
-	err := cc.LogPin(ctx, testPin(test.TestCid1))
+	err := cc.LogPin(ctx, testPin(test.Cid1))
 	if err != nil {
 		t.Error("the first pin did not make it to the log:", err)
 	}
@@ -274,7 +274,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	}
 
 	// Make pin 2
-	err = cc.LogPin(ctx, testPin(test.TestCid2))
+	err = cc.LogPin(ctx, testPin(test.Cid2))
 	if err != nil {
 		t.Error("the second pin did not make it to the log:", err)
 	}
@@ -286,7 +286,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	}
 
 	// Make pin 3
-	err = cc.LogPin(ctx, testPin(test.TestCid3))
+	err = cc.LogPin(ctx, testPin(test.Cid3))
 	if err != nil {
 		t.Error("the third pin did not make it to the log:", err)
 	}

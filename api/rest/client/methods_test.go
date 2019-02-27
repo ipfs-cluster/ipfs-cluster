@@ -110,11 +110,11 @@ func TestPeerAdd(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		id, err := c.PeerAdd(ctx, test.TestPeerID1)
+		id, err := c.PeerAdd(ctx, test.PeerID1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if id.ID != test.TestPeerID1 {
+		if id.ID != test.PeerID1 {
 			t.Error("bad peer")
 		}
 	}
@@ -128,7 +128,7 @@ func TestPeerRm(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		err := c.PeerRm(ctx, test.TestPeerID1)
+		err := c.PeerRm(ctx, test.PeerID1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -148,7 +148,7 @@ func TestPin(t *testing.T) {
 			ReplicationFactorMax: 7,
 			Name:                 "hello there",
 		}
-		err := c.Pin(ctx, test.TestCid1, opts)
+		err := c.Pin(ctx, test.Cid1, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -163,7 +163,7 @@ func TestUnpin(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		err := c.Unpin(ctx, test.TestCid1)
+		err := c.Unpin(ctx, test.Cid1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -179,27 +179,27 @@ type pathCase struct {
 
 var pathTestCases = []pathCase{
 	{
-		test.TestCidResolved.String(),
+		test.CidResolved.String(),
 		false,
 	},
 	{
-		test.TestPathIPFS1,
+		test.PathIPFS1,
 		false,
 	},
 	{
-		test.TestPathIPFS2,
+		test.PathIPFS2,
 		false,
 	},
 	{
-		test.TestPathIPNS1,
+		test.PathIPNS1,
 		false,
 	},
 	{
-		test.TestPathIPLD1,
+		test.PathIPLD1,
 		false,
 	},
 	{
-		test.TestInvalidPath1,
+		test.InvalidPath1,
 		true,
 	},
 }
@@ -216,7 +216,7 @@ func TestPinPath(t *testing.T) {
 		UserAllocations:      []string{"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt", "QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt"},
 	}
 
-	resultantPin := types.PinWithOpts(test.TestCidResolved, opts)
+	resultantPin := types.PinWithOpts(test.CidResolved, opts)
 
 	testF := func(t *testing.T, c Client) {
 
@@ -258,7 +258,7 @@ func TestUnpinPath(t *testing.T) {
 				t.Fatalf("unepected error %s: %s", p, err)
 			}
 
-			if !pin.Cid.Equals(test.TestCidResolved) {
+			if !pin.Cid.Equals(test.CidResolved) {
 				t.Errorf("bad resolved Cid: %s, %s", p, pin.Cid)
 			}
 		}
@@ -291,11 +291,11 @@ func TestAllocation(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pin, err := c.Allocation(ctx, test.TestCid1)
+		pin, err := c.Allocation(ctx, test.Cid1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !pin.Cid.Equals(test.TestCid1) {
+		if !pin.Cid.Equals(test.Cid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -309,11 +309,11 @@ func TestStatus(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pin, err := c.Status(ctx, test.TestCid1, false)
+		pin, err := c.Status(ctx, test.Cid1, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !pin.Cid.Equals(test.TestCid1) {
+		if !pin.Cid.Equals(test.Cid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -377,11 +377,11 @@ func TestSync(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pin, err := c.Sync(ctx, test.TestCid1, false)
+		pin, err := c.Sync(ctx, test.Cid1, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !pin.Cid.Equals(test.TestCid1) {
+		if !pin.Cid.Equals(test.Cid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -414,11 +414,11 @@ func TestRecover(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pin, err := c.Recover(ctx, test.TestCid1, false)
+		pin, err := c.Recover(ctx, test.Cid1, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !pin.Cid.Equals(test.TestCid1) {
+		if !pin.Cid.Equals(test.Cid1) {
 			t.Error("should be same pin")
 		}
 	}
@@ -498,15 +498,15 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *api.Global
 		*out = api.GlobalPinInfo{
 			Cid: in,
 			PeerMap: map[string]*api.PinInfo{
-				peer.IDB58Encode(test.TestPeerID1): {
+				peer.IDB58Encode(test.PeerID1): {
 					Cid:    in,
-					Peer:   test.TestPeerID1,
+					Peer:   test.PeerID1,
 					Status: api.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
-				peer.IDB58Encode(test.TestPeerID2): {
+				peer.IDB58Encode(test.PeerID2): {
 					Cid:    in,
-					Peer:   test.TestPeerID2,
+					Peer:   test.PeerID2,
 					Status: api.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
@@ -516,15 +516,15 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *api.Global
 		*out = api.GlobalPinInfo{
 			Cid: in,
 			PeerMap: map[string]*api.PinInfo{
-				peer.IDB58Encode(test.TestPeerID1): {
+				peer.IDB58Encode(test.PeerID1): {
 					Cid:    in,
-					Peer:   test.TestPeerID1,
+					Peer:   test.PeerID1,
 					Status: api.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
-				peer.IDB58Encode(test.TestPeerID2): {
+				peer.IDB58Encode(test.PeerID2): {
 					Cid:    in,
-					Peer:   test.TestPeerID2,
+					Peer:   test.PeerID2,
 					Status: api.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
@@ -559,7 +559,7 @@ func TestWaitFor(t *testing.T) {
 			defer cancel()
 
 			fp := StatusFilterParams{
-				Cid:       test.TestCid1,
+				Cid:       test.Cid1,
 				Local:     false,
 				Target:    api.TrackerStatusPinned,
 				CheckFreq: time.Second,
@@ -580,7 +580,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(ctx, test.TestCid1, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
+		err := c.Pin(ctx, test.Cid1, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
 		if err != nil {
 			t.Fatal(err)
 		}

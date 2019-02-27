@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	pinCancelCid      = test.TestCid3
-	unpinCancelCid    = test.TestCid2
+	pinCancelCid      = test.Cid3
+	unpinCancelCid    = test.Cid2
 	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
 	pinOpts           = api.PinOptions{
@@ -41,7 +41,7 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 
 func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
-	case test.TestSlowCid1.String():
+	case test.SlowCid1.String():
 		time.Sleep(2 * time.Second)
 	case pinCancelCid.String():
 		return ErrPinCancelCid
@@ -51,7 +51,7 @@ func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}
 
 func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
-	case test.TestSlowCid1.String():
+	case test.SlowCid1.String():
 		time.Sleep(2 * time.Second)
 	case unpinCancelCid.String():
 		return ErrUnpinCancelCid
@@ -61,7 +61,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct
 
 func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m := map[string]api.IPFSPinStatus{
-		test.TestCid1.String(): api.IPFSPinStatusRecursive,
+		test.Cid1.String(): api.IPFSPinStatusRecursive,
 	}
 	*out = m
 	return nil
@@ -69,7 +69,7 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 
 func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
 	switch in.String() {
-	case test.TestCid1.String(), test.TestCid2.String():
+	case test.Cid1.String(), test.Cid2.String():
 		*out = api.IPFSPinStatusRecursive
 	default:
 		*out = api.IPFSPinStatusUnpinned
@@ -79,8 +79,8 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
 	*out = []*api.Pin{
-		api.PinWithOpts(test.TestCid1, pinOpts),
-		api.PinWithOpts(test.TestCid3, pinOpts),
+		api.PinWithOpts(test.Cid1, pinOpts),
+		api.PinWithOpts(test.Cid3, pinOpts),
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ func (mock *mockService) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) e
 	switch in.String() {
 	case test.ErrorCid.String():
 		return errors.New("expected error when using ErrorCid")
-	case test.TestCid1.String(), test.TestCid2.String():
+	case test.Cid1.String(), test.Cid2.String():
 		*out = *api.PinWithOpts(in, pinOpts)
 		return nil
 	default:
@@ -101,7 +101,7 @@ func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	mpt := New(cfg, test.TestPeerID1, test.TestPeerName1)
+	mpt := New(cfg, test.PeerID1, test.PeerName1)
 	mpt.SetClient(mockRPCClient(t))
 	return mpt
 }
@@ -110,7 +110,7 @@ func testStatelessPinTracker(t testing.TB) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	spt := New(cfg, test.TestPeerID1, test.TestPeerName1)
+	spt := New(cfg, test.PeerID1, test.PeerName1)
 	spt.SetClient(test.NewMockRPCClient(t))
 	return spt
 }
@@ -139,7 +139,7 @@ func TestUntrackTrack(t *testing.T) {
 	spt := testStatelessPinTracker(t)
 	defer spt.Shutdown(ctx)
 
-	h1 := test.TestCid1
+	h1 := test.Cid1
 
 	// LocalPin
 	c := api.PinWithOpts(h1, pinOpts)
@@ -162,7 +162,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	spt := testSlowStatelessPinTracker(t)
 	defer spt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 
 	// LocalPin
 	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
@@ -207,7 +207,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	spt := testSlowStatelessPinTracker(t)
 	defer spt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 	fastPinCid := pinCancelCid
 
 	// SlowLocalPin
@@ -258,7 +258,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	spt := testSlowStatelessPinTracker(t)
 	defer spt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 
 	// LocalPin
 	slowPin := api.PinWithOpts(slowPinCid, pinOpts)
@@ -308,7 +308,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	spt := testStatelessPinTracker(t)
 	defer spt.Shutdown(ctx)
 
-	slowPinCid := test.TestSlowCid1
+	slowPinCid := test.SlowCid1
 	fastPinCid := unpinCancelCid
 
 	// SlowLocalPin
@@ -380,18 +380,18 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 			"basic stateless syncall",
 			args{
 				[]cid.Cid{
-					test.TestCid1,
-					test.TestCid2,
+					test.Cid1,
+					test.Cid2,
 				},
 				testStatelessPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.TestCid1,
+					Cid:    test.Cid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.TestCid2,
+					Cid:    test.Cid2,
 					Status: api.TrackerStatusPinned,
 				},
 			},
@@ -401,18 +401,18 @@ func TestStatelessTracker_SyncAll(t *testing.T) {
 			"slow stateless syncall",
 			args{
 				[]cid.Cid{
-					test.TestCid1,
-					test.TestCid2,
+					test.Cid1,
+					test.Cid2,
 				},
 				testSlowStatelessPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.TestCid1,
+					Cid:    test.Cid1,
 					Status: api.TrackerStatusPinned,
 				},
 				{
-					Cid:    test.TestCid2,
+					Cid:    test.Cid2,
 					Status: api.TrackerStatusPinned,
 				},
 			},
