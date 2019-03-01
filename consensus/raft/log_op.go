@@ -26,12 +26,12 @@ type LogOpType int
 // It implements the consensus.Op interface and it is used by the
 // Consensus component.
 type LogOp struct {
-	SpanCtx   trace.SpanContext
-	TagCtx    []byte
-	Cid       api.PinSerial
-	Type      LogOpType
-	consensus *Consensus
-	tracing   bool
+	SpanCtx   trace.SpanContext `codec:"s,omitempty"`
+	TagCtx    []byte            `codec:"t,omitempty"`
+	Cid       *api.Pin          `codec:"c,omitempty"`
+	Type      LogOpType         `codec:"p,omitempty"`
+	consensus *Consensus        `codec:"-"`
+	tracing   bool              `codec:"-"`
 }
 
 // ApplyTo applies the operation to the State
@@ -55,16 +55,16 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 		panic("received unexpected state type")
 	}
 
-	// Copy the Cid. We are about to pass it to go-routines
-	// that will make things with it (read its fields). However,
-	// as soon as ApplyTo is done, the next operation will be deserealized
-	// on top of "op". This can cause data races with the slices in
-	// api.PinSerial, which don't get copied when passed.
-	pinS := op.Cid.Clone()
+	pin := op.Cid
+	// We are about to pass "pin" it to go-routines that will make things
+	// with it (read its fields). However, as soon as ApplyTo is done, the
+	// next operation will be deserealized on top of "op". We nullify it
+	// to make sure no data races occur.
+	op.Cid = nil
 
 	switch op.Type {
 	case LogOpPin:
-		err = state.Add(ctx, pinS.ToPin())
+		err = state.Add(ctx, pin)
 		if err != nil {
 			logger.Error(err)
 			goto ROLLBACK
@@ -75,12 +75,12 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			"",
 			"Cluster",
 			"Track",
-			pinS,
+			pin,
 			&struct{}{},
 			nil,
 		)
 	case LogOpUnpin:
-		err = state.Rm(ctx, pinS.DecodeCid())
+		err = state.Rm(ctx, pin.Cid)
 		if err != nil {
 			logger.Error(err)
 			goto ROLLBACK
@@ -91,7 +91,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 			"",
 			"Cluster",
 			"Untrack",
-			pinS,
+			pin,
 			&struct{}{},
 			nil,
 		)

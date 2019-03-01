@@ -16,15 +16,15 @@ import (
 // objects which objects are pinned. This component should be thread safe.
 type State interface {
 	// Add adds a pin to the State
-	Add(context.Context, api.Pin) error
+	Add(context.Context, *api.Pin) error
 	// Rm removes a pin from the State
 	Rm(context.Context, cid.Cid) error
 	// List lists all the pins in the state
-	List(context.Context) []api.Pin
+	List(context.Context) []*api.Pin
 	// Has returns true if the state is holding information for a Cid
 	Has(context.Context, cid.Cid) bool
 	// Get returns the information attacthed to this pin
-	Get(context.Context, cid.Cid) (api.Pin, bool)
+	Get(context.Context, cid.Cid) (*api.Pin, bool)
 	// Migrate restores the serialized format of an outdated state to the current version
 	Migrate(ctx context.Context, r io.Reader) error
 	// Return the version of this state

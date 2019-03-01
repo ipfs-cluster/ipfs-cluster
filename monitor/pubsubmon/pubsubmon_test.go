@@ -35,10 +35,10 @@ func newMetricFactory() *metricFactory {
 	}
 }
 
-func (mf *metricFactory) newMetric(n string, p peer.ID) api.Metric {
+func (mf *metricFactory) newMetric(n string, p peer.ID) *api.Metric {
 	mf.l.Lock()
 	defer mf.l.Unlock()
-	m := api.Metric{
+	m := &api.Metric{
 		Name:  n,
 		Peer:  p,
 		Value: fmt.Sprintf("%d", mf.counter),
@@ -111,9 +111,9 @@ func TestLogMetricConcurrent(t *testing.T) {
 	f := func() {
 		defer wg.Done()
 		for i := 0; i < 25; i++ {
-			mt := api.Metric{
+			mt := &api.Metric{
 				Name:  "test",
-				Peer:  test.TestPeerID1,
+				Peer:  test.PeerID1,
 				Value: fmt.Sprintf("%d", time.Now().UnixNano()),
 				Valid: true,
 			}
@@ -165,15 +165,15 @@ func TestPeerMonitorLogMetric(t *testing.T) {
 	mf := newMetricFactory()
 
 	// dont fill window
-	pm.LogMetric(ctx, mf.newMetric("test", test.TestPeerID1))
-	pm.LogMetric(ctx, mf.newMetric("test", test.TestPeerID2))
-	pm.LogMetric(ctx, mf.newMetric("test", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test", test.PeerID1))
+	pm.LogMetric(ctx, mf.newMetric("test", test.PeerID2))
+	pm.LogMetric(ctx, mf.newMetric("test", test.PeerID3))
 
 	// fill window
-	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
-	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
-	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
-	pm.LogMetric(ctx, mf.newMetric("test2", test.TestPeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.PeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.PeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.PeerID3))
+	pm.LogMetric(ctx, mf.newMetric("test2", test.PeerID3))
 
 	latestMetrics := pm.LatestMetrics(ctx, "testbad")
 	if len(latestMetrics) != 0 {
@@ -188,15 +188,15 @@ func TestPeerMonitorLogMetric(t *testing.T) {
 
 	for _, v := range latestMetrics {
 		switch v.Peer {
-		case test.TestPeerID1:
+		case test.PeerID1:
 			if v.Value != "0" {
 				t.Error("bad metric value")
 			}
-		case test.TestPeerID2:
+		case test.PeerID2:
 			if v.Value != "1" {
 				t.Error("bad metric value")
 			}
-		case test.TestPeerID3:
+		case test.PeerID3:
 			if v.Value != "2" {
 				t.Error("bad metric value")
 			}
@@ -239,7 +239,7 @@ func TestPeerMonitorPublishMetric(t *testing.T) {
 
 	mf := newMetricFactory()
 
-	metric := mf.newMetric("test", test.TestPeerID1)
+	metric := mf.newMetric("test", test.PeerID1)
 	err = pm.PublishMetric(ctx, metric)
 	if err != nil {
 		t.Fatal(err)
@@ -276,7 +276,7 @@ func TestPeerMonitorAlerts(t *testing.T) {
 	defer shutdown()
 	mf := newMetricFactory()
 
-	mtr := mf.newMetric("test", test.TestPeerID1)
+	mtr := mf.newMetric("test", test.PeerID1)
 	mtr.SetTTL(0)
 	pm.LogMetric(ctx, mtr)
 	time.Sleep(time.Second)
@@ -291,7 +291,7 @@ func TestPeerMonitorAlerts(t *testing.T) {
 			if alrt.MetricName != "test" {
 				t.Error("Alert should be for test")
 			}
-			if alrt.Peer != test.TestPeerID1 {
+			if alrt.Peer != test.PeerID1 {
 				t.Error("Peer should be TestPeerID1")
 			}
 		}

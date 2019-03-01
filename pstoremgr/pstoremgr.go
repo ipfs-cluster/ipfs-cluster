@@ -99,18 +99,18 @@ func (pm *Manager) RmPeer(pid peer.ID) error {
 
 // if the peer has dns addresses, return only those, otherwise
 // return all. In all cases, encapsulate the peer ID.
-func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
+func (pm *Manager) filteredPeerAddrs(p peer.ID) []api.Multiaddr {
 	all := pm.host.Peerstore().Addrs(p)
-	peerAddrs := []ma.Multiaddr{}
-	peerDNSAddrs := []ma.Multiaddr{}
+	peerAddrs := []api.Multiaddr{}
+	peerDNSAddrs := []api.Multiaddr{}
 	peerPart, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", peer.IDB58Encode(p)))
 
 	for _, a := range all {
 		encAddr := a.Encapsulate(peerPart)
 		if madns.Matches(encAddr) {
-			peerDNSAddrs = append(peerDNSAddrs, encAddr)
+			peerDNSAddrs = append(peerDNSAddrs, api.NewMultiaddrWithValue(encAddr))
 		} else {
-			peerAddrs = append(peerAddrs, encAddr)
+			peerAddrs = append(peerAddrs, api.NewMultiaddrWithValue(encAddr))
 		}
 	}
 
@@ -125,7 +125,7 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 // /ipfs/<peerID> part) for the given set of peers. For peers for which
 // we know DNS multiaddresses, we only return those. Otherwise, we return
 // all the multiaddresses known for that peer.
-func (pm *Manager) PeersAddresses(peers []peer.ID) []ma.Multiaddr {
+func (pm *Manager) PeersAddresses(peers []peer.ID) []api.Multiaddr {
 	if pm.host == nil {
 		return nil
 	}
@@ -134,7 +134,7 @@ func (pm *Manager) PeersAddresses(peers []peer.ID) []ma.Multiaddr {
 		return nil
 	}
 
-	var addrs []ma.Multiaddr
+	var addrs []api.Multiaddr
 	for _, p := range peers {
 		if p == pm.host.ID() {
 			continue
@@ -200,7 +200,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 
 // SavePeerstore stores a slice of multiaddresses in the peerstore file, one
 // per line.
-func (pm *Manager) SavePeerstore(addrs []ma.Multiaddr) {
+func (pm *Manager) SavePeerstore(addrs []api.Multiaddr) {
 	if pm.peerstorePath == "" {
 		return
 	}
@@ -220,7 +220,7 @@ func (pm *Manager) SavePeerstore(addrs []ma.Multiaddr) {
 	defer f.Close()
 
 	for _, a := range addrs {
-		f.Write([]byte(fmt.Sprintf("%s\n", a.String())))
+		f.Write([]byte(fmt.Sprintf("%s\n", a.Value().String())))
 	}
 }
 

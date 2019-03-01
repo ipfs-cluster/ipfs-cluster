@@ -82,7 +82,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		}
 	}
 
-	h, _ := cid.Decode(test.TestCid1)
+	h := test.Cid1
 	err := clusters[1].Pin(ctx, api.PinCid(h))
 	if err != nil {
 		t.Fatal(err)
@@ -362,8 +362,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	defer leader.Shutdown(ctx)
 	defer leaderMock.Close()
 
-	tmpCid, _ := cid.Decode(test.TestCid1)
-	prefix := tmpCid.Prefix()
+	prefix := test.Cid1.Prefix()
 
 	// Pin nCluster random pins. This ensures each peer will
 	// pin the same number of Cids.
@@ -436,7 +435,7 @@ func TestClustersPeerJoin(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	hash, _ := cid.Decode(test.TestCid1)
+	hash := test.Cid1
 	clusters[0].Pin(ctx, api.PinCid(hash))
 	pinDelay()
 
@@ -479,7 +478,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	}
 	runF(t, clusters[1:], f)
 
-	hash, _ := cid.Decode(test.TestCid1)
+	hash := test.Cid1
 	clusters[0].Pin(ctx, api.PinCid(hash))
 	pinDelay()
 
@@ -524,7 +523,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 // 	}
 // 	runF(t, clusters[2:], f)
 
-// 	hash, _ := cid.Decode(test.TestCid1)
+// 	hash := test.Cid1
 // 	clusters[0].Pin(api.PinCid(hash))
 // 	delay()
 
@@ -552,7 +551,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 	defer shutdownClusters(t, clusters, mocks)
 
 	// pin something in c0
-	pin1, _ := cid.Decode(test.TestCid1)
+	pin1 := test.Cid1
 	err := clusters[0].Pin(ctx, api.PinCid(pin1))
 	if err != nil {
 		t.Fatal(err)
@@ -592,7 +591,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 	runF(t, clusters[1:], f)
 
 	// Pin something on the rest
-	pin2, _ := cid.Decode(test.TestCid2)
+	pin2 := test.Cid2
 	err = clusters[1].Pin(ctx, api.PinCid(pin2))
 	if err != nil {
 		t.Fatal(err)

@@ -67,12 +67,12 @@ func (disk *Informer) Shutdown(ctx context.Context) error {
 
 // GetMetric returns the metric obtained by this
 // Informer.
-func (disk *Informer) GetMetric(ctx context.Context) api.Metric {
+func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	ctx, span := trace.StartSpan(ctx, "informer/disk/GetMetric")
 	defer span.End()
 
 	if disk.rpcClient == nil {
-		return api.Metric{
+		return &api.Metric{
 			Name:  disk.Name(),
 			Valid: false,
 		}
@@ -103,7 +103,7 @@ func (disk *Informer) GetMetric(ctx context.Context) api.Metric {
 		}
 	}
 
-	m := api.Metric{
+	m := &api.Metric{
 		Name:  disk.Name(),
 		Value: fmt.Sprintf("%d", metric),
 		Valid: valid,

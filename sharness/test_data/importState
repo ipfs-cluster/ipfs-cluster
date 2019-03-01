@@ -1,6 +1,6 @@
 [
     {
-        "cid": "QmbrCtydGyPeHiLURSPMqrvE5mCgMCwFYq3UD4XLCeAYw6",
+        "cid": { "/": "QmbrCtydGyPeHiLURSPMqrvE5mCgMCwFYq3UD4XLCeAYw6"},
         "name": "",
         "allocations": [],
         "replication_factor_min": -1,

@@ -2,6 +2,7 @@ package sharding
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 // MockPinStore is used in VerifyShards
 type MockPinStore interface {
 	// Gets a pin
-	PinGet(context.Context, cid.Cid) (api.Pin, error)
+	PinGet(context.Context, cid.Cid) (*api.Pin, error)
 }
 
 // MockBlockStore is used in VerifyShards
@@ -36,7 +37,11 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 		return nil, fmt.Errorf("bad MetaPin type")
 	}
 
-	clusterPin, err := pins.PinGet(ctx, metaPin.Reference)
+	if metaPin.Reference == nil {
+		return nil, errors.New("metaPin.Reference is unset")
+	}
+
+	clusterPin, err := pins.PinGet(ctx, *metaPin.Reference)
 	if err != nil {
 		return nil, fmt.Errorf("cluster pin was not pinned: %s", err)
 	}

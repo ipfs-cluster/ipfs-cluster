@@ -55,9 +55,9 @@ type mockConnector struct {
 	blocks sync.Map
 }
 
-func (ipfs *mockConnector) ID(ctx context.Context) (api.IPFSID, error) {
-	return api.IPFSID{
-		ID: test.TestPeerID1,
+func (ipfs *mockConnector) ID(ctx context.Context) (*api.IPFSID, error) {
+	return &api.IPFSID{
+		ID: test.PeerID1,
 	}, nil
 }
 
@@ -101,12 +101,12 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string
 	return m, nil
 }
 
-func (ipfs *mockConnector) SwarmPeers(ctx context.Context) (api.SwarmPeers, error) {
-	return []peer.ID{test.TestPeerID4, test.TestPeerID5}, nil
+func (ipfs *mockConnector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
+	return []peer.ID{test.PeerID4, test.PeerID5}, nil
 }
 
-func (ipfs *mockConnector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
-	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
+func (ipfs *mockConnector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) {
+	return &api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
 func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
@@ -115,13 +115,13 @@ func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, e
 		return cid.Undef, err
 	}
 
-	return test.MustDecodeCid(test.TestCidResolved), nil
+	return test.CidResolved, nil
 }
 func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
-func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm api.NodeWithMeta) error {
-	ipfs.blocks.Store(nwm.Cid, nwm.Data)
+func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm *api.NodeWithMeta) error {
+	ipfs.blocks.Store(nwm.Cid.String(), nwm.Data)
 	return nil
 }
 
@@ -218,7 +218,7 @@ func TestClusterStateSync(t *testing.T) {
 		t.Fatal("expected an error as there is no state to sync")
 	}
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.Cid1
 	err = cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -264,7 +264,7 @@ func TestClusterPin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.Cid1
 	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -287,16 +287,16 @@ func TestClusterPinPath(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	pin, err := cl.PinPath(ctx, api.PinPath{Path: test.TestPathIPFS2})
+	pin, err := cl.PinPath(ctx, &api.PinPath{Path: test.PathIPFS2})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCidResolved {
+	if !pin.Cid.Equals(test.CidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
 	// test an error case
-	_, err = cl.PinPath(ctx, api.PinPath{Path: test.TestInvalidPath1})
+	_, err = cl.PinPath(ctx, &api.PinPath{Path: test.InvalidPath1})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -390,7 +390,7 @@ func TestUnpinShard(t *testing.T) {
 	pinnedCids := []cid.Cid{}
 	pinnedCids = append(pinnedCids, root)
 	metaPin, _ := cl.PinGet(ctx, root)
-	cDag, _ := cl.PinGet(ctx, metaPin.Reference)
+	cDag, _ := cl.PinGet(ctx, *metaPin.Reference)
 	pinnedCids = append(pinnedCids, cDag.Cid)
 	cDagBlock, _ := cl.ipfs.BlockGet(ctx, cDag.Cid)
 	cDagNode, _ := sharding.CborDataToNode(cDagBlock, "cbor")
@@ -440,9 +440,9 @@ func TestUnpinShard(t *testing.T) {
 }
 
 // func singleShardedPin(t *testing.T, cl *Cluster) {
-// 	cShard, _ := cid.Decode(test.TestShardCid)
-// 	cCdag, _ := cid.Decode(test.TestCdagCid)
-// 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+// 	cShard, _ := cid.Decode(test.ShardCid)
+// 	cCdag, _ := cid.Decode(test.CdagCid)
+// 	cMeta, _ := cid.Decode(test.MetaRootCid)
 // 	pinMeta(t, cl, []cid.Cid{cShard}, cCdag, cMeta)
 // }
 
@@ -509,8 +509,8 @@ func TestUnpinShard(t *testing.T) {
 // 		t.Fatal("should have 3 pins")
 // 	}
 // 	// Unpinning metadata should fail
-// 	cShard, _ := cid.Decode(test.TestShardCid)
-// 	cCdag, _ := cid.Decode(test.TestCdagCid)
+// 	cShard, _ := cid.Decode(test.ShardCid)
+// 	cCdag, _ := cid.Decode(test.CdagCid)
 
 // 	err := cl.Unpin(cShard)
 // 	if err == nil {
@@ -533,7 +533,7 @@ func TestUnpinShard(t *testing.T) {
 // 		t.Fatal("should have 3 pins")
 // 	}
 // 	// Unpinning from root should work
-// 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+// 	cMeta, _ := cid.Decode(test.MetaRootCid)
 
 // 	err := cl.Unpin(cMeta)
 // 	if err != nil {
@@ -544,10 +544,10 @@ func TestUnpinShard(t *testing.T) {
 // func pinTwoParentsOneShard(t *testing.T, cl *Cluster) {
 // 	singleShardedPin(t, cl)
 
-// 	cShard, _ := cid.Decode(test.TestShardCid)
-// 	cShard2, _ := cid.Decode(test.TestShardCid2)
-// 	cCdag2, _ := cid.Decode(test.TestCdagCid2)
-// 	cMeta2, _ := cid.Decode(test.TestMetaRootCid2)
+// 	cShard, _ := cid.Decode(test.ShardCid)
+// 	cShard2, _ := cid.Decode(test.ShardCid2)
+// 	cCdag2, _ := cid.Decode(test.CdagCid2)
+// 	cMeta2, _ := cid.Decode(test.MetaRootCid2)
 // 	pinMeta(t, cl, []cid.Cid{cShard, cShard2}, cCdag2, cMeta2)
 
 // 	shardPin, err := cl.PinGet(cShard)
@@ -574,7 +574,7 @@ func TestUnpinShard(t *testing.T) {
 
 // 	pinTwoParentsOneShard(t, cl)
 
-// 	cShard, _ := cid.Decode(test.TestShardCid)
+// 	cShard, _ := cid.Decode(test.ShardCid)
 // 	shardPin, err := cl.PinGet(cShard)
 // 	if err != nil {
 // 		t.Fatal("double pinned shard should be pinned")
@@ -593,7 +593,7 @@ func TestUnpinShard(t *testing.T) {
 // 	if len(cl.Pins()) != 6 {
 // 		t.Fatal("should have 6 pins")
 // 	}
-// 	cMeta2, _ := cid.Decode(test.TestMetaRootCid2)
+// 	cMeta2, _ := cid.Decode(test.MetaRootCid2)
 // 	err := cl.Unpin(cMeta2)
 // 	if err != nil {
 // 		t.Error(err)
@@ -605,8 +605,8 @@ func TestUnpinShard(t *testing.T) {
 // 		t.Fatal("should have 3 pins")
 // 	}
 
-// 	cShard, _ := cid.Decode(test.TestShardCid)
-// 	cCdag, _ := cid.Decode(test.TestCdagCid)
+// 	cShard, _ := cid.Decode(test.ShardCid)
+// 	cCdag, _ := cid.Decode(test.CdagCid)
 // 	shardPin, err := cl.PinGet(cShard)
 // 	if err != nil {
 // 		t.Fatal("double pinned shard node should still be pinned")
@@ -627,7 +627,7 @@ func TestUnpinShard(t *testing.T) {
 // 		t.Fatal("should have 6 pins")
 // 	}
 
-// 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+// 	cMeta, _ := cid.Decode(test.MetaRootCid)
 // 	err := cl.Unpin(cMeta)
 // 	if err != nil {
 // 		t.Error(err)
@@ -636,9 +636,9 @@ func TestUnpinShard(t *testing.T) {
 // 		t.Fatal("should have 4 pins")
 // 	}
 
-// 	cShard, _ := cid.Decode(test.TestShardCid)
-// 	cShard2, _ := cid.Decode(test.TestShardCid2)
-// 	cCdag2, _ := cid.Decode(test.TestCdagCid2)
+// 	cShard, _ := cid.Decode(test.ShardCid)
+// 	cShard2, _ := cid.Decode(test.ShardCid2)
+// 	cCdag2, _ := cid.Decode(test.CdagCid2)
 // 	shardPin, err := cl.PinGet(cShard)
 // 	if err != nil {
 // 		t.Fatal("double pinned shard node should still be pinned")
@@ -659,14 +659,14 @@ func TestUnpinShard(t *testing.T) {
 // 	defer cl.Shutdown()
 
 // 	// First pin normally then sharding pin fails
-// 	c, _ := cid.Decode(test.TestMetaRootCid)
+// 	c, _ := cid.Decode(test.MetaRootCid)
 // 	err := cl.Pin(api.PinCid(c))
 // 	if err != nil {
 // 		t.Fatal("pin should have worked:", err)
 // 	}
 
-// 	cCdag, _ := cid.Decode(test.TestCdagCid)
-// 	cMeta, _ := cid.Decode(test.TestMetaRootCid)
+// 	cCdag, _ := cid.Decode(test.CdagCid)
+// 	cMeta, _ := cid.Decode(test.MetaRootCid)
 // 	metaPin := api.Pin{
 // 		Cid:        cMeta,
 // 		Type:       api.MetaType,
@@ -694,8 +694,8 @@ func TestUnpinShard(t *testing.T) {
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
-// 	cCdag, _ := cid.Decode(test.TestCdagCid)
-// 	cShard, _ := cid.Decode(test.TestShardCid)
+// 	cCdag, _ := cid.Decode(test.CdagCid)
+// 	cShard, _ := cid.Decode(test.ShardCid)
 // 	shardPin := api.Pin{
 // 		Cid:                  cShard,
 // 		Type:                 api.ShardType,
@@ -730,7 +730,7 @@ func TestClusterPins(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.Cid1
 	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -751,7 +751,7 @@ func TestClusterPinGet(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.Cid1
 	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
@@ -765,8 +765,7 @@ func TestClusterPinGet(t *testing.T) {
 		t.Error("the Pin does not look as expected")
 	}
 
-	c2, _ := cid.Decode(test.TestCid2)
-	_, err = cl.PinGet(ctx, c2)
+	_, err = cl.PinGet(ctx, test.Cid2)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -778,7 +777,7 @@ func TestClusterUnpin(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
+	c := test.Cid1
 	// Unpin should error without pin being committed to state
 	err := cl.Unpin(ctx, c)
 	if err == nil {
@@ -810,25 +809,25 @@ func TestClusterUnpinPath(t *testing.T) {
 	defer cl.Shutdown(ctx)
 
 	// Unpin should error without pin being committed to state
-	_, err := cl.UnpinPath(ctx, test.TestPathIPFS2)
+	_, err := cl.UnpinPath(ctx, test.PathIPFS2)
 	if err == nil {
 		t.Error("unpin with path should have failed")
 	}
 
 	// Unpin after pin should succeed
-	pin, err := cl.PinPath(ctx, api.PinPath{Path: test.TestPathIPFS2})
+	pin, err := cl.PinPath(ctx, &api.PinPath{Path: test.PathIPFS2})
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCidResolved {
+	if !pin.Cid.Equals(test.CidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 
-	pin, err = cl.UnpinPath(ctx, test.TestPathIPFS2)
+	pin, err = cl.UnpinPath(ctx, test.PathIPFS2)
 	if err != nil {
 		t.Error("unpin with path should have worked:", err)
 	}
-	if pin.Cid.String() != test.TestCidResolved {
+	if !pin.Cid.Equals(test.CidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
 	}
 }
@@ -866,8 +865,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
-	c, _ := cid.Decode(test.TestCid1)
-	err := cl.Pin(ctx, api.PinCid(c))
+	err := cl.Pin(ctx, api.PinCid(test.Cid1))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}

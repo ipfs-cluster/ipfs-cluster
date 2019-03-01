@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -19,21 +21,23 @@ type testRPC struct {
 	pins   sync.Map
 }
 
-func (rpcs *testRPC) IPFSBlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
-	rpcs.blocks.Store(in.Cid, in)
+func (rpcs *testRPC) IPFSBlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+	rpcs.blocks.Store(in.Cid.String(), in)
 	return nil
 }
 
-func (rpcs *testRPC) Pin(ctx context.Context, in api.PinSerial, out *struct{}) error {
-	rpcs.pins.Store(in.Cid, in)
+func (rpcs *testRPC) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	rpcs.pins.Store(in.Cid.String(), in)
 	return nil
 }
 
-func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.PinSerial, out *[]string) error {
+func (rpcs *testRPC) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("we can only replicate to 1 peer")
 	}
-	*out = []string{""}
+	// it does not matter since we use host == nil for RPC, so it uses the
+	// local one in all cases.
+	*out = []peer.ID{test.PeerID1}
 	return nil
 }
 

@@ -103,7 +103,7 @@ func (mon *Monitor) Shutdown(ctx context.Context) error {
 }
 
 // LogMetric stores a metric so it can later be retrieved.
-func (mon *Monitor) LogMetric(ctx context.Context, m api.Metric) error {
+func (mon *Monitor) LogMetric(ctx context.Context, m *api.Metric) error {
 	ctx, span := trace.StartSpan(ctx, "monitor/basic/LogMetric")
 	defer span.End()
 
@@ -113,7 +113,7 @@ func (mon *Monitor) LogMetric(ctx context.Context, m api.Metric) error {
 }
 
 // PublishMetric broadcasts a metric to all current cluster peers.
-func (mon *Monitor) PublishMetric(ctx context.Context, m api.Metric) error {
+func (mon *Monitor) PublishMetric(ctx context.Context, m *api.Metric) error {
 	ctx, span := trace.StartSpan(ctx, "monitor/basic/PublishMetric")
 	defer span.End()
 
@@ -197,7 +197,7 @@ func (mon *Monitor) getPeers(ctx context.Context) ([]peer.ID, error) {
 
 // LatestMetrics returns last known VALID metrics of a given type. A metric
 // is only valid if it has not expired and belongs to a current cluster peers.
-func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []api.Metric {
+func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []*api.Metric {
 	ctx, span := trace.StartSpan(ctx, "monitor/basic/LatestMetrics")
 	defer span.End()
 
@@ -206,7 +206,7 @@ func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []api.Metric
 	// Make sure we only return metrics in the current peerset
 	peers, err := mon.getPeers(ctx)
 	if err != nil {
-		return []api.Metric{}
+		return []*api.Metric{}
 	}
 
 	return metrics.PeersetFilter(latest, peers)
@@ -214,6 +214,6 @@ func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []api.Metric
 
 // Alerts returns a channel on which alerts are sent when the
 // monitor detects a failure.
-func (mon *Monitor) Alerts() <-chan api.Alert {
+func (mon *Monitor) Alerts() <-chan *api.Alert {
 	return mon.checker.Alerts()
 }

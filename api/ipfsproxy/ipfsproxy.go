@@ -304,7 +304,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 		"",
 		"Cluster",
 		op,
-		api.PinCid(c).ToSerial(),
+		api.PinCid(c),
 		&struct{}{},
 	)
 	if err != nil {
@@ -342,23 +342,23 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			ipfsErrorResponder(w, err.Error())
 			return
 		}
-		var pin api.PinSerial
+		var pin api.Pin
 		err = proxy.rpcClient.Call(
 			"",
 			"Cluster",
 			"PinGet",
-			api.PinCid(c).ToSerial(),
+			c,
 			&pin,
 		)
 		if err != nil {
 			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg))
 			return
 		}
-		pinLs.Keys[pin.Cid] = ipfsPinType{
+		pinLs.Keys[pin.Cid.String()] = ipfsPinType{
 			Type: "recursive",
 		}
 	} else {
-		pins := make([]api.PinSerial, 0)
+		pins := make([]*api.Pin, 0)
 		err := proxy.rpcClient.Call(
 			"",
 			"Cluster",
@@ -372,7 +372,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, pin := range pins {
-			pinLs.Keys[pin.Cid] = ipfsPinType{
+			pinLs.Keys[pin.Cid.String()] = ipfsPinType{
 				Type: "recursive",
 			}
 		}
@@ -450,7 +450,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		"",
 		"Cluster",
 		"Unpin",
-		api.PinCid(root).ToSerial(),
+		root,
 		&struct{}{},
 	)
 	if err != nil {
@@ -478,10 +478,11 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	ctxs, cancels := rpcutil.CtxsWithCancel(proxy.ctx, len(peers))
 	defer rpcutil.MultiCancel(cancels)
 
-	repoStats := make([]api.IPFSRepoStat, len(peers), len(peers))
+	repoStats := make([]*api.IPFSRepoStat, len(peers), len(peers))
 	repoStatsIfaces := make([]interface{}, len(repoStats), len(repoStats))
 	for i := range repoStats {
-		repoStatsIfaces[i] = &repoStats[i]
+		repoStats[i] = &api.IPFSRepoStat{}
+		repoStatsIfaces[i] = repoStats[i]
 	}
 
 	errs := proxy.rpcClient.MultiCall(

@@ -10,6 +10,8 @@ import (
 	"errors"
 	"io"
 
+	cid "github.com/ipfs/go-cid"
+
 	"github.com/ipfs/ipfs-cluster/api"
 
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
@@ -200,18 +202,26 @@ func (st *mapStateV5) next() migrateable {
 		logger.Infof("migrating", k, v.Cid)
 		// we need to convert because we added codec struct fields
 		// and thus serialization is not the same.
-		p := api.PinSerial{}
-		p.Cid = v.Cid
-		p.Type = v.Type
-		p.Allocations = v.Allocations
+		p := &api.Pin{}
+		c, err := cid.Decode(v.Cid)
+		if err != nil {
+			logger.Error(err)
+		}
+		p.Cid = c
+		p.Type = api.PinType(v.Type)
+		p.Allocations = api.StringsToPeers(v.Allocations)
 		p.MaxDepth = v.MaxDepth
-		p.Reference = v.Reference
+
+		r, err := cid.Decode(v.Reference)
+		if err == nil {
+			p.Reference = &r
+		}
 		p.ReplicationFactorMax = v.ReplicationFactorMax
 		p.ReplicationFactorMin = v.ReplicationFactorMin
 		p.Name = v.Name
 		p.ShardSize = v.ShardSize
 
-		v6.Add(context.Background(), p.ToPin())
+		v6.Add(context.Background(), p)
 	}
 	return v6.(*MapState)
 }

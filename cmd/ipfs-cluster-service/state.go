@@ -114,16 +114,16 @@ func stateImport(ctx context.Context, r io.Reader) error {
 		return err
 	}
 
-	pinSerials := make([]api.PinSerial, 0)
+	pins := make([]*api.Pin, 0)
 	dec := json.NewDecoder(r)
-	err = dec.Decode(&pinSerials)
+	err = dec.Decode(&pins)
 	if err != nil {
 		return err
 	}
 
 	stateToImport := mapstate.NewMapState()
-	for _, pS := range pinSerials {
-		err = stateToImport.Add(ctx, pS.ToPin())
+	for _, p := range pins {
+		err = stateToImport.Add(ctx, p)
 		if err != nil {
 			return err
 		}
@@ -170,15 +170,11 @@ func exportState(ctx context.Context, state state.State, w io.Writer) error {
 
 	// Serialize pins
 	pins := state.List(ctx)
-	pinSerials := make([]api.PinSerial, len(pins), len(pins))
-	for i, pin := range pins {
-		pinSerials[i] = pin.ToSerial()
-	}
 
 	// Write json to output file
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
-	return enc.Encode(pinSerials)
+	return enc.Encode(pins)
 }
 
 // CleanupState cleans the state

@@ -50,7 +50,7 @@ func NewMapState() state.State {
 }
 
 // Add adds a Pin to the internal map.
-func (st *MapState) Add(ctx context.Context, c api.Pin) error {
+func (st *MapState) Add(ctx context.Context, c *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "state/map/Add")
 	defer span.End()
 	return st.dst.Add(ctx, c)
@@ -69,7 +69,7 @@ func (st *MapState) Rm(ctx context.Context, c cid.Cid) error {
 // fields initialized, regardless of the
 // presence of the provided Cid in the state.
 // To check the presence, use MapState.Has(cid.Cid).
-func (st *MapState) Get(ctx context.Context, c cid.Cid) (api.Pin, bool) {
+func (st *MapState) Get(ctx context.Context, c cid.Cid) (*api.Pin, bool) {
 	ctx, span := trace.StartSpan(ctx, "state/map/Get")
 	defer span.End()
 
@@ -84,7 +84,7 @@ func (st *MapState) Has(ctx context.Context, c cid.Cid) bool {
 }
 
 // List provides the list of tracked Pins.
-func (st *MapState) List(ctx context.Context) []api.Pin {
+func (st *MapState) List(ctx context.Context) []*api.Pin {
 	ctx, span := trace.StartSpan(ctx, "state/map/List")
 	defer span.End()
 	return st.dst.List(ctx)

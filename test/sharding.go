@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	files "github.com/ipfs/go-ipfs-files"
+
+	cid "github.com/ipfs/go-cid"
 )
 
 const shardingTestDir = "shardTesting"
@@ -59,8 +61,8 @@ var (
 	}
 
 	// Used for testing blockput/blockget
-	TestShardCid     = "zdpuAoiNm1ntWx6jpgcReTiCWFHJSTpvTw4bAAn9p6yDnznqh"
-	TestShardData, _ = hex.DecodeString("a16130d82a58230012209273fd63ec94bed5abb219b2d9cb010cabe4af7b0177292d4335eff50464060a")
+	ShardCid, _  = cid.Decode("zdpuAoiNm1ntWx6jpgcReTiCWFHJSTpvTw4bAAn9p6yDnznqh")
+	ShardData, _ = hex.DecodeString("a16130d82a58230012209273fd63ec94bed5abb219b2d9cb010cabe4af7b0177292d4335eff50464060a")
 )
 
 // ShardingTestHelper helps generating files and folders to test adding and

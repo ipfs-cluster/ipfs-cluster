@@ -30,7 +30,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
 )
@@ -219,38 +218,37 @@ func (ipfs *Connector) Shutdown(ctx context.Context) error {
 // ID performs an ID request against the configured
 // IPFS daemon. It returns the fetched information.
 // If the request fails, or the parsing fails, it
-// returns an error and an empty IPFSID which also
-// contains the error message.
-func (ipfs *Connector) ID(ctx context.Context) (api.IPFSID, error) {
+// returns an error.
+func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/ID")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	id := api.IPFSID{}
+
 	body, err := ipfs.postCtx(ctx, "id", "", nil)
 	if err != nil {
-		id.Error = err.Error()
-		return id, err
+		return nil, err
 	}
 
 	var res ipfsIDResp
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		id.Error = err.Error()
-		return id, err
+		return nil, err
 	}
 
 	pID, err := peer.IDB58Decode(res.ID)
 	if err != nil {
-		id.Error = err.Error()
-		return id, err
+		return nil, err
 	}
-	id.ID = pID
 
-	mAddrs := make([]ma.Multiaddr, len(res.Addresses), len(res.Addresses))
+	id := &api.IPFSID{
+		ID: pID,
+	}
+
+	mAddrs := make([]api.Multiaddr, len(res.Addresses), len(res.Addresses))
 	for i, strAddr := range res.Addresses {
-		mAddr, err := ma.NewMultiaddr(strAddr)
+		mAddr, err := api.NewMultiaddr(strAddr)
 		if err != nil {
 			id.Error = err.Error()
 			return id, err
@@ -498,30 +496,29 @@ func (ipfs *Connector) ConnectSwarms(ctx context.Context) error {
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	idsSerial := make([]api.IDSerial, 0)
+	var ids []*api.ID
 	err := ipfs.rpcClient.CallContext(
 		ctx,
 		"",
 		"Cluster",
 		"Peers",
 		struct{}{},
-		&idsSerial,
+		&ids,
 	)
 	if err != nil {
 		logger.Error(err)
 		return err
 	}
-	logger.Debugf("%+v", idsSerial)
 
-	for _, idSerial := range idsSerial {
-		ipfsID := idSerial.IPFS
+	for _, id := range ids {
+		ipfsID := id.IPFS
 		for _, addr := range ipfsID.Addresses {
 			// This is a best effort attempt
 			// We ignore errors which happens
 			// when passing in a bunch of addresses
 			_, err := ipfs.postCtx(
 				ctx,
-				fmt.Sprintf("swarm/connect?arg=%s", addr),
+				fmt.Sprintf("swarm/connect?arg=%s", addr.String()),
 				"",
 				nil,
 			)
@@ -583,7 +580,7 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 
 // RepoStat returns the DiskUsage and StorageMax repo/stat values from the
 // ipfs daemon, in bytes, wrapped as an IPFSRepoStat object.
-func (ipfs *Connector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
+func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoStat")
 	defer span.End()
 
@@ -592,16 +589,16 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
 	res, err := ipfs.postCtx(ctx, "repo/stat?size-only=true", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return api.IPFSRepoStat{}, err
+		return nil, err
 	}
 
 	var stats api.IPFSRepoStat
 	err = json.Unmarshal(res, &stats)
 	if err != nil {
 		logger.Error(err)
-		return stats, err
+		return nil, err
 	}
-	return stats, nil
+	return &stats, nil
 }
 
 // Resolve accepts ipfs or ipns path and resolves it into a cid
@@ -640,26 +637,26 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.
-func (ipfs *Connector) SwarmPeers(ctx context.Context) (api.SwarmPeers, error) {
+func (ipfs *Connector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/SwarmPeers")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	swarm := api.SwarmPeers{}
+
 	res, err := ipfs.postCtx(ctx, "swarm/peers", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return swarm, err
+		return nil, err
 	}
 	var peersRaw ipfsSwarmPeersResp
 	err = json.Unmarshal(res, &peersRaw)
 	if err != nil {
 		logger.Error(err)
-		return swarm, err
+		return nil, err
 	}
 
-	swarm = make([]peer.ID, len(peersRaw.Peers))
+	swarm := make([]peer.ID, len(peersRaw.Peers))
 	for i, p := range peersRaw.Peers {
 		pID, err := peer.IDB58Decode(p.Peer)
 		if err != nil {
@@ -673,7 +670,7 @@ func (ipfs *Connector) SwarmPeers(ctx context.Context) (api.SwarmPeers, error) {
 
 // BlockPut triggers an ipfs block put on the given data, inserting the block
 // into the ipfs daemon's repo.
-func (ipfs *Connector) BlockPut(ctx context.Context, b api.NodeWithMeta) error {
+func (ipfs *Connector) BlockPut(ctx context.Context, b *api.NodeWithMeta) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/BlockPut")
 	defer span.End()
 

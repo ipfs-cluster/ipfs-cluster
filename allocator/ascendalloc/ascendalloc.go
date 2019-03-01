@@ -39,7 +39,7 @@ func (alloc AscendAllocator) Shutdown(_ context.Context) error { return nil }
 func (alloc AscendAllocator) Allocate(
 	ctx context.Context,
 	c cid.Cid,
-	current, candidates, priority map[peer.ID]api.Metric,
+	current, candidates, priority map[peer.ID]*api.Metric,
 ) ([]peer.ID, error) {
 	// sort our metrics
 	first := util.SortNumeric(priority, false)

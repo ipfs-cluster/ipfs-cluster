@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	cid "github.com/ipfs/go-cid"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -85,33 +87,33 @@ func TestIPFSProxyPin(t *testing.T) {
 
 	type args struct {
 		urlPath    string
-		testCid    string
+		testCid    cid.Cid
 		statusCode int
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    cid.Cid
 		wantErr bool
 	}{
 		{
 			"pin good cid query arg",
 			args{
 				"/pin/add?arg=",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
 			"pin good cid url arg",
 			args{
 				"/pin/add/",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
@@ -121,7 +123,7 @@ func TestIPFSProxyPin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 		{
@@ -131,13 +133,18 @@ func TestIPFSProxyPin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := fmt.Sprintf("%s%s%s", proxyURL(proxy), tt.args.urlPath, tt.args.testCid)
+			u := fmt.Sprintf(
+				"%s%s%s",
+				proxyURL(proxy),
+				tt.args.urlPath,
+				tt.args.testCid,
+			)
 			res, err := http.Post(u, "", nil)
 			if err != nil {
 				t.Fatal("should have succeeded: ", err)
@@ -162,7 +169,7 @@ func TestIPFSProxyPin(t *testing.T) {
 					t.Fatalf("wrong number of pins: got = %d, want %d", len(resp.Pins), 1)
 				}
 
-				if resp.Pins[0] != tt.want {
+				if resp.Pins[0] != tt.want.String() {
 					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
 				}
 			case true:
@@ -188,33 +195,33 @@ func TestIPFSProxyUnpin(t *testing.T) {
 
 	type args struct {
 		urlPath    string
-		testCid    string
+		testCid    cid.Cid
 		statusCode int
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    cid.Cid
 		wantErr bool
 	}{
 		{
 			"unpin good cid query arg",
 			args{
 				"/pin/rm?arg=",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
 			"unpin good cid url arg",
 			args{
 				"/pin/rm/",
-				test.TestCid1,
+				test.Cid1,
 				http.StatusOK,
 			},
-			test.TestCid1,
+			test.Cid1,
 			false,
 		},
 		{
@@ -224,7 +231,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 		{
@@ -234,7 +241,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				test.ErrorCid,
 				http.StatusInternalServerError,
 			},
-			"",
+			cid.Undef,
 			true,
 		},
 	}
@@ -265,7 +272,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 					t.Fatalf("wrong number of pins: got = %d, want %d", len(resp.Pins), 1)
 				}
 
-				if resp.Pins[0] != tt.want {
+				if resp.Pins[0] != tt.want.String() {
 					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
 				}
 			case true:
@@ -290,7 +297,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 	defer proxy.Shutdown(ctx)
 
 	t.Run("pin/ls query arg", func(t *testing.T) {
-		res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(proxy), test.TestCid1), "", nil)
+		res, err := http.Post(fmt.Sprintf("%s/pin/ls?arg=%s", proxyURL(proxy), test.Cid1), "", nil)
 		if err != nil {
 			t.Fatal("should have succeeded: ", err)
 		}
@@ -306,14 +313,14 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, ok := resp.Keys[test.TestCid1]
+		_, ok := resp.Keys[test.Cid1.String()]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
 		}
 	})
 
 	t.Run("pin/ls url arg", func(t *testing.T) {
-		res, err := http.Post(fmt.Sprintf("%s/pin/ls/%s", proxyURL(proxy), test.TestCid1), "", nil)
+		res, err := http.Post(fmt.Sprintf("%s/pin/ls/%s", proxyURL(proxy), test.Cid1), "", nil)
 		if err != nil {
 			t.Fatal("should have succeeded: ", err)
 		}
@@ -329,9 +336,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Println(string(resBytes))
-
-		_, ok := resp.Keys[test.TestCid1]
+		_, ok := resp.Keys[test.Cid1.String()]
 		if len(resp.Keys) != 1 || !ok {
 			t.Error("wrong response")
 		}

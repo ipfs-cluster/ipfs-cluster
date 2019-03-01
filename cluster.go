@@ -230,7 +230,7 @@ func (c *Cluster) syncWatcher() {
 	}
 }
 
-func (c *Cluster) sendInformerMetric(ctx context.Context) (api.Metric, error) {
+func (c *Cluster) sendInformerMetric(ctx context.Context) (*api.Metric, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendInformerMetric")
 	defer span.End()
 
@@ -288,7 +288,7 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 
 	ticker := time.NewTicker(c.config.MonitorPingInterval)
 	for {
-		metric := api.Metric{
+		metric := &api.Metric{
 			Name:  pingMetricName,
 			Peer:  c.id,
 			Valid: true,
@@ -562,21 +562,26 @@ func (c *Cluster) Done() <-chan struct{} {
 }
 
 // ID returns information about the Cluster peer
-func (c *Cluster) ID(ctx context.Context) api.ID {
+func (c *Cluster) ID(ctx context.Context) *api.ID {
 	_, span := trace.StartSpan(ctx, "cluster/ID")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
 	// ignore error since it is included in response object
-	ipfsID, _ := c.ipfs.ID(ctx)
-	var addrs []ma.Multiaddr
+	ipfsID, err := c.ipfs.ID(ctx)
+	if err != nil {
+		ipfsID = &api.IPFSID{
+			Error: err.Error(),
+		}
+	}
+	var addrs []api.Multiaddr
 
 	addrsSet := make(map[string]struct{}) // to filter dups
 	for _, addr := range c.host.Addrs() {
 		addrsSet[addr.String()] = struct{}{}
 	}
 	for k := range addrsSet {
-		addr, _ := ma.NewMultiaddr(k)
+		addr, _ := api.NewMultiaddr(k)
 		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
 	}
 
@@ -587,7 +592,7 @@ func (c *Cluster) ID(ctx context.Context) api.ID {
 		peers, _ = c.consensus.Peers(ctx)
 	}
 
-	return api.ID{
+	return &api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
@@ -595,7 +600,7 @@ func (c *Cluster) ID(ctx context.Context) api.ID {
 		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
 		Version:               version.Version.String(),
 		RPCProtocolVersion:    version.RPCProtocol,
-		IPFS:                  ipfsID,
+		IPFS:                  *ipfsID,
 		Peername:              c.config.Peername,
 	}
 }
@@ -610,7 +615,7 @@ func (c *Cluster) ID(ctx context.Context) api.ID {
 //
 // The new peer ID will be passed to the consensus
 // component to be added to the peerset.
-func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error) {
+func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	_, span := trace.StartSpan(ctx, "cluster/PeerAdd")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -626,7 +631,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error) {
 	err := c.consensus.AddPeer(ctx, pid)
 	if err != nil {
 		logger.Error(err)
-		id := api.ID{ID: pid, Error: err.Error()}
+		id := &api.ID{ID: pid, Error: err.Error()}
 		return id, err
 	}
 
@@ -643,7 +648,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error) {
 		logger.Error(err)
 	}
 
-	id := api.ID{}
+	id := &api.ID{}
 
 	// wait up to 2 seconds for new peer to catch up
 	// and return an up to date api.ID object.
@@ -719,13 +724,13 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
 	// ListenAddr).
-	var myID api.IDSerial
+	var myID api.ID
 	err = c.rpcClient.CallContext(
 		ctx,
 		pid,
 		"Cluster",
 		"PeerAdd",
-		peer.IDB58Encode(c.id),
+		c.id,
 		&myID,
 	)
 	if err != nil {
@@ -814,7 +819,7 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 // StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.
 // If an error happens, the slice will contain as much information as
 // could be fetched from other peers.
-func (c *Cluster) StatusAll(ctx context.Context) ([]api.GlobalPinInfo, error) {
+func (c *Cluster) StatusAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAll")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -823,7 +828,7 @@ func (c *Cluster) StatusAll(ctx context.Context) ([]api.GlobalPinInfo, error) {
 }
 
 // StatusAllLocal returns the PinInfo for all the tracked Cids in this peer.
-func (c *Cluster) StatusAllLocal(ctx context.Context) []api.PinInfo {
+func (c *Cluster) StatusAllLocal(ctx context.Context) []*api.PinInfo {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAllLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -834,7 +839,7 @@ func (c *Cluster) StatusAllLocal(ctx context.Context) []api.PinInfo {
 // Status returns the GlobalPinInfo for a given Cid as fetched from all
 // current peers. If an error happens, the GlobalPinInfo should contain
 // as much information as could be fetched from the other peers.
-func (c *Cluster) Status(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) Status(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Status")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -843,7 +848,7 @@ func (c *Cluster) Status(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, err
 }
 
 // StatusLocal returns this peer's PinInfo for a given Cid.
-func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) api.PinInfo {
+func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) *api.PinInfo {
 	_, span := trace.StartSpan(ctx, "cluster/StatusLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -855,7 +860,7 @@ func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) api.PinInfo {
 // that the state of tracked items matches the state reported by the IPFS daemon
 // and returning the results as GlobalPinInfo. If an error happens, the slice
 // will contain as much information as could be fetched from the peers.
-func (c *Cluster) SyncAll(ctx context.Context) ([]api.GlobalPinInfo, error) {
+func (c *Cluster) SyncAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/SyncAll")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -868,7 +873,7 @@ func (c *Cluster) SyncAll(ctx context.Context) ([]api.GlobalPinInfo, error) {
 //
 // SyncAllLocal returns the list of PinInfo that where updated because of
 // the operation, along with those in error states.
-func (c *Cluster) SyncAllLocal(ctx context.Context) ([]api.PinInfo, error) {
+func (c *Cluster) SyncAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/SyncAllLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -885,7 +890,7 @@ func (c *Cluster) SyncAllLocal(ctx context.Context) ([]api.PinInfo, error) {
 
 // Sync triggers a SyncLocal() operation for a given Cid.
 // in all cluster peers.
-func (c *Cluster) Sync(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) Sync(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Sync")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -897,14 +902,14 @@ func (c *Cluster) Sync(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, error
 func (c *Cluster) localPinInfoOp(
 	ctx context.Context,
 	h cid.Cid,
-	f func(context.Context, cid.Cid) (api.PinInfo, error),
-) (pInfo api.PinInfo, err error) {
+	f func(context.Context, cid.Cid) (*api.PinInfo, error),
+) (pInfo *api.PinInfo, err error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/localPinInfoOp")
 	defer span.End()
 
 	cids, err := c.cidsFromMetaPin(ctx, h)
 	if err != nil {
-		return api.PinInfo{}, err
+		return nil, err
 	}
 
 	for _, ci := range cids {
@@ -923,7 +928,7 @@ func (c *Cluster) localPinInfoOp(
 // SyncLocal performs a local sync operation for the given Cid. This will
 // tell the tracker to verify the status of the Cid against the IPFS daemon.
 // It returns the updated PinInfo for the Cid.
-func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo api.PinInfo, err error) {
+func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo, err error) {
 	_, span := trace.StartSpan(ctx, "cluster/SyncLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -933,7 +938,7 @@ func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo api.PinInfo, 
 
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
 // by this peer.
-func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]api.PinInfo, error) {
+func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -943,7 +948,7 @@ func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]api.PinInfo, error) {
 
 // Recover triggers a recover operation for a given Cid in all
 // cluster peers.
-func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Recover")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -953,7 +958,7 @@ func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, er
 
 // RecoverLocal triggers a recover operation for a given Cid in this peer only.
 // It returns the updated PinInfo, after recovery.
-func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (pInfo api.PinInfo, err error) {
+func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo, err error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -965,7 +970,7 @@ func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (pInfo api.PinInf
 // of the current global state. This is the source of truth as to which
 // pins are managed and their allocation, but does not indicate if
 // the item is successfully pinned. For that, use StatusAll().
-func (c *Cluster) Pins(ctx context.Context) []api.Pin {
+func (c *Cluster) Pins(ctx context.Context) []*api.Pin {
 	_, span := trace.StartSpan(ctx, "cluster/Pins")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -973,7 +978,7 @@ func (c *Cluster) Pins(ctx context.Context) []api.Pin {
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
 		logger.Error(err)
-		return []api.Pin{}
+		return []*api.Pin{}
 	}
 	return cState.List(ctx)
 }
@@ -984,14 +989,14 @@ func (c *Cluster) Pins(ctx context.Context) []api.Pin {
 // assigned for the requested Cid, but does not indicate if
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
-func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (api.Pin, error) {
+func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/PinGet")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
 	st, err := c.consensus.State(ctx)
 	if err != nil {
-		return api.PinCid(h), err
+		return nil, err
 	}
 	pin, ok := st.Get(ctx, h)
 	if !ok {
@@ -1016,7 +1021,7 @@ func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (api.Pin, error) {
 // this set then the remaining peers are allocated in order from the rest of
 // the cluster.  Priority allocations are best effort.  If any priority peers
 // are unavailable then Pin will simply allocate from the rest of the cluster.
-func (c *Cluster) Pin(ctx context.Context, pin api.Pin) error {
+func (c *Cluster) Pin(ctx context.Context, pin *api.Pin) error {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1044,7 +1049,7 @@ func (c *Cluster) setupReplicationFactor(pin *api.Pin) error {
 func checkPinType(pin *api.Pin) error {
 	switch pin.Type {
 	case api.DataType:
-		if pin.Reference != cid.Undef {
+		if pin.Reference != nil {
 			return errors.New("data pins should not reference other pins")
 		}
 	case api.ShardType:
@@ -1062,14 +1067,14 @@ func checkPinType(pin *api.Pin) error {
 		if pin.MaxDepth != 0 {
 			return errors.New("must pin roots directly")
 		}
-		if pin.Reference == cid.Undef {
+		if pin.Reference == nil {
 			return errors.New("clusterDAG pins should reference a Meta pin")
 		}
 	case api.MetaType:
 		if pin.Allocations != nil && len(pin.Allocations) != 0 {
 			return errors.New("meta pin should not specify allocations")
 		}
-		if pin.Reference == cid.Undef {
+		if pin.Reference == nil {
 			return errors.New("metaPins should reference a ClusterDAG")
 		}
 
@@ -1102,7 +1107,7 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 // able to evacuate a node and returns the pin object that it tried to pin, whether the pin was submitted
 // to the consensus layer or skipped (due to error or to the fact
 // that it was already valid) and errror.
-func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (api.Pin, bool, error) {
+func (c *Cluster) pin(ctx context.Context, pin *api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (*api.Pin, bool, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pin")
 	defer span.End()
 
@@ -1111,7 +1116,7 @@ func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, pri
 	}
 
 	// setup pin might produce some side-effects to our pin
-	err := c.setupPin(ctx, &pin)
+	err := c.setupPin(ctx, pin)
 	if err != nil {
 		return pin, false, err
 	}
@@ -1147,7 +1152,7 @@ func (c *Cluster) pin(ctx context.Context, pin api.Pin, blacklist []peer.ID, pri
 	return pin, true, c.consensus.LogPin(ctx, pin)
 }
 
-func (c *Cluster) unpin(ctx context.Context, h cid.Cid) (api.Pin, error) {
+func (c *Cluster) unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/unpin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1197,7 +1202,7 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) error {
 // nodes that it references.  It handles the case where multiple parents
 // reference the same metadata node, only unpinning those nodes without
 // existing references
-func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
+func (c *Cluster) unpinClusterDag(metaPin *api.Pin) error {
 	ctx, span := trace.StartSpan(c.ctx, "cluster/unpinClusterDag")
 	defer span.End()
 
@@ -1219,14 +1224,14 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 
 // PinPath pins an CID resolved from its IPFS Path. It returns the resolved
 // Pin object.
-func (c *Cluster) PinPath(ctx context.Context, path api.PinPath) (api.Pin, error) {
+func (c *Cluster) PinPath(ctx context.Context, path *api.PinPath) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/PinPath")
 	defer span.End()
 
 	ctx = trace.NewContext(c.ctx, span)
 	ci, err := c.ipfs.Resolve(ctx, path.Path)
 	if err != nil {
-		return api.Pin{}, err
+		return nil, err
 	}
 
 	p := api.PinCid(ci)
@@ -1237,14 +1242,14 @@ func (c *Cluster) PinPath(ctx context.Context, path api.PinPath) (api.Pin, error
 
 // UnpinPath unpins a CID resolved from its IPFS Path. If returns the
 // previously pinned Pin object.
-func (c *Cluster) UnpinPath(ctx context.Context, path string) (api.Pin, error) {
+func (c *Cluster) UnpinPath(ctx context.Context, path string) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/UnpinPath")
 	defer span.End()
 
 	ctx = trace.NewContext(c.ctx, span)
 	ci, err := c.ipfs.Resolve(ctx, path)
 	if err != nil {
-		return api.Pin{}, err
+		return nil, err
 	}
 
 	return c.unpin(ctx, ci)
@@ -1272,7 +1277,7 @@ func (c *Cluster) Version() string {
 }
 
 // Peers returns the IDs of the members of this Cluster.
-func (c *Cluster) Peers(ctx context.Context) []api.ID {
+func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	_, span := trace.StartSpan(ctx, "cluster/Peers")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1281,12 +1286,11 @@ func (c *Cluster) Peers(ctx context.Context) []api.ID {
 	if err != nil {
 		logger.Error(err)
 		logger.Error("an empty list of peers will be returned")
-		return []api.ID{}
+		return []*api.ID{}
 	}
 	lenMembers := len(members)
 
-	peersSerial := make([]api.IDSerial, lenMembers, lenMembers)
-	peers := make([]api.ID, lenMembers, lenMembers)
+	peers := make([]*api.ID, lenMembers, lenMembers)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
@@ -1297,43 +1301,37 @@ func (c *Cluster) Peers(ctx context.Context) []api.ID {
 		"Cluster",
 		"ID",
 		struct{}{},
-		rpcutil.CopyIDSerialsToIfaces(peersSerial),
+		rpcutil.CopyIDsToIfaces(peers),
 	)
 
 	for i, err := range errs {
 		if err != nil {
-			peersSerial[i].ID = peer.IDB58Encode(members[i])
-			peersSerial[i].Error = err.Error()
+			peers[i] = &api.ID{}
+			peers[i].ID = members[i]
+			peers[i].Error = err.Error()
 		}
 	}
 
-	for i, ps := range peersSerial {
-		peers[i] = ps.ToID()
-	}
 	return peers
 }
 
-func (c *Cluster) globalPinInfoCid(ctx context.Context, method string, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) globalPinInfoCid(ctx context.Context, method string, h cid.Cid) (*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
-	pin := api.GlobalPinInfo{
+	pin := &api.GlobalPinInfo{
 		Cid:     h,
-		PeerMap: make(map[peer.ID]api.PinInfo),
+		PeerMap: make(map[string]*api.PinInfo),
 	}
 
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
-		return api.GlobalPinInfo{}, err
+		return nil, err
 	}
 	lenMembers := len(members)
 
-	replies := make([]api.PinInfoSerial, lenMembers, lenMembers)
-	arg := api.Pin{
-		Cid: h,
-	}
-
+	replies := make([]*api.PinInfo, lenMembers, lenMembers)
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
@@ -1342,63 +1340,49 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, method string, h cid.Cid
 		members,
 		"Cluster",
 		method,
-		arg.ToSerial(),
-		rpcutil.CopyPinInfoSerialToIfaces(replies),
+		h,
+		rpcutil.CopyPinInfoToIfaces(replies),
 	)
 
-	for i, rserial := range replies {
+	for i, r := range replies {
 		e := errs[i]
-
-		// Potentially rserial is empty. But ToPinInfo ignores all
-		// errors from underlying libraries. In that case .Status
-		// will be TrackerStatusUndefined (0)
-		r := rserial.ToPinInfo()
 
 		// No error. Parse and continue
 		if e == nil {
-			pin.PeerMap[members[i]] = r
+			pin.PeerMap[peer.IDB58Encode(members[i])] = r
 			continue
 		}
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
-
-		// In this case, we had no answer at all. The contacted peer
-		// must be offline or unreachable.
-		if r.Status == api.TrackerStatusUndefined {
-			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
-			pin.PeerMap[members[i]] = api.PinInfo{
-				Cid:      h,
-				Peer:     members[i],
-				PeerName: members[i].String(),
-				Status:   api.TrackerStatusClusterError,
-				TS:       time.Now(),
-				Error:    e.Error(),
-			}
-		} else { // there was an rpc error, but got a valid response :S
-			r.Error = e.Error()
-			pin.PeerMap[members[i]] = r
-			// unlikely to come down this path
+		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
+		pin.PeerMap[peer.IDB58Encode(members[i])] = &api.PinInfo{
+			Cid:      h,
+			Peer:     members[i],
+			PeerName: members[i].String(),
+			Status:   api.TrackerStatusClusterError,
+			TS:       time.Now(),
+			Error:    e.Error(),
 		}
 	}
 
 	return pin, nil
 }
 
-func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]api.GlobalPinInfo, error) {
+func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoSlice")
 	defer span.End()
 
-	infos := make([]api.GlobalPinInfo, 0)
-	fullMap := make(map[string]api.GlobalPinInfo)
+	infos := make([]*api.GlobalPinInfo, 0)
+	fullMap := make(map[cid.Cid]*api.GlobalPinInfo)
 
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
-		return []api.GlobalPinInfo{}, err
+		return nil, err
 	}
 	lenMembers := len(members)
 
-	replies := make([][]api.PinInfoSerial, lenMembers, lenMembers)
+	replies := make([][]*api.PinInfo, lenMembers, lenMembers)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
@@ -1409,22 +1393,24 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]api.
 		"Cluster",
 		method,
 		struct{}{},
-		rpcutil.CopyPinInfoSerialSliceToIfaces(replies),
+		rpcutil.CopyPinInfoSliceToIfaces(replies),
 	)
 
-	mergePins := func(pins []api.PinInfoSerial) {
-		for _, pserial := range pins {
-			p := pserial.ToPinInfo()
-			item, ok := fullMap[pserial.Cid]
+	mergePins := func(pins []*api.PinInfo) {
+		for _, p := range pins {
+			if p == nil {
+				continue
+			}
+			item, ok := fullMap[p.Cid]
 			if !ok {
-				fullMap[pserial.Cid] = api.GlobalPinInfo{
+				fullMap[p.Cid] = &api.GlobalPinInfo{
 					Cid: p.Cid,
-					PeerMap: map[peer.ID]api.PinInfo{
-						p.Peer: p,
+					PeerMap: map[string]*api.PinInfo{
+						peer.IDB58Encode(p.Peer): p,
 					},
 				}
 			} else {
-				item.PeerMap[p.Peer] = p
+				item.PeerMap[peer.IDB58Encode(p.Peer)] = p
 			}
 		}
 	}
@@ -1441,9 +1427,8 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]api.
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
-		for cidStr := range fullMap {
-			c, _ := cid.Decode(cidStr)
-			fullMap[cidStr].PeerMap[p] = api.PinInfo{
+		for c := range fullMap {
+			fullMap[c].PeerMap[peer.IDB58Encode(p)] = &api.PinInfo{
 				Cid:    c,
 				Peer:   p,
 				Status: api.TrackerStatusClusterError,
@@ -1460,25 +1445,25 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]api.
 	return infos, nil
 }
 
-func (c *Cluster) getIDForPeer(ctx context.Context, pid peer.ID) (api.ID, error) {
+func (c *Cluster) getIDForPeer(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/getIDForPeer")
 	defer span.End()
 
-	idSerial := api.ID{ID: pid}.ToSerial()
+	var id api.ID
 	err := c.rpcClient.CallContext(
 		ctx,
 		pid,
 		"Cluster",
 		"ID",
 		struct{}{},
-		&idSerial,
+		&id,
 	)
-	id := idSerial.ToID()
 	if err != nil {
 		logger.Error(err)
+		id.ID = pid
 		id.Error = err.Error()
 	}
-	return id, err
+	return &id, err
 }
 
 // cidsFromMetaPin expands a meta-pin and returns a list of Cids that
@@ -1506,8 +1491,11 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 		return list, nil
 	}
 
-	list = append([]cid.Cid{pin.Reference}, list...)
-	clusterDagPin, err := c.PinGet(ctx, pin.Reference)
+	if pin.Reference == nil {
+		return nil, errors.New("metaPin.Reference is unset")
+	}
+	list = append([]cid.Cid{*pin.Reference}, list...)
+	clusterDagPin, err := c.PinGet(ctx, *pin.Reference)
 	if err != nil {
 		return list, fmt.Errorf("could not get clusterDAG pin from state. Malformed pin?: %s", err)
 	}

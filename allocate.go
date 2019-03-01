@@ -7,6 +7,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
+
 	"go.opencensus.io/trace"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -59,13 +60,16 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, rplMin, rplMax int
 	}
 
 	// Figure out who is holding the CID
-	currentPin, _ := c.PinGet(ctx, hash)
-	currentAllocs := currentPin.Allocations
+	var currentAllocs []peer.ID
+	currentPin, err := c.PinGet(ctx, hash)
+	if err == nil {
+		currentAllocs = currentPin.Allocations
+	}
 	metrics := c.monitor.LatestMetrics(ctx, c.informer.Name())
 
-	currentMetrics := make(map[peer.ID]api.Metric)
-	candidatesMetrics := make(map[peer.ID]api.Metric)
-	priorityMetrics := make(map[peer.ID]api.Metric)
+	currentMetrics := make(map[peer.ID]*api.Metric)
+	candidatesMetrics := make(map[peer.ID]*api.Metric)
+	priorityMetrics := make(map[peer.ID]*api.Metric)
 
 	// Divide metrics between current and candidates.
 	// All metrics in metrics are valid (at least the
@@ -123,9 +127,9 @@ func (c *Cluster) obtainAllocations(
 	ctx context.Context,
 	hash cid.Cid,
 	rplMin, rplMax int,
-	currentValidMetrics map[peer.ID]api.Metric,
-	candidatesMetrics map[peer.ID]api.Metric,
-	priorityMetrics map[peer.ID]api.Metric,
+	currentValidMetrics map[peer.ID]*api.Metric,
+	candidatesMetrics map[peer.ID]*api.Metric,
+	priorityMetrics map[peer.ID]*api.Metric,
 ) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/obtainAllocations")
 	defer span.End()

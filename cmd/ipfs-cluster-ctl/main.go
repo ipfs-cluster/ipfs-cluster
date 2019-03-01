@@ -417,13 +417,13 @@ cluster "pin add".
 				go func() {
 					defer wg.Done()
 
-					var buffered []addedOutputQuiet
-					var lastBuf = make([]addedOutputQuiet, 1, 1)
+					var buffered []*addedOutputQuiet
+					var lastBuf = make([]*addedOutputQuiet, 1, 1)
 					var qq = c.Bool("quieter")
 					var q = c.Bool("quiet") || qq
 					var bufferResults = c.Bool("no-stream")
 					for v := range out {
-						added := addedOutputQuiet{v, q}
+						added := &addedOutputQuiet{v, q}
 						lastBuf[0] = added
 						if bufferResults {
 							buffered = append(buffered, added)
@@ -940,11 +940,11 @@ func parseCredentials(userInput string) (string, string) {
 func handlePinResponseFormatFlags(
 	ctx context.Context,
 	c *cli.Context,
-	pin api.Pin,
+	pin *api.Pin,
 	target api.TrackerStatus,
 ) {
 
-	var status api.GlobalPinInfo
+	var status *api.GlobalPinInfo
 	var cerr error
 
 	if c.Bool("wait") {
@@ -957,7 +957,7 @@ func handlePinResponseFormatFlags(
 		return
 	}
 
-	if status.Cid == cid.Undef { // no status from "wait"
+	if status == nil { // no status from "wait"
 		time.Sleep(time.Second)
 		status, cerr = globalClient.Status(ctx, pin.Cid, false)
 	}
@@ -968,7 +968,7 @@ func waitFor(
 	ci cid.Cid,
 	target api.TrackerStatus,
 	timeout time.Duration,
-) (api.GlobalPinInfo, error) {
+) (*api.GlobalPinInfo, error) {
 
 	ctx := context.Background()
 

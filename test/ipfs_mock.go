@@ -139,7 +139,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	switch endp {
 	case "id":
 		resp := mockIDResp{
-			ID: TestPeerID1.Pretty(),
+			ID: PeerID1.Pretty(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
 			},
@@ -151,7 +151,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			goto ERROR
 		}
-		if arg == ErrorCid {
+		if arg == ErrorCid.String() {
 			goto ERROR
 		}
 		c, err := cid.Decode(arg)
@@ -226,10 +226,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(j)
 	case "swarm/peers":
 		peer1 := mockIpfsPeer{
-			Peer: TestPeerID4.Pretty(),
+			Peer: PeerID4.Pretty(),
 		}
 		peer2 := mockIpfsPeer{
-			Peer: TestPeerID5.Pretty(),
+			Peer: PeerID5.Pretty(),
 		}
 		resp := mockSwarmPeersResp{
 			Peers: []mockIpfsPeer{peer1, peer2},
@@ -303,7 +303,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "resolve":
-		w.Write([]byte("{\"Path\":\"" + "/ipfs/" + TestCidResolved + "\"}"))
+		w.Write([]byte("{\"Path\":\"" + "/ipfs/" + CidResolved.String() + "\"}"))
 	case "config/show":
 		resp := mockConfigResp{
 			Datastore: struct {

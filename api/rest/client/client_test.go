@@ -289,7 +289,7 @@ func TestIPFS(t *testing.T) {
 	dc := c.(*defaultClient)
 	ipfs := dc.IPFS(ctx)
 
-	err = ipfs.Pin(test.TestCid1)
+	err = ipfs.Pin(test.Cid1.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,7 +299,7 @@ func TestIPFS(t *testing.T) {
 		t.Error(err)
 	}
 
-	pin, ok := pins[test.TestCid1]
+	pin, ok := pins[test.Cid1.String()]
 	if !ok {
 		t.Error("pin should be in pin list")
 	}

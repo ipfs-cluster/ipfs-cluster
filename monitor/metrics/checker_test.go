@@ -15,9 +15,9 @@ func TestChecker(t *testing.T) {
 	metrics := NewStore()
 	checker := NewChecker(metrics)
 
-	metr := api.Metric{
+	metr := &api.Metric{
 		Name:  "test",
-		Peer:  test.TestPeerID1,
+		Peer:  test.PeerID1,
 		Value: "1",
 		Valid: true,
 	}
@@ -25,7 +25,7 @@ func TestChecker(t *testing.T) {
 
 	metrics.Add(metr)
 
-	checker.CheckPeers([]peer.ID{test.TestPeerID1})
+	checker.CheckPeers([]peer.ID{test.PeerID1})
 	select {
 	case <-checker.Alerts():
 		t.Error("there should not be an alert yet")
@@ -33,7 +33,7 @@ func TestChecker(t *testing.T) {
 	}
 
 	time.Sleep(3 * time.Second)
-	err := checker.CheckPeers([]peer.ID{test.TestPeerID1})
+	err := checker.CheckPeers([]peer.ID{test.PeerID1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestChecker(t *testing.T) {
 		t.Error("an alert should have been triggered")
 	}
 
-	checker.CheckPeers([]peer.ID{test.TestPeerID2})
+	checker.CheckPeers([]peer.ID{test.PeerID2})
 	select {
 	case <-checker.Alerts():
 		t.Error("there should not be alerts for different peer")
@@ -59,9 +59,9 @@ func TestCheckerWatch(t *testing.T) {
 	metrics := NewStore()
 	checker := NewChecker(metrics)
 
-	metr := api.Metric{
+	metr := &api.Metric{
 		Name:  "test",
-		Peer:  test.TestPeerID1,
+		Peer:  test.PeerID1,
 		Value: "1",
 		Valid: true,
 	}
@@ -69,7 +69,7 @@ func TestCheckerWatch(t *testing.T) {
 	metrics.Add(metr)
 
 	peersF := func(context.Context) ([]peer.ID, error) {
-		return []peer.ID{test.TestPeerID1}, nil
+		return []peer.ID{test.PeerID1}, nil
 	}
 
 	go checker.Watch(ctx, peersF, 200*time.Millisecond)

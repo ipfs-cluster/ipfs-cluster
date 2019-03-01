@@ -12,8 +12,8 @@ import (
 )
 
 type testcase struct {
-	candidates map[peer.ID]api.Metric
-	current    map[peer.ID]api.Metric
+	candidates map[peer.ID]*api.Metric
+	current    map[peer.ID]*api.Metric
 	expected   []peer.ID
 }
 
@@ -29,7 +29,7 @@ var inAMinute = time.Now().Add(time.Minute).UnixNano()
 
 var testCases = []testcase{
 	{ // regular sort
-		candidates: map[peer.ID]api.Metric{
+		candidates: map[peer.ID]*api.Metric{
 			peer0: {
 				Name:   "some-metric",
 				Value:  "5",
@@ -55,11 +55,11 @@ var testCases = []testcase{
 				Valid:  true,
 			},
 		},
-		current:  map[peer.ID]api.Metric{},
+		current:  map[peer.ID]*api.Metric{},
 		expected: []peer.ID{peer1, peer3, peer2, peer0},
 	},
 	{ // filter invalid
-		candidates: map[peer.ID]api.Metric{
+		candidates: map[peer.ID]*api.Metric{
 			peer0: {
 				Name:   "some-metric",
 				Value:  "1",
@@ -73,11 +73,11 @@ var testCases = []testcase{
 				Valid:  true,
 			},
 		},
-		current:  map[peer.ID]api.Metric{},
+		current:  map[peer.ID]*api.Metric{},
 		expected: []peer.ID{peer1},
 	},
 	{ // filter bad value
-		candidates: map[peer.ID]api.Metric{
+		candidates: map[peer.ID]*api.Metric{
 			peer0: {
 				Name:   "some-metric",
 				Value:  "abc",
@@ -91,7 +91,7 @@ var testCases = []testcase{
 				Valid:  true,
 			},
 		},
-		current:  map[peer.ID]api.Metric{},
+		current:  map[peer.ID]*api.Metric{},
 		expected: []peer.ID{peer1},
 	},
 }

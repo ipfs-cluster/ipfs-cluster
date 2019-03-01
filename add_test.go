@@ -55,7 +55,6 @@ func TestAddPeerDown(t *testing.T) {
 	defer shutdownClusters(t, clusters, mock)
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
-
 	err := clusters[0].Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +83,6 @@ func TestAddPeerDown(t *testing.T) {
 			if c.id == clusters[0].id {
 				return
 			}
-
 			pin := c.StatusLocal(ctx, ci)
 			if pin.Error != "" {
 				t.Error(pin.Error)
