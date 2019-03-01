@@ -70,4 +70,6 @@ Small note: If editing the README, please conform to the [standard-readme](https
 
 ## License
 
-MIT © Protocol Labs, Inc.
+This library is dual-licensed under Apache 2.0 and MIT terms.
+
+© 2019. Protocol Labs, Inc.
