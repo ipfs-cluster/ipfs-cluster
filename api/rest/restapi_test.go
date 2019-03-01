@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	cid "github.com/ipfs/go-cid"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -589,10 +591,11 @@ func TestAPIPinEndpoint(t *testing.T) {
 }
 
 type pathCase struct {
-	path    string
-	opts    api.PinOptions
-	wantErr bool
-	code    int
+	path        string
+	opts        api.PinOptions
+	wantErr     bool
+	code        int
+	expectedCid string
 }
 
 func (p *pathCase) WithQuery() string {
@@ -612,18 +615,21 @@ var pathTestCases = []pathCase{
 		testPinOpts,
 		false,
 		http.StatusOK,
+		"QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY",
 	},
 	{
 		"/ipfs/QmbUNM297ZwxB8CfFAznK7H9YMesDoY6Tt5bPgt5MSCB2u/im.gif",
 		testPinOpts,
 		false,
 		http.StatusOK,
+		test.CidResolved.String(),
 	},
 	{
 		"/ipfs/invalidhash",
 		testPinOpts,
 		true,
 		http.StatusBadRequest,
+		"",
 	},
 	// TODO: Test StatusNotFound and a case with trailing slash with paths
 	// test.PathIPNS2, test.PathIPLD2, test.InvalidPath1
@@ -634,25 +640,33 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown(ctx)
 
-	resultantPin := api.PinWithOpts(
-		test.CidResolved,
-		testPinOpts,
-	)
-
 	tf := func(t *testing.T, url urlF) {
 		for _, testCase := range pathTestCases {
+			c, _ := cid.Decode(testCase.expectedCid)
+			resultantPin := api.PinWithOpts(
+				c,
+				testPinOpts,
+			)
+
 			if testCase.wantErr {
 				errResp := api.Error{}
 				makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &errResp)
 				if errResp.Code != testCase.code {
-					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
+					t.Errorf(
+						"status code: expected: %d, got: %d, path: %s\n",
+						testCase.code,
+						errResp.Code,
+						testCase.path,
+					)
 				}
 				continue
 			}
 			pin := api.Pin{}
 			makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &pin)
 			if !pin.Equals(resultantPin) {
-				t.Errorf("expected different pin,\n expected: %+v,\n actual: %+v,\n path: %s\n", resultantPin, pin, testCase.path)
+				t.Errorf("pin: expected: %+v", resultantPin)
+				t.Errorf("pin: got: %+v", pin)
+				t.Errorf("path: %s", testCase.path)
 			}
 		}
 	}
@@ -695,14 +709,24 @@ func TestAPIUnpinEndpointWithPath(t *testing.T) {
 				errResp := api.Error{}
 				makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &errResp)
 				if errResp.Code != testCase.code {
-					t.Errorf("expected different status code, expected: %d, actual: %d, path: %s\n", testCase.code, errResp.Code, testCase.path)
+					t.Errorf(
+						"status code: expected: %d, got: %d, path: %s\n",
+						testCase.code,
+						errResp.Code,
+						testCase.path,
+					)
 				}
 				continue
 			}
 			pin := api.Pin{}
 			makeDelete(t, rest, url(rest)+"/pins"+testCase.path, &pin)
-			if !pin.Cid.Equals(test.CidResolved) {
-				t.Errorf("expected different cid, expected: %s, actual: %s, path: %s\n", test.CidResolved, pin.Cid, testCase.path)
+			if pin.Cid.String() != testCase.expectedCid {
+				t.Errorf(
+					"cid: expected: %s, got: %s, path: %s\n",
+					test.CidResolved,
+					pin.Cid,
+					testCase.path,
+				)
 			}
 		}
 	}

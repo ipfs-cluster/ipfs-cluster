@@ -728,7 +728,7 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"UnpinPath",
-			pinpath.Path,
+			pinpath,
 			&pin,
 		)
 		api.sendResponse(w, http.StatusOK, err, pin)

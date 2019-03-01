@@ -199,7 +199,7 @@ func (st *mapStateV5) unmarshal(r io.Reader) error {
 func (st *mapStateV5) next() migrateable {
 	v6 := NewMapState()
 	for k, v := range st.PinMap {
-		logger.Infof("migrating", k, v.Cid)
+		logger.Infof("migrating %s", k)
 		// we need to convert because we added codec struct fields
 		// and thus serialization is not the same.
 		p := &api.Pin{}
