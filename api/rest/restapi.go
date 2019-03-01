@@ -610,10 +610,6 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func init() {
-	//	logging.SetLogLevel("*", "debug")
-}
-
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
 	var peers []*types.ID
 	err := api.rpcClient.CallContext(
