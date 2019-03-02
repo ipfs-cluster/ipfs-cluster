@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1052,18 +1051,18 @@ type httpTestcase struct {
 
 func httpStatusCodeChecker(resp *http.Response, expectedStatus int) error {
 	if resp.StatusCode != expectedStatus {
-		return errors.New(fmt.Sprintf("Bad HTTP status code: %d", resp.StatusCode))
+		return fmt.Errorf("Bad HTTP status code: %d", resp.StatusCode)
 	}
 	return nil
 }
 
-func assertHttpStatusIsUnauthoriazed(resp *http.Response) error {
+func assertHTTPStatusIsUnauthoriazed(resp *http.Response) error {
 	return httpStatusCodeChecker(resp, http.StatusUnauthorized)
 }
 
-func assertHttpStatusIsNotUnauthoriazed(resp *http.Response) error {
-	if assertHttpStatusIsUnauthoriazed(resp) == nil {
-		return errors.New(fmt.Sprintf("Unexpected HTTP status code: %d", http.StatusUnauthorized))
+func assertHTTPStatusIsNotUnauthoriazed(resp *http.Response) error {
+	if assertHTTPStatusIsUnauthoriazed(resp) == nil {
+		return fmt.Errorf("Unexpected HTTP status code: %d", http.StatusUnauthorized)
 	}
 	return nil
 }
@@ -1116,116 +1115,116 @@ func TestBasicAuth(t *testing.T) {
 		httpTestcase{
 			method:  "",
 			path:    "",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "POST",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "DELETE",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "HEAD",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "OPTIONS",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "PUT",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "TRACE",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "CONNECT",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "BAR",
 			path:    "/foo",
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(invalidUserName, invalidUserPassword),
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, invalidUserPassword),
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(invalidUserName, validUserPassword),
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(adminUserName, validUserPassword),
-			checker: assertHttpStatusIsUnauthoriazed,
+			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: assertHttpStatusIsNotUnauthoriazed,
+			checker: assertHTTPStatusIsNotUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "POST",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: assertHttpStatusIsNotUnauthoriazed,
+			checker: assertHTTPStatusIsNotUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "DELETE",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: assertHttpStatusIsNotUnauthoriazed,
+			checker: assertHTTPStatusIsNotUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "BAR",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: assertHttpStatusIsNotUnauthoriazed,
+			checker: assertHTTPStatusIsNotUnauthoriazed,
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/id",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: assertHttpStatusIsNotUnauthoriazed,
+			checker: assertHTTPStatusIsNotUnauthoriazed,
 		},
 	} {
 		testBothEndpoints(t, tc.getTestFunction(rest))
