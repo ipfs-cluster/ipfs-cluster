@@ -1051,7 +1051,7 @@ type httpTestcase struct {
 
 func httpStatusCodeChecker(resp *http.Response, expectedStatus int) error {
 	if resp.StatusCode != expectedStatus {
-		return fmt.Errorf("Bad HTTP status code: %d", resp.StatusCode)
+		return fmt.Errorf("bad HTTP status code: %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -1062,7 +1062,7 @@ func assertHTTPStatusIsUnauthoriazed(resp *http.Response) error {
 
 func assertHTTPStatusIsNotUnauthoriazed(resp *http.Response) error {
 	if assertHTTPStatusIsUnauthoriazed(resp) == nil {
-		return fmt.Errorf("Unexpected HTTP status code: %d", http.StatusUnauthorized)
+		return fmt.Errorf("unexpected HTTP status code: %d", http.StatusUnauthorized)
 	}
 	return nil
 }
