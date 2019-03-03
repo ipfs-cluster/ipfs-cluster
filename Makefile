@@ -13,6 +13,7 @@ clean: rwundo clean_sharness
 	$(MAKE) -C cmd/ipfs-cluster-service clean
 	$(MAKE) -C cmd/ipfs-cluster-ctl clean
 	@rm -rf ./test/testingData
+	@rm -rf ./compose
 
 install: deps
 	$(MAKE) -C cmd/ipfs-cluster-service install
@@ -95,6 +96,8 @@ docker:
 
 
 docker-compose:
+	mkdir -p compose/ipfs0 compose/ipfs1 compose/cluster0 compose/cluster1
+	chmod -R 0777 compose
 	CLUSTER_SECRET=$(shell od -vN 32 -An -tx1 /dev/urandom | tr -d ' \n') docker-compose up -d
 	sleep 20
 	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2

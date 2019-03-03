@@ -49,7 +49,7 @@ test_expect_success IPFS,CLUSTER "wait for data to unpin from cluster with ctl w
     ipfs-cluster-ctl status "$cid" | grep -q -i "UNPINNED"
 '
 
-cid=(`docker exec ipfs sh -c "mkdir -p test1/test2 && touch test1/test2/test3.txt && ipfs add -qr test1"`)
+cid=(`docker exec ipfs sh -c "mkdir -p /tmp/test1/test2 && touch /tmp/test1/test2/test3.txt && ipfs add -qr /tmp/test1"`)
 
 test_expect_success IPFS,CLUSTER "pin data to cluster with ctl using ipfs paths" '
     ipfs-cluster-ctl pin add "/ipfs/${cid[2]}/test2/test3.txt" &&
