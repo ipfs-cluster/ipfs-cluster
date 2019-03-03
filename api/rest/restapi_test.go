@@ -26,12 +26,18 @@ import (
 )
 
 const (
-	SSLCertFile  = "test/server.crt"
-	SSLKeyFile   = "test/server.key"
-	clientOrigin = "myorigin"
+	SSLCertFile         = "test/server.crt"
+	SSLKeyFile          = "test/server.key"
+	clientOrigin        = "myorigin"
+	validUserName       = "validUserName"
+	validUserPassword   = "validUserPassword"
+	adminUserName       = "adminUserName"
+	adminUserPassword   = "adminUserPassword"
+	invalidUserName     = "invalidUserName"
+	invalidUserPassword = "invalidUserPassword"
 )
 
-func testAPI(t *testing.T) *API {
+func testAPIwithConfig(t *testing.T, cfg *Config, name string) *API {
 	ctx := context.Background()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	h, err := libp2p.New(ctx, libp2p.ListenAddrs(apiMAddr))
@@ -39,17 +45,11 @@ func testAPI(t *testing.T) *API {
 		t.Fatal(err)
 	}
 
-	cfg := &Config{}
-	cfg.Default()
 	cfg.HTTPListenAddr = apiMAddr
-	cfg.CORSAllowedOrigins = []string{clientOrigin}
-	cfg.CORSAllowedMethods = []string{"GET", "POST", "DELETE"}
-	//cfg.CORSAllowedHeaders = []string{"Content-Type"}
-	cfg.CORSMaxAge = 10 * time.Minute
 
 	rest, err := NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
-		t.Fatal("should be able to create a new API: ", err)
+		t.Fatalf("should be able to create a new %s API: %s", name, err)
 	}
 
 	// No keep alive for tests
@@ -59,34 +59,40 @@ func testAPI(t *testing.T) *API {
 	return rest
 }
 
-func testHTTPSAPI(t *testing.T) *API {
-	ctx := context.Background()
-	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	h, err := libp2p.New(ctx, libp2p.ListenAddrs(apiMAddr))
-	if err != nil {
-		t.Fatal(err)
-	}
+func testAPI(t *testing.T) *API {
+	cfg := &Config{}
+	cfg.Default()
+	cfg.CORSAllowedOrigins = []string{clientOrigin}
+	cfg.CORSAllowedMethods = []string{"GET", "POST", "DELETE"}
+	//cfg.CORSAllowedHeaders = []string{"Content-Type"}
+	cfg.CORSMaxAge = 10 * time.Minute
 
+	return testAPIwithConfig(t, cfg, "basic")
+}
+
+func testHTTPSAPI(t *testing.T) *API {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.pathSSLCertFile = SSLCertFile
 	cfg.pathSSLKeyFile = SSLKeyFile
+	var err error
 	cfg.TLS, err = newTLSConfig(cfg.pathSSLCertFile, cfg.pathSSLKeyFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg.HTTPListenAddr = apiMAddr
 
-	rest, err := NewAPIWithHost(ctx, cfg, h)
-	if err != nil {
-		t.Fatal("should be able to create a new https Api: ", err)
+	return testAPIwithConfig(t, cfg, "https")
+}
+
+func testAPIwithBasicAuth(t *testing.T) *API {
+	cfg := &Config{}
+	cfg.Default()
+	cfg.BasicAuthCreds = map[string]string{
+		validUserName: validUserPassword,
+		adminUserName: adminUserPassword,
 	}
 
-	// No keep alive for tests
-	rest.server.SetKeepAlivesEnabled(false)
-	rest.SetClient(test.NewMockRPCClient(t))
-
-	return rest
+	return testAPIwithConfig(t, cfg, "Basic Authentication")
 }
 
 func processResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
@@ -1028,4 +1034,198 @@ func TestCORS(t *testing.T) {
 	}
 
 	testBothEndpoints(t, tf)
+}
+
+type responseChecker func(*http.Response) error
+type requestShaper func(*http.Request) error
+
+type httpTestcase struct {
+	method  string
+	path    string
+	header  http.Header
+	body    io.ReadCloser
+	shaper  requestShaper
+	checker responseChecker
+}
+
+func httpStatusCodeChecker(resp *http.Response, expectedStatus int) error {
+	if resp.StatusCode != expectedStatus {
+		return fmt.Errorf("bad HTTP status code: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func assertHTTPStatusIsUnauthoriazed(resp *http.Response) error {
+	return httpStatusCodeChecker(resp, http.StatusUnauthorized)
+}
+
+func assertHTTPStatusIsNotUnauthoriazed(resp *http.Response) error {
+	if assertHTTPStatusIsUnauthoriazed(resp) == nil {
+		return fmt.Errorf("unexpected HTTP status code: %d", http.StatusUnauthorized)
+	}
+	return nil
+}
+
+func (tc *httpTestcase) getTestFunction(api *API) testF {
+	return func(t *testing.T, prefixMaker urlF) {
+		h := makeHost(t, api)
+		defer h.Close()
+		url := prefixMaker(api) + tc.path
+		c := httpClient(t, h, isHTTPS(url))
+		req, err := http.NewRequest(tc.method, url, tc.body)
+		if err != nil {
+			t.Fatal("Failed to assemble a HTTP request: ", err)
+		}
+		if tc.header != nil {
+			req.Header = tc.header
+		}
+		if tc.shaper != nil {
+			err := tc.shaper(req)
+			if err != nil {
+				t.Fatal("Failed to shape a HTTP request: ", err)
+			}
+		}
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal("Failed to make a HTTP request: ", err)
+		}
+		if tc.checker != nil {
+			if err := tc.checker(resp); err != nil {
+				t.Error("Assertion failed: ", err)
+			}
+		}
+	}
+}
+
+func makeBasicAuthRequestShaper(username, password string) requestShaper {
+	return func(req *http.Request) error {
+		req.SetBasicAuth(username, password)
+		return nil
+	}
+}
+
+func TestBasicAuth(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPIwithBasicAuth(t)
+	defer rest.Shutdown(ctx)
+
+	for _, tc := range []httpTestcase{
+		httpTestcase{},
+		httpTestcase{
+			method:  "",
+			path:    "",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "POST",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "DELETE",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "HEAD",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "OPTIONS",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "PUT",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "TRACE",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "CONNECT",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "BAR",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(invalidUserName, invalidUserPassword),
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(validUserName, invalidUserPassword),
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(invalidUserName, validUserPassword),
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(adminUserName, validUserPassword),
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
+			checker: assertHTTPStatusIsNotUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "POST",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
+			checker: assertHTTPStatusIsNotUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "DELETE",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
+			checker: assertHTTPStatusIsNotUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "BAR",
+			path:    "/foo",
+			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
+			checker: assertHTTPStatusIsNotUnauthoriazed,
+		},
+		httpTestcase{
+			method:  "GET",
+			path:    "/id",
+			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
+			checker: assertHTTPStatusIsNotUnauthoriazed,
+		},
+	} {
+		testBothEndpoints(t, tc.getTestFunction(rest))
+	}
 }
