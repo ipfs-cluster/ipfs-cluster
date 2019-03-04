@@ -3,16 +3,17 @@ package test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	gopath "github.com/ipfs/go-path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
-
-	"github.com/ipfs/ipfs-cluster/api"
 )
 
 // ErrBadCid is returned when using ErrorCid. Operations with that CID always
@@ -54,21 +55,32 @@ func (mock *mockService) Unpin(ctx context.Context, in *api.Pin, out *struct{}) 
 }
 
 func (mock *mockService) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
-	_, err := gopath.ParsePath(in.Path)
+	p, err := gopath.ParsePath(in.Path)
 	if err != nil {
 		return err
 	}
-	*out = *api.PinWithOpts(CidResolved, in.PinOptions)
+
+	var pin *api.Pin
+	if p.IsJustAKey() && !strings.HasPrefix(in.Path, "/ipns") {
+		c, _, err := gopath.SplitAbsPath(p)
+		if err != nil {
+			return err
+		}
+		if c.Equals(ErrorCid) {
+			return ErrBadCid
+		}
+		pin = api.PinWithOpts(c, in.PinOptions)
+	} else {
+		pin = api.PinWithOpts(CidResolved, in.PinOptions)
+	}
+
+	*out = *pin
 	return nil
 }
 
-func (mock *mockService) UnpinPath(ctx context.Context, in string, out *api.Pin) error {
-	_, err := gopath.ParsePath(in)
-	if err != nil {
-		return err
-	}
-	*out = *api.PinCid(CidResolved)
-	return nil
+func (mock *mockService) UnpinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
+	// Mock-Unpin behaves exactly pin (doing nothing).
+	return mock.PinPath(ctx, in, out)
 }
 
 func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {

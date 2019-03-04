@@ -173,34 +173,41 @@ func TestUnpin(t *testing.T) {
 }
 
 type pathCase struct {
-	path    string
-	wantErr bool
+	path        string
+	wantErr     bool
+	expectedCid string
 }
 
 var pathTestCases = []pathCase{
 	{
 		test.CidResolved.String(),
 		false,
+		test.CidResolved.String(),
 	},
 	{
 		test.PathIPFS1,
 		false,
+		"QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY",
 	},
 	{
 		test.PathIPFS2,
 		false,
+		test.CidResolved.String(),
 	},
 	{
 		test.PathIPNS1,
 		false,
+		test.CidResolved.String(),
 	},
 	{
 		test.PathIPLD1,
 		false,
+		"QmaNJ5acV31sx8jq626qTpAWW4DXKw34aGhx53dECLvXbY",
 	},
 	{
 		test.InvalidPath1,
 		true,
+		"",
 	},
 }
 
@@ -213,14 +220,16 @@ func TestPinPath(t *testing.T) {
 		ReplicationFactorMin: 6,
 		ReplicationFactorMax: 7,
 		Name:                 "hello there",
-		UserAllocations:      []string{"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt", "QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt"},
+		UserAllocations: []string{
+			"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt",
+			"QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt",
+		},
 	}
 
-	resultantPin := types.PinWithOpts(test.CidResolved, opts)
-
 	testF := func(t *testing.T, c Client) {
-
 		for _, testCase := range pathTestCases {
+			ec, _ := cid.Decode(testCase.expectedCid)
+			resultantPin := types.PinWithOpts(ec, opts)
 			p := testCase.path
 			pin, err := c.PinPath(ctx, p, opts)
 			if err != nil {
@@ -258,7 +267,7 @@ func TestUnpinPath(t *testing.T) {
 				t.Fatalf("unepected error %s: %s", p, err)
 			}
 
-			if !pin.Cid.Equals(test.CidResolved) {
+			if pin.Cid.String() != testCase.expectedCid {
 				t.Errorf("bad resolved Cid: %s, %s", p, pin.Cid)
 			}
 		}

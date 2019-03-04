@@ -55,8 +55,8 @@ func (rpcapi *RPCAPI) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin
 }
 
 // UnpinPath resolves path into a cid and runs Cluster.Unpin().
-func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in string, out *api.Pin) error {
-	pin, err := rpcapi.c.UnpinPath(ctx, in)
+func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
+	pin, err := rpcapi.c.UnpinPath(ctx, in.Path)
 	if err != nil {
 		return err
 	}

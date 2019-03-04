@@ -87,7 +87,7 @@ func TestIPFSProxyPin(t *testing.T) {
 
 	type args struct {
 		urlPath    string
-		testCid    cid.Cid
+		testCid    string
 		statusCode int
 	}
 	tests := []struct {
@@ -100,17 +100,27 @@ func TestIPFSProxyPin(t *testing.T) {
 			"pin good cid query arg",
 			args{
 				"/pin/add?arg=",
-				test.Cid1,
+				test.Cid1.String(),
 				http.StatusOK,
 			},
 			test.Cid1,
 			false,
 		},
 		{
+			"pin good path query arg",
+			args{
+				"/pin/add?arg=",
+				test.PathIPFS2,
+				http.StatusOK,
+			},
+			test.CidResolved,
+			false,
+		},
+		{
 			"pin good cid url arg",
 			args{
 				"/pin/add/",
-				test.Cid1,
+				test.Cid1.String(),
 				http.StatusOK,
 			},
 			test.Cid1,
@@ -120,7 +130,7 @@ func TestIPFSProxyPin(t *testing.T) {
 			"pin bad cid query arg",
 			args{
 				"/pin/add?arg=",
-				test.ErrorCid,
+				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
 			cid.Undef,
@@ -130,7 +140,7 @@ func TestIPFSProxyPin(t *testing.T) {
 			"pin bad cid url arg",
 			args{
 				"/pin/add/",
-				test.ErrorCid,
+				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
 			cid.Undef,
@@ -195,7 +205,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 
 	type args struct {
 		urlPath    string
-		testCid    cid.Cid
+		testCid    string
 		statusCode int
 	}
 	tests := []struct {
@@ -208,17 +218,27 @@ func TestIPFSProxyUnpin(t *testing.T) {
 			"unpin good cid query arg",
 			args{
 				"/pin/rm?arg=",
-				test.Cid1,
+				test.Cid1.String(),
 				http.StatusOK,
 			},
 			test.Cid1,
 			false,
 		},
 		{
+			"unpin good path query arg",
+			args{
+				"/pin/rm?arg=",
+				test.PathIPFS2,
+				http.StatusOK,
+			},
+			test.CidResolved,
+			false,
+		},
+		{
 			"unpin good cid url arg",
 			args{
 				"/pin/rm/",
-				test.Cid1,
+				test.Cid1.String(),
 				http.StatusOK,
 			},
 			test.Cid1,
@@ -228,7 +248,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 			"unpin bad cid query arg",
 			args{
 				"/pin/rm?arg=",
-				test.ErrorCid,
+				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
 			cid.Undef,
@@ -238,7 +258,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 			"unpin bad cid url arg",
 			args{
 				"/pin/rm/",
-				test.ErrorCid,
+				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
 			cid.Undef,

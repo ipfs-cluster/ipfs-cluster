@@ -13,10 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
@@ -24,10 +20,15 @@ import (
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	path "github.com/ipfs/go-path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p-peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
+
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/trace"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module
@@ -294,18 +295,20 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	proxy.setHeaders(w.Header(), r)
 
 	arg := r.URL.Query().Get("arg")
-	c, err := cid.Decode(arg)
+	p, err := path.ParsePath(arg)
 	if err != nil {
-		ipfsErrorResponder(w, "Error parsing CID: "+err.Error())
+		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error())
 		return
 	}
 
+	pinPath := &api.PinPath{Path: p.String()}
+	var pin api.Pin
 	err = proxy.rpcClient.Call(
 		"",
 		"Cluster",
 		op,
-		api.PinCid(c),
-		&struct{}{},
+		pinPath,
+		&pin,
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error())
@@ -313,7 +316,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	}
 
 	res := ipfsPinOpResp{
-		Pins: []string{arg},
+		Pins: []string{pin.Cid.String()},
 	}
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
@@ -322,11 +325,11 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 }
 
 func (proxy *Server) pinHandler(w http.ResponseWriter, r *http.Request) {
-	proxy.pinOpHandler("Pin", w, r)
+	proxy.pinOpHandler("PinPath", w, r)
 }
 
 func (proxy *Server) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	proxy.pinOpHandler("Unpin", w, r)
+	proxy.pinOpHandler("UnpinPath", w, r)
 }
 
 func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
