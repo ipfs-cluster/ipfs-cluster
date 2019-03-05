@@ -258,8 +258,12 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	jcfg.NodeHTTPS = cfg.NodeHTTPS
 
 	jcfg.ExtractHeadersExtra = cfg.ExtractHeadersExtra
-	jcfg.ExtractHeadersPath = cfg.ExtractHeadersPath
-	jcfg.ExtractHeadersTTL = cfg.ExtractHeadersTTL.String()
+	if cfg.ExtractHeadersPath != DefaultExtractHeadersPath {
+		jcfg.ExtractHeadersPath = cfg.ExtractHeadersPath
+	}
+	if ttl := cfg.ExtractHeadersTTL; ttl != DefaultExtractHeadersTTL {
+		jcfg.ExtractHeadersTTL = ttl.String()
+	}
 
 	return
 }
