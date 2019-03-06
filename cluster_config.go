@@ -36,6 +36,7 @@ const (
 	DefaultLeaveOnShutdown     = false
 	DefaultDisableRepinning    = false
 	DefaultPeerstoreFile       = "peerstore"
+	DefaultPermissionPolicy    = "raft"
 )
 
 // Config is the configuration object containing customizable variables to
@@ -123,6 +124,12 @@ type Config struct {
 
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
+
+	// PermissionPolicy specifies RPC permissions given to peers by this peer.
+	// It could be `raft`, `crdts_strict`, `crdts_soft`. It would be
+	// autoselected based on the components used, but could be modified
+	// by the peer if it desires to do so.
+	PermissionPolicy string
 }
 
 // configJSON represents a Cluster configuration as it will look when it is
@@ -143,6 +150,7 @@ type configJSON struct {
 	PeerWatchInterval    string `json:"peer_watch_interval"`
 	DisableRepinning     bool   `json:"disable_repinning"`
 	PeerstoreFile        string `json:"peerstore_file,omitempty"`
+	PermissionPolicy     string `json:"permission_policy,omitempty"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -234,6 +242,10 @@ func (cfg *Config) Validate() error {
 		return errors.New("cluster.peer_watch_interval is invalid")
 	}
 
+	if cfg.PermissionPolicy == "" {
+		return errors.New("cluster.permission_policy is not set")
+	}
+
 	rfMax := cfg.ReplicationFactorMax
 	rfMin := cfg.ReplicationFactorMin
 
@@ -283,6 +295,7 @@ func (cfg *Config) setDefaults() {
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.PermissionPolicy = DefaultPermissionPolicy
 }
 
 // LoadJSON receives a raw json-formatted configuration and
@@ -344,6 +357,8 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
 	config.SetIfNotDefault(rplMax, &cfg.ReplicationFactorMax)
 
+	config.SetIfNotDefault(jcfg.PermissionPolicy, &cfg.PermissionPolicy)
+
 	err = config.ParseDurations("cluster",
 		&config.DurationOpt{Duration: jcfg.StateSyncInterval, Dst: &cfg.StateSyncInterval, Name: "state_sync_interval"},
 		&config.DurationOpt{Duration: jcfg.IPFSSyncInterval, Dst: &cfg.IPFSSyncInterval, Name: "ipfs_sync_interval"},
@@ -403,6 +418,9 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
+	if cfg.PermissionPolicy != DefaultPermissionPolicy {
+		jcfg.PermissionPolicy = cfg.PermissionPolicy
+	}
 
 	return
 }
