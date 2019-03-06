@@ -162,6 +162,9 @@ func TestDupTags(t *testing.T) {
 
 	typ = reflect.TypeOf(IPFSRepoStat{})
 	checkDupTags(t, "codec", typ, nil)
+
+	typ = reflect.TypeOf(AddedOutput{})
+	checkDupTags(t, "codec", typ, nil)
 }
 
 func TestPinOptionsQuery(t *testing.T) {
