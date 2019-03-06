@@ -447,7 +447,7 @@ func TestAPIAddFileEndpointLocal(t *testing.T) {
 		makeStreamingPost(t, rest, localURL, body, mpContentType, &resp)
 
 		// resp will contain the last object from the streaming
-		if resp.Cid != test.ShardingDirBalancedRootCID {
+		if resp.Cid.String() != test.ShardingDirBalancedRootCID {
 			t.Error("Bad Cid after adding: ", resp.Cid)
 		}
 	}
@@ -512,7 +512,7 @@ func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
 
 		makePostWithContentType(t, rest, shardURL, fullBody, mpContentType, &resp)
 		lastHash := resp[len(resp)-1]
-		if lastHash.Cid != test.ShardingDirBalancedRootCID {
+		if lastHash.Cid.String() != test.ShardingDirBalancedRootCID {
 			t.Error("Bad Cid after adding: ", lastHash.Cid)
 		}
 	}
