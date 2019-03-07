@@ -1,5 +1,125 @@
 # IPFS Cluster Changelog
 
+
+### v0.10.0
+
+#### Summary
+
+As we get ready to introduce a new CRDT-based "consensus" component to replace
+Raft, IPFS Cluster 0.10.0 prepares the ground with substancial under-the-hood
+changes. many performance improvements and a few very useful features.
+
+First of all, this release **requires** users to run `state upgrade` (or start
+their daemons with `ipfs-cluster-service daemon --upgrade`). This is the last
+upgrade in this fashion as we turn to go-datastore-based storage. The next
+release of IPFS Cluster will not understand or be able to upgrade anything
+below 0.10.0.
+
+Secondly, we have made some changes to internal types that should greatly
+improve performance a lot, particularly calls involving large collections of
+items (`pin ls` or `status`). There are also changes on how the state is
+serialized, avoiding unnecessary in-memory copies. We have also upgraded the
+dependency stack, incorporating many fixes from libp2p.
+
+Thirdly, our new great features:
+
+* `ipfs-cluster-ctl pin add/rm` now supports IPFS paths (`/ipfs/Qmxx.../...`,
+  `/ipns/Qmxx.../...`, `/ipld/Qm.../...`) which are resolved automatically
+  before pinning.
+* All our configuration values can now be set via environment variables, and
+these will be reflected when initializing a new configuration file.
+* Pins can now specify a list of "priority allocations". This allows to pin
+items to specific Cluster peers, overriding the default allocation policy.
+* Finally, the REST API supports adding custom metadata entries as `key=value`
+  (we will soon add support in `ipfs-cluster-ctl`). Metadata can be added as
+  query arguments to the Pin or PinPath endpoints: `POST
+  /pins/<cid-or-path>?meta-key1=value1&meta-key2=value2...`
+
+Note that on this release we have also removed a lot of backwards-compatiblity
+code for things older than version 0.8.0, which kept things working but
+printed respective warnings. If you're upgrading from an old release, consider
+comparing your configuration with the new default one.
+
+
+#### List of changes
+
+##### Features
+
+  * Add full support for environment variables in configurations and initialization | [ipfs/ipfs-cluster#656](https://github.com/ipfs/ipfs-cluster/issues/656) | [ipfs/ipfs-cluster#663](https://github.com/ipfs/ipfs-cluster/issues/663) | [ipfs/ipfs-cluster#667](https://github.com/ipfs/ipfs-cluster/issues/667)
+  * Switch to codecov | [ipfs/ipfs-cluster#683](https://github.com/ipfs/ipfs-cluster/issues/683)
+  * Add auto-resolving IPFS paths | [ipfs/ipfs-cluster#450](https://github.com/ipfs/ipfs-cluster/issues/450) | [ipfs/ipfs-cluster#634](https://github.com/ipfs/ipfs-cluster/issues/634)
+  * Support user-defined allocations | [ipfs/ipfs-cluster#646](https://github.com/ipfs/ipfs-cluster/issues/646) | [ipfs/ipfs-cluster#647](https://github.com/ipfs/ipfs-cluster/issues/647)
+  * Support user-defined metadata in pin objects | [ipfs/ipfs-cluster#681](https://github.com/ipfs/ipfs-cluster/issues/681)
+  * Make normal types serializable and remove `*Serial` types | [ipfs/ipfs-cluster#654](https://github.com/ipfs/ipfs-cluster/issues/654) | [ipfs/ipfs-cluster#688](https://github.com/ipfs/ipfs-cluster/issues/688) | [ipfs/ipfs-cluster#700](https://github.com/ipfs/ipfs-cluster/issues/700)
+  * Support IPFS paths in the IPFS proxy | [ipfs/ipfs-cluster#690](https://github.com/ipfs/ipfs-cluster/issues/690)
+  * Use go-datastore as backend for the cluster state | [ipfs/ipfs-cluster#655](https://github.com/ipfs/ipfs-cluster/issues/655)
+  * Upgrade dependencies | [ipfs/ipfs-cluster#675](https://github.com/ipfs/ipfs-cluster/issues/675) | [ipfs/ipfs-cluster#679](https://github.com/ipfs/ipfs-cluster/issues/679) | [ipfs/ipfs-cluster#686](https://github.com/ipfs/ipfs-cluster/issues/686) | [ipfs/ipfs-cluster#687](https://github.com/ipfs/ipfs-cluster/issues/687)
+  * Adopt MIT+Apache 2 License (no more sign-off required) | [ipfs/ipfs-cluster#692](https://github.com/ipfs/ipfs-cluster/issues/692)
+  * Add codecov configurtion file | [ipfs/ipfs-cluster#693](https://github.com/ipfs/ipfs-cluster/issues/693)
+  * Additional tests for basic auth | [ipfs/ipfs-cluster#645](https://github.com/ipfs/ipfs-cluster/issues/645) | [ipfs/ipfs-cluster#694](https://github.com/ipfs/ipfs-cluster/issues/694)
+
+##### Bug fixes
+
+  * Fix docker compose tests | [ipfs/ipfs-cluster#696](https://github.com/ipfs/ipfs-cluster/issues/696)
+  * Hide `ipfsproxy.extract_headers_ttl` and `ipfsproxy.extract_headers_path` options by default | [ipfs/ipfs-cluster#699](https://github.com/ipfs/ipfs-cluster/issues/699)
+
+#### Upgrading notices
+
+This release needs an state upgrade before starting the Cluster daemon. Run `ipfs-cluster-service state upgrade` or run it as `ipfs-cluster-service daemon --upgrade`. We recommend backing up the `~/.ipfs-cluster` folder or exporting the pinset with `ipfs-cluster-service state export`.
+
+##### Configuration changes
+
+Configurations now respects environment variables for all sections. They are
+in the form:
+
+`CLUSTER_COMPONENTNAME_KEYNAMEWITHOUTSPACES=value`
+
+Environment variables will override `service.json` configuration options when
+defined and the Cluster peer is started. `ipfs-cluster-service init` will
+reflect the value of any existing environment variables in the new
+`service.json` file.
+
+##### REST API
+
+The main breaking change to the REST API corresponds to the JSON
+representation of CIDs in response objects:
+
+* Before: `"cid": "Qm...."`
+* Now: `"cid": { "/": "Qm...."}`
+
+The new CID encoding is the default as defined by the `cid`
+library. Unfortunately, there is no good solution to keep the previous
+representation without copying all the objects (an innefficient technique we
+just removed). The new CID encoding is otherwise aligned with the rest of the
+stack.
+
+The API also gets two new "Path" endpoints:
+
+* `POST /pins/<ipfs|ipns|ipld>/<path>/...` and
+* `DELETE /pins/<ipfs|ipns|ipld>/<path>/...`
+
+Thus, it is equivalent to pin a CID with `POST /pins/<cid>` (as before) or
+with `POST /pins/ipfs/<cid>`.
+
+The calls will however fail when a non-compliant IPFS path is provided: `POST
+/pins/<cid>/my/path` will fail because all paths must start with the `/ipfs`,
+`/ipns` or `/ipld` components.
+
+##### Go APIs
+
+This release introduces lots of changes to the Go APIs, including the Go REST
+API client, as we have started returning pointers to objects rather than the
+objects directly. The `Pin` will now take `api.PinOptions` instead of
+different arguments corresponding to the options. It is aligned with the new
+`PinPath` and `UnpinPath`.
+
+##### Other
+
+As pointed above, 0.10.0's state migration is a required step to be able to
+use future version of IPFS Cluster.
+
+---
+
 ### v0.9.0 - 2019-02-18
 
 #### Summary
