@@ -393,7 +393,7 @@ func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	}
 
 	out <- &api.AddedOutput{
-		Cid:  dn.Cid().String(),
+		Cid:  dn.Cid(),
 		Name: name,
 		Size: s,
 	}

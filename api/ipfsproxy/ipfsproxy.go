@@ -419,7 +419,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	outputTransform := func(in *api.AddedOutput) interface{} {
 		r := &ipfsAddResp{
 			Name:  in.Name,
-			Hash:  in.Cid,
+			Hash:  in.Cid.String(),
 			Bytes: int64(in.Bytes),
 		}
 		if in.Size != 0 {
