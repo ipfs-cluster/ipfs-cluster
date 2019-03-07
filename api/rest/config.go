@@ -23,6 +23,8 @@ import (
 const configKey = "restapi"
 const envConfigKey = "cluster_restapi"
 
+const minMaxHeaderBytes = 4096
+
 // These are the default values for Config
 const (
 	DefaultHTTPListenAddr    = "/ip4/127.0.0.1/tcp/9094"
@@ -30,6 +32,7 @@ const (
 	DefaultReadHeaderTimeout = 5 * time.Second
 	DefaultWriteTimeout      = 0
 	DefaultIdleTimeout       = 120 * time.Second
+	DefaultMaxHeaderBytes    = minMaxHeaderBytes
 )
 
 // These are the default values for Config.
@@ -89,6 +92,10 @@ type Config struct {
 	// kept idle before being reused
 	IdleTimeout time.Duration
 
+	// Maximum cumulative size of HTTP request headers in bytes
+	// accepted by the server
+	MaxHeaderBytes int
+
 	// Listen address for the Libp2p REST API endpoint.
 	Libp2pListenAddr ma.Multiaddr
 
@@ -125,6 +132,7 @@ type jsonConfig struct {
 	ReadHeaderTimeout      string `json:"read_header_timeout"`
 	WriteTimeout           string `json:"write_timeout"`
 	IdleTimeout            string `json:"idle_timeout"`
+	MaxHeaderBytes         int    `json:"max_header_bytes"`
 
 	Libp2pListenMultiaddress string `json:"libp2p_listen_multiaddress,omitempty"`
 	ID                       string `json:"id,omitempty"`
@@ -158,6 +166,7 @@ func (cfg *Config) Default() error {
 	cfg.ReadHeaderTimeout = DefaultReadHeaderTimeout
 	cfg.WriteTimeout = DefaultWriteTimeout
 	cfg.IdleTimeout = DefaultIdleTimeout
+	cfg.MaxHeaderBytes = DefaultMaxHeaderBytes
 
 	// libp2p
 	cfg.ID = ""
@@ -208,6 +217,8 @@ func (cfg *Config) Validate() error {
 		return errors.New("restapi.write_timeout is invalid")
 	case cfg.IdleTimeout < 0:
 		return errors.New("restapi.idle_timeout invalid")
+	case cfg.MaxHeaderBytes < minMaxHeaderBytes:
+		return fmt.Errorf("restapi.max_header_bytes must be not less then %d", minMaxHeaderBytes)
 	case cfg.BasicAuthCreds != nil && len(cfg.BasicAuthCreds) == 0:
 		return errors.New("restapi.basic_auth_creds should be null or have at least one entry")
 	case (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil:
@@ -278,6 +289,12 @@ func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
 	err := cfg.tlsOptions(jcfg)
 	if err != nil {
 		return err
+	}
+
+	if jcfg.MaxHeaderBytes == 0 {
+		cfg.MaxHeaderBytes = DefaultMaxHeaderBytes
+	} else {
+		cfg.MaxHeaderBytes = jcfg.MaxHeaderBytes
 	}
 
 	// CORS
@@ -390,6 +407,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		ReadHeaderTimeout:      cfg.ReadHeaderTimeout.String(),
 		WriteTimeout:           cfg.WriteTimeout.String(),
 		IdleTimeout:            cfg.IdleTimeout.String(),
+		MaxHeaderBytes:         cfg.MaxHeaderBytes,
 		BasicAuthCreds:         cfg.BasicAuthCreds,
 		Headers:                cfg.Headers,
 		CORSAllowedOrigins:     cfg.CORSAllowedOrigins,
