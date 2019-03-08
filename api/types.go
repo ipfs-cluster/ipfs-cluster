@@ -785,12 +785,15 @@ func (n *NodeWithMeta) Size() uint64 {
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
+// The TS value is a timestamp representing when a peer has received
+// the metric value.
 type Metric struct {
 	Name   string  `json:"name" codec:"n,omitempty"`
 	Peer   peer.ID `json:"peer" codec:"p,omitempty"`
 	Value  string  `json:"value" codec:"v,omitempty"`
 	Expire int64   `json:"expire" codec:"e,omitempty"`
 	Valid  bool    `json:"valid" codec:"d,omitempty"`
+	TS     int64   `json:"ts" codec:"t,omitempty"` // TS contains a UnixNano timestamp
 }
 
 // SetTTL sets Metric to expire after the given time.Duration
