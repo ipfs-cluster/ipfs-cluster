@@ -12,30 +12,31 @@ sudo: required
 cache:
   directories:
     - $GOPATH/src/gx
+    - $GOPATH/pkg/mod
+    - $HOME/.cache/go-build
 
 install: true
+
+env:
+  - GO111MODULE=on
 
 jobs:
   include:
     - stage: "Testing stage"
       name: "Tests (all modules) + Coverage"
       script:
-        - make deps
         - go test -v -coverprofile=coverage.txt -covermode=atomic ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
     - name: "Main Tests with basic monitor"
       script:
-        - make deps
         - go test -v . -monitor basic
     - name: "Main Tests with stateless tracker"
       script:
-        - make deps
         - go test -v . -tracker stateless
     - name: "Golint and go vet"
       script:
         - go get -u golang.org/x/lint/golint
-        - make deps
         - make check
         - make service
         - make ctl
@@ -47,7 +48,6 @@ jobs:
       script:
         - sudo apt-get update
         - sudo apt-get install -y jq curl
-        - make deps
         - make install
         - docker pull ipfs/go-ipfs
         - make test_sharness && make clean_sharness
