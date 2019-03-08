@@ -44,8 +44,10 @@ func getPermissionMap() map[string]permissionPolicy {
 				"Cluster.IPFSBlockPut":      true,
 				"Cluster.IPFSSwarmPeers":    true,
 
-				"Cluster.ConsensusAddPeer": true,
-				"Cluster.ConsensusRmPeer":  true,
+				"Cluster.ConsensusAddPeer":  true,
+				"Cluster.ConsensusRmPeer":   true,
+				"Cluster.ConsensusLogPin":   true,
+				"Cluster.ConsensusLogUnpin": true,
 			},
 		},
 	}
