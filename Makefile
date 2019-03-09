@@ -1,5 +1,6 @@
 deptools=deptools
 sharness = sharness/lib/sharness
+GXENABLED=no # Set to yes for Gx builds.
 gx=$(deptools)/gx
 gx-go=$(deptools)/gx-go
 
@@ -15,52 +16,59 @@ clean: rwundo clean_sharness
 	@rm -rf ./test/testingData
 	@rm -rf ./compose
 
-install: deps
+install: gx-deps
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
-docker_install: docker_deps
+docker_install: docker_gx-deps
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
-build: deps
+build: gx-deps
 	go build -ldflags "-X ipfscluster.Commit=$(shell git rev-parse HEAD)"
 	$(MAKE) -C cmd/ipfs-cluster-service build
 	$(MAKE) -C cmd/ipfs-cluster-ctl build
 
-service: deps
+service: gx-deps
 	$(MAKE) -C cmd/ipfs-cluster-service ipfs-cluster-service
-ctl: deps
+ctl: gx-deps
 	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
 
 gx-clean: clean
 	$(MAKE) -C $(deptools) gx-clean
 
 gx:
+ifeq ($(GXENABLED),yes)
 	$(MAKE) -C $(deptools) gx
+endif
 
-deps: gx
+
+gx-deps: gx
+ifeq ($(GXENABLED),yes)
 	$(gx) install --global
 	$(gx-go) rewrite
+endif
 
 # Run this target before building the docker image 
 # and then gx won't attempt to pull all deps 
 # from the network each time
-docker_deps: gx
+docker_gx-deps: gx
+ifeq ($(GXENABLED),yes)
 	$(gx) install --local
 	$(gx-go) rewrite
+endif
 
 check:
 	go vet ./...
 	golint -set_exit_status -min_confidence 0.3 ./...
 
-test: deps
+test: gx-deps
 	go test -v ./...
 
 test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
 
-test_problem: deps
+test_problem: gx-deps
 	go test -timeout 20m -loglevel "DEBUG" -v -run $(problematic_test)
 
 $(sharness):
@@ -104,6 +112,6 @@ docker-compose:
 	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
 	docker-compose down
 
-prcheck: deps check service ctl test
+prcheck: gx-deps check service ctl test
 
-.PHONY: all gx deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
+.PHONY: all gx gx-deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker

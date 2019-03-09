@@ -14,9 +14,9 @@ import (
 
 	"go.opencensus.io/exporter/jaeger"
 
+	uuid "github.com/google/uuid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
-	uuid "github.com/satori/go.uuid"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -370,7 +370,7 @@ cluster "pin add".
 				shard := c.Bool("shard")
 				name := c.String("name")
 				if shard && name == "" {
-					randName, err := uuid.NewV4()
+					randName, err := uuid.NewRandom()
 					if err != nil {
 						return err
 					}
