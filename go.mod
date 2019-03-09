@@ -6,7 +6,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.3.0
-	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.0
 	github.com/hashicorp/go-uuid v1.0.1 // indirect
 	github.com/hashicorp/raft v1.0.0
@@ -58,7 +58,6 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
 	github.com/prometheus/procfs v0.0.0-20190306233201-d0f344d83b0c // indirect
 	github.com/rs/cors v1.6.0
-	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/ugorji/go v0.0.0-20171015030454-f26fc641ec9d
 	github.com/urfave/cli v1.20.0
 	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
