@@ -159,14 +159,18 @@ func NewCluster(
 func (c *Cluster) setupRPC() error {
 	var rpcServer *rpc.Server
 
-	authorize := c.authorizeWithPolicy()
+	authr, err := newAuthorizer(raft, nil)
+	if err != nil {
+		return err
+	}
+	authorize := authr.authorizeFunc()
 	if c.config.Tracing {
 		sh := &ocgorpc.ServerHandler{}
 		rpcServer = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithServerStatsHandler(sh), rpc.WithAuthorizeFunc(authorize))
 	} else {
 		rpcServer = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithAuthorizeFunc(authorize))
 	}
-	err := rpcServer.RegisterName("Cluster", &RPCAPI{c})
+	err = rpcServer.RegisterName("Cluster", &RPCAPI{c})
 	if err != nil {
 		return err
 	}

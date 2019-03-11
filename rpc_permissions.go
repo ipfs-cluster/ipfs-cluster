@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"errors"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -11,23 +12,53 @@ const (
 	trusted
 )
 
-type permissionPolicy map[peerKind]map[string]bool
+const (
+	raft       string = "raft"
+	crdtStrict string = "crdt_strict"
+	crdtSoft   string = "crdt_soft"
+)
 
-func (c *Cluster) authorizeWithPolicy() func(pid peer.ID, svc string, method string) bool {
-	policyName := c.config.PermissionPolicy
-	policy := getPermissionPolicy(policyName)
+type permissionPolicy map[peerKind]map[string]bool
+type authorizer struct {
+	policyName string
+	policy     permissionPolicy
+	trusted    []peer.ID
+}
+
+func newAuthorizer(policyName string, trusted []peer.ID) (*authorizer, error) {
+	policy, err := getPermissionPolicy(policyName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &authorizer{
+		policyName: policyName,
+		policy:     policy,
+		trusted:    trusted,
+	}, nil
+}
+
+func (a *authorizer) authorizeFunc() func(pid peer.ID, svc string, method string) bool {
+	policyName := a.policyName
+	policy := a.policy
+
 	return func(pid peer.ID, svc string, method string) bool {
-		if policy == nil || policyName != DefaultPermissionPolicy {
-			return false
+		if policyName == raft {
+			return policy[all][svc+"."+method]
 		}
 
-		return policy[all][svc+"."+method]
+		return false
 	}
 }
 
-func getPermissionMap() map[string]permissionPolicy {
-	return map[string]permissionPolicy{
-		"raft": permissionPolicy{
+func (a *authorizer) addPeers(peer peer.ID) {
+	a.trusted = append(a.trusted, peer)
+}
+
+func getPermissionPolicy(name string) (permissionPolicy, error) {
+	switch name {
+	case raft:
+		return permissionPolicy{
 			all: {
 				"Cluster.ID":      true,
 				"Cluster.PeerAdd": true,
@@ -49,10 +80,9 @@ func getPermissionMap() map[string]permissionPolicy {
 				"Cluster.ConsensusLogPin":   true,
 				"Cluster.ConsensusLogUnpin": true,
 			},
-		},
+		}, nil
+	// TODO(Kishan): Add policies `crdt_soft` and `crdt_strict`
+	default:
+		return permissionPolicy{}, errors.New("invalid permission policy name")
 	}
-}
-
-func getPermissionPolicy(name string) permissionPolicy {
-	return getPermissionMap()[name]
 }
