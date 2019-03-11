@@ -19,16 +19,18 @@ var ErrAlertChannelFull = errors.New("alert channel is full")
 // Checker provides utilities to find expired metrics
 // for a given peerset and send alerts if it proceeds to do so.
 type Checker struct {
-	alertCh chan *api.Alert
-	metrics *Store
+	alertCh   chan *api.Alert
+	metrics   *Store
+	threshold float64
 }
 
 // NewChecker creates a Checker using the given
 // MetricsStore.
-func NewChecker(metrics *Store) *Checker {
+func NewChecker(metrics *Store, threshold float64) *Checker {
 	return &Checker{
-		alertCh: make(chan *api.Alert, AlertChannelCap),
-		metrics: metrics,
+		alertCh:   make(chan *api.Alert, AlertChannelCap),
+		metrics:   metrics,
+		threshold: threshold,
 	}
 }
 
@@ -113,4 +115,18 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 			return
 		}
 	}
+}
+
+// Failed returns if a peer has potentially failed. Peers
+// that are not present in the metrics store will return
+// as failed.
+func (mc *Checker) Failed(pid peer.ID) bool {
+	latest := mc.metrics.PeerLatest("ping", pid)
+	if latest == nil {
+		return true
+	}
+	v := time.Now().UnixNano() - latest.TS
+	dv := mc.metrics.Distribution("ping", pid)
+	phiv := phi(float64(v), dv)
+	return phiv >= mc.threshold
 }

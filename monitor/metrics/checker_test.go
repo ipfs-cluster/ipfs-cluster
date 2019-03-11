@@ -13,7 +13,7 @@ import (
 
 func TestChecker(t *testing.T) {
 	metrics := NewStore()
-	checker := NewChecker(metrics)
+	checker := NewChecker(metrics, 2.0)
 
 	metr := &api.Metric{
 		Name:  "test",
@@ -52,12 +52,12 @@ func TestChecker(t *testing.T) {
 	}
 }
 
-func TestCheckerWatch(t *testing.T) {
+func TestChecker_Watch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	metrics := NewStore()
-	checker := NewChecker(metrics)
+	checker := NewChecker(metrics, 2.0)
 
 	metr := &api.Metric{
 		Name:  "test",
@@ -80,4 +80,32 @@ func TestCheckerWatch(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("should have received an alert")
 	}
+}
+
+func TestChecker_Failed(t *testing.T) {
+	metrics := NewStore()
+	checker := NewChecker(metrics, 2.0)
+
+	for i := 0; i < 10; i++ {
+		metrics.Add(makePeerMetric(test.PeerID1, "1"))
+		time.Sleep(time.Duration(2) * time.Second)
+	}
+	for i := 0; i < 10; i++ {
+		metrics.Add(makePeerMetric(test.PeerID1, "1"))
+		time.Sleep(time.Duration(500*i) * time.Millisecond)
+		got := checker.Failed(test.PeerID1)
+		if i >= 17 && !got {
+			t.Fatal("threshold should have been passed by now")
+		}
+	}
+}
+
+func makePeerMetric(pid peer.ID, value string) *api.Metric {
+	metr := &api.Metric{
+		Name:  "ping",
+		Peer:  pid,
+		Value: value,
+		Valid: true,
+	}
+	return metr
 }
