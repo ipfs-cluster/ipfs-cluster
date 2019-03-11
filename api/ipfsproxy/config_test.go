@@ -14,8 +14,8 @@ var cfgJSON = []byte(`
       "read_timeout": "10m0s",
       "read_header_timeout": "5s",
       "write_timeout": "10m0s",
-	  "idle_timeout": "1m0s",
-	  "max_header_bytes": 16384,
+      "idle_timeout": "1m0s",
+      "max_header_bytes": 16384,
       "extract_headers_extra": [],
       "extract_headers_path": "/api/v0/version",
       "extract_headers_ttl": "5m"

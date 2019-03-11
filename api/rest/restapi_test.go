@@ -1088,7 +1088,7 @@ func assertHTTPStatusIsTooLarge(resp *http.Response) error {
 	return httpStatusCodeChecker(resp, http.StatusRequestHeaderFieldsTooLarge)
 }
 
-func makeInvertedHTTPStatusAssert(checker responseChecker) responseChecker {
+func makeHTTPStatusNegatedAssert(checker responseChecker) responseChecker {
 	return func(resp *http.Response) error {
 		if checker(resp) == nil {
 			return fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
@@ -1244,31 +1244,31 @@ func TestBasicAuth(t *testing.T) {
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: makeInvertedHTTPStatusAssert(assertHTTPStatusIsUnauthoriazed),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 		httpTestcase{
 			method:  "POST",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: makeInvertedHTTPStatusAssert(assertHTTPStatusIsUnauthoriazed),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 		httpTestcase{
 			method:  "DELETE",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: makeInvertedHTTPStatusAssert(assertHTTPStatusIsUnauthoriazed),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 		httpTestcase{
 			method:  "BAR",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: makeInvertedHTTPStatusAssert(assertHTTPStatusIsUnauthoriazed),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 		httpTestcase{
 			method:  "GET",
 			path:    "/id",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
-			checker: makeInvertedHTTPStatusAssert(assertHTTPStatusIsUnauthoriazed),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 	} {
 		testBothEndpoints(t, tc.getTestFunction(rest))
@@ -1295,7 +1295,7 @@ func TestLimitMaxHeaderSize(t *testing.T) {
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeLongHeaderShaper(maxHeaderBytes / 2),
-			checker: makeInvertedHTTPStatusAssert(assertHTTPStatusIsTooLarge),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsTooLarge),
 		},
 	} {
 		testBothEndpoints(t, tc.getTestFunction(rest))
