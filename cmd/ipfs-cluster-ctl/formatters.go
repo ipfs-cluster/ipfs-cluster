@@ -123,7 +123,7 @@ func textFormatPrintID(obj *api.ID) {
 		ipfsAddrs = append(ipfsAddrs, a.String())
 	}
 	ipfsAddrs.Sort()
-	fmt.Printf("  > IPFS: %s\n", obj.IPFS.ID)
+	fmt.Printf("  > IPFS: %s\n", obj.IPFS.ID.Pretty())
 	for _, a := range ipfsAddrs {
 		fmt.Printf("    - %s\n", a)
 	}
