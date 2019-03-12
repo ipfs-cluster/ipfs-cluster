@@ -68,7 +68,7 @@ func New(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mtrs := metrics.NewStore()
-	checker := metrics.NewChecker(mtrs)
+	checker := metrics.NewChecker(mtrs, cfg.FailureThreshold)
 
 	subscription, err := psub.Subscribe(PubsubTopic)
 	if err != nil {
