@@ -119,6 +119,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 	// wrapped with the basic auth handler.
 	router := mux.NewRouter().StrictSlash(true)
 	handler := basicAuthHandler(
+		cfg.PermissionPolicy,
 		cfg.BasicAuthCreds,
 		cors.New(*cfg.corsOptions()).Handler(router),
 	)
@@ -262,7 +263,7 @@ func (api *API) addRoutes(router *mux.Router) {
 }
 
 // basicAuth wraps a given handler with basic authentication
-func basicAuthHandler(credentials map[string]string, h http.Handler) http.Handler {
+func basicAuthHandler(permissionPolicy string, credentials map[string]string, h http.Handler) http.Handler {
 	if credentials == nil {
 		return h
 	}
@@ -283,7 +284,13 @@ func basicAuthHandler(credentials map[string]string, h http.Handler) http.Handle
 		authorized := false
 		for u, p := range credentials {
 			if u == username && p == password {
-				authorized = true
+				// trusted := trustMap[u]
+				// if authZ is enabled{
+				// 	types.IsAuthorized(trusted, r.URL.Path)
+				// }
+				if permissionPolicy == "" {
+					authorized = true
+				}
 			}
 		}
 		if !authorized {

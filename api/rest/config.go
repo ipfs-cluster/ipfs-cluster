@@ -101,6 +101,11 @@ type Config struct {
 	// which are authorized to use Basic Authentication
 	BasicAuthCreds map[string]string
 
+	// PermissionPolicy is permission scheme that should be used
+	// for authorization. It would tell which endpoint should be allowed
+	// for some kind of peer(say trusted, untrusted).
+	PermissionPolicy string
+
 	// Headers provides customization for the headers returned
 	// by the API on existing routes.
 	Headers map[string][]string
@@ -130,8 +135,9 @@ type jsonConfig struct {
 	ID                       string `json:"id,omitempty"`
 	PrivateKey               string `json:"private_key,omitempty"`
 
-	BasicAuthCreds map[string]string   `json:"basic_auth_credentials"`
-	Headers        map[string][]string `json:"headers"`
+	BasicAuthCreds   map[string]string   `json:"basic_auth_credentials"`
+	PermissionPolicy string              `json:"permission_policy,omitempty"`
+	Headers          map[string][]string `json:"headers"`
 
 	CORSAllowedOrigins   []string `json:"cors_allowed_origins"`
 	CORSAllowedMethods   []string `json:"cors_allowed_methods"`
@@ -166,6 +172,7 @@ func (cfg *Config) Default() error {
 
 	// Auth
 	cfg.BasicAuthCreds = nil
+	cfg.PermissionPolicy = ""
 
 	// Headers
 	cfg.Headers = DefaultHeaders
@@ -261,6 +268,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	// Other options
 	cfg.BasicAuthCreds = jcfg.BasicAuthCreds
 	cfg.Headers = jcfg.Headers
+	cfg.PermissionPolicy = jcfg.PermissionPolicy
 
 	return cfg.Validate()
 }
@@ -392,6 +400,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		IdleTimeout:            cfg.IdleTimeout.String(),
 		BasicAuthCreds:         cfg.BasicAuthCreds,
 		Headers:                cfg.Headers,
+		PermissionPolicy:       cfg.PermissionPolicy,
 		CORSAllowedOrigins:     cfg.CORSAllowedOrigins,
 		CORSAllowedMethods:     cfg.CORSAllowedMethods,
 		CORSAllowedHeaders:     cfg.CORSAllowedHeaders,
