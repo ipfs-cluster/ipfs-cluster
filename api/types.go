@@ -351,7 +351,7 @@ type ID struct {
 
 // IPFSID is used to store information about the underlying IPFS daemon
 type IPFSID struct {
-	ID        peer.ID     `json:"id" codec:"i,omitempty"`
+	ID        peer.ID     `json:"id,omitempty" codec:"i,omitempty"`
 	Addresses []Multiaddr `json:"addresses" codec:"a,omitempty"`
 	Error     string      `json:"error" codec:"e,omitempty"`
 }
