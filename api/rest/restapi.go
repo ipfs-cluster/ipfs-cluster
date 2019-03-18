@@ -137,12 +137,14 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
 		Handler:           handler,
+		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
 	// See: https://github.com/ipfs/ipfs-cluster/issues/548
 	// on why this is re-enabled.
 	s.SetKeepAlivesEnabled(true)
+	s.MaxHeaderBytes = cfg.MaxHeaderBytes
 
 	ctx, cancel := context.WithCancel(ctx)
 

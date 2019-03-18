@@ -24,14 +24,12 @@ func init() {
 	_ = logging.Logger
 }
 
-func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
+func testIPFSProxyWithConfig(t *testing.T, cfg *Config) (*Server, *test.IpfsMock) {
 	mock := test.NewIpfsMock()
 	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
 		mock.Addr, mock.Port))
 	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
-	cfg := &Config{}
-	cfg.Default()
 	cfg.NodeAddr = nodeMAddr
 	cfg.ListenAddr = proxyMAddr
 	cfg.ExtractHeadersExtra = []string{
@@ -47,6 +45,12 @@ func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
 	proxy.server.SetKeepAlivesEnabled(false)
 	proxy.SetClient(test.NewMockRPCClient(t))
 	return proxy, mock
+}
+
+func testIPFSProxy(t *testing.T) (*Server, *test.IpfsMock) {
+	cfg := &Config{}
+	cfg.Default()
+	return testIPFSProxyWithConfig(t, cfg)
 }
 
 func TestIPFSProxyVersion(t *testing.T) {
@@ -615,5 +619,44 @@ func TestHeaderExtraction(t *testing.T) {
 	t3 := res.Header.Get(test.IpfsTimeHeaderName)
 	if t3 == t2 {
 		t.Error("should have refreshed the headers after TTL")
+	}
+}
+
+func TestAttackHeaderSize(t *testing.T) {
+	const testHeaderSize = minMaxHeaderBytes * 4
+	ctx := context.Background()
+	cfg := &Config{}
+	cfg.Default()
+	cfg.MaxHeaderBytes = testHeaderSize
+	proxy, mock := testIPFSProxyWithConfig(t, cfg)
+	defer mock.Close()
+	defer proxy.Shutdown(ctx)
+
+	type testcase struct {
+		headerSize     int
+		expectedStatus int
+	}
+	testcases := []testcase{
+		testcase{testHeaderSize / 2, http.StatusNotFound},
+		testcase{testHeaderSize * 2, http.StatusRequestHeaderFieldsTooLarge},
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/foo", proxyURL(proxy)), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range testcases {
+		for size := 0; size < tc.headerSize; size += 8 {
+			req.Header.Add("Foo", "bar")
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal("should forward requests to ipfs host: ", err)
+		}
+		res.Body.Close()
+		if res.StatusCode != tc.expectedStatus {
+			t.Errorf("proxy returned unexpected status %d, expected status code was %d",
+				res.StatusCode, tc.expectedStatus)
+		}
 	}
 }

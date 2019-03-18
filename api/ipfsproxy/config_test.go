@@ -15,11 +15,20 @@ var cfgJSON = []byte(`
       "read_header_timeout": "5s",
       "write_timeout": "10m0s",
       "idle_timeout": "1m0s",
+      "max_header_bytes": 16384,
       "extract_headers_extra": [],
       "extract_headers_path": "/api/v0/version",
       "extract_headers_ttl": "5m"
 }
 `)
+
+func TestLoadEmptyJSON(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.LoadJSON([]byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestLoadJSON(t *testing.T) {
 	cfg := &Config{}
@@ -58,6 +67,14 @@ func TestLoadJSON(t *testing.T) {
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
 	j.ExtractHeadersTTL = "-10"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error in extract_headers_ttl")
+	}
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.MaxHeaderBytes = minMaxHeaderBytes - 1
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {

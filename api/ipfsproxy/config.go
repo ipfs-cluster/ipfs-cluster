@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	configKey    = "ipfsproxy"
-	envConfigKey = "cluster_ipfsproxy"
+	configKey         = "ipfsproxy"
+	envConfigKey      = "cluster_ipfsproxy"
+	minMaxHeaderBytes = 4096
 )
 
 // Default values for Config.
@@ -28,6 +29,7 @@ const (
 	DefaultIdleTimeout        = 60 * time.Second
 	DefaultExtractHeadersPath = "/api/v0/version"
 	DefaultExtractHeadersTTL  = 5 * time.Minute
+	DefaultMaxHeaderBytes     = minMaxHeaderBytes
 )
 
 // Config allows to customize behaviour of IPFSProxy.
@@ -52,6 +54,10 @@ type Config struct {
 
 	// Maximum duration before timing out write of the response
 	WriteTimeout time.Duration
+
+	// Maximum cumulative size of HTTP request headers in bytes
+	// accepted by the server
+	MaxHeaderBytes int
 
 	// Server-side amount of time a Keep-Alive connection will be
 	// kept idle before being reused
@@ -88,6 +94,7 @@ type jsonConfig struct {
 	ReadHeaderTimeout string `json:"read_header_timeout"`
 	WriteTimeout      string `json:"write_timeout"`
 	IdleTimeout       string `json:"idle_timeout"`
+	MaxHeaderBytes    int    `json:"max_header_bytes"`
 
 	ExtractHeadersExtra []string `json:"extract_headers_extra,omitempty"`
 	ExtractHeadersPath  string   `json:"extract_headers_path,omitempty"`
@@ -118,6 +125,7 @@ func (cfg *Config) Default() error {
 	cfg.ExtractHeadersExtra = nil
 	cfg.ExtractHeadersPath = DefaultExtractHeadersPath
 	cfg.ExtractHeadersTTL = DefaultExtractHeadersTTL
+	cfg.MaxHeaderBytes = DefaultMaxHeaderBytes
 
 	return nil
 }
@@ -173,6 +181,10 @@ func (cfg *Config) Validate() error {
 		err = errors.New("ipfsproxy.extract_headers_ttl is invalid")
 	}
 
+	if cfg.MaxHeaderBytes < minMaxHeaderBytes {
+		err = fmt.Errorf("ipfsproxy.max_header_size must be greater or equal to %d", minMaxHeaderBytes)
+	}
+
 	return err
 }
 
@@ -219,6 +231,12 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		return err
 	}
 
+	if jcfg.MaxHeaderBytes == 0 {
+		cfg.MaxHeaderBytes = DefaultMaxHeaderBytes
+	} else {
+		cfg.MaxHeaderBytes = jcfg.MaxHeaderBytes
+	}
+
 	if extra := jcfg.ExtractHeadersExtra; extra != nil && len(extra) > 0 {
 		cfg.ExtractHeadersExtra = extra
 	}
@@ -255,6 +273,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()
 	jcfg.WriteTimeout = cfg.WriteTimeout.String()
 	jcfg.IdleTimeout = cfg.IdleTimeout.String()
+	jcfg.MaxHeaderBytes = cfg.MaxHeaderBytes
 	jcfg.NodeHTTPS = cfg.NodeHTTPS
 
 	jcfg.ExtractHeadersExtra = cfg.ExtractHeadersExtra

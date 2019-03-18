@@ -21,6 +21,7 @@ var cfgJSON = []byte(`
       "read_header_timeout": "5s",
       "write_timeout": "1m0s",
       "idle_timeout": "2m0s",
+      "max_header_bytes": 16384,
       "basic_auth_credentials": null,
       "cors_allowed_origins": ["myorigin"],
       "cors_allowed_methods": ["GET"],
@@ -30,6 +31,14 @@ var cfgJSON = []byte(`
       "cors_max_age": "1s"
 }
 `)
+
+func TestLoadEmptyJSON(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.LoadJSON([]byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestLoadJSON(t *testing.T) {
 	cfg := &Config{}
@@ -107,6 +116,15 @@ func TestLoadJSON(t *testing.T) {
 	err = cfg.LoadJSON(tst)
 	if err == nil {
 		t.Error("expected error with private key")
+	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.MaxHeaderBytes = minMaxHeaderBytes - 1
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error with MaxHeaderBytes")
 	}
 }
 
