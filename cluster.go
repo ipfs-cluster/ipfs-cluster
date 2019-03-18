@@ -600,7 +600,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
 		Version:               version.Version.String(),
 		RPCProtocolVersion:    version.RPCProtocol,
-		IPFS:                  *ipfsID,
+		IPFS:                  ipfsID,
 		Peername:              c.config.Peername,
 	}
 }

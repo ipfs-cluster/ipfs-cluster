@@ -512,6 +512,9 @@ func (ipfs *Connector) ConnectSwarms(ctx context.Context) error {
 
 	for _, id := range ids {
 		ipfsID := id.IPFS
+		if ipfsID == nil {
+			continue
+		}
 		for _, addr := range ipfsID.Addresses {
 			// This is a best effort attempt
 			// We ignore errors which happens

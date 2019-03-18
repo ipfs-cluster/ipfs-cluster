@@ -344,7 +344,7 @@ type ID struct {
 	Commit                string      `json:"commit" codec:"c,omitempty"`
 	RPCProtocolVersion    protocol.ID `json:"rpc_protocol_version" codec:"rv,omitempty"`
 	Error                 string      `json:"error" codec:"e,omitempty"`
-	IPFS                  IPFSID      `json:"ipfs" codec:"ip,omitempty"`
+	IPFS                  *IPFSID     `json:"ipfs" codec:"ip,omitempty"`
 	Peername              string      `json:"peername" codec:"pn,omitempty"`
 	//PublicKey          crypto.PubKey
 }

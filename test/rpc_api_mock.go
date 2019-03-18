@@ -128,7 +128,7 @@ func (mock *mockService) ID(ctx context.Context, in struct{}, out *api.ID) error
 		ID: PeerID1,
 		//PublicKey: pubkey,
 		Version: "0.0.mock",
-		IPFS: api.IPFSID{
+		IPFS: &api.IPFSID{
 			ID:        PeerID1,
 			Addresses: []api.Multiaddr{addr},
 		},
