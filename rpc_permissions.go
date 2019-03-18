@@ -14,7 +14,7 @@ const (
 )
 
 const (
-	raft       string = "raft"
+	raftPolicy string = "raft"
 	crdtStrict string = "crdt_strict"
 	crdtSoft   string = "crdt_soft"
 )
@@ -44,7 +44,7 @@ func (a *authorizer) authorizeFunc() func(pid peer.ID, svc string, method string
 	policy := a.policy
 
 	return func(pid peer.ID, svc string, method string) bool {
-		if policyName == raft {
+		if policyName == raftPolicy {
 			return policy[all][svc+"."+method]
 		}
 
@@ -64,7 +64,7 @@ func (a *authorizer) addPeers(peers []peer.ID) {
 
 func getPermissionPolicy(name string) (permissionPolicy, error) {
 	switch name {
-	case raft:
+	case raftPolicy:
 		return permissionPolicy{
 			all: {
 				"Cluster.ID":      true,

@@ -159,7 +159,7 @@ func NewCluster(
 func (c *Cluster) setupRPC() error {
 	var rpcServer *rpc.Server
 
-	authr, err := newAuthorizer(raft, nil)
+	authr, err := newAuthorizer(raftPolicy, nil)
 	if err != nil {
 		return err
 	}
