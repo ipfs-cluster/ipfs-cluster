@@ -154,6 +154,7 @@ func New(cfg *Config) (*Server, error) {
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
 		Handler:           handler,
+		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
 	// See: https://github.com/ipfs/go-ipfs/issues/5168
