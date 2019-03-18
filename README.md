@@ -53,7 +53,7 @@ The most up-to-date *Roadmap* is available at https://cluster.ipfs.io/roadmap/ .
 
 ## Install
 
-Instructions for different installation methods (including from source) are available at https://cluster.ipfs.io/documentation/download .
+Instructions for different installation methods (including from source) are available at https://cluster.ipfs.io/download .
 
 ## Usage
 
