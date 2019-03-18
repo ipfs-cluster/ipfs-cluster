@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"errors"
+
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -22,10 +23,10 @@ type permissionPolicy map[peerKind]map[string]bool
 type authorizer struct {
 	policyName string
 	policy     permissionPolicy
-	trusted    []peer.ID
+	trusted    map[peer.ID]bool
 }
 
-func newAuthorizer(policyName string, trusted []peer.ID) (*authorizer, error) {
+func newAuthorizer(policyName string, trusted map[peer.ID]bool) (*authorizer, error) {
 	policy, err := getPermissionPolicy(policyName)
 	if err != nil {
 		return nil, err
@@ -51,8 +52,14 @@ func (a *authorizer) authorizeFunc() func(pid peer.ID, svc string, method string
 	}
 }
 
-func (a *authorizer) addPeers(peer peer.ID) {
-	a.trusted = append(a.trusted, peer)
+func (a *authorizer) addPeers(peers []peer.ID) {
+	if a.trusted == nil {
+		a.trusted = make(map[peer.ID]bool)
+	}
+
+	for _, p := range peers {
+		a.trusted[p] = true
+	}
 }
 
 func getPermissionPolicy(name string) (permissionPolicy, error) {

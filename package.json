@@ -45,9 +45,9 @@
     },
     {
       "author": "hsanjuan",
-      "hash": "QmRJP3v36DnzJuXwk8U4PfXjEbqt3CidgntwtEuxoDcoSp",
+      "hash": "QmcJCApoEsCJJap2iS1os9GFX5EuRrfuPeZdjCopz2SyPm",
       "name": "go-libp2p-gorpc",
-      "version": "1.1.5"
+      "version": "1.1.4"
     },
     {
       "author": "libp2p",
@@ -158,7 +158,7 @@
     },
     {
       "author": "lanzafame",
-      "hash": "QmVXkJzSYFZcEwhucM3vwxvKZDpYVtNhDvX9ssUTmuQ4Xr",
+      "hash": "QmYe4hq5UmoR4LNYHtxNuhHtTYzjgU1FdFoKL8fWj1uMf4",
       "name": "go-libp2p-ocgorpc",
       "version": "0.1.8"
     },
