@@ -344,14 +344,14 @@ type ID struct {
 	Commit                string      `json:"commit" codec:"c,omitempty"`
 	RPCProtocolVersion    protocol.ID `json:"rpc_protocol_version" codec:"rv,omitempty"`
 	Error                 string      `json:"error" codec:"e,omitempty"`
-	IPFS                  IPFSID      `json:"ipfs" codec:"ip,omitempty"`
+	IPFS                  *IPFSID     `json:"ipfs,omitempty" codec:"ip,omitempty"`
 	Peername              string      `json:"peername" codec:"pn,omitempty"`
 	//PublicKey          crypto.PubKey
 }
 
 // IPFSID is used to store information about the underlying IPFS daemon
 type IPFSID struct {
-	ID        peer.ID     `json:"id" codec:"i,omitempty"`
+	ID        peer.ID     `json:"id,omitempty" codec:"i,omitempty"`
 	Addresses []Multiaddr `json:"addresses" codec:"a,omitempty"`
 	Error     string      `json:"error" codec:"e,omitempty"`
 }
