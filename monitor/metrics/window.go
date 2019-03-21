@@ -48,22 +48,24 @@ func (mw *Window) Add(m *api.Metric) {
 	m.ReceivedAt = time.Now().UnixNano()
 
 	mw.wMu.Lock()
+	defer mw.wMu.Unlock()
+
 	mw.window = mw.window.Next()
 	mw.window.Value = m
-	mw.wMu.Unlock()
-	return
 }
 
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
 func (mw *Window) Latest() (*api.Metric, error) {
 	mw.wMu.RLock()
+	defer mw.wMu.RUnlock()
+
 	var last *api.Metric
 	var ok bool
 	if last, ok = mw.window.Value.(*api.Metric); !ok || last == nil {
 		return nil, ErrNoMetrics
 	}
-	mw.wMu.RUnlock()
+
 	return last, nil
 }
 
@@ -72,11 +74,11 @@ func (mw *Window) Latest() (*api.Metric, error) {
 // metric.
 func (mw *Window) All() []*api.Metric {
 	mw.wMu.Lock()
+	defer mw.wMu.Unlock()
+
 	// get to position so window.Do starts on the correct value
 	mw.window = mw.window.Next()
-	mw.wMu.Unlock()
 
-	mw.wMu.RLock()
 	values := make([]*api.Metric, 0, mw.window.Len())
 	mw.window.Do(func(v interface{}) {
 		if i, ok := v.(*api.Metric); ok {
@@ -84,7 +86,9 @@ func (mw *Window) All() []*api.Metric {
 			values = append([]*api.Metric{i}, values...)
 		}
 	})
-	mw.wMu.RUnlock()
+
+	// return to previous pos
+	mw.window = mw.window.Prev()
 	return values
 }
 
