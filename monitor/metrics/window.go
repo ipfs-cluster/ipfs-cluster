@@ -23,9 +23,6 @@ var ErrNoMetrics = errors.New("no metrics have been added to this window")
 
 // Window implements a circular queue to store metrics.
 type Window struct {
-	lMu  sync.RWMutex
-	last *api.Metric
-
 	wMu    sync.RWMutex
 	window *ring.Ring
 }
@@ -39,7 +36,6 @@ func NewWindow(windowCap int) *Window {
 
 	w := ring.New(windowCap)
 	return &Window{
-		last:   nil,
 		window: w,
 	}
 }
@@ -52,26 +48,22 @@ func (mw *Window) Add(m *api.Metric) {
 	m.ReceivedAt = time.Now().UnixNano()
 
 	mw.wMu.Lock()
-	mw.window.Value = m
 	mw.window = mw.window.Next()
+	mw.window.Value = m
 	mw.wMu.Unlock()
-
-	mw.lMu.Lock()
-	mw.last = m
-	mw.lMu.Unlock()
-
 	return
 }
 
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
 func (mw *Window) Latest() (*api.Metric, error) {
-	mw.lMu.RLock()
-	if mw.last == nil {
+	mw.wMu.RLock()
+	var last *api.Metric
+	var ok bool
+	if last, ok = mw.window.Value.(*api.Metric); !ok || last == nil {
 		return nil, ErrNoMetrics
 	}
-	last := mw.last
-	mw.lMu.RUnlock()
+	mw.wMu.RUnlock()
 	return last, nil
 }
 
@@ -79,6 +71,11 @@ func (mw *Window) Latest() (*api.Metric, error) {
 // they were Added. That is, result[0] will be the last added
 // metric.
 func (mw *Window) All() []*api.Metric {
+	mw.wMu.Lock()
+	// get to position so window.Do starts on the correct value
+	mw.window = mw.window.Next()
+	mw.wMu.Unlock()
+
 	mw.wMu.RLock()
 	values := make([]*api.Metric, 0, mw.window.Len())
 	mw.window.Do(func(v interface{}) {
