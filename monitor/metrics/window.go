@@ -74,9 +74,7 @@ func (mw *Window) All() []*api.Metric {
 	mw.wMu.Lock()
 	// get to position so window.Do starts on the correct value
 	mw.window = mw.window.Next()
-	mw.wMu.Unlock()
 
-	mw.wMu.RLock()
 	values := make([]*api.Metric, 0, mw.window.Len())
 	mw.window.Do(func(v interface{}) {
 		if i, ok := v.(*api.Metric); ok {
@@ -84,8 +82,11 @@ func (mw *Window) All() []*api.Metric {
 			values = append([]*api.Metric{i}, values...)
 		}
 	})
-	mw.wMu.RUnlock()
-	return values
+	mw.window = mw.window.Prev()
+	mw.wMu.Unlock()
+	copyValues := make([]*api.Metric, len(values))
+	copy(copyValues, values)
+	return copyValues
 }
 
 // Distribution returns the deltas between all the current
