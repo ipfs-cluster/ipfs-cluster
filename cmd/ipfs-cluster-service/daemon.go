@@ -20,7 +20,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -145,7 +144,7 @@ func createCluster(
 	checkErr("creating consensus component", err)
 
 	tracker := setupPinTracker(c.String("pintracker"), host, cfgs.maptrackerCfg, cfgs.statelessTrackerCfg, cfgs.clusterCfg.Peername)
-	mon := setupMonitor(c.String("monitor"), host, cfgs.monCfg, cfgs.pubsubmonCfg)
+	mon := setupMonitor(c.String("monitor"), host, cfgs.pubsubmonCfg)
 	informer, alloc := setupAllocation(c.String("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
 	ipfscluster.ReadyTimeout = cfgs.consensusCfg.WaitForLeaderTimeout + 5*time.Second
@@ -251,15 +250,9 @@ func setupAllocation(
 func setupMonitor(
 	name string,
 	h host.Host,
-	basicCfg *basic.Config,
 	pubsubCfg *pubsubmon.Config,
 ) ipfscluster.PeerMonitor {
 	switch name {
-	case "basic":
-		mon, err := basic.NewMonitor(basicCfg)
-		checkErr("creating monitor", err)
-		logger.Debug("basic monitor loaded")
-		return mon
 	case "pubsub":
 		mon, err := pubsubmon.New(h, pubsubCfg)
 		checkErr("creating monitor", err)

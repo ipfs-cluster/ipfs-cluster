@@ -279,7 +279,7 @@ configuration.
 					Name:   "monitor",
 					Value:  defaultMonitor,
 					Hidden: true,
-					Usage:  "peer monitor to use [basic,pubsub].",
+					Usage:  "peer monitor to use [pubsub].",
 				},
 				cli.StringFlag{
 					Name:   "pintracker",

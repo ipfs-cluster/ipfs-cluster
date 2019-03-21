@@ -28,9 +28,6 @@ jobs:
         - go test -v -coverprofile=coverage.txt -covermode=atomic ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
-    - name: "Main Tests with basic monitor"
-      script:
-        - go test -v . -monitor basic
     - name: "Main Tests with stateless tracker"
       script:
         - go test -v . -tracker stateless

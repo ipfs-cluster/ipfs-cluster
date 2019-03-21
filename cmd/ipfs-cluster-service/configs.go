@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -27,7 +26,6 @@ type cfgs struct {
 	consensusCfg        *raft.Config
 	maptrackerCfg       *maptracker.Config
 	statelessTrackerCfg *stateless.Config
-	monCfg              *basic.Config
 	pubsubmonCfg        *pubsubmon.Config
 	diskInfCfg          *disk.Config
 	numpinInfCfg        *numpin.Config
@@ -44,7 +42,6 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	consensusCfg := &raft.Config{}
 	maptrackerCfg := &maptracker.Config{}
 	statelessCfg := &stateless.Config{}
-	monCfg := &basic.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	numpinInfCfg := &numpin.Config{}
@@ -57,7 +54,6 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.Consensus, consensusCfg)
 	cfg.RegisterComponent(config.PinTracker, maptrackerCfg)
 	cfg.RegisterComponent(config.PinTracker, statelessCfg)
-	cfg.RegisterComponent(config.Monitor, monCfg)
 	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
 	cfg.RegisterComponent(config.Informer, diskInfCfg)
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
@@ -71,7 +67,6 @@ func makeConfigs() (*config.Manager, *cfgs) {
 		consensusCfg,
 		maptrackerCfg,
 		statelessCfg,
-		monCfg,
 		pubsubmonCfg,
 		diskInfCfg,
 		numpinInfCfg,

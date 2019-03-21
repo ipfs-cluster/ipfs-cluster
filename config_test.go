@@ -6,7 +6,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -104,8 +103,8 @@ var testingTracerCfg = []byte(`{
 	"enable_tracing": false
 }`)
 
-func testingConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *basic.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
-	clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, basicmonCfg, pubsubmonCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
+func testingConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
+	clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	proxyCfg.LoadJSON(testingProxyCfg)
@@ -113,15 +112,14 @@ func testingConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Confi
 	consensusCfg.LoadJSON(testingRaftCfg)
 	maptrackerCfg.LoadJSON(testingTrackerCfg)
 	statelesstrkrCfg.LoadJSON(testingTrackerCfg)
-	basicmonCfg.LoadJSON(testingMonCfg)
 	pubsubmonCfg.LoadJSON(testingMonCfg)
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 	tracingCfg.LoadJSON(testingTracerCfg)
 
-	return clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, basicmonCfg, pubsubmonCfg, diskInfCfg, tracingCfg
+	return clusterCfg, apiCfg, proxyCfg, ipfsCfg, consensusCfg, maptrackerCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg
 }
 
-func testingEmptyConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *basic.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
+func testingEmptyConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *raft.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	proxyCfg := &ipfsproxy.Config{}
@@ -129,11 +127,10 @@ func testingEmptyConfigs() (*Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.
 	consensusCfg := &raft.Config{}
 	maptrackerCfg := &maptracker.Config{}
 	statelessCfg := &stateless.Config{}
-	basicmonCfg := &basic.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	tracingCfg := &observations.TracingConfig{}
-	return clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelessCfg, basicmonCfg, pubsubmonCfg, diskInfCfg, tracingCfg
+	return clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelessCfg, pubsubmonCfg, diskInfCfg, tracingCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

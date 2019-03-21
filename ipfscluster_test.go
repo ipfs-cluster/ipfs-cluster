@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/basic"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -142,7 +141,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, consensusCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	clusterCfg.ID = pid
 	clusterCfg.Peername = peername
@@ -171,7 +170,7 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	state := mapstate.NewMapState()
 	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
-	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
+	mon := makeMonitor(t, host, psmonCfg)
 
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
@@ -185,12 +184,10 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	return host, clusterCfg, raftCon, []API{api, ipfsProxy}, ipfs, state, tracker, mon, alloc, inf, tracer, mock
 }
 
-func makeMonitor(t *testing.T, h host.Host, bmonCfg *basic.Config, psmonCfg *pubsubmon.Config) PeerMonitor {
+func makeMonitor(t *testing.T, h host.Host, psmonCfg *pubsubmon.Config) PeerMonitor {
 	var mon PeerMonitor
 	var err error
 	switch pmonitor {
-	case "basic":
-		mon, err = basic.NewMonitor(bmonCfg)
 	case "pubsub":
 		mon, err = pubsubmon.New(h, psmonCfg)
 	default:

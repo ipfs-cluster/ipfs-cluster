@@ -56,7 +56,7 @@ func (cfg *Config) ApplyEnvVars() error {
 // at least in appearance.
 func (cfg *Config) Validate() error {
 	if cfg.CheckInterval <= 0 {
-		return errors.New("basic.check_interval too low")
+		return errors.New("pubsubmon.check_interval too low")
 	}
 	return nil
 }
@@ -67,7 +67,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	jcfg := &jsonConfig{}
 	err := json.Unmarshal(raw, jcfg)
 	if err != nil {
-		logger.Error("Error unmarshaling basic monitor config")
+		logger.Error("Error unmarshaling pubsubmon monitor config")
 		return err
 	}
 
