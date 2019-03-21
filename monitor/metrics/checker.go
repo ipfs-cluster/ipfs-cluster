@@ -125,7 +125,7 @@ func (mc *Checker) Failed(pid peer.ID) bool {
 	if latest == nil {
 		return true
 	}
-	v := time.Now().UnixNano() - latest.TS
+	v := time.Now().UnixNano() - latest.ReceivedAt
 	dv := mc.metrics.Distribution("ping", pid)
 	phiv := phi(float64(v), dv)
 	return phiv >= mc.threshold
