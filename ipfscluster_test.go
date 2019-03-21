@@ -170,7 +170,8 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	state := mapstate.NewMapState()
 	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
-	mon := makeMonitor(t, host, psmonCfg)
+	mon, err := pubsubmon.New(host, psmonCfg)
+	checkErr(t, err)
 
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
@@ -182,19 +183,6 @@ func createComponents(t *testing.T, i int, clusterSecret []byte, staging bool) (
 	checkErr(t, err)
 
 	return host, clusterCfg, raftCon, []API{api, ipfsProxy}, ipfs, state, tracker, mon, alloc, inf, tracer, mock
-}
-
-func makeMonitor(t *testing.T, h host.Host, psmonCfg *pubsubmon.Config) PeerMonitor {
-	var mon PeerMonitor
-	var err error
-	switch pmonitor {
-	case "pubsub":
-		mon, err = pubsubmon.New(h, psmonCfg)
-	default:
-		panic("bad monitor")
-	}
-	checkErr(t, err)
-	return mon
 }
 
 func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config, peerName string) PinTracker {

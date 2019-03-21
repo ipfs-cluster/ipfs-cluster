@@ -144,7 +144,9 @@ func createCluster(
 	checkErr("creating consensus component", err)
 
 	tracker := setupPinTracker(c.String("pintracker"), host, cfgs.maptrackerCfg, cfgs.statelessTrackerCfg, cfgs.clusterCfg.Peername)
-	mon := setupMonitor(c.String("monitor"), host, cfgs.pubsubmonCfg)
+	mon, err := pubsubmon.New(host, cfgs.pubsubmonCfg)
+	checkErr("creating monitor", err)
+	logger.Debug("pubsub monitor loaded")
 	informer, alloc := setupAllocation(c.String("alloc"), cfgs.diskInfCfg, cfgs.numpinInfCfg)
 
 	ipfscluster.ReadyTimeout = cfgs.consensusCfg.WaitForLeaderTimeout + 5*time.Second
@@ -245,25 +247,6 @@ func setupAllocation(
 		checkErr("", err)
 		return nil, nil
 	}
-}
-
-func setupMonitor(
-	name string,
-	h host.Host,
-	pubsubCfg *pubsubmon.Config,
-) ipfscluster.PeerMonitor {
-	switch name {
-	case "pubsub":
-		mon, err := pubsubmon.New(h, pubsubCfg)
-		checkErr("creating monitor", err)
-		logger.Debug("pubsub monitor loaded")
-		return mon
-	default:
-		err := errors.New("unknown monitor type")
-		checkErr("", err)
-		return nil
-	}
-
 }
 
 func setupPinTracker(
