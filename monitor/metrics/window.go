@@ -49,7 +49,7 @@ func NewWindow(windowCap int) *Window {
 // will be discarded. Add leaves the cursor on the next spot,
 // which is either empty or the oldest record.
 func (mw *Window) Add(m *api.Metric) {
-	m.TS = time.Now().UnixNano()
+	m.ReceivedAt = time.Now().UnixNano()
 
 	mw.wMu.Lock()
 	mw.window.Value = m
@@ -98,13 +98,10 @@ func (mw *Window) All() []*api.Metric {
 func (mw *Window) Distribution() []int64 {
 	ms := mw.All()
 	dist := make([]int64, 0, len(ms)-1)
-	for i, v := range ms {
-		// the last value can't be used to calculate a delta
-		if i == len(ms)-1 {
-			break
-		}
+	// the last value can't be used to calculate a delta
+	for i, v := range ms[:len(ms)-1] {
 		// All() provides an order slice, where ms[i] is younger than ms[i+1]
-		delta := v.TS - ms[i+1].TS
+		delta := v.ReceivedAt - ms[i+1].ReceivedAt
 		dist = append(dist, delta)
 	}
 
