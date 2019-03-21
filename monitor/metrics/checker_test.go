@@ -89,13 +89,16 @@ func TestChecker_Failed(t *testing.T) {
 
 		for i := 0; i < 10; i++ {
 			metrics.Add(makePeerMetric(test.PeerID1, "1"))
-			time.Sleep(time.Duration(2) * time.Second)
+			time.Sleep(time.Duration(2) * time.Millisecond)
 		}
 		for i := 0; i < 10; i++ {
 			metrics.Add(makePeerMetric(test.PeerID1, "1"))
-			time.Sleep(time.Duration(500*i) * time.Millisecond)
+			time.Sleep(time.Duration(i) * time.Millisecond)
 			got := checker.Failed(test.PeerID1)
-			// TODO(lanzafame): explain magic number 17
+			// the magic number 17 represents the point at which
+			// the time between metrics addition has gotten
+			// so large that the probability that the service
+			// has failed goes over the threshold.
 			if i >= 17 && !got {
 				t.Fatal("threshold should have been passed by now")
 			}
