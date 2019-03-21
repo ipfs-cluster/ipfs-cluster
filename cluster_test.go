@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -138,7 +139,7 @@ type mockTracer struct {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.State, PinTracker) {
-	clusterCfg, _, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, bmonCfg, psmonCfg, _, _ := testingConfigs()
+	clusterCfg, _, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
 
 	host, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
@@ -154,9 +155,11 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 
 	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
 
-	bmonCfg.CheckInterval = 2 * time.Second
 	psmonCfg.CheckInterval = 2 * time.Second
-	mon := makeMonitor(t, host, bmonCfg, psmonCfg)
+	mon, err := pubsubmon.New(host, psmonCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	alloc := ascendalloc.NewAllocator()
 	numpinCfg := &numpin.Config{}

@@ -82,9 +82,6 @@
     }
   },
   "monitor": {
-    "monbasic": {
-      "check_interval": "15s"
-    },
     "pubsubmon": {
       "check_interval": "15s"
     }
