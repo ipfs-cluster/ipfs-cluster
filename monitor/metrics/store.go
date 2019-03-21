@@ -137,7 +137,7 @@ func (mtrs *Store) PeerLatest(name string, pid peer.ID) *api.Metric {
 
 // Distribution returns the distribution of a particular metrics
 // for a particular peer.
-func (mtrs *Store) Distribution(name string, pid peer.ID) []int64 {
+func (mtrs *Store) Distribution(name string, pid peer.ID) []float64 {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 

@@ -83,21 +83,24 @@ func TestChecker_Watch(t *testing.T) {
 }
 
 func TestChecker_Failed(t *testing.T) {
-	metrics := NewStore()
-	checker := NewChecker(metrics, 2.0)
+	t.Run("standard failure check", func(t *testing.T) {
+		metrics := NewStore()
+		checker := NewChecker(metrics, 2.0)
 
-	for i := 0; i < 10; i++ {
-		metrics.Add(makePeerMetric(test.PeerID1, "1"))
-		time.Sleep(time.Duration(2) * time.Second)
-	}
-	for i := 0; i < 10; i++ {
-		metrics.Add(makePeerMetric(test.PeerID1, "1"))
-		time.Sleep(time.Duration(500*i) * time.Millisecond)
-		got := checker.Failed(test.PeerID1)
-		if i >= 17 && !got {
-			t.Fatal("threshold should have been passed by now")
+		for i := 0; i < 10; i++ {
+			metrics.Add(makePeerMetric(test.PeerID1, "1"))
+			time.Sleep(time.Duration(2) * time.Second)
 		}
-	}
+		for i := 0; i < 10; i++ {
+			metrics.Add(makePeerMetric(test.PeerID1, "1"))
+			time.Sleep(time.Duration(500*i) * time.Millisecond)
+			got := checker.Failed(test.PeerID1)
+			// TODO(lanzafame): explain magic number 17
+			if i >= 17 && !got {
+				t.Fatal("threshold should have been passed by now")
+			}
+		}
+	})
 }
 
 func makePeerMetric(pid peer.ID, value string) *api.Metric {

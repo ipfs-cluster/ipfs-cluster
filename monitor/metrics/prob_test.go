@@ -21,7 +21,7 @@ import (
 func Test_phi(t *testing.T) {
 	type args struct {
 		v float64
-		d []int64
+		d []float64
 	}
 	tests := []struct {
 		name string
@@ -29,15 +29,23 @@ func Test_phi(t *testing.T) {
 		want float64
 	}{
 		{
-			"zero values",
-			args{0, []int64{0}},
-			math.NaN(), // won't actually be used in comparison; see math.IsNaN() def
+			"infinity edge case",
+			args{
+				10,
+				[]float64{0, 0, 0, 0, 1, 1, 1, 1, 2, 2},
+			},
+			math.Inf(1),
+		},
+		{
+			"NaN edge case",
+			args{10000001, []float64{10000001, 10000001}},
+			-1, // phi() replaces math.NaN with -1 so it is still comparable
 		},
 		{
 			"increasing values",
 			args{
 				4,
-				[]int64{2, 4, 4, 4, 5, 5, 7, 9},
+				[]float64{2, 4, 4, 4, 5, 5, 7, 9},
 			},
 			0.160231392277849,
 		},
@@ -45,7 +53,7 @@ func Test_phi(t *testing.T) {
 			"decreasing values",
 			args{
 				-4,
-				[]int64{-2, -4, -4, -4, -5, -5, -7, -9},
+				[]float64{-2, -4, -4, -4, -5, -5, -7, -9},
 			},
 			0.5106919892652407,
 		},
@@ -62,7 +70,7 @@ func Test_phi(t *testing.T) {
 
 func Test_cdf(t *testing.T) {
 	type args struct {
-		values []int64
+		values []float64
 		v      float64
 	}
 	tests := []struct {
@@ -72,13 +80,13 @@ func Test_cdf(t *testing.T) {
 	}{
 		{
 			"zero values",
-			args{[]int64{0}, 0},
+			args{[]float64{0}, 0},
 			math.NaN(),
 		},
 		{
 			"increasing values",
 			args{
-				[]int64{2, 4, 4, 4, 5, 5, 7, 9},
+				[]float64{2, 4, 4, 4, 5, 5, 7, 9},
 				4,
 			},
 			0.3085375387259869,
@@ -86,7 +94,7 @@ func Test_cdf(t *testing.T) {
 		{
 			"decreasing values",
 			args{
-				[]int64{-2, -4, -4, -4, -5, -5, -7, -9},
+				[]float64{-2, -4, -4, -4, -5, -5, -7, -9},
 				-4,
 			},
 			0.6914624612740131,
@@ -94,8 +102,7 @@ func Test_cdf(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := mean(tt.args.values)
-			sd := standardDeviation(tt.args.values)
+			m, sd := meanStdDev(tt.args.values)
 			got := cdf(m, sd, tt.args.v)
 			if got != tt.want && !math.IsNaN(got) {
 				t.Errorf("cdf() = %v, want %v", got, tt.want)
@@ -104,43 +111,51 @@ func Test_cdf(t *testing.T) {
 	}
 }
 
-func Test_mean(t *testing.T) {
+func Test_meanVariance(t *testing.T) {
 	type args struct {
-		values []int64
+		values []float64
 	}
 	tests := []struct {
-		name string
-		args args
-		want float64
+		name         string
+		args         args
+		wantMean     float64
+		wantVariance float64
 	}{
 		{
 			"zero values",
-			args{[]int64{}},
+			args{[]float64{}},
+			0,
 			0,
 		},
 		{
 			"increasing values",
-			args{[]int64{2, 4, 4, 4, 5, 5, 7, 9}},
+			args{[]float64{2, 4, 4, 4, 5, 5, 7, 9}},
 			5,
+			4,
 		},
 		{
 			"decreasing values",
-			args{[]int64{-2, -4, -4, -4, -5, -5, -7, -9}},
+			args{[]float64{-2, -4, -4, -4, -5, -5, -7, -9}},
 			-5,
+			4,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mean(tt.args.values); got != tt.want {
-				t.Errorf("mean() = %v, want %v", got, tt.want)
+			m, v := meanVariance(tt.args.values)
+			if m != tt.wantMean {
+				t.Errorf("mean() = %v, want %v", m, tt.wantMean)
+			}
+			if v != tt.wantVariance {
+				t.Errorf("variance() = %v, want %v", v, tt.wantVariance)
 			}
 		})
 	}
 }
 
-func Test_standardDeviation(t *testing.T) {
+func Test_meanStdDev(t *testing.T) {
 	type args struct {
-		v []int64
+		v []float64
 	}
 	tests := []struct {
 		name string
@@ -149,58 +164,26 @@ func Test_standardDeviation(t *testing.T) {
 	}{
 		{
 			"zero values",
-			args{[]int64{}},
+			args{[]float64{}},
 			0,
 		},
 		{
 			"increasing values",
-			args{[]int64{2, 4, 4, 4, 5, 5, 7, 9}},
+			args{[]float64{2, 4, 4, 4, 5, 5, 7, 9}},
 			2,
 		},
 		{
 			"decreasing values",
-			args{[]int64{-2, -4, -4, -4, -5, -5, -7, -9}},
+			args{[]float64{-2, -4, -4, -4, -5, -5, -7, -9}},
 			2,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := standardDeviation(tt.args.v); got != tt.want {
+			// ignore mean value as it was tested in Test_meanVariance
+			// it is the same underlying implementation.
+			if _, got := meanStdDev(tt.args.v); got != tt.want {
 				t.Errorf("standardDeviation() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_variance(t *testing.T) {
-	type args struct {
-		values []int64
-	}
-	tests := []struct {
-		name string
-		args args
-		want float64
-	}{
-		{
-			"zero values",
-			args{[]int64{}},
-			0,
-		},
-		{
-			"increasing values",
-			args{[]int64{2, 4, 4, 4, 5, 5, 7, 9}},
-			4,
-		},
-		{
-			"decreasing values",
-			args{[]int64{-2, -4, -4, -4, -5, -5, -7, -9}},
-			4,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := variance(tt.args.values); got != tt.want {
-				t.Errorf("variance() = %.5f, want %v", got, tt.want)
 			}
 		})
 	}
@@ -242,8 +225,7 @@ func Benchmark_prob_cdf(b *testing.B) {
 
 	b.Run("distribution size 10", func(b *testing.B) {
 		d := makeRandSlice(10)
-		u := mean(d)
-		o := standardDeviation(d)
+		u, o := meanStdDev(d)
 		v := float64(r.Int63n(25))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -253,8 +235,7 @@ func Benchmark_prob_cdf(b *testing.B) {
 
 	b.Run("distribution size 50", func(b *testing.B) {
 		d := makeRandSlice(50)
-		u := mean(d)
-		o := standardDeviation(d)
+		u, o := meanStdDev(d)
 		v := float64(r.Int63n(25))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -264,8 +245,7 @@ func Benchmark_prob_cdf(b *testing.B) {
 
 	b.Run("distribution size 1000", func(b *testing.B) {
 		d := makeRandSlice(1000)
-		u := mean(d)
-		o := standardDeviation(d)
+		u, o := meanStdDev(d)
 		v := float64(r.Int63n(25))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -274,12 +254,12 @@ func Benchmark_prob_cdf(b *testing.B) {
 	})
 }
 
-func Benchmark_prob_mean(b *testing.B) {
+func Benchmark_prob_meanVariance(b *testing.B) {
 	b.Run("distribution size 10", func(b *testing.B) {
 		d := makeRandSlice(10)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			mean(d)
+			meanVariance(d)
 		}
 	})
 
@@ -287,7 +267,7 @@ func Benchmark_prob_mean(b *testing.B) {
 		d := makeRandSlice(50)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			mean(d)
+			meanVariance(d)
 		}
 	})
 
@@ -295,17 +275,17 @@ func Benchmark_prob_mean(b *testing.B) {
 		d := makeRandSlice(1000)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			mean(d)
+			meanVariance(d)
 		}
 	})
 }
 
-func Benchmark_prob_standardDeviation(b *testing.B) {
+func Benchmark_prob_meanStdDev(b *testing.B) {
 	b.Run("distribution size 10", func(b *testing.B) {
 		d := makeRandSlice(10)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			standardDeviation(d)
+			meanStdDev(d)
 		}
 	})
 
@@ -313,7 +293,7 @@ func Benchmark_prob_standardDeviation(b *testing.B) {
 		d := makeRandSlice(50)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			standardDeviation(d)
+			meanStdDev(d)
 		}
 	})
 
@@ -321,48 +301,12 @@ func Benchmark_prob_standardDeviation(b *testing.B) {
 		d := makeRandSlice(1000)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			standardDeviation(d)
+			meanStdDev(d)
 		}
 	})
 }
 
-func Benchmark_prob_variance(b *testing.B) {
-	b.Run("distribution size 10", func(b *testing.B) {
-		d := makeRandSlice(10)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			variance(d)
-		}
-	})
-
-	b.Run("distribution size 50", func(b *testing.B) {
-		d := makeRandSlice(50)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			variance(d)
-		}
-	})
-
-	b.Run("distribution size 1000", func(b *testing.B) {
-		d := makeRandSlice(1000)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			variance(d)
-		}
-	})
-}
-
-func makeRandSlice(size int) []int64 {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	s := make([]int64, size, size)
-
-	for i := 0; i < size-1; i++ {
-		s[i] = r.Int63n(25)
-	}
-	return s
-}
-
-func makeRandSliceFloat64(size int) []float64 {
+func makeRandSlice(size int) []float64 {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	s := make([]float64, size, size)
 

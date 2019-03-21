@@ -24,16 +24,33 @@ package metrics
 
 import (
 	"math"
+
+	"gonum.org/v1/gonum/floats"
 )
 
 // Phi returns the φ-failure for the given value and distribution.
-func phi(v float64, d []int64) float64 {
-	u := mean(d)
-	o := standardDeviation(d)
-	if phi := -math.Log10(1 - cdf(u, o, v)); !math.IsInf(phi, 1) {
-		return phi
+// Two edge cases that are dealt with in phi:
+//	1. phi == math.+Inf
+//  2. phi == math.NaN
+//
+// Edge case 1. is most certainly a failure, the value of v is is so large
+// in comparison to the distribution that the cdf function returns a 1,
+// which equates to a math.Log10(0) which is one of its special cases, i.e
+// returns -Inf. In this case, phi() will return the math.+Inf value, as it
+// will be a valid comparison against the threshold value in checker.Failed.
+//
+// Edge case 2. could be a failure but may not be. phi() will return NaN
+// when the standard deviation of the distribution is 0, i.e. the entire
+// distribution is the same number, {1,1,1,1,1}. Considering that we are
+// using UnixNano timestamps this would be highly unlikely, but just in case
+// phi() will return a -1 value, indicating that the caller should retry.
+func phi(v float64, d []float64) float64 {
+	u, o := meanStdDev(d)
+	phi := -math.Log10(1 - cdf(u, o, v))
+	if math.IsNaN(phi) {
+		return -1
 	}
-	return 0
+	return phi
 }
 
 // CDF returns the cumulative distribution function if the given
@@ -42,34 +59,20 @@ func cdf(u, o, v float64) float64 {
 	return ((1.0 / 2.0) * (1 + math.Erf((v-u)/(o*math.Sqrt2))))
 }
 
-// Mean returns the mean of the given sample.
-func mean(values []int64) float64 {
-	if len(values) == 0 {
-		return 0.0
-	}
-	var sum int64
-	for _, v := range values {
-		sum += v
-	}
-
-	return float64(sum) / float64(len(values))
+func meanStdDev(v []float64) (m, sd float64) {
+	var variance float64
+	m, variance = meanVariance(v)
+	sd = math.Sqrt(variance)
+	return
 }
 
-// StandardDeviation returns standard deviation of the given sample.
-func standardDeviation(v []int64) float64 {
-	return math.Sqrt(variance(v))
-}
-
-// Variance returns variance if the given sample.
-func variance(values []int64) float64 {
+func meanVariance(values []float64) (m, v float64) {
 	if len(values) == 0 {
-		return 0.0
+		return 0.0, 0.0
 	}
-	m := mean(values)
-	var sum float64
-	for _, v := range values {
-		d := float64(v) - m
-		sum += d * d
-	}
-	return sum / float64(len(values))
+	m = floats.Sum(values) / float64(len(values))
+	floats.AddConst(-m, values)
+	floats.Mul(values, values)
+	v = floats.Sum(values) / float64(len(values))
+	return
 }
