@@ -117,6 +117,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 	ipfsAdder.Progress = a.params.Progress
+	ipfsAdder.NoCopy = a.params.NoCopy
 
 	// Set up prefix
 	prefix, err := merkledag.PrefixForCidVersion(a.params.CidVersion)

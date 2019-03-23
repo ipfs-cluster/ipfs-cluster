@@ -516,6 +516,10 @@ func (c *defaultClient) Add(
 			addFile = files.NewWebFile(u)
 			name = path.Base(u.Path)
 		} else {
+			if params.NoCopy {
+				close(out)
+				return fmt.Errorf("nocopy option is only valid for URLs")
+			}
 			addFile, err = makeSerialFile(p, params)
 			if err != nil {
 				close(out)
