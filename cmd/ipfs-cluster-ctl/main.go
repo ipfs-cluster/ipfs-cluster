@@ -423,7 +423,10 @@ cluster "pin add".
 					var q = c.Bool("quiet") || qq
 					var bufferResults = c.Bool("no-stream")
 					for v := range out {
-						added := &addedOutputQuiet{v, q}
+						added := &addedOutputQuiet{
+							AddedOutput: v,
+							quiet:       q,
+						}
 						lastBuf = added
 						if bufferResults {
 							buffered = append(buffered, added)
@@ -433,7 +436,7 @@ cluster "pin add".
 							formatResponse(c, added, nil)
 						}
 					}
-					if lastBuf == nil || lastBuf.added == nil {
+					if lastBuf == nil || lastBuf.AddedOutput == nil {
 						return // no elements at all
 					}
 					if bufferResults { // we buffered.
