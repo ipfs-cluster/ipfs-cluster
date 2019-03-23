@@ -418,13 +418,13 @@ cluster "pin add".
 					defer wg.Done()
 
 					var buffered []*addedOutputQuiet
-					var lastBuf = make([]*addedOutputQuiet, 1, 1)
+					var lastBuf *addedOutputQuiet
 					var qq = c.Bool("quieter")
 					var q = c.Bool("quiet") || qq
 					var bufferResults = c.Bool("no-stream")
 					for v := range out {
 						added := &addedOutputQuiet{v, q}
-						lastBuf[0] = added
+						lastBuf = added
 						if bufferResults {
 							buffered = append(buffered, added)
 							continue
@@ -433,18 +433,18 @@ cluster "pin add".
 							formatResponse(c, added, nil)
 						}
 					}
-					if lastBuf[0].added == nil {
+					if lastBuf == nil || lastBuf.added == nil {
 						return // no elements at all
 					}
 					if bufferResults { // we buffered.
 						if qq { // [last elem]
-							formatResponse(c, lastBuf, nil)
+							formatResponse(c, []*addedOutputQuiet{lastBuf}, nil)
 							return
 						}
 						// [all elems]
 						formatResponse(c, buffered, nil)
 					} else if qq { // we already printed unless Quieter
-						formatResponse(c, lastBuf[0], nil)
+						formatResponse(c, lastBuf, nil)
 						return
 					}
 				}()
