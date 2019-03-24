@@ -23,6 +23,9 @@ RUN set -x \
   && wget -q -O tini https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini \
   && chmod +x tini
 
+# Get the TLS CA certificates, they're not provided by busybox.
+RUN apt-get update && apt-get install -y ca-certificates
+
 #------------------------------------------------------
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -43,6 +46,7 @@ COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
 COPY --from=builder $SRC_PATH/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=builder /tmp/tini /sbin/tini
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 RUN mkdir -p $IPFS_CLUSTER_PATH && \
     adduser -D -h $IPFS_CLUSTER_PATH -u 1000 -G users ipfs && \
