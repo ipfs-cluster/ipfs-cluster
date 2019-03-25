@@ -14,7 +14,7 @@ import (
 )
 
 type addedOutputQuiet struct {
-	added *api.AddedOutput
+	*api.AddedOutput
 	quiet bool
 }
 
@@ -28,7 +28,7 @@ func jsonFormatObject(resp interface{}) {
 		serials := resp.([]*addedOutputQuiet)
 		var actual []*api.AddedOutput
 		for _, s := range serials {
-			actual = append(actual, s.added)
+			actual = append(actual, s.AddedOutput)
 		}
 		jsonFormatPrint(actual)
 	default:
@@ -197,9 +197,9 @@ func textFormatPrintAddedOutput(obj *api.AddedOutput) {
 
 func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 	if obj.quiet {
-		fmt.Printf("%s\n", obj.added.Cid)
+		fmt.Printf("%s\n", obj.AddedOutput.Cid)
 	} else {
-		textFormatPrintAddedOutput(obj.added)
+		textFormatPrintAddedOutput(obj.AddedOutput)
 	}
 }
 
