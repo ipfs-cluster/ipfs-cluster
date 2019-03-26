@@ -5,8 +5,6 @@ import (
 
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
-
-	multiaddr "github.com/multiformats/go-multiaddr"
 )
 
 // PeersToStrings IDB58Encodes a list of peers.
@@ -61,7 +59,7 @@ func Libp2pMultiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
 // peer ID is bad.
 func MustLibp2pMultiaddrJoin(addr Multiaddr, p peer.ID) Multiaddr {
 	v := addr.Value()
-	pidAddr, err := multiaddr.NewMultiaddr("/ipfs/" + peer.IDB58Encode(p))
+	pidAddr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(p))
 	// let this break badly
 	if err != nil {
 		panic("called MustLibp2pMultiaddrJoin with bad peer!")
