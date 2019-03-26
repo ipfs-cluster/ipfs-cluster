@@ -48,21 +48,28 @@ func (mw *Window) Add(m *api.Metric) {
 	m.ReceivedAt = time.Now().UnixNano()
 
 	mw.wMu.Lock()
-	defer mw.wMu.Unlock()
-
-	mw.window = mw.window.Next()
 	mw.window.Value = m
+	mw.window = mw.window.Next()
+	mw.wMu.Unlock()
 }
 
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
 func (mw *Window) Latest() (*api.Metric, error) {
-	mw.wMu.RLock()
-	defer mw.wMu.RUnlock()
-
 	var last *api.Metric
 	var ok bool
-	if last, ok = mw.window.Value.(*api.Metric); !ok || last == nil {
+
+	mw.wMu.RLock()
+	// This just returns the previous ring and
+	// doesn't set the window "cursor" to the previous
+	// ring. Therefore this is just a read operation
+	// as well.
+	prevRing := mw.window.Prev()
+	mw.wMu.RUnlock()
+
+	last, ok = prevRing.Value.(*api.Metric)
+
+	if !ok || last == nil {
 		return nil, ErrNoMetrics
 	}
 
@@ -73,22 +80,18 @@ func (mw *Window) Latest() (*api.Metric, error) {
 // they were Added. That is, result[0] will be the last added
 // metric.
 func (mw *Window) All() []*api.Metric {
-	mw.wMu.Lock()
-	defer mw.wMu.Unlock()
-
-	// get to position so window.Do starts on the correct value
-	mw.window = mw.window.Next()
-
 	values := make([]*api.Metric, 0, mw.window.Len())
+
+	mw.wMu.RLock()
 	mw.window.Do(func(v interface{}) {
-		if i, ok := v.(*api.Metric); ok {
+		i, ok := v.(*api.Metric)
+		if ok {
 			// append younger values to older value
 			values = append([]*api.Metric{i}, values...)
 		}
 	})
+	mw.wMu.RUnlock()
 
-	// return to previous pos
-	mw.window = mw.window.Prev()
 	return values
 }
 

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -21,6 +22,122 @@ func makeMetric(value string) *api.Metric {
 func TestNewWindow(t *testing.T) {
 	w := NewWindow(10)
 	w.window.Next()
+}
+
+func TestWindow_Race(t *testing.T) {
+	t.SkipNow()
+	w := NewWindow(DefaultWindowCap)
+	start := make(chan struct{})
+	done := make(chan struct{})
+	log := make(chan string, 100)
+
+	// go routine to add metrics at regular interval
+	addTicker := time.NewTicker(10 * time.Millisecond)
+	go func() {
+		var i int
+		<-start
+		for {
+			select {
+			case <-addTicker.C:
+				if i >= 25 {
+					i = 0
+				}
+				time.Sleep(time.Duration(i) * time.Millisecond)
+				w.Add(makeMetric("1"))
+				i++
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+
+	// go routine to query latest at regular interval
+	latestTicker := time.NewTicker(20 * time.Millisecond)
+	go func() {
+		<-start
+		for {
+			select {
+			case <-latestTicker.C:
+				// l, _ := w.Latest()
+				w.Latest()
+				// log <- fmt.Sprintf("latest: %v", l)
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+
+	// go routine to query all at regular interval
+	allTicker := time.NewTicker(30 * time.Millisecond)
+	go func() {
+		<-start
+		for {
+			select {
+			case <-allTicker.C:
+				w.All()
+				// log <- fmt.Sprintf("all: %v", w.All())
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+
+	// go routine to query distribution at regular interval
+	distributionTicker := time.NewTicker(100 * time.Millisecond)
+	go func() {
+		<-start
+		for {
+			select {
+			case <-distributionTicker.C:
+				log <- fmt.Sprintf("dist: %v", w.Distribution())
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+
+	go func() {
+		<-start
+		for {
+			select {
+			case <-done:
+				for s := range log {
+					fmt.Println(s)
+				}
+				close(done)
+				return
+			}
+		}
+	}()
+
+	close(start)
+	time.Sleep(50 * time.Millisecond)
+	done <- struct{}{}
+	<-done
+}
+
+func TestWindow_Add(t *testing.T) {
+	t.Run("add single value", func(t *testing.T) {
+		mw := NewWindow(4)
+		want := makeMetric("1")
+		mw.Add(want)
+
+		mw.wMu.RLock()
+		prevRing := mw.window.Prev()
+		got, ok := prevRing.Value.(*api.Metric)
+		mw.wMu.RUnlock()
+		if !ok {
+			t.Error("value in window isn't an *api.Metric")
+		}
+
+		if got != want {
+			t.Errorf("got = %v, want = %v", got, want)
+		}
+	})
 }
 
 func BenchmarkWindow_Add(b *testing.B) {
@@ -260,8 +377,14 @@ func TestWindow_Distribution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mw := NewWindow(len(tt.heartbeats) + 1)
 			for i, v := range tt.heartbeats {
-				mw.Add(makeMetric(string(v)))
-				time.Sleep(time.Duration(v) * time.Millisecond)
+				mw.Add(makeMetric(string(v * 10)))
+				// time.Sleep on the 1s of milliseconds level is
+				// susceptible to scheduler variance. Hence we
+				// multiple the input by 10 and this combined with
+				// truncating the result to just seconds, we should
+				// get stable distribution of timings between
+				// window.Adds.
+				time.Sleep(time.Duration(v*10) * time.Millisecond)
 				if i == len(tt.heartbeats)-1 {
 					mw.Add(makeMetric("last"))
 				}
@@ -276,7 +399,7 @@ func TestWindow_Distribution(t *testing.T) {
 			var gotseconds []int64
 			for _, v := range got {
 				// truncate nanoseconds to seconds for testing purposes
-				gotseconds = append(gotseconds, v/1000000)
+				gotseconds = append(gotseconds, v/10000000)
 			}
 
 			for i, s := range gotseconds {
