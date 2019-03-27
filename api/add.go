@@ -37,6 +37,7 @@ type AddParams struct {
 	CidVersion     int
 	HashFun        string
 	StreamChannels bool
+	NoCopy         bool
 }
 
 // DefaultAddParams returns a AddParams object with standard defaults
@@ -53,6 +54,7 @@ func DefaultAddParams() *AddParams {
 		CidVersion:     0,
 		HashFun:        "sha2-256",
 		StreamChannels: true,
+		NoCopy:         false,
 		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
@@ -162,6 +164,11 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
+	err = parseBoolParam(query, "nocopy", &params.NoCopy)
+	if err != nil {
+		return nil, err
+	}
+
 	return params, nil
 }
 
@@ -183,6 +190,7 @@ func (p *AddParams) ToQueryString() string {
 	query.Set("cid-version", fmt.Sprintf("%d", p.CidVersion))
 	query.Set("hash", p.HashFun)
 	query.Set("stream-channels", fmt.Sprintf("%t", p.StreamChannels))
+	query.Set("nocopy", fmt.Sprintf("%t", p.NoCopy))
 	return query.Encode()
 }
 
@@ -201,5 +209,6 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 		p.Wrap == p2.Wrap &&
 		p.CidVersion == p2.CidVersion &&
 		p.HashFun == p2.HashFun &&
-		p.StreamChannels == p2.StreamChannels
+		p.StreamChannels == p2.StreamChannels &&
+		p.NoCopy == p2.NoCopy
 }

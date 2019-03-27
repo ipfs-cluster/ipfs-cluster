@@ -349,6 +349,10 @@ cluster "pin add".
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
+				cli.BoolFlag{
+					Name:  "nocopy",
+					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
+				},
 				// TODO: Uncomment when sharding is supported.
 				// cli.BoolFlag{
 				//	Name:  "shard",
@@ -408,6 +412,10 @@ cluster "pin add".
 					p.CidVersion = 1
 				}
 				if p.CidVersion > 0 {
+					p.RawLeaves = true
+				}
+				p.NoCopy = c.Bool("nocopy")
+				if p.NoCopy {
 					p.RawLeaves = true
 				}
 
