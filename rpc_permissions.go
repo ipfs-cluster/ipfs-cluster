@@ -40,15 +40,12 @@ func newAuthorizer(policyName string, trusted map[peer.ID]bool) (*authorizer, er
 }
 
 func (a *authorizer) authorizeFunc() func(pid peer.ID, svc string, method string) bool {
-	policyName := a.policyName
-	policy := a.policy
-
 	return func(pid peer.ID, svc string, method string) bool {
-		if policyName == raftPolicy {
-			return policy[all][svc+"."+method]
+		if a.trusted[pid] {
+			return a.policy[trusted][svc+"."+method]
 		}
 
-		return false
+		return a.policy[all][svc+"."+method]
 	}
 }
 
@@ -79,8 +76,8 @@ func getPermissionPolicy(name string) (permissionPolicy, error) {
 				"Cluster.SyncLocal":    true,
 
 				"Cluster.IPFSConnectSwarms": true,
-				"Cluster.IPFSBlockPut":      true,
 				"Cluster.IPFSSwarmPeers":    true,
+				"Cluster.IPFSBlockPut":      true,
 
 				"Cluster.ConsensusAddPeer":  true,
 				"Cluster.ConsensusRmPeer":   true,
@@ -88,7 +85,61 @@ func getPermissionPolicy(name string) (permissionPolicy, error) {
 				"Cluster.ConsensusLogUnpin": true,
 			},
 		}, nil
-	// TODO(Kishan): Add policies `crdt_soft` and `crdt_strict`
+	case crdtStrict:
+		return permissionPolicy{
+			all: {
+				"Cluster.ID":      true,
+				"Cluster.PeerAdd": true,
+
+				"Cluster.PeerMonitorLogMetric": true,
+
+				"Cluster.IPFSConnectSwarms": true,
+			},
+			trusted: {
+				"Cluster.ID":      true,
+				"Cluster.PeerAdd": true,
+
+				"Cluster.TrackerStatusAll": true,
+				"Cluster.TrackerStatus":    true,
+
+				"Cluster.PeerMonitorLogMetric": true,
+
+				"Cluster.IPFSConnectSwarms": true,
+				"Cluster.IPFSSwarmPeers":    true,
+			},
+		}, nil
+	case crdtSoft:
+		return permissionPolicy{
+			all: {
+				"Cluster.ID":      true,
+				"Cluster.PeerAdd": true,
+
+				"Cluster.PeerMonitorLogMetric": true,
+
+				"Cluster.IPFSConnectSwarms": true,
+			},
+			trusted: {
+				"Cluster.ID":      true,
+				"Cluster.PeerAdd": true,
+				"Cluster.Peers":   true,
+
+				"Cluster.TrackerStatusAll":  true,
+				"Cluster.TrackerStatus":     true,
+				"Cluster.TrackerRecover":    true,
+				"Cluster.TrackerRecoverAll": true,
+
+				"Cluster.Sync":         true,
+				"Cluster.SyncAll":      true,
+				"Cluster.SyncLocal":    true,
+				"Cluster.SyncAllLocal": true,
+
+				"Cluster.PeerMonitorLogMetric": true,
+
+				"Cluster.IPFSConnectSwarms": true,
+				"Cluster.IPFSSwarmPeers":    true,
+				"Cluster.IPFSBlockPut":      true,
+			},
+		}, nil
 	default:
 		return permissionPolicy{}, errors.New("invalid permission policy name")
 	}
