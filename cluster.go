@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"sort"
 	"sync"
 	"time"
 
@@ -297,21 +298,38 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			// TODO(lanzafame): create a psuedo-leader election for crdts
-			// only the leader handles alerts
-			leader, err := c.consensus.Leader(c.ctx)
-			if err == nil && leader == c.id {
-				logger.Warningf(
-					"Peer %s received alert for %s in %s",
-					c.id, alrt.MetricName, alrt.Peer,
-				)
-				switch alrt.MetricName {
-				case pingMetricName:
+			list := c.state.List(c.ctx)
+			for _, pin := range list {
+				if len(pin.Allocations) < 1 && containsPeer(pin.Allocations, alrt.Peer) {
+					logger.Error("a pin with only one allocation cannot be repinned")
+					logger.Error("to make repinning possible, pin with a replication factor of 2+")
+					continue
+				}
+				if c.shouldPeerRepinCid(alrt.Peer, pin) {
 					c.repinFromPeer(c.ctx, alrt.Peer)
 				}
 			}
 		}
 	}
+}
+
+// shouldPeerRepinCid returns true if the current peer is the top of the
+// allocs list. The failed peer is ignored, i.e. if current peer is
+// second and the failed peer is first, the function will still
+// return true.
+func (c *Cluster) shouldPeerRepinCid(failed peer.ID, pin *api.Pin) bool {
+	if containsPeer(pin.Allocations, failed) && containsPeer(pin.Allocations, c.id) {
+		allocs := sort.StringSlice(api.PeersToStrings(pin.Allocations))
+		allocs.Sort()
+		if allocs[0] == c.id.String() {
+			return true
+		}
+
+		if allocs[1] == c.id.String() && allocs[0] == failed.String() {
+			return true
+		}
+	}
+	return false
 }
 
 // detects any changes in the peerset and saves the configuration. When it

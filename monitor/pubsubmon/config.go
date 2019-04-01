@@ -64,7 +64,7 @@ func (cfg *Config) Validate() error {
 	}
 
 	if cfg.FailureThreshold <= 0 {
-		return errors.New("basic.failure_threshold too low")
+		return errors.New("pubsubmon.failure_threshold too low")
 	}
 
 	return nil

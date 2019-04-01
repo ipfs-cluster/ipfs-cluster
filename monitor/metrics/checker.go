@@ -38,6 +38,14 @@ func NewChecker(metrics *Store, threshold float64) *Checker {
 // when they have expired and no alert has been sent before.
 func (mc *Checker) CheckPeers(peers []peer.ID) error {
 	for _, peer := range peers {
+		// shortcut checking all metrics based on heartbeat
+		// failure detection
+		if mc.Failed(peer) {
+			err := mc.alert(peer, "ping")
+			if err != nil {
+				return err
+			}
+		}
 		for _, metric := range mc.metrics.PeerMetrics(peer) {
 			err := mc.alertIfExpired(metric)
 			if err != nil {
