@@ -605,6 +605,23 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 	}
 }
 
+// RepoGC performs garbage collection in the cluster
+func (c *Cluster) RepoGC(ctx context.Context) *api.IPFSRepoGc {
+	_, span := trace.StartSpan(ctx, "cluster/GC")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	// ignore error since it is included in response object
+	ipfsGC, err := c.ipfs.RepoGC(ctx)
+	if err != nil {
+		ipfsGC = &api.IPFSRepoGC{
+			Error: err.Error(),
+		}
+	}
+
+	return ipfsGC
+}
+
 // PeerAdd adds a new peer to this Cluster.
 //
 // For it to work well, the new peer should be discoverable
