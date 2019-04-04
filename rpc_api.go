@@ -396,6 +396,17 @@ func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IP
 	return err
 }
 
+// IPFSRepoGc runs IPFSConnector.GC()
+func (rpcapi *RPCAPI) IPFSRepoGc(ctx context.Context, in struct{}, out *api.IPFSRepoGc) error {
+	//TODO: Need some clarity on this.
+	res, err := rpcapi.c.ipfs.GC(ctx)
+	if err != nil {
+		return err
+	}
+	*out = *res
+	return err
+}
+
 // IPFSSwarmPeers runs IPFSConnector.SwarmPeers().
 func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
 	res, err := rpcapi.c.ipfs.SwarmPeers(ctx)

@@ -605,6 +605,11 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 	}
 }
 
+// GC performs garbage collection in the cluster
+func (c *Cluster) GC(ctx context.Context) *api.IPFSRepoGc {
+	// TODO: Need clarity on how to return the response of c.ipfs.GC(ctx)
+}
+
 // PeerAdd adds a new peer to this Cluster.
 //
 // For it to work well, the new peer should be discoverable

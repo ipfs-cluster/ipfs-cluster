@@ -68,6 +68,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID(context.Context) (*api.IPFSID, error)
+	GC(context.Context) (*api.IPFSRepoGc, error)
 	Pin(context.Context, cid.Cid, int) error
 	Unpin(context.Context, cid.Cid) error
 	PinLsCid(context.Context, cid.Cid) (api.IPFSPinStatus, error)

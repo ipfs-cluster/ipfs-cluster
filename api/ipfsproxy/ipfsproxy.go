@@ -220,6 +220,10 @@ func New(cfg *Config) (*Server, error) {
 		Path("/repo/stat").
 		HandlerFunc(proxy.repoStatHandler).
 		Name("RepoStat")
+	hijackSubrouter.
+		Path("/repo/gc").
+		HandlerFunc(proxy.repoGcHandler).
+		Name("RepoGc")
 
 	// Everything else goes to the IPFS daemon.
 	router.PathPrefix("/").Handler(reverseProxy)
@@ -513,6 +517,12 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 	return
+}
+
+// repoGcHandler launches the garbage collection sequence in the cluster.
+// Based on https://docs.ipfs.io/reference/api/http/#api-v0-repo-gc
+func (proxy *Server) repoGcHandler(w http.ResponseWriter, r *http.Request) {
+	//TODO: Need help/direction on finishing the handler
 }
 
 // slashHandler returns a handler which converts a /a/b/c/<argument> request
