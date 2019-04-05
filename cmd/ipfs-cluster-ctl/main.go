@@ -262,7 +262,7 @@ There is no need for an argument to this sub command as gc operation is internal
 					ArgsUsage: " ",
 					Flags:     []cli.Flag{},
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.GC(ctx)
+						resp, cerr := globalClient.RepoGC(ctx)
 						formatResponse(c, resp, cerr)
 						return nil
 					},

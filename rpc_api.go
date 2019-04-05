@@ -399,7 +399,7 @@ func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IP
 // IPFSRepoGc runs IPFSConnector.GC()
 func (rpcapi *RPCAPI) IPFSRepoGc(ctx context.Context, in struct{}, out *api.IPFSRepoGc) error {
 	//TODO: Need some clarity on this.
-	res, err := rpcapi.c.ipfs.GC(ctx)
+	res, err := rpcapi.c.ipfs.RepoGC(ctx)
 	if err != nil {
 		return err
 	}
