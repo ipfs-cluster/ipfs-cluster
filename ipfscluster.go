@@ -68,7 +68,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID(context.Context) (*api.IPFSID, error)
-	GC(context.Context) (*api.IPFSRepoGc, error)
+
 	Pin(context.Context, cid.Cid, int) error
 	Unpin(context.Context, cid.Cid) error
 	PinLsCid(context.Context, cid.Cid) (api.IPFSPinStatus, error)
@@ -84,6 +84,8 @@ type IPFSConnector interface {
 	// RepoStat returns the current repository size and max limit as
 	// provided by "repo stat".
 	RepoStat(context.Context) (*api.IPFSRepoStat, error)
+	// GC returns the status of the garbage collection "repo/gc"
+	RepoGC(context.Context) (*api.IPFSRepoGc, error)
 	// Resolve returns a cid given a path
 	Resolve(context.Context, string) (cid.Cid, error)
 	// BlockPut directly adds a block of data to the IPFS repo
