@@ -260,7 +260,7 @@ type PinInfo struct {
 
 // Version holds version information
 type Version struct {
-	Version string `json:"Version" codec:"v"`
+	Version string `json:"version" codec:"v"`
 }
 
 // ConnectGraph holds information about the connectivity of the cluster To
