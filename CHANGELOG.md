@@ -1,6 +1,57 @@
 # IPFS Cluster Changelog
 
 
+### v0.10.1 - 2019-04-10
+
+#### Summary
+
+This release is a maintenance release with a number of bug fixes and a couple of small features.
+
+
+#### List of changes
+
+##### Features
+
+* Switch to go.mod | [ipfs/ipfs-cluster#706](https://github.com/ipfs/ipfs-cluster/issues/706) | [ipfs/ipfs-cluster#707](https://github.com/ipfs/ipfs-cluster/issues/707) | [ipfs/ipfs-cluster#708](https://github.com/ipfs/ipfs-cluster/issues/708)
+* Remove basic monitor | [ipfs/ipfs-cluster#689](https://github.com/ipfs/ipfs-cluster/issues/689) | [ipfs/ipfs-cluster#726](https://github.com/ipfs/ipfs-cluster/issues/726)
+* Support `nocopy` when adding URLs | [ipfs/ipfs-cluster#735](https://github.com/ipfs/ipfs-cluster/issues/735)
+
+##### Bug fixes
+
+* Mitigate long header attack | [ipfs/ipfs-cluster#636](https://github.com/ipfs/ipfs-cluster/issues/636) | [ipfs/ipfs-cluster#712](https://github.com/ipfs/ipfs-cluster/issues/712)
+* Fix download link in README | [ipfs/ipfs-cluster#723](https://github.com/ipfs/ipfs-cluster/issues/723)
+* Fix `peers ls` error when peers down | [ipfs/ipfs-cluster#715](https://github.com/ipfs/ipfs-cluster/issues/715) | [ipfs/ipfs-cluster#719](https://github.com/ipfs/ipfs-cluster/issues/719)
+* Nil pointer panic on `ipfs-cluster-ctl add` | [ipfs/ipfs-cluster#727](https://github.com/ipfs/ipfs-cluster/issues/727) | [ipfs/ipfs-cluster#728](https://github.com/ipfs/ipfs-cluster/issues/728)
+* Fix `enc=json` output on `ipfs-cluster-ctl add` | [ipfs/ipfs-cluster#729](https://github.com/ipfs/ipfs-cluster/issues/729)
+* Add SSL CAs to Docker container | [ipfs/ipfs-cluster#730](https://github.com/ipfs/ipfs-cluster/issues/730) | [ipfs/ipfs-cluster#731](https://github.com/ipfs/ipfs-cluster/issues/731)
+* Remove duplicate import | [ipfs/ipfs-cluster#734](https://github.com/ipfs/ipfs-cluster/issues/734)
+* Fix version json object | [ipfs/ipfs-cluster#743](https://github.com/ipfs/ipfs-cluster/issues/743) | [ipfs/ipfs-cluster#752](https://github.com/ipfs/ipfs-cluster/issues/752)
+
+#### Upgrading notices
+
+
+
+##### Configuration changes
+
+There are no configuration changes on this release.
+
+##### REST API
+
+The `/version` endpoint now returns a version object with *lowercase* `version` key.
+
+##### Go APIs
+
+There are no changes to the Go APIs.
+
+##### Other
+
+Since we have switched to Go modules for dependency management, `gx` is no
+longer used and the maintenance of Gx dependencies has been dropped. The
+`Makefile` has been updated accordinly, but now a simple `go install
+./cmd/...` works.
+
+---
+
 ### v0.10.0 - 2019-03-07
 
 #### Summary
@@ -51,7 +102,7 @@ comparing your configuration with the new default one.
   * Support user-defined allocations | [ipfs/ipfs-cluster#646](https://github.com/ipfs/ipfs-cluster/issues/646) | [ipfs/ipfs-cluster#647](https://github.com/ipfs/ipfs-cluster/issues/647)
   * Support user-defined metadata in pin objects | [ipfs/ipfs-cluster#681](https://github.com/ipfs/ipfs-cluster/issues/681)
   * Make normal types serializable and remove `*Serial` types | [ipfs/ipfs-cluster#654](https://github.com/ipfs/ipfs-cluster/issues/654) | [ipfs/ipfs-cluster#688](https://github.com/ipfs/ipfs-cluster/issues/688) | [ipfs/ipfs-cluster#700](https://github.com/ipfs/ipfs-cluster/issues/700)
-  * Support IPFS paths in the IPFS proxy | [ipfs/ipfs-cluster#690](https://github.com/ipfs/ipfs-cluster/issues/690)
+  * Support IPFS paths in the IPFS proxy | [ipfs/ipfs-cluster#480](https://github.com/ipfs/ipfs-cluster/issues/480) | [ipfs/ipfs-cluster#690](https://github.com/ipfs/ipfs-cluster/issues/690)
   * Use go-datastore as backend for the cluster state | [ipfs/ipfs-cluster#655](https://github.com/ipfs/ipfs-cluster/issues/655)
   * Upgrade dependencies | [ipfs/ipfs-cluster#675](https://github.com/ipfs/ipfs-cluster/issues/675) | [ipfs/ipfs-cluster#679](https://github.com/ipfs/ipfs-cluster/issues/679) | [ipfs/ipfs-cluster#686](https://github.com/ipfs/ipfs-cluster/issues/686) | [ipfs/ipfs-cluster#687](https://github.com/ipfs/ipfs-cluster/issues/687)
   * Adopt MIT+Apache 2 License (no more sign-off required) | [ipfs/ipfs-cluster#692](https://github.com/ipfs/ipfs-cluster/issues/692)
