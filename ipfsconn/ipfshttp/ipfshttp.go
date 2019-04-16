@@ -459,14 +459,41 @@ func (ipfs *Connector) postCtxForStreamingResponse(ctx context.Context, path str
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	timer := time.NewTimer(timeout)
+	elapsed := time.Now()
+	var done bool
+	go func() {
+		for {
+			select {
+			case <-timer.C:
+				{
+					if time.Since(elapsed) >= timeout {
+						cancel()
+						done = true
+						break
+					}
+					timer.Reset(timeout - time.Since(elapsed))
+				}
+			case <-ctx.Done():
+				{
+					done = true
+					timer.Stop()
+				}
+			}
+
+			if done {
+				break
+			}
+		}
+	}()
+
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
-
 	reader := bufio.NewReader(res.Body)
-	elapsed := time.Millisecond * 0
+
 	var prev string
 	for {
 		line, err := reader.ReadBytes('\n')
@@ -479,18 +506,12 @@ func (ipfs *Connector) postCtxForStreamingResponse(ctx context.Context, path str
 		}
 
 		cur := string(line)
-		if cur == prev {
-			elapsed = elapsed + time.Millisecond
-		} else {
+		if cur != prev {
 			prev = cur
-			elapsed = time.Millisecond * 0
-		}
-		time.Sleep(time.Millisecond)
-		if elapsed >= timeout {
-			cancel()
-			break
+			elapsed = time.Now()
 		}
 	}
+
 	return nil
 }
 
