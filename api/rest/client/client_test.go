@@ -267,7 +267,7 @@ func TestProxyAddress(t *testing.T) {
 
 func TestIPFS(t *testing.T) {
 	ctx := context.Background()
-	ipfsMock := test.NewIpfsMock()
+	ipfsMock := test.NewIpfsMock(t)
 	defer ipfsMock.Close()
 
 	proxyAddr, err := ma.NewMultiaddr(

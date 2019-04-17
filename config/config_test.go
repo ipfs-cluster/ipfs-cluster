@@ -97,6 +97,11 @@ func TestManager_ToJSON(t *testing.T) {
     "mock": {
       "a": "b"
     }
+  },
+  "datastore": {
+    "mock": {
+      "a": "b"
+    }
   }
 }`)
 	cfgMgr := setupConfigManager()

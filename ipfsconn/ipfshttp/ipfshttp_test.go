@@ -19,7 +19,7 @@ func init() {
 }
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
-	mock := test.NewIpfsMock()
+	mock := test.NewIpfsMock(t)
 	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
 		mock.Addr, mock.Port))
 

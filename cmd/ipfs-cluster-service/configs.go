@@ -8,7 +8,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
@@ -23,7 +25,8 @@ type cfgs struct {
 	apiCfg              *rest.Config
 	ipfsproxyCfg        *ipfsproxy.Config
 	ipfshttpCfg         *ipfshttp.Config
-	consensusCfg        *raft.Config
+	raftCfg             *raft.Config
+	crdtCfg             *crdt.Config
 	maptrackerCfg       *maptracker.Config
 	statelessTrackerCfg *stateless.Config
 	pubsubmonCfg        *pubsubmon.Config
@@ -31,6 +34,7 @@ type cfgs struct {
 	numpinInfCfg        *numpin.Config
 	metricsCfg          *observations.MetricsConfig
 	tracingCfg          *observations.TracingConfig
+	badgerCfg           *badger.Config
 }
 
 func makeConfigs() (*config.Manager, *cfgs) {
@@ -39,7 +43,8 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	apiCfg := &rest.Config{}
 	ipfsproxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
-	consensusCfg := &raft.Config{}
+	raftCfg := &raft.Config{}
+	crdtCfg := &crdt.Config{}
 	maptrackerCfg := &maptracker.Config{}
 	statelessCfg := &stateless.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
@@ -47,11 +52,13 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	numpinInfCfg := &numpin.Config{}
 	metricsCfg := &observations.MetricsConfig{}
 	tracingCfg := &observations.TracingConfig{}
+	badgerCfg := &badger.Config{}
 	cfg.RegisterComponent(config.Cluster, clusterCfg)
 	cfg.RegisterComponent(config.API, apiCfg)
 	cfg.RegisterComponent(config.API, ipfsproxyCfg)
 	cfg.RegisterComponent(config.IPFSConn, ipfshttpCfg)
-	cfg.RegisterComponent(config.Consensus, consensusCfg)
+	cfg.RegisterComponent(config.Consensus, raftCfg)
+	cfg.RegisterComponent(config.Consensus, crdtCfg)
 	cfg.RegisterComponent(config.PinTracker, maptrackerCfg)
 	cfg.RegisterComponent(config.PinTracker, statelessCfg)
 	cfg.RegisterComponent(config.Monitor, pubsubmonCfg)
@@ -59,12 +66,14 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	cfg.RegisterComponent(config.Informer, numpinInfCfg)
 	cfg.RegisterComponent(config.Observations, metricsCfg)
 	cfg.RegisterComponent(config.Observations, tracingCfg)
+	cfg.RegisterComponent(config.Datastore, badgerCfg)
 	return cfg, &cfgs{
 		clusterCfg,
 		apiCfg,
 		ipfsproxyCfg,
 		ipfshttpCfg,
-		consensusCfg,
+		raftCfg,
+		crdtCfg,
 		maptrackerCfg,
 		statelessCfg,
 		pubsubmonCfg,
@@ -72,7 +81,14 @@ func makeConfigs() (*config.Manager, *cfgs) {
 		numpinInfCfg,
 		metricsCfg,
 		tracingCfg,
+		badgerCfg,
 	}
+}
+
+func makeAndLoadConfigs() (*config.Manager, *cfgs) {
+	cfgMgr, cfgs := makeConfigs()
+	checkErr("reading configuration", cfgMgr.LoadJSONFileAndEnv(configPath))
+	return cfgMgr, cfgs
 }
 
 func saveConfig(cfg *config.Manager) {
@@ -94,7 +110,8 @@ func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
 	cfgs.tracingCfg.ClusterPeername = cfgs.clusterCfg.Peername
 	cfgs.tracingCfg.EnableTracing = tracingValue
 	cfgs.clusterCfg.Tracing = tracingValue
-	cfgs.consensusCfg.Tracing = tracingValue
+	cfgs.raftCfg.Tracing = tracingValue
+	cfgs.crdtCfg.Tracing = tracingValue
 	cfgs.apiCfg.Tracing = tracingValue
 	cfgs.ipfshttpCfg.Tracing = tracingValue
 	cfgs.ipfsproxyCfg.Tracing = tracingValue

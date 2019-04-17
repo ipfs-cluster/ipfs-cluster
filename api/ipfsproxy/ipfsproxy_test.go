@@ -25,7 +25,7 @@ func init() {
 }
 
 func testIPFSProxyWithConfig(t *testing.T, cfg *Config) (*Server, *test.IpfsMock) {
-	mock := test.NewIpfsMock()
+	mock := test.NewIpfsMock(t)
 	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
 		mock.Addr, mock.Port))
 	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")

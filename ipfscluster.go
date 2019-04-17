@@ -44,7 +44,7 @@ type Consensus interface {
 	LogUnpin(ctx context.Context, c *api.Pin) error
 	AddPeer(ctx context.Context, p peer.ID) error
 	RmPeer(ctx context.Context, p peer.ID) error
-	State(context.Context) (state.State, error)
+	State(context.Context) (state.ReadOnly, error)
 	// Provide a node which is responsible to perform
 	// specific tasks which must only run in 1 cluster peer
 	Leader(context.Context) (peer.ID, error)

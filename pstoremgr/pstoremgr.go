@@ -79,9 +79,11 @@ func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool) error {
 		pm.ImportPeers(resolvedAddrs, connect)
 	}
 	if connect {
-		ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
-		defer cancel()
-		pm.host.Network().DialPeer(ctx, pid)
+		go func() {
+			ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
+			defer cancel()
+			pm.host.Network().DialPeer(ctx, pid)
+		}()
 	}
 	return nil
 }
@@ -210,7 +212,7 @@ func (pm *Manager) SavePeerstore(addrs []api.Multiaddr) {
 
 	f, err := os.Create(pm.peerstorePath)
 	if err != nil {
-		logger.Errorf(
+		logger.Warningf(
 			"could not save peer addresses to %s: %s",
 			pm.peerstorePath,
 			err,

@@ -26,7 +26,7 @@ type logForwarder struct {
 }
 
 var raftStdLogger = log.New(&logForwarder{}, "", 0)
-var raftLogger = logging.Logger("raft")
+var raftLogger = logging.Logger("raftlib")
 
 // Write forwards to our go-log logger.
 // According to https://golang.org/pkg/log/#Logger.Output

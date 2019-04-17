@@ -616,7 +616,7 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 		raftIndex = meta.Index
 		raftTerm = meta.Term
 		srvCfg = meta.Configuration
-		CleanupRaft(dataFolder, cfg.BackupsRotate)
+		CleanupRaft(cfg)
 	} else {
 		// Begin the log after the index of a fresh start so that
 		// the snapshot's state propagate's during bootstrap
@@ -649,7 +649,10 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 }
 
 // CleanupRaft moves the current data folder to a backup location
-func CleanupRaft(dataFolder string, keep int) error {
+func CleanupRaft(cfg *Config) error {
+	dataFolder := cfg.GetDataFolder()
+	keep := cfg.BackupsRotate
+
 	meta, _, err := latestSnapshot(dataFolder)
 	if meta == nil && err == nil {
 		// no snapshots at all. Avoid creating backups
@@ -672,7 +675,7 @@ func CleanupRaft(dataFolder string, keep int) error {
 
 // only call when Raft is shutdown
 func (rw *raftWrapper) Clean() error {
-	return CleanupRaft(rw.config.GetDataFolder(), rw.config.BackupsRotate)
+	return CleanupRaft(rw.config)
 }
 
 func find(s []string, elem string) bool {

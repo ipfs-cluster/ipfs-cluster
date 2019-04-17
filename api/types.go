@@ -452,8 +452,17 @@ type PinOptions struct {
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 }
 
-// Equals returns true if two PinOption objects are equivalent.
+// Equals returns true if two PinOption objects are equivalent. po and po2 may
+// be nil.
 func (po *PinOptions) Equals(po2 *PinOptions) bool {
+	if po == nil && po2 != nil || po2 == nil && po != nil {
+		return false
+	}
+
+	if po == po2 { // same as pin.Equals()
+		return false
+	}
+
 	if po.ReplicationFactorMax != po2.ReplicationFactorMax {
 		return false
 	}
@@ -692,8 +701,16 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 // Equals checks if two pins are the same (with the same allocations).
 // If allocations are the same but in different order, they are still
 // considered equivalent.
+// pin or pin2 may be nil. If both are nil, Equals returns false.
 func (pin *Pin) Equals(pin2 *Pin) bool {
 	if pin == nil && pin2 != nil || pin2 == nil && pin != nil {
+		return false
+	}
+
+	if pin == pin2 {
+		// ask @lanzafame why this is not true
+		// in any case, this is anomalous and we should
+		// not be using this with two nils.
 		return false
 	}
 
