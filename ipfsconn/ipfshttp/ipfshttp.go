@@ -90,6 +90,16 @@ type ipfsResolveResp struct {
 	Path string
 }
 
+type ipfsRefsResp struct {
+	Ref string `json:"Ref"`
+	Err string `json:"Err"`
+}
+
+type ipfsPinsResp struct {
+	Pins     []string `json:"Pins"`
+	Progress int      `json:"Progress"`
+}
+
 type ipfsSwarmPeersResp struct {
 	Peers []ipfsPeer
 }
@@ -266,9 +276,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Pin")
 	defer span.End()
 
-	ctx1, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
-	defer cancel()
-	pinStatus, err := ipfs.PinLsCid(ctx1, hash)
+	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
@@ -293,7 +301,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	switch ipfs.config.PinMethod {
 	case "refs": // do refs -r first
 		path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs)
-		err := ipfs.postCtxForStreamingResponse(ctx, path, ipfs.config.PinTimeout)
+		err := ipfs.postCtxStreaming(ctx, path, ipfs.config.PinTimeout)
 		if err != nil {
 			return err
 		}
@@ -302,7 +310,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	}
 
 	path := fmt.Sprintf("pin/add?arg=%s&%s&progress=true", hash, pinArgs)
-	err = ipfs.postCtxForStreamingResponse(ctx, path, ipfs.config.PinTimeout)
+	err = ipfs.postCtxStreaming(ctx, path, ipfs.config.PinTimeout)
 	if err == nil {
 		logger.Info("IPFS Pin request succeeded: ", hash)
 	}
@@ -451,17 +459,19 @@ func checkResponse(path string, code int, body []byte) error {
 	return fmt.Errorf("IPFS-post '%s' unsuccessful: %d: %s", path, code, body)
 }
 
-// postCtxForStreamingResponse makes a POST request against
+// postCtxStreaming makes a POST request against
 // the ipfs daemon, reads the body of the response line by line
 // at evey millisecond. It cancels the context if timeout duration
 // has passed since last new data on the buffer.
-func (ipfs *Connector) postCtxForStreamingResponse(ctx context.Context, path string, timeout time.Duration) error {
+func (ipfs *Connector) postCtxStreaming(ctx context.Context, path string, timeout time.Duration) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
 	elapsed := time.Now()
-	var done bool
+
 	go func() {
 		for {
 			select {
@@ -469,20 +479,10 @@ func (ipfs *Connector) postCtxForStreamingResponse(ctx context.Context, path str
 				{
 					if time.Since(elapsed) >= timeout {
 						cancel()
-						done = true
 						break
 					}
 					timer.Reset(timeout - time.Since(elapsed))
 				}
-			case <-ctx.Done():
-				{
-					done = true
-					timer.Stop()
-				}
-			}
-
-			if done {
-				break
 			}
 		}
 	}()
@@ -494,25 +494,61 @@ func (ipfs *Connector) postCtxForStreamingResponse(ctx context.Context, path str
 	defer res.Body.Close()
 	reader := bufio.NewReader(res.Body)
 
-	var prev string
+	if strings.HasPrefix(path, "pin/add") {
+		var pins ipfsPinsResp
+		var progress int
+		for {
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				if err == io.EOF {
+					err = json.Unmarshal(line, &pins)
+					break
+				}
+				fmt.Println(err.Error())
+				return err
+			}
+
+			err = json.Unmarshal(line, &pins)
+			if err != nil {
+				return err
+			}
+			if pins.Progress > progress {
+				progress = pins.Progress
+				elapsed = time.Now()
+			}
+		}
+
+		return err
+	}
+
+	// if path starts with "refs"
+	var ref ipfsRefsResp
+	var last string
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				// There might be new bytes before EOF, but we don't need to know them
+				err = json.Unmarshal(line, &ref)
 				break
 			}
 			return err
 		}
 
-		cur := string(line)
-		if cur != prev {
-			prev = cur
+		err = json.Unmarshal(line, &ref)
+		if err != nil {
+			return err
+		}
+		if ref.Err != "" {
+			logger.Error(ref.Err)
+		}
+
+		if ref.Ref != last {
+			last = ref.Ref
 			elapsed = time.Now()
 		}
 	}
 
-	return nil
+	return err
 }
 
 // postCtx makes a POST request against
