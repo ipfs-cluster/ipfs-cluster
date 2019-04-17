@@ -504,7 +504,6 @@ func (ipfs *Connector) postCtxStreaming(ctx context.Context, path string, timeou
 					err = json.Unmarshal(line, &pins)
 					break
 				}
-				fmt.Println(err.Error())
 				return err
 			}
 
