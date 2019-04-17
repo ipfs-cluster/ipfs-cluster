@@ -28,7 +28,7 @@ import (
 	"gonum.org/v1/gonum/floats"
 )
 
-// Phi returns the φ-failure for the given value and distribution.
+// phi returns the φ-failure for the given value and distribution.
 // Two edge cases that are dealt with in phi:
 //	1. phi == math.+Inf
 //  2. phi == math.NaN

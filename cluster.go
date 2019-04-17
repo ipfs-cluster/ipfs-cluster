@@ -300,9 +300,9 @@ func (c *Cluster) alertsHandler() {
 		case alrt := <-c.monitor.Alerts():
 			list := c.state.List(c.ctx)
 			for _, pin := range list {
-				if len(pin.Allocations) < 1 && containsPeer(pin.Allocations, alrt.Peer) {
-					logger.Error("a pin with only one allocation cannot be repinned")
-					logger.Error("to make repinning possible, pin with a replication factor of 2+")
+				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
+					logger.Warning("a pin with only one allocation cannot be repinned")
+					logger.Warning("to make repinning possible, pin with a replication factor of 2+")
 					continue
 				}
 				if c.shouldPeerRepinCid(alrt.Peer, pin) {
@@ -319,13 +319,13 @@ func (c *Cluster) alertsHandler() {
 // return true.
 func (c *Cluster) shouldPeerRepinCid(failed peer.ID, pin *api.Pin) bool {
 	if containsPeer(pin.Allocations, failed) && containsPeer(pin.Allocations, c.id) {
-		allocs := sort.StringSlice(api.PeersToStrings(pin.Allocations))
-		allocs.Sort()
-		if allocs[0] == c.id.String() {
+		allocs := peer.IDSlice(pin.Allocations)
+		sort.Sort(allocs)
+		if allocs[0] == c.id {
 			return true
 		}
 
-		if allocs[1] == c.id.String() && allocs[0] == failed.String() {
+		if allocs[1] == c.id && allocs[0] == failed {
 			return true
 		}
 	}

@@ -25,7 +25,11 @@ type Checker struct {
 }
 
 // NewChecker creates a Checker using the given
-// MetricsStore.
+// MetricsStore. The threshold value indicates when a
+// monitored component should be considered to have failed.
+// The greater the threshold value the more leniency is granted.
+//
+// A value between 2.0 and 4.0 is suggested for the threshold.
 func NewChecker(metrics *Store, threshold float64) *Checker {
 	return &Checker{
 		alertCh:   make(chan *api.Alert, AlertChannelCap),
@@ -125,16 +129,24 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 	}
 }
 
-// Failed returns if a peer has potentially failed. Peers
-// that are not present in the metrics store will return
+// Failed returns true if a peer has potentially failed.
+// Peers that are not present in the metrics store will return
 // as failed.
 func (mc *Checker) Failed(pid peer.ID) bool {
+	_, _, _, result := mc.failed(pid)
+	return result
+}
+
+// failed returns all the values involved in making the decision
+// as to whether a peer has failed or not. This mainly for debugging
+// purposes.
+func (mc *Checker) failed(pid peer.ID) (float64, []float64, float64, bool) {
 	latest := mc.metrics.PeerLatest("ping", pid)
 	if latest == nil {
-		return true
+		return 0.0, nil, 0.0, true
 	}
 	v := time.Now().UnixNano() - latest.ReceivedAt
 	dv := mc.metrics.Distribution("ping", pid)
 	phiv := phi(float64(v), dv)
-	return phiv >= mc.threshold
+	return float64(v), dv, phiv, phiv >= mc.threshold
 }

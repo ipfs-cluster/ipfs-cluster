@@ -10,7 +10,7 @@ import (
 var cfgJSON = []byte(`
 {
       "check_interval": "15s",
-	  "failure_threshold": 3.0
+      "failure_threshold": 3.0
 }
 `)
 
