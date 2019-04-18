@@ -298,7 +298,16 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			list := c.state.List(c.ctx)
+			cState, err := c.consensus.State(c.ctx)
+			if err != nil {
+				logger.Warning(err)
+				return
+			}
+			list, err := cState.List(c.ctx)
+			if err != nil {
+				logger.Warning(err)
+				return
+			}
 			for _, pin := range list {
 				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
 					logger.Warning("a pin with only one allocation cannot be repinned")
