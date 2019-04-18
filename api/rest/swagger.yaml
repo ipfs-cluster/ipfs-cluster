@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: IPFS Cluster API
   description: HTTP API to interact with IPFS Cluster.
-  version: "0.10.0"
+  version: "0.10.1"
 servers:
   - url: 'http://127.0.0.1:9094'
 paths:
@@ -43,6 +43,22 @@ paths:
   /add:
     post:
       summary: Add a File
+      parameters:
+        - $ref: '#/components/parameters/pinNameParam'
+        - $ref: '#/components/parameters/pinReplicationParam'
+        - $ref: '#/components/parameters/pinReplicationMinParam'
+        - $ref: '#/components/parameters/pinReplicationMaxParam'
+        - $ref: '#/components/parameters/pinUserAllocationsParam'
+        - $ref: '#/components/parameters/pinShardSize'
+        - $ref: '#/components/parameters/hash'
+        - $ref: '#/components/parameters/recursive'
+        - $ref: '#/components/parameters/layout'
+        - $ref: '#/components/parameters/rawLeaves'
+        - $ref: '#/components/parameters/hidden'
+        - $ref: '#/components/parameters/wrap'
+        - $ref: '#/components/parameters/shard'
+        - $ref: '#/components/parameters/progress'
+        - $ref: '#/components/parameters/cidVersion'
       tags:
         - pins
       description: Add a file to IPFS via IPFS Cluster
@@ -138,6 +154,7 @@ paths:
           description: No Content
         '400':
           $ref: '#/components/responses/BadRequest'
+  
   /allocations:
     get:
       summary: Get Allocation information of all Pins
@@ -187,6 +204,9 @@ paths:
   /pins:
     get:
       summary: Get a list of Pins
+      parameters:
+        - $ref: '#/components/parameters/local'
+        - $ref: '#/components/parameters/filter'
       tags:
         - pins
       description: Get a list of Pins
@@ -212,6 +232,8 @@ paths:
           type: string
     get:
       summary: Get status of a Pin
+      parameters:
+        - $ref: '#/components/parameters/local'
       tags:
         - pins
       description: Get status of a Pin
@@ -235,6 +257,7 @@ paths:
         - $ref: '#/components/parameters/pinReplicationMinParam'
         - $ref: '#/components/parameters/pinReplicationMaxParam'
         - $ref: '#/components/parameters/pinUserAllocationsParam'
+        - $ref: '#/components/parameters/pinShardSize'
         - $ref: '#/components/parameters/pinMetaParam'
       summary: Add a new Pin
       tags:
@@ -255,14 +278,14 @@ paths:
           description: Accepted
         '400':
           $ref: '#/components/responses/BadRequest'
-  /pins/{path}/{cid}:
+  /pins/{keyType}/{path}:
     parameters:
-      - name: cid
+      - name: path
         in: path
         required: true
         schema:
           type: string
-      - name: path
+      - name: keyType
         in: path
         required: true
         schema:
@@ -321,6 +344,8 @@ paths:
   /pins/sync:
     post:
       summary: Perform Sync operation on all Pins
+      parameters:
+        - $ref: '#/components/parameters/local'
       tags:
         - pins
       description: Perform Sync operation on all Pins
@@ -333,6 +358,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PinInfo'
+  
   /pins/{cid}/sync:
     parameters:
       - name: cid
@@ -342,6 +368,8 @@ paths:
           type: string
     post:
       summary: Perform Sync operation on a Pin
+      parameters:
+        - $ref: '#/components/parameters/local'
       tags:
         - pins
       description: Perform Sync operation on a Pin
@@ -356,6 +384,7 @@ paths:
                 '0':
                   value: >
                     {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}
+  
   /pins/recover:
     post:
       summary: Perform Recover operation on all Pins
@@ -383,6 +412,7 @@ paths:
                     [{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}]
         '400':
           $ref: '#/components/responses/BadRequest'
+  
   /pins/{cid}/recover:
     parameters:
       - name: cid
@@ -392,6 +422,8 @@ paths:
           type: string
     post:
       summary: Perform Recover operation on a Pin
+      parameters:
+        - $ref: '#/components/parameters/local'
       tags:
         - pins
       description: Perform Recover operation on a Pin
@@ -406,6 +438,24 @@ paths:
                 '0':
                   value: >
                     {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}
+
+  /health/graph:
+    get:
+      summary: Query all connected cluster peers and their ipfs peers to generate a graph of the connections
+      tags: 
+        - health 
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectGraph'
+              examples:
+                '0':
+                  value: >
+                    {"ClusterID": "QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo","ipfs_links": {"QmSVBhsiCMvmBF262hDSY5q4aMhaNYDFVQa5ZCV4TeK32V": ["QmQ5Y2SmVW4iVuVvFThLFX2DgwhGMEKGcc6jt5NDjGpJPh","QmVwqRyKamr6UcJx5YYg2fCmxcBi1k5sFZjtizpFPyZkR1"],"QmdCsiyNzSKQoraJjnJvdv2qsTsXzQsQrG6PZ8P6Pm55N2": ["QmSxrFXq85asEujMX7HpRRZP98cPsYDCnpTtqBuCh5DBKk","12D3KooWERmHT6g4YkrPBTmhfDLjfi8b662vFCfvBXqzcdkPGQn1"]},"cluster_links": {"QmVSjqw1MFQkq8PdmvGXF1LZvb8uGV9zAhMHqxdrww4Fvy": ["QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo"],"QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo": ["QmVSjqw1MFQkq8PdmvGXF1LZvb8uGV9zAhMHqxdrww4Fvy"]},"cluster_to_ipfs": {"QmVSjqw1MFQkq8PdmvGXF1LZvb8uGV9zAhMHqxdrww4Fvy": "QmdCsiyNzSKQoraJjnJvdv2qsTsXzQsQrG6PZ8P6Pm55N2","QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo": "QmSVBhsiCMvmBF262hDSY5q4aMhaNYDFVQa5ZCV4TeK32V"}}
+   
   /monitor/metrics/{name}:
     parameters:
       - name: name
@@ -413,11 +463,11 @@ paths:
         required: true
         schema:
           type: string
-          enum: [ping, freespace, reposize]
+          enum: [ping, freespace]
     get:
-      summary: Get latest Metrics by Name
+      summary: Get the latest valid metrics of the given type logged by this peer for all current cluster peers
       tags:
-        - monitor
+        - health
       description: Get latest Metrics by Name
       responses:
         '200':
@@ -438,6 +488,28 @@ components:
         /:
           type: string
 
+    ConnectGraph:
+      type: object
+      properties:
+        ClusterID:
+          type: string
+        ipfs_links:
+          type: object
+          additionalProperties:
+              type: array
+              items:
+                type: string
+        cluster_links:
+          type: object
+          additionalProperties:
+              type: array
+              items:
+                type: string      
+        cluster_to_ipfs:
+          type: object
+          additionalProperties:
+              type: string
+          
     Peer:
       type: object
       properties:
@@ -522,7 +594,7 @@ components:
           type: string
         timestamp:
           type: string
-
+           
     Error:
       type: object
       properties:
@@ -592,6 +664,96 @@ components:
         additionalProperties:
           type: string
         example: {"meta-timestamp":"2019-04-08T16:02:30.186116871+10:00"}
+    
+    pinShardSize:
+      name: shard_size
+      in: query
+      schema:
+        type: integer
+    
+    hash:
+      name: hash
+      in: query
+      schema:
+        type: string
+
+    recursive:
+      name: recursive
+      in: query
+      schema:
+        type: boolean
+    
+    layout:
+      name: layout
+      in: query
+      schema:
+        type: string
+        
+    chunker:
+      name: chunker
+      in: query
+      schema:
+        type: string
+    
+    rawLeaves:
+      name: raw-leaves
+      in: query
+      schema:
+        type: boolean
+    
+    hidden:
+      name: hidden
+      in: query
+      schema:
+        type: boolean
+    
+    wrap:
+      name: wrap-with-directory
+      in: query
+      schema:
+        type: boolean
+        
+    shard:
+      name: shard
+      in: query
+      schema:
+        type: boolean
+    
+    progress:
+      name: progress
+      in: query
+      schema:
+        type: boolean
+    
+    cidVersion:
+      name: cid-version
+      in: query
+      schema:
+        type: integer
+    
+    streamChannels:
+      name: stream-channels
+      in: query
+      schema:
+        type: boolean
+    
+    noCopy:
+      name: nocopy
+      in: query
+      schema:
+        type: boolean
+    
+    local:
+      name: local
+      in: query
+      schema:
+        type: boolean
+    
+    filter:
+      name: filter
+      in: query
+      schema:
+        type: string
 
   responses:
     NotFound:
