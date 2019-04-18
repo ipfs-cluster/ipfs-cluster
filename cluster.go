@@ -614,7 +614,7 @@ func (c *Cluster) RepoGC(ctx context.Context) *api.IPFSRepoGc {
 	// ignore error since it is included in response object
 	ipfsGC, err := c.ipfs.RepoGC(ctx)
 	if err != nil {
-		ipfsGC = &api.IPFSRepoGc{
+		ipfsGC = &api.IPFSRepoGC{
 			Error: err.Error(),
 		}
 	}
