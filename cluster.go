@@ -620,7 +620,6 @@ func (c *Cluster) RepoGC(ctx context.Context) *api.IPFSRepoGc {
 	}
 
 	return ipfsGC
-
 }
 
 // PeerAdd adds a new peer to this Cluster.
