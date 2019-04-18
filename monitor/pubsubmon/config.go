@@ -22,7 +22,10 @@ const (
 type Config struct {
 	config.Saver
 
-	CheckInterval    time.Duration
+	CheckInterval time.Duration
+	// FailureThreshold indicates when a peer should be considered failed.
+	// The greater the threshold value the more leniency is granted.
+	// A value between 2.0 and 4.0 is suggested for the threshold.
 	FailureThreshold float64
 }
 
