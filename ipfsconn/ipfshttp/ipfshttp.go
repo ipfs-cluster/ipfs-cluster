@@ -91,13 +91,13 @@ type ipfsResolveResp struct {
 }
 
 type ipfsRefsResp struct {
-	Ref string `json:"Ref"`
-	Err string `json:"Err"`
+	Ref string
+	Err string
 }
 
 type ipfsPinsResp struct {
-	Pins     []string `json:"Pins"`
-	Progress int      `json:"Progress"`
+	Pins     []string
+	Progress int
 }
 
 type ipfsSwarmPeersResp struct {
