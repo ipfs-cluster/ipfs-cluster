@@ -605,7 +605,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 	}
 }
 
-// GC performs garbage collection in the cluster
+// RepoGC performs garbage collection in the cluster
 func (c *Cluster) RepoGC(ctx context.Context) *api.IPFSRepoGc {
 	_, span := trace.StartSpan(ctx, "cluster/GC")
 	defer span.End()
