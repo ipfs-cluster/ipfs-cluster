@@ -84,7 +84,7 @@ type IPFSConnector interface {
 	// provided by "repo stat".
 	RepoStat(context.Context) (*api.IPFSRepoStat, error)
 	// RepoGC returns the status of the garbage collection "repo/gc"
-	RepoGC(context.Context) (*api.IPFSRepoGc, error)
+	RepoGC(context.Context) error
 	// Resolve returns a cid given a path
 	Resolve(context.Context, string) (cid.Cid, error)
 	// BlockPut directly adds a block of data to the IPFS repo
