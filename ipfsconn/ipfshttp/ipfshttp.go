@@ -298,10 +298,25 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 		pinArgs = fmt.Sprintf("recursive=true&max-depth=%d", maxDepth)
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	timer := time.NewTimer(ipfs.config.PinTimeout)
+	defer timer.Stop()
+
+	elapsed := time.Now()
+	checkTimeout(ctx, cancel, timer, &elapsed, ipfs.config.PinTimeout)
+
 	switch ipfs.config.PinMethod {
 	case "refs": // do refs -r first
 		path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs)
-		err := ipfs.postCtxStreaming(ctx, path, ipfs.config.PinTimeout)
+		res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+
+		err = handleRefsProgress(json.NewDecoder(bufio.NewReader(res.Body)), &elapsed)
 		if err != nil {
 			return err
 		}
@@ -310,10 +325,17 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	}
 
 	path := fmt.Sprintf("pin/add?arg=%s&%s&progress=true", hash, pinArgs)
-	err = ipfs.postCtxStreaming(ctx, path, ipfs.config.PinTimeout)
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	err = handlePinsProgress(json.NewDecoder(bufio.NewReader(res.Body)), &elapsed)
 	if err == nil {
 		logger.Info("IPFS Pin request succeeded: ", hash)
 	}
+
 	return err
 }
 
@@ -323,16 +345,18 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Unpin")
 	defer span.End()
 
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
-	defer cancel()
-
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
+
 	if pinStatus.IsPinned(-1) {
 		defer ipfs.updateInformerMetric(ctx)
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
+
+		ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
+		defer cancel()
+
 		_, err := ipfs.postCtx(ctx, path, "", nil)
 		if err != nil {
 			return err
@@ -459,82 +483,13 @@ func checkResponse(path string, code int, body []byte) error {
 	return fmt.Errorf("IPFS-post '%s' unsuccessful: %d: %s", path, code, body)
 }
 
-// postCtxStreaming makes a POST request against
-// the ipfs daemon, reads the body of the response line by line
-// at evey millisecond. It cancels the context if timeout duration
-// has passed since last new data on the buffer.
-func (ipfs *Connector) postCtxStreaming(ctx context.Context, path string, timeout time.Duration) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	elapsed := time.Now()
-
-	go func() {
-		for {
-			select {
-			case <-timer.C:
-				{
-					if time.Since(elapsed) >= timeout {
-						cancel()
-						break
-					}
-					timer.Reset(timeout - time.Since(elapsed))
-				}
-			}
-		}
-	}()
-
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	reader := bufio.NewReader(res.Body)
-
-	if strings.HasPrefix(path, "pin/add") {
-		var pins ipfsPinsResp
-		var progress int
-		for {
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				if err == io.EOF {
-					err = json.Unmarshal(line, &pins)
-					break
-				}
-				return err
-			}
-
-			err = json.Unmarshal(line, &pins)
-			if err != nil {
-				return err
-			}
-			if pins.Progress > progress {
-				progress = pins.Progress
-				elapsed = time.Now()
-			}
-		}
-
-		return err
-	}
-
-	// if path starts with "refs"
-	var ref ipfsRefsResp
+func handleRefsProgress(dec *json.Decoder, elapsed *time.Time) error {
 	var last string
 	for {
-		line, err := reader.ReadBytes('\n')
-		if err != nil {
-			if err == io.EOF {
-				err = json.Unmarshal(line, &ref)
-				break
-			}
-			return err
-		}
-
-		err = json.Unmarshal(line, &ref)
-		if err != nil {
+		var ref ipfsRefsResp
+		if err := dec.Decode(&ref); err == io.EOF {
+			break
+		} else if err != nil {
 			return err
 		}
 		if ref.Err != "" {
@@ -543,11 +498,58 @@ func (ipfs *Connector) postCtxStreaming(ctx context.Context, path string, timeou
 
 		if ref.Ref != last {
 			last = ref.Ref
-			elapsed = time.Now()
+			*elapsed = time.Now()
 		}
 	}
 
-	return err
+	return nil
+}
+
+func handlePinsProgress(dec *json.Decoder, elapsed *time.Time) error {
+	var progress int
+	for {
+		var pins ipfsPinsResp
+		if err := dec.Decode(&pins); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		if pins.Progress > progress {
+			progress = pins.Progress
+			*elapsed = time.Now()
+		}
+	}
+
+	return nil
+}
+
+func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Timer, elapsed *time.Time, timeout time.Duration) {
+	var done bool
+	go func() {
+		for {
+			select {
+			case <-timer.C:
+				{
+					if time.Since(*elapsed) >= timeout {
+						done = true
+						cancel()
+						break
+					}
+					timer.Reset(timeout - time.Since(*elapsed))
+				}
+			case <-ctx.Done():
+				{
+					done = true
+					break
+				}
+			}
+
+			if done {
+				fmt.Println("breaking out of the immortal goroutine")
+				break
+			}
+		}
+	}()
 }
 
 // postCtx makes a POST request against
