@@ -532,10 +532,9 @@ func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Ti
 			select {
 			case <-reset:
 				{
-					if !timer.Stop() {
-						<-timer.C
+					if timer.Stop() {
+						timer.Reset(timeout)
 					}
-					timer.Reset(timeout)
 				}
 			case <-timer.C:
 				{
