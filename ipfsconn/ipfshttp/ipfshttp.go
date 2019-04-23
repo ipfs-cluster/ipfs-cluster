@@ -304,8 +304,8 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	timer := time.NewTimer(ipfs.config.PinTimeout)
 	defer timer.Stop()
 
-	elapsed := time.Now()
-	checkTimeout(ctx, cancel, timer, &elapsed, ipfs.config.PinTimeout)
+	reset := make(chan int)
+	checkTimeout(ctx, cancel, timer, ipfs.config.PinTimeout, reset)
 
 	switch ipfs.config.PinMethod {
 	case "refs": // do refs -r first
@@ -316,7 +316,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 		}
 		defer res.Body.Close()
 
-		err = handleRefsProgress(json.NewDecoder(bufio.NewReader(res.Body)), &elapsed)
+		err = handleRefsProgress(json.NewDecoder(bufio.NewReader(res.Body)), reset)
 		if err != nil {
 			return err
 		}
@@ -331,7 +331,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	}
 	defer res.Body.Close()
 
-	err = handlePinsProgress(json.NewDecoder(bufio.NewReader(res.Body)), &elapsed)
+	err = handlePinsProgress(json.NewDecoder(bufio.NewReader(res.Body)), reset)
 	if err == nil {
 		logger.Info("IPFS Pin request succeeded: ", hash)
 	}
@@ -483,7 +483,7 @@ func checkResponse(path string, code int, body []byte) error {
 	return fmt.Errorf("IPFS-post '%s' unsuccessful: %d: %s", path, code, body)
 }
 
-func handleRefsProgress(dec *json.Decoder, elapsed *time.Time) error {
+func handleRefsProgress(dec *json.Decoder, reset chan int) error {
 	var last string
 	for {
 		var ref ipfsRefsResp
@@ -492,20 +492,21 @@ func handleRefsProgress(dec *json.Decoder, elapsed *time.Time) error {
 		} else if err != nil {
 			return err
 		}
+		// logger.Infof("Ref %s", ref.Ref)
 		if ref.Err != "" {
 			logger.Error(ref.Err)
 		}
 
 		if ref.Ref != last {
 			last = ref.Ref
-			*elapsed = time.Now()
+			reset <- 1
 		}
 	}
 
 	return nil
 }
 
-func handlePinsProgress(dec *json.Decoder, elapsed *time.Time) error {
+func handlePinsProgress(dec *json.Decoder, reset chan int) error {
 	var progress int
 	for {
 		var pins ipfsPinsResp
@@ -514,28 +515,31 @@ func handlePinsProgress(dec *json.Decoder, elapsed *time.Time) error {
 		} else if err != nil {
 			return err
 		}
+		logger.Infof("Progress: %d", pins.Progress)
 		if pins.Progress > progress {
 			progress = pins.Progress
-			*elapsed = time.Now()
+			reset <- 1
 		}
 	}
 
 	return nil
 }
 
-func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Timer, elapsed *time.Time, timeout time.Duration) {
+func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Timer, timeout time.Duration, reset chan int) {
 	var done bool
 	go func() {
 		for {
 			select {
+			case <-reset:
+				{
+					//timer.Stop()
+					timer.Reset(timeout)
+				}
 			case <-timer.C:
 				{
-					if time.Since(*elapsed) >= timeout {
-						done = true
-						cancel()
-						break
-					}
-					timer.Reset(timeout - time.Since(*elapsed))
+					done = true
+					cancel()
+					break
 				}
 			case <-ctx.Done():
 				{
