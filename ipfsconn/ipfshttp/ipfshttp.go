@@ -492,7 +492,7 @@ func handleRefsProgress(dec *json.Decoder, reset chan int) error {
 		} else if err != nil {
 			return err
 		}
-		// logger.Infof("Ref %s", ref.Ref)
+		//logger.Infof("Ref %s", ref.Ref)
 		if ref.Err != "" {
 			logger.Error(ref.Err)
 		}
@@ -515,7 +515,7 @@ func handlePinsProgress(dec *json.Decoder, reset chan int) error {
 		} else if err != nil {
 			return err
 		}
-		logger.Infof("Progress: %d", pins.Progress)
+		//logger.Infof("Progress: %d", pins.Progress)
 		if pins.Progress > progress {
 			progress = pins.Progress
 			reset <- 1
@@ -532,7 +532,9 @@ func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Ti
 			select {
 			case <-reset:
 				{
-					//timer.Stop()
+					if !timer.Stop() {
+						<-timer.C
+					}
 					timer.Reset(timeout)
 				}
 			case <-timer.C:
@@ -549,7 +551,6 @@ func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Ti
 			}
 
 			if done {
-				fmt.Println("breaking out of the immortal goroutine")
 				break
 			}
 		}
