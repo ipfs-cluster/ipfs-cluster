@@ -17,12 +17,12 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
-func TestChecker(t *testing.T) {
+func TestCheckPeers(t *testing.T) {
 	metrics := NewStore()
 	checker := NewChecker(metrics, 2.0)
 
 	metr := &api.Metric{
-		Name:  "test",
+		Name:  "ping",
 		Peer:  test.PeerID1,
 		Value: "1",
 		Valid: true,
@@ -112,6 +112,10 @@ func TestChecker_Failed(t *testing.T) {
 	})
 }
 
+//////////////////
+// HELPER TESTS //
+//////////////////
+
 func TestThresholdValues(t *testing.T) {
 	t.Log("TestThresholdValues is useful for testing out different threshold values")
 	t.Log("It doesn't actually perform any 'tests', so it is skipped by default")
@@ -133,7 +137,7 @@ func TestThresholdValues(t *testing.T) {
 			output := false
 
 			check := func(i int) bool {
-				inputv, dist, phiv, got := checker.failed(test.PeerID1)
+				inputv, dist, phiv, got := checker.failed("ping", test.PeerID1)
 				if output {
 					fmt.Println(i)
 					fmt.Printf("phiv: %f\n", phiv)
@@ -193,7 +197,7 @@ func TestThresholdValues(t *testing.T) {
 			output := false
 
 			check := func(i int) bool {
-				inputv, dist, phiv, got := checker.failed(test.PeerID1)
+				inputv, dist, phiv, got := checker.failed("ping", test.PeerID1)
 				if output {
 					fmt.Println(i)
 					fmt.Printf("phiv: %f\n", phiv)
@@ -254,7 +258,7 @@ func TestThresholdValues(t *testing.T) {
 			output := false
 
 			check := func(i int) bool {
-				inputv, dist, phiv, got := checker.failed(test.PeerID1)
+				inputv, dist, phiv, got := checker.failed("ping", test.PeerID1)
 				if output {
 					fmt.Println(i)
 					fmt.Printf("phiv: %f\n", phiv)

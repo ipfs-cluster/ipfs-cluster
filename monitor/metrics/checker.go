@@ -38,19 +38,17 @@ func NewChecker(metrics *Store, threshold float64) *Checker {
 	}
 }
 
-// CheckPeers will trigger alerts all latest metrics from the given peerset
+// CheckPeers will trigger alerts based on the latest metrics from the given peerset
 // when they have expired and no alert has been sent before.
 func (mc *Checker) CheckPeers(peers []peer.ID) error {
 	for _, peer := range peers {
-		// shortcut checking all metrics based on heartbeat
-		// failure detection
-		if mc.Failed(peer) {
-			err := mc.alert(peer, "ping")
-			if err != nil {
-				return err
-			}
-		}
 		for _, metric := range mc.metrics.PeerMetrics(peer) {
+			if mc.FailedMetric(metric.Name, peer) {
+				err := mc.alert(peer, metric.Name)
+				if err != nil {
+					return err
+				}
+			}
 			err := mc.alertIfExpired(metric)
 			if err != nil {
 				return err
@@ -133,20 +131,35 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 // Peers that are not present in the metrics store will return
 // as failed.
 func (mc *Checker) Failed(pid peer.ID) bool {
-	_, _, _, result := mc.failed(pid)
+	_, _, _, result := mc.failed("ping", pid)
+	return result
+}
+
+// FailedMetric is the same as Failed but can use any metric type,
+// not just ping.
+func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
+	_, _, _, result := mc.failed(metric, pid)
 	return result
 }
 
 // failed returns all the values involved in making the decision
 // as to whether a peer has failed or not. This mainly for debugging
 // purposes.
-func (mc *Checker) failed(pid peer.ID) (float64, []float64, float64, bool) {
-	latest := mc.metrics.PeerLatest("ping", pid)
+func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float64, bool) {
+	latest := mc.metrics.PeerLatest(metric, pid)
 	if latest == nil {
 		return 0.0, nil, 0.0, true
 	}
 	v := time.Now().UnixNano() - latest.ReceivedAt
-	dv := mc.metrics.Distribution("ping", pid)
-	phiv := phi(float64(v), dv)
-	return float64(v), dv, phiv, phiv >= mc.threshold
+	dv := mc.metrics.Distribution(metric, pid)
+	// one metric isn't enough to calculate a distribution
+	// alerting/failure detection will fallback to the metric-expiring
+	// method
+	switch {
+	case len(dv) < 2 && !latest.Expired():
+		return float64(v), dv, 0.0, false
+	default:
+		phiv := phi(float64(v), dv)
+		return float64(v), dv, phiv, phiv >= mc.threshold
+	}
 }
