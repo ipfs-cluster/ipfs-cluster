@@ -417,6 +417,8 @@ func PinTypeFromString(str string) PinType {
 		return ShardType
 	case "all":
 		return AllType
+	case "":
+		return AllType
 	default:
 		return BadType
 	}
