@@ -999,7 +999,7 @@ func TestClustersShutdown(t *testing.T) {
 	runF(t, clusters, f)
 }
 
-func TestClustersReplication(t *testing.T) {
+func TestClustersReplicationOverall(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
