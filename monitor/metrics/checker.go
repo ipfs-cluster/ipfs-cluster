@@ -53,10 +53,6 @@ func (mc *Checker) CheckPeers(peers []peer.ID) error {
 					return err
 				}
 			}
-			err := mc.alertIfExpired(metric)
-			if err != nil {
-				return err
-			}
 		}
 	}
 	return nil
