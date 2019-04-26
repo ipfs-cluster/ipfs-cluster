@@ -18,6 +18,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+Reference of what was originally copied: https://ipfs.io/ipfs/QmeJDSL6g6u4NSuzUqRxZWhyKPJ6wJAqieQpqX5eXPCjj5
 */
 
 package metrics
@@ -30,7 +32,7 @@ import (
 
 // phi returns the φ-failure for the given value and distribution.
 // Two edge cases that are dealt with in phi:
-//	1. phi == math.+Inf
+//  1. phi == math.+Inf
 //  2. phi == math.NaN
 //
 // Edge case 1. is most certainly a failure, the value of v is is so large
@@ -53,7 +55,7 @@ func phi(v float64, d []float64) float64 {
 	return phi
 }
 
-// CDF returns the cumulative distribution function if the given
+// cdf returns the cumulative distribution function if the given
 // normal function, for the given value.
 func cdf(u, o, v float64) float64 {
 	return ((1.0 / 2.0) * (1 + math.Erf((v-u)/(o*math.Sqrt2))))
