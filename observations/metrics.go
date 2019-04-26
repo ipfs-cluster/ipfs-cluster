@@ -17,49 +17,58 @@ var (
 	bytesDistribution = view.Distribution(0, 24, 32, 64, 128, 256, 512, 1024, 2048, 4096, 16384, 65536, 262144, 1048576)
 )
 
-// opencensus attributes
+// attributes
 var (
 	ClientIPAttribute = "http.client.ip"
 )
 
-// opencensus keys
+// keys
 var (
 	HostKey = makeKey("host")
 )
 
-// opencensus metrics
+// metrics
 var (
-	// PinCountMetric counts the number of pins ipfs-cluster is tracking.
-	PinCountMetric = stats.Int64("cluster/pin_count", "Number of pins", stats.UnitDimensionless)
-	// TrackerPinCountMetric counts the number of pins the local peer is tracking.
-	TrackerPinCountMetric = stats.Int64("pintracker/pin_count", "Number of pins", stats.UnitDimensionless)
-	// PeerCountMetric counts the number of ipfs-cluster peers are currently in the cluster.
-	PeerCountMetric = stats.Int64("cluster/peer_count", "Number of cluster peers", stats.UnitDimensionless)
+	// Pins counts the number of pins ipfs-cluster is tracking.
+	Pins = stats.Int64("cluster/pin_count", "Number of pins", stats.UnitDimensionless)
+	// TrackerPins counts the number of pins the local peer is tracking.
+	TrackerPins = stats.Int64("pintracker/pin_count", "Number of pins", stats.UnitDimensionless)
+	// Peers counts the number of ipfs-cluster peers are currently in the cluster.
+	Peers = stats.Int64("cluster/peers", "Number of cluster peers", stats.UnitDimensionless)
+	// Alerts is the number of alerts that have been sent due to peers not sending "ping" heartbeats in time.
+	Alerts = stats.Int64("cluster/alerts", "Number of alerts triggered", stats.UnitDimensionless)
 )
 
-// opencensus views, which is just the aggregation of the metrics
+// views, which is just the aggregation of the metrics
 var (
-	PinCountView = &view.View{
-		Measure:     PinCountMetric,
-		Aggregation: view.Sum(),
+	PinsView = &view.View{
+		Measure:     Pins,
+		Aggregation: view.LastValue(),
 	}
 
-	TrackerPinCountView = &view.View{
-		Measure:     TrackerPinCountMetric,
+	TrackerPinsView = &view.View{
+		Measure:     TrackerPins,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Sum(),
+		Aggregation: view.LastValue(),
 	}
 
-	PeerCountView = &view.View{
-		Measure:     PeerCountMetric,
+	PeersView = &view.View{
+		Measure:     Peers,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.LastValue(),
+	}
+
+	AlertsView = &view.View{
+		Measure:     Alerts,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Sum(),
 	}
 
 	DefaultViews = []*view.View{
-		PinCountView,
-		TrackerPinCountView,
-		PeerCountView,
+		PinsView,
+		TrackerPinsView,
+		PeersView,
+		AlertsView,
 	}
 )
 

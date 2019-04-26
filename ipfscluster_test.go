@@ -187,7 +187,7 @@ func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *
 	if consensus == "raft" {
 		peersF = cons.Peers
 	}
-	mon, err := pubsubmon.New(psmonCfg, pubsub, peersF)
+	mon, err := pubsubmon.New(ctx, psmonCfg, pubsub, peersF)
 	checkErr(t, err)
 
 	tracer, err := observations.SetupTracing(tracingCfg)

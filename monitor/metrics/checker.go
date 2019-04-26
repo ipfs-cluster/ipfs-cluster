@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/observations"
+	"go.opencensus.io/stats"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -19,6 +21,7 @@ var ErrAlertChannelFull = errors.New("alert channel is full")
 // Checker provides utilities to find expired metrics
 // for a given peerset and send alerts if it proceeds to do so.
 type Checker struct {
+	ctx       context.Context
 	alertCh   chan *api.Alert
 	metrics   *Store
 	threshold float64
@@ -30,8 +33,9 @@ type Checker struct {
 // The greater the threshold value the more leniency is granted.
 //
 // A value between 2.0 and 4.0 is suggested for the threshold.
-func NewChecker(metrics *Store, threshold float64) *Checker {
+func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker {
 	return &Checker{
+		ctx:       ctx,
 		alertCh:   make(chan *api.Alert, AlertChannelCap),
 		metrics:   metrics,
 		threshold: threshold,
@@ -92,6 +96,7 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	}
 	select {
 	case mc.alertCh <- alrt:
+		stats.Record(mc.ctx, observations.Alerts.M(1))
 	default:
 		return ErrAlertChannelFull
 	}

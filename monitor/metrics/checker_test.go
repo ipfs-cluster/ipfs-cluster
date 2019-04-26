@@ -19,7 +19,7 @@ import (
 
 func TestCheckPeers(t *testing.T) {
 	metrics := NewStore()
-	checker := NewChecker(metrics, 2.0)
+	checker := NewChecker(context.Background(), metrics, 2.0)
 
 	metr := &api.Metric{
 		Name:  "ping",
@@ -63,7 +63,7 @@ func TestChecker_Watch(t *testing.T) {
 	defer cancel()
 
 	metrics := NewStore()
-	checker := NewChecker(metrics, 2.0)
+	checker := NewChecker(context.Background(), metrics, 2.0)
 
 	metr := &api.Metric{
 		Name:  "test",
@@ -91,7 +91,7 @@ func TestChecker_Watch(t *testing.T) {
 func TestChecker_Failed(t *testing.T) {
 	t.Run("standard failure check", func(t *testing.T) {
 		metrics := NewStore()
-		checker := NewChecker(metrics, 2.0)
+		checker := NewChecker(context.Background(), metrics, 2.0)
 
 		for i := 0; i < 10; i++ {
 			metrics.Add(makePeerMetric(test.PeerID1, "1"))
@@ -128,7 +128,7 @@ func TestThresholdValues(t *testing.T) {
 		phivs := make([]timeseries, 0)
 		for _, v := range thresholds {
 			metrics := NewStore()
-			checker := NewChecker(metrics, v)
+			checker := NewChecker(context.Background(), metrics, v)
 			tsName := fmt.Sprintf("%f", v)
 			distTS := newTS(tsName)
 			phivTS := newTS(tsName)
@@ -188,7 +188,7 @@ func TestThresholdValues(t *testing.T) {
 		phivs := make([]timeseries, 0)
 		for _, v := range thresholds {
 			metrics := NewStore()
-			checker := NewChecker(metrics, v)
+			checker := NewChecker(context.Background(), metrics, v)
 			tsName := fmt.Sprintf("%f", v)
 			distTS := newTS(tsName)
 			phivTS := newTS(tsName)
@@ -249,7 +249,7 @@ func TestThresholdValues(t *testing.T) {
 		phivs := make([]timeseries, 0)
 		for _, v := range thresholds {
 			metrics := NewStore()
-			checker := NewChecker(metrics, v)
+			checker := NewChecker(context.Background(), metrics, v)
 			tsName := fmt.Sprintf("%f", v)
 			distTS := newTS(tsName)
 			phivTS := newTS(tsName)
