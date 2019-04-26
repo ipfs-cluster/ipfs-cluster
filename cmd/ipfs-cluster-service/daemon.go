@@ -104,7 +104,8 @@ func createCluster(
 	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 
-	ctx = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	checkErr("tag context with host id", err)
 
 	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
 	// Import peers but do not connect. We cannot connect to peers until
@@ -167,7 +168,7 @@ func createCluster(
 		peersF = cons.Peers
 	}
 
-	mon, err := pubsubmon.New(cfgs.pubsubmonCfg, pubsub, peersF)
+	mon, err := pubsubmon.New(ctx, cfgs.pubsubmonCfg, pubsub, peersF)
 	if err != nil {
 		store.Close()
 		checkErr("setting up PeerMonitor", err)
