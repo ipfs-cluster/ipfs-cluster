@@ -69,7 +69,7 @@ func setupMetrics(cfg *MetricsConfig) error {
 	procCollector := prom.NewProcessCollector(prom.ProcessCollectorOpts{})
 	registry.MustRegister(goCollector, procCollector)
 	pe, err := prometheus.NewExporter(prometheus.Options{
-		Namespace: "cluster",
+		Namespace: "ipfscluster",
 		Registry:  registry,
 	})
 	if err != nil {

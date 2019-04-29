@@ -175,6 +175,7 @@ func createCluster(
 	}
 
 	return ipfscluster.NewCluster(
+		ctx,
 		host,
 		dht,
 		cfgs.clusterCfg,

@@ -84,6 +84,7 @@ type Cluster struct {
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
 func NewCluster(
+	ctx context.Context,
 	host host.Host,
 	dht *dht.IpfsDHT,
 	cfg *Config,
@@ -106,7 +107,7 @@ func NewCluster(
 		return nil, errors.New("cluster host is nil")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {

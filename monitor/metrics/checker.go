@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -92,7 +93,11 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	}
 	select {
 	case mc.alertCh <- alrt:
-		stats.Record(mc.ctx, observations.Alerts.M(1))
+		stats.RecordWithTags(
+			mc.ctx,
+			[]tag.Mutator{tag.Upsert(observations.RemotePeerKey, pid.Pretty())},
+			observations.Alerts.M(1),
+		)
 	default:
 		return ErrAlertChannelFull
 	}
