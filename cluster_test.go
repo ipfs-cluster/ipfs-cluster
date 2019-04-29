@@ -140,8 +140,9 @@ type mockTracer struct {
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
 	clusterCfg, _, _, _, _, raftCfg, _, maptrackerCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
+	ctx := context.Background()
 
-	host, pubsub, dht, err := NewClusterHost(context.Background(), clusterCfg)
+	host, pubsub, dht, err := NewClusterHost(ctx, clusterCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +157,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	raftcon, _ := raft.NewConsensus(host, raftCfg, store, false)
 
 	psmonCfg.CheckInterval = 2 * time.Second
-	mon, err := pubsubmon.New(context.Background(), psmonCfg, pubsub, raftcon.Peers)
+	mon, err := pubsubmon.New(ctx, psmonCfg, pubsub, raftcon.Peers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,6 +170,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	ReadyTimeout = raftCfg.WaitForLeaderTimeout + 1*time.Second
 
 	cl, err := NewCluster(
+		ctx,
 		host,
 		dht,
 		clusterCfg,
