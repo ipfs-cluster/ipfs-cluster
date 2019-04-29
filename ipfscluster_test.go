@@ -236,7 +236,7 @@ func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg
 }
 
 func createCluster(t *testing.T, host host.Host, dht *dht.IpfsDHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {
-	cl, err := NewCluster(host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, inf, tracer)
+	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, inf, tracer)
 	checkErr(t, err)
 	return cl
 }
