@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a bug report for IPFS Cluster
 title: ''
-labels: bug, enhancement/feature
+labels: bug, needs review
 assignees: ''
 
 ---
