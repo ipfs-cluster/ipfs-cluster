@@ -314,6 +314,108 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	}
 }
 
+func TestIPFSProxyPinUpdate(t *testing.T) {
+	ctx := context.Background()
+	proxy, mock := testIPFSProxy(t)
+	defer mock.Close()
+	defer proxy.Shutdown(ctx)
+
+	t.Run("pin/update bad args", func(t *testing.T) {
+		res, err := http.Post(fmt.Sprintf("%s/pin/update", proxyURL(proxy)), "", nil)
+		if err != nil {
+			t.Fatal("request should complete: ", err)
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusInternalServerError {
+			t.Error("request should not be successful with a no arguments")
+		}
+
+		res2, err := http.Post(fmt.Sprintf("%s/pin/update?arg=%s", proxyURL(proxy), test.PathIPFS1), "", nil)
+		if err != nil {
+			t.Fatal("request should complete: ", err)
+		}
+
+		defer res2.Body.Close()
+		if res2.StatusCode != http.StatusInternalServerError {
+			t.Error("request should not be successful with a single argument")
+		}
+	})
+
+	t.Run("pin/update", func(t *testing.T) {
+		res, err := http.Post(fmt.Sprintf("%s/pin/update?arg=%s&arg=%s", proxyURL(proxy), test.PathIPFS1, test.PathIPFS2), "", nil)
+		if err != nil {
+			t.Fatal("request should complete: ", err)
+		}
+
+		defer res.Body.Close()
+
+		var resp ipfsPinOpResp
+		resBytes, _ := ioutil.ReadAll(res.Body)
+		err = json.Unmarshal(resBytes, &resp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Pins) != 2 ||
+			resp.Pins[0] != test.PathIPFS1 ||
+			resp.Pins[1] != test.PathIPFS2 {
+			t.Errorf("bad response: %s", string(resBytes))
+		}
+	})
+
+	t.Run("pin/update check unpin happens", func(t *testing.T) {
+		// passing an errorCid to unpin should return an error
+		// when unpinning.
+
+		res, err := http.Post(fmt.Sprintf("%s/pin/update?arg=%s&arg=%s", proxyURL(proxy), test.ErrorCid, test.PathIPFS2), "", nil)
+		if err != nil {
+			t.Fatal("request should complete: ", err)
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusInternalServerError {
+			t.Fatal("request should error")
+		}
+
+		resBytes, _ := ioutil.ReadAll(res.Body)
+		var respErr ipfsError
+		err = json.Unmarshal(resBytes, &respErr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if respErr.Message != test.ErrBadCid.Error() {
+			t.Error("expected a bad cid error:", respErr.Message)
+		}
+	})
+
+	t.Run("pin/update check pin happens", func(t *testing.T) {
+		// passing an errorCid to pin, with unpin=false should return
+		// an error when pinning
+
+		res, err := http.Post(fmt.Sprintf("%s/pin/update?arg=%s&arg=%s&unpin=false", proxyURL(proxy), test.Cid1, test.ErrorCid), "", nil)
+		if err != nil {
+			t.Fatal("request should complete: ", err)
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusInternalServerError {
+			t.Fatal("request should error")
+		}
+
+		resBytes, _ := ioutil.ReadAll(res.Body)
+		var respErr ipfsError
+		err = json.Unmarshal(resBytes, &respErr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if respErr.Message != test.ErrBadCid.Error() {
+			t.Error("expected a bad cid error:", respErr.Message)
+		}
+	})
+}
+
 func TestIPFSProxyPinLs(t *testing.T) {
 	ctx := context.Background()
 	proxy, mock := testIPFSProxy(t)

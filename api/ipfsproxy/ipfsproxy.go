@@ -213,6 +213,10 @@ func New(cfg *Config) (*Server, error) {
 		HandlerFunc(proxy.pinLsHandler).
 		Name("PinLs")
 	hijackSubrouter.
+		Path("/pin/update").
+		HandlerFunc(proxy.pinUpdateHandler).
+		Name("PinUpdate")
+	hijackSubrouter.
 		Path("/add").
 		HandlerFunc(proxy.addHandler).
 		Name("Add")
@@ -385,6 +389,122 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	resBytes, _ := json.Marshal(pinLs)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
+}
+
+func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := trace.StartSpan(r.Context(), "ipfsproxy/pinUpdateHandler")
+	defer span.End()
+
+	proxy.setHeaders(w.Header(), r)
+
+	// Check that we have enough arguments and mimic ipfs response when not
+	q := r.URL.Query()
+	args := q["arg"]
+	if len(args) == 0 {
+		ipfsErrorResponder(w, "argument \"from-path\" is required")
+		return
+	}
+	if len(args) == 1 {
+		ipfsErrorResponder(w, "argument \"to-path\" is required")
+		return
+	}
+
+	unpin := !(q.Get("unpin") == "false")
+	from := args[0]
+	to := args[1]
+
+	// Parse paths (we will need to resolve them)
+	pFrom, err := path.ParsePath(from)
+	if err != nil {
+		ipfsErrorResponder(w, "error parsing \"from-path\" argument: "+err.Error())
+		return
+	}
+
+	pTo, err := path.ParsePath(to)
+	if err != nil {
+		ipfsErrorResponder(w, "error parsing \"to-path\" argument: "+err.Error())
+		return
+	}
+
+	// Resolve the FROM argument
+	var fromCid cid.Cid
+	err = proxy.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"IPFSResolve",
+		pFrom.String(),
+		&fromCid,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	// Get existing FROM pin, and send error if not present.
+	var fromPin api.Pin
+	err = proxy.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"PinGet",
+		fromCid,
+		&fromPin,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	// Prepare to pin the TO argument with the options from the FROM pin
+	// and the allocations of the FROM pin.
+	toPath := &api.PinPath{
+		Path:       pTo.String(),
+		PinOptions: fromPin.PinOptions,
+	}
+	toPath.PinOptions.UserAllocations = fromPin.Allocations
+
+	// Pin the TO pin.
+	var toPin api.Pin
+	err = proxy.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"PinPath",
+		toPath,
+		&toPin,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error())
+		return
+	}
+
+	// If unpin != "false", unpin the FROM argument
+	// (it was already resolved).
+	if unpin {
+		err = proxy.rpcClient.CallContext(
+			ctx,
+			"",
+			"Cluster",
+			"Unpin",
+			&fromPin,
+			&struct{}{},
+		)
+		if err != nil {
+			ipfsErrorResponder(w, err.Error())
+			return
+		}
+	}
+
+	// Mimic ipfs response by answering with the paths
+	// https://github.com/ipfs/go-ipfs/issues/6269
+	res := ipfsPinOpResp{
+		Pins: []string{pFrom.String(), pTo.String()},
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
 }
 
 func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
