@@ -3,6 +3,8 @@ module github.com/ipfs/ipfs-cluster
 replace github.com/lanzafame/go-libp2p-ocgorpc => github.com/hsanjuan/go-libp2p-ocgorpc v0.0.2
 
 require (
+	contrib.go.opencensus.io/exporter/jaeger v0.1.0
+	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
 	github.com/armon/go-metrics v0.0.0-20190423201044-2801d9688273 // indirect
 	github.com/beorn7/perks v1.0.0 // indirect
