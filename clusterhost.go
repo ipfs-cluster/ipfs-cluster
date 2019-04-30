@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 
+	"github.com/ipfs/ipfs-cluster/identity"
 	libp2p "github.com/libp2p/go-libp2p"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
@@ -22,9 +23,10 @@ import (
 func NewClusterHost(
 	ctx context.Context,
 	cfg *Config,
+	ident *identity.Identity,
 ) (host.Host, *pubsub.PubSub, *dht.IpfsDHT, error) {
 
-	h, err := newHost(ctx, cfg.Secret, cfg.PrivateKey, []ma.Multiaddr{cfg.ListenAddr})
+	h, err := newHost(ctx, cfg.Secret, ident.PrivateKey, []ma.Multiaddr{cfg.ListenAddr})
 	if err != nil {
 		return nil, nil, nil, err
 	}

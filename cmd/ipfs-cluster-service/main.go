@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs/ipfs-cluster/identity"
 	"github.com/ipfs/ipfs-cluster/version"
 
 	semver "github.com/blang/semver"
@@ -106,10 +108,13 @@ var (
 	DefaultPath string
 	// The name of the configuration file inside DefaultPath
 	DefaultConfigFile = "service.json"
+	// The name of the identity file inside DefaultPath
+	DefaultIdentityFile = "identity.json"
 )
 
 var (
-	configPath string
+	configPath   string
+	identityPath string
 )
 
 func init() {
@@ -181,6 +186,25 @@ func main() {
 		},
 	}
 
+	app.Before = func(c *cli.Context) error {
+		absPath, err := filepath.Abs(c.String("config"))
+		if err != nil {
+			return err
+		}
+
+		configPath = filepath.Join(absPath, DefaultConfigFile)
+		identityPath = filepath.Join(absPath, DefaultIdentityFile)
+
+		setupLogLevel(c.String("loglevel"))
+		if c.Bool("debug") {
+			setupDebug()
+		}
+
+		locker = &lock{path: absPath}
+
+		return nil
+	}
+
 	app.Commands = []cli.Command{
 		{
 			Name:  "init",
@@ -232,6 +256,8 @@ configuration.
 						return nil
 					}
 
+					ident, _ := extractIdentity()
+
 					err := cfgMgr.LoadJSONFileAndEnv(configPath)
 					checkErr("reading configuration", err)
 
@@ -239,7 +265,7 @@ configuration.
 					// the peer ID of this peer changes
 					// and is no longer part of the old
 					// peerset.
-					mgr := newStateManager("raft", cfgs)
+					mgr := newStateManager("raft", cfgs, ident)
 					checkErr("cleaning up raft data", mgr.Clean())
 				}
 
@@ -257,6 +283,14 @@ configuration.
 
 				// Save
 				saveConfig(cfgMgr)
+
+				// Create a new identity and save it
+				ident, err := identity.New()
+				checkErr("could not generate a public-private key pair", err)
+				err = ident.SaveJSON(identityPath)
+				checkErr("could not save identity.json", err)
+				out("%s identitry written to %s\n", programName, identityPath)
+
 				return nil
 			},
 		},
@@ -345,9 +379,11 @@ By default, the state will be printed to stdout.
 						}
 						defer w.Close()
 
+						ident, _ := extractIdentity()
+
 						cfgMgr, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs)
+						mgr := newStateManager(c.String("consensus"), cfgs, ident)
 						checkErr("exporting state", mgr.ExportState(w))
 						logger.Info("state successfully exported")
 						return nil
@@ -397,10 +433,11 @@ to import. If no argument is provided, stdin will be used.
 							checkErr("reading import file", err)
 						}
 						defer r.Close()
+						ident, _ := extractIdentity()
 
 						cfgMgr, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs)
+						mgr := newStateManager(c.String("consensus"), cfgs, ident)
 						checkErr("importing state", mgr.ImportState(r))
 						logger.Info("state successfully imported.  Make sure all peers have consistent states")
 						return nil
@@ -437,9 +474,11 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
+						ident, _ := extractIdentity()
+
 						cfgMgr, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs)
+						mgr := newStateManager(c.String("consensus"), cfgs, ident)
 						checkErr("cleaning state", mgr.Clean())
 						logger.Info("data correctly cleaned up")
 						return nil
@@ -455,24 +494,6 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 				return nil
 			},
 		},
-	}
-
-	app.Before = func(c *cli.Context) error {
-		absPath, err := filepath.Abs(c.String("config"))
-		if err != nil {
-			return err
-		}
-
-		configPath = filepath.Join(absPath, DefaultConfigFile)
-
-		setupLogLevel(c.String("loglevel"))
-		if c.Bool("debug") {
-			setupDebug()
-		}
-
-		locker = &lock{path: absPath}
-
-		return nil
 	}
 
 	app.Action = run
@@ -533,4 +554,26 @@ func yesNoPrompt(prompt string) bool {
 		fmt.Println("Please press either 'y' or 'n'")
 	}
 	return false
+}
+
+func extractIdentity() (*identity.Identity, bool) {
+	_, err := os.Stat(identityPath)
+	identityExists := !os.IsNotExist(err)
+
+	var ident *identity.Identity
+	if !identityExists {
+		clusterConfig, err := config.GetClusterConfig(configPath)
+		checkErr("couldn not get cluster config", err)
+
+		ident, err = identity.LoadJSON(clusterConfig)
+		checkErr("could not load identity from cluster config", err)
+
+		err = ident.SaveJSON(identityPath)
+		checkErr("could not save identity.json ", err)
+	} else {
+		ident, err = identity.LoadJSONFromFile(identityPath)
+		checkErr("could not load identity from identity.json", err)
+	}
+
+	return ident, identityExists
 }

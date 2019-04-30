@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
+	"github.com/ipfs/ipfs-cluster/identity"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
@@ -98,7 +99,7 @@ func saveConfig(cfg *config.Manager) {
 	out("%s configuration written to %s\n", programName, configPath)
 }
 
-func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
+func propagateTracingConfig(cfgs *cfgs, ident *identity.Identity, tracingFlag bool) *cfgs {
 	// tracingFlag represents the cli flag passed to ipfs-cluster-service daemon.
 	// It takes priority. If false, fallback to config file value.
 	tracingValue := tracingFlag
@@ -106,7 +107,7 @@ func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
 		tracingValue = cfgs.tracingCfg.EnableTracing
 	}
 	// propagate to any other interested configuration
-	cfgs.tracingCfg.ClusterID = cfgs.clusterCfg.ID.Pretty()
+	cfgs.tracingCfg.ClusterID = ident.ID.Pretty()
 	cfgs.tracingCfg.ClusterPeername = cfgs.clusterCfg.Peername
 	cfgs.tracingCfg.EnableTracing = tracingValue
 	cfgs.clusterCfg.Tracing = tracingValue
