@@ -1073,7 +1073,9 @@ func TestClustersReplicationOverall(t *testing.T) {
 		}
 		if numLocal != nClusters-1 {
 			t.Errorf("Expected %d local pins but got %d", nClusters-1, numLocal)
-			t.Error(pinfos)
+			for _, pi := range pinfos {
+				t.Errorf("%+v", pi)
+			}
 		}
 
 		if numRemote != 1 {

@@ -63,9 +63,11 @@ func (mc *Checker) CheckPeers(peers []peer.ID) error {
 // and no alert has been sent before.
 func (mc Checker) CheckAll() error {
 	for _, metric := range mc.metrics.AllMetrics() {
-		err := mc.alertIfExpired(metric)
-		if err != nil {
-			return err
+		if mc.FailedMetric(metric.Name, metric.Peer) {
+			err := mc.alert(metric.Peer, metric.Name)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
