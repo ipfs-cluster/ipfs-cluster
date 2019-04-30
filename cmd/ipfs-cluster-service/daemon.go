@@ -58,12 +58,16 @@ func daemon(c *cli.Context) error {
 	locker.lock()
 	defer locker.tryUnlock()
 
-	ident, _ := extractIdentity()
-	// TODO: if identity did not exist remove identity from configuration.json
-	// by saving it again
+	ident, identityExisted := extractIdentity()
 
 	// Load all the configurations
 	cfgMgr, cfgs := makeAndLoadConfigs()
+
+	// Resave
+	if !identityExisted {
+		cfgMgr.SaveJSON(configPath)
+	}
+
 	defer cfgMgr.Shutdown()
 
 	if c.Bool("stats") {
