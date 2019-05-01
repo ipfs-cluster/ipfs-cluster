@@ -32,19 +32,44 @@ func NewChecker(metrics *Store) *Checker {
 	}
 }
 
-// CheckPeers will trigger alerts for expired metrics belonging to the
-// given peerset.
+// CheckPeers will trigger alerts all latest metrics from the given peerset
+// when they have expired and no alert has been sent before.
 func (mc *Checker) CheckPeers(peers []peer.ID) error {
 	for _, peer := range peers {
 		for _, metric := range mc.metrics.PeerMetrics(peer) {
-			if metric.Valid && metric.Expired() {
-				err := mc.alert(metric.Peer, metric.Name)
-				if err != nil {
-					return err
-				}
+			err := mc.alertIfExpired(metric)
+			if err != nil {
+				return err
 			}
 		}
 	}
+	return nil
+}
+
+// CheckAll will trigger alerts for all latest metrics when they have expired
+// and no alert has been sent before.
+func (mc Checker) CheckAll() error {
+	for _, metric := range mc.metrics.AllMetrics() {
+		err := mc.alertIfExpired(metric)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (mc *Checker) alertIfExpired(metric *api.Metric) error {
+	if !metric.Expired() {
+		return nil
+	}
+
+	err := mc.alert(metric.Peer, metric.Name)
+	if err != nil {
+		return err
+	}
+	metric.Valid = false
+	mc.metrics.Add(metric) // invalidate so we don't alert again
 	return nil
 }
 
@@ -74,11 +99,15 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 	for {
 		select {
 		case <-ticker.C:
-			peers, err := peersF(ctx)
-			if err != nil {
-				continue
+			if peersF != nil {
+				peers, err := peersF(ctx)
+				if err != nil {
+					continue
+				}
+				mc.CheckPeers(peers)
+			} else {
+				mc.CheckAll()
 			}
-			mc.CheckPeers(peers)
 		case <-ctx.Done():
 			ticker.Stop()
 			return

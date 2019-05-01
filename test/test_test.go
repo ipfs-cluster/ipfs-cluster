@@ -8,7 +8,7 @@ import (
 )
 
 func TestIpfsMock(t *testing.T) {
-	ipfsmock := NewIpfsMock()
+	ipfsmock := NewIpfsMock(t)
 	defer ipfsmock.Close()
 }
 

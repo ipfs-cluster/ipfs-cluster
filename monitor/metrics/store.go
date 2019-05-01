@@ -47,9 +47,9 @@ func (mtrs *Store) Add(m *api.Metric) {
 	window.Add(m)
 }
 
-// Latest returns all the last known valid metrics. A metric is valid
-// if it has not expired.
-func (mtrs *Store) Latest(name string) []*api.Metric {
+// LatestValid returns all the last known valid metrics of a given type. A metric
+// is valid if it has not expired.
+func (mtrs *Store) LatestValid(name string) []*api.Metric {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 
@@ -69,6 +69,26 @@ func (mtrs *Store) Latest(name string) []*api.Metric {
 	return metrics
 }
 
+// AllMetrics returns the latest metrics for all peers and metrics types.  It
+// may return expired metrics.
+func (mtrs *Store) AllMetrics() []*api.Metric {
+	mtrs.mux.RLock()
+	defer mtrs.mux.RUnlock()
+
+	result := make([]*api.Metric, 0)
+
+	for _, byPeer := range mtrs.byName {
+		for _, window := range byPeer {
+			metric, err := window.Latest()
+			if err != nil || !metric.Valid {
+				continue
+			}
+			result = append(result, metric)
+		}
+	}
+	return result
+}
+
 // PeerMetrics returns the latest metrics for a given peer ID for
 // all known metrics types. It may return expired metrics.
 func (mtrs *Store) PeerMetrics(pid peer.ID) []*api.Metric {
@@ -83,7 +103,7 @@ func (mtrs *Store) PeerMetrics(pid peer.ID) []*api.Metric {
 			continue
 		}
 		metric, err := window.Latest()
-		if err != nil {
+		if err != nil || !metric.Valid {
 			continue
 		}
 		result = append(result, metric)

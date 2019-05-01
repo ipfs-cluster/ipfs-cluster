@@ -1,9 +1,8 @@
-[
-    {
-        "cid": { "/": "QmbrCtydGyPeHiLURSPMqrvE5mCgMCwFYq3UD4XLCeAYw6"},
-        "name": "",
-        "allocations": [],
-        "replication_factor_min": -1,
-        "replication_factor_max": -1
-    }
-]
+{
+  "cid": { "/": "QmbrCtydGyPeHiLURSPMqrvE5mCgMCwFYq3UD4XLCeAYw6"},
+  "name": "",
+  "allocations": [],
+  "replication_factor_min": -1,
+  "replication_factor_max": -1
+}
+

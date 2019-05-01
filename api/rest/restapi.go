@@ -20,12 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/cors"
-
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 
@@ -41,6 +35,10 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
+	"github.com/rs/cors"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/trace"
 )
 
 func init() {
@@ -745,6 +743,12 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	for _, f := range strings.Split(filterStr, ",") {
 		filter |= types.PinTypeFromString(f)
 	}
+
+	if filter == types.BadType {
+		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
+		return
+	}
+
 	var pins []*types.Pin
 	err := api.rpcClient.CallContext(
 		r.Context(),
@@ -816,7 +820,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
 	if filter == types.TrackerStatusUndefined && filterStr != "" {
-		api.sendResponse(w, autoStatus, errors.New("invalid filter value"), nil)
+		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return
 	}
 

@@ -14,10 +14,10 @@ import (
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/state"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/version"
 
@@ -138,10 +138,10 @@ type mockTracer struct {
 	mockComponent
 }
 
-func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.State, PinTracker) {
-	clusterCfg, _, _, _, consensusCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
+func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
+	clusterCfg, _, _, _, _, raftCfg, _, maptrackerCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
 
-	host, err := NewClusterHost(context.Background(), clusterCfg)
+	host, pubsub, dht, err := NewClusterHost(context.Background(), clusterCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,14 +149,14 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 	api := &mockAPI{}
 	proxy := &mockProxy{}
 	ipfs := &mockConnector{}
-	st := mapstate.NewMapState()
 	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 	tracer := &mockTracer{}
 
-	raftcon, _ := raft.NewConsensus(host, consensusCfg, st, false)
+	store := inmem.New()
+	raftcon, _ := raft.NewConsensus(host, raftCfg, store, false)
 
 	psmonCfg.CheckInterval = 2 * time.Second
-	mon, err := pubsubmon.New(host, psmonCfg)
+	mon, err := pubsubmon.New(psmonCfg, pubsub, raftcon.Peers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,15 +166,16 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 	numpinCfg.Default()
 	inf, _ := numpin.NewInformer(numpinCfg)
 
-	ReadyTimeout = consensusCfg.WaitForLeaderTimeout + 1*time.Second
+	ReadyTimeout = raftCfg.WaitForLeaderTimeout + 1*time.Second
 
 	cl, err := NewCluster(
 		host,
+		dht,
 		clusterCfg,
+		store,
 		raftcon,
 		[]API{api, proxy},
 		ipfs,
-		st,
 		tracker,
 		mon,
 		alloc,
@@ -185,7 +186,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, state.Sta
 		t.Fatal("cannot create cluster:", err)
 	}
 	<-cl.Ready()
-	return cl, api, ipfs, st, tracker
+	return cl, api, ipfs, tracker
 }
 
 func cleanRaft() {
@@ -197,13 +198,13 @@ func cleanRaft() {
 
 func testClusterShutdown(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	err := cl.Shutdown(ctx)
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
 	}
 	cl.Shutdown(ctx)
-	cl, _, _, _, _ = testingCluster(t)
+	cl, _, _, _ = testingCluster(t)
 	err = cl.Shutdown(ctx)
 	if err != nil {
 		t.Error("cluster shutdown failed:", err)
@@ -213,16 +214,12 @@ func testClusterShutdown(t *testing.T) {
 func TestClusterStateSync(t *testing.T) {
 	ctx := context.Background()
 	cleanRaft()
-	cl, _, _, st, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
-	err := cl.StateSync(ctx)
-	if err == nil {
-		t.Fatal("expected an error as there is no state to sync")
-	}
 
 	c := test.Cid1
-	err = cl.Pin(ctx, api.PinCid(c))
+	err := cl.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -234,7 +231,11 @@ func TestClusterStateSync(t *testing.T) {
 
 	// Modify state on the side so the sync does not
 	// happen on an empty slide
-	st.Rm(ctx, c)
+	st, err := cl.consensus.State(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.(state.State).Rm(ctx, c)
 	err = cl.StateSync(ctx)
 	if err != nil {
 		t.Fatal("sync with recover should have worked:", err)
@@ -243,7 +244,7 @@ func TestClusterStateSync(t *testing.T) {
 
 func TestClusterID(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 	id := cl.ID(ctx)
@@ -263,7 +264,7 @@ func TestClusterID(t *testing.T) {
 
 func TestClusterPin(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
@@ -286,7 +287,7 @@ func TestClusterPin(t *testing.T) {
 
 func TestClusterPinPath(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
@@ -307,7 +308,7 @@ func TestClusterPinPath(t *testing.T) {
 
 func TestAddFile(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 	sth := test.NewShardingTestHelper()
@@ -367,7 +368,7 @@ func TestAddFile(t *testing.T) {
 
 func TestUnpinShard(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 	sth := test.NewShardingTestHelper()
@@ -494,7 +495,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterPinMeta(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -502,7 +503,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterUnpinShardFail(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -526,7 +527,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterUnpinMeta(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -571,7 +572,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterPinShardTwoParents(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -588,7 +589,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterUnpinShardSecondParent(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -621,7 +622,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterUnpinShardFirstParent(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -657,7 +658,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterPinTwoMethodsFail(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -693,7 +694,7 @@ func TestUnpinShard(t *testing.T) {
 // }
 
 // func TestClusterRePinShard(t *testing.T) {
-// 	cl, _, _, _, _ := testingCluster(t)
+// 	cl, _, _, _ := testingCluster(t)
 // 	defer cleanRaft()
 // 	defer cl.Shutdown()
 
@@ -729,7 +730,7 @@ func TestUnpinShard(t *testing.T) {
 
 func TestClusterPins(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
@@ -739,7 +740,10 @@ func TestClusterPins(t *testing.T) {
 		t.Fatal("pin should have worked:", err)
 	}
 
-	pins := cl.Pins(ctx)
+	pins, err := cl.Pins(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(pins) != 1 {
 		t.Fatal("pin should be part of the state")
 	}
@@ -750,7 +754,7 @@ func TestClusterPins(t *testing.T) {
 
 func TestClusterPinGet(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
@@ -776,7 +780,7 @@ func TestClusterPinGet(t *testing.T) {
 
 func TestClusterUnpin(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
@@ -807,7 +811,7 @@ func TestClusterUnpin(t *testing.T) {
 
 func TestClusterUnpinPath(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 
@@ -837,7 +841,7 @@ func TestClusterUnpinPath(t *testing.T) {
 
 func TestClusterPeers(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 	peers := cl.Peers(ctx)
@@ -854,7 +858,7 @@ func TestClusterPeers(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 	if cl.Version() != version.Version.String() {
@@ -864,7 +868,7 @@ func TestVersion(t *testing.T) {
 
 func TestClusterRecoverAllLocal(t *testing.T) {
 	ctx := context.Background()
-	cl, _, _, _, _ := testingCluster(t)
+	cl, _, _, _ := testingCluster(t)
 	defer cleanRaft()
 	defer cl.Shutdown(ctx)
 

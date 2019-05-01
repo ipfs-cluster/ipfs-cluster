@@ -14,6 +14,8 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
+	host "github.com/libp2p/go-libp2p-host"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
@@ -55,7 +57,11 @@ func (mf *metricFactory) count() int {
 	return mf.counter
 }
 
-func testPeerMonitor(t *testing.T) (*Monitor, func()) {
+func peers(ctx context.Context) ([]peer.ID, error) {
+	return []peer.ID{test.PeerID1, test.PeerID2, test.PeerID3}, nil
+}
+
+func testPeerMonitor(t *testing.T) (*Monitor, host.Host, func()) {
 	ctx := context.Background()
 	h, err := libp2p.New(
 		context.Background(),
@@ -65,11 +71,22 @@ func testPeerMonitor(t *testing.T) (*Monitor, func()) {
 		t.Fatal(err)
 	}
 
+	psub, err := pubsub.NewGossipSub(
+		ctx,
+		h,
+		pubsub.WithMessageSigning(true),
+		pubsub.WithStrictSignatureVerification(true),
+	)
+	if err != nil {
+		h.Close()
+		t.Fatal(err)
+	}
+
 	mock := test.NewMockRPCClientWithHost(t, h)
 	cfg := &Config{}
 	cfg.Default()
 	cfg.CheckInterval = 2 * time.Second
-	mon, err := New(h, cfg)
+	mon, err := New(cfg, psub, peers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,12 +97,12 @@ func testPeerMonitor(t *testing.T) (*Monitor, func()) {
 		h.Close()
 	}
 
-	return mon, shutdownF
+	return mon, h, shutdownF
 }
 
 func TestPeerMonitorShutdown(t *testing.T) {
 	ctx := context.Background()
-	pm, shutdown := testPeerMonitor(t)
+	pm, _, shutdown := testPeerMonitor(t)
 	defer shutdown()
 
 	err := pm.Shutdown(ctx)
@@ -101,7 +118,7 @@ func TestPeerMonitorShutdown(t *testing.T) {
 
 func TestLogMetricConcurrent(t *testing.T) {
 	ctx := context.Background()
-	pm, shutdown := testPeerMonitor(t)
+	pm, _, shutdown := testPeerMonitor(t)
 	defer shutdown()
 
 	var wg sync.WaitGroup
@@ -160,7 +177,7 @@ func TestLogMetricConcurrent(t *testing.T) {
 
 func TestPeerMonitorLogMetric(t *testing.T) {
 	ctx := context.Background()
-	pm, shutdown := testPeerMonitor(t)
+	pm, _, shutdown := testPeerMonitor(t)
 	defer shutdown()
 	mf := newMetricFactory()
 
@@ -216,19 +233,19 @@ func TestPeerMonitorLogMetric(t *testing.T) {
 
 func TestPeerMonitorPublishMetric(t *testing.T) {
 	ctx := context.Background()
-	pm, shutdown := testPeerMonitor(t)
+	pm, host, shutdown := testPeerMonitor(t)
 	defer shutdown()
 
-	pm2, shutdown2 := testPeerMonitor(t)
+	pm2, host2, shutdown2 := testPeerMonitor(t)
 	defer shutdown2()
 
 	time.Sleep(200 * time.Millisecond)
 
-	err := pm.host.Connect(
+	err := host.Connect(
 		context.Background(),
 		peerstore.PeerInfo{
-			ID:    pm2.host.ID(),
-			Addrs: pm2.host.Addrs(),
+			ID:    host2.ID(),
+			Addrs: host2.Addrs(),
 		},
 	)
 	if err != nil {
@@ -250,9 +267,9 @@ func TestPeerMonitorPublishMetric(t *testing.T) {
 	checkMetric := func(t *testing.T, pm *Monitor) {
 		latestMetrics := pm.LatestMetrics(ctx, "test")
 		if len(latestMetrics) != 1 {
-			t.Fatal(pm.host.ID(), "expected 1 published metric")
+			t.Fatal(host.ID(), "expected 1 published metric")
 		}
-		t.Log(pm.host.ID(), "received metric")
+		t.Log(host.ID(), "received metric")
 
 		receivedMetric := latestMetrics[0]
 		if receivedMetric.Peer != metric.Peer ||
@@ -272,7 +289,7 @@ func TestPeerMonitorPublishMetric(t *testing.T) {
 
 func TestPeerMonitorAlerts(t *testing.T) {
 	ctx := context.Background()
-	pm, shutdown := testPeerMonitor(t)
+	pm, _, shutdown := testPeerMonitor(t)
 	defer shutdown()
 	mf := newMetricFactory()
 
@@ -282,8 +299,8 @@ func TestPeerMonitorAlerts(t *testing.T) {
 	time.Sleep(time.Second)
 	timeout := time.NewTimer(time.Second * 5)
 
-	// it should alert twice at least. Alert re-occurrs.
-	for i := 0; i < 2; i++ {
+	// it should alert once.
+	for i := 0; i < 1; i++ {
 		select {
 		case <-timeout.C:
 			t.Fatal("should have thrown an alert by now")

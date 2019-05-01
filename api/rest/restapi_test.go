@@ -748,6 +748,19 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 			!resp[2].Cid.Equals(test.Cid3) {
 			t.Error("unexpected pin list: ", resp)
 		}
+
+		makeGet(t, rest, url(rest)+"/allocations", &resp)
+		if len(resp) != 3 ||
+			!resp[0].Cid.Equals(test.Cid1) || !resp[1].Cid.Equals(test.Cid2) ||
+			!resp[2].Cid.Equals(test.Cid3) {
+			t.Error("unexpected pin list: ", resp)
+		}
+
+		errResp := api.Error{}
+		makeGet(t, rest, url(rest)+"/allocations?filter=invalid", &errResp)
+		if errResp.Code != http.StatusBadRequest {
+			t.Error("an invalid filter value should 400")
+		}
 	}
 
 	testBothEndpoints(t, tf)
@@ -850,6 +863,12 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		makeGet(t, rest, url(rest)+"/pins?filter=error,pinned", &resp7)
 		if len(resp7) != 2 {
 			t.Errorf("unexpected statusAll+filter=error,pinned resp:\n %+v", resp7)
+		}
+
+		var errorResp api.Error
+		makeGet(t, rest, url(rest)+"/pins?filter=invalid", &errorResp)
+		if errorResp.Code != http.StatusBadRequest {
+			t.Error("an invalid filter value should 400")
 		}
 	}
 

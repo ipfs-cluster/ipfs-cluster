@@ -17,17 +17,16 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/version"
 
-	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
-
-	"go.opencensus.io/trace"
-
 	cid "github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	peer "github.com/libp2p/go-libp2p-peer"
-	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	ma "github.com/multiformats/go-multiaddr"
+
+	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
+	trace "go.opencensus.io/trace"
 )
 
 // ReadyTimeout specifies the time before giving up
@@ -44,10 +43,12 @@ type Cluster struct {
 	ctx    context.Context
 	cancel func()
 
-	id          peer.ID
-	config      *Config
-	host        host.Host
-	dht         *dht.IpfsDHT
+	id        peer.ID
+	config    *Config
+	host      host.Host
+	dht       *dht.IpfsDHT
+	datastore ds.Datastore
+
 	rpcServer   *rpc.Server
 	rpcClient   *rpc.Client
 	peerManager *pstoremgr.Manager
@@ -55,7 +56,6 @@ type Cluster struct {
 	consensus Consensus
 	apis      []API
 	ipfs      IPFSConnector
-	state     state.State
 	tracker   PinTracker
 	monitor   PeerMonitor
 	allocator PinAllocator
@@ -84,11 +84,12 @@ type Cluster struct {
 // if you need to wait until the peer is fully up.
 func NewCluster(
 	host host.Host,
+	dht *dht.IpfsDHT,
 	cfg *Config,
+	datastore ds.Datastore,
 	consensus Consensus,
 	apis []API,
 	ipfs IPFSConnector,
-	st state.State,
 	tracker PinTracker,
 	monitor PeerMonitor,
 	allocator PinAllocator,
@@ -117,32 +118,17 @@ func NewCluster(
 	// in daemon.go.
 	peerManager := pstoremgr.New(host, cfg.GetPeerstorePath())
 
-	idht, err := dht.New(ctx, host)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
-	// Let the DHT be maintained regularly
-	err = idht.Bootstrap(ctx)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
-	rHost := routedhost.Wrap(host, idht)
-
 	c := &Cluster{
 		ctx:         ctx,
 		cancel:      cancel,
 		id:          host.ID(),
 		config:      cfg,
-		host:        rHost,
-		dht:         idht,
+		host:        host,
+		dht:         dht,
+		datastore:   datastore,
 		consensus:   consensus,
 		apis:        apis,
 		ipfs:        ipfs,
-		state:       st,
 		tracker:     tracker,
 		monitor:     monitor,
 		allocator:   allocator,
@@ -378,7 +364,11 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 		logger.Warning(err)
 		return
 	}
-	list := cState.List(ctx)
+	list, err := cState.List(ctx)
+	if err != nil {
+		logger.Warning(err)
+		return
+	}
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
 			_, ok, err := c.pin(ctx, pin, []peer.ID{p}, []peer.ID{}) // pin blacklisting this peer
@@ -435,6 +425,10 @@ This might be due to one or several causes:
 	}
 
 	// Cluster is ready.
+
+	// Bootstrap the DHT now that we possibly have some connections
+	c.dht.Bootstrap(c.ctx)
+
 	peers, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
@@ -512,7 +506,8 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 		}
 	}
 
-	// We left the cluster or were removed. Destroy the Raft state.
+	// We left the cluster or were removed. Remove any consensus-specific
+	// state.
 	if c.removed && c.readyB {
 		err := c.consensus.Clean(ctx)
 		if err != nil {
@@ -550,6 +545,13 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	c.cancel()
 	c.host.Close() // Shutdown all network services
 	c.wg.Wait()
+
+	// Cleanly close the datastore
+	if err := c.datastore.Close(); err != nil {
+		logger.Errorf("error closing Datastore: %s", err)
+		return err
+	}
+
 	c.shutdownB = true
 	close(c.doneCh)
 	return nil
@@ -627,12 +629,32 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	defer c.paMux.Unlock()
 	logger.Debugf("peerAdd called with %s", pid.Pretty())
 
-	// Log the new peer in the log so everyone gets it.
+	// Let the consensus layer be aware of this peer
 	err := c.consensus.AddPeer(ctx, pid)
 	if err != nil {
 		logger.Error(err)
 		id := &api.ID{ID: pid, Error: err.Error()}
 		return id, err
+	}
+
+	// Send a ping metric to the new node directly so
+	// it knows about this one at least
+	m := &api.Metric{
+		Name:  pingMetricName,
+		Peer:  c.id,
+		Valid: true,
+	}
+	m.SetTTL(c.config.MonitorPingInterval * 2)
+	err = c.rpcClient.CallContext(
+		ctx,
+		pid,
+		"Cluster",
+		"PeerMonitorLogMetric",
+		m,
+		&struct{}{},
+	)
+	if err != nil {
+		logger.Warning(err)
 	}
 
 	// Ask the new peer to connect its IPFS daemon to the rest
@@ -645,7 +667,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 		&struct{}{},
 	)
 	if err != nil {
-		logger.Error(err)
+		logger.Warning(err)
 	}
 
 	id := &api.ID{}
@@ -775,7 +797,10 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	}
 
 	logger.Debug("syncing state to tracker")
-	clusterPins := cState.List(ctx)
+	clusterPins, err := cState.List(ctx)
+	if err != nil {
+		return err
+	}
 
 	trackedPins := c.tracker.StatusAll(ctx)
 	trackedPinsMap := make(map[string]int)
@@ -797,13 +822,20 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	// c. Track items which should not be local as remote
 	for _, p := range trackedPins {
 		pCid := p.Cid
-		currentPin, has := cState.Get(ctx, pCid)
+		currentPin, err := cState.Get(ctx, pCid)
+		if err != nil && err != state.ErrNotFound {
+			return err
+		}
+
+		if err == state.ErrNotFound {
+			logger.Debugf("StateSync: untracking %s: not part of shared state", pCid)
+			c.tracker.Untrack(ctx, pCid)
+			continue
+		}
+
 		allocatedHere := containsPeer(currentPin.Allocations, c.id) || currentPin.ReplicationFactorMin == -1
 
 		switch {
-		case !has:
-			logger.Debugf("StateSync: Untracking %s, is not part of shared state", pCid)
-			c.tracker.Untrack(ctx, pCid)
 		case p.Status == api.TrackerStatusRemote && allocatedHere:
 			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
 			c.tracker.Track(ctx, currentPin)
@@ -970,7 +1002,7 @@ func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinIn
 // of the current global state. This is the source of truth as to which
 // pins are managed and their allocation, but does not indicate if
 // the item is successfully pinned. For that, use StatusAll().
-func (c *Cluster) Pins(ctx context.Context) []*api.Pin {
+func (c *Cluster) Pins(ctx context.Context) ([]*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Pins")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -978,7 +1010,7 @@ func (c *Cluster) Pins(ctx context.Context) []*api.Pin {
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
 		logger.Error(err)
-		return []*api.Pin{}
+		return nil, err
 	}
 	return cState.List(ctx)
 }
@@ -998,9 +1030,9 @@ func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	if err != nil {
 		return nil, err
 	}
-	pin, ok := st.Get(ctx, h)
-	if !ok {
-		return pin, errors.New("cid is not part of the global state")
+	pin, err := st.Get(ctx, h)
+	if err != nil {
+		return nil, err
 	}
 	return pin, nil
 }
@@ -1097,9 +1129,17 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 	}
 
 	existing, err := c.PinGet(ctx, pin.Cid)
-	if err == nil && existing.Type != pin.Type { // it exists
-		return fmt.Errorf("cannot repin CID with different tracking method, clear state with pin rm to proceed. New: %s. Was: %s", pin.Type, existing.Type)
+	if err != nil && err != state.ErrNotFound {
+		return err
 	}
+
+	if existing != nil && existing.Type != pin.Type {
+		msg := "cannot repin CID with different tracking method, "
+		msg += "clear state with pin rm to proceed. "
+		msg += "New: %s. Was: %s"
+		return fmt.Errorf(msg, pin.Type, existing.Type)
+	}
+
 	return checkPinType(pin)
 }
 
@@ -1137,6 +1177,7 @@ func (c *Cluster) pin(ctx context.Context, pin *api.Pin, blacklist []peer.ID, pr
 	}
 	pin.Allocations = allocs
 
+	// Equals can handle nil objects.
 	if curr, _ := c.PinGet(ctx, pin.Cid); curr.Equals(pin) {
 		// skip pinning
 		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
@@ -1144,9 +1185,9 @@ func (c *Cluster) pin(ctx context.Context, pin *api.Pin, blacklist []peer.ID, pr
 	}
 
 	if len(pin.Allocations) == 0 {
-		logger.Infof("IPFS cluster pinning %s everywhere:", pin.Cid)
+		logger.Infof("pinning %s everywhere:", pin.Cid)
 	} else {
-		logger.Infof("IPFS cluster pinning %s on %s:", pin.Cid, pin.Allocations)
+		logger.Infof("pinning %s on %s:", pin.Cid, pin.Allocations)
 	}
 
 	return pin, true, c.consensus.LogPin(ctx, pin)
@@ -1160,7 +1201,7 @@ func (c *Cluster) unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	logger.Info("IPFS cluster unpinning:", h)
 	pin, err := c.PinGet(ctx, h)
 	if err != nil {
-		return pin, fmt.Errorf("cannot unpin pin uncommitted to state: %s", err)
+		return nil, err
 	}
 
 	switch pin.Type {
@@ -1482,8 +1523,11 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 
 	list := []cid.Cid{h}
 
-	pin, ok := cState.Get(ctx, h)
-	if !ok {
+	pin, err := cState.Get(ctx, h)
+	if err != nil {
+		return nil, err
+	}
+	if pin == nil {
 		return list, nil
 	}
 

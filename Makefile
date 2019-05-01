@@ -35,7 +35,9 @@ ctl: gx-deps
 	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
 
 gx-clean: clean
+ifeq ($(GXENABLED),yes)
 	$(MAKE) -C $(deptools) gx-clean
+endif
 
 gx:
 ifeq ($(GXENABLED),yes)
@@ -84,9 +86,14 @@ clean_sharness:
 	@rm -rf sharness/trash\ directory*
 
 rw: gx
+ifeq ($(GXENABLED),yes)
 	$(gx-go) rewrite
+endif
+
 rwundo: gx
+ifeq ($(GXENABLED),yes)
 	$(gx-go) rewrite --undo
+endif
 publish: rwundo
 	$(gx) publish
 
