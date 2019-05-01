@@ -46,6 +46,7 @@ paths:
         - $ref: '#/components/parameters/pinReplicationMinParam'
         - $ref: '#/components/parameters/pinReplicationMaxParam'
         - $ref: '#/components/parameters/pinShardSize'
+        - $ref: '#/components/parameters/pinMetaParam'
         - $ref: '#/components/parameters/hash'
         - $ref: '#/components/parameters/recursive'
         - $ref: '#/components/parameters/layout'
@@ -84,7 +85,7 @@ paths:
                     properties:
                       /:
                         type: string
-              example: {"name":"test.file","cid":{"/":"QmePw8gVcBMb8x6kAep6aMBAX23hCSk6iZW3i9VKkiFhu1"},"size":20}
+              example: {"name":"QmePw8gVcBMb8x6kAep6aMBAX23hCSk6iZW3i9VKkiFhu1","cid":{"/":"QmePw8gVcBMb8x6kAep6aMBAX23hCSk6iZW3i9VKkiFhu1"},"size":20}
         '400':
           $ref: '#/components/responses/BadRequest'
   /peers:
@@ -181,6 +182,11 @@ paths:
                   $ref: '#/components/schemas/PinOptions'
                 properties: {}
               example: [{"replication_factor_min":-1,"replication_factor_max":-1,"name":"","shard_size":0,"user_allocations":null,"metadata":null,"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"type":2,"allocations":[],"max_depth":-1,"reference":null}]
+        '400':
+          description: BadRequest
+          content:
+            application/json:
+              example: {"code":400,"message":"invalid filter value"}
   /allocations/{cid}:
     parameters:
       - name: cid
@@ -202,13 +208,17 @@ paths:
                 $ref: '#/components/schemas/PinOptions'
               example: {"replication_factor_min":-1,"replication_factor_max":-1,"name":"","shard_size":0,"user_allocations":null,"metadata":null,"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"type":2,"allocations":[],"max_depth":-1,"reference":null}
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/CidBadRequest'
   /pins:
     get:
       summary: Get a list of Pins
       parameters:
         - $ref: '#/components/parameters/local'
-        - $ref: '#/components/parameters/filter'
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [cluster_error, error, pin_error, pin_queued, pinned, pinning, queued, remote, unpin_error, unpin_queued, unpinned, unpinning]
       tags:
         - pins
       description: Get a list of Pins
@@ -251,7 +261,7 @@ paths:
                 $ref: '#/components/schemas/PinInfo'
               example: {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:02:30.186116871+10:00","error":""}}}
         '400':
-          $ref: '#/components/responses/PinBadRequest'
+          $ref: '#/components/responses/CidBadRequest'
           
     post:
       parameters:
@@ -270,7 +280,7 @@ paths:
         '202':
           description: Accepted
         '400':
-          $ref: '#/components/responses/PinBadRequest'
+          $ref: '#/components/responses/CidBadRequest'
     delete:
       summary: Remove a Pin
       tags:
@@ -280,7 +290,7 @@ paths:
         '202':
           description: Accepted
         '400':
-          $ref: '#/components/responses/PinBadRequest'
+          $ref: '#/components/responses/CidBadRequest'
   /pins/{keyType}/{path}:
     parameters:
       - name: path
@@ -383,7 +393,7 @@ paths:
                 $ref: '#/components/schemas/PinInfo'
               example: {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}
         '400':
-          $ref: '#/components/responses/PinBadRequest'
+          $ref: '#/components/responses/CidBadRequest'
   
   /pins/recover:
     post:
@@ -438,13 +448,14 @@ paths:
                 $ref: '#/components/schemas/PinInfo'
               example: {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}
         '400':
-          $ref: '#/components/responses/PinBadRequest'
+          $ref: '#/components/responses/CidBadRequest'
           
   /health/graph:
     get:
-      summary: Query all connected cluster peers and their ipfs peers to generate a graph of the connections
+      summary: Create a graph displaying connectivity of cluster peers
       tags: 
         - health 
+      description: Query all connected cluster peers and their ipfs peers to generate a graph of the connections
       responses:
         '200':
           description: OK
@@ -463,10 +474,10 @@ paths:
           type: string
           enum: [ping, freespace]
     get:
-      summary: Get the latest valid metrics of the given type logged by this peer for all current cluster peers
+      summary: List latest metrics logged by this peer
       tags:
         - health
-      description: Get latest Metrics by Name
+      description: Get the latest valid metrics of the given type logged by this peer for all current cluster peers
       responses:
         '200':
           description: OK
@@ -668,7 +679,7 @@ components:
       in: query
       schema:
         type: integer
-    
+          
     hash:
       name: hash
       in: query
@@ -767,7 +778,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
 
-    PinBadRequest:
+    CidBadRequest:
       description: Bad Request
       content:
         application/json:
