@@ -327,7 +327,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 		}
 
 		defer res.Body.Close()
-		if res.StatusCode != http.StatusInternalServerError {
+		if res.StatusCode != http.StatusBadRequest {
 			t.Error("request should not be successful with a no arguments")
 		}
 
@@ -337,7 +337,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 		}
 
 		defer res2.Body.Close()
-		if res2.StatusCode != http.StatusInternalServerError {
+		if res2.StatusCode != http.StatusBadRequest {
 			t.Error("request should not be successful with a single argument")
 		}
 	})
@@ -357,8 +357,8 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(resp.Pins) != 2 ||
-			resp.Pins[0] != test.PathIPFS1 ||
-			resp.Pins[1] != test.PathIPFS2 {
+			resp.Pins[0] != test.Cid2.String() ||
+			resp.Pins[1] != test.CidResolved.String() { // always resolve to the same
 			t.Errorf("bad response: %s", string(resBytes))
 		}
 	})

@@ -288,10 +288,14 @@ func (proxy *Server) run() {
 }
 
 // ipfsErrorResponder writes an http error response just like IPFS would.
-func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
+func ipfsErrorResponder(w http.ResponseWriter, errMsg string, code int) {
 	res := ipfsError{errMsg}
 	resBytes, _ := json.Marshal(res)
-	w.WriteHeader(http.StatusInternalServerError)
+	if code > 0 {
+		w.WriteHeader(code)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	w.Write(resBytes)
 	return
 }
@@ -302,7 +306,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	arg := r.URL.Query().Get("arg")
 	p, err := path.ParsePath(arg)
 	if err != nil {
-		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error())
+		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error(), -1)
 		return
 	}
 
@@ -316,7 +320,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 		&pin,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
@@ -347,7 +351,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	if arg != "" {
 		c, err := cid.Decode(arg)
 		if err != nil {
-			ipfsErrorResponder(w, err.Error())
+			ipfsErrorResponder(w, err.Error(), -1)
 			return
 		}
 		var pin api.Pin
@@ -359,7 +363,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			&pin,
 		)
 		if err != nil {
-			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg))
+			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg), -1)
 			return
 		}
 		pinLs.Keys[pin.Cid.String()] = ipfsPinType{
@@ -375,7 +379,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			&pins,
 		)
 		if err != nil {
-			ipfsErrorResponder(w, err.Error())
+			ipfsErrorResponder(w, err.Error(), -1)
 			return
 		}
 
@@ -401,11 +405,11 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	args := q["arg"]
 	if len(args) == 0 {
-		ipfsErrorResponder(w, "argument \"from-path\" is required")
+		ipfsErrorResponder(w, "argument \"from-path\" is required", http.StatusBadRequest)
 		return
 	}
 	if len(args) == 1 {
-		ipfsErrorResponder(w, "argument \"to-path\" is required")
+		ipfsErrorResponder(w, "argument \"to-path\" is required", http.StatusBadRequest)
 		return
 	}
 
@@ -416,13 +420,13 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse paths (we will need to resolve them)
 	pFrom, err := path.ParsePath(from)
 	if err != nil {
-		ipfsErrorResponder(w, "error parsing \"from-path\" argument: "+err.Error())
+		ipfsErrorResponder(w, "error parsing \"from-path\" argument: "+err.Error(), -1)
 		return
 	}
 
 	pTo, err := path.ParsePath(to)
 	if err != nil {
-		ipfsErrorResponder(w, "error parsing \"to-path\" argument: "+err.Error())
+		ipfsErrorResponder(w, "error parsing \"to-path\" argument: "+err.Error(), -1)
 		return
 	}
 
@@ -437,7 +441,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		&fromCid,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
@@ -452,7 +456,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		&fromPin,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
@@ -475,7 +479,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		&toPin,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
@@ -491,15 +495,13 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			&struct{}{},
 		)
 		if err != nil {
-			ipfsErrorResponder(w, err.Error())
+			ipfsErrorResponder(w, err.Error(), -1)
 			return
 		}
 	}
 
-	// Mimic ipfs response by answering with the paths
-	// https://github.com/ipfs/go-ipfs/issues/6269
 	res := ipfsPinOpResp{
-		Pins: []string{pFrom.String(), pTo.String()},
+		Pins: []string{fromCid.String(), toPin.Cid.String()},
 	}
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
@@ -512,13 +514,13 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		ipfsErrorResponder(w, "error reading request: "+err.Error())
+		ipfsErrorResponder(w, "error reading request: "+err.Error(), -1)
 		return
 	}
 
 	q := r.URL.Query()
 	if q.Get("only-hash") == "true" {
-		ipfsErrorResponder(w, "only-hash is not supported when adding to cluster")
+		ipfsErrorResponder(w, "only-hash is not supported when adding to cluster", -1)
 	}
 
 	unpin := q.Get("pin") == "false"
@@ -527,7 +529,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	// /add params. We can parse most of them directly from the query.
 	params, err := api.AddParamsFromQuery(q)
 	if err != nil {
-		ipfsErrorResponder(w, "error parsing options:"+err.Error())
+		ipfsErrorResponder(w, "error parsing options:"+err.Error(), -1)
 		return
 	}
 	trickle := q.Get("trickle")
@@ -595,7 +597,7 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 		&peers,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
