@@ -424,6 +424,16 @@ func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in cid.Cid, out *[]byte)
 	return nil
 }
 
+// IPFSResolve runs IPFSConnector.Resolve().
+func (rpcapi *RPCAPI) IPFSResolve(ctx context.Context, in string, out *cid.Cid) error {
+	c, err := rpcapi.c.ipfs.Resolve(ctx, in)
+	if err != nil {
+		return err
+	}
+	*out = c
+	return nil
+}
+
 /*
    Consensus component methods
 */
