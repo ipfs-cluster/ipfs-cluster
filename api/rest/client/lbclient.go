@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"math/rand"
 	"time"
 
@@ -13,27 +12,44 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+// Strategy values
+const (
+	Random Strategy = iota
+	RoundRobin
+)
+
+// Strategy represents load balancing strategy
+type Strategy int
+
 // loadBalancingClient a client to interact with IPFS Cluster APIs.
 // It balances the load by distributing it among peers.
 type loadBalancingClient struct {
-	clients           []*Client
-	shedulingStrategy string
+	clients  []*Client
+	strategy Strategy
+	retries  int
+	length   int
 }
 
-func (lc *loadBalancingClient) whichClient() (Client, error) {
-	if lc.shedulingStrategy == "random" {
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-		n := r.Intn(len(lc.clients))
+var clientIndex int
 
-		return *lc.clients[n], nil
+func (lc *loadBalancingClient) whichClient() Client {
+	switch lc.strategy {
+	case Random:
+		return *lc.clients[rand.Intn(len(lc.clients))]
+	case RoundRobin:
+		clientIndex++
+		if clientIndex == lc.length {
+			clientIndex = 0
+		}
+		return *lc.clients[clientIndex]
+	default:
+		return nil
 	}
-
-	return nil, errors.New("Invalid sheduling strategy")
 }
 
 // NewLBClient returens a new client that would load balance among
 // clients
-func NewLBClient(cfgs []*Config) (Client, error) {
+func NewLBClient(cfgs []*Config, strategy Strategy, retries int) (Client, error) {
 	var clients []*Client
 	for _, cfg := range cfgs {
 		defaultClient, err := NewDefaultClient(cfg)
@@ -42,101 +58,87 @@ func NewLBClient(cfgs []*Config) (Client, error) {
 		}
 		clients = append(clients, &defaultClient)
 	}
-	return &loadBalancingClient{clients: clients}, nil
+
+	rand.Seed(time.Now().UnixNano())
+
+	return &loadBalancingClient{clients: clients, strategy: strategy, retries: retries, length: len(clients)}, nil
 }
 
 // ID returns information about the cluster Peer.
 func (lc *loadBalancingClient) ID(ctx context.Context) (*api.ID, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
+	var err error
+	var id *api.ID
+	for {
+		id, err = lc.whichClient().ID(ctx)
+		if err != nil {
+			break
+		}
 	}
-
-	return dc.ID(ctx)
+	return id, err
 }
 
 // Peers requests ID information for all cluster peers.
 func (lc *loadBalancingClient) Peers(ctx context.Context) ([]*api.ID, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
 	return dc.Peers(ctx)
 }
 
 // PeerAdd adds a new peer to the cluster.
 func (lc *loadBalancingClient) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
 
 	return dc.PeerAdd(ctx, pid)
 }
 
 // PeerRm removes a current peer from the cluster
 func (lc *loadBalancingClient) PeerRm(ctx context.Context, id peer.ID) error {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return err
-	}
+	dc := lc.whichClient()
+
 	return dc.PeerRm(ctx, id)
 }
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
 func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) error {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return err
-	}
+	dc := lc.whichClient()
+
 	return dc.Pin(ctx, ci, opts)
 }
 
 // Unpin untracks a Cid from cluster.
 func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) error {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return err
-	}
+	dc := lc.whichClient()
+
 	return dc.Unpin(ctx, ci)
 }
 
 // PinPath allows to pin an element by the given IPFS path.
 func (lc *loadBalancingClient) PinPath(ctx context.Context, path string, opts api.PinOptions) (*api.Pin, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.PinPath(ctx, path, opts)
 }
 
 // UnpinPath allows to unpin an item by providing its IPFS path.
 // It returns the unpinned api.Pin information of the resolved Cid.
 func (lc *loadBalancingClient) UnpinPath(ctx context.Context, p string) (*api.Pin, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.UnpinPath(ctx, p)
 }
 
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
 func (lc *loadBalancingClient) Allocations(ctx context.Context, filter api.PinType) ([]*api.Pin, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Allocations(ctx, filter)
 }
 
 // Allocation returns the current allocations for a given Cid.
 func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (*api.Pin, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Allocation(ctx, ci)
 }
 
@@ -144,10 +146,8 @@ func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (*api
 // the information affects only the current peer, otherwise the information
 // is fetched from all cluster peers.
 func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Status(ctx, ci, local)
 }
 
@@ -157,10 +157,8 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local boo
 // a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
 // api.TrackerStatusUndefined), means all.
 func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.StatusAll(ctx, filter, local)
 }
 
@@ -168,10 +166,8 @@ func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.Tracker
 // the ipfs daemon, and returns it. If local is true, this operation only
 // happens on the current peer, otherwise it happens on every cluster peer.
 func (lc *loadBalancingClient) Sync(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Sync(ctx, ci, local)
 }
 
@@ -180,10 +176,8 @@ func (lc *loadBalancingClient) Sync(ctx context.Context, ci cid.Cid, local bool)
 // local is true, the operation is limited to the current peer. Otherwise
 // it happens on every cluster peer.
 func (lc *loadBalancingClient) SyncAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.SyncAll(ctx, local)
 }
 
@@ -191,10 +185,8 @@ func (lc *loadBalancingClient) SyncAll(ctx context.Context, local bool) ([]*api.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
 func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Recover(ctx, ci, local)
 }
 
@@ -202,39 +194,31 @@ func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bo
 // true, the operation is limited to the current peer. Otherwise, it happens
 // everywhere.
 func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.RecoverAll(ctx, local)
 }
 
 // Version returns the ipfs-cluster peer's version.
 func (lc *loadBalancingClient) Version(ctx context.Context) (*api.Version, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Version(ctx)
 }
 
 // GetConnectGraph returns an ipfs-cluster connection graph.
 // The serialized version, strings instead of pids, is returned
 func (lc *loadBalancingClient) GetConnectGraph(ctx context.Context) (*api.ConnectGraph, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.GetConnectGraph(ctx)
 }
 
 // Metrics returns a map with the latest valid metrics of the given name
 // for the current cluster peers.
 func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api.Metric, error) {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return nil, err
-	}
+	dc := lc.whichClient()
+
 	return dc.Metrics(ctx, name)
 }
 
@@ -251,10 +235,8 @@ func (lc *loadBalancingClient) Add(
 	params *api.AddParams,
 	out chan<- *api.AddedOutput,
 ) error {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return err
-	}
+	dc := lc.whichClient()
+
 	return dc.Add(ctx, paths, params, out)
 }
 
@@ -265,10 +247,8 @@ func (lc *loadBalancingClient) AddMultiFile(
 	params *api.AddParams,
 	out chan<- *api.AddedOutput,
 ) error {
-	dc, err := lc.whichClient()
-	if err != nil {
-		return err
-	}
+	dc := lc.whichClient()
+
 	return dc.AddMultiFile(ctx, multiFileR, params, out)
 }
 
@@ -277,6 +257,6 @@ func (lc *loadBalancingClient) AddMultiFile(
 // It re-uses this Client's HTTP client, thus will be constrained by
 // the same configurations affecting it (timeouts...).
 func (lc *loadBalancingClient) IPFS(ctx context.Context) *shell.Shell {
-	dc, _ := lc.whichClient()
+	dc := lc.whichClient()
 	return dc.IPFS(ctx)
 }
