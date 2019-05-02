@@ -541,11 +541,16 @@ would stil be respected.
 							rplMax = rpl
 						}
 
+						userAllocs := api.StringsToPeers(c.StringSlice("allocations"))
+						if len(userAllocs) != len(c.StringSlice("allocations")) {
+							checkErr("", errors.New("error decoding manual allocations"))
+						}
+
 						opts := api.PinOptions{
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
-							UserAllocations:      c.StringSlice("allocations"),
+							UserAllocations:      userAllocs,
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)
