@@ -6,7 +6,7 @@ RFC: Follower cluster peers
    RPC authorization policies:
 
   * `raft` policy is still pretty much fully open (all endpoints that can
-  potentially be used by someone else are open to everyone
+  potentially be used by someone else are open to everyone who has the `cluster secret`
   * `crdtsoft` allows trusted peers to perform sync/recover/block put etc on any other peer
   * `crdtstrict` allows only read-only methods to trusted peers and almost nothing to the rest (connect swarms (?))
 
