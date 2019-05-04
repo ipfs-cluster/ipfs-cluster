@@ -280,7 +280,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 		finalErr = cc.rpcClient.CallContext(
 			ctx,
 			leader,
-			"Cluster",
+			"Consensus",
 			method,
 			arg,
 			&struct{}{},
@@ -360,7 +360,7 @@ func (cc *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 	defer span.End()
 
 	op := cc.op(ctx, pin, LogOpPin)
-	err := cc.commit(ctx, op, "ConsensusLogPin", pin)
+	err := cc.commit(ctx, op, "LogPin", pin)
 	if err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func (cc *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
 	defer span.End()
 
 	op := cc.op(ctx, pin, LogOpUnpin)
-	err := cc.commit(ctx, op, "ConsensusLogUnpin", pin)
+	err := cc.commit(ctx, op, "LogUnpin", pin)
 	if err != nil {
 		return err
 	}
@@ -392,7 +392,7 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 		if finalErr != nil {
 			logger.Errorf("retrying to add peer. Attempt #%d failed: %s", i, finalErr)
 		}
-		ok, err := cc.redirectToLeader("ConsensusAddPeer", pid)
+		ok, err := cc.redirectToLeader("AddPeer", pid)
 		if err != nil || ok {
 			return err
 		}
@@ -423,7 +423,7 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 		if finalErr != nil {
 			logger.Errorf("retrying to remove peer. Attempt #%d failed: %s", i, finalErr)
 		}
-		ok, err := cc.redirectToLeader("ConsensusRmPeer", pid)
+		ok, err := cc.redirectToLeader("RmPeer", pid)
 		if err != nil || ok {
 			return err
 		}

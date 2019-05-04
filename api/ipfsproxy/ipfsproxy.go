@@ -435,8 +435,8 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	err = proxy.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSResolve",
+		"IPFSConnector",
+		"Resolve",
 		pFrom.String(),
 		&fromCid,
 	)
@@ -591,8 +591,8 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	peers := make([]peer.ID, 0)
 	err := proxy.rpcClient.Call(
 		"",
-		"Cluster",
-		"ConsensusPeers",
+		"Consensus",
+		"Peers",
 		struct{}{},
 		&peers,
 	)
@@ -614,8 +614,8 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	errs := proxy.rpcClient.MultiCall(
 		ctxs,
 		peers,
-		"Cluster",
-		"IPFSRepoStat",
+		"IPFSConnector",
+		"RepoStat",
 		struct{}{},
 		repoStatsIfaces,
 	)

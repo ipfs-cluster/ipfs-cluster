@@ -574,8 +574,8 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
-		"Cluster",
-		"PeerMonitorLatestMetrics",
+		"PeerMonitor",
+		"LatestMetrics",
 		name,
 		&metrics,
 	)

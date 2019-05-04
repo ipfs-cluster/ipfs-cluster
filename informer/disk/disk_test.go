@@ -17,14 +17,14 @@ type badRPCService struct {
 func badRPCClient(t *testing.T) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
-	err := s.RegisterName("Cluster", &badRPCService{})
+	err := s.RegisterName("IPFSConnector", &badRPCService{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c
 }
 
-func (mock *badRPCService) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
+func (mock *badRPCService) RepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
 	return errors.New("fake error")
 }
 

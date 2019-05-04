@@ -174,7 +174,7 @@ func (css *Consensus) setup() {
 		err = css.rpcClient.CallContext(
 			css.ctx,
 			"",
-			"Cluster",
+			"PinTracker",
 			"Track",
 			pin,
 			&struct{}{},
@@ -194,7 +194,7 @@ func (css *Consensus) setup() {
 		err = css.rpcClient.CallContext(
 			css.ctx,
 			"",
-			"Cluster",
+			"PinTracker",
 			"Untrack",
 			pin,
 			&struct{}{},
@@ -295,8 +295,8 @@ func (css *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
 	err := css.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"PeerMonitorLatestMetrics",
+		"PeerMonitor",
+		"LatestMetrics",
 		css.config.PeersetMetric,
 		&metrics,
 	)

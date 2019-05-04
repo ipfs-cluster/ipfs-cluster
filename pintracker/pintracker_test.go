@@ -32,21 +32,24 @@ var (
 	}
 )
 
-type mockService struct {
-	rpcClient *rpc.Client
-}
+type mockCluster struct{}
+type mockIPFS struct{}
 
 func mockRPCClient(t testing.TB) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
-	err := s.RegisterName("Cluster", &mockService{})
+	err := s.RegisterName("Cluster", &mockCluster{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.RegisterName("IPFSConnector", &mockIPFS{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c
 }
 
-func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	c := in.Cid
 	switch c.String() {
 	case test.SlowCid1.String():
@@ -57,7 +60,7 @@ func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}
 	return nil
 }
 
-func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
+func (mock *mockIPFS) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
 	switch in.String() {
 	case test.Cid1.String(), test.Cid2.String():
 		*out = api.IPFSPinStatusRecursive
@@ -70,7 +73,7 @@ func (mock *mockService) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFS) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
 	case test.SlowCid1.String():
 		time.Sleep(3 * time.Second)
@@ -80,7 +83,7 @@ func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct
 	return nil
 }
 
-func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
+func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	m := map[string]api.IPFSPinStatus{
 		test.Cid1.String(): api.IPFSPinStatusRecursive,
 	}
@@ -88,7 +91,7 @@ func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[stri
 	return nil
 }
 
-func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
+func (mock *mockCluster) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
 	*out = []*api.Pin{
 		api.PinWithOpts(test.Cid1, pinOpts),
 		api.PinWithOpts(test.Cid3, pinOpts),
@@ -96,7 +99,7 @@ func (mock *mockService) Pins(ctx context.Context, in struct{}, out *[]*api.Pin)
 	return nil
 }
 
-func (mock *mockService) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
+func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
 	switch in.String() {
 	case test.ErrorCid.String():
 		return errors.New("expected error when using ErrorCid")

@@ -86,8 +86,8 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	err := disk.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSRepoStat",
+		"IPFSConnector",
+		"RepoStat",
 		struct{}{},
 		&repoStat,
 	)
