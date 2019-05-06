@@ -429,6 +429,16 @@ func (mock *mockService) IPFSBlockPut(ctx context.Context, in *api.NodeWithMeta,
 	return nil
 }
 
+func (mock *mockService) IPFSResolve(ctx context.Context, in string, out *cid.Cid) error {
+	switch in {
+	case ErrorCid.String(), "/ipfs/" + ErrorCid.String():
+		*out = ErrorCid
+	default:
+		*out = Cid2
+	}
+	return nil
+}
+
 func (mock *mockService) ConsensusAddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	return errors.New("mock rpc cannot redirect")
 }
