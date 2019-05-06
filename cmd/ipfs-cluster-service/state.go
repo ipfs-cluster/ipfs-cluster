@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
-	"github.com/ipfs/ipfs-cluster/identity"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 
@@ -27,7 +27,7 @@ type stateManager interface {
 	Clean() error
 }
 
-func newStateManager(consensus string, cfgs *cfgs, ident *identity.Identity) stateManager {
+func newStateManager(consensus string, cfgs *cfgs, ident *config.Identity) stateManager {
 	switch consensus {
 	case "raft":
 		return &raftStateManager{cfgs, ident}
@@ -43,7 +43,7 @@ func newStateManager(consensus string, cfgs *cfgs, ident *identity.Identity) sta
 
 type raftStateManager struct {
 	cfgs  *cfgs
-	ident *identity.Identity
+	ident *config.Identity
 }
 
 func (raftsm *raftStateManager) GetStore() (ds.Datastore, error) {
@@ -100,7 +100,7 @@ func (raftsm *raftStateManager) Clean() error {
 
 type crdtStateManager struct {
 	cfgs  *cfgs
-	ident *identity.Identity
+	ident *config.Identity
 }
 
 func (crdtsm *crdtStateManager) GetStore() (ds.Datastore, error) {

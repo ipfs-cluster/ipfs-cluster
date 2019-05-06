@@ -11,7 +11,6 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/config"
-	"github.com/ipfs/ipfs-cluster/identity"
 	"github.com/ipfs/ipfs-cluster/version"
 
 	semver "github.com/blang/semver"
@@ -32,7 +31,7 @@ const (
 
 const (
 	stateCleanupPrompt           = "The peer's state will be removed from the load path.  Existing pins may be lost."
-	configurationOverwritePrompt = "Configuration(service.json) will be overwritten."
+	configurationOverwritePrompt = "Configuration(service.json) and Identity(identity.json) will be overwritten."
 )
 
 // We store a commit id here
@@ -256,7 +255,7 @@ configuration.
 						return nil
 					}
 
-					ident, _ := extractIdentity()
+					ident := loadIdentity()
 
 					err := cfgMgr.LoadJSONFileAndEnv(configPath)
 					checkErr("reading configuration", err)
@@ -285,8 +284,12 @@ configuration.
 				saveConfig(cfgMgr)
 
 				// Create a new identity and save it
-				ident, err := identity.New()
+				ident, err := config.NewIdentity()
 				checkErr("could not generate a public-private key pair", err)
+
+				err = ident.ApplyEnvVars()
+				checkErr("could not apply environment variables to the identity ", err)
+
 				err = ident.SaveJSON(identityPath)
 				checkErr("could not save identity.json", err)
 				out("%s identitry written to %s\n", programName, identityPath)
@@ -379,9 +382,7 @@ By default, the state will be printed to stdout.
 						}
 						defer w.Close()
 
-						ident, _ := extractIdentity()
-
-						cfgMgr, cfgs := makeAndLoadConfigs()
+						cfgMgr, cfgs, ident := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
 						mgr := newStateManager(c.String("consensus"), cfgs, ident)
 						checkErr("exporting state", mgr.ExportState(w))
@@ -433,9 +434,8 @@ to import. If no argument is provided, stdin will be used.
 							checkErr("reading import file", err)
 						}
 						defer r.Close()
-						ident, _ := extractIdentity()
 
-						cfgMgr, cfgs := makeAndLoadConfigs()
+						cfgMgr, cfgs, ident := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
 						mgr := newStateManager(c.String("consensus"), cfgs, ident)
 						checkErr("importing state", mgr.ImportState(r))
@@ -474,9 +474,7 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
-						ident, _ := extractIdentity()
-
-						cfgMgr, cfgs := makeAndLoadConfigs()
+						cfgMgr, cfgs, ident := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
 						mgr := newStateManager(c.String("consensus"), cfgs, ident)
 						checkErr("cleaning state", mgr.Clean())
@@ -554,26 +552,4 @@ func yesNoPrompt(prompt string) bool {
 		fmt.Println("Please press either 'y' or 'n'")
 	}
 	return false
-}
-
-func extractIdentity() (*identity.Identity, bool) {
-	_, err := os.Stat(identityPath)
-	identityExists := !os.IsNotExist(err)
-
-	var ident *identity.Identity
-	if !identityExists {
-		clusterConfig, err := config.GetClusterConfig(configPath)
-		checkErr("couldn not get cluster config", err)
-
-		ident, err = identity.LoadJSON(clusterConfig)
-		checkErr("could not load identity from cluster config", err)
-
-		err = ident.SaveJSON(identityPath)
-		checkErr("could not save identity.json ", err)
-	} else {
-		ident, err = identity.LoadJSONFromFile(identityPath)
-		checkErr("could not load identity from identity.json", err)
-	}
-
-	return ident, identityExists
 }

@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/identity"
+	"github.com/ipfs/ipfs-cluster/config"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
@@ -58,15 +58,8 @@ func daemon(c *cli.Context) error {
 	locker.lock()
 	defer locker.tryUnlock()
 
-	ident, identityExisted := extractIdentity()
-
-	// Load all the configurations
-	cfgMgr, cfgs := makeAndLoadConfigs()
-
-	// Resave
-	if !identityExisted {
-		cfgMgr.SaveJSON(configPath)
-	}
+	// Load all the configurations and identity
+	cfgMgr, cfgs, ident := makeAndLoadConfigs()
 
 	defer cfgMgr.Shutdown()
 
@@ -107,7 +100,7 @@ func createCluster(
 	ctx context.Context,
 	c *cli.Context,
 	cfgs *cfgs,
-	ident *identity.Identity,
+	ident *config.Identity,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
@@ -306,7 +299,7 @@ func setupPinTracker(
 func setupDatastore(
 	consensus string,
 	cfgs *cfgs,
-	ident *identity.Identity,
+	ident *config.Identity,
 ) ds.Datastore {
 	stmgr := newStateManager(consensus, cfgs, ident)
 	store, err := stmgr.GetStore()

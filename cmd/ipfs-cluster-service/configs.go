@@ -11,7 +11,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
-	"github.com/ipfs/ipfs-cluster/identity"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
@@ -86,10 +85,39 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	}
 }
 
-func makeAndLoadConfigs() (*config.Manager, *cfgs) {
+func makeAndLoadConfigs() (*config.Manager, *cfgs, *config.Identity) {
+	ident := loadIdentity()
 	cfgMgr, cfgs := makeConfigs()
 	checkErr("reading configuration", cfgMgr.LoadJSONFileAndEnv(configPath))
-	return cfgMgr, cfgs
+	return cfgMgr, cfgs, ident
+}
+
+func loadIdentity() *config.Identity {
+	_, err := os.Stat(identityPath)
+
+	ident := &config.Identity{}
+	if os.IsNotExist(err) {
+		clusterConfig, err := config.GetClusterConfig(configPath)
+		checkErr("couldn not get cluster config", err)
+		err = ident.LoadJSON(clusterConfig)
+		checkErr("could not load identity from cluster config", err)
+
+		err = ident.SaveJSON(identityPath)
+		checkErr("could not save identity.json ", err)
+
+		err = ident.ApplyEnvVars()
+		checkErr("could not apply environment variables tot the identity ", err)
+
+		return ident
+	}
+
+	err = ident.LoadJSONFromFile(identityPath)
+	checkErr("could not load identity from identity.json", err)
+
+	err = ident.ApplyEnvVars()
+	checkErr("could not apply environment variables to the identity ", err)
+
+	return ident
 }
 
 func saveConfig(cfg *config.Manager) {
@@ -99,7 +127,7 @@ func saveConfig(cfg *config.Manager) {
 	out("%s configuration written to %s\n", programName, configPath)
 }
 
-func propagateTracingConfig(cfgs *cfgs, ident *identity.Identity, tracingFlag bool) *cfgs {
+func propagateTracingConfig(cfgs *cfgs, ident *config.Identity, tracingFlag bool) *cfgs {
 	// tracingFlag represents the cli flag passed to ipfs-cluster-service daemon.
 	// It takes priority. If false, fallback to config file value.
 	tracingValue := tracingFlag
