@@ -22,8 +22,8 @@ import (
 // the DHT for routing. The resulting DHT is not bootstrapped.
 func NewClusterHost(
 	ctx context.Context,
-	cfg *Config,
 	ident *config.Identity,
+	cfg *Config,
 ) (host.Host, *pubsub.PubSub, *dht.IpfsDHT, error) {
 
 	h, err := newHost(ctx, cfg.Secret, ident.PrivateKey, []ma.Multiaddr{cfg.ListenAddr})

@@ -85,11 +85,11 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	}
 }
 
-func makeAndLoadConfigs() (*config.Manager, *cfgs, *config.Identity) {
+func makeAndLoadConfigs() (*config.Manager, *config.Identity, *cfgs) {
 	ident := loadIdentity()
 	cfgMgr, cfgs := makeConfigs()
 	checkErr("reading configuration", cfgMgr.LoadJSONFileAndEnv(configPath))
-	return cfgMgr, cfgs, ident
+	return cfgMgr, ident, cfgs
 }
 
 func loadIdentity() *config.Identity {
@@ -127,7 +127,7 @@ func saveConfig(cfg *config.Manager) {
 	out("%s configuration written to %s\n", programName, configPath)
 }
 
-func propagateTracingConfig(cfgs *cfgs, ident *config.Identity, tracingFlag bool) *cfgs {
+func propagateTracingConfig(ident *config.Identity, cfgs *cfgs, tracingFlag bool) *cfgs {
 	// tracingFlag represents the cli flag passed to ipfs-cluster-service daemon.
 	// It takes priority. If false, fallback to config file value.
 	tracingValue := tracingFlag

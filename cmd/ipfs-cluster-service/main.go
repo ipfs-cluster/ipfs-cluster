@@ -264,7 +264,7 @@ configuration.
 					// the peer ID of this peer changes
 					// and is no longer part of the old
 					// peerset.
-					mgr := newStateManager("raft", cfgs, ident)
+					mgr := newStateManager("raft", ident, cfgs)
 					checkErr("cleaning up raft data", mgr.Clean())
 				}
 
@@ -382,9 +382,9 @@ By default, the state will be printed to stdout.
 						}
 						defer w.Close()
 
-						cfgMgr, cfgs, ident := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs, ident)
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("exporting state", mgr.ExportState(w))
 						logger.Info("state successfully exported")
 						return nil
@@ -435,9 +435,9 @@ to import. If no argument is provided, stdin will be used.
 						}
 						defer r.Close()
 
-						cfgMgr, cfgs, ident := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs, ident)
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("importing state", mgr.ImportState(r))
 						logger.Info("state successfully imported.  Make sure all peers have consistent states")
 						return nil
@@ -474,9 +474,9 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
-						cfgMgr, cfgs, ident := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs, ident)
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("cleaning state", mgr.Clean())
 						logger.Info("data correctly cleaned up")
 						return nil

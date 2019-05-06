@@ -59,7 +59,7 @@ func daemon(c *cli.Context) error {
 	defer locker.tryUnlock()
 
 	// Load all the configurations and identity
-	cfgMgr, cfgs, ident := makeAndLoadConfigs()
+	cfgMgr, ident, cfgs := makeAndLoadConfigs()
 
 	defer cfgMgr.Shutdown()
 
@@ -67,7 +67,7 @@ func daemon(c *cli.Context) error {
 		cfgs.metricsCfg.EnableStats = true
 	}
 
-	cfgs = propagateTracingConfig(cfgs, ident, c.Bool("tracing"))
+	cfgs = propagateTracingConfig(ident, cfgs, c.Bool("tracing"))
 
 	// Cleanup state if bootstrapping
 	raftStaging := false
@@ -80,7 +80,7 @@ func daemon(c *cli.Context) error {
 		cfgs.clusterCfg.LeaveOnShutdown = true
 	}
 
-	cluster, err := createCluster(ctx, c, cfgs, ident, raftStaging)
+	cluster, err := createCluster(ctx, c, ident, cfgs, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -99,12 +99,12 @@ func daemon(c *cli.Context) error {
 func createCluster(
 	ctx context.Context,
 	c *cli.Context,
-	cfgs *cfgs,
 	ident *config.Identity,
+	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg, ident)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 
 	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
@@ -147,7 +147,7 @@ func createCluster(
 	tracer, err := observations.SetupTracing(cfgs.tracingCfg)
 	checkErr("setting up Tracing", err)
 
-	store := setupDatastore(c.String("consensus"), cfgs, ident)
+	store := setupDatastore(c.String("consensus"), ident, cfgs)
 
 	cons, err := setupConsensus(
 		c.String("consensus"),
@@ -298,10 +298,10 @@ func setupPinTracker(
 
 func setupDatastore(
 	consensus string,
-	cfgs *cfgs,
 	ident *config.Identity,
+	cfgs *cfgs,
 ) ds.Datastore {
-	stmgr := newStateManager(consensus, cfgs, ident)
+	stmgr := newStateManager(consensus, ident, cfgs)
 	store, err := stmgr.GetStore()
 	checkErr("creating datastore", err)
 	return store

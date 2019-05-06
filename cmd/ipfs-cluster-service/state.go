@@ -9,11 +9,11 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
-	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 
@@ -27,12 +27,12 @@ type stateManager interface {
 	Clean() error
 }
 
-func newStateManager(consensus string, cfgs *cfgs, ident *config.Identity) stateManager {
+func newStateManager(consensus string, ident *config.Identity, cfgs *cfgs) stateManager {
 	switch consensus {
 	case "raft":
-		return &raftStateManager{cfgs, ident}
+		return &raftStateManager{ident, cfgs}
 	case "crdt":
-		return &crdtStateManager{cfgs, ident}
+		return &crdtStateManager{ident, cfgs}
 	case "":
 		checkErr("", errors.New("unspecified consensus component"))
 	default:
@@ -42,8 +42,8 @@ func newStateManager(consensus string, cfgs *cfgs, ident *config.Identity) state
 }
 
 type raftStateManager struct {
-	cfgs  *cfgs
 	ident *config.Identity
+	cfgs  *cfgs
 }
 
 func (raftsm *raftStateManager) GetStore() (ds.Datastore, error) {
@@ -99,8 +99,8 @@ func (raftsm *raftStateManager) Clean() error {
 }
 
 type crdtStateManager struct {
-	cfgs  *cfgs
 	ident *config.Identity
+	cfgs  *cfgs
 }
 
 func (crdtsm *crdtStateManager) GetStore() (ds.Datastore, error) {
