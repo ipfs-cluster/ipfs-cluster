@@ -16,25 +16,24 @@ import (
 // It balances the load by distributing it among peers.
 type loadBalancingClient struct {
 	strategy LBStrategy
+	retries  int
 }
 
 // LBStrategy is a strategy to load balance request among clients
 type LBStrategy interface {
-	Retries() int
 	Next() Client
 }
 
 // RoundRobin is a load balancing strategy that would use clients in a sequence.
 type RoundRobin struct {
 	clients []Client
-	retries int
 	length  int
 	counter chan int
 }
 
 // NewRoundRobin would return an LBStrategy that load balances requests by using
 // clients in sequence.
-func NewRoundRobin(cfgs []*Config, retries int) (LBStrategy, error) {
+func NewRoundRobin(cfgs []*Config) (LBStrategy, error) {
 	var clients []Client
 	for _, cfg := range cfgs {
 		defaultClient, err := NewDefaultClient(cfg)
@@ -48,7 +47,7 @@ func NewRoundRobin(cfgs []*Config, retries int) (LBStrategy, error) {
 
 	counter := make(chan int)
 	counter <- 0
-	return &RoundRobin{clients: clients, retries: retries, length: len(clients), counter: counter}, nil
+	return &RoundRobin{clients: clients, length: len(clients), counter: counter}, nil
 }
 
 // Next return the next client to be used
@@ -58,15 +57,10 @@ func (r *RoundRobin) Next() Client {
 	return r.clients[i]
 }
 
-// Retries return number of retries
-func (r *RoundRobin) Retries() int {
-	return r.retries
-}
-
 // NewLBClient returens a new client that would load balance among
 // clients
-func NewLBClient(strategy LBStrategy) Client {
-	return &loadBalancingClient{strategy: strategy}
+func NewLBClient(strategy LBStrategy, retries int) Client {
+	return &loadBalancingClient{strategy: strategy, retries: retries}
 }
 
 func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
@@ -78,7 +72,7 @@ func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 	}
 
 	count++
-	if count == lc.strategy.Retries() || err == nil || apiErr.Code != 0 {
+	if count == lc.retries || err == nil || apiErr.Code != 0 {
 		return err
 	}
 	return lc.retry(count, call)
