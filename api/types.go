@@ -248,6 +248,16 @@ type GlobalPinInfo struct {
 	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
 }
 
+// String returns the string representation of a GlobalPinInfo.
+func (gpi *GlobalPinInfo) String() string {
+	str := fmt.Sprintf("Cid: %v\n", gpi.Cid.String())
+	str = str + "Peer:\n"
+	for _, p := range gpi.PeerMap {
+		str = str + fmt.Sprintf("\t%+v\n", p)
+	}
+	return str
+}
+
 // PinInfo holds information about local pins.
 type PinInfo struct {
 	Cid      cid.Cid       `json:"cid" codec:"c"`
