@@ -7,6 +7,8 @@ package optracker
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,24 @@ type OperationTracker struct {
 
 	mu         sync.RWMutex
 	operations map[string]*Operation
+}
+
+func (opt *OperationTracker) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "pid: %v\n", opt.pid)
+	fmt.Fprintf(&b, "name: %s\n", opt.peerName)
+
+	fmt.Fprint(&b, "operations:\n")
+	opt.mu.RLock()
+	defer opt.mu.RUnlock()
+	for _, op := range opt.operations {
+		opstr := op.String()
+		opstrs := strings.Split(opstr, "\n")
+		for _, s := range opstrs {
+			fmt.Fprintf(&b, "\t%s\n", s)
+		}
+	}
+	return b.String()
 }
 
 // NewOperationTracker creates a new OperationTracker.
