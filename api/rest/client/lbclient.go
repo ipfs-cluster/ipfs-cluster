@@ -16,24 +16,24 @@ import (
 // It balances the load by distributing it among peers.
 type loadBalancingClient struct {
 	strategy LBStrategy
-	retries  int
 }
 
 // LBStrategy is a strategy to load balance request among clients
 type LBStrategy interface {
-	Next() Client
+	Next(count int, call func(Client) error) error
 }
 
 // RoundRobin is a load balancing strategy that would use clients in a sequence.
 type RoundRobin struct {
 	clients []Client
 	length  int
+	retries int
 	counter chan int
 }
 
 // NewRoundRobin would return an LBStrategy that load balances requests by using
 // clients in sequence.
-func NewRoundRobin(cfgs []*Config) (LBStrategy, error) {
+func NewRoundRobin(cfgs []*Config, retries int) (LBStrategy, error) {
 	var clients []Client
 	for _, cfg := range cfgs {
 		defaultClient, err := NewDefaultClient(cfg)
@@ -47,24 +47,14 @@ func NewRoundRobin(cfgs []*Config) (LBStrategy, error) {
 
 	counter := make(chan int)
 	counter <- 0
-	return &RoundRobin{clients: clients, length: len(clients), counter: counter}, nil
+	return &RoundRobin{clients: clients, length: len(clients), retries: retries, counter: counter}, nil
 }
 
 // Next return the next client to be used
-func (r *RoundRobin) Next() Client {
+func (r *RoundRobin) Next(count int, call func(Client) error) error {
 	i := <-r.counter
 	r.counter <- (i + 1) % r.length
-	return r.clients[i]
-}
-
-// NewLBClient returens a new client that would load balance among
-// clients
-func NewLBClient(strategy LBStrategy, retries int) Client {
-	return &loadBalancingClient{strategy: strategy, retries: retries}
-}
-
-func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
-	err := call(lc.strategy.Next())
+	err := call(r.clients[i])
 	apiErr, ok := err.(*api.Error)
 	if !ok {
 		logger.Error("could not cast error into api.Error")
@@ -72,10 +62,67 @@ func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 	}
 
 	count++
-	if count == lc.retries || err == nil || apiErr.Code != 0 {
+	if count == r.retries || err == nil || apiErr.Code != 0 {
 		return err
 	}
-	return lc.retry(count, call)
+	return r.Next(count, call)
+}
+
+// Failover is a load balancing strategy that would try the local machine first.
+// If the local call fail it would try other client in a round robin fashion.
+type Failover struct {
+	clients []Client
+	length  int
+	retries int
+	counter chan int
+}
+
+// NewFailover would return an LBStrategy that uses the local client first and
+// if that fails it would try other clients in a round robin like fashion.
+func NewFailover(cfgs []*Config, retries int) (LBStrategy, error) {
+	var clients []Client
+	for _, cfg := range cfgs {
+		defaultClient, err := NewDefaultClient(cfg)
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, defaultClient)
+	}
+
+	rand.Seed(time.Now().UnixNano())
+
+	counter := make(chan int)
+	counter <- 0
+	return &RoundRobin{clients: clients, length: len(clients), retries: retries, counter: counter}, nil
+}
+
+// Next return the next client to be used
+func (f *Failover) Next(count int, call func(Client) error) error {
+	var err error
+	if count == 0 {
+		err = call(f.clients[0])
+	} else {
+		i := <-f.counter
+		f.counter <- (i + 1) % f.length
+		err = call(f.clients[i])
+	}
+	apiErr, ok := err.(*api.Error)
+	if !ok {
+		logger.Error("could not cast error into api.Error")
+		return err
+	}
+
+	count++
+	if count == f.retries || err == nil || apiErr.Code != 0 {
+		return err
+	}
+	return f.Next(count, call)
+}
+
+// NewLBClient returens a new client that would load balance among
+// clients
+func NewLBClient(strategy LBStrategy) Client {
+	return &loadBalancingClient{strategy: strategy}
 }
 
 // ID returns information about the cluster Peer.
@@ -87,7 +134,7 @@ func (lc *loadBalancingClient) ID(ctx context.Context) (*api.ID, error) {
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return id, err
 }
 
@@ -100,7 +147,7 @@ func (lc *loadBalancingClient) Peers(ctx context.Context) ([]*api.ID, error) {
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return peers, err
 }
 
@@ -113,7 +160,7 @@ func (lc *loadBalancingClient) PeerAdd(ctx context.Context, pid peer.ID) (*api.I
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return id, err
 }
 
@@ -123,7 +170,7 @@ func (lc *loadBalancingClient) PeerRm(ctx context.Context, id peer.ID) error {
 		return c.PeerRm(ctx, id)
 	}
 
-	return lc.retry(0, call)
+	return lc.strategy.Next(0, call)
 }
 
 // Pin tracks a Cid with the given replication factor and a name for
@@ -133,7 +180,7 @@ func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.Pin
 		return c.Pin(ctx, ci, opts)
 	}
 
-	return lc.retry(0, call)
+	return lc.strategy.Next(0, call)
 }
 
 // Unpin untracks a Cid from cluster.
@@ -142,7 +189,7 @@ func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) error {
 		return c.Unpin(ctx, ci)
 	}
 
-	return lc.retry(0, call)
+	return lc.strategy.Next(0, call)
 }
 
 // PinPath allows to pin an element by the given IPFS path.
@@ -154,7 +201,7 @@ func (lc *loadBalancingClient) PinPath(ctx context.Context, path string, opts ap
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pin, err
 }
 
@@ -168,7 +215,7 @@ func (lc *loadBalancingClient) UnpinPath(ctx context.Context, p string) (*api.Pi
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pin, err
 }
 
@@ -182,7 +229,7 @@ func (lc *loadBalancingClient) Allocations(ctx context.Context, filter api.PinTy
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pins, err
 }
 
@@ -195,7 +242,7 @@ func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (*api
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pin, err
 }
 
@@ -210,7 +257,7 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local boo
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pinInfo, err
 }
 
@@ -227,7 +274,7 @@ func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.Tracker
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pinInfos, err
 }
 
@@ -242,7 +289,7 @@ func (lc *loadBalancingClient) Sync(ctx context.Context, ci cid.Cid, local bool)
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pinInfo, err
 }
 
@@ -258,7 +305,7 @@ func (lc *loadBalancingClient) SyncAll(ctx context.Context, local bool) ([]*api.
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pinInfos, err
 }
 
@@ -273,7 +320,7 @@ func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bo
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pinInfo, err
 }
 
@@ -288,7 +335,7 @@ func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]*a
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return pinInfos, err
 }
 
@@ -301,7 +348,7 @@ func (lc *loadBalancingClient) Version(ctx context.Context) (*api.Version, error
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return v, err
 }
 
@@ -315,7 +362,7 @@ func (lc *loadBalancingClient) GetConnectGraph(ctx context.Context) (*api.Connec
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return graph, err
 }
 
@@ -329,7 +376,7 @@ func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api
 		return err
 	}
 
-	err := lc.retry(0, call)
+	err := lc.strategy.Next(0, call)
 	return metrics, err
 }
 
@@ -350,7 +397,7 @@ func (lc *loadBalancingClient) Add(
 		return c.Add(ctx, paths, params, out)
 	}
 
-	return lc.retry(0, call)
+	return lc.strategy.Next(0, call)
 }
 
 // AddMultiFile imports new files from a MultiFileReader. See Add().
@@ -364,7 +411,7 @@ func (lc *loadBalancingClient) AddMultiFile(
 		return c.AddMultiFile(ctx, multiFileR, params, out)
 	}
 
-	return lc.retry(0, call)
+	return lc.strategy.Next(0, call)
 }
 
 // IPFS returns an instance of go-ipfs-api's Shell, pointing to the
@@ -378,7 +425,7 @@ func (lc *loadBalancingClient) IPFS(ctx context.Context) *shell.Shell {
 		return nil
 	}
 
-	lc.retry(0, call)
+	lc.strategy.Next(0, call)
 
 	return s
 }
