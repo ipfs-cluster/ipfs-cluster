@@ -155,9 +155,7 @@ func createComponents(
 	*test.IpfsMock,
 ) {
 	ctx := context.Background()
-	peername := fmt.Sprintf("peer_%d", i)
-
-	mock := test.NewIpfsMock(t, peername)
+	mock := test.NewIpfsMock(t)
 
 	//apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
 	// Bind on port 0
@@ -166,6 +164,8 @@ func createComponents(
 	// proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
 	proxyAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
+
+	peername := fmt.Sprintf("peer_%d", i)
 
 	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
