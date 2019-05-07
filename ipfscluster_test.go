@@ -136,7 +136,9 @@ func randomBytes() []byte {
 
 func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *dht.IpfsDHT, i int, staging bool) (*Config, ds.Datastore, Consensus, []API, IPFSConnector, PinTracker, PeerMonitor, PinAllocator, Informer, Tracer, *test.IpfsMock) {
 	ctx := context.Background()
-	mock := test.NewIpfsMock(t)
+	peername := fmt.Sprintf("peer_%d", i)
+
+	mock := test.NewIpfsMock(t, peername)
 
 	//apiAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort+i))
 	// Bind on port 0
@@ -145,8 +147,6 @@ func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *
 	// proxyAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", ipfsProxyPort+i))
 	proxyAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	nodeAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
-
-	peername := fmt.Sprintf("peer_%d", i)
 
 	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 

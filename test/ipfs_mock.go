@@ -98,9 +98,9 @@ type mockBlockPutResp struct {
 }
 
 // NewIpfsMock returns a new mock.
-func NewIpfsMock(t *testing.T) *IpfsMock {
+func NewIpfsMock(t *testing.T, ns string) *IpfsMock {
 	store := inmem.New()
-	st, err := dsstate.New(store, "", dsstate.DefaultHandle())
+	st, err := dsstate.New(store, ns, dsstate.DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}
