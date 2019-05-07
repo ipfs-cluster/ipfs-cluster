@@ -134,7 +134,26 @@ func randomBytes() []byte {
 	return bs
 }
 
-func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *dht.IpfsDHT, i int, staging bool) (*Config, ds.Datastore, Consensus, []API, IPFSConnector, PinTracker, PeerMonitor, PinAllocator, Informer, Tracer, *test.IpfsMock) {
+func createComponents(
+	t *testing.T,
+	host host.Host,
+	pubsub *pubsub.PubSub,
+	dht *dht.IpfsDHT,
+	i int,
+	staging bool,
+) (
+	*Config,
+	ds.Datastore,
+	Consensus,
+	[]API,
+	IPFSConnector,
+	PinTracker,
+	PeerMonitor,
+	PinAllocator,
+	Informer,
+	Tracer,
+	*test.IpfsMock,
+) {
 	ctx := context.Background()
 	peername := fmt.Sprintf("peer_%d", i)
 
@@ -190,6 +209,7 @@ func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *
 	mon, err := pubsubmon.New(ctx, psmonCfg, pubsub, peersF)
 	checkErr(t, err)
 
+	tracingCfg.ServiceName = peername
 	tracer, err := observations.SetupTracing(tracingCfg)
 	checkErr(t, err)
 
@@ -353,6 +373,20 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	waitForLeader(t, clusters)
 
 	return clusters, ipfsMocks
+}
+
+func clustersHealthy(t *testing.T, clusters []*Cluster) bool {
+	t.Helper()
+	if len(clusters) == 0 {
+		return false
+	}
+	metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informer.Name())
+	for _, m := range metrics {
+		if m.Expired() {
+			return false
+		}
+	}
+	return len(clusters) == len(metrics)
 }
 
 func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
@@ -1010,6 +1044,10 @@ func TestClustersReplicationOverall(t *testing.T) {
 
 	ttlDelay()
 
+	// wait for clusters to stablise
+	for !clustersHealthy(t, clusters) {
+	}
+
 	// Why is replication factor nClusters - 1?
 	// Because that way we know that pinning nCluster
 	// pins with an strategy like numpins/disk
@@ -1029,7 +1067,7 @@ func TestClustersReplicationOverall(t *testing.T) {
 		}
 		pinDelay()
 
-		// check that it is held by exactly nClusters -1 peers
+		// check that it is held by exactly nClusters - 1 peers
 		gpi, err := clusters[j].Status(ctx, h)
 		if err != nil {
 			t.Fatal(err)
@@ -1045,8 +1083,11 @@ func TestClustersReplicationOverall(t *testing.T) {
 			}
 		}
 		if numLocal != nClusters-1 {
-			t.Errorf("We wanted replication %d but it's only %d",
-				nClusters-1, numLocal)
+			t.Errorf(
+				"We wanted replication %d but it's only %d",
+				nClusters-1,
+				numLocal,
+			)
 		}
 
 		if numRemote != 1 {
@@ -1056,10 +1097,12 @@ func TestClustersReplicationOverall(t *testing.T) {
 	}
 
 	f := func(t *testing.T, c *Cluster) {
+		// confirm that the pintracker state matches the current global state
 		pinfos := c.tracker.StatusAll(ctx)
 		if len(pinfos) != nClusters {
 			t.Error("Pinfos does not have the expected pins")
 		}
+
 		numRemote := 0
 		numLocal := 0
 		for _, pi := range pinfos {
@@ -1072,14 +1115,11 @@ func TestClustersReplicationOverall(t *testing.T) {
 			}
 		}
 		if numLocal != nClusters-1 {
-			t.Errorf("Expected %d local pins but got %d", nClusters-1, numLocal)
-			for _, pi := range pinfos {
-				t.Errorf("%+v", pi)
-			}
+			t.Errorf("%s: Expected %d local pins but got %d", c.id.String(), nClusters-1, numLocal)
 		}
 
 		if numRemote != 1 {
-			t.Errorf("Expected 1 remote pin but got %d", numRemote)
+			t.Errorf("%s: Expected 1 remote pin but got %d", c.id.String(), numRemote)
 		}
 
 		pins, err := c.Pins(ctx)
