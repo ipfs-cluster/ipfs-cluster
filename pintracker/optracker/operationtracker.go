@@ -170,7 +170,7 @@ func (opt *OperationTracker) GetExists(ctx context.Context, c cid.Cid) (*api.Pin
 	return &pInfo, true
 }
 
-// GetAll returns PinInfo objets for all known operations.
+// GetAll returns PinInfo objects for all known operations.
 func (opt *OperationTracker) GetAll(ctx context.Context) []*api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "optracker/GetAll")
 	defer span.End()
