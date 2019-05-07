@@ -164,7 +164,7 @@ func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float
 	// alerting/failure detection will fallback to the metric-expiring
 	// method
 	switch {
-	case len(dv) < 2 && !latest.Expired():
+	case len(dv) < 5 && !latest.Expired():
 		return float64(v), dv, 0.0, false
 	default:
 		phiv := phi(float64(v), dv)
