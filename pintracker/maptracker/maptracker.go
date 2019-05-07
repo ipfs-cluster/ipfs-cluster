@@ -137,8 +137,8 @@ func (mpt *MapPinTracker) pin(op *optracker.Operation) error {
 	err := mpt.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSPin",
+		"IPFSConnector",
+		"Pin",
 		op.Pin(),
 		&struct{}{},
 	)
@@ -156,8 +156,8 @@ func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
 	err := mpt.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSUnpin",
+		"IPFSConnector",
+		"Unpin",
 		op.Pin(),
 		&struct{}{},
 	)
@@ -270,8 +270,8 @@ func (mpt *MapPinTracker) Sync(ctx context.Context, c cid.Cid) (*api.PinInfo, er
 	var ips api.IPFSPinStatus
 	err := mpt.rpcClient.Call(
 		"",
-		"Cluster",
-		"IPFSPinLsCid",
+		"IPFSConnector",
+		"PinLsCid",
 		c,
 		&ips,
 	)
@@ -300,8 +300,8 @@ func (mpt *MapPinTracker) SyncAll(ctx context.Context) ([]*api.PinInfo, error) {
 	var results []*api.PinInfo
 	err := mpt.rpcClient.Call(
 		"",
-		"Cluster",
-		"IPFSPinLs",
+		"IPFSConnector",
+		"PinLs",
 		"recursive",
 		&ipsMap,
 	)

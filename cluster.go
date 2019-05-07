@@ -157,14 +157,7 @@ func NewCluster(
 }
 
 func (c *Cluster) setupRPC() error {
-	var rpcServer *rpc.Server
-	if c.config.Tracing {
-		sh := &ocgorpc.ServerHandler{}
-		rpcServer = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithServerStatsHandler(sh))
-	} else {
-		rpcServer = rpc.NewServer(c.host, version.RPCProtocol)
-	}
-	err := rpcServer.RegisterName("Cluster", &RPCAPI{c})
+	rpcServer, err := newRPCServer(c)
 	if err != nil {
 		return err
 	}
@@ -173,7 +166,12 @@ func (c *Cluster) setupRPC() error {
 	var rpcClient *rpc.Client
 	if c.config.Tracing {
 		csh := &ocgorpc.ClientHandler{}
-		rpcClient = rpc.NewClientWithServer(c.host, version.RPCProtocol, rpcServer, rpc.WithClientStatsHandler(csh))
+		rpcClient = rpc.NewClientWithServer(
+			c.host,
+			version.RPCProtocol,
+			rpcServer,
+			rpc.WithClientStatsHandler(csh),
+		)
 	} else {
 		rpcClient = rpc.NewClientWithServer(c.host, version.RPCProtocol, rpcServer)
 	}
@@ -648,8 +646,8 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	err = c.rpcClient.CallContext(
 		ctx,
 		pid,
-		"Cluster",
-		"PeerMonitorLogMetric",
+		"PeerMonitor",
+		"LogMetric",
 		m,
 		&struct{}{},
 	)
@@ -661,8 +659,8 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	err = c.rpcClient.CallContext(
 		ctx,
 		pid,
-		"Cluster",
-		"IPFSConnectSwarms",
+		"IPFSConnector",
+		"ConnectSwarms",
 		struct{}{},
 		&struct{}{},
 	)
@@ -856,7 +854,7 @@ func (c *Cluster) StatusAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoSlice(ctx, "TrackerStatusAll")
+	return c.globalPinInfoSlice(ctx, "PinTracker", "StatusAll")
 }
 
 // StatusAllLocal returns the PinInfo for all the tracked Cids in this peer.
@@ -876,7 +874,7 @@ func (c *Cluster) Status(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, er
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoCid(ctx, "TrackerStatus", h)
+	return c.globalPinInfoCid(ctx, "PinTracker", "Status", h)
 }
 
 // StatusLocal returns this peer's PinInfo for a given Cid.
@@ -897,7 +895,7 @@ func (c *Cluster) SyncAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoSlice(ctx, "SyncAllLocal")
+	return c.globalPinInfoSlice(ctx, "Cluster", "SyncAllLocal")
 }
 
 // SyncAllLocal makes sure that the current state for all tracked items
@@ -927,7 +925,7 @@ func (c *Cluster) Sync(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, erro
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoCid(ctx, "SyncLocal", h)
+	return c.globalPinInfoCid(ctx, "Cluster", "SyncLocal", h)
 }
 
 // used for RecoverLocal and SyncLocal.
@@ -985,7 +983,7 @@ func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, e
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoCid(ctx, "TrackerRecover", h)
+	return c.globalPinInfoCid(ctx, "PinTracker", "Recover", h)
 }
 
 // RecoverLocal triggers a recover operation for a given Cid in this peer only.
@@ -1356,7 +1354,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	return peers
 }
 
-func (c *Cluster) globalPinInfoCid(ctx context.Context, method string, h cid.Cid) (*api.GlobalPinInfo, error) {
+func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h cid.Cid) (*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
@@ -1379,7 +1377,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, method string, h cid.Cid
 	errs := c.rpcClient.MultiCall(
 		ctxs,
 		members,
-		"Cluster",
+		comp,
 		method,
 		h,
 		rpcutil.CopyPinInfoToIfaces(replies),
@@ -1409,7 +1407,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, method string, h cid.Cid
 	return pin, nil
 }
 
-func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]*api.GlobalPinInfo, error) {
+func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) ([]*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoSlice")
 	defer span.End()
 
@@ -1431,7 +1429,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, method string) ([]*api
 	errs := c.rpcClient.MultiCall(
 		ctxs,
 		members,
-		"Cluster",
+		comp,
 		method,
 		struct{}{},
 		rpcutil.CopyPinInfoSliceToIfaces(replies),

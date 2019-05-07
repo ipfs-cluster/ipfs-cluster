@@ -140,8 +140,8 @@ func putDAG(ctx context.Context, rpcC *rpc.Client, nodes []ipld.Node, dests []pe
 		errs := rpcC.MultiCall(
 			ctxs,
 			dests,
-			"Cluster",
-			"IPFSBlockPut",
+			"IPFSConnector",
+			"BlockPut",
 			b,
 			rpcutil.RPCDiscardReplies(len(dests)),
 		)
