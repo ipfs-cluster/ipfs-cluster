@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -32,6 +33,11 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	}
 	wg.Wait()
 
+	// Creat an identity
+	ident, err := config.NewIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Create a config
 	cfg := &Config{}
 	cfg.Default()
@@ -40,7 +46,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.Secret = testingClusterSecret
 
 	// Create a bootstrapping libp2p host
-	h, _, dht, err := NewClusterHost(context.Background(), cfg)
+	h, _, dht, err := NewClusterHost(context.Background(), ident, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

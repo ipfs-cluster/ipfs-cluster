@@ -118,10 +118,10 @@ func (ident *Identity) LoadJSON(raw []byte) error {
 		return err
 	}
 
-	return ident.applyConfigJSON(jID)
+	return ident.applyIdentityJSON(jID)
 }
 
-func (ident *Identity) applyConfigJSON(jID *identityJSON) error {
+func (ident *Identity) applyIdentityJSON(jID *identityJSON) error {
 	pid, err := peer.IDB58Decode(jID.ID)
 	if err != nil {
 		err = fmt.Errorf("error decoding cluster ID: %s", err)
@@ -180,11 +180,14 @@ func (ident *Identity) ApplyEnvVars() error {
 	if err != nil {
 		return err
 	}
-
 	err = envconfig.Process(ident.ConfigKey(), jID)
 	if err != nil {
 		return err
 	}
+	return ident.applyIdentityJSON(jID)
+}
 
-	return ident.applyConfigJSON(jID)
+// Equals returns true if equal to provided identity.
+func (ident *Identity) Equals(i *Identity) bool {
+	return ident.ID == i.ID && ident.PrivateKey.Equals(i.PrivateKey)
 }
