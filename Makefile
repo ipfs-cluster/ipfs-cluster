@@ -121,4 +121,8 @@ docker-compose:
 
 prcheck: gx-deps check service ctl test
 
+swagger:
+	statik -src=api/rest/swagger/swaggerui
+	mv statik api/rest/swagger
+
 .PHONY: all gx gx-deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
