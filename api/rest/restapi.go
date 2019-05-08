@@ -22,6 +22,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
+	"github.com/rakyll/statik/fs"
 
 	mux "github.com/gorilla/mux"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
@@ -39,6 +40,9 @@ import (
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
+
+	// To register statik zip data
+	_ "github.com/ipfs/ipfs-cluster/api/rest/swagger/statik"
 )
 
 func init() {
@@ -258,6 +262,15 @@ func (api *API) addRoutes(router *mux.Router) {
 				),
 			)
 	}
+
+	statikFS, err := fs.New()
+	if err != nil {
+		panic(err)
+	}
+	staticServer := http.FileServer(statikFS)
+	sh := http.StripPrefix("/swaggerui/", staticServer)
+	router.PathPrefix("/swaggerui/").Handler(sh)
+
 	api.router = router
 }
 
