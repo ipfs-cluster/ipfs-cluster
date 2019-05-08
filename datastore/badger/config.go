@@ -5,6 +5,8 @@ import (
 	"errors"
 	"path/filepath"
 
+	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs/ipfs-cluster/config"
@@ -18,6 +20,15 @@ const (
 	DefaultSubFolder = "badger"
 )
 
+var (
+	// DefaultBadgerOptions has to be a var because badger.DefaultOptions is.
+	DefaultBadgerOptions badger.Options
+)
+
+func init() {
+	DefaultBadgerOptions = badger.DefaultOptions
+}
+
 // Config is used to initialize a BadgerDB datastore. It implements the
 // ComponentConfig interface.
 type Config struct {
@@ -26,10 +37,29 @@ type Config struct {
 	// The folder for this datastore. Non-absolute paths are relative to
 	// the base configuration folder.
 	Folder string
+
+	BadgerOptions badger.Options
 }
 
+// FileLoadingMode specifies how data in LSM table files and value log files should
+// be loaded.
+type FileLoadingMode int
+
+const (
+	// Unknown indicates that the value hasn't been set
+	Unknown FileLoadingMode = iota
+	// FileIO indicates that files must be loaded using standard I/O
+	FileIO
+	// LoadToRAM indicates that file must be loaded into RAM
+	LoadToRAM
+	// MemoryMap indicates that that the file must be memory-mapped
+	MemoryMap
+)
+
 type jsonConfig struct {
-	Folder string `json:"folder,omitempty"`
+	Folder              string          `json:"folder,omitempty"`
+	TableLoadingMode    FileLoadingMode `json:"table_loading_mode,omitempty"`     // because we can't distinguish between options.FileIO and default value
+	ValueLogLoadingMode FileLoadingMode `json:"value_log_loading_mode,omitempty"` // because we can't distinguish between options.FileIO and default value
 }
 
 // ConfigKey returns a human-friendly identifier for this type of Datastore.
@@ -40,6 +70,7 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with sensible values.
 func (cfg *Config) Default() error {
 	cfg.Folder = DefaultSubFolder
+	cfg.BadgerOptions = DefaultBadgerOptions
 	return nil
 }
 
@@ -81,6 +112,12 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	config.SetIfNotDefault(jcfg.Folder, &cfg.Folder)
+	if v, ok := correctLoadingMode(jcfg.TableLoadingMode); ok {
+		cfg.BadgerOptions.TableLoadingMode = options.FileLoadingMode(v)
+	}
+	if v, ok := correctLoadingMode(jcfg.ValueLogLoadingMode); ok {
+		cfg.BadgerOptions.ValueLogLoadingMode = options.FileLoadingMode(v)
+	}
 	return cfg.Validate()
 }
 
@@ -98,6 +135,8 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 
 	if cfg.Folder != DefaultSubFolder {
 		jCfg.Folder = cfg.Folder
+		jCfg.TableLoadingMode = FileLoadingMode(cfg.BadgerOptions.TableLoadingMode)
+		jCfg.ValueLogLoadingMode = FileLoadingMode(cfg.BadgerOptions.ValueLogLoadingMode)
 	}
 
 	return jCfg
@@ -110,4 +149,13 @@ func (cfg *Config) GetFolder() string {
 	}
 
 	return filepath.Join(cfg.BaseDir, cfg.Folder)
+}
+
+func correctLoadingMode(lm FileLoadingMode) (options.FileLoadingMode, bool) {
+	switch lm {
+	default:
+		return 0, false
+	case 1, 2, 3:
+		return options.FileLoadingMode(lm - 1), true
+	}
 }

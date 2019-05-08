@@ -6,6 +6,10 @@ require (
 	github.com/ajstarks/svgo v0.0.0-20181006003313-6ce6a3bcf6cd // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/btcsuite/btcd v0.0.0-20190427004231-96897255fd17 // indirect
+	github.com/coreos/go-semver v0.3.0 // indirect
+	github.com/dgraph-io/badger v2.0.0-rc.2+incompatible
+	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/gogo/protobuf v1.2.1
