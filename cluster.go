@@ -1333,12 +1333,21 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 		rpcutil.CopyIDsToIfaces(peers),
 	)
 
+	finalPeers := []*api.ID{}
+
 	for i, err := range errs {
-		if err != nil {
-			peers[i] = &api.ID{}
-			peers[i].ID = members[i]
-			peers[i].Error = err.Error()
+		if err == nil {
+			finalPeers = append(finalPeers, peers[i])
+			continue
 		}
+
+		if rpc.IsAuthorizationError(err) {
+			continue
+		}
+
+		peers[i] = &api.ID{}
+		peers[i].ID = members[i]
+		peers[i].Error = err.Error()
 	}
 
 	return peers
@@ -1379,6 +1388,11 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		// No error. Parse and continue
 		if e == nil {
 			pin.PeerMap[peer.IDB58Encode(members[i])] = r
+			continue
+		}
+
+		if rpc.IsAuthorizationError(e) {
+			logger.Debug("rpc auth error:", e)
 			continue
 		}
 
@@ -1447,6 +1461,10 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
+			if rpc.IsAuthorizationError(e) {
+				logger.Debug("rpc auth error", e)
+				continue
+			}
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
 		} else {

@@ -624,6 +624,10 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 
 	for i, err := range errs {
 		if err != nil {
+			if rpc.IsAuthorizationError(err) {
+				logger.Debug(err)
+				continue
+			}
 			logger.Errorf("%s repo/stat errored: %s", peers[i], err)
 			continue
 		}
