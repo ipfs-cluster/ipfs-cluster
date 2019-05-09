@@ -49,6 +49,7 @@ func TestSimplePNet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ttlDelay()
 
 	if len(clusters[0].Peers(ctx)) != len(clusters[1].Peers(ctx)) {
 		t.Fatal("Expected same number of peers")
