@@ -58,6 +58,10 @@ type Consensus interface {
 	// non-trusted one. This should be fast as it will be
 	// called repeteadly for every remote RPC request.
 	IsTrustedPeer(context.Context, peer.ID) bool
+	// Trust marks a peer as "trusted"
+	Trust(context.Context, peer.ID) error
+	// Distrust removes a peer from the "trusted" set
+	Distrust(context.Context, peer.ID) error
 }
 
 // API is a component which offers an API for Cluster. This is

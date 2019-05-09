@@ -7,7 +7,8 @@ import (
 
 var cfgJSON = []byte(`
 {
-    "cluster_name": "test"
+    "cluster_name": "test",
+    "trusted_peers": ["QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6"]
 }
 `)
 
@@ -16,6 +17,17 @@ func TestLoadJSON(t *testing.T) {
 	err := cfg.LoadJSON(cfgJSON)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	cfg = &Config{}
+	err = cfg.LoadJSON([]byte(`
+{
+    "cluster_name": "test",
+    "trusted_peers": ["abc"]
+}`))
+
+	if err == nil {
+		t.Fatal("expected error parsing trusted_peers")
 	}
 }
 

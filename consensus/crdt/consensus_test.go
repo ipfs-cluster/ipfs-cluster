@@ -211,6 +211,11 @@ func TestConsensusAddRmPeer(t *testing.T) {
 		t.Error("could not add peer:", err)
 	}
 
+	err = cc2.Trust(ctx, cc.host.ID())
+	if err != nil {
+		t.Error("could not trust peer:", err)
+	}
+
 	// Make a pin on peer1 and check it arrived to peer2
 	err = cc.LogPin(ctx, testPin(test.Cid1))
 	if err != nil {

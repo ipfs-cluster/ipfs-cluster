@@ -241,6 +241,12 @@ func (css *Consensus) IsTrustedPeer(ctx context.Context, p peer.ID) bool {
 	return true
 }
 
+// Trust is a no-op.
+func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error { return nil }
+
+// Distrust is a no-op.
+func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error { return nil }
+
 func (cc *Consensus) op(ctx context.Context, pin *api.Pin, t LogOpType) *LogOp {
 	return &LogOp{
 		Cid:  pin,
