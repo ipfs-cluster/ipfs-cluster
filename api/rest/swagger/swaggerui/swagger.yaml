@@ -156,7 +156,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"code":400,"message":"error decoding Peer ID: multihash length inconsistent: \u0026{6  15 [246 172 49]}"}
+              example: {"code": 400,"message": "error decoding Peer ID: multihash length inconsistent: \u0026{6  15 [246 172 49]}"}
               
   /allocations:
     get:
@@ -757,12 +757,6 @@ components:
       in: query
       schema:
         type: boolean
-    
-    filter:
-      name: filter
-      in: query
-      schema:
-        type: string
 
   responses:
     NotFound:

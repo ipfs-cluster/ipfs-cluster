@@ -158,7 +158,10 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		host:     h,
 		rpcReady: make(chan struct{}, 2),
 	}
-	api.addRoutes(router)
+	err = api.addRoutes(router)
+	if err != nil {
+		return nil, err
+	}
 
 	// Set up api.httpListener if enabled
 	err = api.setupHTTP(ctx)
@@ -249,7 +252,7 @@ func (api *API) Host() host.Host {
 	return api.host
 }
 
-func (api *API) addRoutes(router *mux.Router) {
+func (api *API) addRoutes(router *mux.Router) error {
 	for _, route := range api.routes() {
 		router.
 			Methods(route.Method).
@@ -263,15 +266,28 @@ func (api *API) addRoutes(router *mux.Router) {
 			)
 	}
 
+	if err := addSwaggerRoute(router); err != nil {
+		return err
+	}
+	api.router = router
+
+	return nil
+}
+
+func addSwaggerRoute(router *mux.Router) error {
 	statikFS, err := fs.New()
 	if err != nil {
-		panic(err)
+		return err
 	}
-	staticServer := http.FileServer(statikFS)
-	sh := http.StripPrefix("/swaggerui/", staticServer)
-	router.PathPrefix("/swaggerui/").Handler(sh)
 
-	api.router = router
+	router.PathPrefix("/swaggerui/").Handler(
+		ochttp.WithRouteTag(
+			http.StripPrefix("/swaggerui/", http.FileServer(statikFS)),
+			"/swaggerui/",
+		),
+	)
+
+	return nil
 }
 
 // basicAuth wraps a given handler with basic authentication
