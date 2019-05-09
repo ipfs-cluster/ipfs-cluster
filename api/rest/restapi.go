@@ -22,7 +22,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
-	"github.com/rakyll/statik/fs"
 
 	mux "github.com/gorilla/mux"
 	gostream "github.com/hsanjuan/go-libp2p-gostream"
@@ -40,9 +39,6 @@ import (
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
-
-	// To register statik zip data
-	_ "github.com/ipfs/ipfs-cluster/api/rest/swagger/statik"
 )
 
 func init() {
@@ -158,10 +154,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		host:     h,
 		rpcReady: make(chan struct{}, 2),
 	}
-	err = api.addRoutes(router)
-	if err != nil {
-		return nil, err
-	}
+	api.addRoutes(router)
 
 	// Set up api.httpListener if enabled
 	err = api.setupHTTP(ctx)
@@ -252,7 +245,7 @@ func (api *API) Host() host.Host {
 	return api.host
 }
 
-func (api *API) addRoutes(router *mux.Router) error {
+func (api *API) addRoutes(router *mux.Router) {
 	for _, route := range api.routes() {
 		router.
 			Methods(route.Method).
@@ -265,29 +258,7 @@ func (api *API) addRoutes(router *mux.Router) error {
 				),
 			)
 	}
-
-	if err := addSwaggerRoute(router); err != nil {
-		return err
-	}
 	api.router = router
-
-	return nil
-}
-
-func addSwaggerRoute(router *mux.Router) error {
-	statikFS, err := fs.New()
-	if err != nil {
-		return err
-	}
-
-	router.PathPrefix("/swaggerui/").Handler(
-		ochttp.WithRouteTag(
-			http.StripPrefix("/swaggerui/", http.FileServer(statikFS)),
-			"/swaggerui/",
-		),
-	)
-
-	return nil
 }
 
 // basicAuth wraps a given handler with basic authentication
@@ -603,8 +574,8 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
-		"Cluster",
-		"PeerMonitorLatestMetrics",
+		"PeerMonitor",
+		"LatestMetrics",
 		name,
 		&metrics,
 	)
