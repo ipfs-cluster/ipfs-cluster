@@ -220,10 +220,7 @@ func TestPinPath(t *testing.T) {
 		ReplicationFactorMin: 6,
 		ReplicationFactorMax: 7,
 		Name:                 "hello there",
-		UserAllocations: []string{
-			"QmWPKsvv9VCXmnmX4YGNaYUmB4MbwKyyLsVDYxTQXkNdxt",
-			"QmWPKsvv9VCVTomX4YbNaTUmJ4MbwgyyVsVDtxXQXkNdxt",
-		},
+		UserAllocations:      []peer.ID{test.PeerID1, test.PeerID2},
 	}
 
 	testF := func(t *testing.T, c Client) {

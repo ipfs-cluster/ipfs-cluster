@@ -73,7 +73,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 		op.consensus.rpcClient.GoContext(
 			ctx,
 			"",
-			"Cluster",
+			"PinTracker",
 			"Track",
 			pin,
 			&struct{}{},
@@ -89,7 +89,7 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 		op.consensus.rpcClient.GoContext(
 			ctx,
 			"",
-			"Cluster",
+			"PinTracker",
 			"Untrack",
 			pin,
 			&struct{}{},

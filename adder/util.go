@@ -33,8 +33,8 @@ func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests [
 	errs := rpc.MultiCall(
 		ctxs,
 		dests,
-		"Cluster",
-		"IPFSBlockPut",
+		"IPFSConnector",
+		"BlockPut",
 		n,
 		rpcutil.RPCDiscardReplies(len(dests)),
 	)
