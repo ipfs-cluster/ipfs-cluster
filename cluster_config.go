@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -58,6 +59,9 @@ type Config struct {
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
 	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
 	Secret []byte
+
+	// RPCPolicy defines access control to RPC endpoints.
+	RPCPolicy map[string]RPCEndpointType
 
 	// Leave Cluster on shutdown. Politely informs other peers
 	// of the departure and removes itself from the consensus
@@ -180,6 +184,8 @@ func (cfg *Config) Default() error {
 	}
 	cfg.Secret = (*clusterSecret)[:]
 	// --
+
+	cfg.RPCPolicy = DefaultRPCPolicy
 	return nil
 }
 
@@ -237,7 +243,11 @@ func (cfg *Config) Validate() error {
 	rfMax := cfg.ReplicationFactorMax
 	rfMin := cfg.ReplicationFactorMin
 
-	return isReplicationFactorValid(rfMin, rfMax)
+	if err := isReplicationFactorValid(rfMin, rfMax); err != nil {
+		return err
+	}
+
+	return isPolicyValid(cfg.RPCPolicy)
 }
 
 func isReplicationFactorValid(rplMin, rplMax int) error {
@@ -260,6 +270,41 @@ func isReplicationFactorValid(rplMin, rplMax int) error {
 
 	if (rplMin == -1 && rplMax != -1) || (rplMin != -1 && rplMax == -1) {
 		return errors.New("cluster.replication_factor_min and max must be -1 when one of them is")
+	}
+	return nil
+}
+
+type svcIdComponent interface {
+	SvcID() string
+}
+
+func isPolicyValid(p map[string]RPCEndpointType) error {
+	rpcComponents := []svcIdComponent{
+		&ClusterRPCAPI{},
+		&PinTrackerRPCAPI{},
+		&IPFSConnectorRPCAPI{},
+		&ConsensusRPCAPI{},
+		&PeerMonitorRPCAPI{},
+	}
+
+	total := 0
+	for _, c := range rpcComponents {
+		t := reflect.TypeOf(c)
+		for i := 0; i < t.NumMethod(); i++ {
+			total++
+			method := t.Method(i)
+			if method.Name == "SvcID" {
+				continue
+			}
+			name := fmt.Sprintf("%s.%s", c.SvcID(), method.Name)
+			_, ok := p[name]
+			if !ok {
+				return fmt.Errorf("RPCPolicy is missing the %s method", name)
+			}
+		}
+	}
+	if len(p) != total {
+		logger.Warning("defined RPC policy has more entries than needed")
 	}
 	return nil
 }
