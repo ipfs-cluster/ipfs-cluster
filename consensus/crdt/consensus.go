@@ -276,6 +276,12 @@ func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 	return css.readyCh
 }
 
+// IsTrustedPeer returns whether the given peer is taken into account
+// when submitting updates to the consensus state.
+func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
+	return true // TODO
+}
+
 // LogPin adds a new pin to the shared state.
 func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 	return css.state.Add(ctx, pin)

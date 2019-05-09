@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/version"
@@ -16,14 +17,32 @@ import (
 // newRPCServer returns a new RPC Server for Cluster.
 func newRPCServer(c *Cluster) (*rpc.Server, error) {
 	var s *rpc.Server
+
+	authF := func(pid peer.ID, svc, method string) bool {
+		endpointType, ok := c.config.RPCPolicy[fmt.Sprintf("%s.%s", svc, method)]
+		if !ok {
+			return false
+		}
+
+		switch endpointType {
+		case RPCTrusted:
+			return c.consensus.IsTrustedPeer(c.ctx, pid)
+		case RPCOpen:
+			return true
+		default:
+			return false
+		}
+	}
+
 	if c.config.Tracing {
 		s = rpc.NewServer(
 			c.host,
 			version.RPCProtocol,
 			rpc.WithServerStatsHandler(&ocgorpc.ServerHandler{}),
+			rpc.WithAuthorizeFunc(authF),
 		)
 	} else {
-		s = rpc.NewServer(c.host, version.RPCProtocol)
+		s = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithAuthorizeFunc(authF))
 	}
 
 	cl := &ClusterRPCAPI{c}

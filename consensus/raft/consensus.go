@@ -229,6 +229,18 @@ func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
 	return cc.readyCh
 }
 
+// IsTrustedPeer returns true. In Raft we trust all peers.
+//
+// TODO: There is a potential improvement here by just trusting peers which
+// are currently part of the Raft peerset. But we cannot call Peers() every
+// single time and should keep a cache of trusted peers indexed by peer which
+// is difficult to maintain when peers are removed (we get no
+// notification). All in all, since PeerAdd is effectively open to everyone in
+// Cluster, it makes little difference.
+func (css *Consensus) IsTrustedPeer(ctx context.Context, p peer.ID) bool {
+	return true
+}
+
 func (cc *Consensus) op(ctx context.Context, pin *api.Pin, t LogOpType) *LogOp {
 	return &LogOp{
 		Cid:  pin,

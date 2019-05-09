@@ -53,6 +53,11 @@ type Consensus interface {
 	Clean(context.Context) error
 	// Peers returns the peerset participating in the Consensus
 	Peers(context.Context) ([]peer.ID, error)
+	// IsTrustedPeer returns true if the given peer is "trusted"
+	// This will grant access to more rpc endpoints and a
+	// non-trusted one. This should be fast as it will be
+	// called repeteadly for every remote RPC request.
+	IsTrustedPeer(context.Context, peer.ID) bool
 }
 
 // API is a component which offers an API for Cluster. This is
