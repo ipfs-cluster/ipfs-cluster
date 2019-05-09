@@ -237,15 +237,15 @@ func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
 // is difficult to maintain when peers are removed (we get no
 // notification). All in all, since PeerAdd is effectively open to everyone in
 // Cluster, it makes little difference.
-func (css *Consensus) IsTrustedPeer(ctx context.Context, p peer.ID) bool {
+func (cc *Consensus) IsTrustedPeer(ctx context.Context, p peer.ID) bool {
 	return true
 }
 
 // Trust is a no-op.
-func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error { return nil }
+func (cc *Consensus) Trust(ctx context.Context, pid peer.ID) error { return nil }
 
 // Distrust is a no-op.
-func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error { return nil }
+func (cc *Consensus) Distrust(ctx context.Context, pid peer.ID) error { return nil }
 
 func (cc *Consensus) op(ctx context.Context, pin *api.Pin, t LogOpType) *LogOp {
 	return &LogOp{
