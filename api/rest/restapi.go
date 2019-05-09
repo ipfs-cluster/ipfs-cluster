@@ -283,9 +283,17 @@ func addSwaggerRoute(router *mux.Router) error {
 	router.PathPrefix("/swaggerui/").Handler(
 		ochttp.WithRouteTag(
 			http.StripPrefix("/swaggerui/", http.FileServer(statikFS)),
-			"/swaggerui/",
+			"SwaggerUI",
 		),
 	)
+
+	router.Path("/swaggerui").Handler(
+		ochttp.WithRouteTag(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/swaggerui/", http.StatusSeeOther)
+			}),
+			"SwaggerUI",
+		))
 
 	return nil
 }
