@@ -185,7 +185,6 @@ func (cfg *Config) Default() error {
 	cfg.Secret = (*clusterSecret)[:]
 	// --
 
-	cfg.RPCPolicy = DefaultRPCPolicy
 	return nil
 }
 
@@ -247,7 +246,7 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 
-	return isPolicyValid(cfg.RPCPolicy)
+	return isRPCPolicyValid(cfg.RPCPolicy)
 }
 
 func isReplicationFactorValid(rplMin, rplMax int) error {
@@ -274,12 +273,8 @@ func isReplicationFactorValid(rplMin, rplMax int) error {
 	return nil
 }
 
-type svcIdComponent interface {
-	SvcID() string
-}
-
-func isPolicyValid(p map[string]RPCEndpointType) error {
-	rpcComponents := []svcIdComponent{
+func isRPCPolicyValid(p map[string]RPCEndpointType) error {
+	rpcComponents := []interface{}{
 		&ClusterRPCAPI{},
 		&PinTrackerRPCAPI{},
 		&IPFSConnectorRPCAPI{},
@@ -293,10 +288,7 @@ func isPolicyValid(p map[string]RPCEndpointType) error {
 		for i := 0; i < t.NumMethod(); i++ {
 			total++
 			method := t.Method(i)
-			if method.Name == "SvcID" {
-				continue
-			}
-			name := fmt.Sprintf("%s.%s", c.SvcID(), method.Name)
+			name := fmt.Sprintf("%s.%s", RPCServiceID(c), method.Name)
 			_, ok := p[name]
 			if !ok {
 				return fmt.Errorf("RPCPolicy is missing the %s method", name)
@@ -328,6 +320,7 @@ func (cfg *Config) setDefaults() {
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.RPCPolicy = DefaultRPCPolicy
 }
 
 // LoadJSON receives a raw json-formatted configuration and

@@ -46,31 +46,49 @@ func newRPCServer(c *Cluster) (*rpc.Server, error) {
 	}
 
 	cl := &ClusterRPCAPI{c}
-	err := s.RegisterName(cl.SvcID(), cl)
+	err := s.RegisterName(RPCServiceID(cl), cl)
 	if err != nil {
 		return nil, err
 	}
 	pt := &PinTrackerRPCAPI{c.tracker}
-	err = s.RegisterName(pt.SvcID(), pt)
+	err = s.RegisterName(RPCServiceID(pt), pt)
 	if err != nil {
 		return nil, err
 	}
 	ic := &IPFSConnectorRPCAPI{c.ipfs}
-	err = s.RegisterName(ic.SvcID(), ic)
+	err = s.RegisterName(RPCServiceID(ic), ic)
 	if err != nil {
 		return nil, err
 	}
 	cons := &ConsensusRPCAPI{c.consensus}
-	err = s.RegisterName(cons.SvcID(), cons)
+	err = s.RegisterName(RPCServiceID(cons), cons)
 	if err != nil {
 		return nil, err
 	}
 	pm := &PeerMonitorRPCAPI{c.monitor}
-	err = s.RegisterName(pm.SvcID(), pm)
+	err = s.RegisterName(RPCServiceID(pm), pm)
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// RPCServiceID returns the Service ID for the given RPCAPI object.
+func RPCServiceID(rpcSvc interface{}) string {
+	switch rpcSvc.(type) {
+	case *ClusterRPCAPI:
+		return "Cluster"
+	case *PinTrackerRPCAPI:
+		return "PinTracker"
+	case *IPFSConnectorRPCAPI:
+		return "IPFSConnector"
+	case *ConsensusRPCAPI:
+		return "Consensus"
+	case *PeerMonitorRPCAPI:
+		return "PeerMonitor"
+	default:
+		return ""
+	}
 }
 
 // ClusterRPCAPI is a go-libp2p-gorpc service which provides the internal peer
@@ -79,20 +97,10 @@ type ClusterRPCAPI struct {
 	c *Cluster
 }
 
-// SvcID returns the Service ID used to register this RPC service.
-func (rpcapi *ClusterRPCAPI) SvcID() string {
-	return "Cluster"
-}
-
 // PinTrackerRPCAPI is a go-libp2p-gorpc service which provides the internal
 // peer API for the PinTracker component.
 type PinTrackerRPCAPI struct {
 	tracker PinTracker
-}
-
-// SvcID returns the Service ID used to register this RPC service.
-func (rpcapi *PinTrackerRPCAPI) SvcID() string {
-	return "PinTracker"
 }
 
 // IPFSConnectorRPCAPI is a go-libp2p-gorpc service which provides the
@@ -101,31 +109,16 @@ type IPFSConnectorRPCAPI struct {
 	ipfs IPFSConnector
 }
 
-// SvcID returns the Service ID used to register this RPC service.
-func (rpcapi *IPFSConnectorRPCAPI) SvcID() string {
-	return "IPFSConnector"
-}
-
 // ConsensusRPCAPI is a go-libp2p-gorpc service which provides the
 // internal peer API for the Consensus component.
 type ConsensusRPCAPI struct {
 	cons Consensus
 }
 
-// SvcID returns the Service ID used to register this RPC service.
-func (rpcapi *ConsensusRPCAPI) SvcID() string {
-	return "Consensus"
-}
-
 // PeerMonitorRPCAPI is a go-libp2p-gorpc service which provides the
 // internal peer API for the PeerMonitor component.
 type PeerMonitorRPCAPI struct {
 	mon PeerMonitor
-}
-
-// SvcID returns the Service ID used to register this RPC service.
-func (rpcapi *PeerMonitorRPCAPI) SvcID() string {
-	return "PeerMonitor"
 }
 
 /*

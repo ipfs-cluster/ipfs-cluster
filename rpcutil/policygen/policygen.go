@@ -7,10 +7,6 @@ import (
 	cluster "github.com/ipfs/ipfs-cluster"
 )
 
-type svcIdComponent interface {
-	SvcID() string
-}
-
 func rpcTypeStr(t cluster.RPCEndpointType) string {
 	switch t {
 	case cluster.RPCClosed:
@@ -25,7 +21,7 @@ func rpcTypeStr(t cluster.RPCEndpointType) string {
 }
 
 func main() {
-	rpcComponents := []svcIdComponent{
+	rpcComponents := []interface{}{
 		&cluster.ClusterRPCAPI{},
 		&cluster.PinTrackerRPCAPI{},
 		&cluster.IPFSConnectorRPCAPI{},
@@ -36,21 +32,18 @@ func main() {
 	fmt.Println(`
 // The below generated policy keeps the endpoint types
 // from the exiting one, marking new endpoints as NEW. Copy-paste this policy
-// into rpc_auth.go and set the NEW endpoints to their correct type.
-`)
+// into rpc_auth.go and set the NEW endpoints to their correct type.`)
+	fmt.Println()
 
 	fmt.Println("var RPCPolicy = map[string]RPCEndpointType{")
 
 	for _, c := range rpcComponents {
 		t := reflect.TypeOf(c)
 
-		fmt.Println("        //", c.SvcID(), "methods")
+		fmt.Println("        //", cluster.RPCServiceID(c), "methods")
 		for i := 0; i < t.NumMethod(); i++ {
 			method := t.Method(i)
-			if method.Name == "SvcID" {
-				continue
-			}
-			name := fmt.Sprintf("%s.%s", c.SvcID(), method.Name)
+			name := fmt.Sprintf("%s.%s", cluster.RPCServiceID(c), method.Name)
 			rpcT, ok := cluster.DefaultRPCPolicy[name]
 			rpcTStr := "NEW"
 			if ok {

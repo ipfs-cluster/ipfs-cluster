@@ -91,7 +91,7 @@ func TestClustersPeerAdd(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if len(id.ClusterPeers) != i+1 {
+		if !containsPeer(id.ClusterPeers, clusters[0].id) {
 			// ClusterPeers is originally empty and contains nodes as we add them
 			t.Log(i, id.ClusterPeers)
 			t.Fatal("cluster peers should be up to date with the cluster")
@@ -197,6 +197,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 	}
 
 	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
+	ttlDelay()
 	ids := clusters[1].Peers(ctx)
 	if len(ids) != 2 {
 		t.Error("expected 2 peers")
