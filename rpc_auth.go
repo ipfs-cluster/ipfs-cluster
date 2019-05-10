@@ -23,7 +23,7 @@ type RPCEndpointType int
 // in Raft.
 
 // DefaultRPCPolicy associates all rpc endpoints offered by cluster peers to an
-// endpoint type. See rpcutil/policygen.go as a quick way to generate this
+// endpoint type. See rpcutil/policygen/policygen.go as a quick way to generate this
 // without missing any endpoint.
 var DefaultRPCPolicy = map[string]RPCEndpointType{
 	// Cluster methods
