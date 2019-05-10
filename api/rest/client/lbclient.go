@@ -68,7 +68,7 @@ func (r *RoundRobin) Next(count int, call func(Client) error) error {
 	return r.Next(count, call)
 }
 
-// Failover is a load balancing strategy that would try the local machine first.
+// Failover is a load balancing strategy that would try the local cluster peer first.
 // If the local call fail it would try other client in a round robin fashion.
 type Failover struct {
 	clients []Client
