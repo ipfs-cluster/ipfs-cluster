@@ -19,7 +19,7 @@ func newRPCServer(c *Cluster) (*rpc.Server, error) {
 	var s *rpc.Server
 
 	authF := func(pid peer.ID, svc, method string) bool {
-		endpointType, ok := c.config.RPCPolicy[fmt.Sprintf("%s.%s", svc, method)]
+		endpointType, ok := c.config.RPCPolicy[svc+"."+method]
 		if !ok {
 			return false
 		}
