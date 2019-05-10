@@ -119,7 +119,7 @@ func (f *Failover) Next(count int, call func(Client) error) error {
 	return f.Next(count, call)
 }
 
-// NewLBClient returens a new client that would load balance among
+// NewLBClient returns a new client that will load balance amongst
 // clients
 func NewLBClient(strategy LBStrategy) Client {
 	return &loadBalancingClient{strategy: strategy}
