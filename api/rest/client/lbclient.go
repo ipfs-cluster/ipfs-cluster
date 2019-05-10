@@ -96,7 +96,7 @@ func NewFailover(cfgs []*Config, retries int) (LBStrategy, error) {
 	return &RoundRobin{clients: clients, length: len(clients), retries: retries, counter: counter}, nil
 }
 
-// Next return the next client to be used
+// Next returns the next client to be used.
 func (f *Failover) Next(count int, call func(Client) error) error {
 	var err error
 	if count == 0 {
