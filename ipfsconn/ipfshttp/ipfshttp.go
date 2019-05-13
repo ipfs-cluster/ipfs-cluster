@@ -3,7 +3,6 @@
 package ipfshttp
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -305,7 +304,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	timer := time.NewTimer(ipfs.config.PinTimeout)
 	defer timer.Stop()
 
-	reset := make(chan int)
+	reset := make(chan struct{})
 	go checkTimeout(ctx, cancel, timer, ipfs.config.PinTimeout, reset)
 
 	switch ipfs.config.PinMethod {
@@ -317,7 +316,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 		}
 		defer res.Body.Close()
 
-		err = handleRefsProgress(json.NewDecoder(bufio.NewReader(res.Body)), reset)
+		err = handleRefsProgress(json.NewDecoder(res.Body), reset)
 		if err != nil {
 			return err
 		}
@@ -332,7 +331,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	}
 	defer res.Body.Close()
 
-	err = handlePinsProgress(json.NewDecoder(bufio.NewReader(res.Body)), reset)
+	err = handlePinsProgress(json.NewDecoder(res.Body), reset)
 	if err == nil {
 		logger.Info("IPFS Pin request succeeded: ", hash)
 	}
@@ -484,7 +483,7 @@ func checkResponse(path string, code int, body []byte) error {
 	return fmt.Errorf("IPFS-post '%s' unsuccessful: %d: %s", path, code, body)
 }
 
-func handleRefsProgress(dec *json.Decoder, reset chan int) error {
+func handleRefsProgress(dec *json.Decoder, reset chan struct{}) error {
 	ticker := time.NewTicker(5 * time.Second)
 	var val atomic.Value
 	var done bool
@@ -494,7 +493,7 @@ func handleRefsProgress(dec *json.Decoder, reset chan int) error {
 			case <-ticker.C:
 				{
 					if val.Load().(bool) {
-						reset <- 1
+						reset <- struct{}{}
 					}
 					val.Store(false)
 				}
@@ -528,7 +527,7 @@ func handleRefsProgress(dec *json.Decoder, reset chan int) error {
 	return nil
 }
 
-func handlePinsProgress(dec *json.Decoder, reset chan int) error {
+func handlePinsProgress(dec *json.Decoder, reset chan struct{}) error {
 	ticker := time.NewTicker(5 * time.Second)
 	var val atomic.Value
 	var progress int
@@ -539,7 +538,7 @@ func handlePinsProgress(dec *json.Decoder, reset chan int) error {
 			case <-ticker.C:
 				{
 					if val.Load().(bool) {
-						reset <- 1
+						reset <- struct{}{}
 					}
 					val.Store(false)
 				}
@@ -570,7 +569,7 @@ func handlePinsProgress(dec *json.Decoder, reset chan int) error {
 	return nil
 }
 
-func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Timer, timeout time.Duration, reset chan int) {
+func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Timer, timeout time.Duration, reset chan struct{}) {
 	var done bool
 	for {
 		select {
