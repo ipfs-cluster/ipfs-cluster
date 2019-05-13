@@ -14,6 +14,28 @@ import (
 	"go.opencensus.io/trace"
 )
 
+// RPC endpoint types w.r.t. trust level
+const (
+	// RPCClosed endpoints can only be called by the local cluster peer
+	// on itself.
+	RPCClosed RPCEndpointType = iota
+	// RPCTrusted endpoints can be called by "trusted" peers.
+	// It depends which peers are considered trusted. For example,
+	// in "raft" mode, Cluster will all peers as "trusted". In "crdt" mode,
+	// trusted peers are those specified in the configuration.
+	RPCTrusted
+	// RPCOpen endpoints can be called by any peer in the Cluster swarm.
+	RPCOpen
+)
+
+// RPCEndpointType controls how access is granted to an RPC endpoint
+type RPCEndpointType int
+
+// A trick to find where something is used (i.e. Cluster.Pin):
+// grep -R -B 3 '"Pin"' | grep -C 1 '"Cluster"'.
+// This does not cover globalPinInfo*(...) broadcasts nor redirects to leader
+// in Raft.
+
 // newRPCServer returns a new RPC Server for Cluster.
 func newRPCServer(c *Cluster) (*rpc.Server, error) {
 	var s *rpc.Server
