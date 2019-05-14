@@ -305,6 +305,8 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	defer timer.Stop()
 
 	reset := make(chan struct{})
+	defer close(reset)
+
 	go checkTimeout(ctx, cancel, timer, ipfs.config.PinTimeout, reset)
 
 	switch ipfs.config.PinMethod {
@@ -509,8 +511,10 @@ func handleRefsProgress(dec *json.Decoder, reset chan struct{}) error {
 	for {
 		var ref ipfsRefsResp
 		if err := dec.Decode(&ref); err == io.EOF {
+			done = true
 			break
 		} else if err != nil {
+			done = true
 			return err
 		}
 		//logger.Infof("Ref %s", ref.Ref)
@@ -570,34 +574,25 @@ func handlePinsProgress(dec *json.Decoder, reset chan struct{}) error {
 }
 
 func checkTimeout(ctx context.Context, cancel context.CancelFunc, timer *time.Timer, timeout time.Duration, reset chan struct{}) {
-	var done bool
 	for {
 		select {
 		case <-reset:
 			{
 				if timer.Stop() {
-
 					timer.Reset(timeout)
 				}
 			}
 		case <-timer.C:
 			{
-				done = true
 				cancel()
-				break
+				return
 			}
 		case <-ctx.Done():
 			{
-				done = true
-				break
+				return
 			}
 		}
-
-		if done {
-			break
-		}
 	}
-
 }
 
 // postCtx makes a POST request against
