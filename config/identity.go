@@ -86,13 +86,6 @@ func (ident *Identity) ToJSON() (raw []byte, err error) {
 }
 
 func (ident *Identity) toIdentityJSON() (jID *identityJSON, err error) {
-	// Multiaddress String() may panic
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%s", r)
-		}
-	}()
-
 	jID = &identityJSON{}
 
 	// Private Key
