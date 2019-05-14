@@ -39,7 +39,8 @@ func NewIdentity() (*Identity, error) {
 	// pid and private key generation
 	priv, pub, err := crypto.GenerateKeyPair(
 		DefaultConfigCrypto,
-		DefaultConfigKeyLength)
+		DefaultConfigKeyLength,
+	)
 	if err != nil {
 		return nil, err
 	}
