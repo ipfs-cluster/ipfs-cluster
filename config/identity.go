@@ -36,7 +36,7 @@ type identityJSON struct {
 
 // NewIdentity generate a public-private keypair and returns a new Identity.
 func NewIdentity() (*Identity, error) {
-	// pid and private key generation --
+	// pid and private key generation
 	priv, pub, err := crypto.GenerateKeyPair(
 		DefaultConfigCrypto,
 		DefaultConfigKeyLength)
