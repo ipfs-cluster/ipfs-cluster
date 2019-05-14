@@ -224,10 +224,6 @@ func New(cfg *Config) (*Server, error) {
 		Path("/repo/stat").
 		HandlerFunc(proxy.repoStatHandler).
 		Name("RepoStat")
-	hijackSubrouter.
-		Path("/repo/gc").
-		HandlerFunc(proxy.repoGcHandler).
-		Name("RepoGc")
 
 	// Everything else goes to the IPFS daemon.
 	router.PathPrefix("/").Handler(reverseProxy)
@@ -636,40 +632,6 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBytes, _ := json.Marshal(totalStats)
-	w.WriteHeader(http.StatusOK)
-	w.Write(resBytes)
-	return
-}
-
-// repoGcHandler launches the garbage collection sequence in the cluster.
-// Based on https://docs.ipfs.io/reference/api/http/#api-v0-repo-gc
-func (proxy *Server) repoGcHandler(w http.ResponseWriter, r *http.Request) {
-	//TODO: Need help/direction on finishing the handler
-	peers := make([]peer.ID, 0)
-	err := proxy.rpcClient.CallContext(
-		proxy.ctx,
-		"",
-		"Cluster",
-		"IPFSRepoGc",
-		&peers,
-		struct{}{},
-	)
-
-	// err := proxy.rpcClient.Call(
-	// 	"",
-	// 	"Cluster",
-	// 	"IPFSRepoGc",
-	// 	struct{}{},
-	// 	&peers,
-	// )
-
-	gcStatus := api.IPFSRepoGc{}
-
-	if err != nil {
-		logger.Errorf("ipfsproxy.go: peers gc could not succeed. ERROR: %s", gcStatus.GCError)
-	}
-
-	resBytes, _ := json.Marshal(gcStatus)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
 	return

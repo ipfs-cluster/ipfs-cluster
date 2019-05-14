@@ -252,21 +252,6 @@ cluster peers.
 						return nil
 					},
 				},
-				{
-					Name:  "gc",
-					Usage: "Perform garbage collection in the IPFS Cluster",
-					Description: `
-This command performs a garbage collection on all the active nodes in the cluster. 
-There is no need for an argument to this sub command as gc operation is internal.
-`,
-					ArgsUsage: " ",
-					Flags:     []cli.Flag{},
-					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.RepoGC(ctx)
-						formatResponse(c, resp, cerr)
-						return nil
-					},
-				},
 			},
 		},
 		{

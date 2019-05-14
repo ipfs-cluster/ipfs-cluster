@@ -605,23 +605,6 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 	}
 }
 
-// RepoGC performs garbage collection in the cluster
-func (c *Cluster) RepoGC(ctx context.Context) *api.IPFSRepoGc {
-	_, span := trace.StartSpan(ctx, "cluster/GC")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	// ignore error since it is included in response object
-	ipfsGC, err := c.ipfs.RepoGC(ctx)
-	if err != nil {
-		ipfsGC = &api.IPFSRepoGC{
-			Error: err.Error(),
-		}
-	}
-
-	return ipfsGC
-}
-
 // PeerAdd adds a new peer to this Cluster.
 //
 // For it to work well, the new peer should be discoverable
@@ -1613,4 +1596,42 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 		}
 	}
 	return
+}
+
+// RepoGC performs garbage collection sweep on all peers' repo.
+func (c *Cluster) RepoGC(ctx context.Context) error {
+	_, span := trace.StartSpan(ctx, "cluster/RepoGC")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	members, err := c.consensus.Peers(ctx)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+	lenMembers := len(members)
+
+	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
+	defer rpcutil.MultiCancel(cancels)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		members,
+		"IPFSConnector",
+		"RepoGC",
+		struct{}{},
+		nil,
+	)
+
+	if len(errs) > 0 {
+		var errStr string
+		for _, e := range errs {
+			errStr = errStr + "\n" + e.Error()
+		}
+		err = errors.New(errStr)
+		logger.Error(err)
+		return err
+	}
+
+	return nil
 }

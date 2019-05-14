@@ -422,6 +422,12 @@ func (api *API) routes() []route {
 			api.unpinPathHandler,
 		},
 		{
+			"RepoGC",
+			"POST",
+			"/repos/gc",
+			api.repoGCHandler,
+		},
+		{
 			"ConnectionGraph",
 			"GET",
 			"/health/graph",
@@ -999,6 +1005,18 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
 	}
+}
+
+func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"Cluster",
+		"RepoGC",
+		struct{}{},
+		&struct{}{},
+	)
+	api.sendResponse(w, autoStatus, err, nil)
 }
 
 func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *types.PinPath {

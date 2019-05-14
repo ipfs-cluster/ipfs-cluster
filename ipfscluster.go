@@ -81,7 +81,7 @@ type IPFSConnector interface {
 	// RepoStat returns the current repository size and max limit as
 	// provided by "repo stat".
 	RepoStat(context.Context) (*api.IPFSRepoStat, error)
-	// RepoGC returns the status of the garbage collection "repo/gc"
+	// RepoGC performs a garbage collection sweep on the repo.
 	RepoGC(context.Context) error
 	// Resolve returns a cid given a path
 	Resolve(context.Context, string) (cid.Cid, error)

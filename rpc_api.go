@@ -327,6 +327,11 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 	return nil
 }
 
+// RepoGC performs garbage collection sweep on all peers' repo.
+func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *struct{}) error {
+	return rpcapi.c.RepoGC(ctx)
+}
+
 // SendInformerMetric runs Cluster.sendInformerMetric().
 func (rpcapi *ClusterRPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
 	m, err := rpcapi.c.sendInformerMetric(ctx)
