@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"go/format"
 	"os"
 	"reflect"
+	"strings"
 
 	cluster "github.com/ipfs/ipfs-cluster"
 )
@@ -57,20 +59,20 @@ func main() {
 ============================================================================`)
 	fmt.Fprintln(os.Stderr)
 
-	fmt.Println("package ipfscluster")
-	fmt.Println()
-	fmt.Println("// This file can be generated with rpcutil/policygen.")
-	fmt.Println()
-	fmt.Println(`
+	var rpcPolicyDotGo strings.Builder
+
+	rpcPolicyDotGo.WriteString("package ipfscluster\n\n")
+	rpcPolicyDotGo.WriteString("// This file can be generated with rpcutil/policygen.\n\n")
+	rpcPolicyDotGo.WriteString(`
 // DefaultRPCPolicy associates all rpc endpoints offered by cluster peers to an
 // endpoint type. See rpcutil/policygen.go as a quick way to generate this
 // without missing any endpoint.`)
-	fmt.Println("var DefaultRPCPolicy = map[string]RPCEndpointType{")
+	rpcPolicyDotGo.WriteString("\nvar DefaultRPCPolicy = map[string]RPCEndpointType{\n")
 
 	for _, c := range rpcComponents {
 		t := reflect.TypeOf(c)
 
-		fmt.Println("        //", cluster.RPCServiceID(c), "methods")
+		rpcPolicyDotGo.WriteString("//  " + cluster.RPCServiceID(c) + " methods\n")
 		for i := 0; i < t.NumMethod(); i++ {
 			method := t.Method(i)
 			name := cluster.RPCServiceID(c) + "." + method.Name
@@ -84,10 +86,16 @@ func main() {
 				comment = "// " + comment
 			}
 
-			fmt.Printf("        \"%s\": %s, %s\n", name, rpcTStr, comment)
+			fmt.Fprintf(&rpcPolicyDotGo, "\"%s\": %s, %s\n", name, rpcTStr, comment)
 		}
-		fmt.Println()
+		rpcPolicyDotGo.WriteString("\n")
 	}
 
-	fmt.Println("}")
+	rpcPolicyDotGo.WriteString("}\n")
+	src, err := format.Source([]byte(rpcPolicyDotGo.String()))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(string(src))
 }
