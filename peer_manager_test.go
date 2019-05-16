@@ -355,7 +355,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		return
 	case "raft":
 
-		findLeader := func() *Cluster {
+		findLeader := func(t *testing.T) *Cluster {
 			var l peer.ID
 			for _, c := range clusters {
 				if !c.shutdownB {
@@ -368,11 +368,12 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 					return c
 				}
 			}
+			t.Fatal("no leader found")
 			return nil
 		}
 
 		for i := 0; i < len(clusters); i++ {
-			leader := findLeader()
+			leader := findLeader(t)
 			peers := leader.Peers(ctx)
 			t.Logf("Current cluster size: %d", len(peers))
 			if len(peers) != (len(clusters) - i) {
