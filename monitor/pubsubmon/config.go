@@ -30,8 +30,8 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	CheckInterval    string  `json:"check_interval"`
-	FailureThreshold float64 `json:"failure_threshold"`
+	CheckInterval    string   `json:"check_interval"`
+	FailureThreshold *float64 `json:"failure_threshold"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -91,7 +91,9 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	interval, _ := time.ParseDuration(jcfg.CheckInterval)
 	cfg.CheckInterval = interval
-	cfg.FailureThreshold = jcfg.FailureThreshold
+	if jcfg.FailureThreshold != nil {
+		cfg.FailureThreshold = *jcfg.FailureThreshold
+	}
 
 	return cfg.Validate()
 }
@@ -106,6 +108,6 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	return &jsonConfig{
 		CheckInterval:    cfg.CheckInterval.String(),
-		FailureThreshold: cfg.FailureThreshold,
+		FailureThreshold: &cfg.FailureThreshold,
 	}
 }
