@@ -354,30 +354,30 @@ func BenchmarkWindow_All(b *testing.B) {
 func TestWindow_Distribution(t *testing.T) {
 	var tests = []struct {
 		name       string
-		heartbeats []int64
-		want       []int64
+		heartbeats []float64
+		want       []float64
 	}{
 		{
 			"even 1 sec distribution",
-			[]int64{1, 1, 1, 1},
-			[]int64{1, 1, 1, 1},
+			[]float64{1, 1, 1, 1},
+			[]float64{1, 1, 1, 1},
 		},
 		{
 			"increasing latency distribution",
-			[]int64{1, 1, 2, 2, 3, 3, 4},
-			[]int64{4, 3, 3, 2, 2, 1, 1},
+			[]float64{1, 1, 2, 2, 3, 3, 4},
+			[]float64{4, 3, 3, 2, 2, 1, 1},
 		},
 		{
 			"random latency distribution",
-			[]int64{4, 1, 3, 9, 7, 8, 11, 18},
-			[]int64{18, 11, 8, 7, 9, 3, 1, 4},
+			[]float64{4, 1, 3, 9, 7, 8, 11, 18},
+			[]float64{18, 11, 8, 7, 9, 3, 1, 4},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mw := NewWindow(len(tt.heartbeats) + 1)
 			for i, v := range tt.heartbeats {
-				mw.Add(makeMetric(string(v * 10)))
+				mw.Add(makeMetric(string(int64(v * 10))))
 				// time.Sleep on the 1s of milliseconds level is
 				// susceptible to scheduler variance. Hence we
 				// multiple the input by 10 and this combined with
@@ -396,10 +396,11 @@ func TestWindow_Distribution(t *testing.T) {
 				t.Errorf("want len: %v, got len: %v", len(tt.want), len(got))
 			}
 
-			var gotseconds []int64
+			var gotseconds []float64
 			for _, v := range got {
 				// truncate nanoseconds to seconds for testing purposes
-				gotseconds = append(gotseconds, v/10000000)
+				// also truncate decimal places by converting to int and then back
+				gotseconds = append(gotseconds, float64(int64(v/10000000)))
 			}
 
 			for i, s := range gotseconds {

@@ -61,6 +61,7 @@ func (mtrs *Store) LatestValid(name string) []*api.Metric {
 	metrics := make([]*api.Metric, 0, len(byPeer))
 	for _, window := range byPeer {
 		m, err := window.Latest()
+		// TODO(ajl): for accrual, does it matter if a ping has expired?
 		if err != nil || m.Discard() {
 			continue
 		}
@@ -109,4 +110,46 @@ func (mtrs *Store) PeerMetrics(pid peer.ID) []*api.Metric {
 		result = append(result, metric)
 	}
 	return result
+}
+
+// PeerLatest returns the latest of a particular metric for a
+// particular peer. It may return an expired metric.
+func (mtrs *Store) PeerLatest(name string, pid peer.ID) *api.Metric {
+	mtrs.mux.RLock()
+	defer mtrs.mux.RUnlock()
+
+	byPeer, ok := mtrs.byName[name]
+	if !ok {
+		return nil
+	}
+
+	window, ok := byPeer[pid]
+	if !ok {
+		return nil
+	}
+	m, err := window.Latest()
+	if err != nil {
+		// ignoring error, as nil metric is indicative enough
+		return nil
+	}
+	return m
+}
+
+// Distribution returns the distribution of a particular metrics
+// for a particular peer.
+func (mtrs *Store) Distribution(name string, pid peer.ID) []float64 {
+	mtrs.mux.RLock()
+	defer mtrs.mux.RUnlock()
+
+	byPeer, ok := mtrs.byName[name]
+	if !ok {
+		return nil
+	}
+
+	window, ok := byPeer[pid]
+	if !ok {
+		return nil
+	}
+
+	return window.Distribution()
 }

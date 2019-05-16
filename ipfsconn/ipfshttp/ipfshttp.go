@@ -297,7 +297,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 			return err
 		}
 		logger.Debugf("Refs for %s sucessfully fetched", hash)
-		stats.Record(ctx, observations.PinCountMetric.M(1))
+		stats.Record(ctx, observations.Pins.M(1))
 	}
 
 	path := fmt.Sprintf("pin/add?arg=%s&%s", hash, pinArgs)
@@ -329,7 +329,7 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 			return err
 		}
 		logger.Info("IPFS Unpin request succeeded:", hash)
-		stats.Record(ctx, observations.PinCountMetric.M(-1))
+		stats.Record(ctx, observations.Pins.M(-1))
 	}
 
 	logger.Debug("IPFS object is already unpinned: ", hash)

@@ -87,5 +87,7 @@ require (
 	golang.org/x/sync v0.0.0-20190412183630-56d357773e84 // indirect
 	golang.org/x/sys v0.0.0-20190416152802-12500544f89f // indirect
 	golang.org/x/xerrors v0.0.0-20190410155217-1f06c39b4373 // indirect
+	gonum.org/v1/gonum v0.0.0-20190321072728-ca4d35bc590a
+	gonum.org/v1/plot v0.0.0-20190410204940-3a5f52653745
 	google.golang.org/grpc v1.19.1 // indirect
 )

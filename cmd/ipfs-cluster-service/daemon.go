@@ -22,6 +22,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
+	"go.opencensus.io/tag"
 
 	ds "github.com/ipfs/go-datastore"
 	host "github.com/libp2p/go-libp2p-host"
@@ -103,6 +104,9 @@ func createCluster(
 	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 
+	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	checkErr("tag context with host id", err)
+
 	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
 	// Import peers but do not connect. We cannot connect to peers until
 	// everything has been created (dht, pubsub, bitswap). Otherwise things
@@ -164,13 +168,14 @@ func createCluster(
 		peersF = cons.Peers
 	}
 
-	mon, err := pubsubmon.New(cfgs.pubsubmonCfg, pubsub, peersF)
+	mon, err := pubsubmon.New(ctx, cfgs.pubsubmonCfg, pubsub, peersF)
 	if err != nil {
 		store.Close()
 		checkErr("setting up PeerMonitor", err)
 	}
 
 	return ipfscluster.NewCluster(
+		ctx,
 		host,
 		dht,
 		cfgs.clusterCfg,

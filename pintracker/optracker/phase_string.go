@@ -4,9 +4,9 @@ package optracker
 
 import "strconv"
 
-const _Phase_name = "PhaseErrorPhaseQueuedPhaseInProgress"
+const _Phase_name = "PhaseErrorPhaseQueuedPhaseInProgressPhaseDone"
 
-var _Phase_index = [...]uint8{0, 10, 21, 36}
+var _Phase_index = [...]uint8{0, 10, 21, 36, 45}
 
 func (i Phase) String() string {
 	if i < 0 || i >= Phase(len(_Phase_index)-1) {
