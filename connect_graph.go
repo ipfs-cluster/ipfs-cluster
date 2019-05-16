@@ -97,8 +97,8 @@ func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID *api.ID) {
 	var swarmPeers []peer.ID
 	err := c.rpcClient.Call(
 		pID.ID,
-		"Cluster",
-		"IPFSSwarmPeers",
+		"IPFSConnector",
+		"SwarmPeers",
 		struct{}{},
 		&swarmPeers,
 	)

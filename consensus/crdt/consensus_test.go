@@ -211,6 +211,11 @@ func TestConsensusAddRmPeer(t *testing.T) {
 		t.Error("could not add peer:", err)
 	}
 
+	err = cc2.Trust(ctx, cc.host.ID())
+	if err != nil {
+		t.Error("could not trust peer:", err)
+	}
+
 	// Make a pin on peer1 and check it arrived to peer2
 	err = cc.LogPin(ctx, testPin(test.Cid1))
 	if err != nil {
@@ -234,6 +239,61 @@ func TestConsensusAddRmPeer(t *testing.T) {
 	err = cc2.RmPeer(ctx, cc.host.ID())
 	if err == nil {
 		t.Error("crdt consensus should not remove pins")
+	}
+}
+
+func TestConsensusDistrustPeer(t *testing.T) {
+	ctx := context.Background()
+	cc := testingConsensus(t, 1)
+	cc2 := testingConsensus(t, 2)
+	defer clean(t, cc)
+	defer clean(t, cc)
+	defer cc.Shutdown(ctx)
+	defer cc2.Shutdown(ctx)
+
+	cc.host.Peerstore().AddAddrs(cc2.host.ID(), cc2.host.Addrs(), peerstore.PermanentAddrTTL)
+	_, err := cc.host.Network().DialPeer(ctx, cc2.host.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	err = cc2.Trust(ctx, cc.host.ID())
+	if err != nil {
+		t.Error("could not trust peer:", err)
+	}
+
+	// Make a pin on peer1 and check it arrived to peer2
+	err = cc.LogPin(ctx, testPin(test.Cid1))
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+
+	err = cc2.Distrust(ctx, cc.host.ID())
+	if err != nil {
+		t.Error("could not distrust peer:", err)
+	}
+
+	// Another pin should never get to peer2
+	err = cc.LogPin(ctx, testPin(test.Cid2))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Verify we only got the first pin
+	st, err := cc2.State(ctx)
+	if err != nil {
+		t.Fatal("error getting state:", err)
+	}
+
+	pins, err := st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
+		t.Error("the added pin should be in the state")
 	}
 }
 

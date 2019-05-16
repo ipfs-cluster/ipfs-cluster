@@ -614,7 +614,6 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error
 		logger.Error("could not parse path: " + err.Error())
 		return cid.Undef, err
 	}
-
 	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
 		ci, _, err := gopath.SplitAbsPath(validPath)
 		return ci, err

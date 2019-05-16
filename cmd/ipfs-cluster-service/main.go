@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/version"
 
 	semver "github.com/blang/semver"
@@ -30,7 +31,7 @@ const (
 
 const (
 	stateCleanupPrompt           = "The peer's state will be removed from the load path.  Existing pins may be lost."
-	configurationOverwritePrompt = "Configuration(service.json) will be overwritten."
+	configurationOverwritePrompt = "Configuration(service.json) and Identity(identity.json) will be overwritten."
 )
 
 // We store a commit id here
@@ -106,10 +107,13 @@ var (
 	DefaultPath string
 	// The name of the configuration file inside DefaultPath
 	DefaultConfigFile = "service.json"
+	// The name of the identity file inside DefaultPath
+	DefaultIdentityFile = "identity.json"
 )
 
 var (
-	configPath string
+	configPath   string
+	identityPath string
 )
 
 func init() {
@@ -181,6 +185,25 @@ func main() {
 		},
 	}
 
+	app.Before = func(c *cli.Context) error {
+		absPath, err := filepath.Abs(c.String("config"))
+		if err != nil {
+			return err
+		}
+
+		configPath = filepath.Join(absPath, DefaultConfigFile)
+		identityPath = filepath.Join(absPath, DefaultIdentityFile)
+
+		setupLogLevel(c.String("loglevel"))
+		if c.Bool("debug") {
+			setupDebug()
+		}
+
+		locker = &lock{path: absPath}
+
+		return nil
+	}
+
 	app.Commands = []cli.Command{
 		{
 			Name:  "init",
@@ -232,6 +255,8 @@ configuration.
 						return nil
 					}
 
+					ident := loadIdentity()
+
 					err := cfgMgr.LoadJSONFileAndEnv(configPath)
 					checkErr("reading configuration", err)
 
@@ -239,7 +264,7 @@ configuration.
 					// the peer ID of this peer changes
 					// and is no longer part of the old
 					// peerset.
-					mgr := newStateManager("raft", cfgs)
+					mgr := newStateManager("raft", ident, cfgs)
 					checkErr("cleaning up raft data", mgr.Clean())
 				}
 
@@ -257,6 +282,18 @@ configuration.
 
 				// Save
 				saveConfig(cfgMgr)
+
+				// Create a new identity and save it
+				ident, err := config.NewIdentity()
+				checkErr("could not generate a public-private key pair", err)
+
+				err = ident.ApplyEnvVars()
+				checkErr("could not apply environment variables to the identity ", err)
+
+				err = ident.SaveJSON(identityPath)
+				checkErr("could not save identity.json", err)
+				out("%s identitry written to %s\n", programName, identityPath)
+
 				return nil
 			},
 		},
@@ -345,9 +382,9 @@ By default, the state will be printed to stdout.
 						}
 						defer w.Close()
 
-						cfgMgr, cfgs := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs)
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("exporting state", mgr.ExportState(w))
 						logger.Info("state successfully exported")
 						return nil
@@ -398,9 +435,9 @@ to import. If no argument is provided, stdin will be used.
 						}
 						defer r.Close()
 
-						cfgMgr, cfgs := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs)
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("importing state", mgr.ImportState(r))
 						logger.Info("state successfully imported.  Make sure all peers have consistent states")
 						return nil
@@ -437,9 +474,9 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
-						cfgMgr, cfgs := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), cfgs)
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("cleaning state", mgr.Clean())
 						logger.Info("data correctly cleaned up")
 						return nil
@@ -455,24 +492,6 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 				return nil
 			},
 		},
-	}
-
-	app.Before = func(c *cli.Context) error {
-		absPath, err := filepath.Abs(c.String("config"))
-		if err != nil {
-			return err
-		}
-
-		configPath = filepath.Join(absPath, DefaultConfigFile)
-
-		setupLogLevel(c.String("loglevel"))
-		if c.Bool("debug") {
-			setupDebug()
-		}
-
-		locker = &lock{path: absPath}
-
-		return nil
 	}
 
 	app.Action = run

@@ -85,10 +85,39 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	}
 }
 
-func makeAndLoadConfigs() (*config.Manager, *cfgs) {
+func makeAndLoadConfigs() (*config.Manager, *config.Identity, *cfgs) {
+	ident := loadIdentity()
 	cfgMgr, cfgs := makeConfigs()
 	checkErr("reading configuration", cfgMgr.LoadJSONFileAndEnv(configPath))
-	return cfgMgr, cfgs
+	return cfgMgr, ident, cfgs
+}
+
+func loadIdentity() *config.Identity {
+	_, err := os.Stat(identityPath)
+
+	ident := &config.Identity{}
+	if os.IsNotExist(err) {
+		clusterConfig, err := config.GetClusterConfig(configPath)
+		checkErr("couldn not get cluster config", err)
+		err = ident.LoadJSON(clusterConfig)
+		checkErr("could not load identity from cluster config", err)
+
+		err = ident.SaveJSON(identityPath)
+		checkErr("could not save identity.json ", err)
+
+		err = ident.ApplyEnvVars()
+		checkErr("could not apply environment variables tot the identity ", err)
+
+		return ident
+	}
+
+	err = ident.LoadJSONFromFile(identityPath)
+	checkErr("could not load identity from identity.json", err)
+
+	err = ident.ApplyEnvVars()
+	checkErr("could not apply environment variables to the identity ", err)
+
+	return ident
 }
 
 func saveConfig(cfg *config.Manager) {
@@ -98,7 +127,7 @@ func saveConfig(cfg *config.Manager) {
 	out("%s configuration written to %s\n", programName, configPath)
 }
 
-func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
+func propagateTracingConfig(ident *config.Identity, cfgs *cfgs, tracingFlag bool) *cfgs {
 	// tracingFlag represents the cli flag passed to ipfs-cluster-service daemon.
 	// It takes priority. If false, fallback to config file value.
 	tracingValue := tracingFlag
@@ -106,7 +135,7 @@ func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
 		tracingValue = cfgs.tracingCfg.EnableTracing
 	}
 	// propagate to any other interested configuration
-	cfgs.tracingCfg.ClusterID = cfgs.clusterCfg.ID.Pretty()
+	cfgs.tracingCfg.ClusterID = ident.ID.Pretty()
 	cfgs.tracingCfg.ClusterPeername = cfgs.clusterCfg.Peername
 	cfgs.tracingCfg.EnableTracing = tracingValue
 	cfgs.clusterCfg.Tracing = tracingValue

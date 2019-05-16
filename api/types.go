@@ -427,6 +427,8 @@ func PinTypeFromString(str string) PinType {
 		return ShardType
 	case "all":
 		return AllType
+	case "":
+		return AllType
 	default:
 		return BadType
 	}
@@ -458,7 +460,7 @@ type PinOptions struct {
 	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
 	Name                 string            `json:"name" codec:"n,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
-	UserAllocations      []string          `json:"user_allocations" codec:"ua,omitempty"`
+	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 }
 
@@ -492,10 +494,8 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 	}
 
 	// avoid side effects in the original objects
-	allocs1 := make([]string, lenAllocs1, lenAllocs1)
-	allocs2 := make([]string, lenAllocs2, lenAllocs2)
-	copy(allocs1, po.UserAllocations)
-	copy(allocs2, po2.UserAllocations)
+	allocs1 := PeersToStrings(po.UserAllocations)
+	allocs2 := PeersToStrings(po2.UserAllocations)
 	sort.Strings(allocs1)
 	sort.Strings(allocs2)
 	if strings.Join(allocs1, ",") != strings.Join(allocs2, ",") {
@@ -518,7 +518,7 @@ func (po *PinOptions) ToQuery() string {
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
 	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
-	q.Set("user-allocations", strings.Join(po.UserAllocations, ","))
+	q.Set("user-allocations", strings.Join(PeersToStrings(po.UserAllocations), ","))
 	for k, v := range po.Metadata {
 		if k == "" {
 			continue
@@ -550,7 +550,7 @@ func (po *PinOptions) FromQuery(q url.Values) {
 	}
 
 	if allocs := q.Get("user-allocations"); allocs != "" {
-		po.UserAllocations = strings.Split(allocs, ",")
+		po.UserAllocations = StringsToPeers(strings.Split(allocs, ","))
 	}
 
 	po.Metadata = make(map[string]string)

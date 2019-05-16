@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 
+	"github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
@@ -21,10 +22,11 @@ import (
 // the DHT for routing. The resulting DHT is not bootstrapped.
 func NewClusterHost(
 	ctx context.Context,
+	ident *config.Identity,
 	cfg *Config,
 ) (host.Host, *pubsub.PubSub, *dht.IpfsDHT, error) {
 
-	h, err := newHost(ctx, cfg.Secret, cfg.PrivateKey, []ma.Multiaddr{cfg.ListenAddr})
+	h, err := newHost(ctx, cfg.Secret, ident.PrivateKey, []ma.Multiaddr{cfg.ListenAddr})
 	if err != nil {
 		return nil, nil, nil, err
 	}

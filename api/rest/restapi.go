@@ -574,8 +574,8 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
-		"Cluster",
-		"PeerMonitorLatestMetrics",
+		"PeerMonitor",
+		"LatestMetrics",
 		name,
 		&metrics,
 	)
@@ -743,6 +743,12 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	for _, f := range strings.Split(filterStr, ",") {
 		filter |= types.PinTypeFromString(f)
 	}
+
+	if filter == types.BadType {
+		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
+		return
+	}
+
 	var pins []*types.Pin
 	err := api.rpcClient.CallContext(
 		r.Context(),
@@ -814,7 +820,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
 	if filter == types.TrackerStatusUndefined && filterStr != "" {
-		api.sendResponse(w, autoStatus, errors.New("invalid filter value"), nil)
+		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return
 	}
 

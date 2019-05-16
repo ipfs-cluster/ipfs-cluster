@@ -45,6 +45,8 @@ type Consensus struct {
 
 	config *Config
 
+	trustedPeers sync.Map
+
 	host host.Host
 
 	store     ds.Datastore
@@ -94,6 +96,11 @@ func New(
 		readyCh:   make(chan struct{}, 1),
 	}
 
+	// Set up a fast-lookup trusted peers cache.
+	for _, p := range css.config.TrustedPeers {
+		css.Trust(ctx, p)
+	}
+
 	go css.setup()
 	return css, nil
 }
@@ -122,8 +129,7 @@ func (css *Consensus) setup() {
 	err = css.pubsub.RegisterTopicValidator(
 		topicName,
 		func(ctx context.Context, p peer.ID, msg *pubsub.Message) bool {
-			// This is where peer authentication will go.
-			return true
+			return css.IsTrustedPeer(ctx, p)
 		},
 	)
 	if err != nil {
@@ -174,7 +180,7 @@ func (css *Consensus) setup() {
 		err = css.rpcClient.CallContext(
 			css.ctx,
 			"",
-			"Cluster",
+			"PinTracker",
 			"Track",
 			pin,
 			&struct{}{},
@@ -194,7 +200,7 @@ func (css *Consensus) setup() {
 		err = css.rpcClient.CallContext(
 			css.ctx,
 			"",
-			"Cluster",
+			"PinTracker",
 			"Untrack",
 			pin,
 			&struct{}{},
@@ -276,6 +282,28 @@ func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 	return css.readyCh
 }
 
+// IsTrustedPeer returns whether the given peer is taken into account
+// when submitting updates to the consensus state.
+func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
+	if pid == css.host.ID() {
+		return true
+	}
+	_, ok := css.trustedPeers.Load(pid)
+	return ok
+}
+
+// Trust marks a peer as "trusted".
+func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
+	css.trustedPeers.Store(pid, struct{}{})
+	return nil
+}
+
+// Distrust removes a peer from the "trusted" set.
+func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
+	css.trustedPeers.Delete(pid)
+	return nil
+}
+
 // LogPin adds a new pin to the shared state.
 func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 	return css.state.Add(ctx, pin)
@@ -295,8 +323,8 @@ func (css *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
 	err := css.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"PeerMonitorLatestMetrics",
+		"PeerMonitor",
+		"LatestMetrics",
 		css.config.PeersetMetric,
 		&metrics,
 	)
@@ -328,7 +356,9 @@ func (css *Consensus) WaitForSync(ctx context.Context) error { return nil }
 
 // AddPeer is a no-op as we do not need to do peerset management with
 // Merkle-CRDTs. Therefore adding a peer to the peerset means doing nothing.
-func (css *Consensus) AddPeer(ctx context.Context, pid peer.ID) error { return nil }
+func (css *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
+	return nil
+}
 
 // RmPeer is a no-op which always errors, as, since we do not do peerset
 // management, we also have no ability to remove a peer from it.

@@ -14,14 +14,14 @@ type mockService struct{}
 func mockRPCClient(t *testing.T) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
-	err := s.RegisterName("Cluster", &mockService{})
+	err := s.RegisterName("IPFSConnector", &mockService{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c
 }
 
-func (mock *mockService) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
+func (mock *mockService) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
 	*out = map[string]api.IPFSPinStatus{
 		"QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa": api.IPFSPinStatusRecursive,
 		"QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6": api.IPFSPinStatusRecursive,

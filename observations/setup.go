@@ -9,8 +9,8 @@ import (
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"go.opencensus.io/exporter/jaeger"
-	"go.opencensus.io/exporter/prometheus"
+	"contrib.go.opencensus.io/exporter/jaeger"
+	"contrib.go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"

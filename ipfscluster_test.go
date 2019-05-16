@@ -167,10 +167,10 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
-	clusterCfg.ID = host.ID()
-	clusterCfg.PrivateKey = host.Peerstore().PrivKey(host.ID())
+	ident.ID = host.ID()
+	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
 	clusterCfg.Peername = peername
 	clusterCfg.LeaveOnShutdown = false
 	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().Pretty()))
@@ -193,7 +193,7 @@ func createComponents(
 
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
-	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
+	tracker := makePinTracker(t, ident.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
@@ -337,6 +337,13 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
 		clusters[i] = createCluster(t, hosts[i], dhts[i], cfgs[i], stores[i], cons[i], apis[i], ipfss[i], trackers[i], mons[i], allocs[i], infs[i], tracers[i])
+		for j := 0; j < i; j++ {
+			// all previous clusters trust the new one
+			clusters[j].consensus.Trust(ctx, hosts[i].ID())
+			// new cluster trusts all the previous
+			clusters[i].consensus.Trust(ctx, hosts[j].ID())
+		}
+
 		err := clusters[i].Join(ctx, bootstrapAddr)
 		if err != nil {
 			logger.Error(err)
@@ -1598,6 +1605,8 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
+	ttlDelay()
+
 	j := rand.Intn(nClusters)
 	h := test.Cid1
 	err := clusters[j].Pin(ctx, api.PinCid(h))
@@ -1762,6 +1771,8 @@ func TestClustersGraphConnected(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
+
+	ttlDelay()
 
 	j := rand.Intn(nClusters) // choose a random cluster peer to query
 	graph, err := clusters[j].ConnectGraph()

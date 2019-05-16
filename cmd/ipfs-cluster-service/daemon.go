@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/config"
+
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
@@ -57,15 +59,16 @@ func daemon(c *cli.Context) error {
 	locker.lock()
 	defer locker.tryUnlock()
 
-	// Load all the configurations
-	cfgMgr, cfgs := makeAndLoadConfigs()
+	// Load all the configurations and identity
+	cfgMgr, ident, cfgs := makeAndLoadConfigs()
+
 	defer cfgMgr.Shutdown()
 
 	if c.Bool("stats") {
 		cfgs.metricsCfg.EnableStats = true
 	}
 
-	cfgs = propagateTracingConfig(cfgs, c.Bool("tracing"))
+	cfgs = propagateTracingConfig(ident, cfgs, c.Bool("tracing"))
 
 	// Cleanup state if bootstrapping
 	raftStaging := false
@@ -78,7 +81,7 @@ func daemon(c *cli.Context) error {
 		cfgs.clusterCfg.LeaveOnShutdown = true
 	}
 
-	cluster, err := createCluster(ctx, c, cfgs, raftStaging)
+	cluster, err := createCluster(ctx, c, ident, cfgs, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -97,11 +100,12 @@ func daemon(c *cli.Context) error {
 func createCluster(
 	ctx context.Context,
 	c *cli.Context,
+	ident *config.Identity,
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
 	checkErr("creating libP2P Host", err)
 
 	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
@@ -147,7 +151,7 @@ func createCluster(
 	tracer, err := observations.SetupTracing(cfgs.tracingCfg)
 	checkErr("setting up Tracing", err)
 
-	store := setupDatastore(c.String("consensus"), cfgs)
+	store := setupDatastore(c.String("consensus"), ident, cfgs)
 
 	cons, err := setupConsensus(
 		c.String("consensus"),
@@ -299,9 +303,10 @@ func setupPinTracker(
 
 func setupDatastore(
 	consensus string,
+	ident *config.Identity,
 	cfgs *cfgs,
 ) ds.Datastore {
-	stmgr := newStateManager(consensus, cfgs)
+	stmgr := newStateManager(consensus, ident, cfgs)
 	store, err := stmgr.GetStore()
 	checkErr("creating datastore", err)
 	return store
