@@ -54,8 +54,10 @@ func main() {
 	fmt.Fprintln(os.Stderr, `
 // The below generated policy keeps the endpoint types
 // from the existing one, marking new endpoints as NEW. Redirect stdout
-// into rpc_policy.go and set the NEW endpoints to their correct type (make
-// sure you have recompiled this binary with the current version of the code).
+// into ../../rpc_policy.go and set the NEW endpoints to their correct
+// type (make sure you have recompiled this binary with the current version
+// of the code). If you are redirecting already, and things went fine, you
+// should only see this message.
 ============================================================================`)
 	fmt.Fprintln(os.Stderr)
 
