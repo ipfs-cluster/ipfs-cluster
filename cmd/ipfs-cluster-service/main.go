@@ -30,8 +30,8 @@ const (
 )
 
 const (
-	stateCleanupPrompt           = "The peer's state will be removed from the load path.  Existing pins may be lost."
-	configurationOverwritePrompt = "Configuration(service.json) and Identity(identity.json) will be overwritten."
+	stateCleanupPrompt           = "The peer state will be removed.  Existing pins may be lost."
+	configurationOverwritePrompt = "The configuration file will be overwritten."
 )
 
 // We store a commit id here
@@ -70,16 +70,17 @@ ipfs-cluster-service   |                           HTTP
 +----------+--------+-----+----------------------+      +-------------+
 
 
-%s needs a valid configuration to run. This configuration is
-independent from IPFS and includes its own LibP2P key-pair. It can be
-initialized with "init" and its default location is
- ~/%s/%s.
+%s needs valid configuration and identity files to run.
+These are independent from IPFS. The identity includes its own
+libp2p key-pair. They can be initialized with "init" and their
+default locations are ~/%s/%s
+and ~/%s/%s.
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
 
 
-EXAMPLES
+EXAMPLES:
 
 Initial configuration:
 
@@ -95,14 +96,19 @@ $ ipfs-cluster-service daemon --bootstrap /ip4/192.168.1.2/tcp/9096/ipfs/QmPSoSa
 `,
 	programName,
 	programName,
-	DefaultPath,
-	DefaultConfigFile)
+	DefaultFolder,
+	DefaultConfigFile,
+	DefaultFolder,
+	DefaultIdentityFile,
+)
 
 var logger = logging.Logger("service")
 
 // Default location for the configurations and data
 var (
-	// DefaultPath is initialized to $HOME/.ipfs-cluster
+	// DefaultFolder is the name of the cluster folder
+	DefaultFolder = ".ipfs-cluster"
+	// DefaultPath is set on init() to $HOME/DefaultFolder
 	// and holds all the ipfs-cluster data
 	DefaultPath string
 	// The name of the configuration file inside DefaultPath
@@ -135,7 +141,7 @@ func init() {
 		home = usr.HomeDir
 	}
 
-	DefaultPath = filepath.Join(home, ".ipfs-cluster")
+	DefaultPath = filepath.Join(home, DefaultFolder)
 }
 
 func out(m string, a ...interface{}) {
@@ -145,7 +151,7 @@ func out(m string, a ...interface{}) {
 func checkErr(doing string, err error, args ...interface{}) {
 	if err != nil {
 		if len(args) > 0 {
-			doing = fmt.Sprintf(doing, args)
+			doing = fmt.Sprintf(doing, args...)
 		}
 		out("error %s: %s\n", doing, err)
 		err = locker.tryUnlock()
@@ -207,21 +213,26 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:  "init",
-			Usage: "create a default configuration and exit",
+			Usage: "Creates a configuration and generates an identity",
 			Description: fmt.Sprintf(`
-This command will initialize a new service.json configuration file
-for %s.
+This command will initialize a new %s configuration file and, if it
+does already exist, generate a new %s for %s.
 
 By default, %s requires a cluster secret. This secret will be
 automatically generated, but can be manually provided with --custom-secret
 (in which case it will be prompted), or by setting the CLUSTER_SECRET
 environment variable.
 
-The private key for the libp2p node is randomly generated in all cases.
-
 Note that the --force first-level-flag allows to overwrite an existing
-configuration.
-`, programName, programName),
+configuration with default values. To generate a new identity, please
+remove the %s file first and clean any Raft state.
+`,
+				DefaultConfigFile,
+				DefaultIdentityFile,
+				programName,
+				programName,
+				DefaultIdentityFile,
+			),
 			ArgsUsage: " ",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
@@ -235,37 +246,35 @@ configuration.
 				cfgMgr, cfgs := makeConfigs()
 				defer cfgMgr.Shutdown() // wait for saves
 
-				var alreadyInitialized bool
+				configExists := false
 				if _, err := os.Stat(configPath); !os.IsNotExist(err) {
-					alreadyInitialized = true
+					configExists = true
 				}
 
-				if alreadyInitialized {
+				identityExists := false
+				if _, err := os.Stat(identityPath); !os.IsNotExist(err) {
+					identityExists = true
+				}
+
+				if configExists || identityExists {
+					// cluster might be running
 					// acquire lock for config folder
 					locker.lock()
 					defer locker.tryUnlock()
+				}
 
+				if configExists {
 					confirm := fmt.Sprintf(
-						"%s\n%s Continue? [y/n]:",
-						stateCleanupPrompt,
+						"%s Continue? [y/n]:",
 						configurationOverwritePrompt,
 					)
 
-					if !c.Bool("force") && !yesNoPrompt(confirm) {
-						return nil
+					// --force allows override of the prompt
+					if !c.GlobalBool("force") {
+						if !yesNoPrompt(confirm) {
+							return nil
+						}
 					}
-
-					ident := loadIdentity()
-
-					err := cfgMgr.LoadJSONFileAndEnv(configPath)
-					checkErr("reading configuration", err)
-
-					// rafts needs cleanup on re-init because
-					// the peer ID of this peer changes
-					// and is no longer part of the old
-					// peerset.
-					mgr := newStateManager("raft", ident, cfgs)
-					checkErr("cleaning up raft data", mgr.Clean())
 				}
 
 				// Generate defaults for all registered components
@@ -283,23 +292,24 @@ configuration.
 				// Save
 				saveConfig(cfgMgr)
 
-				// Create a new identity and save it
-				ident, err := config.NewIdentity()
-				checkErr("could not generate a public-private key pair", err)
+				if !identityExists {
+					// Create a new identity and save it
+					ident, err := config.NewIdentity()
+					checkErr("generating an identity", err)
 
-				err = ident.ApplyEnvVars()
-				checkErr("could not apply environment variables to the identity ", err)
+					err = ident.ApplyEnvVars()
+					checkErr("applying environment variables to the identity", err)
 
-				err = ident.SaveJSON(identityPath)
-				checkErr("could not save identity.json", err)
-				out("%s identitry written to %s\n", programName, identityPath)
-
+					err = ident.SaveJSON(identityPath)
+					checkErr("saving "+DefaultIdentityFile, err)
+					out("new identity written to %s\n", identityPath)
+				}
 				return nil
 			},
 		},
 		{
 			Name:  "daemon",
-			Usage: "run the IPFS Cluster peer (default)",
+			Usage: "Runs the IPFS Cluster peer (default)",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "upgrade, u",
@@ -343,7 +353,7 @@ configuration.
 		},
 		{
 			Name:  "state",
-			Usage: "Manage the peer's consensus state (pinset)",
+			Usage: "Manages the peer's consensus state (pinset)",
 			Subcommands: []cli.Command{
 				{
 					Name:  "export",
@@ -396,7 +406,7 @@ By default, the state will be printed to stdout.
 					Description: `
 This command reads in an exported pinset (state) file and replaces the
 existing one. This can be used, for example, to restore a Cluster peer from a
-backup. 
+backup.
 
 If an argument is provided, it will be treated it as the path of the file
 to import. If no argument is provided, stdin will be used.
@@ -486,7 +496,7 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 		},
 		{
 			Name:  "version",
-			Usage: "Print the ipfs-cluster version",
+			Usage: "Prints the ipfs-cluster version",
 			Action: func(c *cli.Context) error {
 				fmt.Printf("%s\n", version.Version)
 				return nil

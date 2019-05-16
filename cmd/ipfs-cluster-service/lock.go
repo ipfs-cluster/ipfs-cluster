@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path"
 
 	fslock "github.com/ipfs/go-fs-lock"
@@ -28,11 +27,8 @@ func (l *lock) lock() {
 		checkErr("", errors.New("cannot acquire lock twice"))
 	}
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		errMsg := "%s config hasn't been initialized. Please run '%s init'"
-		errMsg = fmt.Sprintf(errMsg, programName, programName)
-		checkErr("", errors.New(errMsg))
-	}
+	// we should have a config folder whenever we try to lock
+	makeConfigFolder()
 
 	// set the lock file within this function
 	logger.Debug("checking lock")

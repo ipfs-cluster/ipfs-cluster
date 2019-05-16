@@ -64,7 +64,7 @@ func (ident *Identity) ConfigKey() string {
 // SaveJSON saves the JSON representation of the Identity to
 // the given path.
 func (ident *Identity) SaveJSON(path string) error {
-	logger.Info("Saving configuration")
+	logger.Info("Saving identity")
 
 	bs, err := ident.ToJSON()
 	if err != nil {
