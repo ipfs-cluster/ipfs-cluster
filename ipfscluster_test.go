@@ -375,20 +375,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	return clusters, ipfsMocks
 }
 
-func clustersHealthy(t *testing.T, clusters []*Cluster) bool {
-	t.Helper()
-	if len(clusters) == 0 {
-		return false
-	}
-	metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informer.Name())
-	for _, m := range metrics {
-		if m.Expired() {
-			return false
-		}
-	}
-	return len(clusters) == len(metrics)
-}
-
 func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 	ctx := context.Background()
 	for i, c := range clusters {
@@ -482,6 +468,34 @@ loop:
 				}
 			}
 			break loop
+		}
+	}
+}
+
+func waitForClustersHealthy(t *testing.T, clusters []*Cluster) {
+	t.Helper()
+	if len(clusters) == 0 {
+		return
+	}
+
+	timer := time.NewTimer(15 * time.Second)
+	for {
+		ttlDelay()
+		metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informer.Name())
+		healthy := 0
+		for _, m := range metrics {
+			if !m.Expired() {
+				healthy++
+			}
+		}
+		if len(clusters) == healthy {
+			return
+		}
+
+		select {
+		case <-timer.C:
+			t.Fatal("timed out waiting for clusters to be healthy")
+		default:
 		}
 	}
 }
@@ -1042,11 +1056,8 @@ func TestClustersReplicationOverall(t *testing.T) {
 		c.config.ReplicationFactorMax = nClusters - 1
 	}
 
-	ttlDelay()
-
 	// wait for clusters to stablise
-	for !clustersHealthy(t, clusters) {
-	}
+	waitForClustersHealthy(t, clusters)
 
 	// Why is replication factor nClusters - 1?
 	// Because that way we know that pinning nCluster
