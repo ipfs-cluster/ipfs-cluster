@@ -1008,13 +1008,14 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
+	var repoGC []*types.IPFSRepoGC
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
 		"Cluster",
 		"RepoGC",
 		struct{}{},
-		&struct{}{},
+		&repoGC,
 	)
 	api.sendResponse(w, autoStatus, err, nil)
 }

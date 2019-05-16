@@ -1599,7 +1599,7 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 }
 
 // RepoGC performs garbage collection sweep on all peers' repo.
-func (c *Cluster) RepoGC(ctx context.Context) error {
+func (c *Cluster) RepoGC(ctx context.Context) ([]*api.IPFSRepoGC, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RepoGC")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1607,12 +1607,14 @@ func (c *Cluster) RepoGC(ctx context.Context) error {
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
-		return err
+		return nil, err
 	}
 	lenMembers := len(members)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
+
+	repoGCsResp := make([][]*api.IPFSRepoGC, lenMembers, lenMembers)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
@@ -1620,7 +1622,7 @@ func (c *Cluster) RepoGC(ctx context.Context) error {
 		"IPFSConnector",
 		"RepoGC",
 		struct{}{},
-		nil,
+		rpcutil.CopyRepoGCSliceToIfaces(repoGCsResp),
 	)
 
 	if len(errs) > 0 {
@@ -1630,8 +1632,14 @@ func (c *Cluster) RepoGC(ctx context.Context) error {
 		}
 		err = errors.New(errStr)
 		logger.Error(err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	// clubbing repo gc responses of all peers into one
+	var repoGCResp []*api.IPFSRepoGC
+	for _, a := range repoGCsResp {
+		repoGCResp = append(repoGCResp, a...)
+	}
+
+	return repoGCResp, nil
 }

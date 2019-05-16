@@ -838,3 +838,10 @@ type IPFSRepoStat struct {
 	RepoSize   uint64 `codec:"r,omitempty"`
 	StorageMax uint64 `codec:"s, omitempty"`
 }
+
+// IPFSRepoGC contains `ipfs repo gc` api response for a single garbace
+// collected content.
+type IPFSRepoGC struct {
+	Key   cid.Cid
+	Error string `json:",omitempty"`
+}

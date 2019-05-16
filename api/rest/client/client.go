@@ -119,6 +119,8 @@ type Client interface {
 	// Metrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
 	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
+
+	RepoGC(ctx context.Context)
 }
 
 // Config allows to configure the parameters to connect

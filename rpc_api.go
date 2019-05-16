@@ -328,8 +328,10 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 }
 
 // RepoGC performs garbage collection sweep on all peers' repo.
-func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *struct{}) error {
-	return rpcapi.c.RepoGC(ctx)
+func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *[]*api.IPFSRepoGC) error {
+	res, err := rpcapi.c.RepoGC(ctx)
+	out = &res
+	return err
 }
 
 // SendInformerMetric runs Cluster.sendInformerMetric().
@@ -457,6 +459,13 @@ func (rpcapi *IPFSConnectorRPCAPI) RepoStat(ctx context.Context, in struct{}, ou
 		return err
 	}
 	*out = *res
+	return err
+}
+
+// RepoGC performs garbage a collection sweep on the repo.
+func (rpcapi *IPFSConnectorRPCAPI) RepoGC(ctx context.Context, in struct{}, out *[]*api.IPFSRepoGC) error {
+	res, err := rpcapi.ipfs.RepoGC(ctx)
+	out = &res
 	return err
 }
 
