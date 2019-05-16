@@ -148,10 +148,10 @@ func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
-	clusterCfg.ID = host.ID()
-	clusterCfg.PrivateKey = host.Peerstore().PrivKey(host.ID())
+	ident.ID = host.ID()
+	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
 	clusterCfg.Peername = peername
 	clusterCfg.LeaveOnShutdown = false
 	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().Pretty()))
@@ -174,7 +174,7 @@ func createComponents(t *testing.T, host host.Host, pubsub *pubsub.PubSub, dht *
 
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
-	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
+	tracker := makePinTracker(t, ident.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)

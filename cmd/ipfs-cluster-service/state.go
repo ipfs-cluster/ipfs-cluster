@@ -9,6 +9,7 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
@@ -26,12 +27,12 @@ type stateManager interface {
 	Clean() error
 }
 
-func newStateManager(consensus string, cfgs *cfgs) stateManager {
+func newStateManager(consensus string, ident *config.Identity, cfgs *cfgs) stateManager {
 	switch consensus {
 	case "raft":
-		return &raftStateManager{cfgs}
+		return &raftStateManager{ident, cfgs}
 	case "crdt":
-		return &crdtStateManager{cfgs}
+		return &crdtStateManager{ident, cfgs}
 	case "":
 		checkErr("", errors.New("unspecified consensus component"))
 	default:
@@ -41,7 +42,8 @@ func newStateManager(consensus string, cfgs *cfgs) stateManager {
 }
 
 type raftStateManager struct {
-	cfgs *cfgs
+	ident *config.Identity
+	cfgs  *cfgs
 }
 
 func (raftsm *raftStateManager) GetStore() (ds.Datastore, error) {
@@ -74,7 +76,7 @@ func (raftsm *raftStateManager) ImportState(r io.Reader) error {
 	pm := pstoremgr.New(nil, raftsm.cfgs.clusterCfg.GetPeerstorePath())
 	raftPeers := append(
 		ipfscluster.PeersFromMultiaddrs(pm.LoadPeerstore()),
-		raftsm.cfgs.clusterCfg.ID,
+		raftsm.ident.ID,
 	)
 	return raft.SnapshotSave(raftsm.cfgs.raftCfg, st, raftPeers)
 }
@@ -97,7 +99,8 @@ func (raftsm *raftStateManager) Clean() error {
 }
 
 type crdtStateManager struct {
-	cfgs *cfgs
+	ident *config.Identity
+	cfgs  *cfgs
 }
 
 func (crdtsm *crdtStateManager) GetStore() (ds.Datastore, error) {

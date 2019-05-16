@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
@@ -139,9 +141,9 @@ type mockTracer struct {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
-	clusterCfg, _, _, _, _, raftCfg, _, maptrackerCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
+	ident, clusterCfg, _, _, _, _, raftCfg, _, maptrackerCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
 
-	host, pubsub, dht, err := NewClusterHost(context.Background(), clusterCfg)
+	host, pubsub, dht, err := NewClusterHost(context.Background(), ident, clusterCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +151,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	api := &mockAPI{}
 	proxy := &mockProxy{}
 	ipfs := &mockConnector{}
-	tracker := makePinTracker(t, clusterCfg.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
+	tracker := makePinTracker(t, ident.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
 	tracer := &mockTracer{}
 
 	store := inmem.New()
@@ -849,9 +851,15 @@ func TestClusterPeers(t *testing.T) {
 		t.Fatal("expected 1 peer")
 	}
 
-	clusterCfg := &Config{}
-	clusterCfg.LoadJSON(testingClusterCfg)
-	if peers[0].ID != clusterCfg.ID {
+	ident := &config.Identity{}
+	err := ident.LoadJSON(testingIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if peers[0].ID != ident.ID {
+		fmt.Println(peers[0].ID)
+		fmt.Println(ident.ID)
 		t.Error("bad member")
 	}
 }

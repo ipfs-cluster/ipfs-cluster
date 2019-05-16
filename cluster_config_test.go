@@ -87,13 +87,6 @@ func TestLoadJSON(t *testing.T) {
 		return cfg, nil
 	}
 
-	t.Run("bad id", func(t *testing.T) {
-		_, err := loadJSON2(t, func(j *configJSON) { j.ID = "abc" })
-		if err == nil {
-			t.Error("expected error decoding ID")
-		}
-	})
-
 	t.Run("empty default peername", func(t *testing.T) {
 		cfg, err := loadJSON2(t, func(j *configJSON) { j.Peername = "" })
 		if err != nil {
@@ -101,13 +94,6 @@ func TestLoadJSON(t *testing.T) {
 		}
 		if cfg.Peername == "" {
 			t.Error("expected default peername")
-		}
-	})
-
-	t.Run("bad private key", func(t *testing.T) {
-		_, err := loadJSON2(t, func(j *configJSON) { j.PrivateKey = "abc" })
-		if err == nil {
-			t.Error("expected error parsing private key")
 		}
 	})
 
@@ -212,11 +198,6 @@ func TestApplyEnvVars(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	cfg := &Config{}
-	cfg.Default()
-	cfg.ID = ""
-	if cfg.Validate() == nil {
-		t.Fatal("expected error validating")
-	}
 
 	cfg.Default()
 	cfg.MonitorPingInterval = 0
