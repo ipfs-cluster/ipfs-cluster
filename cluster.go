@@ -266,19 +266,26 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context) {
 	}
 }
 
+func (c *Cluster) sendPingMetric(ctx context.Context) (*api.Metric, error) {
+	ctx, span := trace.StartSpan(ctx, "cluster/sendPingMetric")
+	defer span.End()
+
+	metric := &api.Metric{
+		Name:  pingMetricName,
+		Peer:  c.id,
+		Valid: true,
+	}
+	metric.SetTTL(c.config.MonitorPingInterval * 2)
+	return metric, c.monitor.PublishMetric(ctx, metric)
+}
+
 func (c *Cluster) pushPingMetrics(ctx context.Context) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pushPingMetrics")
 	defer span.End()
 
 	ticker := time.NewTicker(c.config.MonitorPingInterval)
 	for {
-		metric := &api.Metric{
-			Name:  pingMetricName,
-			Peer:  c.id,
-			Valid: true,
-		}
-		metric.SetTTL(c.config.MonitorPingInterval * 2)
-		c.monitor.PublishMetric(ctx, metric)
+		c.sendPingMetric(ctx)
 
 		select {
 		case <-ctx.Done():
@@ -635,62 +642,15 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 		return id, err
 	}
 
-	// Send a ping metric to the new node directly so
-	// it knows about this one at least
-	m := &api.Metric{
-		Name:  pingMetricName,
-		Peer:  c.id,
-		Valid: true,
-	}
-	m.SetTTL(c.config.MonitorPingInterval * 2)
-	err = c.rpcClient.CallContext(
-		ctx,
-		pid,
-		"PeerMonitor",
-		"LogMetric",
-		m,
-		&struct{}{},
-	)
-	if err != nil {
-		logger.Warning(err)
-	}
-
-	// Ask the new peer to connect its IPFS daemon to the rest
-	err = c.rpcClient.CallContext(
-		ctx,
-		pid,
-		"IPFSConnector",
-		"ConnectSwarms",
-		struct{}{},
-		&struct{}{},
-	)
-	if err != nil {
-		logger.Warning(err)
-	}
-
-	id := &api.ID{}
-
-	// wait up to 2 seconds for new peer to catch up
-	// and return an up to date api.ID object.
-	// otherwise it might not contain the current cluster peers
-	// as it should.
-	for i := 0; i < 20; i++ {
-		id, _ = c.getIDForPeer(ctx, pid)
-		ownPeers, err := c.consensus.Peers(ctx)
-		if err != nil {
-			break
-		}
-		newNodePeers := id.ClusterPeers
-		added, removed := diffPeers(ownPeers, newNodePeers)
-		if len(added) == 0 && len(removed) == 0 && containsPeer(ownPeers, pid) {
-			break // the new peer has fully joined
-		}
-		time.Sleep(200 * time.Millisecond)
-		logger.Debugf("%s addPeer: retrying to get ID from %s",
-			c.id.Pretty(), pid.Pretty())
-	}
 	logger.Info("Peer added ", pid.Pretty())
-	return id, nil
+	addedID, err := c.getIDForPeer(ctx, pid)
+	if err != nil {
+		return addedID, err
+	}
+	if !containsPeer(addedID.ClusterPeers, c.id) {
+		addedID.ClusterPeers = append(addedID.ClusterPeers, c.id)
+	}
+	return addedID, nil
 }
 
 // PeerRemove removes a peer from this Cluster.
@@ -738,7 +698,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 		return nil
 	}
 
-	// Add peer to peerstore so we can talk to it
+	// Add peer to peerstore so we can talk to it (and connect)
 	c.peerManager.ImportPeer(addr, true)
 
 	// Note that PeerAdd() on the remote peer will
@@ -758,6 +718,30 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 		return err
 	}
 
+	// Log a fake but valid metric from the peer we are
+	// contacting. This will signal a CRDT component that
+	// we know that peer since we have metrics for it without
+	// having to wait for the next metric round.
+	m := &api.Metric{
+		Name:  pingMetricName,
+		Peer:  pid,
+		Valid: true,
+	}
+	m.SetTTL(c.config.MonitorPingInterval * 2)
+	if err := c.monitor.LogMetric(ctx, m); err != nil {
+		logger.Warning(err)
+	}
+
+	// Broadcast our metrics to the world
+	_, err = c.sendInformerMetric(ctx)
+	if err != nil {
+		logger.Warning(err)
+	}
+	_, err = c.sendPingMetric(ctx)
+	if err != nil {
+		logger.Warning(err)
+	}
+
 	// We need to trigger a DHT bootstrap asap for this peer to not be
 	// lost if the peer it bootstrapped to goes down. We do this manually
 	// by triggering 1 round of bootstrap in the background.
@@ -766,6 +750,12 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	go func() {
 		c.dht.BootstrapOnce(ctx, dht.DefaultBootstrapConfig)
 	}()
+
+	// ConnectSwarms in the background after a while, when we have likely
+	// received some metrics.
+	time.AfterFunc(c.config.MonitorPingInterval, func() {
+		c.ipfs.ConnectSwarms(ctx)
+	})
 
 	// wait for leader and for state to catch up
 	// then sync
@@ -1343,12 +1333,21 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 		rpcutil.CopyIDsToIfaces(peers),
 	)
 
+	finalPeers := []*api.ID{}
+
 	for i, err := range errs {
-		if err != nil {
-			peers[i] = &api.ID{}
-			peers[i].ID = members[i]
-			peers[i].Error = err.Error()
+		if err == nil {
+			finalPeers = append(finalPeers, peers[i])
+			continue
 		}
+
+		if rpc.IsAuthorizationError(err) {
+			continue
+		}
+
+		peers[i] = &api.ID{}
+		peers[i].ID = members[i]
+		peers[i].Error = err.Error()
 	}
 
 	return peers
@@ -1389,6 +1388,11 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		// No error. Parse and continue
 		if e == nil {
 			pin.PeerMap[peer.IDB58Encode(members[i])] = r
+			continue
+		}
+
+		if rpc.IsAuthorizationError(e) {
+			logger.Debug("rpc auth error:", e)
 			continue
 		}
 
@@ -1457,6 +1461,10 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
+			if rpc.IsAuthorizationError(e) {
+				logger.Debug("rpc auth error", e)
+				continue
+			}
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
 		} else {

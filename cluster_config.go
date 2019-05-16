@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -48,6 +49,9 @@ type Config struct {
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
 	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
 	Secret []byte
+
+	// RPCPolicy defines access control to RPC endpoints.
+	RPCPolicy map[string]RPCEndpointType
 
 	// Leave Cluster on shutdown. Politely informs other peers
 	// of the departure and removes itself from the consensus
@@ -154,6 +158,7 @@ func (cfg *Config) Default() error {
 	}
 	cfg.Secret = (*clusterSecret)[:]
 	// --
+
 	return nil
 }
 
@@ -199,7 +204,11 @@ func (cfg *Config) Validate() error {
 	rfMax := cfg.ReplicationFactorMax
 	rfMin := cfg.ReplicationFactorMin
 
-	return isReplicationFactorValid(rfMin, rfMax)
+	if err := isReplicationFactorValid(rfMin, rfMax); err != nil {
+		return err
+	}
+
+	return isRPCPolicyValid(cfg.RPCPolicy)
 }
 
 func isReplicationFactorValid(rplMin, rplMax int) error {
@@ -226,6 +235,34 @@ func isReplicationFactorValid(rplMin, rplMax int) error {
 	return nil
 }
 
+func isRPCPolicyValid(p map[string]RPCEndpointType) error {
+	rpcComponents := []interface{}{
+		&ClusterRPCAPI{},
+		&PinTrackerRPCAPI{},
+		&IPFSConnectorRPCAPI{},
+		&ConsensusRPCAPI{},
+		&PeerMonitorRPCAPI{},
+	}
+
+	total := 0
+	for _, c := range rpcComponents {
+		t := reflect.TypeOf(c)
+		for i := 0; i < t.NumMethod(); i++ {
+			total++
+			method := t.Method(i)
+			name := fmt.Sprintf("%s.%s", RPCServiceID(c), method.Name)
+			_, ok := p[name]
+			if !ok {
+				return fmt.Errorf("RPCPolicy is missing the %s method", name)
+			}
+		}
+	}
+	if len(p) != total {
+		logger.Warning("defined RPC policy has more entries than needed")
+	}
+	return nil
+}
+
 // this just sets non-generated defaults
 func (cfg *Config) setDefaults() {
 	hostname, err := os.Hostname()
@@ -245,6 +282,7 @@ func (cfg *Config) setDefaults() {
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.RPCPolicy = DefaultRPCPolicy
 }
 
 // LoadJSON receives a raw json-formatted configuration and

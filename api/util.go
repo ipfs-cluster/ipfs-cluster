@@ -20,13 +20,14 @@ func PeersToStrings(peers []peer.ID) []string {
 
 // StringsToPeers decodes peer.IDs from strings.
 func StringsToPeers(strs []string) []peer.ID {
-	peers := make([]peer.ID, len(strs))
-	for i, p := range strs {
-		var err error
-		peers[i], err = peer.IDB58Decode(p)
+	peers := []peer.ID{}
+	for _, p := range strs {
+		pid, err := peer.IDB58Decode(p)
 		if err != nil {
 			logger.Debugf("'%s': %s", p, err)
+			continue
 		}
+		peers = append(peers, pid)
 	}
 	return peers
 }
