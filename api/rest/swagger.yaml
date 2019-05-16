@@ -8,10 +8,10 @@ servers:
 paths:
   /id:
     get:
-      summary: Get ID of Cluster
+      summary: Get ID and other information of this cluster peer.
       tags:
         - cluster
-      description: Get the ID of the Cluster and it's associated IPFS node.
+      description: Get information(such as id, addresses, cluster peers, cluster peer address, version of IPFS Cluster daemon, commit, rpc protocol version and peername) about this cluster peer and it's associated IPFS node.
       responses:
         '200':
           description: OK
@@ -19,28 +19,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Peer'
-              example: {"id":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","addresses":["/p2p-circuit/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/127.0.0.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.86.35/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.6.0.2/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.1.42/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"cluster_peers":["QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"cluster_peers_addresses":null,"version":"0.10.0","commit":"","rpc_protocol_version":"/ipfscluster/0.10/rpc","error":"","ipfs":{"id":"QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","addresses":["/ip4/127.0.0.1/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/192.168.86.35/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/10.0.3.1/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/10.6.0.2/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/192.168.1.42/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip6/::1/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse"],"error":""},"peername":"omou"}
+  
   /version:
     get:
-      summary: Get Version of Cluster
+      summary: Get the version of the cluster peer daemon.
       tags:
         - cluster
-      description: Get the current version of the IPFS Cluster.
+      description: This endpoint returns the version of the IPFS Cluster daemon responding to the request.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  Version:
-                    type: string
-              example: {"Version":"0.10.0"}
+                $ref: '#/components/schemas/Version'
               
   /add:
     post:
-      summary: Add a File
+      summary: Add a file or a directory.
       parameters:
         - $ref: '#/components/parameters/pinNameParam'
         - $ref: '#/components/parameters/pinReplicationMinParam'
@@ -61,64 +57,46 @@ paths:
         - $ref: '#/components/parameters/chunker'
       tags:
         - add
-      description: Add a file to IPFS via IPFS Cluster
+      description: This endpoint adds a file or a directory(recursively) to the allocated IPFS daemons and pins it in the cluster. The cluster peer receiving the request will chunk and build the DAG, forwarding the resulting blocks to their final destination. This endpoint results in streaming response, any error that occurs while streaming is indicated by HTTP trailers.
       requestBody:
         content:
           multipart/form-data:
             schema:
-              type: string
-              format: binary
+              $ref: '#/components/schemas/Add'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  size:
-                    type: integer
-                  name:
-                    type: string
-                  cid:
-                    type: object
-                    properties:
-                      /:
-                        type: string
-              example: {"name":"QmePw8gVcBMb8x6kAep6aMBAX23hCSk6iZW3i9VKkiFhu1","cid":{"/":"QmePw8gVcBMb8x6kAep6aMBAX23hCSk6iZW3i9VKkiFhu1"},"size":20}
+                $ref: '#/components/schemas/AddedOutput'
         '400':
           $ref: '#/components/responses/BadRequest'
+  
   /peers:
     get:
-      summary: Get list of Peers
+      summary: Get the list of cluster peers.
       tags:
         - peers
-      description: Get the current list of IPFS Cluster and IPFS peers that are in the cluster.
+      description: Get the current list of IPFS Cluster peers, its addresses and associated IPFS peers.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Peer'
-              example: [{"id":"QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","addresses":["/ip4/192.168.1.42/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/p2p-circuit/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/192.168.86.35/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/10.0.3.1/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/127.0.0.1/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/10.6.0.2/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB"],"cluster_peers":["QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"cluster_peers_addresses":["/ip4/172.24.0.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/172.19.0.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.1.42/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/p2p-circuit/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.0.3.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/127.0.0.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.86.35/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.6.0.2/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.71.2.85/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"version":"0.10.0","commit":"","rpc_protocol_version":"/ipfscluster/0.10/rpc","error":"","ipfs":{"id":"Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","addresses":["/ip4/127.0.0.1/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/192.168.86.35/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/10.0.3.1/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/10.6.0.2/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/192.168.1.42/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip6/::1/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw"],"error":""},"peername":"omou"},{"id":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","addresses":["/ip4/192.168.1.42/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/127.0.0.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.0.3.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.6.0.2/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/p2p-circuit/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.86.35/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"cluster_peers":["QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"cluster_peers_addresses":["/ip4/10.6.0.2/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/p2p-circuit/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/10.71.2.85/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/192.168.86.35/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/192.168.1.42/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/127.0.0.1/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/10.0.3.1/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB"],"version":"0.10.0","commit":"","rpc_protocol_version":"/ipfscluster/0.10/rpc","error":"","ipfs":{"id":"QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","addresses":["/ip4/127.0.0.1/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/192.168.86.35/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/10.0.3.1/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/10.6.0.2/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip4/192.168.1.42/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse","/ip6/::1/tcp/4001/ipfs/QmV8LYMZ1KLRzJacFCXrUjYJdHN4XcdTvLmswdkzwVjfse"],"error":""},"peername":"omou"}]
+                $ref: '#/components/schemas/Peers'
 
     post:
-      summary: Add a new Peer to the Cluster
+      summary: Add a new peer to the cluster.
       tags:
         - peers
-      description: Add a new Peer to the Cluster
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                peer_id:
-                  type: string
-            example: {"peer_id":"QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB"}
+              $ref: '#/components/schemas/PeerID'
+
       responses:
         '200':
           description: OK
@@ -126,14 +104,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Peer'
-              example: {"addresses":["/ip4/192.168.86.35/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/p2p-circuit/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/127.0.0.1/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/10.6.0.2/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/192.168.1.42/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","/ip4/10.0.3.1/tcp/9196/ipfs/QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB"],"cluster_peers":["QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"cluster_peers_addresses":["/ip4/127.0.0.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.6.0.2/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.71.2.85/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/10.0.3.1/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.1.42/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/ip4/192.168.86.35/tcp/9096/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","/p2p-circuit/ipfs/QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH"],"commit":"","error":"","id":"QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","ipfs":{"addresses":["/ip4/127.0.0.1/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/192.168.86.35/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/10.0.3.1/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/10.6.0.2/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip4/192.168.1.42/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw","/ip6/::1/tcp/4002/ipfs/Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw"],"error":"","id":"Qmb1ThT2zJ1MVcqboqh6KwtZQ3TT8kEXeV6fUPJRVVZEqw"},"peername":"omou","rpc_protocol_version":"/ipfscluster/0.10/rpc","version":"0.10.0"}
         '400':
           description: Bad Request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"code":400,"message":"error decoding peer_id"}
               
   /peers/{peer}:
     parameters:
@@ -143,10 +119,10 @@ paths:
         schema:
           type: string
     delete:
-      summary: Remove a Peer from the Cluster
+      summary: Remove a peer from the cluster.
       tags:
         - peers
-      description: Remove a Peer from the Cluster
+      description: This endpoint will attempt to remove a peer from a Raft-based cluster. If the removed peer is running, it will automatically shutdown. The operation can only succeed if a Raft leader exists. This operation has no effect for CRDT-based Clusters.
       responses:
         '204':
           description: No Content
@@ -156,14 +132,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"code": 400,"message": "error decoding Peer ID: multihash length inconsistent: \u0026{6  15 [246 172 49]}"}
               
   /allocations:
     get:
-      summary: Get Allocation information of all Pins
+      summary: Get Allocation information of all Pins.
       tags:
         - allocations
-      description: Get Allocation information of all Pins
+      description: This endpoint will get allocation information(replication factors, user allocation, shard size, name etc.) of all pins.
       parameters:
         - name: filter
           in: query
@@ -179,14 +154,11 @@ paths:
               schema:
                 type: array
                 items: 
-                  $ref: '#/components/schemas/PinOptions'
+                  $ref: '#/components/schemas/Pin'
                 properties: {}
-              example: [{"replication_factor_min":-1,"replication_factor_max":-1,"name":"","shard_size":0,"user_allocations":null,"metadata":null,"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"type":2,"allocations":[],"max_depth":-1,"reference":null}]
         '400':
-          description: BadRequest
-          content:
-            application/json:
-              example: {"code":400,"message":"invalid filter value"}
+          $ref: '#/components/responses/BadRequest'
+
   /allocations/{cid}:
     parameters:
       - name: cid
@@ -195,23 +167,22 @@ paths:
         schema:
           type: string
     get:
-      summary: Get Allocation information of a Pin
+      summary: Get Allocation information of a Pin.
       tags:
         - allocations
-      description: Get Allocation information of a Pin
+      description: This endpoint will get allocation information(replication factors, user allocation, shard size, name etc.) of pin with the given cid.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PinOptions'
-              example: {"replication_factor_min":-1,"replication_factor_max":-1,"name":"","shard_size":0,"user_allocations":null,"metadata":null,"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"type":2,"allocations":[],"max_depth":-1,"reference":null}
+                $ref: '#/components/schemas/Pin'
         '400':
-          $ref: '#/components/responses/CidBadRequest'
+          $ref: '#/components/responses/BadRequest'
   /pins:
     get:
-      summary: Get a list of Pins
+      summary: Get a list of Pins with their status.
       parameters:
         - $ref: '#/components/parameters/local'
         - name: filter
@@ -224,10 +195,7 @@ paths:
       description: Get a list of Pins
       responses:
         '400':
-          description: BadRequest
-          content:
-            application/json:
-              example: {"code":400,"message":"invalid filter value"}
+          $ref: '#/components/responses/BadRequest'
         '200':
           description: OK
           content:
@@ -236,7 +204,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PinInfo'
-              example: [{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:02:30.186116871+10:00","error":""}}}]
 
   /pins/{cid}:
     parameters:
@@ -246,12 +213,11 @@ paths:
         schema:
           type: string
     get:
-      summary: Get status of a Pin
+      summary: Get status of a Pin.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
         - pins
-      description: Get status of a Pin
       responses:
         '200':
           description: OK
@@ -259,9 +225,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PinInfo'
-              example: {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:02:30.186116871+10:00","error":""}}}
         '400':
-          $ref: '#/components/responses/CidBadRequest'
+          $ref: '#/components/responses/BadRequest'
           
     post:
       parameters:
@@ -272,25 +237,24 @@ paths:
         - $ref: '#/components/parameters/pinUserAllocationsParam'
         - $ref: '#/components/parameters/pinShardSize'
         - $ref: '#/components/parameters/pinMetaParam'
-      summary: Add a new Pin
+      summary: Add a new Pin.
       tags:
         - pins
-      description: Add a new Pin
       responses:
         '202':
           description: Accepted
         '400':
-          $ref: '#/components/responses/CidBadRequest'
+          $ref: '#/components/responses/BadRequest'
     delete:
-      summary: Remove a Pin
+      summary: Remove a Pin.
       tags:
         - pins
-      description: Remove a Pin
       responses:
         '202':
           description: Accepted
         '400':
-          $ref: '#/components/responses/CidBadRequest'
+          $ref: '#/components/responses/BadRequest'
+
   /pins/{keyType}/{path}:
     parameters:
       - name: path
@@ -312,53 +276,48 @@ paths:
         - $ref: '#/components/parameters/pinReplicationMaxParam'
         - $ref: '#/components/parameters/pinUserAllocationsParam'
         - $ref: '#/components/parameters/pinMetaParam'
-      summary: Add a new Pin by Path
+      summary: Add a new Pin by Path.
       tags:
         - pins
-      description: Add a new Pin by Path
+      description: This endpoint would resolve the given IPFS path to cid and pin it.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PinOptions'
-              example:  {"replication_factor_min":-1,"replication_factor_max":-1,"name":"","shard_size":0,"user_allocations":null,"metadata":{},"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"type":2,"allocations":[],"max_depth":-1,"reference":null}
+                $ref: '#/components/schemas/Pin'
         '400':
-          $ref: '#/components/responses/PathBadRequest'
+          $ref: '#/components/responses/BadRequest'
           
     delete:
-      summary: Remove a Pin by Path
+      summary: Remove a Pin by Path.
       tags:
         - pins
-      description: Remove a Pin by Path
+      description: This endpoint would resolve the given ipfs path to cid and unpin it.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PinOptions'
-              example: {"replication_factor_min":-1,"replication_factor_max":-1,"name":"","shard_size":0,"user_allocations":null,"metadata":null,"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"type":2,"allocations":[],"max_depth":-1,"reference":null}
+                $ref: '#/components/schemas/Pin'
         '500':
           description: Removing a Pin that doesn't exist
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"code":500,"message":"cannot unpin pin uncommitted to
-                    state: cid is not part of the global state"}
         '400':
-          $ref: '#/components/responses/PathBadRequest'
+          $ref: '#/components/responses/BadRequest'
           
   /pins/sync:
     post:
-      summary: Perform Sync operation on all Pins
+      summary: Sync status of all Pins.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
         - pins
-      description: Perform Sync operation on all Pins
       responses:
         '200':
           description: OK
@@ -368,7 +327,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PinInfo'
-              example: [{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}]
   
   /pins/{cid}/sync:
     parameters:
@@ -378,12 +336,11 @@ paths:
         schema:
           type: string
     post:
-      summary: Perform Sync operation on a Pin
+      summary: Sync status of a Pin.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
         - pins
-      description: Perform Sync operation on a Pin
       responses:
         '200':
           description: OK
@@ -391,16 +348,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PinInfo'
-              example: {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}
         '400':
-          $ref: '#/components/responses/CidBadRequest'
+          $ref: '#/components/responses/BadRequest'
   
   /pins/recover:
     post:
-      summary: Perform Recover operation on all Pins
+      summary: Recover all Pins in error state.
       tags:
         - pins
-      description: Perform Recover operation on all Pins
       parameters:
         - name: local
           in: query
@@ -416,14 +371,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PinInfo'
-              example: [{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}]
         '400':
           description: Bad Request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"code":400,"message":"only requests with parameter local=true are supported"}
   
   /pins/{cid}/recover:
     parameters:
@@ -433,12 +386,11 @@ paths:
         schema:
           type: string
     post:
-      summary: Perform Recover operation on a Pin
+      summary: Recover the Pin with given cid from error state.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
         - pins
-      description: Perform Recover operation on a Pin
       responses:
         '200':
           description: OK
@@ -446,16 +398,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PinInfo'
-              example: {"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer_map":{"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH":{"cid":{"/":"zdj7WcGff6a9WbgRjz37svL6BoQRyzYAe2GZLBtkPULUk6rkS"},"peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","peername":"omou","status":"pinning","timestamp":"2019-04-08T16:21:38.680858768+10:00","error":""}}}
         '400':
-          $ref: '#/components/responses/CidBadRequest'
+          $ref: '#/components/responses/BadRequest'
           
   /health/graph:
     get:
-      summary: Create a graph displaying connectivity of cluster peers
+      summary: Create a graph displaying connectivity of cluster peers.
       tags: 
         - health 
-      description: Query all connected cluster peers and their ipfs peers to generate a graph of the connections
+      description: Query all connected cluster peers and their ipfs peers to generate a graph of the connections.
       responses:
         '200':
           description: OK
@@ -463,7 +414,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectGraph'
-              example: {"ClusterID": "QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo","ipfs_links": {"QmSVBhsiCMvmBF262hDSY5q4aMhaNYDFVQa5ZCV4TeK32V": ["QmQ5Y2SmVW4iVuVvFThLFX2DgwhGMEKGcc6jt5NDjGpJPh","QmVwqRyKamr6UcJx5YYg2fCmxcBi1k5sFZjtizpFPyZkR1"],"QmdCsiyNzSKQoraJjnJvdv2qsTsXzQsQrG6PZ8P6Pm55N2": ["QmSxrFXq85asEujMX7HpRRZP98cPsYDCnpTtqBuCh5DBKk","12D3KooWERmHT6g4YkrPBTmhfDLjfi8b662vFCfvBXqzcdkPGQn1"]},"cluster_links": {"QmVSjqw1MFQkq8PdmvGXF1LZvb8uGV9zAhMHqxdrww4Fvy": ["QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo"],"QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo": ["QmVSjqw1MFQkq8PdmvGXF1LZvb8uGV9zAhMHqxdrww4Fvy"]},"cluster_to_ipfs": {"QmVSjqw1MFQkq8PdmvGXF1LZvb8uGV9zAhMHqxdrww4Fvy": "QmdCsiyNzSKQoraJjnJvdv2qsTsXzQsQrG6PZ8P6Pm55N2","QmcftN5PNZ3X5fvTopUFCMMRcQL89iXxYYD3uZVvgokYPo": "QmSVBhsiCMvmBF262hDSY5q4aMhaNYDFVQa5ZCV4TeK32V"}}
    
   /monitor/metrics/{name}:
     parameters:
@@ -474,10 +424,10 @@ paths:
           type: string
           enum: [ping, freespace]
     get:
-      summary: List latest metrics logged by this peer
+      summary: List latest metrics logged by this peer.
       tags:
         - health
-      description: Get the latest valid metrics of the given type logged by this peer for all current cluster peers
+      description: Get the latest valid metrics of the given type logged by this peer for all current cluster peers.
       responses:
         '200':
           description: OK
@@ -487,7 +437,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Metric'
-              example: [{"name":"ping","peer":"QmQnMiKwmxpHd3RizCk2Gk58TFp6d5n9pd9FXRnPFZiAKB","value":"","expire":1554782676484542500,"valid":true},{"name":"ping","peer":"QmSJz3VA8cQVeegqZGsTkKQ4uiBXzWBE4r43KPb8woZbtH","value":"","expire":1554782676191246300,"valid":true}]
 
 components:
   schemas: 
@@ -496,6 +445,26 @@ components:
       properties:
         /:
           type: string
+
+    Version:
+      type: object
+      properties:
+        Version:
+          type: string
+    
+    AddedOutput:
+      type: object
+      properties:
+        size:
+          type: integer
+        name:
+          type: string
+        cid:
+          $ref: '#/components/schemas/Cid'
+
+    Add:
+      type: string
+      format: binary
 
     ConnectGraph:
       type: object
@@ -518,7 +487,18 @@ components:
           type: object
           additionalProperties:
               type: string
-          
+    
+    PeerID:
+      type: object
+      properties:
+        peer_id:
+          type: string
+
+    Peers:
+      type: array
+      items:
+        $ref: '#/components/schemas/Peer'
+
     Peer:
       type: object
       properties:
@@ -553,29 +533,37 @@ components:
         version:
           type: string
     
-    PinOptions:
+    Pin:
       type: object
       properties:
-        reference: {}
-        metadata: {}
+        replication_factor_min:
+          type: integer
+        replication_factor_max:
+          type: integer
+        name:
+          type: string
+        shard_size:
+          type: integer
+        user_allocations:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          items:
+            type: string
+        
+        cid:
+          $ref: '#/components/schemas/Cid'
+        type:
+          type: integer
         allocations:
           type: array
           items:
             type: string
         max_depth:
           type: integer
-        user_allocations: {}
-        replication_factor_min:
-          type: integer
-        name:
-          type: string
-        replication_factor_max:
-          type: integer
-        shard_size:
-          type: integer
-        type:
-          type: integer
-        cid:
+        reference:
           $ref: '#/components/schemas/Cid'
     
     PinInfo:
@@ -771,23 +759,7 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-
-    CidBadRequest:
-      description: Bad Request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example: {"code":400,"message":"error decoding Cid: selected encoding not supported"}
-
-    PathBadRequest:
-      description: Bad Request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example: {"code":400,"message":"error parsing path: selected encoding not supported"}
-          
+ 
     Unauthorized:
       description: Unauthorized
       content:
