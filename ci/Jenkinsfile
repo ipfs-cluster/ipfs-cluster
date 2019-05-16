@@ -1,2 +1,0 @@
-golang([test: "go test -v ./..."])
-
