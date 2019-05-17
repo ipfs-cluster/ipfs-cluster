@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"sort"
 	"sync"
 	"time"
 
@@ -83,6 +84,7 @@ type Cluster struct {
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
 func NewCluster(
+	ctx context.Context,
 	host host.Host,
 	dht *dht.IpfsDHT,
 	cfg *Config,
@@ -105,7 +107,7 @@ func NewCluster(
 		return nil, errors.New("cluster host is nil")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
@@ -302,20 +304,47 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			// only the leader handles alerts
-			leader, err := c.consensus.Leader(c.ctx)
-			if err == nil && leader == c.id {
-				logger.Warningf(
-					"Peer %s received alert for %s in %s",
-					c.id, alrt.MetricName, alrt.Peer,
-				)
-				switch alrt.MetricName {
-				case pingMetricName:
+			cState, err := c.consensus.State(c.ctx)
+			if err != nil {
+				logger.Warning(err)
+				return
+			}
+			list, err := cState.List(c.ctx)
+			if err != nil {
+				logger.Warning(err)
+				return
+			}
+			for _, pin := range list {
+				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
+					logger.Warning("a pin with only one allocation cannot be repinned")
+					logger.Warning("to make repinning possible, pin with a replication factor of 2+")
+					continue
+				}
+				if c.shouldPeerRepinCid(alrt.Peer, pin) {
 					c.repinFromPeer(c.ctx, alrt.Peer)
 				}
 			}
 		}
 	}
+}
+
+// shouldPeerRepinCid returns true if the current peer is the top of the
+// allocs list. The failed peer is ignored, i.e. if current peer is
+// second and the failed peer is first, the function will still
+// return true.
+func (c *Cluster) shouldPeerRepinCid(failed peer.ID, pin *api.Pin) bool {
+	if containsPeer(pin.Allocations, failed) && containsPeer(pin.Allocations, c.id) {
+		allocs := peer.IDSlice(pin.Allocations)
+		sort.Sort(allocs)
+		if allocs[0] == c.id {
+			return true
+		}
+
+		if allocs[1] == c.id && allocs[0] == failed {
+			return true
+		}
+	}
+	return false
 }
 
 // detects any changes in the peerset and saves the configuration. When it

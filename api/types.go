@@ -248,6 +248,16 @@ type GlobalPinInfo struct {
 	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
 }
 
+// String returns the string representation of a GlobalPinInfo.
+func (gpi *GlobalPinInfo) String() string {
+	str := fmt.Sprintf("Cid: %v\n", gpi.Cid.String())
+	str = str + "Peer:\n"
+	for _, p := range gpi.PeerMap {
+		str = str + fmt.Sprintf("\t%+v\n", p)
+	}
+	return str
+}
+
 // PinInfo holds information about local pins.
 type PinInfo struct {
 	Cid      cid.Cid       `json:"cid" codec:"c"`
@@ -581,6 +591,19 @@ type Pin struct {
 	Reference *cid.Cid `json:"reference" codec:"r,omitempty"`
 }
 
+// String is a string representation of a Pin.
+func (pin *Pin) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "cid: %s\n", pin.Cid.String())
+	fmt.Fprintf(&b, "type: %s\n", pin.Type)
+	fmt.Fprintf(&b, "allocations: %v\n", pin.Allocations)
+	fmt.Fprintf(&b, "maxdepth: %d\n", pin.MaxDepth)
+	if pin.Reference != nil {
+		fmt.Fprintf(&b, "reference: %s\n", pin.Reference)
+	}
+	return b.String()
+}
+
 // PinPath is a wrapper for holding pin options and path of the content.
 type PinPath struct {
 	PinOptions
@@ -785,12 +808,15 @@ func (n *NodeWithMeta) Size() uint64 {
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
+// The ReceivedAt value is a timestamp representing when a peer has received
+// the metric value.
 type Metric struct {
-	Name   string  `json:"name" codec:"n,omitempty"`
-	Peer   peer.ID `json:"peer" codec:"p,omitempty"`
-	Value  string  `json:"value" codec:"v,omitempty"`
-	Expire int64   `json:"expire" codec:"e,omitempty"`
-	Valid  bool    `json:"valid" codec:"d,omitempty"`
+	Name       string  `json:"name" codec:"n,omitempty"`
+	Peer       peer.ID `json:"peer" codec:"p,omitempty"`
+	Value      string  `json:"value" codec:"v,omitempty"`
+	Expire     int64   `json:"expire" codec:"e,omitempty"`
+	Valid      bool    `json:"valid" codec:"d,omitempty"`
+	ReceivedAt int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
 }
 
 // SetTTL sets Metric to expire after the given time.Duration

@@ -107,7 +107,8 @@ var testingTrackerCfg = []byte(`
 `)
 
 var testingMonCfg = []byte(`{
-    "check_interval": "300ms"
+    "check_interval": "300ms",
+    "failure_threshold": 5
 }`)
 
 var testingDiskInfCfg = []byte(`{
@@ -116,7 +117,10 @@ var testingDiskInfCfg = []byte(`{
 }`)
 
 var testingTracerCfg = []byte(`{
-    "enable_tracing": false
+    "enable_tracing": false,
+    "jaeger_agent_endpoint": "/ip4/0.0.0.0/udp/6831",
+    "sampling_prob": 1,
+    "service_name": "cluster-daemon"
 }`)
 
 func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *raft.Config, *crdt.Config, *maptracker.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {

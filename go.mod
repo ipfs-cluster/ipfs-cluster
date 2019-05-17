@@ -93,6 +93,8 @@ require (
 	golang.org/x/sys v0.0.0-20190508100423-12bbe5a7a520 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/xerrors v0.0.0-20190506180316-385005612d73 // indirect
+	gonum.org/v1/gonum v0.0.0-20190515220428-047f2c2add5e
+	gonum.org/v1/plot v0.0.0-20190515093506-e2840ee46a6b
 	google.golang.org/api v0.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
 )

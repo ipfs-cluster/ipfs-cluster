@@ -70,6 +70,7 @@ func (cfg *Config) Validate() error {
 	if cfg.ConcurrentPins <= 0 {
 		return errors.New("maptracker.concurrent_pins is too low")
 	}
+
 	return nil
 }
 

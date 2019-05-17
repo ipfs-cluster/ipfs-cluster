@@ -56,6 +56,7 @@ type PeersFunc func(context.Context) ([]peer.ID, error)
 // PeersFunc. The PeersFunc can be nil. In this case, no metric filtering is
 // done based on peers (any peer is considered part of the peerset).
 func New(
+	ctx context.Context,
 	cfg *Config,
 	psub *pubsub.PubSub,
 	peers PeersFunc,
@@ -65,10 +66,10 @@ func New(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	mtrs := metrics.NewStore()
-	checker := metrics.NewChecker(mtrs)
+	checker := metrics.NewChecker(ctx, mtrs, cfg.FailureThreshold)
 
 	subscription, err := psub.Subscribe(PubsubTopic)
 	if err != nil {

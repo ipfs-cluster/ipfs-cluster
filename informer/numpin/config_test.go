@@ -56,6 +56,7 @@ func TestDefault(t *testing.T) {
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
+
 }
 
 func TestApplyEnvVars(t *testing.T) {

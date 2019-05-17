@@ -86,7 +86,7 @@ func testPeerMonitor(t *testing.T) (*Monitor, host.Host, func()) {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.CheckInterval = 2 * time.Second
-	mon, err := New(cfg, psub, peers)
+	mon, err := New(ctx, cfg, psub, peers)
 	if err != nil {
 		t.Fatal(err)
 	}
