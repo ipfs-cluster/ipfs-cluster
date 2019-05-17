@@ -14,3 +14,17 @@ coverage:
         only_pulls: false
         flags: null
         paths: null
+    patch:
+      default:
+        # basic
+        target: auto
+        threshold: 10
+        base: auto
+        # advanced
+        branches: null
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
+        flags: null
+        paths: null
