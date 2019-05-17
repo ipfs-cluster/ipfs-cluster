@@ -79,11 +79,11 @@ func testPin(t *testing.T, method string) {
 	c := test.Cid1
 	err := ipfs.Pin(ctx, c, -1)
 	if err != nil {
-		t.Error("expected success pinning cid")
+		t.Error("expected success pinning cid:", err)
 	}
 	pinSt, err := ipfs.PinLsCid(ctx, c)
 	if err != nil {
-		t.Fatal("expected success doing ls")
+		t.Fatal("expected success doing ls:", err)
 	}
 	if !pinSt.IsPinned(-1) {
 		t.Error("cid should have been pinned")
