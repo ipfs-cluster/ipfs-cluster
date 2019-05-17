@@ -431,7 +431,6 @@ func (ipfs *Connector) refsProgress(ctx context.Context, hash cid.Cid, maxDepth 
 		default:
 		}
 	}
-	return nil
 }
 
 // pinProgress pins an item and sends fetched node's progress on a
@@ -478,7 +477,6 @@ func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth i
 		default:
 		}
 	}
-	return nil
 }
 
 // Unpin performs an unpin request against the configured IPFS
