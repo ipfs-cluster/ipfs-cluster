@@ -1,11 +1,5 @@
 deptools=deptools
 sharness = sharness/lib/sharness
-GXENABLED=no # Set to yes for Gx builds.
-gx=$(deptools)/gx
-gx-go=$(deptools)/gx-go
-
-# For debugging
-problematic_test = TestClustersReplicationRealloc
 
 export PATH := $(deptools):$(PATH)
 
@@ -16,62 +10,8 @@ clean: rwundo clean_sharness
 	@rm -rf ./test/testingData
 	@rm -rf ./compose
 
-install: gx-deps
-	$(MAKE) -C cmd/ipfs-cluster-service install
-	$(MAKE) -C cmd/ipfs-cluster-ctl install
-
-docker_install: docker_gx-deps
-	$(MAKE) -C cmd/ipfs-cluster-service install
-	$(MAKE) -C cmd/ipfs-cluster-ctl install
-
-build: gx-deps
-	go build -ldflags "-X ipfscluster.Commit=$(shell git rev-parse HEAD)"
-	$(MAKE) -C cmd/ipfs-cluster-service build
-	$(MAKE) -C cmd/ipfs-cluster-ctl build
-
-service: gx-deps
-	$(MAKE) -C cmd/ipfs-cluster-service ipfs-cluster-service
-ctl: gx-deps
-	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
-
-gx-clean: clean
-ifeq ($(GXENABLED),yes)
-	$(MAKE) -C $(deptools) gx-clean
-endif
-
-gx:
-ifeq ($(GXENABLED),yes)
-	$(MAKE) -C $(deptools) gx
-endif
-
-
-gx-deps: gx
-ifeq ($(GXENABLED),yes)
-	$(gx) install --global
-	$(gx-go) rewrite
-endif
-
-# Run this target before building the docker image 
-# and then gx won't attempt to pull all deps 
-# from the network each time
-docker_gx-deps: gx
-ifeq ($(GXENABLED),yes)
-	$(gx) install --local
-	$(gx-go) rewrite
-endif
-
-check:
-	go vet ./...
-	golint -set_exit_status -min_confidence 0.3 ./...
-
-test: gx-deps
-	go test -v ./...
-
 test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
-
-test_problem: gx-deps
-	go test -loglevel "DEBUG" -v -run $(problematic_test)
 
 $(sharness):
 	@echo "Downloading sharness"
@@ -84,18 +24,6 @@ clean_sharness:
 	@rm -rf ./sharness/test-results
 	@rm -rf ./sharness/lib/sharness
 	@rm -rf sharness/trash\ directory*
-
-rw: gx
-ifeq ($(GXENABLED),yes)
-	$(gx-go) rewrite
-endif
-
-rwundo: gx
-ifeq ($(GXENABLED),yes)
-	$(gx-go) rewrite --undo
-endif
-publish: rwundo
-	$(gx) publish
 
 docker:
 	docker build -t cluster-image -f Dockerfile .
@@ -118,7 +46,3 @@ docker-compose:
 	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
 	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
 	docker-compose down
-
-prcheck: gx-deps check service ctl test
-
-.PHONY: all gx gx-deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
