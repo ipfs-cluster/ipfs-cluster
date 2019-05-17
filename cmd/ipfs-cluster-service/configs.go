@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -96,35 +97,47 @@ func loadIdentity() *config.Identity {
 	_, err := os.Stat(identityPath)
 
 	ident := &config.Identity{}
+	// temporary hack to convert identity
 	if os.IsNotExist(err) {
 		clusterConfig, err := config.GetClusterConfig(configPath)
-		checkErr("couldn not get cluster config", err)
+		checkErr("loading configuration", err)
 		err = ident.LoadJSON(clusterConfig)
-		checkErr("could not load identity from cluster config", err)
+		if err != nil {
+			checkErr("", errors.New("error loading identity"))
+		}
 
 		err = ident.SaveJSON(identityPath)
-		checkErr("could not save identity.json ", err)
+		checkErr("saving identity.json ", err)
 
 		err = ident.ApplyEnvVars()
-		checkErr("could not apply environment variables tot the identity ", err)
+		checkErr("applying environment variables to the identity", err)
 
+		out("\nNOTICE: identity information extracted from %s and saved as %s.\n\n", DefaultConfigFile, DefaultIdentityFile)
 		return ident
 	}
 
 	err = ident.LoadJSONFromFile(identityPath)
-	checkErr("could not load identity from identity.json", err)
+	checkErr("loading identity from %s", err, DefaultIdentityFile)
 
 	err = ident.ApplyEnvVars()
-	checkErr("could not apply environment variables to the identity ", err)
+	checkErr("applying environment variables to the identity", err)
 
 	return ident
 }
 
+func makeConfigFolder() {
+	f := filepath.Dir(configPath)
+	if _, err := os.Stat(f); os.IsNotExist(err) {
+		err := os.MkdirAll(f, 0700)
+		checkErr("creating configuration folder (%s)", err, f)
+	}
+}
+
 func saveConfig(cfg *config.Manager) {
-	err := os.MkdirAll(filepath.Dir(configPath), 0700)
-	err = cfg.SaveJSON(configPath)
+	makeConfigFolder()
+	err := cfg.SaveJSON(configPath)
 	checkErr("saving new configuration", err)
-	out("%s configuration written to %s\n", programName, configPath)
+	out("configuration written to %s\n", configPath)
 }
 
 func propagateTracingConfig(ident *config.Identity, cfgs *cfgs, tracingFlag bool) *cfgs {
