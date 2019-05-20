@@ -13,7 +13,6 @@ import (
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 // NewClusterHost creates a libp2p Host with the options from the provided
@@ -26,7 +25,13 @@ func NewClusterHost(
 	cfg *Config,
 ) (host.Host, *pubsub.PubSub, *dht.IpfsDHT, error) {
 
-	h, err := newHost(ctx, cfg.Secret, ident.PrivateKey, []ma.Multiaddr{cfg.ListenAddr})
+	h, err := newHost(
+		ctx,
+		cfg.Secret,
+		ident.PrivateKey,
+		libp2p.ListenAddrs(cfg.ListenAddr),
+		libp2p.NATPortMap(),
+	)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -46,7 +51,7 @@ func NewClusterHost(
 	return routedHost(h, idht), psub, idht, nil
 }
 
-func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, listenAddrs []ma.Multiaddr) (host.Host, error) {
+func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...libp2p.Option) (host.Host, error) {
 	var prot ipnet.Protector
 	var err error
 
@@ -60,12 +65,15 @@ func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, listenAddr
 		}
 	}
 
+	finalOpts := []libp2p.Option{
+		libp2p.Identity(priv),
+		libp2p.PrivateNetwork(prot),
+	}
+	finalOpts = append(finalOpts, opts...)
+
 	return libp2p.New(
 		ctx,
-		libp2p.Identity(priv),
-		libp2p.ListenAddrs(listenAddrs...),
-		libp2p.PrivateNetwork(prot),
-		libp2p.NATPortMap(),
+		finalOpts...,
 	)
 }
 

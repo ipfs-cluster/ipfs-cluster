@@ -14,12 +14,6 @@ import (
 	"testing"
 	"time"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
@@ -37,8 +31,13 @@ import (
 	"github.com/ipfs/ipfs-cluster/version"
 
 	ds "github.com/ipfs/go-datastore"
+	libp2p "github.com/libp2p/go-libp2p"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -274,32 +273,35 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	pubsubs := make([]*pubsub.PubSub, nClusters, nClusters)
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
-	ctx := context.Background()
-
-	clusterAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-
+	listen, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		checkErr(t, err)
-		h, err := newHost(ctx, clusterSecret, priv, []ma.Multiaddr{clusterAddr})
-		checkErr(t, err)
 
-		// DHT needs to be created BEFORE connecting the peers, but
-		// bootstrapped AFTER
-		d, err := newDHT(ctx, h)
-		checkErr(t, err)
+		h, p, d := createHost(t, priv, clusterSecret, listen)
+		hosts[i] = h
 		dhts[i] = d
-
-		hosts[i] = routedHost(h, d)
-
-		// Pubsub needs to be created BEFORE connecting the peers,
-		// otherwise they are not picked up.
-		psub, err := newPubSub(ctx, hosts[i])
-		checkErr(t, err)
-		pubsubs[i] = psub
+		pubsubs[i] = p
 	}
 
 	return hosts, pubsubs, dhts
+}
+
+func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
+	ctx := context.Background()
+	h, err := newHost(ctx, clusterSecret, priv, libp2p.ListenAddrs(listen))
+	checkErr(t, err)
+
+	// DHT needs to be created BEFORE connecting the peers, but
+	// bootstrapped AFTER
+	d, err := newDHT(ctx, h)
+	checkErr(t, err)
+
+	// Pubsub needs to be created BEFORE connecting the peers,
+	// otherwise they are not picked up.
+	psub, err := newPubSub(ctx, h)
+	checkErr(t, err)
+	return routedHost(h, d), psub, d
 }
 
 func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
@@ -378,6 +380,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	}
 
 	waitForLeader(t, clusters)
+	waitForClustersHealthy(t, clusters)
 
 	return clusters, ipfsMocks
 }
@@ -433,7 +436,7 @@ func delay() {
 }
 
 func pinDelay() {
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(800 * time.Millisecond)
 }
 
 func ttlDelay() {
@@ -1062,9 +1065,6 @@ func TestClustersReplicationOverall(t *testing.T) {
 		c.config.ReplicationFactorMin = nClusters - 1
 		c.config.ReplicationFactorMax = nClusters - 1
 	}
-
-	// wait for clusters to stablise
-	waitForClustersHealthy(t, clusters)
 
 	// Why is replication factor nClusters - 1?
 	// Because that way we know that pinning nCluster

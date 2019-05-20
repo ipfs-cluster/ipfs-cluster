@@ -188,6 +188,7 @@ func (css *Consensus) setup() {
 		if err != nil {
 			logger.Error(err)
 		}
+		logger.Infof("new pin added: %s", pin.Cid)
 	}
 	opts.DeleteHook = func(k ds.Key) {
 		c, err := dshelp.DsKeyToCid(k)
@@ -208,6 +209,7 @@ func (css *Consensus) setup() {
 		if err != nil {
 			logger.Error(err)
 		}
+		logger.Infof("pin removed: %s", c)
 	}
 
 	crdt, err := crdt.New(

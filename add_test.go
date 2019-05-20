@@ -41,7 +41,7 @@ func TestAdd(t *testing.T) {
 				t.Error(pin.Error)
 			}
 			if pin.Status != api.TrackerStatusPinned {
-				t.Error("item should be pinned")
+				t.Error("item should be pinned and is", pin.Status)
 			}
 		}
 

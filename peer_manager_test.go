@@ -332,6 +332,7 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 					}
 				}
 			}
+			// potential hanging place
 			_, more := <-clusters[i].Done()
 			if more {
 				t.Error("should be done")
@@ -726,6 +727,9 @@ func TestClustersPeerRejoin(t *testing.T) {
 	c0, m0 := createOnePeerCluster(t, 0, testingClusterSecret)
 	clusters[0] = c0
 	mocks[0] = m0
+
+	delay()
+
 	c0.consensus.Trust(ctx, clusters[1].id)
 	err = c0.Join(ctx, clusterAddr(clusters[1]))
 	if err != nil {

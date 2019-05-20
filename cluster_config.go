@@ -182,7 +182,7 @@ func (cfg *Config) ApplyEnvVars() error {
 // seem to be working ones.
 func (cfg *Config) Validate() error {
 	if cfg.ListenAddr == nil {
-		return errors.New("cluster.listen_addr is indefined")
+		return errors.New("cluster.listen_multiaddress is undefined")
 	}
 
 	if cfg.StateSyncInterval <= 0 {
