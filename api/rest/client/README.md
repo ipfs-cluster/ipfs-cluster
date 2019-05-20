@@ -25,11 +25,7 @@ This is a Go client library to use the ipfs-cluster REST HTTP API.
 
 ## Install
 
-You can import `github.com/ipfs/ipfs-cluster/api/rest/client` in your code. If you wish to use [`gx`](https://github.com/whyrusleeping/gx-go) for dependency management, it can be imported with:
-
-```
-$ gx import github.com/ipfs/ipfs-cluster/
-```
+You can import `github.com/ipfs/ipfs-cluster/api/rest/client` in your code.
 
 The code can be downloaded and tested with:
 
