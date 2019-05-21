@@ -7,6 +7,7 @@ import (
 
 	"github.com/dgraph-io/badger"
 	"github.com/dgraph-io/badger/options"
+	"github.com/imdario/mergo"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs/ipfs-cluster/config"
@@ -41,25 +42,88 @@ type Config struct {
 	BadgerOptions badger.Options
 }
 
-// FileLoadingMode specifies how data in LSM table files and value log files should
-// be loaded.
-type FileLoadingMode int
+// badgerOptions is a copy of options.BadgerOptions but
+// without the Logger as it cannot be marshalled to/from
+// JSON.
+type badgerOptions struct {
+	Dir                     string                   `json:"dir,omitempty"`
+	ValueDir                string                   `json:"value_dir,omitempty"`
+	SyncWrites              bool                     `json:"sync_writes,omitempty"`
+	TableLoadingMode        *options.FileLoadingMode `json:"table_loading_mode,omitempty"`
+	ValueLogLoadingMode     *options.FileLoadingMode `json:"value_log_loading_mode,omitempty"`
+	NumVersionsToKeep       int                      `json:"num_versions_to_keep,omitempty"`
+	MaxTableSize            int64                    `json:"max_table_size,omitempty"`
+	LevelSizeMultiplier     int                      `json:"level_size_multiplier,omitempty"`
+	MaxLevels               int                      `json:"max_levels,omitempty"`
+	ValueThreshold          int                      `json:"value_threshold,omitempty"`
+	NumMemtables            int                      `json:"num_memtables,omitempty"`
+	NumLevelZeroTables      int                      `json:"num_level_zero_tables,omitempty"`
+	NumLevelZeroTablesStall int                      `json:"num_level_zero_tables_stall,omitempty"`
+	LevelOneSize            int64                    `json:"level_one_size,omitempty"`
+	ValueLogFileSize        int64                    `json:"value_log_file_size,omitempty"`
+	ValueLogMaxEntries      uint32                   `json:"value_log_max_entries,omitempty"`
+	NumCompactors           int                      `json:"num_compactors,omitempty"`
+	CompactL0OnClose        bool                     `json:"compact_l_0_on_close,omitempty"`
+	ReadOnly                bool                     `json:"read_only,omitempty"`
+	Truncate                bool                     `json:"truncate,omitempty"`
+}
 
-const (
-	// Unknown indicates that the value hasn't been set
-	Unknown FileLoadingMode = iota
-	// FileIO indicates that files must be loaded using standard I/O
-	FileIO
-	// LoadToRAM indicates that file must be loaded into RAM
-	LoadToRAM
-	// MemoryMap indicates that that the file must be memory-mapped
-	MemoryMap
-)
+func (bo *badgerOptions) Unmarshal() *badger.Options {
+	badgerOpts := &badger.Options{}
+	badgerOpts.Dir = bo.Dir
+	badgerOpts.ValueDir = bo.ValueDir
+	badgerOpts.SyncWrites = bo.SyncWrites
+	if tlm := bo.TableLoadingMode; tlm != nil {
+		badgerOpts.TableLoadingMode = *tlm
+	}
+	if vlm := bo.ValueLogLoadingMode; vlm != nil {
+		badgerOpts.ValueLogLoadingMode = *vlm
+	}
+	badgerOpts.NumVersionsToKeep = bo.NumVersionsToKeep
+	badgerOpts.MaxTableSize = bo.MaxTableSize
+	badgerOpts.LevelSizeMultiplier = bo.LevelSizeMultiplier
+	badgerOpts.MaxLevels = bo.MaxLevels
+	badgerOpts.ValueThreshold = bo.ValueThreshold
+	badgerOpts.NumMemtables = bo.NumMemtables
+	badgerOpts.NumLevelZeroTables = bo.NumLevelZeroTables
+	badgerOpts.NumLevelZeroTablesStall = bo.NumLevelZeroTablesStall
+	badgerOpts.LevelOneSize = bo.LevelOneSize
+	badgerOpts.ValueLogFileSize = bo.ValueLogFileSize
+	badgerOpts.ValueLogMaxEntries = bo.ValueLogMaxEntries
+	badgerOpts.NumCompactors = bo.NumCompactors
+	badgerOpts.CompactL0OnClose = bo.CompactL0OnClose
+	badgerOpts.ReadOnly = bo.ReadOnly
+	badgerOpts.Truncate = bo.Truncate
+
+	return badgerOpts
+}
+
+func (bo *badgerOptions) Marshal(badgerOpts *badger.Options) {
+	bo.Dir = badgerOpts.Dir
+	bo.ValueDir = badgerOpts.ValueDir
+	bo.SyncWrites = badgerOpts.SyncWrites
+	bo.TableLoadingMode = &badgerOpts.TableLoadingMode
+	bo.ValueLogLoadingMode = &badgerOpts.ValueLogLoadingMode
+	bo.NumVersionsToKeep = badgerOpts.NumVersionsToKeep
+	bo.MaxTableSize = badgerOpts.MaxTableSize
+	bo.LevelSizeMultiplier = badgerOpts.LevelSizeMultiplier
+	bo.MaxLevels = badgerOpts.MaxLevels
+	bo.ValueThreshold = badgerOpts.ValueThreshold
+	bo.NumMemtables = badgerOpts.NumMemtables
+	bo.NumLevelZeroTables = badgerOpts.NumLevelZeroTables
+	bo.NumLevelZeroTablesStall = badgerOpts.NumLevelZeroTablesStall
+	bo.LevelOneSize = badgerOpts.LevelOneSize
+	bo.ValueLogFileSize = badgerOpts.ValueLogFileSize
+	bo.ValueLogMaxEntries = badgerOpts.ValueLogMaxEntries
+	bo.NumCompactors = badgerOpts.NumCompactors
+	bo.CompactL0OnClose = badgerOpts.CompactL0OnClose
+	bo.ReadOnly = badgerOpts.ReadOnly
+	bo.Truncate = badgerOpts.Truncate
+}
 
 type jsonConfig struct {
-	Folder              string          `json:"folder,omitempty"`
-	TableLoadingMode    FileLoadingMode `json:"table_loading_mode,omitempty"`     // because we can't distinguish between options.FileIO and default value
-	ValueLogLoadingMode FileLoadingMode `json:"value_log_loading_mode,omitempty"` // because we can't distinguish between options.FileIO and default value
+	Folder        string         `json:"folder,omitempty"`
+	BadgerOptions *badgerOptions `json:"badger_options,omitempty"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of Datastore.
@@ -112,12 +176,21 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	config.SetIfNotDefault(jcfg.Folder, &cfg.Folder)
-	if v, ok := correctLoadingMode(jcfg.TableLoadingMode); ok {
-		cfg.BadgerOptions.TableLoadingMode = options.FileLoadingMode(v)
+
+	badgerOpts := jcfg.BadgerOptions.Unmarshal()
+
+	if err := mergo.Merge(&cfg.BadgerOptions, badgerOpts, mergo.WithOverride); err != nil {
+		return err
 	}
-	if v, ok := correctLoadingMode(jcfg.ValueLogLoadingMode); ok {
-		cfg.BadgerOptions.ValueLogLoadingMode = options.FileLoadingMode(v)
+
+	if jcfg.BadgerOptions.TableLoadingMode != nil {
+		cfg.BadgerOptions.TableLoadingMode = *jcfg.BadgerOptions.TableLoadingMode
 	}
+
+	if jcfg.BadgerOptions.ValueLogLoadingMode != nil {
+		cfg.BadgerOptions.ValueLogLoadingMode = *jcfg.BadgerOptions.ValueLogLoadingMode
+	}
+
 	return cfg.Validate()
 }
 
@@ -135,9 +208,11 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 
 	if cfg.Folder != DefaultSubFolder {
 		jCfg.Folder = cfg.Folder
-		jCfg.TableLoadingMode = FileLoadingMode(cfg.BadgerOptions.TableLoadingMode)
-		jCfg.ValueLogLoadingMode = FileLoadingMode(cfg.BadgerOptions.ValueLogLoadingMode)
 	}
+
+	bo := &badgerOptions{}
+	bo.Marshal(&cfg.BadgerOptions)
+	jCfg.BadgerOptions = bo
 
 	return jCfg
 }
@@ -149,13 +224,4 @@ func (cfg *Config) GetFolder() string {
 	}
 
 	return filepath.Join(cfg.BaseDir, cfg.Folder)
-}
-
-func correctLoadingMode(lm FileLoadingMode) (options.FileLoadingMode, bool) {
-	switch lm {
-	default:
-		return 0, false
-	case 1, 2, 3:
-		return options.FileLoadingMode(lm - 1), true
-	}
 }

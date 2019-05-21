@@ -9,7 +9,6 @@ require (
 	github.com/btcsuite/btcd v0.0.0-20190427004231-96897255fd17 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/dgraph-io/badger v2.0.0-rc.2+incompatible
-	github.com/dgryski/go-farm v0.0.0-20190416075124-e1214b5e05dc // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/gogo/protobuf v1.2.1
@@ -21,6 +20,7 @@ require (
 	github.com/hsanjuan/go-libp2p-gostream v0.0.32
 	github.com/hsanjuan/go-libp2p-http v0.0.3
 	github.com/hsanjuan/ipfs-lite v0.0.4
+	github.com/imdario/mergo v0.3.7
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.2
 	github.com/ipfs/go-datastore v0.0.5
