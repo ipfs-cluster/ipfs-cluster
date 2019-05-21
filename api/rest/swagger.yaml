@@ -617,12 +617,14 @@ components:
   parameters:
     pinNameParam:
       name: name
+      description: This parameter sets a name for this pin.
       in: query
       schema:
         type: string
-        
+
     pinReplicationParam:
       name: replication
+      description: This parameter sets a custom replication factor (overrides -rmax and -rmin), default 0.
       in: query
       schema:
         type: integer
@@ -630,6 +632,7 @@ components:
     
     pinReplicationMinParam:
       name: replication-min
+      description: This parameter sets the minimum replication factor for pinning this content, default 0.
       in: query
       schema:
         type: integer
@@ -637,6 +640,7 @@ components:
         
     pinReplicationMaxParam:
       name: replication-max
+      description: This parameter sets the maximum replication factor for pinning this content, default 0.
       in: query
       schema:
         type: integer
@@ -644,6 +648,7 @@ components:
       
     pinUserAllocationsParam:
       name: user-allocations
+      description: This parameter set a list of peer IDs that should be priorities while pinning this content.
       in: query
       schema:
         type: array
@@ -654,7 +659,7 @@ components:
       
     pinMetaParam:
       name: meta-
-      description: Associate metadata strings with a Pin. Parameter MUST start with `meta-` to be picked up by server.
+      description: This parameter associates metadata strings with a Pin. Parameter must start with `meta-` to be picked up by server.
       in: query
       schema:
         type: object
@@ -670,48 +675,56 @@ components:
           
     hash:
       name: hash
+      description: This parameter sets hash function to use. Implies cid-version=1, default "sha2-256".
       in: query
       schema:
         type: string
 
     recursive:
       name: recursive
+      description: This parameter adds directory paths recursively.
       in: query
       schema:
         type: boolean
     
     layout:
       name: layout
+      description: This parameter sets dag layout to use for dag generation, balanced or trickle.
       in: query
       schema:
         type: string
         
     chunker:
       name: chunker
+      description: This parameter sets chunker to be used, 'size-<size>'' or 'rabin-<min>-<avg>-<max>', default "size-262144".
       in: query
       schema:
         type: string
     
     rawLeaves:
       name: raw-leaves
+      description: This parameter uses raw blocks for leaves.
       in: query
       schema:
         type: boolean
     
     hidden:
       name: hidden
+      description: This parameter includes files that are hidden.  Only takes effect on recursive add.
       in: query
       schema:
         type: boolean
     
     wrap:
       name: wrap-with-directory
+      description: This parameter wraps with a directory object.
       in: query
       schema:
         type: boolean
         
     shard:
       name: shard
+      description: This parameter indicates whether content should be sharded among different peers.
       in: query
       schema:
         type: boolean
@@ -724,24 +737,28 @@ components:
     
     cidVersion:
       name: cid-version
+      description: This parameter sets CID version. Non default implies raw-leaves, default 0.
       in: query
       schema:
         type: integer
     
     streamChannels:
       name: stream-channels
+      description: This parameter indicates whether response should be streamed or not, default is streamed.
       in: query
       schema:
         type: boolean
     
     noCopy:
       name: nocopy
+      description: This parameter adds the URL using filestore, implies raw-leaves.
       in: query
       schema:
         type: boolean
     
     local:
       name: local
+      description: This parameter indicates that the operation should only be performed on the local peer.
       in: query
       schema:
         type: boolean
