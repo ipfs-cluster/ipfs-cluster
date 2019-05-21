@@ -121,7 +121,7 @@ func TestThresholdValues(t *testing.T) {
 	t.Log("It doesn't actually perform any 'tests', so it is skipped by default")
 	t.SkipNow()
 
-	thresholds := []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 0.9, 1.3, 1.4, 1.5, 1.8, 2.0, 3.0, 4.0, 5.0, 7.0, 10.0, 20.0}
+	thresholds := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 15.0, 20.0}
 
 	t.Run("linear threshold test", func(t *testing.T) {
 		dists := make([]timeseries, 0)
@@ -244,7 +244,7 @@ func TestThresholdValues(t *testing.T) {
 		plotDistsPhivs("cubic_", dists, phivs)
 	})
 
-	t.Run("14x threshold test", func(t *testing.T) {
+	t.Run("50x threshold test", func(t *testing.T) {
 		dists := make([]timeseries, 0)
 		phivs := make([]timeseries, 0)
 		for _, v := range thresholds {
@@ -301,7 +301,7 @@ func TestThresholdValues(t *testing.T) {
 			t.Log("threshold that was not meet by 14x increase: ", v)
 			break
 		}
-		plotDistsPhivs("14x_", dists, phivs)
+		plotDistsPhivs("50x_", dists, phivs)
 	})
 }
 

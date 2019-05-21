@@ -34,8 +34,11 @@ test_ipfs_init() {
     else
         docker run --name ipfs -d -p 127.0.0.1:5001:5001 ipfs/go-ipfs > /dev/null 2>&1
         if [ $? -ne 0 ]; then
-            echo "IPFS init FAIL: Error running go-ipfs in docker."
-            exit 1
+            docker start ipfs
+            if [ $? -ne 0 ]; then
+                echo "IPFS init FAIL: Error running go-ipfs in docker."
+                exit 1
+            fi
         fi
         while ! curl -s "localhost:5001/api/v0/version" > /dev/null; do
             sleep 0.2

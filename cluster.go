@@ -314,11 +314,13 @@ func (c *Cluster) alertsHandler() {
 				logger.Warning(err)
 				return
 			}
+
 			list, err := cState.List(c.ctx)
 			if err != nil {
 				logger.Warning(err)
 				return
 			}
+
 			for _, pin := range list {
 				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
 					logger.Warning("a pin with only one allocation cannot be repinned")
