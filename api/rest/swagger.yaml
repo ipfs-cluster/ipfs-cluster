@@ -132,6 +132,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
               
   /allocations:
     get:
@@ -613,7 +619,7 @@ components:
           type: integer
         valid:
           type: boolean
-          
+
   parameters:
     pinNameParam:
       name: name
@@ -731,10 +737,11 @@ components:
     
     progress:
       name: progress
+      description: If false, this parameter disables streaming and returns an array of status at the end.
       in: query
       schema:
         type: boolean
-    
+
     cidVersion:
       name: cid-version
       description: This parameter sets CID version. Non default implies raw-leaves, default 0.
