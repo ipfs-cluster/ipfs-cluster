@@ -321,7 +321,7 @@ func (maddr Multiaddr) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON parses a cluster Multiaddr from the JSON representation.
 func (maddr *Multiaddr) UnmarshalJSON(data []byte) error {
-	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("/ip4/127.0.0.1") // null multiaddresses not allowed
 	return maddr.Multiaddr.UnmarshalJSON(data)
 }
 
@@ -335,7 +335,7 @@ func (maddr Multiaddr) MarshalBinary() ([]byte, error) {
 func (maddr *Multiaddr) UnmarshalBinary(data []byte) error {
 	datacopy := make([]byte, len(data)) // This is super important
 	copy(datacopy, data)
-	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("/ip4/127.0.0.1") // null multiaddresses not allowed
 	return maddr.Multiaddr.UnmarshalBinary(datacopy)
 }
 

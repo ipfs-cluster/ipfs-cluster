@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
@@ -167,6 +168,7 @@ func (css *Consensus) setup() {
 
 	opts := crdt.DefaultOptions()
 	opts.RebroadcastInterval = css.config.RebroadcastInterval
+	opts.DAGSyncerTimeout = time.Minute
 	opts.Logger = logger
 	opts.PutHook = func(k ds.Key, v []byte) {
 		pin := &api.Pin{}
