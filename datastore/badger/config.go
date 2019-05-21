@@ -46,26 +46,26 @@ type Config struct {
 // without the Logger as it cannot be marshalled to/from
 // JSON.
 type badgerOptions struct {
-	Dir                     string                   `json:"dir,omitempty"`
-	ValueDir                string                   `json:"value_dir,omitempty"`
-	SyncWrites              bool                     `json:"sync_writes,omitempty"`
-	TableLoadingMode        *options.FileLoadingMode `json:"table_loading_mode,omitempty"`
-	ValueLogLoadingMode     *options.FileLoadingMode `json:"value_log_loading_mode,omitempty"`
-	NumVersionsToKeep       int                      `json:"num_versions_to_keep,omitempty"`
-	MaxTableSize            int64                    `json:"max_table_size,omitempty"`
-	LevelSizeMultiplier     int                      `json:"level_size_multiplier,omitempty"`
-	MaxLevels               int                      `json:"max_levels,omitempty"`
-	ValueThreshold          int                      `json:"value_threshold,omitempty"`
-	NumMemtables            int                      `json:"num_memtables,omitempty"`
-	NumLevelZeroTables      int                      `json:"num_level_zero_tables,omitempty"`
-	NumLevelZeroTablesStall int                      `json:"num_level_zero_tables_stall,omitempty"`
-	LevelOneSize            int64                    `json:"level_one_size,omitempty"`
-	ValueLogFileSize        int64                    `json:"value_log_file_size,omitempty"`
-	ValueLogMaxEntries      uint32                   `json:"value_log_max_entries,omitempty"`
-	NumCompactors           int                      `json:"num_compactors,omitempty"`
-	CompactL0OnClose        bool                     `json:"compact_l_0_on_close,omitempty"`
-	ReadOnly                bool                     `json:"read_only,omitempty"`
-	Truncate                bool                     `json:"truncate,omitempty"`
+	Dir                     string                   `json:"dir"`
+	ValueDir                string                   `json:"value_dir"`
+	SyncWrites              bool                     `json:"sync_writes"`
+	TableLoadingMode        *options.FileLoadingMode `json:"table_loading_mode"`
+	ValueLogLoadingMode     *options.FileLoadingMode `json:"value_log_loading_mode"`
+	NumVersionsToKeep       int                      `json:"num_versions_to_keep"`
+	MaxTableSize            int64                    `json:"max_table_size"`
+	LevelSizeMultiplier     int                      `json:"level_size_multiplier"`
+	MaxLevels               int                      `json:"max_levels"`
+	ValueThreshold          int                      `json:"value_threshold"`
+	NumMemtables            int                      `json:"num_memtables"`
+	NumLevelZeroTables      int                      `json:"num_level_zero_tables"`
+	NumLevelZeroTablesStall int                      `json:"num_level_zero_tables_stall"`
+	LevelOneSize            int64                    `json:"level_one_size"`
+	ValueLogFileSize        int64                    `json:"value_log_file_size"`
+	ValueLogMaxEntries      uint32                   `json:"value_log_max_entries"`
+	NumCompactors           int                      `json:"num_compactors"`
+	CompactL0OnClose        bool                     `json:"compact_l_0_on_close"`
+	ReadOnly                bool                     `json:"read_only"`
+	Truncate                bool                     `json:"truncate"`
 }
 
 func (bo *badgerOptions) Unmarshal() *badger.Options {
