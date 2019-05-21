@@ -122,8 +122,8 @@ func (bo *badgerOptions) Marshal(badgerOpts *badger.Options) {
 }
 
 type jsonConfig struct {
-	Folder        string         `json:"folder,omitempty"`
-	BadgerOptions *badgerOptions `json:"badger_options,omitempty"`
+	Folder        string        `json:"folder,omitempty"`
+	BadgerOptions badgerOptions `json:"badger_options,omitempty"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of Datastore.
@@ -212,7 +212,7 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 
 	bo := &badgerOptions{}
 	bo.Marshal(&cfg.BadgerOptions)
-	jCfg.BadgerOptions = bo
+	jCfg.BadgerOptions = *bo
 
 	return jCfg
 }
