@@ -26,6 +26,11 @@ var testingClusterCfg = []byte(`{
     "secret": "2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed",
     "leave_on_shutdown": false,
     "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
+    "connection_manager": {
+         "high_water": 400,
+         "low_water": 200,
+         "grace_period": "2m0s"
+    },
     "state_sync_interval": "1m0s",
     "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,

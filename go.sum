@@ -342,6 +342,8 @@ github.com/libp2p/go-libp2p-blankhost v0.0.1/go.mod h1:Ibpbw/7cPPYwFb7PACIWdvxxv
 github.com/libp2p/go-libp2p-circuit v0.0.1/go.mod h1:Dqm0s/BiV63j8EEAs8hr1H5HudqvCAeXxDyic59lCwE=
 github.com/libp2p/go-libp2p-circuit v0.0.6 h1:egD2CKFVdqnHgIHzPkM6J7m3MKZpFqoTPDfxBqQ7kRQ=
 github.com/libp2p/go-libp2p-circuit v0.0.6/go.mod h1:W34ISBRpoCPUeOR26xzTbLo+s3hDO9153hJCfvHzBlg=
+github.com/libp2p/go-libp2p-connmgr v0.0.5 h1:EzgFolZ1RHUiuRj22zZRcGu8TJuBkfjeuH9TazbcmP4=
+github.com/libp2p/go-libp2p-connmgr v0.0.5/go.mod h1:uwDfgdgqB5248sQYib1xo603cSsMg9PgAKu0Z+Y65Qk=
 github.com/libp2p/go-libp2p-consensus v0.0.1 h1:jcVbHRZLwTXU9iT/mPi+Lx4/OrIzq3bU1TbZNhYFCV8=
 github.com/libp2p/go-libp2p-consensus v0.0.1/go.mod h1:+9Wrfhc5QOqWB0gXI0m6ARlkHfdJpcFXmRU0WoHz4Mo=
 github.com/libp2p/go-libp2p-crypto v0.0.1 h1:JNQd8CmoGTohO/akqrH16ewsqZpci2CbgYH/LmYl8gw=
@@ -364,6 +366,8 @@ github.com/libp2p/go-libp2p-interface-connmgr v0.0.1 h1:Q9EkNSLAOF+u90L88qmE9z/f
 github.com/libp2p/go-libp2p-interface-connmgr v0.0.1/go.mod h1:GarlRLH0LdeWcLnYM/SaBykKFl9U5JFnbBGruAk/D5k=
 github.com/libp2p/go-libp2p-interface-connmgr v0.0.4 h1:/LngXETpII5qOD7YjAcQiIxhVtdAk/NQe5t9sC6BR0E=
 github.com/libp2p/go-libp2p-interface-connmgr v0.0.4/go.mod h1:GarlRLH0LdeWcLnYM/SaBykKFl9U5JFnbBGruAk/D5k=
+github.com/libp2p/go-libp2p-interface-connmgr v0.0.5 h1:KG/KNYL2tYzXAfMvQN5K1aAGTYSYUMJ1prgYa2/JI1E=
+github.com/libp2p/go-libp2p-interface-connmgr v0.0.5/go.mod h1:GarlRLH0LdeWcLnYM/SaBykKFl9U5JFnbBGruAk/D5k=
 github.com/libp2p/go-libp2p-interface-pnet v0.0.1 h1:7GnzRrBTJHEsofi1ahFdPN9Si6skwXQE9UqR2S+Pkh8=
 github.com/libp2p/go-libp2p-interface-pnet v0.0.1/go.mod h1:el9jHpQAXK5dnTpKA4yfCNBZXvrzdOU75zz+C6ryp3k=
 github.com/libp2p/go-libp2p-kad-dht v0.0.11 h1:3s6Me8i0vmuQM++HmVgRb9dC6y33/jmcxKPMExx7oJg=

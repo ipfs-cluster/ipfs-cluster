@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
@@ -25,12 +26,15 @@ func NewClusterHost(
 	cfg *Config,
 ) (host.Host, *pubsub.PubSub, *dht.IpfsDHT, error) {
 
+	connman := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, cfg.ConnMgr.GracePeriod)
+
 	h, err := newHost(
 		ctx,
 		cfg.Secret,
 		ident.PrivateKey,
 		libp2p.ListenAddrs(cfg.ListenAddr),
 		libp2p.NATPortMap(),
+		libp2p.ConnectionManager(connman),
 	)
 	if err != nil {
 		return nil, nil, nil, err
