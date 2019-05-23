@@ -62,6 +62,8 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintError(resp.(*api.Error))
 	case *api.Metric:
 		textFormatPrintMetric(resp.(*api.Metric))
+	case api.IPFSRepoGC:
+		textFormatPrintRepoGC(resp.(api.IPFSRepoGC))
 	case []*api.ID:
 		for _, item := range resp.([]*api.ID) {
 			textFormatObject(item)
@@ -84,6 +86,10 @@ func textFormatObject(resp interface{}) {
 		}
 	case []*api.Metric:
 		for _, item := range resp.([]*api.Metric) {
+			textFormatObject(item)
+		}
+	case []api.IPFSRepoGC:
+		for _, item := range resp.([]api.IPFSRepoGC) {
 			textFormatObject(item)
 		}
 	default:
@@ -206,6 +212,10 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 func textFormatPrintMetric(obj *api.Metric) {
 	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
+}
+
+func textFormatPrintRepoGC(obj api.IPFSRepoGC) {
+	fmt.Printf("%s | Error : %s\n", obj.Key.String(), obj.Error)
 }
 
 func textFormatPrintError(obj *api.Error) {

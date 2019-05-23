@@ -605,14 +605,14 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) 
 }
 
 // RepoGC performs a garbage collection sweep on the repo.
-func (ipfs *Connector) RepoGC(ctx context.Context) ([]*api.IPFSRepoGC, error) {
+func (ipfs *Connector) RepoGC(ctx context.Context) ([]api.IPFSRepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 
-	var repoGCResp []*api.IPFSRepoGC
+	var repoGCResp []api.IPFSRepoGC
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc", "", nil)
 	if err != nil {
 		logger.Error(err)
@@ -631,7 +631,7 @@ func (ipfs *Connector) RepoGC(ctx context.Context) ([]*api.IPFSRepoGC, error) {
 		if resp.Error != "" {
 			logger.Error("Error while repo gc: ", resp.Error)
 		}
-		repoGCResp = append(repoGCResp, &resp)
+		repoGCResp = append(repoGCResp, resp)
 	}
 
 	return repoGCResp, nil

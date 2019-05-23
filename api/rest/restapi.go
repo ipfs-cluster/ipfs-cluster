@@ -424,7 +424,7 @@ func (api *API) routes() []route {
 		{
 			"RepoGC",
 			"POST",
-			"/repos/gc",
+			"/repo/gc",
 			api.repoGCHandler,
 		},
 		{
@@ -1008,7 +1008,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
-	var repoGC []*types.IPFSRepoGC
+	var repoGC []types.IPFSRepoGC
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
@@ -1017,7 +1017,7 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&repoGC,
 	)
-	api.sendResponse(w, autoStatus, err, nil)
+	api.sendResponse(w, autoStatus, err, repoGC)
 }
 
 func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *types.PinPath {

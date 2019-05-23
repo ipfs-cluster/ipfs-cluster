@@ -120,7 +120,9 @@ type Client interface {
 	// for the current cluster peers.
 	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
 
-	RepoGC(ctx context.Context)
+	// RepoGC runs garbage collection on all cluster peers and returns
+	// collected cids.
+	RepoGC(ctx context.Context) ([]api.IPFSRepoGC, error)
 }
 
 // Config allows to configure the parameters to connect
