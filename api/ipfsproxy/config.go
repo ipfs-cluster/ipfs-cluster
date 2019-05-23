@@ -206,20 +206,23 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 }
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
-	proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
-	if err != nil {
-		return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)
+	if jcfg.ListenMultiaddress != "" {
+		proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
+		if err != nil {
+			return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)
+		}
+		cfg.ListenAddr = proxyAddr
 	}
-	nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
-	if err != nil {
-		return fmt.Errorf("error parsing ipfs node_multiaddress: %s", err)
+	if jcfg.NodeMultiaddress != "" {
+		nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
+		if err != nil {
+			return fmt.Errorf("error parsing ipfs node_multiaddress: %s", err)
+		}
+		cfg.NodeAddr = nodeAddr
 	}
-
-	cfg.ListenAddr = proxyAddr
-	cfg.NodeAddr = nodeAddr
 	config.SetIfNotDefault(jcfg.NodeHTTPS, &cfg.NodeHTTPS)
 
-	err = config.ParseDurations(
+	err := config.ParseDurations(
 		"ipfsproxy",
 		&config.DurationOpt{Duration: jcfg.ReadTimeout, Dst: &cfg.ReadTimeout, Name: "read_timeout"},
 		&config.DurationOpt{Duration: jcfg.ReadHeaderTimeout, Dst: &cfg.ReadHeaderTimeout, Name: "read_header_timeout"},
