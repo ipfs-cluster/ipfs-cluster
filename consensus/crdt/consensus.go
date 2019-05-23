@@ -9,6 +9,7 @@ import (
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	multihash "github.com/multiformats/go-multihash"
@@ -22,13 +23,15 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
 var logger = logging.Logger("crdt")
 
 var (
-	blocksNs = "b" // blockstore namespace
+	blocksNs   = "b" // blockstore namespace
+	connMgrTag = "crdt"
 )
 
 // Common variables for the module.
@@ -48,7 +51,8 @@ type Consensus struct {
 
 	trustedPeers sync.Map
 
-	host host.Host
+	host        host.Host
+	peerManager *pstoremgr.Manager
 
 	store     ds.Datastore
 	namespace ds.Key
@@ -85,19 +89,21 @@ func New(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	css := &Consensus{
-		ctx:       ctx,
-		cancel:    cancel,
-		config:    cfg,
-		host:      host,
-		dht:       dht,
-		store:     store,
-		namespace: ds.NewKey(cfg.DatastoreNamespace),
-		pubsub:    pubsub,
-		rpcReady:  make(chan struct{}, 1),
-		readyCh:   make(chan struct{}, 1),
+		ctx:         ctx,
+		cancel:      cancel,
+		config:      cfg,
+		host:        host,
+		peerManager: pstoremgr.New(ctx, host, ""),
+		dht:         dht,
+		store:       store,
+		namespace:   ds.NewKey(cfg.DatastoreNamespace),
+		pubsub:      pubsub,
+		rpcReady:    make(chan struct{}, 1),
+		readyCh:     make(chan struct{}, 1),
 	}
 
 	// Set up a fast-lookup trusted peers cache.
+	// Protect these peers in the ConnMgr
 	for _, p := range css.config.TrustedPeers {
 		css.Trust(ctx, p)
 	}
@@ -296,9 +302,18 @@ func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
 	return ok
 }
 
-// Trust marks a peer as "trusted".
+// Trust marks a peer as "trusted". It makes sure it is trusted as issuer
+// for pubsub updates, it is protected in the connection manager, it
+// has the highest priority when the peerstore is saved, and it's addresses
+// are always remembered.
 func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
 	css.trustedPeers.Store(pid, struct{}{})
+	if conman := css.host.ConnManager(); conman != nil {
+		conman.Protect(pid, connMgrTag)
+	}
+	css.peerManager.SetPriority(pid, 0)
+	addrs := css.host.Peerstore().Addrs(pid)
+	css.host.Peerstore().SetAddrs(pid, addrs, peerstore.PermanentAddrTTL)
 	return nil
 }
 

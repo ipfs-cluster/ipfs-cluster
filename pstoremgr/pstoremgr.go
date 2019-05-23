@@ -10,10 +10,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 	"time"
-
-	"github.com/ipfs/ipfs-cluster/api"
 
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
@@ -25,10 +24,14 @@ import (
 
 var logger = logging.Logger("pstoremgr")
 
-// Timeouts for network operations triggered by the Manager
+// PriorityTag is used to attach metadata to peers in the peerstore
+// so they can be sorted.
+var PriorityTag = "cluster"
+
+// Timeouts for network operations triggered by the Manager.
 var (
 	DNSTimeout     = 5 * time.Second
-	ConnectTimeout = 10 * time.Second
+	ConnectTimeout = 5 * time.Second
 )
 
 // Manager provides utilities for handling cluster peer addresses
@@ -43,9 +46,9 @@ type Manager struct {
 // New creates a Manager with the given libp2p Host and peerstorePath.
 // The path indicates the place to persist and read peer addresses from.
 // If empty, these operations (LoadPeerstore, SavePeerstore) will no-op.
-func New(h host.Host, peerstorePath string) *Manager {
+func New(ctx context.Context, h host.Host, peerstorePath string) *Manager {
 	return &Manager{
-		ctx:           context.Background(),
+		ctx:           ctx,
 		host:          h,
 		peerstorePath: peerstorePath,
 	}
@@ -54,38 +57,33 @@ func New(h host.Host, peerstorePath string) *Manager {
 // ImportPeer adds a new peer address to the host's peerstore, optionally
 // dialing to it. It will resolve any DNS multiaddresses before adding them.
 // The address is expected to include the /ipfs/<peerID> protocol part.
-func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool) error {
+// Peers are added with the given ttl
+func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration) (peer.ID, error) {
 	if pm.host == nil {
-		return nil
+		return "", nil
 	}
 
 	logger.Debugf("adding peer address %s", addr)
-	pid, decapAddr, err := api.Libp2pMultiaddrSplit(addr)
+	pinfo, err := peerstore.InfoFromP2pAddr(addr)
 	if err != nil {
-		return err
+		return "", err
 	}
-	pm.host.Peerstore().AddAddr(pid, decapAddr, peerstore.PermanentAddrTTL)
 
-	// dns multiaddresses need to be resolved because libp2p only does that
-	// on explicit bhost.Connect().
-	if madns.Matches(addr) {
-		ctx, cancel := context.WithTimeout(pm.ctx, DNSTimeout)
-		defer cancel()
-		resolvedAddrs, err := madns.Resolve(ctx, addr)
-		if err != nil {
-			logger.Error(err)
-			return err
-		}
-		pm.ImportPeers(resolvedAddrs, connect)
+	// Do not add ourselves
+	if pinfo.ID == pm.host.ID() {
+		return pinfo.ID, nil
 	}
+
+	pm.host.Peerstore().AddAddrs(pinfo.ID, pinfo.Addrs, ttl)
+
 	if connect {
 		go func() {
 			ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
 			defer cancel()
-			pm.host.Network().DialPeer(ctx, pid)
+			pm.host.Connect(ctx, *pinfo)
 		}()
 	}
-	return nil
+	return pinfo.ID, nil
 }
 
 // RmPeer clear all addresses for a given peer ID from the host's peerstore.
@@ -100,19 +98,17 @@ func (pm *Manager) RmPeer(pid peer.ID) error {
 }
 
 // if the peer has dns addresses, return only those, otherwise
-// return all. In all cases, encapsulate the peer ID.
-func (pm *Manager) filteredPeerAddrs(p peer.ID) []api.Multiaddr {
+// return all.
+func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 	all := pm.host.Peerstore().Addrs(p)
-	peerAddrs := []api.Multiaddr{}
-	peerDNSAddrs := []api.Multiaddr{}
-	peerPart, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", peer.IDB58Encode(p)))
+	peerAddrs := []ma.Multiaddr{}
+	peerDNSAddrs := []ma.Multiaddr{}
 
 	for _, a := range all {
-		encAddr := a.Encapsulate(peerPart)
-		if madns.Matches(encAddr) {
-			peerDNSAddrs = append(peerDNSAddrs, api.NewMultiaddrWithValue(encAddr))
+		if madns.Matches(a) {
+			peerDNSAddrs = append(peerDNSAddrs, a)
 		} else {
-			peerAddrs = append(peerAddrs, api.NewMultiaddrWithValue(encAddr))
+			peerAddrs = append(peerAddrs, a)
 		}
 	}
 
@@ -123,11 +119,12 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []api.Multiaddr {
 	return peerAddrs
 }
 
-// PeersAddresses returns the list of multiaddresses (encapsulating the
-// /ipfs/<peerID> part) for the given set of peers. For peers for which
-// we know DNS multiaddresses, we only return those. Otherwise, we return
-// all the multiaddresses known for that peer.
-func (pm *Manager) PeersAddresses(peers []peer.ID) []api.Multiaddr {
+// PeerInfos returns a slice of peerinfos for the given set of peers in order
+// of priority. For peers for which we know DNS
+// multiaddresses, we only include those. Otherwise, the PeerInfo includes all
+// the multiaddresses known for that peer. Peers without addresses are not
+// included.
+func (pm *Manager) PeerInfos(peers []peer.ID) []peerstore.PeerInfo {
 	if pm.host == nil {
 		return nil
 	}
@@ -136,29 +133,47 @@ func (pm *Manager) PeersAddresses(peers []peer.ID) []api.Multiaddr {
 		return nil
 	}
 
-	var addrs []api.Multiaddr
+	var pinfos []peerstore.PeerInfo
 	for _, p := range peers {
 		if p == pm.host.ID() {
 			continue
 		}
-		addrs = append(addrs, pm.filteredPeerAddrs(p)...)
+		pinfo := peerstore.PeerInfo{
+			ID:    p,
+			Addrs: pm.filteredPeerAddrs(p),
+		}
+		if len(pinfo.Addrs) > 0 {
+			pinfos = append(pinfos, pinfo)
+		}
 	}
-	return addrs
+
+	toSort := &peerSort{
+		pinfos: pinfos,
+		pstore: pm.host.Peerstore(),
+	}
+	// Sort from highest to lowest priority
+	sort.Sort(toSort)
+
+	return toSort.pinfos
 }
 
 // ImportPeers calls ImportPeer for every address in the given slice, using the
-// given connect parameter.
-func (pm *Manager) ImportPeers(addrs []ma.Multiaddr, connect bool) error {
-	for _, a := range addrs {
-		pm.ImportPeer(a, connect)
+// given connect parameter. Peers are tagged with priority as given
+// by their position in the list.
+func (pm *Manager) ImportPeers(addrs []ma.Multiaddr, connect bool, ttl time.Duration) error {
+	for i, a := range addrs {
+		pid, err := pm.ImportPeer(a, connect, ttl)
+		if err == nil {
+			pm.SetPriority(pid, i)
+		}
 	}
 	return nil
 }
 
 // ImportPeersFromPeerstore reads the peerstore file and calls ImportPeers with
 // the addresses obtained from it.
-func (pm *Manager) ImportPeersFromPeerstore(connect bool) error {
-	return pm.ImportPeers(pm.LoadPeerstore(), connect)
+func (pm *Manager) ImportPeersFromPeerstore(connect bool, ttl time.Duration) error {
+	return pm.ImportPeers(pm.LoadPeerstore(), connect, ttl)
 }
 
 // LoadPeerstore parses the peerstore file and returns the list
@@ -202,7 +217,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 
 // SavePeerstore stores a slice of multiaddresses in the peerstore file, one
 // per line.
-func (pm *Manager) SavePeerstore(addrs []api.Multiaddr) {
+func (pm *Manager) SavePeerstore(pinfos []peerstore.PeerInfo) {
 	if pm.peerstorePath == "" {
 		return
 	}
@@ -221,13 +236,95 @@ func (pm *Manager) SavePeerstore(addrs []api.Multiaddr) {
 	}
 	defer f.Close()
 
-	for _, a := range addrs {
-		f.Write([]byte(fmt.Sprintf("%s\n", a.Value().String())))
+	for _, pinfo := range pinfos {
+		addrs, err := peerstore.InfoToP2pAddrs(&pinfo)
+		if err != nil {
+			logger.Warning(err)
+			continue
+		}
+		for _, a := range addrs {
+			f.Write([]byte(fmt.Sprintf("%s\n", a.String())))
+		}
 	}
 }
 
-// SavePeerstoreForPeers calls PeersAddresses and then saves the peerstore
+// SavePeerstoreForPeers calls PeerInfos and then saves the peerstore
 // file using the result.
 func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) {
-	pm.SavePeerstore(pm.PeersAddresses(peers))
+	pm.SavePeerstore(pm.PeerInfos(peers))
+}
+
+// Bootstrap attempts to get as much as count connected peers by selecting
+// randomly from those in the libp2p host peerstore. It returns the number
+// if peers it sucessfully connected to.
+func (pm *Manager) Bootstrap(count int) int {
+	knownPeers := pm.host.Peerstore().PeersWithAddrs()
+	toSort := &peerSort{
+		pinfos: peerstore.PeerInfos(pm.host.Peerstore(), knownPeers),
+		pstore: pm.host.Peerstore(),
+	}
+
+	// Sort from highest to lowest priority
+	sort.Sort(toSort)
+
+	pinfos := toSort.pinfos
+	lenKnown := len(pinfos)
+	totalConns := 0
+
+	// keep conecting while we have peers in the store
+	// and we have not reached count.
+	for i := 0; i < lenKnown && totalConns < count; i++ {
+		pinfo := pinfos[i]
+		ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
+		defer cancel()
+
+		logger.Infof("connecting to %s", pinfo.ID)
+		err := pm.host.Connect(ctx, pinfo)
+		if err != nil {
+			logger.Warning(err)
+			pm.SetPriority(pinfo.ID, 9999)
+			continue
+		}
+		totalConns++
+	}
+	return totalConns
+}
+
+// SetPriority attaches a priority to a peer. 0 means more priority than
+// 1. 1 means more priority than 2 etc.
+func (pm *Manager) SetPriority(pid peer.ID, prio int) error {
+	return pm.host.Peerstore().Put(pid, PriorityTag, prio)
+}
+
+type peerSort struct {
+	pinfos []peerstore.PeerInfo
+	pstore peerstore.Peerstore
+}
+
+func (ps *peerSort) Len() int {
+	return len(ps.pinfos)
+}
+
+func (ps *peerSort) Less(i, j int) bool {
+	pinfo1 := ps.pinfos[i]
+	pinfo2 := ps.pinfos[j]
+
+	var prio1, prio2 int
+
+	prio1iface, err := ps.pstore.Get(pinfo1.ID, PriorityTag)
+	if err == nil {
+		prio1 = prio1iface.(int)
+	}
+	prio2iface, err := ps.pstore.Get(pinfo2.ID, PriorityTag)
+	if err == nil {
+		prio2 = prio2iface.(int)
+	}
+	return prio1 < prio2
+}
+
+func (ps *peerSort) Swap(i, j int) {
+	pinfo1 := ps.pinfos[i]
+	pinfo2 := ps.pinfos[j]
+	ps.pinfos[i] = pinfo2
+	ps.pinfos[j] = pinfo1
 }

@@ -155,11 +155,11 @@ func TestClustersPeerAdd(t *testing.T) {
 		addrs := c.peerManager.LoadPeerstore()
 		peerMap := make(map[peer.ID]struct{})
 		for _, a := range addrs {
-			pid, _, err := api.Libp2pMultiaddrSplit(a)
+			pinfo, err := peerstore.InfoFromP2pAddr(a)
 			if err != nil {
 				t.Fatal(err)
 			}
-			peerMap[pid] = struct{}{}
+			peerMap[pinfo.ID] = struct{}{}
 		}
 
 		if len(peerMap) == 0 {

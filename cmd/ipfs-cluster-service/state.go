@@ -73,7 +73,7 @@ func (raftsm *raftStateManager) ImportState(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	pm := pstoremgr.New(nil, raftsm.cfgs.clusterCfg.GetPeerstorePath())
+	pm := pstoremgr.New(context.Background(), nil, raftsm.cfgs.clusterCfg.GetPeerstorePath())
 	raftPeers := append(
 		ipfscluster.PeersFromMultiaddrs(pm.LoadPeerstore()),
 		raftsm.ident.ID,

@@ -4,10 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ipfs/ipfs-cluster/api"
-
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -18,14 +17,14 @@ func PeersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
 	var pids []peer.ID
 	pm := make(map[peer.ID]struct{})
 	for _, addr := range addrs {
-		pid, _, err := api.Libp2pMultiaddrSplit(addr)
+		pinfo, err := peerstore.InfoFromP2pAddr(addr)
 		if err != nil {
 			continue
 		}
-		_, ok := pm[pid]
+		_, ok := pm[pinfo.ID]
 		if !ok {
-			pm[pid] = struct{}{}
-			pids = append(pids, pid)
+			pm[pinfo.ID] = struct{}{}
+			pids = append(pids, pinfo.ID)
 		}
 	}
 	return pids
