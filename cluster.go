@@ -582,7 +582,6 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	}
 
 	c.cancel()
-	c.host.Close() // Shutdown all network services
 	c.wg.Wait()
 
 	// Cleanly close the datastore

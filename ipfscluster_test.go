@@ -392,6 +392,8 @@ func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 		if err != nil {
 			t.Error(err)
 		}
+		c.dht.Close()
+		c.host.Close()
 		m[i].Close()
 	}
 	os.RemoveAll(testsFolder)
