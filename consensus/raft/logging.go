@@ -1,10 +1,13 @@
 package raft
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"strings"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	logging "github.com/ipfs/go-log"
 )
 
@@ -14,6 +17,102 @@ const (
 	warn
 	err
 )
+
+var raftLogger = logging.Logger("raftlib")
+
+// this implements github.com/hashicorp/go-hclog
+type hcLogToLogger struct {
+	extraArgs []interface{}
+	name      string
+}
+
+func (log *hcLogToLogger) formatArgs(args []interface{}) string {
+	result := ""
+	args = append(args, log.extraArgs)
+	for i := 0; i < len(args); i = i + 2 {
+		key, ok := args[i].(string)
+		if !ok {
+			continue
+		}
+		val := args[i+1]
+		result += fmt.Sprintf(" %s=%s.", key, val)
+	}
+	return result
+}
+
+func (log *hcLogToLogger) format(msg string, args []interface{}) string {
+	argstr := log.formatArgs(args)
+	if len(argstr) > 0 {
+		argstr = ". Args: " + argstr
+	}
+	name := log.name
+	if len(name) > 0 {
+		name += ": "
+	}
+	return name + msg + argstr
+}
+
+func (log *hcLogToLogger) Trace(msg string, args ...interface{}) {
+	raftLogger.Debug(log.format(msg, args))
+}
+
+func (log *hcLogToLogger) Debug(msg string, args ...interface{}) {
+	raftLogger.Debug(log.format(msg, args))
+}
+
+func (log *hcLogToLogger) Info(msg string, args ...interface{}) {
+	raftLogger.Info(log.format(msg, args))
+}
+
+func (log *hcLogToLogger) Warn(msg string, args ...interface{}) {
+	raftLogger.Warning(log.format(msg, args))
+}
+
+func (log *hcLogToLogger) Error(msg string, args ...interface{}) {
+	raftLogger.Error(log.format(msg, args))
+}
+
+func (log *hcLogToLogger) IsTrace() bool {
+	return true
+}
+
+func (log *hcLogToLogger) IsDebug() bool {
+	return true
+}
+
+func (log *hcLogToLogger) IsInfo() bool {
+	return true
+}
+
+func (log *hcLogToLogger) IsWarn() bool {
+	return true
+}
+
+func (log *hcLogToLogger) IsError() bool {
+	return true
+}
+
+func (log *hcLogToLogger) With(args ...interface{}) hclog.Logger {
+	return &hcLogToLogger{extraArgs: args}
+}
+
+func (log *hcLogToLogger) Named(name string) hclog.Logger {
+	return &hcLogToLogger{name: log.name + ": " + name}
+}
+
+func (log *hcLogToLogger) ResetNamed(name string) hclog.Logger {
+	return &hcLogToLogger{name: name}
+}
+
+func (log *hcLogToLogger) SetLevel(level hclog.Level) {}
+
+func (log *hcLogToLogger) StandardLogger(opts *hclog.StandardLoggerOptions) *log.Logger {
+	return nil
+}
+
+func (log *hcLogToLogger) StandardWriter(opts *hclog.StandardLoggerOptions) io.Writer {
+	return nil
+}
 
 const repeatPoolSize = 10
 const repeatReset = time.Minute
@@ -26,7 +125,6 @@ type logForwarder struct {
 }
 
 var raftStdLogger = log.New(&logForwarder{}, "", 0)
-var raftLogger = logging.Logger("raftlib")
 
 // Write forwards to our go-log logger.
 // According to https://golang.org/pkg/log/#Logger.Output
