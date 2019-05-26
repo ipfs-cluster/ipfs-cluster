@@ -51,7 +51,6 @@ func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
 
@@ -81,7 +80,10 @@ func daemon(c *cli.Context) error {
 		cfgs.clusterCfg.LeaveOnShutdown = true
 	}
 
-	cluster, err := createCluster(ctx, c, ident, cfgs, raftStaging)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
+	checkErr("creating libp2p host", err)
+
+	cluster, err := createCluster(ctx, c, host, pubsub, dht, ident, cfgs, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -91,7 +93,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return handleSignals(ctx, cluster)
+	return handleSignals(ctx, cancel, cluster, host, dht)
 }
 
 // createCluster creates all the necessary things to produce the cluster
@@ -100,15 +102,15 @@ func daemon(c *cli.Context) error {
 func createCluster(
 	ctx context.Context,
 	c *cli.Context,
+	host host.Host,
+	pubsub *pubsub.PubSub,
+	dht *dht.IpfsDHT,
 	ident *config.Identity,
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
-	checkErr("creating libP2P Host", err)
-
-	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
 	checkErr("tag context with host id", err)
 
 	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
@@ -207,7 +209,13 @@ func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []m
 	}
 }
 
-func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
+func handleSignals(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	cluster *ipfscluster.Cluster,
+	host host.Host,
+	dht *dht.IpfsDHT,
+) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
 		signalChan,
@@ -223,6 +231,9 @@ func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
 			ctrlcCount++
 			handleCtrlC(ctx, cluster, ctrlcCount)
 		case <-cluster.Done():
+			cancel()
+			dht.Close()
+			host.Close()
 			return nil
 		}
 	}

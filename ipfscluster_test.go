@@ -392,6 +392,8 @@ func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 		if err != nil {
 			t.Error(err)
 		}
+		c.dht.Close()
+		c.host.Close()
 		m[i].Close()
 	}
 	os.RemoveAll(testsFolder)
@@ -703,6 +705,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 
 	// shutdown 1 cluster peer
 	clusters[1].Shutdown(ctx)
+	clusters[1].host.Close()
 	delay()
 
 	f := func(t *testing.T, c *Cluster) {
@@ -738,7 +741,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			}
 
 			if errst.Status != api.TrackerStatusClusterError {
-				t.Error("erroring status should be set to ClusterError")
+				t.Error("erroring status should be set to ClusterError:", errst.Status)
 			}
 
 			// now check with Cid status
@@ -750,7 +753,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			pinfo := status.PeerMap[pid]
 
 			if pinfo.Status != api.TrackerStatusClusterError {
-				t.Error("erroring status should be ClusterError")
+				t.Error("erroring status should be ClusterError:", pinfo.Status)
 			}
 
 			if !pinfo.Cid.Equals(h) {
@@ -1815,7 +1818,9 @@ func TestClustersGraphUnhealthy(t *testing.T) {
 	}
 
 	clusters[discon1].Shutdown(ctx)
+	clusters[discon1].host.Close()
 	clusters[discon2].Shutdown(ctx)
+	clusters[discon2].host.Close()
 
 	waitForLeaderAndMetrics(t, clusters)
 

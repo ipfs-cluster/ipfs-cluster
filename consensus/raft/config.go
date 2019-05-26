@@ -288,7 +288,7 @@ func (cfg *Config) Default() error {
 
 	// Set up logging
 	cfg.RaftConfig.LogOutput = ioutil.Discard
-	cfg.RaftConfig.Logger = raftStdLogger // see logging.go
+	cfg.RaftConfig.Logger = &hcLogToLogger{}
 	return nil
 }
 
