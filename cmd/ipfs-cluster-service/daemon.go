@@ -23,7 +23,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
-	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"go.opencensus.io/tag"
 
 	ds "github.com/ipfs/go-datastore"
@@ -112,13 +111,6 @@ func createCluster(
 
 	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
 	checkErr("tag context with host id", err)
-
-	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
-	// Import peers but do not connect. We cannot connect to peers until
-	// everything has been created (dht, pubsub, bitswap). Otherwise things
-	// fail.
-	// Connections will happen as needed during bootstrap, rpc etc.
-	peerstoreMgr.ImportPeersFromPeerstore(false)
 
 	api, err := rest.NewAPIWithHost(ctx, cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)

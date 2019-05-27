@@ -24,6 +24,7 @@ import (
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	peer "github.com/libp2p/go-libp2p-peer"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
@@ -36,7 +37,10 @@ import (
 // consensus layer.
 var ReadyTimeout = 30 * time.Second
 
-var pingMetricName = "ping"
+const (
+	pingMetricName = "ping"
+	bootstrapCount = 3
+)
 
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
@@ -116,9 +120,7 @@ func NewCluster(
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
 
-	// Note, we already loaded peers from peerstore into the host
-	// in daemon.go.
-	peerManager := pstoremgr.New(host, cfg.GetPeerstorePath())
+	peerManager := pstoremgr.New(ctx, host, cfg.GetPeerstorePath())
 
 	c := &Cluster{
 		ctx:         ctx,
@@ -144,6 +146,18 @@ func NewCluster(
 		readyB:      false,
 	}
 
+	// Import known cluster peers from peerstore file. Set
+	// a non permanent TTL.
+	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
+	// Attempt to connect to some peers (up to bootstrapCount)
+	actualCount := c.peerManager.Bootstrap(bootstrapCount)
+	// We cannot warn about this as this is normal if going to Join() later
+	logger.Debugf("bootstrap count %d", actualCount)
+	// Bootstrap the DHT now that we possibly have some connections
+	c.dht.Bootstrap(c.ctx)
+
+	// After setupRPC components can do their tasks with a fully operative
+	// routed libp2p host with some connections and a working DHT (hopefully).
 	err = c.setupRPC()
 	if err != nil {
 		c.Shutdown(ctx)
@@ -465,9 +479,6 @@ This might be due to one or several causes:
 
 	// Cluster is ready.
 
-	// Bootstrap the DHT now that we possibly have some connections
-	c.dht.Bootstrap(c.ctx)
-
 	peers, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
@@ -632,12 +643,24 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		peers, _ = c.consensus.Peers(ctx)
 	}
 
+	clusterPeerInfos := c.peerManager.PeerInfos(peers)
+	addresses := []api.Multiaddr{}
+	for _, pinfo := range clusterPeerInfos {
+		addrs, err := peerstore.InfoToP2pAddrs(&pinfo)
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			addresses = append(addresses, api.NewMultiaddrWithValue(a))
+		}
+	}
+
 	return &api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
 		ClusterPeers:          peers,
-		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
+		ClusterPeersAddresses: addresses,
 		Version:               version.Version.String(),
 		RPCProtocolVersion:    version.RPCProtocol,
 		IPFS:                  ipfsID,
@@ -720,19 +743,14 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 
 	logger.Debugf("Join(%s)", addr)
 
-	pid, _, err := api.Libp2pMultiaddrSplit(addr)
+	// Add peer to peerstore so we can talk to it (and connect)
+	pid, err := c.peerManager.ImportPeer(addr, true, peerstore.PermanentAddrTTL)
 	if err != nil {
-		logger.Error(err)
 		return err
 	}
-
-	// Bootstrap to myself
 	if pid == c.id {
 		return nil
 	}
-
-	// Add peer to peerstore so we can talk to it (and connect)
-	c.peerManager.ImportPeer(addr, true)
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not

@@ -75,9 +75,9 @@ test_problem: gx-deps
 
 $(sharness):
 	@echo "Downloading sharness"
-	@curl -L -s -o sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/master.tar.gz
+	@curl -L -s -o sharness/lib/sharness.tar.gz http://github.com/chriscool/sharness/archive/8fa4b9b0465d21b7ec114ec4528fa17f5a6eb361.tar.gz
 	@cd sharness/lib; tar -zxf sharness.tar.gz; cd ../..
-	@mv sharness/lib/sharness-master sharness/lib/sharness
+	@mv sharness/lib/sharness-8fa4b9b0465d21b7ec114ec4528fa17f5a6eb361 sharness/lib/sharness
 	@rm sharness/lib/sharness.tar.gz
 
 clean_sharness:
