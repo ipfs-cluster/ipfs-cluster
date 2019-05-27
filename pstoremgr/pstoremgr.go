@@ -256,7 +256,7 @@ func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) {
 
 // Bootstrap attempts to get as much as count connected peers by selecting
 // randomly from those in the libp2p host peerstore. It returns the number
-// if peers it sucessfully connected to.
+// of peers it successfully connected to.
 func (pm *Manager) Bootstrap(count int) int {
 	knownPeers := pm.host.Peerstore().PeersWithAddrs()
 	toSort := &peerSort{
@@ -296,6 +296,11 @@ func (pm *Manager) SetPriority(pid peer.ID, prio int) error {
 	return pm.host.Peerstore().Put(pid, PriorityTag, prio)
 }
 
+// peerSort is used to sort a slice of PinInfos given the PriorityTag in the
+// peerstore, from the lowest tag value (0 is the highest priority) to the
+// highest, Peers without a valid priority tag are considered as having a tag
+// with value 0, so they will be among the first elements in the resulting
+// slice.
 type peerSort struct {
 	pinfos []peerstore.PeerInfo
 	pstore peerstore.Peerstore

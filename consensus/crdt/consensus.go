@@ -102,12 +102,6 @@ func New(
 		readyCh:     make(chan struct{}, 1),
 	}
 
-	// Set up a fast-lookup trusted peers cache.
-	// Protect these peers in the ConnMgr
-	for _, p := range css.config.TrustedPeers {
-		css.Trust(ctx, p)
-	}
-
 	go css.setup()
 	return css, nil
 }
@@ -117,6 +111,12 @@ func (css *Consensus) setup() {
 	case <-css.ctx.Done():
 		return
 	case <-css.rpcReady:
+	}
+
+	// Set up a fast-lookup trusted peers cache.
+	// Protect these peers in the ConnMgr
+	for _, p := range css.config.TrustedPeers {
+		css.Trust(css.ctx, p)
 	}
 
 	// Hash the cluster name and produce the topic name from there
