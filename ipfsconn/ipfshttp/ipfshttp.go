@@ -423,7 +423,7 @@ func (ipfs *Connector) refsProgress(ctx context.Context, hash cid.Cid, maxDepth 
 
 		// We have a Ref!
 		if errStr := ref.Err; errStr != "" {
-			return errors.New(errStr)
+			logger.Error(errStr)
 		}
 
 		select { // do not lock
