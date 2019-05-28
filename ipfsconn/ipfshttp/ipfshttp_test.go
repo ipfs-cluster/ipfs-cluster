@@ -102,7 +102,6 @@ func testPin(t *testing.T, method string) {
 		if err == nil {
 			t.Error("expected error pinning cid")
 		}
-		fmt.Println("SlowCid1 " + err.Error())
 	}
 
 	if method == "pin" {
