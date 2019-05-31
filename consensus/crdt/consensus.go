@@ -302,6 +302,9 @@ func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 // IsTrustedPeer returns whether the given peer is taken into account
 // when submitting updates to the consensus state.
 func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
+	ctx, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
+	defer span.End()
+
 	if pid == css.host.ID() {
 		return true
 	}
@@ -314,6 +317,9 @@ func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
 // has the highest priority when the peerstore is saved, and it's addresses
 // are always remembered.
 func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/Trust")
+	defer span.End()
+
 	css.trustedPeers.Store(pid, struct{}{})
 	if conman := css.host.ConnManager(); conman != nil {
 		conman.Protect(pid, connMgrTag)
@@ -326,6 +332,9 @@ func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
 
 // Distrust removes a peer from the "trusted" set.
 func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/Distrust")
+	defer span.End()
+
 	css.trustedPeers.Delete(pid)
 	return nil
 }
@@ -340,6 +349,9 @@ func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 
 // LogUnpin removes a pin from the shared state.
 func (css *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/LogUnpin")
+	defer span.End()
+
 	return css.state.Rm(ctx, pin.Cid)
 }
 
@@ -347,6 +359,9 @@ func (css *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
 // the monitor component and considers every peer with
 // valid known metrics a member.
 func (css *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/Peers")
+	defer span.End()
+
 	var metrics []*api.Metric
 
 	err := css.rpcClient.CallContext(
