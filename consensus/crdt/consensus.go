@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	multihash "github.com/multiformats/go-multihash"
+	"go.opencensus.io/trace"
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
@@ -177,6 +178,9 @@ func (css *Consensus) setup() {
 	opts.DAGSyncerTimeout = time.Minute
 	opts.Logger = logger
 	opts.PutHook = func(k ds.Key, v []byte) {
+		ctx, span := trace.StartSpan(css.ctx, "crdt/PutHook")
+		defer span.End()
+
 		pin := &api.Pin{}
 		err := pin.ProtoUnmarshal(v)
 		if err != nil {
@@ -186,7 +190,7 @@ func (css *Consensus) setup() {
 
 		// TODO: tracing for this context
 		err = css.rpcClient.CallContext(
-			css.ctx,
+			ctx,
 			"",
 			"PinTracker",
 			"Track",
@@ -199,6 +203,9 @@ func (css *Consensus) setup() {
 		logger.Infof("new pin added: %s", pin.Cid)
 	}
 	opts.DeleteHook = func(k ds.Key) {
+		ctx, span := trace.StartSpan(css.ctx, "crdt/DeleteHook")
+		defer span.End()
+
 		c, err := dshelp.DsKeyToCid(k)
 		if err != nil {
 			logger.Error(err, k)
@@ -207,7 +214,7 @@ func (css *Consensus) setup() {
 		pin := api.PinCid(c)
 
 		err = css.rpcClient.CallContext(
-			css.ctx,
+			ctx,
 			"",
 			"PinTracker",
 			"Untrack",
@@ -325,6 +332,9 @@ func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
 
 // LogPin adds a new pin to the shared state.
 func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/LogPin")
+	defer span.End()
+
 	return css.state.Add(ctx, pin)
 }
 
