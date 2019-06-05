@@ -53,6 +53,12 @@ func TestIPFSPinStatusFromString(t *testing.T) {
 	}
 }
 
+func BenchmarkIPFSPinStatusFromString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		IPFSPinStatusFromString("indirect")
+	}
+}
+
 func TestMetric(t *testing.T) {
 	m := Metric{
 		Name:  "hello",
