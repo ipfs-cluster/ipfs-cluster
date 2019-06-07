@@ -162,6 +162,10 @@ func (ipfs *Connector) run() {
 	ipfs.shutdownLock.Lock()
 	defer ipfs.shutdownLock.Unlock()
 
+	if ipfs.config.ConnectSwarmsDelay == 0 {
+		return
+	}
+
 	// This runs ipfs swarm connect to the daemons of other cluster members
 	ipfs.wg.Add(1)
 	go func() {
@@ -403,16 +407,21 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash cid.Cid) (api.IPFSPinS
 	var res ipfsPinLsResp
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		logger.Error("parsing pin/ls?arg=cid response:")
+		logger.Error("error parsing pin/ls?arg=cid response:")
 		logger.Error(string(body))
 		return api.IPFSPinStatusError, err
 	}
-	pinObj, ok := res.Keys[hash.String()]
-	if !ok {
-		return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
-	}
 
-	return api.IPFSPinStatusFromString(pinObj.Type), nil
+	// We do not know what string format the returned key has so
+	// we parse as CID. There should only be one returned key.
+	for k, pinObj := range res.Keys {
+		c, err := cid.Decode(k)
+		if err != nil || !c.Equals(hash) {
+			continue
+		}
+		return api.IPFSPinStatusFromString(pinObj.Type), nil
+	}
+	return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
