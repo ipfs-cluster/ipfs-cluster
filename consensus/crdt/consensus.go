@@ -164,8 +164,6 @@ func (css *Consensus) setup() {
 		return
 	}
 
-	dagSyncer := newLiteDAGSyncer(css.ctx, ipfs)
-
 	broadcaster, err := crdt.NewPubSubBroadcaster(
 		css.ctx,
 		css.pubsub,
@@ -233,7 +231,7 @@ func (css *Consensus) setup() {
 	crdt, err := crdt.New(
 		css.store,
 		css.namespace,
-		dagSyncer,
+		ipfs,
 		broadcaster,
 		opts,
 	)
@@ -486,12 +484,10 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 		return nil, err
 	}
 
-	dags := newLiteDAGSyncer(context.Background(), ipfs)
-
 	crdt, err := crdt.New(
 		batching,
 		ds.NewKey(cfg.DatastoreNamespace),
-		dags,
+		ipfs,
 		nil,
 		opts,
 	)
