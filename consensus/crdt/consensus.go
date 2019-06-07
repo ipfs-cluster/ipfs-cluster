@@ -63,6 +63,7 @@ type Consensus struct {
 
 	state state.State
 	crdt  *crdt.Datastore
+	ipfs  *ipfslite.Peer
 
 	dht    *dht.IpfsDHT
 	pubsub *pubsub.PubSub
@@ -92,6 +93,25 @@ func New(
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var blocksDatastore ds.Batching
+	ns := ds.NewKey(cfg.DatastoreNamespace)
+	blocksDatastore = namespace.Wrap(store, ns.ChildString(blocksNs))
+
+	ipfs, err := ipfslite.New(
+		ctx,
+		blocksDatastore,
+		host,
+		dht,
+		&ipfslite.Config{
+			Offline: false,
+		},
+	)
+	if err != nil {
+		logger.Errorf("error creating ipfs-lite: %s", err)
+		cancel()
+		return nil, err
+	}
+
 	css := &Consensus{
 		ctx:         ctx,
 		cancel:      cancel,
@@ -100,7 +120,8 @@ func New(
 		peerManager: pstoremgr.New(ctx, host, ""),
 		dht:         dht,
 		store:       store,
-		namespace:   ds.NewKey(cfg.DatastoreNamespace),
+		ipfs:        ipfs,
+		namespace:   ns,
 		pubsub:      pubsub,
 		rpcReady:    make(chan struct{}, 1),
 		readyCh:     make(chan struct{}, 1),
@@ -145,23 +166,6 @@ func (css *Consensus) setup() {
 	)
 	if err != nil {
 		logger.Errorf("error registering topic validator: %s", err)
-	}
-
-	var blocksDatastore ds.Batching
-	blocksDatastore = namespace.Wrap(css.store, css.namespace.ChildString(blocksNs))
-
-	ipfs, err := ipfslite.New(
-		css.ctx,
-		blocksDatastore,
-		css.host,
-		css.dht,
-		&ipfslite.Config{
-			Offline: false,
-		},
-	)
-	if err != nil {
-		logger.Errorf("error creating ipfs-lite: %s", err)
-		return
 	}
 
 	broadcaster, err := crdt.NewPubSubBroadcaster(
@@ -231,7 +235,7 @@ func (css *Consensus) setup() {
 	crdt, err := crdt.New(
 		css.store,
 		css.namespace,
-		ipfs,
+		css.ipfs,
 		broadcaster,
 		opts,
 	)
