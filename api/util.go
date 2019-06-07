@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-
 	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -30,29 +28,6 @@ func StringsToPeers(strs []string) []peer.ID {
 		peers = append(peers, pid)
 	}
 	return peers
-}
-
-// Libp2pMultiaddrSplit takes a LibP2P multiaddress (/<multiaddr>/ipfs/<peerID>)
-// and decapsulates it, parsing the peer ID. Returns an error if there is
-// any problem (for example, the provided address not being a Libp2p one).
-func Libp2pMultiaddrSplit(addr ma.Multiaddr) (peer.ID, ma.Multiaddr, error) {
-	pid, err := addr.ValueForProtocol(ma.P_IPFS)
-	if err != nil {
-		err = fmt.Errorf("invalid peer multiaddress: %s: %s", addr, err)
-		logger.Error(err)
-		return "", nil, err
-	}
-
-	ipfs, _ := ma.NewMultiaddr("/ipfs/" + pid)
-	decapAddr := addr.Decapsulate(ipfs)
-
-	peerID, err := peer.IDB58Decode(pid)
-	if err != nil {
-		err = fmt.Errorf("invalid peer ID in multiaddress: %s: %s", pid, err)
-		logger.Error(err)
-		return "", nil, err
-	}
-	return peerID, decapAddr, nil
 }
 
 // MustLibp2pMultiaddrJoin takes a LibP2P multiaddress and a peer ID and

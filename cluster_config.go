@@ -32,7 +32,17 @@ const (
 	DefaultLeaveOnShutdown     = false
 	DefaultDisableRepinning    = false
 	DefaultPeerstoreFile       = "peerstore"
+	DefaultConnMgrHighWater    = 400
+	DefaultConnMgrLowWater     = 100
+	DefaultConnMgrGracePeriod  = 2 * time.Minute
 )
+
+// ConnMgrConfig configures the libp2p host connection manager.
+type ConnMgrConfig struct {
+	HighWater   int
+	LowWater    int
+	GracePeriod time.Duration
+}
 
 // Config is the configuration object containing customizable variables to
 // initialize the main ipfs-cluster component. It implements the
@@ -61,6 +71,10 @@ type Config struct {
 	// Listen parameters for the Cluster libp2p Host. Used by
 	// the RPC and Consensus components.
 	ListenAddr ma.Multiaddr
+
+	// ConnMgr holds configuration values for the connection manager
+	// for the libp2p host.
+	ConnMgr ConnMgrConfig
 
 	// Time between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
@@ -123,20 +137,28 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                   string `json:"id,omitempty"`
-	Peername             string `json:"peername"`
-	PrivateKey           string `json:"private_key,omitempty"`
-	Secret               string `json:"secret"`
-	LeaveOnShutdown      bool   `json:"leave_on_shutdown"`
-	ListenMultiaddress   string `json:"listen_multiaddress"`
-	StateSyncInterval    string `json:"state_sync_interval"`
-	IPFSSyncInterval     string `json:"ipfs_sync_interval"`
-	ReplicationFactorMin int    `json:"replication_factor_min"`
-	ReplicationFactorMax int    `json:"replication_factor_max"`
-	MonitorPingInterval  string `json:"monitor_ping_interval"`
-	PeerWatchInterval    string `json:"peer_watch_interval"`
-	DisableRepinning     bool   `json:"disable_repinning"`
-	PeerstoreFile        string `json:"peerstore_file,omitempty"`
+	ID                   string             `json:"id,omitempty"`
+	Peername             string             `json:"peername"`
+	PrivateKey           string             `json:"private_key,omitempty"`
+	Secret               string             `json:"secret"`
+	LeaveOnShutdown      bool               `json:"leave_on_shutdown"`
+	ListenMultiaddress   string             `json:"listen_multiaddress"`
+	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
+	StateSyncInterval    string             `json:"state_sync_interval"`
+	IPFSSyncInterval     string             `json:"ipfs_sync_interval"`
+	ReplicationFactorMin int                `json:"replication_factor_min"`
+	ReplicationFactorMax int                `json:"replication_factor_max"`
+	MonitorPingInterval  string             `json:"monitor_ping_interval"`
+	PeerWatchInterval    string             `json:"peer_watch_interval"`
+	DisableRepinning     bool               `json:"disable_repinning"`
+	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
+}
+
+// connMgrConfigJSON configures the libp2p host connection manager.
+type connMgrConfigJSON struct {
+	HighWater   int    `json:"high_water"`
+	LowWater    int    `json:"low_water"`
+	GracePeriod string `json:"grace_period"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -183,6 +205,22 @@ func (cfg *Config) ApplyEnvVars() error {
 func (cfg *Config) Validate() error {
 	if cfg.ListenAddr == nil {
 		return errors.New("cluster.listen_multiaddress is undefined")
+	}
+
+	if cfg.ConnMgr.LowWater <= 0 {
+		return errors.New("cluster.connection_manager.low_water is invalid")
+	}
+
+	if cfg.ConnMgr.HighWater <= 0 {
+		return errors.New("cluster.connection_manager.high_water is invalid")
+	}
+
+	if cfg.ConnMgr.LowWater > cfg.ConnMgr.HighWater {
+		return errors.New("cluster.connection_manager.low_water is greater than high_water")
+	}
+
+	if cfg.ConnMgr.GracePeriod == 0 {
+		return errors.New("cluster.connection_manager.grace_period is invalid")
 	}
 
 	if cfg.StateSyncInterval <= 0 {
@@ -273,6 +311,11 @@ func (cfg *Config) setDefaults() {
 
 	addr, _ := ma.NewMultiaddr(DefaultListenAddr)
 	cfg.ListenAddr = addr
+	cfg.ConnMgr = ConnMgrConfig{
+		HighWater:   DefaultConnMgrHighWater,
+		LowWater:    DefaultConnMgrLowWater,
+		GracePeriod: DefaultConnMgrGracePeriod,
+	}
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
 	cfg.IPFSSyncInterval = DefaultIPFSSyncInterval
@@ -319,6 +362,19 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		return err
 	}
 	cfg.ListenAddr = clusterAddr
+
+	if conman := jcfg.ConnectionManager; conman != nil {
+		cfg.ConnMgr = ConnMgrConfig{
+			HighWater: jcfg.ConnectionManager.HighWater,
+			LowWater:  jcfg.ConnectionManager.LowWater,
+		}
+		err = config.ParseDurations("cluster",
+			&config.DurationOpt{Duration: jcfg.ConnectionManager.GracePeriod, Dst: &cfg.ConnMgr.GracePeriod, Name: "connection_manager.grace_period"},
+		)
+		if err != nil {
+			return err
+		}
+	}
 
 	rplMin := jcfg.ReplicationFactorMin
 	rplMax := jcfg.ReplicationFactorMax
@@ -369,6 +425,11 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.ReplicationFactorMax = cfg.ReplicationFactorMax
 	jcfg.LeaveOnShutdown = cfg.LeaveOnShutdown
 	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
+	jcfg.ConnectionManager = &connMgrConfigJSON{
+		HighWater:   cfg.ConnMgr.HighWater,
+		LowWater:    cfg.ConnMgr.LowWater,
+		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
+	}
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()
 	jcfg.IPFSSyncInterval = cfg.IPFSSyncInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()

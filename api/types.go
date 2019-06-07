@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -191,14 +190,13 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-	// Since indirect statuses are of the form "indirect through <cid>",
-	// use a regexp to match
-	var ind, _ = regexp.MatchString("^indirect", t)
-	var rec, _ = regexp.MatchString("^recursive", t)
+	// Since indirect statuses are of the form "indirect through <cid>"
+	// use a prefix match
+
 	switch {
-	case ind:
+	case strings.HasPrefix(t, "indirect"):
 		return IPFSPinStatusIndirect
-	case rec:
+	case strings.HasPrefix(t, "recursive"):
 		// FIXME: Maxdepth?
 		return IPFSPinStatusRecursive
 	case t == "direct":
