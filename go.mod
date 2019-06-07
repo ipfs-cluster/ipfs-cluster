@@ -5,6 +5,8 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/dgraph-io/badger v2.0.0-rc.2+incompatible
+	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.3.1
@@ -17,6 +19,7 @@ require (
 	github.com/hsanjuan/go-libp2p-gostream v0.0.34
 	github.com/hsanjuan/go-libp2p-http v0.0.5
 	github.com/hsanjuan/ipfs-lite v0.0.8
+	github.com/imdario/mergo v0.3.7
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.2
 	github.com/ipfs/go-datastore v0.0.5
