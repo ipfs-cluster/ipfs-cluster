@@ -150,9 +150,18 @@ func NewCluster(
 	// a non permanent TTL.
 	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
 	// Attempt to connect to some peers (up to bootstrapCount)
-	actualCount := c.peerManager.Bootstrap(bootstrapCount)
-	// We cannot warn about this as this is normal if going to Join() later
-	logger.Debugf("bootstrap count %d", actualCount)
+	connectedPeers := c.peerManager.Bootstrap(bootstrapCount)
+	// We cannot warn when count is low as this as this is normal if going
+	// to Join() later.
+	logger.Debugf("bootstrap count %d", len(connectedPeers))
+	// Log a ping metric for every connected peer. This will make them
+	// visible as peers without having to wait for them to send one.
+	for _, p := range connectedPeers {
+		if err := c.logPingMetric(ctx, p); err != nil {
+			logger.Warning(err)
+		}
+	}
+
 	// Bootstrap the DHT now that we possibly have some connections
 	c.dht.Bootstrap(c.ctx)
 
@@ -293,6 +302,27 @@ func (c *Cluster) sendPingMetric(ctx context.Context) (*api.Metric, error) {
 	}
 	metric.SetTTL(c.config.MonitorPingInterval * 2)
 	return metric, c.monitor.PublishMetric(ctx, metric)
+}
+
+// logPingMetric logs a ping metric as if it had been sent from PID.  It is
+// used to make peers appear available as soon as we connect to them (without
+// having to wait for them to broadcast a metric).
+//
+// We avoid specifically sending a metric to a peer when we "connect" to it
+// because: a) this requires an extra. OPEN RPC endpoint (LogMetric) that can
+// be called by everyone b) We have no way of verifying that the peer ID in a
+// metric pushed is actually the issuer of the metric (something the regular
+// "pubsub" way of pushing metrics allows (by verifying the signature on the
+// message). Thus, this reduces chances of abuse until we have something
+// better.
+func (c *Cluster) logPingMetric(ctx context.Context, pid peer.ID) error {
+	m := &api.Metric{
+		Name:  pingMetricName,
+		Peer:  pid,
+		Valid: true,
+	}
+	m.SetTTL(c.config.MonitorPingInterval * 2)
+	return c.monitor.LogMetric(ctx, m)
 }
 
 func (c *Cluster) pushPingMetrics(ctx context.Context) {
@@ -773,13 +803,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// contacting. This will signal a CRDT component that
 	// we know that peer since we have metrics for it without
 	// having to wait for the next metric round.
-	m := &api.Metric{
-		Name:  pingMetricName,
-		Peer:  pid,
-		Valid: true,
-	}
-	m.SetTTL(c.config.MonitorPingInterval * 2)
-	if err := c.monitor.LogMetric(ctx, m); err != nil {
+	if err := c.logPingMetric(ctx, pid); err != nil {
 		logger.Warning(err)
 	}
 
