@@ -173,7 +173,12 @@ func NewCluster(
 		return nil, err
 	}
 	c.setupRPCClients()
+
+	// Note: It is very important to first call Add() once in a non-racy
+	// place
+	c.wg.Add(1)
 	go func() {
+		defer c.wg.Done()
 		c.ready(ReadyTimeout)
 		c.run()
 	}()
@@ -464,11 +469,35 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 
 // run launches some go-routines which live throughout the cluster's life
 func (c *Cluster) run() {
-	go c.syncWatcher()
-	go c.pushPingMetrics(c.ctx)
-	go c.pushInformerMetrics(c.ctx)
-	go c.watchPeers()
-	go c.alertsHandler()
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.syncWatcher()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.pushPingMetrics(c.ctx)
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.pushInformerMetrics(c.ctx)
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.watchPeers()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.alertsHandler()
+	}()
 }
 
 func (c *Cluster) ready(timeout time.Duration) {
