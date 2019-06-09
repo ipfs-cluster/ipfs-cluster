@@ -16,6 +16,7 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
+	net "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
@@ -279,6 +280,13 @@ func (pm *Manager) Bootstrap(count int) []peer.ID {
 		ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
 		defer cancel()
 
+		if pm.host.Network().Connectedness(pinfo.ID) == net.Connected {
+			// We are connected, assume success and do not try
+			// to re-connect
+			totalConns++
+			continue
+		}
+
 		logger.Infof("connecting to %s", pinfo.ID)
 		err := pm.host.Connect(ctx, pinfo)
 		if err != nil {
@@ -286,6 +294,7 @@ func (pm *Manager) Bootstrap(count int) []peer.ID {
 			pm.SetPriority(pinfo.ID, 9999)
 			continue
 		}
+		logger.Infof("connected to %s", pinfo.ID)
 		totalConns++
 		success = append(success, pinfo.ID)
 	}

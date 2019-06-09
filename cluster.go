@@ -38,8 +38,9 @@ import (
 var ReadyTimeout = 30 * time.Second
 
 const (
-	pingMetricName = "ping"
-	bootstrapCount = 3
+	pingMetricName      = "ping"
+	bootstrapCount      = 3
+	reBootstrapInterval = 30 * time.Second
 )
 
 // Cluster is the main IPFS cluster component. It provides
@@ -405,6 +406,7 @@ func (c *Cluster) shouldPeerRepinCid(failed peer.ID, pin *api.Pin) bool {
 // detects that we have been removed from the peerset, it shuts down this peer.
 func (c *Cluster) watchPeers() {
 	ticker := time.NewTicker(c.config.PeerWatchInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -432,6 +434,26 @@ func (c *Cluster) watchPeers() {
 				c.removed = true
 				go c.Shutdown(c.ctx)
 				return
+			}
+		}
+	}
+}
+
+// reBootstrap reguarly attempts to bootstrap (re-connect to peers from the
+// peerstore). This should ensure that we auto-recover from situations in
+// which the network was completely gone and we lost all peers.
+func (c *Cluster) reBootstrap() {
+	ticker := time.NewTicker(reBootstrapInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			connected := c.peerManager.Bootstrap(bootstrapCount)
+			for _, p := range connected {
+				logger.Infof("reconnected to %s", p)
 			}
 		}
 	}
@@ -497,6 +519,12 @@ func (c *Cluster) run() {
 	go func() {
 		defer c.wg.Done()
 		c.alertsHandler()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.reBootstrap()
 	}()
 }
 
