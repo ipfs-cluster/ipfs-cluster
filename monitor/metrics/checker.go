@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -173,31 +174,60 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 // Peers that are not present in the metrics store will return
 // as failed.
 func (mc *Checker) Failed(pid peer.ID) bool {
-	_, _, _, result := mc.failed("ping", pid)
+	_, _, _, result := mc.failed("ping", pid, false)
 	return result
 }
 
 // FailedMetric is the same as Failed but can use any metric type,
 // not just ping.
 func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
-	_, _, _, result := mc.failed(metric, pid)
+	_, _, _, result := mc.failed(metric, pid, false)
 	return result
 }
 
 // failed returns all the values involved in making the decision
-// as to whether a peer has failed or not. This mainly for debugging
-// purposes.
-func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float64, bool) {
+// as to whether a peer has failed or not. The debugging parameter
+// enables a more computation heavy path of the function but
+// allows for insight into the return phi value.
+// This should not be used for anything other than testing.
+func (mc *Checker) failed(metric string, pid peer.ID, debugging bool) (float64, []float64, float64, bool) {
 	latest := mc.metrics.PeerLatest(metric, pid)
 	if latest == nil {
 		return 0.0, nil, 0.0, true
 	}
+
+	// the invalidTTL check prevents false-positive results
+	// where multiple metrics closer together skew the distribution
+	// to be less than that of the TTL value of the metrics
+	pmtrs := mc.metrics.PeerMetricAll(metric, pid)
+	var withinTTL bool
+	switch {
+	case len(pmtrs) == 1:
+		if pmtrs[0].Expired() {
+			return 0.0, nil, 0.0, true
+		}
+		return 0.0, nil, 0.0, false
+	case len(pmtrs) >= 2:
+		currMetricExpiry := time.Unix(0, pmtrs[1].Expire)
+		prevMetricReceived := time.Unix(0, pmtrs[0].ReceivedAt)
+		withinTTL = prevMetricReceived.Before(currMetricExpiry)
+		if withinTTL && !debugging {
+			return 0.0, nil, 0.0, false
+		}
+		if debugging {
+			fmt.Printf("validTTL: %v\texp: %v,\tra: %v\n", withinTTL, currMetricExpiry, prevMetricReceived)
+		}
+	}
+
 	v := time.Now().UnixNano() - latest.ReceivedAt
 	dv := mc.metrics.Distribution(metric, pid)
 	// one metric isn't enough to calculate a distribution
 	// alerting/failure detection will fallback to the metric-expiring
 	// method
 	switch {
+	case withinTTL && debugging:
+		phiv := phi(float64(v), dv)
+		return float64(v), dv, phiv, false
 	case len(dv) < 5 && !latest.Expired():
 		return float64(v), dv, 0.0, false
 	default:
