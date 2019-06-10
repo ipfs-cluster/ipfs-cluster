@@ -39,6 +39,7 @@ var LoggingFacilities = map[string]string{
 	"localdags":    "INFO",
 	"adder":        "INFO",
 	"optracker":    "INFO",
+	"pstoremgr":    "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers

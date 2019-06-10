@@ -27,7 +27,6 @@ require (
 	github.com/ipfs/go-ds-crdt v0.0.14
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.1
-	github.com/ipfs/go-ipfs-blockstore v0.0.1
 	github.com/ipfs/go-ipfs-chunker v0.0.1
 	github.com/ipfs/go-ipfs-ds-help v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.3
@@ -50,6 +49,7 @@ require (
 	github.com/libp2p/go-libp2p-host v0.0.3
 	github.com/libp2p/go-libp2p-interface-pnet v0.0.1
 	github.com/libp2p/go-libp2p-kad-dht v0.0.14
+	github.com/libp2p/go-libp2p-net v0.0.2
 	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.0
 	github.com/libp2p/go-libp2p-pnet v0.0.1

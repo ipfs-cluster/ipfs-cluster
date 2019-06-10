@@ -16,6 +16,7 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	host "github.com/libp2p/go-libp2p-host"
+	net "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
@@ -254,10 +255,10 @@ func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) {
 	pm.SavePeerstore(pm.PeerInfos(peers))
 }
 
-// Bootstrap attempts to get as much as count connected peers by selecting
-// randomly from those in the libp2p host peerstore. It returns the number
-// of peers it successfully connected to.
-func (pm *Manager) Bootstrap(count int) int {
+// Bootstrap attempts to get up to "count" connected peers by trying those
+// in the peerstore in priority order. It returns the list of peers it managed
+// to connect to.
+func (pm *Manager) Bootstrap(count int) []peer.ID {
 	knownPeers := pm.host.Peerstore().PeersWithAddrs()
 	toSort := &peerSort{
 		pinfos: peerstore.PeerInfos(pm.host.Peerstore(), knownPeers),
@@ -270,6 +271,7 @@ func (pm *Manager) Bootstrap(count int) int {
 	pinfos := toSort.pinfos
 	lenKnown := len(pinfos)
 	totalConns := 0
+	connectedPeers := []peer.ID{}
 
 	// keep conecting while we have peers in the store
 	// and we have not reached count.
@@ -278,6 +280,13 @@ func (pm *Manager) Bootstrap(count int) int {
 		ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
 		defer cancel()
 
+		if pm.host.Network().Connectedness(pinfo.ID) == net.Connected {
+			// We are connected, assume success and do not try
+			// to re-connect
+			totalConns++
+			continue
+		}
+
 		logger.Infof("connecting to %s", pinfo.ID)
 		err := pm.host.Connect(ctx, pinfo)
 		if err != nil {
@@ -285,9 +294,11 @@ func (pm *Manager) Bootstrap(count int) int {
 			pm.SetPriority(pinfo.ID, 9999)
 			continue
 		}
+		logger.Infof("connected to %s", pinfo.ID)
 		totalConns++
+		connectedPeers = append(connectedPeers, pinfo.ID)
 	}
-	return totalConns
+	return connectedPeers
 }
 
 // SetPriority attaches a priority to a peer. 0 means more priority than
