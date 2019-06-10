@@ -58,7 +58,7 @@ var testingRaftCfg = []byte(`{
 
 var testingCrdtCfg = []byte(`{
     "cluster_name": "crdt-test",
-    "trusted_peers": [],
+    "trusted_peers": ["*"],
     "rebroadcast_interval": "150ms"
 }`)
 

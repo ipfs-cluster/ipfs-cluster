@@ -34,6 +34,10 @@ type Config struct {
 	// The topic we wish to subscribe to
 	ClusterName string
 
+	// TrustAll specifies whether we should trust all peers regardless of
+	// the TrustedPeers contents.
+	TrustAll bool
+
 	// Any update received from a peer outside this set is ignored and not
 	// forwarded. Trusted peers can also access additional RPC endpoints
 	// for this peer that are forbidden for other peers.
@@ -100,9 +104,17 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	cfg.ClusterName = jcfg.ClusterName
 
-	cfg.TrustedPeers = api.StringsToPeers(jcfg.TrustedPeers)
-	if len(cfg.TrustedPeers) != len(jcfg.TrustedPeers) {
-		return errors.New("error parsing some peer IDs crdt.trusted_peers")
+	for _, p := range jcfg.TrustedPeers {
+		if p == "*" {
+			cfg.TrustAll = true
+			cfg.TrustedPeers = []peer.ID{}
+			break
+		}
+		pid, err := peer.IDB58Decode(p)
+		if err != nil {
+			return fmt.Errorf("error parsing trusted peers: %s", err)
+		}
+		cfg.TrustedPeers = append(cfg.TrustedPeers, pid)
 	}
 
 	config.SetIfNotDefault(jcfg.PeersetMetric, &cfg.PeersetMetric)
@@ -153,6 +165,7 @@ func (cfg *Config) Default() error {
 	cfg.PeersetMetric = DefaultPeersetMetric
 	cfg.DatastoreNamespace = DefaultDatastoreNamespace
 	cfg.TrustedPeers = DefaultTrustedPeers
+	cfg.TrustAll = false
 	return nil
 }
 

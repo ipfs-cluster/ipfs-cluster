@@ -308,9 +308,14 @@ func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
 	ctx, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
 	defer span.End()
 
+	if css.config.TrustAll {
+		return true
+	}
+
 	if pid == css.host.ID() {
 		return true
 	}
+
 	_, ok := css.trustedPeers.Load(pid)
 	return ok
 }

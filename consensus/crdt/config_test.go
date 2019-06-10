@@ -18,6 +18,9 @@ func TestLoadJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if cfg.TrustAll {
+		t.Error("expected TrustAll to be false")
+	}
 
 	cfg = &Config{}
 	err = cfg.LoadJSON([]byte(`
@@ -28,6 +31,19 @@ func TestLoadJSON(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error parsing trusted_peers")
+	}
+
+	cfg = &Config{}
+	err = cfg.LoadJSON([]byte(`
+{
+    "cluster_name": "test",
+    "trusted_peers": ["QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6", "*"]
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.TrustAll {
+		t.Error("expected TrustAll to be true")
 	}
 }
 
