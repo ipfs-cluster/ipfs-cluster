@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -26,6 +27,9 @@ type Checker struct {
 	alertCh   chan *api.Alert
 	metrics   *Store
 	threshold float64
+
+	failedPeersMu sync.Mutex
+	failedPeers   map[peer.ID]bool
 }
 
 // NewChecker creates a Checker using the given
@@ -36,10 +40,11 @@ type Checker struct {
 // A value between 2.0 and 4.0 is suggested for the threshold.
 func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker {
 	return &Checker{
-		ctx:       ctx,
-		alertCh:   make(chan *api.Alert, AlertChannelCap),
-		metrics:   metrics,
-		threshold: threshold,
+		ctx:         ctx,
+		alertCh:     make(chan *api.Alert, AlertChannelCap),
+		metrics:     metrics,
+		threshold:   threshold,
+		failedPeers: make(map[peer.ID]bool),
 	}
 }
 
@@ -89,6 +94,15 @@ func (mc *Checker) alertIfExpired(metric *api.Metric) error {
 }
 
 func (mc *Checker) alert(pid peer.ID, metricName string) error {
+	mc.failedPeersMu.Lock()
+	if mc.failedPeers[pid] {
+		mc.metrics.RemovePeer(pid)
+		delete(mc.failedPeers, pid)
+		return nil
+	}
+	mc.failedPeers[pid] = true
+	mc.failedPeersMu.Unlock()
+
 	alrt := &api.Alert{
 		Peer:       pid,
 		MetricName: metricName,
