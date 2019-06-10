@@ -19,7 +19,7 @@ var AlertChannelCap = 256
 
 // MaxAlertThreshold specifies how many alerts will occur per a peer is
 // removed the list of monitored peers.
-var MaxAlertThreshold = 5
+var MaxAlertThreshold = 1
 
 // ErrAlertChannelFull is returned if the alert channel is full.
 var ErrAlertChannelFull = errors.New("alert channel is full")
