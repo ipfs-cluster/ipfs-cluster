@@ -141,8 +141,8 @@ func TestChecker_alert(t *testing.T) {
 			case a := <-checker.Alerts():
 				t.Log("received alert:", a)
 				alertCount++
-				if alertCount > 1 {
-					t.Fatal("there should no more than one alert")
+				if alertCount > MaxAlertThreshold {
+					t.Fatalf("there should no more than %d alert", MaxAlertThreshold)
 				}
 			case <-ctx.Done():
 				if alertCount < 1 {

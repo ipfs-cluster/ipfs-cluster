@@ -17,6 +17,10 @@ import (
 // AlertChannelCap specifies how much buffer the alerts channel has.
 var AlertChannelCap = 256
 
+// MaxAlertThreshold specifies how many alerts will occur per a peer is
+// removed the list of monitored peers.
+var MaxAlertThreshold = 5
+
 // ErrAlertChannelFull is returned if the alert channel is full.
 var ErrAlertChannelFull = errors.New("alert channel is full")
 
@@ -28,8 +32,10 @@ type Checker struct {
 	metrics   *Store
 	threshold float64
 
+	alertThreshold int
+
 	failedPeersMu sync.Mutex
-	failedPeers   map[peer.ID]bool
+	failedPeers   map[peer.ID]int
 }
 
 // NewChecker creates a Checker using the given
@@ -44,7 +50,7 @@ func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker
 		alertCh:     make(chan *api.Alert, AlertChannelCap),
 		metrics:     metrics,
 		threshold:   threshold,
-		failedPeers: make(map[peer.ID]bool),
+		failedPeers: make(map[peer.ID]int),
 	}
 }
 
@@ -66,7 +72,7 @@ func (mc *Checker) CheckPeers(peers []peer.ID) error {
 
 // CheckAll will trigger alerts for all latest metrics when they have expired
 // and no alert has been sent before.
-func (mc Checker) CheckAll() error {
+func (mc *Checker) CheckAll() error {
 	for _, metric := range mc.metrics.AllMetrics() {
 		if mc.FailedMetric(metric.Name, metric.Peer) {
 			err := mc.alert(metric.Peer, metric.Name)
@@ -95,13 +101,13 @@ func (mc *Checker) alertIfExpired(metric *api.Metric) error {
 
 func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	mc.failedPeersMu.Lock()
-	if mc.failedPeers[pid] {
+	defer mc.failedPeersMu.Unlock()
+	if mc.failedPeers[pid] >= MaxAlertThreshold {
 		mc.metrics.RemovePeer(pid)
 		delete(mc.failedPeers, pid)
 		return nil
 	}
-	mc.failedPeers[pid] = true
-	mc.failedPeersMu.Unlock()
+	mc.failedPeers[pid]++
 
 	alrt := &api.Alert{
 		Peer:       pid,
