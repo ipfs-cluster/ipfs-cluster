@@ -271,7 +271,7 @@ func (pm *Manager) Bootstrap(count int) []peer.ID {
 	pinfos := toSort.pinfos
 	lenKnown := len(pinfos)
 	totalConns := 0
-	success := []peer.ID{}
+	connectedPeers := []peer.ID{}
 
 	// keep conecting while we have peers in the store
 	// and we have not reached count.
@@ -296,9 +296,9 @@ func (pm *Manager) Bootstrap(count int) []peer.ID {
 		}
 		logger.Infof("connected to %s", pinfo.ID)
 		totalConns++
-		success = append(success, pinfo.ID)
+		connectedPeers = append(connectedPeers, pinfo.ID)
 	}
-	return success
+	return connectedPeers
 }
 
 // SetPriority attaches a priority to a peer. 0 means more priority than
