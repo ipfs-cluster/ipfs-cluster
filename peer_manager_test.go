@@ -101,15 +101,6 @@ func TestClustersPeerAdd(t *testing.T) {
 			t.Log(i, id.ClusterPeers)
 			t.Fatal("cluster peers should be up to date with the cluster")
 		}
-
-		for j := 0; j < i; j++ {
-			if err := clusters[j].consensus.Trust(ctx, clusters[i].id); err != nil {
-				t.Fatal(err)
-			}
-			if err := clusters[i].consensus.Trust(ctx, clusters[j].id); err != nil {
-				t.Fatal(err)
-			}
-		}
 	}
 
 	h := test.Cid1
@@ -523,15 +514,6 @@ func TestClustersPeerJoin(t *testing.T) {
 	}
 
 	for i := 1; i < len(clusters); i++ {
-		for j := 0; j < i; j++ {
-			if err := clusters[j].consensus.Trust(ctx, clusters[i].id); err != nil {
-				t.Fatal(err)
-			}
-			if err := clusters[i].consensus.Trust(ctx, clusters[j].id); err != nil {
-				t.Fatal(err)
-			}
-		}
-
 		err := clusters[i].Join(ctx, clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
@@ -578,10 +560,6 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	}
 
 	f := func(t *testing.T, c *Cluster) {
-		if err := c.consensus.Trust(ctx, clusters[0].id); err != nil {
-			t.Fatal(err)
-		}
-
 		err := c.Join(ctx, clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
@@ -674,15 +652,6 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// add all clusters
 	for i := 1; i < len(clusters); i++ {
-		for j := 0; j < i; j++ {
-			if err := clusters[j].consensus.Trust(ctx, clusters[i].id); err != nil {
-				t.Fatal(err)
-			}
-			if err := clusters[i].consensus.Trust(ctx, clusters[j].id); err != nil {
-				t.Fatal(err)
-			}
-		}
-
 		err := clusters[i].Join(ctx, clusterAddr(clusters[0]))
 		if err != nil {
 			t.Fatal(err)
@@ -730,7 +699,6 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	delay()
 
-	c0.consensus.Trust(ctx, clusters[1].id)
 	err = c0.Join(ctx, clusterAddr(clusters[1]))
 	if err != nil {
 		t.Fatal(err)
