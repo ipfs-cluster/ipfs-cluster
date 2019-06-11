@@ -65,6 +65,7 @@ func (log *hcLogToLogger) Info(msg string, args ...interface{}) {
 }
 
 func (log *hcLogToLogger) Warn(msg string, args ...interface{}) {
+	fmt.Println(msg)
 	raftLogger.Warning(log.format(msg, args))
 }
 

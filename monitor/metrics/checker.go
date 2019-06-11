@@ -35,7 +35,7 @@ type Checker struct {
 	alertThreshold int
 
 	failedPeersMu sync.Mutex
-	failedPeers   map[peer.ID]int
+	failedPeers   map[peer.ID]map[string]int
 }
 
 // NewChecker creates a Checker using the given
@@ -50,7 +50,7 @@ func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker
 		alertCh:     make(chan *api.Alert, AlertChannelCap),
 		metrics:     metrics,
 		threshold:   threshold,
-		failedPeers: make(map[peer.ID]int),
+		failedPeers: make(map[peer.ID]map[string]int),
 	}
 }
 
@@ -102,12 +102,25 @@ func (mc *Checker) alertIfExpired(metric *api.Metric) error {
 func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	mc.failedPeersMu.Lock()
 	defer mc.failedPeersMu.Unlock()
-	if mc.failedPeers[pid] >= MaxAlertThreshold {
-		mc.metrics.RemovePeer(pid)
-		delete(mc.failedPeers, pid)
+
+	_, ok := mc.failedPeers[pid]
+	if !ok {
+		mc.failedPeers[pid] = make(map[string]int)
+	}
+	failedMetrics := mc.failedPeers[pid]
+
+	// If above threshold, remove all metrics for that peer
+	// and clean up failedPeers when no failed metrics are left.
+	if failedMetrics[metricName] >= MaxAlertThreshold {
+		mc.metrics.RemovePeerMetrics(pid, metricName)
+		delete(failedMetrics, metricName)
+		if len(mc.failedPeers[pid]) == 0 {
+			delete(mc.failedPeers, pid)
+		}
 		return nil
 	}
-	mc.failedPeers[pid]++
+
+	failedMetrics[metricName]++
 
 	alrt := &api.Alert{
 		Peer:       pid,
