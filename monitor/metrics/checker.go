@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -16,6 +17,10 @@ import (
 // AlertChannelCap specifies how much buffer the alerts channel has.
 var AlertChannelCap = 256
 
+// MaxAlertThreshold specifies how many alerts will occur per a peer is
+// removed the list of monitored peers.
+var MaxAlertThreshold = 1
+
 // ErrAlertChannelFull is returned if the alert channel is full.
 var ErrAlertChannelFull = errors.New("alert channel is full")
 
@@ -26,6 +31,11 @@ type Checker struct {
 	alertCh   chan *api.Alert
 	metrics   *Store
 	threshold float64
+
+	alertThreshold int
+
+	failedPeersMu sync.Mutex
+	failedPeers   map[peer.ID]map[string]int
 }
 
 // NewChecker creates a Checker using the given
@@ -36,10 +46,11 @@ type Checker struct {
 // A value between 2.0 and 4.0 is suggested for the threshold.
 func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker {
 	return &Checker{
-		ctx:       ctx,
-		alertCh:   make(chan *api.Alert, AlertChannelCap),
-		metrics:   metrics,
-		threshold: threshold,
+		ctx:         ctx,
+		alertCh:     make(chan *api.Alert, AlertChannelCap),
+		metrics:     metrics,
+		threshold:   threshold,
+		failedPeers: make(map[peer.ID]map[string]int),
 	}
 }
 
@@ -61,7 +72,7 @@ func (mc *Checker) CheckPeers(peers []peer.ID) error {
 
 // CheckAll will trigger alerts for all latest metrics when they have expired
 // and no alert has been sent before.
-func (mc Checker) CheckAll() error {
+func (mc *Checker) CheckAll() error {
 	for _, metric := range mc.metrics.AllMetrics() {
 		if mc.FailedMetric(metric.Name, metric.Peer) {
 			err := mc.alert(metric.Peer, metric.Name)
@@ -89,6 +100,28 @@ func (mc *Checker) alertIfExpired(metric *api.Metric) error {
 }
 
 func (mc *Checker) alert(pid peer.ID, metricName string) error {
+	mc.failedPeersMu.Lock()
+	defer mc.failedPeersMu.Unlock()
+
+	_, ok := mc.failedPeers[pid]
+	if !ok {
+		mc.failedPeers[pid] = make(map[string]int)
+	}
+	failedMetrics := mc.failedPeers[pid]
+
+	// If above threshold, remove all metrics for that peer
+	// and clean up failedPeers when no failed metrics are left.
+	if failedMetrics[metricName] >= MaxAlertThreshold {
+		mc.metrics.RemovePeerMetrics(pid, metricName)
+		delete(failedMetrics, metricName)
+		if len(mc.failedPeers[pid]) == 0 {
+			delete(mc.failedPeers, pid)
+		}
+		return nil
+	}
+
+	failedMetrics[metricName]++
+
 	alrt := &api.Alert{
 		Peer:       pid,
 		MetricName: metricName,

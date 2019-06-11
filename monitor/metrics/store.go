@@ -47,6 +47,23 @@ func (mtrs *Store) Add(m *api.Metric) {
 	window.Add(m)
 }
 
+// RemovePeer removes all metrics related to a peer from the Store.
+func (mtrs *Store) RemovePeer(pid peer.ID) {
+	mtrs.mux.Lock()
+	for _, metrics := range mtrs.byName {
+		delete(metrics, pid)
+	}
+	mtrs.mux.Unlock()
+}
+
+// RemovePeerMetrics removes all metrics of a given name for a given peer ID.
+func (mtrs *Store) RemovePeerMetrics(pid peer.ID, name string) {
+	mtrs.mux.Lock()
+	metrics := mtrs.byName[name]
+	delete(metrics, pid)
+	mtrs.mux.Unlock()
+}
+
 // LatestValid returns all the last known valid metrics of a given type. A metric
 // is valid if it has not expired.
 func (mtrs *Store) LatestValid(name string) []*api.Metric {

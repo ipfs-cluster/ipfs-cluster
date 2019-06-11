@@ -112,6 +112,48 @@ func TestChecker_Failed(t *testing.T) {
 	})
 }
 
+func TestChecker_alert(t *testing.T) {
+	t.Run("remove peer from store after alert", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		metrics := NewStore()
+		checker := NewChecker(ctx, metrics, 2.0)
+
+		metr := &api.Metric{
+			Name:  "test",
+			Peer:  test.PeerID1,
+			Value: "1",
+			Valid: true,
+		}
+		metr.SetTTL(100 * time.Millisecond)
+		metrics.Add(metr)
+
+		peersF := func(context.Context) ([]peer.ID, error) {
+			return []peer.ID{test.PeerID1}, nil
+		}
+
+		go checker.Watch(ctx, peersF, 200*time.Millisecond)
+
+		var alertCount int
+		for {
+			select {
+			case a := <-checker.Alerts():
+				t.Log("received alert:", a)
+				alertCount++
+				if alertCount > MaxAlertThreshold {
+					t.Fatalf("there should no more than %d alert", MaxAlertThreshold)
+				}
+			case <-ctx.Done():
+				if alertCount < 1 {
+					t.Fatal("should have received an alert")
+				}
+				return
+			}
+		}
+	})
+}
+
 //////////////////
 // HELPER TESTS //
 //////////////////
