@@ -189,7 +189,6 @@ func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
 // as to whether a peer has failed or not. The debugging parameter
 // enables a more computation heavy path of the function but
 // allows for insight into the return phi value.
-// This should not be used for anything other than testing.
 func (mc *Checker) failed(metric string, pid peer.ID, debugging bool) (float64, []float64, float64, bool) {
 	latest := mc.metrics.PeerLatest(metric, pid)
 	if latest == nil {
@@ -201,21 +200,26 @@ func (mc *Checker) failed(metric string, pid peer.ID, debugging bool) (float64, 
 	// to be less than that of the TTL value of the metrics
 	pmtrs := mc.metrics.PeerMetricAll(metric, pid)
 	var withinTTL bool
-	switch {
-	case len(pmtrs) == 1:
+	if len(pmtrs) == 1 {
+		// one metric isn't enough to consider a peer failed
+		// unless it is expired
 		if pmtrs[0].Expired() {
 			return 0.0, nil, 0.0, true
 		}
 		return 0.0, nil, 0.0, false
-	case len(pmtrs) >= 2:
+	}
+	if len(pmtrs) >= 2 {
 		currMetricExpiry := time.Unix(0, pmtrs[1].Expire)
 		prevMetricReceived := time.Unix(0, pmtrs[0].ReceivedAt)
+		// accrual failure detection should only kick if the
+		// the ttl has expired
 		withinTTL = prevMetricReceived.Before(currMetricExpiry)
-		if withinTTL && !debugging {
-			return 0.0, nil, 0.0, false
-		}
 		if debugging {
 			fmt.Printf("validTTL: %v\texp: %v,\tra: %v\n", withinTTL, currMetricExpiry, prevMetricReceived)
+		}
+		// shortcut the function if not debugging
+		if withinTTL && !debugging {
+			return 0.0, nil, 0.0, false
 		}
 	}
 
