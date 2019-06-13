@@ -56,15 +56,38 @@ func New(ctx context.Context, h host.Host, peerstorePath string) *Manager {
 }
 
 // ImportPeer adds a new peer address to the host's peerstore, optionally
-// dialing to it. It will resolve any DNS multiaddresses before adding them.
-// The address is expected to include the /ipfs/<peerID> protocol part.
-// Peers are added with the given ttl
+// dialing to it. The address is expected to include the /ipfs/<peerID>
+// protocol part or to be a /dnsaddr/multiaddress
+// Peers are added with the given ttl.
 func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration) (peer.ID, error) {
 	if pm.host == nil {
 		return "", nil
 	}
 
-	logger.Debugf("adding peer address %s", addr)
+	protos := addr.Protocols()
+	if len(protos) > 0 && protos[0].Code == madns.DnsaddrProtocol.Code {
+		// We need to pre-resolve this
+		logger.Debugf("resolving %s", addr)
+		ctx, cancel := context.WithTimeout(pm.ctx, DNSTimeout)
+		defer cancel()
+
+		resolvedAddrs, err := madns.Resolve(ctx, addr)
+		if err != nil {
+			return "", err
+		}
+		if len(resolvedAddrs) == 0 {
+			return "", fmt.Errorf("%s: no resolved addresses", addr)
+		}
+		var pid peer.ID
+		for _, add := range resolvedAddrs {
+			pid, err = pm.ImportPeer(add, connect, ttl)
+			if err != nil {
+				return "", err
+			}
+		}
+		return pid, nil // returns the last peer ID
+	}
+
 	pinfo, err := peerstore.InfoFromP2pAddr(addr)
 	if err != nil {
 		return "", err
@@ -75,6 +98,7 @@ func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration
 		return pinfo.ID, nil
 	}
 
+	logger.Debugf("adding peer address %s", addr)
 	pm.host.Peerstore().AddAddrs(pinfo.ID, pinfo.Addrs, ttl)
 
 	if connect {
