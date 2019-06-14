@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/kelseyhightower/envconfig"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+
+	"github.com/kelseyhightower/envconfig"
 )
 
 const configKey = "cluster"

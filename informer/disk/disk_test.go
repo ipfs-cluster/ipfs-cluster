@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 type badRPCService struct {

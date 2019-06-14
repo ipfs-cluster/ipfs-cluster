@@ -6,9 +6,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"github.com/ipfs/ipfs-cluster/api"
 	"go.opencensus.io/trace"
 )
 

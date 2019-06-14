@@ -15,23 +15,22 @@ import (
 	"sync"
 	"time"
 
-	gopath "github.com/ipfs/go-path"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
+
+	cid "github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
+	logging "github.com/ipfs/go-log"
+	gopath "github.com/ipfs/go-path"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
+	madns "github.com/multiformats/go-multiaddr-dns"
+	manet "github.com/multiformats/go-multiaddr-net"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
-
-	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-files"
-	logging "github.com/ipfs/go-log"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
-	madns "github.com/multiformats/go-multiaddr-dns"
-	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module

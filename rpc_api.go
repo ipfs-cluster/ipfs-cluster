@@ -5,11 +5,12 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/version"
-	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+
+	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 	"go.opencensus.io/trace"
 )
 

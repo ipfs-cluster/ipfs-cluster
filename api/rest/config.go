@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
-	"github.com/rs/cors"
+
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/kelseyhightower/envconfig"
-
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
+	"github.com/rs/cors"
 )
 
 const configKey = "restapi"

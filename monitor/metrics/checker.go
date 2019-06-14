@@ -8,10 +8,11 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
+
+	peer "github.com/libp2p/go-libp2p-core/peer"
+
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
-
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // AlertChannelCap specifies how much buffer the alerts channel has.

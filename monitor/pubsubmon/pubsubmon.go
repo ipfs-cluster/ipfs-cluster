@@ -10,13 +10,14 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
-	"go.opencensus.io/trace"
 
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
+
+	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("monitor")

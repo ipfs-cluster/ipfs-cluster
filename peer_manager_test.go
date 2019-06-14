@@ -12,9 +12,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -56,7 +55,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	for i := 0; i < nClusters; i++ {
 		err := cls[i].host.Connect(
 			context.Background(),
-			peerstore.PeerInfo{
+			peer.AddrInfo{
 				ID:    h.ID(),
 				Addrs: h.Addrs(),
 			},
@@ -146,7 +145,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		addrs := c.peerManager.LoadPeerstore()
 		peerMap := make(map[peer.ID]struct{})
 		for _, a := range addrs {
-			pinfo, err := peerstore.InfoFromP2pAddr(a)
+			pinfo, err := peer.AddrInfoFromP2pAddr(a)
 			if err != nil {
 				t.Fatal(err)
 			}

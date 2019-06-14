@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/test"
 
+	cid "github.com/ipfs/go-cid"
 	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p-host"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )

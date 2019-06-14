@@ -12,17 +12,17 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/google/uuid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	cli "github.com/urfave/cli"
 
 	"contrib.go.opencensus.io/exporter/jaeger"
+	uuid "github.com/google/uuid"
+	cli "github.com/urfave/cli"
 )
 
 const programName = `ipfs-cluster-ctl`

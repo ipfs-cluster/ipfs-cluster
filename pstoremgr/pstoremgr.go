@@ -15,10 +15,11 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
-	host "github.com/libp2p/go-libp2p-host"
-	net "github.com/libp2p/go-libp2p-net"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	host "github.com/libp2p/go-libp2p-core/host"
+	net "github.com/libp2p/go-libp2p-core/network"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	pstoreutil "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
@@ -88,7 +89,7 @@ func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration
 		return pid, nil // returns the last peer ID
 	}
 
-	pinfo, err := peerstore.InfoFromP2pAddr(addr)
+	pinfo, err := peer.AddrInfoFromP2pAddr(addr)
 	if err != nil {
 		return "", err
 	}
@@ -146,10 +147,10 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 
 // PeerInfos returns a slice of peerinfos for the given set of peers in order
 // of priority. For peers for which we know DNS
-// multiaddresses, we only include those. Otherwise, the PeerInfo includes all
+// multiaddresses, we only include those. Otherwise, the AddrInfo includes all
 // the multiaddresses known for that peer. Peers without addresses are not
 // included.
-func (pm *Manager) PeerInfos(peers []peer.ID) []peerstore.PeerInfo {
+func (pm *Manager) PeerInfos(peers []peer.ID) []peer.AddrInfo {
 	if pm.host == nil {
 		return nil
 	}
@@ -158,12 +159,12 @@ func (pm *Manager) PeerInfos(peers []peer.ID) []peerstore.PeerInfo {
 		return nil
 	}
 
-	var pinfos []peerstore.PeerInfo
+	var pinfos []peer.AddrInfo
 	for _, p := range peers {
 		if p == pm.host.ID() {
 			continue
 		}
-		pinfo := peerstore.PeerInfo{
+		pinfo := peer.AddrInfo{
 			ID:    p,
 			Addrs: pm.filteredPeerAddrs(p),
 		}
@@ -242,7 +243,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 
 // SavePeerstore stores a slice of multiaddresses in the peerstore file, one
 // per line.
-func (pm *Manager) SavePeerstore(pinfos []peerstore.PeerInfo) {
+func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) {
 	if pm.peerstorePath == "" {
 		return
 	}
@@ -262,7 +263,7 @@ func (pm *Manager) SavePeerstore(pinfos []peerstore.PeerInfo) {
 	defer f.Close()
 
 	for _, pinfo := range pinfos {
-		addrs, err := peerstore.InfoToP2pAddrs(&pinfo)
+		addrs, err := peer.AddrInfoToP2pAddrs(&pinfo)
 		if err != nil {
 			logger.Warning(err)
 			continue
@@ -285,7 +286,7 @@ func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) {
 func (pm *Manager) Bootstrap(count int) []peer.ID {
 	knownPeers := pm.host.Peerstore().PeersWithAddrs()
 	toSort := &peerSort{
-		pinfos: peerstore.PeerInfos(pm.host.Peerstore(), knownPeers),
+		pinfos: pstoreutil.PeerInfos(pm.host.Peerstore(), knownPeers),
 		pstore: pm.host.Peerstore(),
 	}
 
@@ -337,7 +338,7 @@ func (pm *Manager) SetPriority(pid peer.ID, prio int) error {
 // with value 0, so they will be among the first elements in the resulting
 // slice.
 type peerSort struct {
-	pinfos []peerstore.PeerInfo
+	pinfos []peer.AddrInfo
 	pstore peerstore.Peerstore
 }
 

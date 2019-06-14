@@ -9,15 +9,15 @@ import (
 	"path/filepath"
 	"time"
 
-	hraft "github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/ipfs/ipfs-cluster/state"
+
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
 
+	hraft "github.com/hashicorp/raft"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"go.opencensus.io/trace"
-
-	"github.com/ipfs/ipfs-cluster/state"
 )
 
 // errBadRaftState is returned when the consensus component cannot start

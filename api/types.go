@@ -19,17 +19,18 @@ import (
 
 	pb "github.com/ipfs/ipfs-cluster/api/pb"
 
-	proto "github.com/gogo/protobuf/proto"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	multiaddr "github.com/multiformats/go-multiaddr"
 
 	// needed to parse /ws multiaddresses
 	_ "github.com/libp2p/go-ws-transport"
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
+
+	proto "github.com/gogo/protobuf/proto"
 )
 
 var logger = logging.Logger("apitypes")
