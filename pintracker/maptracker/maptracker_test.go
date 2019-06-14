@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 var (

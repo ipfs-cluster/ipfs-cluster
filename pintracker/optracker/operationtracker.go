@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"go.opencensus.io/trace"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("optracker")

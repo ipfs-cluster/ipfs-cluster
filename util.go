@@ -5,8 +5,7 @@ import (
 	"fmt"
 
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -17,7 +16,7 @@ func PeersFromMultiaddrs(addrs []ma.Multiaddr) []peer.ID {
 	var pids []peer.ID
 	pm := make(map[peer.ID]struct{})
 	for _, addr := range addrs {
-		pinfo, err := peerstore.InfoFromP2pAddr(addr)
+		pinfo, err := peer.AddrInfoFromP2pAddr(addr)
 		if err != nil {
 			continue
 		}

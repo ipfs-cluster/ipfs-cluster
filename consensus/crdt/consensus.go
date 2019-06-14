@@ -12,23 +12,21 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 
 	ds "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
+	namespace "github.com/ipfs/go-datastore/namespace"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	logging "github.com/ipfs/go-log"
-
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
 	multihash "github.com/multiformats/go-multihash"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	"go.opencensus.io/trace"
+	trace "go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("crdt")

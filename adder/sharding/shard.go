@@ -7,10 +7,11 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 
-	humanize "github.com/dustin/go-humanize"
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 // a shard represents a set of blocks (or bucket) which have been assigned

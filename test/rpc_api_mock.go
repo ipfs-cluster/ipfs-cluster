@@ -11,9 +11,9 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	gopath "github.com/ipfs/go-path"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // ErrBadCid is returned when using ErrorCid. Operations with that CID always

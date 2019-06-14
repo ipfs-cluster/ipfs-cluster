@@ -9,10 +9,11 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
-	"github.com/kelseyhightower/envconfig"
+
+	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	hraft "github.com/hashicorp/raft"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // ConfigKey is the default configuration key for holding this component's

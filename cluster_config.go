@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
-
 	"github.com/ipfs/ipfs-cluster/config"
 
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"github.com/kelseyhightower/envconfig"
 )
 
 const configKey = "cluster"

@@ -14,8 +14,8 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p-host"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 )
 
 func cleanRaft(idn int) {

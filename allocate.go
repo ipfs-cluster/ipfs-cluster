@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	"go.opencensus.io/trace"
 

@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
@@ -18,6 +16,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 

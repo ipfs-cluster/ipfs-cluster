@@ -7,13 +7,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/config"
-
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
@@ -26,10 +25,11 @@ import (
 	"go.opencensus.io/tag"
 
 	ds "github.com/ipfs/go-datastore"
-	host "github.com/libp2p/go-libp2p-host"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	peer "github.com/libp2p/go-libp2p-peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
 	ma "github.com/multiformats/go-multiaddr"
 
 	errors "github.com/pkg/errors"

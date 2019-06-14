@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"time"
 
-	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	libp2p "github.com/libp2p/go-libp2p"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	ipnet "github.com/libp2p/go-libp2p-core/pnet"
+	p2phttp "github.com/libp2p/go-libp2p-http"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
@@ -40,7 +40,7 @@ func (c *defaultClient) defaultTransport() {
 func (c *defaultClient) enableLibp2p() error {
 	c.defaultTransport()
 
-	pinfo, err := peerstore.InfoFromP2pAddr(c.config.APIAddr)
+	pinfo, err := peer.AddrInfoFromP2pAddr(c.config.APIAddr)
 	if err != nil {
 		return err
 	}
