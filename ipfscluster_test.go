@@ -1635,11 +1635,6 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 		t.Skip("Need at least 5 peers")
 	}
 
-	if consensus == "crdt" {
-		t.Log("FIXME when re-alloc changes come through")
-		return
-	}
-
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	for _, c := range clusters {

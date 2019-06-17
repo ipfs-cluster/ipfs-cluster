@@ -3,7 +3,6 @@ package metrics
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -60,7 +59,7 @@ func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker
 // when they have expired and no alert has been sent before.
 func (mc *Checker) CheckPeers(peers []peer.ID) error {
 	for _, peer := range peers {
-		for _, metric := range mc.metrics.PeerMetrics(peer) {
+		for _, metric := range mc.metrics.PeerMetricAll("ping", peer) {
 			if mc.FailedMetric(metric.Name, peer) {
 				err := mc.alert(peer, metric.Name)
 				if err != nil {
@@ -76,7 +75,7 @@ func (mc *Checker) CheckPeers(peers []peer.ID) error {
 // and no alert has been sent before.
 func (mc *Checker) CheckAll() error {
 	for _, metric := range mc.metrics.AllMetrics() {
-		if mc.FailedMetric(metric.Name, metric.Peer) {
+		if metric.Name == "ping" && mc.Failed(metric.Peer) {
 			err := mc.alert(metric.Peer, metric.Name)
 			if err != nil {
 				return err
@@ -105,8 +104,7 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	mc.failedPeersMu.Lock()
 	defer mc.failedPeersMu.Unlock()
 
-	_, ok := mc.failedPeers[pid]
-	if !ok {
+	if _, ok := mc.failedPeers[pid]; !ok {
 		mc.failedPeers[pid] = make(map[string]int)
 	}
 	failedMetrics := mc.failedPeers[pid]
@@ -174,14 +172,14 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 // Peers that are not present in the metrics store will return
 // as failed.
 func (mc *Checker) Failed(pid peer.ID) bool {
-	_, _, _, result := mc.failed("ping", pid, false)
+	_, _, _, result := mc.failed("ping", pid)
 	return result
 }
 
 // FailedMetric is the same as Failed but can use any metric type,
 // not just ping.
 func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
-	_, _, _, result := mc.failed(metric, pid, false)
+	_, _, _, result := mc.failed(metric, pid)
 	return result
 }
 
@@ -189,7 +187,11 @@ func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
 // as to whether a peer has failed or not. The debugging parameter
 // enables a more computation heavy path of the function but
 // allows for insight into the return phi value.
-func (mc *Checker) failed(metric string, pid peer.ID, debugging bool) (float64, []float64, float64, bool) {
+func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float64, bool) {
+	// accrualMetricsNum represents the number metrics required for
+	// accrual to function appropriately, and under which we use
+	// TTL to determine whether a peer may have failed.
+	accrualMetricsNum := 6
 	latest := mc.metrics.PeerLatest(metric, pid)
 	if latest == nil {
 		return 0.0, nil, 0.0, true
@@ -199,8 +201,7 @@ func (mc *Checker) failed(metric string, pid peer.ID, debugging bool) (float64, 
 	// where multiple metrics closer together skew the distribution
 	// to be less than that of the TTL value of the metrics
 	pmtrs := mc.metrics.PeerMetricAll(metric, pid)
-	var withinTTL bool
-	if len(pmtrs) == 1 {
+	if len(pmtrs) < accrualMetricsNum {
 		// one metric isn't enough to consider a peer failed
 		// unless it is expired
 		if pmtrs[0].Expired() {
@@ -208,31 +209,11 @@ func (mc *Checker) failed(metric string, pid peer.ID, debugging bool) (float64, 
 		}
 		return 0.0, nil, 0.0, false
 	}
-	if len(pmtrs) >= 2 {
-		currMetricExpiry := time.Unix(0, pmtrs[1].Expire)
-		prevMetricReceived := time.Unix(0, pmtrs[0].ReceivedAt)
-		// accrual failure detection should only kick if the
-		// the ttl has expired
-		withinTTL = prevMetricReceived.Before(currMetricExpiry)
-		if debugging {
-			fmt.Printf("validTTL: %v\texp: %v,\tra: %v\n", withinTTL, currMetricExpiry, prevMetricReceived)
-		}
-		// shortcut the function if not debugging
-		if withinTTL && !debugging {
-			return 0.0, nil, 0.0, false
-		}
-	}
 
 	v := time.Now().UnixNano() - latest.ReceivedAt
 	dv := mc.metrics.Distribution(metric, pid)
-	// one metric isn't enough to calculate a distribution
-	// alerting/failure detection will fallback to the metric-expiring
-	// method
 	switch {
-	case withinTTL && debugging:
-		phiv := phi(float64(v), dv)
-		return float64(v), dv, phiv, false
-	case len(dv) < 5 && !latest.Expired():
+	case len(dv) < accrualMetricsNum-1 && !latest.Expired():
 		return float64(v), dv, 0.0, false
 	default:
 		phiv := phi(float64(v), dv)
