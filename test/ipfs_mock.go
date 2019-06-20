@@ -41,7 +41,8 @@ type IpfsMock struct {
 }
 
 type mockPinResp struct {
-	Pins []string
+	Pins     []string
+	Progress int `json:",omitempty"`
 }
 
 type mockPinType struct {
@@ -168,13 +169,16 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
-		j, _ := json.Marshal(resp)
+
 		if c.Equals(SlowCid1) {
 			for i := 0; i <= 10; i++ {
 				time.Sleep(1 * time.Second)
+				resp.Progress = i
+				j, _ := json.Marshal(resp)
 				w.Write(j)
 			}
 		} else {
+			j, _ := json.Marshal(resp)
 			w.Write(j)
 		}
 	case "pin/rm":
