@@ -189,3 +189,15 @@ func (mtrs *Store) Distribution(name string, pid peer.ID) []float64 {
 
 	return window.Distribution()
 }
+
+// MetricNames returns all the known metric names
+func (mtrs *Store) MetricNames() []string {
+	mtrs.mux.RLock()
+	defer mtrs.mux.RUnlock()
+
+	list := make([]string, 0, len(mtrs.byName))
+	for k := range mtrs.byName {
+		list = append(list, k)
+	}
+	return list
+}

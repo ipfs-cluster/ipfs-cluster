@@ -58,12 +58,14 @@ func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker
 // CheckPeers will trigger alerts based on the latest metrics from the given peerset
 // when they have expired and no alert has been sent before.
 func (mc *Checker) CheckPeers(peers []peer.ID) error {
-	for _, peer := range peers {
-		for _, metric := range mc.metrics.PeerMetricAll("ping", peer) {
-			if mc.FailedMetric(metric.Name, peer) {
-				err := mc.alert(peer, metric.Name)
-				if err != nil {
-					return err
+	for _, name := range mc.metrics.MetricNames() {
+		for _, peer := range peers {
+			for _, metric := range mc.metrics.PeerMetricAll(name, peer) {
+				if mc.FailedMetric(metric.Name, peer) {
+					err := mc.alert(peer, metric.Name)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -75,7 +77,7 @@ func (mc *Checker) CheckPeers(peers []peer.ID) error {
 // and no alert has been sent before.
 func (mc *Checker) CheckAll() error {
 	for _, metric := range mc.metrics.AllMetrics() {
-		if metric.Name == "ping" && mc.Failed(metric.Peer) {
+		if mc.FailedMetric(metric.Name, metric.Peer) {
 			err := mc.alert(metric.Peer, metric.Name)
 			if err != nil {
 				return err
@@ -168,16 +170,7 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 	}
 }
 
-// Failed returns true if a peer has potentially failed.
-// Peers that are not present in the metrics store will return
-// as failed.
-func (mc *Checker) Failed(pid peer.ID) bool {
-	_, _, _, result := mc.failed("ping", pid)
-	return result
-}
-
-// FailedMetric is the same as Failed but can use any metric type,
-// not just ping.
+// FailedMetric returns if a peer is marked as failed for a particular metric.
 func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
 	_, _, _, result := mc.failed(metric, pid)
 	return result

@@ -145,7 +145,7 @@ func TestChecker_Failed(t *testing.T) {
 		}
 		for i := 0; i < 10; i++ {
 			metrics.Add(makePeerMetric(test.PeerID1, "1", 3*time.Millisecond))
-			got := checker.Failed(test.PeerID1)
+			got := checker.FailedMetric("ping", test.PeerID1)
 			// the magic number 17 represents the point at which
 			// the time between metrics addition has gotten
 			// so large that the probability that the service
