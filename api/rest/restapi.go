@@ -424,7 +424,7 @@ func (api *API) routes() []route {
 		{
 			"RepoGC",
 			"POST",
-			"/repo/gc",
+			"/ipfs/gc",
 			api.repoGCHandler,
 		},
 		{
@@ -1008,7 +1008,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
-	var repoGC []types.IPFSRepoGC
+	var repoGC types.GlobalRepoGC
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",

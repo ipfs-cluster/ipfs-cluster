@@ -327,21 +327,21 @@ func (c *defaultClient) Metrics(ctx context.Context, name string) ([]*api.Metric
 
 // RepoGC runs garbage collection on all cluster peers and returns
 // collected cids.
-func (c *defaultClient) RepoGC(ctx context.Context) ([]api.IPFSRepoGC, error) {
+func (c *defaultClient) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "client/RepoGC")
 	defer span.End()
 
-	var repoGC []api.IPFSRepoGC
+	var repoGC api.GlobalRepoGC
 	err := c.do(
 		ctx,
 		"POST",
-		"/repo/gc",
+		"/ipfs/gc",
 		nil,
 		nil,
 		&repoGC,
 	)
 
-	return repoGC, err
+	return &repoGC, err
 }
 
 // WaitFor is a utility function that allows for a caller to wait for a

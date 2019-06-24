@@ -869,9 +869,7 @@ but usually are:
 					Name:  "gc",
 					Usage: "run garbage collection on ipfs repos of cluster peers",
 					Description: `
-This command would sweep the local set of stored objects and remove ones that
-are not pinned in order to reclaim hard disk space on all ipfs daemons
-corresponding to cluster peers.
+This command will instruct all current Cluster peers to run "repo gc" on their respective IPFS daemons.
 `,
 					Action: func(c *cli.Context) error {
 						resp, cerr := globalClient.RepoGC(ctx)

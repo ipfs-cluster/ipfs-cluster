@@ -62,8 +62,8 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintError(resp.(*api.Error))
 	case *api.Metric:
 		textFormatPrintMetric(resp.(*api.Metric))
-	case api.IPFSRepoGC:
-		textFormatPrintRepoGC(resp.(api.IPFSRepoGC))
+	case *api.IPFSRepoGC:
+		textFormatPrintRepoGC(resp.(*api.IPFSRepoGC))
 	case []*api.ID:
 		for _, item := range resp.([]*api.ID) {
 			textFormatObject(item)
@@ -88,10 +88,8 @@ func textFormatObject(resp interface{}) {
 		for _, item := range resp.([]*api.Metric) {
 			textFormatObject(item)
 		}
-	case []api.IPFSRepoGC:
-		for _, item := range resp.([]api.IPFSRepoGC) {
-			textFormatObject(item)
-		}
+	case *api.GlobalRepoGC:
+		textFormatPrintGlobaleRepoGC(resp.(*api.GlobalRepoGC))
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -214,10 +212,23 @@ func textFormatPrintMetric(obj *api.Metric) {
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
-func textFormatPrintRepoGC(obj api.IPFSRepoGC) {
-	fmt.Printf("%s | Error : %s\n", obj.Key.String(), obj.Error)
+func textFormatPrintRepoGC(obj *api.IPFSRepoGC) {
+	if obj.Error != "" {
+		fmt.Printf("  > Error: %s\n", obj.Error)
+	}
+
+	fmt.Printf("  > CIDs:\n")
+	for _, key := range obj.Keys {
+		fmt.Printf("    - %s\n", key.String())
+	}
 }
 
+func textFormatPrintGlobaleRepoGC(obj *api.GlobalRepoGC) {
+	for peer, item := range obj.PeerMap {
+		fmt.Printf("%s\n", peer)
+		textFormatObject(item)
+	}
+}
 func textFormatPrintError(obj *api.Error) {
 	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)

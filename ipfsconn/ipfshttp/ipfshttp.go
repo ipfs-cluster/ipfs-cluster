@@ -89,6 +89,11 @@ type ipfsResolveResp struct {
 	Path string
 }
 
+type ipfsRepoGCResp struct {
+	Key   cid.Cid
+	Error string `json:",omitempty"`
+}
+
 type ipfsSwarmPeersResp struct {
 	Peers []ipfsPeer
 }
@@ -605,36 +610,37 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) 
 }
 
 // RepoGC performs a garbage collection sweep on the repo.
-func (ipfs *Connector) RepoGC(ctx context.Context) ([]api.IPFSRepoGC, error) {
+func (ipfs *Connector) RepoGC(ctx context.Context) (api.IPFSRepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 
-	var repoGCResp []api.IPFSRepoGC
+	var repoGC api.IPFSRepoGC
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return repoGCResp, err
+		return repoGC, err
 	}
 	defer res.Body.Close()
 
 	dec := json.NewDecoder(res.Body)
 	for {
-		resp := api.IPFSRepoGC{}
+		resp := ipfsRepoGCResp{}
 		if err := dec.Decode(&resp); err == io.EOF {
 			break
 		} else if err != nil {
-			return repoGCResp, err
+			return repoGC, err
 		}
 		if resp.Error != "" {
 			logger.Error("Error while repo gc: ", resp.Error)
+			repoGC.Error += ", " + resp.Error
 		}
-		repoGCResp = append(repoGCResp, resp)
+		repoGC.Keys = append(repoGC.Keys, resp.Key)
 	}
 
-	return repoGCResp, nil
+	return repoGC, nil
 }
 
 // Resolve accepts ipfs or ipns path and resolves it into a cid

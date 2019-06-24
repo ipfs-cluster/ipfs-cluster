@@ -839,9 +839,12 @@ type IPFSRepoStat struct {
 	StorageMax uint64 `codec:"s, omitempty"`
 }
 
-// IPFSRepoGC contains `ipfs repo gc` api response for a single garbace
-// collected content.
 type IPFSRepoGC struct {
-	Key   cid.Cid
-	Error string `json:",omitempty"`
+	//Peer  peer.ID   `json:"peer_id" codec:"p,omitempty"`
+	Keys  []cid.Cid `json:"keys" codec:"k"`
+	Error string    `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+type GlobalRepoGC struct {
+	PeerMap map[string]*IPFSRepoGC
 }
