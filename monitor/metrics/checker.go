@@ -203,6 +203,12 @@ func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float
 		return 0.0, nil, 0.0, false
 	}
 
+	prevMetricExpiry := time.Unix(0, pmtrs[1].Expire)
+	latestMetricReceived := time.Unix(0, pmtrs[0].ReceivedAt)
+	if !latestMetricReceived.After(prevMetricExpiry) {
+		return 0.0, nil, 0.0, false
+	}
+
 	v := time.Now().UnixNano() - latest.ReceivedAt
 	dv := mc.metrics.Distribution(metric, pid)
 	switch {

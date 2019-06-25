@@ -158,21 +158,22 @@ func TestChecker_Failed(t *testing.T) {
 	})
 
 	t.Run("ttl must expire before phiv causes failure", func(t *testing.T) {
-		// With the threshold at 0.05 and a time difference (j) between
-		// metrics increasing at a rate of double the previous, the phi value
-		// is greater than the threshold on the 5th iteration (i = 4), but the TTL
-		// still has a valid TTL at this point so the test continues until
-		// the 7th iteration (i = 6) when the previous metric has expired and the phi
-		// value is greater than the threshold.
 		metrics := NewStore()
 		checker := NewChecker(context.Background(), metrics, 0.05)
 
-		for i, j := 0, 100; i < 7; i, j = i+1, j*2 {
+		for i := 0; i < 10; i++ {
+			metrics.Add(makePeerMetric(test.PeerID1, "1", 10*time.Millisecond))
+			time.Sleep(time.Duration(200) * time.Millisecond)
+		}
+		for i, j := 0, 10; i < 8; i, j = i+1, j*2 {
 			time.Sleep(time.Duration(j) * time.Millisecond)
-			metrics.Add(makePeerMetric(test.PeerID1, "1", 5000*time.Millisecond))
+			metrics.Add(makePeerMetric(test.PeerID1, "1", 10*time.Millisecond))
 			v, _, phiv, got := checker.failed("ping", test.PeerID1)
 			t.Logf("i: %d: j: %d v: %f, phiv: %f, got: %v\n", i, j, v, phiv, got)
-			if i > 5 && !got {
+			if i < 7 && got {
+				t.Fatal("threshold should not have been reached already")
+			}
+			if i >= 7 && !got {
 				t.Fatal("threshold should have been reached by now")
 			}
 		}
