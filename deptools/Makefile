@@ -29,7 +29,7 @@ $(gx):
 	rm -f gx
 	$(dl_cmd) $(gx_download)
 	tar xvzf $(gx_tar)
-	mv gx_v0.14.1 $(gx)
+	mv gx-0.14.1 $(gx)
 	ln -s $(gx) gx
 	rm $(gx_tar)
 
