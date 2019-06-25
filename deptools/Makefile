@@ -37,8 +37,8 @@ $(gx-go):
 	@echo "Downloading gx-go"
 	rm -f gx-go
 	$(dl_cmd) $(gx-go_download)
-	tar xvzf $(gx-go_tar)
-	mv gx-go_v1.9.0 $(gx-go)
+	tar xvzf $(gx-go_tar) 
+	mv gx-go-1.9.0 $(gx-go)
 	ln -s $(gx-go) gx-go
 	rm $(gx-go_tar)
 
