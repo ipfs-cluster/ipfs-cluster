@@ -15,6 +15,7 @@ fi
 make clean
 sed -i "s/Version = semver\.MustParse.*$/Version = semver.MustParse(\"$version\")/" version/version.go
 sed -i "s/const Version.*$/const Version = \"$version\"/" cmd/ipfs-cluster-ctl/main.go
+sed -i "5 s/\".*\"/\"$version\"/" api/rest/swagger.yaml
 git commit -S -a -m "Release $version"
 lastver=`git tag -l | grep -E 'v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1`
 echo "Tag for Release ${version}" > tag_annotation

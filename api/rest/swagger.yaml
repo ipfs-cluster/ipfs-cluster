@@ -8,10 +8,10 @@ servers:
 paths:
   /id:
     get:
-      summary: Get ID and other information of this cluster peer.
+      summary: Get ID and other information about the cluster peer.
       tags:
         - cluster
-      description: Get information(such as id, addresses, cluster peers, cluster peer address, version of IPFS Cluster daemon, commit, rpc protocol version and peername) about this cluster peer and it's associated IPFS node.
+      description: Get information (such as ID, addresses, cluster peers, cluster peer addresses, version of IPFS Cluster daemon, commit, rpc protocol version and peername) about this cluster peer and it's associated IPFS node.
       responses:
         '200':
           description: OK
@@ -22,10 +22,10 @@ paths:
   
   /version:
     get:
-      summary: Get the version of the cluster peer daemon.
+      summary: Get version of the cluster peer daemon.
       tags:
         - cluster
-      description: This endpoint returns the version of the IPFS Cluster daemon responding to the request.
+      description: This endpoint returns version of the IPFS Cluster daemon responding to the request.
       responses:
         '200':
           description: OK
@@ -57,7 +57,7 @@ paths:
         - $ref: '#/components/parameters/chunker'
       tags:
         - add
-      description: This endpoint adds a file or a directory(recursively) to the allocated IPFS daemons and pins it in the cluster. The cluster peer receiving the request will chunk and build the DAG, forwarding the resulting blocks to their final destination. This endpoint results in streaming response, any error that occurs while streaming is indicated by HTTP trailers.
+      description: This endpoint adds a file or a directory (recursively) to the allocated IPFS daemons and pins it in the cluster. The cluster peer receiving the request will chunk and build the DAG, forwarding the resulting blocks to their final destination. This endpoint results in streaming response, any error that occurs while streaming is indicated by HTTP trailers.
       requestBody:
         content:
           multipart/form-data:
@@ -71,11 +71,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/AddedOutput'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error due to 1) Could not get a MIME multipart reader (Make sure if this is a multipart/form-data request), or 2) one or more invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   
   /peers:
     get:
-      summary: Get the list of cluster peers.
+      summary: List cluster peers.
       tags:
         - peers
       description: Get the current list of IPFS Cluster peers, its addresses and associated IPFS peers.
@@ -105,7 +109,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Peer'
         '400':
-          description: Bad Request
+          description: Bad Request. Error decoding request body into `{"peer_id":"$value_of_peer_id"}` or error b58-decoding peer ID.
           content:
             application/json:
               schema:
@@ -125,15 +129,15 @@ paths:
       description: This endpoint will attempt to remove a peer from a Raft-based cluster. If the removed peer is running, it will automatically shutdown. The operation can only succeed if a Raft leader exists. This operation has no effect for CRDT-based Clusters.
       responses:
         '204':
-          description: No Content
+          description: No Content. Successfully logged the operation in the consensus layer to remove the given peer.
         '400':
-          description: Bad Request
+          description: Bad Request. Error b58-decoding peer ID.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: Internal Server Error
+          description: Internal Server Error. This could occur when a peer is trying to remove itself from a 1-peer cluster.
           content:
             application/json:
               schema:
@@ -141,10 +145,10 @@ paths:
               
   /allocations:
     get:
-      summary: Get Allocation information of all Pins.
+      summary: List allocations information of all pins.
       tags:
         - allocations
-      description: This endpoint will get allocation information(replication factors, user allocation, shard size, name etc.) of all pins.
+      description: This endpoint will list allocations information (replication factors, user allocation, shard size, name etc.) of all pins.
       parameters:
         - name: filter
           in: query
@@ -163,7 +167,11 @@ paths:
                   $ref: '#/components/schemas/Pin'
                 properties: {}
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error due to invalid filter value (use one of all, pin, meta-pin, clusterdag-pin or shard-pin).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /allocations/{cid}:
     parameters:
@@ -173,10 +181,10 @@ paths:
         schema:
           type: string
     get:
-      summary: Get Allocation information of a Pin.
+      summary: Get allocations information of a pin.
       tags:
         - allocations
-      description: This endpoint will get allocation information(replication factors, user allocation, shard size, name etc.) of pin with the given cid.
+      description: This endpoint will get allocations information (replication factors, user allocation, shard size, name etc.) of pin with the given CID.
       responses:
         '200':
           description: OK
@@ -185,10 +193,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Pin'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error decoding CID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. This could occur when given CID is not part of the pinset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /pins:
     get:
-      summary: Get a list of Pins with their status.
+      summary: List pins with their status.
       parameters:
         - $ref: '#/components/parameters/local'
         - name: filter
@@ -198,10 +217,14 @@ paths:
             enum: [cluster_error, error, pin_error, pin_queued, pinned, pinning, queued, remote, unpin_error, unpin_queued, unpinned, unpinning]
       tags:
         - pins
-      description: Get a list of Pins
+      description: List pins.
       responses:
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error due to invalid filter value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '200':
           description: OK
           content:
@@ -219,7 +242,7 @@ paths:
         schema:
           type: string
     get:
-      summary: Get status of a Pin.
+      summary: Get status of a pin.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
@@ -232,7 +255,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/PinInfo'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error decoding CID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
           
     post:
       parameters:
@@ -243,23 +270,32 @@ paths:
         - $ref: '#/components/parameters/pinUserAllocationsParam'
         - $ref: '#/components/parameters/pinShardSize'
         - $ref: '#/components/parameters/pinMetaParam'
-      summary: Add a new Pin.
+      summary: Add a new pin.
       tags:
         - pins
       responses:
         '202':
-          description: Accepted
+          description: Accepted. Successfully logged the operation in the consensus layer to pin the given CID. 
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error decoding CID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     delete:
-      summary: Remove a Pin.
+      summary: Remove a pin.
       tags:
         - pins
       responses:
         '202':
-          description: Accepted
+          description: Accepted. Successfully logged the operation in the consensus layer to remove pin with the given CID.
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error decoding CID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /pins/{keyType}/{path}:
     parameters:
@@ -282,10 +318,10 @@ paths:
         - $ref: '#/components/parameters/pinReplicationMaxParam'
         - $ref: '#/components/parameters/pinUserAllocationsParam'
         - $ref: '#/components/parameters/pinMetaParam'
-      summary: Add a new Pin by Path.
+      summary: Add a new pin by path.
       tags:
         - pins
-      description: This endpoint would resolve the given IPFS path to cid and pin it.
+      description: This endpoint would resolve the given IPFS path to corresponding CID and pin it.
       responses:
         '200':
           description: OK
@@ -294,13 +330,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/Pin'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error parsing path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
           
     delete:
-      summary: Remove a Pin by Path.
+      summary: Remove a pin by path.
       tags:
         - pins
-      description: This endpoint would resolve the given ipfs path to cid and unpin it.
+      description: This endpoint would resolve the given ipfs path to corresponding CID and unpin it.
       responses:
         '200':
           description: OK
@@ -309,17 +349,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Pin'
         '500':
-          description: Removing a Pin that doesn't exist
+          description: Internal Server Error. Removing a pin that doesn't exist.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '400':
-          $ref: '#/components/responses/BadRequest'
-          
+          description: Bad Request. Error parsing path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /pins/sync:
     post:
-      summary: Sync status of all Pins.
+      summary: Sync status of all pins.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
@@ -342,7 +386,7 @@ paths:
         schema:
           type: string
     post:
-      summary: Sync status of a Pin.
+      summary: Sync status of a pin.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
@@ -355,11 +399,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/PinInfo'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Bad Request. Error decoding CID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   
   /pins/recover:
     post:
-      summary: Recover all Pins in error state.
+      summary: Recover all pins in error state.
       tags:
         - pins
       parameters:
@@ -378,7 +426,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/PinInfo'
         '400':
-          description: Bad Request
+          description: Bad Request. Only requests with parameter local=true are supported.
           content:
             application/json:
               schema:
@@ -392,7 +440,7 @@ paths:
         schema:
           type: string
     post:
-      summary: Recover the Pin with given cid from error state.
+      summary: Recover the pin with given CID from error state.
       parameters:
         - $ref: '#/components/parameters/local'
       tags:
@@ -405,8 +453,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/PinInfo'
         '400':
-          $ref: '#/components/responses/BadRequest'
-          
+          description: Bad Request. Error decoding CID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /health/graph:
     get:
       summary: Create a graph displaying connectivity of cluster peers.
@@ -665,7 +717,7 @@ components:
       
     pinMetaParam:
       name: meta-
-      description: This parameter associates metadata strings with a Pin. Parameter must start with `meta-` to be picked up by server.
+      description: This parameter associates metadata strings with a pin. Parameter must start with `meta-` to be picked up by server.
       in: query
       schema:
         type: object
