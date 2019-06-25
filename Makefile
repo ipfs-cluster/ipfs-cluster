@@ -1,9 +1,4 @@
-deptools=deptools
 sharness = sharness/lib/sharness
-gx=$(deptools)/gx
-gx-go=$(deptools)/gx-go
-
-export PATH := $(deptools):$(PATH)
 
 all: build
 clean: rwundo clean_sharness
@@ -12,35 +7,35 @@ clean: rwundo clean_sharness
 	@rm -rf ./test/testingData
 	@rm -rf ./compose
 
-install: gx-deps
+install:
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
-docker_install: docker_gx-deps
+docker_install:
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
-build: gx-deps
+build:
 	go build -ldflags "-X ipfscluster.Commit=$(shell git rev-parse HEAD)"
 	$(MAKE) -C cmd/ipfs-cluster-service build
 	$(MAKE) -C cmd/ipfs-cluster-ctl build
 
-service: gx-deps
+service:
 	$(MAKE) -C cmd/ipfs-cluster-service ipfs-cluster-service
-ctl: gx-deps
+ctl:
 	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
 
 check:
 	go vet ./...
 	golint -set_exit_status -min_confidence 0.3 ./...
 
-test: gx-deps
+test:
 	go test -v ./...
 
 test_sharness: $(sharness)
 	@sh sharness/run-sharness-tests.sh
 
-test_problem: gx-deps
+test_problem:
 	go test -timeout 20m -loglevel "DEBUG" -v -run $(problematic_test)
 
 $(sharness):
@@ -77,6 +72,6 @@ docker-compose:
 	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
 	docker-compose down
 
-prcheck: gx-deps check service ctl test
+prcheck: check service ctl test
 
-.PHONY: all gx gx-deps test test_sharness clean_sharness rw rwundo publish service ctl install clean gx-clean docker
+.PHONY: all test test_sharness clean_sharness rw rwundo publish service ctl install clean docker
