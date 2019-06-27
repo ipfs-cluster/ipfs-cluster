@@ -18,45 +18,90 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-func TestCheckPeers(t *testing.T) {
-	metrics := NewStore()
-	checker := NewChecker(context.Background(), metrics, 2.0)
+func TestChecker_CheckPeers(t *testing.T) {
+	t.Run("check with single metric", func(t *testing.T) {
+		metrics := NewStore()
+		checker := NewChecker(context.Background(), metrics, 2.0)
 
-	metr := &api.Metric{
-		Name:  "ping",
-		Peer:  test.PeerID1,
-		Value: "1",
-		Valid: true,
-	}
-	metr.SetTTL(2 * time.Second)
+		metr := &api.Metric{
+			Name:  "ping",
+			Peer:  test.PeerID1,
+			Value: "1",
+			Valid: true,
+		}
+		metr.SetTTL(2 * time.Second)
 
-	metrics.Add(metr)
+		metrics.Add(metr)
 
-	checker.CheckPeers([]peer.ID{test.PeerID1})
-	select {
-	case <-checker.Alerts():
-		t.Error("there should not be an alert yet")
-	default:
-	}
+		checker.CheckPeers([]peer.ID{test.PeerID1})
+		select {
+		case <-checker.Alerts():
+			t.Error("there should not be an alert yet")
+		default:
+		}
 
-	time.Sleep(3 * time.Second)
-	err := checker.CheckPeers([]peer.ID{test.PeerID1})
-	if err != nil {
-		t.Fatal(err)
-	}
+		time.Sleep(3 * time.Second)
+		err := checker.CheckPeers([]peer.ID{test.PeerID1})
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	select {
-	case <-checker.Alerts():
-	default:
-		t.Error("an alert should have been triggered")
-	}
+		select {
+		case <-checker.Alerts():
+		default:
+			t.Error("an alert should have been triggered")
+		}
 
-	checker.CheckPeers([]peer.ID{test.PeerID2})
-	select {
-	case <-checker.Alerts():
-		t.Error("there should not be alerts for different peer")
-	default:
-	}
+		checker.CheckPeers([]peer.ID{test.PeerID2})
+		select {
+		case <-checker.Alerts():
+			t.Error("there should not be alerts for different peer")
+		default:
+		}
+	})
+}
+
+func TestChecker_CheckAll(t *testing.T) {
+	t.Run("checkall with single metric", func(t *testing.T) {
+		metrics := NewStore()
+		checker := NewChecker(context.Background(), metrics, 2.0)
+
+		metr := &api.Metric{
+			Name:  "ping",
+			Peer:  test.PeerID1,
+			Value: "1",
+			Valid: true,
+		}
+		metr.SetTTL(2 * time.Second)
+
+		metrics.Add(metr)
+
+		checker.CheckAll()
+		select {
+		case <-checker.Alerts():
+			t.Error("there should not be an alert yet")
+		default:
+		}
+
+		time.Sleep(3 * time.Second)
+		err := checker.CheckAll()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		select {
+		case <-checker.Alerts():
+		default:
+			t.Error("an alert should have been triggered")
+		}
+
+		checker.CheckAll()
+		select {
+		case <-checker.Alerts():
+			t.Error("there should not be alerts for different peer")
+		default:
+		}
+	})
 }
 
 func TestChecker_Watch(t *testing.T) {
@@ -67,7 +112,7 @@ func TestChecker_Watch(t *testing.T) {
 	checker := NewChecker(context.Background(), metrics, 2.0)
 
 	metr := &api.Metric{
-		Name:  "test",
+		Name:  "ping",
 		Peer:  test.PeerID1,
 		Value: "1",
 		Valid: true,
@@ -95,12 +140,12 @@ func TestChecker_Failed(t *testing.T) {
 		checker := NewChecker(context.Background(), metrics, 2.0)
 
 		for i := 0; i < 10; i++ {
-			metrics.Add(makePeerMetric(test.PeerID1, "1"))
+			metrics.Add(makePeerMetric(test.PeerID1, "1", 3*time.Millisecond))
 			time.Sleep(time.Duration(2) * time.Millisecond)
 		}
 		for i := 0; i < 10; i++ {
-			metrics.Add(makePeerMetric(test.PeerID1, "1"))
-			got := checker.Failed(test.PeerID1)
+			metrics.Add(makePeerMetric(test.PeerID1, "1", 3*time.Millisecond))
+			got := checker.FailedMetric("ping", test.PeerID1)
 			// the magic number 17 represents the point at which
 			// the time between metrics addition has gotten
 			// so large that the probability that the service
@@ -109,6 +154,28 @@ func TestChecker_Failed(t *testing.T) {
 				t.Fatal("threshold should have been passed by now")
 			}
 			time.Sleep(time.Duration(i) * time.Millisecond)
+		}
+	})
+
+	t.Run("ttl must expire before phiv causes failure", func(t *testing.T) {
+		metrics := NewStore()
+		checker := NewChecker(context.Background(), metrics, 0.05)
+
+		for i := 0; i < 10; i++ {
+			metrics.Add(makePeerMetric(test.PeerID1, "1", 10*time.Millisecond))
+			time.Sleep(time.Duration(200) * time.Millisecond)
+		}
+		for i, j := 0, 10; i < 8; i, j = i+1, j*2 {
+			time.Sleep(time.Duration(j) * time.Millisecond)
+			metrics.Add(makePeerMetric(test.PeerID1, "1", 10*time.Millisecond))
+			v, _, phiv, got := checker.failed("ping", test.PeerID1)
+			t.Logf("i: %d: j: %d v: %f, phiv: %f, got: %v\n", i, j, v, phiv, got)
+			if i < 7 && got {
+				t.Fatal("threshold should not have been reached already")
+			}
+			if i >= 10 && !got {
+				t.Fatal("threshold should have been reached by now")
+			}
 		}
 	})
 }
@@ -122,7 +189,7 @@ func TestChecker_alert(t *testing.T) {
 		checker := NewChecker(ctx, metrics, 2.0)
 
 		metr := &api.Metric{
-			Name:  "test",
+			Name:  "ping",
 			Peer:  test.PeerID1,
 			Value: "1",
 			Valid: true,
@@ -200,13 +267,13 @@ func TestThresholdValues(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				check(i)
 				distTS.record(float64(10))
-				metrics.Add(makePeerMetric(test.PeerID1, "1"))
+				metrics.Add(makePeerMetric(test.PeerID1, "1", 1*time.Second))
 				time.Sleep(time.Duration(10) * time.Millisecond)
 			}
 			// start linearly increasing the interval values
 			for i := 10; i < 100 && !check(i); i++ {
 				distTS.record(float64(i))
-				metrics.Add(makePeerMetric(test.PeerID1, "1"))
+				metrics.Add(makePeerMetric(test.PeerID1, "1", 1*time.Second))
 				time.Sleep(time.Duration(i) * time.Millisecond)
 			}
 
@@ -261,13 +328,13 @@ func TestThresholdValues(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				check(i)
 				distTS.record(float64(8))
-				metrics.Add(makePeerMetric(test.PeerID1, "1"))
+				metrics.Add(makePeerMetric(test.PeerID1, "1", 1*time.Second))
 				time.Sleep(time.Duration(8) * time.Millisecond)
 			}
 			for i := 2; !check(i) && i < 20; i++ {
 				diff := math.Pow(float64(i), 3)
 				distTS.record(diff)
-				metrics.Add(makePeerMetric(test.PeerID1, "1"))
+				metrics.Add(makePeerMetric(test.PeerID1, "1", 1*time.Second))
 				time.Sleep(time.Duration(diff) * time.Millisecond)
 			}
 
@@ -321,13 +388,13 @@ func TestThresholdValues(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				check(i)
 				distTS.record(float64(i))
-				metrics.Add(makePeerMetric(test.PeerID1, "1"))
+				metrics.Add(makePeerMetric(test.PeerID1, "1", 1*time.Second))
 				time.Sleep(time.Duration(i) * time.Millisecond)
 			}
 			for i := 10; !check(i) && i < 30; i++ {
 				diff := i * 50
 				distTS.record(float64(diff))
-				metrics.Add(makePeerMetric(test.PeerID1, "1"))
+				metrics.Add(makePeerMetric(test.PeerID1, "1", 1*time.Second))
 				time.Sleep(time.Duration(diff) * time.Millisecond)
 			}
 
@@ -348,13 +415,14 @@ func TestThresholdValues(t *testing.T) {
 	})
 }
 
-func makePeerMetric(pid peer.ID, value string) *api.Metric {
+func makePeerMetric(pid peer.ID, value string, ttl time.Duration) *api.Metric {
 	metr := &api.Metric{
 		Name:  "ping",
 		Peer:  pid,
 		Value: value,
 		Valid: true,
 	}
+	metr.SetTTL(ttl)
 	return metr
 }
 

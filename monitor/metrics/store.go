@@ -129,6 +129,25 @@ func (mtrs *Store) PeerMetrics(pid peer.ID) []*api.Metric {
 	return result
 }
 
+// PeerMetricAll returns all of a particular metrics for a
+// particular peer.
+func (mtrs *Store) PeerMetricAll(name string, pid peer.ID) []*api.Metric {
+	mtrs.mux.RLock()
+	defer mtrs.mux.RUnlock()
+
+	byPeer, ok := mtrs.byName[name]
+	if !ok {
+		return nil
+	}
+
+	window, ok := byPeer[pid]
+	if !ok {
+		return nil
+	}
+	ms := window.All()
+	return ms
+}
+
 // PeerLatest returns the latest of a particular metric for a
 // particular peer. It may return an expired metric.
 func (mtrs *Store) PeerLatest(name string, pid peer.ID) *api.Metric {
@@ -169,4 +188,16 @@ func (mtrs *Store) Distribution(name string, pid peer.ID) []float64 {
 	}
 
 	return window.Distribution()
+}
+
+// MetricNames returns all the known metric names
+func (mtrs *Store) MetricNames() []string {
+	mtrs.mux.RLock()
+	defer mtrs.mux.RUnlock()
+
+	list := make([]string, 0, len(mtrs.byName))
+	for k := range mtrs.byName {
+		list = append(list, k)
+	}
+	return list
 }
