@@ -312,14 +312,14 @@ func (pm *Manager) Bootstrap(count int) []peer.ID {
 			continue
 		}
 
-		logger.Infof("connecting to %s", pinfo.ID)
+		logger.Debugf("connecting to %s", pinfo.ID)
 		err := pm.host.Connect(ctx, pinfo)
 		if err != nil {
-			logger.Warning(err)
+			logger.Debug(err)
 			pm.SetPriority(pinfo.ID, 9999)
 			continue
 		}
-		logger.Infof("connected to %s", pinfo.ID)
+		logger.Debugf("connected to %s", pinfo.ID)
 		totalConns++
 		connectedPeers = append(connectedPeers, pinfo.ID)
 	}
