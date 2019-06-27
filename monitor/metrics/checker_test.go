@@ -173,7 +173,7 @@ func TestChecker_Failed(t *testing.T) {
 			if i < 7 && got {
 				t.Fatal("threshold should not have been reached already")
 			}
-			if i >= 7 && !got {
+			if i >= 10 && !got {
 				t.Fatal("threshold should have been reached by now")
 			}
 		}
