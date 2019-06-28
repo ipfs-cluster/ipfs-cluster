@@ -9,7 +9,7 @@ ENV GO111MODULE on
 
 COPY . $SRC_PATH
 WORKDIR $SRC_PATH
-RUN make docker_install
+RUN make install
 
 ENV SUEXEC_VERSION v0.2
 ENV TINI_VERSION v0.16.1
