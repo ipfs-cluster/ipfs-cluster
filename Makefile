@@ -1,5 +1,7 @@
 sharness = sharness/lib/sharness
 
+export GO111MODULE := on
+
 all: build
 clean: rwundo clean_sharness
 	$(MAKE) -C cmd/ipfs-cluster-service clean
@@ -8,10 +10,6 @@ clean: rwundo clean_sharness
 	@rm -rf ./compose
 
 install:
-	$(MAKE) -C cmd/ipfs-cluster-service install
-	$(MAKE) -C cmd/ipfs-cluster-ctl install
-
-docker_install:
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
