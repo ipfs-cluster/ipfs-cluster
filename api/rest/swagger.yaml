@@ -148,7 +148,7 @@ paths:
       summary: List allocations information of all pins.
       tags:
         - allocations
-      description: This endpoint will list allocations information (replication factors, user allocation, shard size, name etc.) of all pins.
+      description: This endpoint will list allocations information (replication factors, user allocation, shard size, name etc.) of all pins. Allocations merely represent the list of pins which are part of the shared state of the cluster and which peers they are currently allocated. It does not include any monitoring information about the IPFS status of the CIDs.
       parameters:
         - name: filter
           in: query
@@ -207,7 +207,7 @@ paths:
 
   /pins:
     get:
-      summary: List pins with their status.
+      summary: List pin statuses. It retrieves the status of the CIDs tracked by IPFS Cluster, including which member is pinning them and any errors. The status of a CID may not be accurate. A manual sync can be triggered with "/sync". When the --local flag is passed, it will only fetch the status from the contacted cluster peer. By default, status will be fetched from all peers. When the --filter flag is passed, it will only fetch the peer information where status of the pin matches at least one of the filter values (a comma separated list).
       parameters:
         - $ref: '#/components/parameters/local'
         - name: filter
