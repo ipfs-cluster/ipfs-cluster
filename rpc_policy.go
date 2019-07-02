@@ -6,7 +6,7 @@ package ipfscluster
 // endpoint type. See rpcutil/policygen.go as a quick way to generate this
 // without missing any endpoint.
 var DefaultRPCPolicy = map[string]RPCEndpointType{
-	// Cluster methods
+	//  Cluster methods
 	"Cluster.BlockAllocate":      RPCClosed,
 	"Cluster.ConnectGraph":       RPCClosed,
 	"Cluster.ID":                 RPCOpen,
@@ -21,6 +21,7 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.Recover":            RPCClosed,
 	"Cluster.RecoverAllLocal":    RPCClosed,
 	"Cluster.RecoverLocal":       RPCClosed,
+	"Cluster.RepoGC":             RPCClosed,
 	"Cluster.SendInformerMetric": RPCClosed,
 	"Cluster.Status":             RPCClosed,
 	"Cluster.StatusAll":          RPCClosed,
@@ -34,7 +35,7 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.UnpinPath":          RPCClosed,
 	"Cluster.Version":            RPCOpen,
 
-	// PinTracker methods
+	//  PinTracker methods
 	"PinTracker.Recover":    RPCTrusted, // Called in broadcast from Recover()
 	"PinTracker.RecoverAll": RPCClosed,  // Broadcast in RecoverAll unimplemented
 	"PinTracker.Status":     RPCTrusted,
@@ -42,25 +43,26 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"PinTracker.Track":      RPCClosed,
 	"PinTracker.Untrack":    RPCClosed,
 
-	// IPFSConnector methods
+	//  IPFSConnector methods
 	"IPFSConnector.BlockGet":   RPCClosed,
 	"IPFSConnector.BlockPut":   RPCTrusted, // Called from Add()
 	"IPFSConnector.ConfigKey":  RPCClosed,
 	"IPFSConnector.Pin":        RPCClosed,
 	"IPFSConnector.PinLs":      RPCClosed,
 	"IPFSConnector.PinLsCid":   RPCClosed,
+	"IPFSConnector.RepoGC":     RPCTrusted,
 	"IPFSConnector.RepoStat":   RPCTrusted, // Called in broadcast from proxy/repo/stat
 	"IPFSConnector.Resolve":    RPCClosed,
 	"IPFSConnector.SwarmPeers": RPCTrusted, // Called in ConnectGraph
 	"IPFSConnector.Unpin":      RPCClosed,
 
-	// Consensus methods
+	//  Consensus methods
 	"Consensus.AddPeer":  RPCTrusted, // Called by Raft/redirect to leader
 	"Consensus.LogPin":   RPCTrusted, // Called by Raft/redirect to leader
 	"Consensus.LogUnpin": RPCTrusted, // Called by Raft/redirect to leader
 	"Consensus.Peers":    RPCClosed,
 	"Consensus.RmPeer":   RPCTrusted, // Called by Raft/redirect to leader
 
-	// PeerMonitor methods
+	//  PeerMonitor methods
 	"PeerMonitor.LatestMetrics": RPCClosed,
 }
