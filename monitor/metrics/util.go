@@ -3,7 +3,7 @@ package metrics
 import (
 	"github.com/ipfs/ipfs-cluster/api"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 // PeersetFilter removes all metrics not belonging to the given

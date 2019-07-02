@@ -1,12 +1,12 @@
 package ipfscluster
 
 import (
-	peer "github.com/libp2p/go-libp2p-peer"
-
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
+
+	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	"go.opencensus.io/trace"
 )
 
 // ConnectGraph returns a description of which cluster peers and ipfs

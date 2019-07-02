@@ -13,8 +13,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // Component represents a piece of ipfscluster. Cluster components
@@ -36,23 +36,32 @@ type Consensus interface {
 	// Returns a channel to signal that the consensus layer is ready
 	// allowing the main component to wait for it during start.
 	Ready(context.Context) <-chan struct{}
-	// Logs a pin operation
+	// Logs a pin operation.
 	LogPin(ctx context.Context, c *api.Pin) error
-	// Logs an unpin operation
+	// Logs an unpin operation.
 	LogUnpin(ctx context.Context, c *api.Pin) error
 	AddPeer(ctx context.Context, p peer.ID) error
 	RmPeer(ctx context.Context, p peer.ID) error
 	State(context.Context) (state.ReadOnly, error)
 	// Provide a node which is responsible to perform
-	// specific tasks which must only run in 1 cluster peer
+	// specific tasks which must only run in 1 cluster peer.
 	Leader(context.Context) (peer.ID, error)
 	// Only returns when the consensus state has all log
-	// updates applied to it
+	// updates applied to it.
 	WaitForSync(context.Context) error
-	// Clean removes all consensus data
+	// Clean removes all consensus data.
 	Clean(context.Context) error
-	// Peers returns the peerset participating in the Consensus
+	// Peers returns the peerset participating in the Consensus.
 	Peers(context.Context) ([]peer.ID, error)
+	// IsTrustedPeer returns true if the given peer is "trusted".
+	// This will grant access to more rpc endpoints and a
+	// non-trusted one. This should be fast as it will be
+	// called repeteadly for every remote RPC request.
+	IsTrustedPeer(context.Context, peer.ID) bool
+	// Trust marks a peer as "trusted".
+	Trust(context.Context, peer.ID) error
+	// Distrust removes a peer from the "trusted" set.
+	Distrust(context.Context, peer.ID) error
 }
 
 // API is a component which offers an API for Cluster. This is
@@ -73,7 +82,7 @@ type IPFSConnector interface {
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.
 	ConnectSwarms(context.Context) error
-	// SwarmPeers returns the IPFS daemon's swarm peers
+	// SwarmPeers returns the IPFS daemon's swarm peers.
 	SwarmPeers(context.Context) ([]peer.ID, error)
 	// ConfigKey returns the value for a configuration key.
 	// Subobjects are reached with keypaths as "Parent/Child/GrandChild...".
@@ -83,11 +92,11 @@ type IPFSConnector interface {
 	RepoStat(context.Context) (*api.IPFSRepoStat, error)
 	// RepoGC performs a garbage collection sweep on the repo.
 	RepoGC(context.Context) (api.IPFSRepoGC, error)
-	// Resolve returns a cid given a path
+	// Resolve returns a cid given a path.
 	Resolve(context.Context, string) (cid.Cid, error)
-	// BlockPut directly adds a block of data to the IPFS repo
+	// BlockPut directly adds a block of data to the IPFS repo.
 	BlockPut(context.Context, *api.NodeWithMeta) error
-	// BlockGet retrieves the raw data of an IPFS block
+	// BlockGet retrieves the raw data of an IPFS block.
 	BlockGet(context.Context, cid.Cid) ([]byte, error)
 }
 

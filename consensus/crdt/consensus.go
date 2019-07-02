@@ -4,30 +4,36 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
-	ipfslite "github.com/hsanjuan/ipfs-lite"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
-	multihash "github.com/multiformats/go-multihash"
 
 	ds "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/namespace"
+	namespace "github.com/ipfs/go-datastore/namespace"
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
+	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	logging "github.com/ipfs/go-log"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	peer "github.com/libp2p/go-libp2p-peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	multihash "github.com/multiformats/go-multihash"
+
+	ipfslite "github.com/hsanjuan/ipfs-lite"
+	trace "go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("crdt")
 
 var (
-	blocksNs = "b" // blockstore namespace
+	blocksNs   = "b" // blockstore namespace
+	connMgrTag = "crdt"
 )
 
 // Common variables for the module.
@@ -45,13 +51,17 @@ type Consensus struct {
 
 	config *Config
 
-	host host.Host
+	trustedPeers sync.Map
+
+	host        host.Host
+	peerManager *pstoremgr.Manager
 
 	store     ds.Datastore
 	namespace ds.Key
 
 	state state.State
 	crdt  *crdt.Datastore
+	ipfs  *ipfslite.Peer
 
 	dht    *dht.IpfsDHT
 	pubsub *pubsub.PubSub
@@ -81,17 +91,38 @@ func New(
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var blocksDatastore ds.Batching
+	ns := ds.NewKey(cfg.DatastoreNamespace)
+	blocksDatastore = namespace.Wrap(store, ns.ChildString(blocksNs))
+
+	ipfs, err := ipfslite.New(
+		ctx,
+		blocksDatastore,
+		host,
+		dht,
+		&ipfslite.Config{
+			Offline: false,
+		},
+	)
+	if err != nil {
+		logger.Errorf("error creating ipfs-lite: %s", err)
+		cancel()
+		return nil, err
+	}
+
 	css := &Consensus{
-		ctx:       ctx,
-		cancel:    cancel,
-		config:    cfg,
-		host:      host,
-		dht:       dht,
-		store:     store,
-		namespace: ds.NewKey(cfg.DatastoreNamespace),
-		pubsub:    pubsub,
-		rpcReady:  make(chan struct{}, 1),
-		readyCh:   make(chan struct{}, 1),
+		ctx:         ctx,
+		cancel:      cancel,
+		config:      cfg,
+		host:        host,
+		peerManager: pstoremgr.New(ctx, host, ""),
+		dht:         dht,
+		store:       store,
+		ipfs:        ipfs,
+		namespace:   ns,
+		pubsub:      pubsub,
+		rpcReady:    make(chan struct{}, 1),
+		readyCh:     make(chan struct{}, 1),
 	}
 
 	go css.setup()
@@ -103,6 +134,12 @@ func (css *Consensus) setup() {
 	case <-css.ctx.Done():
 		return
 	case <-css.rpcReady:
+	}
+
+	// Set up a fast-lookup trusted peers cache.
+	// Protect these peers in the ConnMgr
+	for _, p := range css.config.TrustedPeers {
+		css.Trust(css.ctx, p)
 	}
 
 	// Hash the cluster name and produce the topic name from there
@@ -122,32 +159,12 @@ func (css *Consensus) setup() {
 	err = css.pubsub.RegisterTopicValidator(
 		topicName,
 		func(ctx context.Context, p peer.ID, msg *pubsub.Message) bool {
-			// This is where peer authentication will go.
-			return true
+			return css.IsTrustedPeer(ctx, p)
 		},
 	)
 	if err != nil {
 		logger.Errorf("error registering topic validator: %s", err)
 	}
-
-	var blocksDatastore ds.Batching
-	blocksDatastore = namespace.Wrap(css.store, css.namespace.ChildString(blocksNs))
-
-	ipfs, err := ipfslite.New(
-		css.ctx,
-		blocksDatastore,
-		css.host,
-		css.dht,
-		&ipfslite.Config{
-			Offline: false,
-		},
-	)
-	if err != nil {
-		logger.Errorf("error creating ipfs-lite: %s", err)
-		return
-	}
-
-	dagSyncer := newLiteDAGSyncer(css.ctx, ipfs)
 
 	broadcaster, err := crdt.NewPubSubBroadcaster(
 		css.ctx,
@@ -161,8 +178,12 @@ func (css *Consensus) setup() {
 
 	opts := crdt.DefaultOptions()
 	opts.RebroadcastInterval = css.config.RebroadcastInterval
+	opts.DAGSyncerTimeout = time.Minute
 	opts.Logger = logger
 	opts.PutHook = func(k ds.Key, v []byte) {
+		ctx, span := trace.StartSpan(css.ctx, "crdt/PutHook")
+		defer span.End()
+
 		pin := &api.Pin{}
 		err := pin.ProtoUnmarshal(v)
 		if err != nil {
@@ -172,7 +193,7 @@ func (css *Consensus) setup() {
 
 		// TODO: tracing for this context
 		err = css.rpcClient.CallContext(
-			css.ctx,
+			ctx,
 			"",
 			"PinTracker",
 			"Track",
@@ -182,8 +203,12 @@ func (css *Consensus) setup() {
 		if err != nil {
 			logger.Error(err)
 		}
+		logger.Infof("new pin added: %s", pin.Cid)
 	}
 	opts.DeleteHook = func(k ds.Key) {
+		ctx, span := trace.StartSpan(css.ctx, "crdt/DeleteHook")
+		defer span.End()
+
 		c, err := dshelp.DsKeyToCid(k)
 		if err != nil {
 			logger.Error(err, k)
@@ -192,7 +217,7 @@ func (css *Consensus) setup() {
 		pin := api.PinCid(c)
 
 		err = css.rpcClient.CallContext(
-			css.ctx,
+			ctx,
 			"",
 			"PinTracker",
 			"Untrack",
@@ -202,12 +227,13 @@ func (css *Consensus) setup() {
 		if err != nil {
 			logger.Error(err)
 		}
+		logger.Infof("pin removed: %s", c)
 	}
 
 	crdt, err := crdt.New(
 		css.store,
 		css.namespace,
-		dagSyncer,
+		css.ipfs,
 		broadcaster,
 		opts,
 	)
@@ -276,13 +302,64 @@ func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 	return css.readyCh
 }
 
+// IsTrustedPeer returns whether the given peer is taken into account
+// when submitting updates to the consensus state.
+func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
+	ctx, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
+	defer span.End()
+
+	if css.config.TrustAll {
+		return true
+	}
+
+	if pid == css.host.ID() {
+		return true
+	}
+
+	_, ok := css.trustedPeers.Load(pid)
+	return ok
+}
+
+// Trust marks a peer as "trusted". It makes sure it is trusted as issuer
+// for pubsub updates, it is protected in the connection manager, it
+// has the highest priority when the peerstore is saved, and it's addresses
+// are always remembered.
+func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/Trust")
+	defer span.End()
+
+	css.trustedPeers.Store(pid, struct{}{})
+	if conman := css.host.ConnManager(); conman != nil {
+		conman.Protect(pid, connMgrTag)
+	}
+	css.peerManager.SetPriority(pid, 0)
+	addrs := css.host.Peerstore().Addrs(pid)
+	css.host.Peerstore().SetAddrs(pid, addrs, peerstore.PermanentAddrTTL)
+	return nil
+}
+
+// Distrust removes a peer from the "trusted" set.
+func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/Distrust")
+	defer span.End()
+
+	css.trustedPeers.Delete(pid)
+	return nil
+}
+
 // LogPin adds a new pin to the shared state.
 func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/LogPin")
+	defer span.End()
+
 	return css.state.Add(ctx, pin)
 }
 
 // LogUnpin removes a pin from the shared state.
 func (css *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
+	ctx, span := trace.StartSpan(ctx, "consensus/LogUnpin")
+	defer span.End()
+
 	return css.state.Rm(ctx, pin.Cid)
 }
 
@@ -290,6 +367,9 @@ func (css *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
 // the monitor component and considers every peer with
 // valid known metrics a member.
 func (css *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/Peers")
+	defer span.End()
+
 	var metrics []*api.Metric
 
 	err := css.rpcClient.CallContext(
@@ -328,7 +408,9 @@ func (css *Consensus) WaitForSync(ctx context.Context) error { return nil }
 
 // AddPeer is a no-op as we do not need to do peerset management with
 // Merkle-CRDTs. Therefore adding a peer to the peerset means doing nothing.
-func (css *Consensus) AddPeer(ctx context.Context, pid peer.ID) error { return nil }
+func (css *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
+	return nil
+}
 
 // RmPeer is a no-op which always errors, as, since we do not do peerset
 // management, we also have no ability to remove a peer from it.
@@ -409,12 +491,10 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 		return nil, err
 	}
 
-	dags := newLiteDAGSyncer(context.Background(), ipfs)
-
 	crdt, err := crdt.New(
 		batching,
 		ds.NewKey(cfg.DatastoreNamespace),
-		dags,
+		ipfs,
 		nil,
 		opts,
 	)

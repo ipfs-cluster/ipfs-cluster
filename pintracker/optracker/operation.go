@@ -2,6 +2,8 @@ package optracker
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +83,24 @@ func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase
 		ts:     time.Now(),
 		error:  "",
 	}
+}
+
+// String returns a string representation of an Operation.
+func (op *Operation) String() string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "type: %s\n", op.Type().String())
+	fmt.Fprint(&b, "pin:\n")
+	pinstr := op.Pin().String()
+	pinstrs := strings.Split(pinstr, "\n")
+	for _, s := range pinstrs {
+		fmt.Fprintf(&b, "\t%s\n", s)
+	}
+	fmt.Fprintf(&b, "phase: %s\n", op.Phase().String())
+	fmt.Fprintf(&b, "error: %s\n", op.Error())
+	fmt.Fprintf(&b, "timestamp: %s\n", op.Timestamp().String())
+
+	return b.String()
 }
 
 // Cid returns the Cid associated to this operation.

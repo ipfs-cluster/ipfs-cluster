@@ -10,7 +10,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 // CtxsWithTimeout returns n contexts, derived from the given parent

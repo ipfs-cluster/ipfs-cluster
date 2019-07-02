@@ -37,7 +37,7 @@ func TestClusterSecretFormat(t *testing.T) {
 func TestSimplePNet(t *testing.T) {
 	ctx := context.Background()
 	clusters, mocks, boot := peerManagerClusters(t)
-	defer cleanRaft()
+	defer cleanState()
 	defer shutdownClusters(t, clusters, mocks)
 	defer boot.Close()
 
@@ -49,6 +49,7 @@ func TestSimplePNet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ttlDelay()
 
 	if len(clusters[0].Peers(ctx)) != len(clusters[1].Peers(ctx)) {
 		t.Fatal("Expected same number of peers")
@@ -66,7 +67,7 @@ func TestSimplePNet(t *testing.T) {
 // 	}
 // 	cl1, _ := createOnePeerCluster(t, 1, (*cl1Secret)[:])
 // 	cl2, _ := createOnePeerCluster(t, 2, testingClusterSecret)
-// 	defer cleanRaft()
+// 	defer cleanState()
 // 	defer cl1.Shutdown()
 // 	defer cl2.Shutdown()
 // 	peers1 := cl1.Peers()

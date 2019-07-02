@@ -10,9 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"go.opencensus.io/tag"
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
@@ -20,11 +17,14 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log"
 	consensus "github.com/libp2p/go-libp2p-consensus"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("raft")
@@ -228,6 +228,17 @@ func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
 
 	return cc.readyCh
 }
+
+// IsTrustedPeer returns true. In Raft we trust all peers.
+func (cc *Consensus) IsTrustedPeer(ctx context.Context, p peer.ID) bool {
+	return true
+}
+
+// Trust is a no-op.
+func (cc *Consensus) Trust(ctx context.Context, pid peer.ID) error { return nil }
+
+// Distrust is a no-op.
+func (cc *Consensus) Distrust(ctx context.Context, pid peer.ID) error { return nil }
 
 func (cc *Consensus) op(ctx context.Context, pin *api.Pin, t LogOpType) *LogOp {
 	return &LogOp{

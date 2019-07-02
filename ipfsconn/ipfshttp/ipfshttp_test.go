@@ -128,13 +128,35 @@ func TestIPFSPinLsCid(t *testing.T) {
 
 	ipfs.Pin(ctx, c, -1)
 	ips, err := ipfs.PinLsCid(ctx, c)
-	if err != nil || !ips.IsPinned(-1) {
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !ips.IsPinned(-1) {
 		t.Error("c should appear pinned")
 	}
 
 	ips, err = ipfs.PinLsCid(ctx, c2)
 	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
+	}
+}
+
+func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+	c := test.Cid4 // ipfs mock treats this specially
+
+	ipfs.Pin(ctx, c, -1)
+	ips, err := ipfs.PinLsCid(ctx, c)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !ips.IsPinned(-1) {
+		t.Error("c should appear pinned")
 	}
 }
 

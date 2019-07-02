@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
-
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
+
+	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	"github.com/kelseyhightower/envconfig"
 )
 
 var configKey = "crdt"
@@ -20,6 +23,7 @@ var (
 	DefaultPeersetMetric       = "ping"
 	DefaultDatastoreNamespace  = "/c" // from "/crdt"
 	DefaultRebroadcastInterval = time.Minute
+	DefaultTrustedPeers        = []peer.ID{}
 )
 
 // Config is the configuration object for Consensus.
@@ -30,6 +34,15 @@ type Config struct {
 
 	// The topic we wish to subscribe to
 	ClusterName string
+
+	// TrustAll specifies whether we should trust all peers regardless of
+	// the TrustedPeers contents.
+	TrustAll bool
+
+	// Any update received from a peer outside this set is ignored and not
+	// forwarded. Trusted peers can also access additional RPC endpoints
+	// for this peer that are forbidden for other peers.
+	TrustedPeers []peer.ID
 
 	// The interval before re-announcing the current state
 	// to the network when no activity is observed.
@@ -47,10 +60,12 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ClusterName         string `json:"cluster_name"`
-	RebroadcastInterval string `json:"rebroadcast_interval,omitempty"`
-	PeersetMetric       string `json:"peerset_metric,omitempty"`
-	DatastoreNamespace  string `json:"datastore_namespace,omitempty"`
+	ClusterName         string   `json:"cluster_name"`
+	TrustedPeers        []string `json:"trusted_peers"`
+	RebroadcastInterval string   `json:"rebroadcast_interval,omitempty"`
+
+	PeersetMetric      string `json:"peerset_metric,omitempty"`
+	DatastoreNamespace string `json:"datastore_namespace,omitempty"`
 }
 
 // ConfigKey returns the section name for this type of configuration.
@@ -89,6 +104,20 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	cfg.ClusterName = jcfg.ClusterName
+
+	for _, p := range jcfg.TrustedPeers {
+		if p == "*" {
+			cfg.TrustAll = true
+			cfg.TrustedPeers = []peer.ID{}
+			break
+		}
+		pid, err := peer.IDB58Decode(p)
+		if err != nil {
+			return fmt.Errorf("error parsing trusted peers: %s", err)
+		}
+		cfg.TrustedPeers = append(cfg.TrustedPeers, pid)
+	}
+
 	config.SetIfNotDefault(jcfg.PeersetMetric, &cfg.PeersetMetric)
 	config.SetIfNotDefault(jcfg.DatastoreNamespace, &cfg.DatastoreNamespace)
 	config.ParseDurations(
@@ -108,6 +137,7 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	jcfg := &jsonConfig{
 		ClusterName:         cfg.ClusterName,
+		TrustedPeers:        api.PeersToStrings(cfg.TrustedPeers),
 		PeersetMetric:       "",
 		RebroadcastInterval: "",
 	}
@@ -135,6 +165,8 @@ func (cfg *Config) Default() error {
 	cfg.RebroadcastInterval = DefaultRebroadcastInterval
 	cfg.PeersetMetric = DefaultPeersetMetric
 	cfg.DatastoreNamespace = DefaultDatastoreNamespace
+	cfg.TrustedPeers = DefaultTrustedPeers
+	cfg.TrustAll = false
 	return nil
 }
 

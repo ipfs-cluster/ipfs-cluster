@@ -6,16 +6,15 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
-	ma "github.com/multiformats/go-multiaddr"
-
-	types "github.com/ipfs/ipfs-cluster/api"
-
 	"github.com/ipfs/ipfs-cluster/api"
+	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func testClients(t *testing.T, api *rest.API, f func(*testing.T, Client)) {

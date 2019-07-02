@@ -9,15 +9,13 @@ import (
 	"testing"
 	"time"
 
-	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-
-	host "github.com/libp2p/go-libp2p-host"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	libp2p "github.com/libp2p/go-libp2p"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
 func init() {
@@ -86,7 +84,7 @@ func testPeerMonitor(t *testing.T) (*Monitor, host.Host, func()) {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.CheckInterval = 2 * time.Second
-	mon, err := New(cfg, psub, peers)
+	mon, err := New(ctx, cfg, psub, peers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +241,7 @@ func TestPeerMonitorPublishMetric(t *testing.T) {
 
 	err := host.Connect(
 		context.Background(),
-		peerstore.PeerInfo{
+		peer.AddrInfo{
 			ID:    host2.ID(),
 			Addrs: host2.Addrs(),
 		},

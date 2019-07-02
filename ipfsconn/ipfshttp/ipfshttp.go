@@ -15,23 +15,22 @@ import (
 	"sync"
 	"time"
 
-	gopath "github.com/ipfs/go-path"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
+
+	cid "github.com/ipfs/go-cid"
+	files "github.com/ipfs/go-ipfs-files"
+	logging "github.com/ipfs/go-log"
+	gopath "github.com/ipfs/go-path"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
+	madns "github.com/multiformats/go-multiaddr-dns"
+	manet "github.com/multiformats/go-multiaddr-net"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
-
-	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-files"
-	logging "github.com/ipfs/go-log"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
-	madns "github.com/multiformats/go-multiaddr-dns"
-	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 // DNSTimeout is used when resolving DNS multiaddresses in this module
@@ -166,6 +165,10 @@ func (ipfs *Connector) run() {
 	// -- prevents race conditions with ipfs.wg.
 	ipfs.shutdownLock.Lock()
 	defer ipfs.shutdownLock.Unlock()
+
+	if ipfs.config.ConnectSwarmsDelay == 0 {
+		return
+	}
 
 	// This runs ipfs swarm connect to the daemons of other cluster members
 	ipfs.wg.Add(1)
@@ -302,7 +305,7 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 			return err
 		}
 		logger.Debugf("Refs for %s sucessfully fetched", hash)
-		stats.Record(ctx, observations.PinCountMetric.M(1))
+		stats.Record(ctx, observations.Pins.M(1))
 	}
 
 	path := fmt.Sprintf("pin/add?arg=%s&%s", hash, pinArgs)
@@ -334,7 +337,7 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 			return err
 		}
 		logger.Info("IPFS Unpin request succeeded:", hash)
-		stats.Record(ctx, observations.PinCountMetric.M(-1))
+		stats.Record(ctx, observations.Pins.M(-1))
 	}
 
 	logger.Debug("IPFS object is already unpinned: ", hash)
@@ -408,16 +411,21 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash cid.Cid) (api.IPFSPinS
 	var res ipfsPinLsResp
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		logger.Error("parsing pin/ls?arg=cid response:")
+		logger.Error("error parsing pin/ls?arg=cid response:")
 		logger.Error(string(body))
 		return api.IPFSPinStatusError, err
 	}
-	pinObj, ok := res.Keys[hash.String()]
-	if !ok {
-		return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
-	}
 
-	return api.IPFSPinStatusFromString(pinObj.Type), nil
+	// We do not know what string format the returned key has so
+	// we parse as CID. There should only be one returned key.
+	for k, pinObj := range res.Keys {
+		c, err := cid.Decode(k)
+		if err != nil || !c.Equals(hash) {
+			continue
+		}
+		return api.IPFSPinStatusFromString(pinObj.Type), nil
+	}
+	return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {

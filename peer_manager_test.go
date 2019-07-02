@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -32,6 +32,11 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	}
 	wg.Wait()
 
+	// Creat an identity
+	ident, err := config.NewIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Create a config
 	cfg := &Config{}
 	cfg.Default()
@@ -40,7 +45,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.Secret = testingClusterSecret
 
 	// Create a bootstrapping libp2p host
-	h, _, dht, err := NewClusterHost(context.Background(), cfg)
+	h, _, dht, err := NewClusterHost(context.Background(), ident, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +55,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	for i := 0; i < nClusters; i++ {
 		err := cls[i].host.Connect(
 			context.Background(),
-			peerstore.PeerInfo{
+			peer.AddrInfo{
 				ID:    h.ID(),
 				Addrs: h.Addrs(),
 			},
@@ -90,8 +95,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		if len(id.ClusterPeers) != i+1 {
+		if !containsPeer(id.ClusterPeers, clusters[0].id) {
 			// ClusterPeers is originally empty and contains nodes as we add them
 			t.Log(i, id.ClusterPeers)
 			t.Fatal("cluster peers should be up to date with the cluster")
@@ -141,11 +145,11 @@ func TestClustersPeerAdd(t *testing.T) {
 		addrs := c.peerManager.LoadPeerstore()
 		peerMap := make(map[peer.ID]struct{})
 		for _, a := range addrs {
-			pid, _, err := api.Libp2pMultiaddrSplit(a)
+			pinfo, err := peer.AddrInfoFromP2pAddr(a)
 			if err != nil {
 				t.Fatal(err)
 			}
-			peerMap[pid] = struct{}{}
+			peerMap[pinfo.ID] = struct{}{}
 		}
 
 		if len(peerMap) == 0 {
@@ -197,6 +201,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 	}
 
 	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
+	ttlDelay()
 	ids := clusters[1].Peers(ctx)
 	if len(ids) != 2 {
 		t.Error("expected 2 peers")
@@ -233,6 +238,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 			t.Error(err)
 		}
 
+		ttlDelay()
 		ids = clusters[0].Peers(ctx)
 		if len(ids) != 2 {
 			t.Error("cluster should have 2 peers after removing and adding 1")
@@ -316,6 +322,7 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 					}
 				}
 			}
+			// potential hanging place
 			_, more := <-clusters[i].Done()
 			if more {
 				t.Error("should be done")
@@ -339,7 +346,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 		return
 	case "raft":
 
-		findLeader := func() *Cluster {
+		findLeader := func(t *testing.T) *Cluster {
 			var l peer.ID
 			for _, c := range clusters {
 				if !c.shutdownB {
@@ -352,11 +359,12 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 					return c
 				}
 			}
+			t.Fatal("no leader found")
 			return nil
 		}
 
 		for i := 0; i < len(clusters); i++ {
-			leader := findLeader()
+			leader := findLeader(t)
 			peers := leader.Peers(ctx)
 			t.Logf("Current cluster size: %d", len(peers))
 			if len(peers) != (len(clusters) - i) {
@@ -510,6 +518,7 @@ func TestClustersPeerJoin(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+
 	hash := test.Cid1
 	clusters[0].Pin(ctx, api.PinCid(hash))
 	pinDelay()
@@ -686,6 +695,9 @@ func TestClustersPeerRejoin(t *testing.T) {
 	c0, m0 := createOnePeerCluster(t, 0, testingClusterSecret)
 	clusters[0] = c0
 	mocks[0] = m0
+
+	delay()
+
 	err = c0.Join(ctx, clusterAddr(clusters[1]))
 	if err != nil {
 		t.Fatal(err)

@@ -15,16 +15,15 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	p2phttp "github.com/hsanjuan/go-libp2p-http"
+	cid "github.com/ipfs/go-cid"
 	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	p2phttp "github.com/libp2p/go-libp2p-http"
 	ma "github.com/multiformats/go-multiaddr"
 )
 

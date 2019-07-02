@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"sort"
 	"sync"
 	"time"
 
@@ -19,10 +20,11 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
@@ -35,7 +37,11 @@ import (
 // consensus layer.
 var ReadyTimeout = 30 * time.Second
 
-var pingMetricName = "ping"
+const (
+	pingMetricName      = "ping"
+	bootstrapCount      = 3
+	reBootstrapInterval = 30 * time.Second
+)
 
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
@@ -83,6 +89,7 @@ type Cluster struct {
 // this call returns (consensus may still be bootstrapping). Use Cluster.Ready()
 // if you need to wait until the peer is fully up.
 func NewCluster(
+	ctx context.Context,
 	host host.Host,
 	dht *dht.IpfsDHT,
 	cfg *Config,
@@ -105,7 +112,7 @@ func NewCluster(
 		return nil, errors.New("cluster host is nil")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
@@ -114,9 +121,7 @@ func NewCluster(
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
 
-	// Note, we already loaded peers from peerstore into the host
-	// in daemon.go.
-	peerManager := pstoremgr.New(host, cfg.GetPeerstorePath())
+	peerManager := pstoremgr.New(ctx, host, cfg.GetPeerstorePath())
 
 	c := &Cluster{
 		ctx:         ctx,
@@ -142,13 +147,39 @@ func NewCluster(
 		readyB:      false,
 	}
 
+	// Import known cluster peers from peerstore file. Set
+	// a non permanent TTL.
+	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
+	// Attempt to connect to some peers (up to bootstrapCount)
+	connectedPeers := c.peerManager.Bootstrap(bootstrapCount)
+	// We cannot warn when count is low as this as this is normal if going
+	// to Join() later.
+	logger.Debugf("bootstrap count %d", len(connectedPeers))
+	// Log a ping metric for every connected peer. This will make them
+	// visible as peers without having to wait for them to send one.
+	for _, p := range connectedPeers {
+		if err := c.logPingMetric(ctx, p); err != nil {
+			logger.Warning(err)
+		}
+	}
+
+	// Bootstrap the DHT now that we possibly have some connections
+	c.dht.Bootstrap(c.ctx)
+
+	// After setupRPC components can do their tasks with a fully operative
+	// routed libp2p host with some connections and a working DHT (hopefully).
 	err = c.setupRPC()
 	if err != nil {
 		c.Shutdown(ctx)
 		return nil, err
 	}
 	c.setupRPCClients()
+
+	// Note: It is very important to first call Add() once in a non-racy
+	// place
+	c.wg.Add(1)
 	go func() {
+		defer c.wg.Done()
 		c.ready(ReadyTimeout)
 		c.run()
 	}()
@@ -266,19 +297,47 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context) {
 	}
 }
 
+func (c *Cluster) sendPingMetric(ctx context.Context) (*api.Metric, error) {
+	ctx, span := trace.StartSpan(ctx, "cluster/sendPingMetric")
+	defer span.End()
+
+	metric := &api.Metric{
+		Name:  pingMetricName,
+		Peer:  c.id,
+		Valid: true,
+	}
+	metric.SetTTL(c.config.MonitorPingInterval * 2)
+	return metric, c.monitor.PublishMetric(ctx, metric)
+}
+
+// logPingMetric logs a ping metric as if it had been sent from PID.  It is
+// used to make peers appear available as soon as we connect to them (without
+// having to wait for them to broadcast a metric).
+//
+// We avoid specifically sending a metric to a peer when we "connect" to it
+// because: a) this requires an extra. OPEN RPC endpoint (LogMetric) that can
+// be called by everyone b) We have no way of verifying that the peer ID in a
+// metric pushed is actually the issuer of the metric (something the regular
+// "pubsub" way of pushing metrics allows (by verifying the signature on the
+// message). Thus, this reduces chances of abuse until we have something
+// better.
+func (c *Cluster) logPingMetric(ctx context.Context, pid peer.ID) error {
+	m := &api.Metric{
+		Name:  pingMetricName,
+		Peer:  pid,
+		Valid: true,
+	}
+	m.SetTTL(c.config.MonitorPingInterval * 2)
+	return c.monitor.LogMetric(ctx, m)
+}
+
 func (c *Cluster) pushPingMetrics(ctx context.Context) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pushPingMetrics")
 	defer span.End()
 
 	ticker := time.NewTicker(c.config.MonitorPingInterval)
 	for {
-		metric := &api.Metric{
-			Name:  pingMetricName,
-			Peer:  c.id,
-			Valid: true,
-		}
-		metric.SetTTL(c.config.MonitorPingInterval * 2)
-		c.monitor.PublishMetric(ctx, metric)
+		c.sendPingMetric(ctx)
 
 		select {
 		case <-ctx.Done():
@@ -295,15 +354,28 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
-			// only the leader handles alerts
-			leader, err := c.consensus.Leader(c.ctx)
-			if err == nil && leader == c.id {
-				logger.Warningf(
-					"Peer %s received alert for %s in %s",
-					c.id, alrt.MetricName, alrt.Peer,
-				)
-				switch alrt.MetricName {
-				case pingMetricName:
+			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
+			if alrt.MetricName != pingMetricName {
+				continue // only handle ping alerts
+			}
+
+			cState, err := c.consensus.State(c.ctx)
+			if err != nil {
+				logger.Warning(err)
+				return
+			}
+			list, err := cState.List(c.ctx)
+			if err != nil {
+				logger.Warning(err)
+				return
+			}
+			for _, pin := range list {
+				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
+					logger.Warning("a pin with only one allocation cannot be repinned")
+					logger.Warning("to make repinning possible, pin with a replication factor of 2+")
+					continue
+				}
+				if c.shouldPeerRepinCid(alrt.Peer, pin) {
 					c.repinFromPeer(c.ctx, alrt.Peer)
 				}
 			}
@@ -311,10 +383,30 @@ func (c *Cluster) alertsHandler() {
 	}
 }
 
+// shouldPeerRepinCid returns true if the current peer is the top of the
+// allocs list. The failed peer is ignored, i.e. if current peer is
+// second and the failed peer is first, the function will still
+// return true.
+func (c *Cluster) shouldPeerRepinCid(failed peer.ID, pin *api.Pin) bool {
+	if containsPeer(pin.Allocations, failed) && containsPeer(pin.Allocations, c.id) {
+		allocs := peer.IDSlice(pin.Allocations)
+		sort.Sort(allocs)
+		if allocs[0] == c.id {
+			return true
+		}
+
+		if allocs[1] == c.id && allocs[0] == failed {
+			return true
+		}
+	}
+	return false
+}
+
 // detects any changes in the peerset and saves the configuration. When it
 // detects that we have been removed from the peerset, it shuts down this peer.
 func (c *Cluster) watchPeers() {
 	ticker := time.NewTicker(c.config.PeerWatchInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -338,10 +430,30 @@ func (c *Cluster) watchPeers() {
 			if !hasMe {
 				c.shutdownLock.Lock()
 				defer c.shutdownLock.Unlock()
-				logger.Infof("%s: removed from raft. Initiating shutdown", c.id.Pretty())
+				logger.Info("peer no longer in peerset. Initiating shutdown")
 				c.removed = true
 				go c.Shutdown(c.ctx)
 				return
+			}
+		}
+	}
+}
+
+// reBootstrap reguarly attempts to bootstrap (re-connect to peers from the
+// peerstore). This should ensure that we auto-recover from situations in
+// which the network was completely gone and we lost all peers.
+func (c *Cluster) reBootstrap() {
+	ticker := time.NewTicker(reBootstrapInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			connected := c.peerManager.Bootstrap(bootstrapCount)
+			for _, p := range connected {
+				logger.Infof("reconnected to %s", p)
 			}
 		}
 	}
@@ -379,11 +491,41 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 
 // run launches some go-routines which live throughout the cluster's life
 func (c *Cluster) run() {
-	go c.syncWatcher()
-	go c.pushPingMetrics(c.ctx)
-	go c.pushInformerMetrics(c.ctx)
-	go c.watchPeers()
-	go c.alertsHandler()
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.syncWatcher()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.pushPingMetrics(c.ctx)
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.pushInformerMetrics(c.ctx)
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.watchPeers()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.alertsHandler()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.reBootstrap()
+	}()
 }
 
 func (c *Cluster) ready(timeout time.Duration) {
@@ -423,9 +565,6 @@ This might be due to one or several causes:
 	}
 
 	// Cluster is ready.
-
-	// Bootstrap the DHT now that we possibly have some connections
-	c.dht.Bootstrap(c.ctx)
 
 	peers, err := c.consensus.Peers(ctx)
 	if err != nil {
@@ -541,7 +680,6 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	}
 
 	c.cancel()
-	c.host.Close() // Shutdown all network services
 	c.wg.Wait()
 
 	// Cleanly close the datastore
@@ -592,12 +730,24 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		peers, _ = c.consensus.Peers(ctx)
 	}
 
+	clusterPeerInfos := c.peerManager.PeerInfos(peers)
+	addresses := []api.Multiaddr{}
+	for _, pinfo := range clusterPeerInfos {
+		addrs, err := peer.AddrInfoToP2pAddrs(&pinfo)
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			addresses = append(addresses, api.NewMultiaddrWithValue(a))
+		}
+	}
+
 	return &api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
 		ClusterPeers:          peers,
-		ClusterPeersAddresses: c.peerManager.PeersAddresses(peers),
+		ClusterPeersAddresses: addresses,
 		Version:               version.Version.String(),
 		RPCProtocolVersion:    version.RPCProtocol,
 		IPFS:                  ipfsID,
@@ -635,62 +785,15 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 		return id, err
 	}
 
-	// Send a ping metric to the new node directly so
-	// it knows about this one at least
-	m := &api.Metric{
-		Name:  pingMetricName,
-		Peer:  c.id,
-		Valid: true,
-	}
-	m.SetTTL(c.config.MonitorPingInterval * 2)
-	err = c.rpcClient.CallContext(
-		ctx,
-		pid,
-		"PeerMonitor",
-		"LogMetric",
-		m,
-		&struct{}{},
-	)
-	if err != nil {
-		logger.Warning(err)
-	}
-
-	// Ask the new peer to connect its IPFS daemon to the rest
-	err = c.rpcClient.CallContext(
-		ctx,
-		pid,
-		"IPFSConnector",
-		"ConnectSwarms",
-		struct{}{},
-		&struct{}{},
-	)
-	if err != nil {
-		logger.Warning(err)
-	}
-
-	id := &api.ID{}
-
-	// wait up to 2 seconds for new peer to catch up
-	// and return an up to date api.ID object.
-	// otherwise it might not contain the current cluster peers
-	// as it should.
-	for i := 0; i < 20; i++ {
-		id, _ = c.getIDForPeer(ctx, pid)
-		ownPeers, err := c.consensus.Peers(ctx)
-		if err != nil {
-			break
-		}
-		newNodePeers := id.ClusterPeers
-		added, removed := diffPeers(ownPeers, newNodePeers)
-		if len(added) == 0 && len(removed) == 0 && containsPeer(ownPeers, pid) {
-			break // the new peer has fully joined
-		}
-		time.Sleep(200 * time.Millisecond)
-		logger.Debugf("%s addPeer: retrying to get ID from %s",
-			c.id.Pretty(), pid.Pretty())
-	}
 	logger.Info("Peer added ", pid.Pretty())
-	return id, nil
+	addedID, err := c.getIDForPeer(ctx, pid)
+	if err != nil {
+		return addedID, err
+	}
+	if !containsPeer(addedID.ClusterPeers, c.id) {
+		addedID.ClusterPeers = append(addedID.ClusterPeers, c.id)
+	}
+	return addedID, nil
 }
 
 // PeerRemove removes a peer from this Cluster.
@@ -727,19 +830,14 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 
 	logger.Debugf("Join(%s)", addr)
 
-	pid, _, err := api.Libp2pMultiaddrSplit(addr)
+	// Add peer to peerstore so we can talk to it (and connect)
+	pid, err := c.peerManager.ImportPeer(addr, true, peerstore.PermanentAddrTTL)
 	if err != nil {
-		logger.Error(err)
 		return err
 	}
-
-	// Bootstrap to myself
 	if pid == c.id {
 		return nil
 	}
-
-	// Add peer to peerstore so we can talk to it
-	c.peerManager.ImportPeer(addr, true)
 
 	// Note that PeerAdd() on the remote peer will
 	// figure out what our real address is (obviously not
@@ -758,6 +856,24 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 		return err
 	}
 
+	// Log a fake but valid metric from the peer we are
+	// contacting. This will signal a CRDT component that
+	// we know that peer since we have metrics for it without
+	// having to wait for the next metric round.
+	if err := c.logPingMetric(ctx, pid); err != nil {
+		logger.Warning(err)
+	}
+
+	// Broadcast our metrics to the world
+	_, err = c.sendInformerMetric(ctx)
+	if err != nil {
+		logger.Warning(err)
+	}
+	_, err = c.sendPingMetric(ctx)
+	if err != nil {
+		logger.Warning(err)
+	}
+
 	// We need to trigger a DHT bootstrap asap for this peer to not be
 	// lost if the peer it bootstrapped to goes down. We do this manually
 	// by triggering 1 round of bootstrap in the background.
@@ -766,6 +882,12 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	go func() {
 		c.dht.BootstrapOnce(ctx, dht.DefaultBootstrapConfig)
 	}()
+
+	// ConnectSwarms in the background after a while, when we have likely
+	// received some metrics.
+	time.AfterFunc(c.config.MonitorPingInterval, func() {
+		c.ipfs.ConnectSwarms(ctx)
+	})
 
 	// wait for leader and for state to catch up
 	// then sync
@@ -1343,12 +1465,21 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 		rpcutil.CopyIDsToIfaces(peers),
 	)
 
+	finalPeers := []*api.ID{}
+
 	for i, err := range errs {
-		if err != nil {
-			peers[i] = &api.ID{}
-			peers[i].ID = members[i]
-			peers[i].Error = err.Error()
+		if err == nil {
+			finalPeers = append(finalPeers, peers[i])
+			continue
 		}
+
+		if rpc.IsAuthorizationError(err) {
+			continue
+		}
+
+		peers[i] = &api.ID{}
+		peers[i].ID = members[i]
+		peers[i].Error = err.Error()
 	}
 
 	return peers
@@ -1389,6 +1520,11 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		// No error. Parse and continue
 		if e == nil {
 			pin.PeerMap[peer.IDB58Encode(members[i])] = r
+			continue
+		}
+
+		if rpc.IsAuthorizationError(e) {
+			logger.Debug("rpc auth error:", e)
 			continue
 		}
 
@@ -1457,6 +1593,10 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
+			if rpc.IsAuthorizationError(e) {
+				logger.Debug("rpc auth error", e)
+				continue
+			}
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
 		} else {

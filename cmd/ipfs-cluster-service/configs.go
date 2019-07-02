@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -85,20 +86,61 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	}
 }
 
-func makeAndLoadConfigs() (*config.Manager, *cfgs) {
+func makeAndLoadConfigs() (*config.Manager, *config.Identity, *cfgs) {
+	ident := loadIdentity()
 	cfgMgr, cfgs := makeConfigs()
 	checkErr("reading configuration", cfgMgr.LoadJSONFileAndEnv(configPath))
-	return cfgMgr, cfgs
+	return cfgMgr, ident, cfgs
+}
+
+func loadIdentity() *config.Identity {
+	_, err := os.Stat(identityPath)
+
+	ident := &config.Identity{}
+	// temporary hack to convert identity
+	if os.IsNotExist(err) {
+		clusterConfig, err := config.GetClusterConfig(configPath)
+		checkErr("loading configuration", err)
+		err = ident.LoadJSON(clusterConfig)
+		if err != nil {
+			checkErr("", errors.New("error loading identity"))
+		}
+
+		err = ident.SaveJSON(identityPath)
+		checkErr("saving identity.json ", err)
+
+		err = ident.ApplyEnvVars()
+		checkErr("applying environment variables to the identity", err)
+
+		out("\nNOTICE: identity information extracted from %s and saved as %s.\n\n", DefaultConfigFile, DefaultIdentityFile)
+		return ident
+	}
+
+	err = ident.LoadJSONFromFile(identityPath)
+	checkErr("loading identity from %s", err, DefaultIdentityFile)
+
+	err = ident.ApplyEnvVars()
+	checkErr("applying environment variables to the identity", err)
+
+	return ident
+}
+
+func makeConfigFolder() {
+	f := filepath.Dir(configPath)
+	if _, err := os.Stat(f); os.IsNotExist(err) {
+		err := os.MkdirAll(f, 0700)
+		checkErr("creating configuration folder (%s)", err, f)
+	}
 }
 
 func saveConfig(cfg *config.Manager) {
-	err := os.MkdirAll(filepath.Dir(configPath), 0700)
-	err = cfg.SaveJSON(configPath)
+	makeConfigFolder()
+	err := cfg.SaveJSON(configPath)
 	checkErr("saving new configuration", err)
-	out("%s configuration written to %s\n", programName, configPath)
+	out("configuration written to %s\n", configPath)
 }
 
-func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
+func propagateTracingConfig(ident *config.Identity, cfgs *cfgs, tracingFlag bool) *cfgs {
 	// tracingFlag represents the cli flag passed to ipfs-cluster-service daemon.
 	// It takes priority. If false, fallback to config file value.
 	tracingValue := tracingFlag
@@ -106,7 +148,7 @@ func propagateTracingConfig(cfgs *cfgs, tracingFlag bool) *cfgs {
 		tracingValue = cfgs.tracingCfg.EnableTracing
 	}
 	// propagate to any other interested configuration
-	cfgs.tracingCfg.ClusterID = cfgs.clusterCfg.ID.Pretty()
+	cfgs.tracingCfg.ClusterID = ident.ID.Pretty()
 	cfgs.tracingCfg.ClusterPeername = cfgs.clusterCfg.Peername
 	cfgs.tracingCfg.EnableTracing = tracingValue
 	cfgs.clusterCfg.Tracing = tracingValue

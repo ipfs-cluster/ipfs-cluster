@@ -10,10 +10,10 @@ import (
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
-	peer "github.com/libp2p/go-libp2p-peer"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 

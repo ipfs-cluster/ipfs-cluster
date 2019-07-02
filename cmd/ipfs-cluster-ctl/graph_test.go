@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/ipfs/ipfs-cluster/api"
+
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 func verifyOutput(t *testing.T, outStr string, trueStr string) {

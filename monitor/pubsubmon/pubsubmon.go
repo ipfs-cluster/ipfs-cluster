@@ -10,13 +10,14 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
-	"go.opencensus.io/trace"
 
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	msgpack "github.com/multiformats/go-multicodec/msgpack"
+
+	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("monitor")
@@ -56,6 +57,7 @@ type PeersFunc func(context.Context) ([]peer.ID, error)
 // PeersFunc. The PeersFunc can be nil. In this case, no metric filtering is
 // done based on peers (any peer is considered part of the peerset).
 func New(
+	ctx context.Context,
 	cfg *Config,
 	psub *pubsub.PubSub,
 	peers PeersFunc,
@@ -65,10 +67,10 @@ func New(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	mtrs := metrics.NewStore()
-	checker := metrics.NewChecker(mtrs)
+	checker := metrics.NewChecker(ctx, mtrs, cfg.FailureThreshold)
 
 	subscription, err := psub.Subscribe(PubsubTopic)
 	if err != nil {

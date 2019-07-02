@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ugorji/go/codec"
@@ -50,6 +50,12 @@ func TestIPFSPinStatusFromString(t *testing.T) {
 		if IPFSPinStatusFromString(tc) != IPFSPinStatus(i+2) {
 			t.Errorf("%s does not match IPFSPinStatus %d", tc, i+2)
 		}
+	}
+}
+
+func BenchmarkIPFSPinStatusFromString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		IPFSPinStatusFromString("indirect")
 	}
 }
 

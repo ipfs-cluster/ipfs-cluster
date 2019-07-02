@@ -6,48 +6,112 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/version"
-	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+
+	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 	"go.opencensus.io/trace"
 )
+
+// RPC endpoint types w.r.t. trust level
+const (
+	// RPCClosed endpoints can only be called by the local cluster peer
+	// on itself.
+	RPCClosed RPCEndpointType = iota
+	// RPCTrusted endpoints can be called by "trusted" peers.
+	// It depends which peers are considered trusted. For example,
+	// in "raft" mode, Cluster will all peers as "trusted". In "crdt" mode,
+	// trusted peers are those specified in the configuration.
+	RPCTrusted
+	// RPCOpen endpoints can be called by any peer in the Cluster swarm.
+	RPCOpen
+)
+
+// RPCEndpointType controls how access is granted to an RPC endpoint
+type RPCEndpointType int
+
+// A trick to find where something is used (i.e. Cluster.Pin):
+// grep -R -B 3 '"Pin"' | grep -C 1 '"Cluster"'.
+// This does not cover globalPinInfo*(...) broadcasts nor redirects to leader
+// in Raft.
 
 // newRPCServer returns a new RPC Server for Cluster.
 func newRPCServer(c *Cluster) (*rpc.Server, error) {
 	var s *rpc.Server
+
+	authF := func(pid peer.ID, svc, method string) bool {
+		endpointType, ok := c.config.RPCPolicy[svc+"."+method]
+		if !ok {
+			return false
+		}
+
+		switch endpointType {
+		case RPCTrusted:
+			return c.consensus.IsTrustedPeer(c.ctx, pid)
+		case RPCOpen:
+			return true
+		default:
+			return false
+		}
+	}
+
 	if c.config.Tracing {
 		s = rpc.NewServer(
 			c.host,
 			version.RPCProtocol,
 			rpc.WithServerStatsHandler(&ocgorpc.ServerHandler{}),
+			rpc.WithAuthorizeFunc(authF),
 		)
 	} else {
-		s = rpc.NewServer(c.host, version.RPCProtocol)
+		s = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithAuthorizeFunc(authF))
 	}
 
-	err := s.RegisterName("Cluster", &ClusterRPCAPI{c})
+	cl := &ClusterRPCAPI{c}
+	err := s.RegisterName(RPCServiceID(cl), cl)
 	if err != nil {
 		return nil, err
 	}
-	err = s.RegisterName("PinTracker", &PinTrackerRPCAPI{c.tracker})
+	pt := &PinTrackerRPCAPI{c.tracker}
+	err = s.RegisterName(RPCServiceID(pt), pt)
 	if err != nil {
 		return nil, err
 	}
-	err = s.RegisterName("IPFSConnector", &IPFSConnectorRPCAPI{c.ipfs})
+	ic := &IPFSConnectorRPCAPI{c.ipfs}
+	err = s.RegisterName(RPCServiceID(ic), ic)
 	if err != nil {
 		return nil, err
 	}
-	err = s.RegisterName("Consensus", &ConsensusRPCAPI{c.consensus})
+	cons := &ConsensusRPCAPI{c.consensus}
+	err = s.RegisterName(RPCServiceID(cons), cons)
 	if err != nil {
 		return nil, err
 	}
-	err = s.RegisterName("PeerMonitor", &PeerMonitorRPCAPI{c.monitor})
+	pm := &PeerMonitorRPCAPI{c.monitor}
+	err = s.RegisterName(RPCServiceID(pm), pm)
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// RPCServiceID returns the Service ID for the given RPCAPI object.
+func RPCServiceID(rpcSvc interface{}) string {
+	switch rpcSvc.(type) {
+	case *ClusterRPCAPI:
+		return "Cluster"
+	case *PinTrackerRPCAPI:
+		return "PinTracker"
+	case *IPFSConnectorRPCAPI:
+		return "IPFSConnector"
+	case *ConsensusRPCAPI:
+		return "Consensus"
+	case *PeerMonitorRPCAPI:
+		return "PeerMonitor"
+	default:
+		return ""
+	}
 }
 
 // ClusterRPCAPI is a go-libp2p-gorpc service which provides the internal peer
@@ -437,12 +501,6 @@ func (rpcapi *IPFSConnectorRPCAPI) PinLs(ctx context.Context, in string, out *ma
 	return nil
 }
 
-// ConnectSwarms runs IPFSConnector.ConnectSwarms().
-func (rpcapi *IPFSConnectorRPCAPI) ConnectSwarms(ctx context.Context, in struct{}, out *struct{}) error {
-	err := rpcapi.ipfs.ConnectSwarms(ctx)
-	return err
-}
-
 // ConfigKey runs IPFSConnector.ConfigKey().
 func (rpcapi *IPFSConnectorRPCAPI) ConfigKey(ctx context.Context, in string, out *interface{}) error {
 	res, err := rpcapi.ipfs.ConfigKey(in)
@@ -551,11 +609,6 @@ func (rpcapi *ConsensusRPCAPI) Peers(ctx context.Context, in struct{}, out *[]pe
 /*
    PeerMonitor
 */
-
-// LogMetric runs PeerMonitor.LogMetric().
-func (rpcapi *PeerMonitorRPCAPI) LogMetric(ctx context.Context, in *api.Metric, out *struct{}) error {
-	return rpcapi.mon.LogMetric(ctx, in)
-}
 
 // LatestMetrics runs PeerMonitor.LatestMetrics().
 func (rpcapi *PeerMonitorRPCAPI) LatestMetrics(ctx context.Context, in string, out *[]*api.Metric) error {

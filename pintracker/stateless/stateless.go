@@ -9,15 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+
+	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("pintracker")

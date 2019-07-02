@@ -206,11 +206,17 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
+
 		ok, err = m.pinMap.Has(ctx, c)
 		if err != nil {
 			goto ERROR
 		}
 		if ok {
+			if c.Equals(Cid4) { // this a v1 cid. Do not return default-base32
+				w.Write([]byte(`{ "Keys": { "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57": { "Type": "recursive" }}}`))
+				return
+			}
+
 			rMap := make(map[string]mockPinType)
 			rMap[cidStr] = mockPinType{"recursive"}
 			j, _ := json.Marshal(mockPinLsResp{rMap})

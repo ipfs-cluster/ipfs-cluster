@@ -18,8 +18,8 @@ func New(cfg *Config) (ds.Datastore, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating badger folder")
 	}
-	opts := &badgerds.DefaultOptions
-	return badgerds.NewDatastore(folder, opts)
+	opts := badgerds.Options{Options: cfg.BadgerOptions}
+	return badgerds.NewDatastore(folder, &opts)
 }
 
 // Cleanup deletes the badger datastore.

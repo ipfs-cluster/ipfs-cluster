@@ -11,9 +11,9 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	gopath "github.com/ipfs/go-path"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // ErrBadCid is returned when using ErrorCid. Operations with that CID always
@@ -370,11 +370,6 @@ func (mock *mockPinTracker) Recover(ctx context.Context, in cid.Cid, out *api.Pi
 
 /* PeerMonitor methods */
 
-// LogMetric runs PeerMonitor.LogMetric().
-func (mock *mockPeerMonitor) LogMetric(ctx context.Context, in *api.Metric, out *struct{}) error {
-	return nil
-}
-
 // LatestMetrics runs PeerMonitor.LatestMetrics().
 func (mock *mockPeerMonitor) LatestMetrics(ctx context.Context, in string, out *[]*api.Metric) error {
 	m := &api.Metric{
@@ -414,10 +409,6 @@ func (mock *mockIPFSConnector) PinLs(ctx context.Context, in string, out *map[st
 		Cid3.String(): api.IPFSPinStatusRecursive,
 	}
 	*out = m
-	return nil
-}
-
-func (mock *mockIPFSConnector) ConnectSwarms(ctx context.Context, in struct{}, out *struct{}) error {
 	return nil
 }
 

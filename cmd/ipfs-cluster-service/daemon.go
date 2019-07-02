@@ -12,6 +12,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
+	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
@@ -21,13 +22,14 @@ import (
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
-	"github.com/ipfs/ipfs-cluster/pstoremgr"
+	"go.opencensus.io/tag"
 
 	ds "github.com/ipfs/go-datastore"
-	host "github.com/libp2p/go-libp2p-host"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	peer "github.com/libp2p/go-libp2p-peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+
 	ma "github.com/multiformats/go-multiaddr"
 
 	errors "github.com/pkg/errors"
@@ -48,7 +50,6 @@ func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
 
@@ -56,15 +57,16 @@ func daemon(c *cli.Context) error {
 	locker.lock()
 	defer locker.tryUnlock()
 
-	// Load all the configurations
-	cfgMgr, cfgs := makeAndLoadConfigs()
+	// Load all the configurations and identity
+	cfgMgr, ident, cfgs := makeAndLoadConfigs()
+
 	defer cfgMgr.Shutdown()
 
 	if c.Bool("stats") {
 		cfgs.metricsCfg.EnableStats = true
 	}
 
-	cfgs = propagateTracingConfig(cfgs, c.Bool("tracing"))
+	cfgs = propagateTracingConfig(ident, cfgs, c.Bool("tracing"))
 
 	// Cleanup state if bootstrapping
 	raftStaging := false
@@ -77,7 +79,10 @@ func daemon(c *cli.Context) error {
 		cfgs.clusterCfg.LeaveOnShutdown = true
 	}
 
-	cluster, err := createCluster(ctx, c, cfgs, raftStaging)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
+	checkErr("creating libp2p host", err)
+
+	cluster, err := createCluster(ctx, c, host, pubsub, dht, ident, cfgs, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -87,7 +92,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return handleSignals(ctx, cluster)
+	return handleSignals(ctx, cancel, cluster, host, dht)
 }
 
 // createCluster creates all the necessary things to produce the cluster
@@ -96,19 +101,16 @@ func daemon(c *cli.Context) error {
 func createCluster(
 	ctx context.Context,
 	c *cli.Context,
+	host host.Host,
+	pubsub *pubsub.PubSub,
+	dht *dht.IpfsDHT,
+	ident *config.Identity,
 	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgs.clusterCfg)
-	checkErr("creating libP2P Host", err)
-
-	peerstoreMgr := pstoremgr.New(host, cfgs.clusterCfg.GetPeerstorePath())
-	// Import peers but do not connect. We cannot connect to peers until
-	// everything has been created (dht, pubsub, bitswap). Otherwise things
-	// fail.
-	// Connections will happen as needed during bootstrap, rpc etc.
-	peerstoreMgr.ImportPeersFromPeerstore(false)
+	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	checkErr("tag context with host id", err)
 
 	api, err := rest.NewAPIWithHost(ctx, cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)
@@ -143,7 +145,7 @@ func createCluster(
 	tracer, err := observations.SetupTracing(cfgs.tracingCfg)
 	checkErr("setting up Tracing", err)
 
-	store := setupDatastore(c.String("consensus"), cfgs)
+	store := setupDatastore(c.String("consensus"), ident, cfgs)
 
 	cons, err := setupConsensus(
 		c.String("consensus"),
@@ -164,13 +166,14 @@ func createCluster(
 		peersF = cons.Peers
 	}
 
-	mon, err := pubsubmon.New(cfgs.pubsubmonCfg, pubsub, peersF)
+	mon, err := pubsubmon.New(ctx, cfgs.pubsubmonCfg, pubsub, peersF)
 	if err != nil {
 		store.Close()
 		checkErr("setting up PeerMonitor", err)
 	}
 
 	return ipfscluster.NewCluster(
+		ctx,
 		host,
 		dht,
 		cfgs.clusterCfg,
@@ -198,7 +201,13 @@ func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []m
 	}
 }
 
-func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
+func handleSignals(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	cluster *ipfscluster.Cluster,
+	host host.Host,
+	dht *dht.IpfsDHT,
+) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
 		signalChan,
@@ -214,6 +223,9 @@ func handleSignals(ctx context.Context, cluster *ipfscluster.Cluster) error {
 			ctrlcCount++
 			handleCtrlC(ctx, cluster, ctrlcCount)
 		case <-cluster.Done():
+			cancel()
+			dht.Close()
+			host.Close()
 			return nil
 		}
 	}
@@ -294,9 +306,10 @@ func setupPinTracker(
 
 func setupDatastore(
 	consensus string,
+	ident *config.Identity,
 	cfgs *cfgs,
 ) ds.Datastore {
-	stmgr := newStateManager(consensus, cfgs)
+	stmgr := newStateManager(consensus, ident, cfgs)
 	store, err := stmgr.GetStore()
 	checkErr("creating datastore", err)
 	return store

@@ -8,12 +8,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-
-	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	libp2p "github.com/libp2p/go-libp2p"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
-	peerstore "github.com/libp2p/go-libp2p-peerstore"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	ipnet "github.com/libp2p/go-libp2p-core/pnet"
+	p2phttp "github.com/libp2p/go-libp2p-http"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
@@ -41,9 +40,13 @@ func (c *defaultClient) defaultTransport() {
 func (c *defaultClient) enableLibp2p() error {
 	c.defaultTransport()
 
-	pid, addr, err := api.Libp2pMultiaddrSplit(c.config.APIAddr)
+	pinfo, err := peer.AddrInfoFromP2pAddr(c.config.APIAddr)
 	if err != nil {
 		return err
+	}
+
+	if len(pinfo.Addrs) == 0 {
+		return errors.New("APIAddr only includes a Peer ID")
 	}
 
 	var prot ipnet.Protector
@@ -67,16 +70,16 @@ func (c *defaultClient) enableLibp2p() error {
 
 	ctx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
 	defer cancel()
-	resolvedAddrs, err := madns.Resolve(ctx, addr)
+	resolvedAddrs, err := madns.Resolve(ctx, pinfo.Addrs[0])
 	if err != nil {
 		return err
 	}
 
-	h.Peerstore().AddAddrs(pid, resolvedAddrs, peerstore.PermanentAddrTTL)
+	h.Peerstore().AddAddrs(pinfo.ID, resolvedAddrs, peerstore.PermanentAddrTTL)
 	c.transport.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
 	c.net = "libp2p"
 	c.p2p = h
-	c.hostname = pid.Pretty()
+	c.hostname = peer.IDB58Encode(pinfo.ID)
 	return nil
 }
 

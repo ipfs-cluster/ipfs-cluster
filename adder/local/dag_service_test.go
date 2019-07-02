@@ -7,12 +7,11 @@ import (
 	"sync"
 	"testing"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 

@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,17 +19,18 @@ import (
 
 	pb "github.com/ipfs/ipfs-cluster/api/pb"
 
-	proto "github.com/gogo/protobuf/proto"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	multiaddr "github.com/multiformats/go-multiaddr"
 
 	// needed to parse /ws multiaddresses
 	_ "github.com/libp2p/go-ws-transport"
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
+
+	proto "github.com/gogo/protobuf/proto"
 )
 
 var logger = logging.Logger("apitypes")
@@ -191,14 +191,13 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-	// Since indirect statuses are of the form "indirect through <cid>",
-	// use a regexp to match
-	var ind, _ = regexp.MatchString("^indirect", t)
-	var rec, _ = regexp.MatchString("^recursive", t)
+	// Since indirect statuses are of the form "indirect through <cid>"
+	// use a prefix match
+
 	switch {
-	case ind:
+	case strings.HasPrefix(t, "indirect"):
 		return IPFSPinStatusIndirect
-	case rec:
+	case strings.HasPrefix(t, "recursive"):
 		// FIXME: Maxdepth?
 		return IPFSPinStatusRecursive
 	case t == "direct":
@@ -246,6 +245,16 @@ type GlobalPinInfo struct {
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
 	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
+}
+
+// String returns the string representation of a GlobalPinInfo.
+func (gpi *GlobalPinInfo) String() string {
+	str := fmt.Sprintf("Cid: %v\n", gpi.Cid.String())
+	str = str + "Peer:\n"
+	for _, p := range gpi.PeerMap {
+		str = str + fmt.Sprintf("\t%+v\n", p)
+	}
+	return str
 }
 
 // PinInfo holds information about local pins.
@@ -311,7 +320,7 @@ func (maddr Multiaddr) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON parses a cluster Multiaddr from the JSON representation.
 func (maddr *Multiaddr) UnmarshalJSON(data []byte) error {
-	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("/ip4/127.0.0.1") // null multiaddresses not allowed
 	return maddr.Multiaddr.UnmarshalJSON(data)
 }
 
@@ -325,7 +334,7 @@ func (maddr Multiaddr) MarshalBinary() ([]byte, error) {
 func (maddr *Multiaddr) UnmarshalBinary(data []byte) error {
 	datacopy := make([]byte, len(data)) // This is super important
 	copy(datacopy, data)
-	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("/ip4/127.0.0.1") // null multiaddresses not allowed
 	return maddr.Multiaddr.UnmarshalBinary(datacopy)
 }
 
@@ -581,6 +590,19 @@ type Pin struct {
 	Reference *cid.Cid `json:"reference" codec:"r,omitempty"`
 }
 
+// String is a string representation of a Pin.
+func (pin *Pin) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "cid: %s\n", pin.Cid.String())
+	fmt.Fprintf(&b, "type: %s\n", pin.Type)
+	fmt.Fprintf(&b, "allocations: %v\n", pin.Allocations)
+	fmt.Fprintf(&b, "maxdepth: %d\n", pin.MaxDepth)
+	if pin.Reference != nil {
+		fmt.Fprintf(&b, "reference: %s\n", pin.Reference)
+	}
+	return b.String()
+}
+
 // PinPath is a wrapper for holding pin options and path of the content.
 type PinPath struct {
 	PinOptions
@@ -785,12 +807,15 @@ func (n *NodeWithMeta) Size() uint64 {
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
+// The ReceivedAt value is a timestamp representing when a peer has received
+// the metric value.
 type Metric struct {
-	Name   string  `json:"name" codec:"n,omitempty"`
-	Peer   peer.ID `json:"peer" codec:"p,omitempty"`
-	Value  string  `json:"value" codec:"v,omitempty"`
-	Expire int64   `json:"expire" codec:"e,omitempty"`
-	Valid  bool    `json:"valid" codec:"d,omitempty"`
+	Name       string  `json:"name" codec:"n,omitempty"`
+	Peer       peer.ID `json:"peer" codec:"p,omitempty"`
+	Value      string  `json:"value" codec:"v,omitempty"`
+	Expire     int64   `json:"expire" codec:"e,omitempty"`
+	Valid      bool    `json:"valid" codec:"d,omitempty"`
+	ReceivedAt int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
 }
 
 // SetTTL sets Metric to expire after the given time.Duration
