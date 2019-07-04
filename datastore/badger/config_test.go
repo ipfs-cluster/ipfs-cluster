@@ -3,8 +3,8 @@ package badger
 import (
 	"testing"
 
-	"github.com/dgraph-io/badger/v2"
-	"github.com/dgraph-io/badger/v2/options"
+	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
 )
 
 var cfgJSON = []byte(`
@@ -33,16 +33,16 @@ func TestToJSON(t *testing.T) {
 		t.Fatalf("got: %d, want: %d", cfg.BadgerOptions.ValueLogLoadingMode, options.FileIO)
 	}
 
-	if cfg.BadgerOptions.ValueLogFileSize != badger.DefaultOptions.ValueLogFileSize {
+	if cfg.BadgerOptions.ValueLogFileSize != badger.DefaultOptions("").ValueLogFileSize {
 		t.Fatalf(
 			"got: %d, want: %d",
 			cfg.BadgerOptions.ValueLogFileSize,
-			badger.DefaultOptions.ValueLogFileSize,
+			badger.DefaultOptions("").ValueLogFileSize,
 		)
 	}
 
-	if cfg.BadgerOptions.TableLoadingMode != badger.DefaultOptions.TableLoadingMode {
-		t.Fatalf("TableLoadingMode is not nil: got: %v, want: %v", cfg.BadgerOptions.TableLoadingMode, badger.DefaultOptions.TableLoadingMode)
+	if cfg.BadgerOptions.TableLoadingMode != badger.DefaultOptions("").TableLoadingMode {
+		t.Fatalf("TableLoadingMode is not nil: got: %v, want: %v", cfg.BadgerOptions.TableLoadingMode, badger.DefaultOptions("").TableLoadingMode)
 	}
 
 	if cfg.BadgerOptions.MaxLevels != 4 {

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/dgraph-io/badger/v2"
-	"github.com/dgraph-io/badger/v2/options"
+	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
 	"github.com/imdario/mergo"
 	"github.com/kelseyhightower/envconfig"
 
@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	DefaultBadgerOptions = badger.DefaultOptions
+	DefaultBadgerOptions = badger.DefaultOptions("")
 }
 
 // Config is used to initialize a BadgerDB datastore. It implements the
