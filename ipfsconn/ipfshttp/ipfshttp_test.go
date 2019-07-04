@@ -79,11 +79,11 @@ func testPin(t *testing.T, method string) {
 	c := test.Cid1
 	err := ipfs.Pin(ctx, c, -1)
 	if err != nil {
-		t.Error("expected success pinning cid")
+		t.Error("expected success pinning cid:", err)
 	}
 	pinSt, err := ipfs.PinLsCid(ctx, c)
 	if err != nil {
-		t.Fatal("expected success doing ls")
+		t.Fatal("expected success doing ls:", err)
 	}
 	if !pinSt.IsPinned(-1) {
 		t.Error("cid should have been pinned")
@@ -93,6 +93,24 @@ func testPin(t *testing.T, method string) {
 	err = ipfs.Pin(ctx, c2, -1)
 	if err == nil {
 		t.Error("expected error pinning cid")
+	}
+
+	switch method {
+	case "refs":
+		ipfs.config.PinTimeout = 1 * time.Second
+		c3 := test.SlowCid1
+		err = ipfs.Pin(ctx, c3, -1)
+		if err == nil {
+			t.Error("expected error pinning cid")
+		}
+	case "pin":
+		ipfs.config.PinTimeout = 5 * time.Second
+		c4 := test.SlowCid1
+		err = ipfs.Pin(ctx, c4, -1)
+		if err == nil {
+			t.Error("expected error pinning cid")
+		}
+	default:
 	}
 }
 

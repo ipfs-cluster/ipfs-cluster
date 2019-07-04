@@ -41,7 +41,8 @@ type IpfsMock struct {
 }
 
 type mockPinResp struct {
-	Pins []string
+	Pins     []string
+	Progress int `json:",omitempty"`
 }
 
 type mockPinType struct {
@@ -168,8 +169,18 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
-		j, _ := json.Marshal(resp)
-		w.Write(j)
+
+		if c.Equals(SlowCid1) {
+			for i := 0; i <= 10; i++ {
+				time.Sleep(1 * time.Second)
+				resp.Progress = i
+				j, _ := json.Marshal(resp)
+				w.Write(j)
+			}
+		} else {
+			j, _ := json.Marshal(resp)
+			w.Write(j)
+		}
 	case "pin/rm":
 		arg, ok := extractCid(r.URL)
 		if !ok {
@@ -345,7 +356,14 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			Ref: arg,
 		}
 		j, _ := json.Marshal(resp)
-		w.Write(j)
+		if arg == SlowCid1.String() {
+			for i := 0; i <= 5; i++ {
+				time.Sleep(2 * time.Second)
+				w.Write(j)
+			}
+		} else {
+			w.Write(j)
+		}
 	case "version":
 		w.Write([]byte("{\"Version\":\"m.o.c.k\"}"))
 	default:
