@@ -62,8 +62,8 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintError(resp.(*api.Error))
 	case *api.Metric:
 		textFormatPrintMetric(resp.(*api.Metric))
-	case *api.IPFSRepoGC:
-		textFormatPrintRepoGC(resp.(*api.IPFSRepoGC))
+	case *api.RepoGC:
+		textFormatPrintRepoGC(resp.(*api.RepoGC))
 	case []*api.ID:
 		for _, item := range resp.([]*api.ID) {
 			textFormatObject(item)
@@ -212,7 +212,7 @@ func textFormatPrintMetric(obj *api.Metric) {
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
-func textFormatPrintRepoGC(obj *api.IPFSRepoGC) {
+func textFormatPrintRepoGC(obj *api.RepoGC) {
 	if obj.Error != "" {
 		fmt.Printf("  > Error: %s\n", obj.Error)
 	}

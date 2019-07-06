@@ -864,12 +864,13 @@ type IPFSRepoStat struct {
 	StorageMax uint64 `codec:"s, omitempty"`
 }
 
-type IPFSRepoGC struct {
-	//Peer  peer.ID   `json:"peer_id" codec:"p,omitempty"`
+// RepoGC contains gc'ed CIDs from an IPFS peer.
+type RepoGC struct {
+	Peer  peer.ID   `json:"peer_id" codec:"p,omitempty"`
 	Keys  []cid.Cid `json:"keys" codec:"k"`
 	Error string    `json:"error,omitempty" codec:"e,omitempty"`
 }
 
 type GlobalRepoGC struct {
-	PeerMap map[string]*IPFSRepoGC
+	PeerMap map[string]*RepoGC
 }

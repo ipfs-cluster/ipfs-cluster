@@ -618,18 +618,26 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) 
 }
 
 // RepoGC performs a garbage collection sweep on the repo.
-func (ipfs *Connector) RepoGC(ctx context.Context) (api.IPFSRepoGC, error) {
+func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
+
+	id, err := ipfs.ID(ctx)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+	repoGC := api.RepoGC{
+		Peer: id.ID,
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 
-	var repoGC api.IPFSRepoGC
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return repoGC, err
+		return &repoGC, err
 	}
 	defer res.Body.Close()
 
@@ -639,7 +647,7 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.IPFSRepoGC, error) {
 		if err := dec.Decode(&resp); err == io.EOF {
 			break
 		} else if err != nil {
-			return repoGC, err
+			return &repoGC, err
 		}
 		if resp.Error != "" {
 			logger.Error("Error while repo gc: ", resp.Error)
@@ -648,7 +656,7 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.IPFSRepoGC, error) {
 		repoGC.Keys = append(repoGC.Keys, resp.Key)
 	}
 
-	return repoGC, nil
+	return &repoGC, nil
 }
 
 // Resolve accepts ipfs or ipns path and resolves it into a cid

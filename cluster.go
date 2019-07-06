@@ -1754,7 +1754,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
-	repoGCsResp := make([]api.IPFSRepoGC, lenMembers, lenMembers)
+	repoGCsResp := make([]*api.RepoGC, lenMembers, lenMembers)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
@@ -1783,9 +1783,9 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	}
 
 	// clubbing repo gc responses of all peers into one
-	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.IPFSRepoGC)}
+	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
 	for i := 0; i < len(members); i++ {
-		globalRepoGC.PeerMap[members[i].String()] = &repoGCsResp[i]
+		globalRepoGC.PeerMap[members[i].String()] = repoGCsResp[i]
 	}
 
 	return &globalRepoGC, nil

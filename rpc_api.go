@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/version"
@@ -395,6 +394,9 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 // RepoGC performs garbage collection sweep on all peers' repo.
 func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.GlobalRepoGC) error {
 	res, err := rpcapi.c.RepoGC(ctx)
+	if err != nil {
+		return err
+	}
 	*out = *res
 	return err
 }
@@ -522,10 +524,12 @@ func (rpcapi *IPFSConnectorRPCAPI) RepoStat(ctx context.Context, in struct{}, ou
 }
 
 // RepoGC performs garbage a collection sweep on the repo.
-func (rpcapi *IPFSConnectorRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.IPFSRepoGC) error {
+func (rpcapi *IPFSConnectorRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.RepoGC) error {
 	res, err := rpcapi.ipfs.RepoGC(ctx)
-	fmt.Println(res)
-	*out = res
+	if err != nil {
+		return err
+	}
+	*out = *res
 	return err
 }
 
