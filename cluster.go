@@ -1766,7 +1766,6 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	)
 
 	if len(errs) > 0 {
-		fmt.Println(len(errs))
 		var errStr string
 		for _, e := range errs {
 			if e != nil {

@@ -866,11 +866,12 @@ type IPFSRepoStat struct {
 
 // RepoGC contains gc'ed CIDs from an IPFS peer.
 type RepoGC struct {
-	Peer  peer.ID   `json:"peer_id" codec:"p,omitempty"`
+	Peer  peer.ID   `json:"peer" codec:"p,omitempty"` // the Cluster peer ID
 	Keys  []cid.Cid `json:"keys" codec:"k"`
 	Error string    `json:"error,omitempty" codec:"e,omitempty"`
 }
 
+// GlobalRepoGC contains cluster-wide information about GCed CIDs from IPFS.
 type GlobalRepoGC struct {
-	PeerMap map[string]*RepoGC
+	PeerMap map[string]*RepoGC `json:"peer_map" codec:"pm,omitempty"`
 }

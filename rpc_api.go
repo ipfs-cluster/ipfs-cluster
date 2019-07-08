@@ -391,7 +391,7 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 	return nil
 }
 
-// RepoGC performs garbage collection sweep on all peers' repo.
+// RepoGC performs garbage collection sweep on all peers' repos.
 func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.GlobalRepoGC) error {
 	res, err := rpcapi.c.RepoGC(ctx)
 	if err != nil {
