@@ -86,18 +86,20 @@ func NewLBClient(strategy LBStrategy, cfgs []*Config, retries int) (Client, erro
 
 // retry tries the request until it is successful or tries `lc.retries` times.
 func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
-	err := call(lc.strategy.Next(count))
-	apiErr, ok := err.(*api.Error)
-	if !ok {
-		logger.Error("could not cast error into api.Error")
-		return err
-	}
+	logger.Debugf("retrying %d times", count+1)
 
+	err := call(lc.strategy.Next(count))
 	count++
 
 	// successful request
 	if err == nil {
 		return nil
+	}
+
+	apiErr, ok := err.(*api.Error)
+	if !ok {
+		logger.Error("could not cast error into api.Error")
+		return err
 	}
 
 	if count == lc.retries {
