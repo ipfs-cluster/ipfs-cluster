@@ -3,7 +3,7 @@ package util
 import (
 	"github.com/ipfs/ipfs-cluster/api"
 
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 // IsRemotePin determines whether a Pin's ReplicationFactor has

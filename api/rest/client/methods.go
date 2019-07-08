@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
 	gopath "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	"go.opencensus.io/trace"
 )
 
 // ID returns information about the cluster Peer.

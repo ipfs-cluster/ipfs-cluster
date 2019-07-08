@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,17 +19,18 @@ import (
 
 	pb "github.com/ipfs/ipfs-cluster/api/pb"
 
-	proto "github.com/gogo/protobuf/proto"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	multiaddr "github.com/multiformats/go-multiaddr"
 
 	// needed to parse /ws multiaddresses
 	_ "github.com/libp2p/go-ws-transport"
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
+
+	proto "github.com/gogo/protobuf/proto"
 )
 
 var logger = logging.Logger("apitypes")
@@ -191,14 +191,13 @@ type IPFSPinStatus int
 // IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
-	// Since indirect statuses are of the form "indirect through <cid>",
-	// use a regexp to match
-	var ind, _ = regexp.MatchString("^indirect", t)
-	var rec, _ = regexp.MatchString("^recursive", t)
+	// Since indirect statuses are of the form "indirect through <cid>"
+	// use a prefix match
+
 	switch {
-	case ind:
+	case strings.HasPrefix(t, "indirect"):
 		return IPFSPinStatusIndirect
-	case rec:
+	case strings.HasPrefix(t, "recursive"):
 		// FIXME: Maxdepth?
 		return IPFSPinStatusRecursive
 	case t == "direct":
@@ -248,6 +247,16 @@ type GlobalPinInfo struct {
 	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
 }
 
+// String returns the string representation of a GlobalPinInfo.
+func (gpi *GlobalPinInfo) String() string {
+	str := fmt.Sprintf("Cid: %v\n", gpi.Cid.String())
+	str = str + "Peer:\n"
+	for _, p := range gpi.PeerMap {
+		str = str + fmt.Sprintf("\t%+v\n", p)
+	}
+	return str
+}
+
 // PinInfo holds information about local pins.
 type PinInfo struct {
 	Cid      cid.Cid       `json:"cid" codec:"c"`
@@ -260,7 +269,7 @@ type PinInfo struct {
 
 // Version holds version information
 type Version struct {
-	Version string `json:"Version" codec:"v"`
+	Version string `json:"version" codec:"v"`
 }
 
 // ConnectGraph holds information about the connectivity of the cluster To
@@ -311,7 +320,7 @@ func (maddr Multiaddr) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON parses a cluster Multiaddr from the JSON representation.
 func (maddr *Multiaddr) UnmarshalJSON(data []byte) error {
-	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("/ip4/127.0.0.1") // null multiaddresses not allowed
 	return maddr.Multiaddr.UnmarshalJSON(data)
 }
 
@@ -325,7 +334,7 @@ func (maddr Multiaddr) MarshalBinary() ([]byte, error) {
 func (maddr *Multiaddr) UnmarshalBinary(data []byte) error {
 	datacopy := make([]byte, len(data)) // This is super important
 	copy(datacopy, data)
-	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("")
+	maddr.Multiaddr, _ = multiaddr.NewMultiaddr("/ip4/127.0.0.1") // null multiaddresses not allowed
 	return maddr.Multiaddr.UnmarshalBinary(datacopy)
 }
 
@@ -417,6 +426,8 @@ func PinTypeFromString(str string) PinType {
 		return ShardType
 	case "all":
 		return AllType
+	case "":
+		return AllType
 	default:
 		return BadType
 	}
@@ -448,12 +459,21 @@ type PinOptions struct {
 	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
 	Name                 string            `json:"name" codec:"n,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
-	UserAllocations      []string          `json:"user_allocations" codec:"ua,omitempty"`
+	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 }
 
-// Equals returns true if two PinOption objects are equivalent.
+// Equals returns true if two PinOption objects are equivalent. po and po2 may
+// be nil.
 func (po *PinOptions) Equals(po2 *PinOptions) bool {
+	if po == nil && po2 != nil || po2 == nil && po != nil {
+		return false
+	}
+
+	if po == po2 { // same as pin.Equals()
+		return false
+	}
+
 	if po.ReplicationFactorMax != po2.ReplicationFactorMax {
 		return false
 	}
@@ -473,10 +493,8 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 	}
 
 	// avoid side effects in the original objects
-	allocs1 := make([]string, lenAllocs1, lenAllocs1)
-	allocs2 := make([]string, lenAllocs2, lenAllocs2)
-	copy(allocs1, po.UserAllocations)
-	copy(allocs2, po2.UserAllocations)
+	allocs1 := PeersToStrings(po.UserAllocations)
+	allocs2 := PeersToStrings(po2.UserAllocations)
 	sort.Strings(allocs1)
 	sort.Strings(allocs2)
 	if strings.Join(allocs1, ",") != strings.Join(allocs2, ",") {
@@ -499,7 +517,7 @@ func (po *PinOptions) ToQuery() string {
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
 	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
-	q.Set("user-allocations", strings.Join(po.UserAllocations, ","))
+	q.Set("user-allocations", strings.Join(PeersToStrings(po.UserAllocations), ","))
 	for k, v := range po.Metadata {
 		if k == "" {
 			continue
@@ -531,7 +549,7 @@ func (po *PinOptions) FromQuery(q url.Values) {
 	}
 
 	if allocs := q.Get("user-allocations"); allocs != "" {
-		po.UserAllocations = strings.Split(allocs, ",")
+		po.UserAllocations = StringsToPeers(strings.Split(allocs, ","))
 	}
 
 	po.Metadata = make(map[string]string)
@@ -570,6 +588,19 @@ type Pin struct {
 	// it is the previous shard CID.
 	// When not needed the pointer is nil
 	Reference *cid.Cid `json:"reference" codec:"r,omitempty"`
+}
+
+// String is a string representation of a Pin.
+func (pin *Pin) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "cid: %s\n", pin.Cid.String())
+	fmt.Fprintf(&b, "type: %s\n", pin.Type)
+	fmt.Fprintf(&b, "allocations: %v\n", pin.Allocations)
+	fmt.Fprintf(&b, "maxdepth: %d\n", pin.MaxDepth)
+	if pin.Reference != nil {
+		fmt.Fprintf(&b, "reference: %s\n", pin.Reference)
+	}
+	return b.String()
 }
 
 // PinPath is a wrapper for holding pin options and path of the content.
@@ -692,8 +723,16 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 // Equals checks if two pins are the same (with the same allocations).
 // If allocations are the same but in different order, they are still
 // considered equivalent.
+// pin or pin2 may be nil. If both are nil, Equals returns false.
 func (pin *Pin) Equals(pin2 *Pin) bool {
 	if pin == nil && pin2 != nil || pin2 == nil && pin != nil {
+		return false
+	}
+
+	if pin == pin2 {
+		// ask @lanzafame why this is not true
+		// in any case, this is anomalous and we should
+		// not be using this with two nils.
 		return false
 	}
 
@@ -768,12 +807,15 @@ func (n *NodeWithMeta) Size() uint64 {
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
+// The ReceivedAt value is a timestamp representing when a peer has received
+// the metric value.
 type Metric struct {
-	Name   string  `json:"name" codec:"n,omitempty"`
-	Peer   peer.ID `json:"peer" codec:"p,omitempty"`
-	Value  string  `json:"value" codec:"v,omitempty"`
-	Expire int64   `json:"expire" codec:"e,omitempty"`
-	Valid  bool    `json:"valid" codec:"d,omitempty"`
+	Name       string  `json:"name" codec:"n,omitempty"`
+	Peer       peer.ID `json:"peer" codec:"p,omitempty"`
+	Value      string  `json:"value" codec:"v,omitempty"`
+	Expire     int64   `json:"expire" codec:"e,omitempty"`
+	Valid      bool    `json:"valid" codec:"d,omitempty"`
+	ReceivedAt int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
 }
 
 // SetTTL sets Metric to expire after the given time.Duration

@@ -12,16 +12,16 @@ import (
 	"sync"
 	"time"
 
-	"go.opencensus.io/exporter/jaeger"
-
-	uuid "github.com/google/uuid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+
+	"contrib.go.opencensus.io/exporter/jaeger"
+	uuid "github.com/google/uuid"
 	cli "github.com/urfave/cli"
 )
 
@@ -29,7 +29,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.10.0"
+const Version = "0.11.0-rc5"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -541,11 +541,16 @@ would stil be respected.
 							rplMax = rpl
 						}
 
+						userAllocs := api.StringsToPeers(c.StringSlice("allocations"))
+						if len(userAllocs) != len(c.StringSlice("allocations")) {
+							checkErr("", errors.New("error decoding manual allocations"))
+						}
+
 						opts := api.PinOptions{
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
-							UserAllocations:      c.StringSlice("allocations"),
+							UserAllocations:      userAllocs,
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)

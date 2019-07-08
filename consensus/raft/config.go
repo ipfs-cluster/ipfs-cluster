@@ -9,10 +9,11 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
-	"github.com/kelseyhightower/envconfig"
+
+	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	hraft "github.com/hashicorp/raft"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // ConfigKey is the default configuration key for holding this component's
@@ -28,6 +29,7 @@ var (
 	DefaultNetworkTimeout       = 10 * time.Second
 	DefaultCommitRetryDelay     = 200 * time.Millisecond
 	DefaultBackupsRotate        = 6
+	DefaultDatastoreNamespace   = "/r" // from "/raft"
 )
 
 // Config allows to configure the Raft Consensus component for ipfs-cluster.
@@ -60,12 +62,13 @@ type Config struct {
 	// BackupsRotate specifies the maximum number of Raft's DataFolder
 	// copies that we keep as backups (renaming) after cleanup.
 	BackupsRotate int
+	// Namespace to use when writing keys to the datastore
+	DatastoreNamespace string
 
 	// A Hashicorp Raft's configuration object.
 	RaftConfig *hraft.Config
 
-	// Tracing enables propagation of contexts across binary boundary in
-	// consensus component
+	// Tracing enables propagation of contexts across binary boundaries.
 	Tracing bool
 }
 
@@ -100,6 +103,8 @@ type jsonConfig struct {
 	// BackupsRotate specifies the maximum number of Raft's DataFolder
 	// copies that we keep as backups (renaming) after cleanup.
 	BackupsRotate int `json:"backups_rotate"`
+
+	DatastoreNamespace string `json:"datastore_namespace,omitempty"`
 
 	// HeartbeatTimeout specifies the time in follower state without
 	// a leader before we attempt an election.
@@ -242,7 +247,7 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 }
 
 func (cfg *Config) toJSONConfig() *jsonConfig {
-	return &jsonConfig{
+	jcfg := &jsonConfig{
 		DataFolder:           cfg.DataFolder,
 		InitPeerset:          api.PeersToStrings(cfg.InitPeerset),
 		WaitForLeaderTimeout: cfg.WaitForLeaderTimeout.String(),
@@ -259,6 +264,11 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 		SnapshotThreshold:    cfg.RaftConfig.SnapshotThreshold,
 		LeaderLeaseTimeout:   cfg.RaftConfig.LeaderLeaseTimeout.String(),
 	}
+	if cfg.DatastoreNamespace != DefaultDatastoreNamespace {
+		jcfg.DatastoreNamespace = cfg.DatastoreNamespace
+		// otherwise leave empty so it gets ommitted.
+	}
+	return jcfg
 }
 
 // Default initializes this configuration with working defaults.
@@ -270,6 +280,7 @@ func (cfg *Config) Default() error {
 	cfg.CommitRetries = DefaultCommitRetries
 	cfg.CommitRetryDelay = DefaultCommitRetryDelay
 	cfg.BackupsRotate = DefaultBackupsRotate
+	cfg.DatastoreNamespace = DefaultDatastoreNamespace
 	cfg.RaftConfig = hraft.DefaultConfig()
 
 	// These options are imposed over any Default Raft Config.
@@ -278,7 +289,7 @@ func (cfg *Config) Default() error {
 
 	// Set up logging
 	cfg.RaftConfig.LogOutput = ioutil.Discard
-	cfg.RaftConfig.Logger = raftStdLogger // see logging.go
+	cfg.RaftConfig.Logger = &hcLogToLogger{}
 	return nil
 }
 

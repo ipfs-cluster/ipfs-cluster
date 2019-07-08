@@ -20,27 +20,26 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/cors"
-
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 
-	mux "github.com/gorilla/mux"
-	gostream "github.com/hsanjuan/go-libp2p-gostream"
-	p2phttp "github.com/hsanjuan/go-libp2p-http"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	gopath "github.com/ipfs/go-path"
 	libp2p "github.com/libp2p/go-libp2p"
+	host "github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	host "github.com/libp2p/go-libp2p-host"
-	peer "github.com/libp2p/go-libp2p-peer"
+	gostream "github.com/libp2p/go-libp2p-gostream"
+	p2phttp "github.com/libp2p/go-libp2p-http"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
+
+	mux "github.com/gorilla/mux"
+	"github.com/rs/cors"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/trace"
 )
 
 func init() {
@@ -576,8 +575,8 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
-		"Cluster",
-		"PeerMonitorLatestMetrics",
+		"PeerMonitor",
+		"LatestMetrics",
 		name,
 		&metrics,
 	)
@@ -745,6 +744,12 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	for _, f := range strings.Split(filterStr, ",") {
 		filter |= types.PinTypeFromString(f)
 	}
+
+	if filter == types.BadType {
+		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
+		return
+	}
+
 	var pins []*types.Pin
 	err := api.rpcClient.CallContext(
 		r.Context(),
@@ -816,7 +821,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
 	if filter == types.TrackerStatusUndefined && filterStr != "" {
-		api.sendResponse(w, autoStatus, errors.New("invalid filter value"), nil)
+		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return
 	}
 

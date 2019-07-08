@@ -19,7 +19,7 @@ func init() {
 }
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
-	mock := test.NewIpfsMock()
+	mock := test.NewIpfsMock(t)
 	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
 		mock.Addr, mock.Port))
 
@@ -79,11 +79,11 @@ func testPin(t *testing.T, method string) {
 	c := test.Cid1
 	err := ipfs.Pin(ctx, c, -1)
 	if err != nil {
-		t.Error("expected success pinning cid")
+		t.Error("expected success pinning cid:", err)
 	}
 	pinSt, err := ipfs.PinLsCid(ctx, c)
 	if err != nil {
-		t.Fatal("expected success doing ls")
+		t.Fatal("expected success doing ls:", err)
 	}
 	if !pinSt.IsPinned(-1) {
 		t.Error("cid should have been pinned")
@@ -93,6 +93,24 @@ func testPin(t *testing.T, method string) {
 	err = ipfs.Pin(ctx, c2, -1)
 	if err == nil {
 		t.Error("expected error pinning cid")
+	}
+
+	switch method {
+	case "refs":
+		ipfs.config.PinTimeout = 1 * time.Second
+		c3 := test.SlowCid1
+		err = ipfs.Pin(ctx, c3, -1)
+		if err == nil {
+			t.Error("expected error pinning cid")
+		}
+	case "pin":
+		ipfs.config.PinTimeout = 5 * time.Second
+		c4 := test.SlowCid1
+		err = ipfs.Pin(ctx, c4, -1)
+		if err == nil {
+			t.Error("expected error pinning cid")
+		}
+	default:
 	}
 }
 
@@ -128,13 +146,35 @@ func TestIPFSPinLsCid(t *testing.T) {
 
 	ipfs.Pin(ctx, c, -1)
 	ips, err := ipfs.PinLsCid(ctx, c)
-	if err != nil || !ips.IsPinned(-1) {
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !ips.IsPinned(-1) {
 		t.Error("c should appear pinned")
 	}
 
 	ips, err = ipfs.PinLsCid(ctx, c2)
 	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
+	}
+}
+
+func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+	c := test.Cid4 // ipfs mock treats this specially
+
+	ipfs.Pin(ctx, c, -1)
+	ips, err := ipfs.PinLsCid(ctx, c)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !ips.IsPinned(-1) {
+		t.Error("c should appear pinned")
 	}
 }
 

@@ -3,49 +3,169 @@ package ipfscluster
 import (
 	"context"
 
-	peer "github.com/libp2p/go-libp2p-peer"
-
-	"go.opencensus.io/trace"
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
+	"go.opencensus.io/trace"
 )
 
-// RPCAPI is a go-libp2p-gorpc service which provides the internal ipfs-cluster
-// API, which enables components and cluster peers to communicate and
-// request actions from each other.
-//
-// The RPC API methods are usually redirects to the actual methods in
-// the different components of ipfs-cluster, with very little added logic.
-// Refer to documentation on those methods for details on their behaviour.
-type RPCAPI struct {
+// RPC endpoint types w.r.t. trust level
+const (
+	// RPCClosed endpoints can only be called by the local cluster peer
+	// on itself.
+	RPCClosed RPCEndpointType = iota
+	// RPCTrusted endpoints can be called by "trusted" peers.
+	// It depends which peers are considered trusted. For example,
+	// in "raft" mode, Cluster will all peers as "trusted". In "crdt" mode,
+	// trusted peers are those specified in the configuration.
+	RPCTrusted
+	// RPCOpen endpoints can be called by any peer in the Cluster swarm.
+	RPCOpen
+)
+
+// RPCEndpointType controls how access is granted to an RPC endpoint
+type RPCEndpointType int
+
+// A trick to find where something is used (i.e. Cluster.Pin):
+// grep -R -B 3 '"Pin"' | grep -C 1 '"Cluster"'.
+// This does not cover globalPinInfo*(...) broadcasts nor redirects to leader
+// in Raft.
+
+// newRPCServer returns a new RPC Server for Cluster.
+func newRPCServer(c *Cluster) (*rpc.Server, error) {
+	var s *rpc.Server
+
+	authF := func(pid peer.ID, svc, method string) bool {
+		endpointType, ok := c.config.RPCPolicy[svc+"."+method]
+		if !ok {
+			return false
+		}
+
+		switch endpointType {
+		case RPCTrusted:
+			return c.consensus.IsTrustedPeer(c.ctx, pid)
+		case RPCOpen:
+			return true
+		default:
+			return false
+		}
+	}
+
+	if c.config.Tracing {
+		s = rpc.NewServer(
+			c.host,
+			version.RPCProtocol,
+			rpc.WithServerStatsHandler(&ocgorpc.ServerHandler{}),
+			rpc.WithAuthorizeFunc(authF),
+		)
+	} else {
+		s = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithAuthorizeFunc(authF))
+	}
+
+	cl := &ClusterRPCAPI{c}
+	err := s.RegisterName(RPCServiceID(cl), cl)
+	if err != nil {
+		return nil, err
+	}
+	pt := &PinTrackerRPCAPI{c.tracker}
+	err = s.RegisterName(RPCServiceID(pt), pt)
+	if err != nil {
+		return nil, err
+	}
+	ic := &IPFSConnectorRPCAPI{c.ipfs}
+	err = s.RegisterName(RPCServiceID(ic), ic)
+	if err != nil {
+		return nil, err
+	}
+	cons := &ConsensusRPCAPI{c.consensus}
+	err = s.RegisterName(RPCServiceID(cons), cons)
+	if err != nil {
+		return nil, err
+	}
+	pm := &PeerMonitorRPCAPI{c.monitor}
+	err = s.RegisterName(RPCServiceID(pm), pm)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// RPCServiceID returns the Service ID for the given RPCAPI object.
+func RPCServiceID(rpcSvc interface{}) string {
+	switch rpcSvc.(type) {
+	case *ClusterRPCAPI:
+		return "Cluster"
+	case *PinTrackerRPCAPI:
+		return "PinTracker"
+	case *IPFSConnectorRPCAPI:
+		return "IPFSConnector"
+	case *ConsensusRPCAPI:
+		return "Consensus"
+	case *PeerMonitorRPCAPI:
+		return "PeerMonitor"
+	default:
+		return ""
+	}
+}
+
+// ClusterRPCAPI is a go-libp2p-gorpc service which provides the internal peer
+// API for the main cluster component.
+type ClusterRPCAPI struct {
 	c *Cluster
 }
 
+// PinTrackerRPCAPI is a go-libp2p-gorpc service which provides the internal
+// peer API for the PinTracker component.
+type PinTrackerRPCAPI struct {
+	tracker PinTracker
+}
+
+// IPFSConnectorRPCAPI is a go-libp2p-gorpc service which provides the
+// internal peer API for the IPFSConnector component.
+type IPFSConnectorRPCAPI struct {
+	ipfs IPFSConnector
+}
+
+// ConsensusRPCAPI is a go-libp2p-gorpc service which provides the
+// internal peer API for the Consensus component.
+type ConsensusRPCAPI struct {
+	cons Consensus
+}
+
+// PeerMonitorRPCAPI is a go-libp2p-gorpc service which provides the
+// internal peer API for the PeerMonitor component.
+type PeerMonitorRPCAPI struct {
+	mon PeerMonitor
+}
+
 /*
-   Cluster components methods
+   Cluster component methods
 */
 
 // ID runs Cluster.ID()
-func (rpcapi *RPCAPI) ID(ctx context.Context, in struct{}, out *api.ID) error {
+func (rpcapi *ClusterRPCAPI) ID(ctx context.Context, in struct{}, out *api.ID) error {
 	id := rpcapi.c.ID(ctx)
 	*out = *id
 	return nil
 }
 
 // Pin runs Cluster.Pin().
-func (rpcapi *RPCAPI) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (rpcapi *ClusterRPCAPI) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	return rpcapi.c.Pin(ctx, in)
 }
 
 // Unpin runs Cluster.Unpin().
-func (rpcapi *RPCAPI) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (rpcapi *ClusterRPCAPI) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	return rpcapi.c.Unpin(ctx, in.Cid)
 }
 
 // PinPath resolves path into a cid and runs Cluster.Pin().
-func (rpcapi *RPCAPI) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
+func (rpcapi *ClusterRPCAPI) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
 	pin, err := rpcapi.c.PinPath(ctx, in)
 	if err != nil {
 		return err
@@ -55,7 +175,7 @@ func (rpcapi *RPCAPI) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin
 }
 
 // UnpinPath resolves path into a cid and runs Cluster.Unpin().
-func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
+func (rpcapi *ClusterRPCAPI) UnpinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
 	pin, err := rpcapi.c.UnpinPath(ctx, in.Path)
 	if err != nil {
 		return err
@@ -65,14 +185,17 @@ func (rpcapi *RPCAPI) UnpinPath(ctx context.Context, in *api.PinPath, out *api.P
 }
 
 // Pins runs Cluster.Pins().
-func (rpcapi *RPCAPI) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
-	cidList := rpcapi.c.Pins(ctx)
+func (rpcapi *ClusterRPCAPI) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
+	cidList, err := rpcapi.c.Pins(ctx)
+	if err != nil {
+		return err
+	}
 	*out = cidList
 	return nil
 }
 
 // PinGet runs Cluster.PinGet().
-func (rpcapi *RPCAPI) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
+func (rpcapi *ClusterRPCAPI) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
 	pin, err := rpcapi.c.PinGet(ctx, in)
 	if err != nil {
 		return err
@@ -82,7 +205,7 @@ func (rpcapi *RPCAPI) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) erro
 }
 
 // Version runs Cluster.Version().
-func (rpcapi *RPCAPI) Version(ctx context.Context, in struct{}, out *api.Version) error {
+func (rpcapi *ClusterRPCAPI) Version(ctx context.Context, in struct{}, out *api.Version) error {
 	*out = api.Version{
 		Version: rpcapi.c.Version(),
 	}
@@ -90,13 +213,13 @@ func (rpcapi *RPCAPI) Version(ctx context.Context, in struct{}, out *api.Version
 }
 
 // Peers runs Cluster.Peers().
-func (rpcapi *RPCAPI) Peers(ctx context.Context, in struct{}, out *[]*api.ID) error {
+func (rpcapi *ClusterRPCAPI) Peers(ctx context.Context, in struct{}, out *[]*api.ID) error {
 	*out = rpcapi.c.Peers(ctx)
 	return nil
 }
 
 // PeerAdd runs Cluster.PeerAdd().
-func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {
+func (rpcapi *ClusterRPCAPI) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {
 	id, err := rpcapi.c.PeerAdd(ctx, in)
 	if err != nil {
 		return err
@@ -106,7 +229,7 @@ func (rpcapi *RPCAPI) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) erro
 }
 
 // ConnectGraph runs Cluster.GetConnectGraph().
-func (rpcapi *RPCAPI) ConnectGraph(ctx context.Context, in struct{}, out *api.ConnectGraph) error {
+func (rpcapi *ClusterRPCAPI) ConnectGraph(ctx context.Context, in struct{}, out *api.ConnectGraph) error {
 	graph, err := rpcapi.c.ConnectGraph()
 	if err != nil {
 		return err
@@ -116,17 +239,17 @@ func (rpcapi *RPCAPI) ConnectGraph(ctx context.Context, in struct{}, out *api.Co
 }
 
 // PeerRemove runs Cluster.PeerRm().
-func (rpcapi *RPCAPI) PeerRemove(ctx context.Context, in peer.ID, out *struct{}) error {
+func (rpcapi *ClusterRPCAPI) PeerRemove(ctx context.Context, in peer.ID, out *struct{}) error {
 	return rpcapi.c.PeerRemove(ctx, in)
 }
 
 // Join runs Cluster.Join().
-func (rpcapi *RPCAPI) Join(ctx context.Context, in api.Multiaddr, out *struct{}) error {
+func (rpcapi *ClusterRPCAPI) Join(ctx context.Context, in api.Multiaddr, out *struct{}) error {
 	return rpcapi.c.Join(ctx, in.Value())
 }
 
 // StatusAll runs Cluster.StatusAll().
-func (rpcapi *RPCAPI) StatusAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) StatusAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
 	pinfos, err := rpcapi.c.StatusAll(ctx)
 	if err != nil {
 		return err
@@ -136,14 +259,14 @@ func (rpcapi *RPCAPI) StatusAll(ctx context.Context, in struct{}, out *[]*api.Gl
 }
 
 // StatusAllLocal runs Cluster.StatusAllLocal().
-func (rpcapi *RPCAPI) StatusAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) StatusAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	pinfos := rpcapi.c.StatusAllLocal(ctx)
 	*out = pinfos
 	return nil
 }
 
 // Status runs Cluster.Status().
-func (rpcapi *RPCAPI) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
 	pinfo, err := rpcapi.c.Status(ctx, in)
 	if err != nil {
 		return err
@@ -153,14 +276,14 @@ func (rpcapi *RPCAPI) Status(ctx context.Context, in cid.Cid, out *api.GlobalPin
 }
 
 // StatusLocal runs Cluster.StatusLocal().
-func (rpcapi *RPCAPI) StatusLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) StatusLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	pinfo := rpcapi.c.StatusLocal(ctx, in)
 	*out = *pinfo
 	return nil
 }
 
 // SyncAll runs Cluster.SyncAll().
-func (rpcapi *RPCAPI) SyncAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) SyncAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
 	pinfos, err := rpcapi.c.SyncAll(ctx)
 	if err != nil {
 		return err
@@ -170,7 +293,7 @@ func (rpcapi *RPCAPI) SyncAll(ctx context.Context, in struct{}, out *[]*api.Glob
 }
 
 // SyncAllLocal runs Cluster.SyncAllLocal().
-func (rpcapi *RPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	pinfos, err := rpcapi.c.SyncAllLocal(ctx)
 	if err != nil {
 		return err
@@ -180,7 +303,7 @@ func (rpcapi *RPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]*api
 }
 
 // Sync runs Cluster.Sync().
-func (rpcapi *RPCAPI) Sync(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) Sync(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
 	pinfo, err := rpcapi.c.Sync(ctx, in)
 	if err != nil {
 		return err
@@ -190,7 +313,7 @@ func (rpcapi *RPCAPI) Sync(ctx context.Context, in cid.Cid, out *api.GlobalPinIn
 }
 
 // SyncLocal runs Cluster.SyncLocal().
-func (rpcapi *RPCAPI) SyncLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) SyncLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	pinfo, err := rpcapi.c.SyncLocal(ctx, in)
 	if err != nil {
 		return err
@@ -200,7 +323,7 @@ func (rpcapi *RPCAPI) SyncLocal(ctx context.Context, in cid.Cid, out *api.PinInf
 }
 
 // RecoverAllLocal runs Cluster.RecoverAllLocal().
-func (rpcapi *RPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	pinfos, err := rpcapi.c.RecoverAllLocal(ctx)
 	if err != nil {
 		return err
@@ -210,7 +333,7 @@ func (rpcapi *RPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*
 }
 
 // Recover runs Cluster.Recover().
-func (rpcapi *RPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
 	pinfo, err := rpcapi.c.Recover(ctx, in)
 	if err != nil {
 		return err
@@ -220,7 +343,7 @@ func (rpcapi *RPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.GlobalPi
 }
 
 // RecoverLocal runs Cluster.RecoverLocal().
-func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) RecoverLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	pinfo, err := rpcapi.c.RecoverLocal(ctx, in)
 	if err != nil {
 		return err
@@ -231,7 +354,7 @@ func (rpcapi *RPCAPI) RecoverLocal(ctx context.Context, in cid.Cid, out *api.Pin
 
 // BlockAllocate returns allocations for blocks. This is used in the adders.
 // It's different from pin allocations when ReplicationFactor < 0.
-func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
+func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
 	err := rpcapi.c.setupPin(ctx, in)
 	if err != nil {
 		return err
@@ -269,7 +392,7 @@ func (rpcapi *RPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out *[]pee
 }
 
 // SendInformerMetric runs Cluster.sendInformerMetric().
-func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+func (rpcapi *ClusterRPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
 	m, err := rpcapi.c.sendInformerMetric(ctx)
 	if err != nil {
 		return err
@@ -283,41 +406,41 @@ func (rpcapi *RPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *
 */
 
 // Track runs PinTracker.Track().
-func (rpcapi *RPCAPI) Track(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (rpcapi *PinTrackerRPCAPI) Track(ctx context.Context, in *api.Pin, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Track")
 	defer span.End()
-	return rpcapi.c.tracker.Track(ctx, in)
+	return rpcapi.tracker.Track(ctx, in)
 }
 
 // Untrack runs PinTracker.Untrack().
-func (rpcapi *RPCAPI) Untrack(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (rpcapi *PinTrackerRPCAPI) Untrack(ctx context.Context, in *api.Pin, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Untrack")
 	defer span.End()
-	return rpcapi.c.tracker.Untrack(ctx, in.Cid)
+	return rpcapi.tracker.Untrack(ctx, in.Cid)
 }
 
-// TrackerStatusAll runs PinTracker.StatusAll().
-func (rpcapi *RPCAPI) TrackerStatusAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+// StatusAll runs PinTracker.StatusAll().
+func (rpcapi *PinTrackerRPCAPI) StatusAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/StatusAll")
 	defer span.End()
-	*out = rpcapi.c.tracker.StatusAll(ctx)
+	*out = rpcapi.tracker.StatusAll(ctx)
 	return nil
 }
 
-// TrackerStatus runs PinTracker.Status().
-func (rpcapi *RPCAPI) TrackerStatus(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+// Status runs PinTracker.Status().
+func (rpcapi *PinTrackerRPCAPI) Status(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Status")
 	defer span.End()
-	pinfo := rpcapi.c.tracker.Status(ctx, in)
+	pinfo := rpcapi.tracker.Status(ctx, in)
 	*out = *pinfo
 	return nil
 }
 
-// TrackerRecoverAll runs PinTracker.RecoverAll().f
-func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+// RecoverAll runs PinTracker.RecoverAll().f
+func (rpcapi *PinTrackerRPCAPI) RecoverAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/RecoverAll")
 	defer span.End()
-	pinfos, err := rpcapi.c.tracker.RecoverAll(ctx)
+	pinfos, err := rpcapi.tracker.RecoverAll(ctx)
 	if err != nil {
 		return err
 	}
@@ -325,11 +448,11 @@ func (rpcapi *RPCAPI) TrackerRecoverAll(ctx context.Context, in struct{}, out *[
 	return nil
 }
 
-// TrackerRecover runs PinTracker.Recover().
-func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+// Recover runs PinTracker.Recover().
+func (rpcapi *PinTrackerRPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Recover")
 	defer span.End()
-	pinfo, err := rpcapi.c.tracker.Recover(ctx, in)
+	pinfo, err := rpcapi.tracker.Recover(ctx, in)
 	*out = *pinfo
 	return err
 }
@@ -338,21 +461,21 @@ func (rpcapi *RPCAPI) TrackerRecover(ctx context.Context, in cid.Cid, out *api.P
    IPFS Connector component methods
 */
 
-// IPFSPin runs IPFSConnector.Pin().
-func (rpcapi *RPCAPI) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
+// Pin runs IPFSConnector.Pin().
+func (rpcapi *IPFSConnectorRPCAPI) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/ipfsconn/IPFSPin")
 	defer span.End()
-	return rpcapi.c.ipfs.Pin(ctx, in.Cid, in.MaxDepth)
+	return rpcapi.ipfs.Pin(ctx, in.Cid, in.MaxDepth)
 }
 
-// IPFSUnpin runs IPFSConnector.Unpin().
-func (rpcapi *RPCAPI) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
-	return rpcapi.c.ipfs.Unpin(ctx, in.Cid)
+// Unpin runs IPFSConnector.Unpin().
+func (rpcapi *IPFSConnectorRPCAPI) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	return rpcapi.ipfs.Unpin(ctx, in.Cid)
 }
 
-// IPFSPinLsCid runs IPFSConnector.PinLsCid().
-func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	b, err := rpcapi.c.ipfs.PinLsCid(ctx, in)
+// PinLsCid runs IPFSConnector.PinLsCid().
+func (rpcapi *IPFSConnectorRPCAPI) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
+	b, err := rpcapi.ipfs.PinLsCid(ctx, in)
 	if err != nil {
 		return err
 	}
@@ -360,9 +483,9 @@ func (rpcapi *RPCAPI) IPFSPinLsCid(ctx context.Context, in cid.Cid, out *api.IPF
 	return nil
 }
 
-// IPFSPinLs runs IPFSConnector.PinLs().
-func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	m, err := rpcapi.c.ipfs.PinLs(ctx, in)
+// PinLs runs IPFSConnector.PinLs().
+func (rpcapi *IPFSConnectorRPCAPI) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
+	m, err := rpcapi.ipfs.PinLs(ctx, in)
 	if err != nil {
 		return err
 	}
@@ -370,15 +493,9 @@ func (rpcapi *RPCAPI) IPFSPinLs(ctx context.Context, in string, out *map[string]
 	return nil
 }
 
-// IPFSConnectSwarms runs IPFSConnector.ConnectSwarms().
-func (rpcapi *RPCAPI) IPFSConnectSwarms(ctx context.Context, in struct{}, out *struct{}) error {
-	err := rpcapi.c.ipfs.ConnectSwarms(ctx)
-	return err
-}
-
-// IPFSConfigKey runs IPFSConnector.ConfigKey().
-func (rpcapi *RPCAPI) IPFSConfigKey(ctx context.Context, in string, out *interface{}) error {
-	res, err := rpcapi.c.ipfs.ConfigKey(in)
+// ConfigKey runs IPFSConnector.ConfigKey().
+func (rpcapi *IPFSConnectorRPCAPI) ConfigKey(ctx context.Context, in string, out *interface{}) error {
+	res, err := rpcapi.ipfs.ConfigKey(in)
 	if err != nil {
 		return err
 	}
@@ -386,9 +503,9 @@ func (rpcapi *RPCAPI) IPFSConfigKey(ctx context.Context, in string, out *interfa
 	return nil
 }
 
-// IPFSRepoStat runs IPFSConnector.RepoStat().
-func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
-	res, err := rpcapi.c.ipfs.RepoStat(ctx)
+// RepoStat runs IPFSConnector.RepoStat().
+func (rpcapi *IPFSConnectorRPCAPI) RepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
+	res, err := rpcapi.ipfs.RepoStat(ctx)
 	if err != nil {
 		return err
 	}
@@ -396,9 +513,9 @@ func (rpcapi *RPCAPI) IPFSRepoStat(ctx context.Context, in struct{}, out *api.IP
 	return err
 }
 
-// IPFSSwarmPeers runs IPFSConnector.SwarmPeers().
-func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
-	res, err := rpcapi.c.ipfs.SwarmPeers(ctx)
+// SwarmPeers runs IPFSConnector.SwarmPeers().
+func (rpcapi *IPFSConnectorRPCAPI) SwarmPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
+	res, err := rpcapi.ipfs.SwarmPeers(ctx)
 	if err != nil {
 		return err
 	}
@@ -406,18 +523,28 @@ func (rpcapi *RPCAPI) IPFSSwarmPeers(ctx context.Context, in struct{}, out *[]pe
 	return nil
 }
 
-// IPFSBlockPut runs IPFSConnector.BlockPut().
-func (rpcapi *RPCAPI) IPFSBlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
-	return rpcapi.c.ipfs.BlockPut(ctx, in)
+// BlockPut runs IPFSConnector.BlockPut().
+func (rpcapi *IPFSConnectorRPCAPI) BlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+	return rpcapi.ipfs.BlockPut(ctx, in)
 }
 
-// IPFSBlockGet runs IPFSConnector.BlockGet().
-func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in cid.Cid, out *[]byte) error {
-	res, err := rpcapi.c.ipfs.BlockGet(ctx, in)
+// BlockGet runs IPFSConnector.BlockGet().
+func (rpcapi *IPFSConnectorRPCAPI) BlockGet(ctx context.Context, in cid.Cid, out *[]byte) error {
+	res, err := rpcapi.ipfs.BlockGet(ctx, in)
 	if err != nil {
 		return err
 	}
 	*out = res
+	return nil
+}
+
+// Resolve runs IPFSConnector.Resolve().
+func (rpcapi *IPFSConnectorRPCAPI) Resolve(ctx context.Context, in string, out *cid.Cid) error {
+	c, err := rpcapi.ipfs.Resolve(ctx, in)
+	if err != nil {
+		return err
+	}
+	*out = c
 	return nil
 }
 
@@ -425,37 +552,37 @@ func (rpcapi *RPCAPI) IPFSBlockGet(ctx context.Context, in cid.Cid, out *[]byte)
    Consensus component methods
 */
 
-// ConsensusLogPin runs Consensus.LogPin().
-func (rpcapi *RPCAPI) ConsensusLogPin(ctx context.Context, in *api.Pin, out *struct{}) error {
+// LogPin runs Consensus.LogPin().
+func (rpcapi *ConsensusRPCAPI) LogPin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/consensus/LogPin")
 	defer span.End()
-	return rpcapi.c.consensus.LogPin(ctx, in)
+	return rpcapi.cons.LogPin(ctx, in)
 }
 
-// ConsensusLogUnpin runs Consensus.LogUnpin().
-func (rpcapi *RPCAPI) ConsensusLogUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+// LogUnpin runs Consensus.LogUnpin().
+func (rpcapi *ConsensusRPCAPI) LogUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/consensus/LogUnpin")
 	defer span.End()
-	return rpcapi.c.consensus.LogUnpin(ctx, in)
+	return rpcapi.cons.LogUnpin(ctx, in)
 }
 
-// ConsensusAddPeer runs Consensus.AddPeer().
-func (rpcapi *RPCAPI) ConsensusAddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
+// AddPeer runs Consensus.AddPeer().
+func (rpcapi *ConsensusRPCAPI) AddPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/consensus/AddPeer")
 	defer span.End()
-	return rpcapi.c.consensus.AddPeer(ctx, in)
+	return rpcapi.cons.AddPeer(ctx, in)
 }
 
-// ConsensusRmPeer runs Consensus.RmPeer().
-func (rpcapi *RPCAPI) ConsensusRmPeer(ctx context.Context, in peer.ID, out *struct{}) error {
+// RmPeer runs Consensus.RmPeer().
+func (rpcapi *ConsensusRPCAPI) RmPeer(ctx context.Context, in peer.ID, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/consensus/RmPeer")
 	defer span.End()
-	return rpcapi.c.consensus.RmPeer(ctx, in)
+	return rpcapi.cons.RmPeer(ctx, in)
 }
 
-// ConsensusPeers runs Consensus.Peers().
-func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]peer.ID) error {
-	peers, err := rpcapi.c.consensus.Peers(ctx)
+// Peers runs Consensus.Peers().
+func (rpcapi *ConsensusRPCAPI) Peers(ctx context.Context, in struct{}, out *[]peer.ID) error {
+	peers, err := rpcapi.cons.Peers(ctx)
 	if err != nil {
 		return err
 	}
@@ -467,13 +594,8 @@ func (rpcapi *RPCAPI) ConsensusPeers(ctx context.Context, in struct{}, out *[]pe
    PeerMonitor
 */
 
-// PeerMonitorLogMetric runs PeerMonitor.LogMetric().
-func (rpcapi *RPCAPI) PeerMonitorLogMetric(ctx context.Context, in *api.Metric, out *struct{}) error {
-	return rpcapi.c.monitor.LogMetric(ctx, in)
-}
-
-// PeerMonitorLatestMetrics runs PeerMonitor.LatestMetrics().
-func (rpcapi *RPCAPI) PeerMonitorLatestMetrics(ctx context.Context, in string, out *[]*api.Metric) error {
-	*out = rpcapi.c.monitor.LatestMetrics(ctx, in)
+// LatestMetrics runs PeerMonitor.LatestMetrics().
+func (rpcapi *PeerMonitorRPCAPI) LatestMetrics(ctx context.Context, in string, out *[]*api.Metric) error {
+	*out = rpcapi.mon.LatestMetrics(ctx, in)
 	return nil
 }

@@ -6,9 +6,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"github.com/ipfs/ipfs-cluster/api"
 	"go.opencensus.io/trace"
 )
 
@@ -74,11 +75,11 @@ func (npi *Informer) GetMetric(ctx context.Context) *api.Metric {
 	// about the number of pins in IPFS. See RPCAPI docs.
 	err := npi.rpcClient.CallContext(
 		ctx,
-		"",          // Local call
-		"Cluster",   // Service name
-		"IPFSPinLs", // Method name
-		"recursive", // in arg
-		&pinMap,     // out arg
+		"",              // Local call
+		"IPFSConnector", // Service name
+		"PinLs",         // Method name
+		"recursive",     // in arg
+		&pinMap,         // out arg
 	)
 
 	valid := err == nil

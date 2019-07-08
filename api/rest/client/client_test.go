@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -267,7 +267,7 @@ func TestProxyAddress(t *testing.T) {
 
 func TestIPFS(t *testing.T) {
 	ctx := context.Background()
-	ipfsMock := test.NewIpfsMock()
+	ipfsMock := test.NewIpfsMock(t)
 	defer ipfsMock.Close()
 
 	proxyAddr, err := ma.NewMultiaddr(

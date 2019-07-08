@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ugorji/go/codec"
@@ -50,6 +50,12 @@ func TestIPFSPinStatusFromString(t *testing.T) {
 		if IPFSPinStatusFromString(tc) != IPFSPinStatus(i+2) {
 			t.Errorf("%s does not match IPFSPinStatus %d", tc, i+2)
 		}
+	}
+}
+
+func BenchmarkIPFSPinStatusFromString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		IPFSPinStatusFromString("indirect")
 	}
 }
 
@@ -174,7 +180,10 @@ func TestPinOptionsQuery(t *testing.T) {
 			ReplicationFactorMin: 2,
 			Name:                 "abc",
 			ShardSize:            33,
-			UserAllocations:      []string{"host1", "host2"},
+			UserAllocations: StringsToPeers([]string{
+				"QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc",
+				"QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6",
+			}),
 			Metadata: map[string]string{
 				"hello":  "bye",
 				"hello2": "bye2",
@@ -185,7 +194,7 @@ func TestPinOptionsQuery(t *testing.T) {
 			ReplicationFactorMin: 0,
 			Name:                 "",
 			ShardSize:            0,
-			UserAllocations:      []string{},
+			UserAllocations:      []peer.ID{},
 			Metadata:             nil,
 		},
 		&PinOptions{

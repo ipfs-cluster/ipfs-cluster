@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path"
 
 	fslock "github.com/ipfs/go-fs-lock"
@@ -22,14 +22,13 @@ type lock struct {
 	path       string
 }
 
-func (l *lock) lock() error {
+func (l *lock) lock() {
 	if l.lockCloser != nil {
-		return fmt.Errorf("cannot acquire lock twice")
+		checkErr("", errors.New("cannot acquire lock twice"))
 	}
 
-	if err := l.checkConfigExists(); err != nil {
-		return err
-	}
+	// we should have a config folder whenever we try to lock
+	makeConfigFolder()
 
 	// set the lock file within this function
 	logger.Debug("checking lock")
@@ -37,16 +36,21 @@ func (l *lock) lock() error {
 	if err != nil {
 		logger.Debug(err)
 		l.lockCloser = nil
-		errStr := fmt.Sprintf(`could not obtain execution lock.  If no other process
-is running, remove %s, or make sure that the config folder is
-writable for the user running ipfs-cluster.  Run with -d for more information
-about the error`, path.Join(l.path, lockFileName))
-		logger.Error(errStr)
-		return fmt.Errorf("could not obtain execution lock")
+		errStr := "%s. If no other "
+		errStr += "%s process is running, remove %s, or make sure "
+		errStr += "that the config folder is writable for the user "
+		errStr += "running %s."
+		errStr = fmt.Sprintf(
+			errStr,
+			err,
+			programName,
+			path.Join(l.path, lockFileName),
+			programName,
+		)
+		checkErr("obtaining execution lock", errors.New(errStr))
 	}
-	logger.Debug("Success! ipfs-cluster-service lock acquired")
+	logger.Debugf("%s execution lock acquired", programName)
 	l.lockCloser = lk
-	return nil
 }
 
 func (l *lock) tryUnlock() error {
@@ -59,19 +63,7 @@ func (l *lock) tryUnlock() error {
 	if err != nil {
 		return err
 	}
-	logger.Debug("Successfully released execution lock")
+	logger.Debug("successfully released execution lock")
 	l.lockCloser = nil
-	return nil
-}
-
-func (l *lock) checkConfigExists() error {
-	if _, err := os.Stat(l.path); os.IsNotExist(err) {
-		logger.Error("ipfs-cluster-service config hasn't been initialized.\nPlease run ipfs-cluster-service init")
-		return err
-	}
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", l.path, "service.json")); os.IsNotExist(err) {
-		logger.Error("ipfs-cluster-service config hasn't been initialized.\nPlease run ipfs-cluster-service init")
-		return err
-	}
 	return nil
 }

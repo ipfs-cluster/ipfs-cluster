@@ -12,8 +12,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var errNotFound = errors.New("dagservice: block not found")
@@ -33,7 +33,7 @@ type DAGService struct {
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
-// to perform calls to IPFSBlockPut and Pin content on Cluster.
+// to perform calls to IPFS.BlockPut and Pin content on Cluster.
 func New(rpc *rpc.Client, opts api.PinOptions) *DAGService {
 	return &DAGService{
 		rpcClient: rpc,

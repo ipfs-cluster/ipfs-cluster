@@ -1,69 +1,81 @@
 module github.com/ipfs/ipfs-cluster
 
 require (
+	contrib.go.opencensus.io/exporter/jaeger v0.1.0
+	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8 // indirect
+	github.com/dgraph-io/badger v1.6.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gogo/protobuf v1.2.1
-	github.com/golang/protobuf v1.3.0
+	github.com/golang/protobuf v1.3.1
 	github.com/google/uuid v1.1.1
-	github.com/gorilla/mux v1.7.0
-	github.com/hashicorp/go-uuid v1.0.1 // indirect
-	github.com/hashicorp/raft v1.0.0
-	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
-	github.com/hsanjuan/go-libp2p-gostream v0.0.30
-	github.com/hsanjuan/go-libp2p-http v0.0.1
-	github.com/huin/goupnp v1.0.0 // indirect
+	github.com/gorilla/mux v1.7.3
+	github.com/hashicorp/go-hclog v0.9.2
+	github.com/hashicorp/raft v1.1.0
+	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
+	github.com/hsanjuan/ipfs-lite v0.1.4
+	github.com/imdario/mergo v0.3.7
 	github.com/ipfs/go-block-format v0.0.2
-	github.com/ipfs/go-cid v0.0.1
-	github.com/ipfs/go-datastore v0.0.1
+	github.com/ipfs/go-cid v0.0.2
+	github.com/ipfs/go-datastore v0.0.5
+	github.com/ipfs/go-ds-badger v0.0.5
+	github.com/ipfs/go-ds-crdt v0.1.0
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.1
 	github.com/ipfs/go-ipfs-chunker v0.0.1
 	github.com/ipfs/go-ipfs-ds-help v0.0.1
-	github.com/ipfs/go-ipfs-files v0.0.2
+	github.com/ipfs/go-ipfs-files v0.0.3
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
 	github.com/ipfs/go-ipfs-util v0.0.1
-	github.com/ipfs/go-ipld-cbor v0.0.1
-	github.com/ipfs/go-ipld-format v0.0.1
+	github.com/ipfs/go-ipld-cbor v0.0.2
+	github.com/ipfs/go-ipld-format v0.0.2
 	github.com/ipfs/go-log v0.0.1
-	github.com/ipfs/go-merkledag v0.0.1
-	github.com/ipfs/go-mfs v0.0.1
-	github.com/ipfs/go-path v0.0.1
-	github.com/ipfs/go-unixfs v0.0.1
-	github.com/jackpal/gateway v1.0.5 // indirect
-	github.com/kelseyhightower/envconfig v1.3.0
-	github.com/lanzafame/go-libp2p-ocgorpc v0.0.1
-	github.com/libp2p/go-libp2p v0.0.2
+	github.com/ipfs/go-merkledag v0.1.0
+	github.com/ipfs/go-mfs v0.1.1
+	github.com/ipfs/go-path v0.0.7
+	github.com/ipfs/go-unixfs v0.1.0
+	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
+	github.com/libp2p/go-eventbus v0.0.3 // indirect
+	github.com/libp2p/go-libp2p v0.2.0
+	github.com/libp2p/go-libp2p-connmgr v0.1.0
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-crypto v0.0.1
-	github.com/libp2p/go-libp2p-gorpc v0.0.2
-	github.com/libp2p/go-libp2p-host v0.0.1
-	github.com/libp2p/go-libp2p-interface-pnet v0.0.1
-	github.com/libp2p/go-libp2p-kad-dht v0.0.4
-	github.com/libp2p/go-libp2p-peer v0.0.1
-	github.com/libp2p/go-libp2p-peerstore v0.0.1
-	github.com/libp2p/go-libp2p-pnet v0.0.1
-	github.com/libp2p/go-libp2p-protocol v0.0.1
-	github.com/libp2p/go-libp2p-pubsub v0.0.1
-	github.com/libp2p/go-libp2p-raft v0.0.2
-	github.com/libp2p/go-ws-transport v0.0.1
-	github.com/mattn/go-isatty v0.0.6 // indirect
-	github.com/multiformats/go-multiaddr v0.0.2
+	github.com/libp2p/go-libp2p-core v0.0.6
+	github.com/libp2p/go-libp2p-crypto v0.1.0
+	github.com/libp2p/go-libp2p-gorpc v0.1.0
+	github.com/libp2p/go-libp2p-gostream v0.1.2
+	github.com/libp2p/go-libp2p-host v0.1.0
+	github.com/libp2p/go-libp2p-http v0.1.3
+	github.com/libp2p/go-libp2p-interface-pnet v0.1.0
+	github.com/libp2p/go-libp2p-kad-dht v0.1.1
+	github.com/libp2p/go-libp2p-peer v0.2.0
+	github.com/libp2p/go-libp2p-peerstore v0.1.2-0.20190621130618-cfa9bb890c1a
+	github.com/libp2p/go-libp2p-pnet v0.1.0
+	github.com/libp2p/go-libp2p-protocol v0.1.0
+	github.com/libp2p/go-libp2p-pubsub v0.1.0
+	github.com/libp2p/go-libp2p-raft v0.1.2
+	github.com/libp2p/go-libp2p-swarm v0.1.1 // indirect
+	github.com/libp2p/go-ws-transport v0.1.0
+	github.com/multiformats/go-multiaddr v0.0.4
 	github.com/multiformats/go-multiaddr-dns v0.0.2
 	github.com/multiformats/go-multiaddr-net v0.0.1
 	github.com/multiformats/go-multicodec v0.1.6
-	github.com/multiformats/go-multihash v0.0.1
-	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
-	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
-	github.com/prometheus/procfs v0.0.0-20190306233201-d0f344d83b0c // indirect
+	github.com/multiformats/go-multihash v0.0.6
+	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v1.0.0
+	github.com/prometheus/common v0.6.0 // indirect
+	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/rs/cors v1.6.0
-	github.com/ugorji/go v0.0.0-20171015030454-f26fc641ec9d
+	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.20.0
 	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
-	go.opencensus.io v0.19.1
-	golang.org/x/sys v0.0.0-20190308023053-584f3b12f43e // indirect
-	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
-	google.golang.org/api v0.1.0 // indirect
-	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19 // indirect
+	go.opencensus.io v0.22.0
+	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
+	golang.org/x/exp v0.0.0-20190627132806-fd42eb6b336f // indirect
+	golang.org/x/image v0.0.0-20190703141733-d6a02ce849c9 // indirect
+	gonum.org/v1/gonum v0.0.0-20190704103327-70ddf0df3d53
+	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
+	google.golang.org/api v0.7.0 // indirect
+	google.golang.org/genproto v0.0.0-20190701230453-710ae3a149df // indirect
 )

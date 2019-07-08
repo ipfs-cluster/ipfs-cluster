@@ -3,7 +3,7 @@ os:
   - linux
 #  - osx
 go:
-- '1.11.x'
+- '1.12.x'
 services:
 - docker
 
@@ -11,7 +11,6 @@ sudo: required
 
 cache:
   directories:
-    - $GOPATH/src/gx
     - $GOPATH/pkg/mod
     - $HOME/.cache/go-build
 
@@ -25,12 +24,15 @@ jobs:
     - stage: "Testing stage"
       name: "Tests (all modules) + Coverage"
       script:
-        - go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+        - go test -v -failfast -timeout 15m -coverprofile=coverage.txt -covermode=atomic .
       after_success:
         - bash <(curl -s https://codecov.io/bash)
+    - name: "Main Tests with crdt consensus"
+      script:
+        - go test -v -failfast -consensus crdt .
     - name: "Main Tests with stateless tracker"
       script:
-        - go test -v . -tracker stateless
+        - go test -v -failfast -tracker stateless .
     - name: "Golint and go vet"
       script:
         - go get -u golang.org/x/lint/golint

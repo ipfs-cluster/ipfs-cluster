@@ -7,16 +7,16 @@ import (
 	"errors"
 	"sync"
 
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/util"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
+
+	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("pintracker")
@@ -137,8 +137,8 @@ func (mpt *MapPinTracker) pin(op *optracker.Operation) error {
 	err := mpt.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSPin",
+		"IPFSConnector",
+		"Pin",
 		op.Pin(),
 		&struct{}{},
 	)
@@ -156,8 +156,8 @@ func (mpt *MapPinTracker) unpin(op *optracker.Operation) error {
 	err := mpt.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSUnpin",
+		"IPFSConnector",
+		"Unpin",
 		op.Pin(),
 		&struct{}{},
 	)
@@ -233,7 +233,7 @@ func (mpt *MapPinTracker) Untrack(ctx context.Context, c cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/map/Untrack")
 	defer span.End()
 
-	logger.Debugf("untracking %s", c)
+	logger.Infof("untracking %s", c)
 	return mpt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin, mpt.unpinCh)
 }
 
@@ -270,8 +270,8 @@ func (mpt *MapPinTracker) Sync(ctx context.Context, c cid.Cid) (*api.PinInfo, er
 	var ips api.IPFSPinStatus
 	err := mpt.rpcClient.Call(
 		"",
-		"Cluster",
-		"IPFSPinLsCid",
+		"IPFSConnector",
+		"PinLsCid",
 		c,
 		&ips,
 	)
@@ -300,8 +300,8 @@ func (mpt *MapPinTracker) SyncAll(ctx context.Context) ([]*api.PinInfo, error) {
 	var results []*api.PinInfo
 	err := mpt.rpcClient.Call(
 		"",
-		"Cluster",
-		"IPFSPinLs",
+		"IPFSConnector",
+		"PinLs",
 		"recursive",
 		&ipsMap,
 	)

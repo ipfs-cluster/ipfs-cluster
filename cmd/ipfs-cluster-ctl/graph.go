@@ -87,7 +87,7 @@ type dotWriter struct {
 func (dW *dotWriter) addNode(id string, nT nodeType) error {
 	var node dot.VertexDescription
 	pid, _ := peer.IDB58Decode(id)
-	node.Label = pid.String()
+	node.Label = pid.ShortString()
 	switch nT {
 	case tCluster:
 		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))

@@ -6,10 +6,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/api"
+
 	logging "github.com/ipfs/go-log"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
-	"github.com/ipfs/ipfs-cluster/api"
 	"go.opencensus.io/trace"
 )
 
@@ -86,8 +87,8 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	err := disk.rpcClient.CallContext(
 		ctx,
 		"",
-		"Cluster",
-		"IPFSRepoStat",
+		"IPFSConnector",
+		"RepoStat",
 		struct{}{},
 		&repoStat,
 	)

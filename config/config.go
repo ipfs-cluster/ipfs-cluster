@@ -58,6 +58,7 @@ const (
 	Allocator
 	Informer
 	Observations
+	Datastore
 	endTypes // keep this at the end
 )
 
@@ -178,6 +179,7 @@ type jsonConfig struct {
 	Allocator    jsonSection      `json:"allocator,omitempty"`
 	Informer     jsonSection      `json:"informer,omitempty"`
 	Observations jsonSection      `json:"observations,omitempty"`
+	Datastore    jsonSection      `json:"datastore,omitempty"`
 }
 
 func (jcfg *jsonConfig) getSection(i SectionType) *jsonSection {
@@ -200,6 +202,8 @@ func (jcfg *jsonConfig) getSection(i SectionType) *jsonSection {
 		return &jcfg.Informer
 	case Observations:
 		return &jcfg.Observations
+	case Datastore:
+		return &jcfg.Datastore
 	default:
 		return nil
 	}
@@ -477,4 +481,22 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	}
 
 	return DefaultJSONMarshal(jcfg)
+}
+
+// GetClusterConfig extracts cluster config from the configuration file
+// and returns bytes of it
+func GetClusterConfig(configPath string) ([]byte, error) {
+	file, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		logger.Error("error reading the configuration file: ", err)
+		return nil, err
+	}
+
+	jcfg := &jsonConfig{}
+	err = json.Unmarshal(file, jcfg)
+	if err != nil {
+		logger.Error("error parsing JSON: ", err)
+		return nil, err
+	}
+	return []byte(*jcfg.Cluster), nil
 }

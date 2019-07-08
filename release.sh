@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updates the Version variables, commits, tags, signs and "gx release" the package
+# Updates the Version variables, commits, tags and signs
 
 set -e
 set -x
@@ -12,7 +12,7 @@ if [ -z $version ]; then
    exit 1  
 fi
 
-make gx-clean
+make clean
 sed -i "s/Version = semver\.MustParse.*$/Version = semver.MustParse(\"$version\")/" version/version.go
 sed -i "s/const Version.*$/const Version = \"$version\"/" cmd/ipfs-cluster-ctl/main.go
 git commit -S -a -m "Release $version"
@@ -22,4 +22,3 @@ echo >> tag_annotation
 git log --pretty=oneline ${lastver}..HEAD >> tag_annotation
 git tag -a -s -F tag_annotation v$version
 rm tag_annotation
-gx release $version 

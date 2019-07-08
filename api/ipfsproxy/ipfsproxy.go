@@ -21,8 +21,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	path "github.com/ipfs/go-path"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
 
@@ -213,6 +213,10 @@ func New(cfg *Config) (*Server, error) {
 		HandlerFunc(proxy.pinLsHandler).
 		Name("PinLs")
 	hijackSubrouter.
+		Path("/pin/update").
+		HandlerFunc(proxy.pinUpdateHandler).
+		Name("PinUpdate")
+	hijackSubrouter.
 		Path("/add").
 		HandlerFunc(proxy.addHandler).
 		Name("Add")
@@ -284,10 +288,14 @@ func (proxy *Server) run() {
 }
 
 // ipfsErrorResponder writes an http error response just like IPFS would.
-func ipfsErrorResponder(w http.ResponseWriter, errMsg string) {
+func ipfsErrorResponder(w http.ResponseWriter, errMsg string, code int) {
 	res := ipfsError{errMsg}
 	resBytes, _ := json.Marshal(res)
-	w.WriteHeader(http.StatusInternalServerError)
+	if code > 0 {
+		w.WriteHeader(code)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	w.Write(resBytes)
 	return
 }
@@ -298,7 +306,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	arg := r.URL.Query().Get("arg")
 	p, err := path.ParsePath(arg)
 	if err != nil {
-		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error())
+		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error(), -1)
 		return
 	}
 
@@ -312,7 +320,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 		&pin,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
@@ -343,7 +351,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	if arg != "" {
 		c, err := cid.Decode(arg)
 		if err != nil {
-			ipfsErrorResponder(w, err.Error())
+			ipfsErrorResponder(w, err.Error(), -1)
 			return
 		}
 		var pin api.Pin
@@ -355,7 +363,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			&pin,
 		)
 		if err != nil {
-			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg))
+			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg), -1)
 			return
 		}
 		pinLs.Keys[pin.Cid.String()] = ipfsPinType{
@@ -371,7 +379,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			&pins,
 		)
 		if err != nil {
-			ipfsErrorResponder(w, err.Error())
+			ipfsErrorResponder(w, err.Error(), -1)
 			return
 		}
 
@@ -387,18 +395,132 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resBytes)
 }
 
+func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := trace.StartSpan(r.Context(), "ipfsproxy/pinUpdateHandler")
+	defer span.End()
+
+	proxy.setHeaders(w.Header(), r)
+
+	// Check that we have enough arguments and mimic ipfs response when not
+	q := r.URL.Query()
+	args := q["arg"]
+	if len(args) == 0 {
+		ipfsErrorResponder(w, "argument \"from-path\" is required", http.StatusBadRequest)
+		return
+	}
+	if len(args) == 1 {
+		ipfsErrorResponder(w, "argument \"to-path\" is required", http.StatusBadRequest)
+		return
+	}
+
+	unpin := !(q.Get("unpin") == "false")
+	from := args[0]
+	to := args[1]
+
+	// Parse paths (we will need to resolve them)
+	pFrom, err := path.ParsePath(from)
+	if err != nil {
+		ipfsErrorResponder(w, "error parsing \"from-path\" argument: "+err.Error(), -1)
+		return
+	}
+
+	pTo, err := path.ParsePath(to)
+	if err != nil {
+		ipfsErrorResponder(w, "error parsing \"to-path\" argument: "+err.Error(), -1)
+		return
+	}
+
+	// Resolve the FROM argument
+	var fromCid cid.Cid
+	err = proxy.rpcClient.CallContext(
+		ctx,
+		"",
+		"IPFSConnector",
+		"Resolve",
+		pFrom.String(),
+		&fromCid,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	// Get existing FROM pin, and send error if not present.
+	var fromPin api.Pin
+	err = proxy.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"PinGet",
+		fromCid,
+		&fromPin,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	// Prepare to pin the TO argument with the options from the FROM pin
+	// and the allocations of the FROM pin.
+	toPath := &api.PinPath{
+		Path:       pTo.String(),
+		PinOptions: fromPin.PinOptions,
+	}
+	toPath.PinOptions.UserAllocations = fromPin.Allocations
+
+	// Pin the TO pin.
+	var toPin api.Pin
+	err = proxy.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"PinPath",
+		toPath,
+		&toPin,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	// If unpin != "false", unpin the FROM argument
+	// (it was already resolved).
+	if unpin {
+		err = proxy.rpcClient.CallContext(
+			ctx,
+			"",
+			"Cluster",
+			"Unpin",
+			&fromPin,
+			&struct{}{},
+		)
+		if err != nil {
+			ipfsErrorResponder(w, err.Error(), -1)
+			return
+		}
+	}
+
+	res := ipfsPinOpResp{
+		Pins: []string{fromCid.String(), toPin.Cid.String()},
+	}
+	resBytes, _ := json.Marshal(res)
+	w.WriteHeader(http.StatusOK)
+	w.Write(resBytes)
+	return
+}
+
 func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header(), r)
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		ipfsErrorResponder(w, "error reading request: "+err.Error())
+		ipfsErrorResponder(w, "error reading request: "+err.Error(), -1)
 		return
 	}
 
 	q := r.URL.Query()
 	if q.Get("only-hash") == "true" {
-		ipfsErrorResponder(w, "only-hash is not supported when adding to cluster")
+		ipfsErrorResponder(w, "only-hash is not supported when adding to cluster", -1)
 	}
 
 	unpin := q.Get("pin") == "false"
@@ -407,7 +529,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	// /add params. We can parse most of them directly from the query.
 	params, err := api.AddParamsFromQuery(q)
 	if err != nil {
-		ipfsErrorResponder(w, "error parsing options:"+err.Error())
+		ipfsErrorResponder(w, "error parsing options:"+err.Error(), -1)
 		return
 	}
 	trickle := q.Get("trickle")
@@ -469,13 +591,13 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	peers := make([]peer.ID, 0)
 	err := proxy.rpcClient.Call(
 		"",
-		"Cluster",
-		"ConsensusPeers",
+		"Consensus",
+		"Peers",
 		struct{}{},
 		&peers,
 	)
 	if err != nil {
-		ipfsErrorResponder(w, err.Error())
+		ipfsErrorResponder(w, err.Error(), -1)
 		return
 	}
 
@@ -492,8 +614,8 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	errs := proxy.rpcClient.MultiCall(
 		ctxs,
 		peers,
-		"Cluster",
-		"IPFSRepoStat",
+		"IPFSConnector",
+		"RepoStat",
 		struct{}{},
 		repoStatsIfaces,
 	)
@@ -502,6 +624,10 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 
 	for i, err := range errs {
 		if err != nil {
+			if rpc.IsAuthorizationError(err) {
+				logger.Debug(err)
+				continue
+			}
 			logger.Errorf("%s repo/stat errored: %s", peers[i], err)
 			continue
 		}

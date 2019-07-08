@@ -4,9 +4,9 @@ package optracker
 
 import "strconv"
 
-const _OperationType_name = "OperationUnknownOperationPinOperationUnpin"
+const _OperationType_name = "OperationUnknownOperationPinOperationUnpinOperationRemoteOperationShard"
 
-var _OperationType_index = [...]uint8{0, 16, 28, 42}
+var _OperationType_index = [...]uint8{0, 16, 28, 42, 57, 71}
 
 func (i OperationType) String() string {
 	if i < 0 || i >= OperationType(len(_OperationType_index)-1) {

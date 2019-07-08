@@ -10,10 +10,10 @@ import (
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
-	peer "github.com/libp2p/go-libp2p-peer"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
@@ -27,7 +27,7 @@ type testRPC struct {
 	pins   sync.Map
 }
 
-func (rpcs *testRPC) IPFSBlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+func (rpcs *testRPC) BlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
 	rpcs.blocks.Store(in.Cid.String(), in.Data)
 	return nil
 }
@@ -67,6 +67,10 @@ func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
 	rpcObj := &testRPC{}
 	server := rpc.NewServer(nil, "mock")
 	err := server.RegisterName("Cluster", rpcObj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = server.RegisterName("IPFSConnector", rpcObj)
 	if err != nil {
 		t.Fatal(err)
 	}

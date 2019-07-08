@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+
+	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 var (
@@ -23,21 +23,19 @@ var (
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
 )
 
-type mockService struct {
-	rpcClient *rpc.Client
-}
+type mockIPFS struct{}
 
 func mockRPCClient(t *testing.T) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
-	err := s.RegisterName("Cluster", &mockService{})
+	err := s.RegisterName("IPFSConnector", &mockIPFS{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c
 }
 
-func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
 	case test.SlowCid1.String():
 		time.Sleep(2 * time.Second)
@@ -47,7 +45,7 @@ func (mock *mockService) IPFSPin(ctx context.Context, in *api.Pin, out *struct{}
 	return nil
 }
 
-func (mock *mockService) IPFSUnpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFS) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid.String() {
 	case test.SlowCid1.String():
 		time.Sleep(2 * time.Second)

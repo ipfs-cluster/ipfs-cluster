@@ -2,7 +2,6 @@ tag_annotation
 coverage.out
 cmd/ipfs-cluster-service/ipfs-cluster-service
 cmd/ipfs-cluster-ctl/ipfs-cluster-ctl
-deptools/gx*
 sharness/lib/sharness
 sharness/test-results
 sharness/trash*

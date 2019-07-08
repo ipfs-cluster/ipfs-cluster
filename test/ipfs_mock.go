@@ -10,11 +10,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/state"
-	"github.com/ipfs/ipfs-cluster/state/mapstate"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
@@ -39,7 +41,8 @@ type IpfsMock struct {
 }
 
 type mockPinResp struct {
-	Pins []string
+	Pins     []string
+	Progress int `json:",omitempty"`
 }
 
 type mockPinType struct {
@@ -96,8 +99,12 @@ type mockBlockPutResp struct {
 }
 
 // NewIpfsMock returns a new mock.
-func NewIpfsMock() *IpfsMock {
-	st := mapstate.NewMapState()
+func NewIpfsMock(t *testing.T) *IpfsMock {
+	store := inmem.New()
+	st, err := dsstate.New(store, "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
 	blocks := make(map[string][]byte)
 	m := &IpfsMock{
 		pinMap:     st,
@@ -162,8 +169,18 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
-		j, _ := json.Marshal(resp)
-		w.Write(j)
+
+		if c.Equals(SlowCid1) {
+			for i := 0; i <= 10; i++ {
+				time.Sleep(1 * time.Second)
+				resp.Progress = i
+				j, _ := json.Marshal(resp)
+				w.Write(j)
+			}
+		} else {
+			j, _ := json.Marshal(resp)
+			w.Write(j)
+		}
 	case "pin/rm":
 		arg, ok := extractCid(r.URL)
 		if !ok {
@@ -183,7 +200,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		arg, ok := extractCid(r.URL)
 		if !ok {
 			rMap := make(map[string]mockPinType)
-			pins := m.pinMap.List(ctx)
+			pins, err := m.pinMap.List(ctx)
+			if err != nil {
+				goto ERROR
+			}
 			for _, p := range pins {
 				rMap[p.Cid.String()] = mockPinType{"recursive"}
 			}
@@ -197,8 +217,17 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		ok = m.pinMap.Has(ctx, c)
+
+		ok, err = m.pinMap.Has(ctx, c)
+		if err != nil {
+			goto ERROR
+		}
 		if ok {
+			if c.Equals(Cid4) { // this a v1 cid. Do not return default-base32
+				w.Write([]byte(`{ "Keys": { "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57": { "Type": "recursive" }}}`))
+				return
+			}
+
 			rMap := make(map[string]mockPinType)
 			rMap[cidStr] = mockPinType{"recursive"}
 			j, _ := json.Marshal(mockPinLsResp{rMap})
@@ -290,7 +319,11 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 	case "repo/stat":
 		sizeOnly := r.URL.Query().Get("size-only")
-		len := len(m.pinMap.List(ctx))
+		list, err := m.pinMap.List(ctx)
+		if err != nil {
+			goto ERROR
+		}
+		len := len(list)
 		numObjs := uint64(len)
 		if sizeOnly == "true" {
 			numObjs = 0
@@ -323,7 +356,14 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			Ref: arg,
 		}
 		j, _ := json.Marshal(resp)
-		w.Write(j)
+		if arg == SlowCid1.String() {
+			for i := 0; i <= 5; i++ {
+				time.Sleep(2 * time.Second)
+				w.Write(j)
+			}
+		} else {
+			w.Write(j)
+		}
 	case "version":
 		w.Write([]byte("{\"Version\":\"m.o.c.k\"}"))
 	default:
