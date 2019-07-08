@@ -2,9 +2,7 @@ package client
 
 import (
 	"context"
-	"math/rand"
 	"sync/atomic"
-	"time"
 
 	cid "github.com/ipfs/go-cid"
 	shell "github.com/ipfs/go-ipfs-api"
@@ -13,14 +11,14 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-// loadBalancingClient is a client to interact with IPFS Cluster APIs.
-// It balances the load by distributing it among peers.
+// loadBalancingClient is a client to interact with IPFS Cluster APIs
+// that balances the load by distributing requests among peers.
 type loadBalancingClient struct {
 	strategy LBStrategy
 	retries  int
 }
 
-// LBStrategy is a strategy to load balance request among clients.
+// LBStrategy is a strategy to load balance requests among clients.
 type LBStrategy interface {
 	Next(count int) Client
 	SetClients(clients []Client)
@@ -29,69 +27,49 @@ type LBStrategy interface {
 // RoundRobin is a load balancing strategy that would use clients in a sequence.
 type RoundRobin struct {
 	clients []Client
-	length  int
-	counter *int32
-}
-
-// NewRoundRobin would return an LBStrategy that load balances requests by using
-// clients in sequence.
-func NewRoundRobin() LBStrategy {
-	rand.Seed(time.Now().UnixNano())
-
-	var counter *int32
-	atomic.StoreInt32(counter, 0)
-	return &RoundRobin{counter: counter}
+	counter uint32
 }
 
 // Next return the next client to be used.
 func (r *RoundRobin) Next(count int) Client {
-	i := atomic.LoadInt32(r.counter)
-	atomic.StoreInt32(r.counter, (i+1)%int32(r.length))
+	i := atomic.AddUint32(&r.counter, 1)
+
 	return r.clients[i]
 }
 
 // SetClients sets a list of clients for this strategy.
 func (r *RoundRobin) SetClients(cl []Client) {
 	r.clients = cl
-	r.length = len(cl)
 }
 
 // Failover is a load balancing strategy that would try the local cluster peer first.
 // If the local call fail it would try other client in a round robin fashion.
 type Failover struct {
 	clients []Client
-	length  int
-	counter *int32
+	counter uint32
 }
 
-// NewFailover would return an LBStrategy that uses the local client first and
-// if that fails it would try other clients in a round robin like fashion.
-func NewFailover() LBStrategy {
-	rand.Seed(time.Now().UnixNano())
-
-	var counter *int32
-	atomic.StoreInt32(counter, 0)
-	return &RoundRobin{counter: counter}
-}
-
-// Next return the next client to be used.
+// Next returns the next client to be used.
 func (f *Failover) Next(count int) Client {
 	if count == 0 {
 		return f.clients[0]
 	}
 
-	i := atomic.LoadInt32(f.counter)
-	atomic.StoreInt32(f.counter, (i+1)%int32(f.length))
+	i := atomic.AddUint32(&f.counter, 1)
+
+	if i == 0 {
+		return f.Next(count)
+	}
+
 	return f.clients[i]
 }
 
 // SetClients sets a list of clients for this strategy.
 func (f *Failover) SetClients(cl []Client) {
 	f.clients = cl
-	f.length = len(cl)
 }
 
-// NewLBClient returens a new client that would load balance among
+// NewLBClient returens a new client that would load balance requests among
 // clients.
 func NewLBClient(strategy LBStrategy, cfgs []*Config, retries int) (Client, error) {
 	var clients []Client
@@ -106,6 +84,7 @@ func NewLBClient(strategy LBStrategy, cfgs []*Config, retries int) (Client, erro
 	return &loadBalancingClient{strategy: strategy, retries: retries}, nil
 }
 
+// retry tries the request until it is successful or tries `lc.retries` times.
 func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 	err := call(lc.strategy.Next(count))
 	apiErr, ok := err.(*api.Error)
@@ -115,9 +94,21 @@ func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 	}
 
 	count++
-	if count == lc.retries || err == nil || apiErr.Code != 0 {
+
+	// successful request
+	if err == nil {
+		return nil
+	}
+
+	if count == lc.retries {
+		logger.Errorf("reached maximum number of retries without success, retries: %d", lc.retries)
 		return err
 	}
+
+	if apiErr.Code != 0 {
+		return err
+	}
+
 	return lc.retry(count, call)
 }
 
