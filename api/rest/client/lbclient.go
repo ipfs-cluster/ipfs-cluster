@@ -28,11 +28,12 @@ type LBStrategy interface {
 type RoundRobin struct {
 	clients []Client
 	counter uint32
+	length  uint32
 }
 
 // Next return the next client to be used.
 func (r *RoundRobin) Next(count int) Client {
-	i := atomic.AddUint32(&r.counter, 1)
+	i := atomic.AddUint32(&r.counter, 1) % r.length
 
 	return r.clients[i]
 }
@@ -47,6 +48,7 @@ func (r *RoundRobin) SetClients(cl []Client) {
 type Failover struct {
 	clients []Client
 	counter uint32
+	length  uint32
 }
 
 // Next returns the next client to be used.
@@ -55,7 +57,7 @@ func (f *Failover) Next(count int) Client {
 		return f.clients[0]
 	}
 
-	i := atomic.AddUint32(&f.counter, 1)
+	i := atomic.AddUint32(&f.counter, 1) % f.length
 
 	if i == 0 {
 		return f.Next(count)
