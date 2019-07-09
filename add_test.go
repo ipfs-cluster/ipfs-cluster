@@ -18,6 +18,8 @@ func TestAdd(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
+	waitForLeaderAndMetrics(t, clusters)
+
 	t.Run("local", func(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Shard = false

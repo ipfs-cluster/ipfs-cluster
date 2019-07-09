@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,10 @@ var logger = logging.Logger("ipfshttp")
 // on the nth occasion. So, for example, for every BlockPut,
 // only the 10th will trigger a SendInformerMetrics call.
 var updateMetricMod = 10
+
+// progressTick sets how often we check progress when doing refs and pins
+// requests.
+var progressTick = 5 * time.Second
 
 // Connector implements the IPFSConnector interface
 // and provides a component which  is used to perform
@@ -91,6 +96,16 @@ type ipfsResolveResp struct {
 type ipfsRepoGCResp struct {
 	Key   cid.Cid
 	Error string `json:",omitempty"`
+}
+
+type ipfsRefsResp struct {
+	Ref string
+	Err string
+}
+
+type ipfsPinsResp struct {
+	Pins     []string
+	Progress int
 }
 
 type ipfsSwarmPeersResp struct {
@@ -267,14 +282,26 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 	return id, nil
 }
 
+func pinArgs(maxDepth int) string {
+	q := url.Values{}
+	switch {
+	case maxDepth < 0:
+		q.Set("recursive", "true")
+	case maxDepth == 0:
+		q.Set("recursive", "false")
+	default:
+		q.Set("recursive", "true")
+		q.Set("max-depth", strconv.Itoa(maxDepth))
+	}
+	return q.Encode()
+}
+
 // Pin performs a pin request against the configured IPFS
 // daemon.
 func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Pin")
 	defer span.End()
 
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.PinTimeout)
-	defer cancel()
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
@@ -287,33 +314,177 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 
 	defer ipfs.updateInformerMetric(ctx)
 
-	var pinArgs string
-	switch {
-	case maxDepth < 0:
-		pinArgs = "recursive=true"
-	case maxDepth == 0:
-		pinArgs = "recursive=false"
-	default:
-		pinArgs = fmt.Sprintf("recursive=true&max-depth=%d", maxDepth)
-	}
+	ctx, cancelRequest := context.WithCancel(ctx)
+	defer cancelRequest()
 
 	switch ipfs.config.PinMethod {
-	case "refs": // do refs -r first
-		path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs)
-		err := ipfs.postDiscardBodyCtx(ctx, path)
+	case "refs":
+		// do refs -r first and timeout if we don't get at least
+		// one ref per pin timeout
+		outRefs := make(chan string)
+		go func() {
+			lastRefTime := time.Now()
+			ticker := time.NewTicker(progressTick)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					if time.Since(lastRefTime) >= ipfs.config.PinTimeout {
+						cancelRequest() // timeout
+						return
+					}
+				case <-outRefs:
+					lastRefTime = time.Now()
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
+		err := ipfs.refsProgress(ctx, hash, maxDepth, outRefs)
 		if err != nil {
 			return err
 		}
+
 		logger.Debugf("Refs for %s sucessfully fetched", hash)
-		stats.Record(ctx, observations.Pins.M(1))
+
 	}
 
-	path := fmt.Sprintf("pin/add?arg=%s&%s", hash, pinArgs)
-	_, err = ipfs.postCtx(ctx, path, "", nil)
-	if err == nil {
-		logger.Info("IPFS Pin request succeeded: ", hash)
+	// Pin request and timeout if there is no progress
+	outPins := make(chan int)
+	go func() {
+		var lastProgress int
+		lastProgressTime := time.Now()
+
+		ticker := time.NewTicker(ipfs.config.PinTimeout)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if time.Since(lastProgressTime) > ipfs.config.PinTimeout {
+					// timeout request
+					cancelRequest()
+					return
+				}
+			case p := <-outPins:
+				// ipfs will send status messages every second
+				// or so but we need make sure there was
+				// progress by looking at number of nodes
+				// fetched.
+				if p > lastProgress {
+					lastProgress = p
+					lastProgressTime = time.Now()
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	err = ipfs.pinProgress(ctx, hash, maxDepth, outPins)
+	if err != nil {
+		return err
 	}
-	return err
+
+	logger.Info("IPFS Pin request succeeded: ", hash)
+	stats.Record(ctx, observations.Pins.M(1))
+	return nil
+}
+
+// refsProgress fetches refs and puts them on a channel. Blocks until done or
+// error. refsProgress will always close the out channel. refsProgres will
+// not block on sending to the channel if it is full.
+func (ipfs *Connector) refsProgress(ctx context.Context, hash cid.Cid, maxDepth int, out chan<- string) error {
+	defer close(out)
+
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/refsProgress")
+	defer span.End()
+
+	path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs(maxDepth))
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	_, err = checkResponse(path, res)
+	if err != nil {
+		return err
+	}
+
+	dec := json.NewDecoder(res.Body)
+	for {
+		var ref ipfsRefsResp
+		if err := dec.Decode(&ref); err != nil {
+			// If we cancelled the request we should tell the user
+			// (in case dec.Decode() exited cleanly with an EOF).
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				if err == io.EOF {
+					return nil // clean exit
+				}
+				return err // error decoding
+			}
+		}
+
+		// We have a Ref!
+		if errStr := ref.Err; errStr != "" {
+			logger.Error(errStr)
+		}
+
+		select { // do not lock
+		case out <- ref.Ref:
+		default:
+		}
+	}
+}
+
+// pinProgress pins an item and sends fetched node's progress on a
+// channel. Blocks until done or error. pinProgress will always close the out
+// channel.  pinProgress will not block on sending to the channel if it is full.
+func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth int, out chan<- int) error {
+	defer close(out)
+
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinsProgress")
+	defer span.End()
+
+	pinArgs := pinArgs(maxDepth)
+	path := fmt.Sprintf("pin/add?arg=%s&%s&progress=true", hash, pinArgs)
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	_, err = checkResponse(path, res)
+	if err != nil {
+		return err
+	}
+
+	dec := json.NewDecoder(res.Body)
+	for {
+		var pins ipfsPinsResp
+		if err := dec.Decode(&pins); err != nil {
+			// If we cancelled the request we should tell the user
+			// (in case dec.Decode() exited cleanly with an EOF).
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				if err == io.EOF {
+					return nil // clean exit. Pinned!
+				}
+				return err // error decoding
+			}
+		}
+
+		select {
+		case out <- pins.Progress:
+		default:
+		}
+	}
 }
 
 // Unpin performs an unpin request against the configured IPFS
@@ -322,16 +493,18 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Unpin")
 	defer span.End()
 
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
-	defer cancel()
-
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
+
 	if pinStatus.IsPinned(-1) {
 		defer ipfs.updateInformerMetric(ctx)
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
+
+		ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
+		defer cancel()
+
 		_, err := ipfs.postCtx(ctx, path, "", nil)
 		if err != nil {
 			return err
@@ -449,18 +622,30 @@ func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiUR
 
 // checkResponse tries to parse an error message on non StatusOK responses
 // from ipfs.
-func checkResponse(path string, code int, body []byte) error {
-	if code == http.StatusOK {
-		return nil
+func checkResponse(path string, res *http.Response) ([]byte, error) {
+	if res.StatusCode == http.StatusOK {
+		return nil, nil
 	}
 
-	var ipfsErr ipfsError
-
-	if body != nil && json.Unmarshal(body, &ipfsErr) == nil {
-		return fmt.Errorf("IPFS unsuccessful: %d: %s", code, ipfsErr.Message)
+	body, err := ioutil.ReadAll(res.Body)
+	if err == nil {
+		var ipfsErr ipfsError
+		if err := json.Unmarshal(body, &ipfsErr); err == nil {
+			return body, fmt.Errorf(
+				"IPFS request unsuccessful (%s). Code: %d. Message: %s",
+				path,
+				res.StatusCode,
+				ipfsErr.Message,
+			)
+		}
 	}
+
 	// No error response with useful message from ipfs
-	return fmt.Errorf("IPFS-post '%s' unsuccessful: %d: %s", path, code, body)
+	return nil, fmt.Errorf(
+		"IPFS request unsuccessful (%s). Code %d. Body: %s",
+		path,
+		res.StatusCode,
+		string(body))
 }
 
 // postCtx makes a POST request against
@@ -472,12 +657,18 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType str
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	errBody, err := checkResponse(path, res)
+	if err != nil {
+		return errBody, err
+	}
+
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		logger.Errorf("error reading response body: %s", err)
 		return nil, err
 	}
-	return body, checkResponse(path, res.StatusCode, body)
+	return body, nil
 }
 
 // postDiscardBodyCtx makes a POST requests but discards the body
@@ -488,11 +679,14 @@ func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) erro
 		return err
 	}
 	defer res.Body.Close()
-	_, err = io.Copy(ioutil.Discard, res.Body)
+
+	_, err = checkResponse(path, res)
 	if err != nil {
 		return err
 	}
-	return checkResponse(path, res.StatusCode, nil)
+
+	_, err = io.Copy(ioutil.Discard, res.Body)
+	return err
 }
 
 // apiURL is a short-hand for building the url of the IPFS

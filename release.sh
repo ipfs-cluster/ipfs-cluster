@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Updates the Version variables, commits, tags, signs and "gx release" the package
+# Updates the Version variables, commits, tags and signs
 
 set -e
 set -x
@@ -22,4 +22,3 @@ echo >> tag_annotation
 git log --pretty=oneline ${lastver}..HEAD >> tag_annotation
 git tag -a -s -F tag_annotation v$version
 rm tag_annotation
-# gx release $version 
