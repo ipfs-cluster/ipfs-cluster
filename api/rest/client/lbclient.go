@@ -60,7 +60,7 @@ func (f *Failover) SetClients(cl []Client) {
 	f.clients = cl
 }
 
-// NewLBClient returens a new client that would load balance requests among
+// NewLBClient returns a new client that would load balance requests among
 // clients.
 func NewLBClient(strategy LBStrategy, cfgs []*Config, retries int) (Client, error) {
 	var clients []Client

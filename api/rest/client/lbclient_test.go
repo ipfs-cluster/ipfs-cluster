@@ -13,7 +13,7 @@ func TestLBClient(t *testing.T) {
 	// say we want to retry the request for at most 5 times
 	cfgs := make([]*Config, 10)
 
-	// 20 empty clients
+	// 5 empty clients
 	for i := 0; i < 5; i++ {
 		maddr, _ := ma.NewMultiaddr("")
 		cfgs[i] = &Config{
@@ -22,7 +22,7 @@ func TestLBClient(t *testing.T) {
 		}
 	}
 
-	// 30 clients with APIs
+	// 5 clients with APIs
 	for i := 5; i < 10; i++ {
 		cfgs[i] = &Config{
 			APIAddr:           apiMAddr(testAPI(t)),
