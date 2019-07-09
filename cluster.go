@@ -229,6 +229,7 @@ func (c *Cluster) syncWatcher() {
 
 	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
 	syncTicker := time.NewTicker(c.config.IPFSSyncInterval)
+	recoverTicker := time.NewTicker(c.config.PinRecoverInterval)
 
 	for {
 		select {
@@ -238,6 +239,9 @@ func (c *Cluster) syncWatcher() {
 		case <-syncTicker.C:
 			logger.Debug("auto-triggering SyncAllLocal()")
 			c.SyncAllLocal(ctx)
+		case <-recoverTicker.C:
+			logger.Debug("auto-triggering RecoverAllLocal()")
+			c.RecoverAllLocal(ctx)
 		case <-c.ctx.Done():
 			stateSyncTicker.Stop()
 			return

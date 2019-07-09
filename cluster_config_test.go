@@ -20,6 +20,7 @@ var ccfgTestJSON = []byte(`
         "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
         "state_sync_interval": "1m0s",
         "ipfs_sync_interval": "2m10s",
+        "pin_recover_interval": "1m",
         "replication_factor_min": 5,
         "replication_factor_max": 5,
         "monitor_ping_interval": "2s",
@@ -63,6 +64,13 @@ func TestLoadJSON(t *testing.T) {
 		cfg := loadJSON(t)
 		if !cfg.DisableRepinning {
 			t.Error("expected disable_repinning to be true")
+		}
+	})
+
+	t.Run("expected pin_recover_interval", func(t *testing.T) {
+		cfg := loadJSON(t)
+		if cfg.PinRecoverInterval != time.Minute {
+			t.Error("expected pin_recover_interval of 1m")
 		}
 	})
 
@@ -243,6 +251,12 @@ func TestValidate(t *testing.T) {
 
 	cfg.Default()
 	cfg.ConnMgr.GracePeriod = 0
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.PinRecoverInterval = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
