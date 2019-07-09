@@ -41,29 +41,18 @@ func (r *RoundRobin) Next(count int) Client {
 // SetClients sets a list of clients for this strategy.
 func (r *RoundRobin) SetClients(cl []Client) {
 	r.clients = cl
+	r.length = uint32(len(cl))
 }
 
 // Failover is a load balancing strategy that would try the local cluster peer first.
 // If the local call fail it would try other client in a round robin fashion.
 type Failover struct {
 	clients []Client
-	counter uint32
-	length  uint32
 }
 
 // Next returns the next client to be used.
 func (f *Failover) Next(count int) Client {
-	if count == 0 {
-		return f.clients[0]
-	}
-
-	i := atomic.AddUint32(&f.counter, 1) % f.length
-
-	if i == 0 {
-		return f.Next(count)
-	}
-
-	return f.clients[i]
+	return f.clients[count]
 }
 
 // SetClients sets a list of clients for this strategy.
@@ -98,18 +87,20 @@ func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 		return nil
 	}
 
+	// It is a safety check. This error should never occur.
+	// All errors returned by client methods are of type `api.Error`.
 	apiErr, ok := err.(*api.Error)
 	if !ok {
 		logger.Error("could not cast error into api.Error")
 		return err
 	}
 
-	if count == lc.retries {
-		logger.Errorf("reached maximum number of retries without success, retries: %d", lc.retries)
+	if apiErr.Code != 0 {
 		return err
 	}
 
-	if apiErr.Code != 0 {
+	if count == lc.retries {
+		logger.Errorf("reached maximum number of retries without success, retries: %d", lc.retries)
 		return err
 	}
 
