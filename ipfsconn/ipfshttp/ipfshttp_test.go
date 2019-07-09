@@ -136,6 +136,23 @@ func TestIPFSUnpin(t *testing.T) {
 	}
 }
 
+func TestIPFSUnpinDisabled(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+	ipfs.config.UnpinDisable = true
+	err := ipfs.Pin(ctx, test.Cid1, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ipfs.Unpin(ctx, test.Cid1)
+	if err == nil {
+		t.Fatal("pin should be disabled")
+	}
+}
+
 func TestIPFSPinLsCid(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
