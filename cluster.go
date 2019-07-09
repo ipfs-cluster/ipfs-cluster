@@ -1765,25 +1765,12 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 		rpcutil.CopyRepoGCSliceToIfaces(repoGCsResp),
 	)
 
-	if len(errs) > 0 {
-		var errStr string
-		for _, e := range errs {
-			if e != nil {
-				errStr = errStr + "\n" + e.Error()
-			}
-		}
-
-		if errStr != "" {
-			err = errors.New(errStr)
-			logger.Error(err)
-			return nil, err
-		}
-
-	}
-
 	// clubbing repo gc responses of all peers into one
 	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
 	for i := 0; i < len(members); i++ {
+		if errs[i] != nil {
+			repoGCsResp[i].Error = errs[i].Error()
+		}
 		globalRepoGC.PeerMap[members[i].String()] = repoGCsResp[i]
 	}
 

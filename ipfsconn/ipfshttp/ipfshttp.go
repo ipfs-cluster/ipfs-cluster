@@ -629,6 +629,7 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	}
 	repoGC := api.RepoGC{
 		Peer: id.ID,
+		Keys: make([]api.IPFSRepoGC, 0),
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
@@ -649,11 +650,8 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 		} else if err != nil {
 			return &repoGC, err
 		}
-		if resp.Error != "" {
-			logger.Error("Error while repo gc: ", resp.Error)
-			repoGC.Error += ", " + resp.Error
-		}
-		repoGC.Keys = append(repoGC.Keys, resp.Key)
+
+		repoGC.Keys = append(repoGC.Keys, api.IPFSRepoGC{Key: resp.Key, Error: resp.Error})
 	}
 
 	return &repoGC, nil

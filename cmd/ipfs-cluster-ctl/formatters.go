@@ -213,18 +213,21 @@ func textFormatPrintMetric(obj *api.Metric) {
 }
 
 func textFormatPrintRepoGC(obj *api.RepoGC) {
-	if obj.Error != "" {
-		fmt.Printf("  > Error: %s\n", obj.Error)
-	}
-
 	fmt.Printf("  > CIDs:\n")
 	for _, key := range obj.Keys {
-		fmt.Printf("    - %s\n", key.String())
+		if key.Error != "" {
+			fmt.Printf("    - %s | ERROR: %s\n", key.Key.String(), key.Error)
+		} else {
+			fmt.Printf("    - %s\n", key.Key.String())
+		}
 	}
 }
 
 func textFormatPrintGlobaleRepoGC(obj *api.GlobalRepoGC) {
 	for peer, item := range obj.PeerMap {
+		if item.Error != "" {
+			fmt.Printf("%s | ERROR: %s\n", peer, item.Error)
+		}
 		fmt.Printf("%s\n", peer)
 		textFormatObject(item)
 	}
