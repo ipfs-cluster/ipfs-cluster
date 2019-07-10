@@ -869,7 +869,9 @@ but usually are:
 					Name:  "gc",
 					Usage: "run garbage collection on ipfs repos of cluster peers",
 					Description: `
-This command will instruct all current Cluster peers to run "repo gc" on their respective IPFS daemons.
+This command will instruct current Cluster peers to run "repo gc" on their respective IPFS daemons.
+
+When --local flag is passed, it would garbage collect only on the local peer, otherwise on all peers.
 `,
 					Flags: []cli.Flag{
 						localFlag(),

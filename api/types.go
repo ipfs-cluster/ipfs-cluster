@@ -872,9 +872,10 @@ type IPFSRepoGC struct {
 
 // RepoGC contains gc'ed CIDs from a cluster peer's IPFS daemon.
 type RepoGC struct {
-	Peer  peer.ID      `json:"peer" codec:"p,omitempty"` // the Cluster peer ID
-	Keys  []IPFSRepoGC `json:"keys" codec:"k"`
-	Error string       `json:"error,omitempty" codec:"e,omitempty"`
+	Peer     peer.ID      `json:"peer" codec:"p,omitempty"` // the Cluster peer ID
+	Peername string       `json:"peername" codec:"pn,omitempty"`
+	Keys     []IPFSRepoGC `json:"keys" codec:"k"`
+	Error    string       `json:"error,omitempty" codec:"e,omitempty"`
 }
 
 // GlobalRepoGC contains cluster-wide information about GCed CIDs from IPFS.

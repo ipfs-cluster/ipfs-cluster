@@ -811,7 +811,7 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) 
 	return &stats, nil
 }
 
-// RepoGC performs a garbage collection sweep on the repo.
+// RepoGC performs a garbage collection sweep on the cluster peer's IPFS repo.
 func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
@@ -830,8 +830,9 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	)
 
 	repoGC := api.RepoGC{
-		Peer: id.ID,
-		Keys: make([]api.IPFSRepoGC, 0),
+		Peer:     id.ID,
+		Peername: id.Peername,
+		Keys:     make([]api.IPFSRepoGC, 0),
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

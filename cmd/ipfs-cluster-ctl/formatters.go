@@ -62,8 +62,6 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintError(resp.(*api.Error))
 	case *api.Metric:
 		textFormatPrintMetric(resp.(*api.Metric))
-	case *api.RepoGC:
-		textFormatPrintRepoGC(resp.(*api.RepoGC))
 	case []*api.ID:
 		for _, item := range resp.([]*api.ID) {
 			textFormatObject(item)
@@ -212,26 +210,37 @@ func textFormatPrintMetric(obj *api.Metric) {
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
-func textFormatPrintRepoGC(obj *api.RepoGC) {
-	fmt.Printf("  > CIDs:\n")
-	for _, key := range obj.Keys {
-		if key.Error != "" {
-			fmt.Printf("    - %s | ERROR: %s\n", key.Key.String(), key.Error)
+func textFormatPrintGlobaleRepoGC(obj *api.GlobalRepoGC) {
+	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
+	for peer := range obj.PeerMap {
+		peers = append(peers, peer)
+	}
+	peers.Sort()
+
+	for _, peer := range peers {
+		item := obj.PeerMap[peer]
+		// If peer name is set, use it instead of peer ID.
+		if len(item.Peername) > 0 {
+			peer = item.Peername
+		}
+		if item.Error != "" {
+			fmt.Printf("%-15s | ERROR: %s\n", peer, item.Error)
 		} else {
+			fmt.Printf("%-15s\n", peer)
+		}
+
+		fmt.Printf("  > CIDs:\n")
+		for _, key := range item.Keys {
+			if key.Error != "" {
+				fmt.Printf("    - %s | ERROR: %s\n", key.Key.String(), key.Error)
+				continue
+			}
+
 			fmt.Printf("    - %s\n", key.Key.String())
 		}
 	}
 }
 
-func textFormatPrintGlobaleRepoGC(obj *api.GlobalRepoGC) {
-	for peer, item := range obj.PeerMap {
-		if item.Error != "" {
-			fmt.Printf("%s | ERROR: %s\n", peer, item.Error)
-		}
-		fmt.Printf("%s\n", peer)
-		textFormatObject(item)
-	}
-}
 func textFormatPrintError(obj *api.Error) {
 	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)

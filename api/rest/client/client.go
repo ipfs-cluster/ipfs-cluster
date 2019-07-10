@@ -120,8 +120,9 @@ type Client interface {
 	// for the current cluster peers.
 	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
 
-	// RepoGC runs garbage collection on all cluster peers and returns
-	// collected cids.
+	// RepoGC runs garbage collection on ipfs daemon s of cluster peers and
+	// returns collected cids. If local is true, it would garbage collect only on
+	// contacted peer, otherwise on all peers.
 	RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error)
 }
 

@@ -1742,7 +1742,7 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 	return
 }
 
-// RepoGC performs garbage collection sweep on all peers' repo.
+// RepoGC performs garbage collection sweep on all peers' IPFS repo.
 func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RepoGC")
 	defer span.End()

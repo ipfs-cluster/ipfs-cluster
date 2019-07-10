@@ -114,9 +114,9 @@ func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
 	return ifaces
 }
 
-// CopyRepoGCSliceToIfaces converts an api.IPFSRepoGC slice of slices
-// to an empty interface slice using pointers to each elements of the original
-// slice. Useful to handle gorpc.MultiCall() replies.
+// CopyRepoGCSliceToIfaces converts an api.RepoGC slice to
+// an empty interface slice using pointers to each elements of
+// the original slice. Useful to handle gorpc.MultiCall() replies.
 func CopyRepoGCSliceToIfaces(in []*api.RepoGC) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {

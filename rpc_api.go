@@ -523,7 +523,7 @@ func (rpcapi *IPFSConnectorRPCAPI) RepoStat(ctx context.Context, in struct{}, ou
 	return err
 }
 
-// RepoGC performs garbage a collection sweep on the repo.
+// RepoGC performs garbage a collection sweep on the cluster peer's IPFS repo.
 func (rpcapi *IPFSConnectorRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.RepoGC) error {
 	res, err := rpcapi.ipfs.RepoGC(ctx)
 	if err != nil {
