@@ -1009,7 +1009,25 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
 	var repoGC types.GlobalRepoGC
+
+	if local == "true" {
+		var localRepoGC types.RepoGC
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"IPFSConnector",
+			"RepoGC",
+			struct{}{},
+			&localRepoGC,
+		)
+
+		api.sendResponse(w, autoStatus, err, repoGCtoGlobal(&localRepoGC))
+		return
+	}
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
@@ -1019,6 +1037,14 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 		&repoGC,
 	)
 	api.sendResponse(w, autoStatus, err, repoGC)
+}
+
+func repoGCtoGlobal(r *types.RepoGC) types.GlobalRepoGC {
+	return types.GlobalRepoGC{
+		PeerMap: map[string]*types.RepoGC{
+			r.Peer.Pretty(): r,
+		},
+	}
 }
 
 func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *types.PinPath {

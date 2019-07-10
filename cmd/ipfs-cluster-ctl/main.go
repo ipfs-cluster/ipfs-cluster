@@ -871,8 +871,11 @@ but usually are:
 					Description: `
 This command will instruct all current Cluster peers to run "repo gc" on their respective IPFS daemons.
 `,
+					Flags: []cli.Flag{
+						localFlag(),
+					},
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.RepoGC(ctx)
+						resp, cerr := globalClient.RepoGC(ctx, c.Bool("local"))
 						formatResponse(c, resp, cerr)
 						return nil
 					},

@@ -122,7 +122,7 @@ type Client interface {
 
 	// RepoGC runs garbage collection on all cluster peers and returns
 	// collected cids.
-	RepoGC(ctx context.Context) (*api.GlobalRepoGC, error)
+	RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error)
 }
 
 // Config allows to configure the parameters to connect

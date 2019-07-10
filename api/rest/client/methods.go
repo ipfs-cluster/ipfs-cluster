@@ -327,7 +327,7 @@ func (c *defaultClient) Metrics(ctx context.Context, name string) ([]*api.Metric
 
 // RepoGC runs garbage collection on all cluster peers and returns
 // collected cids.
-func (c *defaultClient) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
+func (c *defaultClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "client/RepoGC")
 	defer span.End()
 
@@ -335,7 +335,7 @@ func (c *defaultClient) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	err := c.do(
 		ctx,
 		"POST",
-		"/ipfs/gc",
+		fmt.Sprintf("/ipfs/gc?local=%t", local),
 		nil,
 		nil,
 		&repoGC,

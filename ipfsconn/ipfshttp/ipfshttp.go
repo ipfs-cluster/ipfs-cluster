@@ -816,39 +816,95 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
 
-	id, err := ipfs.ID(ctx)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
+	ctx1, cancel1 := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel1()
+
+	id := &api.ID{}
+	err := ipfs.rpcClient.CallContext(
+		ctx1,
+		"",
+		"Cluster",
+		"ID",
+		struct{}{},
+		id,
+	)
+
 	repoGC := api.RepoGC{
 		Peer: id.ID,
 		Keys: make([]api.IPFSRepoGC, 0),
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc", "", nil)
+	outGCs := make(chan string)
+	go func() {
+		lastRefTime := time.Now()
+		ticker := time.NewTicker(progressTick)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if time.Since(lastRefTime) >= ipfs.config.IPFSRequestTimeout {
+					cancel() // timeout
+					return
+				}
+			case <-outGCs:
+				lastRefTime = time.Now()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	keys, err := ipfs.repoGCProgress(ctx, outGCs)
+	repoGC.Keys = keys
+
+	return &repoGC, err
+}
+
+func (ipfs *Connector) repoGCProgress(ctx context.Context, out chan<- string) ([]api.IPFSRepoGC, error) {
+	defer close(out)
+
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/repoGCProgress")
+	defer span.End()
+
+	keys := make([]api.IPFSRepoGC, 0)
+	path := "repo/gc"
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
 	if err != nil {
-		logger.Error(err)
-		return &repoGC, err
+		return keys, err
 	}
 	defer res.Body.Close()
 
-	dec := json.NewDecoder(res.Body)
-	for {
-		resp := ipfsRepoGCResp{}
-		if err := dec.Decode(&resp); err == io.EOF {
-			break
-		} else if err != nil {
-			return &repoGC, err
-		}
-
-		repoGC.Keys = append(repoGC.Keys, api.IPFSRepoGC{Key: resp.Key, Error: resp.Error})
+	_, err = checkResponse(path, res)
+	if err != nil {
+		return keys, err
 	}
 
-	return &repoGC, nil
+	dec := json.NewDecoder(res.Body)
+	for {
+		var resp ipfsRepoGCResp
+		if err := dec.Decode(&resp); err != nil {
+			// If we cancelled the request we should tell the user
+			// (in case dec.Decode() exited cleanly with an EOF).
+			select {
+			case <-ctx.Done():
+				return keys, ctx.Err()
+			default:
+				if err == io.EOF {
+					return keys, nil // clean exit
+				}
+				return keys, err // error decoding
+			}
+		}
+		keys = append(keys, api.IPFSRepoGC{Key: resp.Key, Error: resp.Error})
+
+		select { // do not lock
+		case out <- resp.Key.String():
+		default:
+		}
+	}
 }
 
 // Resolve accepts ipfs or ipns path and resolves it into a cid
