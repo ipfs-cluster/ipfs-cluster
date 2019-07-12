@@ -866,7 +866,7 @@ type IPFSRepoStat struct {
 
 // IPFSRepoGC represents the streaming response sent from ipfs' repo gc API.
 type IPFSRepoGC struct {
-	Key   cid.Cid `json:"key" codec:"k"`
+	Key   cid.Cid `json:"key,omitempty" codec:"k,omitempty"`
 	Error string  `json:"error,omitempty" codec:"e,omitempty"`
 }
 

@@ -835,76 +835,35 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 		Keys:     make([]api.IPFSRepoGC, 0),
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 
-	outGCs := make(chan string)
-	go func() {
-		lastRefTime := time.Now()
-		ticker := time.NewTicker(progressTick)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if time.Since(lastRefTime) >= ipfs.config.IPFSRequestTimeout {
-					cancel() // timeout
-					return
-				}
-			case <-outGCs:
-				lastRefTime = time.Now()
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	keys, err := ipfs.repoGCProgress(ctx, outGCs)
-	repoGC.Keys = keys
-
-	return &repoGC, err
-}
-
-func (ipfs *Connector) repoGCProgress(ctx context.Context, out chan<- string) ([]api.IPFSRepoGC, error) {
-	defer close(out)
-
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/repoGCProgress")
-	defer span.End()
-
-	keys := make([]api.IPFSRepoGC, 0)
-	path := "repo/gc"
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc", "", nil)
 	if err != nil {
-		return keys, err
+		logger.Error(err)
+		return &repoGC, err
 	}
 	defer res.Body.Close()
 
-	_, err = checkResponse(path, res)
-	if err != nil {
-		return keys, err
-	}
-
 	dec := json.NewDecoder(res.Body)
 	for {
-		var resp ipfsRepoGCResp
+		resp := ipfsRepoGCResp{}
+
 		if err := dec.Decode(&resp); err != nil {
 			// If we cancelled the request we should tell the user
 			// (in case dec.Decode() exited cleanly with an EOF).
 			select {
 			case <-ctx.Done():
-				return keys, ctx.Err()
+				return &repoGC, ctx.Err()
 			default:
 				if err == io.EOF {
-					return keys, nil // clean exit
+					return &repoGC, nil // clean exit
 				}
-				return keys, err // error decoding
+				return &repoGC, err // error decoding
 			}
 		}
-		keys = append(keys, api.IPFSRepoGC{Key: resp.Key, Error: resp.Error})
 
-		select { // do not lock
-		case out <- resp.Key.String():
-		default:
-		}
+		repoGC.Keys = append(repoGC.Keys, api.IPFSRepoGC{Key: resp.Key, Error: resp.Error})
 	}
 }
 

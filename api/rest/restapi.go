@@ -1012,8 +1012,6 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	var repoGC types.GlobalRepoGC
-
 	if local == "true" {
 		var localRepoGC types.RepoGC
 		err := api.rpcClient.CallContext(
@@ -1025,9 +1023,11 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 			&localRepoGC,
 		)
 
-		api.sendResponse(w, autoStatus, err, repoGCtoGlobal(&localRepoGC))
+		api.sendResponse(w, autoStatus, err, repoGCToGlobal(&localRepoGC))
 		return
 	}
+
+	var repoGC types.GlobalRepoGC
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
@@ -1039,10 +1039,10 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	api.sendResponse(w, autoStatus, err, repoGC)
 }
 
-func repoGCtoGlobal(r *types.RepoGC) types.GlobalRepoGC {
+func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
 	return types.GlobalRepoGC{
 		PeerMap: map[string]*types.RepoGC{
-			r.Peer.Pretty(): r,
+			peer.IDB58Encode(r.Peer): r,
 		},
 	}
 }

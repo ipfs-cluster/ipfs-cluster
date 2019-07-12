@@ -1771,11 +1771,27 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 	// clubbing repo gc responses of all peers into one
 	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
-	for i := 0; i < len(members); i++ {
-		if errs[i] != nil {
-			repoGCsResp[i].Error = errs[i].Error()
+	for i, resp := range repoGCsResp {
+		e := errs[i]
+
+		if e == nil {
+			globalRepoGC.PeerMap[peer.IDB58Encode(resp.Peer)] = resp
+			continue
 		}
-		globalRepoGC.PeerMap[members[i].String()] = repoGCsResp[i]
+
+		if rpc.IsAuthorizationError(e) {
+			logger.Debug("rpc auth error:", e)
+			continue
+		}
+
+		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
+
+		globalRepoGC.PeerMap[peer.IDB58Encode(resp.Peer)] = &api.RepoGC{
+			Peer:     members[i],
+			Peername: members[i].String(),
+			Keys:     resp.Keys,
+			Error:    e.Error(),
+		}
 	}
 
 	return &globalRepoGC, nil

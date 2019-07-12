@@ -87,7 +87,7 @@ func textFormatObject(resp interface{}) {
 			textFormatObject(item)
 		}
 	case *api.GlobalRepoGC:
-		textFormatPrintGlobaleRepoGC(resp.(*api.GlobalRepoGC))
+		textFormatPrintGlobalRepoGC(resp.(*api.GlobalRepoGC))
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -210,7 +210,7 @@ func textFormatPrintMetric(obj *api.Metric) {
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
 }
 
-func textFormatPrintGlobaleRepoGC(obj *api.GlobalRepoGC) {
+func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {
 	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
 	for peer := range obj.PeerMap {
 		peers = append(peers, peer)
@@ -232,11 +232,11 @@ func textFormatPrintGlobaleRepoGC(obj *api.GlobalRepoGC) {
 		fmt.Printf("  > CIDs:\n")
 		for _, key := range item.Keys {
 			if key.Error != "" {
-				fmt.Printf("    - %s | ERROR: %s\n", key.Key.String(), key.Error)
+				fmt.Printf("    - %s | ERROR: %s\n", key.Key, key.Error)
 				continue
 			}
 
-			fmt.Printf("    - %s\n", key.Key.String())
+			fmt.Printf("    - %s\n", key.Key)
 		}
 	}
 }
