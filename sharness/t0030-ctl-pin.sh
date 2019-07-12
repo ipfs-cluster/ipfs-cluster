@@ -88,6 +88,14 @@ test_expect_success IPFS,CLUSTER "pin data to cluster with user allocations" '
     echo $allocations | grep -q ${pid}
 '
 
+test_expect_success IPFS,CLUSTER "pin update a pin" '
+   cid1=`docker exec ipfs sh -c "echo test | ipfs add -q"`
+   ipfs-cluster-ctl pin add "$cid1"
+   cid2=`docker exec ipfs sh -c "echo test2 | ipfs add -q"`
+   ipfs-cluster-ctl pin update $cid1 $cid2 &&
+   ipfs-cluster-ctl pin ls $cid2
+'
+
 test_clean_ipfs
 test_clean_cluster
 

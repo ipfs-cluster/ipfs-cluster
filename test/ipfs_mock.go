@@ -196,6 +196,42 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
+	case "pin/update":
+		args := r.URL.Query()["arg"]
+		if len(args) != 2 {
+			goto ERROR
+		}
+		fromStr := args[0]
+		toStr := args[1]
+		from, err := cid.Decode(fromStr)
+		if err != nil {
+			goto ERROR
+		}
+		to, err := cid.Decode(toStr)
+		if err != nil {
+			goto ERROR
+		}
+
+		pin, err := m.pinMap.Get(ctx, from)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			resp := ipfsErr{0, fmt.Sprintf("'from' cid was not recursively pinned already")}
+			j, _ := json.Marshal(resp)
+			w.Write(j)
+			return
+		}
+		pin.Cid = to
+		err = m.pinMap.Add(ctx, pin)
+		if err != nil {
+			goto ERROR
+		}
+
+		resp := mockPinResp{
+			Pins: []string{from.String(), to.String()},
+		}
+
+		j, _ := json.Marshal(resp)
+		w.Write(j)
 	case "pin/ls":
 		arg, ok := extractCid(r.URL)
 		if !ok {
