@@ -867,7 +867,7 @@ but usually are:
 			Subcommands: []cli.Command{
 				{
 					Name:  "gc",
-					Usage: "run garbage collection on ipfs repos of cluster peers",
+					Usage: "run garbage collection on IPFS repos of cluster peers",
 					Description: `
 This command will instruct current Cluster peers to run "repo gc" on their
 respective IPFS daemons.
