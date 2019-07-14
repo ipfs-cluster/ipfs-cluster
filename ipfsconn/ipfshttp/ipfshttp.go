@@ -816,29 +816,14 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
 
-	ctx1, cancel1 := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
-	defer cancel1()
-
-	id := &api.ID{}
-	err := ipfs.rpcClient.CallContext(
-		ctx1,
-		"",
-		"Cluster",
-		"ID",
-		struct{}{},
-		id,
-	)
-
 	repoGC := api.RepoGC{
-		Peer:     id.ID,
-		Peername: id.Peername,
-		Keys:     make([]api.IPFSRepoGC, 0),
+		Keys: make([]api.IPFSRepoGC, 0),
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.RepoGCTimeout)
 	defer cancel()
 
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc", "", nil)
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc?stream-errors=true", "", nil)
 	if err != nil {
 		logger.Error(err)
 		return &repoGC, err

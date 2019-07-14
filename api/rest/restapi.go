@@ -1017,8 +1017,8 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
-			"IPFSConnector",
-			"RepoGC",
+			"Cluster",
+			"RepoGCLocal",
 			struct{}{},
 			&localRepoGC,
 		)

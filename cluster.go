@@ -1763,8 +1763,8 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	errs := c.rpcClient.MultiCall(
 		ctxs,
 		members,
-		"IPFSConnector",
-		"RepoGC",
+		"Cluster",
+		"RepoGCLocal",
 		struct{}{},
 		rpcutil.CopyRepoGCSliceToIfaces(repoGCsResp),
 	)
@@ -1786,13 +1786,31 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 
-		globalRepoGC.PeerMap[peer.IDB58Encode(resp.Peer)] = &api.RepoGC{
-			Peer:     members[i],
-			Peername: members[i].String(),
-			Keys:     resp.Keys,
-			Error:    e.Error(),
-		}
+		resp.Error = e.Error()
+		globalRepoGC.PeerMap[peer.IDB58Encode(resp.Peer)] = resp
 	}
 
 	return &globalRepoGC, nil
+}
+
+// RepoGCLocal perform garbage collection only on the local IPFS deamon.
+func (c *Cluster) RepoGCLocal(ctx context.Context) (*api.RepoGC, error) {
+	_, span := trace.StartSpan(ctx, "cluster/RepoGCLocal")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	repoGC := &api.RepoGC{
+		Peer:     c.id,
+		Peername: c.config.Peername,
+	}
+
+	resp, err := c.ipfs.RepoGC(ctx)
+	if err != nil {
+		repoGC.Error = err.Error()
+	}
+	if resp != nil {
+		repoGC.Keys = resp.Keys
+	}
+
+	return repoGC, err
 }

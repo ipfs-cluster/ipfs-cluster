@@ -22,6 +22,7 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.RecoverAllLocal":    RPCClosed,
 	"Cluster.RecoverLocal":       RPCClosed,
 	"Cluster.RepoGC":             RPCClosed,
+	"Cluster.RepoGCLocal":        RPCTrusted,
 	"Cluster.SendInformerMetric": RPCClosed,
 	"Cluster.Status":             RPCClosed,
 	"Cluster.StatusAll":          RPCClosed,
@@ -50,7 +51,7 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"IPFSConnector.Pin":        RPCClosed,
 	"IPFSConnector.PinLs":      RPCClosed,
 	"IPFSConnector.PinLsCid":   RPCClosed,
-	"IPFSConnector.RepoGC":     RPCTrusted,
+	"IPFSConnector.RepoGC":     RPCClosed,
 	"IPFSConnector.RepoStat":   RPCTrusted, // Called in broadcast from proxy/repo/stat
 	"IPFSConnector.Resolve":    RPCClosed,
 	"IPFSConnector.SwarmPeers": RPCTrusted, // Called in ConnectGraph

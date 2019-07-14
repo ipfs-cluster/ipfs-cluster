@@ -24,6 +24,7 @@ const (
 	DefaultIPFSRequestTimeout = 5 * time.Minute
 	DefaultPinTimeout         = 24 * time.Hour
 	DefaultUnpinTimeout       = 3 * time.Hour
+	DefaultRepoGCTimeout      = 24 * time.Hour
 )
 
 // Config is used to initialize a Connector and allows to customize
@@ -53,6 +54,9 @@ type Config struct {
 	// Unpin Operation timeout
 	UnpinTimeout time.Duration
 
+	// RepoGC Operation timeout
+	RepoGCTimeout time.Duration
+
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
 }
@@ -64,6 +68,7 @@ type jsonConfig struct {
 	IPFSRequestTimeout string `json:"ipfs_request_timeout"`
 	PinTimeout         string `json:"pin_timeout"`
 	UnpinTimeout       string `json:"unpin_timeout"`
+	RepoGCTimeout      string `json:"repogc_timeout"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -80,6 +85,7 @@ func (cfg *Config) Default() error {
 	cfg.IPFSRequestTimeout = DefaultIPFSRequestTimeout
 	cfg.PinTimeout = DefaultPinTimeout
 	cfg.UnpinTimeout = DefaultUnpinTimeout
+	cfg.RepoGCTimeout = DefaultRepoGCTimeout
 
 	return nil
 }
@@ -129,6 +135,11 @@ func (cfg *Config) Validate() error {
 	if cfg.UnpinTimeout < 0 {
 		err = errors.New("ipfshttp.unpin_timeout invalid")
 	}
+
+	if cfg.RepoGCTimeout < 0 {
+		err = errors.New("ipfshttp.repogc_timeout invalid")
+	}
+
 	return err
 
 }
@@ -161,6 +172,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		&config.DurationOpt{Duration: jcfg.IPFSRequestTimeout, Dst: &cfg.IPFSRequestTimeout, Name: "ipfs_request_timeout"},
 		&config.DurationOpt{Duration: jcfg.PinTimeout, Dst: &cfg.PinTimeout, Name: "pin_timeout"},
 		&config.DurationOpt{Duration: jcfg.UnpinTimeout, Dst: &cfg.UnpinTimeout, Name: "unpin_timeout"},
+		&config.DurationOpt{Duration: jcfg.RepoGCTimeout, Dst: &cfg.RepoGCTimeout, Name: "repogc_timeout"},
 	)
 	if err != nil {
 		return err
@@ -199,6 +211,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
 	jcfg.PinTimeout = cfg.PinTimeout.String()
 	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
+	jcfg.RepoGCTimeout = cfg.RepoGCTimeout.String()
 
 	return
 }
