@@ -118,7 +118,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 	// wrapped with the basic auth handler.
 	router := mux.NewRouter().StrictSlash(true)
 	handler := basicAuthHandler(
-		cfg.BasicAuthCreds,
+		cfg.BasicAuthCredentials,
 		cors.New(*cfg.corsOptions()).Handler(router),
 	)
 	if cfg.Tracing {

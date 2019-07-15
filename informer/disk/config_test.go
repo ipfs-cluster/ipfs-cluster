@@ -33,7 +33,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.Type = "abc"
+	j.MetricType = "abc"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
@@ -42,7 +42,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.Type = "reposize"
+	j.MetricType = "reposize"
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err != nil {
@@ -78,7 +78,7 @@ func TestDefault(t *testing.T) {
 	}
 
 	cfg.Default()
-	cfg.Type = MetricRepoSize
+	cfg.MetricType = MetricRepoSize
 	if cfg.Validate() != nil {
 		t.Fatal("MetricRepoSize is a valid type")
 	}
