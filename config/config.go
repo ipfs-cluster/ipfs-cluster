@@ -104,6 +104,10 @@ type Manager struct {
 	// store originally parsed jsonConfig
 	jsonCfg *jsonConfig
 
+	// map of components which has empty configuration
+	// in json file
+	emptyComponents map[string]bool
+
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
 	path    string
@@ -115,11 +119,11 @@ type Manager struct {
 func NewManager() *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		ctx:      ctx,
-		cancel:   cancel,
-		sections: make(map[SectionType]Section),
+		ctx:             ctx,
+		cancel:          cancel,
+		emptyComponents: make(map[string]bool),
+		sections:        make(map[SectionType]Section),
 	}
-
 }
 
 // Shutdown makes sure all configuration save operations are finished
@@ -369,9 +373,10 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 			if err != nil {
 				return err
 			}
-			logger.Debugf("%s section configuration loaded", name)
+			logger.Debugf("%s component configuration loaded", name)
 		} else {
-			logger.Warningf("%s section is empty, generating default", name)
+			cfg.emptyComponents[name] = true
+			logger.Warningf("%s component is empty, generating default", name)
 			component.SetBaseDir(dir)
 			component.Default()
 		}
@@ -481,6 +486,12 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	}
 
 	return DefaultJSONMarshal(jcfg)
+}
+
+// EmptyComponents returns a map of component that were found
+// to have no config in JSON file.
+func (cfg *Manager) EmptyComponents() map[string]bool {
+	return cfg.emptyComponents
 }
 
 // GetClusterConfig extracts cluster config from the configuration file

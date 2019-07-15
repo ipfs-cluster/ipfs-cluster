@@ -58,7 +58,7 @@ func daemon(c *cli.Context) error {
 	defer locker.tryUnlock()
 
 	// Load all the configurations and identity
-	cfgMgr, ident, cfgs := makeAndLoadConfigs()
+	cfgMgr, ident, cfgs, emptyComponents := makeAndLoadConfigs()
 
 	defer cfgMgr.Shutdown()
 
@@ -82,7 +82,7 @@ func daemon(c *cli.Context) error {
 	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
 	checkErr("creating libp2p host", err)
 
-	cluster, err := createCluster(ctx, c, host, pubsub, dht, ident, cfgs, raftStaging)
+	cluster, err := createCluster(ctx, c, host, pubsub, dht, ident, cfgs, raftStaging, emptyComponents)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -107,6 +107,7 @@ func createCluster(
 	ident *config.Identity,
 	cfgs *cfgs,
 	raftStaging bool,
+	emptyComponents map[string]bool,
 ) (*ipfscluster.Cluster, error) {
 
 	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
@@ -115,10 +116,13 @@ func createCluster(
 	api, err := rest.NewAPIWithHost(ctx, cfgs.apiCfg, host)
 	checkErr("creating REST API component", err)
 
-	proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
-	checkErr("creating IPFS Proxy component", err)
+	apis := []ipfscluster.API{api}
+	if !emptyComponents["ipfsproxy"] {
+		proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
+		checkErr("creating IPFS Proxy component", err)
 
-	apis := []ipfscluster.API{api, proxy}
+		apis = append(apis, proxy)
+	}
 
 	connector, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
 	checkErr("creating IPFS Connector component", err)
