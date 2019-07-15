@@ -104,9 +104,9 @@ type Config struct {
 	ID         peer.ID
 	PrivateKey crypto.PrivKey
 
-	// BasicAuthCreds is a map of username-password pairs
+	// BasicAuthCredentials is a map of username-password pairs
 	// which are authorized to use Basic Authentication
-	BasicAuthCreds map[string]string
+	BasicAuthCredentials map[string]string
 
 	// Headers provides customization for the headers returned
 	// by the API on existing routes.
@@ -138,8 +138,8 @@ type jsonConfig struct {
 	ID                       string `json:"id,omitempty"`
 	PrivateKey               string `json:"private_key,omitempty"`
 
-	BasicAuthCreds map[string]string   `json:"basic_auth_credentials"`
-	Headers        map[string][]string `json:"headers"`
+	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"`
+	Headers              map[string][]string `json:"headers"`
 
 	CORSAllowedOrigins   []string `json:"cors_allowed_origins"`
 	CORSAllowedMethods   []string `json:"cors_allowed_methods"`
@@ -174,7 +174,7 @@ func (cfg *Config) Default() error {
 	cfg.Libp2pListenAddr = nil
 
 	// Auth
-	cfg.BasicAuthCreds = nil
+	cfg.BasicAuthCredentials = nil
 
 	// Headers
 	cfg.Headers = DefaultHeaders
@@ -219,7 +219,7 @@ func (cfg *Config) Validate() error {
 		return errors.New("restapi.idle_timeout invalid")
 	case cfg.MaxHeaderBytes < minMaxHeaderBytes:
 		return fmt.Errorf("restapi.max_header_bytes must be not less then %d", minMaxHeaderBytes)
-	case cfg.BasicAuthCreds != nil && len(cfg.BasicAuthCreds) == 0:
+	case cfg.BasicAuthCredentials != nil && len(cfg.BasicAuthCredentials) == 0:
 		return errors.New("restapi.basic_auth_creds should be null or have at least one entry")
 	case (cfg.pathSSLCertFile != "" || cfg.pathSSLKeyFile != "") && cfg.TLS == nil:
 		return errors.New("restapi: missing TLS configuration")
@@ -270,7 +270,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	}
 
 	// Other options
-	cfg.BasicAuthCreds = jcfg.BasicAuthCreds
+	cfg.BasicAuthCredentials = jcfg.BasicAuthCredentials
 	cfg.Headers = jcfg.Headers
 
 	return cfg.Validate()
@@ -408,7 +408,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		WriteTimeout:           cfg.WriteTimeout.String(),
 		IdleTimeout:            cfg.IdleTimeout.String(),
 		MaxHeaderBytes:         cfg.MaxHeaderBytes,
-		BasicAuthCreds:         cfg.BasicAuthCreds,
+		BasicAuthCredentials:   cfg.BasicAuthCredentials,
 		Headers:                cfg.Headers,
 		CORSAllowedOrigins:     cfg.CORSAllowedOrigins,
 		CORSAllowedMethods:     cfg.CORSAllowedMethods,

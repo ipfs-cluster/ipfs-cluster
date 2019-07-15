@@ -47,7 +47,7 @@ func NewInformer(cfg *Config) (*Informer, error) {
 
 // Name returns the user-facing name of this informer.
 func (disk *Informer) Name() string {
-	return disk.config.Type.String()
+	return disk.config.MetricType.String()
 }
 
 // SetClient provides us with an rpc.Client which allows
@@ -96,7 +96,7 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 		logger.Error(err)
 		valid = false
 	} else {
-		switch disk.config.Type {
+		switch disk.config.MetricType {
 		case MetricFreeSpace:
 			metric = repoStat.StorageMax - repoStat.RepoSize
 		case MetricRepoSize:

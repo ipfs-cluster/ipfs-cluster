@@ -89,7 +89,7 @@ func testHTTPSAPI(t *testing.T) *API {
 func testAPIwithBasicAuth(t *testing.T) *API {
 	cfg := &Config{}
 	cfg.Default()
-	cfg.BasicAuthCreds = map[string]string{
+	cfg.BasicAuthCredentials = map[string]string{
 		validUserName: validUserPassword,
 		adminUserName: adminUserPassword,
 	}

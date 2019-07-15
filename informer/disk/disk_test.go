@@ -52,7 +52,7 @@ func TestFreeSpace(t *testing.T) {
 	ctx := context.Background()
 	cfg := &Config{}
 	cfg.Default()
-	cfg.Type = MetricFreeSpace
+	cfg.MetricType = MetricFreeSpace
 
 	inf, err := NewInformer(cfg)
 	if err != nil {
@@ -78,7 +78,7 @@ func TestRepoSize(t *testing.T) {
 	ctx := context.Background()
 	cfg := &Config{}
 	cfg.Default()
-	cfg.Type = MetricRepoSize
+	cfg.MetricType = MetricRepoSize
 
 	inf, err := NewInformer(cfg)
 	if err != nil {

@@ -75,7 +75,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.BasicAuthCreds = make(map[string]string)
+	j.BasicAuthCredentials = make(map[string]string)
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
@@ -133,7 +133,7 @@ func TestApplyEnvVars(t *testing.T) {
 	password := "thisaintmypassword"
 	user1 := "user1"
 	user1pass := "user1passwd"
-	os.Setenv("CLUSTER_RESTAPI_BASICAUTHCREDS", username+":"+password+","+user1+":"+user1pass)
+	os.Setenv("CLUSTER_RESTAPI_BASICAUTHCREDENTIALS", username+":"+password+","+user1+":"+user1pass)
 	cfg := &Config{}
 	cfg.Default()
 	err := cfg.ApplyEnvVars()
@@ -141,19 +141,19 @@ func TestApplyEnvVars(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, ok := cfg.BasicAuthCreds[username]; !ok {
-		t.Fatalf("username '%s' not set in BasicAuthCreds map: %v", username, cfg.BasicAuthCreds)
+	if _, ok := cfg.BasicAuthCredentials[username]; !ok {
+		t.Fatalf("username '%s' not set in BasicAuthCreds map: %v", username, cfg.BasicAuthCredentials)
 	}
 
-	if _, ok := cfg.BasicAuthCreds[user1]; !ok {
-		t.Fatalf("username '%s' not set in BasicAuthCreds map: %v", user1, cfg.BasicAuthCreds)
+	if _, ok := cfg.BasicAuthCredentials[user1]; !ok {
+		t.Fatalf("username '%s' not set in BasicAuthCreds map: %v", user1, cfg.BasicAuthCredentials)
 	}
 
-	if gotpasswd := cfg.BasicAuthCreds[username]; gotpasswd != password {
+	if gotpasswd := cfg.BasicAuthCredentials[username]; gotpasswd != password {
 		t.Errorf("password not what was set in env var, got: %s, want: %s", gotpasswd, password)
 	}
 
-	if gotpasswd := cfg.BasicAuthCreds[user1]; gotpasswd != user1pass {
+	if gotpasswd := cfg.BasicAuthCredentials[user1]; gotpasswd != user1pass {
 		t.Errorf("password not what was set in env var, got: %s, want: %s", gotpasswd, user1pass)
 	}
 }
