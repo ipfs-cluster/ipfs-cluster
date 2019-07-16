@@ -1786,14 +1786,6 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 
-		// resp could be non-nil and could contain valid keys to GCed content,
-		// even for a non-nil error
-		if resp != nil {
-			// No need to set resp.Error here, `RepoGCLocal` has
-			// taken care of it
-			globalRepoGC.PeerMap[peer.IDB58Encode(members[i])] = resp
-			continue
-		}
 		globalRepoGC.PeerMap[peer.IDB58Encode(members[i])] = &api.RepoGC{
 			Peer:     members[i],
 			Peername: peer.IDB58Encode(members[i]),
@@ -1811,18 +1803,11 @@ func (c *Cluster) RepoGCLocal(ctx context.Context) (*api.RepoGC, error) {
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	repoGC := &api.RepoGC{
-		Peer:     c.id,
-		Peername: c.config.Peername,
-	}
-
 	resp, err := c.ipfs.RepoGC(ctx)
 	if err != nil {
-		repoGC.Error = err.Error()
+		return nil, err
 	}
-	if resp != nil {
-		repoGC.Keys = resp.Keys
-	}
-
-	return repoGC, err
+	resp.Peer = c.id
+	resp.Peername = c.config.Peername
+	return resp, nil
 }

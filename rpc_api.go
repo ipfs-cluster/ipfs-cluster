@@ -398,7 +398,7 @@ func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.G
 		return err
 	}
 	*out = *res
-	return err
+	return nil
 }
 
 // RepoGCLocal performs garbage collection sweep only on the local peer's IPFS daemon.
@@ -408,7 +408,7 @@ func (rpcapi *ClusterRPCAPI) RepoGCLocal(ctx context.Context, in struct{}, out *
 		return err
 	}
 	*out = *res
-	return err
+	return nil
 }
 
 // SendInformerMetric runs Cluster.sendInformerMetric().

@@ -95,7 +95,7 @@ type ipfsResolveResp struct {
 
 type ipfsRepoGCResp struct {
 	Key   cid.Cid
-	Error string `json:",omitempty"`
+	Error string
 }
 
 type ipfsRefsResp struct {
