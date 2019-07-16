@@ -401,7 +401,7 @@ func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.G
 	return err
 }
 
-// RepoGCLocal performs garbage collection sweep on the local peer's IPFS daemon.
+// RepoGCLocal performs garbage collection sweep only on the local peer's IPFS daemon.
 func (rpcapi *ClusterRPCAPI) RepoGCLocal(ctx context.Context, in struct{}, out *api.RepoGC) error {
 	res, err := rpcapi.c.RepoGCLocal(ctx)
 	if err != nil {
@@ -526,16 +526,6 @@ func (rpcapi *IPFSConnectorRPCAPI) ConfigKey(ctx context.Context, in string, out
 // RepoStat runs IPFSConnector.RepoStat().
 func (rpcapi *IPFSConnectorRPCAPI) RepoStat(ctx context.Context, in struct{}, out *api.IPFSRepoStat) error {
 	res, err := rpcapi.ipfs.RepoStat(ctx)
-	if err != nil {
-		return err
-	}
-	*out = *res
-	return err
-}
-
-// RepoGC performs garbage a collection sweep on the cluster peer's IPFS repo.
-func (rpcapi *IPFSConnectorRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.RepoGC) error {
-	res, err := rpcapi.ipfs.RepoGC(ctx)
 	if err != nil {
 		return err
 	}

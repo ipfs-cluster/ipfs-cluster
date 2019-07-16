@@ -232,7 +232,8 @@ func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {
 		fmt.Printf("  > CIDs:\n")
 		for _, key := range item.Keys {
 			if key.Error != "" {
-				fmt.Printf("    - %s | ERROR: %s\n", key.Key, key.Error)
+				// key.Key will be empty
+				fmt.Printf("    - ERROR: %s\n", key.Error)
 				continue
 			}
 

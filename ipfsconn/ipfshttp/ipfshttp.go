@@ -816,21 +816,20 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
 
-	repoGC := api.RepoGC{
-		Keys: make([]api.IPFSRepoGC, 0),
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.RepoGCTimeout)
 	defer cancel()
 
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc?stream-errors=true", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return &repoGC, err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	dec := json.NewDecoder(res.Body)
+	repoGC := &api.RepoGC{
+		Keys: []api.IPFSRepoGC{},
+	}
 	for {
 		resp := ipfsRepoGCResp{}
 
@@ -839,12 +838,13 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 			// (in case dec.Decode() exited cleanly with an EOF).
 			select {
 			case <-ctx.Done():
-				return &repoGC, ctx.Err()
+				return repoGC, ctx.Err()
 			default:
 				if err == io.EOF {
-					return &repoGC, nil // clean exit
+					return repoGC, nil // clean exit
 				}
-				return &repoGC, err // error decoding
+				logger.Error(err)
+				return repoGC, err // error decoding
 			}
 		}
 

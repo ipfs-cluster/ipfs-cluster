@@ -325,9 +325,9 @@ func (c *defaultClient) Metrics(ctx context.Context, name string) ([]*api.Metric
 	return metrics, err
 }
 
-// RepoGC runs garbage collection on ipfs daemon s of cluster peers and
-// returns collected cids. If local is true, it would garbage collect only on
-// contacted peer, otherwise on all peers.
+// RepoGC runs garbage collection on IPFS daemons of cluster peers and
+// returns collected CIDs. If local is true, it would garbage collect
+// only on contacted peer, otherwise on all peers' IPFS daemons.
 func (c *defaultClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "client/RepoGC")
 	defer span.End()
