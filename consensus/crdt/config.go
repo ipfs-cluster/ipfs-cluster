@@ -103,8 +103,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 }
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
-	cfg.ClusterName = jcfg.ClusterName
-
+	config.SetIfNotDefault(jcfg.ClusterName, &cfg.ClusterName)
 	for _, p := range jcfg.TrustedPeers {
 		if p == "*" {
 			cfg.TrustAll = true

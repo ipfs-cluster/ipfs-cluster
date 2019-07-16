@@ -3,15 +3,21 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/version"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
@@ -239,6 +245,10 @@ remove the %s file first and clean any Raft state.
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret",
 				},
+				cli.StringFlag{
+					Name:  "peers, p",
+					Usage: "comma-separated list of multiaddresses to init with",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
@@ -289,6 +299,25 @@ remove the %s file first and clean any Raft state.
 					cfgs.clusterCfg.Secret = userSecret
 				}
 
+				peersOpt := c.String("peers")
+				multiAddrs := []ma.Multiaddr{}
+				var peers []peer.ID
+				if peersOpt != "" {
+					addrs := strings.Split(peersOpt, ",")
+
+					if len(addrs) > 0 {
+						for _, addr := range addrs {
+							multiAddr, err := ma.NewMultiaddr(strings.TrimSpace(addr))
+							checkErr("parsing multiaddress", err)
+							multiAddrs = append(multiAddrs, multiAddr)
+						}
+
+						peers = ipfscluster.PeersFromMultiaddrs(multiAddrs)
+						cfgs.crdtCfg.TrustedPeers = peers
+						cfgs.raftCfg.InitPeerset = peers
+					}
+				}
+
 				// Save
 				saveConfig(cfgMgr)
 
@@ -304,6 +333,22 @@ remove the %s file first and clean any Raft state.
 					checkErr("saving "+DefaultIdentityFile, err)
 					out("new identity written to %s\n", identityPath)
 				}
+				if peersOpt != "" {
+					_, ident, cfgs := makeAndLoadConfigs()
+
+					ctx := context.Background()
+					host, _, _, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
+					checkErr("creating libp2p host", err)
+
+					peerstorePath := cfgs.clusterCfg.GetPeerstorePath()
+					peerManager := pstoremgr.New(ctx, host, peerstorePath)
+
+					err = peerManager.ImportPeers(multiAddrs, false, peerstore.AddressTTL)
+					checkErr("importing peers into peerstore", err)
+					peerManager.SavePeerstoreForPeers(peers)
+					out("peerstore written to %s\n", peerstorePath)
+				}
+
 				return nil
 			},
 		},
