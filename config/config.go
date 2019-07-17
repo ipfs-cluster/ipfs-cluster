@@ -65,6 +65,33 @@ const (
 // SectionType specifies to which section a component configuration belongs.
 type SectionType int
 
+func (s *SectionType) String() string {
+	switch *s {
+	case Consensus:
+		return "consensus"
+	case API:
+		return "api"
+	case IPFSConn:
+		return "ipfs_connector"
+	case State:
+		return "state"
+	case PinTracker:
+		return "pin_tracker"
+	case Monitor:
+		return "monitor"
+	case Allocator:
+		return "allocator"
+	case Informer:
+		return "informer"
+	case Observations:
+		return "observations"
+	case Datastore:
+		return "datastore"
+	default:
+		return ""
+	}
+}
+
 // SectionTypes returns the list of supported SectionTypes
 func SectionTypes() []SectionType {
 	var l []SectionType
@@ -105,8 +132,8 @@ type Manager struct {
 	jsonCfg *jsonConfig
 
 	// map of components which has empty configuration
-	// in json file
-	emptyComponents map[string]bool
+	// in JSON file
+	undefinedComps map[string]bool
 
 	// if a config has been loaded from disk, track the path
 	// so it can be saved to the same place.
@@ -119,11 +146,12 @@ type Manager struct {
 func NewManager() *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		ctx:             ctx,
-		cancel:          cancel,
-		emptyComponents: make(map[string]bool),
-		sections:        make(map[SectionType]Section),
+		ctx:            ctx,
+		cancel:         cancel,
+		undefinedComps: make(map[string]bool),
+		sections:       make(map[SectionType]Section),
 	}
+
 }
 
 // Shutdown makes sure all configuration save operations are finished
@@ -365,7 +393,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 		}
 	}
 
-	loadCompJSON := func(name string, component ComponentConfig, jsonSection jsonSection) error {
+	loadCompJSON := func(name string, component ComponentConfig, jsonSection jsonSection, t SectionType) error {
 		raw, ok := jsonSection[name]
 		if ok {
 			component.SetBaseDir(dir)
@@ -375,7 +403,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 			}
 			logger.Debugf("%s component configuration loaded", name)
 		} else {
-			cfg.emptyComponents[name] = true
+			cfg.undefinedComps[t.String()+name] = true
 			logger.Warningf("%s component is empty, generating default", name)
 			component.SetBaseDir(dir)
 			component.Default()
@@ -384,9 +412,9 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 		return nil
 	}
 	// Helper function to load json from each section in the json config
-	loadSectionJSON := func(section Section, jsonSection jsonSection) error {
+	loadSectionJSON := func(section Section, jsonSection jsonSection, t SectionType) error {
 		for name, component := range section {
-			err := loadCompJSON(name, component, jsonSection)
+			err := loadCompJSON(name, component, jsonSection, t)
 			if err != nil {
 				logger.Error(err)
 				return err
@@ -402,7 +430,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 		if t == Cluster {
 			continue
 		}
-		err := loadSectionJSON(sections[t], *jcfg.getSection(t))
+		err := loadSectionJSON(sections[t], *jcfg.getSection(t), t)
 		if err != nil {
 			return err
 		}
@@ -488,10 +516,11 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	return DefaultJSONMarshal(jcfg)
 }
 
-// EmptyComponents returns a map of component that were found
-// to have no config in JSON file.
-func (cfg *Manager) EmptyComponents() map[string]bool {
-	return cfg.emptyComponents
+// IsDefined tells whether the given component belonging to
+// the given section type is present in the cluster JSON
+// config or not.
+func (cfg *Manager) IsDefined(t SectionType, name string) bool {
+	return !cfg.undefinedComps[t.String()+name]
 }
 
 // GetClusterConfig extracts cluster config from the configuration file

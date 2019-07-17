@@ -392,7 +392,7 @@ By default, the state will be printed to stdout.
 						}
 						defer w.Close()
 
-						cfgMgr, ident, cfgs, _ := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
 						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("exporting state", mgr.ExportState(w))
@@ -445,7 +445,7 @@ to import. If no argument is provided, stdin will be used.
 						}
 						defer r.Close()
 
-						cfgMgr, ident, cfgs, _ := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
 						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("importing state", mgr.ImportState(r))
@@ -484,7 +484,7 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
-						cfgMgr, ident, cfgs, _ := makeAndLoadConfigs()
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
 						defer cfgMgr.Shutdown()
 						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("cleaning state", mgr.Clean())

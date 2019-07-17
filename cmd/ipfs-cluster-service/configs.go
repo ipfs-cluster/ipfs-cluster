@@ -86,11 +86,11 @@ func makeConfigs() (*config.Manager, *cfgs) {
 	}
 }
 
-func makeAndLoadConfigs() (*config.Manager, *config.Identity, *cfgs, map[string]bool) {
+func makeAndLoadConfigs() (*config.Manager, *config.Identity, *cfgs) {
 	ident := loadIdentity()
 	cfgMgr, cfgs := makeConfigs()
 	checkErr("reading configuration", cfgMgr.LoadJSONFileAndEnv(configPath))
-	return cfgMgr, ident, cfgs, cfgMgr.EmptyComponents()
+	return cfgMgr, ident, cfgs
 }
 
 func loadIdentity() *config.Identity {
