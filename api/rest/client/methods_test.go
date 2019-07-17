@@ -642,3 +642,24 @@ func TestAddMultiFile(t *testing.T) {
 
 	testClients(t, api, testF)
 }
+
+func TestRepoGC(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		globalGC, err := c.RepoGC(ctx, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, gc := range globalGC.PeerMap {
+			if gc.Peer == "" {
+				t.Error("bad id")
+			}
+		}
+	}
+
+	testClients(t, api, testF)
+}

@@ -376,3 +376,26 @@ func TestConfigKey(t *testing.T) {
 		t.Error("should not work with a bad path")
 	}
 }
+
+func TestRepoGC(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+
+	res, err := ipfs.RepoGC(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Error != "" {
+		t.Errorf("expected error to be empty: %s", res.Error)
+	}
+
+	if res.Keys[0].Key.Equals(test.Cid1) {
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.Cid1, res.Keys[0].Key.String())
+	}
+	if res.Keys[3].Key.Equals(test.Cid4) {
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.Cid4, res.Keys[3].Key.String())
+	}
+}
