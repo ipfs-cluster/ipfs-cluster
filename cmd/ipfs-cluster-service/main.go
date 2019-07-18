@@ -303,14 +303,14 @@ remove the %s file first and clean any Raft state.
 				if peersOpt != "" {
 					addrs := strings.Split(peersOpt, ",")
 
-					if len(addrs) > 0 {
-						for _, addr := range addrs {
-							addr = strings.TrimSpace(addr)
-							multiAddr, err := ma.NewMultiaddr(addr)
-							checkErr("parsing peer multiaddress: "+addr, err)
-							multiAddrs = append(multiAddrs, multiAddr)
-						}
+					for _, addr := range addrs {
+						addr = strings.TrimSpace(addr)
+						multiAddr, err := ma.NewMultiaddr(addr)
+						checkErr("parsing peer multiaddress: "+addr, err)
+						multiAddrs = append(multiAddrs, multiAddr)
+					}
 
+					if len(addrs) > 0 {
 						peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
 						cfgs.crdtCfg.TrustedPeers = peers
 						cfgs.raftCfg.InitPeerset = peers
