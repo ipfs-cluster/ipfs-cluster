@@ -280,6 +280,11 @@ func (cfg *Manager) RegisterComponent(t SectionType, ccfg ComponentConfig) {
 	}
 
 	cfg.sections[t][ccfg.ConfigKey()] = ccfg
+
+	_, ok = cfg.undefinedComps[t]
+	if !ok {
+		cfg.undefinedComps[t] = make(map[string]bool)
+	}
 }
 
 // Validate checks that all the registered components in this
@@ -376,7 +381,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 			}
 			logger.Debugf("%s component configuration loaded", name)
 		} else {
-			cfg.undefinedComps[t] = map[string]bool{name: true}
+			cfg.undefinedComps[t][name] = true
 			logger.Warningf("%s component is empty, generating default", name)
 			component.SetBaseDir(dir)
 			component.Default()
