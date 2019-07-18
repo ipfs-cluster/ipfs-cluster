@@ -658,6 +658,16 @@ func TestRepoGC(t *testing.T) {
 			if gc.Peer == "" {
 				t.Error("bad id")
 			}
+			if gc.Error != "" {
+				t.Error("did not expect any error")
+			}
+			if gc.Keys == nil {
+				t.Error("expected a non-nil array of IPFSRepoGC")
+			} else {
+				if !gc.Keys[0].Key.Equals(test.Cid1) {
+					t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, gc.Keys[0].Key)
+				}
+			}
 		}
 	}
 
