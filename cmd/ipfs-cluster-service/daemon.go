@@ -117,7 +117,7 @@ func createCluster(
 	checkErr("creating REST API component", err)
 
 	apis := []ipfscluster.API{api}
-	if cfgMgr.IsDefined(config.API, cfgs.ipfsproxyCfg.ConfigKey()) {
+	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.ipfsproxyCfg.ConfigKey()) {
 		proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
 		checkErr("creating IPFS Proxy component", err)
 
