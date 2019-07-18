@@ -16,7 +16,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/version"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
@@ -246,7 +245,7 @@ remove the %s file first and clean any Raft state.
 					Usage: "prompt for the cluster secret",
 				},
 				cli.StringFlag{
-					Name:  "peers, p",
+					Name:  "peers",
 					Usage: "comma-separated list of multiaddresses to init with",
 				},
 			},
@@ -301,18 +300,18 @@ remove the %s file first and clean any Raft state.
 
 				peersOpt := c.String("peers")
 				multiAddrs := []ma.Multiaddr{}
-				var peers []peer.ID
 				if peersOpt != "" {
 					addrs := strings.Split(peersOpt, ",")
 
 					if len(addrs) > 0 {
 						for _, addr := range addrs {
-							multiAddr, err := ma.NewMultiaddr(strings.TrimSpace(addr))
-							checkErr("parsing multiaddress", err)
+							addr = strings.TrimSpace(addr)
+							multiAddr, err := ma.NewMultiaddr(addr)
+							checkErr("parsing peer multiaddress: "+addr, err)
 							multiAddrs = append(multiAddrs, multiAddr)
 						}
 
-						peers = ipfscluster.PeersFromMultiaddrs(multiAddrs)
+						peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
 						cfgs.crdtCfg.TrustedPeers = peers
 						cfgs.raftCfg.InitPeerset = peers
 					}
@@ -334,18 +333,14 @@ remove the %s file first and clean any Raft state.
 					out("new identity written to %s\n", identityPath)
 				}
 				if peersOpt != "" {
-					_, ident, cfgs := makeAndLoadConfigs()
-
-					ctx := context.Background()
-					host, _, _, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
-					checkErr("creating libp2p host", err)
+					_, _, cfgs := makeAndLoadConfigs()
 
 					peerstorePath := cfgs.clusterCfg.GetPeerstorePath()
-					peerManager := pstoremgr.New(ctx, host, peerstorePath)
+					peerManager := pstoremgr.New(context.Background(), nil, peerstorePath)
 
-					err = peerManager.ImportPeers(multiAddrs, false, peerstore.AddressTTL)
-					checkErr("importing peers into peerstore", err)
-					peerManager.SavePeerstoreForPeers(peers)
+					addrInfos, err := peer.AddrInfosFromP2pAddrs(multiAddrs...)
+					checkErr("getting address infos from peer multiaddresses", err)
+					peerManager.SavePeerstore(addrInfos)
 					out("peerstore written to %s\n", peerstorePath)
 				}
 
