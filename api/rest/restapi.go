@@ -672,15 +672,16 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 	if pin := api.parseCidOrError(w, r); pin != nil {
 		logger.Debugf("rest api pinHandler: %s", pin.Cid)
 		// span.AddAttributes(trace.StringAttribute("cid", pin.Cid))
+		var pinObj types.Pin
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
 			"Cluster",
 			"Pin",
 			pin,
-			&struct{}{},
+			&pinObj,
 		)
-		api.sendResponse(w, http.StatusAccepted, err, nil)
+		api.sendResponse(w, http.StatusOK, err, pinObj)
 		logger.Debug("rest api pinHandler done")
 	}
 }
@@ -689,15 +690,16 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 	if pin := api.parseCidOrError(w, r); pin != nil {
 		logger.Debugf("rest api unpinHandler: %s", pin.Cid)
 		// span.AddAttributes(trace.StringAttribute("cid", pin.Cid))
+		var pinObj types.Pin
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
 			"Cluster",
 			"Unpin",
 			pin,
-			&struct{}{},
+			&pinObj,
 		)
-		api.sendResponse(w, http.StatusAccepted, err, nil)
+		api.sendResponse(w, http.StatusOK, err, pinObj)
 		logger.Debug("rest api unpinHandler done")
 	}
 }

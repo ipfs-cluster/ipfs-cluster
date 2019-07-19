@@ -103,7 +103,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	}
 
 	h := test.Cid1
-	err := clusters[1].Pin(ctx, api.PinCid(h))
+	_, err := clusters[1].Pin(ctx, h, api.PinOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	for i := 0; i < nClusters; i++ {
 		h, err := prefix.Sum(randomBytes())
 		checkErr(t, err)
-		err = leader.Pin(ctx, api.PinCid(h))
+		_, err = leader.Pin(ctx, h, api.PinOptions{})
 		checkErr(t, err)
 		ttlDelay()
 	}
@@ -519,8 +519,8 @@ func TestClustersPeerJoin(t *testing.T) {
 		}
 	}
 
-	hash := test.Cid1
-	clusters[0].Pin(ctx, api.PinCid(hash))
+	h := test.Cid1
+	clusters[0].Pin(ctx, h, api.PinOptions{})
 	pinDelay()
 
 	for _, p := range clusters {
@@ -541,7 +541,7 @@ func TestClustersPeerJoin(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
+		if len(pins) != 1 || !pins[0].Cid.Equals(h) {
 			t.Error("all peers should have pinned the cid")
 		}
 	}
@@ -566,8 +566,8 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	}
 	runF(t, clusters[1:], f)
 
-	hash := test.Cid1
-	clusters[0].Pin(ctx, api.PinCid(hash))
+	h := test.Cid1
+	clusters[0].Pin(ctx, h, api.PinOptions{})
 	pinDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
@@ -579,7 +579,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(pins) != 1 || !pins[0].Cid.Equals(hash) {
+		if len(pins) != 1 || !pins[0].Cid.Equals(h) {
 			t.Error("all peers should have pinned the cid")
 		}
 	}
@@ -644,7 +644,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// pin something in c0
 	pin1 := test.Cid1
-	err := clusters[0].Pin(ctx, api.PinCid(pin1))
+	_, err := clusters[0].Pin(ctx, pin1, api.PinOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -684,7 +684,7 @@ func TestClustersPeerRejoin(t *testing.T) {
 
 	// Pin something on the rest
 	pin2 := test.Cid2
-	err = clusters[1].Pin(ctx, api.PinCid(pin2))
+	_, err = clusters[1].Pin(ctx, pin2, api.PinOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

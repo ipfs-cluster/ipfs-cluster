@@ -224,7 +224,7 @@ func TestClusterStateSync(t *testing.T) {
 	defer cl.Shutdown(ctx)
 
 	c := test.Cid1
-	err := cl.Pin(ctx, api.PinCid(c))
+	_, err := cl.Pin(ctx, c, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -274,9 +274,13 @@ func TestClusterPin(t *testing.T) {
 	defer cl.Shutdown(ctx)
 
 	c := test.Cid1
-	err := cl.Pin(ctx, api.PinCid(c))
+	res, err := cl.Pin(ctx, c, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
+	}
+
+	if res.Type != api.DataType {
+		t.Error("unexpected pin type")
 	}
 
 	switch consensus {
@@ -285,10 +289,11 @@ func TestClusterPin(t *testing.T) {
 	case "raft":
 		// test an error case
 		cl.consensus.Shutdown(ctx)
-		pin := api.PinCid(c)
-		pin.ReplicationFactorMax = 1
-		pin.ReplicationFactorMin = 1
-		err = cl.Pin(ctx, pin)
+		opts := api.PinOptions{
+			ReplicationFactorMax: 1,
+			ReplicationFactorMin: 1,
+		}
+		_, err = cl.Pin(ctx, c, opts)
 		if err == nil {
 			t.Error("expected an error but things worked")
 		}
@@ -301,7 +306,7 @@ func TestClusterPinPath(t *testing.T) {
 	defer cleanState()
 	defer cl.Shutdown(ctx)
 
-	pin, err := cl.PinPath(ctx, &api.PinPath{Path: test.PathIPFS2})
+	pin, err := cl.PinPath(ctx, test.PathIPFS2, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -310,7 +315,7 @@ func TestClusterPinPath(t *testing.T) {
 	}
 
 	// test an error case
-	_, err = cl.PinPath(ctx, &api.PinPath{Path: test.InvalidPath1})
+	_, err = cl.PinPath(ctx, test.InvalidPath1, api.PinOptions{})
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -413,7 +418,7 @@ func TestUnpinShard(t *testing.T) {
 	}
 
 	t.Run("unpin clusterdag should fail", func(t *testing.T) {
-		err := cl.Unpin(ctx, cDag.Cid)
+		_, err := cl.Unpin(ctx, cDag.Cid)
 		if err == nil {
 			t.Fatal("should not allow unpinning the cluster DAG directly")
 		}
@@ -421,7 +426,7 @@ func TestUnpinShard(t *testing.T) {
 	})
 
 	t.Run("unpin shard should fail", func(t *testing.T) {
-		err := cl.Unpin(ctx, cDagNode.Links()[0].Cid)
+		_, err := cl.Unpin(ctx, cDagNode.Links()[0].Cid)
 		if err == nil {
 			t.Fatal("should not allow unpinning shards directly")
 		}
@@ -429,9 +434,13 @@ func TestUnpinShard(t *testing.T) {
 	})
 
 	t.Run("normal unpin", func(t *testing.T) {
-		err := cl.Unpin(ctx, root)
+		res, err := cl.Unpin(ctx, root)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		if res.Type != api.MetaType {
+			t.Fatal("unexpected root pin type")
 		}
 
 		pinDelay()
@@ -745,7 +754,7 @@ func TestClusterPins(t *testing.T) {
 	defer cl.Shutdown(ctx)
 
 	c := test.Cid1
-	err := cl.Pin(ctx, api.PinCid(c))
+	_, err := cl.Pin(ctx, c, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -771,7 +780,7 @@ func TestClusterPinGet(t *testing.T) {
 	defer cl.Shutdown(ctx)
 
 	c := test.Cid1
-	err := cl.Pin(ctx, api.PinCid(c))
+	_, err := cl.Pin(ctx, c, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -798,24 +807,28 @@ func TestClusterUnpin(t *testing.T) {
 
 	c := test.Cid1
 	// Unpin should error without pin being committed to state
-	err := cl.Unpin(ctx, c)
+	_, err := cl.Unpin(ctx, c)
 	if err == nil {
 		t.Error("unpin should have failed")
 	}
 
 	// Unpin after pin should succeed
-	err = cl.Pin(ctx, api.PinCid(c))
+	_, err = cl.Pin(ctx, c, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
-	err = cl.Unpin(ctx, c)
+	res, err := cl.Unpin(ctx, c)
 	if err != nil {
 		t.Error("unpin should have worked:", err)
 	}
 
+	if res.Type != api.DataType {
+		t.Error("unexpected pin type returned")
+	}
+
 	// test another error case
 	cl.consensus.Shutdown(ctx)
-	err = cl.Unpin(ctx, c)
+	_, err = cl.Unpin(ctx, c)
 	if err == nil {
 		t.Error("expected an error but things worked")
 	}
@@ -834,7 +847,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	}
 
 	// Unpin after pin should succeed
-	pin, err := cl.PinPath(ctx, &api.PinPath{Path: test.PathIPFS2})
+	pin, err := cl.PinPath(ctx, test.PathIPFS2, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin with should have worked:", err)
 	}
@@ -890,7 +903,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	defer cleanState()
 	defer cl.Shutdown(ctx)
 
-	err := cl.Pin(ctx, api.PinCid(test.Cid1))
+	_, err := cl.Pin(ctx, test.Cid1, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}

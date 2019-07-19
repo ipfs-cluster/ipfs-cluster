@@ -485,6 +485,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// If unpin != "false", unpin the FROM argument
 	// (it was already resolved).
+	var pinObj api.Pin
 	if unpin {
 		err = proxy.rpcClient.CallContext(
 			ctx,
@@ -492,7 +493,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			"Cluster",
 			"Unpin",
 			&fromPin,
-			&struct{}{},
+			&pinObj,
 		)
 		if err != nil {
 			ipfsErrorResponder(w, err.Error(), -1)
@@ -571,13 +572,14 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Unpin because the user doesn't want to pin
 	time.Sleep(100 * time.Millisecond)
+	var pinObj api.Pin
 	err = proxy.rpcClient.CallContext(
 		proxy.ctx,
 		"",
 		"Cluster",
 		"Unpin",
 		root,
-		&struct{}{},
+		&pinObj,
 	)
 	if err != nil {
 		w.Header().Set("X-Stream-Error", err.Error())

@@ -61,17 +61,19 @@ type mockIPFSConnector struct{}
 type mockConsensus struct{}
 type mockPeerMonitor struct{}
 
-func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+	*out = *in
 	return nil
 }
 
-func (mock *mockCluster) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockCluster) Unpin(ctx context.Context, in *api.Pin, out *api.Pin) error {
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+	*out = *in
 	return nil
 }
 

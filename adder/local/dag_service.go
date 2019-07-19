@@ -73,13 +73,14 @@ func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, err
 
 	dgs.dests = nil
 
+	var pinResp api.Pin
 	return root, dgs.rpcClient.CallContext(
 		ctx,
 		"",
 		"Cluster",
 		"Pin",
 		rootPin,
-		&struct{}{},
+		&pinResp,
 	)
 }
 
