@@ -157,21 +157,29 @@ func (lc *loadBalancingClient) PeerRm(ctx context.Context, id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) error {
+func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (*api.Pin, error) {
+	var pin *api.Pin
 	call := func(c Client) error {
-		return c.Pin(ctx, ci, opts)
+		var err error
+		pin, err = c.Pin(ctx, ci, opts)
+		return err
 	}
 
-	return lc.retry(0, call)
+	err := lc.retry(0, call)
+	return pin, err
 }
 
 // Unpin untracks a Cid from cluster.
-func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) error {
+func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) (*api.Pin, error) {
+	var pin *api.Pin
 	call := func(c Client) error {
-		return c.Unpin(ctx, ci)
+		var err error
+		pin, err = c.Unpin(ctx, ci)
+		return err
 	}
 
-	return lc.retry(0, call)
+	err := lc.retry(0, call)
+	return pin, err
 }
 
 // PinPath allows to pin an element by the given IPFS path.
