@@ -310,11 +310,9 @@ remove the %s file first and clean any Raft state.
 						multiAddrs = append(multiAddrs, multiAddr)
 					}
 
-					if len(addrs) > 0 {
-						peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
-						cfgs.crdtCfg.TrustedPeers = peers
-						cfgs.raftCfg.InitPeerset = peers
-					}
+					peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
+					cfgs.crdtCfg.TrustedPeers = peers
+					cfgs.raftCfg.InitPeerset = peers
 				}
 
 				// Save
