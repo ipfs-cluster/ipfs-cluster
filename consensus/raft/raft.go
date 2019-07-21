@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -57,6 +58,7 @@ type raftWrapper struct {
 	raft          *hraft.Raft
 	config        *Config
 	host          host.Host
+	peerManager   *pstoremgr.Manager
 	serverConfig  hraft.Configuration
 	transport     *hraft.NetworkTransport
 	snapshotStore hraft.SnapshotStore
@@ -64,6 +66,7 @@ type raftWrapper struct {
 	stableStore   hraft.StableStore
 	boltdb        *raftboltdb.BoltStore
 	staging       bool
+	finishObs     chan struct{}
 }
 
 // newRaftWrapper creates a Raft instance and initializes
@@ -79,6 +82,7 @@ func newRaftWrapper(
 	raftW := &raftWrapper{}
 	raftW.config = cfg
 	raftW.host = host
+	raftW.peerManager = pstoremgr.New(context.Background(), host, "")
 	raftW.staging = staging
 	// Set correct LocalID
 	cfg.RaftConfig.LocalID = hraft.ServerID(peer.IDB58Encode(host.ID()))
@@ -114,6 +118,9 @@ func newRaftWrapper(
 		logger.Error("initializing raft: ", err)
 		return nil, err
 	}
+
+	raftW.finishObs = make(chan struct{})
+	go raftW.observePeers()
 
 	return raftW, nil
 }
@@ -250,7 +257,7 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 }
 
 // WaitForLeader holds until Raft says we have a leader.
-// Returns uf ctx is cancelled.
+// Returns if ctx is cancelled.
 func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForLeader")
 	defer span.End()
@@ -433,6 +440,8 @@ func (rw *raftWrapper) Shutdown(ctx context.Context) error {
 	defer span.End()
 
 	errMsgs := ""
+
+	rw.finishObs <- struct{}{}
 
 	err := rw.snapshotOnShutdown()
 	if err != nil {
@@ -685,4 +694,48 @@ func find(s []string, elem string) bool {
 		}
 	}
 	return false
+}
+
+func (rw *raftWrapper) observePeers() {
+	obsCh := make(chan hraft.Observation, 1)
+	defer close(obsCh)
+
+	if !sixtyfour {
+		// 32-bit systems don't support observers
+		// TODO: Check if this is still the case?
+		logger.Warning("raft Observers panic on 32-bit architecture")
+		return
+	}
+
+	observer := hraft.NewObserver(obsCh, false, nil)
+	rw.raft.RegisterObserver(observer)
+	defer rw.raft.DeregisterObserver(observer)
+
+	for {
+		select {
+		case obs := <-obsCh:
+			switch obs.Data.(type) {
+			case hraft.PeerObservation:
+				pObs := obs.Data.(hraft.PeerObservation)
+				if pObs.Removed {
+					logger.Infof("Observed removal of raft peer: %s",
+						pObs.Peer.ID)
+					pID, err := peer.IDB58Decode(string(pObs.Peer.ID))
+					if err != nil {
+						logger.Error(err)
+						continue
+					}
+					err = rw.peerManager.RmPeer(pID)
+					if err != nil {
+						logger.Error(err)
+					}
+				}
+			default:
+			}
+		case <-rw.finishObs:
+			close(rw.finishObs)
+			logger.Debug("Stopped observing raft peers")
+			return
+		}
+	}
 }
