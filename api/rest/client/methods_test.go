@@ -147,7 +147,7 @@ func TestPin(t *testing.T) {
 			ReplicationFactorMax: 7,
 			Name:                 "hello there",
 		}
-		err := c.Pin(ctx, test.Cid1, opts)
+		_, err := c.Pin(ctx, test.Cid1, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +162,7 @@ func TestUnpin(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		err := c.Unpin(ctx, test.Cid1)
+		_, err := c.Unpin(ctx, test.Cid1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -489,10 +489,11 @@ type waitService struct {
 	pinStart time.Time
 }
 
-func (wait *waitService) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (wait *waitService) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	wait.pinStart = time.Now()
+	*out = *in
 	return nil
 }
 
@@ -585,7 +586,7 @@ func TestWaitFor(t *testing.T) {
 				}
 			}
 		}()
-		err := c.Pin(ctx, test.Cid1, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
+		_, err := c.Pin(ctx, test.Cid1, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
 		if err != nil {
 			t.Fatal(err)
 		}

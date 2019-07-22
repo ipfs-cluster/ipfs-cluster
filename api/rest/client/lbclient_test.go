@@ -34,9 +34,9 @@ func TestLBClient(t *testing.T) {
 
 	// With Failover strategy, it would go through first 5 empty clients
 	// and then 6th working client. Thus, all requests should always succeed.
-	testRunManyRequestsConcurrently(t, cfgs, &Failover{}, 1000, 6, true)
+	testRunManyRequestsConcurrently(t, cfgs, &Failover{}, 200, 6, true)
 	// First 5 clients are empty. Thus, all requests should fail.
-	testRunManyRequestsConcurrently(t, cfgs, &Failover{}, 1000, 5, false)
+	testRunManyRequestsConcurrently(t, cfgs, &Failover{}, 200, 5, false)
 }
 
 func testRunManyRequestsConcurrently(t *testing.T, cfgs []*Config, strategy LBStrategy, requests int, retries int, pass bool) {

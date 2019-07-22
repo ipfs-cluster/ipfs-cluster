@@ -62,13 +62,14 @@ func Pin(ctx context.Context, rpc *rpc.Client, pin *api.Pin) error {
 		pin.Allocations = []peer.ID{}
 	}
 	logger.Debugf("adder pinning %+v", pin)
+	var pinResp api.Pin
 	return rpc.CallContext(
 		ctx,
 		"", // use ourself to pin
 		"Cluster",
 		"Pin",
 		pin,
-		&struct{}{},
+		&pinResp,
 	)
 }
 

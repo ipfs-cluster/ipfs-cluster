@@ -154,19 +154,32 @@ func (rpcapi *ClusterRPCAPI) ID(ctx context.Context, in struct{}, out *api.ID) e
 	return nil
 }
 
-// Pin runs Cluster.Pin().
-func (rpcapi *ClusterRPCAPI) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
-	return rpcapi.c.Pin(ctx, in)
+// Pin runs Cluster.pin().
+func (rpcapi *ClusterRPCAPI) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+	// we do not call the Pin method directly since that method does not
+	// allow to pin other than regular DataType pins. The adder will
+	// however send Meta, Shard and ClusterDAG pins.
+	pin, _, err := rpcapi.c.pin(ctx, in, []peer.ID{})
+	if err != nil {
+		return err
+	}
+	*out = *pin
+	return nil
 }
 
 // Unpin runs Cluster.Unpin().
-func (rpcapi *ClusterRPCAPI) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
-	return rpcapi.c.Unpin(ctx, in.Cid)
+func (rpcapi *ClusterRPCAPI) Unpin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+	pin, err := rpcapi.c.Unpin(ctx, in.Cid)
+	if err != nil {
+		return err
+	}
+	*out = *pin
+	return nil
 }
 
 // PinPath resolves path into a cid and runs Cluster.Pin().
 func (rpcapi *ClusterRPCAPI) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
-	pin, err := rpcapi.c.PinPath(ctx, in)
+	pin, err := rpcapi.c.PinPath(ctx, in.Path, in.PinOptions)
 	if err != nil {
 		return err
 	}

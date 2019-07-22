@@ -485,7 +485,7 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 	}
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			_, ok, err := c.pin(ctx, pin, []peer.ID{p}, []peer.ID{}) // pin blacklisting this peer
+			_, ok, err := c.pin(ctx, pin, []peer.ID{p}) // pin blacklisting this peer
 			if ok && err == nil {
 				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
 			}
@@ -1166,23 +1166,26 @@ func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 // pinning strategy, the PinTracker may then request the IPFS daemon
 // to pin the Cid.
 //
-// Pin returns an error if the operation could not be persisted
-// to the global state. Pin does not reflect the success or failure
-// of underlying IPFS daemon pinning operations.
+// Pin returns the Pin as stored in the global state (with the given
+// allocations and an error if the operation could not be persisted. Pin does
+// not reflect the success or failure of underlying IPFS daemon pinning
+// operations which happen in async fashion.
 //
-// If the argument's allocations are non-empty then these peers are pinned with
-// priority over other peers in the cluster.  If the max repl factor is less
-// than the size of the specified peerset then peers are chosen from this set
-// in allocation order.  If the min repl factor is greater than the size of
-// this set then the remaining peers are allocated in order from the rest of
-// the cluster.  Priority allocations are best effort.  If any priority peers
-// are unavailable then Pin will simply allocate from the rest of the cluster.
-func (c *Cluster) Pin(ctx context.Context, pin *api.Pin) error {
+// If the options UserAllocations are non-empty then these peers are pinned
+// with priority over other peers in the cluster.  If the max repl factor is
+// less than the size of the specified peerset then peers are chosen from this
+// set in allocation order.  If the minimum repl factor is greater than the
+// size of this set then the remaining peers are allocated in order from the
+// rest of the cluster. Priority allocations are best effort. If any priority
+// peers are unavailable then Pin will simply allocate from the rest of the
+// cluster.
+func (c *Cluster) Pin(ctx context.Context, h cid.Cid, opts api.PinOptions) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
-	_, _, err := c.pin(ctx, pin, []peer.ID{}, pin.UserAllocations)
-	return err
+	pin := api.PinWithOpts(h, opts)
+	result, _, err := c.pin(ctx, pin, []peer.ID{})
+	return result, err
 }
 
 // sets the default replication factor in a pin when it's set to 0
@@ -1267,11 +1270,15 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 	return checkPinType(pin)
 }
 
-// pin performs the actual pinning and supports a blacklist to be
-// able to evacuate a node and returns the pin object that it tried to pin, whether the pin was submitted
-// to the consensus layer or skipped (due to error or to the fact
-// that it was already valid) and errror.
-func (c *Cluster) pin(ctx context.Context, pin *api.Pin, blacklist []peer.ID, prioritylist []peer.ID) (*api.Pin, bool, error) {
+// pin performs the actual pinning and supports a blacklist to be able to
+// evacuate a node and returns the pin object that it tried to pin, whether
+// the pin was submitted to the consensus layer or skipped (due to error or to
+// the fact that it was already valid) and error.
+func (c *Cluster) pin(
+	ctx context.Context,
+	pin *api.Pin,
+	blacklist []peer.ID,
+) (*api.Pin, bool, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pin")
 	defer span.End()
 
@@ -1294,7 +1301,7 @@ func (c *Cluster) pin(ctx context.Context, pin *api.Pin, blacklist []peer.ID, pr
 		pin.ReplicationFactorMin,
 		pin.ReplicationFactorMax,
 		blacklist,
-		prioritylist,
+		pin.UserAllocations,
 	)
 	if err != nil {
 		return pin, false, err
@@ -1317,8 +1324,14 @@ func (c *Cluster) pin(ctx context.Context, pin *api.Pin, blacklist []peer.ID, pr
 	return pin, true, c.consensus.LogPin(ctx, pin)
 }
 
-func (c *Cluster) unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
-	_, span := trace.StartSpan(ctx, "cluster/unpin")
+// Unpin removes a previously pinned Cid from Cluster. It returns
+// the global state Pin object as it was stored before removal, or
+// an error if it was not possible to update the global state.
+//
+// Unpin does not reflect the success or failure of underlying IPFS daemon
+// unpinning operations, which happen in async fashion.
+func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
+	_, span := trace.StartSpan(ctx, "cluster/Unpin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
@@ -1349,20 +1362,6 @@ func (c *Cluster) unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	}
 }
 
-// Unpin makes the cluster Unpin a Cid. This implies adding the Cid
-// to the IPFS Cluster peers shared-state.
-//
-// Unpin returns an error if the operation could not be persisted
-// to the global state. Unpin does not reflect the success or failure
-// of underlying IPFS daemon unpinning operations.
-func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) error {
-	_, span := trace.StartSpan(ctx, "cluster/Unpin")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-	_, err := c.unpin(ctx, h)
-	return err
-}
-
 // unpinClusterDag unpins the clusterDAG metadata node and the shard metadata
 // nodes that it references.  It handles the case where multiple parents
 // reference the same metadata node, only unpinning those nodes without
@@ -1389,20 +1388,17 @@ func (c *Cluster) unpinClusterDag(metaPin *api.Pin) error {
 
 // PinPath pins an CID resolved from its IPFS Path. It returns the resolved
 // Pin object.
-func (c *Cluster) PinPath(ctx context.Context, path *api.PinPath) (*api.Pin, error) {
+func (c *Cluster) PinPath(ctx context.Context, path string, opts api.PinOptions) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/PinPath")
 	defer span.End()
 
 	ctx = trace.NewContext(c.ctx, span)
-	ci, err := c.ipfs.Resolve(ctx, path.Path)
+	ci, err := c.ipfs.Resolve(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 
-	p := api.PinCid(ci)
-	p.PinOptions = path.PinOptions
-	p, _, err = c.pin(ctx, p, []peer.ID{}, p.UserAllocations)
-	return p, err
+	return c.Pin(ctx, ci, opts)
 }
 
 // UnpinPath unpins a CID resolved from its IPFS Path. If returns the
@@ -1417,7 +1413,7 @@ func (c *Cluster) UnpinPath(ctx context.Context, path string) (*api.Pin, error) 
 		return nil, err
 	}
 
-	return c.unpin(ctx, ci)
+	return c.Unpin(ctx, ci)
 }
 
 // AddFile adds a file to the ipfs daemons of the cluster.  The ipfs importer

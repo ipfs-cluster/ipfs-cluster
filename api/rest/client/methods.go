@@ -74,10 +74,11 @@ func (c *defaultClient) PeerRm(ctx context.Context, id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) error {
+func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (*api.Pin, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Pin")
 	defer span.End()
 
+	var pin api.Pin
 	err := c.do(
 		ctx,
 		"POST",
@@ -88,16 +89,24 @@ func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions
 		),
 		nil,
 		nil,
-		nil,
+		&pin,
 	)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return &pin, nil
 }
 
 // Unpin untracks a Cid from cluster.
-func (c *defaultClient) Unpin(ctx context.Context, ci cid.Cid) error {
+func (c *defaultClient) Unpin(ctx context.Context, ci cid.Cid) (*api.Pin, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Unpin")
 	defer span.End()
-	return c.do(ctx, "DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, nil)
+	var pin api.Pin
+	err := c.do(ctx, "DELETE", fmt.Sprintf("/pins/%s", ci.String()), nil, nil, &pin)
+	if err != nil {
+		return nil, err
+	}
+	return &pin, nil
 }
 
 // PinPath allows to pin an element by the given IPFS path.
