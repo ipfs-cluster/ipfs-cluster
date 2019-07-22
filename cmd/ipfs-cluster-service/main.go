@@ -299,9 +299,9 @@ remove the %s file first and clean any Raft state.
 				}
 
 				peersOpt := c.String("peers")
-				multiAddrs := []ma.Multiaddr{}
 				if peersOpt != "" {
 					addrs := strings.Split(peersOpt, ",")
+					multiAddrs := []ma.Multiaddr{}
 
 					for _, addr := range addrs {
 						addr = strings.TrimSpace(addr)
@@ -313,6 +313,17 @@ remove the %s file first and clean any Raft state.
 					peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
 					cfgs.crdtCfg.TrustedPeers = peers
 					cfgs.raftCfg.InitPeerset = peers
+
+					cfgs.clusterCfg.SetBaseDir(filepath.Dir(configPath))
+
+					peerstorePath := cfgs.clusterCfg.GetPeerstorePath()
+					peerManager := pstoremgr.New(context.Background(), nil, peerstorePath)
+					addrInfos, err := peer.AddrInfosFromP2pAddrs(multiAddrs...)
+					checkErr("getting address infos from peer multiaddresses", err)
+
+					makeConfigFolder()
+					peerManager.SavePeerstore(addrInfos)
+					out("peerstore written to %s\n", peerstorePath)
 				}
 
 				// Save
@@ -329,17 +340,6 @@ remove the %s file first and clean any Raft state.
 					err = ident.SaveJSON(identityPath)
 					checkErr("saving "+DefaultIdentityFile, err)
 					out("new identity written to %s\n", identityPath)
-				}
-				if peersOpt != "" {
-					_, _, cfgs := makeAndLoadConfigs()
-
-					peerstorePath := cfgs.clusterCfg.GetPeerstorePath()
-					peerManager := pstoremgr.New(context.Background(), nil, peerstorePath)
-
-					addrInfos, err := peer.AddrInfosFromP2pAddrs(multiAddrs...)
-					checkErr("getting address infos from peer multiaddresses", err)
-					peerManager.SavePeerstore(addrInfos)
-					out("peerstore written to %s\n", peerstorePath)
 				}
 
 				return nil
