@@ -1273,7 +1273,7 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 // pin performs the actual pinning and supports a blacklist to be able to
 // evacuate a node and returns the pin object that it tried to pin, whether
 // the pin was submitted to the consensus layer or skipped (due to error or to
-// the fact that it was already valid) and errror.
+// the fact that it was already valid) and error.
 func (c *Cluster) pin(
 	ctx context.Context,
 	pin *api.Pin,
