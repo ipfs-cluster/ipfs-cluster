@@ -1329,7 +1329,7 @@ func (c *Cluster) pin(
 // an error if it was not possible to update the global state.
 //
 // Unpin does not reflect the success or failure of underlying IPFS daemon
-// unpinning operations which happen in async fashion.
+// unpinning operations, which happen in async fashion.
 func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Unpin")
 	defer span.End()
