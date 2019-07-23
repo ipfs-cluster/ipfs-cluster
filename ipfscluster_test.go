@@ -381,11 +381,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 	ctx := context.Background()
 	for i, c := range clusters {
-		// FIXME: workaround:
-		// https://github.com/libp2p/go-libp2p/issues/668
-		if c.shutdownB {
-			continue
-		}
 		err := c.Shutdown(ctx)
 		if err != nil {
 			t.Error(err)
