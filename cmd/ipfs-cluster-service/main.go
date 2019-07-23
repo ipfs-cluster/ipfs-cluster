@@ -231,6 +231,12 @@ environment variable.
 Note that the --force first-level-flag allows to overwrite an existing
 configuration with default values. To generate a new identity, please
 remove the %s file first and clean any Raft state.
+
+By default, an empty peerstore file will be created too. Initial contents can
+be provided with the -peers flag. In this case, the "trusted_peers" list in
+the "crdt" configuration section and the "init_peerset" list in the "raft"
+configuration section will be prefilled to the peer IDs in the given
+multiaddresses.
 `,
 				DefaultConfigFile,
 				DefaultIdentityFile,
