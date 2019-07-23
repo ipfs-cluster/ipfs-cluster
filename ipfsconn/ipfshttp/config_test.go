@@ -9,13 +9,13 @@ import (
 
 var cfgJSON = []byte(`
 {
-      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-      "connect_swarms_delay": "7s",
-      "pin_method": "pin",
-      "ipfs_request_timeout": "5m0s",
-      "pin_timeout": "24h",
-	  "unpin_timeout": "3h",
-	  "repogc_timeout": "24h"
+	"node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+	"connect_swarms_delay": "7s",
+	"pin_method": "pin",
+	"ipfs_request_timeout": "5m0s",
+	"pin_timeout": "24h",
+	"unpin_timeout": "3h",
+	"repogc_timeout": "24h"
 }
 `)
 

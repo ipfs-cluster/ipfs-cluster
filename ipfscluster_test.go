@@ -1901,3 +1901,27 @@ func TestClustersDisabledRepinning(t *testing.T) {
 		t.Errorf("expected %d replicas for pin, got %d", nClusters-2, numPinned)
 	}
 }
+
+func TestRepoGC(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	f := func(t *testing.T, c *Cluster) {
+		gRepoGC, err := c.RepoGC(context.Background())
+		if err != nil {
+			t.Fatal("gc should have worked:", err)
+		}
+
+		if gRepoGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		if len(gRepoGC.PeerMap) != nClusters {
+			t.Errorf("expected repo gc information for %d peer", nClusters)
+		}
+		for _, repoGC := range gRepoGC.PeerMap {
+			testRepoGC(t, repoGC)
+		}
+	}
+
+	runF(t, clusters, f)
+}

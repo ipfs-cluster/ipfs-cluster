@@ -930,6 +930,10 @@ func TestClusterRepoGC(t *testing.T) {
 		t.Fatal("gc should have worked:", err)
 	}
 
+	if gRepoGC.PeerMap == nil {
+		t.Fatal("expected a non-nil peer map")
+	}
+
 	if len(gRepoGC.PeerMap) != 1 {
 		t.Error("expected repo gc information for one peer")
 	}
@@ -945,12 +949,12 @@ func TestClusterRepoGCLocal(t *testing.T) {
 	defer cleanState()
 	defer cl.Shutdown(ctx)
 
-	gRepoGC, err := cl.RepoGCLocal(ctx)
+	repoGC, err := cl.RepoGCLocal(ctx)
 	if err != nil {
 		t.Fatal("gc should have worked:", err)
 	}
 
-	testRepoGC(t, gRepoGC)
+	testRepoGC(t, repoGC)
 }
 
 func testRepoGC(t *testing.T, repoGC *api.RepoGC) {
@@ -962,10 +966,14 @@ func testRepoGC(t *testing.T, repoGC *api.RepoGC) {
 	}
 
 	if repoGC.Keys == nil {
-		t.Error("expected a non-nil array of IPFSRepoGC")
-	} else {
-		if !repoGC.Keys[0].Key.Equals(test.Cid1) {
-			t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC.Keys[0].Key)
-		}
+		t.Fatal("expected a non-nil array of IPFSRepoGC")
+	}
+
+	if len(repoGC.Keys) == 0 {
+		t.Fatal("expected at least one key, but found none")
+	}
+
+	if !repoGC.Keys[0].Key.Equals(test.Cid1) {
+		t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC.Keys[0].Key)
 	}
 }

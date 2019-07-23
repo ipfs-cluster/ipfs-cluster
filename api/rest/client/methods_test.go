@@ -654,6 +654,10 @@ func TestRepoGC(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		if globalGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
 		for _, gc := range globalGC.PeerMap {
 			if gc.Peer == "" {
 				t.Error("bad id")
