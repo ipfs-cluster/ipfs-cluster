@@ -372,9 +372,9 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	}
 
 	loadCompJSON := func(name string, component ComponentConfig, jsonSection jsonSection, t SectionType) error {
+		component.SetBaseDir(dir)
 		raw, ok := jsonSection[name]
 		if ok {
-			component.SetBaseDir(dir)
 			err := component.LoadJSON([]byte(*raw))
 			if err != nil {
 				return err
@@ -383,7 +383,6 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 		} else {
 			cfg.undefinedComps[t][name] = true
 			logger.Warningf("%s component is empty, generating default", name)
-			component.SetBaseDir(dir)
 			component.Default()
 		}
 
@@ -425,8 +424,8 @@ func (cfg *Manager) SaveJSON(path string) error {
 
 	logger.Info("Saving configuration")
 
-	if path == "" {
-		path = cfg.path
+	if path != "" {
+		cfg.path = path
 	}
 
 	bs, err := cfg.ToJSON()
@@ -434,12 +433,14 @@ func (cfg *Manager) SaveJSON(path string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, bs, 0600)
+	return ioutil.WriteFile(cfg.path, bs, 0600)
 }
 
 // ToJSON provides a JSON representation of the configuration by
 // generating JSON for all componenents registered.
 func (cfg *Manager) ToJSON() ([]byte, error) {
+	dir := filepath.Dir(cfg.path)
+
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -451,6 +452,7 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	}
 
 	if cfg.clusterConfig != nil {
+		cfg.clusterConfig.SetBaseDir(dir)
 		raw, err := cfg.clusterConfig.ToJSON()
 
 		if err != nil {
@@ -465,6 +467,7 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	// component-configurations in the latter.
 	updateJSONConfigs := func(section Section, dest *jsonSection) error {
 		for k, v := range section {
+			v.SetBaseDir(dir)
 			logger.Debugf("writing changes for %s section", k)
 			j, err := v.ToJSON()
 			if err != nil {
