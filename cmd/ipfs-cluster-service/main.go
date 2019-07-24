@@ -315,7 +315,7 @@ remove the %s file first and clean any Raft state.
 					Name:  "upgrade, u",
 					Usage: "run state migrations before starting (deprecated/unused)",
 				},
-				cli.StringSliceFlag{
+				cli.StringFlag{
 					Name:  "bootstrap, j",
 					Usage: "join a cluster providing an existing peers multiaddress(es)",
 				},
