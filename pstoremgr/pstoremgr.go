@@ -8,7 +8,6 @@ package pstoremgr
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -246,9 +245,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 // per line.
 func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) error {
 	if pm.peerstorePath == "" {
-		err := errors.New("empty peerstore path")
-		logger.Error(err)
-		return err
+		return nil
 	}
 
 	pm.peerstoreLock.Lock()
@@ -267,18 +264,20 @@ func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) error {
 
 	for _, pinfo := range pinfos {
 		if len(pinfo.Addrs) == 0 {
-			err = errors.New("address info does not have any multiaddresses")
-			logger.Error(err)
-			return err
+			logger.Warning("address info does not have any multiaddresses")
+			continue
 		}
 
 		addrs, err := peer.AddrInfoToP2pAddrs(&pinfo)
 		if err != nil {
-			logger.Error(err)
-			return err
+			logger.Warning(err)
+			continue
 		}
 		for _, a := range addrs {
-			f.Write([]byte(fmt.Sprintf("%s\n", a.String())))
+			_, err = f.Write([]byte(fmt.Sprintf("%s\n", a.String())))
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

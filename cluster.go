@@ -620,10 +620,8 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	// Try to store peerset file for all known peers whatsoever
 	// if we got ready (otherwise, don't overwrite anything)
 	if c.readyB {
-		err := c.peerManager.SavePeerstoreForPeers(c.host.Peerstore().Peers())
-		if err != nil {
-			logger.Warningf("could not save peers to peerstore: %s", err)
-		}
+		// Ignoring error since it's a best-effort
+		c.peerManager.SavePeerstoreForPeers(c.host.Peerstore().Peers())
 	}
 
 	// Only attempt to leave if:
