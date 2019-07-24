@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -36,8 +37,9 @@ import (
 	cli "github.com/urfave/cli"
 )
 
-func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {
-	for _, a := range flagVal {
+func parseBootstraps(flagVal string) (bootstraps []ma.Multiaddr) {
+	addrs := strings.Split(flagVal, ",")
+	for _, a := range addrs {
 		bAddr, err := ma.NewMultiaddr(a)
 		checkErr("error parsing bootstrap multiaddress (%s)", err, a)
 		bootstraps = append(bootstraps, bAddr)
@@ -51,7 +53,7 @@ func daemon(c *cli.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
+	bootstraps := parseBootstraps(c.String("bootstrap"))
 
 	// Execution lock
 	locker.lock()
