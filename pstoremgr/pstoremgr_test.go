@@ -111,7 +111,10 @@ func TestPeerstore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pm.SavePeerstoreForPeers([]peer.ID{test.PeerID1})
+	err = pm.SavePeerstoreForPeers([]peer.ID{test.PeerID1})
+	if err != nil {
+		t.Error(err)
+	}
 
 	pm2 := makeMgr(t)
 	defer clean(pm2)
@@ -172,7 +175,10 @@ func TestPriority(t *testing.T) {
 		t.Fatal("PeerID1 should be last in the list")
 	}
 
-	pm.SavePeerstoreForPeers([]peer.ID{test.PeerID4, test.PeerID2, test.PeerID3, test.PeerID1})
+	err = pm.SavePeerstoreForPeers([]peer.ID{test.PeerID4, test.PeerID2, test.PeerID3, test.PeerID1})
+	if err != nil {
+		t.Error(err)
+	}
 
 	pm2 := makeMgr(t)
 	defer clean(pm2)

@@ -343,7 +343,8 @@ multiaddresses.
 				peerManager := pstoremgr.New(context.Background(), nil, peerstorePath)
 				addrInfos, err := peer.AddrInfosFromP2pAddrs(multiAddrs...)
 				checkErr("getting AddrInfos from peer multiaddresses", err)
-				peerManager.SavePeerstore(addrInfos)
+				err = peerManager.SavePeerstore(addrInfos)
+				checkErr("saving peers to peerstore", err)
 				out("peerstore written to %s with %d entries\n", peerstorePath, len(multiAddrs))
 
 				return nil
