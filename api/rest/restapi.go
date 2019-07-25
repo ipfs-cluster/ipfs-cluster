@@ -158,13 +158,13 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 	api.addRoutes(router)
 
 	// Set up api.httpListener if enabled
-	err = api.setupHTTP(ctx)
+	err = api.setupHTTP()
 	if err != nil {
 		return nil, err
 	}
 
 	// Set up api.libp2pListener if enabled
-	err = api.setupLibp2p(ctx)
+	err = api.setupLibp2p()
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 	return api, nil
 }
 
-func (api *API) setupHTTP(ctx context.Context) error {
+func (api *API) setupHTTP() error {
 	if api.config.HTTPListenAddr == nil {
 		return nil
 	}
@@ -200,12 +200,15 @@ func (api *API) setupHTTP(ctx context.Context) error {
 	return nil
 }
 
-func (api *API) setupLibp2p(ctx context.Context) error {
+func (api *API) setupLibp2p() error {
 	// Make new host. Override any provided existing one
 	// if we have config for a custom one.
 	if api.config.Libp2pListenAddr != nil {
+		// We use a new host context. We will call
+		// Close() on shutdown(). Avoids things like:
+		// https://github.com/ipfs/ipfs-cluster/issues/853
 		h, err := libp2p.New(
-			ctx,
+			context.Background(),
 			libp2p.Identity(api.config.PrivateKey),
 			libp2p.ListenAddrs([]ma.Multiaddr{api.config.Libp2pListenAddr}...),
 		)
@@ -452,7 +455,11 @@ func (api *API) run(ctx context.Context) {
 // runs in goroutine from run()
 func (api *API) runHTTPServer(ctx context.Context) {
 	defer api.wg.Done()
-	<-api.rpcReady
+	select {
+	case <-api.rpcReady:
+	case <-api.ctx.Done():
+		return
+	}
 
 	logger.Infof("REST API (HTTP): %s", api.config.HTTPListenAddr)
 	err := api.server.Serve(api.httpListener)
@@ -464,7 +471,12 @@ func (api *API) runHTTPServer(ctx context.Context) {
 // runs in goroutine from run()
 func (api *API) runLibp2pServer(ctx context.Context) {
 	defer api.wg.Done()
-	<-api.rpcReady
+
+	select {
+	case <-api.rpcReady:
+	case <-api.ctx.Done():
+		return
+	}
 
 	listenMsg := ""
 	for _, a := range api.host.Addrs() {
@@ -496,6 +508,7 @@ func (api *API) Shutdown(ctx context.Context) error {
 
 	api.cancel()
 	close(api.rpcReady)
+
 	// Cancel any outstanding ops
 	api.server.SetKeepAlivesEnabled(false)
 
@@ -506,12 +519,12 @@ func (api *API) Shutdown(ctx context.Context) error {
 		api.libp2pListener.Close()
 	}
 
+	api.wg.Wait()
+
 	// This means we created the host
 	if api.config.Libp2pListenAddr != nil {
 		api.host.Close()
 	}
-
-	api.wg.Wait()
 	api.shutdown = true
 	return nil
 }
