@@ -54,6 +54,8 @@ var maxShutdownSnapshotRetries = 5
 // different stores used or the hraft.Configuration.
 // Its methods provide functionality for working with Raft.
 type raftWrapper struct {
+	ctx           context.Context
+	cancel        context.CancelFunc
 	raft          *hraft.Raft
 	config        *Config
 	host          host.Host
@@ -114,6 +116,9 @@ func newRaftWrapper(
 		logger.Error("initializing raft: ", err)
 		return nil, err
 	}
+
+	raftW.ctx, raftW.cancel = context.WithCancel(context.Background())
+	go raftW.observePeers()
 
 	return raftW, nil
 }
@@ -250,7 +255,7 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 }
 
 // WaitForLeader holds until Raft says we have a leader.
-// Returns uf ctx is cancelled.
+// Returns if ctx is cancelled.
 func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForLeader")
 	defer span.End()
@@ -433,6 +438,8 @@ func (rw *raftWrapper) Shutdown(ctx context.Context) error {
 	defer span.End()
 
 	errMsgs := ""
+
+	rw.cancel()
 
 	err := rw.snapshotOnShutdown()
 	if err != nil {
@@ -685,4 +692,34 @@ func find(s []string, elem string) bool {
 		}
 	}
 	return false
+}
+
+func (rw *raftWrapper) observePeers() {
+	obsCh := make(chan hraft.Observation, 1)
+	defer close(obsCh)
+
+	observer := hraft.NewObserver(obsCh, true, func(o *hraft.Observation) bool {
+		po, ok := o.Data.(hraft.PeerObservation)
+		return ok && po.Removed
+	})
+
+	rw.raft.RegisterObserver(observer)
+	defer rw.raft.DeregisterObserver(observer)
+
+	for {
+		select {
+		case obs := <-obsCh:
+			pObs := obs.Data.(hraft.PeerObservation)
+			logger.Info("raft peer departed. Removing from peerstore: ", pObs.Peer.ID)
+			pID, err := peer.IDB58Decode(string(pObs.Peer.ID))
+			if err != nil {
+				logger.Error(err)
+				continue
+			}
+			rw.host.Peerstore().ClearAddrs(pID)
+		case <-rw.ctx.Done():
+			logger.Debug("stopped observing raft peers")
+			return
+		}
+	}
 }
