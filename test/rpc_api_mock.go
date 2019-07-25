@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	cid "github.com/ipfs/go-cid"
 	gopath "github.com/ipfs/go-path"
@@ -73,6 +74,9 @@ func (mock *mockCluster) Unpin(ctx context.Context, in *api.Pin, out *api.Pin) e
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+	if in.Cid.Equals(NotFoundCid) {
+		return state.ErrNotFound
+	}
 	*out = *in
 	return nil
 }
@@ -102,7 +106,11 @@ func (mock *mockCluster) PinPath(ctx context.Context, in *api.PinPath, out *api.
 }
 
 func (mock *mockCluster) UnpinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
-	// Mock-Unpin behaves exactly pin (doing nothing).
+	if in.Path == NotFoundPath {
+		return state.ErrNotFound
+	}
+
+	// Mock-Unpin behaves like pin (doing nothing).
 	return mock.PinPath(ctx, in, out)
 }
 

@@ -22,6 +22,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -681,7 +682,7 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 			pin,
 			&pinObj,
 		)
-		api.sendResponse(w, http.StatusOK, err, pinObj)
+		api.sendResponse(w, autoStatus, err, pinObj)
 		logger.Debug("rest api pinHandler done")
 	}
 }
@@ -699,7 +700,11 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			pin,
 			&pinObj,
 		)
-		api.sendResponse(w, http.StatusOK, err, pinObj)
+		if err != nil && err.Error() == state.ErrNotFound.Error() {
+			api.sendResponse(w, http.StatusNotFound, err, nil)
+			return
+		}
+		api.sendResponse(w, autoStatus, err, pinObj)
 		logger.Debug("rest api unpinHandler done")
 	}
 }
@@ -717,7 +722,7 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 			&pin,
 		)
 
-		api.sendResponse(w, http.StatusOK, err, pin)
+		api.sendResponse(w, autoStatus, err, pin)
 		logger.Debug("rest api pinPathHandler done")
 	}
 }
@@ -734,7 +739,11 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 			pinpath,
 			&pin,
 		)
-		api.sendResponse(w, http.StatusOK, err, pin)
+		if err != nil && err.Error() == state.ErrNotFound.Error() {
+			api.sendResponse(w, http.StatusNotFound, err, nil)
+			return
+		}
+		api.sendResponse(w, autoStatus, err, pin)
 		logger.Debug("rest api unpinPathHandler done")
 	}
 }
