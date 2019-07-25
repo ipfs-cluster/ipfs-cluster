@@ -3,15 +3,20 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/version"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
@@ -226,6 +231,12 @@ environment variable.
 Note that the --force first-level-flag allows to overwrite an existing
 configuration with default values. To generate a new identity, please
 remove the %s file first and clean any Raft state.
+
+By default, an empty peerstore file will be created too. Initial contents can
+be provided with the -peers flag. In this case, the "trusted_peers" list in
+the "crdt" configuration section and the "init_peerset" list in the "raft"
+configuration section will be prefilled to the peer IDs in the given
+multiaddresses.
 `,
 				DefaultConfigFile,
 				DefaultIdentityFile,
@@ -238,6 +249,10 @@ remove the %s file first and clean any Raft state.
 				cli.BoolFlag{
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret",
+				},
+				cli.StringFlag{
+					Name:  "peers",
+					Usage: "comma-separated list of multiaddresses to init with",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -289,7 +304,25 @@ remove the %s file first and clean any Raft state.
 					cfgs.clusterCfg.Secret = userSecret
 				}
 
-				// Save
+				peersOpt := c.String("peers")
+				var multiAddrs []ma.Multiaddr
+				if peersOpt != "" {
+					addrs := strings.Split(peersOpt, ",")
+
+					for _, addr := range addrs {
+						addr = strings.TrimSpace(addr)
+						multiAddr, err := ma.NewMultiaddr(addr)
+						checkErr("parsing peer multiaddress: "+addr, err)
+						multiAddrs = append(multiAddrs, multiAddr)
+					}
+
+					peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
+					cfgs.crdtCfg.TrustedPeers = peers
+					cfgs.raftCfg.InitPeerset = peers
+				}
+
+				// Save config. Creates the folder.
+				// Sets BaseDir in components.
 				saveConfig(cfgMgr)
 
 				if !identityExists {
@@ -304,6 +337,16 @@ remove the %s file first and clean any Raft state.
 					checkErr("saving "+DefaultIdentityFile, err)
 					out("new identity written to %s\n", identityPath)
 				}
+
+				// Initialize peerstore file - even if empty
+				peerstorePath := cfgs.clusterCfg.GetPeerstorePath()
+				peerManager := pstoremgr.New(context.Background(), nil, peerstorePath)
+				addrInfos, err := peer.AddrInfosFromP2pAddrs(multiAddrs...)
+				checkErr("getting AddrInfos from peer multiaddresses", err)
+				err = peerManager.SavePeerstore(addrInfos)
+				checkErr("saving peers to peerstore", err)
+				out("peerstore written to %s with %d entries\n", peerstorePath, len(multiAddrs))
+
 				return nil
 			},
 		},

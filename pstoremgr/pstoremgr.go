@@ -243,9 +243,9 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 
 // SavePeerstore stores a slice of multiaddresses in the peerstore file, one
 // per line.
-func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) {
+func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) error {
 	if pm.peerstorePath == "" {
-		return
+		return nil
 	}
 
 	pm.peerstoreLock.Lock()
@@ -253,31 +253,40 @@ func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) {
 
 	f, err := os.Create(pm.peerstorePath)
 	if err != nil {
-		logger.Warningf(
+		logger.Errorf(
 			"could not save peer addresses to %s: %s",
 			pm.peerstorePath,
 			err,
 		)
-		return
+		return err
 	}
 	defer f.Close()
 
 	for _, pinfo := range pinfos {
+		if len(pinfo.Addrs) == 0 {
+			logger.Warning("address info does not have any multiaddresses")
+			continue
+		}
+
 		addrs, err := peer.AddrInfoToP2pAddrs(&pinfo)
 		if err != nil {
 			logger.Warning(err)
 			continue
 		}
 		for _, a := range addrs {
-			f.Write([]byte(fmt.Sprintf("%s\n", a.String())))
+			_, err = f.Write([]byte(fmt.Sprintf("%s\n", a.String())))
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // SavePeerstoreForPeers calls PeerInfos and then saves the peerstore
 // file using the result.
-func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) {
-	pm.SavePeerstore(pm.PeerInfos(peers))
+func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) error {
+	return pm.SavePeerstore(pm.PeerInfos(peers))
 }
 
 // Bootstrap attempts to get up to "count" connected peers by trying those
