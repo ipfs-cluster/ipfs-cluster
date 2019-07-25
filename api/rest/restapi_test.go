@@ -693,32 +693,17 @@ func TestAPIUnpinEndpoint(t *testing.T) {
 		errResp := api.Error{}
 		makeDelete(t, rest, url(rest)+"/pins/"+test.ErrorCid.String(), &errResp)
 		if errResp.Message != test.ErrBadCid.Error() {
-			t.Errorf(
-				"error message : expected: %s, got: %s, CID: %s\n",
-				test.ErrBadCid.Error(),
-				errResp.Message,
-				test.ErrorCid.String(),
-			)
+			t.Error("expected different error: ", errResp.Message)
 		}
 
 		makeDelete(t, rest, url(rest)+"/pins/"+test.NotFoundCid.String(), &errResp)
 		if errResp.Code != http.StatusNotFound {
-			t.Errorf(
-				"status code: expected: %d, got: %d, CID: %s\n",
-				http.StatusNotFound,
-				errResp.Code,
-				test.NotFoundCid.String(),
-			)
+			t.Error("expected different error code: ", errResp.Code)
 		}
 
 		makeDelete(t, rest, url(rest)+"/pins/abcd", &errResp)
 		if errResp.Code != 400 {
-			t.Errorf(
-				"status code: expected: %d, got: %d, CID: %s\n",
-				http.StatusBadRequest,
-				errResp.Code,
-				"abcd",
-			)
+			t.Error("expected different error code: ", errResp.Code)
 		}
 	}
 
