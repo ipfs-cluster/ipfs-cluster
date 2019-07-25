@@ -698,7 +698,7 @@ func (rw *raftWrapper) observePeers() {
 	obsCh := make(chan hraft.Observation, 1)
 	defer close(obsCh)
 
-	observer := hraft.NewObserver(obsCh, false, func(o *hraft.Observation) bool {
+	observer := hraft.NewObserver(obsCh, true, func(o *hraft.Observation) bool {
 		po, ok := o.Data.(hraft.PeerObservation)
 		return ok && po.Removed
 	})
