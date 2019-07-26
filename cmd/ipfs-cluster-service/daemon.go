@@ -47,6 +47,10 @@ func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {
 
 // Runs the cluster peer
 func daemon(c *cli.Context) error {
+	if c.String("consensus") == "" {
+		checkErr("starting daemon", errors.New("--consensus flag must be set to \"raft\" or \"crdt\""))
+	}
+
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	ctx, cancel := context.WithCancel(context.Background())

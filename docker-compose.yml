@@ -82,14 +82,14 @@ services:
     # to it.
     command: >-
       sh -c '
-        cmd="daemon --upgrade"
+        cmd="daemon --consensus raft"
         if [ ! -d /data/ipfs-cluster/raft ]; then
           while ! ipfs-cluster-ctl --host /dns4/cluster0/tcp/9094 id; do
             sleep 1
           done
           pid=`ipfs-cluster-ctl --host /dns4/cluster0/tcp/9094 id | grep -o -E "^(\w+)"`
           sleep 10
-          cmd="daemon --bootstrap /dns4/cluster0/tcp/9096/ipfs/$$pid"
+          cmd="daemon --consensus raft --bootstrap /dns4/cluster0/tcp/9096/ipfs/$$pid"
         fi
         exec /usr/local/bin/entrypoint.sh $$cmd
       '
