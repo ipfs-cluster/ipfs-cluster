@@ -177,6 +177,7 @@ func TestLibp2pConfig(t *testing.T) {
 	cfg.ID = pid
 	cfg.PrivateKey = priv
 	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	cfg.HTTPListenAddr = addr
 	cfg.Libp2pListenAddr = addr
 
 	err = cfg.Validate()
