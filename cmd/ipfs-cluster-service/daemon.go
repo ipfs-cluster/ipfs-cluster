@@ -62,6 +62,10 @@ func daemon(c *cli.Context) error {
 
 	defer cfgMgr.Shutdown()
 
+	if len(bootstraps) > 0 && !c.Bool("no-trust") {
+		cfgs.crdtCfg.TrustedPeers = append(cfgs.crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
+	}
+
 	if c.Bool("stats") {
 		cfgs.metricsCfg.EnableStats = true
 	}
