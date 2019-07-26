@@ -38,11 +38,6 @@ var RaftMaxSnapshots = 5
 // This is used to reduce disk I/O for the recently committed entries.
 var RaftLogCacheSize = 512
 
-// Are we compiled on a 64-bit architecture?
-// https://groups.google.com/forum/#!topic/golang-nuts/vAckmhUMAdQ
-// This is used below because raft Observers panic on 32-bit.
-const sixtyfour = uint64(^uint(0)) == ^uint64(0)
-
 // How long we wait for updates during shutdown before snapshotting
 var waitForUpdatesShutdownTimeout = 5 * time.Second
 var waitForUpdatesInterval = 100 * time.Millisecond
@@ -261,29 +256,23 @@ func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 	defer span.End()
 
 	obsCh := make(chan hraft.Observation, 1)
-	if sixtyfour { // 32-bit systems don't support observers
-		observer := hraft.NewObserver(obsCh, false, nil)
-		rw.raft.RegisterObserver(observer)
-		defer rw.raft.DeregisterObserver(observer)
-	}
-	ticker := time.NewTicker(time.Second / 2)
+	defer close(obsCh)
+
+	observer := hraft.NewObserver(obsCh, false, func(o *hraft.Observation) bool {
+		_, ok := o.Data.(hraft.LeaderObservation)
+		return ok
+	})
+
+	rw.raft.RegisterObserver(observer)
+	defer rw.raft.DeregisterObserver(observer)
+
 	for {
 		select {
-		case obs := <-obsCh:
-			_ = obs
-			// See https://github.com/hashicorp/raft/issues/254
-			// switch obs.Data.(type) {
-			// case hraft.LeaderObservation:
-			// 	lObs := obs.Data.(hraft.LeaderObservation)
-			// 	logger.Infof("Raft Leader elected: %s",
-			// 		lObs.Leader)
-			// 	return string(lObs.Leader), nil
-			// }
-		case <-ticker.C:
+		case <-obsCh:
+			logger.Info("new raft leader elected")
 			if l := rw.raft.Leader(); l != "" {
 				logger.Debug("waitForleaderTimer")
 				logger.Infof("Current Raft Leader: %s", l)
-				ticker.Stop()
 				return string(l), nil
 			}
 		case <-ctx.Done():
