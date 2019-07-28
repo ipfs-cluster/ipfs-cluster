@@ -23,19 +23,20 @@ const configKey = "cluster"
 
 // Configuration defaults
 const (
-	DefaultListenAddr          = "/ip4/0.0.0.0/tcp/9096"
-	DefaultStateSyncInterval   = 600 * time.Second
-	DefaultIPFSSyncInterval    = 130 * time.Second
-	DefaultPinRecoverInterval  = 1 * time.Hour
-	DefaultMonitorPingInterval = 15 * time.Second
-	DefaultPeerWatchInterval   = 5 * time.Second
-	DefaultReplicationFactor   = -1
-	DefaultLeaveOnShutdown     = false
-	DefaultDisableRepinning    = false
-	DefaultPeerstoreFile       = "peerstore"
-	DefaultConnMgrHighWater    = 400
-	DefaultConnMgrLowWater     = 100
-	DefaultConnMgrGracePeriod  = 2 * time.Minute
+	DefaultListenAddr             = "/ip4/0.0.0.0/tcp/9096"
+	DefaultStateSyncInterval      = 600 * time.Second
+	DefaultIPFSSyncInterval       = 130 * time.Second
+	DefaultPinRecoverInterval     = 1 * time.Hour
+	DefaultMonitorPingInterval    = 15 * time.Second
+	DefaultPeerWatchInterval      = 5 * time.Second
+	DefaultReplicationFactor      = -1
+	DefaultLeaveOnShutdown        = false
+	DefaultDisableRepinning       = false
+	DefaultPeerstoreFile          = "peerstore"
+	DefaultConnMgrHighWater       = 400
+	DefaultConnMgrLowWater        = 100
+	DefaultConnMgrGracePeriod     = 2 * time.Minute
+	DefaultAuthorizationCacheSpan = 48 * time.Hour
 )
 
 // ConnMgrConfig configures the libp2p host connection manager.
@@ -134,6 +135,11 @@ type Config struct {
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
 
+	// AuthorizationCacheSpan is the duration upto which a set of peer, service
+	// name and service method will be considered to be not trusting current
+	// peer, if an rpc request failed because of authorization error.
+	AuthorizationCacheSpan time.Duration
+
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
 }
@@ -142,22 +148,23 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                   string             `json:"id,omitempty"`
-	Peername             string             `json:"peername"`
-	PrivateKey           string             `json:"private_key,omitempty"`
-	Secret               string             `json:"secret"`
-	LeaveOnShutdown      bool               `json:"leave_on_shutdown"`
-	ListenMultiaddress   string             `json:"listen_multiaddress"`
-	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
-	StateSyncInterval    string             `json:"state_sync_interval"`
-	IPFSSyncInterval     string             `json:"ipfs_sync_interval"`
-	PinRecoverInterval   string             `json:"pin_recover_interval"`
-	ReplicationFactorMin int                `json:"replication_factor_min"`
-	ReplicationFactorMax int                `json:"replication_factor_max"`
-	MonitorPingInterval  string             `json:"monitor_ping_interval"`
-	PeerWatchInterval    string             `json:"peer_watch_interval"`
-	DisableRepinning     bool               `json:"disable_repinning"`
-	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
+	ID                     string             `json:"id,omitempty"`
+	Peername               string             `json:"peername"`
+	PrivateKey             string             `json:"private_key,omitempty"`
+	Secret                 string             `json:"secret"`
+	LeaveOnShutdown        bool               `json:"leave_on_shutdown"`
+	ListenMultiaddress     string             `json:"listen_multiaddress"`
+	ConnectionManager      *connMgrConfigJSON `json:"connection_manager"`
+	StateSyncInterval      string             `json:"state_sync_interval"`
+	IPFSSyncInterval       string             `json:"ipfs_sync_interval"`
+	PinRecoverInterval     string             `json:"pin_recover_interval"`
+	ReplicationFactorMin   int                `json:"replication_factor_min"`
+	ReplicationFactorMax   int                `json:"replication_factor_max"`
+	MonitorPingInterval    string             `json:"monitor_ping_interval"`
+	PeerWatchInterval      string             `json:"peer_watch_interval"`
+	DisableRepinning       bool               `json:"disable_repinning"`
+	PeerstoreFile          string             `json:"peerstore_file,omitempty"`
+	AuthorizationCacheSpan string             `json:"authorization_cache_span,omitempty"`
 }
 
 // connMgrConfigJSON configures the libp2p host connection manager.
@@ -249,6 +256,10 @@ func (cfg *Config) Validate() error {
 		return errors.New("cluster.peer_watch_interval is invalid")
 	}
 
+	if cfg.AuthorizationCacheSpan < 0 {
+		return errors.New("cluster.authorization_cache_span is invalid")
+	}
+
 	rfMax := cfg.ReplicationFactorMax
 	rfMin := cfg.ReplicationFactorMin
 
@@ -337,6 +348,7 @@ func (cfg *Config) setDefaults() {
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.PeerstoreFile = "" // empty so it gets ommited.
 	cfg.RPCPolicy = DefaultRPCPolicy
+	cfg.AuthorizationCacheSpan = DefaultAuthorizationCacheSpan
 }
 
 // LoadJSON receives a raw json-formatted configuration and
@@ -398,6 +410,7 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		&config.DurationOpt{Duration: jcfg.PinRecoverInterval, Dst: &cfg.PinRecoverInterval, Name: "pin_recover_interval"},
 		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
 		&config.DurationOpt{Duration: jcfg.PeerWatchInterval, Dst: &cfg.PeerWatchInterval, Name: "peer_watch_interval"},
+		&config.DurationOpt{Duration: jcfg.AuthorizationCacheSpan, Dst: &cfg.AuthorizationCacheSpan, Name: "authorization_cache_span"},
 	)
 	if err != nil {
 		return err

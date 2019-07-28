@@ -80,6 +80,19 @@ func minInt(x, y int) int {
 	return y
 }
 
+func checkMatchingLengths(l ...int) bool {
+	if len(l) <= 1 {
+		return true
+	}
+
+	for i := 1; i < len(l); i++ {
+		if l[i-1] != l[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // // updatePinParents modifies the api.Pin input to give it the correct parents
 // // so that previous additions to the pins parents are maintained after this
 // // pin is committed to consensus.  If this pin carries new parents they are
