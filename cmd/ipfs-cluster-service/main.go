@@ -393,7 +393,7 @@ multiaddresses.
 				},
 				cli.BoolFlag{
 					Name:  "no-trust",
-					Usage: "do not trust bootstrap peers (only for \"crdt\" consensus",
+					Usage: "do not trust bootstrap peers (only for \"crdt\" consensus)",
 				},
 			},
 			Action: daemon,
