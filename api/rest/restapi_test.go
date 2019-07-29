@@ -631,7 +631,14 @@ var pathTestCases = []pathCase{
 		http.StatusBadRequest,
 		"",
 	},
-	// TODO: Test StatusNotFound and a case with trailing slash with paths
+	{
+		"/ipfs/bafyreiay3jpjk74dkckv2r74eyvf3lfnxujefay2rtuluintasq2zlapv4",
+		testPinOpts,
+		true,
+		http.StatusNotFound,
+		"",
+	},
+	// TODO: A case with trailing slash with paths
 	// test.PathIPNS2, test.PathIPLD2, test.InvalidPath1
 }
 
@@ -641,7 +648,7 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
-		for _, testCase := range pathTestCases {
+		for _, testCase := range pathTestCases[:3] {
 			c, _ := cid.Decode(testCase.expectedCid)
 			resultantPin := api.PinWithOpts(
 				c,
@@ -689,9 +696,14 @@ func TestAPIUnpinEndpoint(t *testing.T) {
 			t.Error("expected different error: ", errResp.Message)
 		}
 
+		makeDelete(t, rest, url(rest)+"/pins/"+test.NotFoundCid.String(), &errResp)
+		if errResp.Code != http.StatusNotFound {
+			t.Error("expected different error code: ", errResp.Code)
+		}
+
 		makeDelete(t, rest, url(rest)+"/pins/abcd", &errResp)
 		if errResp.Code != 400 {
-			t.Error("should fail with bad Cid")
+			t.Error("expected different error code: ", errResp.Code)
 		}
 	}
 
