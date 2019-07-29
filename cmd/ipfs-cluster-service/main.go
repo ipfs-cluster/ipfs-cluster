@@ -391,6 +391,10 @@ multiaddresses.
 					Name:  "tracing",
 					Usage: "enable tracing collection",
 				},
+				cli.BoolFlag{
+					Name:  "no-trust",
+					Usage: "do not trust bootstrap peers (only for \"crdt\" consensus)",
+				},
 			},
 			Action: daemon,
 		},
