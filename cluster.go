@@ -835,22 +835,6 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 
 	logger.Debugf("Join(%s)", addr)
 
-	// check if peer is already part of the cluster
-	peers, err := c.consensus.Peers(ctx)
-	if err != nil {
-		return err
-	}
-
-	pinfo, err := peer.AddrInfoFromP2pAddr(addr)
-	if err != nil {
-		return err
-	}
-
-	if containsPeer(peers, pinfo.ID) {
-		logger.Infof("peer is already part of the cluster: ", pinfo.ID)
-		return nil
-	}
-
 	// Add peer to peerstore so we can talk to it (and connect)
 	pid, err := c.peerManager.ImportPeer(addr, true, peerstore.PermanentAddrTTL)
 	if err != nil {
@@ -909,9 +893,6 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	time.AfterFunc(c.config.MonitorPingInterval, func() {
 		c.ipfs.ConnectSwarms(ctx)
 	})
-
-	// could leader selection happen even before we reach `WaitForLeader`
-	// that way we won't observe that event and think that a new leaer was never selected?
 
 	// wait for leader and for state to catch up
 	// then sync
