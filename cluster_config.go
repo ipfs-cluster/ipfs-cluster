@@ -36,6 +36,7 @@ const (
 	DefaultConnMgrHighWater    = 400
 	DefaultConnMgrLowWater     = 100
 	DefaultConnMgrGracePeriod  = 2 * time.Minute
+	DefaultFollowerMode        = false
 )
 
 // ConnMgrConfig configures the libp2p host connection manager.
@@ -130,6 +131,11 @@ type Config struct {
 	// when not wanting to rely on the monitoring system which needs a revamp.
 	DisableRepinning bool
 
+	// FollowerMode disables broadcast requests from this peer
+	// (sync, recover, status) and disallows pinset management
+	// operations (Pin/Unpin).
+	FollowerMode bool
+
 	// Peerstore file specifies the file on which we persist the
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
@@ -157,6 +163,7 @@ type configJSON struct {
 	MonitorPingInterval  string             `json:"monitor_ping_interval"`
 	PeerWatchInterval    string             `json:"peer_watch_interval"`
 	DisableRepinning     bool               `json:"disable_repinning"`
+	FollowerMode         bool               `json:"follower_mode,omitempty"`
 	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
 }
 
@@ -336,6 +343,7 @@ func (cfg *Config) setDefaults() {
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.FollowerMode = DefaultFollowerMode
 	cfg.RPCPolicy = DefaultRPCPolicy
 }
 
@@ -405,6 +413,7 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
 	cfg.DisableRepinning = jcfg.DisableRepinning
+	cfg.FollowerMode = jcfg.FollowerMode
 
 	return cfg.Validate()
 }
@@ -449,6 +458,7 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
+	jcfg.FollowerMode = cfg.FollowerMode
 
 	return
 }

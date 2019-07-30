@@ -368,6 +368,10 @@ func (rpcapi *ClusterRPCAPI) RecoverLocal(ctx context.Context, in cid.Cid, out *
 // BlockAllocate returns allocations for blocks. This is used in the adders.
 // It's different from pin allocations when ReplicationFactor < 0.
 func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
+	if rpcapi.c.config.FollowerMode {
+		return errFollowerMode
+	}
+
 	err := rpcapi.c.setupPin(ctx, in)
 	if err != nil {
 		return err

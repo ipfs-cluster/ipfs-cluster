@@ -43,6 +43,10 @@ const (
 	reBootstrapInterval = 30 * time.Second
 )
 
+var (
+	errFollowerMode = errors.New("this peer is configured as in follower mode. Write operations are disabled")
+)
+
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
@@ -1183,6 +1187,7 @@ func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 func (c *Cluster) Pin(ctx context.Context, h cid.Cid, opts api.PinOptions) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
+
 	ctx = trace.NewContext(c.ctx, span)
 	pin := api.PinWithOpts(h, opts)
 	result, _, err := c.pin(ctx, pin, []peer.ID{})
@@ -1283,6 +1288,10 @@ func (c *Cluster) pin(
 	ctx, span := trace.StartSpan(ctx, "cluster/pin")
 	defer span.End()
 
+	if c.config.FollowerMode {
+		return nil, false, errFollowerMode
+	}
+
 	if pin.Cid == cid.Undef {
 		return pin, false, errors.New("bad pin object")
 	}
@@ -1335,6 +1344,10 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Unpin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
+
+	if c.config.FollowerMode {
+		return nil, errFollowerMode
+	}
 
 	logger.Info("IPFS cluster unpinning:", h)
 	pin, err := c.PinGet(ctx, h)
@@ -1423,6 +1436,7 @@ func (c *Cluster) UnpinPath(ctx context.Context, path string) (*api.Pin, error) 
 // sharded across the entire cluster.
 func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (cid.Cid, error) {
 	// TODO: add context param and tracing
+
 	var dags adder.ClusterDAGService
 	if params.Shard {
 		dags = sharding.New(c.rpcClient, params.PinOptions, nil)
@@ -1495,10 +1509,16 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		PeerMap: make(map[string]*api.PinInfo),
 	}
 
-	members, err := c.consensus.Peers(ctx)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
+	var members []peer.ID
+	var err error
+	if c.config.FollowerMode {
+		members = []peer.ID{c.host.ID()}
+	} else {
+		members, err = c.consensus.Peers(ctx)
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
 	}
 	lenMembers := len(members)
 
@@ -1551,10 +1571,16 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	infos := make([]*api.GlobalPinInfo, 0)
 	fullMap := make(map[cid.Cid]*api.GlobalPinInfo)
 
-	members, err := c.consensus.Peers(ctx)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
+	var members []peer.ID
+	var err error
+	if c.config.FollowerMode {
+		members = []peer.ID{c.host.ID()}
+	} else {
+		members, err = c.consensus.Peers(ctx)
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
 	}
 	lenMembers := len(members)
 
