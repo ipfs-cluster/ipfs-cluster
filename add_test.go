@@ -6,6 +6,7 @@ import (
 	"context"
 	"mime/multipart"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -35,7 +36,9 @@ func TestAdd(t *testing.T) {
 			t.Fatal("unexpected root CID for local add")
 		}
 
-		pinDelay()
+		// We need to sleep a lot because it takes time to
+		// catch up on a first/single pin on crdts
+		time.Sleep(10 * time.Second)
 
 		f := func(t *testing.T, c *Cluster) {
 			pin := c.StatusLocal(ctx, ci)
@@ -79,7 +82,9 @@ func TestAddPeerDown(t *testing.T) {
 			t.Fatal("unexpected root CID for local add")
 		}
 
-		pinDelay()
+		// We need to sleep a lot because it takes time to
+		// catch up on a first/single pin on crdts
+		time.Sleep(10 * time.Second)
 
 		f := func(t *testing.T, c *Cluster) {
 			if c.id == clusters[0].id {
