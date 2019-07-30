@@ -12,7 +12,7 @@ test_expect_success IPFS,CLUSTER,JQ "state export saves the correct state to exp
     ipfs-cluster-ctl pin add "$cid" &&
     sleep 5 &&
     cluster_kill && sleep 5 &&
-    ipfs-cluster-service --debug --config "test-config" state export -f export.json &&
+    ipfs-cluster-service --debug --config "test-config" state export --consensus crdt -f export.json &&
     [ -f export.json ] &&
     jq -r ".cid | .[\"/\"]" export.json | grep -q "$cid"
 '

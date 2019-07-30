@@ -28,7 +28,6 @@ const programName = `ipfs-cluster-service`
 
 // flag defaults
 const (
-	defaultConsensus  = "raft"
 	defaultAllocation = "disk-freespace"
 	defaultPinTracker = "map"
 	defaultLogLevel   = "info"
@@ -369,7 +368,6 @@ multiaddresses.
 				},
 				cli.StringFlag{
 					Name:  "consensus",
-					Value: defaultConsensus,
 					Usage: "shared state management provider [raft,crdt]",
 				},
 				cli.StringFlag{
@@ -418,13 +416,16 @@ By default, the state will be printed to stdout.
 						},
 						cli.StringFlag{
 							Name:  "consensus",
-							Value: "raft",
 							Usage: "consensus component to export data from [raft, crdt]",
 						},
 					},
 					Action: func(c *cli.Context) error {
 						locker.lock()
 						defer locker.tryUnlock()
+
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
+						defer cfgMgr.Shutdown()
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 
 						var w io.WriteCloser
 						var err error
@@ -439,9 +440,6 @@ By default, the state will be printed to stdout.
 						}
 						defer w.Close()
 
-						cfgMgr, ident, cfgs := makeAndLoadConfigs()
-						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("exporting state", mgr.ExportState(w))
 						logger.Info("state successfully exported")
 						return nil
@@ -465,7 +463,6 @@ to import. If no argument is provided, stdin will be used.
 						},
 						cli.StringFlag{
 							Name:  "consensus",
-							Value: "raft",
 							Usage: "consensus component to export data from [raft, crdt]",
 						},
 					},
@@ -478,6 +475,10 @@ to import. If no argument is provided, stdin will be used.
 						if !c.Bool("force") && !yesNoPrompt(confirm) {
 							return nil
 						}
+
+						cfgMgr, ident, cfgs := makeAndLoadConfigs()
+						defer cfgMgr.Shutdown()
+						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 
 						// Get the importing file path
 						importFile := c.Args().First()
@@ -492,9 +493,6 @@ to import. If no argument is provided, stdin will be used.
 						}
 						defer r.Close()
 
-						cfgMgr, ident, cfgs := makeAndLoadConfigs()
-						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), ident, cfgs)
 						checkErr("importing state", mgr.ImportState(r))
 						logger.Info("state successfully imported.  Make sure all peers have consistent states")
 						return nil
@@ -515,7 +513,6 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 						},
 						cli.StringFlag{
 							Name:  "consensus",
-							Value: "raft",
 							Usage: "consensus component to export data from [raft, crdt]",
 						},
 					},

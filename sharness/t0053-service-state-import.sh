@@ -14,13 +14,13 @@ cluster_kill
 test_expect_success IPFS,CLUSTER "state import fails on incorrect format" '
     sleep 5 &&
     echo "not exactly json" > badImportFile &&
-    test_expect_code 1 ipfs-cluster-service --config "test-config" state import -f badImportFile
+    test_expect_code 1 ipfs-cluster-service --config "test-config" state import --consensus crdt -f badImportFile
 '
 
 test_expect_success IPFS,CLUSTER,IMPORTSTATE "state import succeeds on correct format" '
     sleep 5
     cid=`docker exec ipfs sh -c "echo test_53 | ipfs add -q"` &&
-    ipfs-cluster-service --debug --config "test-config" state import -f importState &&
+    ipfs-cluster-service --debug --config "test-config" state import --consensus crdt -f importState &&
     cluster_start &&
     sleep 5 &&
     ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid" &&
