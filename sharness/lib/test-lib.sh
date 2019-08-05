@@ -80,7 +80,7 @@ test_cluster_init() {
     if [ -n "$custom_config_files" ]; then
         cp -f ${custom_config_files}/* "test-config"
     fi
-    cluster_start
+    cluster_start $2
 }
 
 test_cluster_config() {
@@ -114,15 +114,19 @@ test_confirm_importState() {
 }
 
 cluster_kill(){
-    kill -1 "$CLUSTER_D_PID" &>/dev/null
+    pkill -1 -f ipfs-cluster-service
     while pgrep ipfs-cluster-service >/dev/null; do
         sleep 0.2
     done
 }
 
 cluster_start(){
-    ipfs-cluster-service --config "test-config" daemon --consensus crdt >"$IPFS_OUTPUT" 2>&1 &
-    export CLUSTER_D_PID=$!
+    consensus="$1"
+    if [ -z "$consensus" ]; then
+        consensus="crdt"
+    fi
+
+    ipfs-cluster-service --config "test-config" daemon --consensus "$consensus" >"$IPFS_OUTPUT" 2>&1 &
     while ! curl -s 'localhost:9095/api/v0/version' >/dev/null; do
         sleep 0.2
     done
