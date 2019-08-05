@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	merkledag "github.com/ipfs/go-merkledag"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -340,7 +339,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 				Key: Cid4,
 			},
 			{
-				Error: merkledag.ErrLinkNotFound.Error(),
+				Error: "no link by that name",
 			},
 		}
 
