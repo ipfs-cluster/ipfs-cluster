@@ -135,9 +135,9 @@ type Config struct {
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
 
-	// AuthorizationCacheSpan is the duration upto which a set of peer, service
-	// name and service method will be considered to be not trusting current
-	// peer, if an rpc request failed because of authorization error.
+	// AuthorizationCacheSpan is the duration upto which a peer will be
+	// considered to be not trusting current peer, if an rpc request failed
+	// because of authorization error.
 	AuthorizationCacheSpan time.Duration
 
 	// Tracing flag used to skip tracing specific paths when not enabled.

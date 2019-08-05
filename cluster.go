@@ -26,6 +26,7 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/whyrusleeping/timecache"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 	trace "go.opencensus.io/trace"
@@ -43,74 +44,6 @@ const (
 	reBootstrapInterval = 30 * time.Second
 )
 
-type rpcClientWrapper struct {
-	rpcClient *rpc.Client
-	tc        *TimeCache
-}
-
-func (rpcW *rpcClientWrapper) CallContext(
-	ctx context.Context,
-	dest peer.ID,
-	svcName, svcMethod string,
-	args, reply interface{},
-) error {
-	authErr := fmt.Sprintf("client does not have permissions to this method, service name: %s, method name: %s", svcName, svcMethod)
-	if rpcW.tc.Has(dest, svcName+svcMethod) {
-		logger.Debugf("avoiding the request since it was unauthorized recently: peer %s, service name: %s, method name: %s", dest, svcName, svcMethod)
-		return errors.New(authErr)
-	}
-
-	err := rpcW.rpcClient.CallContext(ctx, dest, svcName, svcMethod, args, reply)
-	if err != nil && err.Error() == authErr {
-		rpcW.tc.Add(dest, svcName+svcMethod)
-	}
-
-	return err
-}
-
-func (rpcW *rpcClientWrapper) MultiCall(
-	ctxs []context.Context,
-	dests []peer.ID,
-	svcName, svcMethod string,
-	args interface{},
-	replies []interface{},
-) []error {
-
-	if rpcW.tc == nil {
-		return rpcW.rpcClient.MultiCall(ctxs, dests, svcName, svcMethod, args, replies)
-	}
-
-	ok := checkMatchingLengths(
-		len(ctxs),
-		len(dests),
-		len(replies),
-	)
-
-	if !ok {
-		panic("ctxs, dests and replies must match in length")
-	}
-
-	var wg sync.WaitGroup
-	errs := make([]error, len(dests), len(dests))
-
-	for i := range dests {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			err := rpcW.CallContext(
-				ctxs[i],
-				dests[i],
-				svcName,
-				svcMethod,
-				args,
-				replies[i])
-			errs[i] = err
-		}(i)
-	}
-	wg.Wait()
-	return errs
-}
-
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
@@ -125,8 +58,9 @@ type Cluster struct {
 
 	rpcServer   *rpc.Server
 	rpcClient   *rpc.Client
-	rpcW        *rpcClientWrapper
 	peerManager *pstoremgr.Manager
+
+	tc *timecache.TimeCache
 
 	consensus Consensus
 	apis      []API
@@ -244,10 +178,7 @@ func NewCluster(
 	}
 	c.setupRPCClients()
 
-	c.rpcW = &rpcClientWrapper{
-		rpcClient: c.rpcClient,
-		tc:        NewTimeCache(c.config.AuthorizationCacheSpan),
-	}
+	c.tc = timecache.NewTimeCache(c.config.AuthorizationCacheSpan)
 
 	// Note: It is very important to first call Add() once in a non-racy
 	// place
@@ -1531,7 +1462,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
-	errs := c.rpcW.MultiCall(
+	errs := c.multiCallWrapper(
 		ctxs,
 		members,
 		"Cluster",
@@ -1580,7 +1511,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
-	errs := c.rpcW.MultiCall(
+	errs := c.multiCallWrapper(
 		ctxs,
 		members,
 		comp,
@@ -1637,7 +1568,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
-	errs := c.rpcW.MultiCall(
+	errs := c.multiCallWrapper(
 		ctxs,
 		members,
 		comp,
@@ -1811,4 +1742,51 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 		}
 	}
 	return
+}
+
+func (c *Cluster) multiCallWrapper(
+	ctxs []context.Context,
+	dests []peer.ID,
+	svcName, svcMethod string,
+	args interface{},
+	replies []interface{}) []error {
+
+	if !checkMatchingLengths(len(ctxs), len(dests), len(replies)) {
+		panic("ctxs, dests and replies must match in length")
+	}
+
+	errs := make([]error, len(dests))
+	var actualCtxs []context.Context
+	var actualDests []peer.ID
+	var actualReplies []interface{}
+
+	authErr := fmt.Sprintf("client does not have permissions to this method, service name: %s, method name: %s", svcName, svcMethod)
+
+	for i, p := range dests {
+		if c.tc.Has(peer.IDB58Encode(p)) {
+			logger.Warningf("avoiding the request since it was unauthorized recently: peer %s, service name: %s, method name: %s", dests[i], svcName, svcMethod)
+			errs[i] = errors.New(authErr)
+			continue
+		}
+		actualCtxs = append(actualCtxs, ctxs[i])
+		actualDests = append(actualDests, dests[i])
+		actualReplies = append(actualReplies, replies[i])
+	}
+
+	actualErrors := c.rpcClient.MultiCall(actualCtxs, actualDests, svcName, svcMethod, args, actualReplies)
+
+	k := 0
+	for i, e := range errs {
+		if e != nil {
+			continue
+		}
+
+		if actualErrors[k] != nil && actualErrors[k].Error() == authErr {
+			c.tc.Add(peer.IDB58Encode(dests[i]))
+		}
+		errs[i] = actualErrors[k]
+		k++
+	}
+
+	return errs
 }
