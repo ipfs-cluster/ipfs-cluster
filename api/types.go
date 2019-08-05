@@ -814,7 +814,7 @@ func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
 	Data    []byte  `codec:"d,omitempty"`
-	Cid     cid.Cid `codec:"c, omitempty"`
+	Cid     cid.Cid `codec:"c,omitempty"`
 	CumSize uint64  `codec:"s,omitempty"` // Cumulative size
 	Format  string  `codec:"f,omitempty"`
 }

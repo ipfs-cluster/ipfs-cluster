@@ -22,7 +22,6 @@ var (
 	ShardingDirBalancedRootCID        = "QmdHXJgxeCFf6qDZqYYmMesV2DbZCVPEdEhj2oVTxP1y7Y"
 	ShardingDirBalancedRootCIDWrapped = "QmbfGRPTUd7L1xsAZZ1A3kUFP1zkEZ9kHdb6AGaajBzGGX"
 	ShardingDirTrickleRootCID         = "QmYMbx56GFNBDAaAMchtjmWjDTdqNKCSGuFxtRosiPgJL6"
-
 	// These hashes should match all the blocks produced when adding
 	// the files resulting from GetShardingDir*
 	// They have been obtained by adding the "shardTesting" folder

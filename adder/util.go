@@ -14,31 +14,83 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
-// PutBlock sends a NodeWithMeta to the given destinations.
-func PutBlock(ctx context.Context, rpc *rpc.Client, n *api.NodeWithMeta, dests []peer.ID) error {
-	format, ok := cid.CodecToStr[n.Cid.Type()]
+// BlockAdder implements "github.com/ipfs/go-ipld-format".NodeAdder.
+// It is efficient because it doesn't try failed peers again as long as
+// block is stored with at least one peer.
+type BlockAdder struct {
+	dests     []peer.ID
+	rpcClient *rpc.Client
+}
+
+// NewBlockAdder creates a BlockAdder given an rpc client and allocation peers.
+func NewBlockAdder(rpcClient *rpc.Client, dests []peer.ID) *BlockAdder {
+	return &BlockAdder{
+		dests:     dests,
+		rpcClient: rpcClient,
+	}
+}
+
+// Add puts an ipld node to allocated destinations.
+func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
+	size, err := node.Size()
+	if err != nil {
+		logger.Warning(err)
+	}
+	nodeSerial := &api.NodeWithMeta{
+		Cid:     node.Cid(),
+		Data:    node.RawData(),
+		CumSize: size,
+	}
+
+	format, ok := cid.CodecToStr[nodeSerial.Cid.Type()]
 	if !ok {
 		format = ""
 		logger.Warning("unsupported cid type, treating as v0")
 	}
-	if n.Cid.Prefix().Version == 0 {
+	if nodeSerial.Cid.Prefix().Version == 0 {
 		format = "v0"
 	}
-	n.Format = format
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(dests))
+	nodeSerial.Format = format
+	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(ba.dests))
 	defer rpcutil.MultiCancel(cancels)
 
-	logger.Debugf("block put %s to %s", n.Cid, dests)
-	errs := rpc.MultiCall(
+	logger.Debugf("block put %s to %s", nodeSerial.Cid, ba.dests)
+	errs := ba.rpcClient.MultiCall(
 		ctxs,
-		dests,
+		ba.dests,
 		"IPFSConnector",
 		"BlockPut",
-		n,
-		rpcutil.RPCDiscardReplies(len(dests)),
+		nodeSerial,
+		rpcutil.RPCDiscardReplies(len(ba.dests)),
 	)
-	return rpcutil.CheckErrs(errs)
+
+	var actDests []peer.ID
+	for i, e := range errs {
+		if rpc.IsAuthorizationError(e) || rpc.IsServerError(e) {
+			continue
+		}
+		actDests = append(actDests, ba.dests[i])
+	}
+
+	if len(actDests) == 0 {
+		// request to all peers failed
+		return fmt.Errorf("could not put block on any peer: %s", rpcutil.CheckErrs(errs))
+	}
+
+	ba.dests = actDests
+	return nil
+}
+
+// AddMany puts multiple ipld nodes to allocated destinations.
+func (ba *BlockAdder) AddMany(ctx context.Context, nodes []ipld.Node) error {
+	for _, node := range nodes {
+		err := ba.Add(ctx, node)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // BlockAllocate helps allocating blocks to peers.
