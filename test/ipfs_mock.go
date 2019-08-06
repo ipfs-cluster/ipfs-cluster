@@ -323,7 +323,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Write(data)
 	case "repo/gc":
-		// It assumes `/repo/gc` with parameter `stream-errors=true`
+		streamErrors := r.URL.Query().Get("stream-errors")
 		enc := json.NewEncoder(w)
 		resp := []mockRepoGCResp{
 			{
@@ -341,6 +341,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			{
 				Error: "no link by that name",
 			},
+		}
+
+		if streamErrors != "true" {
+			resp = resp[:4]
 		}
 
 		for _, r := range resp {

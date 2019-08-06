@@ -18,7 +18,10 @@ import (
 
 // ErrBadCid is returned when using ErrorCid. Operations with that CID always
 // fail.
-var ErrBadCid = errors.New("this is an expected error when using ErrorCid")
+var (
+	ErrBadCid       = errors.New("this is an expected error when using ErrorCid")
+	ErrLinkNotFound = errors.New("no link by that name")
+)
 
 // NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
 // a client to it.
@@ -324,6 +327,18 @@ func (mock *mockCluster) RepoGCLocal(ctx context.Context, in struct{}, out *api.
 		Keys: []api.IPFSRepoGC{
 			{
 				Key: Cid1,
+			},
+			{
+				Key: Cid2,
+			},
+			{
+				Key: Cid3,
+			},
+			{
+				Key: Cid4,
+			},
+			{
+				Error: ErrLinkNotFound.Error(),
 			},
 		},
 	}
