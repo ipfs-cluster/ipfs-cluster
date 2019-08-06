@@ -10,7 +10,8 @@ test_expect_success "cluster-service init with --peers succeeds and fills peerst
     echo $PEER1 >> testPeerstore
     echo $PEER2 >> testPeerstore
     ipfs-cluster-service --config "test-config" init --peers $PEER1,$PEER2 &&
-    test_cmp testPeerstore test-config/peerstore
+    grep -q $PEER1 test-config/peerstore &&
+    grep -q $PEER2 test-config/peerstore
 '
 
 test_expect_success "cluster-service init without --peers succeeds and creates empty peerstore" '
