@@ -8,15 +8,14 @@ import (
 	"time"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
+	"github.com/ipfs/ipfs-cluster/cmdutils"
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
-	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
@@ -62,35 +61,36 @@ func daemon(c *cli.Context) error {
 	defer locker.tryUnlock()
 
 	// Load all the configurations and identity
-	cfgMgr, ident, cfgs := makeAndLoadConfigs()
+	cfgHelper := loadConfigHelper()
+	defer cfgHelper.Manager().Shutdown()
 
-	defer cfgMgr.Shutdown()
+	cfgs := cfgHelper.Configs()
 
-	if len(bootstraps) > 0 && !c.Bool("no-trust") {
-		cfgs.crdtCfg.TrustedPeers = append(cfgs.crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
+	if !c.Bool("no-trust") {
+		crdtCfg := cfgs.Crdt
+		crdtCfg.TrustedPeers = append(crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
 	}
 
 	if c.Bool("stats") {
-		cfgs.metricsCfg.EnableStats = true
+		cfgs.Metrics.EnableStats = true
 	}
-
-	cfgs = propagateTracingConfig(ident, cfgs, c.Bool("tracing"))
+	cfgHelper.SetupTracing(c.Bool("tracing"))
 
 	// Cleanup state if bootstrapping
 	raftStaging := false
 	if len(bootstraps) > 0 && c.String("consensus") == "raft" {
-		raft.CleanupRaft(cfgs.raftCfg)
+		raft.CleanupRaft(cfgs.Raft)
 		raftStaging = true
 	}
 
 	if c.Bool("leave") {
-		cfgs.clusterCfg.LeaveOnShutdown = true
+		cfgs.Cluster.LeaveOnShutdown = true
 	}
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, ident, cfgs.clusterCfg)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
 	checkErr("creating libp2p host", err)
 
-	cluster, err := createCluster(ctx, c, cfgMgr, host, pubsub, dht, ident, cfgs, raftStaging)
+	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -109,55 +109,57 @@ func daemon(c *cli.Context) error {
 func createCluster(
 	ctx context.Context,
 	c *cli.Context,
-	cfgMgr *config.Manager,
+	cfgHelper *cmdutils.ConfigHelper,
 	host host.Host,
 	pubsub *pubsub.PubSub,
 	dht *dht.IpfsDHT,
-	ident *config.Identity,
-	cfgs *cfgs,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
+
+	cfgs := cfgHelper.Configs()
+	cfgMgr := cfgHelper.Manager()
 
 	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
 	checkErr("tag context with host id", err)
 
-	api, err := rest.NewAPIWithHost(ctx, cfgs.apiCfg, host)
-	checkErr("creating REST API component", err)
+	var apis []ipfscluster.API
+	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Restapi.ConfigKey()) {
+		rest, err := rest.NewAPIWithHost(ctx, cfgs.Restapi, host)
+		checkErr("creating REST API component", err)
+		apis = append(apis, rest)
+	}
 
-	apis := []ipfscluster.API{api}
-	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.ipfsproxyCfg.ConfigKey()) {
-		proxy, err := ipfsproxy.New(cfgs.ipfsproxyCfg)
+	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Ipfsproxy.ConfigKey()) {
+		proxy, err := ipfsproxy.New(cfgs.Ipfsproxy)
 		checkErr("creating IPFS Proxy component", err)
 
 		apis = append(apis, proxy)
 	}
 
-	connector, err := ipfshttp.NewConnector(cfgs.ipfshttpCfg)
+	connector, err := ipfshttp.NewConnector(cfgs.Ipfshttp)
 	checkErr("creating IPFS Connector component", err)
 
 	tracker := setupPinTracker(
 		c.String("pintracker"),
 		host,
-		cfgs.maptrackerCfg,
-		cfgs.statelessTrackerCfg,
-		cfgs.clusterCfg.Peername,
+		cfgs.Maptracker,
+		cfgs.Statelesstracker,
+		cfgs.Cluster.Peername,
 	)
 
-	informer, alloc := setupAllocation(
-		c.String("alloc"),
-		cfgs.diskInfCfg,
-		cfgs.numpinInfCfg,
-	)
+	informer, err := disk.NewInformer(cfgs.Diskinf)
+	checkErr("creating disk informer", err)
+	alloc := descendalloc.NewAllocator()
 
-	ipfscluster.ReadyTimeout = cfgs.raftCfg.WaitForLeaderTimeout + 5*time.Second
+	ipfscluster.ReadyTimeout = cfgs.Raft.WaitForLeaderTimeout + 5*time.Second
 
-	err = observations.SetupMetrics(cfgs.metricsCfg)
+	err = observations.SetupMetrics(cfgs.Metrics)
 	checkErr("setting up Metrics", err)
 
-	tracer, err := observations.SetupTracing(cfgs.tracingCfg)
+	tracer, err := observations.SetupTracing(cfgs.Tracing)
 	checkErr("setting up Tracing", err)
 
-	store := setupDatastore(c.String("consensus"), ident, cfgs)
+	store := setupDatastore(c.String("consensus"), cfgHelper.Identity(), cfgs)
 
 	cons, err := setupConsensus(
 		c.String("consensus"),
@@ -178,7 +180,7 @@ func createCluster(
 		peersF = cons.Peers
 	}
 
-	mon, err := pubsubmon.New(ctx, cfgs.pubsubmonCfg, pubsub, peersF)
+	mon, err := pubsubmon.New(ctx, cfgs.Pubsubmon, pubsub, peersF)
 	if err != nil {
 		store.Close()
 		checkErr("setting up PeerMonitor", err)
@@ -188,7 +190,7 @@ func createCluster(
 		ctx,
 		host,
 		dht,
-		cfgs.clusterCfg,
+		cfgs.Cluster,
 		store,
 		cons,
 		apis,
@@ -268,31 +270,6 @@ Note that this may corrupt the local cluster state.
 	}
 }
 
-func setupAllocation(
-	name string,
-	diskInfCfg *disk.Config,
-	numpinInfCfg *numpin.Config,
-) (ipfscluster.Informer, ipfscluster.PinAllocator) {
-	switch name {
-	case "disk", "disk-freespace":
-		informer, err := disk.NewInformer(diskInfCfg)
-		checkErr("creating informer", err)
-		return informer, descendalloc.NewAllocator()
-	case "disk-reposize":
-		informer, err := disk.NewInformer(diskInfCfg)
-		checkErr("creating informer", err)
-		return informer, ascendalloc.NewAllocator()
-	case "numpin", "pincount":
-		informer, err := numpin.NewInformer(numpinInfCfg)
-		checkErr("creating informer", err)
-		return informer, ascendalloc.NewAllocator()
-	default:
-		err := errors.New("unknown allocation strategy")
-		checkErr("", err)
-		return nil, nil
-	}
-}
-
 func setupPinTracker(
 	name string,
 	h host.Host,
@@ -319,9 +296,10 @@ func setupPinTracker(
 func setupDatastore(
 	consensus string,
 	ident *config.Identity,
-	cfgs *cfgs,
+	cfgs *cmdutils.Configs,
 ) ds.Datastore {
-	stmgr := newStateManager(consensus, ident, cfgs)
+	stmgr, err := cmdutils.NewStateManager(consensus, ident, cfgs)
+	checkErr("creating state manager", err)
 	store, err := stmgr.GetStore()
 	checkErr("creating datastore", err)
 	return store
@@ -332,7 +310,7 @@ func setupConsensus(
 	h host.Host,
 	dht *dht.IpfsDHT,
 	pubsub *pubsub.PubSub,
-	cfgs *cfgs,
+	cfgs *cmdutils.Configs,
 	store ds.Datastore,
 	raftStaging bool,
 ) (ipfscluster.Consensus, error) {
@@ -340,7 +318,7 @@ func setupConsensus(
 	case "raft":
 		rft, err := raft.NewConsensus(
 			h,
-			cfgs.raftCfg,
+			cfgs.Raft,
 			store,
 			raftStaging,
 		)
@@ -353,7 +331,7 @@ func setupConsensus(
 			h,
 			dht,
 			pubsub,
-			cfgs.crdtCfg,
+			cfgs.Crdt,
 			store,
 		)
 		if err != nil {

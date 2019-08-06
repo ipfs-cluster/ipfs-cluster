@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"path/filepath"
 	"sync"
 	"time"
@@ -103,6 +104,8 @@ type Manager struct {
 
 	// store originally parsed jsonConfig
 	jsonCfg *jsonConfig
+	// stores original source if any
+	Source string
 
 	// map of components which has empty configuration
 	// in JSON file
@@ -174,7 +177,8 @@ func (cfg *Manager) watchSave(save <-chan struct{}) {
 // saved using json. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type jsonConfig struct {
-	Cluster      *json.RawMessage `json:"cluster"`
+	Source       string           `json:"source,omitempty"`
+	Cluster      *json.RawMessage `json:"cluster,omitempty"`
 	Consensus    jsonSection      `json:"consensus,omitempty"`
 	API          jsonSection      `json:"api,omitempty"`
 	IPFSConn     jsonSection      `json:"ipfs_connector,omitempty"`
@@ -336,6 +340,26 @@ func (cfg *Manager) LoadJSONFromFile(path string) error {
 	return err
 }
 
+// LoadJSONFromHTTPSource reads a Configuration file from a URL and parses it.
+func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
+	logger.Infof("loading configuration from %s", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	err = cfg.LoadJSON(body)
+	if err != nil {
+		return err
+	}
+	cfg.Source = url
+	return nil
+}
+
 // LoadJSONFileAndEnv calls LoadJSONFromFile followed by ApplyEnvVars,
 // reading and parsing a Configuration file and then overriding fields
 // with any values found in environment variables.
@@ -361,6 +385,10 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	}
 
 	cfg.jsonCfg = jcfg
+	// Handle remote source
+	if jcfg.Source != "" {
+		return cfg.LoadJSONFromHTTPSource(jcfg.Source)
+	}
 
 	// Load Cluster section. Needs to have been registered
 	if cfg.clusterConfig != nil && jcfg.Cluster != nil {
@@ -444,6 +472,10 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.Source != "" {
+		return DefaultJSONMarshal(&jsonConfig{Source: cfg.Source})
 	}
 
 	jcfg := cfg.jsonCfg

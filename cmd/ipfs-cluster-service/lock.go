@@ -7,6 +7,7 @@ import (
 	"path"
 
 	fslock "github.com/ipfs/go-fs-lock"
+	"github.com/ipfs/ipfs-cluster/cmdutils"
 )
 
 // lock logic heavily inspired by go-ipfs/repo/fsrepo/lock/lock.go
@@ -28,7 +29,8 @@ func (l *lock) lock() {
 	}
 
 	// we should have a config folder whenever we try to lock
-	makeConfigFolder()
+	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath)
+	cfgHelper.MakeConfigFolder()
 
 	// set the lock file within this function
 	logger.Debug("checking lock")
