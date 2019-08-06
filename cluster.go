@@ -44,6 +44,21 @@ const (
 	reBootstrapInterval = 30 * time.Second
 )
 
+var authMsg = "avoiding request to this peer since it unauthorized recently"
+
+type skipErr struct {
+	peer peer.ID
+}
+
+func (s *skipErr) Error() string {
+	return fmt.Sprintf("%s, peer: %s", authMsg, s.peer)
+}
+
+func isSkipErr(e error) bool {
+	_, ok := e.(*skipErr)
+	return ok
+}
+
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
 type Cluster struct {
@@ -60,7 +75,7 @@ type Cluster struct {
 	rpcClient   *rpc.Client
 	peerManager *pstoremgr.Manager
 
-	tc *timecache.TimeCache
+	unauthPeerTimeCache *timecache.TimeCache
 
 	consensus Consensus
 	apis      []API
@@ -178,7 +193,7 @@ func NewCluster(
 	}
 	c.setupRPCClients()
 
-	c.tc = timecache.NewTimeCache(c.config.AuthorizationCacheSpan)
+	c.unauthPeerTimeCache = timecache.NewTimeCache(c.config.UnauthorizedRequestCacheSpan)
 
 	// Note: It is very important to first call Add() once in a non-racy
 	// place
@@ -1479,7 +1494,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 			continue
 		}
 
-		if rpc.IsAuthorizationError(err) {
+		if rpc.IsAuthorizationError(err) || isSkipErr(err) {
 			continue
 		}
 
@@ -1529,7 +1544,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			continue
 		}
 
-		if rpc.IsAuthorizationError(e) {
+		if rpc.IsAuthorizationError(e) || isSkipErr(e) {
 			logger.Debug("rpc auth error:", e)
 			continue
 		}
@@ -1599,7 +1614,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
-			if rpc.IsAuthorizationError(e) {
+			if rpc.IsAuthorizationError(e) || isSkipErr(e) {
 				logger.Debug("rpc auth error", e)
 				continue
 			}
@@ -1760,12 +1775,9 @@ func (c *Cluster) multiCallWrapper(
 	var actualDests []peer.ID
 	var actualReplies []interface{}
 
-	authErr := fmt.Sprintf("client does not have permissions to this method, service name: %s, method name: %s", svcName, svcMethod)
-
 	for i, p := range dests {
-		if c.tc.Has(peer.IDB58Encode(p)) {
-			logger.Warningf("avoiding the request since it was unauthorized recently: peer %s, service name: %s, method name: %s", dests[i], svcName, svcMethod)
-			errs[i] = errors.New(authErr)
+		if c.unauthPeerTimeCache.Has(string(p)) {
+			errs[i] = fmt.Errorf("%s, peer: %s", authMsg, dests[i])
 			continue
 		}
 		actualCtxs = append(actualCtxs, ctxs[i])
@@ -1781,8 +1793,8 @@ func (c *Cluster) multiCallWrapper(
 			continue
 		}
 
-		if actualErrors[k] != nil && actualErrors[k].Error() == authErr {
-			c.tc.Add(peer.IDB58Encode(dests[i]))
+		if rpc.IsAuthorizationError(actualErrors[k]) {
+			c.unauthPeerTimeCache.Add(string(dests[i]))
 		}
 		errs[i] = actualErrors[k]
 		k++
