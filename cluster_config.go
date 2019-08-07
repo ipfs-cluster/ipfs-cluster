@@ -135,8 +135,10 @@ type Config struct {
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
 
-	// UnauthorizedRequestCacheSpan is the duration upto which keys would be
-	// kept in unauthPeerTimeCache.
+	// UnauthorizedRequestCacheSpan is the duration after which peers would be
+	// removed from unauthPeerTimeCache. Certain rpc requests (Status,
+	// StatusAll, Sync, SyncAll, Recover) are not performed to peers present in
+	// unauthPeerTimeCache.
 	UnauthorizedRequestCacheSpan time.Duration
 
 	// Tracing flag used to skip tracing specific paths when not enabled.
