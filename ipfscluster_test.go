@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1896,4 +1897,85 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	if numPinned != nClusters-2 {
 		t.Errorf("expected %d replicas for pin, got %d", nClusters-2, numPinned)
 	}
+}
+
+func TestClustersFollowerMode(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	_, err := clusters[0].Pin(ctx, test.Cid1, api.PinOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = clusters[0].Pin(ctx, test.ErrorCid, api.PinOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Let the pins arrive
+	pinDelay()
+
+	// Set Cluster1 to follower mode
+	clusters[1].config.FollowerMode = true
+
+	t.Run("follower cannot pin", func(t *testing.T) {
+		_, err := clusters[1].PinPath(ctx, "/ipfs/"+test.Cid2.String(), api.PinOptions{})
+		if err != errFollowerMode {
+			t.Error("expected follower mode error")
+		}
+		_, err = clusters[1].Pin(ctx, test.Cid2, api.PinOptions{})
+		if err != errFollowerMode {
+			t.Error("expected follower mode error")
+		}
+	})
+
+	t.Run("follower cannot unpin", func(t *testing.T) {
+		_, err := clusters[1].UnpinPath(ctx, "/ipfs/"+test.Cid1.String())
+		if err != errFollowerMode {
+			t.Error("expected follower mode error")
+		}
+		_, err = clusters[1].Unpin(ctx, test.Cid1)
+		if err != errFollowerMode {
+			t.Error("expected follower mode error")
+		}
+	})
+
+	t.Run("follower cannot add", func(t *testing.T) {
+		sth := test.NewShardingTestHelper()
+		defer sth.Clean(t)
+		params := api.DefaultAddParams()
+		params.Shard = false
+		params.Name = "testlocal"
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		r := multipart.NewReader(mfr, mfr.Boundary())
+		_, err = clusters[1].AddFile(r, params)
+		if err != errFollowerMode {
+			t.Error("expected follower mode error")
+		}
+	})
+
+	t.Run("follower syncs itself", func(t *testing.T) {
+		gpis, err := clusters[1].SyncAll(ctx)
+		if err != nil {
+			t.Error("sync should work")
+		}
+		if len(gpis) != 1 {
+			t.Fatal("globalPinInfo should have 1 pins (in error)")
+		}
+		if len(gpis[0].PeerMap) != 1 {
+			t.Fatal("globalPinInfo[0] should only have one peer")
+		}
+	})
+
+	t.Run("follower status itself only", func(t *testing.T) {
+		gpi, err := clusters[1].Status(ctx, test.Cid1)
+		if err != nil {
+			t.Error("status should work")
+		}
+		if len(gpi.PeerMap) != 1 {
+			t.Fatal("globalPinInfo should only have one peer")
+		}
+	})
 }
