@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	errFollowerMode = errors.New("this peer is configured as in follower mode. Write operations are disabled")
+	errFollowerMode = errors.New("this peer is configured to be in follower mode. Write operations are disabled")
 )
 
 // Cluster is the main IPFS cluster component. It provides
