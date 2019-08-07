@@ -1975,7 +1975,7 @@ func TestClustersFollowerMode(t *testing.T) {
 			t.Error("status should work")
 		}
 		if len(gpi.PeerMap) != 1 {
-			t.Fatal("globalPinInfo[0] should only have one peer")
+			t.Fatal("globalPinInfo should only have one peer")
 		}
 	})
 }
