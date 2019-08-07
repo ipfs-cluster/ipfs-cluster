@@ -44,20 +44,7 @@ const (
 	reBootstrapInterval = 30 * time.Second
 )
 
-var authMsg = "avoiding request to this peer since it unauthorized recently"
-
-type skipErr struct {
-	peer peer.ID
-}
-
-func (s *skipErr) Error() string {
-	return fmt.Sprintf("%s, peer: %s", authMsg, s.peer)
-}
-
-func isSkipErr(e error) bool {
-	_, ok := e.(*skipErr)
-	return ok
-}
+var errUnauthPeerCache = errors.New("avoiding request to this peer since it unauthorized recently")
 
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
@@ -1477,7 +1464,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
-	errs := c.multiCallWrapper(
+	errs := c.rpcClient.MultiCall(
 		ctxs,
 		members,
 		"Cluster",
@@ -1494,7 +1481,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 			continue
 		}
 
-		if rpc.IsAuthorizationError(err) || isSkipErr(err) {
+		if rpc.IsAuthorizationError(err) {
 			continue
 		}
 
@@ -1544,7 +1531,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			continue
 		}
 
-		if rpc.IsAuthorizationError(e) || isSkipErr(e) {
+		if rpc.IsAuthorizationError(e) || e == errUnauthPeerCache {
 			logger.Debug("rpc auth error:", e)
 			continue
 		}
@@ -1614,7 +1601,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	erroredPeers := make(map[peer.ID]string)
 	for i, r := range replies {
 		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
-			if rpc.IsAuthorizationError(e) || isSkipErr(e) {
+			if rpc.IsAuthorizationError(e) || e == errUnauthPeerCache {
 				logger.Debug("rpc auth error", e)
 				continue
 			}
@@ -1777,7 +1764,7 @@ func (c *Cluster) multiCallWrapper(
 
 	for i, p := range dests {
 		if c.unauthPeerTimeCache.Has(string(p)) {
-			errs[i] = fmt.Errorf("%s, peer: %s", authMsg, dests[i])
+			errs[i] = errUnauthPeerCache
 			continue
 		}
 		actualCtxs = append(actualCtxs, ctxs[i])
