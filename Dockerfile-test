@@ -6,6 +6,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 ENV GOPATH     /go
 ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
 ENV GO111MODULE on
+ENV GOPROXY=https://proxy.golang.org
 
 COPY . $SRC_PATH
 WORKDIR $SRC_PATH
