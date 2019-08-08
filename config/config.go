@@ -23,6 +23,8 @@ var logger = logging.Logger("config")
 // it needs saving.
 var ConfigSaveInterval = time.Second
 
+var errSourceRedirect = errors.New("a sourced configuration cannot point to another source")
+
 // The ComponentConfig interface allows components to define configurations
 // which can be managed as part of the ipfs-cluster configuration file by the
 // Manager.
@@ -106,6 +108,8 @@ type Manager struct {
 	jsonCfg *jsonConfig
 	// stores original source if any
 	Source string
+
+	sourceRedirs int // used avoid recursive source load
 
 	// map of components which has empty configuration
 	// in JSON file
@@ -352,6 +356,15 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	if err != nil {
 		return err
 	}
+
+	// Avoid recursively loading remote sources
+	if cfg.sourceRedirs > 0 {
+		return errors.New(errSourceRedirect)
+	}
+	cfg.sourceRedirs++
+	// make sure the counter is always reset when function done
+	defer func() { cfg.sourceRedirs = 0 }()
+
 	err = cfg.LoadJSON(body)
 	if err != nil {
 		return err

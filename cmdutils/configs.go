@@ -41,7 +41,8 @@ type Configs struct {
 	Badger           *badger.Config
 }
 
-// ConfigHelper helps loading configurations and identities from disk.
+// ConfigHelper helps managing the configuration and identity files with the
+// standard set of cluster components.
 type ConfigHelper struct {
 	identity *config.Identity
 	manager  *config.Manager
@@ -94,12 +95,13 @@ func (ch *ConfigHelper) LoadIdentityFromDisk() error {
 			ch.configPath,
 			ch.identityPath,
 		)
+	} else { // leave this part when the hack is removed.
+		err = ident.LoadJSONFromFile(ch.identityPath)
+		if err != nil {
+			return fmt.Errorf("error loading identity from %s: %s", ch.identityPath, err)
+		}
 	}
 
-	err = ident.LoadJSONFromFile(ch.identityPath)
-	if err != nil {
-		return fmt.Errorf("error loading identity from %s: %s", ch.identityPath, err)
-	}
 	err = ident.ApplyEnvVars()
 	if err != nil {
 		return errors.Wrap(err, "error applying environment variables to the identity")
@@ -129,9 +131,9 @@ func (ch *ConfigHelper) Manager() *config.Manager {
 	return ch.manager
 }
 
-// Configs returns the Configs object with holding all the
-// cluster configurations. Configurations are empty if they
-// have not been loaded from disk.
+// Configs returns the Configs object which holds all the cluster
+// configurations. Configurations are empty if they have not been loaded from
+// disk.
 func (ch *ConfigHelper) Configs() *Configs {
 	return ch.configs
 }
@@ -168,7 +170,7 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.Observations, cfgs.Tracing)
 	man.RegisterComponent(config.Datastore, cfgs.Badger)
 
-	ch.identity = &config.Identity{}
+	ch.identity = nil // explicitly not set until loaded.
 	ch.manager = man
 	ch.configs = cfgs
 }
@@ -208,10 +210,7 @@ func (ch *ConfigHelper) SaveIdentityToDisk() error {
 // configurations. Use only when identity has been loaded or generated.  The
 // forceEnabled parameter allows to override the EnableTracing value.
 func (ch *ConfigHelper) SetupTracing(forceEnabled bool) {
-	enabled := forceEnabled
-	if !enabled {
-		enabled = ch.configs.Tracing.EnableTracing
-	}
+	enabled := forceEnabled || ch.configs.Tracing.EnableTracing
 
 	ch.configs.Tracing.ClusterID = ch.Identity().ID.Pretty()
 	ch.configs.Tracing.ClusterPeername = ch.configs.Cluster.Peername

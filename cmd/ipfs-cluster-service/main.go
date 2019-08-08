@@ -251,11 +251,11 @@ multiaddresses.
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "custom-secret, s",
-					Usage: "prompt for the cluster secret",
+					Usage: "prompt for the cluster secret (when no source specified)",
 				},
 				cli.StringFlag{
 					Name:  "peers",
-					Usage: "comma-separated list of multiaddresses to init with",
+					Usage: "comma-separated list of multiaddresses to init with (see help)",
 				},
 				cli.BoolFlag{
 					Name:  "force, f",
@@ -305,7 +305,8 @@ multiaddresses.
 				checkErr("generating default configuration", err)
 				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)
-				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
+
+				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret") && !c.Args().Present())
 				// Set user secret
 				if userSecretDefined {
 					cfgHelper.Configs().Cluster.Secret = userSecret
@@ -609,7 +610,7 @@ func loadConfigHelper() *cmdutils.ConfigHelper {
 	// Load all the configurations and identity
 	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath)
 	err := cfgHelper.LoadFromDisk()
-	checkErr("loading configs", err)
+	checkErr("loading identity or configurations", err)
 	return cfgHelper
 }
 

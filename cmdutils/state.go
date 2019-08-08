@@ -30,7 +30,7 @@ type StateManager interface {
 }
 
 // NewStateManager returns an state manager implementation for the given
-// consensus ("raft" or "crdt"). It will need initialized configs
+// consensus ("raft" or "crdt"). It will need initialized configs.
 func NewStateManager(consensus string, ident *config.Identity, cfgs *Configs) (StateManager, error) {
 	switch consensus {
 	case "raft":
