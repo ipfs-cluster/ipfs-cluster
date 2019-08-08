@@ -7,15 +7,13 @@ test_description="Test init functionality"
 test_expect_success "cluster-service init with --peers succeeds and fills peerstore" '
     PEER1=/ip4/192.168.0.129/tcp/9196/ipfs/12D3KooWRN8KRjpyg9rsW2w7StbBRGper65psTZm68cjud9KAkaW
     PEER2=/ip4/192.168.0.129/tcp/9196/ipfs/12D3KooWPwrYNj7VficHw5qYidepMGA85756kYgMdNmRM9A1ZHjN
-    echo $PEER1 >> testPeerstore
-    echo $PEER2 >> testPeerstore
     ipfs-cluster-service --config "test-config" init --peers $PEER1,$PEER2 &&
     grep -q $PEER1 test-config/peerstore &&
     grep -q $PEER2 test-config/peerstore
 '
 
 test_expect_success "cluster-service init without --peers succeeds and creates empty peerstore" '
-    ipfs-cluster-service -f --config "test-config" init &&
+    ipfs-cluster-service --config "test-config" init -f &&
     [ -f "test-config/peerstore" ] &&
     [ ! -s "test-config/peerstore" ]
 '
