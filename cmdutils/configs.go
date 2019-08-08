@@ -110,7 +110,7 @@ func (ch *ConfigHelper) LoadIdentityFromDisk() error {
 	return nil
 }
 
-// LoadFromDisk loads both configuration and identity from disk
+// LoadFromDisk loads both configuration and identity from disk.
 func (ch *ConfigHelper) LoadFromDisk() error {
 	err := ch.LoadConfigFromDisk()
 	if err != nil {
