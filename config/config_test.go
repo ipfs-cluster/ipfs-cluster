@@ -1,55 +1,14 @@
-// Package config provides interfaces and utilities for different Cluster
-// components to register, read, write and validate configuration sections
-// stored in a central configuration file.
-package config_test
+package config
 
 import (
 	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
-
-	"github.com/ipfs/ipfs-cluster/config"
 )
 
-type mockCfg struct {
-	config.Saver
-}
-
-func (m *mockCfg) ConfigKey() string {
-	return "mock"
-}
-
-func (m *mockCfg) LoadJSON([]byte) error {
-	return nil
-}
-
-func (m *mockCfg) ToJSON() ([]byte, error) {
-	return []byte(`{"a":"b"}`), nil
-}
-
-func (m *mockCfg) Default() error {
-	return nil
-}
-
-func (m *mockCfg) ApplyEnvVars() error {
-	return nil
-}
-
-func (m *mockCfg) Validate() error {
-	return nil
-}
-
-func setupConfigManager() *config.Manager {
-	cfg := config.NewManager()
-	mockCfg := &mockCfg{}
-	cfg.RegisterComponent(config.Cluster, mockCfg)
-	for _, sect := range config.SectionTypes() {
-		cfg.RegisterComponent(sect, mockCfg)
-	}
-	return cfg
-}
-
-func TestManager_ToJSON(t *testing.T) {
-	want := []byte(`{
+var mockJSON = []byte(`{
   "cluster": {
     "a": "b"
   },
@@ -104,6 +63,46 @@ func TestManager_ToJSON(t *testing.T) {
     }
   }
 }`)
+
+type mockCfg struct {
+	Saver
+}
+
+func (m *mockCfg) ConfigKey() string {
+	return "mock"
+}
+
+func (m *mockCfg) LoadJSON([]byte) error {
+	return nil
+}
+
+func (m *mockCfg) ToJSON() ([]byte, error) {
+	return []byte(`{"a":"b"}`), nil
+}
+
+func (m *mockCfg) Default() error {
+	return nil
+}
+
+func (m *mockCfg) ApplyEnvVars() error {
+	return nil
+}
+
+func (m *mockCfg) Validate() error {
+	return nil
+}
+
+func setupConfigManager() *Manager {
+	cfg := NewManager()
+	mockCfg := &mockCfg{}
+	cfg.RegisterComponent(Cluster, mockCfg)
+	for _, sect := range SectionTypes() {
+		cfg.RegisterComponent(sect, mockCfg)
+	}
+	return cfg
+}
+
+func TestManager_ToJSON(t *testing.T) {
 	cfgMgr := setupConfigManager()
 	err := cfgMgr.Default()
 	if err != nil {
@@ -114,7 +113,66 @@ func TestManager_ToJSON(t *testing.T) {
 		t.Error(err)
 	}
 
-	if !bytes.Equal(got, want) {
-		t.Errorf("mismatch between got: %s and want: %s", got, want)
+	if !bytes.Equal(got, mockJSON) {
+		t.Errorf("mismatch between got: %s and want: %s", got, mockJSON)
+	}
+}
+
+func TestLoadFromHTTPSourceRedirect(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+		json := fmt.Sprintf(`{ "source" : "http://%s/config" }`, r.Host)
+		w.Write([]byte(json))
+	})
+	s := httptest.NewServer(mux)
+	defer s.Close()
+
+	cfgMgr := NewManager()
+	err := cfgMgr.LoadJSONFromHTTPSource(s.URL + "/config")
+	if err != errSourceRedirect {
+		t.Fatal("expected errSourceRedirect")
+	}
+}
+
+func TestLoadFromHTTPSource(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(mockJSON)
+	})
+	s := httptest.NewServer(mux)
+	defer s.Close()
+
+	cfgMgr := setupConfigManager()
+	err := cfgMgr.LoadJSONFromHTTPSource(s.URL + "/config")
+	if err != nil {
+		t.Fatal("unexpected error")
+	}
+
+	cfgMgr.Source = ""
+	newJSON, err := cfgMgr.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(newJSON, mockJSON) {
+		t.Error("generated json different than loaded")
+	}
+}
+
+func TestSaveWithSource(t *testing.T) {
+	cfgMgr := setupConfigManager()
+	cfgMgr.Default()
+	cfgMgr.Source = "http://a.b.c"
+	newJSON, err := cfgMgr.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := []byte(`{
+  "source": "http://a.b.c"
+}`)
+
+	if !bytes.Equal(newJSON, expected) {
+		t.Error("should have generated a source-only json")
 	}
 }

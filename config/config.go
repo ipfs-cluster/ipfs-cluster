@@ -359,7 +359,7 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 
 	// Avoid recursively loading remote sources
 	if cfg.sourceRedirs > 0 {
-		return errors.New(errSourceRedirect)
+		return errSourceRedirect
 	}
 	cfg.sourceRedirs++
 	// make sure the counter is always reset when function done
