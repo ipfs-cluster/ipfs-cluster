@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs/ipfs-cluster/cmdutils"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/version"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -28,7 +28,6 @@ const programName = `ipfs-cluster-service`
 
 // flag defaults
 const (
-	defaultAllocation = "disk-freespace"
 	defaultPinTracker = "map"
 	defaultLogLevel   = "info"
 )
@@ -222,12 +221,17 @@ func main() {
 This command will initialize a new %s configuration file and, if it
 does already exist, generate a new %s for %s.
 
-By default, %s requires a cluster secret. This secret will be
-automatically generated, but can be manually provided with --custom-secret
-(in which case it will be prompted), or by setting the CLUSTER_SECRET
-environment variable.
+If the optional [source-url] is given, the generated configuration file 
+will refer to it. The source configuration will be fetched from its source
+URL during the launch of the daemon. If not, a default standard configuration
+file will be created.
 
-Note that the --force first-level-flag allows to overwrite an existing
+In the latter case, a cluster secret will be generated as required by %s.
+Alternatively, this secret can be manually provided with --custom-secret (in
+which case it will be prompted), or by setting the CLUSTER_SECRET environment
+variable.
+
+Note that the --force flag allows to overwrite an existing
 configuration with default values. To generate a new identity, please
 remove the %s file first and clean any Raft state.
 
@@ -243,22 +247,24 @@ multiaddresses.
 				programName,
 				DefaultIdentityFile,
 			),
-			ArgsUsage: " ",
+			ArgsUsage: "[http-source-url]",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "custom-secret, s",
-					Usage: "prompt for the cluster secret",
+					Usage: "prompt for the cluster secret (when no source specified)",
 				},
 				cli.StringFlag{
 					Name:  "peers",
-					Usage: "comma-separated list of multiaddresses to init with",
+					Usage: "comma-separated list of multiaddresses to init with (see help)",
+				},
+				cli.BoolFlag{
+					Name:  "force, f",
+					Usage: "overwrite configuration without prompting",
 				},
 			},
 			Action: func(c *cli.Context) error {
-				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret"))
-
-				cfgMgr, cfgs := makeConfigs()
-				defer cfgMgr.Shutdown() // wait for saves
+				cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath)
+				defer cfgHelper.Manager().Shutdown() // wait for saves
 
 				configExists := false
 				if _, err := os.Stat(configPath); !os.IsNotExist(err) {
@@ -284,23 +290,26 @@ multiaddresses.
 					)
 
 					// --force allows override of the prompt
-					if !c.GlobalBool("force") {
+					if !c.Bool("force") {
 						if !yesNoPrompt(confirm) {
 							return nil
 						}
 					}
 				}
 
-				// Generate defaults for all registered components
-				err := cfgMgr.Default()
-				checkErr("generating default configuration", err)
+				// Set url. If exists, it will be the only thing saved.
+				cfgHelper.Manager().Source = c.Args().First()
 
-				err = cfgMgr.ApplyEnvVars()
+				// Generate defaults for all registered components
+				err := cfgHelper.Manager().Default()
+				checkErr("generating default configuration", err)
+				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)
 
+				userSecret, userSecretDefined := userProvidedSecret(c.Bool("custom-secret") && !c.Args().Present())
 				// Set user secret
 				if userSecretDefined {
-					cfgs.clusterCfg.Secret = userSecret
+					cfgHelper.Configs().Cluster.Secret = userSecret
 				}
 
 				peersOpt := c.String("peers")
@@ -316,29 +325,29 @@ multiaddresses.
 					}
 
 					peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
-					cfgs.crdtCfg.TrustedPeers = peers
-					cfgs.raftCfg.InitPeerset = peers
+					cfgHelper.Configs().Crdt.TrustedPeers = peers
+					cfgHelper.Configs().Raft.InitPeerset = peers
 				}
 
 				// Save config. Creates the folder.
 				// Sets BaseDir in components.
-				saveConfig(cfgMgr)
+				cfgHelper.SaveConfigToDisk()
 
 				if !identityExists {
-					// Create a new identity and save it
-					ident, err := config.NewIdentity()
+					ident := cfgHelper.Identity()
+					err := ident.Default()
 					checkErr("generating an identity", err)
 
 					err = ident.ApplyEnvVars()
 					checkErr("applying environment variables to the identity", err)
 
-					err = ident.SaveJSON(identityPath)
+					err = cfgHelper.SaveIdentityToDisk()
 					checkErr("saving "+DefaultIdentityFile, err)
 					out("new identity written to %s\n", identityPath)
 				}
 
 				// Initialize peerstore file - even if empty
-				peerstorePath := cfgs.clusterCfg.GetPeerstorePath()
+				peerstorePath := cfgHelper.Configs().Cluster.GetPeerstorePath()
 				peerManager := pstoremgr.New(context.Background(), nil, peerstorePath)
 				addrInfos, err := peer.AddrInfosFromP2pAddrs(multiAddrs...)
 				checkErr("getting AddrInfos from peer multiaddresses", err)
@@ -369,11 +378,6 @@ multiaddresses.
 				cli.StringFlag{
 					Name:  "consensus",
 					Usage: "shared state management provider [raft,crdt]",
-				},
-				cli.StringFlag{
-					Name:  "alloc, a",
-					Value: defaultAllocation,
-					Usage: "allocation strategy to use [disk-freespace,disk-reposize,numpin].",
 				},
 				cli.StringFlag{
 					Name:   "pintracker",
@@ -423,9 +427,7 @@ By default, the state will be printed to stdout.
 						locker.lock()
 						defer locker.tryUnlock()
 
-						cfgMgr, ident, cfgs := makeAndLoadConfigs()
-						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), ident, cfgs)
+						mgr := getStateManager(c.String("consensus"))
 
 						var w io.WriteCloser
 						var err error
@@ -476,9 +478,7 @@ to import. If no argument is provided, stdin will be used.
 							return nil
 						}
 
-						cfgMgr, ident, cfgs := makeAndLoadConfigs()
-						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), ident, cfgs)
+						mgr := getStateManager(c.String("consensus"))
 
 						// Get the importing file path
 						importFile := c.Args().First()
@@ -528,9 +528,7 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
-						cfgMgr, ident, cfgs := makeAndLoadConfigs()
-						defer cfgMgr.Shutdown()
-						mgr := newStateManager(c.String("consensus"), ident, cfgs)
+						mgr := getStateManager(c.String("consensus"))
 						checkErr("cleaning state", mgr.Clean())
 						logger.Info("data correctly cleaned up")
 						return nil
@@ -606,4 +604,25 @@ func yesNoPrompt(prompt string) bool {
 		fmt.Println("Please press either 'y' or 'n'")
 	}
 	return false
+}
+
+func loadConfigHelper() *cmdutils.ConfigHelper {
+	// Load all the configurations and identity
+	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath)
+	err := cfgHelper.LoadFromDisk()
+	checkErr("loading identity or configurations", err)
+	return cfgHelper
+}
+
+func getStateManager(consensus string) cmdutils.StateManager {
+	cfgHelper := loadConfigHelper()
+	// since we won't save configs we can shutdown
+	cfgHelper.Manager().Shutdown()
+	mgr, err := cmdutils.NewStateManager(
+		consensus,
+		cfgHelper.Identity(),
+		cfgHelper.Configs(),
+	)
+	checkErr("creating state manager,", err)
+	return mgr
 }

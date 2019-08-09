@@ -35,25 +35,30 @@ type identityJSON struct {
 	PrivateKey string `json:"private_key"`
 }
 
-// NewIdentity generate a public-private keypair and returns a new Identity.
+// NewIdentity returns a new random identity.
 func NewIdentity() (*Identity, error) {
+	ident := &Identity{}
+	err := ident.Default()
+	return ident, err
+}
+
+// Default generates a random keypair for this identity.
+func (ident *Identity) Default() error {
 	// pid and private key generation
 	priv, pub, err := crypto.GenerateKeyPair(
 		DefaultConfigCrypto,
 		DefaultConfigKeyLength,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	pid, err := peer.IDFromPublicKey(pub)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return &Identity{
-		ID:         pid,
-		PrivateKey: priv,
-	}, nil
+	ident.ID = pid
+	ident.PrivateKey = priv
+	return nil
 }
 
 // ConfigKey returns a human-readable string to identify
