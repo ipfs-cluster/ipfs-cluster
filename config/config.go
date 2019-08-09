@@ -423,7 +423,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 			logger.Debugf("%s component configuration loaded", name)
 		} else {
 			cfg.undefinedComps[t][name] = true
-			logger.Warningf("%s component is empty, generating default", name)
+			logger.Debugf("%s component is empty, generating default", name)
 			component.Default()
 		}
 

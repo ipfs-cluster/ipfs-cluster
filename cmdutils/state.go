@@ -33,12 +33,12 @@ type StateManager interface {
 // consensus ("raft" or "crdt"). It will need initialized configs.
 func NewStateManager(consensus string, ident *config.Identity, cfgs *Configs) (StateManager, error) {
 	switch consensus {
-	case "raft":
+	case cfgs.Raft.ConfigKey():
 		return &raftStateManager{ident, cfgs}, nil
-	case "crdt":
+	case cfgs.Crdt.ConfigKey():
 		return &crdtStateManager{ident, cfgs}, nil
 	case "":
-		return nil, errors.New("unspecified consensus component")
+		return nil, errors.New("could not determine the consensus component")
 	default:
 		return nil, fmt.Errorf("unknown consensus component '%s'", consensus)
 	}

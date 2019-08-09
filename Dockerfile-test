@@ -58,4 +58,4 @@ VOLUME $IPFS_CLUSTER_PATH
 ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]
 
 # Defaults would go here
-CMD ["daemon", "--upgrade"]
+CMD ["daemon"]
