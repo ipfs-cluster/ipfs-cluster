@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ const (
 	IpfsTimeHeaderName    = "X-Time-Now"
 	IpfsCustomHeaderValue = "42"
 	IpfsACAOrigin         = "myorigin"
+	IpfsErrFromNotPinned  = "'from' cid was not recursively pinned already"
 )
 
 // IpfsMock is an ipfs daemon mock which should sustain the functionality used by ipfscluster.
@@ -38,6 +40,11 @@ type IpfsMock struct {
 	Port       int
 	pinMap     state.State
 	BlockStore map[string][]byte
+	reqCounts  map[string]int
+	reqCounter chan string
+
+	closeMux sync.Mutex
+	closed   bool
 }
 
 type mockPinResp struct {
@@ -105,11 +112,15 @@ func NewIpfsMock(t *testing.T) *IpfsMock {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocks := make(map[string][]byte)
+
 	m := &IpfsMock{
 		pinMap:     st,
-		BlockStore: blocks,
+		BlockStore: make(map[string][]byte),
+		reqCounts:  make(map[string]int),
+		reqCounter: make(chan string, 100),
 	}
+
+	go m.countRequests()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", m.handler)
@@ -135,6 +146,18 @@ func NewIpfsMock(t *testing.T) *IpfsMock {
 
 }
 
+func (m *IpfsMock) countRequests() {
+	for str := range m.reqCounter {
+		m.reqCounts[str]++
+	}
+}
+
+// GetCount allows to get the number of times and endpoint was called.
+// Do not use concurrently to requests happening.
+func (m *IpfsMock) GetCount(path string) int {
+	return m.reqCounts[path]
+}
+
 // FIXME: what if IPFS API changes?
 func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
@@ -143,6 +166,9 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Server", "ipfs-mock")
 	w.Header().Set(IpfsTimeHeaderName, fmt.Sprintf("%d", time.Now().Unix()))
 	endp := strings.TrimPrefix(p, "/api/v0/")
+
+	m.reqCounter <- endp
+
 	switch endp {
 	case "id":
 		resp := mockIDResp{
@@ -215,7 +241,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		pin, err := m.pinMap.Get(ctx, from)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			resp := ipfsErr{0, fmt.Sprintf("'from' cid was not recursively pinned already")}
+			resp := ipfsErr{0, IpfsErrFromNotPinned}
 			j, _ := json.Marshal(resp)
 			w.Write(j)
 			return
@@ -413,7 +439,13 @@ ERROR:
 // Close closes the mock server. It's important to call after each test or
 // the listeners are left hanging around.
 func (m *IpfsMock) Close() {
-	m.server.Close()
+	m.closeMux.Lock()
+	defer m.closeMux.Unlock()
+	if !m.closed {
+		m.closed = true
+		close(m.reqCounter)
+		m.server.Close()
+	}
 }
 
 // extractCid extracts the cid argument from a url.URL, either via
