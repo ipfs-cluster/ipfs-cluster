@@ -170,7 +170,7 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.Observations, cfgs.Tracing)
 	man.RegisterComponent(config.Datastore, cfgs.Badger)
 
-	ch.identity = nil // explicitly not set until loaded.
+	ch.identity = &config.Identity{}
 	ch.manager = man
 	ch.configs = cfgs
 }
