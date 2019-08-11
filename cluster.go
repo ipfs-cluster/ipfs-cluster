@@ -727,7 +727,14 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 	for _, addr := range c.host.Addrs() {
 		addrsSet[addr.String()] = struct{}{}
 	}
+
+	var addrSorted []string
 	for k := range addrsSet {
+		addrSorted = append(addrSorted, k)
+	}
+	sort.Strings(addrSorted)
+
+	for _, k := range addrSorted {
 		addr, _ := api.NewMultiaddr(k)
 		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
 	}
