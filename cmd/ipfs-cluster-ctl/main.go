@@ -508,7 +508,7 @@ would stil be respected.
 							Value: 0,
 							Usage: "Sets the maximum replication factor for this pin",
 						},
-						cli.StringSliceFlag{
+						cli.StringFlag{
 							Name:  "allocations, allocs",
 							Usage: "Optional comma-separated list of peer IDs",
 						},
@@ -541,9 +541,16 @@ would stil be respected.
 							rplMax = rpl
 						}
 
-						userAllocs := api.StringsToPeers(c.StringSlice("allocations"))
-						if len(userAllocs) != len(c.StringSlice("allocations")) {
-							checkErr("", errors.New("error decoding manual allocations"))
+						var userAllocs []peer.ID
+						if c.String("allocations") != "" {
+							allocs := strings.Split(c.String("allocations"), ",")
+							for i := range allocs {
+								allocs[i] = strings.TrimSpace(allocs[i])
+							}
+							userAllocs = api.StringsToPeers(allocs)
+							if len(userAllocs) != len(allocs) {
+								checkErr("decoding allocations", errors.New("some peer IDs could not be decoded"))
+							}
 						}
 
 						opts := api.PinOptions{

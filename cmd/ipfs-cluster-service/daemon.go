@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,7 +38,7 @@ import (
 
 func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {
 	for _, a := range flagVal {
-		bAddr, err := ma.NewMultiaddr(a)
+		bAddr, err := ma.NewMultiaddr(strings.TrimSpace(a))
 		checkErr("error parsing bootstrap multiaddress (%s)", err, a)
 		bootstraps = append(bootstraps, bAddr)
 	}
@@ -53,8 +54,10 @@ func daemon(c *cli.Context) error {
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	ctx, cancel := context.WithCancel(context.Background())
-
-	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
+	var bootstraps []ma.Multiaddr
+	if bootStr :=c.String("bootstrap"); bootStr != "" {
+		bootstraps = parseBootstraps(strings.Split(bootStr, ","))
+	}
 
 	// Execution lock
 	locker.lock()
