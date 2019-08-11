@@ -62,7 +62,7 @@ func apiMAddr(a *rest.API) ma.Multiaddr {
 }
 
 func peerMAddr(a *rest.API) ma.Multiaddr {
-	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ipfs/%s", peer.IDB58Encode(a.Host().ID())))
+	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peer.IDB58Encode(a.Host().ID())))
 	for _, a := range a.Host().Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
 			return a.Encapsulate(ipfsAddr)

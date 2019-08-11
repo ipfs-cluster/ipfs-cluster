@@ -58,7 +58,7 @@ responses in a user-readable format. The location of the IPFS
 Cluster server is assumed to be %s, but can be
 configured with the --host option. To use the secure libp2p-http
 API endpoint, use "--host" with the full cluster libp2p listener
-address (including the "/ipfs/<peerID>" part), and --secret (the
+address (including the "/p2p/<peerID>" part), and --secret (the
 32-byte cluster secret as it appears in the cluster configuration).
 
 For feedback, bug reports or any additional information, visit

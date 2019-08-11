@@ -35,7 +35,7 @@ func StringsToPeers(strs []string) []peer.ID {
 // peer ID is bad.
 func MustLibp2pMultiaddrJoin(addr Multiaddr, p peer.ID) Multiaddr {
 	v := addr.Value()
-	pidAddr, err := ma.NewMultiaddr("/ipfs/" + peer.IDB58Encode(p))
+	pidAddr, err := ma.NewMultiaddr("/p2p/" + peer.IDB58Encode(p))
 	// let this break badly
 	if err != nil {
 		panic("called MustLibp2pMultiaddrJoin with bad peer!")
