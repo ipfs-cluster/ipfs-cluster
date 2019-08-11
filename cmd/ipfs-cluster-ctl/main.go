@@ -349,6 +349,10 @@ cluster "pin add".
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
+				cli.StringFlag{
+					Name:  "allocations, allocs",
+					Usage: "Optional comma-separated list of peer IDs",
+				},
 				cli.BoolFlag{
 					Name:  "nocopy",
 					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
@@ -397,6 +401,9 @@ cluster "pin add".
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
 				p.Name = name
+				if c.String("allocations") != "" {
+					p.UserAllocations = api.StringsToPeers(strings.Split(c.String("allocations"), ","))
+				}
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false
