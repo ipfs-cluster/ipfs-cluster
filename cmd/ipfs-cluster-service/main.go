@@ -367,9 +367,9 @@ multiaddresses.
 					Name:  "upgrade, u",
 					Usage: "run state migrations before starting (deprecated/unused)",
 				},
-				cli.StringSliceFlag{
+				cli.StringFlag{
 					Name:  "bootstrap, j",
-					Usage: "join a cluster providing an existing peers multiaddress(es)",
+					Usage: "join a cluster providing a comma-separated list of existing peers multiaddress(es)",
 				},
 				cli.BoolFlag{
 					Name:   "leave, x",
