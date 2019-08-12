@@ -347,7 +347,8 @@ the peer IDs in the given multiaddresses.
 
 				// Save config. Creates the folder.
 				// Sets BaseDir in components.
-				cfgHelper.SaveConfigToDisk()
+				checkErr("saving default configuration", cfgHelper.SaveConfigToDisk())
+				out("configuration written to %s.\n", configPath)
 
 				if !identityExists {
 					ident := cfgHelper.Identity()
@@ -369,7 +370,11 @@ the peer IDs in the given multiaddresses.
 				checkErr("getting AddrInfos from peer multiaddresses", err)
 				err = peerManager.SavePeerstore(addrInfos)
 				checkErr("saving peers to peerstore", err)
-				out("peerstore written to %s with %d entries\n", peerstorePath, len(multiAddrs))
+				if l := len(multiAddrs); l > 0 {
+					out("peerstore written to %s with %d entries.\n", peerstorePath, len(multiAddrs))
+				} else {
+					out("new empty peerstore written to %s.\n", peerstorePath)
+				}
 
 				return nil
 			},
