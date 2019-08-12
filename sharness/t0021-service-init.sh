@@ -24,6 +24,12 @@ test_expect_success "cluster-service init with raft generates only raft config" 
     [ "$(jq -M -r .consensus.crdt test-config/service.json)" == "null" ]
 '
 
+test_expect_success "cluster-service init with crdt generates only crdt config" '
+    ipfs-cluster-service --config "test-config" init -f --consensus crdt &&
+    [ "$(jq -M -r .consensus.crdt test-config/service.json)" != "null" ] && 
+    [ "$(jq -M -r .consensus.raft test-config/service.json)" == "null" ]
+'
+
 test_clean_cluster
 
 test_done
