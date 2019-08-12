@@ -191,16 +191,17 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.Informer, cfgs.Diskinf)
 	man.RegisterComponent(config.Observations, cfgs.Metrics)
 	man.RegisterComponent(config.Observations, cfgs.Tracing)
-	man.RegisterComponent(config.Datastore, cfgs.Badger)
 
 	switch ch.consensus {
 	case cfgs.Raft.ConfigKey():
 		man.RegisterComponent(config.Consensus, cfgs.Raft)
 	case cfgs.Crdt.ConfigKey():
 		man.RegisterComponent(config.Consensus, cfgs.Crdt)
+		man.RegisterComponent(config.Datastore, cfgs.Badger)
 	default:
 		man.RegisterComponent(config.Consensus, cfgs.Raft)
 		man.RegisterComponent(config.Consensus, cfgs.Crdt)
+		man.RegisterComponent(config.Datastore, cfgs.Badger)
 	}
 
 	ch.identity = &config.Identity{}
