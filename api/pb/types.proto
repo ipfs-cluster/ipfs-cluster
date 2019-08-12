@@ -24,4 +24,5 @@ message PinOptions {
   uint64 ShardSize = 4;
   reserved 5; // reserved for UserAllocations
   map<string, string> Metadata = 6;
+  bytes PinUpdate = 7;
 }

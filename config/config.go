@@ -264,7 +264,6 @@ func (cfg *Manager) ApplyEnvVars() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -453,7 +452,6 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 			return err
 		}
 	}
-
 	return cfg.Validate()
 }
 

@@ -37,11 +37,11 @@ type Consensus interface {
 	// allowing the main component to wait for it during start.
 	Ready(context.Context) <-chan struct{}
 	// Logs a pin operation.
-	LogPin(ctx context.Context, c *api.Pin) error
+	LogPin(context.Context, *api.Pin) error
 	// Logs an unpin operation.
-	LogUnpin(ctx context.Context, c *api.Pin) error
-	AddPeer(ctx context.Context, p peer.ID) error
-	RmPeer(ctx context.Context, p peer.ID) error
+	LogUnpin(context.Context, *api.Pin) error
+	AddPeer(context.Context, peer.ID) error
+	RmPeer(context.Context, peer.ID) error
 	State(context.Context) (state.ReadOnly, error)
 	// Provide a node which is responsible to perform
 	// specific tasks which must only run in 1 cluster peer.
@@ -75,7 +75,7 @@ type API interface {
 type IPFSConnector interface {
 	Component
 	ID(context.Context) (*api.IPFSID, error)
-	Pin(context.Context, cid.Cid, int) error
+	Pin(context.Context, *api.Pin) error
 	Unpin(context.Context, cid.Cid) error
 	PinLsCid(context.Context, cid.Cid) (api.IPFSPinStatus, error)
 	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)

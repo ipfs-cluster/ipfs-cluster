@@ -482,7 +482,7 @@ func (rpcapi *PinTrackerRPCAPI) Recover(ctx context.Context, in cid.Cid, out *ap
 func (rpcapi *IPFSConnectorRPCAPI) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/ipfsconn/IPFSPin")
 	defer span.End()
-	return rpcapi.ipfs.Pin(ctx, in.Cid, in.MaxDepth)
+	return rpcapi.ipfs.Pin(ctx, in)
 }
 
 // Unpin runs IPFSConnector.Unpin().

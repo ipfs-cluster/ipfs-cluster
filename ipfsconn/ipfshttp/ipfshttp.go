@@ -293,9 +293,12 @@ func pinArgs(maxDepth int) string {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) error {
+func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Pin")
 	defer span.End()
+
+	hash := pin.Cid
+	maxDepth := pin.MaxDepth
 
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
@@ -312,7 +315,24 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	ctx, cancelRequest := context.WithCancel(ctx)
 	defer cancelRequest()
 
-	switch ipfs.config.PinMethod {
+	pinMethod := ipfs.config.PinMethod
+
+	// If we have a pin-update, and the old object
+	// is pinned recursively, then do pin/update.
+	// Otherwise do a normal pin.
+	if from := pin.PinUpdate; from != cid.Undef {
+		pinStatus, _ := ipfs.PinLsCid(ctx, from)
+		if pinStatus.IsPinned(-1) { // pinned recursively as update
+			pinMethod = "update"
+			// as a side note, if PinUpdate == pin.Cid, we are
+			// somehow pinning an already pinned thing and we'd better
+			// use update for that
+		}
+	}
+
+	switch pinMethod {
+	case "update":
+		return ipfs.pinUpdate(ctx, pin.PinUpdate, pin.Cid)
 	case "refs":
 		// do refs -r first and timeout if we don't get at least
 		// one ref per pin timeout
@@ -480,6 +500,20 @@ func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth i
 		default:
 		}
 	}
+}
+
+func (ipfs *Connector) pinUpdate(ctx context.Context, from, to cid.Cid) error {
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinUpdate")
+	defer span.End()
+
+	path := fmt.Sprintf("pin/update?arg=%s&arg=%s&unpin=false", from, to)
+	_, err := ipfs.postCtx(ctx, path, "", nil)
+	if err != nil {
+		return err
+	}
+	logger.Infof("IPFS Pin Update request succeeded. %s -> %s (unpin=false)", from, to)
+	stats.Record(ctx, observations.Pins.M(1))
+	return nil
 }
 
 // Unpin performs an unpin request against the configured IPFS

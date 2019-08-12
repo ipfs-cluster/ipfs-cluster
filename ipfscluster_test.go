@@ -28,6 +28,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/version"
 
@@ -640,6 +641,64 @@ func TestClustersPin(t *testing.T) {
 		}
 	}
 	runF(t, clusters, funpinned)
+}
+
+func TestClustersPinUpdate(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	prefix := test.Cid1.Prefix()
+
+	ttlDelay()
+
+	h, err := prefix.Sum(randomBytes())  // create random cid
+	h2, err := prefix.Sum(randomBytes()) // create random cid
+
+	_, err = clusters[0].PinUpdate(ctx, h, h2, api.PinOptions{})
+	if err == nil || err != state.ErrNotFound {
+		t.Fatal("pin update should fail when from is not pinned")
+	}
+
+	_, err = clusters[0].Pin(ctx, h, api.PinOptions{})
+	if err != nil {
+		t.Errorf("error pinning %s: %s", h, err)
+	}
+
+	pinDelay()
+
+	opts2 := api.PinOptions{
+		UserAllocations: []peer.ID{clusters[0].host.ID()}, // should not be used
+		PinUpdate:       h,
+		Name:            "new name",
+	}
+
+	_, err = clusters[0].Pin(ctx, h2, opts2) // should call PinUpdate
+	if err != nil {
+		t.Errorf("error pin-updating %s: %s", h2, err)
+	}
+
+	pinDelay()
+
+	f := func(t *testing.T, c *Cluster) {
+		pinget, err := c.PinGet(ctx, h2)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(pinget.Allocations) != 0 {
+			t.Error("new pin should be allocated everywhere like pin1")
+		}
+
+		if pinget.MaxDepth != -1 {
+			t.Error("updated pin should be recursive like pin1")
+		}
+
+		if pinget.Name != "new name" {
+			t.Error("name should be kept")
+		}
+	}
+	runF(t, clusters, f)
+
 }
 
 func TestClustersStatusAll(t *testing.T) {
