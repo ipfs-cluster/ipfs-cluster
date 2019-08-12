@@ -62,21 +62,25 @@ func daemon(c *cli.Context) error {
 
 	cfgs := cfgHelper.Configs()
 
-	if !c.Bool("no-trust") {
-		crdtCfg := cfgs.Crdt
-		crdtCfg.TrustedPeers = append(crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
-	}
-
 	if c.Bool("stats") {
 		cfgs.Metrics.EnableStats = true
 	}
 	cfgHelper.SetupTracing(c.Bool("tracing"))
 
-	// Cleanup state if bootstrapping
+	// Setup bootstrapping
 	raftStaging := false
-	if len(bootstraps) > 0 && cfgHelper.GetConsensus() == cfgs.Raft.ConfigKey() {
-		raft.CleanupRaft(cfgs.Raft)
-		raftStaging = true
+	switch cfgHelper.GetConsensus() {
+	case cfgs.Raft.ConfigKey():
+		if len(bootstraps) > 0 {
+			// Cleanup state if bootstrapping
+			raft.CleanupRaft(cfgs.Raft)
+			raftStaging = true
+		}
+	case cfgs.Crdt.ConfigKey():
+		if !c.Bool("no-trust") {
+			crdtCfg := cfgs.Crdt
+			crdtCfg.TrustedPeers = append(crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
+		}
 	}
 
 	if c.Bool("leave") {
