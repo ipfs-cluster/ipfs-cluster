@@ -325,6 +325,7 @@ multiaddresses.
 					}
 
 					peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
+					cfgHelper.Configs().Crdt.TrustAll = false
 					cfgHelper.Configs().Crdt.TrustedPeers = peers
 					cfgHelper.Configs().Raft.InitPeerset = peers
 				}

@@ -24,6 +24,7 @@ var (
 	DefaultDatastoreNamespace  = "/c" // from "/crdt"
 	DefaultRebroadcastInterval = time.Minute
 	DefaultTrustedPeers        = []peer.ID{}
+	DefaultTrustAll            = true
 )
 
 // Config is the configuration object for Consensus.
@@ -136,9 +137,14 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	jcfg := &jsonConfig{
 		ClusterName:         cfg.ClusterName,
-		TrustedPeers:        api.PeersToStrings(cfg.TrustedPeers),
 		PeersetMetric:       "",
 		RebroadcastInterval: "",
+	}
+
+	if cfg.TrustAll {
+		jcfg.TrustedPeers = []string{"*"}
+	} else {
+		jcfg.TrustedPeers = api.PeersToStrings(cfg.TrustedPeers)
 	}
 
 	if cfg.PeersetMetric != DefaultPeersetMetric {
@@ -165,7 +171,7 @@ func (cfg *Config) Default() error {
 	cfg.PeersetMetric = DefaultPeersetMetric
 	cfg.DatastoreNamespace = DefaultDatastoreNamespace
 	cfg.TrustedPeers = DefaultTrustedPeers
-	cfg.TrustAll = false
+	cfg.TrustAll = DefaultTrustAll
 	return nil
 }
 
