@@ -33,9 +33,7 @@ ipfs-cluster-service --version
 if [ -e "${IPFS_CLUSTER_PATH}/service.json" ]; then
     echo "Found IPFS cluster configuration at ${IPFS_CLUSTER_PATH}"
 else
-    ipfs-cluster-service init
-    sed -i 's/127\.0\.0\.1\/tcp\/9094/0.0.0.0\/tcp\/9094/' "${IPFS_CLUSTER_PATH}/service.json"
-    sed -i 's/127\.0\.0\.1\/tcp\/9095/0.0.0.0\/tcp\/9095/' "${IPFS_CLUSTER_PATH}/service.json"
+    ipfs-cluster-service init --consensus "${IPFS_CLUSTER_CONSENSUS}"
 fi
 
 exec ipfs-cluster-service $@
