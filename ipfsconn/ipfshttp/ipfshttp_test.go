@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -69,13 +68,11 @@ func TestIPFSID(t *testing.T) {
 	}
 }
 
-func testPin(t *testing.T, method string) {
+func TestPin(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
-
-	ipfs.config.PinMethod = method
 
 	c := test.Cid1
 	err := ipfs.Pin(ctx, api.PinCid(c))
@@ -96,26 +93,15 @@ func testPin(t *testing.T, method string) {
 		t.Error("expected error pinning cid")
 	}
 
-	switch method {
-	case "refs":
-		ipfs.config.PinTimeout = 1 * time.Second
-		c3 := test.SlowCid1
-		err = ipfs.Pin(ctx, api.PinCid(c3))
-		if err == nil {
-			t.Error("expected error pinning cid")
-		}
-	case "pin":
-		ipfs.config.PinTimeout = 5 * time.Second
-		c4 := test.SlowCid1
-		err = ipfs.Pin(ctx, api.PinCid(c4))
-		if err == nil {
-			t.Error("expected error pinning cid")
-		}
-	default:
+	ipfs.config.PinTimeout = 5 * time.Second
+	c4 := test.SlowCid1
+	err = ipfs.Pin(ctx, api.PinCid(c4))
+	if err == nil {
+		t.Error("expected error pinning cid")
 	}
 }
 
-func testPinUpdate(t *testing.T) {
+func TestPinUpdate(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
@@ -123,17 +109,11 @@ func testPinUpdate(t *testing.T) {
 
 	pin := api.PinCid(test.Cid1)
 	pin.PinUpdate = test.Cid1
-	// enforce pin/update even though it would be skipped
-	ipfs.config.PinMethod = "update"
 	err := ipfs.Pin(ctx, pin)
-	if err == nil {
-		t.Fatal("expected an error")
-	}
-	if !strings.HasSuffix(err.Error(), "recursively pinned already") {
-		t.Fatal("expected error about from not being pinned")
+	if err != nil {
+		t.Error("pin update should have worked even if not pinned")
 	}
 
-	ipfs.config.PinMethod = "pin"
 	err = ipfs.Pin(ctx, pin)
 	if err != nil {
 		t.Fatal(err)
@@ -145,12 +125,14 @@ func testPinUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-func TestIPFSPin(t *testing.T) {
-	t.Run("method=pin", func(t *testing.T) { testPin(t, "pin") })
-	t.Run("method=refs", func(t *testing.T) { testPin(t, "refs") })
-	t.Run("method=update", func(t *testing.T) { testPinUpdate(t) })
+	if mock.GetCount("pin/update") != 1 {
+		t.Error("pin/update should have been called once")
+	}
+
+	if mock.GetCount("pin/add") != 1 {
+		t.Error("pin/add should have been called once")
+	}
 }
 
 func TestIPFSUnpin(t *testing.T) {

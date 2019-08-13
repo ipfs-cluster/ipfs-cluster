@@ -98,7 +98,6 @@ var testingProxyCfg = []byte(`{
 var testingIpfsCfg = []byte(`{
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
-    "pin_method": "pin",
     "pin_timeout": "30s",
     "unpin_timeout": "15s"
 }`)

@@ -20,7 +20,6 @@ const envConfigKey = "cluster_ipfshttp"
 const (
 	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
 	DefaultConnectSwarmsDelay = 30 * time.Second
-	DefaultPinMethod          = "refs"
 	DefaultIPFSRequestTimeout = 5 * time.Minute
 	DefaultPinTimeout         = 24 * time.Hour
 	DefaultUnpinTimeout       = 3 * time.Hour
@@ -39,11 +38,6 @@ type Config struct {
 	// attempting to open connections from this peer's IPFS daemon to the
 	// IPFS daemons of other peers.
 	ConnectSwarmsDelay time.Duration
-
-	// "pin" or "refs". "pin" uses a "pin/add" call. "refs" uses a
-	// "refs -r" call followed by "pin/add". "refs" allows fetching in
-	// parallel but should be used with GC disabled.
-	PinMethod string
 
 	// IPFS Daemon HTTP Client POST timeout
 	IPFSRequestTimeout time.Duration
@@ -64,7 +58,6 @@ type Config struct {
 type jsonConfig struct {
 	NodeMultiaddress   string `json:"node_multiaddress"`
 	ConnectSwarmsDelay string `json:"connect_swarms_delay"`
-	PinMethod          string `json:"pin_method"`
 	IPFSRequestTimeout string `json:"ipfs_request_timeout"`
 	PinTimeout         string `json:"pin_timeout"`
 	UnpinTimeout       string `json:"unpin_timeout"`
@@ -81,7 +74,6 @@ func (cfg *Config) Default() error {
 	node, _ := ma.NewMultiaddr(DefaultNodeAddr)
 	cfg.NodeAddr = node
 	cfg.ConnectSwarmsDelay = DefaultConnectSwarmsDelay
-	cfg.PinMethod = DefaultPinMethod
 	cfg.IPFSRequestTimeout = DefaultIPFSRequestTimeout
 	cfg.PinTimeout = DefaultPinTimeout
 	cfg.UnpinTimeout = DefaultUnpinTimeout
@@ -116,12 +108,6 @@ func (cfg *Config) Validate() error {
 
 	if cfg.ConnectSwarmsDelay < 0 {
 		err = errors.New("ipfshttp.connect_swarms_delay is invalid")
-	}
-
-	switch cfg.PinMethod {
-	case "refs", "pin":
-	default:
-		err = errors.New("ipfshttp.pin_method invalid value")
 	}
 
 	if cfg.IPFSRequestTimeout < 0 {
@@ -173,8 +159,6 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		return err
 	}
 
-	config.SetIfNotDefault(jcfg.PinMethod, &cfg.PinMethod)
-
 	return cfg.Validate()
 }
 
@@ -202,7 +186,6 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	// Set all configuration fields
 	jcfg.NodeMultiaddress = cfg.NodeAddr.String()
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
-	jcfg.PinMethod = cfg.PinMethod
 	jcfg.IPFSRequestTimeout = cfg.IPFSRequestTimeout.String()
 	jcfg.PinTimeout = cfg.PinTimeout.String()
 	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
