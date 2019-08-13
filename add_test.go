@@ -135,11 +135,14 @@ func TestAddOnePeerFails(t *testing.T) {
 			}
 		}()
 
-		// Shutdown 1 cluster (the last). Things should keep working.
-		// Important that we shut down the hosts, otherwise the RPC
+		// Disconnect 1 cluster (the last). Things should keep working.
+		// Important that we close the hosts, otherwise the RPC
 		// Servers keep working along with BlockPuts.
 		time.Sleep(100 * time.Millisecond)
-		shutdownClusters(t, clusters[nClusters-1:], mock[nClusters-1:])
+		c := clusters[nClusters-1]
+		c.Shutdown(context.Background())
+		c.dht.Close()
+		c.host.Close()
 		wg.Wait()
 	})
 }
@@ -196,7 +199,11 @@ func TestAddAllPeersFail(t *testing.T) {
 		// Important that we shut down the hosts, otherwise
 		// the RPC Servers keep working along with BlockPuts.
 		// Note that this kills raft.
-		shutdownClusters(t, clusters[1:], mock[1:])
+		runF(t, clusters[1:], func(t *testing.T, c *Cluster) {
+			c.Shutdown(ctx)
+			c.dht.Close()
+			c.host.Close()
+		})
 		wg.Wait()
 	})
 }
