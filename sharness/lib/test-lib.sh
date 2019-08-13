@@ -60,6 +60,10 @@ test_ipfs_running() {
 
 test_cluster_init() {
     custom_config_files="$1"
+    consensus="$2"
+    if [ -z "$consensus" ]; then
+        consensus="crdt"
+    fi
 
     which ipfs-cluster-service >/dev/null 2>&1
     if [ $? -ne 0 ]; then
@@ -71,7 +75,7 @@ test_cluster_init() {
         echo "cluster init FAIL: ipfs-cluster-ctl not found"
         exit 1
     fi
-    ipfs-cluster-service -f --config "test-config" init >"$IPFS_OUTPUT" 2>&1
+    ipfs-cluster-service --config "test-config" init --force --consensus "$consensus" >"$IPFS_OUTPUT" 2>&1
     if [ $? -ne 0 ]; then
         echo "cluster init FAIL: error on ipfs cluster init"
         exit 1
@@ -80,7 +84,7 @@ test_cluster_init() {
     if [ -n "$custom_config_files" ]; then
         cp -f ${custom_config_files}/* "test-config"
     fi
-    cluster_start $2
+    cluster_start
 }
 
 test_cluster_config() {
@@ -121,12 +125,7 @@ cluster_kill(){
 }
 
 cluster_start(){
-    consensus="$1"
-    if [ -z "$consensus" ]; then
-        consensus="crdt"
-    fi
-
-    ipfs-cluster-service --config "test-config" daemon --consensus "$consensus" >"$IPFS_OUTPUT" 2>&1 &
+    ipfs-cluster-service --config "test-config" daemon >"$IPFS_OUTPUT" 2>&1 &
     while ! curl -s 'localhost:9095/api/v0/version' >/dev/null; do
         sleep 0.2
     done

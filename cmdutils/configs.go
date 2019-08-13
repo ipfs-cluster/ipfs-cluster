@@ -50,14 +50,16 @@ type ConfigHelper struct {
 
 	configPath   string
 	identityPath string
+	consensus    string
 }
 
 // NewConfigHelper creates a config helper given the paths to the
 // configuration and identity files.
-func NewConfigHelper(configPath, identityPath string) *ConfigHelper {
+func NewConfigHelper(configPath, identityPath, consensus string) *ConfigHelper {
 	ch := &ConfigHelper{
 		configPath:   configPath,
 		identityPath: identityPath,
+		consensus:    consensus,
 	}
 	ch.init()
 	return ch
@@ -138,6 +140,29 @@ func (ch *ConfigHelper) Configs() *Configs {
 	return ch.configs
 }
 
+// GetConsensus attempts to return the configured consensus.
+// If the ConfigHelper was initialized with a consensus string
+// then it returns that.
+//
+// Otherwise it checks whether one of the consensus configurations
+// has been loaded. If both or non have been loaded, it returns
+// an empty string.
+func (ch *ConfigHelper) GetConsensus() string {
+	if ch.consensus != "" {
+		return ch.consensus
+	}
+	crdtLoaded := ch.manager.IsLoadedFromJSON(config.Consensus, ch.configs.Crdt.ConfigKey())
+	raftLoaded := ch.manager.IsLoadedFromJSON(config.Consensus, ch.configs.Raft.ConfigKey())
+	if crdtLoaded == raftLoaded { //both loaded or none
+		return ""
+	}
+
+	if crdtLoaded {
+		return ch.configs.Crdt.ConfigKey()
+	}
+	return ch.configs.Raft.ConfigKey()
+}
+
 // register all current cluster components
 func (ch *ConfigHelper) init() {
 	man := config.NewManager()
@@ -160,15 +185,24 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.API, cfgs.Restapi)
 	man.RegisterComponent(config.API, cfgs.Ipfsproxy)
 	man.RegisterComponent(config.IPFSConn, cfgs.Ipfshttp)
-	man.RegisterComponent(config.Consensus, cfgs.Raft)
-	man.RegisterComponent(config.Consensus, cfgs.Crdt)
 	man.RegisterComponent(config.PinTracker, cfgs.Maptracker)
 	man.RegisterComponent(config.PinTracker, cfgs.Statelesstracker)
 	man.RegisterComponent(config.Monitor, cfgs.Pubsubmon)
 	man.RegisterComponent(config.Informer, cfgs.Diskinf)
 	man.RegisterComponent(config.Observations, cfgs.Metrics)
 	man.RegisterComponent(config.Observations, cfgs.Tracing)
-	man.RegisterComponent(config.Datastore, cfgs.Badger)
+
+	switch ch.consensus {
+	case cfgs.Raft.ConfigKey():
+		man.RegisterComponent(config.Consensus, cfgs.Raft)
+	case cfgs.Crdt.ConfigKey():
+		man.RegisterComponent(config.Consensus, cfgs.Crdt)
+		man.RegisterComponent(config.Datastore, cfgs.Badger)
+	default:
+		man.RegisterComponent(config.Consensus, cfgs.Raft)
+		man.RegisterComponent(config.Consensus, cfgs.Crdt)
+		man.RegisterComponent(config.Datastore, cfgs.Badger)
+	}
 
 	ch.identity = &config.Identity{}
 	ch.manager = man
