@@ -263,11 +263,9 @@ func (api *API) addRoutes(router *mux.Router) {
 				),
 			)
 	}
-	router.PathPrefix("/").Handler(
-		ochttp.WithRouteTag(
-			http.HandlerFunc(api.catchAllHandler),
-			"/"+"catchall",
-		),
+	router.NotFoundHandler = ochttp.WithRouteTag(
+		http.HandlerFunc(api.notFoundHandler),
+		"/"+"notfound",
 	)
 	api.router = router
 }
@@ -1032,7 +1030,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *API) catchAllHandler(w http.ResponseWriter, r *http.Request) {
+func (api *API) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	api.sendResponse(w, http.StatusNotFound, errors.New("not found"), nil)
 }
 

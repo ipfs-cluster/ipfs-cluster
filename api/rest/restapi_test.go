@@ -1039,7 +1039,7 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
-func TestCatchAllHandler(t *testing.T) {
+func TestNotFoundHandler(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)
 	defer rest.Shutdown(ctx)
