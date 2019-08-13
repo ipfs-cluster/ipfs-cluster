@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,6 +31,7 @@ const programName = `ipfs-cluster-service`
 const (
 	defaultPinTracker = "map"
 	defaultLogLevel   = "info"
+	defaultConsensus  = "crdt"
 )
 
 const (
@@ -221,26 +223,30 @@ func main() {
 This command will initialize a new %s configuration file and, if it
 does already exist, generate a new %s for %s.
 
-If the optional [source-url] is given, the generated configuration file 
+If the optional [source-url] is given, the generated configuration file
 will refer to it. The source configuration will be fetched from its source
 URL during the launch of the daemon. If not, a default standard configuration
 file will be created.
 
-In the latter case, a cluster secret will be generated as required by %s.
-Alternatively, this secret can be manually provided with --custom-secret (in
-which case it will be prompted), or by setting the CLUSTER_SECRET environment
-variable.
+In the latter case, a cluster secret will be generated as required
+by %s. Alternatively, this secret can be manually
+provided with --custom-secret (in which case it will be prompted), or
+by setting the CLUSTER_SECRET environment variable.
+
+The --consensus flag allows to select an alternative consensus components for
+in the newly-generated configuration.
 
 Note that the --force flag allows to overwrite an existing
 configuration with default values. To generate a new identity, please
 remove the %s file first and clean any Raft state.
 
 By default, an empty peerstore file will be created too. Initial contents can
-be provided with the -peers flag. In this case, the "trusted_peers" list in
-the "crdt" configuration section and the "init_peerset" list in the "raft"
-configuration section will be prefilled to the peer IDs in the given
-multiaddresses.
+be provided with the --peers flag. Depending on the chosen consensus, the
+"trusted_peers" list in the "crdt" configuration section and the
+"init_peerset" list in the "raft" configuration section will be prefilled to
+the peer IDs in the given multiaddresses.
 `,
+
 				DefaultConfigFile,
 				DefaultIdentityFile,
 				programName,
@@ -249,6 +255,11 @@ multiaddresses.
 			),
 			ArgsUsage: "[http-source-url]",
 			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "consensus",
+					Usage: "select consensus component: 'crdt' or 'raft'",
+					Value: defaultConsensus,
+				},
 				cli.BoolFlag{
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret (when no source specified)",
@@ -263,7 +274,12 @@ multiaddresses.
 				},
 			},
 			Action: func(c *cli.Context) error {
-				cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath)
+				consensus := c.String("consensus")
+				if consensus != "raft" && consensus != "crdt" {
+					checkErr("choosing consensus", errors.New("flag value must be set to 'raft' or 'crdt'"))
+				}
+
+				cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, consensus)
 				defer cfgHelper.Manager().Shutdown() // wait for saves
 
 				configExists := false
@@ -325,13 +341,15 @@ multiaddresses.
 					}
 
 					peers := ipfscluster.PeersFromMultiaddrs(multiAddrs)
+					cfgHelper.Configs().Crdt.TrustAll = false
 					cfgHelper.Configs().Crdt.TrustedPeers = peers
 					cfgHelper.Configs().Raft.InitPeerset = peers
 				}
 
 				// Save config. Creates the folder.
 				// Sets BaseDir in components.
-				cfgHelper.SaveConfigToDisk()
+				checkErr("saving default configuration", cfgHelper.SaveConfigToDisk())
+				out("configuration written to %s.\n", configPath)
 
 				if !identityExists {
 					ident := cfgHelper.Identity()
@@ -353,7 +371,11 @@ multiaddresses.
 				checkErr("getting AddrInfos from peer multiaddresses", err)
 				err = peerManager.SavePeerstore(addrInfos)
 				checkErr("saving peers to peerstore", err)
-				out("peerstore written to %s with %d entries\n", peerstorePath, len(multiAddrs))
+				if l := len(multiAddrs); l > 0 {
+					out("peerstore written to %s with %d entries.\n", peerstorePath, len(multiAddrs))
+				} else {
+					out("new empty peerstore written to %s.\n", peerstorePath)
+				}
 
 				return nil
 			},
@@ -366,18 +388,14 @@ multiaddresses.
 					Name:  "upgrade, u",
 					Usage: "run state migrations before starting (deprecated/unused)",
 				},
-				cli.StringSliceFlag{
+				cli.StringFlag{
 					Name:  "bootstrap, j",
-					Usage: "join a cluster providing an existing peers multiaddress(es)",
+					Usage: "join a cluster providing a comma-separated list of existing peers multiaddress(es)",
 				},
 				cli.BoolFlag{
 					Name:   "leave, x",
 					Usage:  "remove peer from cluster on exit. Overrides \"leave_on_shutdown\"",
 					Hidden: true,
-				},
-				cli.StringFlag{
-					Name:  "consensus",
-					Usage: "shared state management provider [raft,crdt]",
 				},
 				cli.StringFlag{
 					Name:   "pintracker",
@@ -418,16 +436,12 @@ By default, the state will be printed to stdout.
 							Value: "",
 							Usage: "writes to an output file",
 						},
-						cli.StringFlag{
-							Name:  "consensus",
-							Usage: "consensus component to export data from [raft, crdt]",
-						},
 					},
 					Action: func(c *cli.Context) error {
 						locker.lock()
 						defer locker.tryUnlock()
 
-						mgr := getStateManager(c.String("consensus"))
+						mgr := getStateManager()
 
 						var w io.WriteCloser
 						var err error
@@ -463,10 +477,6 @@ to import. If no argument is provided, stdin will be used.
 							Name:  "force, f",
 							Usage: "skips confirmation prompt",
 						},
-						cli.StringFlag{
-							Name:  "consensus",
-							Usage: "consensus component to export data from [raft, crdt]",
-						},
 					},
 					Action: func(c *cli.Context) error {
 						locker.lock()
@@ -478,7 +488,7 @@ to import. If no argument is provided, stdin will be used.
 							return nil
 						}
 
-						mgr := getStateManager(c.String("consensus"))
+						mgr := getStateManager()
 
 						// Get the importing file path
 						importFile := c.Args().First()
@@ -511,10 +521,6 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							Name:  "force, f",
 							Usage: "skip confirmation prompt",
 						},
-						cli.StringFlag{
-							Name:  "consensus",
-							Usage: "consensus component to export data from [raft, crdt]",
-						},
 					},
 					Action: func(c *cli.Context) error {
 						locker.lock()
@@ -528,7 +534,7 @@ to all effects. Peers may need to bootstrap and sync from scratch after this.
 							return nil
 						}
 
-						mgr := getStateManager(c.String("consensus"))
+						mgr := getStateManager()
 						checkErr("cleaning state", mgr.Clean())
 						logger.Info("data correctly cleaned up")
 						return nil
@@ -608,21 +614,21 @@ func yesNoPrompt(prompt string) bool {
 
 func loadConfigHelper() *cmdutils.ConfigHelper {
 	// Load all the configurations and identity
-	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath)
+	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "")
 	err := cfgHelper.LoadFromDisk()
 	checkErr("loading identity or configurations", err)
 	return cfgHelper
 }
 
-func getStateManager(consensus string) cmdutils.StateManager {
+func getStateManager() cmdutils.StateManager {
 	cfgHelper := loadConfigHelper()
 	// since we won't save configs we can shutdown
 	cfgHelper.Manager().Shutdown()
 	mgr, err := cmdutils.NewStateManager(
-		consensus,
+		cfgHelper.GetConsensus(),
 		cfgHelper.Identity(),
 		cfgHelper.Configs(),
 	)
-	checkErr("creating state manager,", err)
+	checkErr("creating state manager", err)
 	return mgr
 }

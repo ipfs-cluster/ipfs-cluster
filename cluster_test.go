@@ -61,8 +61,8 @@ func (ipfs *mockConnector) ID(ctx context.Context) (*api.IPFSID, error) {
 	}, nil
 }
 
-func (ipfs *mockConnector) Pin(ctx context.Context, c cid.Cid, maxDepth int) error {
-	ipfs.pins.Store(c.String(), maxDepth)
+func (ipfs *mockConnector) Pin(ctx context.Context, pin *api.Pin) error {
+	ipfs.pins.Store(pin.Cid.String(), pin.MaxDepth)
 	return nil
 }
 

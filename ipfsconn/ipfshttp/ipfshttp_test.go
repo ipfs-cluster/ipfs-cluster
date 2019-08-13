@@ -68,16 +68,14 @@ func TestIPFSID(t *testing.T) {
 	}
 }
 
-func testPin(t *testing.T, method string) {
+func TestPin(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	ipfs.config.PinMethod = method
-
 	c := test.Cid1
-	err := ipfs.Pin(ctx, c, -1)
+	err := ipfs.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Error("expected success pinning cid:", err)
 	}
@@ -90,33 +88,51 @@ func testPin(t *testing.T, method string) {
 	}
 
 	c2 := test.ErrorCid
-	err = ipfs.Pin(ctx, c2, -1)
+	err = ipfs.Pin(ctx, api.PinCid(c2))
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
 
-	switch method {
-	case "refs":
-		ipfs.config.PinTimeout = 1 * time.Second
-		c3 := test.SlowCid1
-		err = ipfs.Pin(ctx, c3, -1)
-		if err == nil {
-			t.Error("expected error pinning cid")
-		}
-	case "pin":
-		ipfs.config.PinTimeout = 5 * time.Second
-		c4 := test.SlowCid1
-		err = ipfs.Pin(ctx, c4, -1)
-		if err == nil {
-			t.Error("expected error pinning cid")
-		}
-	default:
+	ipfs.config.PinTimeout = 5 * time.Second
+	c4 := test.SlowCid1
+	err = ipfs.Pin(ctx, api.PinCid(c4))
+	if err == nil {
+		t.Error("expected error pinning cid")
 	}
 }
 
-func TestIPFSPin(t *testing.T) {
-	t.Run("method=pin", func(t *testing.T) { testPin(t, "pin") })
-	t.Run("method=refs", func(t *testing.T) { testPin(t, "refs") })
+func TestPinUpdate(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+
+	pin := api.PinCid(test.Cid1)
+	pin.PinUpdate = test.Cid1
+	err := ipfs.Pin(ctx, pin)
+	if err != nil {
+		t.Error("pin update should have worked even if not pinned")
+	}
+
+	err = ipfs.Pin(ctx, pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// This should trigger the pin/update path
+	pin.Cid = test.Cid2
+	err = ipfs.Pin(ctx, pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mock.GetCount("pin/update") != 1 {
+		t.Error("pin/update should have been called once")
+	}
+
+	if mock.GetCount("pin/add") != 1 {
+		t.Error("pin/add should have been called once")
+	}
 }
 
 func TestIPFSUnpin(t *testing.T) {
@@ -129,7 +145,7 @@ func TestIPFSUnpin(t *testing.T) {
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
 	}
-	ipfs.Pin(ctx, c, -1)
+	ipfs.Pin(ctx, api.PinCid(c))
 	err = ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning pinned cid")
@@ -142,7 +158,7 @@ func TestIPFSUnpinDisabled(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 	ipfs.config.UnpinDisable = true
-	err := ipfs.Pin(ctx, test.Cid1, -1)
+	err := ipfs.Pin(ctx, api.PinCid(test.Cid1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +177,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 	c := test.Cid1
 	c2 := test.Cid2
 
-	ipfs.Pin(ctx, c, -1)
+	ipfs.Pin(ctx, api.PinCid(c))
 	ips, err := ipfs.PinLsCid(ctx, c)
 	if err != nil {
 		t.Error(err)
@@ -184,7 +200,7 @@ func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 	c := test.Cid4 // ipfs mock treats this specially
 
-	ipfs.Pin(ctx, c, -1)
+	ipfs.Pin(ctx, api.PinCid(c))
 	ips, err := ipfs.PinLsCid(ctx, c)
 	if err != nil {
 		t.Error(err)
@@ -203,8 +219,8 @@ func TestIPFSPinLs(t *testing.T) {
 	c := test.Cid1
 	c2 := test.Cid2
 
-	ipfs.Pin(ctx, c, -1)
-	ipfs.Pin(ctx, c2, -1)
+	ipfs.Pin(ctx, api.PinCid(c))
+	ipfs.Pin(ctx, api.PinCid(c2))
 	ipsMap, err := ipfs.PinLs(ctx, "")
 	if err != nil {
 		t.Error("should not error")
@@ -330,7 +346,7 @@ func TestRepoStat(t *testing.T) {
 	}
 
 	c := test.Cid1
-	err = ipfs.Pin(ctx, c, -1)
+	err = ipfs.Pin(ctx, api.PinCid(c))
 	if err != nil {
 		t.Error("expected success pinning cid")
 	}

@@ -28,8 +28,9 @@ func (rpcs *testIPFSRPC) BlockPut(ctx context.Context, in *api.NodeWithMeta, out
 	return nil
 }
 
-func (rpcs *testClusterRPC) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (rpcs *testClusterRPC) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
 	rpcs.pins.Store(in.Cid.String(), in)
+	*out = *in
 	return nil
 }
 

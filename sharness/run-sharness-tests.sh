@@ -6,7 +6,7 @@ statuses=0
 for i in t0*.sh;
 do
     echo "*** $i ***"
-    ./$i --verbose
+    ./$i
     status=$?
     statuses=$((statuses + $status))
     if [ $status -ne 0 ]; then

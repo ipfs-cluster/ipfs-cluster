@@ -18,8 +18,8 @@ func TestLoadJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.TrustAll {
-		t.Error("expected TrustAll to be false")
+	if cfg.TrustAll != DefaultTrustAll {
+		t.Error("expected TrustAll to be the default")
 	}
 
 	cfg = &Config{}

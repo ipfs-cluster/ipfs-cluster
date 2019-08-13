@@ -293,9 +293,12 @@ func pinArgs(maxDepth int) string {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) error {
+func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Pin")
 	defer span.End()
+
+	hash := pin.Cid
+	maxDepth := pin.MaxDepth
 
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
@@ -312,37 +315,17 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	ctx, cancelRequest := context.WithCancel(ctx)
 	defer cancelRequest()
 
-	switch ipfs.config.PinMethod {
-	case "refs":
-		// do refs -r first and timeout if we don't get at least
-		// one ref per pin timeout
-		outRefs := make(chan string)
-		go func() {
-			lastRefTime := time.Now()
-			ticker := time.NewTicker(progressTick)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					if time.Since(lastRefTime) >= ipfs.config.PinTimeout {
-						cancelRequest() // timeout
-						return
-					}
-				case <-outRefs:
-					lastRefTime = time.Now()
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-
-		err := ipfs.refsProgress(ctx, hash, maxDepth, outRefs)
-		if err != nil {
-			return err
+	// If we have a pin-update, and the old object
+	// is pinned recursively, then do pin/update.
+	// Otherwise do a normal pin.
+	if from := pin.PinUpdate; from != cid.Undef {
+		pinStatus, _ := ipfs.PinLsCid(ctx, from)
+		if pinStatus.IsPinned(-1) { // pinned recursively.
+			// As a side note, if PinUpdate == pin.Cid, we are
+			// somehow pinning an already pinned thing and we'd
+			// better use update for that
+			return ipfs.pinUpdate(ctx, from, pin.Cid)
 		}
-
-		logger.Debugf("Refs for %s sucessfully fetched", hash)
-
 	}
 
 	// Pin request and timeout if there is no progress
@@ -384,56 +367,6 @@ func (ipfs *Connector) Pin(ctx context.Context, hash cid.Cid, maxDepth int) erro
 	logger.Info("IPFS Pin request succeeded: ", hash)
 	stats.Record(ctx, observations.Pins.M(1))
 	return nil
-}
-
-// refsProgress fetches refs and puts them on a channel. Blocks until done or
-// error. refsProgress will always close the out channel. refsProgres will
-// not block on sending to the channel if it is full.
-func (ipfs *Connector) refsProgress(ctx context.Context, hash cid.Cid, maxDepth int, out chan<- string) error {
-	defer close(out)
-
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/refsProgress")
-	defer span.End()
-
-	path := fmt.Sprintf("refs?arg=%s&%s", hash, pinArgs(maxDepth))
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	_, err = checkResponse(path, res)
-	if err != nil {
-		return err
-	}
-
-	dec := json.NewDecoder(res.Body)
-	for {
-		var ref ipfsRefsResp
-		if err := dec.Decode(&ref); err != nil {
-			// If we cancelled the request we should tell the user
-			// (in case dec.Decode() exited cleanly with an EOF).
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				if err == io.EOF {
-					return nil // clean exit
-				}
-				return err // error decoding
-			}
-		}
-
-		// We have a Ref!
-		if errStr := ref.Err; errStr != "" {
-			logger.Error(errStr)
-		}
-
-		select { // do not lock
-		case out <- ref.Ref:
-		default:
-		}
-	}
 }
 
 // pinProgress pins an item and sends fetched node's progress on a
@@ -480,6 +413,20 @@ func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth i
 		default:
 		}
 	}
+}
+
+func (ipfs *Connector) pinUpdate(ctx context.Context, from, to cid.Cid) error {
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinUpdate")
+	defer span.End()
+
+	path := fmt.Sprintf("pin/update?arg=%s&arg=%s&unpin=false", from, to)
+	_, err := ipfs.postCtx(ctx, path, "", nil)
+	if err != nil {
+		return err
+	}
+	logger.Infof("IPFS Pin Update request succeeded. %s -> %s (unpin=false)", from, to)
+	stats.Record(ctx, observations.Pins.M(1))
+	return nil
 }
 
 // Unpin performs an unpin request against the configured IPFS
