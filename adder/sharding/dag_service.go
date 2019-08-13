@@ -71,17 +71,7 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 		return nil
 	}
 
-	size, err := node.Size()
-	if err != nil {
-		return err
-	}
-	nodeSerial := &api.NodeWithMeta{
-		Cid:     node.Cid(),
-		Data:    node.RawData(),
-		CumSize: size,
-	}
-
-	return dgs.ingestBlock(ctx, nodeSerial)
+	return dgs.ingestBlock(ctx, node)
 }
 
 // Finalize finishes sharding, creates the cluster DAG and pins it along
@@ -102,7 +92,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	}
 
 	// PutDAG to ourselves
-	err = putDAG(ctx, dgs.rpcClient, clusterDAGNodes, []peer.ID{""})
+	err = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""}).AddMany(ctx, clusterDAGNodes)
 	if err != nil {
 		return dataRoot, err
 	}
@@ -164,7 +154,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 
 // ingests a block to the current shard. If it get's full, it
 // Flushes the shard and retries with a new one.
-func (dgs *DAGService) ingestBlock(ctx context.Context, n *api.NodeWithMeta) error {
+func (dgs *DAGService) ingestBlock(ctx context.Context, n ipld.Node) error {
 	shard := dgs.currentShard
 
 	// if we have no currentShard, create one
@@ -178,17 +168,20 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n *api.NodeWithMeta) err
 		dgs.currentShard = shard
 	}
 
-	logger.Debugf("ingesting block %s in shard %d (%s)", n.Cid, len(dgs.shards), dgs.pinOpts.Name)
+	logger.Debugf("ingesting block %s in shard %d (%s)", n.Cid(), len(dgs.shards), dgs.pinOpts.Name)
+
+	// this is not same as n.Size()
+	size := uint64(len(n.RawData()))
 
 	// add the block to it if it fits and return
-	if shard.Size()+n.Size() < shard.Limit() {
-		shard.AddLink(ctx, n.Cid, n.Size())
-		return adder.PutBlock(ctx, dgs.rpcClient, n, shard.Allocations())
+	if shard.Size()+size < shard.Limit() {
+		shard.AddLink(ctx, n.Cid(), size)
+		return dgs.currentShard.ba.Add(ctx, n)
 	}
 
 	logger.Debugf("shard %d full: block: %d. shard: %d. limit: %d",
 		len(dgs.shards),
-		n.Size(),
+		size,
 		shard.Size(),
 		shard.Limit(),
 	)

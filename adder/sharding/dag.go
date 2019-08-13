@@ -20,16 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
-
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	dag "github.com/ipfs/go-merkledag"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
 	mh "github.com/multiformats/go-multihash"
 )
 
@@ -121,36 +116,6 @@ func makeDAG(ctx context.Context, dagObj map[string]cid.Cid) ([]ipld.Node, error
 	}
 	nodes := append([]ipld.Node{indirectNode}, leafNodes...)
 	return nodes, nil
-}
-
-func putDAG(ctx context.Context, rpcC *rpc.Client, nodes []ipld.Node, dests []peer.ID) error {
-	for _, n := range nodes {
-		//logger.Debugf("The dag cbor Node Links: %+v", n.Links())
-		b := &api.NodeWithMeta{
-			Cid:    n.Cid(), // Tests depend on this.
-			Data:   n.RawData(),
-			Format: "cbor",
-		}
-		//logger.Debugf("Here is the serialized ipld: %x", b.Data)
-
-		ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(dests))
-		defer rpcutil.MultiCancel(cancels)
-
-		logger.Debugf("DAG block put %s", n.Cid())
-		errs := rpcC.MultiCall(
-			ctxs,
-			dests,
-			"IPFSConnector",
-			"BlockPut",
-			b,
-			rpcutil.RPCDiscardReplies(len(dests)),
-		)
-
-		if err := rpcutil.CheckErrs(errs); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // TODO: decide whether this is worth including. Is precision important for

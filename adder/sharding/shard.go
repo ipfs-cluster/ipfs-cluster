@@ -21,6 +21,7 @@ type shard struct {
 	rpc         *rpc.Client
 	allocations []peer.ID
 	pinOptions  api.PinOptions
+	ba          *adder.BlockAdder
 	// dagNode represents a node with links and will be converted
 	// to Cbor.
 	dagNode     map[string]cid.Cid
@@ -50,6 +51,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 		rpc:         rpc,
 		allocations: allocs,
 		pinOptions:  opts,
+		ba:          adder.NewBlockAdder(rpc, allocs),
 		dagNode:     make(map[string]cid.Cid),
 		currentSize: 0,
 		sizeLimit:   opts.ShardSize,
@@ -82,7 +84,7 @@ func (sh *shard) Flush(ctx context.Context, shardN int, prev cid.Cid) (cid.Cid, 
 		return cid.Undef, err
 	}
 
-	err = putDAG(ctx, sh.rpc, nodes, sh.allocations)
+	err = sh.ba.AddMany(ctx, nodes)
 	if err != nil {
 		return cid.Undef, err
 	}
