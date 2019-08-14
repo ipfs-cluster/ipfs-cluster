@@ -5,6 +5,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/btcsuite/btcd v0.0.0-20190807005414-4063feeff79a // indirect
+	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/dgraph-io/badger v1.6.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gogo/protobuf v1.2.1
@@ -32,6 +33,7 @@ require (
 	github.com/ipfs/go-ipfs-ds-help v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.3
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
+	github.com/ipfs/go-ipfs-provider v0.2.1 // indirect
 	github.com/ipfs/go-ipfs-util v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.3
 	github.com/ipfs/go-ipld-format v0.0.2
@@ -39,7 +41,7 @@ require (
 	github.com/ipfs/go-merkledag v0.2.3
 	github.com/ipfs/go-mfs v0.1.1
 	github.com/ipfs/go-path v0.0.7
-	github.com/ipfs/go-unixfs v0.1.0
+	github.com/ipfs/go-unixfs v0.2.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-eventbus v0.1.0 // indirect
@@ -63,6 +65,8 @@ require (
 	github.com/libp2p/go-libp2p-record v0.1.1 // indirect
 	github.com/libp2p/go-ws-transport v0.1.0
 	github.com/miekg/dns v1.1.15 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/multiformats/go-multiaddr v0.0.4
 	github.com/multiformats/go-multiaddr-dns v0.0.3
 	github.com/multiformats/go-multiaddr-net v0.0.1
