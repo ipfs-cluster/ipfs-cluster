@@ -221,7 +221,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		addrStr := scanner.Text()
-		if addrStr[0] != '/' {
+		if len(addrStr) == 0 || addrStr[0] != '/' {
 			// skip anything that is not going to be a multiaddress
 			continue
 		}
