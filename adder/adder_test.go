@@ -137,6 +137,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 		}
 		t.Log(err)
 	}()
+	// adder.FromMultipart will finish, if sleep more
 	time.Sleep(100 * time.Millisecond)
 	cancel()
 	wg.Wait()

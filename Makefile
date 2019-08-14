@@ -65,9 +65,9 @@ docker-compose:
 	mkdir -p compose/ipfs0 compose/ipfs1 compose/cluster0 compose/cluster1
 	chmod -R 0777 compose
 	CLUSTER_SECRET=$(shell od -vN 32 -An -tx1 /dev/urandom | tr -d ' \n') docker-compose up -d
-	sleep 20
-	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
-	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 1 other peers" | uniq -c | grep 2
+	sleep 35
+	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 2 other peers" | uniq -c | grep 3
+	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 2 other peers" | uniq -c | grep 3
 	docker-compose down
 
 prcheck: check service ctl test

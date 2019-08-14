@@ -1,18 +1,28 @@
 version: '3.4'
 
-# This is an example docker-compose file for IPFS Cluster
-# It runs two Cluster peers (cluster0, cluster1) attached to two
-# IPFS daemons (ipfs0, ipfs1).
+# This is an example docker-compose file to quickly test an IPFS Cluster
+# with multiple peers on a contained environment.
+
+# It runs 3 cluster peers (cluster0, cluster1...) attached to go-ipfs daemons
+# (ipfs0, ipfs1...) using the CRDT consensus component. Cluster peers
+# autodiscover themselves using mDNS on the docker internal network.
 #
-# It expects a "compose" subfolder as follows where it will store configurations
-# and states permanently:
+# To interact with the cluster use "ipfs-cluster-ctl" (the cluster0 API port is
+# exposed to the locahost. You can also "docker exec -ti cluster0 sh" and run
+# it from the container. "ipfs-cluster-ctl peers ls" should show all 3 peers a few
+# seconds after start.
+#
+# For persistance, a "compose" folder is created and used to store configurations
+# and states. This can be used to edit configurations in subsequent runs. It looks
+# as follows:
 #
 # compose/
 # |-- cluster0
 # |-- cluster1
+# |-- ...
 # |-- ipfs0
 # |-- ipfs1
-#
+# |-- ...
 # 
 # During the first start, default configurations are created for all peers.
 
@@ -25,10 +35,10 @@ services:
   ipfs0:
     container_name: ipfs0
     image: ipfs/go-ipfs:release
-    ports:
-          - "4001:4001" # ipfs swarm
-#         - "5001:5001" # expose if needed/wanted
-#         - "8080:8080" # exposes if needed/wanted
+#   ports:
+#     - "4001:4001" # ipfs swarm - expose if needed/wanted
+#     - "5001:5001" # ipfs api - expose if needed/wanted
+#     - "8080:8080" # ipfs gateway - expose if needed/wanted
     volumes:
       - ./compose/ipfs0:/data/ipfs
       
@@ -38,61 +48,67 @@ services:
     depends_on:
       - ipfs0
     environment:
-      CLUSTER_SECRET: ${CLUSTER_SECRET} # From shell variable
-      IPFS_API: /dns4/ipfs0/tcp/5001
+      CLUSTER_PEERNAME: cluster0
+      CLUSTER_SECRET: ${CLUSTER_SECRET} # From shell variable if set
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs0/tcp/5001
+      CLUSTER_CRDT_TRUSTEDPEERS: '*' # Trust all peers in Cluster
     ports:
-          - "127.0.0.1:9094:9094" # API
-#         - "9096:9096" # Cluster IPFS Proxy endpoint
+          # Open API port (allows ipfs-cluster-ctl usage on host)
+          - "127.0.0.1:9094:9094"
+          # The cluster swarm port would need  to be exposed if this container
+          # was to connect to cluster peers on other hosts.
+          # But this is just a testing cluster.
+          # - "9096:9096" # Cluster IPFS Proxy endpoint
     volumes:
       - ./compose/cluster0:/data/ipfs-cluster
 
 ##################################################################################
 ## Cluster PEER 1 ################################################################
 ##################################################################################
-      
+
+# See Cluster PEER 0 for comments (all removed here and below)
   ipfs1:
     container_name: ipfs1
     image: ipfs/go-ipfs:release
-    ports:
-          - "4101:4001" # ipfs swarm
-#         - "5101:5001" # expose if needed/wanted
-#         - "8180:8080" # exposes if needed/wanted
     volumes:
       - ./compose/ipfs1:/data/ipfs
 
-  # cluster1 bootstraps to cluster0 if not bootstrapped before
   cluster1:
     container_name: cluster1
     image: ipfs/ipfs-cluster:latest
     depends_on:
-      - cluster0
       - ipfs1
     environment:
-      CLUSTER_SECRET: ${CLUSTER_SECRET} # From shell variable
-      IPFS_API: /dns4/ipfs1/tcp/5001
-    ports:
-          - "127.0.0.1:9194:9094" # API
-#         - "9196:9096" # Cluster IPFS Proxy endpoint
+      CLUSTER_PEERNAME: cluster1
+      CLUSTER_SECRET: ${CLUSTER_SECRET}
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs1/tcp/5001
+      CLUSTER_CRDT_TRUSTEDPEERS: '*'
     volumes:
       - ./compose/cluster1:/data/ipfs-cluster
-    entrypoint:
-      - "/sbin/tini"
-      - "--"
-    # Translation: if state folder does not exist, find cluster0 id and bootstrap
-    # to it.
-    command: >-
-      sh -c '
-        cmd="daemon"
-        if [ ! -d /data/ipfs-cluster/badger ]; then
-          while ! ipfs-cluster-ctl --host /dns4/cluster0/tcp/9094 id; do
-            sleep 1
-          done
-          pid=`ipfs-cluster-ctl --host /dns4/cluster0/tcp/9094 id | grep -o -E "^(\w+)"`
-          sleep 10
-          cmd="daemon --bootstrap /dns4/cluster0/tcp/9096/ipfs/$$pid"
-        fi
-        exec /usr/local/bin/entrypoint.sh $$cmd
-      '
+
+##################################################################################
+## Cluster PEER 2 ################################################################
+##################################################################################
+
+# See Cluster PEER 0 for comments (all removed here and below)
+  ipfs2:
+    container_name: ipfs2
+    image: ipfs/go-ipfs:release
+    volumes:
+      - ./compose/ipfs2:/data/ipfs
+
+  cluster2:
+    container_name: cluster2
+    image: ipfs/ipfs-cluster:latest
+    depends_on:
+      - ipfs2
+    environment:
+      CLUSTER_PEERNAME: cluster2
+      CLUSTER_SECRET: ${CLUSTER_SECRET}
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs2/tcp/5001
+      CLUSTER_CRDT_TRUSTEDPEERS: '*'
+    volumes:
+      - ./compose/cluster2:/data/ipfs-cluster
 
 # For adding more peers, copy PEER 1 and rename things to ipfs2, cluster2.
 # Keep bootstrapping to cluster0.

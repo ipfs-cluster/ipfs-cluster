@@ -5,11 +5,15 @@ package ipfscluster
 import (
 	"context"
 	"mime/multipart"
+	"sync"
 	"testing"
 	"time"
 
+	files "github.com/ipfs/go-ipfs-files"
+	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 func TestAdd(t *testing.T) {
@@ -100,5 +104,106 @@ func TestAddPeerDown(t *testing.T) {
 		}
 
 		runF(t, clusters, f)
+	})
+}
+
+func TestAddOnePeerFails(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	waitForLeaderAndMetrics(t, clusters)
+
+	t.Run("local", func(t *testing.T) {
+		params := api.DefaultAddParams()
+		params.Shard = false
+		params.Name = "testlocal"
+		lg, closer := sth.GetRandFileReader(t, 100000) // 100 MB
+		defer closer.Close()
+
+		mr := files.NewMultiFileReader(lg, true)
+		r := multipart.NewReader(mr, mr.Boundary())
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := clusters[0].AddFile(r, params)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}()
+
+		// Disconnect 1 cluster (the last). Things should keep working.
+		// Important that we close the hosts, otherwise the RPC
+		// Servers keep working along with BlockPuts.
+		time.Sleep(100 * time.Millisecond)
+		c := clusters[nClusters-1]
+		c.Shutdown(context.Background())
+		c.dht.Close()
+		c.host.Close()
+		wg.Wait()
+	})
+}
+
+func TestAddAllPeersFail(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	waitForLeaderAndMetrics(t, clusters)
+
+	t.Run("local", func(t *testing.T) {
+		// Prevent added content to be allocated to cluster 0
+		// as it is already going to have something.
+		_, err := clusters[0].Pin(ctx, test.Cid1, api.PinOptions{
+			ReplicationFactorMin: 1,
+			ReplicationFactorMax: 1,
+			UserAllocations:      []peer.ID{clusters[0].host.ID()},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ttlDelay()
+
+		params := api.DefaultAddParams()
+		params.Shard = false
+		params.Name = "testlocal"
+		// Allocate to every peer except 0 (which already has a pin)
+		params.PinOptions.ReplicationFactorMax = nClusters - 1
+		params.PinOptions.ReplicationFactorMin = nClusters - 1
+
+		lg, closer := sth.GetRandFileReader(t, 100000) // 100 MB
+		defer closer.Close()
+		mr := files.NewMultiFileReader(lg, true)
+		r := multipart.NewReader(mr, mr.Boundary())
+
+		// var cid cid.Cid
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := clusters[0].AddFile(r, params)
+			if err != adder.ErrBlockAdder {
+				t.Fatal("expected ErrBlockAdder. Got: ", err)
+			}
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Shutdown all clusters except 0 to see the right error.
+		// Important that we shut down the hosts, otherwise
+		// the RPC Servers keep working along with BlockPuts.
+		// Note that this kills raft.
+		runF(t, clusters[1:], func(t *testing.T, c *Cluster) {
+			c.Shutdown(ctx)
+			c.dht.Close()
+			c.host.Close()
+		})
+		wg.Wait()
 	})
 }

@@ -37,6 +37,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 ENV GOPATH     /go
 ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
 ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
+ENV IPFS_CLUSTER_CONSENSUS crdt
 
 EXPOSE 9094
 EXPOSE 9095

@@ -40,7 +40,7 @@ var RaftLogCacheSize = 512
 
 // How long we wait for updates during shutdown before snapshotting
 var waitForUpdatesShutdownTimeout = 5 * time.Second
-var waitForUpdatesInterval = 100 * time.Millisecond
+var waitForUpdatesInterval = 400 * time.Millisecond
 
 // How many times to retry snapshotting when shutting down
 var maxShutdownSnapshotRetries = 5
@@ -283,6 +283,7 @@ func (rw *raftWrapper) WaitForVoter(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			logger.Debugf("%s: get configuration", pid)
 			configFuture := rw.raft.GetConfiguration()
 			if err := configFuture.Error(); err != nil {
 				return err
@@ -291,6 +292,7 @@ func (rw *raftWrapper) WaitForVoter(ctx context.Context) error {
 			if isVoter(pid, configFuture.Configuration()) {
 				return nil
 			}
+			logger.Debugf("%s: not voter yet", pid)
 
 			time.Sleep(waitForUpdatesInterval)
 		}
