@@ -265,7 +265,7 @@ func (api *API) addRoutes(router *mux.Router) {
 	}
 	router.NotFoundHandler = ochttp.WithRouteTag(
 		http.HandlerFunc(api.notFoundHandler),
-		"/"+"notfound",
+		"/notfound",
 	)
 	api.router = router
 }
