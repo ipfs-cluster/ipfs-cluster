@@ -95,7 +95,7 @@ $ ipfs-cluster-service daemon
 
 Launch a peer and join existing cluster:
 
-$ ipfs-cluster-service daemon --bootstrap /ip4/192.168.1.2/tcp/9096/ipfs/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
+$ ipfs-cluster-service daemon --bootstrap /ip4/192.168.1.2/tcp/9096/p2p/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
 `,
 	programName,
 	programName,

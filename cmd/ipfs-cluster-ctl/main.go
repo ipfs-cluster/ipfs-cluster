@@ -88,6 +88,8 @@ func checkErr(doing string, err error) {
 func main() {
 	ctx := context.Background()
 
+	ma.SwapToP2pMultiaddrs()
+
 	app := cli.NewApp()
 	app.Name = programName
 	app.Usage = "CLI for IPFS Cluster"

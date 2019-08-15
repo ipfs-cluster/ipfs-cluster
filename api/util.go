@@ -31,7 +31,7 @@ func StringsToPeers(strs []string) []peer.ID {
 }
 
 // MustLibp2pMultiaddrJoin takes a LibP2P multiaddress and a peer ID and
-// encapsulates a new /ipfs/<peerID> address. It will panic if the given
+// encapsulates a new /p2p/<peerID> address. It will panic if the given
 // peer ID is bad.
 func MustLibp2pMultiaddrJoin(addr Multiaddr, p peer.ID) Multiaddr {
 	v := addr.Value()

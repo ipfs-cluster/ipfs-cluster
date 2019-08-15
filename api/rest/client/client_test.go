@@ -228,7 +228,7 @@ func TestDNSMultiaddress(t *testing.T) {
 }
 
 func TestPeerAddress(t *testing.T) {
-	peerAddr, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234/ipfs/QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP")
+	peerAddr, _ := ma.NewMultiaddr("/dns4/localhost/tcp/1234/p2p/QmP7R7gWEnruNePxmCa9GBa4VmUNexLVnb1v47R8Gyo3LP")
 	cfg := &Config{
 		APIAddr:           peerAddr,
 		Host:              "localhost",
