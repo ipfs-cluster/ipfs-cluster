@@ -62,7 +62,6 @@
     "ipfshttp": {
       "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
       "connect_swarms_delay": "30s",
-      "pin_method": "refs",
       "ipfs_request_timeout": "5m0s",
       "pin_timeout": "24h0m0s",
       "unpin_timeout": "3h0m0s"

@@ -4,6 +4,6 @@
 sleep 4
 while true; do
   export CLUSTER_SECRET=""
-  pgrep ipfs-cluster-service || echo "CLUSTER RESTARTING"; ipfs-cluster-service daemon --consensus raft --debug &
+  pgrep ipfs-cluster-service || echo "CLUSTER RESTARTING"; ipfs-cluster-service daemon --debug &
   sleep 10
 done

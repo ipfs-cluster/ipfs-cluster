@@ -30,6 +30,8 @@ type DAGService struct {
 
 	dests   []peer.ID
 	pinOpts api.PinOptions
+
+	ba *adder.BlockAdder
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
@@ -50,19 +52,10 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 			return err
 		}
 		dgs.dests = dests
+		dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
 	}
 
-	size, err := node.Size()
-	if err != nil {
-		return err
-	}
-	nodeSerial := &api.NodeWithMeta{
-		Cid:     node.Cid(),
-		Data:    node.RawData(),
-		CumSize: size,
-	}
-
-	return adder.PutBlock(ctx, dgs.rpcClient, nodeSerial, dgs.dests)
+	return dgs.ba.Add(ctx, node)
 }
 
 // Finalize pins the last Cid added to this DAGService.

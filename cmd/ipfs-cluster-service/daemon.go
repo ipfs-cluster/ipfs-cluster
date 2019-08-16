@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	discovery "github.com/libp2p/go-libp2p/p2p/discovery"
 
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -37,7 +39,7 @@ import (
 
 func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {
 	for _, a := range flagVal {
-		bAddr, err := ma.NewMultiaddr(a)
+		bAddr, err := ma.NewMultiaddr(strings.TrimSpace(a))
 		checkErr("error parsing bootstrap multiaddress (%s)", err, a)
 		bootstraps = append(bootstraps, bAddr)
 	}
@@ -46,15 +48,13 @@ func parseBootstraps(flagVal []string) (bootstraps []ma.Multiaddr) {
 
 // Runs the cluster peer
 func daemon(c *cli.Context) error {
-	if c.String("consensus") == "" {
-		checkErr("starting daemon", errors.New("--consensus flag must be set to \"raft\" or \"crdt\""))
-	}
-
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
 	ctx, cancel := context.WithCancel(context.Background())
-
-	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
+	var bootstraps []ma.Multiaddr
+	if bootStr := c.String("bootstrap"); bootStr != "" {
+		bootstraps = parseBootstraps(strings.Split(bootStr, ","))
+	}
 
 	// Execution lock
 	locker.lock()
@@ -66,28 +66,32 @@ func daemon(c *cli.Context) error {
 
 	cfgs := cfgHelper.Configs()
 
-	if !c.Bool("no-trust") {
-		crdtCfg := cfgs.Crdt
-		crdtCfg.TrustedPeers = append(crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
-	}
-
 	if c.Bool("stats") {
 		cfgs.Metrics.EnableStats = true
 	}
 	cfgHelper.SetupTracing(c.Bool("tracing"))
 
-	// Cleanup state if bootstrapping
+	// Setup bootstrapping
 	raftStaging := false
-	if len(bootstraps) > 0 && c.String("consensus") == "raft" {
-		raft.CleanupRaft(cfgs.Raft)
-		raftStaging = true
+	switch cfgHelper.GetConsensus() {
+	case cfgs.Raft.ConfigKey():
+		if len(bootstraps) > 0 {
+			// Cleanup state if bootstrapping
+			raft.CleanupRaft(cfgs.Raft)
+			raftStaging = true
+		}
+	case cfgs.Crdt.ConfigKey():
+		if !c.Bool("no-trust") {
+			crdtCfg := cfgs.Crdt
+			crdtCfg.TrustedPeers = append(crdtCfg.TrustedPeers, ipfscluster.PeersFromMultiaddrs(bootstraps)...)
+		}
 	}
 
 	if c.Bool("leave") {
 		cfgs.Cluster.LeaveOnShutdown = true
 	}
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
+	host, pubsub, dht, mdns, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
 	checkErr("creating libp2p host", err)
 
 	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, raftStaging)
@@ -100,7 +104,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return handleSignals(ctx, cancel, cluster, host, dht)
+	return handleSignals(ctx, cancel, cluster, host, dht, mdns)
 }
 
 // createCluster creates all the necessary things to produce the cluster
@@ -159,14 +163,13 @@ func createCluster(
 	tracer, err := observations.SetupTracing(cfgs.Tracing)
 	checkErr("setting up Tracing", err)
 
-	store := setupDatastore(c.String("consensus"), cfgHelper.Identity(), cfgs)
+	store := setupDatastore(cfgHelper)
 
 	cons, err := setupConsensus(
-		c.String("consensus"),
+		cfgHelper,
 		host,
 		dht,
 		pubsub,
-		cfgs,
 		store,
 		raftStaging,
 	)
@@ -176,7 +179,7 @@ func createCluster(
 	}
 
 	var peersF func(context.Context) ([]peer.ID, error)
-	if c.String("consensus") == "raft" {
+	if cfgHelper.GetConsensus() == cfgs.Raft.ConfigKey() {
 		peersF = cons.Peers
 	}
 
@@ -221,6 +224,7 @@ func handleSignals(
 	cluster *ipfscluster.Cluster,
 	host host.Host,
 	dht *dht.IpfsDHT,
+	mdns discovery.Service,
 ) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
@@ -239,6 +243,7 @@ func handleSignals(
 		case <-cluster.Done():
 			cancel()
 			dht.Close()
+			mdns.Close()
 			host.Close()
 			return nil
 		}
@@ -293,12 +298,8 @@ func setupPinTracker(
 	}
 }
 
-func setupDatastore(
-	consensus string,
-	ident *config.Identity,
-	cfgs *cmdutils.Configs,
-) ds.Datastore {
-	stmgr, err := cmdutils.NewStateManager(consensus, ident, cfgs)
+func setupDatastore(cfgHelper *cmdutils.ConfigHelper) ds.Datastore {
+	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgHelper.Configs())
 	checkErr("creating state manager", err)
 	store, err := stmgr.GetStore()
 	checkErr("creating datastore", err)
@@ -306,19 +307,20 @@ func setupDatastore(
 }
 
 func setupConsensus(
-	name string,
+	cfgHelper *cmdutils.ConfigHelper,
 	h host.Host,
 	dht *dht.IpfsDHT,
 	pubsub *pubsub.PubSub,
-	cfgs *cmdutils.Configs,
 	store ds.Datastore,
 	raftStaging bool,
 ) (ipfscluster.Consensus, error) {
-	switch name {
-	case "raft":
+
+	cfgs := cfgHelper.Configs()
+	switch cfgHelper.GetConsensus() {
+	case cfgs.Raft.ConfigKey():
 		rft, err := raft.NewConsensus(
 			h,
-			cfgs.Raft,
+			cfgHelper.Configs().Raft,
 			store,
 			raftStaging,
 		)
@@ -326,12 +328,12 @@ func setupConsensus(
 			return nil, errors.Wrap(err, "creating Raft component")
 		}
 		return rft, nil
-	case "crdt":
+	case cfgs.Crdt.ConfigKey():
 		convrdt, err := crdt.New(
 			h,
 			dht,
 			pubsub,
-			cfgs.Crdt,
+			cfgHelper.Configs().Crdt,
 			store,
 		)
 		if err != nil {

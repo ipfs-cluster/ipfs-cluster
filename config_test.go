@@ -34,8 +34,8 @@ var testingClusterCfg = []byte(`{
     "state_sync_interval": "1m0s",
     "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,
-    "monitor_ping_interval": "250ms",
-    "peer_watch_interval": "100ms",
+    "monitor_ping_interval": "350ms",
+    "peer_watch_interval": "200ms",
     "disable_repinning": false
 }`)
 
@@ -46,14 +46,14 @@ var testingRaftCfg = []byte(`{
     "commit_retry_delay": "50ms",
     "backups_rotate": 2,
     "network_timeout": "5s",
-    "heartbeat_timeout": "100ms",
-    "election_timeout": "100ms",
-    "commit_timeout": "50ms",
+    "heartbeat_timeout": "200ms",
+    "election_timeout": "200ms",
+    "commit_timeout": "150ms",
     "max_append_entries": 256,
     "trailing_logs": 10240,
     "snapshot_interval": "2m0s",
     "snapshot_threshold": 8192,
-    "leader_lease_timeout": "80ms"
+    "leader_lease_timeout": "200ms"
 }`)
 
 var testingCrdtCfg = []byte(`{
@@ -98,7 +98,6 @@ var testingProxyCfg = []byte(`{
 var testingIpfsCfg = []byte(`{
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
-    "pin_method": "pin",
     "pin_timeout": "30s",
     "unpin_timeout": "15s"
 }`)
@@ -111,12 +110,12 @@ var testingTrackerCfg = []byte(`
 `)
 
 var testingMonCfg = []byte(`{
-    "check_interval": "400ms",
+    "check_interval": "550ms",
     "failure_threshold": 6
 }`)
 
 var testingDiskInfCfg = []byte(`{
-    "metric_ttl": "250ms",
+    "metric_ttl": "350ms",
     "metric_type": "freespace"
 }`)
 

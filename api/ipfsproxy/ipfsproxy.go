@@ -445,38 +445,17 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing FROM pin, and send error if not present.
-	var fromPin api.Pin
-	err = proxy.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"PinGet",
-		fromCid,
-		&fromPin,
-	)
-	if err != nil {
-		ipfsErrorResponder(w, err.Error(), -1)
-		return
-	}
+	// Do a PinPath setting PinUpdate
+	pinPath := &api.PinPath{Path: pTo.String()}
+	pinPath.PinUpdate = fromCid
 
-	// Prepare to pin the TO argument with the options from the FROM pin
-	// and the allocations of the FROM pin.
-	toPath := &api.PinPath{
-		Path:       pTo.String(),
-		PinOptions: fromPin.PinOptions,
-	}
-	toPath.PinOptions.UserAllocations = fromPin.Allocations
-
-	// Pin the TO pin.
-	var toPin api.Pin
-	err = proxy.rpcClient.CallContext(
-		ctx,
+	var pin api.Pin
+	err = proxy.rpcClient.Call(
 		"",
 		"Cluster",
 		"PinPath",
-		toPath,
-		&toPin,
+		pinPath,
+		&pin,
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error(), -1)
@@ -492,7 +471,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"Unpin",
-			&fromPin,
+			api.PinCid(fromCid),
 			&pinObj,
 		)
 		if err != nil {
@@ -502,7 +481,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := ipfsPinOpResp{
-		Pins: []string{fromCid.String(), toPin.Cid.String()},
+		Pins: []string{fromCid.String(), pin.Cid.String()},
 	}
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)

@@ -27,6 +27,9 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 ENV GOPATH     /go
 ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
 ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
+ENV IPFS_CLUSTER_CONSENSUS crdt
+ENV IPFS_CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS /ip4/0.0.0.0/tcp/9094
+ENV IPFS_CLUSTER_IPFSPROXY_LISTENMULTIADDRESS /ip4/0.0.0.0/tcp/9095
 
 EXPOSE 9094
 EXPOSE 9095
@@ -34,7 +37,7 @@ EXPOSE 9096
 
 COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
 COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
-COPY --from=builder $SRC_PATH/docker/test-entrypoint.sh /usr/local/bin/start-daemons.sh
+COPY --from=builder $SRC_PATH/docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
 COPY --from=builder $SRC_PATH/docker/random-stopper.sh /usr/local/bin/random-stopper.sh
 COPY --from=builder $SRC_PATH/docker/random-killer.sh /usr/local/bin/random-killer.sh
 COPY --from=builder $SRC_PATH/docker/wait-killer-stopper.sh /usr/local/bin/wait-killer-stopper.sh
@@ -55,7 +58,7 @@ RUN mkdir -p $IPFS_CLUSTER_PATH && \
 USER ipfs
 
 VOLUME $IPFS_CLUSTER_PATH
-ENTRYPOINT ["/usr/local/bin/start-daemons.sh"]
+ENTRYPOINT ["/usr/local/bin/test-entrypoint.sh"]
 
 # Defaults would go here
-CMD ["daemon", "--upgrade"]
+CMD ["daemon"]

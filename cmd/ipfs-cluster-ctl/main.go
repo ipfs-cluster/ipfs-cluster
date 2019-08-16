@@ -29,7 +29,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.11.0-rc5"
+const Version = "0.11.0-rc6"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -473,7 +473,7 @@ cluster "pin add".
 			Subcommands: []cli.Command{
 				{
 					Name:  "add",
-					Usage: "Cluster Pin",
+					Usage: "Pin an item in the cluster",
 					Description: `
 This command tells IPFS Cluster to start managing a CID. Depending on
 the pinning strategy, this will trigger IPFS pin requests. The CID will
@@ -491,7 +491,7 @@ comma-separated list of peer IDs on which we want to pin. Peers in allocations
 are prioritized over automatically-determined ones, but replication factors
 would stil be respected.
 `,
-					ArgsUsage: "<CID>",
+					ArgsUsage: "<CID|Path>",
 					Flags: []cli.Flag{
 						cli.IntFlag{
 							Name:  "replication, r",
@@ -508,7 +508,7 @@ would stil be respected.
 							Value: 0,
 							Usage: "Sets the maximum replication factor for this pin",
 						},
-						cli.StringSliceFlag{
+						cli.StringFlag{
 							Name:  "allocations, allocs",
 							Usage: "Optional comma-separated list of peer IDs",
 						},
@@ -541,9 +541,16 @@ would stil be respected.
 							rplMax = rpl
 						}
 
-						userAllocs := api.StringsToPeers(c.StringSlice("allocations"))
-						if len(userAllocs) != len(c.StringSlice("allocations")) {
-							checkErr("", errors.New("error decoding manual allocations"))
+						var userAllocs []peer.ID
+						if c.String("allocations") != "" {
+							allocs := strings.Split(c.String("allocations"), ",")
+							for i := range allocs {
+								allocs[i] = strings.TrimSpace(allocs[i])
+							}
+							userAllocs = api.StringsToPeers(allocs)
+							if len(userAllocs) != len(allocs) {
+								checkErr("decoding allocations", errors.New("some peer IDs could not be decoded"))
+							}
 						}
 
 						opts := api.PinOptions{
@@ -569,7 +576,7 @@ would stil be respected.
 				},
 				{
 					Name:  "rm",
-					Usage: "Cluster Unpin",
+					Usage: "Unpin an item from the cluster",
 					Description: `
 This command tells IPFS Cluster to no longer manage a CID. This will
 trigger unpinning operations in all the IPFS nodes holding the content.
@@ -578,7 +585,7 @@ When the request has succeeded, the command returns the status of the CID
 in the cluster. The CID should disappear from the list offered by "pin ls",
 although unpinning operations in the cluster may take longer or fail.
 `,
-					ArgsUsage: "<CID>",
+					ArgsUsage: "<CID|Path>",
 					Flags: []cli.Flag{
 						cli.BoolFlag{
 							Name:  "no-status, ns",
@@ -606,6 +613,63 @@ although unpinning operations in the cluster may take longer or fail.
 							c,
 							pin,
 							api.TrackerStatusUnpinned,
+						)
+						return nil
+					},
+				},
+				{
+					Name:  "update",
+					Usage: "Pin a new item based on an existing one",
+					Description: `
+This command will add a new pin to the cluster taking all the options from an
+existing one, including name. This means that the new pin will bypass the
+allocation process and will be allocated to the same peers as the existing
+one.
+
+The cluster peers will try to Pin the new item on IPFS using the "pin update"
+command. This is especially efficient when the content of two pins (their DAGs)
+are similar.
+
+Unlike the "pin update" command in the ipfs daemon, this will not unpin the
+existing item from the cluster. Please run "pin rm" for that.
+`,
+					ArgsUsage: "<existing-CID> <new-CID|Path>",
+					Flags: []cli.Flag{
+						cli.BoolFlag{
+							Name:  "no-status, ns",
+							Usage: "Prevents fetching pin status after unpinning (faster, quieter)",
+						},
+						cli.BoolFlag{
+							Name:  "wait, w",
+							Usage: "Wait for all nodes to report a status of pinned before returning",
+						},
+						cli.DurationFlag{
+							Name:  "wait-timeout, wt",
+							Value: 0,
+							Usage: "How long to --wait (in seconds), default is indefinitely",
+						},
+					},
+					Action: func(c *cli.Context) error {
+						from := c.Args().Get(0)
+						to := c.Args().Get(1)
+
+						fromCid, err := cid.Decode(from)
+						checkErr("parsing from Cid", err)
+
+						opts := api.PinOptions{
+							PinUpdate: fromCid,
+						}
+
+						pin, cerr := globalClient.PinPath(ctx, to, opts)
+						if cerr != nil {
+							formatResponse(c, nil, cerr)
+							return nil
+						}
+						handlePinResponseFormatFlags(
+							ctx,
+							c,
+							pin,
+							api.TrackerStatusPinned,
 						)
 						return nil
 					},

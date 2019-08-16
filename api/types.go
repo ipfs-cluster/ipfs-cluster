@@ -461,6 +461,7 @@ type PinOptions struct {
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
 	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
+	PinUpdate            cid.Cid           `json:"pin_update,omitempty" codec:"pu,omitempty"`
 }
 
 // Equals returns true if two PinOption objects are equivalent. po and po2 may
@@ -507,6 +508,9 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 			return false
 		}
 	}
+
+	// deliberately ignore Update
+
 	return true
 }
 
@@ -524,6 +528,7 @@ func (po *PinOptions) ToQuery() string {
 		}
 		q.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
 	}
+	q.Set("pin-update", po.PinUpdate.String())
 	return q.Encode()
 }
 
@@ -563,10 +568,20 @@ func (po *PinOptions) FromQuery(q url.Values) {
 		}
 		po.Metadata[metaKey] = q.Get(k)
 	}
+
+	updateStr := q.Get("pin-update")
+	if updateStr != "" {
+		updateCid, err := cid.Decode(updateStr)
+		if err != nil {
+			logger.Error("error decoding update option parameter: ", err)
+		}
+		po.PinUpdate = updateCid
+	}
 }
 
 // Pin carries all the information associated to a CID that is pinned
-// in IPFS Cluster.
+// in IPFS Cluster. It also carries transient information (that may not
+// get protobuffed, like UserAllocations).
 type Pin struct {
 	PinOptions
 
@@ -657,7 +672,8 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		Name:                 pin.Name,
 		ShardSize:            pin.ShardSize,
 		// UserAllocations:      pin.UserAllocations,
-		Metadata: pin.Metadata,
+		Metadata:  pin.Metadata,
+		PinUpdate: pin.PinUpdate.Bytes(),
 	}
 
 	pbPin := &pb.Pin{
@@ -717,6 +733,11 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	pin.ShardSize = opts.GetShardSize()
 	// pin.UserAllocations = opts.GetUserAllocations()
 	pin.Metadata = opts.GetMetadata()
+
+	pinUpdate, err := cid.Cast(opts.GetPinUpdate())
+	if err == nil {
+		pin.PinUpdate = pinUpdate
+	}
 	return nil
 }
 
@@ -793,7 +814,7 @@ func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
 	Data    []byte  `codec:"d,omitempty"`
-	Cid     cid.Cid `codec:"c, omitempty"`
+	Cid     cid.Cid `codec:"c,omitempty"`
 	CumSize uint64  `codec:"s,omitempty"` // Cumulative size
 	Format  string  `codec:"f,omitempty"`
 }

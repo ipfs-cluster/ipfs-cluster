@@ -37,6 +37,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 ENV GOPATH     /go
 ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
 ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
+ENV IPFS_CLUSTER_CONSENSUS crdt
 
 EXPOSE 9094
 EXPOSE 9095
@@ -57,4 +58,4 @@ VOLUME $IPFS_CLUSTER_PATH
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
 # Defaults for ipfs-cluster-service go here
-CMD ["daemon", "--consensus raft"]
+CMD ["daemon"]

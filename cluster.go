@@ -1191,12 +1191,16 @@ func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 // rest of the cluster. Priority allocations are best effort. If any priority
 // peers are unavailable then Pin will simply allocate from the rest of the
 // cluster.
+//
+// If the Update option is set, the pin options (including allocations) will
+// be copied from an existing one. This is equivalent to running PinUpdate.
 func (c *Cluster) Pin(ctx context.Context, h cid.Cid, opts api.PinOptions) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
 
 	ctx = trace.NewContext(c.ctx, span)
 	pin := api.PinWithOpts(h, opts)
+
 	result, _, err := c.pin(ctx, pin, []peer.ID{})
 	return result, err
 }
@@ -1287,6 +1291,8 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 // evacuate a node and returns the pin object that it tried to pin, whether
 // the pin was submitted to the consensus layer or skipped (due to error or to
 // the fact that it was already valid) and error.
+//
+// This is the method called by the Cluster.Pin RPC endpoint.
 func (c *Cluster) pin(
 	ctx context.Context,
 	pin *api.Pin,
@@ -1301,6 +1307,12 @@ func (c *Cluster) pin(
 
 	if pin.Cid == cid.Undef {
 		return pin, false, errors.New("bad pin object")
+	}
+
+	// Handle pin updates when the option is set
+	if update := pin.PinUpdate; update != cid.Undef && !update.Equals(pin.Cid) {
+		pin, err := c.PinUpdate(ctx, update, pin.Cid, pin.PinOptions)
+		return pin, true, err
 	}
 
 	// setup pin might produce some side-effects to our pin
@@ -1405,6 +1417,37 @@ func (c *Cluster) unpinClusterDag(metaPin *api.Pin) error {
 		}
 	}
 	return nil
+}
+
+// PinUpdate pins a new CID based on an existing cluster Pin. The allocations
+// and most pin options (replication factors) are copied from the existing
+// Pin.  The options object can be used to set the Name for the new pin and
+// might support additional options in the future.
+//
+// The from pin is NOT unpinned upon completion. The new pin might take
+// advantage of efficient pin/update operation on IPFS-side (if the
+// IPFSConnector supports it - the default one does). This may offer
+// significant speed when pinning items which are similar to previously pinned
+// content.
+func (c *Cluster) PinUpdate(ctx context.Context, from cid.Cid, to cid.Cid, opts api.PinOptions) (*api.Pin, error) {
+	existing, err := c.PinGet(ctx, from)
+	if err != nil { // including when the existing pin is not found
+		return nil, err
+	}
+
+	// Hector: I am not sure whether it has any point to update something
+	// like a MetaType.
+	if existing.Type != api.DataType {
+		return nil, errors.New("this pin type cannot be updated")
+	}
+
+	existing.Cid = to
+	existing.PinUpdate = from
+	if opts.Name != "" {
+		existing.Name = opts.Name
+	}
+
+	return existing, c.consensus.LogPin(ctx, existing)
 }
 
 // PinPath pins an CID resolved from its IPFS Path. It returns the resolved

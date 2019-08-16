@@ -313,7 +313,7 @@ func (mock *mockCluster) BlockAllocate(ctx context.Context, in *api.Pin, out *[]
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("replMin too high: can only mock-allocate to 1")
 	}
-	*out = in.Allocations
+	*out = []peer.ID{""} // allocate to local peer
 	return nil
 }
 
