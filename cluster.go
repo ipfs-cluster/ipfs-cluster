@@ -721,22 +721,11 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 			Error: err.Error(),
 		}
 	}
+
 	var addrs []api.Multiaddr
-
-	addrsSet := make(map[string]struct{}) // to filter dups
-	for _, addr := range c.host.Addrs() {
-		addrsSet[addr.String()] = struct{}{}
-	}
-
-	var addrSorted []string
-	for k := range addrsSet {
-		addrSorted = append(addrSorted, k)
-	}
-	sort.Strings(addrSorted)
-
-	for _, k := range addrSorted {
-		addr, _ := api.NewMultiaddr(k)
-		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
+	mAddrs, _ := peer.AddrInfoToP2pAddrs(&peer.AddrInfo{ID: c.id, Addrs: c.host.Addrs()})
+	for _, mAddr := range mAddrs {
+		addrs = append(addrs, api.NewMultiaddrWithValue(mAddr))
 	}
 
 	peers := []peer.ID{}
