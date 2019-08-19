@@ -349,6 +349,10 @@ cluster "pin add".
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
+				cli.StringSliceFlag{
+					Name:  "metadata",
+					Usage: "Arbitrary metadata to be stored with pins",
+				},
 				cli.BoolFlag{
 					Name:  "nocopy",
 					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
@@ -396,6 +400,12 @@ cluster "pin add".
 				p := api.DefaultAddParams()
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
+				metadata := make(map[string]string)
+				for _, str := range c.StringSlice("metadata") {
+					parts := strings.Split(str, "=")
+					metadata[parts[0]] = parts[1]
+				}
+				p.Metadata = metadata
 				p.Name = name
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
@@ -517,6 +527,10 @@ would stil be respected.
 							Value: "",
 							Usage: "Sets a name for this pin",
 						},
+						cli.StringSliceFlag{
+							Name:  "metadata",
+							Usage: "Arbitrary metadata to be stored with pins",
+						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
 							Usage: "Prevents fetching pin status after pinning (faster, quieter)",
@@ -553,11 +567,18 @@ would stil be respected.
 							}
 						}
 
+						metadata := make(map[string]string)
+						for _, str := range c.StringSlice("metadata") {
+							parts := strings.Split(str, "=")
+							metadata[parts[0]] = parts[1]
+						}
+
 						opts := api.PinOptions{
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
 							UserAllocations:      userAllocs,
+							Metadata:             metadata,
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)

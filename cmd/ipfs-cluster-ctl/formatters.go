@@ -188,7 +188,18 @@ func textFormatPrintPin(obj *api.Pin) {
 		recStr = fmt.Sprintf("Recursive-%d", obj.MaxDepth)
 	}
 
-	fmt.Printf(" | %s\n", recStr)
+	fmt.Printf(" | %s", recStr)
+
+	if len(obj.Metadata) == 0 {
+		fmt.Printf("\n")
+		return
+	}
+
+	fmt.Printf(" | Metadata:")
+	for k, v := range obj.Metadata {
+		fmt.Printf(" %s=%s, ", k, v)
+	}
+	fmt.Printf("\n")
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
