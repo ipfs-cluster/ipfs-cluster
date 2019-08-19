@@ -5,6 +5,7 @@
 # We are using sharness (https://github.com/chriscool/sharness)
 # which was extracted from the Git test framework.
 
+SHARNESS_TEST_SRCDIR="lib/sharness/test"
 SHARNESS_LIB="lib/sharness/sharness.sh"
 
 # Daemons output will be redirected to...
