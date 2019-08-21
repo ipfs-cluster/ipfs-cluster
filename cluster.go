@@ -1097,6 +1097,15 @@ func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo,
 	return c.localPinInfoOp(ctx, h, c.tracker.Sync)
 }
 
+// RecoverAll triggers a RecoverAllLocal operation on all peer.
+func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
+	_, span := trace.StartSpan(ctx, "cluster/RecoverAll")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	return c.globalPinInfoSlice(ctx, "Cluster", "RecoverAllLocal")
+}
+
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
 // by this peer.
 func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {

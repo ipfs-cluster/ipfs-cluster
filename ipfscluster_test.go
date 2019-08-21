@@ -1096,6 +1096,41 @@ func TestClustersRecover(t *testing.T) {
 	}
 }
 
+func TestClustersRecoverAll(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	h2 := test.Cid2
+
+	ttlDelay()
+
+	clusters[0].Pin(ctx, h2, api.PinOptions{})
+
+	pinDelay()
+
+	_, err := clusters[rand.Intn(nClusters)].RecoverAll(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delay()
+
+	info, err := clusters[rand.Intn(nClusters)].Status(ctx, h2)
+	if !info.Cid.Equals(h2) {
+		t.Error("GlobalPinInfo should be for testrCid2")
+	}
+
+	for _, c := range clusters {
+		inf, ok := info.PeerMap[peer.IDB58Encode(c.host.ID())]
+		if !ok {
+			t.Fatal("GlobalPinInfo should have this cluster")
+		}
+		if inf.Status != api.TrackerStatusPinned {
+			t.Error("the GlobalPinInfo should show Pinned in all peers")
+		}
+	}
+}
+
 func TestClustersShutdown(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)

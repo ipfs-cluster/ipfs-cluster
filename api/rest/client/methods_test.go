@@ -441,6 +441,11 @@ func TestRecoverAll(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		_, err = c.RecoverAll(ctx, false)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	testClients(t, api, testF)
