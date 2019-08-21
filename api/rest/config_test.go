@@ -14,21 +14,22 @@ import (
 
 var cfgJSON = []byte(`
 {
-      "listen_multiaddress": "/ip4/127.0.0.1/tcp/12122",
-      "ssl_cert_file": "test/server.crt",
-      "ssl_key_file": "test/server.key",
-      "read_timeout": "30s",
-      "read_header_timeout": "5s",
-      "write_timeout": "1m0s",
-      "idle_timeout": "2m0s",
-      "max_header_bytes": 16384,
-      "basic_auth_credentials": null,
-      "cors_allowed_origins": ["myorigin"],
-      "cors_allowed_methods": ["GET"],
-      "cors_allowed_headers": ["X-Custom"],
-      "cors_exposed_headers": ["X-Chunked-Output"],
-      "cors_allow_credentials": false,
-      "cors_max_age": "1s"
+	"listen_multiaddress": "/ip4/127.0.0.1/tcp/12122",
+	"ssl_cert_file": "test/server.crt",
+	"ssl_key_file": "test/server.key",
+	"read_timeout": "30s",
+	"read_header_timeout": "5s",
+	"write_timeout": "1m0s",
+	"idle_timeout": "2m0s",
+	"max_header_bytes": 16384,
+	"basic_auth_credentials": null,
+	"cors_allowed_origins": ["myorigin"],
+	"cors_allowed_methods": ["GET"],
+	"cors_allowed_headers": ["X-Custom"],
+	"cors_exposed_headers": ["X-Chunked-Output"],
+	"cors_allow_credentials": false,
+	"cors_max_age": "1s",
+	"send_logs_to_file": false
 }
 `)
 
