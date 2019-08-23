@@ -52,8 +52,6 @@ func daemon(c *cli.Context) error {
 
 	logger.Info("Initializing. For verbose output run with \"-l debug\". Please wait...")
 
-	ma.SwapToP2pMultiaddrs()
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	bootstraps := parseBootstraps(c.StringSlice("bootstrap"))
