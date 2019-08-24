@@ -263,6 +263,10 @@ func (api *API) addRoutes(router *mux.Router) {
 				),
 			)
 	}
+	router.NotFoundHandler = ochttp.WithRouteTag(
+		http.HandlerFunc(api.notFoundHandler),
+		"/notfound",
+	)
 	api.router = router
 }
 
@@ -1024,6 +1028,10 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
 	}
+}
+
+func (api *API) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	api.sendResponse(w, http.StatusNotFound, errors.New("not found"), nil)
 }
 
 func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *types.PinPath {
