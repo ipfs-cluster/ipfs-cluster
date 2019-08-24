@@ -528,7 +528,9 @@ func (po *PinOptions) ToQuery() string {
 		}
 		q.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
 	}
-	q.Set("pin-update", po.PinUpdate.String())
+	if po.PinUpdate != cid.Undef {
+		q.Set("pin-update", po.PinUpdate.String())
+	}
 	return q.Encode()
 }
 

@@ -407,14 +407,15 @@ func (mpt *MapPinTracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo,
 	ctx, span := trace.StartSpan(mpt.ctx, "tracker/map/Recover")
 	defer span.End()
 
-	logger.Infof("Attempting to recover %s", c)
 	pInfo := mpt.optracker.Get(ctx, c)
 	var err error
 
 	switch pInfo.Status {
 	case api.TrackerStatusPinError:
+		logger.Infof("Restarting pin operation for %s", c)
 		err = mpt.enqueue(ctx, api.PinCid(c), optracker.OperationPin, mpt.pinCh)
 	case api.TrackerStatusUnpinError:
+		logger.Infof("Restarting unpin operation for %s", c)
 		err = mpt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin, mpt.unpinCh)
 	}
 	return mpt.optracker.Get(ctx, c), err

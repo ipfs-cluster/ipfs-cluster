@@ -516,7 +516,6 @@ func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Recover")
 	defer span.End()
 
-	logger.Infof("Attempting to recover %s", c)
 	pInfo, ok := spt.optracker.GetExists(ctx, c)
 	if !ok {
 		return spt.Status(ctx, c), nil
@@ -525,8 +524,10 @@ func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error
 	var err error
 	switch pInfo.Status {
 	case api.TrackerStatusPinError:
+		logger.Infof("Restarting pin operation for %s", c)
 		err = spt.enqueue(ctx, api.PinCid(c), optracker.OperationPin)
 	case api.TrackerStatusUnpinError:
+		logger.Infof("Restarting unpin operation for %s", c)
 		err = spt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin)
 	}
 	if err != nil {
