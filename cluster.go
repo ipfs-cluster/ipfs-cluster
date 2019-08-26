@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -942,7 +943,10 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		_, tracked := trackedPinsMap[pin.Cid.String()]
 		if !tracked {
 			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			c.tracker.Track(ctx, pin)
+			err = c.tracker.Track(ctx, pin)
+			if err == maptracker.ErrFullQueue {
+				return err
+			}
 		}
 	}
 
@@ -967,10 +971,13 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		switch {
 		case p.Status == api.TrackerStatusRemote && allocatedHere:
 			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
 		case p.Status == api.TrackerStatusPinned && !allocatedHere:
 			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
+		}
+		if err == maptracker.ErrFullQueue {
+			return err
 		}
 	}
 
