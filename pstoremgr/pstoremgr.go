@@ -341,6 +341,23 @@ func (pm *Manager) SetPriority(pid peer.ID, prio int) error {
 	return pm.host.Peerstore().Put(pid, PriorityTag, prio)
 }
 
+// HandlePeerFound implements the Notifee interface for discovery.
+func (pm *Manager) HandlePeerFound(p peer.AddrInfo) {
+	addrs, err := peer.AddrInfoToP2pAddrs(&p)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	// actually mdns returns a single address but let's do things
+	// as if there were several
+	for _, a := range addrs {
+		_, err = pm.ImportPeer(a, true, peerstore.ConnectedAddrTTL)
+		if err != nil {
+			logger.Error(err)
+		}
+	}
+}
+
 // peerSort is used to sort a slice of PinInfos given the PriorityTag in the
 // peerstore, from the lowest tag value (0 is the highest priority) to the
 // highest, Peers without a valid priority tag are considered as having a tag

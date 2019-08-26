@@ -45,11 +45,10 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.Secret = testingClusterSecret
 
 	// Create a bootstrapping libp2p host
-	h, _, dht, mdns, err := NewClusterHost(context.Background(), ident, cfg)
+	h, _, dht, err := NewClusterHost(context.Background(), ident, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mdns.Close()
 
 	// Connect all peers to that host. This will allow that they
 	// can discover each others via DHT.
