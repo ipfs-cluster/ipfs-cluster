@@ -351,7 +351,7 @@ cluster "pin add".
 				},
 				cli.StringSliceFlag{
 					Name:  "metadata",
-					Usage: "Arbitrary metadata to be stored with pins",
+					Usage: "Pin metadata: key=value. Can be added multiple times",
 				},
 				cli.BoolFlag{
 					Name:  "nocopy",
@@ -400,12 +400,7 @@ cluster "pin add".
 				p := api.DefaultAddParams()
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
-				metadata := make(map[string]string)
-				for _, str := range c.StringSlice("metadata") {
-					parts := strings.Split(str, "=")
-					metadata[parts[0]] = parts[1]
-				}
-				p.Metadata = metadata
+				p.Metadata = parseMetadata(c.StringSlice("metadata"))
 				p.Name = name
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
@@ -529,7 +524,7 @@ would stil be respected.
 						},
 						cli.StringSliceFlag{
 							Name:  "metadata",
-							Usage: "Arbitrary metadata to be stored with pins",
+							Usage: "Pin metadata: key=value. Can be added multiple times",
 						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
@@ -567,18 +562,12 @@ would stil be respected.
 							}
 						}
 
-						metadata := make(map[string]string)
-						for _, str := range c.StringSlice("metadata") {
-							parts := strings.Split(str, "=")
-							metadata[parts[0]] = parts[1]
-						}
-
 						opts := api.PinOptions{
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
 							UserAllocations:      userAllocs,
-							Metadata:             metadata,
+							Metadata:             parseMetadata(c.StringSlice("metadata")),
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)
@@ -1087,6 +1076,19 @@ func waitFor(
 	}
 
 	return client.WaitFor(ctx, globalClient, fp)
+}
+
+func parseMetadata(metadata []string) map[string]string {
+	metadataMap := make(map[string]string)
+	for _, str := range metadata {
+		parts := strings.Split(str, "=")
+		if len(parts) != 2 {
+			checkErr("parsing metadata", errors.New("metadata were not in the format key=value"))
+		}
+		metadataMap[parts[0]] = parts[1]
+	}
+
+	return metadataMap
 }
 
 // func setupTracing(config tracingConfig) {

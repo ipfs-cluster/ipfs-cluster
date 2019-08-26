@@ -148,7 +148,6 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
-	params.Metadata = make(map[string]string)
 	for k := range query {
 		if !strings.HasPrefix(k, pinOptionsMetaPrefix) {
 			continue
