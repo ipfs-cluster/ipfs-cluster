@@ -13,7 +13,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -944,7 +943,7 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		if !tracked {
 			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
 			err = c.tracker.Track(ctx, pin)
-			if err == maptracker.ErrFullQueue {
+			if err != nil {
 				return err
 			}
 		}
@@ -976,7 +975,7 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
 			err = c.tracker.Track(ctx, currentPin)
 		}
-		if err == maptracker.ErrFullQueue {
+		if err != nil {
 			return err
 		}
 	}
