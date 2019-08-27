@@ -29,7 +29,7 @@ var cfgJSON = []byte(`
 	"cors_exposed_headers": ["X-Chunked-Output"],
 	"cors_allow_credentials": false,
 	"cors_max_age": "1s",
-	"send_logs_to_file": false
+	"http_log_file": ""
 }
 `)
 

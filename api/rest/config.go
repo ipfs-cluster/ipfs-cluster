@@ -33,7 +33,6 @@ const (
 	DefaultWriteTimeout      = 0
 	DefaultIdleTimeout       = 120 * time.Second
 	DefaultMaxHeaderBytes    = minMaxHeaderBytes
-	DefaultHTTPLogFile       = "http.log"
 )
 
 // These are the default values for Config.
@@ -124,9 +123,11 @@ type Config struct {
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
 
-	// If true, send HTTP logs to file `http.log`, else send them to standard
-	// output
-	SendLogsToFile bool
+	// HTTPLogFile is path of the file that would save HTTP API logs. If this
+	// path is empty, HTTP logs would be sent to standard output. This path
+	// should either be absolute or relative to cluster base directory. Its
+	// default value is empty.
+	HTTPLogFile string
 }
 
 type jsonConfig struct {
@@ -152,17 +153,21 @@ type jsonConfig struct {
 	CORSExposedHeaders   []string `json:"cors_exposed_headers"`
 	CORSAllowCredentials bool     `json:"cors_allow_credentials"`
 	CORSMaxAge           string   `json:"cors_max_age"`
-	SendLogsToFile       bool     `json:"send_logs_to_file"`
+	HTTPLogFile          string   `json:"http_log_file"`
 }
 
 // GetHTTPLogPath gets full path of the file where http logs should be
 // saved.
 func (cfg *Config) GetHTTPLogPath() string {
+	if filepath.IsAbs(cfg.HTTPLogFile) {
+		return cfg.HTTPLogFile
+	}
+
 	if cfg.BaseDir == "" {
 		return ""
 	}
 
-	return filepath.Join(cfg.BaseDir, DefaultHTTPLogFile)
+	return filepath.Join(cfg.BaseDir, cfg.HTTPLogFile)
 }
 
 // ConfigKey returns a human-friendly identifier for this type of
@@ -201,7 +206,7 @@ func (cfg *Config) Default() error {
 	cfg.CORSExposedHeaders = DefaultCORSExposedHeaders
 	cfg.CORSAllowCredentials = DefaultCORSAllowCredentials
 	cfg.CORSMaxAge = DefaultCORSMaxAge
-	cfg.SendLogsToFile = false
+	cfg.HTTPLogFile = ""
 	return nil
 }
 
@@ -288,7 +293,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	// Other options
 	cfg.BasicAuthCredentials = jcfg.BasicAuthCredentials
 	cfg.Headers = jcfg.Headers
-	cfg.SendLogsToFile = jcfg.SendLogsToFile
+	cfg.HTTPLogFile = jcfg.HTTPLogFile
 
 	return cfg.Validate()
 }
@@ -433,7 +438,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		CORSExposedHeaders:     cfg.CORSExposedHeaders,
 		CORSAllowCredentials:   cfg.CORSAllowCredentials,
 		CORSMaxAge:             cfg.CORSMaxAge.String(),
-		SendLogsToFile:         cfg.SendLogsToFile,
+		HTTPLogFile:            cfg.HTTPLogFile,
 	}
 
 	if cfg.ID != "" {

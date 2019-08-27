@@ -135,15 +135,14 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		}
 	}
 
-	var writer io.Writer
-	if cfg.SendLogsToFile {
+	if cfg.HTTPLogFile != "" {
 		f, err := os.OpenFile(cfg.GetHTTPLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return nil, err
 		}
-		writer = f
+		handler = handlers.LoggingHandler(f, handler)
 	} else {
-		writer = os.Stdout
+		handler = handlers.CustomLoggingHandler(os.Stdout, handler, customLog)
 	}
 
 	s := &http.Server{
@@ -151,7 +150,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           handlers.LoggingHandler(writer, handler),
+		Handler:           handler,
 		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
@@ -1167,4 +1166,35 @@ func (api *API) setHeaders(w http.ResponseWriter) {
 	}
 
 	w.Header().Add("Content-Type", "application/json")
+}
+
+func customLog(writer io.Writer, params handlers.LogFormatterParams) {
+	req := params.Request
+	url := params.URL
+	username := "-"
+	if url.User != nil {
+		if name := url.User.Username(); name != "" {
+			username = name
+		}
+	}
+
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+
+	if err != nil {
+		host = req.RemoteAddr
+	}
+
+	uri := req.RequestURI
+
+	// Requests using the CONNECT method over HTTP/2.0 must use
+	// the authority field (aka r.Host) to identify the target.
+	// Refer: https://httpwg.github.io/specs/rfc7540.html#CONNECT
+	if req.ProtoMajor == 2 && req.Method == "CONNECT" {
+		uri = req.Host
+	}
+	if uri == "" {
+		uri = url.RequestURI()
+	}
+
+	logger.Infof("%s - %s [%s] \"%s %s %s\" %d %d\n", host, username, params.TimeStamp.Format("02/Jan/2006:15:04:05 -0700"), req.Method, uri, req.Proto, params.StatusCode, params.Size)
 }
