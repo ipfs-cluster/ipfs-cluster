@@ -1081,7 +1081,7 @@ func waitFor(
 func parseMetadata(metadata []string) map[string]string {
 	metadataMap := make(map[string]string)
 	for _, str := range metadata {
-		parts := strings.Split(str, "=")
+		parts := strings.SplitN(str, "=", 2)
 		if len(parts) != 2 {
 			checkErr("parsing metadata", errors.New("metadata were not in the format key=value"))
 		}

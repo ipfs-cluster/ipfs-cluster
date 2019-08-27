@@ -190,16 +190,12 @@ func textFormatPrintPin(obj *api.Pin) {
 
 	fmt.Printf(" | %s", recStr)
 
-	if len(obj.Metadata) == 0 {
-		fmt.Printf("\n")
-		return
-	}
-
 	fmt.Printf(" | Metadata:")
-	for k, v := range obj.Metadata {
-		fmt.Printf(" %s=%s, ", k, v)
+	if len(obj.Metadata) == 0 {
+		fmt.Printf(" no\n")
+	} else {
+		fmt.Printf(" yes\n")
 	}
-	fmt.Printf("\n")
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
