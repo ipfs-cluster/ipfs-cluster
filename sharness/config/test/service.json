@@ -1,0 +1,136 @@
+{
+  "cluster": {
+    "peername": "test",
+    "secret": "51fa94208b953da33b31a7b5b216cef724397adf4c4baa22645e534cef9d8fdc",
+    "leave_on_shutdown": false,
+    "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096",
+    "connection_manager": {
+      "high_water": 400,
+      "low_water": 100,
+      "grace_period": "2m0s"
+    },
+    "state_sync_interval": "10m0s",
+    "ipfs_sync_interval": "2m10s",
+    "pin_recover_interval": "1h0m0s",
+    "replication_factor_min": -1,
+    "replication_factor_max": -1,
+    "monitor_ping_interval": "15s",
+    "peer_watch_interval": "5s",
+    "disable_repinning": false
+  },
+  "consensus": {
+    "crdt": {
+      "cluster_name": "ipfs-cluster",
+      "trusted_peers": [
+        "*"
+      ]
+    }
+  },
+  "api": {
+    "ipfsproxy": {
+      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "read_timeout": "0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "1m0s",
+      "max_header_bytes": 4096
+    },
+    "restapi": {
+      "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/9094",
+      "read_timeout": "0s",
+      "read_header_timeout": "5s",
+      "write_timeout": "0s",
+      "idle_timeout": "2m0s",
+      "max_header_bytes": 4096,
+      "basic_auth_credentials": null,
+      "headers": {},
+      "cors_allowed_origins": [
+        "*"
+      ],
+      "cors_allowed_methods": [
+        "GET"
+      ],
+      "cors_allowed_headers": [],
+      "cors_exposed_headers": [
+        "Content-Type",
+        "X-Stream-Output",
+        "X-Chunked-Output",
+        "X-Content-Length"
+      ],
+      "cors_allow_credentials": true,
+      "cors_max_age": "0s",
+      "http_log_file": "http.log"
+    }
+  },
+  "ipfs_connector": {
+    "ipfshttp": {
+      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+      "connect_swarms_delay": "30s",
+      "ipfs_request_timeout": "5m0s",
+      "pin_timeout": "24h0m0s",
+      "unpin_timeout": "3h0m0s"
+    }
+  },
+  "pin_tracker": {
+    "maptracker": {
+      "max_pin_queue_size": 50000,
+      "concurrent_pins": 10
+    },
+    "stateless": {
+      "max_pin_queue_size": 50000,
+      "concurrent_pins": 10
+    }
+  },
+  "monitor": {
+    "pubsubmon": {
+      "check_interval": "15s",
+      "failure_threshold": 3
+    }
+  },
+  "informer": {
+    "disk": {
+      "metric_ttl": "30s",
+      "metric_type": "freespace"
+    }
+  },
+  "observations": {
+    "metrics": {
+      "enable_stats": false,
+      "prometheus_endpoint": "/ip4/0.0.0.0/tcp/8888",
+      "reporting_interval": "2s"
+    },
+    "tracing": {
+      "enable_tracing": false,
+      "jaeger_agent_endpoint": "/ip4/0.0.0.0/udp/6831",
+      "sampling_prob": 0.3,
+      "service_name": "cluster-daemon"
+    }
+  },
+  "datastore": {
+    "badger": {
+      "badger_options": {
+        "dir": "",
+        "value_dir": "",
+        "sync_writes": true,
+        "table_loading_mode": 2,
+        "value_log_loading_mode": 2,
+        "num_versions_to_keep": 1,
+        "max_table_size": 67108864,
+        "level_size_multiplier": 10,
+        "max_levels": 7,
+        "value_threshold": 32,
+        "num_memtables": 5,
+        "num_level_zero_tables": 5,
+        "num_level_zero_tables_stall": 10,
+        "level_one_size": 268435456,
+        "value_log_file_size": 1073741823,
+        "value_log_max_entries": 1000000,
+        "num_compactors": 2,
+        "compact_l_0_on_close": true,
+        "read_only": false,
+        "truncate": false
+      }
+    }
+  }
+}
