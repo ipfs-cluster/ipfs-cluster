@@ -132,7 +132,6 @@ func NewCluster(
 
 	var mdns discovery.Service
 	if cfg.MDNSInterval > 0 {
-		logger.Info("MDNS", cfg.MDNSInterval)
 		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
 		if err != nil {
 			cancel()
