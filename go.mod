@@ -22,13 +22,13 @@ require (
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v0.1.4
 	github.com/imdario/mergo v0.3.7
-	github.com/ipfs/go-bitswap v0.1.6 // indirect
+	github.com/ipfs/go-bitswap v0.1.8 // indirect
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.2 // indirect
 	github.com/ipfs/go-cid v0.0.3
 	github.com/ipfs/go-datastore v0.1.0
 	github.com/ipfs/go-ds-badger v0.0.5
-	github.com/ipfs/go-ds-crdt v0.1.3
+	github.com/ipfs/go-ds-crdt v0.1.4
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.1
 	github.com/ipfs/go-ipfs-blockstore v0.1.0 // indirect
@@ -92,8 +92,8 @@ require (
 	go.opencensus.io v0.22.0
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586 // indirect
 	golang.org/x/exp v0.0.0-20190731235908-ec7cb31e5a56 // indirect
-	golang.org/x/image v0.0.0-20190823064033-3a9bac650e44 // indirect
-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 // indirect
+	golang.org/x/image v0.0.0-20190828090100-23ea20f87cfc // indirect
+	golang.org/x/net v0.0.0-20190827160401-ba9fcec4b297 // indirect
 	golang.org/x/sys v0.0.0-20190826190057-c7b8b68b1456 // indirect
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 // indirect
 	gonum.org/v1/gonum v0.0.0-20190704103327-70ddf0df3d53
