@@ -108,6 +108,12 @@ type Config struct {
 	// which are authorized to use Basic Authentication
 	BasicAuthCredentials map[string]string
 
+	// HTTPLogFile is path of the file that would save HTTP API logs. If this
+	// path is empty, HTTP logs would be sent to standard output. This path
+	// should either be absolute or relative to cluster base directory. Its
+	// default value is empty.
+	HTTPLogFile string
+
 	// Headers provides customization for the headers returned
 	// by the API on existing routes.
 	Headers map[string][]string
@@ -122,12 +128,6 @@ type Config struct {
 
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
-
-	// HTTPLogFile is path of the file that would save HTTP API logs. If this
-	// path is empty, HTTP logs would be sent to standard output. This path
-	// should either be absolute or relative to cluster base directory. Its
-	// default value is empty.
-	HTTPLogFile string
 }
 
 type jsonConfig struct {
@@ -145,6 +145,7 @@ type jsonConfig struct {
 	PrivateKey               string `json:"private_key,omitempty"`
 
 	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"`
+	HTTPLogFile          string              `json:"http_log_file"`
 	Headers              map[string][]string `json:"headers"`
 
 	CORSAllowedOrigins   []string `json:"cors_allowed_origins"`
@@ -153,12 +154,11 @@ type jsonConfig struct {
 	CORSExposedHeaders   []string `json:"cors_exposed_headers"`
 	CORSAllowCredentials bool     `json:"cors_allow_credentials"`
 	CORSMaxAge           string   `json:"cors_max_age"`
-	HTTPLogFile          string   `json:"http_log_file"`
 }
 
-// GetHTTPLogPath gets full path of the file where http logs should be
+// getHTTPLogPath gets full path of the file where http logs should be
 // saved.
-func (cfg *Config) GetHTTPLogPath() string {
+func (cfg *Config) getHTTPLogPath() string {
 	if filepath.IsAbs(cfg.HTTPLogFile) {
 		return cfg.HTTPLogFile
 	}
@@ -197,6 +197,9 @@ func (cfg *Config) Default() error {
 	// Auth
 	cfg.BasicAuthCredentials = nil
 
+	// Logs
+	cfg.HTTPLogFile = ""
+
 	// Headers
 	cfg.Headers = DefaultHeaders
 
@@ -206,7 +209,7 @@ func (cfg *Config) Default() error {
 	cfg.CORSExposedHeaders = DefaultCORSExposedHeaders
 	cfg.CORSAllowCredentials = DefaultCORSAllowCredentials
 	cfg.CORSMaxAge = DefaultCORSMaxAge
-	cfg.HTTPLogFile = ""
+
 	return nil
 }
 
@@ -292,8 +295,8 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 	// Other options
 	cfg.BasicAuthCredentials = jcfg.BasicAuthCredentials
-	cfg.Headers = jcfg.Headers
 	cfg.HTTPLogFile = jcfg.HTTPLogFile
+	cfg.Headers = jcfg.Headers
 
 	return cfg.Validate()
 }
@@ -431,6 +434,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		IdleTimeout:            cfg.IdleTimeout.String(),
 		MaxHeaderBytes:         cfg.MaxHeaderBytes,
 		BasicAuthCredentials:   cfg.BasicAuthCredentials,
+		HTTPLogFile:            cfg.HTTPLogFile,
 		Headers:                cfg.Headers,
 		CORSAllowedOrigins:     cfg.CORSAllowedOrigins,
 		CORSAllowedMethods:     cfg.CORSAllowedMethods,
@@ -438,7 +442,6 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		CORSExposedHeaders:     cfg.CORSExposedHeaders,
 		CORSAllowCredentials:   cfg.CORSAllowCredentials,
 		CORSMaxAge:             cfg.CORSMaxAge.String(),
-		HTTPLogFile:            cfg.HTTPLogFile,
 	}
 
 	if cfg.ID != "" {

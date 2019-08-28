@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1036,6 +1037,38 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 	}
 
 	testBothEndpoints(t, tf)
+}
+
+func TestAPILogging(t *testing.T) {
+	ctx := context.Background()
+	cfg := &Config{}
+	cfg.Default()
+
+	cfg.HTTPLogFile = "/tmp/http.log"
+
+	rest := testAPIwithConfig(t, cfg, "log_enabled")
+	defer rest.Shutdown(ctx)
+	defer os.Remove(cfg.HTTPLogFile)
+
+	data, err := ioutil.ReadFile(cfg.HTTPLogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data) > 0 {
+		t.Errorf("expected empty log file, %+v", data)
+	}
+
+	id := api.ID{}
+	makeGet(t, rest, httpURL(rest)+"/id", &id)
+
+	data, err = ioutil.ReadFile(cfg.HTTPLogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) == 0 {
+		t.Error("did not expect an empty log file")
+	}
 }
 
 func TestCORS(t *testing.T) {

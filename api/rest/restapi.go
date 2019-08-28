@@ -104,6 +104,15 @@ type peerAddBody struct {
 	PeerID string `json:"peer_id"`
 }
 
+type logWriter struct {
+	logger logging.EventLogger
+}
+
+func (lw logWriter) Write(b []byte) (int, error) {
+	lw.logger.Infof(string(b))
+	return len(b), nil
+}
+
 // NewAPI creates a new REST API component with the given configuration.
 func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
 	return NewAPIWithHost(ctx, cfg, nil)
@@ -135,14 +144,15 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		}
 	}
 
+	var writer io.Writer
 	if cfg.HTTPLogFile != "" {
-		f, err := os.OpenFile(cfg.GetHTTPLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(cfg.getHTTPLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return nil, err
 		}
-		handler = handlers.LoggingHandler(f, handler)
+		writer = f
 	} else {
-		handler = handlers.CustomLoggingHandler(os.Stdout, handler, customLog)
+		writer = logWriter{logger: logging.Logger("restapilog")}
 	}
 
 	s := &http.Server{
@@ -150,7 +160,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           handler,
+		Handler:           handlers.LoggingHandler(writer, handler),
 		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
@@ -1166,35 +1176,4 @@ func (api *API) setHeaders(w http.ResponseWriter) {
 	}
 
 	w.Header().Add("Content-Type", "application/json")
-}
-
-func customLog(writer io.Writer, params handlers.LogFormatterParams) {
-	req := params.Request
-	url := params.URL
-	username := "-"
-	if url.User != nil {
-		if name := url.User.Username(); name != "" {
-			username = name
-		}
-	}
-
-	host, _, err := net.SplitHostPort(req.RemoteAddr)
-
-	if err != nil {
-		host = req.RemoteAddr
-	}
-
-	uri := req.RequestURI
-
-	// Requests using the CONNECT method over HTTP/2.0 must use
-	// the authority field (aka r.Host) to identify the target.
-	// Refer: https://httpwg.github.io/specs/rfc7540.html#CONNECT
-	if req.ProtoMajor == 2 && req.Method == "CONNECT" {
-		uri = req.Host
-	}
-	if uri == "" {
-		uri = url.RequestURI()
-	}
-
-	logger.Infof("%s - %s [%s] \"%s %s %s\" %d %d\n", host, username, params.TimeStamp.Format("02/Jan/2006:15:04:05 -0700"), req.Method, uri, req.Proto, params.StatusCode, params.Size)
 }
