@@ -1,10 +1,9 @@
 // Package local implements a ClusterDAGService that chunks and adds content
-// to a local peer, before pinning it.
+// to the local peer, before pinning it.
 package local
 
 import (
 	"context"
-	"errors"
 
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -12,11 +11,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
-
-var errNotFound = errors.New("dagservice: block not found")
 
 var logger = logging.Logger("localdags")
 
@@ -28,10 +24,7 @@ type DAGService struct {
 
 	rpcClient *rpc.Client
 
-	dests   []peer.ID
 	pinOpts api.PinOptions
-
-	ba *adder.BlockAdder
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
@@ -39,42 +32,18 @@ type DAGService struct {
 func New(rpc *rpc.Client, opts api.PinOptions) *DAGService {
 	return &DAGService{
 		rpcClient: rpc,
-		dests:     nil,
 		pinOpts:   opts,
 	}
 }
 
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
-	if dgs.dests == nil {
-		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.pinOpts)
-		if err != nil {
-			return err
-		}
-		dgs.dests = dests
-		dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
-	}
-
-	return dgs.ba.Add(ctx, node)
+	return adder.AddNodeLocal(ctx, dgs.rpcClient, node)
 }
 
 // Finalize pins the last Cid added to this DAGService.
 func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
-	// Cluster pin the result
-	rootPin := api.PinWithOpts(root, dgs.pinOpts)
-	rootPin.Allocations = dgs.dests
-
-	dgs.dests = nil
-
-	var pinResp api.Pin
-	return root, dgs.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Pin",
-		rootPin,
-		&pinResp,
-	)
+	return root, adder.Pin(ctx, dgs.rpcClient, api.PinWithOpts(root, dgs.pinOpts))
 }
 
 // AddMany calls Add for every given node.

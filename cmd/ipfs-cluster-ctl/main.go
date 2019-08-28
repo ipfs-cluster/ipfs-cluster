@@ -334,6 +334,10 @@ cluster "pin add".
 					Usage: "Hash function to use. Implies cid-version=1.",
 					Value: defaultAddParams.HashFun,
 				},
+				cli.BoolFlag{
+					Name:  "local",
+					Usage: "Puts blocks only in local IPFS peer and then pin as per PinOptions",
+				},
 				cli.StringFlag{
 					Name:  "name, n",
 					Value: defaultAddParams.Name,
@@ -401,6 +405,7 @@ cluster "pin add".
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false
 				p.Recursive = c.Bool("recursive")
+				p.Local = c.Bool("local")
 				p.Layout = c.String("layout")
 				p.Chunker = c.String("chunker")
 				p.RawLeaves = c.Bool("raw-leaves")

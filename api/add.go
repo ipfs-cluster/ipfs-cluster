@@ -26,6 +26,7 @@ type AddedOutput struct {
 type AddParams struct {
 	PinOptions
 
+	Local          bool
 	Recursive      bool
 	Layout         string
 	Chunker        string
@@ -43,6 +44,7 @@ type AddParams struct {
 // DefaultAddParams returns a AddParams object with standard defaults
 func DefaultAddParams() *AddParams {
 	return &AddParams{
+		Local:          false,
 		Recursive:      false,
 		Layout:         "", // corresponds to balanced layout
 		Chunker:        "size-262144",
@@ -110,7 +112,12 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		params.HashFun = hashF
 	}
 
-	err := parseBoolParam(query, "recursive", &params.Recursive)
+	err := parseBoolParam(query, "local", &params.Local)
+	if err != nil {
+		return nil, err
+	}
+
+	err = parseBoolParam(query, "recursive", &params.Recursive)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +187,7 @@ func (p *AddParams) ToQueryString() string {
 	query.Set("name", p.Name)
 	query.Set("shard", fmt.Sprintf("%t", p.Shard))
 	query.Set("shard-size", fmt.Sprintf("%d", p.ShardSize))
+	query.Set("local", fmt.Sprintf("%t", p.Local))
 	query.Set("recursive", fmt.Sprintf("%t", p.Recursive))
 	query.Set("layout", p.Layout)
 	query.Set("chunker", p.Chunker)
@@ -199,6 +207,7 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
 		p.ReplicationFactorMax == p2.ReplicationFactorMax &&
 		p.Name == p2.Name &&
+		p.Local == p2.Local &&
 		p.Recursive == p2.Recursive &&
 		p.Shard == p2.Shard &&
 		p.ShardSize == p2.ShardSize &&

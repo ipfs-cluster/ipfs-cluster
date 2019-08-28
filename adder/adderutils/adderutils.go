@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/adder"
+	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
 	"github.com/ipfs/ipfs-cluster/adder/single"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -35,7 +36,9 @@ func AddMultipartHTTPHandler(
 	var dags adder.ClusterDAGService
 	output := make(chan *api.AddedOutput, 200)
 
-	if params.Shard {
+	if params.Local {
+		dags = local.New(rpc, params.PinOptions)
+	} else if params.Shard {
 		dags = sharding.New(rpc, params.PinOptions, output)
 	} else {
 		dags = single.New(rpc, params.PinOptions)
