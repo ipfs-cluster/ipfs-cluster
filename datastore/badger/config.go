@@ -28,6 +28,7 @@ var (
 
 func init() {
 	DefaultBadgerOptions = badger.DefaultOptions("")
+	DefaultBadgerOptions.CompactL0OnClose = false
 }
 
 // Config is used to initialize a BadgerDB datastore. It implements the
