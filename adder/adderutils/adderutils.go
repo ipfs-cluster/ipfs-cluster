@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
+	"github.com/ipfs/ipfs-cluster/adder/single"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
@@ -38,7 +38,7 @@ func AddMultipartHTTPHandler(
 	if params.Shard {
 		dags = sharding.New(rpc, params.PinOptions, output)
 	} else {
-		dags = local.New(rpc, params.PinOptions)
+		dags = single.New(rpc, params.PinOptions)
 	}
 
 	if outputTransform == nil {
