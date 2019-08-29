@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -1069,6 +1070,33 @@ func TestAPILogging(t *testing.T) {
 	if len(data) == 0 {
 		t.Error("did not expect an empty log file")
 	}
+}
+
+func TestNotFoundHandler(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url urlF) {
+		bytes := make([]byte, 10)
+		for i := 0; i < 10; i++ {
+			bytes[i] = byte(65 + rand.Intn(25)) //A=65 and Z = 65+25
+		}
+
+		var errResp api.Error
+		makePost(t, rest, url(rest)+"/"+string(bytes), []byte{}, &errResp)
+		if errResp.Code != 404 {
+			t.Error("expected error not found")
+		}
+
+		var errResp1 api.Error
+		makeGet(t, rest, url(rest)+"/"+string(bytes), &errResp1)
+		if errResp1.Code != 404 {
+			t.Error("expected error not found")
+		}
+	}
+
+	testBothEndpoints(t, tf)
 }
 
 func TestCORS(t *testing.T) {

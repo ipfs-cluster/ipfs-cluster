@@ -25,6 +25,7 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/p2p/discovery"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
@@ -41,6 +42,7 @@ const (
 	pingMetricName      = "ping"
 	bootstrapCount      = 3
 	reBootstrapInterval = 30 * time.Second
+	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
 )
 
 var (
@@ -57,6 +59,7 @@ type Cluster struct {
 	config    *Config
 	host      host.Host
 	dht       *dht.IpfsDHT
+	discovery discovery.Service
 	datastore ds.Datastore
 
 	rpcServer   *rpc.Server
@@ -127,6 +130,16 @@ func NewCluster(
 
 	peerManager := pstoremgr.New(ctx, host, cfg.GetPeerstorePath())
 
+	var mdns discovery.Service
+	if cfg.MDNSInterval > 0 {
+		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		mdns.RegisterNotifee(peerManager)
+	}
+
 	c := &Cluster{
 		ctx:         ctx,
 		cancel:      cancel,
@@ -134,6 +147,7 @@ func NewCluster(
 		config:      cfg,
 		host:        host,
 		dht:         dht,
+		discovery:   mdns,
 		datastore:   datastore,
 		consensus:   consensus,
 		apis:        apis,
@@ -621,6 +635,12 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	logger.Info("shutting down Cluster")
 
+	// Cancel discovery service (this shutdowns announcing). Handling
+	// entries is cancelled along with the context below.
+	if c.discovery != nil {
+		c.discovery.Close()
+	}
+
 	// Try to store peerset file for all known peers whatsoever
 	// if we got ready (otherwise, don't overwrite anything)
 	if c.readyB {
@@ -932,9 +952,9 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	}
 
 	trackedPins := c.tracker.StatusAll(ctx)
-	trackedPinsMap := make(map[string]int)
-	for i, tpin := range trackedPins {
-		trackedPinsMap[tpin.Cid.String()] = i
+	trackedPinsMap := make(map[string]struct{})
+	for _, tpin := range trackedPins {
+		trackedPinsMap[tpin.Cid.String()] = struct{}{}
 	}
 
 	// Track items which are not tracked
