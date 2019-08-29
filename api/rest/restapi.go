@@ -50,7 +50,10 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-var logger = logging.Logger("restapi")
+var (
+	logger    = logging.Logger("restapi")
+	apiLogger = logging.Logger("restapilog")
+)
 
 // Common errors
 var (
@@ -105,11 +108,10 @@ type peerAddBody struct {
 }
 
 type logWriter struct {
-	logger logging.EventLogger
 }
 
 func (lw logWriter) Write(b []byte) (int, error) {
-	lw.logger.Infof(string(b))
+	apiLogger.Infof(string(b))
 	return len(b), nil
 }
 
@@ -152,7 +154,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		}
 		writer = f
 	} else {
-		writer = logWriter{logger: logging.Logger("restapilog")}
+		writer = logWriter{}
 	}
 
 	s := &http.Server{
