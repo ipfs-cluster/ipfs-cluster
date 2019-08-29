@@ -132,7 +132,6 @@ func NewCluster(
 
 	var mdns discovery.Service
 	if cfg.MDNSInterval > 0 {
-		logger.Info("MDNS", cfg.MDNSInterval)
 		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
 		if err != nil {
 			cancel()
@@ -953,9 +952,9 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	}
 
 	trackedPins := c.tracker.StatusAll(ctx)
-	trackedPinsMap := make(map[string]int)
-	for i, tpin := range trackedPins {
-		trackedPinsMap[tpin.Cid.String()] = i
+	trackedPinsMap := make(map[string]struct{})
+	for _, tpin := range trackedPins {
+		trackedPinsMap[tpin.Cid.String()] = struct{}{}
 	}
 
 	// Track items which are not tracked
