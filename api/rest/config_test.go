@@ -23,13 +23,13 @@ var cfgJSON = []byte(`
 	"idle_timeout": "2m0s",
 	"max_header_bytes": 16384,
 	"basic_auth_credentials": null,
+	"http_log_file": "",
 	"cors_allowed_origins": ["myorigin"],
 	"cors_allowed_methods": ["GET"],
 	"cors_allowed_headers": ["X-Custom"],
 	"cors_exposed_headers": ["X-Chunked-Output"],
 	"cors_allow_credentials": false,
-	"cors_max_age": "1s",
-	"http_log_file": ""
+	"cors_max_age": "1s"
 }
 `)
 
