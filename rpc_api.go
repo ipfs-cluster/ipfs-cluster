@@ -396,8 +396,8 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 		in.Cid,
 		in.ReplicationFactorMin,
 		in.ReplicationFactorMax,
-		[]peer.ID{}, // blacklist
-		[]peer.ID{}, // prio list
+		[]peer.ID{},        // blacklist
+		in.UserAllocations, // prio list
 	)
 
 	if err != nil {
