@@ -30,22 +30,28 @@ type DAGService struct {
 
 	dests   []peer.ID
 	pinOpts api.PinOptions
+	local   bool
 
 	ba *adder.BlockAdder
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
 // to perform calls to IPFS.BlockPut and Pin content on Cluster.
-func New(rpc *rpc.Client, opts api.PinOptions) *DAGService {
+func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
 	return &DAGService{
 		rpcClient: rpc,
 		dests:     nil,
 		pinOpts:   opts,
+		local:     local,
 	}
 }
 
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
+	if dgs.local {
+		return adder.AddNodeLocal(ctx, dgs.rpcClient, node)
+	}
+
 	if dgs.dests == nil {
 		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.pinOpts)
 		if err != nil {
@@ -62,8 +68,11 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
 	// Cluster pin the result
 	rootPin := api.PinWithOpts(root, dgs.pinOpts)
-	rootPin.Allocations = dgs.dests
+	if dgs.local {
+		return root, adder.Pin(ctx, dgs.rpcClient, rootPin)
+	}
 
+	rootPin.Allocations = dgs.dests
 	dgs.dests = nil
 
 	return root, adder.Pin(ctx, dgs.rpcClient, rootPin)

@@ -1484,7 +1484,7 @@ func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (cid.
 	if params.Shard {
 		dags = sharding.New(c.rpcClient, params.PinOptions, nil)
 	} else {
-		dags = single.New(c.rpcClient, params.PinOptions)
+		dags = single.New(c.rpcClient, params.PinOptions, false)
 	}
 	add := adder.New(dags, params, nil)
 	return add.FromMultipart(c.ctx, reader)
