@@ -574,19 +574,24 @@ func TestClustersPeersRetainOrder(t *testing.T) {
 
 	delay()
 
-	j := rand.Intn(nClusters) // choose a random cluster peer
-	peers1, err := json.Marshal(clusters[j].Peers(ctx))
-	if err != nil {
-		t.Fatal(err)
-	}
+	for i := 0; i < 5; i++ {
+		j := rand.Intn(nClusters) // choose a random cluster peer
+		peers1, err := json.Marshal(clusters[j].Peers(ctx))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	peers2, err := json.Marshal(clusters[j].Peers(ctx))
-	if err != nil {
-		t.Fatal(err)
-	}
+		waitForLeaderAndMetrics(t, clusters)
 
-	if bytes.Compare(peers1, peers2) != 0 {
-		t.Error("expected both results to be same")
+		k := rand.Intn(nClusters)
+		peers2, err := json.Marshal(clusters[k].Peers(ctx))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if bytes.Compare(peers1, peers2) != 0 {
+			t.Error("expected both results to be same")
+		}
 	}
 }
 
