@@ -298,8 +298,7 @@ func (mock *mockCluster) SyncLocal(ctx context.Context, in cid.Cid, out *api.Pin
 }
 
 func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	*out = make([]*api.GlobalPinInfo, 0, 0)
-	return nil
+	return mock.StatusAll(ctx, in, out)
 }
 
 func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {

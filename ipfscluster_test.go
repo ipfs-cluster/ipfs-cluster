@@ -1040,17 +1040,19 @@ func TestClustersRecover(t *testing.T) {
 	pinDelay()
 
 	j := rand.Intn(nClusters)
-	_, err := clusters[j].Recover(ctx, h)
+	ginfo, err := clusters[j].Recover(ctx, h)
 	if err != nil {
 		// we always attempt to return a valid response
 		// with errors contained in GlobalPinInfo
 		t.Fatal("did not expect an error")
 	}
-
+	if len(ginfo.PeerMap) != nClusters {
+		t.Error("number of peers do not match")
+	}
 	// Wait for queue to be processed
 	delay()
 
-	ginfo, err := clusters[j].Status(ctx, h)
+	ginfo, err = clusters[j].Status(ctx, h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1084,6 +1086,9 @@ func TestClustersRecover(t *testing.T) {
 	if !ginfo.Cid.Equals(h2) {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
+	if len(ginfo.PeerMap) != nClusters {
+		t.Error("number of peers do not match")
+	}
 
 	for _, c := range clusters {
 		inf, ok := ginfo.PeerMap[peer.IDB58Encode(c.host.ID())]
@@ -1100,33 +1105,29 @@ func TestClustersRecoverAll(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
-	h2 := test.Cid2
+	h1 := test.Cid1
+	hError := test.ErrorCid
 
 	ttlDelay()
 
-	clusters[0].Pin(ctx, h2, api.PinOptions{})
+	clusters[0].Pin(ctx, h1, api.PinOptions{})
+	clusters[0].Pin(ctx, hError, api.PinOptions{})
 
 	pinDelay()
 
-	_, err := clusters[rand.Intn(nClusters)].RecoverAll(ctx)
+	gInfos, err := clusters[rand.Intn(nClusters)].RecoverAll(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	delay()
 
-	info, err := clusters[rand.Intn(nClusters)].Status(ctx, h2)
-	if !info.Cid.Equals(h2) {
-		t.Error("GlobalPinInfo should be for testrCid2")
+	if len(gInfos) != 2 {
+		t.Error("expected two items")
 	}
 
-	for _, c := range clusters {
-		inf, ok := info.PeerMap[peer.IDB58Encode(c.host.ID())]
-		if !ok {
-			t.Fatal("GlobalPinInfo should have this cluster")
-		}
-		if inf.Status != api.TrackerStatusPinned {
-			t.Error("the GlobalPinInfo should show Pinned in all peers")
+	for _, gInfo := range gInfos {
+		if len(gInfo.PeerMap) != nClusters {
+			t.Error("number of peers do not match")
 		}
 	}
 }

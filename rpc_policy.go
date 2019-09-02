@@ -6,7 +6,7 @@ package ipfscluster
 // endpoint type. See rpcutil/policygen.go as a quick way to generate this
 // without missing any endpoint.
 var DefaultRPCPolicy = map[string]RPCEndpointType{
-	//  Cluster methods
+	// Cluster methods
 	"Cluster.BlockAllocate":      RPCClosed,
 	"Cluster.ConnectGraph":       RPCClosed,
 	"Cluster.ID":                 RPCOpen,
@@ -20,8 +20,8 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.Pins":               RPCClosed, // Used in stateless tracker, ipfsproxy, restapi
 	"Cluster.Recover":            RPCClosed,
 	"Cluster.RecoverAll":         RPCClosed,
-	"Cluster.RecoverAllLocal":    RPCClosed,
-	"Cluster.RecoverLocal":       RPCClosed,
+	"Cluster.RecoverAllLocal":    RPCTrusted,
+	"Cluster.RecoverLocal":       RPCTrusted,
 	"Cluster.SendInformerMetric": RPCClosed,
 	"Cluster.Status":             RPCClosed,
 	"Cluster.StatusAll":          RPCClosed,
