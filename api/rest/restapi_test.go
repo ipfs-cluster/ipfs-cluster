@@ -824,6 +824,22 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIMetricNamesEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url urlF) {
+		var resp []string
+		makeGet(t, rest, url(rest)+"/monitor/metrics", &resp)
+		if len(resp) == 0 {
+			t.Fatal("No metric names found")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)

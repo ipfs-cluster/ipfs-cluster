@@ -245,3 +245,8 @@ func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []*api.Metri
 func (mon *Monitor) Alerts() <-chan *api.Alert {
 	return mon.checker.Alerts()
 }
+
+// MetricNames list all metric names.
+func (mon *Monitor) MetricNames() []string {
+	return mon.metrics.MetricNames()
+}

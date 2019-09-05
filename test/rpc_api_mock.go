@@ -394,6 +394,13 @@ func (mock *mockPeerMonitor) LatestMetrics(ctx context.Context, in string, out *
 	return nil
 }
 
+// MetricNames runs PeerMonitor.MetricNames().
+func (mock *mockPeerMonitor) MetricNames(ctx context.Context, in struct{}, out *[]string) error {
+	k := []string{"ping", "freespace"}
+	*out = k
+	return nil
+}
+
 /* IPFSConnector methods */
 
 func (mock *mockIPFSConnector) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {

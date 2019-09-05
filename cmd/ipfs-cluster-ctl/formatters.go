@@ -86,6 +86,8 @@ func textFormatObject(resp interface{}) {
 		for _, item := range resp.([]*api.Metric) {
 			textFormatObject(item)
 		}
+	case []string:
+		textFormatPrintList(resp.([]string))
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -204,8 +206,7 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
-	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
-	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
+	fmt.Printf("%s: %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, time.Until(time.Unix(0, obj.Expire)).String())
 }
 
 func textFormatPrintError(obj *api.Error) {
@@ -222,4 +223,10 @@ func trackerStatusAllString() string {
 
 	sort.Strings(strs)
 	return strings.Join(strs, "\n")
+}
+
+func textFormatPrintList(obj []string) {
+	for _, s := range obj {
+		fmt.Printf("- %s\n", s)
+	}
 }

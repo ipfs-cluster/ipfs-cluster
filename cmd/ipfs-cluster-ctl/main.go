@@ -914,7 +914,10 @@ but usually are:
 					Action: func(c *cli.Context) error {
 						metric := c.Args().First()
 						if metric == "" {
-							checkErr("", errors.New("provide a metric name"))
+							fmt.Printf("Try with one of the metrics names listed below:\n\n")
+							resp, cerr := globalClient.MetricNames(ctx)
+							formatResponse(c, resp, cerr)
+							return nil
 						}
 
 						resp, cerr := globalClient.Metrics(ctx, metric)

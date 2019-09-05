@@ -442,6 +442,12 @@ func (api *API) routes() []route {
 			"/monitor/metrics/{name}",
 			api.metricsHandler,
 		},
+		{
+			"MetricNames",
+			"GET",
+			"/monitor/metrics",
+			api.metricNamesHandler,
+		},
 	}
 }
 
@@ -599,6 +605,19 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		&metrics,
 	)
 	api.sendResponse(w, autoStatus, err, metrics)
+}
+
+func (api *API) metricNamesHandler(w http.ResponseWriter, r *http.Request) {
+	var metricNames []string
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"PeerMonitor",
+		"MetricNames",
+		struct{}{},
+		&metricNames,
+	)
+	api.sendResponse(w, autoStatus, err, metricNames)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
