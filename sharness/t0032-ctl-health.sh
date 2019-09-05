@@ -16,8 +16,8 @@ test_expect_success IPFS,CLUSTER "health metrics with metric name must succeed" 
     ipfs-cluster-ctl health metrics freespace
 '
 
-test_expect_success IPFS,CLUSTER "health metrics without metric name fails" '
-    test_must_fail ipfs-cluster-ctl health metrics
+test_expect_success IPFS,CLUSTER "health metrics without metric name doesn't fail" '
+    ipfs-cluster-ctl health metrics
 '
 
 test_expect_success IPFS,CLUSTER "list latest metrics logged by this peer" '
