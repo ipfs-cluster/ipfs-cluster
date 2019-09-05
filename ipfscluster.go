@@ -177,7 +177,7 @@ type PeerMonitor interface {
 	// for the current cluster peers.
 	LatestMetrics(ctx context.Context, name string) []*api.Metric
 	// MetricNames returns a list of metric names.
-	MetricNames() []string
+	MetricNames(ctx context.Context) []string
 	// Alerts delivers alerts generated when this peer monitor detects
 	// a problem (i.e. metrics not arriving as expected). Alerts can be used
 	// to trigger self-healing measures or re-pinnings of content.

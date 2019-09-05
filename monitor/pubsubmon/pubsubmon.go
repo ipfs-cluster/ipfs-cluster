@@ -247,6 +247,9 @@ func (mon *Monitor) Alerts() <-chan *api.Alert {
 }
 
 // MetricNames list all metric names.
-func (mon *Monitor) MetricNames() []string {
+func (mon *Monitor) MetricNames(ctx context.Context) []string {
+	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/MetricNames")
+	defer span.End()
+
 	return mon.metrics.MetricNames()
 }
