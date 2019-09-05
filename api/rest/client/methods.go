@@ -336,7 +336,7 @@ func (c *defaultClient) Metrics(ctx context.Context, name string) ([]*api.Metric
 
 // MetricNames lists names of all metrics.
 func (c *defaultClient) MetricNames(ctx context.Context) ([]string, error) {
-	ctx, span := trace.StartSpan(ctx, "client/Metrics")
+	ctx, span := trace.StartSpan(ctx, "client/MetricNames")
 	defer span.End()
 
 	var metricsNames []string
