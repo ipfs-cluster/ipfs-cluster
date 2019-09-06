@@ -962,7 +962,10 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		_, tracked := trackedPinsMap[pin.Cid.String()]
 		if !tracked {
 			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			c.tracker.Track(ctx, pin)
+			err = c.tracker.Track(ctx, pin)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -987,10 +990,13 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		switch {
 		case p.Status == api.TrackerStatusRemote && allocatedHere:
 			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
 		case p.Status == api.TrackerStatusPinned && !allocatedHere:
 			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
+		}
+		if err != nil {
+			return err
 		}
 	}
 
