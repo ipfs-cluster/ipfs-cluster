@@ -381,6 +381,11 @@ func (c *Cluster) alertsHandler() {
 				continue // only handle ping alerts
 			}
 
+			if c.config.DisableRepinning {
+				logger.Debugf("repinning is disabled. Will not re-allocate pins on alerts")
+				return
+			}
+
 			cState, err := c.consensus.State(c.ctx)
 			if err != nil {
 				logger.Warning(err)
@@ -398,7 +403,7 @@ func (c *Cluster) alertsHandler() {
 					continue
 				}
 				if c.shouldPeerRepinCid(alrt.Peer, pin) {
-					c.repinFromPeer(c.ctx, alrt.Peer)
+					c.repinFromPeer(c.ctx, alrt.Peer, pin)
 				}
 			}
 		}
@@ -435,7 +440,7 @@ func (c *Cluster) watchPeers() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
-			logger.Debugf("%s watching peers", c.id)
+			// logger.Debugf("%s watching peers", c.id)
 			hasMe := false
 			peers, err := c.consensus.Peers(c.ctx)
 			if err != nil {
@@ -482,8 +487,8 @@ func (c *Cluster) reBootstrap() {
 }
 
 // find all Cids pinned to a given peer and triggers re-pins on them.
-func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
-	ctx, span := trace.StartSpan(ctx, "cluster/repinFromPeer")
+func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
+	ctx, span := trace.StartSpan(ctx, "cluster/vacatePeer")
 	defer span.End()
 
 	if c.config.DisableRepinning {
@@ -503,11 +508,21 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 	}
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			_, ok, err := c.pin(ctx, pin, []peer.ID{p}) // pin blacklisting this peer
-			if ok && err == nil {
-				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
-			}
+			c.repinFromPeer(ctx, p, pin)
 		}
+	}
+}
+
+// repinFromPeer triggers a repin on a given pin object blacklisting one of the
+// allocations.
+func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID, pin *api.Pin) {
+	ctx, span := trace.StartSpan(ctx, "cluster/repinFromPeer")
+	defer span.End()
+
+	pin.Allocations = nil // force re-allocations
+	_, ok, err := c.pin(ctx, pin, []peer.ID{p})
+	if ok && err == nil {
+		logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
 	}
 }
 
@@ -837,7 +852,7 @@ func (c *Cluster) PeerRemove(ctx context.Context, pid peer.ID) error {
 	// We need to repin before removing the peer, otherwise, it won't
 	// be able to submit the pins.
 	logger.Infof("re-allocating all CIDs directly associated to %s", pid)
-	c.repinFromPeer(ctx, pid)
+	c.vacatePeer(ctx, pid)
 
 	err := c.consensus.RmPeer(ctx, pid)
 	if err != nil {
@@ -1125,6 +1140,10 @@ func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo,
 
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
 // by this peer.
+//
+// Recover operations ask IPFS to pin or unpin items in error state. Recover
+// is faster than calling Pin on the same CID as it avoids committing an
+// identical pin to the consensus layer.
 func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
 	defer span.End()
@@ -1135,6 +1154,10 @@ func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 
 // Recover triggers a recover operation for a given Cid in all
 // cluster peers.
+//
+// Recover operations ask IPFS to pin or unpin items in error state. Recover
+// is faster than calling Pin on the same CID as it avoids committing an
+// identical pin to the consensus layer.
 func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Recover")
 	defer span.End()
@@ -1145,6 +1168,10 @@ func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, e
 
 // RecoverLocal triggers a recover operation for a given Cid in this peer only.
 // It returns the updated PinInfo, after recovery.
+//
+// Recover operations ask IPFS to pin or unpin items in error state. Recover
+// is faster than calling Pin on the same CID as it avoids committing an
+// identical pin to the consensus layer.
 func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo, err error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverLocal")
 	defer span.End()
@@ -1343,24 +1370,35 @@ func (c *Cluster) pin(
 		return pin, true, c.consensus.LogPin(ctx, pin)
 	}
 
-	allocs, err := c.allocate(
-		ctx,
-		pin.Cid,
-		pin.ReplicationFactorMin,
-		pin.ReplicationFactorMax,
-		blacklist,
-		pin.UserAllocations,
-	)
-	if err != nil {
-		return pin, false, err
+	// We did not change ANY options and the pin exists so we just repin
+	// what there is without doing new allocations. While this submits
+	// pins to the consensus layer even if they are, this should trigger the
+	// pin tracker and allows users to get re-pin operations by re-adding
+	// without having to use recover, which is naturally expected.
+	existing, err := c.PinGet(ctx, pin.Cid)
+	if err == nil &&
+		pin.PinOptions.Equals(&existing.PinOptions) &&
+		len(blacklist) == 0 {
+		pin = existing
 	}
-	pin.Allocations = allocs
 
-	// Equals can handle nil objects.
-	if curr, _ := c.PinGet(ctx, pin.Cid); curr.Equals(pin) {
-		// skip pinning
-		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
-		return pin, false, nil
+	// Usually allocations are unset when pinning normally, however, the
+	// allocations may have been preset by the adder in which case they
+	// need to be respected. Whenever allocations are set. We don't
+	// re-allocate.
+	if len(pin.Allocations) == 0 {
+		allocs, err := c.allocate(
+			ctx,
+			pin.Cid,
+			pin.ReplicationFactorMin,
+			pin.ReplicationFactorMax,
+			blacklist,
+			pin.UserAllocations,
+		)
+		if err != nil {
+			return pin, false, err
+		}
+		pin.Allocations = allocs
 	}
 
 	if len(pin.Allocations) == 0 {
