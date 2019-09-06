@@ -349,7 +349,7 @@ func IsPeerAddress(addr ma.Multiaddr) bool {
 	if addr == nil {
 		return false
 	}
-	pid, err := addr.ValueForProtocol(ma.P_IPFS)
+	pid, err := addr.ValueForProtocol(ma.P_P2P)
 	dnsaddr, err2 := addr.ValueForProtocol(madns.DnsaddrProtocol.Code)
 	return (pid != "" && err == nil) || (dnsaddr != "" && err2 == nil)
 }

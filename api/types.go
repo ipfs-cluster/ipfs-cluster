@@ -36,6 +36,9 @@ import (
 var logger = logging.Logger("apitypes")
 
 func init() {
+	// Use /p2p/ multiaddresses
+	multiaddr.SwapToP2pMultiaddrs()
+
 	// intialize trackerStatusString
 	stringTrackerStatus = make(map[string]TrackerStatus)
 	for k, v := range trackerStatusString {
@@ -528,7 +531,9 @@ func (po *PinOptions) ToQuery() string {
 		}
 		q.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
 	}
-	q.Set("pin-update", po.PinUpdate.String())
+	if po.PinUpdate != cid.Undef {
+		q.Set("pin-update", po.PinUpdate.String())
+	}
 	return q.Encode()
 }
 

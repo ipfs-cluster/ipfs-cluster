@@ -29,7 +29,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.11.0-rc6"
+const Version = "0.11.0-rc8"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -58,7 +58,7 @@ responses in a user-readable format. The location of the IPFS
 Cluster server is assumed to be %s, but can be
 configured with the --host option. To use the secure libp2p-http
 API endpoint, use "--host" with the full cluster libp2p listener
-address (including the "/ipfs/<peerID>" part), and --secret (the
+address (including the "/p2p/<peerID>" part), and --secret (the
 32-byte cluster secret as it appears in the cluster configuration).
 
 For feedback, bug reports or any additional information, visit
@@ -349,6 +349,10 @@ cluster "pin add".
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
 				},
+				cli.StringFlag{
+					Name:  "allocations, allocs",
+					Usage: "Optional comma-separated list of peer IDs",
+				},
 				cli.BoolFlag{
 					Name:  "nocopy",
 					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
@@ -397,6 +401,9 @@ cluster "pin add".
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
 				p.Name = name
+				if c.String("allocations") != "" {
+					p.UserAllocations = api.StringsToPeers(strings.Split(c.String("allocations"), ","))
+				}
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false

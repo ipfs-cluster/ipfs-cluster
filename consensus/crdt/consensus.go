@@ -258,6 +258,11 @@ func (css *Consensus) setup() {
 		return
 	}
 	css.state = clusterState
+
+	if css.config.TrustAll {
+		logger.Info("'trust all' mode enabled. Any peer in the cluster can modify the pinset.")
+	}
+
 	css.readyCh <- struct{}{}
 }
 
