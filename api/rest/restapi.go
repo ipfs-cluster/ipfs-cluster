@@ -1045,7 +1045,10 @@ func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *typ
 	}
 
 	pinPath := &types.PinPath{Path: path.String()}
-	pinPath.PinOptions.FromQuery(r.URL.Query())
+	err = pinPath.PinOptions.FromQuery(r.URL.Query())
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, err, nil)
+	}
 	return pinPath
 }
 
@@ -1060,7 +1063,10 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) *types.P
 	}
 
 	opts := types.PinOptions{}
-	opts.FromQuery(r.URL.Query())
+	err = opts.FromQuery(r.URL.Query())
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, err, nil)
+	}
 	pin := types.PinWithOpts(c, opts)
 	pin.MaxDepth = -1 // For now, all pins are recursive
 	return pin
