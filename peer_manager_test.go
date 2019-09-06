@@ -73,7 +73,7 @@ func clusterAddr(c *Cluster) ma.Multiaddr {
 	for _, a := range c.host.Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
 			p := peer.IDB58Encode(c.id)
-			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", a, p))
+			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", a, p))
 			return cAddr
 		}
 	}

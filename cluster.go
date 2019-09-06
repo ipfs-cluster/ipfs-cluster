@@ -123,7 +123,7 @@ func NewCluster(
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
-		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
+		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID().Pretty())
 	}
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
