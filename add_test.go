@@ -58,6 +58,53 @@ func TestAdd(t *testing.T) {
 	})
 }
 
+func TestAddWithUserAllocations(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	waitForLeaderAndMetrics(t, clusters)
+
+	t.Run("local", func(t *testing.T) {
+		params := api.DefaultAddParams()
+		params.ReplicationFactorMin = 2
+		params.ReplicationFactorMax = 2
+		params.UserAllocations = []peer.ID{clusters[0].id, clusters[1].id}
+		params.Shard = false
+		params.Name = "testlocal"
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		r := multipart.NewReader(mfr, mfr.Boundary())
+		ci, err := clusters[0].AddFile(r, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		pinDelay()
+
+		f := func(t *testing.T, c *Cluster) {
+			if c == clusters[0] || c == clusters[1] {
+				pin := c.StatusLocal(ctx, ci)
+				if pin.Error != "" {
+					t.Error(pin.Error)
+				}
+				if pin.Status != api.TrackerStatusPinned {
+					t.Error("item should be pinned and is", pin.Status)
+				}
+			} else {
+				pin := c.StatusLocal(ctx, ci)
+				if pin.Status != api.TrackerStatusRemote {
+					t.Error("expected tracker status remote")
+				}
+			}
+		}
+
+		runF(t, clusters, f)
+	})
+}
+
 func TestAddPeerDown(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
