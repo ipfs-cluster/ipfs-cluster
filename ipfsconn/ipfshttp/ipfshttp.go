@@ -435,16 +435,16 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Unpin")
 	defer span.End()
 
-	if ipfs.config.UnpinDisable {
-		return errors.New("ipfs unpinning is disallowed by configuration on this peer")
-	}
-
 	pinStatus, err := ipfs.PinLsCid(ctx, hash)
 	if err != nil {
 		return err
 	}
 
 	if pinStatus.IsPinned(-1) {
+		if ipfs.config.UnpinDisable {
+			return errors.New("ipfs unpinning is disallowed by configuration on this peer")
+		}
+
 		defer ipfs.updateInformerMetric(ctx)
 		path := fmt.Sprintf("pin/rm?arg=%s", hash)
 
