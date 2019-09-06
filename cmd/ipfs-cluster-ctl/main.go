@@ -309,7 +309,7 @@ cluster "pin add".
 				},
 				cli.BoolFlag{
 					Name:  "wrap-with-directory, w",
-					Usage: "Wrap a with a directory object.",
+					Usage: "Wrap a with a directory object",
 				},
 				cli.BoolFlag{
 					Name:  "hidden, H",
@@ -331,7 +331,7 @@ cluster "pin add".
 				},
 				cli.StringFlag{
 					Name:  "hash",
-					Usage: "Hash function to use. Implies cid-version=1.",
+					Usage: "Hash function to use. Implies cid-version=1",
 					Value: defaultAddParams.HashFun,
 				},
 				cli.StringFlag{
@@ -348,6 +348,10 @@ cluster "pin add".
 					Name:  "replication-max, rmax",
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
+				},
+				cli.StringSliceFlag{
+					Name:  "metadata",
+					Usage: "Pin metadata: key=value. Can be added multiple times",
 				},
 				cli.StringFlag{
 					Name:  "allocations, allocs",
@@ -400,6 +404,7 @@ cluster "pin add".
 				p := api.DefaultAddParams()
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
+				p.Metadata = parseMetadata(c.StringSlice("metadata"))
 				p.Name = name
 				if c.String("allocations") != "" {
 					p.UserAllocations = api.StringsToPeers(strings.Split(c.String("allocations"), ","))
@@ -524,6 +529,10 @@ would stil be respected.
 							Value: "",
 							Usage: "Sets a name for this pin",
 						},
+						cli.StringSliceFlag{
+							Name:  "metadata",
+							Usage: "Pin metadata: key=value. Can be added multiple times",
+						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
 							Usage: "Prevents fetching pin status after pinning (faster, quieter)",
@@ -565,6 +574,7 @@ would stil be respected.
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
 							UserAllocations:      userAllocs,
+							Metadata:             parseMetadata(c.StringSlice("metadata")),
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)
@@ -1073,6 +1083,19 @@ func waitFor(
 	}
 
 	return client.WaitFor(ctx, globalClient, fp)
+}
+
+func parseMetadata(metadata []string) map[string]string {
+	metadataMap := make(map[string]string)
+	for _, str := range metadata {
+		parts := strings.SplitN(str, "=", 2)
+		if len(parts) != 2 {
+			checkErr("parsing metadata", errors.New("metadata were not in the format key=value"))
+		}
+		metadataMap[parts[0]] = parts[1]
+	}
+
+	return metadataMap
 }
 
 // func setupTracing(config tracingConfig) {

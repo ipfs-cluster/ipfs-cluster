@@ -61,6 +61,7 @@ func DefaultAddParams() *AddParams {
 			ReplicationFactorMax: 0,
 			Name:                 "",
 			ShardSize:            DefaultShardSize,
+			Metadata:             make(map[string]string),
 		},
 	}
 }
@@ -152,6 +153,17 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
+	for k := range query {
+		if !strings.HasPrefix(k, pinOptionsMetaPrefix) {
+			continue
+		}
+		metaKey := strings.TrimPrefix(k, pinOptionsMetaPrefix)
+		if metaKey == "" {
+			continue
+		}
+		params.Metadata[metaKey] = query.Get(k)
+	}
+
 	allocs := query.Get("user-allocations")
 	if allocs != "" {
 		params.UserAllocations = StringsToPeers(strings.Split(allocs, ","))
@@ -189,6 +201,12 @@ func (p *AddParams) ToQueryString() string {
 	query.Set("replication-min", fmt.Sprintf("%d", p.ReplicationFactorMin))
 	query.Set("replication-max", fmt.Sprintf("%d", p.ReplicationFactorMax))
 	query.Set("name", p.Name)
+	for k, v := range p.Metadata {
+		if k == "" {
+			continue
+		}
+		query.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
+	}
 	query.Set("user-allocations", strings.Join(PeersToStrings(p.UserAllocations), ","))
 	query.Set("shard", fmt.Sprintf("%t", p.Shard))
 	query.Set("shard-size", fmt.Sprintf("%d", p.ShardSize))
@@ -208,6 +226,13 @@ func (p *AddParams) ToQueryString() string {
 
 // Equals checks if p equals p2.
 func (p *AddParams) Equals(p2 *AddParams) bool {
+	for k, v := range p.Metadata {
+		v2 := p2.Metadata[k]
+		if k != "" && v != v2 {
+			return false
+		}
+	}
+
 	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
 		p.ReplicationFactorMax == p2.ReplicationFactorMax &&
 		p.Name == p2.Name &&
