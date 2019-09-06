@@ -741,15 +741,13 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 			Error: err.Error(),
 		}
 	}
-	var addrs []api.Multiaddr
 
-	addrsSet := make(map[string]struct{}) // to filter dups
-	for _, addr := range c.host.Addrs() {
-		addrsSet[addr.String()] = struct{}{}
-	}
-	for k := range addrsSet {
-		addr, _ := api.NewMultiaddr(k)
-		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
+	var addrs []api.Multiaddr
+	mAddrs, err := peer.AddrInfoToP2pAddrs(&peer.AddrInfo{ID: c.id, Addrs: c.host.Addrs()})
+	if err == nil {
+		for _, mAddr := range mAddrs {
+			addrs = append(addrs, api.NewMultiaddrWithValue(mAddr))
+		}
 	}
 
 	peers := []peer.ID{}
@@ -771,7 +769,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		}
 	}
 
-	return &api.ID{
+	id := &api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
@@ -782,6 +780,11 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		IPFS:                  ipfsID,
 		Peername:              c.config.Peername,
 	}
+	if err != nil {
+		id.Error = err.Error()
+	}
+
+	return id
 }
 
 // PeerAdd adds a new peer to this Cluster.

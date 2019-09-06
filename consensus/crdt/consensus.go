@@ -3,6 +3,7 @@ package crdt
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 	"time"
 
@@ -403,6 +404,8 @@ func (css *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
 	if !selfIncluded {
 		peers = append(peers, css.host.ID())
 	}
+
+	sort.Sort(peer.IDSlice(peers))
 
 	return peers, nil
 }

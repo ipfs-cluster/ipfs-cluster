@@ -15,6 +15,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
+	utils "github.com/ipfs/ipfs-cluster/utils"
 	host "github.com/libp2p/go-libp2p-core/host"
 	net "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -142,6 +143,7 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 		return peerDNSAddrs
 	}
 
+	sort.Sort(utils.ByString(peerAddrs))
 	return peerAddrs
 }
 

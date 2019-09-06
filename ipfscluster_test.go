@@ -1,7 +1,9 @@
 package ipfscluster
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -561,6 +563,34 @@ func TestClustersPeers(t *testing.T) {
 		//}
 		if id.IPFS.ID != id2.IPFS.ID {
 			t.Error("expected same ipfs daemon ID")
+		}
+	}
+}
+
+func TestClustersPeersRetainOrder(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	delay()
+
+	for i := 0; i < 5; i++ {
+		j := rand.Intn(nClusters) // choose a random cluster peer
+		peers1, err := json.Marshal(clusters[j].Peers(ctx))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		waitForLeaderAndMetrics(t, clusters)
+
+		k := rand.Intn(nClusters)
+		peers2, err := json.Marshal(clusters[k].Peers(ctx))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if bytes.Compare(peers1, peers2) != 0 {
+			t.Error("expected both results to be same")
 		}
 	}
 }
