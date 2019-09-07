@@ -1046,12 +1046,11 @@ func TestAPILogging(t *testing.T) {
 	cfg := &Config{}
 	cfg.Default()
 
-	baseDir, err := filepath.Abs("")
+	logFile, err := filepath.Abs("http.log")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg.BaseDir = baseDir
-	cfg.HTTPLogFile = "http.log"
+	cfg.HTTPLogFile = logFile
 
 	rest := testAPIwithConfig(t, cfg, "log_enabled")
 	defer os.Remove(cfg.HTTPLogFile)
