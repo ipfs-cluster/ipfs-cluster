@@ -29,7 +29,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	discovery "github.com/libp2p/go-libp2p/p2p/discovery"
 
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -91,7 +90,7 @@ func daemon(c *cli.Context) error {
 		cfgs.Cluster.LeaveOnShutdown = true
 	}
 
-	host, pubsub, dht, mdns, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
 	checkErr("creating libp2p host", err)
 
 	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, raftStaging)
@@ -104,7 +103,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return handleSignals(ctx, cancel, cluster, host, dht, mdns)
+	return handleSignals(ctx, cancel, cluster, host, dht)
 }
 
 // createCluster creates all the necessary things to produce the cluster
@@ -224,7 +223,6 @@ func handleSignals(
 	cluster *ipfscluster.Cluster,
 	host host.Host,
 	dht *dht.IpfsDHT,
-	mdns discovery.Service,
 ) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
@@ -243,7 +241,6 @@ func handleSignals(
 		case <-cluster.Done():
 			cancel()
 			dht.Close()
-			mdns.Close()
 			host.Close()
 			return nil
 		}

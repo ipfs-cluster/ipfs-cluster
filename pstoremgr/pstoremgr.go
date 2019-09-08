@@ -15,6 +15,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
+	utils "github.com/ipfs/ipfs-cluster/utils"
 	host "github.com/libp2p/go-libp2p-core/host"
 	net "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -57,7 +58,7 @@ func New(ctx context.Context, h host.Host, peerstorePath string) *Manager {
 }
 
 // ImportPeer adds a new peer address to the host's peerstore, optionally
-// dialing to it. The address is expected to include the /ipfs/<peerID>
+// dialing to it. The address is expected to include the /p2p/<peerID>
 // protocol part or to be a /dnsaddr/multiaddress
 // Peers are added with the given ttl.
 func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration) (peer.ID, error) {
@@ -142,6 +143,7 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 		return peerDNSAddrs
 	}
 
+	sort.Sort(utils.ByString(peerAddrs))
 	return peerAddrs
 }
 
@@ -221,7 +223,7 @@ func (pm *Manager) LoadPeerstore() (addrs []ma.Multiaddr) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		addrStr := scanner.Text()
-		if addrStr[0] != '/' {
+		if len(addrStr) == 0 || addrStr[0] != '/' {
 			// skip anything that is not going to be a multiaddress
 			continue
 		}
@@ -339,6 +341,23 @@ func (pm *Manager) Bootstrap(count int) []peer.ID {
 // 1. 1 means more priority than 2 etc.
 func (pm *Manager) SetPriority(pid peer.ID, prio int) error {
 	return pm.host.Peerstore().Put(pid, PriorityTag, prio)
+}
+
+// HandlePeerFound implements the Notifee interface for discovery.
+func (pm *Manager) HandlePeerFound(p peer.AddrInfo) {
+	addrs, err := peer.AddrInfoToP2pAddrs(&p)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	// actually mdns returns a single address but let's do things
+	// as if there were several
+	for _, a := range addrs {
+		_, err = pm.ImportPeer(a, true, peerstore.ConnectedAddrTTL)
+		if err != nil {
+			logger.Error(err)
+		}
+	}
 }
 
 // peerSort is used to sort a slice of PinInfos given the PriorityTag in the

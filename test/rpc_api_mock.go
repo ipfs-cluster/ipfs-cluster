@@ -154,7 +154,7 @@ func (mock *mockCluster) ID(ctx context.Context, in struct{}, out *api.ID) error
 	//	DefaultConfigCrypto,
 	//	DefaultConfigKeyLength)
 
-	addr, _ := api.NewMultiaddr("/ip4/127.0.0.1/tcp/4001/ipfs/" + PeerID1.Pretty())
+	addr, _ := api.NewMultiaddr("/ip4/127.0.0.1/tcp/4001/p2p/" + PeerID1.Pretty())
 	*out = api.ID{
 		ID: PeerID1,
 		//PublicKey: pubkey,

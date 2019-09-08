@@ -37,6 +37,7 @@ const (
 	DefaultConnMgrLowWater     = 100
 	DefaultConnMgrGracePeriod  = 2 * time.Minute
 	DefaultFollowerMode        = false
+	DefaultMDNSInterval        = 10 * time.Second
 )
 
 // ConnMgrConfig configures the libp2p host connection manager.
@@ -74,8 +75,9 @@ type Config struct {
 	// the RPC and Consensus components.
 	ListenAddr ma.Multiaddr
 
-	// ConnMgr holds configuration values for the connection manager
-	// for the libp2p host.
+	// ConnMgr holds configuration values for the connection manager for
+	// the libp2p host.
+	// FIXME: This only applies to ipfs-cluster-service.
 	ConnMgr ConnMgrConfig
 
 	// Time between syncs of the consensus state to the
@@ -125,6 +127,11 @@ type Config struct {
 	// been removed from a cluster.
 	PeerWatchInterval time.Duration
 
+	// MDNSInterval controls the time between mDNS broadcasts to the
+	// network announcing the peer addresses. Set to 0 to disable
+	// mDNS.
+	MDNSInterval time.Duration
+
 	// If true, DisableRepinning, ensures that no repinning happens
 	// when a node goes down.
 	// This is useful when doing certain types of maintainance, or simply
@@ -162,6 +169,7 @@ type configJSON struct {
 	ReplicationFactorMax int                `json:"replication_factor_max"`
 	MonitorPingInterval  string             `json:"monitor_ping_interval"`
 	PeerWatchInterval    string             `json:"peer_watch_interval"`
+	MDNSInterval         string             `json:"mdns_interval"`
 	DisableRepinning     bool               `json:"disable_repinning"`
 	FollowerMode         bool               `json:"follower_mode,omitempty"`
 	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
@@ -341,6 +349,7 @@ func (cfg *Config) setDefaults() {
 	cfg.ReplicationFactorMax = DefaultReplicationFactor
 	cfg.MonitorPingInterval = DefaultMonitorPingInterval
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
+	cfg.MDNSInterval = DefaultMDNSInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.PeerstoreFile = "" // empty so it gets ommited.
 	cfg.FollowerMode = DefaultFollowerMode
@@ -406,6 +415,7 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		&config.DurationOpt{Duration: jcfg.PinRecoverInterval, Dst: &cfg.PinRecoverInterval, Name: "pin_recover_interval"},
 		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
 		&config.DurationOpt{Duration: jcfg.PeerWatchInterval, Dst: &cfg.PeerWatchInterval, Name: "peer_watch_interval"},
+		&config.DurationOpt{Duration: jcfg.MDNSInterval, Dst: &cfg.MDNSInterval, Name: "mdns_interval"},
 	)
 	if err != nil {
 		return err
@@ -456,6 +466,7 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.PinRecoverInterval = cfg.PinRecoverInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
+	jcfg.MDNSInterval = cfg.MDNSInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
 	jcfg.FollowerMode = cfg.FollowerMode

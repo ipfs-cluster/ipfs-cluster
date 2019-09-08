@@ -25,6 +25,7 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/p2p/discovery"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
@@ -41,6 +42,7 @@ const (
 	pingMetricName      = "ping"
 	bootstrapCount      = 3
 	reBootstrapInterval = 30 * time.Second
+	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
 )
 
 var (
@@ -57,6 +59,7 @@ type Cluster struct {
 	config    *Config
 	host      host.Host
 	dht       *dht.IpfsDHT
+	discovery discovery.Service
 	datastore ds.Datastore
 
 	rpcServer   *rpc.Server
@@ -120,12 +123,22 @@ func NewCluster(
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
-		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
+		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID().Pretty())
 	}
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
 
 	peerManager := pstoremgr.New(ctx, host, cfg.GetPeerstorePath())
+
+	var mdns discovery.Service
+	if cfg.MDNSInterval > 0 {
+		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		mdns.RegisterNotifee(peerManager)
+	}
 
 	c := &Cluster{
 		ctx:         ctx,
@@ -134,6 +147,7 @@ func NewCluster(
 		config:      cfg,
 		host:        host,
 		dht:         dht,
+		discovery:   mdns,
 		datastore:   datastore,
 		consensus:   consensus,
 		apis:        apis,
@@ -621,6 +635,12 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	logger.Info("shutting down Cluster")
 
+	// Cancel discovery service (this shutdowns announcing). Handling
+	// entries is cancelled along with the context below.
+	if c.discovery != nil {
+		c.discovery.Close()
+	}
+
 	// Try to store peerset file for all known peers whatsoever
 	// if we got ready (otherwise, don't overwrite anything)
 	if c.readyB {
@@ -721,15 +741,13 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 			Error: err.Error(),
 		}
 	}
-	var addrs []api.Multiaddr
 
-	addrsSet := make(map[string]struct{}) // to filter dups
-	for _, addr := range c.host.Addrs() {
-		addrsSet[addr.String()] = struct{}{}
-	}
-	for k := range addrsSet {
-		addr, _ := api.NewMultiaddr(k)
-		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
+	var addrs []api.Multiaddr
+	mAddrs, err := peer.AddrInfoToP2pAddrs(&peer.AddrInfo{ID: c.id, Addrs: c.host.Addrs()})
+	if err == nil {
+		for _, mAddr := range mAddrs {
+			addrs = append(addrs, api.NewMultiaddrWithValue(mAddr))
+		}
 	}
 
 	peers := []peer.ID{}
@@ -751,7 +769,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		}
 	}
 
-	return &api.ID{
+	id := &api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
@@ -762,6 +780,11 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		IPFS:                  ipfsID,
 		Peername:              c.config.Peername,
 	}
+	if err != nil {
+		id.Error = err.Error()
+	}
+
+	return id
 }
 
 // PeerAdd adds a new peer to this Cluster.
@@ -932,9 +955,9 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	}
 
 	trackedPins := c.tracker.StatusAll(ctx)
-	trackedPinsMap := make(map[string]int)
-	for i, tpin := range trackedPins {
-		trackedPinsMap[tpin.Cid.String()] = i
+	trackedPinsMap := make(map[string]struct{})
+	for _, tpin := range trackedPins {
+		trackedPinsMap[tpin.Cid.String()] = struct{}{}
 	}
 
 	// Track items which are not tracked
@@ -942,7 +965,10 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		_, tracked := trackedPinsMap[pin.Cid.String()]
 		if !tracked {
 			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			c.tracker.Track(ctx, pin)
+			err = c.tracker.Track(ctx, pin)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -967,10 +993,13 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		switch {
 		case p.Status == api.TrackerStatusRemote && allocatedHere:
 			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
 		case p.Status == api.TrackerStatusPinned && !allocatedHere:
 			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
+		}
+		if err != nil {
+			return err
 		}
 	}
 
