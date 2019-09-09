@@ -275,6 +275,10 @@ ipfs add, but the result is a fully replicated CID on completion.
 If you prefer faster adding, add directly to the local IPFS and trigger a
 cluster "pin add".
 
+Optional replication-min and replication-max factors can be provided: -1 means
+"pin everywhere" and 0 means use cluster's default setting (i.e., replication
+factor set in config). Positive values indicate how many peers should pin this
+content.
 `,
 			/*
 				Cluster Add supports handling huge files and sharding the resulting DAG among
@@ -495,8 +499,8 @@ When the request has succeeded, the command returns the status of the CID
 in the cluster and should be part of the list offered by "pin ls".
 
 An optional replication factor can be provided: -1 means "pin everywhere"
-and 0 means use cluster's default setting. Positive values indicate how many
-peers should pin this content.
+and 0 means use cluster's default setting (i.e., replication factor set in
+config). Positive values indicate how many peers should pin this content.
 
 An optional allocations argument can be provided, allocations should be a
 comma-separated list of peer IDs on which we want to pin. Peers in allocations
