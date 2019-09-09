@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 
 	cid "github.com/ipfs/go-cid"
 )
@@ -93,6 +92,14 @@ func parseIntParam(q url.Values, name string, dest *int) error {
 func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	params := DefaultAddParams()
 
+	opts := &PinOptions{}
+	err := opts.FromQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	params.PinOptions = *opts
+	params.PinUpdate = cid.Undef // hardcode as does not make sense for adding
+
 	layout := query.Get("layout")
 	switch layout {
 	case "trickle", "balanced", "":
@@ -107,17 +114,12 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		params.Chunker = chunker
 	}
 
-	name := query.Get("name")
-	if name != "" {
-		params.Name = name
-	}
-
 	hashF := query.Get("hash")
 	if hashF != "" {
 		params.HashFun = hashF
 	}
 
-	err := parseBoolParam(query, "recursive", &params.Recursive)
+	err = parseBoolParam(query, "recursive", &params.Recursive)
 	if err != nil {
 		return nil, err
 	}
@@ -144,42 +146,9 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
-	err = parseIntParam(query, "replication-min", &params.ReplicationFactorMin)
-	if err != nil {
-		return nil, err
-	}
-	err = parseIntParam(query, "replication-max", &params.ReplicationFactorMax)
-	if err != nil {
-		return nil, err
-	}
-
-	for k := range query {
-		if !strings.HasPrefix(k, pinOptionsMetaPrefix) {
-			continue
-		}
-		metaKey := strings.TrimPrefix(k, pinOptionsMetaPrefix)
-		if metaKey == "" {
-			continue
-		}
-		params.Metadata[metaKey] = query.Get(k)
-	}
-
-	allocs := query.Get("user-allocations")
-	if allocs != "" {
-		params.UserAllocations = StringsToPeers(strings.Split(allocs, ","))
-	}
-
 	err = parseIntParam(query, "cid-version", &params.CidVersion)
 	if err != nil {
 		return nil, err
-	}
-
-	if v := query.Get("shard-size"); v != "" {
-		shardSize, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return nil, errors.New("parameter shard_size is invalid")
-		}
-		params.ShardSize = shardSize
 	}
 
 	err = parseBoolParam(query, "stream-channels", &params.StreamChannels)
@@ -197,19 +166,9 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 
 // ToQueryString returns a url query string (key=value&key2=value2&...)
 func (p *AddParams) ToQueryString() string {
-	query := url.Values{}
-	query.Set("replication-min", fmt.Sprintf("%d", p.ReplicationFactorMin))
-	query.Set("replication-max", fmt.Sprintf("%d", p.ReplicationFactorMax))
-	query.Set("name", p.Name)
-	for k, v := range p.Metadata {
-		if k == "" {
-			continue
-		}
-		query.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
-	}
-	query.Set("user-allocations", strings.Join(PeersToStrings(p.UserAllocations), ","))
+	pinOptsQuery := p.PinOptions.ToQuery()
+	query, _ := url.ParseQuery(pinOptsQuery)
 	query.Set("shard", fmt.Sprintf("%t", p.Shard))
-	query.Set("shard-size", fmt.Sprintf("%d", p.ShardSize))
 	query.Set("recursive", fmt.Sprintf("%t", p.Recursive))
 	query.Set("layout", p.Layout)
 	query.Set("chunker", p.Chunker)
@@ -226,19 +185,9 @@ func (p *AddParams) ToQueryString() string {
 
 // Equals checks if p equals p2.
 func (p *AddParams) Equals(p2 *AddParams) bool {
-	for k, v := range p.Metadata {
-		v2 := p2.Metadata[k]
-		if k != "" && v != v2 {
-			return false
-		}
-	}
-
-	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
-		p.ReplicationFactorMax == p2.ReplicationFactorMax &&
-		p.Name == p2.Name &&
+	return p.PinOptions.Equals(&p2.PinOptions) &&
 		p.Recursive == p2.Recursive &&
 		p.Shard == p2.Shard &&
-		p.ShardSize == p2.ShardSize &&
 		p.Layout == p2.Layout &&
 		p.Chunker == p2.Chunker &&
 		p.RawLeaves == p2.RawLeaves &&
