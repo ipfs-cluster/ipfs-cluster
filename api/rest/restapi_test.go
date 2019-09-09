@@ -12,6 +12,8 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -1037,6 +1039,63 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 	}
 
 	testBothEndpoints(t, tf)
+}
+
+func TestAPILogging(t *testing.T) {
+	ctx := context.Background()
+	cfg := &Config{}
+	cfg.Default()
+
+	logFile, err := filepath.Abs("http.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HTTPLogFile = logFile
+
+	rest := testAPIwithConfig(t, cfg, "log_enabled")
+	defer os.Remove(cfg.HTTPLogFile)
+
+	info, err := os.Stat(cfg.HTTPLogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > 0 {
+		t.Errorf("expected empty log file")
+	}
+
+	id := api.ID{}
+	makeGet(t, rest, httpURL(rest)+"/id", &id)
+
+	info, err = os.Stat(cfg.HTTPLogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size1 := info.Size()
+	if size1 == 0 {
+		t.Error("did not expect an empty log file")
+	}
+
+	// Restart API and make sure that logs are being appended
+	rest.Shutdown(ctx)
+
+	rest = testAPIwithConfig(t, cfg, "log_enabled")
+	defer rest.Shutdown(ctx)
+
+	makeGet(t, rest, httpURL(rest)+"/id", &id)
+
+	info, err = os.Stat(cfg.HTTPLogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size2 := info.Size()
+	if size2 == 0 {
+		t.Error("did not expect an empty log file")
+	}
+
+	if !(size2 > size1) {
+		t.Error("logs were not appended")
+	}
+
 }
 
 func TestNotFoundHandler(t *testing.T) {
