@@ -1695,8 +1695,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	ttlDelay()
 
 	j := rand.Intn(nClusters)
-	h := test.Cid1
-	_, err := clusters[j].Pin(ctx, h, api.PinOptions{})
+	_, err := clusters[j].Pin(ctx, test.Cid1, api.PinOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1709,7 +1708,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 
 	waitForLeaderAndMetrics(t, clusters)
 
-	_, err = clusters[2].Pin(ctx, h, api.PinOptions{})
+	_, err = clusters[2].Pin(ctx, test.Cid2, api.PinOptions{})
 	if err == nil {
 		t.Fatal("expected an error")
 	}

@@ -478,6 +478,10 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 		return false
 	}
 
+	if po.Name != po2.Name {
+		return false
+	}
+
 	if po.ReplicationFactorMax != po2.ReplicationFactorMax {
 		return false
 	}
@@ -763,10 +767,6 @@ func (pin *Pin) Equals(pin2 *Pin) bool {
 	}
 
 	if !pin.Cid.Equals(pin2.Cid) {
-		return false
-	}
-
-	if pin.Name != pin2.Name {
 		return false
 	}
 
