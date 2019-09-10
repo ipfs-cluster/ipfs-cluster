@@ -10,6 +10,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -36,6 +37,9 @@ import (
 var logger = logging.Logger("apitypes")
 
 func init() {
+	// Use /p2p/ multiaddresses
+	multiaddr.SwapToP2pMultiaddrs()
+
 	// intialize trackerStatusString
 	stringTrackerStatus = make(map[string]TrackerStatus)
 	for k, v := range trackerStatusString {
@@ -475,6 +479,10 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 		return false
 	}
 
+	if po.Name != po2.Name {
+		return false
+	}
+
 	if po.ReplicationFactorMax != po2.ReplicationFactorMax {
 		return false
 	}
@@ -528,29 +536,37 @@ func (po *PinOptions) ToQuery() string {
 		}
 		q.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
 	}
-	q.Set("pin-update", po.PinUpdate.String())
+	if po.PinUpdate != cid.Undef {
+		q.Set("pin-update", po.PinUpdate.String())
+	}
 	return q.Encode()
 }
 
 // FromQuery is the inverse of ToQuery().
-func (po *PinOptions) FromQuery(q url.Values) {
+func (po *PinOptions) FromQuery(q url.Values) error {
 	po.Name = q.Get("name")
 	rplStr := q.Get("replication")
-	rplStrMin := q.Get("replication-min")
-	rplStrMax := q.Get("replication-max")
 	if rplStr != "" { // override
-		rplStrMin = rplStr
-		rplStrMax = rplStr
-	}
-	if rpl, err := strconv.Atoi(rplStrMin); err == nil {
-		po.ReplicationFactorMin = rpl
-	}
-	if rpl, err := strconv.Atoi(rplStrMax); err == nil {
-		po.ReplicationFactorMax = rpl
+		q.Set("replication-min", rplStr)
+		q.Set("replication-max", rplStr)
 	}
 
-	if shsize, err := strconv.ParseUint(q.Get("shard-size"), 10, 64); err == nil {
-		po.ShardSize = shsize
+	err := parseIntParam(q, "replication-min", &po.ReplicationFactorMin)
+	if err != nil {
+		return err
+	}
+
+	err = parseIntParam(q, "replication-max", &po.ReplicationFactorMax)
+	if err != nil {
+		return err
+	}
+
+	if v := q.Get("shard-size"); v != "" {
+		shardSize, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return errors.New("parameter shard_size is invalid")
+		}
+		po.ShardSize = shardSize
 	}
 
 	if allocs := q.Get("user-allocations"); allocs != "" {
@@ -573,10 +589,11 @@ func (po *PinOptions) FromQuery(q url.Values) {
 	if updateStr != "" {
 		updateCid, err := cid.Decode(updateStr)
 		if err != nil {
-			logger.Error("error decoding update option parameter: ", err)
+			return fmt.Errorf("error decoding update option parameter: %s", err)
 		}
 		po.PinUpdate = updateCid
 	}
+	return nil
 }
 
 // Pin carries all the information associated to a CID that is pinned
@@ -758,10 +775,6 @@ func (pin *Pin) Equals(pin2 *Pin) bool {
 	}
 
 	if !pin.Cid.Equals(pin2.Cid) {
-		return false
-	}
-
-	if pin.Name != pin2.Name {
 		return false
 	}
 

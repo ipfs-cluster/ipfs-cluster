@@ -29,7 +29,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.11.0-rc6"
+const Version = "0.11.0-rc9"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -58,7 +58,7 @@ responses in a user-readable format. The location of the IPFS
 Cluster server is assumed to be %s, but can be
 configured with the --host option. To use the secure libp2p-http
 API endpoint, use "--host" with the full cluster libp2p listener
-address (including the "/ipfs/<peerID>" part), and --secret (the
+address (including the "/p2p/<peerID>" part), and --secret (the
 32-byte cluster secret as it appears in the cluster configuration).
 
 For feedback, bug reports or any additional information, visit
@@ -275,6 +275,10 @@ ipfs add, but the result is a fully replicated CID on completion.
 If you prefer faster adding, add directly to the local IPFS and trigger a
 cluster "pin add".
 
+Optional replication-min and replication-max factors can be provided: -1 means
+"pin everywhere" and 0 means use cluster's default setting (i.e., replication
+factor set in config). Positive values indicate how many peers should pin this
+content.
 `,
 			/*
 				Cluster Add supports handling huge files and sharding the resulting DAG among
@@ -309,7 +313,7 @@ cluster "pin add".
 				},
 				cli.BoolFlag{
 					Name:  "wrap-with-directory, w",
-					Usage: "Wrap a with a directory object.",
+					Usage: "Wrap a with a directory object",
 				},
 				cli.BoolFlag{
 					Name:  "hidden, H",
@@ -331,7 +335,7 @@ cluster "pin add".
 				},
 				cli.StringFlag{
 					Name:  "hash",
-					Usage: "Hash function to use. Implies cid-version=1.",
+					Usage: "Hash function to use. Implies cid-version=1",
 					Value: defaultAddParams.HashFun,
 				},
 				cli.BoolFlag{
@@ -352,6 +356,14 @@ cluster "pin add".
 					Name:  "replication-max, rmax",
 					Value: defaultAddParams.ReplicationFactorMax,
 					Usage: "Sets the maximum replication factor for pinning this file",
+				},
+				cli.StringSliceFlag{
+					Name:  "metadata",
+					Usage: "Pin metadata: key=value. Can be added multiple times",
+				},
+				cli.StringFlag{
+					Name:  "allocations, allocs",
+					Usage: "Optional comma-separated list of peer IDs",
 				},
 				cli.BoolFlag{
 					Name:  "nocopy",
@@ -400,7 +412,11 @@ cluster "pin add".
 				p := api.DefaultAddParams()
 				p.ReplicationFactorMin = c.Int("replication-min")
 				p.ReplicationFactorMax = c.Int("replication-max")
+				p.Metadata = parseMetadata(c.StringSlice("metadata"))
 				p.Name = name
+				if c.String("allocations") != "" {
+					p.UserAllocations = api.StringsToPeers(strings.Split(c.String("allocations"), ","))
+				}
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false
@@ -488,8 +504,8 @@ When the request has succeeded, the command returns the status of the CID
 in the cluster and should be part of the list offered by "pin ls".
 
 An optional replication factor can be provided: -1 means "pin everywhere"
-and 0 means use cluster's default setting. Positive values indicate how many
-peers should pin this content.
+and 0 means use cluster's default setting (i.e., replication factor set in
+config). Positive values indicate how many peers should pin this content.
 
 An optional allocations argument can be provided, allocations should be a
 comma-separated list of peer IDs on which we want to pin. Peers in allocations
@@ -521,6 +537,10 @@ would stil be respected.
 							Name:  "name, n",
 							Value: "",
 							Usage: "Sets a name for this pin",
+						},
+						cli.StringSliceFlag{
+							Name:  "metadata",
+							Usage: "Pin metadata: key=value. Can be added multiple times",
 						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
@@ -563,6 +583,7 @@ would stil be respected.
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
 							UserAllocations:      userAllocs,
+							Metadata:             parseMetadata(c.StringSlice("metadata")),
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, arg, opts)
@@ -1071,6 +1092,19 @@ func waitFor(
 	}
 
 	return client.WaitFor(ctx, globalClient, fp)
+}
+
+func parseMetadata(metadata []string) map[string]string {
+	metadataMap := make(map[string]string)
+	for _, str := range metadata {
+		parts := strings.SplitN(str, "=", 2)
+		if len(parts) != 2 {
+			checkErr("parsing metadata", errors.New("metadata were not in the format key=value"))
+		}
+		metadataMap[parts[0]] = parts[1]
+	}
+
+	return metadataMap
 }
 
 // func setupTracing(config tracingConfig) {

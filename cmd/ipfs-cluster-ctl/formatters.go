@@ -140,9 +140,9 @@ func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
 	for _, k := range peers {
 		v := obj.PeerMap[k]
 		if len(v.PeerName) > 0 {
-			fmt.Printf("    > %-15s : %s", v.PeerName, strings.ToUpper(v.Status.String()))
+			fmt.Printf("    > %-20s : %s", v.PeerName, strings.ToUpper(v.Status.String()))
 		} else {
-			fmt.Printf("    > %-15s : %s", k, strings.ToUpper(v.Status.String()))
+			fmt.Printf("    > %-20s : %s", k, strings.ToUpper(v.Status.String()))
 		}
 		if v.Error != "" {
 			fmt.Printf(": %s", v.Error)
@@ -188,7 +188,14 @@ func textFormatPrintPin(obj *api.Pin) {
 		recStr = fmt.Sprintf("Recursive-%d", obj.MaxDepth)
 	}
 
-	fmt.Printf(" | %s\n", recStr)
+	fmt.Printf(" | %s", recStr)
+
+	fmt.Printf(" | Metadata:")
+	if len(obj.Metadata) == 0 {
+		fmt.Printf(" no\n")
+	} else {
+		fmt.Printf(" yes\n")
+	}
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {

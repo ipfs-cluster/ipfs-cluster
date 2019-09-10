@@ -36,7 +36,8 @@ var testingClusterCfg = []byte(`{
     "replication_factor": -1,
     "monitor_ping_interval": "350ms",
     "peer_watch_interval": "200ms",
-    "disable_repinning": false
+    "disable_repinning": false,
+    "mdns_interval": "0s"
 }`)
 
 var testingRaftCfg = []byte(`{

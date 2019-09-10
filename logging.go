@@ -24,6 +24,7 @@ func init() {
 var LoggingFacilities = map[string]string{
 	"cluster":      "INFO",
 	"restapi":      "INFO",
+	"restapilog":   "INFO",
 	"ipfsproxy":    "INFO",
 	"ipfshttp":     "INFO",
 	"monitor":      "INFO",

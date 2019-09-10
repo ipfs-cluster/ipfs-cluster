@@ -108,6 +108,12 @@ type Config struct {
 	// which are authorized to use Basic Authentication
 	BasicAuthCredentials map[string]string
 
+	// HTTPLogFile is path of the file that would save HTTP API logs. If this
+	// path is empty, HTTP logs would be sent to standard output. This path
+	// should either be absolute or relative to cluster base directory. Its
+	// default value is empty.
+	HTTPLogFile string
+
 	// Headers provides customization for the headers returned
 	// by the API on existing routes.
 	Headers map[string][]string
@@ -139,6 +145,7 @@ type jsonConfig struct {
 	PrivateKey               string `json:"private_key,omitempty"`
 
 	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"`
+	HTTPLogFile          string              `json:"http_log_file"`
 	Headers              map[string][]string `json:"headers"`
 
 	CORSAllowedOrigins   []string `json:"cors_allowed_origins"`
@@ -147,6 +154,20 @@ type jsonConfig struct {
 	CORSExposedHeaders   []string `json:"cors_exposed_headers"`
 	CORSAllowCredentials bool     `json:"cors_allow_credentials"`
 	CORSMaxAge           string   `json:"cors_max_age"`
+}
+
+// getHTTPLogPath gets full path of the file where http logs should be
+// saved.
+func (cfg *Config) getHTTPLogPath() string {
+	if filepath.IsAbs(cfg.HTTPLogFile) {
+		return cfg.HTTPLogFile
+	}
+
+	if cfg.BaseDir == "" {
+		return ""
+	}
+
+	return filepath.Join(cfg.BaseDir, cfg.HTTPLogFile)
 }
 
 // ConfigKey returns a human-friendly identifier for this type of
@@ -175,6 +196,9 @@ func (cfg *Config) Default() error {
 
 	// Auth
 	cfg.BasicAuthCredentials = nil
+
+	// Logs
+	cfg.HTTPLogFile = ""
 
 	// Headers
 	cfg.Headers = DefaultHeaders
@@ -271,6 +295,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 	// Other options
 	cfg.BasicAuthCredentials = jcfg.BasicAuthCredentials
+	cfg.HTTPLogFile = jcfg.HTTPLogFile
 	cfg.Headers = jcfg.Headers
 
 	return cfg.Validate()
@@ -409,6 +434,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		IdleTimeout:            cfg.IdleTimeout.String(),
 		MaxHeaderBytes:         cfg.MaxHeaderBytes,
 		BasicAuthCredentials:   cfg.BasicAuthCredentials,
+		HTTPLogFile:            cfg.HTTPLogFile,
 		Headers:                cfg.Headers,
 		CORSAllowedOrigins:     cfg.CORSAllowedOrigins,
 		CORSAllowedMethods:     cfg.CORSAllowedMethods,

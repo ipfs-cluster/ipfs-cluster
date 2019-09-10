@@ -25,6 +25,7 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p/p2p/discovery"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
@@ -41,6 +42,7 @@ const (
 	pingMetricName      = "ping"
 	bootstrapCount      = 3
 	reBootstrapInterval = 30 * time.Second
+	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
 )
 
 var (
@@ -57,6 +59,7 @@ type Cluster struct {
 	config    *Config
 	host      host.Host
 	dht       *dht.IpfsDHT
+	discovery discovery.Service
 	datastore ds.Datastore
 
 	rpcServer   *rpc.Server
@@ -120,12 +123,22 @@ func NewCluster(
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
-		listenAddrs += fmt.Sprintf("        %s/ipfs/%s\n", addr, host.ID().Pretty())
+		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID().Pretty())
 	}
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
 
 	peerManager := pstoremgr.New(ctx, host, cfg.GetPeerstorePath())
+
+	var mdns discovery.Service
+	if cfg.MDNSInterval > 0 {
+		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		mdns.RegisterNotifee(peerManager)
+	}
 
 	c := &Cluster{
 		ctx:         ctx,
@@ -134,6 +147,7 @@ func NewCluster(
 		config:      cfg,
 		host:        host,
 		dht:         dht,
+		discovery:   mdns,
 		datastore:   datastore,
 		consensus:   consensus,
 		apis:        apis,
@@ -367,6 +381,11 @@ func (c *Cluster) alertsHandler() {
 				continue // only handle ping alerts
 			}
 
+			if c.config.DisableRepinning {
+				logger.Debugf("repinning is disabled. Will not re-allocate pins on alerts")
+				return
+			}
+
 			cState, err := c.consensus.State(c.ctx)
 			if err != nil {
 				logger.Warning(err)
@@ -384,7 +403,7 @@ func (c *Cluster) alertsHandler() {
 					continue
 				}
 				if c.shouldPeerRepinCid(alrt.Peer, pin) {
-					c.repinFromPeer(c.ctx, alrt.Peer)
+					c.repinFromPeer(c.ctx, alrt.Peer, pin)
 				}
 			}
 		}
@@ -421,7 +440,7 @@ func (c *Cluster) watchPeers() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
-			logger.Debugf("%s watching peers", c.id)
+			// logger.Debugf("%s watching peers", c.id)
 			hasMe := false
 			peers, err := c.consensus.Peers(c.ctx)
 			if err != nil {
@@ -468,8 +487,8 @@ func (c *Cluster) reBootstrap() {
 }
 
 // find all Cids pinned to a given peer and triggers re-pins on them.
-func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
-	ctx, span := trace.StartSpan(ctx, "cluster/repinFromPeer")
+func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
+	ctx, span := trace.StartSpan(ctx, "cluster/vacatePeer")
 	defer span.End()
 
 	if c.config.DisableRepinning {
@@ -489,11 +508,21 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID) {
 	}
 	for _, pin := range list {
 		if containsPeer(pin.Allocations, p) {
-			_, ok, err := c.pin(ctx, pin, []peer.ID{p}) // pin blacklisting this peer
-			if ok && err == nil {
-				logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
-			}
+			c.repinFromPeer(ctx, p, pin)
 		}
+	}
+}
+
+// repinFromPeer triggers a repin on a given pin object blacklisting one of the
+// allocations.
+func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID, pin *api.Pin) {
+	ctx, span := trace.StartSpan(ctx, "cluster/repinFromPeer")
+	defer span.End()
+
+	pin.Allocations = nil // force re-allocations
+	_, ok, err := c.pin(ctx, pin, []peer.ID{p})
+	if ok && err == nil {
+		logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
 	}
 }
 
@@ -621,6 +650,12 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	logger.Info("shutting down Cluster")
 
+	// Cancel discovery service (this shutdowns announcing). Handling
+	// entries is cancelled along with the context below.
+	if c.discovery != nil {
+		c.discovery.Close()
+	}
+
 	// Try to store peerset file for all known peers whatsoever
 	// if we got ready (otherwise, don't overwrite anything)
 	if c.readyB {
@@ -721,15 +756,13 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 			Error: err.Error(),
 		}
 	}
-	var addrs []api.Multiaddr
 
-	addrsSet := make(map[string]struct{}) // to filter dups
-	for _, addr := range c.host.Addrs() {
-		addrsSet[addr.String()] = struct{}{}
-	}
-	for k := range addrsSet {
-		addr, _ := api.NewMultiaddr(k)
-		addrs = append(addrs, api.MustLibp2pMultiaddrJoin(addr, c.id))
+	var addrs []api.Multiaddr
+	mAddrs, err := peer.AddrInfoToP2pAddrs(&peer.AddrInfo{ID: c.id, Addrs: c.host.Addrs()})
+	if err == nil {
+		for _, mAddr := range mAddrs {
+			addrs = append(addrs, api.NewMultiaddrWithValue(mAddr))
+		}
 	}
 
 	peers := []peer.ID{}
@@ -751,7 +784,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		}
 	}
 
-	return &api.ID{
+	id := &api.ID{
 		ID: c.id,
 		//PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
@@ -762,6 +795,11 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		IPFS:                  ipfsID,
 		Peername:              c.config.Peername,
 	}
+	if err != nil {
+		id.Error = err.Error()
+	}
+
+	return id
 }
 
 // PeerAdd adds a new peer to this Cluster.
@@ -817,7 +855,7 @@ func (c *Cluster) PeerRemove(ctx context.Context, pid peer.ID) error {
 	// We need to repin before removing the peer, otherwise, it won't
 	// be able to submit the pins.
 	logger.Infof("re-allocating all CIDs directly associated to %s", pid)
-	c.repinFromPeer(ctx, pid)
+	c.vacatePeer(ctx, pid)
 
 	err := c.consensus.RmPeer(ctx, pid)
 	if err != nil {
@@ -932,9 +970,9 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	}
 
 	trackedPins := c.tracker.StatusAll(ctx)
-	trackedPinsMap := make(map[string]int)
-	for i, tpin := range trackedPins {
-		trackedPinsMap[tpin.Cid.String()] = i
+	trackedPinsMap := make(map[string]struct{})
+	for _, tpin := range trackedPins {
+		trackedPinsMap[tpin.Cid.String()] = struct{}{}
 	}
 
 	// Track items which are not tracked
@@ -942,7 +980,10 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		_, tracked := trackedPinsMap[pin.Cid.String()]
 		if !tracked {
 			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			c.tracker.Track(ctx, pin)
+			err = c.tracker.Track(ctx, pin)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -967,10 +1008,13 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		switch {
 		case p.Status == api.TrackerStatusRemote && allocatedHere:
 			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
 		case p.Status == api.TrackerStatusPinned && !allocatedHere:
 			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			c.tracker.Track(ctx, currentPin)
+			err = c.tracker.Track(ctx, currentPin)
+		}
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1099,6 +1143,10 @@ func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo,
 
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
 // by this peer.
+//
+// Recover operations ask IPFS to pin or unpin items in error state. Recover
+// is faster than calling Pin on the same CID as it avoids committing an
+// identical pin to the consensus layer.
 func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
 	defer span.End()
@@ -1109,6 +1157,10 @@ func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 
 // Recover triggers a recover operation for a given Cid in all
 // cluster peers.
+//
+// Recover operations ask IPFS to pin or unpin items in error state. Recover
+// is faster than calling Pin on the same CID as it avoids committing an
+// identical pin to the consensus layer.
 func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Recover")
 	defer span.End()
@@ -1119,6 +1171,10 @@ func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, e
 
 // RecoverLocal triggers a recover operation for a given Cid in this peer only.
 // It returns the updated PinInfo, after recovery.
+//
+// Recover operations ask IPFS to pin or unpin items in error state. Recover
+// is faster than calling Pin on the same CID as it avoids committing an
+// identical pin to the consensus layer.
 func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo, err error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverLocal")
 	defer span.End()
@@ -1317,24 +1373,35 @@ func (c *Cluster) pin(
 		return pin, true, c.consensus.LogPin(ctx, pin)
 	}
 
-	allocs, err := c.allocate(
-		ctx,
-		pin.Cid,
-		pin.ReplicationFactorMin,
-		pin.ReplicationFactorMax,
-		blacklist,
-		pin.UserAllocations,
-	)
-	if err != nil {
-		return pin, false, err
+	// We did not change ANY options and the pin exists so we just repin
+	// what there is without doing new allocations. While this submits
+	// pins to the consensus layer even if they are, this should trigger the
+	// pin tracker and allows users to get re-pin operations by re-adding
+	// without having to use recover, which is naturally expected.
+	existing, err := c.PinGet(ctx, pin.Cid)
+	if err == nil &&
+		pin.PinOptions.Equals(&existing.PinOptions) &&
+		len(blacklist) == 0 {
+		pin = existing
 	}
-	pin.Allocations = allocs
 
-	// Equals can handle nil objects.
-	if curr, _ := c.PinGet(ctx, pin.Cid); curr.Equals(pin) {
-		// skip pinning
-		logger.Debugf("pinning %s skipped: already correctly allocated", pin.Cid)
-		return pin, false, nil
+	// Usually allocations are unset when pinning normally, however, the
+	// allocations may have been preset by the adder in which case they
+	// need to be respected. Whenever allocations are set. We don't
+	// re-allocate.
+	if len(pin.Allocations) == 0 {
+		allocs, err := c.allocate(
+			ctx,
+			pin.Cid,
+			pin.ReplicationFactorMin,
+			pin.ReplicationFactorMax,
+			blacklist,
+			pin.UserAllocations,
+		)
+		if err != nil {
+			return pin, false, err
+		}
+		pin.Allocations = allocs
 	}
 
 	if len(pin.Allocations) == 0 {

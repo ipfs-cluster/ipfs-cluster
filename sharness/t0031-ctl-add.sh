@@ -79,6 +79,16 @@ test_expect_success IPFS,CLUSTER "check pin after locally added" '
     ipfs-cluster-ctl pin ls | grep -q -i "$cid"
 '
 
+test_expect_success IPFS,CLUSTER "add with metadata" '
+    echo "test1" > test1.txt
+    cid1=`ipfs-cluster-ctl add --quieter --metadata kind=text test1.txt`
+    echo "test2" > test2.txt
+    cid2=`ipfs-cluster-ctl add --quieter test2.txt`
+    ipfs-cluster-ctl pin ls "$cid1" | grep -q "Metadata: yes" &&
+    ipfs-cluster-ctl --enc=json pin ls "$cid1" | jq .metadata | grep -q "\"kind\": \"text\"" &&
+    ipfs-cluster-ctl pin ls "$cid2" | grep -q "Metadata: no"
+'
+
 test_clean_ipfs
 test_clean_cluster
 
