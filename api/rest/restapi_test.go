@@ -1030,7 +1030,7 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 
 		var resp1 []*api.GlobalPinInfo
 		makePost(t, rest, url(rest)+"/pins/recover", []byte{}, &resp1)
-		if len(resp1) != 0 {
+		if len(resp1) == 0 {
 			t.Fatal("bad response length")
 		}
 	}
