@@ -619,6 +619,6 @@ func (rpcapi *PeerMonitorRPCAPI) LatestMetrics(ctx context.Context, in string, o
 
 // MetricNames runs PeerMonitor.MetricNames().
 func (rpcapi *PeerMonitorRPCAPI) MetricNames(ctx context.Context, in struct{}, out *[]string) error {
-	*out = rpcapi.mon.MetricNames()
+	*out = rpcapi.mon.MetricNames(ctx)
 	return nil
 }

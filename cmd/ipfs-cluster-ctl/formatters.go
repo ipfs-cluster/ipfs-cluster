@@ -46,6 +46,8 @@ func textFormatObject(resp interface{}) {
 	switch resp.(type) {
 	case nil:
 		return
+	case string:
+		fmt.Println(resp)
 	case *api.ID:
 		textFormatPrintID(resp.(*api.ID))
 	case *api.GlobalPinInfo:
@@ -87,7 +89,9 @@ func textFormatObject(resp interface{}) {
 			textFormatObject(item)
 		}
 	case []string:
-		textFormatPrintList(resp.([]string))
+		for _, item := range resp.([]string) {
+			textFormatObject(item)
+		}
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -223,10 +227,4 @@ func trackerStatusAllString() string {
 
 	sort.Strings(strs)
 	return strings.Join(strs, "\n")
-}
-
-func textFormatPrintList(obj []string) {
-	for _, s := range obj {
-		fmt.Printf("- %s\n", s)
-	}
 }
