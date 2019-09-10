@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -761,4 +763,70 @@ func TestAttackHeaderSize(t *testing.T) {
 				res.StatusCode, tc.expectedStatus)
 		}
 	}
+}
+
+func TestProxyLogging(t *testing.T) {
+	ctx := context.Background()
+	cfg := &Config{}
+	cfg.Default()
+
+	logFile, err := filepath.Abs("proxy.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.LogFile = logFile
+
+	proxy, mock := testIPFSProxyWithConfig(t, cfg)
+	defer os.Remove(cfg.LogFile)
+
+	info, err := os.Stat(cfg.LogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > 0 {
+		t.Errorf("expected empty log file")
+	}
+
+	res, err := http.Post(fmt.Sprintf("%s/version", proxyURL(proxy)), "", nil)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	res.Body.Close()
+
+	info, err = os.Stat(cfg.LogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size1 := info.Size()
+	if size1 == 0 {
+		t.Error("did not expect an empty log file")
+	}
+
+	// Restart proxy and make sure that logs are being appended
+	mock.Close()
+	proxy.Shutdown(ctx)
+
+	proxy, mock = testIPFSProxyWithConfig(t, cfg)
+	defer mock.Close()
+	defer proxy.Shutdown(ctx)
+
+	res1, err := http.Post(fmt.Sprintf("%s/version", proxyURL(proxy)), "", nil)
+	if err != nil {
+		t.Fatal("should forward requests to ipfs host: ", err)
+	}
+	res1.Body.Close()
+
+	info, err = os.Stat(cfg.LogFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size2 := info.Size()
+	if size2 == 0 {
+		t.Error("did not expect an empty log file")
+	}
+
+	if !(size2 > size1) {
+		t.Error("logs were not appended")
+	}
+
 }
