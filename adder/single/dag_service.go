@@ -49,7 +49,7 @@ func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 	if dgs.local {
-		return adder.AddNodeLocal(ctx, dgs.rpcClient, node)
+		return adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""}).Add(ctx, node)
 	}
 
 	if dgs.dests == nil {

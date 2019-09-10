@@ -142,21 +142,6 @@ func Pin(ctx context.Context, rpc *rpc.Client, pin *api.Pin) error {
 	)
 }
 
-// AddNodeLocal puts the given node to the local peer.
-func AddNodeLocal(ctx context.Context, rpc *rpc.Client, node ipld.Node) error {
-	nodeSerial := ipldNodeToNodeWithMeta(node)
-	logger.Debugf("block put %s to local peer", nodeSerial.Cid)
-
-	return rpc.CallContext(
-		ctx,
-		"", // use ourself to pin
-		"IPFSConnector",
-		"BlockPut",
-		nodeSerial,
-		&struct{}{},
-	)
-}
-
 // ErrDAGNotFound is returned whenever we try to get a block from the DAGService.
 var ErrDAGNotFound = errors.New("dagservice: block not found")
 
