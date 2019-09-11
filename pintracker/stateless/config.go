@@ -14,7 +14,7 @@ const envConfigKey = "cluster_stateless"
 
 // Default values for this Config.
 const (
-	DefaultMaxPinQueueSize = 50000
+	DefaultMaxPinQueueSize = 1000000
 	DefaultConcurrentPins  = 10
 )
 
@@ -31,7 +31,7 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	MaxPinQueueSize int `json:"max_pin_queue_size"`
+	MaxPinQueueSize int `json:"max_pin_queue_size,omitempty"`
 	ConcurrentPins  int `json:"concurrent_pins"`
 }
 
@@ -103,8 +103,12 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 }
 
 func (cfg *Config) toJSONConfig() *jsonConfig {
-	return &jsonConfig{
-		MaxPinQueueSize: cfg.MaxPinQueueSize,
-		ConcurrentPins:  cfg.ConcurrentPins,
+	jCfg := &jsonConfig{
+		ConcurrentPins: cfg.ConcurrentPins,
 	}
+	if cfg.MaxPinQueueSize != DefaultMaxPinQueueSize {
+		jCfg.MaxPinQueueSize = cfg.MaxPinQueueSize
+	}
+
+	return jCfg
 }
