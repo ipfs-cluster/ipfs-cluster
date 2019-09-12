@@ -179,7 +179,7 @@ func (css *Consensus) setup() {
 
 	opts := crdt.DefaultOptions()
 	opts.RebroadcastInterval = css.config.RebroadcastInterval
-	opts.DAGSyncerTimeout = time.Minute
+	opts.DAGSyncerTimeout = 2 * time.Minute
 	opts.Logger = logger
 	opts.PutHook = func(k ds.Key, v []byte) {
 		ctx, span := trace.StartSpan(css.ctx, "crdt/PutHook")
