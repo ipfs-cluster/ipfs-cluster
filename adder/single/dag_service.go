@@ -48,17 +48,18 @@ func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
 
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
-	if dgs.local {
-		return adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""}).Add(ctx, node)
-	}
-
 	if dgs.dests == nil {
 		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.pinOpts)
 		if err != nil {
 			return err
 		}
 		dgs.dests = dests
-		dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
+
+		if dgs.local {
+			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""})
+		} else {
+			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
+		}
 	}
 
 	return dgs.ba.Add(ctx, node)
@@ -68,10 +69,6 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
 	// Cluster pin the result
 	rootPin := api.PinWithOpts(root, dgs.pinOpts)
-	if dgs.local {
-		return root, adder.Pin(ctx, dgs.rpcClient, rootPin)
-	}
-
 	rootPin.Allocations = dgs.dests
 	dgs.dests = nil
 
