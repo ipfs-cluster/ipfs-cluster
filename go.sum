@@ -351,6 +351,10 @@ github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5/go.mod h1:7Id9E
 github.com/kami-zh/go-capturer v0.0.0-20171211120116-e492ea43421d/go.mod h1:P2viExyCEfeWGU259JnaQ34Inuec4R38JCyBx2edgD0=
 github.com/kelseyhightower/envconfig v1.4.0 h1:Im6hONhd3pLkfDFsbRgu68RDNkGF1r3dvMUtDTo2cv8=
 github.com/kelseyhightower/envconfig v1.4.0/go.mod h1:cccZRl6mQpaq41TPp5QxidR+Sa3axMbJDNb//FQX6Gg=
+github.com/kishansagathiya/go-dot v0.0.2-0.20191013111036-f1da912e6fcb h1:K72Zy5/WevkrSEK9R9lyGowoEol8UsoSIWbfEtp0HeY=
+github.com/kishansagathiya/go-dot v0.0.2-0.20191013111036-f1da912e6fcb/go.mod h1:U1dCUFzZ+KnBgkaCWPj2JFUQygVepVudkINK9QRsxMs=
+github.com/kishansagathiya/go-dot v0.0.2-0.20191016070847-1c5b432788b0 h1:PaBS3DH0aJ7E7+YZevHQGyElNOEwZW7Q5ljITIBDA88=
+github.com/kishansagathiya/go-dot v0.0.2-0.20191016070847-1c5b432788b0/go.mod h1:U1dCUFzZ+KnBgkaCWPj2JFUQygVepVudkINK9QRsxMs=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
 github.com/kisielk/errcheck v1.2.0/go.mod h1:/BMXB+zMLi60iA8Vv6Ksmxu/1UDYcXs4uQLJ+jE2L00=
 github.com/kisielk/gotool v1.0.0 h1:AV2c/EiW3KqPNT9ZKl07ehoAGi4C5/01Cfbblndcapg=
@@ -855,7 +859,6 @@ github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee/go.mod h1:
 github.com/x-cray/logrus-prefixed-formatter v0.5.2 h1:00txxvfBM9muc0jiLIEAkAcIMJzfthRT6usrui8uGmg=
 github.com/x-cray/logrus-prefixed-formatter v0.5.2/go.mod h1:2duySbKsL6M18s5GU7VPsoEPHyzalCE06qoARUCeBBE=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e h1:GN1PUQ/MNDdtiZZhCAnZ4PwTcslUM8qWVz8q2bLkDeM=
 github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e/go.mod h1:T00FaxHq4SlnicuZFole4yRAgcjWtqbMcUXBfXAYvaI=
 go.opencensus.io v0.20.1/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
 go.opencensus.io v0.21.0 h1:mU6zScU4U1YAFPHEHYk+3JC4SY7JxgkqS10ZOSyksNg=

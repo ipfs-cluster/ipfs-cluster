@@ -1877,9 +1877,9 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	}
 }
 
-// Helper function for verifying cluster graph.  Will only pass if exactly the
+// Helper function for verifying cluster graph. Will only pass if exactly the
 // peers in clusterIDs are fully connected to each other and the expected ipfs
-// mock connectivity exists.  Cluster peers not in clusterIDs are assumed to
+// mock connectivity exists. Cluster peers not in clusterIDs are assumed to
 // be disconnected and the graph should reflect this
 func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[string]struct{}, peerNum int) {
 	// Check that all cluster peers see each other as peers
@@ -1914,6 +1914,10 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 		if _, ok := graph.ClusterLinks[id]; !ok {
 			t.Errorf("Expected graph to record peer %s as a node", id)
 		}
+	}
+
+	if len(graph.ClusterTrustLinks) != peerNum {
+		t.Errorf("Unexpected number of trust links in graph")
 	}
 
 	// Check that the mocked ipfs swarm is recorded

@@ -39,6 +39,7 @@ require (
 	github.com/ipfs/go-path v0.0.7
 	github.com/ipfs/go-unixfs v0.2.2
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/kishansagathiya/go-dot v0.0.2-0.20191016070847-1c5b432788b0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
