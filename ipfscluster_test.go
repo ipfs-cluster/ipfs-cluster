@@ -2161,3 +2161,57 @@ func TestClustersFollowerMode(t *testing.T) {
 		}
 	})
 }
+
+func TestClusterPinsWithExpiration(t *testing.T) {
+	ctx := context.Background()
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	ttlDelay()
+
+	cl := clusters[rand.Intn(nClusters)] // choose a random cluster peer to query
+
+	c := test.Cid1
+	expireIn := 1 * time.Second
+	opts := api.PinOptions{
+		ExpireAt: time.Now().Add(expireIn),
+	}
+	_, err := cl.Pin(ctx, c, opts)
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+
+	pinDelay()
+
+	pins, err := cl.Pins(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 1 {
+		t.Error("pin should be part of the state")
+	}
+
+	// wait till expiry time
+	time.Sleep(expireIn)
+
+	// manually call state sync on all peers, so we don't have to wait till
+	// state sync interval
+	for _, c := range clusters {
+		err = c.StateSync(ctx)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	pinDelay()
+
+	// state sync should have unpinned expired pin
+	pins, err = cl.Pins(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 0 {
+		t.Error("pin should not be part of the state")
+	}
+}

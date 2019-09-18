@@ -67,6 +67,7 @@ require (
 	github.com/urfave/cli v1.22.1
 	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
 	go.opencensus.io v0.22.1
+	golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )
