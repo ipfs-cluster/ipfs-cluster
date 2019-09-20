@@ -111,7 +111,7 @@ This release introduces a number of backwards-compatible configuration changes:
 * The `service.json` file no longer includes `ID` and `PrivateKey`, which are
   now part of an `identity.json` file. However things should work as before if
   they do. Running `ipfs-cluster-service daemon` on a older configuration will
-  automatically write an `indentity.json` file with the old credentials so that
+  automatically write an `identity.json` file with the old credentials so that
   things do not break when the compatibility hack is removed.
 
 * The `service.json` can use a new single top-level `source` field which can
