@@ -45,8 +45,8 @@ test_expect_success IPFS,CLUSTER "empty cluster-ctl sync succeeds" '
     ipfs-cluster-ctl sync
 '
 
-test_expect_success IPFS,CLUSTER "empty cluster_ctl recover needs CID" '
-    test_must_fail ipfs-cluster-ctl recover
+test_expect_success IPFS,CLUSTER "empty cluster_ctl recover should not fail" '
+    ipfs-cluster-ctl recover
 '
 
 test_expect_success IPFS,CLUSTER "pin ls succeeds" '

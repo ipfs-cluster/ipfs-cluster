@@ -297,6 +297,10 @@ func (mock *mockCluster) SyncLocal(ctx context.Context, in cid.Cid, out *api.Pin
 	return mock.StatusLocal(ctx, in, out)
 }
 
+func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
+	return mock.StatusAll(ctx, in, out)
+}
+
 func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	return (&mockPinTracker{}).RecoverAll(ctx, in, out)
 }

@@ -1026,15 +1026,14 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url urlF) {
 		var resp []*api.GlobalPinInfo
 		makePost(t, rest, url(rest)+"/pins/recover?local=true", []byte{}, &resp)
-
 		if len(resp) != 0 {
 			t.Fatal("bad response length")
 		}
 
-		var errResp api.Error
-		makePost(t, rest, url(rest)+"/pins/recover", []byte{}, &errResp)
-		if errResp.Code != 400 {
-			t.Error("expected a different error")
+		var resp1 []*api.GlobalPinInfo
+		makePost(t, rest, url(rest)+"/pins/recover", []byte{}, &resp1)
+		if len(resp1) == 0 {
+			t.Fatal("bad response length")
 		}
 	}
 
