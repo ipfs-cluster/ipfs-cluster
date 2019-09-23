@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/adder/local"
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
+	"github.com/ipfs/ipfs-cluster/adder/single"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
@@ -1560,7 +1560,7 @@ func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (cid.
 	if params.Shard {
 		dags = sharding.New(c.rpcClient, params.PinOptions, nil)
 	} else {
-		dags = local.New(c.rpcClient, params.PinOptions)
+		dags = single.New(c.rpcClient, params.PinOptions, params.Local)
 	}
 	add := adder.New(dags, params, nil)
 	return add.FromMultipart(c.ctx, reader)

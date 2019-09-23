@@ -37,7 +37,7 @@ var LoggingFacilities = map[string]string{
 	"apitypes":     "INFO",
 	"config":       "INFO",
 	"shardingdags": "INFO",
-	"localdags":    "INFO",
+	"singledags":   "INFO",
 	"adder":        "INFO",
 	"optracker":    "INFO",
 	"pstoremgr":    "INFO",
