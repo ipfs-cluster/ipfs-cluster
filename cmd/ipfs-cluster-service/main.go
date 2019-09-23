@@ -655,7 +655,7 @@ func getRandomPortMultiaddr(assigned map[int]bool) ma.Multiaddr {
 	if assigned[port] {
 		return getRandomPortMultiaddr(assigned)
 	}
-
+	assigned[port] = true
 	addr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port))
 	checkErr("parsing multiaddress", err)
 	return addr
