@@ -6,7 +6,9 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
+	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	routing "github.com/libp2p/go-libp2p-core/routing"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
@@ -72,6 +74,11 @@ func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...li
 	finalOpts := []libp2p.Option{
 		libp2p.Identity(priv),
 		libp2p.PrivateNetwork(prot),
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			return dht.New(ctx, h)
+		}),
+		libp2p.EnableRelay(relay.OptHop, relay.OptDiscovery),
+		libp2p.EnableAutoRelay(),
 	}
 	finalOpts = append(finalOpts, opts...)
 
