@@ -26,6 +26,7 @@ var LoggingFacilities = map[string]string{
 	"restapi":      "INFO",
 	"restapilog":   "INFO",
 	"ipfsproxy":    "INFO",
+	"ipfsproxylog": "INFO",
 	"ipfshttp":     "INFO",
 	"monitor":      "INFO",
 	"dsstate":      "INFO",
