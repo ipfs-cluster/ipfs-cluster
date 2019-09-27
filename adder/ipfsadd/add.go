@@ -31,15 +31,19 @@ const progressReaderIncrement = 1024 * 256
 
 var liveCacheSize = uint64(256 << 10)
 
+type Link struct {
+	Name, Hash string
+	Size       uint64
+}
+
 // NewAdder Returns a new Adder used for a file add operation.
 func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
+	// Cluster: we don't use pinner nor GCLocker.
 	return &Adder{
 		ctx:        ctx,
 		dagService: ds,
 		Progress:   false,
-		Hidden:     true,
 		Trickle:    false,
-		Wrap:       false,
 		Chunker:    "",
 	}, nil
 }
@@ -50,17 +54,13 @@ type Adder struct {
 	dagService ipld.DAGService
 	Out        chan *api.AddedOutput
 	Progress   bool
-	Hidden     bool
 	Trickle    bool
 	RawLeaves  bool
 	Silent     bool
-	Wrap       bool
 	NoCopy     bool
 	Chunker    string
-	root       ipld.Node
 	mroot      *mfs.Root
 	tempRoot   cid.Cid
-	Prefix     *cid.Prefix
 	CidBuilder cid.Builder
 	liveNodes  uint64
 	lastFile   mfs.FSNode
@@ -92,7 +92,7 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 		return nil, err
 	}
 
-	// Cluster: we don't do batching.
+	// Cluster: we don't do batching/use BufferedDS.
 
 	params := ihelper.DagBuilderParams{
 		Dagserv:    adder.dagService,
@@ -102,25 +102,26 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 		CidBuilder: adder.CidBuilder,
 	}
 
-	dbh, err := params.New(chnk)
+	db, err := params.New(chnk)
 	if err != nil {
 		return nil, err
 	}
 
+	var nd ipld.Node
 	if adder.Trickle {
-		return trickle.Layout(dbh)
+		nd, err = trickle.Layout(db)
+	} else {
+		nd, err = balanced.Layout(db)
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	return balanced.Layout(dbh)
+	return nd, nil
 }
 
-// RootNode returns the root node of the Added.
-func (adder *Adder) RootNode() (ipld.Node, error) {
-	// for memoizing
-	if adder.root != nil {
-		return adder.root, nil
-	}
-
+// RootNode returns the mfs root node
+func (adder *Adder) curRootNode() (ipld.Node, error) {
 	mr, err := adder.mfsRoot()
 	if err != nil {
 		return nil, err
@@ -130,8 +131,8 @@ func (adder *Adder) RootNode() (ipld.Node, error) {
 		return nil, err
 	}
 
-	// if not wrapping, AND one root file, use that hash as root.
-	if !adder.Wrap && len(root.Links()) == 1 {
+	// if one root file, use that hash as root.
+	if len(root.Links()) == 1 {
 		nd, err := root.Links()[0].GetNode(adder.ctx, adder.dagService)
 		if err != nil {
 			return nil, err
@@ -140,61 +141,25 @@ func (adder *Adder) RootNode() (ipld.Node, error) {
 		root = nd
 	}
 
-	adder.root = root
 	return root, err
 }
 
-// Finalize flushes the mfs root directory and returns the mfs root node.
-func (adder *Adder) Finalize() (ipld.Node, error) {
-	mr, err := adder.mfsRoot()
+// Recursively pins the root node of Adder and
+// writes the pin state to the backing datastore.
+// Cluster: we don't pin. Former Finalize().
+func (adder *Adder) PinRoot(root ipld.Node) error {
+	rnk := root.Cid()
+
+	err := adder.dagService.Add(adder.ctx, root)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var root mfs.FSNode
-	rootdir := mr.GetDirectory()
-	root = rootdir
-
-	err = root.Flush()
-	if err != nil {
-		return nil, err
+	if adder.tempRoot.Defined() {
+		adder.tempRoot = rnk
 	}
 
-	var name string
-	if !adder.Wrap {
-		children, err := rootdir.ListNames(adder.ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(children) == 0 {
-			return nil, fmt.Errorf("expected at least one child dir, got none")
-		}
-
-		// Replace root with the first child
-		name = children[0]
-		root, err = rootdir.Child(name)
-		if err != nil {
-			// Cluster: use the last file we added
-			// if we have one.
-			if adder.lastFile == nil {
-				return nil, err
-			}
-			root = adder.lastFile
-		}
-	}
-
-	err = adder.outputDirs(name, root)
-	if err != nil {
-		return nil, err
-	}
-
-	err = mr.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return root.GetNode()
+	return nil
 }
 
 func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
@@ -232,6 +197,7 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 		if err != nil {
 			return err
 		}
+
 		return outputDagnode(adder.Out, path, nd)
 	default:
 		return fmt.Errorf("unrecognized fsn type: %#v", fsn)
@@ -283,13 +249,80 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	return nil
 }
 
-// AddFile adds the given file while respecting the adder.
-func (adder *Adder) AddFile(path string, file files.Node) error {
-	return adder.addFile(path, file)
+// AddAllAndPin adds the given request's files and pin them.
+// Cluster: we don'pin. Former AddFiles.
+func (adder *Adder) AddAllAndPin(file files.Node) (ipld.Node, error) {
+	if err := adder.addFileNode("", file, true); err != nil {
+		return nil, err
+	}
+
+	// get root
+	mr, err := adder.mfsRoot()
+	if err != nil {
+		return nil, err
+	}
+	var root mfs.FSNode
+	rootdir := mr.GetDirectory()
+	root = rootdir
+
+	err = root.Flush()
+	if err != nil {
+		return nil, err
+	}
+
+	// if adding a file without wrapping, swap the root to it (when adding a
+	// directory, mfs root is the directory)
+	_, dir := file.(files.Directory)
+	var name string
+	if !dir {
+		children, err := rootdir.ListNames(adder.ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(children) == 0 {
+			return nil, fmt.Errorf("expected at least one child dir, got none")
+		}
+
+		// Replace root with the first child
+		name = children[0]
+		root, err = rootdir.Child(name)
+		if err != nil {
+			// Cluster: use the last file we added
+			// if we have one.
+			if adder.lastFile == nil {
+				return nil, err
+			}
+			root = adder.lastFile
+		}
+	}
+
+	err = mr.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	nd, err := root.GetNode()
+	if err != nil {
+		return nil, err
+	}
+
+	// output directory events
+	err = adder.outputDirs(name, root)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cluster: call PinRoot which adds the root cid to the DAGService.
+	// Unsure if this a bug in IPFS when not pinning. Or it would get added
+	// twice.
+	return nd, adder.PinRoot(nd)
 }
 
-func (adder *Adder) addFile(path string, nd files.Node) error {
-	defer nd.Close()
+// Cluster: we don't Pause for GC
+func (adder *Adder) addFileNode(path string, file files.Node, toplevel bool) error {
+	defer file.Close()
+
 	if adder.liveNodes >= liveCacheSize {
 		// TODO: A smarter cache that uses some sort of lru cache with an eviction handler
 		mr, err := adder.mfsRoot()
@@ -304,37 +337,40 @@ func (adder *Adder) addFile(path string, nd files.Node) error {
 	}
 	adder.liveNodes++
 
-	if dir := files.ToDir(nd); dir != nil {
-		return adder.addDir(path, dir)
+	switch f := file.(type) {
+	case files.Directory:
+		return adder.addDir(path, f, toplevel)
+	case *files.Symlink:
+		return adder.addSymlink(path, f)
+	case files.File:
+		return adder.addFile(path, f)
+	default:
+		return errors.New("unknown file type")
+	}
+}
+
+func (adder *Adder) addSymlink(path string, l *files.Symlink) error {
+	sdata, err := unixfs.SymlinkData(l.Target)
+	if err != nil {
+		return err
 	}
 
-	// case for symlink
-	if s := files.ToSymlink(nd); s != nil {
-		sdata, err := unixfs.SymlinkData(s.Target)
-		if err != nil {
-			return err
-		}
-
-		dagnode := dag.NodeWithData(sdata)
-		dagnode.SetCidBuilder(adder.CidBuilder)
-		err = adder.dagService.Add(adder.ctx, dagnode)
-		if err != nil {
-			return err
-		}
-
-		return adder.addNode(dagnode, path)
-	}
-	file := files.ToFile(nd)
-	if file == nil {
-		return errors.New("expected a regular file")
+	dagnode := dag.NodeWithData(sdata)
+	dagnode.SetCidBuilder(adder.CidBuilder)
+	err = adder.dagService.Add(adder.ctx, dagnode)
+	if err != nil {
+		return err
 	}
 
-	// case for regular file
+	return adder.addNode(dagnode, path)
+}
+
+func (adder *Adder) addFile(path string, file files.File) error {
 	// if the progress flag was specified, wrap the file so that we can send
 	// progress updates to the client (over the output channel)
 	var reader io.Reader = file
 	if adder.Progress {
-		rdr := &progressReader{file: file, path: path, out: adder.Out}
+		rdr := &progressReader{file: reader, path: path, out: adder.Out}
 		if fi, ok := file.(files.FileInfo); ok {
 			reader = &progressReader2{rdr, fi}
 		} else {
@@ -351,37 +387,38 @@ func (adder *Adder) addFile(path string, nd files.Node) error {
 	return adder.addNode(dagnode, path)
 }
 
-func (adder *Adder) addDir(path string, dir files.Directory) error {
+func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) error {
 	log.Infof("adding directory: %s", path)
 
-	mr, err := adder.mfsRoot()
-	if err != nil {
-		return err
-	}
-	err = mfs.Mkdir(mr, path, mfs.MkdirOpts{
-		Mkparents:  true,
-		Flush:      false,
-		CidBuilder: adder.CidBuilder,
-	})
-	if err != nil {
-		return err
+	if !(toplevel && path == "") {
+		mr, err := adder.mfsRoot()
+		if err != nil {
+			return err
+		}
+		err = mfs.Mkdir(mr, path, mfs.MkdirOpts{
+			Mkparents:  true,
+			Flush:      false,
+			CidBuilder: adder.CidBuilder,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	it := dir.Entries()
 	for it.Next() {
 		fpath := gopath.Join(path, it.Name())
-		if files.IsHidden(fpath, it.Node()) && !adder.Hidden {
-			log.Infof("%s is hidden, skipping", fpath)
-			continue
-		}
-		if err := adder.addFile(fpath, it.Node()); err != nil {
+		err := adder.addFileNode(fpath, it.Node(), false)
+		if err != nil {
 			return err
 		}
 	}
+
 	return it.Err()
 }
 
-// outputDagnode sends dagnode info over the output channel
+// outputDagnode sends dagnode info over the output channel.
+// Cluster: we use *api.AddedOutput instead of coreiface events.
 func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil
