@@ -23,8 +23,6 @@ var logger = logging.Logger("pintracker")
 
 var (
 	errUnpinned = errors.New("the item is unexpectedly not pinned on IPFS")
-	// ErrFullQueue is the error used when pin or unpin operation channel is full.
-	ErrFullQueue = errors.New("pin/unpin operation queue is full (too many operations), increasing max_pin_queue_size would help")
 )
 
 // MapPinTracker is a PinTracker implementation which uses a Go map
@@ -182,7 +180,7 @@ func (mpt *MapPinTracker) enqueue(ctx context.Context, c *api.Pin, typ optracker
 	select {
 	case ch <- op:
 	default:
-		err := ErrFullQueue
+		err := util.ErrFullQueue
 		op.SetError(err)
 		op.Cancel()
 		logger.Error(err.Error())
