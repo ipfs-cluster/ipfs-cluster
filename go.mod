@@ -20,7 +20,7 @@ require (
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/hashicorp/go-hclog v0.9.2
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
-	github.com/hashicorp/raft v1.1.0
+	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v0.1.4
 	github.com/imdario/mergo v0.3.7
