@@ -43,7 +43,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg := &Config{}
 	cfg.Default()
 	listen, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	cfg.ListenAddr = listen
+	cfg.ListenAddr = []ma.Multiaddr{listen}
 	cfg.Secret = testingClusterSecret
 
 	h, _, idht := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)

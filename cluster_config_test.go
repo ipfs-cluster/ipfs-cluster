@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 )
 
 var ccfgTestJSON = []byte(`
@@ -17,7 +19,10 @@ var ccfgTestJSON = []byte(`
              "low_water": 500,
              "grace_period": "100m0s"
         },
-        "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
+        "listen_multiaddress": [
+			"/ip4/127.0.0.1/tcp/10000",
+			"/ip4/127.0.0.1/udp/10000/quic"
+	],
         "state_sync_interval": "1m0s",
         "ipfs_sync_interval": "2m10s",
         "pin_recover_interval": "1m",
@@ -114,7 +119,7 @@ func TestLoadJSON(t *testing.T) {
 	})
 
 	t.Run("bad listen multiaddress", func(t *testing.T) {
-		_, err := loadJSON2(t, func(j *configJSON) { j.ListenMultiaddress = "abc" })
+		_, err := loadJSON2(t, func(j *configJSON) { j.ListenMultiaddress = ipfsconfig.Strings{"abc"} })
 		if err == nil {
 			t.Error("expected error parsing listen_multiaddress")
 		}
@@ -197,7 +202,10 @@ func TestLoadJSON(t *testing.T) {
 
 func TestToJSON(t *testing.T) {
 	cfg := &Config{}
-	cfg.LoadJSON(ccfgTestJSON)
+	err := cfg.LoadJSON(ccfgTestJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
 	newjson, err := cfg.ToJSON()
 	if err != nil {
 		t.Fatal(err)

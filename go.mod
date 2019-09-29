@@ -24,6 +24,7 @@ require (
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.2
 	github.com/ipfs/go-ipfs-chunker v0.0.1
+	github.com/ipfs/go-ipfs-config v0.0.6
 	github.com/ipfs/go-ipfs-ds-help v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.6
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
@@ -39,6 +40,8 @@ require (
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
+	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
+	github.com/libp2p/go-libp2p-circuit v0.1.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
 	github.com/libp2p/go-libp2p-core v0.2.3
 	github.com/libp2p/go-libp2p-crypto v0.1.0
@@ -58,6 +61,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.1.1
 	github.com/multiformats/go-multiaddr-dns v0.1.1
 	github.com/multiformats/go-multiaddr-net v0.1.0
+	github.com/libp2p/go-ws-transport v0.1.0
 	github.com/multiformats/go-multicodec v0.1.6
 	github.com/multiformats/go-multihash v0.0.8
 	github.com/pkg/errors v0.8.1
