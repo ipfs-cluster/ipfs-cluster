@@ -904,7 +904,7 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 This commands displays the latest valid metrics of the given type logged
 by this peer for all current cluster peers.
 
-If the argument is not passed, it would list current metric types.
+If no argument is provided, the command retrieves all currently existing metric types.
 
 Currently supported metrics depend on the informer component used,
 but usually are:
