@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 type addedOutputQuiet struct {
@@ -210,7 +213,13 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
-	fmt.Printf("%s: %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, time.Until(time.Unix(0, obj.Expire)).String())
+	if obj.Name == "freespace" {
+		u, err := strconv.ParseUint(obj.Value, 10, 64)
+		checkErr("parsing to uint64", err)
+		fmt.Printf("%s | freespace: %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), humanize.Bytes(u), humanize.Time(time.Unix(0, obj.Expire)))
+	} else if obj.Name == "ping" {
+		fmt.Printf("%s | ping | Expires in: %s\n", peer.IDB58Encode(obj.Peer), humanize.Time(time.Unix(0, obj.Expire)))
+	}
 }
 
 func textFormatPrintError(obj *api.Error) {
