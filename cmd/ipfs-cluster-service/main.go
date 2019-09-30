@@ -326,10 +326,7 @@ the peer IDs in the given multiaddresses.
 				checkErr("generating default configuration", err)
 				if c.Bool("randomports") {
 					cfgs := cfgHelper.Configs()
-					assigned := make(map[int]bool)
-					cfgs.Cluster.ListenAddr = getRandomPortMultiaddr(assigned)
-					cfgs.Restapi.HTTPListenAddr = getRandomPortMultiaddr(assigned)
-					cfgs.Ipfsproxy.ListenAddr = getRandomPortMultiaddr(assigned)
+					assignRandomPorts([]*ma.Multiaddr{&cfgs.Cluster.ListenAddr, &cfgs.Restapi.HTTPListenAddr, &cfgs.Ipfsproxy.ListenAddr})
 				}
 				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)
@@ -645,18 +642,39 @@ func getStateManager() cmdutils.StateManager {
 	return mgr
 }
 
-func getRandomPortMultiaddr(assigned map[int]bool) ma.Multiaddr {
-	ln, err := net.Listen("tcp", "[::]:0")
-	checkErr("creating a listener", err)
-	defer ln.Close()
-	port := ln.Addr().(*net.TCPAddr).Port
-
-	// try again if this port has already been assigned
-	if assigned[port] {
-		return getRandomPortMultiaddr(assigned)
+func assignRandomPorts(multiAddrs []*ma.Multiaddr) {
+	for _, m := range multiAddrs {
+		var withRandom ma.Multiaddr
+		ma.ForEach(*m,
+			func(c ma.Component) bool {
+				code := c.Protocol().Code
+				var port int
+				if code == ma.P_TCP || code == ma.P_UDP {
+					ln, err := net.Listen("tcp", "[::]:0")
+					checkErr("creating a listener", err)
+					defer ln.Close()
+					if code == ma.P_TCP {
+						port = ln.Addr().(*net.TCPAddr).Port
+					} else if code == ma.P_UDP {
+						port = ln.Addr().(*net.UDPAddr).Port
+					}
+					newM, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%d", c.Protocol().Name, port))
+					checkErr("creating multiaddress", err)
+					if withRandom == nil {
+						withRandom = newM
+					} else {
+						withRandom = withRandom.Encapsulate(newM)
+					}
+				} else {
+					if withRandom == nil {
+						withRandom = c.Decapsulate(*m)
+					} else {
+						withRandom = withRandom.Encapsulate(c.Decapsulate(*m))
+					}
+				}
+				return true
+			},
+		)
+		*m = withRandom
 	}
-	assigned[port] = true
-	addr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port))
-	checkErr("parsing multiaddress", err)
-	return addr
 }
