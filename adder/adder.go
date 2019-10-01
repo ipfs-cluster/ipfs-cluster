@@ -110,10 +110,8 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		return cid.Undef, err
 	}
 
-	// ipfsAdder.Hidden = a.params.Hidden
 	ipfsAdder.Trickle = a.params.Layout == "trickle"
 	ipfsAdder.RawLeaves = a.params.RawLeaves
-	// ipfsAdder.Wrap = a.params.Wrap
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 	ipfsAdder.Progress = a.params.Progress
@@ -132,6 +130,13 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	prefix.MhType = hashFunCode
 	prefix.MhLength = -1
 	ipfsAdder.CidBuilder = &prefix
+
+	// setup wrapping
+	if a.params.Wrap {
+		f = files.NewSliceDirectory(
+			[]files.DirEntry{files.FileEntry("", f)},
+		)
+	}
 
 	it := f.Entries()
 	var adderRoot ipld.Node
