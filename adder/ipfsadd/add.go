@@ -31,11 +31,6 @@ const progressReaderIncrement = 1024 * 256
 
 var liveCacheSize = uint64(256 << 10)
 
-type Link struct {
-	Name, Hash string
-	Size       uint64
-}
-
 // NewAdder Returns a new Adder used for a file add operation.
 func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
 	// Cluster: we don't use pinner nor GCLocker.
@@ -144,7 +139,7 @@ func (adder *Adder) curRootNode() (ipld.Node, error) {
 	return root, err
 }
 
-// Recursively pins the root node of Adder and
+// PinRoot recursively pins the root node of Adder and
 // writes the pin state to the backing datastore.
 // Cluster: we don't pin. Former Finalize().
 func (adder *Adder) PinRoot(root ipld.Node) error {
