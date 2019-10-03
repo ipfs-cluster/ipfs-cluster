@@ -25,10 +25,9 @@ var (
 	// These hashes should match all the blocks produced when adding
 	// the files resulting from GetShardingDir*
 	// They have been obtained by adding the "shardTesting" folder
-	// to go-ipfs (with wrap=true and default parameters). Then doing
-	// `refs -r` on the result. It contains the wrapping folder hash.
-	ShardingDirCids = [29]string{
-		"QmbfGRPTUd7L1xsAZZ1A3kUFP1zkEZ9kHdb6AGaajBzGGX",
+	// to go-ipfs (with default parameters). Then doing
+	// `refs -r` on the result. It contains the folder hash.
+	ShardingDirCids = [28]string{
 		"QmdHXJgxeCFf6qDZqYYmMesV2DbZCVPEdEhj2oVTxP1y7Y",
 		"QmSpZcKTgfsxyL7nyjzTNB1gAWmGYC2t8kRPpZSG1ZbTkY",
 		"QmSijPKAE61CUs57wWU2M4YxkSaRogQxYRtHoEzP2uRaQt",
