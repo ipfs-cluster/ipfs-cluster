@@ -217,9 +217,10 @@ func textFormatPrintMetric(obj *api.Metric) {
 		u, err := strconv.ParseUint(obj.Value, 10, 64)
 		checkErr("parsing to uint64", err)
 		fmt.Printf("%s | freespace: %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), humanize.Bytes(u), humanize.Time(time.Unix(0, obj.Expire)))
-	} else if obj.Name == "ping" {
-		fmt.Printf("%s | ping | Expires in: %s\n", peer.IDB58Encode(obj.Peer), humanize.Time(time.Unix(0, obj.Expire)))
+		return
 	}
+
+	fmt.Printf("%s | %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), obj.Name, humanize.Time(time.Unix(0, obj.Expire)))
 }
 
 func textFormatPrintError(obj *api.Error) {

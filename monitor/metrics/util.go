@@ -14,10 +14,19 @@ func PeersetFilter(metrics []*api.Metric, peerset []peer.ID) []*api.Metric {
 		peerMap[pid] = struct{}{}
 	}
 
+	metricsByPeer := make(map[peer.ID]*api.Metric)
 	filtered := make([]*api.Metric, 0, len(metrics))
 
 	for _, metric := range metrics {
 		_, ok := peerMap[metric.Peer]
+		if !ok {
+			continue
+		}
+		metricsByPeer[metric.Peer] = metric
+	}
+
+	for _, peer := range peerset {
+		metric, ok := metricsByPeer[peer]
 		if !ok {
 			continue
 		}
