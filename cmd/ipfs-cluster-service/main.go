@@ -643,6 +643,7 @@ func getStateManager() cmdutils.StateManager {
 }
 
 func assignRandomPorts(multiAddrs []*ma.Multiaddr) {
+	var prev int
 	for _, m := range multiAddrs {
 		components := []ma.Multiaddr{}
 		ma.ForEach(*m,
@@ -650,7 +651,13 @@ func assignRandomPorts(multiAddrs []*ma.Multiaddr) {
 				code := c.Protocol().Code
 				var port int
 				if code == ma.P_TCP || code == ma.P_UDP {
-					ln, err := net.Listen("tcp", "0.0.0.0:")
+					var address string
+					if prev == ma.P_IP4 {
+						address = "0.0.0.0:"
+					} else if prev == ma.P_IP6 {
+						address = "[::]:"
+					}
+					ln, err := net.Listen(c.Protocol().Name, address)
 					checkErr("creating a listener", err)
 					defer ln.Close()
 					if code == ma.P_TCP {
@@ -665,6 +672,9 @@ func assignRandomPorts(multiAddrs []*ma.Multiaddr) {
 					components = append(components, c.Decapsulate(*m))
 
 				}
+
+				prev = code
+
 				return true
 			},
 		)
