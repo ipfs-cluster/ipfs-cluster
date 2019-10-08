@@ -7,27 +7,26 @@ import (
 )
 
 // PeersetFilter removes all metrics not belonging to the given
-// peerset
+// peerset and returns an array of metrics ordered as per peers in peerset.
+// There will only be one metric per peer.
 func PeersetFilter(metrics []*api.Metric, peerset []peer.ID) []*api.Metric {
-	peerMap := make(map[peer.ID]struct{})
+	peerMap := make(map[peer.ID]*api.Metric)
 	for _, pid := range peerset {
-		peerMap[pid] = struct{}{}
+		peerMap[pid] = &api.Metric{}
 	}
 
-	metricsByPeer := make(map[peer.ID]*api.Metric)
 	filtered := make([]*api.Metric, 0, len(metrics))
-
 	for _, metric := range metrics {
 		_, ok := peerMap[metric.Peer]
 		if !ok {
 			continue
 		}
-		metricsByPeer[metric.Peer] = metric
+		peerMap[metric.Peer] = metric
 	}
 
 	for _, peer := range peerset {
-		metric, ok := metricsByPeer[peer]
-		if !ok {
+		metric := peerMap[peer]
+		if (*metric == api.Metric{}) {
 			continue
 		}
 		filtered = append(filtered, metric)
