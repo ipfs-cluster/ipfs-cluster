@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -75,9 +76,16 @@ func (mtrs *Store) LatestValid(name string) []*api.Metric {
 		return []*api.Metric{}
 	}
 
-	metrics := make([]*api.Metric, 0, len(byPeer))
-	for _, window := range byPeer {
-		m, err := window.Latest()
+	peers := []peer.ID{}
+	for p := range byPeer {
+		peers = append(peers, p)
+	}
+	sortedPeers := peer.IDSlice(peers)
+	sort.Stable(sortedPeers)
+
+	metrics := make([]*api.Metric, 0, len(peers))
+	for _, p := range peers {
+		m, err := byPeer[p].Latest()
 		// TODO(ajl): for accrual, does it matter if a ping has expired?
 		if err != nil || m.Discard() {
 			continue

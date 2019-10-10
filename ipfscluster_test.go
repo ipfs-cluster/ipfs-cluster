@@ -2038,3 +2038,21 @@ func TestClustersFollowerMode(t *testing.T) {
 		}
 	})
 }
+
+func TestMetricsRetainOrder(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	waitForLeaderAndMetrics(t, clusters)
+
+	metrics1 := clusters[0].monitor.LatestMetrics(ctx, clusters[0].informer.Name())
+	metrics2 := clusters[0].monitor.LatestMetrics(ctx, clusters[0].informer.Name())
+
+	for i, m := range metrics1 {
+		if *m != *metrics2[i] {
+			t.Error("expected both metrics to be same")
+			break
+		}
+	}
+}
