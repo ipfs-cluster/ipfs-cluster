@@ -84,7 +84,17 @@ func (lg *logFacilities) Set(value string) error {
 	return nil
 }
 
-func init() {
+// TestMain runs test initialization. Since Go1.13 we cannot run this on init()
+// as flag.Parse() does not work well there
+// (see https://golang.org/src/testing/testing.go#L211)
+func TestMain(m *testing.M) {
+	rand.Seed(time.Now().UnixNano())
+	ReadyTimeout = 11 * time.Second
+
+	// GossipSub needs to heartbeat to discover newly connected hosts
+	// This speeds things up a little.
+	pubsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
+
 	flag.Var(&customLogLvlFacilities, "logfacs", "use -logLevel for only the following log facilities; comma-separated")
 	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
 	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
@@ -92,8 +102,6 @@ func init() {
 	flag.StringVar(&ptracker, "tracker", ptracker, "tracker implementation")
 	flag.StringVar(&consensus, "consensus", consensus, "consensus implementation")
 	flag.Parse()
-
-	rand.Seed(time.Now().UnixNano())
 
 	if len(customLogLvlFacilities) <= 0 {
 		for f := range LoggingFacilities {
@@ -115,11 +123,8 @@ func init() {
 			continue
 		}
 	}
-	ReadyTimeout = 11 * time.Second
 
-	// GossipSub needs to heartbeat to discover newly connected hosts
-	// This speeds things up a little.
-	pubsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
+	os.Exit(m.Run())
 }
 
 func checkErr(t *testing.T, err error) {
