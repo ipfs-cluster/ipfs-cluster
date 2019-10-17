@@ -17,6 +17,7 @@ import (
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
+	tls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 
@@ -90,6 +91,7 @@ func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...li
 	finalOpts := []libp2p.Option{
 		libp2p.Identity(priv),
 		libp2p.PrivateNetwork(prot),
+		libp2p.Security(tls.ID, tls.New),
 		libp2p.ChainOptions(libp2p.Transport(libp2pquic.NewTransport), libp2p.DefaultTransports),
 	}
 	finalOpts = append(finalOpts, opts...)

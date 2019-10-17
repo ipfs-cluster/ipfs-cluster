@@ -22,7 +22,7 @@ var ccfgTestJSON = []byte(`
         "listen_multiaddress": [
 			"/ip4/127.0.0.1/tcp/10000",
 			"/ip4/127.0.0.1/udp/10000/quic"
-	],
+		],
         "state_sync_interval": "1m0s",
         "ipfs_sync_interval": "2m10s",
         "pin_recover_interval": "1m",
