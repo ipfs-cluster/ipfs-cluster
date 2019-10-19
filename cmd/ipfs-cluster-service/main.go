@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -326,10 +325,13 @@ the peer IDs in the given multiaddresses.
 				checkErr("generating default configuration", err)
 				if c.Bool("randomports") {
 					cfgs := cfgHelper.Configs()
-					for _, m := range []*ma.Multiaddr{&cfgs.Cluster.ListenAddr, &cfgs.Restapi.HTTPListenAddr, &cfgs.Ipfsproxy.ListenAddr} {
-						*m, err = cmdutils.RandomizePorts(*m)
-						checkErr("randomizing ports", err)
-					}
+
+					cfgs.Cluster.ListenAddr, err = cmdutils.RandomizePorts(cfgs.Cluster.ListenAddr)
+					checkErr("randomizing ports", err)
+					cfgs.Restapi.HTTPListenAddr, err = cmdutils.RandomizePorts(cfgs.Restapi.HTTPListenAddr)
+					checkErr("randomizing ports", err)
+					cfgs.Ipfsproxy.ListenAddr, err = cmdutils.RandomizePorts(cfgs.Ipfsproxy.ListenAddr)
+					checkErr("randomizing ports", err)
 				}
 				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)
@@ -643,37 +645,4 @@ func getStateManager() cmdutils.StateManager {
 	)
 	checkErr("creating state manager", err)
 	return mgr
-}
-
-func assignRandomPorts(multiAddrs []*ma.Multiaddr) {
-	var prev string
-	for _, m := range multiAddrs {
-		components := []ma.Multiaddr{}
-		ma.ForEach(*m,
-			func(c ma.Component) bool {
-				code := c.Protocol().Code
-				var port int
-				if code == ma.P_TCP || code == ma.P_UDP {
-					ln, err := net.Listen(c.Protocol().Name, prev+":")
-					checkErr("creating a listener", err)
-					defer ln.Close()
-					if code == ma.P_TCP {
-						port = ln.Addr().(*net.TCPAddr).Port
-					} else if code == ma.P_UDP {
-						port = ln.Addr().(*net.UDPAddr).Port
-					}
-					newM, err := ma.NewMultiaddr(fmt.Sprintf("/%s/%d", c.Protocol().Name, port))
-					checkErr("creating multiaddress", err)
-					components = append(components, newM)
-				} else {
-					components = append(components, &c)
-				}
-
-				prev = c.Value()
-
-				return true
-			},
-		)
-		*m = ma.Join(components...)
-	}
 }
