@@ -13,9 +13,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +38,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 
+	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.opencensus.io/plugin/ochttp"
@@ -47,7 +50,10 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-var logger = logging.Logger("restapi")
+var (
+	logger    = logging.Logger("restapi")
+	apiLogger = logging.Logger("restapilog")
+)
 
 // Common errors
 var (
@@ -101,6 +107,14 @@ type peerAddBody struct {
 	PeerID string `json:"peer_id"`
 }
 
+type logWriter struct {
+}
+
+func (lw logWriter) Write(b []byte) (int, error) {
+	apiLogger.Infof(string(b))
+	return len(b), nil
+}
+
 // NewAPI creates a new REST API component with the given configuration.
 func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
 	return NewAPIWithHost(ctx, cfg, nil)
@@ -131,12 +145,24 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 			FormatSpanName:   func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
 		}
 	}
+
+	var writer io.Writer
+	if cfg.HTTPLogFile != "" {
+		f, err := os.OpenFile(cfg.getHTTPLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		writer = f
+	} else {
+		writer = logWriter{}
+	}
+
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           handler,
+		Handler:           handlers.LoggingHandler(writer, handler),
 		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
@@ -491,7 +517,7 @@ func (api *API) runLibp2pServer(ctx context.Context) {
 
 	listenMsg := ""
 	for _, a := range api.host.Addrs() {
-		listenMsg += fmt.Sprintf("        %s/ipfs/%s\n", a, api.host.ID().Pretty())
+		listenMsg += fmt.Sprintf("        %s/p2p/%s\n", a, api.host.ID().Pretty())
 	}
 
 	logger.Infof("REST API (libp2p-http): ENABLED. Listening on:\n%s\n", listenMsg)
@@ -1014,7 +1040,16 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
 	} else {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("only requests with parameter local=true are supported"), nil)
+		var globalPinInfos []*types.GlobalPinInfo
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"Cluster",
+			"RecoverAll",
+			struct{}{},
+			&globalPinInfos,
+		)
+		api.sendResponse(w, autoStatus, err, globalPinInfos)
 	}
 }
 
@@ -1064,7 +1099,10 @@ func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *typ
 	}
 
 	pinPath := &types.PinPath{Path: path.String()}
-	pinPath.PinOptions.FromQuery(r.URL.Query())
+	err = pinPath.PinOptions.FromQuery(r.URL.Query())
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, err, nil)
+	}
 	return pinPath
 }
 
@@ -1079,7 +1117,10 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) *types.P
 	}
 
 	opts := types.PinOptions{}
-	opts.FromQuery(r.URL.Query())
+	err = opts.FromQuery(r.URL.Query())
+	if err != nil {
+		api.sendResponse(w, http.StatusBadRequest, err, nil)
+	}
 	pin := types.PinWithOpts(c, opts)
 	pin.MaxDepth = -1 // For now, all pins are recursive
 	return pin

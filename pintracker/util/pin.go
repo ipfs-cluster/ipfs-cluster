@@ -1,9 +1,16 @@
 package util
 
 import (
+	"errors"
+
 	"github.com/ipfs/ipfs-cluster/api"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
+)
+
+var (
+	// ErrFullQueue is the error used when pin or unpin operation channel is full.
+	ErrFullQueue = errors.New("pin/unpin operation queue is full (too many operations), increasing max_pin_queue_size would help")
 )
 
 // IsRemotePin determines whether a Pin's ReplicationFactor has

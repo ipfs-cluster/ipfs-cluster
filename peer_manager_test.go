@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -73,7 +74,7 @@ func clusterAddr(c *Cluster) ma.Multiaddr {
 	for _, a := range c.host.Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
 			p := peer.IDB58Encode(c.id)
-			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", a, p))
+			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", a, p))
 			return cAddr
 		}
 	}
@@ -395,14 +396,12 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 }
 
 func TestClustersPeerRemoveReallocsPins(t *testing.T) {
+	// This test is testing that the peers are vacated upon
+	// removal.
+
 	ctx := context.Background()
 	clusters, mocks := createClusters(t)
 	defer shutdownClusters(t, clusters, mocks)
-
-	if consensus == "crdt" {
-		t.Log("FIXME when re-alloc changes come through")
-		return
-	}
 
 	if len(clusters) < 3 {
 		t.Skip("test needs at least 3 clusters")
@@ -415,31 +414,33 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	}
 
 	// We choose to remove the leader, to make things even more interesting
-	leaderID, err := clusters[0].consensus.Leader(ctx)
+	chosenID, err := clusters[0].consensus.Leader(ctx)
 	if err != nil {
-		t.Fatal(err)
+		// choose a random peer
+		i := rand.Intn(nClusters)
+		chosenID = clusters[i].host.ID()
 	}
 
-	var leader *Cluster
-	var leaderi int
+	var chosen *Cluster
+	var chosenIndex int
 	for i, cl := range clusters {
-		if id := cl.ID(ctx).ID; id == leaderID {
-			leader = cl
-			leaderi = i
+		if id := cl.ID(ctx).ID; id == chosenID {
+			chosen = cl
+			chosenIndex = i
 			break
 		}
 	}
-	if leader == nil {
-		t.Fatal("did not find a leader?")
+	if chosen == nil {
+		t.Fatal("did not get to choose a peer?")
 	}
 
-	leaderMock := mocks[leaderi]
+	chosenMock := mocks[chosenIndex]
 
-	// Remove leader from set
-	clusters = append(clusters[:leaderi], clusters[leaderi+1:]...)
-	mocks = append(mocks[:leaderi], mocks[leaderi+1:]...)
-	defer leader.Shutdown(ctx)
-	defer leaderMock.Close()
+	// Remove the chosen peer from set
+	clusters = append(clusters[:chosenIndex], clusters[chosenIndex+1:]...)
+	mocks = append(mocks[:chosenIndex], mocks[chosenIndex+1:]...)
+	defer chosen.Shutdown(ctx)
+	defer chosenMock.Close()
 
 	prefix := test.Cid1.Prefix()
 
@@ -448,7 +449,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	for i := 0; i < nClusters; i++ {
 		h, err := prefix.Sum(randomBytes())
 		checkErr(t, err)
-		_, err = leader.Pin(ctx, h, api.PinOptions{})
+		_, err = chosen.Pin(ctx, h, api.PinOptions{})
 		checkErr(t, err)
 		ttlDelay()
 	}
@@ -457,10 +458,10 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	// At this point, all peers must have nClusters -1  pins
 	// associated to them.
-	// Find out which pins are associated to the leader.
+	// Find out which pins are associated to the chosen peer.
 	interestingCids := []cid.Cid{}
 
-	pins, err := leader.Pins(ctx)
+	pins, err := chosen.Pins(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -468,23 +469,20 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		t.Fatal("expected number of tracked pins to be nClusters")
 	}
 	for _, p := range pins {
-		if containsPeer(p.Allocations, leaderID) {
-			//t.Logf("%s pins %s", leaderID, p.Cid)
+		if containsPeer(p.Allocations, chosenID) {
+			//t.Logf("%s pins %s", chosenID, p.Cid)
 			interestingCids = append(interestingCids, p.Cid)
 		}
 	}
 
 	if len(interestingCids) != nClusters-1 {
-		//t.Fatal("The number of allocated Cids is not expected")
 		t.Fatalf("Expected %d allocated CIDs but got %d", nClusters-1,
 			len(interestingCids))
 	}
 
-	// Now the leader removes itself
-	err = leader.PeerRemove(ctx, leaderID)
-	if err != nil {
-		t.Fatal("error removing peer:", err)
-	}
+	// Now the chosen removes itself. Ignoring errors as they will
+	// be caught below and crdt does error here.
+	chosen.PeerRemove(ctx, chosenID)
 
 	delay()
 	waitForLeaderAndMetrics(t, clusters)
@@ -496,7 +494,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		if err != nil {
 			t.Fatal("error getting the new allocations for", icid)
 		}
-		if containsPeer(newPin.Allocations, leaderID) {
+		if containsPeer(newPin.Allocations, chosenID) {
 			t.Fatal("pin should not be allocated to the removed peer")
 		}
 	}

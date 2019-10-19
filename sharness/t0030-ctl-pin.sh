@@ -96,6 +96,16 @@ test_expect_success IPFS,CLUSTER "pin update a pin" '
    ipfs-cluster-ctl pin ls $cid2
 '
 
+test_expect_success IPFS,CLUSTER "pin with metadata" '
+   cid3=`docker exec ipfs sh -c "echo test3 | ipfs add -q"`
+   ipfs-cluster-ctl pin add --metadata kind=text "$cid3"
+   cid4=`docker exec ipfs sh -c "echo test4 | ipfs add -q"`
+   ipfs-cluster-ctl pin add "$cid4"
+   ipfs-cluster-ctl pin ls "$cid3" | grep -q "Metadata: yes" &&
+   ipfs-cluster-ctl --enc=json pin ls "$cid3" | jq .metadata | grep -q "\"kind\": \"text\"" &&
+   ipfs-cluster-ctl pin ls "$cid4" | grep -q "Metadata: no"
+'
+
 test_clean_ipfs
 test_clean_cluster
 

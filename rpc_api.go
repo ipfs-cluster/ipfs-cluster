@@ -335,6 +335,16 @@ func (rpcapi *ClusterRPCAPI) SyncLocal(ctx context.Context, in cid.Cid, out *api
 	return nil
 }
 
+// RecoverAll runs Cluster.RecoverAll().
+func (rpcapi *ClusterRPCAPI) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
+	pinfos, err := rpcapi.c.RecoverAll(ctx)
+	if err != nil {
+		return err
+	}
+	*out = pinfos
+	return nil
+}
+
 // RecoverAllLocal runs Cluster.RecoverAllLocal().
 func (rpcapi *ClusterRPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	pinfos, err := rpcapi.c.RecoverAllLocal(ctx)
@@ -396,8 +406,8 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 		in.Cid,
 		in.ReplicationFactorMin,
 		in.ReplicationFactorMax,
-		[]peer.ID{}, // blacklist
-		[]peer.ID{}, // prio list
+		[]peer.ID{},        // blacklist
+		in.UserAllocations, // prio list
 	)
 
 	if err != nil {

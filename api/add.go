@@ -26,6 +26,7 @@ type AddedOutput struct {
 type AddParams struct {
 	PinOptions
 
+	Local          bool
 	Recursive      bool
 	Layout         string
 	Chunker        string
@@ -43,6 +44,7 @@ type AddParams struct {
 // DefaultAddParams returns a AddParams object with standard defaults
 func DefaultAddParams() *AddParams {
 	return &AddParams{
+		Local:          false,
 		Recursive:      false,
 		Layout:         "", // corresponds to balanced layout
 		Chunker:        "size-262144",
@@ -60,6 +62,7 @@ func DefaultAddParams() *AddParams {
 			ReplicationFactorMax: 0,
 			Name:                 "",
 			ShardSize:            DefaultShardSize,
+			Metadata:             make(map[string]string),
 		},
 	}
 }
@@ -91,6 +94,14 @@ func parseIntParam(q url.Values, name string, dest *int) error {
 func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	params := DefaultAddParams()
 
+	opts := &PinOptions{}
+	err := opts.FromQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	params.PinOptions = *opts
+	params.PinUpdate = cid.Undef // hardcode as does not make sense for adding
+
 	layout := query.Get("layout")
 	switch layout {
 	case "trickle", "balanced", "":
@@ -101,16 +112,21 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	params.Layout = layout
 
 	chunker := query.Get("chunker")
-	params.Chunker = chunker
-	name := query.Get("name")
-	params.Name = name
+	if chunker != "" {
+		params.Chunker = chunker
+	}
 
 	hashF := query.Get("hash")
 	if hashF != "" {
 		params.HashFun = hashF
 	}
 
-	err := parseBoolParam(query, "recursive", &params.Recursive)
+	err = parseBoolParam(query, "local", &params.Local)
+	if err != nil {
+		return nil, err
+	}
+
+	err = parseBoolParam(query, "recursive", &params.Recursive)
 	if err != nil {
 		return nil, err
 	}
@@ -137,26 +153,9 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
-	err = parseIntParam(query, "replication-min", &params.ReplicationFactorMin)
-	if err != nil {
-		return nil, err
-	}
-	err = parseIntParam(query, "replication-max", &params.ReplicationFactorMax)
-	if err != nil {
-		return nil, err
-	}
-
 	err = parseIntParam(query, "cid-version", &params.CidVersion)
 	if err != nil {
 		return nil, err
-	}
-
-	if v := query.Get("shard-size"); v != "" {
-		shardSize, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return nil, errors.New("parameter shard_size is invalid")
-		}
-		params.ShardSize = shardSize
 	}
 
 	err = parseBoolParam(query, "stream-channels", &params.StreamChannels)
@@ -174,12 +173,10 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 
 // ToQueryString returns a url query string (key=value&key2=value2&...)
 func (p *AddParams) ToQueryString() string {
-	query := url.Values{}
-	query.Set("replication-min", fmt.Sprintf("%d", p.ReplicationFactorMin))
-	query.Set("replication-max", fmt.Sprintf("%d", p.ReplicationFactorMax))
-	query.Set("name", p.Name)
+	pinOptsQuery := p.PinOptions.ToQuery()
+	query, _ := url.ParseQuery(pinOptsQuery)
 	query.Set("shard", fmt.Sprintf("%t", p.Shard))
-	query.Set("shard-size", fmt.Sprintf("%d", p.ShardSize))
+	query.Set("local", fmt.Sprintf("%t", p.Local))
 	query.Set("recursive", fmt.Sprintf("%t", p.Recursive))
 	query.Set("layout", p.Layout)
 	query.Set("chunker", p.Chunker)
@@ -196,12 +193,10 @@ func (p *AddParams) ToQueryString() string {
 
 // Equals checks if p equals p2.
 func (p *AddParams) Equals(p2 *AddParams) bool {
-	return p.ReplicationFactorMin == p2.ReplicationFactorMin &&
-		p.ReplicationFactorMax == p2.ReplicationFactorMax &&
-		p.Name == p2.Name &&
+	return p.PinOptions.Equals(&p2.PinOptions) &&
+		p.Local == p2.Local &&
 		p.Recursive == p2.Recursive &&
 		p.Shard == p2.Shard &&
-		p.ShardSize == p2.ShardSize &&
 		p.Layout == p2.Layout &&
 		p.Chunker == p2.Chunker &&
 		p.RawLeaves == p2.RawLeaves &&

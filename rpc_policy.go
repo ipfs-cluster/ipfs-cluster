@@ -19,8 +19,9 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.PinPath":            RPCClosed,
 	"Cluster.Pins":               RPCClosed, // Used in stateless tracker, ipfsproxy, restapi
 	"Cluster.Recover":            RPCClosed,
-	"Cluster.RecoverAllLocal":    RPCClosed,
-	"Cluster.RecoverLocal":       RPCClosed,
+	"Cluster.RecoverAll":         RPCClosed,
+	"Cluster.RecoverAllLocal":    RPCTrusted,
+	"Cluster.RecoverLocal":       RPCTrusted,
 	"Cluster.SendInformerMetric": RPCClosed,
 	"Cluster.Status":             RPCClosed,
 	"Cluster.StatusAll":          RPCClosed,

@@ -9,16 +9,17 @@ import (
 
 var cfgJSON = []byte(`
 {
-      "listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
-      "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
-      "read_timeout": "10m0s",
-      "read_header_timeout": "5s",
-      "write_timeout": "10m0s",
-      "idle_timeout": "1m0s",
-      "max_header_bytes": 16384,
-      "extract_headers_extra": [],
-      "extract_headers_path": "/api/v0/version",
-      "extract_headers_ttl": "5m"
+	"listen_multiaddress": "/ip4/127.0.0.1/tcp/9095",
+	"node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
+	"log_file": "",
+	"read_timeout": "10m0s",
+	"read_header_timeout": "5s",
+	"write_timeout": "10m0s",
+	"idle_timeout": "1m0s",
+	"max_header_bytes": 16384,
+	"extract_headers_extra": [],
+	"extract_headers_path": "/api/v0/version",
+	"extract_headers_ttl": "5m"
 }
 `)
 

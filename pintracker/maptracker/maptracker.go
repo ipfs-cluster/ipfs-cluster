@@ -47,7 +47,7 @@ type MapPinTracker struct {
 	wg           sync.WaitGroup
 }
 
-// NewMapPinTracker returns a new object which has been correcly
+// NewMapPinTracker returns a new object which has been correctly
 // initialized with the given configuration.
 func NewMapPinTracker(cfg *Config, pid peer.ID, peerName string) *MapPinTracker {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -180,7 +180,7 @@ func (mpt *MapPinTracker) enqueue(ctx context.Context, c *api.Pin, typ optracker
 	select {
 	case ch <- op:
 	default:
-		err := errors.New("queue is full")
+		err := util.ErrFullQueue
 		op.SetError(err)
 		op.Cancel()
 		logger.Error(err.Error())

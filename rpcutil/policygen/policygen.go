@@ -74,7 +74,7 @@ func main() {
 	for _, c := range rpcComponents {
 		t := reflect.TypeOf(c)
 
-		rpcPolicyDotGo.WriteString("//  " + cluster.RPCServiceID(c) + " methods\n")
+		rpcPolicyDotGo.WriteString("// " + cluster.RPCServiceID(c) + " methods\n")
 		for i := 0; i < t.NumMethod(); i++ {
 			method := t.Method(i)
 			name := cluster.RPCServiceID(c) + "." + method.Name

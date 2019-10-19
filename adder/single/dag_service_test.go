@@ -1,4 +1,4 @@
-package local
+package single
 
 import (
 	"context"
@@ -61,7 +61,7 @@ func TestAdd(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Wrap = true
 
-		dags := New(client, params.PinOptions)
+		dags := New(client, params.PinOptions, false)
 		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
@@ -109,7 +109,7 @@ func TestAdd(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Layout = "trickle"
 
-		dags := New(client, params.PinOptions)
+		dags := New(client, params.PinOptions, false)
 		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()

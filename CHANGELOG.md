@@ -1,5 +1,266 @@
 # IPFS Cluster Changelog
 
+### v0.11.0 - 2019-09-13
+
+#### Summary
+
+IPFS Cluster v0.11.0 is the biggest release in the project's history. Its main
+feature is the introduction of the new CRDT "consensus" component. Leveraging
+Pubsub, Bitswap and the DHT and using CRDTs, cluster peers can track the
+global pinset without needing to be online or worrying about the rest of the
+peers as it happens with the original Raft approach.
+
+The CRDT component brings a lots of features around it, like RPC
+authorization, which effectively lets cluster peers run in clusters where only
+a trusted subset of nodes can access peer endpoints and made modifications to
+the pinsets.
+
+We have additionally taken lots of steps to improve configuration management
+of peers, separating the peer identity from the rest of the configuration and
+allowing to use remote configurations fetched from an HTTP url (which may well
+be the local IPFS gateway). This allows cluster administrators to provide
+the configurations needed for any peers to join a cluster as followers.
+
+The CRDT arrival incorporates a large number of improvements in peerset
+management, bootstrapping, connection management and auto-recovery of peers
+after network disconnections. We have improved the peer monitoring system,
+added support for efficient Pin-Update-based pinning, reworked timeout control
+for pinning and fixed a number of annoying bugs.
+
+This release is mostly backwards compatible with the previous one and
+clusters should keep working with the same configurations, but users should
+have a look to the sections below and read the updated documentation, as a
+number of changes have been introduced to support both consensus components.
+
+Consensus selection happens during initialization of the configuration (see
+configuration changes below). Migration of the pinset is necessary by doing
+`state export` (with Raft configured), followed by `state import` (with CRDT
+configured). Note that all peers should be configured with the same consensus
+type.
+
+
+#### List of changes
+
+##### Features
+
+
+* crdt: introduce crdt-based consensus component | [ipfs/ipfs-cluster#685](https://github.com/ipfs/ipfs-cluster/issues/685) | [ipfs/ipfs-cluster#804](https://github.com/ipfs/ipfs-cluster/issues/804) | [ipfs/ipfs-cluster#787](https://github.com/ipfs/ipfs-cluster/issues/787) | [ipfs/ipfs-cluster#798](https://github.com/ipfs/ipfs-cluster/issues/798) | [ipfs/ipfs-cluster#805](https://github.com/ipfs/ipfs-cluster/issues/805) | [ipfs/ipfs-cluster#811](https://github.com/ipfs/ipfs-cluster/issues/811) | [ipfs/ipfs-cluster#816](https://github.com/ipfs/ipfs-cluster/issues/816) | [ipfs/ipfs-cluster#820](https://github.com/ipfs/ipfs-cluster/issues/820) | [ipfs/ipfs-cluster#856](https://github.com/ipfs/ipfs-cluster/issues/856) | [ipfs/ipfs-cluster#857](https://github.com/ipfs/ipfs-cluster/issues/857) | [ipfs/ipfs-cluster#834](https://github.com/ipfs/ipfs-cluster/issues/834) | [ipfs/ipfs-cluster#856](https://github.com/ipfs/ipfs-cluster/issues/856) | [ipfs/ipfs-cluster#867](https://github.com/ipfs/ipfs-cluster/issues/867) | [ipfs/ipfs-cluster#874](https://github.com/ipfs/ipfs-cluster/issues/874) | [ipfs/ipfs-cluster#885](https://github.com/ipfs/ipfs-cluster/issues/885) | [ipfs/ipfs-cluster#899](https://github.com/ipfs/ipfs-cluster/issues/899) | [ipfs/ipfs-cluster#906](https://github.com/ipfs/ipfs-cluster/issues/906) | [ipfs/ipfs-cluster#918](https://github.com/ipfs/ipfs-cluster/issues/918)
+* configs: separate identity and configuration | [ipfs/ipfs-cluster#760](https://github.com/ipfs/ipfs-cluster/issues/760) | [ipfs/ipfs-cluster#766](https://github.com/ipfs/ipfs-cluster/issues/766) | [ipfs/ipfs-cluster#780](https://github.com/ipfs/ipfs-cluster/issues/780)
+* configs: support running with a remote `service.json` (http) | [ipfs/ipfs-cluster#868](https://github.com/ipfs/ipfs-cluster/issues/868)
+* configs: support a `follower_mode` option | [ipfs/ipfs-cluster#803](https://github.com/ipfs/ipfs-cluster/issues/803) | [ipfs/ipfs-cluster#864](https://github.com/ipfs/ipfs-cluster/issues/864)
+* service/configs: do not load API components if no config present | [ipfs/ipfs-cluster#452](https://github.com/ipfs/ipfs-cluster/issues/452) | [ipfs/ipfs-cluster#836](https://github.com/ipfs/ipfs-cluster/issues/836)
+* service: add `ipfs-cluster-service init --peers` flag to initialize with given peers | [ipfs/ipfs-cluster#835](https://github.com/ipfs/ipfs-cluster/issues/835) | [ipfs/ipfs-cluster#839](https://github.com/ipfs/ipfs-cluster/issues/839) | [ipfs/ipfs-cluster#870](https://github.com/ipfs/ipfs-cluster/issues/870)
+* cluster: RPC auth: block rpc endpoints for non trusted peers | [ipfs/ipfs-cluster#775](https://github.com/ipfs/ipfs-cluster/issues/775) | [ipfs/ipfs-cluster#710](https://github.com/ipfs/ipfs-cluster/issues/710) | [ipfs/ipfs-cluster#666](https://github.com/ipfs/ipfs-cluster/issues/666) | [ipfs/ipfs-cluster#773](https://github.com/ipfs/ipfs-cluster/issues/773) | [ipfs/ipfs-cluster#905](https://github.com/ipfs/ipfs-cluster/issues/905)
+* cluster: introduce connection manager | [ipfs/ipfs-cluster#791](https://github.com/ipfs/ipfs-cluster/issues/791)
+* cluster: support new `PinUpdate` option for new pins | [ipfs/ipfs-cluster#869](https://github.com/ipfs/ipfs-cluster/issues/869) | [ipfs/ipfs-cluster#732](https://github.com/ipfs/ipfs-cluster/issues/732)
+* cluster: trigger `Recover` automatically on a configurable interval | [ipfs/ipfs-cluster#831](https://github.com/ipfs/ipfs-cluster/issues/831) | [ipfs/ipfs-cluster#887](https://github.com/ipfs/ipfs-cluster/issues/887)
+* cluster: enable mDNS discovery for peers | [ipfs/ipfs-cluster#882](https://github.com/ipfs/ipfs-cluster/issues/882) | [ipfs/ipfs-cluster#900](https://github.com/ipfs/ipfs-cluster/issues/900)
+* IPFS Proxy: Support `pin/update` | [ipfs/ipfs-cluster#732](https://github.com/ipfs/ipfs-cluster/issues/732) | [ipfs/ipfs-cluster#768](https://github.com/ipfs/ipfs-cluster/issues/768) | [ipfs/ipfs-cluster#887](https://github.com/ipfs/ipfs-cluster/issues/887)
+* monitor: Accrual failure detection. Leaderless re-pinning | [ipfs/ipfs-cluster#413](https://github.com/ipfs/ipfs-cluster/issues/413) | [ipfs/ipfs-cluster#713](https://github.com/ipfs/ipfs-cluster/issues/713) | [ipfs/ipfs-cluster#714](https://github.com/ipfs/ipfs-cluster/issues/714) | [ipfs/ipfs-cluster#812](https://github.com/ipfs/ipfs-cluster/issues/812) | [ipfs/ipfs-cluster#813](https://github.com/ipfs/ipfs-cluster/issues/813) | [ipfs/ipfs-cluster#814](https://github.com/ipfs/ipfs-cluster/issues/814) | [ipfs/ipfs-cluster#815](https://github.com/ipfs/ipfs-cluster/issues/815)
+* datastore: Expose badger configuration | [ipfs/ipfs-cluster#771](https://github.com/ipfs/ipfs-cluster/issues/771) | [ipfs/ipfs-cluster#776](https://github.com/ipfs/ipfs-cluster/issues/776)
+* IPFSConnector: pin timeout start counting from last received block | [ipfs/ipfs-cluster#497](https://github.com/ipfs/ipfs-cluster/issues/497) | [ipfs/ipfs-cluster#738](https://github.com/ipfs/ipfs-cluster/issues/738)
+* IPFSConnector: remove pin method options | [ipfs/ipfs-cluster#875](https://github.com/ipfs/ipfs-cluster/issues/875)
+* IPFSConnector: `unpin_disable` removes the ability to unpin anything from ipfs (experimental) | [ipfs/ipfs-cluster#793](https://github.com/ipfs/ipfs-cluster/issues/793) | [ipfs/ipfs-cluster#832](https://github.com/ipfs/ipfs-cluster/issues/832)
+* REST API Client: Load-balancing Go client | [ipfs/ipfs-cluster#448](https://github.com/ipfs/ipfs-cluster/issues/448) | [ipfs/ipfs-cluster#737](https://github.com/ipfs/ipfs-cluster/issues/737)
+* REST API: Return allocation objects on pin/unpin | [ipfs/ipfs-cluster#843](https://github.com/ipfs/ipfs-cluster/issues/843)
+* REST API: Support request logging | [ipfs/ipfs-cluster#574](https://github.com/ipfs/ipfs-cluster/issues/574) | [ipfs/ipfs-cluster#894](https://github.com/ipfs/ipfs-cluster/issues/894)
+* Adder: improve error handling. Keep adding while at least one allocation works | [ipfs/ipfs-cluster#852](https://github.com/ipfs/ipfs-cluster/issues/852) | [ipfs/ipfs-cluster#871](https://github.com/ipfs/ipfs-cluster/issues/871)
+* Adder: support user-given allocations for the `Add` operation | [ipfs/ipfs-cluster#761](https://github.com/ipfs/ipfs-cluster/issues/761) | [ipfs/ipfs-cluster#890](https://github.com/ipfs/ipfs-cluster/issues/890)
+* ctl: support adding pin metadata | [ipfs/ipfs-cluster#670](https://github.com/ipfs/ipfs-cluster/issues/670) | [ipfs/ipfs-cluster#891](https://github.com/ipfs/ipfs-cluster/issues/891)
+
+
+##### Bug fixes
+
+* REST API: Fix `/allocations` when filter unset | [ipfs/ipfs-cluster#762](https://github.com/ipfs/ipfs-cluster/issues/762)
+* REST API: Fix DELETE returning 500 when pin does not exist | [ipfs/ipfs-cluster#742](https://github.com/ipfs/ipfs-cluster/issues/742) | [ipfs/ipfs-cluster#854](https://github.com/ipfs/ipfs-cluster/issues/854)
+* REST API: Return JSON body on 404s | [ipfs/ipfs-cluster#657](https://github.com/ipfs/ipfs-cluster/issues/657) | [ipfs/ipfs-cluster#879](https://github.com/ipfs/ipfs-cluster/issues/879)
+* service: connectivity fixes | [ipfs/ipfs-cluster#787](https://github.com/ipfs/ipfs-cluster/issues/787) | [ipfs/ipfs-cluster#792](https://github.com/ipfs/ipfs-cluster/issues/792)
+* service: fix using `/dnsaddr` peers | [ipfs/ipfs-cluster#818](https://github.com/ipfs/ipfs-cluster/issues/818)
+* service: reading empty lines on peerstore panics | [ipfs/ipfs-cluster#886](https://github.com/ipfs/ipfs-cluster/issues/886)
+* service/ctl: fix parsing string lists | [ipfs/ipfs-cluster#876](https://github.com/ipfs/ipfs-cluster/issues/876) | [ipfs/ipfs-cluster#841](https://github.com/ipfs/ipfs-cluster/issues/841)
+* IPFSConnector: `pin/ls` does handle base32 and base58 cids properly | [ipfs/ipfs-cluster#808](https://github.com/ipfs/ipfs-cluster/issues/808) [ipfs/ipfs-cluster#809](https://github.com/ipfs/ipfs-cluster/issues/809)
+* configs: some config keys not matching ENV vars names | [ipfs/ipfs-cluster#837](https://github.com/ipfs/ipfs-cluster/issues/837) | [ipfs/ipfs-cluster#778](https://github.com/ipfs/ipfs-cluster/issues/778)
+* raft: delete removed raft peers from peerstore | [ipfs/ipfs-cluster#840](https://github.com/ipfs/ipfs-cluster/issues/840) | [ipfs/ipfs-cluster#846](https://github.com/ipfs/ipfs-cluster/issues/846)
+* cluster: peers forgotten after being down | [ipfs/ipfs-cluster#648](https://github.com/ipfs/ipfs-cluster/issues/648) | [ipfs/ipfs-cluster#860](https://github.com/ipfs/ipfs-cluster/issues/860)
+* cluster: State sync should not keep tracking when queue is full | [ipfs/ipfs-cluster#377](https://github.com/ipfs/ipfs-cluster/issues/377) | [ipfs/ipfs-cluster#901](https://github.com/ipfs/ipfs-cluster/issues/901)
+* cluster: avoid random order on peer lists and listen multiaddresses | [ipfs/ipfs-cluster#327](https://github.com/ipfs/ipfs-cluster/issues/327) | [ipfs/ipfs-cluster#878](https://github.com/ipfs/ipfs-cluster/issues/878)
+* cluster: fix recover and allocation re-assignment to existing pins | [ipfs/ipfs-cluster#912](https://github.com/ipfs/ipfs-cluster/issues/912) | [ipfs/ipfs-cluster#888](https://github.com/ipfs/ipfs-cluster/issues/888)
+
+##### Other changes
+
+* cluster: Dependency updates | [ipfs/ipfs-cluster#769](https://github.com/ipfs/ipfs-cluster/issues/769) | [ipfs/ipfs-cluster#789](https://github.com/ipfs/ipfs-cluster/issues/789) | [ipfs/ipfs-cluster#795](https://github.com/ipfs/ipfs-cluster/issues/795) | [ipfs/ipfs-cluster#822](https://github.com/ipfs/ipfs-cluster/issues/822) | [ipfs/ipfs-cluster#823](https://github.com/ipfs/ipfs-cluster/issues/823) | [ipfs/ipfs-cluster#828](https://github.com/ipfs/ipfs-cluster/issues/828) | [ipfs/ipfs-cluster#830](https://github.com/ipfs/ipfs-cluster/issues/830) | [ipfs/ipfs-cluster#853](https://github.com/ipfs/ipfs-cluster/issues/853) | [ipfs/ipfs-cluster#839](https://github.com/ipfs/ipfs-cluster/issues/839)
+* cluster: Set `[]peer.ID` as type for user allocations | [ipfs/ipfs-cluster#767](https://github.com/ipfs/ipfs-cluster/issues/767)
+* cluster: RPC: Split services among components | [ipfs/ipfs-cluster#773](https://github.com/ipfs/ipfs-cluster/issues/773)
+* cluster: Multiple improvements to tests | [ipfs/ipfs-cluster#360](https://github.com/ipfs/ipfs-cluster/issues/360) | [ipfs/ipfs-cluster#502](https://github.com/ipfs/ipfs-cluster/issues/502) | [ipfs/ipfs-cluster#779](https://github.com/ipfs/ipfs-cluster/issues/779) | [ipfs/ipfs-cluster#833](https://github.com/ipfs/ipfs-cluster/issues/833) | [ipfs/ipfs-cluster#863](https://github.com/ipfs/ipfs-cluster/issues/863) | [ipfs/ipfs-cluster#883](https://github.com/ipfs/ipfs-cluster/issues/883) | [ipfs/ipfs-cluster#884](https://github.com/ipfs/ipfs-cluster/issues/884) | [ipfs/ipfs-cluster#797](https://github.com/ipfs/ipfs-cluster/issues/797) | [ipfs/ipfs-cluster#892](https://github.com/ipfs/ipfs-cluster/issues/892)
+* cluster: Remove Gx | [ipfs/ipfs-cluster#765](https://github.com/ipfs/ipfs-cluster/issues/765) | [ipfs/ipfs-cluster#781](https://github.com/ipfs/ipfs-cluster/issues/781)
+* cluster: Use `/p2p/` instead of `/ipfs/` in multiaddresses | [ipfs/ipfs-cluster#431](https://github.com/ipfs/ipfs-cluster/issues/431) | [ipfs/ipfs-cluster#877](https://github.com/ipfs/ipfs-cluster/issues/877)
+* cluster: consolidate parsing of pin options | [ipfs/ipfs-cluster#913](https://github.com/ipfs/ipfs-cluster/issues/913)
+* REST API: Replace regexps with `strings.HasPrefix` | [ipfs/ipfs-cluster#806](https://github.com/ipfs/ipfs-cluster/issues/806) | [ipfs/ipfs-cluster#807](https://github.com/ipfs/ipfs-cluster/issues/807)
+* docker: use GOPROXY to build containers | [ipfs/ipfs-cluster#872](https://github.com/ipfs/ipfs-cluster/issues/872)
+* docker: support `IPFS_CLUSTER_CONSENSUS` flag and other improvements | [ipfs/ipfs-cluster#882](https://github.com/ipfs/ipfs-cluster/issues/882)
+* ctl: increase space for peernames | [ipfs/ipfs-cluster#887](https://github.com/ipfs/ipfs-cluster/issues/887)
+* ctl: improve replication factor 0 explanation | [ipfs/ipfs-cluster#755](https://github.com/ipfs/ipfs-cluster/issues/755) | [ipfs/ipfs-cluster#909](https://github.com/ipfs/ipfs-cluster/issues/909)
+
+#### Upgrading notices
+
+
+##### Configuration changes
+
+This release introduces a number of backwards-compatible configuration changes:
+
+* The `service.json` file no longer includes `ID` and `PrivateKey`, which are
+  now part of an `identity.json` file. However things should work as before if
+  they do. Running `ipfs-cluster-service daemon` on a older configuration will
+  automatically write an `identity.json` file with the old credentials so that
+  things do not break when the compatibility hack is removed.
+
+* The `service.json` can use a new single top-level `source` field which can
+  be set to an HTTP url pointing to a full `service.json`. When present,
+  this will be read and used when starting the daemon. `ipfs-cluster-service
+  init http://url` produces this type of "remote configuration" file.
+
+* `cluster` section:
+  * A new, hidden `follower_mode` option has been introduced in the main
+    `cluster` configuration section. When set, the cluster peer will provide
+    clear errors when pinning or unpinning. This is a UI feature. The capacity
+    of a cluster peer to pin/unpin depends on whether it is trusted by other
+    peers, not on settin this hidden option.
+  * A new `pin_recover_interval` option to controls how often pins in error
+    states are retried.
+  * A new `mdns_interval` controls the time between mDNS broadcasts to
+    discover other peers in the network. Setting it to 0 disables mDNS
+    altogether (default is 10 seconds).
+  * A new `connection_manager` object can be used to limit the number of
+    connections kept by the libp2p host:
+
+```js
+"connection_manager": {
+    "high_water": 400,
+    "low_water": 100,
+    "grace_period": "2m0s"
+},
+```
+
+
+* `consensus` section:
+  * Only one configuration object is allowed inside the `consensus` section,
+    and it must be either the `crdt` or the `raft` one. The presence of one or
+    another is used to autoselect the consensus component to be used when
+    running the daemon or performing `ipfs-cluster-service state`
+    operations. `ipfs-cluster-service init` receives an optional `--consensus`
+    flag to select which one to produce. By default it is the `crdt`.
+
+* `ipfs_connector/ipfshttp` section:
+  * The `pin_timeout` in the `ipfshttp` section is now starting from the last
+    block received. Thus it allows more flexibility for things which are
+    pinning very slowly, but still pinning.
+  * The `pin_method` option has been removed, as go-ipfs does not do a
+    pin-global-lock anymore. Therefore `pin add` will be called directly, can
+    be called multiple times in parallel and should be faster than the
+    deprecated `refs -r` way.
+  * The `ipfshttp` section has a new (hidden) `unpin_disable` option
+    (boolean). The component will refuse to unpin anything from IPFS when
+    enabled. It can be used as a failsafe option to make sure cluster peers
+    never unpin content.
+
+* `datastore` section:
+  * The configuration has a new `datastore/badger` section, which is relevant
+    when using the `crdt` consensus component. It allows full control of the
+    [Badger configuration](https://godoc.org/github.com/dgraph-io/badger#Options),
+    which is particuarly important when running on systems with low memory:
+  
+
+```
+  "datastore": {
+    "badger": {
+      "badger_options": {
+        "dir": "",
+        "value_dir": "",
+        "sync_writes": true,
+        "table_loading_mode": 2,
+        "value_log_loading_mode": 2,
+        "num_versions_to_keep": 1,
+        "max_table_size": 67108864,
+        "level_size_multiplier": 10,
+        "max_levels": 7,
+        "value_threshold": 32,
+        "num_memtables": 5,
+        "num_level_zero_tables": 5,
+        "num_level_zero_tables_stall": 10,
+        "level_one_size": 268435456,
+        "value_log_file_size": 1073741823,
+        "value_log_max_entries": 1000000,
+        "num_compactors": 2,
+        "compact_l_0_on_close": true,
+        "read_only": false,
+        "truncate": false
+      }
+    }
+    }
+```
+
+* `pin_tracker/maptracker` section:
+  * The `max_pin_queue_size` parameter has been hidden for default
+    configurations and the default has been set to 1000000. 
+
+* `api/restapi` section:
+  * A new `http_log_file` options allows to redirect the REST API logging to a
+    file. Otherwise, it is logged as part of the regular log. Lines follow the
+    Apache Common Log Format (CLF).
+
+##### REST API
+
+The `POST /pins/{cid}` and `DELETE /pins/{cid}` now returns a pin object with
+`200 Success` rather than an empty `204 Accepted` response.
+
+Using an unexistent route will now correctly return a JSON object along with
+the 404 HTTP code, rather than text.
+
+##### Go APIs
+
+There have been some changes to Go APIs. Applications integrating Cluster
+directly will be affected by the new signatures of Pin/Unpin:
+
+* The `Pin` and `Unpin` methods now return an object of `api.Pin` type, along with an error.
+* The `Pin` method takes a CID and `PinOptions` rather than an `api.Pin` object wrapping
+those.
+* A new `PinUpdate` method has been introduced.
+
+Additionally:
+
+* The Consensus Component interface has changed to accommodate peer-trust operations.
+* The IPFSConnector Component interface `Pin` method has changed to take an `api.Pin` type.
+
+
+##### Other
+
+* The IPFS Proxy now hijacks the `/api/v0/pin/update` and makes a Cluster PinUpdate.
+* `ipfs-cluster-service init` now takes a `--consensus` flag to select between
+  `crdt` (default) and `raft`. Depending on the values, the generated
+  configuration will have the relevant sections for each.
+* The Dockerfiles have been updated to:
+  * Support the `IPFS_CLUSTER_CONSENSUS` flag to determine which consensus to
+  use for the automatic `init`.
+  * No longer use `IPFS_API` environment variable to do a `sed` replacement on
+    the config, as `CLUSTER_IPFSHTTP_NODEMULTIADDRESS` is the canonical one to
+    use.
+  * No longer use `sed` replacement to set the APIs listen IPs to `0.0.0.0`
+    automatically, as this can be achieved with environment variables
+    (`CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS` and
+    `CLUSTER_IPFSPROXY_LISTENMULTIADDRESS`) and can be dangerous for containers
+    running in `net=host` mode.
+  * The `docker-compose.yml` has been updated and simplified to launch a CRDT
+    3-peer TEST cluster
+* Cluster now uses `/p2p/` instead of `/ipfs/` for libp2p multiaddresses by
+  default, but both protocol IDs are equivalent and interchangeable.
+* Pinning an already existing pin will re-submit it to the consensus layer in
+  all cases, meaning that pins in error states will start pinning again
+  (before, sometimes this was only possible using recover). Recover stays as a
+  broadcast/sync operation to trigger pinning on errored items. As a reminder,
+  pin is consensus/async operation.
+    
+---
+
 
 ### v0.10.1 - 2019-04-10
 

@@ -542,7 +542,7 @@ func (cc *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
 }
 
 func parsePIDFromMultiaddr(addr ma.Multiaddr) string {
-	pidstr, err := addr.ValueForProtocol(ma.P_IPFS)
+	pidstr, err := addr.ValueForProtocol(ma.P_P2P)
 	if err != nil {
 		panic("peer badly encoded")
 	}

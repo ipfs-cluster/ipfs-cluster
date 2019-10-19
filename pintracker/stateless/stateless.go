@@ -11,6 +11,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
+	"github.com/ipfs/ipfs-cluster/pintracker/util"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -176,7 +177,7 @@ func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.Opera
 	select {
 	case ch <- op:
 	default:
-		err := errors.New("queue is full")
+		err := util.ErrFullQueue
 		op.SetError(err)
 		op.Cancel()
 		logger.Error(err.Error())

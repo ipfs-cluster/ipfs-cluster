@@ -52,6 +52,8 @@ services:
       CLUSTER_SECRET: ${CLUSTER_SECRET} # From shell variable if set
       CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs0/tcp/5001
       CLUSTER_CRDT_TRUSTEDPEERS: '*' # Trust all peers in Cluster
+      CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS: /ip4/0.0.0.0/tcp/9094 # Expose API
+      CLUSTER_MONITORPINGINTERVAL: 2s # Speed up peer discovery
     ports:
           # Open API port (allows ipfs-cluster-ctl usage on host)
           - "127.0.0.1:9094:9094"
@@ -83,6 +85,7 @@ services:
       CLUSTER_SECRET: ${CLUSTER_SECRET}
       CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs1/tcp/5001
       CLUSTER_CRDT_TRUSTEDPEERS: '*'
+      CLUSTER_MONITORPINGINTERVAL: 2s # Speed up peer discovery
     volumes:
       - ./compose/cluster1:/data/ipfs-cluster
 
@@ -107,6 +110,7 @@ services:
       CLUSTER_SECRET: ${CLUSTER_SECRET}
       CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs2/tcp/5001
       CLUSTER_CRDT_TRUSTEDPEERS: '*'
+      CLUSTER_MONITORPINGINTERVAL: 2s # Speed up peer discovery
     volumes:
       - ./compose/cluster2:/data/ipfs-cluster
 

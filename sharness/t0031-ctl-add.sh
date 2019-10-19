@@ -22,9 +22,8 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
     ipfs-cluster-ctl add --quiet smallfile.bin > cidscluster.txt
     ipfs-cluster-ctl add --quiet -w smallfile.bin >> cidscluster.txt
 
-    # uncomment when ipfs outputs base32 by default (or there is an option)
-    # ipfs-cluster-ctl add --quiet --raw-leaves -w smallfile.bin >> cidscluster.txt
-    # ipfs-cluster-ctl add --quiet --raw-leaves smallfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add --quiet --raw-leaves -w smallfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add --quiet --raw-leaves smallfile.bin >> cidscluster.txt
 
     ipfs-cluster-ctl add --quiet bigfile.bin >> cidscluster.txt
     ipfs-cluster-ctl add --quiet --layout trickle bigfile.bin >> cidscluster.txt
@@ -35,16 +34,14 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
     ipfs-cluster-ctl add --quiet -r testFolder >> cidscluster.txt
     ipfs-cluster-ctl add --quiet -r -w testFolder >> cidscluster.txt
 
-    # uncomment when ipfs outputs base32 by default (or there is an option)
-    # ipfs-cluster-ctl add --quiet --cid-version 1 -r testFolder >> cidscluster.txt
-    # ipfs-cluster-ctl add --quiet --hash sha3-512 -r testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add --quiet --cid-version 1 -r testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add --quiet --hash sha3-512 -r testFolder >> cidscluster.txt
 
     ipfsCmd add --quiet /tmp/smallfile.bin > cidsipfs.txt
     ipfsCmd add --quiet -w /tmp/smallfile.bin >> cidsipfs.txt
     
-    # uncomment when ipfs outputs base32 by default (or there is an option)
-    # ipfsCmd add --quiet --raw-leaves -w /tmp/smallfile.bin >> cidsipfs.txt
-    # ipfsCmd add --quiet --raw-leaves  /tmp/smallfile.bin >> cidsipfs.txt
+    ipfsCmd add --quiet --raw-leaves -w /tmp/smallfile.bin >> cidsipfs.txt
+    ipfsCmd add --quiet --raw-leaves  /tmp/smallfile.bin >> cidsipfs.txt
 
     ipfsCmd add --quiet /tmp/bigfile.bin >> cidsipfs.txt
     ipfsCmd add --quiet --trickle /tmp/bigfile.bin  >> cidsipfs.txt
@@ -55,9 +52,8 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
     ipfsCmd add --quiet -r /tmp/testFolder >> cidsipfs.txt
     ipfsCmd add --quiet -r -w /tmp/testFolder >> cidsipfs.txt
 
-    # uncomment when ipfs outputs base32 by default (or there is an option)
-    # ipfsCmd add --quiet --cid-version 1 -r /tmp/testFolder >> cidsipfs.txt
-    # ipfsCmd add --quiet --hash sha3-512 -r /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add --quiet --cid-version 1 -r /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add --quiet --hash sha3-512 -r /tmp/testFolder >> cidsipfs.txt
 
     test_cmp cidscluster.txt cidsipfs.txt
 '
@@ -77,6 +73,16 @@ test_expect_success IPFS,CLUSTER "check pin after locally added" '
     echo "abc" > testFolder3/abc.txt
     cid=`ipfs-cluster-ctl add -r --quieter testFolder3`
     ipfs-cluster-ctl pin ls | grep -q -i "$cid"
+'
+
+test_expect_success IPFS,CLUSTER "add with metadata" '
+    echo "test1" > test1.txt
+    cid1=`ipfs-cluster-ctl add --quieter --metadata kind=text test1.txt`
+    echo "test2" > test2.txt
+    cid2=`ipfs-cluster-ctl add --quieter test2.txt`
+    ipfs-cluster-ctl pin ls "$cid1" | grep -q "Metadata: yes" &&
+    ipfs-cluster-ctl --enc=json pin ls "$cid1" | jq .metadata | grep -q "\"kind\": \"text\"" &&
+    ipfs-cluster-ctl pin ls "$cid2" | grep -q "Metadata: no"
 '
 
 test_clean_ipfs

@@ -24,7 +24,9 @@ func init() {
 var LoggingFacilities = map[string]string{
 	"cluster":      "INFO",
 	"restapi":      "INFO",
+	"restapilog":   "INFO",
 	"ipfsproxy":    "INFO",
+	"ipfsproxylog": "INFO",
 	"ipfshttp":     "INFO",
 	"monitor":      "INFO",
 	"dsstate":      "INFO",
@@ -36,7 +38,7 @@ var LoggingFacilities = map[string]string{
 	"apitypes":     "INFO",
 	"config":       "INFO",
 	"shardingdags": "INFO",
-	"localdags":    "INFO",
+	"singledags":   "INFO",
 	"adder":        "INFO",
 	"optracker":    "INFO",
 	"pstoremgr":    "INFO",

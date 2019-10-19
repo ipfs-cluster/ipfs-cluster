@@ -15,6 +15,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
+	utils "github.com/ipfs/ipfs-cluster/utils"
 	host "github.com/libp2p/go-libp2p-core/host"
 	net "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -57,7 +58,7 @@ func New(ctx context.Context, h host.Host, peerstorePath string) *Manager {
 }
 
 // ImportPeer adds a new peer address to the host's peerstore, optionally
-// dialing to it. The address is expected to include the /ipfs/<peerID>
+// dialing to it. The address is expected to include the /p2p/<peerID>
 // protocol part or to be a /dnsaddr/multiaddress
 // Peers are added with the given ttl.
 func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration) (peer.ID, error) {
@@ -142,6 +143,7 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 		return peerDNSAddrs
 	}
 
+	sort.Sort(utils.ByString(peerAddrs))
 	return peerAddrs
 }
 

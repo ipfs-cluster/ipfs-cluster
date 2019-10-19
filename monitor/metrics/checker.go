@@ -19,7 +19,7 @@ import (
 var AlertChannelCap = 256
 
 // MaxAlertThreshold specifies how many alerts will occur per a peer is
-// removed the list of monitored peers.
+// removed from the list of monitored peers.
 var MaxAlertThreshold = 1
 
 // ErrAlertChannelFull is returned if the alert channel is full.
@@ -191,7 +191,7 @@ func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float
 		return 0.0, nil, 0.0, true
 	}
 
-	// A peer is never failed if the latest metric from is has
+	// A peer is never failed if the latest metric from it has
 	// not expired or we do not have enough number of metrics
 	// for accrual detection
 	if !latest.Expired() {

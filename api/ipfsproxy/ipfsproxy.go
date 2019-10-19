@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +19,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 
+	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
@@ -34,7 +37,10 @@ import (
 // DNSTimeout is used when resolving DNS multiaddresses in this module
 var DNSTimeout = 5 * time.Second
 
-var logger = logging.Logger("ipfsproxy")
+var (
+	logger      = logging.Logger("ipfsproxy")
+	proxyLogger = logging.Logger("ipfsproxylog")
+)
 
 // Server offers an IPFS API, hijacking some interesting requests
 // and forwarding the rest to the ipfs daemon
@@ -85,6 +91,14 @@ type ipfsAddResp struct {
 	Hash  string `json:",omitempty"`
 	Bytes int64  `json:",omitempty"`
 	Size  string `json:",omitempty"`
+}
+
+type logWriter struct {
+}
+
+func (lw logWriter) Write(b []byte) (int, error) {
+	proxyLogger.Infof(string(b))
+	return len(b), nil
 }
 
 // New returns and ipfs Proxy component
@@ -148,12 +162,23 @@ func New(cfg *Config) (*Server, error) {
 		}
 	}
 
+	var writer io.Writer
+	if cfg.LogFile != "" {
+		f, err := os.OpenFile(cfg.getLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		writer = f
+	} else {
+		writer = logWriter{}
+	}
+
 	s := &http.Server{
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           handler,
+		Handler:           handlers.LoggingHandler(writer, handler),
 		MaxHeaderBytes:    cfg.MaxHeaderBytes,
 	}
 
