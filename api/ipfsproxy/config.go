@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -45,6 +46,12 @@ type Config struct {
 
 	// Should we talk to the IPFS API over HTTPS? (experimental, untested)
 	NodeHTTPS bool
+
+	// LogFile is path of the file that would save Proxy API logs. If this
+	// path is empty, logs would be sent to standard output. This path
+	// should either be absolute or relative to cluster base directory. Its
+	// default value is empty.
+	LogFile string
 
 	// Maximum duration before timing out reading a full request
 	ReadTimeout time.Duration
@@ -90,6 +97,8 @@ type jsonConfig struct {
 	NodeMultiaddress   string `json:"node_multiaddress"`
 	NodeHTTPS          bool   `json:"node_https,omitempty"`
 
+	LogFile string `json:"log_file"`
+
 	ReadTimeout       string `json:"read_timeout"`
 	ReadHeaderTimeout string `json:"read_header_timeout"`
 	WriteTimeout      string `json:"write_timeout"`
@@ -99,6 +108,20 @@ type jsonConfig struct {
 	ExtractHeadersExtra []string `json:"extract_headers_extra,omitempty"`
 	ExtractHeadersPath  string   `json:"extract_headers_path,omitempty"`
 	ExtractHeadersTTL   string   `json:"extract_headers_ttl,omitempty"`
+}
+
+// getLogPath gets full path of the file where proxy logs should be
+// saved.
+func (cfg *Config) getLogPath() string {
+	if filepath.IsAbs(cfg.LogFile) {
+		return cfg.LogFile
+	}
+
+	if cfg.BaseDir == "" {
+		return ""
+	}
+
+	return filepath.Join(cfg.BaseDir, cfg.LogFile)
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -118,6 +141,7 @@ func (cfg *Config) Default() error {
 	}
 	cfg.ListenAddr = proxy
 	cfg.NodeAddr = node
+	cfg.LogFile = ""
 	cfg.ReadTimeout = DefaultReadTimeout
 	cfg.ReadHeaderTimeout = DefaultReadHeaderTimeout
 	cfg.WriteTimeout = DefaultWriteTimeout
@@ -222,6 +246,8 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	}
 	config.SetIfNotDefault(jcfg.NodeHTTPS, &cfg.NodeHTTPS)
 
+	config.SetIfNotDefault(jcfg.LogFile, &cfg.LogFile)
+
 	err := config.ParseDurations(
 		"ipfsproxy",
 		&config.DurationOpt{Duration: jcfg.ReadTimeout, Dst: &cfg.ReadTimeout, Name: "read_timeout"},
@@ -278,6 +304,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	jcfg.IdleTimeout = cfg.IdleTimeout.String()
 	jcfg.MaxHeaderBytes = cfg.MaxHeaderBytes
 	jcfg.NodeHTTPS = cfg.NodeHTTPS
+	jcfg.LogFile = cfg.LogFile
 
 	jcfg.ExtractHeadersExtra = cfg.ExtractHeadersExtra
 	if cfg.ExtractHeadersPath != DefaultExtractHeadersPath {

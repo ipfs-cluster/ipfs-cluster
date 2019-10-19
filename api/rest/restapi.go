@@ -1021,7 +1021,16 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
 	} else {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("only requests with parameter local=true are supported"), nil)
+		var globalPinInfos []*types.GlobalPinInfo
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"Cluster",
+			"RecoverAll",
+			struct{}{},
+			&globalPinInfos,
+		)
+		api.sendResponse(w, autoStatus, err, globalPinInfos)
 	}
 }
 

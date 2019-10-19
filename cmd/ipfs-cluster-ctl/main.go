@@ -272,8 +272,10 @@ which may not necessarily be the local ipfs daemon).
 Once the adding process is finished, the content is fully added to all
 allocations and pinned in them. This makes cluster add slower than a local
 ipfs add, but the result is a fully replicated CID on completion.
-If you prefer faster adding, add directly to the local IPFS and trigger a
-cluster "pin add".
+If you prefer faster adding, use the --local flag to add directly to the local
+IPFS node and pin in the destinations after that. Note that the local IPFS
+node may not be among the destinations, which will leave the unpinned content
+in it.
 
 Optional replication-min and replication-max factors can be provided: -1 means
 "pin everywhere" and 0 means use cluster's default setting (i.e., replication
@@ -337,6 +339,10 @@ content.
 					Name:  "hash",
 					Usage: "Hash function to use. Implies cid-version=1",
 					Value: defaultAddParams.HashFun,
+				},
+				cli.BoolFlag{
+					Name:  "local",
+					Usage: "Add to local peer but pin normally",
 				},
 				cli.StringFlag{
 					Name:  "name, n",
@@ -417,6 +423,7 @@ content.
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false
 				p.Recursive = c.Bool("recursive")
+				p.Local = c.Bool("local")
 				p.Layout = c.String("layout")
 				p.Chunker = c.String("chunker")
 				p.RawLeaves = c.Bool("raw-leaves")

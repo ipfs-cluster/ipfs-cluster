@@ -110,10 +110,8 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		return cid.Undef, err
 	}
 
-	ipfsAdder.Hidden = a.params.Hidden
 	ipfsAdder.Trickle = a.params.Layout == "trickle"
 	ipfsAdder.RawLeaves = a.params.RawLeaves
-	ipfsAdder.Wrap = a.params.Wrap
 	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
 	ipfsAdder.Progress = a.params.Progress
@@ -133,7 +131,15 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	prefix.MhLength = -1
 	ipfsAdder.CidBuilder = &prefix
 
+	// setup wrapping
+	if a.params.Wrap {
+		f = files.NewSliceDirectory(
+			[]files.DirEntry{files.FileEntry("", f)},
+		)
+	}
+
 	it := f.Entries()
+	var adderRoot ipld.Node
 	for it.Next() {
 		select {
 		case <-a.ctx.Done():
@@ -141,7 +147,8 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		default:
 			logger.Debugf("ipfsAdder AddFile(%s)", it.Name())
 
-			if ipfsAdder.AddFile(it.Name(), it.Node()); err != nil {
+			adderRoot, err = ipfsAdder.AddAllAndPin(it.Node())
+			if err != nil {
 				logger.Error("error adding to cluster: ", err)
 				return cid.Undef, err
 			}
@@ -151,10 +158,6 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		return cid.Undef, it.Err()
 	}
 
-	adderRoot, err := ipfsAdder.Finalize()
-	if err != nil {
-		return cid.Undef, err
-	}
 	clusterRoot, err := a.dgs.Finalize(a.ctx, adderRoot.Cid())
 	if err != nil {
 		logger.Error("error finalizing adder:", err)

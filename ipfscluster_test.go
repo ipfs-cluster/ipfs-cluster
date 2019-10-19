@@ -84,7 +84,17 @@ func (lg *logFacilities) Set(value string) error {
 	return nil
 }
 
-func init() {
+// TestMain runs test initialization. Since Go1.13 we cannot run this on init()
+// as flag.Parse() does not work well there
+// (see https://golang.org/src/testing/testing.go#L211)
+func TestMain(m *testing.M) {
+	rand.Seed(time.Now().UnixNano())
+	ReadyTimeout = 11 * time.Second
+
+	// GossipSub needs to heartbeat to discover newly connected hosts
+	// This speeds things up a little.
+	pubsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
+
 	flag.Var(&customLogLvlFacilities, "logfacs", "use -logLevel for only the following log facilities; comma-separated")
 	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
 	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
@@ -92,8 +102,6 @@ func init() {
 	flag.StringVar(&ptracker, "tracker", ptracker, "tracker implementation")
 	flag.StringVar(&consensus, "consensus", consensus, "consensus implementation")
 	flag.Parse()
-
-	rand.Seed(time.Now().UnixNano())
 
 	if len(customLogLvlFacilities) <= 0 {
 		for f := range LoggingFacilities {
@@ -115,11 +123,8 @@ func init() {
 			continue
 		}
 	}
-	ReadyTimeout = 11 * time.Second
 
-	// GossipSub needs to heartbeat to discover newly connected hosts
-	// This speeds things up a little.
-	pubsub.GossipSubHeartbeatInterval = 50 * time.Millisecond
+	os.Exit(m.Run())
 }
 
 func checkErr(t *testing.T, err error) {
@@ -1070,17 +1075,19 @@ func TestClustersRecover(t *testing.T) {
 	pinDelay()
 
 	j := rand.Intn(nClusters)
-	_, err := clusters[j].Recover(ctx, h)
+	ginfo, err := clusters[j].Recover(ctx, h)
 	if err != nil {
 		// we always attempt to return a valid response
 		// with errors contained in GlobalPinInfo
 		t.Fatal("did not expect an error")
 	}
-
+	if len(ginfo.PeerMap) != nClusters {
+		t.Error("number of peers do not match")
+	}
 	// Wait for queue to be processed
 	delay()
 
-	ginfo, err := clusters[j].Status(ctx, h)
+	ginfo, err = clusters[j].Status(ctx, h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1114,6 +1121,9 @@ func TestClustersRecover(t *testing.T) {
 	if !ginfo.Cid.Equals(h2) {
 		t.Error("GlobalPinInfo should be for testrCid2")
 	}
+	if len(ginfo.PeerMap) != nClusters {
+		t.Error("number of peers do not match")
+	}
 
 	for _, c := range clusters {
 		inf, ok := ginfo.PeerMap[peer.IDB58Encode(c.host.ID())]
@@ -1122,6 +1132,37 @@ func TestClustersRecover(t *testing.T) {
 		}
 		if inf.Status != api.TrackerStatusPinned {
 			t.Error("the GlobalPinInfo should show Pinned in all peers")
+		}
+	}
+}
+
+func TestClustersRecoverAll(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	h1 := test.Cid1
+	hError := test.ErrorCid
+
+	ttlDelay()
+
+	clusters[0].Pin(ctx, h1, api.PinOptions{})
+	clusters[0].Pin(ctx, hError, api.PinOptions{})
+
+	pinDelay()
+
+	gInfos, err := clusters[rand.Intn(nClusters)].RecoverAll(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delay()
+
+	if len(gInfos) != 2 {
+		t.Error("expected two items")
+	}
+
+	for _, gInfo := range gInfos {
+		if len(gInfo.PeerMap) != nClusters {
+			t.Error("number of peers do not match")
 		}
 	}
 }

@@ -1,6 +1,6 @@
-// Package local implements a ClusterDAGService that chunks and adds content
-// to a local peer, before pinning it.
-package local
+// Package single implements a ClusterDAGService that chunks and adds content
+// to cluster without sharding, before pinning it.
+package single
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 
 var errNotFound = errors.New("dagservice: block not found")
 
-var logger = logging.Logger("localdags")
+var logger = logging.Logger("singledags")
 
 // DAGService is an implementation of an adder.ClusterDAGService which
 // puts the added blocks directly in the peers allocated to them (without
@@ -30,17 +30,19 @@ type DAGService struct {
 
 	dests   []peer.ID
 	pinOpts api.PinOptions
+	local   bool
 
 	ba *adder.BlockAdder
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
 // to perform calls to IPFS.BlockPut and Pin content on Cluster.
-func New(rpc *rpc.Client, opts api.PinOptions) *DAGService {
+func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
 	return &DAGService{
 		rpcClient: rpc,
 		dests:     nil,
 		pinOpts:   opts,
+		local:     local,
 	}
 }
 
@@ -52,7 +54,12 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 			return err
 		}
 		dgs.dests = dests
-		dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
+
+		if dgs.local {
+			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""})
+		} else {
+			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
+		}
 	}
 
 	return dgs.ba.Add(ctx, node)
@@ -63,18 +70,9 @@ func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, err
 	// Cluster pin the result
 	rootPin := api.PinWithOpts(root, dgs.pinOpts)
 	rootPin.Allocations = dgs.dests
-
 	dgs.dests = nil
 
-	var pinResp api.Pin
-	return root, dgs.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Pin",
-		rootPin,
-		&pinResp,
-	)
+	return root, adder.Pin(ctx, dgs.rpcClient, rootPin)
 }
 
 // AddMany calls Add for every given node.

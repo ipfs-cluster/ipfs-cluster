@@ -1,4 +1,4 @@
-FROM golang:1.12-stretch AS builder
+FROM golang:1.13-stretch AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This dockerfile builds and runs ipfs-cluster-service.
@@ -30,9 +30,6 @@ RUN apt-get update && apt-get install -y ca-certificates
 #------------------------------------------------------
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
-
-# This is the container which just puts the previously
-# built binaries on the go-ipfs-container.
 
 ENV GOPATH     /go
 ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
