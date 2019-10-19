@@ -275,7 +275,7 @@ the peer IDs in the given multiaddresses.
 				},
 				cli.BoolFlag{
 					Name:  "randomports",
-					Usage: "listen on random available ports, instead of the default values",
+					Usage: "configure random ports to listen on instead of defaults",
 				},
 			},
 			Action: func(c *cli.Context) error {
@@ -326,7 +326,10 @@ the peer IDs in the given multiaddresses.
 				checkErr("generating default configuration", err)
 				if c.Bool("randomports") {
 					cfgs := cfgHelper.Configs()
-					assignRandomPorts([]*ma.Multiaddr{&cfgs.Cluster.ListenAddr, &cfgs.Restapi.HTTPListenAddr, &cfgs.Ipfsproxy.ListenAddr})
+					for _, m := range []*ma.Multiaddr{&cfgs.Cluster.ListenAddr, &cfgs.Restapi.HTTPListenAddr, &cfgs.Ipfsproxy.ListenAddr} {
+						*m, err = cmdutils.RandomizePorts(*m)
+						checkErr("randomizing ports", err)
+					}
 				}
 				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)
