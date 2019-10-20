@@ -76,23 +76,19 @@ func (mtrs *Store) LatestValid(name string) []*api.Metric {
 		return []*api.Metric{}
 	}
 
-	peers := []peer.ID{}
-	for p := range byPeer {
-		peers = append(peers, p)
-	}
-	sortedPeers := peer.IDSlice(peers)
-	sort.Stable(sortedPeers)
-
-	metrics := make([]*api.Metric, 0, len(peers))
-	for _, p := range peers {
-		m, err := byPeer[p].Latest()
+	metrics := make([]*api.Metric, 0, len(byPeer))
+	for _, window := range byPeer {
+		m, err := window.Latest()
 		// TODO(ajl): for accrual, does it matter if a ping has expired?
 		if err != nil || m.Discard() {
 			continue
 		}
 		metrics = append(metrics, m)
 	}
-	return metrics
+
+	sortedMetrics := api.MetricSlice(metrics)
+	sort.Stable(sortedMetrics)
+	return sortedMetrics
 }
 
 // AllMetrics returns the latest metrics for all peers and metrics types.  It

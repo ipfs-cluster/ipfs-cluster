@@ -875,6 +875,18 @@ func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
+// MetricSlice is a sortable Metric array.
+type MetricSlice []*Metric
+
+func (es MetricSlice) Len() int      { return len(es) }
+func (es MetricSlice) Swap(i, j int) { es[i], es[j] = es[j], es[i] }
+func (es MetricSlice) Less(i, j int) bool {
+	if string((*es[i]).Peer) == string((*es[j]).Peer) {
+		return (*es[i]).Expire < (*es[j]).Expire
+	}
+	return string((*es[i]).Peer) < string((*es[j]).Peer)
+}
+
 // Alert carries alerting information about a peer. WIP.
 type Alert struct {
 	Peer       peer.ID

@@ -120,7 +120,7 @@ type Client interface {
 	// for the current cluster peers.
 	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
 
-	// MetricNames returns the list of metrics.
+	// MetricNames returns the list of metric types.
 	MetricNames(ctx context.Context) ([]string, error)
 }
 

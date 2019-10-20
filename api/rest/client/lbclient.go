@@ -369,7 +369,7 @@ func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api
 	return metrics, err
 }
 
-// MetricNames returns the list of metrics.
+// MetricNames returns the list of metric types.
 func (lc *loadBalancingClient) MetricNames(ctx context.Context) ([]string, error) {
 	var metricNames []string
 	call := func(c Client) error {
