@@ -64,7 +64,11 @@ var testingCrdtCfg = []byte(`{
 }`)
 
 var testingBadgerCfg = []byte(`{
-    "folder": "badgerFromTests"
+    "folder": "badgerFromTests",
+    "badger_options":{
+      "table_loading_mode": 1,
+      "value_log_loading_mode": 1,
+    }
 }`)
 
 var testingAPICfg = []byte(`{

@@ -24,6 +24,7 @@ jobs:
     - stage: "Testing stage"
       name: "Tests (all modules) + Coverage"
       script:
+        - df -h
         - go test -v -failfast -timeout 15m -coverprofile=coverage.txt -covermode=atomic ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
