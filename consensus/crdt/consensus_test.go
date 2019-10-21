@@ -293,7 +293,7 @@ func TestConsensusDistrustPeer(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
-		t.Error("the added pin should be in the state")
+		t.Error("only first pin should be in the state")
 	}
 }
 
