@@ -1530,90 +1530,91 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 	}
 }
 
-// This test checks that repinning something that has becomed
-// underpinned does re-allocations when it's not sufficiently
-// pinned anymore
-func TestClustersReplicationMinMaxRealloc(t *testing.T) {
-	ctx := context.Background()
-	if nClusters < 5 {
-		t.Skip("Need at least 5 peers")
-	}
+// Repinning does not re-allocate anymore
+// // This test checks that repinning something that has becomed
+// // underpinned does re-allocations when it's not sufficiently
+// // pinned anymore
+// func TestClustersReplicationMinMaxRealloc(t *testing.T) {
+// 	ctx := context.Background()
+// 	if nClusters < 5 {
+// 		t.Skip("Need at least 5 peers")
+// 	}
 
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
-	for _, c := range clusters {
-		c.config.ReplicationFactorMin = 3
-		c.config.ReplicationFactorMax = 4
-	}
+// 	clusters, mock := createClusters(t)
+// 	defer shutdownClusters(t, clusters, mock)
+// 	for _, c := range clusters {
+// 		c.config.ReplicationFactorMin = 3
+// 		c.config.ReplicationFactorMax = 4
+// 	}
 
-	ttlDelay() // make sure metrics are in
+// 	ttlDelay() // make sure metrics are in
 
-	h := test.Cid1
-	_, err := clusters[0].Pin(ctx, h, api.PinOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	h := test.Cid1
+// 	_, err := clusters[0].Pin(ctx, h, api.PinOptions{})
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	pinDelay()
+// 	pinDelay()
 
-	p, err := clusters[0].PinGet(ctx, h)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	p, err := clusters[0].PinGet(ctx, h)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	firstAllocations := p.Allocations
+// 	firstAllocations := p.Allocations
 
-	peerIDMap := make(map[peer.ID]*Cluster)
-	for _, a := range clusters {
-		peerIDMap[a.id] = a
-	}
+// 	peerIDMap := make(map[peer.ID]*Cluster)
+// 	for _, a := range clusters {
+// 		peerIDMap[a.id] = a
+// 	}
 
-	// kill two of the allocations
-	alloc1 := peerIDMap[firstAllocations[0]]
-	alloc2 := peerIDMap[firstAllocations[1]]
-	safePeer := peerIDMap[firstAllocations[2]]
+// 	// kill two of the allocations
+// 	alloc1 := peerIDMap[firstAllocations[0]]
+// 	alloc2 := peerIDMap[firstAllocations[1]]
+// 	safePeer := peerIDMap[firstAllocations[2]]
 
-	alloc1.Shutdown(ctx)
-	alloc2.Shutdown(ctx)
+// 	alloc1.Shutdown(ctx)
+// 	alloc2.Shutdown(ctx)
 
-	waitForLeaderAndMetrics(t, clusters)
+// 	waitForLeaderAndMetrics(t, clusters)
 
-	// Repin - (although this might have been taken of if there was an alert
-	_, err = safePeer.Pin(ctx, h, api.PinOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	// Repin - (although this might have been taken of if there was an alert
+// 	_, err = safePeer.Pin(ctx, h, api.PinOptions{})
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	pinDelay()
+// 	pinDelay()
 
-	p, err = safePeer.PinGet(ctx, h)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	p, err = safePeer.PinGet(ctx, h)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	secondAllocations := p.Allocations
+// 	secondAllocations := p.Allocations
 
-	strings1 := api.PeersToStrings(firstAllocations)
-	strings2 := api.PeersToStrings(secondAllocations)
-	sort.Strings(strings1)
-	sort.Strings(strings2)
-	t.Logf("Allocs1: %s", strings1)
-	t.Logf("Allocs2: %s", strings2)
+// 	strings1 := api.PeersToStrings(firstAllocations)
+// 	strings2 := api.PeersToStrings(secondAllocations)
+// 	sort.Strings(strings1)
+// 	sort.Strings(strings2)
+// 	t.Logf("Allocs1: %s", strings1)
+// 	t.Logf("Allocs2: %s", strings2)
 
-	if fmt.Sprintf("%s", strings1) == fmt.Sprintf("%s", strings2) {
-		t.Error("allocations should have changed")
-	}
+// 	if fmt.Sprintf("%s", strings1) == fmt.Sprintf("%s", strings2) {
+// 		t.Error("allocations should have changed")
+// 	}
 
-	lenSA := len(secondAllocations)
-	expected := minInt(nClusters-2, 4)
-	if lenSA != expected {
-		t.Errorf("Insufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
-	}
+// 	lenSA := len(secondAllocations)
+// 	expected := minInt(nClusters-2, 4)
+// 	if lenSA != expected {
+// 		t.Errorf("Insufficient reallocation, could have allocated to %d peers but instead only allocated to %d peers", expected, lenSA)
+// 	}
 
-	if lenSA < 3 {
-		t.Error("allocations should be more than rplMin")
-	}
-}
+// 	if lenSA < 3 {
+// 		t.Error("allocations should be more than rplMin")
+// 	}
+// }
 
 // In this test we check that repinning something
 // when a node has gone down will re-assign the pin
