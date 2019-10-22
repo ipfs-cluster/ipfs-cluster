@@ -418,6 +418,26 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 	return nil
 }
 
+// RepoGC performs garbage collection sweep on all peers' repos.
+func (rpcapi *ClusterRPCAPI) RepoGC(ctx context.Context, in struct{}, out *api.GlobalRepoGC) error {
+	res, err := rpcapi.c.RepoGC(ctx)
+	if err != nil {
+		return err
+	}
+	*out = *res
+	return nil
+}
+
+// RepoGCLocal performs garbage collection sweep only on the local peer's IPFS daemon.
+func (rpcapi *ClusterRPCAPI) RepoGCLocal(ctx context.Context, in struct{}, out *api.RepoGC) error {
+	res, err := rpcapi.c.RepoGCLocal(ctx)
+	if err != nil {
+		return err
+	}
+	*out = *res
+	return nil
+}
+
 // SendInformerMetric runs Cluster.sendInformerMetric().
 func (rpcapi *ClusterRPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
 	m, err := rpcapi.c.sendInformerMetric(ctx)

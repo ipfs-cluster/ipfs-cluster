@@ -105,6 +105,11 @@ type mockBlockPutResp struct {
 	Key string
 }
 
+type mockRepoGCResp struct {
+	Key   cid.Cid `json:",omitempty"`
+	Error string  `json:",omitempty"`
+}
+
 // NewIpfsMock returns a new mock.
 func NewIpfsMock(t *testing.T) *IpfsMock {
 	store := inmem.New()
@@ -379,6 +384,33 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			goto ERROR
 		}
 		w.Write(data)
+	case "repo/gc":
+		// It assumes `/repo/gc` with parameter `stream-errors=true`
+		enc := json.NewEncoder(w)
+		resp := []mockRepoGCResp{
+			{
+				Key: Cid1,
+			},
+			{
+				Key: Cid2,
+			},
+			{
+				Key: Cid3,
+			},
+			{
+				Key: Cid4,
+			},
+			{
+				Error: "no link by that name",
+			},
+		}
+
+		for _, r := range resp {
+			if err := enc.Encode(&r); err != nil {
+				goto ERROR
+			}
+		}
+
 	case "repo/stat":
 		sizeOnly := r.URL.Query().Get("size-only")
 		list, err := m.pinMap.List(ctx)

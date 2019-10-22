@@ -109,6 +109,16 @@ func (ipfs *mockConnector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, err
 	return &api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
+func (ipfs *mockConnector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
+	return &api.RepoGC{
+		Keys: []api.IPFSRepoGC{
+			{
+				Key: test.Cid1,
+			},
+		},
+	}, nil
+}
+
 func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
 	_, err := gopath.ParsePath(path)
 	if err != nil {
@@ -849,7 +859,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	// Unpin after pin should succeed
 	pin, err := cl.PinPath(ctx, test.PathIPFS2, api.PinOptions{})
 	if err != nil {
-		t.Fatal("pin with should have worked:", err)
+		t.Fatal("pin with path should have worked:", err)
 	}
 	if !pin.Cid.Equals(test.CidResolved) {
 		t.Error("expected a different cid, found", pin.Cid.String())
@@ -919,5 +929,64 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	}
 	if recov[0].Status != api.TrackerStatusPinned {
 		t.Errorf("the pin should have been recovered, got = %v", recov[0].Status)
+	}
+}
+
+func TestClusterRepoGC(t *testing.T) {
+	ctx := context.Background()
+	cl, _, _, _ := testingCluster(t)
+	defer cleanState()
+	defer cl.Shutdown(ctx)
+
+	gRepoGC, err := cl.RepoGC(ctx)
+	if err != nil {
+		t.Fatal("gc should have worked:", err)
+	}
+
+	if gRepoGC.PeerMap == nil {
+		t.Fatal("expected a non-nil peer map")
+	}
+
+	if len(gRepoGC.PeerMap) != 1 {
+		t.Error("expected repo gc information for one peer")
+	}
+	for _, repoGC := range gRepoGC.PeerMap {
+		testRepoGC(t, repoGC)
+	}
+
+}
+
+func TestClusterRepoGCLocal(t *testing.T) {
+	ctx := context.Background()
+	cl, _, _, _ := testingCluster(t)
+	defer cleanState()
+	defer cl.Shutdown(ctx)
+
+	repoGC, err := cl.RepoGCLocal(ctx)
+	if err != nil {
+		t.Fatal("gc should have worked:", err)
+	}
+
+	testRepoGC(t, repoGC)
+}
+
+func testRepoGC(t *testing.T, repoGC *api.RepoGC) {
+	if repoGC.Peer == "" {
+		t.Error("expected a cluster ID")
+	}
+	if repoGC.Error != "" {
+		t.Error("did not expect any error")
+	}
+
+	if repoGC.Keys == nil {
+		t.Fatal("expected a non-nil array of IPFSRepoGC")
+	}
+
+	if len(repoGC.Keys) == 0 {
+		t.Fatal("expected at least one key, but found none")
+	}
+
+	if !repoGC.Keys[0].Key.Equals(test.Cid1) {
+		t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC.Keys[0].Key)
 	}
 }

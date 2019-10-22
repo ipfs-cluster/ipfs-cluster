@@ -1883,3 +1883,73 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 	}
 	return
 }
+
+// RepoGC performs garbage collection sweep on all peers' IPFS repo.
+func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
+	_, span := trace.StartSpan(ctx, "cluster/RepoGC")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	members, err := c.consensus.Peers(ctx)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+	lenMembers := len(members)
+
+	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
+	defer rpcutil.MultiCancel(cancels)
+
+	repoGCsResp := make([]*api.RepoGC, lenMembers, lenMembers)
+
+	errs := c.rpcClient.MultiCall(
+		ctxs,
+		members,
+		"Cluster",
+		"RepoGCLocal",
+		struct{}{},
+		rpcutil.CopyRepoGCSliceToIfaces(repoGCsResp),
+	)
+
+	// clubbing `RepoGCLocal` responses of all peers into one
+	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
+	for i, resp := range repoGCsResp {
+		e := errs[i]
+
+		if e == nil {
+			globalRepoGC.PeerMap[peer.IDB58Encode(members[i])] = resp
+			continue
+		}
+
+		if rpc.IsAuthorizationError(e) {
+			logger.Debug("rpc auth error:", e)
+			continue
+		}
+
+		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
+
+		globalRepoGC.PeerMap[peer.IDB58Encode(members[i])] = &api.RepoGC{
+			Peer:     members[i],
+			Peername: peer.IDB58Encode(members[i]),
+			Keys:     []api.IPFSRepoGC{},
+			Error:    err.Error(),
+		}
+	}
+
+	return &globalRepoGC, nil
+}
+
+// RepoGCLocal performs garbage collection only on the local IPFS deamon.
+func (c *Cluster) RepoGCLocal(ctx context.Context) (*api.RepoGC, error) {
+	_, span := trace.StartSpan(ctx, "cluster/RepoGCLocal")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	resp, err := c.ipfs.RepoGC(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp.Peer = c.id
+	resp.Peername = c.config.Peername
+	return resp, nil
+}

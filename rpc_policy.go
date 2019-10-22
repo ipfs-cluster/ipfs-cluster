@@ -22,6 +22,8 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.RecoverAll":         RPCClosed,
 	"Cluster.RecoverAllLocal":    RPCTrusted,
 	"Cluster.RecoverLocal":       RPCTrusted,
+	"Cluster.RepoGC":             RPCClosed,
+	"Cluster.RepoGCLocal":        RPCTrusted,
 	"Cluster.SendInformerMetric": RPCClosed,
 	"Cluster.Status":             RPCClosed,
 	"Cluster.StatusAll":          RPCClosed,

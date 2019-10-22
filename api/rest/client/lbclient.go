@@ -369,6 +369,22 @@ func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api
 	return metrics, err
 }
 
+// RepoGC runs garbage collection on IPFS daemons of cluster peers and
+// returns collected CIDs. If local is true, it would garbage collect
+// only on contacted peer, otherwise on all peers' IPFS daemons.
+func (lc *loadBalancingClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error) {
+	var repoGC *api.GlobalRepoGC
+
+	call := func(c Client) error {
+		var err error
+		repoGC, err = c.RepoGC(ctx, local)
+		return err
+	}
+
+	err := lc.retry(0, call)
+	return repoGC, err
+}
+
 // Add imports files to the cluster from the given paths. A path can
 // either be a local filesystem location or an web url (http:// or https://).
 // In the latter case, the destination will be downloaded with a GET request.

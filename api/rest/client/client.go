@@ -119,6 +119,11 @@ type Client interface {
 	// Metrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
 	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
+
+	// RepoGC runs garbage collection on IPFS daemons of cluster peers and
+	// returns collected CIDs. If local is true, it would garbage collect
+	// only on contacted peer, otherwise on all peers' IPFS daemons.
+	RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error)
 }
 
 // Config allows to configure the parameters to connect

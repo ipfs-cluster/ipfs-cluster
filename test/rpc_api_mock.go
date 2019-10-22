@@ -321,6 +321,30 @@ func (mock *mockCluster) BlockAllocate(ctx context.Context, in *api.Pin, out *[]
 	return nil
 }
 
+func (mock *mockCluster) RepoGC(ctx context.Context, in struct{}, out *api.GlobalRepoGC) error {
+	localrepoGC := &api.RepoGC{}
+	_ = mock.RepoGCLocal(ctx, struct{}{}, localrepoGC)
+	*out = api.GlobalRepoGC{
+		PeerMap: map[string]*api.RepoGC{
+			peer.IDB58Encode(PeerID1): localrepoGC,
+		},
+	}
+	return nil
+}
+
+func (mock *mockCluster) RepoGCLocal(ctx context.Context, in struct{}, out *api.RepoGC) error {
+	*out = api.RepoGC{
+		Peer: PeerID1,
+		Keys: []api.IPFSRepoGC{
+			{
+				Key: Cid1,
+			},
+		},
+	}
+
+	return nil
+}
+
 func (mock *mockCluster) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
 	return nil
 }

@@ -1124,6 +1124,53 @@ func TestNotFoundHandler(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIIPFSGCEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	testGlobalRepoGC := func(t *testing.T, gRepoGC *api.GlobalRepoGC) {
+		if gRepoGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		if len(gRepoGC.PeerMap) != 1 {
+			t.Error("expected repo gc information for one peer")
+		}
+
+		for _, repoGC := range gRepoGC.PeerMap {
+			if repoGC.Peer == "" {
+				t.Error("expected a cluster ID")
+			}
+			if repoGC.Error != "" {
+				t.Error("did not expect any error")
+			}
+			if repoGC.Keys == nil {
+				t.Fatal("expected a non-nil array of IPFSRepoGC")
+			}
+			if len(repoGC.Keys) == 0 {
+				t.Fatal("expected at least one key, but found none")
+			}
+			if !repoGC.Keys[0].Key.Equals(test.Cid1) {
+				t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC.Keys[0].Key)
+			}
+
+		}
+	}
+
+	tf := func(t *testing.T, url urlF) {
+		var resp api.GlobalRepoGC
+		makePost(t, rest, url(rest)+"/ipfs/gc?local=true", []byte{}, &resp)
+		testGlobalRepoGC(t, &resp)
+
+		var resp1 api.GlobalRepoGC
+		makePost(t, rest, url(rest)+"/ipfs/gc", []byte{}, &resp1)
+		testGlobalRepoGC(t, &resp1)
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestCORS(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)

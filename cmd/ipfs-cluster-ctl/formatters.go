@@ -86,6 +86,8 @@ func textFormatObject(resp interface{}) {
 		for _, item := range resp.([]*api.Metric) {
 			textFormatObject(item)
 		}
+	case *api.GlobalRepoGC:
+		textFormatPrintGlobalRepoGC(resp.(*api.GlobalRepoGC))
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -213,6 +215,38 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 func textFormatPrintMetric(obj *api.Metric) {
 	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
 	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
+}
+
+func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {
+	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
+	for peer := range obj.PeerMap {
+		peers = append(peers, peer)
+	}
+	peers.Sort()
+
+	for _, peer := range peers {
+		item := obj.PeerMap[peer]
+		// If peer name is set, use it instead of peer ID.
+		if len(item.Peername) > 0 {
+			peer = item.Peername
+		}
+		if item.Error != "" {
+			fmt.Printf("%-15s | ERROR: %s\n", peer, item.Error)
+		} else {
+			fmt.Printf("%-15s\n", peer)
+		}
+
+		fmt.Printf("  > CIDs:\n")
+		for _, key := range item.Keys {
+			if key.Error != "" {
+				// key.Key will be empty
+				fmt.Printf("    - ERROR: %s\n", key.Error)
+				continue
+			}
+
+			fmt.Printf("    - %s\n", key.Key)
+		}
+	}
 }
 
 func textFormatPrintError(obj *api.Error) {
