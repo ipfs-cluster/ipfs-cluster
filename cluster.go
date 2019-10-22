@@ -1897,19 +1897,21 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 	}
 	lenMembers := len(members)
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
-	defer rpcutil.MultiCancel(cancels)
-
 	repoGCsResp := make([]*api.RepoGC, lenMembers, lenMembers)
+	errs := make([]error, lenMembers, lenMembers)
 
-	errs := c.rpcClient.MultiCall(
-		ctxs,
-		members,
-		"Cluster",
-		"RepoGCLocal",
-		struct{}{},
-		rpcutil.CopyRepoGCSliceToIfaces(repoGCsResp),
-	)
+	for i, member := range members {
+		var repoGC api.RepoGC
+		errs[i] = c.rpcClient.CallContext(
+			ctx,
+			member,
+			"Cluster",
+			"RepoGCLocal",
+			struct{}{},
+			&repoGC,
+		)
+		repoGCsResp[i] = &repoGC
+	}
 
 	// clubbing `RepoGCLocal` responses of all peers into one
 	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
