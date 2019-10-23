@@ -11,7 +11,6 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -118,24 +117,6 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 	})
 }
 
-func testSlowMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
-	cfg := &maptracker.Config{}
-	cfg.Default()
-	cfg.ConcurrentPins = 1
-	mpt := maptracker.NewMapPinTracker(cfg, test.PeerID1, test.PeerName1)
-	mpt.SetClient(mockRPCClient(t))
-	return mpt
-}
-
-func testMapPinTracker(t testing.TB) *maptracker.MapPinTracker {
-	cfg := &maptracker.Config{}
-	cfg.Default()
-	cfg.ConcurrentPins = 1
-	mpt := maptracker.NewMapPinTracker(cfg, test.PeerID1, test.PeerName1)
-	mpt.SetClient(test.NewMockRPCClient(t))
-	return mpt
-}
-
 func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
@@ -170,14 +151,6 @@ func TestPinTracker_Track(t *testing.T) {
 			},
 			false,
 		},
-		{
-			"basic map track",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testMapPinTracker(t),
-			},
-			false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -202,13 +175,6 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 			args{
 				api.PinWithOpts(test.Cid1, pinOpts),
 				testStatelessPinTracker(b),
-			},
-		},
-		{
-			"basic map track",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testMapPinTracker(b),
 			},
 		},
 	}
@@ -239,14 +205,6 @@ func TestPinTracker_Untrack(t *testing.T) {
 			args{
 				test.Cid1,
 				testStatelessPinTracker(t),
-			},
-			false,
-		},
-		{
-			"basic map untrack",
-			args{
-				test.Cid1,
-				testMapPinTracker(t),
 			},
 			false,
 		},
@@ -292,36 +250,10 @@ func TestPinTracker_StatusAll(t *testing.T) {
 			},
 		},
 		{
-			"basic map statusall",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testMapPinTracker(t),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-		},
-		{
 			"slow stateless statusall",
 			args{
 				api.PinWithOpts(test.Cid1, pinOpts),
 				testSlowStatelessPinTracker(t),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-		},
-		{
-			"slow map statusall",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testSlowMapPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
@@ -375,12 +307,6 @@ func BenchmarkPinTracker_StatusAll(b *testing.B) {
 				testStatelessPinTracker(b),
 			},
 		},
-		{
-			"basic map track",
-			args{
-				testMapPinTracker(b),
-			},
-		},
 	}
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
@@ -414,17 +340,6 @@ func TestPinTracker_Status(t *testing.T) {
 			},
 		},
 		{
-			"basic map status",
-			args{
-				test.Cid1,
-				testMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
-		},
-		{
 			"basic stateless status/unpinned",
 			args{
 				test.Cid4,
@@ -436,18 +351,6 @@ func TestPinTracker_Status(t *testing.T) {
 			},
 		},
 		{
-			"basic map status/unpinned",
-			args{
-				test.Cid4,
-				testMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid4,
-				Status: api.TrackerStatusUnpinned,
-			},
-		},
-
-		{
 			"slow stateless status",
 			args{
 				test.Cid1,
@@ -458,31 +361,9 @@ func TestPinTracker_Status(t *testing.T) {
 				Status: api.TrackerStatusPinned,
 			},
 		},
-		{
-			"slow map status",
-			args{
-				test.Cid1,
-				testSlowMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			switch tt.args.tracker.(type) {
-			case *maptracker.MapPinTracker:
-				// the Track preps the internal map of the MapPinTracker
-				// not required by the Stateless impl
-				pin := api.PinWithOpts(test.Cid1, pinOpts)
-				if err := tt.args.tracker.Track(context.Background(), pin); err != nil {
-					t.Errorf("PinTracker.Track() error = %v", err)
-				}
-				time.Sleep(1 * time.Second)
-			}
-
 			got := tt.args.tracker.Status(context.Background(), tt.args.c)
 
 			if got.Cid.String() != tt.want.Cid.String() {
@@ -529,27 +410,6 @@ func TestPinTracker_SyncAll(t *testing.T) {
 			false,
 		},
 		{
-			"basic map syncall",
-			args{
-				[]cid.Cid{
-					test.Cid1,
-					test.Cid2,
-				},
-				testMapPinTracker(t),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-			false,
-		},
-		{
 			"slow stateless syncall",
 			args{
 				[]cid.Cid{
@@ -557,27 +417,6 @@ func TestPinTracker_SyncAll(t *testing.T) {
 					test.Cid2,
 				},
 				testSlowStatelessPinTracker(t),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-			false,
-		},
-		{
-			"slow map syncall",
-			args{
-				[]cid.Cid{
-					test.Cid1,
-					test.Cid2,
-				},
-				testSlowMapPinTracker(t),
 			},
 			[]*api.PinInfo{
 				{
@@ -651,18 +490,6 @@ func TestPinTracker_Sync(t *testing.T) {
 			false,
 		},
 		{
-			"basic map sync",
-			args{
-				test.Cid1,
-				testMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
-			false,
-		},
-		{
 			"slow stateless sync",
 			args{
 				test.Cid1,
@@ -674,31 +501,9 @@ func TestPinTracker_Sync(t *testing.T) {
 			},
 			false,
 		},
-		{
-			"slow map sync",
-			args{
-				test.Cid1,
-				testSlowMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
-			false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			switch tt.args.tracker.(type) {
-			case *maptracker.MapPinTracker:
-				// the Track preps the internal map of the MapPinTracker; not required by the Stateless impl
-				pin := api.PinWithOpts(test.Cid1, pinOpts)
-				if err := tt.args.tracker.Track(context.Background(), pin); err != nil {
-					t.Errorf("PinTracker.Track() error = %v", err)
-				}
-				time.Sleep(1 * time.Second)
-			}
-
 			got, err := tt.args.tracker.Sync(context.Background(), tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.Sync() error = %v, wantErr %v", err, tt.wantErr)
@@ -750,32 +555,9 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			},
 			false,
 		},
-		{
-			"basic map recoverall",
-			args{
-				testMapPinTracker(t),
-				api.PinWithOpts(test.Cid1, pinOpts),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-			false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			switch tt.args.tracker.(type) {
-			case *maptracker.MapPinTracker:
-				// the Track preps the internal map of the MapPinTracker; not required by the Stateless impl
-				if err := tt.args.tracker.Track(context.Background(), tt.args.pin); err != nil {
-					t.Errorf("PinTracker.Track() error = %v", err)
-				}
-				time.Sleep(1 * time.Second)
-			}
-
 			got, err := tt.args.tracker.RecoverAll(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.RecoverAll() error = %v, wantErr %v", err, tt.wantErr)
@@ -829,18 +611,6 @@ func TestPinTracker_Recover(t *testing.T) {
 			},
 			false,
 		},
-		{
-			"basic map recover",
-			args{
-				test.Cid1,
-				testMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
-			false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -873,18 +643,6 @@ func TestUntrackTrack(t *testing.T) {
 			args{
 				test.Cid1,
 				testStatelessPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
-			false,
-		},
-		{
-			"basic map untrack track",
-			args{
-				test.Cid1,
-				testMapPinTracker(t),
 			},
 			api.PinInfo{
 				Cid:    test.Cid1,
@@ -933,18 +691,6 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 			},
 			false,
 		},
-		{
-			"slow map tracker untrack w/ cancel",
-			args{
-				test.SlowCid1,
-				testSlowMapPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.SlowCid1,
-				Status: api.TrackerStatusPinned,
-			},
-			false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -970,8 +716,6 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 				}()
 				var ctx context.Context
 				switch trkr := tt.args.tracker.(type) {
-				case *maptracker.MapPinTracker:
-					ctx = trkr.OpContext(context.Background(), tt.args.c)
 				case *stateless.Tracker:
 					ctx = trkr.OpContext(context.Background(), tt.args.c)
 				}
@@ -1023,11 +767,6 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 			t.Error("Remote pin should not be in error")
 		}
 	}
-
-	t.Run("basic pintracker", func(t *testing.T) {
-		pt := testMapPinTracker(t)
-		testF(t, pt)
-	})
 
 	t.Run("stateless pintracker", func(t *testing.T) {
 		pt := testStatelessPinTracker(t)

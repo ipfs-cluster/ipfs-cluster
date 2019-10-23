@@ -28,7 +28,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -175,7 +174,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -201,7 +200,8 @@ func createComponents(
 
 	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
 	checkErr(t, err)
-	tracker := makePinTracker(t, ident.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
+
+	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername)
 
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
@@ -248,19 +248,6 @@ func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.P
 	default:
 		panic("bad consensus")
 	}
-}
-
-func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config, peerName string) PinTracker {
-	var ptrkr PinTracker
-	switch ptracker {
-	case "map":
-		ptrkr = maptracker.NewMapPinTracker(mptCfg, pid, peerName)
-	case "stateless":
-		ptrkr = stateless.New(sptCfg, pid, peerName)
-	default:
-		panic("bad pintracker")
-	}
-	return ptrkr
 }
 
 func createCluster(t *testing.T, host host.Host, dht *dht.IpfsDHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {

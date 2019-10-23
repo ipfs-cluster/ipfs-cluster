@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 )
 
@@ -31,7 +30,6 @@ type Configs struct {
 	Ipfshttp         *ipfshttp.Config
 	Raft             *raft.Config
 	Crdt             *crdt.Config
-	Maptracker       *maptracker.Config
 	Statelesstracker *stateless.Config
 	Pubsubmon        *pubsubmon.Config
 	Diskinf          *disk.Config
@@ -173,7 +171,6 @@ func (ch *ConfigHelper) init() {
 		Ipfshttp:         &ipfshttp.Config{},
 		Raft:             &raft.Config{},
 		Crdt:             &crdt.Config{},
-		Maptracker:       &maptracker.Config{},
 		Statelesstracker: &stateless.Config{},
 		Pubsubmon:        &pubsubmon.Config{},
 		Diskinf:          &disk.Config{},
@@ -185,7 +182,6 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.API, cfgs.Restapi)
 	man.RegisterComponent(config.API, cfgs.Ipfsproxy)
 	man.RegisterComponent(config.IPFSConn, cfgs.Ipfshttp)
-	man.RegisterComponent(config.PinTracker, cfgs.Maptracker)
 	man.RegisterComponent(config.PinTracker, cfgs.Statelesstracker)
 	man.RegisterComponent(config.Monitor, cfgs.Pubsubmon)
 	man.RegisterComponent(config.Informer, cfgs.Diskinf)
