@@ -1895,14 +1895,12 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 		logger.Error(err)
 		return nil, err
 	}
-	lenMembers := len(members)
 
-	repoGCsResp := make([]*api.RepoGC, lenMembers, lenMembers)
-	errs := make([]error, lenMembers, lenMembers)
-
-	for i, member := range members {
+	// to club `RepoGCLocal` responses of all peers into one
+	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
+	for _, member := range members {
 		var repoGC api.RepoGC
-		errs[i] = c.rpcClient.CallContext(
+		err = c.rpcClient.CallContext(
 			ctx,
 			member,
 			"Cluster",
@@ -1910,29 +1908,21 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 			struct{}{},
 			&repoGC,
 		)
-		repoGCsResp[i] = &repoGC
-	}
-
-	// clubbing `RepoGCLocal` responses of all peers into one
-	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
-	for i, resp := range repoGCsResp {
-		e := errs[i]
-
-		if e == nil {
-			globalRepoGC.PeerMap[peer.IDB58Encode(members[i])] = resp
+		if err == nil {
+			globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &repoGC
 			continue
 		}
 
-		if rpc.IsAuthorizationError(e) {
-			logger.Debug("rpc auth error:", e)
+		if rpc.IsAuthorizationError(err) {
+			logger.Debug("rpc auth error:", err)
 			continue
 		}
 
-		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
+		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, member, err)
 
-		globalRepoGC.PeerMap[peer.IDB58Encode(members[i])] = &api.RepoGC{
-			Peer:     members[i],
-			Peername: peer.IDB58Encode(members[i]),
+		globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &api.RepoGC{
+			Peer:     member,
+			Peername: peer.IDB58Encode(member),
 			Keys:     []api.IPFSRepoGC{},
 			Error:    err.Error(),
 		}
