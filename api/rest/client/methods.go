@@ -334,6 +334,16 @@ func (c *defaultClient) Metrics(ctx context.Context, name string) ([]*api.Metric
 	return metrics, err
 }
 
+// MetricNames lists names of all metrics.
+func (c *defaultClient) MetricNames(ctx context.Context) ([]string, error) {
+	ctx, span := trace.StartSpan(ctx, "client/MetricNames")
+	defer span.End()
+
+	var metricsNames []string
+	err := c.do(ctx, "GET", "/monitor/metrics", nil, nil, &metricsNames)
+	return metricsNames, err
+}
+
 // WaitFor is a utility function that allows for a caller to wait for a
 // paticular status for a CID (as defined by StatusFilterParams).
 // It returns the final status for that CID and an error, if there was.

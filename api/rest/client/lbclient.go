@@ -369,6 +369,19 @@ func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api
 	return metrics, err
 }
 
+// MetricNames returns the list of metric types.
+func (lc *loadBalancingClient) MetricNames(ctx context.Context) ([]string, error) {
+	var metricNames []string
+	call := func(c Client) error {
+		var err error
+		metricNames, err = c.MetricNames(ctx)
+		return err
+	}
+
+	err := lc.retry(0, call)
+	return metricNames, err
+}
+
 // Add imports files to the cluster from the given paths. A path can
 // either be a local filesystem location or an web url (http:// or https://).
 // In the latter case, the destination will be downloaded with a GET request.

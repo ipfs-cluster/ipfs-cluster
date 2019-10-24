@@ -932,6 +932,8 @@ graph of the connections.  Output is a dot file encoding the cluster's connectio
 This commands displays the latest valid metrics of the given type logged
 by this peer for all current cluster peers.
 
+If no argument is provided, the command retrieves all currently existing metric types.
+
 Currently supported metrics depend on the informer component used,
 but usually are:
 
@@ -942,7 +944,9 @@ but usually are:
 					Action: func(c *cli.Context) error {
 						metric := c.Args().First()
 						if metric == "" {
-							checkErr("", errors.New("provide a metric name"))
+							resp, cerr := globalClient.MetricNames(ctx)
+							formatResponse(c, resp, cerr)
+							return nil
 						}
 
 						resp, cerr := globalClient.Metrics(ctx, metric)

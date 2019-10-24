@@ -119,6 +119,9 @@ type Client interface {
 	// Metrics returns a map with the latest metrics of matching name
 	// for the current cluster peers.
 	Metrics(ctx context.Context, name string) ([]*api.Metric, error)
+
+	// MetricNames returns the list of metric types.
+	MetricNames(ctx context.Context) ([]string, error)
 }
 
 // Config allows to configure the parameters to connect
