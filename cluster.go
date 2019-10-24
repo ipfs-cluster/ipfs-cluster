@@ -246,7 +246,6 @@ func (c *Cluster) syncWatcher() {
 	defer span.End()
 
 	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
-	syncTicker := time.NewTicker(c.config.IPFSSyncInterval)
 	recoverTicker := time.NewTicker(c.config.PinRecoverInterval)
 
 	for {
@@ -254,9 +253,6 @@ func (c *Cluster) syncWatcher() {
 		case <-stateSyncTicker.C:
 			logger.Debug("auto-triggering StateSync()")
 			c.StateSync(ctx)
-		case <-syncTicker.C:
-			logger.Debug("auto-triggering SyncAllLocal()")
-			c.SyncAllLocal(ctx)
 		case <-recoverTicker.C:
 			logger.Debug("auto-triggering RecoverAllLocal()")
 			c.RecoverAllLocal(ctx)
@@ -1061,48 +1057,6 @@ func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) *api.PinInfo {
 	return c.tracker.Status(ctx, h)
 }
 
-// SyncAll triggers SyncAllLocal() operations in all cluster peers, making sure
-// that the state of tracked items matches the state reported by the IPFS daemon
-// and returning the results as GlobalPinInfo. If an error happens, the slice
-// will contain as much information as could be fetched from the peers.
-func (c *Cluster) SyncAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
-	_, span := trace.StartSpan(ctx, "cluster/SyncAll")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	return c.globalPinInfoSlice(ctx, "Cluster", "SyncAllLocal")
-}
-
-// SyncAllLocal makes sure that the current state for all tracked items
-// in this peer matches the state reported by the IPFS daemon.
-//
-// SyncAllLocal returns the list of PinInfo that where updated because of
-// the operation, along with those in error states.
-func (c *Cluster) SyncAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
-	_, span := trace.StartSpan(ctx, "cluster/SyncAllLocal")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	syncedItems, err := c.tracker.SyncAll(ctx)
-	// Despite errors, tracker provides synced items that we can provide.
-	// They encapsulate the error.
-	if err != nil {
-		logger.Error("tracker.Sync() returned with error: ", err)
-		logger.Error("Is the ipfs daemon running?")
-	}
-	return syncedItems, err
-}
-
-// Sync triggers a SyncLocal() operation for a given Cid.
-// in all cluster peers.
-func (c *Cluster) Sync(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
-	_, span := trace.StartSpan(ctx, "cluster/Sync")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	return c.globalPinInfoCid(ctx, "Cluster", "SyncLocal", h)
-}
-
 // used for RecoverLocal and SyncLocal.
 func (c *Cluster) localPinInfoOp(
 	ctx context.Context,
@@ -1128,17 +1082,6 @@ func (c *Cluster) localPinInfoOp(
 	// return the last pInfo/err, should be the root Cid if everything ok
 	return pInfo, err
 
-}
-
-// SyncLocal performs a local sync operation for the given Cid. This will
-// tell the tracker to verify the status of the Cid against the IPFS daemon.
-// It returns the updated PinInfo for the Cid.
-func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo, err error) {
-	_, span := trace.StartSpan(ctx, "cluster/SyncLocal")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	return c.localPinInfoOp(ctx, h, c.tracker.Sync)
 }
 
 // RecoverAll triggers a RecoverAllLocal operation on all peer.

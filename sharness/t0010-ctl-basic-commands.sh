@@ -39,7 +39,6 @@ test_expect_success "cluster-ctl commands output looks good" '
     egrep -q "ipfs-cluster-ctl peers" commands.txt &&
     egrep -q "ipfs-cluster-ctl pin" commands.txt &&
     egrep -q "ipfs-cluster-ctl status" commands.txt &&
-    egrep -q "ipfs-cluster-ctl sync" commands.txt &&
     egrep -q "ipfs-cluster-ctl recover" commands.txt &&
     egrep -q "ipfs-cluster-ctl version" commands.txt &&
     egrep -q "ipfs-cluster-ctl commands" commands.txt

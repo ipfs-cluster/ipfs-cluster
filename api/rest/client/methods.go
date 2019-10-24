@@ -243,38 +243,6 @@ func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus,
 	return gpis, err
 }
 
-// Sync makes sure the state of a Cid corresponds to the state reported by
-// the ipfs daemon, and returns it. If local is true, this operation only
-// happens on the current peer, otherwise it happens on every cluster peer.
-func (c *defaultClient) Sync(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	ctx, span := trace.StartSpan(ctx, "client/Sync")
-	defer span.End()
-
-	var gpi api.GlobalPinInfo
-	err := c.do(
-		ctx,
-		"POST",
-		fmt.Sprintf("/pins/%s/sync?local=%t", ci.String(), local),
-		nil,
-		nil,
-		&gpi,
-	)
-	return &gpi, err
-}
-
-// SyncAll triggers Sync() operations for all tracked items. It only returns
-// informations for items that were de-synced or have an error state. If
-// local is true, the operation is limited to the current peer. Otherwise
-// it happens on every cluster peer.
-func (c *defaultClient) SyncAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error) {
-	ctx, span := trace.StartSpan(ctx, "client/SyncAll")
-	defer span.End()
-
-	var gpis []*api.GlobalPinInfo
-	err := c.do(ctx, "POST", fmt.Sprintf("/pins/sync?local=%t", local), nil, nil, &gpis)
-	return gpis, err
-}
-
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
