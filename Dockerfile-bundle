@@ -7,9 +7,15 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # This builder just builds the cluster binaries
 ENV GOPATH     /go
 ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
+ENV GO111MODULE on
+# ENV CGO_ENABLED 0
+ENV GOPROXY=https://proxy.golang.org
+
+COPY go.* go.* $SRC_PATH/
+WORKDIR $SRC_PATH
+RUN go mod download
 
 COPY . $SRC_PATH
-WORKDIR $SRC_PATH
 RUN make install
 
 #------------------------------------------------------
