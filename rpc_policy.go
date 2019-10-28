@@ -27,10 +27,6 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.StatusAll":          RPCClosed,
 	"Cluster.StatusAllLocal":     RPCClosed,
 	"Cluster.StatusLocal":        RPCClosed,
-	"Cluster.Sync":               RPCClosed,
-	"Cluster.SyncAll":            RPCClosed,
-	"Cluster.SyncAllLocal":       RPCTrusted, // Called in broadcast from SyncAll()
-	"Cluster.SyncLocal":          RPCTrusted, // Called in broadcast from Sync()
 	"Cluster.Unpin":              RPCClosed,
 	"Cluster.UnpinPath":          RPCClosed,
 	"Cluster.Version":            RPCOpen,

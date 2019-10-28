@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/state"
+
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/util"
@@ -34,6 +36,8 @@ type Tracker struct {
 
 	ctx    context.Context
 	cancel func()
+
+	state state.ReadOnly
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
@@ -216,6 +220,11 @@ func (spt *Tracker) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// SetState sets the readonly part of cluster shared state.
+func (spt *Tracker) SetState(state state.ReadOnly) {
+	spt.state = state
+}
+
 // Track tells the StatelessPinTracker to start managing a Cid,
 // possibly triggering Pin operations on the IPFS daemon.
 func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
@@ -301,14 +310,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 	// check global state to see if cluster should even be caring about
 	// the provided cid
-	var gpin api.Pin
-	err := spt.rpcClient.Call(
-		"",
-		"Cluster",
-		"PinGet",
-		c,
-		&gpin,
-	)
+	gpin, err := spt.state.Get(ctx, c)
 	if err != nil {
 		if rpc.IsRPCError(err) {
 			logger.Error(err)
@@ -461,15 +463,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	pininfos := make(map[string]*api.PinInfo)
 
 	// get shared state
-	var statePins []*api.Pin
-	err := spt.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Pins",
-		struct{}{},
-		&statePins,
-	)
+	statePins, err := spt.state.List(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
