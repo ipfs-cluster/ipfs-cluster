@@ -1623,22 +1623,17 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
-	pin := &api.GlobalPinInfo{
+	pin, err := c.PinGet(ctx, h)
+	if err != nil {
+		return nil, err
+	}
+
+	gpin := &api.GlobalPinInfo{
 		Cid:     h,
 		PeerMap: make(map[string]*api.PinInfo),
 	}
 
-	var members []peer.ID
-	var err error
-	if c.config.FollowerMode {
-		members = []peer.ID{c.host.ID()}
-	} else {
-		members, err = c.consensus.Peers(ctx)
-		if err != nil {
-			logger.Error(err)
-			return nil, err
-		}
-	}
+	members := pin.Allocations
 	lenMembers := len(members)
 
 	replies := make([]*api.PinInfo, lenMembers, lenMembers)
@@ -1659,7 +1654,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			pin.PeerMap[peer.IDB58Encode(members[i])] = r
+			gpin.PeerMap[peer.IDB58Encode(members[i])] = r
 			continue
 		}
 
@@ -1670,7 +1665,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
-		pin.PeerMap[peer.IDB58Encode(members[i])] = &api.PinInfo{
+		gpin.PeerMap[peer.IDB58Encode(members[i])] = &api.PinInfo{
 			Cid:      h,
 			Peer:     members[i],
 			PeerName: members[i].String(),
@@ -1680,7 +1675,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		}
 	}
 
-	return pin, nil
+	return gpin, nil
 }
 
 func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) ([]*api.GlobalPinInfo, error) {
