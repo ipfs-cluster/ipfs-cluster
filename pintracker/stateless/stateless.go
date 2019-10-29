@@ -25,6 +25,8 @@ import (
 
 var logger = logging.Logger("pintracker")
 
+var errNoState = errors.New("no state has been agreed upon yet")
+
 // Tracker uses the optracker.OperationTracker to manage
 // transitioning shared ipfs-cluster state (Pins) to the local IPFS node.
 type Tracker struct {
@@ -308,6 +310,11 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		return oppi
 	}
 
+	if spt.state == nil {
+		logger.Error(errNoState)
+		return nil
+	}
+
 	// check global state to see if cluster should even be caring about
 	// the provided cid
 	gpin, err := spt.state.Get(ctx, c)
@@ -459,6 +466,10 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/localStatus")
 	defer span.End()
+
+	if spt.state == nil {
+		return nil, errNoState
+	}
 
 	pininfos := make(map[string]*api.PinInfo)
 

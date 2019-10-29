@@ -463,6 +463,7 @@ func (cc *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 
 	st, err := cc.consensus.GetLogHead()
 	if err == libp2praft.ErrNoState {
+		fmt.Println("yes")
 		return state.Empty(), nil
 	}
 

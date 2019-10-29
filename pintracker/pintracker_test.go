@@ -117,12 +117,65 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 	})
 }
 
+type mockState struct {
+	slow bool
+}
+
+func (st mockState) List(ctx context.Context) ([]*api.Pin, error) {
+	if st.slow {
+		return []*api.Pin{
+			api.PinWithOpts(test.Cid1, pinOpts),
+			api.PinWithOpts(test.Cid3, pinOpts),
+		}, nil
+	}
+	return []*api.Pin{
+		api.PinWithOpts(test.Cid1, pinOpts),
+		api.PinCid(test.Cid2),
+		api.PinWithOpts(test.Cid3, pinOpts),
+	}, nil
+}
+
+func (st mockState) Has(context.Context, cid.Cid) (bool, error) {
+	return false, nil
+}
+
+func (st mockState) Get(ctx context.Context, in cid.Cid) (*api.Pin, error) {
+	if st.slow {
+		switch in.String() {
+		case test.ErrorCid.String():
+			return nil, errors.New("expected error when using ErrorCid")
+		case test.Cid1.String(), test.Cid2.String():
+			pin := api.PinWithOpts(in, pinOpts)
+			return pin, nil
+		}
+		return api.PinCid(in), nil
+	}
+
+	switch in.String() {
+	case test.ErrorCid.String():
+		return nil, errors.New("this is an expected error when using ErrorCid")
+	case test.Cid1.String(), test.Cid3.String():
+		p := api.PinCid(in)
+		p.ReplicationFactorMin = -1
+		p.ReplicationFactorMax = -1
+		return p, nil
+	case test.Cid2.String(): // This is a remote pin
+		p := api.PinCid(in)
+		p.ReplicationFactorMin = 1
+		p.ReplicationFactorMax = 1
+		return p, nil
+	default:
+		return nil, errors.New("not found")
+	}
+}
+
 func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	mpt := stateless.New(cfg, test.PeerID1, test.PeerName1)
-	mpt.SetClient(mockRPCClient(t))
-	return mpt
+	spt := stateless.New(cfg, test.PeerID1, test.PeerName1)
+	spt.SetClient(mockRPCClient(t))
+	spt.SetState(mockState{slow: true})
+	return spt
 }
 
 func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
@@ -130,6 +183,7 @@ func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg.Default()
 	spt := stateless.New(cfg, test.PeerID1, test.PeerName1)
 	spt.SetClient(test.NewMockRPCClient(t))
+	spt.SetState(mockState{})
 	return spt
 }
 
@@ -602,22 +656,7 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Sync triggers IPFSPinLs which will return an error
-		// (see mock)
-		pi, err := pt.Sync(ctx, remoteCid)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if pi.Status != api.TrackerStatusRemote || pi.Error != "" {
-			t.Error("Remote pin should not be in error")
-		}
-
-		pi = pt.Status(ctx, remoteCid)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		pi := pt.Status(ctx, remoteCid)
 		if pi.Status != api.TrackerStatusRemote || pi.Error != "" {
 			t.Error("Remote pin should not be in error")
 		}
