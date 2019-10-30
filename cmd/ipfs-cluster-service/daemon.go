@@ -141,9 +141,6 @@ func createCluster(
 	connector, err := ipfshttp.NewConnector(cfgs.Ipfshttp)
 	checkErr("creating IPFS Connector component", err)
 
-	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername)
-	logger.Debug("stateless pintracker loaded")
-
 	informer, err := disk.NewInformer(cfgs.Diskinf)
 	checkErr("creating disk informer", err)
 	alloc := descendalloc.NewAllocator()
@@ -175,6 +172,9 @@ func createCluster(
 	if cfgHelper.GetConsensus() == cfgs.Raft.ConfigKey() {
 		peersF = cons.Peers
 	}
+
+	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername, cons)
+	logger.Debug("stateless pintracker loaded")
 
 	mon, err := pubsubmon.New(ctx, cfgs.Pubsubmon, pubsub, peersF)
 	if err != nil {

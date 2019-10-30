@@ -9,8 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/state"
-
+	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/util"
@@ -34,12 +33,13 @@ type Tracker struct {
 
 	optracker *optracker.OperationTracker
 
-	peerID peer.ID
+	peerID   peer.ID
+	peerName string
 
 	ctx    context.Context
 	cancel func()
 
-	state state.ReadOnly
+	consensus ipfscluster.Consensus
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
@@ -53,14 +53,16 @@ type Tracker struct {
 }
 
 // New creates a new StatelessPinTracker.
-func New(cfg *Config, pid peer.ID, peerName string) *Tracker {
+func New(cfg *Config, pid peer.ID, peerName string, cons ipfscluster.Consensus) *Tracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	spt := &Tracker{
 		config:    cfg,
 		peerID:    pid,
+		peerName:  peerName,
 		ctx:       ctx,
 		cancel:    cancel,
+		consensus: cons,
 		optracker: optracker.NewOperationTracker(ctx, pid, peerName),
 		rpcReady:  make(chan struct{}, 1),
 		pinCh:     make(chan *optracker.Operation, cfg.MaxPinQueueSize),
@@ -222,11 +224,6 @@ func (spt *Tracker) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// SetState sets the readonly part of cluster shared state.
-func (spt *Tracker) SetState(state state.ReadOnly) {
-	spt.state = state
-}
-
 // Track tells the StatelessPinTracker to start managing a Cid,
 // possibly triggering Pin operations on the IPFS daemon.
 func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
@@ -310,51 +307,56 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		return oppi
 	}
 
-	if spt.state == nil {
-		logger.Error(errNoState)
+	state, err := spt.consensus.State(ctx)
+	if err != nil {
+		logger.Error(err)
 		return nil
 	}
 
 	// check global state to see if cluster should even be caring about
 	// the provided cid
-	gpin, err := spt.state.Get(ctx, c)
+	gpin, err := state.Get(ctx, c)
 	if err != nil {
 		if rpc.IsRPCError(err) {
 			logger.Error(err)
 			return &api.PinInfo{
-				Cid:    c,
-				Peer:   spt.peerID,
-				Status: api.TrackerStatusClusterError,
-				Error:  err.Error(),
-				TS:     time.Now(),
+				Cid:      c,
+				Peer:     spt.peerID,
+				PeerName: spt.peerName,
+				Status:   api.TrackerStatusClusterError,
+				Error:    err.Error(),
+				TS:       time.Now(),
 			}
 		}
 		// not part of global state. we should not care about
 		return &api.PinInfo{
-			Cid:    c,
-			Peer:   spt.peerID,
-			Status: api.TrackerStatusUnpinned,
-			TS:     time.Now(),
+			Cid:      c,
+			Peer:     spt.peerID,
+			PeerName: spt.peerName,
+			Status:   api.TrackerStatusUnpinned,
+			TS:       time.Now(),
 		}
 	}
 
 	// check if pin is a meta pin
 	if gpin.Type == api.MetaType {
 		return &api.PinInfo{
-			Cid:    c,
-			Peer:   spt.peerID,
-			Status: api.TrackerStatusSharded,
-			TS:     time.Now(),
+			Cid:      c,
+			Peer:     spt.peerID,
+			PeerName: spt.peerName,
+			Status:   api.TrackerStatusSharded,
+			TS:       time.Now(),
 		}
 	}
 
 	// check if pin is a remote pin
 	if gpin.IsRemotePin(spt.peerID) {
 		return &api.PinInfo{
-			Cid:    c,
-			Peer:   spt.peerID,
-			Status: api.TrackerStatusRemote,
-			TS:     time.Now(),
+			Cid:      c,
+			Peer:     spt.peerID,
+			PeerName: spt.peerName,
+			Status:   api.TrackerStatusRemote,
+			TS:       time.Now(),
 		}
 	}
 
@@ -373,10 +375,11 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	}
 
 	return &api.PinInfo{
-		Cid:    c,
-		Peer:   spt.peerID,
-		Status: ips.ToTrackerStatus(),
-		TS:     time.Now(),
+		Cid:      c,
+		Peer:     spt.peerID,
+		PeerName: spt.peerName,
+		Status:   ips.ToTrackerStatus(),
+		TS:       time.Now(),
 	}
 }
 
@@ -450,10 +453,11 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 			continue
 		}
 		p := &api.PinInfo{
-			Cid:    c,
-			Peer:   spt.peerID,
-			Status: ips.ToTrackerStatus(),
-			TS:     time.Now(),
+			Cid:      c,
+			Peer:     spt.peerID,
+			PeerName: spt.peerName,
+			Status:   ips.ToTrackerStatus(),
+			TS:       time.Now(),
 		}
 		pins[cidstr] = p
 	}
@@ -467,14 +471,16 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/localStatus")
 	defer span.End()
 
-	if spt.state == nil {
-		return nil, errNoState
+	state, err := spt.consensus.State(ctx)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
 	}
 
 	pininfos := make(map[string]*api.PinInfo)
 
 	// get shared state
-	statePins, err := spt.state.List(ctx)
+	statePins, err := state.List(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -492,10 +498,11 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		if p.Type == api.MetaType && incExtra {
 			// add pin to pininfos with sharded status
 			pininfos[pCid] = &api.PinInfo{
-				Cid:    p.Cid,
-				Peer:   spt.peerID,
-				Status: api.TrackerStatusSharded,
-				TS:     time.Now(),
+				Cid:      p.Cid,
+				Peer:     spt.peerID,
+				PeerName: spt.peerName,
+				Status:   api.TrackerStatusSharded,
+				TS:       time.Now(),
 			}
 			continue
 		}
@@ -503,10 +510,11 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		if p.IsRemotePin(spt.peerID) && incExtra {
 			// add pin to pininfos with a status of remote
 			pininfos[pCid] = &api.PinInfo{
-				Cid:    p.Cid,
-				Peer:   spt.peerID,
-				Status: api.TrackerStatusRemote,
-				TS:     time.Now(),
+				Cid:      p.Cid,
+				Peer:     spt.peerID,
+				PeerName: spt.peerName,
+				Status:   api.TrackerStatusRemote,
+				TS:       time.Now(),
 			}
 			continue
 		}

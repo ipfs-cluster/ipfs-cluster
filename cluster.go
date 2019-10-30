@@ -589,14 +589,6 @@ This might be due to one or several causes:
 		c.Shutdown(ctx)
 		return
 	case <-c.consensus.Ready(ctx):
-		readOnly, err := c.consensus.State(ctx)
-		if err != nil {
-			logger.Error(err)
-			c.Shutdown(ctx)
-			return
-		}
-
-		c.tracker.SetState(readOnly)
 		// Consensus ready means the state is up to date so we can sync
 		// it to the tracker. We ignore errors (normal when state
 		// doesn't exist in new peers).
