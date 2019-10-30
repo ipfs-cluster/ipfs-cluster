@@ -24,8 +24,6 @@ import (
 
 var logger = logging.Logger("pintracker")
 
-var errNoState = errors.New("no state has been agreed upon yet")
-
 // Tracker uses the optracker.OperationTracker to manage
 // transitioning shared ipfs-cluster state (Pins) to the local IPFS node.
 type Tracker struct {
