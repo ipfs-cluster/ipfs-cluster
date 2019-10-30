@@ -63,11 +63,12 @@ var testingCrdtCfg = []byte(`{
     "rebroadcast_interval": "150ms"
 }`)
 
+// this config uses standard file IO for tables and logs
 var testingBadgerCfg = []byte(`{
     "folder": "badgerFromTests",
     "badger_options":{
-      "table_loading_mode": 1,
-      "value_log_loading_mode": 1,
+      "table_loading_mode": 0,
+      "value_log_loading_mode": 0
     }
 }`)
 

@@ -448,9 +448,13 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// pin the same number of Cids.
 	for i := 0; i < nClusters; i++ {
 		h, err := prefix.Sum(randomBytes())
-		checkErr(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		_, err = chosen.Pin(ctx, h, api.PinOptions{})
-		checkErr(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		ttlDelay()
 	}
 
