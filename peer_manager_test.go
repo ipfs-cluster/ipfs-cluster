@@ -15,6 +15,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -45,28 +46,33 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.ListenAddr = listen
 	cfg.Secret = testingClusterSecret
 
-	// Create a bootstrapping libp2p host
-	h, _, dht, err := NewClusterHost(context.Background(), ident, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	h, _, idht := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)
 
-	// Connect all peers to that host. This will allow that they
-	// can discover each others via DHT.
+	// Connect host to all peers. This will allow that they can discover
+	// each others via DHT.
 	for i := 0; i < nClusters; i++ {
-		err := cls[i].host.Connect(
+		err := h.Connect(
 			context.Background(),
 			peer.AddrInfo{
-				ID:    h.ID(),
-				Addrs: h.Addrs(),
+				ID:    cls[i].host.ID(),
+				Addrs: cls[i].host.Addrs(),
 			},
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	dht.Bootstrap(context.Background())
+	ctx := context.Background()
+	dhtCfg := dht.BootstrapConfig{
+		Queries: 1,
+		Period:  600 * time.Millisecond,
+		Timeout: 300 * time.Millisecond,
+	}
 
+	idht.BootstrapWithConfig(ctx, dhtCfg)
+	for _, c := range cls {
+		c.dht.BootstrapWithConfig(ctx, dhtCfg)
+	}
 	return cls, mocks, h
 }
 

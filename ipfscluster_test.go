@@ -322,7 +322,7 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 
 	// DHT needs to be created BEFORE connecting the peers, but
 	// bootstrapped AFTER
-	d, err := newDHT(ctx, h)
+	d, err := newTestDHT(ctx, h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,6 +334,15 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 		t.Fatal(err)
 	}
 	return routedHost(h, d), psub, d
+}
+
+func newTestDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {
+	return newDHT(ctx, h)
+	// TODO: when new dht options are released
+	// return dht.New(ctx, h, dhtopts.Bootstrap(dhtopts.BootstrapConfig{
+	// 	Timeout:           300 * time.Millisecond,
+	// 	SelfQueryInterval: 300 * time.Millisecond,
+	// }))
 }
 
 func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
