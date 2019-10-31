@@ -70,9 +70,6 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	}
 
 	idht.BootstrapWithConfig(ctx, dhtCfg)
-	for _, c := range cls {
-		c.dht.BootstrapWithConfig(ctx, dhtCfg)
-	}
 	return cls, mocks, h
 }
 

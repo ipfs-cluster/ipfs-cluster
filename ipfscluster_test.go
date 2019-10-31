@@ -693,7 +693,14 @@ func TestClustersPin(t *testing.T) {
 			t.Errorf("error unpinning %s: %s", pinList[i].Cid, err)
 		}
 	}
-	delay()
+
+	switch consensus {
+	case "crdt":
+		time.Sleep(20 * time.Second)
+	default:
+		delay()
+	}
+
 	for i := 0; i < len(pinList); i++ {
 		j := rand.Intn(nClusters) // choose a random cluster peer
 		_, err := clusters[j].Unpin(ctx, pinList[i].Cid)
@@ -703,6 +710,7 @@ func TestClustersPin(t *testing.T) {
 	}
 
 	delay()
+
 	funpinned := func(t *testing.T, c *Cluster) {
 		status := c.tracker.StatusAll(ctx)
 		for _, v := range status {
