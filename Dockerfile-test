@@ -6,14 +6,13 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 ENV GOPATH     /go
 ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
 ENV GO111MODULE on
-# ENV CGO_ENABLED 0
 ENV GOPROXY=https://proxy.golang.org
 
 RUN cd /tmp && \
     wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 && \
     chmod +x jq-linux64
 
-COPY go.* go.* $SRC_PATH/
+COPY go.* $SRC_PATH/
 WORKDIR $SRC_PATH
 RUN go mod download
 
