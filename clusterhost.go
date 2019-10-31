@@ -17,7 +17,8 @@ import (
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
-	tls "github.com/libp2p/go-libp2p-tls"
+	secio "github.com/libp2p/go-libp2p-secio"
+	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 
@@ -38,12 +39,15 @@ func NewClusterHost(
 		relayOpts = append(relayOpts, relay.OptHop)
 	}
 
+	var idht *dht.IpfsDHT
+	var err error
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
 		libp2p.NATPortMap(),
 		libp2p.ConnectionManager(connman),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			return dht.New(ctx, h)
+			idht, err = newDHT(ctx, h)
+			return idht, err
 		}),
 		libp2p.EnableRelay(relayOpts...),
 		libp2p.EnableAutoRelay(),
@@ -65,13 +69,7 @@ func NewClusterHost(
 		return nil, nil, nil, err
 	}
 
-	idht, err := newDHT(ctx, h)
-	if err != nil {
-		h.Close()
-		return nil, nil, nil, err
-	}
-
-	return routedHost(h, idht), psub, idht, nil
+	return h, psub, idht, nil
 }
 
 func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...libp2p.Option) (host.Host, error) {
@@ -91,8 +89,14 @@ func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...li
 	finalOpts := []libp2p.Option{
 		libp2p.Identity(priv),
 		libp2p.PrivateNetwork(prot),
-		libp2p.Security(tls.ID, tls.New),
-		libp2p.ChainOptions(libp2p.Transport(libp2pquic.NewTransport), libp2p.DefaultTransports),
+		libp2p.ChainOptions(
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			libp2p.Security(secio.ID, secio.New),
+		),
+		libp2p.ChainOptions(
+			libp2p.Transport(libp2pquic.NewTransport),
+			libp2p.DefaultTransports,
+		),
 	}
 	finalOpts = append(finalOpts, opts...)
 

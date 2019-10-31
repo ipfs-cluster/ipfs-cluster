@@ -877,8 +877,8 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 
 	logger.Debugf("Join(%s)", addr)
 
-	// Add peer to peerstore so we can talk to it (and connect)
-	pid, err := c.peerManager.ImportPeer(addr, true, peerstore.PermanentAddrTTL)
+	// Add peer to peerstore so we can talk to it
+	pid, err := c.peerManager.ImportPeer(addr, false, peerstore.PermanentAddrTTL)
 	if err != nil {
 		return err
 	}
