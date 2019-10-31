@@ -371,12 +371,12 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
 		clusters[i] = createCluster(t, hosts[i], dhts[i], cfgs[i], stores[i], cons[i], apis[i], ipfss[i], trackers[i], mons[i], allocs[i], infs[i], tracers[i])
+		<-clusters[i].Ready()
 		err := clusters[i].Join(ctx, bootstrapAddr)
 		if err != nil {
 			logger.Error(err)
 			t.Fatal(err)
 		}
-		<-clusters[i].Ready()
 	}
 
 	// connect all hosts
