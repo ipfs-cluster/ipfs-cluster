@@ -22,6 +22,9 @@ env:
 jobs:
   include:
     - stage: "Testing stage"
+      name: "Raft"
+      script:
+        - go test -v -timeout 15m -run TestAdd -coverprofile=coverage.txt -covermode=atomic -loglevel info .
       name: "Tests (all modules) + Coverage"
       script:
         - go test -v -timeout 15m -coverprofile=coverage.txt -covermode=atomic ./...
