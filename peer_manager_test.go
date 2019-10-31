@@ -170,23 +170,24 @@ func TestClustersPeerAdd(t *testing.T) {
 func TestClustersJoinBadPeer(t *testing.T) {
 	ctx := context.Background()
 	clusters, mocks, boot := peerManagerClusters(t)
-	defer shutdownClusters(t, clusters, mocks)
+	defer shutdownClusters(t, clusters[0:1], mocks[0:1])
 	defer boot.Close()
+
+	addr := clusterAddr(clusters[1])
 
 	if len(clusters) < 2 {
 		t.Skip("need at least 2 nodes for this test")
 	}
 
-	addr := clusterAddr(clusters[1])
+	for _, c := range clusters[1:] {
+		c.Shutdown(ctx)
+	}
 
 	// We add a cluster that has been shutdown
 	// (closed transports)
-	clusters[1].Shutdown(ctx)
-
 	// Let the OS actually close the ports.
 	// Sometimes we hang otherwise.
 	delay()
-
 	err := clusters[0].Join(ctx, addr)
 	if err == nil {
 		t.Error("expected an error")
