@@ -247,9 +247,20 @@ func (c *Cluster) syncWatcher() {
 
 	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
 	recoverTicker := time.NewTicker(c.config.PinRecoverInterval)
+	setStateTicker := time.NewTicker(10 * time.Second)
 
 	for {
 		select {
+		case <-setStateTicker.C:
+			logger.Debug("setting state for pintracker")
+			cState, err := c.consensus.State(ctx)
+			if err != nil {
+				logger.Error(err)
+			}
+
+			if c.tracker.SetState(cState) {
+				setStateTicker.Stop()
+			}
 		case <-stateSyncTicker.C:
 			logger.Debug("auto-triggering StateSync()")
 			c.StateSync(ctx)
@@ -949,6 +960,8 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 // StateSync syncs the consensus state to the Pin Tracker, ensuring
 // that every Cid in the shared state is tracked and that the Pin Tracker
 // is not tracking more Cids than it should.
+// (Kishan: This should move to pin tracker as this is dependent on how pin
+// tracker is implemented)
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
 	defer span.End()

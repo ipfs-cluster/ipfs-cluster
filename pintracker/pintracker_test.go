@@ -122,6 +122,7 @@ func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg.Default()
 	spt := stateless.New(cfg, test.PeerID1, test.PeerName1)
 	spt.SetClient(mockRPCClient(t))
+	spt.SetState(stateless.NewMockState(true))
 	return spt
 }
 
@@ -130,6 +131,7 @@ func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg.Default()
 	spt := stateless.New(cfg, test.PeerID1, test.PeerName1)
 	spt.SetClient(test.NewMockRPCClient(t))
+	spt.SetState(stateless.NewMockState(false))
 	return spt
 }
 
@@ -609,7 +611,7 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 	}
 
 	t.Run("stateless pintracker", func(t *testing.T) {
-		pt := testStatelessPinTracker(t)
+		pt := testSlowStatelessPinTracker(t)
 		testF(t, pt)
 	})
 }

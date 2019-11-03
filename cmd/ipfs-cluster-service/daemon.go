@@ -173,7 +173,7 @@ func createCluster(
 		peersF = cons.Peers
 	}
 
-	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername, cons)
+	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername)
 	logger.Debug("stateless pintracker loaded")
 
 	mon, err := pubsubmon.New(ctx, cfgs.Pubsubmon, pubsub, peersF)
