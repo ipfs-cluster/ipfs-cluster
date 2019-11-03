@@ -12,7 +12,8 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/hashicorp/go-hclog v0.9.2
+	github.com/hashicorp/go-hclog v0.10.0
+	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v0.1.6
@@ -58,7 +59,7 @@ require (
 	github.com/libp2p/go-libp2p-protocol v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
 	github.com/libp2p/go-libp2p-quic-transport v0.1.2-0.20191002022633-7abc9ea246ad
-	github.com/libp2p/go-libp2p-raft v0.1.3
+	github.com/libp2p/go-libp2p-raft v0.1.4
 	github.com/libp2p/go-libp2p-secio v0.2.0
 	github.com/libp2p/go-libp2p-tls v0.1.2
 	github.com/libp2p/go-ws-transport v0.1.2
@@ -72,6 +73,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
+	github.com/whyrusleeping/go-logging v0.0.1 // indirect
 	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
 	go.opencensus.io v0.22.1
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
