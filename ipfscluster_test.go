@@ -297,9 +297,7 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	pubsubs := make([]*pubsub.PubSub, nClusters, nClusters)
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
-	// Avoid tcp+tls testing for the moment:
-	// https://github.com/libp2p/go-libp2p/issues/732
-	// tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
@@ -307,7 +305,7 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
