@@ -244,13 +244,8 @@ func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
 
 	logger.Debugf("tracking %s", c.Cid)
 
-	// Sharded pins are never pinned. A sharded pin cannot turn into
-	// something else or viceversa like it happens with Remote pins so
-	// we just track them.
+	// Sharded pins are never pinned, so do nothing.
 	if c.Type == api.MetaType {
-		// This doesn't do any action action at all and since it is already in phase done,
-		// it will get cleaned in 10 seconds anyway. So, why track this at all?
-		spt.optracker.TrackNewOperation(ctx, c, optracker.OperationShard, optracker.PhaseDone)
 		return nil
 	}
 
@@ -490,7 +485,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	// get shared state
 	var statePins []*api.Pin
 	var err error
-	if state.IsEmpty(spt.state) {
+	if spt.state == nil || state.IsEmpty(spt.state) {
 		err = spt.rpcClient.CallContext(
 			ctx,
 			"",

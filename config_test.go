@@ -31,7 +31,6 @@ var testingClusterCfg = []byte(`{
          "grace_period": "2m0s"
     },
     "state_sync_interval": "1m0s",
-    "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,
     "monitor_ping_interval": "350ms",
     "peer_watch_interval": "200ms",

@@ -967,66 +967,6 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	cState, err := c.consensus.State(ctx)
-	if err != nil {
-		return err
-	}
-
-	logger.Debug("syncing state to tracker")
-	clusterPins, err := cState.List(ctx)
-	if err != nil {
-		return err
-	}
-
-	trackedPins := c.tracker.StatusAll(ctx)
-	trackedPinsMap := make(map[string]struct{})
-	for _, tpin := range trackedPins {
-		trackedPinsMap[tpin.Cid.String()] = struct{}{}
-	}
-
-	// Track items which are not tracked
-	for _, pin := range clusterPins {
-		_, tracked := trackedPinsMap[pin.Cid.String()]
-		if !tracked {
-			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			err = c.tracker.Track(ctx, pin)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// a. Untrack items which should not be tracked
-	// b. Track items which should not be remote as local
-	// c. Track items which should not be local as remote
-	for _, p := range trackedPins {
-		pCid := p.Cid
-		currentPin, err := cState.Get(ctx, pCid)
-		if err != nil && err != state.ErrNotFound {
-			return err
-		}
-
-		if err == state.ErrNotFound {
-			logger.Debugf("StateSync: untracking %s: not part of shared state", pCid)
-			c.tracker.Untrack(ctx, pCid)
-			continue
-		}
-
-		allocatedHere := containsPeer(currentPin.Allocations, c.id) || currentPin.ReplicationFactorMin == -1
-
-		switch {
-		case p.Status == api.TrackerStatusRemote && allocatedHere:
-			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			err = c.tracker.Track(ctx, currentPin)
-		case p.Status == api.TrackerStatusPinned && !allocatedHere:
-			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			err = c.tracker.Track(ctx, currentPin)
-		}
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
