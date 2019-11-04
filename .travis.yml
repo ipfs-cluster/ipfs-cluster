@@ -24,7 +24,7 @@ jobs:
     - stage: "Testing stage"
       name: "Tests (all modules) + Coverage"
       script:
-        - go test -v -timeout 15m -coverprofile=coverage.txt -covermode=atomic ./...
+        - travis_wait go test -v -timeout 15m -coverprofile=coverage.txt -covermode=atomic ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
     - name: "Main Tests with crdt consensus"
