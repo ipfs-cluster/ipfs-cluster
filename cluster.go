@@ -1623,38 +1623,56 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
-	pin, err := c.PinGet(ctx, h)
-	if err != nil {
-		return nil, err
+	var dests []peer.ID
+	var err error
+	var allocatedEverywhere bool
+	if c.config.FollowerMode {
+		// during follower mode return status only on self peer
+		dests = []peer.ID{c.host.ID()}
+	} else {
+		pin, err := c.PinGet(ctx, h)
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
+		if len(pin.Allocations) > 0 {
+			dests = pin.Allocations
+		} else {
+			dests, err = c.consensus.Peers(ctx)
+			if err != nil {
+				logger.Error(err)
+				return nil, err
+			}
+			allocatedEverywhere = true
+		}
+
 	}
 
-	gpin := &api.GlobalPinInfo{
-		Cid:     h,
-		PeerMap: make(map[string]*api.PinInfo),
-	}
-
-	members := pin.Allocations
-	lenMembers := len(members)
-
-	replies := make([]*api.PinInfo, lenMembers, lenMembers)
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
+	lenDests := len(dests)
+	replies := make([]*api.PinInfo, lenDests, lenDests)
+	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenDests)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
-		members,
+		dests,
 		comp,
 		method,
 		h,
 		rpcutil.CopyPinInfoToIfaces(replies),
 	)
 
+	gpin := &api.GlobalPinInfo{
+		Cid:     h,
+		PeerMap: make(map[string]*api.PinInfo),
+	}
+
 	for i, r := range replies {
 		e := errs[i]
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.PeerMap[peer.IDB58Encode(members[i])] = r
+			gpin.PeerMap[peer.IDB58Encode(dests[i])] = r
 			continue
 		}
 
@@ -1664,14 +1682,41 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		}
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
-		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
-		gpin.PeerMap[peer.IDB58Encode(members[i])] = &api.PinInfo{
+		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
+		gpin.PeerMap[peer.IDB58Encode(dests[i])] = &api.PinInfo{
 			Cid:      h,
-			Peer:     members[i],
-			PeerName: members[i].String(),
+			Peer:     dests[i],
+			PeerName: dests[i].String(),
 			Status:   api.TrackerStatusClusterError,
 			TS:       time.Now(),
 			Error:    e.Error(),
+		}
+	}
+
+	if c.config.FollowerMode || allocatedEverywhere {
+		return gpin, nil
+	}
+
+	// set status remote on un-allocated peers
+	members, err := c.consensus.Peers(ctx)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+
+	for _, member := range members {
+		id := peer.IDB58Encode(member)
+		_, ok := gpin.PeerMap[id]
+		if ok {
+			continue
+		}
+
+		gpin.PeerMap[id] = &api.PinInfo{
+			Cid:      h,
+			Peer:     member,
+			PeerName: member.String(),
+			Status:   api.TrackerStatusRemote,
+			TS:       time.Now(),
 		}
 	}
 
