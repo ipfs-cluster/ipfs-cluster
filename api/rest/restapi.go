@@ -241,14 +241,10 @@ func (api *API) setupLibp2p() error {
 			context.Background(),
 			libp2p.Identity(api.config.PrivateKey),
 			libp2p.ListenAddrs([]ma.Multiaddr{api.config.Libp2pListenAddr}...),
-			libp2p.ChainOptions(
-				libp2p.Security(libp2ptls.ID, libp2ptls.New),
-				libp2p.Security(secio.ID, secio.New),
-			),
-			libp2p.ChainOptions(
-				libp2p.Transport(libp2pquic.NewTransport),
-				libp2p.DefaultTransports,
-			),
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			libp2p.Security(secio.ID, secio.New),
+			libp2p.Transport(libp2pquic.NewTransport),
+			libp2p.DefaultTransports,
 		)
 		if err != nil {
 			return err

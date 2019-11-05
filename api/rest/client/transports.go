@@ -68,14 +68,10 @@ func (c *defaultClient) enableLibp2p() error {
 
 	h, err := libp2p.New(c.ctx,
 		libp2p.PrivateNetwork(prot),
-		libp2p.ChainOptions(
-			libp2p.Security(libp2ptls.ID, libp2ptls.New),
-			libp2p.Security(secio.ID, secio.New),
-		),
-		libp2p.ChainOptions(
-			libp2p.Transport(libp2pquic.NewTransport),
-			libp2p.DefaultTransports,
-		),
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+		libp2p.Security(secio.ID, secio.New),
+		libp2p.Transport(libp2pquic.NewTransport),
+		libp2p.DefaultTransports,
 	)
 	if err != nil {
 		return err

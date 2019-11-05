@@ -9,7 +9,7 @@ import (
 	autonat "github.com/libp2p/go-libp2p-autonat-svc"
 	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
-	ipnet "github.com/libp2p/go-libp2p-core/pnet"
+	corepnet "github.com/libp2p/go-libp2p-core/pnet"
 	routing "github.com/libp2p/go-libp2p-core/routing"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
@@ -22,10 +22,11 @@ import (
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 
-// NewClusterHost creates a libp2p Host with the options from the provided
-// cluster configuration. Using that host, it creates pubsub and a DHT
-// instances, for shared use by all cluster components. The returned host uses
-// the DHT for routing. The resulting DHT is not bootstrapped.
+// NewClusterHost creates a fully-featured libp2p Host with the options from
+// the provided cluster configuration. Using that host, it creates pubsub and
+// a DHT instances, for shared use by all cluster components. The returned
+// host uses the DHT for routing. The resulting DHT is not bootstrapped. Relay
+// and AutoNATService are additionally setup for this host.
 func NewClusterHost(
 	ctx context.Context,
 	ident *config.Identity,
@@ -53,9 +54,14 @@ func NewClusterHost(
 		libp2p.EnableAutoRelay(),
 	}
 
+	prot, err := newProtector(cfg.Secret)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	h, err := newHost(
 		ctx,
-		cfg.Secret,
+		prot,
 		ident.PrivateKey,
 		opts...,
 	)
@@ -69,54 +75,55 @@ func NewClusterHost(
 		return nil, nil, nil, err
 	}
 
+	// needed for auto relay
+	_, err = autonat.NewAutoNATService(ctx, h, baseOpts(prot)...)
+	if err != nil {
+		h.Close()
+		return nil, nil, nil, err
+	}
+
 	return h, psub, idht, nil
 }
 
-func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...libp2p.Option) (host.Host, error) {
-	var prot ipnet.Protector
-	var err error
-
-	// Create protector if we have a secret.
-	if secret != nil && len(secret) > 0 {
-		var key [32]byte
-		copy(key[:], secret)
-		prot, err = pnet.NewV1ProtectorFromBytes(&key)
-		if err != nil {
-			return nil, err
-		}
+// newHost creates a base cluster host without dht, pubsub, relay or nat etc.
+// mostly used for testing.
+func newHost(ctx context.Context, prot corepnet.Protector, priv crypto.PrivKey, opts ...libp2p.Option) (host.Host, error) {
+	finalOpts := []libp2p.Option{
+		libp2p.Identity(priv),
 	}
-
-	// common options between libp2p host and autonat service
-	commonOpts := []libp2p.Option{
-		libp2p.PrivateNetwork(prot),
-		libp2p.ChainOptions(
-			libp2p.Security(libp2ptls.ID, libp2ptls.New),
-			libp2p.Security(secio.ID, secio.New),
-		),
-		libp2p.ChainOptions(
-			libp2p.Transport(libp2pquic.NewTransport),
-			libp2p.DefaultTransports,
-		),
-	}
-
-	hOpts := append([]libp2p.Option{libp2p.Identity(priv)}, commonOpts...)
-	hOpts = append(hOpts, opts...)
+	finalOpts = append(finalOpts, baseOpts(prot)...)
+	finalOpts = append(finalOpts, opts...)
 
 	h, err := libp2p.New(
 		ctx,
-		hOpts...,
+		finalOpts...,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	// need this for auto relay
-	_, err = autonat.NewAutoNATService(ctx, h, commonOpts...)
-	if err != nil {
-		return nil, err
+	return h, nil
+}
+
+func baseOpts(prot corepnet.Protector) []libp2p.Option {
+	return []libp2p.Option{
+		libp2p.PrivateNetwork(prot),
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+		libp2p.Security(secio.ID, secio.New),
+		libp2p.Transport(libp2pquic.NewTransport),
+		libp2p.DefaultTransports,
+	}
+}
+
+func newProtector(secret []byte) (corepnet.Protector, error) {
+	// Create protector if we have a secret.
+	if len(secret) == 0 {
+		return nil, nil
 	}
 
-	return h, nil
+	var key [32]byte
+	copy(key[:], secret)
+	return pnet.NewV1ProtectorFromBytes(&key)
 }
 
 func newDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {

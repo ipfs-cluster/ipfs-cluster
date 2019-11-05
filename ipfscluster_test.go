@@ -316,7 +316,12 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 
 func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen []ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 	ctx := context.Background()
-	h, err := newHost(ctx, clusterSecret, priv, libp2p.ListenAddrs(listen...))
+	prot, err := newProtector(clusterSecret)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := newHost(ctx, prot, priv, libp2p.ListenAddrs(listen...))
 	if err != nil {
 		t.Fatal(err)
 	}
