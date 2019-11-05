@@ -361,7 +361,7 @@ content.
 				},
 				cli.StringFlag{
 					Name:  "expire-in",
-					Usage: "Duration after which pin should be unpinned automatically",
+					Usage: "Duration after which the pin should be unpinned automatically",
 				},
 				cli.StringSliceFlag{
 					Name:  "metadata",

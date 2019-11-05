@@ -1366,6 +1366,10 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 		return err
 	}
 
+	if !pin.ExpireAt.IsZero() && pin.ExpireAt.Before(time.Now()) {
+		return errors.New("pin.ExpireAt set before current time")
+	}
+
 	existing, err := c.PinGet(ctx, pin.Cid)
 	if err != nil && err != state.ErrNotFound {
 		return err

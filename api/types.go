@@ -10,7 +10,6 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -32,6 +31,7 @@ import (
 	_ "github.com/multiformats/go-multiaddr-dns"
 
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 var logger = logging.Logger("apitypes")
@@ -591,24 +591,18 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 		var tm time.Time
 		err := tm.UnmarshalText([]byte(v))
 		if err != nil {
-			return fmt.Errorf("parameter expire-at invalid")
+			return errors.Wrap(err, "expire-at cannot be parsed")
 		}
-		if tm.Before(time.Now()) {
-			logger.Warning("expiry time is before current time")
-		} else {
-			po.ExpireAt = tm
-		}
+		po.ExpireAt = tm
 	} else if v = q.Get("expire-in"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
-			return errors.New("parameter expire-in invalid")
+			return errors.Wrap(err, "expire-in cannot be parsed")
 		}
-		if d < 1*time.Second {
-			logger.Warning("expire-in duration too small, less than 1 sec")
-			po.ExpireAt = unixZero
-		} else {
-			po.ExpireAt = time.Now().Add(d)
+		if d < time.Second {
+			return errors.New("expire-in duration too short")
 		}
+		po.ExpireAt = time.Now().Add(d)
 	}
 
 	po.Metadata = make(map[string]string)
@@ -723,7 +717,7 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 
 	var expireAtProto uint64
 	// Only set the protobuf field with non-zero times.
-	if !pin.ExpireAt.IsZero() {
+	if !(pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero)) {
 		expireAtProto = uint64(pin.ExpireAt.Unix())
 	}
 
@@ -873,7 +867,11 @@ func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 
 // ExpiredAt returns whether the pin has expired at the given time.
 func (pin *Pin) ExpiredAt(t time.Time) bool {
-	return !(pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero) || pin.ExpireAt.After(t))
+	if pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero) {
+		return false
+	}
+
+	return pin.ExpireAt.Before(t)
 }
 
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
