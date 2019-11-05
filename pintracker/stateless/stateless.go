@@ -229,11 +229,11 @@ func (spt *Tracker) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// SetState sets the pin state and returns true if state was not empty.
+// SetState sets the pin state and returns true if state was not empty or nil.
 func (spt *Tracker) SetState(st state.ReadOnly) bool {
 	spt.state = st
 
-	return !state.IsEmpty(st)
+	return !noState(st)
 }
 
 // Track tells the StatelessPinTracker to start managing a Cid,
@@ -329,10 +329,11 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 	// check global state to see if cluster should even be caring about
 	// the provided cid
-	var gpin *api.Pin
+	gpin := &api.Pin{}
 	var err error
-	if state.IsEmpty(spt.state) {
-		err = spt.rpcClient.Call(
+	if noState(spt.state) {
+		err = spt.rpcClient.CallContext(
+			ctx,
 			"",
 			"Cluster",
 			"PinGet",
@@ -376,7 +377,8 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 	// else attempt to get status from ipfs node
 	var ips api.IPFSPinStatus
-	err = spt.rpcClient.Call(
+	err = spt.rpcClient.CallContext(
+		ctx,
 		"",
 		"IPFSConnector",
 		"PinLsCid",
@@ -442,7 +444,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
 	defer span.End()
 
-	var ipsMap map[string]api.IPFSPinStatus
+	ipsMap := make(map[string]api.IPFSPinStatus)
 	err := spt.rpcClient.CallContext(
 		ctx,
 		"",
@@ -483,9 +485,9 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	defer span.End()
 
 	// get shared state
-	var statePins []*api.Pin
+	statePins := []*api.Pin{}
 	var err error
-	if spt.state == nil || state.IsEmpty(spt.state) {
+	if noState(spt.state) {
 		err = spt.rpcClient.CallContext(
 			ctx,
 			"",
@@ -548,4 +550,8 @@ func (spt *Tracker) getErrorsAll(ctx context.Context) []*api.PinInfo {
 // For testing purposes only.
 func (spt *Tracker) OpContext(ctx context.Context, c cid.Cid) context.Context {
 	return spt.optracker.OpContext(ctx, c)
+}
+
+func noState(st state.ReadOnly) bool {
+	return st == nil || state.IsEmpty(st)
 }
