@@ -51,21 +51,20 @@ require (
 	github.com/libp2p/go-libp2p-gostream v0.2.0
 	github.com/libp2p/go-libp2p-host v0.1.0
 	github.com/libp2p/go-libp2p-http v0.1.4
-	github.com/libp2p/go-libp2p-interface-pnet v0.1.0
 	github.com/libp2p/go-libp2p-kad-dht v0.2.1
 	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/libp2p/go-libp2p-pnet v0.1.0
 	github.com/libp2p/go-libp2p-protocol v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
-	github.com/libp2p/go-libp2p-quic-transport v0.1.2-0.20191002022633-7abc9ea246ad
+	github.com/libp2p/go-libp2p-quic-transport v0.2.0
 	github.com/libp2p/go-libp2p-raft v0.1.4
 	github.com/libp2p/go-libp2p-secio v0.2.0
 	github.com/libp2p/go-libp2p-tls v0.1.2
 	github.com/libp2p/go-ws-transport v0.1.2
 	github.com/multiformats/go-multiaddr v0.1.1
 	github.com/multiformats/go-multiaddr-dns v0.1.1
-	github.com/multiformats/go-multiaddr-net v0.1.0
+	github.com/multiformats/go-multiaddr-net v0.1.1
 	github.com/multiformats/go-multicodec v0.1.6
 	github.com/multiformats/go-multihash v0.0.8
 	github.com/pkg/errors v0.8.1
@@ -76,6 +75,7 @@ require (
 	github.com/whyrusleeping/go-logging v0.0.1 // indirect
 	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
 	go.opencensus.io v0.22.1
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )
