@@ -9,10 +9,10 @@ import (
 	autonat "github.com/libp2p/go-libp2p-autonat-svc"
 	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	ipnet "github.com/libp2p/go-libp2p-core/pnet"
 	routing "github.com/libp2p/go-libp2p-core/routing"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
-	ipnet "github.com/libp2p/go-libp2p-interface-pnet"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -86,8 +86,8 @@ func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...li
 		}
 	}
 
-	finalOpts := []libp2p.Option{
-		libp2p.Identity(priv),
+	// common options between libp2p host and autonat service
+	commonOpts := []libp2p.Option{
 		libp2p.PrivateNetwork(prot),
 		libp2p.ChainOptions(
 			libp2p.Security(libp2ptls.ID, libp2ptls.New),
@@ -98,18 +98,20 @@ func newHost(ctx context.Context, secret []byte, priv crypto.PrivKey, opts ...li
 			libp2p.DefaultTransports,
 		),
 	}
-	finalOpts = append(finalOpts, opts...)
+
+	hOpts := append([]libp2p.Option{libp2p.Identity(priv)}, commonOpts...)
+	hOpts = append(hOpts, opts...)
 
 	h, err := libp2p.New(
 		ctx,
-		finalOpts...,
+		hOpts...,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	// need this for auto relay
-	_, err = autonat.NewAutoNATService(ctx, h, libp2p.PrivateNetwork(prot))
+	_, err = autonat.NewAutoNATService(ctx, h, commonOpts...)
 	if err != nil {
 		return nil, err
 	}
