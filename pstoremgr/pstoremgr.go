@@ -15,7 +15,6 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
-	utils "github.com/ipfs/ipfs-cluster/utils"
 	host "github.com/libp2p/go-libp2p-core/host"
 	net "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -143,7 +142,7 @@ func (pm *Manager) filteredPeerAddrs(p peer.ID) []ma.Multiaddr {
 		return peerDNSAddrs
 	}
 
-	sort.Sort(utils.ByString(peerAddrs))
+	sort.Sort(byString(peerAddrs))
 	return peerAddrs
 }
 
@@ -397,3 +396,10 @@ func (ps *peerSort) Swap(i, j int) {
 	ps.pinfos[i] = pinfo2
 	ps.pinfos[j] = pinfo1
 }
+
+// byString can sort multiaddresses by its string
+type byString []ma.Multiaddr
+
+func (m byString) Len() int           { return len(m) }
+func (m byString) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+func (m byString) Less(i, j int) bool { return m[i].String() < m[j].String() }

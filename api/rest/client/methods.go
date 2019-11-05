@@ -78,14 +78,18 @@ func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions
 	ctx, span := trace.StartSpan(ctx, "client/Pin")
 	defer span.End()
 
+	query, err := opts.ToQuery()
+	if err != nil {
+		return nil, err
+	}
 	var pin api.Pin
-	err := c.do(
+	err = c.do(
 		ctx,
 		"POST",
 		fmt.Sprintf(
 			"/pins/%s?%s",
 			ci.String(),
-			opts.ToQuery(),
+			query,
 		),
 		nil,
 		nil,
@@ -119,14 +123,17 @@ func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOp
 	if err != nil {
 		return nil, err
 	}
-
+	query, err := opts.ToQuery()
+	if err != nil {
+		return nil, err
+	}
 	err = c.do(
 		ctx,
 		"POST",
 		fmt.Sprintf(
 			"/pins%s?%s",
 			ipfspath.String(),
-			opts.ToQuery(),
+			query,
 		),
 		nil,
 		nil,
@@ -572,7 +579,10 @@ func (c *defaultClient) AddMultiFile(
 
 	// This method must run with StreamChannels set.
 	params.StreamChannels = true
-	queryStr := params.ToQueryString()
+	queryStr, err := params.ToQueryString()
+	if err != nil {
+		return err
+	}
 
 	// our handler decodes an AddedOutput and puts it
 	// in the out channel.
@@ -589,7 +599,7 @@ func (c *defaultClient) AddMultiFile(
 		return nil
 	}
 
-	err := c.doStream(ctx,
+	err = c.doStream(ctx,
 		"POST",
 		"/add?"+queryStr,
 		headers,

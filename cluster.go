@@ -964,6 +964,7 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	}
 
 	logger.Debug("syncing state to tracker")
+	timeNow := time.Now()
 	clusterPins, err := cState.List(ctx)
 	if err != nil {
 		return err
@@ -987,9 +988,29 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		}
 	}
 
+	isClosest := func(cid.Cid) bool {
+		return false
+	}
+
+	if !c.config.FollowerMode {
+		trustedPeers, err := c.getTrustedPeers(ctx)
+		if err != nil {
+			return nil
+		}
+		checker := distanceChecker{
+			local:      c.id,
+			otherPeers: trustedPeers,
+			cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
+		}
+		isClosest = func(c cid.Cid) bool {
+			return checker.isClosest(c)
+		}
+	}
+
 	// a. Untrack items which should not be tracked
-	// b. Track items which should not be remote as local
-	// c. Track items which should not be local as remote
+	// b. Unpin items which have expired
+	// c. Track items which should not be remote as local
+	// d. Track items which should not be local as remote
 	for _, p := range trackedPins {
 		pCid := p.Cid
 		currentPin, err := cState.Get(ctx, pCid)
@@ -1003,22 +1024,37 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 			continue
 		}
 
-		allocatedHere := containsPeer(currentPin.Allocations, c.id) || currentPin.ReplicationFactorMin == -1
-
-		switch {
-		case p.Status == api.TrackerStatusRemote && allocatedHere:
-			logger.Debugf("StateSync: Tracking %s locally (currently remote)", pCid)
-			err = c.tracker.Track(ctx, currentPin)
-		case p.Status == api.TrackerStatusPinned && !allocatedHere:
-			logger.Debugf("StateSync: Tracking %s as remote (currently local)", pCid)
-			err = c.tracker.Track(ctx, currentPin)
+		if currentPin.ExpiredAt(timeNow) && isClosest(pCid) {
+			logger.Infof("Unpinning %s: pin expired at %s", pCid, currentPin.ExpireAt)
+			if _, err := c.Unpin(ctx, pCid); err != nil {
+				logger.Error(err)
+			}
+			continue
 		}
+
+		err = c.updateRemotePins(ctx, currentPin, p)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (c *Cluster) updateRemotePins(ctx context.Context, pin *api.Pin, p *api.PinInfo) error {
+	var err error
+	allocatedHere := pin.ReplicationFactorMin == -1 || containsPeer(pin.Allocations, c.id)
+
+	switch {
+	case p.Status == api.TrackerStatusRemote && allocatedHere:
+		logger.Debugf("StateSync: Tracking %s locally (currently remote)", p.Cid)
+		err = c.tracker.Track(ctx, pin)
+	case p.Status == api.TrackerStatusPinned && !allocatedHere:
+		logger.Debugf("StateSync: Tracking %s as remote (currently local)", p.Cid)
+		err = c.tracker.Track(ctx, pin)
+	}
+
+	return err
 }
 
 // StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.
@@ -1330,6 +1366,10 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 		return err
 	}
 
+	if !pin.ExpireAt.IsZero() && pin.ExpireAt.Before(time.Now()) {
+		return errors.New("pin.ExpireAt set before current time")
+	}
+
 	existing, err := c.PinGet(ctx, pin.Cid)
 	if err != nil && err != state.ErrNotFound {
 		return err
@@ -1617,6 +1657,25 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	}
 
 	return peers
+}
+
+// getTrustedPeers gives listed of trusted peers except the current peer.
+func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
+	peers, err := c.consensus.Peers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	trustedPeers := make([]peer.ID, 0, len(peers))
+
+	for _, p := range peers {
+		if p == c.id || !c.consensus.IsTrustedPeer(ctx, p) {
+			continue
+		}
+		trustedPeers = append(trustedPeers, p)
+	}
+
+	return trustedPeers, nil
 }
 
 func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h cid.Cid) (*api.GlobalPinInfo, error) {

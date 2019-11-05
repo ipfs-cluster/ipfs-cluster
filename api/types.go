@@ -10,7 +10,6 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -32,9 +31,12 @@ import (
 	_ "github.com/multiformats/go-multiaddr-dns"
 
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 var logger = logging.Logger("apitypes")
+
+var unixZero = time.Unix(0, 0)
 
 func init() {
 	// Use /p2p/ multiaddresses
@@ -464,6 +466,7 @@ type PinOptions struct {
 	Name                 string            `json:"name" codec:"n,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
 	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
+	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 	PinUpdate            cid.Cid           `json:"pin_update,omitempty" codec:"pu,omitempty"`
 }
@@ -510,6 +513,10 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 		return false
 	}
 
+	if !po.ExpireAt.Equal(po2.ExpireAt) {
+		return false
+	}
+
 	for k, v := range po.Metadata {
 		v2 := po2.Metadata[k]
 		if k != "" && v != v2 {
@@ -523,13 +530,20 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 }
 
 // ToQuery returns the PinOption as query arguments.
-func (po *PinOptions) ToQuery() string {
+func (po *PinOptions) ToQuery() (string, error) {
 	q := url.Values{}
 	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
 	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
 	q.Set("user-allocations", strings.Join(PeersToStrings(po.UserAllocations), ","))
+	if !po.ExpireAt.IsZero() {
+		v, err := po.ExpireAt.MarshalText()
+		if err != nil {
+			return "", err
+		}
+		q.Set("expire-at", string(v))
+	}
 	for k, v := range po.Metadata {
 		if k == "" {
 			continue
@@ -539,7 +553,7 @@ func (po *PinOptions) ToQuery() string {
 	if po.PinUpdate != cid.Undef {
 		q.Set("pin-update", po.PinUpdate.String())
 	}
-	return q.Encode()
+	return q.Encode(), nil
 }
 
 // FromQuery is the inverse of ToQuery().
@@ -571,6 +585,24 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 
 	if allocs := q.Get("user-allocations"); allocs != "" {
 		po.UserAllocations = StringsToPeers(strings.Split(allocs, ","))
+	}
+
+	if v := q.Get("expire-at"); v != "" {
+		var tm time.Time
+		err := tm.UnmarshalText([]byte(v))
+		if err != nil {
+			return errors.Wrap(err, "expire-at cannot be parsed")
+		}
+		po.ExpireAt = tm
+	} else if v = q.Get("expire-in"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return errors.Wrap(err, "expire-in cannot be parsed")
+		}
+		if d < time.Second {
+			return errors.New("expire-in duration too short")
+		}
+		po.ExpireAt = time.Now().Add(d)
 	}
 
 	po.Metadata = make(map[string]string)
@@ -683,6 +715,12 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		allocs[i] = bs
 	}
 
+	var expireAtProto uint64
+	// Only set the protobuf field with non-zero times.
+	if !(pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero)) {
+		expireAtProto = uint64(pin.ExpireAt.Unix())
+	}
+
 	opts := &pb.PinOptions{
 		ReplicationFactorMin: int32(pin.ReplicationFactorMin),
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
@@ -691,6 +729,7 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		// UserAllocations:      pin.UserAllocations,
 		Metadata:  pin.Metadata,
 		PinUpdate: pin.PinUpdate.Bytes(),
+		ExpireAt:  expireAtProto,
 	}
 
 	pbPin := &pb.Pin{
@@ -749,8 +788,11 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	pin.Name = opts.GetName()
 	pin.ShardSize = opts.GetShardSize()
 	// pin.UserAllocations = opts.GetUserAllocations()
+	t := opts.GetExpireAt()
+	if t > 0 {
+		pin.ExpireAt = time.Unix(int64(t), 0)
+	}
 	pin.Metadata = opts.GetMetadata()
-
 	pinUpdate, err := cid.Cast(opts.GetPinUpdate())
 	if err == nil {
 		pin.PinUpdate = pinUpdate
@@ -821,6 +863,15 @@ func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 		}
 	}
 	return true
+}
+
+// ExpiredAt returns whether the pin has expired at the given time.
+func (pin *Pin) ExpiredAt(t time.Time) bool {
+	if pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero) {
+		return false
+	}
+
+	return pin.ExpireAt.Before(t)
 }
 
 // NodeWithMeta specifies a block of data and a set of optional metadata fields

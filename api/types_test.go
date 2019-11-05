@@ -184,6 +184,7 @@ func TestPinOptionsQuery(t *testing.T) {
 				"QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc",
 				"QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6",
 			}),
+			ExpireAt: time.Now().Add(12 * time.Hour),
 			Metadata: map[string]string{
 				"hello":  "bye",
 				"hello2": "bye2",
@@ -210,7 +211,10 @@ func TestPinOptionsQuery(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		queryStr := tc.ToQuery()
+		queryStr, err := tc.ToQuery()
+		if err != nil {
+			t.Fatal("error converting to query", err)
+		}
 		q, err := url.ParseQuery(queryStr)
 		if err != nil {
 			t.Error("error parsing query", err)
