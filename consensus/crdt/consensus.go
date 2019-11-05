@@ -266,7 +266,8 @@ func (css *Consensus) setup() {
 	css.readyCh <- struct{}{}
 }
 
-// Shutdown closes this component, cancelling the pubsub subscription.
+// Shutdown closes this component, cancelling the pubsub subscription and
+// closing the datastore.
 func (css *Consensus) Shutdown(ctx context.Context) error {
 	css.shutdownLock.Lock()
 	defer css.shutdownLock.Unlock()

@@ -452,6 +452,25 @@ func TestMetrics(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func TestMetricNames(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		m, err := c.MetricNames(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(m) == 0 {
+			t.Fatal("No metric names found")
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
 type waitService struct {
 	l        sync.Mutex
 	pinStart time.Time

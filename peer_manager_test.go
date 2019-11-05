@@ -15,6 +15,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -45,28 +46,30 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.ListenAddr = listen
 	cfg.Secret = testingClusterSecret
 
-	// Create a bootstrapping libp2p host
-	h, _, dht, err := NewClusterHost(context.Background(), ident, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	h, _, idht := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)
 
-	// Connect all peers to that host. This will allow that they
-	// can discover each others via DHT.
+	// Connect host to all peers. This will allow that they can discover
+	// each others via DHT.
 	for i := 0; i < nClusters; i++ {
-		err := cls[i].host.Connect(
+		err := h.Connect(
 			context.Background(),
 			peer.AddrInfo{
-				ID:    h.ID(),
-				Addrs: h.Addrs(),
+				ID:    cls[i].host.ID(),
+				Addrs: cls[i].host.Addrs(),
 			},
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	dht.Bootstrap(context.Background())
+	ctx := context.Background()
+	dhtCfg := dht.BootstrapConfig{
+		Queries: 1,
+		Period:  600 * time.Millisecond,
+		Timeout: 300 * time.Millisecond,
+	}
 
+	idht.BootstrapWithConfig(ctx, dhtCfg)
 	return cls, mocks, h
 }
 
@@ -164,23 +167,24 @@ func TestClustersPeerAdd(t *testing.T) {
 func TestClustersJoinBadPeer(t *testing.T) {
 	ctx := context.Background()
 	clusters, mocks, boot := peerManagerClusters(t)
-	defer shutdownClusters(t, clusters, mocks)
+	defer shutdownClusters(t, clusters[0:1], mocks[0:1])
 	defer boot.Close()
+
+	addr := clusterAddr(clusters[1])
 
 	if len(clusters) < 2 {
 		t.Skip("need at least 2 nodes for this test")
 	}
 
-	addr := clusterAddr(clusters[1])
+	for _, c := range clusters[1:] {
+		c.Shutdown(ctx)
+	}
 
 	// We add a cluster that has been shutdown
 	// (closed transports)
-	clusters[1].Shutdown(ctx)
-
 	// Let the OS actually close the ports.
 	// Sometimes we hang otherwise.
 	delay()
-
 	err := clusters[0].Join(ctx, addr)
 	if err == nil {
 		t.Error("expected an error")
@@ -448,9 +452,13 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// pin the same number of Cids.
 	for i := 0; i < nClusters; i++ {
 		h, err := prefix.Sum(randomBytes())
-		checkErr(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		_, err = chosen.Pin(ctx, h, api.PinOptions{})
-		checkErr(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		ttlDelay()
 	}
 
