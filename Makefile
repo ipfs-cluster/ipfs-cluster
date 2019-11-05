@@ -14,7 +14,6 @@ install:
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
 
 build:
-	go build -ldflags "-X ipfscluster.Commit=$(shell git rev-parse HEAD)"
 	$(MAKE) -C cmd/ipfs-cluster-service build
 	$(MAKE) -C cmd/ipfs-cluster-ctl build
 

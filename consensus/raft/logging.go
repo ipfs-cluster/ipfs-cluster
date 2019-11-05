@@ -92,6 +92,10 @@ func (log *hcLogToLogger) IsError() bool {
 	return true
 }
 
+func (log *hcLogToLogger) Name() string {
+	return log.name
+}
+
 func (log *hcLogToLogger) With(args ...interface{}) hclog.Logger {
 	return &hcLogToLogger{extraArgs: args}
 }
@@ -111,6 +115,10 @@ func (log *hcLogToLogger) StandardLogger(opts *hclog.StandardLoggerOptions) *log
 }
 
 func (log *hcLogToLogger) StandardWriter(opts *hclog.StandardLoggerOptions) io.Writer {
+	return nil
+}
+
+func (log *hcLogToLogger) ImpliedArgs() []interface{} {
 	return nil
 }
 

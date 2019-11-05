@@ -1,8 +1,11 @@
 package ipfscluster
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+
+	blake2b "golang.org/x/crypto/blake2b"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -93,3 +96,53 @@ func minInt(x, y int) int {
 // 		pin.Parents.Add(c)
 // 	}
 // }
+
+type distance [blake2b.Size256]byte
+
+type distanceChecker struct {
+	local      peer.ID
+	otherPeers []peer.ID
+	cache      map[peer.ID]distance
+}
+
+func (dc distanceChecker) isClosest(ci cid.Cid) bool {
+	ciHash := convertKey(ci.KeyString())
+	localPeerHash := dc.convertPeerID(dc.local)
+	myDistance := xor(ciHash, localPeerHash)
+
+	for _, p := range dc.otherPeers {
+		peerHash := dc.convertPeerID(p)
+		distance := xor(peerHash, ciHash)
+
+		// if myDistance is larger than for other peers...
+		if bytes.Compare(myDistance[:], distance[:]) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// convertPeerID hashes a Peer ID (Multihash).
+func (dc distanceChecker) convertPeerID(id peer.ID) distance {
+	hash, ok := dc.cache[id]
+	if ok {
+		return hash
+	}
+
+	hashBytes := convertKey(string(id))
+	dc.cache[id] = hashBytes
+	return hashBytes
+}
+
+// convertKey hashes a key.
+func convertKey(id string) distance {
+	return blake2b.Sum256([]byte(id))
+}
+
+func xor(a, b distance) distance {
+	var c distance
+	for i := 0; i < len(c); i++ {
+		c[i] = a[i] ^ b[i]
+	}
+	return c
+}

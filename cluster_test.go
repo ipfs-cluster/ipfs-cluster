@@ -300,6 +300,21 @@ func TestClusterPin(t *testing.T) {
 	}
 }
 
+func TestPinExpired(t *testing.T) {
+	ctx := context.Background()
+	cl, _, _, _ := testingCluster(t)
+	defer cleanState()
+	defer cl.Shutdown(ctx)
+
+	c := test.Cid1
+	_, err := cl.Pin(ctx, c, api.PinOptions{
+		ExpireAt: time.Now(),
+	})
+	if err == nil {
+		t.Fatal("pin should have errored")
+	}
+}
+
 func TestClusterPinPath(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)

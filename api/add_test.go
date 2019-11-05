@@ -35,11 +35,13 @@ func TestAddParams_ToQueryString(t *testing.T) {
 	p.Name = "something"
 	p.RawLeaves = true
 	p.ShardSize = 1020
-	qstr := p.ToQueryString()
-
+	qstr, err := p.ToQueryString()
+	if err != nil {
+		t.Fatal(err)
+	}
 	q, err := url.ParseQuery(qstr)
 	if err != nil {
-		t.Fatal()
+		t.Fatal(err)
 	}
 
 	p2, err := AddParamsFromQuery(q)

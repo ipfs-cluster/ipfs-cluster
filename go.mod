@@ -4,14 +4,16 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/btcsuite/btcd v0.20.0-beta // indirect
 	github.com/dgraph-io/badger v1.6.0
 	github.com/dustin/go-humanize v1.0.0
-	github.com/gogo/protobuf v1.3.0
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
-	github.com/hashicorp/go-hclog v0.9.2
+	github.com/hashicorp/go-hclog v0.10.0
+	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v0.1.6
@@ -24,6 +26,7 @@ require (
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.2
 	github.com/ipfs/go-ipfs-chunker v0.0.1
+	github.com/ipfs/go-ipfs-config v0.0.11
 	github.com/ipfs/go-ipfs-ds-help v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.6
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
@@ -38,26 +41,30 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.4.0
+	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
+	github.com/libp2p/go-libp2p-circuit v0.1.3
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.2.3
+	github.com/libp2p/go-libp2p-core v0.2.4
 	github.com/libp2p/go-libp2p-crypto v0.1.0
 	github.com/libp2p/go-libp2p-gorpc v0.1.0
 	github.com/libp2p/go-libp2p-gostream v0.2.0
 	github.com/libp2p/go-libp2p-host v0.1.0
 	github.com/libp2p/go-libp2p-http v0.1.4
-	github.com/libp2p/go-libp2p-interface-pnet v0.1.0
 	github.com/libp2p/go-libp2p-kad-dht v0.2.1
 	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/libp2p/go-libp2p-pnet v0.1.0
 	github.com/libp2p/go-libp2p-protocol v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
-	github.com/libp2p/go-libp2p-raft v0.1.3
+	github.com/libp2p/go-libp2p-quic-transport v0.2.0
+	github.com/libp2p/go-libp2p-raft v0.1.4
+	github.com/libp2p/go-libp2p-secio v0.2.0
+	github.com/libp2p/go-libp2p-tls v0.1.2
 	github.com/libp2p/go-ws-transport v0.1.2
 	github.com/multiformats/go-multiaddr v0.1.1
 	github.com/multiformats/go-multiaddr-dns v0.1.1
-	github.com/multiformats/go-multiaddr-net v0.1.0
+	github.com/multiformats/go-multiaddr-net v0.1.1
 	github.com/multiformats/go-multicodec v0.1.6
 	github.com/multiformats/go-multihash v0.0.8
 	github.com/pkg/errors v0.8.1
@@ -65,8 +72,10 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
+	github.com/whyrusleeping/go-logging v0.0.1 // indirect
 	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
 	go.opencensus.io v0.22.1
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )

@@ -169,7 +169,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 	if err != nil {
 		return err
 	}
-
 	cfg.Default()
 
 	return cfg.applyJSONConfig(jcfg)
