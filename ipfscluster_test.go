@@ -297,14 +297,15 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	pubsubs := make([]*pubsub.PubSub, nClusters, nClusters)
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
-	listen, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, listen)
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -313,9 +314,14 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	return hosts, pubsubs, dhts
 }
 
-func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
+func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen []ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 	ctx := context.Background()
-	h, err := newHost(ctx, clusterSecret, priv, libp2p.ListenAddrs(listen))
+	prot, err := newProtector(clusterSecret)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := newHost(ctx, prot, priv, libp2p.ListenAddrs(listen...))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +382,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	clusters[0] = createCluster(t, hosts[0], dhts[0], cfgs[0], stores[0], cons[0], apis[0], ipfss[0], trackers[0], mons[0], allocs[0], infs[0], tracers[0])
 	<-clusters[0].Ready()
 	bootstrapAddr := clusterAddr(clusters[0])
-
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
 		clusters[i] = createCluster(t, hosts[i], dhts[i], cfgs[i], stores[i], cons[i], apis[i], ipfss[i], trackers[i], mons[i], allocs[i], infs[i], tracers[i])

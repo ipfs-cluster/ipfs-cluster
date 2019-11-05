@@ -13,6 +13,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	pnet "github.com/libp2p/go-libp2p-pnet"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -21,9 +22,12 @@ import (
 
 const configKey = "cluster"
 
+// DefaultListenAddrs contains TCP and QUIC listen addresses
+var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/9096/quic"}
+
 // Configuration defaults
 const (
-	DefaultListenAddr          = "/ip4/0.0.0.0/tcp/9096"
+	DefaultEnableRelayHop      = true
 	DefaultStateSyncInterval   = 600 * time.Second
 	DefaultIPFSSyncInterval    = 130 * time.Second
 	DefaultPinRecoverInterval  = 1 * time.Hour
@@ -73,7 +77,11 @@ type Config struct {
 
 	// Listen parameters for the Cluster libp2p Host. Used by
 	// the RPC and Consensus components.
-	ListenAddr ma.Multiaddr
+	ListenAddr []ma.Multiaddr
+
+	// Enables HOP relay for the node. If this is enabled, the node will act as
+	// an intermediate (Hop Relay) node in relay circuits for connected peers.
+	EnableRelayHop bool
 
 	// ConnMgr holds configuration values for the connection manager for
 	// the libp2p host.
@@ -160,7 +168,8 @@ type configJSON struct {
 	PrivateKey           string             `json:"private_key,omitempty"`
 	Secret               string             `json:"secret"`
 	LeaveOnShutdown      bool               `json:"leave_on_shutdown"`
-	ListenMultiaddress   string             `json:"listen_multiaddress"`
+	ListenMultiaddress   ipfsconfig.Strings `json:"listen_multiaddress"`
+	EnableRelayHop       bool               `json:"enable_relay_hop"`
 	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
 	StateSyncInterval    string             `json:"state_sync_interval"`
 	IPFSSyncInterval     string             `json:"ipfs_sync_interval"`
@@ -226,6 +235,10 @@ func (cfg *Config) ApplyEnvVars() error {
 func (cfg *Config) Validate() error {
 	if cfg.ListenAddr == nil {
 		return errors.New("cluster.listen_multiaddress is undefined")
+	}
+
+	if len(cfg.ListenAddr) == 0 {
+		return errors.New("cluster.listen_multiaddress is empty")
 	}
 
 	if cfg.ConnMgr.LowWater <= 0 {
@@ -334,8 +347,13 @@ func (cfg *Config) setDefaults() {
 	}
 	cfg.Peername = hostname
 
-	addr, _ := ma.NewMultiaddr(DefaultListenAddr)
-	cfg.ListenAddr = addr
+	listenAddrs := []ma.Multiaddr{}
+	for _, m := range DefaultListenAddrs {
+		addr, _ := ma.NewMultiaddr(m)
+		listenAddrs = append(listenAddrs, addr)
+	}
+	cfg.ListenAddr = listenAddrs
+	cfg.EnableRelayHop = DefaultEnableRelayHop
 	cfg.ConnMgr = ConnMgrConfig{
 		HighWater:   DefaultConnMgrHighWater,
 		LowWater:    DefaultConnMgrLowWater,
@@ -384,13 +402,18 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	}
 	cfg.Secret = clusterSecret
 
-	clusterAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
-	if err != nil {
-		err = fmt.Errorf("error parsing cluster_listen_multiaddress: %s", err)
-		return err
+	var listenAddrs []ma.Multiaddr
+	for _, addr := range jcfg.ListenMultiaddress {
+		listenAddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			err = fmt.Errorf("error parsing a listen_multiaddress: %s", err)
+			return err
+		}
+		listenAddrs = append(listenAddrs, listenAddr)
 	}
-	cfg.ListenAddr = clusterAddr
 
+	cfg.ListenAddr = listenAddrs
+	cfg.EnableRelayHop = jcfg.EnableRelayHop
 	if conman := jcfg.ConnectionManager; conman != nil {
 		cfg.ConnMgr = ConnMgrConfig{
 			HighWater: jcfg.ConnectionManager.HighWater,
@@ -455,7 +478,12 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.ReplicationFactorMin = cfg.ReplicationFactorMin
 	jcfg.ReplicationFactorMax = cfg.ReplicationFactorMax
 	jcfg.LeaveOnShutdown = cfg.LeaveOnShutdown
-	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
+	var listenAddrs ipfsconfig.Strings
+	for _, addr := range cfg.ListenAddr {
+		listenAddrs = append(listenAddrs, addr.String())
+	}
+	jcfg.ListenMultiaddress = ipfsconfig.Strings(listenAddrs)
+	jcfg.EnableRelayHop = cfg.EnableRelayHop
 	jcfg.ConnectionManager = &connMgrConfigJSON{
 		HighWater:   cfg.ConnMgr.HighWater,
 		LowWater:    cfg.ConnMgr.LowWater,

@@ -326,7 +326,9 @@ the peer IDs in the given multiaddresses.
 				if c.Bool("randomports") {
 					cfgs := cfgHelper.Configs()
 
-					cfgs.Cluster.ListenAddr, err = cmdutils.RandomizePorts(cfgs.Cluster.ListenAddr)
+					for i := range cfgs.Cluster.ListenAddr {
+						cfgs.Cluster.ListenAddr[i], err = cmdutils.RandomizePorts(cfgs.Cluster.ListenAddr[i])
+					}
 					checkErr("randomizing ports", err)
 					cfgs.Restapi.HTTPListenAddr, err = cmdutils.RandomizePorts(cfgs.Restapi.HTTPListenAddr)
 					checkErr("randomizing ports", err)
