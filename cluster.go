@@ -1682,18 +1682,46 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
+	gpin := &api.GlobalPinInfo{
+		Cid:     h,
+		PeerMap: make(map[string]*api.PinInfo),
+	}
 	var dests []peer.ID
 	var err error
 	var allocatedEverywhere bool
+
 	if c.config.FollowerMode {
 		// during follower mode return status only on self peer
 		dests = []peer.ID{c.host.ID()}
 	} else {
 		pin, err := c.PinGet(ctx, h)
 		if err != nil {
-			logger.Error(err)
-			return nil, err
+			if err != state.ErrNotFound {
+				logger.Error(err)
+				return nil, err
+			}
+
+			// If pin is not part of the pinset, mark it unpinned
+			members, err := c.consensus.Peers(ctx)
+			if err != nil {
+				logger.Error(err)
+				return nil, err
+			}
+
+			for _, member := range members {
+				gpin.PeerMap[peer.IDB58Encode(member)] = &api.PinInfo{
+					Cid:      h,
+					Peer:     member,
+					PeerName: member.String(),
+					Status:   api.TrackerStatusUnpinned,
+					TS:       time.Now(),
+				}
+			}
+
+			return gpin, nil
+
 		}
+
 		if len(pin.Allocations) > 0 {
 			dests = pin.Allocations
 		} else {
@@ -1720,11 +1748,6 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		h,
 		rpcutil.CopyPinInfoToIfaces(replies),
 	)
-
-	gpin := &api.GlobalPinInfo{
-		Cid:     h,
-		PeerMap: make(map[string]*api.PinInfo),
-	}
 
 	for i, r := range replies {
 		e := errs[i]
