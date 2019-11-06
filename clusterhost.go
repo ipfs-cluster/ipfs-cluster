@@ -20,7 +20,19 @@ import (
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
+	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
 )
+
+func init() {
+	// Cluster peers should advertise their public IPs as soon as they
+	// learn about them. Default for this is 4, which prevents clusters
+	// with less than 4 peers to advertise an external address they know
+	// of, therefore they cannot be remembered by other peers asap. This
+	// affects dockerized setups mostly. This may announce non-dialable
+	// NATed addresses too eagerly, but they should progressively be
+	// cleaned up.
+	identify.ActivationThresh = 1
+}
 
 // NewClusterHost creates a fully-featured libp2p Host with the options from
 // the provided cluster configuration. Using that host, it creates pubsub and
