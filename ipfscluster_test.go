@@ -486,7 +486,7 @@ func pinDelay() {
 func ttlDelay() {
 	diskInfCfg := &disk.Config{}
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
-	time.Sleep(diskInfCfg.MetricTTL * 3)
+	time.Sleep(diskInfCfg.MetricTTL * 5)
 }
 
 // Like waitForLeader but letting metrics expire before waiting, and
@@ -1251,7 +1251,7 @@ func TestClustersReplicationOverall(t *testing.T) {
 
 	prefix := test.Cid1.Prefix()
 
-	waitForLeaderAndMetrics(t, clusters)
+	ttlDelay()
 
 	for i := 0; i < nClusters; i++ {
 		// Pick a random cluster and hash
