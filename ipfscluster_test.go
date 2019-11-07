@@ -382,6 +382,8 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	clusters[0] = createCluster(t, hosts[0], dhts[0], cfgs[0], stores[0], cons[0], apis[0], ipfss[0], trackers[0], mons[0], allocs[0], infs[0], tracers[0])
 	<-clusters[0].Ready()
 	bootstrapAddr := clusterAddr(clusters[0])
+
+	SetFacilityLogLevel("raftlib", "info")
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
 		clusters[i] = createCluster(t, hosts[i], dhts[i], cfgs[i], stores[i], cons[i], apis[i], ipfss[i], trackers[i], mons[i], allocs[i], infs[i], tracers[i])
@@ -392,6 +394,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 		}
 		<-clusters[i].Ready()
 	}
+	SetFacilityLogLevel("raftlib", "error")
 
 	// connect all hosts
 	for _, h := range hosts {
