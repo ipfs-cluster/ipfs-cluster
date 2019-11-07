@@ -56,7 +56,7 @@ var (
 	customLogLvlFacilities = logFacilities{}
 
 	ptracker  = "map"
-	consensus = "raft"
+	consensus = "crdt"
 
 	testsFolder = "clusterTestsFolder"
 
