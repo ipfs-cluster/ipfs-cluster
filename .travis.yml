@@ -29,10 +29,10 @@ jobs:
         - bash <(curl -s https://codecov.io/bash)
     - name: "Main Tests with raft consensus"
       script:
-        - go test -v -failfast -consensus raft .
+        - travis_wait go test -v -timeout 15m -failfast -consensus raft .
     - name: "Main Tests with stateless tracker"
       script:
-        - go test -v -failfast -tracker stateless .
+        - travis_wait go test -v -timeout 15m -failfast -tracker stateless .
     - name: "Golint and go vet"
       script:
         - go get -u golang.org/x/lint/golint
