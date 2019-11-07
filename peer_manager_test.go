@@ -574,7 +574,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 
 	h := test.Cid1
 	clusters[0].Pin(ctx, h, api.PinOptions{})
-	pinDelay()
+	ttlDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
 		peers := c.Peers(ctx)
