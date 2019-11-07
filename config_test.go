@@ -119,7 +119,7 @@ var testingMonCfg = []byte(`{
 }`)
 
 var testingDiskInfCfg = []byte(`{
-    "metric_ttl": "9000ms",
+    "metric_ttl": "900ms",
     "metric_type": "freespace"
 }`)
 

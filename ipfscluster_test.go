@@ -58,7 +58,8 @@ var (
 	ptracker  = "map"
 	consensus = "crdt"
 
-	testsFolder = "clusterTestsFolder"
+	ttlDelayTime = 2 * time.Second // set on Main to diskInf.MetricTTL
+	testsFolder  = "clusterTestsFolder"
 
 	// When testing with fixed ports...
 	// clusterPort   = 10000
@@ -123,6 +124,10 @@ func TestMain(m *testing.M) {
 			continue
 		}
 	}
+
+	diskInfCfg := &disk.Config{}
+	diskInfCfg.LoadJSON(testingDiskInfCfg)
+	ttlDelayTime = diskInfCfg.MetricTTL * 2
 
 	os.Exit(m.Run())
 }
@@ -484,9 +489,7 @@ func pinDelay() {
 }
 
 func ttlDelay() {
-	diskInfCfg := &disk.Config{}
-	diskInfCfg.LoadJSON(testingDiskInfCfg)
-	time.Sleep(diskInfCfg.MetricTTL * 5)
+	time.Sleep(ttlDelayTime)
 }
 
 // Like waitForLeader but letting metrics expire before waiting, and
