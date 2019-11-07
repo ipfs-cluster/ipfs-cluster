@@ -420,7 +420,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// We choose to remove the leader, to make things even more interesting
 	chosenID, err := clusters[0].consensus.Leader(ctx)
 	if err != nil {
-		// choose a random peer
+		// choose a random peer - crdt
 		i := rand.Intn(nClusters)
 		chosenID = clusters[i].host.ID()
 	}
@@ -447,6 +447,9 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	defer chosenMock.Close()
 
 	prefix := test.Cid1.Prefix()
+
+	// Make sure metrics are there to do allocations correctly
+	waitForLeaderAndMetrics(t, clusters)
 
 	// Pin nCluster random pins. This ensures each peer will
 	// pin the same number of Cids.

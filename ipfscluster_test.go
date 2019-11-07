@@ -1251,6 +1251,8 @@ func TestClustersReplicationOverall(t *testing.T) {
 
 	prefix := test.Cid1.Prefix()
 
+	waitForLeaderAndMetrics(t, clusters)
+
 	for i := 0; i < nClusters; i++ {
 		// Pick a random cluster and hash
 		j := rand.Intn(nClusters)           // choose a random cluster peer
