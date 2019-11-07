@@ -2090,6 +2090,30 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	}
 }
 
+func TestRepoGC(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	f := func(t *testing.T, c *Cluster) {
+		gRepoGC, err := c.RepoGC(context.Background())
+		if err != nil {
+			t.Fatal("gc should have worked:", err)
+		}
+
+		if gRepoGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		if len(gRepoGC.PeerMap) != nClusters {
+			t.Errorf("expected repo gc information for %d peer", nClusters)
+		}
+		for _, repoGC := range gRepoGC.PeerMap {
+			testRepoGC(t, repoGC)
+		}
+	}
+
+	runF(t, clusters, f)
+}
+
 func TestClustersFollowerMode(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)

@@ -963,3 +963,23 @@ type IPFSRepoStat struct {
 	RepoSize   uint64 `codec:"r,omitempty"`
 	StorageMax uint64 `codec:"s, omitempty"`
 }
+
+// IPFSRepoGC represents the streaming response sent from repo gc API of IPFS.
+type IPFSRepoGC struct {
+	Key   cid.Cid `json:"key,omitempty" codec:"k,omitempty"`
+	Error string  `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+// RepoGC contains garbage collected CIDs from a cluster peer's IPFS daemon.
+type RepoGC struct {
+	Peer     peer.ID      `json:"peer" codec:"p,omitempty"` // the Cluster peer ID
+	Peername string       `json:"peername" codec:"pn,omitempty"`
+	Keys     []IPFSRepoGC `json:"keys" codec:"k"`
+	Error    string       `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+// GlobalRepoGC contains cluster-wide information about garbage collected CIDs
+// from IPFS.
+type GlobalRepoGC struct {
+	PeerMap map[string]*RepoGC `json:"peer_map" codec:"pm,omitempty"`
+}

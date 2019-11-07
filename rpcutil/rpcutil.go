@@ -55,7 +55,7 @@ func MultiCancel(cancels []context.CancelFunc) {
 	}
 }
 
-// The copy functions below are used in calls to Cluste.multiRPC()
+// The copy functions below are used in calls to Cluster.multiRPC()
 
 // CopyPIDsToIfaces converts a peer.ID slice to an empty interface
 // slice using pointers to each elements of the original slice.
@@ -110,6 +110,18 @@ func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
 	ifaces := make([]interface{}, len(in), len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
+	}
+	return ifaces
+}
+
+// CopyRepoGCSliceToIfaces converts an api.RepoGC slice to
+// an empty interface slice using pointers to each elements of
+// the original slice. Useful to handle gorpc.MultiCall() replies.
+func CopyRepoGCSliceToIfaces(in []*api.RepoGC) []interface{} {
+	ifaces := make([]interface{}, len(in), len(in))
+	for i := range in {
+		in[i] = &api.RepoGC{}
+		ifaces[i] = in[i]
 	}
 	return ifaces
 }

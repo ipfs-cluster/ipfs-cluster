@@ -10,6 +10,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 
+	merkledag "github.com/ipfs/go-merkledag"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
@@ -407,5 +408,41 @@ func TestConfigKey(t *testing.T) {
 	_, err = ipfs.ConfigKey("Datastore/abc")
 	if err == nil {
 		t.Error("should not work with a bad path")
+	}
+}
+
+func TestRepoGC(t *testing.T) {
+	ctx := context.Background()
+	ipfs, mock := testIPFSConnector(t)
+	defer mock.Close()
+	defer ipfs.Shutdown(ctx)
+
+	res, err := ipfs.RepoGC(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.Error != "" {
+		t.Errorf("expected error to be empty: %s", res.Error)
+	}
+
+	if res.Keys == nil {
+		t.Fatal("expected a non-nil array of IPFSRepoGC")
+	}
+
+	if len(res.Keys) < 5 {
+		t.Fatal("expected at least five keys")
+	}
+
+	if !res.Keys[0].Key.Equals(test.Cid1) {
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.Cid1, res.Keys[0].Key)
+	}
+
+	if !res.Keys[3].Key.Equals(test.Cid4) {
+		t.Errorf("expected different cid, expected: %s, found: %s\n", test.Cid4, res.Keys[3].Key)
+	}
+
+	if res.Keys[4].Error != merkledag.ErrLinkNotFound.Error() {
+		t.Errorf("expected different error, expected: %s, found: %s\n", merkledag.ErrLinkNotFound, res.Keys[4].Error)
 	}
 }
