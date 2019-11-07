@@ -39,6 +39,7 @@ require (
 	github.com/ipfs/go-path v0.0.7
 	github.com/ipfs/go-unixfs v0.2.2
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/kishansagathiya/go-dot v0.0.2-0.20191030050919-57869a765bc1
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
@@ -73,7 +74,6 @@ require (
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
 	github.com/whyrusleeping/go-logging v0.0.1 // indirect
-	github.com/zenground0/go-dot v0.0.0-20180912213407-94a425d4984e
 	go.opencensus.io v0.22.1
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13

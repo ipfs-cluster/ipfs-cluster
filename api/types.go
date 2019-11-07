@@ -291,11 +291,14 @@ type Version struct {
 // then id will be a key of IPFSLinks.  In the event of a SwarmPeers error
 // IPFSLinks[id] == [].
 type ConnectGraph struct {
-	ClusterID peer.ID
+	ClusterID    peer.ID           `json:"cluster_id" codec:"id"`
+	IDtoPeername map[string]string `json:"id_to_peername" codec:"ip,omitempty"`
 	// ipfs to ipfs links
 	IPFSLinks map[string][]peer.ID `json:"ipfs_links" codec:"il,omitempty"`
 	// cluster to cluster links
 	ClusterLinks map[string][]peer.ID `json:"cluster_links" codec:"cl,omitempty"`
+	// cluster trust links
+	ClusterTrustLinks map[string]bool `json:"cluster_trust_links" codec:"ctl,omitempty"`
 	// cluster to ipfs links
 	ClustertoIPFS map[string]peer.ID `json:"cluster_to_ipfs" codec:"ci,omitempty"`
 }
