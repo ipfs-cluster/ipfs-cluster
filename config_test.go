@@ -34,8 +34,8 @@ var testingClusterCfg = []byte(`{
     "state_sync_interval": "1m0s",
     "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,
-    "monitor_ping_interval": "450ms",
-    "peer_watch_interval": "250ms",
+    "monitor_ping_interval": "1s",
+    "peer_watch_interval": "1s",
     "disable_repinning": false,
     "mdns_interval": "0s"
 }`)
@@ -47,20 +47,20 @@ var testingRaftCfg = []byte(`{
     "commit_retry_delay": "50ms",
     "backups_rotate": 2,
     "network_timeout": "5s",
-    "heartbeat_timeout": "250ms",
+    "heartbeat_timeout": "700ms",
     "election_timeout": "250ms",
     "commit_timeout": "250ms",
     "max_append_entries": 256,
     "trailing_logs": 10240,
     "snapshot_interval": "2m0s",
     "snapshot_threshold": 8192,
-    "leader_lease_timeout": "250ms"
+    "leader_lease_timeout": "500ms"
 }`)
 
 var testingCrdtCfg = []byte(`{
     "cluster_name": "crdt-test",
     "trusted_peers": ["*"],
-    "rebroadcast_interval": "150ms"
+    "rebroadcast_interval": "250ms"
 }`)
 
 var testingBadgerCfg = []byte(`{
@@ -114,12 +114,12 @@ var testingTrackerCfg = []byte(`
 `)
 
 var testingMonCfg = []byte(`{
-    "check_interval": "550ms",
+    "check_interval": "800ms",
     "failure_threshold": 6
 }`)
 
 var testingDiskInfCfg = []byte(`{
-    "metric_ttl": "450ms",
+    "metric_ttl": "9000ms",
     "metric_type": "freespace"
 }`)
 
