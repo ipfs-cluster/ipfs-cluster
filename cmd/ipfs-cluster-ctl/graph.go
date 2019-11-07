@@ -101,45 +101,48 @@ func (dW *dotWriter) addSubGraph(sGraph dot.Graph, rank string) {
 func (dW *dotWriter) addNode(graph *dot.Graph, id string, nT nodeType) error {
 	node := dot.NewVertexDescription("")
 	node.Group = id
-	node.ColorScheme = "brbg11"
+	node.ColorScheme = "x11"
 	node.FontName = "Ariel"
 	node.Shape = "ellipse"
 	node.Style = "filled"
 	switch nT {
 	case tSelfCluster:
+		node.Shape = "box3d"
 		node.Label = label(dW.idToPeername[id], shorten(id))
 		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))
-		node.Color = "11"
+		node.Color = "orange"
 		node.Peripheries = 2
-		node.FontColor = "6"
+		node.FontColor = "black"
 		dW.clusterNodes[id] = &node
 	case tTrustedCluster:
+		node.Shape = "box3d"
 		node.Label = label(dW.idToPeername[id], shorten(id))
 		node.ID = fmt.Sprintf("T%d", len(dW.clusterNodes))
-		node.Color = "11"
-		node.FontColor = "6"
+		node.Color = "orange"
+		node.FontColor = "black"
 		dW.clusterNodes[id] = &node
 	case tCluster:
+		node.Shape = "box3d"
 		node.Label = label(dW.idToPeername[id], shorten(id))
 		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))
-		node.Color = "9"
-		node.FontColor = "6"
+		node.Color = "darkorange3"
+		node.FontColor = "black"
 		dW.clusterNodes[id] = &node
 	case tIPFS:
 		node.ID = fmt.Sprintf("I%d", len(dW.ipfsNodes))
-		node.Shape = "box"
+		node.Shape = "cylinder"
 		ipfsID, ok := dW.clusterIpfsEdges[id]
 		if !ok {
 			node.Label = label("IPFS", "Errored")
 			node.ColorScheme = "X11"
-			node.Color = "orangered"
-			node.FontColor = "white"
+			node.Color = "firebrick1"
+			node.FontColor = "black"
 			dW.ipfsNodes[id] = &node
 		} else {
 			ipfsIDStr := peer.IDB58Encode(ipfsID)
 			node.Label = label("IPFS", shorten(ipfsIDStr))
-			node.Color = "1"
-			node.FontColor = "6"
+			node.Color = "turquoise3"
+			node.FontColor = "black"
 			dW.ipfsNodes[ipfsIDStr] = &node
 		}
 	default:
