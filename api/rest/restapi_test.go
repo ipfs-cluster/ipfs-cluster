@@ -601,8 +601,12 @@ type pathCase struct {
 	expectedCid string
 }
 
-func (p *pathCase) WithQuery() string {
-	return p.path + "?" + p.opts.ToQuery()
+func (p *pathCase) WithQuery(t *testing.T) string {
+	query, err := p.opts.ToQuery()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p.path + "?" + query
 }
 
 var testPinOpts = api.PinOptions{
@@ -610,6 +614,7 @@ var testPinOpts = api.PinOptions{
 	ReplicationFactorMin: 6,
 	Name:                 "hello there",
 	UserAllocations:      []peer.ID{test.PeerID1, test.PeerID2},
+	ExpireAt:             time.Now().Add(30 * time.Second),
 }
 
 var pathTestCases = []pathCase{
@@ -660,7 +665,8 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 
 			if testCase.wantErr {
 				errResp := api.Error{}
-				makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &errResp)
+				q := testCase.WithQuery(t)
+				makePost(t, rest, url(rest)+"/pins"+q, []byte{}, &errResp)
 				if errResp.Code != testCase.code {
 					t.Errorf(
 						"status code: expected: %d, got: %d, path: %s\n",
@@ -672,7 +678,8 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 				continue
 			}
 			pin := api.Pin{}
-			makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &pin)
+			q := testCase.WithQuery(t)
+			makePost(t, rest, url(rest)+"/pins"+q, []byte{}, &pin)
 			if !pin.Equals(resultantPin) {
 				t.Errorf("pin: expected: %+v", resultantPin)
 				t.Errorf("pin: got: %+v", pin)
@@ -820,6 +827,22 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 			if m.Peer.Pretty() != test.PeerID1.Pretty() {
 				t.Error("Unexpected peer id: ", m.Peer)
 			}
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIMetricNamesEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url urlF) {
+		var resp []string
+		makeGet(t, rest, url(rest)+"/monitor/metrics", &resp)
+		if len(resp) == 0 {
+			t.Fatal("No metric names found")
 		}
 	}
 

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -84,7 +85,10 @@ func (mtrs *Store) LatestValid(name string) []*api.Metric {
 		}
 		metrics = append(metrics, m)
 	}
-	return metrics
+
+	sortedMetrics := api.MetricSlice(metrics)
+	sort.Stable(sortedMetrics)
+	return sortedMetrics
 }
 
 // AllMetrics returns the latest metrics for all peers and metrics types.  It

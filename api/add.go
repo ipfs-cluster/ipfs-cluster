@@ -172,9 +172,15 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 }
 
 // ToQueryString returns a url query string (key=value&key2=value2&...)
-func (p *AddParams) ToQueryString() string {
-	pinOptsQuery := p.PinOptions.ToQuery()
-	query, _ := url.ParseQuery(pinOptsQuery)
+func (p *AddParams) ToQueryString() (string, error) {
+	pinOptsQuery, err := p.PinOptions.ToQuery()
+	if err != nil {
+		return "", err
+	}
+	query, err := url.ParseQuery(pinOptsQuery)
+	if err != nil {
+		return "", err
+	}
 	query.Set("shard", fmt.Sprintf("%t", p.Shard))
 	query.Set("local", fmt.Sprintf("%t", p.Local))
 	query.Set("recursive", fmt.Sprintf("%t", p.Recursive))
@@ -188,7 +194,7 @@ func (p *AddParams) ToQueryString() string {
 	query.Set("hash", p.HashFun)
 	query.Set("stream-channels", fmt.Sprintf("%t", p.StreamChannels))
 	query.Set("nocopy", fmt.Sprintf("%t", p.NoCopy))
-	return query.Encode()
+	return query.Encode(), nil
 }
 
 // Equals checks if p equals p2.

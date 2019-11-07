@@ -369,6 +369,20 @@ func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api
 	return metrics, err
 }
 
+// MetricNames returns the list of metric types.
+func (lc *loadBalancingClient) MetricNames(ctx context.Context) ([]string, error) {
+	var metricNames []string
+	call := func(c Client) error {
+		var err error
+		metricNames, err = c.MetricNames(ctx)
+		return err
+	}
+
+	err := lc.retry(0, call)
+
+	return metricNames, err
+}
+
 // RepoGC runs garbage collection on IPFS daemons of cluster peers and
 // returns collected CIDs. If local is true, it would garbage collect
 // only on contacted peer, otherwise on all peers' IPFS daemons.

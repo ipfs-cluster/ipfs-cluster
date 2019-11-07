@@ -66,4 +66,5 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 
 	// PeerMonitor methods
 	"PeerMonitor.LatestMetrics": RPCClosed,
+	"PeerMonitor.MetricNames":   RPCClosed,
 }

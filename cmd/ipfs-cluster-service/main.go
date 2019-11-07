@@ -272,6 +272,10 @@ the peer IDs in the given multiaddresses.
 					Name:  "force, f",
 					Usage: "overwrite configuration without prompting",
 				},
+				cli.BoolFlag{
+					Name:  "randomports",
+					Usage: "configure random ports to listen on instead of defaults",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				consensus := c.String("consensus")
@@ -319,6 +323,18 @@ the peer IDs in the given multiaddresses.
 				// Generate defaults for all registered components
 				err := cfgHelper.Manager().Default()
 				checkErr("generating default configuration", err)
+				if c.Bool("randomports") {
+					cfgs := cfgHelper.Configs()
+
+					for i := range cfgs.Cluster.ListenAddr {
+						cfgs.Cluster.ListenAddr[i], err = cmdutils.RandomizePorts(cfgs.Cluster.ListenAddr[i])
+					}
+					checkErr("randomizing ports", err)
+					cfgs.Restapi.HTTPListenAddr, err = cmdutils.RandomizePorts(cfgs.Restapi.HTTPListenAddr)
+					checkErr("randomizing ports", err)
+					cfgs.Ipfsproxy.ListenAddr, err = cmdutils.RandomizePorts(cfgs.Ipfsproxy.ListenAddr)
+					checkErr("randomizing ports", err)
+				}
 				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)
 

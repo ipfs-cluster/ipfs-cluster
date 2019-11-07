@@ -16,13 +16,13 @@ test_expect_success IPFS,CLUSTER "health metrics with metric name must succeed" 
     ipfs-cluster-ctl health metrics freespace
 '
 
-test_expect_success IPFS,CLUSTER "health metrics without metric name fails" '
-    test_must_fail ipfs-cluster-ctl health metrics
+test_expect_success IPFS,CLUSTER "health metrics without metric name doesn't fail" '
+    ipfs-cluster-ctl health metrics
 '
 
 test_expect_success IPFS,CLUSTER "list latest metrics logged by this peer" '
     pid=`ipfs-cluster-ctl --enc=json id | jq -r ".id"`
-    ipfs-cluster-ctl health metrics freespace | grep -q -E "^$pid: [0-9]+ | Expire: .+T.+Z"
+    ipfs-cluster-ctl health metrics freespace | grep -q -E "(^$pid \| freespace: [0-9]+ (G|M|K)B \| Expires in: [0-9]+ seconds from now)"
 '
 
 test_clean_ipfs

@@ -78,14 +78,18 @@ func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions
 	ctx, span := trace.StartSpan(ctx, "client/Pin")
 	defer span.End()
 
+	query, err := opts.ToQuery()
+	if err != nil {
+		return nil, err
+	}
 	var pin api.Pin
-	err := c.do(
+	err = c.do(
 		ctx,
 		"POST",
 		fmt.Sprintf(
 			"/pins/%s?%s",
 			ci.String(),
-			opts.ToQuery(),
+			query,
 		),
 		nil,
 		nil,
@@ -119,14 +123,17 @@ func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOp
 	if err != nil {
 		return nil, err
 	}
-
+	query, err := opts.ToQuery()
+	if err != nil {
+		return nil, err
+	}
 	err = c.do(
 		ctx,
 		"POST",
 		fmt.Sprintf(
 			"/pins%s?%s",
 			ipfspath.String(),
-			opts.ToQuery(),
+			query,
 		),
 		nil,
 		nil,
@@ -332,6 +339,16 @@ func (c *defaultClient) Metrics(ctx context.Context, name string) ([]*api.Metric
 	var metrics []*api.Metric
 	err := c.do(ctx, "GET", fmt.Sprintf("/monitor/metrics/%s", name), nil, nil, &metrics)
 	return metrics, err
+}
+
+// MetricNames lists names of all metrics.
+func (c *defaultClient) MetricNames(ctx context.Context) ([]string, error) {
+	ctx, span := trace.StartSpan(ctx, "client/MetricNames")
+	defer span.End()
+
+	var metricsNames []string
+	err := c.do(ctx, "GET", "/monitor/metrics", nil, nil, &metricsNames)
+	return metricsNames, err
 }
 
 // RepoGC runs garbage collection on IPFS daemons of cluster peers and
@@ -582,7 +599,10 @@ func (c *defaultClient) AddMultiFile(
 
 	// This method must run with StreamChannels set.
 	params.StreamChannels = true
-	queryStr := params.ToQueryString()
+	queryStr, err := params.ToQueryString()
+	if err != nil {
+		return err
+	}
 
 	// our handler decodes an AddedOutput and puts it
 	// in the out channel.
@@ -599,7 +619,7 @@ func (c *defaultClient) AddMultiFile(
 		return nil
 	}
 
-	err := c.doStream(ctx,
+	err = c.doStream(ctx,
 		"POST",
 		"/add?"+queryStr,
 		headers,

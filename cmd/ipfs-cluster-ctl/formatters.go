@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 type addedOutputQuiet struct {
@@ -46,6 +49,8 @@ func textFormatObject(resp interface{}) {
 	switch resp.(type) {
 	case nil:
 		return
+	case string:
+		fmt.Println(resp)
 	case *api.ID:
 		textFormatPrintID(resp.(*api.ID))
 	case *api.GlobalPinInfo:
@@ -88,6 +93,10 @@ func textFormatObject(resp interface{}) {
 		}
 	case *api.GlobalRepoGC:
 		textFormatPrintGlobalRepoGC(resp.(*api.GlobalRepoGC))
+	case []string:
+		for _, item := range resp.([]string) {
+			textFormatObject(item)
+		}
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}
@@ -213,8 +222,14 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
-	date := time.Unix(0, obj.Expire).UTC().Format(time.RFC3339)
-	fmt.Printf("%s: %s | Expire: %s\n", peer.IDB58Encode(obj.Peer), obj.Value, date)
+	if obj.Name == "freespace" {
+		u, err := strconv.ParseUint(obj.Value, 10, 64)
+		checkErr("parsing to uint64", err)
+		fmt.Printf("%s | freespace: %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), humanize.Bytes(u), humanize.Time(time.Unix(0, obj.Expire)))
+		return
+	}
+
+	fmt.Printf("%s | %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), obj.Name, humanize.Time(time.Unix(0, obj.Expire)))
 }
 
 func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {

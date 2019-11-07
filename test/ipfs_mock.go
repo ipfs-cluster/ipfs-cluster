@@ -475,8 +475,8 @@ func (m *IpfsMock) Close() {
 	defer m.closeMux.Unlock()
 	if !m.closed {
 		m.closed = true
-		close(m.reqCounter)
 		m.server.Close()
+		close(m.reqCounter)
 	}
 }
 

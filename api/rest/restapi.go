@@ -35,6 +35,9 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	p2phttp "github.com/libp2p/go-libp2p-http"
+	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
+	secio "github.com/libp2p/go-libp2p-secio"
+	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 
@@ -238,6 +241,10 @@ func (api *API) setupLibp2p() error {
 			context.Background(),
 			libp2p.Identity(api.config.PrivateKey),
 			libp2p.ListenAddrs([]ma.Multiaddr{api.config.Libp2pListenAddr}...),
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			libp2p.Security(secio.ID, secio.New),
+			libp2p.Transport(libp2pquic.NewTransport),
+			libp2p.DefaultTransports,
 		)
 		if err != nil {
 			return err
@@ -474,6 +481,12 @@ func (api *API) routes() []route {
 			"/monitor/metrics/{name}",
 			api.metricsHandler,
 		},
+		{
+			"MetricNames",
+			"GET",
+			"/monitor/metrics",
+			api.metricNamesHandler,
+		},
 	}
 }
 
@@ -631,6 +644,19 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		&metrics,
 	)
 	api.sendResponse(w, autoStatus, err, metrics)
+}
+
+func (api *API) metricNamesHandler(w http.ResponseWriter, r *http.Request) {
+	var metricNames []string
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"PeerMonitor",
+		"MetricNames",
+		struct{}{},
+		&metricNames,
+	)
+	api.sendResponse(w, autoStatus, err, metricNames)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
