@@ -448,9 +448,6 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	prefix := test.Cid1.Prefix()
 
-	// Make sure metrics are there to do allocations correctly
-	ttlDelay()
-
 	// Pin nCluster random pins. This ensures each peer will
 	// pin the same number of Cids.
 	for i := 0; i < nClusters; i++ {
