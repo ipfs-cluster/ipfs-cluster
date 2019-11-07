@@ -422,13 +422,13 @@ func (rw *raftWrapper) Shutdown(ctx context.Context) error {
 
 	rw.cancel()
 
-	err := rw.snapshotOnShutdown()
-	if err != nil {
-		errMsgs += err.Error() + ".\n"
-	}
+	// err := rw.snapshotOnShutdown()
+	// if err != nil {
+	// 	errMsgs += err.Error() + ".\n"
+	// }
 
 	future := rw.raft.Shutdown()
-	err = future.Error()
+	err := future.Error()
 	if err != nil {
 		errMsgs += "could not shutdown raft: " + err.Error() + ".\n"
 	}
