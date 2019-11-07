@@ -527,7 +527,7 @@ func TestClustersPeerJoin(t *testing.T) {
 
 	h := test.Cid1
 	clusters[0].Pin(ctx, h, api.PinOptions{})
-	pinDelay()
+	ttlDelay()
 
 	for _, p := range clusters {
 		t.Log(p.id.String())
