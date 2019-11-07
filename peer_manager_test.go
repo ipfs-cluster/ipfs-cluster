@@ -111,7 +111,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pinDelay()
+	ttlDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		ids := c.Peers(ctx)
