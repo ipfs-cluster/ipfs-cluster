@@ -167,7 +167,8 @@ func (dW *dotWriter) print() error {
 	// Write cluster nodes, use sorted order for consistent labels
 	sGraphCluster := dot.NewGraph("")
 	sGraphCluster.IsSubGraph = true
-	for _, k := range sortedKeys(dW.clusterEdges) {
+	sortedClusterEdges := sortedKeys(dW.clusterEdges)
+	for _, k := range sortedClusterEdges {
 		var err error
 		if k == dW.self {
 			err = dW.addNode(&sGraphCluster, k, tSelfCluster)
@@ -187,7 +188,7 @@ func (dW *dotWriter) print() error {
 	sGraphIPFS := dot.NewGraph("")
 	sGraphIPFS.IsSubGraph = true
 	// Write ipfs nodes, use sorted order for consistent labels
-	for _, k := range sortedKeys(dW.clusterEdges) {
+	for _, k := range sortedClusterEdges {
 		err := dW.addNode(&sGraphIPFS, k, tIPFS)
 		if err != nil {
 			return err
@@ -199,7 +200,8 @@ func (dW *dotWriter) print() error {
 	dW.dotGraph.AddComment("Edges representing active connections in the cluster")
 	dW.dotGraph.AddComment("The connections among cluster-service peers")
 	// Write cluster edges
-	for k, v := range dW.clusterEdges {
+	for _, k := range sortedClusterEdges {
+		v := dW.clusterEdges[k]
 		for _, id := range v {
 			toNode := dW.clusterNodes[k]
 			fromNode := dW.clusterNodes[peer.IDB58Encode(id)]
@@ -210,7 +212,7 @@ func (dW *dotWriter) print() error {
 
 	dW.dotGraph.AddComment("The connections between cluster peers and their ipfs daemons")
 	// Write cluster to ipfs edges
-	for k := range dW.clusterEdges {
+	for _, k := range sortedClusterEdges {
 		var fromNode *dot.VertexDescription
 		toNode := dW.clusterNodes[k]
 		ipfsID, ok := dW.clusterIpfsEdges[k]
