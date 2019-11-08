@@ -25,3 +25,12 @@ jobs:
       name: "Test QUIC"
       script:
         - go test -v -run TestClustersVersion -failfast -count 30 -consensus raft
+      name: "Test QUIC2"
+      script:
+        - go test -v -run TestClustersVersion -failfast -count 30 -consensus raft
+      name: "Test QUIC3"
+      script:
+        - go test -v -run TestClustersVersion -failfast -count 30 -consensus raft
+      name: "Test QUIC4"
+      script:
+        - go test -v -run TestClustersVersion -failfast -count 30 -consensus raft
