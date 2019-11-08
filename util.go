@@ -149,20 +149,18 @@ func xor(a, b distance) distance {
 
 // peersSubtract subtracts peers ID slice b from peers ID slice a.
 func peersSubtract(a []peer.ID, b []peer.ID) []peer.ID {
-	lenb := len(b)
-	result := make([]peer.ID, len(a)-lenb)
-	bMap := make(map[peer.ID]struct{}, lenb)
+	var result []peer.ID
+	bMap := make(map[peer.ID]struct{}, len(b))
 
 	for _, p := range b {
 		bMap[p] = struct{}{}
 	}
 
-	for _, p := range a {
+	for i, p := range a {
 		_, ok := bMap[p]
 		if ok {
 			continue
 		}
-
 		result = append(result, p)
 	}
 
