@@ -156,7 +156,7 @@ func peersSubtract(a []peer.ID, b []peer.ID) []peer.ID {
 		bMap[p] = struct{}{}
 	}
 
-	for i, p := range a {
+	for _, p := range a {
 		_, ok := bMap[p]
 		if ok {
 			continue
