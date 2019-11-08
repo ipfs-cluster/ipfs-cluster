@@ -303,14 +303,15 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
+	// Disable quic as it is proving a bit unstable
+	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
