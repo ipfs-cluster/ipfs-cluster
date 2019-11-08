@@ -24,8 +24,6 @@ import (
 var logger = logging.Logger("pintracker")
 
 var (
-	// ErrNoChannel indicates that there doesn't exist a channel for given operation.
-	ErrNoChannel = errors.New("operation doesn't have an associated channel")
 	// ErrFullQueue is the error used when pin or unpin operation channel is full.
 	ErrFullQueue = errors.New("pin/unpin operation queue is full (too many operations), increasing max_pin_queue_size would help")
 )
@@ -183,8 +181,6 @@ func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.Opera
 		ch = spt.pinCh
 	case optracker.OperationUnpin:
 		ch = spt.unpinCh
-	default:
-		return ErrNoChannel
 	}
 
 	select {
