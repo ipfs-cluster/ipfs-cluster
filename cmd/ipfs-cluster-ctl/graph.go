@@ -31,10 +31,11 @@ import (
 type nodeType int
 
 const (
-	tSelfCluster    nodeType = iota //  cluster self node
-	tCluster                        //  cluster node
-	tTrustedCluster                 //  trusted cluster node
-	tIPFS                           //  IPFS node linked to a Cluster node
+	tSelfCluster    nodeType = iota // cluster self node
+	tCluster                        // cluster node
+	tTrustedCluster                 // trusted cluster node
+	tIPFS                           // IPFS node
+	tIPFSMissing                    // Missing IPFS node
 )
 
 var errUnfinishedWrite = errors.New("could not complete write of line to output")
@@ -102,49 +103,41 @@ func (dW *dotWriter) addNode(graph *dot.Graph, id string, nT nodeType) error {
 	node := dot.NewVertexDescription("")
 	node.Group = id
 	node.ColorScheme = "x11"
-	node.FontName = "Ariel"
-	node.Shape = "ellipse"
+	node.FontName = "Arial"
 	node.Style = "filled"
+	node.FontColor = "black"
 	switch nT {
 	case tSelfCluster:
+		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))
 		node.Shape = "box3d"
 		node.Label = label(dW.idToPeername[id], shorten(id))
-		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))
 		node.Color = "orange"
 		node.Peripheries = 2
-		node.FontColor = "black"
 		dW.clusterNodes[id] = &node
 	case tTrustedCluster:
+		node.ID = fmt.Sprintf("T%d", len(dW.clusterNodes))
 		node.Shape = "box3d"
 		node.Label = label(dW.idToPeername[id], shorten(id))
-		node.ID = fmt.Sprintf("T%d", len(dW.clusterNodes))
 		node.Color = "orange"
-		node.FontColor = "black"
 		dW.clusterNodes[id] = &node
 	case tCluster:
 		node.Shape = "box3d"
 		node.Label = label(dW.idToPeername[id], shorten(id))
 		node.ID = fmt.Sprintf("C%d", len(dW.clusterNodes))
 		node.Color = "darkorange3"
-		node.FontColor = "black"
 		dW.clusterNodes[id] = &node
 	case tIPFS:
 		node.ID = fmt.Sprintf("I%d", len(dW.ipfsNodes))
 		node.Shape = "cylinder"
-		ipfsID, ok := dW.clusterIpfsEdges[id]
-		if !ok {
-			node.Label = label("IPFS", "Errored")
-			node.ColorScheme = "X11"
-			node.Color = "firebrick1"
-			node.FontColor = "black"
-			dW.ipfsNodes[id] = &node
-		} else {
-			ipfsIDStr := peer.IDB58Encode(ipfsID)
-			node.Label = label("IPFS", shorten(ipfsIDStr))
-			node.Color = "turquoise3"
-			node.FontColor = "black"
-			dW.ipfsNodes[ipfsIDStr] = &node
-		}
+		node.Label = label("IPFS", shorten(id))
+		node.Color = "turquoise3"
+		dW.ipfsNodes[id] = &node
+	case tIPFSMissing:
+		node.ID = fmt.Sprintf("I%d", len(dW.ipfsNodes))
+		node.Shape = "cylinder"
+		node.Label = label("IPFS", "Errored")
+		node.Color = "firebrick1"
+		dW.ipfsNodes[id] = &node
 	default:
 		return errUnknownNodeType
 	}
@@ -184,16 +177,26 @@ func (dW *dotWriter) print() error {
 	dW.addSubGraph(sGraphCluster, "min")
 	dW.dotGraph.AddNewLine()
 
-	dW.dotGraph.AddComment("The ipfs peers linked to cluster peers")
+	dW.dotGraph.AddComment("The ipfs peers")
 	sGraphIPFS := dot.NewGraph("")
 	sGraphIPFS.IsSubGraph = true
 	// Write ipfs nodes, use sorted order for consistent labels
-	for _, k := range sortedClusterEdges {
+	for _, k := range sortedKeys(dW.ipfsEdges) {
 		err := dW.addNode(&sGraphIPFS, k, tIPFS)
 		if err != nil {
 			return err
 		}
 	}
+
+	for _, k := range sortedClusterEdges {
+		if _, ok := dW.clusterIpfsEdges[k]; !ok {
+			err := dW.addNode(&sGraphIPFS, k, tIPFSMissing)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	dW.addSubGraph(sGraphIPFS, "max")
 	dW.dotGraph.AddNewLine()
 
@@ -219,7 +222,7 @@ func (dW *dotWriter) print() error {
 		if !ok {
 			fromNode, ok2 := dW.ipfsNodes[k]
 			if !ok2 {
-				logger.Warning("expected a node at this id")
+				logger.Error("expected a node at this id")
 				continue
 			}
 			dW.dotGraph.AddEdge(toNode, fromNode, true, "dotted")
@@ -228,7 +231,7 @@ func (dW *dotWriter) print() error {
 
 		fromNode, ok = dW.ipfsNodes[peer.IDB58Encode(ipfsID)]
 		if !ok {
-			logger.Warning("expected a node at this id")
+			logger.Error("expected a node at this id")
 			continue
 		}
 		dW.dotGraph.AddEdge(toNode, fromNode, true, "")
@@ -244,7 +247,7 @@ func (dW *dotWriter) print() error {
 			idStr := peer.IDB58Encode(id)
 			fromNode, ok := dW.ipfsNodes[idStr]
 			if !ok {
-				logger.Warning("expected a node here")
+				logger.Error("expected a node here")
 				continue
 			}
 			dW.dotGraph.AddEdge(toNode, fromNode, true, "")
