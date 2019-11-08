@@ -1698,12 +1698,13 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		Cid:     h,
 		PeerMap: make(map[string]*api.PinInfo),
 	}
+	// allocated peers, we will contact them through rpc
 	var dests []peer.ID
+	// un-allocated peers, we will set remote status
 	var remote []peer.ID
 	timeNow := time.Now()
 
-	// set dests (allocated peers, we will contact them through rpc) and remote (un-allocated peers,
-	// we will set remote status)
+	// set dests and remote
 	if c.config.FollowerMode {
 		// during follower mode return status only on self peer
 		dests = []peer.ID{c.host.ID()}
