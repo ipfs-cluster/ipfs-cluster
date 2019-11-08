@@ -24,4 +24,4 @@ jobs:
     - stage: "Testing QUIC"
       name: "Test QUIC"
       script:
-        - go test -v -run TestClustersVersion -failfast -run 100 -consensus raft
+        - go test -v -run TestClustersVersion -failfast -count 30 -consensus raft
