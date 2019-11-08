@@ -20,8 +20,8 @@ require (
 	github.com/imdario/mergo v0.3.7
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.3
-	github.com/ipfs/go-datastore v0.1.0
-	github.com/ipfs/go-ds-badger v0.0.5
+	github.com/ipfs/go-datastore v0.1.1
+	github.com/ipfs/go-ds-badger v0.0.7
 	github.com/ipfs/go-ds-crdt v0.1.6
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.2
@@ -41,9 +41,9 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
-	github.com/libp2p/go-libp2p v0.4.0
+	github.com/libp2p/go-libp2p v0.4.1
 	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
-	github.com/libp2p/go-libp2p-circuit v0.1.3
+	github.com/libp2p/go-libp2p-circuit v0.1.4
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
 	github.com/libp2p/go-libp2p-core v0.2.4
@@ -54,17 +54,17 @@ require (
 	github.com/libp2p/go-libp2p-http v0.1.4
 	github.com/libp2p/go-libp2p-kad-dht v0.2.1
 	github.com/libp2p/go-libp2p-peer v0.2.0
-	github.com/libp2p/go-libp2p-peerstore v0.1.3
+	github.com/libp2p/go-libp2p-peerstore v0.1.4
 	github.com/libp2p/go-libp2p-pnet v0.1.0
 	github.com/libp2p/go-libp2p-protocol v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
 	github.com/libp2p/go-libp2p-quic-transport v0.2.0
 	github.com/libp2p/go-libp2p-raft v0.1.4
-	github.com/libp2p/go-libp2p-secio v0.2.0
+	github.com/libp2p/go-libp2p-secio v0.2.1
 	github.com/libp2p/go-libp2p-tls v0.1.2
 	github.com/libp2p/go-ws-transport v0.1.2
 	github.com/multiformats/go-multiaddr v0.1.1
-	github.com/multiformats/go-multiaddr-dns v0.1.1
+	github.com/multiformats/go-multiaddr-dns v0.2.0
 	github.com/multiformats/go-multiaddr-net v0.1.1
 	github.com/multiformats/go-multicodec v0.1.6
 	github.com/multiformats/go-multihash v0.0.8
@@ -73,9 +73,8 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
-	github.com/whyrusleeping/go-logging v0.0.1 // indirect
 	go.opencensus.io v0.22.1
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/crypto v0.0.0-20191105034135-c7e5f84aec59
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )
