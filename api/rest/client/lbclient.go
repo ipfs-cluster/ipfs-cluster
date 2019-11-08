@@ -45,8 +45,8 @@ func (r *RoundRobin) SetClients(cl []Client) {
 	r.length = uint32(len(cl))
 }
 
-// Failover is a load balancing strategy that would try the local cluster peer
-// first. If the local call fails it would try other clients for that call in a
+// Failover is a load balancing strategy that would try the first cluster peer
+// first. If the first call fails it would try other clients for that call in a
 // round robin fashion.
 type Failover struct {
 	clients []Client
@@ -81,7 +81,7 @@ func NewLBClient(strategy LBStrategy, cfgs []*Config, retries int) (Client, erro
 
 // retry tries the request until it is successful or tries `lc.retries` times.
 func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
-	logger.Infof("retrying %d times", count+1)
+	logger.Debugf("retrying %d times", count+1)
 
 	err := call(lc.strategy.Next(count))
 	count++
