@@ -1687,23 +1687,24 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		PeerMap: make(map[string]*api.PinInfo),
 	}
 	var dests []peer.ID
+	var members []peer.ID
 	var err error
-	var allocatedEverywhere bool
+	timeNow := time.Now()
 
 	if c.config.FollowerMode {
 		// during follower mode return status only on self peer
 		dests = []peer.ID{c.host.ID()}
 	} else {
+		members, err = c.consensus.Peers(ctx)
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
+
+		// If pin is not part of the pinset, mark it unpinned
 		pin, err := c.PinGet(ctx, h)
 		if err != nil {
 			if err != state.ErrNotFound {
-				logger.Error(err)
-				return nil, err
-			}
-
-			// If pin is not part of the pinset, mark it unpinned
-			members, err := c.consensus.Peers(ctx)
-			if err != nil {
 				logger.Error(err)
 				return nil, err
 			}
@@ -1714,25 +1715,17 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 					Peer:     member,
 					PeerName: member.String(),
 					Status:   api.TrackerStatusUnpinned,
-					TS:       time.Now(),
+					TS:       timeNow,
 				}
 			}
-
 			return gpin, nil
-
 		}
 
 		if len(pin.Allocations) > 0 {
 			dests = pin.Allocations
 		} else {
-			dests, err = c.consensus.Peers(ctx)
-			if err != nil {
-				logger.Error(err)
-				return nil, err
-			}
-			allocatedEverywhere = true
+			dests = members
 		}
-
 	}
 
 	lenDests := len(dests)
@@ -1770,22 +1763,16 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			Peer:     dests[i],
 			PeerName: dests[i].String(),
 			Status:   api.TrackerStatusClusterError,
-			TS:       time.Now(),
+			TS:       timeNow,
 			Error:    e.Error(),
 		}
 	}
 
-	if c.config.FollowerMode || allocatedEverywhere {
+	if c.config.FollowerMode || len(dests) == len(members) {
 		return gpin, nil
 	}
 
 	// set status remote on un-allocated peers
-	members, err := c.consensus.Peers(ctx)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-
 	for _, member := range members {
 		id := peer.IDB58Encode(member)
 		_, ok := gpin.PeerMap[id]
@@ -1798,7 +1785,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			Peer:     member,
 			PeerName: member.String(),
 			Status:   api.TrackerStatusRemote,
-			TS:       time.Now(),
+			TS:       timeNow,
 		}
 	}
 
