@@ -978,6 +978,32 @@ but usually are:
 			},
 		},
 		{
+			Name:        "ipfs",
+			Usage:       "Manage IPFS daemon",
+			Description: "Manage IPFS daemon",
+			Subcommands: []cli.Command{
+				{
+					Name:  "gc",
+					Usage: "run garbage collection on IPFS repos of cluster peers",
+					Description: `
+This command will instruct current Cluster peers to run "repo gc" on their
+respective IPFS daemons.
+
+When --local flag is passed, it will garbage collect only on the local IPFS
+deamon, otherwise on all IPFS daemons.
+`,
+					Flags: []cli.Flag{
+						localFlag(),
+					},
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.RepoGC(ctx, c.Bool("local"))
+						formatResponse(c, resp, cerr)
+						return nil
+					},
+				},
+			},
+		},
+		{
 			Name:      "commands",
 			Usage:     "List all commands",
 			ArgsUsage: " ",

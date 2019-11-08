@@ -13,9 +13,9 @@ func TestLBClient(t *testing.T) {
 	// say we want to retry the request for at most 5 times
 	cfgs := make([]*Config, 10)
 
-	// 5 empty clients
+	// 5 clients with an invalid api address
 	for i := 0; i < 5; i++ {
-		maddr, _ := ma.NewMultiaddr("")
+		maddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 		cfgs[i] = &Config{
 			APIAddr:           maddr,
 			DisableKeepAlives: true,
@@ -51,7 +51,7 @@ func testRunManyRequestsConcurrently(t *testing.T, cfgs []*Config, strategy LBSt
 		go func() {
 			defer wg.Done()
 			ctx := context.Background()
-			_, err = c.ID(ctx)
+			_, err := c.ID(ctx)
 			if err != nil && pass {
 				t.Error(err)
 			}

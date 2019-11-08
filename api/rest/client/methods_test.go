@@ -667,3 +667,38 @@ func TestAddMultiFile(t *testing.T) {
 
 	testClients(t, api, testF)
 }
+
+func TestRepoGC(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		globalGC, err := c.RepoGC(ctx, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if globalGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		for _, gc := range globalGC.PeerMap {
+			if gc.Peer == "" {
+				t.Error("bad id")
+			}
+			if gc.Error != "" {
+				t.Error("did not expect any error")
+			}
+			if gc.Keys == nil {
+				t.Error("expected a non-nil array of IPFSRepoGC")
+			} else {
+				if !gc.Keys[0].Key.Equals(test.Cid1) {
+					t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, gc.Keys[0].Key)
+				}
+			}
+		}
+	}
+
+	testClients(t, api, testF)
+}

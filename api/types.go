@@ -291,11 +291,14 @@ type Version struct {
 // then id will be a key of IPFSLinks.  In the event of a SwarmPeers error
 // IPFSLinks[id] == [].
 type ConnectGraph struct {
-	ClusterID peer.ID
+	ClusterID    peer.ID           `json:"cluster_id" codec:"id"`
+	IDtoPeername map[string]string `json:"id_to_peername" codec:"ip,omitempty"`
 	// ipfs to ipfs links
 	IPFSLinks map[string][]peer.ID `json:"ipfs_links" codec:"il,omitempty"`
 	// cluster to cluster links
 	ClusterLinks map[string][]peer.ID `json:"cluster_links" codec:"cl,omitempty"`
+	// cluster trust links
+	ClusterTrustLinks map[string]bool `json:"cluster_trust_links" codec:"ctl,omitempty"`
 	// cluster to ipfs links
 	ClustertoIPFS map[string]peer.ID `json:"cluster_to_ipfs" codec:"ci,omitempty"`
 }
@@ -959,4 +962,24 @@ func (e *Error) Error() string {
 type IPFSRepoStat struct {
 	RepoSize   uint64 `codec:"r,omitempty"`
 	StorageMax uint64 `codec:"s, omitempty"`
+}
+
+// IPFSRepoGC represents the streaming response sent from repo gc API of IPFS.
+type IPFSRepoGC struct {
+	Key   cid.Cid `json:"key,omitempty" codec:"k,omitempty"`
+	Error string  `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+// RepoGC contains garbage collected CIDs from a cluster peer's IPFS daemon.
+type RepoGC struct {
+	Peer     peer.ID      `json:"peer" codec:"p,omitempty"` // the Cluster peer ID
+	Peername string       `json:"peername" codec:"pn,omitempty"`
+	Keys     []IPFSRepoGC `json:"keys" codec:"k"`
+	Error    string       `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+// GlobalRepoGC contains cluster-wide information about garbage collected CIDs
+// from IPFS.
+type GlobalRepoGC struct {
+	PeerMap map[string]*RepoGC `json:"peer_map" codec:"pm,omitempty"`
 }
