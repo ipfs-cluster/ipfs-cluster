@@ -1678,6 +1678,18 @@ func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
 	return trustedPeers, nil
 }
 
+func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, t time.Time) {
+	for _, p := range peers {
+		gpin.PeerMap[peer.IDB58Encode(p)] = &api.PinInfo{
+			Cid:      h,
+			Peer:     p,
+			PeerName: p.String(),
+			Status:   status,
+			TS:       t,
+		}
+	}
+}
+
 func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h cid.Cid) (*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
@@ -1687,15 +1699,17 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		PeerMap: make(map[string]*api.PinInfo),
 	}
 	var dests []peer.ID
-	var members []peer.ID
-	var err error
+	var remote []peer.ID
 	timeNow := time.Now()
 
+	// set dests (allocated peers, we will contact them through rpc) and remote (un-allocated peers,
+	// we will set remote status)
 	if c.config.FollowerMode {
 		// during follower mode return status only on self peer
 		dests = []peer.ID{c.host.ID()}
+		remote = []peer.ID{}
 	} else {
-		members, err = c.consensus.Peers(ctx)
+		members, err := c.consensus.Peers(ctx)
 		if err != nil {
 			logger.Error(err)
 			return nil, err
@@ -1703,30 +1717,26 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// If pin is not part of the pinset, mark it unpinned
 		pin, err := c.PinGet(ctx, h)
-		if err != nil {
-			if err != state.ErrNotFound {
-				logger.Error(err)
-				return nil, err
-			}
-
-			for _, member := range members {
-				gpin.PeerMap[peer.IDB58Encode(member)] = &api.PinInfo{
-					Cid:      h,
-					Peer:     member,
-					PeerName: member.String(),
-					Status:   api.TrackerStatusUnpinned,
-					TS:       timeNow,
-				}
-			}
+		if err == state.ErrNotFound {
+			setTrackerStatus(gpin, h, members, api.TrackerStatusUnpinned, timeNow)
 			return gpin, nil
+		}
+		if err != nil {
+			logger.Error(err)
+			return nil, err
 		}
 
 		if len(pin.Allocations) > 0 {
 			dests = pin.Allocations
+			remote = peersSubtract(members, dests)
 		} else {
 			dests = members
+			remote = []peer.ID{}
 		}
 	}
+
+	// set status remote on un-allocated peers
+	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, timeNow)
 
 	lenDests := len(dests)
 	replies := make([]*api.PinInfo, lenDests, lenDests)
@@ -1765,27 +1775,6 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			Status:   api.TrackerStatusClusterError,
 			TS:       timeNow,
 			Error:    e.Error(),
-		}
-	}
-
-	if c.config.FollowerMode || len(dests) == len(members) {
-		return gpin, nil
-	}
-
-	// set status remote on un-allocated peers
-	for _, member := range members {
-		id := peer.IDB58Encode(member)
-		_, ok := gpin.PeerMap[id]
-		if ok {
-			continue
-		}
-
-		gpin.PeerMap[id] = &api.PinInfo{
-			Cid:      h,
-			Peer:     member,
-			PeerName: member.String(),
-			Status:   api.TrackerStatusRemote,
-			TS:       timeNow,
 		}
 	}
 
