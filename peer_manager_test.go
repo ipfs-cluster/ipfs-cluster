@@ -111,7 +111,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pinDelay()
+	ttlDelay()
 
 	f := func(t *testing.T, c *Cluster) {
 		ids := c.Peers(ctx)
@@ -420,7 +420,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// We choose to remove the leader, to make things even more interesting
 	chosenID, err := clusters[0].consensus.Leader(ctx)
 	if err != nil {
-		// choose a random peer
+		// choose a random peer - crdt
 		i := rand.Intn(nClusters)
 		chosenID = clusters[i].host.ID()
 	}
@@ -527,7 +527,7 @@ func TestClustersPeerJoin(t *testing.T) {
 
 	h := test.Cid1
 	clusters[0].Pin(ctx, h, api.PinOptions{})
-	pinDelay()
+	ttlDelay()
 
 	for _, p := range clusters {
 		t.Log(p.id.String())
@@ -574,7 +574,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 
 	h := test.Cid1
 	clusters[0].Pin(ctx, h, api.PinOptions{})
-	pinDelay()
+	ttlDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
 		peers := c.Peers(ctx)

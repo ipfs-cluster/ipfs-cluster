@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 
@@ -13,36 +12,36 @@ import (
 )
 
 func verifyOutput(t *testing.T, outStr string, trueStr string) {
-	// Because values are printed in the order of map keys we cannot enforce
-	// an exact ordering.  Instead we split both strings and compare line by
-	// line.
 	outLines := strings.Split(outStr, "\n")
 	trueLines := strings.Split(trueStr, "\n")
-	sort.Strings(outLines)
-	sort.Strings(trueLines)
 	if len(outLines) != len(trueLines) {
-		fmt.Printf("expected: %s\n actual: %s", trueStr, outStr)
+		fmt.Printf("expected:\n-%s-\n\n\nactual:\n-%s-", trueStr, outStr)
 		t.Fatal("Number of output lines does not match expectation")
 	}
 	for i := range outLines {
 		if outLines[i] != trueLines[i] {
-			t.Errorf("Difference in sorted outputs: %s vs %s", outLines[i], trueLines[i])
+			t.Errorf("Difference in sorted outputs (%d): %s vs %s", i, outLines[i], trueLines[i])
 		}
 	}
 }
 
 var simpleIpfs = `digraph cluster {
-
 /* The nodes of the connectivity graph */
 /* The cluster-service peers */
-C0 [label="<peer.ID Qm*eqhEhD>" color="blue2"]
-C1 [label="<peer.ID Qm*cgHDQJ>" color="blue2"]
-C2 [label="<peer.ID Qm*6MQmJu>" color="blue2"]
+subgraph  {
+rank="min"
+C0 [label=< <B>  </B> <BR/> <B> Qm*eqhEhD </B> > group="QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD" color="orange" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="box3d" peripheries="2" ]
+C1 [label=< <B>  </B> <BR/> <B> Qm*cgHDQJ </B> > group="QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ" color="darkorange3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="box3d" ]
+C2 [label=< <B>  </B> <BR/> <B> Qm*6MQmJu </B> > group="QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu" color="darkorange3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="box3d" ]
+}
 
 /* The ipfs peers */
-I0 [label="<peer.ID Qm*N5LSsq>" color="goldenrod"]
-I1 [label="<peer.ID Qm*R3DZDV>" color="goldenrod"]
-I2 [label="<peer.ID Qm*wbBsuL>" color="goldenrod"]
+subgraph  {
+rank="max"
+I0 [label=< <B> IPFS </B> <BR/> <B> Qm*N5LSsq </B> > group="QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I1 [label=< <B> IPFS </B> <BR/> <B> Qm*R3DZDV </B> > group="QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I2 [label=< <B> IPFS </B> <BR/> <B> Qm*wbBsuL </B> > group="QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+}
 
 /* Edges representing active connections in the cluster */
 /* The connections among cluster-service peers */
@@ -63,10 +62,9 @@ I0 -> I1
 I0 -> I2
 I1 -> I0
 I1 -> I2
-I2 -> I0
 I2 -> I1
-
- }`
+I2 -> I0
+}`
 
 var (
 	pid1, _ = peer.IDB58Decode("QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD")
@@ -127,29 +125,34 @@ func TestSimpleIpfsGraphs(t *testing.T) {
 }
 
 var allIpfs = `digraph cluster {
-
 /* The nodes of the connectivity graph */
 /* The cluster-service peers */
-C0 [label="<peer.ID Qm*eqhEhD>" color="blue2"]
-C1 [label="<peer.ID Qm*cgHDQJ>" color="blue2"]
-C2 [label="<peer.ID Qm*6MQmJu>" color="blue2"]
+subgraph  {
+rank="min"
+C0 [label=< <B>  </B> <BR/> <B> Qm*eqhEhD </B> > group="QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD" color="orange" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="box3d" peripheries="2" ]
+C1 [label=< <B>  </B> <BR/> <B> Qm*cgHDQJ </B> > group="QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ" color="darkorange3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="box3d" ]
+C2 [label=< <B>  </B> <BR/> <B> Qm*6MQmJu </B> > group="QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu" color="darkorange3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="box3d" ]
+}
 
 /* The ipfs peers */
-I0 [label="<peer.ID Qm*N5LSsq>" color="goldenrod"]
-I1 [label="<peer.ID Qm*S8xccb>" color="goldenrod"]
-I2 [label="<peer.ID Qm*aaanM8>" color="goldenrod"]
-I3 [label="<peer.ID Qm*R3DZDV>" color="goldenrod"]
-I4 [label="<peer.ID Qm*wbBsuL>" color="goldenrod"]
-I5 [label="<peer.ID Qm*tWZdeD>" color="goldenrod"]
+subgraph  {
+rank="max"
+I0 [label=< <B> IPFS </B> <BR/> <B> Qm*N5LSsq </B> > group="QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I1 [label=< <B> IPFS </B> <BR/> <B> Qm*S8xccb </B> > group="QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I2 [label=< <B> IPFS </B> <BR/> <B> Qm*aaanM8 </B> > group="QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I3 [label=< <B> IPFS </B> <BR/> <B> Qm*R3DZDV </B> > group="QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I4 [label=< <B> IPFS </B> <BR/> <B> Qm*wbBsuL </B> > group="QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+I5 [label=< <B> IPFS </B> <BR/> <B> Qm*tWZdeD </B> > group="QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD" color="turquoise3" style="filled" colorscheme="x11" fontcolor="black" fontname="Arial" shape="cylinder" ]
+}
 
 /* Edges representing active connections in the cluster */
 /* The connections among cluster-service peers */
-C2 -> C0
-C2 -> C1
 C0 -> C1
 C0 -> C2
 C1 -> C0
 C1 -> C2
+C2 -> C0
+C2 -> C1
 
 /* The connections between cluster peers and their ipfs daemons */
 C0 -> I3
@@ -157,23 +160,22 @@ C1 -> I0
 C2 -> I4
 
 /* The swarm peer connections among ipfs daemons in the cluster */
-I0 -> I1
-I0 -> I2
 I0 -> I3
 I0 -> I4
+I0 -> I1
+I0 -> I2
 I0 -> I5
 I3 -> I0
+I3 -> I4
 I3 -> I1
 I3 -> I2
-I3 -> I4
 I3 -> I5
+I4 -> I3
 I4 -> I0
 I4 -> I1
 I4 -> I2
-I4 -> I3
 I4 -> I5
-
- }`
+}`
 
 func TestIpfsAllGraphs(t *testing.T) {
 	cg := api.ConnectGraph{

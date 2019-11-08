@@ -464,6 +464,12 @@ func (api *API) routes() []route {
 			api.unpinPathHandler,
 		},
 		{
+			"RepoGC",
+			"POST",
+			"/ipfs/gc",
+			api.repoGCHandler,
+		},
+		{
 			"ConnectionGraph",
 			"GET",
 			"/health/graph",
@@ -1088,6 +1094,45 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 			)
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
+	}
+}
+
+func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if local == "true" {
+		var localRepoGC types.RepoGC
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"Cluster",
+			"RepoGCLocal",
+			struct{}{},
+			&localRepoGC,
+		)
+
+		api.sendResponse(w, autoStatus, err, repoGCToGlobal(&localRepoGC))
+		return
+	}
+
+	var repoGC types.GlobalRepoGC
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"Cluster",
+		"RepoGC",
+		struct{}{},
+		&repoGC,
+	)
+	api.sendResponse(w, autoStatus, err, repoGC)
+}
+
+func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
+	return types.GlobalRepoGC{
+		PeerMap: map[string]*types.RepoGC{
+			peer.IDB58Encode(r.Peer): r,
+		},
 	}
 }
 

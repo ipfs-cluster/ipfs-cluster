@@ -56,9 +56,10 @@ var (
 	customLogLvlFacilities = logFacilities{}
 
 	ptracker  = "map"
-	consensus = "raft"
+	consensus = "crdt"
 
-	testsFolder = "clusterTestsFolder"
+	ttlDelayTime = 2 * time.Second // set on Main to diskInf.MetricTTL
+	testsFolder  = "clusterTestsFolder"
 
 	// When testing with fixed ports...
 	// clusterPort   = 10000
@@ -123,6 +124,10 @@ func TestMain(m *testing.M) {
 			continue
 		}
 	}
+
+	diskInfCfg := &disk.Config{}
+	diskInfCfg.LoadJSON(testingDiskInfCfg)
+	ttlDelayTime = diskInfCfg.MetricTTL * 2
 
 	os.Exit(m.Run())
 }
@@ -298,14 +303,15 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
+	// Disable quic as it is proving a bit unstable
+	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -382,6 +388,7 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 	clusters[0] = createCluster(t, hosts[0], dhts[0], cfgs[0], stores[0], cons[0], apis[0], ipfss[0], trackers[0], mons[0], allocs[0], infs[0], tracers[0])
 	<-clusters[0].Ready()
 	bootstrapAddr := clusterAddr(clusters[0])
+
 	// Start the rest and join
 	for i := 1; i < nClusters; i++ {
 		clusters[i] = createCluster(t, hosts[i], dhts[i], cfgs[i], stores[i], cons[i], apis[i], ipfss[i], trackers[i], mons[i], allocs[i], infs[i], tracers[i])
@@ -481,9 +488,7 @@ func pinDelay() {
 }
 
 func ttlDelay() {
-	diskInfCfg := &disk.Config{}
-	diskInfCfg.LoadJSON(testingDiskInfCfg)
-	time.Sleep(diskInfCfg.MetricTTL * 3)
+	time.Sleep(ttlDelayTime)
 }
 
 // Like waitForLeader but letting metrics expire before waiting, and
@@ -1877,9 +1882,9 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	}
 }
 
-// Helper function for verifying cluster graph.  Will only pass if exactly the
+// Helper function for verifying cluster graph. Will only pass if exactly the
 // peers in clusterIDs are fully connected to each other and the expected ipfs
-// mock connectivity exists.  Cluster peers not in clusterIDs are assumed to
+// mock connectivity exists. Cluster peers not in clusterIDs are assumed to
 // be disconnected and the graph should reflect this
 func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[string]struct{}, peerNum int) {
 	// Check that all cluster peers see each other as peers
@@ -1914,6 +1919,10 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 		if _, ok := graph.ClusterLinks[id]; !ok {
 			t.Errorf("Expected graph to record peer %s as a node", id)
 		}
+	}
+
+	if len(graph.ClusterTrustLinks) != peerNum {
+		t.Errorf("Unexpected number of trust links in graph")
 	}
 
 	// Check that the mocked ipfs swarm is recorded
@@ -2084,6 +2093,30 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	if numPinned != nClusters-2 {
 		t.Errorf("expected %d replicas for pin, got %d", nClusters-2, numPinned)
 	}
+}
+
+func TestRepoGC(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	f := func(t *testing.T, c *Cluster) {
+		gRepoGC, err := c.RepoGC(context.Background())
+		if err != nil {
+			t.Fatal("gc should have worked:", err)
+		}
+
+		if gRepoGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		if len(gRepoGC.PeerMap) != nClusters {
+			t.Errorf("expected repo gc information for %d peer", nClusters)
+		}
+		for _, repoGC := range gRepoGC.PeerMap {
+			testRepoGC(t, repoGC)
+		}
+	}
+
+	runF(t, clusters, f)
 }
 
 func TestClustersFollowerMode(t *testing.T) {

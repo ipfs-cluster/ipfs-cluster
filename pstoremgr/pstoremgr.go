@@ -342,7 +342,7 @@ func (pm *Manager) SetPriority(pid peer.ID, prio int) error {
 	return pm.host.Peerstore().Put(pid, PriorityTag, prio)
 }
 
-// HandlePeerFound implements the Notifee interface for discovery.
+// HandlePeerFound implements the Notifee interface for discovery (mdns).
 func (pm *Manager) HandlePeerFound(p peer.AddrInfo) {
 	addrs, err := peer.AddrInfoToP2pAddrs(&p)
 	if err != nil {

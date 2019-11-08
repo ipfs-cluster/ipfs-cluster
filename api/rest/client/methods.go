@@ -351,6 +351,26 @@ func (c *defaultClient) MetricNames(ctx context.Context) ([]string, error) {
 	return metricsNames, err
 }
 
+// RepoGC runs garbage collection on IPFS daemons of cluster peers and
+// returns collected CIDs. If local is true, it would garbage collect
+// only on contacted peer, otherwise on all peers' IPFS daemons.
+func (c *defaultClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error) {
+	ctx, span := trace.StartSpan(ctx, "client/RepoGC")
+	defer span.End()
+
+	var repoGC api.GlobalRepoGC
+	err := c.do(
+		ctx,
+		"POST",
+		fmt.Sprintf("/ipfs/gc?local=%t", local),
+		nil,
+		nil,
+		&repoGC,
+	)
+
+	return &repoGC, err
+}
+
 // WaitFor is a utility function that allows for a caller to wait for a
 // paticular status for a CID (as defined by StatusFilterParams).
 // It returns the final status for that CID and an error, if there was.
