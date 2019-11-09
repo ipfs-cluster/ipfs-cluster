@@ -512,8 +512,8 @@ github.com/libp2p/go-libp2p-protocol v0.1.0 h1:HdqhEyhg0ToCaxgMhnOmUO8snQtt/kQlc
 github.com/libp2p/go-libp2p-protocol v0.1.0/go.mod h1:KQPHpAabB57XQxGrXCNvbL6UEXfQqUgC/1adR2Xtflk=
 github.com/libp2p/go-libp2p-pubsub v0.1.1 h1:phDnQvO3H3hAgaEEQi6yt3LILqIYVXaw05bxzezrEwQ=
 github.com/libp2p/go-libp2p-pubsub v0.1.1/go.mod h1:ZwlKzRSe1eGvSIdU5bD7+8RZN/Uzw0t1Bp9R1znpR/Q=
-github.com/libp2p/go-libp2p-quic-transport v0.2.0 h1:KCAK6OKM1LG7u4Bot2mDIfFSs5QWFxCLDsIh2zQff6o=
-github.com/libp2p/go-libp2p-quic-transport v0.2.0/go.mod h1:yADxsG+nm+mTTp0uqmANBmih6TEqH6SGsmbe/2K2sLY=
+github.com/libp2p/go-libp2p-quic-transport v0.2.1 h1:1ddzAaxL3VaUXnGvPFuH1LB0PCvBXv5iQzUMi0HE0KE=
+github.com/libp2p/go-libp2p-quic-transport v0.2.1/go.mod h1:O53Mr0skokeOKoWN4x9hx23d45+zGBW6xsTgCXUk/Kw=
 github.com/libp2p/go-libp2p-raft v0.1.4 h1:mE/RH6Q/QjwXXl1eWkbSpF6EjuD4pt2E9f94rkMalUE=
 github.com/libp2p/go-libp2p-raft v0.1.4/go.mod h1:+JGEXVP5ziDLtdDDRqvFjWN3Vsa6ahdLZNvFmTiN9gc=
 github.com/libp2p/go-libp2p-record v0.0.1 h1:zN7AS3X46qmwsw5JLxdDuI43cH5UYwovKxHPjKBYQxw=
@@ -619,8 +619,8 @@ github.com/libp2p/go-yamux v1.2.1/go.mod h1:FGTiPvoV/3DVdgWpX+tM0OW3tsM+W5bSE3gZ
 github.com/libp2p/go-yamux v1.2.2/go.mod h1:FGTiPvoV/3DVdgWpX+tM0OW3tsM+W5bSE3gZwqQTcow=
 github.com/libp2p/go-yamux v1.2.3 h1:xX8A36vpXb59frIzWFdEgptLMsOANMFq2K7fPRlunYI=
 github.com/libp2p/go-yamux v1.2.3/go.mod h1:FGTiPvoV/3DVdgWpX+tM0OW3tsM+W5bSE3gZwqQTcow=
-github.com/lucas-clemente/quic-go v0.13.0 h1:oY83lV1tmpYcju2xzcB3tHVHX8j+pkCp4uv2VcxNV+U=
-github.com/lucas-clemente/quic-go v0.13.0/go.mod h1:Vn3/Fb0/77b02SGhQk36KzOUmXgVpFfizUfW5WMaqyU=
+github.com/lucas-clemente/quic-go v0.13.1 h1:CxtJTXQIh2aboCPk0M6vf530XOov6DZjVBiSE3nSj8s=
+github.com/lucas-clemente/quic-go v0.13.1/go.mod h1:Vn3/Fb0/77b02SGhQk36KzOUmXgVpFfizUfW5WMaqyU=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
 github.com/marten-seemann/chacha20 v0.2.0 h1:f40vqzzx+3GdOmzQoItkLX5WLvHgPgyYqFFIO5Gh4hQ=
