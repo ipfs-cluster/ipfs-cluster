@@ -428,7 +428,13 @@ func (css *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 }
 
 // State returns the cluster shared state.
-func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) { return css.state, nil }
+func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
+	if css.state == nil {
+		return state.Empty(), nil
+	}
+
+	return css.state, nil
+}
 
 // Clean deletes all crdt-consensus datas from the datastore.
 func (css *Consensus) Clean(ctx context.Context) error {
