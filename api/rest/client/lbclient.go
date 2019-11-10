@@ -50,18 +50,16 @@ func (r *RoundRobin) SetClients(cl []Client) {
 // round robin fashion.
 type Failover struct {
 	clients []Client
-	length  int
 }
 
 // Next returns the next client to be used.
 func (f *Failover) Next(count int) Client {
-	return f.clients[count%f.length]
+	return f.clients[count%len(f.clients)]
 }
 
 // SetClients sets a list of clients for this strategy.
 func (f *Failover) SetClients(cl []Client) {
 	f.clients = cl
-	f.length = len(cl)
 }
 
 // NewLBClient returns a new client that would load balance requests among
