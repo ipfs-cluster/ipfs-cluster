@@ -31,17 +31,12 @@ var (
 	}
 )
 
-type mockCluster struct{}
 type mockIPFS struct{}
 
 func mockRPCClient(t testing.TB) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
-	err := s.RegisterName("Cluster", &mockCluster{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.RegisterName("IPFSConnector", &mockIPFS{})
+	err := s.RegisterName("IPFSConnector", &mockIPFS{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,28 +82,6 @@ func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.
 		test.Cid1.String(): api.IPFSPinStatusRecursive,
 	}
 	*out = m
-	return nil
-}
-
-func (mock *mockCluster) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
-	*out = []*api.Pin{
-		api.PinWithOpts(test.Cid1, pinOpts),
-		api.PinWithOpts(test.Cid3, pinOpts),
-	}
-	return nil
-}
-
-func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
-	switch in.String() {
-	case test.ErrorCid.String():
-		return errors.New("expected error when using ErrorCid")
-	case test.Cid1.String(), test.Cid2.String():
-		pin := api.PinWithOpts(in, pinOpts)
-		*out = *pin
-		return nil
-	}
-	pin := api.PinCid(in)
-	*out = *pin
 	return nil
 }
 
