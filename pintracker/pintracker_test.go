@@ -11,8 +11,10 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -91,52 +93,111 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 	})
 }
 
-func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
+func testSlowStatelessPinTracker(t testing.TB) (*stateless.Tracker, state.State) {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	st := stateless.NewMockState(true)
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal()
+	}
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
 		return st, nil
 	}
 	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(mockRPCClient(t))
-	return spt
+	return spt, st
 }
 
-func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
+func testStatelessPinTracker(t testing.TB) (*stateless.Tracker, state.State) {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	st := stateless.NewMockState(false)
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal()
+	}
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
 		return st, nil
 	}
 	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(test.NewMockRPCClient(t))
-	return spt
+	return spt, st
+}
+
+type argsPin struct {
+	c       *api.Pin
+	tracker ipfscluster.PinTracker
+	st      state.State
+}
+
+func newArgsPin(tb testing.TB, c *api.Pin, slow bool) argsPin {
+	var tracker ipfscluster.PinTracker
+	var st state.State
+	args := argsPin{
+		c: c,
+	}
+
+	if slow {
+		tracker, st = testSlowStatelessPinTracker(tb)
+	} else {
+		tracker, st = testStatelessPinTracker(tb)
+	}
+
+	args.tracker = tracker
+	args.st = st
+
+	return args
+}
+
+type argsCid struct {
+	c       cid.Cid
+	tracker ipfscluster.PinTracker
+	st      state.State
+}
+
+func newArgsCid(tb testing.TB, c cid.Cid, slow bool) argsCid {
+	var tracker ipfscluster.PinTracker
+	var st state.State
+	args := argsCid{
+		c: c,
+	}
+
+	if slow {
+		tracker, st = testSlowStatelessPinTracker(tb)
+	} else {
+		tracker, st = testStatelessPinTracker(tb)
+	}
+
+	args.tracker = tracker
+	args.st = st
+
+	return args
+}
+
+func newStatelessPintracker(tb testing.TB, slow bool) *stateless.Tracker {
+	if slow {
+		tracker, _ := testSlowStatelessPinTracker(tb)
+		return tracker
+	}
+	tracker, _ := testStatelessPinTracker(tb)
+	return tracker
 }
 
 func TestPinTracker_Track(t *testing.T) {
-	type args struct {
-		c       *api.Pin
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name    string
-		args    args
+		args    argsPin
 		wantErr bool
 	}{
 		{
 			"basic stateless track",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testStatelessPinTracker(t),
-			},
+			newArgsPin(t, api.PinWithOpts(test.Cid1, pinOpts), false),
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.args.tracker.Track(context.Background(), tt.args.c); (err != nil) != tt.wantErr {
+			ctx := context.Background()
+			if err := tt.args.tracker.Track(ctx, tt.args.c); (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.Track() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -144,27 +205,21 @@ func TestPinTracker_Track(t *testing.T) {
 }
 
 func BenchmarkPinTracker_Track(b *testing.B) {
-	type args struct {
-		c       *api.Pin
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name string
-		args args
+		args argsPin
 	}{
 		{
 			"basic stateless track",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testStatelessPinTracker(b),
-			},
+			newArgsPin(b, api.PinWithOpts(test.Cid1, pinOpts), false),
 		},
 	}
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if err := tt.args.tracker.Track(context.Background(), tt.args.c); err != nil {
+				ctx := context.Background()
+				if err := tt.args.tracker.Track(ctx, tt.args.c); err != nil {
 					b.Errorf("PinTracker.Track() error = %v", err)
 				}
 			}
@@ -173,21 +228,14 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 }
 
 func TestPinTracker_Untrack(t *testing.T) {
-	type args struct {
-		c       cid.Cid
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name    string
-		args    args
+		args    argsCid
 		wantErr bool
 	}{
 		{
 			"basic stateless untrack",
-			args{
-				test.Cid1,
-				testStatelessPinTracker(t),
-			},
+			newArgsCid(t, test.Cid1, false),
 			false,
 		},
 	}
@@ -201,42 +249,24 @@ func TestPinTracker_Untrack(t *testing.T) {
 }
 
 func TestPinTracker_StatusAll(t *testing.T) {
-	type args struct {
-		c       *api.Pin
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name string
-		args args
+		args argsPin
 		want []*api.PinInfo
 	}{
 		{
 			"basic stateless statusall",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testStatelessPinTracker(t),
-			},
+			newArgsPin(t, api.PinWithOpts(test.Cid1, pinOpts), false),
 			[]*api.PinInfo{
 				{
 					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusRemote,
-				},
-				{
-					Cid:    test.Cid3,
 					Status: api.TrackerStatusPinned,
 				},
 			},
 		},
 		{
 			"slow stateless statusall",
-			args{
-				api.PinWithOpts(test.Cid1, pinOpts),
-				testSlowStatelessPinTracker(t),
-			},
+			newArgsPin(t, api.PinWithOpts(test.Cid1, pinOpts), true),
 			[]*api.PinInfo{
 				{
 					Cid:    test.Cid1,
@@ -247,7 +277,9 @@ func TestPinTracker_StatusAll(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.args.tracker.Track(context.Background(), tt.args.c); err != nil {
+			ctx := context.Background()
+			tt.args.st.Add(ctx, tt.args.c)
+			if err := tt.args.tracker.Track(ctx, tt.args.c); err != nil {
 				t.Errorf("PinTracker.Track() error = %v", err)
 			}
 			time.Sleep(1 * time.Second)
@@ -286,7 +318,7 @@ func BenchmarkPinTracker_StatusAll(b *testing.B) {
 		{
 			"basic stateless track",
 			args{
-				testStatelessPinTracker(b),
+				newStatelessPintracker(b, false),
 			},
 		},
 	}
@@ -301,21 +333,14 @@ func BenchmarkPinTracker_StatusAll(b *testing.B) {
 }
 
 func TestPinTracker_Status(t *testing.T) {
-	type args struct {
-		c       cid.Cid
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name string
-		args args
+		args argsCid
 		want api.PinInfo
 	}{
 		{
 			"basic stateless status",
-			args{
-				test.Cid1,
-				testStatelessPinTracker(t),
-			},
+			newArgsCid(t, test.Cid1, false),
 			api.PinInfo{
 				Cid:    test.Cid1,
 				Status: api.TrackerStatusPinned,
@@ -323,10 +348,7 @@ func TestPinTracker_Status(t *testing.T) {
 		},
 		{
 			"basic stateless status/unpinned",
-			args{
-				test.Cid4,
-				testStatelessPinTracker(t),
-			},
+			newArgsCid(t, test.Cid4, false),
 			api.PinInfo{
 				Cid:    test.Cid4,
 				Status: api.TrackerStatusUnpinned,
@@ -334,10 +356,7 @@ func TestPinTracker_Status(t *testing.T) {
 		},
 		{
 			"slow stateless status",
-			args{
-				test.Cid1,
-				testSlowStatelessPinTracker(t),
-			},
+			newArgsCid(t, test.Cid1, true),
 			api.PinInfo{
 				Cid:    test.Cid1,
 				Status: api.TrackerStatusPinned,
@@ -346,7 +365,22 @@ func TestPinTracker_Status(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.args.tracker.Status(context.Background(), tt.args.c)
+			ctx := context.Background()
+			pin := api.PinWithOpts(tt.args.c, pinOpts)
+			switch tt.want.Status {
+			case api.TrackerStatusRemote:
+				pin.Allocations = []peer.ID{test.PeerID2}
+				pin.ReplicationFactorMin = 1
+				pin.ReplicationFactorMax = 1
+				tt.args.st.Add(ctx, pin)
+			case api.TrackerStatusPinned:
+				tt.args.st.Add(ctx, pin)
+				tt.args.tracker.Track(ctx, pin)
+			default:
+			}
+
+			time.Sleep(1 * time.Second)
+			got := tt.args.tracker.Status(ctx, tt.args.c)
 
 			if got.Cid.String() != tt.want.Cid.String() {
 				t.Errorf("PinTracker.Status() = %v, want %v", got.Cid, tt.want.Cid)
@@ -362,8 +396,18 @@ func TestPinTracker_Status(t *testing.T) {
 func TestPinTracker_RecoverAll(t *testing.T) {
 	type args struct {
 		tracker ipfscluster.PinTracker
-		pin     *api.Pin // only used by maptracker
+		st      state.State
 	}
+
+	newArgs := func(slow bool) args {
+		if slow {
+			tracker, st := testSlowStatelessPinTracker(t)
+			return args{tracker, st}
+		}
+		tracker, st := testStatelessPinTracker(t)
+		return args{tracker, st}
+	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -372,10 +416,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 	}{
 		{
 			"basic stateless recoverall",
-			args{
-				testStatelessPinTracker(t),
-				&api.Pin{},
-			},
+			newArgs(false),
 			[]*api.PinInfo{
 				{
 					Cid:    test.Cid1,
@@ -395,6 +436,17 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			for _, pinInfo := range tt.want {
+				pin := api.PinWithOpts(pinInfo.Cid, pinOpts)
+				if pinInfo.Status == api.TrackerStatusRemote {
+					pin.Allocations = []peer.ID{test.PeerID2}
+					pin.ReplicationFactorMin = 1
+					pin.ReplicationFactorMax = 1
+				}
+				tt.args.st.Add(ctx, pin)
+			}
+
 			got, err := tt.args.tracker.RecoverAll(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.RecoverAll() error = %v, wantErr %v", err, tt.wantErr)
@@ -426,22 +478,15 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 }
 
 func TestPinTracker_Recover(t *testing.T) {
-	type args struct {
-		c       cid.Cid
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name    string
-		args    args
+		args    argsCid
 		want    api.PinInfo
 		wantErr bool
 	}{
 		{
 			"basic stateless recover",
-			args{
-				test.Cid1,
-				testStatelessPinTracker(t),
-			},
+			newArgsCid(t, test.Cid1, false),
 			api.PinInfo{
 				Cid:    test.Cid1,
 				Status: api.TrackerStatusPinned,
@@ -451,6 +496,12 @@ func TestPinTracker_Recover(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tt.want.Status == api.TrackerStatusPinned {
+				pin := api.PinWithOpts(tt.want.Cid, pinOpts)
+				tt.args.st.Add(ctx, pin)
+			}
+
 			got, err := tt.args.tracker.Recover(context.Background(), tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PinTracker.Recover() error = %v, wantErr %v", err, tt.wantErr)
@@ -465,26 +516,14 @@ func TestPinTracker_Recover(t *testing.T) {
 }
 
 func TestUntrackTrack(t *testing.T) {
-	type args struct {
-		c       cid.Cid
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name    string
-		args    args
-		want    api.PinInfo
+		args    argsCid
 		wantErr bool
 	}{
 		{
 			"basic stateless untrack track",
-			args{
-				test.Cid1,
-				testStatelessPinTracker(t),
-			},
-			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
-			},
+			newArgsCid(t, test.Cid1, false),
 			false,
 		},
 	}
@@ -506,22 +545,15 @@ func TestUntrackTrack(t *testing.T) {
 }
 
 func TestTrackUntrackWithCancel(t *testing.T) {
-	type args struct {
-		c       cid.Cid
-		tracker ipfscluster.PinTracker
-	}
 	tests := []struct {
 		name    string
-		args    args
+		args    argsCid
 		want    api.PinInfo
 		wantErr bool
 	}{
 		{
 			"slow stateless tracker untrack w/ cancel",
-			args{
-				test.SlowCid1,
-				testSlowStatelessPinTracker(t),
-			},
+			newArgsCid(t, test.SlowCid1, true),
 			api.PinInfo{
 				Cid:    test.SlowCid1,
 				Status: api.TrackerStatusPinned,
@@ -531,8 +563,12 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			p := api.PinWithOpts(tt.args.c, pinOpts)
-			err := tt.args.tracker.Track(context.Background(), p)
+			if tt.want.Status != api.TrackerStatusUnpinned {
+				tt.args.st.Add(ctx, p)
+			}
+			err := tt.args.tracker.Track(ctx, p)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -571,7 +607,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 
 func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 	ctx := context.Background()
-	testF := func(t *testing.T, pt ipfscluster.PinTracker) {
+	testF := func(t *testing.T, pt ipfscluster.PinTracker, st state.State) {
 		remoteCid := test.Cid4
 
 		remote := api.PinWithOpts(remoteCid, pinOpts)
@@ -579,6 +615,7 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 		remote.ReplicationFactorMin = 1
 		remote.ReplicationFactorMax = 1
 
+		st.Add(ctx, remote)
 		err := pt.Track(ctx, remote)
 		if err != nil {
 			t.Fatal(err)
@@ -591,7 +628,7 @@ func TestPinTracker_RemoteIgnoresError(t *testing.T) {
 	}
 
 	t.Run("stateless pintracker", func(t *testing.T) {
-		pt := testSlowStatelessPinTracker(t)
-		testF(t, pt)
+		pt, st := testSlowStatelessPinTracker(t)
+		testF(t, pt, st)
 	})
 }
