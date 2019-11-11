@@ -247,14 +247,9 @@ func (c *Cluster) syncWatcher() {
 
 	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
 	recoverTicker := time.NewTicker(c.config.PinRecoverInterval)
-	setStateTicker := time.NewTicker(10 * time.Second)
 
 	for {
 		select {
-		case <-setStateTicker.C:
-			if c.setState(ctx) {
-				setStateTicker.Stop()
-			}
 		case <-stateSyncTicker.C:
 			logger.Debug("auto-triggering StateSync()")
 			c.StateSync(ctx)
@@ -266,16 +261,6 @@ func (c *Cluster) syncWatcher() {
 			return
 		}
 	}
-}
-
-func (c *Cluster) setState(ctx context.Context) bool {
-	cState, err := c.consensus.State(ctx)
-	if err != nil {
-		logger.Error(err)
-	}
-
-	logger.Debug("setting state for pintracker")
-	return c.tracker.SetState(cState)
 }
 
 func (c *Cluster) sendInformerMetric(ctx context.Context) (*api.Metric, error) {
@@ -607,7 +592,6 @@ This might be due to one or several causes:
 		// Consensus ready means the state is up to date so we can sync
 		// it to the tracker. We ignore errors (normal when state
 		// doesn't exist in new peers).
-		c.setState(ctx)
 		c.StateSync(ctx)
 	case <-c.ctx.Done():
 		return

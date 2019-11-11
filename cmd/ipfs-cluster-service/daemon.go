@@ -21,6 +21,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/ipfs/ipfs-cluster/state"
 	"go.opencensus.io/tag"
 
 	ds "github.com/ipfs/go-datastore"
@@ -173,7 +174,10 @@ func createCluster(
 		peersF = cons.Peers
 	}
 
-	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername)
+	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername, func(ctx context.Context) (state.ReadOnly, error) {
+		<-cons.Ready(ctx)
+		return cons.State(ctx)
+	})
 	logger.Debug("stateless pintracker loaded")
 
 	mon, err := pubsubmon.New(ctx, cfgs.Pubsubmon, pubsub, peersF)

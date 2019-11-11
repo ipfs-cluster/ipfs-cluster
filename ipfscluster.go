@@ -111,8 +111,6 @@ type Peered interface {
 // IPFS daemon. This component should be thread safe.
 type PinTracker interface {
 	Component
-	// SetState sets the pin state and returns true if state was not empty.
-	SetState(state.ReadOnly) bool
 	// Track tells the tracker that a Cid is now under its supervision
 	// The tracker may decide to perform an IPFS pin.
 	Track(context.Context, *api.Pin) error

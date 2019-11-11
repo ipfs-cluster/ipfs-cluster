@@ -12,6 +12,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -120,18 +121,24 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	spt := stateless.New(cfg, test.PeerID1, test.PeerName1)
+	st := stateless.NewMockState(true)
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		return st, nil
+	}
+	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(mockRPCClient(t))
-	spt.SetState(stateless.NewMockState(true))
 	return spt
 }
 
 func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	spt := stateless.New(cfg, test.PeerID1, test.PeerName1)
+	st := stateless.NewMockState(false)
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		return st, nil
+	}
+	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(test.NewMockRPCClient(t))
-	spt.SetState(stateless.NewMockState(false))
 	return spt
 }
 

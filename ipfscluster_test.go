@@ -202,8 +202,6 @@ func createComponents(
 		t.Fatal(err)
 	}
 
-	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername)
-
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
 	if err != nil {
@@ -212,6 +210,12 @@ func createComponents(
 
 	store := makeStore(t, badgerCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
+
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		<-cons.Ready(ctx)
+		return cons.State(ctx)
+	}
+	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, getState)
 
 	var peersF func(context.Context) ([]peer.ID, error)
 	if consensus == "raft" {

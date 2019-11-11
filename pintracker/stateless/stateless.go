@@ -41,7 +41,7 @@ type Tracker struct {
 	ctx    context.Context
 	cancel func()
 
-	state state.ReadOnly
+	getState func(ctx context.Context) (state.ReadOnly, error)
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
@@ -55,7 +55,7 @@ type Tracker struct {
 }
 
 // New creates a new StatelessPinTracker.
-func New(cfg *Config, pid peer.ID, peerName string) *Tracker {
+func New(cfg *Config, pid peer.ID, peerName string, getState func(ctx context.Context) (state.ReadOnly, error)) *Tracker {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	spt := &Tracker{
@@ -64,7 +64,7 @@ func New(cfg *Config, pid peer.ID, peerName string) *Tracker {
 		peerName:  peerName,
 		ctx:       ctx,
 		cancel:    cancel,
-		state:     nil,
+		getState:  getState,
 		optracker: optracker.NewOperationTracker(ctx, pid, peerName),
 		rpcReady:  make(chan struct{}, 1),
 		pinCh:     make(chan *optracker.Operation, cfg.MaxPinQueueSize),
@@ -225,13 +225,6 @@ func (spt *Tracker) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// SetState sets the pin state and returns true if state was not empty or nil.
-func (spt *Tracker) SetState(st state.ReadOnly) bool {
-	spt.state = st
-
-	return !noState(st)
-}
-
 // Track tells the StatelessPinTracker to start managing a Cid,
 // possibly triggering Pin operations on the IPFS daemon.
 func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
@@ -240,8 +233,11 @@ func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
 
 	logger.Debugf("tracking %s", c.Cid)
 
-	// Sharded pins are never pinned, so do nothing.
+	// Sharded pins are never pinned. A sharded pin cannot turn into
+	// something else or viceversa like it happens with Remote pins so
+	// we just track them.
 	if c.Type == api.MetaType {
+		spt.optracker.TrackNewOperation(ctx, c, optracker.OperationShard, optracker.PhaseDone)
 		return nil
 	}
 
@@ -287,7 +283,6 @@ func (spt *Tracker) StatusAll(ctx context.Context) []*api.PinInfo {
 
 	pininfos, err := spt.localStatus(ctx, true)
 	if err != nil {
-		logger.Error(err)
 		return nil
 	}
 
@@ -326,37 +321,22 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	// check global state to see if cluster should even be caring about
 	// the provided cid
 	gpin := &api.Pin{}
-	var err error
-	if noState(spt.state) {
-		err = spt.rpcClient.CallContext(
-			ctx,
-			"",
-			"Cluster",
-			"PinGet",
-			c,
-			gpin,
-		)
-		if err != nil {
-			if rpc.IsRPCError(err) {
-				logger.Error(err)
-				pinInfo.Status = api.TrackerStatusClusterError
-				pinInfo.Error = err.Error()
-				return pinInfo
-			}
-			// not part of global state. we should not care about
-			pinInfo.Status = api.TrackerStatusUnpinned
-			return pinInfo
-		}
-	} else {
-		gpin, err = spt.state.Get(ctx, c)
-		if err == state.ErrNotFound {
-			pinInfo.Status = api.TrackerStatusUnpinned
-			return pinInfo
-		}
-		if err != nil {
-			logger.Error(err)
-			return nil
-		}
+	st, err := spt.getState(ctx)
+	if err != nil {
+		logger.Error(err)
+		addError(pinInfo, err)
+		return pinInfo
+	}
+
+	gpin, err = st.Get(ctx, c)
+	if err == state.ErrNotFound {
+		pinInfo.Status = api.TrackerStatusUnpinned
+		return pinInfo
+	}
+	if err != nil {
+		logger.Error(err)
+		addError(pinInfo, err)
+		return pinInfo
 	}
 
 	// check if pin is a meta pin
@@ -383,11 +363,11 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	)
 	if err != nil {
 		logger.Error(err)
-		return nil
+		addError(pinInfo, err)
+		return pinInfo
 	}
 
 	pinInfo.Status = ips.ToTrackerStatus()
-	pinInfo.TS = time.Now()
 	return pinInfo
 }
 
@@ -440,7 +420,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
 	defer span.End()
 
-	ipsMap := make(map[string]api.IPFSPinStatus)
+	var ipsMap map[string]api.IPFSPinStatus
 	err := spt.rpcClient.CallContext(
 		ctx,
 		"",
@@ -482,19 +462,13 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 
 	// get shared state
 	statePins := []*api.Pin{}
-	var err error
-	if noState(spt.state) {
-		err = spt.rpcClient.CallContext(
-			ctx,
-			"",
-			"Cluster",
-			"Pins",
-			struct{}{},
-			&statePins,
-		)
-	} else {
-		statePins, err = spt.state.List(ctx)
+	st, err := spt.getState(ctx)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
 	}
+
+	statePins, err = st.List(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -507,7 +481,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		return nil, err
 	}
 
-	pininfos := make(map[string]*api.PinInfo)
+	pininfos := make(map[string]*api.PinInfo, len(statePins))
 	for _, p := range statePins {
 		pCid := p.Cid.String()
 		pinInfo := &api.PinInfo{
@@ -548,6 +522,7 @@ func (spt *Tracker) OpContext(ctx context.Context, c cid.Cid) context.Context {
 	return spt.optracker.OpContext(ctx, c)
 }
 
-func noState(st state.ReadOnly) bool {
-	return st == nil || state.IsEmpty(st)
+func addError(pinInfo *api.PinInfo, err error) {
+	pinInfo.Error = err.Error()
+	pinInfo.Status = api.TrackerStatusClusterError
 }

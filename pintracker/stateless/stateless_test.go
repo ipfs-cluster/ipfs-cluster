@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -101,9 +102,12 @@ func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	spt := New(cfg, test.PeerID1, test.PeerName1)
+	st := NewMockState(true)
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		return st, nil
+	}
+	spt := New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(mockRPCClient(t))
-	spt.SetState(NewMockState(true))
 	return spt
 }
 
@@ -111,9 +115,12 @@ func testStatelessPinTracker(t testing.TB) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	spt := New(cfg, test.PeerID1, test.PeerName1)
+	st := NewMockState(false)
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		return st, nil
+	}
+	spt := New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(test.NewMockRPCClient(t))
-	spt.SetState(NewMockState(false))
 	return spt
 }
 
