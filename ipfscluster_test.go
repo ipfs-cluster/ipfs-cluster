@@ -55,9 +55,10 @@ var (
 	customLogLvlFacilities = logFacilities{}
 
 	ptracker  = "map"
-	consensus = "raft"
+	consensus = "crdt"
 
-	testsFolder = "clusterTestsFolder"
+	ttlDelayTime = 2 * time.Second // set on Main to diskInf.MetricTTL
+	testsFolder  = "clusterTestsFolder"
 
 	// When testing with fixed ports...
 	// clusterPort   = 10000
@@ -122,6 +123,10 @@ func TestMain(m *testing.M) {
 			continue
 		}
 	}
+
+	diskInfCfg := &disk.Config{}
+	diskInfCfg.LoadJSON(testingDiskInfCfg)
+	ttlDelayTime = diskInfCfg.MetricTTL * 2
 
 	os.Exit(m.Run())
 }
@@ -212,7 +217,6 @@ func createComponents(
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
 
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		<-cons.Ready(ctx)
 		return cons.State(ctx)
 	}
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, getState)
@@ -287,14 +291,16 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	pubsubs := make([]*pubsub.PubSub, nClusters, nClusters)
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
-	listen, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	// Disable quic as it is proving a bit unstable
+	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, listen)
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -303,9 +309,14 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	return hosts, pubsubs, dhts
 }
 
-func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
+func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen []ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 	ctx := context.Background()
-	h, err := newHost(ctx, clusterSecret, priv, libp2p.ListenAddrs(listen))
+	prot, err := newProtector(clusterSecret)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := newHost(ctx, prot, priv, libp2p.ListenAddrs(listen...))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,9 +477,7 @@ func pinDelay() {
 }
 
 func ttlDelay() {
-	diskInfCfg := &disk.Config{}
-	diskInfCfg.LoadJSON(testingDiskInfCfg)
-	time.Sleep(diskInfCfg.MetricTTL * 3)
+	time.Sleep(ttlDelayTime)
 }
 
 // Like waitForLeader but letting metrics expire before waiting, and
@@ -1703,9 +1712,9 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 	}
 }
 
-// Helper function for verifying cluster graph.  Will only pass if exactly the
+// Helper function for verifying cluster graph. Will only pass if exactly the
 // peers in clusterIDs are fully connected to each other and the expected ipfs
-// mock connectivity exists.  Cluster peers not in clusterIDs are assumed to
+// mock connectivity exists. Cluster peers not in clusterIDs are assumed to
 // be disconnected and the graph should reflect this
 func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[string]struct{}, peerNum int) {
 	// Check that all cluster peers see each other as peers
@@ -1740,6 +1749,10 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 		if _, ok := graph.ClusterLinks[id]; !ok {
 			t.Errorf("Expected graph to record peer %s as a node", id)
 		}
+	}
+
+	if len(graph.ClusterTrustLinks) != peerNum {
+		t.Errorf("Unexpected number of trust links in graph")
 	}
 
 	// Check that the mocked ipfs swarm is recorded
@@ -1912,6 +1925,30 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	}
 }
 
+func TestRepoGC(t *testing.T) {
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	f := func(t *testing.T, c *Cluster) {
+		gRepoGC, err := c.RepoGC(context.Background())
+		if err != nil {
+			t.Fatal("gc should have worked:", err)
+		}
+
+		if gRepoGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		if len(gRepoGC.PeerMap) != nClusters {
+			t.Errorf("expected repo gc information for %d peer", nClusters)
+		}
+		for _, repoGC := range gRepoGC.PeerMap {
+			testRepoGC(t, repoGC)
+		}
+	}
+
+	runF(t, clusters, f)
+}
+
 func TestClustersFollowerMode(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
@@ -1978,4 +2015,58 @@ func TestClustersFollowerMode(t *testing.T) {
 			t.Fatal("globalPinInfo should only have one peer")
 		}
 	})
+}
+
+func TestClusterPinsWithExpiration(t *testing.T) {
+	ctx := context.Background()
+
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	ttlDelay()
+
+	cl := clusters[rand.Intn(nClusters)] // choose a random cluster peer to query
+
+	c := test.Cid1
+	expireIn := 1 * time.Second
+	opts := api.PinOptions{
+		ExpireAt: time.Now().Add(expireIn),
+	}
+	_, err := cl.Pin(ctx, c, opts)
+	if err != nil {
+		t.Fatal("pin should have worked:", err)
+	}
+
+	pinDelay()
+
+	pins, err := cl.Pins(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 1 {
+		t.Error("pin should be part of the state")
+	}
+
+	// wait till expiry time
+	time.Sleep(expireIn)
+
+	// manually call state sync on all peers, so we don't have to wait till
+	// state sync interval
+	for _, c := range clusters {
+		err = c.StateSync(ctx)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	pinDelay()
+
+	// state sync should have unpinned expired pin
+	pins, err = cl.Pins(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 0 {
+		t.Error("pin should not be part of the state")
+	}
 }

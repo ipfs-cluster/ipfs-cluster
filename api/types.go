@@ -10,7 +10,6 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -32,9 +31,12 @@ import (
 	_ "github.com/multiformats/go-multiaddr-dns"
 
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 var logger = logging.Logger("apitypes")
+
+var unixZero = time.Unix(0, 0)
 
 func init() {
 	// Use /p2p/ multiaddresses
@@ -289,11 +291,14 @@ type Version struct {
 // then id will be a key of IPFSLinks.  In the event of a SwarmPeers error
 // IPFSLinks[id] == [].
 type ConnectGraph struct {
-	ClusterID peer.ID
+	ClusterID    peer.ID           `json:"cluster_id" codec:"id"`
+	IDtoPeername map[string]string `json:"id_to_peername" codec:"ip,omitempty"`
 	// ipfs to ipfs links
 	IPFSLinks map[string][]peer.ID `json:"ipfs_links" codec:"il,omitempty"`
 	// cluster to cluster links
 	ClusterLinks map[string][]peer.ID `json:"cluster_links" codec:"cl,omitempty"`
+	// cluster trust links
+	ClusterTrustLinks map[string]bool `json:"cluster_trust_links" codec:"ctl,omitempty"`
 	// cluster to ipfs links
 	ClustertoIPFS map[string]peer.ID `json:"cluster_to_ipfs" codec:"ci,omitempty"`
 }
@@ -464,6 +469,7 @@ type PinOptions struct {
 	Name                 string            `json:"name" codec:"n,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
 	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
+	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
 	PinUpdate            cid.Cid           `json:"pin_update,omitempty" codec:"pu,omitempty"`
 }
@@ -510,6 +516,10 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 		return false
 	}
 
+	if !po.ExpireAt.Equal(po2.ExpireAt) {
+		return false
+	}
+
 	for k, v := range po.Metadata {
 		v2 := po2.Metadata[k]
 		if k != "" && v != v2 {
@@ -523,13 +533,20 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 }
 
 // ToQuery returns the PinOption as query arguments.
-func (po *PinOptions) ToQuery() string {
+func (po *PinOptions) ToQuery() (string, error) {
 	q := url.Values{}
 	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
 	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
 	q.Set("user-allocations", strings.Join(PeersToStrings(po.UserAllocations), ","))
+	if !po.ExpireAt.IsZero() {
+		v, err := po.ExpireAt.MarshalText()
+		if err != nil {
+			return "", err
+		}
+		q.Set("expire-at", string(v))
+	}
 	for k, v := range po.Metadata {
 		if k == "" {
 			continue
@@ -539,7 +556,7 @@ func (po *PinOptions) ToQuery() string {
 	if po.PinUpdate != cid.Undef {
 		q.Set("pin-update", po.PinUpdate.String())
 	}
-	return q.Encode()
+	return q.Encode(), nil
 }
 
 // FromQuery is the inverse of ToQuery().
@@ -571,6 +588,24 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 
 	if allocs := q.Get("user-allocations"); allocs != "" {
 		po.UserAllocations = StringsToPeers(strings.Split(allocs, ","))
+	}
+
+	if v := q.Get("expire-at"); v != "" {
+		var tm time.Time
+		err := tm.UnmarshalText([]byte(v))
+		if err != nil {
+			return errors.Wrap(err, "expire-at cannot be parsed")
+		}
+		po.ExpireAt = tm
+	} else if v = q.Get("expire-in"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return errors.Wrap(err, "expire-in cannot be parsed")
+		}
+		if d < time.Second {
+			return errors.New("expire-in duration too short")
+		}
+		po.ExpireAt = time.Now().Add(d)
 	}
 
 	po.Metadata = make(map[string]string)
@@ -683,6 +718,12 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		allocs[i] = bs
 	}
 
+	var expireAtProto uint64
+	// Only set the protobuf field with non-zero times.
+	if !(pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero)) {
+		expireAtProto = uint64(pin.ExpireAt.Unix())
+	}
+
 	opts := &pb.PinOptions{
 		ReplicationFactorMin: int32(pin.ReplicationFactorMin),
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
@@ -691,6 +732,7 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		// UserAllocations:      pin.UserAllocations,
 		Metadata:  pin.Metadata,
 		PinUpdate: pin.PinUpdate.Bytes(),
+		ExpireAt:  expireAtProto,
 	}
 
 	pbPin := &pb.Pin{
@@ -749,8 +791,11 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	pin.Name = opts.GetName()
 	pin.ShardSize = opts.GetShardSize()
 	// pin.UserAllocations = opts.GetUserAllocations()
+	t := opts.GetExpireAt()
+	if t > 0 {
+		pin.ExpireAt = time.Unix(int64(t), 0)
+	}
 	pin.Metadata = opts.GetMetadata()
-
 	pinUpdate, err := cid.Cast(opts.GetPinUpdate())
 	if err == nil {
 		pin.PinUpdate = pinUpdate
@@ -821,6 +866,15 @@ func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 		}
 	}
 	return true
+}
+
+// ExpiredAt returns whether the pin has expired at the given time.
+func (pin *Pin) ExpiredAt(t time.Time) bool {
+	if pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero) {
+		return false
+	}
+
+	return pin.ExpireAt.Before(t)
 }
 
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
@@ -908,4 +962,24 @@ func (e *Error) Error() string {
 type IPFSRepoStat struct {
 	RepoSize   uint64 `codec:"r,omitempty"`
 	StorageMax uint64 `codec:"s, omitempty"`
+}
+
+// IPFSRepoGC represents the streaming response sent from repo gc API of IPFS.
+type IPFSRepoGC struct {
+	Key   cid.Cid `json:"key,omitempty" codec:"k,omitempty"`
+	Error string  `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+// RepoGC contains garbage collected CIDs from a cluster peer's IPFS daemon.
+type RepoGC struct {
+	Peer     peer.ID      `json:"peer" codec:"p,omitempty"` // the Cluster peer ID
+	Peername string       `json:"peername" codec:"pn,omitempty"`
+	Keys     []IPFSRepoGC `json:"keys" codec:"k"`
+	Error    string       `json:"error,omitempty" codec:"e,omitempty"`
+}
+
+// GlobalRepoGC contains cluster-wide information about garbage collected CIDs
+// from IPFS.
+type GlobalRepoGC struct {
+	PeerMap map[string]*RepoGC `json:"peer_map" codec:"pm,omitempty"`
 }

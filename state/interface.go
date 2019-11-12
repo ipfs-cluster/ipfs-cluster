@@ -2,7 +2,7 @@
 // IPFS Cluster must satisfy.
 package state
 
-// State represents the shared state of the cluster and it
+// State represents the shared state of the cluster
 import (
 	"context"
 	"errors"
@@ -17,7 +17,7 @@ import (
 var ErrNotFound = errors.New("pin is not part of the pinset")
 
 // State is a wrapper to the Cluster shared state so that Pin objects can
-// easily read, written and queried. The state can be marshaled and
+// be easily read, written and queried. The state can be marshaled and
 // unmarshaled. Implementation should be thread-safe.
 type State interface {
 	ReadOnly
@@ -29,10 +29,9 @@ type State interface {
 	Marshal(io.Writer) error
 	// Unmarshal deserializes the state from marshaled bytes.
 	Unmarshal(io.Reader) error
-	// Commit writes any batched operations.
 }
 
-// ReadOnly represents a the read side of a State.
+// ReadOnly represents the read side of a State.
 type ReadOnly interface {
 	// List lists all the pins in the state.
 	List(context.Context) ([]*api.Pin, error)
