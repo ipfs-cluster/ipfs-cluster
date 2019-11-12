@@ -154,12 +154,15 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	proxy := &mockProxy{}
 	ipfs := &mockConnector{}
 
-	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername)
-
 	tracer := &mockTracer{}
 
 	store := makeStore(t, badgerCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, false, crdtCfg)
+
+	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, func(ctx context.Context) (state.ReadOnly, error) {
+		<-cons.Ready(ctx)
+		return cons.State(ctx)
+	})
 
 	var peersF func(context.Context) ([]peer.ID, error)
 	if consensus == "raft" {
