@@ -4,7 +4,7 @@ SRC := $(shell find .. -type f -name '*.go')
 all: ipfs-cluster-service
 
 ipfs-cluster-service: $(SRC)
-	go build -ldflags "-X main.commit=$(shell git rev-parse HEAD)"
+	go build -mod=readonly -ldflags "-X main.commit=$(shell git rev-parse HEAD)"
 
 build: ipfs-cluster-service
 

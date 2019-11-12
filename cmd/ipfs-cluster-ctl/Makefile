@@ -4,7 +4,7 @@ SRC := $(shell find .. -type f -name '*.go')
 all: ipfs-cluster-ctl
 
 ipfs-cluster-ctl: $(SRC)
-	go build
+	go build -mod=readonly
 
 build: ipfs-cluster-ctl
 

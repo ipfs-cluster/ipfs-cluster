@@ -35,6 +35,9 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	p2phttp "github.com/libp2p/go-libp2p-http"
+	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
+	secio "github.com/libp2p/go-libp2p-secio"
+	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 
@@ -238,6 +241,10 @@ func (api *API) setupLibp2p() error {
 			context.Background(),
 			libp2p.Identity(api.config.PrivateKey),
 			libp2p.ListenAddrs([]ma.Multiaddr{api.config.Libp2pListenAddr}...),
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			libp2p.Security(secio.ID, secio.New),
+			libp2p.Transport(libp2pquic.NewTransport),
+			libp2p.DefaultTransports,
 		)
 		if err != nil {
 			return err
@@ -443,6 +450,12 @@ func (api *API) routes() []route {
 			"DELETE",
 			"/pins/{keyType:ipfs|ipns|ipld}/{path:.*}",
 			api.unpinPathHandler,
+		},
+		{
+			"RepoGC",
+			"POST",
+			"/ipfs/gc",
+			api.repoGCHandler,
 		},
 		{
 			"ConnectionGraph",
@@ -1009,6 +1022,45 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 			)
 			api.sendResponse(w, autoStatus, err, pinInfo)
 		}
+	}
+}
+
+func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	local := queryValues.Get("local")
+
+	if local == "true" {
+		var localRepoGC types.RepoGC
+		err := api.rpcClient.CallContext(
+			r.Context(),
+			"",
+			"Cluster",
+			"RepoGCLocal",
+			struct{}{},
+			&localRepoGC,
+		)
+
+		api.sendResponse(w, autoStatus, err, repoGCToGlobal(&localRepoGC))
+		return
+	}
+
+	var repoGC types.GlobalRepoGC
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"Cluster",
+		"RepoGC",
+		struct{}{},
+		&repoGC,
+	)
+	api.sendResponse(w, autoStatus, err, repoGC)
+}
+
+func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
+	return types.GlobalRepoGC{
+		PeerMap: map[string]*types.RepoGC{
+			peer.IDB58Encode(r.Peer): r,
+		},
 	}
 }
 

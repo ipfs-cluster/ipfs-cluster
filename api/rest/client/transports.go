@@ -14,6 +14,9 @@ import (
 	ipnet "github.com/libp2p/go-libp2p-core/pnet"
 	p2phttp "github.com/libp2p/go-libp2p-http"
 	pnet "github.com/libp2p/go-libp2p-pnet"
+	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
+	secio "github.com/libp2p/go-libp2p-secio"
+	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
 
@@ -63,7 +66,13 @@ func (c *defaultClient) enableLibp2p() error {
 		}
 	}
 
-	h, err := libp2p.New(c.ctx, libp2p.PrivateNetwork(prot))
+	h, err := libp2p.New(c.ctx,
+		libp2p.PrivateNetwork(prot),
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+		libp2p.Security(secio.ID, secio.New),
+		libp2p.Transport(libp2pquic.NewTransport),
+		libp2p.DefaultTransports,
+	)
 	if err != nil {
 		return err
 	}

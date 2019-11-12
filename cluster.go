@@ -873,8 +873,8 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 
 	logger.Debugf("Join(%s)", addr)
 
-	// Add peer to peerstore so we can talk to it (and connect)
-	pid, err := c.peerManager.ImportPeer(addr, true, peerstore.PermanentAddrTTL)
+	// Add peer to peerstore so we can talk to it
+	pid, err := c.peerManager.ImportPeer(addr, false, peerstore.PermanentAddrTTL)
 	if err != nil {
 		return err
 	}
@@ -946,15 +946,55 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	return nil
 }
 
-// StateSync syncs the consensus state to the Pin Tracker, ensuring
-// that every Cid in the shared state is tracked and that the Pin Tracker
-// is not tracking more Cids than it should.
-// (Kishan: This should move to pin tracker as this is dependent on how pin
-// tracker is implemented)
+// StateSync removes expired pins if we are closest to the the cid of the
+// expired pin.
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
+
+	cState, err := c.consensus.State(ctx)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug("syncing state to tracker")
+	timeNow := time.Now()
+	clusterPins, err := cState.List(ctx)
+	if err != nil {
+		return err
+	}
+
+	isClosest := func(cid.Cid) bool {
+		return false
+	}
+
+	if !c.config.FollowerMode {
+		trustedPeers, err := c.getTrustedPeers(ctx)
+		if err != nil {
+			return nil
+		}
+		checker := distanceChecker{
+			local:      c.id,
+			otherPeers: trustedPeers,
+			cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
+		}
+		isClosest = func(c cid.Cid) bool {
+			return checker.isClosest(c)
+		}
+	}
+
+	// b. Unpin items which have expired
+	for _, p := range clusterPins {
+		pCid := p.Cid
+		if p.ExpiredAt(timeNow) && isClosest(pCid) {
+			logger.Infof("Unpinning %s: pin expired at %s", pCid, p.ExpireAt)
+			if _, err := c.Unpin(ctx, pCid); err != nil {
+				logger.Error(err)
+			}
+			continue
+		}
+	}
 
 	return nil
 }
@@ -1213,6 +1253,10 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 	err := c.setupReplicationFactor(pin)
 	if err != nil {
 		return err
+	}
+
+	if !pin.ExpireAt.IsZero() && pin.ExpireAt.Before(time.Now()) {
+		return errors.New("pin.ExpireAt set before current time")
 	}
 
 	existing, err := c.PinGet(ctx, pin.Cid)
@@ -1504,6 +1548,25 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	return peers
 }
 
+// getTrustedPeers gives listed of trusted peers except the current peer.
+func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
+	peers, err := c.consensus.Peers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	trustedPeers := make([]peer.ID, 0, len(peers))
+
+	for _, p := range peers {
+		if p == c.id || !c.consensus.IsTrustedPeer(ctx, p) {
+			continue
+		}
+		trustedPeers = append(trustedPeers, p)
+	}
+
+	return trustedPeers, nil
+}
+
 func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h cid.Cid) (*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
@@ -1767,4 +1830,66 @@ func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
 		}
 	}
 	return
+}
+
+// RepoGC performs garbage collection sweep on all peers' IPFS repo.
+func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
+	_, span := trace.StartSpan(ctx, "cluster/RepoGC")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	members, err := c.consensus.Peers(ctx)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+
+	// to club `RepoGCLocal` responses of all peers into one
+	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
+	for _, member := range members {
+		var repoGC api.RepoGC
+		err = c.rpcClient.CallContext(
+			ctx,
+			member,
+			"Cluster",
+			"RepoGCLocal",
+			struct{}{},
+			&repoGC,
+		)
+		if err == nil {
+			globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &repoGC
+			continue
+		}
+
+		if rpc.IsAuthorizationError(err) {
+			logger.Debug("rpc auth error:", err)
+			continue
+		}
+
+		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, member, err)
+
+		globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &api.RepoGC{
+			Peer:     member,
+			Peername: peer.IDB58Encode(member),
+			Keys:     []api.IPFSRepoGC{},
+			Error:    err.Error(),
+		}
+	}
+
+	return &globalRepoGC, nil
+}
+
+// RepoGCLocal performs garbage collection only on the local IPFS deamon.
+func (c *Cluster) RepoGCLocal(ctx context.Context) (*api.RepoGC, error) {
+	_, span := trace.StartSpan(ctx, "cluster/RepoGCLocal")
+	defer span.End()
+	ctx = trace.NewContext(c.ctx, span)
+
+	resp, err := c.ipfs.RepoGC(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp.Peer = c.id
+	resp.Peername = c.config.Peername
+	return resp, nil
 }

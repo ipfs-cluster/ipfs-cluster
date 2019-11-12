@@ -10,20 +10,27 @@ import (
 )
 
 // ConnectGraph returns a description of which cluster peers and ipfs
-// daemons are connected to each other
+// daemons are connected to each other.
 func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	ctx, span := trace.StartSpan(c.ctx, "cluster/ConnectGraph")
 	defer span.End()
 
 	cg := api.ConnectGraph{
-		ClusterID:     c.host.ID(),
-		IPFSLinks:     make(map[string][]peer.ID),
-		ClusterLinks:  make(map[string][]peer.ID),
-		ClustertoIPFS: make(map[string]peer.ID),
+		ClusterID:         c.host.ID(),
+		IDtoPeername:      make(map[string]string),
+		IPFSLinks:         make(map[string][]peer.ID),
+		ClusterLinks:      make(map[string][]peer.ID),
+		ClusterTrustLinks: make(map[string]bool),
+		ClustertoIPFS:     make(map[string]peer.ID),
 	}
 	members, err := c.consensus.Peers(ctx)
 	if err != nil {
 		return cg, err
+	}
+
+	for _, member := range members {
+		// one of the entries is for itself, but that shouldn't hurt
+		cg.ClusterTrustLinks[peer.IDB58Encode(member)] = c.consensus.IsTrustedPeer(ctx, member)
 	}
 
 	peers := make([][]*api.ID, len(members), len(members))
@@ -49,7 +56,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 		}
 
 		selfConnection, pID := c.recordClusterLinks(&cg, p, peers[i])
-
+		cg.IDtoPeername[p] = pID.Peername
 		// IPFS connections
 		if !selfConnection {
 			logger.Warningf("cluster peer %s not its own peer.  No ipfs info ", p)

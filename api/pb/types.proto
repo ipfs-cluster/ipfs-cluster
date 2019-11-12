@@ -25,4 +25,5 @@ message PinOptions {
   reserved 5; // reserved for UserAllocations
   map<string, string> Metadata = 6;
   bytes PinUpdate = 7;
+  uint64 ExpireAt = 8;
 }

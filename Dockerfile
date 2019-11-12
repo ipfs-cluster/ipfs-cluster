@@ -8,10 +8,6 @@ ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
 ENV GO111MODULE on
 ENV GOPROXY=https://proxy.golang.org
 
-COPY . $SRC_PATH
-WORKDIR $SRC_PATH
-RUN make install
-
 ENV SUEXEC_VERSION v0.2
 ENV TINI_VERSION v0.16.1
 RUN set -x \
@@ -26,6 +22,14 @@ RUN set -x \
 
 # Get the TLS CA certificates, they're not provided by busybox.
 RUN apt-get update && apt-get install -y ca-certificates
+
+COPY go.* $SRC_PATH/
+WORKDIR $SRC_PATH
+RUN go mod download
+
+COPY . $SRC_PATH
+RUN make install
+
 
 #------------------------------------------------------
 FROM busybox:1-glibc

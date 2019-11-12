@@ -601,8 +601,12 @@ type pathCase struct {
 	expectedCid string
 }
 
-func (p *pathCase) WithQuery() string {
-	return p.path + "?" + p.opts.ToQuery()
+func (p *pathCase) WithQuery(t *testing.T) string {
+	query, err := p.opts.ToQuery()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p.path + "?" + query
 }
 
 var testPinOpts = api.PinOptions{
@@ -610,6 +614,7 @@ var testPinOpts = api.PinOptions{
 	ReplicationFactorMin: 6,
 	Name:                 "hello there",
 	UserAllocations:      []peer.ID{test.PeerID1, test.PeerID2},
+	ExpireAt:             time.Now().Add(30 * time.Second),
 }
 
 var pathTestCases = []pathCase{
@@ -660,7 +665,8 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 
 			if testCase.wantErr {
 				errResp := api.Error{}
-				makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &errResp)
+				q := testCase.WithQuery(t)
+				makePost(t, rest, url(rest)+"/pins"+q, []byte{}, &errResp)
 				if errResp.Code != testCase.code {
 					t.Errorf(
 						"status code: expected: %d, got: %d, path: %s\n",
@@ -672,7 +678,8 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 				continue
 			}
 			pin := api.Pin{}
-			makePost(t, rest, url(rest)+"/pins"+testCase.WithQuery(), []byte{}, &pin)
+			q := testCase.WithQuery(t)
+			makePost(t, rest, url(rest)+"/pins"+q, []byte{}, &pin)
 			if !pin.Equals(resultantPin) {
 				t.Errorf("pin: expected: %+v", resultantPin)
 				t.Errorf("pin: got: %+v", pin)
@@ -1069,6 +1076,53 @@ func TestNotFoundHandler(t *testing.T) {
 		if errResp1.Code != 404 {
 			t.Error("expected error not found")
 		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
+func TestAPIIPFSGCEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	testGlobalRepoGC := func(t *testing.T, gRepoGC *api.GlobalRepoGC) {
+		if gRepoGC.PeerMap == nil {
+			t.Fatal("expected a non-nil peer map")
+		}
+
+		if len(gRepoGC.PeerMap) != 1 {
+			t.Error("expected repo gc information for one peer")
+		}
+
+		for _, repoGC := range gRepoGC.PeerMap {
+			if repoGC.Peer == "" {
+				t.Error("expected a cluster ID")
+			}
+			if repoGC.Error != "" {
+				t.Error("did not expect any error")
+			}
+			if repoGC.Keys == nil {
+				t.Fatal("expected a non-nil array of IPFSRepoGC")
+			}
+			if len(repoGC.Keys) == 0 {
+				t.Fatal("expected at least one key, but found none")
+			}
+			if !repoGC.Keys[0].Key.Equals(test.Cid1) {
+				t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC.Keys[0].Key)
+			}
+
+		}
+	}
+
+	tf := func(t *testing.T, url urlF) {
+		var resp api.GlobalRepoGC
+		makePost(t, rest, url(rest)+"/ipfs/gc?local=true", []byte{}, &resp)
+		testGlobalRepoGC(t, &resp)
+
+		var resp1 api.GlobalRepoGC
+		makePost(t, rest, url(rest)+"/ipfs/gc", []byte{}, &resp1)
+		testGlobalRepoGC(t, &resp1)
 	}
 
 	testBothEndpoints(t, tf)
