@@ -2,112 +2,25 @@ package stateless
 
 import (
 	"context"
-	"errors"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
-
-var (
-	pinCancelCid      = test.Cid3
-	unpinCancelCid    = test.Cid2
-	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
-	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
-)
-
-type mockIPFS struct{}
-
-func mockRPCClient(t *testing.T) *rpc.Client {
-	s := rpc.NewServer(nil, "mock")
-	c := rpc.NewClientWithServer(nil, "mock", s)
-
-	err := s.RegisterName("IPFSConnector", &mockIPFS{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
-	switch in.Cid.String() {
-	case test.SlowCid1.String():
-		time.Sleep(2 * time.Second)
-	case pinCancelCid.String():
-		return ErrPinCancelCid
-	}
-	return nil
-}
-
-func (mock *mockIPFS) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
-	switch in.Cid.String() {
-	case test.SlowCid1.String():
-		time.Sleep(2 * time.Second)
-	case unpinCancelCid.String():
-		return ErrUnpinCancelCid
-	}
-	return nil
-}
-
-func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	m := map[string]api.IPFSPinStatus{
-		test.Cid1.String(): api.IPFSPinStatusRecursive,
-	}
-	*out = m
-	return nil
-}
-
-func (mock *mockIPFS) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	switch in.String() {
-	case test.Cid1.String(), test.Cid2.String():
-		*out = api.IPFSPinStatusRecursive
-	default:
-		*out = api.IPFSPinStatusUnpinned
-	}
-	return nil
-}
-
-func testSlowStatelessPinTracker(t *testing.T) *Tracker {
-	cfg := &Config{}
-	cfg.Default()
-	cfg.ConcurrentPins = 1
-	st := NewMockState(true)
-	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		return st, nil
-	}
-	spt := New(cfg, test.PeerID1, test.PeerName1, getState)
-	spt.SetClient(mockRPCClient(t))
-	return spt
-}
-
-func testStatelessPinTracker(t testing.TB) *Tracker {
-	cfg := &Config{}
-	cfg.Default()
-	cfg.ConcurrentPins = 1
-	st := NewMockState(false)
-	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		return st, nil
-	}
-	spt := New(cfg, test.PeerID1, test.PeerName1, getState)
-	spt.SetClient(test.NewMockRPCClient(t))
-	return spt
-}
 
 func TestStatelessPinTracker_New(t *testing.T) {
 	ctx := context.Background()
-	spt := testStatelessPinTracker(t)
+	spt, _ := PinTracker(t)
 	defer spt.Shutdown(ctx)
 }
 
 func TestStatelessPinTracker_Shutdown(t *testing.T) {
 	ctx := context.Background()
-	spt := testStatelessPinTracker(t)
+	spt, _ := PinTracker(t)
 	err := spt.Shutdown(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +33,7 @@ func TestStatelessPinTracker_Shutdown(t *testing.T) {
 
 func TestUntrackTrack(t *testing.T) {
 	ctx := context.Background()
-	spt := testStatelessPinTracker(t)
+	spt, _ := PinTracker(t)
 	defer spt.Shutdown(ctx)
 
 	h1 := test.Cid1
@@ -143,7 +56,7 @@ func TestUntrackTrack(t *testing.T) {
 
 func TestTrackUntrackWithCancel(t *testing.T) {
 	ctx := context.Background()
-	spt := testSlowStatelessPinTracker(t)
+	spt, _ := SlowPinTracker(t)
 	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.SlowCid1
@@ -188,7 +101,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 // cancelling of the pinning operation happens (unlike on WithCancel).
 func TestTrackUntrackWithNoCancel(t *testing.T) {
 	ctx := context.Background()
-	spt := testSlowStatelessPinTracker(t)
+	spt, _ := SlowPinTracker(t)
 	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.SlowCid1
@@ -239,7 +152,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 
 func TestUntrackTrackWithCancel(t *testing.T) {
 	ctx := context.Background()
-	spt := testSlowStatelessPinTracker(t)
+	spt, _ := SlowPinTracker(t)
 	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.SlowCid1
@@ -289,7 +202,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 
 func TestUntrackTrackWithNoCancel(t *testing.T) {
 	ctx := context.Background()
-	spt := testStatelessPinTracker(t)
+	spt, _ := PinTracker(t)
 	defer spt.Shutdown(ctx)
 
 	slowPinCid := test.SlowCid1
@@ -350,7 +263,7 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 }
 
 func BenchmarkTracker_localStatus(b *testing.B) {
-	tracker := testStatelessPinTracker(b)
+	tracker, _ := PinTracker(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tracker.localStatus(context.Background(), true)
