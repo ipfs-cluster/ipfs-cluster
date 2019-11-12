@@ -170,7 +170,6 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, false, crdtCfg)
 
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, func(ctx context.Context) (state.ReadOnly, error) {
-		<-cons.Ready(ctx)
 		return cons.State(ctx)
 	})
 

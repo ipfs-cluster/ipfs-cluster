@@ -217,7 +217,6 @@ func createComponents(
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
 
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		<-cons.Ready(ctx)
 		return cons.State(ctx)
 	}
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, getState)

@@ -175,7 +175,6 @@ func createCluster(
 	}
 
 	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername, func(ctx context.Context) (state.ReadOnly, error) {
-		<-cons.Ready(ctx)
 		return cons.State(ctx)
 	})
 	logger.Debug("stateless pintracker loaded")
