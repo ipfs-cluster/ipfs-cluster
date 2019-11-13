@@ -234,3 +234,8 @@ func (cfg *Config) GetFolder() string {
 
 	return filepath.Join(cfg.BaseDir, cfg.Folder)
 }
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
+}

@@ -121,8 +121,11 @@ func createCluster(
 
 	cfgs := cfgHelper.Configs()
 	cfgMgr := cfgHelper.Manager()
+	cfgBytes, err := cfgMgr.ToDisplayJSON()
+	checkErr("getting configuration string", err)
+	logger.Debugf("Configuration:\n%s\n", cfgBytes)
 
-	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
 	checkErr("tag context with host id", err)
 
 	var apis []ipfscluster.API

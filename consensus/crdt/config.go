@@ -191,3 +191,8 @@ func (cfg *Config) ApplyEnvVars() error {
 
 	return cfg.applyJSONConfig(jcfg)
 }
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
+}

@@ -205,3 +205,13 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 
 	return
 }
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return config.DisplayJSON(jcfg)
+}

@@ -95,3 +95,8 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 		MetricTTL: cfg.MetricTTL.String(),
 	}
 }
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
+}
