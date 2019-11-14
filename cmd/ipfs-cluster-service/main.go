@@ -21,6 +21,7 @@ import (
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
+	"github.com/kelseyhightower/envconfig"
 	cli "github.com/urfave/cli"
 )
 
@@ -205,7 +206,10 @@ func main() {
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		identityPath = filepath.Join(absPath, DefaultIdentityFile)
 
-		setupLogLevel(c.String("loglevel"))
+		err = setupLogLevel(c.String("loglevel"))
+		if err != nil {
+			return err
+		}
 		if c.Bool("debug") {
 			setupDebug()
 		}
@@ -580,11 +584,35 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func setupLogLevel(lvl string) {
-	for f := range ipfscluster.LoggingFacilities {
-		ipfscluster.SetFacilityLogLevel(f, lvl)
+func setupLogLevel(lvl string) error {
+	// fill a temporary variable with log facility values
+	// from environment variables
+	t := struct {
+		Facs map[string]string `json:"facs"`
+	}{}
+
+	err := envconfig.Process("log", &t)
+	if err != nil {
+		return err
+	}
+
+	// fill logfacs map with lvl
+	logfacs := ipfscluster.LoggingFacilities
+	for f := range logfacs {
+		logfacs[f] = lvl
+	}
+
+	// replace values in logfacs from temporary variable
+	for key := range t.Facs {
+		logfacs[key] = t.Facs[key]
+	}
+
+	for key, value := range logfacs {
+		ipfscluster.SetFacilityLogLevel(key, value)
 	}
 	ipfscluster.SetFacilityLogLevel("service", lvl)
+
+	return nil
 }
 
 func setupDebug() {
