@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -20,6 +22,11 @@ var (
 	unpinCancelCid    = test.Cid2
 	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
+
+	pinOpts = api.PinOptions{
+		ReplicationFactorMax: -1,
+		ReplicationFactorMin: -1,
+	}
 )
 
 type mockIPFS struct{}
@@ -77,7 +84,10 @@ func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	st := NewMockState(true)
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
 		return st, nil
 	}
@@ -90,7 +100,10 @@ func testStatelessPinTracker(t testing.TB) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	st := NewMockState(false)
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
 		return st, nil
 	}

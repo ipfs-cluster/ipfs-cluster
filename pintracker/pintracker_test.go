@@ -11,8 +11,10 @@ import (
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -91,10 +93,41 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 	})
 }
 
+// newPrefilledState return a state instance with some pins.
+func newPrefilledState(t testing.TB) state.ReadOnly {
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote := api.PinWithOpts(test.Cid4, pinOpts)
+	remote.Allocations = []peer.ID{test.PeerID2}
+	remote.ReplicationFactorMin = 1
+	remote.ReplicationFactorMax = 1
+
+	pins := []*api.Pin{
+		api.PinWithOpts(test.Cid1, pinOpts),
+		api.PinCid(test.Cid2),
+		api.PinWithOpts(test.Cid3, pinOpts),
+		remote,
+	}
+
+	ctx := context.Background()
+	for _, pin := range pins {
+		err = st.Add(ctx, pin)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	return st
+}
+
 func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	st := stateless.NewMockState(true)
+	//	st := stateless.NewMockState(true)
+	st := newPrefilledState(t)
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
 		return st, nil
 	}
@@ -106,7 +139,8 @@ func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
 func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 	cfg := &stateless.Config{}
 	cfg.Default()
-	st := stateless.NewMockState(false)
+	//st := stateless.NewMockState(false)
+	st := newPrefilledState(t)
 	getState := func(ctx context.Context) (state.ReadOnly, error) {
 		return st, nil
 	}
@@ -229,6 +263,10 @@ func TestPinTracker_StatusAll(t *testing.T) {
 					Cid:    test.Cid3,
 					Status: api.TrackerStatusPinned,
 				},
+				{
+					Cid:    test.Cid4,
+					Status: api.TrackerStatusRemote,
+				},
 			},
 		},
 		{
@@ -241,6 +279,14 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				{
 					Cid:    test.Cid1,
 					Status: api.TrackerStatusPinned,
+				},
+				{
+					Cid:    test.Cid2,
+					Status: api.TrackerStatusRemote,
+				},
+				{
+					Cid:    test.Cid4,
+					Status: api.TrackerStatusRemote,
 				},
 			},
 		},
@@ -324,11 +370,11 @@ func TestPinTracker_Status(t *testing.T) {
 		{
 			"basic stateless status/unpinned",
 			args{
-				test.Cid4,
+				test.Cid5,
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.Cid4,
+				Cid:    test.Cid5,
 				Status: api.TrackerStatusUnpinned,
 			},
 		},
@@ -388,6 +434,10 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 				{
 					Cid:    test.Cid3,
 					Status: api.TrackerStatusPinned,
+				},
+				{
+					Cid:    test.Cid4,
+					Status: api.TrackerStatusRemote,
 				},
 			},
 			false,
