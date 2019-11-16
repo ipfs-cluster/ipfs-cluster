@@ -22,8 +22,7 @@ var (
 	unpinCancelCid    = test.Cid2
 	ErrPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	ErrUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
-
-	pinOpts = api.PinOptions{
+	pinOpts           = api.PinOptions{
 		ReplicationFactorMax: -1,
 		ReplicationFactorMin: -1,
 	}

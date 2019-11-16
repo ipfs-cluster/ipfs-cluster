@@ -82,7 +82,6 @@ func New(cfg *Config, pid peer.ID, peerName string, getState func(ctx context.Co
 // Used for both pinning and unpinning
 func (spt *Tracker) opWorker(pinF func(*optracker.Operation) error, opChan chan *optracker.Operation) {
 	logger.Debug("entering opworker")
-	// stop tracking operation shard and remove this ticker
 	ticker := time.NewTicker(10 * time.Second) //TODO(ajl): make config var
 	for {
 		select {

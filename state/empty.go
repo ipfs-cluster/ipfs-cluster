@@ -26,9 +26,3 @@ func (e *empty) Get(ctx context.Context, c cid.Cid) (*api.Pin, error) {
 func Empty() ReadOnly {
 	return &empty{}
 }
-
-// IsEmpty check if given state is empty.
-func IsEmpty(st ReadOnly) bool {
-	_, ok := st.(*empty)
-	return ok
-}

@@ -946,7 +946,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	return nil
 }
 
-// StateSync removes expired pins if we are closest to the the cid of the
+// StateSync removes expired pins if we are the closest to cid of the
 // expired pin.
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
