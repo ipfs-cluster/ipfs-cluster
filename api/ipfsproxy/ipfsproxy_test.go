@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -532,6 +533,45 @@ func TestProxyRepoStat(t *testing.T) {
 		t.Errorf("expected different stats: %+v", stat)
 	}
 
+}
+
+func TestProxyRepoGC(t *testing.T) {
+	ctx := context.Background()
+	proxy, mock := testIPFSProxy(t)
+	defer mock.Close()
+	defer proxy.Shutdown(ctx)
+
+	res1, err := http.Post(fmt.Sprintf("%s/repo/gc?stream-errors=true", proxyURL(proxy)), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res1.Body.Close()
+	if res1.StatusCode != http.StatusOK {
+		t.Error("request should have succeeded")
+	}
+
+	var repoGC []ipfsRepoGCResp
+
+	dec := json.NewDecoder(res1.Body)
+	for {
+		resp := ipfsRepoGCResp{}
+
+		if err := dec.Decode(&resp); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Error(err)
+		}
+
+		repoGC = append(repoGC, resp)
+	}
+
+	if !repoGC[0].Key.Equals(test.Cid1) {
+		t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC[0].Key)
+	}
+	if repoGC[4].Error != test.ErrLinkNotFound.Error() {
+		t.Error("expected a different error")
+	}
 }
 
 func TestProxyAdd(t *testing.T) {
