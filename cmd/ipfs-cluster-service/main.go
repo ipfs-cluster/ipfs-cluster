@@ -21,7 +21,6 @@ import (
 
 	semver "github.com/blang/semver"
 	logging "github.com/ipfs/go-log"
-	"github.com/kelseyhightower/envconfig"
 	cli "github.com/urfave/cli"
 )
 
@@ -191,9 +190,15 @@ func main() {
 			Usage: "enable full debug logging (very verbose)",
 		},
 		cli.StringFlag{
-			Name:  "loglevel, l",
-			Value: defaultLogLevel,
-			Usage: "set the loglevel for cluster components only [critical, error, warning, info, debug]",
+			Name:   "loglevel, l",
+			Value:  defaultLogLevel,
+			EnvVar: "LOG_LEVEL",
+			Usage:  "set the loglevel for cluster components only [critical, error, warning, info, debug]",
+		},
+		cli.StringSliceFlag{
+			Name:   "component-loglevel, cl",
+			EnvVar: "COMP_LOG_LEVEL",
+			Usage:  "set separate loglevel for individual cluster components",
 		},
 	}
 
@@ -206,13 +211,8 @@ func main() {
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		identityPath = filepath.Join(absPath, DefaultIdentityFile)
 
-		err = setupLogLevel(c.String("loglevel"))
-		if err != nil {
-			return err
-		}
-		if c.Bool("debug") {
-			setupDebug()
-		}
+		err = setupLogLevel(c.Bool("debug"), c.String("loglevel"), c.StringSlice("component-loglevel"))
+		checkErr("setting log levels", err)
 
 		locker = &lock{path: absPath}
 
@@ -584,39 +584,38 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func setupLogLevel(lvl string) error {
-	// fill a temporary variable with log facility values
-	// from environment variables
-	t := struct {
-		Facs map[string]string `json:"facs"`
-	}{}
-
-	err := envconfig.Process("log", &t)
-	if err != nil {
-		return err
+func setupLogLevel(debug bool, logLevel string, compLogLevel []string) error {
+	// if debug is set to true, log everything in debug level
+	if debug {
+		ipfscluster.SetFacilityLogLevel("*", "DEBUG")
+		return nil
 	}
 
-	// fill logfacs map with lvl
+	// log service with logLevel
+	ipfscluster.SetFacilityLogLevel("service", logLevel)
+
+	// log components with compLogLevel
+	// if compLogLevel is not present for a component, use logLevel
 	logfacs := ipfscluster.LoggingFacilities
-	for f := range logfacs {
-		logfacs[f] = lvl
+	for key := range logfacs {
+		logfacs[key] = logLevel
 	}
 
-	// replace values in logfacs from temporary variable
-	for key := range t.Facs {
-		logfacs[key] = t.Facs[key]
+	for _, cll := range compLogLevel {
+		if cll == "" {
+			continue
+		}
+		identifierToLevel := strings.Split(cll, ":")
+		if len(identifierToLevel) != 2 {
+			return errors.New("component log level not in format \"identifier:loglevel\"")
+		}
+		logfacs[identifierToLevel[0]] = identifierToLevel[1]
 	}
-
-	for key, value := range logfacs {
-		ipfscluster.SetFacilityLogLevel(key, value)
+	for identifier, level := range logfacs {
+		ipfscluster.SetFacilityLogLevel(identifier, level)
 	}
-	ipfscluster.SetFacilityLogLevel("service", lvl)
 
 	return nil
-}
-
-func setupDebug() {
-	ipfscluster.SetFacilityLogLevel("*", "DEBUG")
 }
 
 func userProvidedSecret(enterSecret bool) ([]byte, bool) {
