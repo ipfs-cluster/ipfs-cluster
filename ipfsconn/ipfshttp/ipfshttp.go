@@ -952,13 +952,12 @@ func (ipfs *Connector) updateInformerMetric(ctx context.Context) error {
 		return nil
 	}
 
-	var metric api.Metric
-
+	var metric []*api.Metric
 	err := ipfs.rpcClient.GoContext(
 		ctx,
 		"",
 		"Cluster",
-		"SendInformerMetric",
+		"SendAllInformerMetric",
 		struct{}{},
 		&metric,
 		nil,

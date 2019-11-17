@@ -72,8 +72,10 @@ type Cluster struct {
 	tracker   PinTracker
 	monitor   PeerMonitor
 	allocator PinAllocator
-	informer  Informer
+	informers []Informer
 	tracer    Tracer
+
+	preferredMetric string
 
 	doneCh  chan struct{}
 	readyCh chan struct{}
@@ -107,8 +109,9 @@ func NewCluster(
 	tracker PinTracker,
 	monitor PeerMonitor,
 	allocator PinAllocator,
-	informer Informer,
+	informers []Informer,
 	tracer Tracer,
+	preferredMetric string,
 ) (*Cluster, error) {
 	err := cfg.Validate()
 	if err != nil {
@@ -141,28 +144,29 @@ func NewCluster(
 	}
 
 	c := &Cluster{
-		ctx:         ctx,
-		cancel:      cancel,
-		id:          host.ID(),
-		config:      cfg,
-		host:        host,
-		dht:         dht,
-		discovery:   mdns,
-		datastore:   datastore,
-		consensus:   consensus,
-		apis:        apis,
-		ipfs:        ipfs,
-		tracker:     tracker,
-		monitor:     monitor,
-		allocator:   allocator,
-		informer:    informer,
-		tracer:      tracer,
-		peerManager: peerManager,
-		shutdownB:   false,
-		removed:     false,
-		doneCh:      make(chan struct{}),
-		readyCh:     make(chan struct{}),
-		readyB:      false,
+		ctx:             ctx,
+		cancel:          cancel,
+		id:              host.ID(),
+		config:          cfg,
+		host:            host,
+		dht:             dht,
+		discovery:       mdns,
+		datastore:       datastore,
+		consensus:       consensus,
+		apis:            apis,
+		ipfs:            ipfs,
+		tracker:         tracker,
+		monitor:         monitor,
+		allocator:       allocator,
+		informers:       informers,
+		tracer:          tracer,
+		peerManager:     peerManager,
+		preferredMetric: preferredMetric,
+		shutdownB:       false,
+		removed:         false,
+		doneCh:          make(chan struct{}),
+		readyCh:         make(chan struct{}),
+		readyB:          false,
 	}
 
 	// Import known cluster peers from peerstore file. Set
@@ -237,7 +241,9 @@ func (c *Cluster) setupRPCClients() {
 	c.consensus.SetClient(c.rpcClient)
 	c.monitor.SetClient(c.rpcClient)
 	c.allocator.SetClient(c.rpcClient)
-	c.informer.SetClient(c.rpcClient)
+	for _, informer := range c.informers {
+		informer.SetClient(c.rpcClient)
+	}
 }
 
 // syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
@@ -267,11 +273,11 @@ func (c *Cluster) syncWatcher() {
 	}
 }
 
-func (c *Cluster) sendInformerMetric(ctx context.Context) (*api.Metric, error) {
+func (c *Cluster) sendInformerMetric(ctx context.Context, informer Informer) (*api.Metric, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendInformerMetric")
 	defer span.End()
 
-	metric := c.informer.GetMetric(ctx)
+	metric := informer.GetMetric(ctx)
 	metric.Peer = c.id
 	return metric, c.monitor.PublishMetric(ctx, metric)
 }
@@ -279,7 +285,7 @@ func (c *Cluster) sendInformerMetric(ctx context.Context) (*api.Metric, error) {
 // pushInformerMetrics loops and publishes informers metrics using the
 // cluster monitor. Metrics are pushed normally at a TTL/2 rate. If an error
 // occurs, they are pushed at a TTL/4 rate.
-func (c *Cluster) pushInformerMetrics(ctx context.Context) {
+func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
 	ctx, span := trace.StartSpan(ctx, "cluster/pushInformerMetrics")
 	defer span.End()
 
@@ -301,7 +307,7 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context) {
 			// wait
 		}
 
-		metric, err := c.sendInformerMetric(ctx)
+		metric, err := c.sendInformerMetric(ctx, informer)
 
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
@@ -540,10 +546,12 @@ func (c *Cluster) run() {
 		c.pushPingMetrics(c.ctx)
 	}()
 
-	c.wg.Add(1)
+	c.wg.Add(len(c.informers))
 	go func() {
-		defer c.wg.Done()
-		c.pushInformerMetrics(c.ctx)
+		for _, informer := range c.informers {
+			defer c.wg.Done()
+			c.pushInformerMetrics(c.ctx, informer)
+		}
 	}()
 
 	c.wg.Add(1)
@@ -912,9 +920,11 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}
 
 	// Broadcast our metrics to the world
-	_, err = c.sendInformerMetric(ctx)
-	if err != nil {
-		logger.Warning(err)
+	for _, informer := range c.informers {
+		_, err = c.sendInformerMetric(ctx, informer)
+		if err != nil {
+			logger.Warning(err)
+		}
 	}
 	_, err = c.sendPingMetric(ctx)
 	if err != nil {
