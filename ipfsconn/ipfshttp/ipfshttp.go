@@ -957,7 +957,7 @@ func (ipfs *Connector) updateInformerMetric(ctx context.Context) error {
 		ctx,
 		"",
 		"Cluster",
-		"SendAllInformerMetric",
+		"SendInformersMetrics",
 		struct{}{},
 		&metrics,
 		nil,

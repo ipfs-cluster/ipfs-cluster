@@ -282,16 +282,19 @@ func (c *Cluster) sendInformerMetric(ctx context.Context, informer Informer) (*a
 	return metric, c.monitor.PublishMetric(ctx, metric)
 }
 
-func (c *Cluster) sendInformersMetrics(ctx context.Context) {
+func (c *Cluster) sendInformersMetrics(ctx context.Context) ([]*api.Metric, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendInformersMetrics")
 	defer span.End()
 
+	var metrics []*api.Metric
 	for _, informer := range c.informers {
-		_, err := c.sendInformerMetric(ctx, informer)
+		m, err := c.sendInformerMetric(ctx, informer)
 		if err != nil {
-			logger.Warning(err)
+			return nil, err
 		}
+		metrics = append(metrics, m)
 	}
+	return metrics, nil
 }
 
 // pushInformerMetrics loops and publishes informers metrics using the
@@ -930,7 +933,10 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}
 
 	// Broadcast our metrics to the world
-	c.sendInformersMetrics(ctx)
+	_, err = c.sendInformersMetrics(ctx)
+	if err != nil {
+		logger.Warning(err)
+	}
 
 	_, err = c.sendPingMetric(ctx)
 	if err != nil {

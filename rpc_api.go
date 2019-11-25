@@ -448,18 +448,14 @@ func (rpcapi *ClusterRPCAPI) SendInformerMetric(ctx context.Context, in struct{}
 	return nil
 }
 
-// SendAllInformerMetric runs Cluster.sendInformerMetric() on all informers.
-func (rpcapi *ClusterRPCAPI) SendAllInformerMetric(ctx context.Context, in struct{}, out *[]*api.Metric) error {
+// SendInformersMetrics runs Cluster.sendInformerMetric() on all informers.
+func (rpcapi *ClusterRPCAPI) SendInformersMetrics(ctx context.Context, in struct{}, out *[]*api.Metric) error {
 	var metrics []*api.Metric
-	for _, informer := range rpcapi.c.informers {
-		m, err := rpcapi.c.sendInformerMetric(ctx, informer)
-		if err != nil {
-			return err
-		}
-		metrics = append(metrics, m)
+	metrics, err := rpcapi.c.sendInformersMetrics(ctx)
+	if err != nil {
+		return err
 	}
-
-	out = &metrics
+	*out = metrics
 	return nil
 }
 
