@@ -4,7 +4,6 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/btcsuite/btcd v0.20.0-beta // indirect
 	github.com/dgraph-io/badger v1.6.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gogo/protobuf v1.3.1
