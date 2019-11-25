@@ -602,7 +602,7 @@ func setupLogLevel(debug bool, compLogLevel []string) error {
 				return fmt.Errorf("%s is not a valid log level", lvl)
 			}
 			if logLevel != "" {
-				return errors.New("trying to set overall log level again")
+				fmt.Printf("overwriting existing overall log level\n")
 			}
 			logLevel = lvl
 		case 2:
@@ -612,7 +612,7 @@ func setupLogLevel(debug bool, compLogLevel []string) error {
 			}
 			_, ok := compLogFacs[identifierToLevel[0]]
 			if ok {
-				return fmt.Errorf("trying to set %s log level again", identifierToLevel[0])
+				fmt.Printf("overwriting existing %s log level\n", identifierToLevel[0])
 			}
 			compLogFacs[identifierToLevel[0]] = lvl
 		default:
