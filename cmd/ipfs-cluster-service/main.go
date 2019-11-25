@@ -627,8 +627,8 @@ func setupLogLevel(debug bool, compLogLevel []string) error {
 	// log service with logLevel
 	ipfscluster.SetFacilityLogLevel("service", logLevel)
 
-	logfacs := ipfscluster.LoggingFacilities
-	for key := range logfacs {
+	logfacs := make(map[string]string)
+	for key := range ipfscluster.LoggingFacilities {
 		logfacs[key] = logLevel
 	}
 
