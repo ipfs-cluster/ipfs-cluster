@@ -75,8 +75,6 @@ type Cluster struct {
 	informers []Informer
 	tracer    Tracer
 
-	preferredMetric string
-
 	doneCh  chan struct{}
 	readyCh chan struct{}
 	readyB  bool
@@ -111,7 +109,6 @@ func NewCluster(
 	allocator PinAllocator,
 	informers []Informer,
 	tracer Tracer,
-	preferredMetric string,
 ) (*Cluster, error) {
 	err := cfg.Validate()
 	if err != nil {
@@ -120,6 +117,10 @@ func NewCluster(
 
 	if host == nil {
 		return nil, errors.New("cluster host is nil")
+	}
+
+	if len(informers) == 0 {
+		return nil, errors.New("no informers are passed")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -144,29 +145,28 @@ func NewCluster(
 	}
 
 	c := &Cluster{
-		ctx:             ctx,
-		cancel:          cancel,
-		id:              host.ID(),
-		config:          cfg,
-		host:            host,
-		dht:             dht,
-		discovery:       mdns,
-		datastore:       datastore,
-		consensus:       consensus,
-		apis:            apis,
-		ipfs:            ipfs,
-		tracker:         tracker,
-		monitor:         monitor,
-		allocator:       allocator,
-		informers:       informers,
-		tracer:          tracer,
-		peerManager:     peerManager,
-		preferredMetric: preferredMetric,
-		shutdownB:       false,
-		removed:         false,
-		doneCh:          make(chan struct{}),
-		readyCh:         make(chan struct{}),
-		readyB:          false,
+		ctx:         ctx,
+		cancel:      cancel,
+		id:          host.ID(),
+		config:      cfg,
+		host:        host,
+		dht:         dht,
+		discovery:   mdns,
+		datastore:   datastore,
+		consensus:   consensus,
+		apis:        apis,
+		ipfs:        ipfs,
+		tracker:     tracker,
+		monitor:     monitor,
+		allocator:   allocator,
+		informers:   informers,
+		tracer:      tracer,
+		peerManager: peerManager,
+		shutdownB:   false,
+		removed:     false,
+		doneCh:      make(chan struct{}),
+		readyCh:     make(chan struct{}),
+		readyB:      false,
 	}
 
 	// Import known cluster peers from peerstore file. Set
@@ -280,6 +280,18 @@ func (c *Cluster) sendInformerMetric(ctx context.Context, informer Informer) (*a
 	metric := informer.GetMetric(ctx)
 	metric.Peer = c.id
 	return metric, c.monitor.PublishMetric(ctx, metric)
+}
+
+func (c *Cluster) sendInformersMetrics(ctx context.Context) {
+	ctx, span := trace.StartSpan(ctx, "cluster/sendInformersMetrics")
+	defer span.End()
+
+	for _, informer := range c.informers {
+		_, err := c.sendInformerMetric(ctx, informer)
+		if err != nil {
+			logger.Warning(err)
+		}
+	}
 }
 
 // pushInformerMetrics loops and publishes informers metrics using the
@@ -547,12 +559,10 @@ func (c *Cluster) run() {
 	}()
 
 	c.wg.Add(len(c.informers))
-	go func() {
-		for _, informer := range c.informers {
-			defer c.wg.Done()
-			c.pushInformerMetrics(c.ctx, informer)
-		}
-	}()
+	for _, informer := range c.informers {
+		defer c.wg.Done()
+		go c.pushInformerMetrics(c.ctx, informer)
+	}
 
 	c.wg.Add(1)
 	go func() {
@@ -920,12 +930,8 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}
 
 	// Broadcast our metrics to the world
-	for _, informer := range c.informers {
-		_, err = c.sendInformerMetric(ctx, informer)
-		if err != nil {
-			logger.Warning(err)
-		}
-	}
+	c.sendInformersMetrics(ctx)
+
 	_, err = c.sendPingMetric(ctx)
 	if err != nil {
 		logger.Warning(err)

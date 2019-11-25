@@ -202,7 +202,6 @@ func createCluster(
 		alloc,
 		[]ipfscluster.Informer{informer},
 		tracer,
-		informer.Name(),
 	)
 }
 

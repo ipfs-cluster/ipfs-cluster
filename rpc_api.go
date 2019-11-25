@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/version"
@@ -441,18 +440,12 @@ func (rpcapi *ClusterRPCAPI) RepoGCLocal(ctx context.Context, in struct{}, out *
 
 // SendInformerMetric runs Cluster.sendInformerMetric().
 func (rpcapi *ClusterRPCAPI) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
-	for _, informer := range rpcapi.c.informers {
-		if informer.Name() == rpcapi.c.preferredMetric {
-			m, err := rpcapi.c.sendInformerMetric(ctx, informer)
-			if err != nil {
-				return err
-			}
-			*out = *m
-			return nil
-		}
+	m, err := rpcapi.c.sendInformerMetric(ctx, rpcapi.c.informers[0])
+	if err != nil {
+		return err
 	}
-
-	return errors.New("no informer available for preferred metric name")
+	*out = *m
+	return nil
 }
 
 // SendAllInformerMetric runs Cluster.sendInformerMetric() on all informers.
