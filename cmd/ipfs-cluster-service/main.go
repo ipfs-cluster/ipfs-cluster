@@ -211,9 +211,10 @@ func main() {
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		identityPath = filepath.Join(absPath, DefaultIdentityFile)
 
-		err = setupLogLevel(c.Bool("debug"), c.String("loglevel"), c.StringSlice("component-loglevel"))
-		checkErr("setting log levels", err)
-
+		err = setupLogLevel(c.Bool("debug"), c.StringSlice("component-loglevel"))
+		if err != nil {
+			return err
+		}
 		locker = &lock{path: absPath}
 
 		return nil
@@ -584,11 +585,49 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func setupLogLevel(debug bool, logLevel string, compLogLevel []string) error {
+func setupLogLevel(debug bool, compLogLevel []string) error {
 	// if debug is set to true, log everything in debug level
 	if debug {
 		ipfscluster.SetFacilityLogLevel("*", "DEBUG")
 		return nil
+	}
+
+	var logLevel string
+	compLogFacs := make(map[string]string)
+	// get overall log level and component-wise log levels from arguments
+	for _, cll := range compLogLevel {
+		if cll == "" {
+			continue
+		}
+		identifierToLevel := strings.Split(cll, ":")
+
+		switch len(identifierToLevel) {
+		case 1:
+			lvl := strings.ToUpper(identifierToLevel[0])
+			if !ipfscluster.IsLogLevel(lvl) {
+				return fmt.Errorf("%s is not a valid log level", lvl)
+			}
+			if logLevel != "" {
+				return errors.New("trying to set overall log level again")
+			}
+			logLevel = lvl
+		case 2:
+			lvl := strings.ToUpper(identifierToLevel[1])
+			if !ipfscluster.IsLogLevel(lvl) {
+				return fmt.Errorf("%s is not a valid log level", lvl)
+			}
+			_, ok := compLogFacs[identifierToLevel[0]]
+			if ok {
+				return fmt.Errorf("trying to set %s log level again", identifierToLevel[0])
+			}
+			compLogFacs[identifierToLevel[0]] = lvl
+		default:
+			return errors.New("log level not in expected format \"identifier:loglevel\" or \"logelevel\"")
+		}
+	}
+
+	if logLevel == "" {
+		logLevel = defaultLogLevel
 	}
 
 	// log service with logLevel
@@ -599,17 +638,6 @@ func setupLogLevel(debug bool, logLevel string, compLogLevel []string) error {
 	logfacs := ipfscluster.LoggingFacilities
 	for key := range logfacs {
 		logfacs[key] = logLevel
-	}
-
-	for _, cll := range compLogLevel {
-		if cll == "" {
-			continue
-		}
-		identifierToLevel := strings.Split(cll, ":")
-		if len(identifierToLevel) != 2 {
-			return errors.New("component log level not in format \"identifier:loglevel\"")
-		}
-		logfacs[identifierToLevel[0]] = identifierToLevel[1]
 	}
 	for identifier, level := range logfacs {
 		ipfscluster.SetFacilityLogLevel(identifier, level)

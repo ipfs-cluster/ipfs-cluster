@@ -66,3 +66,14 @@ func SetFacilityLogLevel(f, l string) {
 	*/
 	logging.SetLogLevel(f, l)
 }
+
+// IsLogLevel checks if given string is a valid log level.
+func IsLogLevel(s string) bool {
+	for _, level := range []string{"CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"} {
+		if s == level {
+			return true
+		}
+	}
+
+	return false
+}
