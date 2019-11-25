@@ -658,8 +658,8 @@ type ipfsRepoGCResp struct {
 
 func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
-	streamErrors := queryValues.Get("stream-errors")
-	// TODO: Does `quiet` really quiet anything?
+	streamErrors := queryValues.Get("stream-errors") == "true"
+	// ignoring `quiet` since it only affects text output
 
 	proxy.setHeaders(w.Header(), r)
 	var repoGC api.GlobalRepoGC
@@ -680,7 +680,7 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	var ipfsRepoGC ipfsRepoGCResp
 	for _, gc := range repoGC.PeerMap {
 		for _, key := range gc.Keys {
-			if streamErrors == "true" {
+			if streamErrors {
 				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key, Error: key.Error}
 			} else {
 				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key}
