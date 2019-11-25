@@ -189,16 +189,10 @@ func main() {
 			Name:  "debug, d",
 			Usage: "enable full debug logging (very verbose)",
 		},
-		cli.StringFlag{
-			Name:   "loglevel, l",
-			Value:  defaultLogLevel,
-			EnvVar: "LOG_LEVEL",
-			Usage:  "set the loglevel for cluster components only [critical, error, warning, info, debug]",
-		},
 		cli.StringSliceFlag{
-			Name:   "component-loglevel, cl",
-			EnvVar: "COMP_LOG_LEVEL",
-			Usage:  "set separate loglevel for individual cluster components",
+			Name:   "loglevel, l",
+			EnvVar: "LOG_LEVEL",
+			Usage:  "set loglevels for all or separate loglevels for individual log identifiers [loglevel, identifier:loglevel]. Valid loglevels are critical, error, warning, notice, info and debug.",
 		},
 	}
 
@@ -211,7 +205,7 @@ func main() {
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		identityPath = filepath.Join(absPath, DefaultIdentityFile)
 
-		err = setupLogLevel(c.Bool("debug"), c.StringSlice("component-loglevel"))
+		err = setupLogLevel(c.Bool("debug"), c.StringSlice("loglevel"))
 		if err != nil {
 			return err
 		}
@@ -622,7 +616,7 @@ func setupLogLevel(debug bool, compLogLevel []string) error {
 			}
 			compLogFacs[identifierToLevel[0]] = lvl
 		default:
-			return errors.New("log level not in expected format \"identifier:loglevel\" or \"logelevel\"")
+			return errors.New("log level not in expected format \"identifier:loglevel\" or \"loglevel\"")
 		}
 	}
 
@@ -633,12 +627,16 @@ func setupLogLevel(debug bool, compLogLevel []string) error {
 	// log service with logLevel
 	ipfscluster.SetFacilityLogLevel("service", logLevel)
 
-	// log components with compLogLevel
-	// if compLogLevel is not present for a component, use logLevel
 	logfacs := ipfscluster.LoggingFacilities
 	for key := range logfacs {
 		logfacs[key] = logLevel
 	}
+
+	// fill component-wise log levels
+	for identifier, level := range compLogFacs {
+		logfacs[identifier] = level
+	}
+
 	for identifier, level := range logfacs {
 		ipfscluster.SetFacilityLogLevel(identifier, level)
 	}
