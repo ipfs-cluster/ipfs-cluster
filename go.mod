@@ -24,8 +24,9 @@ require (
 	github.com/ipfs/go-ds-badger v0.0.7
 	github.com/ipfs/go-ds-crdt v0.1.6
 	github.com/ipfs/go-fs-lock v0.0.1
+	github.com/ipfs/go-ipfs v0.4.22-0.20191122153917-14605f9d7f11
 	github.com/ipfs/go-ipfs-api v0.0.2
-	github.com/ipfs/go-ipfs-chunker v0.0.1
+	github.com/ipfs/go-ipfs-chunker v0.0.3
 	github.com/ipfs/go-ipfs-config v0.0.11
 	github.com/ipfs/go-ipfs-ds-help v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.6
@@ -46,7 +47,7 @@ require (
 	github.com/libp2p/go-libp2p-circuit v0.1.4
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.2.4
+	github.com/libp2p/go-libp2p-core v0.2.5
 	github.com/libp2p/go-libp2p-crypto v0.1.0
 	github.com/libp2p/go-libp2p-gorpc v0.1.0
 	github.com/libp2p/go-libp2p-gostream v0.2.0
@@ -58,12 +59,12 @@ require (
 	github.com/libp2p/go-libp2p-pnet v0.1.0
 	github.com/libp2p/go-libp2p-protocol v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
-	github.com/libp2p/go-libp2p-quic-transport v0.2.1
+	github.com/libp2p/go-libp2p-quic-transport v0.2.2
 	github.com/libp2p/go-libp2p-raft v0.1.4
 	github.com/libp2p/go-libp2p-secio v0.2.1
 	github.com/libp2p/go-libp2p-tls v0.1.2
 	github.com/libp2p/go-ws-transport v0.1.2
-	github.com/multiformats/go-multiaddr v0.1.1
+	github.com/multiformats/go-multiaddr v0.1.2
 	github.com/multiformats/go-multiaddr-dns v0.2.0
 	github.com/multiformats/go-multiaddr-net v0.1.1
 	github.com/multiformats/go-multicodec v0.1.6

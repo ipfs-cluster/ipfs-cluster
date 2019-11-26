@@ -3,6 +3,7 @@ package ipfsproxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -22,6 +23,7 @@ import (
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
+	ipfsrepo "github.com/ipfs/go-ipfs/core/corerepo"
 	logging "github.com/ipfs/go-log"
 	path "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -662,6 +664,8 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	// ignoring `quiet` since it only affects text output
 
 	proxy.setHeaders(w.Header(), r)
+
+	w.Header().Set("Trailer", "X-Stream-Error")
 	var repoGC api.GlobalRepoGC
 	err := proxy.rpcClient.CallContext(
 		r.Context(),
@@ -673,17 +677,22 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		ipfsErrorResponder(w, err.Error(), -1)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
 	var ipfsRepoGC ipfsRepoGCResp
+	var errs []error
 	for _, gc := range repoGC.PeerMap {
 		for _, key := range gc.Keys {
 			if streamErrors {
 				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key, Error: key.Error}
 			} else {
 				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key}
+				if key.Error != "" {
+					errs = append(errs, errors.New(key.Error))
+				}
 			}
 
 			// Cluster tags start with small letter, but IPFS tags with capital letter.
@@ -692,6 +701,11 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	if !streamErrors && len(errs) != 0 {
+		w.Header().Set("X-Stream-Error", ipfsrepo.NewMultiError(errs...).Error())
+	}
+
 	return
 }
 
