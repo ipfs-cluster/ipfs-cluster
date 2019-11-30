@@ -628,23 +628,14 @@ func yesNoPrompt(prompt string) bool {
 	return false
 }
 
-func loadConfigHelper() *cmdutils.ConfigHelper {
-	// Load all the configurations and identity
-	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "")
-	err := cfgHelper.LoadFromDisk()
-	checkErr("loading identity or configurations", err)
-	return cfgHelper
-}
-
 func getStateManager() cmdutils.StateManager {
-	cfgHelper := loadConfigHelper()
-	// since we won't save configs we can shutdown
-	cfgHelper.Manager().Shutdown()
-	mgr, err := cmdutils.NewStateManager(
-		cfgHelper.GetConsensus(),
-		cfgHelper.Identity(),
-		cfgHelper.Configs(),
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(
+		configPath,
+		identityPath,
 	)
-	checkErr("creating state manager", err)
+	checkErr("loading configurations", err)
+	cfgHelper.Manager().Shutdown()
+	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
+	checkErr("loading state manager", err)
 	return mgr
 }
