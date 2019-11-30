@@ -25,7 +25,7 @@ import (
 )
 
 // ProgramName of this application
-const programName = `ipfs-cluster-service`
+const programName = "ipfs-cluster-service"
 
 // flag defaults
 const (
@@ -44,13 +44,13 @@ var commit string
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
-%s runs an IPFS Cluster node.
+%s runs an IPFS Cluster peer.
 
-A node participates in the cluster consensus, follows a distributed log
+A peer participates in the cluster consensus, follows a distributed log
 of pinning and unpinning requests and manages pinning operations to a
 configured IPFS daemon.
 
-This node also provides an API for cluster management, an IPFS Proxy API which
+This peer also provides an API for cluster management, an IPFS Proxy API which
 forwards requests to IPFS and a number of components for internal communication
 using LibP2P. This is a simplified view of the components:
 
@@ -170,7 +170,7 @@ func checkErr(doing string, err error, args ...interface{}) {
 func main() {
 	app := cli.NewApp()
 	app.Name = programName
-	app.Usage = "IPFS Cluster node"
+	app.Usage = "IPFS Cluster peer"
 	app.Description = Description
 	//app.Copyright = "© Protocol Labs, Inc."
 	app.Version = version.Version.String()
