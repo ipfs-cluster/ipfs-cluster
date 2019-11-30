@@ -19,6 +19,18 @@ import (
 
 var logger = logging.Logger("config")
 
+var (
+	// Error when downloading a Source-based configuration
+	errFetchingSource = errors.New("could not fetch configuration source")
+)
+
+// IsErrFetchingSource reports whether this error happened when trying to
+// fetch a remote configuration source (as opposed to an error parsing the
+// config).
+func IsErrFetchingSource(err error) bool {
+	return errors.Is(err, errFetchingSource)
+}
+
 // ConfigSaveInterval specifies how often to save the configuration file if
 // it needs saving.
 var ConfigSaveInterval = time.Second
@@ -137,6 +149,9 @@ func NewManager() *Manager {
 // Shutdown makes sure all configuration save operations are finished
 // before returning.
 func (cfg *Manager) Shutdown() {
+	if cfg == nil {
+		return
+	}
 	cfg.cancel()
 	cfg.wg.Wait()
 }
@@ -346,14 +361,20 @@ func (cfg *Manager) LoadJSONFromFile(path string) error {
 // LoadJSONFromHTTPSource reads a Configuration file from a URL and parses it.
 func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	logger.Infof("loading configuration from %s", url)
+	cfg.Source = url
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		logger.Error(err)
+		return errFetchingSource
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
+	}
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("unsuccessful request (%d): %s", resp.StatusCode, body)
 	}
 
 	// Avoid recursively loading remote sources
@@ -368,7 +389,6 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	if err != nil {
 		return err
 	}
-	cfg.Source = url
 	return nil
 }
 
