@@ -6,21 +6,26 @@ all: build
 clean: rwundo clean_sharness
 	$(MAKE) -C cmd/ipfs-cluster-service clean
 	$(MAKE) -C cmd/ipfs-cluster-ctl clean
+	$(MAKE) -C cmd/ipfs-cluster-follow clean
 	@rm -rf ./test/testingData
 	@rm -rf ./compose
 
 install:
 	$(MAKE) -C cmd/ipfs-cluster-service install
 	$(MAKE) -C cmd/ipfs-cluster-ctl install
+	$(MAKE) -C cmd/ipfs-cluster-follow install
 
 build:
 	$(MAKE) -C cmd/ipfs-cluster-service build
 	$(MAKE) -C cmd/ipfs-cluster-ctl build
+	$(MAKE) -C cmd/ipfs-cluster-follow build
 
 service:
 	$(MAKE) -C cmd/ipfs-cluster-service ipfs-cluster-service
 ctl:
 	$(MAKE) -C cmd/ipfs-cluster-ctl ipfs-cluster-ctl
+follow:
+	$(MAKE) -C cmd/ipfs-cluster-follow ipfs-cluster-follow
 
 check:
 	go vet ./...
@@ -53,12 +58,12 @@ docker:
 	docker exec tmp-make-cluster sh -c "ipfs-cluster-ctl version"
 	docker exec tmp-make-cluster sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster
+
 	docker build -t cluster-image-test -f Dockerfile-test .
-	docker run --name tmp-make-cluster-test -d --rm cluster-image && sleep 8
+	docker run --name tmp-make-cluster-test -d --rm cluster-image && sleep 4
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-ctl version"
 	docker exec tmp-make-cluster-test sh -c "ipfs-cluster-service -v"
 	docker kill tmp-make-cluster-test
-
 
 docker-compose:
 	mkdir -p compose/ipfs0 compose/ipfs1 compose/cluster0 compose/cluster1
@@ -69,6 +74,6 @@ docker-compose:
 	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 2 other peers" | uniq -c | grep 3
 	docker-compose down
 
-prcheck: check service ctl test
+prcheck: check service ctl follow test
 
 .PHONY: all test test_sharness clean_sharness rw rwundo publish service ctl install clean docker

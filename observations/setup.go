@@ -23,7 +23,7 @@ import (
 // if enabled.
 func SetupMetrics(cfg *MetricsConfig) error {
 	if cfg.EnableStats {
-		logger.Info("stats collection enabled...")
+		logger.Infof("stats collection enabled on %s", cfg.PrometheusEndpoint)
 		return setupMetrics(cfg)
 	}
 	return nil
