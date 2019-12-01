@@ -125,16 +125,11 @@ func (opt *OperationTracker) SetError(ctx context.Context, c cid.Cid, err error)
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
 	op, ok := opt.operations[c.String()]
-	if !ok {
-		return
-	}
-
-	if ty := op.Type(); ty == OperationRemote {
+	if !ok || op.Type() == OperationRemote {
 		return
 	}
 
 	if ph := op.Phase(); ph == PhaseDone || ph == PhaseError {
-		op.SetPhase(PhaseError)
 		op.SetError(err)
 	}
 }
@@ -209,18 +204,17 @@ func (opt *OperationTracker) GetAll(ctx context.Context) []*api.PinInfo {
 // CleanError removes the associated Operation, if it is
 // in PhaseError.
 func (opt *OperationTracker) CleanError(ctx context.Context, c cid.Cid) {
-	opt.mu.RLock()
-	defer opt.mu.RUnlock()
-	errop, ok := opt.operations[c.String()]
-	if !ok {
+	cidStr := c.String()
+
+	opt.mu.Lock()
+	defer opt.mu.Unlock()
+
+	errOp, ok := opt.operations[cidStr]
+	if !ok || errOp.Phase() != PhaseError {
 		return
 	}
 
-	if errop.Phase() != PhaseError {
-		return
-	}
-
-	opt.Clean(ctx, errop)
+	delete(opt.operations, cidStr)
 	return
 }
 

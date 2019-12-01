@@ -7,9 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/observations"
+
 	cid "github.com/ipfs/go-cid"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -135,10 +138,15 @@ func (op *Operation) SetPhase(ph Phase) {
 	ctx, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
 	_ = ctx
 	defer span.End()
+
+	prevStatus := op.ToTrackerStatus()
+
 	op.mu.Lock()
-	defer op.mu.Unlock()
 	op.phase = ph
 	op.ts = time.Now()
+	op.mu.Unlock()
+
+	op.recordStatuses(prevStatus, op.ToTrackerStatus())
 }
 
 // Error returns any error message attached to the operation.
@@ -154,11 +162,27 @@ func (op *Operation) SetError(err error) {
 	ctx, span := trace.StartSpan(op.ctx, "optracker/SetError")
 	_ = ctx
 	defer span.End()
+
+	prevStatus := op.ToTrackerStatus()
+
 	op.mu.Lock()
-	defer op.mu.Unlock()
 	op.phase = PhaseError
 	op.error = err.Error()
 	op.ts = time.Now()
+	op.mu.Unlock()
+
+	op.recordStatuses(prevStatus, op.ToTrackerStatus())
+}
+
+func (op *Operation) recordStatuses(prevStatus api.TrackerStatus, newStatus api.TrackerStatus) {
+	if !prevStatus.Match(newStatus) {
+		if prev := observations.GetMeasureFromStatus(prevStatus); prev != nil {
+			stats.Record(op.ctx, prev.M(-1))
+		}
+		if now := observations.GetMeasureFromStatus(newStatus); now != nil {
+			stats.Record(op.ctx, now.M(1))
+		}
+	}
 }
 
 // Type returns the operation Type.

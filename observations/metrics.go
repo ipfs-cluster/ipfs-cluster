@@ -1,11 +1,13 @@
 package observations
 
 import (
+	"github.com/ipfs/ipfs-cluster/api"
+
+	logging "github.com/ipfs/go-log"
+
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-
-	logging "github.com/ipfs/go-log"
 )
 
 var logger = logging.Logger("observations")
@@ -38,7 +40,49 @@ var (
 	Peers = stats.Int64("cluster/peers", "Number of cluster peers", stats.UnitDimensionless)
 	// Alerts is the number of alerts that have been sent due to peers not sending "ping" heartbeats in time.
 	Alerts = stats.Int64("cluster/alerts", "Number of alerts triggered", stats.UnitDimensionless)
+
+	StatusClusterError = stats.Int64("pintracker/cluster_error_count", "Number of pins with Cluster Error", stats.UnitDimensionless)
+	StatusPinError     = stats.Int64("pintracker/pin_error_count", "Number of pins with status Pin Error", stats.UnitDimensionless)
+	StatusUnpinError   = stats.Int64("pintracker/unpin_error_count", "Number of pins with status Unpin Error", stats.UnitDimensionless)
+	StatusPinned       = stats.Int64("pintracker/pinned_count", "Number of pins with status Pinned", stats.UnitDimensionless)
+	StatusPinning      = stats.Int64("pintracker/pinning_count", "Number of pins with status Pinning", stats.UnitDimensionless)
+	StatusUnpinning    = stats.Int64("pintracker/unpinning_count", "Number of pins with status Unpinning", stats.UnitDimensionless)
+	StatusUnpinned     = stats.Int64("pintracker/unpinned_count", "Number of pins with status Unpinned", stats.UnitDimensionless)
+	StatusRemote       = stats.Int64("pintracker/remote_count", "Number of pins with status Remote", stats.UnitDimensionless)
+	StatusPinQueued    = stats.Int64("pintracker/pin_queued_count", "Number of pins with status PinQueued", stats.UnitDimensionless)
+	StatusUnpinQueued  = stats.Int64("pintracker/unpin_queued_count", "Number of pins with status UnpinQueued", stats.UnitDimensionless)
+	StatusSharded      = stats.Int64("pintracker/sharded_count", "Number of pins with status Sharded", stats.UnitDimensionless)
 )
+
+// GetMeasureFromStatus gets measure for given tracker status.
+func GetMeasureFromStatus(ts api.TrackerStatus) *stats.Int64Measure {
+	switch ts {
+	case api.TrackerStatusClusterError:
+		return StatusClusterError
+	case api.TrackerStatusPinError:
+		return StatusPinError
+	case api.TrackerStatusUnpinError:
+		return StatusUnpinError
+	case api.TrackerStatusPinned:
+		return StatusPinned
+	case api.TrackerStatusPinning:
+		return StatusPinning
+	case api.TrackerStatusUnpinning:
+		return StatusUnpinning
+	case api.TrackerStatusUnpinned:
+		return StatusUnpinned
+	case api.TrackerStatusRemote:
+		return StatusRemote
+	case api.TrackerStatusPinQueued:
+		return StatusPinQueued
+	case api.TrackerStatusUnpinQueued:
+		return StatusUnpinQueued
+	case api.TrackerStatusSharded:
+		return StatusSharded
+	default:
+		return nil
+	}
+}
 
 // views, which is just the aggregation of the metrics
 var (
@@ -66,11 +110,88 @@ var (
 		Aggregation: messageCountDistribution,
 	}
 
+	StatusClusterErrorView = view.View{
+		Measure:     StatusClusterError,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusPinErrorView = view.View{
+		Measure:     StatusPinError,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusUnpinErrorView = view.View{
+		Measure:     StatusUnpinError,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusPinnedView = view.View{
+		Measure:     StatusPinned,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusPinningView = view.View{
+		Measure:     StatusPinning,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusUnpinningView = view.View{
+		Measure:     StatusUnpinning,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusUnpinnedView = view.View{
+		Measure:     StatusUnpinned,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusRemoteView = view.View{
+		Measure:     StatusRemote,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusPinQueuedView = view.View{
+		Measure:     StatusPinQueued,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusUnpinQueuedView = view.View{
+		Measure:     StatusUnpinQueued,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
+	StatusShardedView = view.View{
+		Measure:     StatusSharded,
+		TagKeys:     []tag.Key{HostKey},
+		Aggregation: view.Count(),
+	}
+
 	DefaultViews = []*view.View{
 		PinsView,
 		TrackerPinsView,
 		PeersView,
 		AlertsView,
+		&StatusClusterErrorView,
+		&StatusPinErrorView,
+		&StatusUnpinErrorView,
+		&StatusPinnedView,
+		&StatusPinningView,
+		&StatusUnpinningView,
+		&StatusUnpinnedView,
+		&StatusRemoteView,
+		&StatusPinQueuedView,
+		&StatusUnpinQueuedView,
+		&StatusShardedView,
 	}
 )
 

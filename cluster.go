@@ -1806,7 +1806,6 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
-
 	errs := c.rpcClient.MultiCall(
 		ctxs,
 		members,
