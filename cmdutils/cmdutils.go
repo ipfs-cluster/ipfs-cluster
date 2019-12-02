@@ -64,7 +64,7 @@ func getPort(ln net.Listener, code int) int {
 	return 0
 }
 
-// HandleSignals orderly shutsdown an IPFS Cluster peer
+// HandleSignals orderly shuts down an IPFS Cluster peer
 // on SIGINT, SIGTERM, SIGHUP. It forces command termination
 // on the 3rd-signal count.
 func HandleSignals(

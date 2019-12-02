@@ -636,6 +636,6 @@ func getStateManager() cmdutils.StateManager {
 	checkErr("loading configurations", err)
 	cfgHelper.Manager().Shutdown()
 	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
-	checkErr("loading state manager", err)
+	checkErr("creating state manager", err)
 	return mgr
 }
