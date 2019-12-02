@@ -21,7 +21,9 @@ var logger = logging.Logger("config")
 
 var (
 	// Error when downloading a Source-based configuration
-	errFetchingSource = errors.New("could not fetch configuration source")
+	errFetchingSource = errors.New("could not fetch configuration from source")
+	// Error when remote source points to another remote-source
+	errSourceRedirect = errors.New("a sourced configuration cannot point to another source")
 )
 
 // IsErrFetchingSource reports whether this error happened when trying to
@@ -34,8 +36,6 @@ func IsErrFetchingSource(err error) bool {
 // ConfigSaveInterval specifies how often to save the configuration file if
 // it needs saving.
 var ConfigSaveInterval = time.Second
-
-var errSourceRedirect = errors.New("a sourced configuration cannot point to another source")
 
 // The ComponentConfig interface allows components to define configurations
 // which can be managed as part of the ipfs-cluster configuration file by the
@@ -149,9 +149,6 @@ func NewManager() *Manager {
 // Shutdown makes sure all configuration save operations are finished
 // before returning.
 func (cfg *Manager) Shutdown() {
-	if cfg == nil {
-		return
-	}
 	cfg.cancel()
 	cfg.wg.Wait()
 }
