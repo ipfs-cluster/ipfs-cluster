@@ -301,8 +301,6 @@ func (c *Cluster) sendInformersMetrics(ctx context.Context) ([]*api.Metric, erro
 // cluster monitor. Metrics are pushed normally at a TTL/2 rate. If an error
 // occurs, they are pushed at a TTL/4 rate.
 func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
-	defer c.wg.Done()
-
 	ctx, span := trace.StartSpan(ctx, "cluster/pushInformerMetrics")
 	defer span.End()
 
@@ -565,7 +563,10 @@ func (c *Cluster) run() {
 
 	c.wg.Add(len(c.informers))
 	for _, informer := range c.informers {
-		go c.pushInformerMetrics(c.ctx, informer)
+		go func(inf Informer) {
+			defer c.wg.Done()
+			c.pushInformerMetrics(c.ctx, inf)
+		}(informer)
 	}
 
 	c.wg.Add(1)
