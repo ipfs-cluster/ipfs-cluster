@@ -165,9 +165,10 @@ func NewCluster(
 		readyB:      false,
 	}
 
-	// Import known cluster peers from peerstore file. Set
+	// Import known cluster peers from peerstore file and config. Set
 	// a non permanent TTL.
 	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
+	c.peerManager.ImportPeers(c.config.PeerAddresses, false, peerstore.AddressTTL)
 	// Attempt to connect to some peers (up to bootstrapCount)
 	connectedPeers := c.peerManager.Bootstrap(bootstrapCount)
 	// We cannot warn when count is low as this as this is normal if going
