@@ -189,9 +189,9 @@ func main() {
 			Name:  "debug, d",
 			Usage: "enable full debug logging (very verbose)",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "loglevel, l",
-			EnvVar: "LOG_LEVEL",
+			EnvVar: "IPFS_CLUSTER_LOG_LEVEL",
 			Usage:  "set loglevels for all or separate loglevels for individual log identifiers [loglevel, identifier:loglevel]. Valid loglevels are critical, error, warning, notice, info and debug.",
 		},
 	}
@@ -205,7 +205,7 @@ func main() {
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		identityPath = filepath.Join(absPath, DefaultIdentityFile)
 
-		err = setupLogLevel(c.Bool("debug"), c.StringSlice("loglevel"))
+		err = setupLogLevel(c.Bool("debug"), c.String("loglevel"))
 		if err != nil {
 			return err
 		}
@@ -579,13 +579,14 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func setupLogLevel(debug bool, compLogLevel []string) error {
+func setupLogLevel(debug bool, l string) error {
 	// if debug is set to true, log everything in debug level
 	if debug {
 		ipfscluster.SetFacilityLogLevel("*", "DEBUG")
 		return nil
 	}
 
+	compLogLevel := strings.Split(l, ",")
 	var logLevel string
 	compLogFacs := make(map[string]string)
 	// get overall log level and component-wise log levels from arguments
@@ -594,34 +595,34 @@ func setupLogLevel(debug bool, compLogLevel []string) error {
 			continue
 		}
 		identifierToLevel := strings.Split(cll, ":")
-
+		var lvl string
+		var comp string
 		switch len(identifierToLevel) {
 		case 1:
-			lvl := strings.ToUpper(identifierToLevel[0])
-			if !ipfscluster.IsLogLevel(lvl) {
-				return fmt.Errorf("%s is not a valid log level", lvl)
-			}
-			if logLevel != "" {
-				fmt.Printf("overwriting existing overall log level\n")
-			}
-			logLevel = lvl
+			lvl = identifierToLevel[0]
+			comp = "all"
 		case 2:
-			lvl := strings.ToUpper(identifierToLevel[1])
-			if !ipfscluster.IsLogLevel(lvl) {
-				return fmt.Errorf("%s is not a valid log level", lvl)
-			}
-			_, ok := compLogFacs[identifierToLevel[0]]
-			if ok {
-				fmt.Printf("overwriting existing %s log level\n", identifierToLevel[0])
-			}
-			compLogFacs[identifierToLevel[0]] = lvl
+			lvl = identifierToLevel[1]
+			comp = identifierToLevel[0]
 		default:
 			return errors.New("log level not in expected format \"identifier:loglevel\" or \"loglevel\"")
 		}
+
+		if !ipfscluster.IsLogLevel(lvl) {
+			return fmt.Errorf("%s is not a valid log level", lvl)
+		}
+		_, ok := compLogFacs[comp]
+		if ok {
+			fmt.Printf("overwriting existing %s log level\n", comp)
+		}
+		compLogFacs[comp] = lvl
 	}
 
-	if logLevel == "" {
+	logLevel, ok := compLogFacs["all"]
+	if !ok {
 		logLevel = defaultLogLevel
+	} else {
+		delete(compLogFacs, "all")
 	}
 
 	// log service with logLevel
