@@ -80,6 +80,7 @@ func GetMeasureFromStatus(ts api.TrackerStatus) *stats.Int64Measure {
 	case api.TrackerStatusSharded:
 		return StatusSharded
 	default:
+		// this would never get executed.
 		return nil
 	}
 }
@@ -113,67 +114,67 @@ var (
 	StatusClusterErrorView = view.View{
 		Measure:     StatusClusterError,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusPinErrorView = view.View{
 		Measure:     StatusPinError,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusUnpinErrorView = view.View{
 		Measure:     StatusUnpinError,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusPinnedView = view.View{
 		Measure:     StatusPinned,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusPinningView = view.View{
 		Measure:     StatusPinning,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusUnpinningView = view.View{
 		Measure:     StatusUnpinning,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusUnpinnedView = view.View{
 		Measure:     StatusUnpinned,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusRemoteView = view.View{
 		Measure:     StatusRemote,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusPinQueuedView = view.View{
 		Measure:     StatusPinQueued,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusUnpinQueuedView = view.View{
 		Measure:     StatusUnpinQueued,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	StatusShardedView = view.View{
 		Measure:     StatusSharded,
 		TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Count(),
+		Aggregation: view.Sum(),
 	}
 
 	DefaultViews = []*view.View{

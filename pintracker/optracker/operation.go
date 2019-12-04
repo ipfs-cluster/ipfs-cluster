@@ -76,7 +76,7 @@ func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase
 	defer span.End()
 
 	ctx, cancel := context.WithCancel(ctx)
-	return &Operation{
+	op := Operation{
 		ctx:    ctx,
 		cancel: cancel,
 
@@ -86,6 +86,10 @@ func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase
 		ts:     time.Now(),
 		error:  "",
 	}
+
+	stats.Record(op.ctx, observations.GetMeasureFromStatus(op.ToTrackerStatus()).M(1))
+
+	return &op
 }
 
 // String returns a string representation of an Operation.
@@ -176,12 +180,12 @@ func (op *Operation) SetError(err error) {
 
 func (op *Operation) recordStatuses(prevStatus api.TrackerStatus, newStatus api.TrackerStatus) {
 	if !prevStatus.Match(newStatus) {
-		if prev := observations.GetMeasureFromStatus(prevStatus); prev != nil {
-			stats.Record(op.ctx, prev.M(-1))
-		}
-		if now := observations.GetMeasureFromStatus(newStatus); now != nil {
-			stats.Record(op.ctx, now.M(1))
-		}
+		stats.Record(op.ctx, observations.GetMeasureFromStatus(prevStatus).M(-1))
+		stats.Record(op.ctx, observations.GetMeasureFromStatus(newStatus).M(1))
+	}
+
+	if newStatus.Match(api.TrackerStatusUnpinned) {
+		stats.Record(op.ctx, observations.GetMeasureFromStatus(api.TrackerStatusPinned).M(-1))
 	}
 }
 
