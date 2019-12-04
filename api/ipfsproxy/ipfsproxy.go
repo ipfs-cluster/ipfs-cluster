@@ -23,7 +23,6 @@ import (
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
-	ipfsrepo "github.com/ipfs/go-ipfs/core/corerepo"
 	logging "github.com/ipfs/go-log"
 	path "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -703,7 +702,7 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !streamErrors && len(errs) != 0 {
-		w.Header().Set("X-Stream-Error", ipfsrepo.NewMultiError(errs...).Error())
+		w.Header().Set("X-Stream-Error", newMultiError(errs...).Error())
 	}
 
 	return

@@ -541,36 +541,73 @@ func TestProxyRepoGC(t *testing.T) {
 	defer mock.Close()
 	defer proxy.Shutdown(ctx)
 
-	res1, err := http.Post(fmt.Sprintf("%s/repo/gc?stream-errors=true", proxyURL(proxy)), "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res1.Body.Close()
-	if res1.StatusCode != http.StatusOK {
-		t.Error("request should have succeeded")
+	type testcase struct {
+		name         string
+		streamErrors bool
 	}
 
-	var repoGC []ipfsRepoGCResp
+	testcases := []testcase{
+		testcase{
+			name:         "With streaming errors",
+			streamErrors: true,
+		},
+		testcase{
+			name:         "Without streaming errors",
+			streamErrors: false,
+		},
+	}
 
-	dec := json.NewDecoder(res1.Body)
-	for {
-		resp := ipfsRepoGCResp{}
-
-		if err := dec.Decode(&resp); err != nil {
-			if err == io.EOF {
-				break
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			res1, err := http.Post(fmt.Sprintf("%s/repo/gc?stream-errors=%t", proxyURL(proxy), tc.streamErrors), "", nil)
+			if err != nil {
+				t.Fatal(err)
 			}
-			t.Error(err)
-		}
+			defer res1.Body.Close()
+			if res1.StatusCode != http.StatusOK {
+				t.Error("request should have succeeded")
+			}
 
-		repoGC = append(repoGC, resp)
-	}
+			var repoGC []ipfsRepoGCResp
+			dec := json.NewDecoder(res1.Body)
+			for {
+				resp := ipfsRepoGCResp{}
 
-	if !repoGC[0].Key.Equals(test.Cid1) {
-		t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC[0].Key)
-	}
-	if repoGC[4].Error != test.ErrLinkNotFound.Error() {
-		t.Error("expected a different error")
+				if err := dec.Decode(&resp); err != nil {
+					if err == io.EOF {
+						break
+					}
+					t.Error(err)
+				}
+
+				repoGC = append(repoGC, resp)
+			}
+
+			if !repoGC[0].Key.Equals(test.Cid1) {
+				t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC[0].Key)
+			}
+
+			xStreamError, ok := res1.Trailer["X-Stream-Error"]
+			if !ok {
+				t.Error("trailer header X-Stream-Error not set")
+			}
+			if tc.streamErrors {
+				if repoGC[4].Error != test.ErrLinkNotFound.Error() {
+					t.Error("expected a different error")
+				}
+				if len(xStreamError) != 0 {
+					t.Error("expected X-Stream-Error header to be empty")
+				}
+			} else {
+				if repoGC[4].Error != "" {
+					t.Error("did not expect to stream error")
+				}
+
+				if len(xStreamError) == 0 || xStreamError[0] != test.ErrLinkNotFound.Error() {
+					t.Error("expected X-Stream-Error header with link not found error")
+				}
+			}
+		})
 	}
 }
 
