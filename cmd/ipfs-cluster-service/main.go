@@ -98,6 +98,13 @@ $ ipfs-cluster-service daemon
 Launch a peer and join existing cluster:
 
 $ ipfs-cluster-service daemon --bootstrap /ip4/192.168.1.2/tcp/9096/p2p/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
+
+Customize logs using --loglevel flag. To customize component-level
+logging pass a comma-separated list of component-identifer:log-level
+pair or without identifier for overall loglevel. Valid loglevels
+are critical, error, warning, notice, info and debug.
+
+$ ipfs-cluster-service --loglevel info,cluster:debug,pintracker:debug daemon
 `,
 	programName,
 	programName,
@@ -192,7 +199,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "loglevel, l",
 			EnvVar: "IPFS_CLUSTER_LOG_LEVEL",
-			Usage:  "set loglevels for all or separate loglevels for individual log identifiers [loglevel, identifier:loglevel]. Valid loglevels are critical, error, warning, notice, info and debug.",
+			Usage:  "set overall and component-wise log levels",
 		},
 	}
 
