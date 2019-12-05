@@ -197,7 +197,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 		tracker,
 		mon,
 		alloc,
-		inf,
+		[]Informer{inf},
 		tracer,
 	)
 	if err != nil {
