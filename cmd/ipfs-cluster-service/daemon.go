@@ -127,9 +127,19 @@ func createCluster(
 
 	var apis []ipfscluster.API
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Restapi.ConfigKey()) {
-		rest, err := rest.NewAPIWithHost(ctx, cfgs.Restapi, host)
+		var api *rest.API
+		// Do NOT enable default Libp2p API endpoint on CRDT
+		// clusters. Collaborative clusters are likely to share the
+		// secret with untrusted peers, thus the API would be open for
+		// anyone.
+		if cfgHelper.GetConsensus() == cfgs.Raft.ConfigKey() {
+			api, err = rest.NewAPIWithHost(ctx, cfgs.Restapi, host)
+		} else {
+			api, err = rest.NewAPI(ctx, cfgs.Restapi)
+		}
 		checkErr("creating REST API component", err)
-		apis = append(apis, rest)
+		apis = append(apis, api)
+
 	}
 
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Ipfsproxy.ConfigKey()) {
