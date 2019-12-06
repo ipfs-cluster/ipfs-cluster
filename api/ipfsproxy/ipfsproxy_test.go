@@ -603,7 +603,7 @@ func TestProxyRepoGC(t *testing.T) {
 					t.Error("did not expect to stream error")
 				}
 
-				if len(xStreamError) == 0 || xStreamError[0] != test.ErrLinkNotFound.Error() {
+				if len(xStreamError) == 0 || xStreamError[0] != (test.ErrLinkNotFound.Error()+";") {
 					t.Error("expected X-Stream-Error header with link not found error")
 				}
 			}
