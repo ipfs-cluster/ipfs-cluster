@@ -17,9 +17,13 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
-// ErrBadCid is returned when using ErrorCid. Operations with that CID always
-// fail.
-var ErrBadCid = errors.New("this is an expected error when using ErrorCid")
+var (
+	// ErrBadCid is returned when using ErrorCid. Operations with that CID always
+	// fail.
+	ErrBadCid = errors.New("this is an expected error when using ErrorCid")
+	// ErrLinkNotFound is error returned when no link is found
+	ErrLinkNotFound = errors.New("no link by that name")
+)
 
 // NewMockRPCClient creates a mock ipfs-cluster RPC server and returns
 // a client to it.
@@ -338,6 +342,18 @@ func (mock *mockCluster) RepoGCLocal(ctx context.Context, in struct{}, out *api.
 		Keys: []api.IPFSRepoGC{
 			{
 				Key: Cid1,
+			},
+			{
+				Key: Cid2,
+			},
+			{
+				Key: Cid3,
+			},
+			{
+				Key: Cid4,
+			},
+			{
+				Error: ErrLinkNotFound.Error(),
 			},
 		},
 	}
