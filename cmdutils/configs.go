@@ -55,6 +55,7 @@ type ConfigHelper struct {
 
 // NewConfigHelper creates a config helper given the paths to the
 // configuration and identity files.
+// Remember to Shutdown() the ConfigHelper.Manager() after use.
 func NewConfigHelper(configPath, identityPath, consensus string) *ConfigHelper {
 	ch := &ConfigHelper{
 		configPath:   configPath,
@@ -63,6 +64,15 @@ func NewConfigHelper(configPath, identityPath, consensus string) *ConfigHelper {
 	}
 	ch.init()
 	return ch
+}
+
+// NewLoadedConfigHelper creates a config helper given the paths to the
+// configuration and identity files and loads the configurations from disk.
+// Remember to Shutdown() the ConfigHelper.Manager() after use.
+func NewLoadedConfigHelper(configPath, identityPath string) (*ConfigHelper, error) {
+	cfgHelper := NewConfigHelper(configPath, identityPath, "")
+	err := cfgHelper.LoadFromDisk()
+	return cfgHelper, err
 }
 
 // LoadConfigFromDisk parses the configuration from disk.
