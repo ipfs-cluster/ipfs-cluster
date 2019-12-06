@@ -615,9 +615,6 @@ func setupLogLevel(debug bool, l string) error {
 			return errors.New("log level not in expected format \"identifier:loglevel\" or \"loglevel\"")
 		}
 
-		if !ipfscluster.IsLogLevel(lvl) {
-			return fmt.Errorf("%s is not a valid log level", lvl)
-		}
 		_, ok := compLogFacs[comp]
 		if ok {
 			fmt.Printf("overwriting existing %s log level\n", comp)

@@ -1,8 +1,6 @@
 package ipfscluster
 
 import (
-	"strings"
-
 	logging "github.com/ipfs/go-log"
 )
 
@@ -69,15 +67,4 @@ func SetFacilityLogLevel(f, l string) {
 		DEBUG
 	*/
 	logging.SetLogLevel(f, l)
-}
-
-// IsLogLevel checks if given string is a valid log level.
-func IsLogLevel(s string) bool {
-	for _, level := range []string{"DEBUG", "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO"} {
-		if strings.ToUpper(s) == level {
-			return true
-		}
-	}
-
-	return false
 }
