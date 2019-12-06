@@ -4,7 +4,6 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/btcsuite/btcd v0.20.0-beta // indirect
 	github.com/dgraph-io/badger v1.6.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gogo/protobuf v1.3.1
@@ -13,7 +12,6 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/go-hclog v0.10.0
-	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v0.1.6
@@ -67,14 +65,15 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.2.0
 	github.com/multiformats/go-multiaddr-net v0.1.1
 	github.com/multiformats/go-multicodec v0.1.6
-	github.com/multiformats/go-multihash v0.0.8
+	github.com/multiformats/go-multihash v0.0.10
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rs/cors v1.7.0
+	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
 	go.opencensus.io v0.22.1
-	golang.org/x/crypto v0.0.0-20191105034135-c7e5f84aec59
+	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )

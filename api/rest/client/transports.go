@@ -18,6 +18,8 @@ import (
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	madns "github.com/multiformats/go-multiaddr-dns"
+	manet "github.com/multiformats/go-multiaddr-net"
+	"github.com/tv42/httpunix"
 )
 
 // This is essentially a http.DefaultTransport. We should not mess
@@ -108,5 +110,21 @@ func (c *defaultClient) enableTLS() error {
 		InsecureSkipVerify: c.config.NoVerifyCert,
 	}
 	c.net = "https"
+	return nil
+}
+
+func (c *defaultClient) enableUnix() error {
+	c.defaultTransport()
+	unixTransport := &httpunix.Transport{
+		DialTimeout: time.Second,
+	}
+	_, addr, err := manet.DialArgs(c.config.APIAddr)
+	if err != nil {
+		return err
+	}
+	unixTransport.RegisterLocation("restapi", addr)
+	c.transport.RegisterProtocol(httpunix.Scheme, unixTransport)
+	c.net = httpunix.Scheme
+	c.hostname = "restapi"
 	return nil
 }

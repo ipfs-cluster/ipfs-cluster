@@ -114,7 +114,7 @@ type logWriter struct {
 }
 
 func (lw logWriter) Write(b []byte) (int, error) {
-	apiLogger.Infof(string(b))
+	apiLogger.Info(string(b))
 	return len(b), nil
 }
 
