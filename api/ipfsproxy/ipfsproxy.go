@@ -3,7 +3,6 @@ package ipfsproxy
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -682,7 +681,7 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
 	var ipfsRepoGC ipfsRepoGCResp
-	var errs []error
+	mError := multiError{}
 	for _, gc := range repoGC.PeerMap {
 		for _, key := range gc.Keys {
 			if streamErrors {
@@ -690,7 +689,7 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key}
 				if key.Error != "" {
-					errs = append(errs, errors.New(key.Error))
+					mError.add(key.Error)
 				}
 			}
 
@@ -701,8 +700,9 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !streamErrors && len(errs) != 0 {
-		w.Header().Set("X-Stream-Error", newMultiError(errs...).Error())
+	mErrStr := mError.Error()
+	if !streamErrors && mErrStr != "" {
+		w.Header().Set("X-Stream-Error", mErrStr)
 	}
 
 	return
