@@ -351,8 +351,7 @@ func (cfg *Manager) LoadJSONFromFile(path string) error {
 		return err
 	}
 
-	err = cfg.LoadJSON(file)
-	return err
+	return cfg.LoadJSON(file)
 }
 
 // LoadJSONFromHTTPSource reads a Configuration file from a URL and parses it.
@@ -361,7 +360,6 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	cfg.Source = url
 	resp, err := http.Get(url)
 	if err != nil {
-		logger.Error(err)
 		return errFetchingSource
 	}
 	defer resp.Body.Close()
