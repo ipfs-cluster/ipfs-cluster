@@ -25,7 +25,7 @@ var logger = logging.Logger("pintracker")
 
 var (
 	// ErrFullQueue is the error used when pin or unpin operation channel is full.
-	ErrFullQueue = errors.New("pin/unpin operation queue is full. Try increasing max_pin_queue_size.")
+	ErrFullQueue = errors.New("pin/unpin operation queue is full. Try increasing max_pin_queue_size")
 )
 
 // Tracker uses the optracker.OperationTracker to manage
