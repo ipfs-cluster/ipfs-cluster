@@ -459,6 +459,13 @@ func (rpcapi *ClusterRPCAPI) SendInformersMetrics(ctx context.Context, in struct
 	return nil
 }
 
+// Alerts runs Cluster.Alerts().
+func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *map[string]api.Alert) error {
+	alerts := rpcapi.c.Alerts()
+	*out = alerts
+	return nil
+}
+
 /*
    Tracker component methods
 */

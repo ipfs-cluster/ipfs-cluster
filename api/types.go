@@ -943,8 +943,10 @@ func (es MetricSlice) Less(i, j int) bool {
 
 // Alert carries alerting information about a peer. WIP.
 type Alert struct {
-	Peer       peer.ID
-	MetricName string
+	Peer       peer.ID `json:"peer" codec:"p"`
+	MetricName string  `json:"metric_name" codec:"m"`
+	Expiry     int64   `json:"expiry" codec:"e"`
+	Value      string  `json:"value" codec:"v"`
 }
 
 // Error can be used by APIs to return errors.

@@ -97,6 +97,10 @@ func textFormatObject(resp interface{}) {
 		for _, item := range resp.([]string) {
 			textFormatObject(item)
 		}
+	case map[string]api.Alert:
+		for i := range resp.(map[string]api.Alert) {
+			fmt.Printf("peer is down: %s\n", i)
+		}
 	default:
 		checkErr("", errors.New("unsupported type returned"))
 	}

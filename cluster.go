@@ -75,6 +75,9 @@ type Cluster struct {
 	informers []Informer
 	tracer    Tracer
 
+	alerts    map[string]api.Alert
+	alertsMux sync.Mutex
+
 	doneCh  chan struct{}
 	readyCh chan struct{}
 	readyB  bool
@@ -161,6 +164,7 @@ func NewCluster(
 		allocator:   allocator,
 		informers:   informers,
 		tracer:      tracer,
+		alerts:      make(map[string]api.Alert),
 		peerManager: peerManager,
 		shutdownB:   false,
 		removed:     false,
@@ -391,6 +395,19 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 	}
 }
 
+// Alerts returns things that are wrong with the cluster.
+func (c *Cluster) Alerts() map[string]api.Alert {
+	alerts := make(map[string]api.Alert)
+
+	c.alertsMux.Lock()
+	defer c.alertsMux.Unlock()
+	for i, alert := range c.alerts {
+		alerts[i] = alert
+	}
+
+	return alerts
+}
+
 // read the alerts channel from the monitor and triggers repins
 func (c *Cluster) alertsHandler() {
 	for {
@@ -399,6 +416,10 @@ func (c *Cluster) alertsHandler() {
 			return
 		case alrt := <-c.monitor.Alerts():
 			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
+			c.alertsMux.Lock()
+			c.alerts[peer.IDB58Encode(alrt.Peer)] = *alrt
+			c.alertsMux.Unlock()
+
 			if alrt.MetricName != pingMetricName {
 				continue // only handle ping alerts
 			}

@@ -106,6 +106,9 @@ type Client interface {
 	// Otherwise, it happens everywhere.
 	RecoverAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error)
 
+	// Alerts returns things that are wrong with cluster.
+	Alerts(ctx context.Context) (map[string]api.Alert, error)
+
 	// Version returns the ipfs-cluster peer's version.
 	Version(context.Context) (*api.Version, error)
 

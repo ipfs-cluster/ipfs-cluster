@@ -306,6 +306,16 @@ func (c *defaultClient) RecoverAll(ctx context.Context, local bool) ([]*api.Glob
 	return gpis, err
 }
 
+// Alerts returns things that are wrong with cluster.
+func (c *defaultClient) Alerts(ctx context.Context) (map[string]api.Alert, error) {
+	ctx, span := trace.StartSpan(ctx, "client/RecoverAll")
+	defer span.End()
+
+	var alerts map[string]api.Alert
+	err := c.do(ctx, "GET", "/alerts", nil, nil, &alerts)
+	return alerts, err
+}
+
 // Version returns the ipfs-cluster peer's version.
 func (c *defaultClient) Version(ctx context.Context) (*api.Version, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Version")

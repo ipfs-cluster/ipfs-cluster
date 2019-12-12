@@ -331,6 +331,19 @@ func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]*a
 	return pinInfos, err
 }
 
+// Alerts returns things that are wrong with cluster.
+func (lc *loadBalancingClient) Alerts(ctx context.Context) (map[string]api.Alert, error) {
+	var alerts map[string]api.Alert
+	call := func(c Client) error {
+		var err error
+		alerts, err = c.Alerts(ctx)
+		return err
+	}
+
+	err := lc.retry(0, call)
+	return alerts, err
+}
+
 // Version returns the ipfs-cluster peer's version.
 func (lc *loadBalancingClient) Version(ctx context.Context) (*api.Version, error) {
 	var v *api.Version

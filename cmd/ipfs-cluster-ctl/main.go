@@ -978,6 +978,16 @@ but usually are:
 			},
 		},
 		{
+			Name:        "alerts",
+			Usage:       "Show things which are wrong with this cluster",
+			Description: "Show things which are wrong with this cluster",
+			Action: func(c *cli.Context) error {
+				resp, cerr := globalClient.Alerts(ctx)
+				formatResponse(c, resp, cerr)
+				return nil
+			},
+		},
+		{
 			Name:        "ipfs",
 			Usage:       "Manage IPFS daemon",
 			Description: "Manage IPFS daemon",
