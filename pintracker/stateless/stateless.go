@@ -81,13 +81,8 @@ func New(cfg *Config, pid peer.ID, peerName string, getState func(ctx context.Co
 // receives a pin Function (pin or unpin) and a channel.
 // Used for both pinning and unpinning
 func (spt *Tracker) opWorker(pinF func(*optracker.Operation) error, opChan chan *optracker.Operation) {
-	logger.Debug("entering opworker")
-	ticker := time.NewTicker(10 * time.Second) //TODO(ajl): make config var
 	for {
 		select {
-		case <-ticker.C:
-			// every tick, clear out all Done operations
-			spt.optracker.CleanAllDone(spt.ctx)
 		case op := <-opChan:
 			if cont := applyPinF(pinF, op); cont {
 				continue
@@ -234,9 +229,8 @@ func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
 
 	// Sharded pins are never pinned. A sharded pin cannot turn into
 	// something else or viceversa like it happens with Remote pins so
-	// we just track them.
+	// we just ignore them.
 	if c.Type == api.MetaType {
-		spt.optracker.TrackNewOperation(ctx, c, optracker.OperationShard, optracker.PhaseDone)
 		return nil
 	}
 
