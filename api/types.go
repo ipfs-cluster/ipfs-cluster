@@ -901,7 +901,7 @@ type Metric struct {
 	Name       string  `json:"name" codec:"n,omitempty"`
 	Peer       peer.ID `json:"peer" codec:"p,omitempty"`
 	Value      string  `json:"value" codec:"v,omitempty"`
-	Epoch      int     `json:"epoch" codec:"e"`
+	Epoch      int     `json:"epoch" codec:"ep,omitempty"`
 	Expire     int64   `json:"expire" codec:"e,omitempty"`
 	Valid      bool    `json:"valid" codec:"d,omitempty"`
 	ReceivedAt int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
