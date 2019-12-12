@@ -247,13 +247,12 @@ func (c *Cluster) setupRPCClients() {
 	}
 }
 
-// syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
-func (c *Cluster) syncWatcher() {
-	ctx, span := trace.StartSpan(c.ctx, "cluster/syncWatcher")
+// watchPinset triggers recurrent operations that loop on the pinset.
+func (c *Cluster) watchPinset() {
+	ctx, span := trace.StartSpan(c.ctx, "cluster/watchPinset")
 	defer span.End()
 
 	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
-	syncTicker := time.NewTicker(c.config.IPFSSyncInterval)
 	recoverTicker := time.NewTicker(c.config.PinRecoverInterval)
 
 	for {
@@ -261,14 +260,12 @@ func (c *Cluster) syncWatcher() {
 		case <-stateSyncTicker.C:
 			logger.Debug("auto-triggering StateSync()")
 			c.StateSync(ctx)
-		case <-syncTicker.C:
-			logger.Debug("auto-triggering SyncAllLocal()")
-			c.SyncAllLocal(ctx)
 		case <-recoverTicker.C:
 			logger.Debug("auto-triggering RecoverAllLocal()")
 			c.RecoverAllLocal(ctx)
 		case <-c.ctx.Done():
 			stateSyncTicker.Stop()
+			recoverTicker.Stop()
 			return
 		}
 	}
@@ -553,7 +550,7 @@ func (c *Cluster) run() {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-		c.syncWatcher()
+		c.watchPinset()
 	}()
 
 	c.wg.Add(1)
@@ -975,111 +972,57 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	return nil
 }
 
-// StateSync syncs the consensus state to the Pin Tracker, ensuring
-// that every Cid in the shared state is tracked and that the Pin Tracker
-// is not tracking more Cids than it should.
+// StateSync performs maintenance tasks on the global state that require
+// looping through all the items. It is triggered automatically on
+// StateSyncInterval. Currently it:
+//   * Sends unpin for expired items for which this peer is "closest"
+//     (skipped for follower peers)
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
+
+	if c.config.FollowerMode {
+		return nil
+	}
 
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
 		return err
 	}
 
-	logger.Debug("syncing state to tracker")
 	timeNow := time.Now()
 	clusterPins, err := cState.List(ctx)
 	if err != nil {
 		return err
 	}
 
-	trackedPins := c.tracker.StatusAll(ctx)
-	trackedPinsMap := make(map[string]struct{})
-	for _, tpin := range trackedPins {
-		trackedPinsMap[tpin.Cid.String()] = struct{}{}
+	// Only trigger pin operations if we are the closest with respect to
+	// other trusted peers. We cannot know if our peer ID is trusted by
+	// other peers in the Cluster. This assumes yes. Setting FollowerMode
+	// is a way to assume the opposite and skip this completely.
+	trustedPeers, err := c.getTrustedPeers(ctx)
+	if err != nil {
+		return nil
 	}
 
-	// Track items which are not tracked
-	for _, pin := range clusterPins {
-		_, tracked := trackedPinsMap[pin.Cid.String()]
-		if !tracked {
-			logger.Debugf("StateSync: tracking %s, part of the shared state", pin.Cid)
-			err = c.tracker.Track(ctx, pin)
-			if err != nil {
-				return err
-			}
-		}
+	checker := distanceChecker{
+		local:      c.id,
+		otherPeers: trustedPeers,
+		cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
 	}
 
-	isClosest := func(cid.Cid) bool {
-		return false
-	}
-
-	if !c.config.FollowerMode {
-		trustedPeers, err := c.getTrustedPeers(ctx)
-		if err != nil {
-			return nil
-		}
-		checker := distanceChecker{
-			local:      c.id,
-			otherPeers: trustedPeers,
-			cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
-		}
-		isClosest = func(c cid.Cid) bool {
-			return checker.isClosest(c)
-		}
-	}
-
-	// a. Untrack items which should not be tracked
-	// b. Unpin items which have expired
-	// c. Track items which should not be remote as local
-	// d. Track items which should not be local as remote
-	for _, p := range trackedPins {
-		pCid := p.Cid
-		currentPin, err := cState.Get(ctx, pCid)
-		if err != nil && err != state.ErrNotFound {
-			return err
-		}
-
-		if err == state.ErrNotFound {
-			logger.Debugf("StateSync: untracking %s: not part of shared state", pCid)
-			c.tracker.Untrack(ctx, pCid)
-			continue
-		}
-
-		if currentPin.ExpiredAt(timeNow) && isClosest(pCid) {
-			logger.Infof("Unpinning %s: pin expired at %s", pCid, currentPin.ExpireAt)
-			if _, err := c.Unpin(ctx, pCid); err != nil {
+	// Unpin expired items when we are the closest peer to them.
+	for _, p := range clusterPins {
+		if p.ExpiredAt(timeNow) && checker.isClosest(p.Cid) {
+			logger.Infof("Unpinning %s: pin expired at %s", p.Cid, p.ExpireAt)
+			if _, err := c.Unpin(ctx, p.Cid); err != nil {
 				logger.Error(err)
 			}
-			continue
-		}
-
-		err = c.updateRemotePins(ctx, currentPin, p)
-		if err != nil {
-			return err
 		}
 	}
 
 	return nil
-}
-
-func (c *Cluster) updateRemotePins(ctx context.Context, pin *api.Pin, p *api.PinInfo) error {
-	var err error
-	allocatedHere := pin.ReplicationFactorMin == -1 || containsPeer(pin.Allocations, c.id)
-
-	switch {
-	case p.Status == api.TrackerStatusRemote && allocatedHere:
-		logger.Debugf("StateSync: Tracking %s locally (currently remote)", p.Cid)
-		err = c.tracker.Track(ctx, pin)
-	case p.Status == api.TrackerStatusPinned && !allocatedHere:
-		logger.Debugf("StateSync: Tracking %s as remote (currently local)", p.Cid)
-		err = c.tracker.Track(ctx, pin)
-	}
-
-	return err
 }
 
 // StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.
@@ -1122,48 +1065,6 @@ func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) *api.PinInfo {
 	return c.tracker.Status(ctx, h)
 }
 
-// SyncAll triggers SyncAllLocal() operations in all cluster peers, making sure
-// that the state of tracked items matches the state reported by the IPFS daemon
-// and returning the results as GlobalPinInfo. If an error happens, the slice
-// will contain as much information as could be fetched from the peers.
-func (c *Cluster) SyncAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
-	_, span := trace.StartSpan(ctx, "cluster/SyncAll")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	return c.globalPinInfoSlice(ctx, "Cluster", "SyncAllLocal")
-}
-
-// SyncAllLocal makes sure that the current state for all tracked items
-// in this peer matches the state reported by the IPFS daemon.
-//
-// SyncAllLocal returns the list of PinInfo that where updated because of
-// the operation, along with those in error states.
-func (c *Cluster) SyncAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
-	_, span := trace.StartSpan(ctx, "cluster/SyncAllLocal")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	syncedItems, err := c.tracker.SyncAll(ctx)
-	// Despite errors, tracker provides synced items that we can provide.
-	// They encapsulate the error.
-	if err != nil {
-		logger.Error("tracker.Sync() returned with error: ", err)
-		logger.Error("Is the ipfs daemon running?")
-	}
-	return syncedItems, err
-}
-
-// Sync triggers a SyncLocal() operation for a given Cid.
-// in all cluster peers.
-func (c *Cluster) Sync(ctx context.Context, h cid.Cid) (*api.GlobalPinInfo, error) {
-	_, span := trace.StartSpan(ctx, "cluster/Sync")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	return c.globalPinInfoCid(ctx, "Cluster", "SyncLocal", h)
-}
-
 // used for RecoverLocal and SyncLocal.
 func (c *Cluster) localPinInfoOp(
 	ctx context.Context,
@@ -1189,17 +1090,6 @@ func (c *Cluster) localPinInfoOp(
 	// return the last pInfo/err, should be the root Cid if everything ok
 	return pInfo, err
 
-}
-
-// SyncLocal performs a local sync operation for the given Cid. This will
-// tell the tracker to verify the status of the Cid against the IPFS daemon.
-// It returns the updated PinInfo for the Cid.
-func (c *Cluster) SyncLocal(ctx context.Context, h cid.Cid) (pInfo *api.PinInfo, err error) {
-	_, span := trace.StartSpan(ctx, "cluster/SyncLocal")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	return c.localPinInfoOp(ctx, h, c.tracker.Sync)
 }
 
 // RecoverAll triggers a RecoverAllLocal operation on all peer.

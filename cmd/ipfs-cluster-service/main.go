@@ -29,9 +29,8 @@ const programName = "ipfs-cluster-service"
 
 // flag defaults
 const (
-	defaultPinTracker = "map"
-	defaultLogLevel   = "info"
-	defaultConsensus  = "crdt"
+	defaultLogLevel  = "info"
+	defaultConsensus = "crdt"
 )
 
 const (
@@ -412,12 +411,6 @@ the peer IDs in the given multiaddresses.
 					Name:   "leave, x",
 					Usage:  "remove peer from cluster on exit. Overrides \"leave_on_shutdown\"",
 					Hidden: true,
-				},
-				cli.StringFlag{
-					Name:   "pintracker",
-					Value:  defaultPinTracker,
-					Hidden: true,
-					Usage:  "pintracker to use [map,stateless].",
 				},
 				cli.BoolFlag{
 					Name:  "stats",

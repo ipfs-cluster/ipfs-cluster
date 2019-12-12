@@ -285,22 +285,6 @@ func (mock *mockCluster) StatusLocal(ctx context.Context, in cid.Cid, out *api.P
 	return (&mockPinTracker{}).Status(ctx, in, out)
 }
 
-func (mock *mockCluster) SyncAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	return mock.StatusAll(ctx, in, out)
-}
-
-func (mock *mockCluster) SyncAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	return mock.StatusAllLocal(ctx, in, out)
-}
-
-func (mock *mockCluster) Sync(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
-	return mock.Status(ctx, in, out)
-}
-
-func (mock *mockCluster) SyncLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
-	return mock.StatusLocal(ctx, in, out)
-}
-
 func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
 	return mock.StatusAll(ctx, in, out)
 }

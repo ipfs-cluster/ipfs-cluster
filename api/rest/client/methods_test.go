@@ -376,43 +376,6 @@ func TestStatusAll(t *testing.T) {
 	testClients(t, api, testF)
 }
 
-func TestSync(t *testing.T) {
-	ctx := context.Background()
-	api := testAPI(t)
-	defer shutdown(api)
-
-	testF := func(t *testing.T, c Client) {
-		pin, err := c.Sync(ctx, test.Cid1, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !pin.Cid.Equals(test.Cid1) {
-			t.Error("should be same pin")
-		}
-	}
-
-	testClients(t, api, testF)
-}
-
-func TestSyncAll(t *testing.T) {
-	ctx := context.Background()
-	api := testAPI(t)
-	defer shutdown(api)
-
-	testF := func(t *testing.T, c Client) {
-		pins, err := c.SyncAll(ctx, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(pins) == 0 {
-			t.Error("there should be some pins")
-		}
-	}
-
-	testClients(t, api, testF)
-}
-
 func TestRecover(t *testing.T) {
 	ctx := context.Background()
 	api := testAPI(t)

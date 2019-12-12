@@ -105,9 +105,11 @@ func (op *Operation) String() string {
 
 // Cid returns the Cid associated to this operation.
 func (op *Operation) Cid() cid.Cid {
+	var c cid.Cid
 	op.mu.RLock()
-	defer op.mu.RUnlock()
-	return op.pin.Cid
+	c = op.pin.Cid
+	op.mu.RUnlock()
+	return c
 }
 
 // Context returns the context associated to this operation.
@@ -117,48 +119,55 @@ func (op *Operation) Context() context.Context {
 
 // Cancel will cancel the context associated to this operation.
 func (op *Operation) Cancel() {
-	ctx, span := trace.StartSpan(op.ctx, "optracker/Cancel")
-	_ = ctx
-	defer span.End()
+	_, span := trace.StartSpan(op.ctx, "optracker/Cancel")
 	op.cancel()
+	span.End()
 }
 
 // Phase returns the Phase.
 func (op *Operation) Phase() Phase {
+	var ph Phase
+
 	op.mu.RLock()
-	defer op.mu.RUnlock()
-	return op.phase
+	ph = op.phase
+	op.mu.RUnlock()
+
+	return ph
 }
 
 // SetPhase changes the Phase and updates the timestamp.
 func (op *Operation) SetPhase(ph Phase) {
-	ctx, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
-	_ = ctx
-	defer span.End()
+	_, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
 	op.mu.Lock()
-	defer op.mu.Unlock()
-	op.phase = ph
-	op.ts = time.Now()
+	{
+		op.phase = ph
+		op.ts = time.Now()
+	}
+	op.mu.Unlock()
+	span.End()
 }
 
 // Error returns any error message attached to the operation.
 func (op *Operation) Error() string {
+	var err string
 	op.mu.RLock()
-	defer op.mu.RUnlock()
-	return op.error
+	err = op.error
+	op.mu.RUnlock()
+	return err
 }
 
 // SetError sets the phase to PhaseError along with
 // an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
-	ctx, span := trace.StartSpan(op.ctx, "optracker/SetError")
-	_ = ctx
-	defer span.End()
+	_, span := trace.StartSpan(op.ctx, "optracker/SetError")
 	op.mu.Lock()
-	defer op.mu.Unlock()
-	op.phase = PhaseError
-	op.error = err.Error()
-	op.ts = time.Now()
+	{
+		op.phase = PhaseError
+		op.error = err.Error()
+		op.ts = time.Now()
+	}
+	op.mu.Unlock()
+	span.End()
 }
 
 // Type returns the operation Type.
@@ -174,9 +183,11 @@ func (op *Operation) Pin() *api.Pin {
 // Timestamp returns the time when this operation was
 // last modified (phase changed, error was set...).
 func (op *Operation) Timestamp() time.Time {
+	var ts time.Time
 	op.mu.RLock()
-	defer op.mu.RUnlock()
-	return op.ts
+	ts = op.ts
+	op.mu.RUnlock()
+	return ts
 }
 
 // Cancelled returns whether the context for this

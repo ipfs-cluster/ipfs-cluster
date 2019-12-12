@@ -24,7 +24,6 @@ var ccfgTestJSON = []byte(`
             "/ip4/127.0.0.1/udp/10000/quic"
         ],
         "state_sync_interval": "1m0s",
-        "ipfs_sync_interval": "2m10s",
         "pin_recover_interval": "1m",
         "replication_factor_min": 5,
         "replication_factor_max": 5,
