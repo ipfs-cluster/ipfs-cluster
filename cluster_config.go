@@ -146,6 +146,11 @@ type Config struct {
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
 
+	// PeerAddresses stores additional addresses for peers that may or may
+	// not be in the peerstore file. These are considered high priority
+	// when bootstrapping the initial cluster connections.
+	PeerAddresses []ma.Multiaddr
+
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
 }
@@ -172,6 +177,7 @@ type configJSON struct {
 	DisableRepinning     bool               `json:"disable_repinning"`
 	FollowerMode         bool               `json:"follower_mode,omitempty"`
 	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
+	PeerAddresses        []string           `json:"peer_addresses"`
 }
 
 // connMgrConfigJSON configures the libp2p host connection manager.
@@ -354,8 +360,9 @@ func (cfg *Config) setDefaults() {
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.MDNSInterval = DefaultMDNSInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
-	cfg.PeerstoreFile = "" // empty so it gets ommited.
 	cfg.FollowerMode = DefaultFollowerMode
+	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.PeerAddresses = []ma.Multiaddr{}
 	cfg.RPCPolicy = DefaultRPCPolicy
 }
 
@@ -428,6 +435,16 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		return err
 	}
 
+	// PeerAddresses
+	for _, addr := range jcfg.PeerAddresses {
+		peerAddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			err = fmt.Errorf("error parsing peer_addresses: %s", err)
+			return err
+		}
+		cfg.PeerAddresses = append(cfg.PeerAddresses, peerAddr)
+	}
+
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
 	cfg.DisableRepinning = jcfg.DisableRepinning
 	cfg.FollowerMode = jcfg.FollowerMode
@@ -480,6 +497,9 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.MDNSInterval = cfg.MDNSInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
+	for _, addr := range cfg.PeerAddresses {
+		jcfg.PeerAddresses = append(jcfg.PeerAddresses, addr.String())
+	}
 	jcfg.FollowerMode = cfg.FollowerMode
 
 	return

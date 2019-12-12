@@ -249,6 +249,10 @@ func New(cfg *Config) (*Server, error) {
 		Path("/repo/stat").
 		HandlerFunc(proxy.repoStatHandler).
 		Name("RepoStat")
+	hijackSubrouter.
+		Path("/repo/gc").
+		HandlerFunc(proxy.repoGCHandler).
+		Name("RepoGC")
 
 	// Everything else goes to the IPFS daemon.
 	router.PathPrefix("/").Handler(reverseProxy)
@@ -644,6 +648,63 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	resBytes, _ := json.Marshal(totalStats)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
+	return
+}
+
+type ipfsRepoGCResp struct {
+	Key   cid.Cid `json:",omitempty"`
+	Error string  `json:",omitempty"`
+}
+
+func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	streamErrors := queryValues.Get("stream-errors") == "true"
+	// ignoring `quiet` since it only affects text output
+
+	proxy.setHeaders(w.Header(), r)
+
+	w.Header().Set("Trailer", "X-Stream-Error")
+	var repoGC api.GlobalRepoGC
+	err := proxy.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"Cluster",
+		"RepoGC",
+		struct{}{},
+		&repoGC,
+	)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(w)
+	var ipfsRepoGC ipfsRepoGCResp
+	mError := multiError{}
+	for _, gc := range repoGC.PeerMap {
+		for _, key := range gc.Keys {
+			if streamErrors {
+				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key, Error: key.Error}
+			} else {
+				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key}
+				if key.Error != "" {
+					mError.add(key.Error)
+				}
+			}
+
+			// Cluster tags start with small letter, but IPFS tags with capital letter.
+			if err := enc.Encode(ipfsRepoGC); err != nil {
+				logger.Error(err)
+			}
+		}
+	}
+
+	mErrStr := mError.Error()
+	if !streamErrors && mErrStr != "" {
+		w.Header().Set("X-Stream-Error", mErrStr)
+	}
+
 	return
 }
 

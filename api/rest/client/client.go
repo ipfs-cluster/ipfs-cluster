@@ -281,6 +281,8 @@ func (c *defaultClient) setupHTTPClient() error {
 	switch {
 	case IsPeerAddress(c.config.APIAddr):
 		err = c.enableLibp2p()
+	case isUnixSocketAddress(c.config.APIAddr):
+		err = c.enableUnix()
 	case c.config.SSL:
 		err = c.enableTLS()
 	default:
@@ -307,13 +309,15 @@ func (c *defaultClient) setupHTTPClient() error {
 func (c *defaultClient) setupHostname() error {
 	// Extract host:port form APIAddr or use Host:Port.
 	// For libp2p, hostname is set in enableLibp2p()
-	if IsPeerAddress(c.config.APIAddr) {
+	// For unix sockets, hostname set in enableUnix()
+	if IsPeerAddress(c.config.APIAddr) || isUnixSocketAddress(c.config.APIAddr) {
 		return nil
 	}
 	_, hostname, err := manet.DialArgs(c.config.APIAddr)
 	if err != nil {
 		return err
 	}
+
 	c.hostname = hostname
 	return nil
 }
@@ -349,4 +353,14 @@ func IsPeerAddress(addr ma.Multiaddr) bool {
 	pid, err := addr.ValueForProtocol(ma.P_P2P)
 	dnsaddr, err2 := addr.ValueForProtocol(madns.DnsaddrProtocol.Code)
 	return (pid != "" && err == nil) || (dnsaddr != "" && err2 == nil)
+}
+
+// isUnixSocketAddress returns if the given address corresponds to a
+// unix socket.
+func isUnixSocketAddress(addr ma.Multiaddr) bool {
+	if addr == nil {
+		return false
+	}
+	value, err := addr.ValueForProtocol(ma.P_UNIX)
+	return (value != "" && err == nil)
 }

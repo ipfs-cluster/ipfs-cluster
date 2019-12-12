@@ -271,7 +271,7 @@ func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.P
 }
 
 func createCluster(t *testing.T, host host.Host, dht *dht.IpfsDHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {
-	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, inf, tracer)
+	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, []Informer{inf}, tracer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,7 +526,7 @@ func waitForClustersHealthy(t *testing.T, clusters []*Cluster) {
 	timer := time.NewTimer(15 * time.Second)
 	for {
 		ttlDelay()
-		metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informer.Name())
+		metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informers[0].Name())
 		healthy := 0
 		for _, m := range metrics {
 			if !m.Expired() {

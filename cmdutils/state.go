@@ -26,6 +26,7 @@ type StateManager interface {
 	ImportState(io.Reader) error
 	ExportState(io.Writer) error
 	GetStore() (ds.Datastore, error)
+	GetOfflineState(ds.Datastore) (state.State, error)
 	Clean() error
 }
 
@@ -44,6 +45,16 @@ func NewStateManager(consensus string, ident *config.Identity, cfgs *Configs) (S
 	}
 }
 
+// NewStateManagerWithHelper returns a state manager initialized using the
+// configuration and identity provided by the given config helper.
+func NewStateManagerWithHelper(cfgHelper *ConfigHelper) (StateManager, error) {
+	return NewStateManager(
+		cfgHelper.GetConsensus(),
+		cfgHelper.Identity(),
+		cfgHelper.Configs(),
+	)
+}
+
 type raftStateManager struct {
 	ident *config.Identity
 	cfgs  *Configs
@@ -53,7 +64,7 @@ func (raftsm *raftStateManager) GetStore() (ds.Datastore, error) {
 	return inmem.New(), nil
 }
 
-func (raftsm *raftStateManager) getOfflineState(store ds.Datastore) (state.State, error) {
+func (raftsm *raftStateManager) GetOfflineState(store ds.Datastore) (state.State, error) {
 	return raft.OfflineState(raftsm.cfgs.Raft, store)
 }
 
@@ -68,7 +79,7 @@ func (raftsm *raftStateManager) ImportState(r io.Reader) error {
 		return err
 	}
 	defer store.Close()
-	st, err := raftsm.getOfflineState(store)
+	st, err := raftsm.GetOfflineState(store)
 	if err != nil {
 		return err
 	}
@@ -90,7 +101,7 @@ func (raftsm *raftStateManager) ExportState(w io.Writer) error {
 		return err
 	}
 	defer store.Close()
-	st, err := raftsm.getOfflineState(store)
+	st, err := raftsm.GetOfflineState(store)
 	if err != nil {
 		return err
 	}
@@ -114,7 +125,7 @@ func (crdtsm *crdtStateManager) GetStore() (ds.Datastore, error) {
 	return bds, nil
 }
 
-func (crdtsm *crdtStateManager) getOfflineState(store ds.Datastore) (state.BatchingState, error) {
+func (crdtsm *crdtStateManager) GetOfflineState(store ds.Datastore) (state.State, error) {
 	return crdt.OfflineState(crdtsm.cfgs.Crdt, store)
 }
 
@@ -129,17 +140,18 @@ func (crdtsm *crdtStateManager) ImportState(r io.Reader) error {
 		return err
 	}
 	defer store.Close()
-	st, err := crdtsm.getOfflineState(store)
+	st, err := crdtsm.GetOfflineState(store)
+	if err != nil {
+		return err
+	}
+	batchingSt := st.(state.BatchingState)
+
+	err = importState(r, batchingSt)
 	if err != nil {
 		return err
 	}
 
-	err = importState(r, st)
-	if err != nil {
-		return err
-	}
-
-	return st.Commit(context.Background())
+	return batchingSt.Commit(context.Background())
 }
 
 func (crdtsm *crdtStateManager) ExportState(w io.Writer) error {
@@ -148,7 +160,7 @@ func (crdtsm *crdtStateManager) ExportState(w io.Writer) error {
 		return err
 	}
 	defer store.Close()
-	st, err := crdtsm.getOfflineState(store)
+	st, err := crdtsm.GetOfflineState(store)
 	if err != nil {
 		return err
 	}

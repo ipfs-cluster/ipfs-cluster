@@ -24,7 +24,8 @@ type LBStrategy interface {
 	SetClients(clients []Client)
 }
 
-// RoundRobin is a load balancing strategy that would use clients in a sequence.
+// RoundRobin is a load balancing strategy that would use clients in a sequence
+// for all methods, throughout the lifetime of the lb client.
 type RoundRobin struct {
 	clients []Client
 	counter uint32
@@ -44,15 +45,16 @@ func (r *RoundRobin) SetClients(cl []Client) {
 	r.length = uint32(len(cl))
 }
 
-// Failover is a load balancing strategy that would try the local cluster peer first.
-// If the local call fail it would try other client in a round robin fashion.
+// Failover is a load balancing strategy that would try the first cluster peer
+// first. If the first call fails it would try other clients for that call in a
+// round robin fashion.
 type Failover struct {
 	clients []Client
 }
 
 // Next returns the next client to be used.
 func (f *Failover) Next(count int) Client {
-	return f.clients[count]
+	return f.clients[count%len(f.clients)]
 }
 
 // SetClients sets a list of clients for this strategy.

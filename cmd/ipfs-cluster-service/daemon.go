@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
@@ -60,7 +57,8 @@ func daemon(c *cli.Context) error {
 	defer locker.tryUnlock()
 
 	// Load all the configurations and identity
-	cfgHelper := loadConfigHelper()
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+	checkErr("loading configurations", err)
 	defer cfgHelper.Manager().Shutdown()
 
 	cfgs := cfgHelper.Configs()
@@ -103,7 +101,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return handleSignals(ctx, cancel, cluster, host, dht)
+	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht)
 }
 
 // createCluster creates all the necessary things to produce the cluster
@@ -127,9 +125,19 @@ func createCluster(
 
 	var apis []ipfscluster.API
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Restapi.ConfigKey()) {
-		rest, err := rest.NewAPIWithHost(ctx, cfgs.Restapi, host)
+		var api *rest.API
+		// Do NOT enable default Libp2p API endpoint on CRDT
+		// clusters. Collaborative clusters are likely to share the
+		// secret with untrusted peers, thus the API would be open for
+		// anyone.
+		if cfgHelper.GetConsensus() == cfgs.Raft.ConfigKey() {
+			api, err = rest.NewAPIWithHost(ctx, cfgs.Restapi, host)
+		} else {
+			api, err = rest.NewAPI(ctx, cfgs.Restapi)
+		}
 		checkErr("creating REST API component", err)
-		apis = append(apis, rest)
+		apis = append(apis, api)
+
 	}
 
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Ipfsproxy.ConfigKey()) {
@@ -197,7 +205,7 @@ func createCluster(
 		tracker,
 		mon,
 		alloc,
-		informer,
+		[]ipfscluster.Informer{informer},
 		tracer,
 	)
 }
@@ -211,61 +219,6 @@ func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []m
 		if err != nil {
 			logger.Errorf("bootstrap to %s failed: %s", bstrap, err)
 		}
-	}
-}
-
-func handleSignals(
-	ctx context.Context,
-	cancel context.CancelFunc,
-	cluster *ipfscluster.Cluster,
-	host host.Host,
-	dht *dht.IpfsDHT,
-) error {
-	signalChan := make(chan os.Signal, 20)
-	signal.Notify(
-		signalChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGHUP,
-	)
-
-	var ctrlcCount int
-	for {
-		select {
-		case <-signalChan:
-			ctrlcCount++
-			handleCtrlC(ctx, cluster, ctrlcCount)
-		case <-cluster.Done():
-			cancel()
-			dht.Close()
-			host.Close()
-			return nil
-		}
-	}
-}
-
-func handleCtrlC(ctx context.Context, cluster *ipfscluster.Cluster, ctrlcCount int) {
-	switch ctrlcCount {
-	case 1:
-		go func() {
-			err := cluster.Shutdown(ctx)
-			checkErr("shutting down cluster", err)
-		}()
-	case 2:
-		out(`
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-Shutdown is taking too long! Press Ctrl-c again to manually kill cluster.
-Note that this may corrupt the local cluster state.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-`)
-	case 3:
-		out("exiting cluster NOW")
-		locker.tryUnlock()
-		os.Exit(-1)
 	}
 }
 

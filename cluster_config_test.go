@@ -28,7 +28,8 @@ var ccfgTestJSON = []byte(`
         "replication_factor_min": 5,
         "replication_factor_max": 5,
         "monitor_ping_interval": "2s",
-        "disable_repinning": true
+        "disable_repinning": true,
+        "peer_addresses": [ "/ip4/127.0.0.1/tcp/1234/p2p/QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc" ]
 }
 `)
 
@@ -88,6 +89,13 @@ func TestLoadJSON(t *testing.T) {
 		}
 		if cfg.ConnMgr.GracePeriod != 100*time.Minute {
 			t.Error("expected grace_period to be 100m")
+		}
+	})
+
+	t.Run("expected peer addresses", func(t *testing.T) {
+		cfg := loadJSON(t)
+		if len(cfg.PeerAddresses) != 1 {
+			t.Error("expected 1 peer address")
 		}
 	})
 
