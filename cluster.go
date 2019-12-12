@@ -247,9 +247,9 @@ func (c *Cluster) setupRPCClients() {
 	}
 }
 
-// syncWatcher loops and triggers StateSync and SyncAllLocal from time to time
-func (c *Cluster) syncWatcher() {
-	ctx, span := trace.StartSpan(c.ctx, "cluster/syncWatcher")
+// watchPinset triggers recurrent operations that loop on the pinset.
+func (c *Cluster) watchPinset() {
+	ctx, span := trace.StartSpan(c.ctx, "cluster/watchPinset")
 	defer span.End()
 
 	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
@@ -265,6 +265,7 @@ func (c *Cluster) syncWatcher() {
 			c.RecoverAllLocal(ctx)
 		case <-c.ctx.Done():
 			stateSyncTicker.Stop()
+			recoverTicker.Stop()
 			return
 		}
 	}
@@ -549,7 +550,7 @@ func (c *Cluster) run() {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-		c.syncWatcher()
+		c.watchPinset()
 	}()
 
 	c.wg.Add(1)
@@ -971,53 +972,53 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	return nil
 }
 
-// StateSync removes expired pins if we are the closest to cid of the
-// expired pin.
+// StateSync performs maintenance tasks on the global state that require
+// looping through all the items. It is triggered automatically on
+// StateSyncInterval. Currently it:
+//   * Sends unpin for expired items for which this peer is "closest"
+//     (skipped for follower peers)
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
+
+	if c.config.FollowerMode {
+		return nil
+	}
 
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
 		return err
 	}
 
-	logger.Debug("syncing state to tracker")
 	timeNow := time.Now()
 	clusterPins, err := cState.List(ctx)
 	if err != nil {
 		return err
 	}
 
-	isClosest := func(cid.Cid) bool {
-		return false
+	// Only trigger pin operations if we are the closest with respect to
+	// other trusted peers. We cannot know if our peer ID is trusted by
+	// other peers in the Cluster. This assumes yes. Setting FollowerMode
+	// is a way to assume the opposite and skip this completely.
+	trustedPeers, err := c.getTrustedPeers(ctx)
+	if err != nil {
+		return nil
 	}
 
-	if !c.config.FollowerMode {
-		trustedPeers, err := c.getTrustedPeers(ctx)
-		if err != nil {
-			return nil
-		}
-		checker := distanceChecker{
-			local:      c.id,
-			otherPeers: trustedPeers,
-			cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
-		}
-		isClosest = func(c cid.Cid) bool {
-			return checker.isClosest(c)
-		}
+	checker := distanceChecker{
+		local:      c.id,
+		otherPeers: trustedPeers,
+		cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
 	}
 
-	// b. Unpin items which have expired
+	// Unpin expired items when we are the closest peer to them.
 	for _, p := range clusterPins {
-		pCid := p.Cid
-		if p.ExpiredAt(timeNow) && isClosest(pCid) {
-			logger.Infof("Unpinning %s: pin expired at %s", pCid, p.ExpireAt)
-			if _, err := c.Unpin(ctx, pCid); err != nil {
+		if p.ExpiredAt(timeNow) && checker.isClosest(p.Cid) {
+			logger.Infof("Unpinning %s: pin expired at %s", p.Cid, p.ExpireAt)
+			if _, err := c.Unpin(ctx, p.Cid); err != nil {
 				logger.Error(err)
 			}
-			continue
 		}
 	}
 

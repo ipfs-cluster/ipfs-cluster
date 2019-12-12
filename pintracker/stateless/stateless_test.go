@@ -80,6 +80,8 @@ func (mock *mockIPFS) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPin
 }
 
 func testSlowStatelessPinTracker(t *testing.T) *Tracker {
+	t.Helper()
+
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
@@ -96,6 +98,8 @@ func testSlowStatelessPinTracker(t *testing.T) *Tracker {
 }
 
 func testStatelessPinTracker(t testing.TB) *Tracker {
+	t.Helper()
+
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1

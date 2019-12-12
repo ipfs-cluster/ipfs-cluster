@@ -93,17 +93,18 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 	})
 }
 
-// newPrefilledState return a state instance with some pins.
-func newPrefilledState(t testing.TB) state.ReadOnly {
+// prefilledState return a state instance with some pins.
+func prefilledState(context.Context) (state.ReadOnly, error) {
 	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
-	remote := api.PinWithOpts(test.Cid4, pinOpts)
+	remote := api.PinWithOpts(test.Cid4, api.PinOptions{
+		ReplicationFactorMax: 1,
+		ReplicationFactorMin: 1,
+	})
 	remote.Allocations = []peer.ID{test.PeerID2}
-	remote.ReplicationFactorMin = 1
-	remote.ReplicationFactorMax = 1
 
 	pins := []*api.Pin{
 		api.PinWithOpts(test.Cid1, pinOpts),
@@ -116,35 +117,28 @@ func newPrefilledState(t testing.TB) state.ReadOnly {
 	for _, pin := range pins {
 		err = st.Add(ctx, pin)
 		if err != nil {
-			t.Fatal(err)
+			return nil, err
 		}
 	}
-
-	return st
+	return st, nil
 }
 
 func testSlowStatelessPinTracker(t testing.TB) *stateless.Tracker {
+	t.Helper()
+
 	cfg := &stateless.Config{}
 	cfg.Default()
-	//	st := stateless.NewMockState(true)
-	st := newPrefilledState(t)
-	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		return st, nil
-	}
-	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, getState)
+	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, prefilledState)
 	spt.SetClient(mockRPCClient(t))
 	return spt
 }
 
 func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
+	t.Helper()
+
 	cfg := &stateless.Config{}
 	cfg.Default()
-	//st := stateless.NewMockState(false)
-	st := newPrefilledState(t)
-	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		return st, nil
-	}
-	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, getState)
+	spt := stateless.New(cfg, test.PeerID1, test.PeerName1, prefilledState)
 	spt.SetClient(test.NewMockRPCClient(t))
 	return spt
 }

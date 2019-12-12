@@ -25,7 +25,7 @@ var logger = logging.Logger("pintracker")
 
 var (
 	// ErrFullQueue is the error used when pin or unpin operation channel is full.
-	ErrFullQueue = errors.New("pin/unpin operation queue is full (too many operations), increasing max_pin_queue_size would help")
+	ErrFullQueue = errors.New("pin/unpin operation queue is full. Try increasing max_pin_queue_size.")
 )
 
 // Tracker uses the optracker.OperationTracker to manage
@@ -249,16 +249,14 @@ func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
 			return nil // ongoing unpin
 		}
 		err := spt.unpin(op)
+		op.Cancel()
 		if err != nil {
 			op.SetError(err)
-			op.Cancel()
 			return nil
 		}
 
 		op.SetPhase(optracker.PhaseDone)
-		op.Cancel()
 		spt.optracker.Clean(ctx, op)
-
 		return nil
 	}
 
@@ -285,9 +283,8 @@ func (spt *Tracker) StatusAll(ctx context.Context) []*api.PinInfo {
 		return nil
 	}
 
-	// get all inflight operations from optracker and
-	// put them into the map, deduplicating any already 'pinned' items with
-	// their inflight operation
+	// get all inflight operations from optracker and put them into the
+	// map, deduplicating any existing items with their inflight operation.
 	for _, infop := range spt.optracker.GetAll(ctx) {
 		pininfos[infop.Cid.String()] = infop
 	}
@@ -483,6 +480,8 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	pininfos := make(map[string]*api.PinInfo, len(statePins))
 	for _, p := range statePins {
 		pCid := p.Cid.String()
+		ipfsInfo, pinnedInIpfs := localpis[pCid]
+		// base pinInfo object - status to be filled.
 		pinInfo := &api.PinInfo{
 			Cid:      p.Cid,
 			Peer:     spt.peerID,
@@ -490,22 +489,29 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 			TS:       time.Now(),
 		}
 
-		if p.Type == api.MetaType && incExtra {
-			// add pin to pininfos with sharded status
+		switch {
+		case p.Type == api.MetaType:
 			pinInfo.Status = api.TrackerStatusSharded
-			pininfos[pCid] = pinInfo
-			continue
-		}
-
-		if p.IsRemotePin(spt.peerID) && incExtra {
-			// add pin to pininfos with a status of remote
+			if incExtra {
+				pininfos[pCid] = pinInfo
+			}
+		case p.IsRemotePin(spt.peerID):
 			pinInfo.Status = api.TrackerStatusRemote
-			pininfos[pCid] = pinInfo
-			continue
-		}
-		// lookup p in localpis
-		if lp, ok := localpis[pCid]; ok {
-			pininfos[pCid] = lp
+			if incExtra {
+				pininfos[pCid] = pinInfo
+			}
+		case pinnedInIpfs:
+			pininfos[pCid] = ipfsInfo
+		default:
+			// report as undefined for this peer.  this will be
+			// overwritten if the operation tracker has more info
+			// for this.  Otherwise, this is a problem: a pin in
+			// the state that should be pinned by this peer but
+			// which no operation is handling.
+
+			// TODO (hector): Consider a pinError so it can be
+			// recovered?
+			pinInfo.Status = api.TrackerStatusUndefined
 		}
 	}
 	return pininfos, nil

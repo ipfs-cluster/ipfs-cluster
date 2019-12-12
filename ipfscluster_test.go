@@ -215,11 +215,7 @@ func createComponents(
 
 	store := makeStore(t, badgerCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
-
-	getState := func(ctx context.Context) (state.ReadOnly, error) {
-		return cons.State(ctx)
-	}
-	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, getState)
+	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
 	var peersF func(context.Context) ([]peer.ID, error)
 	if consensus == "raft" {

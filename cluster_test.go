@@ -168,10 +168,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 
 	store := makeStore(t, badgerCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, false, crdtCfg)
-
-	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, func(ctx context.Context) (state.ReadOnly, error) {
-		return cons.State(ctx)
-	})
+	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
 	var peersF func(context.Context) ([]peer.ID, error)
 	if consensus == "raft" {
