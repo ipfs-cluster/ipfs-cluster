@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"mime/multipart"
 	"sort"
 	"sync"
@@ -82,6 +83,8 @@ type Cluster struct {
 
 	// peerAdd
 	paMux sync.Mutex
+
+	epoch int
 
 	// shutdown function and related variables
 	shutdownLock sync.Mutex
@@ -164,6 +167,7 @@ func NewCluster(
 		peerManager: peerManager,
 		shutdownB:   false,
 		removed:     false,
+		epoch:       rand.Intn(100000),
 		doneCh:      make(chan struct{}),
 		readyCh:     make(chan struct{}),
 		readyB:      false,
@@ -349,6 +353,7 @@ func (c *Cluster) sendPingMetric(ctx context.Context) (*api.Metric, error) {
 		Name:  pingMetricName,
 		Peer:  c.id,
 		Valid: true,
+		Epoch: c.epoch,
 	}
 	metric.SetTTL(c.config.MonitorPingInterval * 2)
 	return metric, c.monitor.PublishMetric(ctx, metric)
@@ -370,6 +375,7 @@ func (c *Cluster) logPingMetric(ctx context.Context, pid peer.ID) error {
 		Name:  pingMetricName,
 		Peer:  pid,
 		Valid: true,
+		Epoch: c.epoch,
 	}
 	m.SetTTL(c.config.MonitorPingInterval * 2)
 	return c.monitor.LogMetric(ctx, m)

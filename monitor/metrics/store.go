@@ -38,10 +38,12 @@ func (mtrs *Store) Add(m *api.Metric) {
 		mtrs.byName[name] = mbyp
 	}
 	window, ok := mbyp[peer]
-	if !ok {
+	// if epochs don't match discard the old metrics series and create a new one
+	if !ok || window.epoch != m.Epoch {
 		// We always lock the outer map, so we can use unsafe
 		// Window.
 		window = NewWindow(DefaultWindowCap)
+		window.epoch = m.Epoch
 		mbyp[peer] = window
 	}
 
@@ -148,8 +150,8 @@ func (mtrs *Store) PeerMetricAll(name string, pid peer.ID) []*api.Metric {
 	if !ok {
 		return nil
 	}
-	ms := window.All()
-	return ms
+
+	return window.All()
 }
 
 // PeerLatest returns the latest of a particular metric for a

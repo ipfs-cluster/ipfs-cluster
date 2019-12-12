@@ -25,6 +25,7 @@ var ErrNoMetrics = errors.New("no metrics have been added to this window")
 type Window struct {
 	wMu    sync.RWMutex
 	window *ring.Ring
+	epoch  int
 }
 
 // NewWindow creates an instance with the given
@@ -48,9 +49,10 @@ func (mw *Window) Add(m *api.Metric) {
 	m.ReceivedAt = time.Now().UnixNano()
 
 	mw.wMu.Lock()
+	defer mw.wMu.Unlock()
+
 	mw.window.Value = m
 	mw.window = mw.window.Next()
-	mw.wMu.Unlock()
 }
 
 // Latest returns the last metric added. It returns an error
@@ -98,7 +100,7 @@ func (mw *Window) All() []*api.Metric {
 // Distribution returns the deltas between all the current
 // values contained in the current window. This will
 // only return values if the api.Metric.Type() is "ping",
-// which are used for accural failure detection.
+// which are used for accrual failure detection.
 func (mw *Window) Distribution() []float64 {
 	ms := mw.All()
 	dist := make([]float64, 0, len(ms)-1)

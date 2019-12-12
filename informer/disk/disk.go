@@ -5,6 +5,7 @@ package disk
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -30,6 +31,7 @@ var logger = logging.Logger("diskinfo")
 // and Component interfaces.
 type Informer struct {
 	config    *Config
+	epoch     int
 	rpcClient *rpc.Client
 }
 
@@ -42,6 +44,7 @@ func NewInformer(cfg *Config) (*Informer, error) {
 
 	return &Informer{
 		config: cfg,
+		epoch:  rand.Intn(100000),
 	}, nil
 }
 
@@ -111,5 +114,6 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	}
 
 	m.SetTTL(disk.config.MetricTTL)
+	m.Epoch = disk.epoch
 	return m
 }

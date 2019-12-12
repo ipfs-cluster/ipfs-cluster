@@ -5,6 +5,7 @@ package numpin
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -20,6 +21,7 @@ var MetricName = "numpin"
 // and Component interfaces
 type Informer struct {
 	config    *Config
+	epoch     int
 	rpcClient *rpc.Client
 }
 
@@ -32,6 +34,7 @@ func NewInformer(cfg *Config) (*Informer, error) {
 
 	return &Informer{
 		config: cfg,
+		epoch:  rand.Intn(100000),
 	}, nil
 }
 
@@ -91,5 +94,6 @@ func (npi *Informer) GetMetric(ctx context.Context) *api.Metric {
 	}
 
 	m.SetTTL(npi.config.MetricTTL)
+	m.Epoch = npi.epoch
 	return m
 }

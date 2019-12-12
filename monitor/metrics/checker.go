@@ -116,17 +116,6 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	}
 	failedMetrics := mc.failedPeers[pid]
 
-	// If above threshold, remove all metrics for that peer
-	// and clean up failedPeers when no failed metrics are left.
-	if failedMetrics[metricName] >= MaxAlertThreshold {
-		mc.metrics.RemovePeerMetrics(pid, metricName)
-		delete(failedMetrics, metricName)
-		if len(mc.failedPeers[pid]) == 0 {
-			delete(mc.failedPeers, pid)
-		}
-		return nil
-	}
-
 	failedMetrics[metricName]++
 
 	alrt := &api.Alert{
@@ -191,18 +180,10 @@ func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float
 		return 0.0, nil, 0.0, true
 	}
 
-	// A peer is never failed if the latest metric from it has
-	// not expired or we do not have enough number of metrics
-	// for accrual detection
-	if !latest.Expired() {
-		return 0.0, nil, 0.0, false
-	}
-	// The latest metric has expired
-
 	pmtrs := mc.metrics.PeerMetricAll(metric, pid)
-	// Not enough values for accrual and metric expired. Peer failed.
+	// Not enough values for accrual
 	if len(pmtrs) < accrualMetricsNum {
-		return 0.0, nil, 0.0, true
+		return 0.0, nil, 0.0, latest.Expired()
 	}
 
 	v := time.Now().UnixNano() - latest.ReceivedAt
