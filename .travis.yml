@@ -30,9 +30,6 @@ jobs:
     - name: "Main Tests with raft consensus"
       script:
         - travis_wait go test -v -timeout 15m -failfast -consensus raft .
-    - name: "Main Tests with stateless tracker"
-      script:
-        - travis_wait go test -v -timeout 15m -failfast -tracker stateless .
     - name: "Golint and go vet"
       script:
         - go get -u golang.org/x/lint/golint

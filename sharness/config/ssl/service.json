@@ -67,10 +67,6 @@
     }
   },
   "pin_tracker": {
-    "maptracker": {
-      "max_pin_queue_size": 50000,
-      "concurrent_pins": 10
-    },
     "stateless": {
       "max_pin_queue_size": 50000,
       "concurrent_pins": 10
