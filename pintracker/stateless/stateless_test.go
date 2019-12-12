@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/datastore/inmem"
+	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
@@ -25,18 +28,13 @@ var (
 	}
 )
 
-type mockCluster struct{}
-
 type mockIPFS struct{}
 
 func mockRPCClient(t *testing.T) *rpc.Client {
 	s := rpc.NewServer(nil, "mock")
 	c := rpc.NewClientWithServer(nil, "mock", s)
-	err := s.RegisterName("Cluster", &mockCluster{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = s.RegisterName("IPFSConnector", &mockIPFS{})
+
+	err := s.RegisterName("IPFSConnector", &mockIPFS{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,40 +79,38 @@ func (mock *mockIPFS) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPin
 	return nil
 }
 
-func (mock *mockCluster) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
-	*out = []*api.Pin{
-		api.PinWithOpts(test.Cid1, pinOpts),
-		api.PinWithOpts(test.Cid3, pinOpts),
-	}
-	return nil
-}
-
-func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
-	switch in.String() {
-	case test.ErrorCid.String():
-		return errors.New("expected error when using ErrorCid")
-	case test.Cid1.String(), test.Cid2.String():
-		*out = *api.PinWithOpts(in, pinOpts)
-		return nil
-	default:
-		return errors.New("not found")
-	}
-}
-
 func testSlowStatelessPinTracker(t *testing.T) *Tracker {
+	t.Helper()
+
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	mpt := New(cfg, test.PeerID1, test.PeerName1)
-	mpt.SetClient(mockRPCClient(t))
-	return mpt
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		return st, nil
+	}
+	spt := New(cfg, test.PeerID1, test.PeerName1, getState)
+	spt.SetClient(mockRPCClient(t))
+	return spt
 }
 
 func testStatelessPinTracker(t testing.TB) *Tracker {
+	t.Helper()
+
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
-	spt := New(cfg, test.PeerID1, test.PeerName1)
+	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	if err != nil {
+		t.Fatal(err)
+	}
+	getState := func(ctx context.Context) (state.ReadOnly, error) {
+		return st, nil
+	}
+	spt := New(cfg, test.PeerID1, test.PeerName1, getState)
 	spt.SetClient(test.NewMockRPCClient(t))
 	return spt
 }
@@ -367,102 +363,6 @@ var sortPinInfoByCid = func(p []*api.PinInfo) {
 	sort.Slice(p, func(i, j int) bool {
 		return p[i].Cid.String() < p[j].Cid.String()
 	})
-}
-
-func TestStatelessTracker_SyncAll(t *testing.T) {
-	type args struct {
-		cs      []cid.Cid
-		tracker *Tracker
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []*api.PinInfo
-		wantErr bool
-	}{
-		{
-			"basic stateless syncall",
-			args{
-				[]cid.Cid{
-					test.Cid1,
-					test.Cid2,
-				},
-				testStatelessPinTracker(t),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-			false,
-		},
-		{
-			"slow stateless syncall",
-			args{
-				[]cid.Cid{
-					test.Cid1,
-					test.Cid2,
-				},
-				testSlowStatelessPinTracker(t),
-			},
-			[]*api.PinInfo{
-				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
-				},
-				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusPinned,
-				},
-			},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.args.tracker.SyncAll(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("PinTracker.SyncAll() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if len(got) != 0 {
-				t.Fatalf("should not have synced anything when it tracks nothing")
-			}
-
-			for _, c := range tt.args.cs {
-				err := tt.args.tracker.Track(context.Background(), api.PinWithOpts(c, pinOpts))
-				if err != nil {
-					t.Fatal(err)
-				}
-				tt.args.tracker.optracker.SetError(context.Background(), c, errors.New("test error"))
-			}
-
-			got, err = tt.args.tracker.SyncAll(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("PinTracker.SyncAll() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			sortPinInfoByCid(got)
-			sortPinInfoByCid(tt.want)
-
-			for i := range got {
-				if got[i].Cid.String() != tt.want[i].Cid.String() {
-					t.Errorf("got: %v\n want %v", got[i].Cid.String(), tt.want[i].Cid.String())
-				}
-
-				if got[i].Status != tt.want[i].Status {
-					t.Errorf("got: %v\n want %v", got[i].Status, tt.want[i].Status)
-				}
-			}
-		})
-	}
 }
 
 func BenchmarkTracker_localStatus(b *testing.B) {

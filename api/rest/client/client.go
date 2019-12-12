@@ -86,17 +86,6 @@ type Client interface {
 	// StatusAll gathers Status() for all tracked items.
 	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error)
 
-	// Sync makes sure the state of a Cid corresponds to the state reported
-	// by the ipfs daemon, and returns it. If local is true, this operation
-	// only happens on the current peer, otherwise it happens on every
-	// cluster peer.
-	Sync(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error)
-	// SyncAll triggers Sync() operations for all tracked items. It only
-	// returns informations for items that were de-synced or have an error
-	// state. If local is true, the operation is limited to the current
-	// peer. Otherwise it happens on every cluster peer.
-	SyncAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error)
-
 	// Recover retriggers pin or unpin ipfs operations for a Cid in error
 	// state.  If local is true, the operation is limited to the current
 	// peer, otherwise it happens on every cluster peer.

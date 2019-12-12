@@ -410,18 +410,6 @@ func (api *API) routes() []route {
 			api.statusAllHandler,
 		},
 		{
-			"Sync",
-			"POST",
-			"/pins/{hash}/sync",
-			api.syncHandler,
-		},
-		{
-			"SyncAll",
-			"POST",
-			"/pins/sync",
-			api.syncAllHandler,
-		},
-		{
 			"Recover",
 			"POST",
 			"/pins/{hash}/recover",
@@ -970,66 +958,6 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 				"",
 				"Cluster",
 				"Status",
-				pin.Cid,
-				&pinInfo,
-			)
-			api.sendResponse(w, autoStatus, err, pinInfo)
-		}
-	}
-}
-
-func (api *API) syncAllHandler(w http.ResponseWriter, r *http.Request) {
-	queryValues := r.URL.Query()
-	local := queryValues.Get("local")
-
-	if local == "true" {
-		var pinInfos []*types.PinInfo
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"SyncAllLocal",
-			struct{}{},
-			&pinInfos,
-		)
-		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
-	} else {
-		var pinInfos []*types.GlobalPinInfo
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"SyncAll",
-			struct{}{},
-			&pinInfos,
-		)
-		api.sendResponse(w, autoStatus, err, pinInfos)
-	}
-}
-
-func (api *API) syncHandler(w http.ResponseWriter, r *http.Request) {
-	queryValues := r.URL.Query()
-	local := queryValues.Get("local")
-
-	if pin := api.parseCidOrError(w, r); pin != nil {
-		if local == "true" {
-			var pinInfo types.PinInfo
-			err := api.rpcClient.CallContext(
-				r.Context(),
-				"",
-				"Cluster",
-				"SyncLocal",
-				pin.Cid,
-				&pinInfo,
-			)
-			api.sendResponse(w, autoStatus, err, pinInfoToGlobal(&pinInfo))
-		} else {
-			var pinInfo types.GlobalPinInfo
-			err := api.rpcClient.CallContext(
-				r.Context(),
-				"",
-				"Cluster",
-				"Sync",
 				pin.Cid,
 				&pinInfo,
 			)

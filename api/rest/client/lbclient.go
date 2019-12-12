@@ -270,37 +270,6 @@ func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.Tracker
 	return pinInfos, err
 }
 
-// Sync makes sure the state of a Cid corresponds to the state reported by
-// the ipfs daemon, and returns it. If local is true, this operation only
-// happens on the current peer, otherwise it happens on every cluster peer.
-func (lc *loadBalancingClient) Sync(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	var pinInfo *api.GlobalPinInfo
-	call := func(c Client) error {
-		var err error
-		pinInfo, err = c.Sync(ctx, ci, local)
-		return err
-	}
-
-	err := lc.retry(0, call)
-	return pinInfo, err
-}
-
-// SyncAll triggers Sync() operations for all tracked items. It only returns
-// informations for items that were de-synced or have an error state. If
-// local is true, the operation is limited to the current peer. Otherwise
-// it happens on every cluster peer.
-func (lc *loadBalancingClient) SyncAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error) {
-	var pinInfos []*api.GlobalPinInfo
-	call := func(c Client) error {
-		var err error
-		pinInfos, err = c.SyncAll(ctx, local)
-		return err
-	}
-
-	err := lc.retry(0, call)
-	return pinInfos, err
-}
-
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.

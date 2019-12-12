@@ -123,12 +123,6 @@ type PinTracker interface {
 	StatusAll(context.Context) []*api.PinInfo
 	// Status returns the local status of a given Cid.
 	Status(context.Context, cid.Cid) *api.PinInfo
-	// SyncAll makes sure that all tracked Cids reflect the real IPFS status.
-	// It returns the list of pins which were updated by the call.
-	SyncAll(context.Context) ([]*api.PinInfo, error)
-	// Sync makes sure that the Cid status reflect the real IPFS status.
-	// It returns the local status of the Cid.
-	Sync(context.Context, cid.Cid) (*api.PinInfo, error)
 	// RecoverAll calls Recover() for all pins tracked.
 	RecoverAll(context.Context) ([]*api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.

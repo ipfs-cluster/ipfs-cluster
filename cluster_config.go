@@ -29,7 +29,6 @@ var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/909
 const (
 	DefaultEnableRelayHop      = true
 	DefaultStateSyncInterval   = 600 * time.Second
-	DefaultIPFSSyncInterval    = 130 * time.Second
 	DefaultPinRecoverInterval  = 1 * time.Hour
 	DefaultMonitorPingInterval = 15 * time.Second
 	DefaultPeerWatchInterval   = 5 * time.Second
@@ -93,14 +92,6 @@ type Config struct {
 	// when new nodes are joining the cluster. Reduce for faster
 	// consistency, increase with larger states.
 	StateSyncInterval time.Duration
-
-	// Time between syncs of the local state and
-	// the state of the ipfs daemon. This ensures that cluster
-	// provides the right status for tracked items (for example
-	// to detect that a pin has been removed. Reduce for faster
-	// consistency, increase when the number of pinned items is very
-	// large.
-	IPFSSyncInterval time.Duration
 
 	// Time between automatic runs of the "recover" operation
 	// which will retry to pin/unpin items in error state.
@@ -177,7 +168,6 @@ type configJSON struct {
 	EnableRelayHop       bool               `json:"enable_relay_hop"`
 	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
 	StateSyncInterval    string             `json:"state_sync_interval"`
-	IPFSSyncInterval     string             `json:"ipfs_sync_interval"`
 	PinRecoverInterval   string             `json:"pin_recover_interval"`
 	ReplicationFactorMin int                `json:"replication_factor_min"`
 	ReplicationFactorMax int                `json:"replication_factor_max"`
@@ -265,10 +255,6 @@ func (cfg *Config) Validate() error {
 
 	if cfg.StateSyncInterval <= 0 {
 		return errors.New("cluster.state_sync_interval is invalid")
-	}
-
-	if cfg.IPFSSyncInterval <= 0 {
-		return errors.New("cluster.ipfs_sync_interval is invalid")
 	}
 
 	if cfg.PinRecoverInterval <= 0 {
@@ -367,7 +353,6 @@ func (cfg *Config) setDefaults() {
 	}
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
-	cfg.IPFSSyncInterval = DefaultIPFSSyncInterval
 	cfg.PinRecoverInterval = DefaultPinRecoverInterval
 	cfg.ReplicationFactorMin = DefaultReplicationFactor
 	cfg.ReplicationFactorMax = DefaultReplicationFactor
@@ -441,7 +426,6 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 
 	err = config.ParseDurations("cluster",
 		&config.DurationOpt{Duration: jcfg.StateSyncInterval, Dst: &cfg.StateSyncInterval, Name: "state_sync_interval"},
-		&config.DurationOpt{Duration: jcfg.IPFSSyncInterval, Dst: &cfg.IPFSSyncInterval, Name: "ipfs_sync_interval"},
 		&config.DurationOpt{Duration: jcfg.PinRecoverInterval, Dst: &cfg.PinRecoverInterval, Name: "pin_recover_interval"},
 		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
 		&config.DurationOpt{Duration: jcfg.PeerWatchInterval, Dst: &cfg.PeerWatchInterval, Name: "peer_watch_interval"},
@@ -507,7 +491,6 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
 	}
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()
-	jcfg.IPFSSyncInterval = cfg.IPFSSyncInterval.String()
 	jcfg.PinRecoverInterval = cfg.PinRecoverInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()

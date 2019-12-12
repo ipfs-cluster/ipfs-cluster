@@ -475,7 +475,7 @@ func (css *Consensus) Leader(ctx context.Context) (peer.ID, error) {
 func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) {
 	batching, ok := store.(ds.Batching)
 	if !ok {
-		return nil, errors.New("must provide a Bathing datastore")
+		return nil, errors.New("must provide a Batching datastore")
 	}
 	opts := crdt.DefaultOptions()
 	opts.Logger = logger
