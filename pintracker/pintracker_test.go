@@ -402,7 +402,6 @@ func TestPinTracker_Status(t *testing.T) {
 func TestPinTracker_RecoverAll(t *testing.T) {
 	type args struct {
 		tracker ipfscluster.PinTracker
-		pin     *api.Pin // only used by maptracker
 	}
 	tests := []struct {
 		name    string
@@ -414,7 +413,6 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			"basic stateless recoverall",
 			args{
 				testStatelessPinTracker(t),
-				&api.Pin{},
 			},
 			[]*api.PinInfo{
 				{
@@ -603,7 +601,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.Tick(100 * time.Millisecond):
+				case <-time.Tick(150 * time.Millisecond):
 					t.Errorf("operation context should have been cancelled by now")
 				}
 			} else {
