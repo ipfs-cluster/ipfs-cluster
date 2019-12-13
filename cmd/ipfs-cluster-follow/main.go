@@ -191,7 +191,7 @@ This command display useful information for "%s"'s follower peer.
 				Description: fmt.Sprintf(`
 This command initializes a follower peer for the cluster named "%s". You
 will need to pass the peer configuration URL. The command will generate a new
-peer identity and leave things readyto run "%s %s run".
+peer identity and leave things ready to run "%s %s run".
 
 An error will be returned if a configuration folder for a cluster peer with
 this name already exists. If you wish to re-initialize from scratch, delete

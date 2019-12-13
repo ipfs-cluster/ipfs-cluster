@@ -299,7 +299,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "setting up PeerMonitor"), 1)
 	}
 
-	// Hardcode disabled tracing and metrics to avoid mistakenously
+	// Hardcode disabled tracing and metrics to avoid mistakenly
 	// exposing any user data.
 	tracerCfg := observations.TracingConfig{}
 	tracerCfg.Default()
