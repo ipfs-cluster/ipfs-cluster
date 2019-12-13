@@ -209,3 +209,25 @@ func publicIPFSAddresses(in []api.Multiaddr) []api.Multiaddr {
 	}
 	return out
 }
+
+func toMultiAddrs(addrs []string) ([]ma.Multiaddr, error) {
+	var mAddrs []ma.Multiaddr
+	for _, addr := range addrs {
+		mAddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, err
+		}
+		mAddrs = append(mAddrs, mAddr)
+	}
+
+	return mAddrs, nil
+}
+
+func multiAddrstoStrings(mAddrs []ma.Multiaddr) []string {
+	var addrs []string
+	for _, addr := range mAddrs {
+		addrs = append(addrs, addr.String())
+	}
+
+	return addrs
+}
