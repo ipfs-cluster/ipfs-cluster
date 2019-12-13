@@ -655,7 +655,15 @@ func (c *Cluster) Ready() <-chan struct{} {
 	return c.readyCh
 }
 
-// Shutdown stops the IPFS cluster components
+// Shutdown performs all the necessary operations to shutdown
+// the IPFS Cluster peer:
+// * Save peerstore with the current peers
+// * Remove itself from consensus when LeaveOnShutdown is set
+// * It Shutdowns all the components
+// * Closes the datastore
+// * Collects all goroutines
+//
+// Shutdown does not closes the libp2p host or the DHT.
 func (c *Cluster) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/Shutdown")
 	defer span.End()
