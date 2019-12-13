@@ -614,10 +614,10 @@ This might be due to one or several causes:
 		c.Shutdown(ctx)
 		return
 	case <-c.consensus.Ready(ctx):
-		// Consensus ready means the state is up to date so we can sync
-		// it to the tracker. We ignore errors (normal when state
-		// doesn't exist in new peers).
-		c.StateSync(ctx)
+		// Consensus ready means the state is up to date. Every item
+		// in the state that is not pinned will appear as PinError so
+		// we can proceed to recover all of those in the tracker.
+		c.RecoverAllLocal(ctx)
 	case <-c.ctx.Done():
 		return
 	}
@@ -981,7 +981,8 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 		return err
 	}
 
-	c.StateSync(ctx)
+	// Start pinning items in the state that are not on IPFS yet.
+	c.RecoverAllLocal(ctx)
 
 	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
 	return nil
@@ -1107,7 +1108,7 @@ func (c *Cluster) localPinInfoOp(
 
 }
 
-// RecoverAll triggers a RecoverAllLocal operation on all peer.
+// RecoverAll triggers a RecoverAllLocal operation on all peers.
 func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAll")
 	defer span.End()
@@ -1122,6 +1123,8 @@ func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) 
 // Recover operations ask IPFS to pin or unpin items in error state. Recover
 // is faster than calling Pin on the same CID as it avoids committing an
 // identical pin to the consensus layer.
+//
+// RecoverAllLocal is called automatically every PinRecoverInterval.
 func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
 	defer span.End()
