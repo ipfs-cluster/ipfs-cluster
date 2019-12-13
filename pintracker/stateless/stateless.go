@@ -26,6 +26,9 @@ var logger = logging.Logger("pintracker")
 var (
 	// ErrFullQueue is the error used when pin or unpin operation channel is full.
 	ErrFullQueue = errors.New("pin/unpin operation queue is full. Try increasing max_pin_queue_size")
+
+	// items with this error should be recovered
+	errUnexpectedlyUnpinned = errors.New("the item should be pinned but it is not")
 )
 
 // Tracker uses the optracker.OperationTracker to manage
@@ -328,6 +331,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		addError(pinInfo, err)
 		return pinInfo
 	}
+	// The pin IS in the state.
 
 	// check if pin is a meta pin
 	if gpin.Type == api.MetaType {
@@ -357,7 +361,16 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		return pinInfo
 	}
 
-	pinInfo.Status = ips.ToTrackerStatus()
+	ipfsStatus := ips.ToTrackerStatus()
+	switch ipfsStatus {
+	case api.TrackerStatusUnpinned:
+		// The item is in the state but not in IPFS:
+		// PinError. Should be pinned.
+		pinInfo.Status = api.TrackerStatusPinError
+		pinInfo.Error = errUnexpectedlyUnpinned.Error()
+	default:
+		pinInfo.Status = ipfsStatus
+	}
 	return pinInfo
 }
 
@@ -369,7 +382,7 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 	statuses := spt.StatusAll(ctx)
 	resp := make([]*api.PinInfo, 0)
 	for _, st := range statuses {
-		r, err := spt.Recover(ctx, st.Cid)
+		r, err := spt.recoverWithPinInfo(ctx, st)
 		if err != nil {
 			return resp, err
 		}
@@ -378,32 +391,36 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 	return resp, nil
 }
 
-// Recover will re-track or re-untrack a Cid in error state,
-// possibly retriggering an IPFS pinning operation and returning
-// only when it is done.
+// Recover will trigger pinning or unpinning for items in
+// PinError or UnpinError states.
 func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Recover")
 	defer span.End()
 
-	pInfo, ok := spt.optracker.GetExists(ctx, c)
-	if !ok {
-		return spt.Status(ctx, c), nil
+	// Check if we have a status in the operation tracker
+	pi, ok := spt.optracker.GetExists(ctx, c)
+	if ok {
+		return spt.recoverWithPinInfo(ctx, pi)
 	}
+	// Get a status by checking against IPFS and use that.
+	return spt.recoverWithPinInfo(ctx, spt.Status(ctx, c))
+}
 
+func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*api.PinInfo, error) {
 	var err error
-	switch pInfo.Status {
+	switch pi.Status {
 	case api.TrackerStatusPinError:
-		logger.Infof("Restarting pin operation for %s", c)
-		err = spt.enqueue(ctx, api.PinCid(c), optracker.OperationPin)
+		logger.Infof("Restarting pin operation for %s", pi.Cid)
+		err = spt.enqueue(ctx, api.PinCid(pi.Cid), optracker.OperationPin)
 	case api.TrackerStatusUnpinError:
-		logger.Infof("Restarting unpin operation for %s", c)
-		err = spt.enqueue(ctx, api.PinCid(c), optracker.OperationUnpin)
+		logger.Infof("Restarting unpin operation for %s", pi.Cid)
+		err = spt.enqueue(ctx, api.PinCid(pi.Cid), optracker.OperationUnpin)
 	}
 	if err != nil {
-		return spt.Status(ctx, c), err
+		return spt.Status(ctx, pi.Cid), err
 	}
 
-	return spt.Status(ctx, c), nil
+	return spt.Status(ctx, pi.Cid), nil
 }
 
 func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo, error) {
@@ -497,15 +514,14 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		case pinnedInIpfs:
 			pininfos[pCid] = ipfsInfo
 		default:
-			// report as undefined for this peer.  this will be
+			// report as PIN_ERROR for this peer.  this will be
 			// overwritten if the operation tracker has more info
-			// for this.  Otherwise, this is a problem: a pin in
-			// the state that should be pinned by this peer but
-			// which no operation is handling.
-
-			// TODO (hector): Consider a pinError so it can be
-			// recovered?
-			pinInfo.Status = api.TrackerStatusUndefined
+			// for this (an ongoing pinning operation). Otherwise,
+			// it means something should be pinned and it is not
+			// known by IPFS. Should be handled to "recover".
+			pinInfo.Status = api.TrackerStatusPinError
+			pinInfo.Error = errUnexpectedlyUnpinned.Error()
+			pininfos[pCid] = pinInfo
 		}
 	}
 	return pininfos, nil
