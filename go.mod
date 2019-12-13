@@ -60,6 +60,7 @@ require (
 	github.com/libp2p/go-libp2p-raft v0.1.4
 	github.com/libp2p/go-libp2p-secio v0.2.1
 	github.com/libp2p/go-libp2p-tls v0.1.2
+	github.com/libp2p/go-maddr-filter v0.0.5
 	github.com/libp2p/go-ws-transport v0.1.2
 	github.com/multiformats/go-multiaddr v0.1.2
 	github.com/multiformats/go-multiaddr-dns v0.2.0
@@ -72,6 +73,7 @@ require (
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
+	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7
 	go.opencensus.io v0.22.1
 	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13

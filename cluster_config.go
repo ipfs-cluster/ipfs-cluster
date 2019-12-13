@@ -87,6 +87,15 @@ type Config struct {
 	// FIXME: This only applies to ipfs-cluster-service.
 	ConnMgr ConnMgrConfig
 
+	// If non-empty, this array specifies the swarm addresses to announce to
+	// the network. If empty, the daemon will announce inferred swarm addresses.
+	Announce []ma.Multiaddr
+	// Array of swarm addresses not to announce to the network.
+	NoAnnounce []ma.Multiaddr
+	// An array of addresses (multiaddr netmasks) to not dial.
+	// For example /ip4/192.168.0.0/ipcidr/16 is equivalent to 192.168.0.0/16
+	AddrsFilters []ma.Multiaddr
+
 	// Time between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
 	// when new nodes are joining the cluster. Reduce for faster
@@ -167,6 +176,9 @@ type configJSON struct {
 	ListenMultiaddress   ipfsconfig.Strings `json:"listen_multiaddress"`
 	EnableRelayHop       bool               `json:"enable_relay_hop"`
 	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
+	Announce             []string           `json:"announce"`
+	NoAnnounce           []string           `json:"no_announce"`
+	AddrsFilters         []string           `json:"addrs_filters"`
 	StateSyncInterval    string             `json:"state_sync_interval"`
 	PinRecoverInterval   string             `json:"pin_recover_interval"`
 	ReplicationFactorMin int                `json:"replication_factor_min"`
@@ -351,6 +363,9 @@ func (cfg *Config) setDefaults() {
 		LowWater:    DefaultConnMgrLowWater,
 		GracePeriod: DefaultConnMgrGracePeriod,
 	}
+	cfg.Announce = []ma.Multiaddr{}
+	cfg.NoAnnounce = []ma.Multiaddr{}
+	cfg.AddrsFilters = []ma.Multiaddr{}
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
 	cfg.PinRecoverInterval = DefaultPinRecoverInterval
@@ -394,16 +409,11 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	}
 	cfg.Secret = clusterSecret
 
-	var listenAddrs []ma.Multiaddr
-	for _, addr := range jcfg.ListenMultiaddress {
-		listenAddr, err := ma.NewMultiaddr(addr)
-		if err != nil {
-			err = fmt.Errorf("error parsing a listen_multiaddress: %s", err)
-			return err
-		}
-		listenAddrs = append(listenAddrs, listenAddr)
+	listenAddrs, err := toMultiAddrs(jcfg.ListenMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing listen_multiaddress: %s", err)
+		return err
 	}
-
 	cfg.ListenAddr = listenAddrs
 	cfg.EnableRelayHop = jcfg.EnableRelayHop
 	if conman := jcfg.ConnectionManager; conman != nil {
@@ -418,6 +428,27 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 			return err
 		}
 	}
+
+	annAddrs, err := toMultiAddrs(jcfg.Announce)
+	if err != nil {
+		err = fmt.Errorf("error parsing announce: %s", err)
+		return err
+	}
+	cfg.Announce = annAddrs
+
+	noAnnAddrs, err := toMultiAddrs(jcfg.NoAnnounce)
+	if err != nil {
+		err = fmt.Errorf("error parsing no_announce: %s", err)
+		return err
+	}
+	cfg.NoAnnounce = noAnnAddrs
+
+	addrsFilters, err := toMultiAddrs(jcfg.AddrsFilters)
+	if err != nil {
+		err = fmt.Errorf("error parsing addrs_filters: %s", err)
+		return err
+	}
+	cfg.AddrsFilters = addrsFilters
 
 	rplMin := jcfg.ReplicationFactorMin
 	rplMax := jcfg.ReplicationFactorMax
@@ -490,6 +521,9 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		LowWater:    cfg.ConnMgr.LowWater,
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
 	}
+	jcfg.Announce = multiAddrstoStrings(cfg.Announce)
+	jcfg.NoAnnounce = multiAddrstoStrings(cfg.NoAnnounce)
+	jcfg.AddrsFilters = multiAddrstoStrings(cfg.AddrsFilters)
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()
 	jcfg.PinRecoverInterval = cfg.PinRecoverInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()

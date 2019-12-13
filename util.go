@@ -166,3 +166,26 @@ func peersSubtract(a []peer.ID, b []peer.ID) []peer.ID {
 
 	return result
 }
+
+func toMultiAddrs(addrs []string) ([]ma.Multiaddr, error) {
+	var mAddrs []ma.Multiaddr
+	for _, addr := range addrs {
+		mAddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			//err = fmt.Errorf("error parsing a listen_multiaddress: %s", err)
+			return nil, err
+		}
+		mAddrs = append(mAddrs, mAddr)
+	}
+
+	return mAddrs, nil
+}
+
+func multiAddrstoStrings(mAddrs []ma.Multiaddr) []string {
+	var addrs []string
+	for _, addr := range mAddrs {
+		addrs = append(addrs, addr.String())
+	}
+
+	return addrs
+}
