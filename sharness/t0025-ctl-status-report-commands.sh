@@ -41,10 +41,6 @@ test_expect_success IPFS,CLUSTER "invalid CID status" '
     test_must_fail ipfs-cluster-ctl status XXXinvalid-CIDXXX
 '
 
-test_expect_success IPFS,CLUSTER "empty cluster-ctl sync succeeds" '
-    ipfs-cluster-ctl sync
-'
-
 test_expect_success IPFS,CLUSTER "empty cluster_ctl recover should not fail" '
     ipfs-cluster-ctl recover
 '

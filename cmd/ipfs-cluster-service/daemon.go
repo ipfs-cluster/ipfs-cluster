@@ -17,7 +17,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"go.opencensus.io/tag"
 
@@ -150,14 +149,6 @@ func createCluster(
 	connector, err := ipfshttp.NewConnector(cfgs.Ipfshttp)
 	checkErr("creating IPFS Connector component", err)
 
-	tracker := setupPinTracker(
-		c.String("pintracker"),
-		host,
-		cfgs.Maptracker,
-		cfgs.Statelesstracker,
-		cfgs.Cluster.Peername,
-	)
-
 	informer, err := disk.NewInformer(cfgs.Diskinf)
 	checkErr("creating disk informer", err)
 	alloc := descendalloc.NewAllocator()
@@ -189,6 +180,9 @@ func createCluster(
 	if cfgHelper.GetConsensus() == cfgs.Raft.ConfigKey() {
 		peersF = cons.Peers
 	}
+
+	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername, cons.State)
+	logger.Debug("stateless pintracker loaded")
 
 	mon, err := pubsubmon.New(ctx, cfgs.Pubsubmon, pubsub, peersF)
 	if err != nil {
@@ -222,29 +216,6 @@ func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []m
 		if err != nil {
 			logger.Errorf("bootstrap to %s failed: %s", bstrap, err)
 		}
-	}
-}
-
-func setupPinTracker(
-	name string,
-	h host.Host,
-	mapCfg *maptracker.Config,
-	statelessCfg *stateless.Config,
-	peerName string,
-) ipfscluster.PinTracker {
-	switch name {
-	case "map":
-		ptrk := maptracker.NewMapPinTracker(mapCfg, h.ID(), peerName)
-		logger.Debug("map pintracker loaded")
-		return ptrk
-	case "stateless":
-		ptrk := stateless.New(statelessCfg, h.ID(), peerName)
-		logger.Debug("stateless pintracker loaded")
-		return ptrk
-	default:
-		err := errors.New("unknown pintracker type")
-		checkErr("", err)
-		return nil
 	}
 }
 

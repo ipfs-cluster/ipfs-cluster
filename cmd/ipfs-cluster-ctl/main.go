@@ -779,9 +779,6 @@ Cluster, including which member is pinning them and any errors.
 If a CID is provided, the status will be only fetched for a single
 item.  Metadata CIDs are included in the status response
 
-The status of a CID may not be accurate. A manual sync can be triggered
-with "sync".
-
 When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
 
@@ -812,42 +809,6 @@ separated list). The following are valid status values:
 						checkErr("parsing filter flag", errors.New("invalid filter name"))
 					}
 					resp, cerr := globalClient.StatusAll(ctx, filter, c.Bool("local"))
-					formatResponse(c, resp, cerr)
-				}
-				return nil
-			},
-		},
-		{
-			Name:  "sync",
-			Usage: "Sync status of tracked items",
-			Description: `
-This command asks Cluster peers to verify that the current status of tracked
-CIDs is accurate by triggering queries to the IPFS daemons that pin them.
-If a CID is provided, the sync and recover operations will be limited to
-that single item.
-
-Unless providing a specific CID, the command will output only items which
-have changed status because of the sync or are in error state in some node,
-therefore, the output should be empty if no operations were performed.
-
-CIDs in error state may be manually recovered with "recover".
-
-When the --local flag is passed, it will only trigger sync
-operations on the contacted peer. By default, all peers will sync.
-`,
-			ArgsUsage: "[CID]",
-			Flags: []cli.Flag{
-				localFlag(),
-			},
-			Action: func(c *cli.Context) error {
-				cidStr := c.Args().First()
-				if cidStr != "" {
-					ci, err := cid.Decode(cidStr)
-					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Sync(ctx, ci, c.Bool("local"))
-					formatResponse(c, resp, cerr)
-				} else {
-					resp, cerr := globalClient.SyncAll(ctx, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				}
 				return nil

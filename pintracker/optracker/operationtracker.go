@@ -206,24 +206,6 @@ func (opt *OperationTracker) GetAll(ctx context.Context) []*api.PinInfo {
 	return pinfos
 }
 
-// CleanError removes the associated Operation, if it is
-// in PhaseError.
-func (opt *OperationTracker) CleanError(ctx context.Context, c cid.Cid) {
-	opt.mu.RLock()
-	defer opt.mu.RUnlock()
-	errop, ok := opt.operations[c.String()]
-	if !ok {
-		return
-	}
-
-	if errop.Phase() != PhaseError {
-		return
-	}
-
-	opt.Clean(ctx, errop)
-	return
-}
-
 // CleanAllDone deletes any operation from the tracker that is in PhaseDone.
 func (opt *OperationTracker) CleanAllDone(ctx context.Context) {
 	opt.mu.Lock()

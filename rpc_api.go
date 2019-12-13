@@ -295,46 +295,6 @@ func (rpcapi *ClusterRPCAPI) StatusLocal(ctx context.Context, in cid.Cid, out *a
 	return nil
 }
 
-// SyncAll runs Cluster.SyncAll().
-func (rpcapi *ClusterRPCAPI) SyncAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	pinfos, err := rpcapi.c.SyncAll(ctx)
-	if err != nil {
-		return err
-	}
-	*out = pinfos
-	return nil
-}
-
-// SyncAllLocal runs Cluster.SyncAllLocal().
-func (rpcapi *ClusterRPCAPI) SyncAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	pinfos, err := rpcapi.c.SyncAllLocal(ctx)
-	if err != nil {
-		return err
-	}
-	*out = pinfos
-	return nil
-}
-
-// Sync runs Cluster.Sync().
-func (rpcapi *ClusterRPCAPI) Sync(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
-	pinfo, err := rpcapi.c.Sync(ctx, in)
-	if err != nil {
-		return err
-	}
-	*out = *pinfo
-	return nil
-}
-
-// SyncLocal runs Cluster.SyncLocal().
-func (rpcapi *ClusterRPCAPI) SyncLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
-	pinfo, err := rpcapi.c.SyncLocal(ctx, in)
-	if err != nil {
-		return err
-	}
-	*out = *pinfo
-	return nil
-}
-
 // RecoverAll runs Cluster.RecoverAll().
 func (rpcapi *ClusterRPCAPI) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
 	pinfos, err := rpcapi.c.RecoverAll(ctx)
