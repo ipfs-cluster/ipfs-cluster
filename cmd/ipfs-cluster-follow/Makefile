@@ -1,7 +1,7 @@
 # go source files
 SRC := $(shell find .. -type f -name '*.go')
 
-all: ipfs-cluster-service
+all: ipfs-cluster-follow
 
 ipfs-cluster-follow: $(SRC)
 	go build -mod=readonly -ldflags "-X main.commit=$(shell git rev-parse HEAD)"
