@@ -263,8 +263,6 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating IPFS Connector component"), 1)
 	}
 
-	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername)
-
 	informer, err := disk.NewInformer(cfgs.Diskinf)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
@@ -292,6 +290,8 @@ func runCmd(c *cli.Context) error {
 		store.Close()
 		return cli.Exit(errors.Wrap(err, "creating CRDT component"), 1)
 	}
+
+	tracker := stateless.New(cfgs.Statelesstracker, host.ID(), cfgs.Cluster.Peername, crdtcons.State)
 
 	mon, err := pubsubmon.New(ctx, cfgs.Pubsubmon, pubsub, nil)
 	if err != nil {
