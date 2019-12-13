@@ -747,6 +747,13 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 		return err
 	}
 
+	for _, inf := range c.informers {
+		if err := inf.Shutdown(ctx); err != nil {
+			logger.Errorf("error stopping informer: %s", err)
+			return err
+		}
+	}
+
 	if err := c.tracer.Shutdown(ctx); err != nil {
 		logger.Errorf("error stopping Tracer: %s", err)
 		return err
