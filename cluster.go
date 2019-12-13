@@ -399,7 +399,11 @@ func (c *Cluster) Alerts() map[string]api.Alert {
 	c.alertsMux.Lock()
 	defer c.alertsMux.Unlock()
 	for i, alert := range c.alerts {
-		alerts[i] = alert
+		if time.Now().Before(time.Unix(0, alert.Expiry)) {
+			alerts[i] = alert
+		} else {
+			delete(c.alerts, i)
+		}
 	}
 
 	return alerts

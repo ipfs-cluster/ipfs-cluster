@@ -132,6 +132,7 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	alrt := &api.Alert{
 		Peer:       pid,
 		MetricName: metricName,
+		Expiry:     time.Now().Add(30 * time.Second).UnixNano(),
 	}
 	select {
 	case mc.alertCh <- alrt:
