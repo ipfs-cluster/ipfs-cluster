@@ -172,7 +172,7 @@ func toMultiAddrs(addrs []string) ([]ma.Multiaddr, error) {
 	for _, addr := range addrs {
 		mAddr, err := ma.NewMultiaddr(addr)
 		if err != nil {
-			//err = fmt.Errorf("error parsing a listen_multiaddress: %s", err)
+			
 			return nil, err
 		}
 		mAddrs = append(mAddrs, mAddr)
