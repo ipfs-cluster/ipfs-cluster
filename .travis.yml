@@ -30,12 +30,13 @@ jobs:
     - name: "Main Tests with raft consensus"
       script:
         - travis_wait go test -v -timeout 15m -failfast -consensus raft .
-    - name: "Golint and go vet"
+    - name: "Golint, go vet, binary builds"
       script:
         - go get -u golang.org/x/lint/golint
         - make check
         - make service
         - make ctl
+        - make follow
     - name: "Docker and Compose build"
       script:
         - make docker
