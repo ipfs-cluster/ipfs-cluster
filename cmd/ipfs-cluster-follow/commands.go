@@ -133,6 +133,10 @@ func infoCmd(c *cli.Context) error {
 	_, err = client.Version(ctx)
 	fmt.Printf("Cluster Peer online: %t\n", err == nil)
 
+	// Either we loaded a valid config, or we are using a default. Worth
+	// applying env vars in the second case.
+	cfgHelper.Configs().Ipfshttp.ApplyEnvVars()
+	cfgHelper.Configs().Ipfshttp.ConnectSwarmsDelay = 0
 	connector, err := ipfshttp.NewConnector(cfgHelper.Configs().Ipfshttp)
 	if err == nil {
 		_, err = connector.ID(ctx)
