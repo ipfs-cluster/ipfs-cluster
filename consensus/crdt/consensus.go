@@ -468,10 +468,9 @@ func (css *Consensus) Leader(ctx context.Context) (peer.ID, error) {
 	return "", ErrNoLeader
 }
 
-// OfflineState returns an offline, read-only batching state using the given
-// datastore. Any writes to this state are processed through the given
-// ipfs connector (the state is offline as it does not require a
-// running cluster peer).
+// OfflineState returns an offline, batching state using the given
+// datastore. This allows to inspect and modify the shared state in offline
+// mode.
 func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) {
 	batching, ok := store.(ds.Batching)
 	if !ok {
