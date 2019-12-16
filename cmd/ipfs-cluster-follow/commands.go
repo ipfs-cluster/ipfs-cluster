@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
@@ -228,6 +229,13 @@ func runCmd(c *cli.Context) error {
 	}
 
 	fmt.Printf("Starting the IPFS Cluster follower peer for \"%s\".\nCTRL-C to stop it.\n", clusterName)
+	fmt.Println("Checking if IPFS is online (will wait for 2 minutes)...")
+	ctxIpfs, cancelIpfs := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancelIpfs()
+	err := cmdutils.WaitForIPFS(ctxIpfs)
+	if err != nil {
+		return cli.Exit("timed out waiting for IPFS to be available", 1)
+	}
 
 	setLogLevels(logLevel) // set to "info" by default.
 	// Avoid API logs polluting the screen everytime we
