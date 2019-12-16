@@ -395,6 +395,12 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
+			// Follower peers do not care about alerts.
+			// They can do nothing about them.
+			if c.config.FollowerMode {
+				continue
+			}
+
 			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
 			if alrt.MetricName != pingMetricName {
 				continue // only handle ping alerts
@@ -1370,7 +1376,9 @@ func (c *Cluster) pin(
 	// Usually allocations are unset when pinning normally, however, the
 	// allocations may have been preset by the adder in which case they
 	// need to be respected. Whenever allocations are set. We don't
-	// re-allocate.
+	// re-allocate. repinFromPeer() unsets allocations for this reason.
+	// allocate() will check which peers are currently allocated
+	// and try to respect them.
 	if len(pin.Allocations) == 0 {
 		allocs, err := c.allocate(
 			ctx,
