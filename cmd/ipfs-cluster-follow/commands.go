@@ -166,7 +166,8 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 	if !strings.HasPrefix(cfgURL, "http://") && !strings.HasPrefix(cfgURL, "https://") {
 		fmt.Printf("%s will be assumed to be an DNSLink-powered address: /ipns/%s\n", cfgURL, cfgURL)
 		fmt.Println("It will be resolved using the local IPFS daemon's gateway (localhost:8080)")
-		fmt.Println("if this is not the case, specify the full url starting with http:// or https://")
+		fmt.Println("if this is not the case, specify the full url starting with http:// or https://.")
+		fmt.Println()
 		cfgURL = fmt.Sprintf("http://127.0.0.1:8080/ipns/%s", cfgURL)
 	}
 

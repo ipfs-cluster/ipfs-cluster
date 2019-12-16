@@ -247,7 +247,7 @@ as obtained from the internal state on disk.
 }
 
 // build paths returns the path to the configuration folder,
-// the identify and the service.json files.
+// the identity.json and the service.json files.
 func buildPaths(c *cli.Context, clusterName string) (string, string, string) {
 	absPath, err := filepath.Abs(c.String("config"))
 	if err != nil {
