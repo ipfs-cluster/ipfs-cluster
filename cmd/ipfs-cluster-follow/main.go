@@ -274,11 +274,24 @@ func socketAddress(absPath, clusterName string) (multiaddr.Multiaddr, error) {
 	return ma, nil
 }
 
+// returns an REST API client. Points to the socket address unless
+// CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS is set, in which case it uses it.
 func getClient(absPath, clusterName string) (client.Client, error) {
-	endp, err := socketAddress(absPath, clusterName)
+	var endp multiaddr.Multiaddr
+	var err error
+	if endpStr := os.Getenv("CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS"); endpStr != "" {
+		endp, err = multiaddr.NewMultiaddr(endpStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing the value of CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS: %s", endpStr)
+		}
+	} else {
+		endp, err = socketAddress(absPath, clusterName)
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	cfg := client.Config{
 		APIAddr: endp,
 	}
