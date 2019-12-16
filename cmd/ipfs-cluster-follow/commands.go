@@ -424,6 +424,13 @@ func printStatusOnline(absPath, clusterName string) error {
 }
 
 func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
+	// The blockstore module loaded from ipfs-lite tends to print
+	// an error when the datastore is closed before the bloom
+	// filter cached has finished building. Could not find a way
+	// to avoid it other than disabling bloom chaching on offline
+	// ipfs-lite peers which is overkill. So we just hide it.
+	ipfscluster.SetFacilityLogLevel("blockstore", "critical")
+
 	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
 	if err != nil {
 		return err
