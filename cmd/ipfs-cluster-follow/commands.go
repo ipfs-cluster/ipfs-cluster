@@ -137,9 +137,12 @@ func infoCmd(c *cli.Context) error {
 		_, err = connector.ID(ctx)
 	}
 	fmt.Printf("IPFS peer online: %t\n", err == nil)
-	fmt.Printf("Additional help:\n\n")
-	fmt.Printf("-------------------------------------------------\n\n")
-	cli.ShowAppHelp(c)
+
+	if c.Command.Name == "" {
+		fmt.Printf("Additional help:\n\n")
+		fmt.Printf("-------------------------------------------------\n\n")
+		cli.ShowAppHelp(c)
+	}
 	return nil
 }
 
