@@ -176,12 +176,18 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 		return cli.Exit("", 1)
 	}
 
+	gw := "127.0.0.1:8080"
+	if gwEnv := os.Getenv("IPFS_GATEWAY"); gwEnv != "" {
+		gw = gwEnv
+	}
+
 	if !strings.HasPrefix(cfgURL, "http://") && !strings.HasPrefix(cfgURL, "https://") {
-		fmt.Printf("%s will be assumed to be an DNSLink-powered address: /ipns/%s\n", cfgURL, cfgURL)
-		fmt.Println("It will be resolved using the local IPFS daemon's gateway (localhost:8080)")
-		fmt.Println("if this is not the case, specify the full url starting with http:// or https://.")
+		fmt.Printf("%s will be assumed to be an DNSLink-powered address: /ipns/%s.\n", cfgURL, cfgURL)
+		fmt.Printf("It will be resolved using the local IPFS daemon's gateway (%s).\n", gw)
+		fmt.Println("If this is not the case, specify the full url starting with http:// or https://.")
+		fmt.Println("(You can override the gateway URL by setting IPFS_GATEWAY)")
 		fmt.Println()
-		cfgURL = fmt.Sprintf("http://127.0.0.1:8080/ipns/%s", cfgURL)
+		cfgURL = fmt.Sprintf("http://%s/ipns/%s", gw, cfgURL)
 	}
 
 	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt")
