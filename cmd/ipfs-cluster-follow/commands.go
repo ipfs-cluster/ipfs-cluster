@@ -339,20 +339,17 @@ func runCmd(c *cli.Context) error {
 	tracerCfg.Default()
 	tracerCfg.EnableTracing = false
 	cfgs.Tracing = &tracerCfg
-	cfgHelper.SetupTracing(false)
 	tracer, err := observations.SetupTracing(&tracerCfg)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error setting up tracer"), 1)
 	}
 
+	// This does nothing since we are not calling SetupMetrics anyways
+	// But stays just to be explicit.
 	metricsCfg := observations.MetricsConfig{}
 	metricsCfg.Default()
 	metricsCfg.EnableStats = false
 	cfgs.Metrics = &metricsCfg
-	err = observations.SetupMetrics(cfgs.Metrics)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error setting up metrics"), 1)
-	}
 
 	cluster, err := ipfscluster.NewCluster(
 		ctx,
