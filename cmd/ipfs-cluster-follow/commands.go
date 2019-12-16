@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
 	"github.com/ipfs/ipfs-cluster/config"
@@ -253,6 +254,12 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 	apiCfg.HTTPListenAddr = listenSocket
+	// Allow customization via env vars
+	err = apiCfg.ApplyEnvVars()
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "error applying enviromental variables to restapi configuration"), 1)
+	}
+
 	rest, err := rest.NewAPI(ctx, &apiCfg)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating REST API component"), 1)
@@ -350,12 +357,26 @@ func pinsetCmd(c *cli.Context) error {
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
 	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
 	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error loading configurations"), 1)
+		fmt.Println("error loading configurations.")
+		if config.IsErrFetchingSource(err) {
+			fmt.Println("Make sure the source URL is reachable:")
+		}
+		return cli.Exit(err, 1)
 	}
 	cfgHelper.Manager().Shutdown()
 
 	err = printStatusOnline(absPath, clusterName)
 	if err != nil {
+		apiErr, ok := err.(*api.Error)
+		if ok && apiErr.Code != 0 {
+			return cli.Exit(
+				errors.Wrapf(
+					err,
+					"The Peer API seems to be running but returned with code %d",
+					apiErr.Code,
+				), 1)
+		}
+
 		err := printStatusOffline(cfgHelper)
 		if err != nil {
 			logger.Error(err)
