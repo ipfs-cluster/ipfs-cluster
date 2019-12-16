@@ -438,7 +438,7 @@ func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-css.ctx.Done():
-		return nil, ctx.Err()
+		return nil, css.ctx.Err()
 	case <-css.stateReady:
 		return css.state, nil
 	}
