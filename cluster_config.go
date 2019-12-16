@@ -29,7 +29,7 @@ var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/909
 const (
 	DefaultEnableRelayHop      = true
 	DefaultStateSyncInterval   = 5 * time.Minute
-	DefaultPinRecoverInterval  = 5 * time.Minute
+	DefaultPinRecoverInterval  = 12 * time.Minute
 	DefaultMonitorPingInterval = 15 * time.Second
 	DefaultPeerWatchInterval   = 5 * time.Second
 	DefaultReplicationFactor   = -1
