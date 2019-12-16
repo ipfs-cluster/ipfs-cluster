@@ -50,6 +50,12 @@ In the latter case, find more information in the error message below.
 `, programName, clusterName, err)
 }
 
+func setLogLevels(lvl string) {
+	for f := range ipfscluster.LoggingFacilities {
+		ipfscluster.SetFacilityLogLevel(f, lvl)
+	}
+}
+
 func listCmd(c *cli.Context) error {
 	absPath, _, _ := buildPaths(c, "")
 	f, err := os.Open(absPath)
@@ -93,9 +99,8 @@ func listCmd(c *cli.Context) error {
 func infoCmd(c *cli.Context) error {
 	clusterName := c.String("clusterName")
 
-	for f := range ipfscluster.LoggingFacilities {
-		ipfscluster.SetFacilityLogLevel(f, "critical")
-	}
+	// Avoid pollution of the screen
+	setLogLevels("critical")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
 	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
@@ -221,9 +226,9 @@ func runCmd(c *cli.Context) error {
 
 	fmt.Printf("Starting the IPFS Cluster follower peer for \"%s\".\nCTRL-C to stop it.\n", clusterName)
 
-	for f := range ipfscluster.LoggingFacilities {
-		ipfscluster.SetFacilityLogLevel(f, logLevel)
-	}
+	setLogLevels(logLevel) // set to "info" by default.
+	// Avoid API logs polluting the screen everytime we
+	// run some "list" command.
 	ipfscluster.SetFacilityLogLevel("restapilog", "error")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
