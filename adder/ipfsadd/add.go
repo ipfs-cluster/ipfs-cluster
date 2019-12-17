@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	gopath "path"
+	"path/filepath"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -59,6 +60,11 @@ type Adder struct {
 	CidBuilder cid.Builder
 	liveNodes  uint64
 	lastFile   mfs.FSNode
+	// Cluster: ipfs does a hack in commands/add.go to prefix the output
+	// path of the events from this adder with the root folder name when
+	// adding a folder.  We are going to emit the events with the right
+	// file name directly here by allowing the caller to set this.
+	OutputDirPrefix string
 }
 
 func (adder *Adder) mfsRoot() (*mfs.Root, error) {
@@ -193,7 +199,7 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 			return err
 		}
 
-		return outputDagnode(adder.Out, path, nd)
+		return adder.outputDagnode(adder.Out, path, nd)
 	default:
 		return fmt.Errorf("unrecognized fsn type: %#v", fsn)
 	}
@@ -239,7 +245,7 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	adder.lastFile = lastFile
 
 	if !adder.Silent {
-		return outputDagnode(adder.Out, path, node)
+		return adder.outputDagnode(adder.Out, path, node)
 	}
 	return nil
 }
@@ -413,8 +419,9 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 }
 
 // outputDagnode sends dagnode info over the output channel.
-// Cluster: we use *api.AddedOutput instead of coreiface events.
-func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
+// Cluster: we use *api.AddedOutput instead of coreiface events
+// and make this an adder method to be be able to prefix.
+func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil
 	}
@@ -426,7 +433,7 @@ func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 
 	out <- &api.AddedOutput{
 		Cid:  dn.Cid(),
-		Name: name,
+		Name: filepath.Join(adder.OutputDirPrefix, name),
 		Size: s,
 	}
 

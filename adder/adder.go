@@ -141,6 +141,15 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	it := f.Entries()
 	var adderRoot ipld.Node
 	for it.Next() {
+		// Adding a folder: set a root prefix for the names in the
+		// output.
+		_, isDir := it.Node().(files.Directory)
+		if isDir {
+			ipfsAdder.OutputDirPrefix = it.Name()
+		} else {
+			ipfsAdder.OutputDirPrefix = ""
+		}
+
 		select {
 		case <-a.ctx.Done():
 			return cid.Undef, a.ctx.Err()
