@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	gopath "path"
+	"strings"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -17,11 +18,13 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	dag "github.com/ipfs/go-merkledag"
+	merkledag "github.com/ipfs/go-merkledag"
 	mfs "github.com/ipfs/go-mfs"
 	unixfs "github.com/ipfs/go-unixfs"
 	balanced "github.com/ipfs/go-unixfs/importer/balanced"
 	ihelper "github.com/ipfs/go-unixfs/importer/helpers"
 	trickle "github.com/ipfs/go-unixfs/importer/trickle"
+	multihash "github.com/multiformats/go-multihash"
 )
 
 var log = logging.Logger("coreunix")
@@ -32,15 +35,34 @@ const progressReaderIncrement = 1024 * 256
 var liveCacheSize = uint64(256 << 10)
 
 // NewAdder Returns a new Adder used for a file add operation.
-func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
+func NewAdder(ctx context.Context, ds ipld.DAGService, params *api.AddParams) (*Adder, error) {
 	// Cluster: we don't use pinner nor GCLocker.
-	return &Adder{
+
+	adder := Adder{
 		ctx:        ctx,
 		dagService: ds,
-		Progress:   false,
-		Trickle:    false,
-		Chunker:    "",
-	}, nil
+		Progress:   params.Progress,
+		Trickle:    params.Layout == "trickle",
+		Chunker:    params.Chunker,
+		RawLeaves:  params.RawLeaves,
+		NoCopy:     params.NoCopy,
+	}
+
+	// Set up prefix
+	prefix, err := merkledag.PrefixForCidVersion(params.CidVersion)
+	if err != nil {
+		return nil, fmt.Errorf("bad CID Version: %s", err)
+	}
+
+	hashFunCode, ok := multihash.Names[strings.ToLower(params.HashFun)]
+	if !ok {
+		return nil, fmt.Errorf("unrecognized hash function: %s", params.HashFun)
+	}
+	prefix.MhType = hashFunCode
+	prefix.MhLength = -1
+	adder.CidBuilder = &prefix
+
+	return &adder, nil
 }
 
 // Adder holds the switches passed to the `add` command.

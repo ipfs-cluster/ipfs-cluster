@@ -375,6 +375,10 @@ content.
 					Name:  "nocopy",
 					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
 				},
+				cli.BoolFlag{
+					Name:  "untar",
+					Usage: "Untar the file before adding. Expects a tar.gz file. (experimental)",
+				},
 				// TODO: Uncomment when sharding is supported.
 				// cli.BoolFlag{
 				//	Name:  "shard",
@@ -451,6 +455,7 @@ content.
 				if p.NoCopy {
 					p.RawLeaves = true
 				}
+				p.Untar = c.Bool("untar")
 
 				out := make(chan *api.AddedOutput, 1)
 				var wg sync.WaitGroup

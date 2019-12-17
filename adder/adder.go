@@ -3,10 +3,12 @@
 package adder
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
-	"fmt"
+	"io"
+	"io/ioutil"
 	"mime/multipart"
-	"strings"
 
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -15,8 +17,6 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	merkledag "github.com/ipfs/go-merkledag"
-	multihash "github.com/multiformats/go-multihash"
 )
 
 var logger = logging.Logger("adder")
@@ -83,11 +83,52 @@ func (a *Adder) setContext(ctx context.Context) {
 func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", a.params)
 
-	f, err := files.NewFileFromPartReader(r, "multipart/form-data")
+	var f files.Directory
+	var err error
+	if a.params.Untar {
+		// TODO: If tar contains individual files instead of files wrapped in dir,
+		// pin those individual files. (currently it doesn't pin)
+		pipeReader, pipeWriter := io.Pipe()
+
+		go func() {
+			for {
+				p, err := r.NextPart()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					logger.Error(err)
+					return
+				}
+				zr, err := gzip.NewReader(p)
+				if err != nil {
+					logger.Error(err)
+					return
+				}
+
+				slurp, err := ioutil.ReadAll(zr)
+				if err != nil {
+					logger.Error(err)
+					return
+				}
+				_, err = pipeWriter.Write(slurp)
+				if err != nil {
+					logger.Error(err)
+					return
+				}
+			}
+		}()
+
+		tr := tar.NewReader(pipeReader)
+		f, err = tarToSliceDirectory(tr)
+	} else {
+		f, err = files.NewFileFromPartReader(r, "multipart/form-data")
+	}
 	if err != nil {
 		return cid.Undef, err
 	}
 	defer f.Close()
+
 	return a.FromFiles(ctx, f)
 }
 
@@ -104,32 +145,13 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	defer a.cancel()
 	defer close(a.output)
 
-	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dgs)
+	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dgs, a.params)
 	if err != nil {
 		logger.Error(err)
 		return cid.Undef, err
 	}
 
-	ipfsAdder.Trickle = a.params.Layout == "trickle"
-	ipfsAdder.RawLeaves = a.params.RawLeaves
-	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
-	ipfsAdder.Progress = a.params.Progress
-	ipfsAdder.NoCopy = a.params.NoCopy
-
-	// Set up prefix
-	prefix, err := merkledag.PrefixForCidVersion(a.params.CidVersion)
-	if err != nil {
-		return cid.Undef, fmt.Errorf("bad CID Version: %s", err)
-	}
-
-	hashFunCode, ok := multihash.Names[strings.ToLower(a.params.HashFun)]
-	if !ok {
-		return cid.Undef, fmt.Errorf("unrecognized hash function: %s", a.params.HashFun)
-	}
-	prefix.MhType = hashFunCode
-	prefix.MhLength = -1
-	ipfsAdder.CidBuilder = &prefix
 
 	// setup wrapping
 	if a.params.Wrap {

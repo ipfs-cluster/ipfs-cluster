@@ -39,6 +39,7 @@ type AddParams struct {
 	HashFun        string
 	StreamChannels bool
 	NoCopy         bool
+	Untar          bool
 }
 
 // DefaultAddParams returns a AddParams object with standard defaults
@@ -168,6 +169,11 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
+	err = parseBoolParam(query, "untar", &params.Untar)
+	if err != nil {
+		return nil, err
+	}
+
 	return params, nil
 }
 
@@ -194,6 +200,7 @@ func (p *AddParams) ToQueryString() (string, error) {
 	query.Set("hash", p.HashFun)
 	query.Set("stream-channels", fmt.Sprintf("%t", p.StreamChannels))
 	query.Set("nocopy", fmt.Sprintf("%t", p.NoCopy))
+	query.Set("untar", fmt.Sprintf("%t", p.Untar))
 	return query.Encode(), nil
 }
 
@@ -211,5 +218,6 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 		p.CidVersion == p2.CidVersion &&
 		p.HashFun == p2.HashFun &&
 		p.StreamChannels == p2.StreamChannels &&
-		p.NoCopy == p2.NoCopy
+		p.NoCopy == p2.NoCopy &&
+		p.Untar == p2.Untar
 }
