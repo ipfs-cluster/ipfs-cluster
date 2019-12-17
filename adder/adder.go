@@ -141,14 +141,19 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	it := f.Entries()
 	var adderRoot ipld.Node
 	for it.Next() {
-		// Adding a folder: set a root prefix for the names in the
-		// output.
-		_, isDir := it.Node().(files.Directory)
-		if isDir {
-			ipfsAdder.OutputDirPrefix = it.Name()
-		} else {
-			ipfsAdder.OutputDirPrefix = ""
-		}
+		// In order to set the AddedOutput names right, we use
+		// OutputPrefix:
+		//
+		// When adding a folder, this is the root folder name which is
+		// prepended to the addedpaths.  When adding a single file,
+		// this is the name of the file which overrides the empty
+		// AddedOutput name.
+		//
+		// This is all the result of the go-ipfs-files refactor in
+		// which file.File stopped carrying filenames with it and now
+		// we have to hack it in unnatural ways (same as go-ipfs which
+		// modifies emmited events on the fly - we cannot do that).
+		ipfsAdder.OutputPrefix = it.Name()
 
 		select {
 		case <-a.ctx.Done():

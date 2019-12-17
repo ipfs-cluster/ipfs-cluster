@@ -60,11 +60,11 @@ type Adder struct {
 	CidBuilder cid.Builder
 	liveNodes  uint64
 	lastFile   mfs.FSNode
-	// Cluster: ipfs does a hack in commands/add.go to prefix the output
-	// path of the events from this adder with the root folder name when
-	// adding a folder.  We are going to emit the events with the right
-	// file name directly here by allowing the caller to set this.
-	OutputDirPrefix string
+	// Cluster: ipfs does a hack in commands/add.go to set the filenames
+	// in emmited events correctly. We carry a root folder name (or a
+	// filename in the case of single files here and emit those events
+	// correctly from the beginning).
+	OutputPrefix string
 }
 
 func (adder *Adder) mfsRoot() (*mfs.Root, error) {
@@ -207,8 +207,10 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 
 func (adder *Adder) addNode(node ipld.Node, path string) error {
 	// patch it into the root
+	outputName := path
 	if path == "" {
 		path = node.Cid().String()
+		outputName = ""
 	}
 
 	if pi, ok := node.(*posinfo.FilestoreNode); ok {
@@ -245,7 +247,7 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	adder.lastFile = lastFile
 
 	if !adder.Silent {
-		return adder.outputDagnode(adder.Out, path, node)
+		return adder.outputDagnode(adder.Out, outputName, node)
 	}
 	return nil
 }
@@ -431,9 +433,17 @@ func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipl
 		return err
 	}
 
+	// When adding things in a folder: "OutputPrefix/name"
+	// When adding a single file: "OutputPrefix" (name is unset)
+	// When adding a single thing with no name: ""
+	// Note: ipfs sets the name of files received on stdin to the CID,
+	// but cluster does not support stdin-adding so we do not
+	// account for this here.
+	name = filepath.Join(adder.OutputPrefix, name)
+
 	out <- &api.AddedOutput{
 		Cid:  dn.Cid(),
-		Name: filepath.Join(adder.OutputDirPrefix, name),
+		Name: name,
 		Size: s,
 	}
 
