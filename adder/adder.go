@@ -149,10 +149,12 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		// this is the name of the file which overrides the empty
 		// AddedOutput name.
 		//
-		// This is all the result of the go-ipfs-files refactor in
-		// which file.File stopped carrying filenames with it and now
-		// we have to hack it in unnatural ways (same as go-ipfs which
-		// modifies emmited events on the fly - we cannot do that).
+		// After coreunix/add.go was refactored in go-ipfs and we
+		// followed suit, it no longer receives the name of the
+		// file/folder being added and does not emit AddedOutput
+		// events with the right names. We addressed this by adding
+		// OutputPrefix to our version. go-ipfs modifies emmited
+		// events before sending to user).
 		ipfsAdder.OutputPrefix = it.Name()
 
 		select {
