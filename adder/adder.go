@@ -141,6 +141,22 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	it := f.Entries()
 	var adderRoot ipld.Node
 	for it.Next() {
+		// In order to set the AddedOutput names right, we use
+		// OutputPrefix:
+		//
+		// When adding a folder, this is the root folder name which is
+		// prepended to the addedpaths.  When adding a single file,
+		// this is the name of the file which overrides the empty
+		// AddedOutput name.
+		//
+		// After coreunix/add.go was refactored in go-ipfs and we
+		// followed suit, it no longer receives the name of the
+		// file/folder being added and does not emit AddedOutput
+		// events with the right names. We addressed this by adding
+		// OutputPrefix to our version. go-ipfs modifies emmited
+		// events before sending to user).
+		ipfsAdder.OutputPrefix = it.Name()
+
 		select {
 		case <-a.ctx.Done():
 			return cid.Undef, a.ctx.Err()
