@@ -497,6 +497,7 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.MDNSInterval = cfg.MDNSInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
+	jcfg.PeerAddresses = []string{}
 	for _, addr := range cfg.PeerAddresses {
 		jcfg.PeerAddresses = append(jcfg.PeerAddresses, addr.String())
 	}
