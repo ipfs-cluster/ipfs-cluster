@@ -97,6 +97,13 @@ $ ipfs-cluster-service daemon
 Launch a peer and join existing cluster:
 
 $ ipfs-cluster-service daemon --bootstrap /ip4/192.168.1.2/tcp/9096/p2p/QmPSoSaPXpyunaBwHs1rZBKYSqRV4bLRk32VGYLuvdrypL
+
+Customize logs using --loglevel flag. To customize component-level
+logging pass a comma-separated list of component-identifer:log-level
+pair or without identifier for overall loglevel. Valid loglevels
+are critical, error, warning, notice, info and debug.
+
+$ ipfs-cluster-service --loglevel info,cluster:debug,pintracker:debug daemon
 `,
 	programName,
 	programName,
@@ -189,9 +196,9 @@ func main() {
 			Usage: "enable full debug logging (very verbose)",
 		},
 		cli.StringFlag{
-			Name:  "loglevel, l",
-			Value: defaultLogLevel,
-			Usage: "set the loglevel for cluster components only [critical, error, warning, info, debug]",
+			Name:   "loglevel, l",
+			EnvVar: "IPFS_CLUSTER_LOG_LEVEL",
+			Usage:  "set overall and component-wise log levels",
 		},
 	}
 
@@ -204,11 +211,10 @@ func main() {
 		configPath = filepath.Join(absPath, DefaultConfigFile)
 		identityPath = filepath.Join(absPath, DefaultIdentityFile)
 
-		setupLogLevel(c.String("loglevel"))
-		if c.Bool("debug") {
-			setupDebug()
+		err = setupLogLevel(c.Bool("debug"), c.String("loglevel"))
+		if err != nil {
+			return err
 		}
-
 		locker = &lock{path: absPath}
 
 		return nil
@@ -573,15 +579,67 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func setupLogLevel(lvl string) {
-	for f := range ipfscluster.LoggingFacilities {
-		ipfscluster.SetFacilityLogLevel(f, lvl)
+func setupLogLevel(debug bool, l string) error {
+	// if debug is set to true, log everything in debug level
+	if debug {
+		ipfscluster.SetFacilityLogLevel("*", "DEBUG")
+		return nil
 	}
-	ipfscluster.SetFacilityLogLevel("service", lvl)
-}
 
-func setupDebug() {
-	ipfscluster.SetFacilityLogLevel("*", "DEBUG")
+	compLogLevel := strings.Split(l, ",")
+	var logLevel string
+	compLogFacs := make(map[string]string)
+	// get overall log level and component-wise log levels from arguments
+	for _, cll := range compLogLevel {
+		if cll == "" {
+			continue
+		}
+		identifierToLevel := strings.Split(cll, ":")
+		var lvl string
+		var comp string
+		switch len(identifierToLevel) {
+		case 1:
+			lvl = identifierToLevel[0]
+			comp = "all"
+		case 2:
+			lvl = identifierToLevel[1]
+			comp = identifierToLevel[0]
+		default:
+			return errors.New("log level not in expected format \"identifier:loglevel\" or \"loglevel\"")
+		}
+
+		_, ok := compLogFacs[comp]
+		if ok {
+			fmt.Printf("overwriting existing %s log level\n", comp)
+		}
+		compLogFacs[comp] = lvl
+	}
+
+	logLevel, ok := compLogFacs["all"]
+	if !ok {
+		logLevel = defaultLogLevel
+	} else {
+		delete(compLogFacs, "all")
+	}
+
+	// log service with logLevel
+	ipfscluster.SetFacilityLogLevel("service", logLevel)
+
+	logfacs := make(map[string]string)
+	for key := range ipfscluster.LoggingFacilities {
+		logfacs[key] = logLevel
+	}
+
+	// fill component-wise log levels
+	for identifier, level := range compLogFacs {
+		logfacs[identifier] = level
+	}
+
+	for identifier, level := range logfacs {
+		ipfscluster.SetFacilityLogLevel(identifier, level)
+	}
+
+	return nil
 }
 
 func userProvidedSecret(enterSecret bool) ([]byte, bool) {

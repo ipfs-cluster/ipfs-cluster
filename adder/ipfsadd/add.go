@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	gopath "path"
+	"path/filepath"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -59,6 +60,11 @@ type Adder struct {
 	CidBuilder cid.Builder
 	liveNodes  uint64
 	lastFile   mfs.FSNode
+	// Cluster: ipfs does a hack in commands/add.go to set the filenames
+	// in emmited events correctly. We carry a root folder name (or a
+	// filename in the case of single files here and emit those events
+	// correctly from the beginning).
+	OutputPrefix string
 }
 
 func (adder *Adder) mfsRoot() (*mfs.Root, error) {
@@ -193,7 +199,7 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 			return err
 		}
 
-		return outputDagnode(adder.Out, path, nd)
+		return adder.outputDagnode(adder.Out, path, nd)
 	default:
 		return fmt.Errorf("unrecognized fsn type: %#v", fsn)
 	}
@@ -201,8 +207,10 @@ func (adder *Adder) outputDirs(path string, fsn mfs.FSNode) error {
 
 func (adder *Adder) addNode(node ipld.Node, path string) error {
 	// patch it into the root
+	outputName := path
 	if path == "" {
 		path = node.Cid().String()
+		outputName = ""
 	}
 
 	if pi, ok := node.(*posinfo.FilestoreNode); ok {
@@ -239,7 +247,7 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	adder.lastFile = lastFile
 
 	if !adder.Silent {
-		return outputDagnode(adder.Out, path, node)
+		return adder.outputDagnode(adder.Out, outputName, node)
 	}
 	return nil
 }
@@ -413,8 +421,9 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 }
 
 // outputDagnode sends dagnode info over the output channel.
-// Cluster: we use *api.AddedOutput instead of coreiface events.
-func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
+// Cluster: we use *api.AddedOutput instead of coreiface events
+// and make this an adder method to be be able to prefix.
+func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil
 	}
@@ -423,6 +432,14 @@ func outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
 	if err != nil {
 		return err
 	}
+
+	// When adding things in a folder: "OutputPrefix/name"
+	// When adding a single file: "OutputPrefix" (name is unset)
+	// When adding a single thing with no name: ""
+	// Note: ipfs sets the name of files received on stdin to the CID,
+	// but cluster does not support stdin-adding so we do not
+	// account for this here.
+	name = filepath.Join(adder.OutputPrefix, name)
 
 	out <- &api.AddedOutput{
 		Cid:  dn.Cid(),
