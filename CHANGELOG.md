@@ -58,6 +58,7 @@ It is very important to upgrade for users planning to setup cluster peers to ena
   * A new `peer_addresses` key allows specifying additional peer addresses in the configuration (similar to the `peerstore` file). These are treated as libp2p bootstrap addreses (do not mix with Raft bootstrap process). This setting is mostly useful for CRDT collaborative clusters, as template configurations can be distributed including bootstrap peers (usually the same as trusted peers). The values are the full multiaddress of these peers: `/ip4/x.x.x.x/tcp/1234/p2p/Qmxxx...`.
   * `listen_multiaddress` can now be set to be an array providing multiple listen multiaddresses, the new defaults being `/tcp/9096` and `/udp/9096/quic`.
   * `enable_relay_hop` (true by default), lets the cluster peer act as a relay for other cluster peers behind NATs. This is only for the Cluster network. As a reminder, while this setting is problematic on IPFS (due to the amount of traffic the HOP peers start relaying), the cluster-peers networks are smaller and do not move huge amounts of content around.
+  * The `ipfs_sync_interval` option dissappears as the stateless tracker does not keep a state that can lose synchronization with IPFS.
 * `ipfshttp` section:
   * A new `repogc_timeout` key specifies the timeout for garbage collection operations on IPFS. It is set to 24h by default.
 
