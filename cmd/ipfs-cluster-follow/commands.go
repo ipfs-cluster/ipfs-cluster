@@ -95,7 +95,7 @@ func listClustersCmd(c *cli.Context) error {
 	for _, d := range filteredDirs {
 		fmt.Printf("%s \"%s\"\n", programName, d)
 	}
-	fmt.Printf("\nTip: \"%s --help\" for help and examples.", programName)
+	fmt.Printf("\nTip: \"%s --help\" for help and examples.\n", programName)
 
 	return nil
 }
