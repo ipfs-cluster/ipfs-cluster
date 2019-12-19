@@ -157,7 +157,7 @@ func infoCmd(c *cli.Context) error {
 	if c.Command.Name == "" {
 		fmt.Printf("Additional help:\n\n")
 		fmt.Printf("-------------------------------------------------\n\n")
-		cli.ShowAppHelp(c)
+		return cli.ShowAppHelp(c)
 	}
 	return nil
 }
