@@ -424,8 +424,7 @@ func listCmd(c *cli.Context) error {
 
 		err := printStatusOffline(cfgHelper)
 		if err != nil {
-			logger.Error(err)
-			return cli.Exit("error obtaining the pinset", 1)
+			return cli.Exit(errors.Wrap(err, "error obtaining the pinset"), 1)
 		}
 	}
 	return nil

@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 
 	semver "github.com/blang/semver"
-	logging "github.com/ipfs/go-log"
 	cli "github.com/urfave/cli/v2"
 )
 
@@ -43,7 +42,6 @@ var (
 
 var (
 	commit       string
-	logger       = logging.Logger("clusterfollow")
 	configPath   string
 	identityPath string
 	signalChan   = make(chan os.Signal, 20)
