@@ -143,7 +143,10 @@ func infoCmd(c *cli.Context) error {
 
 	// Either we loaded a valid config, or we are using a default. Worth
 	// applying env vars in the second case.
-	cfgHelper.Configs().Ipfshttp.ApplyEnvVars()
+	if err := cfgHelper.Configs().Ipfshttp.ApplyEnvVars(); err != nil {
+		return cli.Exit(errors.Wrap(err, "applying environment variables to ipfshttp config"), 1)
+	}
+
 	cfgHelper.Configs().Ipfshttp.ConnectSwarmsDelay = 0
 	connector, err := ipfshttp.NewConnector(cfgHelper.Configs().Ipfshttp)
 	if err == nil {
