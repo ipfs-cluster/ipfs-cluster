@@ -201,10 +201,13 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt")
 	cfgHelper.Manager().Shutdown()
 	cfgHelper.Manager().Source = cfgURL
-	cfgHelper.Manager().Default()
+	err := cfgHelper.Manager().Default()
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "error generating default config"), 1)
+	}
 
 	ident := cfgHelper.Identity()
-	err := ident.Default()
+	err = ident.Default()
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error generating identity"), 1)
 	}
@@ -277,7 +280,6 @@ func runCmd(c *cli.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
-
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error creating libp2p components"), 1)
 	}
@@ -288,7 +290,7 @@ func runCmd(c *cli.Context) error {
 	// Discard API configurations and create our own
 	apiCfg := rest.Config{}
 	cfgs.Restapi = &apiCfg
-	apiCfg.Default()
+	_ = apiCfg.Default()
 	listenSocket, err := socketAddress(absPath, clusterName)
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -349,7 +351,7 @@ func runCmd(c *cli.Context) error {
 	// Hardcode disabled tracing and metrics to avoid mistakenly
 	// exposing any user data.
 	tracerCfg := observations.TracingConfig{}
-	tracerCfg.Default()
+	_ = tracerCfg.Default()
 	tracerCfg.EnableTracing = false
 	cfgs.Tracing = &tracerCfg
 	tracer, err := observations.SetupTracing(&tracerCfg)
@@ -360,7 +362,7 @@ func runCmd(c *cli.Context) error {
 	// This does nothing since we are not calling SetupMetrics anyways
 	// But stays just to be explicit.
 	metricsCfg := observations.MetricsConfig{}
-	metricsCfg.Default()
+	_ = metricsCfg.Default()
 	metricsCfg.EnableStats = false
 	cfgs.Metrics = &metricsCfg
 
