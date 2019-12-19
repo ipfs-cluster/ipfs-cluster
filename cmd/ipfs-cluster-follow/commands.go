@@ -40,22 +40,24 @@ $ %s <clusterName> info --help  - Help for the "info" subcommand (same for other
 `, programName, programName, programName, programName)
 }
 
-func printNotInitialized(clusterName string, err error) {
+func printNotInitialized(clusterName string) {
 	fmt.Printf(`
-This cluster peer has not been initialized or configurations cannot be read.
+This cluster peer has not been initialized.
 
-In the former case, try running "%s %s init <config-url>" first.
-In the latter case, find more information in the error message below.
-
-
-(Error message was: %s)
-`, programName, clusterName, err)
+Try running "%s %s init <config-url>" first.
+`, programName, clusterName)
 }
 
 func setLogLevels(lvl string) {
 	for f := range ipfscluster.LoggingFacilities {
 		ipfscluster.SetFacilityLogLevel(f, lvl)
 	}
+}
+
+// returns whether the config folder exists
+func isInitialized(absPath string) bool {
+	_, err := os.Stat(absPath)
+	return err == nil
 }
 
 func listCmd(c *cli.Context) error {
@@ -105,6 +107,12 @@ func infoCmd(c *cli.Context) error {
 	setLogLevels("critical")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
+
+	if !isInitialized(absPath) {
+		printNotInitialized(clusterName)
+		return cli.Exit("", 1)
+	}
+
 	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
 	var url string
 	if err != nil {
@@ -114,8 +122,7 @@ func infoCmd(c *cli.Context) error {
 				cfgHelper.Manager().Source,
 			)
 		} else {
-			printNotInitialized(clusterName, err)
-			return cli.Exit("", 1)
+			return cli.Exit(errors.Wrapf(err, "reading the configurations in %s", absPath), 1)
 		}
 	} else {
 		url = fmt.Sprintf("Available (%s)", cfgHelper.Manager().Source)
@@ -166,7 +173,7 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
 
-	if _, err := os.Stat(absPath); !os.IsNotExist(err) {
+	if isInitialized(absPath) {
 		if ignoreReinit {
 			fmt.Println("Configuration for this cluster already exists. Skipping initialization.")
 			fmt.Printf("If you wish to re-initialize, simply delete %s\n\n", absPath)
@@ -239,6 +246,13 @@ func runCmd(c *cli.Context) error {
 		}
 	}
 
+	absPath, configPath, identityPath := buildPaths(c, clusterName)
+
+	if !isInitialized(absPath) {
+		printNotInitialized(clusterName)
+		return cli.Exit("", 1)
+	}
+
 	fmt.Printf("Starting the IPFS Cluster follower peer for \"%s\".\nCTRL-C to stop it.\n", clusterName)
 	fmt.Println("Checking if IPFS is online (will wait for 2 minutes)...")
 	ctxIpfs, cancelIpfs := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -253,11 +267,9 @@ func runCmd(c *cli.Context) error {
 	// run some "list" command.
 	ipfscluster.SetFacilityLogLevel("restapilog", "error")
 
-	absPath, configPath, identityPath := buildPaths(c, clusterName)
 	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
 	if err != nil {
-		printNotInitialized(clusterName, err)
-		return cli.Exit("", 1)
+		return cli.Exit(errors.Wrapf(err, "reading the configurations in %s", absPath), 1)
 	}
 	cfgHelper.Manager().Shutdown()
 	cfgs := cfgHelper.Configs()
