@@ -60,7 +60,7 @@ func isInitialized(absPath string) bool {
 	return err == nil
 }
 
-func listCmd(c *cli.Context) error {
+func listClustersCmd(c *cli.Context) error {
 	absPath, _, _ := buildPaths(c, "")
 	f, err := os.Open(absPath)
 	if os.IsNotExist(err) {
@@ -394,7 +394,7 @@ func runCmd(c *cli.Context) error {
 }
 
 // List
-func pinsetCmd(c *cli.Context) error {
+func listCmd(c *cli.Context) error {
 	clusterName := c.String("clusterName")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)

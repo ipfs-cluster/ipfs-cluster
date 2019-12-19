@@ -173,7 +173,7 @@ func main() {
 
 	app.Action = func(c *cli.Context) error {
 		if !c.Args().Present() {
-			return listCmd(c)
+			return listClustersCmd(c)
 		}
 
 		clusterName := c.Args().Get(0)
@@ -254,7 +254,7 @@ If the peer is currently running, it will display status information for each
 pin (such as PINNING). If not, it will just display the current list of pins
 as obtained from the internal state on disk.
 `,
-				Action: pinsetCmd,
+				Action: listCmd,
 			},
 		}
 		return clusterApp.RunAsSubcommand(c)
@@ -268,7 +268,7 @@ as obtained from the internal state on disk.
 func buildPaths(c *cli.Context, clusterName string) (string, string, string) {
 	absPath, err := filepath.Abs(c.String("config"))
 	if err != nil {
-		cmdutils.ErrorOut("error getting aboslute path for %s: %s", err, clusterName)
+		cmdutils.ErrorOut("error getting absolute path for %s: %s", err, clusterName)
 		os.Exit(1)
 	}
 
