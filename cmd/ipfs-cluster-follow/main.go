@@ -4,8 +4,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
+	"syscall"
 
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
@@ -25,8 +27,26 @@ const (
 	logLevel        = "info"
 )
 
-// We store a commit id here
-var commit string
+// Default location for the configurations and data
+var (
+	// DefaultFolder is the name of the cluster folder
+	DefaultFolder = ".ipfs-cluster-follow"
+	// DefaultPath is set on init() to $HOME/DefaultFolder
+	// and holds all the ipfs-cluster data
+	DefaultPath string
+	// The name of the configuration file inside DefaultPath
+	DefaultConfigFile = "service.json"
+	// The name of the identity file inside DefaultPath
+	DefaultIdentityFile = "identity.json"
+)
+
+var (
+	commit       string
+	logger       = logging.Logger("clusterfollow")
+	configPath   string
+	identityPath string
+	signalChan   = make(chan os.Signal, 20)
+)
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
@@ -95,26 +115,6 @@ $ %s <clusterName> list --help
 	programName,
 )
 
-var logger = logging.Logger("clusterfollow")
-
-// Default location for the configurations and data
-var (
-	// DefaultFolder is the name of the cluster folder
-	DefaultFolder = ".ipfs-cluster-follow"
-	// DefaultPath is set on init() to $HOME/DefaultFolder
-	// and holds all the ipfs-cluster data
-	DefaultPath string
-	// The name of the configuration file inside DefaultPath
-	DefaultConfigFile = "service.json"
-	// The name of the identity file inside DefaultPath
-	DefaultIdentityFile = "identity.json"
-)
-
-var (
-	configPath   string
-	identityPath string
-)
-
 func init() {
 	// Set build information.
 	if build, err := semver.NewBuildVersion(commit); err == nil {
@@ -135,6 +135,23 @@ func init() {
 	}
 
 	DefaultPath = filepath.Join(home, DefaultFolder)
+
+	// This will abort the program on signal.  We close the signal channel
+	// when launching the peer so that we can do an orderly shutdown in
+	// that case though.
+	go func() {
+		signal.Notify(
+			signalChan,
+			syscall.SIGINT,
+			syscall.SIGTERM,
+			syscall.SIGHUP,
+		)
+		_, ok := <-signalChan // channel closed.
+		if !ok {
+			return
+		}
+		os.Exit(1)
+	}()
 }
 
 func main() {

@@ -150,19 +150,9 @@ func WaitForIPFS(ctx context.Context) error {
 		return errors.Wrap(err, "error creating an ipfshttp instance to wait for IPFS")
 	}
 
-	signalChan := make(chan os.Signal, 20)
-	signal.Notify(
-		signalChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGHUP,
-	)
-
 	i := 0
 	for {
 		select {
-		case <-signalChan:
-			return errors.New("interrupted")
 		case <-ctx.Done():
 			return ctx.Err()
 		default:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
@@ -350,6 +351,12 @@ func runCmd(c *cli.Context) error {
 	metricsCfg.Default()
 	metricsCfg.EnableStats = false
 	cfgs.Metrics = &metricsCfg
+
+	// We are going to run a cluster peer and should do an
+	// oderly shutdown if we are interrupted: cancel default
+	// signal handling and leave things to HandleSignals.
+	signal.Stop(signalChan)
+	close(signalChan)
 
 	cluster, err := ipfscluster.NewCluster(
 		ctx,
