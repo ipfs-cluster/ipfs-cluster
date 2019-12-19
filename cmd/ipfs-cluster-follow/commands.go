@@ -187,10 +187,7 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 		return cli.Exit("", 1)
 	}
 
-	gw := "127.0.0.1:8080"
-	if gwEnv := os.Getenv("IPFS_GATEWAY"); gwEnv != "" {
-		gw = gwEnv
-	}
+	gw := c.String("gateway")
 
 	if !strings.HasPrefix(cfgURL, "http://") && !strings.HasPrefix(cfgURL, "https://") {
 		fmt.Printf("%s will be assumed to be an DNSLink-powered address: /ipns/%s.\n", cfgURL, cfgURL)

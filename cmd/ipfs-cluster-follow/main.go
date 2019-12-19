@@ -38,6 +38,7 @@ var (
 	DefaultConfigFile = "service.json"
 	// The name of the identity file inside DefaultPath
 	DefaultIdentityFile = "identity.json"
+	DefaultGateway      = "127.0.0.1:8080"
 )
 
 var (
@@ -215,6 +216,15 @@ this name already exists. If you wish to re-initialize from scratch, delete
 this folder first.
 `, clusterName, programName, clusterName),
 				Action: initCmd,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "gateway",
+						Value:   DefaultGateway,
+						Usage:   "gateway URL",
+						EnvVars: []string{"IPFS_GATEWAY"},
+						Hidden:  true,
+					},
+				},
 			},
 			{
 				Name:      "run",
