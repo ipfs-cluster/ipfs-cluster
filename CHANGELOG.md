@@ -1,15 +1,29 @@
 # IPFS Cluster Changelog
 
 
-### v0.12.0 - 2019-12-19
+### v0.12.0 - 2019-12-20
 
-IPFS Cluster v0.12.0 brings many useful features and fully unlocks easily creating and participating on collaborative clusters.
+IPFS Cluster v0.12.0 brings many useful features and makes it very easy to
+create and participate on collaborative clusters.
 
-The new `ipfs-cluster-follow` command provides a very simple way to joining one or several clusters as a follower (a peer without permissions to pin/unpin anything). The configuration of the peers ran by `ipfs-cluster-follow` are optimized for this usecase, with the brand new CLI tool being very descriptive and helpful.
+The new `ipfs-cluster-follow` command provides a very simple way of joining
+one or several clusters as a follower (a peer without permissions to pin/unpin
+anything). `ipfs-cluster-follow` peers are initialize using a configuration
+"template" distributed over IPFS or HTTP, which is then optimized and secured.
 
-We have additionally added many new features: pin with an expiration date, the ability to trigger garbage collection on IPFS daemons, improvements on NAT-traversal and connectivity etc.
+`ipfs-cluster-follow` is limited in scope and attempts to be very
+straightforward to use. `ipfs-cluster-service` continues to offer power users
+the full set of options to running peers of all kinds (followers or not).
 
-It is very important to upgrade for users planning to setup cluster peers to enable the use of collaborative clusters. We will be adding guides and documentation on this regard on the website.
+We have additionally added many new features: pin with an expiration date, the
+ability to trigger garbage collection on IPFS daemons, improvements on
+NAT-traversal and connectivity etc.
+
+Users planning to setup public collaborative clusters should upgrade to this
+release, which improves the user experience and comes with documentation on
+how to setup and join these clusters
+(https://cluster.ipfs.io/documentation/collaborative).
+
 
 #### List of changes
 
