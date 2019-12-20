@@ -67,9 +67,10 @@ type Consensus struct {
 	dht    *dht.IpfsDHT
 	pubsub *pubsub.PubSub
 
-	rpcClient *rpc.Client
-	rpcReady  chan struct{}
-	readyCh   chan struct{}
+	rpcClient  *rpc.Client
+	rpcReady   chan struct{}
+	stateReady chan struct{}
+	readyCh    chan struct{}
 
 	shutdownLock sync.RWMutex
 	shutdown     bool
@@ -124,6 +125,7 @@ func New(
 		pubsub:      pubsub,
 		rpcReady:    make(chan struct{}, 1),
 		readyCh:     make(chan struct{}, 1),
+		stateReady:  make(chan struct{}, 1),
 	}
 
 	go css.setup()
@@ -263,6 +265,8 @@ func (css *Consensus) setup() {
 		logger.Info("'trust all' mode enabled. Any peer in the cluster can modify the pinset.")
 	}
 
+	// notifies State() it is safe to return
+	close(css.stateReady)
 	css.readyCh <- struct{}{}
 }
 
@@ -427,8 +431,18 @@ func (css *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 	return ErrRmPeer
 }
 
-// State returns the cluster shared state.
-func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) { return css.state, nil }
+// State returns the cluster shared state. It will block until the consensus
+// component is ready, shutdown or the given context has been cancelled.
+func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-css.ctx.Done():
+		return nil, css.ctx.Err()
+	case <-css.stateReady:
+		return css.state, nil
+	}
+}
 
 // Clean deletes all crdt-consensus datas from the datastore.
 func (css *Consensus) Clean(ctx context.Context) error {
@@ -468,10 +482,9 @@ func (css *Consensus) Leader(ctx context.Context) (peer.ID, error) {
 	return "", ErrNoLeader
 }
 
-// OfflineState returns an offline, read-only batching state using the given
-// datastore. Any writes to this state are processed through the given
-// ipfs connector (the state is offline as it does not require a
-// running cluster peer).
+// OfflineState returns an offline, batching state using the given
+// datastore. This allows to inspect and modify the shared state in offline
+// mode.
 func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) {
 	batching, ok := store.(ds.Batching)
 	if !ok {
