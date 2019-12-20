@@ -27,8 +27,6 @@ var comments = map[string]string{
 	"Cluster.PeerAdd":          "Used by Join()",
 	"Cluster.Peers":            "Used by ConnectGraph()",
 	"Cluster.Pins":             "Used in stateless tracker, ipfsproxy, restapi",
-	"Cluster.SyncAllLocal":     "Called in broadcast from SyncAll()",
-	"Cluster.SyncLocal":        "Called in broadcast from Sync()",
 	"PinTracker.Recover":       "Called in broadcast from Recover()",
 	"PinTracker.RecoverAll":    "Broadcast in RecoverAll unimplemented",
 	"Pintracker.Status":        "Called in broadcast from Status()",

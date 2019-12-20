@@ -19,11 +19,23 @@ import (
 
 var logger = logging.Logger("config")
 
+var (
+	// Error when downloading a Source-based configuration
+	errFetchingSource = errors.New("could not fetch configuration from source")
+	// Error when remote source points to another remote-source
+	errSourceRedirect = errors.New("a sourced configuration cannot point to another source")
+)
+
+// IsErrFetchingSource reports whether this error happened when trying to
+// fetch a remote configuration source (as opposed to an error parsing the
+// config).
+func IsErrFetchingSource(err error) bool {
+	return errors.Is(err, errFetchingSource)
+}
+
 // ConfigSaveInterval specifies how often to save the configuration file if
 // it needs saving.
 var ConfigSaveInterval = time.Second
-
-var errSourceRedirect = errors.New("a sourced configuration cannot point to another source")
 
 // The ComponentConfig interface allows components to define configurations
 // which can be managed as part of the ipfs-cluster configuration file by the
@@ -339,21 +351,25 @@ func (cfg *Manager) LoadJSONFromFile(path string) error {
 		return err
 	}
 
-	err = cfg.LoadJSON(file)
-	return err
+	return cfg.LoadJSON(file)
 }
 
 // LoadJSONFromHTTPSource reads a Configuration file from a URL and parses it.
 func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	logger.Infof("loading configuration from %s", url)
+	cfg.Source = url
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %s", errFetchingSource, url)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
+	}
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("unsuccessful request (%d): %s", resp.StatusCode, body)
 	}
 
 	// Avoid recursively loading remote sources
@@ -368,7 +384,6 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	if err != nil {
 		return err
 	}
-	cfg.Source = url
 	return nil
 }
 

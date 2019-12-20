@@ -28,9 +28,8 @@ var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/909
 // Configuration defaults
 const (
 	DefaultEnableRelayHop      = true
-	DefaultStateSyncInterval   = 600 * time.Second
-	DefaultIPFSSyncInterval    = 130 * time.Second
-	DefaultPinRecoverInterval  = 1 * time.Hour
+	DefaultStateSyncInterval   = 5 * time.Minute
+	DefaultPinRecoverInterval  = 12 * time.Minute
 	DefaultMonitorPingInterval = 15 * time.Second
 	DefaultPeerWatchInterval   = 5 * time.Second
 	DefaultReplicationFactor   = -1
@@ -94,14 +93,6 @@ type Config struct {
 	// consistency, increase with larger states.
 	StateSyncInterval time.Duration
 
-	// Time between syncs of the local state and
-	// the state of the ipfs daemon. This ensures that cluster
-	// provides the right status for tracked items (for example
-	// to detect that a pin has been removed. Reduce for faster
-	// consistency, increase when the number of pinned items is very
-	// large.
-	IPFSSyncInterval time.Duration
-
 	// Time between automatic runs of the "recover" operation
 	// which will retry to pin/unpin items in error state.
 	PinRecoverInterval time.Duration
@@ -155,6 +146,11 @@ type Config struct {
 	// libp2p host peerstore addresses. This file is regularly saved.
 	PeerstoreFile string
 
+	// PeerAddresses stores additional addresses for peers that may or may
+	// not be in the peerstore file. These are considered high priority
+	// when bootstrapping the initial cluster connections.
+	PeerAddresses []ma.Multiaddr
+
 	// Tracing flag used to skip tracing specific paths when not enabled.
 	Tracing bool
 }
@@ -172,7 +168,6 @@ type configJSON struct {
 	EnableRelayHop       bool               `json:"enable_relay_hop"`
 	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
 	StateSyncInterval    string             `json:"state_sync_interval"`
-	IPFSSyncInterval     string             `json:"ipfs_sync_interval"`
 	PinRecoverInterval   string             `json:"pin_recover_interval"`
 	ReplicationFactorMin int                `json:"replication_factor_min"`
 	ReplicationFactorMax int                `json:"replication_factor_max"`
@@ -182,6 +177,7 @@ type configJSON struct {
 	DisableRepinning     bool               `json:"disable_repinning"`
 	FollowerMode         bool               `json:"follower_mode,omitempty"`
 	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
+	PeerAddresses        []string           `json:"peer_addresses"`
 }
 
 // connMgrConfigJSON configures the libp2p host connection manager.
@@ -259,10 +255,6 @@ func (cfg *Config) Validate() error {
 
 	if cfg.StateSyncInterval <= 0 {
 		return errors.New("cluster.state_sync_interval is invalid")
-	}
-
-	if cfg.IPFSSyncInterval <= 0 {
-		return errors.New("cluster.ipfs_sync_interval is invalid")
 	}
 
 	if cfg.PinRecoverInterval <= 0 {
@@ -361,7 +353,6 @@ func (cfg *Config) setDefaults() {
 	}
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
-	cfg.IPFSSyncInterval = DefaultIPFSSyncInterval
 	cfg.PinRecoverInterval = DefaultPinRecoverInterval
 	cfg.ReplicationFactorMin = DefaultReplicationFactor
 	cfg.ReplicationFactorMax = DefaultReplicationFactor
@@ -369,8 +360,9 @@ func (cfg *Config) setDefaults() {
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.MDNSInterval = DefaultMDNSInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
-	cfg.PeerstoreFile = "" // empty so it gets ommited.
 	cfg.FollowerMode = DefaultFollowerMode
+	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.PeerAddresses = []ma.Multiaddr{}
 	cfg.RPCPolicy = DefaultRPCPolicy
 }
 
@@ -434,7 +426,6 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 
 	err = config.ParseDurations("cluster",
 		&config.DurationOpt{Duration: jcfg.StateSyncInterval, Dst: &cfg.StateSyncInterval, Name: "state_sync_interval"},
-		&config.DurationOpt{Duration: jcfg.IPFSSyncInterval, Dst: &cfg.IPFSSyncInterval, Name: "ipfs_sync_interval"},
 		&config.DurationOpt{Duration: jcfg.PinRecoverInterval, Dst: &cfg.PinRecoverInterval, Name: "pin_recover_interval"},
 		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
 		&config.DurationOpt{Duration: jcfg.PeerWatchInterval, Dst: &cfg.PeerWatchInterval, Name: "peer_watch_interval"},
@@ -442,6 +433,16 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	)
 	if err != nil {
 		return err
+	}
+
+	// PeerAddresses
+	for _, addr := range jcfg.PeerAddresses {
+		peerAddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			err = fmt.Errorf("error parsing peer_addresses: %s", err)
+			return err
+		}
+		cfg.PeerAddresses = append(cfg.PeerAddresses, peerAddr)
 	}
 
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
@@ -490,13 +491,16 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
 	}
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()
-	jcfg.IPFSSyncInterval = cfg.IPFSSyncInterval.String()
 	jcfg.PinRecoverInterval = cfg.PinRecoverInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
 	jcfg.MDNSInterval = cfg.MDNSInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
+	jcfg.PeerAddresses = []string{}
+	for _, addr := range cfg.PeerAddresses {
+		jcfg.PeerAddresses = append(jcfg.PeerAddresses, addr.String())
+	}
 	jcfg.FollowerMode = cfg.FollowerMode
 
 	return

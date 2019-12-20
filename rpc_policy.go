@@ -7,35 +7,32 @@ package ipfscluster
 // without missing any endpoint.
 var DefaultRPCPolicy = map[string]RPCEndpointType{
 	// Cluster methods
-	"Cluster.BlockAllocate":      RPCClosed,
-	"Cluster.ConnectGraph":       RPCClosed,
-	"Cluster.ID":                 RPCOpen,
-	"Cluster.Join":               RPCClosed,
-	"Cluster.PeerAdd":            RPCOpen, // Used by Join()
-	"Cluster.PeerRemove":         RPCTrusted,
-	"Cluster.Peers":              RPCTrusted, // Used by ConnectGraph()
-	"Cluster.Pin":                RPCClosed,
-	"Cluster.PinGet":             RPCClosed,
-	"Cluster.PinPath":            RPCClosed,
-	"Cluster.Pins":               RPCClosed, // Used in stateless tracker, ipfsproxy, restapi
-	"Cluster.Recover":            RPCClosed,
-	"Cluster.RecoverAll":         RPCClosed,
-	"Cluster.RecoverAllLocal":    RPCTrusted,
-	"Cluster.RecoverLocal":       RPCTrusted,
-	"Cluster.RepoGC":             RPCClosed,
-	"Cluster.RepoGCLocal":        RPCTrusted,
-	"Cluster.SendInformerMetric": RPCClosed,
-	"Cluster.Status":             RPCClosed,
-	"Cluster.StatusAll":          RPCClosed,
-	"Cluster.StatusAllLocal":     RPCClosed,
-	"Cluster.StatusLocal":        RPCClosed,
-	"Cluster.Sync":               RPCClosed,
-	"Cluster.SyncAll":            RPCClosed,
-	"Cluster.SyncAllLocal":       RPCTrusted, // Called in broadcast from SyncAll()
-	"Cluster.SyncLocal":          RPCTrusted, // Called in broadcast from Sync()
-	"Cluster.Unpin":              RPCClosed,
-	"Cluster.UnpinPath":          RPCClosed,
-	"Cluster.Version":            RPCOpen,
+	"Cluster.BlockAllocate":        RPCClosed,
+	"Cluster.ConnectGraph":         RPCClosed,
+	"Cluster.ID":                   RPCOpen,
+	"Cluster.Join":                 RPCClosed,
+	"Cluster.PeerAdd":              RPCOpen, // Used by Join()
+	"Cluster.PeerRemove":           RPCTrusted,
+	"Cluster.Peers":                RPCTrusted, // Used by ConnectGraph()
+	"Cluster.Pin":                  RPCClosed,
+	"Cluster.PinGet":               RPCClosed,
+	"Cluster.PinPath":              RPCClosed,
+	"Cluster.Pins":                 RPCClosed, // Used in stateless tracker, ipfsproxy, restapi
+	"Cluster.Recover":              RPCClosed,
+	"Cluster.RecoverAll":           RPCClosed,
+	"Cluster.RecoverAllLocal":      RPCTrusted,
+	"Cluster.RecoverLocal":         RPCTrusted,
+	"Cluster.RepoGC":               RPCClosed,
+	"Cluster.RepoGCLocal":          RPCTrusted,
+	"Cluster.SendInformerMetric":   RPCClosed,
+	"Cluster.SendInformersMetrics": RPCClosed,
+	"Cluster.Status":               RPCClosed,
+	"Cluster.StatusAll":            RPCClosed,
+	"Cluster.StatusAllLocal":       RPCClosed,
+	"Cluster.StatusLocal":          RPCClosed,
+	"Cluster.Unpin":                RPCClosed,
+	"Cluster.UnpinPath":            RPCClosed,
+	"Cluster.Version":              RPCOpen,
 
 	// PinTracker methods
 	"PinTracker.Recover":    RPCTrusted, // Called in broadcast from Recover()

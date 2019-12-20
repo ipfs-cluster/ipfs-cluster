@@ -5,10 +5,10 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # It re-uses the latest go-ipfs:release container.
 
 # This builder just builds the cluster binaries
-ENV GOPATH     /go
-ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
+ENV GOPATH      /go
+ENV SRC_PATH    $GOPATH/src/github.com/ipfs/ipfs-cluster
 ENV GO111MODULE on
-ENV GOPROXY=https://proxy.golang.org
+ENV GOPROXY     https://proxy.golang.org
 
 COPY go.* $SRC_PATH/
 WORKDIR $SRC_PATH
@@ -24,9 +24,9 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # This is the container which just puts the previously
 # built binaries on the go-ipfs-container.
 
-ENV GOPATH     /go
-ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
-ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
+ENV GOPATH                 /go
+ENV SRC_PATH               /go/src/github.com/ipfs/ipfs-cluster
+ENV IPFS_CLUSTER_PATH      /data/ipfs-cluster
 ENV IPFS_CLUSTER_CONSENSUS crdt
 
 EXPOSE 9094
@@ -35,6 +35,7 @@ EXPOSE 9096
 
 COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
 COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
+COPY --from=builder $GOPATH/bin/ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow
 COPY --from=builder $SRC_PATH/docker/start-daemons.sh /usr/local/bin/start-daemons.sh
 
 RUN mkdir -p $IPFS_CLUSTER_PATH && \

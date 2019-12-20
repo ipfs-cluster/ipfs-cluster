@@ -65,7 +65,7 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, rplMin, rplMax int
 	if err == nil {
 		currentAllocs = currentPin.Allocations
 	}
-	metrics := c.monitor.LatestMetrics(ctx, c.informer.Name())
+	metrics := c.monitor.LatestMetrics(ctx, c.informers[0].Name())
 
 	currentMetrics := make(map[peer.ID]*api.Metric)
 	candidatesMetrics := make(map[peer.ID]*api.Metric)

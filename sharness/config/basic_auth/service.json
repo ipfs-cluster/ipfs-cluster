@@ -5,7 +5,6 @@
     "leave_on_shutdown": false,
     "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096",
     "state_sync_interval": "1m0s",
-    "ipfs_sync_interval": "2m10s",
     "replication_factor": -1,
     "monitor_ping_interval": "15s"
   },
@@ -69,10 +68,6 @@
     }
   },
   "pin_tracker": {
-    "maptracker": {
-      "max_pin_queue_size": 50000,
-      "concurrent_pins": 10
-    },
     "stateless": {
       "max_pin_queue_size": 50000,
       "concurrent_pins": 10

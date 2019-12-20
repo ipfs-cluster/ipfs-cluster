@@ -250,38 +250,6 @@ func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus,
 	return gpis, err
 }
 
-// Sync makes sure the state of a Cid corresponds to the state reported by
-// the ipfs daemon, and returns it. If local is true, this operation only
-// happens on the current peer, otherwise it happens on every cluster peer.
-func (c *defaultClient) Sync(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	ctx, span := trace.StartSpan(ctx, "client/Sync")
-	defer span.End()
-
-	var gpi api.GlobalPinInfo
-	err := c.do(
-		ctx,
-		"POST",
-		fmt.Sprintf("/pins/%s/sync?local=%t", ci.String(), local),
-		nil,
-		nil,
-		&gpi,
-	)
-	return &gpi, err
-}
-
-// SyncAll triggers Sync() operations for all tracked items. It only returns
-// informations for items that were de-synced or have an error state. If
-// local is true, the operation is limited to the current peer. Otherwise
-// it happens on every cluster peer.
-func (c *defaultClient) SyncAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error) {
-	ctx, span := trace.StartSpan(ctx, "client/SyncAll")
-	defer span.End()
-
-	var gpis []*api.GlobalPinInfo
-	err := c.do(ctx, "POST", fmt.Sprintf("/pins/sync?local=%t", local), nil, nil, &gpis)
-	return gpis, err
-}
-
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
@@ -504,15 +472,15 @@ func statusReached(target api.TrackerStatus, gblPinInfo *api.GlobalPinInfo) (boo
 }
 
 // logic drawn from go-ipfs-cmds/cli/parse.go: appendFile
-func makeSerialFile(fpath string, params *api.AddParams) (files.Node, error) {
+func makeSerialFile(fpath string, params *api.AddParams) (string, files.Node, error) {
 	if fpath == "." {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
 		cwd, err = filepath.EvalSymlinks(cwd)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
 		fpath = cwd
 	}
@@ -521,16 +489,17 @@ func makeSerialFile(fpath string, params *api.AddParams) (files.Node, error) {
 
 	stat, err := os.Lstat(fpath)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	if stat.IsDir() {
 		if !params.Recursive {
-			return nil, fmt.Errorf("%s is a directory, but Recursive option is not set", fpath)
+			return "", nil, fmt.Errorf("%s is a directory, but Recursive option is not set", fpath)
 		}
 	}
 
-	return files.NewSerialFile(fpath, params.Hidden, stat)
+	sf, err := files.NewSerialFile(fpath, params.Hidden, stat)
+	return path.Base(fpath), sf, err
 }
 
 // Add imports files to the cluster from the given paths. A path can
@@ -556,7 +525,7 @@ func (c *defaultClient) Add(
 			close(out)
 			return fmt.Errorf("error parsing path: %s", err)
 		}
-		name := path.Base(p)
+		var name string
 		var addFile files.Node
 		if strings.HasPrefix(u.Scheme, "http") {
 			addFile = files.NewWebFile(u)
@@ -566,7 +535,7 @@ func (c *defaultClient) Add(
 				close(out)
 				return fmt.Errorf("nocopy option is only valid for URLs")
 			}
-			addFile, err = makeSerialFile(p, params)
+			name, addFile, err = makeSerialFile(p, params)
 			if err != nil {
 				close(out)
 				return err

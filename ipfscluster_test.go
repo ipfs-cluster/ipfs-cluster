@@ -28,7 +28,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
-	"github.com/ipfs/ipfs-cluster/pintracker/maptracker"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/test"
@@ -174,7 +173,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, maptrackerCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -208,8 +207,6 @@ func createComponents(
 		t.Fatal(err)
 	}
 
-	tracker := makePinTracker(t, ident.ID, maptrackerCfg, statelesstrackerCfg, clusterCfg.Peername)
-
 	alloc := descendalloc.NewAllocator()
 	inf, err := disk.NewInformer(diskInfCfg)
 	if err != nil {
@@ -218,6 +215,7 @@ func createComponents(
 
 	store := makeStore(t, badgerCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
+	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
 	var peersF func(context.Context) ([]peer.ID, error)
 	if consensus == "raft" {
@@ -268,21 +266,8 @@ func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.P
 	}
 }
 
-func makePinTracker(t *testing.T, pid peer.ID, mptCfg *maptracker.Config, sptCfg *stateless.Config, peerName string) PinTracker {
-	var ptrkr PinTracker
-	switch ptracker {
-	case "map":
-		ptrkr = maptracker.NewMapPinTracker(mptCfg, pid, peerName)
-	case "stateless":
-		ptrkr = stateless.New(sptCfg, pid, peerName)
-	default:
-		panic("bad pintracker")
-	}
-	return ptrkr
-}
-
 func createCluster(t *testing.T, host host.Host, dht *dht.IpfsDHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {
-	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, inf, tracer)
+	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, []Informer{inf}, tracer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,15 +288,14 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	// Disable quic as it is proving a bit unstable
-	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
+	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -537,7 +521,7 @@ func waitForClustersHealthy(t *testing.T, clusters []*Cluster) {
 	timer := time.NewTimer(15 * time.Second)
 	for {
 		ttlDelay()
-		metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informer.Name())
+		metrics := clusters[0].monitor.LatestMetrics(context.Background(), clusters[0].informers[0].Name())
 		healthy := 0
 		for _, m := range metrics {
 			if !m.Expired() {
@@ -915,162 +899,6 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 	runF(t, clusters, f)
 }
 
-func TestClustersSyncAllLocal(t *testing.T) {
-	ctx := context.Background()
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
-	clusters[0].Pin(ctx, test.ErrorCid, api.PinOptions{}) // This cid always fails
-	clusters[0].Pin(ctx, test.Cid2, api.PinOptions{})
-	pinDelay()
-	pinDelay()
-
-	f := func(t *testing.T, c *Cluster) {
-		// Sync bad ID
-		infos, err := c.SyncAllLocal(ctx)
-		if err != nil {
-			// LocalSync() is asynchronous and should not show an
-			// error even if Recover() fails.
-			t.Error(err)
-		}
-		if len(infos) != 1 {
-			t.Fatalf("expected 1 elem slice, got = %d", len(infos))
-		}
-		// Last-known state may still be pinning
-		if infos[0].Status != api.TrackerStatusPinError && infos[0].Status != api.TrackerStatusPinning {
-			t.Errorf("element should be in Pinning or PinError state, got = %v", infos[0].Status)
-		}
-	}
-	// Test Local syncs
-	runF(t, clusters, f)
-}
-
-func TestClustersSyncLocal(t *testing.T) {
-	ctx := context.Background()
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
-	h := test.ErrorCid
-	h2 := test.Cid2
-	clusters[0].Pin(ctx, h, api.PinOptions{})
-	clusters[0].Pin(ctx, h2, api.PinOptions{})
-	pinDelay()
-	pinDelay()
-
-	f := func(t *testing.T, c *Cluster) {
-		info, err := c.SyncLocal(ctx, h)
-		if err != nil {
-			t.Error(err)
-		}
-		if info.Status != api.TrackerStatusPinError && info.Status != api.TrackerStatusPinning {
-			t.Errorf("element is %s and not PinError", info.Status)
-		}
-
-		// Sync good ID
-		info, err = c.SyncLocal(ctx, h2)
-		if err != nil {
-			t.Error(err)
-		}
-		if info.Status != api.TrackerStatusPinned {
-			t.Error("element should be in Pinned state")
-		}
-	}
-	// Test Local syncs
-	runF(t, clusters, f)
-}
-
-func TestClustersSyncAll(t *testing.T) {
-	ctx := context.Background()
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
-	clusters[0].Pin(ctx, test.ErrorCid, api.PinOptions{})
-	clusters[0].Pin(ctx, test.Cid2, api.PinOptions{})
-	pinDelay()
-	pinDelay()
-
-	j := rand.Intn(nClusters) // choose a random cluster peer
-	ginfos, err := clusters[j].SyncAll(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(ginfos) != 1 {
-		t.Fatalf("expected globalsync to have 1 elements, got = %d", len(ginfos))
-	}
-	if !ginfos[0].Cid.Equals(test.ErrorCid) {
-		t.Error("expected globalsync to have problems with test.ErrorCid")
-	}
-	for _, c := range clusters {
-		inf, ok := ginfos[0].PeerMap[peer.IDB58Encode(c.host.ID())]
-		if !ok {
-			t.Fatal("GlobalPinInfo should have this cluster")
-		}
-		if inf.Status != api.TrackerStatusPinError && inf.Status != api.TrackerStatusPinning {
-			t.Error("should be PinError in all peers")
-		}
-	}
-}
-
-func TestClustersSync(t *testing.T) {
-	ctx := context.Background()
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
-	h := test.ErrorCid // This cid always fails
-	h2 := test.Cid2
-	clusters[0].Pin(ctx, h, api.PinOptions{})
-	clusters[0].Pin(ctx, h2, api.PinOptions{})
-	pinDelay()
-	pinDelay()
-
-	j := rand.Intn(nClusters)
-	ginfo, err := clusters[j].Sync(ctx, h)
-	if err != nil {
-		// we always attempt to return a valid response
-		// with errors contained in GlobalPinInfo
-		t.Fatal("did not expect an error")
-	}
-	pinfo, ok := ginfo.PeerMap[peer.IDB58Encode(clusters[j].host.ID())]
-	if !ok {
-		t.Fatal("should have info for this host")
-	}
-	if pinfo.Error == "" {
-		t.Error("pinInfo error should not be empty")
-	}
-
-	if !ginfo.Cid.Equals(h) {
-		t.Error("GlobalPinInfo should be for test.ErrorCid")
-	}
-
-	for _, c := range clusters {
-		inf, ok := ginfo.PeerMap[peer.IDB58Encode(c.host.ID())]
-		if !ok {
-			t.Logf("%+v", ginfo)
-			t.Fatal("GlobalPinInfo should not be empty for this host")
-		}
-
-		if inf.Status != api.TrackerStatusPinError && inf.Status != api.TrackerStatusPinning {
-			t.Error("should be PinError or Pinning in all peers")
-		}
-	}
-
-	// Test with a good Cid
-	j = rand.Intn(nClusters)
-	ginfo, err = clusters[j].Sync(ctx, h2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ginfo.Cid.Equals(h2) {
-		t.Error("GlobalPinInfo should be for testrCid2")
-	}
-
-	for _, c := range clusters {
-		inf, ok := ginfo.PeerMap[peer.IDB58Encode(c.host.ID())]
-		if !ok {
-			t.Fatal("GlobalPinInfo should have this cluster")
-		}
-		if inf.Status != api.TrackerStatusPinned {
-			t.Error("the GlobalPinInfo should show Pinned in all peers")
-		}
-	}
-}
-
 func TestClustersRecoverLocal(t *testing.T) {
 	ctx := context.Background()
 	clusters, mock := createClusters(t)
@@ -1099,10 +927,7 @@ func TestClustersRecoverLocal(t *testing.T) {
 		}
 
 		// Recover good ID
-		info, err = c.SyncLocal(ctx, h2)
-		if err != nil {
-			t.Error(err)
-		}
+		info, err = c.RecoverLocal(ctx, h2)
 		if info.Status != api.TrackerStatusPinned {
 			t.Error("element should be in Pinned state")
 		}
@@ -2173,19 +1998,6 @@ func TestClustersFollowerMode(t *testing.T) {
 		_, err = clusters[1].AddFile(r, params)
 		if err != errFollowerMode {
 			t.Error("expected follower mode error")
-		}
-	})
-
-	t.Run("follower syncs itself", func(t *testing.T) {
-		gpis, err := clusters[1].SyncAll(ctx)
-		if err != nil {
-			t.Error("sync should work")
-		}
-		if len(gpis) != 1 {
-			t.Fatal("globalPinInfo should have 1 pins (in error)")
-		}
-		if len(gpis[0].PeerMap) != 1 {
-			t.Fatal("globalPinInfo[0] should only have one peer")
 		}
 	})
 

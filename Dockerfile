@@ -3,10 +3,10 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This dockerfile builds and runs ipfs-cluster-service.
 
-ENV GOPATH     /go
-ENV SRC_PATH   $GOPATH/src/github.com/ipfs/ipfs-cluster
+ENV GOPATH      /go
+ENV SRC_PATH    $GOPATH/src/github.com/ipfs/ipfs-cluster
 ENV GO111MODULE on
-ENV GOPROXY=https://proxy.golang.org
+ENV GOPROXY     https://proxy.golang.org
 
 ENV SUEXEC_VERSION v0.2
 ENV TINI_VERSION v0.16.1
@@ -35,9 +35,9 @@ RUN make install
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
-ENV GOPATH     /go
-ENV SRC_PATH   /go/src/github.com/ipfs/ipfs-cluster
-ENV IPFS_CLUSTER_PATH /data/ipfs-cluster
+ENV GOPATH                 /go
+ENV SRC_PATH               /go/src/github.com/ipfs/ipfs-cluster
+ENV IPFS_CLUSTER_PATH      /data/ipfs-cluster
 ENV IPFS_CLUSTER_CONSENSUS crdt
 
 EXPOSE 9094
@@ -46,6 +46,7 @@ EXPOSE 9096
 
 COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
 COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
+COPY --from=builder $GOPATH/bin/ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow
 COPY --from=builder $SRC_PATH/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=builder /tmp/tini /sbin/tini
