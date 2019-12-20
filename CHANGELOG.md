@@ -1,5 +1,105 @@
 # IPFS Cluster Changelog
 
+
+### v0.12.0 - 2019-12-20
+
+IPFS Cluster v0.12.0 brings many useful features and makes it very easy to
+create and participate on collaborative clusters.
+
+The new `ipfs-cluster-follow` command provides a very simple way of joining
+one or several clusters as a follower (a peer without permissions to pin/unpin
+anything). `ipfs-cluster-follow` peers are initialize using a configuration
+"template" distributed over IPFS or HTTP, which is then optimized and secured.
+
+`ipfs-cluster-follow` is limited in scope and attempts to be very
+straightforward to use. `ipfs-cluster-service` continues to offer power users
+the full set of options to running peers of all kinds (followers or not).
+
+We have additionally added many new features: pin with an expiration date, the
+ability to trigger garbage collection on IPFS daemons, improvements on
+NAT-traversal and connectivity etc.
+
+Users planning to setup public collaborative clusters should upgrade to this
+release, which improves the user experience and comes with documentation on
+how to setup and join these clusters
+(https://cluster.ipfs.io/documentation/collaborative).
+
+
+#### List of changes
+
+##### Features
+
+* cluster: `--local` flag for add: adds only to the local peer instead of multiple destinations | [ipfs/ipfs-cluster#848](https://github.com/ipfs/ipfs-cluster/issues/848) | [ipfs/ipfs-cluster#907](https://github.com/ipfs/ipfs-cluster/issues/907)
+* cluster: `RecoverAll` operation can trigger recover operation in all peers.
+* ipfsproxy: log HTTP requests | [ipfs/ipfs-cluster#574](https://github.com/ipfs/ipfs-cluster/issues/574) | [ipfs/ipfs-cluster#915](https://github.com/ipfs/ipfs-cluster/issues/915)
+* api: `health/metrics` returns list of available metrics | [ipfs/ipfs-cluster#374](https://github.com/ipfs/ipfs-cluster/issues/374) | [ipfs/ipfs-cluster#924](https://github.com/ipfs/ipfs-cluster/issues/924)
+* service: `init --randomports` sets random, unused ports on initialization | [ipfs/ipfs-cluster#794](https://github.com/ipfs/ipfs-cluster/issues/794) | [ipfs/ipfs-cluster#926](https://github.com/ipfs/ipfs-cluster/issues/926)
+* cluster: support pin expiration | [ipfs/ipfs-cluster#481](https://github.com/ipfs/ipfs-cluster/issues/481) | [ipfs/ipfs-cluster#923](https://github.com/ipfs/ipfs-cluster/issues/923)
+* cluster: quic, autorelay, autonat, TLS handshake support | [ipfs/ipfs-cluster#614](https://github.com/ipfs/ipfs-cluster/issues/614) | [ipfs/ipfs-cluster#932](https://github.com/ipfs/ipfs-cluster/issues/932) | [ipfs/ipfs-cluster#973](https://github.com/ipfs/ipfs-cluster/issues/973) | [ipfs/ipfs-cluster#975](https://github.com/ipfs/ipfs-cluster/issues/975)
+* cluster: `health/graph` improvements | [ipfs/ipfs-cluster#800](https://github.com/ipfs/ipfs-cluster/issues/800) | [ipfs/ipfs-cluster#925](https://github.com/ipfs/ipfs-cluster/issues/925) | [ipfs/ipfs-cluster#954](https://github.com/ipfs/ipfs-cluster/issues/954)
+* cluster: `ipfs-cluster-ctl ipfs gc` triggers GC on cluster peers | [ipfs/ipfs-cluster#628](https://github.com/ipfs/ipfs-cluster/issues/628) | [ipfs/ipfs-cluster#777](https://github.com/ipfs/ipfs-cluster/issues/777) | [ipfs/ipfs-cluster#739](https://github.com/ipfs/ipfs-cluster/issues/739) | [ipfs/ipfs-cluster#945](https://github.com/ipfs/ipfs-cluster/issues/945) | [ipfs/ipfs-cluster#961](https://github.com/ipfs/ipfs-cluster/issues/961)
+* cluster: advertise external addresses as soon as known | [ipfs/ipfs-cluster#949](https://github.com/ipfs/ipfs-cluster/issues/949) | [ipfs/ipfs-cluster#950](https://github.com/ipfs/ipfs-cluster/issues/950)
+* cluster: skip contacting remote-allocations (peers) for recover/status operations | [ipfs/ipfs-cluster#935](https://github.com/ipfs/ipfs-cluster/issues/935) | [ipfs/ipfs-cluster#947](https://github.com/ipfs/ipfs-cluster/issues/947)
+* restapi: support listening on a unix socket | [ipfs/ipfs-cluster#969](https://github.com/ipfs/ipfs-cluster/issues/969)
+* config: support `peer_addresses` | [ipfs/ipfs-cluster#791](https://github.com/ipfs/ipfs-cluster/issues/791)
+* pintracker: remove `mappintracker`. Upgrade `stateless` for prime-time | [ipfs/ipfs-cluster#944](https://github.com/ipfs/ipfs-cluster/issues/944) | [ipfs/ipfs-cluster#929](https://github.com/ipfs/ipfs-cluster/issues/929)
+* service: `--loglevel` supports specifying levels for multiple components | [ipfs/ipfs-cluster#938](https://github.com/ipfs/ipfs-cluster/issues/938) | [ipfs/ipfs-cluster#960](https://github.com/ipfs/ipfs-cluster/issues/960)
+* ipfs-cluster-follow: a new CLI tool to run follower cluster peers | [ipfs/ipfs-cluster#976](https://github.com/ipfs/ipfs-cluster/issues/976)
+
+##### Bug fixes
+
+* restapi/client: Fix out of bounds error on load balanced client | [ipfs/ipfs-cluster#951](https://github.com/ipfs/ipfs-cluster/issues/951)
+* service: disable libp2p restapi on CRDT clusters | [ipfs/ipfs-cluster#968](https://github.com/ipfs/ipfs-cluster/issues/968)
+* observations: Fix pprof index links | [ipfs/ipfs-cluster#965](https://github.com/ipfs/ipfs-cluster/issues/965)
+
+##### Other changes
+
+* Spelling fix in changelog | [ipfs/ipfs-cluster#920](https://github.com/ipfs/ipfs-cluster/issues/920)
+* Tests: multiple fixes | [ipfs/ipfs-cluster#919](https://github.com/ipfs/ipfs-cluster/issues/919) | [ipfs/ipfs-cluster#943](https://github.com/ipfs/ipfs-cluster/issues/943) | [ipfs/ipfs-cluster#953](https://github.com/ipfs/ipfs-cluster/issues/953) | [ipfs/ipfs-cluster#956](https://github.com/ipfs/ipfs-cluster/issues/956)
+* Stateless tracker: increase default queue size | [ipfs/ipfs-cluster#377](https://github.com/ipfs/ipfs-cluster/issues/377) | [ipfs/ipfs-cluster#917](https://github.com/ipfs/ipfs-cluster/issues/917)
+* Upgrade to Go1.13 | [ipfs/ipfs-cluster#934](https://github.com/ipfs/ipfs-cluster/issues/934)
+* Dockerfiles: improvements | [ipfs/ipfs-cluster#946](https://github.com/ipfs/ipfs-cluster/issues/946)
+* cluster: support multiple informers on initialization | [ipfs/ipfs-cluster#940](https://github.com/ipfs/ipfs-cluster/issues/940) | 962
+* cmdutils: move some methods to cmdutils | [ipfs/ipfs-cluster#970](https://github.com/ipfs/ipfs-cluster/issues/970)
+
+
+#### Upgrading notices
+
+
+##### Configuration changes
+
+* `cluster` section:
+  * A new `peer_addresses` key allows specifying additional peer addresses in the configuration (similar to the `peerstore` file). These are treated as libp2p bootstrap addreses (do not mix with Raft bootstrap process). This setting is mostly useful for CRDT collaborative clusters, as template configurations can be distributed including bootstrap peers (usually the same as trusted peers). The values are the full multiaddress of these peers: `/ip4/x.x.x.x/tcp/1234/p2p/Qmxxx...`.
+  * `listen_multiaddress` can now be set to be an array providing multiple listen multiaddresses, the new defaults being `/tcp/9096` and `/udp/9096/quic`.
+  * `enable_relay_hop` (true by default), lets the cluster peer act as a relay for other cluster peers behind NATs. This is only for the Cluster network. As a reminder, while this setting is problematic on IPFS (due to the amount of traffic the HOP peers start relaying), the cluster-peers networks are smaller and do not move huge amounts of content around.
+  * The `ipfs_sync_interval` option dissappears as the stateless tracker does not keep a state that can lose synchronization with IPFS.
+* `ipfshttp` section:
+  * A new `repogc_timeout` key specifies the timeout for garbage collection operations on IPFS. It is set to 24h by default.
+
+
+##### REST API
+
+The `pin/add` and `add` endpoints support two new query parameters to indicate pin expirations: `expire-at` (with an expected value in RFC3339 format) and `expire-in` (with an expected value in Go's time format, i.e. `12h`). `expire-at` has preference.
+
+A new `/ipfs/gc` endpoint has been added to trigger GC in the IPFS daemons attached to Cluster peers. It supports the `local` parameter to limit the operation to the local peer.
+
+
+##### Go APIs
+
+There are few changes to Go APIs. The `RepoGC` and `RepoGCLocal` methods have been added, the `mappintracker` module has been removed and the `stateless` module has changed the signature of the constructor.
+
+##### Other
+
+The IPFS Proxy now intercepts the `/repo/gc` endpoint and triggers a cluster-wide GC operation.
+
+The `ipfs-cluster-follow` application is an easy to use way to run one or several cluster peers in follower mode using remote configuration templates. It is fully independent from `ipfs-cluster-service` and `ipfs-cluster-ctl` and acts as both a peer (`run` subcommand) and a client (`list` subcommand). The purpose is to facilitate IPFS Cluster usage without having to deal with the configuration and flags etc.
+
+That said, the configuration layout and folder is the same for both `ipfs-cluster-service` and `ipfs-cluster-follow` and they can be run one in place of the other. In the same way, remote-source configurations usually used for `ipfs-cluster-follow` can be replaced with local ones usually used by `ipfs-cluster-service`.
+
+The removal of the `map pintracker` has resulted in a simplification of some operations. `StateSync` (regularly run every `state_sync_interval`) does not trigger repinnings now, but only checks for pin expirations. `RecoverAllLocal` (reguarly run every `pin_recover_interval`) will now trigger repinnings when necessary (i.e. when things that were expected to be on IPFS are not). On very large pinsets, this operation can trigger a memory spike as the full recursive pinset from IPFS is requested and loaded on memory (before this happened on `StateSync`).
+
+---
+
 ### v0.11.0 - 2019-09-13
 
 #### Summary
