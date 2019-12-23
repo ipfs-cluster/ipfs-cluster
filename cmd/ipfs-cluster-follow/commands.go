@@ -289,6 +289,9 @@ func runCmd(c *cli.Context) error {
 
 	// Always run followers in follower mode.
 	cfgs.Cluster.FollowerMode = true
+	// Do not let trusted peers GC this peer
+	// Defaults to Trusted otherwise.
+	cfgs.Cluster.RPCPolicy["Cluster.RepoGCLocal"] = ipfscluster.RPCClosed
 
 	// Discard API configurations and create our own
 	apiCfg := rest.Config{}
