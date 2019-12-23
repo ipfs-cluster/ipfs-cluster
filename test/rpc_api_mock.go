@@ -349,6 +349,17 @@ func (mock *mockCluster) SendInformerMetric(ctx context.Context, in struct{}, ou
 	return nil
 }
 
+func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *map[string]api.Alert) error {
+	*out = map[string]api.Alert{
+		peer.IDB58Encode(PeerID2): api.Alert{
+			Peer:       PeerID2,
+			MetricName: "ping",
+			Expiry:     time.Now().Add(30 * time.Second).UnixNano(),
+		},
+	}
+	return nil
+}
+
 /* Tracker methods */
 
 func (mock *mockPinTracker) Track(ctx context.Context, in *api.Pin, out *struct{}) error {

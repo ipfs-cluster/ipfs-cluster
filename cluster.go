@@ -397,14 +397,14 @@ func (c *Cluster) Alerts() map[string]api.Alert {
 	alerts := make(map[string]api.Alert)
 
 	c.alertsMux.Lock()
-	defer c.alertsMux.Unlock()
-	for i, alert := range c.alerts {
-		if time.Now().Before(time.Unix(0, alert.Expiry)) {
-			alerts[i] = alert
-		} else {
-			delete(c.alerts, i)
+	{
+		for i, alert := range c.alerts {
+			if time.Now().Before(time.Unix(0, alert.Expiry)) {
+				alerts[i] = alert
+			}
 		}
 	}
+	c.alertsMux.Unlock()
 
 	return alerts
 }
@@ -418,6 +418,11 @@ func (c *Cluster) alertsHandler() {
 		case alrt := <-c.monitor.Alerts():
 			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
 			c.alertsMux.Lock()
+			for pID, alert := range c.alerts {
+				if time.Now().After(time.Unix(0, alert.Expiry)) {
+					delete(c.alerts, pID)
+				}
+			}
 			c.alerts[peer.IDB58Encode(alrt.Peer)] = *alrt
 			c.alertsMux.Unlock()
 

@@ -276,7 +276,7 @@ func (c *defaultClient) RecoverAll(ctx context.Context, local bool) ([]*api.Glob
 
 // Alerts returns things that are wrong with cluster.
 func (c *defaultClient) Alerts(ctx context.Context) (map[string]api.Alert, error) {
-	ctx, span := trace.StartSpan(ctx, "client/RecoverAll")
+	ctx, span := trace.StartSpan(ctx, "client/Alert")
 	defer span.End()
 
 	var alerts map[string]api.Alert
