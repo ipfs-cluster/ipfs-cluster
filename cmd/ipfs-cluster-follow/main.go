@@ -248,6 +248,13 @@ The peer will stay running in the foreground until manually stopped.
 						Name:  "init",
 						Usage: "initialize cluster peer with the given URL before running",
 					},
+					&cli.StringFlag{
+						Name:    "gateway",
+						Value:   DefaultGateway,
+						Usage:   "gateway URL",
+						EnvVars: []string{"IPFS_GATEWAY"},
+						Hidden:  true,
+					},
 				},
 			},
 			{
