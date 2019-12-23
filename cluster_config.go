@@ -28,8 +28,8 @@ var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/909
 // Configuration defaults
 const (
 	DefaultEnableRelayHop      = true
-	DefaultStateSyncInterval   = 600 * time.Second
-	DefaultPinRecoverInterval  = 1 * time.Hour
+	DefaultStateSyncInterval   = 5 * time.Minute
+	DefaultPinRecoverInterval  = 12 * time.Minute
 	DefaultMonitorPingInterval = 15 * time.Second
 	DefaultPeerWatchInterval   = 5 * time.Second
 	DefaultReplicationFactor   = -1
@@ -497,6 +497,7 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.MDNSInterval = cfg.MDNSInterval.String()
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
+	jcfg.PeerAddresses = []string{}
 	for _, addr := range cfg.PeerAddresses {
 		jcfg.PeerAddresses = append(jcfg.PeerAddresses, addr.String())
 	}

@@ -21,7 +21,7 @@ const tracingEnvConfigKey = "cluster_tracing"
 // Default values for this Config.
 const (
 	DefaultEnableStats        = false
-	DefaultPrometheusEndpoint = "/ip4/0.0.0.0/tcp/8888"
+	DefaultPrometheusEndpoint = "/ip4/127.0.0.1/tcp/8888"
 	DefaultReportingInterval  = 2 * time.Second
 
 	DefaultEnableTracing       = false

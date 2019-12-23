@@ -1,6 +1,8 @@
 package ipfscluster
 
-import logging "github.com/ipfs/go-log"
+import (
+	logging "github.com/ipfs/go-log"
+)
 
 var logger = logging.Logger("cluster")
 

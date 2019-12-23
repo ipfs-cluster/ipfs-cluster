@@ -4,24 +4,24 @@
 [![Made by](https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square)](https://protocol.ai)
 [![Main project](https://img.shields.io/badge/project-ipfs-blue.svg?style=flat-square)](http://github.com/ipfs/ipfs)
 [![IRC channel](https://img.shields.io/badge/freenode-%23ipfs--cluster-blue.svg?style=flat-square)](http://webchat.freenode.net/?channels=%23ipfs-cluster)
-[![standard-readme compliant](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 [![GoDoc](https://godoc.org/github.com/ipfs/ipfs-cluster?status.svg)](https://godoc.org/github.com/ipfs/ipfs-cluster)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ipfs/ipfs-cluster)](https://goreportcard.com/report/github.com/ipfs/ipfs-cluster)
 [![Build Status](https://travis-ci.com/ipfs/ipfs-cluster.svg?branch=master)](https://travis-ci.com/ipfs/ipfs-cluster)
 [![codecov](https://codecov.io/gh/ipfs/ipfs-cluster/branch/master/graph/badge.svg)](https://codecov.io/gh/ipfs/ipfs-cluster)
 
-> Pinset orchestration for IPFS.
+> Automated data availability and redundancy on IPFS
 
 <p align="center">
 <img src="https://cluster.ipfs.io/cluster/png/IPFS_Cluster_color_no_text.png" alt="logo" width="300" height="300" />
 </p>
 
-IPFS Cluster is a stand-alone application and a CLI client that allocates, replicates, and tracks pins across a cluster of IPFS daemons.
+IPFS Cluster provides data orchestration across a swarm of IPFS daemons by allocating, replicating and tracking a global pinset distributed among multiple peers.
 
 It provides:
 
 * A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs`.
 * A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
+* An additional "follower" peer application: `ipfs-cluster-follow`, focused on simplifying the process of configuring and running follower peers.
 
 ---
 
@@ -59,17 +59,16 @@ Instructions for different installation methods (including from source) are avai
 
 Extensive usage information is provided at https://cluster.ipfs.io/documentation/ , including:
 
-* [Docs for `ipfs-cluster-service`](https://cluster.ipfs.io/documentation/ipfs-cluster-service/)
-* [Docs for `ipfs-cluster-ctl`](https://cluster.ipfs.io/documentation/ipfs-cluster-ctl/)
+* [Docs for `ipfs-cluster-service`](https://cluster.ipfs.io/documentation/reference/service/)
+* [Docs for `ipfs-cluster-ctl`](https://cluster.ipfs.io/documentation/reference/ctl/)
+* [Docs for `ipfs-cluster-follow`](https://cluster.ipfs.io/documentation/reference/follow/)
 
 ## Contribute
 
-PRs accepted. As part of the IPFS project, we have some [contribution guidelines](https://cluster.ipfs.io/developer/contribute).
-
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+PRs accepted. As part of the IPFS project, we have some [contribution guidelines](https://cluster.ipfs.io/support/#contribution-guidelines).
 
 ## License
 
 This library is dual-licensed under Apache 2.0 and MIT terms.
 
-© 2019. Protocol Labs, Inc.
+© 2020. Protocol Labs, Inc.

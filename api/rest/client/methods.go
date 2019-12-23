@@ -482,15 +482,15 @@ func statusReached(target api.TrackerStatus, gblPinInfo *api.GlobalPinInfo) (boo
 }
 
 // logic drawn from go-ipfs-cmds/cli/parse.go: appendFile
-func makeSerialFile(fpath string, params *api.AddParams) (files.Node, error) {
+func makeSerialFile(fpath string, params *api.AddParams) (string, files.Node, error) {
 	if fpath == "." {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
 		cwd, err = filepath.EvalSymlinks(cwd)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
 		fpath = cwd
 	}
@@ -499,16 +499,17 @@ func makeSerialFile(fpath string, params *api.AddParams) (files.Node, error) {
 
 	stat, err := os.Lstat(fpath)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	if stat.IsDir() {
 		if !params.Recursive {
-			return nil, fmt.Errorf("%s is a directory, but Recursive option is not set", fpath)
+			return "", nil, fmt.Errorf("%s is a directory, but Recursive option is not set", fpath)
 		}
 	}
 
-	return files.NewSerialFile(fpath, params.Hidden, stat)
+	sf, err := files.NewSerialFile(fpath, params.Hidden, stat)
+	return path.Base(fpath), sf, err
 }
 
 // Add imports files to the cluster from the given paths. A path can
@@ -534,7 +535,7 @@ func (c *defaultClient) Add(
 			close(out)
 			return fmt.Errorf("error parsing path: %s", err)
 		}
-		name := path.Base(p)
+		var name string
 		var addFile files.Node
 		if strings.HasPrefix(u.Scheme, "http") {
 			addFile = files.NewWebFile(u)
@@ -544,7 +545,7 @@ func (c *defaultClient) Add(
 				close(out)
 				return fmt.Errorf("nocopy option is only valid for URLs")
 			}
-			addFile, err = makeSerialFile(p, params)
+			name, addFile, err = makeSerialFile(p, params)
 			if err != nil {
 				close(out)
 				return err

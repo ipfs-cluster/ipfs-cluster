@@ -360,7 +360,7 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 	cfg.Source = url
 	resp, err := http.Get(url)
 	if err != nil {
-		return errFetchingSource
+		return fmt.Errorf("%w: %s", errFetchingSource, url)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)

@@ -443,10 +443,18 @@ func (mock *mockPeerMonitor) MetricNames(ctx context.Context, in struct{}, out *
 /* IPFSConnector methods */
 
 func (mock *mockIPFSConnector) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	switch in.Cid {
+	case SlowCid1:
+		time.Sleep(2 * time.Second)
+	}
 	return nil
 }
 
 func (mock *mockIPFSConnector) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+	switch in.Cid {
+	case SlowCid1:
+		time.Sleep(2 * time.Second)
+	}
 	return nil
 }
 
