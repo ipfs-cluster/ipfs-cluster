@@ -1,5 +1,18 @@
 # IPFS Cluster Changelog
 
+### v0.12.1 - 2019-12-24
+
+IPFS Cluster v0.12.1 is a maintenance release fixing issues on `ipfs-cluster-follow`.
+
+#### List of changes
+
+##### Bug fixes
+
+* follow: the `info` command panics when ipfs is offline | @991 | @993
+* follow: the gateway url is not set on Run&Init command | @992 | @993
+* follow: disallow trusted peers for RepoGCLocal operation | @993
+
+---
 
 ### v0.12.0 - 2019-12-20
 
