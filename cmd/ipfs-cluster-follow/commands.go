@@ -118,9 +118,12 @@ func infoCmd(c *cli.Context) error {
 	if err != nil {
 		if config.IsErrFetchingSource(err) {
 			url = fmt.Sprintf(
-				"failed retrieving configuration source: %s",
+				"failed retrieving configuration source (%s)",
 				cfgHelper.Manager().Source,
 			)
+			ipfsCfg := ipfshttp.Config{}
+			ipfsCfg.Default()
+			cfgHelper.Configs().Ipfshttp = &ipfsCfg
 		} else {
 			return cli.Exit(errors.Wrapf(err, "reading the configurations in %s", absPath), 1)
 		}
