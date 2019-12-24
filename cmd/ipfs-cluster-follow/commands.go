@@ -118,9 +118,12 @@ func infoCmd(c *cli.Context) error {
 	if err != nil {
 		if config.IsErrFetchingSource(err) {
 			url = fmt.Sprintf(
-				"failed retrieving configuration source: %s",
+				"failed retrieving configuration source (%s)",
 				cfgHelper.Manager().Source,
 			)
+			ipfsCfg := ipfshttp.Config{}
+			ipfsCfg.Default()
+			cfgHelper.Configs().Ipfshttp = &ipfsCfg
 		} else {
 			return cli.Exit(errors.Wrapf(err, "reading the configurations in %s", absPath), 1)
 		}
@@ -286,6 +289,9 @@ func runCmd(c *cli.Context) error {
 
 	// Always run followers in follower mode.
 	cfgs.Cluster.FollowerMode = true
+	// Do not let trusted peers GC this peer
+	// Defaults to Trusted otherwise.
+	cfgs.Cluster.RPCPolicy["Cluster.RepoGCLocal"] = ipfscluster.RPCClosed
 
 	// Discard API configurations and create our own
 	apiCfg := rest.Config{}
