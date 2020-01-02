@@ -2,6 +2,7 @@ package adder
 
 import (
 	"archive/tar"
+	"errors"
 	"io"
 	"sort"
 	"strings"
@@ -9,7 +10,9 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 )
 
-func tarToSliceDirectory(tr *tar.Reader) (files.Directory, error) {
+// tarToSliceDirectory returns a slice directory, a bool indicating whether
+// contents inside tar needs to be wrapped in a directory and error given a tar reader.
+func tarToSliceDirectory(tr *tar.Reader) (files.Directory, bool, error) {
 	// dirEntries contains our final directory entries
 	dirEntries := []files.DirEntry{}
 
@@ -26,7 +29,7 @@ func tarToSliceDirectory(tr *tar.Reader) (files.Directory, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		path := strings.TrimSuffix(header.Name, "/")
 		splits := strings.Split(path, "/")
@@ -34,7 +37,7 @@ func tarToSliceDirectory(tr *tar.Reader) (files.Directory, error) {
 			b := make([]byte, header.Size)
 			_, err := tr.Read(b)
 			if err != nil && err != io.EOF {
-				return nil, err
+				return nil, false, err
 			}
 			f := files.NewBytesFile(b)
 
@@ -56,6 +59,10 @@ func tarToSliceDirectory(tr *tar.Reader) (files.Directory, error) {
 		} else {
 			// no data to read in case of directory, just add it to directory list
 			dirList = append(dirList, path)
+			_, ok := fileMap[path]
+			if !ok {
+				fileMap[path] = []files.DirEntry{}
+			}
 		}
 	}
 
@@ -71,7 +78,8 @@ func tarToSliceDirectory(tr *tar.Reader) (files.Directory, error) {
 
 		entries, ok := fileMap[v]
 		if !ok {
-			entries = []files.DirEntry{}
+			// safety check: this should never happen
+			return nil, false, errors.New("internal: dir was not added to map")
 		}
 		dir := files.NewSliceDirectory(entries)
 
@@ -92,7 +100,7 @@ func tarToSliceDirectory(tr *tar.Reader) (files.Directory, error) {
 	}
 
 	// add all entries in the file map to dirEntries
-	return files.NewSliceDirectory(dirEntries), nil
+	return files.NewSliceDirectory(dirEntries), len(dirEntries) > 1, nil
 }
 
 func getName(path string) string {

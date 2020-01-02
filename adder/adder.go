@@ -85,9 +85,9 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid
 
 	var f files.Directory
 	var err error
+	var wrap bool
+
 	if a.params.Untar {
-		// TODO: If tar contains individual files instead of files wrapped in dir,
-		// pin those individual files. (currently it doesn't pin)
 		pipeReader, pipeWriter := io.Pipe()
 
 		go func() {
@@ -120,7 +120,11 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid
 		}()
 
 		tr := tar.NewReader(pipeReader)
-		f, err = tarToSliceDirectory(tr)
+		f, wrap, err = tarToSliceDirectory(tr)
+		if wrap && !a.params.Wrap {
+			logger.Warning("overwriting wrap parameter to true")
+			a.params.Wrap = wrap
+		}
 	} else {
 		f, err = files.NewFileFromPartReader(r, "multipart/form-data")
 	}
