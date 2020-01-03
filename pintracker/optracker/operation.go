@@ -188,7 +188,7 @@ func (op *Operation) SetError(err error) {
 }
 
 func (op *Operation) recordStatuses(prevStatus api.TrackerStatus, newStatus api.TrackerStatus) {
-	if !prevStatus.Match(newStatus) {
+	if prevStatus != newStatus {
 		stats.Record(op.ctx, observations.GetMeasureFromStatus(prevStatus).M(-1))
 		stats.Record(op.ctx, observations.GetMeasureFromStatus(newStatus).M(1))
 	}

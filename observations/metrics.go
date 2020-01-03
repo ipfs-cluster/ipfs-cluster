@@ -87,25 +87,25 @@ func GetMeasureFromStatus(ts api.TrackerStatus) *stats.Int64Measure {
 
 // views, which is just the aggregation of the metrics
 var (
-	PinsView = &view.View{
+	PinsView = view.View{
 		Measure:     Pins,
 		TagKeys:     []tag.Key{HostKey},
 		Aggregation: view.LastValue(),
 	}
 
-	TrackerPinsView = &view.View{
+	TrackerPinsView = view.View{
 		Measure:     TrackerPins,
 		TagKeys:     []tag.Key{HostKey},
 		Aggregation: view.LastValue(),
 	}
 
-	PeersView = &view.View{
+	PeersView = view.View{
 		Measure:     Peers,
 		TagKeys:     []tag.Key{HostKey},
 		Aggregation: view.LastValue(),
 	}
 
-	AlertsView = &view.View{
+	AlertsView = view.View{
 		Measure:     Alerts,
 		TagKeys:     []tag.Key{HostKey, RemotePeerKey},
 		Aggregation: messageCountDistribution,
@@ -178,10 +178,10 @@ var (
 	}
 
 	DefaultViews = []*view.View{
-		PinsView,
-		TrackerPinsView,
-		PeersView,
-		AlertsView,
+		&PinsView,
+		&TrackerPinsView,
+		&PeersView,
+		&AlertsView,
 		&StatusClusterErrorView,
 		&StatusPinErrorView,
 		&StatusUnpinErrorView,
