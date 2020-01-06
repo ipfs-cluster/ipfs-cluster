@@ -39,6 +39,7 @@ EXPOSE 9096
 
 COPY --from=builder $GOPATH/bin/ipfs-cluster-service /usr/local/bin/ipfs-cluster-service
 COPY --from=builder $GOPATH/bin/ipfs-cluster-ctl /usr/local/bin/ipfs-cluster-ctl
+COPY --from=builder $GOPATH/bin/ipfs-cluster-follow /usr/local/bin/ipfs-cluster-follow
 COPY --from=builder $SRC_PATH/docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
 COPY --from=builder $SRC_PATH/docker/random-stopper.sh /usr/local/bin/random-stopper.sh
 COPY --from=builder $SRC_PATH/docker/random-killer.sh /usr/local/bin/random-killer.sh

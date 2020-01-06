@@ -19,41 +19,41 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
     docker cp smallfile.bin ipfs:/tmp/smallfile.bin
     docker cp testFolder ipfs:/tmp/testFolder
 
-    ipfs-cluster-ctl add --quiet smallfile.bin > cidscluster.txt
-    ipfs-cluster-ctl add --quiet -w smallfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  smallfile.bin > cidscluster.txt
+    ipfs-cluster-ctl add  -w smallfile.bin >> cidscluster.txt
 
-    ipfs-cluster-ctl add --quiet --raw-leaves -w smallfile.bin >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet --raw-leaves smallfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  --raw-leaves -w smallfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  --raw-leaves smallfile.bin >> cidscluster.txt
 
-    ipfs-cluster-ctl add --quiet bigfile.bin >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet --layout trickle bigfile.bin >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet -w bigfile.bin >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet --raw-leaves -w bigfile.bin >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet --raw-leaves bigfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  bigfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  --layout trickle bigfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  -w bigfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  --raw-leaves -w bigfile.bin >> cidscluster.txt
+    ipfs-cluster-ctl add  --raw-leaves bigfile.bin >> cidscluster.txt
 
-    ipfs-cluster-ctl add --quiet -r testFolder >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet -r -w testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add -r testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add -r -w testFolder >> cidscluster.txt
 
-    ipfs-cluster-ctl add --quiet --cid-version 1 -r testFolder >> cidscluster.txt
-    ipfs-cluster-ctl add --quiet --hash sha3-512 -r testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add --cid-version 1 -r testFolder >> cidscluster.txt
+    ipfs-cluster-ctl add --hash sha3-512 -r testFolder >> cidscluster.txt
 
-    ipfsCmd add --quiet /tmp/smallfile.bin > cidsipfs.txt
-    ipfsCmd add --quiet -w /tmp/smallfile.bin >> cidsipfs.txt
+    ipfsCmd add  /tmp/smallfile.bin > cidsipfs.txt
+    ipfsCmd add  -w /tmp/smallfile.bin >> cidsipfs.txt
     
-    ipfsCmd add --quiet --raw-leaves -w /tmp/smallfile.bin >> cidsipfs.txt
-    ipfsCmd add --quiet --raw-leaves  /tmp/smallfile.bin >> cidsipfs.txt
+    ipfsCmd add  --raw-leaves -w /tmp/smallfile.bin >> cidsipfs.txt
+    ipfsCmd add  --raw-leaves  /tmp/smallfile.bin >> cidsipfs.txt
 
-    ipfsCmd add --quiet /tmp/bigfile.bin >> cidsipfs.txt
-    ipfsCmd add --quiet --trickle /tmp/bigfile.bin  >> cidsipfs.txt
-    ipfsCmd add --quiet -w /tmp/bigfile.bin >> cidsipfs.txt
-    ipfsCmd add --quiet --raw-leaves -w /tmp/bigfile.bin >> cidsipfs.txt
-    ipfsCmd add --quiet --raw-leaves /tmp/bigfile.bin >> cidsipfs.txt
+    ipfsCmd add  /tmp/bigfile.bin >> cidsipfs.txt
+    ipfsCmd add  --trickle /tmp/bigfile.bin  >> cidsipfs.txt
+    ipfsCmd add  -w /tmp/bigfile.bin >> cidsipfs.txt
+    ipfsCmd add  --raw-leaves -w /tmp/bigfile.bin >> cidsipfs.txt
+    ipfsCmd add  --raw-leaves /tmp/bigfile.bin >> cidsipfs.txt
 
-    ipfsCmd add --quiet -r /tmp/testFolder >> cidsipfs.txt
-    ipfsCmd add --quiet -r -w /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add  -r /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add  -r -w /tmp/testFolder >> cidsipfs.txt
 
-    ipfsCmd add --quiet --cid-version 1 -r /tmp/testFolder >> cidsipfs.txt
-    ipfsCmd add --quiet --hash sha3-512 -r /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add  --cid-version 1 -r /tmp/testFolder >> cidsipfs.txt
+    ipfsCmd add  --hash sha3-512 -r /tmp/testFolder >> cidsipfs.txt
 
     test_cmp cidscluster.txt cidsipfs.txt
 '

@@ -395,6 +395,12 @@ func (c *Cluster) alertsHandler() {
 		case <-c.ctx.Done():
 			return
 		case alrt := <-c.monitor.Alerts():
+			// Follower peers do not care about alerts.
+			// They can do nothing about them.
+			if c.config.FollowerMode {
+				continue
+			}
+
 			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
 			if alrt.MetricName != pingMetricName {
 				continue // only handle ping alerts
@@ -614,10 +620,10 @@ This might be due to one or several causes:
 		c.Shutdown(ctx)
 		return
 	case <-c.consensus.Ready(ctx):
-		// Consensus ready means the state is up to date so we can sync
-		// it to the tracker. We ignore errors (normal when state
-		// doesn't exist in new peers).
-		c.StateSync(ctx)
+		// Consensus ready means the state is up to date. Every item
+		// in the state that is not pinned will appear as PinError so
+		// we can proceed to recover all of those in the tracker.
+		c.RecoverAllLocal(ctx)
 	case <-c.ctx.Done():
 		return
 	}
@@ -655,7 +661,15 @@ func (c *Cluster) Ready() <-chan struct{} {
 	return c.readyCh
 }
 
-// Shutdown stops the IPFS cluster components
+// Shutdown performs all the necessary operations to shutdown
+// the IPFS Cluster peer:
+// * Save peerstore with the current peers
+// * Remove itself from consensus when LeaveOnShutdown is set
+// * It Shutdowns all the components
+// * Closes the datastore
+// * Collects all goroutines
+//
+// Shutdown does not closes the libp2p host or the DHT.
 func (c *Cluster) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/Shutdown")
 	defer span.End()
@@ -737,6 +751,13 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	if err := c.tracker.Shutdown(ctx); err != nil {
 		logger.Errorf("error stopping PinTracker: %s", err)
 		return err
+	}
+
+	for _, inf := range c.informers {
+		if err := inf.Shutdown(ctx); err != nil {
+			logger.Errorf("error stopping informer: %s", err)
+			return err
+		}
 	}
 
 	if err := c.tracer.Shutdown(ctx); err != nil {
@@ -966,7 +987,8 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 		return err
 	}
 
-	c.StateSync(ctx)
+	// Start pinning items in the state that are not on IPFS yet.
+	c.RecoverAllLocal(ctx)
 
 	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
 	return nil
@@ -1092,7 +1114,7 @@ func (c *Cluster) localPinInfoOp(
 
 }
 
-// RecoverAll triggers a RecoverAllLocal operation on all peer.
+// RecoverAll triggers a RecoverAllLocal operation on all peers.
 func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAll")
 	defer span.End()
@@ -1107,6 +1129,8 @@ func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) 
 // Recover operations ask IPFS to pin or unpin items in error state. Recover
 // is faster than calling Pin on the same CID as it avoids committing an
 // identical pin to the consensus layer.
+//
+// RecoverAllLocal is called automatically every PinRecoverInterval.
 func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
 	defer span.End()
@@ -1352,7 +1376,9 @@ func (c *Cluster) pin(
 	// Usually allocations are unset when pinning normally, however, the
 	// allocations may have been preset by the adder in which case they
 	// need to be respected. Whenever allocations are set. We don't
-	// re-allocate.
+	// re-allocate. repinFromPeer() unsets allocations for this reason.
+	// allocate() will check which peers are currently allocated
+	// and try to respect them.
 	if len(pin.Allocations) == 0 {
 		allocs, err := c.allocate(
 			ctx,
