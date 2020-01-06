@@ -10,9 +10,9 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 )
 
-// tarToSliceDirectory returns a slice directory, a bool indicating whether
+// tarToDirectory returns a slice directory, a bool indicating whether
 // contents inside tar needs to be wrapped in a directory and error given a tar reader.
-func tarToSliceDirectory(tr *tar.Reader) (files.Directory, bool, error) {
+func tarToDirectory(tr *tar.Reader) (files.Directory, bool, error) {
 	// dirEntries contains our final directory entries
 	dirEntries := []files.DirEntry{}
 

@@ -124,7 +124,7 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid
 		}()
 
 		tr := tar.NewReader(pipeReader)
-		f, wrap, err = tarToSliceDirectory(tr)
+		f, wrap, err = tarToDirectory(tr)
 		if wrap && !a.params.Wrap {
 			logger.Warning("overwriting wrap parameter to true")
 			a.params.Wrap = wrap

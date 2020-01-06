@@ -34,7 +34,6 @@ var liveCacheSize = uint64(256 << 10)
 // NewAdder Returns a new Adder used for a file add operation.
 func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
 	// Cluster: we don't use pinner nor GCLocker.
-
 	return &Adder{
 		ctx:        ctx,
 		dagService: ds,
