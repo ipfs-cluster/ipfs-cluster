@@ -6,9 +6,11 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
+	"strings"
 
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -17,6 +19,8 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
+	merkledag "github.com/ipfs/go-merkledag"
+	multihash "github.com/multiformats/go-multihash"
 )
 
 var logger = logging.Logger("adder")
@@ -149,13 +153,32 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	defer a.cancel()
 	defer close(a.output)
 
-	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dgs, a.params)
+	ipfsAdder, err := ipfsadd.NewAdder(a.ctx, a.dgs)
 	if err != nil {
 		logger.Error(err)
 		return cid.Undef, err
 	}
 
+	ipfsAdder.Trickle = a.params.Layout == "trickle"
+	ipfsAdder.RawLeaves = a.params.RawLeaves
+	ipfsAdder.Chunker = a.params.Chunker
 	ipfsAdder.Out = a.output
+	ipfsAdder.Progress = a.params.Progress
+	ipfsAdder.NoCopy = a.params.NoCopy
+
+	// Set up prefix
+	prefix, err := merkledag.PrefixForCidVersion(a.params.CidVersion)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("bad CID Version: %s", err)
+	}
+
+	hashFunCode, ok := multihash.Names[strings.ToLower(a.params.HashFun)]
+	if !ok {
+		return cid.Undef, fmt.Errorf("unrecognized hash function: %s", a.params.HashFun)
+	}
+	prefix.MhType = hashFunCode
+	prefix.MhLength = -1
+	ipfsAdder.CidBuilder = &prefix
 
 	// setup wrapping
 	if a.params.Wrap {
