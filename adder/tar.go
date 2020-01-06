@@ -33,6 +33,9 @@ func tarToSliceDirectory(tr *tar.Reader) (files.Directory, bool, error) {
 		}
 		path := strings.TrimSuffix(header.Name, "/")
 		splits := strings.Split(path, "/")
+		if hidden(splits) {
+			continue
+		}
 		if !header.FileInfo().IsDir() {
 			b := make([]byte, header.Size)
 			_, err := tr.Read(b)
@@ -114,6 +117,15 @@ func getParent(path string) string {
 		return ""
 	}
 	return strings.TrimSuffix(path, "/"+splits[len(splits)-1])
+}
+
+func hidden(splits []string) bool {
+	for _, v := range splits {
+		if strings.HasPrefix(v, ".") {
+			return true
+		}
+	}
+	return false
 }
 
 type byDepth []string
