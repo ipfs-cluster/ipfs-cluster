@@ -1,6 +1,6 @@
 ---
 name: Ask a question
-about: We prefer to answer quetsions at https://discuss.ipfs.io/ !
+about: We prefer to answer questions at https://discuss.ipfs.io/ !
 title: ''
 labels: needs review, question
 assignees: ''
