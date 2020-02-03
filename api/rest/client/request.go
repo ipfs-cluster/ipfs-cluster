@@ -101,7 +101,7 @@ func (c *defaultClient) handleResponse(resp *http.Response, obj interface{}) err
 	case resp.StatusCode == http.StatusAccepted:
 		logger.Debug("Request accepted")
 	case resp.StatusCode == http.StatusNoContent:
-		logger.Debug("Request suceeded. Response has no content")
+		logger.Debug("Request succeeded. Response has no content")
 	default:
 		if resp.StatusCode > 399 && resp.StatusCode < 600 {
 			var apiErr api.Error

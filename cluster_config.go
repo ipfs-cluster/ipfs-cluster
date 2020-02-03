@@ -133,7 +133,7 @@ type Config struct {
 
 	// If true, DisableRepinning, ensures that no repinning happens
 	// when a node goes down.
-	// This is useful when doing certain types of maintainance, or simply
+	// This is useful when doing certain types of maintenance, or simply
 	// when not wanting to rely on the monitoring system which needs a revamp.
 	DisableRepinning bool
 
@@ -361,7 +361,7 @@ func (cfg *Config) setDefaults() {
 	cfg.MDNSInterval = DefaultMDNSInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.FollowerMode = DefaultFollowerMode
-	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.PeerstoreFile = "" // empty so it gets omitted.
 	cfg.PeerAddresses = []ma.Multiaddr{}
 	cfg.RPCPolicy = DefaultRPCPolicy
 }

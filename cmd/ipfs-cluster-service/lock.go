@@ -17,7 +17,7 @@ const lockFileName = "cluster.lock"
 
 var locker *lock
 
-// lock helps to coordinate procees via a lock file
+// lock helps to coordinate proceeds via a lock file
 type lock struct {
 	lockCloser io.Closer
 	path       string

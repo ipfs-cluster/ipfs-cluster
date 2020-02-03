@@ -340,7 +340,7 @@ func (c *defaultClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepo
 }
 
 // WaitFor is a utility function that allows for a caller to wait for a
-// paticular status for a CID (as defined by StatusFilterParams).
+// particular status for a CID (as defined by StatusFilterParams).
 // It returns the final status for that CID and an error, if there was.
 //
 // WaitFor works by calling Status() repeatedly and checking that all

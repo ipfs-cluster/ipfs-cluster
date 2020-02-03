@@ -51,7 +51,7 @@ func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
 		rpcutil.RPCDiscardReplies(len(ba.dests)),
 	)
 
-	var sucessfulDests []peer.ID
+	var successfulDests []peer.ID
 	for i, e := range errs {
 		if e != nil {
 			logger.Errorf("BlockPut on %s: %s", ba.dests[i], e)
@@ -64,14 +64,14 @@ func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
 		if rpc.IsRPCError(e) {
 			continue
 		}
-		sucessfulDests = append(sucessfulDests, ba.dests[i])
+		successfulDests = append(successfulDests, ba.dests[i])
 	}
 
-	if len(sucessfulDests) == 0 {
+	if len(successfulDests) == 0 {
 		return ErrBlockAdder
 	}
 
-	ba.dests = sucessfulDests
+	ba.dests = successfulDests
 	return nil
 }
 

@@ -61,7 +61,7 @@ type Adder struct {
 	liveNodes  uint64
 	lastFile   mfs.FSNode
 	// Cluster: ipfs does a hack in commands/add.go to set the filenames
-	// in emmited events correctly. We carry a root folder name (or a
+	// in emitted events correctly. We carry a root folder name (or a
 	// filename in the case of single files here and emit those events
 	// correctly from the beginning).
 	OutputPrefix string
