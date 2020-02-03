@@ -153,7 +153,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		// followed suit, it no longer receives the name of the
 		// file/folder being added and does not emit AddedOutput
 		// events with the right names. We addressed this by adding
-		// OutputPrefix to our version. go-ipfs modifies emmited
+		// OutputPrefix to our version. go-ipfs modifies emitted
 		// events before sending to user).
 		ipfsAdder.OutputPrefix = it.Name()
 

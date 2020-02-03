@@ -109,7 +109,7 @@ The `ipfs-cluster-follow` application is an easy to use way to run one or severa
 
 That said, the configuration layout and folder is the same for both `ipfs-cluster-service` and `ipfs-cluster-follow` and they can be run one in place of the other. In the same way, remote-source configurations usually used for `ipfs-cluster-follow` can be replaced with local ones usually used by `ipfs-cluster-service`.
 
-The removal of the `map pintracker` has resulted in a simplification of some operations. `StateSync` (regularly run every `state_sync_interval`) does not trigger repinnings now, but only checks for pin expirations. `RecoverAllLocal` (reguarly run every `pin_recover_interval`) will now trigger repinnings when necessary (i.e. when things that were expected to be on IPFS are not). On very large pinsets, this operation can trigger a memory spike as the full recursive pinset from IPFS is requested and loaded on memory (before this happened on `StateSync`).
+The removal of the `map pintracker` has resulted in a simplification of some operations. `StateSync` (regularly run every `state_sync_interval`) does not trigger repinnings now, but only checks for pin expirations. `RecoverAllLocal` (regularly run every `pin_recover_interval`) will now trigger repinnings when necessary (i.e. when things that were expected to be on IPFS are not). On very large pinsets, this operation can trigger a memory spike as the full recursive pinset from IPFS is requested and loaded on memory (before this happened on `StateSync`).
 
 ---
 
@@ -725,7 +725,7 @@ adding a file, which is always the root hash.
 
   * IPFS Proxy extraction to its own `API` component: `ipfsproxy` | [ipfs/ipfs-cluster#453](https://github.com/ipfs/ipfs-cluster/issues/453) | [ipfs/ipfs-cluster#576](https://github.com/ipfs/ipfs-cluster/issues/576) | [ipfs/ipfs-cluster#616](https://github.com/ipfs/ipfs-cluster/issues/616) | [ipfs/ipfs-cluster#617](https://github.com/ipfs/ipfs-cluster/issues/617)
   * Add full CORS handling to `restapi` | [ipfs/ipfs-cluster#639](https://github.com/ipfs/ipfs-cluster/issues/639) | [ipfs/ipfs-cluster#640](https://github.com/ipfs/ipfs-cluster/issues/640)
-  * `restapi` configuration section entries can be overriden from environment variables | [ipfs/ipfs-cluster#609](https://github.com/ipfs/ipfs-cluster/issues/609)
+  * `restapi` configuration section entries can be overridden from environment variables | [ipfs/ipfs-cluster#609](https://github.com/ipfs/ipfs-cluster/issues/609)
   * Update to `go-ipfs-files` 2.0 | [ipfs/ipfs-cluster#613](https://github.com/ipfs/ipfs-cluster/issues/613)
   * Tests for the `/monitor/metrics` endpoint | [ipfs/ipfs-cluster#587](https://github.com/ipfs/ipfs-cluster/issues/587) | [ipfs/ipfs-cluster#622](https://github.com/ipfs/ipfs-cluster/issues/622)
   * Support `stream-channels=fase` query parameter in `/add` | [ipfs/ipfs-cluster#632](https://github.com/ipfs/ipfs-cluster/issues/632) | [ipfs/ipfs-cluster#633](https://github.com/ipfs/ipfs-cluster/issues/633)

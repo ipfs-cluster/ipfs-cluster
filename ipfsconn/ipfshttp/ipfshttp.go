@@ -925,7 +925,7 @@ func (ipfs *Connector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) 
 // 	if err != nil {
 // 		return err
 // 	}
-// 	logger.Debugf("refs for %s sucessfully fetched", c)
+// 	logger.Debugf("refs for %s successfully fetched", c)
 // 	return nil
 // }
 

@@ -45,7 +45,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 	}
 
 	// TODO (hector): get latest metrics for allocations, adjust sizeLimit
-	// to minumum. This can be done later.
+	// to minimum. This can be done later.
 
 	return &shard{
 		rpc:         rpc,

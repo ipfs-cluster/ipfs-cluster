@@ -491,7 +491,7 @@ func (c *Cluster) watchPeers() {
 	}
 }
 
-// reBootstrap reguarly attempts to bootstrap (re-connect to peers from the
+// reBootstrap regularly attempts to bootstrap (re-connect to peers from the
 // peerstore). This should ensure that we auto-recover from situations in
 // which the network was completely gone and we lost all peers.
 func (c *Cluster) reBootstrap() {
@@ -1428,7 +1428,7 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	case api.DataType:
 		return pin, c.consensus.LogUnpin(ctx, pin)
 	case api.ShardType:
-		err := "cannot unpin a shard direclty. Unpin content root CID instead."
+		err := "cannot unpin a shard directly. Unpin content root CID instead."
 		return pin, errors.New(err)
 	case api.MetaType:
 		// Unpin cluster dag and referenced shards

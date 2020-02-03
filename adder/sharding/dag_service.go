@@ -133,7 +133,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 
 	// Consider doing this? Seems like overkill
 	//
-	// // Ammend ShardPins to reference clusterDAG root hash as a Parent
+	// // Amend ShardPins to reference clusterDAG root hash as a Parent
 	// shardParents := cid.NewSet()
 	// shardParents.Add(clusterDAG)
 	// for shardN, shard := range dgs.shardNodes {
@@ -212,7 +212,7 @@ func (dgs *DAGService) logStats(metaPin, clusterDAGPin cid.Cid) {
 		rate = humanize.Bytes(dgs.totalSize / seconds)
 	}
 
-	statsFmt := `sharding session sucessful:
+	statsFmt := `sharding session successful:
 CID: %s
 ClusterDAG: %s
 Total shards: %d

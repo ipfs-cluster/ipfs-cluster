@@ -305,7 +305,7 @@ func runCmd(c *cli.Context) error {
 	// Allow customization via env vars
 	err = apiCfg.ApplyEnvVars()
 	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error applying enviromental variables to restapi configuration"), 1)
+		return cli.Exit(errors.Wrap(err, "error applying environmental variables to restapi configuration"), 1)
 	}
 
 	rest, err := rest.NewAPI(ctx, &apiCfg)
