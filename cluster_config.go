@@ -23,7 +23,7 @@ import (
 const configKey = "cluster"
 
 // DefaultListenAddrs contains TCP and QUIC listen addresses
-var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/9096/quic"}
+var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/9096/quic", "/ip6/::/tcp/9096", "/ip6/::/udp/9096/quic"}
 
 // Configuration defaults
 const (
