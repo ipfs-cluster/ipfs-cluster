@@ -265,7 +265,7 @@ func (api *API) setupLibp2p() error {
 	return nil
 }
 
-// HTTPAddress returns the HTTP(s) listening address
+// HTTPAddresses returns the HTTP(s) listening address
 // in host:port format. Useful when configured to start
 // on a random port (0). Returns error when the HTTP endpoint
 // is not enabled.
