@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	"github.com/kelseyhightower/envconfig"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -19,9 +20,14 @@ const (
 	minMaxHeaderBytes = 4096
 )
 
+// DefaultListenAddrs contains the default listeners for the proxy.
+var DefaultListenAddrs = []string{
+	"/ip4/127.0.0.1/tcp/9095",
+	"/ip6/::1/tcp/9095",
+}
+
 // Default values for Config.
 const (
-	DefaultListenAddr         = "/ip4/127.0.0.1/tcp/9095"
 	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
 	DefaultNodeHTTPS          = false
 	DefaultReadTimeout        = 0
@@ -39,7 +45,7 @@ type Config struct {
 	config.Saver
 
 	// Listen parameters for the IPFS Proxy.
-	ListenAddr ma.Multiaddr
+	ListenAddr []ma.Multiaddr
 
 	// Host/Port for the IPFS daemon.
 	NodeAddr ma.Multiaddr
@@ -93,9 +99,9 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ListenMultiaddress string `json:"listen_multiaddress"`
-	NodeMultiaddress   string `json:"node_multiaddress"`
-	NodeHTTPS          bool   `json:"node_https,omitempty"`
+	ListenMultiaddress ipfsconfig.Strings `json:"listen_multiaddress"`
+	NodeMultiaddress   string             `json:"node_multiaddress"`
+	NodeHTTPS          bool               `json:"node_https,omitempty"`
 
 	LogFile string `json:"log_file"`
 
@@ -131,9 +137,13 @@ func (cfg *Config) ConfigKey() string {
 
 // Default sets the fields of this Config to sensible default values.
 func (cfg *Config) Default() error {
-	proxy, err := ma.NewMultiaddr(DefaultListenAddr)
-	if err != nil {
-		return err
+	var proxy []ma.Multiaddr
+	for _, def := range DefaultListenAddrs {
+		a, err := ma.NewMultiaddr(def)
+		if err != nil {
+			return err
+		}
+		proxy = append(proxy, a)
 	}
 	node, err := ma.NewMultiaddr(DefaultNodeAddr)
 	if err != nil {
@@ -174,7 +184,7 @@ func (cfg *Config) ApplyEnvVars() error {
 // at least in appearance.
 func (cfg *Config) Validate() error {
 	var err error
-	if cfg.ListenAddr == nil {
+	if len(cfg.ListenAddr) == 0 {
 		err = errors.New("ipfsproxy.listen_multiaddress not set")
 	}
 	if cfg.NodeAddr == nil {
@@ -230,12 +240,15 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 }
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
-	if jcfg.ListenMultiaddress != "" {
-		proxyAddr, err := ma.NewMultiaddr(jcfg.ListenMultiaddress)
-		if err != nil {
-			return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)
+	if addresses := jcfg.ListenMultiaddress; len(addresses) > 0 {
+		cfg.ListenAddr = make([]ma.Multiaddr, 0, len(addresses))
+		for _, a := range addresses {
+			proxyAddr, err := ma.NewMultiaddr(a)
+			if err != nil {
+				return fmt.Errorf("error parsing proxy listen_multiaddress: %s", err)
+			}
+			cfg.ListenAddr = append(cfg.ListenAddr, proxyAddr)
 		}
-		cfg.ListenAddr = proxyAddr
 	}
 	if jcfg.NodeMultiaddress != "" {
 		nodeAddr, err := ma.NewMultiaddr(jcfg.NodeMultiaddress)
@@ -295,8 +308,13 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 
 	jcfg = &jsonConfig{}
 
+	var addresses []string
+	for _, a := range cfg.ListenAddr {
+		addresses = append(addresses, a.String())
+	}
+
 	// Set all configuration fields
-	jcfg.ListenMultiaddress = cfg.ListenAddr.String()
+	jcfg.ListenMultiaddress = addresses
 	jcfg.NodeMultiaddress = cfg.NodeAddr.String()
 	jcfg.ReadTimeout = cfg.ReadTimeout.String()
 	jcfg.ReadHeaderTimeout = cfg.ReadHeaderTimeout.String()

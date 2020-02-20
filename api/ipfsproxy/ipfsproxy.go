@@ -58,7 +58,7 @@ type Server struct {
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	listener         net.Listener      // proxy listener
+	listeners        []net.Listener    // proxy listener
 	server           *http.Server      // proxy server
 	ipfsRoundTripper http.RoundTripper // allows to talk to IPFS
 
@@ -126,14 +126,18 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	proxyNet, proxyAddr, err := manet.DialArgs(cfg.ListenAddr)
-	if err != nil {
-		return nil, err
-	}
+	var listeners []net.Listener
+	for _, addr := range cfg.ListenAddr {
+		proxyNet, proxyAddr, err := manet.DialArgs(addr)
+		if err != nil {
+			return nil, err
+		}
 
-	l, err := net.Listen(proxyNet, proxyAddr)
-	if err != nil {
-		return nil, err
+		l, err := net.Listen(proxyNet, proxyAddr)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, l)
 	}
 
 	nodeScheme := "http"
@@ -197,7 +201,7 @@ func New(cfg *Config) (*Server, error) {
 		nodeAddr:         nodeHTTPAddr,
 		nodeScheme:       nodeScheme,
 		rpcReady:         make(chan struct{}, 1),
-		listener:         l,
+		listeners:        listeners,
 		server:           s,
 		ipfsRoundTripper: reverseProxy.Transport,
 	}
@@ -284,7 +288,9 @@ func (proxy *Server) Shutdown(ctx context.Context) error {
 	proxy.cancel()
 	close(proxy.rpcReady)
 	proxy.server.SetKeepAlivesEnabled(false)
-	proxy.listener.Close()
+	for _, l := range proxy.listeners {
+		l.Close()
+	}
 
 	proxy.wg.Wait()
 	proxy.shutdown = true
@@ -301,19 +307,21 @@ func (proxy *Server) run() {
 	defer proxy.shutdownLock.Unlock()
 
 	// This launches the proxy
-	proxy.wg.Add(1)
-	go func() {
-		defer proxy.wg.Done()
-		logger.Infof(
-			"IPFS Proxy: %s -> %s",
-			proxy.config.ListenAddr,
-			proxy.config.NodeAddr,
-		)
-		err := proxy.server.Serve(proxy.listener) // hangs here
-		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
-			logger.Error(err)
-		}
-	}()
+	proxy.wg.Add(len(proxy.listeners))
+	for i, l := range proxy.listeners {
+		go func(i int, l net.Listener) {
+			defer proxy.wg.Done()
+			logger.Infof(
+				"IPFS Proxy: %s -> %s",
+				proxy.config.ListenAddr[i],
+				proxy.config.NodeAddr,
+			)
+			err := proxy.server.Serve(l) // hangs here
+			if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+				logger.Error(err)
+			}
+		}(i, l)
+	}
 }
 
 // ipfsErrorResponder writes an http error response just like IPFS would.

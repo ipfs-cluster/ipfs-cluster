@@ -40,7 +40,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j := &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.ListenMultiaddress = "abc"
+	j.ListenMultiaddress = []string{"abc"}
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
