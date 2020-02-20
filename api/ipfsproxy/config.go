@@ -137,7 +137,7 @@ func (cfg *Config) ConfigKey() string {
 
 // Default sets the fields of this Config to sensible default values.
 func (cfg *Config) Default() error {
-	var proxy []ma.Multiaddr
+	proxy := make([]ma.Multiaddr, 0, len(DefaultListenAddrs))
 	for _, def := range DefaultListenAddrs {
 		a, err := ma.NewMultiaddr(def)
 		if err != nil {
@@ -308,7 +308,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 
 	jcfg = &jsonConfig{}
 
-	var addresses []string
+	addresses := make([]string, 0, len(cfg.ListenAddr))
 	for _, a := range cfg.ListenAddr {
 		addresses = append(addresses, a.String())
 	}

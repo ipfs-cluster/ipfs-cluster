@@ -308,19 +308,25 @@ func (proxy *Server) run() {
 
 	// This launches the proxy
 	proxy.wg.Add(len(proxy.listeners))
-	for i, l := range proxy.listeners {
-		go func(i int, l net.Listener) {
+	for _, l := range proxy.listeners {
+		go func(l net.Listener) {
 			defer proxy.wg.Done()
+
+			maddr, err := manet.FromNetAddr(l.Addr())
+			if err != nil {
+				logger.Error(err)
+			}
+
 			logger.Infof(
 				"IPFS Proxy: %s -> %s",
-				proxy.config.ListenAddr[i],
+				maddr,
 				proxy.config.NodeAddr,
 			)
-			err := proxy.server.Serve(l) // hangs here
+			err = proxy.server.Serve(l) // hangs here
 			if err != nil && !strings.Contains(err.Error(), "closed network connection") {
 				logger.Error(err)
 			}
-		}(i, l)
+		}(l)
 	}
 }
 
