@@ -9,46 +9,30 @@ import (
 )
 
 func TestRandomPorts(t *testing.T) {
+	port := "9096"
 	m1, _ := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/9096")
-	m2, _ := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/9096")
-	m3, _ := ma.NewMultiaddr("/ip6/::/tcp/9096")
-	m4, _ := ma.NewMultiaddr("/ip6/::/tcp/9096")
+	m2, _ := ma.NewMultiaddr("/ip6/::/udp/9096")
 
-	m1, err := cmdutils.RandomizePorts(m1)
+	addresses, err := cmdutils.RandomizePorts([]ma.Multiaddr{m1, m2})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	v1, err := m1.ValueForProtocol(ma.P_TCP)
+	v1, err := addresses[0].ValueForProtocol(ma.P_TCP)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	v2, err := m2.ValueForProtocol(ma.P_TCP)
+	v2, err := addresses[1].ValueForProtocol(ma.P_UDP)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if v1 == v2 {
+	if v1 == port {
 		t.Error("expected different ipv4 ports")
 	}
 
-	m3, err := cmdutils.RandomizePorts(m3)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	v3, err := m3.ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	v4, err := m4.ValueForProtocol(ma.P_TCP)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if v3 == v4 {
+	if v2 == port {
 		t.Error("expected different ipv6 ports")
 	}
 }
