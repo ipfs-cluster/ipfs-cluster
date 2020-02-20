@@ -10,14 +10,15 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/config"
-
+	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/cors"
+
+	"github.com/ipfs/ipfs-cluster/config"
 )
 
 const configKey = "restapi"
@@ -25,9 +26,14 @@ const envConfigKey = "cluster_restapi"
 
 const minMaxHeaderBytes = 4096
 
+// DefaultHTTPListenAddrs contains default listen addresses for the HTTP API.
+var DefaultHTTPListenAddrs = []string{
+	"/ip4/127.0.0.1/tcp/9094",
+	"/ip6/::1/tcp/9094",
+}
+
 // These are the default values for Config
 const (
-	DefaultHTTPListenAddr    = "/ip4/127.0.0.1/tcp/9094"
 	DefaultReadTimeout       = 0
 	DefaultReadHeaderTimeout = 5 * time.Second
 	DefaultWriteTimeout      = 0
@@ -66,7 +72,7 @@ type Config struct {
 	config.Saver
 
 	// Listen address for the HTTP REST API endpoint.
-	HTTPListenAddr ma.Multiaddr
+	HTTPListenAddr []ma.Multiaddr
 
 	// TLS configuration for the HTTP listener
 	TLS *tls.Config
@@ -97,7 +103,7 @@ type Config struct {
 	MaxHeaderBytes int
 
 	// Listen address for the Libp2p REST API endpoint.
-	Libp2pListenAddr ma.Multiaddr
+	Libp2pListenAddr []ma.Multiaddr
 
 	// ID and PrivateKey are used to create a libp2p host if we
 	// want the API component to do it (not by default).
@@ -131,18 +137,18 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	HTTPListenMultiaddress string `json:"http_listen_multiaddress"`
-	SSLCertFile            string `json:"ssl_cert_file,omitempty"`
-	SSLKeyFile             string `json:"ssl_key_file,omitempty"`
-	ReadTimeout            string `json:"read_timeout"`
-	ReadHeaderTimeout      string `json:"read_header_timeout"`
-	WriteTimeout           string `json:"write_timeout"`
-	IdleTimeout            string `json:"idle_timeout"`
-	MaxHeaderBytes         int    `json:"max_header_bytes"`
+	HTTPListenMultiaddress ipfsconfig.Strings `json:"http_listen_multiaddress"`
+	SSLCertFile            string             `json:"ssl_cert_file,omitempty"`
+	SSLKeyFile             string             `json:"ssl_key_file,omitempty"`
+	ReadTimeout            string             `json:"read_timeout"`
+	ReadHeaderTimeout      string             `json:"read_header_timeout"`
+	WriteTimeout           string             `json:"write_timeout"`
+	IdleTimeout            string             `json:"idle_timeout"`
+	MaxHeaderBytes         int                `json:"max_header_bytes"`
 
-	Libp2pListenMultiaddress string `json:"libp2p_listen_multiaddress,omitempty"`
-	ID                       string `json:"id,omitempty"`
-	PrivateKey               string `json:"private_key,omitempty"`
+	Libp2pListenMultiaddress ipfsconfig.Strings `json:"libp2p_listen_multiaddress,omitempty"`
+	ID                       string             `json:"id,omitempty"`
+	PrivateKey               string             `json:"private_key,omitempty"`
 
 	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"`
 	HTTPLogFile          string              `json:"http_log_file"`
@@ -179,8 +185,15 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with working values.
 func (cfg *Config) Default() error {
 	// http
-	httpListen, _ := ma.NewMultiaddr(DefaultHTTPListenAddr)
-	cfg.HTTPListenAddr = httpListen
+	addrs := make([]ma.Multiaddr, 0, len(DefaultHTTPListenAddrs))
+	for _, def := range DefaultHTTPListenAddrs {
+		httpListen, err := ma.NewMultiaddr(def)
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, httpListen)
+	}
+	cfg.HTTPListenAddr = addrs
 	cfg.pathSSLCertFile = ""
 	cfg.pathSSLKeyFile = ""
 	cfg.ReadTimeout = DefaultReadTimeout
@@ -225,7 +238,6 @@ func (cfg *Config) ApplyEnvVars() error {
 	if err != nil {
 		return err
 	}
-
 	return cfg.applyJSONConfig(jcfg)
 }
 
@@ -255,9 +267,9 @@ func (cfg *Config) Validate() error {
 }
 
 func (cfg *Config) validateLibp2p() error {
-	if cfg.ID != "" || cfg.PrivateKey != nil || cfg.Libp2pListenAddr != nil {
+	if cfg.ID != "" || cfg.PrivateKey != nil || len(cfg.Libp2pListenAddr) > 0 {
 		// if one is set, all should be
-		if cfg.ID == "" || cfg.PrivateKey == nil || cfg.Libp2pListenAddr == nil {
+		if cfg.ID == "" || cfg.PrivateKey == nil || len(cfg.Libp2pListenAddr) == 0 {
 			return errors.New("all ID, private_key and libp2p_listen_multiaddress should be set")
 		}
 		if !cfg.ID.MatchesPrivateKey(cfg.PrivateKey) {
@@ -288,6 +300,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	if err != nil {
 		return err
 	}
+
 	err = cfg.loadLibp2pOptions(jcfg)
 	if err != nil {
 		return err
@@ -302,13 +315,16 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 }
 
 func (cfg *Config) loadHTTPOptions(jcfg *jsonConfig) error {
-	if httpListen := jcfg.HTTPListenMultiaddress; httpListen != "" {
-		httpAddr, err := ma.NewMultiaddr(httpListen)
-		if err != nil {
-			err = fmt.Errorf("error parsing restapi.http_listen_multiaddress: %s", err)
-			return err
+	if addresses := jcfg.HTTPListenMultiaddress; len(addresses) > 0 {
+		cfg.HTTPListenAddr = make([]ma.Multiaddr, 0, len(addresses))
+		for _, addr := range addresses {
+			httpAddr, err := ma.NewMultiaddr(addr)
+			if err != nil {
+				err = fmt.Errorf("error parsing restapi.http_listen_multiaddress: %s", err)
+				return err
+			}
+			cfg.HTTPListenAddr = append(cfg.HTTPListenAddr, httpAddr)
 		}
-		cfg.HTTPListenAddr = httpAddr
 	}
 
 	err := cfg.tlsOptions(jcfg)
@@ -373,13 +389,16 @@ func (cfg *Config) tlsOptions(jcfg *jsonConfig) error {
 }
 
 func (cfg *Config) loadLibp2pOptions(jcfg *jsonConfig) error {
-	if libp2pListen := jcfg.Libp2pListenMultiaddress; libp2pListen != "" {
-		libp2pAddr, err := ma.NewMultiaddr(libp2pListen)
-		if err != nil {
-			err = fmt.Errorf("error parsing restapi.libp2p_listen_multiaddress: %s", err)
-			return err
+	if addresses := jcfg.Libp2pListenMultiaddress; len(addresses) > 0 {
+		cfg.Libp2pListenAddr = make([]ma.Multiaddr, 0, len(addresses))
+		for _, addr := range addresses {
+			libp2pAddr, err := ma.NewMultiaddr(addr)
+			if err != nil {
+				err = fmt.Errorf("error parsing restapi.libp2p_listen_multiaddress: %s", err)
+				return err
+			}
+			cfg.Libp2pListenAddr = append(cfg.Libp2pListenAddr, libp2pAddr)
 		}
-		cfg.Libp2pListenAddr = libp2pAddr
 	}
 
 	if jcfg.PrivateKey != "" {
@@ -424,8 +443,18 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		}
 	}()
 
+	httpAddresses := make([]string, 0, len(cfg.HTTPListenAddr))
+	for _, addr := range cfg.HTTPListenAddr {
+		httpAddresses = append(httpAddresses, addr.String())
+	}
+
+	libp2pAddresses := make([]string, 0, len(cfg.Libp2pListenAddr))
+	for _, addr := range cfg.Libp2pListenAddr {
+		libp2pAddresses = append(libp2pAddresses, addr.String())
+	}
+
 	jcfg = &jsonConfig{
-		HTTPListenMultiaddress: cfg.HTTPListenAddr.String(),
+		HTTPListenMultiaddress: httpAddresses,
 		SSLCertFile:            cfg.pathSSLCertFile,
 		SSLKeyFile:             cfg.pathSSLKeyFile,
 		ReadTimeout:            cfg.ReadTimeout.String(),
@@ -454,8 +483,8 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 			jcfg.PrivateKey = pKey
 		}
 	}
-	if cfg.Libp2pListenAddr != nil {
-		jcfg.Libp2pListenMultiaddress = cfg.Libp2pListenAddr.String()
+	if len(libp2pAddresses) > 0 {
+		jcfg.Libp2pListenMultiaddress = libp2pAddresses
 	}
 
 	return
