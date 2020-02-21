@@ -23,7 +23,6 @@ const (
 // DefaultListenAddrs contains the default listeners for the proxy.
 var DefaultListenAddrs = []string{
 	"/ip4/127.0.0.1/tcp/9095",
-	"/ip6/::1/tcp/9095",
 }
 
 // Default values for Config.

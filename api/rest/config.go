@@ -29,7 +29,6 @@ const minMaxHeaderBytes = 4096
 // DefaultHTTPListenAddrs contains default listen addresses for the HTTP API.
 var DefaultHTTPListenAddrs = []string{
 	"/ip4/127.0.0.1/tcp/9094",
-	"/ip6/::1/tcp/9094",
 }
 
 // These are the default values for Config
