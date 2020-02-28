@@ -22,7 +22,7 @@ func testAPI(t *testing.T) *rest.API {
 
 	cfg := &rest.Config{}
 	cfg.Default()
-	cfg.HTTPListenAddr = apiMAddr
+	cfg.HTTPListenAddr = []ma.Multiaddr{apiMAddr}
 	var secret [32]byte
 	prot, err := pnet.NewV1ProtectorFromBytes(&secret)
 	if err != nil {
@@ -54,8 +54,8 @@ func shutdown(a *rest.API) {
 }
 
 func apiMAddr(a *rest.API) ma.Multiaddr {
-	listen, _ := a.HTTPAddress()
-	hostPort := strings.Split(listen, ":")
+	listen, _ := a.HTTPAddresses()
+	hostPort := strings.Split(listen[0], ":")
 
 	addr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%s", hostPort[1]))
 	return addr

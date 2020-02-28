@@ -22,6 +22,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	cli "github.com/urfave/cli/v2"
 )
@@ -301,7 +302,7 @@ func runCmd(c *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
-	apiCfg.HTTPListenAddr = listenSocket
+	apiCfg.HTTPListenAddr = []multiaddr.Multiaddr{listenSocket}
 	// Allow customization via env vars
 	err = apiCfg.ApplyEnvVars()
 	if err != nil {

@@ -50,7 +50,7 @@ func testAPIwithConfig(t *testing.T, cfg *Config, name string) *API {
 		t.Fatal(err)
 	}
 
-	cfg.HTTPListenAddr = apiMAddr
+	cfg.HTTPListenAddr = []ma.Multiaddr{apiMAddr}
 
 	rest, err := NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
@@ -174,8 +174,8 @@ func makeHost(t *testing.T, rest *API) host.Host {
 type urlF func(a *API) string
 
 func httpURL(a *API) string {
-	u, _ := a.HTTPAddress()
-	return fmt.Sprintf("http://%s", u)
+	u, _ := a.HTTPAddresses()
+	return fmt.Sprintf("http://%s", u[0])
 }
 
 func p2pURL(a *API) string {
@@ -183,8 +183,8 @@ func p2pURL(a *API) string {
 }
 
 func httpsURL(a *API) string {
-	u, _ := a.HTTPAddress()
-	return fmt.Sprintf("https://%s", u)
+	u, _ := a.HTTPAddresses()
+	return fmt.Sprintf("https://%s", u[0])
 }
 
 func isHTTPS(url string) bool {

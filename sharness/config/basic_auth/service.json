@@ -3,7 +3,10 @@
     "peername": "testname",
     "secret": "84399cd0be811c2ca372d6ca473ffd73c09034f991c5e306fe9ada6c5fcfb641",
     "leave_on_shutdown": false,
-    "listen_multiaddress": "/ip4/0.0.0.0/tcp/9096",
+    "listen_multiaddress": [
+      "/ip4/0.0.0.0/tcp/9096",
+      "/ip6/::/tcp/9096"
+    ],
     "state_sync_interval": "1m0s",
     "replication_factor": -1,
     "monitor_ping_interval": "15s"

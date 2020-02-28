@@ -181,9 +181,9 @@ func createComponents(
 	clusterCfg.LeaveOnShutdown = false
 	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().Pretty()))
 
-	apiCfg.HTTPListenAddr = apiAddr
+	apiCfg.HTTPListenAddr = []ma.Multiaddr{apiAddr}
 
-	ipfsproxyCfg.ListenAddr = proxyAddr
+	ipfsproxyCfg.ListenAddr = []ma.Multiaddr{proxyAddr}
 	ipfsproxyCfg.NodeAddr = nodeAddr
 
 	ipfshttpCfg.NodeAddr = nodeAddr

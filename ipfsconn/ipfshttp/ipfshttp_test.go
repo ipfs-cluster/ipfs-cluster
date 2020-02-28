@@ -56,8 +56,8 @@ func TestIPFSID(t *testing.T) {
 	if id.ID != test.PeerID1 {
 		t.Error("expected testPeerID")
 	}
-	if len(id.Addresses) != 1 {
-		t.Error("expected 1 address")
+	if len(id.Addresses) != 2 {
+		t.Error("expected 2 address")
 	}
 	if id.Error != "" {
 		t.Error("expected no error")

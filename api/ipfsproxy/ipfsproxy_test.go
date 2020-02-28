@@ -34,7 +34,7 @@ func testIPFSProxyWithConfig(t *testing.T, cfg *Config) (*Server, *test.IpfsMock
 	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
 	cfg.NodeAddr = nodeMAddr
-	cfg.ListenAddr = proxyMAddr
+	cfg.ListenAddr = []ma.Multiaddr{proxyMAddr}
 	cfg.ExtractHeadersExtra = []string{
 		test.IpfsCustomHeaderName,
 		test.IpfsTimeHeaderName,
@@ -716,7 +716,7 @@ func TestProxyError(t *testing.T) {
 }
 
 func proxyURL(c *Server) string {
-	addr := c.listener.Addr()
+	addr := c.listeners[0].Addr()
 	return fmt.Sprintf("http://%s/api/v0", addr.String())
 }
 

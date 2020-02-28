@@ -180,6 +180,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			ID: PeerID1.Pretty(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
+				"/ip6/::/tcp/1234",
 			},
 		}
 		j, _ := json.Marshal(resp)
