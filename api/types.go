@@ -883,7 +883,6 @@ type NodeWithMeta struct {
 	Data    []byte  `codec:"d,omitempty"`
 	Cid     cid.Cid `codec:"c,omitempty"`
 	CumSize uint64  `codec:"s,omitempty"` // Cumulative size
-	Format  string  `codec:"f,omitempty"`
 }
 
 // Size returns how big is the block. It is different from CumSize, which

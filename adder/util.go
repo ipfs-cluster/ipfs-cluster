@@ -93,20 +93,10 @@ func ipldNodeToNodeWithMeta(n ipld.Node) *api.NodeWithMeta {
 		logger.Warning(err)
 	}
 
-	format, ok := cid.CodecToStr[n.Cid().Type()]
-	if !ok {
-		format = ""
-		logger.Warning("unsupported cid type, treating as v0")
-	}
-	if n.Cid().Prefix().Version == 0 {
-		format = "v0"
-	}
-
 	return &api.NodeWithMeta{
 		Cid:     n.Cid(),
 		Data:    n.RawData(),
 		CumSize: size,
-		Format:  format,
 	}
 }
 

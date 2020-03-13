@@ -27,6 +27,7 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
+	"github.com/multiformats/go-multihash"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
@@ -110,6 +111,11 @@ type ipfsPinsResp struct {
 
 type ipfsSwarmPeersResp struct {
 	Peers []ipfsPeer
+}
+
+type ipfsBlockPutResp struct {
+	Key  string
+	Size int
 }
 
 type ipfsPeer struct {
@@ -887,14 +893,47 @@ func (ipfs *Connector) BlockPut(ctx context.Context, b *api.NodeWithMeta) error 
 	)
 
 	multiFileR := files.NewMultiFileReader(mapDir, true)
-	if b.Format == "" {
-		b.Format = "v0"
+
+	q := make(url.Values, 3)
+	prefix := b.Cid.Prefix()
+	format, ok := cid.CodecToStr[prefix.Codec]
+	if !ok {
+		return fmt.Errorf("cannot find name for the blocks' CID codec: %x", prefix.Codec)
 	}
-	url := "block/put?f=" + b.Format
+	q.Set("format", format)
+
+	mhType, ok := multihash.Codes[prefix.MhType]
+	if !ok {
+		return fmt.Errorf("cannot find name for the blocks' Multihash type: %x", prefix.MhType)
+	}
+	q.Set("mhtype", mhType)
+	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
+
+	url := "block/put?" + q.Encode()
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 
-	_, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
-	return err
+	body, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
+	if err != nil {
+		return err
+	}
+
+	var res ipfsBlockPutResp
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug("block/put response CID", res.Key)
+	respCid, err := cid.Decode(res.Key)
+	if err != nil {
+		logger.Error("cannot parse CID from BlockPut response")
+		return err
+	}
+
+	if !respCid.Equals(b.Cid) {
+		return fmt.Errorf("blockPut response CID (%s) does not match the block sent (%s)", respCid, b.Cid)
+	}
+	return nil
 }
 
 // BlockGet retrieves an ipfs block with the given cid
