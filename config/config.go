@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 )
 
 var logger = logging.Logger("config")

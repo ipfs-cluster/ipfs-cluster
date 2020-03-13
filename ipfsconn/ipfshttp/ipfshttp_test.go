@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 
 	merkledag "github.com/ipfs/go-merkledag"

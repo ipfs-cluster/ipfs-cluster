@@ -27,7 +27,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"

@@ -393,7 +393,7 @@ func (rw *raftWrapper) snapshotOnShutdown() error {
 		err := rw.WaitForUpdates(ctx)
 		cancel()
 		if err != nil {
-			logger.Warning("timed out waiting for state updates before shutdown. Snapshotting may fail")
+			logger.Warn("timed out waiting for state updates before shutdown. Snapshotting may fail")
 			done = true // let's not wait for updates again
 		}
 
@@ -408,7 +408,7 @@ func (rw *raftWrapper) snapshotOnShutdown() error {
 		if done {
 			break
 		}
-		logger.Warningf("retrying to snapshot (%d/%d)...", i+1, maxShutdownSnapshotRetries)
+		logger.Warnf("retrying to snapshot (%d/%d)...", i+1, maxShutdownSnapshotRetries)
 	}
 	return err
 }
@@ -654,9 +654,9 @@ func CleanupRaft(cfg *Config) error {
 	dbh := newDataBackupHelper(dataFolder, keep)
 	err = dbh.makeBackup()
 	if err != nil {
-		logger.Warning(err)
-		logger.Warning("the state could not be cleaned properly")
-		logger.Warning("manual intervention may be needed before starting cluster again")
+		logger.Warn(err)
+		logger.Warn("the state could not be cleaned properly")
+		logger.Warn("manual intervention may be needed before starting cluster again")
 	}
 	return nil
 }

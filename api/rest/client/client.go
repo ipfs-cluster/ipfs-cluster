@@ -15,9 +15,10 @@ import (
 	cid "github.com/ipfs/go-cid"
 	shell "github.com/ipfs/go-ipfs-api"
 	files "github.com/ipfs/go-ipfs-files"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	pnet "github.com/libp2p/go-libp2p-core/pnet"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr-net"
@@ -145,7 +146,7 @@ type Config struct {
 	// If APIAddr is provided, and the peer uses private networks (pnet),
 	// then we need to provide the key. If the peer is the cluster peer,
 	// this corresponds to the cluster secret.
-	ProtectorKey []byte
+	ProtectorKey pnet.PSK
 
 	// ProxyAddr is used to obtain a go-ipfs-api Shell instance pointing
 	// to the ipfs proxy endpoint of ipfs-cluster. If empty, the location

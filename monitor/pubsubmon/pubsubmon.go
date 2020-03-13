@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -160,7 +160,7 @@ func (mon *Monitor) Shutdown(ctx context.Context) error {
 	defer mon.shutdownLock.Unlock()
 
 	if mon.shutdown {
-		logger.Warning("Monitor already shut down")
+		logger.Warn("Monitor already shut down")
 		return nil
 	}
 
@@ -190,7 +190,7 @@ func (mon *Monitor) PublishMetric(ctx context.Context, m *api.Metric) error {
 	defer span.End()
 
 	if m.Discard() {
-		logger.Warningf("discarding invalid metric: %+v", m)
+		logger.Warnf("discarding invalid metric: %+v", m)
 		return nil
 	}
 

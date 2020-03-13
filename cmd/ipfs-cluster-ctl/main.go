@@ -16,7 +16,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -160,7 +160,7 @@ requires authorization. implies --https, which you can disable with --force-http
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
 
 		if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
-			logger.Warning("Using libp2p-http. SSL flags will be ignored")
+			logger.Warn("Using libp2p-http. SSL flags will be ignored")
 		}
 
 		cfg.SSL = c.Bool("https")
@@ -169,7 +169,7 @@ requires authorization. implies --https, which you can disable with --force-http
 		cfg.Username = user
 		cfg.Password = pass
 		if user != "" && !cfg.SSL && !c.Bool("force-http") {
-			logger.Warning("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
+			logger.Warn("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
 			cfg.SSL = true
 		}
 

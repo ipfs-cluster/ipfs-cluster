@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -17,7 +18,7 @@ import (
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -212,11 +213,17 @@ func (css *Consensus) setup() {
 		ctx, span := trace.StartSpan(css.ctx, "crdt/DeleteHook")
 		defer span.End()
 
-		c, err := dshelp.DsKeyToCid(k)
+		kb, err := dshelp.BinaryFromDsKey(k)
 		if err != nil {
 			logger.Error(err, k)
 			return
 		}
+		c, err := cid.Cast(kb)
+		if err != nil {
+			logger.Error(err, k)
+			return
+		}
+
 		pin := api.PinCid(c)
 
 		err = css.rpcClient.CallContext(

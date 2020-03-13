@@ -15,7 +15,6 @@ import (
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -46,7 +45,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.ListenAddr = []ma.Multiaddr{listen}
 	cfg.Secret = testingClusterSecret
 
-	h, _, idht := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)
+	h, _, _ := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)
 
 	// Connect host to all peers. This will allow that they can discover
 	// each others via DHT.
@@ -62,14 +61,6 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 			t.Fatal(err)
 		}
 	}
-	ctx := context.Background()
-	dhtCfg := dht.BootstrapConfig{
-		Queries: 1,
-		Period:  600 * time.Millisecond,
-		Timeout: 300 * time.Millisecond,
-	}
-
-	idht.BootstrapWithConfig(ctx, dhtCfg)
 	return cls, mocks, h
 }
 
@@ -208,8 +199,10 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
 	ttlDelay()
 	ids := clusters[1].Peers(ctx)
-	if len(ids) != 2 {
-		t.Error("expected 2 peers")
+	// raft will have only 2 peers
+	// crdt will have all peers autodiscovered by now
+	if len(ids) < 2 {
+		t.Error("expected at least 2 peers")
 	}
 
 	// Now we shutdown the one member of the running cluster
@@ -245,8 +238,8 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 
 		ttlDelay()
 		ids = clusters[0].Peers(ctx)
-		if len(ids) != 2 {
-			t.Error("cluster should have 2 peers after removing and adding 1")
+		if len(ids) < 2 {
+			t.Error("cluster should have at least 2 peers after removing and adding 1")
 		}
 	default:
 		t.Fatal("bad consensus")

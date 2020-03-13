@@ -40,6 +40,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -288,14 +289,15 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	dhts := make([]*dht.IpfsDHT, nClusters, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
+	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
+		//h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -306,12 +308,8 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 
 func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen []ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 	ctx := context.Background()
-	prot, err := newProtector(clusterSecret)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	h, err := newHost(ctx, prot, priv, libp2p.ListenAddrs(listen...))
+	h, err := newHost(ctx, clusterSecret, priv, libp2p.ListenAddrs(listen...))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,12 +331,10 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 }
 
 func newTestDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {
-	return newDHT(ctx, h)
-	// TODO: when new dht options are released
-	// return dht.New(ctx, h, dhtopts.Bootstrap(dhtopts.BootstrapConfig{
-	// 	Timeout:           300 * time.Millisecond,
-	// 	SelfQueryInterval: 300 * time.Millisecond,
-	// }))
+	return dht.New(ctx, h,
+		dhtopts.RoutingTableRefreshPeriod(600*time.Millisecond),
+		dhtopts.RoutingTableRefreshQueryTimeout(300*time.Millisecond),
+	)
 }
 
 func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
@@ -396,17 +392,6 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 			}
 
 		}
-	}
-
-	// // Bootstrap the DHTs
-	dhtCfg := dht.BootstrapConfig{
-		Queries: 1,
-		Period:  600 * time.Millisecond,
-		Timeout: 300 * time.Millisecond,
-	}
-
-	for _, d := range dhts {
-		d.BootstrapWithConfig(ctx, dhtCfg)
 	}
 
 	waitForLeader(t, clusters)

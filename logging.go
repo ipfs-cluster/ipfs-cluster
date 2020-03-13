@@ -1,25 +1,10 @@
 package ipfscluster
 
 import (
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 )
 
 var logger = logging.Logger("cluster")
-
-var (
-	ansiGray   = "\033[0;37m"
-	ansiYellow = "\033[0;33m"
-)
-
-func init() {
-	// The whole purpose of this is to print the facility name in yellow
-	// color in the logs because the current blue is very hard to read.
-	logging.LogFormats["color"] = ansiGray +
-		"%{time:15:04:05.000} %{color}%{level:5.5s} " +
-		ansiYellow + "%{module:10.10s}: %{color:reset}%{message} " +
-		ansiGray + "%{shortfile}%{color:reset}"
-	logging.SetupLogging()
-}
 
 // LoggingFacilities provides a list of logging identifiers
 // used by cluster and their default logging level.

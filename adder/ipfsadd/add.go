@@ -16,7 +16,7 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 	posinfo "github.com/ipfs/go-ipfs-posinfo"
 	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	dag "github.com/ipfs/go-merkledag"
 	mfs "github.com/ipfs/go-mfs"
 	unixfs "github.com/ipfs/go-unixfs"

@@ -199,7 +199,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
 		if txt != "" && d == 0 {
-			logger.Warningf("%s is not a valid duration. Default will be used", txt)
+			logger.Warnf("%s is not a valid duration. Default will be used", txt)
 		}
 		return d
 	}

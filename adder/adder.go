@@ -14,7 +14,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
 	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	merkledag "github.com/ipfs/go-merkledag"
 	multihash "github.com/multiformats/go-multihash"
 )

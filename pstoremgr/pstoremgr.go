@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	host "github.com/libp2p/go-libp2p-core/host"
 	net "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -265,13 +265,13 @@ func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) error {
 
 	for _, pinfo := range pinfos {
 		if len(pinfo.Addrs) == 0 {
-			logger.Warning("address info does not have any multiaddresses")
+			logger.Warn("address info does not have any multiaddresses")
 			continue
 		}
 
 		addrs, err := peer.AddrInfoToP2pAddrs(&pinfo)
 		if err != nil {
-			logger.Warning(err)
+			logger.Warn(err)
 			continue
 		}
 		for _, a := range addrs {

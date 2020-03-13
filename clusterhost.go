@@ -14,9 +14,7 @@ import (
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	pnet "github.com/libp2p/go-libp2p-pnet"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
@@ -66,14 +64,9 @@ func NewClusterHost(
 		libp2p.EnableAutoRelay(),
 	}
 
-	prot, err := newProtector(cfg.Secret)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	h, err := newHost(
 		ctx,
-		prot,
+		cfg.Secret,
 		ident.PrivateKey,
 		opts...,
 	)
@@ -88,7 +81,7 @@ func NewClusterHost(
 	}
 
 	// needed for auto relay
-	_, err = autonat.NewAutoNATService(ctx, h, baseOpts(prot)...)
+	_, err = autonat.NewAutoNATService(ctx, h, baseOpts(cfg.Secret)...)
 	if err != nil {
 		h.Close()
 		return nil, nil, nil, err
@@ -99,11 +92,11 @@ func NewClusterHost(
 
 // newHost creates a base cluster host without dht, pubsub, relay or nat etc.
 // mostly used for testing.
-func newHost(ctx context.Context, prot corepnet.Protector, priv crypto.PrivKey, opts ...libp2p.Option) (host.Host, error) {
+func newHost(ctx context.Context, psk corepnet.PSK, priv crypto.PrivKey, opts ...libp2p.Option) (host.Host, error) {
 	finalOpts := []libp2p.Option{
 		libp2p.Identity(priv),
 	}
-	finalOpts = append(finalOpts, baseOpts(prot)...)
+	finalOpts = append(finalOpts, baseOpts(psk)...)
 	finalOpts = append(finalOpts, opts...)
 
 	h, err := libp2p.New(
@@ -117,25 +110,15 @@ func newHost(ctx context.Context, prot corepnet.Protector, priv crypto.PrivKey, 
 	return h, nil
 }
 
-func baseOpts(prot corepnet.Protector) []libp2p.Option {
+func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	return []libp2p.Option{
-		libp2p.PrivateNetwork(prot),
+		libp2p.PrivateNetwork(psk),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.Security(secio.ID, secio.New),
-		libp2p.Transport(libp2pquic.NewTransport),
+		// TODO: quic does not support private networks
+		//libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.DefaultTransports,
 	}
-}
-
-func newProtector(secret []byte) (corepnet.Protector, error) {
-	// Create protector if we have a secret.
-	if len(secret) == 0 {
-		return nil, nil
-	}
-
-	var key [32]byte
-	copy(key[:], secret)
-	return pnet.NewV1ProtectorFromBytes(&key)
 }
 
 func newDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {

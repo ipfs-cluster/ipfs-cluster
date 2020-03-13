@@ -15,6 +15,7 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
@@ -40,19 +41,10 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 		t.Fatal(err)
 	}
 
-	idht, err := dht.New(ctx, h)
-	if err != nil {
-		h.Close()
-		t.Fatal(err)
-	}
-
-	btstrCfg := dht.BootstrapConfig{
-		Queries: 1,
-		Period:  200 * time.Millisecond,
-		Timeout: 100 * time.Millisecond,
-	}
-
-	err = idht.BootstrapWithConfig(ctx, btstrCfg)
+	idht, err := dht.New(ctx, h,
+		dhtopts.RoutingTableRefreshPeriod(200*time.Millisecond),
+		dhtopts.RoutingTableRefreshQueryTimeout(100*time.Millisecond),
+	)
 	if err != nil {
 		h.Close()
 		t.Fatal(err)

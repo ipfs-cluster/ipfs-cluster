@@ -31,7 +31,7 @@ require (
 	github.com/ipfs/go-ipfs-util v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.4
 	github.com/ipfs/go-ipld-format v0.0.2
-	github.com/ipfs/go-log v1.0.2
+	github.com/ipfs/go-log/v2 v2.0.2
 	github.com/ipfs/go-merkledag v0.3.1
 	github.com/ipfs/go-mfs v0.1.1
 	github.com/ipfs/go-path v0.0.7
@@ -78,4 +78,4 @@ require (
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )
 
-go 1.13
+go 1.14
