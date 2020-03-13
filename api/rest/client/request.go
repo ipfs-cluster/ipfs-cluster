@@ -61,7 +61,7 @@ func (c *defaultClient) doRequest(
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
-	r, err := http.NewRequest(method, urlpath, body)
+	r, err := http.NewRequestWithContext(ctx, method, urlpath, body)
 	if err != nil {
 		return nil, err
 	}
