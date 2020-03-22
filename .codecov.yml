@@ -4,7 +4,7 @@ coverage:
       default:
         # basic
         target: auto
-        threshold: 5
+        threshold: 50
         base: auto
         # advanced
         branches: null
@@ -18,7 +18,7 @@ coverage:
       default:
         # basic
         target: auto
-        threshold: 10
+        threshold: 50
         base: auto
         # advanced
         branches: null
