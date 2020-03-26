@@ -23,7 +23,7 @@ require (
 	github.com/ipfs/go-ds-crdt v0.1.8-0.20200310091849-1dca473cbff6
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-ipfs-api v0.0.2
-	github.com/ipfs/go-ipfs-chunker v0.0.4
+	github.com/ipfs/go-ipfs-chunker v0.0.5
 	github.com/ipfs/go-ipfs-config v0.2.1
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
 	github.com/ipfs/go-ipfs-files v0.0.6
