@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/go-hclog v0.12.1
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.1
+	github.com/hsanjuan/ipfs-lite v1.1.2
 	github.com/imdario/mergo v0.3.7
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.5
@@ -28,10 +28,9 @@ require (
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
 	github.com/ipfs/go-ipfs-files v0.0.6
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
-	github.com/ipfs/go-ipfs-util v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.4
 	github.com/ipfs/go-ipld-format v0.0.2
-	github.com/ipfs/go-log/v2 v2.0.2
+	github.com/ipfs/go-log/v2 v2.0.3
 	github.com/ipfs/go-merkledag v0.3.1
 	github.com/ipfs/go-mfs v0.1.1
 	github.com/ipfs/go-path v0.0.7
@@ -39,7 +38,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
-	github.com/libp2p/go-libp2p v0.6.1
+	github.com/libp2p/go-libp2p v0.7.1
 	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
 	github.com/libp2p/go-libp2p-circuit v0.1.4
 	github.com/libp2p/go-libp2p-connmgr v0.2.1
@@ -50,9 +49,9 @@ require (
 	github.com/libp2p/go-libp2p-gostream v0.2.1
 	github.com/libp2p/go-libp2p-host v0.1.0
 	github.com/libp2p/go-libp2p-http v0.1.5
-	github.com/libp2p/go-libp2p-kad-dht v0.5.1
+	github.com/libp2p/go-libp2p-kad-dht v0.5.2
 	github.com/libp2p/go-libp2p-peer v0.2.0
-	github.com/libp2p/go-libp2p-peerstore v0.2.0
+	github.com/libp2p/go-libp2p-peerstore v0.2.1
 	github.com/libp2p/go-libp2p-protocol v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.2.6
 	github.com/libp2p/go-libp2p-quic-transport v0.3.1
@@ -73,7 +72,7 @@ require (
 	github.com/urfave/cli v1.22.1
 	github.com/urfave/cli/v2 v2.0.0
 	go.opencensus.io v0.22.3
-	golang.org/x/crypto v0.0.0-20200320181102-891825fb96df
+	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )
