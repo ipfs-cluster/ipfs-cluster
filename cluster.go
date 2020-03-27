@@ -1496,7 +1496,9 @@ func (c *Cluster) PinUpdate(ctx context.Context, from cid.Cid, to cid.Cid, opts 
 	if opts.Name != "" {
 		existing.Name = opts.Name
 	}
-
+	if !opts.ExpireAt.IsZero() && opts.ExpireAt.After(time.Now()) {
+		existing.ExpireAt = opts.ExpireAt
+	}
 	return existing, c.consensus.LogPin(ctx, existing)
 }
 
