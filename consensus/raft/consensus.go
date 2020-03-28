@@ -179,6 +179,7 @@ func (cc *Consensus) finishBootstrap() {
 	logger.Debug("Raft state is now up to date")
 	logger.Debug("consensus ready")
 	cc.readyCh <- struct{}{}
+	close(cc.readyCh)
 }
 
 // Shutdown stops the component so it will not process any
@@ -223,9 +224,13 @@ func (cc *Consensus) SetClient(c *rpc.Client) {
 // Ready returns a channel which is signaled when the Consensus
 // algorithm has finished bootstrapping and is ready to use
 func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
-	ctx, span := trace.StartSpan(ctx, "consensus/Ready")
-	defer span.End()
-
+	select {
+	case <-ctx.Done():
+		//do nothing if context is done
+	default:
+		_, span := trace.StartSpan(ctx, "consensus/Ready")
+		defer span.End()
+	}
 	return cc.readyCh
 }
 
