@@ -6,7 +6,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
-	autonat "github.com/libp2p/go-libp2p-autonat-svc"
 	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	corepnet "github.com/libp2p/go-libp2p-core/pnet"
@@ -35,8 +34,8 @@ func init() {
 // NewClusterHost creates a fully-featured libp2p Host with the options from
 // the provided cluster configuration. Using that host, it creates pubsub and
 // a DHT instances, for shared use by all cluster components. The returned
-// host uses the DHT for routing. The resulting DHT is not bootstrapped. Relay
-// and AutoNATService are additionally setup for this host.
+// host uses the DHT for routing. Relay and NATService are additionally
+// setup for this host.
 func NewClusterHost(
 	ctx context.Context,
 	ident *config.Identity,
@@ -55,6 +54,7 @@ func NewClusterHost(
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
 		libp2p.NATPortMap(),
+		libp2p.EnableNATService(),
 		libp2p.ConnectionManager(connman),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			idht, err = newDHT(ctx, h)
@@ -75,13 +75,6 @@ func NewClusterHost(
 	}
 
 	psub, err := newPubSub(ctx, h)
-	if err != nil {
-		h.Close()
-		return nil, nil, nil, err
-	}
-
-	// needed for auto relay
-	_, err = autonat.NewAutoNATService(ctx, h, baseOpts(cfg.Secret)...)
 	if err != nil {
 		h.Close()
 		return nil, nil, nil, err
