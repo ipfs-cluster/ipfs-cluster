@@ -22,13 +22,22 @@ const (
 )
 
 var (
-	// DefaultBadgerOptions has to be a var because badger.DefaultOptions is.
+	// DefaultBadgerOptions has to be a var because badger.DefaultOptions
+	// is. Values are customized during Init().
 	DefaultBadgerOptions badger.Options
 )
 
 func init() {
+	// Following go-ds-badger guidance
 	DefaultBadgerOptions = badger.DefaultOptions("")
 	DefaultBadgerOptions.CompactL0OnClose = false
+	DefaultBadgerOptions.Truncate = true
+	DefaultBadgerOptions.ValueLogLoadingMode = options.FileIO
+	// Explicitly set this to mmap. This doesn't use much memory anyways.
+	DefaultBadgerOptions.TableLoadingMode = options.MemoryMap
+	// Reduce this from 64MiB to 16MiB. That means badger will hold on to
+	// 20MiB by default instead of 80MiB.
+	DefaultBadgerOptions.MaxTableSize = 16 << 20
 }
 
 // Config is used to initialize a BadgerDB datastore. It implements the
