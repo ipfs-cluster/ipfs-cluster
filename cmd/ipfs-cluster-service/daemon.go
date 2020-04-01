@@ -87,10 +87,12 @@ func daemon(c *cli.Context) error {
 		cfgs.Cluster.LeaveOnShutdown = true
 	}
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
+	store := setupDatastore(cfgHelper)
+
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	checkErr("creating libp2p host", err)
 
-	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, raftStaging)
+	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, store, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -113,6 +115,7 @@ func createCluster(
 	host host.Host,
 	pubsub *pubsub.PubSub,
 	dht *dht.IpfsDHT,
+	store ds.Datastore,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
@@ -160,8 +163,6 @@ func createCluster(
 
 	tracer, err := observations.SetupTracing(cfgs.Tracing)
 	checkErr("setting up Tracing", err)
-
-	store := setupDatastore(cfgHelper)
 
 	cons, err := setupConsensus(
 		cfgHelper,
