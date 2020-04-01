@@ -45,7 +45,7 @@ func NewClusterHost(
 
 	connman := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, cfg.ConnMgr.GracePeriod)
 
-	relayOpts := []relay.RelayOpt{relay.OptDiscovery}
+	relayOpts := []relay.RelayOpt{}
 	if cfg.EnableRelayHop {
 		relayOpts = append(relayOpts, relay.OptHop)
 	}
