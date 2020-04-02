@@ -102,7 +102,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht)
+	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht, store)
 }
 
 // createCluster creates all the necessary things to produce the cluster

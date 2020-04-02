@@ -399,7 +399,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "error creating cluster peer"), 1)
 	}
 
-	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht)
+	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht, store)
 }
 
 // List

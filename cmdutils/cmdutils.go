@@ -13,12 +13,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	ipfshttp "github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
+	"go.uber.org/multierr"
 )
 
 // RandomizePorts replaces TCP and UDP ports with random, but valid port
@@ -106,6 +108,7 @@ func HandleSignals(
 	cluster *ipfscluster.Cluster,
 	host host.Host,
 	dht *dht.IpfsDHT,
+	store datastore.Datastore,
 ) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
@@ -123,9 +126,11 @@ func HandleSignals(
 			handleCtrlC(ctx, cluster, ctrlcCount)
 		case <-cluster.Done():
 			cancel()
-			dht.Close()
-			host.Close()
-			return nil
+			return multierr.Combine(
+				dht.Close(),
+				host.Close(),
+				store.Close(),
+			)
 		}
 	}
 }

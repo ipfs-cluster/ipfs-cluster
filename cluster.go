@@ -663,10 +663,10 @@ func (c *Cluster) Ready() <-chan struct{} {
 // * Save peerstore with the current peers
 // * Remove itself from consensus when LeaveOnShutdown is set
 // * It Shutdowns all the components
-// * Closes the datastore
 // * Collects all goroutines
 //
-// Shutdown does not closes the libp2p host or the DHT.
+// Shutdown does not close the libp2p host, the DHT, the datastore or
+// generally anything that Cluster did not create.
 func (c *Cluster) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/Shutdown")
 	defer span.End()
@@ -764,12 +764,6 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	c.cancel()
 	c.wg.Wait()
-
-	// Cleanly close the datastore
-	if err := c.datastore.Close(); err != nil {
-		logger.Errorf("error closing Datastore: %s", err)
-		return err
-	}
 
 	c.shutdownB = true
 	close(c.doneCh)
