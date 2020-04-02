@@ -17,6 +17,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
@@ -24,6 +25,8 @@ import (
 )
 
 const dhtNamespace = "dht"
+
+var _ = libp2pquic.NewTransport
 
 func init() {
 	// Cluster peers should advertise their public IPs as soon as they
@@ -115,7 +118,7 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.Security(secio.ID, secio.New),
 		// TODO: quic does not support private networks
-		//libp2p.Transport(libp2pquic.NewTransport),
+		// libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.DefaultTransports,
 	}
 }

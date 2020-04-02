@@ -26,8 +26,7 @@ const configKey = "cluster"
 // DefaultListenAddrs contains TCP and QUIC listen addresses.
 var DefaultListenAddrs = []string{
 	"/ip4/0.0.0.0/tcp/9096",
-	// TODO: QUIC does not support private networks
-	//	"/ip4/0.0.0.0/udp/9096/quic",
+	"/ip4/0.0.0.0/udp/9096/quic",
 }
 
 // Configuration defaults
