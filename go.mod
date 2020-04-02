@@ -77,4 +77,4 @@ require (
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 )
 
-go 1.14
+go 1.13
