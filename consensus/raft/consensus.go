@@ -15,7 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 
 	ds "github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	consensus "github.com/libp2p/go-libp2p-consensus"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -263,7 +263,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 
 		// No leader, wait for one
 		if err != nil {
-			logger.Warning("there seems to be no leader. Waiting for one")
+			logger.Warn("there seems to be no leader. Waiting for one")
 			rctx, cancel := context.WithTimeout(
 				ctx,
 				cc.config.WaitForLeaderTimeout,

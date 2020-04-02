@@ -41,7 +41,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 	}
 
 	if opts.ReplicationFactorMin < 0 {
-		logger.Warning("Shard is set to replicate everywhere ,which doesn't make sense for sharding")
+		logger.Warn("Shard is set to replicate everywhere ,which doesn't make sense for sharding")
 	}
 
 	// TODO (hector): get latest metrics for allocations, adjust sizeLimit

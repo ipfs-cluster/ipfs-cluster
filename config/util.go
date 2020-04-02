@@ -22,7 +22,7 @@ func (sv *Saver) NotifySave() {
 	select {
 	case sv.save <- struct{}{}:
 	default:
-		logger.Warning("configuration save channel full")
+		logger.Warn("configuration save channel full")
 	}
 }
 

@@ -22,7 +22,7 @@ import (
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	path "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -560,7 +560,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		params.Layout = "trickle"
 	}
 
-	logger.Warningf("Proxy/add does not support all IPFS params. Current options: %+v", params)
+	logger.Warnf("Proxy/add does not support all IPFS params. Current options: %+v", params)
 
 	outputTransform := func(in *api.AddedOutput) interface{} {
 		r := &ipfsAddResp{

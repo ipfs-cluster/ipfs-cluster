@@ -90,7 +90,7 @@ func (ba *BlockAdder) AddMany(ctx context.Context, nodes []ipld.Node) error {
 func ipldNodeToNodeWithMeta(n ipld.Node) *api.NodeWithMeta {
 	size, err := n.Size()
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	return &api.NodeWithMeta{

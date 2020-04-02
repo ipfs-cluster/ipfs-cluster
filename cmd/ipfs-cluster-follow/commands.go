@@ -281,9 +281,19 @@ func runCmd(c *cli.Context) error {
 	cfgHelper.Manager().Shutdown()
 	cfgs := cfgHelper.Configs()
 
+	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgs)
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "creating state manager"), 1)
+	}
+
+	store, err := stmgr.GetStore()
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "creating datastore"), 1)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error creating libp2p components"), 1)
 	}
@@ -324,16 +334,6 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
 	}
 	alloc := descendalloc.NewAllocator()
-
-	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgs)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "creating state manager"), 1)
-	}
-
-	store, err := stmgr.GetStore()
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "creating datastore"), 1)
-	}
 
 	crdtcons, err := crdt.New(
 		host,
@@ -399,7 +399,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "error creating cluster peer"), 1)
 	}
 
-	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht)
+	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht, store)
 }
 
 // List

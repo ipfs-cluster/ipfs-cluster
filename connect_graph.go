@@ -59,7 +59,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 		cg.IDtoPeername[p] = pID.Peername
 		// IPFS connections
 		if !selfConnection {
-			logger.Warningf("cluster peer %s not its own peer.  No ipfs info ", p)
+			logger.Warnf("cluster peer %s not its own peer.  No ipfs info ", p)
 			continue
 		}
 		c.recordIPFSLinks(&cg, pID)
@@ -89,7 +89,7 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []*ap
 func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID *api.ID) {
 	ipfsID := pID.IPFS.ID
 	if pID.IPFS.Error != "" { // Only setting ipfs connections when no error occurs
-		logger.Warningf("ipfs id: %s has error: %s. Skipping swarm connections", ipfsID.Pretty(), pID.IPFS.Error)
+		logger.Warnf("ipfs id: %s has error: %s. Skipping swarm connections", ipfsID.Pretty(), pID.IPFS.Error)
 		return
 	}
 
@@ -97,7 +97,7 @@ func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID *api.ID) {
 	ipfsPid := peer.IDB58Encode(ipfsID)
 
 	if _, ok := cg.IPFSLinks[pid]; ok {
-		logger.Warningf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID.Pretty())
+		logger.Warnf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID.Pretty())
 	}
 	cg.ClustertoIPFS[pid] = ipfsID
 	cg.IPFSLinks[ipfsPid] = make([]peer.ID, 0)

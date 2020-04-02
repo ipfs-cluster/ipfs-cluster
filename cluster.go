@@ -182,12 +182,9 @@ func NewCluster(
 	// visible as peers without having to wait for them to send one.
 	for _, p := range connectedPeers {
 		if err := c.logPingMetric(ctx, p); err != nil {
-			logger.Warning(err)
+			logger.Warn(err)
 		}
 	}
-
-	// Bootstrap the DHT now that we possibly have some connections
-	c.dht.Bootstrap(c.ctx)
 
 	// After setupRPC components can do their tasks with a fully operative
 	// routed libp2p host with some connections and a working DHT (hopefully).
@@ -401,7 +398,7 @@ func (c *Cluster) alertsHandler() {
 				continue
 			}
 
-			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
+			logger.Warnf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
 			if alrt.MetricName != pingMetricName {
 				continue // only handle ping alerts
 			}
@@ -413,18 +410,18 @@ func (c *Cluster) alertsHandler() {
 
 			cState, err := c.consensus.State(c.ctx)
 			if err != nil {
-				logger.Warning(err)
+				logger.Warn(err)
 				return
 			}
 			list, err := cState.List(c.ctx)
 			if err != nil {
-				logger.Warning(err)
+				logger.Warn(err)
 				return
 			}
 			for _, pin := range list {
 				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
-					logger.Warning("a pin with only one allocation cannot be repinned")
-					logger.Warning("to make repinning possible, pin with a replication factor of 2+")
+					logger.Warn("a pin with only one allocation cannot be repinned")
+					logger.Warn("to make repinning possible, pin with a replication factor of 2+")
 					continue
 				}
 				if c.shouldPeerRepinCid(alrt.Peer, pin) {
@@ -517,18 +514,18 @@ func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
 	defer span.End()
 
 	if c.config.DisableRepinning {
-		logger.Warningf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
+		logger.Warnf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
 		return
 	}
 
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 		return
 	}
 	list, err := cState.List(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 		return
 	}
 	for _, pin := range list {
@@ -666,10 +663,10 @@ func (c *Cluster) Ready() <-chan struct{} {
 // * Save peerstore with the current peers
 // * Remove itself from consensus when LeaveOnShutdown is set
 // * It Shutdowns all the components
-// * Closes the datastore
 // * Collects all goroutines
 //
-// Shutdown does not closes the libp2p host or the DHT.
+// Shutdown does not close the libp2p host, the DHT, the datastore or
+// generally anything that Cluster did not create.
 func (c *Cluster) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/Shutdown")
 	defer span.End()
@@ -707,7 +704,7 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 		_, err := c.consensus.Peers(ctx)
 		if err == nil {
 			// best effort
-			logger.Warning("attempting to leave the cluster. This may take some seconds")
+			logger.Warn("attempting to leave the cluster. This may take some seconds")
 			err := c.consensus.RmPeer(ctx, c.id)
 			if err != nil {
 				logger.Error("leaving cluster: " + err.Error())
@@ -767,12 +764,6 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	c.cancel()
 	c.wg.Wait()
-
-	// Cleanly close the datastore
-	if err := c.datastore.Close(); err != nil {
-		logger.Errorf("error closing Datastore: %s", err)
-		return err
-	}
 
 	c.shutdownB = true
 	close(c.doneCh)
@@ -950,18 +941,18 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// we know that peer since we have metrics for it without
 	// having to wait for the next metric round.
 	if err := c.logPingMetric(ctx, pid); err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	// Broadcast our metrics to the world
 	_, err = c.sendInformersMetrics(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	_, err = c.sendPingMetric(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	// We need to trigger a DHT bootstrap asap for this peer to not be
@@ -969,8 +960,18 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// by triggering 1 round of bootstrap in the background.
 	// Note that our regular bootstrap process is still running in the
 	// background since we created the cluster.
+	c.wg.Add(1)
 	go func() {
-		c.dht.BootstrapOnce(ctx, dht.DefaultBootstrapConfig)
+		defer c.wg.Done()
+		select {
+		case err := <-c.dht.RefreshRoutingTable():
+			if err != nil {
+				logger.Error(err)
+			}
+			return
+		case <-c.ctx.Done():
+			return
+		}
 	}()
 
 	// ConnectSwarms in the background after a while, when we have likely

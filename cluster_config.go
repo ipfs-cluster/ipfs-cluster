@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,7 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/config"
 
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
-	pnet "github.com/libp2p/go-libp2p-pnet"
+	pnet "github.com/libp2p/go-libp2p-core/pnet"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/kelseyhightower/envconfig"
@@ -67,7 +68,7 @@ type Config struct {
 	// Cluster secret for private network. Peers will be in the same cluster if and
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
 	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
-	Secret []byte
+	Secret pnet.PSK
 
 	// RPCPolicy defines access control to RPC endpoints.
 	RPCPolicy map[string]RPCEndpointType
@@ -202,14 +203,16 @@ func (cfg *Config) ConfigKey() string {
 func (cfg *Config) Default() error {
 	cfg.setDefaults()
 
-	// cluster secret
-	clusterSecret, err := pnet.GenerateV1Bytes()
+	clusterSecret := make([]byte, 32, 32)
+	n, err := rand.Read(clusterSecret)
 	if err != nil {
 		return err
 	}
-	cfg.Secret = (*clusterSecret)[:]
-	// --
+	if n != 32 {
+		return errors.New("did not generate 32-byte secret")
+	}
 
+	cfg.Secret = clusterSecret
 	return nil
 }
 
@@ -329,7 +332,7 @@ func isRPCPolicyValid(p map[string]RPCEndpointType) error {
 		}
 	}
 	if len(p) != total {
-		logger.Warning("defined RPC policy has more entries than needed")
+		logger.Warn("defined RPC policy has more entries than needed")
 	}
 	return nil
 }
@@ -535,7 +538,7 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	}
 	switch secretLen := len(secret); secretLen {
 	case 0:
-		logger.Warning("Cluster secret is empty, cluster will start on unprotected network.")
+		logger.Warn("Cluster secret is empty, cluster will start on unprotected network.")
 		return nil, nil
 	case 32:
 		return secret, nil

@@ -54,8 +54,10 @@ func TestSimplePNet(t *testing.T) {
 	if len(clusters[0].Peers(ctx)) != len(clusters[1].Peers(ctx)) {
 		t.Fatal("Expected same number of peers")
 	}
-	if len(clusters[0].Peers(ctx)) != 2 {
-		t.Fatal("Expected 2 peers")
+	if len(clusters[0].Peers(ctx)) < 2 {
+		// crdt mode has auto discovered all peers at this point.
+		// Raft mode has 2 peers only.
+		t.Fatal("Expected at least 2 peers")
 	}
 }
 

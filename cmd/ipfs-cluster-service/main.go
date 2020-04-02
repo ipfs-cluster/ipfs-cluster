@@ -20,7 +20,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	cli "github.com/urfave/cli"
 )
 
