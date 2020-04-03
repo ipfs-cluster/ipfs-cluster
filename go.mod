@@ -70,7 +70,7 @@ require (
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.1.7
 	github.com/urfave/cli v1.22.1
-	github.com/urfave/cli/v2 v2.0.0
+	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.3
 	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
