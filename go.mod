@@ -39,7 +39,6 @@ require (
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.7.4
-	github.com/libp2p/go-libp2p-autonat-svc v0.1.0
 	github.com/libp2p/go-libp2p-circuit v0.2.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
@@ -58,7 +57,7 @@ require (
 	github.com/libp2p/go-libp2p-raft v0.1.5
 	github.com/libp2p/go-libp2p-secio v0.2.2
 	github.com/libp2p/go-libp2p-tls v0.1.3
-	github.com/libp2p/go-ws-transport v0.2.0
+	github.com/libp2p/go-ws-transport v0.3.0
 	github.com/multiformats/go-multiaddr v0.2.1
 	github.com/multiformats/go-multiaddr-dns v0.2.0
 	github.com/multiformats/go-multiaddr-net v0.1.4
@@ -72,6 +71,7 @@ require (
 	github.com/urfave/cli v1.22.4
 	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.3
+	go.uber.org/multierr v1.5.0
 	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
