@@ -966,7 +966,9 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 		select {
 		case err := <-c.dht.RefreshRoutingTable():
 			if err != nil {
-				logger.Error(err)
+				// this error is quite chatty
+				// on single peer clusters
+				logger.Debug(err)
 			}
 			return
 		case <-c.ctx.Done():
