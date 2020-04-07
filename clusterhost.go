@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
+	ipns "github.com/ipfs/go-ipns"
 	"github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
 	relay "github.com/libp2p/go-libp2p-circuit"
@@ -15,9 +16,9 @@ import (
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
+	record "github.com/libp2p/go-libp2p-record"
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
@@ -63,7 +64,6 @@ func NewClusterHost(
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
 		libp2p.NATPortMap(),
-		libp2p.EnableNATService(),
 		libp2p.ConnectionManager(connman),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			idht, err = newDHT(ctx, h, ds)
@@ -115,6 +115,7 @@ func newHost(ctx context.Context, psk corepnet.PSK, priv crypto.PrivKey, opts ..
 func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	return []libp2p.Option{
 		libp2p.PrivateNetwork(psk),
+		libp2p.EnableNATService(),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.Security(secio.ID, secio.New),
 		// TODO: quic does not support private networks
@@ -123,12 +124,20 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	}
 }
 
-func newDHT(ctx context.Context, h host.Host, store datastore.Datastore) (*dht.IpfsDHT, error) {
-	opts := []dhtopts.Option{}
+func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraopts ...dht.Option) (*dht.IpfsDHT, error) {
+	opts := []dht.Option{
+		// TODO: fix this by running a public and a local DHT.
+		dht.Mode(dht.ModeServer),
+		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
+		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
+		dht.Concurrency(10),
+	}
+
+	opts = append(opts, extraopts...)
 
 	if batchingDs, ok := store.(datastore.Batching); ok {
 		dhtDatastore := namespace.Wrap(batchingDs, datastore.NewKey(dhtNamespace))
-		opts = append(opts, dhtopts.Datastore(dhtDatastore))
+		opts = append(opts, dht.Datastore(dhtDatastore))
 		logger.Debug("enabling DHT record persistance to datastore")
 	}
 

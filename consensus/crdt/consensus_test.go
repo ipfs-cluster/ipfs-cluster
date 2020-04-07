@@ -11,12 +11,13 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	ipns "github.com/ipfs/go-ipns"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	record "github.com/libp2p/go-libp2p-record"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 
@@ -42,8 +43,12 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 	}
 
 	idht, err := dht.New(ctx, h,
-		dhtopts.RoutingTableRefreshPeriod(200*time.Millisecond),
-		dhtopts.RoutingTableRefreshQueryTimeout(100*time.Millisecond),
+		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
+		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
+		dht.Concurrency(10),
+		dht.RoutingTableRefreshPeriod(200*time.Millisecond),
+		dht.RoutingTableRefreshQueryTimeout(100*time.Millisecond),
+		dht.Mode(dht.ModeServer),
 	)
 	if err != nil {
 		h.Close()

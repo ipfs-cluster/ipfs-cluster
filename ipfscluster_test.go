@@ -40,7 +40,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -313,8 +312,7 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 		t.Fatal(err)
 	}
 
-	// DHT needs to be created BEFORE connecting the peers, but
-	// bootstrapped AFTER
+	// DHT needs to be created BEFORE connecting the peers
 	d, err := newTestDHT(ctx, h)
 	if err != nil {
 		t.Fatal(err)
@@ -330,9 +328,9 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 }
 
 func newTestDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {
-	return dht.New(ctx, h,
-		dhtopts.RoutingTableRefreshPeriod(600*time.Millisecond),
-		dhtopts.RoutingTableRefreshQueryTimeout(300*time.Millisecond),
+	return newDHT(ctx, h, nil,
+		dht.RoutingTableRefreshPeriod(600*time.Millisecond),
+		dht.RoutingTableRefreshQueryTimeout(300*time.Millisecond),
 	)
 }
 

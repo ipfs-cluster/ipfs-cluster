@@ -64,14 +64,14 @@ test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipfs path
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "UNPINNED"
 '
 
-test_expect_success IPFS,CLUSTER "pin data to cluster with ctl using ipns paths" '
+test_expect_failure IPFS,CLUSTER "pin data to cluster with ctl using ipns paths" '
     name=`docker exec ipfs sh -c "ipfs name publish -Q ${cid[0]}"`
     ipfs-cluster-ctl pin add --wait --wait-timeout 2s "/ipns/$name" &&
     ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}" &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "PINNED"
 '
 
-test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipns paths" '
+test_expect_failure IPFS,CLUSTER "unpin data to cluster with ctl using ipns paths" '
     removed=(`ipfs-cluster-ctl pin rm --wait --wait-timeout 2s "/ipns/$name"`) &&
     echo "${removed[0]}" | grep -q "${cid[0]}" &&
     !(ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}") &&
