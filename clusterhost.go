@@ -131,7 +131,6 @@ func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraop
 		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
 		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
 		dht.Concurrency(10),
-		dht.Mode(dht.ModeAuto),
 	}
 
 	opts = append(opts, extraopts...)

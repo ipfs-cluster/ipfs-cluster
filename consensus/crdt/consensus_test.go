@@ -48,6 +48,7 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 		dht.Concurrency(10),
 		dht.RoutingTableRefreshPeriod(200*time.Millisecond),
 		dht.RoutingTableRefreshQueryTimeout(100*time.Millisecond),
+		dht.Mode(dht.ModeServer),
 	)
 	if err != nil {
 		h.Close()
