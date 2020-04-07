@@ -24,7 +24,7 @@ require (
 	github.com/ipfs/go-fs-lock v0.0.4
 	github.com/ipfs/go-ipfs-api v0.0.3
 	github.com/ipfs/go-ipfs-chunker v0.0.5
-	github.com/ipfs/go-ipfs-config v0.4.0
+	github.com/ipfs/go-ipfs-config v0.4.1
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
