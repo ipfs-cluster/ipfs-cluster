@@ -178,7 +178,7 @@ func textFormatPrintVersion(obj *api.Version) {
 }
 
 func textFormatPrintPin(obj *api.Pin) {
-	fmt.Printf("%s | %s | %s | %s | ", obj.Cid, obj.Name, strings.ToUpper(obj.Type.String()), obj.ExpireAt.String())
+	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, strings.ToUpper(obj.Type.String()))
 
 	if obj.ReplicationFactorMin < 0 {
 		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
@@ -203,10 +203,15 @@ func textFormatPrintPin(obj *api.Pin) {
 
 	fmt.Printf(" | Metadata:")
 	if len(obj.Metadata) == 0 {
-		fmt.Printf(" no\n")
+		fmt.Printf(" no")
 	} else {
-		fmt.Printf(" yes\n")
+		fmt.Printf(" yes")
 	}
+	expireAt := "Exp: ∞"
+	if !obj.ExpireAt.IsZero() {
+		expireAt = humanize.Time(obj.ExpireAt)
+	}
+	fmt.Printf(" | %s\n", expireAt)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
