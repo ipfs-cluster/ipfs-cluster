@@ -179,7 +179,7 @@ func httpURL(a *API) string {
 }
 
 func p2pURL(a *API) string {
-	return fmt.Sprintf("libp2p://%s", peer.IDB58Encode(a.Host().ID()))
+	return fmt.Sprintf("libp2p://%s", peer.Encode(a.Host().ID()))
 }
 
 func httpsURL(a *API) string {
@@ -558,10 +558,10 @@ func TestConnectGraphEndpoint(t *testing.T) {
 		// test a few link values
 		pid1 := test.PeerID1
 		pid4 := test.PeerID4
-		if _, ok := cg.ClustertoIPFS[peer.IDB58Encode(pid1)]; !ok {
+		if _, ok := cg.ClustertoIPFS[peer.Encode(pid1)]; !ok {
 			t.Fatal("missing cluster peer 1 from cluster to peer links map")
 		}
-		if cg.ClustertoIPFS[peer.IDB58Encode(pid1)] != pid4 {
+		if cg.ClustertoIPFS[peer.Encode(pid1)] != pid4 {
 			t.Error("unexpected ipfs peer mapped to cluster peer 1 in graph")
 		}
 	}
@@ -860,7 +860,7 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(test.Cid1) ||
-			resp[1].PeerMap[peer.IDB58Encode(test.PeerID1)].Status.String() != "pinning" {
+			resp[1].PeerMap[peer.Encode(test.PeerID1)].Status.String() != "pinning" {
 			t.Errorf("unexpected statusAll resp")
 		}
 
@@ -924,7 +924,7 @@ func TestAPIStatusEndpoint(t *testing.T) {
 		if !resp.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.IDB58Encode(test.PeerID1)]
+		info, ok := resp.PeerMap[peer.Encode(test.PeerID1)]
 		if !ok {
 			t.Fatal("expected info for test.PeerID1")
 		}
@@ -939,7 +939,7 @@ func TestAPIStatusEndpoint(t *testing.T) {
 		if !resp2.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok = resp2.PeerMap[peer.IDB58Encode(test.PeerID2)]
+		info, ok = resp2.PeerMap[peer.Encode(test.PeerID2)]
 		if !ok {
 			t.Fatal("expected info for test.PeerID2")
 		}
@@ -963,7 +963,7 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 		if !resp.Cid.Equals(test.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.IDB58Encode(test.PeerID1)]
+		info, ok := resp.PeerMap[peer.Encode(test.PeerID1)]
 		if !ok {
 			t.Fatal("expected info for test.PeerID1")
 		}

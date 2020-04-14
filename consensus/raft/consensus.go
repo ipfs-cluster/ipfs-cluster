@@ -21,7 +21,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
-	ma "github.com/multiformats/go-multiaddr"
 
 	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
@@ -223,7 +222,7 @@ func (cc *Consensus) SetClient(c *rpc.Client) {
 // Ready returns a channel which is signaled when the Consensus
 // algorithm has finished bootstrapping and is ready to use
 func (cc *Consensus) Ready(ctx context.Context) <-chan struct{} {
-	ctx, span := trace.StartSpan(ctx, "consensus/Ready")
+	_, span := trace.StartSpan(ctx, "consensus/Ready")
 	defer span.End()
 
 	return cc.readyCh
@@ -276,7 +275,7 @@ func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, err
 			if err != nil {
 				return false, fmt.Errorf("timed out waiting for leader: %s", err)
 			}
-			leader, err = peer.IDB58Decode(pidstr)
+			leader, err = peer.Decode(pidstr)
 			if err != nil {
 				return false, err
 			}
@@ -409,7 +408,7 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 		}
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
-		finalErr = cc.raft.AddPeer(ctx, peer.IDB58Encode(pid))
+		finalErr = cc.raft.AddPeer(ctx, peer.Encode(pid))
 
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
@@ -440,7 +439,7 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 		}
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
-		finalErr = cc.raft.RemovePeer(ctx, peer.IDB58Encode(pid))
+		finalErr = cc.raft.RemovePeer(ctx, peer.Encode(pid))
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)
@@ -458,7 +457,7 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 // writes to the shared state should happen through the Consensus component
 // methods.
 func (cc *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
-	ctx, span := trace.StartSpan(ctx, "consensus/State")
+	_, span := trace.StartSpan(ctx, "consensus/State")
 	defer span.End()
 
 	st, err := cc.consensus.GetLogHead()
@@ -479,7 +478,7 @@ func (cc *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 // Leader returns the peerID of the Leader of the
 // cluster. It returns an error when there is no leader.
 func (cc *Consensus) Leader(ctx context.Context) (peer.ID, error) {
-	ctx, span := trace.StartSpan(ctx, "consensus/Leader")
+	_, span := trace.StartSpan(ctx, "consensus/Leader")
 	defer span.End()
 
 	// Note the hard-dependency on raft here...
@@ -489,7 +488,7 @@ func (cc *Consensus) Leader(ctx context.Context) (peer.ID, error) {
 
 // Clean removes the Raft persisted state.
 func (cc *Consensus) Clean(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/Clean")
+	_, span := trace.StartSpan(ctx, "consensus/Clean")
 	defer span.End()
 
 	cc.shutdownLock.RLock()
@@ -532,21 +531,13 @@ func (cc *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
 	sort.Strings(raftPeers)
 
 	for _, p := range raftPeers {
-		id, err := peer.IDB58Decode(p)
+		id, err := peer.Decode(p)
 		if err != nil {
 			panic("could not decode peer")
 		}
 		peers = append(peers, id)
 	}
 	return peers, nil
-}
-
-func parsePIDFromMultiaddr(addr ma.Multiaddr) string {
-	pidstr, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		panic("peer badly encoded")
-	}
-	return pidstr
 }
 
 // OfflineState state returns a cluster state by reading the Raft data and

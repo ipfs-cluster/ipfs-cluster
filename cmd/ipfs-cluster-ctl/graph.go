@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	dot "github.com/kishansagathiya/go-dot"
-	peer "github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	"github.com/ipfs/ipfs-cluster/api"
 )
@@ -38,16 +38,14 @@ const (
 	tIPFSMissing                    // Missing IPFS node
 )
 
-var errUnfinishedWrite = errors.New("could not complete write of line to output")
 var errUnknownNodeType = errors.New("unsupported node type. Expected cluster or ipfs")
-var errCorruptOrdering = errors.New("expected pid to have an ordering within dot writer")
 
 func makeDot(cg *api.ConnectGraph, w io.Writer, allIpfs bool) error {
 	ipfsEdges := make(map[string][]peer.ID)
 	for k, v := range cg.IPFSLinks {
 		ipfsEdges[k] = make([]peer.ID, 0)
 		for _, id := range v {
-			strPid := peer.IDB58Encode(id)
+			strPid := peer.Encode(id)
 
 			if _, ok := cg.IPFSLinks[strPid]; ok || allIpfs {
 				ipfsEdges[k] = append(ipfsEdges[k], id)
@@ -65,7 +63,7 @@ func makeDot(cg *api.ConnectGraph, w io.Writer, allIpfs bool) error {
 	dW := dotWriter{
 		w:                w,
 		dotGraph:         dot.NewGraph("cluster"),
-		self:             peer.IDB58Encode(cg.ClusterID),
+		self:             peer.Encode(cg.ClusterID),
 		trustMap:         cg.ClusterTrustLinks,
 		idToPeername:     cg.IDtoPeername,
 		ipfsEdges:        ipfsEdges,
@@ -207,7 +205,7 @@ func (dW *dotWriter) print() error {
 		v := dW.clusterEdges[k]
 		for _, id := range v {
 			toNode := dW.clusterNodes[k]
-			fromNode := dW.clusterNodes[peer.IDB58Encode(id)]
+			fromNode := dW.clusterNodes[peer.Encode(id)]
 			dW.dotGraph.AddEdge(toNode, fromNode, true, "")
 		}
 	}
@@ -229,7 +227,7 @@ func (dW *dotWriter) print() error {
 			continue
 		}
 
-		fromNode, ok = dW.ipfsNodes[peer.IDB58Encode(ipfsID)]
+		fromNode, ok = dW.ipfsNodes[peer.Encode(ipfsID)]
 		if !ok {
 			logger.Error("expected a node at this id")
 			continue
@@ -244,7 +242,7 @@ func (dW *dotWriter) print() error {
 		v := dW.ipfsEdges[k]
 		toNode := dW.ipfsNodes[k]
 		for _, id := range v {
-			idStr := peer.IDB58Encode(id)
+			idStr := peer.Encode(id)
 			fromNode, ok := dW.ipfsNodes[idStr]
 			if !ok {
 				logger.Error("expected a node here")
@@ -257,7 +255,7 @@ func (dW *dotWriter) print() error {
 }
 
 func sortedKeys(dict map[string][]peer.ID) []string {
-	keys := make([]string, len(dict), len(dict))
+	keys := make([]string, len(dict))
 	i := 0
 	for k := range dict {
 		keys[i] = k

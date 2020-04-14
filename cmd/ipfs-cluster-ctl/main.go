@@ -20,7 +20,6 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
-	"contrib.go.opencensus.io/exporter/jaeger"
 	uuid "github.com/google/uuid"
 	cli "github.com/urfave/cli"
 )
@@ -34,15 +33,11 @@ const Version = "0.12.1"
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
 	defaultTimeout       = 0
-	defaultUsername      = ""
-	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
 	defaultAddParams     = api.DefaultAddParams()
 )
 
 var logger = logging.Logger("cluster-ctl")
-
-var tracer *jaeger.Exporter
 
 var globalClient client.Client
 
@@ -70,9 +65,9 @@ https://github.com/ipfs/ipfs-cluster.
 	programName,
 	defaultHost)
 
-type peerAddBody struct {
-	Addr string `json:"peer_multiaddress"`
-}
+// type peerAddBody struct {
+// 	Addr string `json:"peer_multiaddress"`
+// }
 
 func out(m string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, a...)
@@ -245,7 +240,7 @@ cluster peers.
 					Flags:     []cli.Flag{},
 					Action: func(c *cli.Context) error {
 						pid := c.Args().First()
-						p, err := peer.IDB58Decode(pid)
+						p, err := peer.Decode(pid)
 						checkErr("parsing peer ID", err)
 						cerr := globalClient.PeerRm(ctx, p)
 						formatResponse(c, nil, cerr)
@@ -405,7 +400,7 @@ content.
 				}
 
 				// Read arguments (paths)
-				paths := make([]string, c.NArg(), c.NArg())
+				paths := make([]string, c.NArg())
 				for i, path := range c.Args() {
 					paths[i] = path
 				}
@@ -977,14 +972,6 @@ deamon, otherwise on all IPFS daemons.
 	}
 
 	app.Run(os.Args)
-}
-
-func parseFlag(t int) cli.IntFlag {
-	return cli.IntFlag{
-		Name:   "parseAs",
-		Value:  t,
-		Hidden: true,
-	}
 }
 
 func localFlag() cli.BoolFlag {

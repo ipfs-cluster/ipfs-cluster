@@ -21,7 +21,6 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
-var errNotFound = errors.New("dagservice: block not found")
 var logger = logging.Logger("shardingdags")
 
 // DAGService is an implementation of a ClusterDAGService which

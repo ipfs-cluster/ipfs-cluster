@@ -4,7 +4,6 @@ package single
 
 import (
 	"context"
-	"errors"
 
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -16,9 +15,8 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
-var errNotFound = errors.New("dagservice: block not found")
-
 var logger = logging.Logger("singledags")
+var _ = logger // otherwise unused
 
 // DAGService is an implementation of an adder.ClusterDAGService which
 // puts the added blocks directly in the peers allocated to them (without

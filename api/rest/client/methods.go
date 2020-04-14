@@ -52,7 +52,7 @@ func (c *defaultClient) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, erro
 	ctx, span := trace.StartSpan(ctx, "client/PeerAdd")
 	defer span.End()
 
-	pidStr := peer.IDB58Encode(pid)
+	pidStr := peer.Encode(pid)
 	body := peerAddBody{pidStr}
 
 	var buf bytes.Buffer
@@ -518,7 +518,7 @@ func (c *defaultClient) Add(
 	ctx, span := trace.StartSpan(ctx, "client/Add")
 	defer span.End()
 
-	addFiles := make([]files.DirEntry, len(paths), len(paths))
+	addFiles := make([]files.DirEntry, len(paths))
 	for i, p := range paths {
 		u, err := url.Parse(p)
 		if err != nil {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	semver "github.com/blang/semver"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	protocol "github.com/libp2p/go-libp2p-core/protocol"
 )
 
 // Version is the current cluster version. Version alignment between

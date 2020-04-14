@@ -21,8 +21,8 @@ func CtxsWithTimeout(
 	timeout time.Duration,
 ) ([]context.Context, []context.CancelFunc) {
 
-	ctxs := make([]context.Context, n, n)
-	cancels := make([]context.CancelFunc, n, n)
+	ctxs := make([]context.Context, n)
+	cancels := make([]context.CancelFunc, n)
 	for i := 0; i < n; i++ {
 		ctx, cancel := context.WithTimeout(parent, timeout)
 		ctxs[i] = ctx
@@ -37,8 +37,8 @@ func CtxsWithCancel(
 	n int,
 ) ([]context.Context, []context.CancelFunc) {
 
-	ctxs := make([]context.Context, n, n)
-	cancels := make([]context.CancelFunc, n, n)
+	ctxs := make([]context.Context, n)
+	cancels := make([]context.CancelFunc, n)
 	for i := 0; i < n; i++ {
 		ctx, cancel := context.WithCancel(parent)
 		ctxs[i] = ctx
@@ -61,7 +61,7 @@ func MultiCancel(cancels []context.CancelFunc) {
 // slice using pointers to each elements of the original slice.
 // Useful to handle gorpc.MultiCall() replies.
 func CopyPIDsToIfaces(in []peer.ID) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
 	}
@@ -72,7 +72,7 @@ func CopyPIDsToIfaces(in []peer.ID) []interface{} {
 // slice using pointers to each elements of the original slice.
 // Useful to handle gorpc.MultiCall() replies.
 func CopyIDsToIfaces(in []*api.ID) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		in[i] = &api.ID{}
 		ifaces[i] = in[i]
@@ -84,7 +84,7 @@ func CopyIDsToIfaces(in []*api.ID) []interface{} {
 // to an empty interface slice using pointers to each elements of the
 // original slice. Useful to handle gorpc.MultiCall() replies.
 func CopyIDSliceToIfaces(in [][]*api.ID) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
 	}
@@ -95,7 +95,7 @@ func CopyIDSliceToIfaces(in [][]*api.ID) []interface{} {
 // an empty interface slice using pointers to each elements of
 // the original slice. Useful to handle gorpc.MultiCall() replies.
 func CopyPinInfoToIfaces(in []*api.PinInfo) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		in[i] = &api.PinInfo{}
 		ifaces[i] = in[i]
@@ -107,7 +107,7 @@ func CopyPinInfoToIfaces(in []*api.PinInfo) []interface{} {
 // to an empty interface slice using pointers to each elements of the original
 // slice. Useful to handle gorpc.MultiCall() replies.
 func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
 	}
@@ -118,7 +118,7 @@ func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
 // an empty interface slice using pointers to each elements of
 // the original slice. Useful to handle gorpc.MultiCall() replies.
 func CopyRepoGCSliceToIfaces(in []*api.RepoGC) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		in[i] = &api.RepoGC{}
 		ifaces[i] = in[i]
@@ -130,7 +130,7 @@ func CopyRepoGCSliceToIfaces(in []*api.RepoGC) []interface{} {
 // slice using pointers to each elements of the original slice.
 // Useful to handle gorpc.MultiCall() replies.
 func CopyEmptyStructToIfaces(in []struct{}) []interface{} {
-	ifaces := make([]interface{}, len(in), len(in))
+	ifaces := make([]interface{}, len(in))
 	for i := range in {
 		ifaces[i] = &in[i]
 	}
@@ -141,7 +141,7 @@ func CopyEmptyStructToIfaces(in []struct{}) []interface{} {
 // slice of then given length. Useful for RPC methods which have no response
 // types (so they use empty structs).
 func RPCDiscardReplies(n int) []interface{} {
-	replies := make([]struct{}, n, n)
+	replies := make([]struct{}, n)
 	return CopyEmptyStructToIfaces(replies)
 }
 

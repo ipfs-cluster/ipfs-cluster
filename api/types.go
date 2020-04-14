@@ -709,7 +709,7 @@ func convertPinType(t PinType) pb.Pin_PinType {
 
 // ProtoMarshal marshals this Pin using probobuf.
 func (pin *Pin) ProtoMarshal() ([]byte, error) {
-	allocs := make([][]byte, len(pin.Allocations), len(pin.Allocations))
+	allocs := make([][]byte, len(pin.Allocations))
 	for i, pid := range pin.Allocations {
 		bs, err := pid.Marshal()
 		if err != nil {
@@ -766,7 +766,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 
 	pbAllocs := pbPin.GetAllocations()
 	lenAllocs := len(pbAllocs)
-	allocs := make([]peer.ID, lenAllocs, lenAllocs)
+	allocs := make([]peer.ID, lenAllocs)
 	for i, pidb := range pbAllocs {
 		pid, err := peer.IDFromBytes(pidb)
 		if err != nil {
@@ -914,7 +914,7 @@ func (m *Metric) SetTTL(d time.Duration) {
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
 	expDate := time.Unix(0, m.Expire)
-	return expDate.Sub(time.Now())
+	return time.Until(expDate)
 }
 
 // Expired returns if the Metric has expired

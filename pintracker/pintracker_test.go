@@ -504,7 +504,8 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 				go func() {
 					err = tt.args.tracker.Untrack(context.Background(), tt.args.c)
 					if err != nil {
-						t.Fatal(err)
+						t.Error()
+						return
 					}
 				}()
 				var ctx context.Context

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -122,7 +122,7 @@ func (ident *Identity) LoadJSON(raw []byte) error {
 }
 
 func (ident *Identity) applyIdentityJSON(jID *identityJSON) error {
-	pid, err := peer.IDB58Decode(jID.ID)
+	pid, err := peer.Decode(jID.ID)
 	if err != nil {
 		err = fmt.Errorf("error decoding cluster ID: %s", err)
 		return err

@@ -278,7 +278,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		cfg.MaxHeaderBytes = jcfg.MaxHeaderBytes
 	}
 
-	if extra := jcfg.ExtractHeadersExtra; extra != nil && len(extra) > 0 {
+	if extra := jcfg.ExtractHeadersExtra; len(extra) > 0 {
 		cfg.ExtractHeadersExtra = extra
 	}
 	config.SetIfNotDefault(jcfg.ExtractHeadersPath, &cfg.ExtractHeadersPath)

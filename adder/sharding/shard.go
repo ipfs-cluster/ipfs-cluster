@@ -35,7 +35,7 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 		return nil, err
 	}
 
-	if opts.ReplicationFactorMin > 0 && (allocs == nil || len(allocs) == 0) {
+	if opts.ReplicationFactorMin > 0 && len(allocs) == 0 {
 		// This would mean that the empty cid is part of the shared state somehow.
 		panic("allocations for new shard cannot be empty without error")
 	}

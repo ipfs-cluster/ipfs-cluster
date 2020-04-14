@@ -80,7 +80,7 @@ func (c *defaultClient) enableLibp2p() error {
 	c.transport.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
 	c.net = "libp2p"
 	c.p2p = h
-	c.hostname = peer.IDB58Encode(pinfo.ID)
+	c.hostname = peer.Encode(pinfo.ID)
 	return nil
 }
 

@@ -169,7 +169,7 @@ type Config struct {
 // NewDefaultClient() to create one.
 type defaultClient struct {
 	ctx       context.Context
-	cancel    func()
+	cancel    context.CancelFunc
 	config    *Config
 	transport *http.Transport
 	net       string
@@ -180,9 +180,10 @@ type defaultClient struct {
 
 // NewDefaultClient initializes a client given a Config.
 func NewDefaultClient(cfg *Config) (Client, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	client := &defaultClient{
 		ctx:    ctx,
+		cancel: cancel,
 		config: cfg,
 	}
 
@@ -352,7 +353,7 @@ func IsPeerAddress(addr ma.Multiaddr) bool {
 		return false
 	}
 	pid, err := addr.ValueForProtocol(ma.P_P2P)
-	dnsaddr, err2 := addr.ValueForProtocol(madns.DnsaddrProtocol.Code)
+	dnsaddr, err2 := addr.ValueForProtocol(ma.P_DNSADDR)
 	return (pid != "" && err == nil) || (dnsaddr != "" && err2 == nil)
 }
 

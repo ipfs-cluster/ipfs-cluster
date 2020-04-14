@@ -203,7 +203,7 @@ func TestLibp2pConfig(t *testing.T) {
 	}
 	defer rest.Shutdown(ctx)
 
-	badPid, _ := peer.IDB58Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
+	badPid, _ := peer.Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
 	cfg.ID = badPid
 	err = cfg.Validate()
 	if err == nil {

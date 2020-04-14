@@ -45,10 +45,6 @@ var logger = logging.Logger("ipfshttp")
 // only the 10th will trigger a SendInformerMetrics call.
 var updateMetricMod = 10
 
-// progressTick sets how often we check progress when doing refs and pins
-// requests.
-var progressTick = 5 * time.Second
-
 // Connector implements the IPFSConnector interface
 // and provides a component which  is used to perform
 // on-demand requests against the configured IPFS daemom
@@ -99,11 +95,6 @@ type ipfsRepoGCResp struct {
 	Error string
 }
 
-type ipfsRefsResp struct {
-	Ref string
-	Err string
-}
-
 type ipfsPinsResp struct {
 	Pins     []string
 	Progress int
@@ -120,10 +111,6 @@ type ipfsBlockPutResp struct {
 
 type ipfsPeer struct {
 	Peer string
-}
-
-type ipfsStream struct {
-	Protocol string
 }
 
 // NewConnector creates the component and leaves it ready to be started
@@ -222,7 +209,7 @@ func (ipfs *Connector) SetClient(c *rpc.Client) {
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
 func (ipfs *Connector) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Shutdown")
+	_, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Shutdown")
 	defer span.End()
 
 	ipfs.shutdownLock.Lock()
@@ -266,7 +253,7 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 		return nil, err
 	}
 
-	pID, err := peer.IDB58Decode(res.ID)
+	pID, err := peer.Decode(res.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +262,7 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 		ID: pID,
 	}
 
-	mAddrs := make([]api.Multiaddr, len(res.Addresses), len(res.Addresses))
+	mAddrs := make([]api.Multiaddr, len(res.Addresses))
 	for i, strAddr := range res.Addresses {
 		mAddr, err := api.NewMultiaddr(strAddr)
 		if err != nil {
@@ -628,24 +615,6 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType str
 	return body, nil
 }
 
-// postDiscardBodyCtx makes a POST requests but discards the body
-// of the response directly after reading it.
-func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) error {
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	_, err = checkResponse(path, res)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(ioutil.Discard, res.Body)
-	return err
-}
-
 // apiURL is a short-hand for building the url of the IPFS
 // daemon API.
 func (ipfs *Connector) apiURL() string {
@@ -736,9 +705,8 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 		return value, nil
 	}
 
-	switch value.(type) {
+	switch v := value.(type) {
 	case map[string]interface{}:
-		v := value.(map[string]interface{})
 		return getConfigValue(path[1:], v)
 	default:
 		return nil, errors.New("invalid path")
@@ -865,7 +833,7 @@ func (ipfs *Connector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 
 	swarm := make([]peer.ID, len(peersRaw.Peers))
 	for i, p := range peersRaw.Peers {
-		pID, err := peer.IDB58Decode(p.Peer)
+		pID, err := peer.Decode(p.Peer)
 		if err != nil {
 			logger.Error(err)
 			return swarm, err

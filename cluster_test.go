@@ -38,7 +38,6 @@ func (c *mockComponent) Shutdown(ctx context.Context) error {
 
 func (c *mockComponent) SetClient(client *rpc.Client) {
 	c.rpcClient = client
-	return
 }
 
 type mockAPI struct {
@@ -213,7 +212,7 @@ func cleanState() {
 	os.RemoveAll(testsFolder)
 }
 
-func testClusterShutdown(t *testing.T) {
+func TestClusterShutdown(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	err := cl.Shutdown(ctx)
