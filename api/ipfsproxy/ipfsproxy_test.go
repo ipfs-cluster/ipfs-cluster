@@ -546,11 +546,11 @@ func TestProxyRepoGC(t *testing.T) {
 	}
 
 	testcases := []testcase{
-		testcase{
+		{
 			name:         "With streaming errors",
 			streamErrors: true,
 		},
-		testcase{
+		{
 			name:         "Without streaming errors",
 			streamErrors: false,
 		},
@@ -622,19 +622,19 @@ func TestProxyAdd(t *testing.T) {
 	}
 
 	testcases := []testcase{
-		testcase{
+		{
 			query:       "",
 			expectedCid: test.ShardingDirBalancedRootCID,
 		},
-		testcase{
+		{
 			query:       "progress=true",
 			expectedCid: test.ShardingDirBalancedRootCID,
 		},
-		testcase{
+		{
 			query:       "wrap-with-directory=true",
 			expectedCid: test.ShardingDirBalancedRootCIDWrapped,
 		},
-		testcase{
+		{
 			query:       "trickle=true",
 			expectedCid: test.ShardingDirTrickleRootCID,
 		},
@@ -809,8 +809,8 @@ func TestAttackHeaderSize(t *testing.T) {
 		expectedStatus int
 	}
 	testcases := []testcase{
-		testcase{testHeaderSize / 2, http.StatusNotFound},
-		testcase{testHeaderSize * 2, http.StatusRequestHeaderFieldsTooLarge},
+		{testHeaderSize / 2, http.StatusNotFound},
+		{testHeaderSize * 2, http.StatusRequestHeaderFieldsTooLarge},
 	}
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/foo", proxyURL(proxy)), nil)

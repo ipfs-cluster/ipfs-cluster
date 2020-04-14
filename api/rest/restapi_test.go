@@ -1144,7 +1144,7 @@ func TestCORS(t *testing.T) {
 		reqHeaders.Set("Access-Control-Request-Headers", "Content-Type")
 
 		for _, tc := range []testcase{
-			testcase{"GET", "/pins"},
+			{"GET", "/pins"},
 			//			testcase{},
 		} {
 			reqHeaders.Set("Access-Control-Request-Method", tc.method)
@@ -1275,116 +1275,116 @@ func TestBasicAuth(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	for _, tc := range []httpTestcase{
-		httpTestcase{},
-		httpTestcase{
+		{},
+		{
 			method:  "",
 			path:    "",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "POST",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "DELETE",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "HEAD",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "OPTIONS",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "PUT",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "TRACE",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "CONNECT",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "BAR",
 			path:    "/foo",
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(invalidUserName, invalidUserPassword),
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, invalidUserPassword),
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(invalidUserName, validUserPassword),
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(adminUserName, validUserPassword),
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
 			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
-		httpTestcase{
+		{
 			method:  "POST",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
 			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
-		httpTestcase{
+		{
 			method:  "DELETE",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
 			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
-		httpTestcase{
+		{
 			method:  "BAR",
 			path:    "/foo",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
 			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/id",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
@@ -1405,13 +1405,13 @@ func TestLimitMaxHeaderSize(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	for _, tc := range []httpTestcase{
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeLongHeaderShaper(maxHeaderBytes * 2),
 			checker: assertHTTPStatusIsTooLarge,
 		},
-		httpTestcase{
+		{
 			method:  "GET",
 			path:    "/foo",
 			shaper:  makeLongHeaderShaper(maxHeaderBytes / 2),

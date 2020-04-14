@@ -83,29 +83,29 @@ func TestSimpleIpfsGraphs(t *testing.T) {
 	cg := api.ConnectGraph{
 		ClusterID: pid1,
 		ClusterLinks: map[string][]peer.ID{
-			peer.Encode(pid1): []peer.ID{
+			peer.Encode(pid1): {
 				pid2,
 				pid3,
 			},
-			peer.Encode(pid2): []peer.ID{
+			peer.Encode(pid2): {
 				pid1,
 				pid3,
 			},
-			peer.Encode(pid3): []peer.ID{
+			peer.Encode(pid3): {
 				pid1,
 				pid2,
 			},
 		},
 		IPFSLinks: map[string][]peer.ID{
-			peer.Encode(pid4): []peer.ID{
+			peer.Encode(pid4): {
 				pid5,
 				pid6,
 			},
-			peer.Encode(pid5): []peer.ID{
+			peer.Encode(pid5): {
 				pid4,
 				pid6,
 			},
-			peer.Encode(pid6): []peer.ID{
+			peer.Encode(pid6): {
 				pid4,
 				pid5,
 			},
@@ -181,35 +181,35 @@ func TestIpfsAllGraphs(t *testing.T) {
 	cg := api.ConnectGraph{
 		ClusterID: pid1,
 		ClusterLinks: map[string][]peer.ID{
-			peer.Encode(pid1): []peer.ID{
+			peer.Encode(pid1): {
 				pid2,
 				pid3,
 			},
-			peer.Encode(pid2): []peer.ID{
+			peer.Encode(pid2): {
 				pid1,
 				pid3,
 			},
-			peer.Encode(pid3): []peer.ID{
+			peer.Encode(pid3): {
 				pid1,
 				pid2,
 			},
 		},
 		IPFSLinks: map[string][]peer.ID{
-			peer.Encode(pid4): []peer.ID{
+			peer.Encode(pid4): {
 				pid5,
 				pid6,
 				pid7,
 				pid8,
 				pid9,
 			},
-			peer.Encode(pid5): []peer.ID{
+			peer.Encode(pid5): {
 				pid4,
 				pid6,
 				pid7,
 				pid8,
 				pid9,
 			},
-			peer.Encode(pid6): []peer.ID{
+			peer.Encode(pid6): {
 				pid4,
 				pid5,
 				pid7,
