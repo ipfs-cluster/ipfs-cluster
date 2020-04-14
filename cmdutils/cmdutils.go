@@ -17,7 +17,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	ipfshttp "github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	host "github.com/libp2p/go-libp2p-core/host"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -107,7 +107,7 @@ func HandleSignals(
 	cancel context.CancelFunc,
 	cluster *ipfscluster.Cluster,
 	host host.Host,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	store datastore.Datastore,
 ) error {
 	signalChan := make(chan os.Signal, 20)

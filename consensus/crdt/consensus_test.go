@@ -16,12 +16,13 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	record "github.com/libp2p/go-libp2p-record"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 
-func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
+func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dual.DHT) {
 	ctx := context.Background()
 	h, err := libp2p.New(
 		ctx,
@@ -42,13 +43,12 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 		t.Fatal(err)
 	}
 
-	idht, err := dht.New(ctx, h,
+	idht, err := dual.New(ctx, h,
 		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
 		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
 		dht.Concurrency(10),
 		dht.RoutingTableRefreshPeriod(200*time.Millisecond),
 		dht.RoutingTableRefreshQueryTimeout(100*time.Millisecond),
-		dht.Mode(dht.ModeServer),
 	)
 	if err != nil {
 		h.Close()

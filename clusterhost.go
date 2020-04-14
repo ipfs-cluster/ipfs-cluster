@@ -16,6 +16,7 @@ import (
 	corepnet "github.com/libp2p/go-libp2p-core/pnet"
 	routing "github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	record "github.com/libp2p/go-libp2p-record"
@@ -50,7 +51,7 @@ func NewClusterHost(
 	ident *config.Identity,
 	cfg *Config,
 	ds datastore.Datastore,
-) (host.Host, *pubsub.PubSub, *dht.IpfsDHT, error) {
+) (host.Host, *pubsub.PubSub, *dual.DHT, error) {
 
 	connman := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, cfg.ConnMgr.GracePeriod)
 
@@ -59,7 +60,7 @@ func NewClusterHost(
 		relayOpts = append(relayOpts, relay.OptHop)
 	}
 
-	var idht *dht.IpfsDHT
+	var idht *dual.DHT
 	var err error
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
@@ -124,10 +125,8 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	}
 }
 
-func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraopts ...dht.Option) (*dht.IpfsDHT, error) {
+func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraopts ...dht.Option) (*dual.DHT, error) {
 	opts := []dht.Option{
-		// TODO: fix this by running a public and a local DHT.
-		dht.Mode(dht.ModeServer),
 		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
 		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
 		dht.Concurrency(10),
@@ -141,7 +140,7 @@ func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraop
 		logger.Debug("enabling DHT record persistance to datastore")
 	}
 
-	return dht.New(ctx, h, opts...)
+	return dual.New(ctx, h, opts...)
 }
 
 func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
@@ -153,7 +152,7 @@ func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
 	)
 }
 
-func routedHost(h host.Host, d *dht.IpfsDHT) host.Host {
+func routedHost(h host.Host, d *dual.DHT) host.Host {
 	return routedhost.Wrap(h, d)
 }
 

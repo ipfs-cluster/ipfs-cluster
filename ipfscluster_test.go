@@ -40,6 +40,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -144,7 +145,7 @@ func createComponents(
 	t *testing.T,
 	host host.Host,
 	pubsub *pubsub.PubSub,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	i int,
 	staging bool,
 ) (
@@ -247,7 +248,7 @@ func makeStore(t *testing.T, badgerCfg *badger.Config) ds.Datastore {
 	}
 }
 
-func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.PubSub, dht *dht.IpfsDHT, raftCfg *raft.Config, staging bool, crdtCfg *crdt.Config) Consensus {
+func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.PubSub, dht *dual.DHT, raftCfg *raft.Config, staging bool, crdtCfg *crdt.Config) Consensus {
 	switch consensus {
 	case "raft":
 		raftCon, err := raft.NewConsensus(h, raftCfg, store, staging)
@@ -266,7 +267,7 @@ func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.P
 	}
 }
 
-func createCluster(t *testing.T, host host.Host, dht *dht.IpfsDHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {
+func createCluster(t *testing.T, host host.Host, dht *dual.DHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {
 	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, []Informer{inf}, tracer)
 	if err != nil {
 		t.Fatal(err)
@@ -282,10 +283,10 @@ func createOnePeerCluster(t *testing.T, nth int, clusterSecret []byte) (*Cluster
 	return cl, mock
 }
 
-func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host, []*pubsub.PubSub, []*dht.IpfsDHT) {
+func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host, []*pubsub.PubSub, []*dual.DHT) {
 	hosts := make([]host.Host, nClusters)
 	pubsubs := make([]*pubsub.PubSub, nClusters)
-	dhts := make([]*dht.IpfsDHT, nClusters)
+	dhts := make([]*dual.DHT, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
@@ -304,7 +305,7 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	return hosts, pubsubs, dhts
 }
 
-func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen []ma.Multiaddr) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
+func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen []ma.Multiaddr) (host.Host, *pubsub.PubSub, *dual.DHT) {
 	ctx := context.Background()
 
 	h, err := newHost(ctx, clusterSecret, priv, libp2p.ListenAddrs(listen...))
@@ -327,7 +328,7 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 	return routedHost(h, d), psub, d
 }
 
-func newTestDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {
+func newTestDHT(ctx context.Context, h host.Host) (*dual.DHT, error) {
 	return newDHT(ctx, h, nil,
 		dht.RoutingTableRefreshPeriod(600*time.Millisecond),
 		dht.RoutingTableRefreshQueryTimeout(300*time.Millisecond),

@@ -23,7 +23,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -114,7 +114,7 @@ func createCluster(
 	cfgHelper *cmdutils.ConfigHelper,
 	host host.Host,
 	pubsub *pubsub.PubSub,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	store ds.Datastore,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
@@ -231,7 +231,7 @@ func setupDatastore(cfgHelper *cmdutils.ConfigHelper) ds.Datastore {
 func setupConsensus(
 	cfgHelper *cmdutils.ConfigHelper,
 	h host.Host,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	pubsub *pubsub.PubSub,
 	store ds.Datastore,
 	raftStaging bool,
