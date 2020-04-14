@@ -30,8 +30,8 @@ import (
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
 
-	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
+	proto "google.golang.org/protobuf/proto"
 )
 
 var logger = logging.Logger("apitypes")

@@ -1,6 +1,8 @@
 syntax = "proto3";
 package api.pb;
 
+option go_package=".;pb";
+
 message Pin {
   bytes Cid = 1;
   enum PinType {
