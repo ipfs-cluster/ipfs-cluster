@@ -201,14 +201,14 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	*out = api.ConnectGraph{
 		ClusterID: PeerID1,
 		IPFSLinks: map[string][]peer.ID{
-			peer.Encode(PeerID4): []peer.ID{PeerID5, PeerID6},
-			peer.Encode(PeerID5): []peer.ID{PeerID4, PeerID6},
-			peer.Encode(PeerID6): []peer.ID{PeerID4, PeerID5},
+			peer.Encode(PeerID4): {PeerID5, PeerID6},
+			peer.Encode(PeerID5): {PeerID4, PeerID6},
+			peer.Encode(PeerID6): {PeerID4, PeerID5},
 		},
 		ClusterLinks: map[string][]peer.ID{
-			peer.Encode(PeerID1): []peer.ID{PeerID2, PeerID3},
-			peer.Encode(PeerID2): []peer.ID{PeerID1, PeerID3},
-			peer.Encode(PeerID3): []peer.ID{PeerID1, PeerID2},
+			peer.Encode(PeerID1): {PeerID2, PeerID3},
+			peer.Encode(PeerID2): {PeerID1, PeerID3},
+			peer.Encode(PeerID3): {PeerID1, PeerID2},
 		},
 		ClustertoIPFS: map[string]peer.ID{
 			peer.Encode(PeerID1): PeerID4,

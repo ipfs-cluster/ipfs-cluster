@@ -266,7 +266,7 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 	}
 	if cfg.DatastoreNamespace != DefaultDatastoreNamespace {
 		jcfg.DatastoreNamespace = cfg.DatastoreNamespace
-		// otherwise leave empty so it gets ommitted.
+		// otherwise leave empty so it gets omitted.
 	}
 	return jcfg
 }

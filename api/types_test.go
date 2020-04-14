@@ -159,7 +159,7 @@ func TestDupTags(t *testing.T) {
 
 func TestPinOptionsQuery(t *testing.T) {
 	testcases := []*PinOptions{
-		&PinOptions{
+		{
 			ReplicationFactorMax: 3,
 			ReplicationFactorMin: 2,
 			Name:                 "abc",
@@ -174,7 +174,7 @@ func TestPinOptionsQuery(t *testing.T) {
 				"hello2": "bye2",
 			},
 		},
-		&PinOptions{
+		{
 			ReplicationFactorMax: -1,
 			ReplicationFactorMin: 0,
 			Name:                 "",
@@ -182,7 +182,7 @@ func TestPinOptionsQuery(t *testing.T) {
 			UserAllocations:      []peer.ID{},
 			Metadata:             nil,
 		},
-		&PinOptions{
+		{
 			ReplicationFactorMax: -1,
 			ReplicationFactorMin: 0,
 			Name:                 "",

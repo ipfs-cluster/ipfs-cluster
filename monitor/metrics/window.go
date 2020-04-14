@@ -1,5 +1,5 @@
 // Package metrics provides common functionality for working with metrics,
-// particulary useful for monitoring components. It includes types to store,
+// particularly useful for monitoring components. It includes types to store,
 // check and filter metrics.
 package metrics
 

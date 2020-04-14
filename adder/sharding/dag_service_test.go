@@ -194,7 +194,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 	}
 
 	tcs := []*testcase{
-		&testcase{
+		{
 			name: "bad chunker",
 			params: &api.AddParams{
 				Layout:    "",
@@ -210,7 +210,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 				},
 			},
 		},
-		&testcase{
+		{
 			name: "shard size too small",
 			params: &api.AddParams{
 				Layout:    "",
@@ -226,7 +226,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 				},
 			},
 		},
-		&testcase{
+		{
 			name: "replication too high",
 			params: &api.AddParams{
 				Layout:    "",

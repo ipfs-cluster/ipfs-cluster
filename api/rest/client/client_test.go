@@ -159,19 +159,19 @@ func TestHostPort(t *testing.T) {
 	}
 
 	testcases := []testcase{
-		testcase{
+		{
 			host:              "3.3.1.1",
 			port:              "9094",
 			expectedHostname:  "3.3.1.1:9094",
 			expectedProxyAddr: "/ip4/3.3.1.1/tcp/9095",
 		},
-		testcase{
+		{
 			host:              "ipfs.io",
 			port:              "9094",
 			expectedHostname:  "ipfs.io:9094",
 			expectedProxyAddr: "/dns4/ipfs.io/tcp/9095",
 		},
-		testcase{
+		{
 			host:              "2001:db8::1",
 			port:              "9094",
 			expectedHostname:  "[2001:db8::1]:9094",
