@@ -352,7 +352,7 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 		// Returned metrics are Valid and belong to current
 		// Cluster peers.
 		metrics := rpcapi.c.monitor.LatestMetrics(ctx, pingMetricName)
-		peers := make([]peer.ID, len(metrics), len(metrics))
+		peers := make([]peer.ID, len(metrics))
 		for i, m := range metrics {
 			peers[i] = m.Peer
 		}

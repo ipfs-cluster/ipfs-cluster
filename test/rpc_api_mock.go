@@ -201,26 +201,26 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	*out = api.ConnectGraph{
 		ClusterID: PeerID1,
 		IPFSLinks: map[string][]peer.ID{
-			peer.IDB58Encode(PeerID4): []peer.ID{PeerID5, PeerID6},
-			peer.IDB58Encode(PeerID5): []peer.ID{PeerID4, PeerID6},
-			peer.IDB58Encode(PeerID6): []peer.ID{PeerID4, PeerID5},
+			peer.Encode(PeerID4): []peer.ID{PeerID5, PeerID6},
+			peer.Encode(PeerID5): []peer.ID{PeerID4, PeerID6},
+			peer.Encode(PeerID6): []peer.ID{PeerID4, PeerID5},
 		},
 		ClusterLinks: map[string][]peer.ID{
-			peer.IDB58Encode(PeerID1): []peer.ID{PeerID2, PeerID3},
-			peer.IDB58Encode(PeerID2): []peer.ID{PeerID1, PeerID3},
-			peer.IDB58Encode(PeerID3): []peer.ID{PeerID1, PeerID2},
+			peer.Encode(PeerID1): []peer.ID{PeerID2, PeerID3},
+			peer.Encode(PeerID2): []peer.ID{PeerID1, PeerID3},
+			peer.Encode(PeerID3): []peer.ID{PeerID1, PeerID2},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.IDB58Encode(PeerID1): PeerID4,
-			peer.IDB58Encode(PeerID2): PeerID5,
-			peer.IDB58Encode(PeerID3): PeerID6,
+			peer.Encode(PeerID1): PeerID4,
+			peer.Encode(PeerID2): PeerID5,
+			peer.Encode(PeerID3): PeerID6,
 		},
 	}
 	return nil
 }
 
 func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	pid := peer.IDB58Encode(PeerID1)
+	pid := peer.Encode(PeerID1)
 	*out = []*api.GlobalPinInfo{
 		{
 			Cid: Cid1,
@@ -270,7 +270,7 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	*out = api.GlobalPinInfo{
 		Cid: in,
 		PeerMap: map[string]*api.PinInfo{
-			peer.IDB58Encode(PeerID1): {
+			peer.Encode(PeerID1): {
 				Cid:    in,
 				Peer:   PeerID1,
 				Status: api.TrackerStatusPinned,
@@ -314,7 +314,7 @@ func (mock *mockCluster) RepoGC(ctx context.Context, in struct{}, out *api.Globa
 	_ = mock.RepoGCLocal(ctx, struct{}{}, localrepoGC)
 	*out = api.GlobalRepoGC{
 		PeerMap: map[string]*api.RepoGC{
-			peer.IDB58Encode(PeerID1): localrepoGC,
+			peer.Encode(PeerID1): localrepoGC,
 		},
 	}
 	return nil
@@ -392,7 +392,7 @@ func (mock *mockPinTracker) Status(ctx context.Context, in cid.Cid, out *api.Pin
 }
 
 func (mock *mockPinTracker) RecoverAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	*out = make([]*api.PinInfo, 0, 0)
+	*out = make([]*api.PinInfo, 0)
 	return nil
 }
 

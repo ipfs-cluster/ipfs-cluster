@@ -73,10 +73,8 @@ func (c *defaultClient) doRequest(
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
-	if headers != nil {
-		for k, v := range headers {
-			r.Header.Set(k, v)
-		}
+	for k, v := range headers {
+		r.Header.Set(k, v)
 	}
 
 	if body != nil {

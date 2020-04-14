@@ -16,7 +16,7 @@ import (
 	"github.com/ipfs/go-datastore"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	ipfshttp "github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	host "github.com/libp2p/go-libp2p-host"
+	host "github.com/libp2p/go-libp2p-core/host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"

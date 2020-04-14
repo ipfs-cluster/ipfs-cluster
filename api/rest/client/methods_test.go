@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
 	types "github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/rest"
-	"github.com/ipfs/ipfs-cluster/test"
+	rest "github.com/ipfs/ipfs-cluster/api/rest"
+	test "github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -90,6 +89,7 @@ func TestPeersWithError(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/44444")
+		var _ = c
 		c, _ = NewDefaultClient(&Config{APIAddr: addr, DisableKeepAlives: true})
 		ids, err := c.Peers(ctx)
 		if err == nil {
@@ -367,7 +367,7 @@ func TestStatusAll(t *testing.T) {
 			t.Error("there should be two pins")
 		}
 
-		pins, err = c.StatusAll(ctx, 1<<25, false)
+		_, err = c.StatusAll(ctx, 1<<25, false)
 		if err == nil {
 			t.Error("expected an error")
 		}
@@ -476,7 +476,7 @@ type waitService struct {
 	pinStart time.Time
 }
 
-func (wait *waitService) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+func (wait *waitService) Pin(ctx context.Context, in *types.Pin, out *types.Pin) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	wait.pinStart = time.Now()
@@ -484,41 +484,41 @@ func (wait *waitService) Pin(ctx context.Context, in *api.Pin, out *api.Pin) err
 	return nil
 }
 
-func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.GlobalPinInfo) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	if time.Now().After(wait.pinStart.Add(5 * time.Second)) { //pinned
-		*out = api.GlobalPinInfo{
+		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*api.PinInfo{
-				peer.IDB58Encode(test.PeerID1): {
+			PeerMap: map[string]*types.PinInfo{
+				peer.Encode(test.PeerID1): {
 					Cid:    in,
 					Peer:   test.PeerID1,
-					Status: api.TrackerStatusPinned,
+					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
-				peer.IDB58Encode(test.PeerID2): {
+				peer.Encode(test.PeerID2): {
 					Cid:    in,
 					Peer:   test.PeerID2,
-					Status: api.TrackerStatusPinned,
+					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
 			},
 		}
 	} else { // pinning
-		*out = api.GlobalPinInfo{
+		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*api.PinInfo{
-				peer.IDB58Encode(test.PeerID1): {
+			PeerMap: map[string]*types.PinInfo{
+				peer.Encode(test.PeerID1): {
 					Cid:    in,
 					Peer:   test.PeerID1,
-					Status: api.TrackerStatusPinning,
+					Status: types.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
-				peer.IDB58Encode(test.PeerID2): {
+				peer.Encode(test.PeerID2): {
 					Cid:    in,
 					Peer:   test.PeerID2,
-					Status: api.TrackerStatusPinned,
+					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
 			},
@@ -554,21 +554,23 @@ func TestWaitFor(t *testing.T) {
 			fp := StatusFilterParams{
 				Cid:       test.Cid1,
 				Local:     false,
-				Target:    api.TrackerStatusPinned,
+				Target:    types.TrackerStatusPinned,
 				CheckFreq: time.Second,
 			}
 			start := time.Now()
 
 			st, err := WaitFor(ctx, c, fp)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
-			if time.Now().Sub(start) <= 5*time.Second {
-				t.Fatal("slow pin should have taken at least 5 seconds")
+			if time.Since(start) <= 5*time.Second {
+				t.Error("slow pin should have taken at least 5 seconds")
+				return
 			}
 
 			for _, pi := range st.PeerMap {
-				if pi.Status != api.TrackerStatusPinned {
+				if pi.Status != types.TrackerStatusPinned {
 					t.Error("pin info should show the item is pinned")
 				}
 			}

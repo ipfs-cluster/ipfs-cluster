@@ -47,7 +47,6 @@ func TestWindow_Race(t *testing.T) {
 				i++
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
@@ -64,7 +63,6 @@ func TestWindow_Race(t *testing.T) {
 				// log <- fmt.Sprintf("latest: %v", l)
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
@@ -80,7 +78,6 @@ func TestWindow_Race(t *testing.T) {
 				// log <- fmt.Sprintf("all: %v", w.All())
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
@@ -95,23 +92,17 @@ func TestWindow_Race(t *testing.T) {
 				log <- fmt.Sprintf("dist: %v", w.Distribution())
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
 
 	go func() {
 		<-start
-		for {
-			select {
-			case <-done:
-				for s := range log {
-					fmt.Println(s)
-				}
-				close(done)
-				return
-			}
+		<-done
+		for s := range log {
+			fmt.Println(s)
 		}
+		close(done)
 	}()
 
 	close(start)

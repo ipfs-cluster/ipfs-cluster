@@ -72,9 +72,6 @@ var (
 // Used by sendResponse to set the right status
 const autoStatus = -1
 
-// For making a random sharding ID
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
 // API implements an API and aims to provides
 // a RESTful HTTP API for Cluster.
 type API struct {
@@ -324,7 +321,7 @@ func basicAuthHandler(credentials map[string]string, h http.Handler) http.Handle
 				logger.Error(err)
 				return
 			}
-			http.Error(w, resp, 401)
+			http.Error(w, resp, http.StatusUnauthorized)
 			return
 		}
 
@@ -340,7 +337,7 @@ func basicAuthHandler(credentials map[string]string, h http.Handler) http.Handle
 				logger.Error(err)
 				return
 			}
-			http.Error(w, resp, 401)
+			http.Error(w, resp, http.StatusUnauthorized)
 			return
 		}
 		h.ServeHTTP(w, r)
@@ -686,8 +683,6 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 		w,
 		nil,
 	)
-
-	return
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
@@ -715,7 +710,7 @@ func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pid, err := peer.IDB58Decode(addInfo.PeerID)
+	pid, err := peer.Decode(addInfo.PeerID)
 	if err != nil {
 		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding peer_id"), nil)
 		return
@@ -1074,7 +1069,7 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
 	return types.GlobalRepoGC{
 		PeerMap: map[string]*types.RepoGC{
-			peer.IDB58Encode(r.Peer): r,
+			peer.Encode(r.Peer): r,
 		},
 	}
 }
@@ -1124,7 +1119,7 @@ func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) *types.P
 func (api *API) parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {
 	vars := mux.Vars(r)
 	idStr := vars["peer"]
-	pid, err := peer.IDB58Decode(idStr)
+	pid, err := peer.Decode(idStr)
 	if err != nil {
 		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding Peer ID: "+err.Error()), nil)
 		return ""
@@ -1136,13 +1131,13 @@ func pinInfoToGlobal(pInfo *types.PinInfo) *types.GlobalPinInfo {
 	return &types.GlobalPinInfo{
 		Cid: pInfo.Cid,
 		PeerMap: map[string]*types.PinInfo{
-			peer.IDB58Encode(pInfo.Peer): pInfo,
+			peer.Encode(pInfo.Peer): pInfo,
 		},
 	}
 }
 
 func pinInfosToGlobal(pInfos []*types.PinInfo) []*types.GlobalPinInfo {
-	gPInfos := make([]*types.GlobalPinInfo, len(pInfos), len(pInfos))
+	gPInfos := make([]*types.GlobalPinInfo, len(pInfos))
 	for i, p := range pInfos {
 		gPInfos[i] = pinInfoToGlobal(p)
 	}

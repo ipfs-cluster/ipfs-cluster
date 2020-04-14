@@ -340,7 +340,6 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string, code int) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.Write(resBytes)
-	return
 }
 
 func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
@@ -373,7 +372,6 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
-	return
 }
 
 func (proxy *Server) pinHandler(w http.ResponseWriter, r *http.Request) {
@@ -529,7 +527,6 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
-	return
 }
 
 func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
@@ -628,8 +625,8 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	ctxs, cancels := rpcutil.CtxsWithCancel(proxy.ctx, len(peers))
 	defer rpcutil.MultiCancel(cancels)
 
-	repoStats := make([]*api.IPFSRepoStat, len(peers), len(peers))
-	repoStatsIfaces := make([]interface{}, len(repoStats), len(repoStats))
+	repoStats := make([]*api.IPFSRepoStat, len(peers))
+	repoStatsIfaces := make([]interface{}, len(repoStats))
 	for i := range repoStats {
 		repoStats[i] = &api.IPFSRepoStat{}
 		repoStatsIfaces[i] = repoStats[i]
@@ -662,7 +659,6 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	resBytes, _ := json.Marshal(totalStats)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
-	return
 }
 
 type ipfsRepoGCResp struct {
@@ -718,8 +714,6 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	if !streamErrors && mErrStr != "" {
 		w.Header().Set("X-Stream-Error", mErrStr)
 	}
-
-	return
 }
 
 // slashHandler returns a handler which converts a /a/b/c/<argument> request

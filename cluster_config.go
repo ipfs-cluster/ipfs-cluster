@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
@@ -59,8 +58,6 @@ type ConnMgrConfig struct {
 // config.ComponentConfig interface.
 type Config struct {
 	config.Saver
-	lock          sync.Mutex
-	peerstoreLock sync.Mutex
 
 	// User-defined peername for use as human-readable identifier.
 	Peername string
@@ -203,7 +200,7 @@ func (cfg *Config) ConfigKey() string {
 func (cfg *Config) Default() error {
 	cfg.setDefaults()
 
-	clusterSecret := make([]byte, 32, 32)
+	clusterSecret := make([]byte, 32)
 	n, err := rand.Read(clusterSecret)
 	if err != nil {
 		return err

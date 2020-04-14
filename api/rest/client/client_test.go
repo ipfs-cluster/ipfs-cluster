@@ -23,7 +23,7 @@ func testAPI(t *testing.T) *rest.API {
 	cfg := &rest.Config{}
 	cfg.Default()
 	cfg.HTTPListenAddr = []ma.Multiaddr{apiMAddr}
-	secret := make(pnet.PSK, 32, 32)
+	secret := make(pnet.PSK, 32)
 
 	h, err := libp2p.New(
 		context.Background(),
@@ -58,7 +58,7 @@ func apiMAddr(a *rest.API) ma.Multiaddr {
 }
 
 func peerMAddr(a *rest.API) ma.Multiaddr {
-	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peer.IDB58Encode(a.Host().ID())))
+	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peer.Encode(a.Host().ID())))
 	for _, a := range a.Host().Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
 			return a.Encapsulate(ipfsAddr)

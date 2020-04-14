@@ -82,12 +82,6 @@ type mockConfigResp struct {
 	}
 }
 
-type mockAddResp struct {
-	Name  string
-	Hash  string
-	Bytes uint64
-}
-
 type mockRefsResp struct {
 	Ref string
 	Err string

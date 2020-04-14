@@ -1431,7 +1431,7 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	case api.DataType:
 		return pin, c.consensus.LogUnpin(ctx, pin)
 	case api.ShardType:
-		err := "cannot unpin a shard directly. Unpin content root CID instead."
+		err := "cannot unpin a shard directly. Unpin content root CID instead"
 		return pin, errors.New(err)
 	case api.MetaType:
 		// Unpin cluster dag and referenced shards
@@ -1441,7 +1441,7 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 		}
 		return pin, c.consensus.LogUnpin(ctx, pin)
 	case api.ClusterDAGType:
-		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
+		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead"
 		return pin, errors.New(err)
 	default:
 		return pin, errors.New("unrecognized pin type")
@@ -1569,7 +1569,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	}
 	lenMembers := len(members)
 
-	peers := make([]*api.ID, lenMembers, lenMembers)
+	peers := make([]*api.ID, lenMembers)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
@@ -1588,6 +1588,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	for i, err := range errs {
 		if err == nil {
 			finalPeers = append(finalPeers, peers[i])
+			_ = finalPeers // staticcheck
 			continue
 		}
 
@@ -1624,7 +1625,7 @@ func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
 
 func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, t time.Time) {
 	for _, p := range peers {
-		gpin.PeerMap[peer.IDB58Encode(p)] = &api.PinInfo{
+		gpin.PeerMap[peer.Encode(p)] = &api.PinInfo{
 			Cid:      h,
 			Peer:     p,
 			PeerName: p.String(),
@@ -1684,7 +1685,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, timeNow)
 
 	lenDests := len(dests)
-	replies := make([]*api.PinInfo, lenDests, lenDests)
+	replies := make([]*api.PinInfo, lenDests)
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenDests)
 	defer rpcutil.MultiCancel(cancels)
 
@@ -1702,7 +1703,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.PeerMap[peer.IDB58Encode(dests[i])] = r
+			gpin.PeerMap[peer.Encode(dests[i])] = r
 			continue
 		}
 
@@ -1713,7 +1714,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
-		gpin.PeerMap[peer.IDB58Encode(dests[i])] = &api.PinInfo{
+		gpin.PeerMap[peer.Encode(dests[i])] = &api.PinInfo{
 			Cid:      h,
 			Peer:     dests[i],
 			PeerName: dests[i].String(),
@@ -1746,7 +1747,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	}
 	lenMembers := len(members)
 
-	replies := make([][]*api.PinInfo, lenMembers, lenMembers)
+	replies := make([][]*api.PinInfo, lenMembers)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
@@ -1770,11 +1771,11 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 				fullMap[p.Cid] = &api.GlobalPinInfo{
 					Cid: p.Cid,
 					PeerMap: map[string]*api.PinInfo{
-						peer.IDB58Encode(p.Peer): p,
+						peer.Encode(p.Peer): p,
 					},
 				}
 			} else {
-				item.PeerMap[peer.IDB58Encode(p.Peer)] = p
+				item.PeerMap[peer.Encode(p.Peer)] = p
 			}
 		}
 	}
@@ -1796,7 +1797,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	// Merge any errors
 	for p, msg := range erroredPeers {
 		for c := range fullMap {
-			fullMap[c].PeerMap[peer.IDB58Encode(p)] = &api.PinInfo{
+			fullMap[c].PeerMap[peer.Encode(p)] = &api.PinInfo{
 				Cid:    c,
 				Peer:   p,
 				Status: api.TrackerStatusClusterError,
@@ -1887,45 +1888,45 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 	return list, nil
 }
 
-// diffPeers returns the peerIDs added and removed from peers2 in relation to
-// peers1
-func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
-	m1 := make(map[peer.ID]struct{})
-	m2 := make(map[peer.ID]struct{})
-	added = make([]peer.ID, 0)
-	removed = make([]peer.ID, 0)
-	if peers1 == nil && peers2 == nil {
-		return
-	}
-	if peers1 == nil {
-		added = peers2
-		return
-	}
-	if peers2 == nil {
-		removed = peers1
-		return
-	}
+// // diffPeers returns the peerIDs added and removed from peers2 in relation to
+// // peers1
+// func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
+// 	m1 := make(map[peer.ID]struct{})
+// 	m2 := make(map[peer.ID]struct{})
+// 	added = make([]peer.ID, 0)
+// 	removed = make([]peer.ID, 0)
+// 	if peers1 == nil && peers2 == nil {
+// 		return
+// 	}
+// 	if peers1 == nil {
+// 		added = peers2
+// 		return
+// 	}
+// 	if peers2 == nil {
+// 		removed = peers1
+// 		return
+// 	}
 
-	for _, p := range peers1 {
-		m1[p] = struct{}{}
-	}
-	for _, p := range peers2 {
-		m2[p] = struct{}{}
-	}
-	for k := range m1 {
-		_, ok := m2[k]
-		if !ok {
-			removed = append(removed, k)
-		}
-	}
-	for k := range m2 {
-		_, ok := m1[k]
-		if !ok {
-			added = append(added, k)
-		}
-	}
-	return
-}
+// 	for _, p := range peers1 {
+// 		m1[p] = struct{}{}
+// 	}
+// 	for _, p := range peers2 {
+// 		m2[p] = struct{}{}
+// 	}
+// 	for k := range m1 {
+// 		_, ok := m2[k]
+// 		if !ok {
+// 			removed = append(removed, k)
+// 		}
+// 	}
+// 	for k := range m2 {
+// 		_, ok := m1[k]
+// 		if !ok {
+// 			added = append(added, k)
+// 		}
+// 	}
+// 	return
+// }
 
 // RepoGC performs garbage collection sweep on all peers' IPFS repo.
 func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
@@ -1952,7 +1953,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 			&repoGC,
 		)
 		if err == nil {
-			globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &repoGC
+			globalRepoGC.PeerMap[peer.Encode(member)] = &repoGC
 			continue
 		}
 
@@ -1963,9 +1964,9 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, member, err)
 
-		globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &api.RepoGC{
+		globalRepoGC.PeerMap[peer.Encode(member)] = &api.RepoGC{
 			Peer:     member,
-			Peername: peer.IDB58Encode(member),
+			Peername: peer.Encode(member),
 			Keys:     []api.IPFSRepoGC{},
 			Error:    err.Error(),
 		}

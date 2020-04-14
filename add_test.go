@@ -178,7 +178,7 @@ func TestAddOnePeerFails(t *testing.T) {
 			defer wg.Done()
 			_, err := clusters[0].AddFile(r, params)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		}()
 
@@ -236,7 +236,7 @@ func TestAddAllPeersFail(t *testing.T) {
 			defer wg.Done()
 			_, err := clusters[0].AddFile(r, params)
 			if err != adder.ErrBlockAdder {
-				t.Fatal("expected ErrBlockAdder. Got: ", err)
+				t.Error("expected ErrBlockAdder. Got: ", err)
 			}
 		}()
 

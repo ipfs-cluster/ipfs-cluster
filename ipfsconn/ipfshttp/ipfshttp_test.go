@@ -63,7 +63,7 @@ func TestIPFSID(t *testing.T) {
 		t.Error("expected no error")
 	}
 	mock.Close()
-	id, err = ipfs.ID(ctx)
+	_, err = ipfs.ID(ctx)
 	if err == nil {
 		t.Error("expected an error")
 	}
@@ -392,6 +392,9 @@ func TestConfigKey(t *testing.T) {
 	}
 
 	v, err = ipfs.ConfigKey("Datastore")
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, ok = v.(map[string]interface{})
 	if !ok {
 		t.Error("should have returned the whole Datastore config object")

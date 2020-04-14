@@ -323,7 +323,7 @@ func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 // IsTrustedPeer returns whether the given peer is taken into account
 // when submitting updates to the consensus state.
 func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
-	ctx, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
+	_, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
 	defer span.End()
 
 	if css.config.TrustAll {
@@ -343,7 +343,7 @@ func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
 // has the highest priority when the peerstore is saved, and it's addresses
 // are always remembered.
 func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/Trust")
+	_, span := trace.StartSpan(ctx, "consensus/Trust")
 	defer span.End()
 
 	css.trustedPeers.Store(pid, struct{}{})
@@ -358,7 +358,7 @@ func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
 
 // Distrust removes a peer from the "trusted" set.
 func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/Distrust")
+	_, span := trace.StartSpan(ctx, "consensus/Distrust")
 	defer span.End()
 
 	css.trustedPeers.Delete(pid)
@@ -500,8 +500,7 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 	opts := crdt.DefaultOptions()
 	opts.Logger = logger
 
-	var blocksDatastore ds.Batching
-	blocksDatastore = namespace.Wrap(
+	var blocksDatastore ds.Batching = namespace.Wrap(
 		batching,
 		ds.NewKey(cfg.DatastoreNamespace).ChildString(blocksNs),
 	)

@@ -121,29 +121,30 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 	return nd, nil
 }
 
-// RootNode returns the mfs root node
-func (adder *Adder) curRootNode() (ipld.Node, error) {
-	mr, err := adder.mfsRoot()
-	if err != nil {
-		return nil, err
-	}
-	root, err := mr.GetDirectory().GetNode()
-	if err != nil {
-		return nil, err
-	}
+// Cluster: commented as it is unused
+// // RootNode returns the mfs root node
+// func (adder *Adder) curRootNode() (ipld.Node, error) {
+// 	mr, err := adder.mfsRoot()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	root, err := mr.GetDirectory().GetNode()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// if one root file, use that hash as root.
-	if len(root.Links()) == 1 {
-		nd, err := root.Links()[0].GetNode(adder.ctx, adder.dagService)
-		if err != nil {
-			return nil, err
-		}
+// 	// if one root file, use that hash as root.
+// 	if len(root.Links()) == 1 {
+// 		nd, err := root.Links()[0].GetNode(adder.ctx, adder.dagService)
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		root = nd
-	}
+// 		root = nd
+// 	}
 
-	return root, err
-}
+// 	return root, err
+// }
 
 // PinRoot recursively pins the root node of Adder and
 // writes the pin state to the backing datastore.

@@ -30,10 +30,10 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 
 	for _, member := range members {
 		// one of the entries is for itself, but that shouldn't hurt
-		cg.ClusterTrustLinks[peer.IDB58Encode(member)] = c.consensus.IsTrustedPeer(ctx, member)
+		cg.ClusterTrustLinks[peer.Encode(member)] = c.consensus.IsTrustedPeer(ctx, member)
 	}
 
-	peers := make([][]*api.ID, len(members), len(members))
+	peers := make([][]*api.ID, len(members))
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(members))
 	defer rpcutil.MultiCancel(cancels)
@@ -48,7 +48,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	)
 
 	for i, err := range errs {
-		p := peer.IDB58Encode(members[i])
+		p := peer.Encode(members[i])
 		cg.ClusterLinks[p] = make([]peer.ID, 0)
 		if err != nil { // Only setting cluster connections when no error occurs
 			logger.Debugf("RPC error reaching cluster peer %s: %s", p, err.Error())
@@ -76,7 +76,7 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []*ap
 			logger.Debugf("Peer %s errored connecting to its peer %s", p, id.ID.Pretty())
 			continue
 		}
-		if peer.IDB58Encode(id.ID) == p {
+		if peer.Encode(id.ID) == p {
 			selfConnection = true
 			pID = id
 		} else {
@@ -93,8 +93,8 @@ func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID *api.ID) {
 		return
 	}
 
-	pid := peer.IDB58Encode(pID.ID)
-	ipfsPid := peer.IDB58Encode(ipfsID)
+	pid := peer.Encode(pID.ID)
+	ipfsPid := peer.Encode(ipfsID)
 
 	if _, ok := cg.IPFSLinks[pid]; ok {
 		logger.Warnf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID.Pretty())

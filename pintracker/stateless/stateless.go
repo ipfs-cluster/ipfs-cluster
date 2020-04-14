@@ -313,7 +313,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 	// check global state to see if cluster should even be caring about
 	// the provided cid
-	gpin := &api.Pin{}
+	var gpin *api.Pin
 	st, err := spt.getState(ctx)
 	if err != nil {
 		logger.Error(err)
@@ -440,7 +440,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 		logger.Error(err)
 		return nil, err
 	}
-	pins := make(map[string]*api.PinInfo, 0)
+	pins := make(map[string]*api.PinInfo, len(ipsMap))
 	for cidstr, ips := range ipsMap {
 		c, err := cid.Decode(cidstr)
 		if err != nil {
@@ -468,14 +468,13 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	defer span.End()
 
 	// get shared state
-	statePins := []*api.Pin{}
 	st, err := spt.getState(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
 
-	statePins, err = st.List(ctx)
+	statePins, err := st.List(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -527,9 +526,9 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	return pininfos, nil
 }
 
-func (spt *Tracker) getErrorsAll(ctx context.Context) []*api.PinInfo {
-	return spt.optracker.Filter(ctx, optracker.PhaseError)
-}
+// func (spt *Tracker) getErrorsAll(ctx context.Context) []*api.PinInfo {
+// 	return spt.optracker.Filter(ctx, optracker.PhaseError)
+// }
 
 // OpContext exports the internal optracker's OpContext method.
 // For testing purposes only.

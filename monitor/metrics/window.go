@@ -9,11 +9,8 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/ipfs-cluster/api"
 )
-
-var logger = logging.Logger("metricwin")
 
 // DefaultWindowCap sets the amount of metrics to store per peer.
 var DefaultWindowCap = 25

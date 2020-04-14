@@ -59,7 +59,7 @@ func (disk *Informer) SetClient(c *rpc.Client) {
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
 func (disk *Informer) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "informer/disk/Shutdown")
+	_, span := trace.StartSpan(ctx, "informer/disk/Shutdown")
 	defer span.End()
 
 	disk.rpcClient = nil

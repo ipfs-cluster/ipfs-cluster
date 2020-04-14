@@ -36,7 +36,6 @@ func init() {
 
 // MaxLinks is the max number of links that, when serialized fit into a block
 const MaxLinks = 5984
-const fixedPerLink = 40
 const hashFn = mh.SHA2_256
 
 // CborDataToNode parses cbor data into a clusterDAG node while making a few

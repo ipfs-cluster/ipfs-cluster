@@ -413,7 +413,7 @@ func (cfg *Config) loadLibp2pOptions(jcfg *jsonConfig) error {
 	}
 
 	if jcfg.ID != "" {
-		id, err := peer.IDB58Decode(jcfg.ID)
+		id, err := peer.Decode(jcfg.ID)
 		if err != nil {
 			return fmt.Errorf("error parsing restapi.ID: %s", err)
 		}
@@ -473,7 +473,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	}
 
 	if cfg.ID != "" {
-		jcfg.ID = peer.IDB58Encode(cfg.ID)
+		jcfg.ID = peer.Encode(cfg.ID)
 	}
 	if cfg.PrivateKey != nil {
 		pkeyBytes, err := cfg.PrivateKey.Bytes()

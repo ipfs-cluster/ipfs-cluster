@@ -67,15 +67,6 @@ func containsPeer(list []peer.ID, peer peer.ID) bool {
 	return false
 }
 
-func containsCid(list []cid.Cid, ci cid.Cid) bool {
-	for _, c := range list {
-		if c.String() == ci.String() {
-			return true
-		}
-	}
-	return false
-}
-
 func minInt(x, y int) int {
 	if x < y {
 		return x

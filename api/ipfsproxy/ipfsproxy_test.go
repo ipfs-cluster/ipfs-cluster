@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -641,7 +640,7 @@ func TestProxyAdd(t *testing.T) {
 		},
 	}
 
-	reqs := make([]*http.Request, len(testcases), len(testcases))
+	reqs := make([]*http.Request, len(testcases))
 
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
@@ -730,14 +729,6 @@ func TestIPFSProxy(t *testing.T) {
 	if err := proxy.Shutdown(ctx); err != nil {
 		t.Error("expected a second clean shutdown")
 	}
-}
-
-func mustParseURL(rawurl string) *url.URL {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		panic(err)
-	}
-	return u
 }
 
 func TestHeaderExtraction(t *testing.T) {

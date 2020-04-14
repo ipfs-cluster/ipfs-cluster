@@ -115,7 +115,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 			cfg.TrustedPeers = []peer.ID{}
 			break
 		}
-		pid, err := peer.IDB58Decode(p)
+		pid, err := peer.Decode(p)
 		if err != nil {
 			return fmt.Errorf("error parsing trusted peers: %s", err)
 		}

@@ -3,7 +3,6 @@ package stateless
 import (
 	"context"
 	"errors"
-	"sort"
 	"testing"
 	"time"
 
@@ -193,7 +192,8 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 		go func() {
 			err = spt.Untrack(ctx, slowPinCid)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 		}()
 		select {
@@ -298,7 +298,8 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 		go func() {
 			err = spt.Track(ctx, slowPin)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 		}()
 		select {
@@ -463,12 +464,6 @@ func TestStatus(t *testing.T) {
 	if st.Status != api.TrackerStatusPinning {
 		t.Error("slowCid1 should be pinning")
 	}
-}
-
-var sortPinInfoByCid = func(p []*api.PinInfo) {
-	sort.Slice(p, func(i, j int) bool {
-		return p[i].Cid.String() < p[j].Cid.String()
-	})
 }
 
 func BenchmarkTracker_localStatus(b *testing.B) {

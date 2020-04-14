@@ -44,7 +44,7 @@ func (npi *Informer) SetClient(c *rpc.Client) {
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
 func (npi *Informer) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "informer/numpin/Shutdown")
+	_, span := trace.StartSpan(ctx, "informer/numpin/Shutdown")
 	defer span.End()
 
 	npi.rpcClient = nil

@@ -66,7 +66,7 @@ func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration
 	}
 
 	protos := addr.Protocols()
-	if len(protos) > 0 && protos[0].Code == madns.DnsaddrProtocol.Code {
+	if len(protos) > 0 && protos[0].Code == ma.P_DNSADDR {
 		// We need to pre-resolve this
 		logger.Debugf("resolving %s", addr)
 		ctx, cancel := context.WithTimeout(pm.ctx, DNSTimeout)

@@ -33,7 +33,7 @@ type State struct {
 	dsWrite     ds.Write
 	codecHandle codec.Handle
 	namespace   ds.Key
-	version     int
+	// version     int
 }
 
 // DefaultHandle returns the codec handler of choice (Msgpack).
@@ -166,8 +166,6 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 // Migrate migrates an older state version to the current one.
 // This is a no-op for now.
 func (st *State) Migrate(ctx context.Context, r io.Reader) error {
-	ctx, span := trace.StartSpan(ctx, "state/map/Migrate")
-	defer span.End()
 	return nil
 }
 
@@ -316,7 +314,7 @@ func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*Ba
 
 // Commit persists the batched write operations.
 func (bst *BatchingState) Commit(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "state/dsstate/Commit")
+	_, span := trace.StartSpan(ctx, "state/dsstate/Commit")
 	defer span.End()
 	return bst.batch.Commit()
 }

@@ -19,8 +19,8 @@ import (
 )
 
 func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host) {
-	cls := make([]*Cluster, nClusters, nClusters)
-	mocks := make([]*test.IpfsMock, nClusters, nClusters)
+	cls := make([]*Cluster, nClusters)
+	mocks := make([]*test.IpfsMock, nClusters)
 	var wg sync.WaitGroup
 	for i := 0; i < nClusters; i++ {
 		wg.Add(1)
@@ -67,7 +67,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 func clusterAddr(c *Cluster) ma.Multiaddr {
 	for _, a := range c.host.Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
-			p := peer.IDB58Encode(c.id)
+			p := peer.Encode(c.id)
 			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", a, p))
 			return cAddr
 		}
@@ -196,7 +196,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 		t.Skip("need at least 3 nodes for this test")
 	}
 
-	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
+	clusters[0].PeerAdd(ctx, clusters[1].id)
 	ttlDelay()
 	ids := clusters[1].Peers(ctx)
 	// raft will have only 2 peers
@@ -207,7 +207,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 
 	// Now we shutdown the one member of the running cluster
 	// and try to add someone else.
-	err = clusters[1].Shutdown(ctx)
+	err := clusters[1].Shutdown(ctx)
 	if err != nil {
 		t.Error("Shutdown should be clean: ", err)
 	}
@@ -398,7 +398,6 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	ctx := context.Background()
 	clusters, mocks := createClusters(t)
-	defer shutdownClusters(t, clusters, mocks)
 
 	if len(clusters) < 3 {
 		t.Skip("test needs at least 3 clusters")
@@ -428,6 +427,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		}
 	}
 	if chosen == nil {
+		shutdownClusters(t, clusters, mocks)
 		t.Fatal("did not get to choose a peer?")
 	}
 
@@ -438,6 +438,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	mocks = append(mocks[:chosenIndex], mocks[chosenIndex+1:]...)
 	defer chosen.Shutdown(ctx)
 	defer chosenMock.Close()
+	defer shutdownClusters(t, clusters, mocks)
 
 	prefix := test.Cid1.Prefix()
 
