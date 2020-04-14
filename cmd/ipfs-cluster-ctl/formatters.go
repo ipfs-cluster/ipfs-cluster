@@ -203,10 +203,15 @@ func textFormatPrintPin(obj *api.Pin) {
 
 	fmt.Printf(" | Metadata:")
 	if len(obj.Metadata) == 0 {
-		fmt.Printf(" no\n")
+		fmt.Printf(" no")
 	} else {
-		fmt.Printf(" yes\n")
+		fmt.Printf(" yes")
 	}
+	expireAt := "Exp: ∞"
+	if !obj.ExpireAt.IsZero() {
+		expireAt = humanize.Time(obj.ExpireAt)
+	}
+	fmt.Printf(" | %s\n", expireAt)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
