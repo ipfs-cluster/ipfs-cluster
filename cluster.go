@@ -24,7 +24,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -58,7 +58,7 @@ type Cluster struct {
 	id        peer.ID
 	config    *Config
 	host      host.Host
-	dht       *dht.IpfsDHT
+	dht       *dual.DHT
 	discovery discovery.Service
 	datastore ds.Datastore
 
@@ -98,7 +98,7 @@ type Cluster struct {
 func NewCluster(
 	ctx context.Context,
 	host host.Host,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	cfg *Config,
 	datastore ds.Datastore,
 	consensus Consensus,
@@ -964,13 +964,23 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	go func() {
 		defer c.wg.Done()
 		select {
-		case err := <-c.dht.RefreshRoutingTable():
+		case err := <-c.dht.LAN.RefreshRoutingTable():
 			if err != nil {
 				// this error is quite chatty
 				// on single peer clusters
 				logger.Debug(err)
 			}
+		case <-c.ctx.Done():
 			return
+		}
+
+		select {
+		case err := <-c.dht.WAN.RefreshRoutingTable():
+			if err != nil {
+				// this error is quite chatty
+				// on single peer clusters
+				logger.Debug(err)
+			}
 		case <-c.ctx.Done():
 			return
 		}

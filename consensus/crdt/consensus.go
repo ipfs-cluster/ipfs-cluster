@@ -22,8 +22,8 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p-core/routing"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	multihash "github.com/multiformats/go-multihash"
 
@@ -65,7 +65,7 @@ type Consensus struct {
 	crdt  *crdt.Datastore
 	ipfs  *ipfslite.Peer
 
-	dht    *dht.IpfsDHT
+	dht    routing.Routing
 	pubsub *pubsub.PubSub
 
 	rpcClient  *rpc.Client
@@ -82,7 +82,7 @@ type Consensus struct {
 // data and all will be prefixed with cfg.DatastoreNamespace.
 func New(
 	host host.Host,
-	dht *dht.IpfsDHT,
+	dht routing.Routing,
 	pubsub *pubsub.PubSub,
 	cfg *Config,
 	store ds.Datastore,
