@@ -764,8 +764,9 @@ func TestClustersPinUpdate(t *testing.T) {
 		if pinget.MaxDepth != -1 {
 			t.Error("updated pin should be recursive like pin1")
 		}
+		expiry = expiry.Round(2 * time.Second)
 		if pinget.ExpireAt != expiry {
-			t.Errorf("Expiry time didn't match. Expected: %s. Got: %s",
+			t.Errorf("Expiry didn't match. Expected: %s. Got: %s",
 				expiry.String(), pinget.ExpireAt.String())
 		}
 
