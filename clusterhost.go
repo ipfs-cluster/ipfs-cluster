@@ -137,7 +137,7 @@ func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraop
 	if batchingDs, ok := store.(datastore.Batching); ok {
 		dhtDatastore := namespace.Wrap(batchingDs, datastore.NewKey(dhtNamespace))
 		opts = append(opts, dht.Datastore(dhtDatastore))
-		logger.Debug("enabling DHT record persistance to datastore")
+		logger.Debug("enabling DHT record persistence to datastore")
 	}
 
 	return dual.New(ctx, h, opts...)
