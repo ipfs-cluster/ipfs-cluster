@@ -747,10 +747,10 @@ func TestClustersPinUpdate(t *testing.T) {
 		if pinget.MaxDepth != -1 {
 			t.Error("updated pin should be recursive like pin1")
 		}
-		expiry = expiry.Round(2 * time.Second)
-		if pinget.ExpireAt != expiry {
-			t.Errorf("Expiry didn't match. Expected: %s. Got: %s",
-				expiry.String(), pinget.ExpireAt.String())
+		// We compare Unix seconds because our protobuf serde will have
+		// lost any sub-second precision.
+		if pinget.ExpireAt.Unix() != expiry.Unix() {
+			t.Errorf("Expiry didn't match. Expected: %s. Got: %s", expiry, pinget.ExpireAt)
 		}
 
 		if pinget.Name != "new name" {
