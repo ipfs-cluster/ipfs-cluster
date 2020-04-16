@@ -719,11 +719,12 @@ func TestClustersPinUpdate(t *testing.T) {
 	}
 
 	pinDelay()
-
+	expiry := time.Now().AddDate(1, 0, 0)
 	opts2 := api.PinOptions{
 		UserAllocations: []peer.ID{clusters[0].host.ID()}, // should not be used
 		PinUpdate:       h,
 		Name:            "new name",
+		ExpireAt:        expiry,
 	}
 
 	_, err = clusters[0].Pin(ctx, h2, opts2) // should call PinUpdate
@@ -745,6 +746,11 @@ func TestClustersPinUpdate(t *testing.T) {
 
 		if pinget.MaxDepth != -1 {
 			t.Error("updated pin should be recursive like pin1")
+		}
+		expiry = expiry.Round(2 * time.Second)
+		if pinget.ExpireAt != expiry {
+			t.Errorf("Expiry didn't match. Expected: %s. Got: %s",
+				expiry.String(), pinget.ExpireAt.String())
 		}
 
 		if pinget.Name != "new name" {
