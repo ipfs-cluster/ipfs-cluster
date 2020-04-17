@@ -462,11 +462,63 @@ func (pT PinType) String() string {
 
 var pinOptionsMetaPrefix = "meta-"
 
+// PinMode is a PinOption that indicates how to pin something on IPFS,
+// recursively or direct.
+type PinMode int
+
+// PinMode values
+const (
+	PinModeRecursive PinMode = 0
+	PinModeDirect    PinMode = 1
+)
+
+// PinModeFromString converst a string to PinMode.
+func PinModeFromString(s string) PinMode {
+	switch s {
+	case "recursive", "":
+		return PinModeRecursive
+	case "direct":
+		return PinModeDirect
+	default:
+		logger.Warn("unknown pin mode. Defaulting to recursive")
+		return PinModeRecursive
+	}
+}
+
+// String returns a human-readable value for PinMode.
+func (pm PinMode) String() string {
+	switch pm {
+	case PinModeRecursive:
+		return "recursive"
+	case PinModeDirect:
+		return "direct"
+	default:
+		return "recursive"
+	}
+}
+
+// MarshalJSON converts the PinMode into a readable string in JSON.
+func (pm PinMode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pm.String())
+}
+
+// UnmarshalJSON takes a JSON value and parses it into PinMode.
+func (pm *PinMode) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*pm = PinModeFromString(s)
+	return nil
+}
+
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
 	ReplicationFactorMin int               `json:"replication_factor_min" codec:"rn,omitempty"`
 	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
 	Name                 string            `json:"name" codec:"n,omitempty"`
+	Mode                 PinMode           `json:"mode" codec:"o,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
 	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
 	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
@@ -486,6 +538,10 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 	}
 
 	if po.Name != po2.Name {
+		return false
+	}
+
+	if po.Mode != po2.Mode {
 		return false
 	}
 
@@ -538,6 +594,7 @@ func (po *PinOptions) ToQuery() (string, error) {
 	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
+	q.Set("mode", po.Mode.String())
 	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
 	q.Set("user-allocations", strings.Join(PeersToStrings(po.UserAllocations), ","))
 	if !po.ExpireAt.IsZero() {
@@ -562,6 +619,9 @@ func (po *PinOptions) ToQuery() (string, error) {
 // FromQuery is the inverse of ToQuery().
 func (po *PinOptions) FromQuery(q url.Values) error {
 	po.Name = q.Get("name")
+
+	po.Mode = PinModeFromString(q.Get("mode"))
+
 	rplStr := q.Get("replication")
 	if rplStr != "" { // override
 		q.Set("replication-min", rplStr)
@@ -683,15 +743,19 @@ func PinCid(c cid.Cid) *Pin {
 		Cid:         c,
 		Type:        DataType,
 		Allocations: []peer.ID{},
-		MaxDepth:    -1,
+		MaxDepth:    -1, // Recursive
 	}
 }
 
-// PinWithOpts creates a new Pin calling PinCid(c) and then sets
-// its PinOptions fields with the given options.
+// PinWithOpts creates a new Pin calling PinCid(c) and then sets its
+// PinOptions fields with the given options. Pin fields that are linked to
+// options are set accordingly (MaxDepth from Mode).
 func PinWithOpts(c cid.Cid, opts PinOptions) *Pin {
 	p := PinCid(c)
 	p.PinOptions = opts
+	if p.Mode == PinModeDirect {
+		p.MaxDepth = 0
+	}
 	return p
 }
 
@@ -729,10 +793,11 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
 		Name:                 pin.Name,
 		ShardSize:            pin.ShardSize,
+		Metadata:             pin.Metadata,
+		PinUpdate:            pin.PinUpdate.Bytes(),
+		ExpireAt:             expireAtProto,
+		// Mode:                 pin.Mode,
 		// UserAllocations:      pin.UserAllocations,
-		Metadata:  pin.Metadata,
-		PinUpdate: pin.PinUpdate.Bytes(),
-		ExpireAt:  expireAtProto,
 	}
 
 	pbPin := &pb.Pin{
@@ -800,6 +865,16 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	if err == nil {
 		pin.PinUpdate = pinUpdate
 	}
+
+	// We do not store the PinMode option but we can
+	// derive it from the MaxDepth setting.
+	switch pin.MaxDepth {
+	case 0:
+		pin.Mode = PinModeDirect
+	default:
+		pin.Mode = PinModeRecursive
+	}
+
 	return nil
 }
 
