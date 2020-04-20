@@ -71,8 +71,8 @@ func (ipfs *mockConnector) Unpin(ctx context.Context, c cid.Cid) error {
 	return nil
 }
 
-func (ipfs *mockConnector) PinLsCid(ctx context.Context, c cid.Cid) (api.IPFSPinStatus, error) {
-	dI, ok := ipfs.pins.Load(c.String())
+func (ipfs *mockConnector) PinLsCid(ctx context.Context, pin *api.Pin) (api.IPFSPinStatus, error) {
+	dI, ok := ipfs.pins.Load(pin.Cid.String())
 	if !ok {
 		return api.IPFSPinStatusUnpinned, nil
 	}

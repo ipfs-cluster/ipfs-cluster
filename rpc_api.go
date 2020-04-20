@@ -499,7 +499,7 @@ func (rpcapi *IPFSConnectorRPCAPI) Unpin(ctx context.Context, in *api.Pin, out *
 }
 
 // PinLsCid runs IPFSConnector.PinLsCid().
-func (rpcapi *IPFSConnectorRPCAPI) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
+func (rpcapi *IPFSConnectorRPCAPI) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
 	b, err := rpcapi.ipfs.PinLsCid(ctx, in)
 	if err != nil {
 		return err

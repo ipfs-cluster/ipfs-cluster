@@ -68,8 +68,8 @@ func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.
 	return nil
 }
 
-func (mock *mockIPFS) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	switch in {
+func (mock *mockIPFS) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
+	switch in.Cid {
 	case test.Cid1, test.Cid2:
 		*out = api.IPFSPinStatusRecursive
 	default:

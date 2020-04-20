@@ -352,7 +352,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		"",
 		"IPFSConnector",
 		"PinLsCid",
-		c,
+		gpin,
 		&ips,
 	)
 	if err != nil {
