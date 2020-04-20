@@ -275,7 +275,7 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 	return id, nil
 }
 
-func pinArgs(maxDepth int) string {
+func pinArgs(maxDepth api.PinDepth) string {
 	q := url.Values{}
 	switch {
 	case maxDepth < 0:
@@ -284,7 +284,7 @@ func pinArgs(maxDepth int) string {
 		q.Set("recursive", "false")
 	default:
 		q.Set("recursive", "true")
-		q.Set("max-depth", strconv.Itoa(maxDepth))
+		q.Set("max-depth", strconv.Itoa(int(maxDepth)))
 	}
 	return q.Encode()
 }
@@ -370,7 +370,7 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 // pinProgress pins an item and sends fetched node's progress on a
 // channel. Blocks until done or error. pinProgress will always close the out
 // channel.  pinProgress will not block on sending to the channel if it is full.
-func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth int, out chan<- int) error {
+func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth api.PinDepth, out chan<- int) error {
 	defer close(out)
 
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinsProgress")

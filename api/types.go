@@ -215,7 +215,7 @@ func IPFSPinStatusFromString(t string) IPFSPinStatus {
 
 // IsPinned returns true if the item is pinned as expected by the
 // maxDepth parameter.
-func (ips IPFSPinStatus) IsPinned(maxDepth int) bool {
+func (ips IPFSPinStatus) IsPinned(maxDepth PinDepth) bool {
 	switch {
 	case maxDepth < 0:
 		return ips == IPFSPinStatusRecursive
@@ -480,7 +480,7 @@ func PinModeFromString(s string) PinMode {
 	case "direct":
 		return PinModeDirect
 	default:
-		logger.Warn("unknown pin mode. Defaulting to recursive")
+		logger.Warnf("unknown pin mode %s. Defaulting to recursive", s)
 		return PinModeRecursive
 	}
 }
@@ -511,6 +511,19 @@ func (pm *PinMode) UnmarshalJSON(b []byte) error {
 	}
 	*pm = PinModeFromString(s)
 	return nil
+}
+
+// ToPinDepth converts the Mode to Depth.
+func (pm PinMode) ToPinDepth() PinDepth {
+	switch pm {
+	case PinModeRecursive:
+		return -1
+	case PinModeDirect:
+		return 0
+	default:
+		logger.Warn("unknown pin mode %d. Defaulting to -1 depth", pm)
+		return -1
+	}
 }
 
 // PinOptions wraps user-defined options for Pins
@@ -691,6 +704,23 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 	return nil
 }
 
+// PinDepth indicates how deep a pin should be pinned, with
+// -1 meaning "to the bottom", or "recursive".
+type PinDepth int
+
+// ToPinMode converts PinDepth to PinMode
+func (pd PinDepth) ToPinMode() PinMode {
+	switch pd {
+	case -1:
+		return PinModeRecursive
+	case 0:
+		return PinModeDirect
+	default:
+		logger.Warnf("bad pin depth: %d", pd)
+		return PinModeRecursive
+	}
+}
+
 // Pin carries all the information associated to a CID that is pinned
 // in IPFS Cluster. It also carries transient information (that may not
 // get protobuffed, like UserAllocations).
@@ -707,7 +737,7 @@ type Pin struct {
 
 	// MaxDepth associated to this pin. -1 means
 	// recursive.
-	MaxDepth int `json:"max_depth" codec:"d,omitempty"`
+	MaxDepth PinDepth `json:"max_depth" codec:"d,omitempty"`
 
 	// We carry a reference CID to this pin. For
 	// ClusterDAGs, it is the MetaPin CID. For the
@@ -753,9 +783,7 @@ func PinCid(c cid.Cid) *Pin {
 func PinWithOpts(c cid.Cid, opts PinOptions) *Pin {
 	p := PinCid(c)
 	p.PinOptions = opts
-	if p.Mode == PinModeDirect {
-		p.MaxDepth = 0
-	}
+	p.MaxDepth = p.Mode.ToPinDepth()
 	return p
 }
 
@@ -841,7 +869,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	}
 
 	pin.Allocations = allocs
-	pin.MaxDepth = int(pbPin.GetMaxDepth())
+	pin.MaxDepth = PinDepth(pbPin.GetMaxDepth())
 	ref, err := cid.Cast(pbPin.GetReference())
 	if err != nil {
 		pin.Reference = nil
@@ -868,13 +896,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 
 	// We do not store the PinMode option but we can
 	// derive it from the MaxDepth setting.
-	switch pin.MaxDepth {
-	case 0:
-		pin.Mode = PinModeDirect
-	default:
-		pin.Mode = PinModeRecursive
-	}
-
+	pin.Mode = pin.MaxDepth.ToPinMode()
 	return nil
 }
 
