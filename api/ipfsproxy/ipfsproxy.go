@@ -345,7 +345,8 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string, code int) {
 func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header(), r)
 
-	arg := r.URL.Query().Get("arg")
+	q := r.URL.Query()
+	arg := q.Get("arg")
 	p, err := path.ParsePath(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error(), -1)
@@ -353,6 +354,8 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	}
 
 	pinPath := &api.PinPath{Path: p.String()}
+	pinPath.Mode = api.PinModeFromString(q.Get("type"))
+
 	var pin api.Pin
 	err = proxy.rpcClient.Call(
 		"",
