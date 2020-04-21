@@ -1308,7 +1308,7 @@ func checkPinType(pin *api.Pin) error {
 
 // setupPin ensures that the Pin object is fit for pinning. We check
 // and set the replication factors and ensure that the pinType matches the
-// metadata consistently. Returns the existing Pin object for this Cid if it exists.
+// metadata consistently.
 func (c *Cluster) setupPin(ctx context.Context, pin, existing *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "cluster/setupPin")
 	defer span.End()
