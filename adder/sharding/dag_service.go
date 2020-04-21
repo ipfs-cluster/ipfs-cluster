@@ -52,6 +52,8 @@ type DAGService struct {
 // New returns a new ClusterDAGService, which uses the given rpc client to perform
 // Allocate, IPFSBlockPut and Pin requests to other cluster components.
 func New(rpc *rpc.Client, opts api.PinOptions, out chan<- *api.AddedOutput) *DAGService {
+	// use a default value for this regardless of what is provided.
+	opts.Mode = api.PinModeRecursive
 	return &DAGService{
 		rpcClient: rpc,
 		pinOpts:   opts,
