@@ -1309,7 +1309,7 @@ func checkPinType(pin *api.Pin) error {
 // setupPin ensures that the Pin object is fit for pinning. We check
 // and set the replication factors and ensure that the pinType matches the
 // metadata consistently.
-func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
+func (c *Cluster) setupPin(ctx context.Context, pin, existing *api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "cluster/setupPin")
 	defer span.End()
 
@@ -1322,16 +1322,22 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 		return errors.New("pin.ExpireAt set before current time")
 	}
 
-	existing, err := c.PinGet(ctx, pin.Cid)
-	if err != nil && err != state.ErrNotFound {
-		return err
+	if existing == nil {
+		return nil
 	}
 
-	if existing != nil && existing.Type != pin.Type {
+	// If an pin CID is already pin, we do a couple more checks
+	if existing.Type != pin.Type {
 		msg := "cannot repin CID with different tracking method, "
 		msg += "clear state with pin rm to proceed. "
 		msg += "New: %s. Was: %s"
 		return fmt.Errorf(msg, pin.Type, existing.Type)
+	}
+
+	if existing.Mode == api.PinModeRecursive && pin.Mode != api.PinModeRecursive {
+		msg := "cannot repin a CID which is already pinned in "
+		msg += "recursive mode (new pin is pinned as %s). Unpin it first."
+		return fmt.Errorf(msg, pin.Mode)
 	}
 
 	return checkPinType(pin)
@@ -1365,8 +1371,13 @@ func (c *Cluster) pin(
 		return pin, true, err
 	}
 
+	existing, err := c.PinGet(ctx, pin.Cid)
+	if err != nil && err != state.ErrNotFound {
+		return pin, false, err
+	}
+
 	// setup pin might produce some side-effects to our pin
-	err := c.setupPin(ctx, pin)
+	err = c.setupPin(ctx, pin, existing)
 	if err != nil {
 		return pin, false, err
 	}
@@ -1379,8 +1390,7 @@ func (c *Cluster) pin(
 	// pins to the consensus layer even if they are, this should trigger the
 	// pin tracker and allows users to get re-pin operations by re-adding
 	// without having to use recover, which is naturally expected.
-	existing, err := c.PinGet(ctx, pin.Cid)
-	if err == nil &&
+	if existing != nil &&
 		pin.PinOptions.Equals(&existing.PinOptions) &&
 		len(blacklist) == 0 {
 		pin = existing
@@ -1396,6 +1406,7 @@ func (c *Cluster) pin(
 		allocs, err := c.allocate(
 			ctx,
 			pin.Cid,
+			existing,
 			pin.ReplicationFactorMin,
 			pin.ReplicationFactorMax,
 			blacklist,

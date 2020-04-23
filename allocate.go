@@ -47,7 +47,7 @@ import (
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pin, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/allocate")
 	defer span.End()
 
@@ -61,8 +61,7 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, rplMin, rplMax int
 
 	// Figure out who is holding the CID
 	var currentAllocs []peer.ID
-	currentPin, err := c.PinGet(ctx, hash)
-	if err == nil {
+	if currentPin != nil {
 		currentAllocs = currentPin.Allocations
 	}
 	metrics := c.monitor.LatestMetrics(ctx, c.informers[0].Name())

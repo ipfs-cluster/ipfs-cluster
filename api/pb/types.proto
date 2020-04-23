@@ -4,7 +4,6 @@ package api.pb;
 option go_package=".;pb";
 
 message Pin {
-  bytes Cid = 1;
   enum PinType {
     BadType = 0; // 1 << iota
     DataType = 1; // 2 << iota
@@ -12,6 +11,8 @@ message Pin {
     ClusterDAGType = 3;
     ShardType = 4;
   }
+
+  bytes Cid = 1;
   PinType Type = 2;
   repeated bytes Allocations = 3;
   sint32 MaxDepth = 4;

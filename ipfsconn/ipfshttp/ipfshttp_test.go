@@ -75,12 +75,12 @@ func TestPin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	c := test.Cid1
-	err := ipfs.Pin(ctx, api.PinCid(c))
+	pin := api.PinCid(test.Cid1)
+	err := ipfs.Pin(ctx, pin)
 	if err != nil {
 		t.Error("expected success pinning cid:", err)
 	}
-	pinSt, err := ipfs.PinLsCid(ctx, c)
+	pinSt, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Fatal("expected success doing ls:", err)
 	}
@@ -88,8 +88,8 @@ func TestPin(t *testing.T) {
 		t.Error("cid should have been pinned")
 	}
 
-	c2 := test.ErrorCid
-	err = ipfs.Pin(ctx, api.PinCid(c2))
+	pin2 := api.PinCid(test.ErrorCid)
+	err = ipfs.Pin(ctx, pin2)
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
@@ -178,8 +178,9 @@ func TestIPFSPinLsCid(t *testing.T) {
 	c := test.Cid1
 	c2 := test.Cid2
 
-	ipfs.Pin(ctx, api.PinCid(c))
-	ips, err := ipfs.PinLsCid(ctx, c)
+	pin := api.PinCid(c)
+	ipfs.Pin(ctx, pin)
+	ips, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -188,7 +189,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 		t.Error("c should appear pinned")
 	}
 
-	ips, err = ipfs.PinLsCid(ctx, c2)
+	ips, err = ipfs.PinLsCid(ctx, api.PinCid(c2))
 	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
 	}
@@ -201,8 +202,9 @@ func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 	c := test.Cid4 // ipfs mock treats this specially
 
-	ipfs.Pin(ctx, api.PinCid(c))
-	ips, err := ipfs.PinLsCid(ctx, c)
+	pin := api.PinCid(c)
+	ipfs.Pin(ctx, pin)
+	ips, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Error(err)
 	}

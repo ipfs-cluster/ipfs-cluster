@@ -167,7 +167,12 @@ func textFormatPrintVersion(obj *api.Version) {
 }
 
 func textFormatPrintPin(obj *api.Pin) {
-	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, strings.ToUpper(obj.Type.String()))
+	t := strings.ToUpper(obj.Type.String())
+	if obj.Mode == api.PinModeDirect {
+		t = t + "-DIRECT"
+	}
+
+	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, t)
 
 	if obj.ReplicationFactorMin < 0 {
 		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")

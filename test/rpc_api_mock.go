@@ -447,8 +447,8 @@ func (mock *mockIPFSConnector) Unpin(ctx context.Context, in *api.Pin, out *stru
 	return nil
 }
 
-func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	if in.Equals(Cid1) || in.Equals(Cid3) {
+func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
+	if in.Cid.Equals(Cid1) || in.Cid.Equals(Cid3) {
 		*out = api.IPFSPinStatusRecursive
 	} else {
 		*out = api.IPFSPinStatusUnpinned

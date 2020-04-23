@@ -36,6 +36,8 @@ type DAGService struct {
 // New returns a new Adder with the given rpc Client. The client is used
 // to perform calls to IPFS.BlockPut and Pin content on Cluster.
 func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
+	// ensure don't Add something and pin it in direct mode.
+	opts.Mode = api.PinModeRecursive
 	return &DAGService{
 		rpcClient: rpc,
 		dests:     nil,

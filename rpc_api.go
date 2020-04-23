@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/version"
 
 	cid "github.com/ipfs/go-cid"
@@ -342,7 +343,12 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 		return errFollowerMode
 	}
 
-	err := rpcapi.c.setupPin(ctx, in)
+	existing, err := rpcapi.c.PinGet(ctx, in.Cid)
+	if err != nil && err != state.ErrNotFound {
+		return err
+	}
+
+	err = rpcapi.c.setupPin(ctx, in, existing)
 	if err != nil {
 		return err
 	}
@@ -364,6 +370,7 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 	allocs, err := rpcapi.c.allocate(
 		ctx,
 		in.Cid,
+		existing,
 		in.ReplicationFactorMin,
 		in.ReplicationFactorMax,
 		[]peer.ID{},        // blacklist
@@ -492,7 +499,7 @@ func (rpcapi *IPFSConnectorRPCAPI) Unpin(ctx context.Context, in *api.Pin, out *
 }
 
 // PinLsCid runs IPFSConnector.PinLsCid().
-func (rpcapi *IPFSConnectorRPCAPI) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
+func (rpcapi *IPFSConnectorRPCAPI) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
 	b, err := rpcapi.ipfs.PinLsCid(ctx, in)
 	if err != nil {
 		return err

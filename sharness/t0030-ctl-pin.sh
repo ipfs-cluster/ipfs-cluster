@@ -106,6 +106,18 @@ test_expect_success IPFS,CLUSTER "pin with metadata" '
    ipfs-cluster-ctl pin ls "$cid4" | grep -q "Metadata: no"
 '
 
+test_expect_success IPFS,CLUSTER "pin in direct mode" '
+   echo "direct" > expected_mode &&
+   cid=`docker exec ipfs sh -c "echo test-pin-direct | ipfs add -q -pin=false"` &&
+   echo "$cid direct" > expected_pin_ls &&
+   ipfs-cluster-ctl pin add --mode direct "$cid" &&
+   ipfs-cluster-ctl pin ls "$cid" | grep -q "PIN-DIRECT" &&
+   docker exec ipfs sh -c "ipfs pin ls --type direct $cid" > actual_pin_ls &&
+   ipfs-cluster-ctl --enc=json pin ls "$cid" | jq -r .mode > actual_mode &&
+   test_cmp expected_mode actual_mode &&
+   test_cmp expected_pin_ls actual_pin_ls
+'
+
 test_clean_ipfs
 test_clean_cluster
 

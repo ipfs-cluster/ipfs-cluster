@@ -138,6 +138,7 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		if c.Bool("debug") {
 			logging.SetLogLevel("cluster-ctl", "debug")
+			logging.SetLogLevel("apitypes", "debug")
 			cfg.LogLevel = "debug"
 			logger.Debug("debug level enabled")
 		}
@@ -546,6 +547,11 @@ would stil be respected.
 							Usage: "Sets a name for this pin",
 						},
 						cli.StringFlag{
+							Name:  "mode",
+							Value: "recursive",
+							Usage: "Select a way to pin: recursive or direct",
+						},
+						cli.StringFlag{
 							Name:  "expire-in",
 							Usage: "Duration after which pin should be unpinned automatically",
 						},
@@ -599,6 +605,7 @@ would stil be respected.
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
+							Mode:                 api.PinModeFromString(c.String("mode")),
 							UserAllocations:      userAllocs,
 							ExpireAt:             expireAt,
 							Metadata:             parseMetadata(c.StringSlice("metadata")),
@@ -730,10 +737,10 @@ the cluster. For IPFS-status information about the pins, use "status".
 
 The filter only takes effect when listing all pins. The possible values are:
   - all
-  - pin
-  - meta-pin
-  - clusterdag-pin
-  - shard-pin
+  - pin (normal pins, recursive or direct)
+  - meta-pin (sharded pins)
+  - clusterdag-pin (sharding-dag root pins)
+  - shard-pin (individual shard pins)
 `,
 					ArgsUsage: "[CID]",
 					Flags: []cli.Flag{
