@@ -1,17 +1,19 @@
 package version
 
 import (
-	"fmt"
-
 	semver "github.com/blang/semver"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
 )
 
-// Version is the current cluster version. Version alignment between
-// components, apis and tools ensures compatibility among them.
+// Version is the current cluster version.
 var Version = semver.MustParse("0.12.1")
 
-// RPCProtocol is used to send libp2p messages between cluster peers
-var RPCProtocol = protocol.ID(
-	fmt.Sprintf("/ipfscluster/%d.%d/rpc", Version.Major, Version.Minor),
-)
+// RPCProtocol is protocol handler used to send libp2p-rpc messages between
+// cluster peers.  All peers in the cluster need to speak the same protocol
+// version.
+//
+// The RPC Protocol is not linked to the IPFS Cluster version (though it once
+// was). The protocol version will be updated as needed when breaking changes
+// are introduced, though at this point we aim to minimize those as much as
+// possible.
+var RPCProtocol = protocol.ID("/ipfscluster/0.12/rpc")
