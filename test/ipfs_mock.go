@@ -191,7 +191,12 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.Add(ctx, api.PinCid(c))
+		mode := extractMode(r.URL)
+		opts := api.PinOptions{
+			Mode: mode,
+		}
+		pinObj := api.PinWithOpts(c, opts)
+		m.pinMap.Add(ctx, pinObj)
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
@@ -267,7 +272,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 				goto ERROR
 			}
 			for _, p := range pins {
-				rMap[p.Cid.String()] = mockPinType{"recursive"}
+				rMap[p.Cid.String()] = mockPinType{p.Mode.String()}
 			}
 			j, _ := json.Marshal(mockPinLsResp{rMap})
 			w.Write(j)
@@ -280,27 +285,28 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			goto ERROR
 		}
 
-		ok, err = m.pinMap.Has(ctx, c)
-		if err != nil {
+		pinObj, err := m.pinMap.Get(ctx, c)
+		if err != nil && err != state.ErrNotFound {
 			goto ERROR
 		}
-		if ok {
-			if c.Equals(Cid4) {
-				// this a v1 cid. Do not return default-base32 but base58btc encoding of it
-				w.Write([]byte(`{ "Keys": { "zCT5htkdztJi3x4zBNHo8TRvGHPLTdHUdCLKgTGMgQcRKSLoWxK1": { "Type": "recursive" }}}`))
-				return
-			}
-
-			rMap := make(map[string]mockPinType)
-			rMap[cidStr] = mockPinType{"recursive"}
-			j, _ := json.Marshal(mockPinLsResp{rMap})
-			w.Write(j)
-		} else {
+		if err == state.ErrNotFound {
 			w.WriteHeader(http.StatusInternalServerError)
 			resp := ipfsErr{0, fmt.Sprintf("Path '%s' is not pinned", cidStr)}
 			j, _ := json.Marshal(resp)
 			w.Write(j)
+			return
 		}
+
+		if c.Equals(Cid4) {
+			// this a v1 cid. Do not return default-base32 but base58btc encoding of it
+			w.Write([]byte(`{ "Keys": { "zCT5htkdztJi3x4zBNHo8TRvGHPLTdHUdCLKgTGMgQcRKSLoWxK1": { "Type": "recursive" }}}`))
+			return
+		}
+		rMap := make(map[string]mockPinType)
+		rMap[cidStr] = mockPinType{pinObj.Mode.String()}
+		j, _ := json.Marshal(mockPinLsResp{rMap})
+		w.Write(j)
+
 	case "swarm/connect":
 		arg, ok := extractCid(r.URL)
 		if !ok {
@@ -480,7 +486,7 @@ func (m *IpfsMock) Close() {
 	}
 }
 
-// extractCid extracts the cid argument from a url.URL, either via
+// extractCidAndMode extracts the cid argument from a url.URL, either via
 // the query string parameters or from the url path itself.
 func extractCid(u *url.URL) (string, bool) {
 	arg := u.Query().Get("arg")
@@ -495,4 +501,8 @@ func extractCid(u *url.URL) (string, bool) {
 		return segs[len(segs)-1], true
 	}
 	return "", false
+}
+
+func extractMode(u *url.URL) api.PinMode {
+	return api.PinModeFromString(u.Query().Get("type"))
 }

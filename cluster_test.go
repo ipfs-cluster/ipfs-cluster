@@ -76,7 +76,7 @@ func (ipfs *mockConnector) PinLsCid(ctx context.Context, pin *api.Pin) (api.IPFS
 	if !ok {
 		return api.IPFSPinStatusUnpinned, nil
 	}
-	depth := dI.(int)
+	depth := dI.(api.PinDepth)
 	if depth == 0 {
 		return api.IPFSPinStatusDirect, nil
 	}
@@ -87,7 +87,7 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string
 	m := make(map[string]api.IPFSPinStatus)
 	var st api.IPFSPinStatus
 	ipfs.pins.Range(func(k, v interface{}) bool {
-		switch v.(int) {
+		switch v.(api.PinDepth) {
 		case 0:
 			st = api.IPFSPinStatusDirect
 		default:
@@ -477,7 +477,7 @@ func TestUnpinShard(t *testing.T) {
 				t.Errorf("%s should have been unpinned but is %s", c, st.Status)
 			}
 
-			st2, err := cl.ipfs.PinLsCid(context.Background(), c)
+			st2, err := cl.ipfs.PinLsCid(context.Background(), api.PinCid(c))
 			if err != nil {
 				t.Fatal(err)
 			}

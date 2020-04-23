@@ -758,7 +758,49 @@ func TestClustersPinUpdate(t *testing.T) {
 		}
 	}
 	runF(t, clusters, f)
+}
 
+func TestClustersPinDirect(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+	prefix := test.Cid1.Prefix()
+
+	ttlDelay()
+
+	h, _ := prefix.Sum(randomBytes()) // create random cid
+
+	_, err := clusters[0].Pin(ctx, h, api.PinOptions{Mode: api.PinModeDirect})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pinDelay()
+
+	f := func(t *testing.T, c *Cluster) {
+		pinget, err := c.PinGet(ctx, h)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if pinget.Mode != api.PinModeDirect {
+			t.Error("pin should be pinned in direct mode")
+		}
+
+		if pinget.MaxDepth != 0 {
+			t.Error("pin should have max-depth = 0")
+		}
+
+		pInfo := c.StatusLocal(ctx, h)
+		if pInfo.Error != "" {
+			t.Error(pInfo.Error)
+		}
+		if pInfo.Status != api.TrackerStatusPinned {
+			t.Error(pInfo.Error)
+			t.Error("the status should show the hash as pinned")
+		}
+	}
+	runF(t, clusters, f)
 }
 
 func TestClustersStatusAll(t *testing.T) {
