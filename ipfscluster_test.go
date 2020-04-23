@@ -413,6 +413,7 @@ func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
 }
 
 func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
+	t.Helper()
 	var wg sync.WaitGroup
 	for _, c := range clusters {
 		wg.Add(1)
@@ -777,18 +778,18 @@ func TestClustersPinDirect(t *testing.T) {
 
 	pinDelay()
 
-	f := func(t *testing.T, c *Cluster) {
+	f := func(t *testing.T, c *Cluster, mode api.PinMode) {
 		pinget, err := c.PinGet(ctx, h)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if pinget.Mode != api.PinModeDirect {
+		if pinget.Mode != mode {
 			t.Error("pin should be pinned in direct mode")
 		}
 
-		if pinget.MaxDepth != 0 {
-			t.Error("pin should have max-depth = 0")
+		if pinget.MaxDepth != mode.ToPinDepth() {
+			t.Errorf("pin should have max-depth %d but has %d", mode.ToPinDepth(), pinget.MaxDepth)
 		}
 
 		pInfo := c.StatusLocal(ctx, h)
@@ -800,7 +801,28 @@ func TestClustersPinDirect(t *testing.T) {
 			t.Error("the status should show the hash as pinned")
 		}
 	}
-	runF(t, clusters, f)
+
+	runF(t, clusters, func(t *testing.T, c *Cluster) {
+		f(t, c, api.PinModeDirect)
+	})
+
+	// Convert into a recursive mode
+	_, err = clusters[0].Pin(ctx, h, api.PinOptions{Mode: api.PinModeRecursive})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pinDelay()
+
+	runF(t, clusters, func(t *testing.T, c *Cluster) {
+		f(t, c, api.PinModeRecursive)
+	})
+
+	// This should fail as we cannot convert back to direct
+	_, err = clusters[0].Pin(ctx, h, api.PinOptions{Mode: api.PinModeDirect})
+	if err == nil {
+		t.Error("a recursive pin cannot be converted back to direct pin")
+	}
 }
 
 func TestClustersStatusAll(t *testing.T) {
