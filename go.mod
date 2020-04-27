@@ -40,7 +40,7 @@ require (
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.8.0
-	github.com/libp2p/go-libp2p-circuit v0.2.1
+	github.com/libp2p/go-libp2p-circuit v0.2.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
 	github.com/libp2p/go-libp2p-core v0.5.1
