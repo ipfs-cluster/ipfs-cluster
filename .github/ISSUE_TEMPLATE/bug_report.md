@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a bug report for IPFS Cluster
+about: Create a bug report for IPFS Cluster.
 title: ''
 labels: kind/bug, need/triage
 assignees: ''

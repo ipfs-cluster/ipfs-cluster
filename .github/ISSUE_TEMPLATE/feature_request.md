@@ -1,6 +1,6 @@
 ---
 name: Feature/Enhancement request
-about: Suggest an idea to improve IPFS Cluster
+about: Suggest an idea to improve IPFS Cluster.
 title: ''
 labels: kind/feature, need/triage
 assignees: ''
