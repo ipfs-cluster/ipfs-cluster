@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
- - name: Getting Help on IPFS
-   url: https://ipfs.io/help
-   about: All information about how and where to get help on IPFS.
- - name: IPFS Official Forum
+ - name: IPFS Cluster Website/Documentation issues
+   url: https://github.com/ipfs/ipfs-cluster-website
+   about: Report issues with the Docs or anything in the IPFS Cluster website.
+ - name: Official Documentation
+   url: https://cluster.ipfs.io/documentation
+   about: Extensive documentation is available at the IPFS Cluster website.
+ - name: IPFS Official Forums
    url: https://discuss.ipfs.io
    about: Please post general questions, support requests, and discussions here.

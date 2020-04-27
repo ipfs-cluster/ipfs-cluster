@@ -1,8 +1,8 @@
 ---
-name: Feature request
-about: Suggest an idea for IPFS Cluster
+name: Feature/Enhancement request
+about: Suggest an idea to improve IPFS Cluster
 title: ''
-labels: enhancement/feature, needs review
+labels: kind/feature, need/triage
 assignees: ''
 
 ---
@@ -13,4 +13,4 @@ Please describe in detail the feature you want to propose, your use-case and how
 
 **Additional context**
 
-Add any other context here, for example, your operating system or the method you use to install IPFS Cluster, if relevant.
+Add any other context here, if relevant, that may help better understand your request.
