@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/go-hclog v0.12.2
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.10
+	github.com/hsanjuan/ipfs-lite v1.1.11
 	github.com/imdario/mergo v0.3.9
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.5
@@ -39,11 +39,11 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
-	github.com/libp2p/go-libp2p v0.8.0
+	github.com/libp2p/go-libp2p v0.8.2
 	github.com/libp2p/go-libp2p-circuit v0.2.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.5.1
+	github.com/libp2p/go-libp2p-core v0.5.2
 	github.com/libp2p/go-libp2p-gorpc v0.1.0
 	github.com/libp2p/go-libp2p-gostream v0.2.1
 	github.com/libp2p/go-libp2p-http v0.1.5
