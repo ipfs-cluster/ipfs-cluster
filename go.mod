@@ -13,13 +13,13 @@ require (
 	github.com/hashicorp/go-hclog v0.12.2
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.11
+	github.com/hsanjuan/ipfs-lite v1.1.12
 	github.com/imdario/mergo v0.3.9
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.5
 	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ds-badger v0.2.4
-	github.com/ipfs/go-ds-crdt v0.1.9
+	github.com/ipfs/go-ds-crdt v0.1.10
 	github.com/ipfs/go-fs-lock v0.0.4
 	github.com/ipfs/go-ipfs-api v0.0.3
 	github.com/ipfs/go-ipfs-chunker v0.0.5
@@ -70,7 +70,7 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.5.0
-	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
+	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 	google.golang.org/protobuf v1.21.0
