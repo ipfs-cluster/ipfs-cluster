@@ -98,7 +98,13 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	} else {
 		switch disk.config.MetricType {
 		case MetricFreeSpace:
-			metric = repoStat.StorageMax - repoStat.RepoSize
+			size := repoStat.RepoSize
+			total := repoStat.StorageMax
+			if size < total {
+				metric = total - size
+			} else { // Make sure we don't underflow
+				metric = 0
+			}
 		case MetricRepoSize:
 			metric = repoStat.RepoSize
 		}
