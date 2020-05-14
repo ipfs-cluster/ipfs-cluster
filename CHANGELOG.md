@@ -1,5 +1,119 @@
 # IPFS Cluster Changelog
 
+### v0.13.0 - 2020-05-19
+
+IPFS Cluster v0.13.0 provides many improvements and bugfixes on multiple fronts.
+
+First, this release takes advantange of all the major features that have
+landed in libp2p and IPFS lands (via ipfs-lite) during the last few months,
+including the dual-DHT and faster block exchange with Bitswap. On the
+downside, **QUIC support for private networks has been temporally dropped**,
+which means we cannot use the transport for Cluster peers anymore. We have disabled
+QUIC for the time being until private network support is re-added.
+
+Secondly, `go-ds-crdt` has received major improvements since the last version,
+resolving some bugs and increasing performance. Because of this, **cluster
+peers in CRDT mode running older versions will be unable to process updates
+sent by peers running the newer versions**. This means, for example, that
+followers on v0.12.1 and earlier will be unable to receive updates from
+trusted peers on v0.13.0 and later. However, peers running v0.13.0 will still
+understand updates sent from older peers.
+
+Finally, we have resolved some bugs and added a few very useful features,
+which are detailed in the list below. We recommend everyone to upgrade as soon
+as possible for a swifter experience with IPFS Cluster.
+
+#### List of changes
+
+##### Features
+
+* Support multiple listen interfaces | [ipfs/ipfs-cluster#1000](https://github.com/ipfs/ipfs-cluster/issues/1000) | [ipfs/ipfs-cluster#1010](https://github.com/ipfs/ipfs-cluster/issues/1010) | [ipfs/ipfs-cluster#1002](https://github.com/ipfs/ipfs-cluster/issues/1002)
+* Show expiration information in `ipfs-cluster-ctl pin ls` | [ipfs/ipfs-cluster#998](https://github.com/ipfs/ipfs-cluster/issues/998) | [ipfs/ipfs-cluster#1024](https://github.com/ipfs/ipfs-cluster/issues/1024) | [ipfs/ipfs-cluster#1066](https://github.com/ipfs/ipfs-cluster/issues/1066)
+* Show pin names in `ipfs-cluster-ctl status` (and API endpoint) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
+* Allow updating expiration when doing `pin update` | [ipfs/ipfs-cluster#996](https://github.com/ipfs/ipfs-cluster/issues/996) | [ipfs/ipfs-cluster#1065](https://github.com/ipfs/ipfs-cluster/issues/1065) | [ipfs/ipfs-cluster#1013](https://github.com/ipfs/ipfs-cluster/issues/1013)
+* Add "direct" pin mode. Cluster supports direct pins | [ipfs/ipfs-cluster#1009](https://github.com/ipfs/ipfs-cluster/issues/1009) | [ipfs/ipfs-cluster#1083](https://github.com/ipfs/ipfs-cluster/issues/1083)
+* Better badger defaults for less memory usage | [ipfs/ipfs-cluster#1027](https://github.com/ipfs/ipfs-cluster/issues/1027)
+* Print configuration (without sensitive values) when enabling debug for `ipfs-cluster-service` | [ipfs/ipfs-cluster#937](https://github.com/ipfs/ipfs-cluster/issues/937) | [ipfs/ipfs-cluster#959](https://github.com/ipfs/ipfs-cluster/issues/959)
+* `ipfs-cluster-follow <cluster> list` works fully offline (without needing IPFS to run) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
+
+##### Bug fixes
+
+* Fix adding when using CidV1 | [ipfs/ipfs-cluster#1016](https://github.com/ipfs/ipfs-cluster/issues/1016) | [ipfs/ipfs-cluster#1006](https://github.com/ipfs/ipfs-cluster/issues/1006)
+* Fix too many requests error on `ipfs-cluster-follow <cluster> list` | [ipfs/ipfs-cluster#1013](https://github.com/ipfs/ipfs-cluster/issues/1013) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
+* Fix repinning not working on collaborative clusters with replication factors set | [ipfs/ipfs-cluster#1064](https://github.com/ipfs/ipfs-cluster/issues/1064) | [ipfs/ipfs-cluster#1127](https://github.com/ipfs/ipfs-cluster/issues/1127)
+* Fix underflow in repo size metric | [ipfs/ipfs-cluster#1120](https://github.com/ipfs/ipfs-cluster/issues/1120) | [ipfs/ipfs-cluster#1121](https://github.com/ipfs/ipfs-cluster/issues/1121)
+
+
+##### Other changes
+
+* Update license files | [ipfs/ipfs-cluster#1014](https://github.com/ipfs/ipfs-cluster/issues/1014)
+* Fix typos | [ipfs/ipfs-cluster#999](https://github.com/ipfs/ipfs-cluster/issues/999) | [ipfs/ipfs-cluster#1001](https://github.com/ipfs/ipfs-cluster/issues/1001) | [ipfs/ipfs-cluster#1075](https://github.com/ipfs/ipfs-cluster/issues/1075)
+* Lots of dependency upgrades | [ipfs/ipfs-cluster#1020](https://github.com/ipfs/ipfs-cluster/issues/1020) | [ipfs/ipfs-cluster#1051](https://github.com/ipfs/ipfs-cluster/issues/1051) | [ipfs/ipfs-cluster#1073](https://github.com/ipfs/ipfs-cluster/issues/1073) | [ipfs/ipfs-cluster#1074](https://github.com/ipfs/ipfs-cluster/issues/1074)
+* Adjust codecov thresholds | [ipfs/ipfs-cluster#1022](https://github.com/ipfs/ipfs-cluster/issues/1022)
+* Fix all staticcheck warnings | [ipfs/ipfs-cluster#1071](https://github.com/ipfs/ipfs-cluster/issues/1071) | [ipfs/ipfs-cluster#1128](https://github.com/ipfs/ipfs-cluster/issues/1128)
+* Detach RPC protocol version from Cluster releases | [ipfs/ipfs-cluster#1093](https://github.com/ipfs/ipfs-cluster/issues/1093)
+* Trim paths on Makefile build command | [ipfs/ipfs-cluster#1012](https://github.com/ipfs/ipfs-cluster/issues/1012) | [ipfs/ipfs-cluster#1015](https://github.com/ipfs/ipfs-cluster/issues/1015)
+* Add contexts to HTTP requests in the client | [ipfs/ipfs-cluster#1019](https://github.com/ipfs/ipfs-cluster/issues/1019)
+
+
+#### Upgrading notices
+
+##### Configuration changes
+
+* The default options in the `datastore/badger/badger_options` have changed
+  and should reduce memory usage significantly:
+  * `truncate` is set to `true`.
+  * `value_log_loading_mode` is set to `0` (FileIO).
+  * `max_table_size` is set to `16777216`.
+* `cluster/listen_multiaddresses`, `api/ipfsproxy/listen_multiaddresses`,
+  `api/rest/http_listen_multiaddress` and
+  `api/rest/libp2p_listen_multiaddress` now support an array of multiaddresses
+  rather than a single one (a single one still works). This allows, for
+  example, listening on both IPv6 and IPv4 interfaces.
+
+##### REST API
+
+The `POST /pins/{hash}` endpoint (`pin add`) now supports a `mode` query
+parameter than can be set to `recursive` or `direct`. The responses including
+Pin objects (`GET /allocations`, `pin ls`) include a `mode` field set
+accordingly.
+
+The IPFS proxy `/pin/add` endpoint now supports `recursive=false` for direct pins.
+
+The `/pins` endpoint now return `GlobalPinInfo` objects that include a `name`
+field for the pin name. The same objects do not embed redundant information
+anymore for each peer in the `peer_map`: `cid` and `peer` are ommitted.
+
+##### Go APIs
+
+The `ipfscluster.IPFSConnector` component signature for `PinLsCid` has changed
+and receives a full `api.Pin` object, rather than a Cid. The RPC endpoint has
+changed accordingly, but since this is a private endpoint, it does not affect
+interoperability between peers.
+
+The `api.GlobalPinInfo` type now maps every peer to a new `api.PinInfoShort`
+type, that does not include any redundant information (Cid, Peer), as the
+`PinInfo` type did. The `Cid` is available as a top-level field. The `Peer`
+corresponds to the map key. A new `Name` top-level field contains the Pin
+Name.
+
+The `api.PinInfo` file includes also a new `Name` field.
+
+##### Other
+
+From this release, IPFS Cluster peers running in different minor versions will
+remain compatible at the RPC layer (before, all cluster peers had to be
+running on precisely the same minor version to be able to communicate). This
+means that v0.13.0 peers are still compatible with v0.12.x peers (with the
+caveat for CRDT-peers mentioned at the top). `ipfs-cluster-ctl --enc=json id`
+shows information about the RPC protocol used.
+
+Since the QUIC libp2p transport does not support private networks at this
+point, it has been disabled, even though we keep the QUIC endpoint among the
+default listeners.
+
+---
+
 ### v0.12.1 - 2019-12-24
 
 IPFS Cluster v0.12.1 is a maintenance release fixing issues on `ipfs-cluster-follow`.
@@ -8,9 +122,9 @@ IPFS Cluster v0.12.1 is a maintenance release fixing issues on `ipfs-cluster-fol
 
 ##### Bug fixes
 
-* follow: the `info` command panics when ipfs is offline | @991 | @993
-* follow: the gateway url is not set on Run&Init command | @992 | @993
-* follow: disallow trusted peers for RepoGCLocal operation | @993
+* follow: the `info` command panics when ipfs is offline | [ipfs/ipfs-cluster#991](https://github.com/ipfs/ipfs-cluster/issues/991) | [ipfs/ipfs-cluster#993](https://github.com/ipfs/ipfs-cluster/issues/993)
+* follow: the gateway url is not set on Run&Init command | [ipfs/ipfs-cluster#992](https://github.com/ipfs/ipfs-cluster/issues/992) | [ipfs/ipfs-cluster#993](https://github.com/ipfs/ipfs-cluster/issues/993)
+* follow: disallow trusted peers for RepoGCLocal operation | [ipfs/ipfs-cluster#993](https://github.com/ipfs/ipfs-cluster/issues/993)
 
 ---
 
