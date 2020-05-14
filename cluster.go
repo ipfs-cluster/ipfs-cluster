@@ -1310,7 +1310,7 @@ func checkPinType(pin *api.Pin) error {
 // and set the replication factors and ensure that the pinType matches the
 // metadata consistently.
 func (c *Cluster) setupPin(ctx context.Context, pin, existing *api.Pin) error {
-	ctx, span := trace.StartSpan(ctx, "cluster/setupPin")
+	_, span := trace.StartSpan(ctx, "cluster/setupPin")
 	defer span.End()
 
 	err := c.setupReplicationFactor(pin)
