@@ -7,6 +7,7 @@
 package pb
 
 import (
+	//lint:ignore SA1019 protobuf generates deprecated imports
 	proto "github.com/golang/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
