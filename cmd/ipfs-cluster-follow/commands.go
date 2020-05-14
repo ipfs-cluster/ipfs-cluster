@@ -447,8 +447,8 @@ func printStatusOnline(absPath, clusterName string) error {
 	if err != nil {
 		return err
 	}
-	// do not return errors after this.
 
+	// do not return errors after this.
 	var pid string
 	for _, gpi := range gpis {
 		if pid == "" { // do this once
@@ -459,17 +459,7 @@ func printStatusOnline(absPath, clusterName string) error {
 			}
 		}
 		pinInfo := gpi.PeerMap[pid]
-
-		// Get pin name
-		var name string
-		pin, err := client.Allocation(ctx, gpi.Cid)
-		if err != nil {
-			name = "(" + err.Error() + ")"
-		} else {
-			name = pin.Name
-		}
-
-		printPin(gpi.Cid, pinInfo.Status.String(), name, pinInfo.Error)
+		printPin(gpi.Cid, pinInfo.Status.String(), pinInfo.Name, pinInfo.Error)
 	}
 	return nil
 }

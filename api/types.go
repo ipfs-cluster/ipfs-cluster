@@ -266,6 +266,7 @@ func (gpi *GlobalPinInfo) String() string {
 // PinInfo holds information about local pins.
 type PinInfo struct {
 	Cid      cid.Cid       `json:"cid" codec:"c"`
+	Name     string        `json:"name" codec:"n,omitempty"`
 	Peer     peer.ID       `json:"peer" codec:"p,omitempty"`
 	PeerName string        `json:"peername" codec:"pn,omitempty"`
 	Status   TrackerStatus `json:"status" codec:"st,omitempty"`
