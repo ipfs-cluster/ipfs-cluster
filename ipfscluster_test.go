@@ -830,7 +830,7 @@ func TestClustersStatusAll(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h := test.Cid1
-	clusters[0].Pin(ctx, h, api.PinOptions{})
+	clusters[0].Pin(ctx, h, api.PinOptions{Name: "test"})
 	pinDelay()
 	// Global status
 	f := func(t *testing.T, c *Cluster) {
@@ -844,6 +844,11 @@ func TestClustersStatusAll(t *testing.T) {
 		if !statuses[0].Cid.Equals(h) {
 			t.Error("bad cid in status")
 		}
+
+		if statuses[0].Name != "test" {
+			t.Error("globalPinInfo should have the name")
+		}
+
 		info := statuses[0].PeerMap
 		if len(info) != nClusters {
 			t.Error("bad info in status")
@@ -877,7 +882,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 	h := test.Cid1
-	clusters[0].Pin(ctx, h, api.PinOptions{})
+	clusters[0].Pin(ctx, h, api.PinOptions{Name: "test"})
 	pinDelay()
 
 	// shutdown 1 cluster peer
@@ -899,6 +904,14 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			t.Fatal("bad status. Expected one item")
 		}
 
+		if !statuses[0].Cid.Equals(h) {
+			t.Error("wrong Cid in globalPinInfo")
+		}
+
+		if statuses[0].Name != "test" {
+			t.Error("wrong Name in globalPinInfo")
+		}
+
 		// Raft and CRDT behave differently here
 		switch consensus {
 		case "raft":
@@ -912,10 +925,6 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 
 			pid := peer.Encode(clusters[1].id)
 			errst := stts.PeerMap[pid]
-
-			if !errst.Cid.Equals(h) {
-				t.Error("errored pinInfo should have a good cid")
-			}
 
 			if errst.Status != api.TrackerStatusClusterError {
 				t.Error("erroring status should be set to ClusterError:", errst.Status)
@@ -931,10 +940,6 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 
 			if pinfo.Status != api.TrackerStatusClusterError {
 				t.Error("erroring status should be ClusterError:", pinfo.Status)
-			}
-
-			if !pinfo.Cid.Equals(h) {
-				t.Error("errored status should have a good cid")
 			}
 		case "crdt":
 			// CRDT will not have contacted the offline peer because

@@ -142,17 +142,15 @@ func textFormatPrintID(obj *api.ID) {
 func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
 	var b strings.Builder
 
-	var name string
 	peers := make([]string, 0, len(obj.PeerMap))
-	for k, v := range obj.PeerMap {
+	for k := range obj.PeerMap {
 		peers = append(peers, k)
-		name = v.Name // All PinInfos will have the same name
 	}
 	sort.Strings(peers)
 
 	fmt.Fprintf(&b, "%s", obj.Cid)
-	if name != "" {
-		fmt.Fprintf(&b, " | %s", name)
+	if obj.Name != "" {
+		fmt.Fprintf(&b, " | %s", obj.Name)
 	}
 
 	b.WriteString(":\n")

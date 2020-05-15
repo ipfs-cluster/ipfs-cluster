@@ -1646,15 +1646,18 @@ func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
 	return trustedPeers, nil
 }
 
-func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, t time.Time) {
+func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, name string, t time.Time) {
 	for _, p := range peers {
-		gpin.PeerMap[peer.Encode(p)] = &api.PinInfo{
-			Cid:      h,
-			Peer:     p,
-			PeerName: p.String(),
-			Status:   status,
-			TS:       t,
-		}
+		gpin.Add(&api.PinInfo{
+			Cid:  h,
+			Name: name,
+			Peer: p,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: p.String(),
+				Status:   status,
+				TS:       t,
+			},
+		})
 	}
 }
 
@@ -1662,34 +1665,58 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
-	gpin := &api.GlobalPinInfo{
-		Cid:     h,
-		PeerMap: make(map[string]*api.PinInfo),
-	}
+	// The object we will return
+	gpin := &api.GlobalPinInfo{}
+
 	// allocated peers, we will contact them through rpc
 	var dests []peer.ID
 	// un-allocated peers, we will set remote status
 	var remote []peer.ID
 	timeNow := time.Now()
 
-	// set dests and remote
+	// If pin is not part of the pinset, mark it unpinned
+	pin, err := c.PinGet(ctx, h)
+	if err != nil && err != state.ErrNotFound {
+		logger.Error(err)
+		return nil, err
+	}
+
+	// When NotFound return directly with an unpinned
+	// status.
+	if err == state.ErrNotFound {
+		var members []peer.ID
+		if c.config.FollowerMode {
+			members = []peer.ID{c.host.ID()}
+		} else {
+			members, err = c.consensus.Peers(ctx)
+			if err != nil {
+				logger.Error(err)
+				return nil, err
+			}
+		}
+
+		setTrackerStatus(
+			gpin,
+			h,
+			members,
+			api.TrackerStatusUnpinned,
+			"",
+			timeNow,
+		)
+		return gpin, nil
+	}
+
+	// The pin exists.
+	gpin.Cid = h
+	gpin.Name = pin.Name
+
+	// Make the list of peers that will receive the request.
 	if c.config.FollowerMode {
-		// during follower mode return status only on self peer
+		// during follower mode return only local status.
 		dests = []peer.ID{c.host.ID()}
 		remote = []peer.ID{}
 	} else {
 		members, err := c.consensus.Peers(ctx)
-		if err != nil {
-			logger.Error(err)
-			return nil, err
-		}
-
-		// If pin is not part of the pinset, mark it unpinned
-		pin, err := c.PinGet(ctx, h)
-		if err == state.ErrNotFound {
-			setTrackerStatus(gpin, h, members, api.TrackerStatusUnpinned, timeNow)
-			return gpin, nil
-		}
 		if err != nil {
 			logger.Error(err)
 			return nil, err
@@ -1705,7 +1732,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	}
 
 	// set status remote on un-allocated peers
-	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, timeNow)
+	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, pin.Name, timeNow)
 
 	lenDests := len(dests)
 	replies := make([]*api.PinInfo, lenDests)
@@ -1726,7 +1753,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.PeerMap[peer.Encode(dests[i])] = r
+			gpin.Add(r)
 			continue
 		}
 
@@ -1737,14 +1764,17 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
-		gpin.PeerMap[peer.Encode(dests[i])] = &api.PinInfo{
-			Cid:      h,
-			Peer:     dests[i],
-			PeerName: dests[i].String(),
-			Status:   api.TrackerStatusClusterError,
-			TS:       timeNow,
-			Error:    e.Error(),
-		}
+		gpin.Add(&api.PinInfo{
+			Cid:  h,
+			Name: pin.Name,
+			Peer: dests[i],
+			PinInfoShort: api.PinInfoShort{
+				PeerName: dests[i].String(),
+				Status:   api.TrackerStatusClusterError,
+				TS:       timeNow,
+				Error:    e.Error(),
+			},
+		})
 	}
 
 	return gpin, nil
@@ -1784,23 +1814,16 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 		rpcutil.CopyPinInfoSliceToIfaces(replies),
 	)
 
-	mergePins := func(pins []*api.PinInfo) {
-		for _, p := range pins {
-			if p == nil {
-				continue
-			}
-			item, ok := fullMap[p.Cid]
-			if !ok {
-				fullMap[p.Cid] = &api.GlobalPinInfo{
-					Cid: p.Cid,
-					PeerMap: map[string]*api.PinInfo{
-						peer.Encode(p.Peer): p,
-					},
-				}
-			} else {
-				item.PeerMap[peer.Encode(p.Peer)] = p
-			}
+	setPinInfo := func(p *api.PinInfo) {
+		if p == nil {
+			return
 		}
+		info, ok := fullMap[p.Cid]
+		if !ok {
+			info = &api.GlobalPinInfo{}
+			fullMap[p.Cid] = info
+		}
+		info.Add(p)
 	}
 
 	erroredPeers := make(map[peer.ID]string)
@@ -1812,21 +1835,27 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 			}
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
-		} else {
-			mergePins(r)
+			continue
+		}
+
+		for _, pin := range r {
+			setPinInfo(pin)
 		}
 	}
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
 		for c := range fullMap {
-			fullMap[c].PeerMap[peer.Encode(p)] = &api.PinInfo{
-				Cid:    c,
-				Peer:   p,
-				Status: api.TrackerStatusClusterError,
-				TS:     time.Now(),
-				Error:  msg,
-			}
+			setPinInfo(&api.PinInfo{
+				Cid:  c,
+				Name: "",
+				Peer: p,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusClusterError,
+					TS:     time.Now(),
+					Error:  msg,
+				},
+			})
 		}
 	}
 

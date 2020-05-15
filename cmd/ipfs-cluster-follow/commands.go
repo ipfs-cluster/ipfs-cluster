@@ -458,7 +458,7 @@ func printStatusOnline(absPath, clusterName string) error {
 			}
 		}
 		pinInfo := gpi.PeerMap[pid]
-		printPin(gpi.Cid, pinInfo.Status.String(), pinInfo.Name, pinInfo.Error)
+		printPin(gpi.Cid, pinInfo.Status.String(), gpi.Name, pinInfo.Error)
 	}
 	return nil
 }

@@ -960,7 +960,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
-			api.sendResponse(w, autoStatus, err, pinInfoToGlobal(&pinInfo))
+			api.sendResponse(w, autoStatus, err, pinInfo.ToGlobal())
 		} else {
 			var pinInfo types.GlobalPinInfo
 			err := api.rpcClient.CallContext(
@@ -1019,7 +1019,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
-			api.sendResponse(w, autoStatus, err, pinInfoToGlobal(&pinInfo))
+			api.sendResponse(w, autoStatus, err, pinInfo.ToGlobal())
 		} else {
 			var pinInfo types.GlobalPinInfo
 			err := api.rpcClient.CallContext(
@@ -1127,19 +1127,10 @@ func (api *API) parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID 
 	return pid
 }
 
-func pinInfoToGlobal(pInfo *types.PinInfo) *types.GlobalPinInfo {
-	return &types.GlobalPinInfo{
-		Cid: pInfo.Cid,
-		PeerMap: map[string]*types.PinInfo{
-			peer.Encode(pInfo.Peer): pInfo,
-		},
-	}
-}
-
 func pinInfosToGlobal(pInfos []*types.PinInfo) []*types.GlobalPinInfo {
 	gPInfos := make([]*types.GlobalPinInfo, len(pInfos))
 	for i, p := range pInfos {
-		gPInfos[i] = pinInfoToGlobal(p)
+		gPInfos[i] = p.ToGlobal()
 	}
 	return gPInfos
 }

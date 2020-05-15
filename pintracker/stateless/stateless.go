@@ -305,10 +305,12 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	}
 
 	pinInfo := &api.PinInfo{
-		Cid:      c,
-		Peer:     spt.peerID,
-		PeerName: spt.peerName,
-		TS:       time.Now(),
+		Cid:  c,
+		Peer: spt.peerID,
+		PinInfoShort: api.PinInfoShort{
+			PeerName: spt.peerName,
+			TS:       time.Now(),
+		},
 	}
 
 	// check global state to see if cluster should even be caring about
@@ -449,12 +451,14 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 			continue
 		}
 		p := &api.PinInfo{
-			Cid:      c,
-			Name:     "", // to be filled later
-			Peer:     spt.peerID,
-			PeerName: spt.peerName,
-			Status:   ips.ToTrackerStatus(),
-			TS:       time.Now(),
+			Cid:  c,
+			Name: "", // to be filled later
+			Peer: spt.peerID,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: spt.peerName,
+				Status:   ips.ToTrackerStatus(),
+				TS:       time.Now(),
+			},
 		}
 		pins[cidstr] = p
 	}
@@ -495,11 +499,13 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		ipfsInfo, pinnedInIpfs := localpis[pCid]
 		// base pinInfo object - status to be filled.
 		pinInfo := api.PinInfo{
-			Cid:      p.Cid,
-			Name:     p.Name,
-			Peer:     spt.peerID,
-			PeerName: spt.peerName,
-			TS:       time.Now(),
+			Cid:  p.Cid,
+			Name: p.Name,
+			Peer: spt.peerID,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: spt.peerName,
+				TS:       time.Now(),
+			},
 		}
 
 		switch {

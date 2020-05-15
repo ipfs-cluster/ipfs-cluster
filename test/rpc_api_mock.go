@@ -224,10 +224,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api
 	*out = []*api.GlobalPinInfo{
 		{
 			Cid: Cid1,
-			PeerMap: map[string]*api.PinInfo{
+			PeerMap: map[string]*api.PinInfoShort{
 				pid: {
-					Cid:    Cid1,
-					Peer:   PeerID1,
 					Status: api.TrackerStatusPinned,
 					TS:     time.Now(),
 				},
@@ -235,10 +233,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api
 		},
 		{
 			Cid: Cid2,
-			PeerMap: map[string]*api.PinInfo{
+			PeerMap: map[string]*api.PinInfoShort{
 				pid: {
-					Cid:    Cid2,
-					Peer:   PeerID1,
 					Status: api.TrackerStatusPinning,
 					TS:     time.Now(),
 				},
@@ -246,10 +242,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api
 		},
 		{
 			Cid: Cid3,
-			PeerMap: map[string]*api.PinInfo{
+			PeerMap: map[string]*api.PinInfoShort{
 				pid: {
-					Cid:    Cid3,
-					Peer:   PeerID1,
 					Status: api.TrackerStatusPinError,
 					TS:     time.Now(),
 				},
@@ -269,10 +263,8 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	}
 	*out = api.GlobalPinInfo{
 		Cid: in,
-		PeerMap: map[string]*api.PinInfo{
+		PeerMap: map[string]*api.PinInfoShort{
 			peer.Encode(PeerID1): {
-				Cid:    in,
-				Peer:   PeerID1,
 				Status: api.TrackerStatusPinned,
 				TS:     time.Now(),
 			},
@@ -362,16 +354,20 @@ func (mock *mockPinTracker) Untrack(ctx context.Context, in *api.Pin, out *struc
 func (mock *mockPinTracker) StatusAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	*out = []*api.PinInfo{
 		{
-			Cid:    Cid1,
-			Peer:   PeerID1,
-			Status: api.TrackerStatusPinned,
-			TS:     time.Now(),
+			Cid:  Cid1,
+			Peer: PeerID1,
+			PinInfoShort: api.PinInfoShort{
+				Status: api.TrackerStatusPinned,
+				TS:     time.Now(),
+			},
 		},
 		{
-			Cid:    Cid3,
-			Peer:   PeerID1,
-			Status: api.TrackerStatusPinError,
-			TS:     time.Now(),
+			Cid:  Cid3,
+			Peer: PeerID1,
+			PinInfoShort: api.PinInfoShort{
+				Status: api.TrackerStatusPinError,
+				TS:     time.Now(),
+			},
 		},
 	}
 	return nil
@@ -383,10 +379,12 @@ func (mock *mockPinTracker) Status(ctx context.Context, in cid.Cid, out *api.Pin
 	}
 
 	*out = api.PinInfo{
-		Cid:    in,
-		Peer:   PeerID2,
-		Status: api.TrackerStatusPinned,
-		TS:     time.Now(),
+		Cid:  in,
+		Peer: PeerID2,
+		PinInfoShort: api.PinInfoShort{
+			Status: api.TrackerStatusPinned,
+			TS:     time.Now(),
+		},
 	}
 	return nil
 }
@@ -398,10 +396,12 @@ func (mock *mockPinTracker) RecoverAll(ctx context.Context, in struct{}, out *[]
 
 func (mock *mockPinTracker) Recover(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	*out = api.PinInfo{
-		Cid:    in,
-		Peer:   PeerID1,
-		Status: api.TrackerStatusPinned,
-		TS:     time.Now(),
+		Cid:  in,
+		Peer: PeerID1,
+		PinInfoShort: api.PinInfoShort{
+			Status: api.TrackerStatusPinned,
+			TS:     time.Now(),
+		},
 	}
 	return nil
 }

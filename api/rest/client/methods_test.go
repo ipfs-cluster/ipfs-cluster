@@ -490,16 +490,12 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 	if time.Now().After(wait.pinStart.Add(5 * time.Second)) { //pinned
 		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*types.PinInfo{
+			PeerMap: map[string]*types.PinInfoShort{
 				peer.Encode(test.PeerID1): {
-					Cid:    in,
-					Peer:   test.PeerID1,
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
 				peer.Encode(test.PeerID2): {
-					Cid:    in,
-					Peer:   test.PeerID2,
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
@@ -508,16 +504,12 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 	} else { // pinning
 		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*types.PinInfo{
+			PeerMap: map[string]*types.PinInfoShort{
 				peer.Encode(test.PeerID1): {
-					Cid:    in,
-					Peer:   test.PeerID1,
 					Status: types.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
 				peer.Encode(test.PeerID2): {
-					Cid:    in,
-					Peer:   test.PeerID2,
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
