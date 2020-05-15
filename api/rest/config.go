@@ -147,9 +147,9 @@ type jsonConfig struct {
 
 	Libp2pListenMultiaddress ipfsconfig.Strings `json:"libp2p_listen_multiaddress,omitempty"`
 	ID                       string             `json:"id,omitempty"`
-	PrivateKey               string             `json:"private_key,omitempty"`
+	PrivateKey               string             `json:"private_key,omitempty" hidden:"true"`
 
-	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"`
+	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"  hidden:"true"`
 	HTTPLogFile          string              `json:"http_log_file"`
 	Headers              map[string][]string `json:"headers"`
 
@@ -501,6 +501,16 @@ func (cfg *Config) corsOptions() *cors.Options {
 		MaxAge:           maxAgeSeconds,
 		Debug:            false,
 	}
+}
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return config.DisplayJSON(jcfg)
 }
 
 func newTLSConfig(certFile, keyFile string) (*tls.Config, error) {

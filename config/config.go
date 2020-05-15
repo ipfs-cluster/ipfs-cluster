@@ -58,6 +58,8 @@ type ComponentConfig interface {
 	// Provides a channel to signal the Manager that the configuration
 	// should be persisted.
 	SaveCh() <-chan struct{}
+	// ToDisplayJSON returns a string representing the config excluding hidden fields.
+	ToDisplayJSON() ([]byte, error)
 }
 
 // These are the component configuration types
@@ -512,7 +514,6 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 	if cfg.clusterConfig != nil {
 		cfg.clusterConfig.SetBaseDir(dir)
 		raw, err := cfg.clusterConfig.ToJSON()
-
 		if err != nil {
 			return nil, err
 		}
@@ -541,6 +542,52 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 		return nil
 	}
 
+	err = cfg.applyUpdateJSONConfigs(jcfg, updateJSONConfigs)
+	if err != nil {
+		return nil, err
+	}
+
+	return DefaultJSONMarshal(jcfg)
+}
+
+// ToDisplayJSON returns a printable cluster configuration.
+func (cfg *Manager) ToDisplayJSON() ([]byte, error) {
+	jcfg := &jsonConfig{}
+
+	if cfg.clusterConfig != nil {
+		raw, err := cfg.clusterConfig.ToDisplayJSON()
+		if err != nil {
+			return nil, err
+		}
+		jcfg.Cluster = new(json.RawMessage)
+		*jcfg.Cluster = raw
+	}
+
+	updateJSONConfigs := func(section Section, dest *jsonSection) error {
+		for k, v := range section {
+			j, err := v.ToDisplayJSON()
+			if err != nil {
+				return err
+			}
+			if *dest == nil {
+				*dest = make(jsonSection)
+			}
+			jsonSection := *dest
+			jsonSection[k] = new(json.RawMessage)
+			*jsonSection[k] = j
+		}
+		return nil
+	}
+
+	err := cfg.applyUpdateJSONConfigs(jcfg, updateJSONConfigs)
+	if err != nil {
+		return nil, err
+	}
+
+	return DefaultJSONMarshal(jcfg)
+}
+
+func (cfg *Manager) applyUpdateJSONConfigs(jcfg *jsonConfig, updateJSONConfigs func(section Section, dest *jsonSection) error) error {
 	for _, t := range SectionTypes() {
 		if t == Cluster {
 			continue
@@ -548,11 +595,11 @@ func (cfg *Manager) ToJSON() ([]byte, error) {
 		jsection := jcfg.getSection(t)
 		err := updateJSONConfigs(cfg.sections[t], jsection)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return DefaultJSONMarshal(jcfg)
+	return nil
 }
 
 // IsLoadedFromJSON tells whether the given component belonging to

@@ -144,6 +144,11 @@ func (cfg *MetricsConfig) toJSONConfig() *jsonMetricsConfig {
 	}
 }
 
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *MetricsConfig) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
+}
+
 // TracingConfig configures tracing.
 type TracingConfig struct {
 	config.Saver
@@ -256,4 +261,9 @@ func (cfg *TracingConfig) toJSONConfig() *jsonTracingConfig {
 		SamplingProb:        cfg.SamplingProb,
 		ServiceName:         cfg.ServiceName,
 	}
+}
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *TracingConfig) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
 }
