@@ -140,26 +140,37 @@ func textFormatPrintID(obj *api.ID) {
 }
 
 func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
-	fmt.Printf("%s :\n", obj.Cid)
+	var b strings.Builder
+
+	var name string
 	peers := make([]string, 0, len(obj.PeerMap))
-	for k := range obj.PeerMap {
+	for k, v := range obj.PeerMap {
 		peers = append(peers, k)
+		name = v.Name // All PinInfos will have the same name
 	}
 	sort.Strings(peers)
+
+	fmt.Fprintf(&b, "%s", obj.Cid)
+	if name != "" {
+		fmt.Fprintf(&b, " | %s", name)
+	}
+
+	b.WriteString(":\n")
 
 	for _, k := range peers {
 		v := obj.PeerMap[k]
 		if len(v.PeerName) > 0 {
-			fmt.Printf("    > %-20s : %s", v.PeerName, strings.ToUpper(v.Status.String()))
+			fmt.Fprintf(&b, "    > %-20s : %s", v.PeerName, strings.ToUpper(v.Status.String()))
 		} else {
-			fmt.Printf("    > %-20s : %s", k, strings.ToUpper(v.Status.String()))
+			fmt.Fprintf(&b, "    > %-20s : %s", k, strings.ToUpper(v.Status.String()))
 		}
 		if v.Error != "" {
-			fmt.Printf(": %s", v.Error)
+			fmt.Fprintf(&b, ": %s", v.Error)
 		}
 		txt, _ := v.TS.MarshalText()
-		fmt.Printf(" | %s\n", txt)
+		fmt.Fprintf(&b, " | %s\n", txt)
 	}
+	fmt.Print(b.String())
 }
 
 func textFormatPrintVersion(obj *api.Version) {
