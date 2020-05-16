@@ -37,7 +37,7 @@ func NewStateManager(consensus string, ident *config.Identity, cfgs *Configs) (S
 	case cfgs.Raft.ConfigKey():
 		return &raftStateManager{ident, cfgs}, nil
 	case cfgs.Crdt.ConfigKey():
-		return &crdtStateManager{ident, cfgs}, nil
+		return &crdtStateManager{cfgs}, nil
 	case "":
 		return nil, errors.New("could not determine the consensus component")
 	default:
@@ -113,8 +113,7 @@ func (raftsm *raftStateManager) Clean() error {
 }
 
 type crdtStateManager struct {
-	ident *config.Identity
-	cfgs  *Configs
+	cfgs *Configs
 }
 
 func (crdtsm *crdtStateManager) GetStore() (ds.Datastore, error) {

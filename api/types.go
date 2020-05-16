@@ -246,11 +246,12 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid cid.Cid `json:"cid" codec:"c"`
+	Cid  cid.Cid `json:"cid" codec:"c"`
+	Name string  `json:"name" codec:"n"`
 	// https://github.com/golang/go/issues/28827
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
-	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
+	PeerMap map[string]*PinInfoShort `json:"peer_map" codec:"pm,omitempty"`
 }
 
 // String returns the string representation of a GlobalPinInfo.
@@ -263,14 +264,45 @@ func (gpi *GlobalPinInfo) String() string {
 	return str
 }
 
-// PinInfo holds information about local pins.
-type PinInfo struct {
-	Cid      cid.Cid       `json:"cid" codec:"c"`
-	Peer     peer.ID       `json:"peer" codec:"p,omitempty"`
+// Add adds a PinInfo object to a GlobalPinInfo
+func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
+	if !gpi.Cid.Defined() {
+		gpi.Cid = pi.Cid
+		gpi.Name = pi.Name
+	}
+
+	if gpi.PeerMap == nil {
+		gpi.PeerMap = make(map[string]*PinInfoShort)
+	}
+
+	gpi.PeerMap[peer.Encode(pi.Peer)] = &pi.PinInfoShort
+}
+
+// PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
+// objects and does not carry redundant information as PinInfo would.
+type PinInfoShort struct {
 	PeerName string        `json:"peername" codec:"pn,omitempty"`
 	Status   TrackerStatus `json:"status" codec:"st,omitempty"`
 	TS       time.Time     `json:"timestamp" codec:"ts,omitempty"`
 	Error    string        `json:"error" codec:"e,omitempty"`
+}
+
+// PinInfo holds information about local pins. This is used by the Pin
+// Trackers.
+type PinInfo struct {
+	Cid  cid.Cid `json:"cid" codec:"c"`
+	Name string  `json:"name" codec:"m,omitempty"`
+	Peer peer.ID `json:"Peer" codec:"p,omitempty"`
+
+	PinInfoShort
+}
+
+// ToGlobal converts a PinInfo object to a GlobalPinInfo with
+// a single peer corresponding to the given PinInfo.
+func (pi *PinInfo) ToGlobal() *GlobalPinInfo {
+	gpi := GlobalPinInfo{}
+	gpi.Add(pi)
+	return &gpi
 }
 
 // Version holds version information

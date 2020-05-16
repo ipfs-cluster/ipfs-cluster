@@ -407,17 +407,7 @@ func listCmd(c *cli.Context) error {
 	clusterName := c.String("clusterName")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
-	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
-	if err != nil {
-		fmt.Println("error loading configurations.")
-		if config.IsErrFetchingSource(err) {
-			fmt.Println("Make sure the source URL is reachable:")
-		}
-		return cli.Exit(err, 1)
-	}
-	cfgHelper.Manager().Shutdown()
-
-	err = printStatusOnline(absPath, clusterName)
+	err := printStatusOnline(absPath, clusterName)
 	if err != nil {
 		apiErr, ok := err.(*api.Error)
 		if ok && apiErr.Code != 0 {
@@ -428,6 +418,15 @@ func listCmd(c *cli.Context) error {
 					apiErr.Code,
 				), 1)
 		}
+
+		// Generate a default config just for the purpose of having
+		// a badger configuration that the state manager can use to
+		// open and read the database.
+		cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt")
+		cfgHelper.Manager().Shutdown() // not needed
+		cfgHelper.Manager().Default()  // we have a default crdt/Badger config
+		cfgHelper.Configs().Badger.SetBaseDir(absPath)
+		cfgHelper.Manager().ApplyEnvVars()
 
 		err := printStatusOffline(cfgHelper)
 		if err != nil {
@@ -447,8 +446,8 @@ func printStatusOnline(absPath, clusterName string) error {
 	if err != nil {
 		return err
 	}
-	// do not return errors after this.
 
+	// do not return errors after this.
 	var pid string
 	for _, gpi := range gpis {
 		if pid == "" { // do this once
@@ -459,29 +458,12 @@ func printStatusOnline(absPath, clusterName string) error {
 			}
 		}
 		pinInfo := gpi.PeerMap[pid]
-
-		// Get pin name
-		var name string
-		pin, err := client.Allocation(ctx, gpi.Cid)
-		if err != nil {
-			name = "(" + err.Error() + ")"
-		} else {
-			name = pin.Name
-		}
-
-		printPin(gpi.Cid, pinInfo.Status.String(), name, pinInfo.Error)
+		printPin(gpi.Cid, pinInfo.Status.String(), gpi.Name, pinInfo.Error)
 	}
 	return nil
 }
 
 func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
-	// The blockstore module loaded from ipfs-lite tends to print
-	// an error when the datastore is closed before the bloom
-	// filter cached has finished building. Could not find a way
-	// to avoid it other than disabling bloom chaching on offline
-	// ipfs-lite peers which is overkill. So we just hide it.
-	ipfscluster.SetFacilityLogLevel("blockstore", "critical")
-
 	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
 	if err != nil {
 		return err

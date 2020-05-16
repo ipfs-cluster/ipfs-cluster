@@ -305,10 +305,12 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	}
 
 	pinInfo := &api.PinInfo{
-		Cid:      c,
-		Peer:     spt.peerID,
-		PeerName: spt.peerName,
-		TS:       time.Now(),
+		Cid:  c,
+		Peer: spt.peerID,
+		PinInfoShort: api.PinInfoShort{
+			PeerName: spt.peerName,
+			TS:       time.Now(),
+		},
 	}
 
 	// check global state to see if cluster should even be caring about
@@ -332,6 +334,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		return pinInfo
 	}
 	// The pin IS in the state.
+	pinInfo.Name = gpin.Name
 
 	// check if pin is a meta pin
 	if gpin.Type == api.MetaType {
@@ -448,11 +451,14 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 			continue
 		}
 		p := &api.PinInfo{
-			Cid:      c,
-			Peer:     spt.peerID,
-			PeerName: spt.peerName,
-			Status:   ips.ToTrackerStatus(),
-			TS:       time.Now(),
+			Cid:  c,
+			Name: "", // to be filled later
+			Peer: spt.peerID,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: spt.peerName,
+				Status:   ips.ToTrackerStatus(),
+				TS:       time.Now(),
+			},
 		}
 		pins[cidstr] = p
 	}
@@ -492,25 +498,29 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		pCid := p.Cid.String()
 		ipfsInfo, pinnedInIpfs := localpis[pCid]
 		// base pinInfo object - status to be filled.
-		pinInfo := &api.PinInfo{
-			Cid:      p.Cid,
-			Peer:     spt.peerID,
-			PeerName: spt.peerName,
-			TS:       time.Now(),
+		pinInfo := api.PinInfo{
+			Cid:  p.Cid,
+			Name: p.Name,
+			Peer: spt.peerID,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: spt.peerName,
+				TS:       time.Now(),
+			},
 		}
 
 		switch {
 		case p.Type == api.MetaType:
 			pinInfo.Status = api.TrackerStatusSharded
 			if incExtra {
-				pininfos[pCid] = pinInfo
+				pininfos[pCid] = &pinInfo
 			}
 		case p.IsRemotePin(spt.peerID):
 			pinInfo.Status = api.TrackerStatusRemote
 			if incExtra {
-				pininfos[pCid] = pinInfo
+				pininfos[pCid] = &pinInfo
 			}
 		case pinnedInIpfs:
+			ipfsInfo.Name = p.Name
 			pininfos[pCid] = ipfsInfo
 		default:
 			// report as PIN_ERROR for this peer.  this will be
@@ -520,7 +530,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 			// known by IPFS. Should be handled to "recover".
 			pinInfo.Status = api.TrackerStatusPinError
 			pinInfo.Error = errUnexpectedlyUnpinned.Error()
-			pininfos[pCid] = pinInfo
+			pininfos[pCid] = &pinInfo
 		}
 	}
 	return pininfos, nil
