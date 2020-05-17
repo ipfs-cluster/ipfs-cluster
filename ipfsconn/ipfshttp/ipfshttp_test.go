@@ -290,12 +290,22 @@ func TestBlockPut(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
+	// CidV1
 	err := ipfs.BlockPut(ctx, &api.NodeWithMeta{
 		Data: []byte(test.Cid4Data),
 		Cid:  test.Cid4,
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+
+	// CidV0
+	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
+		Data: []byte(test.Cid5Data),
+		Cid:  test.Cid5,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 

@@ -52,9 +52,11 @@ func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
 	)
 
 	var successfulDests []peer.ID
+	numErrs := 0
 	for i, e := range errs {
 		if e != nil {
 			logger.Errorf("BlockPut on %s: %s", ba.dests[i], e)
+			numErrs++
 		}
 
 		// RPCErrors include server errors (wrong RPC methods), client
@@ -67,7 +69,11 @@ func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
 		successfulDests = append(successfulDests, ba.dests[i])
 	}
 
-	if len(successfulDests) == 0 {
+	// If all requests resulted in errors, fail.
+	// Successful dests will have members when no errors happened
+	// or when an error happened but it was not an RPC error.
+	// As long as BlockPut worked in 1 destination, we move on.
+	if numErrs == len(ba.dests) || len(successfulDests) == 0 {
 		return ErrBlockAdder
 	}
 

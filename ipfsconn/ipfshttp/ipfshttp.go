@@ -864,12 +864,20 @@ func (ipfs *Connector) BlockPut(ctx context.Context, b *api.NodeWithMeta) error 
 	if !ok {
 		return fmt.Errorf("cannot find name for the blocks' CID codec: %x", prefix.Codec)
 	}
-	q.Set("format", format)
 
 	mhType, ok := multihash.Codes[prefix.MhType]
 	if !ok {
 		return fmt.Errorf("cannot find name for the blocks' Multihash type: %x", prefix.MhType)
 	}
+
+	// IPFS behaves differently when using v0 or protobuf which are
+	// actually the same.
+	if prefix.Version == 0 {
+		q.Set("format", "v0")
+	} else {
+		q.Set("format", format)
+	}
+
 	q.Set("mhtype", mhType)
 	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
 
@@ -894,8 +902,11 @@ func (ipfs *Connector) BlockPut(ctx context.Context, b *api.NodeWithMeta) error 
 		return err
 	}
 
+	// IPFS is too brittle here. CIDv0 != CIDv1. Sending "protobuf" format
+	// returns CidV1.  Sending "v0" format (which maps to protobuf)
+	// returns CidV0. Leaving this as warning.
 	if !respCid.Equals(b.Cid) {
-		return fmt.Errorf("blockPut response CID (%s) does not match the block sent (%s)", respCid, b.Cid)
+		logger.Warnf("blockPut response CID (%s) does not match the block sent (%s)", respCid, b.Cid)
 	}
 	return nil
 }
