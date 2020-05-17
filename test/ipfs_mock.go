@@ -350,12 +350,13 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Parse cid from data and format and add to mock block-store
 		query := r.URL.Query()
-		format := cid.Codecs[query.Get("format")]
+		formatStr := query.Get("format")
+		format := cid.Codecs[formatStr]
 		mhType := multihash.Names[query.Get("mhtype")]
 		mhLen, _ := strconv.Atoi(query.Get("mhLen"))
 
 		var builder cid.Builder
-		if format == cid.DagProtobuf && mhType == multihash.SHA2_256 {
+		if formatStr == "v0" && mhType == multihash.SHA2_256 {
 			builder = cid.V0Builder{}
 		} else {
 			builder = cid.V1Builder{

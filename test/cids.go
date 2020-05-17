@@ -14,7 +14,9 @@ var (
 	// Cid resulting from block put using blake2b-256 and raw format
 	Cid4, _ = cid.Decode("bafk2bzaceawsyhsnrwwy5mtit2emnjfalkxsyq2p2ptd6fuliolzwwjbs42fq")
 
-	Cid5, _        = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd")
+	// Cid resulting from block put using format "v0" defaults
+	Cid5, _        = cid.Decode("QmbgmXgsFjxAJ7cEaziL2NDSptHAkPwkEGMmKMpfyYeFXL")
+	Cid5Data       = "Cid5Data"
 	SlowCid1, _    = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd")
 	CidResolved, _ = cid.Decode("zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc")
 	// ErrorCid is meant to be used as a Cid which causes errors. i.e. the
