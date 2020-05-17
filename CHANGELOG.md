@@ -65,8 +65,7 @@ as possible for a swifter experience with IPFS Cluster.
   * `truncate` is set to `true`.
   * `value_log_loading_mode` is set to `0` (FileIO).
   * `max_table_size` is set to `16777216`.
-* `cluster/listen_multiaddresses`, `api/ipfsproxy/listen_multiaddresses`,
-  `api/rest/http_listen_multiaddress` and
+* `api/ipfsproxy/listen_multiaddress`, `api/rest/http_listen_multiaddress` and
   `api/rest/libp2p_listen_multiaddress` now support an array of multiaddresses
   rather than a single one (a single one still works). This allows, for
   example, listening on both IPv6 and IPv4 interfaces.
