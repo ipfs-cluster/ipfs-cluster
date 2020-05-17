@@ -40,9 +40,9 @@ as possible for a swifter experience with IPFS Cluster.
 
 * Fix adding when using CidV1 | [ipfs/ipfs-cluster#1016](https://github.com/ipfs/ipfs-cluster/issues/1016) | [ipfs/ipfs-cluster#1006](https://github.com/ipfs/ipfs-cluster/issues/1006)
 * Fix too many requests error on `ipfs-cluster-follow <cluster> list` | [ipfs/ipfs-cluster#1013](https://github.com/ipfs/ipfs-cluster/issues/1013) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
-* Fix repinning not working on collaborative clusters with replication factors set | [ipfs/ipfs-cluster#1064](https://github.com/ipfs/ipfs-cluster/issues/1064) | [ipfs/ipfs-cluster#1127](https://github.com/ipfs/ipfs-cluster/issues/1127)
+* Fix repinning not working reliably on collaborative clusters with replication factors set | [ipfs/ipfs-cluster#1064](https://github.com/ipfs/ipfs-cluster/issues/1064) | [ipfs/ipfs-cluster#1127](https://github.com/ipfs/ipfs-cluster/issues/1127)
 * Fix underflow in repo size metric | [ipfs/ipfs-cluster#1120](https://github.com/ipfs/ipfs-cluster/issues/1120) | [ipfs/ipfs-cluster#1121](https://github.com/ipfs/ipfs-cluster/issues/1121)
-
+* Fix adding keeps going if all BlockPut failed | [ipfs/ipfs-cluster#1131](https://github.com/ipfs/ipfs-cluster/issues/1131)
 
 ##### Other changes
 
