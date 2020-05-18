@@ -466,6 +466,7 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 			return err
 		}
 		logger.Debug("IPFS object is already unpinned: ", hash)
+		return nil
 	}
 
 	logger.Info("IPFS Unpin request succeeded:", hash)
