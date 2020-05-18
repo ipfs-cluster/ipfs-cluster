@@ -6,7 +6,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/dgraph-io/badger v1.6.1
 	github.com/dustin/go-humanize v1.0.0
-	github.com/golang/protobuf v1.4.1
+	github.com/golang/protobuf v1.4.2
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
@@ -73,7 +73,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
-	google.golang.org/protobuf v1.22.0
+	google.golang.org/protobuf v1.23.0
 )
 
 go 1.14
