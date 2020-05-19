@@ -16,14 +16,14 @@ sed -i "s/Version = semver\.MustParse.*$/Version = semver.MustParse(\"$version\"
 sed -i "s/const Version.*$/const Version = \"$version\"/" cmd/ipfs-cluster-ctl/main.go
 git add version/version.go cmd/ipfs-cluster-ctl/main.go
 
-# Dev versions, just commit
-if [[ "$version" == *"-dev" ]]; then
+# Next versions, just commit
+if [[ "$version" == *"-next" ]]; then
     git commit -S -m "Set development version v${version}"
     exit 0
 fi
 
 # RC versions, commit and make a non-annotated tag.
-if [[ "$version" == *"-dev" ]]; then
+if [[ "$version" == *"-rc"* ]]; then
     git commit -S -m "Release candidate v${version}"
     git tag -s "v${version}"
     exit 0
