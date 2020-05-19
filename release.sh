@@ -2,8 +2,7 @@
 
 # Updates the Version variables, commits, tags and signs
 
-set -e
-set -x
+set -eux
 
 version="$1"
 
@@ -15,10 +14,27 @@ fi
 make clean
 sed -i "s/Version = semver\.MustParse.*$/Version = semver.MustParse(\"$version\")/" version/version.go
 sed -i "s/const Version.*$/const Version = \"$version\"/" cmd/ipfs-cluster-ctl/main.go
-git commit -S -a -m "Release $version"
-lastver=`git tag -l | grep -E 'v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n 1`
+git add version/version.go cmd/ipfs-cluster-ctl/main.go
+
+# Dev versions, just commit
+if [[ "$version" == *"-dev" ]]; then
+    git commit -S -m "Set development version v${version}"
+    exit 0
+fi
+
+# RC versions, commit and make a non-annotated tag.
+if [[ "$version" == *"-dev" ]]; then
+    git commit -S -m "Release candidate v${version}"
+    git tag -s "v${version}"
+    exit 0
+fi
+
+# Actual releases, commit and make an annotated tag with all the commits
+# since the last.
+git commit -S -m "Release v${version}"
+lastver=`git describe`
 echo "Tag for Release ${version}" > tag_annotation
 echo >> tag_annotation
 git log --pretty=oneline ${lastver}..HEAD >> tag_annotation
-git tag -a -s -F tag_annotation v$version
+git tag -a -s -F tag_annotation "v${version}"
 rm tag_annotation
