@@ -40,6 +40,8 @@ github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5
 github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 h1:EFSB7Zo9Eg91v7MJPVsifUysc/wPdN+NOnVe6bWbdBM=
 github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878/go.mod h1:3AMJUQhVx52RsWOnlkpikZr01T/yAVN2gn0861vByNg=
 github.com/awalterschulze/gographviz v0.0.0-20190522210029-fa59802746ab/go.mod h1:GEV5wmg4YquNw7v1kkyoX9etIk8yVmXj+AkDHuuETHs=
+github.com/benbjohnson/clock v1.0.1 h1:lVM1R/o5khtrr7t3qAr+sS6uagZOP+7iprc7gS3V9CE=
+github.com/benbjohnson/clock v1.0.1/go.mod h1:bGMdMPoPVvcYyt1gHDf4J2KE153Yf9BuiUKYMaxlTDM=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 h1:xJ4a3vCFaGF/jqvzLMYoU8P317H5OQ+Via4RmuPwCS0=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0 h1:HWo1m869IqiPhD389kmkxeTalrjNbbJTC8LXupb+sl0=
@@ -564,6 +566,8 @@ github.com/libp2p/go-libp2p-circuit v0.2.2 h1:87RLabJ9lrhoiSDDZyCJ80ZlI5TLJMwfyo
 github.com/libp2p/go-libp2p-circuit v0.2.2/go.mod h1:nkG3iE01tR3FoQ2nMm06IUrCpCyJp1Eo4A1xYdpjfs4=
 github.com/libp2p/go-libp2p-connmgr v0.2.1 h1:1ed0HFhCb39sIMK7QYgRBW0vibBBqFQMs4xt9a9AalY=
 github.com/libp2p/go-libp2p-connmgr v0.2.1/go.mod h1:JReKEFcgzSHKT9lL3rhYcUtXBs9uMIiMKJGM1tl3xJE=
+github.com/libp2p/go-libp2p-connmgr v0.2.3 h1:v7skKI9n+0obPpzMIO6aIlOSdQOmhxTf40cbpzqaGMQ=
+github.com/libp2p/go-libp2p-connmgr v0.2.3/go.mod h1:Gqjg29zI8CwXX21zRxy6gOg8VYu3zVerJRt2KyktzH4=
 github.com/libp2p/go-libp2p-consensus v0.0.1 h1:jcVbHRZLwTXU9iT/mPi+Lx4/OrIzq3bU1TbZNhYFCV8=
 github.com/libp2p/go-libp2p-consensus v0.0.1/go.mod h1:+9Wrfhc5QOqWB0gXI0m6ARlkHfdJpcFXmRU0WoHz4Mo=
 github.com/libp2p/go-libp2p-core v0.0.1/go.mod h1:g/VxnTZ/1ygHxH3dKok7Vno1VfpvGcGip57wjTU4fco=
