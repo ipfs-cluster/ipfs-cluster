@@ -702,6 +702,8 @@ github.com/libp2p/go-libp2p-pubsub v0.2.7 h1:PBuK5+NfWsoaoEaAUZ7YQPETQh8UqBi8CbM
 github.com/libp2p/go-libp2p-pubsub v0.2.7/go.mod h1:R4R0kH/6p2vu8O9xsue0HNSjEuXMEPBgg4h3nVDI15o=
 github.com/libp2p/go-libp2p-quic-transport v0.3.7 h1:F9hxonkJvMipNim8swrvRk2uL9s8pqzHz0M6eMf8L58=
 github.com/libp2p/go-libp2p-quic-transport v0.3.7/go.mod h1:Kr4aDtnfHHNeENn5J+sZIVc+t8HpQn9W6BOxhVGHbgI=
+github.com/libp2p/go-libp2p-quic-transport v0.4.0 h1:EQ1VCNXwBxfgVzt0ERGTkUKuqJpdo54wJRVW5ma+3Cs=
+github.com/libp2p/go-libp2p-quic-transport v0.4.0/go.mod h1:EQtq4YtjI4C4CSgbKhf/3vMEXzMvxI1YbJ4vFwk2pRo=
 github.com/libp2p/go-libp2p-raft v0.1.5 h1:SJEO2CYIpfw7GZ+V4N2HIP4lPH/MMVynldlGm0jakyg=
 github.com/libp2p/go-libp2p-raft v0.1.5/go.mod h1:oCVGN8tijCZt6p0cm6ReCVl5J6YzcEHp6zeTt9BVt0c=
 github.com/libp2p/go-libp2p-record v0.0.1 h1:zN7AS3X46qmwsw5JLxdDuI43cH5UYwovKxHPjKBYQxw=
