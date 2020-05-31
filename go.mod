@@ -39,7 +39,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
-	github.com/libp2p/go-libp2p v0.8.3
+	github.com/libp2p/go-libp2p v0.9.2
 	github.com/libp2p/go-libp2p-circuit v0.2.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.3
 	github.com/libp2p/go-libp2p-consensus v0.0.1
@@ -70,7 +70,7 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.3
 	go.uber.org/multierr v1.5.0
-	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
+	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 	google.golang.org/protobuf v1.23.0
