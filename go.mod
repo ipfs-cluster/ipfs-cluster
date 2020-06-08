@@ -47,7 +47,7 @@ require (
 	github.com/libp2p/go-libp2p-gorpc v0.1.0
 	github.com/libp2p/go-libp2p-gostream v0.2.1
 	github.com/libp2p/go-libp2p-http v0.1.5
-	github.com/libp2p/go-libp2p-kad-dht v0.8.0
+	github.com/libp2p/go-libp2p-kad-dht v0.8.2
 	github.com/libp2p/go-libp2p-peerstore v0.2.4
 	github.com/libp2p/go-libp2p-pubsub v0.2.7
 	github.com/libp2p/go-libp2p-quic-transport v0.3.7
