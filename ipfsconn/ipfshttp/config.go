@@ -21,7 +21,7 @@ const (
 	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
 	DefaultConnectSwarmsDelay = 30 * time.Second
 	DefaultIPFSRequestTimeout = 5 * time.Minute
-	DefaultPinTimeout         = 24 * time.Hour
+	DefaultPinTimeout         = 2 * time.Minute
 	DefaultUnpinTimeout       = 3 * time.Hour
 	DefaultRepoGCTimeout      = 24 * time.Hour
 	DefaultUnpinDisable       = false
