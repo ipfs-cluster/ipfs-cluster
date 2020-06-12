@@ -73,7 +73,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
-	google.golang.org/protobuf v1.23.0
+	google.golang.org/protobuf v1.24.0
 )
 
 go 1.14
