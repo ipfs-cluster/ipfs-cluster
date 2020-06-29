@@ -322,6 +322,8 @@ github.com/ipfs/go-fs-lock v0.0.5 h1:nlKE27N7hlvsTXT3CSDkM6KRqgXpnaDjvyCHjAiZyK8
 github.com/ipfs/go-fs-lock v0.0.5/go.mod h1:fq8gXFwbi1on9KScveHuVJ2wjuqo5jaDgCtZdKLuCO8=
 github.com/ipfs/go-ipfs-api v0.0.3 h1:1XZBfVDGj0GyyO5WItLrz2opCwezIm9LfFcBfe+sRxM=
 github.com/ipfs/go-ipfs-api v0.0.3/go.mod h1:EgBqlEzrA22SnNKq4tcP2GDPKxbfF+uRTd2YFmR1uUk=
+github.com/ipfs/go-ipfs-api v0.1.0 h1:GuhKqQgLWExp8ngn+NPW+LZoCcpzrssaTDX+orYL/Xo=
+github.com/ipfs/go-ipfs-api v0.1.0/go.mod h1:rrUsBl9V0v4b9a/Cp1SIto/8V+NoPxFSYvPAfVKBw4U=
 github.com/ipfs/go-ipfs-blockstore v0.0.1/go.mod h1:d3WClOmRQKFnJ0Jz/jj/zmksX0ma1gROTlovZKBmN08=
 github.com/ipfs/go-ipfs-blockstore v0.1.0/go.mod h1:5aD0AvHPi7mZc6Ci1WCAhiBQu2IsfTduLl+422H6Rqw=
 github.com/ipfs/go-ipfs-blockstore v0.1.4/go.mod h1:Jxm3XMVjh6R17WvxFEiyKBLUGr86HgIYJW/D/MwqeYQ=
