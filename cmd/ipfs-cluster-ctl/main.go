@@ -518,7 +518,7 @@ config). Positive values indicate how many peers should pin this content.
 An optional allocations argument can be provided, allocations should be a
 comma-separated list of peer IDs on which we want to pin. Peers in allocations
 are prioritized over automatically-determined ones, but replication factors
-would stil be respected.
+would still be respected.
 `,
 					ArgsUsage: "<CID|Path>",
 					Flags: []cli.Flag{
