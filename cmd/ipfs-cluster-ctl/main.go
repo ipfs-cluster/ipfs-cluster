@@ -688,7 +688,7 @@ existing item from the cluster. Please run "pin rm" for that.
 					Flags: []cli.Flag{
 						cli.BoolFlag{
 							Name:  "no-status, ns",
-							Usage: "Prevents fetching pin status after unpinning (faster, quieter)",
+							Usage: "Prevents fetching pin status after updating (faster, quieter)",
 						},
 						cli.BoolFlag{
 							Name:  "wait, w",
