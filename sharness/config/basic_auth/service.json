@@ -66,7 +66,7 @@
       "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
       "connect_swarms_delay": "30s",
       "ipfs_request_timeout": "5m0s",
-      "pin_timeout": "24h0m0s",
+      "pin_timeout": "0h2m0s",
       "unpin_timeout": "3h0m0s"
     }
   },
