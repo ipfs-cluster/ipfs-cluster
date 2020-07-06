@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/state"
@@ -16,7 +15,6 @@ import (
 	p2praft "github.com/libp2p/go-libp2p-raft"
 
 	hraft "github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"go.opencensus.io/trace"
 )
 
@@ -55,7 +53,6 @@ type raftWrapper struct {
 	snapshotStore hraft.SnapshotStore
 	logStore      hraft.LogStore
 	stableStore   hraft.StableStore
-	boltdb        *raftboltdb.BoltStore
 	staging       bool
 }
 
@@ -132,10 +129,7 @@ func (rw *raftWrapper) makeTransport() (err error) {
 func (rw *raftWrapper) makeStores() error {
 	logger.Debug("creating BoltDB store")
 	df := rw.config.GetDataFolder()
-	store, err := raftboltdb.NewBoltStore(filepath.Join(df, "raft.db"))
-	if err != nil {
-		return err
-	}
+	store := hraft.NewInmemStore()
 
 	// wraps the store in a LogCache to improve performance.
 	// See consul/agent/consul/server.go
@@ -157,7 +151,6 @@ func (rw *raftWrapper) makeStores() error {
 	rw.logStore = cacheStore
 	rw.stableStore = store
 	rw.snapshotStore = snapstore
-	rw.boltdb = store
 	return nil
 }
 
