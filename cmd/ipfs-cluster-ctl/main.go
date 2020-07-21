@@ -686,6 +686,15 @@ existing item from the cluster. Please run "pin rm" for that.
 `,
 					ArgsUsage: "<existing-CID> <new-CID|Path>",
 					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "name, n",
+							Value: "",
+							Usage: "Sets a name for this updated pin",
+						},
+						cli.StringFlag{
+							Name:  "expire-in",
+							Usage: "Duration after which the pin should be unpinned automatically after updating",
+						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
 							Usage: "Prevents fetching pin status after updating (faster, quieter)",
@@ -707,8 +716,17 @@ existing item from the cluster. Please run "pin rm" for that.
 						fromCid, err := cid.Decode(from)
 						checkErr("parsing from Cid", err)
 
+						var expireAt time.Time
+						if expireIn := c.String("expire-in"); expireIn != "" {
+							d, err := time.ParseDuration(expireIn)
+							checkErr("parsing expire-in", err)
+							expireAt = time.Now().Add(d)
+						}
+
 						opts := api.PinOptions{
 							PinUpdate: fromCid,
+							Name:      c.String("name"),
+							ExpireAt:  expireAt,
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, to, opts)
