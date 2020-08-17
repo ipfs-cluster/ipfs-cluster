@@ -327,6 +327,8 @@ github.com/ipfs/go-ds-leveldb v0.4.1/go.mod h1:jpbku/YqBSsBc1qgME8BkWS4AxzF2cEu1
 github.com/ipfs/go-ds-leveldb v0.4.2/go.mod h1:jpbku/YqBSsBc1qgME8BkWS4AxzF2cEu1Ii2r79Hh9s=
 github.com/ipfs/go-fs-lock v0.0.5 h1:nlKE27N7hlvsTXT3CSDkM6KRqgXpnaDjvyCHjAiZyK8=
 github.com/ipfs/go-fs-lock v0.0.5/go.mod h1:fq8gXFwbi1on9KScveHuVJ2wjuqo5jaDgCtZdKLuCO8=
+github.com/ipfs/go-fs-lock v0.0.6 h1:sn3TWwNVQqSeNjlWy6zQ1uUGAZrV3hPOyEA6y1/N2a0=
+github.com/ipfs/go-fs-lock v0.0.6/go.mod h1:OTR+Rj9sHiRubJh3dRhD15Juhd/+w6VPOY28L7zESmM=
 github.com/ipfs/go-ipfs-api v0.0.3 h1:1XZBfVDGj0GyyO5WItLrz2opCwezIm9LfFcBfe+sRxM=
 github.com/ipfs/go-ipfs-api v0.0.3/go.mod h1:EgBqlEzrA22SnNKq4tcP2GDPKxbfF+uRTd2YFmR1uUk=
 github.com/ipfs/go-ipfs-api v0.1.0 h1:GuhKqQgLWExp8ngn+NPW+LZoCcpzrssaTDX+orYL/Xo=
@@ -1230,6 +1232,7 @@ golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 h1:DYfZAGf2WMFjMxbgTjaC+2HC7NkNAQs+6Q8b9WEB/F4=
 golang.org/x/sys v0.0.0-20200519105757-fe76b779f299/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1 h1:ogLJMz+qpzav7lGMh10LMvAkM/fAoGlaiiHYiFYdm80=
 golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
