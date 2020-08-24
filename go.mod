@@ -50,7 +50,7 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.8.3
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
 	github.com/libp2p/go-libp2p-pubsub v0.3.4
-	github.com/libp2p/go-libp2p-quic-transport v0.7.1
+	github.com/libp2p/go-libp2p-quic-transport v0.8.0
 	github.com/libp2p/go-libp2p-raft v0.1.5
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-secio v0.2.2
@@ -70,7 +70,7 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.4
 	go.uber.org/multierr v1.5.0
-	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 	google.golang.org/protobuf v1.25.0
