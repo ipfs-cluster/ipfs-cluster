@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -368,7 +369,7 @@ func TestWindow_Distribution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mw := NewWindow(len(tt.heartbeats) + 1)
 			for i, v := range tt.heartbeats {
-				mw.Add(makeMetric(string(int64(v * 10))))
+				mw.Add(makeMetric(strconv.Itoa(int(v * 10))))
 				// time.Sleep on the 1s of milliseconds level is
 				// susceptible to scheduler variance. Hence we
 				// multiple the input by 10 and this combined with

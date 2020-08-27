@@ -38,7 +38,7 @@ import (
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
-	manet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
 
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
