@@ -58,7 +58,6 @@ require (
 	github.com/libp2p/go-ws-transport v0.3.1
 	github.com/multiformats/go-multiaddr v0.3.0
 	github.com/multiformats/go-multiaddr-dns v0.2.0
-	github.com/multiformats/go-multiaddr-net v0.1.5
 	github.com/multiformats/go-multicodec v0.1.6
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/pkg/errors v0.9.1
