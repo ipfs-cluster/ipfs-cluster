@@ -117,8 +117,8 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	return []libp2p.Option{
 		libp2p.PrivateNetwork(psk),
 		libp2p.EnableNATService(),
-		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.Security(noise.ID, noise.New),
+		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		// TODO: quic does not support private networks
 		// libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.DefaultTransports,
