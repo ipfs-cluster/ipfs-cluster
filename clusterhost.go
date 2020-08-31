@@ -17,10 +17,10 @@ import (
 	routing "github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
+	noise "github.com/libp2p/go-libp2p-noise"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	record "github.com/libp2p/go-libp2p-record"
-	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
@@ -117,8 +117,8 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	return []libp2p.Option{
 		libp2p.PrivateNetwork(psk),
 		libp2p.EnableNATService(),
+		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-		libp2p.Security(secio.ID, secio.New),
 		// TODO: quic does not support private networks
 		// libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.DefaultTransports,
