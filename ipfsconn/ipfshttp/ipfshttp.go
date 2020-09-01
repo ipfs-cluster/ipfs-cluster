@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -145,15 +146,24 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		nodeMAddr = resolvedAddrs[0]
 	}
 
-	_, nodeAddr, err := manet.DialArgs(nodeMAddr)
+	network, nodeAddr, err := manet.DialArgs(nodeMAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &http.Client{} // timeouts are handled by context timeouts
+	if network == "unix" {
+		socketPath := nodeAddr
+		nodeAddr = "unix"
+		c.Transport = &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", socketPath)
+			},
+		}
+	}
 	if cfg.Tracing {
 		c.Transport = &ochttp.Transport{
-			Base:           http.DefaultTransport,
+			Base:           c.Transport,
 			Propagation:    &tracecontext.HTTPFormat{},
 			StartOptions:   trace.StartOptions{SpanKind: trace.SpanKindClient},
 			FormatSpanName: func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
