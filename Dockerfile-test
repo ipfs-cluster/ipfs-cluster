@@ -51,7 +51,7 @@ COPY --from=builder /tmp/jq-linux64 /usr/local/bin/jq
 
 # Add bash
 COPY --from=builder /bin/bash /bin/bash
-COPY --from=builder /lib/x86_64-linux-gnu/libtinfo.so* /lib64/
+COPY --from=builder /lib/*-linux-gnu*/libtinfo.so* /lib64/
 
 USER root
 
