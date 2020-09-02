@@ -42,6 +42,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -325,13 +326,14 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 	if err != nil {
 		t.Fatal(err)
 	}
-	return routedHost(h, d), psub, d
+
+	return routedhost.Wrap(h, d), psub, d
 }
 
 func newTestDHT(ctx context.Context, h host.Host) (*dual.DHT, error) {
 	return newDHT(ctx, h, nil,
-		dht.RoutingTableRefreshPeriod(600*time.Millisecond),
-		dht.RoutingTableRefreshQueryTimeout(300*time.Millisecond),
+		dual.DHTOption(dht.RoutingTableRefreshPeriod(600*time.Millisecond)),
+		dual.DHTOption(dht.RoutingTableRefreshQueryTimeout(300*time.Millisecond)),
 	)
 }
 

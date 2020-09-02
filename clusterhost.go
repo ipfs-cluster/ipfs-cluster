@@ -22,7 +22,6 @@ import (
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	record "github.com/libp2p/go-libp2p-record"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
-	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
 )
 
@@ -125,18 +124,18 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	}
 }
 
-func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraopts ...dht.Option) (*dual.DHT, error) {
-	opts := []dht.Option{
-		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
-		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
-		dht.Concurrency(10),
+func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraopts ...dual.Option) (*dual.DHT, error) {
+	opts := []dual.Option{
+		dual.DHTOption(dht.NamespacedValidator("pk", record.PublicKeyValidator{})),
+		dual.DHTOption(dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()})),
+		dual.DHTOption(dht.Concurrency(10)),
 	}
 
 	opts = append(opts, extraopts...)
 
 	if batchingDs, ok := store.(datastore.Batching); ok {
 		dhtDatastore := namespace.Wrap(batchingDs, datastore.NewKey(dhtNamespace))
-		opts = append(opts, dht.Datastore(dhtDatastore))
+		opts = append(opts, dual.DHTOption(dht.Datastore(dhtDatastore)))
 		logger.Debug("enabling DHT record persistence to datastore")
 	}
 
@@ -150,10 +149,6 @@ func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
 		pubsub.WithMessageSigning(true),
 		pubsub.WithStrictSignatureVerification(true),
 	)
-}
-
-func routedHost(h host.Host, d *dual.DHT) host.Host {
-	return routedhost.Wrap(h, d)
 }
 
 // EncodeProtectorKey converts a byte slice to its hex string representation.
