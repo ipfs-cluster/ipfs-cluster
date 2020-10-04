@@ -35,6 +35,7 @@ var (
 	defaultTimeout       = 0
 	defaultWaitCheckFreq = time.Second
 	defaultAddParams     = api.DefaultAddParams()
+	defaultRetries       = 6
 )
 
 var logger = logging.Logger("cluster-ctl")
@@ -131,6 +132,11 @@ requires authorization. implies --https, which you can disable with --force-http
 			Name:  "force-http, f",
 			Usage: "force HTTP. only valid when using BasicAuth",
 		},
+		cli.IntFlag{
+			Name:  "retries, ret",
+			Value: defaultRetries,
+			Usage: "number of retries to try until failure",
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
@@ -146,7 +152,6 @@ requires authorization. implies --https, which you can disable with --force-http
 		addr, err := ma.NewMultiaddr(c.String("host"))
 		checkErr("parsing host multiaddress", err)
 
-		cfg.APIAddr = addr
 		if hexSecret := c.String("secret"); hexSecret != "" {
 			secret, err := hex.DecodeString(hexSecret)
 			checkErr("parsing secret", err)
@@ -155,7 +160,7 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
 
-		if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
+		if client.IsPeerAddress(addr) && c.Bool("https") {
 			logger.Warn("Using libp2p-http. SSL flags will be ignored")
 		}
 
@@ -174,7 +179,10 @@ requires authorization. implies --https, which you can disable with --force-http
 			checkErr("", errors.New("unsupported encoding"))
 		}
 
-		globalClient, err = client.NewDefaultClient(cfg)
+		cfgs, err := cfg.AsTemplateForResolvedAddress(addr)
+		checkErr("creating configs", err)
+
+		globalClient, err = client.NewLBClient(&client.Failover{}, cfgs, 6)
 		checkErr("creating API client", err)
 
 		// TODO: need to figure out best way to configure tracing for ctl

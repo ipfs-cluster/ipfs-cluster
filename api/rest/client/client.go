@@ -165,6 +165,26 @@ type Config struct {
 	LogLevel string
 }
 
+// AsTemplateFor creates client configs from resolved multiaddresses
+func (c *Config) AsTemplateFor(resolvedAddrs []ma.Multiaddr) ([]*Config) {
+	var cfgs []*Config
+	for _, multiaddress := range resolvedAddrs{
+		cfg := *c
+		cfg.APIAddr = multiaddress
+		cfgs = append(cfgs, &cfg)
+	}
+	return cfgs
+}
+
+// AsTemplateForResolvedAddress creates client configs from a multiaddress
+func (c *Config) AsTemplateForResolvedAddress(addr ma.Multiaddr) ([]*Config, error) {
+	resolvedAddrs, err := resolveDNSAddr(addr)
+	if err != nil {
+		return []*Config{}, err
+	}
+	return c.AsTemplateFor(resolvedAddrs), nil
+}
+
 // DefaultClient provides methods to interact with the ipfs-cluster API. Use
 // NewDefaultClient() to create one.
 type defaultClient struct {
@@ -365,4 +385,47 @@ func isUnixSocketAddress(addr ma.Multiaddr) bool {
 	}
 	value, err := addr.ValueForProtocol(ma.P_UNIX)
 	return (value != "" && err == nil)
+}
+
+// isDNSAddress returns if the given address corresponds to a
+// DNSADDR protocol type
+func isDNSAddress(addr ma.Multiaddr) bool {
+	if addr == nil {
+		return false
+	}
+	dnsaddr, err := addr.ValueForProtocol(ma.P_DNSADDR)
+	return (dnsaddr != "" && err == nil)
+}
+
+// resolve dnsaddr
+func resolveDNSAddr(addr ma.Multiaddr) ([]ma.Multiaddr, error) {
+	var prevResolved []ma.Multiaddr
+	var currResolved []ma.Multiaddr
+
+	// Only resolve dnsaddr
+	if !isDNSAddress(addr) {
+		// return the addr as the entry to be resolved later
+		currResolved = append(currResolved, addr)
+		return currResolved, nil
+	}
+
+	// recursively resolve
+	currResolved = append(currResolved, addr)
+	for len(currResolved) != len(prevResolved) {
+		var tobeResolved []ma.Multiaddr
+		for _, addr := range currResolved {
+			ctx, cancel := context.WithCancel(context.Background())
+			resolveCtx, cancel := context.WithTimeout(ctx, ResolveTimeout)
+			defer cancel()
+			resolved, err := madns.Resolve(resolveCtx, addr)
+			if err != nil {
+				return []ma.Multiaddr{}, err
+			}
+			tobeResolved = append(tobeResolved, resolved...)
+		}
+		prevResolved = currResolved
+		currResolved = tobeResolved
+	}
+
+	return prevResolved, nil
 }
