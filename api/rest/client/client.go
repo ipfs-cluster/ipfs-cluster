@@ -414,8 +414,7 @@ func resolveDNSAddr(addr ma.Multiaddr) ([]ma.Multiaddr, error) {
 	for len(currResolved) != len(prevResolved) {
 		var tobeResolved []ma.Multiaddr
 		for _, addr := range currResolved {
-			ctx, cancel := context.WithCancel(context.Background())
-			resolveCtx, cancel := context.WithTimeout(ctx, ResolveTimeout)
+			resolveCtx, cancel := context.WithTimeout(context.Background(), ResolveTimeout)
 			defer cancel()
 			resolved, err := madns.Resolve(resolveCtx, addr)
 			if err != nil {
