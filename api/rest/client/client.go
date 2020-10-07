@@ -178,7 +178,7 @@ func (c *Config) AsTemplateFor(resolvedAddrs []ma.Multiaddr) ([]*Config) {
 
 // AsTemplateForResolvedAddress creates client configs from a multiaddress
 func (c *Config) AsTemplateForResolvedAddress(addr ma.Multiaddr) ([]*Config, error) {
-	resolvedAddrs, err := resolveDNSAddr(addr)
+	resolvedAddrs, err := resolveAddr(context.Background(), addr)
 	if err != nil {
 		return []*Config{}, err
 	}
@@ -282,17 +282,10 @@ func (c *defaultClient) resolveAPIAddr() error {
 	if !IsPeerAddress(c.config.APIAddr) {
 		return nil
 	}
-	resolveCtx, cancel := context.WithTimeout(c.ctx, ResolveTimeout)
-	defer cancel()
-	resolved, err := madns.Resolve(resolveCtx, c.config.APIAddr)
+	resolved, err := resolveAddr(c.ctx, c.config.APIAddr)
 	if err != nil {
 		return err
 	}
-
-	if len(resolved) == 0 {
-		return fmt.Errorf("resolving %s returned 0 results", c.config.APIAddr)
-	}
-
 	c.config.APIAddr = resolved[0]
 	return nil
 }
@@ -387,44 +380,18 @@ func isUnixSocketAddress(addr ma.Multiaddr) bool {
 	return (value != "" && err == nil)
 }
 
-// isDNSAddress returns if the given address corresponds to a
-// DNSADDR protocol type
-func isDNSAddress(addr ma.Multiaddr) bool {
-	if addr == nil {
-		return false
+// resolve addr
+func resolveAddr(ctx context.Context, addr ma.Multiaddr) ([]ma.Multiaddr, error) {
+	resolveCtx, cancel := context.WithTimeout(ctx, ResolveTimeout)
+	defer cancel()
+	resolved, err := madns.Resolve(resolveCtx, addr)
+	if err != nil {
+		return []ma.Multiaddr{}, err
 	}
-	dnsaddr, err := addr.ValueForProtocol(ma.P_DNSADDR)
-	return (dnsaddr != "" && err == nil)
-}
-
-// resolve dnsaddr
-func resolveDNSAddr(addr ma.Multiaddr) ([]ma.Multiaddr, error) {
-	var prevResolved []ma.Multiaddr
-	var currResolved []ma.Multiaddr
-
-	// Only resolve dnsaddr
-	if !isDNSAddress(addr) {
-		// return the addr as the entry to be resolved later
-		currResolved = append(currResolved, addr)
-		return currResolved, nil
+	
+	if len(resolved) == 0 {
+		return []ma.Multiaddr{}, fmt.Errorf("resolving %s returned 0 results", addr)
 	}
 
-	// recursively resolve
-	currResolved = append(currResolved, addr)
-	for len(currResolved) != len(prevResolved) {
-		var tobeResolved []ma.Multiaddr
-		for _, addr := range currResolved {
-			resolveCtx, cancel := context.WithTimeout(context.Background(), ResolveTimeout)
-			defer cancel()
-			resolved, err := madns.Resolve(resolveCtx, addr)
-			if err != nil {
-				return []ma.Multiaddr{}, err
-			}
-			tobeResolved = append(tobeResolved, resolved...)
-		}
-		prevResolved = currResolved
-		currResolved = tobeResolved
-	}
-
-	return prevResolved, nil
+	return resolved, nil
 }
