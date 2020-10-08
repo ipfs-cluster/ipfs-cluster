@@ -89,10 +89,10 @@ func main() {
 	app.Description = Description
 	app.Version = Version
 	app.Flags = []cli.Flag{
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:  "host, l",
-			Value: &cli.StringSlice{defaultHost}, 
-			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint. To provide multiple hosts: --host a --host b",
+			Value: defaultHost, 
+			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint. To provide multiple hosts: --host addr1,addr2",
 		},
 		cli.StringFlag{
 			Name:  "secret",
@@ -168,20 +168,17 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		var configs []*client.Config
 		var err error
-		for _, addr := range c.StringSlice("host") {
+		for _, addr := range strings.Split(c.String("host"), ",") {
 			multiaddr, err := ma.NewMultiaddr(addr)
 			checkErr("parsing host multiaddress", err)
 
-			cfgs, err := cfg.AsTemplateForResolvedAddress(multiaddr)
+			if client.IsPeerAddress(multiaddr) && c.Bool("https") {
+				logger.Warn("Using libp2p-http for %s. The https flag will be ignored for this connection", addr)
+			}
+
+			cfgs, err := cfg.AsTemplateForResolvedAddress(ctx, multiaddr)
 			checkErr("creating configs", err)
 			configs = append(configs, cfgs...)
-		}
-
-		for _, cfg := range configs {
-			if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
-				logger.Warn("Using libp2p-http. SSL flags will be ignored")
-				break;
-			}
 		}
 
 		retries := len(configs)

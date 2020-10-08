@@ -166,21 +166,21 @@ type Config struct {
 }
 
 // AsTemplateFor creates client configs from resolved multiaddresses
-func (c *Config) AsTemplateFor(resolvedAddrs []ma.Multiaddr) ([]*Config) {
+func (c *Config) AsTemplateFor(addrs []ma.Multiaddr) ([]*Config) {
 	var cfgs []*Config
-	for _, multiaddress := range resolvedAddrs{
+	for _, addr := range addrs {
 		cfg := *c
-		cfg.APIAddr = multiaddress
+		cfg.APIAddr = addr
 		cfgs = append(cfgs, &cfg)
 	}
 	return cfgs
 }
 
 // AsTemplateForResolvedAddress creates client configs from a multiaddress
-func (c *Config) AsTemplateForResolvedAddress(addr ma.Multiaddr) ([]*Config, error) {
-	resolvedAddrs, err := resolveAddr(context.Background(), addr)
+func (c *Config) AsTemplateForResolvedAddress(ctx context.Context, addr ma.Multiaddr) ([]*Config, error) {
+	resolvedAddrs, err := resolveAddr(ctx, addr)
 	if err != nil {
-		return []*Config{}, err
+		return nil, err
 	}
 	return c.AsTemplateFor(resolvedAddrs), nil
 }
@@ -386,11 +386,11 @@ func resolveAddr(ctx context.Context, addr ma.Multiaddr) ([]ma.Multiaddr, error)
 	defer cancel()
 	resolved, err := madns.Resolve(resolveCtx, addr)
 	if err != nil {
-		return []ma.Multiaddr{}, err
+		return nil, err
 	}
 	
 	if len(resolved) == 0 {
-		return []ma.Multiaddr{}, fmt.Errorf("resolving %s returned 0 results", addr)
+		return nil, fmt.Errorf("resolving %s returned 0 results", addr)
 	}
 
 	return resolved, nil
