@@ -354,6 +354,8 @@ github.com/ipfs/go-ds-badger v0.2.1/go.mod h1:Tx7l3aTph3FMFrRS838dcSJh+jjA7cX9Dr
 github.com/ipfs/go-ds-badger v0.2.3/go.mod h1:pEYw0rgg3FIrywKKnL+Snr+w/LjJZVMTBRn4FS6UHUk=
 github.com/ipfs/go-ds-badger v0.2.4 h1:UPGB0y7luFHk+mY/tUZrif/272M8o+hFsW+avLUeWrM=
 github.com/ipfs/go-ds-badger v0.2.4/go.mod h1:pEYw0rgg3FIrywKKnL+Snr+w/LjJZVMTBRn4FS6UHUk=
+github.com/ipfs/go-ds-badger v0.2.5 h1:oKRP6xVdgunjioOvaW4Ue2N7rBI7h/sWNERHTguUmpE=
+github.com/ipfs/go-ds-badger v0.2.5/go.mod h1:02rnztVKA4aZwDuaRPTf8mpqcKmXP7mLl6JPxd14JHA=
 github.com/ipfs/go-ds-crdt v0.1.15 h1:sCe27xyo6vsALIFHdbdw825kOGqyo5dUQVIoYSEnxzs=
 github.com/ipfs/go-ds-crdt v0.1.15/go.mod h1:w6EKjNbXfqOZnTrnqvlXx1QIaF+j3oIZbLon+PpMoXg=
 github.com/ipfs/go-ds-crdt v0.1.16 h1:57AyMiUiO/gTNMxuJi0B7gKPVQd3hSHBhqYOtUINLzY=
