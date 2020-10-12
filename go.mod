@@ -68,7 +68,7 @@ require (
 	github.com/ugorji/go/codec v1.1.10
 	github.com/urfave/cli v1.22.4
 	github.com/urfave/cli/v2 v2.2.0
-	go.opencensus.io v0.22.4
+	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.6.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
