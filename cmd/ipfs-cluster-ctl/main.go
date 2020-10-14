@@ -92,7 +92,8 @@ func main() {
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost, 
-			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint. For multiple hosts: --host addr1,addr2",
+			Usage: `Cluster's HTTP or LibP2P-HTTP API endpoint. 
+To provide multiple hosts: --host addr1,addr2`,
 		},
 		cli.StringFlag{
 			Name:  "secret",
