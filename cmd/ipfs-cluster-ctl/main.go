@@ -91,8 +91,9 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "host, l",
-			Value: defaultHost,
-			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint",
+			Value: defaultHost, 
+			Usage: `Cluster's HTTP or LibP2P-HTTP API endpoint. 
+To provide multiple hosts: --host addr1,addr2`,
 		},
 		cli.StringFlag{
 			Name:  "secret",
@@ -143,10 +144,6 @@ requires authorization. implies --https, which you can disable with --force-http
 			logger.Debug("debug level enabled")
 		}
 
-		addr, err := ma.NewMultiaddr(c.String("host"))
-		checkErr("parsing host multiaddress", err)
-
-		cfg.APIAddr = addr
 		if hexSecret := c.String("secret"); hexSecret != "" {
 			secret, err := hex.DecodeString(hexSecret)
 			checkErr("parsing secret", err)
@@ -154,10 +151,6 @@ requires authorization. implies --https, which you can disable with --force-http
 		}
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
-
-		if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
-			logger.Warn("Using libp2p-http. SSL flags will be ignored")
-		}
 
 		cfg.SSL = c.Bool("https")
 		cfg.NoVerifyCert = c.Bool("no-check-certificate")
@@ -174,7 +167,23 @@ requires authorization. implies --https, which you can disable with --force-http
 			checkErr("", errors.New("unsupported encoding"))
 		}
 
-		globalClient, err = client.NewDefaultClient(cfg)
+		var configs []*client.Config
+		var err error
+		for _, addr := range strings.Split(c.String("host"), ",") {
+			multiaddr, err := ma.NewMultiaddr(addr)
+			checkErr("parsing host multiaddress", err)
+
+			if client.IsPeerAddress(multiaddr) && c.Bool("https") {
+				logger.Warn("Using libp2p-http for %s. The https flag will be ignored for this connection", addr)
+			}
+
+			cfgs, err := cfg.AsTemplateForResolvedAddress(ctx, multiaddr)
+			checkErr("creating configs", err)
+			configs = append(configs, cfgs...)
+		}
+
+		retries := len(configs)
+		globalClient, err = client.NewLBClient(&client.Failover{}, configs, retries)
 		checkErr("creating API client", err)
 
 		// TODO: need to figure out best way to configure tracing for ctl
