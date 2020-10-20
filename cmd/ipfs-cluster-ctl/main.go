@@ -44,17 +44,23 @@ var globalClient client.Client
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
 %s is a tool to manage IPFS Cluster nodes.
+
 Use "%s help" to list all available commands and
 "%s help <command>" to get usage information for a
 specific one.
 
-%s uses the IPFS Cluster API to perform requests and display
-responses in a user-readable format. The location of the IPFS
-Cluster server is assumed to be %s, but can be
-configured with the --host option. To use the secure libp2p-http
-API endpoint, use "--host" with the full cluster libp2p listener
-address (including the "/p2p/<peerID>" part), and --secret (the
-32-byte cluster secret as it appears in the cluster configuration).
+%s uses the IPFS Cluster API to perform requests and
+display responses in a user-readable format. The location of the IPFS
+Cluster server is assumed to be %s, but can be configured
+with the --host option. If several multiaddresses are specified 
+(comma-separated), requests will be sent to the first one and fail-over 
+over to the others. This also works for dns-based addresses which resolve
+to multiple values.
+
+To use the secure libp2p-http API endpoint, use "--host" with 
+the full cluster libp2p listener address, including the "/p2p/<peerID>"
+part, or a /dnsaddr that resolves to it. Provide the cluster secret with 
+--secret as needed.
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
@@ -91,9 +97,8 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "host, l",
-			Value: defaultHost, 
-			Usage: `Cluster's HTTP or LibP2P-HTTP API endpoint. 
-To provide multiple hosts: --host addr1,addr2`,
+			Value: defaultHost,
+			Usage: `API endpoint multiaddresses (comma-separated)`,
 		},
 		cli.StringFlag{
 			Name:  "secret",
