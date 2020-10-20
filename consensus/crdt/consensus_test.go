@@ -44,11 +44,11 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dual.DHT) {
 	}
 
 	idht, err := dual.New(ctx, h,
-		dht.NamespacedValidator("pk", record.PublicKeyValidator{}),
-		dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()}),
-		dht.Concurrency(10),
-		dht.RoutingTableRefreshPeriod(200*time.Millisecond),
-		dht.RoutingTableRefreshQueryTimeout(100*time.Millisecond),
+		dual.DHTOption(dht.NamespacedValidator("pk", record.PublicKeyValidator{})),
+		dual.DHTOption(dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()})),
+		dual.DHTOption(dht.Concurrency(10)),
+		dual.DHTOption(dht.RoutingTableRefreshPeriod(200*time.Millisecond)),
+		dual.DHTOption(dht.RoutingTableRefreshQueryTimeout(100*time.Millisecond)),
 	)
 	if err != nil {
 		h.Close()
