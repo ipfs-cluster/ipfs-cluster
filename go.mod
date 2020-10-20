@@ -65,7 +65,7 @@ require (
 	github.com/prometheus/client_golang v1.7.1
 	github.com/rs/cors v1.7.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
-	github.com/ugorji/go/codec v1.1.10
+	github.com/ugorji/go/codec v1.1.13
 	github.com/urfave/cli v1.22.4
 	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.4
