@@ -6,20 +6,20 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dustin/go-humanize v1.0.0
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.16
+	github.com/hsanjuan/ipfs-lite v1.1.17
 	github.com/imdario/mergo v0.3.11
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ds-badger v0.2.6
-	github.com/ipfs/go-ds-crdt v0.1.16
+	github.com/ipfs/go-ds-crdt v0.1.17
 	github.com/ipfs/go-fs-lock v0.0.6
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-chunker v0.0.5
@@ -44,15 +44,15 @@ require (
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-consensus v0.0.1
 	github.com/libp2p/go-libp2p-core v0.6.1
-	github.com/libp2p/go-libp2p-gorpc v0.1.0
-	github.com/libp2p/go-libp2p-gostream v0.2.1
-	github.com/libp2p/go-libp2p-http v0.1.5
+	github.com/libp2p/go-libp2p-gorpc v0.1.1
+	github.com/libp2p/go-libp2p-gostream v0.2.2
+	github.com/libp2p/go-libp2p-http v0.1.6
 	github.com/libp2p/go-libp2p-kad-dht v0.10.0
 	github.com/libp2p/go-libp2p-noise v0.1.2
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
 	github.com/libp2p/go-libp2p-pubsub v0.3.6
 	github.com/libp2p/go-libp2p-quic-transport v0.8.2
-	github.com/libp2p/go-libp2p-raft v0.1.5
+	github.com/libp2p/go-libp2p-raft v0.1.6
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-secio v0.2.2
 	github.com/libp2p/go-libp2p-tls v0.1.3
