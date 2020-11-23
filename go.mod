@@ -43,7 +43,7 @@ require (
 	github.com/libp2p/go-libp2p-circuit v0.3.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.6.1
+	github.com/libp2p/go-libp2p-core v0.7.0
 	github.com/libp2p/go-libp2p-gorpc v0.1.1
 	github.com/libp2p/go-libp2p-gostream v0.2.2
 	github.com/libp2p/go-libp2p-http v0.1.6
@@ -51,7 +51,7 @@ require (
 	github.com/libp2p/go-libp2p-noise v0.1.2
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
 	github.com/libp2p/go-libp2p-pubsub v0.3.6
-	github.com/libp2p/go-libp2p-quic-transport v0.8.2
+	github.com/libp2p/go-libp2p-quic-transport v0.9.2
 	github.com/libp2p/go-libp2p-raft v0.1.6
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-secio v0.2.2
@@ -70,7 +70,7 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.6.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	gonum.org/v1/gonum v0.0.0-20190926113837-94b2bbd8ac13
 	gonum.org/v1/plot v0.0.0-20190615073203-9aa86143727f
 	google.golang.org/protobuf v1.25.0
