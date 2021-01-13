@@ -1,5 +1,56 @@
 # IPFS Cluster Changelog
 
+### v0.13.1 - 2021-01-14
+
+IPFS Cluster v0.13.1 is a maintenance release with some bugfixes and updated
+dependencies. It should be fully backwards compatible.
+
+This release deprecates `secio` (as required by libp2p), but this was already
+the lowest priority security transport and `tls` would have been used by default.
+The new `noise` transport becomes the preferred option.
+
+#### List of changes
+
+##### Features
+
+* Support for multiple architectures added to the Docker container | [ipfs/ipfs-cluster#1085](https://github.com/ipfs/ipfs-cluster/issues/1085) | [ipfs/ipfs-cluster#1196](https://github.com/ipfs/ipfs-cluster/issues/1196)
+* Add `--name` and `--expire` to `ipfs-cluster-ctl pin update` | [ipfs/ipfs-cluster#1184](https://github.com/ipfs/ipfs-cluster/issues/1184) | [ipfs/ipfs-cluster#1195](https://github.com/ipfs/ipfs-cluster/issues/1195)
+* Failover client integrated in `ipfs-cluster-ctl` | [ipfs/ipfs-cluster#1222](https://github.com/ipfs/ipfs-cluster/issues/1222) | [ipfs/ipfs-cluster#1250](https://github.com/ipfs/ipfs-cluster/issues/1250)
+* `ipfs-cluster-ctl health alerts` lists the last expired metrics seen by the peer | [ipfs/ipfs-cluster#165](https://github.com/ipfs/ipfs-cluster/issues/165) | [ipfs/ipfs-cluster#978](https://github.com/ipfs/ipfs-cluster/issues/978)
+
+##### Bug fixes
+
+* IPFS Proxy: pin progress objects wrongly includes non empty `Hash` key | [ipfs/ipfs-cluster#1286](https://github.com/ipfs/ipfs-cluster/issues/1286) | [ipfs/ipfs-cluster#1287](https://github.com/ipfs/ipfs-cluster/issues/1287)
+* CRDT: Fix pubsub peer validation check | [ipfs/ipfs-cluster#1288](https://github.com/ipfs/ipfs-cluster/issues/1288)
+
+##### Other changes
+
+* Typos | [ipfs/ipfs-cluster#1181](https://github.com/ipfs/ipfs-cluster/issues/1181) | [ipfs/ipfs-cluster#1183](https://github.com/ipfs/ipfs-cluster/issues/1183)
+* Reduce default pin_timeout to 2 minutes | [ipfs/ipfs-cluster#1160](https://github.com/ipfs/ipfs-cluster/issues/1160)
+* Dependency upgrades | [ipfs/ipfs-cluster#1125](https://github.com/ipfs/ipfs-cluster/issues/1125) | [ipfs/ipfs-cluster#1238](https://github.com/ipfs/ipfs-cluster/issues/1238)
+* Remove `secio` security transport | [ipfs/ipfs-cluster#1214](https://github.com/ipfs/ipfs-cluster/issues/1214) | [ipfs/ipfs-cluster#1227](https://github.com/ipfs/ipfs-cluster/issues/1227)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+The new default for `ipfs_http.pin_timeout` is `2m`. This is the time that
+needs to pass for a pin operation to error and it starts counting from the
+last block pinned.
+
+##### REST API
+
+A new `/health/alerts` endpoint exists to support `ipfs-cluster-ctl health alerts`.
+
+##### Go APIs
+
+The definition of `types.Alert` has changed. This type was not exposed to the
+outside before. RPC endpoints affected are only used locally.
+
+##### Other
+
+Nothing.
+
 ### v0.13.0 - 2020-05-19
 
 IPFS Cluster v0.13.0 provides many improvements and bugfixes on multiple fronts.
