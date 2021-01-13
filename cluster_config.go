@@ -439,15 +439,16 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	}
 
 	// PeerAddresses
+	peerAddrs := []ma.Multiaddr{}
 	for _, addr := range jcfg.PeerAddresses {
 		peerAddr, err := ma.NewMultiaddr(addr)
 		if err != nil {
 			err = fmt.Errorf("error parsing peer_addresses: %s", err)
 			return err
 		}
-		cfg.PeerAddresses = append(cfg.PeerAddresses, peerAddr)
+		peerAddrs = append(peerAddrs, peerAddr)
 	}
-
+	cfg.PeerAddresses = peerAddrs
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
 	cfg.DisableRepinning = jcfg.DisableRepinning
 	cfg.FollowerMode = jcfg.FollowerMode
