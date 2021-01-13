@@ -855,8 +855,8 @@ func TestAPIAlertsEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url urlF) {
-		var resp map[string]api.Alert
-		makeGet(t, rest, url(rest)+"/alerts", &resp)
+		var resp []api.Alert
+		makeGet(t, rest, url(rest)+"/health/alerts", &resp)
 		if len(resp) != 1 {
 			t.Error("expected one alert")
 		}

@@ -42,6 +42,7 @@ const (
 	bootstrapCount      = 3
 	reBootstrapInterval = 30 * time.Second
 	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
+	maxAlerts           = 1000
 )
 
 var (
@@ -74,7 +75,7 @@ type Cluster struct {
 	informers []Informer
 	tracer    Tracer
 
-	alerts    map[string]api.Alert
+	alerts    []api.Alert
 	alertsMux sync.Mutex
 
 	doneCh  chan struct{}
@@ -163,7 +164,7 @@ func NewCluster(
 		allocator:   allocator,
 		informers:   informers,
 		tracer:      tracer,
-		alerts:      make(map[string]api.Alert),
+		alerts:      []api.Alert{},
 		peerManager: peerManager,
 		shutdownB:   false,
 		removed:     false,
@@ -388,16 +389,16 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 	}
 }
 
-// Alerts returns things that are wrong with the cluster.
-func (c *Cluster) Alerts() map[string]api.Alert {
-	alerts := make(map[string]api.Alert)
+// Alerts returns the last alerts recorded by this cluster peer with the most
+// recent first.
+func (c *Cluster) Alerts() []api.Alert {
+	alerts := make([]api.Alert, len(c.alerts), len(c.alerts))
 
 	c.alertsMux.Lock()
 	{
-		for i, alert := range c.alerts {
-			if time.Now().Before(time.Unix(0, alert.Expiry)) {
-				alerts[i] = alert
-			}
+		total := len(alerts)
+		for i, a := range c.alerts {
+			alerts[total-1-i] = a
 		}
 	}
 	c.alertsMux.Unlock()
@@ -418,17 +419,18 @@ func (c *Cluster) alertsHandler() {
 				continue
 			}
 
-			logger.Warnf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
+			logger.Warnf("metric alert for %s: Peer: %s.", alrt.Name, alrt.Peer)
 			c.alertsMux.Lock()
-			for pID, alert := range c.alerts {
-				if time.Now().After(time.Unix(0, alert.Expiry)) {
-					delete(c.alerts, pID)
+			{
+				if len(c.alerts) > maxAlerts {
+					c.alerts = c.alerts[:0]
 				}
+
+				c.alerts = append(c.alerts, *alrt)
 			}
-			c.alerts[peer.IDB58Encode(alrt.Peer)] = *alrt
 			c.alertsMux.Unlock()
 
-			if alrt.MetricName != pingMetricName {
+			if alrt.Name != pingMetricName {
 				continue // only handle ping alerts
 			}
 

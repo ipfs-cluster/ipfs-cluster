@@ -301,8 +301,8 @@ func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]*a
 }
 
 // Alerts returns things that are wrong with cluster.
-func (lc *loadBalancingClient) Alerts(ctx context.Context) (map[string]api.Alert, error) {
-	var alerts map[string]api.Alert
+func (lc *loadBalancingClient) Alerts(ctx context.Context) ([]*api.Alert, error) {
+	var alerts []*api.Alert
 	call := func(c Client) error {
 		var err error
 		alerts, err = c.Alerts(ctx)

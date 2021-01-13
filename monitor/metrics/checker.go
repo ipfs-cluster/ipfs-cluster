@@ -112,11 +112,11 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	}
 
 	failedMetrics[metricName]++
+	lastMetric := mc.metrics.PeerLatest(metricName, pid)
 
 	alrt := &api.Alert{
-		Peer:       pid,
-		MetricName: metricName,
-		Expiry:     time.Now().Add(30 * time.Second).UnixNano(),
+		Metric:      *lastMetric,
+		TriggeredAt: time.Now(),
 	}
 	select {
 	case mc.alertCh <- alrt:

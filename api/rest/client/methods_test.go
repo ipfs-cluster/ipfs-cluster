@@ -427,9 +427,8 @@ func TestAlerts(t *testing.T) {
 		if len(alerts) != 1 {
 			t.Fatal("expected 1 alert")
 		}
-		pID2 := peer.IDB58Encode(test.PeerID2)
-		_, ok := alerts[pID2]
-		if !ok {
+		pID2 := peer.Encode(test.PeerID2)
+		if alerts[0].Peer != test.PeerID2 {
 			t.Errorf("expected an alert from %s", pID2)
 		}
 	}

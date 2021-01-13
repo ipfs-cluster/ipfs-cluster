@@ -96,8 +96,9 @@ type Client interface {
 	// Otherwise, it happens everywhere.
 	RecoverAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error)
 
-	// Alerts returns things that are wrong with cluster.
-	Alerts(ctx context.Context) (map[string]api.Alert, error)
+	// Alerts returns information health events in the cluster (expired
+	// metrics etc.).
+	Alerts(ctx context.Context) ([]*api.Alert, error)
 
 	// Version returns the ipfs-cluster peer's version.
 	Version(context.Context) (*api.Version, error)
@@ -169,7 +170,7 @@ type Config struct {
 }
 
 // AsTemplateFor creates client configs from resolved multiaddresses
-func (c *Config) AsTemplateFor(addrs []ma.Multiaddr) ([]*Config) {
+func (c *Config) AsTemplateFor(addrs []ma.Multiaddr) []*Config {
 	var cfgs []*Config
 	for _, addr := range addrs {
 		cfg := *c
@@ -391,7 +392,7 @@ func resolveAddr(ctx context.Context, addr ma.Multiaddr) ([]ma.Multiaddr, error)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(resolved) == 0 {
 		return nil, fmt.Errorf("resolving %s returned 0 results", addr)
 	}

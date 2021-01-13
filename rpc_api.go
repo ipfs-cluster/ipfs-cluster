@@ -427,7 +427,7 @@ func (rpcapi *ClusterRPCAPI) SendInformersMetrics(ctx context.Context, in struct
 }
 
 // Alerts runs Cluster.Alerts().
-func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *map[string]api.Alert) error {
+func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *[]api.Alert) error {
 	alerts := rpcapi.c.Alerts()
 	*out = alerts
 	return nil
