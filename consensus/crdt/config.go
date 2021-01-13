@@ -108,6 +108,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 	// Whenever we parse JSON, TrustAll is false unless an '*' peer exists
 	cfg.TrustAll = false
+	cfg.TrustedPeers = []peer.ID{}
 
 	for _, p := range jcfg.TrustedPeers {
 		if p == "*" {

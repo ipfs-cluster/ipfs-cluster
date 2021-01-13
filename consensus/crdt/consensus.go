@@ -162,8 +162,13 @@ func (css *Consensus) setup() {
 	// from trusted sources)
 	err = css.pubsub.RegisterTopicValidator(
 		topicName,
-		func(ctx context.Context, p peer.ID, msg *pubsub.Message) bool {
-			return css.IsTrustedPeer(ctx, p)
+		func(ctx context.Context, _ peer.ID, msg *pubsub.Message) bool {
+			signer := msg.GetFrom()
+			trusted := css.IsTrustedPeer(ctx, signer)
+			if !trusted {
+				logger.Debug("discarded pubsub message from non trusted source %s ", signer)
+			}
+			return trusted
 		},
 	)
 	if err != nil {
