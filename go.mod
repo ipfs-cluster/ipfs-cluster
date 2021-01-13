@@ -67,7 +67,7 @@ require (
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.1.13
 	github.com/urfave/cli v1.22.4
-	github.com/urfave/cli/v2 v2.2.0
+	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.6.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
