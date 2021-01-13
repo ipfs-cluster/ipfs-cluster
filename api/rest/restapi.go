@@ -467,6 +467,12 @@ func (api *API) routes() []route {
 			api.graphHandler,
 		},
 		{
+			"Alerts",
+			"GET",
+			"/health/alerts",
+			api.alertsHandler,
+		},
+		{
 			"Metrics",
 			"GET",
 			"/monitor/metrics/{name}",
@@ -657,6 +663,19 @@ func (api *API) metricNamesHandler(w http.ResponseWriter, r *http.Request) {
 		&metricNames,
 	)
 	api.sendResponse(w, autoStatus, err, metricNames)
+}
+
+func (api *API) alertsHandler(w http.ResponseWriter, r *http.Request) {
+	var alerts []types.Alert
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"Cluster",
+		"Alerts",
+		struct{}{},
+		&alerts,
+	)
+	api.sendResponse(w, autoStatus, err, alerts)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {

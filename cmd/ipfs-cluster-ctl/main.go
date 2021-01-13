@@ -970,6 +970,24 @@ but usually are:
 						return nil
 					},
 				},
+				{
+					Name:  "alerts",
+					Usage: "List the latest expired metric alerts",
+					Description: `
+This command provides a list of "alerts" that the cluster has seen.
+
+An alert is triggered when one of the metrics seen for a peer expires, and no
+new metrics have been received.
+
+Different alerts may be handled in different ways. i.e. ping alerts may
+trigger automatic repinnings if configured.
+`,
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.Alerts(ctx)
+						formatResponse(c, resp, cerr)
+						return nil
+					},
+				},
 			},
 		},
 		{

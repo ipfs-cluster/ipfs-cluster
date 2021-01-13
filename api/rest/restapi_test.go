@@ -849,6 +849,22 @@ func TestAPIMetricNamesEndpoint(t *testing.T) {
 	testBothEndpoints(t, tf)
 }
 
+func TestAPIAlertsEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url urlF) {
+		var resp []api.Alert
+		makeGet(t, rest, url(rest)+"/health/alerts", &resp)
+		if len(resp) != 1 {
+			t.Error("expected one alert")
+		}
+	}
+
+	testBothEndpoints(t, tf)
+}
+
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)
