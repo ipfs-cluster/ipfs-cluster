@@ -392,7 +392,7 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 // Alerts returns the last alerts recorded by this cluster peer with the most
 // recent first.
 func (c *Cluster) Alerts() []api.Alert {
-	alerts := make([]api.Alert, len(c.alerts), len(c.alerts))
+	alerts := make([]api.Alert, len(c.alerts))
 
 	c.alertsMux.Lock()
 	{
