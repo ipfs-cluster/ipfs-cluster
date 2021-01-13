@@ -2130,16 +2130,24 @@ func TestClusterPinsWithExpiration(t *testing.T) {
 }
 
 func TestClusterAlerts(t *testing.T) {
+	ctx := context.Background()
 	clusters, mock := createClusters(t)
 	defer shutdownClusters(t, clusters, mock)
 
+	if len(clusters) < 2 {
+		t.Skip("need at least 2 nodes for this test")
+	}
+
 	ttlDelay()
-	shutdownCluster(t, clusters[1], mock[1])
-	// config.MonitorPingInterval is kept at 1s
-	time.Sleep(2 * time.Second)
+
+	for _, c := range clusters[1:] {
+		c.Shutdown(ctx)
+	}
+
+	ttlDelay()
 
 	alerts := clusters[0].Alerts()
-	if len(alerts) != 1 {
-		t.Error("expected one alert")
+	if len(alerts) == 0 {
+		t.Error("expected at least one alert")
 	}
 }
