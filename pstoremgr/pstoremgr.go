@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	host "github.com/libp2p/go-libp2p-core/host"
 	net "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -66,7 +66,7 @@ func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration
 	}
 
 	protos := addr.Protocols()
-	if len(protos) > 0 && protos[0].Code == madns.DnsaddrProtocol.Code {
+	if len(protos) > 0 && protos[0].Code == ma.P_DNSADDR {
 		// We need to pre-resolve this
 		logger.Debugf("resolving %s", addr)
 		ctx, cancel := context.WithTimeout(pm.ctx, DNSTimeout)
@@ -265,13 +265,13 @@ func (pm *Manager) SavePeerstore(pinfos []peer.AddrInfo) error {
 
 	for _, pinfo := range pinfos {
 		if len(pinfo.Addrs) == 0 {
-			logger.Warning("address info does not have any multiaddresses")
+			logger.Warn("address info does not have any multiaddresses")
 			continue
 		}
 
 		addrs, err := peer.AddrInfoToP2pAddrs(&pinfo)
 		if err != nil {
-			logger.Warning(err)
+			logger.Warn(err)
 			continue
 		}
 		for _, a := range addrs {

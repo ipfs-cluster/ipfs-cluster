@@ -5,66 +5,98 @@ package cmdutils
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/ipfs/go-datastore"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	ipfshttp "github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	host "github.com/libp2p/go-libp2p-host"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	host "github.com/libp2p/go-libp2p-core/host"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
+	"go.uber.org/multierr"
 )
 
 // RandomizePorts replaces TCP and UDP ports with random, but valid port
-// values.
-func RandomizePorts(m ma.Multiaddr) (ma.Multiaddr, error) {
-	var prev string
+// values, on the given multiaddresses
+func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
+	results := make([]ma.Multiaddr, 0, len(addrs))
 
-	var err error
-	components := []ma.Multiaddr{}
-	ma.ForEach(m, func(c ma.Component) bool {
-		code := c.Protocol().Code
+	for _, m := range addrs {
+		var prev string
+		var err error
+		components := []ma.Multiaddr{}
+		ma.ForEach(m, func(c ma.Component) bool {
+			code := c.Protocol().Code
 
-		if code != ma.P_TCP && code != ma.P_UDP {
-			components = append(components, &c)
+			if code != ma.P_TCP && code != ma.P_UDP {
+				components = append(components, &c)
+				prev = c.Value()
+				return true
+			}
+
+			var ln io.Closer
+			var port int
+
+			ip := prev
+			if strings.Contains(ip, ":") { // ipv6 needs bracketing
+				ip = "[" + ip + "]"
+			}
+
+			if c.Protocol().Code == ma.P_UDP {
+				ln, port, err = listenUDP(c.Protocol().Name, ip)
+			} else {
+				ln, port, err = listenTCP(c.Protocol().Name, ip)
+			}
+			if err != nil {
+				return false
+			}
+			defer ln.Close()
+
+			var c1 *ma.Component
+			c1, err = ma.NewComponent(c.Protocol().Name, fmt.Sprintf("%d", port))
+			if err != nil {
+				return false
+			}
+
+			components = append(components, c1)
 			prev = c.Value()
+
 			return true
-		}
-
-		var ln net.Listener
-		ln, err = net.Listen(c.Protocol().Name, prev+":")
+		})
 		if err != nil {
-			return false
+			return results, err
 		}
-		defer ln.Close()
+		results = append(results, ma.Join(components...))
+	}
 
-		var c1 *ma.Component
-		c1, err = ma.NewComponent(c.Protocol().Name, fmt.Sprintf("%d", getPort(ln, code)))
-		if err != nil {
-			return false
-		}
-
-		components = append(components, c1)
-		prev = c.Value()
-
-		return true
-	})
-
-	return ma.Join(components...), err
+	return results, nil
 }
 
-func getPort(ln net.Listener, code int) int {
-	if code == ma.P_TCP {
-		return ln.Addr().(*net.TCPAddr).Port
+// returns the listener so it can be closed later and port
+func listenTCP(name, ip string) (io.Closer, int, error) {
+	ln, err := net.Listen(name, ip+":0")
+	if err != nil {
+		return nil, 0, err
 	}
-	if code == ma.P_UDP {
-		return ln.Addr().(*net.UDPAddr).Port
+
+	return ln, ln.Addr().(*net.TCPAddr).Port, nil
+}
+
+// returns the listener so it can be cloesd later and port
+func listenUDP(name, ip string) (io.Closer, int, error) {
+	ln, err := net.ListenPacket(name, ip+":0")
+	if err != nil {
+		return nil, 0, err
 	}
-	return 0
+
+	return ln, ln.LocalAddr().(*net.UDPAddr).Port, nil
 }
 
 // HandleSignals orderly shuts down an IPFS Cluster peer
@@ -75,7 +107,8 @@ func HandleSignals(
 	cancel context.CancelFunc,
 	cluster *ipfscluster.Cluster,
 	host host.Host,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
+	store datastore.Datastore,
 ) error {
 	signalChan := make(chan os.Signal, 20)
 	signal.Notify(
@@ -93,9 +126,11 @@ func HandleSignals(
 			handleCtrlC(ctx, cluster, ctrlcCount)
 		case <-cluster.Done():
 			cancel()
-			dht.Close()
-			host.Close()
-			return nil
+			return multierr.Combine(
+				dht.Close(),
+				host.Close(),
+				store.Close(),
+			)
 		}
 	}
 }
@@ -133,7 +168,7 @@ func ErrorOut(m string, a ...interface{}) {
 
 // WaitForIPFS hangs until IPFS API becomes available or the given context is
 // cancelled.  The IPFS API location is determined by the default ipfshttp
-// component configuration and can be overriden using environment variables
+// component configuration and can be overridden using environment variables
 // that affect that configuration.  Note that we have to do this in the blind,
 // since we want to wait for IPFS before we even fetch the IPFS component
 // configuration (because the configuration might be hosted on IPFS itself)

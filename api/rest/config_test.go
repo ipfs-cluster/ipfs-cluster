@@ -58,7 +58,7 @@ func TestLoadJSON(t *testing.T) {
 	j := &jsonConfig{}
 
 	json.Unmarshal(cfgJSON, j)
-	j.HTTPListenMultiaddress = "abc"
+	j.HTTPListenMultiaddress = []string{"abc"}
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
@@ -103,7 +103,7 @@ func TestLoadJSON(t *testing.T) {
 
 	j = &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
-	j.Libp2pListenMultiaddress = "abc"
+	j.Libp2pListenMultiaddress = []string{"abc"}
 	tst, _ = json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err == nil {
@@ -178,8 +178,8 @@ func TestLibp2pConfig(t *testing.T) {
 	cfg.ID = pid
 	cfg.PrivateKey = priv
 	addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	cfg.HTTPListenAddr = addr
-	cfg.Libp2pListenAddr = addr
+	cfg.HTTPListenAddr = []ma.Multiaddr{addr}
+	cfg.Libp2pListenAddr = []ma.Multiaddr{addr}
 
 	err = cfg.Validate()
 	if err != nil {
@@ -203,7 +203,7 @@ func TestLibp2pConfig(t *testing.T) {
 	}
 	defer rest.Shutdown(ctx)
 
-	badPid, _ := peer.IDB58Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
+	badPid, _ := peer.Decode("QmTQ6oKHDwFjzr4ihirVCLJe8CxanxD3ZjGRYzubFuNDjE")
 	cfg.ID = badPid
 	err = cfg.Validate()
 	if err == nil {

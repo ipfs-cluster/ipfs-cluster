@@ -112,3 +112,8 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 
 	return jCfg
 }
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
+}

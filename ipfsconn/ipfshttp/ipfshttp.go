@@ -21,12 +21,14 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
-	logging "github.com/ipfs/go-log"
+	pinner "github.com/ipfs/go-ipfs-pinner"
+	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	madns "github.com/multiformats/go-multiaddr-dns"
-	manet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
+	"github.com/multiformats/go-multihash"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
@@ -43,10 +45,6 @@ var logger = logging.Logger("ipfshttp")
 // on the nth occasion. So, for example, for every BlockPut,
 // only the 10th will trigger a SendInformerMetrics call.
 var updateMetricMod = 10
-
-// progressTick sets how often we check progress when doing refs and pins
-// requests.
-var progressTick = 5 * time.Second
 
 // Connector implements the IPFSConnector interface
 // and provides a component which  is used to perform
@@ -73,7 +71,18 @@ type Connector struct {
 }
 
 type ipfsError struct {
+	path    string
+	code    int
 	Message string
+}
+
+func (ie ipfsError) Error() string {
+	return fmt.Sprintf(
+		"IPFS request unsuccessful (%s). Code: %d. Message: %s",
+		ie.path,
+		ie.code,
+		ie.Message,
+	)
 }
 
 type ipfsPinType struct {
@@ -98,11 +107,6 @@ type ipfsRepoGCResp struct {
 	Error string
 }
 
-type ipfsRefsResp struct {
-	Ref string
-	Err string
-}
-
 type ipfsPinsResp struct {
 	Pins     []string
 	Progress int
@@ -112,12 +116,13 @@ type ipfsSwarmPeersResp struct {
 	Peers []ipfsPeer
 }
 
-type ipfsPeer struct {
-	Peer string
+type ipfsBlockPutResp struct {
+	Key  string
+	Size int
 }
 
-type ipfsStream struct {
-	Protocol string
+type ipfsPeer struct {
+	Peer string
 }
 
 // NewConnector creates the component and leaves it ready to be started
@@ -216,7 +221,7 @@ func (ipfs *Connector) SetClient(c *rpc.Client) {
 // Shutdown stops any listeners and stops the component from taking
 // any requests.
 func (ipfs *Connector) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Shutdown")
+	_, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Shutdown")
 	defer span.End()
 
 	ipfs.shutdownLock.Lock()
@@ -260,7 +265,7 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 		return nil, err
 	}
 
-	pID, err := peer.IDB58Decode(res.ID)
+	pID, err := peer.Decode(res.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +274,7 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 		ID: pID,
 	}
 
-	mAddrs := make([]api.Multiaddr, len(res.Addresses), len(res.Addresses))
+	mAddrs := make([]api.Multiaddr, len(res.Addresses))
 	for i, strAddr := range res.Addresses {
 		mAddr, err := api.NewMultiaddr(strAddr)
 		if err != nil {
@@ -282,7 +287,7 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 	return id, nil
 }
 
-func pinArgs(maxDepth int) string {
+func pinArgs(maxDepth api.PinDepth) string {
 	q := url.Values{}
 	switch {
 	case maxDepth < 0:
@@ -291,7 +296,7 @@ func pinArgs(maxDepth int) string {
 		q.Set("recursive", "false")
 	default:
 		q.Set("recursive", "true")
-		q.Set("max-depth", strconv.Itoa(maxDepth))
+		q.Set("max-depth", strconv.Itoa(int(maxDepth)))
 	}
 	return q.Encode()
 }
@@ -305,7 +310,7 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 	hash := pin.Cid
 	maxDepth := pin.MaxDepth
 
-	pinStatus, err := ipfs.PinLsCid(ctx, hash)
+	pinStatus, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		return err
 	}
@@ -324,7 +329,8 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 	// is pinned recursively, then do pin/update.
 	// Otherwise do a normal pin.
 	if from := pin.PinUpdate; from != cid.Undef {
-		pinStatus, _ := ipfs.PinLsCid(ctx, from)
+		fromPin := api.PinWithOpts(from, pin.PinOptions)
+		pinStatus, _ := ipfs.PinLsCid(ctx, fromPin)
 		if pinStatus.IsPinned(-1) { // pinned recursively.
 			// As a side note, if PinUpdate == pin.Cid, we are
 			// somehow pinning an already pinned thing and we'd
@@ -377,7 +383,7 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 // pinProgress pins an item and sends fetched node's progress on a
 // channel. Blocks until done or error. pinProgress will always close the out
 // channel.  pinProgress will not block on sending to the channel if it is full.
-func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth int, out chan<- int) error {
+func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth api.PinDepth, out chan<- int) error {
 	defer close(out)
 
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinsProgress")
@@ -440,31 +446,31 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Unpin")
 	defer span.End()
 
-	pinStatus, err := ipfs.PinLsCid(ctx, hash)
-	if err != nil {
-		return err
+	if ipfs.config.UnpinDisable {
+		return errors.New("ipfs unpinning is disallowed by configuration on this peer")
 	}
 
-	if pinStatus.IsPinned(-1) {
-		if ipfs.config.UnpinDisable {
-			return errors.New("ipfs unpinning is disallowed by configuration on this peer")
-		}
+	defer ipfs.updateInformerMetric(ctx)
 
-		defer ipfs.updateInformerMetric(ctx)
-		path := fmt.Sprintf("pin/rm?arg=%s", hash)
+	path := fmt.Sprintf("pin/rm?arg=%s", hash)
 
-		ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.UnpinTimeout)
+	defer cancel()
 
-		_, err := ipfs.postCtx(ctx, path, "", nil)
-		if err != nil {
+	// We will call unpin in any case, if the CID is not pinned,
+	// then we ignore the error (although this is a bit flaky).
+	_, err := ipfs.postCtx(ctx, path, "", nil)
+	if err != nil {
+		ipfsErr, ok := err.(ipfsError)
+		if !ok || ipfsErr.Message != pinner.ErrNotPinned.Error() {
 			return err
 		}
-		logger.Info("IPFS Unpin request succeeded:", hash)
-		stats.Record(ctx, observations.Pins.M(-1))
+		logger.Debug("IPFS object is already unpinned: ", hash)
+		return nil
 	}
 
-	logger.Debug("IPFS object is already unpinned: ", hash)
+	logger.Info("IPFS Unpin request succeeded:", hash)
+	stats.Record(ctx, observations.Pins.M(-1))
 	return nil
 }
 
@@ -498,34 +504,21 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string
 	return statusMap, nil
 }
 
-// PinLsCid performs a "pin ls <hash>" request. It first tries with
-// "type=recursive" and then, if not found, with "type=direct". It returns an
-// api.IPFSPinStatus for that hash.
-func (ipfs *Connector) PinLsCid(ctx context.Context, hash cid.Cid) (api.IPFSPinStatus, error) {
+// PinLsCid performs a "pin ls <hash>" request. It will use "type=recursive" or
+// "type=direct" (or other) depending on the given pin's MaxDepth setting.
+// It returns an api.IPFSPinStatus for that hash.
+func (ipfs *Connector) PinLsCid(ctx context.Context, pin *api.Pin) (api.IPFSPinStatus, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/PinLsCid")
 	defer span.End()
 
-	pinLsType := func(pinType string) ([]byte, error) {
-		ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
-		defer cancel()
-		lsPath := fmt.Sprintf("pin/ls?arg=%s&type=%s", hash, pinType)
-		return ipfs.postCtx(ctx, lsPath, "", nil)
-	}
+	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
+	defer cancel()
 
-	var body []byte
-	var err error
-	// FIXME: Sharding may need to check more pin types here.
-	for _, pinType := range []string{"recursive", "direct"} {
-		body, err = pinLsType(pinType)
-		// Network error, daemon down
-		if body == nil && err != nil {
-			return api.IPFSPinStatusError, err
-		}
-
-		// Pin found. Do not keep looking.
-		if err == nil {
-			break
-		}
+	pinType := pin.MaxDepth.ToPinMode().String()
+	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=%s", pin.Cid, pinType)
+	body, err := ipfs.postCtx(ctx, lsPath, "", nil)
+	if body == nil && err != nil { // Network error, daemon down
+		return api.IPFSPinStatusError, err
 	}
 
 	if err != nil { // we could not find the pin
@@ -544,7 +537,7 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, hash cid.Cid) (api.IPFSPinS
 	// we parse as CID. There should only be one returned key.
 	for k, pinObj := range res.Keys {
 		c, err := cid.Decode(k)
-		if err != nil || !c.Equals(hash) {
+		if err != nil || !c.Equals(pin.Cid) {
 			continue
 		}
 		return api.IPFSPinStatusFromString(pinObj.Type), nil
@@ -582,12 +575,9 @@ func checkResponse(path string, res *http.Response) ([]byte, error) {
 	if err == nil {
 		var ipfsErr ipfsError
 		if err := json.Unmarshal(body, &ipfsErr); err == nil {
-			return body, fmt.Errorf(
-				"IPFS request unsuccessful (%s). Code: %d. Message: %s",
-				path,
-				res.StatusCode,
-				ipfsErr.Message,
-			)
+			ipfsErr.code = res.StatusCode
+			ipfsErr.path = path
+			return body, ipfsErr
 		}
 	}
 
@@ -620,24 +610,6 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType str
 		return nil, err
 	}
 	return body, nil
-}
-
-// postDiscardBodyCtx makes a POST requests but discards the body
-// of the response directly after reading it.
-func (ipfs *Connector) postDiscardBodyCtx(ctx context.Context, path string) error {
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, "", nil)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	_, err = checkResponse(path, res)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(ioutil.Discard, res.Body)
-	return err
 }
 
 // apiURL is a short-hand for building the url of the IPFS
@@ -730,9 +702,8 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 		return value, nil
 	}
 
-	switch value.(type) {
+	switch v := value.(type) {
 	case map[string]interface{}:
-		v := value.(map[string]interface{})
 		return getConfigValue(path[1:], v)
 	default:
 		return nil, errors.New("invalid path")
@@ -859,7 +830,7 @@ func (ipfs *Connector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 
 	swarm := make([]peer.ID, len(peersRaw.Peers))
 	for i, p := range peersRaw.Peers {
-		pID, err := peer.IDB58Decode(p.Peer)
+		pID, err := peer.Decode(p.Peer)
 		if err != nil {
 			logger.Error(err)
 			return swarm, err
@@ -887,14 +858,58 @@ func (ipfs *Connector) BlockPut(ctx context.Context, b *api.NodeWithMeta) error 
 	)
 
 	multiFileR := files.NewMultiFileReader(mapDir, true)
-	if b.Format == "" {
-		b.Format = "v0"
+
+	q := make(url.Values, 3)
+	prefix := b.Cid.Prefix()
+	format, ok := cid.CodecToStr[prefix.Codec]
+	if !ok {
+		return fmt.Errorf("cannot find name for the blocks' CID codec: %x", prefix.Codec)
 	}
-	url := "block/put?f=" + b.Format
+
+	mhType, ok := multihash.Codes[prefix.MhType]
+	if !ok {
+		return fmt.Errorf("cannot find name for the blocks' Multihash type: %x", prefix.MhType)
+	}
+
+	// IPFS behaves differently when using v0 or protobuf which are
+	// actually the same.
+	if prefix.Version == 0 {
+		q.Set("format", "v0")
+	} else {
+		q.Set("format", format)
+	}
+
+	q.Set("mhtype", mhType)
+	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
+
+	url := "block/put?" + q.Encode()
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 
-	_, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
-	return err
+	body, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
+	if err != nil {
+		return err
+	}
+
+	var res ipfsBlockPutResp
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug("block/put response CID", res.Key)
+	respCid, err := cid.Decode(res.Key)
+	if err != nil {
+		logger.Error("cannot parse CID from BlockPut response")
+		return err
+	}
+
+	// IPFS is too brittle here. CIDv0 != CIDv1. Sending "protobuf" format
+	// returns CidV1.  Sending "v0" format (which maps to protobuf)
+	// returns CidV0. Leaving this as warning.
+	if !respCid.Equals(b.Cid) {
+		logger.Warnf("blockPut response CID (%s) does not match the block sent (%s)", respCid, b.Cid)
+	}
+	return nil
 }
 
 // BlockGet retrieves an ipfs block with the given cid
@@ -925,7 +940,7 @@ func (ipfs *Connector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) 
 // 	if err != nil {
 // 		return err
 // 	}
-// 	logger.Debugf("refs for %s sucessfully fetched", c)
+// 	logger.Debugf("refs for %s successfully fetched", c)
 // 	return nil
 // }
 

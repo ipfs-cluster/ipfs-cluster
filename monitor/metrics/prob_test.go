@@ -308,7 +308,7 @@ func Benchmark_prob_meanStdDev(b *testing.B) {
 
 func makeRandSlice(size int) []float64 {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	s := make([]float64, size, size)
+	s := make([]float64, size)
 
 	for i := 0; i < size-1; i++ {
 		s[i] = float64(r.Int63n(25)) + r.Float64()

@@ -92,6 +92,14 @@ func (m *mockCfg) Validate() error {
 	return nil
 }
 
+func (m *mockCfg) ToDisplayJSON() ([]byte, error) {
+	return []byte(`
+	{
+		"a":"b"
+	}
+	`), nil
+}
+
 func setupConfigManager() *Manager {
 	cfg := NewManager()
 	mockCfg := &mockCfg{}
@@ -174,5 +182,31 @@ func TestSaveWithSource(t *testing.T) {
 
 	if !bytes.Equal(newJSON, expected) {
 		t.Error("should have generated a source-only json")
+	}
+}
+
+func TestDefaultJSONMarshalWithoutHiddenFields(t *testing.T) {
+	type s struct {
+		A string `json:"a_key"`
+		B string `json:"b_key" hidden:"true"`
+	}
+	cfg := s{
+		A: "hi",
+		B: "there",
+	}
+
+	expected := `{
+  "a_key": "hi",
+  "b_key": "XXX_hidden_XXX"
+}`
+
+	res, err := DisplayJSON(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(res) != expected {
+		t.Error("result does not match expected")
+		t.Error(string(res))
 	}
 }

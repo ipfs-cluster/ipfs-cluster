@@ -3,7 +3,7 @@ os:
   - linux
 #  - osx
 go:
-- '1.13.x'
+- '1.15.x'
 services:
 - docker
 
@@ -33,6 +33,7 @@ jobs:
     - name: "Golint, go vet, binary builds"
       script:
         - go get -u golang.org/x/lint/golint
+        - go get honnef.co/go/tools/cmd/staticcheck
         - make check
         - make service
         - make ctl

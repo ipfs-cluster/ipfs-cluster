@@ -20,7 +20,7 @@ import (
 	pb "github.com/ipfs/ipfs-cluster/api/pb"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	protocol "github.com/libp2p/go-libp2p-core/protocol"
 	multiaddr "github.com/multiformats/go-multiaddr"
@@ -30,8 +30,8 @@ import (
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
 
-	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
+	proto "google.golang.org/protobuf/proto"
 )
 
 var logger = logging.Logger("apitypes")
@@ -215,7 +215,7 @@ func IPFSPinStatusFromString(t string) IPFSPinStatus {
 
 // IsPinned returns true if the item is pinned as expected by the
 // maxDepth parameter.
-func (ips IPFSPinStatus) IsPinned(maxDepth int) bool {
+func (ips IPFSPinStatus) IsPinned(maxDepth PinDepth) bool {
 	switch {
 	case maxDepth < 0:
 		return ips == IPFSPinStatusRecursive
@@ -246,11 +246,12 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid cid.Cid `json:"cid" codec:"c"`
+	Cid  cid.Cid `json:"cid" codec:"c"`
+	Name string  `json:"name" codec:"n"`
 	// https://github.com/golang/go/issues/28827
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
-	PeerMap map[string]*PinInfo `json:"peer_map" codec:"pm,omitempty"`
+	PeerMap map[string]*PinInfoShort `json:"peer_map" codec:"pm,omitempty"`
 }
 
 // String returns the string representation of a GlobalPinInfo.
@@ -263,14 +264,45 @@ func (gpi *GlobalPinInfo) String() string {
 	return str
 }
 
-// PinInfo holds information about local pins.
-type PinInfo struct {
-	Cid      cid.Cid       `json:"cid" codec:"c"`
-	Peer     peer.ID       `json:"peer" codec:"p,omitempty"`
+// Add adds a PinInfo object to a GlobalPinInfo
+func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
+	if !gpi.Cid.Defined() {
+		gpi.Cid = pi.Cid
+		gpi.Name = pi.Name
+	}
+
+	if gpi.PeerMap == nil {
+		gpi.PeerMap = make(map[string]*PinInfoShort)
+	}
+
+	gpi.PeerMap[peer.Encode(pi.Peer)] = &pi.PinInfoShort
+}
+
+// PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
+// objects and does not carry redundant information as PinInfo would.
+type PinInfoShort struct {
 	PeerName string        `json:"peername" codec:"pn,omitempty"`
 	Status   TrackerStatus `json:"status" codec:"st,omitempty"`
 	TS       time.Time     `json:"timestamp" codec:"ts,omitempty"`
 	Error    string        `json:"error" codec:"e,omitempty"`
+}
+
+// PinInfo holds information about local pins. This is used by the Pin
+// Trackers.
+type PinInfo struct {
+	Cid  cid.Cid `json:"cid" codec:"c"`
+	Name string  `json:"name" codec:"m,omitempty"`
+	Peer peer.ID `json:"Peer" codec:"p,omitempty"`
+
+	PinInfoShort
+}
+
+// ToGlobal converts a PinInfo object to a GlobalPinInfo with
+// a single peer corresponding to the given PinInfo.
+func (pi *PinInfo) ToGlobal() *GlobalPinInfo {
+	gpi := GlobalPinInfo{}
+	gpi.Add(pi)
+	return &gpi
 }
 
 // Version holds version information
@@ -462,11 +494,76 @@ func (pT PinType) String() string {
 
 var pinOptionsMetaPrefix = "meta-"
 
+// PinMode is a PinOption that indicates how to pin something on IPFS,
+// recursively or direct.
+type PinMode int
+
+// PinMode values
+const (
+	PinModeRecursive PinMode = 0
+	PinModeDirect    PinMode = 1
+)
+
+// PinModeFromString converst a string to PinMode.
+func PinModeFromString(s string) PinMode {
+	switch s {
+	case "recursive", "":
+		return PinModeRecursive
+	case "direct":
+		return PinModeDirect
+	default:
+		logger.Warnf("unknown pin mode %s. Defaulting to recursive", s)
+		return PinModeRecursive
+	}
+}
+
+// String returns a human-readable value for PinMode.
+func (pm PinMode) String() string {
+	switch pm {
+	case PinModeRecursive:
+		return "recursive"
+	case PinModeDirect:
+		return "direct"
+	default:
+		return "recursive"
+	}
+}
+
+// MarshalJSON converts the PinMode into a readable string in JSON.
+func (pm PinMode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pm.String())
+}
+
+// UnmarshalJSON takes a JSON value and parses it into PinMode.
+func (pm *PinMode) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*pm = PinModeFromString(s)
+	return nil
+}
+
+// ToPinDepth converts the Mode to Depth.
+func (pm PinMode) ToPinDepth() PinDepth {
+	switch pm {
+	case PinModeRecursive:
+		return -1
+	case PinModeDirect:
+		return 0
+	default:
+		logger.Warn("unknown pin mode %d. Defaulting to -1 depth", pm)
+		return -1
+	}
+}
+
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
 	ReplicationFactorMin int               `json:"replication_factor_min" codec:"rn,omitempty"`
 	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
 	Name                 string            `json:"name" codec:"n,omitempty"`
+	Mode                 PinMode           `json:"mode" codec:"o,omitempty"`
 	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
 	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
 	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
@@ -486,6 +583,10 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 	}
 
 	if po.Name != po2.Name {
+		return false
+	}
+
+	if po.Mode != po2.Mode {
 		return false
 	}
 
@@ -538,6 +639,7 @@ func (po *PinOptions) ToQuery() (string, error) {
 	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
 	q.Set("name", po.Name)
+	q.Set("mode", po.Mode.String())
 	q.Set("shard-size", fmt.Sprintf("%d", po.ShardSize))
 	q.Set("user-allocations", strings.Join(PeersToStrings(po.UserAllocations), ","))
 	if !po.ExpireAt.IsZero() {
@@ -562,6 +664,9 @@ func (po *PinOptions) ToQuery() (string, error) {
 // FromQuery is the inverse of ToQuery().
 func (po *PinOptions) FromQuery(q url.Values) error {
 	po.Name = q.Get("name")
+
+	po.Mode = PinModeFromString(q.Get("mode"))
+
 	rplStr := q.Get("replication")
 	if rplStr != "" { // override
 		q.Set("replication-min", rplStr)
@@ -631,6 +736,23 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 	return nil
 }
 
+// PinDepth indicates how deep a pin should be pinned, with
+// -1 meaning "to the bottom", or "recursive".
+type PinDepth int
+
+// ToPinMode converts PinDepth to PinMode
+func (pd PinDepth) ToPinMode() PinMode {
+	switch pd {
+	case -1:
+		return PinModeRecursive
+	case 0:
+		return PinModeDirect
+	default:
+		logger.Warnf("bad pin depth: %d", pd)
+		return PinModeRecursive
+	}
+}
+
 // Pin carries all the information associated to a CID that is pinned
 // in IPFS Cluster. It also carries transient information (that may not
 // get protobuffed, like UserAllocations).
@@ -647,7 +769,7 @@ type Pin struct {
 
 	// MaxDepth associated to this pin. -1 means
 	// recursive.
-	MaxDepth int `json:"max_depth" codec:"d,omitempty"`
+	MaxDepth PinDepth `json:"max_depth" codec:"d,omitempty"`
 
 	// We carry a reference CID to this pin. For
 	// ClusterDAGs, it is the MetaPin CID. For the
@@ -683,15 +805,17 @@ func PinCid(c cid.Cid) *Pin {
 		Cid:         c,
 		Type:        DataType,
 		Allocations: []peer.ID{},
-		MaxDepth:    -1,
+		MaxDepth:    -1, // Recursive
 	}
 }
 
-// PinWithOpts creates a new Pin calling PinCid(c) and then sets
-// its PinOptions fields with the given options.
+// PinWithOpts creates a new Pin calling PinCid(c) and then sets its
+// PinOptions fields with the given options. Pin fields that are linked to
+// options are set accordingly (MaxDepth from Mode).
 func PinWithOpts(c cid.Cid, opts PinOptions) *Pin {
 	p := PinCid(c)
 	p.PinOptions = opts
+	p.MaxDepth = p.Mode.ToPinDepth()
 	return p
 }
 
@@ -709,7 +833,7 @@ func convertPinType(t PinType) pb.Pin_PinType {
 
 // ProtoMarshal marshals this Pin using probobuf.
 func (pin *Pin) ProtoMarshal() ([]byte, error) {
-	allocs := make([][]byte, len(pin.Allocations), len(pin.Allocations))
+	allocs := make([][]byte, len(pin.Allocations))
 	for i, pid := range pin.Allocations {
 		bs, err := pid.Marshal()
 		if err != nil {
@@ -729,10 +853,11 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
 		Name:                 pin.Name,
 		ShardSize:            pin.ShardSize,
+		Metadata:             pin.Metadata,
+		PinUpdate:            pin.PinUpdate.Bytes(),
+		ExpireAt:             expireAtProto,
+		// Mode:                 pin.Mode,
 		// UserAllocations:      pin.UserAllocations,
-		Metadata:  pin.Metadata,
-		PinUpdate: pin.PinUpdate.Bytes(),
-		ExpireAt:  expireAtProto,
 	}
 
 	pbPin := &pb.Pin{
@@ -766,7 +891,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 
 	pbAllocs := pbPin.GetAllocations()
 	lenAllocs := len(pbAllocs)
-	allocs := make([]peer.ID, lenAllocs, lenAllocs)
+	allocs := make([]peer.ID, lenAllocs)
 	for i, pidb := range pbAllocs {
 		pid, err := peer.IDFromBytes(pidb)
 		if err != nil {
@@ -776,7 +901,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	}
 
 	pin.Allocations = allocs
-	pin.MaxDepth = int(pbPin.GetMaxDepth())
+	pin.MaxDepth = PinDepth(pbPin.GetMaxDepth())
 	ref, err := cid.Cast(pbPin.GetReference())
 	if err != nil {
 		pin.Reference = nil
@@ -800,6 +925,10 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	if err == nil {
 		pin.PinUpdate = pinUpdate
 	}
+
+	// We do not store the PinMode option but we can
+	// derive it from the MaxDepth setting.
+	pin.Mode = pin.MaxDepth.ToPinMode()
 	return nil
 }
 
@@ -883,7 +1012,6 @@ type NodeWithMeta struct {
 	Data    []byte  `codec:"d,omitempty"`
 	Cid     cid.Cid `codec:"c,omitempty"`
 	CumSize uint64  `codec:"s,omitempty"` // Cumulative size
-	Format  string  `codec:"f,omitempty"`
 }
 
 // Size returns how big is the block. It is different from CumSize, which
@@ -915,7 +1043,7 @@ func (m *Metric) SetTTL(d time.Duration) {
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
 	expDate := time.Unix(0, m.Expire)
-	return expDate.Sub(time.Now())
+	return time.Until(expDate)
 }
 
 // Expired returns if the Metric has expired

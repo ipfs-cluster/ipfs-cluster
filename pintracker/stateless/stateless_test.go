@@ -3,7 +3,6 @@ package stateless
 import (
 	"context"
 	"errors"
-	"sort"
 	"testing"
 	"time"
 
@@ -69,8 +68,8 @@ func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.
 	return nil
 }
 
-func (mock *mockIPFS) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	switch in {
+func (mock *mockIPFS) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
+	switch in.Cid {
 	case test.Cid1, test.Cid2:
 		*out = api.IPFSPinStatusRecursive
 	default:
@@ -193,7 +192,8 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 		go func() {
 			err = spt.Untrack(ctx, slowPinCid)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 		}()
 		select {
@@ -298,7 +298,8 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 		go func() {
 			err = spt.Track(ctx, slowPin)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+				return
 			}
 		}()
 		select {
@@ -463,12 +464,6 @@ func TestStatus(t *testing.T) {
 	if st.Status != api.TrackerStatusPinning {
 		t.Error("slowCid1 should be pinning")
 	}
-}
-
-var sortPinInfoByCid = func(p []*api.PinInfo) {
-	sort.Slice(p, func(i, j int) bool {
-		return p[i].Cid.String() < p[j].Cid.String()
-	})
 }
 
 func BenchmarkTracker_localStatus(b *testing.B) {

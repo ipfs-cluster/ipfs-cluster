@@ -203,9 +203,9 @@ func TestOperationTracker_OpContext(t *testing.T) {
 func TestOperationTracker_filterOps(t *testing.T) {
 	ctx := context.Background()
 	testOpsMap := map[string]*Operation{
-		test.Cid1.String(): &Operation{pin: api.PinCid(test.Cid1), opType: OperationPin, phase: PhaseQueued},
-		test.Cid2.String(): &Operation{pin: api.PinCid(test.Cid2), opType: OperationPin, phase: PhaseInProgress},
-		test.Cid3.String(): &Operation{pin: api.PinCid(test.Cid3), opType: OperationUnpin, phase: PhaseInProgress},
+		test.Cid1.String(): {pin: api.PinCid(test.Cid1), opType: OperationPin, phase: PhaseQueued},
+		test.Cid2.String(): {pin: api.PinCid(test.Cid2), opType: OperationPin, phase: PhaseInProgress},
+		test.Cid3.String(): {pin: api.PinCid(test.Cid3), opType: OperationUnpin, phase: PhaseInProgress},
 	}
 	opt := &OperationTracker{ctx: ctx, operations: testOpsMap}
 

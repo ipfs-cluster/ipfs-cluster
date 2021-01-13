@@ -16,12 +16,11 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
-var errNotFound = errors.New("dagservice: block not found")
 var logger = logging.Logger("shardingdags")
 
 // DAGService is an implementation of a ClusterDAGService which
@@ -53,6 +52,8 @@ type DAGService struct {
 // New returns a new ClusterDAGService, which uses the given rpc client to perform
 // Allocate, IPFSBlockPut and Pin requests to other cluster components.
 func New(rpc *rpc.Client, opts api.PinOptions, out chan<- *api.AddedOutput) *DAGService {
+	// use a default value for this regardless of what is provided.
+	opts.Mode = api.PinModeRecursive
 	return &DAGService{
 		rpcClient: rpc,
 		pinOpts:   opts,
@@ -83,7 +84,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	}
 
 	if !lastCid.Equals(dataRoot) {
-		logger.Warningf("the last added CID (%s) is not the IPFS data root (%s). This is only normal when adding a single file without wrapping in directory.", lastCid, dataRoot)
+		logger.Warnf("the last added CID (%s) is not the IPFS data root (%s). This is only normal when adding a single file without wrapping in directory.", lastCid, dataRoot)
 	}
 
 	clusterDAGNodes, err := makeDAG(ctx, dgs.shards)
@@ -133,7 +134,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 
 	// Consider doing this? Seems like overkill
 	//
-	// // Ammend ShardPins to reference clusterDAG root hash as a Parent
+	// // Amend ShardPins to reference clusterDAG root hash as a Parent
 	// shardParents := cid.NewSet()
 	// shardParents.Add(clusterDAG)
 	// for shardN, shard := range dgs.shardNodes {
@@ -212,7 +213,7 @@ func (dgs *DAGService) logStats(metaPin, clusterDAGPin cid.Cid) {
 		rate = humanize.Bytes(dgs.totalSize / seconds)
 	}
 
-	statsFmt := `sharding session sucessful:
+	statsFmt := `sharding session successful:
 CID: %s
 ClusterDAG: %s
 Total shards: %d

@@ -18,9 +18,9 @@ import (
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
+	"github.com/multiformats/go-multihash"
 
 	cid "github.com/ipfs/go-cid"
-	u "github.com/ipfs/go-ipfs-util"
 	cors "github.com/rs/cors"
 )
 
@@ -80,12 +80,6 @@ type mockConfigResp struct {
 	Datastore struct {
 		StorageMax string
 	}
-}
-
-type mockAddResp struct {
-	Name  string
-	Hash  string
-	Bytes uint64
 }
 
 type mockRefsResp struct {
@@ -180,6 +174,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			ID: PeerID1.Pretty(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
+				"/ip6/::/tcp/1234",
 			},
 		}
 		j, _ := json.Marshal(resp)
@@ -196,7 +191,12 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			goto ERROR
 		}
-		m.pinMap.Add(ctx, api.PinCid(c))
+		mode := extractMode(r.URL)
+		opts := api.PinOptions{
+			Mode: mode,
+		}
+		pinObj := api.PinWithOpts(c, opts)
+		m.pinMap.Add(ctx, pinObj)
 		resp := mockPinResp{
 			Pins: []string{arg},
 		}
@@ -272,7 +272,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 				goto ERROR
 			}
 			for _, p := range pins {
-				rMap[p.Cid.String()] = mockPinType{"recursive"}
+				rMap[p.Cid.String()] = mockPinType{p.Mode.String()}
 			}
 			j, _ := json.Marshal(mockPinLsResp{rMap})
 			w.Write(j)
@@ -285,26 +285,28 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			goto ERROR
 		}
 
-		ok, err = m.pinMap.Has(ctx, c)
-		if err != nil {
+		pinObj, err := m.pinMap.Get(ctx, c)
+		if err != nil && err != state.ErrNotFound {
 			goto ERROR
 		}
-		if ok {
-			if c.Equals(Cid4) { // this a v1 cid. Do not return default-base32
-				w.Write([]byte(`{ "Keys": { "zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuc57": { "Type": "recursive" }}}`))
-				return
-			}
-
-			rMap := make(map[string]mockPinType)
-			rMap[cidStr] = mockPinType{"recursive"}
-			j, _ := json.Marshal(mockPinLsResp{rMap})
-			w.Write(j)
-		} else {
+		if err == state.ErrNotFound {
 			w.WriteHeader(http.StatusInternalServerError)
 			resp := ipfsErr{0, fmt.Sprintf("Path '%s' is not pinned", cidStr)}
 			j, _ := json.Marshal(resp)
 			w.Write(j)
+			return
 		}
+
+		if c.Equals(Cid4) {
+			// this a v1 cid. Do not return default-base32 but base58btc encoding of it
+			w.Write([]byte(`{ "Keys": { "zCT5htkdztJi3x4zBNHo8TRvGHPLTdHUdCLKgTGMgQcRKSLoWxK1": { "Type": "recursive" }}}`))
+			return
+		}
+		rMap := make(map[string]mockPinType)
+		rMap[cidStr] = mockPinType{pinObj.Mode.String()}
+		j, _ := json.Marshal(mockPinLsResp{rMap})
+		w.Write(j)
+
 	case "swarm/connect":
 		arg, ok := extractCid(r.URL)
 		if !ok {
@@ -348,25 +350,30 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Parse cid from data and format and add to mock block-store
 		query := r.URL.Query()
-		format, ok := query["f"]
-		if !ok || len(format) != 1 {
-			goto ERROR
-		}
-		var c string
-		hash := u.Hash(data)
-		codec, ok := cid.Codecs[format[0]]
-		if !ok {
-			goto ERROR
-		}
-		if format[0] == "v0" {
-			c = cid.NewCidV0(hash).String()
+		formatStr := query.Get("format")
+		format := cid.Codecs[formatStr]
+		mhType := multihash.Names[query.Get("mhtype")]
+		mhLen, _ := strconv.Atoi(query.Get("mhLen"))
+
+		var builder cid.Builder
+		if formatStr == "v0" && mhType == multihash.SHA2_256 {
+			builder = cid.V0Builder{}
 		} else {
-			c = cid.NewCidV1(codec, hash).String()
+			builder = cid.V1Builder{
+				Codec:    format,
+				MhType:   mhType,
+				MhLength: mhLen,
+			}
 		}
-		m.BlockStore[c] = data
+
+		c, err := builder.Sum(data)
+		if err != nil {
+			goto ERROR
+		}
+		m.BlockStore[c.String()] = data
 
 		resp := mockBlockPutResp{
-			Key: c,
+			Key: c.String(),
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
@@ -480,7 +487,7 @@ func (m *IpfsMock) Close() {
 	}
 }
 
-// extractCid extracts the cid argument from a url.URL, either via
+// extractCidAndMode extracts the cid argument from a url.URL, either via
 // the query string parameters or from the url path itself.
 func extractCid(u *url.URL) (string, bool) {
 	arg := u.Query().Get("arg")
@@ -495,4 +502,8 @@ func extractCid(u *url.URL) (string, bool) {
 		return segs[len(segs)-1], true
 	}
 	return "", false
+}
+
+func extractMode(u *url.URL) api.PinMode {
+	return api.PinModeFromString(u.Query().Get("type"))
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/monitor/metrics"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -36,6 +36,7 @@ type Monitor struct {
 	rpcReady  chan struct{}
 
 	pubsub       *pubsub.PubSub
+	topic        *pubsub.Topic
 	subscription *pubsub.Subscription
 	peers        PeersFunc
 
@@ -72,7 +73,12 @@ func New(
 	mtrs := metrics.NewStore()
 	checker := metrics.NewChecker(ctx, mtrs, cfg.FailureThreshold)
 
-	subscription, err := psub.Subscribe(PubsubTopic)
+	topic, err := psub.Join(PubsubTopic)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	subscription, err := topic.Subscribe()
 	if err != nil {
 		cancel()
 		return nil, err
@@ -84,6 +90,7 @@ func New(
 		rpcReady: make(chan struct{}, 1),
 
 		pubsub:       psub,
+		topic:        topic,
 		subscription: subscription,
 		peers:        peers,
 
@@ -153,14 +160,14 @@ func (mon *Monitor) SetClient(c *rpc.Client) {
 // Shutdown stops the peer monitor. It particular, it will
 // not deliver any alerts.
 func (mon *Monitor) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/Shutdown")
+	_, span := trace.StartSpan(ctx, "monitor/pubsub/Shutdown")
 	defer span.End()
 
 	mon.shutdownLock.Lock()
 	defer mon.shutdownLock.Unlock()
 
 	if mon.shutdown {
-		logger.Warning("Monitor already shut down")
+		logger.Warn("Monitor already shut down")
 		return nil
 	}
 
@@ -176,7 +183,7 @@ func (mon *Monitor) Shutdown(ctx context.Context) error {
 
 // LogMetric stores a metric so it can later be retrieved.
 func (mon *Monitor) LogMetric(ctx context.Context, m *api.Metric) error {
-	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/LogMetric")
+	_, span := trace.StartSpan(ctx, "monitor/pubsub/LogMetric")
 	defer span.End()
 
 	mon.metrics.Add(m)
@@ -190,7 +197,7 @@ func (mon *Monitor) PublishMetric(ctx context.Context, m *api.Metric) error {
 	defer span.End()
 
 	if m.Discard() {
-		logger.Warningf("discarding invalid metric: %+v", m)
+		logger.Warnf("discarding invalid metric: %+v", m)
 		return nil
 	}
 
@@ -209,7 +216,7 @@ func (mon *Monitor) PublishMetric(ctx context.Context, m *api.Metric) error {
 		m.Expire,
 	)
 
-	err = mon.pubsub.Publish(PubsubTopic, b.Bytes())
+	err = mon.topic.Publish(ctx, b.Bytes())
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -248,7 +255,7 @@ func (mon *Monitor) Alerts() <-chan *api.Alert {
 
 // MetricNames lists all metric names.
 func (mon *Monitor) MetricNames(ctx context.Context) []string {
-	ctx, span := trace.StartSpan(ctx, "monitor/pubsub/MetricNames")
+	_, span := trace.StartSpan(ctx, "monitor/pubsub/MetricNames")
 	defer span.End()
 
 	return mon.metrics.MetricNames()

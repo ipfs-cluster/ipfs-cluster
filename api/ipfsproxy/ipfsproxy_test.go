@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +18,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -34,7 +33,7 @@ func testIPFSProxyWithConfig(t *testing.T, cfg *Config) (*Server, *test.IpfsMock
 	proxyMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
 	cfg.NodeAddr = nodeMAddr
-	cfg.ListenAddr = proxyMAddr
+	cfg.ListenAddr = []ma.Multiaddr{proxyMAddr}
 	cfg.ExtractHeadersExtra = []string{
 		test.IpfsCustomHeaderName,
 		test.IpfsTimeHeaderName,
@@ -547,11 +546,11 @@ func TestProxyRepoGC(t *testing.T) {
 	}
 
 	testcases := []testcase{
-		testcase{
+		{
 			name:         "With streaming errors",
 			streamErrors: true,
 		},
-		testcase{
+		{
 			name:         "Without streaming errors",
 			streamErrors: false,
 		},
@@ -623,25 +622,25 @@ func TestProxyAdd(t *testing.T) {
 	}
 
 	testcases := []testcase{
-		testcase{
+		{
 			query:       "",
 			expectedCid: test.ShardingDirBalancedRootCID,
 		},
-		testcase{
+		{
 			query:       "progress=true",
 			expectedCid: test.ShardingDirBalancedRootCID,
 		},
-		testcase{
+		{
 			query:       "wrap-with-directory=true",
 			expectedCid: test.ShardingDirBalancedRootCIDWrapped,
 		},
-		testcase{
+		{
 			query:       "trickle=true",
 			expectedCid: test.ShardingDirTrickleRootCID,
 		},
 	}
 
-	reqs := make([]*http.Request, len(testcases), len(testcases))
+	reqs := make([]*http.Request, len(testcases))
 
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
@@ -716,7 +715,7 @@ func TestProxyError(t *testing.T) {
 }
 
 func proxyURL(c *Server) string {
-	addr := c.listener.Addr()
+	addr := c.listeners[0].Addr()
 	return fmt.Sprintf("http://%s/api/v0", addr.String())
 }
 
@@ -730,14 +729,6 @@ func TestIPFSProxy(t *testing.T) {
 	if err := proxy.Shutdown(ctx); err != nil {
 		t.Error("expected a second clean shutdown")
 	}
-}
-
-func mustParseURL(rawurl string) *url.URL {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		panic(err)
-	}
-	return u
 }
 
 func TestHeaderExtraction(t *testing.T) {
@@ -818,8 +809,8 @@ func TestAttackHeaderSize(t *testing.T) {
 		expectedStatus int
 	}
 	testcases := []testcase{
-		testcase{testHeaderSize / 2, http.StatusNotFound},
-		testcase{testHeaderSize * 2, http.StatusRequestHeaderFieldsTooLarge},
+		{testHeaderSize / 2, http.StatusNotFound},
+		{testHeaderSize * 2, http.StatusRequestHeaderFieldsTooLarge},
 	}
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/foo", proxyURL(proxy)), nil)

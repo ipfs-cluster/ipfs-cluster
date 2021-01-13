@@ -38,8 +38,6 @@ type Checker struct {
 	metrics   *Store
 	threshold float64
 
-	alertThreshold int
-
 	failedPeersMu sync.Mutex
 	failedPeers   map[peer.ID]map[string]int
 }
@@ -90,20 +88,6 @@ func (mc *Checker) CheckAll() error {
 		}
 	}
 
-	return nil
-}
-
-func (mc *Checker) alertIfExpired(metric *api.Metric) error {
-	if !metric.Expired() {
-		return nil
-	}
-
-	err := mc.alert(metric.Peer, metric.Name)
-	if err != nil {
-		return err
-	}
-	metric.Valid = false
-	mc.metrics.Add(metric) // invalidate so we don't alert again
 	return nil
 }
 

@@ -22,15 +22,14 @@ type addedOutputQuiet struct {
 }
 
 func jsonFormatObject(resp interface{}) {
-	switch resp.(type) {
+	switch r := resp.(type) {
 	case nil:
 		return
 	case []*addedOutputQuiet:
 		// print original objects as in JSON it makes
 		// no sense to have a human "quiet" output
-		serials := resp.([]*addedOutputQuiet)
 		var actual []*api.AddedOutput
-		for _, s := range serials {
+		for _, s := range r {
 			actual = append(actual, s.AddedOutput)
 		}
 		jsonFormatPrint(actual)
@@ -46,55 +45,55 @@ func jsonFormatPrint(obj interface{}) {
 }
 
 func textFormatObject(resp interface{}) {
-	switch resp.(type) {
+	switch r := resp.(type) {
 	case nil:
 		return
 	case string:
 		fmt.Println(resp)
 	case *api.ID:
-		textFormatPrintID(resp.(*api.ID))
+		textFormatPrintID(r)
 	case *api.GlobalPinInfo:
-		textFormatPrintGPInfo(resp.(*api.GlobalPinInfo))
+		textFormatPrintGPInfo(r)
 	case *api.Pin:
-		textFormatPrintPin(resp.(*api.Pin))
+		textFormatPrintPin(r)
 	case *api.AddedOutput:
-		textFormatPrintAddedOutput(resp.(*api.AddedOutput))
+		textFormatPrintAddedOutput(r)
 	case *addedOutputQuiet:
-		textFormatPrintAddedOutputQuiet(resp.(*addedOutputQuiet))
+		textFormatPrintAddedOutputQuiet(r)
 	case *api.Version:
-		textFormatPrintVersion(resp.(*api.Version))
+		textFormatPrintVersion(r)
 	case *api.Error:
-		textFormatPrintError(resp.(*api.Error))
+		textFormatPrintError(r)
 	case *api.Metric:
-		textFormatPrintMetric(resp.(*api.Metric))
+		textFormatPrintMetric(r)
 	case []*api.ID:
-		for _, item := range resp.([]*api.ID) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case []*api.GlobalPinInfo:
-		for _, item := range resp.([]*api.GlobalPinInfo) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case []*api.Pin:
-		for _, item := range resp.([]*api.Pin) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case []*api.AddedOutput:
-		for _, item := range resp.([]*api.AddedOutput) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case []*addedOutputQuiet:
-		for _, item := range resp.([]*addedOutputQuiet) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case []*api.Metric:
-		for _, item := range resp.([]*api.Metric) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case *api.GlobalRepoGC:
-		textFormatPrintGlobalRepoGC(resp.(*api.GlobalRepoGC))
+		textFormatPrintGlobalRepoGC(r)
 	case []string:
-		for _, item := range resp.([]string) {
+		for _, item := range r {
 			textFormatObject(item)
 		}
 	case map[string]api.Alert:
@@ -145,36 +144,35 @@ func textFormatPrintID(obj *api.ID) {
 }
 
 func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
-	fmt.Printf("%s :\n", obj.Cid)
+	var b strings.Builder
+
 	peers := make([]string, 0, len(obj.PeerMap))
 	for k := range obj.PeerMap {
 		peers = append(peers, k)
 	}
 	sort.Strings(peers)
 
+	fmt.Fprintf(&b, "%s", obj.Cid)
+	if obj.Name != "" {
+		fmt.Fprintf(&b, " | %s", obj.Name)
+	}
+
+	b.WriteString(":\n")
+
 	for _, k := range peers {
 		v := obj.PeerMap[k]
 		if len(v.PeerName) > 0 {
-			fmt.Printf("    > %-20s : %s", v.PeerName, strings.ToUpper(v.Status.String()))
+			fmt.Fprintf(&b, "    > %-20s : %s", v.PeerName, strings.ToUpper(v.Status.String()))
 		} else {
-			fmt.Printf("    > %-20s : %s", k, strings.ToUpper(v.Status.String()))
+			fmt.Fprintf(&b, "    > %-20s : %s", k, strings.ToUpper(v.Status.String()))
 		}
 		if v.Error != "" {
-			fmt.Printf(": %s", v.Error)
+			fmt.Fprintf(&b, ": %s", v.Error)
 		}
 		txt, _ := v.TS.MarshalText()
-		fmt.Printf(" | %s\n", txt)
+		fmt.Fprintf(&b, " | %s\n", txt)
 	}
-}
-
-func textFormatPrintPInfo(obj *api.PinInfo) {
-	gpinfo := api.GlobalPinInfo{
-		Cid: obj.Cid,
-		PeerMap: map[string]*api.PinInfo{
-			peer.IDB58Encode(obj.Peer): obj,
-		},
-	}
-	textFormatPrintGPInfo(&gpinfo)
+	fmt.Print(b.String())
 }
 
 func textFormatPrintVersion(obj *api.Version) {
@@ -182,7 +180,12 @@ func textFormatPrintVersion(obj *api.Version) {
 }
 
 func textFormatPrintPin(obj *api.Pin) {
-	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, strings.ToUpper(obj.Type.String()))
+	t := strings.ToUpper(obj.Type.String())
+	if obj.Mode == api.PinModeDirect {
+		t = t + "-DIRECT"
+	}
+
+	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, t)
 
 	if obj.ReplicationFactorMin < 0 {
 		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
@@ -207,10 +210,15 @@ func textFormatPrintPin(obj *api.Pin) {
 
 	fmt.Printf(" | Metadata:")
 	if len(obj.Metadata) == 0 {
-		fmt.Printf(" no\n")
+		fmt.Printf(" no")
 	} else {
-		fmt.Printf(" yes\n")
+		fmt.Printf(" yes")
 	}
+	expireAt := "Exp: ∞"
+	if !obj.ExpireAt.IsZero() {
+		expireAt = humanize.Time(obj.ExpireAt)
+	}
+	fmt.Printf(" | %s\n", expireAt)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
@@ -229,11 +237,11 @@ func textFormatPrintMetric(obj *api.Metric) {
 	if obj.Name == "freespace" {
 		u, err := strconv.ParseUint(obj.Value, 10, 64)
 		checkErr("parsing to uint64", err)
-		fmt.Printf("%s | freespace: %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), humanize.Bytes(u), humanize.Time(time.Unix(0, obj.Expire)))
+		fmt.Printf("%s | freespace: %s | Expires in: %s\n", peer.Encode(obj.Peer), humanize.Bytes(u), humanize.Time(time.Unix(0, obj.Expire)))
 		return
 	}
 
-	fmt.Printf("%s | %s | Expires in: %s\n", peer.IDB58Encode(obj.Peer), obj.Name, humanize.Time(time.Unix(0, obj.Expire)))
+	fmt.Printf("%s | %s | Expires in: %s\n", peer.Encode(obj.Peer), obj.Name, humanize.Time(time.Unix(0, obj.Expire)))
 }
 
 func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {

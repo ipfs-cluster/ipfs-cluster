@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 
 	merkledag "github.com/ipfs/go-merkledag"
@@ -56,14 +56,14 @@ func TestIPFSID(t *testing.T) {
 	if id.ID != test.PeerID1 {
 		t.Error("expected testPeerID")
 	}
-	if len(id.Addresses) != 1 {
-		t.Error("expected 1 address")
+	if len(id.Addresses) != 2 {
+		t.Error("expected 2 address")
 	}
 	if id.Error != "" {
 		t.Error("expected no error")
 	}
 	mock.Close()
-	id, err = ipfs.ID(ctx)
+	_, err = ipfs.ID(ctx)
 	if err == nil {
 		t.Error("expected an error")
 	}
@@ -75,12 +75,12 @@ func TestPin(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	c := test.Cid1
-	err := ipfs.Pin(ctx, api.PinCid(c))
+	pin := api.PinCid(test.Cid1)
+	err := ipfs.Pin(ctx, pin)
 	if err != nil {
 		t.Error("expected success pinning cid:", err)
 	}
-	pinSt, err := ipfs.PinLsCid(ctx, c)
+	pinSt, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Fatal("expected success doing ls:", err)
 	}
@@ -88,8 +88,8 @@ func TestPin(t *testing.T) {
 		t.Error("cid should have been pinned")
 	}
 
-	c2 := test.ErrorCid
-	err = ipfs.Pin(ctx, api.PinCid(c2))
+	pin2 := api.PinCid(test.ErrorCid)
+	err = ipfs.Pin(ctx, pin2)
 	if err == nil {
 		t.Error("expected error pinning cid")
 	}
@@ -178,8 +178,9 @@ func TestIPFSPinLsCid(t *testing.T) {
 	c := test.Cid1
 	c2 := test.Cid2
 
-	ipfs.Pin(ctx, api.PinCid(c))
-	ips, err := ipfs.PinLsCid(ctx, c)
+	pin := api.PinCid(c)
+	ipfs.Pin(ctx, pin)
+	ips, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -188,7 +189,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 		t.Error("c should appear pinned")
 	}
 
-	ips, err = ipfs.PinLsCid(ctx, c2)
+	ips, err = ipfs.PinLsCid(ctx, api.PinCid(c2))
 	if err != nil || ips != api.IPFSPinStatusUnpinned {
 		t.Error("c2 should appear unpinned")
 	}
@@ -201,8 +202,9 @@ func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 	c := test.Cid4 // ipfs mock treats this specially
 
-	ipfs.Pin(ctx, api.PinCid(c))
-	ips, err := ipfs.PinLsCid(ctx, c)
+	pin := api.PinCid(c)
+	ipfs.Pin(ctx, pin)
+	ips, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -288,14 +290,22 @@ func TestBlockPut(t *testing.T) {
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	data := []byte(test.Cid4Data)
+	// CidV1
 	err := ipfs.BlockPut(ctx, &api.NodeWithMeta{
-		Data:   data,
-		Cid:    test.Cid4,
-		Format: "raw",
+		Data: []byte(test.Cid4Data),
+		Cid:  test.Cid4,
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+
+	// CidV0
+	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
+		Data: []byte(test.Cid5Data),
+		Cid:  test.Cid5,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -314,9 +324,8 @@ func TestBlockGet(t *testing.T) {
 
 	// Put and then successfully get
 	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
-		Data:   test.ShardData,
-		Cid:    test.ShardCid,
-		Format: "cbor",
+		Data: test.ShardData,
+		Cid:  test.ShardCid,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -395,6 +404,9 @@ func TestConfigKey(t *testing.T) {
 	}
 
 	v, err = ipfs.ConfigKey("Datastore")
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, ok = v.(map[string]interface{})
 	if !ok {
 		t.Error("should have returned the whole Datastore config object")

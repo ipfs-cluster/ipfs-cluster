@@ -14,7 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 

@@ -201,33 +201,31 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	*out = api.ConnectGraph{
 		ClusterID: PeerID1,
 		IPFSLinks: map[string][]peer.ID{
-			peer.IDB58Encode(PeerID4): []peer.ID{PeerID5, PeerID6},
-			peer.IDB58Encode(PeerID5): []peer.ID{PeerID4, PeerID6},
-			peer.IDB58Encode(PeerID6): []peer.ID{PeerID4, PeerID5},
+			peer.Encode(PeerID4): {PeerID5, PeerID6},
+			peer.Encode(PeerID5): {PeerID4, PeerID6},
+			peer.Encode(PeerID6): {PeerID4, PeerID5},
 		},
 		ClusterLinks: map[string][]peer.ID{
-			peer.IDB58Encode(PeerID1): []peer.ID{PeerID2, PeerID3},
-			peer.IDB58Encode(PeerID2): []peer.ID{PeerID1, PeerID3},
-			peer.IDB58Encode(PeerID3): []peer.ID{PeerID1, PeerID2},
+			peer.Encode(PeerID1): {PeerID2, PeerID3},
+			peer.Encode(PeerID2): {PeerID1, PeerID3},
+			peer.Encode(PeerID3): {PeerID1, PeerID2},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.IDB58Encode(PeerID1): PeerID4,
-			peer.IDB58Encode(PeerID2): PeerID5,
-			peer.IDB58Encode(PeerID3): PeerID6,
+			peer.Encode(PeerID1): PeerID4,
+			peer.Encode(PeerID2): PeerID5,
+			peer.Encode(PeerID3): PeerID6,
 		},
 	}
 	return nil
 }
 
 func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	pid := peer.IDB58Encode(PeerID1)
+	pid := peer.Encode(PeerID1)
 	*out = []*api.GlobalPinInfo{
 		{
 			Cid: Cid1,
-			PeerMap: map[string]*api.PinInfo{
+			PeerMap: map[string]*api.PinInfoShort{
 				pid: {
-					Cid:    Cid1,
-					Peer:   PeerID1,
 					Status: api.TrackerStatusPinned,
 					TS:     time.Now(),
 				},
@@ -235,10 +233,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api
 		},
 		{
 			Cid: Cid2,
-			PeerMap: map[string]*api.PinInfo{
+			PeerMap: map[string]*api.PinInfoShort{
 				pid: {
-					Cid:    Cid2,
-					Peer:   PeerID1,
 					Status: api.TrackerStatusPinning,
 					TS:     time.Now(),
 				},
@@ -246,10 +242,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api
 		},
 		{
 			Cid: Cid3,
-			PeerMap: map[string]*api.PinInfo{
+			PeerMap: map[string]*api.PinInfoShort{
 				pid: {
-					Cid:    Cid3,
-					Peer:   PeerID1,
 					Status: api.TrackerStatusPinError,
 					TS:     time.Now(),
 				},
@@ -269,10 +263,8 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	}
 	*out = api.GlobalPinInfo{
 		Cid: in,
-		PeerMap: map[string]*api.PinInfo{
-			peer.IDB58Encode(PeerID1): {
-				Cid:    in,
-				Peer:   PeerID1,
+		PeerMap: map[string]*api.PinInfoShort{
+			peer.Encode(PeerID1): {
 				Status: api.TrackerStatusPinned,
 				TS:     time.Now(),
 			},
@@ -314,7 +306,7 @@ func (mock *mockCluster) RepoGC(ctx context.Context, in struct{}, out *api.Globa
 	_ = mock.RepoGCLocal(ctx, struct{}{}, localrepoGC)
 	*out = api.GlobalRepoGC{
 		PeerMap: map[string]*api.RepoGC{
-			peer.IDB58Encode(PeerID1): localrepoGC,
+			peer.Encode(PeerID1): localrepoGC,
 		},
 	}
 	return nil
@@ -373,16 +365,20 @@ func (mock *mockPinTracker) Untrack(ctx context.Context, in *api.Pin, out *struc
 func (mock *mockPinTracker) StatusAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
 	*out = []*api.PinInfo{
 		{
-			Cid:    Cid1,
-			Peer:   PeerID1,
-			Status: api.TrackerStatusPinned,
-			TS:     time.Now(),
+			Cid:  Cid1,
+			Peer: PeerID1,
+			PinInfoShort: api.PinInfoShort{
+				Status: api.TrackerStatusPinned,
+				TS:     time.Now(),
+			},
 		},
 		{
-			Cid:    Cid3,
-			Peer:   PeerID1,
-			Status: api.TrackerStatusPinError,
-			TS:     time.Now(),
+			Cid:  Cid3,
+			Peer: PeerID1,
+			PinInfoShort: api.PinInfoShort{
+				Status: api.TrackerStatusPinError,
+				TS:     time.Now(),
+			},
 		},
 	}
 	return nil
@@ -394,25 +390,29 @@ func (mock *mockPinTracker) Status(ctx context.Context, in cid.Cid, out *api.Pin
 	}
 
 	*out = api.PinInfo{
-		Cid:    in,
-		Peer:   PeerID2,
-		Status: api.TrackerStatusPinned,
-		TS:     time.Now(),
+		Cid:  in,
+		Peer: PeerID2,
+		PinInfoShort: api.PinInfoShort{
+			Status: api.TrackerStatusPinned,
+			TS:     time.Now(),
+		},
 	}
 	return nil
 }
 
 func (mock *mockPinTracker) RecoverAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	*out = make([]*api.PinInfo, 0, 0)
+	*out = make([]*api.PinInfo, 0)
 	return nil
 }
 
 func (mock *mockPinTracker) Recover(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
 	*out = api.PinInfo{
-		Cid:    in,
-		Peer:   PeerID1,
-		Status: api.TrackerStatusPinned,
-		TS:     time.Now(),
+		Cid:  in,
+		Peer: PeerID1,
+		PinInfoShort: api.PinInfoShort{
+			Status: api.TrackerStatusPinned,
+			TS:     time.Now(),
+		},
 	}
 	return nil
 }
@@ -458,8 +458,8 @@ func (mock *mockIPFSConnector) Unpin(ctx context.Context, in *api.Pin, out *stru
 	return nil
 }
 
-func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in cid.Cid, out *api.IPFSPinStatus) error {
-	if in.Equals(Cid1) || in.Equals(Cid3) {
+func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
+	if in.Cid.Equals(Cid1) || in.Cid.Equals(Cid3) {
 		*out = api.IPFSPinStatusRecursive
 	} else {
 		*out = api.IPFSPinStatusUnpinned

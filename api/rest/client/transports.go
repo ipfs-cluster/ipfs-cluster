@@ -11,14 +11,11 @@ import (
 	libp2p "github.com/libp2p/go-libp2p"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
-	ipnet "github.com/libp2p/go-libp2p-core/pnet"
 	p2phttp "github.com/libp2p/go-libp2p-http"
-	pnet "github.com/libp2p/go-libp2p-pnet"
-	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	secio "github.com/libp2p/go-libp2p-secio"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	madns "github.com/multiformats/go-multiaddr-dns"
-	manet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/tv42/httpunix"
 )
 
@@ -54,25 +51,18 @@ func (c *defaultClient) enableLibp2p() error {
 		return errors.New("APIAddr only includes a Peer ID")
 	}
 
-	var prot ipnet.Protector
 	if c.config.ProtectorKey != nil && len(c.config.ProtectorKey) > 0 {
 		if len(c.config.ProtectorKey) != 32 {
 			return errors.New("length of ProtectorKey should be 32")
 		}
-		var key [32]byte
-		copy(key[:], c.config.ProtectorKey)
-
-		prot, err = pnet.NewV1ProtectorFromBytes(&key)
-		if err != nil {
-			return err
-		}
 	}
 
 	h, err := libp2p.New(c.ctx,
-		libp2p.PrivateNetwork(prot),
+		libp2p.PrivateNetwork(c.config.ProtectorKey),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.Security(secio.ID, secio.New),
-		libp2p.Transport(libp2pquic.NewTransport),
+		// TODO: quic does not support private networks
+		//libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.DefaultTransports,
 	)
 	if err != nil {
@@ -90,7 +80,7 @@ func (c *defaultClient) enableLibp2p() error {
 	c.transport.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
 	c.net = "libp2p"
 	c.p2p = h
-	c.hostname = peer.IDB58Encode(pinfo.ID)
+	c.hostname = peer.Encode(pinfo.ID)
 	return nil
 }
 

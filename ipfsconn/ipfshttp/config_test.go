@@ -12,7 +12,7 @@ var cfgJSON = []byte(`
 	"node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
 	"connect_swarms_delay": "7s",
 	"ipfs_request_timeout": "5m0s",
-	"pin_timeout": "24h",
+	"pin_timeout": "2m",
 	"unpin_timeout": "3h",
 	"repogc_timeout": "24h"
 }

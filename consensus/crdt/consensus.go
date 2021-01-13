@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -17,12 +18,12 @@ import (
 	query "github.com/ipfs/go-datastore/query"
 	crdt "github.com/ipfs/go-ds-crdt"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
+	"github.com/libp2p/go-libp2p-core/routing"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	multihash "github.com/multiformats/go-multihash"
 
@@ -64,7 +65,7 @@ type Consensus struct {
 	crdt  *crdt.Datastore
 	ipfs  *ipfslite.Peer
 
-	dht    *dht.IpfsDHT
+	dht    routing.Routing
 	pubsub *pubsub.PubSub
 
 	rpcClient  *rpc.Client
@@ -81,7 +82,7 @@ type Consensus struct {
 // data and all will be prefixed with cfg.DatastoreNamespace.
 func New(
 	host host.Host,
-	dht *dht.IpfsDHT,
+	dht routing.Routing,
 	pubsub *pubsub.PubSub,
 	cfg *Config,
 	store ds.Datastore,
@@ -212,11 +213,17 @@ func (css *Consensus) setup() {
 		ctx, span := trace.StartSpan(css.ctx, "crdt/DeleteHook")
 		defer span.End()
 
-		c, err := dshelp.DsKeyToCid(k)
+		kb, err := dshelp.BinaryFromDsKey(k)
 		if err != nil {
 			logger.Error(err, k)
 			return
 		}
+		c, err := cid.Cast(kb)
+		if err != nil {
+			logger.Error(err, k)
+			return
+		}
+
 		pin := api.PinCid(c)
 
 		err = css.rpcClient.CallContext(
@@ -316,7 +323,7 @@ func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 // IsTrustedPeer returns whether the given peer is taken into account
 // when submitting updates to the consensus state.
 func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
-	ctx, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
+	_, span := trace.StartSpan(ctx, "consensus/IsTrustedPeer")
 	defer span.End()
 
 	if css.config.TrustAll {
@@ -336,7 +343,7 @@ func (css *Consensus) IsTrustedPeer(ctx context.Context, pid peer.ID) bool {
 // has the highest priority when the peerstore is saved, and it's addresses
 // are always remembered.
 func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/Trust")
+	_, span := trace.StartSpan(ctx, "consensus/Trust")
 	defer span.End()
 
 	css.trustedPeers.Store(pid, struct{}{})
@@ -351,7 +358,7 @@ func (css *Consensus) Trust(ctx context.Context, pid peer.ID) error {
 
 // Distrust removes a peer from the "trusted" set.
 func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/Distrust")
+	_, span := trace.StartSpan(ctx, "consensus/Distrust")
 	defer span.End()
 
 	css.trustedPeers.Delete(pid)
@@ -493,8 +500,7 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 	opts := crdt.DefaultOptions()
 	opts.Logger = logger
 
-	var blocksDatastore ds.Batching
-	blocksDatastore = namespace.Wrap(
+	var blocksDatastore ds.Batching = namespace.Wrap(
 		batching,
 		ds.NewKey(cfg.DatastoreNamespace).ChildString(blocksNs),
 	)

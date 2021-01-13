@@ -204,23 +204,23 @@ func (sth *ShardingTestHelper) makeTree(t *testing.T) os.FileInfo {
 
 	p0 := shardingTestTree
 	paths := [][]string{
-		[]string{p0, "A", "alpha"},
-		[]string{p0, "A", "beta"},
-		[]string{p0, "A", "delta", "empty"},
-		[]string{p0, "A", "gamma"},
-		[]string{p0, "B"},
+		{p0, "A", "alpha"},
+		{p0, "A", "beta"},
+		{p0, "A", "delta", "empty"},
+		{p0, "A", "gamma"},
+		{p0, "B"},
 	}
 	for _, p := range paths {
 		makeDir(t, sth.path(p...))
 	}
 
 	files := [][]string{
-		[]string{p0, "A", "alpha", "small_file_0"},
-		[]string{p0, "A", "beta", "small_file_1"},
-		[]string{p0, "A", "small_file_2"},
-		[]string{p0, "A", "gamma", "small_file_3"},
-		[]string{p0, "B", "medium_file"},
-		[]string{p0, "B", "big_file"},
+		{p0, "A", "alpha", "small_file_0"},
+		{p0, "A", "beta", "small_file_1"},
+		{p0, "A", "small_file_2"},
+		{p0, "A", "gamma", "small_file_3"},
+		{p0, "B", "medium_file"},
+		{p0, "B", "big_file"},
 	}
 
 	fileSizes := []int{5, 5, 5, 5, 300, 3000}

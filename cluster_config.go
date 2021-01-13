@@ -1,6 +1,7 @@
 package ipfscluster
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -8,13 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/config"
 
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
-	pnet "github.com/libp2p/go-libp2p-pnet"
+	pnet "github.com/libp2p/go-libp2p-core/pnet"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/kelseyhightower/envconfig"
@@ -22,8 +22,11 @@ import (
 
 const configKey = "cluster"
 
-// DefaultListenAddrs contains TCP and QUIC listen addresses
-var DefaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/9096", "/ip4/0.0.0.0/udp/9096/quic"}
+// DefaultListenAddrs contains TCP and QUIC listen addresses.
+var DefaultListenAddrs = []string{
+	"/ip4/0.0.0.0/tcp/9096",
+	"/ip4/0.0.0.0/udp/9096/quic",
+}
 
 // Configuration defaults
 const (
@@ -55,8 +58,6 @@ type ConnMgrConfig struct {
 // config.ComponentConfig interface.
 type Config struct {
 	config.Saver
-	lock          sync.Mutex
-	peerstoreLock sync.Mutex
 
 	// User-defined peername for use as human-readable identifier.
 	Peername string
@@ -64,7 +65,7 @@ type Config struct {
 	// Cluster secret for private network. Peers will be in the same cluster if and
 	// only if they have the same ClusterSecret. The cluster secret must be exactly
 	// 64 characters and contain only hexadecimal characters (`[0-9a-f]`).
-	Secret []byte
+	Secret pnet.PSK
 
 	// RPCPolicy defines access control to RPC endpoints.
 	RPCPolicy map[string]RPCEndpointType
@@ -133,7 +134,7 @@ type Config struct {
 
 	// If true, DisableRepinning, ensures that no repinning happens
 	// when a node goes down.
-	// This is useful when doing certain types of maintainance, or simply
+	// This is useful when doing certain types of maintenance, or simply
 	// when not wanting to rely on the monitoring system which needs a revamp.
 	DisableRepinning bool
 
@@ -161,8 +162,8 @@ type Config struct {
 type configJSON struct {
 	ID                   string             `json:"id,omitempty"`
 	Peername             string             `json:"peername"`
-	PrivateKey           string             `json:"private_key,omitempty"`
-	Secret               string             `json:"secret"`
+	PrivateKey           string             `json:"private_key,omitempty" hidden:"true"`
+	Secret               string             `json:"secret" hidden:"true"`
 	LeaveOnShutdown      bool               `json:"leave_on_shutdown"`
 	ListenMultiaddress   ipfsconfig.Strings `json:"listen_multiaddress"`
 	EnableRelayHop       bool               `json:"enable_relay_hop"`
@@ -199,14 +200,16 @@ func (cfg *Config) ConfigKey() string {
 func (cfg *Config) Default() error {
 	cfg.setDefaults()
 
-	// cluster secret
-	clusterSecret, err := pnet.GenerateV1Bytes()
+	clusterSecret := make([]byte, 32)
+	n, err := rand.Read(clusterSecret)
 	if err != nil {
 		return err
 	}
-	cfg.Secret = (*clusterSecret)[:]
-	// --
+	if n != 32 {
+		return errors.New("did not generate 32-byte secret")
+	}
 
+	cfg.Secret = clusterSecret
 	return nil
 }
 
@@ -326,7 +329,7 @@ func isRPCPolicyValid(p map[string]RPCEndpointType) error {
 		}
 	}
 	if len(p) != total {
-		logger.Warning("defined RPC policy has more entries than needed")
+		logger.Warn("defined RPC policy has more entries than needed")
 	}
 	return nil
 }
@@ -361,7 +364,7 @@ func (cfg *Config) setDefaults() {
 	cfg.MDNSInterval = DefaultMDNSInterval
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.FollowerMode = DefaultFollowerMode
-	cfg.PeerstoreFile = "" // empty so it gets ommited.
+	cfg.PeerstoreFile = "" // empty so it gets omitted.
 	cfg.PeerAddresses = []ma.Multiaddr{}
 	cfg.RPCPolicy = DefaultRPCPolicy
 }
@@ -523,6 +526,15 @@ func (cfg *Config) GetPeerstorePath() string {
 	return filepath.Join(cfg.BaseDir, filename)
 }
 
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	jcfg, err := cfg.toConfigJSON()
+	if err != nil {
+		return nil, err
+	}
+	return config.DisplayJSON(jcfg)
+}
+
 // DecodeClusterSecret parses a hex-encoded string, checks that it is exactly
 // 32 bytes long and returns its value as a byte-slice.x
 func DecodeClusterSecret(hexSecret string) ([]byte, error) {
@@ -532,7 +544,7 @@ func DecodeClusterSecret(hexSecret string) ([]byte, error) {
 	}
 	switch secretLen := len(secret); secretLen {
 	case 0:
-		logger.Warning("Cluster secret is empty, cluster will start on unprotected network.")
+		logger.Warn("Cluster secret is empty, cluster will start on unprotected network.")
 		return nil, nil
 	case 32:
 		return secret, nil

@@ -15,13 +15,12 @@ import (
 	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
 func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host) {
-	cls := make([]*Cluster, nClusters, nClusters)
-	mocks := make([]*test.IpfsMock, nClusters, nClusters)
+	cls := make([]*Cluster, nClusters)
+	mocks := make([]*test.IpfsMock, nClusters)
 	var wg sync.WaitGroup
 	for i := 0; i < nClusters; i++ {
 		wg.Add(1)
@@ -46,7 +45,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	cfg.ListenAddr = []ma.Multiaddr{listen}
 	cfg.Secret = testingClusterSecret
 
-	h, _, idht := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)
+	h, _, _ := createHost(t, ident.PrivateKey, testingClusterSecret, cfg.ListenAddr)
 
 	// Connect host to all peers. This will allow that they can discover
 	// each others via DHT.
@@ -62,21 +61,13 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 			t.Fatal(err)
 		}
 	}
-	ctx := context.Background()
-	dhtCfg := dht.BootstrapConfig{
-		Queries: 1,
-		Period:  600 * time.Millisecond,
-		Timeout: 300 * time.Millisecond,
-	}
-
-	idht.BootstrapWithConfig(ctx, dhtCfg)
 	return cls, mocks, h
 }
 
 func clusterAddr(c *Cluster) ma.Multiaddr {
 	for _, a := range c.host.Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
-			p := peer.IDB58Encode(c.id)
+			p := peer.Encode(c.id)
 			cAddr, _ := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", a, p))
 			return cAddr
 		}
@@ -205,16 +196,18 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 		t.Skip("need at least 3 nodes for this test")
 	}
 
-	_, err := clusters[0].PeerAdd(ctx, clusters[1].id)
+	clusters[0].PeerAdd(ctx, clusters[1].id)
 	ttlDelay()
 	ids := clusters[1].Peers(ctx)
-	if len(ids) != 2 {
-		t.Error("expected 2 peers")
+	// raft will have only 2 peers
+	// crdt will have all peers autodiscovered by now
+	if len(ids) < 2 {
+		t.Error("expected at least 2 peers")
 	}
 
 	// Now we shutdown the one member of the running cluster
 	// and try to add someone else.
-	err = clusters[1].Shutdown(ctx)
+	err := clusters[1].Shutdown(ctx)
 	if err != nil {
 		t.Error("Shutdown should be clean: ", err)
 	}
@@ -245,8 +238,8 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 
 		ttlDelay()
 		ids = clusters[0].Peers(ctx)
-		if len(ids) != 2 {
-			t.Error("cluster should have 2 peers after removing and adding 1")
+		if len(ids) < 2 {
+			t.Error("cluster should have at least 2 peers after removing and adding 1")
 		}
 	default:
 		t.Fatal("bad consensus")
@@ -405,7 +398,6 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 
 	ctx := context.Background()
 	clusters, mocks := createClusters(t)
-	defer shutdownClusters(t, clusters, mocks)
 
 	if len(clusters) < 3 {
 		t.Skip("test needs at least 3 clusters")
@@ -435,6 +427,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		}
 	}
 	if chosen == nil {
+		shutdownClusters(t, clusters, mocks)
 		t.Fatal("did not get to choose a peer?")
 	}
 
@@ -445,6 +438,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	mocks = append(mocks[:chosenIndex], mocks[chosenIndex+1:]...)
 	defer chosen.Shutdown(ctx)
 	defer chosenMock.Close()
+	defer shutdownClusters(t, clusters, mocks)
 
 	prefix := test.Cid1.Prefix()
 

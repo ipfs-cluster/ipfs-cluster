@@ -21,7 +21,7 @@ const (
 	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
 	DefaultConnectSwarmsDelay = 30 * time.Second
 	DefaultIPFSRequestTimeout = 5 * time.Minute
-	DefaultPinTimeout         = 24 * time.Hour
+	DefaultPinTimeout         = 2 * time.Minute
 	DefaultUnpinTimeout       = 3 * time.Hour
 	DefaultRepoGCTimeout      = 24 * time.Hour
 	DefaultUnpinDisable       = false
@@ -204,4 +204,14 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	jcfg.UnpinDisable = cfg.UnpinDisable
 
 	return
+}
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	jcfg, err := cfg.toJSONConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return config.DisplayJSON(jcfg)
 }

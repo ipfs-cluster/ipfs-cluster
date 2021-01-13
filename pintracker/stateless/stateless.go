@@ -14,7 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
@@ -305,15 +305,17 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	}
 
 	pinInfo := &api.PinInfo{
-		Cid:      c,
-		Peer:     spt.peerID,
-		PeerName: spt.peerName,
-		TS:       time.Now(),
+		Cid:  c,
+		Peer: spt.peerID,
+		PinInfoShort: api.PinInfoShort{
+			PeerName: spt.peerName,
+			TS:       time.Now(),
+		},
 	}
 
 	// check global state to see if cluster should even be caring about
 	// the provided cid
-	gpin := &api.Pin{}
+	var gpin *api.Pin
 	st, err := spt.getState(ctx)
 	if err != nil {
 		logger.Error(err)
@@ -332,6 +334,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		return pinInfo
 	}
 	// The pin IS in the state.
+	pinInfo.Name = gpin.Name
 
 	// check if pin is a meta pin
 	if gpin.Type == api.MetaType {
@@ -352,7 +355,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		"",
 		"IPFSConnector",
 		"PinLsCid",
-		c,
+		gpin,
 		&ips,
 	)
 	if err != nil {
@@ -440,7 +443,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 		logger.Error(err)
 		return nil, err
 	}
-	pins := make(map[string]*api.PinInfo, 0)
+	pins := make(map[string]*api.PinInfo, len(ipsMap))
 	for cidstr, ips := range ipsMap {
 		c, err := cid.Decode(cidstr)
 		if err != nil {
@@ -448,11 +451,14 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 			continue
 		}
 		p := &api.PinInfo{
-			Cid:      c,
-			Peer:     spt.peerID,
-			PeerName: spt.peerName,
-			Status:   ips.ToTrackerStatus(),
-			TS:       time.Now(),
+			Cid:  c,
+			Name: "", // to be filled later
+			Peer: spt.peerID,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: spt.peerName,
+				Status:   ips.ToTrackerStatus(),
+				TS:       time.Now(),
+			},
 		}
 		pins[cidstr] = p
 	}
@@ -468,14 +474,13 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 	defer span.End()
 
 	// get shared state
-	statePins := []*api.Pin{}
 	st, err := spt.getState(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
 	}
 
-	statePins, err = st.List(ctx)
+	statePins, err := st.List(ctx)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -493,25 +498,29 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		pCid := p.Cid.String()
 		ipfsInfo, pinnedInIpfs := localpis[pCid]
 		// base pinInfo object - status to be filled.
-		pinInfo := &api.PinInfo{
-			Cid:      p.Cid,
-			Peer:     spt.peerID,
-			PeerName: spt.peerName,
-			TS:       time.Now(),
+		pinInfo := api.PinInfo{
+			Cid:  p.Cid,
+			Name: p.Name,
+			Peer: spt.peerID,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: spt.peerName,
+				TS:       time.Now(),
+			},
 		}
 
 		switch {
 		case p.Type == api.MetaType:
 			pinInfo.Status = api.TrackerStatusSharded
 			if incExtra {
-				pininfos[pCid] = pinInfo
+				pininfos[pCid] = &pinInfo
 			}
 		case p.IsRemotePin(spt.peerID):
 			pinInfo.Status = api.TrackerStatusRemote
 			if incExtra {
-				pininfos[pCid] = pinInfo
+				pininfos[pCid] = &pinInfo
 			}
 		case pinnedInIpfs:
+			ipfsInfo.Name = p.Name
 			pininfos[pCid] = ipfsInfo
 		default:
 			// report as PIN_ERROR for this peer.  this will be
@@ -521,15 +530,15 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 			// known by IPFS. Should be handled to "recover".
 			pinInfo.Status = api.TrackerStatusPinError
 			pinInfo.Error = errUnexpectedlyUnpinned.Error()
-			pininfos[pCid] = pinInfo
+			pininfos[pCid] = &pinInfo
 		}
 	}
 	return pininfos, nil
 }
 
-func (spt *Tracker) getErrorsAll(ctx context.Context) []*api.PinInfo {
-	return spt.optracker.Filter(ctx, optracker.PhaseError)
-}
+// func (spt *Tracker) getErrorsAll(ctx context.Context) []*api.PinInfo {
+// 	return spt.optracker.Filter(ctx, optracker.PhaseError)
+// }
 
 // OpContext exports the internal optracker's OpContext method.
 // For testing purposes only.

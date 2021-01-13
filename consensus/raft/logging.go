@@ -8,7 +8,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 )
 
 const (
@@ -52,6 +52,21 @@ func (log *hcLogToLogger) format(msg string, args []interface{}) string {
 	return name + msg + argstr
 }
 
+func (log *hcLogToLogger) Log(level hclog.Level, msg string, args ...interface{}) {
+	switch level {
+	case hclog.Trace, hclog.Debug:
+		log.Debug(msg, args)
+	case hclog.NoLevel, hclog.Info:
+		log.Info(msg, args)
+	case hclog.Warn:
+		log.Warn(msg, args)
+	case hclog.Error:
+		log.Error(msg, args)
+	default:
+		log.Warn(msg, args)
+	}
+}
+
 func (log *hcLogToLogger) Trace(msg string, args ...interface{}) {
 	raftLogger.Debug(log.format(msg, args))
 }
@@ -65,7 +80,7 @@ func (log *hcLogToLogger) Info(msg string, args ...interface{}) {
 }
 
 func (log *hcLogToLogger) Warn(msg string, args ...interface{}) {
-	raftLogger.Warning(log.format(msg, args))
+	raftLogger.Warn(log.format(msg, args))
 }
 
 func (log *hcLogToLogger) Error(msg string, args ...interface{}) {
@@ -134,7 +149,7 @@ type logForwarder struct {
 
 var raftStdLogger = log.New(&logForwarder{}, "", 0)
 
-// Write forwards to our go-log logger.
+// Write forwards to our go-log/v2 logger.
 // According to https://golang.org/pkg/log/#Logger.Output
 // it is called per line.
 func (fw *logForwarder) Write(p []byte) (n int, e error) {
@@ -206,7 +221,7 @@ func (fw *logForwarder) log(t int, msg string) {
 	case info:
 		raftLogger.Info(msg)
 	case warn:
-		raftLogger.Warning(msg)
+		raftLogger.Warn(msg)
 	case err:
 		raftLogger.Error(msg)
 	default:

@@ -13,7 +13,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	codec "github.com/ugorji/go/codec"
 
 	trace "go.opencensus.io/trace"
@@ -33,7 +33,7 @@ type State struct {
 	dsWrite     ds.Write
 	codecHandle codec.Handle
 	namespace   ds.Key
-	version     int
+	// version     int
 }
 
 // DefaultHandle returns the codec handler of choice (Msgpack).
@@ -148,7 +148,7 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 		k := ds.NewKey(r.Key)
 		ci, err := st.unkey(k)
 		if err != nil {
-			logger.Warning("bad key (ignoring). key: ", k, "error: ", err)
+			logger.Warn("bad key (ignoring). key: ", k, "error: ", err)
 			continue
 		}
 
@@ -166,8 +166,6 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 // Migrate migrates an older state version to the current one.
 // This is a no-op for now.
 func (st *State) Migrate(ctx context.Context, r io.Reader) error {
-	ctx, span := trace.StartSpan(ctx, "state/map/Migrate")
-	defer span.End()
 	return nil
 }
 
@@ -236,15 +234,29 @@ func (st *State) Unmarshal(r io.Reader) error {
 	return nil
 }
 
-// convert Cid to /namespace/cidKey
+// used to be on go-ipfs-ds-help
+func cidToDsKey(c cid.Cid) ds.Key {
+	return dshelp.NewKeyFromBinary(c.Bytes())
+}
+
+// used to be on go-ipfs-ds-help
+func dsKeyToCid(k ds.Key) (cid.Cid, error) {
+	kb, err := dshelp.BinaryFromDsKey(k)
+	if err != nil {
+		return cid.Undef, err
+	}
+	return cid.Cast(kb)
+}
+
+// convert Cid to /namespace/cid1Key
 func (st *State) key(c cid.Cid) ds.Key {
-	k := dshelp.CidToDsKey(c)
+	k := cidToDsKey(c)
 	return st.namespace.Child(k)
 }
 
 // convert /namespace/cidKey to Cid
 func (st *State) unkey(k ds.Key) (cid.Cid, error) {
-	return dshelp.DsKeyToCid(ds.NewKey(k.BaseNamespace()))
+	return dsKeyToCid(ds.NewKey(k.BaseNamespace()))
 }
 
 // this decides how a Pin object is serialized to be stored in the
@@ -302,7 +314,7 @@ func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*Ba
 
 // Commit persists the batched write operations.
 func (bst *BatchingState) Commit(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "state/dsstate/Commit")
+	_, span := trace.StartSpan(ctx, "state/dsstate/Commit")
 	defer span.End()
 	return bst.batch.Commit()
 }

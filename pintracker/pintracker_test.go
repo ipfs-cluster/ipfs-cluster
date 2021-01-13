@@ -183,21 +183,29 @@ func TestPinTracker_StatusAll(t *testing.T) {
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
+					Cid: test.Cid1,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusPinned,
+					},
 				},
 				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusRemote,
+					Cid: test.Cid2,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusRemote,
+					},
 				},
 				{
-					Cid:    test.Cid3,
-					Status: api.TrackerStatusRemote,
+					Cid: test.Cid3,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusRemote,
+					},
 				},
 				{
 					// in state but not on IPFS
-					Cid:    test.Cid4,
-					Status: api.TrackerStatusPinError,
+					Cid: test.Cid4,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusPinError,
+					},
 				},
 			},
 		},
@@ -274,8 +282,10 @@ func TestPinTracker_Status(t *testing.T) {
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
+				Cid: test.Cid1,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusPinned,
+				},
 			},
 		},
 		{
@@ -285,8 +295,10 @@ func TestPinTracker_Status(t *testing.T) {
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.Cid5,
-				Status: api.TrackerStatusUnpinned,
+				Cid: test.Cid5,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusUnpinned,
+				},
 			},
 		},
 	}
@@ -322,24 +334,32 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			},
 			[]*api.PinInfo{
 				{
-					Cid:    test.Cid1,
-					Status: api.TrackerStatusPinned,
+					Cid: test.Cid1,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusPinned,
+					},
 				},
 				{
-					Cid:    test.Cid2,
-					Status: api.TrackerStatusRemote,
+					Cid: test.Cid2,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusRemote,
+					},
 				},
 				{
-					Cid:    test.Cid3,
-					Status: api.TrackerStatusRemote,
+					Cid: test.Cid3,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusRemote,
+					},
 				},
 				{
 					// This will recover and status
 					// is ignored as it could come back as
 					// queued, pinning or error.
 
-					Cid:    test.Cid4,
-					Status: api.TrackerStatusPinError,
+					Cid: test.Cid4,
+					PinInfoShort: api.PinInfoShort{
+						Status: api.TrackerStatusPinError,
+					},
 				},
 			},
 			false,
@@ -399,8 +419,10 @@ func TestPinTracker_Recover(t *testing.T) {
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
+				Cid: test.Cid1,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusPinned,
+				},
 			},
 			false,
 		},
@@ -438,8 +460,10 @@ func TestUntrackTrack(t *testing.T) {
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.Cid1,
-				Status: api.TrackerStatusPinned,
+				Cid: test.Cid1,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusPinned,
+				},
 			},
 			false,
 		},
@@ -479,8 +503,10 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 				testStatelessPinTracker(t),
 			},
 			api.PinInfo{
-				Cid:    test.SlowCid1,
-				Status: api.TrackerStatusPinned,
+				Cid: test.SlowCid1,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusPinned,
+				},
 			},
 			false,
 		},
@@ -504,7 +530,8 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 				go func() {
 					err = tt.args.tracker.Untrack(context.Background(), tt.args.c)
 					if err != nil {
-						t.Fatal(err)
+						t.Error()
+						return
 					}
 				}()
 				var ctx context.Context

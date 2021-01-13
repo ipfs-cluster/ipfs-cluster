@@ -11,15 +11,18 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	ipns "github.com/ipfs/go-ipns"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	record "github.com/libp2p/go-libp2p-record"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 
-func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
+func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dual.DHT) {
 	ctx := context.Background()
 	h, err := libp2p.New(
 		ctx,
@@ -40,19 +43,13 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dht.IpfsDHT) {
 		t.Fatal(err)
 	}
 
-	idht, err := dht.New(ctx, h)
-	if err != nil {
-		h.Close()
-		t.Fatal(err)
-	}
-
-	btstrCfg := dht.BootstrapConfig{
-		Queries: 1,
-		Period:  200 * time.Millisecond,
-		Timeout: 100 * time.Millisecond,
-	}
-
-	err = idht.BootstrapWithConfig(ctx, btstrCfg)
+	idht, err := dual.New(ctx, h,
+		dual.DHTOption(dht.NamespacedValidator("pk", record.PublicKeyValidator{})),
+		dual.DHTOption(dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()})),
+		dual.DHTOption(dht.Concurrency(10)),
+		dual.DHTOption(dht.RoutingTableRefreshPeriod(200*time.Millisecond)),
+		dual.DHTOption(dht.RoutingTableRefreshQueryTimeout(100*time.Millisecond)),
+	)
 	if err != nil {
 		h.Close()
 		t.Fatal(err)

@@ -16,7 +16,7 @@ import (
 	files "github.com/ipfs/go-ipfs-files"
 	posinfo "github.com/ipfs/go-ipfs-posinfo"
 	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	dag "github.com/ipfs/go-merkledag"
 	mfs "github.com/ipfs/go-mfs"
 	unixfs "github.com/ipfs/go-unixfs"
@@ -61,7 +61,7 @@ type Adder struct {
 	liveNodes  uint64
 	lastFile   mfs.FSNode
 	// Cluster: ipfs does a hack in commands/add.go to set the filenames
-	// in emmited events correctly. We carry a root folder name (or a
+	// in emitted events correctly. We carry a root folder name (or a
 	// filename in the case of single files here and emit those events
 	// correctly from the beginning).
 	OutputPrefix string
@@ -121,29 +121,30 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 	return nd, nil
 }
 
-// RootNode returns the mfs root node
-func (adder *Adder) curRootNode() (ipld.Node, error) {
-	mr, err := adder.mfsRoot()
-	if err != nil {
-		return nil, err
-	}
-	root, err := mr.GetDirectory().GetNode()
-	if err != nil {
-		return nil, err
-	}
+// Cluster: commented as it is unused
+// // RootNode returns the mfs root node
+// func (adder *Adder) curRootNode() (ipld.Node, error) {
+// 	mr, err := adder.mfsRoot()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	root, err := mr.GetDirectory().GetNode()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// if one root file, use that hash as root.
-	if len(root.Links()) == 1 {
-		nd, err := root.Links()[0].GetNode(adder.ctx, adder.dagService)
-		if err != nil {
-			return nil, err
-		}
+// 	// if one root file, use that hash as root.
+// 	if len(root.Links()) == 1 {
+// 		nd, err := root.Links()[0].GetNode(adder.ctx, adder.dagService)
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		root = nd
-	}
+// 		root = nd
+// 	}
 
-	return root, err
-}
+// 	return root, err
+// }
 
 // PinRoot recursively pins the root node of Adder and
 // writes the pin state to the backing datastore.

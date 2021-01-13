@@ -11,7 +11,7 @@ package sharding
 // all of the links.  Note that this limit is only reached at shard sizes 7
 // times the size of the current default and then only when files are all
 // 1 byte in size.  In the future we may generalize the shard dag to multiple
-// indirect nodes to accomodate much bigger shard sizes.  Also note that the
+// indirect nodes to accommodate much bigger shard sizes.  Also note that the
 // move to using the identity hash function in cids of very small data
 // will improve link density in shard nodes and further reduce the need for
 // multiple levels of indirection.
@@ -36,7 +36,6 @@ func init() {
 
 // MaxLinks is the max number of links that, when serialized fit into a block
 const MaxLinks = 5984
-const fixedPerLink = 40
 const hashFn = mh.SHA2_256
 
 // CborDataToNode parses cbor data into a clusterDAG node while making a few

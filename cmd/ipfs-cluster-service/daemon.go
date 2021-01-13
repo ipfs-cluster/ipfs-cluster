@@ -23,7 +23,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -87,10 +87,12 @@ func daemon(c *cli.Context) error {
 		cfgs.Cluster.LeaveOnShutdown = true
 	}
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
+	store := setupDatastore(cfgHelper)
+
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	checkErr("creating libp2p host", err)
 
-	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, raftStaging)
+	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, store, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -100,7 +102,7 @@ func daemon(c *cli.Context) error {
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
 
-	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht)
+	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht, store)
 }
 
 // createCluster creates all the necessary things to produce the cluster
@@ -112,14 +114,18 @@ func createCluster(
 	cfgHelper *cmdutils.ConfigHelper,
 	host host.Host,
 	pubsub *pubsub.PubSub,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
+	store ds.Datastore,
 	raftStaging bool,
 ) (*ipfscluster.Cluster, error) {
 
 	cfgs := cfgHelper.Configs()
 	cfgMgr := cfgHelper.Manager()
+	cfgBytes, err := cfgMgr.ToDisplayJSON()
+	checkErr("getting configuration string", err)
+	logger.Debugf("Configuration:\n%s\n", cfgBytes)
 
-	ctx, err := tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
 	checkErr("tag context with host id", err)
 
 	var apis []ipfscluster.API
@@ -160,8 +166,6 @@ func createCluster(
 
 	tracer, err := observations.SetupTracing(cfgs.Tracing)
 	checkErr("setting up Tracing", err)
-
-	store := setupDatastore(cfgHelper)
 
 	cons, err := setupConsensus(
 		cfgHelper,
@@ -230,7 +234,7 @@ func setupDatastore(cfgHelper *cmdutils.ConfigHelper) ds.Datastore {
 func setupConsensus(
 	cfgHelper *cmdutils.ConfigHelper,
 	h host.Host,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	pubsub *pubsub.PubSub,
 	store ds.Datastore,
 	raftStaging bool,

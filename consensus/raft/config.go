@@ -199,7 +199,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	parseDuration := func(txt string) time.Duration {
 		d, _ := time.ParseDuration(txt)
 		if txt != "" && d == 0 {
-			logger.Warningf("%s is not a valid duration. Default will be used", txt)
+			logger.Warnf("%s is not a valid duration. Default will be used", txt)
 		}
 		return d
 	}
@@ -266,7 +266,7 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 	}
 	if cfg.DatastoreNamespace != DefaultDatastoreNamespace {
 		jcfg.DatastoreNamespace = cfg.DatastoreNamespace
-		// otherwise leave empty so it gets ommitted.
+		// otherwise leave empty so it gets omitted.
 	}
 	return jcfg
 }
@@ -312,4 +312,9 @@ func (cfg *Config) GetDataFolder() string {
 		return filepath.Join(cfg.BaseDir, DefaultDataSubFolder)
 	}
 	return cfg.DataFolder
+}
+
+// ToDisplayJSON returns JSON config as a string.
+func (cfg *Config) ToDisplayJSON() ([]byte, error) {
+	return config.DisplayJSON(cfg.toJSONConfig())
 }

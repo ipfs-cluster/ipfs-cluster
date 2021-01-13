@@ -14,7 +14,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
 	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	merkledag "github.com/ipfs/go-merkledag"
 	multihash "github.com/multiformats/go-multihash"
 )
@@ -153,7 +153,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		// followed suit, it no longer receives the name of the
 		// file/folder being added and does not emit AddedOutput
 		// events with the right names. We addressed this by adding
-		// OutputPrefix to our version. go-ipfs modifies emmited
+		// OutputPrefix to our version. go-ipfs modifies emitted
 		// events before sending to user).
 		ipfsAdder.OutputPrefix = it.Name()
 

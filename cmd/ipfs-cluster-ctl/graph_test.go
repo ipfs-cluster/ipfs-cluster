@@ -67,53 +67,53 @@ I2 -> I0
 }`
 
 var (
-	pid1, _ = peer.IDB58Decode("QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD")
-	pid2, _ = peer.IDB58Decode("QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ")
-	pid3, _ = peer.IDB58Decode("QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu")
-	pid4, _ = peer.IDB58Decode("QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV")
-	pid5, _ = peer.IDB58Decode("QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq")
-	pid6, _ = peer.IDB58Decode("QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL")
+	pid1, _ = peer.Decode("QmUBuxVHoNNjfmNpTad36UeaFQv3gXAtCv9r6KhmeqhEhD")
+	pid2, _ = peer.Decode("QmV35LjbEGPfN7KfMAJp43VV2enwXqqQf5esx4vUcgHDQJ")
+	pid3, _ = peer.Decode("QmZ2ckU7G35MYyJgMTwMUnicsGqSy3YUxGBX7qny6MQmJu")
+	pid4, _ = peer.Decode("QmXbiVZd93SLiu9TAm21F2y9JwGiFLydbEVkPBaMR3DZDV")
+	pid5, _ = peer.Decode("QmPFKAGZbUjdzt8BBx8VTWCe9UeUQVcoqHFehSPzN5LSsq")
+	pid6, _ = peer.Decode("QmbU7273zH6jxwDe2nqRmEm2rp5PpqP2xeQr2xCmwbBsuL")
 
-	pid7, _ = peer.IDB58Decode("QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb")
-	pid8, _ = peer.IDB58Decode("QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8")
-	pid9, _ = peer.IDB58Decode("QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD")
+	pid7, _ = peer.Decode("QmQsdAdCHs4PRLi5tcoLfasYppryqQENxgAy4b2aS8xccb")
+	pid8, _ = peer.Decode("QmVV2enwXqqQf5esx4v36UeaFQvFehSPzNfi8aaaaaanM8")
+	pid9, _ = peer.Decode("QmfCHNQ2vbUmAuJZhE2hEpgiJq4sL1XScWEKnUrVtWZdeD")
 )
 
 func TestSimpleIpfsGraphs(t *testing.T) {
 	cg := api.ConnectGraph{
 		ClusterID: pid1,
 		ClusterLinks: map[string][]peer.ID{
-			peer.IDB58Encode(pid1): []peer.ID{
+			peer.Encode(pid1): {
 				pid2,
 				pid3,
 			},
-			peer.IDB58Encode(pid2): []peer.ID{
+			peer.Encode(pid2): {
 				pid1,
 				pid3,
 			},
-			peer.IDB58Encode(pid3): []peer.ID{
+			peer.Encode(pid3): {
 				pid1,
 				pid2,
 			},
 		},
 		IPFSLinks: map[string][]peer.ID{
-			peer.IDB58Encode(pid4): []peer.ID{
+			peer.Encode(pid4): {
 				pid5,
 				pid6,
 			},
-			peer.IDB58Encode(pid5): []peer.ID{
+			peer.Encode(pid5): {
 				pid4,
 				pid6,
 			},
-			peer.IDB58Encode(pid6): []peer.ID{
+			peer.Encode(pid6): {
 				pid4,
 				pid5,
 			},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.IDB58Encode(pid1): pid4,
-			peer.IDB58Encode(pid2): pid5,
-			peer.IDB58Encode(pid3): pid6,
+			peer.Encode(pid1): pid4,
+			peer.Encode(pid2): pid5,
+			peer.Encode(pid3): pid6,
 		},
 	}
 	buf := new(bytes.Buffer)
@@ -181,35 +181,35 @@ func TestIpfsAllGraphs(t *testing.T) {
 	cg := api.ConnectGraph{
 		ClusterID: pid1,
 		ClusterLinks: map[string][]peer.ID{
-			peer.IDB58Encode(pid1): []peer.ID{
+			peer.Encode(pid1): {
 				pid2,
 				pid3,
 			},
-			peer.IDB58Encode(pid2): []peer.ID{
+			peer.Encode(pid2): {
 				pid1,
 				pid3,
 			},
-			peer.IDB58Encode(pid3): []peer.ID{
+			peer.Encode(pid3): {
 				pid1,
 				pid2,
 			},
 		},
 		IPFSLinks: map[string][]peer.ID{
-			peer.IDB58Encode(pid4): []peer.ID{
+			peer.Encode(pid4): {
 				pid5,
 				pid6,
 				pid7,
 				pid8,
 				pid9,
 			},
-			peer.IDB58Encode(pid5): []peer.ID{
+			peer.Encode(pid5): {
 				pid4,
 				pid6,
 				pid7,
 				pid8,
 				pid9,
 			},
-			peer.IDB58Encode(pid6): []peer.ID{
+			peer.Encode(pid6): {
 				pid4,
 				pid5,
 				pid7,
@@ -218,9 +218,9 @@ func TestIpfsAllGraphs(t *testing.T) {
 			},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.IDB58Encode(pid1): pid4,
-			peer.IDB58Encode(pid2): pid5,
-			peer.IDB58Encode(pid3): pid6,
+			peer.Encode(pid1): pid4,
+			peer.Encode(pid2): pid5,
+			peer.Encode(pid3): pid6,
 		},
 	}
 

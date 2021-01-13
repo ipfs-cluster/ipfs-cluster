@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
-	"sort"
 	"sync"
 	"time"
 
@@ -24,7 +23,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -58,7 +57,7 @@ type Cluster struct {
 	id        peer.ID
 	config    *Config
 	host      host.Host
-	dht       *dht.IpfsDHT
+	dht       *dual.DHT
 	discovery discovery.Service
 	datastore ds.Datastore
 
@@ -101,7 +100,7 @@ type Cluster struct {
 func NewCluster(
 	ctx context.Context,
 	host host.Host,
-	dht *dht.IpfsDHT,
+	dht *dual.DHT,
 	cfg *Config,
 	datastore ds.Datastore,
 	consensus Consensus,
@@ -186,12 +185,9 @@ func NewCluster(
 	// visible as peers without having to wait for them to send one.
 	for _, p := range connectedPeers {
 		if err := c.logPingMetric(ctx, p); err != nil {
-			logger.Warning(err)
+			logger.Warn(err)
 		}
 	}
-
-	// Bootstrap the DHT now that we possibly have some connections
-	c.dht.Bootstrap(c.ctx)
 
 	// After setupRPC components can do their tasks with a fully operative
 	// routed libp2p host with some connections and a working DHT (hopefully).
@@ -422,7 +418,7 @@ func (c *Cluster) alertsHandler() {
 				continue
 			}
 
-			logger.Warningf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
+			logger.Warnf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
 			c.alertsMux.Lock()
 			for pID, alert := range c.alerts {
 				if time.Now().After(time.Unix(0, alert.Expiry)) {
@@ -443,45 +439,28 @@ func (c *Cluster) alertsHandler() {
 
 			cState, err := c.consensus.State(c.ctx)
 			if err != nil {
-				logger.Warning(err)
+				logger.Warn(err)
 				return
 			}
 			list, err := cState.List(c.ctx)
 			if err != nil {
-				logger.Warning(err)
+				logger.Warn(err)
 				return
 			}
+
+			distance, err := c.distances(c.ctx, alrt.Peer)
+			if err != nil {
+				logger.Warn(err)
+				return
+			}
+
 			for _, pin := range list {
-				if len(pin.Allocations) == 1 && containsPeer(pin.Allocations, alrt.Peer) {
-					logger.Warning("a pin with only one allocation cannot be repinned")
-					logger.Warning("to make repinning possible, pin with a replication factor of 2+")
-					continue
-				}
-				if c.shouldPeerRepinCid(alrt.Peer, pin) {
+				if containsPeer(pin.Allocations, alrt.Peer) && distance.isClosest(pin.Cid) {
 					c.repinFromPeer(c.ctx, alrt.Peer, pin)
 				}
 			}
 		}
 	}
-}
-
-// shouldPeerRepinCid returns true if the current peer is the top of the
-// allocs list. The failed peer is ignored, i.e. if current peer is
-// second and the failed peer is first, the function will still
-// return true.
-func (c *Cluster) shouldPeerRepinCid(failed peer.ID, pin *api.Pin) bool {
-	if containsPeer(pin.Allocations, failed) && containsPeer(pin.Allocations, c.id) {
-		allocs := peer.IDSlice(pin.Allocations)
-		sort.Sort(allocs)
-		if allocs[0] == c.id {
-			return true
-		}
-
-		if allocs[1] == c.id && allocs[0] == failed {
-			return true
-		}
-	}
-	return false
 }
 
 // detects any changes in the peerset and saves the configuration. When it
@@ -521,7 +500,7 @@ func (c *Cluster) watchPeers() {
 	}
 }
 
-// reBootstrap reguarly attempts to bootstrap (re-connect to peers from the
+// reBootstrap regularly attempts to bootstrap (re-connect to peers from the
 // peerstore). This should ensure that we auto-recover from situations in
 // which the network was completely gone and we lost all peers.
 func (c *Cluster) reBootstrap() {
@@ -547,18 +526,18 @@ func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
 	defer span.End()
 
 	if c.config.DisableRepinning {
-		logger.Warningf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
+		logger.Warnf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
 		return
 	}
 
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 		return
 	}
 	list, err := cState.List(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 		return
 	}
 	for _, pin := range list {
@@ -696,10 +675,10 @@ func (c *Cluster) Ready() <-chan struct{} {
 // * Save peerstore with the current peers
 // * Remove itself from consensus when LeaveOnShutdown is set
 // * It Shutdowns all the components
-// * Closes the datastore
 // * Collects all goroutines
 //
-// Shutdown does not closes the libp2p host or the DHT.
+// Shutdown does not close the libp2p host, the DHT, the datastore or
+// generally anything that Cluster did not create.
 func (c *Cluster) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/Shutdown")
 	defer span.End()
@@ -737,7 +716,7 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 		_, err := c.consensus.Peers(ctx)
 		if err == nil {
 			// best effort
-			logger.Warning("attempting to leave the cluster. This may take some seconds")
+			logger.Warn("attempting to leave the cluster. This may take some seconds")
 			err := c.consensus.RmPeer(ctx, c.id)
 			if err != nil {
 				logger.Error("leaving cluster: " + err.Error())
@@ -797,12 +776,6 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	c.cancel()
 	c.wg.Wait()
-
-	// Cleanly close the datastore
-	if err := c.datastore.Close(); err != nil {
-		logger.Errorf("error closing Datastore: %s", err)
-		return err
-	}
 
 	c.shutdownB = true
 	close(c.doneCh)
@@ -980,18 +953,18 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// we know that peer since we have metrics for it without
 	// having to wait for the next metric round.
 	if err := c.logPingMetric(ctx, pid); err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	// Broadcast our metrics to the world
 	_, err = c.sendInformersMetrics(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	_, err = c.sendPingMetric(ctx)
 	if err != nil {
-		logger.Warning(err)
+		logger.Warn(err)
 	}
 
 	// We need to trigger a DHT bootstrap asap for this peer to not be
@@ -999,8 +972,30 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	// by triggering 1 round of bootstrap in the background.
 	// Note that our regular bootstrap process is still running in the
 	// background since we created the cluster.
+	c.wg.Add(1)
 	go func() {
-		c.dht.BootstrapOnce(ctx, dht.DefaultBootstrapConfig)
+		defer c.wg.Done()
+		select {
+		case err := <-c.dht.LAN.RefreshRoutingTable():
+			if err != nil {
+				// this error is quite chatty
+				// on single peer clusters
+				logger.Debug(err)
+			}
+		case <-c.ctx.Done():
+			return
+		}
+
+		select {
+		case err := <-c.dht.WAN.RefreshRoutingTable():
+			if err != nil {
+				// this error is quite chatty
+				// on single peer clusters
+				logger.Debug(err)
+			}
+		case <-c.ctx.Done():
+			return
+		}
 	}()
 
 	// ConnectSwarms in the background after a while, when we have likely
@@ -1022,6 +1017,22 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 
 	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
 	return nil
+}
+
+// Distances returns a distance checker using current trusted peers.
+// It can optionally receive a peer ID to exclude from the checks.
+func (c *Cluster) distances(ctx context.Context, exclude peer.ID) (*distanceChecker, error) {
+	trustedPeers, err := c.getTrustedPeers(ctx, exclude)
+	if err != nil {
+		logger.Error("could not get trusted peers:", err)
+		return nil, err
+	}
+
+	return &distanceChecker{
+		local:      c.id,
+		otherPeers: trustedPeers,
+		cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
+	}, nil
 }
 
 // StateSync performs maintenance tasks on the global state that require
@@ -1053,20 +1064,14 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	// other trusted peers. We cannot know if our peer ID is trusted by
 	// other peers in the Cluster. This assumes yes. Setting FollowerMode
 	// is a way to assume the opposite and skip this completely.
-	trustedPeers, err := c.getTrustedPeers(ctx)
+	distance, err := c.distances(ctx, "")
 	if err != nil {
-		return nil
-	}
-
-	checker := distanceChecker{
-		local:      c.id,
-		otherPeers: trustedPeers,
-		cache:      make(map[peer.ID]distance, len(trustedPeers)+1),
+		return err // could not list peers
 	}
 
 	// Unpin expired items when we are the closest peer to them.
 	for _, p := range clusterPins {
-		if p.ExpiredAt(timeNow) && checker.isClosest(p.Cid) {
+		if p.ExpiredAt(timeNow) && distance.isClosest(p.Cid) {
 			logger.Infof("Unpinning %s: pin expired at %s", p.Cid, p.ExpireAt)
 			if _, err := c.Unpin(ctx, p.Cid); err != nil {
 				logger.Error(err)
@@ -1326,8 +1331,8 @@ func checkPinType(pin *api.Pin) error {
 // setupPin ensures that the Pin object is fit for pinning. We check
 // and set the replication factors and ensure that the pinType matches the
 // metadata consistently.
-func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
-	ctx, span := trace.StartSpan(ctx, "cluster/setupPin")
+func (c *Cluster) setupPin(ctx context.Context, pin, existing *api.Pin) error {
+	_, span := trace.StartSpan(ctx, "cluster/setupPin")
 	defer span.End()
 
 	err := c.setupReplicationFactor(pin)
@@ -1339,16 +1344,22 @@ func (c *Cluster) setupPin(ctx context.Context, pin *api.Pin) error {
 		return errors.New("pin.ExpireAt set before current time")
 	}
 
-	existing, err := c.PinGet(ctx, pin.Cid)
-	if err != nil && err != state.ErrNotFound {
-		return err
+	if existing == nil {
+		return nil
 	}
 
-	if existing != nil && existing.Type != pin.Type {
+	// If an pin CID is already pin, we do a couple more checks
+	if existing.Type != pin.Type {
 		msg := "cannot repin CID with different tracking method, "
 		msg += "clear state with pin rm to proceed. "
 		msg += "New: %s. Was: %s"
 		return fmt.Errorf(msg, pin.Type, existing.Type)
+	}
+
+	if existing.Mode == api.PinModeRecursive && pin.Mode != api.PinModeRecursive {
+		msg := "cannot repin a CID which is already pinned in "
+		msg += "recursive mode (new pin is pinned as %s). Unpin it first."
+		return fmt.Errorf(msg, pin.Mode)
 	}
 
 	return checkPinType(pin)
@@ -1382,8 +1393,13 @@ func (c *Cluster) pin(
 		return pin, true, err
 	}
 
+	existing, err := c.PinGet(ctx, pin.Cid)
+	if err != nil && err != state.ErrNotFound {
+		return pin, false, err
+	}
+
 	// setup pin might produce some side-effects to our pin
-	err := c.setupPin(ctx, pin)
+	err = c.setupPin(ctx, pin, existing)
 	if err != nil {
 		return pin, false, err
 	}
@@ -1396,8 +1412,7 @@ func (c *Cluster) pin(
 	// pins to the consensus layer even if they are, this should trigger the
 	// pin tracker and allows users to get re-pin operations by re-adding
 	// without having to use recover, which is naturally expected.
-	existing, err := c.PinGet(ctx, pin.Cid)
-	if err == nil &&
+	if existing != nil &&
 		pin.PinOptions.Equals(&existing.PinOptions) &&
 		len(blacklist) == 0 {
 		pin = existing
@@ -1413,6 +1428,7 @@ func (c *Cluster) pin(
 		allocs, err := c.allocate(
 			ctx,
 			pin.Cid,
+			existing,
 			pin.ReplicationFactorMin,
 			pin.ReplicationFactorMax,
 			blacklist,
@@ -1458,7 +1474,7 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 	case api.DataType:
 		return pin, c.consensus.LogUnpin(ctx, pin)
 	case api.ShardType:
-		err := "cannot unpin a shard direclty. Unpin content root CID instead."
+		err := "cannot unpin a shard directly. Unpin content root CID instead"
 		return pin, errors.New(err)
 	case api.MetaType:
 		// Unpin cluster dag and referenced shards
@@ -1468,7 +1484,7 @@ func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (*api.Pin, error) {
 		}
 		return pin, c.consensus.LogUnpin(ctx, pin)
 	case api.ClusterDAGType:
-		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead."
+		err := "cannot unpin a Cluster DAG directly. Unpin content root CID instead"
 		return pin, errors.New(err)
 	default:
 		return pin, errors.New("unrecognized pin type")
@@ -1526,7 +1542,9 @@ func (c *Cluster) PinUpdate(ctx context.Context, from cid.Cid, to cid.Cid, opts 
 	if opts.Name != "" {
 		existing.Name = opts.Name
 	}
-
+	if !opts.ExpireAt.IsZero() && opts.ExpireAt.After(time.Now()) {
+		existing.ExpireAt = opts.ExpireAt
+	}
 	return existing, c.consensus.LogPin(ctx, existing)
 }
 
@@ -1596,7 +1614,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	}
 	lenMembers := len(members)
 
-	peers := make([]*api.ID, lenMembers, lenMembers)
+	peers := make([]*api.ID, lenMembers)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
@@ -1615,6 +1633,7 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	for i, err := range errs {
 		if err == nil {
 			finalPeers = append(finalPeers, peers[i])
+			_ = finalPeers // staticcheck
 			continue
 		}
 
@@ -1630,8 +1649,9 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	return peers
 }
 
-// getTrustedPeers gives listed of trusted peers except the current peer.
-func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
+// getTrustedPeers gives listed of trusted peers except the current peer and
+// the excluded peer if provided.
+func (c *Cluster) getTrustedPeers(ctx context.Context, exclude peer.ID) ([]peer.ID, error) {
 	peers, err := c.consensus.Peers(ctx)
 	if err != nil {
 		return nil, err
@@ -1640,7 +1660,7 @@ func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
 	trustedPeers := make([]peer.ID, 0, len(peers))
 
 	for _, p := range peers {
-		if p == c.id || !c.consensus.IsTrustedPeer(ctx, p) {
+		if p == c.id || p == exclude || !c.consensus.IsTrustedPeer(ctx, p) {
 			continue
 		}
 		trustedPeers = append(trustedPeers, p)
@@ -1649,15 +1669,18 @@ func (c *Cluster) getTrustedPeers(ctx context.Context) ([]peer.ID, error) {
 	return trustedPeers, nil
 }
 
-func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, t time.Time) {
+func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, name string, t time.Time) {
 	for _, p := range peers {
-		gpin.PeerMap[peer.IDB58Encode(p)] = &api.PinInfo{
-			Cid:      h,
-			Peer:     p,
-			PeerName: p.String(),
-			Status:   status,
-			TS:       t,
-		}
+		gpin.Add(&api.PinInfo{
+			Cid:  h,
+			Name: name,
+			Peer: p,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: p.String(),
+				Status:   status,
+				TS:       t,
+			},
+		})
 	}
 }
 
@@ -1665,34 +1688,58 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
-	gpin := &api.GlobalPinInfo{
-		Cid:     h,
-		PeerMap: make(map[string]*api.PinInfo),
-	}
+	// The object we will return
+	gpin := &api.GlobalPinInfo{}
+
 	// allocated peers, we will contact them through rpc
 	var dests []peer.ID
 	// un-allocated peers, we will set remote status
 	var remote []peer.ID
 	timeNow := time.Now()
 
-	// set dests and remote
+	// If pin is not part of the pinset, mark it unpinned
+	pin, err := c.PinGet(ctx, h)
+	if err != nil && err != state.ErrNotFound {
+		logger.Error(err)
+		return nil, err
+	}
+
+	// When NotFound return directly with an unpinned
+	// status.
+	if err == state.ErrNotFound {
+		var members []peer.ID
+		if c.config.FollowerMode {
+			members = []peer.ID{c.host.ID()}
+		} else {
+			members, err = c.consensus.Peers(ctx)
+			if err != nil {
+				logger.Error(err)
+				return nil, err
+			}
+		}
+
+		setTrackerStatus(
+			gpin,
+			h,
+			members,
+			api.TrackerStatusUnpinned,
+			"",
+			timeNow,
+		)
+		return gpin, nil
+	}
+
+	// The pin exists.
+	gpin.Cid = h
+	gpin.Name = pin.Name
+
+	// Make the list of peers that will receive the request.
 	if c.config.FollowerMode {
-		// during follower mode return status only on self peer
+		// during follower mode return only local status.
 		dests = []peer.ID{c.host.ID()}
 		remote = []peer.ID{}
 	} else {
 		members, err := c.consensus.Peers(ctx)
-		if err != nil {
-			logger.Error(err)
-			return nil, err
-		}
-
-		// If pin is not part of the pinset, mark it unpinned
-		pin, err := c.PinGet(ctx, h)
-		if err == state.ErrNotFound {
-			setTrackerStatus(gpin, h, members, api.TrackerStatusUnpinned, timeNow)
-			return gpin, nil
-		}
 		if err != nil {
 			logger.Error(err)
 			return nil, err
@@ -1708,10 +1755,10 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	}
 
 	// set status remote on un-allocated peers
-	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, timeNow)
+	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, pin.Name, timeNow)
 
 	lenDests := len(dests)
-	replies := make([]*api.PinInfo, lenDests, lenDests)
+	replies := make([]*api.PinInfo, lenDests)
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenDests)
 	defer rpcutil.MultiCancel(cancels)
 
@@ -1729,7 +1776,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.PeerMap[peer.IDB58Encode(dests[i])] = r
+			gpin.Add(r)
 			continue
 		}
 
@@ -1740,14 +1787,17 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
-		gpin.PeerMap[peer.IDB58Encode(dests[i])] = &api.PinInfo{
-			Cid:      h,
-			Peer:     dests[i],
-			PeerName: dests[i].String(),
-			Status:   api.TrackerStatusClusterError,
-			TS:       timeNow,
-			Error:    e.Error(),
-		}
+		gpin.Add(&api.PinInfo{
+			Cid:  h,
+			Name: pin.Name,
+			Peer: dests[i],
+			PinInfoShort: api.PinInfoShort{
+				PeerName: dests[i].String(),
+				Status:   api.TrackerStatusClusterError,
+				TS:       timeNow,
+				Error:    e.Error(),
+			},
+		})
 	}
 
 	return gpin, nil
@@ -1773,7 +1823,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 	}
 	lenMembers := len(members)
 
-	replies := make([][]*api.PinInfo, lenMembers, lenMembers)
+	replies := make([][]*api.PinInfo, lenMembers)
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
@@ -1787,23 +1837,16 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 		rpcutil.CopyPinInfoSliceToIfaces(replies),
 	)
 
-	mergePins := func(pins []*api.PinInfo) {
-		for _, p := range pins {
-			if p == nil {
-				continue
-			}
-			item, ok := fullMap[p.Cid]
-			if !ok {
-				fullMap[p.Cid] = &api.GlobalPinInfo{
-					Cid: p.Cid,
-					PeerMap: map[string]*api.PinInfo{
-						peer.IDB58Encode(p.Peer): p,
-					},
-				}
-			} else {
-				item.PeerMap[peer.IDB58Encode(p.Peer)] = p
-			}
+	setPinInfo := func(p *api.PinInfo) {
+		if p == nil {
+			return
 		}
+		info, ok := fullMap[p.Cid]
+		if !ok {
+			info = &api.GlobalPinInfo{}
+			fullMap[p.Cid] = info
+		}
+		info.Add(p)
 	}
 
 	erroredPeers := make(map[peer.ID]string)
@@ -1815,21 +1858,27 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 			}
 			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
 			erroredPeers[members[i]] = e.Error()
-		} else {
-			mergePins(r)
+			continue
+		}
+
+		for _, pin := range r {
+			setPinInfo(pin)
 		}
 	}
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
 		for c := range fullMap {
-			fullMap[c].PeerMap[peer.IDB58Encode(p)] = &api.PinInfo{
-				Cid:    c,
-				Peer:   p,
-				Status: api.TrackerStatusClusterError,
-				TS:     time.Now(),
-				Error:  msg,
-			}
+			setPinInfo(&api.PinInfo{
+				Cid:  c,
+				Name: "",
+				Peer: p,
+				PinInfoShort: api.PinInfoShort{
+					Status: api.TrackerStatusClusterError,
+					TS:     time.Now(),
+					Error:  msg,
+				},
+			})
 		}
 	}
 
@@ -1914,45 +1963,45 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 	return list, nil
 }
 
-// diffPeers returns the peerIDs added and removed from peers2 in relation to
-// peers1
-func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
-	m1 := make(map[peer.ID]struct{})
-	m2 := make(map[peer.ID]struct{})
-	added = make([]peer.ID, 0)
-	removed = make([]peer.ID, 0)
-	if peers1 == nil && peers2 == nil {
-		return
-	}
-	if peers1 == nil {
-		added = peers2
-		return
-	}
-	if peers2 == nil {
-		removed = peers1
-		return
-	}
+// // diffPeers returns the peerIDs added and removed from peers2 in relation to
+// // peers1
+// func diffPeers(peers1, peers2 []peer.ID) (added, removed []peer.ID) {
+// 	m1 := make(map[peer.ID]struct{})
+// 	m2 := make(map[peer.ID]struct{})
+// 	added = make([]peer.ID, 0)
+// 	removed = make([]peer.ID, 0)
+// 	if peers1 == nil && peers2 == nil {
+// 		return
+// 	}
+// 	if peers1 == nil {
+// 		added = peers2
+// 		return
+// 	}
+// 	if peers2 == nil {
+// 		removed = peers1
+// 		return
+// 	}
 
-	for _, p := range peers1 {
-		m1[p] = struct{}{}
-	}
-	for _, p := range peers2 {
-		m2[p] = struct{}{}
-	}
-	for k := range m1 {
-		_, ok := m2[k]
-		if !ok {
-			removed = append(removed, k)
-		}
-	}
-	for k := range m2 {
-		_, ok := m1[k]
-		if !ok {
-			added = append(added, k)
-		}
-	}
-	return
-}
+// 	for _, p := range peers1 {
+// 		m1[p] = struct{}{}
+// 	}
+// 	for _, p := range peers2 {
+// 		m2[p] = struct{}{}
+// 	}
+// 	for k := range m1 {
+// 		_, ok := m2[k]
+// 		if !ok {
+// 			removed = append(removed, k)
+// 		}
+// 	}
+// 	for k := range m2 {
+// 		_, ok := m1[k]
+// 		if !ok {
+// 			added = append(added, k)
+// 		}
+// 	}
+// 	return
+// }
 
 // RepoGC performs garbage collection sweep on all peers' IPFS repo.
 func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
@@ -1979,7 +2028,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 			&repoGC,
 		)
 		if err == nil {
-			globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &repoGC
+			globalRepoGC.PeerMap[peer.Encode(member)] = &repoGC
 			continue
 		}
 
@@ -1990,9 +2039,9 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, member, err)
 
-		globalRepoGC.PeerMap[peer.IDB58Encode(member)] = &api.RepoGC{
+		globalRepoGC.PeerMap[peer.Encode(member)] = &api.RepoGC{
 			Peer:     member,
-			Peername: peer.IDB58Encode(member),
+			Peername: peer.Encode(member),
 			Keys:     []api.IPFSRepoGC{},
 			Error:    err.Error(),
 		}

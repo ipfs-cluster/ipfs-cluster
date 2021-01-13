@@ -22,12 +22,12 @@ import (
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	path "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	madns "github.com/multiformats/go-multiaddr-dns"
-	manet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
@@ -58,7 +58,7 @@ type Server struct {
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	listener         net.Listener      // proxy listener
+	listeners        []net.Listener    // proxy listener
 	server           *http.Server      // proxy server
 	ipfsRoundTripper http.RoundTripper // allows to talk to IPFS
 
@@ -126,14 +126,18 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	proxyNet, proxyAddr, err := manet.DialArgs(cfg.ListenAddr)
-	if err != nil {
-		return nil, err
-	}
+	var listeners []net.Listener
+	for _, addr := range cfg.ListenAddr {
+		proxyNet, proxyAddr, err := manet.DialArgs(addr)
+		if err != nil {
+			return nil, err
+		}
 
-	l, err := net.Listen(proxyNet, proxyAddr)
-	if err != nil {
-		return nil, err
+		l, err := net.Listen(proxyNet, proxyAddr)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, l)
 	}
 
 	nodeScheme := "http"
@@ -197,7 +201,7 @@ func New(cfg *Config) (*Server, error) {
 		nodeAddr:         nodeHTTPAddr,
 		nodeScheme:       nodeScheme,
 		rpcReady:         make(chan struct{}, 1),
-		listener:         l,
+		listeners:        listeners,
 		server:           s,
 		ipfsRoundTripper: reverseProxy.Transport,
 	}
@@ -284,7 +288,9 @@ func (proxy *Server) Shutdown(ctx context.Context) error {
 	proxy.cancel()
 	close(proxy.rpcReady)
 	proxy.server.SetKeepAlivesEnabled(false)
-	proxy.listener.Close()
+	for _, l := range proxy.listeners {
+		l.Close()
+	}
 
 	proxy.wg.Wait()
 	proxy.shutdown = true
@@ -301,19 +307,27 @@ func (proxy *Server) run() {
 	defer proxy.shutdownLock.Unlock()
 
 	// This launches the proxy
-	proxy.wg.Add(1)
-	go func() {
-		defer proxy.wg.Done()
-		logger.Infof(
-			"IPFS Proxy: %s -> %s",
-			proxy.config.ListenAddr,
-			proxy.config.NodeAddr,
-		)
-		err := proxy.server.Serve(proxy.listener) // hangs here
-		if err != nil && !strings.Contains(err.Error(), "closed network connection") {
-			logger.Error(err)
-		}
-	}()
+	proxy.wg.Add(len(proxy.listeners))
+	for _, l := range proxy.listeners {
+		go func(l net.Listener) {
+			defer proxy.wg.Done()
+
+			maddr, err := manet.FromNetAddr(l.Addr())
+			if err != nil {
+				logger.Error(err)
+			}
+
+			logger.Infof(
+				"IPFS Proxy: %s -> %s",
+				maddr,
+				proxy.config.NodeAddr,
+			)
+			err = proxy.server.Serve(l) // hangs here
+			if err != nil && !strings.Contains(err.Error(), "closed network connection") {
+				logger.Error(err)
+			}
+		}(l)
+	}
 }
 
 // ipfsErrorResponder writes an http error response just like IPFS would.
@@ -326,13 +340,13 @@ func ipfsErrorResponder(w http.ResponseWriter, errMsg string, code int) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.Write(resBytes)
-	return
 }
 
 func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header(), r)
 
-	arg := r.URL.Query().Get("arg")
+	q := r.URL.Query()
+	arg := q.Get("arg")
 	p, err := path.ParsePath(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error(), -1)
@@ -340,6 +354,8 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	}
 
 	pinPath := &api.PinPath{Path: p.String()}
+	pinPath.Mode = api.PinModeFromString(q.Get("type"))
+
 	var pin api.Pin
 	err = proxy.rpcClient.Call(
 		"",
@@ -359,7 +375,6 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
-	return
 }
 
 func (proxy *Server) pinHandler(w http.ResponseWriter, r *http.Request) {
@@ -515,7 +530,6 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	resBytes, _ := json.Marshal(res)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
-	return
 }
 
 func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
@@ -546,7 +560,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		params.Layout = "trickle"
 	}
 
-	logger.Warningf("Proxy/add does not support all IPFS params. Current options: %+v", params)
+	logger.Warnf("Proxy/add does not support all IPFS params. Current options: %+v", params)
 
 	outputTransform := func(in *api.AddedOutput) interface{} {
 		r := &ipfsAddResp{
@@ -614,8 +628,8 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	ctxs, cancels := rpcutil.CtxsWithCancel(proxy.ctx, len(peers))
 	defer rpcutil.MultiCancel(cancels)
 
-	repoStats := make([]*api.IPFSRepoStat, len(peers), len(peers))
-	repoStatsIfaces := make([]interface{}, len(repoStats), len(repoStats))
+	repoStats := make([]*api.IPFSRepoStat, len(peers))
+	repoStatsIfaces := make([]interface{}, len(repoStats))
 	for i := range repoStats {
 		repoStats[i] = &api.IPFSRepoStat{}
 		repoStatsIfaces[i] = repoStats[i]
@@ -648,7 +662,6 @@ func (proxy *Server) repoStatHandler(w http.ResponseWriter, r *http.Request) {
 	resBytes, _ := json.Marshal(totalStats)
 	w.WriteHeader(http.StatusOK)
 	w.Write(resBytes)
-	return
 }
 
 type ipfsRepoGCResp struct {
@@ -704,8 +717,6 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	if !streamErrors && mErrStr != "" {
 		w.Header().Set("X-Stream-Error", mErrStr)
 	}
-
-	return
 }
 
 // slashHandler returns a handler which converts a /a/b/c/<argument> request

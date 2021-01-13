@@ -2,7 +2,7 @@
 // allows to orchestrate pinning operations among several IPFS nodes.
 //
 // IPFS Cluster peers form a separate libp2p swarm. A Cluster peer uses
-// multiple Cluster Componenets which perform different tasks like managing
+// multiple Cluster Components which perform different tasks like managing
 // the underlying IPFS daemons, or providing APIs for external control.
 package ipfscluster
 
@@ -56,7 +56,7 @@ type Consensus interface {
 	// IsTrustedPeer returns true if the given peer is "trusted".
 	// This will grant access to more rpc endpoints and a
 	// non-trusted one. This should be fast as it will be
-	// called repeteadly for every remote RPC request.
+	// called repeatedly for every remote RPC request.
 	IsTrustedPeer(context.Context, peer.ID) bool
 	// Trust marks a peer as "trusted".
 	Trust(context.Context, peer.ID) error
@@ -77,7 +77,7 @@ type IPFSConnector interface {
 	ID(context.Context) (*api.IPFSID, error)
 	Pin(context.Context, *api.Pin) error
 	Unpin(context.Context, cid.Cid) error
-	PinLsCid(context.Context, cid.Cid) (api.IPFSPinStatus, error)
+	PinLsCid(context.Context, *api.Pin) (api.IPFSPinStatus, error)
 	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.

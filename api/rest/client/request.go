@@ -61,7 +61,7 @@ func (c *defaultClient) doRequest(
 	urlpath := c.net + "://" + c.hostname + "/" + strings.TrimPrefix(path, "/")
 	logger.Debugf("%s: %s", method, urlpath)
 
-	r, err := http.NewRequest(method, urlpath, body)
+	r, err := http.NewRequestWithContext(ctx, method, urlpath, body)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +73,8 @@ func (c *defaultClient) doRequest(
 		r.SetBasicAuth(c.config.Username, c.config.Password)
 	}
 
-	if headers != nil {
-		for k, v := range headers {
-			r.Header.Set(k, v)
-		}
+	for k, v := range headers {
+		r.Header.Set(k, v)
 	}
 
 	if body != nil {
@@ -101,7 +99,7 @@ func (c *defaultClient) handleResponse(resp *http.Response, obj interface{}) err
 	case resp.StatusCode == http.StatusAccepted:
 		logger.Debug("Request accepted")
 	case resp.StatusCode == http.StatusNoContent:
-		logger.Debug("Request suceeded. Response has no content")
+		logger.Debug("Request succeeded. Response has no content")
 	default:
 		if resp.StatusCode > 399 && resp.StatusCode < 600 {
 			var apiErr api.Error

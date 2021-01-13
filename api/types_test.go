@@ -10,25 +10,9 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ugorji/go/codec"
 )
-
-var testTime = time.Date(2017, 12, 31, 15, 45, 50, 0, time.UTC)
-var testMAddr, _ = ma.NewMultiaddr("/ip4/1.2.3.4")
-var testMAddr2, _ = ma.NewMultiaddr("/dns4/a.b.c.d")
-var testMAddr3, _ = ma.NewMultiaddr("/ip4/127.0.0.1/tcp/8081/ws/p2p/QmSoLer265NRgSp2LA3dPaeykiS1J6DifTC88f5uVQKNAd")
-var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
-var testCid2, _ = cid.Decode("QmYCLpFCj9Av8NFjkQogvtXspnTDFWaizLpVFEijHTH4eV")
-var testCid3, _ = cid.Decode("QmZmdA3UZKuHuy9FrWsxJ82q21nbEh97NUnxTzF5EHxZia")
-var testCid4, _ = cid.Decode("QmZbNfi13Sb2WUDMjiW1ZNhnds5KDk6mJB5hP9B5h9m5CJ")
-var testPeerID1, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
-var testPeerID2, _ = peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabd")
-var testPeerID3, _ = peer.IDB58Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
-var testPeerID4, _ = peer.IDB58Decode("QmZ8naDy5mEz4GLuQwjWt9MPYqHTBbsm8tQBrNSjiq6zBc")
-var testPeerID5, _ = peer.IDB58Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGjgRRjg")
-var testPeerID6, _ = peer.IDB58Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
 
 func TestTrackerFromString(t *testing.T) {
 	testcases := []string{"cluster_error", "pin_error", "unpin_error", "pinned", "pinning", "unpinning", "unpinned", "remote"}
@@ -175,7 +159,7 @@ func TestDupTags(t *testing.T) {
 
 func TestPinOptionsQuery(t *testing.T) {
 	testcases := []*PinOptions{
-		&PinOptions{
+		{
 			ReplicationFactorMax: 3,
 			ReplicationFactorMin: 2,
 			Name:                 "abc",
@@ -190,7 +174,7 @@ func TestPinOptionsQuery(t *testing.T) {
 				"hello2": "bye2",
 			},
 		},
-		&PinOptions{
+		{
 			ReplicationFactorMax: -1,
 			ReplicationFactorMin: 0,
 			Name:                 "",
@@ -198,7 +182,7 @@ func TestPinOptionsQuery(t *testing.T) {
 			UserAllocations:      []peer.ID{},
 			Metadata:             nil,
 		},
-		&PinOptions{
+		{
 			ReplicationFactorMax: -1,
 			ReplicationFactorMin: 0,
 			Name:                 "",
@@ -231,9 +215,9 @@ func TestPinOptionsQuery(t *testing.T) {
 }
 
 func TestIDCodec(t *testing.T) {
-	TestPeerID1, _ := peer.IDB58Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
-	TestPeerID2, _ := peer.IDB58Decode("QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6")
-	TestPeerID3, _ := peer.IDB58Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
+	TestPeerID1, _ := peer.Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
+	TestPeerID2, _ := peer.Decode("QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6")
+	TestPeerID3, _ := peer.Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")
 	addr, _ := NewMultiaddr("/ip4/1.2.3.4")
 	id := &ID{
 		ID:                    TestPeerID1,

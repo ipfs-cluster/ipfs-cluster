@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -47,7 +48,6 @@ func TestWindow_Race(t *testing.T) {
 				i++
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
@@ -64,7 +64,6 @@ func TestWindow_Race(t *testing.T) {
 				// log <- fmt.Sprintf("latest: %v", l)
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
@@ -80,7 +79,6 @@ func TestWindow_Race(t *testing.T) {
 				// log <- fmt.Sprintf("all: %v", w.All())
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
@@ -95,23 +93,17 @@ func TestWindow_Race(t *testing.T) {
 				log <- fmt.Sprintf("dist: %v", w.Distribution())
 			case <-done:
 				return
-			default:
 			}
 		}
 	}()
 
 	go func() {
 		<-start
-		for {
-			select {
-			case <-done:
-				for s := range log {
-					fmt.Println(s)
-				}
-				close(done)
-				return
-			}
+		<-done
+		for s := range log {
+			fmt.Println(s)
 		}
+		close(done)
 	}()
 
 	close(start)
@@ -377,7 +369,7 @@ func TestWindow_Distribution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mw := NewWindow(len(tt.heartbeats) + 1)
 			for i, v := range tt.heartbeats {
-				mw.Add(makeMetric(string(int64(v * 10))))
+				mw.Add(makeMetric(strconv.Itoa(int(v * 10))))
 				// time.Sleep on the 1s of milliseconds level is
 				// susceptible to scheduler variance. Hence we
 				// multiple the input by 10 and this combined with

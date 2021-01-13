@@ -4,21 +4,19 @@ package single
 
 import (
 	"context"
-	"errors"
 
 	adder "github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
-var errNotFound = errors.New("dagservice: block not found")
-
 var logger = logging.Logger("singledags")
+var _ = logger // otherwise unused
 
 // DAGService is an implementation of an adder.ClusterDAGService which
 // puts the added blocks directly in the peers allocated to them (without
@@ -38,6 +36,8 @@ type DAGService struct {
 // New returns a new Adder with the given rpc Client. The client is used
 // to perform calls to IPFS.BlockPut and Pin content on Cluster.
 func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
+	// ensure don't Add something and pin it in direct mode.
+	opts.Mode = api.PinModeRecursive
 	return &DAGService{
 		rpcClient: rpc,
 		dests:     nil,

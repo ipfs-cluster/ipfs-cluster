@@ -16,11 +16,10 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
-	"contrib.go.opencensus.io/exporter/jaeger"
 	uuid "github.com/google/uuid"
 	cli "github.com/urfave/cli"
 )
@@ -29,37 +28,39 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.12.0"
+const Version = "0.13.0-next"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
 	defaultTimeout       = 0
-	defaultUsername      = ""
-	defaultPassword      = ""
 	defaultWaitCheckFreq = time.Second
 	defaultAddParams     = api.DefaultAddParams()
 )
 
 var logger = logging.Logger("cluster-ctl")
 
-var tracer *jaeger.Exporter
-
 var globalClient client.Client
 
 // Description provides a short summary of the functionality of this tool
 var Description = fmt.Sprintf(`
 %s is a tool to manage IPFS Cluster nodes.
+
 Use "%s help" to list all available commands and
 "%s help <command>" to get usage information for a
 specific one.
 
-%s uses the IPFS Cluster API to perform requests and display
-responses in a user-readable format. The location of the IPFS
-Cluster server is assumed to be %s, but can be
-configured with the --host option. To use the secure libp2p-http
-API endpoint, use "--host" with the full cluster libp2p listener
-address (including the "/p2p/<peerID>" part), and --secret (the
-32-byte cluster secret as it appears in the cluster configuration).
+%s uses the IPFS Cluster API to perform requests and
+display responses in a user-readable format. The location of the IPFS
+Cluster server is assumed to be %s, but can be configured
+with the --host option. If several multiaddresses are specified 
+(comma-separated), requests will be sent to the first one and fail-over 
+over to the others. This also works for dns-based addresses which resolve
+to multiple values.
+
+To use the secure libp2p-http API endpoint, use "--host" with 
+the full cluster libp2p listener address, including the "/p2p/<peerID>"
+part, or a /dnsaddr that resolves to it. Provide the cluster secret with 
+--secret as needed.
 
 For feedback, bug reports or any additional information, visit
 https://github.com/ipfs/ipfs-cluster.
@@ -70,9 +71,9 @@ https://github.com/ipfs/ipfs-cluster.
 	programName,
 	defaultHost)
 
-type peerAddBody struct {
-	Addr string `json:"peer_multiaddress"`
-}
+// type peerAddBody struct {
+// 	Addr string `json:"peer_multiaddress"`
+// }
 
 func out(m string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, a...)
@@ -97,7 +98,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "host, l",
 			Value: defaultHost,
-			Usage: "Cluster's HTTP or LibP2P-HTTP API endpoint",
+			Usage: `API endpoint multiaddresses (comma-separated)`,
 		},
 		cli.StringFlag{
 			Name:  "secret",
@@ -143,14 +144,11 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		if c.Bool("debug") {
 			logging.SetLogLevel("cluster-ctl", "debug")
+			logging.SetLogLevel("apitypes", "debug")
 			cfg.LogLevel = "debug"
 			logger.Debug("debug level enabled")
 		}
 
-		addr, err := ma.NewMultiaddr(c.String("host"))
-		checkErr("parsing host multiaddress", err)
-
-		cfg.APIAddr = addr
 		if hexSecret := c.String("secret"); hexSecret != "" {
 			secret, err := hex.DecodeString(hexSecret)
 			checkErr("parsing secret", err)
@@ -159,17 +157,13 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		cfg.Timeout = time.Duration(c.Int("timeout")) * time.Second
 
-		if client.IsPeerAddress(cfg.APIAddr) && c.Bool("https") {
-			logger.Warning("Using libp2p-http. SSL flags will be ignored")
-		}
-
 		cfg.SSL = c.Bool("https")
 		cfg.NoVerifyCert = c.Bool("no-check-certificate")
 		user, pass := parseCredentials(c.String("basic-auth"))
 		cfg.Username = user
 		cfg.Password = pass
 		if user != "" && !cfg.SSL && !c.Bool("force-http") {
-			logger.Warning("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
+			logger.Warn("SSL automatically enabled with basic auth credentials. Set \"force-http\" to disable")
 			cfg.SSL = true
 		}
 
@@ -178,7 +172,23 @@ requires authorization. implies --https, which you can disable with --force-http
 			checkErr("", errors.New("unsupported encoding"))
 		}
 
-		globalClient, err = client.NewDefaultClient(cfg)
+		var configs []*client.Config
+		var err error
+		for _, addr := range strings.Split(c.String("host"), ",") {
+			multiaddr, err := ma.NewMultiaddr(addr)
+			checkErr("parsing host multiaddress", err)
+
+			if client.IsPeerAddress(multiaddr) && c.Bool("https") {
+				logger.Warn("Using libp2p-http for %s. The https flag will be ignored for this connection", addr)
+			}
+
+			cfgs, err := cfg.AsTemplateForResolvedAddress(ctx, multiaddr)
+			checkErr("creating configs", err)
+			configs = append(configs, cfgs...)
+		}
+
+		retries := len(configs)
+		globalClient, err = client.NewLBClient(&client.Failover{}, configs, retries)
 		checkErr("creating API client", err)
 
 		// TODO: need to figure out best way to configure tracing for ctl
@@ -245,7 +255,7 @@ cluster peers.
 					Flags:     []cli.Flag{},
 					Action: func(c *cli.Context) error {
 						pid := c.Args().First()
-						p, err := peer.IDB58Decode(pid)
+						p, err := peer.Decode(pid)
 						checkErr("parsing peer ID", err)
 						cerr := globalClient.PeerRm(ctx, p)
 						formatResponse(c, nil, cerr)
@@ -405,7 +415,7 @@ content.
 				}
 
 				// Read arguments (paths)
-				paths := make([]string, c.NArg(), c.NArg())
+				paths := make([]string, c.NArg())
 				for i, path := range c.Args() {
 					paths[i] = path
 				}
@@ -522,7 +532,7 @@ config). Positive values indicate how many peers should pin this content.
 An optional allocations argument can be provided, allocations should be a
 comma-separated list of peer IDs on which we want to pin. Peers in allocations
 are prioritized over automatically-determined ones, but replication factors
-would stil be respected.
+would still be respected.
 `,
 					ArgsUsage: "<CID|Path>",
 					Flags: []cli.Flag{
@@ -549,6 +559,11 @@ would stil be respected.
 							Name:  "name, n",
 							Value: "",
 							Usage: "Sets a name for this pin",
+						},
+						cli.StringFlag{
+							Name:  "mode",
+							Value: "recursive",
+							Usage: "Select a way to pin: recursive or direct",
 						},
 						cli.StringFlag{
 							Name:  "expire-in",
@@ -604,6 +619,7 @@ would stil be respected.
 							ReplicationFactorMin: rplMin,
 							ReplicationFactorMax: rplMax,
 							Name:                 c.String("name"),
+							Mode:                 api.PinModeFromString(c.String("mode")),
 							UserAllocations:      userAllocs,
 							ExpireAt:             expireAt,
 							Metadata:             parseMetadata(c.StringSlice("metadata")),
@@ -684,9 +700,18 @@ existing item from the cluster. Please run "pin rm" for that.
 `,
 					ArgsUsage: "<existing-CID> <new-CID|Path>",
 					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "name, n",
+							Value: "",
+							Usage: "Sets a name for this updated pin",
+						},
+						cli.StringFlag{
+							Name:  "expire-in",
+							Usage: "Duration after which the pin should be unpinned automatically after updating",
+						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
-							Usage: "Prevents fetching pin status after unpinning (faster, quieter)",
+							Usage: "Prevents fetching pin status after updating (faster, quieter)",
 						},
 						cli.BoolFlag{
 							Name:  "wait, w",
@@ -705,8 +730,17 @@ existing item from the cluster. Please run "pin rm" for that.
 						fromCid, err := cid.Decode(from)
 						checkErr("parsing from Cid", err)
 
+						var expireAt time.Time
+						if expireIn := c.String("expire-in"); expireIn != "" {
+							d, err := time.ParseDuration(expireIn)
+							checkErr("parsing expire-in", err)
+							expireAt = time.Now().Add(d)
+						}
+
 						opts := api.PinOptions{
 							PinUpdate: fromCid,
+							Name:      c.String("name"),
+							ExpireAt:  expireAt,
 						}
 
 						pin, cerr := globalClient.PinPath(ctx, to, opts)
@@ -735,10 +769,10 @@ the cluster. For IPFS-status information about the pins, use "status".
 
 The filter only takes effect when listing all pins. The possible values are:
   - all
-  - pin
-  - meta-pin
-  - clusterdag-pin
-  - shard-pin
+  - pin (normal pins, recursive or direct)
+  - meta-pin (sharded pins)
+  - clusterdag-pin (sharding-dag root pins)
+  - shard-pin (individual shard pins)
 `,
 					ArgsUsage: "[CID]",
 					Flags: []cli.Flag{
@@ -987,14 +1021,6 @@ deamon, otherwise on all IPFS daemons.
 	}
 
 	app.Run(os.Args)
-}
-
-func parseFlag(t int) cli.IntFlag {
-	return cli.IntFlag{
-		Name:   "parseAs",
-		Value:  t,
-		Hidden: true,
-	}
 }
 
 func localFlag() cli.BoolFlag {

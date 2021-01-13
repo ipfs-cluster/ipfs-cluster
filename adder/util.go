@@ -51,10 +51,12 @@ func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
 		rpcutil.RPCDiscardReplies(len(ba.dests)),
 	)
 
-	var sucessfulDests []peer.ID
+	var successfulDests []peer.ID
+	numErrs := 0
 	for i, e := range errs {
 		if e != nil {
 			logger.Errorf("BlockPut on %s: %s", ba.dests[i], e)
+			numErrs++
 		}
 
 		// RPCErrors include server errors (wrong RPC methods), client
@@ -64,14 +66,18 @@ func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
 		if rpc.IsRPCError(e) {
 			continue
 		}
-		sucessfulDests = append(sucessfulDests, ba.dests[i])
+		successfulDests = append(successfulDests, ba.dests[i])
 	}
 
-	if len(sucessfulDests) == 0 {
+	// If all requests resulted in errors, fail.
+	// Successful dests will have members when no errors happened
+	// or when an error happened but it was not an RPC error.
+	// As long as BlockPut worked in 1 destination, we move on.
+	if numErrs == len(ba.dests) || len(successfulDests) == 0 {
 		return ErrBlockAdder
 	}
 
-	ba.dests = sucessfulDests
+	ba.dests = successfulDests
 	return nil
 }
 
@@ -90,23 +96,13 @@ func (ba *BlockAdder) AddMany(ctx context.Context, nodes []ipld.Node) error {
 func ipldNodeToNodeWithMeta(n ipld.Node) *api.NodeWithMeta {
 	size, err := n.Size()
 	if err != nil {
-		logger.Warning(err)
-	}
-
-	format, ok := cid.CodecToStr[n.Cid().Type()]
-	if !ok {
-		format = ""
-		logger.Warning("unsupported cid type, treating as v0")
-	}
-	if n.Cid().Prefix().Version == 0 {
-		format = "v0"
+		logger.Warn(err)
 	}
 
 	return &api.NodeWithMeta{
 		Cid:     n.Cid(),
 		Data:    n.RawData(),
 		CumSize: size,
-		Format:  format,
 	}
 }
 

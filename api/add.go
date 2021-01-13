@@ -61,6 +61,7 @@ func DefaultAddParams() *AddParams {
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
 			Name:                 "",
+			Mode:                 PinModeRecursive,
 			ShardSize:            DefaultShardSize,
 			Metadata:             make(map[string]string),
 		},

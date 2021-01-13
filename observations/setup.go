@@ -7,7 +7,7 @@ import (
 	"net/http/pprof"
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	manet "github.com/multiformats/go-multiaddr-net"
+	manet "github.com/multiformats/go-multiaddr/net"
 
 	"contrib.go.opencensus.io/exporter/jaeger"
 	"contrib.go.opencensus.io/exporter/prometheus"

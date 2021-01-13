@@ -20,10 +20,6 @@ import (
 	"go.opencensus.io/trace"
 )
 
-// errBadRaftState is returned when the consensus component cannot start
-// because the cluster peers do not match the raft peers.
-var errBadRaftState = errors.New("cluster peers do not match raft peers")
-
 // ErrWaitingForSelf is returned when we are waiting for ourselves to depart
 // the peer set, which won't happen
 var errWaitingForSelf = errors.New("waiting for ourselves to depart")
@@ -78,7 +74,7 @@ func newRaftWrapper(
 	raftW.host = host
 	raftW.staging = staging
 	// Set correct LocalID
-	cfg.RaftConfig.LocalID = hraft.ServerID(peer.IDB58Encode(host.ID()))
+	cfg.RaftConfig.LocalID = hraft.ServerID(peer.Encode(host.ID()))
 
 	df := cfg.GetDataFolder()
 	err := makeDataFolder(df)
@@ -235,7 +231,7 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 
 	// Servers are peers + self. We avoid duplicate entries below
 	for _, pid := range peers {
-		p := peer.IDB58Encode(pid)
+		p := peer.Encode(pid)
 		_, ok := sm[p]
 		if !ok { // avoid dups
 			sm[p] = struct{}{}
@@ -277,7 +273,7 @@ func (rw *raftWrapper) WaitForVoter(ctx context.Context) error {
 
 	logger.Debug("waiting until we are promoted to a voter")
 
-	pid := hraft.ServerID(peer.IDB58Encode(rw.host.ID()))
+	pid := hraft.ServerID(peer.Encode(rw.host.ID()))
 	for {
 		select {
 		case <-ctx.Done():
@@ -388,34 +384,29 @@ func (rw *raftWrapper) Snapshot() error {
 func (rw *raftWrapper) snapshotOnShutdown() error {
 	var err error
 	for i := 0; i < maxShutdownSnapshotRetries; i++ {
-		done := false
 		ctx, cancel := context.WithTimeout(context.Background(), waitForUpdatesShutdownTimeout)
-		err := rw.WaitForUpdates(ctx)
+		err = rw.WaitForUpdates(ctx)
 		cancel()
 		if err != nil {
-			logger.Warning("timed out waiting for state updates before shutdown. Snapshotting may fail")
-			done = true // let's not wait for updates again
+			logger.Warn("timed out waiting for state updates before shutdown. Snapshotting may fail")
+			return rw.Snapshot()
 		}
 
 		err = rw.Snapshot()
-		if err != nil {
-			err = errors.New("could not snapshot raft: " + err.Error())
-		} else {
-			err = nil
-			done = true
+		if err == nil {
+			return nil // things worked
 		}
 
-		if done {
-			break
-		}
-		logger.Warningf("retrying to snapshot (%d/%d)...", i+1, maxShutdownSnapshotRetries)
+		// There was an error
+		err = errors.New("could not snapshot raft: " + err.Error())
+		logger.Warnf("retrying to snapshot (%d/%d)...", i+1, maxShutdownSnapshotRetries)
 	}
 	return err
 }
 
 // Shutdown shutdown Raft and closes the BoltDB.
 func (rw *raftWrapper) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "consensus/raft/Shutdown")
+	_, span := trace.StartSpan(ctx, "consensus/raft/Shutdown")
 	defer span.End()
 
 	errMsgs := ""
@@ -511,14 +502,14 @@ func (rw *raftWrapper) RemovePeer(ctx context.Context, peer string) error {
 // Leader returns Raft's leader. It may be an empty string if
 // there is no leader or it is unknown.
 func (rw *raftWrapper) Leader(ctx context.Context) string {
-	ctx, span := trace.StartSpan(ctx, "consensus/raft/Leader")
+	_, span := trace.StartSpan(ctx, "consensus/raft/Leader")
 	defer span.End()
 
 	return string(rw.raft.Leader())
 }
 
 func (rw *raftWrapper) Peers(ctx context.Context) ([]string, error) {
-	ctx, span := trace.StartSpan(ctx, "consensus/raft/Peers")
+	_, span := trace.StartSpan(ctx, "consensus/raft/Peers")
 	defer span.End()
 
 	ids := make([]string, 0)
@@ -594,8 +585,7 @@ func SnapshotSave(cfg *Config, newState state.State, pids []peer.ID) error {
 	}
 
 	// make a new raft snapshot
-	var raftSnapVersion hraft.SnapshotVersion
-	raftSnapVersion = 1 // As of hraft v1.0.0 this is always 1
+	var raftSnapVersion hraft.SnapshotVersion = 1 // As of hraft v1.0.0 this is always 1
 	configIndex := uint64(1)
 	var raftIndex uint64
 	var raftTerm uint64
@@ -654,9 +644,9 @@ func CleanupRaft(cfg *Config) error {
 	dbh := newDataBackupHelper(dataFolder, keep)
 	err = dbh.makeBackup()
 	if err != nil {
-		logger.Warning(err)
-		logger.Warning("the state could not be cleaned properly")
-		logger.Warning("manual intervention may be needed before starting cluster again")
+		logger.Warn(err)
+		logger.Warn("the state could not be cleaned properly")
+		logger.Warn("manual intervention may be needed before starting cluster again")
 	}
 	return nil
 }
@@ -692,7 +682,7 @@ func (rw *raftWrapper) observePeers() {
 		case obs := <-obsCh:
 			pObs := obs.Data.(hraft.PeerObservation)
 			logger.Info("raft peer departed. Removing from peerstore: ", pObs.Peer.ID)
-			pID, err := peer.IDB58Decode(string(pObs.Peer.ID))
+			pID, err := peer.Decode(string(pObs.Peer.ID))
 			if err != nil {
 				logger.Error(err)
 				continue

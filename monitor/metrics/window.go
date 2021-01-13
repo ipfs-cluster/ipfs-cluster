@@ -1,5 +1,5 @@
 // Package metrics provides common functionality for working with metrics,
-// particulary useful for monitoring components. It includes types to store,
+// particularly useful for monitoring components. It includes types to store,
 // check and filter metrics.
 package metrics
 
@@ -9,11 +9,8 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/ipfs/go-log"
 	"github.com/ipfs/ipfs-cluster/api"
 )
-
-var logger = logging.Logger("metricwin")
 
 // DefaultWindowCap sets the amount of metrics to store per peer.
 var DefaultWindowCap = 25

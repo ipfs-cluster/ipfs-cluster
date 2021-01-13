@@ -35,17 +35,17 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 		return nil, err
 	}
 
-	if opts.ReplicationFactorMin > 0 && (allocs == nil || len(allocs) == 0) {
+	if opts.ReplicationFactorMin > 0 && len(allocs) == 0 {
 		// This would mean that the empty cid is part of the shared state somehow.
 		panic("allocations for new shard cannot be empty without error")
 	}
 
 	if opts.ReplicationFactorMin < 0 {
-		logger.Warning("Shard is set to replicate everywhere ,which doesn't make sense for sharding")
+		logger.Warn("Shard is set to replicate everywhere ,which doesn't make sense for sharding")
 	}
 
 	// TODO (hector): get latest metrics for allocations, adjust sizeLimit
-	// to minumum. This can be done later.
+	// to minimum. This can be done later.
 
 	return &shard{
 		rpc:         rpc,

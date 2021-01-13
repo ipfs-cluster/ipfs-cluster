@@ -64,14 +64,14 @@ test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipfs path
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "UNPINNED"
 '
 
-test_expect_success IPFS,CLUSTER "pin data to cluster with ctl using ipns paths" '
+test_expect_failure IPFS,CLUSTER "pin data to cluster with ctl using ipns paths" '
     name=`docker exec ipfs sh -c "ipfs name publish -Q ${cid[0]}"`
     ipfs-cluster-ctl pin add --wait --wait-timeout 2s "/ipns/$name" &&
     ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}" &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "PINNED"
 '
 
-test_expect_success IPFS,CLUSTER "unpin data to cluster with ctl using ipns paths" '
+test_expect_failure IPFS,CLUSTER "unpin data to cluster with ctl using ipns paths" '
     removed=(`ipfs-cluster-ctl pin rm --wait --wait-timeout 2s "/ipns/$name"`) &&
     echo "${removed[0]}" | grep -q "${cid[0]}" &&
     !(ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}") &&
@@ -104,6 +104,18 @@ test_expect_success IPFS,CLUSTER "pin with metadata" '
    ipfs-cluster-ctl pin ls "$cid3" | grep -q "Metadata: yes" &&
    ipfs-cluster-ctl --enc=json pin ls "$cid3" | jq .metadata | grep -q "\"kind\": \"text\"" &&
    ipfs-cluster-ctl pin ls "$cid4" | grep -q "Metadata: no"
+'
+
+test_expect_success IPFS,CLUSTER "pin in direct mode" '
+   echo "direct" > expected_mode &&
+   cid=`docker exec ipfs sh -c "echo test-pin-direct | ipfs add -q -pin=false"` &&
+   echo "$cid direct" > expected_pin_ls &&
+   ipfs-cluster-ctl pin add --mode direct "$cid" &&
+   ipfs-cluster-ctl pin ls "$cid" | grep -q "PIN-DIRECT" &&
+   docker exec ipfs sh -c "ipfs pin ls --type direct $cid" > actual_pin_ls &&
+   ipfs-cluster-ctl --enc=json pin ls "$cid" | jq -r .mode > actual_mode &&
+   test_cmp expected_mode actual_mode &&
+   test_cmp expected_pin_ls actual_pin_ls
 '
 
 test_clean_ipfs

@@ -1,15 +1,17 @@
 # go source files
-SRC := $(shell find .. -type f -name '*.go')
+SRC := $(shell find ../.. -type f -name '*.go')
+GOPATH := $(shell go env GOPATH)
+GOFLAGS := "-trimpath"
 
 all: ipfs-cluster-ctl
 
 ipfs-cluster-ctl: $(SRC)
-	go build -mod=readonly
+	go build $(GOFLAGS) -mod=readonly
 
 build: ipfs-cluster-ctl
 
 install:
-	go install
+	go install $(GOFLAGS)
 
 clean:
 	rm -f ipfs-cluster-ctl

@@ -15,7 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	"go.opencensus.io/trace"
@@ -142,21 +142,25 @@ func (opt *OperationTracker) SetError(ctx context.Context, c cid.Cid, err error)
 func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) api.PinInfo {
 	if op == nil {
 		return api.PinInfo{
-			Cid:      cid.Undef,
-			Peer:     opt.pid,
-			PeerName: opt.peerName,
-			Status:   api.TrackerStatusUnpinned,
-			TS:       time.Now(),
-			Error:    "",
+			Cid:  cid.Undef,
+			Peer: opt.pid,
+			PinInfoShort: api.PinInfoShort{
+				PeerName: opt.peerName,
+				Status:   api.TrackerStatusUnpinned,
+				TS:       time.Now(),
+				Error:    "",
+			},
 		}
 	}
 	return api.PinInfo{
-		Cid:      op.Cid(),
-		Peer:     opt.pid,
-		PeerName: opt.peerName,
-		Status:   op.ToTrackerStatus(),
-		TS:       op.Timestamp(),
-		Error:    op.Error(),
+		Cid:  op.Cid(),
+		Peer: opt.pid,
+		PinInfoShort: api.PinInfoShort{
+			PeerName: opt.peerName,
+			Status:   op.ToTrackerStatus(),
+			TS:       op.Timestamp(),
+			Error:    op.Error(),
+		},
 	}
 }
 

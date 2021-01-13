@@ -22,6 +22,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	cli "github.com/urfave/cli/v2"
 )
@@ -118,9 +119,12 @@ func infoCmd(c *cli.Context) error {
 	if err != nil {
 		if config.IsErrFetchingSource(err) {
 			url = fmt.Sprintf(
-				"failed retrieving configuration source: %s",
+				"failed retrieving configuration source (%s)",
 				cfgHelper.Manager().Source,
 			)
+			ipfsCfg := ipfshttp.Config{}
+			ipfsCfg.Default()
+			cfgHelper.Configs().Ipfshttp = &ipfsCfg
 		} else {
 			return cli.Exit(errors.Wrapf(err, "reading the configurations in %s", absPath), 1)
 		}
@@ -277,15 +281,28 @@ func runCmd(c *cli.Context) error {
 	cfgHelper.Manager().Shutdown()
 	cfgs := cfgHelper.Configs()
 
+	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgs)
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "creating state manager"), 1)
+	}
+
+	store, err := stmgr.GetStore()
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "creating datastore"), 1)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster)
+	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error creating libp2p components"), 1)
 	}
 
 	// Always run followers in follower mode.
 	cfgs.Cluster.FollowerMode = true
+	// Do not let trusted peers GC this peer
+	// Defaults to Trusted otherwise.
+	cfgs.Cluster.RPCPolicy["Cluster.RepoGCLocal"] = ipfscluster.RPCClosed
 
 	// Discard API configurations and create our own
 	apiCfg := rest.Config{}
@@ -295,11 +312,11 @@ func runCmd(c *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
-	apiCfg.HTTPListenAddr = listenSocket
+	apiCfg.HTTPListenAddr = []multiaddr.Multiaddr{listenSocket}
 	// Allow customization via env vars
 	err = apiCfg.ApplyEnvVars()
 	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error applying enviromental variables to restapi configuration"), 1)
+		return cli.Exit(errors.Wrap(err, "error applying environmental variables to restapi configuration"), 1)
 	}
 
 	rest, err := rest.NewAPI(ctx, &apiCfg)
@@ -317,16 +334,6 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
 	}
 	alloc := descendalloc.NewAllocator()
-
-	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgs)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "creating state manager"), 1)
-	}
-
-	store, err := stmgr.GetStore()
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "creating datastore"), 1)
-	}
 
 	crdtcons, err := crdt.New(
 		host,
@@ -392,7 +399,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "error creating cluster peer"), 1)
 	}
 
-	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht)
+	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht, store)
 }
 
 // List
@@ -400,17 +407,7 @@ func listCmd(c *cli.Context) error {
 	clusterName := c.String("clusterName")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
-	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
-	if err != nil {
-		fmt.Println("error loading configurations.")
-		if config.IsErrFetchingSource(err) {
-			fmt.Println("Make sure the source URL is reachable:")
-		}
-		return cli.Exit(err, 1)
-	}
-	cfgHelper.Manager().Shutdown()
-
-	err = printStatusOnline(absPath, clusterName)
+	err := printStatusOnline(absPath, clusterName)
 	if err != nil {
 		apiErr, ok := err.(*api.Error)
 		if ok && apiErr.Code != 0 {
@@ -421,6 +418,15 @@ func listCmd(c *cli.Context) error {
 					apiErr.Code,
 				), 1)
 		}
+
+		// Generate a default config just for the purpose of having
+		// a badger configuration that the state manager can use to
+		// open and read the database.
+		cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt")
+		cfgHelper.Manager().Shutdown() // not needed
+		cfgHelper.Manager().Default()  // we have a default crdt/Badger config
+		cfgHelper.Configs().Badger.SetBaseDir(absPath)
+		cfgHelper.Manager().ApplyEnvVars()
 
 		err := printStatusOffline(cfgHelper)
 		if err != nil {
@@ -440,8 +446,8 @@ func printStatusOnline(absPath, clusterName string) error {
 	if err != nil {
 		return err
 	}
-	// do not return errors after this.
 
+	// do not return errors after this.
 	var pid string
 	for _, gpi := range gpis {
 		if pid == "" { // do this once
@@ -452,29 +458,12 @@ func printStatusOnline(absPath, clusterName string) error {
 			}
 		}
 		pinInfo := gpi.PeerMap[pid]
-
-		// Get pin name
-		var name string
-		pin, err := client.Allocation(ctx, gpi.Cid)
-		if err != nil {
-			name = "(" + err.Error() + ")"
-		} else {
-			name = pin.Name
-		}
-
-		printPin(gpi.Cid, pinInfo.Status.String(), name, pinInfo.Error)
+		printPin(gpi.Cid, pinInfo.Status.String(), gpi.Name, pinInfo.Error)
 	}
 	return nil
 }
 
 func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
-	// The blockstore module loaded from ipfs-lite tends to print
-	// an error when the datastore is closed before the bloom
-	// filter cached has finished building. Could not find a way
-	// to avoid it other than disabling bloom chaching on offline
-	// ipfs-lite peers which is overkill. So we just hide it.
-	ipfscluster.SetFacilityLogLevel("blockstore", "critical")
-
 	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
 	if err != nil {
 		return err

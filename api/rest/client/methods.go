@@ -52,7 +52,7 @@ func (c *defaultClient) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, erro
 	ctx, span := trace.StartSpan(ctx, "client/PeerAdd")
 	defer span.End()
 
-	pidStr := peer.IDB58Encode(pid)
+	pidStr := peer.Encode(pid)
 	body := peerAddBody{pidStr}
 
 	var buf bytes.Buffer
@@ -350,7 +350,7 @@ func (c *defaultClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepo
 }
 
 // WaitFor is a utility function that allows for a caller to wait for a
-// paticular status for a CID (as defined by StatusFilterParams).
+// particular status for a CID (as defined by StatusFilterParams).
 // It returns the final status for that CID and an error, if there was.
 //
 // WaitFor works by calling Status() repeatedly and checking that all
@@ -528,7 +528,7 @@ func (c *defaultClient) Add(
 	ctx, span := trace.StartSpan(ctx, "client/Add")
 	defer span.End()
 
-	addFiles := make([]files.DirEntry, len(paths), len(paths))
+	addFiles := make([]files.DirEntry, len(paths))
 	for i, p := range paths {
 		u, err := url.Parse(p)
 		if err != nil {

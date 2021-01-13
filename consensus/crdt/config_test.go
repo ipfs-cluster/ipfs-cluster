@@ -39,6 +39,10 @@ func TestLoadJSON(t *testing.T) {
     "cluster_name": "test",
     "trusted_peers": []
 }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if cfg.TrustAll {
 		t.Error("TrustAll is only enabled with '*'")
 	}

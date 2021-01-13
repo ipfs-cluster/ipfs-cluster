@@ -8,7 +8,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
 	"go.opencensus.io/trace"
@@ -59,7 +59,7 @@ func (disk *Informer) SetClient(c *rpc.Client) {
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
 func (disk *Informer) Shutdown(ctx context.Context) error {
-	ctx, span := trace.StartSpan(ctx, "informer/disk/Shutdown")
+	_, span := trace.StartSpan(ctx, "informer/disk/Shutdown")
 	defer span.End()
 
 	disk.rpcClient = nil
@@ -98,7 +98,13 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	} else {
 		switch disk.config.MetricType {
 		case MetricFreeSpace:
-			metric = repoStat.StorageMax - repoStat.RepoSize
+			size := repoStat.RepoSize
+			total := repoStat.StorageMax
+			if size < total {
+				metric = total - size
+			} else { // Make sure we don't underflow
+				metric = 0
+			}
 		case MetricRepoSize:
 			metric = repoStat.RepoSize
 		}

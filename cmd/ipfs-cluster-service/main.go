@@ -20,7 +20,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	cli "github.com/urfave/cli"
 )
 
@@ -328,12 +328,11 @@ the peer IDs in the given multiaddresses.
 				// Generate defaults for all registered components
 				err := cfgHelper.Manager().Default()
 				checkErr("generating default configuration", err)
+
 				if c.Bool("randomports") {
 					cfgs := cfgHelper.Configs()
 
-					for i := range cfgs.Cluster.ListenAddr {
-						cfgs.Cluster.ListenAddr[i], err = cmdutils.RandomizePorts(cfgs.Cluster.ListenAddr[i])
-					}
+					cfgs.Cluster.ListenAddr, err = cmdutils.RandomizePorts(cfgs.Cluster.ListenAddr)
 					checkErr("randomizing ports", err)
 					cfgs.Restapi.HTTPListenAddr, err = cmdutils.RandomizePorts(cfgs.Restapi.HTTPListenAddr)
 					checkErr("randomizing ports", err)
