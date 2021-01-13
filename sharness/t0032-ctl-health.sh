@@ -26,7 +26,7 @@ test_expect_success IPFS,CLUSTER "list latest metrics logged by this peer" '
 '
 
 test_expect_success IPFS,CLUSTER "alerts must succeed" '
-    ipfs-cluster-ctl alerts
+    ipfs-cluster-ctl health alerts
 '
 
 test_clean_ipfs
