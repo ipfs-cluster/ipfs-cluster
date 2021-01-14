@@ -22,7 +22,7 @@ if [[ "$version" == *"-next" ]]; then
     exit 0
 fi
 
-# RC versions, commit and make a non-annotated tag.
+# RC versions, commit and make a tag without history.
 if [[ "$version" == *"-rc"* ]]; then
     git commit -S -m "Release candidate v${version}"
     git tag -s "v${version}"
@@ -32,7 +32,7 @@ fi
 # Actual releases, commit and make an annotated tag with all the commits
 # since the last.
 git commit -S -m "Release v${version}"
-lastver=`git describe --abbrev=0`
+lastver=`git describe --abbrev=0 --exclude '*rc*'`
 echo "Tag for Release ${version}" > tag_annotation
 echo >> tag_annotation
 git log --pretty=oneline ${lastver}..HEAD >> tag_annotation
