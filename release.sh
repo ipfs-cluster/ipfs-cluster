@@ -32,7 +32,7 @@ fi
 # Actual releases, commit and make an annotated tag with all the commits
 # since the last.
 git commit -S -m "Release v${version}"
-lastver=`git describe --abrev=0`
+lastver=`git describe --abbrev=0`
 echo "Tag for Release ${version}" > tag_annotation
 echo >> tag_annotation
 git log --pretty=oneline ${lastver}..HEAD >> tag_annotation
