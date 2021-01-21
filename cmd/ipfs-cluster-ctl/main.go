@@ -499,12 +499,6 @@ content.
 					if lastBuf == nil || lastBuf.AddedOutput == nil {
 						return // no elements at all
 					}
-
-					if c.Bool("wait") {
-						var _, cerr = waitFor(lastBuf.AddedOutput.Cid, api.TrackerStatusPinned, c.Duration("wait-timeout"))
-						checkErr("waiting for pin status", cerr)
-					}
-
 					if bufferResults { // we buffered.
 						if qq { // [last elem]
 							formatResponse(c, []*addedOutputQuiet{lastBuf}, nil)
@@ -515,6 +509,10 @@ content.
 					} else if qq { // we already printed unless Quieter
 						formatResponse(c, lastBuf, nil)
 						return
+					}
+					if c.Bool("wait") {
+						var _, cerr = waitFor(lastBuf.AddedOutput.Cid, api.TrackerStatusPinned, c.Duration("wait-timeout"))
+						checkErr("waiting for pin status", cerr)
 					}
 				}()
 
