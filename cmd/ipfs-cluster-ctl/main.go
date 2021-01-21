@@ -385,6 +385,15 @@ content.
 					Name:  "nocopy",
 					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
 				},
+				cli.BoolFlag{
+					Name:  "wait",
+					Usage: "Wait for all nodes to report a status of pinned before returning",
+				},
+				cli.DurationFlag{
+					Name:  "wait-timeout, wt",
+					Value: 0,
+					Usage: "How long to --wait (in seconds), default is indefinitely",
+				},
 				// TODO: Uncomment when sharding is supported.
 				// cli.BoolFlag{
 				//	Name:  "shard",
@@ -490,6 +499,12 @@ content.
 					if lastBuf == nil || lastBuf.AddedOutput == nil {
 						return // no elements at all
 					}
+
+					if c.Bool("wait") {
+						var _, cerr = waitFor(lastBuf.AddedOutput.Cid, api.TrackerStatusPinned, c.Duration("wait-timeout"))
+						checkErr("waiting for pin status", cerr)
+					}
+
 					if bufferResults { // we buffered.
 						if qq { // [last elem]
 							formatResponse(c, []*addedOutputQuiet{lastBuf}, nil)
