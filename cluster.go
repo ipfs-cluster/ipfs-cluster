@@ -141,10 +141,11 @@ func NewCluster(
 	if cfg.MDNSInterval > 0 {
 		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
 		if err != nil {
-			cancel()
-			return nil, err
+			logger.Warn(err, ", MDNS service will be disabled")
 		}
-		mdns.RegisterNotifee(peerManager)
+		if mdns != nil {
+			mdns.RegisterNotifee(peerManager)
+		}
 	}
 
 	c := &Cluster{
