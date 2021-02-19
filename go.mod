@@ -26,7 +26,7 @@ require (
 	github.com/ipfs/go-ipfs-config v0.12.0
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
 	github.com/ipfs/go-ipfs-files v0.0.8
-	github.com/ipfs/go-ipfs-pinner v0.0.4
+	github.com/ipfs/go-ipfs-pinner v0.1.1
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-ipld-format v0.2.0
