@@ -414,6 +414,28 @@ func TestRecoverAll(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func TestAlerts(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		alerts, err := c.Alerts(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(alerts) != 1 {
+			t.Fatal("expected 1 alert")
+		}
+		pID2 := peer.Encode(test.PeerID2)
+		if alerts[0].Peer != test.PeerID2 {
+			t.Errorf("expected an alert from %s", pID2)
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
 func TestGetConnectGraph(t *testing.T) {
 	ctx := context.Background()
 	api := testAPI(t)

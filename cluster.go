@@ -42,6 +42,7 @@ const (
 	bootstrapCount      = 3
 	reBootstrapInterval = 30 * time.Second
 	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
+	maxAlerts           = 1000
 )
 
 var (
@@ -73,6 +74,9 @@ type Cluster struct {
 	allocator PinAllocator
 	informers []Informer
 	tracer    Tracer
+
+	alerts    []api.Alert
+	alertsMux sync.Mutex
 
 	doneCh  chan struct{}
 	readyCh chan struct{}
@@ -137,10 +141,10 @@ func NewCluster(
 	if cfg.MDNSInterval > 0 {
 		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
 		if err != nil {
-			cancel()
-			return nil, err
+			logger.Warnf("mDNS could not be started: %s", err)
+		} else {
+			mdns.RegisterNotifee(peerManager)
 		}
-		mdns.RegisterNotifee(peerManager)
 	}
 
 	c := &Cluster{
@@ -160,6 +164,7 @@ func NewCluster(
 		allocator:   allocator,
 		informers:   informers,
 		tracer:      tracer,
+		alerts:      []api.Alert{},
 		peerManager: peerManager,
 		shutdownB:   false,
 		removed:     false,
@@ -384,6 +389,23 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 	}
 }
 
+// Alerts returns the last alerts recorded by this cluster peer with the most
+// recent first.
+func (c *Cluster) Alerts() []api.Alert {
+	alerts := make([]api.Alert, len(c.alerts))
+
+	c.alertsMux.Lock()
+	{
+		total := len(alerts)
+		for i, a := range c.alerts {
+			alerts[total-1-i] = a
+		}
+	}
+	c.alertsMux.Unlock()
+
+	return alerts
+}
+
 // read the alerts channel from the monitor and triggers repins
 func (c *Cluster) alertsHandler() {
 	for {
@@ -397,8 +419,18 @@ func (c *Cluster) alertsHandler() {
 				continue
 			}
 
-			logger.Warnf("metric alert for %s: Peer: %s.", alrt.MetricName, alrt.Peer)
-			if alrt.MetricName != pingMetricName {
+			logger.Warnf("metric alert for %s: Peer: %s.", alrt.Name, alrt.Peer)
+			c.alertsMux.Lock()
+			{
+				if len(c.alerts) > maxAlerts {
+					c.alerts = c.alerts[:0]
+				}
+
+				c.alerts = append(c.alerts, *alrt)
+			}
+			c.alertsMux.Unlock()
+
+			if alrt.Name != pingMetricName {
 				continue // only handle ping alerts
 			}
 

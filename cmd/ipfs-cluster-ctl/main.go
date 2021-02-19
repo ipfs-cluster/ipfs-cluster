@@ -28,7 +28,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.13.0-next"
+const Version = "0.13.1-next"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -385,6 +385,15 @@ content.
 					Name:  "nocopy",
 					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
 				},
+				cli.BoolFlag{
+					Name:  "wait",
+					Usage: "Wait for all nodes to report a status of pinned before returning",
+				},
+				cli.DurationFlag{
+					Name:  "wait-timeout, wt",
+					Value: 0,
+					Usage: "How long to --wait (in seconds), default is indefinitely",
+				},
 				// TODO: Uncomment when sharding is supported.
 				// cli.BoolFlag{
 				//	Name:  "shard",
@@ -493,13 +502,15 @@ content.
 					if bufferResults { // we buffered.
 						if qq { // [last elem]
 							formatResponse(c, []*addedOutputQuiet{lastBuf}, nil)
-							return
+						} else { // [all elems]
+							formatResponse(c, buffered, nil)
 						}
-						// [all elems]
-						formatResponse(c, buffered, nil)
 					} else if qq { // we already printed unless Quieter
 						formatResponse(c, lastBuf, nil)
-						return
+					}
+					if c.Bool("wait") {
+						var _, cerr = waitFor(lastBuf.AddedOutput.Cid, api.TrackerStatusPinned, c.Duration("wait-timeout"))
+						checkErr("waiting for pin status", cerr)
 					}
 				}()
 
@@ -966,6 +977,24 @@ but usually are:
 						}
 
 						resp, cerr := globalClient.Metrics(ctx, metric)
+						formatResponse(c, resp, cerr)
+						return nil
+					},
+				},
+				{
+					Name:  "alerts",
+					Usage: "List the latest expired metric alerts",
+					Description: `
+This command provides a list of "alerts" that the cluster has seen.
+
+An alert is triggered when one of the metrics seen for a peer expires, and no
+new metrics have been received.
+
+Different alerts may be handled in different ways. i.e. ping alerts may
+trigger automatic repinnings if configured.
+`,
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.Alerts(ctx)
 						formatResponse(c, resp, cerr)
 						return nil
 					},

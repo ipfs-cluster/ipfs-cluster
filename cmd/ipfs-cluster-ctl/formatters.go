@@ -66,6 +66,8 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintError(r)
 	case *api.Metric:
 		textFormatPrintMetric(r)
+	case *api.Alert:
+		textFormatPrintAlert(r)
 	case []*api.ID:
 		for _, item := range r {
 			textFormatObject(item)
@@ -93,6 +95,10 @@ func textFormatObject(resp interface{}) {
 	case *api.GlobalRepoGC:
 		textFormatPrintGlobalRepoGC(r)
 	case []string:
+		for _, item := range r {
+			textFormatObject(item)
+		}
+	case []*api.Alert:
 		for _, item := range r {
 			textFormatObject(item)
 		}
@@ -238,6 +244,15 @@ func textFormatPrintMetric(obj *api.Metric) {
 	}
 
 	fmt.Printf("%s | %s | Expires in: %s\n", peer.Encode(obj.Peer), obj.Name, humanize.Time(time.Unix(0, obj.Expire)))
+}
+
+func textFormatPrintAlert(obj *api.Alert) {
+	fmt.Printf("%s: %s. Expired at: %s. Triggered at: %s\n",
+		obj.Peer,
+		obj.Name,
+		humanize.Time(time.Unix(0, obj.Expire)),
+		humanize.Time(obj.TriggeredAt),
+	)
 }
 
 func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {

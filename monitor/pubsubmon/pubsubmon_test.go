@@ -303,7 +303,7 @@ func TestPeerMonitorAlerts(t *testing.T) {
 		case <-timeout.C:
 			t.Fatal("should have thrown an alert by now")
 		case alrt := <-pm.Alerts():
-			if alrt.MetricName != "test" {
+			if alrt.Name != "test" {
 				t.Error("Alert should be for test")
 			}
 			if alrt.Peer != test.PeerID1 {

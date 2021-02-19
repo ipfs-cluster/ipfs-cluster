@@ -15,7 +15,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	msgpack "github.com/multiformats/go-multicodec/msgpack"
+	gocodec "github.com/ugorji/go/codec"
 
 	"go.opencensus.io/trace"
 )
@@ -25,7 +25,7 @@ var logger = logging.Logger("monitor")
 // PubsubTopic specifies the topic used to publish Cluster metrics.
 var PubsubTopic = "monitor.metrics"
 
-var msgpackHandle = msgpack.DefaultMsgpackHandle()
+var msgpackHandle = &gocodec.MsgpackHandle{}
 
 // Monitor is a component in charge of monitoring peers, logging
 // metrics and detecting failures
@@ -129,7 +129,7 @@ func (mon *Monitor) logFromPubsub() {
 
 			data := msg.GetData()
 			buf := bytes.NewBuffer(data)
-			dec := msgpack.Multicodec(msgpackHandle).Decoder(buf)
+			dec := gocodec.NewDecoder(buf, msgpackHandle)
 			metric := api.Metric{}
 			err = dec.Decode(&metric)
 			if err != nil {
@@ -203,7 +203,7 @@ func (mon *Monitor) PublishMetric(ctx context.Context, m *api.Metric) error {
 
 	var b bytes.Buffer
 
-	enc := msgpack.Multicodec(msgpackHandle).Encoder(&b)
+	enc := gocodec.NewEncoder(&b, msgpackHandle)
 	err := enc.Encode(m)
 	if err != nil {
 		logger.Error(err)

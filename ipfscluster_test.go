@@ -401,17 +401,20 @@ func createClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock) {
 }
 
 func shutdownClusters(t *testing.T, clusters []*Cluster, m []*test.IpfsMock) {
-	ctx := context.Background()
 	for i, c := range clusters {
-		err := c.Shutdown(ctx)
-		if err != nil {
-			t.Error(err)
-		}
-		c.dht.Close()
-		c.host.Close()
-		m[i].Close()
+		shutdownCluster(t, c, m[i])
 	}
 	os.RemoveAll(testsFolder)
+}
+
+func shutdownCluster(t *testing.T, c *Cluster, m *test.IpfsMock) {
+	err := c.Shutdown(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	c.dht.Close()
+	c.host.Close()
+	m.Close()
 }
 
 func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
@@ -2123,5 +2126,28 @@ func TestClusterPinsWithExpiration(t *testing.T) {
 	}
 	if len(pins) != 0 {
 		t.Error("pin should not be part of the state")
+	}
+}
+
+func TestClusterAlerts(t *testing.T) {
+	ctx := context.Background()
+	clusters, mock := createClusters(t)
+	defer shutdownClusters(t, clusters, mock)
+
+	if len(clusters) < 2 {
+		t.Skip("need at least 2 nodes for this test")
+	}
+
+	ttlDelay()
+
+	for _, c := range clusters[1:] {
+		c.Shutdown(ctx)
+	}
+
+	ttlDelay()
+
+	alerts := clusters[0].Alerts()
+	if len(alerts) == 0 {
+		t.Error("expected at least one alert")
 	}
 }

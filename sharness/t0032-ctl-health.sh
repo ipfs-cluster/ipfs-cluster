@@ -25,6 +25,10 @@ test_expect_success IPFS,CLUSTER "list latest metrics logged by this peer" '
     ipfs-cluster-ctl health metrics freespace | grep -q -E "(^$pid \| freespace: [0-9]+ (G|M|K)B \| Expires in: [0-9]+ seconds from now)"
 '
 
+test_expect_success IPFS,CLUSTER "alerts must succeed" '
+    ipfs-cluster-ctl health alerts
+'
+
 test_clean_ipfs
 test_clean_cluster
 

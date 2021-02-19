@@ -99,6 +99,13 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 		mc.failedPeers[pid] = make(map[string]int)
 	}
 	failedMetrics := mc.failedPeers[pid]
+	lastMetric := mc.metrics.PeerLatest(metricName, pid)
+	if lastMetric == nil {
+		lastMetric = &api.Metric{
+			Name: metricName,
+			Peer: pid,
+		}
+	}
 
 	// If above threshold, remove all metrics for that peer
 	// and clean up failedPeers when no failed metrics are left.
@@ -114,8 +121,8 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	failedMetrics[metricName]++
 
 	alrt := &api.Alert{
-		Peer:       pid,
-		MetricName: metricName,
+		Metric:      *lastMetric,
+		TriggeredAt: time.Now(),
 	}
 	select {
 	case mc.alertCh <- alrt:
