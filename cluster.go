@@ -145,7 +145,6 @@ func NewCluster(
 		} else {
 			mdns.RegisterNotifee(peerManager)
 		}
-		}
 	}
 
 	c := &Cluster{
