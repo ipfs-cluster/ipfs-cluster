@@ -54,7 +54,6 @@ require (
 	github.com/libp2p/go-libp2p-quic-transport v0.10.0
 	github.com/libp2p/go-libp2p-raft v0.1.7
 	github.com/libp2p/go-libp2p-record v0.1.3
-	github.com/libp2p/go-libp2p-secio v0.2.2
 	github.com/libp2p/go-libp2p-tls v0.1.3
 	github.com/libp2p/go-ws-transport v0.4.0
 	github.com/multiformats/go-multiaddr v0.3.1
