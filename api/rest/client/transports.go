@@ -12,7 +12,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	p2phttp "github.com/libp2p/go-libp2p-http"
-	secio "github.com/libp2p/go-libp2p-secio"
+	noise "github.com/libp2p/go-libp2p-noise"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
@@ -59,8 +59,8 @@ func (c *defaultClient) enableLibp2p() error {
 
 	h, err := libp2p.New(c.ctx,
 		libp2p.PrivateNetwork(c.config.ProtectorKey),
+		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-		libp2p.Security(secio.ID, secio.New),
 		// TODO: quic does not support private networks
 		//libp2p.Transport(libp2pquic.NewTransport),
 		libp2p.DefaultTransports,
