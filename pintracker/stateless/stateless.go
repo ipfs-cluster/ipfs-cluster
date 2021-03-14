@@ -283,7 +283,7 @@ func (spt *Tracker) StatusAll(ctx context.Context) []*api.PinInfo {
 	// get all inflight operations from optracker and put them into the
 	// map, deduplicating any existing items with their inflight operation.
 	for _, infop := range spt.optracker.GetAll(ctx) {
-		pininfos[infop.Cid.String()] = infop
+		pininfos[infop.Cid] = infop
 	}
 
 	var pis []*api.PinInfo
@@ -426,7 +426,7 @@ func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*a
 	return spt.Status(ctx, pi.Cid), nil
 }
 
-func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo, error) {
+func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
 	defer span.End()
 
@@ -443,7 +443,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 		logger.Error(err)
 		return nil, err
 	}
-	pins := make(map[string]*api.PinInfo, len(ipsMap))
+	pins := make(map[cid.Cid]*api.PinInfo, len(ipsMap))
 	for cidstr, ips := range ipsMap {
 		c, err := cid.Decode(cidstr)
 		if err != nil {
@@ -460,7 +460,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 				TS:       time.Now(),
 			},
 		}
-		pins[cidstr] = p
+		pins[c] = p
 	}
 	return pins, nil
 }
@@ -469,7 +469,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[string]*api.PinInfo,
 // marking pins which should be meta or remote and leaving any ipfs pins that
 // aren't in the consensusState out. If incExtra is true, Remote and Sharded
 // pins will be added to the status slice.
-func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]*api.PinInfo, error) {
+func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[cid.Cid]*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/localStatus")
 	defer span.End()
 
@@ -493,10 +493,9 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		return nil, err
 	}
 
-	pininfos := make(map[string]*api.PinInfo, len(statePins))
+	pininfos := make(map[cid.Cid]*api.PinInfo, len(statePins))
 	for _, p := range statePins {
-		pCid := p.Cid.String()
-		ipfsInfo, pinnedInIpfs := localpis[pCid]
+		ipfsInfo, pinnedInIpfs := localpis[p.Cid]
 		// base pinInfo object - status to be filled.
 		pinInfo := api.PinInfo{
 			Cid:  p.Cid,
@@ -512,16 +511,16 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 		case p.Type == api.MetaType:
 			pinInfo.Status = api.TrackerStatusSharded
 			if incExtra {
-				pininfos[pCid] = &pinInfo
+				pininfos[p.Cid] = &pinInfo
 			}
 		case p.IsRemotePin(spt.peerID):
 			pinInfo.Status = api.TrackerStatusRemote
 			if incExtra {
-				pininfos[pCid] = &pinInfo
+				pininfos[p.Cid] = &pinInfo
 			}
 		case pinnedInIpfs:
 			ipfsInfo.Name = p.Name
-			pininfos[pCid] = ipfsInfo
+			pininfos[p.Cid] = ipfsInfo
 		default:
 			// report as PIN_ERROR for this peer.  this will be
 			// overwritten if the operation tracker has more info
@@ -530,7 +529,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool) (map[string]
 			// known by IPFS. Should be handled to "recover".
 			pinInfo.Status = api.TrackerStatusPinError
 			pinInfo.Error = errUnexpectedlyUnpinned.Error()
-			pininfos[pCid] = &pinInfo
+			pininfos[p.Cid] = &pinInfo
 		}
 	}
 	return pininfos, nil
