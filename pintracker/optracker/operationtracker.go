@@ -30,7 +30,7 @@ type OperationTracker struct {
 	peerName string
 
 	mu         sync.RWMutex
-	operations map[string]*Operation
+	operations map[cid.Cid]*Operation
 }
 
 func (opt *OperationTracker) String() string {
@@ -57,7 +57,7 @@ func NewOperationTracker(ctx context.Context, pid peer.ID, peerName string) *Ope
 		ctx:        ctx,
 		pid:        pid,
 		peerName:   peerName,
-		operations: make(map[string]*Operation),
+		operations: make(map[cid.Cid]*Operation),
 	}
 }
 
@@ -71,12 +71,10 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin *api.Pin
 	ctx, span := trace.StartSpan(ctx, "optracker/TrackNewOperation")
 	defer span.End()
 
-	cidStr := pin.Cid.String()
-
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
 
-	op, ok := opt.operations[cidStr]
+	op, ok := opt.operations[pin.Cid]
 	if ok { // operation exists
 		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
 			return nil // an ongoing operation of the same sign exists
@@ -85,21 +83,19 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin *api.Pin
 	}
 
 	op2 := NewOperation(ctx, pin, typ, ph)
-	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, cidStr, ph)
-	opt.operations[cidStr] = op2
+	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
+	opt.operations[pin.Cid] = op2
 	return op2
 }
 
 // Clean deletes an operation from the tracker if it is the one we are tracking
 // (compares pointers).
 func (opt *OperationTracker) Clean(ctx context.Context, op *Operation) {
-	cidStr := op.Cid().String()
-
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
-	op2, ok := opt.operations[cidStr]
+	op2, ok := opt.operations[op.Cid()]
 	if ok && op == op2 { // same pointer
-		delete(opt.operations, cidStr)
+		delete(opt.operations, op.Cid())
 	}
 }
 
@@ -109,7 +105,7 @@ func (opt *OperationTracker) Clean(ctx context.Context, op *Operation) {
 func (opt *OperationTracker) Status(ctx context.Context, c cid.Cid) (api.TrackerStatus, bool) {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
-	op, ok := opt.operations[c.String()]
+	op, ok := opt.operations[c]
 	if !ok {
 		return 0, false
 	}
@@ -124,7 +120,7 @@ func (opt *OperationTracker) Status(ctx context.Context, c cid.Cid) (api.Tracker
 func (opt *OperationTracker) SetError(ctx context.Context, c cid.Cid, err error) {
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
-	op, ok := opt.operations[c.String()]
+	op, ok := opt.operations[c]
 	if !ok {
 		return
 	}
@@ -171,7 +167,7 @@ func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
-	op := opt.operations[c.String()]
+	op := opt.operations[c]
 	pInfo := opt.unsafePinInfo(ctx, op)
 	if pInfo.Cid == cid.Undef {
 		pInfo.Cid = c
@@ -187,7 +183,7 @@ func (opt *OperationTracker) GetExists(ctx context.Context, c cid.Cid) (*api.Pin
 
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
-	op, ok := opt.operations[c.String()]
+	op, ok := opt.operations[c]
 	if !ok {
 		return nil, false
 	}
@@ -216,7 +212,7 @@ func (opt *OperationTracker) CleanAllDone(ctx context.Context) {
 	defer opt.mu.Unlock()
 	for _, op := range opt.operations {
 		if op.Phase() == PhaseDone {
-			delete(opt.operations, op.Cid().String())
+			delete(opt.operations, op.Cid())
 		}
 	}
 }
@@ -225,7 +221,7 @@ func (opt *OperationTracker) CleanAllDone(ctx context.Context) {
 func (opt *OperationTracker) OpContext(ctx context.Context, c cid.Cid) context.Context {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
-	op, ok := opt.operations[c.String()]
+	op, ok := opt.operations[c]
 	if !ok {
 		return nil
 	}
@@ -262,8 +258,8 @@ func (opt *OperationTracker) filterOps(ctx context.Context, filters ...interface
 	return fltops
 }
 
-func filterOpsMap(ctx context.Context, ops map[string]*Operation, filters []interface{}) map[string]*Operation {
-	fltops := make(map[string]*Operation)
+func filterOpsMap(ctx context.Context, ops map[cid.Cid]*Operation, filters []interface{}) map[cid.Cid]*Operation {
+	fltops := make(map[cid.Cid]*Operation)
 	if len(filters) < 1 {
 		return nil
 	}
@@ -279,16 +275,16 @@ func filterOpsMap(ctx context.Context, ops map[string]*Operation, filters []inte
 	return filterOpsMap(ctx, fltops, filters)
 }
 
-func filter(ctx context.Context, in, out map[string]*Operation, filter interface{}) {
+func filter(ctx context.Context, in, out map[cid.Cid]*Operation, filter interface{}) {
 	for _, op := range in {
 		switch filter.(type) {
 		case OperationType:
 			if op.Type() == filter {
-				out[op.Cid().String()] = op
+				out[op.Cid()] = op
 			}
 		case Phase:
 			if op.Phase() == filter {
-				out[op.Cid().String()] = op
+				out[op.Cid()] = op
 			}
 		}
 	}
