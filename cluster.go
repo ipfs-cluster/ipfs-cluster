@@ -1288,6 +1288,15 @@ func (c *Cluster) setupReplicationFactor(pin *api.Pin) error {
 		pin.ReplicationFactorMax = rplMax
 	}
 
+	// When pinning everywhere, remove all allocations.
+	// Allocations may have been preset by the adder
+	// for the cases when the replication factor is > -1.
+	// Fixes part of #1319: allocations when adding
+	// are kept.
+	if pin.IsPinEverywhere() {
+		pin.Allocations = nil
+	}
+
 	return isReplicationFactorValid(rplMin, rplMax)
 }
 
@@ -1317,7 +1326,7 @@ func checkPinType(pin *api.Pin) error {
 			return errors.New("clusterDAG pins should reference a Meta pin")
 		}
 	case api.MetaType:
-		if pin.Allocations != nil && len(pin.Allocations) != 0 {
+		if len(pin.Allocations) != 0 {
 			return errors.New("meta pin should not specify allocations")
 		}
 		if pin.Reference == nil {
@@ -1427,6 +1436,8 @@ func (c *Cluster) pin(
 	// allocate() will check which peers are currently allocated
 	// and try to respect them.
 	if len(pin.Allocations) == 0 {
+		// If replication factor is -1, this will return empty
+		// allocations.
 		allocs, err := c.allocate(
 			ctx,
 			pin.Cid,
@@ -1442,6 +1453,7 @@ func (c *Cluster) pin(
 		pin.Allocations = allocs
 	}
 
+	// If this is true, replication factor should be -1.
 	if len(pin.Allocations) == 0 {
 		logger.Infof("pinning %s everywhere:", pin.Cid)
 	} else {
@@ -1747,7 +1759,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			return nil, err
 		}
 
-		if len(pin.Allocations) > 0 {
+		if !pin.IsPinEverywhere() {
 			dests = pin.Allocations
 			remote = peersSubtract(members, dests)
 		} else {

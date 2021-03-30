@@ -792,6 +792,11 @@ func (pin *Pin) String() string {
 	return b.String()
 }
 
+// IsPinEverywhere returns when the both replication factors are set to -1.
+func (pin *Pin) IsPinEverywhere() bool {
+	return pin.ReplicationFactorMin == -1 && pin.ReplicationFactorMax == -1
+}
+
 // PinPath is a wrapper for holding pin options and path of the content.
 type PinPath struct {
 	PinOptions
@@ -985,7 +990,7 @@ func (pin *Pin) Equals(pin2 *Pin) bool {
 // IsRemotePin determines whether a Pin's ReplicationFactor has
 // been met, so as to either pin or unpin it from the peer.
 func (pin *Pin) IsRemotePin(pid peer.ID) bool {
-	if pin.ReplicationFactorMax < 0 || pin.ReplicationFactorMin < 0 {
+	if pin.IsPinEverywhere() {
 		return false
 	}
 
