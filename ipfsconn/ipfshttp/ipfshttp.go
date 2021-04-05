@@ -21,14 +21,15 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
-	pinner "github.com/ipfs/go-ipfs-pinner"
+	dspinner "github.com/ipfs/go-ipfs-pinner/dspinner"
+	ipldpinner "github.com/ipfs/go-ipfs-pinner/ipldpinner"
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
-	"github.com/multiformats/go-multihash"
+	multihash "github.com/multiformats/go-multihash"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
@@ -462,7 +463,9 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 	_, err := ipfs.postCtx(ctx, path, "", nil)
 	if err != nil {
 		ipfsErr, ok := err.(ipfsError)
-		if !ok || ipfsErr.Message != pinner.ErrNotPinned.Error() {
+		if !ok ||
+			(ipfsErr.Message != dspinner.ErrNotPinned.Error() &&
+				ipfsErr.Message != ipldpinner.ErrNotPinned.Error()) {
 			return err
 		}
 		logger.Debug("IPFS object is already unpinned: ", hash)
