@@ -697,8 +697,8 @@ github.com/libp2p/go-libp2p-gostream v0.3.1 h1:XlwohsPn6uopGluEWs1Csv1QCEjrTXf2Z
 github.com/libp2p/go-libp2p-gostream v0.3.1/go.mod h1:1V3b+u4Zhaq407UUY9JLCpboaeufAeVQbnvAt12LRsI=
 github.com/libp2p/go-libp2p-host v0.0.1/go.mod h1:qWd+H1yuU0m5CwzAkvbSjqKairayEHdR5MMl7Cwa7Go=
 github.com/libp2p/go-libp2p-host v0.0.3/go.mod h1:Y/qPyA6C8j2coYyos1dfRm0I8+nvd4TGrDGt4tA7JR8=
-github.com/libp2p/go-libp2p-http v0.2.0 h1:GYeVd+RZzkRa8XFLITqOpcrIQG6KbFLPJqII6HHBHzY=
-github.com/libp2p/go-libp2p-http v0.2.0/go.mod h1:GlNKFqDZHe25LVy2CvnZKx75/jLtMaD3VxZV6N39X7E=
+github.com/libp2p/go-libp2p-http v0.1.7 h1:6oYZyrx742wPGr79FFcd1eaNNmdYXYzR2SuiWMZtZf0=
+github.com/libp2p/go-libp2p-http v0.1.7/go.mod h1:M0WSPsf6OuQuleWWyChNqC1bNP3ZMr1K2Mni6RrYQR8=
 github.com/libp2p/go-libp2p-interface-connmgr v0.0.1/go.mod h1:GarlRLH0LdeWcLnYM/SaBykKFl9U5JFnbBGruAk/D5k=
 github.com/libp2p/go-libp2p-interface-connmgr v0.0.4/go.mod h1:GarlRLH0LdeWcLnYM/SaBykKFl9U5JFnbBGruAk/D5k=
 github.com/libp2p/go-libp2p-interface-connmgr v0.0.5/go.mod h1:GarlRLH0LdeWcLnYM/SaBykKFl9U5JFnbBGruAk/D5k=
