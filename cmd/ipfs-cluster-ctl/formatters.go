@@ -189,7 +189,7 @@ func textFormatPrintPin(obj *api.Pin) {
 
 	fmt.Printf("%s | %s | %s | ", obj.Cid, obj.Name, t)
 
-	if obj.ReplicationFactorMin < 0 {
+	if obj.IsPinEverywhere() {
 		fmt.Printf("Repl. Factor: -1 | Allocations: [everywhere]")
 	} else {
 		sortAlloc := api.PeersToStrings(obj.Allocations)
