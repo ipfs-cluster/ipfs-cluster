@@ -13,13 +13,13 @@ require (
 	github.com/hashicorp/go-hclog v0.15.0
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.18
+	github.com/hsanjuan/ipfs-lite v1.1.19
 	github.com/imdario/mergo v0.3.12
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ds-badger v0.2.6
-	github.com/ipfs/go-ds-crdt v0.1.19
+	github.com/ipfs/go-ds-crdt v0.1.20
 	github.com/ipfs/go-fs-lock v0.0.6
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-chunker v0.0.5
