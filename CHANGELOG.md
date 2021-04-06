@@ -1,5 +1,52 @@
 # IPFS Cluster Changelog
 
+### v0.13.2 - 2021-04-06
+
+IPFS Cluster v0.13.2 is a maintenance release addressing bugs and adding a
+couple of small features. It is fully compatible with the previous release.
+
+#### List of changes
+
+##### Features
+
+* Make mDNS failures non-fatal | [ipfs/ipfs-cluster#1193](https://github.com/ipfs/ipfs-cluster/issues/1193) | [ipfs/ipfs-cluster#1310](https://github.com/ipfs/ipfs-cluster/issues/1310)
+* Add `--wait` flag to `ipfs-cluster-ctl add` command | [ipfs/ipfs-cluster#1285](https://github.com/ipfs/ipfs-cluster/issues/1285) | [ipfs/ipfs-cluster#1301](https://github.com/ipfs/ipfs-cluster/issues/1301)
+
+##### Bug fixes
+
+* Stop using secio in REST API libp2p server and client | [ipfs/ipfs-cluster#1315](https://github.com/ipfs/ipfs-cluster/issues/1315) | [ipfs/ipfs-cluster#1316](https://github.com/ipfs/ipfs-cluster/issues/1316)
+* CID status wrongly reported as REMOTE | [ipfs/ipfs-cluster#1319](https://github.com/ipfs/ipfs-cluster/issues/1319) | [ipfs/ipfs-cluster#1331](https://github.com/ipfs/ipfs-cluster/issues/1331)
+
+
+##### Other changes
+
+* Dependency upgrades | [ipfs/ipfs-cluster#1335](https://github.com/ipfs/ipfs-cluster/issues/1335)
+* Use cid.Cid as map keys in Pintracker | [ipfs/ipfs-cluster#1322](https://github.com/ipfs/ipfs-cluster/issues/1322)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No configuration changes in this release.
+
+##### REST API
+
+The REST API server and clients will no longer negotiate the secio
+security. This transport was already the lowest priority one and should have
+not been used. This however, may break 3rd party clients which only supported
+secio.
+
+
+##### Go APIs
+
+Nothing.
+
+##### Other
+
+Nothing.
+
+---
+
 ### v0.13.1 - 2021-01-14
 
 IPFS Cluster v0.13.1 is a maintenance release with some bugfixes and updated
@@ -50,6 +97,8 @@ outside before. RPC endpoints affected are only used locally.
 ##### Other
 
 Nothing.
+
+---
 
 ### v0.13.0 - 2020-05-19
 
