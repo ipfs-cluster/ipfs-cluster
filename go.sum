@@ -364,6 +364,7 @@ github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/J
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/hsanjuan/ipfs-lite v1.1.18 h1:yLT9JSfC0FRLL9rl3NresP+yzpsFQPZ4e9V00uIdn4s=
 github.com/hsanjuan/ipfs-lite v1.1.18/go.mod h1:yh9zpNUgHVSQxdsyCejv2qlQ5fRr+tVdJoaMg/lWgcU=
+github.com/hsanjuan/ipfs-lite v1.1.19/go.mod h1:4rVSnljoKwX1Qp9PvY3THISzXT/COLTlVnKGWbanr9I=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
 github.com/huin/goupnp v1.0.0 h1:wg75sLpL6DZqwHQN6E1Cfk6mtfzS45z8OV+ic+DtHRo=
 github.com/huin/goupnp v1.0.0/go.mod h1:n9v9KO1tAxYH82qOn+UTIFQDmx5n1Zxd/ClZDMX7Bnc=
