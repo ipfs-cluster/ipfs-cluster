@@ -197,11 +197,13 @@ func TestFromMultipart_Errors(t *testing.T) {
 		{
 			name: "bad chunker",
 			params: &api.AddParams{
-				Layout:    "",
-				Chunker:   "aweee",
-				RawLeaves: false,
-				Hidden:    false,
-				Shard:     true,
+				Format: "",
+				IPFSAddParams: api.IPFSAddParams{
+					Chunker:   "aweee",
+					RawLeaves: false,
+				},
+				Hidden: false,
+				Shard:  true,
 				PinOptions: api.PinOptions{
 					ReplicationFactorMin: -1,
 					ReplicationFactorMax: -1,
@@ -213,11 +215,13 @@ func TestFromMultipart_Errors(t *testing.T) {
 		{
 			name: "shard size too small",
 			params: &api.AddParams{
-				Layout:    "",
-				Chunker:   "",
-				RawLeaves: false,
-				Hidden:    false,
-				Shard:     true,
+				Format: "",
+				IPFSAddParams: api.IPFSAddParams{
+					Chunker:   "",
+					RawLeaves: false,
+				},
+				Hidden: false,
+				Shard:  true,
 				PinOptions: api.PinOptions{
 					ReplicationFactorMin: -1,
 					ReplicationFactorMax: -1,
@@ -229,11 +233,13 @@ func TestFromMultipart_Errors(t *testing.T) {
 		{
 			name: "replication too high",
 			params: &api.AddParams{
-				Layout:    "",
-				Chunker:   "",
-				RawLeaves: false,
-				Hidden:    false,
-				Shard:     true,
+				Format: "",
+				IPFSAddParams: api.IPFSAddParams{
+					Chunker:   "",
+					RawLeaves: false,
+				},
+				Hidden: false,
+				Shard:  true,
 				PinOptions: api.PinOptions{
 					ReplicationFactorMin: 2,
 					ReplicationFactorMax: 3,

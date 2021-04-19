@@ -21,6 +21,18 @@ type AddedOutput struct {
 	Size  uint64  `json:"size,omitempty" codec:"s,omitempty"`
 }
 
+// IPFSAddParams groups options specific to the ipfs-adder, which builds
+// UnixFS dags with the input files. This struct is embedded in AddParams.
+type IPFSAddParams struct {
+	Layout     string
+	Chunker    string
+	RawLeaves  bool
+	Progress   bool
+	CidVersion int
+	HashFun    string
+	NoCopy     bool
+}
+
 // AddParams contains all of the configurable parameters needed to specify the
 // importing process of a file being added to an ipfs-cluster
 type AddParams struct {
@@ -28,35 +40,28 @@ type AddParams struct {
 
 	Local          bool
 	Recursive      bool
-	Layout         string
-	Chunker        string
-	RawLeaves      bool
 	Hidden         bool
 	Wrap           bool
 	Shard          bool
-	Progress       bool
-	CidVersion     int
-	HashFun        string
 	StreamChannels bool
-	NoCopy         bool
+	Format         string // selects with adder
+
+	IPFSAddParams
 }
 
 // DefaultAddParams returns a AddParams object with standard defaults
 func DefaultAddParams() *AddParams {
 	return &AddParams{
-		Local:          false,
-		Recursive:      false,
-		Layout:         "", // corresponds to balanced layout
-		Chunker:        "size-262144",
-		RawLeaves:      false,
-		Hidden:         false,
-		Wrap:           false,
-		Shard:          false,
-		Progress:       false,
-		CidVersion:     0,
-		HashFun:        "sha2-256",
+		Local:     false,
+		Recursive: false,
+
+		Hidden: false,
+		Wrap:   false,
+		Shard:  false,
+
 		StreamChannels: true,
-		NoCopy:         false,
+
+		Format: "unixfs",
 		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
@@ -64,6 +69,15 @@ func DefaultAddParams() *AddParams {
 			Mode:                 PinModeRecursive,
 			ShardSize:            DefaultShardSize,
 			Metadata:             make(map[string]string),
+		},
+		IPFSAddParams: IPFSAddParams{
+			Layout:     "", // corresponds to balanced layout
+			Chunker:    "size-262144",
+			RawLeaves:  false,
+			Progress:   false,
+			CidVersion: 0,
+			HashFun:    "sha2-256",
+			NoCopy:     false,
 		},
 	}
 }
@@ -108,7 +122,7 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	case "trickle", "balanced", "":
 		// nothing
 	default:
-		return nil, errors.New("layout parameter invalid")
+		return nil, errors.New("layout parameter is invalid")
 	}
 	params.Layout = layout
 
@@ -121,6 +135,14 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	if hashF != "" {
 		params.HashFun = hashF
 	}
+
+	format := query.Get("format")
+	switch format {
+	case "car", "unixfs", "":
+	default:
+		return nil, errors.New("format parameter is invalid")
+	}
+	params.Format = format
 
 	err = parseBoolParam(query, "local", &params.Local)
 	if err != nil {
@@ -195,6 +217,7 @@ func (p *AddParams) ToQueryString() (string, error) {
 	query.Set("hash", p.HashFun)
 	query.Set("stream-channels", fmt.Sprintf("%t", p.StreamChannels))
 	query.Set("nocopy", fmt.Sprintf("%t", p.NoCopy))
+	query.Set("format", p.Format)
 	return query.Encode(), nil
 }
 
@@ -212,5 +235,6 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 		p.CidVersion == p2.CidVersion &&
 		p.HashFun == p2.HashFun &&
 		p.StreamChannels == p2.StreamChannels &&
-		p.NoCopy == p2.NoCopy
+		p.NoCopy == p2.NoCopy &&
+		p.Format == p2.Format
 }

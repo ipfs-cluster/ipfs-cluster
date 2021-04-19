@@ -1,14 +1,17 @@
 package test
 
 import (
+	"context"
 	"encoding/hex"
 	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	files "github.com/ipfs/go-ipfs-files"
+	format "github.com/ipfs/go-ipld-format"
 
 	cid "github.com/ipfs/go-cid"
 )
@@ -276,4 +279,78 @@ func (sth *ShardingTestHelper) makeRandFile(t *testing.T, kbs int) os.FileInfo {
 	}
 	return st
 
+}
+
+// MockDAGService implements an in-memory DAGService. The stored nodes are
+// inspectable via the Nodes map.
+type MockDAGService struct {
+	mu    sync.Mutex
+	Nodes map[cid.Cid]format.Node
+}
+
+// NewMockDAGService returns an in-memory DAG Service.
+func NewMockDAGService() *MockDAGService {
+	return &MockDAGService{Nodes: make(map[cid.Cid]format.Node)}
+}
+
+// Get reads a node.
+func (d *MockDAGService) Get(ctx context.Context, cid cid.Cid) (format.Node, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if n, ok := d.Nodes[cid]; ok {
+		return n, nil
+	}
+	return nil, format.ErrNotFound
+}
+
+// GetMany reads many nodes.
+func (d *MockDAGService) GetMany(ctx context.Context, cids []cid.Cid) <-chan *format.NodeOption {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	out := make(chan *format.NodeOption, len(cids))
+	for _, c := range cids {
+		if n, ok := d.Nodes[c]; ok {
+			out <- &format.NodeOption{Node: n}
+		} else {
+			out <- &format.NodeOption{Err: format.ErrNotFound}
+		}
+	}
+	close(out)
+	return out
+}
+
+// Add adds a node.
+func (d *MockDAGService) Add(ctx context.Context, node format.Node) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.Nodes[node.Cid()] = node
+	return nil
+}
+
+// AddMany adds many nodes.
+func (d *MockDAGService) AddMany(ctx context.Context, nodes []format.Node) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, n := range nodes {
+		d.Nodes[n.Cid()] = n
+	}
+	return nil
+}
+
+// Remove deletes a node.
+func (d *MockDAGService) Remove(ctx context.Context, c cid.Cid) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.Nodes, c)
+	return nil
+}
+
+// RemoveMany removes many nodes.
+func (d *MockDAGService) RemoveMany(ctx context.Context, cids []cid.Cid) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, c := range cids {
+		delete(d.Nodes, c)
+	}
+	return nil
 }
