@@ -58,6 +58,18 @@ test_expect_success IPFS,CLUSTER "add files locally and compare with ipfs" '
     test_cmp cidscluster.txt cidsipfs.txt
 '
 
+test_expect_success IPFS,CLUSTER "add CAR file" '
+    mkdir testFolderCar
+    echo "abc" > testFolderCar/abc.txt
+    docker cp testFolderCar ipfs:/tmp/testFolderCar
+
+    ipfsCmd add -Q -w -r /tmp/testFolderCar >> caripfs.txt
+    ipfsCmd dag export `cat caripfs.txt` > test.car
+    docker cp ipfs:/tmp/test.car test.car
+    ipfs-cluster-ctl add --format car -Q test.car >> carcluster.txt
+    test_cmp carcluster.txt caripfs.txt
+'
+
 # Adding a folder with a single file is the same as adding the file
 # and wrapping it.
 test_expect_success IPFS,CLUSTER "check add folders" '
