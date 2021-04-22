@@ -1,6 +1,7 @@
 package adder
 
 import (
+	"bytes"
 	"context"
 	"mime/multipart"
 	"sync"
@@ -9,32 +10,23 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipld/go-car"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
-	ipld "github.com/ipfs/go-ipld-format"
 )
 
 type mockCDAGServ struct {
-	BaseDAGService
-	resultCids map[string]struct{}
+	*test.MockDAGService
 }
 
-func (dag *mockCDAGServ) Add(ctx context.Context, node ipld.Node) error {
-	dag.resultCids[node.Cid().String()] = struct{}{}
-	return nil
-}
-
-func (dag *mockCDAGServ) AddMany(ctx context.Context, nodes []ipld.Node) error {
-	for _, node := range nodes {
-		err := dag.Add(ctx, node)
-		if err != nil {
-			return err
-		}
+func newMockCDAGServ() *mockCDAGServ {
+	return &mockCDAGServ{
+		MockDAGService: test.NewMockDAGService(),
 	}
-	return nil
 }
 
+// noop
 func (dag *mockCDAGServ) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
 	return root, nil
 }
@@ -49,9 +41,7 @@ func TestAdder(t *testing.T) {
 	p := api.DefaultAddParams()
 	expectedCids := test.ShardingDirCids[:]
 
-	dags := &mockCDAGServ{
-		resultCids: make(map[string]struct{}),
-	}
+	dags := newMockCDAGServ()
 
 	adder := New(dags, p, nil)
 
@@ -64,12 +54,13 @@ func TestAdder(t *testing.T) {
 		t.Error("expected the right content root")
 	}
 
-	if len(expectedCids) != len(dags.resultCids) {
+	if len(expectedCids) != len(dags.Nodes) {
 		t.Fatal("unexpected number of blocks imported")
 	}
 
 	for _, c := range expectedCids {
-		_, ok := dags.resultCids[c]
+		ci, _ := cid.Decode(c)
+		_, ok := dags.Nodes[ci]
 		if !ok {
 			t.Fatal("unexpected block emitted:", c)
 		}
@@ -83,9 +74,7 @@ func TestAdder_DoubleStart(t *testing.T) {
 	f := sth.GetTreeSerialFile(t)
 	p := api.DefaultAddParams()
 
-	dags := &mockCDAGServ{
-		resultCids: make(map[string]struct{}),
-	}
+	dags := newMockCDAGServ()
 
 	adder := New(dags, p, nil)
 	_, err := adder.FromFiles(context.Background(), f)
@@ -121,9 +110,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 
 	p := api.DefaultAddParams()
 
-	dags := &mockCDAGServ{
-		resultCids: make(map[string]struct{}),
-	}
+	dags := newMockCDAGServ()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	adder := New(dags, p, nil)
@@ -141,4 +128,58 @@ func TestAdder_ContextCancelled(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	cancel()
 	wg.Wait()
+}
+
+func TestAdder_CAR(t *testing.T) {
+	// prepare a CAR file
+	ctx := context.Background()
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	mr, closer := sth.GetTreeMultiReader(t)
+	defer closer.Close()
+	r := multipart.NewReader(mr, mr.Boundary())
+	p := api.DefaultAddParams()
+	dags := newMockCDAGServ()
+	adder := New(dags, p, nil)
+	root, err := adder.FromMultipart(ctx, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var carBuf bytes.Buffer
+	err = car.WriteCar(ctx, dags, []cid.Cid{root}, &carBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the CAR look like a multipart.
+	carFile := files.NewReaderFile(&carBuf)
+	carDir := files.NewMapDirectory(
+		map[string]files.Node{"": carFile},
+	)
+	carMf := files.NewMultiFileReader(carDir, true)
+	carMr := multipart.NewReader(carMf, carMf.Boundary())
+
+	// Add the car, discarding old dags.
+	dags = newMockCDAGServ()
+	p.Format = "car"
+	adder = New(dags, p, nil)
+	root2, err := adder.FromMultipart(ctx, carMr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !root.Equals(root2) {
+		t.Error("Imported CAR file does not have expected root")
+	}
+
+	expectedCids := test.ShardingDirCids[:]
+	for _, c := range expectedCids {
+		ci, _ := cid.Decode(c)
+		_, ok := dags.Nodes[ci]
+		if !ok {
+			t.Fatal("unexpected block extracted from CAR:", c)
+		}
+	}
+
 }

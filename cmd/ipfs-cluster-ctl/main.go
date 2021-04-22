@@ -274,18 +274,19 @@ a Cluster Pin operation on success. It takes elements from local paths as
 well as from web URLs (accessed with a GET request). Providing several
 arguments will automatically set --wrap-in-directory.
 
-Cluster Add is equivalent to "ipfs add" in terms of DAG building, and supports
-the same options for adjusting the chunker, the DAG layout etc. However,
-it will allocate the content and send it directly to the allocated peers (among
-which may not necessarily be the local ipfs daemon).
+Cluster "add" works, by default, just like "ipfs add" and has similar options
+in terms of DAG layout, chunker, hash function etc. It also supports adding
+CAR files directly (--format car), as long as they have a single root. When
+adding CAR files, all the options related to dag-building are ignored.
 
-Once the adding process is finished, the content is fully added to all
-allocations and pinned in them. This makes cluster add slower than a local
-ipfs add, but the result is a fully replicated CID on completion.
-If you prefer faster adding, use the --local flag to add directly to the local
-IPFS node and pin in the destinations after that. Note that the local IPFS
-node may not be among the destinations, which will leave the unpinned content
-in it.
+Added content will be allocated and sent block by block to the peers that
+should pin it (among which may not necessarily be the local ipfs daemon).
+Once all the blocks have arrived, they will be "cluster-pinned". This makes 
+cluster add slower than a local ipfs add, but the result is a fully replicated
+on completion. If you prefer faster adding, use the --local flag to add 
+directly to the local IPFS node and pin in the destinations after that. 
+Note that the local IPFS node may not be among the destinations, which will
+leave the unpinned content in it.
 
 Optional replication-min and replication-max factors can be provided: -1 means
 "pin everywhere" and 0 means use cluster's default setting (i.e., replication
@@ -317,38 +318,6 @@ content.
 				cli.BoolFlag{
 					Name:  "no-stream",
 					Usage: "Buffer output locally. Produces a valid JSON array with --enc=json.",
-				},
-				cli.StringFlag{
-					Name:  "layout",
-					Value: defaultAddParams.Layout,
-					Usage: "Dag layout to use for dag generation: balanced or trickle",
-				},
-				cli.BoolFlag{
-					Name:  "wrap-with-directory, w",
-					Usage: "Wrap a with a directory object",
-				},
-				cli.BoolFlag{
-					Name:  "hidden, H",
-					Usage: "Include files that are hidden.  Only takes effect on recursive add",
-				},
-				cli.StringFlag{
-					Name:  "chunker, s",
-					Usage: "'size-<size>' or 'rabin-<min>-<avg>-<max>'",
-					Value: defaultAddParams.Chunker,
-				},
-				cli.BoolFlag{
-					Name:  "raw-leaves",
-					Usage: "Use raw blocks for leaves (experimental)",
-				},
-				cli.IntFlag{
-					Name:  "cid-version",
-					Usage: "CID version. Non default implies raw-leaves",
-					Value: defaultAddParams.CidVersion,
-				},
-				cli.StringFlag{
-					Name:  "hash",
-					Usage: "Hash function to use. Implies cid-version=1",
-					Value: defaultAddParams.HashFun,
 				},
 				cli.BoolFlag{
 					Name:  "local",
@@ -382,10 +351,6 @@ content.
 					Usage: "Optional comma-separated list of peer IDs",
 				},
 				cli.BoolFlag{
-					Name:  "nocopy",
-					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
-				},
-				cli.BoolFlag{
 					Name:  "wait",
 					Usage: "Wait for all nodes to report a status of pinned before returning",
 				},
@@ -394,6 +359,51 @@ content.
 					Value: 0,
 					Usage: "How long to --wait (in seconds), default is indefinitely",
 				},
+
+				cli.BoolFlag{
+					Name:  "wrap-with-directory, w",
+					Usage: "Wrap a with a directory object",
+				},
+
+				cli.StringFlag{
+					Name:  "format",
+					Value: defaultAddParams.Format,
+					Usage: "'unixfs' (add as unixfs DAG), 'car' (import CAR file)",
+				},
+
+				cli.StringFlag{
+					Name:  "layout",
+					Value: defaultAddParams.Layout,
+					Usage: "Dag layout to use for dag generation: balanced or trickle",
+				},
+				cli.BoolFlag{
+					Name:  "hidden, H",
+					Usage: "Include files that are hidden.  Only takes effect on recursive add",
+				},
+				cli.StringFlag{
+					Name:  "chunker, s",
+					Usage: "'size-<size>' or 'rabin-<min>-<avg>-<max>'",
+					Value: defaultAddParams.Chunker,
+				},
+				cli.BoolFlag{
+					Name:  "raw-leaves",
+					Usage: "Use raw blocks for leaves (experimental)",
+				},
+				cli.IntFlag{
+					Name:  "cid-version",
+					Usage: "CID version. Non default implies raw-leaves",
+					Value: defaultAddParams.CidVersion,
+				},
+				cli.StringFlag{
+					Name:  "hash",
+					Usage: "Hash function to use. Implies cid-version=1",
+					Value: defaultAddParams.HashFun,
+				},
+				cli.BoolFlag{
+					Name:  "nocopy",
+					Usage: "Add the URL using filestore. Implies raw-leaves. (experimental)",
+				},
+
 				// TODO: Uncomment when sharding is supported.
 				// cli.BoolFlag{
 				//	Name:  "shard",
@@ -448,6 +458,7 @@ content.
 				if c.String("allocations") != "" {
 					p.UserAllocations = api.StringsToPeers(strings.Split(c.String("allocations"), ","))
 				}
+				p.Format = c.String("format")
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
 				p.Shard = false
@@ -469,6 +480,11 @@ content.
 				p.NoCopy = c.Bool("nocopy")
 				if p.NoCopy {
 					p.RawLeaves = true
+				}
+
+				// Prevent footgun
+				if p.Wrap && p.Format == "car" {
+					checkErr("", errors.New("only a single CAR file can be added and wrap-with-directory is not supported"))
 				}
 
 				out := make(chan *api.AddedOutput, 1)

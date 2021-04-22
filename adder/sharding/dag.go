@@ -28,10 +28,12 @@ import (
 	mh "github.com/multiformats/go-multihash"
 )
 
+// go-merkledag does this, but it may be moved.
+// We include for explicitness.
 func init() {
 	ipld.Register(cid.DagProtobuf, dag.DecodeProtobufBlock)
 	ipld.Register(cid.Raw, dag.DecodeRawBlock)
-	ipld.Register(cid.DagCBOR, cbor.DecodeBlock) // need to decode CBOR
+	ipld.Register(cid.DagCBOR, cbor.DecodeBlock)
 }
 
 // MaxLinks is the max number of links that, when serialized fit into a block

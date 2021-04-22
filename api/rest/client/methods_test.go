@@ -618,10 +618,12 @@ func TestAddMultiFile(t *testing.T) {
 				Name:                 "test something",
 				ShardSize:            1024,
 			},
-			Shard:          false,
-			Layout:         "",
-			Chunker:        "",
-			RawLeaves:      false,
+			Shard:  false,
+			Format: "",
+			IPFSAddParams: types.IPFSAddParams{
+				Chunker:   "",
+				RawLeaves: false,
+			},
 			Hidden:         false,
 			StreamChannels: true,
 		}
