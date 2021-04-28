@@ -3,12 +3,18 @@ package crdt
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
 {
     "cluster_name": "test",
-    "trusted_peers": ["QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6"]
+    "trusted_peers": ["QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6"],
+    "batching": {
+        "max_batch_size": 30,
+        "max_batch_age": "5s",
+        "max_queue_size": 150
+    }
 }
 `)
 
@@ -20,6 +26,12 @@ func TestLoadJSON(t *testing.T) {
 	}
 	if cfg.TrustAll {
 		t.Error("TrustAll should not be enabled when peers in trusted peers")
+	}
+
+	if cfg.Batching.MaxBatchSize != 30 ||
+		cfg.Batching.MaxBatchAge != 5*time.Second ||
+		cfg.Batching.MaxQueueSize != 150 {
+		t.Error("Batching options were not parsed correctly")
 	}
 
 	cfg = &Config{}
@@ -58,6 +70,10 @@ func TestLoadJSON(t *testing.T) {
 	}
 	if !cfg.TrustAll {
 		t.Error("expected TrustAll to be true")
+	}
+
+	if cfg.Batching.MaxQueueSize != DefaultBatchingMaxQueueSize {
+		t.Error("MaxQueueSize should be default when unset")
 	}
 }
 
@@ -99,15 +115,32 @@ func TestDefault(t *testing.T) {
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
+
+	cfg.Default()
+	cfg.Batching.MaxQueueSize = -3
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
 }
 
 func TestApplyEnvVars(t *testing.T) {
 	os.Setenv("CLUSTER_CRDT_CLUSTERNAME", "test2")
+	os.Setenv("CLUSTER_CRDT_BATCHING_MAXBATCHSIZE", "5")
+	os.Setenv("CLUSTER_CRDT_BATCHING_MAXBATCHAGE", "10s")
+
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ApplyEnvVars()
 
 	if cfg.ClusterName != "test2" {
-		t.Fatal("failed to override cluster_name with env var")
+		t.Error("failed to override cluster_name with env var")
+	}
+
+	if cfg.Batching.MaxBatchSize != 5 {
+		t.Error("MaxBatchSize as env var does not work")
+	}
+
+	if cfg.Batching.MaxBatchAge != 10*time.Second {
+		t.Error("MaxBatchAge as env var does not work")
 	}
 }
