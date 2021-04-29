@@ -25,7 +25,7 @@ var (
 	DefaultRebroadcastInterval  = time.Minute
 	DefaultTrustedPeers         = []peer.ID{}
 	DefaultTrustAll             = true
-	DefaultBatchingMaxQueueSize = 1000
+	DefaultBatchingMaxQueueSize = 50000
 )
 
 // BatchingConfig configures parameters for batching multiple pins in a single
