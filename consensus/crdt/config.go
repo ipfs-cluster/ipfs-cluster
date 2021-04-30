@@ -19,13 +19,31 @@ var envConfigKey = "cluster_crdt"
 
 // Default configuration values
 var (
-	DefaultClusterName         = "ipfs-cluster"
-	DefaultPeersetMetric       = "ping"
-	DefaultDatastoreNamespace  = "/c" // from "/crdt"
-	DefaultRebroadcastInterval = time.Minute
-	DefaultTrustedPeers        = []peer.ID{}
-	DefaultTrustAll            = true
+	DefaultClusterName          = "ipfs-cluster"
+	DefaultPeersetMetric        = "ping"
+	DefaultDatastoreNamespace   = "/c" // from "/crdt"
+	DefaultRebroadcastInterval  = time.Minute
+	DefaultTrustedPeers         = []peer.ID{}
+	DefaultTrustAll             = true
+	DefaultBatchingMaxQueueSize = 50000
 )
+
+// BatchingConfig configures parameters for batching multiple pins in a single
+// CRDT-put operation.
+//
+// MaxBatchSize will trigger a commit whenever the number of pins in the batch
+// reaches the limit.
+//
+// MaxBatchAge will trigger a commit when the oldest update in the batch
+// reaches it. Setting both values to 0 means batching is disabled.
+//
+// MaxQueueSize specifies how many items can be waiting to be batched before
+// the LogPin/Unpin operations block.
+type BatchingConfig struct {
+	MaxBatchSize int
+	MaxBatchAge  time.Duration
+	MaxQueueSize int
+}
 
 // Config is the configuration object for Consensus.
 type Config struct {
@@ -45,6 +63,10 @@ type Config struct {
 	// for this peer that are forbidden for other peers.
 	TrustedPeers []peer.ID
 
+	// Specifies whether to batch CRDT updates for increased
+	// performance.
+	Batching BatchingConfig
+
 	// The interval before re-announcing the current state
 	// to the network when no activity is observed.
 	RebroadcastInterval time.Duration
@@ -60,10 +82,17 @@ type Config struct {
 	Tracing bool
 }
 
+type batchingConfigJSON struct {
+	MaxBatchSize int    `json:"max_batch_size"`
+	MaxBatchAge  string `json:"max_batch_age"`
+	MaxQueueSize int    `json:"max_queue_size,omitempty"`
+}
+
 type jsonConfig struct {
-	ClusterName         string   `json:"cluster_name"`
-	TrustedPeers        []string `json:"trusted_peers"`
-	RebroadcastInterval string   `json:"rebroadcast_interval,omitempty"`
+	ClusterName         string             `json:"cluster_name"`
+	TrustedPeers        []string           `json:"trusted_peers"`
+	Batching            batchingConfigJSON `json:"batching"`
+	RebroadcastInterval string             `json:"rebroadcast_interval,omitempty"`
 
 	PeersetMetric      string `json:"peerset_metric,omitempty"`
 	DatastoreNamespace string `json:"datastore_namespace,omitempty"`
@@ -86,6 +115,10 @@ func (cfg *Config) Validate() error {
 
 	if cfg.RebroadcastInterval <= 0 {
 		return errors.New("crdt.rebroadcast_interval is invalid")
+	}
+
+	if cfg.Batching.MaxQueueSize <= 0 {
+		return errors.New("crdt.batching.max_queue_size is invalid")
 	}
 	return nil
 }
@@ -123,11 +156,15 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		cfg.TrustedPeers = append(cfg.TrustedPeers, pid)
 	}
 
+	cfg.Batching.MaxBatchSize = jcfg.Batching.MaxBatchSize
+
+	config.SetIfNotDefault(jcfg.Batching.MaxQueueSize, &cfg.Batching.MaxQueueSize)
 	config.SetIfNotDefault(jcfg.PeersetMetric, &cfg.PeersetMetric)
 	config.SetIfNotDefault(jcfg.DatastoreNamespace, &cfg.DatastoreNamespace)
 	config.ParseDurations(
 		"crdt",
 		&config.DurationOpt{Duration: jcfg.RebroadcastInterval, Dst: &cfg.RebroadcastInterval, Name: "rebroadcast_interval"},
+		&config.DurationOpt{Duration: jcfg.Batching.MaxBatchAge, Dst: &cfg.Batching.MaxBatchAge, Name: "max_batch_age"},
 	)
 	return cfg.Validate()
 }
@@ -150,6 +187,13 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 		jcfg.TrustedPeers = []string{"*"}
 	} else {
 		jcfg.TrustedPeers = api.PeersToStrings(cfg.TrustedPeers)
+	}
+
+	jcfg.Batching.MaxBatchSize = cfg.Batching.MaxBatchSize
+	jcfg.Batching.MaxBatchAge = cfg.Batching.MaxBatchAge.String()
+	if cfg.Batching.MaxQueueSize != DefaultBatchingMaxQueueSize {
+		jcfg.Batching.MaxQueueSize = cfg.Batching.MaxQueueSize
+		// otherwise leave as 0/hidden
 	}
 
 	if cfg.PeersetMetric != DefaultPeersetMetric {
@@ -177,6 +221,11 @@ func (cfg *Config) Default() error {
 	cfg.DatastoreNamespace = DefaultDatastoreNamespace
 	cfg.TrustedPeers = DefaultTrustedPeers
 	cfg.TrustAll = DefaultTrustAll
+	cfg.Batching = BatchingConfig{
+		MaxBatchSize: 0,
+		MaxBatchAge:  0,
+		MaxQueueSize: DefaultBatchingMaxQueueSize,
+	}
 	return nil
 }
 
@@ -196,4 +245,9 @@ func (cfg *Config) ApplyEnvVars() error {
 // ToDisplayJSON returns JSON config as a string.
 func (cfg *Config) ToDisplayJSON() ([]byte, error) {
 	return config.DisplayJSON(cfg.toJSONConfig())
+}
+
+func (cfg *Config) batchingEnabled() bool {
+	return cfg.Batching.MaxBatchSize > 0 &&
+		cfg.Batching.MaxBatchAge > 0
 }

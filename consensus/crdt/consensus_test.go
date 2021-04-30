@@ -60,10 +60,15 @@ func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dual.DHT) {
 }
 
 func testingConsensus(t *testing.T, idn int) *Consensus {
-	h, psub, dht := makeTestingHost(t)
-
 	cfg := &Config{}
 	cfg.Default()
+
+	return testingConsensusWithCfg(t, idn, cfg)
+}
+
+func testingConsensusWithCfg(t *testing.T, idn int, cfg *Config) *Consensus {
+	h, psub, dht := makeTestingHost(t)
+
 	cfg.DatastoreNamespace = fmt.Sprintf("crdttest-%d", idn)
 	cfg.hostShutdown = true
 
@@ -346,5 +351,78 @@ func TestOfflineState(t *testing.T) {
 	}
 	if len(pins) != 2 {
 		t.Error("there should be two pins in the state")
+	}
+}
+
+func TestBatching(t *testing.T) {
+	ctx := context.Background()
+	cfg := &Config{}
+	cfg.Default()
+	cfg.Batching.MaxBatchSize = 3
+	cfg.Batching.MaxBatchAge = 1 * time.Second
+
+	cc := testingConsensusWithCfg(t, 1, cfg)
+	defer clean(t, cc)
+	defer cc.Shutdown(ctx)
+
+	st, err := cc.State(ctx)
+	if err != nil {
+		t.Fatal("error getting state:", err)
+	}
+
+	// Pin something
+	err = cc.LogPin(ctx, testPin(test.Cid1))
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+
+	pins, err := st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 0 {
+		t.Error("pin should not be pinned yet as it is being batched")
+	}
+
+	// Trigger batch auto-commit by time
+	time.Sleep(time.Second)
+
+	pins, err = st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
+		t.Error("the added pin should be in the state")
+	}
+
+	// Pin 4 things, and check that 3 are commited
+	for _, c := range []cid.Cid{test.Cid2, test.Cid3, test.Cid4, test.Cid5} {
+		err = cc.LogPin(ctx, testPin(c))
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// Give a chance for things to persist
+	time.Sleep(250 * time.Millisecond)
+
+	pins, err = st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 4 {
+		t.Error("expected 4 items pinned")
+	}
+
+	// wait for the last pin
+	time.Sleep(time.Second)
+	pins, err = st.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pins) != 5 {
+		t.Error("expected 5 items pinned")
 	}
 }
