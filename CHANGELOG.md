@@ -1,5 +1,85 @@
 # IPFS Cluster Changelog
 
+### v0.13.3 - 2021-05-02
+
+IPFS Cluster v0.13.3 brings two new features: CAR file imports and crdt-commit batching.
+
+The first one allows to upload CAR files directly to the Cluster using the
+existing Add endpoint with a new option set: `/add?format=car`. The endpoint
+remains fully backwards compatible. CAR files are a simple wrapper around a
+collection of IPFS blocks making up a DAG. Thus, this enables arbitrary DAG
+imports directly through the Cluster REST API, taking advantange of the rest
+of its features like basic-auth access control, libp2p endpoint and multipeer
+block-put when adding.
+
+The second feature unlocks large escalability improvements for pin ingestion
+with the crdt "consensus" component. By default, each pin or unpin requests
+results in an insertion to the crdt-datastore-DAG that maintains and syncs the
+state between nodes, creating a new root. Batching allows to group multiple
+updates in a single crdt DAG-node. This reduces the number of broadcasts, the
+depth of the DAG, the breadth of the DAG and the syncing times when the
+Cluster is ingesting many pins, removing most of the overhead in the
+process. The batches are automatically commited when reaching a certain age or
+a certain size, both configurable.
+
+For more details, check the list below and the latest documentation on the
+[website](https://cluster.ipfs.io).
+
+#### List of changes
+
+##### Features
+
+* Support adding CAR files | [ipfs/ipfs-cluster#1343](https://github.com/ipfs/ipfs-cluster/issues/1343)
+* CRDT batching support | [ipfs/ipfs-cluster#1008](https://github.com/ipfs/ipfs-cluster/issues/1008) | [ipfs/ipfs-cluster#1346](https://github.com/ipfs/ipfs-cluster/issues/1346)
+
+##### Bug fixes
+
+None.
+
+##### Other changes
+
+None.
+
+#### Upgrading notices
+
+##### Configuration changes
+
+The `crdt` section of the configuration now has a `batching` subsection which controls batching settings:
+
+```json
+"batching": {
+    "max_batch_size": 0,
+    "max_batch_age": "0s"
+}
+```
+
+An additional, hidden `max_queue_size` option exists, with default to
+`50000`. The meanings of the options are documented on the reference (website)
+and the code.
+
+Batching is disabled by default. To be enabled, both `max_batch_size` and
+`max_batch_age` need to be set to positive values.
+
+##### REST API
+
+The `/add` endpoint now understands a new query parameter `?format=`, which
+can be set to `unixfs` (default), or `car` (when uploading a CAR file). CAR
+files should have a single root. Additional parts in multipart uploads for CAR
+files are ignored.
+
+##### Go APIs
+
+The `AddParams` object that controls API options for the Add endpoint has been
+updated with the new `Format` option.
+
+##### Other
+
+Nothing.
+
+
+
+---
+
 ### v0.13.2 - 2021-04-06
 
 IPFS Cluster v0.13.2 is a maintenance release addressing bugs and adding a
