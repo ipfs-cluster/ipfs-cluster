@@ -42,6 +42,7 @@ const (
 	DefaultConnMgrHighWater    = 400
 	DefaultConnMgrLowWater     = 100
 	DefaultConnMgrGracePeriod  = 2 * time.Minute
+	DefaultDialPeerTimeout     = 3 * time.Second
 	DefaultFollowerMode        = false
 	DefaultMDNSInterval        = 10 * time.Second
 )
@@ -87,6 +88,10 @@ type Config struct {
 	// the libp2p host.
 	// FIXME: This only applies to ipfs-cluster-service.
 	ConnMgr ConnMgrConfig
+
+	// Sets the default dial timeout for libp2p connections to other
+	// peers.
+	DialPeerTimeout time.Duration
 
 	// Time between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
@@ -168,6 +173,7 @@ type configJSON struct {
 	ListenMultiaddress   ipfsconfig.Strings `json:"listen_multiaddress"`
 	EnableRelayHop       bool               `json:"enable_relay_hop"`
 	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
+	DialPeerTimeout      string             `json:"dial_peer_timeout"`
 	StateSyncInterval    string             `json:"state_sync_interval"`
 	PinRecoverInterval   string             `json:"pin_recover_interval"`
 	ReplicationFactorMin int                `json:"replication_factor_min"`
@@ -254,6 +260,10 @@ func (cfg *Config) Validate() error {
 
 	if cfg.ConnMgr.GracePeriod == 0 {
 		return errors.New("cluster.connection_manager.grace_period is invalid")
+	}
+
+	if cfg.DialPeerTimeout <= 0 {
+		return errors.New("cluster.dial_peer_timeout is invalid")
 	}
 
 	if cfg.StateSyncInterval <= 0 {
@@ -354,6 +364,7 @@ func (cfg *Config) setDefaults() {
 		LowWater:    DefaultConnMgrLowWater,
 		GracePeriod: DefaultConnMgrGracePeriod,
 	}
+	cfg.DialPeerTimeout = DefaultDialPeerTimeout
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
 	cfg.PinRecoverInterval = DefaultPinRecoverInterval
@@ -428,6 +439,7 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	config.SetIfNotDefault(rplMax, &cfg.ReplicationFactorMax)
 
 	err = config.ParseDurations("cluster",
+		&config.DurationOpt{Duration: jcfg.DialPeerTimeout, Dst: &cfg.DialPeerTimeout, Name: "dial_peer_timeout"},
 		&config.DurationOpt{Duration: jcfg.StateSyncInterval, Dst: &cfg.StateSyncInterval, Name: "state_sync_interval"},
 		&config.DurationOpt{Duration: jcfg.PinRecoverInterval, Dst: &cfg.PinRecoverInterval, Name: "pin_recover_interval"},
 		&config.DurationOpt{Duration: jcfg.MonitorPingInterval, Dst: &cfg.MonitorPingInterval, Name: "monitor_ping_interval"},
@@ -494,6 +506,7 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		LowWater:    cfg.ConnMgr.LowWater,
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
 	}
+	jcfg.DialPeerTimeout = cfg.DialPeerTimeout.String()
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()
 	jcfg.PinRecoverInterval = cfg.PinRecoverInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
