@@ -1630,7 +1630,10 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 
 	peers := make([]*api.ID, lenMembers)
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
+	// We should be done relatively quickly with this call. Otherwise
+	// report errors.
+	timeout := 15 * time.Second
+	ctxs, cancels := rpcutil.CtxsWithTimeout(ctx, lenMembers, timeout)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
@@ -1773,7 +1776,11 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 	lenDests := len(dests)
 	replies := make([]*api.PinInfo, lenDests)
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenDests)
+
+	// a globalPinInfo type of request should be relatively fast. We
+	// cannot block response indefinitely due to an unresponsive node.
+	timeout := 15 * time.Second
+	ctxs, cancels := rpcutil.CtxsWithTimeout(ctx, lenDests, timeout)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
@@ -1839,6 +1846,9 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 
 	replies := make([][]*api.PinInfo, lenMembers)
 
+	// We don't have a good timeout proposal for this. Depending on the
+	// size of the state and the peformance of IPFS and the network, this
+	// may take moderately long.
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
 	defer rpcutil.MultiCancel(cancels)
 
