@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.13.3 - 2021-05-02
+### v0.13.3 - 2021-05-XX
 
 IPFS Cluster v0.13.3 brings two new features: CAR file imports and crdt-commit batching.
 
@@ -22,6 +22,8 @@ Cluster is ingesting many pins, removing most of the overhead in the
 process. The batches are automatically commited when reaching a certain age or
 a certain size, both configurable.
 
+Additionally, improvements to timeout behaviours have been introduced.
+
 For more details, check the list below and the latest documentation on the
 [website](https://cluster.ipfs.io).
 
@@ -34,7 +36,7 @@ For more details, check the list below and the latest documentation on the
 
 ##### Bug fixes
 
-None.
+* Improve timeouts and timeout faster when dialing | [ipfs/ipfs-cluster#1350](https://github.com/ipfs/ipfs-cluster/issues/1350) | [ipfs/ipfs-cluster#1351](https://github.com/ipfs/ipfs-cluster/issues/1351)
 
 ##### Other changes
 
@@ -59,6 +61,10 @@ and the code.
 
 Batching is disabled by default. To be enabled, both `max_batch_size` and
 `max_batch_age` need to be set to positive values.
+
+The `cluster` section of the configuration has a new `dial_peer_timeout`
+option, which defaults to "3s". It controls the default dial timeout when
+libp2p is attempting to open a connection to a peer.
 
 ##### REST API
 
