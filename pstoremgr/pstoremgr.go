@@ -104,8 +104,7 @@ func (pm *Manager) ImportPeer(addr ma.Multiaddr, connect bool, ttl time.Duration
 
 	if connect {
 		go func() {
-			ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
-			defer cancel()
+			ctx := net.WithDialPeerTimeout(pm.ctx, ConnectTimeout)
 			pm.host.Connect(ctx, *pinfo)
 		}()
 	}
