@@ -416,7 +416,7 @@ func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 		}:
 			return nil
 		default:
-			return fmt.Errorf("error unpinning: %w", ErrMaxQueueSizeReached)
+			return fmt.Errorf("error pinning: %w", ErrMaxQueueSizeReached)
 		}
 	}
 
