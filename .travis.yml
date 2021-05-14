@@ -32,8 +32,8 @@ jobs:
         - travis_wait go test -v -timeout 15m -failfast -consensus raft .
     - name: "Golint, go vet, binary builds"
       script:
-        - go get -u golang.org/x/lint/golint
-        - go get honnef.co/go/tools/cmd/staticcheck
+        - go install golang.org/x/lint/golint@latest
+        - go install honnef.co/go/tools/cmd/staticcheck@latest
         - make check
         - make service
         - make ctl
