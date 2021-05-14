@@ -40,7 +40,7 @@ For more details, check the list below and the latest documentation on the
 
 ##### Other changes
 
-None.
+* Dependency upgrades | [ipfs/ipfs-cluster#1357](https://github.com/ipfs/ipfs-cluster/issues/1357)
 
 #### Upgrading notices
 
