@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.13.3 - 2021-05-XX
+### v0.13.3 - 2021-05-14
 
 IPFS Cluster v0.13.3 brings two new features: CAR file imports and crdt-commit batching.
 
@@ -32,7 +32,7 @@ For more details, check the list below and the latest documentation on the
 ##### Features
 
 * Support adding CAR files | [ipfs/ipfs-cluster#1343](https://github.com/ipfs/ipfs-cluster/issues/1343)
-* CRDT batching support | [ipfs/ipfs-cluster#1008](https://github.com/ipfs/ipfs-cluster/issues/1008) | [ipfs/ipfs-cluster#1346](https://github.com/ipfs/ipfs-cluster/issues/1346)
+* CRDT batching support | [ipfs/ipfs-cluster#1008](https://github.com/ipfs/ipfs-cluster/issues/1008) | [ipfs/ipfs-cluster#1346](https://github.com/ipfs/ipfs-cluster/issues/1346) | [ipfs/ipfs-cluster#1356](https://github.com/ipfs/ipfs-cluster/issues/1356)
 
 ##### Bug fixes
 
