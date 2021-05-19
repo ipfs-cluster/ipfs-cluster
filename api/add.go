@@ -184,7 +184,7 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 
 	// If the raw-leaves param is empty, the default RawLeaves value will
 	// take place (which may be true or false depending on
-	// CidVersion). Otherwise, it will be explicitally set.
+	// CidVersion). Otherwise, it will be explicitly set.
 	err = parseBoolParam(query, "raw-leaves", &params.RawLeaves)
 	if err != nil {
 		return nil, err
