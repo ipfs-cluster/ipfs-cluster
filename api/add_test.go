@@ -71,7 +71,7 @@ func TestAddParams_FromQueryRawLeaves(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !p.RawLeaves {
-		t.Error("RawLeaves should be true when explicitally set")
+		t.Error("RawLeaves should be true when explicitly set")
 	}
 }
 
