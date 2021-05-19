@@ -28,6 +28,53 @@ func TestAddParams_FromQuery(t *testing.T) {
 	}
 }
 
+func TestAddParams_FromQueryRawLeaves(t *testing.T) {
+	qStr := "cid-version=1"
+
+	q, err := url.ParseQuery(qStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := AddParamsFromQuery(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.RawLeaves {
+		t.Error("RawLeaves should be true with cid-version=1")
+	}
+
+	qStr = "cid-version=1&raw-leaves=false"
+
+	q, err = url.ParseQuery(qStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = AddParamsFromQuery(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.RawLeaves {
+		t.Error("RawLeaves should be false when explicitally set")
+	}
+
+	qStr = "cid-version=0&raw-leaves=true"
+
+	q, err = url.ParseQuery(qStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = AddParamsFromQuery(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.RawLeaves {
+		t.Error("RawLeaves should be true when explicitly set")
+	}
+}
+
 func TestAddParams_ToQueryString(t *testing.T) {
 	p := DefaultAddParams()
 	p.ReplicationFactorMin = 3

@@ -154,10 +154,6 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 		return nil, err
 	}
 
-	err = parseBoolParam(query, "raw-leaves", &params.RawLeaves)
-	if err != nil {
-		return nil, err
-	}
 	err = parseBoolParam(query, "hidden", &params.Hidden)
 	if err != nil {
 		return nil, err
@@ -177,6 +173,19 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	}
 
 	err = parseIntParam(query, "cid-version", &params.CidVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	// This mimics go-ipfs behaviour.
+	if params.CidVersion > 0 {
+		params.RawLeaves = true
+	}
+
+	// If the raw-leaves param is empty, the default RawLeaves value will
+	// take place (which may be true or false depending on
+	// CidVersion). Otherwise, it will be explicitly set.
+	err = parseBoolParam(query, "raw-leaves", &params.RawLeaves)
 	if err != nil {
 		return nil, err
 	}
