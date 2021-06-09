@@ -71,7 +71,7 @@ services:
 # See Cluster PEER 0 for comments (all removed here and below)
   ipfs1:
     container_name: ipfs1
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:latest
     volumes:
       - ./compose/ipfs1:/data/ipfs
 
@@ -96,7 +96,7 @@ services:
 # See Cluster PEER 0 for comments (all removed here and below)
   ipfs2:
     container_name: ipfs2
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:latest
     volumes:
       - ./compose/ipfs2:/data/ipfs
 
