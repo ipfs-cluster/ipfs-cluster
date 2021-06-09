@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
+	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
@@ -37,6 +38,7 @@ type Configs struct {
 	Metrics          *observations.MetricsConfig
 	Tracing          *observations.TracingConfig
 	Badger           *badger.Config
+	LevelDB          *leveldb.Config
 }
 
 // ConfigHelper helps managing the configuration and identity files with the
@@ -49,16 +51,18 @@ type ConfigHelper struct {
 	configPath   string
 	identityPath string
 	consensus    string
+	datastore    string
 }
 
 // NewConfigHelper creates a config helper given the paths to the
 // configuration and identity files.
 // Remember to Shutdown() the ConfigHelper.Manager() after use.
-func NewConfigHelper(configPath, identityPath, consensus string) *ConfigHelper {
+func NewConfigHelper(configPath, identityPath, consensus, datastore string) *ConfigHelper {
 	ch := &ConfigHelper{
 		configPath:   configPath,
 		identityPath: identityPath,
 		consensus:    consensus,
+		datastore:    datastore,
 	}
 	ch.init()
 	return ch
@@ -68,7 +72,7 @@ func NewConfigHelper(configPath, identityPath, consensus string) *ConfigHelper {
 // configuration and identity files and loads the configurations from disk.
 // Remember to Shutdown() the ConfigHelper.Manager() after use.
 func NewLoadedConfigHelper(configPath, identityPath string) (*ConfigHelper, error) {
-	cfgHelper := NewConfigHelper(configPath, identityPath, "")
+	cfgHelper := NewConfigHelper(configPath, identityPath, "", "")
 	err := cfgHelper.LoadFromDisk()
 	return cfgHelper, err
 }
@@ -153,7 +157,7 @@ func (ch *ConfigHelper) Configs() *Configs {
 // then it returns that.
 //
 // Otherwise it checks whether one of the consensus configurations
-// has been loaded. If both or non have been loaded, it returns
+// has been loaded. If both or none have been loaded, it returns
 // an empty string.
 func (ch *ConfigHelper) GetConsensus() string {
 	if ch.consensus != "" {
@@ -169,6 +173,39 @@ func (ch *ConfigHelper) GetConsensus() string {
 		return ch.configs.Crdt.ConfigKey()
 	}
 	return ch.configs.Raft.ConfigKey()
+}
+
+// GetDatastore attempts to return the configured datastore.  If the
+// ConfigHelper was initialized with a datastore string, then it returns that.
+//
+// Otherwise it checks whether one of the datastore configurations has been
+// loaded. If none or more than one have been loaded, it returns an empty
+// string. Otherwise it returns the key of the loaded configuration.
+func (ch *ConfigHelper) GetDatastore() string {
+	if ch.datastore != "" {
+		return ch.datastore
+	}
+
+	badgerLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.Badger.ConfigKey())
+	levelDBLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.LevelDB.ConfigKey())
+
+	nLoaded := 0
+	for _, v := range []bool{badgerLoaded, levelDBLoaded} {
+		if v {
+			nLoaded++
+		}
+	}
+	if nLoaded == 0 || nLoaded > 1 {
+		return ""
+	}
+	switch {
+	case badgerLoaded:
+		return ch.configs.Badger.ConfigKey()
+	case levelDBLoaded:
+		return ch.configs.LevelDB.ConfigKey()
+	default:
+		return ""
+	}
 }
 
 // register all current cluster components
@@ -187,6 +224,7 @@ func (ch *ConfigHelper) init() {
 		Metrics:          &observations.MetricsConfig{},
 		Tracing:          &observations.TracingConfig{},
 		Badger:           &badger.Config{},
+		LevelDB:          &leveldb.Config{},
 	}
 	man.RegisterComponent(config.Cluster, cfgs.Cluster)
 	man.RegisterComponent(config.API, cfgs.Restapi)
@@ -198,16 +236,31 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.Observations, cfgs.Metrics)
 	man.RegisterComponent(config.Observations, cfgs.Tracing)
 
+	registerDatastores := false
+
 	switch ch.consensus {
 	case cfgs.Raft.ConfigKey():
 		man.RegisterComponent(config.Consensus, cfgs.Raft)
 	case cfgs.Crdt.ConfigKey():
 		man.RegisterComponent(config.Consensus, cfgs.Crdt)
-		man.RegisterComponent(config.Datastore, cfgs.Badger)
+		registerDatastores = true
 	default:
 		man.RegisterComponent(config.Consensus, cfgs.Raft)
 		man.RegisterComponent(config.Consensus, cfgs.Crdt)
-		man.RegisterComponent(config.Datastore, cfgs.Badger)
+		registerDatastores = true
+	}
+
+	if registerDatastores {
+		switch ch.datastore {
+		case cfgs.Badger.ConfigKey():
+			man.RegisterComponent(config.Datastore, cfgs.Badger)
+		case cfgs.LevelDB.ConfigKey():
+			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
+
+		default:
+			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
+			man.RegisterComponent(config.Datastore, cfgs.Badger)
+		}
 	}
 
 	ch.identity = &config.Identity{}

@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
+	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
 
@@ -32,12 +33,15 @@ type StateManager interface {
 
 // NewStateManager returns an state manager implementation for the given
 // consensus ("raft" or "crdt"). It will need initialized configs.
-func NewStateManager(consensus string, ident *config.Identity, cfgs *Configs) (StateManager, error) {
+func NewStateManager(consensus string, datastore string, ident *config.Identity, cfgs *Configs) (StateManager, error) {
 	switch consensus {
 	case cfgs.Raft.ConfigKey():
 		return &raftStateManager{ident, cfgs}, nil
 	case cfgs.Crdt.ConfigKey():
-		return &crdtStateManager{cfgs}, nil
+		return &crdtStateManager{
+			cfgs:      cfgs,
+			datastore: datastore,
+		}, nil
 	case "":
 		return nil, errors.New("could not determine the consensus component")
 	default:
@@ -50,6 +54,7 @@ func NewStateManager(consensus string, ident *config.Identity, cfgs *Configs) (S
 func NewStateManagerWithHelper(cfgHelper *ConfigHelper) (StateManager, error) {
 	return NewStateManager(
 		cfgHelper.GetConsensus(),
+		cfgHelper.GetDatastore(),
 		cfgHelper.Identity(),
 		cfgHelper.Configs(),
 	)
@@ -113,15 +118,20 @@ func (raftsm *raftStateManager) Clean() error {
 }
 
 type crdtStateManager struct {
-	cfgs *Configs
+	cfgs      *Configs
+	datastore string
 }
 
 func (crdtsm *crdtStateManager) GetStore() (ds.Datastore, error) {
-	bds, err := badger.New(crdtsm.cfgs.Badger)
-	if err != nil {
-		return nil, err
+	switch crdtsm.datastore {
+	case crdtsm.cfgs.Badger.ConfigKey():
+		return badger.New(crdtsm.cfgs.Badger)
+	case crdtsm.cfgs.LevelDB.ConfigKey():
+		return leveldb.New(crdtsm.cfgs.LevelDB)
+	default:
+		return nil, errors.New("unknown datastore")
 	}
-	return bds, nil
+
 }
 
 func (crdtsm *crdtStateManager) GetOfflineState(store ds.Datastore) (state.State, error) {

@@ -224,7 +224,7 @@ func bootstrap(ctx context.Context, cluster *ipfscluster.Cluster, bootstraps []m
 }
 
 func setupDatastore(cfgHelper *cmdutils.ConfigHelper) ds.Datastore {
-	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgHelper.Configs())
+	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.GetDatastore(), cfgHelper.Identity(), cfgHelper.Configs())
 	checkErr("creating state manager", err)
 	store, err := stmgr.GetStore()
 	checkErr("creating datastore", err)

@@ -12,7 +12,7 @@ var cfgJSON = []byte(`
     "folder": "test",
     "badger_options": {
          "max_levels": 4,
-		 "value_log_loading_mode": 0
+	 "value_log_loading_mode": 0
     }
 }
 `)
