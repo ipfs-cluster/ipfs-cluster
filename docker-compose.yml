@@ -34,7 +34,7 @@ services:
 
   ipfs0:
     container_name: ipfs0
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:latest
 #   ports:
 #     - "4001:4001" # ipfs swarm - expose if needed/wanted
 #     - "5001:5001" # ipfs api - expose if needed/wanted
