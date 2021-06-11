@@ -148,7 +148,7 @@ type mockTracer struct {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
-	ident, clusterCfg, _, _, _, badgerCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
+	ident, clusterCfg, _, _, _, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
 	ctx := context.Background()
 
 	host, pubsub, dht := createHost(t, ident.PrivateKey, clusterCfg.Secret, clusterCfg.ListenAddr)
@@ -158,6 +158,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	clusterCfg.SetBaseDir(folder)
 	raftCfg.DataFolder = folder
 	badgerCfg.Folder = filepath.Join(folder, "badger")
+	levelDBCfg.Folder = filepath.Join(folder, "leveldb")
 
 	api := &mockAPI{}
 	proxy := &mockProxy{}
@@ -165,7 +166,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 
 	tracer := &mockTracer{}
 
-	store := makeStore(t, badgerCfg)
+	store := makeStore(t, badgerCfg, levelDBCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, false, crdtCfg)
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
