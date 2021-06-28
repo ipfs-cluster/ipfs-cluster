@@ -2,6 +2,7 @@ package badger
 
 import (
 	"testing"
+	"time"
 
 	"github.com/dgraph-io/badger"
 	"github.com/dgraph-io/badger/options"
@@ -10,6 +11,8 @@ import (
 var cfgJSON = []byte(`
 {
     "folder": "test",
+    "gc_discard_ratio": 0.1,
+    "gc_sleep": "2m",
     "badger_options": {
          "max_levels": 4,
 	 "value_log_loading_mode": 0
@@ -28,6 +31,18 @@ func TestLoadJSON(t *testing.T) {
 func TestToJSON(t *testing.T) {
 	cfg := &Config{}
 	cfg.LoadJSON(cfgJSON)
+
+	if cfg.GCDiscardRatio != 0.1 {
+		t.Fatal("GCDiscardRatio should be 0.1")
+	}
+
+	if cfg.GCInterval != DefaultGCInterval {
+		t.Fatal("GCInterval should default as it is unset")
+	}
+
+	if cfg.GCSleep != 2*time.Minute {
+		t.Fatal("GCSleep should be 2m")
+	}
 
 	if cfg.BadgerOptions.ValueLogLoadingMode != options.FileIO {
 		t.Fatalf("got: %d, want: %d", cfg.BadgerOptions.ValueLogLoadingMode, options.FileIO)
@@ -58,5 +73,18 @@ func TestToJSON(t *testing.T) {
 	err = cfg.LoadJSON(newjson)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDefault(t *testing.T) {
+	cfg := &Config{}
+	cfg.Default()
+	if cfg.Validate() != nil {
+		t.Fatal("error validating")
+	}
+
+	cfg.GCDiscardRatio = 0
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
 	}
 }
