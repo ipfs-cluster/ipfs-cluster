@@ -24,6 +24,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
+	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
@@ -56,8 +57,8 @@ var (
 	logLevel               = "CRITICAL"
 	customLogLvlFacilities = logFacilities{}
 
-	ptracker  = "map"
 	consensus = "crdt"
+	datastore = "badger"
 
 	ttlDelayTime = 2 * time.Second // set on Main to diskInf.MetricTTL
 	testsFolder  = "clusterTestsFolder"
@@ -101,8 +102,8 @@ func TestMain(m *testing.M) {
 	flag.StringVar(&logLevel, "loglevel", logLevel, "default log level for tests")
 	flag.IntVar(&nClusters, "nclusters", nClusters, "number of clusters to use")
 	flag.IntVar(&nPins, "npins", nPins, "number of pins to pin/unpin/check")
-	flag.StringVar(&ptracker, "tracker", ptracker, "tracker implementation")
 	flag.StringVar(&consensus, "consensus", consensus, "consensus implementation")
+	flag.StringVar(&datastore, "datastore", datastore, "datastore backend")
 	flag.Parse()
 
 	if len(customLogLvlFacilities) <= 0 {
@@ -175,7 +176,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -193,6 +194,7 @@ func createComponents(
 	raftCfg.DataFolder = filepath.Join(testsFolder, host.ID().Pretty())
 
 	badgerCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger")
+	levelDBCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "leveldb")
 
 	api, err := rest.NewAPI(ctx, apiCfg)
 	if err != nil {
@@ -215,7 +217,7 @@ func createComponents(
 		t.Fatal(err)
 	}
 
-	store := makeStore(t, badgerCfg)
+	store := makeStore(t, badgerCfg, levelDBCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
@@ -236,10 +238,17 @@ func createComponents(
 	return clusterCfg, store, cons, []API{api, ipfsProxy}, ipfs, tracker, mon, alloc, inf, tracer, mock
 }
 
-func makeStore(t *testing.T, badgerCfg *badger.Config) ds.Datastore {
+func makeStore(t *testing.T, badgerCfg *badger.Config, levelDBCfg *leveldb.Config) ds.Datastore {
 	switch consensus {
 	case "crdt":
-		dstr, err := badger.New(badgerCfg)
+		if datastore == "badger" {
+			dstr, err := badger.New(badgerCfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return dstr
+		}
+		dstr, err := leveldb.New(levelDBCfg)
 		if err != nil {
 			t.Fatal(err)
 		}

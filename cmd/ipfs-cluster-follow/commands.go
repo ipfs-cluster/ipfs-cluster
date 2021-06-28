@@ -17,6 +17,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/cmdutils"
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
+	"github.com/ipfs/ipfs-cluster/datastore/badger"
+	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
@@ -202,7 +204,10 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 		cfgURL = fmt.Sprintf("http://%s/ipns/%s", gw, cfgURL)
 	}
 
-	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt")
+	// Setting the datastore here is useless, as we initialize with remote
+	// config and we will have an empty service.json with the source only.
+	// That source will decide which datastore is actually used.
+	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt", "")
 	cfgHelper.Manager().Shutdown()
 	cfgHelper.Manager().Source = cfgURL
 	err := cfgHelper.Manager().Default()
@@ -281,7 +286,7 @@ func runCmd(c *cli.Context) error {
 	cfgHelper.Manager().Shutdown()
 	cfgs := cfgHelper.Configs()
 
-	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.Identity(), cfgs)
+	stmgr, err := cmdutils.NewStateManager(cfgHelper.GetConsensus(), cfgHelper.GetDatastore(), cfgHelper.Identity(), cfgs)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating state manager"), 1)
 	}
@@ -407,32 +412,71 @@ func listCmd(c *cli.Context) error {
 	clusterName := c.String("clusterName")
 
 	absPath, configPath, identityPath := buildPaths(c, clusterName)
-	err := printStatusOnline(absPath, clusterName)
-	if err != nil {
-		apiErr, ok := err.(*api.Error)
-		if ok && apiErr.Code != 0 {
-			return cli.Exit(
-				errors.Wrapf(
-					err,
-					"The Peer API seems to be running but returned with code %d",
-					apiErr.Code,
-				), 1)
-		}
-
-		// Generate a default config just for the purpose of having
-		// a badger configuration that the state manager can use to
-		// open and read the database.
-		cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt")
-		cfgHelper.Manager().Shutdown() // not needed
-		cfgHelper.Manager().Default()  // we have a default crdt/Badger config
-		cfgHelper.Configs().Badger.SetBaseDir(absPath)
-		cfgHelper.Manager().ApplyEnvVars()
-
-		err := printStatusOffline(cfgHelper)
-		if err != nil {
-			return cli.Exit(errors.Wrap(err, "error obtaining the pinset"), 1)
-		}
+	if !isInitialized(absPath) {
+		printNotInitialized(clusterName)
+		return cli.Exit("", 1)
 	}
+
+	err := printStatusOnline(absPath, clusterName)
+	if err == nil {
+		return nil
+	}
+
+	// There was an error. Try offline status
+	apiErr, ok := err.(*api.Error)
+	if ok && apiErr.Code != 0 {
+		return cli.Exit(
+			errors.Wrapf(
+				err,
+				"The Peer API seems to be running but returned with code %d",
+				apiErr.Code,
+			), 1)
+	}
+
+	// We are on offline mode so we cannot rely on IPFS being
+	// running and most probably our configuration is remote and
+	// to be loaded from IPFS. Thus we need to find a different
+	// way to decide whether to load badger/leveldb, and once we
+	// know, do it with the default settings.
+	hasLevelDB := false
+	lDBCfg := &leveldb.Config{}
+	lDBCfg.SetBaseDir(absPath)
+	lDBCfg.Default()
+	levelDBInfo, err := os.Stat(lDBCfg.GetFolder())
+	if err == nil && levelDBInfo.IsDir() {
+		hasLevelDB = true
+	}
+
+	hasBadger := false
+	badgerCfg := &badger.Config{}
+	badgerCfg.SetBaseDir(absPath)
+	badgerCfg.Default()
+	badgerInfo, err := os.Stat(badgerCfg.GetFolder())
+	if err == nil && badgerInfo.IsDir() {
+		hasBadger = true
+	}
+
+	if hasLevelDB && hasBadger {
+		return cli.Exit(errors.Wrapf(err, "found both leveldb (%s) and badger (%s) folders: cannot determine which to use in offline mode", lDBCfg.GetFolder(), badgerCfg.GetFolder()), 1)
+	}
+
+	// Since things were initialized, assume there is one at least.
+	dstoreType := "leveldb"
+	if hasBadger {
+		dstoreType = "badger"
+	}
+	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "crdt", dstoreType)
+	cfgHelper.Manager().Shutdown() // not needed
+	cfgHelper.Configs().Badger.SetBaseDir(absPath)
+	cfgHelper.Configs().LevelDB.SetBaseDir(absPath)
+	cfgHelper.Manager().Default() // we have a default crdt config with either leveldb or badger registered.
+	cfgHelper.Manager().ApplyEnvVars()
+
+	err = printStatusOffline(cfgHelper)
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "error obtaining the pinset"), 1)
+	}
+
 	return nil
 }
 

@@ -29,7 +29,7 @@ func (l *lock) lock() {
 	}
 
 	// we should have a config folder whenever we try to lock
-	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "")
+	cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, "", "")
 	cfgHelper.MakeConfigFolder()
 
 	// set the lock file within this function

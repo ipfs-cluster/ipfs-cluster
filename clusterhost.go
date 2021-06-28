@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 
-	datastore "github.com/ipfs/go-datastore"
+	ds "github.com/ipfs/go-datastore"
 	namespace "github.com/ipfs/go-datastore/namespace"
 	ipns "github.com/ipfs/go-ipns"
 	config "github.com/ipfs/ipfs-cluster/config"
@@ -50,7 +50,7 @@ func NewClusterHost(
 	ctx context.Context,
 	ident *config.Identity,
 	cfg *Config,
-	ds datastore.Datastore,
+	ds ds.Datastore,
 ) (host.Host, *pubsub.PubSub, *dual.DHT, error) {
 
 	// Set the default dial timeout for all libp2p connections.  It is not
@@ -131,7 +131,7 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 	}
 }
 
-func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraopts ...dual.Option) (*dual.DHT, error) {
+func newDHT(ctx context.Context, h host.Host, store ds.Datastore, extraopts ...dual.Option) (*dual.DHT, error) {
 	opts := []dual.Option{
 		dual.DHTOption(dht.NamespacedValidator("pk", record.PublicKeyValidator{})),
 		dual.DHTOption(dht.NamespacedValidator("ipns", ipns.Validator{KeyBook: h.Peerstore()})),
@@ -140,8 +140,8 @@ func newDHT(ctx context.Context, h host.Host, store datastore.Datastore, extraop
 
 	opts = append(opts, extraopts...)
 
-	if batchingDs, ok := store.(datastore.Batching); ok {
-		dhtDatastore := namespace.Wrap(batchingDs, datastore.NewKey(dhtNamespace))
+	if batchingDs, ok := store.(ds.Batching); ok {
+		dhtDatastore := namespace.Wrap(batchingDs, ds.NewKey(dhtNamespace))
 		opts = append(opts, dual.DHTOption(dht.Datastore(dhtDatastore)))
 		logger.Debug("enabling DHT record persistence to datastore")
 	}
