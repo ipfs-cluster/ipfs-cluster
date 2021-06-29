@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
+	cmd "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -189,7 +190,7 @@ func TestIPFSProxyPin(t *testing.T) {
 					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
 				}
 			case true:
-				var respErr ipfsError
+				var respErr cmd.Error
 				err = json.Unmarshal(resBytes, &respErr)
 				if err != nil {
 					t.Fatal(err)
@@ -302,7 +303,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 					t.Errorf("wrong pin cid: got = %s, want = %s", resp.Pins[0], tt.want)
 				}
 			case true:
-				var respErr ipfsError
+				var respErr cmd.Error
 				err = json.Unmarshal(resBytes, &respErr)
 				if err != nil {
 					t.Fatal(err)
@@ -380,7 +381,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 		}
 
 		resBytes, _ := ioutil.ReadAll(res.Body)
-		var respErr ipfsError
+		var respErr cmd.Error
 		err = json.Unmarshal(resBytes, &respErr)
 		if err != nil {
 			t.Fatal(err)
@@ -406,7 +407,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 		}
 
 		resBytes, _ := ioutil.ReadAll(res.Body)
-		var respErr ipfsError
+		var respErr cmd.Error
 		err = json.Unmarshal(resBytes, &respErr)
 		if err != nil {
 			t.Fatal(err)
