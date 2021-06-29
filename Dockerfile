@@ -44,6 +44,7 @@ ENV GOPATH                 /go
 ENV SRC_PATH               /go/src/github.com/ipfs/ipfs-cluster
 ENV IPFS_CLUSTER_PATH      /data/ipfs-cluster
 ENV IPFS_CLUSTER_CONSENSUS crdt
+ENV IPFS_CLUSTER_DATASTORE leveldb
 
 EXPOSE 9094
 EXPOSE 9095
