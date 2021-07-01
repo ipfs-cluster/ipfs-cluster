@@ -209,7 +209,10 @@ func TestPinOptionsQuery(t *testing.T) {
 			t.Error("error parsing query", err)
 		}
 		po2 := &PinOptions{}
-		po2.FromQuery(q)
+		err = po2.FromQuery(q)
+		if err != nil {
+			t.Fatal("error parsing options", err)
+		}
 		if !tc.Equals(po2) {
 			t.Error("expected equal PinOptions")
 			t.Error(queryStr)

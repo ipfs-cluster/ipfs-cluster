@@ -771,6 +771,11 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 			if err != nil {
 				return fmt.Errorf("error decoding multiaddress: %w", err)
 			}
+			_, err = maOrig.ValueForProtocol(multiaddr.P_P2P)
+			if err != nil {
+				return fmt.Errorf("multiaddress does not contain peer ID: %w", err)
+			}
+
 			maOrigins[i] = maOrig
 		}
 		po.Origins = maOrigins
