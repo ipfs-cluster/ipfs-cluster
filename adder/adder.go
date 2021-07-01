@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"strings"
 
+	"github.com/ipfs/go-unixfs"
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipld/go-car"
@@ -282,6 +283,7 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 
 	root := carReader.Header.Roots[0]
 	bytes := uint64(0)
+	size := uint64(0)
 
 	for {
 		block, err := carReader.Next()
@@ -298,6 +300,15 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 			return cid.Undef, err
 		}
 
+		// If the root is in the CAR and the root is a UnixFS
+		// node, then set the size in the output object.
+		if nd.Cid().Equals(root) {
+			ufs, err := unixfs.ExtractFSNode(nd)
+			if err == nil {
+				size = ufs.FileSize()
+			}
+		}
+
 		err = ca.dgs.Add(ca.ctx, nd)
 		if err != nil {
 			return cid.Undef, err
@@ -308,7 +319,7 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 		Name:  name,
 		Cid:   root,
 		Bytes: bytes,
-		Size:  0,
+		Size:  size,
 	}
 
 	return root, nil
