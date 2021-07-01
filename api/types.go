@@ -560,15 +560,16 @@ func (pm PinMode) ToPinDepth() PinDepth {
 
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
-	ReplicationFactorMin int               `json:"replication_factor_min" codec:"rn,omitempty"`
-	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
-	Name                 string            `json:"name" codec:"n,omitempty"`
-	Mode                 PinMode           `json:"mode" codec:"o,omitempty"`
-	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
-	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
-	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
-	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
-	PinUpdate            cid.Cid           `json:"pin_update,omitempty" codec:"pu,omitempty"`
+	ReplicationFactorMin int                   `json:"replication_factor_min" codec:"rn,omitempty"`
+	ReplicationFactorMax int                   `json:"replication_factor_max" codec:"rx,omitempty"`
+	Name                 string                `json:"name" codec:"n,omitempty"`
+	Mode                 PinMode               `json:"mode" codec:"o,omitempty"`
+	ShardSize            uint64                `json:"shard_size" codec:"s,omitempty"`
+	UserAllocations      []peer.ID             `json:"user_allocations" codec:"ua,omitempty"`
+	ExpireAt             time.Time             `json:"expire_at" codec:"e,omitempty"`
+	Metadata             map[string]string     `json:"metadata" codec:"m,omitempty"`
+	PinUpdate            cid.Cid               `json:"pin_update,omitempty" codec:"pu,omitempty"`
+	Origins              []multiaddr.Multiaddr `json:"origins" codec:"g,omitempty"`
 }
 
 // Equals returns true if two PinOption objects are equivalent. po and po2 may
@@ -630,6 +631,24 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 
 	// deliberately ignore Update
 
+	lenOrigins1 := len(po.Origins)
+	lenOrigins2 := len(po2.Origins)
+	if lenOrigins1 != lenOrigins2 {
+		return false
+	}
+
+	for _, o1 := range po.Origins {
+		found := false
+		for _, o2 := range po2.Origins {
+			if o1.Equal(o2) {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -658,6 +677,15 @@ func (po *PinOptions) ToQuery() (string, error) {
 	if po.PinUpdate != cid.Undef {
 		q.Set("pin-update", po.PinUpdate.String())
 	}
+
+	if len(po.Origins) > 0 {
+		origins := make([]string, len(po.Origins))
+		for i, o := range po.Origins {
+			origins[i] = o.String()
+		}
+		q.Set("origins", strings.Join(origins, ","))
+	}
+
 	return q.Encode(), nil
 }
 
@@ -733,6 +761,21 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 		}
 		po.PinUpdate = updateCid
 	}
+
+	originsStr := q.Get("origins")
+	if originsStr != "" {
+		origins := strings.Split(originsStr, ",")
+		maOrigins := make([]multiaddr.Multiaddr, len(origins))
+		for i, ostr := range origins {
+			maOrig, err := multiaddr.NewMultiaddr(ostr)
+			if err != nil {
+				return fmt.Errorf("error decoding multiaddress: %w", err)
+			}
+			maOrigins[i] = maOrig
+		}
+		po.Origins = maOrigins
+	}
+
 	return nil
 }
 
@@ -847,6 +890,13 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		allocs[i] = bs
 	}
 
+	// Cursory google search says len=0 slices will be
+	// decoded as null, which is fine.
+	origins := make([][]byte, len(pin.Origins))
+	for i, orig := range pin.Origins {
+		origins[i] = orig.Bytes()
+	}
+
 	var expireAtProto uint64
 	// Only set the protobuf field with non-zero times.
 	if !(pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero)) {
@@ -863,6 +913,7 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		ExpireAt:             expireAtProto,
 		// Mode:                 pin.Mode,
 		// UserAllocations:      pin.UserAllocations,
+		Origins: origins,
 	}
 
 	pbPin := &pb.Pin{
@@ -934,6 +985,18 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	// We do not store the PinMode option but we can
 	// derive it from the MaxDepth setting.
 	pin.Mode = pin.MaxDepth.ToPinMode()
+
+	pbOrigins := opts.GetOrigins()
+	origins := make([]multiaddr.Multiaddr, len(pbOrigins))
+	for i, orig := range pbOrigins {
+		maOrig, err := multiaddr.NewMultiaddrBytes(orig)
+		if err != nil {
+			return err
+		}
+		origins[i] = maOrig
+	}
+	pin.Origins = origins
+
 	return nil
 }
 
