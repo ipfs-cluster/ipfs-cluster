@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"time"
 
 	"github.com/dgraph-io/badger"
 	"github.com/dgraph-io/badger/options"
@@ -25,6 +26,13 @@ var (
 	// DefaultBadgerOptions has to be a var because badger.DefaultOptions
 	// is. Values are customized during Init().
 	DefaultBadgerOptions badger.Options
+
+	// DefaultGCDiscardRatio for GC operations. See Badger docs.
+	DefaultGCDiscardRatio float64 = 0.2
+	// DefaultGCInterval specifies interval between GC cycles.
+	DefaultGCInterval time.Duration = 15 * time.Minute
+	// DefaultGCSleep specifies sleep time between GC rounds.
+	DefaultGCSleep time.Duration = 10 * time.Second
 )
 
 func init() {
@@ -48,6 +56,16 @@ type Config struct {
 	// The folder for this datastore. Non-absolute paths are relative to
 	// the base configuration folder.
 	Folder string
+
+	// For GC operation. See Badger documentation.
+	GCDiscardRatio float64
+
+	// Interval between GC cycles. Each GC cycle runs one or more
+	// rounds separated by GCSleep.
+	GCInterval time.Duration
+
+	// Time between rounds in a GC cycle
+	GCSleep time.Duration
 
 	BadgerOptions badger.Options
 }
@@ -132,8 +150,11 @@ func (bo *badgerOptions) Marshal(badgerOpts *badger.Options) {
 }
 
 type jsonConfig struct {
-	Folder        string        `json:"folder,omitempty"`
-	BadgerOptions badgerOptions `json:"badger_options,omitempty"`
+	Folder         string        `json:"folder,omitempty"`
+	GCDiscardRatio float64       `json:"gc_discard_ratio"`
+	GCInterval     string        `json:"gc_interval"`
+	GCSleep        string        `json:"gc_sleep"`
+	BadgerOptions  badgerOptions `json:"badger_options,omitempty"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of Datastore.
@@ -144,6 +165,9 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with sensible values.
 func (cfg *Config) Default() error {
 	cfg.Folder = DefaultSubFolder
+	cfg.GCDiscardRatio = DefaultGCDiscardRatio
+	cfg.GCInterval = DefaultGCInterval
+	cfg.GCSleep = DefaultGCSleep
 	cfg.BadgerOptions = DefaultBadgerOptions
 	return nil
 }
@@ -167,6 +191,10 @@ func (cfg *Config) Validate() error {
 		return errors.New("folder is unset")
 	}
 
+	if cfg.GCDiscardRatio <= 0 || cfg.GCDiscardRatio >= 1 {
+		return errors.New("gc_discard_ratio must be more than 0 and less than 1")
+	}
+
 	return nil
 }
 
@@ -185,6 +213,19 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	config.SetIfNotDefault(jcfg.Folder, &cfg.Folder)
+
+	// 0 is an invalid option anyways. In that case, set default (0.2)
+	config.SetIfNotDefault(jcfg.GCDiscardRatio, &cfg.GCDiscardRatio)
+
+	// If these durations are set, GC is enabled by default with default
+	// values.
+	err := config.ParseDurations("badger",
+		&config.DurationOpt{Duration: jcfg.GCInterval, Dst: &cfg.GCInterval, Name: "gc_interval"},
+		&config.DurationOpt{Duration: jcfg.GCSleep, Dst: &cfg.GCSleep, Name: "gc_sleep"},
+	)
+	if err != nil {
+		return err
+	}
 
 	badgerOpts := jcfg.BadgerOptions.Unmarshal()
 
@@ -218,6 +259,10 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 	if cfg.Folder != DefaultSubFolder {
 		jCfg.Folder = cfg.Folder
 	}
+
+	jCfg.GCDiscardRatio = cfg.GCDiscardRatio
+	jCfg.GCInterval = cfg.GCInterval.String()
+	jCfg.GCSleep = cfg.GCSleep.String()
 
 	bo := &badgerOptions{}
 	bo.Marshal(&cfg.BadgerOptions)

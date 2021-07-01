@@ -77,6 +77,11 @@ func SetIfNotDefault(src interface{}, dest interface{}) {
 		if n != 0 {
 			*dest.(*int) = n
 		}
+	case float64:
+		n := src.(float64)
+		if n != 0 {
+			*dest.(*float64) = n
+		}
 	case bool:
 		b := src.(bool)
 		if b {
