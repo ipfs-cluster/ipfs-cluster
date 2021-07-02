@@ -326,12 +326,15 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 	ctx, cancelRequest := context.WithCancel(ctx)
 	defer cancelRequest()
 
-	// If the pin has origins, tell ipfs to connect
-	for _, orig := range pin.Origins {
-		// Attempt to connect to a maximum of 10 origins,
-		// in the background, ignoring errors.
-		logger.Debugf("swarm-connect to origin before pinning: %s", orig)
+	// If the pin has origins, tell ipfs to connect to a maximum of 10.
+	bound := len(pin.Origins)
+	if bound > 10 {
+		bound = 10
+	}
+	for _, orig := range pin.Origins[0:bound] {
+		// do it in the background, ignoring errors.
 		go func(o string) {
+			logger.Debugf("swarm-connect to origin before pinning: %s", o)
 			_, err := ipfs.postCtx(
 				ctx,
 				fmt.Sprintf("swarm/connect?arg=%s", o),
@@ -342,7 +345,7 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 				logger.Debug(err)
 				return
 			}
-			logger.Debugf("swarm-connect success to origin: %s", orig)
+			logger.Debugf("swarm-connect success to origin: %s", o)
 		}(url.QueryEscape(orig.String()))
 	}
 
