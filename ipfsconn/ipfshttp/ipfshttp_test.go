@@ -8,6 +8,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 
 	merkledag "github.com/ipfs/go-merkledag"
@@ -76,6 +77,10 @@ func TestPin(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 
 	pin := api.PinCid(test.Cid1)
+	pin.Origins = []multiaddr.Multiaddr{
+		multiaddr.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng"),
+		multiaddr.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR"),
+	}
 	err := ipfs.Pin(ctx, pin)
 	if err != nil {
 		t.Error("expected success pinning cid:", err)
