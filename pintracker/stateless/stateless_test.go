@@ -397,7 +397,7 @@ func TestStatusAll(t *testing.T) {
 	// * A slow CID pinning
 	// * Cid1 is pinned
 	// * Cid4 should be in PinError (it's in the state but not on IPFS)
-	stAll := spt.StatusAll(ctx)
+	stAll := spt.StatusAll(ctx, api.TrackerStatusUndefined)
 	if len(stAll) != 3 {
 		t.Errorf("wrong status length. Expected 3, got: %d", len(stAll))
 	}
@@ -409,8 +409,8 @@ func TestStatusAll(t *testing.T) {
 				t.Error("cid1 should be pinned")
 			}
 		case test.Cid4:
-			if pi.Status != api.TrackerStatusPinError {
-				t.Error("cid2 should be in pin_error status")
+			if pi.Status != api.TrackerStatusUnexpectedlyUnpinned {
+				t.Error("cid2 should be in unexpectedly_unpinned status")
 			}
 		case test.SlowCid1:
 			if pi.Status != api.TrackerStatusPinning {
@@ -471,6 +471,6 @@ func BenchmarkTracker_localStatus(b *testing.B) {
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tracker.localStatus(ctx, true)
+		tracker.localStatus(ctx, true, api.TrackerStatusUndefined)
 	}
 }

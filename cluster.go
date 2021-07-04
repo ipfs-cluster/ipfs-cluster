@@ -1087,21 +1087,21 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 // StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.
 // If an error happens, the slice will contain as much information as
 // could be fetched from other peers.
-func (c *Cluster) StatusAll(ctx context.Context) ([]*api.GlobalPinInfo, error) {
+func (c *Cluster) StatusAll(ctx context.Context, filter api.TrackerStatus) ([]*api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAll")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoSlice(ctx, "PinTracker", "StatusAll")
+	return c.globalPinInfoSlice(ctx, "PinTracker", "StatusAll", filter)
 }
 
 // StatusAllLocal returns the PinInfo for all the tracked Cids in this peer.
-func (c *Cluster) StatusAllLocal(ctx context.Context) []*api.PinInfo {
+func (c *Cluster) StatusAllLocal(ctx context.Context, filter api.TrackerStatus) []*api.PinInfo {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAllLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.tracker.StatusAll(ctx)
+	return c.tracker.StatusAll(ctx, filter)
 }
 
 // Status returns the GlobalPinInfo for a given Cid as fetched from all
@@ -1157,7 +1157,7 @@ func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) 
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoSlice(ctx, "Cluster", "RecoverAllLocal")
+	return c.globalPinInfoSlice(ctx, "Cluster", "RecoverAllLocal", nil)
 }
 
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
@@ -1824,9 +1824,13 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	return gpin, nil
 }
 
-func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) ([]*api.GlobalPinInfo, error) {
+func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, arg interface{}) ([]*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoSlice")
 	defer span.End()
+
+	if arg == nil {
+		arg = struct{}{}
+	}
 
 	infos := make([]*api.GlobalPinInfo, 0)
 	fullMap := make(map[cid.Cid]*api.GlobalPinInfo)
@@ -1857,7 +1861,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string) (
 		members,
 		comp,
 		method,
-		struct{}{},
+		arg,
 		rpcutil.CopyPinInfoSliceToIfaces(replies),
 	)
 
