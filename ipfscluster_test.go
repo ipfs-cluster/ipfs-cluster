@@ -423,6 +423,7 @@ func shutdownCluster(t *testing.T, c *Cluster, m *test.IpfsMock) {
 	}
 	c.dht.Close()
 	c.host.Close()
+	c.datastore.Close()
 	m.Close()
 }
 
