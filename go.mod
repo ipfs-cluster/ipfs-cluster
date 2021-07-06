@@ -10,10 +10,10 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/go-hclog v0.16.0
+	github.com/hashicorp/go-hclog v0.16.1
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.19
+	github.com/hsanjuan/ipfs-lite v1.1.21
 	github.com/imdario/mergo v0.3.12
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7
@@ -32,12 +32,12 @@ require (
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-ipld-format v0.2.0
-	github.com/ipfs/go-ipns v0.0.2
+	github.com/ipfs/go-ipns v0.1.0
 	github.com/ipfs/go-log/v2 v2.2.0
 	github.com/ipfs/go-merkledag v0.3.2
-	github.com/ipfs/go-mfs v0.1.2
+	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
 	github.com/ipfs/go-path v0.0.9
-	github.com/ipfs/go-unixfs v0.2.5
+	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipld/go-car v0.3.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
@@ -61,14 +61,13 @@ require (
 	github.com/libp2p/go-ws-transport v0.4.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multiaddr-dns v0.3.1
-	github.com/multiformats/go-multicodec v0.1.6
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.8.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
-	github.com/ugorji/go/codec v1.2.5
+	github.com/ugorji/go/codec v1.2.6
 	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.23.0
