@@ -5,33 +5,9 @@ updates:
   schedule:
     interval: weekly
     time: "11:00"
-  open-pull-requests-limit: 10
+  open-pull-requests-limit: 20
   target-branch: dependency-upgrades
   labels:
   - topic/dependencies
   ignore:
-  - dependency-name: github.com/multiformats/go-multiaddr-dns
-    versions:
-    - 0.3.0
-  - dependency-name: github.com/ipfs/go-ds-crdt
-    versions:
-    - 0.1.20
-  - dependency-name: github.com/hsanjuan/ipfs-lite
-    versions:
-    - 1.1.19
-  - dependency-name: github.com/golang/protobuf
-    versions:
-    - 1.5.1
-  - dependency-name: github.com/libp2p/go-libp2p-secio
-    versions:
-    - 0.2.3
-  - dependency-name: github.com/ipfs/go-ipfs-pinner
-    versions:
-    - 0.1.0
-    - 0.1.1
-  - dependency-name: github.com/multiformats/go-multicodec
-    versions:
-    - 0.2.0
-  - dependency-name: github.com/ugorji/go/codec
-    versions:
-    - 1.2.3
+
