@@ -13,6 +13,7 @@ import (
 	"contrib.go.opencensus.io/exporter/prometheus"
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
@@ -63,8 +64,8 @@ func SetupTracing(cfg *TracingConfig) (*JaegerTracer, error) {
 func setupMetrics(cfg *MetricsConfig) error {
 	// setup Prometheus
 	registry := prom.NewRegistry()
-	goCollector := prom.NewGoCollector()
-	procCollector := prom.NewProcessCollector(prom.ProcessCollectorOpts{})
+	goCollector := collectors.NewGoCollector()
+	procCollector := collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
 	registry.MustRegister(goCollector, procCollector)
 	pe, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "ipfscluster",
