@@ -64,7 +64,7 @@ require (
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.10.0
-	github.com/rs/cors v1.7.0
+	github.com/rs/cors v1.8.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.2.5
 	github.com/urfave/cli v1.22.5
