@@ -31,6 +31,7 @@ const programName = "ipfs-cluster-service"
 const (
 	defaultLogLevel  = "info"
 	defaultConsensus = "crdt"
+	defaultDatastore = "leveldb"
 )
 
 const (
@@ -60,17 +61,17 @@ using LibP2P. This is a simplified view of the components:
                        | HTTP(s)
 ipfs-cluster-service   |                           HTTP
 +----------+--------+--v--+----------------------+      +-------------+
-| RPC/Raft | Peer 1 | API | IPFS Connector/Proxy +------> IPFS daemon |
+| RPC      | Peer 1 | API | IPFS Connector/Proxy +------> IPFS daemon |
 +----^-----+--------+-----+----------------------+      +-------------+
      | libp2p
      |
 +----v-----+--------+-----+----------------------+      +-------------+
-| RPC/Raft | Peer 2 | API | IPFS Connector/Proxy +------> IPFS daemon |
+| RPC      | Peer 2 | API | IPFS Connector/Proxy +------> IPFS daemon |
 +----^-----+--------+-----+----------------------+      +-------------+
      |
      |
 +----v-----+--------+-----+----------------------+      +-------------+
-| RPC/Raft | Peer 3 | API | IPFS Connector/Proxy +------> IPFS daemon |
+| RPC      | Peer 3 | API | IPFS Connector/Proxy +------> IPFS daemon |
 +----------+--------+-----+----------------------+      +-------------+
 
 
@@ -265,6 +266,11 @@ the peer IDs in the given multiaddresses.
 					Usage: "select consensus component: 'crdt' or 'raft'",
 					Value: defaultConsensus,
 				},
+				cli.StringFlag{
+					Name:  "datastore",
+					Usage: "select datastore component: 'leveldb' or 'badger'",
+					Value: defaultDatastore,
+				},
 				cli.BoolFlag{
 					Name:  "custom-secret, s",
 					Usage: "prompt for the cluster secret (when no source specified)",
@@ -284,11 +290,20 @@ the peer IDs in the given multiaddresses.
 			},
 			Action: func(c *cli.Context) error {
 				consensus := c.String("consensus")
-				if consensus != "raft" && consensus != "crdt" {
+				switch consensus {
+				case "raft", "crdt":
+				default:
 					checkErr("choosing consensus", errors.New("flag value must be set to 'raft' or 'crdt'"))
 				}
 
-				cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, consensus)
+				datastore := c.String("datastore")
+				switch datastore {
+				case "leveldb", "badger":
+				default:
+					checkErr("choosing datastore", errors.New("flag value must be set to 'leveldb' or 'badger'"))
+				}
+
+				cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, consensus, datastore)
 				defer cfgHelper.Manager().Shutdown() // wait for saves
 
 				configExists := false

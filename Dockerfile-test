@@ -30,6 +30,7 @@ ENV GOPATH                                      /go
 ENV SRC_PATH                                    /go/src/github.com/ipfs/ipfs-cluster
 ENV IPFS_CLUSTER_PATH                           /data/ipfs-cluster
 ENV IPFS_CLUSTER_CONSENSUS                      crdt
+ENV IPFS_CLUSTER_DATASTORE                      leveldb
 ENV IPFS_CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS /ip4/0.0.0.0/tcp/9094
 ENV IPFS_CLUSTER_IPFSPROXY_LISTENMULTIADDRESS   /ip4/0.0.0.0/tcp/9095
 

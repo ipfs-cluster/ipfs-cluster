@@ -20,9 +20,11 @@ require (
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ds-badger v0.2.7
 	github.com/ipfs/go-ds-crdt v0.1.21
+	github.com/ipfs/go-ds-leveldb v0.4.2
 	github.com/ipfs/go-fs-lock v0.0.6
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-chunker v0.0.5
+	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-config v0.14.0
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
 	github.com/ipfs/go-ipfs-files v0.0.8
@@ -64,6 +66,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.2.5
 	github.com/urfave/cli v1.22.5

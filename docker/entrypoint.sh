@@ -22,7 +22,7 @@ if [ -e "${IPFS_CLUSTER_PATH}/service.json" ]; then
 else
     echo "This container only runs ipfs-cluster-service. ipfs needs to be run separately!"
     echo "Initializing default configuration..."
-    ipfs-cluster-service init --consensus "${IPFS_CLUSTER_CONSENSUS}"
+    ipfs-cluster-service init --consensus "${IPFS_CLUSTER_CONSENSUS}" --datastore "${IPFS_CLUSTER_DATASTORE}"
 fi
 
 exec ipfs-cluster-service $@
