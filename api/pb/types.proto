@@ -29,4 +29,5 @@ message PinOptions {
   map<string, string> Metadata = 6;
   bytes PinUpdate = 7;
   uint64 ExpireAt = 8;
+  repeated bytes Origins = 9;
 }

@@ -21,8 +21,7 @@ func init() {
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	mock := test.NewIpfsMock(t)
-	nodeMAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d",
-		mock.Addr, mock.Port))
+	nodeMAddr := ma.StringCast(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
 
 	cfg := &Config{}
 	cfg.Default()
@@ -76,6 +75,10 @@ func TestPin(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 
 	pin := api.PinCid(test.Cid1)
+	pin.Origins = []ma.Multiaddr{
+		ma.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng"),
+		ma.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR"),
+	}
 	err := ipfs.Pin(ctx, pin)
 	if err != nil {
 		t.Error("expected success pinning cid:", err)
