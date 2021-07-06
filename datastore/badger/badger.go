@@ -18,7 +18,12 @@ func New(cfg *Config) (ds.Datastore, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating badger folder")
 	}
-	opts := badgerds.Options{Options: cfg.BadgerOptions}
+	opts := badgerds.Options{
+		GcDiscardRatio: cfg.GCDiscardRatio,
+		GcInterval:     cfg.GCInterval,
+		GcSleep:        cfg.GCSleep,
+		Options:        cfg.BadgerOptions,
+	}
 	return badgerds.NewDatastore(folder, &opts)
 }
 

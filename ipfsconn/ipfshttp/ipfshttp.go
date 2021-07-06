@@ -326,6 +326,29 @@ func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
 	ctx, cancelRequest := context.WithCancel(ctx)
 	defer cancelRequest()
 
+	// If the pin has origins, tell ipfs to connect to a maximum of 10.
+	bound := len(pin.Origins)
+	if bound > 10 {
+		bound = 10
+	}
+	for _, orig := range pin.Origins[0:bound] {
+		// do it in the background, ignoring errors.
+		go func(o string) {
+			logger.Debugf("swarm-connect to origin before pinning: %s", o)
+			_, err := ipfs.postCtx(
+				ctx,
+				fmt.Sprintf("swarm/connect?arg=%s", o),
+				"",
+				nil,
+			)
+			if err != nil {
+				logger.Debug(err)
+				return
+			}
+			logger.Debugf("swarm-connect success to origin: %s", o)
+		}(url.QueryEscape(orig.String()))
+	}
+
 	// If we have a pin-update, and the old object
 	// is pinned recursively, then do pin/update.
 	// Otherwise do a normal pin.
@@ -654,7 +677,7 @@ func (ipfs *Connector) ConnectSwarms(ctx context.Context) error {
 			// when passing in a bunch of addresses
 			_, err := ipfs.postCtx(
 				ctx,
-				fmt.Sprintf("swarm/connect?arg=%s", addr.String()),
+				fmt.Sprintf("swarm/connect?arg=%s", url.QueryEscape(addr.String())),
 				"",
 				nil,
 			)

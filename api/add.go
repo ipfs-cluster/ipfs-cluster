@@ -69,6 +69,7 @@ func DefaultAddParams() *AddParams {
 			Mode:                 PinModeRecursive,
 			ShardSize:            DefaultShardSize,
 			Metadata:             make(map[string]string),
+			Origins:              nil,
 		},
 		IPFSAddParams: IPFSAddParams{
 			Layout:     "", // corresponds to balanced layout

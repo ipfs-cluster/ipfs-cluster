@@ -10,6 +10,7 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	multiaddr "github.com/multiformats/go-multiaddr"
 
 	"github.com/ugorji/go/codec"
 )
@@ -173,6 +174,10 @@ func TestPinOptionsQuery(t *testing.T) {
 				"hello":  "bye",
 				"hello2": "bye2",
 			},
+			Origins: []multiaddr.Multiaddr{
+				multiaddr.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng"),
+				multiaddr.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR"),
+			},
 		},
 		{
 			ReplicationFactorMax: -1,
@@ -204,7 +209,10 @@ func TestPinOptionsQuery(t *testing.T) {
 			t.Error("error parsing query", err)
 		}
 		po2 := &PinOptions{}
-		po2.FromQuery(q)
+		err = po2.FromQuery(q)
+		if err != nil {
+			t.Fatal("error parsing options", err)
+		}
 		if !tc.Equals(po2) {
 			t.Error("expected equal PinOptions")
 			t.Error(queryStr)
@@ -273,5 +281,4 @@ func TestPinCodec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }

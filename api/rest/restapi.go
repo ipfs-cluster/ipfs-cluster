@@ -891,30 +891,6 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// filterGlobalPinInfos takes a GlobalPinInfo slice and discards
-// any item in it which does not carry a PinInfo matching the
-// filter (OR-wise).
-func filterGlobalPinInfos(globalPinInfos []*types.GlobalPinInfo, filter types.TrackerStatus) []*types.GlobalPinInfo {
-	if filter == types.TrackerStatusUndefined {
-		return globalPinInfos
-	}
-
-	var filteredGlobalPinInfos []*types.GlobalPinInfo
-
-	for _, globalPinInfo := range globalPinInfos {
-		for _, pinInfo := range globalPinInfo.PeerMap {
-			// silenced the error because we should have detected
-			// earlier if filters were invalid
-			if pinInfo.Status.Match(filter) {
-				filteredGlobalPinInfos = append(filteredGlobalPinInfos, globalPinInfo)
-				break
-			}
-		}
-	}
-
-	return filteredGlobalPinInfos
-}
-
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
@@ -936,7 +912,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"StatusAllLocal",
-			struct{}{},
+			filter,
 			&pinInfos,
 		)
 		if err != nil {
@@ -950,7 +926,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"StatusAll",
-			struct{}{},
+			filter,
 			&globalPinInfos,
 		)
 		if err != nil {
@@ -958,8 +934,6 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	globalPinInfos = filterGlobalPinInfos(globalPinInfos, filter)
 
 	api.sendResponse(w, autoStatus, nil, globalPinInfos)
 }

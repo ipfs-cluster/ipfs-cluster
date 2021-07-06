@@ -65,6 +65,8 @@ var testingCrdtCfg = []byte(`{
 
 var testingBadgerCfg = []byte(`{
     "folder": "badgerFromTests",
+    "gc_interval": "0m",
+    "gc_sleep": "0m",
     "badger_options": {
         "max_table_size": 1048576
     }
