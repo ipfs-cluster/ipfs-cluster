@@ -9,5 +9,3 @@ updates:
   target-branch: dependency-upgrades
   labels:
   - topic/dependencies
-  ignore: []
-
