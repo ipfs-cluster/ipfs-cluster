@@ -35,7 +35,7 @@ require (
 	github.com/ipfs/go-ipns v0.1.0
 	github.com/ipfs/go-log/v2 v2.2.0
 	github.com/ipfs/go-merkledag v0.3.2
-	github.com/ipfs/go-mfs v0.1.2
+	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
 	github.com/ipfs/go-path v0.0.9
 	github.com/ipfs/go-unixfs v0.2.6
 	github.com/ipld/go-car v0.3.1
