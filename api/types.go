@@ -77,6 +77,9 @@ const (
 	// The IPFS daemon is not pinning the item through this cid but it is
 	// tracked in a cluster dag
 	TrackerStatusSharded
+	// The item is in the state and should be pinned, but
+	// it is however not pinned and not queued/pinning.
+	TrackerStatusUnexpectedlyUnpinned
 )
 
 // Composite TrackerStatus.
@@ -89,19 +92,21 @@ const (
 type TrackerStatus int
 
 var trackerStatusString = map[TrackerStatus]string{
-	TrackerStatusUndefined:    "undefined",
-	TrackerStatusClusterError: "cluster_error",
-	TrackerStatusPinError:     "pin_error",
-	TrackerStatusUnpinError:   "unpin_error",
-	TrackerStatusError:        "error",
-	TrackerStatusPinned:       "pinned",
-	TrackerStatusPinning:      "pinning",
-	TrackerStatusUnpinning:    "unpinning",
-	TrackerStatusUnpinned:     "unpinned",
-	TrackerStatusRemote:       "remote",
-	TrackerStatusPinQueued:    "pin_queued",
-	TrackerStatusUnpinQueued:  "unpin_queued",
-	TrackerStatusQueued:       "queued",
+	TrackerStatusUndefined:            "undefined",
+	TrackerStatusClusterError:         "cluster_error",
+	TrackerStatusPinError:             "pin_error",
+	TrackerStatusUnpinError:           "unpin_error",
+	TrackerStatusError:                "error",
+	TrackerStatusPinned:               "pinned",
+	TrackerStatusPinning:              "pinning",
+	TrackerStatusUnpinning:            "unpinning",
+	TrackerStatusUnpinned:             "unpinned",
+	TrackerStatusRemote:               "remote",
+	TrackerStatusPinQueued:            "pin_queued",
+	TrackerStatusUnpinQueued:          "unpin_queued",
+	TrackerStatusQueued:               "queued",
+	TrackerStatusSharded:              "sharded",
+	TrackerStatusUnexpectedlyUnpinned: "unexpectedly_unpinned",
 }
 
 // values autofilled in init()
@@ -130,9 +135,11 @@ func (st TrackerStatus) String() string {
 
 // Match returns true if the tracker status matches the given filter.
 // For example TrackerStatusPinError will match TrackerStatusPinError
-// and TrackerStatusError
+// and TrackerStatusError.
 func (st TrackerStatus) Match(filter TrackerStatus) bool {
-	return filter == 0 || st&filter > 0
+	return filter == TrackerStatusUndefined ||
+		st == TrackerStatusUndefined ||
+		st&filter > 0
 }
 
 // MarshalJSON uses the string representation of TrackerStatus for JSON

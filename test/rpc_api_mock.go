@@ -219,9 +219,9 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	return nil
 }
 
-func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
+func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]*api.GlobalPinInfo) error {
 	pid := peer.Encode(PeerID1)
-	*out = []*api.GlobalPinInfo{
+	gPinInfos := []*api.GlobalPinInfo{
 		{
 			Cid: Cid1,
 			PeerMap: map[string]*api.PinInfoShort{
@@ -250,10 +250,28 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in struct{}, out *[]*api
 			},
 		},
 	}
+	// If there is no filter match, we will not return that status and we
+	// will not have an entry for that peer in the peerMap.  In turn, when
+	// a single peer, we will not have an entry for the cid at all.
+	for _, gpi := range gPinInfos {
+		for id, pi := range gpi.PeerMap {
+			if !in.Match(pi.Status) {
+				delete(gpi.PeerMap, id)
+			}
+		}
+	}
+	filtered := make([]*api.GlobalPinInfo, 0, len(gPinInfos))
+	for _, gpi := range gPinInfos {
+		if len(gpi.PeerMap) > 0 {
+			filtered = append(filtered, gpi)
+		}
+	}
+	*out = filtered
+
 	return nil
 }
 
-func (mock *mockCluster) StatusAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+func (mock *mockCluster) StatusAllLocal(ctx context.Context, in api.TrackerStatus, out *[]*api.PinInfo) error {
 	return (&mockPinTracker{}).StatusAll(ctx, in, out)
 }
 
@@ -278,7 +296,7 @@ func (mock *mockCluster) StatusLocal(ctx context.Context, in cid.Cid, out *api.P
 }
 
 func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
-	return mock.StatusAll(ctx, in, out)
+	return mock.StatusAll(ctx, api.TrackerStatusUndefined, out)
 }
 
 func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
@@ -367,8 +385,8 @@ func (mock *mockPinTracker) Untrack(ctx context.Context, in *api.Pin, out *struc
 	return nil
 }
 
-func (mock *mockPinTracker) StatusAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	*out = []*api.PinInfo{
+func (mock *mockPinTracker) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]*api.PinInfo) error {
+	pinInfos := []*api.PinInfo{
 		{
 			Cid:  Cid1,
 			Peer: PeerID1,
@@ -386,6 +404,14 @@ func (mock *mockPinTracker) StatusAll(ctx context.Context, in struct{}, out *[]*
 			},
 		},
 	}
+	filtered := make([]*api.PinInfo, 0, len(pinInfos))
+	for _, pi := range pinInfos {
+		if in.Match(pi.Status) {
+			filtered = append(filtered, pi)
+		}
+	}
+
+	*out = filtered
 	return nil
 }
 

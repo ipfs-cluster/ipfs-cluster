@@ -655,7 +655,7 @@ func TestClustersPin(t *testing.T) {
 		delay()
 	}
 	fpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.StatusAll(ctx)
+		status := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined)
 		for _, v := range status {
 			if v.Status != api.TrackerStatusPinned {
 				t.Errorf("%s should have been pinned but it is %s", v.Cid, v.Status)
@@ -704,7 +704,7 @@ func TestClustersPin(t *testing.T) {
 	delay()
 
 	funpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.StatusAll(ctx)
+		status := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined)
 		for _, v := range status {
 			t.Errorf("%s should have been unpinned but it is %s", v.Cid, v.Status)
 		}
@@ -848,7 +848,7 @@ func TestClustersStatusAll(t *testing.T) {
 	pinDelay()
 	// Global status
 	f := func(t *testing.T, c *Cluster) {
-		statuses, err := c.StatusAll(ctx)
+		statuses, err := c.StatusAll(ctx, api.TrackerStatusUndefined)
 		if err != nil {
 			t.Error(err)
 		}
@@ -910,7 +910,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			return
 		}
 
-		statuses, err := c.StatusAll(ctx)
+		statuses, err := c.StatusAll(ctx, api.TrackerStatusUndefined)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1194,7 +1194,7 @@ func TestClustersReplicationOverall(t *testing.T) {
 
 	f := func(t *testing.T, c *Cluster) {
 		// confirm that the pintracker state matches the current global state
-		pinfos := c.tracker.StatusAll(ctx)
+		pinfos := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined)
 		if len(pinfos) != nClusters {
 			t.Error("Pinfos does not have the expected pins")
 		}

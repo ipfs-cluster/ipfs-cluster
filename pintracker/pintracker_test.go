@@ -204,7 +204,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 					// in state but not on IPFS
 					Cid: test.Cid4,
 					PinInfoShort: api.PinInfoShort{
-						Status: api.TrackerStatusPinError,
+						Status: api.TrackerStatusUnexpectedlyUnpinned,
 					},
 				},
 			},
@@ -216,7 +216,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				t.Errorf("PinTracker.Track() error = %v", err)
 			}
 			time.Sleep(200 * time.Millisecond)
-			got := tt.args.tracker.StatusAll(context.Background())
+			got := tt.args.tracker.StatusAll(context.Background(), api.TrackerStatusUndefined)
 			if len(got) != len(tt.want) {
 				for _, pi := range got {
 					t.Logf("pinfo: %v", pi)
@@ -259,7 +259,7 @@ func BenchmarkPinTracker_StatusAll(b *testing.B) {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				tt.args.tracker.StatusAll(context.Background())
+				tt.args.tracker.StatusAll(context.Background(), api.TrackerStatusUndefined)
 			}
 		})
 	}
