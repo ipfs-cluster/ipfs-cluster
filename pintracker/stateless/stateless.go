@@ -481,6 +481,8 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/localStatus")
 	defer span.End()
 
+	var statePins []*api.Pin
+
 	// get shared state
 	st, err := spt.getState(ctx)
 	if err != nil {
@@ -488,10 +490,18 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 		return nil, err
 	}
 
-	statePins, err := st.List(ctx)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
+	// Only list the full pinset if we are interested in pin types that
+	// require it. Otherwise said, this whole method is mostly a no-op
+	// when filtering for queued/error items which are all in the operation
+	// tracker.
+	if filter.Match(
+		api.TrackerStatusPinned | api.TrackerStatusUnexpectedlyUnpinned |
+			api.TrackerStatusSharded | api.TrackerStatusRemote) {
+		statePins, err = st.List(ctx)
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
 	}
 
 	var localpis map[cid.Cid]*api.PinInfo
