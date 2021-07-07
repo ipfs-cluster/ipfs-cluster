@@ -37,7 +37,7 @@ const (
 	DefaultPeerWatchInterval   = 5 * time.Second
 	DefaultReplicationFactor   = -1
 	DefaultLeaveOnShutdown     = false
-	DefaultDisableRepinning    = false
+	DefaultDisableRepinning    = true
 	DefaultPeerstoreFile       = "peerstore"
 	DefaultConnMgrHighWater    = 400
 	DefaultConnMgrLowWater     = 100

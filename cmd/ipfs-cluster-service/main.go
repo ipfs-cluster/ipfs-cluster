@@ -31,7 +31,7 @@ const programName = "ipfs-cluster-service"
 const (
 	defaultLogLevel  = "info"
 	defaultConsensus = "crdt"
-	defaultDatastore = "leveldb"
+	defaultDatastore = "badger"
 )
 
 const (
@@ -268,7 +268,7 @@ the peer IDs in the given multiaddresses.
 				},
 				cli.StringFlag{
 					Name:  "datastore",
-					Usage: "select datastore component: 'leveldb' or 'badger'",
+					Usage: "select datastore component: 'badger' or 'leveldb'",
 					Value: defaultDatastore,
 				},
 				cli.BoolFlag{
