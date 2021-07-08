@@ -6,7 +6,7 @@ import (
 )
 
 // Version is the current cluster version.
-var Version = semver.MustParse("0.14.0")
+var Version = semver.MustParse("0.14.0-next")
 
 // RPCProtocol is protocol handler used to send libp2p-rpc messages between
 // cluster peers.  All peers in the cluster need to speak the same protocol
