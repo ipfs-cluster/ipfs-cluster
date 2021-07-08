@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.14.0 - 2021-07-14
+### v0.14.0 - 2021-07-09
 
 This IPFS Cluster release brings a few features to improve cluster operations
 at scale (pinsets over 100k items), along with some bug fixes.
@@ -16,20 +16,22 @@ badger will automatically perform garbage collection on regular intervals,
 resolving a long standing issue of badger using up to 100x the actual needed
 space. Badger GC will automatically be enabled with defaults, which will
 result in increased disk I/O if there is a lot to GC 15 minutes after starting
-the peer. **Make sure to disable GC manually if increased disk usage during GC
+the peer. **Make sure to disable GC manually if increased disk I/O during GC
 may affect your service upon upgrade**. In our tests the impact was soft
 enough to consider this a safe default, though in environments with very
-constrained disk I/O it will be surely noticed, at least for the first run
-since the datastore was never GC'ed before.
+constrained disk I/O it will be surely noticed, at least in the first GC
+cycle, since the datastore was never GC'ed before.
 
 Badger is the datastore we are more familiar with and the most scalable choice
-(chosen by both IPFS and Filecoin). Thus it remains as the default. However,
-it may be that badger behaviour and GC-needs are not best suited or not
-preferred. For those cases, we have added the option to run with a leveldb as
-an alternative. Level DB does not need GC and it will auto-compact. It should
-also scale pretty well for most cases, though we have not tested or compared
-that. The backend can be configured during the daemon `init`, along with the
-consensus component using a new `--datastore` flag.
+(chosen by both IPFS and Filecoin). However, it may be that badger behaviour
+and GC-needs are not best suited or not preferred, or more downsides are
+discovered in the future. For those cases, we have added the option to run
+with a leveldb backend as an alternative. Level DB does not need GC and it
+will auto-compact. It should also scale pretty well for most cases, though we
+have not tested or compared against badger with very large pinsets. The
+backend can be configured during the daemon `init`, along with the consensus
+component using a new `--datastore` flag. Like the default Badger backend, the
+new LevelDB backend exposes all LevelDB internal configuration options.
 
 Additionally, operators handling very large clusters may have noticed that
 checking status of pinning,queued items (`ipfs-cluster-ctl status --filter
