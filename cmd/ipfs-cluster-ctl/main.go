@@ -182,7 +182,16 @@ requires authorization. implies --https, which you can disable with --force-http
 				logger.Warn("Using libp2p-http for %s. The https flag will be ignored for this connection", addr)
 			}
 
-			cfgs, err := cfg.AsTemplateForResolvedAddress(ctx, multiaddr)
+			var cfgs []*client.Config
+
+			// We can auto round-robin on DNS records when using
+			// libp2p-http or not using SSL. When using SSL we
+			// cannot use the resolve-IPs directly.
+			if client.IsPeerAddress(multiaddr) || !cfg.SSL {
+				cfgs, err = cfg.AsTemplateForResolvedAddress(ctx, multiaddr)
+			} else {
+				cfgs = cfg.AsTemplateFor([]ma.Multiaddr{multiaddr})
+			}
 			checkErr("creating configs", err)
 			configs = append(configs, cfgs...)
 		}
