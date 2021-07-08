@@ -795,7 +795,7 @@ merely represents the list of pins which are part of the shared state of
 the cluster. For IPFS-status information about the pins, use "status".
 
 The filter only takes effect when listing all pins. The possible values are:
-  - all
+  - all (default)
   - pin (normal pins, recursive or direct)
   - meta-pin (sharded pins)
   - clusterdag-pin (sharding-dag root pins)
@@ -806,7 +806,7 @@ The filter only takes effect when listing all pins. The possible values are:
 						cli.StringFlag{
 							Name:  "filter",
 							Usage: "Comma separated list of pin types. See help above.",
-							Value: "pin",
+							Value: "all",
 						},
 					},
 					Action: func(c *cli.Context) error {

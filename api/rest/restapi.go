@@ -862,11 +862,18 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&pins,
 	)
-	outPins := make([]*types.Pin, 0)
-	for _, pin := range pins {
-		if filter&pin.Type > 0 {
-			// add this pin to output
-			outPins = append(outPins, pin)
+
+	var outPins []*types.Pin
+
+	if filter == types.AllType {
+		outPins = pins
+	} else {
+		outPins = make([]*types.Pin, 0, len(pins))
+		for _, pin := range pins {
+			if filter&pin.Type > 0 {
+				// add this pin to output
+				outPins = append(outPins, pin)
+			}
 		}
 	}
 	api.sendResponse(w, autoStatus, err, outPins)
