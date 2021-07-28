@@ -5,6 +5,7 @@ package disk
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -29,7 +30,9 @@ var logger = logging.Logger("diskinfo")
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces.
 type Informer struct {
-	config    *Config
+	config *Config // set when created, readonly
+
+	mu        sync.Mutex // guards access to following fields
 	rpcClient *rpc.Client
 }
 
@@ -53,6 +56,8 @@ func (disk *Informer) Name() string {
 // SetClient provides us with an rpc.Client which allows
 // contacting other components in the cluster.
 func (disk *Informer) SetClient(c *rpc.Client) {
+	disk.mu.Lock()
+	defer disk.mu.Unlock()
 	disk.rpcClient = c
 }
 
@@ -61,6 +66,9 @@ func (disk *Informer) SetClient(c *rpc.Client) {
 func (disk *Informer) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "informer/disk/Shutdown")
 	defer span.End()
+
+	disk.mu.Lock()
+	defer disk.mu.Unlock()
 
 	disk.rpcClient = nil
 	return nil
@@ -72,7 +80,11 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	ctx, span := trace.StartSpan(ctx, "informer/disk/GetMetric")
 	defer span.End()
 
-	if disk.rpcClient == nil {
+	disk.mu.Lock()
+	rpcClient := disk.rpcClient
+	disk.mu.Unlock()
+
+	if rpcClient == nil {
 		return &api.Metric{
 			Name:  disk.Name(),
 			Valid: false,
@@ -84,7 +96,7 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 
 	valid := true
 
-	err := disk.rpcClient.CallContext(
+	err := rpcClient.CallContext(
 		ctx,
 		"",
 		"IPFSConnector",
