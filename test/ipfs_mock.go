@@ -40,8 +40,10 @@ type IpfsMock struct {
 	Port       int
 	pinMap     state.State
 	BlockStore map[string][]byte
-	reqCounts  map[string]int
 	reqCounter chan string
+
+	reqCountsMux sync.Mutex // guards access to reqCounts
+	reqCounts    map[string]int
 
 	closeMux sync.Mutex
 	closed   bool
@@ -142,18 +144,20 @@ func NewIpfsMock(t *testing.T) *IpfsMock {
 	m.Port = i
 	m.Addr = h[0]
 	return m
-
 }
 
 func (m *IpfsMock) countRequests() {
 	for str := range m.reqCounter {
+		m.reqCountsMux.Lock()
 		m.reqCounts[str]++
+		m.reqCountsMux.Unlock()
 	}
 }
 
 // GetCount allows to get the number of times and endpoint was called.
-// Do not use concurrently to requests happening.
 func (m *IpfsMock) GetCount(path string) int {
+	m.reqCountsMux.Lock()
+	defer m.reqCountsMux.Unlock()
 	return m.reqCounts[path]
 }
 
@@ -432,7 +436,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		resp := mockRepoStatResp{
 			RepoSize:   uint64(len) * 1000,
 			NumObjects: numObjs,
-			StorageMax: 10000000000, //10 GB
+			StorageMax: 10000000000, // 10 GB
 		}
 		j, _ := json.Marshal(resp)
 		w.Write(j)
