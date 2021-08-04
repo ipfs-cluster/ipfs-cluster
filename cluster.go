@@ -45,9 +45,7 @@ const (
 	maxAlerts           = 1000
 )
 
-var (
-	errFollowerMode = errors.New("this peer is configured to be in follower mode. Write operations are disabled")
-)
+var errFollowerMode = errors.New("this peer is configured to be in follower mode. Write operations are disabled")
 
 // Cluster is the main IPFS cluster component. It provides
 // the go-API for it and orchestrates the components that make up the system.
@@ -322,7 +320,6 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
 		}
 
 		metric, err := c.sendInformerMetric(ctx, informer)
-
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
 				logger.Errorf("error broadcasting metric: %s", err)
@@ -392,9 +389,8 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 // Alerts returns the last alerts recorded by this cluster peer with the most
 // recent first.
 func (c *Cluster) Alerts() []api.Alert {
-	alerts := make([]api.Alert, len(c.alerts))
-
 	c.alertsMux.Lock()
+	alerts := make([]api.Alert, len(c.alerts))
 	{
 		total := len(alerts)
 		for i, a := range c.alerts {
@@ -833,7 +829,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 
 	id := &api.ID{
 		ID: c.id,
-		//PublicKey:          c.host.Peerstore().PubKey(c.id),
+		// PublicKey:          c.host.Peerstore().PubKey(c.id),
 		Addresses:             addrs,
 		ClusterPeers:          peers,
 		ClusterPeersAddresses: addresses,
@@ -1148,7 +1144,6 @@ func (c *Cluster) localPinInfoOp(
 	}
 	// return the last pInfo/err, should be the root Cid if everything ok
 	return pInfo, err
-
 }
 
 // RecoverAll triggers a RecoverAllLocal operation on all peers.
