@@ -51,7 +51,7 @@ require (
 	github.com/libp2p/go-libp2p-gostream v0.3.1
 	github.com/libp2p/go-libp2p-http v0.2.1
 	github.com/libp2p/go-libp2p-kad-dht v0.12.2
-	github.com/libp2p/go-libp2p-noise v0.2.0
+	github.com/libp2p/go-libp2p-noise v0.2.2
 	github.com/libp2p/go-libp2p-peerstore v0.2.8
 	github.com/libp2p/go-libp2p-pubsub v0.5.4
 	github.com/libp2p/go-libp2p-quic-transport v0.11.2
