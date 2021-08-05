@@ -17,7 +17,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7
-	github.com/ipfs/go-datastore v0.4.5
+	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ds-badger v0.2.7
 	github.com/ipfs/go-ds-crdt v0.1.21
 	github.com/ipfs/go-ds-leveldb v0.4.2
