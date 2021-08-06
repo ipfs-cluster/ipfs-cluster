@@ -55,6 +55,10 @@ func setLogLevels(lvl string) {
 	for f := range ipfscluster.LoggingFacilities {
 		ipfscluster.SetFacilityLogLevel(f, lvl)
 	}
+
+	for f := range ipfscluster.LoggingFacilitiesExtra {
+		ipfscluster.SetFacilityLogLevel(f, lvl)
+	}
 }
 
 // returns whether the config folder exists

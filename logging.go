@@ -39,6 +39,7 @@ var LoggingFacilitiesExtra = map[string]string{
 	"swarm2":      "ERROR",
 	"libp2p-raft": "CRITICAL",
 	"raftlib":     "ERROR",
+	"badger":      "INFO",
 }
 
 // SetFacilityLogLevel sets the log level for a given module
