@@ -251,20 +251,32 @@ func (c *Cluster) watchPinset() {
 	ctx, span := trace.StartSpan(c.ctx, "cluster/watchPinset")
 	defer span.End()
 
-	stateSyncTicker := time.NewTicker(c.config.StateSyncInterval)
-	recoverTicker := time.NewTicker(c.config.PinRecoverInterval)
+	stateSyncTimer := time.NewTimer(c.config.StateSyncInterval)
 
+	// Upon start, every item in the state that is not pinned will appear
+	// as PinError when doing a Status, we should proceed to recover
+	// (try pinning) all of those right away.
+	recoverTimer := time.NewTimer(0) // 0 so that it does an initial recover right away
+
+	// This prevents doing an StateSync while doing a RecoverAllLocal,
+	// which is intended behaviour as for very large pinsets
 	for {
 		select {
-		case <-stateSyncTicker.C:
+		case <-stateSyncTimer.C:
 			logger.Debug("auto-triggering StateSync()")
 			c.StateSync(ctx)
-		case <-recoverTicker.C:
+			stateSyncTimer.Reset(c.config.StateSyncInterval)
+		case <-recoverTimer.C:
 			logger.Debug("auto-triggering RecoverAllLocal()")
 			c.RecoverAllLocal(ctx)
+			recoverTimer.Reset(c.config.PinRecoverInterval)
 		case <-c.ctx.Done():
-			stateSyncTicker.Stop()
-			recoverTicker.Stop()
+			if !stateSyncTimer.Stop() {
+				<-stateSyncTimer.C
+			}
+			if !recoverTimer.Stop() {
+				<-recoverTimer.C
+			}
 			return
 		}
 	}
@@ -627,10 +639,7 @@ This might be due to one or several causes:
 		c.Shutdown(ctx)
 		return
 	case <-c.consensus.Ready(ctx):
-		// Consensus ready means the state is up to date. Every item
-		// in the state that is not pinned will appear as PinError so
-		// we can proceed to recover all of those in the tracker.
-		c.RecoverAllLocal(ctx)
+		// Consensus ready means the state is up to date.
 	case <-c.ctx.Done():
 		return
 	}
