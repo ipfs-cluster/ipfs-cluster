@@ -640,13 +640,26 @@ func setupLogLevel(debug bool, l string) error {
 	ipfscluster.SetFacilityLogLevel("service", logLevel)
 
 	logfacs := make(map[string]string)
-	for key := range ipfscluster.LoggingFacilities {
-		logfacs[key] = logLevel
-	}
 
 	// fill component-wise log levels
 	for identifier, level := range compLogFacs {
 		logfacs[identifier] = level
+	}
+
+	// Set the values for things not set by the user or for
+	// things set by "all".
+	for key := range ipfscluster.LoggingFacilities {
+		if _, ok := logfacs[key]; !ok {
+			logfacs[key] = logLevel
+		}
+	}
+
+	// For Extra facilities, set the defaults per logging.go unless
+	// manually set
+	for key, defaultLvl := range ipfscluster.LoggingFacilitiesExtra {
+		if _, ok := logfacs[key]; !ok {
+			logfacs[key] = defaultLvl
+		}
 	}
 
 	for identifier, level := range logfacs {
