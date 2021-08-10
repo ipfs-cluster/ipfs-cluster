@@ -26,6 +26,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
+	"github.com/ipfs/ipfs-cluster/ipfsconn/arbiter"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
@@ -59,6 +60,7 @@ var (
 
 	consensus = "crdt"
 	datastore = "badger"
+	connector = "arbiter"
 
 	ttlDelayTime = 2 * time.Second // set on Main to diskInf.MetricTTL
 	testsFolder  = "clusterTestsFolder"
@@ -176,7 +178,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, arbiterCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -206,9 +208,18 @@ func createComponents(
 		t.Fatal(err)
 	}
 
-	ipfs, err := ipfshttp.NewConnector(ipfshttpCfg)
-	if err != nil {
-		t.Fatal(err)
+	var ipfs IPFSConnector
+	switch connector {
+	case "ipfs":
+		ipfs, err = ipfshttp.NewConnector(ipfshttpCfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+	case "arbiter":
+		ipfs, err = arbiter.NewConnector(arbiterCfg)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	alloc := descendalloc.NewAllocator()
