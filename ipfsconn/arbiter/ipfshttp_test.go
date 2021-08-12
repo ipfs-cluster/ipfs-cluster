@@ -12,6 +12,7 @@ import (
 
 	merkledag "github.com/ipfs/go-merkledag"
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/test"
 )
 
@@ -23,7 +24,7 @@ func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	mock := test.NewIpfsMock(t)
 	nodeMAddr := ma.StringCast(fmt.Sprintf("/ip4/%s/tcp/%d", mock.Addr, mock.Port))
 
-	cfg := &Config{}
+	cfg := &ipfshttp.Config{}
 	cfg.Default()
 	cfg.NodeAddr = nodeMAddr
 	cfg.ConnectSwarmsDelay = 0
@@ -108,7 +109,7 @@ func TestIPFSUnpin(t *testing.T) {
 	if err != nil {
 		t.Error("expected success unpinning non-pinned cid")
 	}
-	ipfs.Pin(ctx, api.PinCid(c))
+	ipfs.Connector.Pin(ctx, api.PinCid(c))
 	err = ipfs.Unpin(ctx, c)
 	if err != nil {
 		t.Error("expected success unpinning pinned cid")
@@ -122,23 +123,6 @@ func TestIPFSUnpin(t *testing.T) {
 	}
 }
 
-func TestIPFSUnpinDisabled(t *testing.T) {
-	ctx := context.Background()
-	ipfs, mock := testIPFSConnector(t)
-	defer mock.Close()
-	defer ipfs.Shutdown(ctx)
-	ipfs.config.UnpinDisable = true
-	err := ipfs.Pin(ctx, api.PinCid(test.Cid1))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ipfs.Unpin(ctx, test.Cid1)
-	if err == nil {
-		t.Fatal("pin should be disabled")
-	}
-}
-
 func TestIPFSPinLsCid(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
@@ -148,7 +132,7 @@ func TestIPFSPinLsCid(t *testing.T) {
 	c2 := test.Cid2
 
 	pin := api.PinCid(c)
-	ipfs.Pin(ctx, pin)
+	ipfs.Connector.Pin(ctx, pin)
 	ips, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Error(err)
@@ -172,7 +156,7 @@ func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
 	c := test.Cid4 // ipfs mock treats this specially
 
 	pin := api.PinCid(c)
-	ipfs.Pin(ctx, pin)
+	ipfs.Connector.Pin(ctx, pin)
 	ips, err := ipfs.PinLsCid(ctx, pin)
 	if err != nil {
 		t.Error(err)
@@ -191,8 +175,8 @@ func TestIPFSPinLs(t *testing.T) {
 	c := test.Cid1
 	c2 := test.Cid2
 
-	ipfs.Pin(ctx, api.PinCid(c))
-	ipfs.Pin(ctx, api.PinCid(c2))
+	ipfs.Connector.Pin(ctx, api.PinCid(c))
+	ipfs.Connector.Pin(ctx, api.PinCid(c2))
 	ipsMap, err := ipfs.PinLs(ctx, "")
 	if err != nil {
 		t.Error("should not error")
@@ -334,8 +318,8 @@ func TestRepoStat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.RepoSize != 1000 {
-		t.Error("expected 1000 bytes of size")
+	if s.RepoSize != 0 {
+		t.Error("expected 0 bytes of size")
 	}
 }
 

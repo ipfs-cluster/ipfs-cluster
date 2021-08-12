@@ -9,7 +9,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/datastore/badger"
 	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
-	"github.com/ipfs/ipfs-cluster/ipfsconn/arbiter"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
@@ -139,14 +138,13 @@ var testingTracerCfg = []byte(`{
     "service_name": "cluster-daemon"
 }`)
 
-func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *arbiter.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
-	identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, arbiterCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
+func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
+	identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
 	identity.LoadJSON(testingIdentity)
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	proxyCfg.LoadJSON(testingProxyCfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
-	arbiterCfg.LoadJSON(testingIpfsCfg)
 	badgerCfg.LoadJSON(testingBadgerCfg)
 	raftCfg.LoadJSON(testingRaftCfg)
 	levelDBCfg.LoadJSON(testingLevelDBCfg)
@@ -156,16 +154,15 @@ func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Confi
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 	tracingCfg.LoadJSON(testingTracerCfg)
 
-	return identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, arbiterCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg
+	return identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, diskInfCfg, tracingCfg
 }
 
-func testingEmptyConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *arbiter.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
+func testingEmptyConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
 	identity := &config.Identity{}
 	clusterCfg := &Config{}
 	apiCfg := &rest.Config{}
 	proxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
-	arbiterCfg := &arbiter.Config{}
 	badgerCfg := &badger.Config{}
 	raftCfg := &raft.Config{}
 	levelDBCfg := &leveldb.Config{}
@@ -174,7 +171,7 @@ func testingEmptyConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.
 	pubsubmonCfg := &pubsubmon.Config{}
 	diskInfCfg := &disk.Config{}
 	tracingCfg := &observations.TracingConfig{}
-	return identity, clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, arbiterCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelessCfg, pubsubmonCfg, diskInfCfg, tracingCfg
+	return identity, clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelessCfg, pubsubmonCfg, diskInfCfg, tracingCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

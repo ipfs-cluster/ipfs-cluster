@@ -148,7 +148,7 @@ type mockTracer struct {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
-	ident, clusterCfg, _, _, _, _, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
+	ident, clusterCfg, _, _, _, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
 	ctx := context.Background()
 
 	host, pubsub, dht := createHost(t, ident.PrivateKey, clusterCfg.Secret, clusterCfg.ListenAddr)

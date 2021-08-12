@@ -178,7 +178,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, arbiterCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -216,7 +216,7 @@ func createComponents(
 			t.Fatal(err)
 		}
 	case "arbiter":
-		ipfs, err = arbiter.NewConnector(arbiterCfg)
+		ipfs, err = arbiter.NewConnector(ipfshttpCfg)
 		if err != nil {
 			t.Fatal(err)
 		}
