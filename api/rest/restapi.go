@@ -17,6 +17,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -127,13 +128,21 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error)
 		return nil, err
 	}
 
-	// Our handler is a gorilla router,
-	// wrapped with the cors handler,
-	// wrapped with the basic auth handler.
-	router := mux.NewRouter().StrictSlash(true)
+	// Our handler is a gorilla router wrapped with:
+	// - a custom strictSlashHandler that uses 307 redirects (#1415)
+	// - the cors handler,
+	// - the basic auth handler.
+	//
+	// Thus every request will need to have valid credentials first, then
+	// comply with CORS, then it may be redirected if the path ends with a
+	// "/" and finally it hits one of our routes and handlers.
+	router := mux.NewRouter()
 	handler := basicAuthHandler(
 		cfg.BasicAuthCredentials,
-		cors.New(*cfg.corsOptions()).Handler(router),
+		cors.New(*cfg.corsOptions()).
+			Handler(
+				strictSlashHandler(router),
+			),
 	)
 	if cfg.Tracing {
 		handler = &ochttp.Handler{
@@ -342,6 +351,25 @@ func basicAuthHandler(credentials map[string]string, h http.Handler) http.Handle
 		}
 		h.ServeHTTP(w, r)
 	}
+	return http.HandlerFunc(wrap)
+}
+
+// The Gorilla muxer StrictSlash option uses a 301 permanent redirect, which
+// results in POST requests becoming GET requests in most clients.  Thus we
+// use our own middleware that performs a 307 redirect.  See issue #1415 for
+// more details.
+func strictSlashHandler(h http.Handler) http.Handler {
+	wrap := func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, "/") {
+			u, _ := url.Parse(r.URL.String())
+			u.Path = u.Path[:len(u.Path)-1]
+			http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+			return
+		}
+		h.ServeHTTP(w, r)
+	}
+
 	return http.HandlerFunc(wrap)
 }
 
