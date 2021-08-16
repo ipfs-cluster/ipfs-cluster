@@ -13,19 +13,19 @@ require (
 	github.com/hashicorp/go-hclog v0.16.2
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.21
+	github.com/hsanjuan/ipfs-lite v1.1.22
 	github.com/imdario/mergo v0.3.12
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.6
 	github.com/ipfs/go-ds-badger v0.2.7
-	github.com/ipfs/go-ds-crdt v0.1.21
+	github.com/ipfs/go-ds-crdt v0.1.22
 	github.com/ipfs/go-ds-leveldb v0.4.2
 	github.com/ipfs/go-fs-lock v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-chunker v0.0.5
 	github.com/ipfs/go-ipfs-cmds v0.6.0
-	github.com/ipfs/go-ipfs-config v0.14.0
+	github.com/ipfs/go-ipfs-config v0.15.0
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/ipfs/go-ipfs-pinner v0.1.2
@@ -34,7 +34,7 @@ require (
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-ipns v0.1.2
 	github.com/ipfs/go-log/v2 v2.3.0
-	github.com/ipfs/go-merkledag v0.3.2
+	github.com/ipfs/go-merkledag v0.4.0
 	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
 	github.com/ipfs/go-path v0.1.0
 	github.com/ipfs/go-unixfs v0.2.6
@@ -57,7 +57,7 @@ require (
 	github.com/libp2p/go-libp2p-quic-transport v0.11.2
 	github.com/libp2p/go-libp2p-raft v0.1.8
 	github.com/libp2p/go-libp2p-record v0.1.3
-	github.com/libp2p/go-libp2p-tls v0.1.3
+	github.com/libp2p/go-libp2p-tls v0.2.0
 	github.com/libp2p/go-ws-transport v0.4.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multiaddr-dns v0.3.1
