@@ -71,6 +71,11 @@ https://github.com/ipfs/ipfs-cluster.
 	programName,
 	defaultHost)
 
+var (
+	waitFlagDesc        = "Wait for the pin to reach the minimum replication factor before returning"
+	waitTimeoutFlagDesc = "How long to --wait (in seconds). Default: forever"
+)
+
 // type peerAddBody struct {
 // 	Addr string `json:"peer_multiaddress"`
 // }
@@ -361,12 +366,12 @@ content.
 				},
 				cli.BoolFlag{
 					Name:  "wait",
-					Usage: "Wait for all nodes to report a status of pinned before returning",
+					Usage: waitFlagDesc,
 				},
 				cli.DurationFlag{
 					Name:  "wait-timeout, wt",
 					Value: 0,
-					Usage: "How long to --wait (in seconds), default is indefinitely",
+					Usage: waitTimeoutFlagDesc,
 				},
 
 				cli.BoolFlag{
@@ -534,8 +539,17 @@ content.
 						formatResponse(c, lastBuf, nil)
 					}
 					if c.Bool("wait") {
-						var _, cerr = waitFor(lastBuf.AddedOutput.Cid, api.TrackerStatusPinned, c.Duration("wait-timeout"))
-						checkErr("waiting for pin status", cerr)
+						// In order to wait we need to get the allocation's replication factor.
+						// If it errors, we use whatever we set on the request. If we set 0 or -1, then
+						// no limit applies so we will wait for all.
+						rplMin := p.ReplicationFactorMin
+						alloc, err := globalClient.Allocation(ctx, lastBuf.AddedOutput.Cid)
+						if err == nil {
+							rplMin = alloc.ReplicationFactorMin
+						}
+
+						_, werr := waitFor(lastBuf.AddedOutput.Cid, api.TrackerStatusPinned, c.Duration("wait-timeout"), rplMin)
+						checkErr("waiting for pin status", werr)
 					}
 				}()
 
@@ -615,12 +629,12 @@ would still be respected.
 						},
 						cli.BoolFlag{
 							Name:  "wait, w",
-							Usage: "Wait for all nodes to report a status of pinned before returning",
+							Usage: waitFlagDesc,
 						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
-							Usage: "How long to --wait (in seconds), default is indefinitely",
+							Usage: waitTimeoutFlagDesc,
 						},
 					},
 					Action: func(c *cli.Context) error {
@@ -694,12 +708,12 @@ although unpinning operations in the cluster may take longer or fail.
 						},
 						cli.BoolFlag{
 							Name:  "wait, w",
-							Usage: "Wait for all nodes to report a status of unpinned before returning",
+							Usage: waitFlagDesc,
 						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
-							Usage: "How long to --wait (in seconds), default is indefinitely",
+							Usage: waitTimeoutFlagDesc,
 						},
 					},
 					Action: func(c *cli.Context) error {
@@ -751,12 +765,12 @@ existing item from the cluster. Please run "pin rm" for that.
 						},
 						cli.BoolFlag{
 							Name:  "wait, w",
-							Usage: "Wait for all nodes to report a status of pinned before returning",
+							Usage: waitFlagDesc,
 						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
-							Usage: "How long to --wait (in seconds), default is indefinitely",
+							Usage: waitTimeoutFlagDesc,
 						},
 					},
 					Action: func(c *cli.Context) error {
@@ -1148,7 +1162,11 @@ func handlePinResponseFormatFlags(
 	var cerr error
 
 	if c.Bool("wait") {
-		status, cerr = waitFor(pin.Cid, target, c.Duration("wait-timeout"))
+		limit := 0
+		if target == api.TrackerStatusPinned {
+			limit = pin.ReplicationFactorMin
+		}
+		status, cerr = waitFor(pin.Cid, target, c.Duration("wait-timeout"), limit)
 		checkErr("waiting for pin status", cerr)
 	}
 
@@ -1168,6 +1186,7 @@ func waitFor(
 	ci cid.Cid,
 	target api.TrackerStatus,
 	timeout time.Duration,
+	limit int,
 ) (*api.GlobalPinInfo, error) {
 
 	ctx := context.Background()
@@ -1183,6 +1202,7 @@ func waitFor(
 		Local:     false,
 		Target:    target,
 		CheckFreq: defaultWaitCheckFreq,
+		Limit:     limit,
 	}
 
 	return client.WaitFor(ctx, globalClient, fp)

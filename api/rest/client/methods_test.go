@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -521,6 +522,14 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
+				peer.Encode(test.PeerID3): {
+					Status: types.TrackerStatusPinning,
+					TS:     wait.pinStart,
+				},
+				peer.Encode(test.PeerID3): {
+					Status: types.TrackerStatusRemote,
+					TS:     wait.pinStart,
+				},
 			},
 		}
 	} else { // pinning
@@ -535,6 +544,14 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
+				peer.Encode(test.PeerID3): {
+					Status: types.TrackerStatusPinning,
+					TS:     wait.pinStart,
+				},
+				peer.Encode(test.PeerID3): {
+					Status: types.TrackerStatusRemote,
+					TS:     wait.pinStart,
+				},
 			},
 		}
 	}
@@ -542,7 +559,67 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 	return nil
 }
 
-func TestWaitFor(t *testing.T) {
+func (wait *waitService) PinGet(ctx context.Context, in cid.Cid, out *types.Pin) error {
+	p := types.PinCid(in)
+	p.ReplicationFactorMin = 2
+	p.ReplicationFactorMax = 3
+	*out = *p
+	return nil
+}
+
+type waitServiceUnpin struct {
+	l          sync.Mutex
+	unpinStart time.Time
+}
+
+func (wait *waitServiceUnpin) Unpin(ctx context.Context, in *types.Pin, out *types.Pin) error {
+	wait.l.Lock()
+	defer wait.l.Unlock()
+	wait.unpinStart = time.Now()
+	return nil
+}
+
+func (wait *waitServiceUnpin) Status(ctx context.Context, in cid.Cid, out *types.GlobalPinInfo) error {
+	wait.l.Lock()
+	defer wait.l.Unlock()
+	if time.Now().After(wait.unpinStart.Add(5 * time.Second)) { //unpinned
+		*out = types.GlobalPinInfo{
+			Cid: in,
+			PeerMap: map[string]*types.PinInfoShort{
+				peer.Encode(test.PeerID1): {
+					Status: types.TrackerStatusUnpinned,
+					TS:     wait.unpinStart,
+				},
+				peer.Encode(test.PeerID2): {
+					Status: types.TrackerStatusUnpinned,
+					TS:     wait.unpinStart,
+				},
+			},
+		}
+	} else { // pinning
+		*out = types.GlobalPinInfo{
+			Cid: in,
+			PeerMap: map[string]*types.PinInfoShort{
+				peer.Encode(test.PeerID1): {
+					Status: types.TrackerStatusUnpinning,
+					TS:     wait.unpinStart,
+				},
+				peer.Encode(test.PeerID2): {
+					Status: types.TrackerStatusUnpinning,
+					TS:     wait.unpinStart,
+				},
+			},
+		}
+	}
+
+	return nil
+}
+
+func (wait *waitServiceUnpin) PinGet(ctx context.Context, in cid.Cid, out *types.Pin) error {
+	return errors.New("not found")
+}
+
+func TestWaitForPin(t *testing.T) {
 	ctx := context.Background()
 	tapi := testAPI(t)
 	defer shutdown(tapi)
@@ -583,13 +660,74 @@ func TestWaitFor(t *testing.T) {
 				return
 			}
 
+			totalPinned := 0
 			for _, pi := range st.PeerMap {
-				if pi.Status != types.TrackerStatusPinned {
-					t.Error("pin info should show the item is pinned")
+				if pi.Status == types.TrackerStatusPinned {
+					totalPinned++
 				}
+			}
+			if totalPinned < 2 { // repl factor min
+				t.Error("pin info should show the item is pinnedin two places at least")
 			}
 		}()
 		_, err := c.Pin(ctx, test.Cid1, types.PinOptions{ReplicationFactorMin: 0, ReplicationFactorMax: 0, Name: "test", ShardSize: 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		wg.Wait()
+	}
+
+	testClients(t, tapi, testF)
+}
+
+func TestWaitForUnpin(t *testing.T) {
+	ctx := context.Background()
+	tapi := testAPI(t)
+	defer shutdown(tapi)
+
+	rpcS := rpc.NewServer(nil, "wait")
+	rpcC := rpc.NewClientWithServer(nil, "wait", rpcS)
+	err := rpcS.RegisterName("Cluster", &waitServiceUnpin{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tapi.SetClient(rpcC)
+
+	testF := func(t *testing.T, c Client) {
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			fp := StatusFilterParams{
+				Cid:       test.Cid1,
+				Local:     false,
+				Target:    types.TrackerStatusUnpinned,
+				CheckFreq: time.Second,
+			}
+			start := time.Now()
+
+			st, err := WaitFor(ctx, c, fp)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if time.Since(start) <= 5*time.Second {
+				t.Error("slow unpin should have taken at least 5 seconds")
+				return
+			}
+
+			for _, pi := range st.PeerMap {
+				if pi.Status != types.TrackerStatusUnpinned {
+					t.Error("the item should have been unpinned everywhere")
+				}
+			}
+		}()
+		_, err := c.Unpin(ctx, test.Cid1)
 		if err != nil {
 			t.Fatal(err)
 		}

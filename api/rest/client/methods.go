@@ -350,14 +350,21 @@ func (c *defaultClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepo
 	return &repoGC, err
 }
 
-// WaitFor is a utility function that allows for a caller to wait for a
-// particular status for a CID (as defined by StatusFilterParams).
-// It returns the final status for that CID and an error, if there was.
+// WaitFor is a utility function that allows for a caller to wait until a CID
+// status target is reached (as given in StatusFilterParams).
+// It returns the final status for that CID and an error, if there was one.
 //
-// WaitFor works by calling Status() repeatedly and checking that all
-// peers have transitioned to the target TrackerStatus or are Remote.
-// If an error of some type happens, WaitFor returns immediately with an
-// empty GlobalPinInfo.
+// WaitFor works by calling Status() repeatedly and checking that returned
+// peers have transitioned to the target TrackerStatus. It immediately returns
+// an error when the an error is among the statuses (and an empty
+// GlobalPinInfo).
+//
+// A special case exists for TrackerStatusPinned targets: in this case,
+// TrackerStatusRemote statuses are ignored, so WaitFor will return when
+// all Statuses are Pinned or Remote by default.
+//
+// The Limit parameter allows to specify finer-grained control to, for
+// example, only wait until a number of peers reaches a status.
 func WaitFor(ctx context.Context, c Client, fp StatusFilterParams) (*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "client/WaitFor")
 	defer span.End()
@@ -391,8 +398,9 @@ func WaitFor(ctx context.Context, c Client, fp StatusFilterParams) (*api.GlobalP
 // to filter a stream of status results.
 type StatusFilterParams struct {
 	Cid       cid.Cid
-	Local     bool
+	Local     bool // query status from the local peer only
 	Target    api.TrackerStatus
+	Limit     int // wait for N peers reaching status. 0 == all
 	CheckFreq time.Duration
 }
 
@@ -424,7 +432,7 @@ func (sf *statusFilter) filter(ctx context.Context, fp StatusFilterParams) {
 			if !more {
 				return
 			}
-			ok, err := statusReached(fp.Target, gblPinInfo)
+			ok, err := statusReached(fp.Target, gblPinInfo, fp.Limit)
 			if err != nil {
 				sf.Err <- err
 				return
@@ -463,22 +471,44 @@ func (sf *statusFilter) pollStatus(ctx context.Context, c Client, fp StatusFilte
 	}
 }
 
-func statusReached(target api.TrackerStatus, gblPinInfo *api.GlobalPinInfo) (bool, error) {
+func statusReached(target api.TrackerStatus, gblPinInfo *api.GlobalPinInfo, limit int) (bool, error) {
+	// Specific case: return error if there are errors
 	for _, pinInfo := range gblPinInfo.PeerMap {
 		switch pinInfo.Status {
-		case target:
-			continue
-		case api.TrackerStatusUndefined, api.TrackerStatusClusterError, api.TrackerStatusPinError, api.TrackerStatusUnpinError:
+		case api.TrackerStatusUndefined,
+			api.TrackerStatusClusterError,
+			api.TrackerStatusPinError,
+			api.TrackerStatusUnpinError:
 			return false, fmt.Errorf("error has occurred while attempting to reach status: %s", target.String())
-		case api.TrackerStatusRemote:
-			if target == api.TrackerStatusPinned {
-				continue // to next pinInfo
-			}
-			return false, nil
-		default:
-			return false, nil
 		}
 	}
+
+	// Specific case: when limit it set, just count how many targets we
+	// reached.
+	if limit > 0 {
+		total := 0
+		for _, pinInfo := range gblPinInfo.PeerMap {
+			if pinInfo.Status == target {
+				total++
+			}
+		}
+		return total >= limit, nil
+	}
+
+	// General case: all statuses should be the target.
+	// Specific case: when looking for Pinned, ignore status remote.
+	for _, pinInfo := range gblPinInfo.PeerMap {
+		if pinInfo.Status == api.TrackerStatusRemote && target == api.TrackerStatusPinned {
+			continue
+		}
+		if pinInfo.Status == target {
+			continue
+		}
+		return false, nil
+	}
+
+	// All statuses are the target, as otherwise we would have returned
+	// false.
 	return true, nil
 }
 
