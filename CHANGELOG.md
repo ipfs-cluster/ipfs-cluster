@@ -1,5 +1,62 @@
 # IPFS Cluster Changelog
 
+### v0.14.1 - 2021-08-18
+
+This is an IPFS Cluster maintenance release addressing some issues and
+bringing a couple of tweaks. The main fix is an issue that would prevent
+cluster peers with very large pinsets (in the millions of objects) from fully
+starting quickly.
+
+This release is fully compatible with the previous release.
+
+#### List of changes
+
+##### Features
+
+* Improve support for pre-0.14.0 peers | [ipfs/ipfs-cluster#1409](https://github.com/ipfs/ipfs-cluster/issues/1409) | [ipfs/ipfs-cluster#1446](https://github.com/ipfs/ipfs-cluster/issues/1446)
+* Improve log-level handling | [ipfs/ipfs-cluster#1439](https://github.com/ipfs/ipfs-cluster/issues/1439)
+* ctl: --wait returns as soon as replication-factor-min is reached | [ipfs/ipfs-cluster#1427](https://github.com/ipfs/ipfs-cluster/issues/1427) | [ipfs/ipfs-cluster#1444](https://github.com/ipfs/ipfs-cluster/issues/1444)
+
+##### Bug fixes
+
+* Fix some data races in tests | [ipfs/ipfs-cluster#1428](https://github.com/ipfs/ipfs-cluster/issues/1428)
+* Do not block peer startup while waiting for RecoverAll | [ipfs/ipfs-cluster#1436](https://github.com/ipfs/ipfs-cluster/issues/1436) | [ipfs/ipfs-cluster#1438](https://github.com/ipfs/ipfs-cluster/issues/1438)
+* Use HTTP 307-redirects on restapi paths ending with "/" | [ipfs/ipfs-cluster#1415](https://github.com/ipfs/ipfs-cluster/issues/1415) | [ipfs/ipfs-cluster#1445](https://github.com/ipfs/ipfs-cluster/issues/1445)
+
+##### Other changes
+
+* Dependency upgrades | [ipfs/ipfs-cluster#1451](https://github.com/ipfs/ipfs-cluster/issues/1451)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes. Configurations are fully backwards compatible.
+
+##### REST API
+
+Paths ending with a `/` (slash) were being automatically redirected to the
+path without the slash using a 301 code (permanent redirect). However, most
+clients do not respect the method name when following 301-redirects, thus a
+POST request to `/allocations/` would become a GET request to `/allocations`.
+
+We have now set these redirects to use 307 instead (temporary
+redirect). Clients do keep the HTTP method when following 307 redirects.
+
+##### Go APIs
+
+The parameters object to the RestAPI client `WaitFor` function now has a
+`Limit` field. This allows to return as soon as a number of peers have reached
+the target status. When unset, previous behaviour should be maintained.
+
+##### Other
+
+Per the `WaitFor` modification above, `ipfs-cluster-ctl` now sets the limit to
+the replication-factor-min value on pin/add commands when using the `--wait`
+flag. These will potentially return earlier.
+
+---
+
 ### v0.14.0 - 2021-07-09
 
 This IPFS Cluster release brings a few features to improve cluster operations
