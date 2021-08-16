@@ -95,7 +95,7 @@ func (ident *Identity) toIdentityJSON() (jID *identityJSON, err error) {
 	jID = &identityJSON{}
 
 	// Private Key
-	pkeyBytes, err := ident.PrivateKey.Bytes()
+	pkeyBytes, err := crypto.MarshalPrivateKey(ident.PrivateKey)
 	if err != nil {
 		return
 	}
