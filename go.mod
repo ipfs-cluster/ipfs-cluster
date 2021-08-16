@@ -46,7 +46,7 @@ require (
 	github.com/libp2p/go-libp2p-circuit v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-gorpc v0.1.3
 	github.com/libp2p/go-libp2p-gostream v0.3.1
 	github.com/libp2p/go-libp2p-http v0.2.1
@@ -58,7 +58,7 @@ require (
 	github.com/libp2p/go-libp2p-raft v0.1.8
 	github.com/libp2p/go-libp2p-record v0.1.3
 	github.com/libp2p/go-libp2p-tls v0.2.0
-	github.com/libp2p/go-ws-transport v0.4.0
+	github.com/libp2p/go-ws-transport v0.5.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multihash v0.0.15
