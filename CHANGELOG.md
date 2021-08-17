@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.14.1 - 2021-08-18
+### v0.14.1 - 2021-08-16
 
 This is an IPFS Cluster maintenance release addressing some issues and
 bringing a couple of tweaks. The main fix is an issue that would prevent
