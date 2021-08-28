@@ -95,7 +95,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
-	lg, closer := sth.GetRandFileReader(t, 50000) // 50 MB
+	lg, closer := sth.GetRandFileReader(t, 100000) // 50 MB
 	st := sth.GetTreeSerialFile(t)
 	defer closer.Close()
 	defer st.Close()
@@ -125,7 +125,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 		t.Log(err)
 	}()
 	// adder.FromMultipart will finish, if sleep more
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	cancel()
 	wg.Wait()
 }
