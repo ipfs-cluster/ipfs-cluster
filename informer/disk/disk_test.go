@@ -52,7 +52,6 @@ func TestFreeSpace(t *testing.T) {
 	ctx := context.Background()
 	cfg := &Config{}
 	cfg.Default()
-	cfg.MetricType = MetricFreeSpace
 
 	inf, err := NewInformer(cfg)
 	if err != nil {
@@ -70,32 +69,6 @@ func TestFreeSpace(t *testing.T) {
 	}
 	// The mock client reports 100KB and 2 pins of 1 KB
 	if m.Value != "98000" {
-		t.Error("bad metric value")
-	}
-}
-
-func TestRepoSize(t *testing.T) {
-	ctx := context.Background()
-	cfg := &Config{}
-	cfg.Default()
-	cfg.MetricType = MetricRepoSize
-
-	inf, err := NewInformer(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer inf.Shutdown(ctx)
-	m := inf.GetMetric(ctx)
-	if m.Valid {
-		t.Error("metric should be invalid")
-	}
-	inf.SetClient(test.NewMockRPCClient(t))
-	m = inf.GetMetric(ctx)
-	if !m.Valid {
-		t.Error("metric should be valid")
-	}
-	// The mock client reports 100KB and 2 pins of 1 KB
-	if m.Value != "2000" {
 		t.Error("bad metric value")
 	}
 }
