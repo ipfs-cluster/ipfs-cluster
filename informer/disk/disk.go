@@ -50,7 +50,7 @@ func NewInformer(cfg *Config) (*Informer, error) {
 
 // Name returns the user-facing name of this informer.
 func (disk *Informer) Name() string {
-	return "reposize"
+	return disk.config.MetricType.String()
 }
 
 // SetClient provides us with an rpc.Client which allows
@@ -108,12 +108,17 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 		logger.Error(err)
 		valid = false
 	} else {
-		size := repoStat.RepoSize
-		total := repoStat.StorageMax
-		if size < total {
-			metric = total - size
-		} else { // Make sure we don't underflow
-			metric = 0
+		switch disk.config.MetricType {
+		case MetricFreeSpace:
+			size := repoStat.RepoSize
+			total := repoStat.StorageMax
+			if size < total {
+				metric = total - size
+			} else { // Make sure we don't underflow
+				metric = 0
+			}
+		case MetricRepoSize:
+			metric = repoStat.RepoSize
 		}
 	}
 

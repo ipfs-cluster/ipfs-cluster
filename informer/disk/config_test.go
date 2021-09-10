@@ -30,6 +30,25 @@ func TestLoadJSON(t *testing.T) {
 	if err == nil {
 		t.Error("expected error decoding metric_ttl")
 	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.MetricType = "abc"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err == nil {
+		t.Error("expected error decoding check_interval")
+	}
+
+	j = &jsonConfig{}
+	json.Unmarshal(cfgJSON, j)
+	j.MetricType = "reposize"
+	tst, _ = json.Marshal(j)
+	err = cfg.LoadJSON(tst)
+	if err != nil {
+		t.Error("reposize should be a valid type")
+	}
+
 }
 
 func TestToJSON(t *testing.T) {
@@ -56,6 +75,12 @@ func TestDefault(t *testing.T) {
 	cfg.MetricTTL = 0
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.MetricType = MetricRepoSize
+	if cfg.Validate() != nil {
+		t.Fatal("MetricRepoSize is a valid type")
 	}
 }
 

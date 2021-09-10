@@ -14,19 +14,33 @@ const envConfigKey = "cluster_disk"
 
 // Default values for disk Config
 const (
-	DefaultMetricTTL = 30 * time.Second
+	DefaultMetricTTL  = 30 * time.Second
+	DefaultMetricType = MetricFreeSpace
 )
+
+// String returns a string representation for MetricType.
+func (t MetricType) String() string {
+	switch t {
+	case MetricFreeSpace:
+		return "freespace"
+	case MetricRepoSize:
+		return "reposize"
+	}
+	return ""
+}
 
 // Config is used to initialize an Informer and customize
 // the type and parameters of the metric it produces.
 type Config struct {
 	config.Saver
 
-	MetricTTL time.Duration
+	MetricTTL  time.Duration
+	MetricType MetricType
 }
 
 type jsonConfig struct {
-	MetricTTL string `json:"metric_ttl"`
+	MetricTTL  string `json:"metric_ttl"`
+	MetricType string `json:"metric_type"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of Metric.
@@ -37,6 +51,7 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with sensible values.
 func (cfg *Config) Default() error {
 	cfg.MetricTTL = DefaultMetricTTL
+	cfg.MetricType = DefaultMetricType
 	return nil
 }
 
@@ -60,6 +75,9 @@ func (cfg *Config) Validate() error {
 		return errors.New("disk.metric_ttl is invalid")
 	}
 
+	if cfg.MetricType.String() == "" {
+		return errors.New("disk.metric_type is invalid")
+	}
 	return nil
 }
 
@@ -82,6 +100,15 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	t, _ := time.ParseDuration(jcfg.MetricTTL)
 	cfg.MetricTTL = t
 
+	switch jcfg.MetricType {
+	case "reposize":
+		cfg.MetricType = MetricRepoSize
+	case "freespace":
+		cfg.MetricType = MetricFreeSpace
+	default:
+		return errors.New("disk.metric_type is invalid")
+	}
+
 	return cfg.Validate()
 }
 
@@ -96,7 +123,8 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	return &jsonConfig{
-		MetricTTL: cfg.MetricTTL.String(),
+		MetricTTL:  cfg.MetricTTL.String(),
+		MetricType: cfg.MetricType.String(),
 	}
 }
 
