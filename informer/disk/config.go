@@ -18,17 +18,6 @@ const (
 	DefaultMetricType = MetricFreeSpace
 )
 
-// String returns a string representation for MetricType.
-func (t MetricType) String() string {
-	switch t {
-	case MetricFreeSpace:
-		return "freespace"
-	case MetricRepoSize:
-		return "reposize"
-	}
-	return ""
-}
-
 // Config is used to initialize an Informer and customize
 // the type and parameters of the metric it produces.
 type Config struct {

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
-	"github.com/ipfs/ipfs-cluster/allocator/ascendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/metrics"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
@@ -148,7 +148,7 @@ type mockTracer struct {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
-	ident, clusterCfg, _, _, _, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _ := testingConfigs()
+	ident, clusterCfg, _, _, _, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _, _ := testingConfigs()
 	ctx := context.Background()
 
 	host, pubsub, dht := createHost(t, ident.PrivateKey, clusterCfg.Secret, clusterCfg.ListenAddr)
@@ -180,7 +180,12 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 		t.Fatal(err)
 	}
 
-	alloc := ascendalloc.NewAllocator()
+	alloc, err := metrics.New(&metrics.Config{
+		AllocateBy: []string{"numpin"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	numpinCfg := &numpin.Config{}
 	numpinCfg.Default()
 	inf, _ := numpin.NewInformer(numpinCfg)

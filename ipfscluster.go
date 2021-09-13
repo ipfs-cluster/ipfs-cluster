@@ -152,7 +152,7 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority map[peer.ID]*api.Metric) ([]peer.ID, error)
+	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority api.MetricsSet) ([]peer.ID, error)
 }
 
 // PeerMonitor is a component in charge of publishing a peer's metrics and

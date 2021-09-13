@@ -1100,6 +1100,9 @@ func (n *NodeWithMeta) Size() uint64 {
 	return uint64(len(n.Data))
 }
 
+// MetricsSet is map to carry slices of metric indexed by type.
+type MetricsSet map[string][]*Metric
+
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.

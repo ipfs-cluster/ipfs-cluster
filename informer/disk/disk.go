@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -20,12 +22,28 @@ type MetricType int
 
 const (
 	// MetricFreeSpace provides the available space reported by IPFS
-	MetricFreeSpace = iota
+	MetricFreeSpace MetricType = iota
 	// MetricRepoSize provides the used space reported by IPFS
 	MetricRepoSize
 )
 
+// String returns a string representation for MetricType.
+func (t MetricType) String() string {
+	switch t {
+	case MetricFreeSpace:
+		return "freespace"
+	case MetricRepoSize:
+		return "reposize"
+	}
+	return ""
+}
+
 var logger = logging.Logger("diskinfo")
+
+func init() {
+	metrics.RegisterInformer(MetricFreeSpace.String(), sorter.SortNumericReverse, false)
+	metrics.RegisterInformer(MetricRepoSize.String(), sorter.SortNumeric, false)
+}
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces.
@@ -48,7 +66,7 @@ func NewInformer(cfg *Config) (*Informer, error) {
 	}, nil
 }
 
-// Name returns the user-facing name of this informer.
+// Name returns the name of the metric issued by this informer.
 func (disk *Informer) Name() string {
 	return disk.config.MetricType.String()
 }

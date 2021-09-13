@@ -5,6 +5,7 @@ package pubsubmon
 import (
 	"bytes"
 	"context"
+	"time"
 
 	"sync"
 
@@ -157,11 +158,7 @@ func (mon *Monitor) logFromPubsub() {
 				}
 			}
 
-			logger.Debugf(
-				"received pubsub metric '%s' from '%s'",
-				metric.Name,
-				metric.Peer,
-			)
+			debug("recieved", &metric)
 
 			err = mon.LogMetric(ctx, &metric)
 			if err != nil {
@@ -208,7 +205,7 @@ func (mon *Monitor) LogMetric(ctx context.Context, m *api.Metric) error {
 	defer span.End()
 
 	mon.metrics.Add(m)
-	logger.Debugf("pubsub mon logged '%s' metric from '%s'. Expires on %d", m.Name, m.Peer, m.Expire)
+	debug("logged", m)
 	return nil
 }
 
@@ -231,11 +228,7 @@ func (mon *Monitor) PublishMetric(ctx context.Context, m *api.Metric) error {
 		return err
 	}
 
-	logger.Debugf(
-		"publishing metric %s to pubsub. Expires: %d",
-		m.Name,
-		m.Expire,
-	)
+	debug("publish", m)
 
 	err = mon.topic.Publish(ctx, b.Bytes())
 	if err != nil {
@@ -280,4 +273,15 @@ func (mon *Monitor) MetricNames(ctx context.Context) []string {
 	defer span.End()
 
 	return mon.metrics.MetricNames()
+}
+
+func debug(event string, m *api.Metric) {
+	logger.Debugf(
+		"%s metric: '%s' - '%s' - '%s' - '%s'",
+		event,
+		m.Peer,
+		m.Name,
+		m.Value,
+		time.Unix(0, m.Expire),
+	)
 }

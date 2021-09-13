@@ -31,6 +31,9 @@ var (
 	PeerID4, _     = peer.Decode("QmZ8naDy5mEz4GLuQwjWt9MPYqHTBbsm8tQBrNSjiq6zBc")
 	PeerID5, _     = peer.Decode("QmZVAo3wd8s5eTTy2kPYs34J9PvfxpKPuYsePPYGjgRRjg")
 	PeerID6, _     = peer.Decode("QmR8Vu6kZk7JvAN2rWVWgiduHatgBq2bb15Yyq8RRhYSbx")
+	PeerID7, _     = peer.Decode("12D3KooWGHTKzeT4KaLGLrbKKyT8zKrBPXAUBRzCAN6ZMDMo4M6M")
+	PeerID8, _     = peer.Decode("12D3KooWFBFCDQzAkQSwPZLV883pKdsmb6urQ3sMjfJHUxn5GCVv")
+	PeerID9, _     = peer.Decode("12D3KooWKuJ8LPTyHbyX4nt4C7uWmUobzFsiceTVoFw7HpmoNakM")
 
 	PeerName1 = "TestPeer1"
 	PeerName2 = "TestPeer2"

@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -15,6 +17,10 @@ import (
 
 // MetricName specifies the name of our metric
 var MetricName = "numpin"
+
+func init() {
+	metrics.RegisterInformer(MetricName, sorter.SortNumeric, false)
+}
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces
