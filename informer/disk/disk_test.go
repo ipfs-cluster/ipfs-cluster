@@ -28,6 +28,16 @@ func (mock *badRPCService) RepoStat(ctx context.Context, in struct{}, out *api.I
 	return errors.New("fake error")
 }
 
+// Returns the first metric
+func getMetrics(t *testing.T, inf *Informer) *api.Metric {
+	t.Helper()
+	metrics := inf.GetMetrics(context.Background())
+	if len(metrics) != 1 {
+		t.Fatal("expected 1 metric")
+	}
+	return metrics[0]
+}
+
 func Test(t *testing.T) {
 	ctx := context.Background()
 	cfg := &Config{}
@@ -37,12 +47,12 @@ func Test(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer inf.Shutdown(ctx)
-	m := inf.GetMetric(ctx)
+	m := getMetrics(t, inf)
 	if m.Valid {
 		t.Error("metric should be invalid")
 	}
 	inf.SetClient(test.NewMockRPCClient(t))
-	m = inf.GetMetric(ctx)
+	m = getMetrics(t, inf)
 	if !m.Valid {
 		t.Error("metric should be valid")
 	}
@@ -59,12 +69,12 @@ func TestFreeSpace(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer inf.Shutdown(ctx)
-	m := inf.GetMetric(ctx)
+	m := getMetrics(t, inf)
 	if m.Valid {
 		t.Error("metric should be invalid")
 	}
 	inf.SetClient(test.NewMockRPCClient(t))
-	m = inf.GetMetric(ctx)
+	m = getMetrics(t, inf)
 	if !m.Valid {
 		t.Error("metric should be valid")
 	}
@@ -85,12 +95,12 @@ func TestRepoSize(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer inf.Shutdown(ctx)
-	m := inf.GetMetric(ctx)
+	m := getMetrics(t, inf)
 	if m.Valid {
 		t.Error("metric should be invalid")
 	}
 	inf.SetClient(test.NewMockRPCClient(t))
-	m = inf.GetMetric(ctx)
+	m = getMetrics(t, inf)
 	if !m.Valid {
 		t.Error("metric should be valid")
 	}
@@ -110,7 +120,7 @@ func TestWithErrors(t *testing.T) {
 	}
 	defer inf.Shutdown(ctx)
 	inf.SetClient(badRPCClient(t))
-	m := inf.GetMetric(ctx)
+	m := getMetrics(t, inf)
 	if m.Valid {
 		t.Errorf("metric should be invalid")
 	}

@@ -46,7 +46,7 @@ func TestSortNumeric(t *testing.T) {
 	}
 	metrics[4].Expire = 0 // manually expire
 
-	sorted := SortNumeric(metrics, false)
+	sorted := SortNumeric(metrics)
 	if len(sorted) != 3 {
 		t.Fatal("sorter did not remove invalid metrics:")
 	}
@@ -56,7 +56,7 @@ func TestSortNumeric(t *testing.T) {
 		t.Error("not sorted properly")
 	}
 
-	sortedRev := SortNumeric(metrics, true)
+	sortedRev := SortNumericReverse(metrics)
 	if len(sortedRev) != 3 {
 		t.Fatal("sorted did not remove invalid metrics")
 	}

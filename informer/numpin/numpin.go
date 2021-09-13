@@ -62,17 +62,17 @@ func (npi *Informer) Name() string {
 	return MetricName
 }
 
-// GetMetric contacts the IPFSConnector component and
-// requests the `pin ls` command. We return the number
-// of pins in IPFS.
-func (npi *Informer) GetMetric(ctx context.Context) *api.Metric {
+// GetMetrics contacts the IPFSConnector component and requests the `pin ls`
+// command. We return the number of pins in IPFS. It must always return at
+// least one metric.
+func (npi *Informer) GetMetrics(ctx context.Context) []*api.Metric {
 	ctx, span := trace.StartSpan(ctx, "informer/numpin/GetMetric")
 	defer span.End()
 
 	if npi.rpcClient == nil {
-		return &api.Metric{
+		return []*api.Metric{&api.Metric{
 			Valid: false,
-		}
+		}}
 	}
 
 	pinMap := make(map[string]api.IPFSPinStatus)
@@ -97,5 +97,5 @@ func (npi *Informer) GetMetric(ctx context.Context) *api.Metric {
 	}
 
 	m.SetTTL(npi.config.MetricTTL)
-	return m
+	return []*api.Metric{m}
 }

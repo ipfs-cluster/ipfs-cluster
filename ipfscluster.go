@@ -137,7 +137,7 @@ type PinTracker interface {
 type Informer interface {
 	Component
 	Name() string
-	GetMetric(context.Context) *api.Metric
+	GetMetrics(context.Context) []*api.Metric
 }
 
 // PinAllocator decides where to pin certain content. In order to make such

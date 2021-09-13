@@ -92,9 +92,9 @@ func (disk *Informer) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// GetMetric returns the metric obtained by this
-// Informer.
-func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
+// GetMetrics returns the metric obtained by this Informer. It must always
+// return at least one metric.
+func (disk *Informer) GetMetrics(ctx context.Context) []*api.Metric {
 	ctx, span := trace.StartSpan(ctx, "informer/disk/GetMetric")
 	defer span.End()
 
@@ -103,10 +103,10 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	disk.mu.Unlock()
 
 	if rpcClient == nil {
-		return &api.Metric{
+		return []*api.Metric{&api.Metric{
 			Name:  disk.Name(),
 			Valid: false,
-		}
+		}}
 	}
 
 	var repoStat api.IPFSRepoStat
@@ -147,5 +147,5 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	}
 
 	m.SetTTL(disk.config.MetricTTL)
-	return m
+	return []*api.Metric{m}
 }
