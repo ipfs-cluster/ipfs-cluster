@@ -6,6 +6,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -33,6 +35,10 @@ func New(cfg *Config) (*Informer, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
+	}
+
+	for k := range cfg.Tags {
+		metrics.RegisterInformer("tag:"+k, sorter.SortText, true)
 	}
 
 	return &Informer{

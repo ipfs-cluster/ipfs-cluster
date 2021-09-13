@@ -153,6 +153,8 @@ type PinAllocator interface {
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
 	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority api.MetricsSet) ([]peer.ID, error)
+	// Metrics returns the list of metrics that the allocator needs.
+	Metrics() []string
 }
 
 // PeerMonitor is a component in charge of publishing a peer's metrics and

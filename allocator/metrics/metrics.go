@@ -20,38 +20,38 @@ import (
 	"go.opencensus.io/trace"
 )
 
-// Metrics is an allocator that partitions metrics and orders
+// Allocator is an allocator that partitions metrics and orders
 // the final least of allocation by selecting for each partition.
-type Metrics struct {
+type Allocator struct {
 	config    *Config
 	rpcClient *rpc.Client
 }
 
 // New returns an initialized Allocator.
-func New(cfg *Config) (*Metrics, error) {
+func New(cfg *Config) (*Allocator, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	return &Metrics{
+	return &Allocator{
 		config: cfg,
 	}, nil
 }
 
 // SetClient provides us with an rpc.Client which allows
 // contacting other components in the cluster.
-func (m *Metrics) SetClient(c *rpc.Client) {
-	m.rpcClient = c
+func (a *Allocator) SetClient(c *rpc.Client) {
+	a.rpcClient = c
 }
 
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
-func (m *Metrics) Shutdown(ctx context.Context) error {
+func (a *Allocator) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "allocator/metrics/Shutdown")
 	defer span.End()
 
-	m.rpcClient = nil
+	a.rpcClient = nil
 	return nil
 }
 
@@ -209,8 +209,7 @@ func partitionValues(sortedMetrics []*api.Metric, inf informer) []*partition {
 //   - It repeats the process until there is no more buckets to sort.
 //   - Finally, it returns the first peer of the first
 //   - Third, based on the AllocateBy order, it select the first metric
-
-func (m *Metrics) Allocate(
+func (a *Allocator) Allocate(
 	ctx context.Context,
 	c cid.Cid,
 	current, candidates, priority api.MetricsSet,
@@ -221,7 +220,7 @@ func (m *Metrics) Allocate(
 		if arg == nil {
 			continue
 		}
-		for _, by := range m.config.AllocateBy {
+		for _, by := range a.config.AllocateBy {
 			sorter := informers[by].sorter
 			if sorter == nil {
 				return nil, fmt.Errorf("allocate_by contains an unknown metric name: %s", by)
@@ -239,8 +238,8 @@ func (m *Metrics) Allocate(
 	//
 	// Otherwise, the sorting might be funny.
 
-	candidatePartition := partitionMetrics(candidates, m.config.AllocateBy)
-	priorityPartition := partitionMetrics(priority, m.config.AllocateBy)
+	candidatePartition := partitionMetrics(candidates, a.config.AllocateBy)
+	priorityPartition := partitionMetrics(priority, a.config.AllocateBy)
 
 	//fmt.Println("---")
 	//printPartition(candidatePartition)
@@ -249,6 +248,12 @@ func (m *Metrics) Allocate(
 	last := candidatePartition.sortedPeers()
 
 	return append(first, last...), nil
+}
+
+// Metrics returns the names of the metrics that have been registered
+// with this allocator.
+func (a *Allocator) Metrics() []string {
+	return a.config.AllocateBy
 }
 
 // func printPartition(p *partitionedMetric) {
