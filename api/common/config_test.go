@@ -1,4 +1,4 @@
-package rest
+package common
 
 import (
 	"context"
@@ -7,10 +7,77 @@ import (
 	"testing"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	ma "github.com/multiformats/go-multiaddr"
 )
+
+// Default testing values
+var (
+	DefaultReadTimeout        = 0 * time.Second
+	DefaultReadHeaderTimeout  = 5 * time.Second
+	DefaultWriteTimeout       = 0 * time.Second
+	DefaultIdleTimeout        = 120 * time.Second
+	DefaultMaxHeaderBytes     = minMaxHeaderBytes
+	DefaultHTTPListenAddrs    = []string{"/ip4/127.0.0.1/tcp/9094"}
+	DefaultHeaders            = map[string][]string{}
+	DefaultCORSAllowedOrigins = []string{"*"}
+	DefaultCORSAllowedMethods = []string{}
+	DefaultCORSAllowedHeaders = []string{}
+	DefaultCORSExposedHeaders = []string{
+		"Content-Type",
+		"X-Stream-Output",
+		"X-Chunked-Output",
+		"X-Content-Length",
+	}
+	DefaultCORSAllowCredentials = true
+	DefaultCORSMaxAge           time.Duration // 0. Means always.
+)
+
+func defaultFunc(cfg *Config) error {
+	// http
+	addrs := make([]ma.Multiaddr, 0, len(DefaultHTTPListenAddrs))
+	for _, def := range DefaultHTTPListenAddrs {
+		httpListen, err := ma.NewMultiaddr(def)
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, httpListen)
+	}
+	cfg.HTTPListenAddr = addrs
+	cfg.PathSSLCertFile = ""
+	cfg.PathSSLKeyFile = ""
+	cfg.ReadTimeout = DefaultReadTimeout
+	cfg.ReadHeaderTimeout = DefaultReadHeaderTimeout
+	cfg.WriteTimeout = DefaultWriteTimeout
+	cfg.IdleTimeout = DefaultIdleTimeout
+	cfg.MaxHeaderBytes = DefaultMaxHeaderBytes
+
+	// libp2p
+	cfg.ID = ""
+	cfg.PrivateKey = nil
+	cfg.Libp2pListenAddr = nil
+
+	// Auth
+	cfg.BasicAuthCredentials = nil
+
+	// Logs
+	cfg.HTTPLogFile = ""
+
+	// Headers
+	cfg.Headers = DefaultHeaders
+
+	cfg.CORSAllowedOrigins = DefaultCORSAllowedOrigins
+	cfg.CORSAllowedMethods = DefaultCORSAllowedMethods
+	cfg.CORSAllowedHeaders = DefaultCORSAllowedHeaders
+	cfg.CORSExposedHeaders = DefaultCORSExposedHeaders
+	cfg.CORSAllowCredentials = DefaultCORSAllowCredentials
+	cfg.CORSMaxAge = DefaultCORSMaxAge
+
+	return nil
+}
 
 var cfgJSON = []byte(`
 {
@@ -33,8 +100,27 @@ var cfgJSON = []byte(`
 }
 `)
 
-func TestLoadEmptyJSON(t *testing.T) {
+func newTestConfig() *Config {
 	cfg := &Config{}
+	cfg.ConfigKey = "testapi"
+	cfg.EnvConfigKey = "cluster_testapi"
+	cfg.Logger = logging.Logger("testapi")
+	cfg.RequestLogger = logging.Logger("testapilog")
+	cfg.DefaultFunc = defaultFunc
+	return cfg
+}
+
+func newDefaultTestConfig(t *testing.T) *Config {
+	t.Helper()
+	cfg := newTestConfig()
+	if err := defaultFunc(cfg); err != nil {
+		t.Fatal(err)
+	}
+	return cfg
+}
+
+func TestLoadEmptyJSON(t *testing.T) {
+	cfg := newTestConfig()
 	err := cfg.LoadJSON([]byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +128,7 @@ func TestLoadEmptyJSON(t *testing.T) {
 }
 
 func TestLoadJSON(t *testing.T) {
-	cfg := &Config{}
+	cfg := newTestConfig()
 	err := cfg.LoadJSON(cfgJSON)
 	if err != nil {
 		t.Fatal(err)
@@ -134,9 +220,8 @@ func TestApplyEnvVars(t *testing.T) {
 	password := "thisaintmypassword"
 	user1 := "user1"
 	user1pass := "user1passwd"
-	os.Setenv("CLUSTER_RESTAPI_BASICAUTHCREDENTIALS", username+":"+password+","+user1+":"+user1pass)
-	cfg := &Config{}
-	cfg.Default()
+	os.Setenv("CLUSTER_TESTAPI_BASICAUTHCREDENTIALS", username+":"+password+","+user1+":"+user1pass)
+	cfg := newDefaultTestConfig(t)
 	err := cfg.ApplyEnvVars()
 	if err != nil {
 		t.Fatal(err)
@@ -161,11 +246,7 @@ func TestApplyEnvVars(t *testing.T) {
 
 func TestLibp2pConfig(t *testing.T) {
 	ctx := context.Background()
-	cfg := &Config{}
-	err := cfg.Default()
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := newDefaultTestConfig(t)
 
 	priv, pub, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 	if err != nil {
@@ -197,7 +278,8 @@ func TestLibp2pConfig(t *testing.T) {
 	}
 
 	// Test creating a new API with a libp2p config
-	rest, err := NewAPI(ctx, cfg)
+	rest, err := NewAPI(ctx, cfg,
+		func(c *rpc.Client) []Route { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,13 +301,13 @@ func TestLibp2pConfig(t *testing.T) {
 }
 
 func TestToJSON(t *testing.T) {
-	cfg := &Config{}
+	cfg := newTestConfig()
 	cfg.LoadJSON(cfgJSON)
 	newjson, err := cfg.ToJSON()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg = &Config{}
+	cfg = newTestConfig()
 	err = cfg.LoadJSON(newjson)
 	if err != nil {
 		t.Fatal(err)
@@ -233,13 +315,15 @@ func TestToJSON(t *testing.T) {
 }
 
 func TestDefault(t *testing.T) {
-	cfg := &Config{}
-	cfg.Default()
+	cfg := newDefaultTestConfig(t)
 	if cfg.Validate() != nil {
 		t.Fatal("error validating")
 	}
 
-	cfg.Default()
+	err := defaultFunc(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cfg.IdleTimeout = -1
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
