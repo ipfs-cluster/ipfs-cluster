@@ -1,52 +1,30 @@
 // Package rest implements an IPFS Cluster API component. It provides
 // a REST-ish API to interact with Cluster.
 //
-// rest exposes the HTTP API in two ways. The first is through a regular
-// HTTP(s) listener. The second is by tunneling HTTP through a libp2p
-// stream (thus getting an encrypted channel without the need to setup
-// TLS). Both ways can be used at the same time, or disabled.
+// The implented API is based on the common.API component (refer to module description there). The only thing this module does it to provide route
+// handling for the otherwise common API component.
 package rest
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"math/rand"
-	"net"
 	"net/http"
-	"net/url"
-	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/api/common"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
-	gopath "github.com/ipfs/go-path"
-	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-	gostream "github.com/libp2p/go-libp2p-gostream"
-	p2phttp "github.com/libp2p/go-libp2p-http"
-	noise "github.com/libp2p/go-libp2p-noise"
-	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
-	libp2ptls "github.com/libp2p/go-libp2p-tls"
-	manet "github.com/multiformats/go-multiaddr/net"
 
-	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
-	"go.opencensus.io/trace"
 )
 
 func init() {
@@ -58,332 +36,37 @@ var (
 	apiLogger = logging.Logger("restapilog")
 )
 
-// Common errors
-var (
-	// ErrNoEndpointEnabled is returned when the API is created but
-	// no HTTPListenAddr, nor libp2p configuration fields, nor a libp2p
-	// Host are provided.
-	ErrNoEndpointsEnabled = errors.New("neither the libp2p nor the HTTP endpoints are enabled")
-
-	// ErrHTTPEndpointNotEnabled is returned when trying to perform
-	// operations that rely on the HTTPEndpoint but it is disabled.
-	ErrHTTPEndpointNotEnabled = errors.New("the HTTP endpoint is not enabled")
-)
-
-// Used by sendResponse to set the right status
-const autoStatus = -1
-
-// API implements an API and aims to provides
-// a RESTful HTTP API for Cluster.
-type API struct {
-	ctx    context.Context
-	cancel func()
-
-	config *Config
-
-	rpcClient *rpc.Client
-	rpcReady  chan struct{}
-	router    *mux.Router
-
-	server *http.Server
-	host   host.Host
-
-	httpListeners  []net.Listener
-	libp2pListener net.Listener
-
-	shutdownLock sync.Mutex
-	shutdown     bool
-	wg           sync.WaitGroup
-}
-
-type route struct {
-	Name        string
-	Method      string
-	Pattern     string
-	HandlerFunc http.HandlerFunc
-}
-
 type peerAddBody struct {
 	PeerID string `json:"peer_id"`
 }
 
-type logWriter struct {
+// API implements the REST API
+type API struct {
+	*common.API
+
+	rpcClient *rpc.Client
+	config    *Config
 }
 
-func (lw logWriter) Write(b []byte) (int, error) {
-	apiLogger.Info(string(b))
-	return len(b), nil
-}
-
-// NewAPI creates a new REST API component with the given configuration.
+// NewAPI creates a new REST API component.
 func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
 	return NewAPIWithHost(ctx, cfg, nil)
 }
 
-// NewAPIWithHost creates a new REST API component and enables
-// the libp2p-http endpoint using the given Host, if not nil.
+// NewAPI creates a new REST API component using the given libp2p Host.
 func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error) {
-	err := cfg.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	// Our handler is a gorilla router wrapped with:
-	// - a custom strictSlashHandler that uses 307 redirects (#1415)
-	// - the cors handler,
-	// - the basic auth handler.
-	//
-	// Thus every request will need to have valid credentials first, then
-	// comply with CORS, then it may be redirected if the path ends with a
-	// "/" and finally it hits one of our routes and handlers.
-	router := mux.NewRouter()
-	handler := basicAuthHandler(
-		cfg.BasicAuthCredentials,
-		cors.New(*cfg.corsOptions()).
-			Handler(
-				strictSlashHandler(router),
-			),
-	)
-	if cfg.Tracing {
-		handler = &ochttp.Handler{
-			IsPublicEndpoint: true,
-			Propagation:      &tracecontext.HTTPFormat{},
-			Handler:          handler,
-			StartOptions:     trace.StartOptions{SpanKind: trace.SpanKindServer},
-			FormatSpanName:   func(req *http.Request) string { return req.Host + ":" + req.URL.Path + ":" + req.Method },
-		}
-	}
-
-	var writer io.Writer
-	if cfg.HTTPLogFile != "" {
-		f, err := os.OpenFile(cfg.getHTTPLogPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return nil, err
-		}
-		writer = f
-	} else {
-		writer = logWriter{}
-	}
-
-	s := &http.Server{
-		ReadTimeout:       cfg.ReadTimeout,
-		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
-		WriteTimeout:      cfg.WriteTimeout,
-		IdleTimeout:       cfg.IdleTimeout,
-		Handler:           handlers.LoggingHandler(writer, handler),
-		MaxHeaderBytes:    cfg.MaxHeaderBytes,
-	}
-
-	// See: https://github.com/ipfs/go-ipfs/issues/5168
-	// See: https://github.com/ipfs/ipfs-cluster/issues/548
-	// on why this is re-enabled.
-	s.SetKeepAlivesEnabled(true)
-	s.MaxHeaderBytes = cfg.MaxHeaderBytes
-
-	ctx, cancel := context.WithCancel(ctx)
-
 	api := &API{
-		ctx:      ctx,
-		cancel:   cancel,
-		config:   cfg,
-		server:   s,
-		host:     h,
-		rpcReady: make(chan struct{}, 2),
+		config: cfg,
 	}
-	api.addRoutes(router)
-
-	// Set up api.httpListeners if enabled
-	err = api.setupHTTP()
-	if err != nil {
-		return nil, err
-	}
-
-	// Set up api.libp2pListeners if enabled
-	err = api.setupLibp2p()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(api.httpListeners) == 0 && api.libp2pListener == nil {
-		return nil, ErrNoEndpointsEnabled
-	}
-
-	api.run(ctx)
-	return api, nil
+	capi, err := common.NewAPIWithHost(ctx, &cfg.Config, h, api.routes)
+	api.API = capi
+	return api, err
 }
 
-func (api *API) setupHTTP() error {
-	if len(api.config.HTTPListenAddr) == 0 {
-		return nil
-	}
-
-	for _, listenMAddr := range api.config.HTTPListenAddr {
-		n, addr, err := manet.DialArgs(listenMAddr)
-		if err != nil {
-			return err
-		}
-
-		var l net.Listener
-		if api.config.TLS != nil {
-			l, err = tls.Listen(n, addr, api.config.TLS)
-		} else {
-			l, err = net.Listen(n, addr)
-		}
-		if err != nil {
-			return err
-		}
-		api.httpListeners = append(api.httpListeners, l)
-	}
-	return nil
-}
-
-func (api *API) setupLibp2p() error {
-	// Make new host. Override any provided existing one
-	// if we have config for a custom one.
-	if len(api.config.Libp2pListenAddr) > 0 {
-		// We use a new host context. We will call
-		// Close() on shutdown(). Avoids things like:
-		// https://github.com/ipfs/ipfs-cluster/issues/853
-		h, err := libp2p.New(
-			context.Background(),
-			libp2p.Identity(api.config.PrivateKey),
-			libp2p.ListenAddrs(api.config.Libp2pListenAddr...),
-			libp2p.Security(noise.ID, noise.New),
-			libp2p.Security(libp2ptls.ID, libp2ptls.New),
-			libp2p.Transport(libp2pquic.NewTransport),
-			libp2p.DefaultTransports,
-		)
-		if err != nil {
-			return err
-		}
-		api.host = h
-	}
-
-	if api.host == nil {
-		return nil
-	}
-
-	l, err := gostream.Listen(api.host, p2phttp.DefaultP2PProtocol)
-	if err != nil {
-		return err
-	}
-	api.libp2pListener = l
-	return nil
-}
-
-// HTTPAddresses returns the HTTP(s) listening address
-// in host:port format. Useful when configured to start
-// on a random port (0). Returns error when the HTTP endpoint
-// is not enabled.
-func (api *API) HTTPAddresses() ([]string, error) {
-	if len(api.httpListeners) == 0 {
-		return nil, ErrHTTPEndpointNotEnabled
-	}
-	var addrs []string
-	for _, l := range api.httpListeners {
-		addrs = append(addrs, l.Addr().String())
-	}
-
-	return addrs, nil
-}
-
-// Host returns the libp2p Host used by the API, if any.
-// The result is either the host provided during initialization,
-// a default Host created with options from the configuration object,
-// or nil.
-func (api *API) Host() host.Host {
-	return api.host
-}
-
-func (api *API) addRoutes(router *mux.Router) {
-	for _, route := range api.routes() {
-		router.
-			Methods(route.Method).
-			Path(route.Pattern).
-			Name(route.Name).
-			Handler(
-				ochttp.WithRouteTag(
-					http.HandlerFunc(route.HandlerFunc),
-					"/"+route.Name,
-				),
-			)
-	}
-	router.NotFoundHandler = ochttp.WithRouteTag(
-		http.HandlerFunc(api.notFoundHandler),
-		"/notfound",
-	)
-	api.router = router
-}
-
-// basicAuth wraps a given handler with basic authentication
-func basicAuthHandler(credentials map[string]string, h http.Handler) http.Handler {
-	if credentials == nil {
-		return h
-	}
-
-	wrap := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		username, password, ok := r.BasicAuth()
-		if !ok {
-			resp, err := unauthorizedResp()
-			if err != nil {
-				logger.Error(err)
-				return
-			}
-			http.Error(w, resp, http.StatusUnauthorized)
-			return
-		}
-
-		authorized := false
-		for u, p := range credentials {
-			if u == username && p == password {
-				authorized = true
-			}
-		}
-		if !authorized {
-			resp, err := unauthorizedResp()
-			if err != nil {
-				logger.Error(err)
-				return
-			}
-			http.Error(w, resp, http.StatusUnauthorized)
-			return
-		}
-		h.ServeHTTP(w, r)
-	}
-	return http.HandlerFunc(wrap)
-}
-
-// The Gorilla muxer StrictSlash option uses a 301 permanent redirect, which
-// results in POST requests becoming GET requests in most clients.  Thus we
-// use our own middleware that performs a 307 redirect.  See issue #1415 for
-// more details.
-func strictSlashHandler(h http.Handler) http.Handler {
-	wrap := func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		if strings.HasSuffix(path, "/") {
-			u, _ := url.Parse(r.URL.String())
-			u.Path = u.Path[:len(u.Path)-1]
-			http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
-			return
-		}
-		h.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(wrap)
-}
-
-func unauthorizedResp() (string, error) {
-	apiError := &types.Error{
-		Code:    401,
-		Message: "Unauthorized",
-	}
-	resp, err := json.Marshal(apiError)
-	return string(resp), err
-}
-
-func (api *API) routes() []route {
-	return []route{
+// Routes returns endpoints supported by this API.
+func (api *API) routes(c *rpc.Client) []common.Route {
+	api.rpcClient = c
+	return []common.Route{
 		{
 			"ID",
 			"GET",
@@ -515,114 +198,6 @@ func (api *API) routes() []route {
 	}
 }
 
-func (api *API) run(ctx context.Context) {
-	api.wg.Add(len(api.httpListeners))
-	for _, l := range api.httpListeners {
-		go func(l net.Listener) {
-			defer api.wg.Done()
-			api.runHTTPServer(ctx, l)
-		}(l)
-	}
-
-	if api.libp2pListener != nil {
-		api.wg.Add(1)
-		go func() {
-			defer api.wg.Done()
-			api.runLibp2pServer(ctx)
-		}()
-	}
-}
-
-// runs in goroutine from run()
-func (api *API) runHTTPServer(ctx context.Context, l net.Listener) {
-	select {
-	case <-api.rpcReady:
-	case <-api.ctx.Done():
-		return
-	}
-
-	maddr, err := manet.FromNetAddr(l.Addr())
-	if err != nil {
-		logger.Error(err)
-	}
-
-	logger.Infof("REST API (HTTP): %s", maddr)
-	err = api.server.Serve(l)
-	if err != nil && !strings.Contains(err.Error(), "closed network connection") {
-		logger.Error(err)
-	}
-}
-
-// runs in goroutine from run()
-func (api *API) runLibp2pServer(ctx context.Context) {
-	select {
-	case <-api.rpcReady:
-	case <-api.ctx.Done():
-		return
-	}
-
-	listenMsg := ""
-	for _, a := range api.host.Addrs() {
-		listenMsg += fmt.Sprintf("        %s/p2p/%s\n", a, api.host.ID().Pretty())
-	}
-
-	logger.Infof("REST API (libp2p-http): ENABLED. Listening on:\n%s\n", listenMsg)
-
-	err := api.server.Serve(api.libp2pListener)
-	if err != nil && !strings.Contains(err.Error(), "context canceled") {
-		logger.Error(err)
-	}
-}
-
-// Shutdown stops any API listeners.
-func (api *API) Shutdown(ctx context.Context) error {
-	_, span := trace.StartSpan(ctx, "restapi/Shutdown")
-	defer span.End()
-
-	api.shutdownLock.Lock()
-	defer api.shutdownLock.Unlock()
-
-	if api.shutdown {
-		logger.Debug("already shutdown")
-		return nil
-	}
-
-	logger.Info("stopping Cluster API")
-
-	api.cancel()
-	close(api.rpcReady)
-
-	// Cancel any outstanding ops
-	api.server.SetKeepAlivesEnabled(false)
-
-	for _, l := range api.httpListeners {
-		l.Close()
-	}
-
-	if api.libp2pListener != nil {
-		api.libp2pListener.Close()
-	}
-
-	api.wg.Wait()
-
-	// This means we created the host
-	if api.config.Libp2pListenAddr != nil {
-		api.host.Close()
-	}
-	api.shutdown = true
-	return nil
-}
-
-// SetClient makes the component ready to perform RPC
-// requests.
-func (api *API) SetClient(c *rpc.Client) {
-	api.rpcClient = c
-
-	// One notification for http server and one for libp2p server.
-	api.rpcReady <- struct{}{}
-	api.rpcReady <- struct{}{}
-}
-
 func (api *API) idHandler(w http.ResponseWriter, r *http.Request) {
 	var id types.ID
 	err := api.rpcClient.CallContext(
@@ -634,7 +209,7 @@ func (api *API) idHandler(w http.ResponseWriter, r *http.Request) {
 		&id,
 	)
 
-	api.sendResponse(w, autoStatus, err, &id)
+	api.SendResponse(w, common.SetStatusAutomatically, err, &id)
 }
 
 func (api *API) versionHandler(w http.ResponseWriter, r *http.Request) {
@@ -648,7 +223,7 @@ func (api *API) versionHandler(w http.ResponseWriter, r *http.Request) {
 		&v,
 	)
 
-	api.sendResponse(w, autoStatus, err, v)
+	api.SendResponse(w, common.SetStatusAutomatically, err, v)
 }
 
 func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
@@ -661,7 +236,7 @@ func (api *API) graphHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&graph,
 	)
-	api.sendResponse(w, autoStatus, err, graph)
+	api.SendResponse(w, common.SetStatusAutomatically, err, graph)
 }
 
 func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
@@ -677,7 +252,7 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		name,
 		&metrics,
 	)
-	api.sendResponse(w, autoStatus, err, metrics)
+	api.SendResponse(w, common.SetStatusAutomatically, err, metrics)
 }
 
 func (api *API) metricNamesHandler(w http.ResponseWriter, r *http.Request) {
@@ -690,7 +265,7 @@ func (api *API) metricNamesHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&metricNames,
 	)
-	api.sendResponse(w, autoStatus, err, metricNames)
+	api.SendResponse(w, common.SetStatusAutomatically, err, metricNames)
 }
 
 func (api *API) alertsHandler(w http.ResponseWriter, r *http.Request) {
@@ -703,23 +278,23 @@ func (api *API) alertsHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&alerts,
 	)
-	api.sendResponse(w, autoStatus, err, alerts)
+	api.SendResponse(w, common.SetStatusAutomatically, err, alerts)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 	reader, err := r.MultipartReader()
 	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, err, nil)
+		api.SendResponse(w, http.StatusBadRequest, err, nil)
 		return
 	}
 
 	params, err := types.AddParamsFromQuery(r.URL.Query())
 	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, err, nil)
+		api.SendResponse(w, http.StatusBadRequest, err, nil)
 		return
 	}
 
-	api.setHeaders(w)
+	api.SetHeaders(w)
 
 	// any errors sent as trailer
 	adderutils.AddMultipartHTTPHandler(
@@ -743,7 +318,7 @@ func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
 		&peers,
 	)
 
-	api.sendResponse(w, autoStatus, err, peers)
+	api.SendResponse(w, common.SetStatusAutomatically, err, peers)
 }
 
 func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
@@ -753,13 +328,13 @@ func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 	var addInfo peerAddBody
 	err := dec.Decode(&addInfo)
 	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding request body"), nil)
+		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding request body"), nil)
 		return
 	}
 
 	pid, err := peer.Decode(addInfo.PeerID)
 	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding peer_id"), nil)
+		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding peer_id"), nil)
 		return
 	}
 
@@ -772,11 +347,11 @@ func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
 		pid,
 		&id,
 	)
-	api.sendResponse(w, autoStatus, err, &id)
+	api.SendResponse(w, common.SetStatusAutomatically, err, &id)
 }
 
 func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
-	if p := api.parsePidOrError(w, r); p != "" {
+	if p := api.API.ParsePidOrFail(w, r); p != "" {
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -785,13 +360,13 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 			p,
 			&struct{}{},
 		)
-		api.sendResponse(w, autoStatus, err, nil)
+		api.SendResponse(w, common.SetStatusAutomatically, err, nil)
 	}
 }
 
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
-	if pin := api.parseCidOrError(w, r); pin != nil {
-		logger.Debugf("rest api pinHandler: %s", pin.Cid)
+	if pin := api.API.ParseCidOrFail(w, r); pin != nil {
+		api.config.Logger.Debugf("rest api pinHandler: %s", pin.Cid)
 		// span.AddAttributes(trace.StringAttribute("cid", pin.Cid))
 		var pinObj types.Pin
 		err := api.rpcClient.CallContext(
@@ -802,14 +377,14 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 			pin,
 			&pinObj,
 		)
-		api.sendResponse(w, autoStatus, err, pinObj)
-		logger.Debug("rest api pinHandler done")
+		api.SendResponse(w, common.SetStatusAutomatically, err, pinObj)
+		api.config.Logger.Debug("rest api pinHandler done")
 	}
 }
 
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	if pin := api.parseCidOrError(w, r); pin != nil {
-		logger.Debugf("rest api unpinHandler: %s", pin.Cid)
+	if pin := api.API.ParseCidOrFail(w, r); pin != nil {
+		api.config.Logger.Debugf("rest api unpinHandler: %s", pin.Cid)
 		// span.AddAttributes(trace.StringAttribute("cid", pin.Cid))
 		var pinObj types.Pin
 		err := api.rpcClient.CallContext(
@@ -821,18 +396,18 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			&pinObj,
 		)
 		if err != nil && err.Error() == state.ErrNotFound.Error() {
-			api.sendResponse(w, http.StatusNotFound, err, nil)
+			api.SendResponse(w, http.StatusNotFound, err, nil)
 			return
 		}
-		api.sendResponse(w, autoStatus, err, pinObj)
-		logger.Debug("rest api unpinHandler done")
+		api.SendResponse(w, common.SetStatusAutomatically, err, pinObj)
+		api.config.Logger.Debug("rest api unpinHandler done")
 	}
 }
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.Pin
-	if pinpath := api.parsePinPathOrError(w, r); pinpath != nil {
-		logger.Debugf("rest api pinPathHandler: %s", pinpath.Path)
+	if pinpath := api.API.ParsePinPathOrFail(w, r); pinpath != nil {
+		api.config.Logger.Debugf("rest api pinPathHandler: %s", pinpath.Path)
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -842,15 +417,15 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 			&pin,
 		)
 
-		api.sendResponse(w, autoStatus, err, pin)
-		logger.Debug("rest api pinPathHandler done")
+		api.SendResponse(w, common.SetStatusAutomatically, err, pin)
+		api.config.Logger.Debug("rest api pinPathHandler done")
 	}
 }
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.Pin
-	if pinpath := api.parsePinPathOrError(w, r); pinpath != nil {
-		logger.Debugf("rest api unpinPathHandler: %s", pinpath.Path)
+	if pinpath := api.API.ParsePinPathOrFail(w, r); pinpath != nil {
+		api.config.Logger.Debugf("rest api unpinPathHandler: %s", pinpath.Path)
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -860,11 +435,11 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 			&pin,
 		)
 		if err != nil && err.Error() == state.ErrNotFound.Error() {
-			api.sendResponse(w, http.StatusNotFound, err, nil)
+			api.SendResponse(w, http.StatusNotFound, err, nil)
 			return
 		}
-		api.sendResponse(w, autoStatus, err, pin)
-		logger.Debug("rest api unpinPathHandler done")
+		api.SendResponse(w, common.SetStatusAutomatically, err, pin)
+		api.config.Logger.Debug("rest api unpinPathHandler done")
 	}
 }
 
@@ -877,7 +452,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if filter == types.BadType {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
+		api.SendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return
 	}
 
@@ -904,11 +479,11 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	api.sendResponse(w, autoStatus, err, outPins)
+	api.SendResponse(w, common.SetStatusAutomatically, err, outPins)
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
-	if pin := api.parseCidOrError(w, r); pin != nil {
+	if pin := api.API.ParseCidOrFail(w, r); pin != nil {
 		var pinResp types.Pin
 		err := api.rpcClient.CallContext(
 			r.Context(),
@@ -919,10 +494,10 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 			&pinResp,
 		)
 		if err != nil { // errors here are 404s
-			api.sendResponse(w, http.StatusNotFound, err, nil)
+			api.SendResponse(w, http.StatusNotFound, err, nil)
 			return
 		}
-		api.sendResponse(w, autoStatus, nil, pinResp)
+		api.SendResponse(w, common.SetStatusAutomatically, nil, pinResp)
 	}
 }
 
@@ -935,7 +510,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
 	if filter == types.TrackerStatusUndefined && filterStr != "" {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
+		api.SendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return
 	}
 
@@ -951,7 +526,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			&pinInfos,
 		)
 		if err != nil {
-			api.sendResponse(w, autoStatus, err, nil)
+			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
 			return
 		}
 		globalPinInfos = pinInfosToGlobal(pinInfos)
@@ -965,19 +540,19 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 			&globalPinInfos,
 		)
 		if err != nil {
-			api.sendResponse(w, autoStatus, err, nil)
+			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
 			return
 		}
 	}
 
-	api.sendResponse(w, autoStatus, nil, globalPinInfos)
+	api.SendResponse(w, common.SetStatusAutomatically, nil, globalPinInfos)
 }
 
 func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if pin := api.parseCidOrError(w, r); pin != nil {
+	if pin := api.API.ParseCidOrFail(w, r); pin != nil {
 		if local == "true" {
 			var pinInfo types.PinInfo
 			err := api.rpcClient.CallContext(
@@ -988,7 +563,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
-			api.sendResponse(w, autoStatus, err, pinInfo.ToGlobal())
+			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo.ToGlobal())
 		} else {
 			var pinInfo types.GlobalPinInfo
 			err := api.rpcClient.CallContext(
@@ -999,7 +574,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
-			api.sendResponse(w, autoStatus, err, pinInfo)
+			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo)
 		}
 	}
 }
@@ -1017,7 +592,7 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 			struct{}{},
 			&pinInfos,
 		)
-		api.sendResponse(w, autoStatus, err, pinInfosToGlobal(pinInfos))
+		api.SendResponse(w, common.SetStatusAutomatically, err, pinInfosToGlobal(pinInfos))
 	} else {
 		var globalPinInfos []*types.GlobalPinInfo
 		err := api.rpcClient.CallContext(
@@ -1028,7 +603,7 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 			struct{}{},
 			&globalPinInfos,
 		)
-		api.sendResponse(w, autoStatus, err, globalPinInfos)
+		api.SendResponse(w, common.SetStatusAutomatically, err, globalPinInfos)
 	}
 }
 
@@ -1036,7 +611,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if pin := api.parseCidOrError(w, r); pin != nil {
+	if pin := api.API.ParseCidOrFail(w, r); pin != nil {
 		if local == "true" {
 			var pinInfo types.PinInfo
 			err := api.rpcClient.CallContext(
@@ -1047,7 +622,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
-			api.sendResponse(w, autoStatus, err, pinInfo.ToGlobal())
+			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo.ToGlobal())
 		} else {
 			var pinInfo types.GlobalPinInfo
 			err := api.rpcClient.CallContext(
@@ -1058,7 +633,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
-			api.sendResponse(w, autoStatus, err, pinInfo)
+			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo)
 		}
 	}
 }
@@ -1078,7 +653,7 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 			&localRepoGC,
 		)
 
-		api.sendResponse(w, autoStatus, err, repoGCToGlobal(&localRepoGC))
+		api.SendResponse(w, common.SetStatusAutomatically, err, repoGCToGlobal(&localRepoGC))
 		return
 	}
 
@@ -1091,7 +666,7 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 		struct{}{},
 		&repoGC,
 	)
-	api.sendResponse(w, autoStatus, err, repoGC)
+	api.SendResponse(w, common.SetStatusAutomatically, err, repoGC)
 }
 
 func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
@@ -1103,56 +678,7 @@ func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
 }
 
 func (api *API) notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	api.sendResponse(w, http.StatusNotFound, errors.New("not found"), nil)
-}
-
-func (api *API) parsePinPathOrError(w http.ResponseWriter, r *http.Request) *types.PinPath {
-	vars := mux.Vars(r)
-	urlpath := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/")
-
-	path, err := gopath.ParsePath(urlpath)
-	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("error parsing path: "+err.Error()), nil)
-		return nil
-	}
-
-	pinPath := &types.PinPath{Path: path.String()}
-	err = pinPath.PinOptions.FromQuery(r.URL.Query())
-	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, err, nil)
-	}
-	return pinPath
-}
-
-func (api *API) parseCidOrError(w http.ResponseWriter, r *http.Request) *types.Pin {
-	vars := mux.Vars(r)
-	hash := vars["hash"]
-
-	c, err := cid.Decode(hash)
-	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding Cid: "+err.Error()), nil)
-		return nil
-	}
-
-	opts := types.PinOptions{}
-	err = opts.FromQuery(r.URL.Query())
-	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, err, nil)
-	}
-	pin := types.PinWithOpts(c, opts)
-	pin.MaxDepth = -1 // For now, all pins are recursive
-	return pin
-}
-
-func (api *API) parsePidOrError(w http.ResponseWriter, r *http.Request) peer.ID {
-	vars := mux.Vars(r)
-	idStr := vars["peer"]
-	pid, err := peer.Decode(idStr)
-	if err != nil {
-		api.sendResponse(w, http.StatusBadRequest, errors.New("error decoding Peer ID: "+err.Error()), nil)
-		return ""
-	}
-	return pid
+	api.SendResponse(w, http.StatusNotFound, errors.New("not found"), nil)
 }
 
 func pinInfosToGlobal(pInfos []*types.PinInfo) []*types.GlobalPinInfo {
@@ -1161,72 +687,4 @@ func pinInfosToGlobal(pInfos []*types.PinInfo) []*types.GlobalPinInfo {
 		gPInfos[i] = p.ToGlobal()
 	}
 	return gPInfos
-}
-
-// sendResponse wraps all the logic for writing the response to a request:
-// * Write configured headers
-// * Write application/json content type
-// * Write status: determined automatically if given "autoStatus"
-// * Write an error if there is or write the response if there is
-func (api *API) sendResponse(
-	w http.ResponseWriter,
-	status int,
-	err error,
-	resp interface{},
-) {
-
-	api.setHeaders(w)
-	enc := json.NewEncoder(w)
-
-	// Send an error
-	if err != nil {
-		if status == autoStatus || status < 400 { // set a default error status
-			status = http.StatusInternalServerError
-		}
-		w.WriteHeader(status)
-
-		errorResp := types.Error{
-			Code:    status,
-			Message: err.Error(),
-		}
-		logger.Errorf("sending error response: %d: %s", status, err.Error())
-
-		if err := enc.Encode(errorResp); err != nil {
-			logger.Error(err)
-		}
-		return
-	}
-
-	// Send a body
-	if resp != nil {
-		if status == autoStatus {
-			status = http.StatusOK
-		}
-
-		w.WriteHeader(status)
-
-		if err = enc.Encode(resp); err != nil {
-			logger.Error(err)
-		}
-		return
-	}
-
-	// Empty response
-	if status == autoStatus {
-		status = http.StatusNoContent
-	}
-
-	w.WriteHeader(status)
-}
-
-// this sets all the headers that are common to all responses
-// from this API. Called from sendResponse() and /add.
-func (api *API) setHeaders(w http.ResponseWriter) {
-	for header, values := range api.config.Headers {
-		for _, val := range values {
-			w.Header().Add(header, val)
-		}
-	}
-
-	w.Header().Add("Content-Type", "application/json")
 }
