@@ -20,7 +20,7 @@ func testAPI(t *testing.T) *rest.API {
 	//logging.SetDebugLogging()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 
-	cfg := &rest.Config{}
+	cfg := rest.NewConfig()
 	cfg.Default()
 	cfg.HTTPListenAddr = []ma.Multiaddr{apiMAddr}
 	secret := make(pnet.PSK, 32)

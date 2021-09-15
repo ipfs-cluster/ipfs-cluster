@@ -213,7 +213,7 @@ func (ch *ConfigHelper) init() {
 	man := config.NewManager()
 	cfgs := &Configs{
 		Cluster:          &ipfscluster.Config{},
-		Restapi:          &rest.Config{},
+		Restapi:          rest.NewConfig(),
 		Ipfsproxy:        &ipfsproxy.Config{},
 		Ipfshttp:         &ipfshttp.Config{},
 		Raft:             &raft.Config{},

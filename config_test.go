@@ -160,7 +160,7 @@ func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Confi
 func testingEmptyConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *disk.Config, *observations.TracingConfig) {
 	identity := &config.Identity{}
 	clusterCfg := &Config{}
-	apiCfg := &rest.Config{}
+	apiCfg := rest.NewConfig()
 	proxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	badgerCfg := &badger.Config{}
