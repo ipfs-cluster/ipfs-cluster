@@ -314,8 +314,8 @@ func runCmd(c *cli.Context) error {
 	cfgs.Cluster.RPCPolicy["Cluster.RepoGCLocal"] = ipfscluster.RPCClosed
 
 	// Discard API configurations and create our own
-	apiCfg := rest.Config{}
-	cfgs.Restapi = &apiCfg
+	apiCfg := rest.NewConfig()
+	cfgs.Restapi = apiCfg
 	_ = apiCfg.Default()
 	listenSocket, err := socketAddress(absPath, clusterName)
 	if err != nil {
@@ -328,7 +328,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "error applying environmental variables to restapi configuration"), 1)
 	}
 
-	rest, err := rest.NewAPI(ctx, &apiCfg)
+	rest, err := rest.NewAPI(ctx, apiCfg)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating REST API component"), 1)
 	}
