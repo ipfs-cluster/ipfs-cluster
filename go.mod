@@ -61,6 +61,7 @@ require (
 	github.com/libp2p/go-ws-transport v0.5.0
 	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/multiformats/go-multiaddr-dns v0.3.1
+	github.com/multiformats/go-multiaddr-net v0.2.1-0.20211005111034-00dbc8cc4bff // indirect
 	github.com/multiformats/go-multihash v0.0.16
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
