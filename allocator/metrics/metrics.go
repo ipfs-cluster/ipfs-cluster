@@ -2,8 +2,8 @@
 // based on multiple metrics, where metrics may be an arbitrary way to
 // partition a set of peers.
 //
-// For example, allocating by [tags, disk] will
-// first order candidate peers by tag metric, and then by disk metric.
+// For example, allocating by ["tag:region", "disk"] will
+// first order candidate peers by tag metric, and then by "disk" metric.
 // The final list will pick up allocations from each tag metric group.
 // based on the given order of metrics.
 package metrics
@@ -16,12 +16,10 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-
-	"go.opencensus.io/trace"
 )
 
 // Allocator is an allocator that partitions metrics and orders
-// the final least of allocation by selecting for each partition.
+// the final list of allocation by selecting for each partition.
 type Allocator struct {
 	config    *Config
 	rpcClient *rpc.Client
@@ -48,9 +46,6 @@ func (a *Allocator) SetClient(c *rpc.Client) {
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
 func (a *Allocator) Shutdown(ctx context.Context) error {
-	_, span := trace.StartSpan(ctx, "allocator/metrics/Shutdown")
-	defer span.End()
-
 	a.rpcClient = nil
 	return nil
 }
@@ -62,13 +57,13 @@ type partitionedMetric struct {
 	partitions       []*partition // they are in order of their values
 }
 
-// Returned a list of peers sorted by never choosing twice from the same
+// Returns a list of peers sorted by never choosing twice from the same
 // partition if there is some other partition to choose from.
 func (pnedm *partitionedMetric) sortedPeers() []peer.ID {
 	peers := []peer.ID{}
 	for {
 		peer := pnedm.chooseNext()
-		if peer == "" {
+		if peer == "" { // This means we are done.
 			break
 		}
 		peers = append(peers, peer)
@@ -125,7 +120,7 @@ func (pnedm *partitionedMetric) chooseNext() peer.ID {
 
 type partition struct {
 	value string
-	peers map[peer.ID]bool
+	peers map[peer.ID]bool   // the bool tracks whether the peer has been picked already out of the partition when doing the final sort.
 	sub   *partitionedMetric // all peers in sub-partitions will have the same value for this metric
 }
 

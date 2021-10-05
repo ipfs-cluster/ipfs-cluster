@@ -12,8 +12,6 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
-
-	"go.opencensus.io/trace"
 )
 
 var logger = logging.Logger("tags")
@@ -46,7 +44,8 @@ func New(cfg *Config) (*Informer, error) {
 	}, nil
 }
 
-// Name returns the name of the metric issued by this informer.
+// Name returns the name of this informer. Note the informer issues metrics
+// with custom names.
 func (tags *Informer) Name() string {
 	return MetricName
 }
@@ -62,9 +61,6 @@ func (tags *Informer) SetClient(c *rpc.Client) {
 // Shutdown is called on cluster shutdown. We just invalidate
 // any metrics from this point.
 func (tags *Informer) Shutdown(ctx context.Context) error {
-	_, span := trace.StartSpan(ctx, "informer/tags/Shutdown")
-	defer span.End()
-
 	tags.mu.Lock()
 	defer tags.mu.Unlock()
 

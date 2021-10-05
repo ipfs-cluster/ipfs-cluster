@@ -13,7 +13,7 @@ const envConfigKey = "cluster_metricsalloc"
 
 // These are the default values for a Config.
 var (
-	DefaultAllocateBy = []string{"freespace"}
+	DefaultAllocateBy = []string{"tag:group", "freespace"}
 )
 
 // Config allows to initialize the Allocator.
@@ -76,7 +76,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 }
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
-	// When unset - use default
+	// When unset, leave default
 	if len(jcfg.AllocateBy) > 0 {
 		cfg.AllocateBy = jcfg.AllocateBy
 	}

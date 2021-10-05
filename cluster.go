@@ -283,6 +283,7 @@ func (c *Cluster) watchPinset() {
 	}
 }
 
+// returns the smallest ttl from the metrics pushed by the informer.
 func (c *Cluster) sendInformerMetrics(ctx context.Context, informer Informer) (time.Duration, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendInformerMetric")
 	defer span.End()
@@ -298,10 +299,7 @@ func (c *Cluster) sendInformerMetrics(ctx context.Context, informer Informer) (t
 	for _, metric := range metrics {
 		metric.Peer = c.id
 		ttl := metric.GetTTL()
-		if minTTL == 0 {
-			minTTL = metric.GetTTL()
-		}
-		if ttl < minTTL && ttl > 0 {
+		if ttl > 0 && (ttl < minTTL || minTTL == 0) {
 			minTTL = ttl
 		}
 		err := c.monitor.PublishMetric(ctx, metric)
@@ -310,7 +308,7 @@ func (c *Cluster) sendInformerMetrics(ctx context.Context, informer Informer) (t
 			logger.Warnf("error sending metric %s: %s", metric.Name, err)
 		}
 	}
-	return minTTL, nil
+	return minTTL, errors
 }
 
 func (c *Cluster) sendInformersMetrics(ctx context.Context) error {
@@ -354,8 +352,8 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
 
 		minTTL, err := c.sendInformerMetrics(ctx, informer)
 		if minTTL == 0 {
-			logger.Errorf("informer %s reported metric ttl 0. This must be a bug. Aborting this informer", informer.Name())
-			return
+			minTTL = 30 * time.Second
+			logger.Warningf("informer %s reported a min metric ttl of 0s.", informer.Name())
 		}
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {

@@ -1100,7 +1100,7 @@ func (n *NodeWithMeta) Size() uint64 {
 	return uint64(len(n.Data))
 }
 
-// MetricsSet is map to carry slices of metric indexed by type.
+// MetricsSet is a map to carry slices of metrics indexed by type.
 type MetricsSet map[string][]*Metric
 
 // Metric transports information about a peer.ID. It is used to decide
@@ -1126,7 +1126,11 @@ func (m *Metric) SetTTL(d time.Duration) {
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
 	expDate := time.Unix(0, m.Expire)
-	return time.Until(expDate)
+	ttl := time.Until(expDate)
+	if ttl < 0 {
+		ttl = 0
+	}
+	return ttl
 }
 
 // Expired returns if the Metric has expired
