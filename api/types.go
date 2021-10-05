@@ -39,9 +39,6 @@ var logger = logging.Logger("apitypes")
 var unixZero = time.Unix(0, 0)
 
 func init() {
-	// Use /p2p/ multiaddresses
-	multiaddr.SwapToP2pMultiaddrs()
-
 	// intialize trackerStatusString
 	stringTrackerStatus = make(map[string]TrackerStatus)
 	for k, v := range trackerStatusString {

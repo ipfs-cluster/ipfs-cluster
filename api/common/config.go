@@ -405,7 +405,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 		jcfg.ID = peer.Encode(cfg.ID)
 	}
 	if cfg.PrivateKey != nil {
-		pkeyBytes, err := cfg.PrivateKey.Bytes()
+		pkeyBytes, err := crypto.MarshalPrivateKey(cfg.PrivateKey)
 		if err == nil {
 			pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
 			jcfg.PrivateKey = pKey
