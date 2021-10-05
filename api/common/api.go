@@ -135,7 +135,7 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host, routes func(*
 	// routes and handlers.
 	router := mux.NewRouter()
 	handler := basicAuthHandler(
-		cfg.BasicAuthCredentials,
+		cfg,
 		cors.New(*cfg.CorsOptions()).
 			Handler(
 				strictSlashHandler(router),
@@ -281,7 +281,10 @@ func (api *API) addRoutes() {
 }
 
 // basicAuth wraps a given handler with basic authentication
-func basicAuthHandler(credentials map[string]string, h http.Handler, lggr *logging.ZapEventLogger) http.Handler {
+func basicAuthHandler(cfg *Config, h http.Handler, lggr *logging.ZapEventLogger) http.Handler {
+
+	credentials := cfg.BasicAuthCredentials
+
 	if credentials == nil {
 		return h
 	}
@@ -297,7 +300,7 @@ func basicAuthHandler(credentials map[string]string, h http.Handler, lggr *loggi
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 		username, password, ok := r.BasicAuth()
 		if !ok {
-			resp, err := unauthorizedResp()
+			resp, err := unauthorizedResp(cfg.APIErrorFunc)
 			if err != nil {
 				lggr.Error(err)
 				return
@@ -313,7 +316,7 @@ func basicAuthHandler(credentials map[string]string, h http.Handler, lggr *loggi
 			}
 		}
 		if !authorized {
-			resp, err := unauthorizedResp()
+			resp, err := unauthorizedResp(cfg.APIErrorFunc)
 			if err != nil {
 				lggr.Error(err)
 				return
@@ -345,11 +348,8 @@ func strictSlashHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(wrap)
 }
 
-func unauthorizedResp() (string, error) {
-	apiError := &types.Error{
-		Code:    401,
-		Message: "Unauthorized",
-	}
+func unauthorizedResp(errF func(error, int) error) (string, error) {
+	apiError := errF(errors.New("Unauthorized"), http.StatusUnauthorized)
 	resp, err := json.Marshal(apiError)
 	return string(resp), err
 }
@@ -542,10 +542,7 @@ func (api *API) SendResponse(
 		}
 		w.WriteHeader(status)
 
-		errorResp := types.Error{
-			Code:    status,
-			Message: err.Error(),
-		}
+		errorResp := api.config.APIErrorFunc(err, status)
 		api.config.Logger.Errorf("sending error response: %d: %s", status, err.Error())
 
 		if err := enc.Encode(errorResp); err != nil {

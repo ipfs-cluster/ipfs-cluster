@@ -42,6 +42,7 @@ type Config struct {
 	EnvConfigKey  string
 	Logger        *logging.ZapEventLogger
 	RequestLogger *logging.ZapEventLogger
+	APIErrorFunc  func(err error, status int) error
 
 	// Listen address for the HTTP REST API endpoint.
 	HTTPListenAddr []ma.Multiaddr

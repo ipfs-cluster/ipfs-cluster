@@ -6,6 +6,7 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
 )
 
@@ -64,6 +65,12 @@ func NewConfig() *Config {
 	cfg.Logger = logger
 	cfg.RequestLogger = apiLogger
 	cfg.DefaultFunc = defaultFunc
+	cfg.APIErrorFunc = func(err error, status int) error {
+		return &api.Error{
+			Code:    status,
+			Message: err.Error(),
+		}
+	}
 	return &cfg
 }
 
