@@ -16,6 +16,7 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.PeerAdd":              RPCOpen, // Used by Join()
 	"Cluster.PeerRemove":           RPCTrusted,
 	"Cluster.Peers":                RPCTrusted, // Used by ConnectGraph()
+	"Cluster.PeersWithFilter":      RPCClosed,
 	"Cluster.Pin":                  RPCClosed,
 	"Cluster.PinGet":               RPCClosed,
 	"Cluster.PinPath":              RPCClosed,

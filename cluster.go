@@ -1678,36 +1678,40 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	members, err := c.consensus.Peers(ctx)
+	peers, err := c.consensus.Peers(ctx)
 	if err != nil {
 		logger.Error(err)
 		logger.Error("an empty list of peers will be returned")
 		return []*api.ID{}
 	}
-	lenMembers := len(members)
+	return c.peersWithFilter(ctx, peers)
+}
 
-	peers := make([]*api.ID, lenMembers)
+// requests IDs from a given number of peers.
+func (c *Cluster) peersWithFilter(ctx context.Context, peers []peer.ID) []*api.ID {
+	lenPeers := len(peers)
+	ids := make([]*api.ID, lenPeers)
 
 	// We should be done relatively quickly with this call. Otherwise
 	// report errors.
 	timeout := 15 * time.Second
-	ctxs, cancels := rpcutil.CtxsWithTimeout(ctx, lenMembers, timeout)
+	ctxs, cancels := rpcutil.CtxsWithTimeout(ctx, lenPeers, timeout)
 	defer rpcutil.MultiCancel(cancels)
 
 	errs := c.rpcClient.MultiCall(
 		ctxs,
-		members,
+		peers,
 		"Cluster",
 		"ID",
 		struct{}{},
-		rpcutil.CopyIDsToIfaces(peers),
+		rpcutil.CopyIDsToIfaces(ids),
 	)
 
 	finalPeers := []*api.ID{}
 
 	for i, err := range errs {
 		if err == nil {
-			finalPeers = append(finalPeers, peers[i])
+			finalPeers = append(finalPeers, ids[i])
 			_ = finalPeers // staticcheck
 			continue
 		}
@@ -1716,12 +1720,13 @@ func (c *Cluster) Peers(ctx context.Context) []*api.ID {
 			continue
 		}
 
-		peers[i] = &api.ID{}
-		peers[i].ID = members[i]
-		peers[i].Error = err.Error()
+		ids[i] = &api.ID{}
+		ids[i].ID = peers[i]
+		ids[i].Error = err.Error()
 	}
 
-	return peers
+	return ids
+
 }
 
 // getTrustedPeers gives listed of trusted peers except the current peer and

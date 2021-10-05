@@ -233,6 +233,12 @@ func (rpcapi *ClusterRPCAPI) Peers(ctx context.Context, in struct{}, out *[]*api
 	return nil
 }
 
+// Peers runs Cluster.peersWithFilter().
+func (rpcapi *ClusterRPCAPI) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]*api.ID) error {
+	*out = rpcapi.c.peersWithFilter(ctx, in)
+	return nil
+}
+
 // PeerAdd runs Cluster.PeerAdd().
 func (rpcapi *ClusterRPCAPI) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {
 	id, err := rpcapi.c.PeerAdd(ctx, in)

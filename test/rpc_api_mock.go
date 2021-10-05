@@ -186,6 +186,10 @@ func (mock *mockCluster) Peers(ctx context.Context, in struct{}, out *[]*api.ID)
 	return nil
 }
 
+func (mock *mockCluster) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]*api.ID) error {
+	return mock.Peers(ctx, struct{}{}, out)
+}
+
 func (mock *mockCluster) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {
 	id := api.ID{}
 	mock.ID(ctx, struct{}{}, &id)
