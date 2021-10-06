@@ -29,6 +29,7 @@ var LoggingFacilities = map[string]string{
 	"adder":        "INFO",
 	"optracker":    "INFO",
 	"pstoremgr":    "INFO",
+	"allocator":    "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers

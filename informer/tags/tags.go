@@ -6,8 +6,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/allocator/balanced"
-	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -33,10 +31,6 @@ func New(cfg *Config) (*Informer, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, err
-	}
-
-	for k := range cfg.Tags {
-		balanced.RegisterInformer("tag:"+k, sorter.SortText, true)
 	}
 
 	return &Informer{
@@ -72,12 +66,17 @@ func (tags *Informer) Shutdown(ctx context.Context) error {
 // The metric name is set as "tags:<tag_name>". When no tags are defined,
 // a single invalid metric is returned.
 func (tags *Informer) GetMetrics(ctx context.Context) []*api.Metric {
+	// Note we could potentially extend the tag:value syntax to include manual weights
+	// ie: { "region": "us:100", ... }
+	// This would potentially allow to always give priority to peers of a certain group
+
 	if len(tags.config.Tags) == 0 {
 		logger.Debug("no tags defined in tags informer")
 		m := &api.Metric{
-			Name:  "tag:none",
-			Value: "",
-			Valid: false,
+			Name:          "tag:none",
+			Value:         "",
+			Valid:         false,
+			Partitionable: true,
 		}
 		m.SetTTL(tags.config.MetricTTL)
 		return []*api.Metric{m}
@@ -86,9 +85,10 @@ func (tags *Informer) GetMetrics(ctx context.Context) []*api.Metric {
 	metrics := make([]*api.Metric, 0, len(tags.config.Tags))
 	for n, v := range tags.config.Tags {
 		m := &api.Metric{
-			Name:  "tag:" + n,
-			Value: v,
-			Valid: true,
+			Name:          "tag:" + n,
+			Value:         v,
+			Valid:         true,
+			Partitionable: true,
 		}
 		m.SetTTL(tags.config.MetricTTL)
 		metrics = append(metrics, m)

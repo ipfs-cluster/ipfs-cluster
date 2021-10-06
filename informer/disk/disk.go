@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/allocator/balanced"
-	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -39,11 +37,6 @@ func (t MetricType) String() string {
 }
 
 var logger = logging.Logger("diskinfo")
-
-func init() {
-	balanced.RegisterInformer(MetricFreeSpace.String(), sorter.SortNumericReverse, false)
-	balanced.RegisterInformer(MetricRepoSize.String(), sorter.SortNumeric, false)
-}
 
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces.
@@ -141,9 +134,11 @@ func (disk *Informer) GetMetrics(ctx context.Context) []*api.Metric {
 	}
 
 	m := &api.Metric{
-		Name:  disk.Name(),
-		Value: fmt.Sprintf("%d", metric),
-		Valid: valid,
+		Name:          disk.Name(),
+		Value:         fmt.Sprintf("%d", metric),
+		Valid:         valid,
+		Weight:        int64(metric),
+		Partitionable: false,
 	}
 
 	m.SetTTL(disk.config.MetricTTL)

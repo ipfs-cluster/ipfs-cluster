@@ -5,27 +5,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	api "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
-func makeMetric(name, value string, peer peer.ID) *api.Metric {
+func makeMetric(name, value string, weight int64, peer peer.ID, partitionable bool) *api.Metric {
 	return &api.Metric{
-		Name:   name,
-		Value:  value,
-		Peer:   peer,
-		Valid:  true,
-		Expire: time.Now().Add(time.Minute).UnixNano(),
+		Name:          name,
+		Value:         value,
+		Weight:        weight,
+		Peer:          peer,
+		Valid:         true,
+		Partitionable: partitionable,
+		Expire:        time.Now().Add(time.Minute).UnixNano(),
 	}
 }
 
 func TestAllocate(t *testing.T) {
-	RegisterInformer("region", sorter.SortText, true)
-	RegisterInformer("az", sorter.SortText, true)
-	RegisterInformer("freespace", sorter.SortNumericReverse, false)
-
 	alloc, err := New(&Config{
 		AllocateBy: []string{
 			"region",
@@ -39,63 +36,60 @@ func TestAllocate(t *testing.T) {
 
 	candidates := api.MetricsSet{
 		"abc": []*api.Metric{ // don't want anything in results
-			makeMetric("abc", "a", test.PeerID1),
-			makeMetric("abc", "b", test.PeerID2),
+			makeMetric("abc", "a", 0, test.PeerID1, true),
+			makeMetric("abc", "b", 0, test.PeerID2, true),
 		},
 		"region": []*api.Metric{
-			makeMetric("region", "a-us", test.PeerID1),
-			makeMetric("region", "a-us", test.PeerID2),
+			makeMetric("region", "a-us", 0, test.PeerID1, true),
+			makeMetric("region", "a-us", 0, test.PeerID2, true),
 
-			makeMetric("region", "b-eu", test.PeerID3),
-			makeMetric("region", "b-eu", test.PeerID4),
-			makeMetric("region", "b-eu", test.PeerID5),
+			makeMetric("region", "b-eu", 0, test.PeerID3, true),
+			makeMetric("region", "b-eu", 0, test.PeerID4, true),
+			makeMetric("region", "b-eu", 0, test.PeerID5, true),
 
-			makeMetric("region", "c-au", test.PeerID6),
-			makeMetric("region", "c-au", test.PeerID7),
-			makeMetric("region", "c-au", test.PeerID8), // I don't want to see this in results
+			makeMetric("region", "c-au", 0, test.PeerID6, true),
+			makeMetric("region", "c-au", 0, test.PeerID7, true),
+			makeMetric("region", "c-au", 0, test.PeerID8, true), // I don't want to see this in results
 		},
 		"az": []*api.Metric{
-			makeMetric("az", "us1", test.PeerID1),
-			makeMetric("az", "us2", test.PeerID2),
+			makeMetric("az", "us1", 0, test.PeerID1, true),
+			makeMetric("az", "us2", 0, test.PeerID2, true),
 
-			makeMetric("az", "eu1", test.PeerID3),
-			makeMetric("az", "eu1", test.PeerID4),
-			makeMetric("az", "eu2", test.PeerID5),
+			makeMetric("az", "eu1", 0, test.PeerID3, true),
+			makeMetric("az", "eu1", 0, test.PeerID4, true),
+			makeMetric("az", "eu2", 0, test.PeerID5, true),
 
-			makeMetric("az", "au1", test.PeerID6),
-			makeMetric("az", "au1", test.PeerID7),
+			makeMetric("az", "au1", 0, test.PeerID6, true),
+			makeMetric("az", "au1", 0, test.PeerID7, true),
 		},
 		"freespace": []*api.Metric{
-			makeMetric("freespace", "100", test.PeerID1),
-			makeMetric("freespace", "500", test.PeerID2),
+			makeMetric("freespace", "100", 100, test.PeerID1, false),
+			makeMetric("freespace", "500", 500, test.PeerID2, false),
 
-			makeMetric("freespace", "200", test.PeerID3),
-			makeMetric("freespace", "400", test.PeerID4),
-			makeMetric("freespace", "10", test.PeerID5),
+			makeMetric("freespace", "200", 0, test.PeerID3, false), // weight to 0 to test GetWeight() compat
+			makeMetric("freespace", "400", 0, test.PeerID4, false), // weight to 0 to test GetWeight() compat
+			makeMetric("freespace", "10", 10, test.PeerID5, false),
 
-			makeMetric("freespace", "50", test.PeerID6),
-			makeMetric("freespace", "600", test.PeerID7),
+			makeMetric("freespace", "50", 50, test.PeerID6, false),
+			makeMetric("freespace", "600", 600, test.PeerID7, false),
 
-			makeMetric("freespace", "10000", test.PeerID8),
+			makeMetric("freespace", "10000", 10000, test.PeerID8, false),
 		},
 	}
 
+	// Regions weights: a-us (pids 1,2): 600. b-eu (pids 3,4,5): 610. c-au (pids 6,7): 650
+	// Az weights: us1: 100. us2: 500. eu1: 600. eu2: 10. au1: 650
 	// Based on the algorithm it should choose:
 	//
-	// - For the region us, az us1, it should select the peer with most
-	// freespace: ID2
-	// - Then switch to next region: ID4
-	// - And so on:
-	// - us-us1-100 ID1 - only peer in az
-	// - eu-eu1-400 ID4 - over ID3
-	// - au-au1-600 ID7 - over ID6
-	// - us-us2-500 ID2 - only peer in az
-	// - eu-eu2-10 ID5  - only peer in az
-	// - au-au1-50 ID6  - id7 already used
-	// - // no more in us
-	// - eu-eu1-ID3     - ID4 already used
-	// - // no more peers in au
-	// - // no more peers
+	// - c-au (most-weight)->au1->pid7
+	// - b-eu->eu1->pid4
+	// - a-us->us2->pid2
+	// - <repeat regions>
+	// - c-au->au1 (nowhere else to choose)->pid6 (region exausted)
+	// - b-eu->eu2 (already had in eu1)->pid5
+	// - a-us->us1 (already had in us2)->pid1
+	// - <repeat regions>
+	// - b-eu->eu1->pid3 (only peer left)
 
 	peers, err := alloc.Allocate(context.Background(),
 		test.Cid1,
@@ -115,7 +109,7 @@ func TestAllocate(t *testing.T) {
 		t.Logf("%d - %s", i, p)
 		switch i {
 		case 0:
-			if p != test.PeerID1 {
+			if p != test.PeerID7 {
 				t.Errorf("wrong id in pos %d: %s", i, p)
 			}
 		case 1:
@@ -123,11 +117,11 @@ func TestAllocate(t *testing.T) {
 				t.Errorf("wrong id in pos %d: %s", i, p)
 			}
 		case 2:
-			if p != test.PeerID7 {
+			if p != test.PeerID2 {
 				t.Errorf("wrong id in pos %d: %s", i, p)
 			}
 		case 3:
-			if p != test.PeerID2 {
+			if p != test.PeerID6 {
 				t.Errorf("wrong id in pos %d: %s", i, p)
 			}
 		case 4:
@@ -135,7 +129,7 @@ func TestAllocate(t *testing.T) {
 				t.Errorf("wrong id in pos %d: %s", i, p)
 			}
 		case 5:
-			if p != test.PeerID6 {
+			if p != test.PeerID1 {
 				t.Errorf("wrong id in pos %d: %s", i, p)
 			}
 		case 6:
