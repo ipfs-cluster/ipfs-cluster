@@ -355,7 +355,7 @@ func (mock *mockCluster) RepoGCLocal(ctx context.Context, in struct{}, out *api.
 	return nil
 }
 
-func (mock *mockCluster) SendInformerMetric(ctx context.Context, in struct{}, out *api.Metric) error {
+func (mock *mockCluster) SendInformerMetrics(ctx context.Context, in struct{}, out *struct{}) error {
 	return nil
 }
 

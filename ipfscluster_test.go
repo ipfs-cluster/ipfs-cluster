@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
@@ -176,7 +176,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -211,7 +211,10 @@ func createComponents(
 		t.Fatal(err)
 	}
 
-	alloc := descendalloc.NewAllocator()
+	alloc, err := balanced.New(allocBalancedCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	inf, err := disk.NewInformer(diskInfCfg)
 	if err != nil {
 		t.Fatal(err)

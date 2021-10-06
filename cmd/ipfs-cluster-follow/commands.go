@@ -11,7 +11,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
@@ -342,7 +342,10 @@ func runCmd(c *cli.Context) error {
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
 	}
-	alloc := descendalloc.NewAllocator()
+	alloc, err := balanced.New(cfgs.BalancedAlloc)
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "creating metrics allocator"), 1)
+	}
 
 	crdtcons, err := crdt.New(
 		host,

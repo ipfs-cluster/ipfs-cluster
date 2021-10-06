@@ -137,7 +137,9 @@ type PinTracker interface {
 type Informer interface {
 	Component
 	Name() string
-	GetMetric(context.Context) *api.Metric
+	// GetMetrics returns the metrics obtained by this Informer.  It must
+	// always return at least one metric.
+	GetMetrics(context.Context) []*api.Metric
 }
 
 // PinAllocator decides where to pin certain content. In order to make such
@@ -152,7 +154,9 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority map[peer.ID]*api.Metric) ([]peer.ID, error)
+	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority api.MetricsSet) ([]peer.ID, error)
+	// Metrics returns the list of metrics that the allocator needs.
+	Metrics() []string
 }
 
 // PeerMonitor is a component in charge of publishing a peer's metrics and
@@ -170,8 +174,9 @@ type PeerMonitor interface {
 	// PublishMetric sends a metric to the rest of the peers.
 	// How to send it, and to who, is to be decided by the implementation.
 	PublishMetric(context.Context, *api.Metric) error
-	// LatestMetrics returns a map with the latest metrics of matching name
-	// for the current cluster peers.
+	// LatestMetrics returns a map with the latest metrics of matching
+	// name for the current cluster peers. The result should only contain
+	// one metric per peer at most.
 	LatestMetrics(ctx context.Context, name string) []*api.Metric
 	// MetricNames returns a list of metric names.
 	MetricNames(ctx context.Context) []string

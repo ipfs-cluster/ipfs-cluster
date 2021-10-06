@@ -37,12 +37,22 @@ func Test(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := inf.GetMetric(ctx)
+	metrics := inf.GetMetrics(ctx)
+	if len(metrics) != 1 {
+		t.Fatal("expected 1 metric")
+	}
+	m := metrics[0]
+
 	if m.Valid {
 		t.Error("metric should be invalid")
 	}
 	inf.SetClient(mockRPCClient(t))
-	m = inf.GetMetric(ctx)
+
+	metrics = inf.GetMetrics(ctx)
+	if len(metrics) != 1 {
+		t.Fatal("expected 1 metric")
+	}
+	m = metrics[0]
 	if !m.Valid {
 		t.Error("metric should be valid")
 	}

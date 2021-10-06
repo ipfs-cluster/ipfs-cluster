@@ -1100,18 +1100,23 @@ func (n *NodeWithMeta) Size() uint64 {
 	return uint64(len(n.Data))
 }
 
+// MetricsSet is a map to carry slices of metrics indexed by type.
+type MetricsSet map[string][]*Metric
+
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
 // the Value, which should be interpreted by the PinAllocator.
 // The ReceivedAt value is a timestamp representing when a peer has received
 // the metric value.
 type Metric struct {
-	Name       string  `json:"name" codec:"n,omitempty"`
-	Peer       peer.ID `json:"peer" codec:"p,omitempty"`
-	Value      string  `json:"value" codec:"v,omitempty"`
-	Expire     int64   `json:"expire" codec:"e,omitempty"`
-	Valid      bool    `json:"valid" codec:"d,omitempty"`
-	ReceivedAt int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
+	Name          string  `json:"name" codec:"n,omitempty"`
+	Peer          peer.ID `json:"peer" codec:"p,omitempty"`
+	Value         string  `json:"value" codec:"v,omitempty"`
+	Expire        int64   `json:"expire" codec:"e,omitempty"`
+	Valid         bool    `json:"valid" codec:"d,omitempty"`
+	Weight        int64   `json:"weight" codec:"w,omitempty"`
+	Partitionable bool    `json:"partitionable" codec:"o,omitempty"`
+	ReceivedAt    int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
 }
 
 // SetTTL sets Metric to expire after the given time.Duration
@@ -1123,7 +1128,11 @@ func (m *Metric) SetTTL(d time.Duration) {
 // GetTTL returns the time left before the Metric expires
 func (m *Metric) GetTTL() time.Duration {
 	expDate := time.Unix(0, m.Expire)
-	return time.Until(expDate)
+	ttl := time.Until(expDate)
+	if ttl < 0 {
+		ttl = 0
+	}
+	return ttl
 }
 
 // Expired returns if the Metric has expired
@@ -1135,6 +1144,21 @@ func (m *Metric) Expired() bool {
 // Discard returns if the metric not valid or has expired
 func (m *Metric) Discard() bool {
 	return !m.Valid || m.Expired()
+}
+
+// GetWeight returns the weight of the metric. When it is 0,
+// it tries to parse the Value and use it as weight.
+// This is for compatiblity.
+func (m *Metric) GetWeight() int64 {
+	if m.Weight != 0 {
+		return m.Weight
+	}
+
+	val, err := strconv.ParseInt(m.Value, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return val
 }
 
 // MetricSlice is a sortable Metric array.

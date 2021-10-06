@@ -16,6 +16,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/rpcutil"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/version"
+	"go.uber.org/multierr"
 
 	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
@@ -282,28 +283,46 @@ func (c *Cluster) watchPinset() {
 	}
 }
 
-func (c *Cluster) sendInformerMetric(ctx context.Context, informer Informer) (*api.Metric, error) {
+// returns the smallest ttl from the metrics pushed by the informer.
+func (c *Cluster) sendInformerMetrics(ctx context.Context, informer Informer) (time.Duration, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendInformerMetric")
 	defer span.End()
 
-	metric := informer.GetMetric(ctx)
-	metric.Peer = c.id
-	return metric, c.monitor.PublishMetric(ctx, metric)
+	var minTTL time.Duration
+	var errors error
+	metrics := informer.GetMetrics(ctx)
+	if len(metrics) == 0 {
+		logger.Errorf("informer %s produced no metrics", informer.Name())
+		return minTTL, nil
+	}
+
+	for _, metric := range metrics {
+		metric.Peer = c.id
+		ttl := metric.GetTTL()
+		if ttl > 0 && (ttl < minTTL || minTTL == 0) {
+			minTTL = ttl
+		}
+		err := c.monitor.PublishMetric(ctx, metric)
+
+		if multierr.AppendInto(&errors, err) {
+			logger.Warnf("error sending metric %s: %s", metric.Name, err)
+		}
+	}
+	return minTTL, errors
 }
 
-func (c *Cluster) sendInformersMetrics(ctx context.Context) ([]*api.Metric, error) {
+func (c *Cluster) sendInformersMetrics(ctx context.Context) error {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendInformersMetrics")
 	defer span.End()
 
-	var metrics []*api.Metric
+	var errors error
 	for _, informer := range c.informers {
-		m, err := c.sendInformerMetric(ctx, informer)
-		if err != nil {
-			return nil, err
+		_, err := c.sendInformerMetrics(ctx, informer)
+		if multierr.AppendInto(&errors, err) {
+			logger.Warnf("informer %s did not send all metrics", informer.Name())
 		}
-		metrics = append(metrics, m)
 	}
-	return metrics, nil
+	return errors
 }
 
 // pushInformerMetrics loops and publishes informers metrics using the
@@ -331,20 +350,24 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
 			// wait
 		}
 
-		metric, err := c.sendInformerMetric(ctx, informer)
+		minTTL, err := c.sendInformerMetrics(ctx, informer)
+		if minTTL == 0 {
+			minTTL = 30 * time.Second
+			logger.Warningf("informer %s reported a min metric ttl of 0s.", informer.Name())
+		}
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
 				logger.Errorf("error broadcasting metric: %s", err)
 				retries++
 			}
 			// retry sooner
-			timer.Reset(metric.GetTTL() / 4)
+			timer.Reset(minTTL / 4)
 			continue
 		}
 
 		retries = 0
 		// send metric again in TTL/2
-		timer.Reset(metric.GetTTL() / 2)
+		timer.Reset(minTTL / 2)
 	}
 }
 
@@ -964,7 +987,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}
 
 	// Broadcast our metrics to the world
-	_, err = c.sendInformersMetrics(ctx)
+	err = c.sendInformersMetrics(ctx)
 	if err != nil {
 		logger.Warn(err)
 	}

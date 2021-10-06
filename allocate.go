@@ -39,6 +39,16 @@ import (
 //       ReplicationFactorMax is reached. Error if there are less than
 //       ReplicationFactorMin.
 
+// A wrapper to carry peer metrics that have been classified.
+type classifiedMetrics struct {
+	current        api.MetricsSet
+	currentPeers   []peer.ID
+	candidate      api.MetricsSet
+	candidatePeers []peer.ID
+	priority       api.MetricsSet
+	priorityPeers  []peer.ID
+}
+
 // allocate finds peers to allocate a hash using the informer and the monitor
 // it should only be used with valid replicationFactors (if rplMin and rplMax
 // are > 0, then rplMin <= rplMax).
@@ -47,7 +57,7 @@ import (
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pin, rplMin, rplMax int, blacklist []peer.ID, prioritylist []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pin, rplMin, rplMax int, blacklist []peer.ID, priorityList []peer.ID) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/allocate")
 	defer span.End()
 
@@ -64,37 +74,30 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pi
 	if currentPin != nil {
 		currentAllocs = currentPin.Allocations
 	}
-	metrics := c.monitor.LatestMetrics(ctx, c.informers[0].Name())
 
-	currentMetrics := make(map[peer.ID]*api.Metric)
-	candidatesMetrics := make(map[peer.ID]*api.Metric)
-	priorityMetrics := make(map[peer.ID]*api.Metric)
-
-	// Divide metrics between current and candidates.
-	// All metrics in metrics are valid (at least the
-	// moment they were compiled by the monitor)
-	for _, m := range metrics {
-		switch {
-		case containsPeer(blacklist, m.Peer):
-			// discard blacklisted peers
-			continue
-		case containsPeer(currentAllocs, m.Peer):
-			currentMetrics[m.Peer] = m
-		case containsPeer(prioritylist, m.Peer):
-			priorityMetrics[m.Peer] = m
-		default:
-			candidatesMetrics[m.Peer] = m
-		}
+	// Get Metrics that the allocator is interested on
+	mSet := make(api.MetricsSet)
+	metrics := c.allocator.Metrics()
+	for _, metricName := range metrics {
+		mSet[metricName] = c.monitor.LatestMetrics(ctx, metricName)
 	}
+
+	// Filter and divide metrics.  The resulting sets only have peers that
+	// have all the metrics needed and are not blacklisted.
+	classified := filterMetrics(
+		mSet,
+		len(metrics),
+		currentAllocs,
+		priorityList,
+		blacklist,
+	)
 
 	newAllocs, err := c.obtainAllocations(
 		ctx,
 		hash,
 		rplMin,
 		rplMax,
-		currentMetrics,
-		candidatesMetrics,
-		priorityMetrics,
+		classified,
 	)
 	if err != nil {
 		return newAllocs, err
@@ -105,19 +108,83 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pi
 	return newAllocs, nil
 }
 
+// Given metrics from all informers, split them into 3 MetricsSet:
+// - Those corresponding to currently allocated peers
+// - Those corresponding to priority allocations
+// - Those corresponding to "candidate" allocations
+// And return also an slice of the peers in those groups.
+//
+// For a metric/peer to be included in a group, it is necessary that it has
+// metrics for all informers.
+func filterMetrics(mSet api.MetricsSet, numMetrics int, currentAllocs, priorityList, blacklist []peer.ID) classifiedMetrics {
+	curPeersMap := make(map[peer.ID][]*api.Metric)
+	candPeersMap := make(map[peer.ID][]*api.Metric)
+	prioPeersMap := make(map[peer.ID][]*api.Metric)
+
+	// Divide the metric by current/candidate/prio and by peer
+	for _, metrics := range mSet {
+		for _, m := range metrics {
+			switch {
+			case containsPeer(blacklist, m.Peer):
+				// discard blacklisted peers
+				continue
+			case containsPeer(currentAllocs, m.Peer):
+				curPeersMap[m.Peer] = append(curPeersMap[m.Peer], m)
+			case containsPeer(priorityList, m.Peer):
+				prioPeersMap[m.Peer] = append(prioPeersMap[m.Peer], m)
+			default:
+				candPeersMap[m.Peer] = append(candPeersMap[m.Peer], m)
+			}
+		}
+	}
+
+	fillMetricsSet := func(peersMap map[peer.ID][]*api.Metric) (api.MetricsSet, []peer.ID) {
+		mSet := make(api.MetricsSet)
+		peers := make([]peer.ID, 0, len(peersMap))
+
+		// Put the metrics in their sets if peers have metrics for all
+		// informers Record peers. This relies on LatestMetrics
+		// returning exactly one metric per peer. Thus, a peer with
+		// all the needed metrics should have exactly numMetrics.
+		// Otherwise, they are ignored.
+		for p, metrics := range peersMap {
+			if len(metrics) == numMetrics {
+				for _, m := range metrics {
+					mSet[m.Name] = append(mSet[m.Name], m)
+				}
+				peers = append(peers, p)
+			} // otherwise this peer will be ignored.
+		}
+		return mSet, peers
+	}
+
+	curSet, curPeers := fillMetricsSet(curPeersMap)
+	candSet, candPeers := fillMetricsSet(candPeersMap)
+	prioSet, prioPeers := fillMetricsSet(prioPeersMap)
+
+	return classifiedMetrics{
+		current:        curSet,
+		currentPeers:   curPeers,
+		candidate:      candSet,
+		candidatePeers: candPeers,
+		priority:       prioSet,
+		priorityPeers:  prioPeers,
+	}
+}
+
 // allocationError logs an allocation error
 func allocationError(hash cid.Cid, needed, wanted int, candidatesValid []peer.ID) error {
 	logger.Errorf("Not enough candidates to allocate %s:", hash)
 	logger.Errorf("  Needed: %d", needed)
 	logger.Errorf("  Wanted: %d", wanted)
-	logger.Errorf("  Valid candidates: %d:", len(candidatesValid))
+	logger.Errorf("  Available candidates: %d:", len(candidatesValid))
 	for _, c := range candidatesValid {
 		logger.Errorf("    - %s", c.Pretty())
 	}
 	errorMsg := "not enough peers to allocate CID. "
 	errorMsg += fmt.Sprintf("Needed at least: %d. ", needed)
 	errorMsg += fmt.Sprintf("Wanted at most: %d. ", wanted)
-	errorMsg += fmt.Sprintf("Valid candidates: %d. ", len(candidatesValid))
+	errorMsg += fmt.Sprintf("Available candidates: %d. ", len(candidatesValid))
 	errorMsg += "See logs for more info."
 	return errors.New(errorMsg)
 }
@@ -126,26 +193,20 @@ func (c *Cluster) obtainAllocations(
 	ctx context.Context,
 	hash cid.Cid,
 	rplMin, rplMax int,
-	currentValidMetrics map[peer.ID]*api.Metric,
-	candidatesMetrics map[peer.ID]*api.Metric,
-	priorityMetrics map[peer.ID]*api.Metric,
+	metrics classifiedMetrics,
 ) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/obtainAllocations")
 	defer span.End()
 
-	// The list of peers in current
-	validAllocations := make([]peer.ID, 0, len(currentValidMetrics))
-	for k := range currentValidMetrics {
-		validAllocations = append(validAllocations, k)
-	}
-
-	nCurrentValid := len(validAllocations)
-	nCandidatesValid := len(candidatesMetrics) + len(priorityMetrics)
+	nCurrentValid := len(metrics.currentPeers)
+	nAvailableValid := len(metrics.candidatePeers) + len(metrics.priorityPeers)
 	needed := rplMin - nCurrentValid // The minimum we need
 	wanted := rplMax - nCurrentValid // The maximum we want
 
-	logger.Debugf("obtainAllocations: current valid: %d", nCurrentValid)
-	logger.Debugf("obtainAllocations: candidates valid: %d", nCandidatesValid)
+	logger.Debugf("obtainAllocations: current: %d", nCurrentValid)
+	logger.Debugf("obtainAllocations: available: %d", nAvailableValid)
+	logger.Debugf("obtainAllocations: candidates: %d", len(metrics.candidatePeers))
+	logger.Debugf("obtainAllocations: priority: %d", len(metrics.priorityPeers))
 	logger.Debugf("obtainAllocations: Needed: %d", needed)
 	logger.Debugf("obtainAllocations: Wanted: %d", wanted)
 
@@ -155,7 +216,7 @@ func (c *Cluster) obtainAllocations(
 		// This could be done more intelligently by dropping them
 		// according to the allocator order (i.e. free-ing peers
 		// with most used space first).
-		return validAllocations[0 : len(validAllocations)+wanted], nil
+		return metrics.currentPeers[0 : len(metrics.currentPeers)+wanted], nil
 	}
 
 	if needed <= 0 { // allocations are above minimal threshold
@@ -163,15 +224,8 @@ func (c *Cluster) obtainAllocations(
 		return nil, nil
 	}
 
-	if nCandidatesValid < needed { // not enough candidates
-		candidatesValid := []peer.ID{}
-		for k := range priorityMetrics {
-			candidatesValid = append(candidatesValid, k)
-		}
-		for k := range candidatesMetrics {
-			candidatesValid = append(candidatesValid, k)
-		}
-		return nil, allocationError(hash, needed, wanted, candidatesValid)
+	if nAvailableValid < needed { // not enough candidates
+		return nil, allocationError(hash, needed, wanted, append(metrics.priorityPeers, metrics.candidatePeers...))
 	}
 
 	// We can allocate from this point. Use the allocator to decide
@@ -181,9 +235,9 @@ func (c *Cluster) obtainAllocations(
 	finalAllocs, err := c.allocator.Allocate(
 		ctx,
 		hash,
-		currentValidMetrics,
-		candidatesMetrics,
-		priorityMetrics,
+		metrics.current,
+		metrics.candidate,
+		metrics.priority,
 	)
 	if err != nil {
 		return nil, logError(err.Error())
@@ -201,5 +255,5 @@ func (c *Cluster) obtainAllocations(
 
 	// the final result is the currently valid allocations
 	// along with the ones provided by the allocator
-	return append(validAllocations, finalAllocs[0:allocationsToUse]...), nil
+	return append(metrics.currentPeers, finalAllocs[0:allocationsToUse]...), nil
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/allocator/descendalloc"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
+	"github.com/ipfs/ipfs-cluster/informer/tags"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs/ipfs-cluster/observations"
@@ -155,9 +156,20 @@ func createCluster(
 	connector, err := ipfshttp.NewConnector(cfgs.Ipfshttp)
 	checkErr("creating IPFS Connector component", err)
 
-	informer, err := disk.NewInformer(cfgs.Diskinf)
-	checkErr("creating disk informer", err)
-	alloc := descendalloc.NewAllocator()
+	var informers []ipfscluster.Informer
+	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.Diskinf.ConfigKey()) {
+		diskinf, err := disk.NewInformer(cfgs.Diskinf)
+		checkErr("creating disk informer", err)
+		informers = append(informers, diskinf)
+	}
+	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.Tagsinf.ConfigKey()) {
+		tagsinf, err := tags.New(cfgs.Tagsinf)
+		checkErr("creating numpin informer", err)
+		informers = append(informers, tagsinf)
+	}
+
+	alloc, err := balanced.New(cfgs.BalancedAlloc)
+	checkErr("creating allocator", err)
 
 	ipfscluster.ReadyTimeout = cfgs.Raft.WaitForLeaderTimeout + 5*time.Second
 
@@ -206,7 +218,7 @@ func createCluster(
 		tracker,
 		mon,
 		alloc,
-		[]ipfscluster.Informer{informer},
+		informers,
 		tracer,
 	)
 }

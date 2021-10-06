@@ -20,10 +20,21 @@ type MetricType int
 
 const (
 	// MetricFreeSpace provides the available space reported by IPFS
-	MetricFreeSpace = iota
+	MetricFreeSpace MetricType = iota
 	// MetricRepoSize provides the used space reported by IPFS
 	MetricRepoSize
 )
+
+// String returns a string representation for MetricType.
+func (t MetricType) String() string {
+	switch t {
+	case MetricFreeSpace:
+		return "freespace"
+	case MetricRepoSize:
+		return "reposize"
+	}
+	return ""
+}
 
 var logger = logging.Logger("diskinfo")
 
@@ -48,7 +59,7 @@ func NewInformer(cfg *Config) (*Informer, error) {
 	}, nil
 }
 
-// Name returns the user-facing name of this informer.
+// Name returns the name of the metric issued by this informer.
 func (disk *Informer) Name() string {
 	return disk.config.MetricType.String()
 }
@@ -74,9 +85,9 @@ func (disk *Informer) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// GetMetric returns the metric obtained by this
-// Informer.
-func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
+// GetMetrics returns the metric obtained by this Informer. It must always
+// return at least one metric.
+func (disk *Informer) GetMetrics(ctx context.Context) []*api.Metric {
 	ctx, span := trace.StartSpan(ctx, "informer/disk/GetMetric")
 	defer span.End()
 
@@ -85,10 +96,10 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	disk.mu.Unlock()
 
 	if rpcClient == nil {
-		return &api.Metric{
+		return []*api.Metric{&api.Metric{
 			Name:  disk.Name(),
 			Valid: false,
-		}
+		}}
 	}
 
 	var repoStat api.IPFSRepoStat
@@ -123,11 +134,13 @@ func (disk *Informer) GetMetric(ctx context.Context) *api.Metric {
 	}
 
 	m := &api.Metric{
-		Name:  disk.Name(),
-		Value: fmt.Sprintf("%d", metric),
-		Valid: valid,
+		Name:          disk.Name(),
+		Value:         fmt.Sprintf("%d", metric),
+		Valid:         valid,
+		Weight:        int64(metric),
+		Partitionable: false,
 	}
 
 	m.SetTTL(disk.config.MetricTTL)
-	return m
+	return []*api.Metric{m}
 }

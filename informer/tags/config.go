@@ -1,4 +1,4 @@
-package disk
+package tags
 
 import (
 	"encoding/json"
@@ -9,13 +9,19 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-const configKey = "disk"
-const envConfigKey = "cluster_disk"
+const configKey = "tags"
+const envConfigKey = "cluster_tags"
 
-// Default values for disk Config
+// Default values for tags Config
 const (
-	DefaultMetricTTL  = 30 * time.Second
-	DefaultMetricType = MetricFreeSpace
+	DefaultMetricTTL = 30 * time.Second
+)
+
+// Default values for tags config
+var (
+	DefaultTags = map[string]string{
+		"group": "default",
+	}
 )
 
 // Config is used to initialize an Informer and customize
@@ -23,13 +29,13 @@ const (
 type Config struct {
 	config.Saver
 
-	MetricTTL  time.Duration
-	MetricType MetricType
+	MetricTTL time.Duration
+	Tags      map[string]string
 }
 
 type jsonConfig struct {
-	MetricTTL  string `json:"metric_ttl"`
-	MetricType string `json:"metric_type"`
+	MetricTTL string            `json:"metric_ttl"`
+	Tags      map[string]string `json:"tags"`
 }
 
 // ConfigKey returns a human-friendly identifier for this type of Metric.
@@ -40,7 +46,7 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with sensible values.
 func (cfg *Config) Default() error {
 	cfg.MetricTTL = DefaultMetricTTL
-	cfg.MetricType = DefaultMetricType
+	cfg.Tags = DefaultTags
 	return nil
 }
 
@@ -61,12 +67,9 @@ func (cfg *Config) ApplyEnvVars() error {
 // at least in appearance.
 func (cfg *Config) Validate() error {
 	if cfg.MetricTTL <= 0 {
-		return errors.New("disk.metric_ttl is invalid")
+		return errors.New("tags.metric_ttl is invalid")
 	}
 
-	if cfg.MetricType.String() == "" {
-		return errors.New("disk.metric_type is invalid")
-	}
 	return nil
 }
 
@@ -89,14 +92,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	t, _ := time.ParseDuration(jcfg.MetricTTL)
 	cfg.MetricTTL = t
 
-	switch jcfg.MetricType {
-	case "reposize":
-		cfg.MetricType = MetricRepoSize
-	case "freespace":
-		cfg.MetricType = MetricFreeSpace
-	default:
-		return errors.New("disk.metric_type is invalid")
-	}
+	cfg.Tags = jcfg.Tags
 
 	return cfg.Validate()
 }
@@ -112,8 +108,8 @@ func (cfg *Config) ToJSON() (raw []byte, err error) {
 
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	return &jsonConfig{
-		MetricTTL:  cfg.MetricTTL.String(),
-		MetricType: cfg.MetricType.String(),
+		MetricTTL: cfg.MetricTTL.String(),
+		Tags:      cfg.Tags,
 	}
 }
 

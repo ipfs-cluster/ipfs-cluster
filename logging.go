@@ -20,8 +20,8 @@ var LoggingFacilities = map[string]string{
 	"raft":         "INFO",
 	"crdt":         "INFO",
 	"pintracker":   "INFO",
-	"ascendalloc":  "INFO",
 	"diskinfo":     "INFO",
+	"tags":         "INFO",
 	"apitypes":     "INFO",
 	"config":       "INFO",
 	"shardingdags": "INFO",
@@ -29,6 +29,7 @@ var LoggingFacilities = map[string]string{
 	"adder":        "INFO",
 	"optracker":    "INFO",
 	"pstoremgr":    "INFO",
+	"allocator":    "INFO",
 }
 
 // LoggingFacilitiesExtra provides logging identifiers
