@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/adder/sharding"
-	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
@@ -180,7 +180,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 		t.Fatal(err)
 	}
 
-	alloc, err := metrics.New(&metrics.Config{
+	alloc, err := balanced.New(&balanced.Config{
 		AllocateBy: []string{"numpin"},
 	})
 	if err != nil {

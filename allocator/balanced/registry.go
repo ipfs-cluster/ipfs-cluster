@@ -1,4 +1,4 @@
-package metrics
+package balanced
 
 import "github.com/ipfs/ipfs-cluster/api"
 

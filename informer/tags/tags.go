@@ -6,7 +6,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -36,7 +36,7 @@ func New(cfg *Config) (*Informer, error) {
 	}
 
 	for k := range cfg.Tags {
-		metrics.RegisterInformer("tag:"+k, sorter.SortText, true)
+		balanced.RegisterInformer("tag:"+k, sorter.SortText, true)
 	}
 
 	return &Informer{

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
@@ -168,7 +168,7 @@ func createCluster(
 		informers = append(informers, tagsinf)
 	}
 
-	alloc, err := metrics.New(cfgs.MetricsAlloc)
+	alloc, err := balanced.New(cfgs.BalancedAlloc)
 	checkErr("creating allocator", err)
 
 	ipfscluster.ReadyTimeout = cfgs.Raft.WaitForLeaderTimeout + 5*time.Second

@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -19,7 +19,7 @@ import (
 var MetricName = "numpin"
 
 func init() {
-	metrics.RegisterInformer(MetricName, sorter.SortNumeric, false)
+	balanced.RegisterInformer(MetricName, sorter.SortNumeric, false)
 }
 
 // Informer is a simple object to implement the ipfscluster.Informer

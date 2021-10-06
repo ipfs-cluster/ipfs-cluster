@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/allocator/metrics"
+	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/allocator/sorter"
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -41,8 +41,8 @@ func (t MetricType) String() string {
 var logger = logging.Logger("diskinfo")
 
 func init() {
-	metrics.RegisterInformer(MetricFreeSpace.String(), sorter.SortNumericReverse, false)
-	metrics.RegisterInformer(MetricRepoSize.String(), sorter.SortNumeric, false)
+	balanced.RegisterInformer(MetricFreeSpace.String(), sorter.SortNumericReverse, false)
+	balanced.RegisterInformer(MetricRepoSize.String(), sorter.SortNumeric, false)
 }
 
 // Informer is a simple object to implement the ipfscluster.Informer

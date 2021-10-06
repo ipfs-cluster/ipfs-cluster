@@ -1,4 +1,4 @@
-// Package metrics implements an allocator that can sort allocations
+// Package balanced implements an allocator that can sort allocations
 // based on multiple metrics, where metrics may be an arbitrary way to
 // partition a set of peers.
 //
@@ -6,7 +6,7 @@
 // first order candidate peers by tag metric, and then by "disk" metric.
 // The final list will pick up allocations from each tag metric group.
 // based on the given order of metrics.
-package metrics
+package balanced
 
 import (
 	"context"
