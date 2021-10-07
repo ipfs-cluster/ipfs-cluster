@@ -1749,7 +1749,7 @@ func (c *Cluster) getTrustedPeers(ctx context.Context, exclude peer.ID) ([]peer.
 	return trustedPeers, nil
 }
 
-func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, name string, t time.Time) {
+func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, pin api.Pin, t time.Time) {
 	for _, p := range peers {
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, p))
 		peerName := pv.Peername
@@ -1757,9 +1757,12 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 			peerName = p.String()
 		}
 		gpin.Add(&api.PinInfo{
-			Cid:  h,
-			Name: name,
-			Peer: p,
+			Cid:         h,
+			Name:        pin.Name,
+			Allocations: pin.Allocations,
+			Origins:     pin.Origins,
+			Metadata:    pin.Metadata,
+			Peer:        p,
 			PinInfoShort: api.PinInfoShort{
 				PeerName: peerName,
 				IPFS:     pv.IPFSID,
@@ -1810,7 +1813,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			h,
 			members,
 			api.TrackerStatusUnpinned,
-			"",
+			*api.PinCid(h),
 			timeNow,
 		)
 		return gpin, nil
@@ -1842,7 +1845,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	}
 
 	// set status remote on un-allocated peers
-	c.setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, pin.Name, timeNow)
+	c.setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, *pin, timeNow)
 
 	lenDests := len(dests)
 	replies := make([]*api.PinInfo, lenDests)
@@ -1885,9 +1888,12 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			peerName = dests[i].String()
 		}
 		gpin.Add(&api.PinInfo{
-			Cid:  h,
-			Name: pin.Name,
-			Peer: dests[i],
+			Cid:         h,
+			Name:        pin.Name,
+			Peer:        dests[i],
+			Allocations: pin.Allocations,
+			Origins:     pin.Origins,
+			Metadata:    pin.Metadata,
 			PinInfoShort: api.PinInfoShort{
 				PeerName: peerName,
 				IPFS:     pv.IPFSID,
@@ -1981,9 +1987,12 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 
 		for c := range fullMap {
 			setPinInfo(&api.PinInfo{
-				Cid:  c,
-				Name: "",
-				Peer: p,
+				Cid:         c,
+				Name:        "",
+				Peer:        p,
+				Allocations: nil,
+				Origins:     nil,
+				Metadata:    nil,
 				PinInfoShort: api.PinInfoShort{
 					PeerName: peerName,
 					IPFS:     pv.IPFSID,

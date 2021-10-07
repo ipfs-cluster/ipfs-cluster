@@ -250,8 +250,12 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid  cid.Cid `json:"cid" codec:"c"`
-	Name string  `json:"name" codec:"n"`
+	Cid         cid.Cid           `json:"cid" codec:"c"`
+	Name        string            `json:"name" codec:"n"`
+	Allocations []peer.ID         `json:"allocations" codec:"a,omitempty"`
+	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
+	Metadata    map[string]string `json:"metadata" codec:"m,omitempty"`
+
 	// https://github.com/golang/go/issues/28827
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
@@ -270,9 +274,12 @@ func (gpi *GlobalPinInfo) String() string {
 
 // Add adds a PinInfo object to a GlobalPinInfo
 func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
-	if !gpi.Cid.Defined() {
+	if !gpi.Cid.Defined() || !pi.Status.Match(TrackerStatusClusterError) {
 		gpi.Cid = pi.Cid
 		gpi.Name = pi.Name
+		gpi.Allocations = pi.Allocations
+		gpi.Origins = pi.Origins
+		gpi.Metadata = pi.Metadata
 	}
 
 	if gpi.PeerMap == nil {
@@ -280,6 +287,17 @@ func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
 	}
 
 	gpi.PeerMap[peer.Encode(pi.Peer)] = &pi.PinInfoShort
+}
+
+// Matches returns true if one of the statuses in GlobalPinInfo matches
+// the given filter.
+func (gpi *GlobalPinInfo) Match(filter TrackerStatus) bool {
+	for _, pi := range gpi.PeerMap {
+		if pi.Status.Match(filter) {
+			return true
+		}
+	}
+	return false
 }
 
 // PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
@@ -297,9 +315,12 @@ type PinInfoShort struct {
 // PinInfo holds information about local pins. This is used by the Pin
 // Trackers.
 type PinInfo struct {
-	Cid  cid.Cid `json:"cid" codec:"c"`
-	Name string  `json:"name" codec:"m,omitempty"`
-	Peer peer.ID `json:"peer" codec:"p,omitempty"`
+	Cid         cid.Cid           `json:"cid" codec:"c"`
+	Name        string            `json:"name" codec:"m,omitempty"`
+	Peer        peer.ID           `json:"peer" codec:"p,omitempty"`
+	Allocations []peer.ID         `json:"allocations" codec:"a,omitempty"`
+	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
+	Metadata    map[string]string `json:"metadata" codec:"md,omitempty"`
 
 	PinInfoShort
 }

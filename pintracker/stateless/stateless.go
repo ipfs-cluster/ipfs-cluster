@@ -364,6 +364,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	pinInfo := &api.PinInfo{
 		Cid:  c,
 		Peer: spt.peerID,
+		Name: "", // etc to be filled later
 		PinInfoShort: api.PinInfoShort{
 			PeerName:     spt.peerName,
 			IPFS:         spt.getIPFSID(ctx),
@@ -396,6 +397,9 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	// The pin IS in the state.
 	pinInfo.Name = gpin.Name
 	pinInfo.TS = gpin.Timestamp
+	pinInfo.Allocations = gpin.Allocations
+	pinInfo.Origins = gpin.Origins
+	pinInfo.Metadata = gpin.Metadata
 
 	// check if pin is a meta pin
 	if gpin.Type == api.MetaType {
@@ -536,9 +540,12 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 			continue
 		}
 		p := &api.PinInfo{
-			Cid:  c,
-			Name: "", // to be filled later
-			Peer: spt.peerID,
+			Cid:         c,
+			Name:        "",  // to be filled later
+			Allocations: nil, // to be filled later
+			Origins:     nil, // to be filled later
+			Metadata:    nil, // to be filled later
+			Peer:        spt.peerID,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     spt.peerName,
 				IPFS:         ipfsid,
@@ -601,9 +608,12 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 		ipfsInfo, pinnedInIpfs := localpis[p.Cid]
 		// base pinInfo object - status to be filled.
 		pinInfo := api.PinInfo{
-			Cid:  p.Cid,
-			Name: p.Name,
-			Peer: spt.peerID,
+			Cid:         p.Cid,
+			Name:        p.Name,
+			Peer:        spt.peerID,
+			Allocations: p.Allocations,
+			Origins:     p.Origins,
+			Metadata:    p.Metadata,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     spt.peerName,
 				IPFS:         ipfsid,
@@ -629,6 +639,9 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 		case pinnedInIpfs: // always false unless filter matches TrackerStatusPinnned
 			ipfsInfo.Name = p.Name
 			ipfsInfo.TS = p.Timestamp
+			ipfsInfo.Allocations = p.Allocations
+			ipfsInfo.Origins = p.Origins
+			ipfsInfo.Metadata = p.Metadata
 			pininfos[p.Cid] = ipfsInfo
 		default:
 			// report as UNEXPECTEDLY_UNPINNED for this peer.
