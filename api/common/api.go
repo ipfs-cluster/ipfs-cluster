@@ -31,6 +31,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
 	types "github.com/ipfs/ipfs-cluster/api"
+	state "github.com/ipfs/ipfs-cluster/state"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -467,6 +468,11 @@ func (api *API) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	api.SendResponse(w, http.StatusNotFound, errors.New("not found"), nil)
 }
 
+// Context returns the API context
+func (api *API) Context() context.Context {
+	return api.ctx
+}
+
 // ParsePinPathOrFail parses a pin path and returns it or makes the request
 // fail.
 func (api *API) ParsePinPathOrFail(w http.ResponseWriter, r *http.Request) *types.PinPath {
@@ -537,8 +543,12 @@ func (api *API) SendResponse(
 
 	// Send an error
 	if err != nil {
-		if status == SetStatusAutomatically || status < 400 { // set a default error status
-			status = http.StatusInternalServerError
+		if status == SetStatusAutomatically || status < 400 {
+			if err.Error() == state.ErrNotFound.Error() {
+				status = http.StatusNotFound
+			} else {
+				status = http.StatusInternalServerError
+			}
 		}
 		w.WriteHeader(status)
 

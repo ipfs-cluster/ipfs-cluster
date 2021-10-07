@@ -18,7 +18,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
-	"github.com/ipfs/ipfs-cluster/state"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -397,10 +396,6 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			pin,
 			&pinObj,
 		)
-		if err != nil && err.Error() == state.ErrNotFound.Error() {
-			api.SendResponse(w, http.StatusNotFound, err, nil)
-			return
-		}
 		api.SendResponse(w, common.SetStatusAutomatically, err, pinObj)
 		api.config.Logger.Debug("rest api unpinHandler done")
 	}
@@ -436,10 +431,6 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 			pinpath,
 			&pin,
 		)
-		if err != nil && err.Error() == state.ErrNotFound.Error() {
-			api.SendResponse(w, http.StatusNotFound, err, nil)
-			return
-		}
 		api.SendResponse(w, common.SetStatusAutomatically, err, pin)
 		api.config.Logger.Debug("rest api unpinPathHandler done")
 	}
@@ -495,11 +486,7 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 			pin.Cid,
 			&pinResp,
 		)
-		if err != nil { // errors here are 404s
-			api.SendResponse(w, http.StatusNotFound, err, nil)
-			return
-		}
-		api.SendResponse(w, common.SetStatusAutomatically, nil, pinResp)
+		api.SendResponse(w, common.SetStatusAutomatically, err, pinResp)
 	}
 }
 
