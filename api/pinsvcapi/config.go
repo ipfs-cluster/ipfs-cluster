@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
 )
 
-const configKey = "restapi"
-const envConfigKey = "cluster_restapi"
+const configKey = "pinsvcapi"
+const envConfigKey = "cluster_pinsvcapi"
 
 const minMaxHeaderBytes = 4096
 
@@ -27,7 +27,7 @@ const (
 // Default values for Config.
 var (
 	// DefaultHTTPListenAddrs contains default listen addresses for the HTTP API.
-	DefaultHTTPListenAddrs = []string{"/ip4/127.0.0.1/tcp/9094"}
+	DefaultHTTPListenAddrs = []string{"/ip4/127.0.0.1/tcp/9097"}
 	DefaultHeaders         = map[string][]string{}
 )
 
