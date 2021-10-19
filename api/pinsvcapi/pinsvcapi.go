@@ -1,22 +1,17 @@
-// Package pinsvc implements an IPFS Cluster API component which provides
+// Package pinsvcapi implements an IPFS Cluster API component which provides
 // an IPFS Pinning Services API to the cluster.
 //
 // The implented API is based on the common.API component (refer to module
 // description there). The only thing this module does is to provide route
 // handling for the otherwise common API component.
-package pinsvc
+package pinsvcapi
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +19,7 @@ import (
 	"github.com/ipfs/go-cid"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
+	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/multiformats/go-multiaddr"
 
@@ -34,36 +30,45 @@ import (
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 var (
 	logger    = logging.Logger("pinsvcapi")
 	apiLogger = logging.Logger("pinsvcapilog")
 )
 
-// APIError is returned by the API as a body when an error
-// occurs.
-type APIError struct {
-	Reason  string `json:"reason"`
-	Details string `json:"string"`
+func trackerStatusToSvcStatus(st types.TrackerStatus) pinsvc.Status {
+	switch {
+	case st.Match(types.TrackerStatusError):
+		return pinsvc.StatusFailed
+	case st.Match(types.TrackerStatusPinQueued):
+		return pinsvc.StatusQueued
+	case st.Match(types.TrackerStatusPinning):
+		return pinsvc.StatusPinned
+	case st.Match(types.TrackerStatusPinned):
+		return pinsvc.StatusPinning
+	default:
+		return pinsvc.StatusUndefined
+	}
 }
 
-func (apiErr APIError) Error() string {
-	return apiErr.Reason
+func svcStatusToTrackerStatus(st pinsvc.Status) types.TrackerStatus {
+	var tst types.TrackerStatus
+
+	if st.Match(pinsvc.StatusFailed) {
+		tst |= types.TrackerStatusError
+	}
+	if st.Match(pinsvc.StatusQueued) {
+		tst |= types.TrackerStatusPinQueued
+	}
+	if st.Match(pinsvc.StatusPinned) {
+		tst |= types.TrackerStatusPinned
+	}
+	if st.Match(pinsvc.StatusPinning) {
+		tst |= types.TrackerStatusPinning
+	}
+	return tst
 }
 
-// Pin contains information about a Pin.
-type Pin struct {
-	Cid     cid.Cid               `json:"cid"`
-	Name    string                `json:"name"`
-	Origins []multiaddr.Multiaddr `json:"origins"`
-	Meta    map[string]string     `json:"meta"`
-}
-
-// ToClusterPin converts a Pin to a cluster Pin.
-func (p Pin) ToClusterPin() *types.Pin {
+func svcPinToClusterPin(p pinsvc.Pin) *types.Pin {
 	opts := types.PinOptions{
 		Name:     p.Name,
 		Origins:  p.Origins,
@@ -73,35 +78,14 @@ func (p Pin) ToClusterPin() *types.Pin {
 	return types.PinWithOpts(p.Cid, opts)
 }
 
-// PinStatus wraps pins with additional information about
-// the pinning status.
-type PinStatus struct {
-	clusterPinInfo types.GlobalPinInfo
-
-	RequestID string                `json:"request_id"`
-	Status    string                `json:"status"`
-	Created   time.Time             `json:"created"`
-	Pin       Pin                   `json:"pin"`
-	Delegates []multiaddr.Multiaddr `json:"delegates"`
-	Info      map[string]string     `json:"info"`
-}
-
-// PinList is the result of a call to List pins
-type PinList struct {
-	Count   int         `json:"count"`
-	Results []PinStatus `json:"results"`
-}
-
-// Assemble a PinStatus
-func toPinStatus(
+func globalPinInfoToSvcPinStatus(
 	rID string,
 	gpi types.GlobalPinInfo,
 	clusterIDs []*types.ID,
-) PinStatus {
+) pinsvc.PinStatus {
 
-	status := PinStatus{
-		clusterPinInfo: gpi,
-		RequestID:      rID,
+	status := pinsvc.PinStatus{
+		RequestID: rID,
 	}
 
 	var statusMask types.TrackerStatus
@@ -109,21 +93,9 @@ func toPinStatus(
 		statusMask |= pinfo.Status
 	}
 
-	switch {
-	case statusMask.Match(types.TrackerStatusError):
-		status.Status = "failed"
-	case statusMask.Match(types.TrackerStatusPinQueued):
-		status.Status = "queued"
-	case statusMask.Match(types.TrackerStatusPinning):
-		status.Status = "pinning"
-	case statusMask.Match(types.TrackerStatusPinned):
-		status.Status = "pinning"
-	default:
-		status.Status = statusMask.String()
-	}
-
+	status.Status = trackerStatusToSvcStatus(statusMask)
 	status.Created = time.Now()
-	status.Pin = Pin{
+	status.Pin = pinsvc.Pin{
 		Cid:     gpi.Cid,
 		Name:    gpi.Name,
 		Origins: gpi.Origins,
@@ -137,7 +109,7 @@ func toPinStatus(
 	}
 	filteredClusterIDs := clusterIDs
 	if len(gpi.Allocations) > 0 {
-		filteredClusterIDs := []*types.ID{}
+		filteredClusterIDs = []*types.ID{}
 		for _, alloc := range gpi.Allocations {
 			clid, ok := idMap[alloc]
 			if ok && clid.Error == "" {
@@ -304,11 +276,11 @@ func (api *API) getPeers() (peers []*types.ID) {
 	return api.peers
 }
 
-func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) *Pin {
+func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) *pinsvc.Pin {
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
-	var pin Pin
+	var pin pinsvc.Pin
 	err := dec.Decode(&pin)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding request body"), nil)
@@ -349,7 +321,7 @@ func (api *API) getPinStatus(ctx context.Context, c cid.Cid) (types.GlobalPinInf
 func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 	if pin := api.parseBodyOrFail(w, r); pin != nil {
 		api.config.Logger.Debugf("addPin: %s", pin.Cid)
-		clusterPin := pin.ToClusterPin()
+		clusterPin := svcPinToClusterPin(*pin)
 
 		if updateCid, ok := api.parseRequestIDOrFail(w, r); updateCid.Defined() && ok {
 			clusterPin.PinUpdate = updateCid
@@ -394,17 +366,17 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(500 * time.Millisecond)
 		}
 
-		status := toPinStatus(pinObj.Cid.String(), pinInfo, api.getPeers())
+		status := globalPinInfoToSvcPinStatus(pinObj.Cid.String(), pinInfo, api.getPeers())
 		api.SendResponse(w, common.SetStatusAutomatically, nil, status)
 	}
 }
 
-func (api *API) getPinObject(ctx context.Context, c cid.Cid) (PinStatus, error) {
+func (api *API) getPinObject(ctx context.Context, c cid.Cid) (pinsvc.PinStatus, types.GlobalPinInfo, error) {
 	clusterPinStatus, err := api.getPinStatus(ctx, c)
 	if err != nil {
-		return PinStatus{}, err
+		return pinsvc.PinStatus{}, types.GlobalPinInfo{}, err
 	}
-	return toPinStatus(c.String(), clusterPinStatus, api.getPeers()), nil
+	return globalPinInfoToSvcPinStatus(c.String(), clusterPinStatus, api.getPeers()), clusterPinStatus, nil
 
 }
 
@@ -414,7 +386,7 @@ func (api *API) getPin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.config.Logger.Debugf("getPin: %s", c)
-	status, err := api.getPinObject(r.Context(), c)
+	status, _, err := api.getPinObject(r.Context(), c)
 	api.SendResponse(w, common.SetStatusAutomatically, err, status)
 }
 
@@ -440,104 +412,23 @@ func (api *API) removePin(w http.ResponseWriter, r *http.Request) {
 	api.SendResponse(w, http.StatusAccepted, err, nil)
 }
 
-const (
-	matchUndefined match = iota
-	matchExact
-	matchIexact
-	matchPartial
-	matchIpartial
-)
-
-type match int
-
-func matchFromString(str string) match {
-	switch str {
-	case "exact":
-		return matchExact
-	case "iexact":
-		return matchIexact
-	case "partial":
-		return matchPartial
-	case "ipartial":
-		return matchIpartial
-	default:
-		return matchUndefined
-	}
-}
-
-type listOptions struct {
-	Cids   []cid.Cid
-	Name   string
-	Match  match
-	Status types.TrackerStatus
-	Before time.Time
-	After  time.Time
-	Limit  int
-	Meta   map[string]string
-}
-
-func listOptionsFromQuery(q url.Values) (listOptions, error) {
-	lo := listOptions{}
-
-	for _, cstr := range strings.Split(q.Get("cid"), ",") {
-		c, err := cid.Decode(cstr)
-		if err != nil {
-			return lo, fmt.Errorf("error decoding cid %s: %w", cstr, err)
-		}
-		lo.Cids = append(lo.Cids, c)
-	}
-
-	lo.Name = q.Get("name")
-	lo.Match = matchFromString(q.Get("match"))
-	lo.Status = types.TrackerStatusFromString(q.Get("status"))
-
-	if bef := q.Get("before"); bef != "" {
-		err := lo.Before.UnmarshalText([]byte(bef))
-		if err != nil {
-			return lo, fmt.Errorf("error decoding 'before' query param: %s: %w", bef, err)
-		}
-	}
-
-	if after := q.Get("after"); after != "" {
-		err := lo.After.UnmarshalText([]byte(after))
-		if err != nil {
-			return lo, fmt.Errorf("error decoding 'after' query param: %s: %w", after, err)
-		}
-	}
-
-	if v := q.Get("limit"); v != "" {
-		lim, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return lo, fmt.Errorf("error parsing 'limit' query param: %s: %w", v, err)
-		}
-		lo.Limit = int(lim)
-	}
-
-	if meta := q.Get("meta"); meta != "" {
-		err := json.Unmarshal([]byte(meta), &lo.Meta)
-		if err != nil {
-			return lo, fmt.Errorf("error unmarshalling 'meta' query param: %s: %w", meta, err)
-		}
-	}
-
-	return lo, nil
-}
-
 func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
-	opts, err := listOptionsFromQuery(r.URL.Query())
+	opts := &pinsvc.ListOptions{}
+	err := opts.FromQuery(r.URL.Query())
 	if err != nil {
 		api.SendResponse(w, common.SetStatusAutomatically, err, nil)
 	}
+	tst := svcStatusToTrackerStatus(opts.Status)
 
-	var pinList PinList
+	var pinList pinsvc.PinList
 	if len(opts.Cids) > 0 {
 		for i, c := range opts.Cids {
-			st, err := api.getPinObject(r.Context(), c)
+			st, gpi, err := api.getPinObject(r.Context(), c)
 			if err != nil {
 				api.SendResponse(w, common.SetStatusAutomatically, err, nil)
 				return
 			}
-			if !st.clusterPinInfo.Match(opts.Status) {
+			if !gpi.Match(tst) {
 				continue
 			}
 			pinList.Results = append(pinList.Results, st)
@@ -560,7 +451,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for i, gpi := range globalPinInfos {
-			st := toPinStatus(gpi.Cid.String(), *gpi, api.getPeers())
+			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), *gpi, api.getPeers())
 			pinList.Results = append(pinList.Results, st)
 			if i+1 == opts.Limit {
 				break

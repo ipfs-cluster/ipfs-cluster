@@ -1,4 +1,4 @@
-package pinsvc
+package pinsvcapi
 
 import (
 	"net/http"
@@ -7,6 +7,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs/ipfs-cluster/api/common"
+	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
 )
 
 const configKey = "restapi"
@@ -65,7 +66,7 @@ func NewConfig() *Config {
 	cfg.RequestLogger = apiLogger
 	cfg.DefaultFunc = defaultFunc
 	cfg.APIErrorFunc = func(err error, status int) error {
-		return APIError{
+		return pinsvc.APIError{
 			Reason: err.Error(),
 		}
 	}
