@@ -1,0 +1,126 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master, dependency-upgrades ]
+
+env:
+  GO: 1.16
+
+jobs:
+  tests-all:
+    name: "All modules + Coverage"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO }}
+
+    - name: "Tests"
+      run: go test -v -timeout 15m -coverprofile=coverage.txt -covermode=atomic ./...
+
+    - name: "Coverage"
+      run: bash <(curl -s https://codecov.io/bash)
+
+  tests-raft:
+    name: "Using Raft"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO }}
+
+    - name: "Tests"
+      run: go test -v -timeout 15m -failfast -consensus raft .
+
+  tests-leveldb:
+    name: "Using LevelDB"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO }}
+
+    - name: "Tests"
+      run: go test -v -timeout 15m -failfast -datastore leveldb .
+
+  tests-check:
+    name: "Build and syntax checks"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO }}
+
+    - name: Install staticcheck
+      run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+    - name: Check
+      run: make check
+
+    - name: Build binaries
+      run: make build
+
+  tests-docker:
+    name: "Docker and Compose build"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Docker builds
+      run: make docker
+
+    - name: Docker compose
+      run: make docker-compose
+
+  sharness:
+    name: Sharness
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO }}
+
+    - name: Apt-get update
+      run: sudo apt-get update
+
+    - name: Install jq and curl
+      run: sudo apt-get install -y jq curl
+
+    - name: Make install
+      run: make install
+
+    - name: Pull go-ipfs
+      run: docker pull ipfs/go-ipfs
+
+    - name: Sharness
+      run: make test_sharness
