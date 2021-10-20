@@ -107,6 +107,9 @@ func newTestConfig() *Config {
 	cfg.Logger = logging.Logger("testapi")
 	cfg.RequestLogger = logging.Logger("testapilog")
 	cfg.DefaultFunc = defaultFunc
+	cfg.APIErrorFunc = func(err error, status int) error {
+		return err
+	}
 	return cfg
 }
 
