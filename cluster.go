@@ -1373,6 +1373,10 @@ func (c *Cluster) setupPin(ctx context.Context, pin, existing *api.Pin) error {
 	_, span := trace.StartSpan(ctx, "cluster/setupPin")
 	defer span.End()
 
+	// Set the Pin timestamp to now(). This is not an user-controllable
+	// "option".
+	pin.Timestamp = time.Now()
+
 	err := c.setupReplicationFactor(pin)
 	if err != nil {
 		return err
@@ -1580,6 +1584,7 @@ func (c *Cluster) PinUpdate(ctx context.Context, from cid.Cid, to cid.Cid, opts 
 
 	existing.Cid = to
 	existing.PinUpdate = from
+	existing.Timestamp = time.Now()
 	if opts.Name != "" {
 		existing.Name = opts.Name
 	}
