@@ -8,8 +8,8 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-const configKey = "metricsalloc"
-const envConfigKey = "cluster_metricsalloc"
+const configKey = "balanced"
+const envConfigKey = "cluster_balanced"
 
 // These are the default values for a Config.
 var (
