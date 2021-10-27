@@ -61,10 +61,11 @@ type Operation struct {
 	pin    *api.Pin
 
 	// RW fields
-	mu    sync.RWMutex
-	phase Phase
-	error string
-	ts    time.Time
+	mu         sync.RWMutex
+	phase      Phase
+	retryCount int
+	error      string
+	ts         time.Time
 }
 
 // NewOperation creates a new Operation.
@@ -77,11 +78,12 @@ func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase
 		ctx:    ctx,
 		cancel: cancel,
 
-		pin:    pin,
-		opType: typ,
-		phase:  ph,
-		ts:     time.Now(),
-		error:  "",
+		pin:        pin,
+		opType:     typ,
+		phase:      ph,
+		retryCount: 0,
+		ts:         time.Now(),
+		error:      "",
 	}
 }
 
@@ -97,6 +99,7 @@ func (op *Operation) String() string {
 		fmt.Fprintf(&b, "\t%s\n", s)
 	}
 	fmt.Fprintf(&b, "phase: %s\n", op.Phase().String())
+	fmt.Fprintf(&b, "retryCount: %d\n", op.RetryCount())
 	fmt.Fprintf(&b, "error: %s\n", op.Error())
 	fmt.Fprintf(&b, "timestamp: %s\n", op.Timestamp().String())
 
@@ -145,6 +148,25 @@ func (op *Operation) SetPhase(ph Phase) {
 	}
 	op.mu.Unlock()
 	span.End()
+}
+
+// RetryCount returns the number of times that this operation has been in
+// progress.
+func (op *Operation) RetryCount() int {
+	var retries int
+
+	op.mu.RLock()
+	retries = op.retryCount
+	op.mu.RUnlock()
+
+	return retries
+}
+
+// IncRetry does a plus-one on the RetryCount.
+func (op *Operation) IncRetry() {
+	op.mu.Lock()
+	op.retryCount++
+	op.mu.Unlock()
 }
 
 // Error returns any error message attached to the operation.

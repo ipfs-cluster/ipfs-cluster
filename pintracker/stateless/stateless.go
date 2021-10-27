@@ -106,6 +106,7 @@ func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) b
 		return true
 	}
 	op.SetPhase(optracker.PhaseInProgress)
+	op.IncRetry()
 	err := pinF(op) // call pin/unpin
 	if err != nil {
 		if op.Cancelled() {
@@ -119,7 +120,7 @@ func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) b
 	}
 	op.SetPhase(optracker.PhaseDone)
 	op.Cancel()
-	return false
+	return false // this tells the opWorker to clean the operation from the tracker.
 }
 
 func (spt *Tracker) pin(op *optracker.Operation) error {
@@ -168,7 +169,7 @@ func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.Opera
 	logger.Debugf("entering enqueue: pin: %+v", c)
 	op := spt.optracker.TrackNewOperation(ctx, c, typ, optracker.PhaseQueued)
 	if op == nil {
-		return nil // ongoing operation.
+		return nil // the operation exists and must be queued already.
 	}
 
 	var ch chan *optracker.Operation
@@ -315,8 +316,9 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		Cid:  c,
 		Peer: spt.peerID,
 		PinInfoShort: api.PinInfoShort{
-			PeerName: spt.peerName,
-			TS:       time.Now(),
+			PeerName:   spt.peerName,
+			TS:         time.Now(),
+			RetryCount: 0,
 		},
 	}
 
@@ -463,9 +465,10 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 			Name: "", // to be filled later
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: spt.peerName,
-				Status:   ips.ToTrackerStatus(),
-				TS:       time.Now(), // to be set later
+				PeerName:   spt.peerName,
+				Status:     ips.ToTrackerStatus(),
+				TS:         time.Now(), // to be set later
+				RetryCount: 0,
 			},
 		}
 		pins[c] = p
@@ -524,8 +527,9 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			Name: p.Name,
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: spt.peerName,
-				TS:       p.Timestamp,
+				PeerName:   spt.peerName,
+				TS:         p.Timestamp,
+				RetryCount: 0,
 			},
 		}
 

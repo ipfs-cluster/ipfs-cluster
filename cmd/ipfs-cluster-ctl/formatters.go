@@ -172,7 +172,12 @@ func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
 			fmt.Fprintf(&b, ": %s", v.Error)
 		}
 		txt, _ := v.TS.MarshalText()
-		fmt.Fprintf(&b, " | %s\n", txt)
+		fmt.Fprintf(&b, " | %s", txt)
+
+		if retries := v.RetryCount; retries > 0 {
+			fmt.Fprintf(&b, " | Retries: %d", retries)
+		}
+		fmt.Fprintf(&b, "\n")
 	}
 	fmt.Print(b.String())
 }
