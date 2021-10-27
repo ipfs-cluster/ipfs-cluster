@@ -27,7 +27,7 @@ require (
 	github.com/ipfs/go-ipfs-cmds v0.6.0
 	github.com/ipfs/go-ipfs-config v0.16.0
 	github.com/ipfs/go-ipfs-ds-help v1.0.0
-	github.com/ipfs/go-ipfs-files v0.0.8
+	github.com/ipfs/go-ipfs-files v0.0.9
 	github.com/ipfs/go-ipfs-pinner v0.1.2
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.5
@@ -38,7 +38,7 @@ require (
 	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
 	github.com/ipfs/go-path v0.1.2
 	github.com/ipfs/go-unixfs v0.2.6
-	github.com/ipld/go-car v0.3.1
+	github.com/ipld/go-car v0.3.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
@@ -53,7 +53,7 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.13.1
 	github.com/libp2p/go-libp2p-noise v0.2.2
 	github.com/libp2p/go-libp2p-peerstore v0.3.0
-	github.com/libp2p/go-libp2p-pubsub v0.5.4
+	github.com/libp2p/go-libp2p-pubsub v0.5.5
 	github.com/libp2p/go-libp2p-quic-transport v0.12.0
 	github.com/libp2p/go-libp2p-raft v0.1.8
 	github.com/libp2p/go-libp2p-record v0.1.3
