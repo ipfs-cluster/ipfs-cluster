@@ -216,11 +216,17 @@ func textFormatPrintPin(obj *api.Pin) {
 	} else {
 		fmt.Printf(" yes")
 	}
-	expireAt := "Exp: ∞"
+	expireAt := "∞"
 	if !obj.ExpireAt.IsZero() {
-		expireAt = humanize.Time(obj.ExpireAt)
+		expireAt = obj.Timestamp.Format("2006-01-02 15:04:05")
 	}
-	fmt.Printf(" | %s\n", expireAt)
+	fmt.Printf(" | Exp: %s", expireAt)
+
+	added := "unknown"
+	if !obj.Timestamp.IsZero() {
+		added = obj.Timestamp.Format("2006-01-02 15:04:05")
+	}
+	fmt.Printf(" | Added: %s\n", added)
 }
 
 func textFormatPrintAddedOutput(obj *api.AddedOutput) {
