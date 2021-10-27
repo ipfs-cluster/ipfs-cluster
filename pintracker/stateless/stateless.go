@@ -196,7 +196,12 @@ func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.Opera
 
 	switch typ {
 	case optracker.OperationPin:
-		ch = spt.pinCh
+		if time.Now().Before(c.Timestamp.Add(spt.config.PriorityPinMaxAge)) &&
+			op.RetryCount() <= spt.config.PriorityPinMaxRetries {
+			ch = spt.priorityPinCh
+		} else {
+			ch = spt.pinCh
+		}
 	case optracker.OperationUnpin:
 		ch = spt.unpinCh
 	}

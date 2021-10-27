@@ -3,6 +3,7 @@ package stateless
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 
@@ -14,8 +15,10 @@ const envConfigKey = "cluster_stateless"
 
 // Default values for this Config.
 const (
-	DefaultMaxPinQueueSize = 1000000
-	DefaultConcurrentPins  = 10
+	DefaultMaxPinQueueSize       = 1000000
+	DefaultConcurrentPins        = 10
+	DefaultPriorityPinMaxAge     = 24 * time.Hour
+	DefaultPriorityPinMaxRetries = 5
 )
 
 // Config allows to initialize a Monitor and customize some parameters.
@@ -28,11 +31,22 @@ type Config struct {
 	// daemon in parallel. If the pinning method is "refs", it might increase
 	// speed. Unpin requests are always processed one by one.
 	ConcurrentPins int
+
+	// PriorityPinMaxAge specifies the maximum age that a pin needs to
+	// can have since it was submitted to the cluster to be pinned
+	// preferentially (before pins that are older or have too many retries).
+	PriorityPinMaxAge time.Duration
+
+	// PriorityPinMaxRetries specifies the maximum amount of retries that
+	// a pin can have before it is moved to a non-prioritary queue.
+	PriorityPinMaxRetries int
 }
 
 type jsonConfig struct {
-	MaxPinQueueSize int `json:"max_pin_queue_size,omitempty"`
-	ConcurrentPins  int `json:"concurrent_pins"`
+	MaxPinQueueSize       int    `json:"max_pin_queue_size,omitempty"`
+	ConcurrentPins        int    `json:"concurrent_pins"`
+	PriorityPinMaxAge     string `json:"priority_pin_max_age"`
+	PriorityPinMaxRetries int    `json:"priority_pin_max_retries"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -44,6 +58,8 @@ func (cfg *Config) ConfigKey() string {
 func (cfg *Config) Default() error {
 	cfg.MaxPinQueueSize = DefaultMaxPinQueueSize
 	cfg.ConcurrentPins = DefaultConcurrentPins
+	cfg.PriorityPinMaxAge = DefaultPriorityPinMaxAge
+	cfg.PriorityPinMaxRetries = DefaultPriorityPinMaxRetries
 	return nil
 }
 
@@ -70,6 +86,15 @@ func (cfg *Config) Validate() error {
 	if cfg.ConcurrentPins <= 0 {
 		return errors.New("statelesstracker.concurrent_pins is too low")
 	}
+
+	if cfg.PriorityPinMaxAge <= 0 {
+		return errors.New("statelesstracker.priority_pin_max_age is too low")
+	}
+
+	if cfg.PriorityPinMaxRetries <= 0 {
+		return errors.New("statelesstracker.priority_pin_max_retries is too low")
+	}
+
 	return nil
 }
 
@@ -91,6 +116,18 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	config.SetIfNotDefault(jcfg.MaxPinQueueSize, &cfg.MaxPinQueueSize)
 	config.SetIfNotDefault(jcfg.ConcurrentPins, &cfg.ConcurrentPins)
+	err := config.ParseDurations(cfg.ConfigKey(),
+		&config.DurationOpt{
+			Duration: jcfg.PriorityPinMaxAge,
+			Dst:      &cfg.PriorityPinMaxAge,
+			Name:     "priority_pin_max_age",
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	config.SetIfNotDefault(jcfg.PriorityPinMaxRetries, &cfg.PriorityPinMaxRetries)
 
 	return cfg.Validate()
 }
@@ -104,7 +141,9 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	jCfg := &jsonConfig{
-		ConcurrentPins: cfg.ConcurrentPins,
+		ConcurrentPins:        cfg.ConcurrentPins,
+		PriorityPinMaxAge:     cfg.PriorityPinMaxAge.String(),
+		PriorityPinMaxRetries: cfg.PriorityPinMaxRetries,
 	}
 	if cfg.MaxPinQueueSize != DefaultMaxPinQueueSize {
 		jCfg.MaxPinQueueSize = cfg.MaxPinQueueSize
