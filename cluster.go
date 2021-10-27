@@ -25,7 +25,7 @@ import (
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
-	"github.com/libp2p/go-libp2p/p2p/discovery"
+	mdns "github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	ma "github.com/multiformats/go-multiaddr"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
@@ -58,7 +58,7 @@ type Cluster struct {
 	config    *Config
 	host      host.Host
 	dht       *dual.DHT
-	discovery discovery.Service
+	discovery mdns.Service
 	datastore ds.Datastore
 
 	rpcServer   *rpc.Server
@@ -136,13 +136,13 @@ func NewCluster(
 
 	peerManager := pstoremgr.New(ctx, host, cfg.GetPeerstorePath())
 
-	var mdns discovery.Service
+	var mdnsSvc mdns.Service
 	if cfg.MDNSInterval > 0 {
-		mdns, err := discovery.NewMdnsService(ctx, host, cfg.MDNSInterval, mdnsServiceTag)
+		mdnsSvc = mdns.NewMdnsService(host, mdnsServiceTag)
 		if err != nil {
 			logger.Warnf("mDNS could not be started: %s", err)
 		} else {
-			mdns.RegisterNotifee(peerManager)
+			mdnsSvc.RegisterNotifee(peerManager)
 		}
 	}
 
@@ -153,7 +153,7 @@ func NewCluster(
 		config:      cfg,
 		host:        host,
 		dht:         dht,
-		discovery:   mdns,
+		discovery:   mdnsSvc,
 		datastore:   datastore,
 		consensus:   consensus,
 		apis:        apis,
