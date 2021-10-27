@@ -18,6 +18,7 @@ message Pin {
   sint32 MaxDepth = 4;
   bytes Reference = 5;
   PinOptions Options = 6;
+  uint64 Timestamp = 7;
 }
 
 message PinOptions {

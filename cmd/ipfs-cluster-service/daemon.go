@@ -168,6 +168,13 @@ func createCluster(
 		informers = append(informers, tagsinf)
 	}
 
+	// For legacy compatibility we need to make the allocator
+	// automatically compatible with informers that have been loaded. For
+	// simplicity we assume that anyone that does not specify an allocator
+	// configuration (legacy configs), will be using "freespace"
+	if !cfgMgr.IsLoadedFromJSON(config.Allocator, cfgs.BalancedAlloc.ConfigKey()) {
+		cfgs.BalancedAlloc.AllocateBy = []string{"freespace"}
+	}
 	alloc, err := balanced.New(cfgs.BalancedAlloc)
 	checkErr("creating allocator", err)
 

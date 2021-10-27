@@ -342,6 +342,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	}
 	// The pin IS in the state.
 	pinInfo.Name = gpin.Name
+	pinInfo.TS = gpin.Timestamp
 
 	// check if pin is a meta pin
 	if gpin.Type == api.MetaType {
@@ -464,7 +465,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 			PinInfoShort: api.PinInfoShort{
 				PeerName: spt.peerName,
 				Status:   ips.ToTrackerStatus(),
-				TS:       time.Now(),
+				TS:       time.Now(), // to be set later
 			},
 		}
 		pins[c] = p
@@ -524,7 +525,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
 				PeerName: spt.peerName,
-				TS:       time.Now(),
+				TS:       p.Timestamp,
 			},
 		}
 
@@ -543,6 +544,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			pininfos[p.Cid] = &pinInfo
 		case pinnedInIpfs: // always false unless filter matches TrackerStatusPinnned
 			ipfsInfo.Name = p.Name
+			ipfsInfo.TS = p.Timestamp
 			pininfos[p.Cid] = ipfsInfo
 		default:
 			// report as UNEXPECTEDLY_UNPINNED for this peer.

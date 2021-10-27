@@ -51,7 +51,7 @@ func TestDefault(t *testing.T) {
 }
 
 func TestApplyEnvVars(t *testing.T) {
-	os.Setenv("CLUSTER_METRICSALLOC_ALLOCATEBY", "a,b,c")
+	os.Setenv("CLUSTER_BALANCED_ALLOCATEBY", "a,b,c")
 	cfg := &Config{}
 	cfg.ApplyEnvVars()
 

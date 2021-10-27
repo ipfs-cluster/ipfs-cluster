@@ -829,6 +829,9 @@ type Pin struct {
 	// it is the previous shard CID.
 	// When not needed the pointer is nil
 	Reference *cid.Cid `json:"reference" codec:"r,omitempty"`
+
+	// The time that the pin was submitted to the consensus layer.
+	Timestamp time.Time `json:"timestamp" codec:"i,omitempty"`
 }
 
 // String is a string representation of a Pin.
@@ -863,6 +866,7 @@ func PinCid(c cid.Cid) *Pin {
 		Type:        DataType,
 		Allocations: []peer.ID{},
 		MaxDepth:    -1, // Recursive
+		Timestamp:   time.Now(),
 	}
 }
 
@@ -912,6 +916,12 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		expireAtProto = uint64(pin.ExpireAt.Unix())
 	}
 
+	var timestampProto uint64
+	// Only set the protobuf field with non-zero times.
+	if !(pin.Timestamp.IsZero() || pin.Timestamp.Equal(unixZero)) {
+		timestampProto = uint64(pin.Timestamp.Unix())
+	}
+
 	opts := &pb.PinOptions{
 		ReplicationFactorMin: int32(pin.ReplicationFactorMin),
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
@@ -931,6 +941,7 @@ func (pin *Pin) ProtoMarshal() ([]byte, error) {
 		Allocations: allocs,
 		MaxDepth:    int32(pin.MaxDepth),
 		Options:     opts,
+		Timestamp:   timestampProto,
 	}
 	if ref := pin.Reference; ref != nil {
 		pbPin.Reference = ref.Bytes()
@@ -975,15 +986,21 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 		pin.Reference = &ref
 	}
 
+	ts := pbPin.GetTimestamp()
+	if ts > 0 {
+		pin.Timestamp = time.Unix(int64(ts), 0)
+	}
+
 	opts := pbPin.GetOptions()
 	pin.ReplicationFactorMin = int(opts.GetReplicationFactorMin())
 	pin.ReplicationFactorMax = int(opts.GetReplicationFactorMax())
 	pin.Name = opts.GetName()
 	pin.ShardSize = opts.GetShardSize()
+
 	// pin.UserAllocations = opts.GetUserAllocations()
-	t := opts.GetExpireAt()
-	if t > 0 {
-		pin.ExpireAt = time.Unix(int64(t), 0)
+	exp := opts.GetExpireAt()
+	if exp > 0 {
+		pin.ExpireAt = time.Unix(int64(exp), 0)
 	}
 	pin.Metadata = opts.GetMetadata()
 	pinUpdate, err := cid.Cast(opts.GetPinUpdate())
