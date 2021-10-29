@@ -83,8 +83,9 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin *api.Pin
 	}
 
 	op2 := NewOperation(ctx, pin, typ, ph)
-	if ok { // Carry over the attempt count.
-		// The old operation exists and was cancelled.
+	if ok && op.Type() == typ {
+		// Carry over the attempt count when doing an operation of the
+		// same type.  The old operation exists and was cancelled.
 		op2.attemptCount = op.AttemptCount() // carry the count
 	}
 	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
