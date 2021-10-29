@@ -126,7 +126,7 @@ func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) b
 		return false
 	}
 	op.SetPhase(optracker.PhaseInProgress)
-	op.IncRetry()
+	op.IncAttempt()
 	err := pinF(op) // call pin/unpin
 	if err != nil {
 		if op.Cancelled() {
@@ -196,8 +196,11 @@ func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.Opera
 
 	switch typ {
 	case optracker.OperationPin:
-		if time.Now().Before(c.Timestamp.Add(spt.config.PriorityPinMaxAge)) &&
-			op.RetryCount() <= spt.config.PriorityPinMaxRetries {
+		isPriorityPin := time.Now().Before(c.Timestamp.Add(spt.config.PriorityPinMaxAge)) &&
+			op.AttemptCount() <= spt.config.PriorityPinMaxRetries
+		op.SetPriorityPin(isPriorityPin)
+
+		if isPriorityPin {
 			ch = spt.priorityPinCh
 		} else {
 			ch = spt.pinCh
@@ -341,9 +344,10 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		Cid:  c,
 		Peer: spt.peerID,
 		PinInfoShort: api.PinInfoShort{
-			PeerName:   spt.peerName,
-			TS:         time.Now(),
-			RetryCount: 0,
+			PeerName:     spt.peerName,
+			TS:           time.Now(),
+			AttemptCount: 0,
+			PriorityPin:  false,
 		},
 	}
 
@@ -490,10 +494,11 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 			Name: "", // to be filled later
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
-				PeerName:   spt.peerName,
-				Status:     ips.ToTrackerStatus(),
-				TS:         time.Now(), // to be set later
-				RetryCount: 0,
+				PeerName:     spt.peerName,
+				Status:       ips.ToTrackerStatus(),
+				TS:           time.Now(), // to be set later
+				AttemptCount: 0,
+				PriorityPin:  false,
 			},
 		}
 		pins[c] = p
@@ -552,9 +557,10 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			Name: p.Name,
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
-				PeerName:   spt.peerName,
-				TS:         p.Timestamp,
-				RetryCount: 0,
+				PeerName:     spt.peerName,
+				TS:           p.Timestamp,
+				AttemptCount: 0,
+				PriorityPin:  false,
 			},
 		}
 

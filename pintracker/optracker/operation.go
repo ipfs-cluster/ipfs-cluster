@@ -61,11 +61,12 @@ type Operation struct {
 	pin    *api.Pin
 
 	// RW fields
-	mu         sync.RWMutex
-	phase      Phase
-	retryCount int
-	error      string
-	ts         time.Time
+	mu           sync.RWMutex
+	phase        Phase
+	attemptCount int
+	priority     bool
+	error        string
+	ts           time.Time
 }
 
 // NewOperation creates a new Operation.
@@ -78,12 +79,13 @@ func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase
 		ctx:    ctx,
 		cancel: cancel,
 
-		pin:        pin,
-		opType:     typ,
-		phase:      ph,
-		retryCount: 0,
-		ts:         time.Now(),
-		error:      "",
+		pin:          pin,
+		opType:       typ,
+		phase:        ph,
+		attemptCount: 0,
+		priority:     false,
+		ts:           time.Now(),
+		error:        "",
 	}
 }
 
@@ -99,7 +101,7 @@ func (op *Operation) String() string {
 		fmt.Fprintf(&b, "\t%s\n", s)
 	}
 	fmt.Fprintf(&b, "phase: %s\n", op.Phase().String())
-	fmt.Fprintf(&b, "retryCount: %d\n", op.RetryCount())
+	fmt.Fprintf(&b, "attemptCount: %d\n", op.AttemptCount())
 	fmt.Fprintf(&b, "error: %s\n", op.Error())
 	fmt.Fprintf(&b, "timestamp: %s\n", op.Timestamp().String())
 
@@ -150,22 +152,38 @@ func (op *Operation) SetPhase(ph Phase) {
 	span.End()
 }
 
-// RetryCount returns the number of times that this operation has been in
+// AttemptCount returns the number of times that this operation has been in
 // progress.
-func (op *Operation) RetryCount() int {
+func (op *Operation) AttemptCount() int {
 	var retries int
 
 	op.mu.RLock()
-	retries = op.retryCount
+	retries = op.attemptCount
 	op.mu.RUnlock()
 
 	return retries
 }
 
-// IncRetry does a plus-one on the RetryCount.
-func (op *Operation) IncRetry() {
+// IncAttempt does a plus-one on the AttemptCount.
+func (op *Operation) IncAttempt() {
 	op.mu.Lock()
-	op.retryCount++
+	op.attemptCount++
+	op.mu.Unlock()
+}
+
+// PriorityPin returns true if the pin has been marked as priority pin.
+func (op *Operation) PriorityPin() bool {
+	var p bool
+	op.mu.RLock()
+	p = op.priority
+	op.mu.RUnlock()
+	return p
+}
+
+// SetPriorityPin returns true if the pin has been marked as priority pin.
+func (op *Operation) SetPriorityPin(p bool) {
+	op.mu.Lock()
+	op.priority = p
 	op.mu.Unlock()
 }
 
