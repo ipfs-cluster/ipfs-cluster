@@ -23,6 +23,7 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
+	"github.com/libp2p/go-tcp-transport"
 )
 
 const dhtNamespace = "dht"
@@ -125,8 +126,10 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		// TODO: quic does not support private networks
-		// libp2p.Transport(libp2pquic.NewTransport),
-		libp2p.DefaultTransports,
+		// libp2p.DefaultTransports,
+		libp2p.NoTransports,
+		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Transport(websocket.New),
 	}
 }
 
