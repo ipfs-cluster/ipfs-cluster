@@ -19,6 +19,7 @@ import (
 var (
 	pinCancelCid      = test.Cid3
 	unpinCancelCid    = test.Cid2
+	pinErrCid         = test.ErrorCid
 	errPinCancelCid   = errors.New("should not have received rpc.IPFSPin operation")
 	errUnpinCancelCid = errors.New("should not have received rpc.IPFSUnpin operation")
 	pinOpts           = api.PinOptions{
@@ -44,6 +45,8 @@ func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error
 		return errPinCancelCid
 	case test.SlowCid1:
 		time.Sleep(time.Second)
+	case pinErrCid:
+		return errors.New("error pinning")
 	}
 	return nil
 }
@@ -54,7 +57,10 @@ func (mock *mockIPFS) Unpin(ctx context.Context, in *api.Pin, out *struct{}) err
 		return errUnpinCancelCid
 	case test.SlowCid1:
 		time.Sleep(time.Second)
+	case pinErrCid:
+		return errors.New("error unpinning")
 	}
+
 	return nil
 }
 
@@ -119,6 +125,8 @@ func testStatelessPinTracker(t testing.TB, pins ...*api.Pin) *Tracker {
 	cfg := &Config{}
 	cfg.Default()
 	cfg.ConcurrentPins = 1
+	cfg.PriorityPinMaxAge = 10 * time.Second
+	cfg.PriorityPinMaxRetries = 1
 	spt := New(cfg, test.PeerID1, test.PeerName1, getStateFunc(t, pins...))
 	spt.SetClient(mockRPCClient(t))
 	return spt
@@ -463,6 +471,75 @@ func TestStatus(t *testing.T) {
 	st = spt.Status(ctx, test.SlowCid1)
 	if st.Status != api.TrackerStatusPinning {
 		t.Error("slowCid1 should be pinning")
+	}
+}
+
+// Test
+func TestAttemptCountAndPriority(t *testing.T) {
+	ctx := context.Background()
+
+	normalPin := api.PinWithOpts(test.Cid1, pinOpts)
+	normalPin2 := api.PinWithOpts(test.Cid4, pinOpts)
+	errPin := api.PinWithOpts(pinErrCid, pinOpts)
+
+	spt := testStatelessPinTracker(t, normalPin, normalPin2)
+	defer spt.Shutdown(ctx)
+
+	st := spt.Status(ctx, test.Cid1)
+	if st.AttemptCount != 0 {
+		t.Errorf("errPin should have 0 attempts as it was already pinned: %+v", st)
+	}
+
+	err := spt.Track(ctx, errPin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond) // let the pin be applied
+	st = spt.Status(ctx, pinErrCid)
+	if st.AttemptCount != 1 {
+		t.Errorf("errPin should have 1 attempt count: %+v", st)
+	}
+
+	// Retry 1
+	_, err = spt.Recover(ctx, pinErrCid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond) // let the pin be applied
+	st = spt.Status(ctx, pinErrCid)
+	if st.AttemptCount != 2 || !st.PriorityPin {
+		t.Errorf("errPin should have 2 attempt counts and be priority: %+v", st)
+	}
+
+	// Retry 2
+	_, err = spt.Recover(ctx, pinErrCid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond) // let the pin be applied
+	st = spt.Status(ctx, pinErrCid)
+	if st.AttemptCount != 3 || st.PriorityPin {
+		t.Errorf("errPin should have 3 attempts and not be priority: %+v", st)
+	}
+
+	err = spt.Untrack(ctx, pinErrCid)
+	time.Sleep(200 * time.Millisecond) // let the pin be applied
+	if err != nil {
+		t.Fatal(err)
+	}
+	st = spt.Status(ctx, pinErrCid)
+	if st.AttemptCount != 1 {
+		t.Errorf("errPin should have 1 attempt count to unpin: %+v", st)
+	}
+
+	err = spt.Untrack(ctx, pinErrCid)
+	time.Sleep(200 * time.Millisecond) // let the pin be applied
+	if err != nil {
+		t.Fatal(err)
+	}
+	st = spt.Status(ctx, pinErrCid)
+	if st.AttemptCount != 2 {
+		t.Errorf("errPin should have 2 attempt counts to unpin: %+v", st)
 	}
 }
 
