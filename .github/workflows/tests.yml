@@ -83,8 +83,8 @@ jobs:
     - name: Build binaries
       run: make build
 
-  tests-docker:
-    name: "Docker and Compose build"
+  docker:
+    name: "Docker build"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -93,6 +93,14 @@ jobs:
 
     - name: Docker builds
       run: make docker
+
+  docker-compose:
+    name: "Docker Compose"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
 
     - name: Docker compose
       run: make docker-compose
