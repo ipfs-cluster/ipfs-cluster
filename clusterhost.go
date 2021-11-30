@@ -9,7 +9,6 @@ import (
 	ipns "github.com/ipfs/go-ipns"
 	config "github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
-	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -61,11 +60,6 @@ func NewClusterHost(
 
 	connman := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, cfg.ConnMgr.GracePeriod)
 
-	relayOpts := []relay.RelayOpt{}
-	if cfg.EnableRelayHop {
-		relayOpts = append(relayOpts, relay.OptHop)
-	}
-
 	var idht *dual.DHT
 	var err error
 	opts := []libp2p.Option{
@@ -76,10 +70,14 @@ func NewClusterHost(
 			idht, err = newDHT(ctx, h, ds)
 			return idht, err
 		}),
+		libp2p.EnableNATService(),
 		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelay(),
-		libp2p.EnableRelayService(),
 		libp2p.EnableHolePunching(),
+	}
+
+	if cfg.EnableRelayHop {
+		opts = append(opts, libp2p.EnableRelayService())
 	}
 
 	h, err := newHost(
