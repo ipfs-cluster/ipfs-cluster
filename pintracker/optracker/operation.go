@@ -61,10 +61,12 @@ type Operation struct {
 	pin    *api.Pin
 
 	// RW fields
-	mu    sync.RWMutex
-	phase Phase
-	error string
-	ts    time.Time
+	mu           sync.RWMutex
+	phase        Phase
+	attemptCount int
+	priority     bool
+	error        string
+	ts           time.Time
 }
 
 // NewOperation creates a new Operation.
@@ -77,11 +79,13 @@ func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase
 		ctx:    ctx,
 		cancel: cancel,
 
-		pin:    pin,
-		opType: typ,
-		phase:  ph,
-		ts:     time.Now(),
-		error:  "",
+		pin:          pin,
+		opType:       typ,
+		phase:        ph,
+		attemptCount: 0,
+		priority:     false,
+		ts:           time.Now(),
+		error:        "",
 	}
 }
 
@@ -97,6 +101,7 @@ func (op *Operation) String() string {
 		fmt.Fprintf(&b, "\t%s\n", s)
 	}
 	fmt.Fprintf(&b, "phase: %s\n", op.Phase().String())
+	fmt.Fprintf(&b, "attemptCount: %d\n", op.AttemptCount())
 	fmt.Fprintf(&b, "error: %s\n", op.Error())
 	fmt.Fprintf(&b, "timestamp: %s\n", op.Timestamp().String())
 
@@ -145,6 +150,41 @@ func (op *Operation) SetPhase(ph Phase) {
 	}
 	op.mu.Unlock()
 	span.End()
+}
+
+// AttemptCount returns the number of times that this operation has been in
+// progress.
+func (op *Operation) AttemptCount() int {
+	var retries int
+
+	op.mu.RLock()
+	retries = op.attemptCount
+	op.mu.RUnlock()
+
+	return retries
+}
+
+// IncAttempt does a plus-one on the AttemptCount.
+func (op *Operation) IncAttempt() {
+	op.mu.Lock()
+	op.attemptCount++
+	op.mu.Unlock()
+}
+
+// PriorityPin returns true if the pin has been marked as priority pin.
+func (op *Operation) PriorityPin() bool {
+	var p bool
+	op.mu.RLock()
+	p = op.priority
+	op.mu.RUnlock()
+	return p
+}
+
+// SetPriorityPin returns true if the pin has been marked as priority pin.
+func (op *Operation) SetPriorityPin(p bool) {
+	op.mu.Lock()
+	op.priority = p
+	op.mu.Unlock()
 }
 
 // Error returns any error message attached to the operation.

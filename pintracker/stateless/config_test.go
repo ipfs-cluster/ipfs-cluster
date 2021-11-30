@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 )
 
 var cfgJSON = []byte(`
 {
 	"max_pin_queue_size": 4092,
-	"concurrent_pins": 2
+	"concurrent_pins": 2,
+	"priority_pin_max_age": "240h",
+	"priority_pin_max_retries": 4
 }
 `)
 
@@ -24,6 +27,8 @@ func TestLoadJSON(t *testing.T) {
 
 	json.Unmarshal(cfgJSON, j)
 	j.ConcurrentPins = 10
+	j.PriorityPinMaxAge = "216h"
+	j.PriorityPinMaxRetries = 2
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)
 	if err != nil {
@@ -31,6 +36,12 @@ func TestLoadJSON(t *testing.T) {
 	}
 	if cfg.ConcurrentPins != 10 {
 		t.Error("expected 10 concurrent pins")
+	}
+	if cfg.PriorityPinMaxAge != 9*24*time.Hour {
+		t.Error("expected 9 days max age")
+	}
+	if cfg.PriorityPinMaxRetries != 2 {
+		t.Error("expected 2 max retries")
 	}
 }
 
@@ -59,14 +70,24 @@ func TestDefault(t *testing.T) {
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
+	cfg.ConcurrentPins = 3
+	cfg.PriorityPinMaxRetries = -1
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
 }
 
 func TestApplyEnvVars(t *testing.T) {
 	os.Setenv("CLUSTER_STATELESS_CONCURRENTPINS", "22")
+	os.Setenv("CLUSTER_STATELESS_PRIORITYPINMAXAGE", "72h")
 	cfg := &Config{}
 	cfg.ApplyEnvVars()
 
 	if cfg.ConcurrentPins != 22 {
 		t.Fatal("failed to override concurrent_pins with env var")
+	}
+
+	if cfg.PriorityPinMaxAge != 3*24*time.Hour {
+		t.Fatal("failed to override priority_pin_max_age with env var")
 	}
 }

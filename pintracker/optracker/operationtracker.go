@@ -83,6 +83,11 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin *api.Pin
 	}
 
 	op2 := NewOperation(ctx, pin, typ, ph)
+	if ok && op.Type() == typ {
+		// Carry over the attempt count when doing an operation of the
+		// same type.  The old operation exists and was cancelled.
+		op2.attemptCount = op.AttemptCount() // carry the count
+	}
 	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
 	opt.operations[pin.Cid] = op2
 	return op2
@@ -141,10 +146,12 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 			Cid:  cid.Undef,
 			Peer: opt.pid,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: opt.peerName,
-				Status:   api.TrackerStatusUnpinned,
-				TS:       time.Now(),
-				Error:    "",
+				PeerName:     opt.peerName,
+				Status:       api.TrackerStatusUnpinned,
+				TS:           time.Now(),
+				AttemptCount: 0,
+				PriorityPin:  false,
+				Error:        "",
 			},
 		}
 	}
@@ -152,10 +159,12 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 		Cid:  op.Cid(),
 		Peer: opt.pid,
 		PinInfoShort: api.PinInfoShort{
-			PeerName: opt.peerName,
-			Status:   op.ToTrackerStatus(),
-			TS:       op.Timestamp(),
-			Error:    op.Error(),
+			PeerName:     opt.peerName,
+			Status:       op.ToTrackerStatus(),
+			TS:           op.Timestamp(),
+			AttemptCount: op.AttemptCount(),
+			PriorityPin:  op.PriorityPin(),
+			Error:        op.Error(),
 		},
 	}
 }
