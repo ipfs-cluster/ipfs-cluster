@@ -70,6 +70,8 @@ docker-compose:
 	chmod -R 0777 compose
 	CLUSTER_SECRET=$(shell od -vN 32 -An -tx1 /dev/urandom | tr -d ' \n') docker-compose up -d
 	sleep 35
+	docker exec cluster0 ipfs-cluster-ctl peers ls
+	docker exec cluster1 ipfs-cluster-ctl peers ls
 	docker exec cluster0 ipfs-cluster-ctl peers ls | grep -o "Sees 2 other peers" | uniq -c | grep 3
 	docker exec cluster1 ipfs-cluster-ctl peers ls | grep -o "Sees 2 other peers" | uniq -c | grep 3
 	docker-compose down
