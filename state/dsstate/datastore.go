@@ -73,7 +73,7 @@ func (st *State) Add(ctx context.Context, c *api.Pin) error {
 	if err != nil {
 		return err
 	}
-	return st.dsWrite.Put(st.key(c.Cid), ps)
+	return st.dsWrite.Put(ctx, st.key(c.Cid), ps)
 }
 
 // Rm removes an existing Pin. It is a no-op when the
@@ -82,7 +82,7 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Rm")
 	defer span.End()
 
-	err := st.dsWrite.Delete(st.key(c))
+	err := st.dsWrite.Delete(ctx, st.key(c))
 	if err == ds.ErrNotFound {
 		return nil
 	}
@@ -96,7 +96,7 @@ func (st *State) Get(ctx context.Context, c cid.Cid) (*api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Get")
 	defer span.End()
 
-	v, err := st.dsRead.Get(st.key(c))
+	v, err := st.dsRead.Get(ctx, st.key(c))
 	if err != nil {
 		if err == ds.ErrNotFound {
 			return nil, state.ErrNotFound
@@ -115,7 +115,7 @@ func (st *State) Has(ctx context.Context, c cid.Cid) (bool, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Has")
 	defer span.End()
 
-	ok, err := st.dsRead.Has(st.key(c))
+	ok, err := st.dsRead.Has(ctx, st.key(c))
 	if err != nil {
 		return false, err
 	}
@@ -132,7 +132,7 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 		Prefix: st.namespace.String(),
 	}
 
-	results, err := st.dsRead.Query(q)
+	results, err := st.dsRead.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (st *State) Marshal(w io.Writer) error {
 		Prefix: st.namespace.String(),
 	}
 
-	results, err := st.dsRead.Query(q)
+	results, err := st.dsRead.Query(context.Background(), q)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (st *State) Unmarshal(r io.Reader) error {
 			return err
 		}
 		k := st.namespace.Child(ds.NewKey(entry.Key))
-		err := st.dsWrite.Put(k, entry.Value)
+		err := st.dsWrite.Put(context.Background(), k, entry.Value)
 		if err != nil {
 			logger.Error("error adding unmarshaled key to datastore:", err)
 			return err
@@ -294,7 +294,7 @@ func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*Ba
 		handle = DefaultHandle()
 	}
 
-	batch, err := dstore.Batch()
+	batch, err := dstore.Batch(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -316,5 +316,5 @@ func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*Ba
 func (bst *BatchingState) Commit(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Commit")
 	defer span.End()
-	return bst.batch.Commit()
+	return bst.batch.Commit(ctx)
 }

@@ -62,7 +62,6 @@ func peers(ctx context.Context) ([]peer.ID, error) {
 func testPeerMonitor(t *testing.T) (*Monitor, host.Host, func()) {
 	ctx := context.Background()
 	h, err := libp2p.New(
-		context.Background(),
 		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
 	)
 	if err != nil {

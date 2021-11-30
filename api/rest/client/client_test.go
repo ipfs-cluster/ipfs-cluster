@@ -12,6 +12,7 @@ import (
 	libp2p "github.com/libp2p/go-libp2p"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	pnet "github.com/libp2p/go-libp2p-core/pnet"
+	tcp "github.com/libp2p/go-tcp-transport"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -26,9 +27,10 @@ func testAPI(t *testing.T) *rest.API {
 	secret := make(pnet.PSK, 32)
 
 	h, err := libp2p.New(
-		context.Background(),
 		libp2p.ListenAddrs(apiMAddr),
 		libp2p.PrivateNetwork(secret),
+		libp2p.NoTransports,
+		libp2p.Transport(tcp.NewTCPTransport),
 	)
 	if err != nil {
 		t.Fatal(err)

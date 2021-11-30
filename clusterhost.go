@@ -9,7 +9,6 @@ import (
 	ipns "github.com/ipfs/go-ipns"
 	config "github.com/ipfs/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
-	relay "github.com/libp2p/go-libp2p-circuit"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -24,6 +23,8 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
+	tcp "github.com/libp2p/go-tcp-transport"
+	websocket "github.com/libp2p/go-ws-transport"
 )
 
 const dhtNamespace = "dht"
@@ -61,11 +62,6 @@ func NewClusterHost(
 
 	connman := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, cfg.ConnMgr.GracePeriod)
 
-	relayOpts := []relay.RelayOpt{}
-	if cfg.EnableRelayHop {
-		relayOpts = append(relayOpts, relay.OptHop)
-	}
-
 	var idht *dual.DHT
 	var err error
 	opts := []libp2p.Option{
@@ -76,8 +72,14 @@ func NewClusterHost(
 			idht, err = newDHT(ctx, h, ds)
 			return idht, err
 		}),
-		libp2p.EnableRelay(relayOpts...),
+		libp2p.EnableNATService(),
+		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelay(),
+		libp2p.EnableHolePunching(),
+	}
+
+	if cfg.EnableRelayHop {
+		opts = append(opts, libp2p.EnableRelayService())
 	}
 
 	h, err := newHost(
@@ -109,7 +111,6 @@ func newHost(ctx context.Context, psk corepnet.PSK, priv crypto.PrivKey, opts ..
 	finalOpts = append(finalOpts, opts...)
 
 	h, err := libp2p.New(
-		ctx,
 		finalOpts...,
 	)
 	if err != nil {
@@ -126,8 +127,10 @@ func baseOpts(psk corepnet.PSK) []libp2p.Option {
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		// TODO: quic does not support private networks
-		// libp2p.Transport(libp2pquic.NewTransport),
-		libp2p.DefaultTransports,
+		// libp2p.DefaultTransports,
+		libp2p.NoTransports,
+		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Transport(websocket.New),
 	}
 }
 

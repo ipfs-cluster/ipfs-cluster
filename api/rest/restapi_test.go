@@ -33,7 +33,7 @@ const (
 func testAPIwithConfig(t *testing.T, cfg *Config, name string) *API {
 	ctx := context.Background()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	h, err := libp2p.New(ctx, libp2p.ListenAddrs(apiMAddr))
+	h, err := libp2p.New(libp2p.ListenAddrs(apiMAddr))
 	if err != nil {
 		t.Fatal(err)
 	}

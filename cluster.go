@@ -138,11 +138,9 @@ func NewCluster(
 
 	var mdnsSvc mdns.Service
 	if cfg.MDNSInterval > 0 {
-		mdnsSvc = mdns.NewMdnsService(host, mdnsServiceTag)
+		mdnsSvc = mdns.NewMdnsService(host, mdnsServiceTag, peerManager)
 		if err != nil {
 			logger.Warnf("mDNS could not be started: %s", err)
-		} else {
-			mdnsSvc.RegisterNotifee(peerManager)
 		}
 	}
 

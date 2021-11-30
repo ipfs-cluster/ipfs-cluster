@@ -4,7 +4,6 @@ package test
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -150,7 +149,7 @@ func HTTPClient(t *testing.T, h host.Host, isHTTPS bool) *http.Client {
 
 // MakeHost makes a libp2p host that knows how to talk to the given API.
 func MakeHost(t *testing.T, api API) host.Host {
-	h, err := libp2p.New(context.Background())
+	h, err := libp2p.New()
 	if err != nil {
 		t.Fatal(err)
 	}

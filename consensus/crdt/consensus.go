@@ -594,7 +594,7 @@ func Clean(ctx context.Context, cfg *Config, store ds.Datastore) error {
 		KeysOnly: true,
 	}
 
-	results, err := store.Query(q)
+	results, err := store.Query(ctx, q)
 	if err != nil {
 		return err
 	}
@@ -605,7 +605,7 @@ func Clean(ctx context.Context, cfg *Config, store ds.Datastore) error {
 			return err
 		}
 		k := ds.NewKey(r.Key)
-		err := store.Delete(k)
+		err := store.Delete(ctx, k)
 		if err != nil {
 			// do not die, continue cleaning
 			logger.Error(err)
