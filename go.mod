@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/go-hclog v0.16.2
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.1.24-0.20211130050123-ef6b521edcf6
+	github.com/hsanjuan/ipfs-lite v1.2.0
 	github.com/imdario/mergo v0.3.12
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.1.0
