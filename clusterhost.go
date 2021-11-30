@@ -23,7 +23,8 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
-	"github.com/libp2p/go-tcp-transport"
+	tcp "github.com/libp2p/go-tcp-transport"
+	websocket "github.com/libp2p/go-ws-transport"
 )
 
 const dhtNamespace = "dht"
