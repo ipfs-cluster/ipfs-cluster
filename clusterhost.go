@@ -76,8 +76,10 @@ func NewClusterHost(
 			idht, err = newDHT(ctx, h, ds)
 			return idht, err
 		}),
-		libp2p.EnableRelay(relayOpts...),
+		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelay(),
+		libp2p.EnableRelayService(),
+		libp2p.EnableHolePunching(),
 	}
 
 	h, err := newHost(
@@ -109,7 +111,6 @@ func newHost(ctx context.Context, psk corepnet.PSK, priv crypto.PrivKey, opts ..
 	finalOpts = append(finalOpts, opts...)
 
 	h, err := libp2p.New(
-		ctx,
 		finalOpts...,
 	)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	p2phttp "github.com/libp2p/go-libp2p-http"
 	noise "github.com/libp2p/go-libp2p-noise"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
+	tcp "github.com/libp2p/go-tcp-transport"
+	websocket "github.com/libp2p/go-ws-transport"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/tv42/httpunix"
@@ -57,13 +59,20 @@ func (c *defaultClient) enableLibp2p() error {
 		}
 	}
 
-	h, err := libp2p.New(c.ctx,
+	transports := libp2p.DefaultTransports
+	if c.config.ProtectorKey != nil {
+		transports = libp2p.ChainOptions(
+			libp2p.NoTransports,
+			libp2p.Transport(tcp.NewTCPTransport),
+			libp2p.Transport(websocket.New),
+		)
+	}
+
+	h, err := libp2p.New(
 		libp2p.PrivateNetwork(c.config.ProtectorKey),
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-		// TODO: quic does not support private networks
-		//libp2p.Transport(libp2pquic.NewTransport),
-		libp2p.DefaultTransports,
+		transports,
 	)
 	if err != nil {
 		return err

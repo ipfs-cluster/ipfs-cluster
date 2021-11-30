@@ -25,7 +25,6 @@ import (
 func makeTestingHost(t *testing.T) (host.Host, *pubsub.PubSub, *dual.DHT) {
 	ctx := context.Background()
 	h, err := libp2p.New(
-		ctx,
 		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
 	)
 	if err != nil {

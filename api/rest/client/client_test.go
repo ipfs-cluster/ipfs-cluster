@@ -26,7 +26,6 @@ func testAPI(t *testing.T) *rest.API {
 	secret := make(pnet.PSK, 32)
 
 	h, err := libp2p.New(
-		context.Background(),
 		libp2p.ListenAddrs(apiMAddr),
 		libp2p.PrivateNetwork(secret),
 	)

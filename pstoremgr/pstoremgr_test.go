@@ -14,7 +14,7 @@ import (
 )
 
 func makeMgr(t *testing.T) *Manager {
-	h, err := libp2p.New(context.Background())
+	h, err := libp2p.New()
 	if err != nil {
 		t.Fatal(err)
 	}

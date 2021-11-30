@@ -31,7 +31,6 @@ func testPin(c cid.Cid) *api.Pin {
 
 func makeTestingHost(t *testing.T) host.Host {
 	h, err := libp2p.New(
-		context.Background(),
 		libp2p.ListenAddrStrings("/ip4/127.0.0.1/tcp/0"),
 	)
 	if err != nil {
