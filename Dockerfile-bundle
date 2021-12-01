@@ -10,11 +10,11 @@ ENV SRC_PATH    $GOPATH/src/github.com/ipfs/ipfs-cluster
 ENV GO111MODULE on
 ENV GOPROXY     https://proxy.golang.org
 
-COPY go.* $SRC_PATH/
+COPY --chown=1000:users go.* $SRC_PATH/
 WORKDIR $SRC_PATH
 RUN go mod download
 
-COPY . $SRC_PATH
+COPY --chown=1000:users . $SRC_PATH
 RUN make install
 
 #------------------------------------------------------
