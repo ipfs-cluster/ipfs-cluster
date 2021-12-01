@@ -12,11 +12,11 @@ RUN cd /tmp && \
     wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 && \
     chmod +x jq-linux64
 
-COPY go.* $SRC_PATH/
+COPY --chown=1000:users go.* $SRC_PATH/
 WORKDIR $SRC_PATH
 RUN go mod download
 
-COPY . $SRC_PATH
+COPY --chown=1000:users . $SRC_PATH
 RUN make install
 
 #------------------------------------------------------
