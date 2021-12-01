@@ -1,5 +1,148 @@
 # IPFS Cluster Changelog
 
+### v0.14.2 - 2021-12-01
+
+This is a minor IPFS Cluster release focused on providing features for
+production Cluster deployments with very high pin ingestion rates.
+
+It addresses two important questions from our users:
+
+  * How to ensure that my pins are automatically pinned on my cluster peers
+  around the world in a balanced fashion.
+  * How to ensure that items that cannot be pinned do not delay the pinning
+  of items that are available.
+
+We address the first of the questions by introducing an improved allocator and
+user-defined "tag" metrics. Each cluster peer can now be tagged, and the
+allocator can be configured to pin items in a way that they are distributed
+among tags. For example, a cluster peer can tagged with `region: us,
+availability-zone: us-west` and so on. Assuming a cluster made of 6 peers, 2
+per region, and one per availability zone, the allocator would ensure that a
+pin with replication factor = 3 lands in the 3 different regions and in the
+availability zones with most available space of the two.
+
+The second question is addressed by enriching pin metadata. Pins will now
+store the time that they were added to the cluster. The pin tracker will
+additionally keep track of how many times an operation has been retried. Using
+these two items, we can prioritize pinning of items that are new and have not
+repeteadly failed to pin. The max age and max number of retries used to
+prioritize a pin can be controlled in the configuration.
+
+Please see the information below for more details about how to make use and
+configure these new features.
+
+#### List of changes
+
+##### Features
+
+  * Tags informer and partition-based allocations | [ipfs/ipfs-cluster#159](https://github.com/ipfs/ipfs-cluster/issues/159) | [ipfs/ipfs-cluster#1468](https://github.com/ipfs/ipfs-cluster/issues/1468) | [ipfs/ipfs-cluster#1485](https://github.com/ipfs/ipfs-cluster/issues/1485)
+  * Add timestamps to pin objects | [ipfs/ipfs-cluster#1484](https://github.com/ipfs/ipfs-cluster/issues/1484) | [ipfs/ipfs-cluster#989](https://github.com/ipfs/ipfs-cluster/issues/989)
+  * Support priority pinning for recent pins with small number of retries | [ipfs/ipfs-cluster#1469](https://github.com/ipfs/ipfs-cluster/issues/1469) | [ipfs/ipfs-cluster#1490](https://github.com/ipfs/ipfs-cluster/issues/1490)
+
+##### Bug fixes
+
+  * Fix flaky adder test | [ipfs/ipfs-cluster#1461](https://github.com/ipfs/ipfs-cluster/issues/1461) | [ipfs/ipfs-cluster#1462](https://github.com/ipfs/ipfs-cluster/issues/1462)
+
+##### Other changes
+
+  * Refactor API to facilitate re-use of functionality | [ipfs/ipfs-cluster#1471](https://github.com/ipfs/ipfs-cluster/issues/1471)
+  * Move testing to Github Actions | [ipfs/ipfs-cluster#1486](https://github.com/ipfs/ipfs-cluster/issues/1486)
+  * Dependency upgrades (go-libp2p v0.16.0 etc.) | [ipfs/ipfs-cluster#1491](https://github.com/ipfs/ipfs-cluster/issues/1491) | [ipfs/ipfs-cluster#1501](https://github.com/ipfs/ipfs-cluster/issues/1501) | [ipfs/ipfs-cluster#1504](https://github.com/ipfs/ipfs-cluster/issues/1504)
+
+#### Upgrading notices
+
+Despite of the new features, cluster peers should behave exactly as before
+when using the previous configuration and should interact well with peers in
+the previous version. However, for the new features to take full effect, all
+peers should be upgraded to this release.
+
+##### Configuration changes
+
+The `pintracker/stateless` configuration sector gets 2 new options, which will take defaults when unset:
+
+  * `priority_pin_max_age`, with a default of `24h`, and
+  * `priority_pin_max_retries`, with a default of `5`.
+
+A new informer type called "tags" now exists. By default, in has a subsection
+in the `informer` configuration section with the following defaults:
+
+```json
+   "informer": {
+     "disk": {...}
+     },
+     "tags": {
+       "metric_ttl": "30s",
+       "tags": {
+         "group": "default"
+       }
+     }
+   },
+```
+
+This enables the use of the "tags" informer. The `tags` configuration key in
+it allows to add user-defined tags to this peer. For every tag, a new metric
+will be broadcasted to other peers in the cluster carrying the tag
+information. By default, peers would broadcast a metric of type "tag:group"
+and value "default" (`ipfs-cluster-ctl health metrics` can be used to see what
+metrics a cluster peer knows about). These tags metrics can be used to setup
+advanced allocation strategies using the new "balanced" allocator described
+below.
+
+A new `allocator` top level section with a `balanced` configuration
+sub-section can now be used to setup the new allocator. It has the following
+default on new configurations:
+
+```json
+  "allocator": {
+    "balanced": {
+      "allocate_by": [
+        "tag:group",
+        "freespace"
+      ]
+    }
+  },
+```
+
+When the allocator is NOT defined (legacy configurations), the `allocate_by`
+option is only set to `["freespace"]`, to keep backwards compatibility (the
+tags allocator with a "group:default" tag will not be present).
+
+This asks the allocator to allocate pins first by the value of the "group"
+tag-metric, as produced by the tag informer, and then by the value of the
+"freespace" metric. Allocating solely by the "freespace" is the equivalent of
+the cluster behaviour on previous versions. This default assumes the default
+`informer/tags` configuration section mentioned above is present.
+
+##### REST API
+
+The objects returned by the `/pins` endpoints ("GlobalPinInfo" types) now
+include an additional `attempt_count` property, that counts how many times the
+pin or unpin operation was retried, and a `priority_pin` boolean property,
+that indicates whether the ongoing pin operation was last queued in the
+priority queue or not.
+
+The objects returned by the `/allocations` enpdpoints ("Pin" types) now
+include an additional `timestamp` property.
+
+The objects returned by the `/monitor/metrics/<metric>` endpoint now include a
+`weight` property, which is used to sort metrics (before they were sorted by
+parsing the value as decimal number).
+
+The REST API client will now support QUIC for libp2p requests whenever not
+using private networks.
+
+##### Go APIs
+
+There are no relevant changes other than the additional fields in the objects
+as mentioned by the section right above.
+
+##### Other
+
+Nothing.
+
+---
+
+
 ### v0.14.1 - 2021-08-16
 
 This is an IPFS Cluster maintenance release addressing some issues and
