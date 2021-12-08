@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.14.2 - 2021-12-01
+### v0.14.2 - 2021-12-10
 
 This is a minor IPFS Cluster release focused on providing features for
 production Cluster deployments with very high pin ingestion rates.
@@ -48,6 +48,7 @@ configure these new features.
   * Refactor API to facilitate re-use of functionality | [ipfs/ipfs-cluster#1471](https://github.com/ipfs/ipfs-cluster/issues/1471)
   * Move testing to Github Actions | [ipfs/ipfs-cluster#1486](https://github.com/ipfs/ipfs-cluster/issues/1486)
   * Dependency upgrades (go-libp2p v0.16.0 etc.) | [ipfs/ipfs-cluster#1491](https://github.com/ipfs/ipfs-cluster/issues/1491) | [ipfs/ipfs-cluster#1501](https://github.com/ipfs/ipfs-cluster/issues/1501) | [ipfs/ipfs-cluster#1504](https://github.com/ipfs/ipfs-cluster/issues/1504)
+  * Improve `health metrics <metric>` output in ipfs-cluster-ctl | [ipfs/ipfs-cluster#1506](https://github.com/ipfs/ipfs-cluster/issues/1506)
 
 #### Upgrading notices
 
