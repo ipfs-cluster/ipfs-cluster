@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -245,14 +244,12 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 }
 
 func textFormatPrintMetric(obj *api.Metric) {
-	if obj.Name == "freespace" {
-		u, err := strconv.ParseUint(obj.Value, 10, 64)
-		checkErr("parsing to uint64", err)
-		fmt.Printf("%s | freespace: %s | Expires in: %s\n", peer.Encode(obj.Peer), humanize.Bytes(u), humanize.Time(time.Unix(0, obj.Expire)))
-		return
+	v := obj.Value
+	if obj.Name == "freespace" && obj.Weight > 0 {
+		v = humanize.Bytes(uint64(obj.Weight))
 	}
 
-	fmt.Printf("%s | %s | Expires in: %s\n", peer.Encode(obj.Peer), obj.Name, humanize.Time(time.Unix(0, obj.Expire)))
+	fmt.Printf("%s | %s: %s | Expires in: %s\n", peer.Encode(obj.Peer), obj.Name, v, humanize.Time(time.Unix(0, obj.Expire)))
 }
 
 func textFormatPrintAlert(obj *api.Alert) {
