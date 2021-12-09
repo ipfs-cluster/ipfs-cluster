@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.14.2 - 2021-12-10
+### v0.14.2 - 2021-12-09
 
 This is a minor IPFS Cluster release focused on providing features for
 production Cluster deployments with very high pin ingestion rates.
