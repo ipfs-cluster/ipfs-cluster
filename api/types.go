@@ -566,16 +566,16 @@ func (pm PinMode) ToPinDepth() PinDepth {
 
 // PinOptions wraps user-defined options for Pins
 type PinOptions struct {
-	ReplicationFactorMin int                   `json:"replication_factor_min" codec:"rn,omitempty"`
-	ReplicationFactorMax int                   `json:"replication_factor_max" codec:"rx,omitempty"`
-	Name                 string                `json:"name" codec:"n,omitempty"`
-	Mode                 PinMode               `json:"mode" codec:"o,omitempty"`
-	ShardSize            uint64                `json:"shard_size" codec:"s,omitempty"`
-	UserAllocations      []peer.ID             `json:"user_allocations" codec:"ua,omitempty"`
-	ExpireAt             time.Time             `json:"expire_at" codec:"e,omitempty"`
-	Metadata             map[string]string     `json:"metadata" codec:"m,omitempty"`
-	PinUpdate            cid.Cid               `json:"pin_update,omitempty" codec:"pu,omitempty"`
-	Origins              []multiaddr.Multiaddr `json:"origins" codec:"g,omitempty"`
+	ReplicationFactorMin int               `json:"replication_factor_min" codec:"rn,omitempty"`
+	ReplicationFactorMax int               `json:"replication_factor_max" codec:"rx,omitempty"`
+	Name                 string            `json:"name" codec:"n,omitempty"`
+	Mode                 PinMode           `json:"mode" codec:"o,omitempty"`
+	ShardSize            uint64            `json:"shard_size" codec:"s,omitempty"`
+	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
+	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
+	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
+	PinUpdate            cid.Cid           `json:"pin_update,omitempty" codec:"pu,omitempty"`
+	Origins              []Multiaddr       `json:"origins" codec:"g,omitempty"`
 }
 
 // Equals returns true if two PinOption objects are equivalent. po and po2 may
@@ -646,7 +646,7 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 	for _, o1 := range po.Origins {
 		found := false
 		for _, o2 := range po2.Origins {
-			if o1.Equal(o2) {
+			if o1.Value().Equal(o2.Value()) {
 				found = true
 			}
 		}
@@ -771,9 +771,9 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 	originsStr := q.Get("origins")
 	if originsStr != "" {
 		origins := strings.Split(originsStr, ",")
-		maOrigins := make([]multiaddr.Multiaddr, len(origins))
+		maOrigins := make([]Multiaddr, len(origins))
 		for i, ostr := range origins {
-			maOrig, err := multiaddr.NewMultiaddr(ostr)
+			maOrig, err := NewMultiaddr(ostr)
 			if err != nil {
 				return fmt.Errorf("error decoding multiaddress: %w", err)
 			}
@@ -1015,13 +1015,13 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	pin.Mode = pin.MaxDepth.ToPinMode()
 
 	pbOrigins := opts.GetOrigins()
-	origins := make([]multiaddr.Multiaddr, len(pbOrigins))
+	origins := make([]Multiaddr, len(pbOrigins))
 	for i, orig := range pbOrigins {
 		maOrig, err := multiaddr.NewMultiaddrBytes(orig)
 		if err != nil {
 			return err
 		}
-		origins[i] = maOrig
+		origins[i] = NewMultiaddrWithValue(maOrig)
 	}
 	pin.Origins = origins
 

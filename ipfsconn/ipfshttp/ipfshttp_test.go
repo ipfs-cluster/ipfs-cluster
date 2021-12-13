@@ -75,9 +75,9 @@ func TestPin(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 
 	pin := api.PinCid(test.Cid1)
-	pin.Origins = []ma.Multiaddr{
-		ma.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng"),
-		ma.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR"),
+	pin.Origins = []api.Multiaddr{
+		api.NewMultiaddrWithValue(ma.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng")),
+		api.NewMultiaddrWithValue(ma.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR")),
 	}
 	err := ipfs.Pin(ctx, pin)
 	if err != nil {
