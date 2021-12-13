@@ -174,9 +174,9 @@ func TestPinOptionsQuery(t *testing.T) {
 				"hello":  "bye",
 				"hello2": "bye2",
 			},
-			Origins: []multiaddr.Multiaddr{
-				multiaddr.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng"),
-				multiaddr.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR"),
+			Origins: []Multiaddr{
+				NewMultiaddrWithValue(multiaddr.StringCast("/ip4/1.2.3.4/tcp/1234/p2p/12D3KooWKewdAMAU3WjYHm8qkAJc5eW6KHbHWNigWraXXtE1UCng")),
+				NewMultiaddrWithValue(multiaddr.StringCast("/ip4/2.3.3.4/tcp/1234/p2p/12D3KooWF6BgwX966ge5AVFs9Gd2wVTBmypxZVvaBR12eYnUmXkR")),
 			},
 		},
 		{
