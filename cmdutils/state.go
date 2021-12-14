@@ -24,7 +24,7 @@ import (
 // StateManager is the interface that allows to import, export and clean
 // different cluster states depending on the consensus component used.
 type StateManager interface {
-	ImportState(io.Reader) error
+	ImportState(io.Reader, api.PinOptions) error
 	ExportState(io.Writer) error
 	GetStore() (ds.Datastore, error)
 	GetOfflineState(ds.Datastore) (state.State, error)
@@ -73,7 +73,7 @@ func (raftsm *raftStateManager) GetOfflineState(store ds.Datastore) (state.State
 	return raft.OfflineState(raftsm.cfgs.Raft, store)
 }
 
-func (raftsm *raftStateManager) ImportState(r io.Reader) error {
+func (raftsm *raftStateManager) ImportState(r io.Reader, opts api.PinOptions) error {
 	err := raftsm.Clean()
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (raftsm *raftStateManager) ImportState(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	err = importState(r, st)
+	err = importState(r, st, opts)
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (crdtsm *crdtStateManager) GetOfflineState(store ds.Datastore) (state.State
 	return crdt.OfflineState(crdtsm.cfgs.Crdt, store)
 }
 
-func (crdtsm *crdtStateManager) ImportState(r io.Reader) error {
+func (crdtsm *crdtStateManager) ImportState(r io.Reader, opts api.PinOptions) error {
 	err := crdtsm.Clean()
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (crdtsm *crdtStateManager) ImportState(r io.Reader) error {
 	}
 	batchingSt := st.(state.BatchingState)
 
-	err = importState(r, batchingSt)
+	err = importState(r, batchingSt, opts)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (crdtsm *crdtStateManager) Clean() error {
 	return crdt.Clean(context.Background(), crdtsm.cfgs.Crdt, store)
 }
 
-func importState(r io.Reader, st state.State) error {
+func importState(r io.Reader, st state.State, opts api.PinOptions) error {
 	ctx := context.Background()
 	dec := json.NewDecoder(r)
 	for {
@@ -197,6 +197,22 @@ func importState(r io.Reader, st state.State) error {
 		if err != nil {
 			return err
 		}
+
+		if opts.ReplicationFactorMax > 0 {
+			pin.ReplicationFactorMax = opts.ReplicationFactorMax
+		}
+
+		if opts.ReplicationFactorMin > 0 {
+			pin.ReplicationFactorMin = opts.ReplicationFactorMin
+		}
+
+		if len(opts.UserAllocations) > 0 {
+			// We are injecting directly to the state.
+			// UserAllocation option is not stored in the state.
+			// We need to set Allocations directly.
+			pin.Allocations = opts.UserAllocations
+		}
+
 		err = st.Add(ctx, &pin)
 		if err != nil {
 			return err
