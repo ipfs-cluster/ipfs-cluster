@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	ipfscluster "github.com/ipfs/ipfs-cluster"
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/version"
@@ -506,6 +507,20 @@ to import. If no argument is provided, stdin will be used.
 							Name:  "force, f",
 							Usage: "skips confirmation prompt",
 						},
+						cli.IntFlag{
+							Name:  "replication-min, rmin",
+							Value: 0,
+							Usage: "Overwrite replication-factor-min for all pins on import",
+						},
+						cli.IntFlag{
+							Name:  "replication-max, rmax",
+							Value: 0,
+							Usage: "Overwrite replication-factor-max for all pins on import",
+						},
+						cli.StringFlag{
+							Name:  "allocations, allocs",
+							Usage: "Overwrite allocations for all pins on import. Comma-separated list of peer IDs",
+						},
 					},
 					Action: func(c *cli.Context) error {
 						locker.lock()
@@ -515,6 +530,13 @@ to import. If no argument is provided, stdin will be used.
 						confirm += "will be replaced. Continue? [y/n]:"
 						if !c.Bool("force") && !yesNoPrompt(confirm) {
 							return nil
+						}
+
+						// importState allows overwriting of some options on import
+						opts := api.PinOptions{
+							ReplicationFactorMin: c.Int("replication-min"),
+							ReplicationFactorMax: c.Int("replication-max"),
+							UserAllocations:      api.StringsToPeers(strings.Split(c.String("allocations"), ",")),
 						}
 
 						mgr := getStateManager()
@@ -532,7 +554,7 @@ to import. If no argument is provided, stdin will be used.
 						}
 						defer r.Close()
 
-						checkErr("importing state", mgr.ImportState(r))
+						checkErr("importing state", mgr.ImportState(r, opts))
 						logger.Info("state successfully imported.  Make sure all peers have consistent states")
 						return nil
 					},
