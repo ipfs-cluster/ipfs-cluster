@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	"github.com/multiformats/go-multiaddr"
+	types "github.com/ipfs/ipfs-cluster/api"
 )
 
 func init() {
@@ -34,10 +34,10 @@ func (apiErr APIError) Error() string {
 
 // Pin contains basic information about a Pin and pinning options.
 type Pin struct {
-	Cid     cid.Cid               `json:"cid"`
-	Name    string                `json:"name"`
-	Origins []multiaddr.Multiaddr `json:"origins"`
-	Meta    map[string]string     `json:"meta"`
+	Cid     cid.Cid           `json:"cid"`
+	Name    string            `json:"name"`
+	Origins []types.Multiaddr `json:"origins"`
+	Meta    map[string]string `json:"meta"`
 }
 
 type Status int
@@ -125,12 +125,12 @@ func StatusFromString(str string) Status {
 
 // PinStatus provides information about a Pin stored by the Pinning API.
 type PinStatus struct {
-	RequestID string                `json:"request_id"`
-	Status    Status                `json:"status"`
-	Created   time.Time             `json:"created"`
-	Pin       Pin                   `json:"pin"`
-	Delegates []multiaddr.Multiaddr `json:"delegates"`
-	Info      map[string]string     `json:"info"`
+	RequestID string            `json:"request_id"`
+	Status    Status            `json:"status"`
+	Created   time.Time         `json:"created"`
+	Pin       Pin               `json:"pin"`
+	Delegates []types.Multiaddr `json:"delegates"`
+	Info      map[string]string `json:"info"`
 }
 
 // PinList is the result of a call to List pins

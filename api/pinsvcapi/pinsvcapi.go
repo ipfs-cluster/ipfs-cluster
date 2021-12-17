@@ -102,7 +102,7 @@ func globalPinInfoToSvcPinStatus(
 		Meta:    gpi.Metadata,
 	}
 
-	delegates := []multiaddr.Multiaddr{}
+	delegates := []types.Multiaddr{}
 	idMap := make(map[peer.ID]*types.ID)
 	for _, clusterID := range clusterIDs {
 		idMap[clusterID.ID] = clusterID
@@ -125,7 +125,7 @@ func globalPinInfoToSvcPinStatus(
 		}
 		for _, ma := range clid.IPFS.Addresses {
 			if madns.Matches(ma.Value()) { // a dns multiaddress: take it
-				delegates = append(delegates, ma.Value())
+				delegates = append(delegates, ma)
 				continue
 			}
 
@@ -146,7 +146,7 @@ func globalPinInfoToSvcPinStatus(
 			if !netip.IsGlobalUnicast() {
 				continue
 			}
-			delegates = append(delegates, ma.Value())
+			delegates = append(delegates, ma)
 		}
 		status.Delegates = delegates
 	}
