@@ -68,14 +68,18 @@ func svcStatusToTrackerStatus(st pinsvc.Status) types.TrackerStatus {
 	return tst
 }
 
-func svcPinToClusterPin(p pinsvc.Pin) *types.Pin {
+func svcPinToClusterPin(p pinsvc.Pin) (*types.Pin, error) {
 	opts := types.PinOptions{
 		Name:     p.Name,
 		Origins:  p.Origins,
 		Metadata: p.Meta,
 		Mode:     types.PinModeRecursive,
 	}
-	return types.PinWithOpts(p.Cid, opts)
+	c, err := cid.Decode(p.Cid)
+	if err != nil {
+		return nil, err
+	}
+	return types.PinWithOpts(c, opts), nil
 }
 
 func globalPinInfoToSvcPinStatus(
@@ -96,7 +100,7 @@ func globalPinInfoToSvcPinStatus(
 	status.Status = trackerStatusToSvcStatus(statusMask)
 	status.Created = time.Now()
 	status.Pin = pinsvc.Pin{
-		Cid:     gpi.Cid,
+		Cid:     gpi.Cid.String(),
 		Name:    gpi.Name,
 		Origins: gpi.Origins,
 		Meta:    gpi.Metadata,
@@ -321,7 +325,11 @@ func (api *API) getPinStatus(ctx context.Context, c cid.Cid) (types.GlobalPinInf
 func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 	if pin := api.parseBodyOrFail(w, r); pin != nil {
 		api.config.Logger.Debugf("addPin: %s", pin.Cid)
-		clusterPin := svcPinToClusterPin(*pin)
+		clusterPin, err := svcPinToClusterPin(*pin)
+		if err != nil {
+			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+			return
+		}
 
 		if updateCid, ok := api.parseRequestIDOrFail(w, r); updateCid.Defined() && ok {
 			clusterPin.PinUpdate = updateCid
@@ -329,7 +337,7 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 
 		// Pin item
 		var pinObj types.Pin
-		err := api.rpcClient.CallContext(
+		err = api.rpcClient.CallContext(
 			r.Context(),
 			"",
 			"Cluster",
@@ -339,6 +347,7 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 		)
 		if err != nil {
 			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+			return
 		}
 
 		// Status is intelligent enough to not request
@@ -350,6 +359,7 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 			pinInfo, err = api.getPinStatus(r.Context(), pinObj.Cid)
 			if err != nil {
 				api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+				return
 			}
 
 			pinArrived := false
@@ -417,6 +427,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 	err := opts.FromQuery(r.URL.Query())
 	if err != nil {
 		api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+		return
 	}
 	tst := svcStatusToTrackerStatus(opts.Status)
 

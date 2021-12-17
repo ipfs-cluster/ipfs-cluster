@@ -34,7 +34,7 @@ func (apiErr APIError) Error() string {
 
 // Pin contains basic information about a Pin and pinning options.
 type Pin struct {
-	Cid     cid.Cid           `json:"cid"`
+	Cid     string            `json:"cid"` // a cid.Cid does not json properly
 	Name    string            `json:"name"`
 	Origins []types.Multiaddr `json:"origins"`
 	Meta    map[string]string `json:"meta"`
