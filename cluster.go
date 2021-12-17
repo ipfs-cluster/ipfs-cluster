@@ -296,6 +296,11 @@ func (c *Cluster) sendInformerMetrics(ctx context.Context, informer Informer) (t
 	}
 
 	for _, metric := range metrics {
+		if metric.Discard() { // do not publish invalid metrics
+			// the tags informer creates an invalid metric
+			// when no tags are defined.
+			continue
+		}
 		metric.Peer = c.id
 		ttl := metric.GetTTL()
 		if ttl > 0 && (ttl < minTTL || minTTL == 0) {
