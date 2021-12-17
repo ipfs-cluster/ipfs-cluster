@@ -424,11 +424,19 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 	statuses := spt.StatusAll(ctx, api.TrackerStatusUndefined)
 	resp := make([]*api.PinInfo, 0)
 	for _, st := range statuses {
-		r, err := spt.recoverWithPinInfo(ctx, st)
-		if err != nil {
-			return resp, err
+		// Break out if we shutdown. We might be going through
+		// a very long list of statuses.
+		select {
+		case <-spt.ctx.Done():
+			return nil, spt.ctx.Err()
+		default:
+			r, err := spt.recoverWithPinInfo(ctx, st)
+			if err != nil {
+				return resp, err
+			}
+			resp = append(resp, r)
 		}
-		resp = append(resp, r)
+
 	}
 	return resp, nil
 }

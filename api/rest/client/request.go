@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"go.opencensus.io/trace"
-
 	"github.com/ipfs/ipfs-cluster/api"
+
+	"go.opencensus.io/trace"
 )
 
 type responseDecoder func(d *json.Decoder) error

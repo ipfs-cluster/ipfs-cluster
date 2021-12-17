@@ -391,8 +391,6 @@ github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477 h1:bLsrEmB2N
 github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477/go.mod h1:aUF6HQr8+t3FC/ZHAC+pZreUBhTaxumuu3L+d37uRxk=
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
-github.com/hsanjuan/ipfs-lite v1.1.24-0.20211130050123-ef6b521edcf6 h1:0VDnVBRmVLy9h4pBrmbb3LhoGe1ET1ByfJGdJf9BSg8=
-github.com/hsanjuan/ipfs-lite v1.1.24-0.20211130050123-ef6b521edcf6/go.mod h1:GFTbYa5fyFV0Z/2IVc8W7/Uus31xwtfICGZQT7dDhRw=
 github.com/hsanjuan/ipfs-lite v1.2.0 h1:bV/GIbftDF9ecqi7Wa2yxgAUwX2yh7Zfz/h3eiXrwHU=
 github.com/hsanjuan/ipfs-lite v1.2.0/go.mod h1:KsCU8h2aBeSCNffdNIZ4mVkEWgPgW/9WYyty2wGxhv0=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
@@ -463,8 +461,8 @@ github.com/ipfs/go-ds-badger v0.2.6/go.mod h1:02rnztVKA4aZwDuaRPTf8mpqcKmXP7mLl6
 github.com/ipfs/go-ds-badger v0.2.7/go.mod h1:02rnztVKA4aZwDuaRPTf8mpqcKmXP7mLl6JPxd14JHA=
 github.com/ipfs/go-ds-badger v0.3.0 h1:xREL3V0EH9S219kFFueOYJJTcjgNSZ2HY1iSvN7U1Ro=
 github.com/ipfs/go-ds-badger v0.3.0/go.mod h1:1ke6mXNqeV8K3y5Ak2bAA0osoTfmxUdupVCGm4QUIek=
-github.com/ipfs/go-ds-crdt v0.2.1 h1:F5ru4Wr8BrQzq0LJjHe1ghHKVFHhLS3dfGZKTww8vtw=
-github.com/ipfs/go-ds-crdt v0.2.1/go.mod h1:iyNk2vbzhH/5oUtzS9Sf+6IOIGOFVUK3oMgB2NcMZQQ=
+github.com/ipfs/go-ds-crdt v0.2.3 h1:vRjMtEzh2lSuxLGjkLWkw51u4QmezJkeleXGcFX0I3s=
+github.com/ipfs/go-ds-crdt v0.2.3/go.mod h1:ZfBlHcA3Xc6el6MnLl1DS37nbj1ybvT3UOAtAw7L72o=
 github.com/ipfs/go-ds-leveldb v0.0.1/go.mod h1:feO8V3kubwsEF22n0YRQCffeb79OOYIykR4L04tMOYc=
 github.com/ipfs/go-ds-leveldb v0.1.0/go.mod h1:hqAW8y4bwX5LWcCtku2rFNX3vjDZCy5LZCg+cSZvYb8=
 github.com/ipfs/go-ds-leveldb v0.4.1/go.mod h1:jpbku/YqBSsBc1qgME8BkWS4AxzF2cEu1Ii2r79Hh9s=

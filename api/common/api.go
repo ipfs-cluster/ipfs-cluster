@@ -27,11 +27,10 @@ import (
 	"sync"
 	"time"
 
-	types "github.com/ipfs/ipfs-cluster/api"
-
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
+	types "github.com/ipfs/ipfs-cluster/api"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
