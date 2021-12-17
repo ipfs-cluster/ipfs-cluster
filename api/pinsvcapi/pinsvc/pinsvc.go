@@ -125,7 +125,7 @@ func StatusFromString(str string) Status {
 
 // PinStatus provides information about a Pin stored by the Pinning API.
 type PinStatus struct {
-	RequestID string            `json:"request_id"`
+	RequestID string            `json:"requestid"`
 	Status    Status            `json:"status"`
 	Created   time.Time         `json:"created"`
 	Pin       Pin               `json:"pin"`
