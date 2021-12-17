@@ -140,6 +140,7 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 
 	var pins []*api.Pin
 
+	total := 0
 	for r := range results.Next() {
 		if r.Error != nil {
 			logger.Errorf("error in query result: %s", r.Error)
@@ -158,7 +159,14 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 			continue
 		}
 
+		if total > 0 && total%500000 == 0 {
+			logger.Infof("Full pinset listing in progress: %d pins so far", total)
+		}
+		total++
 		pins = append(pins, p)
+	}
+	if total >= 500000 {
+		logger.Infof("Full pinset listing finished: %d pins", total)
 	}
 	return pins, nil
 }
