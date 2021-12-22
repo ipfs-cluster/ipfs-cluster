@@ -128,9 +128,11 @@ func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host, routes func(*
 	// - the cors handler,
 	// - the basic auth handler.
 	//
-	// Thus every request will need to have valid credentials first, then
-	// comply with CORS, then it may be redirected if the path ends with a
-	// "/" and finally it hits one of our routes and handlers.
+	// Requests will need to have valid credentials first, except
+	// cors-preflight requests (OPTIONS). Then requests are handled by
+	// CORS and potentially need to comply with it. Then they may be
+	// redirected if the path ends with a "/". Finally they hit one of our
+	// routes and handlers.
 	router := mux.NewRouter()
 	handler := basicAuthHandler(
 		cfg.BasicAuthCredentials,
@@ -285,6 +287,13 @@ func basicAuthHandler(credentials map[string]string, h http.Handler, lggr *loggi
 	}
 
 	wrap := func(w http.ResponseWriter, r *http.Request) {
+		// We let CORS preflight requests pass through the next
+		// handler.
+		if r.Method == http.MethodOptions {
+			h.ServeHTTP(w, r)
+			return
+		}
+
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 		username, password, ok := r.BasicAuth()
 		if !ok {
