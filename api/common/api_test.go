@@ -408,9 +408,9 @@ func TestBasicAuth(t *testing.T) {
 			checker: assertHTTPStatusIsUnauthoriazed,
 		},
 		{
-			method:  "OPTIONS",
+			method:  "OPTIONS", // Always allowed for CORS
 			path:    "/foo",
-			checker: assertHTTPStatusIsUnauthoriazed,
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 		{
 			method:  "PUT",
