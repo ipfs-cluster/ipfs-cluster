@@ -1,5 +1,66 @@
 # IPFS Cluster Changelog
 
+### v0.14.3 - 2022-01-03
+
+This is a minor IPFS Cluster release with some performance improvements and
+bug fixes.
+
+First, we have improved the speed at which the pinset can be listed (around
+3x). This is important for very large clusters with millions of items on the
+pinset. Cluster peers regularly check on all items in the pinset (i.e. to
+re-pin failed items or remove expired pins), so this means these operations
+will consume less resources and complete faster.
+
+Second, we have added additional options to the `state import` command to
+provide more flexibility when migrating content to a new cluster. For example,
+allocations and replication factors for all pins can be replaced on
+import. One usecase is to convert a cluster with "replicate-everywhere" pins
+into one cluster with pins allocated to a particular set of peers (as a prior
+step to scaling up the cluster by adding more peers).
+
+Among the bugs fixed, the worst was one causing errors when deserializing some
+pins from their JSON representation. This happened when pins had the `Origins`
+property set.
+
+
+#### List of changes
+
+##### Features
+
+* State import: allow replication factor and allocations overwrite | [ipfs/ipfs-cluster#1508](https://github.com/ipfs/ipfs-cluster/issues/1508)
+
+##### Bug fixes
+
+* Fix state deserialization | [ipfs/ipfs-cluster#1507](https://github.com/ipfs/ipfs-cluster/issues/1507)
+* Fix pintracker shutdown errors | [ipfs/ipfs-cluster#1510](https://github.com/ipfs/ipfs-cluster/issues/1510)
+* API: CORS pre-flight (OPTIONS) requests should bypass authentication | [ipfs/ipfs-cluster#1512](https://github.com/ipfs/ipfs-cluster/issues/1512) | [ipfs/ipfs-cluster#1513](https://github.com/ipfs/ipfs-cluster/issues/1513) | [ipfs/ipfs-cluster#1514](https://github.com/ipfs/ipfs-cluster/issues/1514)
+* Monitor: avoid sending invalid metrics | [ipfs/ipfs-cluster#1511](https://github.com/ipfs/ipfs-cluster/issues/1511)
+
+##### Other changes
+
+* Performance improvements to state list and logging for large states | [ipfs/ipfs-cluster#1510](https://github.com/ipfs/ipfs-cluster/issues/1510)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+No changes.
+
+##### Go APIs
+
+No changes.
+
+##### Other
+
+`ipfs-cluster-service state import` has new `rmin`, `rmax` and `allocations`
+flags. See `ipfs-cluster-service state import --help` for more information.
+
+---
+
 ### v0.14.2 - 2021-12-09
 
 This is a minor IPFS Cluster release focused on providing features for
