@@ -484,9 +484,13 @@ By default, the state will be printed to stdout.
 							w, err = os.Create(outputPath)
 							checkErr("creating output file", err)
 						}
-						defer w.Close()
 
-						checkErr("exporting state", mgr.ExportState(w))
+						buf := bufio.NewWriter(w)
+						defer func() {
+							buf.Flush()
+							w.Close()
+						}()
+						checkErr("exporting state", mgr.ExportState(buf))
 						logger.Info("state successfully exported")
 						return nil
 					},
@@ -554,7 +558,9 @@ to import. If no argument is provided, stdin will be used.
 						}
 						defer r.Close()
 
-						checkErr("importing state", mgr.ImportState(r, opts))
+						buf := bufio.NewReader(r)
+
+						checkErr("importing state", mgr.ImportState(buf, opts))
 						logger.Info("state successfully imported.  Make sure all peers have consistent states")
 						return nil
 					},
