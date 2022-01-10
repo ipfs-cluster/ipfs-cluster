@@ -408,7 +408,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	case api.TrackerStatusUnpinned:
 		// The item is in the state but not in IPFS:
 		// PinError. Should be pinned.
-		pinInfo.Status = api.TrackerStatusPinError
+		pinInfo.Status = api.TrackerStatusUnexpectedlyUnpinned
 		pinInfo.Error = errUnexpectedlyUnpinned.Error()
 	default:
 		pinInfo.Status = ipfsStatus

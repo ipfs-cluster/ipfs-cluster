@@ -456,7 +456,7 @@ func TestStatus(t *testing.T) {
 	// Status needs to return:
 	// * For slowCid1: A slow CID pinning
 	// * For Cid1: pinned
-	// * For Cid4: pin error
+	// * For Cid4: unexpectedly_unpinned
 
 	st := spt.Status(ctx, test.Cid1)
 	if st.Status != api.TrackerStatusPinned {
@@ -464,8 +464,8 @@ func TestStatus(t *testing.T) {
 	}
 
 	st = spt.Status(ctx, test.Cid4)
-	if st.Status != api.TrackerStatusPinError {
-		t.Error("cid2 should be in pin_error status")
+	if st.Status != api.TrackerStatusUnexpectedlyUnpinned {
+		t.Error("cid2 should be in unexpectedly_unpinned status")
 	}
 
 	st = spt.Status(ctx, test.SlowCid1)
