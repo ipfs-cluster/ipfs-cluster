@@ -38,7 +38,7 @@ require (
 	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
 	github.com/ipfs/go-path v0.1.2
 	github.com/ipfs/go-unixfs v0.3.1
-	github.com/ipld/go-car v0.3.2
+	github.com/ipld/go-car v0.3.3
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
@@ -123,7 +123,7 @@ require (
 	github.com/ipfs/go-blockservice v0.2.1 // indirect
 	github.com/ipfs/go-cidutil v0.0.2 // indirect
 	github.com/ipfs/go-fetcher v1.5.0 // indirect
-	github.com/ipfs/go-ipfs-blockstore v1.1.1 // indirect
+	github.com/ipfs/go-ipfs-blockstore v1.1.2 // indirect
 	github.com/ipfs/go-ipfs-delay v0.0.1 // indirect
 	github.com/ipfs/go-ipfs-exchange-interface v0.1.0 // indirect
 	github.com/ipfs/go-ipfs-exchange-offline v0.1.1 // indirect
@@ -137,7 +137,7 @@ require (
 	github.com/ipfs/go-verifcid v0.0.1 // indirect
 	github.com/ipfs/interface-go-ipfs-core v0.4.0 // indirect
 	github.com/ipld/go-codec-dagpb v1.3.0 // indirect
-	github.com/ipld/go-ipld-prime v0.12.3 // indirect
+	github.com/ipld/go-ipld-prime v0.14.3-0.20211207234443-319145880958 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
