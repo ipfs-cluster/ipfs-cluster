@@ -89,8 +89,13 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 }
 
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
-	t, _ := time.ParseDuration(jcfg.MetricTTL)
-	cfg.MetricTTL = t
+	err := config.ParseDurations(
+		cfg.ConfigKey(),
+		&config.DurationOpt{Duration: jcfg.MetricTTL, Dst: &cfg.MetricTTL, Name: "metric_ttl"},
+	)
+	if err != nil {
+		return err
+	}
 
 	cfg.Tags = jcfg.Tags
 
