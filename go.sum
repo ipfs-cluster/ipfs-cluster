@@ -391,8 +391,6 @@ github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477 h1:bLsrEmB2N
 github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477/go.mod h1:aUF6HQr8+t3FC/ZHAC+pZreUBhTaxumuu3L+d37uRxk=
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
-github.com/hsanjuan/ipfs-lite v1.1.24-0.20211130050123-ef6b521edcf6 h1:0VDnVBRmVLy9h4pBrmbb3LhoGe1ET1ByfJGdJf9BSg8=
-github.com/hsanjuan/ipfs-lite v1.1.24-0.20211130050123-ef6b521edcf6/go.mod h1:GFTbYa5fyFV0Z/2IVc8W7/Uus31xwtfICGZQT7dDhRw=
 github.com/hsanjuan/ipfs-lite v1.2.0 h1:bV/GIbftDF9ecqi7Wa2yxgAUwX2yh7Zfz/h3eiXrwHU=
 github.com/hsanjuan/ipfs-lite v1.2.0/go.mod h1:KsCU8h2aBeSCNffdNIZ4mVkEWgPgW/9WYyty2wGxhv0=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
@@ -533,8 +531,9 @@ github.com/ipfs/go-ipfs-util v0.0.2/go.mod h1:CbPtkWJzjLdEcezDns2XYaehFVNXG9zrdr
 github.com/ipfs/go-ipld-cbor v0.0.2/go.mod h1:wTBtrQZA3SoFKMVkp6cn6HMRteIB1VsmHA0AQFOn7Nc=
 github.com/ipfs/go-ipld-cbor v0.0.3/go.mod h1:wTBtrQZA3SoFKMVkp6cn6HMRteIB1VsmHA0AQFOn7Nc=
 github.com/ipfs/go-ipld-cbor v0.0.4/go.mod h1:BkCduEx3XBCO6t2Sfo5BaHzuok7hbhdMm9Oh8B2Ftq4=
-github.com/ipfs/go-ipld-cbor v0.0.5 h1:ovz4CHKogtG2KB/h1zUp5U0c/IzZrL435rCh5+K/5G8=
 github.com/ipfs/go-ipld-cbor v0.0.5/go.mod h1:BkCduEx3XBCO6t2Sfo5BaHzuok7hbhdMm9Oh8B2Ftq4=
+github.com/ipfs/go-ipld-cbor v0.0.6 h1:pYuWHyvSpIsOOLw4Jy7NbBkCyzLDcl64Bf/LZW7eBQ0=
+github.com/ipfs/go-ipld-cbor v0.0.6/go.mod h1:ssdxxaLJPXH7OjF5V4NSjBbcfh+evoR4ukuru0oPXMA=
 github.com/ipfs/go-ipld-format v0.0.1/go.mod h1:kyJtbkDALmFHv3QR6et67i35QzO3S0dCDnkOJhcZkms=
 github.com/ipfs/go-ipld-format v0.0.2/go.mod h1:4B6+FM2u9OJ9zCV+kSbgFAZlOrv1Hqbf0INGQgiKf9k=
 github.com/ipfs/go-ipld-format v0.2.0 h1:xGlJKkArkmBvowr+GMCX0FEZtkro71K1AwiKnL37mwA=

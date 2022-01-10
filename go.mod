@@ -30,7 +30,7 @@ require (
 	github.com/ipfs/go-ipfs-files v0.0.9
 	github.com/ipfs/go-ipfs-pinner v0.1.2
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
-	github.com/ipfs/go-ipld-cbor v0.0.5
+	github.com/ipfs/go-ipld-cbor v0.0.6
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-ipns v0.1.2
 	github.com/ipfs/go-log/v2 v2.3.0
