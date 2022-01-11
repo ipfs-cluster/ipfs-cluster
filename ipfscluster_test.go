@@ -1109,8 +1109,8 @@ func TestClustersRecoverAll(t *testing.T) {
 	}
 	delay()
 
-	if len(gInfos) != 2 {
-		t.Error("expected two items")
+	if len(gInfos) != 1 {
+		t.Error("expected one items")
 	}
 
 	for _, gInfo := range gInfos {

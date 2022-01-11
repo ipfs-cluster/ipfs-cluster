@@ -416,7 +416,8 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	return pinInfo
 }
 
-// RecoverAll attempts to recover all items tracked by this peer.
+// RecoverAll attempts to recover all items tracked by this peer. It returns
+// items that have been re-queued.
 func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/RecoverAll")
 	defer span.End()
@@ -434,9 +435,10 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 			if err != nil {
 				return resp, err
 			}
-			resp = append(resp, r)
+			if r != nil {
+				resp = append(resp, r)
+			}
 		}
-
 	}
 	return resp, nil
 }
@@ -447,13 +449,21 @@ func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Recover")
 	defer span.End()
 
-	// Check if we have a status in the operation tracker
+	// Check if we have a status in the operation tracker and use that
+	// pininfo. Otherwise, get a status by checking against IPFS and use
+	// that.
 	pi, ok := spt.optracker.GetExists(ctx, c)
-	if ok {
-		return spt.recoverWithPinInfo(ctx, pi)
+	if !ok {
+		pi = spt.Status(ctx, c)
 	}
-	// Get a status by checking against IPFS and use that.
-	return spt.recoverWithPinInfo(ctx, spt.Status(ctx, c))
+
+	recPi, err := spt.recoverWithPinInfo(ctx, pi)
+	// if it was not enqueued, no updated pin-info is returned.
+	// Use the one we had.
+	if recPi == nil {
+		recPi = pi
+	}
+	return recPi, err
 }
 
 func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*api.PinInfo, error) {
@@ -465,11 +475,16 @@ func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*a
 	case api.TrackerStatusUnpinError:
 		logger.Infof("Restarting unpin operation for %s", pi.Cid)
 		err = spt.enqueue(ctx, api.PinCid(pi.Cid), optracker.OperationUnpin)
+	default:
+		// We do not return any information when recover was a no-op
+		return nil, nil
 	}
 	if err != nil {
 		return spt.Status(ctx, pi.Cid), err
 	}
 
+	// This status call should be cheap as it would normally come from the
+	// optracker and does not need to hit ipfs.
 	return spt.Status(ctx, pi.Cid), nil
 }
 

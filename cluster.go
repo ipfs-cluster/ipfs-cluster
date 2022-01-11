@@ -1198,6 +1198,8 @@ func (c *Cluster) RecoverAll(ctx context.Context) ([]*api.GlobalPinInfo, error) 
 // is faster than calling Pin on the same CID as it avoids committing an
 // identical pin to the consensus layer.
 //
+// It returns the list of pins that were re-queued for pinning.
+//
 // RecoverAllLocal is called automatically every PinRecoverInterval.
 func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]*api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
