@@ -332,25 +332,8 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 			args{
 				testStatelessPinTracker(t),
 			},
+			// The only CID to recover is test.Cid4 which is in error.
 			[]*api.PinInfo{
-				{
-					Cid: test.Cid1,
-					PinInfoShort: api.PinInfoShort{
-						Status: api.TrackerStatusPinned,
-					},
-				},
-				{
-					Cid: test.Cid2,
-					PinInfoShort: api.PinInfoShort{
-						Status: api.TrackerStatusRemote,
-					},
-				},
-				{
-					Cid: test.Cid3,
-					PinInfoShort: api.PinInfoShort{
-						Status: api.TrackerStatusRemote,
-					},
-				},
 				{
 					// This will recover and status
 					// is ignored as it could come back as

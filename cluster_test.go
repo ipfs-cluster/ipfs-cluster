@@ -62,6 +62,9 @@ func (ipfs *mockConnector) ID(ctx context.Context) (*api.IPFSID, error) {
 }
 
 func (ipfs *mockConnector) Pin(ctx context.Context, pin *api.Pin) error {
+	if pin.Cid == test.ErrorCid {
+		return errors.New("trying to pin ErrorCid")
+	}
 	ipfs.pins.Store(pin.Cid.String(), pin.MaxDepth)
 	return nil
 }
@@ -935,7 +938,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	defer cleanState()
 	defer cl.Shutdown(ctx)
 
-	_, err := cl.Pin(ctx, test.Cid1, api.PinOptions{})
+	_, err := cl.Pin(ctx, test.ErrorCid, api.PinOptions{})
 	if err != nil {
 		t.Fatal("pin should have worked:", err)
 	}
@@ -947,11 +950,9 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 		t.Error("did not expect an error")
 	}
 	if len(recov) != 1 {
-		t.Fatalf("there should be only one pin, got = %d", len(recov))
+		t.Fatalf("there should be one pin recovered, got = %d", len(recov))
 	}
-	if recov[0].Status != api.TrackerStatusPinned {
-		t.Errorf("the pin should have been recovered, got = %v", recov[0].Status)
-	}
+	// Recovery will fail, but the pin appearing in the response is good enough to know it was requeued.
 }
 
 func TestClusterRepoGC(t *testing.T) {

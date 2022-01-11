@@ -124,7 +124,8 @@ type PinTracker interface {
 	StatusAll(context.Context, api.TrackerStatus) []*api.PinInfo
 	// Status returns the local status of a given Cid.
 	Status(context.Context, cid.Cid) *api.PinInfo
-	// RecoverAll calls Recover() for all pins tracked.
+	// RecoverAll calls Recover() for all pins tracked. Returns only
+	// informations for retriggered pins.
 	RecoverAll(context.Context) ([]*api.PinInfo, error)
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
 	Recover(context.Context, cid.Cid) (*api.PinInfo, error)
