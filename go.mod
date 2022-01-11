@@ -42,16 +42,16 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
-	github.com/libp2p/go-libp2p v0.16.0
+	github.com/libp2p/go-libp2p v0.17.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.11.0
+	github.com/libp2p/go-libp2p-core v0.13.0
 	github.com/libp2p/go-libp2p-gorpc v0.1.3
 	github.com/libp2p/go-libp2p-gostream v0.3.1
 	github.com/libp2p/go-libp2p-http v0.2.1
 	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-noise v0.3.0
-	github.com/libp2p/go-libp2p-peerstore v0.4.0
+	github.com/libp2p/go-libp2p-peerstore v0.6.0
 	github.com/libp2p/go-libp2p-pubsub v0.6.0
 	github.com/libp2p/go-libp2p-quic-transport v0.15.2
 	github.com/libp2p/go-libp2p-raft v0.1.8
@@ -152,8 +152,8 @@ require (
 	github.com/libp2p/go-eventbus v0.2.1 // indirect
 	github.com/libp2p/go-flow-metrics v0.0.3 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.1.0 // indirect
-	github.com/libp2p/go-libp2p-autonat v0.6.0 // indirect
-	github.com/libp2p/go-libp2p-blankhost v0.2.0 // indirect
+	github.com/libp2p/go-libp2p-autonat v0.7.0 // indirect
+	github.com/libp2p/go-libp2p-blankhost v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-discovery v0.6.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.4.7 // indirect
 	github.com/libp2p/go-libp2p-loggables v0.1.0 // indirect
@@ -161,9 +161,9 @@ require (
 	github.com/libp2p/go-libp2p-nat v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-pnet v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-routing-helpers v0.2.3 // indirect
-	github.com/libp2p/go-libp2p-swarm v0.8.0 // indirect
-	github.com/libp2p/go-libp2p-transport-upgrader v0.5.0 // indirect
-	github.com/libp2p/go-libp2p-yamux v0.6.0 // indirect
+	github.com/libp2p/go-libp2p-swarm v0.9.0 // indirect
+	github.com/libp2p/go-libp2p-transport-upgrader v0.6.0 // indirect
+	github.com/libp2p/go-libp2p-yamux v0.7.0 // indirect
 	github.com/libp2p/go-maddr-filter v0.1.0 // indirect
 	github.com/libp2p/go-mplex v0.3.0 // indirect
 	github.com/libp2p/go-msgio v0.1.0 // indirect
