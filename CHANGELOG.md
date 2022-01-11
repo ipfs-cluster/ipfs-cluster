@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v0.14.4 - 2022-01-12
+### v0.14.4 - 2022-01-11
 
 This is a minor IPFS Cluster release with additional performance improvements.
 
@@ -17,6 +17,7 @@ pressure on the IPFS daemon and speeding up the operation.
 
 ##### Features
 
+No new features.
 
 ##### Bug fixes
 
