@@ -1,5 +1,59 @@
 # IPFS Cluster Changelog
 
+### v0.14.4 - 2022-01-12
+
+This is a minor IPFS Cluster release with additional performance improvements.
+
+On one side, we have improved branch pruning when syncing CRDT dags. This
+should improve the time it takes for a peer to sync the pinset when joining a
+high-activity cluster, where branching happens often.
+
+On the other side, we have improved how Cluster finds and re-triggers pinning
+operations for items that failed to pin previously, heavily reducing the
+pressure on the IPFS daemon and speeding up the operation.
+
+
+#### List of changes
+
+##### Features
+
+
+##### Bug fixes
+
+* Improved pruning on crdt-sync | [ipfs/ipfs-cluster#1541](https://github.com/ipfs/ipfs-cluster/issues/1541)
+* Pintracker: avoid pin/ls for every item | [ipfs/ipfs-cluster#1538](https://github.com/ipfs/ipfs-cluster/issues/1538)
+* Pintracker: set unexpectedly_unpinned status correctly | [ipfs/ipfs-cluster#1537](https://github.com/ipfs/ipfs-cluster/issues/1537)
+* Tags informer: TTL should be default when not provided | [ipfs/ipfs-cluster#1519](https://github.com/ipfs/ipfs-cluster/issues/1519)
+
+##### Other changes
+
+* ipfs-cluster-service: buffered i/o on state import/export | [ipfs/ipfs-cluster#1517](https://github.com/ipfs/ipfs-cluster/issues/1517)
+* Dependency upgrades, go-libp2p v0.17.0 | 1540
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+The `/pins/recover` (RecoverAll) endpoint now only returns items that have
+been re-queued for pinning (because they were in error). Before, it returned
+all items in the state (similar to the `/pins` endpoint, but at a huge perf
+impact with large pinsets).
+
+##### Go APIs
+
+No changes.
+
+##### Other
+
+`ipfs-cluster-ctl recover` only returns items that have been re-queued (see
+REST APIs above).
+
+---
+
 ### v0.14.3 - 2022-01-03
 
 This is a minor IPFS Cluster release with some performance improvements and
