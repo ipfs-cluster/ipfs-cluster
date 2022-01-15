@@ -357,7 +357,6 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
 		minTTL, err := c.sendInformerMetrics(ctx, informer)
 		if minTTL == 0 {
 			minTTL = 30 * time.Second
-			logger.Warningf("informer %s reported a min metric ttl of 0s.", informer.Name())
 		}
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
