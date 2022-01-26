@@ -142,6 +142,12 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 
 	total := 0
 	for r := range results.Next() {
+		// Abort if we shutdown.
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		if r.Error != nil {
 			logger.Errorf("error in query result: %s", r.Error)
 			return pins, r.Error
