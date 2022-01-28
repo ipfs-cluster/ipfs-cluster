@@ -973,13 +973,13 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 				t.Error("erroring status should be ClusterError:", pinfo.Status)
 			}
 
-			// if pinfo.PeerName != "peer_1" {
-			// 	t.Error("peername should have been set in the erroring peer too from the cache")
-			// }
+			if pinfo.PeerName != "peer_1" {
+				t.Error("peername should have been set in the erroring peer too from the cache")
+			}
 
-			// if pinfo.IPFS != test.PeerID1 {
-			// 	t.Error("IPFS ID should have been set in the erroring peer too from the cache")
-			// }
+			if pinfo.IPFS != test.PeerID1 {
+				t.Error("IPFS ID should have been set in the erroring peer too from the cache")
+			}
 		case "crdt":
 			// CRDT will not have contacted the offline peer because
 			// its metric expired and therefore is not in the

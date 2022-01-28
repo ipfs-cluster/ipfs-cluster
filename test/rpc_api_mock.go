@@ -52,11 +52,7 @@ func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var pid peer.ID
-	if h != nil {
-		pid = h.ID()
-	}
-	err = s.RegisterName("PeerMonitor", &mockPeerMonitor{pid: pid})
+	err = s.RegisterName("PeerMonitor", &mockPeerMonitor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,9 +64,7 @@ type mockCluster struct{}
 type mockPinTracker struct{}
 type mockIPFSConnector struct{}
 type mockConsensus struct{}
-type mockPeerMonitor struct {
-	pid peer.ID
-}
+type mockPeerMonitor struct{}
 
 func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
 	if in.Cid.Equals(ErrorCid) {

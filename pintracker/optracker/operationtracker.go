@@ -145,6 +145,7 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 		return api.PinInfo{
 			Cid:  cid.Undef,
 			Peer: opt.pid,
+			Name: "",
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     opt.peerName,
 				IPFS:         "",
@@ -159,6 +160,7 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 	return api.PinInfo{
 		Cid:  op.Cid(),
 		Peer: opt.pid,
+		Name: op.Pin().Name,
 		PinInfoShort: api.PinInfoShort{
 			PeerName:     opt.peerName,
 			IPFS:         "",

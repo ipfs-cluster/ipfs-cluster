@@ -198,7 +198,7 @@ const (
 // IPFSPinStatus represents the status of a pin in IPFS (direct, recursive etc.)
 type IPFSPinStatus int
 
-// IPFSPinStatusFromString parses a strixng and returns the matching
+// IPFSPinStatusFromString parses a string and returns the matching
 // IPFSPinStatus.
 func IPFSPinStatusFromString(t string) IPFSPinStatus {
 	// Since indirect statuses are of the form "indirect through <cid>"
