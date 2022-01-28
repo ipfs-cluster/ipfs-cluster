@@ -72,7 +72,7 @@ func New(
 	ctx, cancel := context.WithCancel(ctx)
 
 	mtrs := metrics.NewStore()
-	checker := metrics.NewChecker(ctx, mtrs, cfg.FailureThreshold)
+	checker := metrics.NewChecker(ctx, mtrs)
 
 	topic, err := psub.Join(PubsubTopic)
 	if err != nil {
@@ -259,6 +259,12 @@ func (mon *Monitor) LatestMetrics(ctx context.Context, name string) []*api.Metri
 	}
 
 	return metrics.PeersetFilter(latest, peers)
+}
+
+// LatestForPeer returns the latest metric received for a peer (it may have
+// expired). It returns nil if no metric exists.
+func (mon *Monitor) LatestForPeer(ctx context.Context, name string, pid peer.ID) *api.Metric {
+	return mon.metrics.PeerLatest(name, pid)
 }
 
 // Alerts returns a channel on which alerts are sent when the

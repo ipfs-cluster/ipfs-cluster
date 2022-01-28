@@ -14,8 +14,7 @@ const envConfigKey = "cluster_pubsubmon"
 
 // Default values for this Config.
 const (
-	DefaultCheckInterval    = 15 * time.Second
-	DefaultFailureThreshold = 3.0
+	DefaultCheckInterval = 15 * time.Second
 )
 
 // Config allows to initialize a Monitor and customize some parameters.
@@ -23,15 +22,10 @@ type Config struct {
 	config.Saver
 
 	CheckInterval time.Duration
-	// FailureThreshold indicates when a peer should be considered failed.
-	// The greater the threshold value the more leniency is granted.
-	// A value between 2.0 and 4.0 is suggested for the threshold.
-	FailureThreshold float64
 }
 
 type jsonConfig struct {
-	CheckInterval    string   `json:"check_interval"`
-	FailureThreshold *float64 `json:"failure_threshold"`
+	CheckInterval string `json:"check_interval"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -42,7 +36,6 @@ func (cfg *Config) ConfigKey() string {
 // Default sets the fields of this Config to sensible values.
 func (cfg *Config) Default() error {
 	cfg.CheckInterval = DefaultCheckInterval
-	cfg.FailureThreshold = DefaultFailureThreshold
 	return nil
 }
 
@@ -66,10 +59,6 @@ func (cfg *Config) Validate() error {
 		return errors.New("pubsubmon.check_interval too low")
 	}
 
-	if cfg.FailureThreshold <= 0 {
-		return errors.New("pubsubmon.failure_threshold too low")
-	}
-
 	return nil
 }
 
@@ -91,9 +80,6 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 	interval, _ := time.ParseDuration(jcfg.CheckInterval)
 	cfg.CheckInterval = interval
-	if jcfg.FailureThreshold != nil {
-		cfg.FailureThreshold = *jcfg.FailureThreshold
-	}
 
 	return cfg.Validate()
 }
@@ -107,8 +93,7 @@ func (cfg *Config) ToJSON() ([]byte, error) {
 
 func (cfg *Config) toJSONConfig() *jsonConfig {
 	return &jsonConfig{
-		CheckInterval:    cfg.CheckInterval.String(),
-		FailureThreshold: &cfg.FailureThreshold,
+		CheckInterval: cfg.CheckInterval.String(),
 	}
 }
 

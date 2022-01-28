@@ -25,18 +25,12 @@ var MaxAlertThreshold = 1
 // ErrAlertChannelFull is returned if the alert channel is full.
 var ErrAlertChannelFull = errors.New("alert channel is full")
 
-// accrualMetricsNum represents the number metrics required for
-// accrual to function appropriately, and under which we use
-// TTL to determine whether a peer may have failed.
-var accrualMetricsNum = 6
-
 // Checker provides utilities to find expired metrics
 // for a given peerset and send alerts if it proceeds to do so.
 type Checker struct {
-	ctx       context.Context
-	alertCh   chan *api.Alert
-	metrics   *Store
-	threshold float64
+	ctx     context.Context
+	alertCh chan *api.Alert
+	metrics *Store
 
 	failedPeersMu sync.Mutex
 	failedPeers   map[peer.ID]map[string]int
@@ -48,12 +42,11 @@ type Checker struct {
 // The greater the threshold value the more leniency is granted.
 //
 // A value between 2.0 and 4.0 is suggested for the threshold.
-func NewChecker(ctx context.Context, metrics *Store, threshold float64) *Checker {
+func NewChecker(ctx context.Context, metrics *Store) *Checker {
 	return &Checker{
 		ctx:         ctx,
 		alertCh:     make(chan *api.Alert, AlertChannelCap),
 		metrics:     metrics,
-		threshold:   threshold,
 		failedPeers: make(map[peer.ID]map[string]int),
 	}
 }
@@ -168,36 +161,6 @@ func (mc *Checker) Watch(ctx context.Context, peersF func(context.Context) ([]pe
 
 // FailedMetric returns if a peer is marked as failed for a particular metric.
 func (mc *Checker) FailedMetric(metric string, pid peer.ID) bool {
-	_, _, _, result := mc.failed(metric, pid)
-	return result
-}
-
-// failed returns all the values involved in making the decision
-// as to whether a peer has failed or not. The debugging parameter
-// enables a more computation heavy path of the function but
-// allows for insight into the return phi value.
-func (mc *Checker) failed(metric string, pid peer.ID) (float64, []float64, float64, bool) {
 	latest := mc.metrics.PeerLatest(metric, pid)
-	if latest == nil {
-		return 0.0, nil, 0.0, true
-	}
-
-	// A peer is never failed if the latest metric from it has
-	// not expired or we do not have enough number of metrics
-	// for accrual detection
-	if !latest.Expired() {
-		return 0.0, nil, 0.0, false
-	}
-	// The latest metric has expired
-
-	pmtrs := mc.metrics.PeerMetricAll(metric, pid)
-	// Not enough values for accrual and metric expired. Peer failed.
-	if len(pmtrs) < accrualMetricsNum {
-		return 0.0, nil, 0.0, true
-	}
-
-	v := time.Now().UnixNano() - latest.ReceivedAt
-	dv := mc.metrics.Distribution(metric, pid)
-	phiv := phi(float64(v), dv)
-	return float64(v), dv, phiv, phiv >= mc.threshold
+	return latest.Expired()
 }
