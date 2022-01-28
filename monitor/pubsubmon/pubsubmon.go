@@ -206,6 +206,9 @@ func (mon *Monitor) LogMetric(ctx context.Context, m *api.Metric) error {
 
 	mon.metrics.Add(m)
 	debug("logged", m)
+	if !m.Discard() { // We received a valid metric so avoid alerting.
+		mon.checker.ResetAlerts(m.Peer, m.Name)
+	}
 	return nil
 }
 

@@ -84,6 +84,22 @@ func (mc *Checker) CheckAll() error {
 	return nil
 }
 
+// ResetAlerts clears up how many time a peer alerted for a given metric.
+// Thus, if it was over the threshold, it will start alerting again.
+func (mc *Checker) ResetAlerts(pid peer.ID, metricName string) {
+	mc.failedPeersMu.Lock()
+	defer mc.failedPeersMu.Unlock()
+
+	failedMetrics, ok := mc.failedPeers[pid]
+	if !ok {
+		return
+	}
+	delete(failedMetrics, metricName)
+	if len(mc.failedPeers[pid]) == 0 {
+		delete(mc.failedPeers, pid)
+	}
+}
+
 func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	mc.failedPeersMu.Lock()
 	defer mc.failedPeersMu.Unlock()
@@ -100,18 +116,18 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 		}
 	}
 
-	// If above threshold, remove all metrics for that peer
-	// and clean up failedPeers when no failed metrics are left.
-	if failedMetrics[metricName] >= MaxAlertThreshold {
-		mc.metrics.RemovePeerMetrics(pid, metricName)
-		delete(failedMetrics, metricName)
-		if len(mc.failedPeers[pid]) == 0 {
-			delete(mc.failedPeers, pid)
+	failedMetrics[metricName]++
+	// If above threshold, do not send alert
+	if failedMetrics[metricName] > MaxAlertThreshold {
+		// Cleanup old metrics eventually
+		if failedMetrics[metricName] >= 300 {
+			delete(failedMetrics, metricName)
+			if len(mc.failedPeers[pid]) == 0 {
+				delete(mc.failedPeers, pid)
+			}
 		}
 		return nil
 	}
-
-	failedMetrics[metricName]++
 
 	alrt := &api.Alert{
 		Metric:      *lastMetric,
