@@ -2,12 +2,14 @@ package ipfscluster
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	blake2b "golang.org/x/crypto/blake2b"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -156,4 +158,25 @@ func peersSubtract(a []peer.ID, b []peer.ID) []peer.ID {
 	}
 
 	return result
+}
+
+// pingValue describes the value carried by ping metrics
+type pingValue struct {
+	Peername string  `json:"peer_name,omitempty"`
+	IPFSID   peer.ID `json:"ipfs_id,omitempty"`
+}
+
+// Valid returns true if the PingValue has IPFSID set.
+func (pv pingValue) Valid() bool {
+	return pv.IPFSID != ""
+}
+
+// PingValue from metric parses a ping value from the value of a given metric,
+// if possible.
+func pingValueFromMetric(m *api.Metric) (pv pingValue) {
+	if m == nil {
+		return
+	}
+	json.Unmarshal([]byte(m.Value), &pv)
+	return
 }

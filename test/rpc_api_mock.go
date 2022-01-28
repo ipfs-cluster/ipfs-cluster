@@ -52,7 +52,11 @@ func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s.RegisterName("PeerMonitor", &mockPeerMonitor{})
+	var pid peer.ID
+	if h != nil {
+		pid = h.ID()
+	}
+	err = s.RegisterName("PeerMonitor", &mockPeerMonitor{pid: pid})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +68,9 @@ type mockCluster struct{}
 type mockPinTracker struct{}
 type mockIPFSConnector struct{}
 type mockConsensus struct{}
-type mockPeerMonitor struct{}
+type mockPeerMonitor struct {
+	pid peer.ID
+}
 
 func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
 	if in.Cid.Equals(ErrorCid) {
@@ -163,7 +169,7 @@ func (mock *mockCluster) ID(ctx context.Context, in struct{}, out *api.ID) error
 		ID: PeerID1,
 		//PublicKey: pubkey,
 		Version: "0.0.mock",
-		IPFS: &api.IPFSID{
+		IPFS: api.IPFSID{
 			ID:        PeerID1,
 			Addresses: []api.Multiaddr{addr},
 		},
@@ -372,6 +378,11 @@ func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Ale
 			TriggeredAt: time.Now(),
 		},
 	}
+	return nil
+}
+
+func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
+	*out = PeerID1
 	return nil
 }
 

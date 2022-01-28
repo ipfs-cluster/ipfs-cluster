@@ -88,7 +88,7 @@ func newRPCServer(c *Cluster) (*rpc.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	pm := &PeerMonitorRPCAPI{c.monitor}
+	pm := &PeerMonitorRPCAPI{mon: c.monitor, pid: c.id}
 	err = s.RegisterName(RPCServiceID(pm), pm)
 	if err != nil {
 		return nil, err
@@ -142,6 +142,7 @@ type ConsensusRPCAPI struct {
 // internal peer API for the PeerMonitor component.
 type PeerMonitorRPCAPI struct {
 	mon PeerMonitor
+	pid peer.ID
 }
 
 /*
@@ -423,6 +424,12 @@ func (rpcapi *ClusterRPCAPI) SendInformersMetrics(ctx context.Context, in struct
 func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *[]api.Alert) error {
 	alerts := rpcapi.c.Alerts()
 	*out = alerts
+	return nil
+}
+
+// IPFSID returns the current cached IPFS ID.
+func (rpcapi *ClusterRPCAPI) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
+	*out = rpcapi.c.curPingVal.IPFSID
 	return nil
 }
 

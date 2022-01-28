@@ -872,6 +872,12 @@ func TestClustersStatusAll(t *testing.T) {
 			t.Error("bad info in status")
 		}
 
+		for _, pi := range info {
+			if pi.IPFS != test.PeerID1 {
+				t.Error("ipfs not set in pin status")
+			}
+		}
+
 		pid := peer.Encode(c.host.ID())
 		if info[pid].Status != api.TrackerStatusPinned {
 			t.Error("the hash should have been pinned")
@@ -947,6 +953,13 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			if errst.Status != api.TrackerStatusClusterError {
 				t.Error("erroring status should be set to ClusterError:", errst.Status)
 			}
+			if errst.PeerName != "peer_1" {
+				t.Error("peername should have been set in the erroring peer too from the cache")
+			}
+
+			if errst.IPFS != test.PeerID1 {
+				t.Error("IPFS ID should have been set in the erroring peer too from the cache")
+			}
 
 			// now check with Cid status
 			status, err := c.Status(ctx, h)
@@ -959,6 +972,14 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			if pinfo.Status != api.TrackerStatusClusterError {
 				t.Error("erroring status should be ClusterError:", pinfo.Status)
 			}
+
+			// if pinfo.PeerName != "peer_1" {
+			// 	t.Error("peername should have been set in the erroring peer too from the cache")
+			// }
+
+			// if pinfo.IPFS != test.PeerID1 {
+			// 	t.Error("IPFS ID should have been set in the erroring peer too from the cache")
+			// }
 		case "crdt":
 			// CRDT will not have contacted the offline peer because
 			// its metric expired and therefore is not in the

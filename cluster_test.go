@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"context"
 	"errors"
-	"fmt"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -916,8 +915,6 @@ func TestClusterPeers(t *testing.T) {
 	}
 
 	if peers[0].ID != ident.ID {
-		fmt.Println(peers[0].ID)
-		fmt.Println(ident.ID)
 		t.Error("bad member")
 	}
 }
