@@ -27,6 +27,7 @@ func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
 	cfg.Default()
 	cfg.NodeAddr = nodeMAddr
 	cfg.ConnectSwarmsDelay = 0
+	cfg.InformerTriggerInterval = 10
 
 	ipfs, err := NewConnector(cfg)
 	if err != nil {

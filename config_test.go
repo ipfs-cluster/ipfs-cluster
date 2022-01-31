@@ -112,7 +112,8 @@ var testingIpfsCfg = []byte(`{
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
     "pin_timeout": "30s",
-    "unpin_timeout": "15s"
+    "unpin_timeout": "15s",
+    "informer_trigger_interval": 10
 }`)
 
 var testingTrackerCfg = []byte(`

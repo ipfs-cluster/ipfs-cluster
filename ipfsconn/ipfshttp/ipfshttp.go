@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -41,11 +42,6 @@ var DNSTimeout = 5 * time.Second
 
 var logger = logging.Logger("ipfshttp")
 
-// updateMetricsMod only makes updates to informer metrics
-// on the nth occasion. So, for example, for every BlockPut,
-// only the 10th will trigger a SendInformerMetrics call.
-var updateMetricMod = 10
-
 // Connector implements the IPFSConnector interface
 // and provides a component which  is used to perform
 // on-demand requests against the configured IPFS daemom
@@ -62,8 +58,7 @@ type Connector struct {
 
 	client *http.Client // client to ipfs daemon
 
-	updateMetricMutex sync.Mutex
-	updateMetricCount int
+	updateMetricCount uint64
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -970,11 +965,12 @@ func (ipfs *Connector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) 
 // Returns true every updateMetricsMod-th time that we
 // call this function.
 func (ipfs *Connector) shouldUpdateMetric() bool {
-	ipfs.updateMetricMutex.Lock()
-	defer ipfs.updateMetricMutex.Unlock()
-	ipfs.updateMetricCount++
-	if ipfs.updateMetricCount%updateMetricMod == 0 {
-		ipfs.updateMetricCount = 0
+	if ipfs.config.InformerTriggerInterval <= 0 {
+		return false
+	}
+	curCount := atomic.AddUint64(&ipfs.updateMetricCount, 1)
+	if curCount%uint64(ipfs.config.InformerTriggerInterval) == 0 {
+		atomic.StoreUint64(&ipfs.updateMetricCount, 0)
 		return true
 	}
 	return false
