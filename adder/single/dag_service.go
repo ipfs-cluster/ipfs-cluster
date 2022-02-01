@@ -53,12 +53,28 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 		if err != nil {
 			return err
 		}
+
 		dgs.dests = dests
 
 		if dgs.local {
+			// If this is a local pin, make sure that the local peer is
+			// among the allocations.
+			localPid := dgs.rpcClient.ID()
+			hasLocal := false
+			for _, d := range dests {
+				if d == localPid {
+					hasLocal = true
+					break
+				}
+			}
+			if !hasLocal && localPid != "" {
+				// replace last allocation with local peer
+				dgs.dests[len(dgs.dests)-1] = localPid
+			}
+
 			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""})
 		} else {
-			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dests)
+			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dgs.dests)
 		}
 	}
 
