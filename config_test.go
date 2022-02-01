@@ -35,7 +35,7 @@ var testingClusterCfg = []byte(`{
     "state_sync_interval": "1m0s",
     "pin_recover_interval": "1m0s",
     "replication_factor": -1,
-    "monitor_ping_interval": "1s",
+    "monitor_ping_interval": "250ms",
     "peer_watch_interval": "1s",
     "disable_repinning": false,
     "mdns_interval": "0s"

@@ -311,26 +311,3 @@ func TestPeerMonitorAlerts(t *testing.T) {
 		}
 	}
 }
-
-func TestMetricsGetsDeleted(t *testing.T) {
-	ctx := context.Background()
-
-	pm, _, shutdown := testPeerMonitor(t)
-	defer shutdown()
-	mf := newMetricFactory()
-
-	pm.LogMetric(ctx, mf.newMetric("test", test.PeerID1))
-	metrics := pm.metrics.PeerMetrics(test.PeerID1)
-	if len(metrics) == 0 {
-		t.Error("expected metrics")
-	}
-
-	// TODO: expiry time + checkInterval is 7 sec
-	// Why does it need 9 or more?
-	time.Sleep(9 * time.Second)
-
-	metrics = pm.metrics.PeerMetrics(test.PeerID1)
-	if len(metrics) > 0 {
-		t.Error("expected no metrics")
-	}
-}

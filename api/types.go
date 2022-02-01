@@ -286,6 +286,7 @@ func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
 // objects and does not carry redundant information as PinInfo would.
 type PinInfoShort struct {
 	PeerName     string        `json:"peername" codec:"pn,omitempty"`
+	IPFS         peer.ID       `json:"ipfs_peer_id,omitempty" codec:"i,omitempty"`
 	Status       TrackerStatus `json:"status" codec:"st,omitempty"`
 	TS           time.Time     `json:"timestamp" codec:"ts,omitempty"`
 	Error        string        `json:"error" codec:"e,omitempty"`
@@ -298,7 +299,7 @@ type PinInfoShort struct {
 type PinInfo struct {
 	Cid  cid.Cid `json:"cid" codec:"c"`
 	Name string  `json:"name" codec:"m,omitempty"`
-	Peer peer.ID `json:"Peer" codec:"p,omitempty"`
+	Peer peer.ID `json:"peer" codec:"p,omitempty"`
 
 	PinInfoShort
 }
@@ -400,7 +401,7 @@ type ID struct {
 	Commit                string      `json:"commit" codec:"c,omitempty"`
 	RPCProtocolVersion    protocol.ID `json:"rpc_protocol_version" codec:"rv,omitempty"`
 	Error                 string      `json:"error" codec:"e,omitempty"`
-	IPFS                  *IPFSID     `json:"ipfs,omitempty" codec:"ip,omitempty"`
+	IPFS                  IPFSID      `json:"ipfs,omitempty" codec:"ip,omitempty"`
 	Peername              string      `json:"peername" codec:"pn,omitempty"`
 	//PublicKey          crypto.PubKey
 }

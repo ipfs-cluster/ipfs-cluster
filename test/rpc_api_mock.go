@@ -163,7 +163,7 @@ func (mock *mockCluster) ID(ctx context.Context, in struct{}, out *api.ID) error
 		ID: PeerID1,
 		//PublicKey: pubkey,
 		Version: "0.0.mock",
-		IPFS: &api.IPFSID{
+		IPFS: api.IPFSID{
 			ID:        PeerID1,
 			Addresses: []api.Multiaddr{addr},
 		},
@@ -372,6 +372,11 @@ func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Ale
 			TriggeredAt: time.Now(),
 		},
 	}
+	return nil
+}
+
+func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
+	*out = PeerID1
 	return nil
 }
 

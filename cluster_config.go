@@ -121,9 +121,10 @@ type Config struct {
 	// possible.
 	ReplicationFactorMin int
 
-	// MonitorPingInterval is the frequency with which a cluster peer pings
-	// the monitoring component. The ping metric has a TTL set to the double
-	// of this value.
+	// MonitorPingInterval is the frequency with which a cluster peer
+	// sends a "ping" metric. The metric has a TTL set to the double of
+	// this value. This metric sends information about this peer to other
+	// peers.
 	MonitorPingInterval time.Duration
 
 	// PeerWatchInterval is the frequency that we use to watch for changes

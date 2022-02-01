@@ -110,11 +110,7 @@ func (op *Operation) String() string {
 
 // Cid returns the Cid associated to this operation.
 func (op *Operation) Cid() cid.Cid {
-	var c cid.Cid
-	op.mu.RLock()
-	c = op.pin.Cid
-	op.mu.RUnlock()
-	return c
+	return op.pin.Cid
 }
 
 // Context returns the context associated to this operation.

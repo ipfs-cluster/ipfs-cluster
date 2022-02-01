@@ -80,7 +80,26 @@ func New(cfg *Config, pid peer.ID, peerName string, getState func(ctx context.Co
 		go spt.opWorker(spt.pin, spt.priorityPinCh, spt.pinCh)
 	}
 	go spt.opWorker(spt.unpin, spt.unpinCh, nil)
+
 	return spt
+}
+
+// we can get our IPFS id from our own monitor ping metrics which
+// are refreshed regularly.
+func (spt *Tracker) getIPFSID(ctx context.Context) peer.ID {
+	// Wait until RPC is ready
+	<-spt.rpcReady
+
+	var pid peer.ID
+	spt.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"IPFSID",
+		struct{}{},
+		&pid,
+	)
+	return pid
 }
 
 // receives a pin Function (pin or unpin) and channels.  Used for both pinning
@@ -225,7 +244,7 @@ func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.Opera
 // other components.
 func (spt *Tracker) SetClient(c *rpc.Client) {
 	spt.rpcClient = c
-	spt.rpcReady <- struct{}{}
+	close(spt.rpcReady)
 }
 
 // Shutdown finishes the services provided by the StatelessPinTracker
@@ -245,7 +264,6 @@ func (spt *Tracker) Shutdown(ctx context.Context) error {
 
 	logger.Info("stopping StatelessPinTracker")
 	spt.cancel()
-	close(spt.rpcReady)
 	spt.wg.Wait()
 	spt.shutdown = true
 	return nil
@@ -315,7 +333,9 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus) []*
 	// we cannot filter in GetAll, because we are meant to replace items in
 	// pininfos and set the correct status, as otherwise they will remain in
 	// PinError.
+	ipfsid := spt.getIPFSID(ctx)
 	for _, infop := range spt.optracker.GetAll(ctx) {
+		infop.IPFS = ipfsid
 		pininfos[infop.Cid] = infop
 	}
 
@@ -337,6 +357,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	// check if c has an inflight operation or errorred operation in optracker
 	if oppi, ok := spt.optracker.GetExists(ctx, c); ok {
 		// if it does return the status of the operation
+		oppi.IPFS = spt.getIPFSID(ctx)
 		return oppi
 	}
 
@@ -345,6 +366,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		Peer: spt.peerID,
 		PinInfoShort: api.PinInfoShort{
 			PeerName:     spt.peerName,
+			IPFS:         spt.getIPFSID(ctx),
 			TS:           time.Now(),
 			AttemptCount: 0,
 			PriorityPin:  false,
@@ -505,6 +527,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 		logger.Error(err)
 		return nil, err
 	}
+	ipfsid := spt.getIPFSID(ctx)
 	pins := make(map[cid.Cid]*api.PinInfo, len(ipsMap))
 	for cidstr, ips := range ipsMap {
 		c, err := cid.Decode(cidstr)
@@ -518,6 +541,7 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     spt.peerName,
+				IPFS:         ipfsid,
 				Status:       ips.ToTrackerStatus(),
 				TS:           time.Now(), // to be set later
 				AttemptCount: 0,
@@ -572,6 +596,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 	}
 
 	pininfos := make(map[cid.Cid]*api.PinInfo, len(statePins))
+	ipfsid := spt.getIPFSID(ctx)
 	for _, p := range statePins {
 		ipfsInfo, pinnedInIpfs := localpis[p.Cid]
 		// base pinInfo object - status to be filled.
@@ -581,6 +606,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			Peer: spt.peerID,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     spt.peerName,
+				IPFS:         ipfsid,
 				TS:           p.Timestamp,
 				AttemptCount: 0,
 				PriorityPin:  false,
