@@ -14,7 +14,8 @@ var cfgJSON = []byte(`
         "max_batch_size": 30,
         "max_batch_age": "5s",
         "max_queue_size": 150
-    }
+    },
+    "repair_interval": "1m"
 }
 `)
 
@@ -32,6 +33,9 @@ func TestLoadJSON(t *testing.T) {
 		cfg.Batching.MaxBatchAge != 5*time.Second ||
 		cfg.Batching.MaxQueueSize != 150 {
 		t.Error("Batching options were not parsed correctly")
+	}
+	if cfg.RepairInterval != time.Minute {
+		t.Error("repair interval not set")
 	}
 
 	cfg = &Config{}
@@ -118,6 +122,12 @@ func TestDefault(t *testing.T) {
 
 	cfg.Default()
 	cfg.Batching.MaxQueueSize = -3
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.RepairInterval = -3
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}

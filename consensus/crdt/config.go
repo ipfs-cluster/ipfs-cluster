@@ -26,6 +26,7 @@ var (
 	DefaultTrustedPeers         = []peer.ID{}
 	DefaultTrustAll             = true
 	DefaultBatchingMaxQueueSize = 50000
+	DefaultRepairInterval       = time.Hour
 )
 
 // BatchingConfig configures parameters for batching multiple pins in a single
@@ -78,6 +79,10 @@ type Config struct {
 	// All keys written to the datastore will be namespaced with this prefix
 	DatastoreNamespace string
 
+	// How often the underlying crdt store triggers a repair when the
+	// datastore is marked dirty.
+	RepairInterval time.Duration
+
 	// Tracing enables propagation of contexts across binary boundaries.
 	Tracing bool
 }
@@ -92,6 +97,7 @@ type jsonConfig struct {
 	ClusterName         string             `json:"cluster_name"`
 	TrustedPeers        []string           `json:"trusted_peers"`
 	Batching            batchingConfigJSON `json:"batching"`
+	RepairInterval      string             `json:"repair_interval"`
 	RebroadcastInterval string             `json:"rebroadcast_interval,omitempty"`
 
 	PeersetMetric      string `json:"peerset_metric,omitempty"`
@@ -119,6 +125,10 @@ func (cfg *Config) Validate() error {
 
 	if cfg.Batching.MaxQueueSize <= 0 {
 		return errors.New("crdt.batching.max_queue_size is invalid")
+	}
+
+	if cfg.RepairInterval < 0 {
+		return errors.New("crdt.repair_interval is invalid")
 	}
 	return nil
 }
@@ -165,6 +175,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		"crdt",
 		&config.DurationOpt{Duration: jcfg.RebroadcastInterval, Dst: &cfg.RebroadcastInterval, Name: "rebroadcast_interval"},
 		&config.DurationOpt{Duration: jcfg.Batching.MaxBatchAge, Dst: &cfg.Batching.MaxBatchAge, Name: "max_batch_age"},
+		&config.DurationOpt{Duration: jcfg.RepairInterval, Dst: &cfg.RepairInterval, Name: "repair_interval"},
 	)
 	return cfg.Validate()
 }
@@ -210,6 +221,8 @@ func (cfg *Config) toJSONConfig() *jsonConfig {
 		jcfg.RebroadcastInterval = cfg.RebroadcastInterval.String()
 	}
 
+	jcfg.RepairInterval = cfg.RepairInterval.String()
+
 	return jcfg
 }
 
@@ -226,6 +239,7 @@ func (cfg *Config) Default() error {
 		MaxBatchAge:  0,
 		MaxQueueSize: DefaultBatchingMaxQueueSize,
 	}
+	cfg.RepairInterval = DefaultRepairInterval
 	return nil
 }
 
