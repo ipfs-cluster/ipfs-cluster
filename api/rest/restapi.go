@@ -10,15 +10,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
 	"github.com/ipfs/ipfs-cluster/state"
+	"go.uber.org/multierr"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -505,6 +509,11 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
+	if queryValues.Get("cids") != "" {
+		api.statusCidsHandler(w, r)
+		return
+	}
+
 	local := queryValues.Get("local")
 
 	var globalPinInfos []*types.GlobalPinInfo
@@ -548,6 +557,80 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	api.SendResponse(w, common.SetStatusAutomatically, nil, globalPinInfos)
+}
+
+// request statuses for multiple CIDs in parallel.
+func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	filterCidsStr := strings.Split(queryValues.Get("cids"), ",")
+	var cids []cid.Cid
+
+	for _, cidStr := range filterCidsStr {
+		c, err := cid.Decode(cidStr)
+		if err != nil {
+			api.SendResponse(w, http.StatusBadRequest, fmt.Errorf("error decoding Cid: %w", err), nil)
+			return
+		}
+		cids = append(cids, c)
+	}
+
+	local := queryValues.Get("local")
+
+	type gpiResult struct {
+		gpi types.GlobalPinInfo
+		err error
+	}
+	gpiCh := make(chan gpiResult, len(cids))
+	var wg sync.WaitGroup
+	wg.Add(len(cids))
+
+	// Close channel when done
+	go func() {
+		wg.Wait()
+		close(gpiCh)
+	}()
+
+	if local == "true" {
+		for _, ci := range cids {
+			go func(c cid.Cid) {
+				defer wg.Done()
+				var pinInfo types.PinInfo
+				err := api.rpcClient.CallContext(
+					r.Context(),
+					"",
+					"Cluster",
+					"StatusLocal",
+					c,
+					&pinInfo,
+				)
+				gpiCh <- gpiResult{gpi: pinInfo.ToGlobal(), err: err}
+			}(ci)
+		}
+	} else {
+		for _, ci := range cids {
+			go func(c cid.Cid) {
+				defer wg.Done()
+				var pinInfo types.GlobalPinInfo
+				err := api.rpcClient.CallContext(
+					r.Context(),
+					"",
+					"Cluster",
+					"Status",
+					c,
+					&pinInfo,
+				)
+				gpiCh <- gpiResult{gpi: pinInfo, err: err}
+			}(ci)
+		}
+	}
+
+	var gpis []types.GlobalPinInfo
+	var err error
+	for gpiResult := range gpiCh {
+		gpis = append(gpis, gpiResult.gpi)
+		err = multierr.Append(err, gpiResult.err)
+	}
+	api.SendResponse(w, common.SetStatusAutomatically, err, gpis)
 }
 
 func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
@@ -682,7 +765,8 @@ func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
 func pinInfosToGlobal(pInfos []*types.PinInfo) []*types.GlobalPinInfo {
 	gPInfos := make([]*types.GlobalPinInfo, len(pInfos))
 	for i, p := range pInfos {
-		gPInfos[i] = p.ToGlobal()
+		gpi := (*p).ToGlobal()
+		gPInfos[i] = &gpi
 	}
 	return gPInfos
 }

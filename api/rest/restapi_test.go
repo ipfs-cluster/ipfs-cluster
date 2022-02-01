@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -617,6 +618,7 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		var resp []*api.GlobalPinInfo
 		test.MakeGet(t, rest, url(rest)+"/pins", &resp)
 
+		// mockPinTracker returns 3 items for Cluster.StatusAll
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(clustertest.Cid1) ||
 			resp[1].PeerMap[peer.Encode(clustertest.PeerID1)].Status.String() != "pinning" {
@@ -626,6 +628,8 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		// Test local=true
 		var resp2 []*api.GlobalPinInfo
 		test.MakeGet(t, rest, url(rest)+"/pins?local=true", &resp2)
+		// mockPinTracker calls pintracker.StatusAll which returns 2
+		// items.
 		if len(resp2) != 2 {
 			t.Errorf("unexpected statusAll+local resp:\n %+v", resp2)
 		}
@@ -665,6 +669,44 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		test.MakeGet(t, rest, url(rest)+"/pins?filter=invalid", &errorResp)
 		if errorResp.Code != http.StatusBadRequest {
 			t.Error("an invalid filter value should 400")
+		}
+	}
+
+	test.BothEndpoints(t, tf)
+}
+
+func TestAPIStatusAllWithCidsEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url test.URLFunc) {
+		var resp []*api.GlobalPinInfo
+		cids := []string{
+			clustertest.Cid1.String(),
+			clustertest.Cid2.String(),
+			clustertest.Cid3.String(),
+			clustertest.Cid4.String(),
+		}
+		test.MakeGet(t, rest, url(rest)+"/pins/?cids="+strings.Join(cids, ","), &resp)
+
+		if len(resp) != 4 {
+			t.Error("wrong number of responses")
+		}
+
+		// Test local=true
+		var resp2 []*api.GlobalPinInfo
+		test.MakeGet(t, rest, url(rest)+"/pins/?local=true&cids="+strings.Join(cids, ","), &resp2)
+		if len(resp2) != 4 {
+			t.Error("wrong number of responses")
+		}
+
+		// Test with an error
+		cids = append(cids, clustertest.ErrorCid.String())
+		var errorResp api.Error
+		test.MakeGet(t, rest, url(rest)+"/pins/?local=true&cids="+strings.Join(cids, ","), &errorResp)
+		if errorResp.Message != clustertest.ErrBadCid.Error() {
+			t.Error("expected an error")
 		}
 	}
 

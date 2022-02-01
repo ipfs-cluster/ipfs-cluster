@@ -1751,7 +1751,7 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 		if peerName == "" {
 			peerName = p.String()
 		}
-		gpin.Add(&api.PinInfo{
+		gpin.Add(api.PinInfo{
 			Cid:  h,
 			Name: name,
 			Peer: p,
@@ -1862,7 +1862,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.Add(r)
+			gpin.Add(*r)
 			continue
 		}
 
@@ -1879,7 +1879,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		if peerName == "" {
 			peerName = dests[i].String()
 		}
-		gpin.Add(&api.PinInfo{
+		gpin.Add(api.PinInfo{
 			Cid:  h,
 			Name: pin.Name,
 			Peer: dests[i],
@@ -1946,7 +1946,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 			info = &api.GlobalPinInfo{}
 			fullMap[p.Cid] = info
 		}
-		info.Add(p)
+		info.Add(*p)
 	}
 
 	erroredPeers := make(map[peer.ID]string)

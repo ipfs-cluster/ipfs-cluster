@@ -255,31 +255,31 @@ type GlobalPinInfo struct {
 	// https://github.com/golang/go/issues/28827
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
-	PeerMap map[string]*PinInfoShort `json:"peer_map" codec:"pm,omitempty"`
+	PeerMap map[string]PinInfoShort `json:"peer_map" codec:"pm,omitempty"`
 }
 
 // String returns the string representation of a GlobalPinInfo.
 func (gpi *GlobalPinInfo) String() string {
-	str := fmt.Sprintf("Cid: %v\n", gpi.Cid.String())
-	str = str + "Peer:\n"
-	for _, p := range gpi.PeerMap {
-		str = str + fmt.Sprintf("\t%+v\n", p)
+	str := fmt.Sprintf("Cid: %s\n", gpi.Cid)
+	str = str + "Peers:\n"
+	for pid, p := range gpi.PeerMap {
+		str = str + fmt.Sprintf("\t%s: %+v\n", pid, p)
 	}
 	return str
 }
 
 // Add adds a PinInfo object to a GlobalPinInfo
-func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
+func (gpi *GlobalPinInfo) Add(pi PinInfo) {
 	if !gpi.Cid.Defined() {
 		gpi.Cid = pi.Cid
 		gpi.Name = pi.Name
 	}
 
 	if gpi.PeerMap == nil {
-		gpi.PeerMap = make(map[string]*PinInfoShort)
+		gpi.PeerMap = make(map[string]PinInfoShort)
 	}
 
-	gpi.PeerMap[peer.Encode(pi.Peer)] = &pi.PinInfoShort
+	gpi.PeerMap[peer.Encode(pi.Peer)] = pi.PinInfoShort
 }
 
 // PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
@@ -306,10 +306,10 @@ type PinInfo struct {
 
 // ToGlobal converts a PinInfo object to a GlobalPinInfo with
 // a single peer corresponding to the given PinInfo.
-func (pi *PinInfo) ToGlobal() *GlobalPinInfo {
-	gpi := GlobalPinInfo{}
+func (pi PinInfo) ToGlobal() GlobalPinInfo {
+	gpi := &GlobalPinInfo{}
 	gpi.Add(pi)
-	return &gpi
+	return *gpi
 }
 
 // Version holds version information

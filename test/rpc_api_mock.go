@@ -224,7 +224,7 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 	gPinInfos := []*api.GlobalPinInfo{
 		{
 			Cid: Cid1,
-			PeerMap: map[string]*api.PinInfoShort{
+			PeerMap: map[string]api.PinInfoShort{
 				pid: {
 					Status: api.TrackerStatusPinned,
 					TS:     time.Now(),
@@ -233,7 +233,7 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 		},
 		{
 			Cid: Cid2,
-			PeerMap: map[string]*api.PinInfoShort{
+			PeerMap: map[string]api.PinInfoShort{
 				pid: {
 					Status: api.TrackerStatusPinning,
 					TS:     time.Now(),
@@ -242,7 +242,7 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 		},
 		{
 			Cid: Cid3,
-			PeerMap: map[string]*api.PinInfoShort{
+			PeerMap: map[string]api.PinInfoShort{
 				pid: {
 					Status: api.TrackerStatusPinError,
 					TS:     time.Now(),
@@ -281,7 +281,7 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	}
 	*out = api.GlobalPinInfo{
 		Cid: in,
-		PeerMap: map[string]*api.PinInfoShort{
+		PeerMap: map[string]api.PinInfoShort{
 			peer.Encode(PeerID1): {
 				Status: api.TrackerStatusPinned,
 				TS:     time.Now(),
