@@ -18,13 +18,14 @@ const envConfigKey = "cluster_ipfshttp"
 
 // Default values for Config.
 const (
-	DefaultNodeAddr           = "/ip4/127.0.0.1/tcp/5001"
-	DefaultConnectSwarmsDelay = 30 * time.Second
-	DefaultIPFSRequestTimeout = 5 * time.Minute
-	DefaultPinTimeout         = 2 * time.Minute
-	DefaultUnpinTimeout       = 3 * time.Hour
-	DefaultRepoGCTimeout      = 24 * time.Hour
-	DefaultUnpinDisable       = false
+	DefaultNodeAddr                = "/ip4/127.0.0.1/tcp/5001"
+	DefaultConnectSwarmsDelay      = 30 * time.Second
+	DefaultIPFSRequestTimeout      = 5 * time.Minute
+	DefaultPinTimeout              = 2 * time.Minute
+	DefaultUnpinTimeout            = 3 * time.Hour
+	DefaultRepoGCTimeout           = 24 * time.Hour
+	DefaultInformerTriggerInterval = 0 // disabled
+	DefaultUnpinDisable            = false
 )
 
 // Config is used to initialize a Connector and allows to customize
@@ -51,6 +52,11 @@ type Config struct {
 
 	// RepoGC Operation timeout
 	RepoGCTimeout time.Duration
+
+	// How many pin and block/put operations need to happen before we do a
+	// special broadcast informer metrics to the network. 0 to disable.
+	InformerTriggerInterval int
+
 	// Disables the unpin operation and returns an error.
 	UnpinDisable bool
 
@@ -59,13 +65,14 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	NodeMultiaddress   string `json:"node_multiaddress"`
-	ConnectSwarmsDelay string `json:"connect_swarms_delay"`
-	IPFSRequestTimeout string `json:"ipfs_request_timeout"`
-	PinTimeout         string `json:"pin_timeout"`
-	UnpinTimeout       string `json:"unpin_timeout"`
-	RepoGCTimeout      string `json:"repogc_timeout"`
-	UnpinDisable       bool   `json:"unpin_disable,omitempty"`
+	NodeMultiaddress        string `json:"node_multiaddress"`
+	ConnectSwarmsDelay      string `json:"connect_swarms_delay"`
+	IPFSRequestTimeout      string `json:"ipfs_request_timeout"`
+	PinTimeout              string `json:"pin_timeout"`
+	UnpinTimeout            string `json:"unpin_timeout"`
+	RepoGCTimeout           string `json:"repogc_timeout"`
+	InformerTriggerInterval int    `json:"informer_trigger_interval"`
+	UnpinDisable            bool   `json:"unpin_disable,omitempty"`
 }
 
 // ConfigKey provides a human-friendly identifier for this type of Config.
@@ -82,6 +89,7 @@ func (cfg *Config) Default() error {
 	cfg.PinTimeout = DefaultPinTimeout
 	cfg.UnpinTimeout = DefaultUnpinTimeout
 	cfg.RepoGCTimeout = DefaultRepoGCTimeout
+	cfg.InformerTriggerInterval = DefaultInformerTriggerInterval
 	cfg.UnpinDisable = DefaultUnpinDisable
 
 	return nil
@@ -130,6 +138,9 @@ func (cfg *Config) Validate() error {
 	if cfg.RepoGCTimeout < 0 {
 		err = errors.New("ipfshttp.repogc_timeout invalid")
 	}
+	if cfg.InformerTriggerInterval < 0 {
+		err = errors.New("ipfshttp.update_metrics_after")
+	}
 
 	return err
 
@@ -157,6 +168,7 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 	cfg.NodeAddr = nodeAddr
 	cfg.UnpinDisable = jcfg.UnpinDisable
+	cfg.InformerTriggerInterval = jcfg.InformerTriggerInterval
 
 	err = config.ParseDurations(
 		"ipfshttp",
@@ -201,6 +213,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	jcfg.PinTimeout = cfg.PinTimeout.String()
 	jcfg.UnpinTimeout = cfg.UnpinTimeout.String()
 	jcfg.RepoGCTimeout = cfg.RepoGCTimeout.String()
+	jcfg.InformerTriggerInterval = cfg.InformerTriggerInterval
 	jcfg.UnpinDisable = cfg.UnpinDisable
 
 	return

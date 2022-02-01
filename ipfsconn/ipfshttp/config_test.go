@@ -14,7 +14,8 @@ var cfgJSON = []byte(`
 	"ipfs_request_timeout": "5m0s",
 	"pin_timeout": "2m",
 	"unpin_timeout": "3h",
-	"repogc_timeout": "24h"
+	"repogc_timeout": "24h",
+	"informer_trigger_interval": 10
 }
 `)
 
@@ -27,6 +28,11 @@ func TestLoadJSON(t *testing.T) {
 
 	j := &jsonConfig{}
 	json.Unmarshal(cfgJSON, j)
+
+	if cfg.InformerTriggerInterval != 10 {
+		t.Error("missing value")
+	}
+
 	j.NodeMultiaddress = "abc"
 	tst, _ := json.Marshal(j)
 	err = cfg.LoadJSON(tst)

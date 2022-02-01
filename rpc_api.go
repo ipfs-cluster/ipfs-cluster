@@ -408,11 +408,7 @@ func (rpcapi *ClusterRPCAPI) RepoGCLocal(ctx context.Context, in struct{}, out *
 
 // SendInformerMetric runs Cluster.sendInformerMetric().
 func (rpcapi *ClusterRPCAPI) SendInformerMetrics(ctx context.Context, in struct{}, out *struct{}) error {
-	_, err := rpcapi.c.sendInformerMetrics(ctx, rpcapi.c.informers[0])
-	if err != nil {
-		return err
-	}
-	return nil
+	return rpcapi.c.sendInformersMetrics(ctx)
 }
 
 // SendInformersMetrics runs Cluster.sendInformerMetric() on all informers.
