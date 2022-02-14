@@ -19,7 +19,7 @@ import (
    cluster-dotWriter which handles iterating over the link maps and writing
    dot file node and edge statements to make a dot-file graph.  Nodes are
    labeled with the go-libp2p-peer shortened peer id.  IPFS nodes are rendered
-   with gold boundaries, Cluster nodes with blue.  Currently preprocessing
+   with turquoise boundaries, Cluster nodes with orange.  Currently preprocessing
    consists of moving IPFS swarm peers not connected to any cluster peer to
    the IPFSLinks map in the event that the function was invoked with the
    allIpfs flag.  This allows all IPFS peers connected to the cluster to be
