@@ -1747,16 +1747,12 @@ func (c *Cluster) getTrustedPeers(ctx context.Context, exclude peer.ID) ([]peer.
 func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, name string, t time.Time) {
 	for _, p := range peers {
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, p))
-		peerName := pv.Peername
-		if peerName == "" {
-			peerName = p.String()
-		}
 		gpin.Add(api.PinInfo{
 			Cid:  h,
 			Name: name,
 			Peer: p,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: peerName,
+				PeerName: pv.Peername,
 				IPFS:     pv.IPFSID,
 				Status:   status,
 				TS:       t,
@@ -1875,16 +1871,12 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
 
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(ctx, pingMetricName, dests[i]))
-		peerName := pv.Peername
-		if peerName == "" {
-			peerName = dests[i].String()
-		}
 		gpin.Add(api.PinInfo{
 			Cid:  h,
 			Name: pin.Name,
 			Peer: dests[i],
 			PinInfoShort: api.PinInfoShort{
-				PeerName: peerName,
+				PeerName: pv.Peername,
 				IPFS:     pv.IPFSID,
 				Status:   api.TrackerStatusClusterError,
 				TS:       timeNow,
@@ -1969,18 +1961,13 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 	// Merge any errors
 	for p, msg := range erroredPeers {
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(ctx, pingMetricName, p))
-		peerName := pv.Peername
-		if peerName == "" {
-			peerName = p.String()
-		}
-
 		for c := range fullMap {
 			setPinInfo(&api.PinInfo{
 				Cid:  c,
 				Name: "",
 				Peer: p,
 				PinInfoShort: api.PinInfoShort{
-					PeerName: peerName,
+					PeerName: pv.Peername,
 					IPFS:     pv.IPFSID,
 					Status:   api.TrackerStatusClusterError,
 					TS:       time.Now(),
