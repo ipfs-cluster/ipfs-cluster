@@ -36,7 +36,7 @@ var LoggingFacilities = map[string]string{
 // used in ipfs-cluster dependencies, which may be useful
 // to display. Along with their default value.
 var LoggingFacilitiesExtra = map[string]string{
-	"p2p-gorpc":   "FATAL",
+	"p2p-gorpc":   "ERROR",
 	"swarm2":      "ERROR",
 	"libp2p-raft": "FATAL",
 	"raftlib":     "ERROR",
