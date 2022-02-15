@@ -236,7 +236,7 @@ func TestIDCodec(t *testing.T) {
 		Commit:                "",
 		RPCProtocolVersion:    "abc",
 		Error:                 "",
-		IPFS: &IPFSID{
+		IPFS: IPFSID{
 			ID:        TestPeerID3,
 			Addresses: []Multiaddr{addr},
 			Error:     "",

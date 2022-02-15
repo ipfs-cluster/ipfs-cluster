@@ -35,7 +35,7 @@ var testingClusterCfg = []byte(`{
     "state_sync_interval": "1m0s",
     "pin_recover_interval": "1m0s",
     "replication_factor": -1,
-    "monitor_ping_interval": "1s",
+    "monitor_ping_interval": "250ms",
     "peer_watch_interval": "1s",
     "disable_repinning": false,
     "mdns_interval": "0s"
@@ -112,7 +112,8 @@ var testingIpfsCfg = []byte(`{
     "node_multiaddress": "/ip4/127.0.0.1/tcp/5001",
     "connect_swarms_delay": "7s",
     "pin_timeout": "30s",
-    "unpin_timeout": "15s"
+    "unpin_timeout": "15s",
+    "informer_trigger_interval": 10
 }`)
 
 var testingTrackerCfg = []byte(`

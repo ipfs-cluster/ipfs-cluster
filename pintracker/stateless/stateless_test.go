@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
@@ -36,8 +37,7 @@ var (
 
 // Overwrite Pin and Unpin methods on the normal mock in order to return
 // special errors when unwanted operations have been triggered.
-type mockIPFS struct {
-}
+type mockIPFS struct{}
 
 func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
 	switch in.Cid {
@@ -85,6 +85,13 @@ func (mock *mockIPFS) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPi
 	return nil
 }
 
+type mockCluster struct{}
+
+func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
+	*out = test.PeerID1
+	return nil
+}
+
 func mockRPCClient(t testing.TB) *rpc.Client {
 	t.Helper()
 
@@ -92,6 +99,11 @@ func mockRPCClient(t testing.TB) *rpc.Client {
 	c := rpc.NewClientWithServer(nil, "mock", s)
 
 	err := s.RegisterName("IPFSConnector", &mockIPFS{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.RegisterName("Cluster", &mockCluster{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,6 +439,9 @@ func TestStatusAll(t *testing.T) {
 		default:
 			t.Error("Unexpected pin:", pi.Cid)
 		}
+		if pi.IPFS == "" {
+			t.Error("IPFS field should be set")
+		}
 	}
 }
 
@@ -471,6 +486,10 @@ func TestStatus(t *testing.T) {
 	st = spt.Status(ctx, test.SlowCid1)
 	if st.Status != api.TrackerStatusPinning {
 		t.Error("slowCid1 should be pinning")
+	}
+
+	if st.IPFS == "" {
+		t.Error("IPFS field should be set")
 	}
 }
 

@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -89,6 +90,8 @@ type Cluster struct {
 	shutdownLock sync.Mutex
 	shutdownB    bool
 	removed      bool
+
+	curPingVal pingValue
 }
 
 // NewCluster builds a new IPFS Cluster peer. It initializes a LibP2P host,
@@ -233,8 +236,8 @@ func (c *Cluster) setupRPC() error {
 }
 
 func (c *Cluster) setupRPCClients() {
-	c.tracker.SetClient(c.rpcClient)
 	c.ipfs.SetClient(c.rpcClient)
+	c.tracker.SetClient(c.rpcClient)
 	for _, api := range c.apis {
 		api.SetClient(c.rpcClient)
 	}
@@ -357,7 +360,6 @@ func (c *Cluster) pushInformerMetrics(ctx context.Context, informer Informer) {
 		minTTL, err := c.sendInformerMetrics(ctx, informer)
 		if minTTL == 0 {
 			minTTL = 30 * time.Second
-			logger.Warningf("informer %s reported a min metric ttl of 0s.", informer.Name())
 		}
 		if err != nil {
 			if (retries % retryWarnMod) == 0 {
@@ -379,10 +381,28 @@ func (c *Cluster) sendPingMetric(ctx context.Context) (*api.Metric, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/sendPingMetric")
 	defer span.End()
 
+	id := c.ID(ctx)
+	newPingVal := pingValue{
+		Peername: id.Peername,
+		IPFSID:   id.IPFS.ID,
+	}
+	if c.curPingVal.Valid() &&
+		!newPingVal.Valid() { // i.e. ipfs down
+		newPingVal = c.curPingVal // use last good value
+	}
+	c.curPingVal = newPingVal
+
+	v, err := json.Marshal(newPingVal)
+	if err != nil {
+		logger.Error(err)
+		// continue anyways
+	}
+
 	metric := &api.Metric{
 		Name:  pingMetricName,
 		Peer:  c.id,
 		Valid: true,
+		Value: string(v),
 	}
 	metric.SetTTL(c.config.MonitorPingInterval * 2)
 	return metric, c.monitor.PublishMetric(ctx, metric)
@@ -871,7 +891,7 @@ func (c *Cluster) ID(ctx context.Context) *api.ID {
 		ClusterPeersAddresses: addresses,
 		Version:               version.Version.String(),
 		RPCProtocolVersion:    version.RPCProtocol,
-		IPFS:                  ipfsID,
+		IPFS:                  *ipfsID,
 		Peername:              c.config.Peername,
 	}
 	if err != nil {
@@ -1724,14 +1744,16 @@ func (c *Cluster) getTrustedPeers(ctx context.Context, exclude peer.ID) ([]peer.
 	return trustedPeers, nil
 }
 
-func setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, name string, t time.Time) {
+func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, name string, t time.Time) {
 	for _, p := range peers {
-		gpin.Add(&api.PinInfo{
+		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, p))
+		gpin.Add(api.PinInfo{
 			Cid:  h,
 			Name: name,
 			Peer: p,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: p.String(),
+				PeerName: pv.Peername,
+				IPFS:     pv.IPFSID,
 				Status:   status,
 				TS:       t,
 			},
@@ -1750,6 +1772,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	var dests []peer.ID
 	// un-allocated peers, we will set remote status
 	var remote []peer.ID
+
 	timeNow := time.Now()
 
 	// If pin is not part of the pinset, mark it unpinned
@@ -1773,7 +1796,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			}
 		}
 
-		setTrackerStatus(
+		c.setTrackerStatus(
 			gpin,
 			h,
 			members,
@@ -1810,7 +1833,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	}
 
 	// set status remote on un-allocated peers
-	setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, pin.Name, timeNow)
+	c.setTrackerStatus(gpin, h, remote, api.TrackerStatusRemote, pin.Name, timeNow)
 
 	lenDests := len(dests)
 	replies := make([]*api.PinInfo, lenDests)
@@ -1835,7 +1858,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.Add(r)
+			gpin.Add(*r)
 			continue
 		}
 
@@ -1846,12 +1869,15 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// Deal with error cases (err != nil): wrap errors in PinInfo
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
-		gpin.Add(&api.PinInfo{
+
+		pv := pingValueFromMetric(c.monitor.LatestForPeer(ctx, pingMetricName, dests[i]))
+		gpin.Add(api.PinInfo{
 			Cid:  h,
 			Name: pin.Name,
 			Peer: dests[i],
 			PinInfoShort: api.PinInfoShort{
-				PeerName: dests[i].String(),
+				PeerName: pv.Peername,
+				IPFS:     pv.IPFSID,
 				Status:   api.TrackerStatusClusterError,
 				TS:       timeNow,
 				Error:    e.Error(),
@@ -1912,7 +1938,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 			info = &api.GlobalPinInfo{}
 			fullMap[p.Cid] = info
 		}
-		info.Add(p)
+		info.Add(*p)
 	}
 
 	erroredPeers := make(map[peer.ID]string)
@@ -1934,15 +1960,18 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 
 	// Merge any errors
 	for p, msg := range erroredPeers {
+		pv := pingValueFromMetric(c.monitor.LatestForPeer(ctx, pingMetricName, p))
 		for c := range fullMap {
 			setPinInfo(&api.PinInfo{
 				Cid:  c,
 				Name: "",
 				Peer: p,
 				PinInfoShort: api.PinInfoShort{
-					Status: api.TrackerStatusClusterError,
-					TS:     time.Now(),
-					Error:  msg,
+					PeerName: pv.Peername,
+					IPFS:     pv.IPFSID,
+					Status:   api.TrackerStatusClusterError,
+					TS:       time.Now(),
+					Error:    msg,
 				},
 			})
 		}

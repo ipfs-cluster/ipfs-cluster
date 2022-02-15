@@ -201,6 +201,9 @@ func (css *Consensus) setup() {
 	opts.RebroadcastInterval = css.config.RebroadcastInterval
 	opts.DAGSyncerTimeout = 2 * time.Minute
 	opts.Logger = logger
+	opts.RepairInterval = css.config.RepairInterval
+	opts.MultiHeadProcessing = false
+	opts.NumWorkers = 50
 	opts.PutHook = func(k ds.Key, v []byte) {
 		ctx, span := trace.StartSpan(css.ctx, "crdt/PutHook")
 		defer span.End()

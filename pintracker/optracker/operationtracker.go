@@ -145,8 +145,10 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 		return api.PinInfo{
 			Cid:  cid.Undef,
 			Peer: opt.pid,
+			Name: "",
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     opt.peerName,
+				IPFS:         "",
 				Status:       api.TrackerStatusUnpinned,
 				TS:           time.Now(),
 				AttemptCount: 0,
@@ -158,8 +160,10 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 	return api.PinInfo{
 		Cid:  op.Cid(),
 		Peer: opt.pid,
+		Name: op.Pin().Name,
 		PinInfoShort: api.PinInfoShort{
 			PeerName:     opt.peerName,
+			IPFS:         "",
 			Status:       op.ToTrackerStatus(),
 			TS:           op.Timestamp(),
 			AttemptCount: op.AttemptCount(),

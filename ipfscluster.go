@@ -175,10 +175,12 @@ type PeerMonitor interface {
 	// PublishMetric sends a metric to the rest of the peers.
 	// How to send it, and to who, is to be decided by the implementation.
 	PublishMetric(context.Context, *api.Metric) error
-	// LatestMetrics returns a map with the latest metrics of matching
+	// LatestMetrics returns a map with the latest valid metrics of matching
 	// name for the current cluster peers. The result should only contain
 	// one metric per peer at most.
 	LatestMetrics(ctx context.Context, name string) []*api.Metric
+	// Returns the latest metric received from a peer. It may be expired.
+	LatestForPeer(ctx context.Context, name string, pid peer.ID) *api.Metric
 	// MetricNames returns a list of metric names.
 	MetricNames(ctx context.Context) []string
 	// Alerts delivers alerts generated when this peer monitor detects

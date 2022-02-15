@@ -4,6 +4,7 @@ package ipfscluster
 
 import (
 	"context"
+	"fmt"
 	"mime/multipart"
 	"sync"
 	"testing"
@@ -25,7 +26,7 @@ func TestAdd(t *testing.T) {
 
 	waitForLeaderAndMetrics(t, clusters)
 
-	t.Run("local", func(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Shard = false
 		params.Name = "testlocal"
@@ -51,6 +52,49 @@ func TestAdd(t *testing.T) {
 			}
 			if pin.Status != api.TrackerStatusPinned {
 				t.Error("item should be pinned and is", pin.Status)
+			}
+		}
+
+		runF(t, clusters, f)
+	})
+
+	t.Run("local_one_allocation", func(t *testing.T) {
+		params := api.DefaultAddParams()
+		params.Shard = false
+		params.Name = "testlocal"
+		params.ReplicationFactorMin = 1
+		params.ReplicationFactorMax = 1
+		params.Local = true
+		mfr, closer := sth.GetTreeMultiReader(t)
+		defer closer.Close()
+		r := multipart.NewReader(mfr, mfr.Boundary())
+		ci, err := clusters[2].AddFile(r, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ci.String() != test.ShardingDirBalancedRootCID {
+			t.Fatal("unexpected root CID for local add")
+		}
+
+		// We need to sleep a lot because it takes time to
+		// catch up on a first/single pin on crdts
+		time.Sleep(10 * time.Second)
+
+		f := func(t *testing.T, c *Cluster) {
+			pin := c.StatusLocal(ctx, ci)
+			if pin.Error != "" {
+				t.Error(pin.Error)
+			}
+			fmt.Println(pin)
+			switch c.id {
+			case clusters[2].id:
+				if pin.Status != api.TrackerStatusPinned {
+					t.Error("item should be pinned and is", pin.Status)
+				}
+			default:
+				if pin.Status != api.TrackerStatusRemote {
+					t.Errorf("item should only be allocated to cluster2")
+				}
 			}
 		}
 

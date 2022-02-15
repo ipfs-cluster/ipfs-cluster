@@ -255,37 +255,38 @@ type GlobalPinInfo struct {
 	// https://github.com/golang/go/issues/28827
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
-	PeerMap map[string]*PinInfoShort `json:"peer_map" codec:"pm,omitempty"`
+	PeerMap map[string]PinInfoShort `json:"peer_map" codec:"pm,omitempty"`
 }
 
 // String returns the string representation of a GlobalPinInfo.
 func (gpi *GlobalPinInfo) String() string {
-	str := fmt.Sprintf("Cid: %v\n", gpi.Cid.String())
-	str = str + "Peer:\n"
-	for _, p := range gpi.PeerMap {
-		str = str + fmt.Sprintf("\t%+v\n", p)
+	str := fmt.Sprintf("Cid: %s\n", gpi.Cid)
+	str = str + "Peers:\n"
+	for pid, p := range gpi.PeerMap {
+		str = str + fmt.Sprintf("\t%s: %+v\n", pid, p)
 	}
 	return str
 }
 
 // Add adds a PinInfo object to a GlobalPinInfo
-func (gpi *GlobalPinInfo) Add(pi *PinInfo) {
+func (gpi *GlobalPinInfo) Add(pi PinInfo) {
 	if !gpi.Cid.Defined() {
 		gpi.Cid = pi.Cid
 		gpi.Name = pi.Name
 	}
 
 	if gpi.PeerMap == nil {
-		gpi.PeerMap = make(map[string]*PinInfoShort)
+		gpi.PeerMap = make(map[string]PinInfoShort)
 	}
 
-	gpi.PeerMap[peer.Encode(pi.Peer)] = &pi.PinInfoShort
+	gpi.PeerMap[peer.Encode(pi.Peer)] = pi.PinInfoShort
 }
 
 // PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
 // objects and does not carry redundant information as PinInfo would.
 type PinInfoShort struct {
 	PeerName     string        `json:"peername" codec:"pn,omitempty"`
+	IPFS         peer.ID       `json:"ipfs_peer_id,omitempty" codec:"i,omitempty"`
 	Status       TrackerStatus `json:"status" codec:"st,omitempty"`
 	TS           time.Time     `json:"timestamp" codec:"ts,omitempty"`
 	Error        string        `json:"error" codec:"e,omitempty"`
@@ -298,17 +299,17 @@ type PinInfoShort struct {
 type PinInfo struct {
 	Cid  cid.Cid `json:"cid" codec:"c"`
 	Name string  `json:"name" codec:"m,omitempty"`
-	Peer peer.ID `json:"Peer" codec:"p,omitempty"`
+	Peer peer.ID `json:"peer" codec:"p,omitempty"`
 
 	PinInfoShort
 }
 
 // ToGlobal converts a PinInfo object to a GlobalPinInfo with
 // a single peer corresponding to the given PinInfo.
-func (pi *PinInfo) ToGlobal() *GlobalPinInfo {
-	gpi := GlobalPinInfo{}
+func (pi PinInfo) ToGlobal() GlobalPinInfo {
+	gpi := &GlobalPinInfo{}
 	gpi.Add(pi)
-	return &gpi
+	return *gpi
 }
 
 // Version holds version information
@@ -400,7 +401,7 @@ type ID struct {
 	Commit                string      `json:"commit" codec:"c,omitempty"`
 	RPCProtocolVersion    protocol.ID `json:"rpc_protocol_version" codec:"rv,omitempty"`
 	Error                 string      `json:"error" codec:"e,omitempty"`
-	IPFS                  *IPFSID     `json:"ipfs,omitempty" codec:"ip,omitempty"`
+	IPFS                  IPFSID      `json:"ipfs,omitempty" codec:"ip,omitempty"`
 	Peername              string      `json:"peername" codec:"pn,omitempty"`
 	//PublicKey          crypto.PubKey
 }
