@@ -15,26 +15,26 @@ For the full list of feature and bugfixes, see list below.
 
 ##### Features
 
-* CRDT: update with RepairInterval option and more workers | @1561 | @1576
-* Add `?cids` query parameter to /pins: limit status request to several CIDs | @1562
-* Pintracker improvements | @1556 | @939 | @1554 | @1212
+* CRDT: update with RepairInterval option and more workers | [ipfs/ipfs-cluster#1561](https://github.com/ipfs/ipfs-cluster/issues/1561) | [ipfs/ipfs-cluster#1576](https://github.com/ipfs/ipfs-cluster/issues/1576)
+* Add `?cids` query parameter to /pins: limit status request to several CIDs | [ipfs/ipfs-cluster#1562](https://github.com/ipfs/ipfs-cluster/issues/1562)
+* Pintracker improvements | [ipfs/ipfs-cluster#1556](https://github.com/ipfs/ipfs-cluster/issues/1556) | [ipfs/ipfs-cluster#939](https://github.com/ipfs/ipfs-cluster/issues/939) | [ipfs/ipfs-cluster#1554](https://github.com/ipfs/ipfs-cluster/issues/1554) | [ipfs/ipfs-cluster#1212](https://github.com/ipfs/ipfs-cluster/issues/1212)
   * Status information shows peer ID of IPFS peer pinning the content
   * Peernames correctly set for remote peers on status objects
   * Pin names not set for in-flight pin status objects
 
 ##### Bug fixes
 
-* Fix: logging was too noisy | @1581 | @1579
-* Remove warning message about informer metrics | @1543
-* Fix: IPFS repo/stat gets hammered on busy peers | @1559
-* Fix: faster shutdown by aborting state list on context cancellation | @1555
+* Fix: logging was too noisy | [ipfs/ipfs-cluster#1581](https://github.com/ipfs/ipfs-cluster/issues/1581) | [ipfs/ipfs-cluster#1579](https://github.com/ipfs/ipfs-cluster/issues/1579)
+* Remove warning message about informer metrics | [ipfs/ipfs-cluster#1543](https://github.com/ipfs/ipfs-cluster/issues/1543)
+* Fix: IPFS repo/stat gets hammered on busy peers | [ipfs/ipfs-cluster#1559](https://github.com/ipfs/ipfs-cluster/issues/1559)
+* Fix: faster shutdown by aborting state list on context cancellation | [ipfs/ipfs-cluster#1555](https://github.com/ipfs/ipfs-cluster/issues/1555)
 
 ##### Other changes
 
-* Leave peername empty when unknown on status response | @1569 | @1575
-* Fix comment in graphs.go | @1570 | @1574
-* Make `/add?local=true` requests forcefully allocate to local peer | @1560
-* Dependency upgrades | @1580
+* Leave peername empty when unknown on status response | [ipfs/ipfs-cluster#1569](https://github.com/ipfs/ipfs-cluster/issues/1569) | [ipfs/ipfs-cluster#1575](https://github.com/ipfs/ipfs-cluster/issues/1575)
+* Fix comment in graphs.go | [ipfs/ipfs-cluster#1570](https://github.com/ipfs/ipfs-cluster/issues/1570) | [ipfs/ipfs-cluster#1574](https://github.com/ipfs/ipfs-cluster/issues/1574)
+* Make `/add?local=true` requests forcefully allocate to local peer | [ipfs/ipfs-cluster#1560](https://github.com/ipfs/ipfs-cluster/issues/1560)
+* Dependency upgrades | [ipfs/ipfs-cluster#1580](https://github.com/ipfs/ipfs-cluster/issues/1580)
 
 #### Upgrading notices
 
