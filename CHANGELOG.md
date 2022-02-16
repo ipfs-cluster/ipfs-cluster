@@ -52,6 +52,8 @@ The `ipfs_connector/ipfshttp` section has a new option
 whether clusters issue a metrics update every certain number of pins (i.e. for
 fine-grain control of freespace after a pin happens).
 
+The `monitor/pubsubmon/failure_threshold` option no longer has any effect.
+
 ##### REST API
 
 The `/pins` (StatusAll) endpoint now takes a `?cid=cid1,cid2` option which
