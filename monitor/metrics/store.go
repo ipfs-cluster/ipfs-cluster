@@ -175,25 +175,6 @@ func (mtrs *Store) PeerLatest(name string, pid peer.ID) *api.Metric {
 	return m
 }
 
-// Distribution returns the distribution of a particular metrics
-// for a particular peer.
-func (mtrs *Store) Distribution(name string, pid peer.ID) []float64 {
-	mtrs.mux.RLock()
-	defer mtrs.mux.RUnlock()
-
-	byPeer, ok := mtrs.byName[name]
-	if !ok {
-		return nil
-	}
-
-	window, ok := byPeer[pid]
-	if !ok {
-		return nil
-	}
-
-	return window.Distribution()
-}
-
 // MetricNames returns all the known metric names
 func (mtrs *Store) MetricNames() []string {
 	mtrs.mux.RLock()

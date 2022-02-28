@@ -91,20 +91,3 @@ func (mw *Window) All() []*api.Metric {
 
 	return values
 }
-
-// Distribution returns the deltas between all the current
-// values contained in the current window. This will
-// only return values if the api.Metric.Type() is "ping",
-// which are used for accural failure detection.
-func (mw *Window) Distribution() []float64 {
-	ms := mw.All()
-	dist := make([]float64, 0, len(ms)-1)
-	// the last value can't be used to calculate a delta
-	for i, v := range ms[:len(ms)-1] {
-		// All() provides an order slice, where ms[i] is younger than ms[i+1]
-		delta := v.ReceivedAt - ms[i+1].ReceivedAt
-		dist = append(dist, float64(delta))
-	}
-
-	return dist
-}
