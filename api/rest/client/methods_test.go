@@ -749,7 +749,7 @@ func TestAddMultiFile(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 
-		p := &types.AddParams{
+		p := types.AddParams{
 			PinOptions: types.PinOptions{
 				ReplicationFactorMin: -1,
 				ReplicationFactorMax: -1,
