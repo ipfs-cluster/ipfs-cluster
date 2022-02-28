@@ -393,7 +393,7 @@ func (lc *loadBalancingClient) RepoGC(ctx context.Context, local bool) (*api.Glo
 func (lc *loadBalancingClient) Add(
 	ctx context.Context,
 	paths []string,
-	params *api.AddParams,
+	params api.AddParams,
 	out chan<- *api.AddedOutput,
 ) error {
 	call := func(c Client) error {
@@ -407,7 +407,7 @@ func (lc *loadBalancingClient) Add(
 func (lc *loadBalancingClient) AddMultiFile(
 	ctx context.Context,
 	multiFileR *files.MultiFileReader,
-	params *api.AddParams,
+	params api.AddParams,
 	out chan<- *api.AddedOutput,
 ) error {
 	call := func(c Client) error {

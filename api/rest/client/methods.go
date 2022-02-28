@@ -513,7 +513,7 @@ func statusReached(target api.TrackerStatus, gblPinInfo *api.GlobalPinInfo, limi
 }
 
 // logic drawn from go-ipfs-cmds/cli/parse.go: appendFile
-func makeSerialFile(fpath string, params *api.AddParams) (string, files.Node, error) {
+func makeSerialFile(fpath string, params api.AddParams) (string, files.Node, error) {
 	if fpath == "." {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -553,7 +553,7 @@ func makeSerialFile(fpath string, params *api.AddParams) (string, files.Node, er
 func (c *defaultClient) Add(
 	ctx context.Context,
 	paths []string,
-	params *api.AddParams,
+	params api.AddParams,
 	out chan<- *api.AddedOutput,
 ) error {
 	ctx, span := trace.StartSpan(ctx, "client/Add")
@@ -596,7 +596,7 @@ func (c *defaultClient) Add(
 func (c *defaultClient) AddMultiFile(
 	ctx context.Context,
 	multiFileR *files.MultiFileReader,
-	params *api.AddParams,
+	params api.AddParams,
 	out chan<- *api.AddedOutput,
 ) error {
 	ctx, span := trace.StartSpan(ctx, "client/AddMultiFile")

@@ -27,7 +27,7 @@ var logger = logging.Logger("adder")
 func AddMultipartHTTPHandler(
 	ctx context.Context,
 	rpc *rpc.Client,
-	params *api.AddParams,
+	params api.AddParams,
 	reader *multipart.Reader,
 	w http.ResponseWriter,
 	outputTransform func(*api.AddedOutput) interface{},
@@ -36,9 +36,9 @@ func AddMultipartHTTPHandler(
 	output := make(chan *api.AddedOutput, 200)
 
 	if params.Shard {
-		dags = sharding.New(rpc, params.PinOptions, output)
+		dags = sharding.New(rpc, params, output)
 	} else {
-		dags = single.New(rpc, params.PinOptions, params.Local)
+		dags = single.New(rpc, params, params.Local)
 	}
 
 	if outputTransform == nil {
