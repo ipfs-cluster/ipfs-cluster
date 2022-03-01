@@ -250,9 +250,9 @@ func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.Tracke
 		}
 	}
 
-	var cidsStr []string
-	for _, c := range cids {
-		cidsStr = append(cidsStr, c.String())
+	cidsStr := make([]string, len(cids))
+	for i, c := range cids {
+		cidsStr[i] = c.String()
 	}
 
 	err := c.do(
