@@ -30,21 +30,22 @@ var DefaultListenAddrs = []string{
 
 // Configuration defaults
 const (
-	DefaultEnableRelayHop      = true
-	DefaultStateSyncInterval   = 5 * time.Minute
-	DefaultPinRecoverInterval  = 12 * time.Minute
-	DefaultMonitorPingInterval = 15 * time.Second
-	DefaultPeerWatchInterval   = 5 * time.Second
-	DefaultReplicationFactor   = -1
-	DefaultLeaveOnShutdown     = false
-	DefaultDisableRepinning    = true
-	DefaultPeerstoreFile       = "peerstore"
-	DefaultConnMgrHighWater    = 400
-	DefaultConnMgrLowWater     = 100
-	DefaultConnMgrGracePeriod  = 2 * time.Minute
-	DefaultDialPeerTimeout     = 3 * time.Second
-	DefaultFollowerMode        = false
-	DefaultMDNSInterval        = 10 * time.Second
+	DefaultEnableRelayHop        = true
+	DefaultStateSyncInterval     = 5 * time.Minute
+	DefaultPinRecoverInterval    = 12 * time.Minute
+	DefaultMonitorPingInterval   = 15 * time.Second
+	DefaultPeerWatchInterval     = 5 * time.Second
+	DefaultReplicationFactor     = -1
+	DefaultLeaveOnShutdown       = false
+	DefaultPinOnlyOnTrustedPeers = false
+	DefaultDisableRepinning      = true
+	DefaultPeerstoreFile         = "peerstore"
+	DefaultConnMgrHighWater      = 400
+	DefaultConnMgrLowWater       = 100
+	DefaultConnMgrGracePeriod    = 2 * time.Minute
+	DefaultDialPeerTimeout       = 3 * time.Second
+	DefaultFollowerMode          = false
+	DefaultMDNSInterval          = 10 * time.Second
 )
 
 // ConnMgrConfig configures the libp2p host connection manager.
@@ -138,6 +139,9 @@ type Config struct {
 	// mDNS.
 	MDNSInterval time.Duration
 
+	// PinOnlyOnTrustedPeers limits allocations to trusted peers only.
+	PinOnlyOnTrustedPeers bool
+
 	// If true, DisableRepinning, ensures that no repinning happens
 	// when a node goes down.
 	// This is useful when doing certain types of maintenance, or simply
@@ -166,26 +170,27 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                   string             `json:"id,omitempty"`
-	Peername             string             `json:"peername"`
-	PrivateKey           string             `json:"private_key,omitempty" hidden:"true"`
-	Secret               string             `json:"secret" hidden:"true"`
-	LeaveOnShutdown      bool               `json:"leave_on_shutdown"`
-	ListenMultiaddress   ipfsconfig.Strings `json:"listen_multiaddress"`
-	EnableRelayHop       bool               `json:"enable_relay_hop"`
-	ConnectionManager    *connMgrConfigJSON `json:"connection_manager"`
-	DialPeerTimeout      string             `json:"dial_peer_timeout"`
-	StateSyncInterval    string             `json:"state_sync_interval"`
-	PinRecoverInterval   string             `json:"pin_recover_interval"`
-	ReplicationFactorMin int                `json:"replication_factor_min"`
-	ReplicationFactorMax int                `json:"replication_factor_max"`
-	MonitorPingInterval  string             `json:"monitor_ping_interval"`
-	PeerWatchInterval    string             `json:"peer_watch_interval"`
-	MDNSInterval         string             `json:"mdns_interval"`
-	DisableRepinning     bool               `json:"disable_repinning"`
-	FollowerMode         bool               `json:"follower_mode,omitempty"`
-	PeerstoreFile        string             `json:"peerstore_file,omitempty"`
-	PeerAddresses        []string           `json:"peer_addresses"`
+	ID                    string             `json:"id,omitempty"`
+	Peername              string             `json:"peername"`
+	PrivateKey            string             `json:"private_key,omitempty" hidden:"true"`
+	Secret                string             `json:"secret" hidden:"true"`
+	LeaveOnShutdown       bool               `json:"leave_on_shutdown"`
+	ListenMultiaddress    ipfsconfig.Strings `json:"listen_multiaddress"`
+	EnableRelayHop        bool               `json:"enable_relay_hop"`
+	ConnectionManager     *connMgrConfigJSON `json:"connection_manager"`
+	DialPeerTimeout       string             `json:"dial_peer_timeout"`
+	StateSyncInterval     string             `json:"state_sync_interval"`
+	PinRecoverInterval    string             `json:"pin_recover_interval"`
+	ReplicationFactorMin  int                `json:"replication_factor_min"`
+	ReplicationFactorMax  int                `json:"replication_factor_max"`
+	MonitorPingInterval   string             `json:"monitor_ping_interval"`
+	PeerWatchInterval     string             `json:"peer_watch_interval"`
+	MDNSInterval          string             `json:"mdns_interval"`
+	PinOnlyOnTrustedPeers bool               `json:"pin_only_on_trusted_peers"`
+	DisableRepinning      bool               `json:"disable_repinning"`
+	FollowerMode          bool               `json:"follower_mode,omitempty"`
+	PeerstoreFile         string             `json:"peerstore_file,omitempty"`
+	PeerAddresses         []string           `json:"peer_addresses"`
 }
 
 // connMgrConfigJSON configures the libp2p host connection manager.
@@ -374,6 +379,7 @@ func (cfg *Config) setDefaults() {
 	cfg.MonitorPingInterval = DefaultMonitorPingInterval
 	cfg.PeerWatchInterval = DefaultPeerWatchInterval
 	cfg.MDNSInterval = DefaultMDNSInterval
+	cfg.PinOnlyOnTrustedPeers = DefaultPinOnlyOnTrustedPeers
 	cfg.DisableRepinning = DefaultDisableRepinning
 	cfg.FollowerMode = DefaultFollowerMode
 	cfg.PeerstoreFile = "" // empty so it gets omitted.
@@ -463,6 +469,7 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	}
 	cfg.PeerAddresses = peerAddrs
 	cfg.LeaveOnShutdown = jcfg.LeaveOnShutdown
+	cfg.PinOnlyOnTrustedPeers = jcfg.PinOnlyOnTrustedPeers
 	cfg.DisableRepinning = jcfg.DisableRepinning
 	cfg.FollowerMode = jcfg.FollowerMode
 
@@ -513,6 +520,7 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
 	jcfg.PeerWatchInterval = cfg.PeerWatchInterval.String()
 	jcfg.MDNSInterval = cfg.MDNSInterval.String()
+	jcfg.PinOnlyOnTrustedPeers = cfg.PinOnlyOnTrustedPeers
 	jcfg.DisableRepinning = cfg.DisableRepinning
 	jcfg.PeerstoreFile = cfg.PeerstoreFile
 	jcfg.PeerAddresses = []string{}
