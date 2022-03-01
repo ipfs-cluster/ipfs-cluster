@@ -327,6 +327,27 @@ func TestStatus(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func TestStatusCids(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		pins, err := c.StatusCids(ctx, []cid.Cid{test.Cid1}, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 1 {
+			t.Fatal("wrong number of pins returned")
+		}
+		if !pins[0].Cid.Equals(test.Cid1) {
+			t.Error("should be same pin")
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
 func TestStatusAll(t *testing.T) {
 	ctx := context.Background()
 	api := testAPI(t)

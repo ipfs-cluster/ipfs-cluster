@@ -84,6 +84,8 @@ type Client interface {
 	// the information affects only the current peer, otherwise the information
 	// is fetched from all cluster peers.
 	Status(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error)
+	// StatusCids status information for the requested CIDs.
+	StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]*api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
 	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error)
 
