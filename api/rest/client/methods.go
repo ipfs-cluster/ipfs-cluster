@@ -220,12 +220,23 @@ func (c *defaultClient) Status(ctx context.Context, ci cid.Cid, local bool) (*ap
 	return &gpi, err
 }
 
+// StatusCids returns Status() information for the given Cids. If local is
+// true, the information affects only the current peer, otherwise the
+// information is fetched from all cluster peers.
+func (c *defaultClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]*api.GlobalPinInfo, error) {
+	return c.statusAllWithCids(ctx, api.TrackerStatusUndefined, cids, local)
+}
+
 // StatusAll gathers Status() for all tracked items. If a filter is
 // provided, only entries matching the given filter statuses
 // will be returned. A filter can be built by merging TrackerStatuses with
 // a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
 // api.TrackerStatusUndefined), means all.
 func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error) {
+	return c.statusAllWithCids(ctx, filter, nil, local)
+}
+
+func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.TrackerStatus, cids []cid.Cid, local bool) ([]*api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "client/StatusAll")
 	defer span.End()
 
@@ -239,10 +250,16 @@ func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus,
 		}
 	}
 
+	var cidsStr []string
+	for _, c := range cids {
+		cidsStr = append(cidsStr, c.String())
+	}
+
 	err := c.do(
 		ctx,
 		"GET",
-		fmt.Sprintf("/pins?local=%t&filter=%s", local, url.QueryEscape(filterStr)),
+		fmt.Sprintf("/pins?local=%t&filter=%s&cids=%s",
+			local, url.QueryEscape(filterStr), strings.Join(cidsStr, ",")),
 		nil,
 		nil,
 		&gpis,

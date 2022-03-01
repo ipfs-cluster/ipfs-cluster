@@ -253,6 +253,21 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local boo
 	return pinInfo, err
 }
 
+// StatusCids returns Status() information for the given Cids. If local is
+// true, the information affects only the current peer, otherwise the
+// information is fetched from all cluster peers.
+func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]*api.GlobalPinInfo, error) {
+	var pinInfos []*api.GlobalPinInfo
+	call := func(c Client) error {
+		var err error
+		pinInfos, err = c.StatusCids(ctx, cids, local)
+		return err
+	}
+
+	err := lc.retry(0, call)
+	return pinInfos, err
+}
+
 // StatusAll gathers Status() for all tracked items. If a filter is
 // provided, only entries matching the given filter statuses
 // will be returned. A filter can be built by merging TrackerStatuses with
