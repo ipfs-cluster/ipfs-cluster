@@ -491,7 +491,7 @@ func (css *Consensus) batchWorker() {
 				logger.Errorf("error commiting batch after reaching max size: %s", err)
 				continue
 			}
-			logger.Debugf("batch commit (size): %d items", maxSize)
+			logger.Infof("batch commit (size): %d items", maxSize)
 
 			// Stop timer and commit. Leave ready to reset on next
 			// item.
@@ -506,7 +506,7 @@ func (css *Consensus) batchWorker() {
 				logger.Errorf("error commiting batch after reaching max age: %s", err)
 				continue
 			}
-			logger.Debugf("batch commit (max age): %d items", batchCurSize)
+			logger.Infof("batch commit (max age): %d items", batchCurSize)
 			// timer is expired at this point, it will have to be
 			// reset.
 			batchCurSize = 0
