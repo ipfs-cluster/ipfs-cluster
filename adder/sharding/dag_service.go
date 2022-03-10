@@ -32,8 +32,8 @@ type DAGService struct {
 
 	rpcClient *rpc.Client
 
-	pinOpts api.PinOptions
-	output  chan<- *api.AddedOutput
+	addParams api.AddParams
+	output    chan<- *api.AddedOutput
 
 	addedSet *cid.Set
 
@@ -51,12 +51,12 @@ type DAGService struct {
 
 // New returns a new ClusterDAGService, which uses the given rpc client to perform
 // Allocate, IPFSBlockPut and Pin requests to other cluster components.
-func New(rpc *rpc.Client, opts api.PinOptions, out chan<- *api.AddedOutput) *DAGService {
+func New(rpc *rpc.Client, opts api.AddParams, out chan<- *api.AddedOutput) *DAGService {
 	// use a default value for this regardless of what is provided.
 	opts.Mode = api.PinModeRecursive
 	return &DAGService{
 		rpcClient: rpc,
-		pinOpts:   opts,
+		addParams: opts,
 		output:    out,
 		addedSet:  cid.NewSet(),
 		shards:    make(map[string]cid.Cid),
@@ -101,17 +101,17 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	clusterDAG := clusterDAGNodes[0].Cid()
 
 	dgs.sendOutput(&api.AddedOutput{
-		Name: fmt.Sprintf("%s-clusterDAG", dgs.pinOpts.Name),
+		Name: fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name),
 		Cid:  clusterDAG,
 		Size: dgs.totalSize,
 	})
 
 	// Pin the ClusterDAG
-	clusterDAGPin := api.PinWithOpts(clusterDAG, dgs.pinOpts)
+	clusterDAGPin := api.PinWithOpts(clusterDAG, dgs.addParams.PinOptions)
 	clusterDAGPin.ReplicationFactorMin = -1
 	clusterDAGPin.ReplicationFactorMax = -1
 	clusterDAGPin.MaxDepth = 0 // pin direct
-	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", dgs.pinOpts.Name)
+	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name)
 	clusterDAGPin.Type = api.ClusterDAGType
 	clusterDAGPin.Reference = &dataRoot
 	err = adder.Pin(ctx, dgs.rpcClient, clusterDAGPin)
@@ -120,7 +120,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	}
 
 	// Pin the META pin
-	metaPin := api.PinWithOpts(dataRoot, dgs.pinOpts)
+	metaPin := api.PinWithOpts(dataRoot, dgs.addParams.PinOptions)
 	metaPin.Type = api.MetaType
 	metaPin.Reference = &clusterDAG
 	metaPin.MaxDepth = 0 // irrelevant. Meta-pins are not pinned
@@ -138,7 +138,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	// shardParents := cid.NewSet()
 	// shardParents.Add(clusterDAG)
 	// for shardN, shard := range dgs.shardNodes {
-	// 	pin := api.PinWithOpts(shard, dgs.pinOpts)
+	// 	pin := api.PinWithOpts(shard, dgs.addParams)
 	// 	pin.Name := fmt.Sprintf("%s-shard-%s", pin.Name, shardN)
 	// 	pin.Type = api.ShardType
 	// 	pin.Parents = shardParents
@@ -160,16 +160,16 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n ipld.Node) error {
 
 	// if we have no currentShard, create one
 	if shard == nil {
-		logger.Infof("new shard for '%s': #%d", dgs.pinOpts.Name, len(dgs.shards))
+		logger.Infof("new shard for '%s': #%d", dgs.addParams.Name, len(dgs.shards))
 		var err error
-		shard, err = newShard(ctx, dgs.rpcClient, dgs.pinOpts)
+		shard, err = newShard(ctx, dgs.rpcClient, dgs.addParams.PinOptions)
 		if err != nil {
 			return err
 		}
 		dgs.currentShard = shard
 	}
 
-	logger.Debugf("ingesting block %s in shard %d (%s)", n.Cid(), len(dgs.shards), dgs.pinOpts.Name)
+	logger.Debugf("ingesting block %s in shard %d (%s)", n.Cid(), len(dgs.shards), dgs.addParams.Name)
 
 	// this is not same as n.Size()
 	size := uint64(len(n.RawData()))

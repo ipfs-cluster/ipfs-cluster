@@ -84,7 +84,8 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pi
 
 	// Filter and divide metrics.  The resulting sets only have peers that
 	// have all the metrics needed and are not blacklisted.
-	classified := filterMetrics(
+	classified := c.filterMetrics(
+		ctx,
 		mSet,
 		len(metrics),
 		currentAllocs,
@@ -114,9 +115,11 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pi
 // - Those corresponding to "candidate" allocations
 // And return also an slice of the peers in those groups.
 //
+// Peers from untrusted peers are left out if configured.
+//
 // For a metric/peer to be included in a group, it is necessary that it has
 // metrics for all informers.
-func filterMetrics(mSet api.MetricsSet, numMetrics int, currentAllocs, priorityList, blacklist []peer.ID) classifiedMetrics {
+func (c *Cluster) filterMetrics(ctx context.Context, mSet api.MetricsSet, numMetrics int, currentAllocs, priorityList, blacklist []peer.ID) classifiedMetrics {
 	curPeersMap := make(map[peer.ID][]*api.Metric)
 	candPeersMap := make(map[peer.ID][]*api.Metric)
 	prioPeersMap := make(map[peer.ID][]*api.Metric)
@@ -127,6 +130,10 @@ func filterMetrics(mSet api.MetricsSet, numMetrics int, currentAllocs, priorityL
 			switch {
 			case containsPeer(blacklist, m.Peer):
 				// discard blacklisted peers
+				continue
+			case c.config.PinOnlyOnTrustedPeers && !c.consensus.IsTrustedPeer(ctx, m.Peer):
+				// discard peer that are not trusted when
+				// configured.
 				continue
 			case containsPeer(currentAllocs, m.Peer):
 				curPeersMap[m.Peer] = append(curPeersMap[m.Peer], m)

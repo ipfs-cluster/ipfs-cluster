@@ -38,9 +38,9 @@ var LoggingFacilities = map[string]string{
 // used in ipfs-cluster dependencies, which may be useful
 // to display. Along with their default value.
 var LoggingFacilitiesExtra = map[string]string{
-	"p2p-gorpc":   "CRITICAL",
+	"p2p-gorpc":   "ERROR",
 	"swarm2":      "ERROR",
-	"libp2p-raft": "CRITICAL",
+	"libp2p-raft": "FATAL",
 	"raftlib":     "ERROR",
 	"badger":      "INFO",
 }
@@ -48,12 +48,20 @@ var LoggingFacilitiesExtra = map[string]string{
 // SetFacilityLogLevel sets the log level for a given module
 func SetFacilityLogLevel(f, l string) {
 	/*
-		CRITICAL Level = iota
-		ERROR
-		WARNING
-		NOTICE
-		INFO
-		DEBUG
+		case "debug", "DEBUG":
+			*l = DebugLevel
+		case "info", "INFO", "": // make the zero value useful
+			*l = InfoLevel
+		case "warn", "WARN":
+			*l = WarnLevel
+		case "error", "ERROR":
+			*l = ErrorLevel
+		case "dpanic", "DPANIC":
+			*l = DPanicLevel
+		case "panic", "PANIC":
+			*l = PanicLevel
+		case "fatal", "FATAL":
+			*l = FatalLevel
 	*/
 	logging.SetLogLevel(f, l)
 }

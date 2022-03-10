@@ -28,7 +28,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "0.14.4-next"
+const Version = "0.14.5-next"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -860,8 +860,8 @@ The filter only takes effect when listing all pins. The possible values are:
 			Description: `
 This command retrieves the status of the CIDs tracked by IPFS
 Cluster, including which member is pinning them and any errors.
-If a CID is provided, the status will be only fetched for a single
-item.  Metadata CIDs are included in the status response
+If one of several CIDs are provided, the status will be only fetched 
+for a single item.  Metadata CIDs are included in the status response.
 
 When the --local flag is passed, it will only fetch the status from the
 contacted cluster peer. By default, status will be fetched from all peers.
@@ -871,7 +871,7 @@ where status of the pin matches at least one of the filter values (a comma
 separated list). The following are valid status values:
 
 ` + trackerStatusAllString(),
-			ArgsUsage: "[CID]",
+			ArgsUsage: "[CID1] [CID2]...",
 			Flags: []cli.Flag{
 				localFlag(),
 				cli.StringFlag{
@@ -880,11 +880,18 @@ separated list). The following are valid status values:
 				},
 			},
 			Action: func(c *cli.Context) error {
-				cidStr := c.Args().First()
-				if cidStr != "" {
-					ci, err := cid.Decode(cidStr)
+				cidsStr := c.Args()
+				cids := make([]cid.Cid, len(cidsStr))
+				for i, cStr := range cidsStr {
+					ci, err := cid.Decode(cStr)
 					checkErr("parsing cid", err)
-					resp, cerr := globalClient.Status(ctx, ci, c.Bool("local"))
+					cids[i] = ci
+				}
+				if len(cids) == 1 {
+					resp, cerr := globalClient.Status(ctx, cids[0], c.Bool("local"))
+					formatResponse(c, resp, cerr)
+				} else if len(cids) > 1 {
+					resp, cerr := globalClient.StatusCids(ctx, cids, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
 					filterFlag := c.String("filter")

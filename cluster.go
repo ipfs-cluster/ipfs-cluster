@@ -1654,14 +1654,14 @@ func (c *Cluster) UnpinPath(ctx context.Context, path string) (*api.Pin, error) 
 // pipeline is used to DAGify the file.  Depending on input parameters this
 // DAG can be added locally to the calling cluster peer's ipfs repo, or
 // sharded across the entire cluster.
-func (c *Cluster) AddFile(reader *multipart.Reader, params *api.AddParams) (cid.Cid, error) {
+func (c *Cluster) AddFile(reader *multipart.Reader, params api.AddParams) (cid.Cid, error) {
 	// TODO: add context param and tracing
 
 	var dags adder.ClusterDAGService
 	if params.Shard {
-		dags = sharding.New(c.rpcClient, params.PinOptions, nil)
+		dags = sharding.New(c.rpcClient, params, nil)
 	} else {
-		dags = single.New(c.rpcClient, params.PinOptions, params.Local)
+		dags = single.New(c.rpcClient, params, params.Local)
 	}
 	add := adder.New(dags, params, nil)
 	return add.FromMultipart(c.ctx, reader)
@@ -1756,7 +1756,7 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 		if peerName == "" {
 			peerName = p.String()
 		}
-		gpin.Add(&api.PinInfo{
+		gpin.Add(api.PinInfo{
 			Cid:         h,
 			Name:        pin.Name,
 			Allocations: pin.Allocations,
@@ -1764,7 +1764,7 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 			Metadata:    pin.Metadata,
 			Peer:        p,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: peerName,
+				PeerName: pv.Peername,
 				IPFS:     pv.IPFSID,
 				Status:   status,
 				TS:       t,
@@ -1870,7 +1870,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 
 		// No error. Parse and continue
 		if e == nil {
-			gpin.Add(r)
+			gpin.Add(*r)
 			continue
 		}
 
@@ -1887,7 +1887,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		if peerName == "" {
 			peerName = dests[i].String()
 		}
-		gpin.Add(&api.PinInfo{
+		gpin.Add(api.PinInfo{
 			Cid:         h,
 			Name:        pin.Name,
 			Peer:        dests[i],
@@ -1895,7 +1895,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			Origins:     pin.Origins,
 			Metadata:    pin.Metadata,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: peerName,
+				PeerName: pv.Peername,
 				IPFS:     pv.IPFSID,
 				Status:   api.TrackerStatusClusterError,
 				TS:       timeNow,
@@ -1957,7 +1957,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 			info = &api.GlobalPinInfo{}
 			fullMap[p.Cid] = info
 		}
-		info.Add(p)
+		info.Add(*p)
 	}
 
 	erroredPeers := make(map[peer.ID]string)
@@ -1980,11 +1980,6 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 	// Merge any errors
 	for p, msg := range erroredPeers {
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(ctx, pingMetricName, p))
-		peerName := pv.Peername
-		if peerName == "" {
-			peerName = p.String()
-		}
-
 		for c := range fullMap {
 			setPinInfo(&api.PinInfo{
 				Cid:         c,
@@ -1994,7 +1989,7 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 				Origins:     nil,
 				Metadata:    nil,
 				PinInfoShort: api.PinInfoShort{
-					PeerName: peerName,
+					PeerName: pv.Peername,
 					IPFS:     pv.IPFSID,
 					Status:   api.TrackerStatusClusterError,
 					TS:       time.Now(),

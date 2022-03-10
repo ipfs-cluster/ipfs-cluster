@@ -350,6 +350,8 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 		return errFollowerMode
 	}
 
+	// Allocating for a existing pin. Usually the adder calls this with
+	// cid.Undef.
 	existing, err := rpcapi.c.PinGet(ctx, in.Cid)
 	if err != nil && err != state.ErrNotFound {
 		return err

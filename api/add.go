@@ -45,13 +45,14 @@ type AddParams struct {
 	Shard          bool
 	StreamChannels bool
 	Format         string // selects with adder
+	NoPin          bool
 
 	IPFSAddParams
 }
 
 // DefaultAddParams returns a AddParams object with standard defaults
-func DefaultAddParams() *AddParams {
-	return &AddParams{
+func DefaultAddParams() AddParams {
+	return AddParams{
 		Local:     false,
 		Recursive: false,
 
@@ -62,6 +63,7 @@ func DefaultAddParams() *AddParams {
 		StreamChannels: true,
 
 		Format: "unixfs",
+		NoPin:  false,
 		PinOptions: PinOptions{
 			ReplicationFactorMin: 0,
 			ReplicationFactorMax: 0,
@@ -107,13 +109,13 @@ func parseIntParam(q url.Values, name string, dest *int) error {
 
 // AddParamsFromQuery parses the AddParams object from
 // a URL.Query().
-func AddParamsFromQuery(query url.Values) (*AddParams, error) {
+func AddParamsFromQuery(query url.Values) (AddParams, error) {
 	params := DefaultAddParams()
 
 	opts := &PinOptions{}
 	err := opts.FromQuery(query)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 	params.PinOptions = *opts
 	params.PinUpdate = cid.Undef // hardcode as does not make sense for adding
@@ -123,7 +125,7 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	case "trickle", "balanced", "":
 		// nothing
 	default:
-		return nil, errors.New("layout parameter is invalid")
+		return params, errors.New("layout parameter is invalid")
 	}
 	params.Layout = layout
 
@@ -141,41 +143,41 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	switch format {
 	case "car", "unixfs", "":
 	default:
-		return nil, errors.New("format parameter is invalid")
+		return params, errors.New("format parameter is invalid")
 	}
 	params.Format = format
 
 	err = parseBoolParam(query, "local", &params.Local)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	err = parseBoolParam(query, "recursive", &params.Recursive)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	err = parseBoolParam(query, "hidden", &params.Hidden)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 	err = parseBoolParam(query, "wrap-with-directory", &params.Wrap)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 	err = parseBoolParam(query, "shard", &params.Shard)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	err = parseBoolParam(query, "progress", &params.Progress)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	err = parseIntParam(query, "cid-version", &params.CidVersion)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	// This mimics go-ipfs behaviour.
@@ -188,24 +190,29 @@ func AddParamsFromQuery(query url.Values) (*AddParams, error) {
 	// CidVersion). Otherwise, it will be explicitly set.
 	err = parseBoolParam(query, "raw-leaves", &params.RawLeaves)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	err = parseBoolParam(query, "stream-channels", &params.StreamChannels)
 	if err != nil {
-		return nil, err
+		return params, err
 	}
 
 	err = parseBoolParam(query, "nocopy", &params.NoCopy)
 	if err != nil {
-		return nil, err
+		return params, err
+	}
+
+	err = parseBoolParam(query, "no-pin", &params.NoPin)
+	if err != nil {
+		return params, err
 	}
 
 	return params, nil
 }
 
 // ToQueryString returns a url query string (key=value&key2=value2&...)
-func (p *AddParams) ToQueryString() (string, error) {
+func (p AddParams) ToQueryString() (string, error) {
 	pinOptsQuery, err := p.PinOptions.ToQuery()
 	if err != nil {
 		return "", err
@@ -228,11 +235,12 @@ func (p *AddParams) ToQueryString() (string, error) {
 	query.Set("stream-channels", fmt.Sprintf("%t", p.StreamChannels))
 	query.Set("nocopy", fmt.Sprintf("%t", p.NoCopy))
 	query.Set("format", p.Format)
+	query.Set("no-pin", fmt.Sprintf("%t", p.NoPin))
 	return query.Encode(), nil
 }
 
 // Equals checks if p equals p2.
-func (p *AddParams) Equals(p2 *AddParams) bool {
+func (p AddParams) Equals(p2 AddParams) bool {
 	return p.PinOptions.Equals(&p2.PinOptions) &&
 		p.Local == p2.Local &&
 		p.Recursive == p2.Recursive &&
@@ -246,5 +254,6 @@ func (p *AddParams) Equals(p2 *AddParams) bool {
 		p.HashFun == p2.HashFun &&
 		p.StreamChannels == p2.StreamChannels &&
 		p.NoCopy == p2.NoCopy &&
-		p.Format == p2.Format
+		p.Format == p2.Format &&
+		p.NoPin == p2.NoPin
 }

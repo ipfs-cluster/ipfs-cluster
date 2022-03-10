@@ -28,6 +28,7 @@ var ccfgTestJSON = []byte(`
         "replication_factor_min": 5,
         "replication_factor_max": 5,
         "monitor_ping_interval": "2s",
+        "pin_only_on_trusted_peers": true,
         "disable_repinning": true,
         "peer_addresses": [ "/ip4/127.0.0.1/tcp/1234/p2p/QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc" ]
 }
@@ -69,6 +70,13 @@ func TestLoadJSON(t *testing.T) {
 		cfg := loadJSON(t)
 		if !cfg.DisableRepinning {
 			t.Error("expected disable_repinning to be true")
+		}
+	})
+
+	t.Run("expected pin_only_on_trusted_peers", func(t *testing.T) {
+		cfg := loadJSON(t)
+		if !cfg.PinOnlyOnTrustedPeers {
+			t.Error("expected pin_only_on_trusted_peers to be true")
 		}
 	})
 

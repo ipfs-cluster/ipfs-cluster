@@ -327,6 +327,27 @@ func TestStatus(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func TestStatusCids(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		pins, err := c.StatusCids(ctx, []cid.Cid{test.Cid1}, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pins) != 1 {
+			t.Fatal("wrong number of pins returned")
+		}
+		if !pins[0].Cid.Equals(test.Cid1) {
+			t.Error("should be same pin")
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
 func TestStatusAll(t *testing.T) {
 	ctx := context.Background()
 	api := testAPI(t)
@@ -513,7 +534,7 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 	if time.Now().After(wait.pinStart.Add(5 * time.Second)) { //pinned
 		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*types.PinInfoShort{
+			PeerMap: map[string]types.PinInfoShort{
 				peer.Encode(test.PeerID1): {
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
@@ -535,7 +556,7 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 	} else { // pinning
 		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*types.PinInfoShort{
+			PeerMap: map[string]types.PinInfoShort{
 				peer.Encode(test.PeerID1): {
 					Status: types.TrackerStatusPinning,
 					TS:     wait.pinStart,
@@ -585,7 +606,7 @@ func (wait *waitServiceUnpin) Status(ctx context.Context, in cid.Cid, out *types
 	if time.Now().After(wait.unpinStart.Add(5 * time.Second)) { //unpinned
 		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*types.PinInfoShort{
+			PeerMap: map[string]types.PinInfoShort{
 				peer.Encode(test.PeerID1): {
 					Status: types.TrackerStatusUnpinned,
 					TS:     wait.unpinStart,
@@ -599,7 +620,7 @@ func (wait *waitServiceUnpin) Status(ctx context.Context, in cid.Cid, out *types
 	} else { // pinning
 		*out = types.GlobalPinInfo{
 			Cid: in,
-			PeerMap: map[string]*types.PinInfoShort{
+			PeerMap: map[string]types.PinInfoShort{
 				peer.Encode(test.PeerID1): {
 					Status: types.TrackerStatusUnpinning,
 					TS:     wait.unpinStart,
@@ -749,7 +770,7 @@ func TestAddMultiFile(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 
-		p := &types.AddParams{
+		p := types.AddParams{
 			PinOptions: types.PinOptions{
 				ReplicationFactorMin: -1,
 				ReplicationFactorMax: -1,

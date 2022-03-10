@@ -54,7 +54,7 @@ var (
 	// number of pins to pin/unpin/check
 	nPins = 100
 
-	logLevel               = "CRITICAL"
+	logLevel               = "FATAL"
 	customLogLvlFacilities = logFacilities{}
 
 	consensus = "crdt"

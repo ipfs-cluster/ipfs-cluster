@@ -64,7 +64,7 @@ func (rpcs *testRPC) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
 	return bI.([]byte), nil
 }
 
-func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
+func makeAdder(t *testing.T, params api.AddParams) (*adder.Adder, *testRPC) {
 	rpcObj := &testRPC{}
 	server := rpc.NewServer(nil, "mock")
 	err := server.RegisterName("Cluster", rpcObj)
@@ -79,7 +79,7 @@ func makeAdder(t *testing.T, params *api.AddParams) (*adder.Adder, *testRPC) {
 
 	out := make(chan *api.AddedOutput, 1)
 
-	dags := New(client, params.PinOptions, out)
+	dags := New(client, params, out)
 	add := adder.New(dags, params, out)
 
 	go func() {
@@ -190,13 +190,13 @@ func TestFromMultipart(t *testing.T) {
 func TestFromMultipart_Errors(t *testing.T) {
 	type testcase struct {
 		name   string
-		params *api.AddParams
+		params api.AddParams
 	}
 
 	tcs := []*testcase{
 		{
 			name: "bad chunker",
-			params: &api.AddParams{
+			params: api.AddParams{
 				Format: "",
 				IPFSAddParams: api.IPFSAddParams{
 					Chunker:   "aweee",
@@ -214,7 +214,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 		},
 		{
 			name: "shard size too small",
-			params: &api.AddParams{
+			params: api.AddParams{
 				Format: "",
 				IPFSAddParams: api.IPFSAddParams{
 					Chunker:   "",
@@ -232,7 +232,7 @@ func TestFromMultipart_Errors(t *testing.T) {
 		},
 		{
 			name: "replication too high",
-			params: &api.AddParams{
+			params: api.AddParams{
 				Format: "",
 				IPFSAddParams: api.IPFSAddParams{
 					Chunker:   "",

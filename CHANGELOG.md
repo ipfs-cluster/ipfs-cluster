@@ -1,5 +1,89 @@
 # IPFS Cluster Changelog
 
+### v0.14.5 - 2022-02-16
+
+This is a minor IPFS Cluster release. The main feature is the upgrade of the
+go-ds-crdt library which now supports resuming the processing of CRDT-DAGs
+that were not fully synced.
+
+On first start on an updated node, the CRDT library will have to re-walk the
+full CRDT-DAG. This happens in the background.
+
+For the full list of feature and bugfixes, see list below.
+
+#### List of changes
+
+##### Features
+
+* CRDT: update with RepairInterval option and more workers | [ipfs/ipfs-cluster#1561](https://github.com/ipfs/ipfs-cluster/issues/1561) | [ipfs/ipfs-cluster#1576](https://github.com/ipfs/ipfs-cluster/issues/1576)
+* Add `?cids` query parameter to /pins: limit status request to several CIDs | [ipfs/ipfs-cluster#1562](https://github.com/ipfs/ipfs-cluster/issues/1562)
+* Pintracker improvements | [ipfs/ipfs-cluster#1556](https://github.com/ipfs/ipfs-cluster/issues/1556) | [ipfs/ipfs-cluster#939](https://github.com/ipfs/ipfs-cluster/issues/939) | [ipfs/ipfs-cluster#1554](https://github.com/ipfs/ipfs-cluster/issues/1554) | [ipfs/ipfs-cluster#1212](https://github.com/ipfs/ipfs-cluster/issues/1212)
+  * Status information shows peer ID of IPFS peer pinning the content
+  * Peernames correctly set for remote peers on status objects
+  * Pin names not set for in-flight pin status objects
+
+##### Bug fixes
+
+* Fix: logging was too noisy | [ipfs/ipfs-cluster#1581](https://github.com/ipfs/ipfs-cluster/issues/1581) | [ipfs/ipfs-cluster#1579](https://github.com/ipfs/ipfs-cluster/issues/1579)
+* Remove warning message about informer metrics | [ipfs/ipfs-cluster#1543](https://github.com/ipfs/ipfs-cluster/issues/1543)
+* Fix: IPFS repo/stat gets hammered on busy peers | [ipfs/ipfs-cluster#1559](https://github.com/ipfs/ipfs-cluster/issues/1559)
+* Fix: faster shutdown by aborting state list on context cancellation | [ipfs/ipfs-cluster#1555](https://github.com/ipfs/ipfs-cluster/issues/1555)
+
+##### Other changes
+
+* Leave peername empty when unknown on status response | [ipfs/ipfs-cluster#1569](https://github.com/ipfs/ipfs-cluster/issues/1569) | [ipfs/ipfs-cluster#1575](https://github.com/ipfs/ipfs-cluster/issues/1575)
+* Fix comment in graphs.go | [ipfs/ipfs-cluster#1570](https://github.com/ipfs/ipfs-cluster/issues/1570) | [ipfs/ipfs-cluster#1574](https://github.com/ipfs/ipfs-cluster/issues/1574)
+* Make `/add?local=true` requests forcefully allocate to local peer | [ipfs/ipfs-cluster#1560](https://github.com/ipfs/ipfs-cluster/issues/1560)
+* Dependency upgrades | [ipfs/ipfs-cluster#1580](https://github.com/ipfs/ipfs-cluster/issues/1580)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+Configuration is backwards compatible with previous versions.
+
+The `consensus/crdt` section has a new option `repair_interval` which is set
+by default to `1h` and controls how often we check if the crdt DAG needs to be
+reprocessed (i.e. when it becomes marked dirty due to an error). Setting it to
+`0` disables repairs.
+
+The `ipfs_connector/ipfshttp` section has a new option
+`informer_trigger_interval` which defaults to `0` (disabled). This controls
+whether clusters issue a metrics update every certain number of pins (i.e. for
+fine-grain control of freespace after a pin happens).
+
+The `monitor/pubsubmon/failure_threshold` option no longer has any effect.
+
+##### REST API
+
+The `/pins` (StatusAll) endpoint now takes a `?cid=cid1,cid2` option which
+allows to filter the resulting list to specific CIDs.
+
+##### Go APIs
+
+We added a `LatestForPeer()` method to the PeerMonitor interface which returns
+the latest metric of a certain type received by a peer.
+
+##### Other
+
+Before, adding content using the `local=true` option would add the blocks to
+the peer receiving the request and then allocate the pin normally (i.e. to the
+peers with most free space avaiable, which may or not be the local peer). Now,
+"local add" requests will always allocate the pin to the local peer since it
+already has the content.
+
+Before, we would send a freespace metric update every 10 pins. After: we don't
+do it anymore and relay on the normal metric interval, unless
+`informer_trigger_interval` is configured.
+
+The CRDT library will create a database of processed DAG blocks during the
+first start on an upgraded node. This happens on the background and should
+only happen once. Peers with very large CRDT-DAGs, may experience increased
+disk usage during this time.
+
+---
+
+
 ### v0.14.4 - 2022-01-11
 
 This is a minor IPFS Cluster release with additional performance improvements.

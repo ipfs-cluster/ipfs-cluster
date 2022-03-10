@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -77,20 +76,6 @@ func TestWindow_Race(t *testing.T) {
 			case <-allTicker.C:
 				w.All()
 				// log <- fmt.Sprintf("all: %v", w.All())
-			case <-done:
-				return
-			}
-		}
-	}()
-
-	// go routine to query distribution at regular interval
-	distributionTicker := time.NewTicker(100 * time.Millisecond)
-	go func() {
-		<-start
-		for {
-			select {
-			case <-distributionTicker.C:
-				log <- fmt.Sprintf("dist: %v", w.Distribution())
 			case <-done:
 				return
 			}
@@ -339,106 +324,6 @@ func BenchmarkWindow_All(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			mw.All()
-		}
-	})
-}
-
-func TestWindow_Distribution(t *testing.T) {
-	var tests = []struct {
-		name       string
-		heartbeats []float64
-		want       []float64
-	}{
-		{
-			"even 1 sec distribution",
-			[]float64{1, 1, 1, 1},
-			[]float64{1, 1, 1, 1},
-		},
-		{
-			"increasing latency distribution",
-			[]float64{1, 1, 2, 2, 3, 3, 4},
-			[]float64{4, 3, 3, 2, 2, 1, 1},
-		},
-		{
-			"random latency distribution",
-			[]float64{4, 1, 3, 9, 7, 8, 11, 18},
-			[]float64{18, 11, 8, 7, 9, 3, 1, 4},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mw := NewWindow(len(tt.heartbeats) + 1)
-			for i, v := range tt.heartbeats {
-				mw.Add(makeMetric(strconv.Itoa(int(v * 10))))
-				// time.Sleep on the 1s of milliseconds level is
-				// susceptible to scheduler variance. Hence we
-				// multiple the input by 10 and this combined with
-				// truncating the result to just seconds, we should
-				// get stable distribution of timings between
-				// window.Adds.
-				time.Sleep(time.Duration(v*10) * time.Millisecond)
-				if i == len(tt.heartbeats)-1 {
-					mw.Add(makeMetric("last"))
-				}
-			}
-
-			got := mw.Distribution()
-
-			if len(got) != len(tt.want) {
-				t.Errorf("want len: %v, got len: %v", len(tt.want), len(got))
-			}
-
-			var gotseconds []float64
-			for _, v := range got {
-				// truncate nanoseconds to seconds for testing purposes
-				// also truncate decimal places by converting to int and then back
-				gotseconds = append(gotseconds, float64(int64(v/10000000)))
-			}
-
-			for i, s := range gotseconds {
-				if s != tt.want[i] {
-					t.Fatalf("want: %v, got: %v", tt.want, gotseconds)
-					break
-				}
-			}
-		})
-	}
-}
-
-func BenchmarkWindow_Distribution(b *testing.B) {
-	b.Run("window size 10", func(b *testing.B) {
-		mw := NewWindow(10)
-		for i := 0; i < 10; i++ {
-			mw.Add(makeMetric("1"))
-		}
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			mw.Distribution()
-		}
-	})
-
-	b.Run("window size 25", func(b *testing.B) {
-		mw := NewWindow(25)
-		for i := 0; i < 25; i++ {
-			mw.Add(makeMetric("1"))
-		}
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			mw.Distribution()
-		}
-	})
-
-	b.Run("window size 1000", func(b *testing.B) {
-		mw := NewWindow(1000)
-		for i := 0; i < 1000; i++ {
-			mw.Add(makeMetric("1"))
-		}
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			mw.Distribution()
 		}
 	})
 }
