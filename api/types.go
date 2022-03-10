@@ -303,13 +303,14 @@ func (gpi *GlobalPinInfo) Match(filter TrackerStatus) bool {
 // PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
 // objects and does not carry redundant information as PinInfo would.
 type PinInfoShort struct {
-	PeerName     string        `json:"peername" codec:"pn,omitempty"`
-	IPFS         peer.ID       `json:"ipfs_peer_id,omitempty" codec:"i,omitempty"`
-	Status       TrackerStatus `json:"status" codec:"st,omitempty"`
-	TS           time.Time     `json:"timestamp" codec:"ts,omitempty"`
-	Error        string        `json:"error" codec:"e,omitempty"`
-	AttemptCount int           `json:"attempt_count" codec:"a,omitempty"`
-	PriorityPin  bool          `json:"priority_pin" codec:"y,omitempty"`
+	PeerName      string        `json:"peername" codec:"pn,omitempty"`
+	IPFS          peer.ID       `json:"ipfs_peer_id,omitempty" codec:"i,omitempty"`
+	IPFSAddresses []Multiaddr   `json:"ipfs_peer_addresses,omitempty" codec:"ia,omitempty"`
+	Status        TrackerStatus `json:"status" codec:"st,omitempty"`
+	TS            time.Time     `json:"timestamp" codec:"ts,omitempty"`
+	Error         string        `json:"error" codec:"e,omitempty"`
+	AttemptCount  int           `json:"attempt_count" codec:"a,omitempty"`
+	PriorityPin   bool          `json:"priority_pin" codec:"y,omitempty"`
 }
 
 // PinInfo holds information about local pins. This is used by the Pin

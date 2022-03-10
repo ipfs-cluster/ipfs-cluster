@@ -379,8 +379,10 @@ func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Ale
 	return nil
 }
 
-func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
-	*out = PeerID1
+func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *api.IPFSID) error {
+	var id api.ID
+	_ = mock.ID(ctx, in, &id)
+	*out = id.IPFS
 	return nil
 }
 

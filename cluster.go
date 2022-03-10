@@ -383,8 +383,9 @@ func (c *Cluster) sendPingMetric(ctx context.Context) (*api.Metric, error) {
 
 	id := c.ID(ctx)
 	newPingVal := pingValue{
-		Peername: id.Peername,
-		IPFSID:   id.IPFS.ID,
+		Peername:      id.Peername,
+		IPFSID:        id.IPFS.ID,
+		IPFSAddresses: publicIPFSAddresses(id.IPFS.Addresses),
 	}
 	if c.curPingVal.Valid() &&
 		!newPingVal.Valid() { // i.e. ipfs down
@@ -1752,10 +1753,6 @@ func (c *Cluster) getTrustedPeers(ctx context.Context, exclude peer.ID) ([]peer.
 func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, pin api.Pin, t time.Time) {
 	for _, p := range peers {
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, p))
-		peerName := pv.Peername
-		if peerName == "" {
-			peerName = p.String()
-		}
 		gpin.Add(api.PinInfo{
 			Cid:         h,
 			Name:        pin.Name,
@@ -1764,10 +1761,11 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 			Metadata:    pin.Metadata,
 			Peer:        p,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: pv.Peername,
-				IPFS:     pv.IPFSID,
-				Status:   status,
-				TS:       t,
+				PeerName:      pv.Peername,
+				IPFS:          pv.IPFSID,
+				IPFSAddresses: pv.IPFSAddresses,
+				Status:        status,
+				TS:            t,
 			},
 		})
 	}
@@ -1883,10 +1881,6 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, dests[i], e)
 
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(ctx, pingMetricName, dests[i]))
-		peerName := pv.Peername
-		if peerName == "" {
-			peerName = dests[i].String()
-		}
 		gpin.Add(api.PinInfo{
 			Cid:         h,
 			Name:        pin.Name,
@@ -1895,11 +1889,12 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			Origins:     pin.Origins,
 			Metadata:    pin.Metadata,
 			PinInfoShort: api.PinInfoShort{
-				PeerName: pv.Peername,
-				IPFS:     pv.IPFSID,
-				Status:   api.TrackerStatusClusterError,
-				TS:       timeNow,
-				Error:    e.Error(),
+				PeerName:      pv.Peername,
+				IPFS:          pv.IPFSID,
+				IPFSAddresses: pv.IPFSAddresses,
+				Status:        api.TrackerStatusClusterError,
+				TS:            timeNow,
+				Error:         e.Error(),
 			},
 		})
 	}
@@ -1989,11 +1984,12 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 				Origins:     nil,
 				Metadata:    nil,
 				PinInfoShort: api.PinInfoShort{
-					PeerName: pv.Peername,
-					IPFS:     pv.IPFSID,
-					Status:   api.TrackerStatusClusterError,
-					TS:       time.Now(),
-					Error:    msg,
+					PeerName:      pv.Peername,
+					IPFS:          pv.IPFSID,
+					IPFSAddresses: pv.IPFSAddresses,
+					Status:        api.TrackerStatusClusterError,
+					TS:            time.Now(),
+					Error:         msg,
 				},
 			})
 		}
@@ -2134,6 +2130,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 	// to club `RepoGCLocal` responses of all peers into one
 	globalRepoGC := api.GlobalRepoGC{PeerMap: make(map[string]*api.RepoGC)}
+
 	for _, member := range members {
 		var repoGC api.RepoGC
 		err = c.rpcClient.CallContext(
@@ -2156,9 +2153,11 @@ func (c *Cluster) RepoGC(ctx context.Context) (*api.GlobalRepoGC, error) {
 
 		logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, member, err)
 
+		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, member))
+
 		globalRepoGC.PeerMap[peer.Encode(member)] = &api.RepoGC{
 			Peer:     member,
-			Peername: peer.Encode(member),
+			Peername: pv.Peername,
 			Keys:     []api.IPFSRepoGC{},
 			Error:    err.Error(),
 		}
