@@ -109,9 +109,8 @@ func globalPinInfoToSvcPinStatus(
 
 	status.Info = map[string]string{
 		"source":   "IPFS cluster API",
-		"warning1": "disregard created time",
-		"warning2": "CID used for requestID. Conflicts possible",
-		"warning3": "experimental",
+		"warning1": "CID used for requestID. Conflicts possible",
+		"warning2": "experimental",
 	}
 	return status
 }
@@ -145,6 +144,12 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 	api.rpcClient = c
 	return []common.Route{
 		{
+			Name:        "ListPins",
+			Method:      "GET",
+			Pattern:     "/pins",
+			HandlerFunc: api.listPins,
+		},
+		{
 			Name:        "AddPin",
 			Method:      "POST",
 			Pattern:     "/pins",
@@ -167,12 +172,6 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 			Method:      "DELETE",
 			Pattern:     "/pins/{requestID}",
 			HandlerFunc: api.removePin,
-		},
-		{
-			Name:        "ListPins",
-			Method:      "GET",
-			Pattern:     "/pins",
-			HandlerFunc: api.listPins,
 		},
 	}
 }
@@ -351,7 +350,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			"",
 			"Cluster",
 			"StatusAll",
-			opts.Status,
+			tst,
 			&globalPinInfos,
 		)
 		if err != nil {

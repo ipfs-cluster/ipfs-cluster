@@ -25,7 +25,7 @@ func init() {
 // occurs. It implements the error interface.
 type APIError struct {
 	Reason  string `json:"reason"`
-	Details string `json:"string"`
+	Details string `json:"details"`
 }
 
 func (apiErr APIError) Error() string {
@@ -180,12 +180,15 @@ type ListOptions struct {
 }
 
 func (lo *ListOptions) FromQuery(q url.Values) error {
-	for _, cstr := range strings.Split(q.Get("cid"), ",") {
-		c, err := cid.Decode(cstr)
-		if err != nil {
-			return fmt.Errorf("error decoding cid %s: %w", cstr, err)
+	cidq := q.Get("cid")
+	if len(cidq) > 0 {
+		for _, cstr := range strings.Split(cidq, ",") {
+			c, err := cid.Decode(cstr)
+			if err != nil {
+				return fmt.Errorf("error decoding cid %s: %w", cstr, err)
+			}
+			lo.Cids = append(lo.Cids, c)
 		}
-		lo.Cids = append(lo.Cids, c)
 	}
 
 	lo.Name = q.Get("name")
