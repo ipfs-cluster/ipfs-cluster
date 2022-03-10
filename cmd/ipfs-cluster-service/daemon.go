@@ -147,16 +147,16 @@ func createCluster(
 
 	}
 
+	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Pinsvcapi.ConfigKey()) {
+		pinsvcapi, err := pinsvcapi.NewAPI(ctx, cfgs.Pinsvcapi)
+		checkErr("creating Pinning Service API component", err)
+
+		apis = append(apis, pinsvcapi)
+	}
+
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Ipfsproxy.ConfigKey()) {
 		proxy, err := ipfsproxy.New(cfgs.Ipfsproxy)
 		checkErr("creating IPFS Proxy component", err)
-
-		apis = append(apis, proxy)
-	}
-
-	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Pinsvcapi.ConfigKey()) {
-		proxy, err := pinsvcapi.NewAPI(ctx, cfgs.Pinsvcapi)
-		checkErr("creating Pinning Service API component", err)
 
 		apis = append(apis, proxy)
 	}
