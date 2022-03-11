@@ -83,7 +83,6 @@ func (p Pin) MatchesName(nameOpt string, strategy MatchingStrategy) bool {
 	default:
 		return true
 	}
-	return false
 }
 
 // MatchesMeta returns true if the pin status metadata matches the given.  The

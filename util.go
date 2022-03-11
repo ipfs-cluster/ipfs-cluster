@@ -12,7 +12,6 @@ import (
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
@@ -187,15 +186,15 @@ func pingValueFromMetric(m *api.Metric) (pv pingValue) {
 
 func publicIPFSAddresses(in []api.Multiaddr) []api.Multiaddr {
 	var out []api.Multiaddr
-	for _, ma := range in {
-		if madns.Matches(ma.Value()) { // a dns multiaddress: take it
-			out = append(out, ma)
+	for _, maddr := range in {
+		if madns.Matches(maddr.Value()) { // a dns multiaddress: take it
+			out = append(out, maddr)
 			continue
 		}
 
-		ip, err := ma.ValueForProtocol(multiaddr.P_IP4)
+		ip, err := maddr.ValueForProtocol(ma.P_IP4)
 		if err != nil {
-			ip, err = ma.ValueForProtocol(multiaddr.P_IP6)
+			ip, err = maddr.ValueForProtocol(ma.P_IP6)
 			if err != nil {
 				continue
 			}
@@ -210,7 +209,7 @@ func publicIPFSAddresses(in []api.Multiaddr) []api.Multiaddr {
 		if !netip.IsGlobalUnicast() {
 			continue
 		}
-		out = append(out, ma)
+		out = append(out, maddr)
 	}
 	return out
 }
