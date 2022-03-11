@@ -40,6 +40,43 @@ type Pin struct {
 	Meta    map[string]string `json:"meta"`
 }
 
+// MatchesName returns in a pin status matches a name option with a given
+// match strategy.
+func (p Pin) MatchesName(nameOpt string, strategy MatchingStrategy) bool {
+	if nameOpt == "" {
+		return true
+	}
+	switch strategy {
+	case MatchingStrategyUndefined:
+		return true
+
+	case MatchingStrategyExact:
+		return nameOpt == p.Name
+	case MatchingStrategyIexact:
+		return strings.EqualFold(p.Name, nameOpt)
+	case MatchingStrategyPartial:
+		return strings.Contains(p.Name, nameOpt)
+	case MatchingStrategyIpartial:
+		return strings.Contains(strings.ToLower(p.Name), strings.ToLower(nameOpt))
+	default:
+		return true
+	}
+	return false
+}
+
+// MatchesMeta returns true if the pin status metadata matches the given.  The
+// metadata should have all the keys in the given metaOpts and the values
+// should, be the same (metadata map includes metaOpts).
+func (p Pin) MatchesMeta(metaOpts map[string]string) bool {
+	for k, v := range metaOpts {
+		if p.Meta[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// Status represents a pin status.
 type Status int
 
 // Status values
@@ -140,43 +177,43 @@ type PinList struct {
 }
 
 // Match defines a type of match for filtering pin lists.
-type Match int
+type MatchingStrategy int
 
 // Values for matches.
 const (
-	MatchUndefined Match = iota
-	MatchExact
-	MatchIexact
-	MatchPartial
-	MatchIpartial
+	MatchingStrategyUndefined MatchingStrategy = iota
+	MatchingStrategyExact
+	MatchingStrategyIexact
+	MatchingStrategyPartial
+	MatchingStrategyIpartial
 )
 
-// MatchFromString converts a string to its Match value.
-func MatchFromString(str string) Match {
+// MatchingStrategyFromString converts a string to its MatchingStrategy value.
+func MatchingStrategyFromString(str string) MatchingStrategy {
 	switch str {
 	case "exact":
-		return MatchExact
+		return MatchingStrategyExact
 	case "iexact":
-		return MatchIexact
+		return MatchingStrategyIexact
 	case "partial":
-		return MatchPartial
+		return MatchingStrategyPartial
 	case "ipartial":
-		return MatchIpartial
+		return MatchingStrategyIpartial
 	default:
-		return MatchUndefined
+		return MatchingStrategyUndefined
 	}
 }
 
 // ListOptions represents possible options given to the List endpoint.
 type ListOptions struct {
-	Cids   []cid.Cid
-	Name   string
-	Match  Match
-	Status Status
-	Before time.Time
-	After  time.Time
-	Limit  int
-	Meta   map[string]string
+	Cids             []cid.Cid
+	Name             string
+	MatchingStrategy MatchingStrategy
+	Status           Status
+	Before           time.Time
+	After            time.Time
+	Limit            int
+	Meta             map[string]string
 }
 
 func (lo *ListOptions) FromQuery(q url.Values) error {
@@ -191,9 +228,21 @@ func (lo *ListOptions) FromQuery(q url.Values) error {
 		}
 	}
 
-	lo.Name = q.Get("name")
-	lo.Match = MatchFromString(q.Get("match"))
-	lo.Status = StatusFromString(q.Get("status"))
+	n := q.Get("name")
+	if len(n) > 255 {
+		return fmt.Errorf("error in 'name' query param: longer than 255 chars")
+	}
+	lo.Name = n
+
+	lo.MatchingStrategy = MatchingStrategyFromString(q.Get("match"))
+	if lo.MatchingStrategy == MatchingStrategyUndefined {
+		lo.MatchingStrategy = MatchingStrategyExact // default
+	}
+	statusStr := q.Get("status")
+	lo.Status = StatusFromString(statusStr)
+	if statusStr != "" && lo.Status == StatusUndefined {
+		return fmt.Errorf("error decoding 'status' query param: no valid filter")
+	}
 
 	if bef := q.Get("before"); bef != "" {
 		err := lo.Before.UnmarshalText([]byte(bef))

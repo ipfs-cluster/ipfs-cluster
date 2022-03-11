@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,6 +20,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api/common"
 	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
 	"github.com/ipfs/ipfs-cluster/state"
+	"go.uber.org/multierr"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -37,9 +39,9 @@ func trackerStatusToSvcStatus(st types.TrackerStatus) pinsvc.Status {
 	case st.Match(types.TrackerStatusPinQueued):
 		return pinsvc.StatusQueued
 	case st.Match(types.TrackerStatusPinning):
-		return pinsvc.StatusPinned
-	case st.Match(types.TrackerStatusPinned):
 		return pinsvc.StatusPinning
+	case st.Match(types.TrackerStatusPinned):
+		return pinsvc.StatusPinned
 	default:
 		return pinsvc.StatusUndefined
 	}
@@ -329,19 +331,42 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 
 	var pinList pinsvc.PinList
 	if len(opts.Cids) > 0 {
-		for i, c := range opts.Cids {
-			st, gpi, err := api.getPinObject(r.Context(), c)
-			if err != nil {
-				api.SendResponse(w, common.SetStatusAutomatically, err, nil)
-				return
-			}
-			if !gpi.Match(tst) {
-				continue
-			}
-			pinList.Results = append(pinList.Results, st)
+		// copy approach from restapi
+		type statusResult struct {
+			st  pinsvc.PinStatus
+			err error
+		}
+		stCh := make(chan statusResult, len(opts.Cids))
+		var wg sync.WaitGroup
+		wg.Add(len(opts.Cids))
+
+		go func() {
+			wg.Wait()
+			close(stCh)
+		}()
+
+		for _, ci := range opts.Cids {
+			go func(c cid.Cid) {
+				defer wg.Done()
+				st, _, err := api.getPinObject(r.Context(), c)
+				stCh <- statusResult{st: st, err: err}
+			}(ci)
+		}
+
+		var err error
+		i := 0
+		for stResult := range stCh {
+			pinList.Results = append(pinList.Results, stResult.st)
+			err = multierr.Append(err, stResult.err)
 			if i+1 == opts.Limit {
 				break
 			}
+			i++
+		}
+
+		if err != nil {
+			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+			return
 		}
 	} else {
 		var globalPinInfos []*types.GlobalPinInfo
@@ -359,6 +384,12 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		}
 		for i, gpi := range globalPinInfos {
 			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), *gpi)
+			if !st.Pin.MatchesName(opts.Name, opts.MatchingStrategy) {
+				continue
+			}
+			if !st.Pin.MatchesMeta(opts.Meta) {
+				continue
+			}
 			pinList.Results = append(pinList.Results, st)
 			if i+1 == opts.Limit {
 				break
