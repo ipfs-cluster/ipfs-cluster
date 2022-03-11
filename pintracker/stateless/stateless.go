@@ -96,7 +96,7 @@ func (spt *Tracker) getIPFSID(ctx context.Context) api.IPFSID {
 		"",
 		"Cluster",
 		"IPFSID",
-		"", // local peer
+		peer.ID(""), // local peer
 		&ipfsid,
 	)
 	if err != nil {
