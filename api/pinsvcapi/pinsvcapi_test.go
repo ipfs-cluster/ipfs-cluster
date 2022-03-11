@@ -219,3 +219,47 @@ func TestAPIPinEndpoint(t *testing.T) {
 
 	test.BothEndpoints(t, tf)
 }
+
+func TestAPIGetPinEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url test.URLFunc) {
+		// test existing pin
+		var status pinsvc.PinStatus
+		test.MakeGet(t, rest, url(rest)+"/pins/"+clustertest.Cid1.String(), &status)
+
+		if status.Pin.Cid != clustertest.Cid1.String() {
+			t.Error("Cid should be set")
+		}
+
+		if status.Pin.Meta["meta"] != "data" {
+			t.Errorf("metadata should match: %+v", status.Pin)
+		}
+		if len(status.Delegates) != 1 {
+			t.Errorf("expected 1 delegates: %+v", status)
+		}
+
+		var err pinsvc.APIError
+		test.MakeGet(t, rest, url(rest)+"/pins/"+clustertest.ErrorCid.String(), &err)
+		if err.Reason == "" {
+			t.Error("expected an error")
+		}
+	}
+
+	test.BothEndpoints(t, tf)
+}
+
+func TestAPIRemovePinEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url test.URLFunc) {
+		// test existing pin
+		test.MakeDelete(t, rest, url(rest)+"/pins/"+clustertest.Cid1.String(), nil)
+	}
+
+	test.BothEndpoints(t, tf)
+}

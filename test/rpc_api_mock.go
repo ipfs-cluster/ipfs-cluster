@@ -297,12 +297,24 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	if in.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+	ma, _ := api.NewMultiaddr("/ip4/1.2.3.4/ipfs/" + PeerID3.String())
+
 	*out = api.GlobalPinInfo{
-		Cid: in,
+		Cid:         in,
+		Name:        "test",
+		Allocations: nil,
+		Origins:     nil,
+		Metadata: map[string]string{
+			"meta": "data",
+		},
+
 		PeerMap: map[string]api.PinInfoShort{
 			peer.Encode(PeerID1): {
-				Status: api.TrackerStatusPinned,
-				TS:     time.Now(),
+				PeerName:      PeerName3,
+				IPFS:          PeerID3,
+				IPFSAddresses: []api.Multiaddr{ma},
+				Status:        api.TrackerStatusPinned,
+				TS:            time.Now(),
 			},
 		},
 	}
