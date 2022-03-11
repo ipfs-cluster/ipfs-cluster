@@ -70,6 +70,14 @@ func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) err
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+
+	// a pin is never returned the replications set to 0.
+	if in.ReplicationFactorMin == 0 {
+		in.ReplicationFactorMin = -1
+	}
+	if in.ReplicationFactorMax == 0 {
+		in.ReplicationFactorMax = -1
+	}
 	*out = *in
 	return nil
 }
@@ -385,9 +393,9 @@ func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Ale
 	return nil
 }
 
-func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *api.IPFSID) error {
+func (mock *mockCluster) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID) error {
 	var id api.ID
-	_ = mock.ID(ctx, in, &id)
+	_ = mock.ID(ctx, struct{}{}, &id)
 	*out = id.IPFS
 	return nil
 }

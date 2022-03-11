@@ -91,14 +91,17 @@ func (spt *Tracker) getIPFSID(ctx context.Context) api.IPFSID {
 	<-spt.rpcReady
 
 	var ipfsid api.IPFSID
-	spt.rpcClient.CallContext(
+	err := spt.rpcClient.CallContext(
 		ctx,
 		"",
 		"Cluster",
 		"IPFSID",
-		struct{}{},
+		"", // local peer
 		&ipfsid,
 	)
+	if err != nil {
+		logger.Error(err)
+	}
 	return ipfsid
 }
 

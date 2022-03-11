@@ -431,9 +431,12 @@ func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *[]api
 	return nil
 }
 
-// IPFSID returns the current cached IPFS ID.
-func (rpcapi *ClusterRPCAPI) IPFSID(ctx context.Context, in struct{}, out *api.IPFSID) error {
-	pingVal := pingValueFromMetric(rpcapi.c.monitor.LatestForPeer(ctx, pingMetricName, rpcapi.c.host.ID()))
+// IPFSID returns the current cached IPFS ID for a peer.
+func (rpcapi *ClusterRPCAPI) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID) error {
+	if in == "" {
+		in = rpcapi.c.host.ID()
+	}
+	pingVal := pingValueFromMetric(rpcapi.c.monitor.LatestForPeer(ctx, pingMetricName, in))
 	i := api.IPFSID{
 		ID:        pingVal.IPFSID,
 		Addresses: pingVal.IPFSAddresses,

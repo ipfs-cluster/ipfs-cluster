@@ -10,9 +10,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/ipfs/go-cid"
@@ -24,6 +24,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
@@ -67,7 +68,7 @@ func svcStatusToTrackerStatus(st pinsvc.Status) types.TrackerStatus {
 
 func svcPinToClusterPin(p pinsvc.Pin) (*types.Pin, error) {
 	opts := types.PinOptions{
-		Name:     p.Name,
+		Name:     string(p.Name),
 		Origins:  p.Origins,
 		Metadata: p.Meta,
 		Mode:     types.PinModeRecursive,
@@ -96,7 +97,7 @@ func globalPinInfoToSvcPinStatus(
 	status.Status = trackerStatusToSvcStatus(statusMask)
 	status.Pin = pinsvc.Pin{
 		Cid:     gpi.Cid.String(),
-		Name:    gpi.Name,
+		Name:    pinsvc.PinName(gpi.Name),
 		Origins: gpi.Origins,
 		Meta:    gpi.Metadata,
 	}
@@ -185,7 +186,7 @@ func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) *pinsvc.
 	var pin pinsvc.Pin
 	err := dec.Decode(&pin)
 	if err != nil {
-		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding request body"), nil)
+		api.SendResponse(w, http.StatusBadRequest, fmt.Errorf("error decoding request body: %w", err), nil)
 		return nil
 	}
 	return &pin
@@ -248,33 +249,7 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Status is intelligent enough to not request
-		// status from remote peers.
-		var pinInfo types.GlobalPinInfo
-
-		// Request status until someone is not "unpinned"
-		for {
-			pinInfo, err = api.getPinStatus(r.Context(), pinObj.Cid)
-			if err != nil {
-				api.SendResponse(w, common.SetStatusAutomatically, err, nil)
-				return
-			}
-
-			pinArrived := false
-			for _, pi := range pinInfo.PeerMap {
-				if pi.Status != types.TrackerStatusUnpinned {
-					pinArrived = true
-					break
-				}
-			}
-
-			if pinArrived {
-				break
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		status := globalPinInfoToSvcPinStatus(pinObj.Cid.String(), pinInfo)
+		status := api.pinToSvcPinStatus(r.Context(), pin.Cid, pinObj)
 		api.SendResponse(w, common.SetStatusAutomatically, nil, status)
 	}
 }
@@ -399,4 +374,59 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 
 	pinList.Count = len(pinList.Results)
 	api.SendResponse(w, common.SetStatusAutomatically, err, pinList)
+}
+
+func (api *API) pinToSvcPinStatus(ctx context.Context, rID string, pin types.Pin) pinsvc.PinStatus {
+	status := pinsvc.PinStatus{
+		RequestID: rID,
+		Status:    pinsvc.StatusQueued,
+		Created:   pin.Timestamp,
+		Pin: pinsvc.Pin{
+			Cid:     pin.Cid.String(),
+			Name:    pinsvc.PinName(pin.Name),
+			Origins: pin.Origins,
+			Meta:    pin.Metadata,
+		},
+	}
+
+	var peers []peer.ID
+
+	if pin.IsPinEverywhere() { // all cluster peers
+		err := api.rpcClient.CallContext(
+			ctx,
+			"",
+			"Consensus",
+			"Peers",
+			struct{}{},
+			&peers,
+		)
+		if err != nil {
+			logger.Error(err)
+		}
+	} else { // Delegates should come from allocations
+		peers = pin.Allocations
+	}
+
+	for _, peer := range peers {
+		var ipfsid types.IPFSID
+		err := api.rpcClient.CallContext(
+			ctx,
+			"", // call the local peer
+			"Cluster",
+			"IPFSID",
+			peer, // retrieve ipfs info for this peer
+			&ipfsid,
+		)
+		if err != nil {
+			logger.Error(err)
+		}
+		status.Delegates = append(status.Delegates, ipfsid.Addresses...)
+	}
+
+	status.Info = map[string]string{
+		"source":   "IPFS cluster API",
+		"warning1": "CID used for requestID. Conflicts possible",
+		"warning2": "experimental",
+	}
+	return status
 }

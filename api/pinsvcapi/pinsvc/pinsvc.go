@@ -3,6 +3,7 @@ package pinsvc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -32,10 +33,29 @@ func (apiErr APIError) Error() string {
 	return apiErr.Reason
 }
 
+// PinName is a string limited to 255 chars when serializing JSON.
+type PinName string
+
+// MarshalJSON converts the string to JSON.
+func (pname PinName) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(pname))
+}
+
+// UnmarshalJSON reads the JSON string and errors if over 256 chars.
+func (pname *PinName) UnmarshalJSON(data []byte) error {
+	if len(data) > 255 { // should cast to string?
+		return errors.New("pin name is over 255 chars")
+	}
+	var v string
+	err := json.Unmarshal(data, &v)
+	*pname = PinName(v)
+	return err
+}
+
 // Pin contains basic information about a Pin and pinning options.
 type Pin struct {
 	Cid     string            `json:"cid"` // a cid.Cid does not json properly
-	Name    string            `json:"name"`
+	Name    PinName           `json:"name"`
 	Origins []types.Multiaddr `json:"origins"`
 	Meta    map[string]string `json:"meta"`
 }
@@ -46,18 +66,20 @@ func (p Pin) MatchesName(nameOpt string, strategy MatchingStrategy) bool {
 	if nameOpt == "" {
 		return true
 	}
+	name := string(p.Name)
+
 	switch strategy {
 	case MatchingStrategyUndefined:
 		return true
 
 	case MatchingStrategyExact:
-		return nameOpt == p.Name
+		return nameOpt == name
 	case MatchingStrategyIexact:
-		return strings.EqualFold(p.Name, nameOpt)
+		return strings.EqualFold(name, nameOpt)
 	case MatchingStrategyPartial:
-		return strings.Contains(p.Name, nameOpt)
+		return strings.Contains(name, nameOpt)
 	case MatchingStrategyIpartial:
-		return strings.Contains(strings.ToLower(p.Name), strings.ToLower(nameOpt))
+		return strings.Contains(strings.ToLower(name), strings.ToLower(nameOpt))
 	default:
 		return true
 	}

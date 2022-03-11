@@ -2,9 +2,12 @@ package pinsvcapi
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common/test"
 	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
 	clustertest "github.com/ipfs/ipfs-cluster/test"
@@ -58,7 +61,7 @@ func testAPI(t *testing.T) *API {
 	return testAPIwithConfig(t, cfg, "basic")
 }
 
-func TestAPIStatusAllEndpoint(t *testing.T) {
+func TestAPIListEndpoint(t *testing.T) {
 	ctx := context.Background()
 	svcapi := testAPI(t)
 	defer svcapi.Shutdown(ctx)
@@ -154,6 +157,63 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		test.MakeGet(t, svcapi, url(svcapi)+"/pins?status=invalid", &errorResp)
 		if errorResp.Reason == "" {
 			t.Errorf("expected an error: %s", errorResp.Reason)
+		}
+	}
+
+	test.BothEndpoints(t, tf)
+}
+
+func TestAPIPinEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	ma, _ := api.NewMultiaddr("/ip4/1.2.3.4/ipfs/" + clustertest.PeerID1.String())
+
+	tf := func(t *testing.T, url test.URLFunc) {
+		// test normal pin
+		pin := pinsvc.Pin{
+			Cid:  clustertest.Cid3.String(),
+			Name: "testname",
+			Origins: []api.Multiaddr{
+				ma,
+			},
+			Meta: map[string]string{
+				"meta": "data",
+			},
+		}
+		var status pinsvc.PinStatus
+		pinJSON, err := json.Marshal(pin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		test.MakePost(t, rest, url(rest)+"/pins", pinJSON, &status)
+
+		if status.Pin.Cid != pin.Cid {
+			t.Error("cids should match")
+		}
+		if status.Pin.Meta["meta"] != "data" {
+			t.Errorf("metadata should match: %+v", status.Pin)
+		}
+		if len(status.Pin.Origins) != 1 {
+			t.Errorf("expected origins: %+v", status.Pin)
+		}
+		if len(status.Delegates) != 3 {
+			t.Errorf("expected 3 delegates: %+v", status)
+		}
+
+		var errName pinsvc.APIError
+		pin2 := pinsvc.Pin{
+			Cid:  clustertest.Cid1.String(),
+			Name: pinsvc.PinName(make([]byte, 256)),
+		}
+		pinJSON, err = json.Marshal(pin2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		test.MakePost(t, rest, url(rest)+"/pins", pinJSON, &errName)
+		if !strings.Contains(errName.Reason, "255") {
+			t.Error("expected name error")
 		}
 	}
 
