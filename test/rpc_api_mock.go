@@ -156,7 +156,7 @@ func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) e
 		p.ReplicationFactorMax = 1
 		*out = *p
 	default:
-		return errors.New("not found")
+		return state.ErrNotFound
 	}
 	return nil
 }

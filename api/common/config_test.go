@@ -8,6 +8,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
+	types "github.com/ipfs/ipfs-cluster/api"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -108,7 +109,7 @@ func newTestConfig() *Config {
 	cfg.RequestLogger = logging.Logger("testapilog")
 	cfg.DefaultFunc = defaultFunc
 	cfg.APIErrorFunc = func(err error, status int) error {
-		return err
+		return types.Error{Code: status, Message: err.Error()}
 	}
 	return cfg
 }

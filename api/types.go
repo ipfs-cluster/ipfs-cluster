@@ -319,7 +319,7 @@ type PinInfo struct {
 	Cid         cid.Cid           `json:"cid" codec:"c"`
 	Name        string            `json:"name" codec:"m,omitempty"`
 	Peer        peer.ID           `json:"peer" codec:"p,omitempty"`
-	Allocations []peer.ID         `json:"allocations" codec:"a,omitempty"`
+	Allocations []peer.ID         `json:"allocations" codec:"o,omitempty"`
 	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
 	Metadata    map[string]string `json:"metadata" codec:"md,omitempty"`
 
@@ -1225,7 +1225,7 @@ type Error struct {
 }
 
 // Error implements the error interface and returns the error's message.
-func (e *Error) Error() string {
+func (e Error) Error() string {
 	return fmt.Sprintf("%s (%d)", e.Message, e.Code)
 }
 
