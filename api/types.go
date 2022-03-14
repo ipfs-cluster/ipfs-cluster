@@ -254,6 +254,7 @@ type GlobalPinInfo struct {
 	Name        string            `json:"name" codec:"n"`
 	Allocations []peer.ID         `json:"allocations" codec:"a,omitempty"`
 	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
+	Created     time.Time         `json:"created" codec:"t,omitempty"`
 	Metadata    map[string]string `json:"metadata" codec:"m,omitempty"`
 
 	// https://github.com/golang/go/issues/28827
@@ -279,6 +280,7 @@ func (gpi *GlobalPinInfo) Add(pi PinInfo) {
 		gpi.Name = pi.Name
 		gpi.Allocations = pi.Allocations
 		gpi.Origins = pi.Origins
+		gpi.Created = pi.Created
 		gpi.Metadata = pi.Metadata
 	}
 
@@ -321,6 +323,7 @@ type PinInfo struct {
 	Peer        peer.ID           `json:"peer" codec:"p,omitempty"`
 	Allocations []peer.ID         `json:"allocations" codec:"o,omitempty"`
 	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
+	Created     time.Time         `json:"created" codec:"t,omitempty"`
 	Metadata    map[string]string `json:"metadata" codec:"md,omitempty"`
 
 	PinInfoShort

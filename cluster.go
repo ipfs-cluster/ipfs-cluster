@@ -1758,6 +1758,7 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 			Name:        pin.Name,
 			Allocations: pin.Allocations,
 			Origins:     pin.Origins,
+			Created:     pin.Timestamp,
 			Metadata:    pin.Metadata,
 			Peer:        p,
 			PinInfoShort: api.PinInfoShort{
@@ -1887,6 +1888,7 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 			Peer:        dests[i],
 			Allocations: pin.Allocations,
 			Origins:     pin.Origins,
+			Created:     pin.Timestamp,
 			Metadata:    pin.Metadata,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:      pv.Peername,
@@ -1982,7 +1984,8 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 				Peer:        p,
 				Allocations: nil,
 				Origins:     nil,
-				Metadata:    nil,
+				// Created:    // leave unitialized
+				Metadata: nil,
 				PinInfoShort: api.PinInfoShort{
 					PeerName:      pv.Peername,
 					IPFS:          pv.IPFSID,

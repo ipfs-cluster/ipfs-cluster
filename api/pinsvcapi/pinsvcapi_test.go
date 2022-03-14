@@ -16,18 +16,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-const (
-	SSLCertFile         = "test/server.crt"
-	SSLKeyFile          = "test/server.key"
-	clientOrigin        = "myorigin"
-	validUserName       = "validUserName"
-	validUserPassword   = "validUserPassword"
-	adminUserName       = "adminUserName"
-	adminUserPassword   = "adminUserPassword"
-	invalidUserName     = "invalidUserName"
-	invalidUserPassword = "invalidUserPassword"
-)
-
 func testAPIwithConfig(t *testing.T, cfg *Config, name string) *API {
 	ctx := context.Background()
 	apiMAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
@@ -38,22 +26,22 @@ func testAPIwithConfig(t *testing.T, cfg *Config, name string) *API {
 
 	cfg.HTTPListenAddr = []ma.Multiaddr{apiMAddr}
 
-	rest, err := NewAPIWithHost(ctx, cfg, h)
+	svcapi, err := NewAPIWithHost(ctx, cfg, h)
 	if err != nil {
 		t.Fatalf("should be able to create a new %s API: %s", name, err)
 	}
 
 	// No keep alive for tests
-	rest.SetKeepAlivesEnabled(false)
-	rest.SetClient(clustertest.NewMockRPCClient(t))
+	svcapi.SetKeepAlivesEnabled(false)
+	svcapi.SetClient(clustertest.NewMockRPCClient(t))
 
-	return rest
+	return svcapi
 }
 
 func testAPI(t *testing.T) *API {
 	cfg := NewConfig()
 	cfg.Default()
-	cfg.CORSAllowedOrigins = []string{clientOrigin}
+	cfg.CORSAllowedOrigins = []string{"myorigin"}
 	cfg.CORSAllowedMethods = []string{"GET", "POST", "DELETE"}
 	//cfg.CORSAllowedHeaders = []string{"Content-Type"}
 	cfg.CORSMaxAge = 10 * time.Minute
@@ -165,8 +153,8 @@ func TestAPIListEndpoint(t *testing.T) {
 
 func TestAPIPinEndpoint(t *testing.T) {
 	ctx := context.Background()
-	rest := testAPI(t)
-	defer rest.Shutdown(ctx)
+	svcapi := testAPI(t)
+	defer svcapi.Shutdown(ctx)
 
 	ma, _ := api.NewMultiaddr("/ip4/1.2.3.4/ipfs/" + clustertest.PeerID1.String())
 
@@ -187,7 +175,7 @@ func TestAPIPinEndpoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		test.MakePost(t, rest, url(rest)+"/pins", pinJSON, &status)
+		test.MakePost(t, svcapi, url(svcapi)+"/pins", pinJSON, &status)
 
 		if status.Pin.Cid != pin.Cid {
 			t.Error("cids should match")
@@ -211,7 +199,7 @@ func TestAPIPinEndpoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		test.MakePost(t, rest, url(rest)+"/pins", pinJSON, &errName)
+		test.MakePost(t, svcapi, url(svcapi)+"/pins", pinJSON, &errName)
 		if !strings.Contains(errName.Reason, "255") {
 			t.Error("expected name error")
 		}
@@ -222,13 +210,13 @@ func TestAPIPinEndpoint(t *testing.T) {
 
 func TestAPIGetPinEndpoint(t *testing.T) {
 	ctx := context.Background()
-	rest := testAPI(t)
-	defer rest.Shutdown(ctx)
+	svcapi := testAPI(t)
+	defer svcapi.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
 		// test existing pin
 		var status pinsvc.PinStatus
-		test.MakeGet(t, rest, url(rest)+"/pins/"+clustertest.Cid1.String(), &status)
+		test.MakeGet(t, svcapi, url(svcapi)+"/pins/"+clustertest.Cid1.String(), &status)
 
 		if status.Pin.Cid != clustertest.Cid1.String() {
 			t.Error("Cid should be set")
@@ -242,7 +230,7 @@ func TestAPIGetPinEndpoint(t *testing.T) {
 		}
 
 		var err pinsvc.APIError
-		test.MakeGet(t, rest, url(rest)+"/pins/"+clustertest.ErrorCid.String(), &err)
+		test.MakeGet(t, svcapi, url(svcapi)+"/pins/"+clustertest.ErrorCid.String(), &err)
 		if err.Reason == "" {
 			t.Error("expected an error")
 		}
@@ -253,12 +241,12 @@ func TestAPIGetPinEndpoint(t *testing.T) {
 
 func TestAPIRemovePinEndpoint(t *testing.T) {
 	ctx := context.Background()
-	rest := testAPI(t)
-	defer rest.Shutdown(ctx)
+	svcapi := testAPI(t)
+	defer svcapi.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
 		// test existing pin
-		test.MakeDelete(t, rest, url(rest)+"/pins/"+clustertest.Cid1.String(), nil)
+		test.MakeDelete(t, svcapi, url(svcapi)+"/pins/"+clustertest.Cid1.String(), nil)
 	}
 
 	test.BothEndpoints(t, tf)

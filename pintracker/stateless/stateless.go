@@ -407,6 +407,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	pinInfo.TS = gpin.Timestamp
 	pinInfo.Allocations = gpin.Allocations
 	pinInfo.Origins = gpin.Origins
+	pinInfo.Created = gpin.Timestamp
 	pinInfo.Metadata = gpin.Metadata
 
 	// check if pin is a meta pin
@@ -552,8 +553,9 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 			Name:        "",  // to be filled later
 			Allocations: nil, // to be filled later
 			Origins:     nil, // to be filled later
-			Metadata:    nil, // to be filled later
-			Peer:        spt.peerID,
+			//Created:     nil, // to be filled later
+			Metadata: nil, // to be filled later
+			Peer:     spt.peerID,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:      spt.peerName,
 				IPFS:          ipfsid.ID,
@@ -622,6 +624,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			Peer:        spt.peerID,
 			Allocations: p.Allocations,
 			Origins:     p.Origins,
+			Created:     p.Timestamp,
 			Metadata:    p.Metadata,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:      spt.peerName,
@@ -651,6 +654,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			ipfsInfo.TS = p.Timestamp
 			ipfsInfo.Allocations = p.Allocations
 			ipfsInfo.Origins = p.Origins
+			ipfsInfo.Created = p.Timestamp
 			ipfsInfo.Metadata = p.Metadata
 			pininfos[p.Cid] = ipfsInfo
 		default:

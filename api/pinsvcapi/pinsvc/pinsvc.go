@@ -43,7 +43,7 @@ func (pname PinName) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON reads the JSON string and errors if over 256 chars.
 func (pname *PinName) UnmarshalJSON(data []byte) error {
-	if len(data) > 255 { // should cast to string?
+	if len(data) > 257 { // "a_string" 255 + 2 for quotes
 		return errors.New("pin name is over 255 chars")
 	}
 	var v string
@@ -97,10 +97,11 @@ func (p Pin) MatchesMeta(metaOpts map[string]string) bool {
 	return true
 }
 
-// Status represents a pin status.
+// Status represents a pin status, which defines the current state of the pin
+// in the system.
 type Status int
 
-// Status values
+// Values for the Status type.
 const (
 	StatusUndefined Status = 0
 	StatusQueued           = 1 << iota
@@ -171,7 +172,7 @@ func (st *Status) UnmarshalJSON(data []byte) error {
 // ignored.
 func StatusFromString(str string) Status {
 	values := strings.Split(strings.Replace(str, " ", "", -1), ",")
-	var status Status
+	status := StatusUndefined
 	for _, v := range values {
 		st, ok := stringStatus[v]
 		if ok {
@@ -181,26 +182,10 @@ func StatusFromString(str string) Status {
 	return status
 }
 
-// PinStatus provides information about a Pin stored by the Pinning API.
-type PinStatus struct {
-	RequestID string            `json:"requestid"`
-	Status    Status            `json:"status"`
-	Created   time.Time         `json:"created"`
-	Pin       Pin               `json:"pin"`
-	Delegates []types.Multiaddr `json:"delegates"`
-	Info      map[string]string `json:"info"`
-}
-
-// PinList is the result of a call to List pins
-type PinList struct {
-	Count   int         `json:"count"`
-	Results []PinStatus `json:"results"`
-}
-
-// Match defines a type of match for filtering pin lists.
+// MatchingStrategy defines a type of match for filtering pin lists.
 type MatchingStrategy int
 
-// Values for matches.
+// Values for MatchingStrategy.
 const (
 	MatchingStrategyUndefined MatchingStrategy = iota
 	MatchingStrategyExact
@@ -223,6 +208,22 @@ func MatchingStrategyFromString(str string) MatchingStrategy {
 	default:
 		return MatchingStrategyUndefined
 	}
+}
+
+// PinStatus provides information about a Pin stored by the Pinning API.
+type PinStatus struct {
+	RequestID string            `json:"requestid"`
+	Status    Status            `json:"status"`
+	Created   time.Time         `json:"created"`
+	Pin       Pin               `json:"pin"`
+	Delegates []types.Multiaddr `json:"delegates"`
+	Info      map[string]string `json:"info"`
+}
+
+// PinList is the result of a call to List pins
+type PinList struct {
+	Count   int         `json:"count"`
+	Results []PinStatus `json:"results"`
 }
 
 // ListOptions represents possible options given to the List endpoint.
@@ -261,6 +262,8 @@ func (lo *ListOptions) FromQuery(q url.Values) error {
 	}
 	statusStr := q.Get("status")
 	lo.Status = StatusFromString(statusStr)
+	// FIXME: This is a bit lazy, as "invalidxx,pinned" would result in a
+	// valid "pinned" filter.
 	if statusStr != "" && lo.Status == StatusUndefined {
 		return fmt.Errorf("error decoding 'status' query param: no valid filter")
 	}

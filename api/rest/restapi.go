@@ -507,6 +507,8 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
+	// FIXME: This is a bit lazy, as "invalidxx,pinned" would result in a
+	// valid "pinned" filter.
 	if filter == types.TrackerStatusUndefined && filterStr != "" {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return

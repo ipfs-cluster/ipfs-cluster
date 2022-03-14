@@ -33,6 +33,12 @@ var (
 	apiLogger = logging.Logger("pinsvcapilog")
 )
 
+var apiInfo map[string]string = map[string]string{
+	"source":   "IPFS cluster API",
+	"warning1": "CID used for requestID. Conflicts possible",
+	"warning2": "experimental",
+}
+
 func trackerStatusToSvcStatus(st types.TrackerStatus) pinsvc.Status {
 	switch {
 	case st.Match(types.TrackerStatusError):
@@ -95,26 +101,19 @@ func globalPinInfoToSvcPinStatus(
 	}
 
 	status.Status = trackerStatusToSvcStatus(statusMask)
+	status.Created = gpi.Created
 	status.Pin = pinsvc.Pin{
 		Cid:     gpi.Cid.String(),
 		Name:    pinsvc.PinName(gpi.Name),
 		Origins: gpi.Origins,
 		Meta:    gpi.Metadata,
 	}
+	status.Info = apiInfo
 
 	for _, pi := range gpi.PeerMap {
 		status.Delegates = append(status.Delegates, pi.IPFSAddresses...)
-		// Set created to the oldest known timestamp
-		if status.Created.IsZero() || pi.TS.Before(status.Created) {
-			status.Created = pi.TS
-		}
 	}
 
-	status.Info = map[string]string{
-		"source":   "IPFS cluster API",
-		"warning1": "CID used for requestID. Conflicts possible",
-		"warning2": "experimental",
-	}
 	return status
 }
 
@@ -206,21 +205,6 @@ func (api *API) parseRequestIDOrFail(w http.ResponseWriter, r *http.Request) (ci
 	return c, true
 }
 
-func (api *API) getPinStatus(ctx context.Context, c cid.Cid) (types.GlobalPinInfo, error) {
-	var pinInfo types.GlobalPinInfo
-
-	err := api.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Status",
-		c,
-		&pinInfo,
-	)
-	return pinInfo, err
-
-}
-
 func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 	if pin := api.parseBodyOrFail(w, r); pin != nil {
 		api.config.Logger.Debugf("addPin: %s", pin.Cid)
@@ -254,12 +238,21 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *API) getPinObject(ctx context.Context, c cid.Cid) (pinsvc.PinStatus, types.GlobalPinInfo, error) {
-	clusterPinStatus, err := api.getPinStatus(ctx, c)
+func (api *API) getPinSvcStatus(ctx context.Context, c cid.Cid) (pinsvc.PinStatus, error) {
+	var pinInfo types.GlobalPinInfo
+
+	err := api.rpcClient.CallContext(
+		ctx,
+		"",
+		"Cluster",
+		"Status",
+		c,
+		&pinInfo,
+	)
 	if err != nil {
-		return pinsvc.PinStatus{}, types.GlobalPinInfo{}, err
+		return pinsvc.PinStatus{}, err
 	}
-	return globalPinInfoToSvcPinStatus(c.String(), clusterPinStatus), clusterPinStatus, nil
+	return globalPinInfoToSvcPinStatus(c.String(), pinInfo), nil
 
 }
 
@@ -269,7 +262,11 @@ func (api *API) getPin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.config.Logger.Debugf("getPin: %s", c)
-	status, _, err := api.getPinObject(r.Context(), c)
+	status, err := api.getPinSvcStatus(r.Context(), c)
+	if status.Status == pinsvc.StatusUndefined {
+		api.SendResponse(w, http.StatusNotFound, errors.New("pin not found"), nil)
+		return
+	}
 	api.SendResponse(w, common.SetStatusAutomatically, err, status)
 }
 
@@ -323,7 +320,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		for _, ci := range opts.Cids {
 			go func(c cid.Cid) {
 				defer wg.Done()
-				st, _, err := api.getPinObject(r.Context(), c)
+				st, err := api.getPinSvcStatus(r.Context(), c)
 				stCh <- statusResult{st: st, err: err}
 			}(ci)
 		}
@@ -331,6 +328,11 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		var err error
 		i := 0
 		for stResult := range stCh {
+			if stResult.st.Status == pinsvc.StatusUndefined && stResult.err == nil {
+				// ignore things unpinning
+				continue
+			}
+
 			pinList.Results = append(pinList.Results, stResult.st)
 			err = multierr.Append(err, stResult.err)
 			if i+1 == opts.Limit {
@@ -359,6 +361,18 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		}
 		for i, gpi := range globalPinInfos {
 			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), *gpi)
+			if st.Status == pinsvc.StatusUndefined {
+				// i.e things unpinning
+				continue
+			}
+			if st.Created.Before(opts.After) {
+				continue
+			}
+
+			if st.Created.After(opts.Before) {
+				continue
+			}
+
 			if !st.Pin.MatchesName(opts.Name, opts.MatchingStrategy) {
 				continue
 			}
@@ -387,6 +401,7 @@ func (api *API) pinToSvcPinStatus(ctx context.Context, rID string, pin types.Pin
 			Origins: pin.Origins,
 			Meta:    pin.Metadata,
 		},
+		Info: apiInfo,
 	}
 
 	var peers []peer.ID
@@ -423,10 +438,5 @@ func (api *API) pinToSvcPinStatus(ctx context.Context, rID string, pin types.Pin
 		status.Delegates = append(status.Delegates, ipfsid.Addresses...)
 	}
 
-	status.Info = map[string]string{
-		"source":   "IPFS cluster API",
-		"warning1": "CID used for requestID. Conflicts possible",
-		"warning2": "experimental",
-	}
 	return status
 }
