@@ -70,6 +70,14 @@ func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) err
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+
+	// a pin is never returned the replications set to 0.
+	if in.ReplicationFactorMin == 0 {
+		in.ReplicationFactorMin = -1
+	}
+	if in.ReplicationFactorMax == 0 {
+		in.ReplicationFactorMax = -1
+	}
 	*out = *in
 	return nil
 }
@@ -148,7 +156,7 @@ func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) e
 		p.ReplicationFactorMax = 1
 		*out = *p
 	default:
-		return errors.New("not found")
+		return state.ErrNotFound
 	}
 	return nil
 }
@@ -184,6 +192,10 @@ func (mock *mockCluster) Peers(ctx context.Context, in struct{}, out *[]*api.ID)
 
 	*out = []*api.ID{id}
 	return nil
+}
+
+func (mock *mockCluster) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]*api.ID) error {
+	return mock.Peers(ctx, struct{}{}, out)
 }
 
 func (mock *mockCluster) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {
@@ -223,7 +235,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 	pid := peer.Encode(PeerID1)
 	gPinInfos := []*api.GlobalPinInfo{
 		{
-			Cid: Cid1,
+			Cid:  Cid1,
+			Name: "aaa",
 			PeerMap: map[string]api.PinInfoShort{
 				pid: {
 					Status: api.TrackerStatusPinned,
@@ -232,7 +245,8 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 			},
 		},
 		{
-			Cid: Cid2,
+			Cid:  Cid2,
+			Name: "bbb",
 			PeerMap: map[string]api.PinInfoShort{
 				pid: {
 					Status: api.TrackerStatusPinning,
@@ -241,7 +255,11 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 			},
 		},
 		{
-			Cid: Cid3,
+			Cid:  Cid3,
+			Name: "ccc",
+			Metadata: map[string]string{
+				"ccc": "3c",
+			},
 			PeerMap: map[string]api.PinInfoShort{
 				pid: {
 					Status: api.TrackerStatusPinError,
@@ -279,12 +297,24 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	if in.Equals(ErrorCid) {
 		return ErrBadCid
 	}
+	ma, _ := api.NewMultiaddr("/ip4/1.2.3.4/ipfs/" + PeerID3.String())
+
 	*out = api.GlobalPinInfo{
-		Cid: in,
+		Cid:         in,
+		Name:        "test",
+		Allocations: nil,
+		Origins:     nil,
+		Metadata: map[string]string{
+			"meta": "data",
+		},
+
 		PeerMap: map[string]api.PinInfoShort{
 			peer.Encode(PeerID1): {
-				Status: api.TrackerStatusPinned,
-				TS:     time.Now(),
+				PeerName:      PeerName3,
+				IPFS:          PeerID3,
+				IPFSAddresses: []api.Multiaddr{ma},
+				Status:        api.TrackerStatusPinned,
+				TS:            time.Now(),
 			},
 		},
 	}
@@ -375,8 +405,10 @@ func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Ale
 	return nil
 }
 
-func (mock *mockCluster) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
-	*out = PeerID1
+func (mock *mockCluster) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID) error {
+	var id api.ID
+	_ = mock.ID(ctx, struct{}{}, &id)
+	*out = id.IPFS
 	return nil
 }
 

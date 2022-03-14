@@ -544,7 +544,7 @@ func TestAPIAllocationEndpoint(t *testing.T) {
 		}
 
 		errResp := api.Error{}
-		test.MakeGet(t, rest, url(rest)+"/allocations/"+clustertest.ErrorCid.String(), &errResp)
+		test.MakeGet(t, rest, url(rest)+"/allocations/"+clustertest.Cid4.String(), &errResp)
 		if errResp.Code != 404 {
 			t.Error("a non-pinned cid should 404")
 		}

@@ -1,4 +1,4 @@
-package rest
+package pinsvcapi
 
 import (
 	"net/http"
@@ -6,12 +6,12 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 
-	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
+	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
 )
 
-const configKey = "restapi"
-const envConfigKey = "cluster_restapi"
+const configKey = "pinsvcapi"
+const envConfigKey = "cluster_pinsvcapi"
 
 const minMaxHeaderBytes = 4096
 
@@ -27,7 +27,7 @@ const (
 // Default values for Config.
 var (
 	// DefaultHTTPListenAddrs contains default listen addresses for the HTTP API.
-	DefaultHTTPListenAddrs = []string{"/ip4/127.0.0.1/tcp/9094"}
+	DefaultHTTPListenAddrs = []string{"/ip4/127.0.0.1/tcp/9097"}
 	DefaultHeaders         = map[string][]string{}
 )
 
@@ -66,9 +66,8 @@ func NewConfig() *Config {
 	cfg.RequestLogger = apiLogger
 	cfg.DefaultFunc = defaultFunc
 	cfg.APIErrorFunc = func(err error, status int) error {
-		return &api.Error{
-			Code:    status,
-			Message: err.Error(),
+		return pinsvc.APIError{
+			Reason: err.Error(),
 		}
 	}
 	return &cfg

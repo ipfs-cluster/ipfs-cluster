@@ -8,6 +8,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
+	"github.com/ipfs/ipfs-cluster/api/pinsvcapi"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/cmdutils"
 	"github.com/ipfs/ipfs-cluster/config"
@@ -144,6 +145,13 @@ func createCluster(
 		checkErr("creating REST API component", err)
 		apis = append(apis, api)
 
+	}
+
+	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Pinsvcapi.ConfigKey()) {
+		pinsvcapi, err := pinsvcapi.NewAPI(ctx, cfgs.Pinsvcapi)
+		checkErr("creating Pinning Service API component", err)
+
+		apis = append(apis, pinsvcapi)
 	}
 
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Ipfsproxy.ConfigKey()) {

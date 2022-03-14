@@ -354,6 +354,8 @@ the peer IDs in the given multiaddresses.
 					checkErr("randomizing ports", err)
 					cfgs.Ipfsproxy.ListenAddr, err = cmdutils.RandomizePorts(cfgs.Ipfsproxy.ListenAddr)
 					checkErr("randomizing ports", err)
+					cfgs.Pinsvcapi.HTTPListenAddr, err = cmdutils.RandomizePorts(cfgs.Pinsvcapi.HTTPListenAddr)
+					checkErr("randomizing ports", err)
 				}
 				err = cfgHelper.Manager().ApplyEnvVars()
 				checkErr("applying environment variables to configuration", err)

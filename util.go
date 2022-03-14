@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 
 	blake2b "golang.org/x/crypto/blake2b"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	madns "github.com/multiformats/go-multiaddr-dns"
 )
 
 // PeersFromMultiaddrs returns all the different peers in the given addresses.
@@ -162,8 +164,9 @@ func peersSubtract(a []peer.ID, b []peer.ID) []peer.ID {
 
 // pingValue describes the value carried by ping metrics
 type pingValue struct {
-	Peername string  `json:"peer_name,omitempty"`
-	IPFSID   peer.ID `json:"ipfs_id,omitempty"`
+	Peername      string          `json:"peer_name,omitempty"`
+	IPFSID        peer.ID         `json:"ipfs_id,omitempty"`
+	IPFSAddresses []api.Multiaddr `json:"ipfs_addresses,omitempty"`
 }
 
 // Valid returns true if the PingValue has IPFSID set.
@@ -179,4 +182,34 @@ func pingValueFromMetric(m *api.Metric) (pv pingValue) {
 	}
 	json.Unmarshal([]byte(m.Value), &pv)
 	return
+}
+
+func publicIPFSAddresses(in []api.Multiaddr) []api.Multiaddr {
+	var out []api.Multiaddr
+	for _, maddr := range in {
+		if madns.Matches(maddr.Value()) { // a dns multiaddress: take it
+			out = append(out, maddr)
+			continue
+		}
+
+		ip, err := maddr.ValueForProtocol(ma.P_IP4)
+		if err != nil {
+			ip, err = maddr.ValueForProtocol(ma.P_IP6)
+			if err != nil {
+				continue
+			}
+		}
+		// We have an IP in the multiaddress. Only include
+		// global unicast.
+		netip := net.ParseIP(ip)
+		if netip == nil {
+			continue
+		}
+
+		if !netip.IsGlobalUnicast() {
+			continue
+		}
+		out = append(out, maddr)
+	}
+	return out
 }

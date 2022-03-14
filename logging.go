@@ -12,6 +12,8 @@ var LoggingFacilities = map[string]string{
 	"cluster":      "INFO",
 	"restapi":      "INFO",
 	"restapilog":   "INFO",
+	"pinsvcapi":    "INFO",
+	"pinsvcapilog": "INFO",
 	"ipfsproxy":    "INFO",
 	"ipfsproxylog": "INFO",
 	"ipfshttp":     "INFO",
