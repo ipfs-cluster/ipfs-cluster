@@ -101,9 +101,10 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	clusterDAG := clusterDAGNodes[0].Cid()
 
 	dgs.sendOutput(&api.AddedOutput{
-		Name: fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name),
-		Cid:  clusterDAG,
-		Size: dgs.totalSize,
+		Name:        fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name),
+		Cid:         clusterDAG,
+		Size:        dgs.totalSize,
+		Allocations: nil,
 	})
 
 	// Pin the ClusterDAG
@@ -114,6 +115,7 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	clusterDAGPin.Name = fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name)
 	clusterDAGPin.Type = api.ClusterDAGType
 	clusterDAGPin.Reference = &dataRoot
+	// Update object with response.
 	err = adder.Pin(ctx, dgs.rpcClient, clusterDAGPin)
 	if err != nil {
 		return dataRoot, err
@@ -151,6 +153,16 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	// }
 
 	return dataRoot, nil
+}
+
+// Allocations returns the current allocations for the current shard.
+func (dgs *DAGService) Allocations() []peer.ID {
+	// FIXME: this is probably not safe in concurrency?  However, there is
+	// no concurrent execution of any code in the DAGService I think.
+	if dgs.currentShard != nil {
+		return dgs.currentShard.Allocations()
+	}
+	return nil
 }
 
 // ingests a block to the current shard. If it get's full, it
@@ -258,9 +270,10 @@ func (dgs *DAGService) flushCurrentShard(ctx context.Context) (cid.Cid, error) {
 	dgs.previousShard = shardCid
 	dgs.currentShard = nil
 	dgs.sendOutput(&api.AddedOutput{
-		Name: fmt.Sprintf("shard-%d", lens),
-		Cid:  shardCid,
-		Size: shard.Size(),
+		Name:        fmt.Sprintf("shard-%d", lens),
+		Cid:         shardCid,
+		Size:        shard.Size(),
+		Allocations: shard.Allocations(),
 	})
 
 	return shard.LastLink(), nil

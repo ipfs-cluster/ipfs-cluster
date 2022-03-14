@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	cid "github.com/ipfs/go-cid"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 // DefaultShardSize is the shard size for params objects created with DefaultParams().
@@ -15,10 +16,11 @@ var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 // AddedOutput carries information for displaying the standard ipfs output
 // indicating a node of a file has been added.
 type AddedOutput struct {
-	Name  string  `json:"name" codec:"n,omitempty"`
-	Cid   cid.Cid `json:"cid" codec:"c"`
-	Bytes uint64  `json:"bytes,omitempty" codec:"b,omitempty"`
-	Size  uint64  `json:"size,omitempty" codec:"s,omitempty"`
+	Name        string    `json:"name" codec:"n,omitempty"`
+	Cid         cid.Cid   `json:"cid" codec:"c"`
+	Bytes       uint64    `json:"bytes,omitempty" codec:"b,omitempty"`
+	Size        uint64    `json:"size,omitempty" codec:"s,omitempty"`
+	Allocations []peer.ID `json:"allocations,omitempty" codec:"a,omitempty"`
 }
 
 // IPFSAddParams groups options specific to the ipfs-adder, which builds

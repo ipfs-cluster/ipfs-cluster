@@ -98,9 +98,13 @@ func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, err
 	// Cluster pin the result
 	rootPin := api.PinWithOpts(root, dgs.addParams.PinOptions)
 	rootPin.Allocations = dgs.dests
-	dgs.dests = nil
 
 	return root, adder.Pin(ctx, dgs.rpcClient, rootPin)
+}
+
+// Allocations returns the add destinations decided by the DAGService.
+func (dgs *DAGService) Allocations() []peer.ID {
+	return dgs.dests
 }
 
 // AddMany calls Add for every given node.

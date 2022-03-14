@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipld/go-car"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
@@ -42,6 +43,9 @@ type ClusterDAGService interface {
 	// Finalize receives the IPFS content root CID as
 	// returned by the ipfs adder.
 	Finalize(ctx context.Context, ipfsRoot cid.Cid) (cid.Cid, error)
+	// Allocations returns the allocations made by the cluster DAG service
+	// for the added content.
+	Allocations() []peer.ID
 }
 
 // A dagFormatter can create dags from files.Node. It can keep state
@@ -185,7 +189,7 @@ type ipfsAdder struct {
 }
 
 func newIpfsAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParams, out chan *api.AddedOutput) (*ipfsAdder, error) {
-	iadder, err := ipfsadd.NewAdder(ctx, dgs)
+	iadder, err := ipfsadd.NewAdder(ctx, dgs, dgs.Allocations)
 	if err != nil {
 		logger.Error(err)
 		return nil, err
@@ -316,10 +320,11 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 	}
 
 	ca.output <- &api.AddedOutput{
-		Name:  name,
-		Cid:   root,
-		Bytes: bytes,
-		Size:  size,
+		Name:        name,
+		Cid:         root,
+		Bytes:       bytes,
+		Size:        size,
+		Allocations: ca.dgs.Allocations(),
 	}
 
 	return root, nil
