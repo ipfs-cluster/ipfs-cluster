@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/go-hclog v1.1.0
+	github.com/hashicorp/go-hclog v1.2.0
 	github.com/hashicorp/raft v1.1.1
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v1.3.0
@@ -66,11 +66,11 @@ require (
 	github.com/rs/cors v1.8.2
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
-	github.com/ugorji/go/codec v1.2.6
+	github.com/ugorji/go/codec v1.2.7
 	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.3.0
 	go.opencensus.io v0.23.0
-	go.uber.org/multierr v1.7.0
+	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20210813211128-0a44fdfbc16e
 	google.golang.org/protobuf v1.27.1
 )
