@@ -60,10 +60,12 @@ func NewClusterHost(
 	// it.
 	network.DialPeerTimeout = cfg.DialPeerTimeout
 
-	connman := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, cfg.ConnMgr.GracePeriod)
+	connman, err := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, connmgr.WithGracePeriod(cfg.ConnMgr.GracePeriod))
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	var idht *dual.DHT
-	var err error
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
 		libp2p.NATPortMap(),
