@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipld/go-car"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
@@ -29,6 +30,10 @@ func newMockCDAGServ() *mockCDAGServ {
 // noop
 func (dag *mockCDAGServ) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
 	return root, nil
+}
+
+func (dag *mockCDAGServ) Allocations() []peer.ID {
+	return nil
 }
 
 func TestAdder(t *testing.T) {

@@ -23,6 +23,7 @@ import (
 	balanced "github.com/ipfs/go-unixfs/importer/balanced"
 	ihelper "github.com/ipfs/go-unixfs/importer/helpers"
 	trickle "github.com/ipfs/go-unixfs/importer/trickle"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 var log = logging.Logger("coreunix")
@@ -33,11 +34,12 @@ const progressReaderIncrement = 1024 * 256
 var liveCacheSize = uint64(256 << 10)
 
 // NewAdder Returns a new Adder used for a file add operation.
-func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
+func NewAdder(ctx context.Context, ds ipld.DAGService, allocs func() []peer.ID) (*Adder, error) {
 	// Cluster: we don't use pinner nor GCLocker.
 	return &Adder{
 		ctx:        ctx,
 		dagService: ds,
+		allocsFun:  allocs,
 		Progress:   false,
 		Trickle:    false,
 		Chunker:    "",
@@ -48,6 +50,7 @@ func NewAdder(ctx context.Context, ds ipld.DAGService) (*Adder, error) {
 type Adder struct {
 	ctx        context.Context
 	dagService ipld.DAGService
+	allocsFun  func() []peer.ID
 	Out        chan *api.AddedOutput
 	Progress   bool
 	Trickle    bool
@@ -443,9 +446,10 @@ func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipl
 	name = filepath.Join(adder.OutputPrefix, name)
 
 	out <- &api.AddedOutput{
-		Cid:  dn.Cid(),
-		Name: name,
-		Size: s,
+		Cid:         dn.Cid(),
+		Name:        name,
+		Size:        s,
+		Allocations: adder.allocsFun(),
 	}
 
 	return nil
