@@ -54,29 +54,29 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 			return err
 		}
 
+		hasLocal := false
+		localPid := dgs.rpcClient.ID()
+		for i, d := range dests {
+			if d == localPid || d == "" {
+				hasLocal = true
+				// ensure our allocs do not carry an empty peer
+				// mostly an issue with testing mocks
+				dests[i] = localPid
+			}
+		}
+
 		dgs.dests = dests
 
 		if dgs.local {
 			// If this is a local pin, make sure that the local
 			// peer is among the allocations..
 			// UNLESS user-allocations are defined!
-			localPid := dgs.rpcClient.ID()
-			hasLocal := false
-			for _, d := range dests {
-				if d == localPid {
-					hasLocal = true
-					break
-				}
-			}
-
-			if !hasLocal &&
-				localPid != "" &&
-				len(dgs.addParams.UserAllocations) == 0 {
+			if !hasLocal && localPid != "" && len(dgs.addParams.UserAllocations) == 0 {
 				// replace last allocation with local peer
 				dgs.dests[len(dgs.dests)-1] = localPid
 			}
 
-			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""})
+			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{localPid})
 		} else {
 			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dgs.dests)
 		}
@@ -104,6 +104,11 @@ func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, err
 
 // Allocations returns the add destinations decided by the DAGService.
 func (dgs *DAGService) Allocations() []peer.ID {
+	// using rpc clients without a host results in an empty peer
+	// which cannot be parsed to peer.ID on deserialization.
+	if len(dgs.dests) == 1 && dgs.dests[0] == "" {
+		return nil
+	}
 	return dgs.dests
 }
 

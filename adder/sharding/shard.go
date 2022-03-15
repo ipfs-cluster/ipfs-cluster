@@ -71,6 +71,9 @@ func (sh *shard) AddLink(ctx context.Context, c cid.Cid, s uint64) {
 
 // Allocations returns the peer IDs on which blocks are put for this shard.
 func (sh *shard) Allocations() []peer.ID {
+	if len(sh.allocations) == 1 && sh.allocations[0] == "" {
+		return nil
+	}
 	return sh.allocations
 }
 
