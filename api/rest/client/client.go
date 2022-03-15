@@ -58,9 +58,9 @@ type Client interface {
 	PeerRm(ctx context.Context, pid peer.ID) error
 
 	// Add imports files to the cluster from the given paths.
-	Add(ctx context.Context, paths []string, params *api.AddParams, out chan<- *api.AddedOutput) error
+	Add(ctx context.Context, paths []string, params api.AddParams, out chan<- *api.AddedOutput) error
 	// AddMultiFile imports new files from a MultiFileReader.
-	AddMultiFile(ctx context.Context, multiFileR *files.MultiFileReader, params *api.AddParams, out chan<- *api.AddedOutput) error
+	AddMultiFile(ctx context.Context, multiFileR *files.MultiFileReader, params api.AddParams, out chan<- *api.AddedOutput) error
 
 	// Pin tracks a Cid with the given replication factor and a name for
 	// human-friendliness.
@@ -84,6 +84,8 @@ type Client interface {
 	// the information affects only the current peer, otherwise the information
 	// is fetched from all cluster peers.
 	Status(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error)
+	// StatusCids status information for the requested CIDs.
+	StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]*api.GlobalPinInfo, error)
 	// StatusAll gathers Status() for all tracked items.
 	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error)
 

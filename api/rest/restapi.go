@@ -21,7 +21,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
-	"github.com/ipfs/ipfs-cluster/state"
 	"go.uber.org/multierr"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -401,10 +400,6 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 			pin,
 			&pinObj,
 		)
-		if err != nil && err.Error() == state.ErrNotFound.Error() {
-			api.SendResponse(w, http.StatusNotFound, err, nil)
-			return
-		}
 		api.SendResponse(w, common.SetStatusAutomatically, err, pinObj)
 		api.config.Logger.Debug("rest api unpinHandler done")
 	}
@@ -440,10 +435,6 @@ func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 			pinpath,
 			&pin,
 		)
-		if err != nil && err.Error() == state.ErrNotFound.Error() {
-			api.SendResponse(w, http.StatusNotFound, err, nil)
-			return
-		}
 		api.SendResponse(w, common.SetStatusAutomatically, err, pin)
 		api.config.Logger.Debug("rest api unpinPathHandler done")
 	}
@@ -499,11 +490,7 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 			pin.Cid,
 			&pinResp,
 		)
-		if err != nil { // errors here are 404s
-			api.SendResponse(w, http.StatusNotFound, err, nil)
-			return
-		}
-		api.SendResponse(w, common.SetStatusAutomatically, nil, pinResp)
+		api.SendResponse(w, common.SetStatusAutomatically, err, pinResp)
 	}
 }
 
@@ -520,6 +507,8 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
+	// FIXME: This is a bit lazy, as "invalidxx,pinned" would result in a
+	// valid "pinned" filter.
 	if filter == types.TrackerStatusUndefined && filterStr != "" {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("invalid filter value"), nil)
 		return

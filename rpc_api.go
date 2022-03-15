@@ -233,6 +233,12 @@ func (rpcapi *ClusterRPCAPI) Peers(ctx context.Context, in struct{}, out *[]*api
 	return nil
 }
 
+// Peers runs Cluster.peersWithFilter().
+func (rpcapi *ClusterRPCAPI) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]*api.ID) error {
+	*out = rpcapi.c.peersWithFilter(ctx, in)
+	return nil
+}
+
 // PeerAdd runs Cluster.PeerAdd().
 func (rpcapi *ClusterRPCAPI) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {
 	id, err := rpcapi.c.PeerAdd(ctx, in)
@@ -344,6 +350,8 @@ func (rpcapi *ClusterRPCAPI) BlockAllocate(ctx context.Context, in *api.Pin, out
 		return errFollowerMode
 	}
 
+	// Allocating for a existing pin. Usually the adder calls this with
+	// cid.Undef.
 	existing, err := rpcapi.c.PinGet(ctx, in.Cid)
 	if err != nil && err != state.ErrNotFound {
 		return err
@@ -423,9 +431,17 @@ func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *[]api
 	return nil
 }
 
-// IPFSID returns the current cached IPFS ID.
-func (rpcapi *ClusterRPCAPI) IPFSID(ctx context.Context, in struct{}, out *peer.ID) error {
-	*out = rpcapi.c.curPingVal.IPFSID
+// IPFSID returns the current cached IPFS ID for a peer.
+func (rpcapi *ClusterRPCAPI) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID) error {
+	if in == "" {
+		in = rpcapi.c.host.ID()
+	}
+	pingVal := pingValueFromMetric(rpcapi.c.monitor.LatestForPeer(ctx, pingMetricName, in))
+	i := api.IPFSID{
+		ID:        pingVal.IPFSID,
+		Addresses: pingVal.IPFSAddresses,
+	}
+	*out = i
 	return nil
 }
 

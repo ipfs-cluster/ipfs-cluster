@@ -26,22 +26,22 @@ type DAGService struct {
 
 	rpcClient *rpc.Client
 
-	dests   []peer.ID
-	pinOpts api.PinOptions
-	local   bool
+	dests     []peer.ID
+	addParams api.AddParams
+	local     bool
 
 	ba *adder.BlockAdder
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
 // to perform calls to IPFS.BlockPut and Pin content on Cluster.
-func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
+func New(rpc *rpc.Client, opts api.AddParams, local bool) *DAGService {
 	// ensure don't Add something and pin it in direct mode.
 	opts.Mode = api.PinModeRecursive
 	return &DAGService{
 		rpcClient: rpc,
 		dests:     nil,
-		pinOpts:   opts,
+		addParams: opts,
 		local:     local,
 	}
 }
@@ -49,7 +49,7 @@ func New(rpc *rpc.Client, opts api.PinOptions, local bool) *DAGService {
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 	if dgs.dests == nil {
-		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.pinOpts)
+		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.addParams.PinOptions)
 		if err != nil {
 			return err
 		}
@@ -57,8 +57,9 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 		dgs.dests = dests
 
 		if dgs.local {
-			// If this is a local pin, make sure that the local peer is
-			// among the allocations.
+			// If this is a local pin, make sure that the local
+			// peer is among the allocations..
+			// UNLESS user-allocations are defined!
 			localPid := dgs.rpcClient.ID()
 			hasLocal := false
 			for _, d := range dests {
@@ -67,7 +68,10 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 					break
 				}
 			}
-			if !hasLocal && localPid != "" {
+
+			if !hasLocal &&
+				localPid != "" &&
+				len(dgs.addParams.UserAllocations) == 0 {
 				// replace last allocation with local peer
 				dgs.dests[len(dgs.dests)-1] = localPid
 			}
@@ -83,8 +87,16 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 
 // Finalize pins the last Cid added to this DAGService.
 func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
+	// Do not pin, just block put.
+	// Why? Because some people are uploading CAR files with partial DAGs
+	// and ideally they should be pinning only when the last partial CAR
+	// is uploaded. This gives them that option.
+	if dgs.addParams.NoPin {
+		return root, nil
+	}
+
 	// Cluster pin the result
-	rootPin := api.PinWithOpts(root, dgs.pinOpts)
+	rootPin := api.PinWithOpts(root, dgs.addParams.PinOptions)
 	rootPin.Allocations = dgs.dests
 	dgs.dests = nil
 

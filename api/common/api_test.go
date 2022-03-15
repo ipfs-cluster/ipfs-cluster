@@ -211,13 +211,13 @@ func TestNotFoundHandler(t *testing.T) {
 		var errResp api.Error
 		test.MakePost(t, rest, url(rest)+"/"+string(bytes), []byte{}, &errResp)
 		if errResp.Code != 404 {
-			t.Error("expected error not found")
+			t.Errorf("expected error not found: %+v", errResp)
 		}
 
 		var errResp1 api.Error
 		test.MakeGet(t, rest, url(rest)+"/"+string(bytes), &errResp1)
 		if errResp1.Code != 404 {
-			t.Error("expected error not found")
+			t.Errorf("expected error not found: %+v", errResp)
 		}
 	}
 

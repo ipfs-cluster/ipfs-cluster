@@ -10,6 +10,7 @@ import (
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
+	"github.com/ipfs/ipfs-cluster/api/pinsvcapi"
 	"github.com/ipfs/ipfs-cluster/api/rest"
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
@@ -29,6 +30,7 @@ import (
 type Configs struct {
 	Cluster          *ipfscluster.Config
 	Restapi          *rest.Config
+	Pinsvcapi        *pinsvcapi.Config
 	Ipfsproxy        *ipfsproxy.Config
 	Ipfshttp         *ipfshttp.Config
 	Raft             *raft.Config
@@ -218,6 +220,7 @@ func (ch *ConfigHelper) init() {
 	cfgs := &Configs{
 		Cluster:          &ipfscluster.Config{},
 		Restapi:          rest.NewConfig(),
+		Pinsvcapi:        pinsvcapi.NewConfig(),
 		Ipfsproxy:        &ipfsproxy.Config{},
 		Ipfshttp:         &ipfshttp.Config{},
 		Raft:             &raft.Config{},
@@ -235,6 +238,7 @@ func (ch *ConfigHelper) init() {
 	}
 	man.RegisterComponent(config.Cluster, cfgs.Cluster)
 	man.RegisterComponent(config.API, cfgs.Restapi)
+	man.RegisterComponent(config.API, cfgs.Pinsvcapi)
 	man.RegisterComponent(config.API, cfgs.Ipfsproxy)
 	man.RegisterComponent(config.IPFSConn, cfgs.Ipfshttp)
 	man.RegisterComponent(config.PinTracker, cfgs.Statelesstracker)
@@ -322,6 +326,7 @@ func (ch *ConfigHelper) SetupTracing(forceEnabled bool) {
 	ch.configs.Raft.Tracing = enabled
 	ch.configs.Crdt.Tracing = enabled
 	ch.configs.Restapi.Tracing = enabled
+	ch.configs.Pinsvcapi.Tracing = enabled
 	ch.configs.Ipfshttp.Tracing = enabled
 	ch.configs.Ipfsproxy.Tracing = enabled
 }

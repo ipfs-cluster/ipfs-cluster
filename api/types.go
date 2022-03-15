@@ -250,8 +250,13 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid  cid.Cid `json:"cid" codec:"c"`
-	Name string  `json:"name" codec:"n"`
+	Cid         cid.Cid           `json:"cid" codec:"c"`
+	Name        string            `json:"name" codec:"n"`
+	Allocations []peer.ID         `json:"allocations" codec:"a,omitempty"`
+	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
+	Created     time.Time         `json:"created" codec:"t,omitempty"`
+	Metadata    map[string]string `json:"metadata" codec:"m,omitempty"`
+
 	// https://github.com/golang/go/issues/28827
 	// Peer IDs are of string Kind(). We can't use peer IDs here
 	// as Go ignores TextMarshaler.
@@ -270,9 +275,13 @@ func (gpi *GlobalPinInfo) String() string {
 
 // Add adds a PinInfo object to a GlobalPinInfo
 func (gpi *GlobalPinInfo) Add(pi PinInfo) {
-	if !gpi.Cid.Defined() {
+	if !gpi.Cid.Defined() || !pi.Status.Match(TrackerStatusClusterError) {
 		gpi.Cid = pi.Cid
 		gpi.Name = pi.Name
+		gpi.Allocations = pi.Allocations
+		gpi.Origins = pi.Origins
+		gpi.Created = pi.Created
+		gpi.Metadata = pi.Metadata
 	}
 
 	if gpi.PeerMap == nil {
@@ -282,24 +291,40 @@ func (gpi *GlobalPinInfo) Add(pi PinInfo) {
 	gpi.PeerMap[peer.Encode(pi.Peer)] = pi.PinInfoShort
 }
 
+// Matches returns true if one of the statuses in GlobalPinInfo matches
+// the given filter.
+func (gpi *GlobalPinInfo) Match(filter TrackerStatus) bool {
+	for _, pi := range gpi.PeerMap {
+		if pi.Status.Match(filter) {
+			return true
+		}
+	}
+	return false
+}
+
 // PinInfoShort is a subset of PinInfo which is embedded in GlobalPinInfo
 // objects and does not carry redundant information as PinInfo would.
 type PinInfoShort struct {
-	PeerName     string        `json:"peername" codec:"pn,omitempty"`
-	IPFS         peer.ID       `json:"ipfs_peer_id,omitempty" codec:"i,omitempty"`
-	Status       TrackerStatus `json:"status" codec:"st,omitempty"`
-	TS           time.Time     `json:"timestamp" codec:"ts,omitempty"`
-	Error        string        `json:"error" codec:"e,omitempty"`
-	AttemptCount int           `json:"attempt_count" codec:"a,omitempty"`
-	PriorityPin  bool          `json:"priority_pin" codec:"y,omitempty"`
+	PeerName      string        `json:"peername" codec:"pn,omitempty"`
+	IPFS          peer.ID       `json:"ipfs_peer_id,omitempty" codec:"i,omitempty"`
+	IPFSAddresses []Multiaddr   `json:"ipfs_peer_addresses,omitempty" codec:"ia,omitempty"`
+	Status        TrackerStatus `json:"status" codec:"st,omitempty"`
+	TS            time.Time     `json:"timestamp" codec:"ts,omitempty"`
+	Error         string        `json:"error" codec:"e,omitempty"`
+	AttemptCount  int           `json:"attempt_count" codec:"a,omitempty"`
+	PriorityPin   bool          `json:"priority_pin" codec:"y,omitempty"`
 }
 
 // PinInfo holds information about local pins. This is used by the Pin
 // Trackers.
 type PinInfo struct {
-	Cid  cid.Cid `json:"cid" codec:"c"`
-	Name string  `json:"name" codec:"m,omitempty"`
-	Peer peer.ID `json:"peer" codec:"p,omitempty"`
+	Cid         cid.Cid           `json:"cid" codec:"c"`
+	Name        string            `json:"name" codec:"m,omitempty"`
+	Peer        peer.ID           `json:"peer" codec:"p,omitempty"`
+	Allocations []peer.ID         `json:"allocations" codec:"o,omitempty"`
+	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
+	Created     time.Time         `json:"created" codec:"t,omitempty"`
+	Metadata    map[string]string `json:"metadata" codec:"md,omitempty"`
 
 	PinInfoShort
 }
@@ -1203,7 +1228,7 @@ type Error struct {
 }
 
 // Error implements the error interface and returns the error's message.
-func (e *Error) Error() string {
+func (e Error) Error() string {
 	return fmt.Sprintf("%s (%d)", e.Message, e.Code)
 }
 
