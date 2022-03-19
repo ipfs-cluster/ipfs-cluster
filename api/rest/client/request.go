@@ -131,10 +131,10 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return api.Error{
 			Code:    resp.StatusCode,
-			Message: "expected streaming response with code 200",
+			Message: "expected streaming response with code 200/204",
 		}
 	}
 
