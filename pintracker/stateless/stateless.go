@@ -457,6 +457,7 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/RecoverAll")
 	defer span.End()
 
+	// FIXME: make sure this returns a channel.
 	statuses := spt.StatusAll(ctx, api.TrackerStatusUndefined)
 	resp := make([]api.PinInfo, 0)
 	for _, st := range statuses {
