@@ -87,7 +87,7 @@ func clean(t *testing.T, cc *Consensus) {
 	}
 }
 
-func testPin(c cid.Cid) *api.Pin {
+func testPin(c cid.Cid) api.Pin {
 	p := api.PinCid(c)
 	p.ReplicationFactorMin = -1
 	p.ReplicationFactorMax = -1
@@ -125,10 +125,17 @@ func TestConsensusPin(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -164,7 +171,7 @@ func TestConsensusUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	// Update pin
 	pin.Reference = &test.Cid2
@@ -173,18 +180,25 @@ func TestConsensusUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	st, err := cc.State(ctx)
 	if err != nil {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
-		t.Error("the added pin should be in the state")
+		t.Fatal("the added pin should be in the state")
 	}
 	if !pins[0].Reference.Equals(test.Cid2) {
 		t.Error("pin updated incorrectly")
@@ -223,16 +237,23 @@ func TestConsensusAddRmPeer(t *testing.T) {
 		t.Error(err)
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	st, err := cc2.State(ctx)
 	if err != nil {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -289,10 +310,17 @@ func TestConsensusDistrustPeer(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("only first pin should be in the state")
 	}
@@ -344,10 +372,17 @@ func TestOfflineState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pins, err := offlineState.List(ctx)
+	ch, err := offlineState.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 2 {
 		t.Error("there should be two pins in the state")
 	}
@@ -377,10 +412,17 @@ func TestBatching(t *testing.T) {
 
 	time.Sleep(250 * time.Millisecond)
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 0 {
 		t.Error("pin should not be pinned yet as it is being batched")
 	}
@@ -388,10 +430,17 @@ func TestBatching(t *testing.T) {
 	// Trigger batch auto-commit by time
 	time.Sleep(time.Second)
 
-	pins, err = st.List(ctx)
+	ch, err = st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	pins = nil
+
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -407,20 +456,31 @@ func TestBatching(t *testing.T) {
 	// Give a chance for things to persist
 	time.Sleep(250 * time.Millisecond)
 
-	pins, err = st.List(ctx)
+	ch, err = st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	pins = nil
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 4 {
 		t.Error("expected 4 items pinned")
 	}
 
 	// wait for the last pin
 	time.Sleep(time.Second)
-	pins, err = st.List(ctx)
+	ch, err = st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	pins = nil
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 5 {
 		t.Error("expected 5 items pinned")
 	}

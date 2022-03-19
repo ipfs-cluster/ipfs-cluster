@@ -176,10 +176,7 @@ func (pv pingValue) Valid() bool {
 
 // PingValue from metric parses a ping value from the value of a given metric,
 // if possible.
-func pingValueFromMetric(m *api.Metric) (pv pingValue) {
-	if m == nil {
-		return
-	}
+func pingValueFromMetric(m api.Metric) (pv pingValue) {
 	json.Unmarshal([]byte(m.Value), &pv)
 	return
 }

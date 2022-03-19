@@ -54,13 +54,13 @@ type mockConnector struct {
 	blocks sync.Map
 }
 
-func (ipfs *mockConnector) ID(ctx context.Context) (*api.IPFSID, error) {
-	return &api.IPFSID{
+func (ipfs *mockConnector) ID(ctx context.Context) (api.IPFSID, error) {
+	return api.IPFSID{
 		ID: test.PeerID1,
 	}, nil
 }
 
-func (ipfs *mockConnector) Pin(ctx context.Context, pin *api.Pin) error {
+func (ipfs *mockConnector) Pin(ctx context.Context, pin api.Pin) error {
 	if pin.Cid == test.ErrorCid {
 		return errors.New("trying to pin ErrorCid")
 	}
@@ -73,7 +73,7 @@ func (ipfs *mockConnector) Unpin(ctx context.Context, c cid.Cid) error {
 	return nil
 }
 
-func (ipfs *mockConnector) PinLsCid(ctx context.Context, pin *api.Pin) (api.IPFSPinStatus, error) {
+func (ipfs *mockConnector) PinLsCid(ctx context.Context, pin api.Pin) (api.IPFSPinStatus, error) {
 	dI, ok := ipfs.pins.Load(pin.Cid.String())
 	if !ok {
 		return api.IPFSPinStatusUnpinned, nil
@@ -107,12 +107,12 @@ func (ipfs *mockConnector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 	return []peer.ID{test.PeerID4, test.PeerID5}, nil
 }
 
-func (ipfs *mockConnector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) {
-	return &api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
+func (ipfs *mockConnector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
+	return api.IPFSRepoStat{RepoSize: 100, StorageMax: 1000}, nil
 }
 
-func (ipfs *mockConnector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
-	return &api.RepoGC{
+func (ipfs *mockConnector) RepoGC(ctx context.Context) (api.RepoGC, error) {
+	return api.RepoGC{
 		Keys: []api.IPFSRepoGC{
 			{
 				Key: test.Cid1,
@@ -132,7 +132,7 @@ func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, e
 func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
-func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm *api.NodeWithMeta) error {
+func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm api.NodeWithMeta) error {
 	ipfs.blocks.Store(nwm.Cid.String(), nwm.Data)
 	return nil
 }
@@ -990,7 +990,7 @@ func TestClusterRepoGCLocal(t *testing.T) {
 	testRepoGC(t, repoGC)
 }
 
-func testRepoGC(t *testing.T, repoGC *api.RepoGC) {
+func testRepoGC(t *testing.T, repoGC api.RepoGC) {
 	if repoGC.Peer == "" {
 		t.Error("expected a cluster ID")
 	}

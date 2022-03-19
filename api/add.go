@@ -243,7 +243,7 @@ func (p AddParams) ToQueryString() (string, error) {
 
 // Equals checks if p equals p2.
 func (p AddParams) Equals(p2 AddParams) bool {
-	return p.PinOptions.Equals(&p2.PinOptions) &&
+	return p.PinOptions.Equals(p2.PinOptions) &&
 		p.Local == p2.Local &&
 		p.Recursive == p2.Recursive &&
 		p.Shard == p2.Shard &&

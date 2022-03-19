@@ -41,7 +41,7 @@ func NewWindow(windowCap int) *Window {
 // has been reached, the oldest metric (by the time it was added),
 // will be discarded. Add leaves the cursor on the next spot,
 // which is either empty or the oldest record.
-func (mw *Window) Add(m *api.Metric) {
+func (mw *Window) Add(m api.Metric) {
 	m.ReceivedAt = time.Now().UnixNano()
 
 	mw.wMu.Lock()
@@ -52,8 +52,8 @@ func (mw *Window) Add(m *api.Metric) {
 
 // Latest returns the last metric added. It returns an error
 // if no metrics were added.
-func (mw *Window) Latest() (*api.Metric, error) {
-	var last *api.Metric
+func (mw *Window) Latest() (api.Metric, error) {
+	var last api.Metric
 	var ok bool
 
 	mw.wMu.RLock()
@@ -64,10 +64,10 @@ func (mw *Window) Latest() (*api.Metric, error) {
 	prevRing := mw.window.Prev()
 	mw.wMu.RUnlock()
 
-	last, ok = prevRing.Value.(*api.Metric)
+	last, ok = prevRing.Value.(api.Metric)
 
-	if !ok || last == nil {
-		return nil, ErrNoMetrics
+	if !ok || !last.Defined() {
+		return last, ErrNoMetrics
 	}
 
 	return last, nil
@@ -76,15 +76,15 @@ func (mw *Window) Latest() (*api.Metric, error) {
 // All returns all the metrics in the window, in the inverse order
 // they were Added. That is, result[0] will be the last added
 // metric.
-func (mw *Window) All() []*api.Metric {
-	values := make([]*api.Metric, 0, mw.window.Len())
+func (mw *Window) All() []api.Metric {
+	values := make([]api.Metric, 0, mw.window.Len())
 
 	mw.wMu.RLock()
 	mw.window.Do(func(v interface{}) {
-		i, ok := v.(*api.Metric)
+		i, ok := v.(api.Metric)
 		if ok {
 			// append younger values to older value
-			values = append([]*api.Metric{i}, values...)
+			values = append([]api.Metric{i}, values...)
 		}
 	})
 	mw.wMu.RUnlock()

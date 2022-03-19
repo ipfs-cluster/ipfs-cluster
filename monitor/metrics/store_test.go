@@ -11,7 +11,7 @@ import (
 func TestStoreLatest(t *testing.T) {
 	store := NewStore()
 
-	metr := &api.Metric{
+	metr := api.Metric{
 		Name:  "test",
 		Peer:  test.PeerID1,
 		Value: "1",
@@ -36,7 +36,7 @@ func TestStoreLatest(t *testing.T) {
 func TestRemovePeer(t *testing.T) {
 	store := NewStore()
 
-	metr := &api.Metric{
+	metr := api.Metric{
 		Name:  "test",
 		Peer:  test.PeerID1,
 		Value: "1",

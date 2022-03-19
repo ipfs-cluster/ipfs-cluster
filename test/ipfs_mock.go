@@ -275,7 +275,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				goto ERROR
 			}
-			for _, p := range pins {
+			for p := range pins {
 				rMap[p.Cid.String()] = mockPinType{p.Mode.String()}
 			}
 			j, _ := json.Marshal(mockPinLsResp{rMap})
@@ -424,11 +424,17 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 
 	case "repo/stat":
 		sizeOnly := r.URL.Query().Get("size-only")
-		list, err := m.pinMap.List(ctx)
+		pinsCh, err := m.pinMap.List(ctx)
 		if err != nil {
 			goto ERROR
 		}
-		len := len(list)
+
+		var pins []api.Pin
+		for p := range pinsCh {
+			pins = append(pins, p)
+		}
+
+		len := len(pins)
 		numObjs := uint64(len)
 		if sizeOnly == "true" {
 			numObjs = 0

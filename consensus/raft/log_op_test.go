@@ -27,10 +27,16 @@ func TestApplyToPin(t *testing.T) {
 	}
 	op.ApplyTo(st)
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the state was not modified correctly")
 	}

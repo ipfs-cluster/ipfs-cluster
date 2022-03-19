@@ -351,7 +351,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	pinPath := &api.PinPath{Path: p.String()}
+	pinPath := api.PinPath{Path: p.String()}
 	pinPath.Mode = api.PinModeFromString(q.Get("type"))
 
 	var pin api.Pin
@@ -397,7 +397,8 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var pin api.Pin
-		err = proxy.rpcClient.Call(
+		err = proxy.rpcClient.CallContext(
+			r.Context(),
 			"",
 			"Cluster",
 			"PinGet",
@@ -412,23 +413,35 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			Type: "recursive",
 		}
 	} else {
-		pins := make([]*api.Pin, 0)
-		err := proxy.rpcClient.Call(
-			"",
-			"Cluster",
-			"Pins",
-			struct{}{},
-			&pins,
-		)
-		if err != nil {
-			ipfsErrorResponder(w, err.Error(), -1)
-			return
-		}
+		in := make(chan struct{})
+		close(in)
 
-		for _, pin := range pins {
+		pins := make(chan api.Pin)
+		var err error
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err = proxy.rpcClient.Stream(
+				r.Context(),
+				"",
+				"Cluster",
+				"Pins",
+				in,
+				pins,
+			)
+		}()
+
+		for pin := range pins {
 			pinLs.Keys[pin.Cid.String()] = ipfsPinType{
 				Type: "recursive",
 			}
+		}
+
+		wg.Wait()
+		if err != nil {
+			ipfsErrorResponder(w, err.Error(), -1)
+			return
 		}
 	}
 
@@ -488,7 +501,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Do a PinPath setting PinUpdate
-	pinPath := &api.PinPath{Path: pTo.String()}
+	pinPath := api.PinPath{Path: pTo.String()}
 	pinPath.PinUpdate = fromCid
 
 	var pin api.Pin
@@ -544,8 +557,6 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		ipfsErrorResponder(w, "only-hash is not supported when adding to cluster", -1)
 	}
 
-	unpin := q.Get("pin") == "false"
-
 	// Luckily, most IPFS add query params are compatible with cluster's
 	// /add params. We can parse most of them directly from the query.
 	params, err := api.AddParamsFromQuery(q)
@@ -556,6 +567,10 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	trickle := q.Get("trickle")
 	if trickle == "true" {
 		params.Layout = "trickle"
+	}
+	nopin := q.Get("pin") == "false"
+	if nopin {
+		params.NoPin = true
 	}
 
 	logger.Warnf("Proxy/add does not support all IPFS params. Current options: %+v", params)
@@ -576,7 +591,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		return r
 	}
 
-	root, err := adderutils.AddMultipartHTTPHandler(
+	_, err = adderutils.AddMultipartHTTPHandler(
 		proxy.ctx,
 		proxy.rpcClient,
 		params,
@@ -584,30 +599,8 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		w,
 		outputTransform,
 	)
-
-	// any errors have been sent as Trailer
 	if err != nil {
-		return
-	}
-
-	if !unpin {
-		return
-	}
-
-	// Unpin because the user doesn't want to pin
-	time.Sleep(100 * time.Millisecond)
-	var pinObj api.Pin
-	err = proxy.rpcClient.CallContext(
-		proxy.ctx,
-		"",
-		"Cluster",
-		"Unpin",
-		root,
-		&pinObj,
-	)
-	if err != nil {
-		w.Header().Set("X-Stream-Error", err.Error())
-		return
+		logger.Error(err)
 	}
 }
 

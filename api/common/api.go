@@ -475,17 +475,17 @@ func (api *API) Context() context.Context {
 
 // ParsePinPathOrFail parses a pin path and returns it or makes the request
 // fail.
-func (api *API) ParsePinPathOrFail(w http.ResponseWriter, r *http.Request) *types.PinPath {
+func (api *API) ParsePinPathOrFail(w http.ResponseWriter, r *http.Request) types.PinPath {
 	vars := mux.Vars(r)
 	urlpath := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/")
 
 	path, err := gopath.ParsePath(urlpath)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("error parsing path: "+err.Error()), nil)
-		return nil
+		return types.PinPath{}
 	}
 
-	pinPath := &types.PinPath{Path: path.String()}
+	pinPath := types.PinPath{Path: path.String()}
 	err = pinPath.PinOptions.FromQuery(r.URL.Query())
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, err, nil)
@@ -494,14 +494,14 @@ func (api *API) ParsePinPathOrFail(w http.ResponseWriter, r *http.Request) *type
 }
 
 // ParsePidOrFail parses a Cid and returns it or makes the request fail.
-func (api *API) ParseCidOrFail(w http.ResponseWriter, r *http.Request) *types.Pin {
+func (api *API) ParseCidOrFail(w http.ResponseWriter, r *http.Request) types.Pin {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
 
 	c, err := cid.Decode(hash)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding Cid: "+err.Error()), nil)
-		return nil
+		return types.Pin{}
 	}
 
 	opts := types.PinOptions{}
@@ -581,6 +581,60 @@ func (api *API) SendResponse(
 	}
 
 	w.WriteHeader(status)
+}
+
+// Iterator is a function that returns the next item.
+type Iterator func() (interface{}, bool, error)
+
+// StreamResponse reads from an iterator and sends the response.
+func (api *API) StreamResponse(w http.ResponseWriter, next Iterator) {
+	api.SetHeaders(w)
+	enc := json.NewEncoder(w)
+	flusher, flush := w.(http.Flusher)
+	w.Header().Set("Trailer", "X-Stream-Error")
+
+	total := 0
+	for {
+		item, ok, err := next()
+		if total == 0 {
+			if err != nil {
+				st := http.StatusInternalServerError
+				w.WriteHeader(st)
+				errorResp := api.config.APIErrorFunc(err, st)
+				api.config.Logger.Errorf("sending error response: %d: %s", st, err.Error())
+
+				if err := enc.Encode(errorResp); err != nil {
+					api.config.Logger.Error(err)
+				}
+				return
+			}
+			if !ok { // but no error.
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		if err != nil {
+			w.Header().Set("X-Stream-Error", err.Error())
+			// trailer error
+			return
+		}
+
+		// finish just fine
+		if !ok {
+			return
+		}
+
+		// we have an item
+		total++
+		err = enc.Encode(item)
+		if err != nil {
+			api.config.Logger.Error(err)
+			break
+		}
+		if flush {
+			flusher.Flush()
+		}
+	}
 }
 
 // SetsHeaders sets all the headers that are common to all responses

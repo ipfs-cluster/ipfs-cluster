@@ -50,7 +50,7 @@ var (
 type batchItem struct {
 	ctx   context.Context
 	isPin bool // pin or unpin
-	pin   *api.Pin
+	pin   api.Pin
 }
 
 // Consensus implement ipfscluster.Consensus and provides the facility to add
@@ -208,7 +208,7 @@ func (css *Consensus) setup() {
 		ctx, span := trace.StartSpan(css.ctx, "crdt/PutHook")
 		defer span.End()
 
-		pin := &api.Pin{}
+		pin := api.Pin{}
 		err := pin.ProtoUnmarshal(v)
 		if err != nil {
 			logger.Error(err)
@@ -406,7 +406,7 @@ func (css *Consensus) Distrust(ctx context.Context, pid peer.ID) error {
 }
 
 // LogPin adds a new pin to the shared state.
-func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
+func (css *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/LogPin")
 	defer span.End()
 
@@ -427,7 +427,7 @@ func (css *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 }
 
 // LogUnpin removes a pin from the shared state.
-func (css *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
+func (css *Consensus) LogUnpin(ctx context.Context, pin api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/LogUnpin")
 	defer span.End()
 
@@ -521,7 +521,7 @@ func (css *Consensus) Peers(ctx context.Context) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "consensus/Peers")
 	defer span.End()
 
-	var metrics []*api.Metric
+	var metrics []api.Metric
 
 	err := css.rpcClient.CallContext(
 		ctx,

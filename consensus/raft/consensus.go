@@ -239,7 +239,7 @@ func (cc *Consensus) Trust(ctx context.Context, pid peer.ID) error { return nil 
 // Distrust is a no-op.
 func (cc *Consensus) Distrust(ctx context.Context, pid peer.ID) error { return nil }
 
-func (cc *Consensus) op(ctx context.Context, pin *api.Pin, t LogOpType) *LogOp {
+func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
 	return &LogOp{
 		Cid:  pin,
 		Type: t,
@@ -365,7 +365,7 @@ func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redire
 
 // LogPin submits a Cid to the shared state of the cluster. It will forward
 // the operation to the leader if this is not it.
-func (cc *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
+func (cc *Consensus) LogPin(ctx context.Context, pin api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/LogPin")
 	defer span.End()
 
@@ -378,7 +378,7 @@ func (cc *Consensus) LogPin(ctx context.Context, pin *api.Pin) error {
 }
 
 // LogUnpin removes a Cid from the shared state of the cluster.
-func (cc *Consensus) LogUnpin(ctx context.Context, pin *api.Pin) error {
+func (cc *Consensus) LogUnpin(ctx context.Context, pin api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "consensus/LogUnpin")
 	defer span.End()
 

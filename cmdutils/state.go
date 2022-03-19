@@ -213,7 +213,7 @@ func importState(r io.Reader, st state.State, opts api.PinOptions) error {
 			pin.Allocations = opts.UserAllocations
 		}
 
-		err = st.Add(ctx, &pin)
+		err = st.Add(ctx, pin)
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func exportState(w io.Writer, st state.State) error {
 		return err
 	}
 	enc := json.NewEncoder(w)
-	for _, pin := range pins {
+	for pin := range pins {
 		err := enc.Encode(pin)
 		if err != nil {
 			return err

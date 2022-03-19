@@ -16,7 +16,7 @@ func TestChecker_CheckPeers(t *testing.T) {
 		metrics := NewStore()
 		checker := NewChecker(context.Background(), metrics)
 
-		metr := &api.Metric{
+		metr := api.Metric{
 			Name:  "ping",
 			Peer:  test.PeerID1,
 			Value: "1",
@@ -59,7 +59,7 @@ func TestChecker_CheckAll(t *testing.T) {
 		metrics := NewStore()
 		checker := NewChecker(context.Background(), metrics)
 
-		metr := &api.Metric{
+		metr := api.Metric{
 			Name:  "ping",
 			Peer:  test.PeerID1,
 			Value: "1",
@@ -104,7 +104,7 @@ func TestChecker_Watch(t *testing.T) {
 	metrics := NewStore()
 	checker := NewChecker(context.Background(), metrics)
 
-	metr := &api.Metric{
+	metr := api.Metric{
 		Name:  "ping",
 		Peer:  test.PeerID1,
 		Value: "1",
@@ -154,7 +154,7 @@ func TestChecker_alert(t *testing.T) {
 		metrics := NewStore()
 		checker := NewChecker(ctx, metrics)
 
-		metr := &api.Metric{
+		metr := api.Metric{
 			Name:  "ping",
 			Peer:  test.PeerID1,
 			Value: "1",
@@ -188,8 +188,8 @@ func TestChecker_alert(t *testing.T) {
 	})
 }
 
-func makePeerMetric(pid peer.ID, value string, ttl time.Duration) *api.Metric {
-	metr := &api.Metric{
+func makePeerMetric(pid peer.ID, value string, ttl time.Duration) api.Metric {
+	metr := api.Metric{
 		Name:  "ping",
 		Peer:  pid,
 		Value: value,

@@ -27,18 +27,18 @@ type testRPC struct {
 	pins   sync.Map
 }
 
-func (rpcs *testRPC) BlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+func (rpcs *testRPC) BlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
 	rpcs.blocks.Store(in.Cid.String(), in.Data)
 	return nil
 }
 
-func (rpcs *testRPC) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+func (rpcs *testRPC) Pin(ctx context.Context, in api.Pin, out *api.Pin) error {
 	rpcs.pins.Store(in.Cid.String(), in)
-	*out = *in
+	*out = in
 	return nil
 }
 
-func (rpcs *testRPC) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
+func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.Pin, out *[]peer.ID) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("we can only replicate to 1 peer")
 	}
@@ -48,12 +48,12 @@ func (rpcs *testRPC) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer
 	return nil
 }
 
-func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (*api.Pin, error) {
+func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (api.Pin, error) {
 	pI, ok := rpcs.pins.Load(c.String())
 	if !ok {
-		return nil, errors.New("not found")
+		return api.Pin{}, errors.New("not found")
 	}
-	return pI.(*api.Pin), nil
+	return pI.(api.Pin), nil
 }
 
 func (rpcs *testRPC) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {

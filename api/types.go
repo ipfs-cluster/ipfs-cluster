@@ -264,7 +264,7 @@ type GlobalPinInfo struct {
 }
 
 // String returns the string representation of a GlobalPinInfo.
-func (gpi *GlobalPinInfo) String() string {
+func (gpi GlobalPinInfo) String() string {
 	str := fmt.Sprintf("Cid: %s\n", gpi.Cid)
 	str = str + "Peers:\n"
 	for pid, p := range gpi.PeerMap {
@@ -291,9 +291,14 @@ func (gpi *GlobalPinInfo) Add(pi PinInfo) {
 	gpi.PeerMap[peer.Encode(pi.Peer)] = pi.PinInfoShort
 }
 
+// Defined returns if the object is not empty.
+func (gpi *GlobalPinInfo) Defined() bool {
+	return gpi.Cid.Defined()
+}
+
 // Matches returns true if one of the statuses in GlobalPinInfo matches
 // the given filter.
-func (gpi *GlobalPinInfo) Match(filter TrackerStatus) bool {
+func (gpi GlobalPinInfo) Match(filter TrackerStatus) bool {
 	for _, pi := range gpi.PeerMap {
 		if pi.Status.Match(filter) {
 			return true
@@ -332,9 +337,14 @@ type PinInfo struct {
 // ToGlobal converts a PinInfo object to a GlobalPinInfo with
 // a single peer corresponding to the given PinInfo.
 func (pi PinInfo) ToGlobal() GlobalPinInfo {
-	gpi := &GlobalPinInfo{}
+	gpi := GlobalPinInfo{}
 	gpi.Add(pi)
-	return *gpi
+	return gpi
+}
+
+// Defined retuns if the PinInfo is not zero.
+func (pi PinInfo) Defined() bool {
+	return pi.Cid.Defined()
 }
 
 // Version holds version information
@@ -606,15 +616,7 @@ type PinOptions struct {
 
 // Equals returns true if two PinOption objects are equivalent. po and po2 may
 // be nil.
-func (po *PinOptions) Equals(po2 *PinOptions) bool {
-	if po == nil && po2 != nil || po2 == nil && po != nil {
-		return false
-	}
-
-	if po == po2 { // same as pin.Equals()
-		return false
-	}
-
+func (po PinOptions) Equals(po2 PinOptions) bool {
 	if po.Name != po2.Name {
 		return false
 	}
@@ -685,7 +687,7 @@ func (po *PinOptions) Equals(po2 *PinOptions) bool {
 }
 
 // ToQuery returns the PinOption as query arguments.
-func (po *PinOptions) ToQuery() (string, error) {
+func (po PinOptions) ToQuery() (string, error) {
 	q := url.Values{}
 	q.Set("replication-min", fmt.Sprintf("%d", po.ReplicationFactorMin))
 	q.Set("replication-max", fmt.Sprintf("%d", po.ReplicationFactorMax))
@@ -863,7 +865,7 @@ type Pin struct {
 }
 
 // String is a string representation of a Pin.
-func (pin *Pin) String() string {
+func (pin Pin) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "cid: %s\n", pin.Cid.String())
 	fmt.Fprintf(&b, "type: %s\n", pin.Type)
@@ -876,7 +878,7 @@ func (pin *Pin) String() string {
 }
 
 // IsPinEverywhere returns when the both replication factors are set to -1.
-func (pin *Pin) IsPinEverywhere() bool {
+func (pin Pin) IsPinEverywhere() bool {
 	return pin.ReplicationFactorMin == -1 && pin.ReplicationFactorMax == -1
 }
 
@@ -886,10 +888,15 @@ type PinPath struct {
 	Path string `json:"path"`
 }
 
+// Defined returns if the path has a value.
+func (pp PinPath) Defined() bool {
+	return pp.Path != ""
+}
+
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive and the pin to be of DataType.
-func PinCid(c cid.Cid) *Pin {
-	return &Pin{
+func PinCid(c cid.Cid) Pin {
+	return Pin{
 		Cid:         c,
 		Type:        DataType,
 		Allocations: []peer.ID{},
@@ -901,7 +908,7 @@ func PinCid(c cid.Cid) *Pin {
 // PinWithOpts creates a new Pin calling PinCid(c) and then sets its
 // PinOptions fields with the given options. Pin fields that are linked to
 // options are set accordingly (MaxDepth from Mode).
-func PinWithOpts(c cid.Cid, opts PinOptions) *Pin {
+func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
 	p := PinCid(c)
 	p.PinOptions = opts
 	p.MaxDepth = p.Mode.ToPinDepth()
@@ -921,7 +928,7 @@ func convertPinType(t PinType) pb.Pin_PinType {
 }
 
 // ProtoMarshal marshals this Pin using probobuf.
-func (pin *Pin) ProtoMarshal() ([]byte, error) {
+func (pin Pin) ProtoMarshal() ([]byte, error) {
 	allocs := make([][]byte, len(pin.Allocations))
 	for i, pid := range pin.Allocations {
 		bs, err := pid.Marshal()
@@ -1057,19 +1064,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 // Equals checks if two pins are the same (with the same allocations).
 // If allocations are the same but in different order, they are still
 // considered equivalent.
-// pin or pin2 may be nil. If both are nil, Equals returns false.
-func (pin *Pin) Equals(pin2 *Pin) bool {
-	if pin == nil && pin2 != nil || pin2 == nil && pin != nil {
-		return false
-	}
-
-	if pin == pin2 {
-		// ask @lanzafame why this is not true
-		// in any case, this is anomalous and we should
-		// not be using this with two nils.
-		return false
-	}
-
+func (pin Pin) Equals(pin2 Pin) bool {
 	if !pin.Cid.Equals(pin2.Cid) {
 		return false
 	}
@@ -1101,12 +1096,12 @@ func (pin *Pin) Equals(pin2 *Pin) bool {
 		return false
 	}
 
-	return pin.PinOptions.Equals(&pin2.PinOptions)
+	return pin.PinOptions.Equals(pin2.PinOptions)
 }
 
 // IsRemotePin determines whether a Pin's ReplicationFactor has
 // been met, so as to either pin or unpin it from the peer.
-func (pin *Pin) IsRemotePin(pid peer.ID) bool {
+func (pin Pin) IsRemotePin(pid peer.ID) bool {
 	if pin.IsPinEverywhere() {
 		return false
 	}
@@ -1120,12 +1115,17 @@ func (pin *Pin) IsRemotePin(pid peer.ID) bool {
 }
 
 // ExpiredAt returns whether the pin has expired at the given time.
-func (pin *Pin) ExpiredAt(t time.Time) bool {
+func (pin Pin) ExpiredAt(t time.Time) bool {
 	if pin.ExpireAt.IsZero() || pin.ExpireAt.Equal(unixZero) {
 		return false
 	}
 
 	return pin.ExpireAt.Before(t)
+}
+
+// Defined returns true if this is not a zero-object pin (the CID must be set).
+func (pin Pin) Defined() bool {
+	return pin.Cid.Defined()
 }
 
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
@@ -1143,7 +1143,7 @@ func (n *NodeWithMeta) Size() uint64 {
 }
 
 // MetricsSet is a map to carry slices of metrics indexed by type.
-type MetricsSet map[string][]*Metric
+type MetricsSet map[string][]Metric
 
 // Metric transports information about a peer.ID. It is used to decide
 // pin allocations by a PinAllocator. IPFS cluster is agnostic to
@@ -1161,6 +1161,24 @@ type Metric struct {
 	ReceivedAt    int64   `json:"received_at" codec:"t,omitempty"` // ReceivedAt contains a UnixNano timestamp
 }
 
+func (m Metric) String() string {
+	return fmt.Sprintf("%s | %s | %s | Recv: %d | Exp: %d | W: %d | Part: %t | Valid: %t",
+		m.Name,
+		m.Peer,
+		m.Value,
+		m.ReceivedAt,
+		m.Expire,
+		m.Weight,
+		m.Partitionable,
+		m.Valid,
+	)
+}
+
+// Defined returns true if the metric name is set.
+func (m Metric) Defined() bool {
+	return m.Name != ""
+}
+
 // SetTTL sets Metric to expire after the given time.Duration
 func (m *Metric) SetTTL(d time.Duration) {
 	exp := time.Now().Add(d)
@@ -1168,7 +1186,7 @@ func (m *Metric) SetTTL(d time.Duration) {
 }
 
 // GetTTL returns the time left before the Metric expires
-func (m *Metric) GetTTL() time.Duration {
+func (m Metric) GetTTL() time.Duration {
 	expDate := time.Unix(0, m.Expire)
 	ttl := time.Until(expDate)
 	if ttl < 0 {
@@ -1178,20 +1196,20 @@ func (m *Metric) GetTTL() time.Duration {
 }
 
 // Expired returns if the Metric has expired
-func (m *Metric) Expired() bool {
+func (m Metric) Expired() bool {
 	expDate := time.Unix(0, m.Expire)
 	return time.Now().After(expDate)
 }
 
 // Discard returns if the metric not valid or has expired
-func (m *Metric) Discard() bool {
+func (m Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
 // GetWeight returns the weight of the metric. When it is 0,
 // it tries to parse the Value and use it as weight.
 // This is for compatiblity.
-func (m *Metric) GetWeight() int64 {
+func (m Metric) GetWeight() int64 {
 	if m.Weight != 0 {
 		return m.Weight
 	}
@@ -1204,7 +1222,7 @@ func (m *Metric) GetWeight() int64 {
 }
 
 // MetricSlice is a sortable Metric array.
-type MetricSlice []*Metric
+type MetricSlice []Metric
 
 func (es MetricSlice) Len() int      { return len(es) }
 func (es MetricSlice) Swap(i, j int) { es[i], es[j] = es[j], es[i] }
@@ -1255,5 +1273,5 @@ type RepoGC struct {
 // GlobalRepoGC contains cluster-wide information about garbage collected CIDs
 // from IPFS.
 type GlobalRepoGC struct {
-	PeerMap map[string]*RepoGC `json:"peer_map" codec:"pm,omitempty"`
+	PeerMap map[string]RepoGC `json:"peer_map" codec:"pm,omitempty"`
 }

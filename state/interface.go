@@ -34,18 +34,18 @@ type State interface {
 // ReadOnly represents the read side of a State.
 type ReadOnly interface {
 	// List lists all the pins in the state.
-	List(context.Context) ([]*api.Pin, error)
+	List(context.Context) (<-chan api.Pin, error)
 	// Has returns true if the state is holding information for a Cid.
 	Has(context.Context, cid.Cid) (bool, error)
 	// Get returns the information attacthed to this pin, if any. If the
 	// pin is not part of the state, it should return ErrNotFound.
-	Get(context.Context, cid.Cid) (*api.Pin, error)
+	Get(context.Context, cid.Cid) (api.Pin, error)
 }
 
 // WriteOnly represents the write side of a State.
 type WriteOnly interface {
 	// Add adds a pin to the State
-	Add(context.Context, *api.Pin) error
+	Add(context.Context, api.Pin) error
 	// Rm removes a pin from the State.
 	Rm(context.Context, cid.Cid) error
 }

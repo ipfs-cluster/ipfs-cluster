@@ -22,7 +22,7 @@ func cleanRaft(idn int) {
 	os.RemoveAll(fmt.Sprintf("raftFolderFromTests-%d", idn))
 }
 
-func testPin(c cid.Cid) *api.Pin {
+func testPin(c cid.Cid) api.Pin {
 	p := api.PinCid(c)
 	p.ReplicationFactorMin = -1
 	p.ReplicationFactorMax = -1
@@ -99,10 +99,16 @@ func TestConsensusPin(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -148,10 +154,16 @@ func TestConsensusUpdate(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	pins, err := st.List(ctx)
+	ch, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 1 || !pins[0].Cid.Equals(test.Cid1) {
 		t.Error("the added pin should be in the state")
 	}
@@ -318,10 +330,16 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal("Snapshot bytes returned could not restore to state: ", err)
 	}
-	pins, err := snapState.List(ctx)
+	ch, err := snapState.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var pins []api.Pin
+	for p := range ch {
+		pins = append(pins, p)
+	}
+
 	if len(pins) != 3 {
 		t.Fatal("Latest snapshot not read")
 	}

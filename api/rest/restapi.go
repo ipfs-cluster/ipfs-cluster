@@ -248,7 +248,7 @@ func (api *API) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	var metrics []*types.Metric
+	var metrics []types.Metric
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
@@ -313,7 +313,7 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
-	var peers []*types.ID
+	var peers []types.ID
 	err := api.rpcClient.CallContext(
 		r.Context(),
 		"",
@@ -370,7 +370,7 @@ func (api *API) peerRemoveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
-	if pin := api.ParseCidOrFail(w, r); pin != nil {
+	if pin := api.ParseCidOrFail(w, r); pin.Defined() {
 		api.config.Logger.Debugf("rest api pinHandler: %s", pin.Cid)
 		// span.AddAttributes(trace.StringAttribute("cid", pin.Cid))
 		var pinObj types.Pin
@@ -388,7 +388,7 @@ func (api *API) pinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
-	if pin := api.ParseCidOrFail(w, r); pin != nil {
+	if pin := api.ParseCidOrFail(w, r); pin.Defined() {
 		api.config.Logger.Debugf("rest api unpinHandler: %s", pin.Cid)
 		// span.AddAttributes(trace.StringAttribute("cid", pin.Cid))
 		var pinObj types.Pin
@@ -407,7 +407,7 @@ func (api *API) unpinHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.Pin
-	if pinpath := api.ParsePinPathOrFail(w, r); pinpath != nil {
+	if pinpath := api.ParsePinPathOrFail(w, r); pinpath.Defined() {
 		api.config.Logger.Debugf("rest api pinPathHandler: %s", pinpath.Path)
 		err := api.rpcClient.CallContext(
 			r.Context(),
@@ -425,7 +425,7 @@ func (api *API) pinPathHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) unpinPathHandler(w http.ResponseWriter, r *http.Request) {
 	var pin types.Pin
-	if pinpath := api.ParsePinPathOrFail(w, r); pinpath != nil {
+	if pinpath := api.ParsePinPathOrFail(w, r); pinpath.Defined() {
 		api.config.Logger.Debugf("rest api unpinPathHandler: %s", pinpath.Path)
 		err := api.rpcClient.CallContext(
 			r.Context(),
@@ -453,34 +453,56 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var pins []*types.Pin
-	err := api.rpcClient.CallContext(
-		r.Context(),
-		"",
-		"Cluster",
-		"Pins",
-		struct{}{},
-		&pins,
-	)
+	in := make(chan struct{})
+	close(in)
 
-	var outPins []*types.Pin
+	pins := make(chan types.Pin)
 
-	if filter == types.AllType {
-		outPins = pins
-	} else {
-		outPins = make([]*types.Pin, 0, len(pins))
-		for _, pin := range pins {
-			if filter&pin.Type > 0 {
-				// add this pin to output
-				outPins = append(outPins, pin)
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	go func() {
+		err := api.rpcClient.Stream(
+			r.Context(),
+			"",
+			"Cluster",
+			"Pins",
+			in,
+			pins,
+		)
+		if err != nil {
+			logger.Error(err)
+			cancel()
+		}
+	}()
+
+	iter := func() (interface{}, bool, error) {
+		var p types.Pin
+		var ok bool
+	iterloop:
+		for {
+			select {
+			case <-ctx.Done():
+				break iterloop
+			case p, ok = <-pins:
+				if !ok {
+					break iterloop
+				}
+				// this means we keep iterating if no filter
+				// matched
+				if filter == types.AllType || filter&p.Type > 0 {
+					break iterloop
+				}
 			}
 		}
+		return p, ok, ctx.Err()
 	}
-	api.SendResponse(w, common.SetStatusAutomatically, err, outPins)
+
+	api.StreamResponse(w, iter)
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
-	if pin := api.ParseCidOrFail(w, r); pin != nil {
+	if pin := api.ParseCidOrFail(w, r); pin.Defined() {
 		var pinResp types.Pin
 		err := api.rpcClient.CallContext(
 			r.Context(),
@@ -503,7 +525,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 
 	local := queryValues.Get("local")
 
-	var globalPinInfos []*types.GlobalPinInfo
+	var globalPinInfos []types.GlobalPinInfo
 
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
@@ -515,7 +537,7 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if local == "true" {
-		var pinInfos []*types.PinInfo
+		var pinInfos []types.PinInfo
 
 		err := api.rpcClient.CallContext(
 			r.Context(),
@@ -626,7 +648,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if pin := api.ParseCidOrFail(w, r); pin != nil {
+	if pin := api.ParseCidOrFail(w, r); pin.Defined() {
 		if local == "true" {
 			var pinInfo types.PinInfo
 			err := api.rpcClient.CallContext(
@@ -657,7 +679,7 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 	if local == "true" {
-		var pinInfos []*types.PinInfo
+		var pinInfos []types.PinInfo
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -668,7 +690,7 @@ func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		api.SendResponse(w, common.SetStatusAutomatically, err, pinInfosToGlobal(pinInfos))
 	} else {
-		var globalPinInfos []*types.GlobalPinInfo
+		var globalPinInfos []types.GlobalPinInfo
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -685,7 +707,7 @@ func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
 
-	if pin := api.ParseCidOrFail(w, r); pin != nil {
+	if pin := api.ParseCidOrFail(w, r); pin.Defined() {
 		if local == "true" {
 			var pinInfo types.PinInfo
 			err := api.rpcClient.CallContext(
@@ -727,7 +749,7 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 			&localRepoGC,
 		)
 
-		api.SendResponse(w, common.SetStatusAutomatically, err, repoGCToGlobal(&localRepoGC))
+		api.SendResponse(w, common.SetStatusAutomatically, err, repoGCToGlobal(localRepoGC))
 		return
 	}
 
@@ -743,19 +765,19 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	api.SendResponse(w, common.SetStatusAutomatically, err, repoGC)
 }
 
-func repoGCToGlobal(r *types.RepoGC) types.GlobalRepoGC {
+func repoGCToGlobal(r types.RepoGC) types.GlobalRepoGC {
 	return types.GlobalRepoGC{
-		PeerMap: map[string]*types.RepoGC{
+		PeerMap: map[string]types.RepoGC{
 			peer.Encode(r.Peer): r,
 		},
 	}
 }
 
-func pinInfosToGlobal(pInfos []*types.PinInfo) []*types.GlobalPinInfo {
-	gPInfos := make([]*types.GlobalPinInfo, len(pInfos))
+func pinInfosToGlobal(pInfos []types.PinInfo) []types.GlobalPinInfo {
+	gPInfos := make([]types.GlobalPinInfo, len(pInfos))
 	for i, p := range pInfos {
-		gpi := (*p).ToGlobal()
-		gPInfos[i] = &gpi
+		gpi := p.ToGlobal()
+		gPInfos[i] = gpi
 	}
 	return gPInfos
 }

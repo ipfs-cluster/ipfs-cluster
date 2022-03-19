@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ import (
 )
 
 type addedOutputQuiet struct {
-	*api.AddedOutput
+	api.AddedOutput
 	quiet bool
 }
 
@@ -24,10 +25,10 @@ func jsonFormatObject(resp interface{}) {
 	switch r := resp.(type) {
 	case nil:
 		return
-	case []*addedOutputQuiet:
+	case []addedOutputQuiet:
 		// print original objects as in JSON it makes
 		// no sense to have a human "quiet" output
-		var actual []*api.AddedOutput
+		var actual []api.AddedOutput
 		for _, s := range r {
 			actual = append(actual, s.AddedOutput)
 		}
@@ -38,9 +39,19 @@ func jsonFormatObject(resp interface{}) {
 }
 
 func jsonFormatPrint(obj interface{}) {
-	j, err := json.MarshalIndent(obj, "", "    ")
-	checkErr("generating json output", err)
-	fmt.Printf("%s\n", j)
+	switch r := obj.(type) {
+	case chan api.Pin:
+		for o := range r {
+			j, err := json.MarshalIndent(o, "", "    ")
+			checkErr("generating json output", err)
+			fmt.Printf("%s\n", j)
+		}
+	default:
+		j, err := json.MarshalIndent(obj, "", "    ")
+		checkErr("generating json output", err)
+		fmt.Printf("%s\n", j)
+	}
+
 }
 
 func textFormatObject(resp interface{}) {
@@ -49,64 +60,64 @@ func textFormatObject(resp interface{}) {
 		return
 	case string:
 		fmt.Println(resp)
-	case *api.ID:
+	case api.ID:
 		textFormatPrintID(r)
-	case *api.GlobalPinInfo:
+	case api.GlobalPinInfo:
 		textFormatPrintGPInfo(r)
-	case *api.Pin:
+	case api.Pin:
 		textFormatPrintPin(r)
-	case *api.AddedOutput:
+	case api.AddedOutput:
 		textFormatPrintAddedOutput(r)
-	case *addedOutputQuiet:
+	case addedOutputQuiet:
 		textFormatPrintAddedOutputQuiet(r)
-	case *api.Version:
+	case api.Version:
 		textFormatPrintVersion(r)
-	case *api.Error:
+	case api.Error:
 		textFormatPrintError(r)
-	case *api.Metric:
+	case api.Metric:
 		textFormatPrintMetric(r)
-	case *api.Alert:
+	case api.Alert:
 		textFormatPrintAlert(r)
-	case []*api.ID:
+	case []api.ID:
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []*api.GlobalPinInfo:
+	case []api.GlobalPinInfo:
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []*api.Pin:
+	case chan api.Pin:
+		for item := range r {
+			textFormatObject(item)
+		}
+	case []api.AddedOutput:
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []*api.AddedOutput:
+	case []addedOutputQuiet:
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []*addedOutputQuiet:
+	case []api.Metric:
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []*api.Metric:
-		for _, item := range r {
-			textFormatObject(item)
-		}
-	case *api.GlobalRepoGC:
+	case api.GlobalRepoGC:
 		textFormatPrintGlobalRepoGC(r)
 	case []string:
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []*api.Alert:
+	case []api.Alert:
 		for _, item := range r {
 			textFormatObject(item)
 		}
 	default:
-		checkErr("", errors.New("unsupported type returned"))
+		checkErr("", errors.New("unsupported type returned"+reflect.TypeOf(r).String()))
 	}
 }
 
-func textFormatPrintID(obj *api.ID) {
+func textFormatPrintID(obj api.ID) {
 	if obj.Error != "" {
 		fmt.Printf("%s | ERROR: %s\n", obj.ID.Pretty(), obj.Error)
 		return
@@ -144,7 +155,7 @@ func textFormatPrintID(obj *api.ID) {
 	}
 }
 
-func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
+func textFormatPrintGPInfo(obj api.GlobalPinInfo) {
 	var b strings.Builder
 
 	peers := make([]string, 0, len(obj.PeerMap))
@@ -179,11 +190,11 @@ func textFormatPrintGPInfo(obj *api.GlobalPinInfo) {
 	fmt.Print(b.String())
 }
 
-func textFormatPrintVersion(obj *api.Version) {
+func textFormatPrintVersion(obj api.Version) {
 	fmt.Println(obj.Version)
 }
 
-func textFormatPrintPin(obj *api.Pin) {
+func textFormatPrintPin(obj api.Pin) {
 	t := strings.ToUpper(obj.Type.String())
 	if obj.Mode == api.PinModeDirect {
 		t = t + "-DIRECT"
@@ -231,11 +242,11 @@ func textFormatPrintPin(obj *api.Pin) {
 	fmt.Printf(" | Added: %s\n", added)
 }
 
-func textFormatPrintAddedOutput(obj *api.AddedOutput) {
+func textFormatPrintAddedOutput(obj api.AddedOutput) {
 	fmt.Printf("added %s %s\n", obj.Cid, obj.Name)
 }
 
-func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
+func textFormatPrintAddedOutputQuiet(obj addedOutputQuiet) {
 	if obj.quiet {
 		fmt.Printf("%s\n", obj.AddedOutput.Cid)
 	} else {
@@ -243,7 +254,7 @@ func textFormatPrintAddedOutputQuiet(obj *addedOutputQuiet) {
 	}
 }
 
-func textFormatPrintMetric(obj *api.Metric) {
+func textFormatPrintMetric(obj api.Metric) {
 	v := obj.Value
 	if obj.Name == "freespace" && obj.Weight > 0 {
 		v = humanize.Bytes(uint64(obj.Weight))
@@ -252,7 +263,7 @@ func textFormatPrintMetric(obj *api.Metric) {
 	fmt.Printf("%s | %s: %s | Expires in: %s\n", peer.Encode(obj.Peer), obj.Name, v, humanize.Time(time.Unix(0, obj.Expire)))
 }
 
-func textFormatPrintAlert(obj *api.Alert) {
+func textFormatPrintAlert(obj api.Alert) {
 	fmt.Printf("%s: %s. Expired at: %s. Triggered at: %s\n",
 		obj.Peer,
 		obj.Name,
@@ -261,7 +272,7 @@ func textFormatPrintAlert(obj *api.Alert) {
 	)
 }
 
-func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {
+func textFormatPrintGlobalRepoGC(obj api.GlobalRepoGC) {
 	peers := make(sort.StringSlice, 0, len(obj.PeerMap))
 	for peer := range obj.PeerMap {
 		peers = append(peers, peer)
@@ -293,7 +304,7 @@ func textFormatPrintGlobalRepoGC(obj *api.GlobalRepoGC) {
 	}
 }
 
-func textFormatPrintError(obj *api.Error) {
+func textFormatPrintError(obj api.Error) {
 	fmt.Printf("An error occurred:\n")
 	fmt.Printf("  Code: %d\n", obj.Code)
 	fmt.Printf("  Message: %s\n", obj.Message)

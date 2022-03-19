@@ -532,7 +532,7 @@ func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
 	if err != nil {
 		return err
 	}
-	for _, pin := range pins {
+	for pin := range pins {
 		printPin(pin.Cid, "offline", pin.Name, "")
 	}
 	return nil

@@ -91,7 +91,7 @@ func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 
 	// It is a safety check. This error should never occur.
 	// All errors returned by client methods are of type `api.Error`.
-	apiErr, ok := err.(*api.Error)
+	apiErr, ok := err.(api.Error)
 	if !ok {
 		logger.Error("could not cast error into api.Error")
 		return err
@@ -110,8 +110,8 @@ func (lc *loadBalancingClient) retry(count int, call func(Client) error) error {
 }
 
 // ID returns information about the cluster Peer.
-func (lc *loadBalancingClient) ID(ctx context.Context) (*api.ID, error) {
-	var id *api.ID
+func (lc *loadBalancingClient) ID(ctx context.Context) (api.ID, error) {
+	var id api.ID
 	call := func(c Client) error {
 		var err error
 		id, err = c.ID(ctx)
@@ -123,8 +123,8 @@ func (lc *loadBalancingClient) ID(ctx context.Context) (*api.ID, error) {
 }
 
 // Peers requests ID information for all cluster peers.
-func (lc *loadBalancingClient) Peers(ctx context.Context) ([]*api.ID, error) {
-	var peers []*api.ID
+func (lc *loadBalancingClient) Peers(ctx context.Context) ([]api.ID, error) {
+	var peers []api.ID
 	call := func(c Client) error {
 		var err error
 		peers, err = c.Peers(ctx)
@@ -136,8 +136,8 @@ func (lc *loadBalancingClient) Peers(ctx context.Context) ([]*api.ID, error) {
 }
 
 // PeerAdd adds a new peer to the cluster.
-func (lc *loadBalancingClient) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
-	var id *api.ID
+func (lc *loadBalancingClient) PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error) {
+	var id api.ID
 	call := func(c Client) error {
 		var err error
 		id, err = c.PeerAdd(ctx, pid)
@@ -159,8 +159,8 @@ func (lc *loadBalancingClient) PeerRm(ctx context.Context, id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (*api.Pin, error) {
-	var pin *api.Pin
+func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (api.Pin, error) {
+	var pin api.Pin
 	call := func(c Client) error {
 		var err error
 		pin, err = c.Pin(ctx, ci, opts)
@@ -172,8 +172,8 @@ func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.Pin
 }
 
 // Unpin untracks a Cid from cluster.
-func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) (*api.Pin, error) {
-	var pin *api.Pin
+func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) (api.Pin, error) {
+	var pin api.Pin
 	call := func(c Client) error {
 		var err error
 		pin, err = c.Unpin(ctx, ci)
@@ -185,8 +185,8 @@ func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) (*api.Pin,
 }
 
 // PinPath allows to pin an element by the given IPFS path.
-func (lc *loadBalancingClient) PinPath(ctx context.Context, path string, opts api.PinOptions) (*api.Pin, error) {
-	var pin *api.Pin
+func (lc *loadBalancingClient) PinPath(ctx context.Context, path string, opts api.PinOptions) (api.Pin, error) {
+	var pin api.Pin
 	call := func(c Client) error {
 		var err error
 		pin, err = c.PinPath(ctx, path, opts)
@@ -199,8 +199,8 @@ func (lc *loadBalancingClient) PinPath(ctx context.Context, path string, opts ap
 
 // UnpinPath allows to unpin an item by providing its IPFS path.
 // It returns the unpinned api.Pin information of the resolved Cid.
-func (lc *loadBalancingClient) UnpinPath(ctx context.Context, p string) (*api.Pin, error) {
-	var pin *api.Pin
+func (lc *loadBalancingClient) UnpinPath(ctx context.Context, p string) (api.Pin, error) {
+	var pin api.Pin
 	call := func(c Client) error {
 		var err error
 		pin, err = c.UnpinPath(ctx, p)
@@ -213,21 +213,18 @@ func (lc *loadBalancingClient) UnpinPath(ctx context.Context, p string) (*api.Pi
 
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
-func (lc *loadBalancingClient) Allocations(ctx context.Context, filter api.PinType) ([]*api.Pin, error) {
-	var pins []*api.Pin
+func (lc *loadBalancingClient) Allocations(ctx context.Context, filter api.PinType, out chan<- api.Pin) error {
 	call := func(c Client) error {
-		var err error
-		pins, err = c.Allocations(ctx, filter)
-		return err
+		return c.Allocations(ctx, filter, out)
 	}
 
 	err := lc.retry(0, call)
-	return pins, err
+	return err
 }
 
 // Allocation returns the current allocations for a given Cid.
-func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (*api.Pin, error) {
-	var pin *api.Pin
+func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (api.Pin, error) {
+	var pin api.Pin
 	call := func(c Client) error {
 		var err error
 		pin, err = c.Allocation(ctx, ci)
@@ -241,8 +238,8 @@ func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (*api
 // Status returns the current ipfs state for a given Cid. If local is true,
 // the information affects only the current peer, otherwise the information
 // is fetched from all cluster peers.
-func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	var pinInfo *api.GlobalPinInfo
+func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
+	var pinInfo api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error
 		pinInfo, err = c.Status(ctx, ci, local)
@@ -256,8 +253,8 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local boo
 // StatusCids returns Status() information for the given Cids. If local is
 // true, the information affects only the current peer, otherwise the
 // information is fetched from all cluster peers.
-func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]*api.GlobalPinInfo, error) {
-	var pinInfos []*api.GlobalPinInfo
+func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]api.GlobalPinInfo, error) {
+	var pinInfos []api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error
 		pinInfos, err = c.StatusCids(ctx, cids, local)
@@ -273,8 +270,8 @@ func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, l
 // will be returned. A filter can be built by merging TrackerStatuses with
 // a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
 // api.TrackerStatusUndefined), means all.
-func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]*api.GlobalPinInfo, error) {
-	var pinInfos []*api.GlobalPinInfo
+func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
+	var pinInfos []api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error
 		pinInfos, err = c.StatusAll(ctx, filter, local)
@@ -288,8 +285,8 @@ func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.Tracker
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
-func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bool) (*api.GlobalPinInfo, error) {
-	var pinInfo *api.GlobalPinInfo
+func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
+	var pinInfo api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error
 		pinInfo, err = c.Recover(ctx, ci, local)
@@ -303,8 +300,8 @@ func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bo
 // RecoverAll triggers Recover() operations on all tracked items. If local is
 // true, the operation is limited to the current peer. Otherwise, it happens
 // everywhere.
-func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]*api.GlobalPinInfo, error) {
-	var pinInfos []*api.GlobalPinInfo
+func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error) {
+	var pinInfos []api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error
 		pinInfos, err = c.RecoverAll(ctx, local)
@@ -316,8 +313,8 @@ func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]*a
 }
 
 // Alerts returns things that are wrong with cluster.
-func (lc *loadBalancingClient) Alerts(ctx context.Context) ([]*api.Alert, error) {
-	var alerts []*api.Alert
+func (lc *loadBalancingClient) Alerts(ctx context.Context) ([]api.Alert, error) {
+	var alerts []api.Alert
 	call := func(c Client) error {
 		var err error
 		alerts, err = c.Alerts(ctx)
@@ -329,8 +326,8 @@ func (lc *loadBalancingClient) Alerts(ctx context.Context) ([]*api.Alert, error)
 }
 
 // Version returns the ipfs-cluster peer's version.
-func (lc *loadBalancingClient) Version(ctx context.Context) (*api.Version, error) {
-	var v *api.Version
+func (lc *loadBalancingClient) Version(ctx context.Context) (api.Version, error) {
+	var v api.Version
 	call := func(c Client) error {
 		var err error
 		v, err = c.Version(ctx)
@@ -342,8 +339,8 @@ func (lc *loadBalancingClient) Version(ctx context.Context) (*api.Version, error
 
 // GetConnectGraph returns an ipfs-cluster connection graph.
 // The serialized version, strings instead of pids, is returned.
-func (lc *loadBalancingClient) GetConnectGraph(ctx context.Context) (*api.ConnectGraph, error) {
-	var graph *api.ConnectGraph
+func (lc *loadBalancingClient) GetConnectGraph(ctx context.Context) (api.ConnectGraph, error) {
+	var graph api.ConnectGraph
 	call := func(c Client) error {
 		var err error
 		graph, err = c.GetConnectGraph(ctx)
@@ -356,8 +353,8 @@ func (lc *loadBalancingClient) GetConnectGraph(ctx context.Context) (*api.Connec
 
 // Metrics returns a map with the latest valid metrics of the given name
 // for the current cluster peers.
-func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]*api.Metric, error) {
-	var metrics []*api.Metric
+func (lc *loadBalancingClient) Metrics(ctx context.Context, name string) ([]api.Metric, error) {
+	var metrics []api.Metric
 	call := func(c Client) error {
 		var err error
 		metrics, err = c.Metrics(ctx, name)
@@ -385,8 +382,8 @@ func (lc *loadBalancingClient) MetricNames(ctx context.Context) ([]string, error
 // RepoGC runs garbage collection on IPFS daemons of cluster peers and
 // returns collected CIDs. If local is true, it would garbage collect
 // only on contacted peer, otherwise on all peers' IPFS daemons.
-func (lc *loadBalancingClient) RepoGC(ctx context.Context, local bool) (*api.GlobalRepoGC, error) {
-	var repoGC *api.GlobalRepoGC
+func (lc *loadBalancingClient) RepoGC(ctx context.Context, local bool) (api.GlobalRepoGC, error) {
+	var repoGC api.GlobalRepoGC
 
 	call := func(c Client) error {
 		var err error
@@ -409,7 +406,7 @@ func (lc *loadBalancingClient) Add(
 	ctx context.Context,
 	paths []string,
 	params api.AddParams,
-	out chan<- *api.AddedOutput,
+	out chan<- api.AddedOutput,
 ) error {
 	call := func(c Client) error {
 		return c.Add(ctx, paths, params, out)
@@ -423,7 +420,7 @@ func (lc *loadBalancingClient) AddMultiFile(
 	ctx context.Context,
 	multiFileR *files.MultiFileReader,
 	params api.AddParams,
-	out chan<- *api.AddedOutput,
+	out chan<- api.AddedOutput,
 ) error {
 	call := func(c Client) error {
 		return c.AddMultiFile(ctx, multiFileR, params, out)

@@ -242,7 +242,7 @@ func (ipfs *Connector) Shutdown(ctx context.Context) error {
 // IPFS daemon. It returns the fetched information.
 // If the request fails, or the parsing fails, it
 // returns an error.
-func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
+func (ipfs *Connector) ID(ctx context.Context) (api.IPFSID, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/ID")
 	defer span.End()
 
@@ -251,21 +251,21 @@ func (ipfs *Connector) ID(ctx context.Context) (*api.IPFSID, error) {
 
 	body, err := ipfs.postCtx(ctx, "id", "", nil)
 	if err != nil {
-		return nil, err
+		return api.IPFSID{}, err
 	}
 
 	var res ipfsIDResp
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		return nil, err
+		return api.IPFSID{}, err
 	}
 
 	pID, err := peer.Decode(res.ID)
 	if err != nil {
-		return nil, err
+		return api.IPFSID{}, err
 	}
 
-	id := &api.IPFSID{
+	id := api.IPFSID{
 		ID: pID,
 	}
 
@@ -298,7 +298,7 @@ func pinArgs(maxDepth api.PinDepth) string {
 
 // Pin performs a pin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Pin(ctx context.Context, pin *api.Pin) error {
+func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Pin")
 	defer span.End()
 
@@ -525,7 +525,7 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string
 // PinLsCid performs a "pin ls <hash>" request. It will use "type=recursive" or
 // "type=direct" (or other) depending on the given pin's MaxDepth setting.
 // It returns an api.IPFSPinStatus for that hash.
-func (ipfs *Connector) PinLsCid(ctx context.Context, pin *api.Pin) (api.IPFSPinStatus, error) {
+func (ipfs *Connector) PinLsCid(ctx context.Context, pin api.Pin) (api.IPFSPinStatus, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/PinLsCid")
 	defer span.End()
 
@@ -644,7 +644,7 @@ func (ipfs *Connector) ConnectSwarms(ctx context.Context) error {
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	var ids []*api.ID
+	var ids []api.ID
 	err := ipfs.rpcClient.CallContext(
 		ctx,
 		"",
@@ -730,7 +730,7 @@ func getConfigValue(path []string, cfg map[string]interface{}) (interface{}, err
 
 // RepoStat returns the DiskUsage and StorageMax repo/stat values from the
 // ipfs daemon, in bytes, wrapped as an IPFSRepoStat object.
-func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) {
+func (ipfs *Connector) RepoStat(ctx context.Context) (api.IPFSRepoStat, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoStat")
 	defer span.End()
 
@@ -739,20 +739,20 @@ func (ipfs *Connector) RepoStat(ctx context.Context) (*api.IPFSRepoStat, error) 
 	res, err := ipfs.postCtx(ctx, "repo/stat?size-only=true", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return nil, err
+		return api.IPFSRepoStat{}, err
 	}
 
 	var stats api.IPFSRepoStat
 	err = json.Unmarshal(res, &stats)
 	if err != nil {
 		logger.Error(err)
-		return nil, err
+		return api.IPFSRepoStat{}, err
 	}
-	return &stats, nil
+	return stats, nil
 }
 
 // RepoGC performs a garbage collection sweep on the cluster peer's IPFS repo.
-func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
+func (ipfs *Connector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/RepoGC")
 	defer span.End()
 
@@ -762,12 +762,12 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (*api.RepoGC, error) {
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), "repo/gc?stream-errors=true", "", nil)
 	if err != nil {
 		logger.Error(err)
-		return nil, err
+		return api.RepoGC{}, err
 	}
 	defer res.Body.Close()
 
 	dec := json.NewDecoder(res.Body)
-	repoGC := &api.RepoGC{
+	repoGC := api.RepoGC{
 		Keys: []api.IPFSRepoGC{},
 	}
 	for {
@@ -860,7 +860,7 @@ func (ipfs *Connector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 
 // BlockPut triggers an ipfs block put on the given data, inserting the block
 // into the ipfs daemon's repo.
-func (ipfs *Connector) BlockPut(ctx context.Context, b *api.NodeWithMeta) error {
+func (ipfs *Connector) BlockPut(ctx context.Context, b api.NodeWithMeta) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/BlockPut")
 	defer span.End()
 

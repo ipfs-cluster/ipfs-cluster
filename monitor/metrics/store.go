@@ -26,7 +26,7 @@ func NewStore() *Store {
 }
 
 // Add inserts a new metric in Metrics.
-func (mtrs *Store) Add(m *api.Metric) {
+func (mtrs *Store) Add(m api.Metric) {
 	mtrs.mux.Lock()
 	defer mtrs.mux.Unlock()
 
@@ -67,16 +67,16 @@ func (mtrs *Store) RemovePeerMetrics(pid peer.ID, name string) {
 
 // LatestValid returns all the last known valid metrics of a given type. A metric
 // is valid if it has not expired.
-func (mtrs *Store) LatestValid(name string) []*api.Metric {
+func (mtrs *Store) LatestValid(name string) []api.Metric {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 
 	byPeer, ok := mtrs.byName[name]
 	if !ok {
-		return []*api.Metric{}
+		return []api.Metric{}
 	}
 
-	metrics := make([]*api.Metric, 0, len(byPeer))
+	metrics := make([]api.Metric, 0, len(byPeer))
 	for _, window := range byPeer {
 		m, err := window.Latest()
 		// TODO(ajl): for accrual, does it matter if a ping has expired?
@@ -93,11 +93,11 @@ func (mtrs *Store) LatestValid(name string) []*api.Metric {
 
 // AllMetrics returns the latest metrics for all peers and metrics types.  It
 // may return expired metrics.
-func (mtrs *Store) AllMetrics() []*api.Metric {
+func (mtrs *Store) AllMetrics() []api.Metric {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 
-	result := make([]*api.Metric, 0)
+	result := make([]api.Metric, 0)
 
 	for _, byPeer := range mtrs.byName {
 		for _, window := range byPeer {
@@ -113,11 +113,11 @@ func (mtrs *Store) AllMetrics() []*api.Metric {
 
 // PeerMetrics returns the latest metrics for a given peer ID for
 // all known metrics types. It may return expired metrics.
-func (mtrs *Store) PeerMetrics(pid peer.ID) []*api.Metric {
+func (mtrs *Store) PeerMetrics(pid peer.ID) []api.Metric {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 
-	result := make([]*api.Metric, 0)
+	result := make([]api.Metric, 0)
 
 	for _, byPeer := range mtrs.byName {
 		window, ok := byPeer[pid]
@@ -135,7 +135,7 @@ func (mtrs *Store) PeerMetrics(pid peer.ID) []*api.Metric {
 
 // PeerMetricAll returns all of a particular metrics for a
 // particular peer.
-func (mtrs *Store) PeerMetricAll(name string, pid peer.ID) []*api.Metric {
+func (mtrs *Store) PeerMetricAll(name string, pid peer.ID) []api.Metric {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 
@@ -154,23 +154,23 @@ func (mtrs *Store) PeerMetricAll(name string, pid peer.ID) []*api.Metric {
 
 // PeerLatest returns the latest of a particular metric for a
 // particular peer. It may return an expired metric.
-func (mtrs *Store) PeerLatest(name string, pid peer.ID) *api.Metric {
+func (mtrs *Store) PeerLatest(name string, pid peer.ID) api.Metric {
 	mtrs.mux.RLock()
 	defer mtrs.mux.RUnlock()
 
 	byPeer, ok := mtrs.byName[name]
 	if !ok {
-		return nil
+		return api.Metric{}
 	}
 
 	window, ok := byPeer[pid]
 	if !ok {
-		return nil
+		return api.Metric{}
 	}
 	m, err := window.Latest()
 	if err != nil {
 		// ignoring error, as nil metric is indicative enough
-		return nil
+		return api.Metric{}
 	}
 	return m
 }

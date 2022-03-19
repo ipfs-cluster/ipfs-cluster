@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-
-	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 // CtxsWithTimeout returns n contexts, derived from the given parent
@@ -57,25 +55,25 @@ func MultiCancel(cancels []context.CancelFunc) {
 
 // The copy functions below are used in calls to Cluster.multiRPC()
 
-// CopyPIDsToIfaces converts a peer.ID slice to an empty interface
-// slice using pointers to each elements of the original slice.
-// Useful to handle gorpc.MultiCall() replies.
-func CopyPIDsToIfaces(in []peer.ID) []interface{} {
-	ifaces := make([]interface{}, len(in))
-	for i := range in {
-		ifaces[i] = &in[i]
-	}
-	return ifaces
-}
+// // CopyPIDsToIfaces converts a peer.ID slice to an empty interface
+// // slice using pointers to each elements of the original slice.
+// // Useful to handle gorpc.MultiCall() replies.
+// func CopyPIDsToIfaces(in []peer.ID) []interface{} {
+// 	ifaces := make([]interface{}, len(in))
+// 	for i := range in {
+// 		ifaces[i] = &in[i]
+// 	}
+// 	return ifaces
+// }
 
 // CopyIDsToIfaces converts an api.ID slice to an empty interface
 // slice using pointers to each elements of the original slice.
 // Useful to handle gorpc.MultiCall() replies.
-func CopyIDsToIfaces(in []*api.ID) []interface{} {
+func CopyIDsToIfaces(in []api.ID) []interface{} {
 	ifaces := make([]interface{}, len(in))
 	for i := range in {
-		in[i] = &api.ID{}
-		ifaces[i] = in[i]
+		in[i] = api.ID{}
+		ifaces[i] = &(in[i])
 	}
 	return ifaces
 }
@@ -83,10 +81,10 @@ func CopyIDsToIfaces(in []*api.ID) []interface{} {
 // CopyIDSliceToIfaces converts an api.ID slice of slices
 // to an empty interface slice using pointers to each elements of the
 // original slice. Useful to handle gorpc.MultiCall() replies.
-func CopyIDSliceToIfaces(in [][]*api.ID) []interface{} {
+func CopyIDSliceToIfaces(in [][]api.ID) []interface{} {
 	ifaces := make([]interface{}, len(in))
 	for i := range in {
-		ifaces[i] = &in[i]
+		ifaces[i] = &(in[i])
 	}
 	return ifaces
 }
@@ -94,11 +92,11 @@ func CopyIDSliceToIfaces(in [][]*api.ID) []interface{} {
 // CopyPinInfoToIfaces converts an api.PinInfo slice to
 // an empty interface slice using pointers to each elements of
 // the original slice. Useful to handle gorpc.MultiCall() replies.
-func CopyPinInfoToIfaces(in []*api.PinInfo) []interface{} {
+func CopyPinInfoToIfaces(in []api.PinInfo) []interface{} {
 	ifaces := make([]interface{}, len(in))
 	for i := range in {
-		in[i] = &api.PinInfo{}
-		ifaces[i] = in[i]
+		in[i] = api.PinInfo{}
+		ifaces[i] = &(in[i])
 	}
 	return ifaces
 }
@@ -106,10 +104,10 @@ func CopyPinInfoToIfaces(in []*api.PinInfo) []interface{} {
 // CopyPinInfoSliceToIfaces converts an api.PinInfo slice of slices
 // to an empty interface slice using pointers to each elements of the original
 // slice. Useful to handle gorpc.MultiCall() replies.
-func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
+func CopyPinInfoSliceToIfaces(in [][]api.PinInfo) []interface{} {
 	ifaces := make([]interface{}, len(in))
 	for i := range in {
-		ifaces[i] = &in[i]
+		ifaces[i] = &(in[i])
 	}
 	return ifaces
 }
@@ -117,11 +115,11 @@ func CopyPinInfoSliceToIfaces(in [][]*api.PinInfo) []interface{} {
 // CopyRepoGCSliceToIfaces converts an api.RepoGC slice to
 // an empty interface slice using pointers to each elements of
 // the original slice. Useful to handle gorpc.MultiCall() replies.
-func CopyRepoGCSliceToIfaces(in []*api.RepoGC) []interface{} {
+func CopyRepoGCSliceToIfaces(in []api.RepoGC) []interface{} {
 	ifaces := make([]interface{}, len(in))
 	for i := range in {
-		in[i] = &api.RepoGC{}
-		ifaces[i] = in[i]
+		in[i] = api.RepoGC{}
+		ifaces[i] = &(in[i])
 	}
 	return ifaces
 }
@@ -132,7 +130,7 @@ func CopyRepoGCSliceToIfaces(in []*api.RepoGC) []interface{} {
 func CopyEmptyStructToIfaces(in []struct{}) []interface{} {
 	ifaces := make([]interface{}, len(in))
 	for i := range in {
-		ifaces[i] = &in[i]
+		ifaces[i] = &(in[i])
 	}
 	return ifaces
 }

@@ -15,7 +15,7 @@ test_expect_success IPFS,CLUSTER "pin data to cluster with ctl" '
 '
 
 test_expect_success IPFS,CLUSTER "unpin data from cluster with ctl" '
-    cid=`ipfs-cluster-ctl --enc=json pin ls | jq -r ".[] | .cid | .[\"/\"]" | head -1`
+    cid=`ipfs-cluster-ctl --enc=json pin ls | jq -r ".cid | .[\"/\"]" | head -1`
     ipfs-cluster-ctl pin rm "$cid" &&
     !(ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid") &&
     ipfs-cluster-ctl status "$cid" | grep -q -i "UNPINNED"
@@ -29,7 +29,7 @@ test_expect_success IPFS,CLUSTER "wait for data to pin to cluster with ctl" '
 '
 
 test_expect_success IPFS,CLUSTER "wait for data to unpin from cluster with ctl" '
-    cid=`ipfs-cluster-ctl --enc=json pin ls | jq -r ".[] | .cid | .[\"/\"]" | head -1`
+    cid=`ipfs-cluster-ctl --enc=json pin ls | jq -r ".cid | .[\"/\"]" | head -1`
     ipfs-cluster-ctl pin rm --wait "$cid" | grep -q -i "UNPINNED" &&
     !(ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid") &&
     ipfs-cluster-ctl status "$cid" | grep -q -i "UNPINNED"
@@ -43,7 +43,7 @@ test_expect_success IPFS,CLUSTER "wait for data to pin to cluster with ctl with 
 '
 
 test_expect_success IPFS,CLUSTER "wait for data to unpin from cluster with ctl with timeout" '
-    cid=`ipfs-cluster-ctl --enc=json pin ls | jq -r ".[] | .cid | .[\"/\"]" | head -1`
+    cid=`ipfs-cluster-ctl --enc=json pin ls | jq -r ".cid | .[\"/\"]" | head -1`
     ipfs-cluster-ctl pin rm --wait --wait-timeout 2s "$cid" | grep -q -i "UNPINNED" &&
     !(ipfs-cluster-ctl pin ls "$cid" | grep -q "$cid") &&
     ipfs-cluster-ctl status "$cid" | grep -q -i "UNPINNED"
@@ -83,7 +83,7 @@ test_expect_success IPFS,CLUSTER "pin data to cluster with user allocations" '
     ipfs-cluster-ctl pin add --allocations ${pid} -r 1 "${cid[0]}"
     ipfs-cluster-ctl pin ls "${cid[0]}" | grep -q "${cid[0]}" &&
     ipfs-cluster-ctl status "${cid[0]}" | grep -q -i "PINNED"
-    allocations=`ipfs-cluster-ctl --enc=json pin ls | jq .[0].allocations[]`
+    allocations=`ipfs-cluster-ctl --enc=json pin ls | jq -r .allocations[]`
     echo $allocations | wc -w | grep -q 1 &&
     echo $allocations | grep -q ${pid}
 '

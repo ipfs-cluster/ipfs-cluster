@@ -40,7 +40,7 @@ const (
 
 var errUnknownNodeType = errors.New("unsupported node type. Expected cluster or ipfs")
 
-func makeDot(cg *api.ConnectGraph, w io.Writer, allIpfs bool) error {
+func makeDot(cg api.ConnectGraph, w io.Writer, allIpfs bool) error {
 	ipfsEdges := make(map[string][]peer.ID)
 	for k, v := range cg.IPFSLinks {
 		ipfsEdges[k] = make([]peer.ID, 0)

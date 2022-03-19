@@ -30,7 +30,7 @@ var (
 	}
 )
 
-var sortPinInfoByCid = func(p []*api.PinInfo) {
+var sortPinInfoByCid = func(p []api.PinInfo) {
 	sort.Slice(p, func(i, j int) bool {
 		return p[i].Cid.String() < p[j].Cid.String()
 	})
@@ -53,7 +53,7 @@ func prefilledState(context.Context) (state.ReadOnly, error) {
 	})
 	remote.Allocations = []peer.ID{test.PeerID2}
 
-	pins := []*api.Pin{
+	pins := []api.Pin{
 		api.PinWithOpts(test.Cid1, pinOpts),
 		api.PinCid(test.Cid2),
 		remote,
@@ -82,7 +82,7 @@ func testStatelessPinTracker(t testing.TB) *stateless.Tracker {
 
 func TestPinTracker_Track(t *testing.T) {
 	type args struct {
-		c       *api.Pin
+		c       api.Pin
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -110,7 +110,7 @@ func TestPinTracker_Track(t *testing.T) {
 
 func BenchmarkPinTracker_Track(b *testing.B) {
 	type args struct {
-		c       *api.Pin
+		c       api.Pin
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -167,13 +167,13 @@ func TestPinTracker_Untrack(t *testing.T) {
 
 func TestPinTracker_StatusAll(t *testing.T) {
 	type args struct {
-		c       *api.Pin
+		c       api.Pin
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
 		name string
 		args args
-		want []*api.PinInfo
+		want []api.PinInfo
 	}{
 		{
 			"basic stateless statusall",
@@ -181,7 +181,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				api.PinWithOpts(test.Cid1, pinOpts),
 				testStatelessPinTracker(t),
 			},
-			[]*api.PinInfo{
+			[]api.PinInfo{
 				{
 					Cid: test.Cid1,
 					PinInfoShort: api.PinInfoShort{
@@ -324,7 +324,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []*api.PinInfo
+		want    []api.PinInfo
 		wantErr bool
 	}{
 		{
@@ -333,7 +333,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 				testStatelessPinTracker(t),
 			},
 			// The only CID to recover is test.Cid4 which is in error.
-			[]*api.PinInfo{
+			[]api.PinInfo{
 				{
 					// This will recover and status
 					// is ignored as it could come back as

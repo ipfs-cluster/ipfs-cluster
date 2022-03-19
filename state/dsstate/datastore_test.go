@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
@@ -15,7 +16,7 @@ import (
 var testCid1, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
 var testPeerID1, _ = peer.Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 
-var c = &api.Pin{
+var c = api.Pin{
 	Cid:         testCid1,
 	Type:        api.DataType,
 	Allocations: []peer.ID{testPeerID1},
@@ -69,10 +70,6 @@ func TestGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if get == nil {
-		t.Fatal("not found")
-	}
-
 	if get.Cid.String() != c.Cid.String() {
 		t.Error("bad cid decoding: ", get.Cid)
 	}
@@ -96,16 +93,34 @@ func TestList(t *testing.T) {
 	}()
 	st := newState(t)
 	st.Add(ctx, c)
-	list, err := st.List(ctx)
+	pinCh, err := st.List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if list[0].Cid.String() != c.Cid.String() ||
-		list[0].Allocations[0] != c.Allocations[0] ||
-		list[0].ReplicationFactorMax != c.ReplicationFactorMax ||
-		list[0].ReplicationFactorMin != c.ReplicationFactorMin {
-		t.Error("returned something different")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	var list0 api.Pin
+	for {
+		select {
+		case p, ok := <-pinCh:
+			if !ok && !list0.Cid.Defined() {
+				t.Fatal("should have read list0 first")
+			}
+			if !ok {
+				return
+			}
+			list0 = p
+			if !p.Equals(c) {
+				t.Error("returned something different")
+			}
+		case <-ctx.Done():
+			t.Error("should have read from channel")
+			return
+		}
 	}
+
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
@@ -126,9 +141,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 	get, err := st2.Get(ctx, c.Cid)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if get == nil {
-		t.Fatal("cannot get pin")
 	}
 	if get.Allocations[0] != testPeerID1 {
 		t.Error("expected different peer id")

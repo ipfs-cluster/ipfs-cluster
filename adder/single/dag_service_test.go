@@ -23,18 +23,18 @@ type testClusterRPC struct {
 	pins sync.Map
 }
 
-func (rpcs *testIPFSRPC) BlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+func (rpcs *testIPFSRPC) BlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
 	rpcs.blocks.Store(in.Cid.String(), in)
 	return nil
 }
 
-func (rpcs *testClusterRPC) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+func (rpcs *testClusterRPC) Pin(ctx context.Context, in api.Pin, out *api.Pin) error {
 	rpcs.pins.Store(in.Cid.String(), in)
-	*out = *in
+	*out = in
 	return nil
 }
 
-func (rpcs *testClusterRPC) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
+func (rpcs *testClusterRPC) BlockAllocate(ctx context.Context, in api.Pin, out *[]peer.ID) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("we can only replicate to 1 peer")
 	}
