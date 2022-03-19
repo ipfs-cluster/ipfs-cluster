@@ -25,7 +25,7 @@ func (c *defaultClient) do(
 
 	resp, err := c.doRequest(ctx, method, path, headers, body)
 	if err != nil {
-		return &api.Error{Code: 0, Message: err.Error()}
+		return api.Error{Code: 0, Message: err.Error()}
 	}
 	return c.handleResponse(resp, obj)
 }
@@ -40,7 +40,7 @@ func (c *defaultClient) doStream(
 
 	resp, err := c.doRequest(ctx, method, path, headers, body)
 	if err != nil {
-		return &api.Error{Code: 0, Message: err.Error()}
+		return api.Error{Code: 0, Message: err.Error()}
 	}
 	return c.handleStreamResponse(resp, outHandler)
 }
@@ -91,7 +91,7 @@ func (c *defaultClient) handleResponse(resp *http.Response, obj interface{}) err
 	resp.Body.Close()
 
 	if err != nil {
-		return &api.Error{Code: resp.StatusCode, Message: err.Error()}
+		return api.Error{Code: resp.StatusCode, Message: err.Error()}
 	}
 	logger.Debugf("Response body: %s", body)
 
@@ -106,16 +106,16 @@ func (c *defaultClient) handleResponse(resp *http.Response, obj interface{}) err
 			err = json.Unmarshal(body, &apiErr)
 			if err != nil {
 				// not json. 404s etc.
-				return &api.Error{
+				return api.Error{
 					Code:    resp.StatusCode,
 					Message: string(body),
 				}
 			}
-			return &apiErr
+			return apiErr
 		}
 		err = json.Unmarshal(body, obj)
 		if err != nil {
-			return &api.Error{
+			return api.Error{
 				Code:    resp.StatusCode,
 				Message: err.Error(),
 			}
@@ -132,7 +132,7 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return &api.Error{
+		return api.Error{
 			Code:    resp.StatusCode,
 			Message: "expected streaming response with code 200",
 		}
@@ -153,7 +153,7 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 
 	errTrailer := resp.Trailer.Get("X-Stream-Error")
 	if errTrailer != "" {
-		return &api.Error{
+		return api.Error{
 			Code:    500,
 			Message: errTrailer,
 		}

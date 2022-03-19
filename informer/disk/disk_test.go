@@ -29,7 +29,7 @@ func (mock *badRPCService) RepoStat(ctx context.Context, in struct{}, out *api.I
 }
 
 // Returns the first metric
-func getMetrics(t *testing.T, inf *Informer) *api.Metric {
+func getMetrics(t *testing.T, inf *Informer) api.Metric {
 	t.Helper()
 	metrics := inf.GetMetrics(context.Background())
 	if len(metrics) != 1 {

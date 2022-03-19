@@ -47,8 +47,8 @@ type dummyClient struct {
 }
 
 // ID returns dummy client's serial number.
-func (d *dummyClient) ID(ctx context.Context) (*api.ID, error) {
-	return &api.ID{
+func (d *dummyClient) ID(ctx context.Context) (api.ID, error) {
+	return api.ID{
 		Peername: fmt.Sprintf("%d", d.i),
 	}, nil
 }

@@ -8,8 +8,8 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 )
 
-func makeMetric(value string) *api.Metric {
-	metr := &api.Metric{
+func makeMetric(value string) api.Metric {
+	metr := api.Metric{
 		Name:  "test",
 		Peer:  "peer1",
 		Value: value,
@@ -105,11 +105,15 @@ func TestWindow_Add(t *testing.T) {
 
 		mw.wMu.RLock()
 		prevRing := mw.window.Prev()
-		got, ok := prevRing.Value.(*api.Metric)
+		got, ok := prevRing.Value.(api.Metric)
 		mw.wMu.RUnlock()
 		if !ok {
-			t.Error("value in window isn't an *api.Metric")
+			t.Error("value in window isn't an api.Metric")
 		}
+
+		// We need to do this for metrics to be equal since ReceivedAt
+		// is added by the window.
+		want.ReceivedAt = got.ReceivedAt
 
 		if got != want {
 			t.Errorf("got = %v, want = %v", got, want)

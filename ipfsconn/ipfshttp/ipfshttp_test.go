@@ -17,6 +17,7 @@ import (
 
 func init() {
 	_ = logging.Logger
+	//logging.SetLogLevel("*", "DEBUG")
 }
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
@@ -295,7 +296,7 @@ func TestBlockPut(t *testing.T) {
 	defer ipfs.Shutdown(ctx)
 
 	// CidV1
-	err := ipfs.BlockPut(ctx, &api.NodeWithMeta{
+	err := ipfs.BlockPut(ctx, api.NodeWithMeta{
 		Data: []byte(test.Cid4Data),
 		Cid:  test.Cid4,
 	})
@@ -304,7 +305,7 @@ func TestBlockPut(t *testing.T) {
 	}
 
 	// CidV0
-	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
+	err = ipfs.BlockPut(ctx, api.NodeWithMeta{
 		Data: []byte(test.Cid5Data),
 		Cid:  test.Cid5,
 	})
@@ -327,7 +328,7 @@ func TestBlockGet(t *testing.T) {
 	}
 
 	// Put and then successfully get
-	err = ipfs.BlockPut(ctx, &api.NodeWithMeta{
+	err = ipfs.BlockPut(ctx, api.NodeWithMeta{
 		Data: test.ShardData,
 		Cid:  test.ShardCid,
 	})

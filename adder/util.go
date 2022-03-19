@@ -93,13 +93,13 @@ func (ba *BlockAdder) AddMany(ctx context.Context, nodes []ipld.Node) error {
 }
 
 // ipldNodeToNodeSerial converts an ipld.Node to NodeWithMeta.
-func ipldNodeToNodeWithMeta(n ipld.Node) *api.NodeWithMeta {
+func ipldNodeToNodeWithMeta(n ipld.Node) api.NodeWithMeta {
 	size, err := n.Size()
 	if err != nil {
 		logger.Warn(err)
 	}
 
-	return &api.NodeWithMeta{
+	return api.NodeWithMeta{
 		Cid:     n.Cid(),
 		Data:    n.RawData(),
 		CumSize: size,
@@ -122,7 +122,7 @@ func BlockAllocate(ctx context.Context, rpc *rpc.Client, pinOpts api.PinOptions)
 }
 
 // Pin helps sending local RPC pin requests.
-func Pin(ctx context.Context, rpc *rpc.Client, pin *api.Pin) error {
+func Pin(ctx context.Context, rpc *rpc.Client, pin api.Pin) error {
 	if pin.ReplicationFactorMin < 0 {
 		pin.Allocations = []peer.ID{}
 	}

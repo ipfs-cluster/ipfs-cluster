@@ -33,7 +33,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 		cg.ClusterTrustLinks[peer.Encode(member)] = c.consensus.IsTrustedPeer(ctx, member)
 	}
 
-	peers := make([][]*api.ID, len(members))
+	peers := make([][]api.ID, len(members))
 
 	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(members))
 	defer rpcutil.MultiCancel(cancels)
@@ -68,9 +68,9 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	return cg, nil
 }
 
-func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []*api.ID) (bool, *api.ID) {
+func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []api.ID) (bool, api.ID) {
 	selfConnection := false
-	var pID *api.ID
+	var pID api.ID
 	for _, id := range peers {
 		if id.Error != "" {
 			logger.Debugf("Peer %s errored connecting to its peer %s", p, id.ID.Pretty())
@@ -86,7 +86,7 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []*ap
 	return selfConnection, pID
 }
 
-func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID *api.ID) {
+func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID api.ID) {
 	ipfsID := pID.IPFS.ID
 	if pID.IPFS.Error != "" { // Only setting ipfs connections when no error occurs
 		logger.Warnf("ipfs id: %s has error: %s. Skipping swarm connections", ipfsID.Pretty(), pID.IPFS.Error)

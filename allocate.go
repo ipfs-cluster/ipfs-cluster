@@ -57,7 +57,7 @@ type classifiedMetrics struct {
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pin, rplMin, rplMax int, blacklist []peer.ID, priorityList []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin api.Pin, rplMin, rplMax int, blacklist []peer.ID, priorityList []peer.ID) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/allocate")
 	defer span.End()
 
@@ -71,7 +71,7 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pi
 
 	// Figure out who is holding the CID
 	var currentAllocs []peer.ID
-	if currentPin != nil {
+	if currentPin.Defined() {
 		currentAllocs = currentPin.Allocations
 	}
 
@@ -120,9 +120,9 @@ func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin *api.Pi
 // For a metric/peer to be included in a group, it is necessary that it has
 // metrics for all informers.
 func (c *Cluster) filterMetrics(ctx context.Context, mSet api.MetricsSet, numMetrics int, currentAllocs, priorityList, blacklist []peer.ID) classifiedMetrics {
-	curPeersMap := make(map[peer.ID][]*api.Metric)
-	candPeersMap := make(map[peer.ID][]*api.Metric)
-	prioPeersMap := make(map[peer.ID][]*api.Metric)
+	curPeersMap := make(map[peer.ID][]api.Metric)
+	candPeersMap := make(map[peer.ID][]api.Metric)
+	prioPeersMap := make(map[peer.ID][]api.Metric)
 
 	// Divide the metric by current/candidate/prio and by peer
 	for _, metrics := range mSet {
@@ -145,7 +145,7 @@ func (c *Cluster) filterMetrics(ctx context.Context, mSet api.MetricsSet, numMet
 		}
 	}
 
-	fillMetricsSet := func(peersMap map[peer.ID][]*api.Metric) (api.MetricsSet, []peer.ID) {
+	fillMetricsSet := func(peersMap map[peer.ID][]api.Metric) (api.MetricsSet, []peer.ID) {
 		mSet := make(api.MetricsSet)
 		peers := make([]peer.ID, 0, len(peersMap))
 

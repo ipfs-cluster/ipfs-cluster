@@ -570,8 +570,8 @@ func TestClustersPeers(t *testing.T) {
 		t.Fatal("expected as many peers as clusters")
 	}
 
-	clusterIDMap := make(map[peer.ID]*api.ID)
-	peerIDMap := make(map[peer.ID]*api.ID)
+	clusterIDMap := make(map[peer.ID]api.ID)
+	peerIDMap := make(map[peer.ID]api.ID)
 
 	for _, c := range clusters {
 		id := c.ID(ctx)

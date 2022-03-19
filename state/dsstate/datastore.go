@@ -65,7 +65,7 @@ func New(dstore ds.Datastore, namespace string, handle codec.Handle) (*State, er
 }
 
 // Add adds a new Pin or replaces an existing one.
-func (st *State) Add(ctx context.Context, c *api.Pin) error {
+func (st *State) Add(ctx context.Context, c api.Pin) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Add")
 	defer span.End()
 
@@ -92,20 +92,20 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 // Get returns a Pin from the store and whether it
 // was present. When not present, a default pin
 // is returned.
-func (st *State) Get(ctx context.Context, c cid.Cid) (*api.Pin, error) {
+func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Get")
 	defer span.End()
 
 	v, err := st.dsRead.Get(ctx, st.key(c))
 	if err != nil {
 		if err == ds.ErrNotFound {
-			return nil, state.ErrNotFound
+			return api.Pin{}, state.ErrNotFound
 		}
-		return nil, err
+		return api.Pin{}, err
 	}
 	p, err := st.deserializePin(c, v)
 	if err != nil {
-		return nil, err
+		return api.Pin{}, err
 	}
 	return p, nil
 }
@@ -124,7 +124,7 @@ func (st *State) Has(ctx context.Context, c cid.Cid) (bool, error) {
 
 // List returns the unsorted list of all Pins that have been added to the
 // datastore.
-func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
+func (st *State) List(ctx context.Context) (<-chan api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/List")
 	defer span.End()
 
@@ -136,45 +136,50 @@ func (st *State) List(ctx context.Context) ([]*api.Pin, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer results.Close()
+	pinsCh := make(chan api.Pin, 1024)
+	go func() {
+		defer close(pinsCh)
 
-	var pins []*api.Pin
+		defer results.Close()
 
-	total := 0
-	for r := range results.Next() {
-		// Abort if we shutdown.
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		if r.Error != nil {
-			logger.Errorf("error in query result: %s", r.Error)
-			return pins, r.Error
-		}
-		k := ds.NewKey(r.Key)
-		ci, err := st.unkey(k)
-		if err != nil {
-			logger.Warn("bad key (ignoring). key: ", k, "error: ", err)
-			continue
-		}
+		total := 0
+		for r := range results.Next() {
+			// Abort if we shutdown.
+			select {
+			case <-ctx.Done():
+				logger.Warningf("Full pinset listing aborted: %s", ctx.Err())
+				return
+			default:
+			}
+			if r.Error != nil {
+				logger.Errorf("error in query result: %s", r.Error)
+				return
+			}
+			k := ds.NewKey(r.Key)
+			ci, err := st.unkey(k)
+			if err != nil {
+				logger.Warn("bad key (ignoring). key: ", k, "error: ", err)
+				continue
+			}
 
-		p, err := st.deserializePin(ci, r.Value)
-		if err != nil {
-			logger.Errorf("error deserializing pin (%s): %s", r.Key, err)
-			continue
-		}
+			p, err := st.deserializePin(ci, r.Value)
+			if err != nil {
+				logger.Errorf("error deserializing pin (%s): %s", r.Key, err)
+				continue
+			}
+			pinsCh <- p
 
-		if total > 0 && total%500000 == 0 {
-			logger.Infof("Full pinset listing in progress: %d pins so far", total)
+			if total > 0 && total%500000 == 0 {
+				logger.Infof("Full pinset listing in progress: %d pins so far", total)
+			}
+			total++
 		}
-		total++
-		pins = append(pins, p)
-	}
-	if total >= 500000 {
-		logger.Infof("Full pinset listing finished: %d pins", total)
-	}
-	return pins, nil
+		if total >= 500000 {
+			logger.Infof("Full pinset listing finished: %d pins", total)
+		}
+	}()
+
+	return pinsCh, nil
 }
 
 // Migrate migrates an older state version to the current one.
@@ -275,14 +280,14 @@ func (st *State) unkey(k ds.Key) (cid.Cid, error) {
 
 // this decides how a Pin object is serialized to be stored in the
 // datastore. Changing this may require a migration!
-func (st *State) serializePin(c *api.Pin) ([]byte, error) {
+func (st *State) serializePin(c api.Pin) ([]byte, error) {
 	return c.ProtoMarshal()
 }
 
 // this deserializes a Pin object from the datastore. It should be
 // the exact opposite from serializePin.
-func (st *State) deserializePin(c cid.Cid, buf []byte) (*api.Pin, error) {
-	p := &api.Pin{}
+func (st *State) deserializePin(c cid.Cid, buf []byte) (api.Pin, error) {
+	p := api.Pin{}
 	err := p.ProtoUnmarshal(buf)
 	p.Cid = c
 	return p, err

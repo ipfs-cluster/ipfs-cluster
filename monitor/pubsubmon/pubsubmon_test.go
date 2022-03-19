@@ -35,10 +35,10 @@ func newMetricFactory() *metricFactory {
 	}
 }
 
-func (mf *metricFactory) newMetric(n string, p peer.ID) *api.Metric {
+func (mf *metricFactory) newMetric(n string, p peer.ID) api.Metric {
 	mf.l.Lock()
 	defer mf.l.Unlock()
-	m := &api.Metric{
+	m := api.Metric{
 		Name:  n,
 		Peer:  p,
 		Value: fmt.Sprintf("%d", mf.counter),
@@ -125,7 +125,7 @@ func TestLogMetricConcurrent(t *testing.T) {
 	f := func() {
 		defer wg.Done()
 		for i := 0; i < 25; i++ {
-			mt := &api.Metric{
+			mt := api.Metric{
 				Name:  "test",
 				Peer:  test.PeerID1,
 				Value: fmt.Sprintf("%d", time.Now().UnixNano()),

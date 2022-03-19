@@ -66,7 +66,7 @@ type mockIPFSConnector struct{}
 type mockConsensus struct{}
 type mockPeerMonitor struct{}
 
-func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+func (mock *mockCluster) Pin(ctx context.Context, in api.Pin, out *api.Pin) error {
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
@@ -78,28 +78,28 @@ func (mock *mockCluster) Pin(ctx context.Context, in *api.Pin, out *api.Pin) err
 	if in.ReplicationFactorMax == 0 {
 		in.ReplicationFactorMax = -1
 	}
-	*out = *in
+	*out = in
 	return nil
 }
 
-func (mock *mockCluster) Unpin(ctx context.Context, in *api.Pin, out *api.Pin) error {
+func (mock *mockCluster) Unpin(ctx context.Context, in api.Pin, out *api.Pin) error {
 	if in.Cid.Equals(ErrorCid) {
 		return ErrBadCid
 	}
 	if in.Cid.Equals(NotFoundCid) {
 		return state.ErrNotFound
 	}
-	*out = *in
+	*out = in
 	return nil
 }
 
-func (mock *mockCluster) PinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
+func (mock *mockCluster) PinPath(ctx context.Context, in api.PinPath, out *api.Pin) error {
 	p, err := gopath.ParsePath(in.Path)
 	if err != nil {
 		return err
 	}
 
-	var pin *api.Pin
+	var pin api.Pin
 	if p.IsJustAKey() && !strings.HasPrefix(in.Path, "/ipns") {
 		c, _, err := gopath.SplitAbsPath(p)
 		if err != nil {
@@ -113,11 +113,11 @@ func (mock *mockCluster) PinPath(ctx context.Context, in *api.PinPath, out *api.
 		pin = api.PinWithOpts(CidResolved, in.PinOptions)
 	}
 
-	*out = *pin
+	*out = pin
 	return nil
 }
 
-func (mock *mockCluster) UnpinPath(ctx context.Context, in *api.PinPath, out *api.Pin) error {
+func (mock *mockCluster) UnpinPath(ctx context.Context, in api.PinPath, out *api.Pin) error {
 	if in.Path == NotFoundPath {
 		return state.ErrNotFound
 	}
@@ -126,17 +126,16 @@ func (mock *mockCluster) UnpinPath(ctx context.Context, in *api.PinPath, out *ap
 	return mock.PinPath(ctx, in, out)
 }
 
-func (mock *mockCluster) Pins(ctx context.Context, in struct{}, out *[]*api.Pin) error {
+func (mock *mockCluster) Pins(ctx context.Context, in <-chan struct{}, out chan<- api.Pin) error {
 	opts := api.PinOptions{
 		ReplicationFactorMin: -1,
 		ReplicationFactorMax: -1,
 	}
 
-	*out = []*api.Pin{
-		api.PinWithOpts(Cid1, opts),
-		api.PinCid(Cid2),
-		api.PinWithOpts(Cid3, opts),
-	}
+	out <- api.PinWithOpts(Cid1, opts)
+	out <- api.PinCid(Cid2)
+	out <- api.PinWithOpts(Cid3, opts)
+	close(out)
 	return nil
 }
 
@@ -148,13 +147,13 @@ func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) e
 		p := api.PinCid(in)
 		p.ReplicationFactorMin = -1
 		p.ReplicationFactorMax = -1
-		*out = *p
+		*out = p
 		return nil
 	case Cid2.String(): // This is a remote pin
 		p := api.PinCid(in)
 		p.ReplicationFactorMin = 1
 		p.ReplicationFactorMax = 1
-		*out = *p
+		*out = p
 	default:
 		return state.ErrNotFound
 	}
@@ -186,15 +185,15 @@ func (mock *mockCluster) Version(ctx context.Context, in struct{}, out *api.Vers
 	return nil
 }
 
-func (mock *mockCluster) Peers(ctx context.Context, in struct{}, out *[]*api.ID) error {
-	id := &api.ID{}
-	mock.ID(ctx, in, id)
+func (mock *mockCluster) Peers(ctx context.Context, in struct{}, out *[]api.ID) error {
+	id := api.ID{}
+	mock.ID(ctx, in, &id)
 
-	*out = []*api.ID{id}
+	*out = []api.ID{id}
 	return nil
 }
 
-func (mock *mockCluster) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]*api.ID) error {
+func (mock *mockCluster) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]api.ID) error {
 	return mock.Peers(ctx, struct{}{}, out)
 }
 
@@ -231,9 +230,9 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	return nil
 }
 
-func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]*api.GlobalPinInfo) error {
+func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]api.GlobalPinInfo) error {
 	pid := peer.Encode(PeerID1)
-	gPinInfos := []*api.GlobalPinInfo{
+	gPinInfos := []api.GlobalPinInfo{
 		{
 			Cid:  Cid1,
 			Name: "aaa",
@@ -278,7 +277,7 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 			}
 		}
 	}
-	filtered := make([]*api.GlobalPinInfo, 0, len(gPinInfos))
+	filtered := make([]api.GlobalPinInfo, 0, len(gPinInfos))
 	for _, gpi := range gPinInfos {
 		if len(gpi.PeerMap) > 0 {
 			filtered = append(filtered, gpi)
@@ -289,7 +288,7 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 	return nil
 }
 
-func (mock *mockCluster) StatusAllLocal(ctx context.Context, in api.TrackerStatus, out *[]*api.PinInfo) error {
+func (mock *mockCluster) StatusAllLocal(ctx context.Context, in api.TrackerStatus, out *[]api.PinInfo) error {
 	return (&mockPinTracker{}).StatusAll(ctx, in, out)
 }
 
@@ -325,11 +324,11 @@ func (mock *mockCluster) StatusLocal(ctx context.Context, in cid.Cid, out *api.P
 	return (&mockPinTracker{}).Status(ctx, in, out)
 }
 
-func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]*api.GlobalPinInfo) error {
+func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfo) error {
 	return mock.StatusAll(ctx, api.TrackerStatusUndefined, out)
 }
 
-func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
+func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfo) error {
 	return (&mockPinTracker{}).RecoverAll(ctx, in, out)
 }
 
@@ -341,7 +340,7 @@ func (mock *mockCluster) RecoverLocal(ctx context.Context, in cid.Cid, out *api.
 	return (&mockPinTracker{}).Recover(ctx, in, out)
 }
 
-func (mock *mockCluster) BlockAllocate(ctx context.Context, in *api.Pin, out *[]peer.ID) error {
+func (mock *mockCluster) BlockAllocate(ctx context.Context, in api.Pin, out *[]peer.ID) error {
 	if in.ReplicationFactorMin > 1 {
 		return errors.New("replMin too high: can only mock-allocate to 1")
 	}
@@ -350,10 +349,10 @@ func (mock *mockCluster) BlockAllocate(ctx context.Context, in *api.Pin, out *[]
 }
 
 func (mock *mockCluster) RepoGC(ctx context.Context, in struct{}, out *api.GlobalRepoGC) error {
-	localrepoGC := &api.RepoGC{}
-	_ = mock.RepoGCLocal(ctx, struct{}{}, localrepoGC)
+	localrepoGC := api.RepoGC{}
+	_ = mock.RepoGCLocal(ctx, struct{}{}, &localrepoGC)
 	*out = api.GlobalRepoGC{
-		PeerMap: map[string]*api.RepoGC{
+		PeerMap: map[string]api.RepoGC{
 			peer.Encode(PeerID1): localrepoGC,
 		},
 	}
@@ -414,16 +413,16 @@ func (mock *mockCluster) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID
 
 /* Tracker methods */
 
-func (mock *mockPinTracker) Track(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockPinTracker) Track(ctx context.Context, in api.Pin, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockPinTracker) Untrack(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockPinTracker) Untrack(ctx context.Context, in api.Pin, out *struct{}) error {
 	return nil
 }
 
-func (mock *mockPinTracker) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]*api.PinInfo) error {
-	pinInfos := []*api.PinInfo{
+func (mock *mockPinTracker) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]api.PinInfo) error {
+	pinInfos := []api.PinInfo{
 		{
 			Cid:  Cid1,
 			Peer: PeerID1,
@@ -441,7 +440,7 @@ func (mock *mockPinTracker) StatusAll(ctx context.Context, in api.TrackerStatus,
 			},
 		},
 	}
-	filtered := make([]*api.PinInfo, 0, len(pinInfos))
+	filtered := make([]api.PinInfo, 0, len(pinInfos))
 	for _, pi := range pinInfos {
 		if in.Match(pi.Status) {
 			filtered = append(filtered, pi)
@@ -468,8 +467,8 @@ func (mock *mockPinTracker) Status(ctx context.Context, in cid.Cid, out *api.Pin
 	return nil
 }
 
-func (mock *mockPinTracker) RecoverAll(ctx context.Context, in struct{}, out *[]*api.PinInfo) error {
-	*out = make([]*api.PinInfo, 0)
+func (mock *mockPinTracker) RecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfo) error {
+	*out = make([]api.PinInfo, 0)
 	return nil
 }
 
@@ -488,15 +487,15 @@ func (mock *mockPinTracker) Recover(ctx context.Context, in cid.Cid, out *api.Pi
 /* PeerMonitor methods */
 
 // LatestMetrics runs PeerMonitor.LatestMetrics().
-func (mock *mockPeerMonitor) LatestMetrics(ctx context.Context, in string, out *[]*api.Metric) error {
-	m := &api.Metric{
+func (mock *mockPeerMonitor) LatestMetrics(ctx context.Context, in string, out *[]api.Metric) error {
+	m := api.Metric{
 		Name:  "test",
 		Peer:  PeerID1,
 		Value: "0",
 		Valid: true,
 	}
 	m.SetTTL(2 * time.Second)
-	last := []*api.Metric{m}
+	last := []api.Metric{m}
 	*out = last
 	return nil
 }
@@ -510,7 +509,7 @@ func (mock *mockPeerMonitor) MetricNames(ctx context.Context, in struct{}, out *
 
 /* IPFSConnector methods */
 
-func (mock *mockIPFSConnector) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFSConnector) Pin(ctx context.Context, in api.Pin, out *struct{}) error {
 	switch in.Cid {
 	case SlowCid1:
 		time.Sleep(2 * time.Second)
@@ -518,7 +517,7 @@ func (mock *mockIPFSConnector) Pin(ctx context.Context, in *api.Pin, out *struct
 	return nil
 }
 
-func (mock *mockIPFSConnector) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFSConnector) Unpin(ctx context.Context, in api.Pin, out *struct{}) error {
 	switch in.Cid {
 	case SlowCid1:
 		time.Sleep(2 * time.Second)
@@ -526,7 +525,7 @@ func (mock *mockIPFSConnector) Unpin(ctx context.Context, in *api.Pin, out *stru
 	return nil
 }
 
-func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
+func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in api.Pin, out *api.IPFSPinStatus) error {
 	if in.Cid.Equals(Cid1) || in.Cid.Equals(Cid3) {
 		*out = api.IPFSPinStatusRecursive
 	} else {
@@ -569,7 +568,7 @@ func (mock *mockIPFSConnector) RepoStat(ctx context.Context, in struct{}, out *a
 	return nil
 }
 
-func (mock *mockIPFSConnector) BlockPut(ctx context.Context, in *api.NodeWithMeta, out *struct{}) error {
+func (mock *mockIPFSConnector) BlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
 	return nil
 }
 

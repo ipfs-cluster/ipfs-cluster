@@ -60,6 +60,11 @@ type Pin struct {
 	Meta    map[string]string `json:"meta"`
 }
 
+// Defined returns if the pinis empty (Cid not set).
+func (p Pin) Defined() bool {
+	return p.Cid != ""
+}
+
 // MatchesName returns in a pin status matches a name option with a given
 // match strategy.
 func (p Pin) MatchesName(nameOpt string, strategy MatchingStrategy) bool {

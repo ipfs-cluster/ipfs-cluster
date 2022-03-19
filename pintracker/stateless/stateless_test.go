@@ -39,7 +39,7 @@ var (
 // special errors when unwanted operations have been triggered.
 type mockIPFS struct{}
 
-func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFS) Pin(ctx context.Context, in api.Pin, out *struct{}) error {
 	switch in.Cid {
 	case pinCancelCid:
 		return errPinCancelCid
@@ -51,7 +51,7 @@ func (mock *mockIPFS) Pin(ctx context.Context, in *api.Pin, out *struct{}) error
 	return nil
 }
 
-func (mock *mockIPFS) Unpin(ctx context.Context, in *api.Pin, out *struct{}) error {
+func (mock *mockIPFS) Unpin(ctx context.Context, in api.Pin, out *struct{}) error {
 	switch in.Cid {
 	case unpinCancelCid:
 		return errUnpinCancelCid
@@ -74,7 +74,7 @@ func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.
 	return nil
 }
 
-func (mock *mockIPFS) PinLsCid(ctx context.Context, in *api.Pin, out *api.IPFSPinStatus) error {
+func (mock *mockIPFS) PinLsCid(ctx context.Context, in api.Pin, out *api.IPFSPinStatus) error {
 	switch in.Cid {
 	case test.Cid1, test.Cid2:
 		*out = api.IPFSPinStatusRecursive
@@ -114,7 +114,7 @@ func mockRPCClient(t testing.TB) *rpc.Client {
 	return c
 }
 
-func getStateFunc(t testing.TB, items ...*api.Pin) func(context.Context) (state.ReadOnly, error) {
+func getStateFunc(t testing.TB, items ...api.Pin) func(context.Context) (state.ReadOnly, error) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -135,7 +135,7 @@ func getStateFunc(t testing.TB, items ...*api.Pin) func(context.Context) (state.
 
 }
 
-func testStatelessPinTracker(t testing.TB, pins ...*api.Pin) *Tracker {
+func testStatelessPinTracker(t testing.TB, pins ...api.Pin) *Tracker {
 	t.Helper()
 
 	cfg := &Config{}

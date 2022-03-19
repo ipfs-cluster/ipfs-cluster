@@ -506,15 +506,15 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		var resp []*api.Pin
-		test.MakeGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp)
+		var resp []api.Pin
+		test.MakeStreamingGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp)
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(clustertest.Cid1) || !resp[1].Cid.Equals(clustertest.Cid2) ||
 			!resp[2].Cid.Equals(clustertest.Cid3) {
 			t.Error("unexpected pin list: ", resp)
 		}
 
-		test.MakeGet(t, rest, url(rest)+"/allocations", &resp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/allocations", &resp)
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(clustertest.Cid1) || !resp[1].Cid.Equals(clustertest.Cid2) ||
 			!resp[2].Cid.Equals(clustertest.Cid3) {
@@ -522,7 +522,7 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 		}
 
 		errResp := api.Error{}
-		test.MakeGet(t, rest, url(rest)+"/allocations?filter=invalid", &errResp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/allocations?filter=invalid", &errResp)
 		if errResp.Code != http.StatusBadRequest {
 			t.Error("an invalid filter value should 400")
 		}

@@ -501,19 +501,19 @@ content.
 					checkErr("", errors.New("only a single CAR file can be added and wrap-with-directory is not supported"))
 				}
 
-				out := make(chan *api.AddedOutput, 1)
+				out := make(chan api.AddedOutput, 1)
 				var wg sync.WaitGroup
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 
-					var buffered []*addedOutputQuiet
-					var lastBuf *addedOutputQuiet
+					var buffered []addedOutputQuiet
+					var lastBuf addedOutputQuiet
 					var qq = c.Bool("quieter")
 					var q = c.Bool("quiet") || qq
 					var bufferResults = c.Bool("no-stream")
 					for v := range out {
-						added := &addedOutputQuiet{
+						added := addedOutputQuiet{
 							AddedOutput: v,
 							quiet:       q,
 						}
@@ -526,12 +526,12 @@ content.
 							formatResponse(c, added, nil)
 						}
 					}
-					if lastBuf == nil || lastBuf.AddedOutput == nil {
+					if !lastBuf.AddedOutput.Cid.Defined() {
 						return // no elements at all
 					}
 					if bufferResults { // we buffered.
 						if qq { // [last elem]
-							formatResponse(c, []*addedOutputQuiet{lastBuf}, nil)
+							formatResponse(c, []addedOutputQuiet{lastBuf}, nil)
 						} else { // [all elems]
 							formatResponse(c, buffered, nil)
 						}
@@ -846,8 +846,9 @@ The filter only takes effect when listing all pins. The possible values are:
 								filter |= api.PinTypeFromString(f)
 							}
 
-							resp, cerr := globalClient.Allocations(ctx, filter)
-							formatResponse(c, resp, cerr)
+							allocs := make(chan api.Pin, 1024)
+							cerr := globalClient.Allocations(ctx, filter, allocs)
+							formatResponse(c, allocs, cerr)
 						}
 						return nil
 					},
@@ -1114,7 +1115,7 @@ func formatResponse(c *cli.Context, resp interface{}, err error) {
 	}
 
 	if err != nil {
-		cerr, ok := err.(*api.Error)
+		cerr, ok := err.(api.Error)
 		if !ok {
 			checkErr("", err)
 		}
@@ -1161,11 +1162,11 @@ func parseCredentials(userInput string) (string, string) {
 func handlePinResponseFormatFlags(
 	ctx context.Context,
 	c *cli.Context,
-	pin *api.Pin,
+	pin api.Pin,
 	target api.TrackerStatus,
 ) {
 
-	var status *api.GlobalPinInfo
+	var status api.GlobalPinInfo
 	var cerr error
 
 	if c.Bool("wait") {
@@ -1182,7 +1183,7 @@ func handlePinResponseFormatFlags(
 		return
 	}
 
-	if status == nil { // no status from "wait"
+	if !status.Defined() { // no status from "wait"
 		time.Sleep(time.Second)
 		status, cerr = globalClient.Status(ctx, pin.Cid, false)
 	}
@@ -1194,7 +1195,7 @@ func waitFor(
 	target api.TrackerStatus,
 	timeout time.Duration,
 	limit int,
-) (*api.GlobalPinInfo, error) {
+) (api.GlobalPinInfo, error) {
 
 	ctx := context.Background()
 

@@ -29,7 +29,7 @@ var ErrAlertChannelFull = errors.New("alert channel is full")
 // for a given peerset and send alerts if it proceeds to do so.
 type Checker struct {
 	ctx     context.Context
-	alertCh chan *api.Alert
+	alertCh chan api.Alert
 	metrics *Store
 
 	failedPeersMu sync.Mutex
@@ -45,7 +45,7 @@ type Checker struct {
 func NewChecker(ctx context.Context, metrics *Store) *Checker {
 	return &Checker{
 		ctx:         ctx,
-		alertCh:     make(chan *api.Alert, AlertChannelCap),
+		alertCh:     make(chan api.Alert, AlertChannelCap),
 		metrics:     metrics,
 		failedPeers: make(map[peer.ID]map[string]int),
 	}
@@ -109,8 +109,8 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	}
 	failedMetrics := mc.failedPeers[pid]
 	lastMetric := mc.metrics.PeerLatest(metricName, pid)
-	if lastMetric == nil {
-		lastMetric = &api.Metric{
+	if !lastMetric.Defined() {
+		lastMetric = api.Metric{
 			Name: metricName,
 			Peer: pid,
 		}
@@ -129,8 +129,8 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 		return nil
 	}
 
-	alrt := &api.Alert{
-		Metric:      *lastMetric,
+	alrt := api.Alert{
+		Metric:      lastMetric,
 		TriggeredAt: time.Now(),
 	}
 	select {
@@ -147,7 +147,7 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 }
 
 // Alerts returns a channel which gets notified by CheckPeers.
-func (mc *Checker) Alerts() <-chan *api.Alert {
+func (mc *Checker) Alerts() <-chan api.Alert {
 	return mc.alertCh
 }
 

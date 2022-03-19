@@ -204,7 +204,7 @@ func (spt *Tracker) unpin(op *optracker.Operation) error {
 }
 
 // Enqueue puts a new operation on the queue, unless ongoing exists.
-func (spt *Tracker) enqueue(ctx context.Context, c *api.Pin, typ optracker.OperationType) error {
+func (spt *Tracker) enqueue(ctx context.Context, c api.Pin, typ optracker.OperationType) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/enqueue")
 	defer span.End()
 
@@ -274,7 +274,7 @@ func (spt *Tracker) Shutdown(ctx context.Context) error {
 
 // Track tells the StatelessPinTracker to start managing a Cid,
 // possibly triggering Pin operations on the IPFS daemon.
-func (spt *Tracker) Track(ctx context.Context, c *api.Pin) error {
+func (spt *Tracker) Track(ctx context.Context, c api.Pin) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Track")
 	defer span.End()
 
@@ -321,7 +321,7 @@ func (spt *Tracker) Untrack(ctx context.Context, c cid.Cid) error {
 }
 
 // StatusAll returns information for all Cids pinned to the local IPFS node.
-func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus) []*api.PinInfo {
+func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus) []api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/StatusAll")
 	defer span.End()
 
@@ -343,7 +343,7 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus) []*
 		pininfos[infop.Cid] = infop
 	}
 
-	var pis []*api.PinInfo
+	var pis []api.PinInfo
 	for _, pi := range pininfos {
 		// Last filter.
 		if pi.Status.Match(filter) {
@@ -354,7 +354,7 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus) []*
 }
 
 // Status returns information for a Cid pinned to the local IPFS node.
-func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
+func (spt *Tracker) Status(ctx context.Context, c cid.Cid) api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Status")
 	defer span.End()
 
@@ -368,7 +368,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 		return oppi
 	}
 
-	pinInfo := &api.PinInfo{
+	pinInfo := api.PinInfo{
 		Cid:  c,
 		Peer: spt.peerID,
 		Name: "", // etc to be filled later
@@ -384,11 +384,11 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 	// check global state to see if cluster should even be caring about
 	// the provided cid
-	var gpin *api.Pin
+	var gpin api.Pin
 	st, err := spt.getState(ctx)
 	if err != nil {
 		logger.Error(err)
-		addError(pinInfo, err)
+		addError(&pinInfo, err)
 		return pinInfo
 	}
 
@@ -399,7 +399,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	}
 	if err != nil {
 		logger.Error(err)
-		addError(pinInfo, err)
+		addError(&pinInfo, err)
 		return pinInfo
 	}
 	// The pin IS in the state.
@@ -434,7 +434,7 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 	)
 	if err != nil {
 		logger.Error(err)
-		addError(pinInfo, err)
+		addError(&pinInfo, err)
 		return pinInfo
 	}
 
@@ -453,12 +453,12 @@ func (spt *Tracker) Status(ctx context.Context, c cid.Cid) *api.PinInfo {
 
 // RecoverAll attempts to recover all items tracked by this peer. It returns
 // items that have been re-queued.
-func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
+func (spt *Tracker) RecoverAll(ctx context.Context) ([]api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/RecoverAll")
 	defer span.End()
 
 	statuses := spt.StatusAll(ctx, api.TrackerStatusUndefined)
-	resp := make([]*api.PinInfo, 0)
+	resp := make([]api.PinInfo, 0)
 	for _, st := range statuses {
 		// Break out if we shutdown. We might be going through
 		// a very long list of statuses.
@@ -470,7 +470,7 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 			if err != nil {
 				return resp, err
 			}
-			if r != nil {
+			if r.Defined() {
 				resp = append(resp, r)
 			}
 		}
@@ -480,7 +480,7 @@ func (spt *Tracker) RecoverAll(ctx context.Context) ([]*api.PinInfo, error) {
 
 // Recover will trigger pinning or unpinning for items in
 // PinError or UnpinError states.
-func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error) {
+func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Recover")
 	defer span.End()
 
@@ -495,13 +495,13 @@ func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (*api.PinInfo, error
 	recPi, err := spt.recoverWithPinInfo(ctx, pi)
 	// if it was not enqueued, no updated pin-info is returned.
 	// Use the one we had.
-	if recPi == nil {
+	if !recPi.Defined() {
 		recPi = pi
 	}
 	return recPi, err
 }
 
-func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*api.PinInfo, error) {
+func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi api.PinInfo) (api.PinInfo, error) {
 	var err error
 	switch pi.Status {
 	case api.TrackerStatusPinError, api.TrackerStatusUnexpectedlyUnpinned:
@@ -512,7 +512,7 @@ func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*a
 		err = spt.enqueue(ctx, api.PinCid(pi.Cid), optracker.OperationUnpin)
 	default:
 		// We do not return any information when recover was a no-op
-		return nil, nil
+		return api.PinInfo{}, nil
 	}
 	if err != nil {
 		return spt.Status(ctx, pi.Cid), err
@@ -523,7 +523,7 @@ func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi *api.PinInfo) (*a
 	return spt.Status(ctx, pi.Cid), nil
 }
 
-func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo, error) {
+func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
 	defer span.End()
 
@@ -541,14 +541,14 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 		return nil, err
 	}
 	ipfsid := spt.getIPFSID(ctx)
-	pins := make(map[cid.Cid]*api.PinInfo, len(ipsMap))
+	pins := make(map[cid.Cid]api.PinInfo, len(ipsMap))
 	for cidstr, ips := range ipsMap {
 		c, err := cid.Decode(cidstr)
 		if err != nil {
 			logger.Error(err)
 			continue
 		}
-		p := &api.PinInfo{
+		p := api.PinInfo{
 			Cid:         c,
 			Name:        "",  // to be filled later
 			Allocations: nil, // to be filled later
@@ -576,11 +576,9 @@ func (spt *Tracker) ipfsStatusAll(ctx context.Context) (map[cid.Cid]*api.PinInfo
 // in the consensusState out. If incExtra is true, Remote and Sharded pins
 // will be added to the status slice. If a filter is provided, only statuses
 // matching the filter will be returned.
-func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.TrackerStatus) (map[cid.Cid]*api.PinInfo, error) {
+func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.TrackerStatus) (map[cid.Cid]api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/localStatus")
 	defer span.End()
-
-	var statePins []*api.Pin
 
 	// get shared state
 	st, err := spt.getState(ctx)
@@ -593,6 +591,7 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 	// require it. Otherwise said, this whole method is mostly a no-op
 	// when filtering for queued/error items which are all in the operation
 	// tracker.
+	var statePins <-chan api.Pin
 	if filter.Match(
 		api.TrackerStatusPinned | api.TrackerStatusUnexpectedlyUnpinned |
 			api.TrackerStatusSharded | api.TrackerStatusRemote) {
@@ -601,9 +600,14 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 			logger.Error(err)
 			return nil, err
 		}
+	} else {
+		// no state pins
+		ch := make(chan api.Pin)
+		close(ch)
+		statePins = ch
 	}
 
-	var localpis map[cid.Cid]*api.PinInfo
+	var localpis map[cid.Cid]api.PinInfo
 	// Only query IPFS if we want to status for pinned items
 	if filter.Match(api.TrackerStatusPinned | api.TrackerStatusUnexpectedlyUnpinned) {
 		localpis, err = spt.ipfsStatusAll(ctx)
@@ -613,9 +617,9 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 		}
 	}
 
-	pininfos := make(map[cid.Cid]*api.PinInfo, len(statePins))
+	pininfos := make(map[cid.Cid]api.PinInfo, len(statePins))
 	ipfsid := spt.getIPFSID(ctx)
-	for _, p := range statePins {
+	for p := range statePins {
 		ipfsInfo, pinnedInIpfs := localpis[p.Cid]
 		// base pinInfo object - status to be filled.
 		pinInfo := api.PinInfo{
@@ -642,13 +646,13 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 				continue
 			}
 			pinInfo.Status = api.TrackerStatusSharded
-			pininfos[p.Cid] = &pinInfo
+			pininfos[p.Cid] = pinInfo
 		case p.IsRemotePin(spt.peerID):
 			if !incExtra || !filter.Match(api.TrackerStatusRemote) {
 				continue
 			}
 			pinInfo.Status = api.TrackerStatusRemote
-			pininfos[p.Cid] = &pinInfo
+			pininfos[p.Cid] = pinInfo
 		case pinnedInIpfs: // always false unless filter matches TrackerStatusPinnned
 			ipfsInfo.Name = p.Name
 			ipfsInfo.TS = p.Timestamp
@@ -667,13 +671,13 @@ func (spt *Tracker) localStatus(ctx context.Context, incExtra bool, filter api.T
 
 			pinInfo.Status = api.TrackerStatusUnexpectedlyUnpinned
 			pinInfo.Error = errUnexpectedlyUnpinned.Error()
-			pininfos[p.Cid] = &pinInfo
+			pininfos[p.Cid] = pinInfo
 		}
 	}
 	return pininfos, nil
 }
 
-// func (spt *Tracker) getErrorsAll(ctx context.Context) []*api.PinInfo {
+// func (spt *Tracker) getErrorsAll(ctx context.Context) []api.PinInfo {
 // 	return spt.optracker.Filter(ctx, optracker.PhaseError)
 // }
 

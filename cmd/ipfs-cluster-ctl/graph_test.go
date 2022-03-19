@@ -117,7 +117,7 @@ func TestSimpleIpfsGraphs(t *testing.T) {
 		},
 	}
 	buf := new(bytes.Buffer)
-	err := makeDot(&cg, buf, false)
+	err := makeDot(cg, buf, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestIpfsAllGraphs(t *testing.T) {
 	}
 
 	buf := new(bytes.Buffer)
-	err := makeDot(&cg, buf, true)
+	err := makeDot(cg, buf, true)
 	if err != nil {
 		t.Fatal(err)
 	}

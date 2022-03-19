@@ -72,7 +72,7 @@ func svcStatusToTrackerStatus(st pinsvc.Status) types.TrackerStatus {
 	return tst
 }
 
-func svcPinToClusterPin(p pinsvc.Pin) (*types.Pin, error) {
+func svcPinToClusterPin(p pinsvc.Pin) (types.Pin, error) {
 	opts := types.PinOptions{
 		Name:     string(p.Name),
 		Origins:  p.Origins,
@@ -81,7 +81,7 @@ func svcPinToClusterPin(p pinsvc.Pin) (*types.Pin, error) {
 	}
 	c, err := cid.Decode(p.Cid)
 	if err != nil {
-		return nil, err
+		return types.Pin{}, err
 	}
 	return types.PinWithOpts(c, opts), nil
 }
@@ -178,7 +178,7 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 	}
 }
 
-func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) *pinsvc.Pin {
+func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) pinsvc.Pin {
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
@@ -186,9 +186,9 @@ func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) *pinsvc.
 	err := dec.Decode(&pin)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, fmt.Errorf("error decoding request body: %w", err), nil)
-		return nil
+		return pinsvc.Pin{}
 	}
-	return &pin
+	return pin
 }
 
 func (api *API) parseRequestIDOrFail(w http.ResponseWriter, r *http.Request) (cid.Cid, bool) {
@@ -206,9 +206,9 @@ func (api *API) parseRequestIDOrFail(w http.ResponseWriter, r *http.Request) (ci
 }
 
 func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
-	if pin := api.parseBodyOrFail(w, r); pin != nil {
+	if pin := api.parseBodyOrFail(w, r); pin.Defined() {
 		api.config.Logger.Debugf("addPin: %s", pin.Cid)
-		clusterPin, err := svcPinToClusterPin(*pin)
+		clusterPin, err := svcPinToClusterPin(pin)
 		if err != nil {
 			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
 			return
@@ -346,7 +346,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		var globalPinInfos []*types.GlobalPinInfo
+		var globalPinInfos []types.GlobalPinInfo
 		err := api.rpcClient.CallContext(
 			r.Context(),
 			"",
@@ -360,7 +360,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for i, gpi := range globalPinInfos {
-			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), *gpi)
+			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), gpi)
 			if st.Status == pinsvc.StatusUndefined {
 				// i.e things unpinning
 				continue

@@ -14,7 +14,7 @@ import (
 // MockPinStore is used in VerifyShards
 type MockPinStore interface {
 	// Gets a pin
-	PinGet(context.Context, cid.Cid) (*api.Pin, error)
+	PinGet(context.Context, cid.Cid) (api.Pin, error)
 }
 
 // MockBlockStore is used in VerifyShards

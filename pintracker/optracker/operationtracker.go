@@ -66,7 +66,7 @@ func NewOperationTracker(ctx context.Context, pid peer.ID, peerName string) *Ope
 //
 // If an operation exists it is of different type, it is
 // cancelled and the new one replaces it in the tracker.
-func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase) *Operation {
+func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase) *Operation {
 	ctx = trace.NewContext(opt.ctx, trace.FromContext(ctx))
 	ctx, span := trace.StartSpan(ctx, "optracker/TrackNewOperation")
 	defer span.End()
@@ -174,7 +174,7 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation) a
 }
 
 // Get returns a PinInfo object for Cid.
-func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid) *api.PinInfo {
+func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid) api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "optracker/GetAll")
 	defer span.End()
 
@@ -185,12 +185,12 @@ func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid) *api.PinInfo {
 	if pInfo.Cid == cid.Undef {
 		pInfo.Cid = c
 	}
-	return &pInfo
+	return pInfo
 }
 
 // GetExists returns a PinInfo object for a Cid only if there exists
 // an associated Operation.
-func (opt *OperationTracker) GetExists(ctx context.Context, c cid.Cid) (*api.PinInfo, bool) {
+func (opt *OperationTracker) GetExists(ctx context.Context, c cid.Cid) (api.PinInfo, bool) {
 	ctx, span := trace.StartSpan(ctx, "optracker/GetExists")
 	defer span.End()
 
@@ -198,23 +198,23 @@ func (opt *OperationTracker) GetExists(ctx context.Context, c cid.Cid) (*api.Pin
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c]
 	if !ok {
-		return nil, false
+		return api.PinInfo{}, false
 	}
 	pInfo := opt.unsafePinInfo(ctx, op)
-	return &pInfo, true
+	return pInfo, true
 }
 
 // GetAll returns PinInfo objects for all known operations.
-func (opt *OperationTracker) GetAll(ctx context.Context) []*api.PinInfo {
+func (opt *OperationTracker) GetAll(ctx context.Context) []api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "optracker/GetAll")
 	defer span.End()
 
-	var pinfos []*api.PinInfo
+	var pinfos []api.PinInfo
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	for _, op := range opt.operations {
 		pinfo := opt.unsafePinInfo(ctx, op)
-		pinfos = append(pinfos, &pinfo)
+		pinfos = append(pinfos, pinfo)
 	}
 	return pinfos
 }
@@ -245,14 +245,14 @@ func (opt *OperationTracker) OpContext(ctx context.Context, c cid.Cid) context.C
 // Operations that matched the provided filter. Note, only supports
 // filters of type OperationType or Phase, any other type
 // will result in a nil slice being returned.
-func (opt *OperationTracker) Filter(ctx context.Context, filters ...interface{}) []*api.PinInfo {
-	var pinfos []*api.PinInfo
+func (opt *OperationTracker) Filter(ctx context.Context, filters ...interface{}) []api.PinInfo {
+	var pinfos []api.PinInfo
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	ops := filterOpsMap(ctx, opt.operations, filters)
 	for _, op := range ops {
 		pinfo := opt.unsafePinInfo(ctx, op)
-		pinfos = append(pinfos, &pinfo)
+		pinfos = append(pinfos, pinfo)
 	}
 	return pinfos
 }

@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -66,13 +67,34 @@ func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp
 
 	defer httpResp.Body.Close()
 	dec := json.NewDecoder(httpResp.Body)
-	for {
-		err := dec.Decode(&resp)
-		if err == io.EOF {
-			return
+
+	// If we passed a slice we fill it in, otherwise we just decode
+	// on top of the passed value.
+	tResp := reflect.TypeOf(resp)
+	if tResp.Elem().Kind() == reflect.Slice {
+		vSlice := reflect.MakeSlice(reflect.TypeOf(resp).Elem(), 0, 1000)
+		vType := tResp.Elem().Elem()
+		for {
+			v := reflect.New(vType)
+			err := dec.Decode(v.Interface())
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			vSlice = reflect.Append(vSlice, v.Elem())
 		}
-		if err != nil {
-			t.Fatal(err)
+		reflect.ValueOf(resp).Elem().Set(vSlice)
+	} else {
+		for {
+			err := dec.Decode(resp)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 }
@@ -222,6 +244,18 @@ func MakeStreamingPost(t *testing.T, api API, url string, body io.Reader, conten
 	c := HTTPClient(t, h, IsHTTPS(url))
 	req, _ := http.NewRequest(http.MethodPost, url, body)
 	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Origin", ClientOrigin)
+	httpResp, err := c.Do(req)
+	ProcessStreamingResp(t, httpResp, err, resp)
+	CheckHeaders(t, api.Headers(), url, httpResp.Header)
+}
+
+// MakeStreamingGet performs a GET request and uses ProcessStreamingResp
+func MakeStreamingGet(t *testing.T, api API, url string, resp interface{}) {
+	h := MakeHost(t, api)
+	defer h.Close()
+	c := HTTPClient(t, h, IsHTTPS(url))
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
 	req.Header.Set("Origin", ClientOrigin)
 	httpResp, err := c.Do(req)
 	ProcessStreamingResp(t, httpResp, err, resp)

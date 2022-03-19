@@ -10,8 +10,8 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
-func makeMetric(name, value string, weight int64, peer peer.ID, partitionable bool) *api.Metric {
-	return &api.Metric{
+func makeMetric(name, value string, weight int64, peer peer.ID, partitionable bool) api.Metric {
+	return api.Metric{
 		Name:          name,
 		Value:         value,
 		Weight:        weight,
@@ -35,11 +35,11 @@ func TestAllocate(t *testing.T) {
 	}
 
 	candidates := api.MetricsSet{
-		"abc": []*api.Metric{ // don't want anything in results
+		"abc": []api.Metric{ // don't want anything in results
 			makeMetric("abc", "a", 0, test.PeerID1, true),
 			makeMetric("abc", "b", 0, test.PeerID2, true),
 		},
-		"region": []*api.Metric{
+		"region": []api.Metric{
 			makeMetric("region", "a-us", 0, test.PeerID1, true),
 			makeMetric("region", "a-us", 0, test.PeerID2, true),
 
@@ -51,7 +51,7 @@ func TestAllocate(t *testing.T) {
 			makeMetric("region", "c-au", 0, test.PeerID7, true),
 			makeMetric("region", "c-au", 0, test.PeerID8, true), // I don't want to see this in results
 		},
-		"az": []*api.Metric{
+		"az": []api.Metric{
 			makeMetric("az", "us1", 0, test.PeerID1, true),
 			makeMetric("az", "us2", 0, test.PeerID2, true),
 
@@ -62,7 +62,7 @@ func TestAllocate(t *testing.T) {
 			makeMetric("az", "au1", 0, test.PeerID6, true),
 			makeMetric("az", "au1", 0, test.PeerID7, true),
 		},
-		"freespace": []*api.Metric{
+		"freespace": []api.Metric{
 			makeMetric("freespace", "100", 100, test.PeerID1, false),
 			makeMetric("freespace", "500", 500, test.PeerID2, false),
 

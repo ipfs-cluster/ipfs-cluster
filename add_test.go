@@ -4,7 +4,6 @@ package ipfscluster
 
 import (
 	"context"
-	"fmt"
 	"mime/multipart"
 	"sync"
 	"testing"
@@ -85,7 +84,6 @@ func TestAdd(t *testing.T) {
 			if pin.Error != "" {
 				t.Error(pin.Error)
 			}
-			fmt.Println(pin)
 			switch c.id {
 			case clusters[2].id:
 				if pin.Status != api.TrackerStatusPinned {

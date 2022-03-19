@@ -119,7 +119,7 @@ func partitionMetrics(set api.MetricsSet, by []string) *partitionedMetric {
 	return pnedMetric
 }
 
-func partitionValues(metrics []*api.Metric) []*partition {
+func partitionValues(metrics []api.Metric) []*partition {
 	partitions := []*partition{}
 
 	if len(metrics) <= 0 {

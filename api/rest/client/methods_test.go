@@ -279,11 +279,24 @@ func TestAllocations(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pins, err := c.Allocations(ctx, types.DataType|types.MetaType)
+		pins := make(chan types.Pin)
+		n := 0
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range pins {
+				n++
+			}
+		}()
+
+		err := c.Allocations(ctx, types.DataType|types.MetaType, pins)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(pins) == 0 {
+
+		wg.Wait()
+		if n == 0 {
 			t.Error("should be some pins")
 		}
 	}
@@ -520,11 +533,11 @@ type waitService struct {
 	pinStart time.Time
 }
 
-func (wait *waitService) Pin(ctx context.Context, in *types.Pin, out *types.Pin) error {
+func (wait *waitService) Pin(ctx context.Context, in types.Pin, out *types.Pin) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	wait.pinStart = time.Now()
-	*out = *in
+	*out = in
 	return nil
 }
 
@@ -584,7 +597,7 @@ func (wait *waitService) PinGet(ctx context.Context, in cid.Cid, out *types.Pin)
 	p := types.PinCid(in)
 	p.ReplicationFactorMin = 2
 	p.ReplicationFactorMax = 3
-	*out = *p
+	*out = p
 	return nil
 }
 
@@ -593,7 +606,7 @@ type waitServiceUnpin struct {
 	unpinStart time.Time
 }
 
-func (wait *waitServiceUnpin) Unpin(ctx context.Context, in *types.Pin, out *types.Pin) error {
+func (wait *waitServiceUnpin) Unpin(ctx context.Context, in types.Pin, out *types.Pin) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	wait.unpinStart = time.Now()
@@ -787,7 +800,7 @@ func TestAddMultiFile(t *testing.T) {
 			StreamChannels: true,
 		}
 
-		out := make(chan *types.AddedOutput, 1)
+		out := make(chan types.AddedOutput, 1)
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {

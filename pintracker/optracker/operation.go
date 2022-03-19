@@ -58,7 +58,7 @@ type Operation struct {
 
 	// RO fields
 	opType OperationType
-	pin    *api.Pin
+	pin    api.Pin
 
 	// RW fields
 	mu           sync.RWMutex
@@ -70,7 +70,7 @@ type Operation struct {
 }
 
 // NewOperation creates a new Operation.
-func NewOperation(ctx context.Context, pin *api.Pin, typ OperationType, ph Phase) *Operation {
+func NewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase) *Operation {
 	ctx, span := trace.StartSpan(ctx, "optracker/NewOperation")
 	defer span.End()
 
@@ -212,7 +212,7 @@ func (op *Operation) Type() OperationType {
 }
 
 // Pin returns the Pin object associated to the operation.
-func (op *Operation) Pin() *api.Pin {
+func (op *Operation) Pin() api.Pin {
 	return op.pin
 }
 

@@ -28,7 +28,7 @@ type LogOpType int
 type LogOp struct {
 	SpanCtx   trace.SpanContext `codec:"s,omitempty"`
 	TagCtx    []byte            `codec:"t,omitempty"`
-	Cid       *api.Pin          `codec:"c,omitempty"`
+	Cid       api.Pin           `codec:"c,omitempty"`
 	Type      LogOpType         `codec:"p,omitempty"`
 	consensus *Consensus        `codec:"-"`
 	tracing   bool              `codec:"-"`
@@ -56,11 +56,6 @@ func (op *LogOp) ApplyTo(cstate consensus.State) (consensus.State, error) {
 	}
 
 	pin := op.Cid
-	// We are about to pass "pin" it to go-routines that will make things
-	// with it (read its fields). However, as soon as ApplyTo is done, the
-	// next operation will be deserealized on top of "op". We nullify it
-	// to make sure no data races occur.
-	op.Cid = nil
 
 	switch op.Type {
 	case LogOpPin:
