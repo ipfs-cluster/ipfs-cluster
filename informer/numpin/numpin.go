@@ -5,6 +5,7 @@ package numpin
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -19,7 +20,9 @@ var MetricName = "numpin"
 // Informer is a simple object to implement the ipfscluster.Informer
 // and Component interfaces
 type Informer struct {
-	config    *Config
+	config *Config
+
+	mu        sync.Mutex
 	rpcClient *rpc.Client
 }
 
@@ -38,7 +41,9 @@ func NewInformer(cfg *Config) (*Informer, error) {
 // SetClient provides us with an rpc.Client which allows
 // contacting other components in the cluster.
 func (npi *Informer) SetClient(c *rpc.Client) {
+	npi.mu.Lock()
 	npi.rpcClient = c
+	npi.mu.Unlock()
 }
 
 // Shutdown is called on cluster shutdown. We just invalidate
@@ -47,7 +52,9 @@ func (npi *Informer) Shutdown(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "informer/numpin/Shutdown")
 	defer span.End()
 
+	npi.mu.Lock()
 	npi.rpcClient = nil
+	npi.mu.Unlock()
 	return nil
 }
 
@@ -63,7 +70,11 @@ func (npi *Informer) GetMetrics(ctx context.Context) []api.Metric {
 	ctx, span := trace.StartSpan(ctx, "informer/numpin/GetMetric")
 	defer span.End()
 
-	if npi.rpcClient == nil {
+	npi.mu.Lock()
+	rpcClient := npi.rpcClient
+	npi.mu.Unlock()
+
+	if rpcClient == nil {
 		return []api.Metric{
 			{
 				Valid: false,
@@ -71,24 +82,39 @@ func (npi *Informer) GetMetrics(ctx context.Context) []api.Metric {
 		}
 	}
 
-	pinMap := make(map[string]api.IPFSPinStatus)
-
 	// make use of the RPC API to obtain information
 	// about the number of pins in IPFS. See RPCAPI docs.
-	err := npi.rpcClient.CallContext(
-		ctx,
-		"",              // Local call
-		"IPFSConnector", // Service name
-		"PinLs",         // Method name
-		"recursive",     // in arg
-		&pinMap,         // out arg
-	)
+	in := make(chan []string, 1)
+	in <- []string{"recursive", "direct"}
+	close(in)
+	out := make(chan api.IPFSPinInfo, 1024)
+
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		err := rpcClient.Stream(
+			ctx,
+			"",              // Local call
+			"IPFSConnector", // Service name
+			"PinLs",         // Method name
+			in,
+			out,
+		)
+		errCh <- err
+	}()
+
+	n := 0
+	for range out {
+		n++
+	}
+
+	err := <-errCh
 
 	valid := err == nil
 
 	m := api.Metric{
 		Name:          MetricName,
-		Value:         fmt.Sprintf("%d", len(pinMap)),
+		Value:         fmt.Sprintf("%d", n),
 		Valid:         valid,
 		Partitionable: false,
 	}

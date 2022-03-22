@@ -346,20 +346,27 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		var globalPinInfos []types.GlobalPinInfo
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"StatusAll",
-			tst,
-			&globalPinInfos,
-		)
-		if err != nil {
-			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
-			return
-		}
-		for i, gpi := range globalPinInfos {
+		in := make(chan types.TrackerStatus, 1)
+		in <- tst
+		close(in)
+		out := make(chan types.GlobalPinInfo, common.StreamChannelSize)
+		errCh := make(chan error, 1)
+
+		go func() {
+			defer close(errCh)
+
+			errCh <- api.rpcClient.Stream(
+				r.Context(),
+				"",
+				"Cluster",
+				"StatusAll",
+				in,
+				out,
+			)
+		}()
+
+		i := 0
+		for gpi := range out {
 			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), gpi)
 			if st.Status == pinsvc.StatusUndefined {
 				// i.e things unpinning
@@ -380,9 +387,16 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			pinList.Results = append(pinList.Results, st)
-			if i+1 == opts.Limit {
+			i++
+			if i == opts.Limit {
 				break
 			}
+		}
+
+		err := <-errCh
+		if err != nil {
+			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+			return
 		}
 	}
 

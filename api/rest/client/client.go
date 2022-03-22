@@ -85,9 +85,9 @@ type Client interface {
 	// is fetched from all cluster peers.
 	Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
 	// StatusCids status information for the requested CIDs.
-	StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]api.GlobalPinInfo, error)
+	StatusCids(ctx context.Context, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error
 	// StatusAll gathers Status() for all tracked items.
-	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error)
+	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool, out chan<- api.GlobalPinInfo) error
 
 	// Recover retriggers pin or unpin ipfs operations for a Cid in error
 	// state.  If local is true, the operation is limited to the current
@@ -96,7 +96,7 @@ type Client interface {
 	// RecoverAll triggers Recover() operations on all tracked items. If
 	// local is true, the operation is limited to the current peer.
 	// Otherwise, it happens everywhere.
-	RecoverAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error)
+	RecoverAll(ctx context.Context, local bool, out chan<- api.GlobalPinInfo) error
 
 	// Alerts returns information health events in the cluster (expired
 	// metrics etc.).

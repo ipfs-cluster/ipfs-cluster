@@ -10,10 +10,9 @@ import (
 
 type empty struct{}
 
-func (e *empty) List(ctx context.Context) (<-chan api.Pin, error) {
-	ch := make(chan api.Pin)
-	close(ch)
-	return ch, nil
+func (e *empty) List(ctx context.Context, out chan<- api.Pin) error {
+	close(out)
+	return nil
 }
 
 func (e *empty) Has(ctx context.Context, c cid.Cid) (bool, error) {

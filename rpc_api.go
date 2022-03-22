@@ -2,6 +2,7 @@ package ipfscluster
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -31,6 +32,8 @@ const (
 
 // RPCEndpointType controls how access is granted to an RPC endpoint
 type RPCEndpointType int
+
+const rpcStreamBufferSize = 1024
 
 // A trick to find where something is used (i.e. Cluster.Pin):
 // grep -R -B 3 '"Pin"' | grep -C 1 '"Cluster"'.
@@ -63,6 +66,7 @@ func newRPCServer(c *Cluster) (*rpc.Server, error) {
 			version.RPCProtocol,
 			rpc.WithServerStatsHandler(&ocgorpc.ServerHandler{}),
 			rpc.WithAuthorizeFunc(authF),
+			rpc.WithStreamBufferSize(rpcStreamBufferSize),
 		)
 	} else {
 		s = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithAuthorizeFunc(authF))
@@ -201,17 +205,7 @@ func (rpcapi *ClusterRPCAPI) UnpinPath(ctx context.Context, in api.PinPath, out 
 
 // Pins runs Cluster.Pins().
 func (rpcapi *ClusterRPCAPI) Pins(ctx context.Context, in <-chan struct{}, out chan<- api.Pin) error {
-	pinCh, err := rpcapi.c.PinsChannel(ctx)
-	if err != nil {
-		return err
-	}
-
-	for pin := range pinCh {
-		out <- pin
-	}
-
-	close(out)
-	return ctx.Err()
+	return rpcapi.c.Pins(ctx, out)
 }
 
 // PinGet runs Cluster.PinGet().
@@ -275,20 +269,15 @@ func (rpcapi *ClusterRPCAPI) Join(ctx context.Context, in api.Multiaddr, out *st
 }
 
 // StatusAll runs Cluster.StatusAll().
-func (rpcapi *ClusterRPCAPI) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]api.GlobalPinInfo) error {
-	pinfos, err := rpcapi.c.StatusAll(ctx, in)
-	if err != nil {
-		return err
-	}
-	*out = pinfos
-	return nil
+func (rpcapi *ClusterRPCAPI) StatusAll(ctx context.Context, in <-chan api.TrackerStatus, out chan<- api.GlobalPinInfo) error {
+	filter := <-in
+	return rpcapi.c.StatusAll(ctx, filter, out)
 }
 
 // StatusAllLocal runs Cluster.StatusAllLocal().
-func (rpcapi *ClusterRPCAPI) StatusAllLocal(ctx context.Context, in api.TrackerStatus, out *[]api.PinInfo) error {
-	pinfos := rpcapi.c.StatusAllLocal(ctx, in)
-	*out = pinfos
-	return nil
+func (rpcapi *ClusterRPCAPI) StatusAllLocal(ctx context.Context, in <-chan api.TrackerStatus, out chan<- api.PinInfo) error {
+	filter := <-in
+	return rpcapi.c.StatusAllLocal(ctx, filter, out)
 }
 
 // Status runs Cluster.Status().
@@ -309,23 +298,13 @@ func (rpcapi *ClusterRPCAPI) StatusLocal(ctx context.Context, in cid.Cid, out *a
 }
 
 // RecoverAll runs Cluster.RecoverAll().
-func (rpcapi *ClusterRPCAPI) RecoverAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfo) error {
-	pinfos, err := rpcapi.c.RecoverAll(ctx)
-	if err != nil {
-		return err
-	}
-	*out = pinfos
-	return nil
+func (rpcapi *ClusterRPCAPI) RecoverAll(ctx context.Context, in <-chan struct{}, out chan<- api.GlobalPinInfo) error {
+	return rpcapi.c.RecoverAll(ctx, out)
 }
 
 // RecoverAllLocal runs Cluster.RecoverAllLocal().
-func (rpcapi *ClusterRPCAPI) RecoverAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfo) error {
-	pinfos, err := rpcapi.c.RecoverAllLocal(ctx)
-	if err != nil {
-		return err
-	}
-	*out = pinfos
-	return nil
+func (rpcapi *ClusterRPCAPI) RecoverAllLocal(ctx context.Context, in <-chan struct{}, out chan<- api.PinInfo) error {
+	return rpcapi.c.RecoverAllLocal(ctx, out)
 }
 
 // Recover runs Cluster.Recover().
@@ -469,11 +448,17 @@ func (rpcapi *PinTrackerRPCAPI) Untrack(ctx context.Context, in api.Pin, out *st
 }
 
 // StatusAll runs PinTracker.StatusAll().
-func (rpcapi *PinTrackerRPCAPI) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]api.PinInfo) error {
+func (rpcapi *PinTrackerRPCAPI) StatusAll(ctx context.Context, in <-chan api.TrackerStatus, out chan<- api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/StatusAll")
 	defer span.End()
-	*out = rpcapi.tracker.StatusAll(ctx, in)
-	return nil
+
+	select {
+	case <-ctx.Done():
+		close(out)
+		return ctx.Err()
+	case filter := <-in:
+		return rpcapi.tracker.StatusAll(ctx, filter, out)
+	}
 }
 
 // Status runs PinTracker.Status().
@@ -486,15 +471,10 @@ func (rpcapi *PinTrackerRPCAPI) Status(ctx context.Context, in cid.Cid, out *api
 }
 
 // RecoverAll runs PinTracker.RecoverAll().f
-func (rpcapi *PinTrackerRPCAPI) RecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfo) error {
+func (rpcapi *PinTrackerRPCAPI) RecoverAll(ctx context.Context, in <-chan struct{}, out chan<- api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/RecoverAll")
 	defer span.End()
-	pinfos, err := rpcapi.tracker.RecoverAll(ctx)
-	if err != nil {
-		return err
-	}
-	*out = pinfos
-	return nil
+	return rpcapi.tracker.RecoverAll(ctx, out)
 }
 
 // Recover runs PinTracker.Recover().
@@ -533,13 +513,18 @@ func (rpcapi *IPFSConnectorRPCAPI) PinLsCid(ctx context.Context, in api.Pin, out
 }
 
 // PinLs runs IPFSConnector.PinLs().
-func (rpcapi *IPFSConnectorRPCAPI) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	m, err := rpcapi.ipfs.PinLs(ctx, in)
-	if err != nil {
-		return err
+func (rpcapi *IPFSConnectorRPCAPI) PinLs(ctx context.Context, in <-chan []string, out chan<- api.IPFSPinInfo) error {
+	select {
+	case <-ctx.Done():
+		close(out)
+		return ctx.Err()
+	case pinTypes, ok := <-in:
+		if !ok {
+			close(out)
+			return errors.New("no pinType provided for pin/ls")
+		}
+		return rpcapi.ipfs.PinLs(ctx, pinTypes, out)
 	}
-	*out = m
-	return nil
 }
 
 // ConfigKey runs IPFSConnector.ConfigKey().

@@ -64,17 +64,17 @@ func (ipfs *mockConnector) Pin(ctx context.Context, pin api.Pin) error {
 	if pin.Cid == test.ErrorCid {
 		return errors.New("trying to pin ErrorCid")
 	}
-	ipfs.pins.Store(pin.Cid.String(), pin.MaxDepth)
+	ipfs.pins.Store(pin.Cid, pin.MaxDepth)
 	return nil
 }
 
 func (ipfs *mockConnector) Unpin(ctx context.Context, c cid.Cid) error {
-	ipfs.pins.Delete(c.String())
+	ipfs.pins.Delete(c)
 	return nil
 }
 
 func (ipfs *mockConnector) PinLsCid(ctx context.Context, pin api.Pin) (api.IPFSPinStatus, error) {
-	dI, ok := ipfs.pins.Load(pin.Cid.String())
+	dI, ok := ipfs.pins.Load(pin.Cid)
 	if !ok {
 		return api.IPFSPinStatusUnpinned, nil
 	}
@@ -85,8 +85,9 @@ func (ipfs *mockConnector) PinLsCid(ctx context.Context, pin api.Pin) (api.IPFSP
 	return api.IPFSPinStatusRecursive, nil
 }
 
-func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string]api.IPFSPinStatus, error) {
-	m := make(map[string]api.IPFSPinStatus)
+func (ipfs *mockConnector) PinLs(ctx context.Context, in []string, out chan<- api.IPFSPinInfo) error {
+	defer close(out)
+
 	var st api.IPFSPinStatus
 	ipfs.pins.Range(func(k, v interface{}) bool {
 		switch v.(api.PinDepth) {
@@ -95,12 +96,13 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, filter string) (map[string
 		default:
 			st = api.IPFSPinStatusRecursive
 		}
+		c := k.(cid.Cid)
 
-		m[k.(string)] = st
+		out <- api.IPFSPinInfo{Cid: api.Cid(c), Type: st}
 		return true
 	})
 
-	return m, nil
+	return nil
 }
 
 func (ipfs *mockConnector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
@@ -795,7 +797,7 @@ func TestClusterPins(t *testing.T) {
 
 	pinDelay()
 
-	pins, err := cl.Pins(ctx)
+	pins, err := cl.pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -942,10 +944,16 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 
 	pinDelay()
 
-	recov, err := cl.RecoverAllLocal(ctx)
-	if err != nil {
-		t.Error("did not expect an error")
-	}
+	out := make(chan api.PinInfo, 10)
+	go func() {
+		err := cl.RecoverAllLocal(ctx, out)
+		if err != nil {
+			t.Error("did not expect an error")
+		}
+	}()
+
+	recov := collectPinInfos(t, out)
+
 	if len(recov) != 1 {
 		t.Fatalf("there should be one pin recovered, got = %d", len(recov))
 	}

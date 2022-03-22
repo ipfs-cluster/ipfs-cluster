@@ -430,6 +430,48 @@ func shutdownCluster(t *testing.T, c *Cluster, m *test.IpfsMock) {
 	m.Close()
 }
 
+func collectGlobalPinInfos(t *testing.T, out <-chan api.GlobalPinInfo, timeout time.Duration) []api.GlobalPinInfo {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	var gpis []api.GlobalPinInfo
+	for {
+		select {
+		case <-ctx.Done():
+			t.Error(ctx.Err())
+			return gpis
+		case gpi, ok := <-out:
+			if !ok {
+				return gpis
+			}
+			gpis = append(gpis, gpi)
+		}
+	}
+}
+
+func collectPinInfos(t *testing.T, out <-chan api.PinInfo) []api.PinInfo {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var pis []api.PinInfo
+	for {
+		select {
+		case <-ctx.Done():
+			t.Error(ctx.Err())
+			return pis
+		case pi, ok := <-out:
+			if !ok {
+				return pis
+			}
+			pis = append(pis, pi)
+		}
+	}
+}
+
 func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 	t.Helper()
 	var wg sync.WaitGroup
@@ -654,12 +696,22 @@ func TestClustersPin(t *testing.T) {
 	}
 	switch consensus {
 	case "crdt":
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 	default:
 		delay()
 	}
 	fpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined)
+		out := make(chan api.PinInfo, 10)
+
+		go func() {
+			err := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+
+		status := collectPinInfos(t, out)
+
 		for _, v := range status {
 			if v.Status != api.TrackerStatusPinned {
 				t.Errorf("%s should have been pinned but it is %s", v.Cid, v.Status)
@@ -672,7 +724,7 @@ func TestClustersPin(t *testing.T) {
 	runF(t, clusters, fpinned)
 
 	// Unpin everything
-	pinList, err := clusters[0].Pins(ctx)
+	pinList, err := clusters[0].pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +744,7 @@ func TestClustersPin(t *testing.T) {
 
 	switch consensus {
 	case "crdt":
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 	default:
 		delay()
 	}
@@ -708,7 +760,15 @@ func TestClustersPin(t *testing.T) {
 	delay()
 
 	funpinned := func(t *testing.T, c *Cluster) {
-		status := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined)
+		out := make(chan api.PinInfo)
+		go func() {
+			err := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+
+		status := collectPinInfos(t, out)
 		for _, v := range status {
 			t.Errorf("%s should have been unpinned but it is %s", v.Cid, v.Status)
 		}
@@ -852,10 +912,15 @@ func TestClustersStatusAll(t *testing.T) {
 	pinDelay()
 	// Global status
 	f := func(t *testing.T, c *Cluster) {
-		statuses, err := c.StatusAll(ctx, api.TrackerStatusUndefined)
-		if err != nil {
-			t.Error(err)
-		}
+		out := make(chan api.GlobalPinInfo, 10)
+		go func() {
+			err := c.StatusAll(ctx, api.TrackerStatusUndefined, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+
+		statuses := collectGlobalPinInfos(t, out, 5*time.Second)
 		if len(statuses) != 1 {
 			t.Fatal("bad status. Expected one item")
 		}
@@ -920,10 +985,16 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 			return
 		}
 
-		statuses, err := c.StatusAll(ctx, api.TrackerStatusUndefined)
-		if err != nil {
-			t.Error(err)
-		}
+		out := make(chan api.GlobalPinInfo, 10)
+		go func() {
+			err := c.StatusAll(ctx, api.TrackerStatusUndefined, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+
+		statuses := collectGlobalPinInfos(t, out, 5*time.Second)
+
 		if len(statuses) != 1 {
 			t.Fatal("bad status. Expected one item")
 		}
@@ -1124,11 +1195,15 @@ func TestClustersRecoverAll(t *testing.T) {
 
 	pinDelay()
 
-	gInfos, err := clusters[rand.Intn(nClusters)].RecoverAll(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	delay()
+	out := make(chan api.GlobalPinInfo)
+	go func() {
+		err := clusters[rand.Intn(nClusters)].RecoverAll(ctx, out)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	gInfos := collectGlobalPinInfos(t, out, 5*time.Second)
 
 	if len(gInfos) != 1 {
 		t.Error("expected one items")
@@ -1219,7 +1294,15 @@ func TestClustersReplicationOverall(t *testing.T) {
 
 	f := func(t *testing.T, c *Cluster) {
 		// confirm that the pintracker state matches the current global state
-		pinfos := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined)
+		out := make(chan api.PinInfo, 100)
+
+		go func() {
+			err := c.tracker.StatusAll(ctx, api.TrackerStatusUndefined, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		pinfos := collectPinInfos(t, out)
 		if len(pinfos) != nClusters {
 			t.Error("Pinfos does not have the expected pins")
 		}
@@ -1243,11 +1326,14 @@ func TestClustersReplicationOverall(t *testing.T) {
 			t.Errorf("%s: Expected 1 remote pin but got %d", c.id.String(), numRemote)
 		}
 
-		pins, err := c.Pins(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, pin := range pins {
+		outPins := make(chan api.Pin)
+		go func() {
+			err := c.Pins(ctx, outPins)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		for pin := range outPins {
 			allocs := pin.Allocations
 			if len(allocs) != nClusters-1 {
 				t.Errorf("Allocations are [%s]", allocs)
@@ -1623,7 +1709,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	// Let the pin arrive
 	pinDelay()
 
-	pinList, err := clusters[j].Pins(ctx)
+	pinList, err := clusters[j].pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1641,7 +1727,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 
 	pinDelay()
 
-	pinList2, err := clusters[j].Pins(ctx)
+	pinList2, err := clusters[j].pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2131,7 +2217,7 @@ func TestClusterPinsWithExpiration(t *testing.T) {
 
 	pinDelay()
 
-	pins, err := cl.Pins(ctx)
+	pins, err := cl.pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2154,7 +2240,7 @@ func TestClusterPinsWithExpiration(t *testing.T) {
 	pinDelay()
 
 	// state sync should have unpinned expired pin
-	pins, err = cl.Pins(ctx)
+	pins, err = cl.pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/test"
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
@@ -21,11 +22,10 @@ func mockRPCClient(t *testing.T) *rpc.Client {
 	return c
 }
 
-func (mock *mockService) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	*out = map[string]api.IPFSPinStatus{
-		"QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa": api.IPFSPinStatusRecursive,
-		"QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6": api.IPFSPinStatusRecursive,
-	}
+func (mock *mockService) PinLs(ctx context.Context, in <-chan []string, out chan<- api.IPFSPinInfo) error {
+	out <- api.IPFSPinInfo{Cid: api.Cid(test.Cid1), Type: api.IPFSPinStatusRecursive}
+	out <- api.IPFSPinInfo{Cid: api.Cid(test.Cid2), Type: api.IPFSPinStatusRecursive}
+	close(out)
 	return nil
 }
 

@@ -386,10 +386,15 @@ func (proxy *Server) unpinHandler(w http.ResponseWriter, r *http.Request) {
 func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	proxy.setHeaders(w.Header(), r)
 
-	pinLs := ipfsPinLsResp{}
-	pinLs.Keys = make(map[string]ipfsPinType)
-
 	arg := r.URL.Query().Get("arg")
+
+	stream := false
+	streamArg := r.URL.Query().Get("stream")
+	streamArg2 := r.URL.Query().Get("s")
+	if streamArg == "true" || streamArg2 == "true" {
+		stream = true
+	}
+
 	if arg != "" {
 		c, err := cid.Decode(arg)
 		if err != nil {
@@ -409,8 +414,23 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			ipfsErrorResponder(w, fmt.Sprintf("Error: path '%s' is not pinned", arg), -1)
 			return
 		}
-		pinLs.Keys[pin.Cid.String()] = ipfsPinType{
-			Type: "recursive",
+		if stream {
+			ipinfo := api.IPFSPinInfo{
+				Cid:  api.Cid(pin.Cid),
+				Type: pin.Mode.ToIPFSPinStatus(),
+			}
+			resBytes, _ := json.Marshal(ipinfo)
+			w.WriteHeader(http.StatusOK)
+			w.Write(resBytes)
+		} else {
+			pinLs := ipfsPinLsResp{}
+			pinLs.Keys = make(map[string]ipfsPinType)
+			pinLs.Keys[pin.Cid.String()] = ipfsPinType{
+				Type: "recursive",
+			}
+			resBytes, _ := json.Marshal(pinLs)
+			w.WriteHeader(http.StatusOK)
+			w.Write(resBytes)
 		}
 	} else {
 		in := make(chan struct{})
@@ -432,22 +452,42 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 			)
 		}()
 
-		for pin := range pins {
-			pinLs.Keys[pin.Cid.String()] = ipfsPinType{
-				Type: "recursive",
+		if stream {
+			w.Header().Set("Trailer", "X-Stream-Error")
+			w.WriteHeader(http.StatusOK)
+			for pin := range pins {
+				ipinfo := api.IPFSPinInfo{
+					Cid:  api.Cid(pin.Cid),
+					Type: pin.Mode.ToIPFSPinStatus(),
+				}
+				resBytes, _ := json.Marshal(ipinfo)
+				w.Write(resBytes)
 			}
-		}
+			wg.Wait()
+			if err != nil {
+				w.Header().Add("X-Stream-Error", err.Error())
+				return
+			}
+		} else {
+			pinLs := ipfsPinLsResp{}
+			pinLs.Keys = make(map[string]ipfsPinType)
 
-		wg.Wait()
-		if err != nil {
-			ipfsErrorResponder(w, err.Error(), -1)
-			return
+			for pin := range pins {
+				pinLs.Keys[pin.Cid.String()] = ipfsPinType{
+					Type: "recursive",
+				}
+			}
+
+			wg.Wait()
+			if err != nil {
+				ipfsErrorResponder(w, err.Error(), -1)
+				return
+			}
+			resBytes, _ := json.Marshal(pinLs)
+			w.WriteHeader(http.StatusOK)
+			w.Write(resBytes)
 		}
 	}
-
-	resBytes, _ := json.Marshal(pinLs)
-	w.WriteHeader(http.StatusOK)
-	w.Write(resBytes)
 }
 
 func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {

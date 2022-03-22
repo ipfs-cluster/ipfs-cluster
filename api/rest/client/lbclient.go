@@ -253,16 +253,13 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local boo
 // StatusCids returns Status() information for the given Cids. If local is
 // true, the information affects only the current peer, otherwise the
 // information is fetched from all cluster peers.
-func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]api.GlobalPinInfo, error) {
-	var pinInfos []api.GlobalPinInfo
+func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
-		var err error
-		pinInfos, err = c.StatusCids(ctx, cids, local)
-		return err
+		return c.StatusCids(ctx, cids, local, out)
 	}
 
 	err := lc.retry(0, call)
-	return pinInfos, err
+	return err
 }
 
 // StatusAll gathers Status() for all tracked items. If a filter is
@@ -270,16 +267,13 @@ func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, l
 // will be returned. A filter can be built by merging TrackerStatuses with
 // a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
 // api.TrackerStatusUndefined), means all.
-func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
-	var pinInfos []api.GlobalPinInfo
+func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
-		var err error
-		pinInfos, err = c.StatusAll(ctx, filter, local)
-		return err
+		return c.StatusAll(ctx, filter, local, out)
 	}
 
 	err := lc.retry(0, call)
-	return pinInfos, err
+	return err
 }
 
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
@@ -300,16 +294,13 @@ func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bo
 // RecoverAll triggers Recover() operations on all tracked items. If local is
 // true, the operation is limited to the current peer. Otherwise, it happens
 // everywhere.
-func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error) {
-	var pinInfos []api.GlobalPinInfo
+func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
-		var err error
-		pinInfos, err = c.RecoverAll(ctx, local)
-		return err
+		return c.RecoverAll(ctx, local, out)
 	}
 
 	err := lc.retry(0, call)
-	return pinInfos, err
+	return err
 }
 
 // Alerts returns things that are wrong with cluster.

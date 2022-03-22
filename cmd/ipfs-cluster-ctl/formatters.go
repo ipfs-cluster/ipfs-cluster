@@ -39,17 +39,23 @@ func jsonFormatObject(resp interface{}) {
 }
 
 func jsonFormatPrint(obj interface{}) {
+	print := func(o interface{}) {
+		j, err := json.MarshalIndent(o, "", "    ")
+		checkErr("generating json output", err)
+		fmt.Printf("%s\n", j)
+	}
+
 	switch r := obj.(type) {
 	case chan api.Pin:
 		for o := range r {
-			j, err := json.MarshalIndent(o, "", "    ")
-			checkErr("generating json output", err)
-			fmt.Printf("%s\n", j)
+			print(o)
+		}
+	case chan api.GlobalPinInfo:
+		for o := range r {
+			print(o)
 		}
 	default:
-		j, err := json.MarshalIndent(obj, "", "    ")
-		checkErr("generating json output", err)
-		fmt.Printf("%s\n", j)
+		print(obj)
 	}
 
 }
@@ -82,8 +88,8 @@ func textFormatObject(resp interface{}) {
 		for _, item := range r {
 			textFormatObject(item)
 		}
-	case []api.GlobalPinInfo:
-		for _, item := range r {
+	case chan api.GlobalPinInfo:
+		for item := range r {
 			textFormatObject(item)
 		}
 	case chan api.Pin:

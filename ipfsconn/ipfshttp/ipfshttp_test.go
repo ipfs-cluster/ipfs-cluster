@@ -219,6 +219,27 @@ func TestIPFSPinLsCid_DifferentEncoding(t *testing.T) {
 	}
 }
 
+func collectPins(t *testing.T, pch <-chan api.IPFSPinInfo) []api.IPFSPinInfo {
+	t.Helper()
+
+	var pins []api.IPFSPinInfo
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+			return nil
+		case p, ok := <-pch:
+			if !ok {
+				return pins
+			}
+			pins = append(pins, p)
+		}
+	}
+}
+
 func TestIPFSPinLs(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
@@ -229,16 +250,21 @@ func TestIPFSPinLs(t *testing.T) {
 
 	ipfs.Pin(ctx, api.PinCid(c))
 	ipfs.Pin(ctx, api.PinCid(c2))
-	ipsMap, err := ipfs.PinLs(ctx, "")
-	if err != nil {
-		t.Error("should not error")
+	pinCh := make(chan api.IPFSPinInfo, 10)
+	go func() {
+		err := ipfs.PinLs(ctx, []string{""}, pinCh)
+		if err != nil {
+			t.Error("should not error")
+		}
+	}()
+
+	pins := collectPins(t, pinCh)
+
+	if len(pins) != 2 {
+		t.Fatal("the pin list does not contain the expected number of keys")
 	}
 
-	if len(ipsMap) != 2 {
-		t.Fatal("the map does not contain expected keys")
-	}
-
-	if !ipsMap[test.Cid1.String()].IsPinned(-1) || !ipsMap[test.Cid2.String()].IsPinned(-1) {
+	if !pins[0].Type.IsPinned(-1) || !pins[1].Type.IsPinned(-1) {
 		t.Error("c1 and c2 should appear pinned")
 	}
 }

@@ -125,14 +125,14 @@ func TestConsensusPin(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 10)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
-
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -186,14 +186,16 @@ func TestConsensusUpdate(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	ch, err := st.List(ctx)
+	// Channel will not block sending because plenty of space
+	out := make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
 
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -243,14 +245,15 @@ func TestConsensusAddRmPeer(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
 
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -310,14 +313,15 @@ func TestConsensusDistrustPeer(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 10)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
 
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -372,14 +376,15 @@ func TestOfflineState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ch, err := offlineState.List(ctx)
+	out := make(chan api.Pin, 100)
+	err = offlineState.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
 
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -412,14 +417,15 @@ func TestBatching(t *testing.T) {
 
 	time.Sleep(250 * time.Millisecond)
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
 
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -430,14 +436,15 @@ func TestBatching(t *testing.T) {
 	// Trigger batch auto-commit by time
 	time.Sleep(time.Second)
 
-	ch, err = st.List(ctx)
+	out = make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	pins = nil
 
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -456,13 +463,14 @@ func TestBatching(t *testing.T) {
 	// Give a chance for things to persist
 	time.Sleep(250 * time.Millisecond)
 
-	ch, err = st.List(ctx)
+	out = make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	pins = nil
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -472,12 +480,14 @@ func TestBatching(t *testing.T) {
 
 	// wait for the last pin
 	time.Sleep(time.Second)
-	ch, err = st.List(ctx)
+
+	out = make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pins = nil
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 

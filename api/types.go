@@ -217,6 +217,36 @@ func IPFSPinStatusFromString(t string) IPFSPinStatus {
 	}
 }
 
+// String returns the string form of the status as written by IPFS.
+func (ips IPFSPinStatus) String() string {
+	switch ips {
+	case IPFSPinStatusDirect:
+		return "direct"
+	case IPFSPinStatusRecursive:
+		return "recursive"
+	case IPFSPinStatusIndirect:
+		return "indirect"
+	default:
+		return ""
+	}
+}
+
+// UnmarshalJSON parses a status from JSON
+func (ips *IPFSPinStatus) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	*ips = IPFSPinStatusFromString(str)
+	return nil
+}
+
+// MarshalJSON converts a status to JSON.
+func (ips IPFSPinStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ips.String())
+}
+
 // IsPinned returns true if the item is pinned as expected by the
 // maxDepth parameter.
 func (ips IPFSPinStatus) IsPinned(maxDepth PinDepth) bool {
@@ -245,6 +275,40 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 	IPFSPinStatusUnpinned:  TrackerStatusUnpinned,
 	IPFSPinStatusBug:       TrackerStatusUndefined,
 	IPFSPinStatusError:     TrackerStatusClusterError, //TODO(ajl): check suitability
+}
+
+// Cid is a CID with the MarshalJSON/UnmarshalJSON methods overwritten.
+type Cid cid.Cid
+
+func (c Cid) String() string {
+	return cid.Cid(c).String()
+}
+
+// MarshalJSON marshals a CID as JSON as a normal CID string.
+func (c Cid) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+// UnmarshalJSON reads a CID from its representation as JSON string.
+func (c *Cid) UnmarshalJSON(b []byte) error {
+	var cidStr string
+	err := json.Unmarshal(b, &cidStr)
+	if err != nil {
+		return err
+	}
+	cc, err := cid.Decode(cidStr)
+	if err != nil {
+		return err
+	}
+	*c = Cid(cc)
+	return nil
+}
+
+// IPFSPinInfo represents an IPFS Pin, which only has a CID and type.
+// Its JSON form is what IPFS returns when querying a pinset.
+type IPFSPinInfo struct {
+	Cid  Cid           `json:"Cid" codec:"c"`
+	Type IPFSPinStatus `json:"Type" codec:"t"`
 }
 
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
@@ -320,6 +384,19 @@ type PinInfoShort struct {
 	PriorityPin   bool          `json:"priority_pin" codec:"y,omitempty"`
 }
 
+// String provides a string representation of PinInfoShort.
+func (pis PinInfoShort) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "status: %s\n", pis.Status)
+	fmt.Fprintf(&b, "peername: %s\n", pis.PeerName)
+	fmt.Fprintf(&b, "ipfs: %s\n", pis.IPFS)
+	fmt.Fprintf(&b, "ipfsAddresses: %v\n", pis.IPFSAddresses)
+	fmt.Fprintf(&b, "error: %s\n", pis.Error)
+	fmt.Fprintf(&b, "attemptCount: %d\n", pis.AttemptCount)
+	fmt.Fprintf(&b, "priority: %t\n", pis.PriorityPin)
+	return b.String()
+}
+
 // PinInfo holds information about local pins. This is used by the Pin
 // Trackers.
 type PinInfo struct {
@@ -345,6 +422,17 @@ func (pi PinInfo) ToGlobal() GlobalPinInfo {
 // Defined retuns if the PinInfo is not zero.
 func (pi PinInfo) Defined() bool {
 	return pi.Cid.Defined()
+}
+
+// String provides a string representation of PinInfo.
+func (pi PinInfo) String() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "cid: %s\n", pi.Cid)
+	fmt.Fprintf(&b, "name: %s\n", pi.Name)
+	fmt.Fprintf(&b, "peer: %s\n", pi.Peer)
+	fmt.Fprintf(&b, "allocations: %v\n", pi.Allocations)
+	fmt.Fprintf(&b, "%s\n", pi.PinInfoShort)
+	return b.String()
 }
 
 // Version holds version information
@@ -569,6 +657,17 @@ func (pm PinMode) String() string {
 	default:
 		return "recursive"
 	}
+}
+
+// ToIPFSPinStatus converts a PinMode to IPFSPinStatus.
+func (pm PinMode) ToIPFSPinStatus() IPFSPinStatus {
+	if pm == PinModeDirect {
+		return IPFSPinStatusDirect
+	}
+	if pm == PinModeRecursive {
+		return IPFSPinStatusRecursive
+	}
+	return IPFSPinStatusBug
 }
 
 // MarshalJSON converts the PinMode into a readable string in JSON.

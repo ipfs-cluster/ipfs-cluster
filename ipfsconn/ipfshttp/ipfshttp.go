@@ -73,19 +73,25 @@ type ipfsError struct {
 
 func (ie ipfsError) Error() string {
 	return fmt.Sprintf(
-		"IPFS request unsuccessful (%s). Code: %d. Message: %s",
+		"IPFS error (%s). Code: %d. Message: %s",
 		ie.path,
 		ie.code,
 		ie.Message,
 	)
 }
 
-type ipfsPinType struct {
-	Type string
+type ipfsUnpinnedError ipfsError
+
+func (unpinned ipfsUnpinnedError) Is(target error) bool {
+	ierr, ok := target.(ipfsError)
+	if !ok {
+		return false
+	}
+	return strings.HasSuffix(ierr.Message, "not pinned")
 }
 
-type ipfsPinLsResp struct {
-	Keys map[string]ipfsPinType
+func (unpinned ipfsUnpinnedError) Error() string {
+	return ipfsError(unpinned).Error()
 }
 
 type ipfsIDResp struct {
@@ -493,33 +499,62 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 }
 
 // PinLs performs a "pin ls --type typeFilter" request against the configured
-// IPFS daemon and returns a map of cid strings and their status.
-func (ipfs *Connector) PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error) {
+// IPFS daemon and sends the results on the given channel. Returns when done.
+func (ipfs *Connector) PinLs(ctx context.Context, typeFilters []string, out chan<- api.IPFSPinInfo) error {
+	defer close(out)
+	bodies := make([]io.ReadCloser, len(typeFilters))
+
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/PinLs")
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	body, err := ipfs.postCtx(ctx, "pin/ls?type="+typeFilter, "", nil)
 
-	// Some error talking to the daemon
-	if err != nil {
-		return nil, err
+	var err error
+
+nextFilter:
+	for i, typeFilter := range typeFilters {
+		// Post and read streaming response
+		path := "pin/ls?stream=true&type=" + typeFilter
+		bodies[i], err = ipfs.postCtxStreamResponse(ctx, path, "", nil)
+		if err != nil {
+			logger.Error("error querying pinset: %s", err)
+			return err
+		}
+		defer bodies[i].Close()
+
+		dec := json.NewDecoder(bodies[i])
+
+		for {
+			select {
+			case <-ctx.Done():
+				err = fmt.Errorf("aborting pin/ls operation: %w", ctx.Err())
+				logger.Error(err)
+				return err
+			default:
+			}
+
+			var ipfsPin api.IPFSPinInfo
+			err = dec.Decode(&ipfsPin)
+			if err == io.EOF {
+				break nextFilter
+			}
+			if err != nil {
+				err = fmt.Errorf("error decoding ipfs pin: %w", err)
+				return err
+			}
+
+			select {
+			case <-ctx.Done():
+				err = fmt.Errorf("aborting pin/ls operation: %w", ctx.Err())
+				logger.Error(err)
+				return err
+			case out <- ipfsPin:
+			}
+		}
 	}
 
-	var res ipfsPinLsResp
-	err = json.Unmarshal(body, &res)
-	if err != nil {
-		logger.Error("parsing pin/ls response")
-		logger.Error(string(body))
-		return nil, err
-	}
-
-	statusMap := make(map[string]api.IPFSPinStatus)
-	for k, v := range res.Keys {
-		statusMap[k] = api.IPFSPinStatusFromString(v.Type)
-	}
-	return statusMap, nil
+	return nil
 }
 
 // PinLsCid performs a "pin ls <hash>" request. It will use "type=recursive" or
@@ -532,35 +567,31 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, pin api.Pin) (api.IPFSPinSt
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
 
+	if !pin.Defined() {
+		return api.IPFSPinStatusBug, errors.New("calling PinLsCid without a defined CID")
+	}
+
 	pinType := pin.MaxDepth.ToPinMode().String()
-	lsPath := fmt.Sprintf("pin/ls?arg=%s&type=%s", pin.Cid, pinType)
-	body, err := ipfs.postCtx(ctx, lsPath, "", nil)
-	if body == nil && err != nil { // Network error, daemon down
-		return api.IPFSPinStatusError, err
-	}
-
-	if err != nil { // we could not find the pin
-		return api.IPFSPinStatusUnpinned, nil
-	}
-
-	var res ipfsPinLsResp
-	err = json.Unmarshal(body, &res)
+	lsPath := fmt.Sprintf("pin/ls?stream=true&arg=%s&type=%s", pin.Cid, pinType)
+	body, err := ipfs.postCtxStreamResponse(ctx, lsPath, "", nil)
 	if err != nil {
-		logger.Error("error parsing pin/ls?arg=cid response:")
-		logger.Error(string(body))
+		if errors.Is(ipfsUnpinnedError{}, err) {
+			return api.IPFSPinStatusUnpinned, nil
+		}
+		return api.IPFSPinStatusError, err
+	}
+	defer body.Close()
+
+	var res api.IPFSPinInfo
+	dec := json.NewDecoder(body)
+
+	err = dec.Decode(&res)
+	if err != nil {
+		logger.Error("error parsing pin/ls?arg=cid response")
 		return api.IPFSPinStatusError, err
 	}
 
-	// We do not know what string format the returned key has so
-	// we parse as CID. There should only be one returned key.
-	for k, pinObj := range res.Keys {
-		c, err := cid.Decode(k)
-		if err != nil || !c.Equals(pin.Cid) {
-			continue
-		}
-		return api.IPFSPinStatusFromString(pinObj.Type), nil
-	}
-	return api.IPFSPinStatusError, errors.New("expected to find the pin in the response")
+	return res.Type, nil
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
@@ -601,7 +632,7 @@ func checkResponse(path string, res *http.Response) ([]byte, error) {
 
 	// No error response with useful message from ipfs
 	return nil, fmt.Errorf(
-		"IPFS request unsuccessful (%s). Code %d. Body: %s",
+		"IPFS request failed (is it running?) (%s). Code %d: %s",
 		path,
 		res.StatusCode,
 		string(body))
@@ -611,23 +642,33 @@ func checkResponse(path string, res *http.Response) ([]byte, error) {
 // the ipfs daemon, reads the full body of the response and
 // returns it after checking for errors.
 func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType string, postBody io.Reader) ([]byte, error) {
-	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, contentType, postBody)
+	rdr, err := ipfs.postCtxStreamResponse(ctx, path, contentType, postBody)
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer rdr.Close()
 
-	errBody, err := checkResponse(path, res)
-	if err != nil {
-		return errBody, err
-	}
-
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := ioutil.ReadAll(rdr)
 	if err != nil {
 		logger.Errorf("error reading response body: %s", err)
 		return nil, err
 	}
 	return body, nil
+}
+
+// postCtxStreamResponse makes a POST request against the ipfs daemon, and
+// returns the body reader after checking the request for errros.
+func (ipfs *Connector) postCtxStreamResponse(ctx context.Context, path string, contentType string, postBody io.Reader) (io.ReadCloser, error) {
+	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, contentType, postBody)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = checkResponse(path, res)
+	if err != nil {
+		return nil, err
+	}
+	return res.Body, nil
 }
 
 // apiURL is a short-hand for building the url of the IPFS

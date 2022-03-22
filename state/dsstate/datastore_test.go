@@ -93,10 +93,13 @@ func TestList(t *testing.T) {
 	}()
 	st := newState(t)
 	st.Add(ctx, c)
-	pinCh, err := st.List(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	out := make(chan api.Pin)
+	go func() {
+		err := st.List(ctx, out)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -104,7 +107,7 @@ func TestList(t *testing.T) {
 	var list0 api.Pin
 	for {
 		select {
-		case p, ok := <-pinCh:
+		case p, ok := <-out:
 			if !ok && !list0.Cid.Defined() {
 				t.Fatal("should have read list0 first")
 			}

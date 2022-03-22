@@ -222,7 +222,7 @@ func TestAPIAddFileEndpointShard(t *testing.T) {
 		defer closer.Close()
 		mpContentType := "multipart/form-data; boundary=" + body.Boundary()
 		resp := api.AddedOutput{}
-		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1&stream-channels=true"
+		fmtStr1 := "/add?shard=true&repl_min=-1&repl_max=-1&stream-channels=true&shard-size=1000000"
 		shardURL := url(rest) + fmtStr1
 		test.MakeStreamingPost(t, rest, shardURL, body, mpContentType, &resp)
 	}
@@ -507,14 +507,14 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 
 	tf := func(t *testing.T, url test.URLFunc) {
 		var resp []api.Pin
-		test.MakeStreamingGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/allocations?filter=pin,meta-pin", &resp, false)
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(clustertest.Cid1) || !resp[1].Cid.Equals(clustertest.Cid2) ||
 			!resp[2].Cid.Equals(clustertest.Cid3) {
 			t.Error("unexpected pin list: ", resp)
 		}
 
-		test.MakeStreamingGet(t, rest, url(rest)+"/allocations", &resp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/allocations", &resp, false)
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(clustertest.Cid1) || !resp[1].Cid.Equals(clustertest.Cid2) ||
 			!resp[2].Cid.Equals(clustertest.Cid3) {
@@ -522,7 +522,7 @@ func TestAPIAllocationsEndpoint(t *testing.T) {
 		}
 
 		errResp := api.Error{}
-		test.MakeStreamingGet(t, rest, url(rest)+"/allocations?filter=invalid", &errResp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/allocations?filter=invalid", &errResp, false)
 		if errResp.Code != http.StatusBadRequest {
 			t.Error("an invalid filter value should 400")
 		}
@@ -615,8 +615,9 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		var resp []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins", &resp)
+		var resp []api.GlobalPinInfo
+
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins", &resp, false)
 
 		// mockPinTracker returns 3 items for Cluster.StatusAll
 		if len(resp) != 3 ||
@@ -626,8 +627,8 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		}
 
 		// Test local=true
-		var resp2 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins?local=true", &resp2)
+		var resp2 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?local=true", &resp2, false)
 		// mockPinTracker calls pintracker.StatusAll which returns 2
 		// items.
 		if len(resp2) != 2 {
@@ -635,38 +636,38 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		}
 
 		// Test with filter
-		var resp3 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins?filter=queued", &resp3)
+		var resp3 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?filter=queued", &resp3, false)
 		if len(resp3) != 0 {
 			t.Errorf("unexpected statusAll+filter=queued resp:\n %+v", resp3)
 		}
 
-		var resp4 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins?filter=pinned", &resp4)
+		var resp4 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?filter=pinned", &resp4, false)
 		if len(resp4) != 1 {
 			t.Errorf("unexpected statusAll+filter=pinned resp:\n %+v", resp4)
 		}
 
-		var resp5 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins?filter=pin_error", &resp5)
+		var resp5 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?filter=pin_error", &resp5, false)
 		if len(resp5) != 1 {
 			t.Errorf("unexpected statusAll+filter=pin_error resp:\n %+v", resp5)
 		}
 
-		var resp6 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins?filter=error", &resp6)
+		var resp6 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?filter=error", &resp6, false)
 		if len(resp6) != 1 {
 			t.Errorf("unexpected statusAll+filter=error resp:\n %+v", resp6)
 		}
 
-		var resp7 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins?filter=error,pinned", &resp7)
+		var resp7 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?filter=error,pinned", &resp7, false)
 		if len(resp7) != 2 {
 			t.Errorf("unexpected statusAll+filter=error,pinned resp:\n %+v", resp7)
 		}
 
 		var errorResp api.Error
-		test.MakeGet(t, rest, url(rest)+"/pins?filter=invalid", &errorResp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins?filter=invalid", &errorResp, false)
 		if errorResp.Code != http.StatusBadRequest {
 			t.Error("an invalid filter value should 400")
 		}
@@ -681,32 +682,32 @@ func TestAPIStatusAllWithCidsEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		var resp []*api.GlobalPinInfo
+		var resp []api.GlobalPinInfo
 		cids := []string{
 			clustertest.Cid1.String(),
 			clustertest.Cid2.String(),
 			clustertest.Cid3.String(),
 			clustertest.Cid4.String(),
 		}
-		test.MakeGet(t, rest, url(rest)+"/pins/?cids="+strings.Join(cids, ","), &resp)
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins/?cids="+strings.Join(cids, ","), &resp, false)
 
 		if len(resp) != 4 {
 			t.Error("wrong number of responses")
 		}
 
 		// Test local=true
-		var resp2 []*api.GlobalPinInfo
-		test.MakeGet(t, rest, url(rest)+"/pins/?local=true&cids="+strings.Join(cids, ","), &resp2)
+		var resp2 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins/?local=true&cids="+strings.Join(cids, ","), &resp2, false)
 		if len(resp2) != 4 {
 			t.Error("wrong number of responses")
 		}
 
-		// Test with an error
+		// Test with an error. This should produce a trailer error.
 		cids = append(cids, clustertest.ErrorCid.String())
-		var errorResp api.Error
-		test.MakeGet(t, rest, url(rest)+"/pins/?local=true&cids="+strings.Join(cids, ","), &errorResp)
-		if errorResp.Message != clustertest.ErrBadCid.Error() {
-			t.Error("expected an error")
+		var resp3 []api.GlobalPinInfo
+		test.MakeStreamingGet(t, rest, url(rest)+"/pins/?local=true&cids="+strings.Join(cids, ","), &resp3, true)
+		if len(resp3) != 4 {
+			t.Error("wrong number of responses")
 		}
 	}
 
@@ -782,14 +783,14 @@ func TestAPIRecoverAllEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		var resp []*api.GlobalPinInfo
-		test.MakePost(t, rest, url(rest)+"/pins/recover?local=true", []byte{}, &resp)
+		var resp []api.GlobalPinInfo
+		test.MakeStreamingPost(t, rest, url(rest)+"/pins/recover?local=true", nil, "", &resp)
 		if len(resp) != 0 {
 			t.Fatal("bad response length")
 		}
 
-		var resp1 []*api.GlobalPinInfo
-		test.MakePost(t, rest, url(rest)+"/pins/recover", []byte{}, &resp1)
+		var resp1 []api.GlobalPinInfo
+		test.MakeStreamingPost(t, rest, url(rest)+"/pins/recover", nil, "", &resp1)
 		if len(resp1) == 0 {
 			t.Fatal("bad response length")
 		}

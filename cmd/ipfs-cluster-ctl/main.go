@@ -888,21 +888,31 @@ separated list). The following are valid status values:
 					checkErr("parsing cid", err)
 					cids[i] = ci
 				}
-				if len(cids) == 1 {
-					resp, cerr := globalClient.Status(ctx, cids[0], c.Bool("local"))
-					formatResponse(c, resp, cerr)
-				} else if len(cids) > 1 {
-					resp, cerr := globalClient.StatusCids(ctx, cids, c.Bool("local"))
-					formatResponse(c, resp, cerr)
-				} else {
-					filterFlag := c.String("filter")
-					filter := api.TrackerStatusFromString(c.String("filter"))
-					if filter == api.TrackerStatusUndefined && filterFlag != "" {
-						checkErr("parsing filter flag", errors.New("invalid filter name"))
+				out := make(chan api.GlobalPinInfo, 1024)
+				chErr := make(chan error, 1)
+				go func() {
+					defer close(chErr)
+
+					if len(cids) == 1 {
+						resp, cerr := globalClient.Status(ctx, cids[0], c.Bool("local"))
+						out <- resp
+						chErr <- cerr
+						close(out)
+					} else if len(cids) > 1 {
+						chErr <- globalClient.StatusCids(ctx, cids, c.Bool("local"), out)
+					} else {
+						filterFlag := c.String("filter")
+						filter := api.TrackerStatusFromString(c.String("filter"))
+						if filter == api.TrackerStatusUndefined && filterFlag != "" {
+							checkErr("parsing filter flag", errors.New("invalid filter name"))
+						}
+						chErr <- globalClient.StatusAll(ctx, filter, c.Bool("local"), out)
 					}
-					resp, cerr := globalClient.StatusAll(ctx, filter, c.Bool("local"))
-					formatResponse(c, resp, cerr)
-				}
+				}()
+
+				formatResponse(c, out, nil)
+				err := <-chErr
+				formatResponse(c, nil, err)
 				return nil
 			},
 		},
@@ -932,8 +942,15 @@ operations on the contacted peer (as opposed to on every peer).
 					resp, cerr := globalClient.Recover(ctx, ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
 				} else {
-					resp, cerr := globalClient.RecoverAll(ctx, c.Bool("local"))
-					formatResponse(c, resp, cerr)
+					out := make(chan api.GlobalPinInfo, 1024)
+					errCh := make(chan error, 1)
+					go func() {
+						defer close(errCh)
+						errCh <- globalClient.RecoverAll(ctx, c.Bool("local"), out)
+					}()
+					formatResponse(c, out, nil)
+					err := <-errCh
+					formatResponse(c, nil, err)
 				}
 				return nil
 			},

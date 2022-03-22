@@ -64,13 +64,17 @@ func (mock *mockIPFS) Unpin(ctx context.Context, in api.Pin, out *struct{}) erro
 	return nil
 }
 
-func (mock *mockIPFS) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	// Must be consistent with PinLsCid
-	m := map[string]api.IPFSPinStatus{
-		test.Cid1.String(): api.IPFSPinStatusRecursive,
-		test.Cid2.String(): api.IPFSPinStatusRecursive,
+func (mock *mockIPFS) PinLs(ctx context.Context, in <-chan []string, out chan<- api.IPFSPinInfo) error {
+	out <- api.IPFSPinInfo{
+		Cid:  api.Cid(test.Cid1),
+		Type: api.IPFSPinStatusRecursive,
 	}
-	*out = m
+
+	out <- api.IPFSPinInfo{
+		Cid:  api.Cid(test.Cid2),
+		Type: api.IPFSPinStatusRecursive,
+	}
+	close(out)
 	return nil
 }
 
@@ -207,7 +211,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond) // let pinning start
 
-	pInfo := spt.optracker.Get(ctx, slowPin.Cid)
+	pInfo := spt.optracker.Get(ctx, slowPin.Cid, api.IPFSID{})
 	if pInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("slowPin should be tracked")
 	}
@@ -264,7 +268,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	// fastPin should be queued because slow pin is pinning
-	fastPInfo := spt.optracker.Get(ctx, fastPin.Cid)
+	fastPInfo := spt.optracker.Get(ctx, fastPin.Cid, api.IPFSID{})
 	if fastPInfo.Status == api.TrackerStatusUnpinned {
 		t.Fatal("fastPin should be tracked")
 	}
@@ -281,7 +285,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 		t.Errorf("fastPin should be queued to pin but is %s", fastPInfo.Status)
 	}
 
-	pi := spt.optracker.Get(ctx, fastPin.Cid)
+	pi := spt.optracker.Get(ctx, fastPin.Cid, api.IPFSID{})
 	if pi.Cid == cid.Undef {
 		t.Error("fastPin should have been removed from tracker")
 	}
@@ -313,7 +317,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	pi := spt.optracker.Get(ctx, slowPin.Cid)
+	pi := spt.optracker.Get(ctx, slowPin.Cid, api.IPFSID{})
 	if pi.Cid == cid.Undef {
 		t.Fatal("expected slowPin to be tracked")
 	}
@@ -374,7 +378,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pi := spt.optracker.Get(ctx, fastPin.Cid)
+	pi := spt.optracker.Get(ctx, fastPin.Cid, api.IPFSID{})
 	if pi.Cid == cid.Undef {
 		t.Fatal("c untrack operation should be tracked")
 	}
@@ -405,11 +409,10 @@ func TestStatusAll(t *testing.T) {
 	// - Build a state with one pins (Cid1,Cid4)
 	// - The IPFS Mock reports Cid1 and Cid2
 	// - Track a SlowCid additionally
-
-	spt := testStatelessPinTracker(t, normalPin, normalPin2)
+	slowPin := api.PinWithOpts(test.SlowCid1, pinOpts)
+	spt := testStatelessPinTracker(t, normalPin, normalPin2, slowPin)
 	defer spt.Shutdown(ctx)
 
-	slowPin := api.PinWithOpts(test.SlowCid1, pinOpts)
 	err := spt.Track(ctx, slowPin)
 	if err != nil {
 		t.Fatal(err)
@@ -421,20 +424,23 @@ func TestStatusAll(t *testing.T) {
 	// * A slow CID pinning
 	// * Cid1 is pinned
 	// * Cid4 should be in PinError (it's in the state but not on IPFS)
-	stAll := spt.StatusAll(ctx, api.TrackerStatusUndefined)
-	if len(stAll) != 3 {
-		t.Errorf("wrong status length. Expected 3, got: %d", len(stAll))
+	stAll := make(chan api.PinInfo, 10)
+	err = spt.StatusAll(ctx, api.TrackerStatusUndefined, stAll)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for _, pi := range stAll {
+	n := 0
+	for pi := range stAll {
+		n++
 		switch pi.Cid {
 		case test.Cid1:
 			if pi.Status != api.TrackerStatusPinned {
-				t.Error("cid1 should be pinned")
+				t.Error(test.Cid1, " should be pinned")
 			}
 		case test.Cid4:
 			if pi.Status != api.TrackerStatusUnexpectedlyUnpinned {
-				t.Error("cid2 should be in unexpectedly_unpinned status")
+				t.Error(test.Cid2, " should be in unexpectedly_unpinned status")
 			}
 		case test.SlowCid1:
 			if pi.Status != api.TrackerStatusPinning {
@@ -446,6 +452,9 @@ func TestStatusAll(t *testing.T) {
 		if pi.IPFS == "" {
 			t.Error("IPFS field should be set")
 		}
+	}
+	if n != 3 {
+		t.Errorf("wrong status length. Expected 3, got: %d", n)
 	}
 }
 
@@ -563,14 +572,5 @@ func TestAttemptCountAndPriority(t *testing.T) {
 	st = spt.Status(ctx, pinErrCid)
 	if st.AttemptCount != 2 {
 		t.Errorf("errPin should have 2 attempt counts to unpin: %+v", st)
-	}
-}
-
-func BenchmarkTracker_localStatus(b *testing.B) {
-	tracker := testStatelessPinTracker(b)
-	ctx := context.Background()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		tracker.localStatus(ctx, true, api.TrackerStatusUndefined)
 	}
 }

@@ -54,6 +54,9 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// StreamChannelSize is used to define buffer sizes for channels.
+const StreamChannelSize = 1024
+
 // Common errors
 var (
 	// ErrNoEndpointEnabled is returned when the API is created but
@@ -583,19 +586,23 @@ func (api *API) SendResponse(
 	w.WriteHeader(status)
 }
 
-// Iterator is a function that returns the next item.
-type Iterator func() (interface{}, bool, error)
+// StreamIterator is a function that returns the next item. It is used in
+// StreamResponse.
+type StreamIterator func() (interface{}, bool, error)
 
 // StreamResponse reads from an iterator and sends the response.
-func (api *API) StreamResponse(w http.ResponseWriter, next Iterator) {
+func (api *API) StreamResponse(w http.ResponseWriter, next StreamIterator, errCh chan error) {
 	api.SetHeaders(w)
 	enc := json.NewEncoder(w)
 	flusher, flush := w.(http.Flusher)
 	w.Header().Set("Trailer", "X-Stream-Error")
 
 	total := 0
+	var err error
+	var ok bool
+	var item interface{}
 	for {
-		item, ok, err := next()
+		item, ok, err = next()
 		if total == 0 {
 			if err != nil {
 				st := http.StatusInternalServerError
@@ -612,16 +619,15 @@ func (api *API) StreamResponse(w http.ResponseWriter, next Iterator) {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
+			w.WriteHeader(http.StatusOK)
 		}
 		if err != nil {
-			w.Header().Set("X-Stream-Error", err.Error())
-			// trailer error
-			return
+			break
 		}
 
 		// finish just fine
 		if !ok {
-			return
+			break
 		}
 
 		// we have an item
@@ -635,9 +641,19 @@ func (api *API) StreamResponse(w http.ResponseWriter, next Iterator) {
 			flusher.Flush()
 		}
 	}
+
+	if err != nil {
+		w.Header().Set("X-Stream-Error", err.Error())
+	}
+	// check for function errors
+	for funcErr := range errCh {
+		if funcErr != nil {
+			w.Header().Add("X-Stream-Error", funcErr.Error())
+		}
+	}
 }
 
-// SetsHeaders sets all the headers that are common to all responses
+// SetHeaders sets all the headers that are common to all responses
 // from this API. Called automatically from SendResponse().
 func (api *API) SetHeaders(w http.ResponseWriter) {
 	for header, values := range api.config.Headers {

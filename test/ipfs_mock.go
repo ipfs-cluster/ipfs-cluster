@@ -58,7 +58,7 @@ type mockPinType struct {
 	Type string
 }
 
-type mockPinLsResp struct {
+type mockPinLsAllResp struct {
 	Keys map[string]mockPinType
 }
 
@@ -268,19 +268,35 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "pin/ls":
+		query := r.URL.Query()
+		stream := query.Get("stream") == "true"
+
 		arg, ok := extractCid(r.URL)
 		if !ok {
-			rMap := make(map[string]mockPinType)
-			pins, err := m.pinMap.List(ctx)
-			if err != nil {
-				goto ERROR
+			pins := make(chan api.Pin, 10)
+
+			go func() {
+				m.pinMap.List(ctx, pins)
+			}()
+
+			if stream {
+				for p := range pins {
+					j, _ := json.Marshal(api.IPFSPinInfo{
+						Cid:  api.Cid(p.Cid),
+						Type: p.Mode.ToIPFSPinStatus(),
+					})
+					w.Write(j)
+				}
+				break
+			} else {
+				rMap := make(map[string]mockPinType)
+				for p := range pins {
+					rMap[p.Cid.String()] = mockPinType{p.Mode.String()}
+				}
+				j, _ := json.Marshal(mockPinLsAllResp{rMap})
+				w.Write(j)
+				break
 			}
-			for p := range pins {
-				rMap[p.Cid.String()] = mockPinType{p.Mode.String()}
-			}
-			j, _ := json.Marshal(mockPinLsResp{rMap})
-			w.Write(j)
-			break
 		}
 
 		cidStr := arg
@@ -301,16 +317,28 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if c.Equals(Cid4) {
-			// this a v1 cid. Do not return default-base32 but base58btc encoding of it
-			w.Write([]byte(`{ "Keys": { "zCT5htkdztJi3x4zBNHo8TRvGHPLTdHUdCLKgTGMgQcRKSLoWxK1": { "Type": "recursive" }}}`))
-			return
+		if stream {
+			if c.Equals(Cid4) {
+				// this a v1 cid. Do not return default-base32 but base58btc encoding of it
+				w.Write([]byte(`{ "Cid": "zCT5htkdztJi3x4zBNHo8TRvGHPLTdHUdCLKgTGMgQcRKSLoWxK1", "Type": "recursive" }`))
+				break
+			}
+			j, _ := json.Marshal(api.IPFSPinInfo{
+				Cid:  api.Cid(pinObj.Cid),
+				Type: pinObj.Mode.ToIPFSPinStatus(),
+			})
+			w.Write(j)
+		} else {
+			if c.Equals(Cid4) {
+				// this a v1 cid. Do not return default-base32 but base58btc encoding of it
+				w.Write([]byte(`{ "Keys": { "zCT5htkdztJi3x4zBNHo8TRvGHPLTdHUdCLKgTGMgQcRKSLoWxK1": { "Type": "recursive" }}}`))
+				break
+			}
+			rMap := make(map[string]mockPinType)
+			rMap[cidStr] = mockPinType{pinObj.Mode.String()}
+			j, _ := json.Marshal(mockPinLsAllResp{rMap})
+			w.Write(j)
 		}
-		rMap := make(map[string]mockPinType)
-		rMap[cidStr] = mockPinType{pinObj.Mode.String()}
-		j, _ := json.Marshal(mockPinLsResp{rMap})
-		w.Write(j)
-
 	case "swarm/connect":
 		arg, ok := extractCid(r.URL)
 		if !ok {
@@ -424,10 +452,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 
 	case "repo/stat":
 		sizeOnly := r.URL.Query().Get("size-only")
-		pinsCh, err := m.pinMap.List(ctx)
-		if err != nil {
-			goto ERROR
-		}
+		pinsCh := make(chan api.Pin, 10)
+		go func() {
+			m.pinMap.List(ctx, pinsCh)
+		}()
 
 		var pins []api.Pin
 		for p := range pinsCh {
