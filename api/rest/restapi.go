@@ -21,7 +21,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
-	"go.uber.org/multierr"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -457,12 +456,15 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	close(in)
 
 	pins := make(chan types.Pin)
+	errCh := make(chan error, 1)
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	go func() {
-		err := api.rpcClient.Stream(
+		defer close(errCh)
+
+		errCh <- api.rpcClient.Stream(
 			r.Context(),
 			"",
 			"Cluster",
@@ -470,10 +472,6 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 			in,
 			pins,
 		)
-		if err != nil {
-			logger.Error(err)
-			cancel()
-		}
 	}()
 
 	iter := func() (interface{}, bool, error) {
@@ -481,6 +479,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 		var ok bool
 	iterloop:
 		for {
+
 			select {
 			case <-ctx.Done():
 				break iterloop
@@ -498,7 +497,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 		return p, ok, ctx.Err()
 	}
 
-	api.StreamResponse(w, iter)
+	api.StreamResponse(w, iter, errCh)
 }
 
 func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
@@ -517,6 +516,9 @@ func (api *API) allocationHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	queryValues := r.URL.Query()
 	if queryValues.Get("cids") != "" {
 		api.statusCidsHandler(w, r)
@@ -524,8 +526,6 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	local := queryValues.Get("local")
-
-	var globalPinInfos []types.GlobalPinInfo
 
 	filterStr := queryValues.Get("filter")
 	filter := types.TrackerStatusFromString(filterStr)
@@ -536,42 +536,68 @@ func (api *API) statusAllHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if local == "true" {
-		var pinInfos []types.PinInfo
+	var iter common.StreamIterator
+	in := make(chan types.TrackerStatus, 1)
+	in <- filter
+	close(in)
+	errCh := make(chan error, 1)
 
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"StatusAllLocal",
-			filter,
-			&pinInfos,
-		)
-		if err != nil {
-			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
-			return
+	if local == "true" {
+		out := make(chan types.PinInfo, common.StreamChannelSize)
+		iter = func() (interface{}, bool, error) {
+			select {
+			case <-ctx.Done():
+				return nil, false, ctx.Err()
+			case p, ok := <-out:
+				return p.ToGlobal(), ok, nil
+			}
 		}
-		globalPinInfos = pinInfosToGlobal(pinInfos)
+
+		go func() {
+			defer close(errCh)
+
+			errCh <- api.rpcClient.Stream(
+				r.Context(),
+				"",
+				"Cluster",
+				"StatusAllLocal",
+				in,
+				out,
+			)
+		}()
+
 	} else {
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"StatusAll",
-			filter,
-			&globalPinInfos,
-		)
-		if err != nil {
-			api.SendResponse(w, common.SetStatusAutomatically, err, nil)
-			return
+		out := make(chan types.GlobalPinInfo, common.StreamChannelSize)
+		iter = func() (interface{}, bool, error) {
+			select {
+			case <-ctx.Done():
+				return nil, false, ctx.Err()
+			case p, ok := <-out:
+				return p, ok, nil
+			}
 		}
+		go func() {
+			defer close(errCh)
+
+			errCh <- api.rpcClient.Stream(
+				r.Context(),
+				"",
+				"Cluster",
+				"StatusAll",
+				in,
+				out,
+			)
+		}()
 	}
 
-	api.SendResponse(w, common.SetStatusAutomatically, nil, globalPinInfos)
+	api.StreamResponse(w, iter, errCh)
 }
 
 // request statuses for multiple CIDs in parallel.
 func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	queryValues := r.URL.Query()
 	filterCidsStr := strings.Split(queryValues.Get("cids"), ",")
 	var cids []cid.Cid
@@ -587,17 +613,15 @@ func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
 
 	local := queryValues.Get("local")
 
-	type gpiResult struct {
-		gpi types.GlobalPinInfo
-		err error
-	}
-	gpiCh := make(chan gpiResult, len(cids))
+	gpiCh := make(chan types.GlobalPinInfo, len(cids))
+	errCh := make(chan error, len(cids))
 	var wg sync.WaitGroup
 	wg.Add(len(cids))
 
 	// Close channel when done
 	go func() {
 		wg.Wait()
+		close(errCh)
 		close(gpiCh)
 	}()
 
@@ -607,14 +631,18 @@ func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
 				defer wg.Done()
 				var pinInfo types.PinInfo
 				err := api.rpcClient.CallContext(
-					r.Context(),
+					ctx,
 					"",
 					"Cluster",
 					"StatusLocal",
 					c,
 					&pinInfo,
 				)
-				gpiCh <- gpiResult{gpi: pinInfo.ToGlobal(), err: err}
+				if err != nil {
+					errCh <- err
+					return
+				}
+				gpiCh <- pinInfo.ToGlobal()
 			}(ci)
 		}
 	} else {
@@ -623,25 +651,28 @@ func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
 				defer wg.Done()
 				var pinInfo types.GlobalPinInfo
 				err := api.rpcClient.CallContext(
-					r.Context(),
+					ctx,
 					"",
 					"Cluster",
 					"Status",
 					c,
 					&pinInfo,
 				)
-				gpiCh <- gpiResult{gpi: pinInfo, err: err}
+				if err != nil {
+					errCh <- err
+					return
+				}
+				gpiCh <- pinInfo
 			}(ci)
 		}
 	}
 
-	var gpis []types.GlobalPinInfo
-	var err error
-	for gpiResult := range gpiCh {
-		gpis = append(gpis, gpiResult.gpi)
-		err = multierr.Append(err, gpiResult.err)
+	iter := func() (interface{}, bool, error) {
+		gpi, ok := <-gpiCh
+		return gpi, ok, nil
 	}
-	api.SendResponse(w, common.SetStatusAutomatically, err, gpis)
+
+	api.StreamResponse(w, iter, errCh)
 }
 
 func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
@@ -676,31 +707,66 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) recoverAllHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	queryValues := r.URL.Query()
 	local := queryValues.Get("local")
+
+	var iter common.StreamIterator
+	in := make(chan struct{})
+	close(in)
+	errCh := make(chan error, 1)
+
 	if local == "true" {
-		var pinInfos []types.PinInfo
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"RecoverAllLocal",
-			struct{}{},
-			&pinInfos,
-		)
-		api.SendResponse(w, common.SetStatusAutomatically, err, pinInfosToGlobal(pinInfos))
+		out := make(chan types.PinInfo, common.StreamChannelSize)
+		iter = func() (interface{}, bool, error) {
+			select {
+			case <-ctx.Done():
+				return nil, false, ctx.Err()
+			case p, ok := <-out:
+				return p.ToGlobal(), ok, nil
+			}
+		}
+
+		go func() {
+			defer close(errCh)
+
+			errCh <- api.rpcClient.Stream(
+				r.Context(),
+				"",
+				"Cluster",
+				"RecoverAllLocal",
+				in,
+				out,
+			)
+		}()
+
 	} else {
-		var globalPinInfos []types.GlobalPinInfo
-		err := api.rpcClient.CallContext(
-			r.Context(),
-			"",
-			"Cluster",
-			"RecoverAll",
-			struct{}{},
-			&globalPinInfos,
-		)
-		api.SendResponse(w, common.SetStatusAutomatically, err, globalPinInfos)
+		out := make(chan types.GlobalPinInfo, common.StreamChannelSize)
+		iter = func() (interface{}, bool, error) {
+			select {
+			case <-ctx.Done():
+				return nil, false, ctx.Err()
+			case p, ok := <-out:
+				return p, ok, nil
+			}
+		}
+		go func() {
+			defer close(errCh)
+
+			errCh <- api.rpcClient.Stream(
+				r.Context(),
+				"",
+				"Cluster",
+				"RecoverAll",
+				in,
+				out,
+			)
+		}()
 	}
+
+	api.StreamResponse(w, iter, errCh)
 }
 
 func (api *API) recoverHandler(w http.ResponseWriter, r *http.Request) {
@@ -771,13 +837,4 @@ func repoGCToGlobal(r types.RepoGC) types.GlobalRepoGC {
 			peer.Encode(r.Peer): r,
 		},
 	}
-}
-
-func pinInfosToGlobal(pInfos []types.PinInfo) []types.GlobalPinInfo {
-	gPInfos := make([]types.GlobalPinInfo, len(pInfos))
-	for i, p := range pInfos {
-		gpi := p.ToGlobal()
-		gPInfos[i] = gpi
-	}
-	return gPInfos
 }

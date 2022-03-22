@@ -27,13 +27,14 @@ func TestApplyToPin(t *testing.T) {
 	}
 	op.ApplyTo(st)
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -59,11 +60,13 @@ func TestApplyToUnpin(t *testing.T) {
 	}
 	st.Add(ctx, testPin(test.Cid1))
 	op.ApplyTo(st)
-	pins, err := st.List(ctx)
+
+	out := make(chan api.Pin, 100)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(pins) != 0 {
+	if len(out) != 0 {
 		t.Error("the state was not modified correctly")
 	}
 }

@@ -271,7 +271,16 @@ func (c *Cluster) watchPinset() {
 			stateSyncTimer.Reset(c.config.StateSyncInterval)
 		case <-recoverTimer.C:
 			logger.Debug("auto-triggering RecoverAllLocal()")
-			c.RecoverAllLocal(ctx)
+
+			out := make(chan api.PinInfo, 1024)
+			go func() {
+				for range out {
+				}
+			}()
+			err := c.RecoverAllLocal(ctx, out)
+			if err != nil {
+				logger.Error(err)
+			}
 			recoverTimer.Reset(c.config.PinRecoverInterval)
 		case <-c.ctx.Done():
 			if !stateSyncTimer.Stop() {
@@ -436,6 +445,12 @@ func (c *Cluster) pushPingMetrics(ctx context.Context) {
 
 	ticker := time.NewTicker(c.config.MonitorPingInterval)
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		c.sendPingMetric(ctx)
 
 		select {
@@ -507,11 +522,13 @@ func (c *Cluster) alertsHandler() {
 				return
 			}
 
-			pinCh, err := cState.List(c.ctx)
-			if err != nil {
-				logger.Warn(err)
-				return
-			}
+			pinCh := make(chan api.Pin, 1024)
+			go func() {
+				err = cState.List(c.ctx, pinCh)
+				if err != nil {
+					logger.Warn(err)
+				}
+			}()
 
 			for pin := range pinCh {
 				if containsPeer(pin.Allocations, alrt.Peer) && distance.isClosest(pin.Cid) {
@@ -532,8 +549,14 @@ func (c *Cluster) watchPeers() {
 		select {
 		case <-c.ctx.Done():
 			return
+		default:
+		}
+
+		select {
+		case <-c.ctx.Done():
+			return
 		case <-ticker.C:
-			// logger.Debugf("%s watching peers", c.id)
+			//logger.Debugf("%s watching peers", c.id)
 			hasMe := false
 			peers, err := c.consensus.Peers(c.ctx)
 			if err != nil {
@@ -594,11 +617,14 @@ func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
 		logger.Warn(err)
 		return
 	}
-	pinCh, err := cState.List(ctx)
-	if err != nil {
-		logger.Warn(err)
-		return
-	}
+
+	pinCh := make(chan api.Pin, 1024)
+	go func() {
+		err = cState.List(ctx, pinCh)
+		if err != nil {
+			logger.Warn(err)
+		}
+	}()
 
 	for pin := range pinCh {
 		if containsPeer(pin.Allocations, p) {
@@ -1070,7 +1096,13 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}
 
 	// Start pinning items in the state that are not on IPFS yet.
-	c.RecoverAllLocal(ctx)
+	out := make(chan api.PinInfo, 1024)
+	// discard outputs
+	go func() {
+		for range out {
+		}
+	}()
+	go c.RecoverAllLocal(ctx, out)
 
 	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
 	return nil
@@ -1100,6 +1132,8 @@ func (c *Cluster) distances(ctx context.Context, exclude peer.ID) (*distanceChec
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
 	defer span.End()
+	logger.Debug("StateSync")
+
 	ctx = trace.NewContext(c.ctx, span)
 
 	if c.config.FollowerMode {
@@ -1122,10 +1156,13 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 		return err // could not list peers
 	}
 
-	clusterPins, err := cState.List(ctx)
-	if err != nil {
-		return err
-	}
+	clusterPins := make(chan api.Pin, 1024)
+	go func() {
+		err = cState.List(ctx, clusterPins)
+		if err != nil {
+			logger.Error(err)
+		}
+	}()
 
 	// Unpin expired items when we are the closest peer to them.
 	for p := range clusterPins {
@@ -1140,24 +1177,29 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 	return nil
 }
 
-// StatusAll returns the GlobalPinInfo for all tracked Cids in all peers.
-// If an error happens, the slice will contain as much information as
-// could be fetched from other peers.
-func (c *Cluster) StatusAll(ctx context.Context, filter api.TrackerStatus) ([]api.GlobalPinInfo, error) {
+// StatusAll returns the GlobalPinInfo for all tracked Cids in all peers on
+// the out channel. This is done by broacasting a StatusAll to all peers.  If
+// an error happens, it is returned. This method blocks until it finishes. The
+// operation can be aborted by cancelling the context.
+func (c *Cluster) StatusAll(ctx context.Context, filter api.TrackerStatus, out chan<- api.GlobalPinInfo) error {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAll")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoSlice(ctx, "PinTracker", "StatusAll", filter)
+	in := make(chan api.TrackerStatus, 1)
+	in <- filter
+	close(in)
+	return c.globalPinInfoStream(ctx, "PinTracker", "StatusAll", in, out)
 }
 
-// StatusAllLocal returns the PinInfo for all the tracked Cids in this peer.
-func (c *Cluster) StatusAllLocal(ctx context.Context, filter api.TrackerStatus) []api.PinInfo {
+// StatusAllLocal returns the PinInfo for all the tracked Cids in this peer on
+// the out channel. It blocks until finished.
+func (c *Cluster) StatusAllLocal(ctx context.Context, filter api.TrackerStatus, out chan<- api.PinInfo) error {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAllLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.tracker.StatusAll(ctx, filter)
+	return c.tracker.StatusAll(ctx, filter, out)
 }
 
 // Status returns the GlobalPinInfo for a given Cid as fetched from all
@@ -1206,13 +1248,15 @@ func (c *Cluster) localPinInfoOp(
 	return pInfo, err
 }
 
-// RecoverAll triggers a RecoverAllLocal operation on all peers.
-func (c *Cluster) RecoverAll(ctx context.Context) ([]api.GlobalPinInfo, error) {
+// RecoverAll triggers a RecoverAllLocal operation on all peers and returns
+// GlobalPinInfo objets for all recovered items. This method blocks until
+// finished. Operation can be aborted by cancelling the context.
+func (c *Cluster) RecoverAll(ctx context.Context, out chan<- api.GlobalPinInfo) error {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAll")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.globalPinInfoSlice(ctx, "Cluster", "RecoverAllLocal", nil)
+	return c.globalPinInfoStream(ctx, "Cluster", "RecoverAllLocal", nil, out)
 }
 
 // RecoverAllLocal triggers a RecoverLocal operation for all Cids tracked
@@ -1222,15 +1266,16 @@ func (c *Cluster) RecoverAll(ctx context.Context) ([]api.GlobalPinInfo, error) {
 // is faster than calling Pin on the same CID as it avoids committing an
 // identical pin to the consensus layer.
 //
-// It returns the list of pins that were re-queued for pinning.
+// It returns the list of pins that were re-queued for pinning on the out
+// channel. It blocks until done.
 //
 // RecoverAllLocal is called automatically every PinRecoverInterval.
-func (c *Cluster) RecoverAllLocal(ctx context.Context) ([]api.PinInfo, error) {
+func (c *Cluster) RecoverAllLocal(ctx context.Context, out chan<- api.PinInfo) error {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAllLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
-	return c.tracker.RecoverAll(ctx)
+	return c.tracker.RecoverAll(ctx, out)
 }
 
 // Recover triggers a recover operation for a given Cid in all
@@ -1261,48 +1306,45 @@ func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (api.PinInfo, err
 	return c.localPinInfoOp(ctx, h, c.tracker.Recover)
 }
 
-// PinsChannel returns a channel from which to read all the pins in the
-// pinset, which are part of the current global state. This is the source of
-// truth as to which pins are managed and their allocation, but does not
-// indicate if the item is successfully pinned. For that, use the Status*()
-// methods.
+// Pins sends pins on the given out channel as it iterates the full
+// pinset (current global state). This is the source of truth as to which pins
+// are managed and their allocation, but does not indicate if the item is
+// successfully pinned. For that, use the Status*() methods.
 //
-//  The channel can be aborted by cancelling the context.
-func (c *Cluster) PinsChannel(ctx context.Context) (<-chan api.Pin, error) {
-	_, span := trace.StartSpan(ctx, "cluster/PinsChannel")
+// The operation can be aborted by cancelling the context. This methods blocks
+// until the operation has completed.
+func (c *Cluster) Pins(ctx context.Context, out chan<- api.Pin) error {
+	_, span := trace.StartSpan(ctx, "cluster/Pins")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
 
 	cState, err := c.consensus.State(ctx)
 	if err != nil {
 		logger.Error(err)
-		return nil, err
+		return err
 	}
-	return cState.List(ctx)
+	return cState.List(ctx, out)
 }
 
-// Pins returns the list of Cids managed by Cluster and which are part
+// pinsSlice returns the list of Cids managed by Cluster and which are part
 // of the current global state. This is the source of truth as to which
 // pins are managed and their allocation, but does not indicate if
 // the item is successfully pinned. For that, use StatusAll().
 //
 // It is recommended to use PinsChannel(), as this method is equivalent to
 // loading the full pinset in memory!
-func (c *Cluster) Pins(ctx context.Context) ([]api.Pin, error) {
-	_, span := trace.StartSpan(ctx, "cluster/Pins")
-	defer span.End()
-	ctx = trace.NewContext(c.ctx, span)
-
-	ch, err := c.PinsChannel(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (c *Cluster) pinsSlice(ctx context.Context) ([]api.Pin, error) {
+	out := make(chan api.Pin, 1024)
+	var err error
+	go func() {
+		err = c.Pins(ctx, out)
+	}()
 
 	var pins []api.Pin
-	for pin := range ch {
+	for pin := range out {
 		pins = append(pins, pin)
 	}
-	return pins, ctx.Err()
+	return pins, err
 }
 
 // PinGet returns information for a single Cid managed by Cluster.
@@ -1751,14 +1793,12 @@ func (c *Cluster) peersWithFilter(ctx context.Context, peers []peer.ID) []api.ID
 		if rpc.IsAuthorizationError(err) {
 			continue
 		}
-
 		ids[i] = api.ID{}
 		ids[i].ID = peers[i]
 		ids[i].Error = err.Error()
 	}
 
 	return ids
-
 }
 
 // getTrustedPeers gives listed of trusted peers except the current peer and
@@ -1935,15 +1975,18 @@ func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h c
 	return gpin, nil
 }
 
-func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, arg interface{}) ([]api.GlobalPinInfo, error) {
-	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoSlice")
+func (c *Cluster) globalPinInfoStream(ctx context.Context, comp, method string, inChan interface{}, out chan<- api.GlobalPinInfo) error {
+	defer close(out)
+
+	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoStream")
 	defer span.End()
 
-	if arg == nil {
-		arg = struct{}{}
+	if inChan == nil {
+		emptyChan := make(chan struct{})
+		close(emptyChan)
+		inChan = emptyChan
 	}
 
-	infos := make([]api.GlobalPinInfo, 0)
 	fullMap := make(map[cid.Cid]api.GlobalPinInfo)
 
 	var members []peer.ID
@@ -1954,27 +1997,31 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 		members, err = c.consensus.Peers(ctx)
 		if err != nil {
 			logger.Error(err)
-			return nil, err
+			return err
 		}
 	}
-	lenMembers := len(members)
 
-	replies := make([][]api.PinInfo, lenMembers)
+	msOut := make(chan api.PinInfo)
 
 	// We don't have a good timeout proposal for this. Depending on the
 	// size of the state and the peformance of IPFS and the network, this
 	// may take moderately long.
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, lenMembers)
-	defer rpcutil.MultiCancel(cancels)
+	// If we did, this is the place to put it.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	errs := c.rpcClient.MultiCall(
-		ctxs,
-		members,
-		comp,
-		method,
-		arg,
-		rpcutil.CopyPinInfoSliceToIfaces(replies),
-	)
+	errsCh := make(chan []error, 1)
+	go func() {
+		defer close(errsCh)
+		errsCh <- c.rpcClient.MultiStream(
+			ctx,
+			members,
+			comp,
+			method,
+			inChan,
+			msOut,
+		)
+	}()
 
 	setPinInfo := func(p api.PinInfo) {
 		if !p.Defined() {
@@ -1989,20 +2036,25 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 		fullMap[p.Cid] = info
 	}
 
+	// make the big collection.
+	for pin := range msOut {
+		setPinInfo(pin)
+	}
+
+	// This WAITs until MultiStream is DONE.
 	erroredPeers := make(map[peer.ID]string)
-	for i, r := range replies {
-		if e := errs[i]; e != nil { // This error must come from not being able to contact that cluster member
-			if rpc.IsAuthorizationError(e) {
-				logger.Debug("rpc auth error", e)
+	errs, ok := <-errsCh
+	if ok {
+		for i, err := range errs {
+			if err == nil {
 				continue
 			}
-			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], e)
-			erroredPeers[members[i]] = e.Error()
-			continue
-		}
-
-		for _, pin := range r {
-			setPinInfo(pin)
+			if rpc.IsAuthorizationError(err) {
+				logger.Debug("rpc auth error", err)
+				continue
+			}
+			logger.Errorf("%s: error in broadcast response from %s: %s ", c.id, members[i], err)
+			erroredPeers[members[i]] = err.Error()
 		}
 	}
 
@@ -2031,10 +2083,16 @@ func (c *Cluster) globalPinInfoSlice(ctx context.Context, comp, method string, a
 	}
 
 	for _, v := range fullMap {
-		infos = append(infos, v)
+		select {
+		case <-ctx.Done():
+			err := fmt.Errorf("%s.%s aborted: %w", comp, method, ctx.Err())
+			logger.Error(err)
+			return err
+		case out <- v:
+		}
 	}
 
-	return infos, nil
+	return nil
 }
 
 func (c *Cluster) getIDForPeer(ctx context.Context, pid peer.ID) (*api.ID, error) {

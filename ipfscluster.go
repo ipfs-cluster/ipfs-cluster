@@ -78,7 +78,8 @@ type IPFSConnector interface {
 	Pin(context.Context, api.Pin) error
 	Unpin(context.Context, cid.Cid) error
 	PinLsCid(context.Context, api.Pin) (api.IPFSPinStatus, error)
-	PinLs(ctx context.Context, typeFilter string) (map[string]api.IPFSPinStatus, error)
+	// PinLs returns pins in the pinset of the given types (recursive, direct...)
+	PinLs(ctx context.Context, typeFilters []string, out chan<- api.IPFSPinInfo) error
 	// ConnectSwarms make sure this peer's IPFS daemon is connected to
 	// other peers IPFS daemons.
 	ConnectSwarms(context.Context) error
@@ -121,12 +122,11 @@ type PinTracker interface {
 	Untrack(context.Context, cid.Cid) error
 	// StatusAll returns the list of pins with their local status. Takes a
 	// filter to specify which statuses to report.
-	StatusAll(context.Context, api.TrackerStatus) []api.PinInfo
+	StatusAll(context.Context, api.TrackerStatus, chan<- api.PinInfo) error
 	// Status returns the local status of a given Cid.
 	Status(context.Context, cid.Cid) api.PinInfo
-	// RecoverAll calls Recover() for all pins tracked. Returns only
-	// informations for retriggered pins.
-	RecoverAll(context.Context) ([]api.PinInfo, error)
+	// RecoverAll calls Recover() for all pins tracked.
+	RecoverAll(context.Context, chan<- api.PinInfo) error
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
 	Recover(context.Context, cid.Cid) (api.PinInfo, error)
 }

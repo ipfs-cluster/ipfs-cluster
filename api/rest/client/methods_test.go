@@ -346,10 +346,16 @@ func TestStatusCids(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pins, err := c.StatusCids(ctx, []cid.Cid{test.Cid1}, false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		out := make(chan types.GlobalPinInfo)
+
+		go func() {
+			err := c.StatusCids(ctx, []cid.Cid{test.Cid1}, false, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+
+		pins := collectGlobalPinInfos(t, out)
 		if len(pins) != 1 {
 			t.Fatal("wrong number of pins returned")
 		}
@@ -361,48 +367,87 @@ func TestStatusCids(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func collectGlobalPinInfos(t *testing.T, out <-chan types.GlobalPinInfo) []types.GlobalPinInfo {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var gpis []types.GlobalPinInfo
+	for {
+		select {
+		case <-ctx.Done():
+			t.Error(ctx.Err())
+			return gpis
+		case gpi, ok := <-out:
+			if !ok {
+				return gpis
+			}
+			gpis = append(gpis, gpi)
+		}
+	}
+}
+
 func TestStatusAll(t *testing.T) {
 	ctx := context.Background()
 	api := testAPI(t)
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		pins, err := c.StatusAll(ctx, 0, false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		out := make(chan types.GlobalPinInfo)
+		go func() {
+			err := c.StatusAll(ctx, 0, false, out)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		pins := collectGlobalPinInfos(t, out)
 
 		if len(pins) == 0 {
 			t.Error("there should be some pins")
 		}
 
-		// With local true
-		pins, err = c.StatusAll(ctx, 0, true)
-		if err != nil {
-			t.Fatal(err)
-		}
+		out2 := make(chan types.GlobalPinInfo)
+		go func() {
+			err := c.StatusAll(ctx, 0, true, out2)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		pins = collectGlobalPinInfos(t, out2)
+
 		if len(pins) != 2 {
 			t.Error("there should be two pins")
 		}
 
-		// With filter option
-		pins, err = c.StatusAll(ctx, types.TrackerStatusPinning, false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		out3 := make(chan types.GlobalPinInfo)
+		go func() {
+			err := c.StatusAll(ctx, types.TrackerStatusPinning, false, out3)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		pins = collectGlobalPinInfos(t, out3)
+
 		if len(pins) != 1 {
 			t.Error("there should be one pin")
 		}
 
-		pins, err = c.StatusAll(ctx, types.TrackerStatusPinned|types.TrackerStatusError, false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		out4 := make(chan types.GlobalPinInfo)
+		go func() {
+			err := c.StatusAll(ctx, types.TrackerStatusPinned|types.TrackerStatusError, false, out4)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+		pins = collectGlobalPinInfos(t, out4)
+
 		if len(pins) != 2 {
 			t.Error("there should be two pins")
 		}
 
-		_, err = c.StatusAll(ctx, 1<<25, false)
+		out5 := make(chan types.GlobalPinInfo, 1)
+		err := c.StatusAll(ctx, 1<<25, false, out5)
 		if err == nil {
 			t.Error("expected an error")
 		}
@@ -435,12 +480,14 @@ func TestRecoverAll(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		_, err := c.RecoverAll(ctx, true)
+		out := make(chan types.GlobalPinInfo, 10)
+		err := c.RecoverAll(ctx, true, out)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = c.RecoverAll(ctx, false)
+		out2 := make(chan types.GlobalPinInfo, 10)
+		err = c.RecoverAll(ctx, false, out2)
 		if err != nil {
 			t.Fatal(err)
 		}

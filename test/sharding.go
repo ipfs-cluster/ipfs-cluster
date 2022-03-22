@@ -300,7 +300,7 @@ func (d *MockDAGService) Get(ctx context.Context, cid cid.Cid) (format.Node, err
 	if n, ok := d.Nodes[cid]; ok {
 		return n, nil
 	}
-	return nil, format.ErrNotFound
+	return nil, format.ErrNotFound{Cid: cid}
 }
 
 // GetMany reads many nodes.
@@ -312,7 +312,7 @@ func (d *MockDAGService) GetMany(ctx context.Context, cids []cid.Cid) <-chan *fo
 		if n, ok := d.Nodes[c]; ok {
 			out <- &format.NodeOption{Node: n}
 		} else {
-			out <- &format.NodeOption{Err: format.ErrNotFound}
+			out <- &format.NodeOption{Err: format.ErrNotFound{Cid: c}}
 		}
 	}
 	close(out)

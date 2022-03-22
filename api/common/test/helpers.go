@@ -54,7 +54,7 @@ func ProcessResp(t *testing.T, httpResp *http.Response, err error, resp interfac
 
 // ProcessStreamingResp decodes a streaming response into the given type
 // and fails the test on error.
-func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp interface{}) {
+func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp interface{}, trailerError bool) {
 	if err != nil {
 		t.Fatal("error making streaming request: ", err)
 	}
@@ -96,6 +96,13 @@ func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp
 				t.Fatal(err)
 			}
 		}
+	}
+	trailerMsg := httpResp.Trailer.Get("X-Stream-Error")
+	if trailerError && trailerMsg == "" {
+		t.Error("expected trailer error")
+	}
+	if !trailerError && trailerMsg != "" {
+		t.Error("got trailer error: ", trailerMsg)
 	}
 }
 
@@ -246,19 +253,19 @@ func MakeStreamingPost(t *testing.T, api API, url string, body io.Reader, conten
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Origin", ClientOrigin)
 	httpResp, err := c.Do(req)
-	ProcessStreamingResp(t, httpResp, err, resp)
+	ProcessStreamingResp(t, httpResp, err, resp, false)
 	CheckHeaders(t, api.Headers(), url, httpResp.Header)
 }
 
 // MakeStreamingGet performs a GET request and uses ProcessStreamingResp
-func MakeStreamingGet(t *testing.T, api API, url string, resp interface{}) {
+func MakeStreamingGet(t *testing.T, api API, url string, resp interface{}, trailerError bool) {
 	h := MakeHost(t, api)
 	defer h.Close()
 	c := HTTPClient(t, h, IsHTTPS(url))
 	req, _ := http.NewRequest(http.MethodGet, url, nil)
 	req.Header.Set("Origin", ClientOrigin)
 	httpResp, err := c.Do(req)
-	ProcessStreamingResp(t, httpResp, err, resp)
+	ProcessStreamingResp(t, httpResp, err, resp, trailerError)
 	CheckHeaders(t, api.Headers(), url, httpResp.Header)
 }
 

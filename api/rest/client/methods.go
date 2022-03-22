@@ -156,10 +156,10 @@ func (c *defaultClient) UnpinPath(ctx context.Context, p string) (api.Pin, error
 // Allocations returns the consensus state listing all tracked items and
 // the peers that should be pinning them.
 func (c *defaultClient) Allocations(ctx context.Context, filter api.PinType, out chan<- api.Pin) error {
+	defer close(out)
+
 	ctx, span := trace.StartSpan(ctx, "client/Allocations")
 	defer span.End()
-
-	defer close(out)
 
 	types := []api.PinType{
 		api.DataType,
@@ -191,14 +191,13 @@ func (c *defaultClient) Allocations(ctx context.Context, filter api.PinType, out
 	}
 
 	f := url.QueryEscape(strings.Join(strFilter, ","))
-	err := c.doStream(
+	return c.doStream(
 		ctx,
 		"GET",
 		fmt.Sprintf("/allocations?filter=%s", f),
 		nil,
 		nil,
 		handler)
-	return err
 }
 
 // Allocation returns the current allocations for a given Cid.
@@ -233,8 +232,8 @@ func (c *defaultClient) Status(ctx context.Context, ci cid.Cid, local bool) (api
 // StatusCids returns Status() information for the given Cids. If local is
 // true, the information affects only the current peer, otherwise the
 // information is fetched from all cluster peers.
-func (c *defaultClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool) ([]api.GlobalPinInfo, error) {
-	return c.statusAllWithCids(ctx, api.TrackerStatusUndefined, cids, local)
+func (c *defaultClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error {
+	return c.statusAllWithCids(ctx, api.TrackerStatusUndefined, cids, local, out)
 }
 
 // StatusAll gathers Status() for all tracked items. If a filter is
@@ -242,21 +241,20 @@ func (c *defaultClient) StatusCids(ctx context.Context, cids []cid.Cid, local bo
 // will be returned. A filter can be built by merging TrackerStatuses with
 // a bitwise OR operation (st1 | st2 | ...). A "0" filter value (or
 // api.TrackerStatusUndefined), means all.
-func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool) ([]api.GlobalPinInfo, error) {
-	return c.statusAllWithCids(ctx, filter, nil, local)
+func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool, out chan<- api.GlobalPinInfo) error {
+	return c.statusAllWithCids(ctx, filter, nil, local, out)
 }
 
-func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.TrackerStatus, cids []cid.Cid, local bool) ([]api.GlobalPinInfo, error) {
+func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.TrackerStatus, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error {
+	defer close(out)
 	ctx, span := trace.StartSpan(ctx, "client/StatusAll")
 	defer span.End()
-
-	var gpis []api.GlobalPinInfo
 
 	filterStr := ""
 	if filter != api.TrackerStatusUndefined { // undefined filter means "all"
 		filterStr = filter.String()
 		if filterStr == "" {
-			return nil, errors.New("invalid filter value")
+			return errors.New("invalid filter value")
 		}
 	}
 
@@ -265,16 +263,25 @@ func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.Tracke
 		cidsStr[i] = c.String()
 	}
 
-	err := c.do(
+	handler := func(dec *json.Decoder) error {
+		var obj api.GlobalPinInfo
+		err := dec.Decode(&obj)
+		if err != nil {
+			return err
+		}
+		out <- obj
+		return nil
+	}
+
+	return c.doStream(
 		ctx,
 		"GET",
 		fmt.Sprintf("/pins?local=%t&filter=%s&cids=%s",
 			local, url.QueryEscape(filterStr), strings.Join(cidsStr, ",")),
 		nil,
 		nil,
-		&gpis,
+		handler,
 	)
-	return gpis, err
 }
 
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
@@ -292,13 +299,29 @@ func (c *defaultClient) Recover(ctx context.Context, ci cid.Cid, local bool) (ap
 // RecoverAll triggers Recover() operations on all tracked items. If local is
 // true, the operation is limited to the current peer. Otherwise, it happens
 // everywhere.
-func (c *defaultClient) RecoverAll(ctx context.Context, local bool) ([]api.GlobalPinInfo, error) {
+func (c *defaultClient) RecoverAll(ctx context.Context, local bool, out chan<- api.GlobalPinInfo) error {
+	defer close(out)
+
 	ctx, span := trace.StartSpan(ctx, "client/RecoverAll")
 	defer span.End()
 
-	var gpis []api.GlobalPinInfo
-	err := c.do(ctx, "POST", fmt.Sprintf("/pins/recover?local=%t", local), nil, nil, &gpis)
-	return gpis, err
+	handler := func(dec *json.Decoder) error {
+		var obj api.GlobalPinInfo
+		err := dec.Decode(&obj)
+		if err != nil {
+			return err
+		}
+		out <- obj
+		return nil
+	}
+
+	return c.doStream(
+		ctx,
+		"POST",
+		fmt.Sprintf("/pins/recover?local=%t", local),
+		nil,
+		nil,
+		handler)
 }
 
 // Alerts returns information health events in the cluster (expired metrics

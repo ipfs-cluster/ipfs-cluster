@@ -34,8 +34,8 @@ func NewMockRPCClient(t testing.TB) *rpc.Client {
 // NewMockRPCClientWithHost returns a mock ipfs-cluster RPC server
 // initialized with a given host.
 func NewMockRPCClientWithHost(t testing.TB, h host.Host) *rpc.Client {
-	s := rpc.NewServer(h, "mock")
-	c := rpc.NewClientWithServer(h, "mock", s)
+	s := rpc.NewServer(h, "mock", rpc.WithStreamBufferSize(1024))
+	c := rpc.NewClientWithServer(h, "mock", s, rpc.WithMultiStreamBufferSize(1024))
 	err := s.RegisterName("Cluster", &mockCluster{})
 	if err != nil {
 		t.Fatal(err)
@@ -230,7 +230,10 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	return nil
 }
 
-func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]api.GlobalPinInfo) error {
+func (mock *mockCluster) StatusAll(ctx context.Context, in <-chan api.TrackerStatus, out chan<- api.GlobalPinInfo) error {
+	defer close(out)
+	filter := <-in
+
 	pid := peer.Encode(PeerID1)
 	gPinInfos := []api.GlobalPinInfo{
 		{
@@ -272,23 +275,21 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in api.TrackerStatus, ou
 	// a single peer, we will not have an entry for the cid at all.
 	for _, gpi := range gPinInfos {
 		for id, pi := range gpi.PeerMap {
-			if !in.Match(pi.Status) {
+			if !filter.Match(pi.Status) {
 				delete(gpi.PeerMap, id)
 			}
 		}
 	}
-	filtered := make([]api.GlobalPinInfo, 0, len(gPinInfos))
 	for _, gpi := range gPinInfos {
 		if len(gpi.PeerMap) > 0 {
-			filtered = append(filtered, gpi)
+			out <- gpi
 		}
 	}
-	*out = filtered
 
 	return nil
 }
 
-func (mock *mockCluster) StatusAllLocal(ctx context.Context, in api.TrackerStatus, out *[]api.PinInfo) error {
+func (mock *mockCluster) StatusAllLocal(ctx context.Context, in <-chan api.TrackerStatus, out chan<- api.PinInfo) error {
 	return (&mockPinTracker{}).StatusAll(ctx, in, out)
 }
 
@@ -324,11 +325,14 @@ func (mock *mockCluster) StatusLocal(ctx context.Context, in cid.Cid, out *api.P
 	return (&mockPinTracker{}).Status(ctx, in, out)
 }
 
-func (mock *mockCluster) RecoverAll(ctx context.Context, in struct{}, out *[]api.GlobalPinInfo) error {
-	return mock.StatusAll(ctx, api.TrackerStatusUndefined, out)
+func (mock *mockCluster) RecoverAll(ctx context.Context, in <-chan struct{}, out chan<- api.GlobalPinInfo) error {
+	f := make(chan api.TrackerStatus, 1)
+	f <- api.TrackerStatusUndefined
+	close(f)
+	return mock.StatusAll(ctx, f, out)
 }
 
-func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in struct{}, out *[]api.PinInfo) error {
+func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in <-chan struct{}, out chan<- api.PinInfo) error {
 	return (&mockPinTracker{}).RecoverAll(ctx, in, out)
 }
 
@@ -421,7 +425,10 @@ func (mock *mockPinTracker) Untrack(ctx context.Context, in api.Pin, out *struct
 	return nil
 }
 
-func (mock *mockPinTracker) StatusAll(ctx context.Context, in api.TrackerStatus, out *[]api.PinInfo) error {
+func (mock *mockPinTracker) StatusAll(ctx context.Context, in <-chan api.TrackerStatus, out chan<- api.PinInfo) error {
+	defer close(out)
+	filter := <-in
+
 	pinInfos := []api.PinInfo{
 		{
 			Cid:  Cid1,
@@ -440,14 +447,11 @@ func (mock *mockPinTracker) StatusAll(ctx context.Context, in api.TrackerStatus,
 			},
 		},
 	}
-	filtered := make([]api.PinInfo, 0, len(pinInfos))
 	for _, pi := range pinInfos {
-		if in.Match(pi.Status) {
-			filtered = append(filtered, pi)
+		if filter.Match(pi.Status) {
+			out <- pi
 		}
 	}
-
-	*out = filtered
 	return nil
 }
 
@@ -467,8 +471,8 @@ func (mock *mockPinTracker) Status(ctx context.Context, in cid.Cid, out *api.Pin
 	return nil
 }
 
-func (mock *mockPinTracker) RecoverAll(ctx context.Context, in struct{}, out *[]api.PinInfo) error {
-	*out = make([]api.PinInfo, 0)
+func (mock *mockPinTracker) RecoverAll(ctx context.Context, in <-chan struct{}, out chan<- api.PinInfo) error {
+	close(out)
 	return nil
 }
 
@@ -534,12 +538,10 @@ func (mock *mockIPFSConnector) PinLsCid(ctx context.Context, in api.Pin, out *ap
 	return nil
 }
 
-func (mock *mockIPFSConnector) PinLs(ctx context.Context, in string, out *map[string]api.IPFSPinStatus) error {
-	m := map[string]api.IPFSPinStatus{
-		Cid1.String(): api.IPFSPinStatusRecursive,
-		Cid3.String(): api.IPFSPinStatusRecursive,
-	}
-	*out = m
+func (mock *mockIPFSConnector) PinLs(ctx context.Context, in <-chan []string, out chan<- api.IPFSPinInfo) error {
+	out <- api.IPFSPinInfo{Cid: api.Cid(Cid1), Type: api.IPFSPinStatusRecursive}
+	out <- api.IPFSPinInfo{Cid: api.Cid(Cid3), Type: api.IPFSPinStatusRecursive}
+	close(out)
 	return nil
 }
 

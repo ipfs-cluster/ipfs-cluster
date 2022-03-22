@@ -99,13 +99,14 @@ func TestConsensusPin(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 10)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -154,13 +155,14 @@ func TestConsensusUpdate(t *testing.T) {
 		t.Fatal("error getting state:", err)
 	}
 
-	ch, err := st.List(ctx)
+	out := make(chan api.Pin, 10)
+	err = st.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 
@@ -330,13 +332,15 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal("Snapshot bytes returned could not restore to state: ", err)
 	}
-	ch, err := snapState.List(ctx)
+
+	out := make(chan api.Pin, 100)
+	err = snapState.List(ctx, out)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var pins []api.Pin
-	for p := range ch {
+	for p := range out {
 		pins = append(pins, p)
 	}
 

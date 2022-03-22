@@ -4,6 +4,7 @@ package dsstate
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -122,9 +123,11 @@ func (st *State) Has(ctx context.Context, c cid.Cid) (bool, error) {
 	return ok, nil
 }
 
-// List returns the unsorted list of all Pins that have been added to the
-// datastore.
-func (st *State) List(ctx context.Context) (<-chan api.Pin, error) {
+// List sends all the pins on the pinset on the given channel.
+// Returns and closes channel when done.
+func (st *State) List(ctx context.Context, out chan<- api.Pin) error {
+	defer close(out)
+
 	_, span := trace.StartSpan(ctx, "state/dsstate/List")
 	defer span.End()
 
@@ -134,52 +137,49 @@ func (st *State) List(ctx context.Context) (<-chan api.Pin, error) {
 
 	results, err := st.dsRead.Query(ctx, q)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pinsCh := make(chan api.Pin, 1024)
-	go func() {
-		defer close(pinsCh)
+	defer results.Close()
 
-		defer results.Close()
-
-		total := 0
-		for r := range results.Next() {
-			// Abort if we shutdown.
-			select {
-			case <-ctx.Done():
-				logger.Warningf("Full pinset listing aborted: %s", ctx.Err())
-				return
-			default:
-			}
-			if r.Error != nil {
-				logger.Errorf("error in query result: %s", r.Error)
-				return
-			}
-			k := ds.NewKey(r.Key)
-			ci, err := st.unkey(k)
-			if err != nil {
-				logger.Warn("bad key (ignoring). key: ", k, "error: ", err)
-				continue
-			}
-
-			p, err := st.deserializePin(ci, r.Value)
-			if err != nil {
-				logger.Errorf("error deserializing pin (%s): %s", r.Key, err)
-				continue
-			}
-			pinsCh <- p
-
-			if total > 0 && total%500000 == 0 {
-				logger.Infof("Full pinset listing in progress: %d pins so far", total)
-			}
-			total++
+	total := 0
+	for r := range results.Next() {
+		// Abort if we shutdown.
+		select {
+		case <-ctx.Done():
+			err = fmt.Errorf("full pinset listing aborted: %w", ctx.Err())
+			logger.Warning(err)
+			return err
+		default:
 		}
-		if total >= 500000 {
-			logger.Infof("Full pinset listing finished: %d pins", total)
+		if r.Error != nil {
+			err := fmt.Errorf("error in query result: %w", r.Error)
+			logger.Error(err)
+			return err
 		}
-	}()
+		k := ds.NewKey(r.Key)
+		ci, err := st.unkey(k)
+		if err != nil {
+			logger.Warn("bad key (ignoring). key: ", k, "error: ", err)
+			continue
+		}
 
-	return pinsCh, nil
+		p, err := st.deserializePin(ci, r.Value)
+		if err != nil {
+			logger.Errorf("error deserializing pin (%s): %s", r.Key, err)
+			continue
+		}
+		out <- p
+
+		if total > 0 && total%500000 == 0 {
+			logger.Infof("Full pinset listing in progress: %d pins so far", total)
+		}
+		total++
+	}
+	if total >= 500000 {
+		logger.Infof("Full pinset listing finished: %d pins", total)
+	}
+
+	return nil
 }
 
 // Migrate migrates an older state version to the current one.

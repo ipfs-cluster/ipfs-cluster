@@ -165,6 +165,28 @@ func TestPinTracker_Untrack(t *testing.T) {
 	}
 }
 
+func collectPinInfos(t *testing.T, out chan api.PinInfo) []api.PinInfo {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var pis []api.PinInfo
+	for {
+		select {
+		case <-ctx.Done():
+			t.Error("took too long")
+			return nil
+		case pi, ok := <-out:
+			if !ok {
+				return pis
+			}
+			pis = append(pis, pi)
+		}
+	}
+
+}
+
 func TestPinTracker_StatusAll(t *testing.T) {
 	type args struct {
 		c       api.Pin
@@ -216,7 +238,16 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				t.Errorf("PinTracker.Track() error = %v", err)
 			}
 			time.Sleep(200 * time.Millisecond)
-			got := tt.args.tracker.StatusAll(context.Background(), api.TrackerStatusUndefined)
+			infos := make(chan api.PinInfo)
+			go func() {
+				err := tt.args.tracker.StatusAll(context.Background(), api.TrackerStatusUndefined, infos)
+				if err != nil {
+					t.Error()
+				}
+			}()
+
+			got := collectPinInfos(t, infos)
+
 			if len(got) != len(tt.want) {
 				for _, pi := range got {
 					t.Logf("pinfo: %v", pi)
@@ -235,31 +266,6 @@ func TestPinTracker_StatusAll(t *testing.T) {
 				if got[i].Status != tt.want[i].Status {
 					t.Errorf("for cid %v:\n got: %s\nwant: %s", got[i].Cid, got[i].Status, tt.want[i].Status)
 				}
-			}
-		})
-	}
-}
-
-func BenchmarkPinTracker_StatusAll(b *testing.B) {
-	type args struct {
-		tracker ipfscluster.PinTracker
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		{
-			"basic stateless track",
-			args{
-				testStatelessPinTracker(b),
-			},
-		},
-	}
-	for _, tt := range tests {
-		b.Run(tt.name, func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				tt.args.tracker.StatusAll(context.Background(), api.TrackerStatusUndefined)
 			}
 		})
 	}
@@ -350,11 +356,16 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.args.tracker.RecoverAll(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("PinTracker.RecoverAll() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			infos := make(chan api.PinInfo)
+			go func() {
+				err := tt.args.tracker.RecoverAll(context.Background(), infos)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("PinTracker.RecoverAll() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+			}()
+
+			got := collectPinInfos(t, infos)
 
 			if len(got) != len(tt.want) {
 				for _, pi := range got {

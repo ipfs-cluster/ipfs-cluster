@@ -114,7 +114,7 @@ func TestClustersPeerAdd(t *testing.T) {
 		}
 
 		// Check that they are part of the consensus
-		pins, err := c.Pins(ctx)
+		pins, err := c.pinsSlice(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -463,7 +463,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// Find out which pins are associated to the chosen peer.
 	interestingCids := []cid.Cid{}
 
-	pins, err := chosen.Pins(ctx)
+	pins, err := chosen.pinsSlice(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -537,7 +537,7 @@ func TestClustersPeerJoin(t *testing.T) {
 		if len(peers) != nClusters {
 			t.Error("all peers should be connected")
 		}
-		pins, err := c.Pins(ctx)
+		pins, err := c.pinsSlice(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -575,7 +575,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 		if len(peers) != nClusters {
 			t.Error("all peers should be connected")
 		}
-		pins, err := c.Pins(ctx)
+		pins, err := c.pinsSlice(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}

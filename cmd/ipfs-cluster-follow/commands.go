@@ -493,14 +493,17 @@ func printStatusOnline(absPath, clusterName string) error {
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error creating client"), 1)
 	}
-	gpis, err := client.StatusAll(ctx, 0, true)
-	if err != nil {
-		return err
-	}
 
-	// do not return errors after this.
+	out := make(chan api.GlobalPinInfo, 1024)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+		errCh <- client.StatusAll(ctx, 0, true, out)
+	}()
+
 	var pid string
-	for _, gpi := range gpis {
+	for gpi := range out {
 		if pid == "" { // do this once
 			// PeerMap will only have one key
 			for k := range gpi.PeerMap {
@@ -511,7 +514,8 @@ func printStatusOnline(absPath, clusterName string) error {
 		pinInfo := gpi.PeerMap[pid]
 		printPin(gpi.Cid, pinInfo.Status.String(), gpi.Name, pinInfo.Error)
 	}
-	return nil
+	err = <-errCh
+	return err
 }
 
 func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
@@ -528,14 +532,20 @@ func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
 	if err != nil {
 		return err
 	}
-	pins, err := st.List(context.Background())
-	if err != nil {
-		return err
-	}
-	for pin := range pins {
+
+	out := make(chan api.Pin, 1024)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		errCh <- st.List(context.Background(), out)
+	}()
+
+	for pin := range out {
 		printPin(pin.Cid, "offline", pin.Name, "")
 	}
-	return nil
+
+	err = <-errCh
+	return err
 }
 
 func printPin(c cid.Cid, status, name, err string) {

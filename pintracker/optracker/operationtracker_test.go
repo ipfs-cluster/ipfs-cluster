@@ -126,7 +126,7 @@ func TestOperationTracker_SetError(t *testing.T) {
 	opt := testOperationTracker(t)
 	opt.TrackNewOperation(ctx, api.PinCid(test.Cid1), OperationPin, PhaseDone)
 	opt.SetError(ctx, test.Cid1, errors.New("fake error"))
-	pinfo := opt.Get(ctx, test.Cid1)
+	pinfo := opt.Get(ctx, test.Cid1, api.IPFSID{})
 	if pinfo.Status != api.TrackerStatusPinError {
 		t.Error("should have updated the status")
 	}
@@ -148,7 +148,7 @@ func TestOperationTracker_Get(t *testing.T) {
 	opt.TrackNewOperation(ctx, api.PinCid(test.Cid1), OperationPin, PhaseDone)
 
 	t.Run("Get with existing item", func(t *testing.T) {
-		pinfo := opt.Get(ctx, test.Cid1)
+		pinfo := opt.Get(ctx, test.Cid1, api.IPFSID{})
 		if pinfo.Status != api.TrackerStatusPinned {
 			t.Error("bad status")
 		}
@@ -163,7 +163,7 @@ func TestOperationTracker_Get(t *testing.T) {
 	})
 
 	t.Run("Get with unexisting item", func(t *testing.T) {
-		pinfo := opt.Get(ctx, test.Cid2)
+		pinfo := opt.Get(ctx, test.Cid2, api.IPFSID{})
 		if pinfo.Status != api.TrackerStatusUnpinned {
 			t.Error("bad status")
 		}
@@ -181,7 +181,7 @@ func TestOperationTracker_GetAll(t *testing.T) {
 	ctx := context.Background()
 	opt := testOperationTracker(t)
 	opt.TrackNewOperation(ctx, api.PinCid(test.Cid1), OperationPin, PhaseInProgress)
-	pinfos := opt.GetAll(ctx)
+	pinfos := opt.GetAll(ctx, api.IPFSID{})
 	if len(pinfos) != 1 {
 		t.Fatal("expected 1 item")
 	}

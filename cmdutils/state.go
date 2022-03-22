@@ -222,16 +222,22 @@ func importState(r io.Reader, st state.State, opts api.PinOptions) error {
 
 // ExportState saves a json representation of a state
 func exportState(w io.Writer, st state.State) error {
-	pins, err := st.List(context.Background())
+	out := make(chan api.Pin, 10000)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		errCh <- st.List(context.Background(), out)
+	}()
+	var err error
+	enc := json.NewEncoder(w)
+	for pin := range out {
+		if err == nil {
+			err = enc.Encode(pin)
+		}
+	}
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(w)
-	for pin := range pins {
-		err := enc.Encode(pin)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	err = <-errCh
+	return err
 }
