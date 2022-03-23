@@ -71,11 +71,12 @@ func TestPeers(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		ids, err := c.Peers(ctx)
+		out := make(chan types.ID, 10)
+		err := c.Peers(ctx, out)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(ids) == 0 {
+		if len(out) == 0 {
 			t.Error("expected some peers")
 		}
 	}
@@ -92,11 +93,12 @@ func TestPeersWithError(t *testing.T) {
 		addr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/44444")
 		var _ = c
 		c, _ = NewDefaultClient(&Config{APIAddr: addr, DisableKeepAlives: true})
-		ids, err := c.Peers(ctx)
+		out := make(chan types.ID, 10)
+		err := c.Peers(ctx, out)
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		if ids != nil {
+		if len(out) > 0 {
 			t.Fatal("expected no ids")
 		}
 	}

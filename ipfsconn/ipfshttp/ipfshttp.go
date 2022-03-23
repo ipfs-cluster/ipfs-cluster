@@ -685,21 +685,25 @@ func (ipfs *Connector) ConnectSwarms(ctx context.Context) error {
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	var ids []api.ID
-	err := ipfs.rpcClient.CallContext(
-		ctx,
-		"",
-		"Cluster",
-		"Peers",
-		struct{}{},
-		&ids,
-	)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
 
-	for _, id := range ids {
+	in := make(chan struct{})
+	close(in)
+	out := make(chan api.ID)
+	go func() {
+		err := ipfs.rpcClient.Stream(
+			ctx,
+			"",
+			"Cluster",
+			"Peers",
+			in,
+			out,
+		)
+		if err != nil {
+			logger.Error(err)
+		}
+	}()
+
+	for id := range out {
 		ipfsID := id.IPFS
 		if id.Error != "" || ipfsID.Error != "" {
 			continue

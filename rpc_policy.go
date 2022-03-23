@@ -11,6 +11,7 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.BlockAllocate":        RPCClosed,
 	"Cluster.ConnectGraph":         RPCClosed,
 	"Cluster.ID":                   RPCOpen,
+	"Cluster.IDStream":             RPCOpen,
 	"Cluster.IPFSID":               RPCClosed,
 	"Cluster.Join":                 RPCClosed,
 	"Cluster.PeerAdd":              RPCOpen, // Used by Join()

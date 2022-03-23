@@ -1,9 +1,7 @@
 package ipfscluster
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -606,9 +604,11 @@ func TestClustersPeers(t *testing.T) {
 	delay()
 
 	j := rand.Intn(nClusters) // choose a random cluster peer
-	peers := clusters[j].Peers(ctx)
 
-	if len(peers) != nClusters {
+	out := make(chan api.ID, len(clusters))
+	clusters[j].Peers(ctx, out)
+
+	if len(out) != nClusters {
 		t.Fatal("expected as many peers as clusters")
 	}
 
@@ -620,7 +620,7 @@ func TestClustersPeers(t *testing.T) {
 		clusterIDMap[id.ID] = id
 	}
 
-	for _, p := range peers {
+	for p := range out {
 		if p.Error != "" {
 			t.Error(p.ID, p.Error)
 			continue
@@ -638,34 +638,6 @@ func TestClustersPeers(t *testing.T) {
 		//}
 		if id.IPFS.ID != id2.IPFS.ID {
 			t.Error("expected same ipfs daemon ID")
-		}
-	}
-}
-
-func TestClustersPeersRetainOrder(t *testing.T) {
-	ctx := context.Background()
-	clusters, mock := createClusters(t)
-	defer shutdownClusters(t, clusters, mock)
-
-	delay()
-
-	for i := 0; i < 5; i++ {
-		j := rand.Intn(nClusters) // choose a random cluster peer
-		peers1, err := json.Marshal(clusters[j].Peers(ctx))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		waitForLeaderAndMetrics(t, clusters)
-
-		k := rand.Intn(nClusters)
-		peers2, err := json.Marshal(clusters[k].Peers(ctx))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(peers1, peers2) {
-			t.Error("expected both results to be same")
 		}
 	}
 }

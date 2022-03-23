@@ -2,7 +2,6 @@ package ipfscluster
 
 import (
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
@@ -34,18 +33,32 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	}
 
 	peers := make([][]api.ID, len(members))
+	errs := make([]error, len(members))
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(members))
-	defer rpcutil.MultiCancel(cancels)
+	for i, member := range members {
+		in := make(chan struct{})
+		close(in)
+		out := make(chan api.ID, 1024)
+		errCh := make(chan error, 1)
+		go func(i int) {
+			defer close(errCh)
 
-	errs := c.rpcClient.MultiCall(
-		ctxs,
-		members,
-		"Cluster",
-		"Peers",
-		struct{}{},
-		rpcutil.CopyIDSliceToIfaces(peers),
-	)
+			errCh <- c.rpcClient.Stream(
+				ctx,
+				member,
+				"Cluster",
+				"Peers",
+				in,
+				out,
+			)
+		}(i)
+		var ids []api.ID
+		for id := range out {
+			ids = append(ids, id)
+		}
+		peers[i] = ids
+		errs[i] = <-errCh
+	}
 
 	for i, err := range errs {
 		p := peer.Encode(members[i])

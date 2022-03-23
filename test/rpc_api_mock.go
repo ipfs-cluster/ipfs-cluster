@@ -178,6 +178,18 @@ func (mock *mockCluster) ID(ctx context.Context, in struct{}, out *api.ID) error
 	return nil
 }
 
+func (mock *mockCluster) IDStream(ctx context.Context, in <-chan struct{}, out chan<- api.ID) error {
+	defer close(out)
+	var id api.ID
+	mock.ID(ctx, struct{}{}, &id)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case out <- id:
+	}
+	return nil
+}
+
 func (mock *mockCluster) Version(ctx context.Context, in struct{}, out *api.Version) error {
 	*out = api.Version{
 		Version: "0.0.mock",
@@ -185,16 +197,18 @@ func (mock *mockCluster) Version(ctx context.Context, in struct{}, out *api.Vers
 	return nil
 }
 
-func (mock *mockCluster) Peers(ctx context.Context, in struct{}, out *[]api.ID) error {
+func (mock *mockCluster) Peers(ctx context.Context, in <-chan struct{}, out chan<- api.ID) error {
 	id := api.ID{}
-	mock.ID(ctx, in, &id)
-
-	*out = []api.ID{id}
+	mock.ID(ctx, struct{}{}, &id)
+	out <- id
+	close(out)
 	return nil
 }
 
-func (mock *mockCluster) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]api.ID) error {
-	return mock.Peers(ctx, struct{}{}, out)
+func (mock *mockCluster) PeersWithFilter(ctx context.Context, in <-chan []peer.ID, out chan<- api.ID) error {
+	inCh := make(chan struct{})
+	close(inCh)
+	return mock.Peers(ctx, inCh, out)
 }
 
 func (mock *mockCluster) PeerAdd(ctx context.Context, in peer.ID, out *api.ID) error {

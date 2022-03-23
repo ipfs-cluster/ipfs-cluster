@@ -251,8 +251,15 @@ This command provides a list of the ID information of all the peers in the Clust
 					Flags:     []cli.Flag{},
 					ArgsUsage: " ",
 					Action: func(c *cli.Context) error {
-						resp, cerr := globalClient.Peers(ctx)
-						formatResponse(c, resp, cerr)
+						out := make(chan api.ID, 1024)
+						errCh := make(chan error, 1)
+						go func() {
+							defer close(errCh)
+							errCh <- globalClient.Peers(ctx, out)
+						}()
+						formatResponse(c, out, nil)
+						err := <-errCh
+						formatResponse(c, nil, err)
 						return nil
 					},
 				},

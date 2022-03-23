@@ -160,6 +160,18 @@ func (rpcapi *ClusterRPCAPI) ID(ctx context.Context, in struct{}, out *api.ID) e
 	return nil
 }
 
+// IDStream runs Cluster.ID() but in streaming form.
+func (rpcapi *ClusterRPCAPI) IDStream(ctx context.Context, in <-chan struct{}, out chan<- api.ID) error {
+	defer close(out)
+	id := rpcapi.c.ID(ctx)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case out <- id:
+	}
+	return nil
+}
+
 // Pin runs Cluster.pin().
 func (rpcapi *ClusterRPCAPI) Pin(ctx context.Context, in api.Pin, out *api.Pin) error {
 	// we do not call the Pin method directly since that method does not
@@ -227,14 +239,15 @@ func (rpcapi *ClusterRPCAPI) Version(ctx context.Context, in struct{}, out *api.
 }
 
 // Peers runs Cluster.Peers().
-func (rpcapi *ClusterRPCAPI) Peers(ctx context.Context, in struct{}, out *[]api.ID) error {
-	*out = rpcapi.c.Peers(ctx)
+func (rpcapi *ClusterRPCAPI) Peers(ctx context.Context, in <-chan struct{}, out chan<- api.ID) error {
+	rpcapi.c.Peers(ctx, out)
 	return nil
 }
 
 // PeersWithFilter runs Cluster.peersWithFilter().
-func (rpcapi *ClusterRPCAPI) PeersWithFilter(ctx context.Context, in []peer.ID, out *[]api.ID) error {
-	*out = rpcapi.c.peersWithFilter(ctx, in)
+func (rpcapi *ClusterRPCAPI) PeersWithFilter(ctx context.Context, in <-chan []peer.ID, out chan<- api.ID) error {
+	peers := <-in
+	rpcapi.c.peersWithFilter(ctx, peers, out)
 	return nil
 }
 

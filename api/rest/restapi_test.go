@@ -96,14 +96,14 @@ func TestAPIVersionEndpoint(t *testing.T) {
 	test.BothEndpoints(t, tf)
 }
 
-func TestAPIPeerstEndpoint(t *testing.T) {
+func TestAPIPeersEndpoint(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		var list []*api.ID
-		test.MakeGet(t, rest, url(rest)+"/peers", &list)
+		var list []api.ID
+		test.MakeStreamingGet(t, rest, url(rest)+"/peers", &list, false)
 		if len(list) != 1 {
 			t.Fatal("expected 1 element")
 		}
@@ -559,7 +559,7 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		var resp []*api.Metric
+		var resp []api.Metric
 		test.MakeGet(t, rest, url(rest)+"/monitor/metrics/somemetricstype", &resp)
 		if len(resp) == 0 {
 			t.Fatal("No metrics found")
@@ -804,7 +804,7 @@ func TestAPIIPFSGCEndpoint(t *testing.T) {
 	rest := testAPI(t)
 	defer rest.Shutdown(ctx)
 
-	testGlobalRepoGC := func(t *testing.T, gRepoGC *api.GlobalRepoGC) {
+	testGlobalRepoGC := func(t *testing.T, gRepoGC api.GlobalRepoGC) {
 		if gRepoGC.PeerMap == nil {
 			t.Fatal("expected a non-nil peer map")
 		}
@@ -836,11 +836,11 @@ func TestAPIIPFSGCEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		var resp api.GlobalRepoGC
 		test.MakePost(t, rest, url(rest)+"/ipfs/gc?local=true", []byte{}, &resp)
-		testGlobalRepoGC(t, &resp)
+		testGlobalRepoGC(t, resp)
 
 		var resp1 api.GlobalRepoGC
 		test.MakePost(t, rest, url(rest)+"/ipfs/gc", []byte{}, &resp1)
-		testGlobalRepoGC(t, &resp1)
+		testGlobalRepoGC(t, resp1)
 	}
 
 	test.BothEndpoints(t, tf)

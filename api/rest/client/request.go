@@ -3,12 +3,14 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"go.uber.org/multierr"
 
 	"go.opencensus.io/trace"
 )
@@ -151,11 +153,16 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 		}
 	}
 
-	errTrailer := resp.Trailer.Get("X-Stream-Error")
-	if errTrailer != "" {
+	trailerErrs := resp.Trailer.Values("X-Stream-Error")
+	var err error
+	for _, trailerErr := range trailerErrs {
+		err = multierr.Append(err, errors.New(trailerErr))
+	}
+
+	if err != nil {
 		return api.Error{
 			Code:    500,
-			Message: errTrailer,
+			Message: err.Error(),
 		}
 	}
 	return nil
