@@ -597,8 +597,9 @@ github.com/ipfs/interface-go-ipfs-core v0.4.0 h1:+mUiamyHIwedqP8ZgbCIwpy40oX7QcX
 github.com/ipfs/interface-go-ipfs-core v0.4.0/go.mod h1:UJBcU6iNennuI05amq3FQ7g0JHUkibHFAfhfUIy927o=
 github.com/ipld/go-car v0.3.3 h1:D6y+jvg9h2ZSv7GLUMWUwg5VTLy1E7Ak+uQw5orOg3I=
 github.com/ipld/go-car v0.3.3/go.mod h1:/wkKF4908ULT4dFIFIUZYcfjAnj+KFnJvlh8Hsz1FbQ=
-github.com/ipld/go-codec-dagpb v1.3.0 h1:czTcaoAuNNyIYWs6Qe01DJ+sEX7B+1Z0LcXjSatMGe8=
 github.com/ipld/go-codec-dagpb v1.3.0/go.mod h1:ga4JTU3abYApDC3pZ00BC2RSvC3qfBb9MSJkMLSwnhA=
+github.com/ipld/go-codec-dagpb v1.3.2 h1:MZQUIjanHXXfDuYmtWYT8nFbqfFsZuyHClj6VDmSXr4=
+github.com/ipld/go-codec-dagpb v1.3.2/go.mod h1:ga4JTU3abYApDC3pZ00BC2RSvC3qfBb9MSJkMLSwnhA=
 github.com/ipld/go-ipld-prime v0.9.0/go.mod h1:KvBLMr4PX1gWptgkzRjVZCrLmSGcZCb/jioOQwCqZN8=
 github.com/ipld/go-ipld-prime v0.9.1-0.20210324083106-dc342a9917db/go.mod h1:KvBLMr4PX1gWptgkzRjVZCrLmSGcZCb/jioOQwCqZN8=
 github.com/ipld/go-ipld-prime v0.11.0/go.mod h1:+WIAkokurHmZ/KwzDOMUuoeJgaRQktHtEaLglS3ZeV8=
