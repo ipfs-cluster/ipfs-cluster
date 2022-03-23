@@ -54,6 +54,10 @@ func jsonFormatPrint(obj interface{}) {
 		for o := range r {
 			print(o)
 		}
+	case chan api.ID:
+		for o := range r {
+			print(o)
+		}
 	default:
 		print(obj)
 	}
@@ -84,8 +88,8 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintMetric(r)
 	case api.Alert:
 		textFormatPrintAlert(r)
-	case []api.ID:
-		for _, item := range r {
+	case chan api.ID:
+		for item := range r {
 			textFormatObject(item)
 		}
 	case chan api.GlobalPinInfo:

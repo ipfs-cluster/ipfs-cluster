@@ -34,13 +34,24 @@ func (c *defaultClient) ID(ctx context.Context) (api.ID, error) {
 }
 
 // Peers requests ID information for all cluster peers.
-func (c *defaultClient) Peers(ctx context.Context) ([]api.ID, error) {
+func (c *defaultClient) Peers(ctx context.Context, out chan<- api.ID) error {
+	defer close(out)
+
 	ctx, span := trace.StartSpan(ctx, "client/Peers")
 	defer span.End()
 
-	var ids []api.ID
-	err := c.do(ctx, "GET", "/peers", nil, nil, &ids)
-	return ids, err
+	handler := func(dec *json.Decoder) error {
+		var obj api.ID
+		err := dec.Decode(&obj)
+		if err != nil {
+			return err
+		}
+		out <- obj
+		return nil
+	}
+
+	return c.doStream(ctx, "GET", "/peers", nil, nil, handler)
+
 }
 
 type peerAddBody struct {

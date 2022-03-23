@@ -905,8 +905,10 @@ func TestClusterPeers(t *testing.T) {
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
 	defer cl.Shutdown(ctx)
-	peers := cl.Peers(ctx)
-	if len(peers) != 1 {
+
+	out := make(chan api.ID, 10)
+	cl.Peers(ctx, out)
+	if len(out) != 1 {
 		t.Fatal("expected 1 peer")
 	}
 
@@ -916,7 +918,8 @@ func TestClusterPeers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if peers[0].ID != ident.ID {
+	p := <-out
+	if p.ID != ident.ID {
 		t.Error("bad member")
 	}
 }

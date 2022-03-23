@@ -57,7 +57,7 @@ func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
 	return NewAPIWithHost(ctx, cfg, nil)
 }
 
-// NewAPI creates a new REST API component using the given libp2p Host.
+// NewAPIWithHost creates a new REST API component using the given libp2p Host.
 func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error) {
 	api := API{
 		config: cfg,
@@ -312,17 +312,28 @@ func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) peerListHandler(w http.ResponseWriter, r *http.Request) {
-	var peers []types.ID
-	err := api.rpcClient.CallContext(
-		r.Context(),
-		"",
-		"Cluster",
-		"Peers",
-		struct{}{},
-		&peers,
-	)
+	in := make(chan struct{})
+	close(in)
+	out := make(chan types.ID, common.StreamChannelSize)
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
 
-	api.SendResponse(w, common.SetStatusAutomatically, err, peers)
+		errCh <- api.rpcClient.Stream(
+			r.Context(),
+			"",
+			"Cluster",
+			"Peers",
+			in,
+			out,
+		)
+	}()
+
+	iter := func() (interface{}, bool, error) {
+		p, ok := <-out
+		return p, ok, nil
+	}
+	api.StreamResponse(w, iter, errCh)
 }
 
 func (api *API) peerAddHandler(w http.ResponseWriter, r *http.Request) {
@@ -455,7 +466,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	in := make(chan struct{})
 	close(in)
 
-	pins := make(chan types.Pin)
+	out := make(chan types.Pin, common.StreamChannelSize)
 	errCh := make(chan error, 1)
 
 	ctx, cancel := context.WithCancel(r.Context())
@@ -470,7 +481,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 			"Cluster",
 			"Pins",
 			in,
-			pins,
+			out,
 		)
 	}()
 
@@ -483,7 +494,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 			select {
 			case <-ctx.Done():
 				break iterloop
-			case p, ok = <-pins:
+			case p, ok = <-out:
 				if !ok {
 					break iterloop
 				}

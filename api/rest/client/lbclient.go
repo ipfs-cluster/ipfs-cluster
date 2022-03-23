@@ -123,16 +123,13 @@ func (lc *loadBalancingClient) ID(ctx context.Context) (api.ID, error) {
 }
 
 // Peers requests ID information for all cluster peers.
-func (lc *loadBalancingClient) Peers(ctx context.Context) ([]api.ID, error) {
-	var peers []api.ID
+func (lc *loadBalancingClient) Peers(ctx context.Context, out chan<- api.ID) error {
 	call := func(c Client) error {
-		var err error
-		peers, err = c.Peers(ctx)
-		return err
+		return c.Peers(ctx, out)
 	}
 
 	err := lc.retry(0, call)
-	return peers, err
+	return err
 }
 
 // PeerAdd adds a new peer to the cluster.

@@ -18,6 +18,19 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+func peers(ctx context.Context, t *testing.T, c *Cluster) []api.ID {
+	t.Helper()
+	out := make(chan api.ID)
+	go func() {
+		c.Peers(ctx, out)
+	}()
+	var ids []api.ID
+	for id := range out {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host) {
 	cls := make([]*Cluster, nClusters)
 	mocks := make([]*test.IpfsMock, nClusters)
@@ -105,7 +118,7 @@ func TestClustersPeerAdd(t *testing.T) {
 	ttlDelay()
 
 	f := func(t *testing.T, c *Cluster) {
-		ids := c.Peers(ctx)
+		ids := peers(ctx, t, c)
 
 		// check they are tracked by the peer manager
 		if len(ids) != nClusters {
@@ -180,7 +193,7 @@ func TestClustersJoinBadPeer(t *testing.T) {
 	if err == nil {
 		t.Error("expected an error")
 	}
-	ids := clusters[0].Peers(ctx)
+	ids := peers(ctx, t, clusters[0])
 	if len(ids) != 1 {
 		t.Error("cluster should have only one member")
 	}
@@ -198,7 +211,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 
 	clusters[0].PeerAdd(ctx, clusters[1].id)
 	ttlDelay()
-	ids := clusters[1].Peers(ctx)
+	ids := peers(ctx, t, clusters[1])
 	// raft will have only 2 peers
 	// crdt will have all peers autodiscovered by now
 	if len(ids) < 2 {
@@ -222,7 +235,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 			t.Error("expected an error")
 		}
 
-		ids = clusters[0].Peers(ctx)
+		ids = peers(ctx, t, clusters[0])
 		if len(ids) != 2 {
 			t.Error("cluster should still have 2 peers")
 		}
@@ -237,7 +250,7 @@ func TestClustersPeerAddInUnhealthyCluster(t *testing.T) {
 		}
 
 		ttlDelay()
-		ids = clusters[0].Peers(ctx)
+		ids = peers(ctx, t, clusters[0])
 		if len(ids) < 2 {
 			t.Error("cluster should have at least 2 peers after removing and adding 1")
 		}
@@ -275,7 +288,7 @@ func TestClustersPeerRemove(t *testing.T) {
 					t.Error("removed peer should have exited")
 				}
 			} else {
-				ids := c.Peers(ctx)
+				ids := peers(ctx, t, c)
 				if len(ids) != nClusters-1 {
 					t.Error("should have removed 1 peer")
 				}
@@ -302,7 +315,7 @@ func TestClustersPeerRemoveSelf(t *testing.T) {
 	case "raft":
 		for i := 0; i < len(clusters); i++ {
 			waitForLeaderAndMetrics(t, clusters)
-			peers := clusters[i].Peers(ctx)
+			peers := peers(ctx, t, clusters[i])
 			t.Logf("Current cluster size: %d", len(peers))
 			if len(peers) != (len(clusters) - i) {
 				t.Fatal("Previous peers not removed correctly")
@@ -363,7 +376,7 @@ func TestClustersPeerRemoveLeader(t *testing.T) {
 
 		for i := 0; i < len(clusters); i++ {
 			leader := findLeader(t)
-			peers := leader.Peers(ctx)
+			peers := peers(ctx, t, leader)
 			t.Logf("Current cluster size: %d", len(peers))
 			if len(peers) != (len(clusters) - i) {
 				t.Fatal("Previous peers not removed correctly")
@@ -528,7 +541,7 @@ func TestClustersPeerJoin(t *testing.T) {
 	}
 
 	f := func(t *testing.T, c *Cluster) {
-		peers := c.Peers(ctx)
+		peers := peers(ctx, t, c)
 		str := c.id.String() + "\n"
 		for _, p := range peers {
 			str += "  - " + p.ID.String() + "\n"
@@ -571,7 +584,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 	ttlDelay()
 
 	f2 := func(t *testing.T, c *Cluster) {
-		peers := c.Peers(ctx)
+		peers := peers(ctx, t, c)
 		if len(peers) != nClusters {
 			t.Error("all peers should be connected")
 		}

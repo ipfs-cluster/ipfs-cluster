@@ -1747,7 +1747,7 @@ func (c *Cluster) Version() string {
 }
 
 // Peers returns the IDs of the members of this Cluster.
-func (c *Cluster) Peers(ctx context.Context) []api.ID {
+func (c *Cluster) Peers(ctx context.Context, out chan<- api.ID) {
 	_, span := trace.StartSpan(ctx, "cluster/Peers")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1756,49 +1756,70 @@ func (c *Cluster) Peers(ctx context.Context) []api.ID {
 	if err != nil {
 		logger.Error(err)
 		logger.Error("an empty list of peers will be returned")
-		return []api.ID{}
+		close(out)
+		return
 	}
-	return c.peersWithFilter(ctx, peers)
+	c.peersWithFilter(ctx, peers, out)
 }
 
 // requests IDs from a given number of peers.
-func (c *Cluster) peersWithFilter(ctx context.Context, peers []peer.ID) []api.ID {
-	lenPeers := len(peers)
-	ids := make([]api.ID, lenPeers)
+func (c *Cluster) peersWithFilter(ctx context.Context, peers []peer.ID, out chan<- api.ID) {
+	defer close(out)
 
 	// We should be done relatively quickly with this call. Otherwise
 	// report errors.
 	timeout := 15 * time.Second
-	ctxs, cancels := rpcutil.CtxsWithTimeout(ctx, lenPeers, timeout)
-	defer rpcutil.MultiCancel(cancels)
+	ctxCall, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	errs := c.rpcClient.MultiCall(
-		ctxs,
-		peers,
-		"Cluster",
-		"ID",
-		struct{}{},
-		rpcutil.CopyIDsToIfaces(ids),
-	)
+	in := make(chan struct{})
+	close(in)
+	idsOut := make(chan api.ID, len(peers))
+	errCh := make(chan []error, 1)
 
-	finalPeers := []api.ID{}
+	go func() {
+		defer close(errCh)
 
+		errCh <- c.rpcClient.MultiStream(
+			ctxCall,
+			peers,
+			"Cluster",
+			"IDStream",
+			in,
+			idsOut,
+		)
+	}()
+
+	// Unfortunately, we need to use idsOut as intermediary channel
+	// because it is closed when MultiStream ends and we cannot keep
+	// adding things on it (the errors below).
+	for id := range idsOut {
+		select {
+		case <-ctx.Done():
+			logger.Errorf("Peers call aborted: %s", ctx.Err())
+			return
+		case out <- id:
+		}
+	}
+
+	// ErrCh will always be closed on context cancellation too.
+	errs := <-errCh
 	for i, err := range errs {
 		if err == nil {
-			finalPeers = append(finalPeers, ids[i])
-			_ = finalPeers // staticcheck
 			continue
 		}
-
 		if rpc.IsAuthorizationError(err) {
 			continue
 		}
-		ids[i] = api.ID{}
-		ids[i].ID = peers[i]
-		ids[i].Error = err.Error()
+		select {
+		case <-ctx.Done():
+			logger.Errorf("Peers call aborted: %s", ctx.Err())
+		case out <- api.ID{
+			ID:    peers[i],
+			Error: err.Error(),
+		}:
+		}
 	}
-
-	return ids
 }
 
 // getTrustedPeers gives listed of trusted peers except the current peer and
@@ -2001,8 +2022,6 @@ func (c *Cluster) globalPinInfoStream(ctx context.Context, comp, method string, 
 		}
 	}
 
-	msOut := make(chan api.PinInfo)
-
 	// We don't have a good timeout proposal for this. Depending on the
 	// size of the state and the peformance of IPFS and the network, this
 	// may take moderately long.
@@ -2010,6 +2029,7 @@ func (c *Cluster) globalPinInfoStream(ctx context.Context, comp, method string, 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	msOut := make(chan api.PinInfo)
 	errsCh := make(chan []error, 1)
 	go func() {
 		defer close(errsCh)

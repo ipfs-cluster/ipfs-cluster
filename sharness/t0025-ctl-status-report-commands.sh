@@ -12,8 +12,8 @@ test_expect_success IPFS,CLUSTER,JQ "cluster-ctl can read id" '
     [ -n "$id" ] && ( ipfs-cluster-ctl id | egrep -q "$id" )
 '
 
-test_expect_success IPFS,CLUSTER "cluster-ctl list 0 peers" '
-    peer_length=`ipfs-cluster-ctl --enc=json peers ls | jq ". | length"`
+test_expect_success IPFS,CLUSTER "cluster-ctl list 1 peer" '
+    peer_length=`ipfs-cluster-ctl --enc=json peers ls | jq -n "[inputs] | length"`
     [ $peer_length -eq 1 ]
 '
 
