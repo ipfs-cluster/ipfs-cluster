@@ -31,7 +31,6 @@ var comments = map[string]string{
 	"PinTracker.RecoverAll":     "Broadcast in RecoverAll unimplemented",
 	"Pintracker.Status":         "Called in broadcast from Status()",
 	"Pintracker.StatusAll":      "Called in broadcast from StatusAll()",
-	"IPFSConnector.BlockPut":    "Not used - replaced by BlockStream",
 	"IPFSConnector.BlockStream": "Called by adders",
 	"IPFSConnector.RepoStat":    "Called in broadcast from proxy/repo/stat",
 	"IPFSConnector.SwarmPeers":  "Called in ConnectGraph",
