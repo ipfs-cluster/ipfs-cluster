@@ -615,7 +615,7 @@ func (proxy *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Warnf("Proxy/add does not support all IPFS params. Current options: %+v", params)
 
-	outputTransform := func(in *api.AddedOutput) interface{} {
+	outputTransform := func(in api.AddedOutput) interface{} {
 		cidStr := ""
 		if in.Cid.Defined() {
 			cidStr = in.Cid.String()

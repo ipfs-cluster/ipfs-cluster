@@ -134,8 +134,10 @@ func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, e
 func (ipfs *mockConnector) ConnectSwarms(ctx context.Context) error       { return nil }
 func (ipfs *mockConnector) ConfigKey(keypath string) (interface{}, error) { return nil, nil }
 
-func (ipfs *mockConnector) BlockPut(ctx context.Context, nwm api.NodeWithMeta) error {
-	ipfs.blocks.Store(nwm.Cid.String(), nwm.Data)
+func (ipfs *mockConnector) BlockStream(ctx context.Context, in <-chan api.NodeWithMeta) error {
+	for n := range in {
+		ipfs.blocks.Store(n.Cid.String(), n.Data)
+	}
 	return nil
 }
 
@@ -372,7 +374,7 @@ func TestAddFile(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		c, err := cl.AddFile(r, params)
+		c, err := cl.AddFile(context.Background(), r, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -401,7 +403,7 @@ func TestAddFile(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		c, err := cl.AddFile(r, params)
+		c, err := cl.AddFile(context.Background(), r, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -431,7 +433,7 @@ func TestUnpinShard(t *testing.T) {
 	mfr, closer := sth.GetTreeMultiReader(t)
 	defer closer.Close()
 	r := multipart.NewReader(mfr, mfr.Boundary())
-	root, err := cl.AddFile(r, params)
+	root, err := cl.AddFile(context.Background(), r, params)
 	if err != nil {
 		t.Fatal(err)
 	}

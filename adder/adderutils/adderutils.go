@@ -30,19 +30,19 @@ func AddMultipartHTTPHandler(
 	params api.AddParams,
 	reader *multipart.Reader,
 	w http.ResponseWriter,
-	outputTransform func(*api.AddedOutput) interface{},
+	outputTransform func(api.AddedOutput) interface{},
 ) (cid.Cid, error) {
 	var dags adder.ClusterDAGService
-	output := make(chan *api.AddedOutput, 200)
+	output := make(chan api.AddedOutput, 200)
 
 	if params.Shard {
-		dags = sharding.New(rpc, params, output)
+		dags = sharding.New(ctx, rpc, params, output)
 	} else {
-		dags = single.New(rpc, params, params.Local)
+		dags = single.New(ctx, rpc, params, params.Local)
 	}
 
 	if outputTransform == nil {
-		outputTransform = func(in *api.AddedOutput) interface{} { return in }
+		outputTransform = func(in api.AddedOutput) interface{} { return in }
 	}
 
 	// This must be application/json otherwise go-ipfs client
@@ -112,7 +112,7 @@ func AddMultipartHTTPHandler(
 	return root, err
 }
 
-func streamOutput(w http.ResponseWriter, output chan *api.AddedOutput, transform func(*api.AddedOutput) interface{}) {
+func streamOutput(w http.ResponseWriter, output chan api.AddedOutput, transform func(api.AddedOutput) interface{}) {
 	flusher, flush := w.(http.Flusher)
 	enc := json.NewEncoder(w)
 	for v := range output {
@@ -127,7 +127,7 @@ func streamOutput(w http.ResponseWriter, output chan *api.AddedOutput, transform
 	}
 }
 
-func buildOutput(output chan *api.AddedOutput, transform func(*api.AddedOutput) interface{}) []interface{} {
+func buildOutput(output chan api.AddedOutput, transform func(api.AddedOutput) interface{}) []interface{} {
 	var finalOutput []interface{}
 	for v := range output {
 		finalOutput = append(finalOutput, transform(v))

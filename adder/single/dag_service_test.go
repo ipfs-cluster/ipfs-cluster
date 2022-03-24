@@ -23,8 +23,11 @@ type testClusterRPC struct {
 	pins sync.Map
 }
 
-func (rpcs *testIPFSRPC) BlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
-	rpcs.blocks.Store(in.Cid.String(), in)
+func (rpcs *testIPFSRPC) BlockStream(ctx context.Context, in <-chan api.NodeWithMeta, out chan<- struct{}) error {
+	defer close(out)
+	for n := range in {
+		rpcs.blocks.Store(n.Cid.String(), n)
+	}
 	return nil
 }
 
@@ -61,7 +64,7 @@ func TestAdd(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Wrap = true
 
-		dags := New(client, params, false)
+		dags := New(context.Background(), client, params, false)
 		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()
@@ -83,7 +86,7 @@ func TestAdd(t *testing.T) {
 		for _, c := range expected {
 			_, ok := ipfsRPC.blocks.Load(c)
 			if !ok {
-				t.Error("no IPFS.BlockPut for block", c)
+				t.Error("block was not added to IPFS", c)
 			}
 		}
 
@@ -109,7 +112,7 @@ func TestAdd(t *testing.T) {
 		params := api.DefaultAddParams()
 		params.Layout = "trickle"
 
-		dags := New(client, params, false)
+		dags := New(context.Background(), client, params, false)
 		add := adder.New(dags, params, nil)
 
 		sth := test.NewShardingTestHelper()

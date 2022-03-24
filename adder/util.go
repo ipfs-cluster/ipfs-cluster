@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/rpcutil"
+	"go.uber.org/multierr"
 
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -18,82 +19,90 @@ import (
 // block fails on all of them.
 var ErrBlockAdder = errors.New("failed to put block on all destinations")
 
-// BlockAdder implements "github.com/ipfs/go-ipld-format".NodeAdder.
-// It helps sending nodes to multiple destinations, as long as one of
-// them is still working.
-type BlockAdder struct {
+// BlockStreamer helps streaming nodes to multiple destinations, as long as
+// one of them is still working.
+type BlockStreamer struct {
 	dests     []peer.ID
 	rpcClient *rpc.Client
+	blocks    <-chan api.NodeWithMeta
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	errMu  sync.Mutex
+	err    error
 }
 
-// NewBlockAdder creates a BlockAdder given an rpc client and allocated peers.
-func NewBlockAdder(rpcClient *rpc.Client, dests []peer.ID) *BlockAdder {
-	return &BlockAdder{
+// NewBlockStreamer creates a BlockStreamer given an rpc client, allocated
+// peers and a channel on which the blocks to stream are received.
+func NewBlockStreamer(ctx context.Context, rpcClient *rpc.Client, dests []peer.ID, blocks <-chan api.NodeWithMeta) *BlockStreamer {
+	bsCtx, cancel := context.WithCancel(ctx)
+
+	bs := BlockStreamer{
+		ctx:       bsCtx,
+		cancel:    cancel,
 		dests:     dests,
 		rpcClient: rpcClient,
+		blocks:    blocks,
+		err:       nil,
 	}
+
+	go bs.streamBlocks()
+	return &bs
 }
 
-// Add puts an ipld node to the allocated destinations.
-func (ba *BlockAdder) Add(ctx context.Context, node ipld.Node) error {
-	nodeSerial := ipldNodeToNodeWithMeta(node)
+// Done returns a channel which gets closed when the BlockStreamer has
+// finished.
+func (bs *BlockStreamer) Done() <-chan struct{} {
+	return bs.ctx.Done()
+}
 
-	ctxs, cancels := rpcutil.CtxsWithCancel(ctx, len(ba.dests))
-	defer rpcutil.MultiCancel(cancels)
+func (bs *BlockStreamer) setErr(err error) {
+	bs.errMu.Lock()
+	bs.err = err
+	bs.errMu.Unlock()
+}
 
-	logger.Debugf("block put %s to %s", nodeSerial.Cid, ba.dests)
-	errs := ba.rpcClient.MultiCall(
-		ctxs,
-		ba.dests,
+// Err returns any errors that happened after the operation of the
+// BlockStreamer, for example when blocks could not be put to all nodes.
+func (bs *BlockStreamer) Err() error {
+	bs.errMu.Lock()
+	defer bs.errMu.Unlock()
+	return bs.err
+}
+
+func (bs *BlockStreamer) streamBlocks() {
+	defer bs.cancel()
+
+	// Nothing should be sent on out.
+	// We drain though
+	out := make(chan struct{})
+	go func() {
+		for range out {
+		}
+	}()
+
+	errs := bs.rpcClient.MultiStream(
+		bs.ctx,
+		bs.dests,
 		"IPFSConnector",
-		"BlockPut",
-		nodeSerial,
-		rpcutil.RPCDiscardReplies(len(ba.dests)),
+		"BlockStream",
+		bs.blocks,
+		out,
 	)
 
-	var successfulDests []peer.ID
-	numErrs := 0
-	for i, e := range errs {
-		if e != nil {
-			logger.Errorf("BlockPut on %s: %s", ba.dests[i], e)
-			numErrs++
-		}
-
-		// RPCErrors include server errors (wrong RPC methods), client
-		// errors (creating, writing or reading streams) and
-		// authorization errors, but not IPFS errors from a failed blockput
-		// for example.
-		if rpc.IsRPCError(e) {
-			continue
-		}
-		successfulDests = append(successfulDests, ba.dests[i])
+	// this eliminates any nil errors.
+	combinedErrors := multierr.Combine(errs...)
+	if len(multierr.Errors(combinedErrors)) == len(bs.dests) {
+		logger.Error(combinedErrors)
+		bs.setErr(ErrBlockAdder)
+	} else {
+		logger.Warning("there were errors streaming blocks, but at least one destination succeeded")
+		logger.Warning(combinedErrors)
 	}
-
-	// If all requests resulted in errors, fail.
-	// Successful dests will have members when no errors happened
-	// or when an error happened but it was not an RPC error.
-	// As long as BlockPut worked in 1 destination, we move on.
-	if numErrs == len(ba.dests) || len(successfulDests) == 0 {
-		return ErrBlockAdder
-	}
-
-	ba.dests = successfulDests
-	return nil
 }
 
-// AddMany puts multiple ipld nodes to allocated destinations.
-func (ba *BlockAdder) AddMany(ctx context.Context, nodes []ipld.Node) error {
-	for _, node := range nodes {
-		err := ba.Add(ctx, node)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ipldNodeToNodeSerial converts an ipld.Node to NodeWithMeta.
-func ipldNodeToNodeWithMeta(n ipld.Node) api.NodeWithMeta {
+// IpldNodeToNodeWithMeta converts an ipld.Node to api.NodeWithMeta.
+func IpldNodeToNodeWithMeta(n ipld.Node) api.NodeWithMeta {
 	size, err := n.Size()
 	if err != nil {
 		logger.Warn(err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/ipfs-cluster/adder"
 	"github.com/ipfs/ipfs-cluster/api"
 
@@ -18,10 +19,12 @@ import (
 // a peer to be block-put and will be part of the same shard in the
 // cluster DAG.
 type shard struct {
+	ctx         context.Context
 	rpc         *rpc.Client
 	allocations []peer.ID
 	pinOptions  api.PinOptions
-	ba          *adder.BlockAdder
+	bs          *adder.BlockStreamer
+	blocks      chan api.NodeWithMeta
 	// dagNode represents a node with links and will be converted
 	// to Cbor.
 	dagNode     map[string]cid.Cid
@@ -29,7 +32,7 @@ type shard struct {
 	sizeLimit   uint64
 }
 
-func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard, error) {
+func newShard(globalCtx context.Context, ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard, error) {
 	allocs, err := adder.BlockAllocate(ctx, rpc, opts)
 	if err != nil {
 		return nil, err
@@ -47,11 +50,15 @@ func newShard(ctx context.Context, rpc *rpc.Client, opts api.PinOptions) (*shard
 	// TODO (hector): get latest metrics for allocations, adjust sizeLimit
 	// to minimum. This can be done later.
 
+	blocks := make(chan api.NodeWithMeta, 256)
+
 	return &shard{
+		ctx:         globalCtx,
 		rpc:         rpc,
 		allocations: allocs,
 		pinOptions:  opts,
-		ba:          adder.NewBlockAdder(rpc, allocs),
+		bs:          adder.NewBlockStreamer(globalCtx, rpc, allocs, blocks),
+		blocks:      blocks,
 		dagNode:     make(map[string]cid.Cid),
 		currentSize: 0,
 		sizeLimit:   opts.ShardSize,
@@ -77,6 +84,15 @@ func (sh *shard) Allocations() []peer.ID {
 	return sh.allocations
 }
 
+func (sh *shard) sendBlock(ctx context.Context, n ipld.Node) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case sh.blocks <- adder.IpldNodeToNodeWithMeta(n):
+		return nil
+	}
+}
+
 // Flush completes the allocation of this shard by building a CBOR node
 // and adding it to IPFS, then pinning it in cluster. It returns the Cid of the
 // shard.
@@ -87,8 +103,21 @@ func (sh *shard) Flush(ctx context.Context, shardN int, prev cid.Cid) (cid.Cid, 
 		return cid.Undef, err
 	}
 
-	err = sh.ba.AddMany(ctx, nodes)
-	if err != nil {
+	for _, n := range nodes {
+		err = sh.sendBlock(ctx, n)
+		if err != nil {
+			close(sh.blocks)
+			return cid.Undef, err
+		}
+	}
+	close(sh.blocks)
+	select {
+	case <-ctx.Done():
+		return cid.Undef, ctx.Err()
+	case <-sh.bs.Done():
+	}
+
+	if err := sh.bs.Err(); err != nil {
 		return cid.Undef, err
 	}
 

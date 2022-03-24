@@ -32,7 +32,7 @@ func TestAdd(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		ci, err := clusters[0].AddFile(r, params)
+		ci, err := clusters[0].AddFile(context.Background(), r, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +67,7 @@ func TestAdd(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		ci, err := clusters[2].AddFile(r, params)
+		ci, err := clusters[2].AddFile(context.Background(), r, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,7 +119,7 @@ func TestAddWithUserAllocations(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		ci, err := clusters[0].AddFile(r, params)
+		ci, err := clusters[0].AddFile(context.Background(), r, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -167,7 +167,7 @@ func TestAddPeerDown(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		ci, err := clusters[1].AddFile(r, params)
+		ci, err := clusters[1].AddFile(context.Background(), r, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -218,7 +218,7 @@ func TestAddOnePeerFails(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := clusters[0].AddFile(r, params)
+			_, err := clusters[0].AddFile(context.Background(), r, params)
 			if err != nil {
 				t.Error(err)
 			}
@@ -276,7 +276,7 @@ func TestAddAllPeersFail(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := clusters[0].AddFile(r, params)
+			_, err := clusters[0].AddFile(context.Background(), r, params)
 			if err != adder.ErrBlockAdder {
 				t.Error("expected ErrBlockAdder. Got: ", err)
 			}
