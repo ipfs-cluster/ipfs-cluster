@@ -48,7 +48,6 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 
 	// IPFSConnector methods
 	"IPFSConnector.BlockGet":    RPCClosed,
-	"IPFSConnector.BlockPut":    RPCClosed,  // Not used - replaced by BlockStream
 	"IPFSConnector.BlockStream": RPCTrusted, // Called by adders
 	"IPFSConnector.ConfigKey":   RPCClosed,
 	"IPFSConnector.Pin":         RPCClosed,
@@ -70,3 +69,4 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"PeerMonitor.LatestMetrics": RPCClosed,
 	"PeerMonitor.MetricNames":   RPCClosed,
 }
+
