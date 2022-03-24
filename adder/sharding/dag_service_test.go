@@ -27,8 +27,11 @@ type testRPC struct {
 	pins   sync.Map
 }
 
-func (rpcs *testRPC) BlockPut(ctx context.Context, in api.NodeWithMeta, out *struct{}) error {
-	rpcs.blocks.Store(in.Cid.String(), in.Data)
+func (rpcs *testRPC) BlockStream(ctx context.Context, in <-chan api.NodeWithMeta, out chan<- struct{}) error {
+	defer close(out)
+	for n := range in {
+		rpcs.blocks.Store(n.Cid.String(), n.Data)
+	}
 	return nil
 }
 
@@ -77,9 +80,9 @@ func makeAdder(t *testing.T, params api.AddParams) (*adder.Adder, *testRPC) {
 	}
 	client := rpc.NewClientWithServer(nil, "mock", server)
 
-	out := make(chan *api.AddedOutput, 1)
+	out := make(chan api.AddedOutput, 1)
 
-	dags := New(client, params, out)
+	dags := New(context.Background(), client, params, out)
 	add := adder.New(dags, params, out)
 
 	go func() {

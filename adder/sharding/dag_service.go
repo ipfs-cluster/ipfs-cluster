@@ -30,10 +30,11 @@ var logger = logging.Logger("shardingdags")
 type DAGService struct {
 	adder.BaseDAGService
 
+	ctx       context.Context
 	rpcClient *rpc.Client
 
 	addParams api.AddParams
-	output    chan<- *api.AddedOutput
+	output    chan<- api.AddedOutput
 
 	addedSet *cid.Set
 
@@ -50,11 +51,12 @@ type DAGService struct {
 }
 
 // New returns a new ClusterDAGService, which uses the given rpc client to perform
-// Allocate, IPFSBlockPut and Pin requests to other cluster components.
-func New(rpc *rpc.Client, opts api.AddParams, out chan<- *api.AddedOutput) *DAGService {
+// Allocate, IPFSStream and Pin requests to other cluster components.
+func New(ctx context.Context, rpc *rpc.Client, opts api.AddParams, out chan<- api.AddedOutput) *DAGService {
 	// use a default value for this regardless of what is provided.
 	opts.Mode = api.PinModeRecursive
 	return &DAGService{
+		ctx:       ctx,
 		rpcClient: rpc,
 		addParams: opts,
 		output:    out,
@@ -93,14 +95,34 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	}
 
 	// PutDAG to ourselves
-	err = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{""}).AddMany(ctx, clusterDAGNodes)
-	if err != nil {
+	blocks := make(chan api.NodeWithMeta, 256)
+	go func() {
+		defer close(blocks)
+		for _, n := range clusterDAGNodes {
+			select {
+			case <-ctx.Done():
+				logger.Error(ctx.Err())
+				return //abort
+			case blocks <- adder.IpldNodeToNodeWithMeta(n):
+			}
+		}
+	}()
+
+	// Stream these blocks and wait until we are done.
+	bs := adder.NewBlockStreamer(ctx, dgs.rpcClient, []peer.ID{""}, blocks)
+	select {
+	case <-ctx.Done():
+		return dataRoot, ctx.Err()
+	case <-bs.Done():
+	}
+
+	if err := bs.Err(); err != nil {
 		return dataRoot, err
 	}
 
 	clusterDAG := clusterDAGNodes[0].Cid()
 
-	dgs.sendOutput(&api.AddedOutput{
+	dgs.sendOutput(api.AddedOutput{
 		Name:        fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name),
 		Cid:         clusterDAG,
 		Size:        dgs.totalSize,
@@ -174,7 +196,8 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n ipld.Node) error {
 	if shard == nil {
 		logger.Infof("new shard for '%s': #%d", dgs.addParams.Name, len(dgs.shards))
 		var err error
-		shard, err = newShard(ctx, dgs.rpcClient, dgs.addParams.PinOptions)
+		// important: shards use the DAGService context.
+		shard, err = newShard(dgs.ctx, ctx, dgs.rpcClient, dgs.addParams.PinOptions)
 		if err != nil {
 			return err
 		}
@@ -189,7 +212,7 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n ipld.Node) error {
 	// add the block to it if it fits and return
 	if shard.Size()+size < shard.Limit() {
 		shard.AddLink(ctx, n.Cid(), size)
-		return dgs.currentShard.ba.Add(ctx, n)
+		return dgs.currentShard.sendBlock(ctx, n)
 	}
 
 	logger.Debugf("shard %d full: block: %d. shard: %d. limit: %d",
@@ -246,7 +269,7 @@ Ingest Rate: %s/s
 
 }
 
-func (dgs *DAGService) sendOutput(ao *api.AddedOutput) {
+func (dgs *DAGService) sendOutput(ao api.AddedOutput) {
 	if dgs.output != nil {
 		dgs.output <- ao
 	}
@@ -269,7 +292,7 @@ func (dgs *DAGService) flushCurrentShard(ctx context.Context) (cid.Cid, error) {
 	dgs.shards[fmt.Sprintf("%d", lens)] = shardCid
 	dgs.previousShard = shardCid
 	dgs.currentShard = nil
-	dgs.sendOutput(&api.AddedOutput{
+	dgs.sendOutput(api.AddedOutput{
 		Name:        fmt.Sprintf("shard-%d", lens),
 		Cid:         shardCid,
 		Size:        shard.Size(),

@@ -51,7 +51,7 @@ type Adder struct {
 	ctx        context.Context
 	dagService ipld.DAGService
 	allocsFun  func() []peer.ID
-	Out        chan *api.AddedOutput
+	Out        chan api.AddedOutput
 	Progress   bool
 	Trickle    bool
 	RawLeaves  bool
@@ -425,9 +425,9 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 }
 
 // outputDagnode sends dagnode info over the output channel.
-// Cluster: we use *api.AddedOutput instead of coreiface events
+// Cluster: we use api.AddedOutput instead of coreiface events
 // and make this an adder method to be be able to prefix.
-func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipld.Node) error {
+func (adder *Adder) outputDagnode(out chan api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil
 	}
@@ -445,7 +445,7 @@ func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipl
 	// account for this here.
 	name = filepath.Join(adder.OutputPrefix, name)
 
-	out <- &api.AddedOutput{
+	out <- api.AddedOutput{
 		Cid:         dn.Cid(),
 		Name:        name,
 		Size:        s,
@@ -458,7 +458,7 @@ func (adder *Adder) outputDagnode(out chan *api.AddedOutput, name string, dn ipl
 type progressReader struct {
 	file         io.Reader
 	path         string
-	out          chan *api.AddedOutput
+	out          chan api.AddedOutput
 	bytes        int64
 	lastProgress int64
 }
@@ -469,7 +469,7 @@ func (i *progressReader) Read(p []byte) (int, error) {
 	i.bytes += int64(n)
 	if i.bytes-i.lastProgress >= progressReaderIncrement || err == io.EOF {
 		i.lastProgress = i.bytes
-		i.out <- &api.AddedOutput{
+		i.out <- api.AddedOutput{
 			Name:  i.path,
 			Bytes: uint64(i.bytes),
 		}

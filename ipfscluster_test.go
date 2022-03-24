@@ -2150,7 +2150,7 @@ func TestClustersFollowerMode(t *testing.T) {
 		mfr, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
 		r := multipart.NewReader(mfr, mfr.Boundary())
-		_, err = clusters[1].AddFile(r, params)
+		_, err = clusters[1].AddFile(ctx, r, params)
 		if err != errFollowerMode {
 			t.Error("expected follower mode error")
 		}

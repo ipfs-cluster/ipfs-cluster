@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -367,48 +368,62 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		j, _ := json.Marshal(resp)
 		w.Write(j)
 	case "block/put":
-		// Get the data and retun the hash
-		mpr, err := r.MultipartReader()
-		if err != nil {
-			goto ERROR
-		}
-		part, err := mpr.NextPart()
-		if err != nil {
-			goto ERROR
-		}
-		data, err := ioutil.ReadAll(part)
-		if err != nil {
-			goto ERROR
-		}
-		// Parse cid from data and format and add to mock block-store
+		w.Header().Set("Trailer", "X-Stream-Error")
+
 		query := r.URL.Query()
 		formatStr := query.Get("format")
 		format := cid.Codecs[formatStr]
 		mhType := multihash.Names[query.Get("mhtype")]
 		mhLen, _ := strconv.Atoi(query.Get("mhLen"))
 
-		var builder cid.Builder
-		if formatStr == "v0" && mhType == multihash.SHA2_256 {
-			builder = cid.V0Builder{}
-		} else {
-			builder = cid.V1Builder{
-				Codec:    format,
-				MhType:   mhType,
-				MhLength: mhLen,
-			}
-		}
-
-		c, err := builder.Sum(data)
+		// Get the data and retun the hash
+		mpr, err := r.MultipartReader()
 		if err != nil {
 			goto ERROR
 		}
-		m.BlockStore[c.String()] = data
 
-		resp := mockBlockPutResp{
-			Key: c.String(),
+		w.WriteHeader(http.StatusOK)
+
+		for {
+			part, err := mpr.NextPart()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				w.Header().Set("X-Stream-Error", err.Error())
+				return
+			}
+			data, err := ioutil.ReadAll(part)
+			if err != nil {
+				w.Header().Set("X-Stream-Error", err.Error())
+				return
+			}
+			// Parse cid from data and format and add to mock block-store
+
+			var builder cid.Builder
+			if formatStr == "v0" && mhType == multihash.SHA2_256 {
+				builder = cid.V0Builder{}
+			} else {
+				builder = cid.V1Builder{
+					Codec:    format,
+					MhType:   mhType,
+					MhLength: mhLen,
+				}
+			}
+
+			c, err := builder.Sum(data)
+			if err != nil {
+				w.Header().Set("X-Stream-Error", err.Error())
+				return
+			}
+			m.BlockStore[c.String()] = data
+
+			resp := mockBlockPutResp{
+				Key: c.String(),
+			}
+			j, _ := json.Marshal(resp)
+			w.Write(j)
 		}
-		j, _ := json.Marshal(resp)
-		w.Write(j)
 	case "block/get":
 		query := r.URL.Query()
 		arg, ok := query["arg"]

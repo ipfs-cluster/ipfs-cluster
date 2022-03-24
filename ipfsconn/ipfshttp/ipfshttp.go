@@ -19,6 +19,7 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
+	"go.uber.org/multierr"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
@@ -118,7 +119,7 @@ type ipfsSwarmPeersResp struct {
 }
 
 type ipfsBlockPutResp struct {
-	Key  string
+	Key  api.Cid
 	Size int
 }
 
@@ -903,35 +904,128 @@ func (ipfs *Connector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 	return swarm, nil
 }
 
-// BlockPut triggers an ipfs block put on the given data, inserting the block
-// into the ipfs daemon's repo.
-func (ipfs *Connector) BlockPut(ctx context.Context, b api.NodeWithMeta) error {
-	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/BlockPut")
-	defer span.End()
+// chanDirectory implementes the files.Directory interace
+type chanDirectory struct {
+	iterator files.DirIterator
+}
 
-	logger.Debugf("putting block to IPFS: %s", b.Cid)
-	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
-	defer cancel()
-	defer ipfs.updateInformerMetric(ctx)
+// Close is a no-op and it is not used.
+func (cd *chanDirectory) Close() error {
+	return nil
+}
 
-	mapDir := files.NewMapDirectory(
-		map[string]files.Node{ // IPFS reqs require a wrapping directory
-			"": files.NewBytesFile(b.Data),
-		},
-	)
+// not implemented, I think not needed for multipart.
+func (cd *chanDirectory) Size() (int64, error) {
+	return 0, nil
+}
 
-	multiFileR := files.NewMultiFileReader(mapDir, true)
+func (cd *chanDirectory) Entries() files.DirIterator {
+	return cd.iterator
+}
 
+// chanIterator implements the files.DirIterator interface.
+type chanIterator struct {
+	ctx    context.Context
+	blocks <-chan api.NodeWithMeta
+
+	current api.NodeWithMeta
+	peeked  api.NodeWithMeta
+	done    bool
+	err     error
+
+	seenMu sync.Mutex
+	seen   *cid.Set
+}
+
+func (ci *chanIterator) Name() string {
+	if !ci.current.Cid.Defined() {
+		return ""
+	}
+	return ci.current.Cid.String()
+}
+
+// return NewBytesFile.
+func (ci *chanIterator) Node() files.Node {
+	if !ci.current.Cid.Defined() {
+		return nil
+	}
+	ci.seenMu.Lock()
+	if ci.seen.Visit(ci.current.Cid) {
+		logger.Debugf("block %s", ci.current.Cid)
+	}
+	ci.seenMu.Unlock()
+	return files.NewBytesFile(ci.current.Data)
+}
+
+func (ci *chanIterator) Seen(c api.Cid) bool {
+	ci.seenMu.Lock()
+	has := ci.seen.Has(cid.Cid(c))
+	ci.seen.Remove(cid.Cid(c))
+	ci.seenMu.Unlock()
+	return has
+}
+
+func (ci *chanIterator) Done() bool {
+	return ci.done
+}
+
+// Peek reads one block from the channel but saves it so that Next also
+// returns it.
+func (ci *chanIterator) Peek() (api.NodeWithMeta, bool) {
+	if ci.done {
+		return api.NodeWithMeta{}, false
+	}
+
+	select {
+	case <-ci.ctx.Done():
+		return api.NodeWithMeta{}, false
+	case next, ok := <-ci.blocks:
+		if !ok {
+			return api.NodeWithMeta{}, false
+		}
+		ci.peeked = next
+		return next, true
+	}
+}
+
+func (ci *chanIterator) Next() bool {
+	if ci.done {
+		return false
+	}
+	if ci.peeked.Cid.Defined() {
+		ci.current = ci.peeked
+		ci.peeked = api.NodeWithMeta{}
+		return true
+	}
+	select {
+	case <-ci.ctx.Done():
+		ci.done = true
+		ci.err = ci.ctx.Err()
+		return false
+	case next, ok := <-ci.blocks:
+		if !ok {
+			ci.done = true
+			return false
+		}
+		ci.current = next
+		return true
+	}
+}
+
+func (ci *chanIterator) Err() error {
+	return ci.err
+}
+
+func blockPutQuery(prefix cid.Prefix) (url.Values, error) {
 	q := make(url.Values, 3)
-	prefix := b.Cid.Prefix()
 	format, ok := cid.CodecToStr[prefix.Codec]
 	if !ok {
-		return fmt.Errorf("cannot find name for the blocks' CID codec: %x", prefix.Codec)
+		return q, fmt.Errorf("cannot find name for the blocks' CID codec: %x", prefix.Codec)
 	}
 
 	mhType, ok := multihash.Codes[prefix.MhType]
 	if !ok {
-		return fmt.Errorf("cannot find name for the blocks' Multihash type: %x", prefix.MhType)
+		return q, fmt.Errorf("cannot find name for the blocks' Multihash type: %x", prefix.MhType)
 	}
 
 	// IPFS behaves differently when using v0 or protobuf which are
@@ -944,35 +1038,76 @@ func (ipfs *Connector) BlockPut(ctx context.Context, b api.NodeWithMeta) error {
 
 	q.Set("mhtype", mhType)
 	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
+	return q, nil
+}
 
+// BlockStream performs a multipart request to block/put with the blocks
+// received on the channel.
+func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWithMeta) error {
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/BlockStream")
+	defer span.End()
+
+	logger.Debug("streaming blocks to IPFS")
+	defer ipfs.updateInformerMetric(ctx)
+
+	var errs error
+
+	it := &chanIterator{
+		ctx:    ctx,
+		blocks: blocks,
+		seen:   cid.NewSet(),
+	}
+	dir := &chanDirectory{
+		iterator: it,
+	}
+
+	// We need to pick into the first block to know which Cid prefix we
+	// are writing blocks with, so that ipfs calculates the expected
+	// multihash (we select the function used). This means that all blocks
+	// in a stream should use the same.
+	peek, ok := it.Peek()
+	if !ok {
+		return errors.New("BlockStream: no blocks to peek in blocks channel")
+	}
+
+	q, err := blockPutQuery(peek.Cid.Prefix())
+	if err != nil {
+		return err
+	}
 	url := "block/put?" + q.Encode()
-	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 
-	body, err := ipfs.postCtx(ctx, url, contentType, multiFileR)
-	if err != nil {
-		return err
+	// We essentially keep going on any request errors and keep putting
+	// blocks until we are done. We will, however, return a final error if
+	// there were errors along the way, but we do not abort the blocks
+	// stream because we could not block/put.
+	for !it.Done() {
+		multiFileR := files.NewMultiFileReader(dir, true)
+		contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
+		body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		dec := json.NewDecoder(body)
+		for {
+			var res ipfsBlockPutResp
+			err := dec.Decode(&res)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				logger.Error(err)
+				errs = multierr.Append(errs, err)
+				break
+			}
+			if !it.Seen(res.Key) {
+				logger.Warnf("blockPut response CID (%s) does not match any blocks sent", res.Key)
+			}
+		}
+		// continue until it.Done()
 	}
 
-	var res ipfsBlockPutResp
-	err = json.Unmarshal(body, &res)
-	if err != nil {
-		return err
-	}
-
-	logger.Debug("block/put response CID", res.Key)
-	respCid, err := cid.Decode(res.Key)
-	if err != nil {
-		logger.Error("cannot parse CID from BlockPut response")
-		return err
-	}
-
-	// IPFS is too brittle here. CIDv0 != CIDv1. Sending "protobuf" format
-	// returns CidV1.  Sending "v0" format (which maps to protobuf)
-	// returns CidV0. Leaving this as warning.
-	if !respCid.Equals(b.Cid) {
-		logger.Warnf("blockPut response CID (%s) does not match the block sent (%s)", respCid, b.Cid)
-	}
-	return nil
+	return errs
 }
 
 // BlockGet retrieves an ipfs block with the given cid

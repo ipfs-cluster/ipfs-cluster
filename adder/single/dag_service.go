@@ -24,30 +24,38 @@ var _ = logger // otherwise unused
 type DAGService struct {
 	adder.BaseDAGService
 
+	ctx       context.Context
 	rpcClient *rpc.Client
 
 	dests     []peer.ID
 	addParams api.AddParams
 	local     bool
 
-	ba *adder.BlockAdder
+	bs     *adder.BlockStreamer
+	blocks chan api.NodeWithMeta
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
-// to perform calls to IPFS.BlockPut and Pin content on Cluster.
-func New(rpc *rpc.Client, opts api.AddParams, local bool) *DAGService {
+// to perform calls to IPFS.BlockStream and Pin content on Cluster.
+func New(ctx context.Context, rpc *rpc.Client, opts api.AddParams, local bool) *DAGService {
 	// ensure don't Add something and pin it in direct mode.
 	opts.Mode = api.PinModeRecursive
 	return &DAGService{
+		ctx:       ctx,
 		rpcClient: rpc,
 		dests:     nil,
 		addParams: opts,
 		local:     local,
+		blocks:    make(chan api.NodeWithMeta, 256),
 	}
 }
 
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
+
+	// FIXME: can't this happen on initialization?  Perhaps the point here
+	// is the adder only allocates and starts streaming when the first
+	// block arrives and not on creation.
 	if dgs.dests == nil {
 		dests, err := adder.BlockAllocate(ctx, dgs.rpcClient, dgs.addParams.PinOptions)
 		if err != nil {
@@ -76,17 +84,39 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 				dgs.dests[len(dgs.dests)-1] = localPid
 			}
 
-			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, []peer.ID{localPid})
+			dgs.bs = adder.NewBlockStreamer(dgs.ctx, dgs.rpcClient, []peer.ID{localPid}, dgs.blocks)
 		} else {
-			dgs.ba = adder.NewBlockAdder(dgs.rpcClient, dgs.dests)
+			dgs.bs = adder.NewBlockStreamer(dgs.ctx, dgs.rpcClient, dgs.dests, dgs.blocks)
 		}
 	}
 
-	return dgs.ba.Add(ctx, node)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-dgs.ctx.Done():
+		return ctx.Err()
+	case dgs.blocks <- adder.IpldNodeToNodeWithMeta(node):
+		return nil
+	}
 }
 
 // Finalize pins the last Cid added to this DAGService.
 func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
+	close(dgs.blocks)
+
+	select {
+	case <-dgs.ctx.Done():
+		return root, ctx.Err()
+	case <-ctx.Done():
+		return root, ctx.Err()
+	case <-dgs.bs.Done():
+	}
+
+	// If the streamer failed to put blocks.
+	if err := dgs.bs.Err(); err != nil {
+		return root, err
+	}
+
 	// Do not pin, just block put.
 	// Why? Because some people are uploading CAR files with partial DAGs
 	// and ideally they should be pinning only when the last partial CAR

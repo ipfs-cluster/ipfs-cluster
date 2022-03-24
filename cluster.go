@@ -1728,17 +1728,17 @@ func (c *Cluster) UnpinPath(ctx context.Context, path string) (api.Pin, error) {
 // pipeline is used to DAGify the file.  Depending on input parameters this
 // DAG can be added locally to the calling cluster peer's ipfs repo, or
 // sharded across the entire cluster.
-func (c *Cluster) AddFile(reader *multipart.Reader, params api.AddParams) (cid.Cid, error) {
+func (c *Cluster) AddFile(ctx context.Context, reader *multipart.Reader, params api.AddParams) (cid.Cid, error) {
 	// TODO: add context param and tracing
 
 	var dags adder.ClusterDAGService
 	if params.Shard {
-		dags = sharding.New(c.rpcClient, params, nil)
+		dags = sharding.New(ctx, c.rpcClient, params, nil)
 	} else {
-		dags = single.New(c.rpcClient, params, params.Local)
+		dags = single.New(ctx, c.rpcClient, params, params.Local)
 	}
 	add := adder.New(dags, params, nil)
-	return add.FromMultipart(c.ctx, reader)
+	return add.FromMultipart(ctx, reader)
 }
 
 // Version returns the current IPFS Cluster version.

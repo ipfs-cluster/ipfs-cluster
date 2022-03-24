@@ -17,7 +17,7 @@ import (
 
 func init() {
 	_ = logging.Logger
-	//logging.SetLogLevel("*", "DEBUG")
+	logging.SetLogLevel("*", "DEBUG")
 }
 
 func testIPFSConnector(t *testing.T) (*Connector, *test.IpfsMock) {
@@ -315,26 +315,40 @@ func TestSwarmPeers(t *testing.T) {
 	}
 }
 
-func TestBlockPut(t *testing.T) {
+func TestBlockStream(t *testing.T) {
 	ctx := context.Background()
 	ipfs, mock := testIPFSConnector(t)
 	defer mock.Close()
 	defer ipfs.Shutdown(ctx)
 
-	// CidV1
-	err := ipfs.BlockPut(ctx, api.NodeWithMeta{
+	blocks := make(chan api.NodeWithMeta, 10)
+	blocks <- api.NodeWithMeta{
 		Data: []byte(test.Cid4Data),
 		Cid:  test.Cid4,
-	})
+	}
+
+	// Because this has a different prefix,
+	// it will produce a warning.
+	blocks <- api.NodeWithMeta{
+		Data: []byte(test.Cid5Data),
+		Cid:  test.Cid5,
+	}
+	close(blocks)
+
+	err := ipfs.BlockStream(ctx, blocks)
 	if err != nil {
 		t.Error(err)
 	}
 
-	// CidV0
-	err = ipfs.BlockPut(ctx, api.NodeWithMeta{
+	// Try only adding v0 cid now
+	blocks2 := make(chan api.NodeWithMeta, 1)
+	blocks2 <- api.NodeWithMeta{
 		Data: []byte(test.Cid5Data),
 		Cid:  test.Cid5,
-	})
+	}
+	close(blocks2)
+
+	err = ipfs.BlockStream(ctx, blocks2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -353,11 +367,13 @@ func TestBlockGet(t *testing.T) {
 		t.Fatal("expected to fail getting unput block")
 	}
 
-	// Put and then successfully get
-	err = ipfs.BlockPut(ctx, api.NodeWithMeta{
+	blocks := make(chan api.NodeWithMeta, 1)
+	blocks <- api.NodeWithMeta{
 		Data: test.ShardData,
 		Cid:  test.ShardCid,
-	})
+	}
+	close(blocks)
+	err = ipfs.BlockStream(ctx, blocks)
 	if err != nil {
 		t.Fatal(err)
 	}

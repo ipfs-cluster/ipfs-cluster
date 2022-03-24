@@ -24,20 +24,21 @@ func rpcTypeStr(t cluster.RPCEndpointType) string {
 }
 
 var comments = map[string]string{
-	"Cluster.PeerAdd":          "Used by Join()",
-	"Cluster.Peers":            "Used by ConnectGraph()",
-	"Cluster.Pins":             "Used in stateless tracker, ipfsproxy, restapi",
-	"PinTracker.Recover":       "Called in broadcast from Recover()",
-	"PinTracker.RecoverAll":    "Broadcast in RecoverAll unimplemented",
-	"Pintracker.Status":        "Called in broadcast from Status()",
-	"Pintracker.StatusAll":     "Called in broadcast from StatusAll()",
-	"IPFSConnector.BlockPut":   "Called from Add()",
-	"IPFSConnector.RepoStat":   "Called in broadcast from proxy/repo/stat",
-	"IPFSConnector.SwarmPeers": "Called in ConnectGraph",
-	"Consensus.AddPeer":        "Called by Raft/redirect to leader",
-	"Consensus.LogPin":         "Called by Raft/redirect to leader",
-	"Consensus.LogUnpin":       "Called by Raft/redirect to leader",
-	"Consensus.RmPeer":         "Called by Raft/redirect to leader",
+	"Cluster.PeerAdd":           "Used by Join()",
+	"Cluster.Peers":             "Used by ConnectGraph()",
+	"Cluster.Pins":              "Used in stateless tracker, ipfsproxy, restapi",
+	"PinTracker.Recover":        "Called in broadcast from Recover()",
+	"PinTracker.RecoverAll":     "Broadcast in RecoverAll unimplemented",
+	"Pintracker.Status":         "Called in broadcast from Status()",
+	"Pintracker.StatusAll":      "Called in broadcast from StatusAll()",
+	"IPFSConnector.BlockPut":    "Not used - replaced by BlockStream",
+	"IPFSConnector.BlockStream": "Called by adders",
+	"IPFSConnector.RepoStat":    "Called in broadcast from proxy/repo/stat",
+	"IPFSConnector.SwarmPeers":  "Called in ConnectGraph",
+	"Consensus.AddPeer":         "Called by Raft/redirect to leader",
+	"Consensus.LogPin":          "Called by Raft/redirect to leader",
+	"Consensus.LogUnpin":        "Called by Raft/redirect to leader",
+	"Consensus.RmPeer":          "Called by Raft/redirect to leader",
 }
 
 func main() {

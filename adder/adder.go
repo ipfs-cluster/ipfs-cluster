@@ -68,18 +68,18 @@ type Adder struct {
 	// whenever a block is processed. They contain information
 	// about the block, the CID, the Name etc. and are mostly
 	// meant to be streamed back to the user.
-	output chan *api.AddedOutput
+	output chan api.AddedOutput
 }
 
 // New returns a new Adder with the given ClusterDAGService, add options and a
 // channel to send updates during the adding process.
 //
 // An Adder may only be used once.
-func New(ds ClusterDAGService, p api.AddParams, out chan *api.AddedOutput) *Adder {
+func New(ds ClusterDAGService, p api.AddParams, out chan api.AddedOutput) *Adder {
 	// Discard all progress update output as the caller has not provided
 	// a channel for them to listen on.
 	if out == nil {
-		out = make(chan *api.AddedOutput, 100)
+		out = make(chan api.AddedOutput, 100)
 		go func() {
 			for range out {
 			}
@@ -188,7 +188,7 @@ type ipfsAdder struct {
 	*ipfsadd.Adder
 }
 
-func newIpfsAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParams, out chan *api.AddedOutput) (*ipfsAdder, error) {
+func newIpfsAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParams, out chan api.AddedOutput) (*ipfsAdder, error) {
 	iadder, err := ipfsadd.NewAdder(ctx, dgs, dgs.Allocations)
 	if err != nil {
 		logger.Error(err)
@@ -253,10 +253,10 @@ type carAdder struct {
 	ctx    context.Context
 	dgs    ClusterDAGService
 	params api.AddParams
-	output chan *api.AddedOutput
+	output chan api.AddedOutput
 }
 
-func newCarAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParams, out chan *api.AddedOutput) (*carAdder, error) {
+func newCarAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParams, out chan api.AddedOutput) (*carAdder, error) {
 	return &carAdder{
 		ctx:    ctx,
 		dgs:    dgs,
@@ -319,7 +319,7 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 		}
 	}
 
-	ca.output <- &api.AddedOutput{
+	ca.output <- api.AddedOutput{
 		Name:        name,
 		Cid:         root,
 		Bytes:       bytes,

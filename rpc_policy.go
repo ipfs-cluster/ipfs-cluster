@@ -47,16 +47,17 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"PinTracker.Untrack":    RPCClosed,
 
 	// IPFSConnector methods
-	"IPFSConnector.BlockGet":   RPCClosed,
-	"IPFSConnector.BlockPut":   RPCTrusted, // Called from Add()
-	"IPFSConnector.ConfigKey":  RPCClosed,
-	"IPFSConnector.Pin":        RPCClosed,
-	"IPFSConnector.PinLs":      RPCClosed,
-	"IPFSConnector.PinLsCid":   RPCClosed,
-	"IPFSConnector.RepoStat":   RPCTrusted, // Called in broadcast from proxy/repo/stat
-	"IPFSConnector.Resolve":    RPCClosed,
-	"IPFSConnector.SwarmPeers": RPCTrusted, // Called in ConnectGraph
-	"IPFSConnector.Unpin":      RPCClosed,
+	"IPFSConnector.BlockGet":    RPCClosed,
+	"IPFSConnector.BlockPut":    RPCClosed,  // Not used - replaced by BlockStream
+	"IPFSConnector.BlockStream": RPCTrusted, // Called by adders
+	"IPFSConnector.ConfigKey":   RPCClosed,
+	"IPFSConnector.Pin":         RPCClosed,
+	"IPFSConnector.PinLs":       RPCClosed,
+	"IPFSConnector.PinLsCid":    RPCClosed,
+	"IPFSConnector.RepoStat":    RPCTrusted, // Called in broadcast from proxy/repo/stat
+	"IPFSConnector.Resolve":     RPCClosed,
+	"IPFSConnector.SwarmPeers":  RPCTrusted, // Called in ConnectGraph
+	"IPFSConnector.Unpin":       RPCClosed,
 
 	// Consensus methods
 	"Consensus.AddPeer":  RPCTrusted, // Called by Raft/redirect to leader
