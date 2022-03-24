@@ -16,4 +16,4 @@ var Version = semver.MustParse("0.14.5-next")
 // was). The protocol version will be updated as needed when breaking changes
 // are introduced, though at this point we aim to minimize those as much as
 // possible.
-var RPCProtocol = protocol.ID("/ipfscluster/0.12/rpc")
+var RPCProtocol = protocol.ID("/ipfscluster/1.0/rpc")
