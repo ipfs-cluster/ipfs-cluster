@@ -596,7 +596,7 @@ func (ipfs *Connector) PinLsCid(ctx context.Context, pin api.Pin) (api.IPFSPinSt
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
-	logger.Debugf("posting %s", path)
+	logger.Debugf("posting /%s", path)
 	urlstr := fmt.Sprintf("%s/%s", apiURL, path)
 
 	req, err := http.NewRequest("POST", urlstr, postBody)
@@ -950,9 +950,7 @@ func (ci *chanIterator) Node() files.Node {
 		return nil
 	}
 	ci.seenMu.Lock()
-	if ci.seen.Visit(ci.current.Cid) {
-		logger.Debugf("block %s", ci.current.Cid)
-	}
+	ci.seen.Add(ci.current.Cid)
 	ci.seenMu.Unlock()
 	return files.NewBytesFile(ci.current.Data)
 }
@@ -1007,6 +1005,7 @@ func (ci *chanIterator) Next() bool {
 			ci.done = true
 			return false
 		}
+		logger.Debugf("block %s", next.Cid)
 		ci.current = next
 		return true
 	}
@@ -1081,6 +1080,13 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	// there were errors along the way, but we do not abort the blocks
 	// stream because we could not block/put.
 	for !it.Done() {
+		select {
+		case <-ctx.Done():
+			logger.Error("BlockStream aborted: %s", ctx.Err())
+			return ctx.Err()
+		default:
+		}
+
 		multiFileR := files.NewMultiFileReader(dir, true)
 		contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 		body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)

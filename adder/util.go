@@ -90,12 +90,13 @@ func (bs *BlockStreamer) streamBlocks() {
 		out,
 	)
 
-	// this eliminates any nil errors.
 	combinedErrors := multierr.Combine(errs...)
+
+	// FIXME: replicate everywhere.
 	if len(multierr.Errors(combinedErrors)) == len(bs.dests) {
 		logger.Error(combinedErrors)
 		bs.setErr(ErrBlockAdder)
-	} else {
+	} else if combinedErrors != nil {
 		logger.Warning("there were errors streaming blocks, but at least one destination succeeded")
 		logger.Warning(combinedErrors)
 	}

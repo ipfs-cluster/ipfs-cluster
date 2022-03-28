@@ -31,8 +31,9 @@ type DAGService struct {
 	addParams api.AddParams
 	local     bool
 
-	bs     *adder.BlockStreamer
-	blocks chan api.NodeWithMeta
+	bs           *adder.BlockStreamer
+	blocks       chan api.NodeWithMeta
+	recentBlocks *recentBlocks
 }
 
 // New returns a new Adder with the given rpc Client. The client is used
@@ -41,17 +42,24 @@ func New(ctx context.Context, rpc *rpc.Client, opts api.AddParams, local bool) *
 	// ensure don't Add something and pin it in direct mode.
 	opts.Mode = api.PinModeRecursive
 	return &DAGService{
-		ctx:       ctx,
-		rpcClient: rpc,
-		dests:     nil,
-		addParams: opts,
-		local:     local,
-		blocks:    make(chan api.NodeWithMeta, 256),
+		ctx:          ctx,
+		rpcClient:    rpc,
+		dests:        nil,
+		addParams:    opts,
+		local:        local,
+		blocks:       make(chan api.NodeWithMeta, 256),
+		recentBlocks: &recentBlocks{},
 	}
 }
 
 // Add puts the given node in the destination peers.
 func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
+	// Avoid adding the same node multiple times in a row.
+	// This is done by the ipfsadd-er, because some nodes are added
+	// via dagbuilder, then via MFS, and root nodes once more.
+	if dgs.recentBlocks.Has(node) {
+		return nil
+	}
 
 	// FIXME: can't this happen on initialization?  Perhaps the point here
 	// is the adder only allocates and starts streaming when the first
@@ -96,6 +104,7 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 	case <-dgs.ctx.Done():
 		return ctx.Err()
 	case dgs.blocks <- adder.IpldNodeToNodeWithMeta(node):
+		dgs.recentBlocks.Add(node)
 		return nil
 	}
 }
@@ -151,4 +160,19 @@ func (dgs *DAGService) AddMany(ctx context.Context, nodes []ipld.Node) error {
 		}
 	}
 	return nil
+}
+
+type recentBlocks struct {
+	blocks [2]cid.Cid
+	cur    int
+}
+
+func (rc *recentBlocks) Add(n ipld.Node) {
+	rc.blocks[rc.cur] = n.Cid()
+	rc.cur = (rc.cur + 1) % 2
+}
+
+func (rc *recentBlocks) Has(n ipld.Node) bool {
+	c := n.Cid()
+	return rc.blocks[0].Equals(c) || rc.blocks[1].Equals(c)
 }
