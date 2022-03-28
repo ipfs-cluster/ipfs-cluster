@@ -1081,6 +1081,13 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	// there were errors along the way, but we do not abort the blocks
 	// stream because we could not block/put.
 	for !it.Done() {
+		select {
+		case <-ctx.Done():
+			logger.Error("BlockStream aborted: %s", ctx.Err())
+			return ctx.Err()
+		default:
+		}
+
 		multiFileR := files.NewMultiFileReader(dir, true)
 		contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 		body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)
