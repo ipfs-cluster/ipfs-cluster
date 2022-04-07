@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"go.opencensus.io/trace"
 )
@@ -109,7 +107,7 @@ func (op *Operation) String() string {
 }
 
 // Cid returns the Cid associated to this operation.
-func (op *Operation) Cid() cid.Cid {
+func (op *Operation) Cid() api.Cid {
 	return op.pin.Cid
 }
 

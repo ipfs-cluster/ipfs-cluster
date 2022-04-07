@@ -9,7 +9,6 @@ import (
 
 	blake2b "golang.org/x/crypto/blake2b"
 
-	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -100,7 +99,7 @@ type distanceChecker struct {
 	cache      map[peer.ID]distance
 }
 
-func (dc distanceChecker) isClosest(ci cid.Cid) bool {
+func (dc distanceChecker) isClosest(ci api.Cid) bool {
 	ciHash := convertKey(ci.KeyString())
 	localPeerHash := dc.convertPeerID(dc.local)
 	myDistance := xor(ciHash, localPeerHash)

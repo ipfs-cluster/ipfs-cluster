@@ -110,7 +110,7 @@ func IpldNodeToNodeWithMeta(n ipld.Node) api.NodeWithMeta {
 	}
 
 	return api.NodeWithMeta{
-		Cid:     n.Cid(),
+		Cid:     api.NewCid(n.Cid()),
 		Data:    n.RawData(),
 		CumSize: size,
 	}
@@ -125,7 +125,7 @@ func BlockAllocate(ctx context.Context, rpc *rpc.Client, pinOpts api.PinOptions)
 		"",
 		"Cluster",
 		"BlockAllocate",
-		api.PinWithOpts(cid.Undef, pinOpts),
+		api.PinWithOpts(api.CidUndef, pinOpts),
 		&allocsStr,
 	)
 	return allocsStr, err

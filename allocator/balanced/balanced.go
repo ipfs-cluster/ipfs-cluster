@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"sort"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	api "github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -254,7 +253,7 @@ func (pnedm *partitionedMetric) chooseNext() peer.ID {
 //   - Third, based on the AllocateBy order, it select the first metric
 func (a *Allocator) Allocate(
 	ctx context.Context,
-	c cid.Cid,
+	c api.Cid,
 	current, candidates, priority api.MetricsSet,
 ) ([]peer.ID, error) {
 

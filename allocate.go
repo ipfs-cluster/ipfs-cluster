@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
 	"go.opencensus.io/trace"
@@ -57,7 +56,7 @@ type classifiedMetrics struct {
 // into account if the given CID was previously in a "pin everywhere" mode,
 // and will consider such Pins as currently unallocated ones, providing
 // new allocations as available.
-func (c *Cluster) allocate(ctx context.Context, hash cid.Cid, currentPin api.Pin, rplMin, rplMax int, blacklist []peer.ID, priorityList []peer.ID) ([]peer.ID, error) {
+func (c *Cluster) allocate(ctx context.Context, hash api.Cid, currentPin api.Pin, rplMin, rplMax int, blacklist []peer.ID, priorityList []peer.ID) ([]peer.ID, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/allocate")
 	defer span.End()
 
@@ -180,7 +179,7 @@ func (c *Cluster) filterMetrics(ctx context.Context, mSet api.MetricsSet, numMet
 }
 
 // allocationError logs an allocation error
-func allocationError(hash cid.Cid, needed, wanted int, candidatesValid []peer.ID) error {
+func allocationError(hash api.Cid, needed, wanted int, candidatesValid []peer.ID) error {
 	logger.Errorf("Not enough candidates to allocate %s:", hash)
 	logger.Errorf("  Needed: %d", needed)
 	logger.Errorf("  Wanted: %d", wanted)
@@ -198,7 +197,7 @@ func allocationError(hash cid.Cid, needed, wanted int, candidatesValid []peer.ID
 
 func (c *Cluster) obtainAllocations(
 	ctx context.Context,
-	hash cid.Cid,
+	hash api.Cid,
 	rplMin, rplMax int,
 	metrics classifiedMetrics,
 ) ([]peer.ID, error) {

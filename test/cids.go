@@ -1,30 +1,30 @@
 package test
 
 import (
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
 // Common variables used all around tests.
 var (
-	Cid1, _  = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
-	Cid2, _  = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma")
-	Cid3, _  = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb")
+	Cid1, _  = api.DecodeCid("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq")
+	Cid2, _  = api.DecodeCid("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmma")
+	Cid3, _  = api.DecodeCid("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb")
 	Cid4Data = "Cid4Data"
 	// Cid resulting from block put using blake2b-256 and raw format
-	Cid4, _ = cid.Decode("bafk2bzaceawsyhsnrwwy5mtit2emnjfalkxsyq2p2ptd6fuliolzwwjbs42fq")
+	Cid4, _ = api.DecodeCid("bafk2bzaceawsyhsnrwwy5mtit2emnjfalkxsyq2p2ptd6fuliolzwwjbs42fq")
 
 	// Cid resulting from block put using format "v0" defaults
-	Cid5, _        = cid.Decode("QmbgmXgsFjxAJ7cEaziL2NDSptHAkPwkEGMmKMpfyYeFXL")
+	Cid5, _        = api.DecodeCid("QmbgmXgsFjxAJ7cEaziL2NDSptHAkPwkEGMmKMpfyYeFXL")
 	Cid5Data       = "Cid5Data"
-	SlowCid1, _    = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd")
-	CidResolved, _ = cid.Decode("zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc")
+	SlowCid1, _    = api.DecodeCid("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmd")
+	CidResolved, _ = api.DecodeCid("zb2rhiKhUepkTMw7oFfBUnChAN7ABAvg2hXUwmTBtZ6yxuabc")
 	// ErrorCid is meant to be used as a Cid which causes errors. i.e. the
 	// ipfs mock fails when pinning this CID.
-	ErrorCid, _ = cid.Decode("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc")
+	ErrorCid, _ = api.DecodeCid("QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmc")
 	// NotFoundCid is meant to be used as a CID that doesn't exist in the
 	// pinset.
-	NotFoundCid, _ = cid.Decode("bafyreiay3jpjk74dkckv2r74eyvf3lfnxujefay2rtuluintasq2zlapv4")
+	NotFoundCid, _ = api.DecodeCid("bafyreiay3jpjk74dkckv2r74eyvf3lfnxujefay2rtuluintasq2zlapv4")
 	PeerID1, _     = peer.Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 	PeerID2, _     = peer.Decode("QmUZ13osndQ5uL4tPWHXe3iBgBgq9gfewcBMSCAuMBsDJ6")
 	PeerID3, _     = peer.Decode("QmPGDFvBkgWhvzEK9qaTWrWurSwqXNmhnK3hgELPdZZNPa")

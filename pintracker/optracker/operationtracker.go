@@ -14,7 +14,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
@@ -30,7 +29,7 @@ type OperationTracker struct {
 	peerName string
 
 	mu         sync.RWMutex
-	operations map[cid.Cid]*Operation
+	operations map[api.Cid]*Operation
 }
 
 func (opt *OperationTracker) String() string {
@@ -57,7 +56,7 @@ func NewOperationTracker(ctx context.Context, pid peer.ID, peerName string) *Ope
 		ctx:        ctx,
 		pid:        pid,
 		peerName:   peerName,
-		operations: make(map[cid.Cid]*Operation),
+		operations: make(map[api.Cid]*Operation),
 	}
 }
 
@@ -107,7 +106,7 @@ func (opt *OperationTracker) Clean(ctx context.Context, op *Operation) {
 // Status returns the TrackerStatus associated to the last operation known
 // with the given Cid. It returns false if we are not tracking any operation
 // for the given Cid.
-func (opt *OperationTracker) Status(ctx context.Context, c cid.Cid) (api.TrackerStatus, bool) {
+func (opt *OperationTracker) Status(ctx context.Context, c api.Cid) (api.TrackerStatus, bool) {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c]
@@ -122,7 +121,7 @@ func (opt *OperationTracker) Status(ctx context.Context, c cid.Cid) (api.Tracker
 // is PhaseDone. Any other phases are considered in-flight and not touched.
 // For things already in error, the error message is updated.
 // Remote pins are ignored too.
-func (opt *OperationTracker) SetError(ctx context.Context, c cid.Cid, err error) {
+func (opt *OperationTracker) SetError(ctx context.Context, c api.Cid, err error) {
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
 	op, ok := opt.operations[c]
@@ -143,7 +142,7 @@ func (opt *OperationTracker) SetError(ctx context.Context, c cid.Cid, err error)
 func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation, ipfs api.IPFSID) api.PinInfo {
 	if op == nil {
 		return api.PinInfo{
-			Cid:  cid.Undef,
+			Cid:  api.CidUndef,
 			Peer: opt.pid,
 			Name: "",
 			PinInfoShort: api.PinInfoShort{
@@ -175,7 +174,7 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation, i
 }
 
 // Get returns a PinInfo object for Cid.
-func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid, ipfs api.IPFSID) api.PinInfo {
+func (opt *OperationTracker) Get(ctx context.Context, c api.Cid, ipfs api.IPFSID) api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "optracker/GetAll")
 	defer span.End()
 
@@ -183,7 +182,7 @@ func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid, ipfs api.IPFSID
 	defer opt.mu.RUnlock()
 	op := opt.operations[c]
 	pInfo := opt.unsafePinInfo(ctx, op, ipfs)
-	if pInfo.Cid == cid.Undef {
+	if !pInfo.Cid.Defined() {
 		pInfo.Cid = c
 	}
 	return pInfo
@@ -191,7 +190,7 @@ func (opt *OperationTracker) Get(ctx context.Context, c cid.Cid, ipfs api.IPFSID
 
 // GetExists returns a PinInfo object for a Cid only if there exists
 // an associated Operation.
-func (opt *OperationTracker) GetExists(ctx context.Context, c cid.Cid, ipfs api.IPFSID) (api.PinInfo, bool) {
+func (opt *OperationTracker) GetExists(ctx context.Context, c api.Cid, ipfs api.IPFSID) (api.PinInfo, bool) {
 	ctx, span := trace.StartSpan(ctx, "optracker/GetExists")
 	defer span.End()
 
@@ -258,7 +257,7 @@ func (opt *OperationTracker) CleanAllDone(ctx context.Context) {
 }
 
 // OpContext gets the context of an operation, if any.
-func (opt *OperationTracker) OpContext(ctx context.Context, c cid.Cid) context.Context {
+func (opt *OperationTracker) OpContext(ctx context.Context, c api.Cid) context.Context {
 	opt.mu.RLock()
 	defer opt.mu.RUnlock()
 	op, ok := opt.operations[c]
@@ -298,8 +297,8 @@ func (opt *OperationTracker) filterOps(ctx context.Context, filters ...interface
 	return fltops
 }
 
-func filterOpsMap(ctx context.Context, ops map[cid.Cid]*Operation, filters []interface{}) map[cid.Cid]*Operation {
-	fltops := make(map[cid.Cid]*Operation)
+func filterOpsMap(ctx context.Context, ops map[api.Cid]*Operation, filters []interface{}) map[api.Cid]*Operation {
+	fltops := make(map[api.Cid]*Operation)
 	if len(filters) < 1 {
 		return nil
 	}
@@ -315,7 +314,7 @@ func filterOpsMap(ctx context.Context, ops map[cid.Cid]*Operation, filters []int
 	return filterOpsMap(ctx, fltops, filters)
 }
 
-func filter(ctx context.Context, in, out map[cid.Cid]*Operation, filter interface{}) {
+func filter(ctx context.Context, in, out map[api.Cid]*Operation, filter interface{}) {
 	for _, op := range in {
 		switch filter.(type) {
 		case OperationType:

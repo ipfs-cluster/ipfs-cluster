@@ -110,7 +110,7 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 }
 
 // Finalize pins the last Cid added to this DAGService.
-func (dgs *DAGService) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
+func (dgs *DAGService) Finalize(ctx context.Context, root api.Cid) (api.Cid, error) {
 	close(dgs.blocks)
 
 	select {

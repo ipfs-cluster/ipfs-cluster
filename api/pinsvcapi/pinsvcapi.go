@@ -15,7 +15,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/ipfs/go-cid"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
 	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
@@ -79,11 +78,7 @@ func svcPinToClusterPin(p pinsvc.Pin) (types.Pin, error) {
 		Metadata: p.Meta,
 		Mode:     types.PinModeRecursive,
 	}
-	c, err := cid.Decode(p.Cid)
-	if err != nil {
-		return types.Pin{}, err
-	}
-	return types.PinWithOpts(c, opts), nil
+	return types.PinWithOpts(p.Cid, opts), nil
 }
 
 func globalPinInfoToSvcPinStatus(
@@ -103,7 +98,7 @@ func globalPinInfoToSvcPinStatus(
 	status.Status = trackerStatusToSvcStatus(statusMask)
 	status.Created = gpi.Created
 	status.Pin = pinsvc.Pin{
-		Cid:     gpi.Cid.String(),
+		Cid:     gpi.Cid,
 		Name:    pinsvc.PinName(gpi.Name),
 		Origins: gpi.Origins,
 		Meta:    gpi.Metadata,
@@ -131,7 +126,7 @@ func NewAPI(ctx context.Context, cfg *Config) (*API, error) {
 	return NewAPIWithHost(ctx, cfg, nil)
 }
 
-// NewAPI creates a new REST API component using the given libp2p Host.
+// NewAPIWithHost creates a new REST API component using the given libp2p Host.
 func NewAPIWithHost(ctx context.Context, cfg *Config, h host.Host) (*API, error) {
 	api := API{
 		config: cfg,
@@ -191,13 +186,13 @@ func (api *API) parseBodyOrFail(w http.ResponseWriter, r *http.Request) pinsvc.P
 	return pin
 }
 
-func (api *API) parseRequestIDOrFail(w http.ResponseWriter, r *http.Request) (cid.Cid, bool) {
+func (api *API) parseRequestIDOrFail(w http.ResponseWriter, r *http.Request) (types.Cid, bool) {
 	vars := mux.Vars(r)
 	cStr, ok := vars["requestID"]
 	if !ok {
-		return cid.Undef, true
+		return types.CidUndef, true
 	}
-	c, err := cid.Decode(cStr)
+	c, err := types.DecodeCid(cStr)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding requestID: "+err.Error()), nil)
 		return c, false
@@ -233,12 +228,12 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		status := api.pinToSvcPinStatus(r.Context(), pin.Cid, pinObj)
+		status := api.pinToSvcPinStatus(r.Context(), pin.Cid.String(), pinObj)
 		api.SendResponse(w, common.SetStatusAutomatically, nil, status)
 	}
 }
 
-func (api *API) getPinSvcStatus(ctx context.Context, c cid.Cid) (pinsvc.PinStatus, error) {
+func (api *API) getPinSvcStatus(ctx context.Context, c types.Cid) (pinsvc.PinStatus, error) {
 	var pinInfo types.GlobalPinInfo
 
 	err := api.rpcClient.CallContext(
@@ -318,7 +313,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		for _, ci := range opts.Cids {
-			go func(c cid.Cid) {
+			go func(c types.Cid) {
 				defer wg.Done()
 				st, err := api.getPinSvcStatus(r.Context(), c)
 				stCh <- statusResult{st: st, err: err}
@@ -410,7 +405,7 @@ func (api *API) pinToSvcPinStatus(ctx context.Context, rID string, pin types.Pin
 		Status:    pinsvc.StatusQueued,
 		Created:   pin.Timestamp,
 		Pin: pinsvc.Pin{
-			Cid:     pin.Cid.String(),
+			Cid:     pin.Cid,
 			Name:    pinsvc.PinName(pin.Name),
 			Origins: pin.Origins,
 			Meta:    pin.Metadata,

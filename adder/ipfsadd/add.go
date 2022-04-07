@@ -446,7 +446,7 @@ func (adder *Adder) outputDagnode(out chan api.AddedOutput, name string, dn ipld
 	name = filepath.Join(adder.OutputPrefix, name)
 
 	out <- api.AddedOutput{
-		Cid:         dn.Cid(),
+		Cid:         api.NewCid(dn.Cid()),
 		Name:        name,
 		Size:        s,
 		Allocations: adder.allocsFun(),
