@@ -156,7 +156,9 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 	trailerErrs := resp.Trailer.Values("X-Stream-Error")
 	var err error
 	for _, trailerErr := range trailerErrs {
-		err = multierr.Append(err, errors.New(trailerErr))
+		if trailerErr != "" {
+			err = multierr.Append(err, errors.New(trailerErr))
+		}
 	}
 
 	if err != nil {

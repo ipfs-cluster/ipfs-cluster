@@ -97,12 +97,12 @@ func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp
 			}
 		}
 	}
-	trailerMsg := httpResp.Trailer.Get("X-Stream-Error")
-	if trailerError && trailerMsg == "" {
+	trailerValues := httpResp.Trailer.Values("X-Stream-Error")
+	if trailerError && len(trailerValues) <= 1 && trailerValues[0] == "" {
 		t.Error("expected trailer error")
 	}
-	if !trailerError && trailerMsg != "" {
-		t.Error("got trailer error: ", trailerMsg)
+	if !trailerError && len(trailerValues) >= 2 {
+		t.Error("got trailer error: ", trailerValues)
 	}
 }
 

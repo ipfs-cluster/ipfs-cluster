@@ -644,6 +644,10 @@ func (api *API) StreamResponse(w http.ResponseWriter, next StreamIterator, errCh
 
 	if err != nil {
 		w.Header().Set("X-Stream-Error", err.Error())
+	} else {
+		// Due to some Javascript-browser-land stuff, we set the header
+		// even when there is no error.
+		w.Header().Set("X-Stream-Error", "")
 	}
 	// check for function errors
 	for funcErr := range errCh {
