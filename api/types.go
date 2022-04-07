@@ -622,6 +622,23 @@ func (pT PinType) String() string {
 	}
 }
 
+// MarshalJSON provides json-representation of the pin type.
+func (pT PinType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pT.String())
+}
+
+// UnmarshalJSON provides json-representation of the pin type.
+func (pT *PinType) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	t := PinTypeFromString(str)
+	*pT = t
+	return nil
+}
+
 var pinOptionsMetaPrefix = "meta-"
 
 // PinMode is a PinOption that indicates how to pin something on IPFS,
