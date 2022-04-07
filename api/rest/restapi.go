@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/common"
@@ -611,10 +610,10 @@ func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
 
 	queryValues := r.URL.Query()
 	filterCidsStr := strings.Split(queryValues.Get("cids"), ",")
-	var cids []cid.Cid
+	var cids []types.Cid
 
 	for _, cidStr := range filterCidsStr {
-		c, err := cid.Decode(cidStr)
+		c, err := types.DecodeCid(cidStr)
 		if err != nil {
 			api.SendResponse(w, http.StatusBadRequest, fmt.Errorf("error decoding Cid: %w", err), nil)
 			return
@@ -638,7 +637,7 @@ func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if local == "true" {
 		for _, ci := range cids {
-			go func(c cid.Cid) {
+			go func(c types.Cid) {
 				defer wg.Done()
 				var pinInfo types.PinInfo
 				err := api.rpcClient.CallContext(
@@ -658,7 +657,7 @@ func (api *API) statusCidsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		for _, ci := range cids {
-			go func(c cid.Cid) {
+			go func(c types.Cid) {
 				defer wg.Done()
 				var pinInfo types.GlobalPinInfo
 				err := api.rpcClient.CallContext(

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	multiaddr "github.com/multiformats/go-multiaddr"
 
@@ -263,7 +262,7 @@ func TestIDCodec(t *testing.T) {
 }
 
 func TestPinCodec(t *testing.T) {
-	ci, _ := cid.Decode("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
+	ci, _ := DecodeCid("QmXZrtE5jQwXNqCJMfHUTQkvhQ4ZAnqMnmzFMJfLewuabc")
 	pin := PinCid(ci)
 	var buf bytes.Buffer
 	enc := codec.NewEncoder(&buf, &codec.MsgpackHandle{})

@@ -11,7 +11,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -51,7 +50,7 @@ func (rpcs *testRPC) BlockAllocate(ctx context.Context, in api.Pin, out *[]peer.
 	return nil
 }
 
-func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (api.Pin, error) {
+func (rpcs *testRPC) PinGet(ctx context.Context, c api.Cid) (api.Pin, error) {
 	pI, ok := rpcs.pins.Load(c.String())
 	if !ok {
 		return api.Pin{}, errors.New("not found")
@@ -59,7 +58,7 @@ func (rpcs *testRPC) PinGet(ctx context.Context, c cid.Cid) (api.Pin, error) {
 	return pI.(api.Pin), nil
 }
 
-func (rpcs *testRPC) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
+func (rpcs *testRPC) BlockGet(ctx context.Context, c api.Cid) ([]byte, error) {
 	bI, ok := rpcs.blocks.Load(c.String())
 	if !ok {
 		return nil, errors.New("not found")

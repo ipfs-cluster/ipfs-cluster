@@ -122,7 +122,7 @@ func CheckHeaders(t *testing.T, expected map[string][]string, url string, header
 	}
 }
 
-// This represents what an API is to us.
+// API represents what an API is to us.
 type API interface {
 	HTTPAddresses() ([]string, error)
 	Host() host.Host
@@ -286,7 +286,7 @@ func BothEndpoints(t *testing.T, test Func) {
 	})
 }
 
-// HTTPSEndpoint runs the given test.Func against an HTTPs endpoint.
+// HTTPSEndPoint runs the given test.Func against an HTTPs endpoint.
 func HTTPSEndPoint(t *testing.T, test Func) {
 	t.Run("in-parallel", func(t *testing.T) {
 		t.Run("https", func(t *testing.T) {

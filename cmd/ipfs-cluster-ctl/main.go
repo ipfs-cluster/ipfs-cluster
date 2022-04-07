@@ -15,7 +15,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/api/rest/client"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -784,7 +783,7 @@ existing item from the cluster. Please run "pin rm" for that.
 						from := c.Args().Get(0)
 						to := c.Args().Get(1)
 
-						fromCid, err := cid.Decode(from)
+						fromCid, err := api.DecodeCid(from)
 						checkErr("parsing from Cid", err)
 
 						var expireAt time.Time
@@ -842,7 +841,7 @@ The filter only takes effect when listing all pins. The possible values are:
 					Action: func(c *cli.Context) error {
 						cidStr := c.Args().First()
 						if cidStr != "" {
-							ci, err := cid.Decode(cidStr)
+							ci, err := api.DecodeCid(cidStr)
 							checkErr("parsing cid", err)
 							resp, cerr := globalClient.Allocation(ctx, ci)
 							formatResponse(c, resp, cerr)
@@ -889,9 +888,9 @@ separated list). The following are valid status values:
 			},
 			Action: func(c *cli.Context) error {
 				cidsStr := c.Args()
-				cids := make([]cid.Cid, len(cidsStr))
+				cids := make([]api.Cid, len(cidsStr))
 				for i, cStr := range cidsStr {
-					ci, err := cid.Decode(cStr)
+					ci, err := api.DecodeCid(cStr)
 					checkErr("parsing cid", err)
 					cids[i] = ci
 				}
@@ -944,7 +943,7 @@ operations on the contacted peer (as opposed to on every peer).
 			Action: func(c *cli.Context) error {
 				cidStr := c.Args().First()
 				if cidStr != "" {
-					ci, err := cid.Decode(cidStr)
+					ci, err := api.DecodeCid(cidStr)
 					checkErr("parsing cid", err)
 					resp, cerr := globalClient.Recover(ctx, ci, c.Bool("local"))
 					formatResponse(c, resp, cerr)
@@ -1215,7 +1214,7 @@ func handlePinResponseFormatFlags(
 }
 
 func waitFor(
-	ci cid.Cid,
+	ci api.Cid,
 	target api.TrackerStatus,
 	timeout time.Duration,
 	limit int,

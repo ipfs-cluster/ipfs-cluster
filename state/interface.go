@@ -9,8 +9,6 @@ import (
 	"io"
 
 	"github.com/ipfs/ipfs-cluster/api"
-
-	cid "github.com/ipfs/go-cid"
 )
 
 // ErrNotFound should be returned when a pin is not part of the state.
@@ -36,10 +34,10 @@ type ReadOnly interface {
 	// List lists all the pins in the state.
 	List(context.Context, chan<- api.Pin) error
 	// Has returns true if the state is holding information for a Cid.
-	Has(context.Context, cid.Cid) (bool, error)
+	Has(context.Context, api.Cid) (bool, error)
 	// Get returns the information attacthed to this pin, if any. If the
 	// pin is not part of the state, it should return ErrNotFound.
-	Get(context.Context, cid.Cid) (api.Pin, error)
+	Get(context.Context, api.Cid) (api.Pin, error)
 }
 
 // WriteOnly represents the write side of a State.
@@ -47,7 +45,7 @@ type WriteOnly interface {
 	// Add adds a pin to the State
 	Add(context.Context, api.Pin) error
 	// Rm removes a pin from the State.
-	Rm(context.Context, cid.Cid) error
+	Rm(context.Context, api.Cid) error
 }
 
 // BatchingState represents a state which batches write operations.

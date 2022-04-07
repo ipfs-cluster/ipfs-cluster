@@ -10,7 +10,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
@@ -79,7 +78,7 @@ func (st *State) Add(ctx context.Context, c api.Pin) error {
 
 // Rm removes an existing Pin. It is a no-op when the
 // item does not exist.
-func (st *State) Rm(ctx context.Context, c cid.Cid) error {
+func (st *State) Rm(ctx context.Context, c api.Cid) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Rm")
 	defer span.End()
 
@@ -93,7 +92,7 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 // Get returns a Pin from the store and whether it
 // was present. When not present, a default pin
 // is returned.
-func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, error) {
+func (st *State) Get(ctx context.Context, c api.Cid) (api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Get")
 	defer span.End()
 
@@ -112,7 +111,7 @@ func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, error) {
 }
 
 // Has returns whether a Cid is stored.
-func (st *State) Has(ctx context.Context, c cid.Cid) (bool, error) {
+func (st *State) Has(ctx context.Context, c api.Cid) (bool, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Has")
 	defer span.End()
 
@@ -254,27 +253,28 @@ func (st *State) Unmarshal(r io.Reader) error {
 }
 
 // used to be on go-ipfs-ds-help
-func cidToDsKey(c cid.Cid) ds.Key {
+func cidToDsKey(c api.Cid) ds.Key {
 	return dshelp.NewKeyFromBinary(c.Bytes())
 }
 
 // used to be on go-ipfs-ds-help
-func dsKeyToCid(k ds.Key) (cid.Cid, error) {
+func dsKeyToCid(k ds.Key) (api.Cid, error) {
 	kb, err := dshelp.BinaryFromDsKey(k)
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
-	return cid.Cast(kb)
+	c, err := api.CastCid(kb)
+	return c, err
 }
 
 // convert Cid to /namespace/cid1Key
-func (st *State) key(c cid.Cid) ds.Key {
+func (st *State) key(c api.Cid) ds.Key {
 	k := cidToDsKey(c)
 	return st.namespace.Child(k)
 }
 
 // convert /namespace/cidKey to Cid
-func (st *State) unkey(k ds.Key) (cid.Cid, error) {
+func (st *State) unkey(k ds.Key) (api.Cid, error) {
 	return dsKeyToCid(ds.NewKey(k.BaseNamespace()))
 }
 
@@ -286,7 +286,7 @@ func (st *State) serializePin(c api.Pin) ([]byte, error) {
 
 // this deserializes a Pin object from the datastore. It should be
 // the exact opposite from serializePin.
-func (st *State) deserializePin(c cid.Cid, buf []byte) (api.Pin, error) {
+func (st *State) deserializePin(c api.Cid, buf []byte) (api.Pin, error) {
 	p := api.Pin{}
 	err := p.ProtoUnmarshal(buf)
 	p.Cid = c

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 )
@@ -203,7 +202,7 @@ func TestOperationTracker_OpContext(t *testing.T) {
 
 func TestOperationTracker_filterOps(t *testing.T) {
 	ctx := context.Background()
-	testOpsMap := map[cid.Cid]*Operation{
+	testOpsMap := map[api.Cid]*Operation{
 		test.Cid1: {pin: api.PinCid(test.Cid1), opType: OperationPin, phase: PhaseQueued},
 		test.Cid2: {pin: api.PinCid(test.Cid2), opType: OperationPin, phase: PhaseInProgress},
 		test.Cid3: {pin: api.PinCid(test.Cid3), opType: OperationUnpin, phase: PhaseInProgress},

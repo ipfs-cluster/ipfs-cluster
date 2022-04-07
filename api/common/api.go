@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
 	types "github.com/ipfs/ipfs-cluster/api"
@@ -69,8 +68,8 @@ var (
 	ErrHTTPEndpointNotEnabled = errors.New("the HTTP endpoint is not enabled")
 )
 
-// When passed to SendResponse(), it will figure out which http status
-// to set by itself.
+// SetStatusAutomatically can be passed to SendResponse(), so that it will
+// figure out which http status to set by itself.
 const SetStatusAutomatically = -1
 
 // API implements an API and aims to provides
@@ -496,12 +495,12 @@ func (api *API) ParsePinPathOrFail(w http.ResponseWriter, r *http.Request) types
 	return pinPath
 }
 
-// ParsePidOrFail parses a Cid and returns it or makes the request fail.
+// ParseCidOrFail parses a Cid and returns it or makes the request fail.
 func (api *API) ParseCidOrFail(w http.ResponseWriter, r *http.Request) types.Pin {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
 
-	c, err := cid.Decode(hash)
+	c, err := types.DecodeCid(hash)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("error decoding Cid: "+err.Error()), nil)
 		return types.Pin{}
@@ -697,8 +696,8 @@ func (api *API) Headers() map[string][]string {
 	return api.config.Headers
 }
 
-// Controls the HTTP server Keep Alive settings.
-// Useful for testing.
+// SetKeepAlivesEnabled controls the HTTP server Keep Alive settings.  Useful
+// for testing.
 func (api *API) SetKeepAlivesEnabled(b bool) {
 	api.server.SetKeepAlivesEnabled(b)
 }

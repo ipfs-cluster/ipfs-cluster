@@ -11,7 +11,6 @@ import (
 	rest "github.com/ipfs/ipfs-cluster/api/rest"
 	test "github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	ma "github.com/multiformats/go-multiaddr"
@@ -227,7 +226,7 @@ func TestPinPath(t *testing.T) {
 
 	testF := func(t *testing.T, c Client) {
 		for _, testCase := range pathTestCases {
-			ec, _ := cid.Decode(testCase.expectedCid)
+			ec, _ := types.DecodeCid(testCase.expectedCid)
 			resultantPin := types.PinWithOpts(ec, opts)
 			p := testCase.path
 			pin, err := c.PinPath(ctx, p, opts)
@@ -351,7 +350,7 @@ func TestStatusCids(t *testing.T) {
 		out := make(chan types.GlobalPinInfo)
 
 		go func() {
-			err := c.StatusCids(ctx, []cid.Cid{test.Cid1}, false, out)
+			err := c.StatusCids(ctx, []types.Cid{test.Cid1}, false, out)
 			if err != nil {
 				t.Error(err)
 			}
@@ -590,7 +589,7 @@ func (wait *waitService) Pin(ctx context.Context, in types.Pin, out *types.Pin) 
 	return nil
 }
 
-func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.GlobalPinInfo) error {
+func (wait *waitService) Status(ctx context.Context, in types.Cid, out *types.GlobalPinInfo) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	if time.Now().After(wait.pinStart.Add(5 * time.Second)) { //pinned
@@ -642,7 +641,7 @@ func (wait *waitService) Status(ctx context.Context, in cid.Cid, out *types.Glob
 	return nil
 }
 
-func (wait *waitService) PinGet(ctx context.Context, in cid.Cid, out *types.Pin) error {
+func (wait *waitService) PinGet(ctx context.Context, in types.Cid, out *types.Pin) error {
 	p := types.PinCid(in)
 	p.ReplicationFactorMin = 2
 	p.ReplicationFactorMax = 3
@@ -662,7 +661,7 @@ func (wait *waitServiceUnpin) Unpin(ctx context.Context, in types.Pin, out *type
 	return nil
 }
 
-func (wait *waitServiceUnpin) Status(ctx context.Context, in cid.Cid, out *types.GlobalPinInfo) error {
+func (wait *waitServiceUnpin) Status(ctx context.Context, in types.Cid, out *types.GlobalPinInfo) error {
 	wait.l.Lock()
 	defer wait.l.Unlock()
 	if time.Now().After(wait.unpinStart.Add(5 * time.Second)) { //unpinned
@@ -698,7 +697,7 @@ func (wait *waitServiceUnpin) Status(ctx context.Context, in cid.Cid, out *types
 	return nil
 }
 
-func (wait *waitServiceUnpin) PinGet(ctx context.Context, in cid.Cid, out *types.Pin) error {
+func (wait *waitServiceUnpin) PinGet(ctx context.Context, in types.Cid, out *types.Pin) error {
 	return errors.New("not found")
 }
 

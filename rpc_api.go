@@ -8,7 +8,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/version"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
@@ -221,7 +220,7 @@ func (rpcapi *ClusterRPCAPI) Pins(ctx context.Context, in <-chan struct{}, out c
 }
 
 // PinGet runs Cluster.PinGet().
-func (rpcapi *ClusterRPCAPI) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
+func (rpcapi *ClusterRPCAPI) PinGet(ctx context.Context, in api.Cid, out *api.Pin) error {
 	pin, err := rpcapi.c.PinGet(ctx, in)
 	if err != nil {
 		return err
@@ -294,7 +293,7 @@ func (rpcapi *ClusterRPCAPI) StatusAllLocal(ctx context.Context, in <-chan api.T
 }
 
 // Status runs Cluster.Status().
-func (rpcapi *ClusterRPCAPI) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) Status(ctx context.Context, in api.Cid, out *api.GlobalPinInfo) error {
 	pinfo, err := rpcapi.c.Status(ctx, in)
 	if err != nil {
 		return err
@@ -304,7 +303,7 @@ func (rpcapi *ClusterRPCAPI) Status(ctx context.Context, in cid.Cid, out *api.Gl
 }
 
 // StatusLocal runs Cluster.StatusLocal().
-func (rpcapi *ClusterRPCAPI) StatusLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) StatusLocal(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	pinfo := rpcapi.c.StatusLocal(ctx, in)
 	*out = pinfo
 	return nil
@@ -321,7 +320,7 @@ func (rpcapi *ClusterRPCAPI) RecoverAllLocal(ctx context.Context, in <-chan stru
 }
 
 // Recover runs Cluster.Recover().
-func (rpcapi *ClusterRPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (rpcapi *ClusterRPCAPI) Recover(ctx context.Context, in api.Cid, out *api.GlobalPinInfo) error {
 	pinfo, err := rpcapi.c.Recover(ctx, in)
 	if err != nil {
 		return err
@@ -331,7 +330,7 @@ func (rpcapi *ClusterRPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.G
 }
 
 // RecoverLocal runs Cluster.RecoverLocal().
-func (rpcapi *ClusterRPCAPI) RecoverLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *ClusterRPCAPI) RecoverLocal(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	pinfo, err := rpcapi.c.RecoverLocal(ctx, in)
 	if err != nil {
 		return err
@@ -411,7 +410,7 @@ func (rpcapi *ClusterRPCAPI) RepoGCLocal(ctx context.Context, in struct{}, out *
 	return nil
 }
 
-// SendInformerMetric runs Cluster.sendInformerMetric().
+// SendInformerMetrics runs Cluster.sendInformerMetric().
 func (rpcapi *ClusterRPCAPI) SendInformerMetrics(ctx context.Context, in struct{}, out *struct{}) error {
 	return rpcapi.c.sendInformersMetrics(ctx)
 }
@@ -475,7 +474,7 @@ func (rpcapi *PinTrackerRPCAPI) StatusAll(ctx context.Context, in <-chan api.Tra
 }
 
 // Status runs PinTracker.Status().
-func (rpcapi *PinTrackerRPCAPI) Status(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *PinTrackerRPCAPI) Status(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Status")
 	defer span.End()
 	pinfo := rpcapi.tracker.Status(ctx, in)
@@ -491,7 +490,7 @@ func (rpcapi *PinTrackerRPCAPI) RecoverAll(ctx context.Context, in <-chan struct
 }
 
 // Recover runs PinTracker.Recover().
-func (rpcapi *PinTrackerRPCAPI) Recover(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (rpcapi *PinTrackerRPCAPI) Recover(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	ctx, span := trace.StartSpan(ctx, "rpc/tracker/Recover")
 	defer span.End()
 	pinfo, err := rpcapi.tracker.Recover(ctx, in)
@@ -577,7 +576,7 @@ func (rpcapi *IPFSConnectorRPCAPI) BlockStream(ctx context.Context, in <-chan ap
 }
 
 // BlockGet runs IPFSConnector.BlockGet().
-func (rpcapi *IPFSConnectorRPCAPI) BlockGet(ctx context.Context, in cid.Cid, out *[]byte) error {
+func (rpcapi *IPFSConnectorRPCAPI) BlockGet(ctx context.Context, in api.Cid, out *[]byte) error {
 	res, err := rpcapi.ipfs.BlockGet(ctx, in)
 	if err != nil {
 		return err
@@ -587,7 +586,7 @@ func (rpcapi *IPFSConnectorRPCAPI) BlockGet(ctx context.Context, in cid.Cid, out
 }
 
 // Resolve runs IPFSConnector.Resolve().
-func (rpcapi *IPFSConnectorRPCAPI) Resolve(ctx context.Context, in string, out *cid.Cid) error {
+func (rpcapi *IPFSConnectorRPCAPI) Resolve(ctx context.Context, in string, out *api.Cid) error {
 	c, err := rpcapi.ipfs.Resolve(ctx, in)
 	if err != nil {
 		return err

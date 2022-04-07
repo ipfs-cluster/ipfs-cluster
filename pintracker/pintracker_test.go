@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
@@ -139,7 +138,7 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 
 func TestPinTracker_Untrack(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -273,7 +272,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 
 func TestPinTracker_Status(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -397,7 +396,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 
 func TestPinTracker_Recover(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -438,7 +437,7 @@ func TestPinTracker_Recover(t *testing.T) {
 
 func TestUntrackTrack(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -481,7 +480,7 @@ func TestUntrackTrack(t *testing.T) {
 
 func TestTrackUntrackWithCancel(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {

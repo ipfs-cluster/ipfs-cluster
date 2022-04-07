@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/version"
 	"go.uber.org/multierr"
 
-	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -1205,7 +1204,7 @@ func (c *Cluster) StatusAllLocal(ctx context.Context, filter api.TrackerStatus, 
 // Status returns the GlobalPinInfo for a given Cid as fetched from all
 // current peers. If an error happens, the GlobalPinInfo should contain
 // as much information as could be fetched from the other peers.
-func (c *Cluster) Status(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) Status(ctx context.Context, h api.Cid) (api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Status")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1214,7 +1213,7 @@ func (c *Cluster) Status(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, err
 }
 
 // StatusLocal returns this peer's PinInfo for a given Cid.
-func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) api.PinInfo {
+func (c *Cluster) StatusLocal(ctx context.Context, h api.Cid) api.PinInfo {
 	_, span := trace.StartSpan(ctx, "cluster/StatusLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1225,8 +1224,8 @@ func (c *Cluster) StatusLocal(ctx context.Context, h cid.Cid) api.PinInfo {
 // used for RecoverLocal and SyncLocal.
 func (c *Cluster) localPinInfoOp(
 	ctx context.Context,
-	h cid.Cid,
-	f func(context.Context, cid.Cid) (api.PinInfo, error),
+	h api.Cid,
+	f func(context.Context, api.Cid) (api.PinInfo, error),
 ) (pInfo api.PinInfo, err error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/localPinInfoOp")
 	defer span.End()
@@ -1284,7 +1283,7 @@ func (c *Cluster) RecoverAllLocal(ctx context.Context, out chan<- api.PinInfo) e
 // Recover operations ask IPFS to pin or unpin items in error state. Recover
 // is faster than calling Pin on the same CID as it avoids committing an
 // identical pin to the consensus layer.
-func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) Recover(ctx context.Context, h api.Cid) (api.GlobalPinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Recover")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1298,7 +1297,7 @@ func (c *Cluster) Recover(ctx context.Context, h cid.Cid) (api.GlobalPinInfo, er
 // Recover operations ask IPFS to pin or unpin items in error state. Recover
 // is faster than calling Pin on the same CID as it avoids committing an
 // identical pin to the consensus layer.
-func (c *Cluster) RecoverLocal(ctx context.Context, h cid.Cid) (api.PinInfo, error) {
+func (c *Cluster) RecoverLocal(ctx context.Context, h api.Cid) (api.PinInfo, error) {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverLocal")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1353,7 +1352,7 @@ func (c *Cluster) pinsSlice(ctx context.Context) ([]api.Pin, error) {
 // assigned for the requested Cid, but does not indicate if
 // the item is successfully pinned. For that, use Status(). PinGet
 // returns an error if the given Cid is not part of the global state.
-func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (api.Pin, error) {
+func (c *Cluster) PinGet(ctx context.Context, h api.Cid) (api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/PinGet")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1390,7 +1389,7 @@ func (c *Cluster) PinGet(ctx context.Context, h cid.Cid) (api.Pin, error) {
 //
 // If the Update option is set, the pin options (including allocations) will
 // be copied from an existing one. This is equivalent to running PinUpdate.
-func (c *Cluster) Pin(ctx context.Context, h cid.Cid, opts api.PinOptions) (api.Pin, error) {
+func (c *Cluster) Pin(ctx context.Context, h api.Cid, opts api.PinOptions) (api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Pin")
 	defer span.End()
 
@@ -1521,12 +1520,12 @@ func (c *Cluster) pin(
 		return api.Pin{}, false, errFollowerMode
 	}
 
-	if pin.Cid == cid.Undef {
+	if !pin.Cid.Defined() {
 		return pin, false, errors.New("bad pin object")
 	}
 
 	// Handle pin updates when the option is set
-	if update := pin.PinUpdate; update != cid.Undef && !update.Equals(pin.Cid) {
+	if update := pin.PinUpdate; update.Defined() && !update.Equals(pin.Cid) {
 		pin, err := c.PinUpdate(ctx, update, pin.Cid, pin.PinOptions)
 		return pin, true, err
 	}
@@ -1600,7 +1599,7 @@ func (c *Cluster) pin(
 //
 // Unpin does not reflect the success or failure of underlying IPFS daemon
 // unpinning operations, which happen in async fashion.
-func (c *Cluster) Unpin(ctx context.Context, h cid.Cid) (api.Pin, error) {
+func (c *Cluster) Unpin(ctx context.Context, h api.Cid) (api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "cluster/Unpin")
 	defer span.End()
 	ctx = trace.NewContext(c.ctx, span)
@@ -1670,7 +1669,7 @@ func (c *Cluster) unpinClusterDag(metaPin api.Pin) error {
 // IPFSConnector supports it - the default one does). This may offer
 // significant speed when pinning items which are similar to previously pinned
 // content.
-func (c *Cluster) PinUpdate(ctx context.Context, from cid.Cid, to cid.Cid, opts api.PinOptions) (api.Pin, error) {
+func (c *Cluster) PinUpdate(ctx context.Context, from api.Cid, to api.Cid, opts api.PinOptions) (api.Pin, error) {
 	existing, err := c.PinGet(ctx, from)
 	if err != nil { // including when the existing pin is not found
 		return api.Pin{}, err
@@ -1728,7 +1727,7 @@ func (c *Cluster) UnpinPath(ctx context.Context, path string) (api.Pin, error) {
 // pipeline is used to DAGify the file.  Depending on input parameters this
 // DAG can be added locally to the calling cluster peer's ipfs repo, or
 // sharded across the entire cluster.
-func (c *Cluster) AddFile(ctx context.Context, reader *multipart.Reader, params api.AddParams) (cid.Cid, error) {
+func (c *Cluster) AddFile(ctx context.Context, reader *multipart.Reader, params api.AddParams) (api.Cid, error) {
 	// TODO: add context param and tracing
 
 	var dags adder.ClusterDAGService
@@ -1842,7 +1841,7 @@ func (c *Cluster) getTrustedPeers(ctx context.Context, exclude peer.ID) ([]peer.
 	return trustedPeers, nil
 }
 
-func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []peer.ID, status api.TrackerStatus, pin api.Pin, t time.Time) {
+func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h api.Cid, peers []peer.ID, status api.TrackerStatus, pin api.Pin, t time.Time) {
 	for _, p := range peers {
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, p))
 		gpin.Add(api.PinInfo{
@@ -1864,7 +1863,7 @@ func (c *Cluster) setTrackerStatus(gpin *api.GlobalPinInfo, h cid.Cid, peers []p
 	}
 }
 
-func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h cid.Cid) (api.GlobalPinInfo, error) {
+func (c *Cluster) globalPinInfoCid(ctx context.Context, comp, method string, h api.Cid) (api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/globalPinInfoCid")
 	defer span.End()
 
@@ -2008,7 +2007,7 @@ func (c *Cluster) globalPinInfoStream(ctx context.Context, comp, method string, 
 		inChan = emptyChan
 	}
 
-	fullMap := make(map[cid.Cid]api.GlobalPinInfo)
+	fullMap := make(map[api.Cid]api.GlobalPinInfo)
 
 	var members []peer.ID
 	var err error
@@ -2141,7 +2140,7 @@ func (c *Cluster) getIDForPeer(ctx context.Context, pid peer.ID) (*api.ID, error
 // that order (the MetaPin is the last element).
 // It returns a slice with only the given Cid if it's not a known Cid or not a
 // MetaPin.
-func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, error) {
+func (c *Cluster) cidsFromMetaPin(ctx context.Context, h api.Cid) ([]api.Cid, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/cidsFromMetaPin")
 	defer span.End()
 
@@ -2150,7 +2149,7 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 		return nil, err
 	}
 
-	list := []cid.Cid{h}
+	list := []api.Cid{h}
 
 	pin, err := cState.Get(ctx, h)
 	if err != nil {
@@ -2164,7 +2163,7 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 	if pin.Reference == nil {
 		return nil, errors.New("metaPin.Reference is unset")
 	}
-	list = append([]cid.Cid{*pin.Reference}, list...)
+	list = append([]api.Cid{*pin.Reference}, list...)
 	clusterDagPin, err := c.PinGet(ctx, *pin.Reference)
 	if err != nil {
 		return list, fmt.Errorf("could not get clusterDAG pin from state. Malformed pin?: %s", err)
@@ -2180,7 +2179,7 @@ func (c *Cluster) cidsFromMetaPin(ctx context.Context, h cid.Cid) ([]cid.Cid, er
 		return list, fmt.Errorf("error parsing clusterDAG block: %s", err)
 	}
 	for _, l := range clusterDagNode.Links() {
-		list = append([]cid.Cid{l.Cid}, list...)
+		list = append([]api.Cid{api.NewCid(l.Cid)}, list...)
 	}
 
 	return list, nil

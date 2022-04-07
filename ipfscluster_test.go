@@ -656,7 +656,7 @@ func TestClustersPin(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = clusters[j].Pin(ctx, h, api.PinOptions{})
+		_, err = clusters[j].Pin(ctx, api.NewCid(h), api.PinOptions{})
 		if err != nil {
 			t.Errorf("error pinning %s: %s", h, err)
 		}
@@ -759,12 +759,12 @@ func TestClustersPinUpdate(t *testing.T) {
 	h, _ := prefix.Sum(randomBytes())  // create random cid
 	h2, _ := prefix.Sum(randomBytes()) // create random cid
 
-	_, err := clusters[0].PinUpdate(ctx, h, h2, api.PinOptions{})
+	_, err := clusters[0].PinUpdate(ctx, api.NewCid(h), api.NewCid(h2), api.PinOptions{})
 	if err == nil || err != state.ErrNotFound {
 		t.Fatal("pin update should fail when from is not pinned")
 	}
 
-	_, err = clusters[0].Pin(ctx, h, api.PinOptions{})
+	_, err = clusters[0].Pin(ctx, api.NewCid(h), api.PinOptions{})
 	if err != nil {
 		t.Errorf("error pinning %s: %s", h, err)
 	}
@@ -773,12 +773,12 @@ func TestClustersPinUpdate(t *testing.T) {
 	expiry := time.Now().AddDate(1, 0, 0)
 	opts2 := api.PinOptions{
 		UserAllocations: []peer.ID{clusters[0].host.ID()}, // should not be used
-		PinUpdate:       h,
+		PinUpdate:       api.NewCid(h),
 		Name:            "new name",
 		ExpireAt:        expiry,
 	}
 
-	_, err = clusters[0].Pin(ctx, h2, opts2) // should call PinUpdate
+	_, err = clusters[0].Pin(ctx, api.NewCid(h2), opts2) // should call PinUpdate
 	if err != nil {
 		t.Errorf("error pin-updating %s: %s", h2, err)
 	}
@@ -786,7 +786,7 @@ func TestClustersPinUpdate(t *testing.T) {
 	pinDelay()
 
 	f := func(t *testing.T, c *Cluster) {
-		pinget, err := c.PinGet(ctx, h2)
+		pinget, err := c.PinGet(ctx, api.NewCid(h2))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -821,7 +821,7 @@ func TestClustersPinDirect(t *testing.T) {
 
 	h, _ := prefix.Sum(randomBytes()) // create random cid
 
-	_, err := clusters[0].Pin(ctx, h, api.PinOptions{Mode: api.PinModeDirect})
+	_, err := clusters[0].Pin(ctx, api.NewCid(h), api.PinOptions{Mode: api.PinModeDirect})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -829,7 +829,7 @@ func TestClustersPinDirect(t *testing.T) {
 	pinDelay()
 
 	f := func(t *testing.T, c *Cluster, mode api.PinMode) {
-		pinget, err := c.PinGet(ctx, h)
+		pinget, err := c.PinGet(ctx, api.NewCid(h))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -842,7 +842,7 @@ func TestClustersPinDirect(t *testing.T) {
 			t.Errorf("pin should have max-depth %d but has %d", mode.ToPinDepth(), pinget.MaxDepth)
 		}
 
-		pInfo := c.StatusLocal(ctx, h)
+		pInfo := c.StatusLocal(ctx, api.NewCid(h))
 		if pInfo.Error != "" {
 			t.Error(pInfo.Error)
 		}
@@ -857,7 +857,7 @@ func TestClustersPinDirect(t *testing.T) {
 	})
 
 	// Convert into a recursive mode
-	_, err = clusters[0].Pin(ctx, h, api.PinOptions{Mode: api.PinModeRecursive})
+	_, err = clusters[0].Pin(ctx, api.NewCid(h), api.PinOptions{Mode: api.PinModeRecursive})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -869,7 +869,7 @@ func TestClustersPinDirect(t *testing.T) {
 	})
 
 	// This should fail as we cannot convert back to direct
-	_, err = clusters[0].Pin(ctx, h, api.PinOptions{Mode: api.PinModeDirect})
+	_, err = clusters[0].Pin(ctx, api.NewCid(h), api.PinOptions{Mode: api.PinModeDirect})
 	if err == nil {
 		t.Error("a recursive pin cannot be converted back to direct pin")
 	}
@@ -1229,14 +1229,14 @@ func TestClustersReplicationOverall(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = clusters[j].Pin(ctx, h, api.PinOptions{})
+		_, err = clusters[j].Pin(ctx, api.NewCid(h), api.PinOptions{})
 		if err != nil {
 			t.Error(err)
 		}
 		pinDelay()
 
 		// check that it is held by exactly nClusters - 1 peers
-		gpi, err := clusters[j].Status(ctx, h)
+		gpi, err := clusters[j].Status(ctx, api.NewCid(h))
 		if err != nil {
 			t.Fatal(err)
 		}

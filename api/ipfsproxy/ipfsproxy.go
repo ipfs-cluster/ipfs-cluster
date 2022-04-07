@@ -1,3 +1,9 @@
+// Package ipfsproxy implements the Cluster API interface by providing an
+// IPFS HTTP interface as exposed by the go-ipfs daemon.
+//
+// In this API, select endpoints like pin*, add*, and repo* endpoints are used
+// to instead perform cluster operations. Requests for any other endpoints are
+// passed to the underlying IPFS daemon.
 package ipfsproxy
 
 import (
@@ -396,7 +402,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if arg != "" {
-		c, err := cid.Decode(arg)
+		c, err := api.DecodeCid(arg)
 		if err != nil {
 			ipfsErrorResponder(w, err.Error(), -1)
 			return
@@ -526,7 +532,7 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve the FROM argument
-	var fromCid cid.Cid
+	var fromCid api.Cid
 	err = proxy.rpcClient.CallContext(
 		ctx,
 		"",
@@ -733,9 +739,9 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	for _, gc := range repoGC.PeerMap {
 		for _, key := range gc.Keys {
 			if streamErrors {
-				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key, Error: key.Error}
+				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key.Cid, Error: key.Error}
 			} else {
-				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key}
+				ipfsRepoGC = ipfsRepoGCResp{Key: key.Key.Cid}
 				if key.Error != "" {
 					mError.add(key.Error)
 				}

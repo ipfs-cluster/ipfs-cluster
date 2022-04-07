@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -22,7 +21,7 @@ func cleanRaft(idn int) {
 	os.RemoveAll(fmt.Sprintf("raftFolderFromTests-%d", idn))
 }
 
-func testPin(c cid.Cid) api.Pin {
+func testPin(c api.Cid) api.Pin {
 	p := api.PinCid(c)
 	p.ReplicationFactorMin = -1
 	p.ReplicationFactorMax = -1

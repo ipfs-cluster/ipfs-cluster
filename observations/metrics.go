@@ -1,3 +1,4 @@
+// Package observations sets up metric and trace exporting for IPFS cluster.
 package observations
 
 import (

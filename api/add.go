@@ -17,7 +17,7 @@ var DefaultShardSize = uint64(100 * 1024 * 1024) // 100 MB
 // indicating a node of a file has been added.
 type AddedOutput struct {
 	Name        string    `json:"name" codec:"n,omitempty"`
-	Cid         cid.Cid   `json:"cid" codec:"c"`
+	Cid         Cid       `json:"cid" codec:"c"`
 	Bytes       uint64    `json:"bytes,omitempty" codec:"b,omitempty"`
 	Size        uint64    `json:"size,omitempty" codec:"s,omitempty"`
 	Allocations []peer.ID `json:"allocations,omitempty" codec:"a,omitempty"`
@@ -120,7 +120,7 @@ func AddParamsFromQuery(query url.Values) (AddParams, error) {
 		return params, err
 	}
 	params.PinOptions = *opts
-	params.PinUpdate = cid.Undef // hardcode as does not make sense for adding
+	params.PinUpdate.Cid = cid.Undef // hardcode as does not make sense for adding
 
 	layout := query.Get("layout")
 	switch layout {

@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
@@ -286,7 +285,7 @@ func TestTrackUntrackWithNoCancel(t *testing.T) {
 	}
 
 	pi := spt.optracker.Get(ctx, fastPin.Cid, api.IPFSID{})
-	if pi.Cid == cid.Undef {
+	if !pi.Cid.Defined() {
 		t.Error("fastPin should have been removed from tracker")
 	}
 }
@@ -318,7 +317,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	pi := spt.optracker.Get(ctx, slowPin.Cid, api.IPFSID{})
-	if pi.Cid == cid.Undef {
+	if !pi.Cid.Defined() {
 		t.Fatal("expected slowPin to be tracked")
 	}
 
@@ -379,7 +378,7 @@ func TestUntrackTrackWithNoCancel(t *testing.T) {
 	}
 
 	pi := spt.optracker.Get(ctx, fastPin.Cid, api.IPFSID{})
-	if pi.Cid == cid.Undef {
+	if !pi.Cid.Defined() {
 		t.Fatal("c untrack operation should be tracked")
 	}
 

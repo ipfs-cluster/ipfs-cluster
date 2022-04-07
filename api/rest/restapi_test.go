@@ -13,7 +13,6 @@ import (
 	test "github.com/ipfs/ipfs-cluster/api/common/test"
 	clustertest "github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	libp2p "github.com/libp2p/go-libp2p"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -401,7 +400,7 @@ func TestAPIPinEndpointWithPath(t *testing.T) {
 
 	tf := func(t *testing.T, url test.URLFunc) {
 		for _, testCase := range pathTestCases[:3] {
-			c, _ := cid.Decode(testCase.expectedCid)
+			c, _ := api.DecodeCid(testCase.expectedCid)
 			resultantPin := api.PinWithOpts(
 				c,
 				testPinOpts,

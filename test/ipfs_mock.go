@@ -192,7 +192,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if arg == ErrorCid.String() {
 			goto ERROR
 		}
-		c, err := cid.Decode(arg)
+		c, err := api.DecodeCid(arg)
 		if err != nil {
 			goto ERROR
 		}
@@ -222,7 +222,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			goto ERROR
 		}
-		c, err := cid.Decode(arg)
+		c, err := api.DecodeCid(arg)
 		if err != nil {
 			goto ERROR
 		}
@@ -239,11 +239,11 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 		fromStr := args[0]
 		toStr := args[1]
-		from, err := cid.Decode(fromStr)
+		from, err := api.DecodeCid(fromStr)
 		if err != nil {
 			goto ERROR
 		}
-		to, err := cid.Decode(toStr)
+		to, err := api.DecodeCid(toStr)
 		if err != nil {
 			goto ERROR
 		}
@@ -301,7 +301,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cidStr := arg
-		c, err := cid.Decode(cidStr)
+		c, err := api.DecodeCid(cidStr)
 		if err != nil {
 			goto ERROR
 		}
@@ -443,16 +443,16 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
 		resp := []mockRepoGCResp{
 			{
-				Key: Cid1,
+				Key: Cid1.Cid,
 			},
 			{
-				Key: Cid2,
+				Key: Cid2.Cid,
 			},
 			{
-				Key: Cid3,
+				Key: Cid3.Cid,
 			},
 			{
-				Key: Cid4,
+				Key: Cid4.Cid,
 			},
 			{
 				Error: "no link by that name",

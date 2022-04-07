@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/config"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -462,7 +461,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = chosen.Pin(ctx, h, api.PinOptions{})
+		_, err = chosen.Pin(ctx, api.NewCid(h), api.PinOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -474,7 +473,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	// At this point, all peers must have nClusters -1  pins
 	// associated to them.
 	// Find out which pins are associated to the chosen peer.
-	interestingCids := []cid.Cid{}
+	interestingCids := []api.Cid{}
 
 	pins, err := chosen.pinsSlice(ctx)
 	if err != nil {

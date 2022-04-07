@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
@@ -76,7 +75,7 @@ type IPFSConnector interface {
 	Component
 	ID(context.Context) (api.IPFSID, error)
 	Pin(context.Context, api.Pin) error
-	Unpin(context.Context, cid.Cid) error
+	Unpin(context.Context, api.Cid) error
 	PinLsCid(context.Context, api.Pin) (api.IPFSPinStatus, error)
 	// PinLs returns pins in the pinset of the given types (recursive, direct...)
 	PinLs(ctx context.Context, typeFilters []string, out chan<- api.IPFSPinInfo) error
@@ -94,11 +93,11 @@ type IPFSConnector interface {
 	// RepoGC performs garbage collection sweep on the IPFS repo.
 	RepoGC(context.Context) (api.RepoGC, error)
 	// Resolve returns a cid given a path.
-	Resolve(context.Context, string) (cid.Cid, error)
+	Resolve(context.Context, string) (api.Cid, error)
 	// BlockStream adds a stream of blocks to IPFS.
 	BlockStream(context.Context, <-chan api.NodeWithMeta) error
 	// BlockGet retrieves the raw data of an IPFS block.
-	BlockGet(context.Context, cid.Cid) ([]byte, error)
+	BlockGet(context.Context, api.Cid) ([]byte, error)
 }
 
 // Peered represents a component which needs to be aware of the peers
@@ -119,16 +118,16 @@ type PinTracker interface {
 	Track(context.Context, api.Pin) error
 	// Untrack tells the tracker that a Cid is to be forgotten. The tracker
 	// may perform an IPFS unpin operation.
-	Untrack(context.Context, cid.Cid) error
+	Untrack(context.Context, api.Cid) error
 	// StatusAll returns the list of pins with their local status. Takes a
 	// filter to specify which statuses to report.
 	StatusAll(context.Context, api.TrackerStatus, chan<- api.PinInfo) error
 	// Status returns the local status of a given Cid.
-	Status(context.Context, cid.Cid) api.PinInfo
+	Status(context.Context, api.Cid) api.PinInfo
 	// RecoverAll calls Recover() for all pins tracked.
 	RecoverAll(context.Context, chan<- api.PinInfo) error
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
-	Recover(context.Context, cid.Cid) (api.PinInfo, error)
+	Recover(context.Context, api.Cid) (api.PinInfo, error)
 }
 
 // Informer provides Metric information from a peer. The metrics produced by
@@ -155,7 +154,7 @@ type PinAllocator interface {
 	// which are currently pinning the content. The candidates map
 	// contains the metrics for all peers which are eligible for pinning
 	// the content.
-	Allocate(ctx context.Context, c cid.Cid, current, candidates, priority api.MetricsSet) ([]peer.ID, error)
+	Allocate(ctx context.Context, c api.Cid, current, candidates, priority api.MetricsSet) ([]peer.ID, error)
 	// Metrics returns the list of metrics that the allocator needs.
 	Metrics() []string
 }

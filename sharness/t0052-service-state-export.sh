@@ -14,7 +14,7 @@ test_expect_success IPFS,CLUSTER,JQ "state export saves the correct state to exp
     cluster_kill && sleep 5 &&
     ipfs-cluster-service --debug --config "test-config" state export -f export.json &&
     [ -f export.json ] &&
-    jq -r ".cid | .[\"/\"]" export.json | grep -q "$cid"
+    jq -r ".cid" export.json | grep -q "$cid"
 '
 
 cluster_kill
@@ -28,7 +28,7 @@ test_expect_success IPFS,CLUSTER,JQ "state export saves the correct state to exp
     cluster_kill && sleep 5 &&
     ipfs-cluster-service --debug --config "test-config" state export -f export.json &&
     [ -f export.json ] &&
-    jq -r ".cid | .[\"/\"]" export.json | grep -q "$cid"
+    jq -r ".cid" export.json | grep -q "$cid"
 '
 
 test_clean_ipfs

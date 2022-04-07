@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	types "github.com/ipfs/ipfs-cluster/api"
 )
 
@@ -54,7 +53,7 @@ func (pname *PinName) UnmarshalJSON(data []byte) error {
 
 // Pin contains basic information about a Pin and pinning options.
 type Pin struct {
-	Cid     string            `json:"cid"` // a cid.Cid does not json properly
+	Cid     types.Cid         `json:"cid"`
 	Name    PinName           `json:"name"`
 	Origins []types.Multiaddr `json:"origins"`
 	Meta    map[string]string `json:"meta"`
@@ -62,7 +61,7 @@ type Pin struct {
 
 // Defined returns if the pinis empty (Cid not set).
 func (p Pin) Defined() bool {
-	return p.Cid != ""
+	return p.Cid.Defined()
 }
 
 // MatchesName returns in a pin status matches a name option with a given
@@ -233,7 +232,7 @@ type PinList struct {
 
 // ListOptions represents possible options given to the List endpoint.
 type ListOptions struct {
-	Cids             []cid.Cid
+	Cids             []types.Cid
 	Name             string
 	MatchingStrategy MatchingStrategy
 	Status           Status
@@ -243,11 +242,12 @@ type ListOptions struct {
 	Meta             map[string]string
 }
 
+// FromQuery parses ListOptions from url.Values.
 func (lo *ListOptions) FromQuery(q url.Values) error {
 	cidq := q.Get("cid")
 	if len(cidq) > 0 {
 		for _, cstr := range strings.Split(cidq, ",") {
-			c, err := cid.Decode(cstr)
+			c, err := types.DecodeCid(cstr)
 			if err != nil {
 				return fmt.Errorf("error decoding cid %s: %w", cstr, err)
 			}

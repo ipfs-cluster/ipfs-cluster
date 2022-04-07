@@ -1,3 +1,4 @@
+// Package version stores version information for IPFS Cluster.
 package version
 
 import (

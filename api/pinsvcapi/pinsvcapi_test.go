@@ -68,7 +68,7 @@ func TestAPIListEndpoint(t *testing.T) {
 		}
 
 		results := resp.Results
-		if results[0].Pin.Cid != clustertest.Cid1.String() ||
+		if !results[0].Pin.Cid.Equals(clustertest.Cid1) ||
 			results[1].Status != pinsvc.StatusPinning {
 			t.Errorf("unexpected statusAll resp: %+v", results)
 		}
@@ -161,7 +161,7 @@ func TestAPIPinEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		// test normal pin
 		pin := pinsvc.Pin{
-			Cid:  clustertest.Cid3.String(),
+			Cid:  clustertest.Cid3,
 			Name: "testname",
 			Origins: []api.Multiaddr{
 				ma,
@@ -192,7 +192,7 @@ func TestAPIPinEndpoint(t *testing.T) {
 
 		var errName pinsvc.APIError
 		pin2 := pinsvc.Pin{
-			Cid:  clustertest.Cid1.String(),
+			Cid:  clustertest.Cid1,
 			Name: pinsvc.PinName(make([]byte, 256)),
 		}
 		pinJSON, err = json.Marshal(pin2)
@@ -218,7 +218,7 @@ func TestAPIGetPinEndpoint(t *testing.T) {
 		var status pinsvc.PinStatus
 		test.MakeGet(t, svcapi, url(svcapi)+"/pins/"+clustertest.Cid1.String(), &status)
 
-		if status.Pin.Cid != clustertest.Cid1.String() {
+		if !status.Pin.Cid.Equals(clustertest.Cid1) {
 			t.Error("Cid should be set")
 		}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync/atomic"
 
-	cid "github.com/ipfs/go-cid"
 	shell "github.com/ipfs/go-ipfs-api"
 	files "github.com/ipfs/go-ipfs-files"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -156,7 +155,7 @@ func (lc *loadBalancingClient) PeerRm(ctx context.Context, id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (api.Pin, error) {
+func (lc *loadBalancingClient) Pin(ctx context.Context, ci api.Cid, opts api.PinOptions) (api.Pin, error) {
 	var pin api.Pin
 	call := func(c Client) error {
 		var err error
@@ -169,7 +168,7 @@ func (lc *loadBalancingClient) Pin(ctx context.Context, ci cid.Cid, opts api.Pin
 }
 
 // Unpin untracks a Cid from cluster.
-func (lc *loadBalancingClient) Unpin(ctx context.Context, ci cid.Cid) (api.Pin, error) {
+func (lc *loadBalancingClient) Unpin(ctx context.Context, ci api.Cid) (api.Pin, error) {
 	var pin api.Pin
 	call := func(c Client) error {
 		var err error
@@ -220,7 +219,7 @@ func (lc *loadBalancingClient) Allocations(ctx context.Context, filter api.PinTy
 }
 
 // Allocation returns the current allocations for a given Cid.
-func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (api.Pin, error) {
+func (lc *loadBalancingClient) Allocation(ctx context.Context, ci api.Cid) (api.Pin, error) {
 	var pin api.Pin
 	call := func(c Client) error {
 		var err error
@@ -235,7 +234,7 @@ func (lc *loadBalancingClient) Allocation(ctx context.Context, ci cid.Cid) (api.
 // Status returns the current ipfs state for a given Cid. If local is true,
 // the information affects only the current peer, otherwise the information
 // is fetched from all cluster peers.
-func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (lc *loadBalancingClient) Status(ctx context.Context, ci api.Cid, local bool) (api.GlobalPinInfo, error) {
 	var pinInfo api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error
@@ -250,7 +249,7 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci cid.Cid, local boo
 // StatusCids returns Status() information for the given Cids. If local is
 // true, the information affects only the current peer, otherwise the
 // information is fetched from all cluster peers.
-func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error {
+func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []api.Cid, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
 		return c.StatusCids(ctx, cids, local, out)
 	}
@@ -276,7 +275,7 @@ func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.Tracker
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
-func (lc *loadBalancingClient) Recover(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (lc *loadBalancingClient) Recover(ctx context.Context, ci api.Cid, local bool) (api.GlobalPinInfo, error) {
 	var pinInfo api.GlobalPinInfo
 	call := func(c Client) error {
 		var err error

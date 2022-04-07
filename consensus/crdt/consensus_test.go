@@ -10,7 +10,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	ipns "github.com/ipfs/go-ipns"
 	libp2p "github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -87,7 +86,7 @@ func clean(t *testing.T, cc *Consensus) {
 	}
 }
 
-func testPin(c cid.Cid) api.Pin {
+func testPin(c api.Cid) api.Pin {
 	p := api.PinCid(c)
 	p.ReplicationFactorMin = -1
 	p.ReplicationFactorMax = -1
@@ -453,7 +452,7 @@ func TestBatching(t *testing.T) {
 	}
 
 	// Pin 4 things, and check that 3 are commited
-	for _, c := range []cid.Cid{test.Cid2, test.Cid3, test.Cid4, test.Cid5} {
+	for _, c := range []api.Cid{test.Cid2, test.Cid3, test.Cid4, test.Cid5} {
 		err = cc.LogPin(ctx, testPin(c))
 		if err != nil {
 			t.Error(err)

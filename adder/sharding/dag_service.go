@@ -79,13 +79,13 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 
 // Finalize finishes sharding, creates the cluster DAG and pins it along
 // with the meta pin for the root node of the content.
-func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid, error) {
+func (dgs *DAGService) Finalize(ctx context.Context, dataRoot api.Cid) (api.Cid, error) {
 	lastCid, err := dgs.flushCurrentShard(ctx)
 	if err != nil {
-		return lastCid, err
+		return api.NewCid(lastCid), err
 	}
 
-	if !lastCid.Equals(dataRoot) {
+	if !lastCid.Equals(dataRoot.Cid) {
 		logger.Warnf("the last added CID (%s) is not the IPFS data root (%s). This is only normal when adding a single file without wrapping in directory.", lastCid, dataRoot)
 	}
 
@@ -124,13 +124,13 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 
 	dgs.sendOutput(api.AddedOutput{
 		Name:        fmt.Sprintf("%s-clusterDAG", dgs.addParams.Name),
-		Cid:         clusterDAG,
+		Cid:         api.NewCid(clusterDAG),
 		Size:        dgs.totalSize,
 		Allocations: nil,
 	})
 
 	// Pin the ClusterDAG
-	clusterDAGPin := api.PinWithOpts(clusterDAG, dgs.addParams.PinOptions)
+	clusterDAGPin := api.PinWithOpts(api.NewCid(clusterDAG), dgs.addParams.PinOptions)
 	clusterDAGPin.ReplicationFactorMin = -1
 	clusterDAGPin.ReplicationFactorMax = -1
 	clusterDAGPin.MaxDepth = 0 // pin direct
@@ -146,7 +146,8 @@ func (dgs *DAGService) Finalize(ctx context.Context, dataRoot cid.Cid) (cid.Cid,
 	// Pin the META pin
 	metaPin := api.PinWithOpts(dataRoot, dgs.addParams.PinOptions)
 	metaPin.Type = api.MetaType
-	metaPin.Reference = &clusterDAG
+	ref := api.NewCid(clusterDAG)
+	metaPin.Reference = &ref
 	metaPin.MaxDepth = 0 // irrelevant. Meta-pins are not pinned
 	err = adder.Pin(ctx, dgs.rpcClient, metaPin)
 	if err != nil {
@@ -238,7 +239,7 @@ func (dgs *DAGService) ingestBlock(ctx context.Context, n ipld.Node) error {
 	return dgs.ingestBlock(ctx, n) // <-- retry ingest
 }
 
-func (dgs *DAGService) logStats(metaPin, clusterDAGPin cid.Cid) {
+func (dgs *DAGService) logStats(metaPin, clusterDAGPin api.Cid) {
 	duration := time.Since(dgs.startTime)
 	seconds := uint64(duration) / uint64(time.Second)
 	var rate string
@@ -294,7 +295,7 @@ func (dgs *DAGService) flushCurrentShard(ctx context.Context) (cid.Cid, error) {
 	dgs.currentShard = nil
 	dgs.sendOutput(api.AddedOutput{
 		Name:        fmt.Sprintf("shard-%d", lens),
-		Cid:         shardCid,
+		Cid:         api.NewCid(shardCid),
 		Size:        shard.Size(),
 		Allocations: shard.Allocations(),
 	})

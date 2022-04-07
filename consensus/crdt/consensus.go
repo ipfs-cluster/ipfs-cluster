@@ -1,3 +1,5 @@
+// Package crdt implements the IPFS Cluster consensus interface using
+// CRDT-datastore to replicate the cluster global state to every peer.
 package crdt
 
 import (
@@ -8,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -238,7 +239,7 @@ func (css *Consensus) setup() {
 			logger.Error(err, k)
 			return
 		}
-		c, err := cid.Cast(kb)
+		c, err := api.CastCid(kb)
 		if err != nil {
 			logger.Error(err, k)
 			return

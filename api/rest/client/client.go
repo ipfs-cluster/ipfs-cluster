@@ -12,7 +12,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
 	shell "github.com/ipfs/go-ipfs-api"
 	files "github.com/ipfs/go-ipfs-files"
 	logging "github.com/ipfs/go-log/v2"
@@ -64,9 +63,9 @@ type Client interface {
 
 	// Pin tracks a Cid with the given replication factor and a name for
 	// human-friendliness.
-	Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (api.Pin, error)
+	Pin(ctx context.Context, ci api.Cid, opts api.PinOptions) (api.Pin, error)
 	// Unpin untracks a Cid from cluster.
-	Unpin(ctx context.Context, ci cid.Cid) (api.Pin, error)
+	Unpin(ctx context.Context, ci api.Cid) (api.Pin, error)
 
 	// PinPath resolves given path into a cid and performs the pin operation.
 	PinPath(ctx context.Context, path string, opts api.PinOptions) (api.Pin, error)
@@ -78,21 +77,21 @@ type Client interface {
 	// and the peers that should be pinning them.
 	Allocations(ctx context.Context, filter api.PinType, out chan<- api.Pin) error
 	// Allocation returns the current allocations for a given Cid.
-	Allocation(ctx context.Context, ci cid.Cid) (api.Pin, error)
+	Allocation(ctx context.Context, ci api.Cid) (api.Pin, error)
 
 	// Status returns the current ipfs state for a given Cid. If local is true,
 	// the information affects only the current peer, otherwise the information
 	// is fetched from all cluster peers.
-	Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Status(ctx context.Context, ci api.Cid, local bool) (api.GlobalPinInfo, error)
 	// StatusCids status information for the requested CIDs.
-	StatusCids(ctx context.Context, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error
+	StatusCids(ctx context.Context, cids []api.Cid, local bool, out chan<- api.GlobalPinInfo) error
 	// StatusAll gathers Status() for all tracked items.
 	StatusAll(ctx context.Context, filter api.TrackerStatus, local bool, out chan<- api.GlobalPinInfo) error
 
 	// Recover retriggers pin or unpin ipfs operations for a Cid in error
 	// state.  If local is true, the operation is limited to the current
 	// peer, otherwise it happens on every cluster peer.
-	Recover(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error)
+	Recover(ctx context.Context, ci api.Cid, local bool) (api.GlobalPinInfo, error)
 	// RecoverAll triggers Recover() operations on all tracked items. If
 	// local is true, the operation is limited to the current peer.
 	// Otherwise, it happens everywhere.
