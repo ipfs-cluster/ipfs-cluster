@@ -2,7 +2,7 @@ module github.com/ipfs/ipfs-cluster
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
-	contrib.go.opencensus.io/exporter/prometheus v0.4.0
+	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dustin/go-humanize v1.0.0
@@ -30,12 +30,12 @@ require (
 	github.com/ipfs/go-ipfs-pinner v0.2.1
 	github.com/ipfs/go-ipfs-posinfo v0.0.1
 	github.com/ipfs/go-ipld-cbor v0.0.6
-	github.com/ipfs/go-ipld-format v0.3.0
+	github.com/ipfs/go-ipld-format v0.4.0
 	github.com/ipfs/go-ipns v0.1.2
-	github.com/ipfs/go-log/v2 v2.5.0
+	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-merkledag v0.6.0
 	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
-	github.com/ipfs/go-path v0.2.2
+	github.com/ipfs/go-path v0.3.0
 	github.com/ipfs/go-unixfs v0.3.1
 	github.com/ipld/go-car v0.3.3
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -72,7 +72,7 @@ require (
 	go.opencensus.io v0.23.0
 	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20210813211128-0a44fdfbc16e
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/protobuf v1.28.0
 )
 
 require (
