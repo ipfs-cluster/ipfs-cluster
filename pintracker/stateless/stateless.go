@@ -365,11 +365,12 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 
 	// Prepare pinset streaming
 	statePins := make(chan api.Pin, pinsChannelSize)
-	err = st.List(ctx, statePins)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
+	go func() {
+		err = st.List(ctx, statePins)
+		if err != nil {
+			logger.Error(err)
+		}
+	}()
 
 	// a shorthand for this select.
 	trySend := func(info api.PinInfo) bool {
@@ -557,17 +558,19 @@ func (spt *Tracker) RecoverAll(ctx context.Context, out chan<- api.PinInfo) erro
 	defer span.End()
 
 	statusesCh := make(chan api.PinInfo, 1024)
-	err := spt.StatusAll(ctx, api.TrackerStatusUndefined, statusesCh)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err := spt.StatusAll(ctx, api.TrackerStatusUndefined, statusesCh)
+		if err != nil {
+			logger.Error(err)
+		}
+	}()
 
 	for st := range statusesCh {
 		// Break out if we shutdown. We might be going through
 		// a very long list of statuses.
 		select {
 		case <-spt.ctx.Done():
-			err = fmt.Errorf("RecoverAll aborted: %w", ctx.Err())
+			err := fmt.Errorf("RecoverAll aborted: %w", ctx.Err())
 			logger.Error(err)
 			return err
 		default:
