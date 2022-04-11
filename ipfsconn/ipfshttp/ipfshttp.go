@@ -934,7 +934,7 @@ type chanIterator struct {
 	err     error
 
 	seenMu sync.Mutex
-	seen   *cid.Set
+	seen   *multihash.Set
 }
 
 func (ci *chanIterator) Name() string {
@@ -949,16 +949,17 @@ func (ci *chanIterator) Node() files.Node {
 	if !ci.current.Cid.Defined() {
 		return nil
 	}
+	logger.Debugf("it.node(): %s", ci.current.Cid)
 	ci.seenMu.Lock()
-	ci.seen.Add(ci.current.Cid.Cid)
+	ci.seen.Add(ci.current.Cid.Hash())
 	ci.seenMu.Unlock()
 	return files.NewBytesFile(ci.current.Data)
 }
 
 func (ci *chanIterator) Seen(c api.Cid) bool {
 	ci.seenMu.Lock()
-	has := ci.seen.Has(c.Cid)
-	ci.seen.Remove(c.Cid)
+	has := ci.seen.Has(c.Cid.Hash())
+	ci.seen.Remove(c.Cid.Hash())
 	ci.seenMu.Unlock()
 	return has
 }
@@ -1005,7 +1006,7 @@ func (ci *chanIterator) Next() bool {
 			ci.done = true
 			return false
 		}
-		logger.Debugf("block %s", next.Cid)
+		logger.Debugf("it.Next() %s", next.Cid)
 		ci.current = next
 		return true
 	}
@@ -1037,6 +1038,7 @@ func blockPutQuery(prefix cid.Prefix) (url.Values, error) {
 
 	q.Set("mhtype", mhType)
 	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
+	q.Set("pin", "false")
 	return q, nil
 }
 
@@ -1054,7 +1056,7 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	it := &chanIterator{
 		ctx:    ctx,
 		blocks: blocks,
-		seen:   cid.NewSet(),
+		seen:   multihash.NewSet(),
 	}
 	dir := &chanDirectory{
 		iterator: it,
@@ -1106,8 +1108,9 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 				errs = multierr.Append(errs, err)
 				break
 			}
+			logger.Debugf("response block: %s", res.Key)
 			if !it.Seen(res.Key) {
-				logger.Debugf("blockPut response CID (%s) does not match any blocks sent", res.Key)
+				logger.Warningf("blockPut response CID (%s) does not match the multihash of any blocks sent", res.Key)
 			}
 		}
 		// continue until it.Done()
