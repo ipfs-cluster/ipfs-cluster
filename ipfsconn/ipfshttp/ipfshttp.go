@@ -1107,7 +1107,7 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 				break
 			}
 			if !it.Seen(res.Key) {
-				logger.Warnf("blockPut response CID (%s) does not match any blocks sent", res.Key)
+				logger.Debugf("blockPut response CID (%s) does not match any blocks sent", res.Key)
 			}
 		}
 		// continue until it.Done()
