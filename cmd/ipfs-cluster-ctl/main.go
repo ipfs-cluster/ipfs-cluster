@@ -1109,7 +1109,10 @@ deamon, otherwise on all IPFS daemons.
 		},
 	}
 
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 func localFlag() cli.BoolFlag {
