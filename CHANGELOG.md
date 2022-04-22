@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v1.0.0 - 2022-03-xx
+### v1.0.0 - 2022-04-22
 
 IPFS Cluster v1.0.0 is a major release that represents that this project has
 reached maturity and is able to perform and scale on production environment
