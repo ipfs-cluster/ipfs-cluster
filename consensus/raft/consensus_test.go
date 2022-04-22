@@ -316,7 +316,7 @@ func TestRaftLatestSnapshot(t *testing.T) {
 	}
 
 	// Call raft.LastState and ensure we get the correct state
-	snapState, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	snapState, err := dsstate.New(ctx, inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}

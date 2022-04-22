@@ -40,8 +40,8 @@ var sortPinInfoByCid = func(p []api.PinInfo) {
 // - Cid2 - weird / remote // replication factor set to 0, no allocations
 // - Cid3 - remote - this pin is on ipfs
 // - Cid4 - pin everywhere - this pin is not on ipfs
-func prefilledState(context.Context) (state.ReadOnly, error) {
-	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+func prefilledState(ctx context.Context) (state.ReadOnly, error) {
+	st, err := dsstate.New(ctx, inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,6 @@ func prefilledState(context.Context) (state.ReadOnly, error) {
 		api.PinWithOpts(test.Cid4, pinOpts),
 	}
 
-	ctx := context.Background()
 	for _, pin := range pins {
 		err = st.Add(ctx, pin)
 		if err != nil {

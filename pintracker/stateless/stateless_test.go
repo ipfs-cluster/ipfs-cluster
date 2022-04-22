@@ -121,7 +121,7 @@ func getStateFunc(t testing.TB, items ...api.Pin) func(context.Context) (state.R
 	t.Helper()
 	ctx := context.Background()
 
-	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	st, err := dsstate.New(ctx, inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}

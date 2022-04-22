@@ -110,7 +110,7 @@ type mockRepoGCResp struct {
 // NewIpfsMock returns a new mock.
 func NewIpfsMock(t *testing.T) *IpfsMock {
 	store := inmem.New()
-	st, err := dsstate.New(store, "", dsstate.DefaultHandle())
+	st, err := dsstate.New(context.Background(), store, "", dsstate.DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}

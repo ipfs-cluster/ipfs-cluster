@@ -7,12 +7,8 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/observations"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
-
-	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
 )
 
 // AlertChannelCap specifies how much buffer the alerts channel has.
@@ -135,11 +131,6 @@ func (mc *Checker) alert(pid peer.ID, metricName string) error {
 	}
 	select {
 	case mc.alertCh <- alrt:
-		stats.RecordWithTags(
-			mc.ctx,
-			[]tag.Mutator{tag.Upsert(observations.RemotePeerKey, pid.Pretty())},
-			observations.Alerts.M(1),
-		)
 	default:
 		return ErrAlertChannelFull
 	}

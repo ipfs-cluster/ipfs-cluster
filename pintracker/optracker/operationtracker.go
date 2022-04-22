@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/observations"
 
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -52,6 +54,8 @@ func (opt *OperationTracker) String() string {
 
 // NewOperationTracker creates a new OperationTracker.
 func NewOperationTracker(ctx context.Context, pid peer.ID, peerName string) *OperationTracker {
+	initializeMetrics(ctx)
+
 	return &OperationTracker{
 		ctx:        ctx,
 		pid:        pid,
@@ -78,6 +82,7 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
 			return nil // an ongoing operation of the same sign exists
 		}
+		recordMetric(op, -1)
 		op.Cancel() // cancel ongoing operation and replace it
 	}
 
@@ -89,6 +94,7 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 	}
 	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
 	opt.operations[pin.Cid] = op2
+	recordMetric(op2, 1)
 	return op2
 }
 
@@ -121,6 +127,7 @@ func (opt *OperationTracker) Status(ctx context.Context, c api.Cid) (api.Tracker
 // is PhaseDone. Any other phases are considered in-flight and not touched.
 // For things already in error, the error message is updated.
 // Remote pins are ignored too.
+// Only used in tests right now.
 func (opt *OperationTracker) SetError(ctx context.Context, c api.Cid, err error) {
 	opt.mu.Lock()
 	defer opt.mu.Unlock()
@@ -287,6 +294,7 @@ func (opt *OperationTracker) Filter(ctx context.Context, ipfs api.IPFSID, filter
 // with the matching filter. Note, only supports
 // filters of type OperationType or Phase, any other type
 // will result in a nil slice being returned.
+// Only used in tests right now.
 func (opt *OperationTracker) filterOps(ctx context.Context, filters ...interface{}) []*Operation {
 	var fltops []*Operation
 	opt.mu.RLock()
@@ -325,6 +333,27 @@ func filter(ctx context.Context, in, out map[api.Cid]*Operation, filter interfac
 			if op.Phase() == filter {
 				out[op.Cid()] = op
 			}
+		}
+	}
+}
+
+func initializeMetrics(ctx context.Context) {
+	stats.Record(ctx, observations.PinsPinError.M(0))
+	stats.Record(ctx, observations.PinsQueued.M(0))
+	stats.Record(ctx, observations.PinsPinning.M(0))
+}
+
+func recordMetric(op *Operation, val int64) {
+	if op.Type() == OperationPin {
+		switch op.Phase() {
+		case PhaseError:
+			stats.Record(op.Context(), observations.PinsPinError.M(val))
+		case PhaseQueued:
+			stats.Record(op.Context(), observations.PinsQueued.M(val))
+		case PhaseInProgress:
+			stats.Record(op.Context(), observations.PinsPinning.M(val))
+		case PhaseDone:
+			// we have no metric to log anything
 		}
 	}
 }
