@@ -1,5 +1,185 @@
 # IPFS Cluster Changelog
 
+### v1.0.0 - 2022-03-xx
+
+IPFS Cluster v1.0.0 is a major release that represents that this project has
+reached maturity and is able to perform and scale on production environment
+(50+ million pins and 20 nodes).
+
+This is a breaking release, v1.0.0 cluster peers are not compatible with
+previous cluster peers as we have bumped the RPC protocol version (which had
+remained unchanged since 0.12.0).
+
+This release's major change is the switch to using streaming RPC endpoints for
+several RPC methods (listing pins, listing statuses, listing peers, adding
+blocks), which we added support for in go-libp2p-gorpc.
+
+This causes major impact on two areas:
+
+- Memory consumption with very large pinsets: before, listing all the pins on
+  the HTTP API required loading all the pins in the pinset into memory, then
+  responding with a json-array containing the full pinset. When working at
+  large scale with multimillion pinsets, this caused large memory usage spikes
+  (whenever the full pinset was needed anywhere). Streaming RPC means
+  components no longer need to send requests or responses in a single large
+  collection (a json array), but can individually stream items end-to-end,
+  without having to load-all and store in memory while the request is being
+  handled.
+
+- Adding via cluster peers: before, when adding content to IPFS though a
+  Cluster peer, it would chunk and send every individual chunk the cluster
+  peers supposed to store the content, and then they would send it to IPFS
+  individually, which resulted in a separate `block/put` request against the
+  IPFS HTTP API. Files with a dozen chunks already showed that performance was
+  not great. With streaming RPC, we can setup a single libp2p stream from the
+  adding node to the destinations, and they can stream the blocks with a
+  single `block/put` multipart-request directly into IPFS. We recommend using
+  go-ipfs >= 0.12.0 for this.
+
+These changes affect how cluster peers talk to each other and also how API
+endpoints that responded with array collections behave (they now stream json
+objects).
+
+This release additionally includes the first version of the experimental
+[IPFS Pinning Service API](https://ipfs.github.io/pinning-services-api-spec/)
+for IPFS Cluster. This API runs along the existing HTTP REST API and IPFS
+Proxy API and allows sending and querying pins from Cluster using standard
+Pinning-service clients (works well with go-ipfs's `ipfs pin remote`). Note
+that it does not support authentication nor tracking different requests for
+the same CID (request ID is the CID).
+
+The full list of additional features and bug fixes can be found below.
+
+#### List of changes
+
+##### Features
+
+* restapi/adder: Add `?no-pin=true/false` option to `/add` endpoint | [ipfs/ipfs-cluster#1590](https://github.com/ipfs/ipfs-cluster/issues/1590)
+* cluster: add `pin_only_on_trusted_peers` config option | [ipfs/ipfs-cluster#1585](https://github.com/ipfs/ipfs-cluster/issues/1585) | [ipfs/ipfs-cluster#1591](https://github.com/ipfs/ipfs-cluster/issues/1591)
+* restapi/client: support querying status for multiple CIDs | [ipfs/ipfs-cluster#1564](https://github.com/ipfs/ipfs-cluster/issues/1564) | [ipfs/ipfs-cluster#1592](https://github.com/ipfs/ipfs-cluster/issues/1592)
+* Pinning Services API | [ipfs/ipfs-cluster#1213](https://github.com/ipfs/ipfs-cluster/issues/1213) | [ipfs/ipfs-cluster#1483](https://github.com/ipfs/ipfs-cluster/issues/1483)
+* restapi/adder: Return pin allocations on add output | [ipfs/ipfs-cluster#1598](https://github.com/ipfs/ipfs-cluster/issues/1598) | [ipfs/ipfs-cluster#1599](https://github.com/ipfs/ipfs-cluster/issues/1599)
+* RPC Streaming | [ipfs/ipfs-cluster#1602](https://github.com/ipfs/ipfs-cluster/issues/1602) | [ipfs/ipfs-cluster#1607](https://github.com/ipfs/ipfs-cluster/issues/1607) | [ipfs/ipfs-cluster#1611](https://github.com/ipfs/ipfs-cluster/issues/1611) | [ipfs/ipfs-cluster#810](https://github.com/ipfs/ipfs-cluster/issues/810) | [ipfs/ipfs-cluster#1437](https://github.com/ipfs/ipfs-cluster/issues/1437) | [ipfs/ipfs-cluster#1616](https://github.com/ipfs/ipfs-cluster/issues/1616) | [ipfs/ipfs-cluster#1621](https://github.com/ipfs/ipfs-cluster/issues/1621) | [ipfs/ipfs-cluster#1631](https://github.com/ipfs/ipfs-cluster/issues/1631) | [ipfs/ipfs-cluster#1632](https://github.com/ipfs/ipfs-cluster/issues/1632)
+
+##### Bug fixes
+
+##### Other changes
+
+* pubsubmon: Remove accrual failure detection | [ipfs/ipfs-cluster#939](https://github.com/ipfs/ipfs-cluster/issues/939) | [ipfs/ipfs-cluster#1586](https://github.com/ipfs/ipfs-cluster/issues/1586) | [ipfs/ipfs-cluster#1589](https://github.com/ipfs/ipfs-cluster/issues/1589)
+* crdt: log with INFO when batches are committed | [ipfs/ipfs-cluster#1596](https://github.com/ipfs/ipfs-cluster/issues/1596)
+* Dependency upgrades | [ipfs/ipfs-cluster#1613](https://github.com/ipfs/ipfs-cluster/issues/1613) | [ipfs/ipfs-cluster#1617](https://github.com/ipfs/ipfs-cluster/issues/1617) | [ipfs/ipfs-cluster#1627](https://github.com/ipfs/ipfs-cluster/issues/1627)
+* Bump RPC protocol version | [ipfs/ipfs-cluster#1615](https://github.com/ipfs/ipfs-cluster/issues/1615)
+* Replace cid.Cid with api.Cid wrapper type | [ipfs/ipfs-cluster#1626](https://github.com/ipfs/ipfs-cluster/issues/1626)
+* Provide string JSON marshalling for PinType | [ipfs/ipfs-cluster#1628](https://github.com/ipfs/ipfs-cluster/issues/1628)
+* ipfs-cluster-ctl should exit with status 1 when an argument error happens | [ipfs/ipfs-cluster#1633](https://github.com/ipfs/ipfs-cluster/issues/1633) | [ipfs/ipfs-cluster#1634](https://github.com/ipfs/ipfs-cluster/issues/1634)
+* Revamp and fix basic exported metrics: pins, queued, pinning, pin errors | [ipfs/ipfs-cluster#1187](https://github.com/ipfs/ipfs-cluster/issues/1187) | [ipfs/ipfs-cluster#1470](https://github.com/ipfs/ipfs-cluster/issues/1470) | [ipfs/ipfs-cluster#1637](https://github.com/ipfs/ipfs-cluster/issues/1637)
+
+#### Upgrading notices
+
+As mentioned, all peers in the cluster should upgrade and things will heavily break otherwise.
+
+##### Configuration changes
+
+There are no breaking configuration changes. Other than that:
+
+* A `pin_only_on_trusted_peers` boolean option that defaults to `false` has
+  been added to the `cluster` configuration section. When enabled, only
+  trusted peers will be considered when allocating pins.
+* A new `pinsvcapi` section is now added to the `api` configuration section
+  for newly-initialized configurations. When this section is present, the
+  experimental Pinning Services API is launched. See the docs for the
+  different options. Most of the code/options are similar to the `restapi`
+  section as both share most of the code.
+
+##### REST API
+
+###### Streaming responses
+
+The following endpoint responses have changed:
+
+* `/allocations` returned a json array of api.Pin object and now it will stream them.
+* `/pins` returned a json array of api.PinInfo objects and now it will stream them.
+* `/recover` returned a json array of api.PinInfo objects and now it will stream them.
+
+Failures on streaming endpoints are captured in request Trailer headers (same
+as `/add`), in particular with a `X-Stream-Error` trailer. Note that the
+`X-Stream-Error` trailer may appear even no error happened (empty value in
+this case).
+
+###### JSON-encoding of CIDs
+
+As of v1.0.0, every "cid" as returned inside any REST API object will no
+longer encode as:
+
+```
+{ "/" : "<cid>" }
+```
+
+but instead just as `"cid"`.
+
+###### Add endpoint changes
+
+There are two small backwards compatible changes to the `/add` endpoint:
+
+* A `?no-pin` query option has been added. In this case, cluster will not pin
+the content after having added it.
+* The output objects returned when adding (i.e. the ones containing the CIDs
+  of the files) now include an `Allocations` field, with an array of peer IDs
+  corresponding to the peers on which the blocks were added.
+
+###### Pin object changes
+
+`Pin` objects (returned from `/allocations`, `POST /pins` etc). will not
+encode the Type as a human-readable string and not as a number, as previously
+happened.
+
+###### PinInfo object changes
+
+`PinInfo`/`GlobalPinInfo` objects (returned from `/pins` and `/recover` endpoitns), now
+include additional fields (which before were only accessible via `/allocations`):
+
+- `allocations`: an array of peer IDs indicating the pin allocations.
+- `origins`: the list of origins associated to this pin.
+- `metadata`: an object with pin metadata.
+- `created`: date when the pin was added to the cluster.
+- `ipfs_peer_id`: IPFS peer ID to which the object is pinned (when known).
+- `ipfs_peer_addresses`: IPFS addresses of the IPFS daemon to which the object is pinned (when known).
+
+##### Pinning Services API
+
+This API now exists. It does not support Authentication and is experimental.
+
+##### IPFS Proxy API
+
+The `/add?pin=false` call will no longer trigger a cluster pin followed by an unpin.
+
+The `/pin/ls?stream=true` query option is now supported.
+
+##### Go APIs
+
+There have been many changes to different interfaces (i.e. to stream out
+collections over channels rather than return slices).
+
+We have also taken the opportunity to get rid of pointers to objects in many
+places. This was a bad step, which makes cluster perform many more allocations
+that it should, and as a result causes more GC pressure. In any case, it was
+not a good Go development practice to use referenced types all around for
+objects that are not supposed to be mutated.
+
+##### Other
+
+The following metrics are now available in the Prometheus endpoint when enabled:
+
+```
+ipfscluster_pins
+ipfscluster_pins_pin_queued
+ipfscluster_pins_pin_error
+ipfscluster_pins_pinning
+```
+
+
+---
+
 ### v0.14.5 - 2022-02-16
 
 This is a minor IPFS Cluster release. The main feature is the upgrade of the
@@ -17,7 +197,7 @@ For the full list of feature and bugfixes, see list below.
 
 * CRDT: update with RepairInterval option and more workers | [ipfs/ipfs-cluster#1561](https://github.com/ipfs/ipfs-cluster/issues/1561) | [ipfs/ipfs-cluster#1576](https://github.com/ipfs/ipfs-cluster/issues/1576)
 * Add `?cids` query parameter to /pins: limit status request to several CIDs | [ipfs/ipfs-cluster#1562](https://github.com/ipfs/ipfs-cluster/issues/1562)
-* Pintracker improvements | [ipfs/ipfs-cluster#1556](https://github.com/ipfs/ipfs-cluster/issues/1556) | [ipfs/ipfs-cluster#939](https://github.com/ipfs/ipfs-cluster/issues/939) | [ipfs/ipfs-cluster#1554](https://github.com/ipfs/ipfs-cluster/issues/1554) | [ipfs/ipfs-cluster#1212](https://github.com/ipfs/ipfs-cluster/issues/1212)
+* Pintracker improvements | [ipfs/ipfs-cluster#1556](https://github.com/ipfs/ipfs-cluster/issues/1556) | [ipfs/ipfs-cluster#1554](https://github.com/ipfs/ipfs-cluster/issues/1554) | [ipfs/ipfs-cluster#1212](https://github.com/ipfs/ipfs-cluster/issues/1212)
   * Status information shows peer ID of IPFS peer pinning the content
   * Peernames correctly set for remote peers on status objects
   * Pin names not set for in-flight pin status objects
