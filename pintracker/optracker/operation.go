@@ -137,12 +137,14 @@ func (op *Operation) Phase() Phase {
 // SetPhase changes the Phase and updates the timestamp.
 func (op *Operation) SetPhase(ph Phase) {
 	_, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
+	recordMetric(op, -1)
 	op.mu.Lock()
 	{
 		op.phase = ph
 		op.ts = time.Now()
 	}
 	op.mu.Unlock()
+	recordMetric(op, 1)
 	span.End()
 }
 
@@ -194,6 +196,7 @@ func (op *Operation) Error() string {
 // an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
 	_, span := trace.StartSpan(op.ctx, "optracker/SetError")
+	recordMetric(op, -1)
 	op.mu.Lock()
 	{
 		op.phase = PhaseError
@@ -201,6 +204,7 @@ func (op *Operation) SetError(err error) {
 		op.ts = time.Now()
 	}
 	op.mu.Unlock()
+	recordMetric(op, 1)
 	span.End()
 }
 

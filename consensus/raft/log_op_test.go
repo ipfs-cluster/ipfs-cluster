@@ -21,7 +21,7 @@ func TestApplyToPin(t *testing.T) {
 	defer cleanRaft(1)
 	defer cc.Shutdown(ctx)
 
-	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	st, err := dsstate.New(ctx, inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestApplyToUnpin(t *testing.T) {
 	defer cleanRaft(1)
 	defer cc.Shutdown(ctx)
 
-	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+	st, err := dsstate.New(ctx, inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -276,6 +276,7 @@ func (css *Consensus) setup() {
 	css.crdt = crdt
 
 	clusterState, err := dsstate.New(
+		css.ctx,
 		css.crdt,
 		// unsure if we should set something else but crdt is already
 		// namespaced and this would only namespace the keys, which only
@@ -290,6 +291,7 @@ func (css *Consensus) setup() {
 	css.state = clusterState
 
 	batchingState, err := dsstate.NewBatching(
+		css.ctx,
 		css.crdt,
 		"",
 		dsstate.DefaultHandle(),
@@ -663,5 +665,5 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 	if err != nil {
 		return nil, err
 	}
-	return dsstate.NewBatching(crdt, "", dsstate.DefaultHandle())
+	return dsstate.NewBatching(context.Background(), crdt, "", dsstate.DefaultHandle())
 }

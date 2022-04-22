@@ -29,7 +29,7 @@ var c = api.Pin{
 
 func newState(t *testing.T) *State {
 	store := inmem.New()
-	ds, err := New(store, "", DefaultHandle())
+	ds, err := New(context.Background(), store, "", DefaultHandle())
 	if err != nil {
 		t.Fatal(err)
 	}

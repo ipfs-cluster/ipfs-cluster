@@ -71,27 +71,29 @@ func NewConsensus(
 	if err != nil {
 		return nil, err
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 
 	logger.Debug("starting Consensus and waiting for a leader...")
 	baseOp := &LogOp{tracing: cfg.Tracing}
 	state, err := dsstate.New(
+		ctx,
 		store,
 		cfg.DatastoreNamespace,
 		dsstate.DefaultHandle(),
 	)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	consensus := libp2praft.NewOpLog(state, baseOp)
 	raft, err := newRaftWrapper(host, cfg, consensus.FSM(), staging)
 	if err != nil {
 		logger.Error("error creating raft: ", err)
+		cancel()
 		return nil, err
 	}
 	actor := libp2praft.NewActor(raft.raft)
 	consensus.SetActor(actor)
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	cc := &Consensus{
 		ctx:       ctx,
@@ -550,7 +552,7 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.State, error) {
 		return nil, err
 	}
 
-	st, err := dsstate.New(store, cfg.DatastoreNamespace, dsstate.DefaultHandle())
+	st, err := dsstate.New(context.Background(), store, cfg.DatastoreNamespace, dsstate.DefaultHandle())
 	if err != nil {
 		return nil, err
 	}
