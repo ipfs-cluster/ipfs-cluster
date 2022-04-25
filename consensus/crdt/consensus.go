@@ -583,6 +583,9 @@ func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 	case <-css.ctx.Done():
 		return nil, css.ctx.Err()
 	case <-css.stateReady:
+		if css.config.batchingEnabled() {
+			return css.batchingState, nil
+		}
 		return css.state, nil
 	}
 }
