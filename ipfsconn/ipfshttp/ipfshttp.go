@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/observations"
 	"go.uber.org/multierr"
 
 	cid "github.com/ipfs/go-cid"
@@ -34,7 +33,6 @@ import (
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
-	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -401,7 +399,6 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 	}
 
 	logger.Info("IPFS Pin request succeeded: ", hash)
-	stats.Record(ctx, observations.Pins.M(1))
 	return nil
 }
 
@@ -461,7 +458,6 @@ func (ipfs *Connector) pinUpdate(ctx context.Context, from, to api.Cid) error {
 		return err
 	}
 	logger.Infof("IPFS Pin Update request succeeded. %s -> %s (unpin=false)", from, to)
-	stats.Record(ctx, observations.Pins.M(1))
 	return nil
 }
 
@@ -495,7 +491,6 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash api.Cid) error {
 	}
 
 	logger.Info("IPFS Unpin request succeeded:", hash)
-	stats.Record(ctx, observations.Pins.M(-1))
 	return nil
 }
 
