@@ -1086,7 +1086,7 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 		var res ipfsBlockPutResp
 		err = dec.Decode(&res)
 		if err == io.EOF {
-			break
+			return nil
 		}
 		if err != nil {
 			logger.Error(err)
