@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
@@ -32,6 +33,10 @@ type OperationTracker struct {
 
 	mu         sync.RWMutex
 	operations map[api.Cid]*Operation
+
+	pinningCount   int64
+	pinErrorCount  int64
+	pinQueuedCount int64
 }
 
 func (opt *OperationTracker) String() string {
@@ -82,11 +87,11 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
 			return nil // an ongoing operation of the same sign exists
 		}
-		recordMetric(op, -1)
+		opt.recordMetric(op, -1)
 		op.Cancel() // cancel ongoing operation and replace it
 	}
 
-	op2 := NewOperation(ctx, pin, typ, ph)
+	op2 := newOperation(ctx, pin, typ, ph, opt)
 	if ok && op.Type() == typ {
 		// Carry over the attempt count when doing an operation of the
 		// same type.  The old operation exists and was cancelled.
@@ -94,7 +99,7 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 	}
 	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
 	opt.operations[pin.Cid] = op2
-	recordMetric(op2, 1)
+	opt.recordMetric(op2, 1)
 	return op2
 }
 
@@ -343,15 +348,21 @@ func initializeMetrics(ctx context.Context) {
 	stats.Record(ctx, observations.PinsPinning.M(0))
 }
 
-func recordMetric(op *Operation, val int64) {
+func (opt *OperationTracker) recordMetric(op *Operation, val int64) {
+	if opt == nil {
+		return
+	}
 	if op.Type() == OperationPin {
 		switch op.Phase() {
 		case PhaseError:
-			stats.Record(op.Context(), observations.PinsPinError.M(val))
+			pinErrors := atomic.AddInt64(&opt.pinErrorCount, val)
+			stats.Record(op.Context(), observations.PinsPinError.M(pinErrors))
 		case PhaseQueued:
-			stats.Record(op.Context(), observations.PinsQueued.M(val))
+			pinQueued := atomic.AddInt64(&opt.pinQueuedCount, val)
+			stats.Record(op.Context(), observations.PinsQueued.M(pinQueued))
 		case PhaseInProgress:
-			stats.Record(op.Context(), observations.PinsPinning.M(val))
+			pinning := atomic.AddInt64(&opt.pinningCount, val)
+			stats.Record(op.Context(), observations.PinsPinning.M(pinning))
 		case PhaseDone:
 			// we have no metric to log anything
 		}
