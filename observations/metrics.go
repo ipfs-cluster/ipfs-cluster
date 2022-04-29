@@ -54,19 +54,19 @@ var (
 	PinsQueuedView = &view.View{
 		Measure: PinsQueued,
 		//TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Sum(),
+		Aggregation: view.LastValue(),
 	}
 
 	PinsPinningView = &view.View{
 		Measure: PinsPinning,
 		//TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Sum(),
+		Aggregation: view.LastValue(),
 	}
 
 	PinsPinErrorView = &view.View{
 		Measure: PinsPinError,
 		//TagKeys:     []tag.Key{HostKey},
-		Aggregation: view.Sum(),
+		Aggregation: view.LastValue(),
 	}
 
 	DefaultViews = []*view.View{

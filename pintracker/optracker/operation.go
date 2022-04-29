@@ -54,6 +54,8 @@ type Operation struct {
 	ctx    context.Context
 	cancel func()
 
+	tracker *OperationTracker
+
 	// RO fields
 	opType OperationType
 	pin    api.Pin
@@ -67,8 +69,8 @@ type Operation struct {
 	ts           time.Time
 }
 
-// NewOperation creates a new Operation.
-func NewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase) *Operation {
+// newOperation creates a new Operation.
+func newOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase, tracker *OperationTracker) *Operation {
 	ctx, span := trace.StartSpan(ctx, "optracker/NewOperation")
 	defer span.End()
 
@@ -137,14 +139,14 @@ func (op *Operation) Phase() Phase {
 // SetPhase changes the Phase and updates the timestamp.
 func (op *Operation) SetPhase(ph Phase) {
 	_, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
-	recordMetric(op, -1)
+	op.tracker.recordMetric(op, -1)
 	op.mu.Lock()
 	{
 		op.phase = ph
 		op.ts = time.Now()
 	}
 	op.mu.Unlock()
-	recordMetric(op, 1)
+	op.tracker.recordMetric(op, 1)
 	span.End()
 }
 
@@ -196,7 +198,7 @@ func (op *Operation) Error() string {
 // an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
 	_, span := trace.StartSpan(op.ctx, "optracker/SetError")
-	recordMetric(op, -1)
+	op.tracker.recordMetric(op, -1)
 	op.mu.Lock()
 	{
 		op.phase = PhaseError
@@ -204,7 +206,7 @@ func (op *Operation) SetError(err error) {
 		op.ts = time.Now()
 	}
 	op.mu.Unlock()
-	recordMetric(op, 1)
+	op.tracker.recordMetric(op, 1)
 	span.End()
 }
 
