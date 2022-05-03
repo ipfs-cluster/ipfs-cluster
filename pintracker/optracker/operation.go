@@ -79,6 +79,8 @@ func newOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase,
 		ctx:    ctx,
 		cancel: cancel,
 
+		tracker: tracker,
+
 		pin:          pin,
 		opType:       typ,
 		phase:        ph,
