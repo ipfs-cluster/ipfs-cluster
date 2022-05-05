@@ -32,12 +32,22 @@ var (
 // metrics
 var (
 	// This metric is managed in state/dsstate.
-	Pins = stats.Int64("pins", "Total number of pins", stats.UnitDimensionless)
+	Pins = stats.Int64("pins", "Total number of cluster pins", stats.UnitDimensionless)
 
 	// These metrics are managed by the pintracker/optracker module.
-	PinsQueued   = stats.Int64("pins/pin_queued", "Number of pins queued for pinning", stats.UnitDimensionless)
-	PinsPinning  = stats.Int64("pins/pinning", "Number of pins currently pinning", stats.UnitDimensionless)
-	PinsPinError = stats.Int64("pins/pin_error", "Number of pins in pin_error state", stats.UnitDimensionless)
+	PinsQueued   = stats.Int64("pins/pin_queued", "Current number of pins queued for pinning", stats.UnitDimensionless)
+	PinsPinning  = stats.Int64("pins/pinning", "Current number of pins currently pinning", stats.UnitDimensionless)
+	PinsPinError = stats.Int64("pins/pin_error", "Current number of pins in pin_error state", stats.UnitDimensionless)
+
+	// These metrics and managed in the ipfshttp module.
+	PinsIpfsPins    = stats.Int64("pins/ipfs_pins", "Current number of items pinned on IPFS", stats.UnitDimensionless)
+	PinsPinAdd      = stats.Int64("pins/pin_add", "Total number of IPFS pin requests", stats.UnitDimensionless)
+	PinsPinAddError = stats.Int64("pins/pin_add_errors", "Total number of failed pin requests", stats.UnitDimensionless)
+	BlocksPut       = stats.Int64("blocks/put", "Total number of blocks/put requests", stats.UnitDimensionless)
+	BlocksAddedSize = stats.Int64("blocks/added_size", "Total size of blocks added in bytes", stats.UnitDimensionless)
+
+	BlocksAdded      = stats.Int64("blocks/added", "Total number of blocks added", stats.UnitDimensionless)
+	BlocksAddedError = stats.Int64("blocks/put_error", "Total number of block/put errors", stats.UnitDimensionless)
 )
 
 // views, which is just the aggregation of the metrics
@@ -69,11 +79,53 @@ var (
 		Aggregation: view.LastValue(),
 	}
 
+	PinsIpfsPinsView = &view.View{
+		Measure:     PinsIpfsPins,
+		Aggregation: view.LastValue(),
+	}
+
+	PinsPinAddView = &view.View{
+		Measure:     PinsPinAdd,
+		Aggregation: view.Sum(),
+	}
+
+	PinsPinAddErrorView = &view.View{
+		Measure:     PinsPinAddError,
+		Aggregation: view.Sum(),
+	}
+
+	BlocksPutView = &view.View{
+		Measure:     BlocksPut,
+		Aggregation: view.Sum(),
+	}
+
+	BlocksAddedSizeView = &view.View{
+		Measure:     BlocksAddedSize,
+		Aggregation: view.Sum(),
+	}
+
+	BlocksAddedView = &view.View{
+		Measure:     BlocksAdded,
+		Aggregation: view.Sum(),
+	}
+
+	BlocksAddedErrorView = &view.View{
+		Measure:     PinsPinAddError,
+		Aggregation: view.Sum(),
+	}
+
 	DefaultViews = []*view.View{
 		PinsView,
 		PinsQueuedView,
 		PinsPinningView,
 		PinsPinErrorView,
+		PinsIpfsPinsView,
+		PinsPinAddView,
+		PinsPinAddErrorView,
+		BlocksPutView,
+		BlocksAddedSizeView,
+		BlocksAddedView,
+		BlocksAddedErrorView,
 	}
 )
 
