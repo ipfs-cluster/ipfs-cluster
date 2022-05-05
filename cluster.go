@@ -1745,7 +1745,8 @@ func (c *Cluster) Version() string {
 	return version.Version.String()
 }
 
-// Peers returns the IDs of the members of this Cluster.
+// Peers returns the IDs of the members of this Cluster on the out channel.
+// This method blocks until it has finished.
 func (c *Cluster) Peers(ctx context.Context, out chan<- api.ID) {
 	_, span := trace.StartSpan(ctx, "cluster/Peers")
 	defer span.End()
