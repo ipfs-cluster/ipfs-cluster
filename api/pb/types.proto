@@ -27,8 +27,14 @@ message PinOptions {
   string Name = 3;
   uint64 ShardSize = 4;
   reserved 5; // reserved for UserAllocations
-  map<string, string> Metadata = 6;
+  map<string, string> Metadata = 6 [deprecated = true];
   bytes PinUpdate = 7;
   uint64 ExpireAt = 8;
   repeated bytes Origins = 9;
+  repeated Metadata SortedMetadata = 10;
+}
+
+message Metadata {
+  string Key = 1;
+  string Value = 2;
 }
