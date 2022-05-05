@@ -39,12 +39,13 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"Cluster.Version":              RPCOpen,
 
 	// PinTracker methods
-	"PinTracker.Recover":    RPCTrusted, // Called in broadcast from Recover()
-	"PinTracker.RecoverAll": RPCClosed,  // Broadcast in RecoverAll unimplemented
-	"PinTracker.Status":     RPCTrusted,
-	"PinTracker.StatusAll":  RPCTrusted,
-	"PinTracker.Track":      RPCClosed,
-	"PinTracker.Untrack":    RPCClosed,
+	"PinTracker.PinQueueSize": RPCClosed,
+	"PinTracker.Recover":      RPCTrusted, // Called in broadcast from Recover()
+	"PinTracker.RecoverAll":   RPCClosed,  // Broadcast in RecoverAll unimplemented
+	"PinTracker.Status":       RPCTrusted,
+	"PinTracker.StatusAll":    RPCTrusted,
+	"PinTracker.Track":        RPCClosed,
+	"PinTracker.Untrack":      RPCClosed,
 
 	// IPFSConnector methods
 	"IPFSConnector.BlockGet":    RPCClosed,
@@ -69,4 +70,3 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"PeerMonitor.LatestMetrics": RPCClosed,
 	"PeerMonitor.MetricNames":   RPCClosed,
 }
-
