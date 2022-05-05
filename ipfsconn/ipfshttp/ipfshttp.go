@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/observations"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
@@ -32,6 +33,7 @@ import (
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -57,6 +59,8 @@ type Connector struct {
 	client *http.Client // client to ipfs daemon
 
 	updateMetricCount uint64
+
+	ipfsPinCount int64
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -171,8 +175,21 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		client:   c,
 	}
 
+	initializeMetrics(ctx)
+
 	go ipfs.run()
 	return ipfs, nil
+}
+
+func initializeMetrics(ctx context.Context) {
+	// initialize metrics
+	stats.Record(ctx, observations.PinsIpfsPins.M(0))
+	stats.Record(ctx, observations.PinsPinAdd.M(0))
+	stats.Record(ctx, observations.PinsPinAddError.M(0))
+	stats.Record(ctx, observations.BlocksPut.M(0))
+	stats.Record(ctx, observations.BlocksAddedSize.M(0))
+	stats.Record(ctx, observations.BlocksAdded.M(0))
+	stats.Record(ctx, observations.BlocksAddedError.M(0))
 }
 
 // connects all ipfs daemons when
@@ -392,10 +409,14 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 		}
 	}()
 
+	stats.Record(ipfs.ctx, observations.PinsPinAdd.M(1))
 	err = ipfs.pinProgress(ctx, hash, maxDepth, outPins)
 	if err != nil {
+		stats.Record(ipfs.ctx, observations.PinsPinAddError.M(1))
 		return err
 	}
+	totalPins := atomic.AddInt64(&ipfs.ipfsPinCount, 1)
+	stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPins))
 
 	logger.Info("IPFS Pin request succeeded: ", hash)
 	return nil
@@ -456,6 +477,8 @@ func (ipfs *Connector) pinUpdate(ctx context.Context, from, to api.Cid) error {
 	if err != nil {
 		return err
 	}
+	totalPins := atomic.AddInt64(&ipfs.ipfsPinCount, 1)
+	stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPins))
 	logger.Infof("IPFS Pin Update request succeeded. %s -> %s (unpin=false)", from, to)
 	return nil
 }
@@ -489,6 +512,9 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash api.Cid) error {
 		return nil
 	}
 
+	totalPins := atomic.AddInt64(&ipfs.ipfsPinCount, -1)
+	stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPins))
+
 	logger.Info("IPFS Unpin request succeeded:", hash)
 	return nil
 }
@@ -506,6 +532,13 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilters []string, out chan
 	defer cancel()
 
 	var err error
+	var totalPinCount int64
+	defer func() {
+		if err != nil {
+			atomic.StoreInt64(&ipfs.ipfsPinCount, totalPinCount)
+			stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPinCount))
+		}
+	}()
 
 nextFilter:
 	for i, typeFilter := range typeFilters {
@@ -545,6 +578,7 @@ nextFilter:
 				logger.Error(err)
 				return err
 			case out <- ipfsPin:
+				totalPinCount++
 			}
 		}
 	}
@@ -948,6 +982,10 @@ func (ci *chanIterator) Node() files.Node {
 	ci.seenMu.Lock()
 	ci.seen.Add(ci.current.Cid.Hash())
 	ci.seenMu.Unlock()
+
+	stats.Record(ci.ctx, observations.BlocksAdded.M(1))
+	stats.Record(ci.ctx, observations.BlocksAddedSize.M(int64(len(ci.current.Data))))
+
 	return files.NewBytesFile(ci.current.Data)
 }
 
@@ -1104,6 +1142,9 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 		}
 	}()
 
+	if err != nil {
+		stats.Record(ipfs.ctx, observations.BlocksAddedError.M(1))
+	}
 	return err
 }
 

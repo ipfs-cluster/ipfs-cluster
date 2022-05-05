@@ -130,6 +130,12 @@ func createCluster(
 	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
 	checkErr("tag context with host id", err)
 
+	err = observations.SetupMetrics(cfgs.Metrics)
+	checkErr("setting up Metrics", err)
+
+	tracer, err := observations.SetupTracing(cfgs.Tracing)
+	checkErr("setting up Tracing", err)
+
 	var apis []ipfscluster.API
 	if cfgMgr.IsLoadedFromJSON(config.API, cfgs.Restapi.ConfigKey()) {
 		var api *rest.API
@@ -187,12 +193,6 @@ func createCluster(
 	checkErr("creating allocator", err)
 
 	ipfscluster.ReadyTimeout = cfgs.Raft.WaitForLeaderTimeout + 5*time.Second
-
-	err = observations.SetupMetrics(cfgs.Metrics)
-	checkErr("setting up Metrics", err)
-
-	tracer, err := observations.SetupTracing(cfgs.Tracing)
-	checkErr("setting up Tracing", err)
 
 	cons, err := setupConsensus(
 		cfgHelper,
