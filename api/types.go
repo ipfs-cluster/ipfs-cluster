@@ -1207,6 +1207,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	}
 
 	// Use whatever metadata is available.
+	//lint:ignore SA1019 we keed to keep backwards compat
 	pin.Metadata = opts.GetMetadata()
 	sortedMetadata := opts.GetSortedMetadata()
 	if len(sortedMetadata) > 0 && pin.Metadata == nil {
