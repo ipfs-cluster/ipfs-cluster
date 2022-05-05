@@ -7,7 +7,7 @@ on:
     branches: [ master, dependency-upgrades ]
 
 env:
-  GO: 1.17
+  GO: 1.18
 
 jobs:
   tests-all:
