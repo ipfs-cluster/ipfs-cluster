@@ -128,6 +128,8 @@ type PinTracker interface {
 	RecoverAll(context.Context, chan<- api.PinInfo) error
 	// Recover retriggers a Pin/Unpin operation in a Cids with error status.
 	Recover(context.Context, api.Cid) (api.PinInfo, error)
+	// PinQueueSize returns the current size of the pinning queue.
+	PinQueueSize(context.Context) (int64, error)
 }
 
 // Informer provides Metric information from a peer. The metrics produced by

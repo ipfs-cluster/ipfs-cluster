@@ -1355,19 +1355,10 @@ func (m Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
-// GetWeight returns the weight of the metric. When it is 0,
-// it tries to parse the Value and use it as weight.
+// GetWeight returns the weight of the metric.
 // This is for compatiblity.
 func (m Metric) GetWeight() int64 {
-	if m.Weight != 0 {
-		return m.Weight
-	}
-
-	val, err := strconv.ParseInt(m.Value, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return val
+	return m.Weight
 }
 
 // MetricSlice is a sortable Metric array.

@@ -337,7 +337,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating IPFS Connector component"), 1)
 	}
 
-	informer, err := disk.NewInformer(cfgs.Diskinf)
+	informer, err := disk.NewInformer(cfgs.DiskInf)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
 	}

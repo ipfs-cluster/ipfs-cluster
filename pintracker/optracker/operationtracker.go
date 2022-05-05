@@ -368,3 +368,8 @@ func (opt *OperationTracker) recordMetric(op *Operation, val int64) {
 		}
 	}
 }
+
+// PinQueueSize returns the current number of items queued to pin.
+func (opt *OperationTracker) PinQueueSize() int64 {
+	return atomic.LoadInt64(&opt.pinQueuedCount)
+}
