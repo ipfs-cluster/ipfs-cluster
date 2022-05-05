@@ -124,10 +124,28 @@ func (lc *loadBalancingClient) ID(ctx context.Context) (api.ID, error) {
 // Peers requests ID information for all cluster peers.
 func (lc *loadBalancingClient) Peers(ctx context.Context, out chan<- api.ID) error {
 	call := func(c Client) error {
-		return c.Peers(ctx, out)
+		done := make(chan struct{})
+		cout := make(chan api.ID, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.Peers(ctx, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
+	// retries call as needed.
 	err := lc.retry(0, call)
+	close(out)
 	return err
 }
 
@@ -211,10 +229,27 @@ func (lc *loadBalancingClient) UnpinPath(ctx context.Context, p string) (api.Pin
 // the peers that should be pinning them.
 func (lc *loadBalancingClient) Allocations(ctx context.Context, filter api.PinType, out chan<- api.Pin) error {
 	call := func(c Client) error {
-		return c.Allocations(ctx, filter, out)
+		done := make(chan struct{})
+		cout := make(chan api.Pin, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.Allocations(ctx, filter, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
 	err := lc.retry(0, call)
+	close(out)
 	return err
 }
 
@@ -251,10 +286,27 @@ func (lc *loadBalancingClient) Status(ctx context.Context, ci api.Cid, local boo
 // information is fetched from all cluster peers.
 func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []api.Cid, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
-		return c.StatusCids(ctx, cids, local, out)
+		done := make(chan struct{})
+		cout := make(chan api.GlobalPinInfo, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.StatusCids(ctx, cids, local, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
 	err := lc.retry(0, call)
+	close(out)
 	return err
 }
 
@@ -265,10 +317,27 @@ func (lc *loadBalancingClient) StatusCids(ctx context.Context, cids []api.Cid, l
 // api.TrackerStatusUndefined), means all.
 func (lc *loadBalancingClient) StatusAll(ctx context.Context, filter api.TrackerStatus, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
-		return c.StatusAll(ctx, filter, local, out)
+		done := make(chan struct{})
+		cout := make(chan api.GlobalPinInfo, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.StatusAll(ctx, filter, local, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
 	err := lc.retry(0, call)
+	close(out)
 	return err
 }
 
@@ -292,10 +361,27 @@ func (lc *loadBalancingClient) Recover(ctx context.Context, ci api.Cid, local bo
 // everywhere.
 func (lc *loadBalancingClient) RecoverAll(ctx context.Context, local bool, out chan<- api.GlobalPinInfo) error {
 	call := func(c Client) error {
-		return c.RecoverAll(ctx, local, out)
+		done := make(chan struct{})
+		cout := make(chan api.GlobalPinInfo, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.RecoverAll(ctx, local, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
 	err := lc.retry(0, call)
+	close(out)
 	return err
 }
 
@@ -396,10 +482,28 @@ func (lc *loadBalancingClient) Add(
 	out chan<- api.AddedOutput,
 ) error {
 	call := func(c Client) error {
-		return c.Add(ctx, paths, params, out)
+		done := make(chan struct{})
+		cout := make(chan api.AddedOutput, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.Add(ctx, paths, params, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
-	return lc.retry(0, call)
+	err := lc.retry(0, call)
+	close(out)
+	return err
 }
 
 // AddMultiFile imports new files from a MultiFileReader. See Add().
@@ -410,10 +514,28 @@ func (lc *loadBalancingClient) AddMultiFile(
 	out chan<- api.AddedOutput,
 ) error {
 	call := func(c Client) error {
-		return c.AddMultiFile(ctx, multiFileR, params, out)
+		done := make(chan struct{})
+		cout := make(chan api.AddedOutput, cap(out))
+		go func() {
+			for o := range cout {
+				out <- o
+			}
+			done <- struct{}{}
+		}()
+
+		// this blocks until done
+		err := c.AddMultiFile(ctx, multiFileR, params, cout)
+		// wait for cout to be closed
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
+		return err
 	}
 
-	return lc.retry(0, call)
+	err := lc.retry(0, call)
+	close(out)
+	return err
 }
 
 // IPFS returns an instance of go-ipfs-api's Shell, pointing to the
