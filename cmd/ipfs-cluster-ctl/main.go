@@ -853,8 +853,14 @@ The filter only takes effect when listing all pins. The possible values are:
 							}
 
 							allocs := make(chan api.Pin, 1024)
-							cerr := globalClient.Allocations(ctx, filter, allocs)
-							formatResponse(c, allocs, cerr)
+							errCh := make(chan error, 1)
+							go func() {
+								defer close(errCh)
+								errCh <- globalClient.Allocations(ctx, filter, allocs)
+							}()
+							formatResponse(c, allocs, nil)
+							err := <-errCh
+							formatResponse(c, nil, err)
 						}
 						return nil
 					},
