@@ -67,7 +67,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.2.7
-	github.com/urfave/cli v1.22.8
+	github.com/urfave/cli v1.22.9
 	github.com/urfave/cli/v2 v2.5.1
 	go.opencensus.io v0.23.0
 	go.uber.org/multierr v1.8.0
