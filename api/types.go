@@ -1106,17 +1106,36 @@ func (pin Pin) ProtoMarshal() ([]byte, error) {
 		timestampProto = uint64(pin.Timestamp.Unix())
 	}
 
+	// Our metadata needs to always be seralized in exactly the same way,
+	// and that is why we use an array sorted by key and deprecated using
+	// a protobuf map.
+	var sortedMetadata []*pb.Metadata
+	var metaKeys []string
+	for k := range pin.Metadata {
+		metaKeys = append(metaKeys, k)
+	}
+	sort.Strings(metaKeys)
+
+	for _, k := range metaKeys {
+		metadata := &pb.Metadata{
+			Key:   k,
+			Value: pin.Metadata[k],
+		}
+		sortedMetadata = append(sortedMetadata, metadata)
+	}
+
 	opts := &pb.PinOptions{
 		ReplicationFactorMin: int32(pin.ReplicationFactorMin),
 		ReplicationFactorMax: int32(pin.ReplicationFactorMax),
 		Name:                 pin.Name,
 		ShardSize:            pin.ShardSize,
-		Metadata:             pin.Metadata,
-		PinUpdate:            pin.PinUpdate.Bytes(),
-		ExpireAt:             expireAtProto,
+		// Metadata:             pin.Metadata,
+		PinUpdate: pin.PinUpdate.Bytes(),
+		ExpireAt:  expireAtProto,
 		// Mode:                 pin.Mode,
 		// UserAllocations:      pin.UserAllocations,
-		Origins: origins,
+		Origins:        origins,
+		SortedMetadata: sortedMetadata,
 	}
 
 	pbPin := &pb.Pin{
@@ -1186,7 +1205,17 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	if exp > 0 {
 		pin.ExpireAt = time.Unix(int64(exp), 0)
 	}
+
+	// Use whatever metadata is available.
 	pin.Metadata = opts.GetMetadata()
+	sortedMetadata := opts.GetSortedMetadata()
+	if len(sortedMetadata) > 0 && pin.Metadata == nil {
+		pin.Metadata = make(map[string]string, len(sortedMetadata))
+	}
+	for _, md := range opts.GetSortedMetadata() {
+		pin.Metadata[md.Key] = md.Value
+	}
+
 	pinUpdate, err := CastCid(opts.GetPinUpdate())
 	if err == nil {
 		pin.PinUpdate = pinUpdate
