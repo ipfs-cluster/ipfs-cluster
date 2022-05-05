@@ -19,6 +19,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
 	"github.com/ipfs/ipfs-cluster/informer/numpin"
+	"github.com/ipfs/ipfs-cluster/informer/pinqueue"
 	"github.com/ipfs/ipfs-cluster/informer/tags"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
@@ -38,9 +39,10 @@ type Configs struct {
 	Statelesstracker *stateless.Config
 	Pubsubmon        *pubsubmon.Config
 	BalancedAlloc    *balanced.Config
-	Diskinf          *disk.Config
-	Numpininf        *numpin.Config
-	Tagsinf          *tags.Config
+	DiskInf          *disk.Config
+	NumpinInf        *numpin.Config
+	TagsInf          *tags.Config
+	PinQueueInf      *pinqueue.Config
 	Metrics          *observations.MetricsConfig
 	Tracing          *observations.TracingConfig
 	Badger           *badger.Config
@@ -228,9 +230,10 @@ func (ch *ConfigHelper) init() {
 		Statelesstracker: &stateless.Config{},
 		Pubsubmon:        &pubsubmon.Config{},
 		BalancedAlloc:    &balanced.Config{},
-		Diskinf:          &disk.Config{},
-		Numpininf:        &numpin.Config{},
-		Tagsinf:          &tags.Config{},
+		DiskInf:          &disk.Config{},
+		NumpinInf:        &numpin.Config{},
+		TagsInf:          &tags.Config{},
+		PinQueueInf:      &pinqueue.Config{},
 		Metrics:          &observations.MetricsConfig{},
 		Tracing:          &observations.TracingConfig{},
 		Badger:           &badger.Config{},
@@ -244,9 +247,10 @@ func (ch *ConfigHelper) init() {
 	man.RegisterComponent(config.PinTracker, cfgs.Statelesstracker)
 	man.RegisterComponent(config.Monitor, cfgs.Pubsubmon)
 	man.RegisterComponent(config.Allocator, cfgs.BalancedAlloc)
-	man.RegisterComponent(config.Informer, cfgs.Diskinf)
+	man.RegisterComponent(config.Informer, cfgs.DiskInf)
 	// man.RegisterComponent(config.Informer, cfgs.Numpininf)
-	man.RegisterComponent(config.Informer, cfgs.Tagsinf)
+	man.RegisterComponent(config.Informer, cfgs.TagsInf)
+	man.RegisterComponent(config.Informer, cfgs.PinQueueInf)
 	man.RegisterComponent(config.Observations, cfgs.Metrics)
 	man.RegisterComponent(config.Observations, cfgs.Tracing)
 

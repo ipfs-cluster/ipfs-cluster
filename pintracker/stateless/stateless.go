@@ -658,6 +658,11 @@ func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, error
 	return out, nil
 }
 
+// PinQueueSize returns the current size of the pinning queue.
+func (spt *Tracker) PinQueueSize(ctx context.Context) (int64, error) {
+	return spt.optracker.PinQueueSize(), nil
+}
+
 // func (spt *Tracker) getErrorsAll(ctx context.Context) []api.PinInfo {
 // 	return spt.optracker.Filter(ctx, optracker.PhaseError)
 // }

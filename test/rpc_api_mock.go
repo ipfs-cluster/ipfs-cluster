@@ -502,6 +502,11 @@ func (mock *mockPinTracker) Recover(ctx context.Context, in api.Cid, out *api.Pi
 	return nil
 }
 
+func (mock *mockPinTracker) PinQueueSize(ctx context.Context, in struct{}, out *int64) error {
+	*out = 10
+	return nil
+}
+
 /* PeerMonitor methods */
 
 // LatestMetrics runs PeerMonitor.LatestMetrics().

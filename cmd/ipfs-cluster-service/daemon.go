@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs/ipfs-cluster/consensus/raft"
 	"github.com/ipfs/ipfs-cluster/informer/disk"
+	"github.com/ipfs/ipfs-cluster/informer/pinqueue"
 	"github.com/ipfs/ipfs-cluster/informer/tags"
 	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
@@ -171,15 +172,21 @@ func createCluster(
 	checkErr("creating IPFS Connector component", err)
 
 	var informers []ipfscluster.Informer
-	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.Diskinf.ConfigKey()) {
-		diskinf, err := disk.NewInformer(cfgs.Diskinf)
+	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.DiskInf.ConfigKey()) {
+		diskInf, err := disk.NewInformer(cfgs.DiskInf)
 		checkErr("creating disk informer", err)
-		informers = append(informers, diskinf)
+		informers = append(informers, diskInf)
 	}
-	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.Tagsinf.ConfigKey()) {
-		tagsinf, err := tags.New(cfgs.Tagsinf)
+	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.TagsInf.ConfigKey()) {
+		tagsInf, err := tags.New(cfgs.TagsInf)
 		checkErr("creating numpin informer", err)
-		informers = append(informers, tagsinf)
+		informers = append(informers, tagsInf)
+	}
+
+	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.PinQueueInf.ConfigKey()) {
+		pinQueueInf, err := pinqueue.New(cfgs.PinQueueInf)
+		checkErr("creating pinqueue informer", err)
+		informers = append(informers, pinQueueInf)
 	}
 
 	// For legacy compatibility we need to make the allocator

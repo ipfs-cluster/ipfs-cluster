@@ -498,6 +498,13 @@ func (rpcapi *PinTrackerRPCAPI) Recover(ctx context.Context, in api.Cid, out *ap
 	return err
 }
 
+// PinQueueSize runs PinTracker.PinQueueSize().
+func (rpcapi *PinTrackerRPCAPI) PinQueueSize(ctx context.Context, in struct{}, out *int64) error {
+	size, err := rpcapi.tracker.PinQueueSize(ctx)
+	*out = size
+	return err
+}
+
 /*
    IPFS Connector component methods
 */
