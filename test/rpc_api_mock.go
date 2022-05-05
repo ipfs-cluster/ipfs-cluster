@@ -10,7 +10,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	cid "github.com/ipfs/go-cid"
 	gopath "github.com/ipfs/go-path"
 	host "github.com/libp2p/go-libp2p-core/host"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -105,10 +104,11 @@ func (mock *mockCluster) PinPath(ctx context.Context, in api.PinPath, out *api.P
 		if err != nil {
 			return err
 		}
-		if c.Equals(ErrorCid) {
+		cc := api.NewCid(c)
+		if cc.Equals(ErrorCid) {
 			return ErrBadCid
 		}
-		pin = api.PinWithOpts(c, in.PinOptions)
+		pin = api.PinWithOpts(cc, in.PinOptions)
 	} else {
 		pin = api.PinWithOpts(CidResolved, in.PinOptions)
 	}
@@ -139,7 +139,7 @@ func (mock *mockCluster) Pins(ctx context.Context, in <-chan struct{}, out chan<
 	return nil
 }
 
-func (mock *mockCluster) PinGet(ctx context.Context, in cid.Cid, out *api.Pin) error {
+func (mock *mockCluster) PinGet(ctx context.Context, in api.Cid, out *api.Pin) error {
 	switch in.String() {
 	case ErrorCid.String():
 		return errors.New("this is an expected error when using ErrorCid")
@@ -307,7 +307,7 @@ func (mock *mockCluster) StatusAllLocal(ctx context.Context, in <-chan api.Track
 	return (&mockPinTracker{}).StatusAll(ctx, in, out)
 }
 
-func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (mock *mockCluster) Status(ctx context.Context, in api.Cid, out *api.GlobalPinInfo) error {
 	if in.Equals(ErrorCid) {
 		return ErrBadCid
 	}
@@ -335,7 +335,7 @@ func (mock *mockCluster) Status(ctx context.Context, in cid.Cid, out *api.Global
 	return nil
 }
 
-func (mock *mockCluster) StatusLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (mock *mockCluster) StatusLocal(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	return (&mockPinTracker{}).Status(ctx, in, out)
 }
 
@@ -350,11 +350,11 @@ func (mock *mockCluster) RecoverAllLocal(ctx context.Context, in <-chan struct{}
 	return (&mockPinTracker{}).RecoverAll(ctx, in, out)
 }
 
-func (mock *mockCluster) Recover(ctx context.Context, in cid.Cid, out *api.GlobalPinInfo) error {
+func (mock *mockCluster) Recover(ctx context.Context, in api.Cid, out *api.GlobalPinInfo) error {
 	return mock.Status(ctx, in, out)
 }
 
-func (mock *mockCluster) RecoverLocal(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (mock *mockCluster) RecoverLocal(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	return (&mockPinTracker{}).Recover(ctx, in, out)
 }
 
@@ -469,7 +469,7 @@ func (mock *mockPinTracker) StatusAll(ctx context.Context, in <-chan api.Tracker
 	return nil
 }
 
-func (mock *mockPinTracker) Status(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (mock *mockPinTracker) Status(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	if in.Equals(ErrorCid) {
 		return ErrBadCid
 	}
@@ -490,7 +490,7 @@ func (mock *mockPinTracker) RecoverAll(ctx context.Context, in <-chan struct{}, 
 	return nil
 }
 
-func (mock *mockPinTracker) Recover(ctx context.Context, in cid.Cid, out *api.PinInfo) error {
+func (mock *mockPinTracker) Recover(ctx context.Context, in api.Cid, out *api.PinInfo) error {
 	*out = api.PinInfo{
 		Cid:  in,
 		Peer: PeerID1,
@@ -499,6 +499,11 @@ func (mock *mockPinTracker) Recover(ctx context.Context, in cid.Cid, out *api.Pi
 			TS:     time.Now(),
 		},
 	}
+	return nil
+}
+
+func (mock *mockPinTracker) PinQueueSize(ctx context.Context, in struct{}, out *int64) error {
+	*out = 10
 	return nil
 }
 
@@ -589,7 +594,7 @@ func (mock *mockIPFSConnector) BlockStream(ctx context.Context, in <-chan api.No
 	return nil
 }
 
-func (mock *mockIPFSConnector) Resolve(ctx context.Context, in string, out *cid.Cid) error {
+func (mock *mockIPFSConnector) Resolve(ctx context.Context, in string, out *api.Cid) error {
 	switch in {
 	case ErrorCid.String(), "/ipfs/" + ErrorCid.String():
 		*out = ErrorCid

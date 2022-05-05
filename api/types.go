@@ -277,31 +277,64 @@ var ipfsPinStatus2TrackerStatusMap = map[IPFSPinStatus]TrackerStatus{
 	IPFSPinStatusError:     TrackerStatusClusterError, //TODO(ajl): check suitability
 }
 
-// Cid is a CID with the MarshalJSON/UnmarshalJSON methods overwritten.
-type Cid cid.Cid
+// Cid embeds a cid.Cid with the MarshalJSON/UnmarshalJSON methods overwritten.
+type Cid struct {
+	cid.Cid
+}
 
-func (c Cid) String() string {
-	return cid.Cid(c).String()
+// CidUndef is an Undefined CID.
+var CidUndef = Cid{cid.Undef}
+
+// NewCid wraps a cid.Cid in a Cid.
+func NewCid(c cid.Cid) Cid {
+	return Cid{
+		Cid: c,
+	}
+}
+
+// DecodeCid parses a CID from its string form.
+func DecodeCid(str string) (Cid, error) {
+	c, err := cid.Decode(str)
+	return Cid{c}, err
+}
+
+// CastCid returns a CID from its bytes.
+func CastCid(bs []byte) (Cid, error) {
+	c, err := cid.Cast(bs)
+	return Cid{c}, err
 }
 
 // MarshalJSON marshals a CID as JSON as a normal CID string.
 func (c Cid) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.String())
+	if !c.Defined() {
+		return []byte("null"), nil
+	}
+	return []byte(`"` + c.String() + `"`), nil
 }
 
 // UnmarshalJSON reads a CID from its representation as JSON string.
 func (c *Cid) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" {
+		*c = CidUndef
+		return nil
+	}
+
 	var cidStr string
 	err := json.Unmarshal(b, &cidStr)
 	if err != nil {
 		return err
 	}
-	cc, err := cid.Decode(cidStr)
+	cc, err := DecodeCid(cidStr)
 	if err != nil {
 		return err
 	}
-	*c = Cid(cc)
+	*c = cc
 	return nil
+}
+
+// Equals returns true if two Cids are equal.
+func (c Cid) Equals(c2 Cid) bool {
+	return c.Cid.Equals(c2.Cid)
 }
 
 // IPFSPinInfo represents an IPFS Pin, which only has a CID and type.
@@ -314,7 +347,7 @@ type IPFSPinInfo struct {
 // GlobalPinInfo contains cluster-wide status information about a tracked Cid,
 // indexed by cluster peer.
 type GlobalPinInfo struct {
-	Cid         cid.Cid           `json:"cid" codec:"c"`
+	Cid         Cid               `json:"cid" codec:"c"`
 	Name        string            `json:"name" codec:"n"`
 	Allocations []peer.ID         `json:"allocations" codec:"a,omitempty"`
 	Origins     []Multiaddr       `json:"origins" codec:"g,omitempty"`
@@ -360,7 +393,7 @@ func (gpi *GlobalPinInfo) Defined() bool {
 	return gpi.Cid.Defined()
 }
 
-// Matches returns true if one of the statuses in GlobalPinInfo matches
+// Match returns true if one of the statuses in GlobalPinInfo matches
 // the given filter.
 func (gpi GlobalPinInfo) Match(filter TrackerStatus) bool {
 	for _, pi := range gpi.PeerMap {
@@ -400,7 +433,7 @@ func (pis PinInfoShort) String() string {
 // PinInfo holds information about local pins. This is used by the Pin
 // Trackers.
 type PinInfo struct {
-	Cid         cid.Cid           `json:"cid" codec:"c"`
+	Cid         Cid               `json:"cid" codec:"c"`
 	Name        string            `json:"name" codec:"m,omitempty"`
 	Peer        peer.ID           `json:"peer" codec:"p,omitempty"`
 	Allocations []peer.ID         `json:"allocations" codec:"o,omitempty"`
@@ -622,6 +655,23 @@ func (pT PinType) String() string {
 	}
 }
 
+// MarshalJSON provides json-representation of the pin type.
+func (pT PinType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pT.String())
+}
+
+// UnmarshalJSON provides json-representation of the pin type.
+func (pT *PinType) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	t := PinTypeFromString(str)
+	*pT = t
+	return nil
+}
+
 var pinOptionsMetaPrefix = "meta-"
 
 // PinMode is a PinOption that indicates how to pin something on IPFS,
@@ -709,7 +759,7 @@ type PinOptions struct {
 	UserAllocations      []peer.ID         `json:"user_allocations" codec:"ua,omitempty"`
 	ExpireAt             time.Time         `json:"expire_at" codec:"e,omitempty"`
 	Metadata             map[string]string `json:"metadata" codec:"m,omitempty"`
-	PinUpdate            cid.Cid           `json:"pin_update,omitempty" codec:"pu,omitempty"`
+	PinUpdate            Cid               `json:"pin_update,omitempty" codec:"pu,omitempty"`
 	Origins              []Multiaddr       `json:"origins" codec:"g,omitempty"`
 }
 
@@ -807,7 +857,7 @@ func (po PinOptions) ToQuery() (string, error) {
 		}
 		q.Set(fmt.Sprintf("%s%s", pinOptionsMetaPrefix, k), v)
 	}
-	if po.PinUpdate != cid.Undef {
+	if po.PinUpdate.Defined() {
 		q.Set("pin-update", po.PinUpdate.String())
 	}
 
@@ -888,7 +938,7 @@ func (po *PinOptions) FromQuery(q url.Values) error {
 
 	updateStr := q.Get("pin-update")
 	if updateStr != "" {
-		updateCid, err := cid.Decode(updateStr)
+		updateCid, err := DecodeCid(updateStr)
 		if err != nil {
 			return fmt.Errorf("error decoding update option parameter: %s", err)
 		}
@@ -940,7 +990,7 @@ func (pd PinDepth) ToPinMode() PinMode {
 type Pin struct {
 	PinOptions
 
-	Cid cid.Cid `json:"cid" codec:"c"`
+	Cid Cid `json:"cid" codec:"c"`
 
 	// See PinType comments
 	Type PinType `json:"type" codec:"t,omitempty"`
@@ -957,7 +1007,7 @@ type Pin struct {
 	// MetaPin it is the ClusterDAG CID. For Shards,
 	// it is the previous shard CID.
 	// When not needed the pointer is nil
-	Reference *cid.Cid `json:"reference" codec:"r,omitempty"`
+	Reference *Cid `json:"reference" codec:"r,omitempty"`
 
 	// The time that the pin was submitted to the consensus layer.
 	Timestamp time.Time `json:"timestamp" codec:"i,omitempty"`
@@ -994,7 +1044,7 @@ func (pp PinPath) Defined() bool {
 
 // PinCid is a shortcut to create a Pin only with a Cid.  Default is for pin to
 // be recursive and the pin to be of DataType.
-func PinCid(c cid.Cid) Pin {
+func PinCid(c Cid) Pin {
 	return Pin{
 		Cid:         c,
 		Type:        DataType,
@@ -1007,7 +1057,7 @@ func PinCid(c cid.Cid) Pin {
 // PinWithOpts creates a new Pin calling PinCid(c) and then sets its
 // PinOptions fields with the given options. Pin fields that are linked to
 // options are set accordingly (MaxDepth from Mode).
-func PinWithOpts(c cid.Cid, opts PinOptions) Pin {
+func PinWithOpts(c Cid, opts PinOptions) Pin {
 	p := PinCid(c)
 	p.PinOptions = opts
 	p.MaxDepth = p.Mode.ToPinDepth()
@@ -1090,9 +1140,9 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 	if err != nil {
 		return err
 	}
-	ci, err := cid.Cast(pbPin.GetCid())
+	ci, err := CastCid(pbPin.GetCid())
 	if err != nil {
-		pin.Cid = cid.Undef
+		pin.Cid = CidUndef
 	} else {
 		pin.Cid = ci
 	}
@@ -1112,7 +1162,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 
 	pin.Allocations = allocs
 	pin.MaxDepth = PinDepth(pbPin.GetMaxDepth())
-	ref, err := cid.Cast(pbPin.GetReference())
+	ref, err := CastCid(pbPin.GetReference())
 	if err != nil {
 		pin.Reference = nil
 
@@ -1137,7 +1187,7 @@ func (pin *Pin) ProtoUnmarshal(data []byte) error {
 		pin.ExpireAt = time.Unix(int64(exp), 0)
 	}
 	pin.Metadata = opts.GetMetadata()
-	pinUpdate, err := cid.Cast(opts.GetPinUpdate())
+	pinUpdate, err := CastCid(opts.GetPinUpdate())
 	if err == nil {
 		pin.PinUpdate = pinUpdate
 	}
@@ -1230,9 +1280,9 @@ func (pin Pin) Defined() bool {
 // NodeWithMeta specifies a block of data and a set of optional metadata fields
 // carrying information about the encoded ipld node
 type NodeWithMeta struct {
-	Data    []byte  `codec:"d,omitempty"`
-	Cid     cid.Cid `codec:"c,omitempty"`
-	CumSize uint64  `codec:"s,omitempty"` // Cumulative size
+	Data    []byte `codec:"d,omitempty"`
+	Cid     Cid    `codec:"c,omitempty"`
+	CumSize uint64 `codec:"s,omitempty"` // Cumulative size
 }
 
 // Size returns how big is the block. It is different from CumSize, which
@@ -1305,19 +1355,10 @@ func (m Metric) Discard() bool {
 	return !m.Valid || m.Expired()
 }
 
-// GetWeight returns the weight of the metric. When it is 0,
-// it tries to parse the Value and use it as weight.
+// GetWeight returns the weight of the metric.
 // This is for compatiblity.
 func (m Metric) GetWeight() int64 {
-	if m.Weight != 0 {
-		return m.Weight
-	}
-
-	val, err := strconv.ParseInt(m.Value, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return val
+	return m.Weight
 }
 
 // MetricSlice is a sortable Metric array.
@@ -1357,8 +1398,8 @@ type IPFSRepoStat struct {
 
 // IPFSRepoGC represents the streaming response sent from repo gc API of IPFS.
 type IPFSRepoGC struct {
-	Key   cid.Cid `json:"key,omitempty" codec:"k,omitempty"`
-	Error string  `json:"error,omitempty" codec:"e,omitempty"`
+	Key   Cid    `json:"key,omitempty" codec:"k,omitempty"`
+	Error string `json:"error,omitempty" codec:"e,omitempty"`
 }
 
 // RepoGC contains garbage collected CIDs from a cluster peer's IPFS daemon.

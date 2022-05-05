@@ -14,7 +14,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/pintracker/optracker"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -315,7 +314,7 @@ func (spt *Tracker) Track(ctx context.Context, c api.Pin) error {
 
 // Untrack tells the StatelessPinTracker to stop managing a Cid.
 // If the Cid is pinned locally, it will be unpinned.
-func (spt *Tracker) Untrack(ctx context.Context, c cid.Cid) error {
+func (spt *Tracker) Untrack(ctx context.Context, c api.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Untrack")
 	defer span.End()
 
@@ -366,11 +365,12 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 
 	// Prepare pinset streaming
 	statePins := make(chan api.Pin, pinsChannelSize)
-	err = st.List(ctx, statePins)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
+	go func() {
+		err = st.List(ctx, statePins)
+		if err != nil {
+			logger.Error(err)
+		}
+	}()
 
 	// a shorthand for this select.
 	trySend := func(info api.PinInfo) bool {
@@ -455,7 +455,7 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 }
 
 // Status returns information for a Cid pinned to the local IPFS node.
-func (spt *Tracker) Status(ctx context.Context, c cid.Cid) api.PinInfo {
+func (spt *Tracker) Status(ctx context.Context, c api.Cid) api.PinInfo {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Status")
 	defer span.End()
 
@@ -558,17 +558,19 @@ func (spt *Tracker) RecoverAll(ctx context.Context, out chan<- api.PinInfo) erro
 	defer span.End()
 
 	statusesCh := make(chan api.PinInfo, 1024)
-	err := spt.StatusAll(ctx, api.TrackerStatusUndefined, statusesCh)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err := spt.StatusAll(ctx, api.TrackerStatusUndefined, statusesCh)
+		if err != nil {
+			logger.Error(err)
+		}
+	}()
 
 	for st := range statusesCh {
 		// Break out if we shutdown. We might be going through
 		// a very long list of statuses.
 		select {
 		case <-spt.ctx.Done():
-			err = fmt.Errorf("RecoverAll aborted: %w", ctx.Err())
+			err := fmt.Errorf("RecoverAll aborted: %w", ctx.Err())
 			logger.Error(err)
 			return err
 		default:
@@ -594,7 +596,7 @@ func (spt *Tracker) RecoverAll(ctx context.Context, out chan<- api.PinInfo) erro
 
 // Recover will trigger pinning or unpinning for items in
 // PinError or UnpinError states.
-func (spt *Tracker) Recover(ctx context.Context, c cid.Cid) (api.PinInfo, error) {
+func (spt *Tracker) Recover(ctx context.Context, c api.Cid) (api.PinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/Recover")
 	defer span.End()
 
@@ -656,13 +658,18 @@ func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, error
 	return out, nil
 }
 
+// PinQueueSize returns the current size of the pinning queue.
+func (spt *Tracker) PinQueueSize(ctx context.Context) (int64, error) {
+	return spt.optracker.PinQueueSize(), nil
+}
+
 // func (spt *Tracker) getErrorsAll(ctx context.Context) []api.PinInfo {
 // 	return spt.optracker.Filter(ctx, optracker.PhaseError)
 // }
 
 // OpContext exports the internal optracker's OpContext method.
 // For testing purposes only.
-func (spt *Tracker) OpContext(ctx context.Context, c cid.Cid) context.Context {
+func (spt *Tracker) OpContext(ctx context.Context, c api.Cid) context.Context {
 	return spt.optracker.OpContext(ctx, c)
 }
 

@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"sort"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	api "github.com/ipfs/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -61,10 +60,11 @@ type partitionedMetric struct {
 }
 
 type partition struct {
-	value  string
-	weight int64
-	peers  map[peer.ID]bool   // the bool tracks whether the peer has been picked already out of the partition when doing the final sort.
-	sub    *partitionedMetric // all peers in sub-partitions will have the same value for this metric
+	value            string
+	weight           int64
+	aggregatedWeight int64
+	peers            map[peer.ID]bool   // the bool tracks whether the peer has been picked already out of the partition when doing the final sort.
+	sub              *partitionedMetric // all peers in sub-partitions will have the same value for this metric
 }
 
 // Returns a partitionedMetric which has partitions and subpartitions based
@@ -81,9 +81,19 @@ func partitionMetrics(set api.MetricsSet, by []string) *partitionedMetric {
 	lessF := func(i, j int) bool {
 		wi := pnedMetric.partitions[i].weight
 		wj := pnedMetric.partitions[j].weight
-		// Strict order
+
+		// if weight is equal, sort by aggregated weight of
+		// all sub-partitions.
 		if wi == wj {
-			return pnedMetric.partitions[i].value < pnedMetric.partitions[j].value
+			awi := pnedMetric.partitions[i].aggregatedWeight
+			awj := pnedMetric.partitions[j].aggregatedWeight
+			// If subpartitions weight the same, do strict order
+			// based on value string
+			if awi == awj {
+				return pnedMetric.partitions[i].value < pnedMetric.partitions[j].value
+			}
+			return awj < awi
+
 		}
 		// Descending!
 		return wj < wi
@@ -110,9 +120,10 @@ func partitionMetrics(set api.MetricsSet, by []string) *partitionedMetric {
 		}
 
 		partition.sub = partitionMetrics(filteredSet, by[1:])
-		// Add the weight of our subpartitions
+
+		// Add the aggregated weight of the subpartitions
 		for _, subp := range partition.sub.partitions {
-			partition.weight += subp.weight
+			partition.aggregatedWeight += subp.aggregatedWeight
 		}
 	}
 	sort.Slice(pnedMetric.partitions, lessF)
@@ -145,10 +156,16 @@ func partitionValues(metrics []api.Metric) []*partition {
 		// The informers must set the Partitionable field accordingly
 		// when two metrics with the same value must be grouped in the
 		// same partition.
+		//
+		// Note: aggregatedWeight is the same as weight here (sum of
+		// weight of all metrics in partitions), and gets updated
+		// later in partitionMetrics with the aggregated weight of
+		// sub-partitions.
 		if !m.Partitionable {
 			partitions = append(partitions, &partition{
-				value:  m.Value,
-				weight: m.GetWeight(),
+				value:            m.Value,
+				weight:           m.GetWeight(),
+				aggregatedWeight: m.GetWeight(),
 				peers: map[peer.ID]bool{
 					m.Peer: false,
 				},
@@ -160,10 +177,12 @@ func partitionValues(metrics []api.Metric) []*partition {
 		if p, ok := partitionsByValue[m.Value]; ok {
 			p.peers[m.Peer] = false
 			p.weight += m.GetWeight()
+			p.aggregatedWeight += m.GetWeight()
 		} else {
 			partitionsByValue[m.Value] = &partition{
-				value:  m.Value,
-				weight: m.GetWeight(),
+				value:            m.Value,
+				weight:           m.GetWeight(),
+				aggregatedWeight: m.GetWeight(),
 				peers: map[peer.ID]bool{
 					m.Peer: false,
 				},
@@ -254,7 +273,7 @@ func (pnedm *partitionedMetric) chooseNext() peer.ID {
 //   - Third, based on the AllocateBy order, it select the first metric
 func (a *Allocator) Allocate(
 	ctx context.Context,
-	c cid.Cid,
+	c api.Cid,
 	current, candidates, priority api.MetricsSet,
 ) ([]peer.ID, error) {
 
@@ -271,6 +290,7 @@ func (a *Allocator) Allocate(
 	priorityPartition := partitionMetrics(priority, a.config.AllocateBy)
 
 	logger.Debugf("Balanced allocator partitions:\n%s\n", printPartition(candidatePartition, 0))
+	//fmt.Println(printPartition(candidatePartition, 0))
 
 	first := priorityPartition.sortedPeers()
 	last := candidatePartition.sortedPeers()

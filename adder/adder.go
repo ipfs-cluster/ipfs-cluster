@@ -42,7 +42,7 @@ type ClusterDAGService interface {
 	ipld.DAGService
 	// Finalize receives the IPFS content root CID as
 	// returned by the ipfs adder.
-	Finalize(ctx context.Context, ipfsRoot cid.Cid) (cid.Cid, error)
+	Finalize(ctx context.Context, ipfsRoot api.Cid) (api.Cid, error)
 	// Allocations returns the allocations made by the cluster DAG service
 	// for the added content.
 	Allocations() []peer.ID
@@ -51,7 +51,7 @@ type ClusterDAGService interface {
 // A dagFormatter can create dags from files.Node. It can keep state
 // to add several files to the same dag.
 type dagFormatter interface {
-	Add(name string, f files.Node) (cid.Cid, error)
+	Add(name string, f files.Node) (api.Cid, error)
 }
 
 // Adder is used to add content to IPFS Cluster using an implementation of
@@ -103,12 +103,12 @@ func (a *Adder) setContext(ctx context.Context) {
 
 // FromMultipart adds content from a multipart.Reader. The adder will
 // no longer be usable after calling this method.
-func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid, error) {
+func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (api.Cid, error) {
 	logger.Debugf("adding from multipart with params: %+v", a.params)
 
 	f, err := files.NewFileFromPartReader(r, "multipart/form-data")
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 	defer f.Close()
 	return a.FromFiles(ctx, f)
@@ -116,12 +116,12 @@ func (a *Adder) FromMultipart(ctx context.Context, r *multipart.Reader) (cid.Cid
 
 // FromFiles adds content from a files.Directory. The adder will no longer
 // be usable after calling this method.
-func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, error) {
+func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (api.Cid, error) {
 	logger.Debug("adding from files")
 	a.setContext(ctx)
 
 	if a.ctx.Err() != nil { // don't allow running twice
-		return cid.Undef, a.ctx.Err()
+		return api.CidUndef, a.ctx.Err()
 	}
 
 	defer a.cancel()
@@ -139,7 +139,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		err = errors.New("bad dag formatter option")
 	}
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 
 	// setup wrapping
@@ -150,18 +150,18 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 	}
 
 	it := f.Entries()
-	var adderRoot cid.Cid
+	var adderRoot api.Cid
 	for it.Next() {
 		select {
 		case <-a.ctx.Done():
-			return cid.Undef, a.ctx.Err()
+			return api.CidUndef, a.ctx.Err()
 		default:
 			logger.Debugf("ipfsAdder AddFile(%s)", it.Name())
 
 			adderRoot, err = dagFmtr.Add(it.Name(), it.Node())
 			if err != nil {
 				logger.Error("error adding to cluster: ", err)
-				return cid.Undef, err
+				return api.CidUndef, err
 			}
 		}
 		// TODO (hector): We can only add a single CAR file for the
@@ -171,13 +171,13 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (cid.Cid, erro
 		}
 	}
 	if it.Err() != nil {
-		return cid.Undef, it.Err()
+		return api.CidUndef, it.Err()
 	}
 
 	clusterRoot, err := a.dgs.Finalize(a.ctx, adderRoot)
 	if err != nil {
 		logger.Error("error finalizing adder:", err)
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 	logger.Infof("%s successfully added to cluster", clusterRoot)
 	return clusterRoot, nil
@@ -220,7 +220,7 @@ func newIpfsAdder(ctx context.Context, dgs ClusterDAGService, params api.AddPara
 	}, nil
 }
 
-func (ia *ipfsAdder) Add(name string, f files.Node) (cid.Cid, error) {
+func (ia *ipfsAdder) Add(name string, f files.Node) (api.Cid, error) {
 	// In order to set the AddedOutput names right, we use
 	// OutputPrefix:
 	//
@@ -239,9 +239,9 @@ func (ia *ipfsAdder) Add(name string, f files.Node) (cid.Cid, error) {
 
 	nd, err := ia.AddAllAndPin(f)
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
-	return nd.Cid(), nil
+	return api.NewCid(nd.Cid()), nil
 }
 
 // An adder to add CAR files. It is at the moment very basic, and can
@@ -267,22 +267,22 @@ func newCarAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParam
 
 // Add takes a node which should be a CAR file and nothing else and
 // adds its blocks using the ClusterDAGService.
-func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
+func (ca *carAdder) Add(name string, fn files.Node) (api.Cid, error) {
 	if ca.params.Wrap {
-		return cid.Undef, errors.New("cannot wrap a CAR file upload")
+		return api.CidUndef, errors.New("cannot wrap a CAR file upload")
 	}
 
 	f, ok := fn.(files.File)
 	if !ok {
-		return cid.Undef, errors.New("expected CAR file is not of type file")
+		return api.CidUndef, errors.New("expected CAR file is not of type file")
 	}
 	carReader, err := car.NewCarReader(f)
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 
 	if len(carReader.Header.Roots) != 1 {
-		return cid.Undef, errors.New("only CAR files with a single root are supported")
+		return api.CidUndef, errors.New("only CAR files with a single root are supported")
 	}
 
 	root := carReader.Header.Roots[0]
@@ -292,7 +292,7 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 	for {
 		block, err := carReader.Next()
 		if err != nil && err != io.EOF {
-			return cid.Undef, err
+			return api.CidUndef, err
 		} else if block == nil {
 			break
 		}
@@ -301,7 +301,7 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 
 		nd, err := ipld.Decode(block)
 		if err != nil {
-			return cid.Undef, err
+			return api.CidUndef, err
 		}
 
 		// If the root is in the CAR and the root is a UnixFS
@@ -315,17 +315,17 @@ func (ca *carAdder) Add(name string, fn files.Node) (cid.Cid, error) {
 
 		err = ca.dgs.Add(ca.ctx, nd)
 		if err != nil {
-			return cid.Undef, err
+			return api.CidUndef, err
 		}
 	}
 
 	ca.output <- api.AddedOutput{
 		Name:        name,
-		Cid:         root,
+		Cid:         api.NewCid(root),
 		Bytes:       bytes,
 		Size:        size,
 		Allocations: ca.dgs.Allocations(),
 	}
 
-	return root, nil
+	return api.NewCid(root), nil
 }

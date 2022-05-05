@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	ipfscluster "github.com/ipfs/ipfs-cluster"
 	"github.com/ipfs/ipfs-cluster/allocator/balanced"
 	"github.com/ipfs/ipfs-cluster/api"
@@ -338,7 +337,7 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating IPFS Connector component"), 1)
 	}
 
-	informer, err := disk.NewInformer(cfgs.Diskinf)
+	informer, err := disk.NewInformer(cfgs.DiskInf)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
 	}
@@ -548,7 +547,7 @@ func printStatusOffline(cfgHelper *cmdutils.ConfigHelper) error {
 	return err
 }
 
-func printPin(c cid.Cid, status, name, err string) {
+func printPin(c api.Cid, status, name, err string) {
 	if err != "" {
 		name = name + " (" + err + ")"
 	}

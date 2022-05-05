@@ -13,7 +13,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/adder/single"
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
@@ -31,7 +30,7 @@ func AddMultipartHTTPHandler(
 	reader *multipart.Reader,
 	w http.ResponseWriter,
 	outputTransform func(api.AddedOutput) interface{},
-) (cid.Cid, error) {
+) (api.Cid, error) {
 	var dags adder.ClusterDAGService
 	output := make(chan api.AddedOutput, 200)
 

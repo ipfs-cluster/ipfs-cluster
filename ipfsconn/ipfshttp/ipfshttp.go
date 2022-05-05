@@ -19,7 +19,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/observations"
-	"go.uber.org/multierr"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
@@ -60,6 +59,8 @@ type Connector struct {
 	client *http.Client // client to ipfs daemon
 
 	updateMetricCount uint64
+
+	ipfsPinCount int64
 
 	shutdownLock sync.Mutex
 	shutdown     bool
@@ -174,8 +175,21 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		client:   c,
 	}
 
+	initializeMetrics(ctx)
+
 	go ipfs.run()
 	return ipfs, nil
+}
+
+func initializeMetrics(ctx context.Context) {
+	// initialize metrics
+	stats.Record(ctx, observations.PinsIpfsPins.M(0))
+	stats.Record(ctx, observations.PinsPinAdd.M(0))
+	stats.Record(ctx, observations.PinsPinAddError.M(0))
+	stats.Record(ctx, observations.BlocksPut.M(0))
+	stats.Record(ctx, observations.BlocksAddedSize.M(0))
+	stats.Record(ctx, observations.BlocksAdded.M(0))
+	stats.Record(ctx, observations.BlocksAddedError.M(0))
 }
 
 // connects all ipfs daemons when
@@ -353,7 +367,7 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 	// If we have a pin-update, and the old object
 	// is pinned recursively, then do pin/update.
 	// Otherwise do a normal pin.
-	if from := pin.PinUpdate; from != cid.Undef {
+	if from := pin.PinUpdate; from.Defined() {
 		fromPin := api.PinWithOpts(from, pin.PinOptions)
 		pinStatus, _ := ipfs.PinLsCid(ctx, fromPin)
 		if pinStatus.IsPinned(-1) { // pinned recursively.
@@ -395,20 +409,23 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 		}
 	}()
 
+	stats.Record(ipfs.ctx, observations.PinsPinAdd.M(1))
 	err = ipfs.pinProgress(ctx, hash, maxDepth, outPins)
 	if err != nil {
+		stats.Record(ipfs.ctx, observations.PinsPinAddError.M(1))
 		return err
 	}
+	totalPins := atomic.AddInt64(&ipfs.ipfsPinCount, 1)
+	stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPins))
 
 	logger.Info("IPFS Pin request succeeded: ", hash)
-	stats.Record(ctx, observations.Pins.M(1))
 	return nil
 }
 
 // pinProgress pins an item and sends fetched node's progress on a
 // channel. Blocks until done or error. pinProgress will always close the out
 // channel.  pinProgress will not block on sending to the channel if it is full.
-func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth api.PinDepth, out chan<- int) error {
+func (ipfs *Connector) pinProgress(ctx context.Context, hash api.Cid, maxDepth api.PinDepth, out chan<- int) error {
 	defer close(out)
 
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinsProgress")
@@ -451,7 +468,7 @@ func (ipfs *Connector) pinProgress(ctx context.Context, hash cid.Cid, maxDepth a
 	}
 }
 
-func (ipfs *Connector) pinUpdate(ctx context.Context, from, to cid.Cid) error {
+func (ipfs *Connector) pinUpdate(ctx context.Context, from, to api.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/pinUpdate")
 	defer span.End()
 
@@ -460,14 +477,15 @@ func (ipfs *Connector) pinUpdate(ctx context.Context, from, to cid.Cid) error {
 	if err != nil {
 		return err
 	}
+	totalPins := atomic.AddInt64(&ipfs.ipfsPinCount, 1)
+	stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPins))
 	logger.Infof("IPFS Pin Update request succeeded. %s -> %s (unpin=false)", from, to)
-	stats.Record(ctx, observations.Pins.M(1))
 	return nil
 }
 
 // Unpin performs an unpin request against the configured IPFS
 // daemon.
-func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
+func (ipfs *Connector) Unpin(ctx context.Context, hash api.Cid) error {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Unpin")
 	defer span.End()
 
@@ -494,8 +512,10 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash cid.Cid) error {
 		return nil
 	}
 
+	totalPins := atomic.AddInt64(&ipfs.ipfsPinCount, -1)
+	stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPins))
+
 	logger.Info("IPFS Unpin request succeeded:", hash)
-	stats.Record(ctx, observations.Pins.M(-1))
 	return nil
 }
 
@@ -512,6 +532,13 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilters []string, out chan
 	defer cancel()
 
 	var err error
+	var totalPinCount int64
+	defer func() {
+		if err != nil {
+			atomic.StoreInt64(&ipfs.ipfsPinCount, totalPinCount)
+			stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPinCount))
+		}
+	}()
 
 nextFilter:
 	for i, typeFilter := range typeFilters {
@@ -551,6 +578,7 @@ nextFilter:
 				logger.Error(err)
 				return err
 			case out <- ipfsPin:
+				totalPinCount++
 			}
 		}
 	}
@@ -622,6 +650,7 @@ func checkResponse(path string, res *http.Response) ([]byte, error) {
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
 	if err == nil {
 		var ipfsErr ipfsError
 		if err := json.Unmarshal(body, &ipfsErr); err == nil {
@@ -834,23 +863,23 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 			}
 		}
 
-		repoGC.Keys = append(repoGC.Keys, api.IPFSRepoGC{Key: resp.Key, Error: resp.Error})
+		repoGC.Keys = append(repoGC.Keys, api.IPFSRepoGC{Key: api.NewCid(resp.Key), Error: resp.Error})
 	}
 }
 
 // Resolve accepts ipfs or ipns path and resolves it into a cid
-func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
+func (ipfs *Connector) Resolve(ctx context.Context, path string) (api.Cid, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Resolve")
 	defer span.End()
 
 	validPath, err := gopath.ParsePath(path)
 	if err != nil {
 		logger.Error("could not parse path: " + err.Error())
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
 		ci, _, err := gopath.SplitAbsPath(validPath)
-		return ci, err
+		return api.NewCid(ci), err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
@@ -858,18 +887,18 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (cid.Cid, error
 	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(path), "", nil)
 	if err != nil {
 		logger.Error(err)
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 
 	var resp ipfsResolveResp
 	err = json.Unmarshal(res, &resp)
 	if err != nil {
 		logger.Error("could not unmarshal response: " + err.Error())
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 
 	ci, _, err := gopath.SplitAbsPath(gopath.FromString(resp.Path))
-	return ci, err
+	return api.NewCid(ci), err
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.
@@ -934,7 +963,7 @@ type chanIterator struct {
 	err     error
 
 	seenMu sync.Mutex
-	seen   *cid.Set
+	seen   *multihash.Set
 }
 
 func (ci *chanIterator) Name() string {
@@ -949,16 +978,21 @@ func (ci *chanIterator) Node() files.Node {
 	if !ci.current.Cid.Defined() {
 		return nil
 	}
+	logger.Debugf("it.node(): %s", ci.current.Cid)
 	ci.seenMu.Lock()
-	ci.seen.Add(ci.current.Cid)
+	ci.seen.Add(ci.current.Cid.Hash())
 	ci.seenMu.Unlock()
+
+	stats.Record(ci.ctx, observations.BlocksAdded.M(1))
+	stats.Record(ci.ctx, observations.BlocksAddedSize.M(int64(len(ci.current.Data))))
+
 	return files.NewBytesFile(ci.current.Data)
 }
 
 func (ci *chanIterator) Seen(c api.Cid) bool {
 	ci.seenMu.Lock()
-	has := ci.seen.Has(cid.Cid(c))
-	ci.seen.Remove(cid.Cid(c))
+	has := ci.seen.Has(c.Cid.Hash())
+	ci.seen.Remove(c.Cid.Hash())
 	ci.seenMu.Unlock()
 	return has
 }
@@ -1005,7 +1039,7 @@ func (ci *chanIterator) Next() bool {
 			ci.done = true
 			return false
 		}
-		logger.Debugf("block %s", next.Cid)
+		logger.Debugf("it.Next() %s", next.Cid)
 		ci.current = next
 		return true
 	}
@@ -1037,6 +1071,7 @@ func blockPutQuery(prefix cid.Prefix) (url.Values, error) {
 
 	q.Set("mhtype", mhType)
 	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
+	q.Set("pin", "false")
 	return q, nil
 }
 
@@ -1049,12 +1084,10 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	logger.Debug("streaming blocks to IPFS")
 	defer ipfs.updateInformerMetric(ctx)
 
-	var errs error
-
 	it := &chanIterator{
 		ctx:    ctx,
 		blocks: blocks,
-		seen:   cid.NewSet(),
+		seen:   multihash.NewSet(),
 	}
 	dir := &chanDirectory{
 		iterator: it,
@@ -1075,49 +1108,48 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	}
 	url := "block/put?" + q.Encode()
 
-	// We essentially keep going on any request errors and keep putting
-	// blocks until we are done. We will, however, return a final error if
-	// there were errors along the way, but we do not abort the blocks
-	// stream because we could not block/put.
-	for !it.Done() {
-		select {
-		case <-ctx.Done():
-			logger.Error("BlockStream aborted: %s", ctx.Err())
-			return ctx.Err()
-		default:
-		}
+	// Now we stream the blocks to ipfs. In case of error, we return
+	// directly, but leave a goroutine draining the channel until it is
+	// closed, which should be soon after returning.
+	multiFileR := files.NewMultiFileReader(dir, true)
+	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
+	body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)
+	if err != nil {
+		return err
+	}
+	defer body.Close()
 
-		multiFileR := files.NewMultiFileReader(dir, true)
-		contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
-		body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)
+	dec := json.NewDecoder(body)
+	for {
+		var res ipfsBlockPutResp
+		err = dec.Decode(&res)
+		if err == io.EOF {
+			return nil
+		}
 		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
+			logger.Error(err)
+			break
 		}
-		dec := json.NewDecoder(body)
-		for {
-			var res ipfsBlockPutResp
-			err := dec.Decode(&res)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				logger.Error(err)
-				errs = multierr.Append(errs, err)
-				break
-			}
-			if !it.Seen(res.Key) {
-				logger.Warnf("blockPut response CID (%s) does not match any blocks sent", res.Key)
-			}
+		logger.Debugf("response block: %s", res.Key)
+		if !it.Seen(res.Key) {
+			logger.Warningf("blockPut response CID (%s) does not match the multihash of any blocks sent", res.Key)
 		}
-		// continue until it.Done()
 	}
 
-	return errs
+	// keep draining blocks channel until closed.
+	go func() {
+		for range blocks {
+		}
+	}()
+
+	if err != nil {
+		stats.Record(ipfs.ctx, observations.BlocksAddedError.M(1))
+	}
+	return err
 }
 
 // BlockGet retrieves an ipfs block with the given cid
-func (ipfs *Connector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
+func (ipfs *Connector) BlockGet(ctx context.Context, c api.Cid) ([]byte, error) {
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/BlockGet")
 	defer span.End()
 
@@ -1129,7 +1161,7 @@ func (ipfs *Connector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) 
 
 // // FetchRefs asks IPFS to download blocks recursively to the given depth.
 // // It discards the response, but waits until it completes.
-// func (ipfs *Connector) FetchRefs(ctx context.Context, c cid.Cid, maxDepth int) error {
+// func (ipfs *Connector) FetchRefs(ctx context.Context, c api.Cid, maxDepth int) error {
 // 	ctx, cancel := context.WithTimeout(ipfs.ctx, ipfs.config.PinTimeout)
 // 	defer cancel()
 

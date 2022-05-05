@@ -7,26 +7,24 @@ import (
 	"testing"
 
 	"github.com/ipfs/ipfs-cluster/api"
-
-	cid "github.com/ipfs/go-cid"
 )
 
 // MockPinStore is used in VerifyShards
 type MockPinStore interface {
 	// Gets a pin
-	PinGet(context.Context, cid.Cid) (api.Pin, error)
+	PinGet(context.Context, api.Cid) (api.Pin, error)
 }
 
 // MockBlockStore is used in VerifyShards
 type MockBlockStore interface {
 	// Gets a block
-	BlockGet(context.Context, cid.Cid) ([]byte, error)
+	BlockGet(context.Context, api.Cid) ([]byte, error)
 }
 
 // VerifyShards checks that a sharded CID has been correctly formed and stored.
 // This is a helper function for testing. It returns a map with all the blocks
 // from all shards.
-func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlockStore, expectedShards int) (map[string]struct{}, error) {
+func VerifyShards(t *testing.T, rootCid api.Cid, pins MockPinStore, ipfs MockBlockStore, expectedShards int) (map[string]struct{}, error) {
 	ctx := context.Background()
 	metaPin, err := pins.PinGet(ctx, rootCid)
 	if err != nil {
@@ -69,7 +67,7 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 	}
 
 	shardBlocks := make(map[string]struct{})
-	var ref cid.Cid
+	var ref api.Cid
 	// traverse shards in order
 	for i := 0; i < len(shards); i++ {
 		sh, _, err := clusterDAGNode.ResolveLink([]string{fmt.Sprintf("%d", i)})
@@ -77,12 +75,12 @@ func VerifyShards(t *testing.T, rootCid cid.Cid, pins MockPinStore, ipfs MockBlo
 			return nil, err
 		}
 
-		shardPin, err := pins.PinGet(ctx, sh.Cid)
+		shardPin, err := pins.PinGet(ctx, api.NewCid(sh.Cid))
 		if err != nil {
 			return nil, fmt.Errorf("shard was not pinned: %s %s", sh.Cid, err)
 		}
 
-		if ref != cid.Undef && !shardPin.Reference.Equals(ref) {
+		if ref != api.CidUndef && !shardPin.Reference.Equals(ref) {
 			t.Errorf("Ref (%s) should point to previous shard (%s)", ref, shardPin.Reference)
 		}
 		ref = shardPin.Cid

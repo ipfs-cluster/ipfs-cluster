@@ -28,7 +28,7 @@ func newMockCDAGServ() *mockCDAGServ {
 }
 
 // noop
-func (dag *mockCDAGServ) Finalize(ctx context.Context, root cid.Cid) (cid.Cid, error) {
+func (dag *mockCDAGServ) Finalize(ctx context.Context, root api.Cid) (api.Cid, error) {
 	return root, nil
 }
 
@@ -152,7 +152,7 @@ func TestAdder_CAR(t *testing.T) {
 		t.Fatal(err)
 	}
 	var carBuf bytes.Buffer
-	err = car.WriteCar(ctx, dags, []cid.Cid{root}, &carBuf)
+	err = car.WriteCar(ctx, dags, []cid.Cid{root.Cid}, &carBuf)
 	if err != nil {
 		t.Fatal(err)
 	}

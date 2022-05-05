@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
 	"github.com/ipfs/ipfs-cluster/test"
 
-	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
@@ -41,8 +40,8 @@ var sortPinInfoByCid = func(p []api.PinInfo) {
 // - Cid2 - weird / remote // replication factor set to 0, no allocations
 // - Cid3 - remote - this pin is on ipfs
 // - Cid4 - pin everywhere - this pin is not on ipfs
-func prefilledState(context.Context) (state.ReadOnly, error) {
-	st, err := dsstate.New(inmem.New(), "", dsstate.DefaultHandle())
+func prefilledState(ctx context.Context) (state.ReadOnly, error) {
+	st, err := dsstate.New(ctx, inmem.New(), "", dsstate.DefaultHandle())
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,6 @@ func prefilledState(context.Context) (state.ReadOnly, error) {
 		api.PinWithOpts(test.Cid4, pinOpts),
 	}
 
-	ctx := context.Background()
 	for _, pin := range pins {
 		err = st.Add(ctx, pin)
 		if err != nil {
@@ -139,7 +137,7 @@ func BenchmarkPinTracker_Track(b *testing.B) {
 
 func TestPinTracker_Untrack(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -273,7 +271,7 @@ func TestPinTracker_StatusAll(t *testing.T) {
 
 func TestPinTracker_Status(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -397,7 +395,7 @@ func TestPinTracker_RecoverAll(t *testing.T) {
 
 func TestPinTracker_Recover(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -438,7 +436,7 @@ func TestPinTracker_Recover(t *testing.T) {
 
 func TestUntrackTrack(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {
@@ -481,7 +479,7 @@ func TestUntrackTrack(t *testing.T) {
 
 func TestTrackUntrackWithCancel(t *testing.T) {
 	type args struct {
-		c       cid.Cid
+		c       api.Cid
 		tracker ipfscluster.PinTracker
 	}
 	tests := []struct {

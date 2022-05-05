@@ -1,3 +1,5 @@
+// Package crdt implements the IPFS Cluster consensus interface using
+// CRDT-datastore to replicate the cluster global state to every peer.
 package crdt
 
 import (
@@ -8,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/pstoremgr"
 	"github.com/ipfs/ipfs-cluster/state"
@@ -238,7 +239,7 @@ func (css *Consensus) setup() {
 			logger.Error(err, k)
 			return
 		}
-		c, err := cid.Cast(kb)
+		c, err := api.CastCid(kb)
 		if err != nil {
 			logger.Error(err, k)
 			return
@@ -275,6 +276,7 @@ func (css *Consensus) setup() {
 	css.crdt = crdt
 
 	clusterState, err := dsstate.New(
+		css.ctx,
 		css.crdt,
 		// unsure if we should set something else but crdt is already
 		// namespaced and this would only namespace the keys, which only
@@ -289,6 +291,7 @@ func (css *Consensus) setup() {
 	css.state = clusterState
 
 	batchingState, err := dsstate.NewBatching(
+		css.ctx,
 		css.crdt,
 		"",
 		dsstate.DefaultHandle(),
@@ -580,6 +583,9 @@ func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 	case <-css.ctx.Done():
 		return nil, css.ctx.Err()
 	case <-css.stateReady:
+		if css.config.batchingEnabled() {
+			return css.batchingState, nil
+		}
 		return css.state, nil
 	}
 }
@@ -662,5 +668,5 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 	if err != nil {
 		return nil, err
 	}
-	return dsstate.NewBatching(crdt, "", dsstate.DefaultHandle())
+	return dsstate.NewBatching(context.Background(), crdt, "", dsstate.DefaultHandle())
 }

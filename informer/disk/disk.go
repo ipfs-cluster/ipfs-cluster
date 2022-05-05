@@ -127,8 +127,12 @@ func (disk *Informer) GetMetrics(ctx context.Context) []api.Metric {
 			total := repoStat.StorageMax
 			if size < total {
 				metric = total - size
-			} else { // Make sure we don't underflow
+			} else {
+				// Make sure we don't underflow and stop
+				// sending this metric when space is exhausted.
 				metric = 0
+				valid = false
+				logger.Warn("reported freespace is 0")
 			}
 		case MetricRepoSize:
 			metric = repoStat.RepoSize

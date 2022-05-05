@@ -15,7 +15,6 @@ import (
 
 	"github.com/ipfs/ipfs-cluster/api"
 
-	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
 	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -85,7 +84,7 @@ func (c *defaultClient) PeerRm(ctx context.Context, id peer.ID) error {
 
 // Pin tracks a Cid with the given replication factor and a name for
 // human-friendliness.
-func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions) (api.Pin, error) {
+func (c *defaultClient) Pin(ctx context.Context, ci api.Cid, opts api.PinOptions) (api.Pin, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Pin")
 	defer span.End()
 
@@ -110,7 +109,7 @@ func (c *defaultClient) Pin(ctx context.Context, ci cid.Cid, opts api.PinOptions
 }
 
 // Unpin untracks a Cid from cluster.
-func (c *defaultClient) Unpin(ctx context.Context, ci cid.Cid) (api.Pin, error) {
+func (c *defaultClient) Unpin(ctx context.Context, ci api.Cid) (api.Pin, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Unpin")
 	defer span.End()
 	var pin api.Pin
@@ -212,7 +211,7 @@ func (c *defaultClient) Allocations(ctx context.Context, filter api.PinType, out
 }
 
 // Allocation returns the current allocations for a given Cid.
-func (c *defaultClient) Allocation(ctx context.Context, ci cid.Cid) (api.Pin, error) {
+func (c *defaultClient) Allocation(ctx context.Context, ci api.Cid) (api.Pin, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Allocation")
 	defer span.End()
 
@@ -224,7 +223,7 @@ func (c *defaultClient) Allocation(ctx context.Context, ci cid.Cid) (api.Pin, er
 // Status returns the current ipfs state for a given Cid. If local is true,
 // the information affects only the current peer, otherwise the information
 // is fetched from all cluster peers.
-func (c *defaultClient) Status(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (c *defaultClient) Status(ctx context.Context, ci api.Cid, local bool) (api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Status")
 	defer span.End()
 
@@ -243,7 +242,7 @@ func (c *defaultClient) Status(ctx context.Context, ci cid.Cid, local bool) (api
 // StatusCids returns Status() information for the given Cids. If local is
 // true, the information affects only the current peer, otherwise the
 // information is fetched from all cluster peers.
-func (c *defaultClient) StatusCids(ctx context.Context, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error {
+func (c *defaultClient) StatusCids(ctx context.Context, cids []api.Cid, local bool, out chan<- api.GlobalPinInfo) error {
 	return c.statusAllWithCids(ctx, api.TrackerStatusUndefined, cids, local, out)
 }
 
@@ -256,7 +255,7 @@ func (c *defaultClient) StatusAll(ctx context.Context, filter api.TrackerStatus,
 	return c.statusAllWithCids(ctx, filter, nil, local, out)
 }
 
-func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.TrackerStatus, cids []cid.Cid, local bool, out chan<- api.GlobalPinInfo) error {
+func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.TrackerStatus, cids []api.Cid, local bool, out chan<- api.GlobalPinInfo) error {
 	defer close(out)
 	ctx, span := trace.StartSpan(ctx, "client/StatusAll")
 	defer span.End()
@@ -298,7 +297,7 @@ func (c *defaultClient) statusAllWithCids(ctx context.Context, filter api.Tracke
 // Recover retriggers pin or unpin ipfs operations for a Cid in error state.
 // If local is true, the operation is limited to the current peer, otherwise
 // it happens on every cluster peer.
-func (c *defaultClient) Recover(ctx context.Context, ci cid.Cid, local bool) (api.GlobalPinInfo, error) {
+func (c *defaultClient) Recover(ctx context.Context, ci api.Cid, local bool) (api.GlobalPinInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Recover")
 	defer span.End()
 
@@ -458,7 +457,7 @@ func WaitFor(ctx context.Context, c Client, fp StatusFilterParams) (api.GlobalPi
 // StatusFilterParams contains the parameters required
 // to filter a stream of status results.
 type StatusFilterParams struct {
-	Cid       cid.Cid
+	Cid       api.Cid
 	Local     bool // query status from the local peer only
 	Target    api.TrackerStatus
 	Limit     int // wait for N peers reaching status. 0 == all

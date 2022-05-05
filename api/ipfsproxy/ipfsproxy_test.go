@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	cid "github.com/ipfs/go-cid"
-
 	"github.com/ipfs/ipfs-cluster/api"
 	"github.com/ipfs/ipfs-cluster/test"
 
@@ -100,7 +98,7 @@ func TestIPFSProxyPin(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    cid.Cid
+		want    api.Cid
 		wantErr bool
 	}{
 		{
@@ -140,7 +138,7 @@ func TestIPFSProxyPin(t *testing.T) {
 				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
-			cid.Undef,
+			api.CidUndef,
 			true,
 		},
 		{
@@ -150,7 +148,7 @@ func TestIPFSProxyPin(t *testing.T) {
 				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
-			cid.Undef,
+			api.CidUndef,
 			true,
 		},
 	}
@@ -218,7 +216,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    cid.Cid
+		want    api.Cid
 		wantErr bool
 	}{
 		{
@@ -258,7 +256,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
-			cid.Undef,
+			api.CidUndef,
 			true,
 		},
 		{
@@ -268,7 +266,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				test.ErrorCid.String(),
 				http.StatusInternalServerError,
 			},
-			cid.Undef,
+			api.CidUndef,
 			true,
 		},
 	}
@@ -583,7 +581,7 @@ func TestProxyRepoGC(t *testing.T) {
 				repoGC = append(repoGC, resp)
 			}
 
-			if !repoGC[0].Key.Equals(test.Cid1) {
+			if !repoGC[0].Key.Equals(test.Cid1.Cid) {
 				t.Errorf("expected a different cid, expected: %s, found: %s", test.Cid1, repoGC[0].Key)
 			}
 

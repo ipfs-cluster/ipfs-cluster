@@ -6,17 +6,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs/ipfs-cluster/observations"
 	"github.com/ipfs/ipfs-cluster/state"
 
-	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	logging "github.com/ipfs/go-log/v2"
 	codec "github.com/ugorji/go/codec"
 
+	"go.opencensus.io/stats"
 	trace "go.opencensus.io/trace"
 )
 
@@ -35,6 +37,8 @@ type State struct {
 	codecHandle codec.Handle
 	namespace   ds.Key
 	// version     int
+
+	totalPins int64
 }
 
 // DefaultHandle returns the codec handler of choice (Msgpack).
@@ -50,7 +54,7 @@ func DefaultHandle() codec.Handle {
 //
 // The Handle controls options for the serialization of the full state
 // (marshaling/unmarshaling).
-func New(dstore ds.Datastore, namespace string, handle codec.Handle) (*State, error) {
+func New(ctx context.Context, dstore ds.Datastore, namespace string, handle codec.Handle) (*State, error) {
 	if handle == nil {
 		handle = DefaultHandle()
 	}
@@ -60,26 +64,39 @@ func New(dstore ds.Datastore, namespace string, handle codec.Handle) (*State, er
 		dsWrite:     dstore,
 		codecHandle: handle,
 		namespace:   ds.NewKey(namespace),
+		totalPins:   0,
 	}
+
+	stats.Record(ctx, observations.Pins.M(0))
 
 	return st, nil
 }
 
 // Add adds a new Pin or replaces an existing one.
-func (st *State) Add(ctx context.Context, c api.Pin) error {
+func (st *State) Add(ctx context.Context, c api.Pin) (err error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Add")
 	defer span.End()
 
 	ps, err := st.serializePin(c)
 	if err != nil {
-		return err
+		return
 	}
-	return st.dsWrite.Put(ctx, st.key(c.Cid), ps)
+
+	has, _ := st.Has(ctx, c.Cid)
+	defer func() {
+		if !has && err == nil {
+			total := atomic.AddInt64(&st.totalPins, 1)
+			stats.Record(ctx, observations.Pins.M(total))
+		}
+	}()
+
+	err = st.dsWrite.Put(ctx, st.key(c.Cid), ps)
+	return
 }
 
 // Rm removes an existing Pin. It is a no-op when the
 // item does not exist.
-func (st *State) Rm(ctx context.Context, c cid.Cid) error {
+func (st *State) Rm(ctx context.Context, c api.Cid) error {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Rm")
 	defer span.End()
 
@@ -87,13 +104,18 @@ func (st *State) Rm(ctx context.Context, c cid.Cid) error {
 	if err == ds.ErrNotFound {
 		return nil
 	}
+	if err == nil {
+		total := atomic.AddInt64(&st.totalPins, -1)
+		stats.Record(ctx, observations.Pins.M(total))
+	}
+
 	return err
 }
 
 // Get returns a Pin from the store and whether it
 // was present. When not present, a default pin
 // is returned.
-func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, error) {
+func (st *State) Get(ctx context.Context, c api.Cid) (api.Pin, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Get")
 	defer span.End()
 
@@ -112,7 +134,7 @@ func (st *State) Get(ctx context.Context, c cid.Cid) (api.Pin, error) {
 }
 
 // Has returns whether a Cid is stored.
-func (st *State) Has(ctx context.Context, c cid.Cid) (bool, error) {
+func (st *State) Has(ctx context.Context, c api.Cid) (bool, error) {
 	_, span := trace.StartSpan(ctx, "state/dsstate/Has")
 	defer span.End()
 
@@ -141,7 +163,7 @@ func (st *State) List(ctx context.Context, out chan<- api.Pin) error {
 	}
 	defer results.Close()
 
-	total := 0
+	var total int64
 	for r := range results.Next() {
 		// Abort if we shutdown.
 		select {
@@ -178,7 +200,8 @@ func (st *State) List(ctx context.Context, out chan<- api.Pin) error {
 	if total >= 500000 {
 		logger.Infof("Full pinset listing finished: %d pins", total)
 	}
-
+	atomic.StoreInt64(&st.totalPins, total)
+	stats.Record(ctx, observations.Pins.M(total))
 	return nil
 }
 
@@ -254,27 +277,28 @@ func (st *State) Unmarshal(r io.Reader) error {
 }
 
 // used to be on go-ipfs-ds-help
-func cidToDsKey(c cid.Cid) ds.Key {
+func cidToDsKey(c api.Cid) ds.Key {
 	return dshelp.NewKeyFromBinary(c.Bytes())
 }
 
 // used to be on go-ipfs-ds-help
-func dsKeyToCid(k ds.Key) (cid.Cid, error) {
+func dsKeyToCid(k ds.Key) (api.Cid, error) {
 	kb, err := dshelp.BinaryFromDsKey(k)
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
-	return cid.Cast(kb)
+	c, err := api.CastCid(kb)
+	return c, err
 }
 
 // convert Cid to /namespace/cid1Key
-func (st *State) key(c cid.Cid) ds.Key {
+func (st *State) key(c api.Cid) ds.Key {
 	k := cidToDsKey(c)
 	return st.namespace.Child(k)
 }
 
 // convert /namespace/cidKey to Cid
-func (st *State) unkey(k ds.Key) (cid.Cid, error) {
+func (st *State) unkey(k ds.Key) (api.Cid, error) {
 	return dsKeyToCid(ds.NewKey(k.BaseNamespace()))
 }
 
@@ -286,7 +310,7 @@ func (st *State) serializePin(c api.Pin) ([]byte, error) {
 
 // this deserializes a Pin object from the datastore. It should be
 // the exact opposite from serializePin.
-func (st *State) deserializePin(c cid.Cid, buf []byte) (api.Pin, error) {
+func (st *State) deserializePin(c api.Cid, buf []byte) (api.Pin, error) {
 	p := api.Pin{}
 	err := p.ProtoUnmarshal(buf)
 	p.Cid = c
@@ -308,7 +332,7 @@ type BatchingState struct {
 //
 // The Handle controls options for the serialization of the full state
 // (marshaling/unmarshaling).
-func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*BatchingState, error) {
+func NewBatching(ctx context.Context, dstore ds.Batching, namespace string, handle codec.Handle) (*BatchingState, error) {
 	if handle == nil {
 		handle = DefaultHandle()
 	}
@@ -328,6 +352,8 @@ func NewBatching(dstore ds.Batching, namespace string, handle codec.Handle) (*Ba
 	bst := &BatchingState{}
 	bst.State = st
 	bst.batch = batch
+
+	stats.Record(ctx, observations.Pins.M(0))
 	return bst, nil
 }
 

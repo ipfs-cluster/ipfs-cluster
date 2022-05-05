@@ -21,7 +21,6 @@ import (
 	"github.com/ipfs/ipfs-cluster/test"
 	"github.com/ipfs/ipfs-cluster/version"
 
-	cid "github.com/ipfs/go-cid"
 	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
@@ -68,7 +67,7 @@ func (ipfs *mockConnector) Pin(ctx context.Context, pin api.Pin) error {
 	return nil
 }
 
-func (ipfs *mockConnector) Unpin(ctx context.Context, c cid.Cid) error {
+func (ipfs *mockConnector) Unpin(ctx context.Context, c api.Cid) error {
 	ipfs.pins.Delete(c)
 	return nil
 }
@@ -96,7 +95,7 @@ func (ipfs *mockConnector) PinLs(ctx context.Context, in []string, out chan<- ap
 		default:
 			st = api.IPFSPinStatusRecursive
 		}
-		c := k.(cid.Cid)
+		c := k.(api.Cid)
 
 		out <- api.IPFSPinInfo{Cid: api.Cid(c), Type: st}
 		return true
@@ -123,10 +122,10 @@ func (ipfs *mockConnector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 	}, nil
 }
 
-func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (cid.Cid, error) {
+func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (api.Cid, error) {
 	_, err := gopath.ParsePath(path)
 	if err != nil {
-		return cid.Undef, err
+		return api.CidUndef, err
 	}
 
 	return test.CidResolved, nil
@@ -141,7 +140,7 @@ func (ipfs *mockConnector) BlockStream(ctx context.Context, in <-chan api.NodeWi
 	return nil
 }
 
-func (ipfs *mockConnector) BlockGet(ctx context.Context, c cid.Cid) ([]byte, error) {
+func (ipfs *mockConnector) BlockGet(ctx context.Context, c api.Cid) ([]byte, error) {
 	d, ok := ipfs.blocks.Load(c.String())
 	if !ok {
 		return nil, errors.New("block not found")
@@ -444,7 +443,7 @@ func TestUnpinShard(t *testing.T) {
 	sharding.VerifyShards(t, root, cl, cl.ipfs, 14)
 
 	// skipping errors, VerifyShards has checked
-	pinnedCids := []cid.Cid{}
+	pinnedCids := []api.Cid{}
 	pinnedCids = append(pinnedCids, root)
 	metaPin, _ := cl.PinGet(ctx, root)
 	cDag, _ := cl.PinGet(ctx, *metaPin.Reference)
@@ -452,7 +451,7 @@ func TestUnpinShard(t *testing.T) {
 	cDagBlock, _ := cl.ipfs.BlockGet(ctx, cDag.Cid)
 	cDagNode, _ := sharding.CborDataToNode(cDagBlock, "cbor")
 	for _, l := range cDagNode.Links() {
-		pinnedCids = append(pinnedCids, l.Cid)
+		pinnedCids = append(pinnedCids, api.NewCid(l.Cid))
 	}
 
 	t.Run("unpin clusterdag should fail", func(t *testing.T) {
@@ -464,7 +463,7 @@ func TestUnpinShard(t *testing.T) {
 	})
 
 	t.Run("unpin shard should fail", func(t *testing.T) {
-		_, err := cl.Unpin(ctx, cDagNode.Links()[0].Cid)
+		_, err := cl.Unpin(ctx, api.NewCid(cDagNode.Links()[0].Cid))
 		if err == nil {
 			t.Fatal("should not allow unpinning shards directly")
 		}
@@ -504,10 +503,10 @@ func TestUnpinShard(t *testing.T) {
 // 	cShard, _ := cid.Decode(test.ShardCid)
 // 	cCdag, _ := cid.Decode(test.CdagCid)
 // 	cMeta, _ := cid.Decode(test.MetaRootCid)
-// 	pinMeta(t, cl, []cid.Cid{cShard}, cCdag, cMeta)
+// 	pinMeta(t, cl, []api.NewCid(cShard), cCdag, cMeta)
 // }
 
-// func pinMeta(t *testing.T, cl *Cluster, shardCids []cid.Cid, cCdag, cMeta cid.Cid) {
+// func pinMeta(t *testing.T, cl *Cluster, shardCids []api.Cid, cCdag, cMeta api.Cid) {
 // 	for _, cShard := range shardCids {
 // 		shardPin := api.Pin{
 // 			Cid:      cShard,
@@ -609,7 +608,7 @@ func TestUnpinShard(t *testing.T) {
 // 	cShard2, _ := cid.Decode(test.ShardCid2)
 // 	cCdag2, _ := cid.Decode(test.CdagCid2)
 // 	cMeta2, _ := cid.Decode(test.MetaRootCid2)
-// 	pinMeta(t, cl, []cid.Cid{cShard, cShard2}, cCdag2, cMeta2)
+// 	pinMeta(t, cl, []api.Cid{cShard, cShard2}, cCdag2, cMeta2)
 
 // 	shardPin, err := cl.PinGet(cShard)
 // 	if err != nil {
