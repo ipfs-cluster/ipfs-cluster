@@ -1,4 +1,4 @@
-FROM golang:1.18-buster AS builder
+FROM golang:1.17-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This dockerfile builds and runs ipfs-cluster-service.
