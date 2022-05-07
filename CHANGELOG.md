@@ -2,8 +2,8 @@
 
 ### v1.0.1 - 2022-05-06
 
-IPFS Cluster v1.0.1 is a maintenace release ironing out some issues and
-bringing a couple of improvements in observability around cluster performance:
+IPFS Cluster v1.0.1 is a maintenance release ironing out some issues and
+bringing a couple of improvements around observability of cluster performance:
 
 * We have fixed the `ipfscluster_pins` metric and added a few new ones that
   help determine how fast the cluster can pin and add blocks.
@@ -16,9 +16,16 @@ Please read below for a list of changes and things to watch out for.
 
 #### List of changes
 
+##### Breaking changes
+
+Peers running IPFS Cluster v1.0.0 will not be able to read the pin's user-set
+metadata fields for pins submitted by peers in later versions, since metadata
+is now stored on a different protobuf field. If this is an issue, all peers in
+the cluster should upgrade.
+
 ##### Features
 
-* Pinqueue informer: let pinning queue size inform allocation selection | [ipfs/ipfs-cluster#1649](https://github.com/ipfs/ipfs-cluster/issues/1649) | [ipfs/ipfs-cluster#1657](https://github.com/ipfs/ipfs-cluster/issues/1657)
+* Pinqueue Informer: let pinning queue size inform allocation selection | [ipfs/ipfs-cluster#1649](https://github.com/ipfs/ipfs-cluster/issues/1649) | [ipfs/ipfs-cluster#1657](https://github.com/ipfs/ipfs-cluster/issues/1657)
 * Metrics: add additional Prometheus metrics | [ipfs/ipfs-cluster#1650](https://github.com/ipfs/ipfs-cluster/issues/1650) | [ipfs/ipfs-cluster#1659](https://github.com/ipfs/ipfs-cluster/issues/1659)
 
 ##### Bug fixes
@@ -26,7 +33,7 @@ Please read below for a list of changes and things to watch out for.
 * Fix: state import can result in different CRDT-heads | [ipfs/ipfs-cluster#1547](https://github.com/ipfs/ipfs-cluster/issues/1547) | [ipfs/ipfs-cluster#1664](https://github.com/ipfs/ipfs-cluster/issues/1664)
 * Fix: `ipfs-cluster-ctl pin ls` hangs | [ipfs/ipfs-cluster#1663](https://github.com/ipfs/ipfs-cluster/issues/1663)
 * Fix: restapi client panics on retry | [ipfs/ipfs-cluster#1655](https://github.com/ipfs/ipfs-cluster/issues/1655) | [ipfs/ipfs-cluster#1662](https://github.com/ipfs/ipfs-cluster/issues/1662)
-* Fix: bad behaviour while adding and ipfs is down | [ipfs/ipfs-cluster#1646](https://github.com/ipfs/ipfs-cluster/issues/1646)
+* Fix: bad behavior while adding and ipfs is down | [ipfs/ipfs-cluster#1646](https://github.com/ipfs/ipfs-cluster/issues/1646)
 * Fix: `ipfscluster_pins` metric issues bad values | [ipfs/ipfs-cluster#1645](https://github.com/ipfs/ipfs-cluster/issues/1645)
 
 ##### Other changes
@@ -35,8 +42,6 @@ Please read below for a list of changes and things to watch out for.
 * Build with go1.18 | [ipfs/ipfs-cluster#1661](https://github.com/ipfs/ipfs-cluster/issues/1661)
 * Do not issue freespace metrics when freespace is 0 | [ipfs/ipfs-cluster#1656](https://github.com/ipfs/ipfs-cluster/issues/1656)
 * Convert pinning/queued/error metrics go gauges | [ipfs/ipfs-cluster#1647](https://github.com/ipfs/ipfs-cluster/issues/1647) | [ipfs/ipfs-cluster#1651](https://github.com/ipfs/ipfs-cluster/issues/1651)
-
-
 
 #### Upgrading notices
 
@@ -54,7 +59,7 @@ There is a new `pinqueue` configuration object inside the `informer` section on 
 	...
 ```
 
-This enables the pinqueue informer which broadcasts metrics containing the size of the pinqueue with the metric weight divided by `weight_bucket_size`. The new metric is not used for allocations by default, and it needs to be manually added to the `allocate_by` option in the allocator, usually like:
+This enables the Pinqueue Informer, which broadcasts metrics containing the size of the pinqueue with the metric weight divided by `weight_bucket_size`. The new metric is not used for allocations by default, and it needs to be manually added to the `allocate_by` option in the allocator, usually like:
 
 ```
 "allocator": {
@@ -105,16 +110,10 @@ ipfscluster_pins_pin_error
 Peers that are reporting `freespace` as 0 and which use this metric to
 allocate pins, will no longer be available for allocations (they stop
 broadcasting this metric). This means setting `StorageMax` on IPFS to 0
-effectively prevents any pins from being explicitally allocated to a peer
+effectively prevents any pins from being explicitly allocated to a peer
 (that is, when replication_factor != *everywhere*).
 
-Peers in version v1.0.0 of IPFS Cluster will not be able to read Pin user-set
-metadata fields for pins submitted by peers in later versions since metadata
-is now stored on a different protobuf field. If this is an issue, all peers in
-the cluster should upgrade.
-
 ---
-
 
 ### v1.0.0 - 2022-04-22
 
