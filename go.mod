@@ -68,7 +68,7 @@ require (
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.2.7
 	github.com/urfave/cli v1.22.9
-	github.com/urfave/cli/v2 v2.5.1
+	github.com/urfave/cli/v2 v2.8.0
 	go.opencensus.io v0.23.0
 	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
@@ -78,6 +78,7 @@ require (
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
 	github.com/alecthomas/units v0.0.0-20210927113745-59d0afb8317a // indirect
+	github.com/antzucaro/matchr v0.0.0-20210222213004-b04723ef80f0 // indirect
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
