@@ -360,7 +360,7 @@ content.
 				},
 				cli.StringFlag{
 					Name:  "expire-in",
-					Usage: "Duration after which the pin should be unpinned automatically",
+					Usage: "Duration after which the pin will be automatically removed from the cluster-pinset again",
 				},
 				cli.StringSliceFlag{
 					Name:  "metadata",
@@ -623,7 +623,7 @@ would still be respected.
 						},
 						cli.StringFlag{
 							Name:  "expire-in",
-							Usage: "Duration after which pin should be unpinned automatically",
+							Usage: "Specify the duration after which the pin should be automatically removed from the cluster-pinset again",
 						},
 						cli.StringSliceFlag{
 							Name:  "metadata",
@@ -763,7 +763,7 @@ existing item from the cluster. Please run "pin rm" for that.
 						},
 						cli.StringFlag{
 							Name:  "expire-in",
-							Usage: "Duration after which the pin should be unpinned automatically after updating",
+							Usage: "Specify the duration after which the new pin should be automatically removed from the cluster-pinset again",
 						},
 						cli.BoolFlag{
 							Name:  "no-status, ns",
