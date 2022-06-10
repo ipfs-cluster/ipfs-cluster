@@ -23,7 +23,7 @@ version: '3.4'
 # |-- ipfs0
 # |-- ipfs1
 # |-- ...
-# 
+#
 # During the first start, default configurations are created for all peers.
 
 services:
@@ -41,7 +41,7 @@ services:
 #     - "8080:8080" # ipfs gateway - expose if needed/wanted
     volumes:
       - ./compose/ipfs0:/data/ipfs
-      
+
   cluster0:
     container_name: cluster0
     image: ipfs/ipfs-cluster:latest
@@ -60,7 +60,8 @@ services:
           # The cluster swarm port would need  to be exposed if this container
           # was to connect to cluster peers on other hosts.
           # But this is just a testing cluster.
-          # - "9096:9096" # Cluster IPFS Proxy endpoint
+          # - "9095:9095" # Cluster IPFS Proxy endpoint
+          # - "9096:9096" # Cluster swarm endpoint
     volumes:
       - ./compose/cluster0:/data/ipfs-cluster
 
