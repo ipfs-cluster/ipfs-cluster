@@ -102,6 +102,11 @@ func (c *Cluster) allocate(ctx context.Context, hash api.Cid, currentPin api.Pin
 	if err != nil {
 		return newAllocs, err
 	}
+
+	// if current allocations are above the minimal threshold,
+	// obtainAllocations returns nil and we just leave things as they are.
+	// This is what makes repinning do nothing if items are still above
+	// rmin.
 	if newAllocs == nil {
 		newAllocs = currentAllocs
 	}
