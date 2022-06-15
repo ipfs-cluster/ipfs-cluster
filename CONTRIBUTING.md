@@ -1,3 +1,3 @@
 # Guidelines for contributing
 
-Please see https://cluster.ipfs.io/developer/contribute .
+Please see https://ipfscluster.io/developer/contribute .

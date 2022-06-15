@@ -877,7 +877,7 @@ a certain size, both configurable.
 Additionally, improvements to timeout behaviours have been introduced.
 
 For more details, check the list below and the latest documentation on the
-[website](https://cluster.ipfs.io).
+[website](https://ipfscluster.io).
 
 #### List of changes
 
@@ -1186,7 +1186,7 @@ NAT-traversal and connectivity etc.
 Users planning to setup public collaborative clusters should upgrade to this
 release, which improves the user experience and comes with documentation on
 how to setup and join these clusters
-(https://cluster.ipfs.io/documentation/collaborative).
+(https://ipfscluster.io/documentation/collaborative).
 
 
 #### List of changes
@@ -2138,7 +2138,7 @@ IPFS Cluster version 0.5.0 is a minor release which includes a major feature: **
 
 This functionality is provided by `ipfs-cluster-ctl add` and by the API endpoint `/add`. The upload format (multipart) is similar to the IPFS `/add` endpoint, as well as the options (chunker, layout...). Cluster `add` generates the same DAG as `ipfs add` would, but it sends the added blocks directly to their allocations, pinning them on completion. The pin happens very quickly, as content is already locally available in the allocated peers.
 
-The release also includes most of the needed code for the [Sharding feature](https://cluster.ipfs.io/developer/rfcs/dag-sharding-rfc/), but it is not yet usable/enabled, pending features from go-ipfs.
+The release also includes most of the needed code for the [Sharding feature](https://ipfscluster.io/developer/rfcs/dag-sharding-rfc/), but it is not yet usable/enabled, pending features from go-ipfs.
 
 The 0.5.0 release additionally includes a new experimental PinTracker implementation: the `stateless` pin tracker. The stateless pin tracker relies on the IPFS pinset and the cluster state to keep track of pins, rather than keeping an in-memory copy of the cluster pinset, thus reducing the memory usage when having huge pinsets. It can be enabled with `ipfs-cluster-service daemon --pintracker stateless`.
 
@@ -2208,7 +2208,7 @@ As noted above, upgrade to `state` format version 5 is needed before starting th
 
 #### Summary
 
-The IPFS Cluster version 0.4.0 includes breaking changes and a considerable number of new features causing them. The documentation (particularly that affecting the configuration and startup of peers) has been updated accordingly in https://cluster.ipfs.io . Be sure to also read it if you are upgrading.
+The IPFS Cluster version 0.4.0 includes breaking changes and a considerable number of new features causing them. The documentation (particularly that affecting the configuration and startup of peers) has been updated accordingly in https://ipfscluster.io . Be sure to also read it if you are upgrading.
 
 There are four main developments in this release:
 
@@ -2216,7 +2216,7 @@ There are four main developments in this release:
 * Improvements to the `pintracker`: our pin tracker is now able to cancel ongoing pins when receiving an unpin request for the same CID, and vice-versa. It will also optimize multiple pin requests (by only queuing and triggering them once) and can now report
 whether an item is pinning (a request to ipfs is ongoing) vs. pin-queued (waiting for a worker to perform the request to ipfs).
 * Broadcasting of monitoring metrics using PubSub: we have added a new `monitor` implementation that uses PubSub (rather than RPC broadcasting). With the upcoming improvements to PubSub this means that we can do efficient broadcasting of metrics while at the same time not requiring peers to have RPC permissions, which is preparing the ground for collaborative clusters.
-* We have launched the IPFS Cluster website: https://cluster.ipfs.io . We moved most of the documentation over there, expanded it and updated it.
+* We have launched the IPFS Cluster website: https://ipfscluster.io . We moved most of the documentation over there, expanded it and updated it.
 
 #### List of changes
 
