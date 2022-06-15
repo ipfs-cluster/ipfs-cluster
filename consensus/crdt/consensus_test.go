@@ -451,7 +451,7 @@ func TestBatching(t *testing.T) {
 		t.Error("the added pin should be in the state")
 	}
 
-	// Pin 4 things, and check that 3 are commited
+	// Pin 4 things, and check that 3 are committed
 	for _, c := range []api.Cid{test.Cid2, test.Cid3, test.Cid4, test.Cid5} {
 		err = cc.LogPin(ctx, testPin(c))
 		if err != nil {

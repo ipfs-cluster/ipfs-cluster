@@ -232,10 +232,10 @@ func (op *Operation) Timestamp() time.Time {
 	return ts
 }
 
-// Cancelled returns whether the context for this
-// operation has been cancelled.
-func (op *Operation) Cancelled() bool {
-	ctx, span := trace.StartSpan(op.ctx, "optracker/Cancelled")
+// Canceled returns whether the context for this
+// operation has been canceled.
+func (op *Operation) Canceled() bool {
+	ctx, span := trace.StartSpan(op.ctx, "optracker/Canceled")
 	_ = ctx
 	defer span.End()
 	select {

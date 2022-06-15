@@ -535,7 +535,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 				case <-ctx.Done():
 					return
 				case <-time.Tick(150 * time.Millisecond):
-					t.Errorf("operation context should have been cancelled by now")
+					t.Errorf("operation context should have been canceled by now")
 				}
 			} else {
 				t.Error("slowPin should be pinning and is:", pInfo.Status)

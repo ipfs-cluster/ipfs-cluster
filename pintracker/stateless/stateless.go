@@ -145,7 +145,7 @@ func (spt *Tracker) opWorker(pinF func(*optracker.Operation) error, prioCh, norm
 // applyPinF returns true if the operation can be considered "DONE".
 func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) bool {
 	if op.Cancelled() {
-		// operation was cancelled. Move on.
+		// operation was canceled. Move on.
 		// This saves some time, but not 100% needed.
 		return false
 	}
@@ -155,7 +155,7 @@ func applyPinF(pinF func(*optracker.Operation) error, op *optracker.Operation) b
 	if err != nil {
 		if op.Cancelled() {
 			// there was an error because
-			// we were cancelled. Move on.
+			// we were canceled. Move on.
 			return false
 		}
 		op.SetError(err)

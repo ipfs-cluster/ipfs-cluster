@@ -125,7 +125,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 		defer wg.Done()
 		_, err := adder.FromMultipart(ctx, r)
 		if err == nil {
-			t.Error("expected a context cancelled error")
+			t.Error("expected a context canceled error")
 		}
 		t.Log(err)
 	}()

@@ -62,7 +62,7 @@ jobs:
       run: go test -v -timeout 15m -failfast -datastore leveldb .
 
   tests-check:
-    name: "Build and syntax checks"
+    name: "Build, syntax and spelling checks"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -76,6 +76,9 @@ jobs:
 
     - name: Install staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+    - name: Install misspell
+      run: go install github.com/client9/misspell/cmd/misspell@latest
 
     - name: Check
       run: make check

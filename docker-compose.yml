@@ -12,7 +12,7 @@ version: '3.4'
 # it from the container. "ipfs-cluster-ctl peers ls" should show all 3 peers a few
 # seconds after start.
 #
-# For persistance, a "compose" folder is created and used to store configurations
+# For persistence, a "compose" folder is created and used to store configurations
 # and states. This can be used to edit configurations in subsequent runs. It looks
 # as follows:
 #
