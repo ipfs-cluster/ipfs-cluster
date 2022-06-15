@@ -3,7 +3,6 @@ package adder
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
@@ -165,7 +164,7 @@ func (dag BaseDAGService) Get(ctx context.Context, key cid.Cid) (ipld.Node, erro
 // GetMany returns an output channel that always emits an error
 func (dag BaseDAGService) GetMany(ctx context.Context, keys []cid.Cid) <-chan *ipld.NodeOption {
 	out := make(chan *ipld.NodeOption, 1)
-	out <- &ipld.NodeOption{Err: fmt.Errorf("failed to fetch all nodes")}
+	out <- &ipld.NodeOption{Err: errors.New("failed to fetch all nodes")}
 	close(out)
 	return out
 }

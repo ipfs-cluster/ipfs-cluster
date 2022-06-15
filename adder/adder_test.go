@@ -3,6 +3,7 @@ package adder
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"mime/multipart"
 	"sync"
 	"testing"
@@ -23,7 +24,14 @@ type mockCDAGServ struct {
 
 func newMockCDAGServ() *mockCDAGServ {
 	return &mockCDAGServ{
-		MockDAGService: test.NewMockDAGService(),
+		// write-only DAGs.
+		MockDAGService: test.NewMockDAGService(true),
+	}
+}
+
+func newReadableMockCDAGServ() *mockCDAGServ {
+	return &mockCDAGServ{
+		MockDAGService: test.NewMockDAGService(false),
 	}
 }
 
@@ -145,13 +153,14 @@ func TestAdder_CAR(t *testing.T) {
 	defer closer.Close()
 	r := multipart.NewReader(mr, mr.Boundary())
 	p := api.DefaultAddParams()
-	dags := newMockCDAGServ()
+	dags := newReadableMockCDAGServ()
 	adder := New(dags, p, nil)
 	root, err := adder.FromMultipart(ctx, r)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var carBuf bytes.Buffer
+	// Make a CAR out of the files we added.
 	err = car.WriteCar(ctx, dags, []cid.Cid{root.Cid}, &carBuf)
 	if err != nil {
 		t.Fatal(err)
@@ -187,4 +196,32 @@ func TestAdder_CAR(t *testing.T) {
 		}
 	}
 
+}
+
+func TestAdder_LargeFolder(t *testing.T) {
+	items := 10000 // add 10000 items
+
+	sth := test.NewShardingTestHelper()
+	defer sth.Clean(t)
+
+	filesMap := make(map[string]files.Node)
+	for i := 0; i < items; i++ {
+		fstr := fmt.Sprintf("file%d", i)
+		f := files.NewBytesFile([]byte(fstr))
+		filesMap[fstr] = f
+	}
+
+	slf := files.NewMapDirectory(filesMap)
+
+	p := api.DefaultAddParams()
+	p.Wrap = true
+
+	dags := newMockCDAGServ()
+
+	adder := New(dags, p, nil)
+	_, err := adder.FromFiles(context.Background(), slf)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 }
