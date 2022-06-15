@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/ipfs/go-unixfs"
-	"github.com/ipfs/ipfs-cluster/adder/ipfsadd"
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/adder/ipfsadd"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipld/go-car"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 

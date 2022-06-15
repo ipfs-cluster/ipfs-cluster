@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/pstoremgr"
-	"github.com/ipfs/ipfs-cluster/state"
-	"github.com/ipfs/ipfs-cluster/state/dsstate"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/pstoremgr"
+	"github.com/ipfs-cluster/ipfs-cluster/state"
+	"github.com/ipfs-cluster/ipfs-cluster/state/dsstate"
 
 	ds "github.com/ipfs/go-datastore"
 	namespace "github.com/ipfs/go-datastore/namespace"

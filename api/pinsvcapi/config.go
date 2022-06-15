@@ -6,8 +6,8 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 
-	"github.com/ipfs/ipfs-cluster/api/common"
-	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
+	"github.com/ipfs-cluster/ipfs-cluster/api/common"
+	"github.com/ipfs-cluster/ipfs-cluster/api/pinsvcapi/pinsvc"
 )
 
 const configKey = "pinsvcapi"

@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/adder"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"

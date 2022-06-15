@@ -5,8 +5,8 @@ package single
 import (
 	"context"
 
-	adder "github.com/ipfs/ipfs-cluster/adder"
-	"github.com/ipfs/ipfs-cluster/api"
+	adder "github.com/ipfs-cluster/ipfs-cluster/adder"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"

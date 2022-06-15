@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 )
 
 func makeMetric(value string) api.Metric {

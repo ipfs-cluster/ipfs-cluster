@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/adder/adderutils"
-	types "github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/common"
+	"github.com/ipfs-cluster/ipfs-cluster/adder/adderutils"
+	types "github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api/common"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/host"

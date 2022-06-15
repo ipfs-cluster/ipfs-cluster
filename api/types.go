@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/ipfs/ipfs-cluster/api/pb"
+	pb "github.com/ipfs-cluster/ipfs-cluster/api/pb"
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"

@@ -7,7 +7,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	namespace "github.com/ipfs/go-datastore/namespace"
 	ipns "github.com/ipfs/go-ipns"
-	config "github.com/ipfs/ipfs-cluster/config"
+	config "github.com/ipfs-cluster/ipfs-cluster/config"
 	libp2p "github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"

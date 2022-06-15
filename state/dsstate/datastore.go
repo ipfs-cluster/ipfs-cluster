@@ -8,9 +8,9 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/observations"
-	"github.com/ipfs/ipfs-cluster/state"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
+	"github.com/ipfs-cluster/ipfs-cluster/state"
 
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
+	ipfscluster "github.com/ipfs-cluster/ipfs-cluster"
 )
 
 func TestIpfsMock(t *testing.T) {

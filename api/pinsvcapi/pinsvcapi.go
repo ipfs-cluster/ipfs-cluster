@@ -15,10 +15,10 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	types "github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/common"
-	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
-	"github.com/ipfs/ipfs-cluster/state"
+	types "github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api/common"
+	"github.com/ipfs-cluster/ipfs-cluster/api/pinsvcapi/pinsvc"
+	"github.com/ipfs-cluster/ipfs-cluster/state"
 	"go.uber.org/multierr"
 
 	logging "github.com/ipfs/go-log/v2"

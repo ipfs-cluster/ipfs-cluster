@@ -1,4 +1,4 @@
-module github.com/ipfs/ipfs-cluster
+module github.com/ipfs-cluster/ipfs-cluster
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
