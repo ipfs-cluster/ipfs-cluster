@@ -448,7 +448,7 @@ func (ipfs *Connector) pinProgress(ctx context.Context, hash api.Cid, maxDepth a
 	for {
 		var pins ipfsPinsResp
 		if err := dec.Decode(&pins); err != nil {
-			// If we cancelled the request we should tell the user
+			// If we canceled the request we should tell the user
 			// (in case dec.Decode() exited cleanly with an EOF).
 			select {
 			case <-ctx.Done():
@@ -849,7 +849,7 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 		resp := ipfsRepoGCResp{}
 
 		if err := dec.Decode(&resp); err != nil {
-			// If we cancelled the request we should tell the user
+			// If we canceled the request we should tell the user
 			// (in case dec.Decode() exited cleanly with an EOF).
 			select {
 			case <-ctx.Done():
@@ -933,7 +933,7 @@ func (ipfs *Connector) SwarmPeers(ctx context.Context) ([]peer.ID, error) {
 	return swarm, nil
 }
 
-// chanDirectory implementes the files.Directory interace
+// chanDirectory implements the files.Directory interface
 type chanDirectory struct {
 	iterator files.DirIterator
 }

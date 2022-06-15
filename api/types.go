@@ -452,7 +452,7 @@ func (pi PinInfo) ToGlobal() GlobalPinInfo {
 	return gpi
 }
 
-// Defined retuns if the PinInfo is not zero.
+// Defined returns if the PinInfo is not zero.
 func (pi PinInfo) Defined() bool {
 	return pi.Cid.Defined()
 }
@@ -684,7 +684,7 @@ const (
 	PinModeDirect    PinMode = 1
 )
 
-// PinModeFromString converst a string to PinMode.
+// PinModeFromString converts a string to PinMode.
 func PinModeFromString(s string) PinMode {
 	switch s {
 	case "recursive", "":
@@ -1386,7 +1386,7 @@ func (m Metric) Discard() bool {
 }
 
 // GetWeight returns the weight of the metric.
-// This is for compatiblity.
+// This is for compatibility.
 func (m Metric) GetWeight() int64 {
 	return m.Weight
 }

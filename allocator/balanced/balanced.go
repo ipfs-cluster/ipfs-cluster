@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"sort"
 
-	logging "github.com/ipfs/go-log/v2"
 	api "github.com/ipfs-cluster/ipfs-cluster/api"
+	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
@@ -281,7 +281,7 @@ func (a *Allocator) Allocate(
 	// the types for all the peers. There cannot be a metric of one type
 	// for a peer that does not appear in the other types.
 	//
-	// Removing such occurences is done in allocate.go, before the
+	// Removing such occurrences is done in allocate.go, before the
 	// allocator is called.
 	//
 	// Otherwise, the sorting might be funny.

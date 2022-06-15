@@ -167,7 +167,7 @@ func ErrorOut(m string, a ...interface{}) {
 }
 
 // WaitForIPFS hangs until IPFS API becomes available or the given context is
-// cancelled.  The IPFS API location is determined by the default ipfshttp
+// canceled.  The IPFS API location is determined by the default ipfshttp
 // component configuration and can be overridden using environment variables
 // that affect that configuration.  Note that we have to do this in the blind,
 // since we want to wait for IPFS before we even fetch the IPFS component

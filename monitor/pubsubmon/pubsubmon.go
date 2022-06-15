@@ -129,7 +129,7 @@ func (mon *Monitor) logFromPubsub() {
 			return
 		default:
 			msg, err := mon.subscription.Next(ctx)
-			if err != nil { // context cancelled enters here
+			if err != nil { // context canceled enters here
 				continue
 			}
 
@@ -158,7 +158,7 @@ func (mon *Monitor) logFromPubsub() {
 				}
 			}
 
-			debug("recieved", metric)
+			debug("received", metric)
 
 			err = mon.LogMetric(ctx, metric)
 			if err != nil {

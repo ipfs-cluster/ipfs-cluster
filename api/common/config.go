@@ -28,7 +28,7 @@ const minMaxHeaderBytes = 4096
 const defaultMaxHeaderBytes = minMaxHeaderBytes
 
 // Config provides common API configuration values and allows to customize its
-// behaviour. It implements most of the config.ComponentConfig interface
+// behavior. It implements most of the config.ComponentConfig interface
 // (except the Default() and ConfigKey() methods). Config should be embedded
 // in a Config object that implements the missing methods and sets the
 // meta options.

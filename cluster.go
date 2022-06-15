@@ -261,7 +261,7 @@ func (c *Cluster) watchPinset() {
 	recoverTimer := time.NewTimer(0) // 0 so that it does an initial recover right away
 
 	// This prevents doing an StateSync while doing a RecoverAllLocal,
-	// which is intended behaviour as for very large pinsets
+	// which is intended behavior as for very large pinsets
 	for {
 		select {
 		case <-stateSyncTimer.C:
@@ -777,7 +777,7 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	logger.Info("shutting down Cluster")
 
 	// Cancel discovery service (this shutdowns announcing). Handling
-	// entries is cancelled along with the context below.
+	// entries is canceled along with the context below.
 	if c.discovery != nil {
 		c.discovery.Close()
 	}
@@ -1179,7 +1179,7 @@ func (c *Cluster) StateSync(ctx context.Context) error {
 // StatusAll returns the GlobalPinInfo for all tracked Cids in all peers on
 // the out channel. This is done by broacasting a StatusAll to all peers.  If
 // an error happens, it is returned. This method blocks until it finishes. The
-// operation can be aborted by cancelling the context.
+// operation can be aborted by canceling the context.
 func (c *Cluster) StatusAll(ctx context.Context, filter api.TrackerStatus, out chan<- api.GlobalPinInfo) error {
 	_, span := trace.StartSpan(ctx, "cluster/StatusAll")
 	defer span.End()
@@ -1249,7 +1249,7 @@ func (c *Cluster) localPinInfoOp(
 
 // RecoverAll triggers a RecoverAllLocal operation on all peers and returns
 // GlobalPinInfo objets for all recovered items. This method blocks until
-// finished. Operation can be aborted by cancelling the context.
+// finished. Operation can be aborted by canceling the context.
 func (c *Cluster) RecoverAll(ctx context.Context, out chan<- api.GlobalPinInfo) error {
 	_, span := trace.StartSpan(ctx, "cluster/RecoverAll")
 	defer span.End()
@@ -1310,7 +1310,7 @@ func (c *Cluster) RecoverLocal(ctx context.Context, h api.Cid) (api.PinInfo, err
 // are managed and their allocation, but does not indicate if the item is
 // successfully pinned. For that, use the Status*() methods.
 //
-// The operation can be aborted by cancelling the context. This methods blocks
+// The operation can be aborted by canceling the context. This methods blocks
 // until the operation has completed.
 func (c *Cluster) Pins(ctx context.Context, out chan<- api.Pin) error {
 	_, span := trace.StartSpan(ctx, "cluster/Pins")

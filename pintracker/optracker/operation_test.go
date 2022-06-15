@@ -39,12 +39,12 @@ func TestOperation(t *testing.T) {
 	}
 
 	if op.Cancelled() {
-		t.Error("should not be cancelled")
+		t.Error("should not be canceled")
 	}
 
 	op.Cancel()
 	if !op.Cancelled() {
-		t.Error("should be cancelled")
+		t.Error("should be canceled")
 	}
 
 	if op.ToTrackerStatus() != api.TrackerStatusUnpinning {

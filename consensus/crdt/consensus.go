@@ -320,7 +320,7 @@ func (css *Consensus) setup() {
 	css.readyCh <- struct{}{}
 }
 
-// Shutdown closes this component, cancelling the pubsub subscription and
+// Shutdown closes this component, canceling the pubsub subscription and
 // closing the datastore.
 func (css *Consensus) Shutdown(ctx context.Context) error {
 	css.shutdownLock.Lock()
@@ -335,7 +335,7 @@ func (css *Consensus) Shutdown(ctx context.Context) error {
 
 	css.cancel()
 
-	// Only close crdt after cancelling the context, otherwise
+	// Only close crdt after canceling the context, otherwise
 	// the pubsub broadcaster stays on and locks it.
 	if crdt := css.crdt; crdt != nil {
 		crdt.Close()
@@ -357,7 +357,7 @@ func (css *Consensus) SetClient(c *rpc.Client) {
 	css.rpcReady <- struct{}{}
 }
 
-// Ready returns a channel which is signalled when the component
+// Ready returns a channel which is signaled when the component
 // is ready to use.
 func (css *Consensus) Ready(ctx context.Context) <-chan struct{} {
 	return css.readyCh
@@ -491,7 +491,7 @@ func (css *Consensus) batchWorker() {
 			}
 
 			if err := css.batchingState.Commit(css.ctx); err != nil {
-				logger.Errorf("error commiting batch after reaching max size: %s", err)
+				logger.Errorf("error committing batch after reaching max size: %s", err)
 				continue
 			}
 			logger.Infof("batch commit (size): %d items", maxSize)
@@ -506,7 +506,7 @@ func (css *Consensus) batchWorker() {
 		case <-batchTimer.C:
 			// Commit
 			if err := css.batchingState.Commit(css.ctx); err != nil {
-				logger.Errorf("error commiting batch after reaching max age: %s", err)
+				logger.Errorf("error committing batch after reaching max age: %s", err)
 				continue
 			}
 			logger.Infof("batch commit (max age): %d items", batchCurSize)
@@ -575,7 +575,7 @@ func (css *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 }
 
 // State returns the cluster shared state. It will block until the consensus
-// component is ready, shutdown or the given context has been cancelled.
+// component is ready, shutdown or the given context has been canceled.
 func (css *Consensus) State(ctx context.Context) (state.ReadOnly, error) {
 	select {
 	case <-ctx.Done():
