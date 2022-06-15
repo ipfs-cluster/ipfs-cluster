@@ -6,7 +6,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"

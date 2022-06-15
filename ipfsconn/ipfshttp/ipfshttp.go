@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/observations"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
 
 	cid "github.com/ipfs/go-cid"
 	files "github.com/ipfs/go-ipfs-files"
@@ -1111,6 +1111,7 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	// Now we stream the blocks to ipfs. In case of error, we return
 	// directly, but leave a goroutine draining the channel until it is
 	// closed, which should be soon after returning.
+	stats.Record(ctx, observations.BlocksPut.M(1))
 	multiFileR := files.NewMultiFileReader(dir, true)
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 	body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)

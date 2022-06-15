@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/test"
 
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )

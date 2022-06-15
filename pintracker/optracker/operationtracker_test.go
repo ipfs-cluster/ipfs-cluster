@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/test"
 )
 
 func testOperationTracker(t *testing.T) *OperationTracker {

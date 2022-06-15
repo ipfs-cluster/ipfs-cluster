@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	types "github.com/ipfs/ipfs-cluster/api"
-	rest "github.com/ipfs/ipfs-cluster/api/rest"
-	test "github.com/ipfs/ipfs-cluster/test"
+	types "github.com/ipfs-cluster/ipfs-cluster/api"
+	rest "github.com/ipfs-cluster/ipfs-cluster/api/rest"
+	test "github.com/ipfs-cluster/ipfs-cluster/test"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 
 	files "github.com/ipfs/go-ipfs-files"
 	gopath "github.com/ipfs/go-path"

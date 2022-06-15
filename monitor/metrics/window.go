@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 )
 
 // DefaultWindowCap sets the amount of metrics to store per peer.

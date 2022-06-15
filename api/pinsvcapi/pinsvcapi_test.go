@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/common/test"
-	"github.com/ipfs/ipfs-cluster/api/pinsvcapi/pinsvc"
-	clustertest "github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api/common/test"
+	"github.com/ipfs-cluster/ipfs-cluster/api/pinsvcapi/pinsvc"
+	clustertest "github.com/ipfs-cluster/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	ma "github.com/multiformats/go-multiaddr"

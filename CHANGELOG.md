@@ -25,23 +25,23 @@ the cluster should upgrade.
 
 ##### Features
 
-* Pinqueue Informer: let pinning queue size inform allocation selection | [ipfs/ipfs-cluster#1649](https://github.com/ipfs/ipfs-cluster/issues/1649) | [ipfs/ipfs-cluster#1657](https://github.com/ipfs/ipfs-cluster/issues/1657)
-* Metrics: add additional Prometheus metrics | [ipfs/ipfs-cluster#1650](https://github.com/ipfs/ipfs-cluster/issues/1650) | [ipfs/ipfs-cluster#1659](https://github.com/ipfs/ipfs-cluster/issues/1659)
+* Pinqueue Informer: let pinning queue size inform allocation selection | [ipfs-cluster/ipfs-cluster#1649](https://github.com/ipfs-cluster/ipfs-cluster/issues/1649) | [ipfs-cluster/ipfs-cluster#1657](https://github.com/ipfs-cluster/ipfs-cluster/issues/1657)
+* Metrics: add additional Prometheus metrics | [ipfs-cluster/ipfs-cluster#1650](https://github.com/ipfs-cluster/ipfs-cluster/issues/1650) | [ipfs-cluster/ipfs-cluster#1659](https://github.com/ipfs-cluster/ipfs-cluster/issues/1659)
 
 ##### Bug fixes
 
-* Fix: state import can result in different CRDT-heads | [ipfs/ipfs-cluster#1547](https://github.com/ipfs/ipfs-cluster/issues/1547) | [ipfs/ipfs-cluster#1664](https://github.com/ipfs/ipfs-cluster/issues/1664)
-* Fix: `ipfs-cluster-ctl pin ls` hangs | [ipfs/ipfs-cluster#1663](https://github.com/ipfs/ipfs-cluster/issues/1663)
-* Fix: restapi client panics on retry | [ipfs/ipfs-cluster#1655](https://github.com/ipfs/ipfs-cluster/issues/1655) | [ipfs/ipfs-cluster#1662](https://github.com/ipfs/ipfs-cluster/issues/1662)
-* Fix: bad behavior while adding and ipfs is down | [ipfs/ipfs-cluster#1646](https://github.com/ipfs/ipfs-cluster/issues/1646)
-* Fix: `ipfscluster_pins` metric issues bad values | [ipfs/ipfs-cluster#1645](https://github.com/ipfs/ipfs-cluster/issues/1645)
+* Fix: state import can result in different CRDT-heads | [ipfs-cluster/ipfs-cluster#1547](https://github.com/ipfs-cluster/ipfs-cluster/issues/1547) | [ipfs-cluster/ipfs-cluster#1664](https://github.com/ipfs-cluster/ipfs-cluster/issues/1664)
+* Fix: `ipfs-cluster-ctl pin ls` hangs | [ipfs-cluster/ipfs-cluster#1663](https://github.com/ipfs-cluster/ipfs-cluster/issues/1663)
+* Fix: restapi client panics on retry | [ipfs-cluster/ipfs-cluster#1655](https://github.com/ipfs-cluster/ipfs-cluster/issues/1655) | [ipfs-cluster/ipfs-cluster#1662](https://github.com/ipfs-cluster/ipfs-cluster/issues/1662)
+* Fix: bad behavior while adding and ipfs is down | [ipfs-cluster/ipfs-cluster#1646](https://github.com/ipfs-cluster/ipfs-cluster/issues/1646)
+* Fix: `ipfscluster_pins` metric issues bad values | [ipfs-cluster/ipfs-cluster#1645](https://github.com/ipfs-cluster/ipfs-cluster/issues/1645)
 
 ##### Other changes
 
-* Dependency upgrades (includes go-libp2p v0.19.1) | [ipfs/ipfs-cluster#1660](https://github.com/ipfs/ipfs-cluster/issues/1660)
-* Build with go1.18 | [ipfs/ipfs-cluster#1661](https://github.com/ipfs/ipfs-cluster/issues/1661)
-* Do not issue freespace metrics when freespace is 0 | [ipfs/ipfs-cluster#1656](https://github.com/ipfs/ipfs-cluster/issues/1656)
-* Convert pinning/queued/error metrics go gauges | [ipfs/ipfs-cluster#1647](https://github.com/ipfs/ipfs-cluster/issues/1647) | [ipfs/ipfs-cluster#1651](https://github.com/ipfs/ipfs-cluster/issues/1651)
+* Dependency upgrades (includes go-libp2p v0.19.1) | [ipfs-cluster/ipfs-cluster#1660](https://github.com/ipfs-cluster/ipfs-cluster/issues/1660)
+* Build with go1.18 | [ipfs-cluster/ipfs-cluster#1661](https://github.com/ipfs-cluster/ipfs-cluster/issues/1661)
+* Do not issue freespace metrics when freespace is 0 | [ipfs-cluster/ipfs-cluster#1656](https://github.com/ipfs-cluster/ipfs-cluster/issues/1656)
+* Convert pinning/queued/error metrics go gauges | [ipfs-cluster/ipfs-cluster#1647](https://github.com/ipfs-cluster/ipfs-cluster/issues/1647) | [ipfs-cluster/ipfs-cluster#1651](https://github.com/ipfs-cluster/ipfs-cluster/issues/1651)
 
 #### Upgrading notices
 
@@ -169,25 +169,25 @@ The full list of additional features and bug fixes can be found below.
 
 ##### Features
 
-* restapi/adder: Add `?no-pin=true/false` option to `/add` endpoint | [ipfs/ipfs-cluster#1590](https://github.com/ipfs/ipfs-cluster/issues/1590)
-* cluster: add `pin_only_on_trusted_peers` config option | [ipfs/ipfs-cluster#1585](https://github.com/ipfs/ipfs-cluster/issues/1585) | [ipfs/ipfs-cluster#1591](https://github.com/ipfs/ipfs-cluster/issues/1591)
-* restapi/client: support querying status for multiple CIDs | [ipfs/ipfs-cluster#1564](https://github.com/ipfs/ipfs-cluster/issues/1564) | [ipfs/ipfs-cluster#1592](https://github.com/ipfs/ipfs-cluster/issues/1592)
-* Pinning Services API | [ipfs/ipfs-cluster#1213](https://github.com/ipfs/ipfs-cluster/issues/1213) | [ipfs/ipfs-cluster#1483](https://github.com/ipfs/ipfs-cluster/issues/1483)
-* restapi/adder: Return pin allocations on add output | [ipfs/ipfs-cluster#1598](https://github.com/ipfs/ipfs-cluster/issues/1598) | [ipfs/ipfs-cluster#1599](https://github.com/ipfs/ipfs-cluster/issues/1599)
-* RPC Streaming | [ipfs/ipfs-cluster#1602](https://github.com/ipfs/ipfs-cluster/issues/1602) | [ipfs/ipfs-cluster#1607](https://github.com/ipfs/ipfs-cluster/issues/1607) | [ipfs/ipfs-cluster#1611](https://github.com/ipfs/ipfs-cluster/issues/1611) | [ipfs/ipfs-cluster#810](https://github.com/ipfs/ipfs-cluster/issues/810) | [ipfs/ipfs-cluster#1437](https://github.com/ipfs/ipfs-cluster/issues/1437) | [ipfs/ipfs-cluster#1616](https://github.com/ipfs/ipfs-cluster/issues/1616) | [ipfs/ipfs-cluster#1621](https://github.com/ipfs/ipfs-cluster/issues/1621) | [ipfs/ipfs-cluster#1631](https://github.com/ipfs/ipfs-cluster/issues/1631) | [ipfs/ipfs-cluster#1632](https://github.com/ipfs/ipfs-cluster/issues/1632)
+* restapi/adder: Add `?no-pin=true/false` option to `/add` endpoint | [ipfs-cluster/ipfs-cluster#1590](https://github.com/ipfs-cluster/ipfs-cluster/issues/1590)
+* cluster: add `pin_only_on_trusted_peers` config option | [ipfs-cluster/ipfs-cluster#1585](https://github.com/ipfs-cluster/ipfs-cluster/issues/1585) | [ipfs-cluster/ipfs-cluster#1591](https://github.com/ipfs-cluster/ipfs-cluster/issues/1591)
+* restapi/client: support querying status for multiple CIDs | [ipfs-cluster/ipfs-cluster#1564](https://github.com/ipfs-cluster/ipfs-cluster/issues/1564) | [ipfs-cluster/ipfs-cluster#1592](https://github.com/ipfs-cluster/ipfs-cluster/issues/1592)
+* Pinning Services API | [ipfs-cluster/ipfs-cluster#1213](https://github.com/ipfs-cluster/ipfs-cluster/issues/1213) | [ipfs-cluster/ipfs-cluster#1483](https://github.com/ipfs-cluster/ipfs-cluster/issues/1483)
+* restapi/adder: Return pin allocations on add output | [ipfs-cluster/ipfs-cluster#1598](https://github.com/ipfs-cluster/ipfs-cluster/issues/1598) | [ipfs-cluster/ipfs-cluster#1599](https://github.com/ipfs-cluster/ipfs-cluster/issues/1599)
+* RPC Streaming | [ipfs-cluster/ipfs-cluster#1602](https://github.com/ipfs-cluster/ipfs-cluster/issues/1602) | [ipfs-cluster/ipfs-cluster#1607](https://github.com/ipfs-cluster/ipfs-cluster/issues/1607) | [ipfs-cluster/ipfs-cluster#1611](https://github.com/ipfs-cluster/ipfs-cluster/issues/1611) | [ipfs-cluster/ipfs-cluster#810](https://github.com/ipfs-cluster/ipfs-cluster/issues/810) | [ipfs-cluster/ipfs-cluster#1437](https://github.com/ipfs-cluster/ipfs-cluster/issues/1437) | [ipfs-cluster/ipfs-cluster#1616](https://github.com/ipfs-cluster/ipfs-cluster/issues/1616) | [ipfs-cluster/ipfs-cluster#1621](https://github.com/ipfs-cluster/ipfs-cluster/issues/1621) | [ipfs-cluster/ipfs-cluster#1631](https://github.com/ipfs-cluster/ipfs-cluster/issues/1631) | [ipfs-cluster/ipfs-cluster#1632](https://github.com/ipfs-cluster/ipfs-cluster/issues/1632)
 
 ##### Bug fixes
 
 ##### Other changes
 
-* pubsubmon: Remove accrual failure detection | [ipfs/ipfs-cluster#939](https://github.com/ipfs/ipfs-cluster/issues/939) | [ipfs/ipfs-cluster#1586](https://github.com/ipfs/ipfs-cluster/issues/1586) | [ipfs/ipfs-cluster#1589](https://github.com/ipfs/ipfs-cluster/issues/1589)
-* crdt: log with INFO when batches are committed | [ipfs/ipfs-cluster#1596](https://github.com/ipfs/ipfs-cluster/issues/1596)
-* Dependency upgrades | [ipfs/ipfs-cluster#1613](https://github.com/ipfs/ipfs-cluster/issues/1613) | [ipfs/ipfs-cluster#1617](https://github.com/ipfs/ipfs-cluster/issues/1617) | [ipfs/ipfs-cluster#1627](https://github.com/ipfs/ipfs-cluster/issues/1627)
-* Bump RPC protocol version | [ipfs/ipfs-cluster#1615](https://github.com/ipfs/ipfs-cluster/issues/1615)
-* Replace cid.Cid with api.Cid wrapper type | [ipfs/ipfs-cluster#1626](https://github.com/ipfs/ipfs-cluster/issues/1626)
-* Provide string JSON marshalling for PinType | [ipfs/ipfs-cluster#1628](https://github.com/ipfs/ipfs-cluster/issues/1628)
-* ipfs-cluster-ctl should exit with status 1 when an argument error happens | [ipfs/ipfs-cluster#1633](https://github.com/ipfs/ipfs-cluster/issues/1633) | [ipfs/ipfs-cluster#1634](https://github.com/ipfs/ipfs-cluster/issues/1634)
-* Revamp and fix basic exported metrics: pins, queued, pinning, pin errors | [ipfs/ipfs-cluster#1187](https://github.com/ipfs/ipfs-cluster/issues/1187) | [ipfs/ipfs-cluster#1470](https://github.com/ipfs/ipfs-cluster/issues/1470) | [ipfs/ipfs-cluster#1637](https://github.com/ipfs/ipfs-cluster/issues/1637)
+* pubsubmon: Remove accrual failure detection | [ipfs-cluster/ipfs-cluster#939](https://github.com/ipfs-cluster/ipfs-cluster/issues/939) | [ipfs-cluster/ipfs-cluster#1586](https://github.com/ipfs-cluster/ipfs-cluster/issues/1586) | [ipfs-cluster/ipfs-cluster#1589](https://github.com/ipfs-cluster/ipfs-cluster/issues/1589)
+* crdt: log with INFO when batches are committed | [ipfs-cluster/ipfs-cluster#1596](https://github.com/ipfs-cluster/ipfs-cluster/issues/1596)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1613](https://github.com/ipfs-cluster/ipfs-cluster/issues/1613) | [ipfs-cluster/ipfs-cluster#1617](https://github.com/ipfs-cluster/ipfs-cluster/issues/1617) | [ipfs-cluster/ipfs-cluster#1627](https://github.com/ipfs-cluster/ipfs-cluster/issues/1627)
+* Bump RPC protocol version | [ipfs-cluster/ipfs-cluster#1615](https://github.com/ipfs-cluster/ipfs-cluster/issues/1615)
+* Replace cid.Cid with api.Cid wrapper type | [ipfs-cluster/ipfs-cluster#1626](https://github.com/ipfs-cluster/ipfs-cluster/issues/1626)
+* Provide string JSON marshalling for PinType | [ipfs-cluster/ipfs-cluster#1628](https://github.com/ipfs-cluster/ipfs-cluster/issues/1628)
+* ipfs-cluster-ctl should exit with status 1 when an argument error happens | [ipfs-cluster/ipfs-cluster#1633](https://github.com/ipfs-cluster/ipfs-cluster/issues/1633) | [ipfs-cluster/ipfs-cluster#1634](https://github.com/ipfs-cluster/ipfs-cluster/issues/1634)
+* Revamp and fix basic exported metrics: pins, queued, pinning, pin errors | [ipfs-cluster/ipfs-cluster#1187](https://github.com/ipfs-cluster/ipfs-cluster/issues/1187) | [ipfs-cluster/ipfs-cluster#1470](https://github.com/ipfs-cluster/ipfs-cluster/issues/1470) | [ipfs-cluster/ipfs-cluster#1637](https://github.com/ipfs-cluster/ipfs-cluster/issues/1637)
 
 #### Upgrading notices
 
@@ -310,26 +310,26 @@ For the full list of feature and bugfixes, see list below.
 
 ##### Features
 
-* CRDT: update with RepairInterval option and more workers | [ipfs/ipfs-cluster#1561](https://github.com/ipfs/ipfs-cluster/issues/1561) | [ipfs/ipfs-cluster#1576](https://github.com/ipfs/ipfs-cluster/issues/1576)
-* Add `?cids` query parameter to /pins: limit status request to several CIDs | [ipfs/ipfs-cluster#1562](https://github.com/ipfs/ipfs-cluster/issues/1562)
-* Pintracker improvements | [ipfs/ipfs-cluster#1556](https://github.com/ipfs/ipfs-cluster/issues/1556) | [ipfs/ipfs-cluster#1554](https://github.com/ipfs/ipfs-cluster/issues/1554) | [ipfs/ipfs-cluster#1212](https://github.com/ipfs/ipfs-cluster/issues/1212)
+* CRDT: update with RepairInterval option and more workers | [ipfs-cluster/ipfs-cluster#1561](https://github.com/ipfs-cluster/ipfs-cluster/issues/1561) | [ipfs-cluster/ipfs-cluster#1576](https://github.com/ipfs-cluster/ipfs-cluster/issues/1576)
+* Add `?cids` query parameter to /pins: limit status request to several CIDs | [ipfs-cluster/ipfs-cluster#1562](https://github.com/ipfs-cluster/ipfs-cluster/issues/1562)
+* Pintracker improvements | [ipfs-cluster/ipfs-cluster#1556](https://github.com/ipfs-cluster/ipfs-cluster/issues/1556) | [ipfs-cluster/ipfs-cluster#1554](https://github.com/ipfs-cluster/ipfs-cluster/issues/1554) | [ipfs-cluster/ipfs-cluster#1212](https://github.com/ipfs-cluster/ipfs-cluster/issues/1212)
   * Status information shows peer ID of IPFS peer pinning the content
   * Peernames correctly set for remote peers on status objects
   * Pin names not set for in-flight pin status objects
 
 ##### Bug fixes
 
-* Fix: logging was too noisy | [ipfs/ipfs-cluster#1581](https://github.com/ipfs/ipfs-cluster/issues/1581) | [ipfs/ipfs-cluster#1579](https://github.com/ipfs/ipfs-cluster/issues/1579)
-* Remove warning message about informer metrics | [ipfs/ipfs-cluster#1543](https://github.com/ipfs/ipfs-cluster/issues/1543)
-* Fix: IPFS repo/stat gets hammered on busy peers | [ipfs/ipfs-cluster#1559](https://github.com/ipfs/ipfs-cluster/issues/1559)
-* Fix: faster shutdown by aborting state list on context cancellation | [ipfs/ipfs-cluster#1555](https://github.com/ipfs/ipfs-cluster/issues/1555)
+* Fix: logging was too noisy | [ipfs-cluster/ipfs-cluster#1581](https://github.com/ipfs-cluster/ipfs-cluster/issues/1581) | [ipfs-cluster/ipfs-cluster#1579](https://github.com/ipfs-cluster/ipfs-cluster/issues/1579)
+* Remove warning message about informer metrics | [ipfs-cluster/ipfs-cluster#1543](https://github.com/ipfs-cluster/ipfs-cluster/issues/1543)
+* Fix: IPFS repo/stat gets hammered on busy peers | [ipfs-cluster/ipfs-cluster#1559](https://github.com/ipfs-cluster/ipfs-cluster/issues/1559)
+* Fix: faster shutdown by aborting state list on context cancellation | [ipfs-cluster/ipfs-cluster#1555](https://github.com/ipfs-cluster/ipfs-cluster/issues/1555)
 
 ##### Other changes
 
-* Leave peername empty when unknown on status response | [ipfs/ipfs-cluster#1569](https://github.com/ipfs/ipfs-cluster/issues/1569) | [ipfs/ipfs-cluster#1575](https://github.com/ipfs/ipfs-cluster/issues/1575)
-* Fix comment in graphs.go | [ipfs/ipfs-cluster#1570](https://github.com/ipfs/ipfs-cluster/issues/1570) | [ipfs/ipfs-cluster#1574](https://github.com/ipfs/ipfs-cluster/issues/1574)
-* Make `/add?local=true` requests forcefully allocate to local peer | [ipfs/ipfs-cluster#1560](https://github.com/ipfs/ipfs-cluster/issues/1560)
-* Dependency upgrades | [ipfs/ipfs-cluster#1580](https://github.com/ipfs/ipfs-cluster/issues/1580)
+* Leave peername empty when unknown on status response | [ipfs-cluster/ipfs-cluster#1569](https://github.com/ipfs-cluster/ipfs-cluster/issues/1569) | [ipfs-cluster/ipfs-cluster#1575](https://github.com/ipfs-cluster/ipfs-cluster/issues/1575)
+* Fix comment in graphs.go | [ipfs-cluster/ipfs-cluster#1570](https://github.com/ipfs-cluster/ipfs-cluster/issues/1570) | [ipfs-cluster/ipfs-cluster#1574](https://github.com/ipfs-cluster/ipfs-cluster/issues/1574)
+* Make `/add?local=true` requests forcefully allocate to local peer | [ipfs-cluster/ipfs-cluster#1560](https://github.com/ipfs-cluster/ipfs-cluster/issues/1560)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1580](https://github.com/ipfs-cluster/ipfs-cluster/issues/1580)
 
 #### Upgrading notices
 
@@ -400,14 +400,14 @@ No new features.
 
 ##### Bug fixes
 
-* Improved pruning on crdt-sync | [ipfs/ipfs-cluster#1541](https://github.com/ipfs/ipfs-cluster/issues/1541)
-* Pintracker: avoid pin/ls for every item | [ipfs/ipfs-cluster#1538](https://github.com/ipfs/ipfs-cluster/issues/1538)
-* Pintracker: set unexpectedly_unpinned status correctly | [ipfs/ipfs-cluster#1537](https://github.com/ipfs/ipfs-cluster/issues/1537)
-* Tags informer: TTL should be default when not provided | [ipfs/ipfs-cluster#1519](https://github.com/ipfs/ipfs-cluster/issues/1519)
+* Improved pruning on crdt-sync | [ipfs-cluster/ipfs-cluster#1541](https://github.com/ipfs-cluster/ipfs-cluster/issues/1541)
+* Pintracker: avoid pin/ls for every item | [ipfs-cluster/ipfs-cluster#1538](https://github.com/ipfs-cluster/ipfs-cluster/issues/1538)
+* Pintracker: set unexpectedly_unpinned status correctly | [ipfs-cluster/ipfs-cluster#1537](https://github.com/ipfs-cluster/ipfs-cluster/issues/1537)
+* Tags informer: TTL should be default when not provided | [ipfs-cluster/ipfs-cluster#1519](https://github.com/ipfs-cluster/ipfs-cluster/issues/1519)
 
 ##### Other changes
 
-* ipfs-cluster-service: buffered i/o on state import/export | [ipfs/ipfs-cluster#1517](https://github.com/ipfs/ipfs-cluster/issues/1517)
+* ipfs-cluster-service: buffered i/o on state import/export | [ipfs-cluster/ipfs-cluster#1517](https://github.com/ipfs-cluster/ipfs-cluster/issues/1517)
 * Dependency upgrades, go-libp2p v0.17.0 | 1540
 
 #### Upgrading notices
@@ -461,18 +461,18 @@ property set.
 
 ##### Features
 
-* State import: allow replication factor and allocations overwrite | [ipfs/ipfs-cluster#1508](https://github.com/ipfs/ipfs-cluster/issues/1508)
+* State import: allow replication factor and allocations overwrite | [ipfs-cluster/ipfs-cluster#1508](https://github.com/ipfs-cluster/ipfs-cluster/issues/1508)
 
 ##### Bug fixes
 
-* Fix state deserialization | [ipfs/ipfs-cluster#1507](https://github.com/ipfs/ipfs-cluster/issues/1507)
-* Fix pintracker shutdown errors | [ipfs/ipfs-cluster#1510](https://github.com/ipfs/ipfs-cluster/issues/1510)
-* API: CORS pre-flight (OPTIONS) requests should bypass authentication | [ipfs/ipfs-cluster#1512](https://github.com/ipfs/ipfs-cluster/issues/1512) | [ipfs/ipfs-cluster#1513](https://github.com/ipfs/ipfs-cluster/issues/1513) | [ipfs/ipfs-cluster#1514](https://github.com/ipfs/ipfs-cluster/issues/1514)
-* Monitor: avoid sending invalid metrics | [ipfs/ipfs-cluster#1511](https://github.com/ipfs/ipfs-cluster/issues/1511)
+* Fix state deserialization | [ipfs-cluster/ipfs-cluster#1507](https://github.com/ipfs-cluster/ipfs-cluster/issues/1507)
+* Fix pintracker shutdown errors | [ipfs-cluster/ipfs-cluster#1510](https://github.com/ipfs-cluster/ipfs-cluster/issues/1510)
+* API: CORS pre-flight (OPTIONS) requests should bypass authentication | [ipfs-cluster/ipfs-cluster#1512](https://github.com/ipfs-cluster/ipfs-cluster/issues/1512) | [ipfs-cluster/ipfs-cluster#1513](https://github.com/ipfs-cluster/ipfs-cluster/issues/1513) | [ipfs-cluster/ipfs-cluster#1514](https://github.com/ipfs-cluster/ipfs-cluster/issues/1514)
+* Monitor: avoid sending invalid metrics | [ipfs-cluster/ipfs-cluster#1511](https://github.com/ipfs-cluster/ipfs-cluster/issues/1511)
 
 ##### Other changes
 
-* Performance improvements to state list and logging for large states | [ipfs/ipfs-cluster#1510](https://github.com/ipfs/ipfs-cluster/issues/1510)
+* Performance improvements to state list and logging for large states | [ipfs-cluster/ipfs-cluster#1510](https://github.com/ipfs-cluster/ipfs-cluster/issues/1510)
 
 #### Upgrading notices
 
@@ -530,20 +530,20 @@ configure these new features.
 
 ##### Features
 
-  * Tags informer and partition-based allocations | [ipfs/ipfs-cluster#159](https://github.com/ipfs/ipfs-cluster/issues/159) | [ipfs/ipfs-cluster#1468](https://github.com/ipfs/ipfs-cluster/issues/1468) | [ipfs/ipfs-cluster#1485](https://github.com/ipfs/ipfs-cluster/issues/1485)
-  * Add timestamps to pin objects | [ipfs/ipfs-cluster#1484](https://github.com/ipfs/ipfs-cluster/issues/1484) | [ipfs/ipfs-cluster#989](https://github.com/ipfs/ipfs-cluster/issues/989)
-  * Support priority pinning for recent pins with small number of retries | [ipfs/ipfs-cluster#1469](https://github.com/ipfs/ipfs-cluster/issues/1469) | [ipfs/ipfs-cluster#1490](https://github.com/ipfs/ipfs-cluster/issues/1490)
+  * Tags informer and partition-based allocations | [ipfs-cluster/ipfs-cluster#159](https://github.com/ipfs-cluster/ipfs-cluster/issues/159) | [ipfs-cluster/ipfs-cluster#1468](https://github.com/ipfs-cluster/ipfs-cluster/issues/1468) | [ipfs-cluster/ipfs-cluster#1485](https://github.com/ipfs-cluster/ipfs-cluster/issues/1485)
+  * Add timestamps to pin objects | [ipfs-cluster/ipfs-cluster#1484](https://github.com/ipfs-cluster/ipfs-cluster/issues/1484) | [ipfs-cluster/ipfs-cluster#989](https://github.com/ipfs-cluster/ipfs-cluster/issues/989)
+  * Support priority pinning for recent pins with small number of retries | [ipfs-cluster/ipfs-cluster#1469](https://github.com/ipfs-cluster/ipfs-cluster/issues/1469) | [ipfs-cluster/ipfs-cluster#1490](https://github.com/ipfs-cluster/ipfs-cluster/issues/1490)
 
 ##### Bug fixes
 
-  * Fix flaky adder test | [ipfs/ipfs-cluster#1461](https://github.com/ipfs/ipfs-cluster/issues/1461) | [ipfs/ipfs-cluster#1462](https://github.com/ipfs/ipfs-cluster/issues/1462)
+  * Fix flaky adder test | [ipfs-cluster/ipfs-cluster#1461](https://github.com/ipfs-cluster/ipfs-cluster/issues/1461) | [ipfs-cluster/ipfs-cluster#1462](https://github.com/ipfs-cluster/ipfs-cluster/issues/1462)
 
 ##### Other changes
 
-  * Refactor API to facilitate re-use of functionality | [ipfs/ipfs-cluster#1471](https://github.com/ipfs/ipfs-cluster/issues/1471)
-  * Move testing to Github Actions | [ipfs/ipfs-cluster#1486](https://github.com/ipfs/ipfs-cluster/issues/1486)
-  * Dependency upgrades (go-libp2p v0.16.0 etc.) | [ipfs/ipfs-cluster#1491](https://github.com/ipfs/ipfs-cluster/issues/1491) | [ipfs/ipfs-cluster#1501](https://github.com/ipfs/ipfs-cluster/issues/1501) | [ipfs/ipfs-cluster#1504](https://github.com/ipfs/ipfs-cluster/issues/1504)
-  * Improve `health metrics <metric>` output in ipfs-cluster-ctl | [ipfs/ipfs-cluster#1506](https://github.com/ipfs/ipfs-cluster/issues/1506)
+  * Refactor API to facilitate re-use of functionality | [ipfs-cluster/ipfs-cluster#1471](https://github.com/ipfs-cluster/ipfs-cluster/issues/1471)
+  * Move testing to Github Actions | [ipfs-cluster/ipfs-cluster#1486](https://github.com/ipfs-cluster/ipfs-cluster/issues/1486)
+  * Dependency upgrades (go-libp2p v0.16.0 etc.) | [ipfs-cluster/ipfs-cluster#1491](https://github.com/ipfs-cluster/ipfs-cluster/issues/1491) | [ipfs-cluster/ipfs-cluster#1501](https://github.com/ipfs-cluster/ipfs-cluster/issues/1501) | [ipfs-cluster/ipfs-cluster#1504](https://github.com/ipfs-cluster/ipfs-cluster/issues/1504)
+  * Improve `health metrics <metric>` output in ipfs-cluster-ctl | [ipfs-cluster/ipfs-cluster#1506](https://github.com/ipfs-cluster/ipfs-cluster/issues/1506)
 
 #### Upgrading notices
 
@@ -652,19 +652,19 @@ This release is fully compatible with the previous release.
 
 ##### Features
 
-* Improve support for pre-0.14.0 peers | [ipfs/ipfs-cluster#1409](https://github.com/ipfs/ipfs-cluster/issues/1409) | [ipfs/ipfs-cluster#1446](https://github.com/ipfs/ipfs-cluster/issues/1446)
-* Improve log-level handling | [ipfs/ipfs-cluster#1439](https://github.com/ipfs/ipfs-cluster/issues/1439)
-* ctl: --wait returns as soon as replication-factor-min is reached | [ipfs/ipfs-cluster#1427](https://github.com/ipfs/ipfs-cluster/issues/1427) | [ipfs/ipfs-cluster#1444](https://github.com/ipfs/ipfs-cluster/issues/1444)
+* Improve support for pre-0.14.0 peers | [ipfs-cluster/ipfs-cluster#1409](https://github.com/ipfs-cluster/ipfs-cluster/issues/1409) | [ipfs-cluster/ipfs-cluster#1446](https://github.com/ipfs-cluster/ipfs-cluster/issues/1446)
+* Improve log-level handling | [ipfs-cluster/ipfs-cluster#1439](https://github.com/ipfs-cluster/ipfs-cluster/issues/1439)
+* ctl: --wait returns as soon as replication-factor-min is reached | [ipfs-cluster/ipfs-cluster#1427](https://github.com/ipfs-cluster/ipfs-cluster/issues/1427) | [ipfs-cluster/ipfs-cluster#1444](https://github.com/ipfs-cluster/ipfs-cluster/issues/1444)
 
 ##### Bug fixes
 
-* Fix some data races in tests | [ipfs/ipfs-cluster#1428](https://github.com/ipfs/ipfs-cluster/issues/1428)
-* Do not block peer startup while waiting for RecoverAll | [ipfs/ipfs-cluster#1436](https://github.com/ipfs/ipfs-cluster/issues/1436) | [ipfs/ipfs-cluster#1438](https://github.com/ipfs/ipfs-cluster/issues/1438)
-* Use HTTP 307-redirects on restapi paths ending with "/" | [ipfs/ipfs-cluster#1415](https://github.com/ipfs/ipfs-cluster/issues/1415) | [ipfs/ipfs-cluster#1445](https://github.com/ipfs/ipfs-cluster/issues/1445)
+* Fix some data races in tests | [ipfs-cluster/ipfs-cluster#1428](https://github.com/ipfs-cluster/ipfs-cluster/issues/1428)
+* Do not block peer startup while waiting for RecoverAll | [ipfs-cluster/ipfs-cluster#1436](https://github.com/ipfs-cluster/ipfs-cluster/issues/1436) | [ipfs-cluster/ipfs-cluster#1438](https://github.com/ipfs-cluster/ipfs-cluster/issues/1438)
+* Use HTTP 307-redirects on restapi paths ending with "/" | [ipfs-cluster/ipfs-cluster#1415](https://github.com/ipfs-cluster/ipfs-cluster/issues/1415) | [ipfs-cluster/ipfs-cluster#1445](https://github.com/ipfs-cluster/ipfs-cluster/issues/1445)
 
 ##### Other changes
 
-* Dependency upgrades | [ipfs/ipfs-cluster#1451](https://github.com/ipfs/ipfs-cluster/issues/1451)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1451](https://github.com/ipfs-cluster/ipfs-cluster/issues/1451)
 
 #### Upgrading notices
 
@@ -738,7 +738,7 @@ items that do not require listing the full state.
 Finally, cluster pins now have an `origins` option, which allows submitters to
 provide hints for providers of the content. Cluster will instruct IPFS to
 connect to the `origins` of a pin before pinning. Note that for the moment
-[ipfs will keep connected to those peers permanently](https://github.com/ipfs/ipfs-cluster/issues/1376).
+[ipfs will keep connected to those peers permanently](https://github.com/ipfs-cluster/ipfs-cluster/issues/1376).
 
 Please read carefully through the notes below, as the release includes subtle
 changes in configuration, defaults and behaviours which may in some cases
@@ -748,28 +748,28 @@ affect you (although probably will not).
 
 ##### Features
 
-* Set disable_repinning to true by default, for new configurations | [ipfs/ipfs-cluster#1398](https://github.com/ipfs/ipfs-cluster/issues/1398)
-* Efficient status queries with filters | [ipfs/ipfs-cluster#1360](https://github.com/ipfs/ipfs-cluster/issues/1360) | [ipfs/ipfs-cluster#1377](https://github.com/ipfs/ipfs-cluster/issues/1377) | [ipfs/ipfs-cluster#1399](https://github.com/ipfs/ipfs-cluster/issues/1399)
-* User-provided pin "origins" | [ipfs/ipfs-cluster#1374](https://github.com/ipfs/ipfs-cluster/issues/1374) | [ipfs/ipfs-cluster#1375](https://github.com/ipfs/ipfs-cluster/issues/1375)
-* Provide darwin/arm64 binaries (Apple M1). Needs testing! | [ipfs/ipfs-cluster#1369](https://github.com/ipfs/ipfs-cluster/issues/1369)
-* Set the "size" field in the response when adding CARs when the archive contains a single unixfs file | [ipfs/ipfs-cluster#1362](https://github.com/ipfs/ipfs-cluster/issues/1362) | [ipfs/ipfs-cluster#1372](https://github.com/ipfs/ipfs-cluster/issues/1372)
-* Support a leveldb-datastore backend | [ipfs/ipfs-cluster#1364](https://github.com/ipfs/ipfs-cluster/issues/1364) | [ipfs/ipfs-cluster#1373](https://github.com/ipfs/ipfs-cluster/issues/1373)
-* Speed up pin/ls by not filtering when not needed | [ipfs/ipfs-cluster#1405](https://github.com/ipfs/ipfs-cluster/issues/1405)
+* Set disable_repinning to true by default, for new configurations | [ipfs-cluster/ipfs-cluster#1398](https://github.com/ipfs-cluster/ipfs-cluster/issues/1398)
+* Efficient status queries with filters | [ipfs-cluster/ipfs-cluster#1360](https://github.com/ipfs-cluster/ipfs-cluster/issues/1360) | [ipfs-cluster/ipfs-cluster#1377](https://github.com/ipfs-cluster/ipfs-cluster/issues/1377) | [ipfs-cluster/ipfs-cluster#1399](https://github.com/ipfs-cluster/ipfs-cluster/issues/1399)
+* User-provided pin "origins" | [ipfs-cluster/ipfs-cluster#1374](https://github.com/ipfs-cluster/ipfs-cluster/issues/1374) | [ipfs-cluster/ipfs-cluster#1375](https://github.com/ipfs-cluster/ipfs-cluster/issues/1375)
+* Provide darwin/arm64 binaries (Apple M1). Needs testing! | [ipfs-cluster/ipfs-cluster#1369](https://github.com/ipfs-cluster/ipfs-cluster/issues/1369)
+* Set the "size" field in the response when adding CARs when the archive contains a single unixfs file | [ipfs-cluster/ipfs-cluster#1362](https://github.com/ipfs-cluster/ipfs-cluster/issues/1362) | [ipfs-cluster/ipfs-cluster#1372](https://github.com/ipfs-cluster/ipfs-cluster/issues/1372)
+* Support a leveldb-datastore backend | [ipfs-cluster/ipfs-cluster#1364](https://github.com/ipfs-cluster/ipfs-cluster/issues/1364) | [ipfs-cluster/ipfs-cluster#1373](https://github.com/ipfs-cluster/ipfs-cluster/issues/1373)
+* Speed up pin/ls by not filtering when not needed | [ipfs-cluster/ipfs-cluster#1405](https://github.com/ipfs-cluster/ipfs-cluster/issues/1405)
 
 ##### Bug fixes
 
-* Badger datastore takes too much size | [ipfs/ipfs-cluster#1320](https://github.com/ipfs/ipfs-cluster/issues/1320) | [ipfs/ipfs-cluster#1370](https://github.com/ipfs/ipfs-cluster/issues/1370)
-* Fix: error-type responses from the IPFS proxy not understood by ipfs | [ipfs/ipfs-cluster#1366](https://github.com/ipfs/ipfs-cluster/issues/1366) | [ipfs/ipfs-cluster#1371](https://github.com/ipfs/ipfs-cluster/issues/1371)
-* Fix: adding with cid-version=1 does not automagically set raw-leaves | [ipfs/ipfs-cluster#1358](https://github.com/ipfs/ipfs-cluster/issues/1358) | [ipfs/ipfs-cluster#1359](https://github.com/ipfs/ipfs-cluster/issues/1359)
-* Tests: close datastore on test node shutdown | [ipfs/ipfs-cluster#1389](https://github.com/ipfs/ipfs-cluster/issues/1389)
-* Fix ipfs-cluster-ctl not using dns name when talking to remote https endpoints | [ipfs/ipfs-cluster#1403](https://github.com/ipfs/ipfs-cluster/issues/1403) | [ipfs/ipfs-cluster#1404](https://github.com/ipfs/ipfs-cluster/issues/1404)
+* Badger datastore takes too much size | [ipfs-cluster/ipfs-cluster#1320](https://github.com/ipfs-cluster/ipfs-cluster/issues/1320) | [ipfs-cluster/ipfs-cluster#1370](https://github.com/ipfs-cluster/ipfs-cluster/issues/1370)
+* Fix: error-type responses from the IPFS proxy not understood by ipfs | [ipfs-cluster/ipfs-cluster#1366](https://github.com/ipfs-cluster/ipfs-cluster/issues/1366) | [ipfs-cluster/ipfs-cluster#1371](https://github.com/ipfs-cluster/ipfs-cluster/issues/1371)
+* Fix: adding with cid-version=1 does not automagically set raw-leaves | [ipfs-cluster/ipfs-cluster#1358](https://github.com/ipfs-cluster/ipfs-cluster/issues/1358) | [ipfs-cluster/ipfs-cluster#1359](https://github.com/ipfs-cluster/ipfs-cluster/issues/1359)
+* Tests: close datastore on test node shutdown | [ipfs-cluster/ipfs-cluster#1389](https://github.com/ipfs-cluster/ipfs-cluster/issues/1389)
+* Fix ipfs-cluster-ctl not using dns name when talking to remote https endpoints | [ipfs-cluster/ipfs-cluster#1403](https://github.com/ipfs-cluster/ipfs-cluster/issues/1403) | [ipfs-cluster/ipfs-cluster#1404](https://github.com/ipfs-cluster/ipfs-cluster/issues/1404)
 
 
 ##### Other changes
 
-* Dependency upgrades | [ipfs/ipfs-cluster#1378](https://github.com/ipfs/ipfs-cluster/issues/1378) | [ipfs/ipfs-cluster#1395](https://github.com/ipfs/ipfs-cluster/issues/1395)
-* Update compose to use the latest go-ipfs | [ipfs/ipfs-cluster#1363](https://github.com/ipfs/ipfs-cluster/issues/1363)
-* Update IRC links to point to new Matrix channel | [ipfs/ipfs-cluster#1361](https://github.com/ipfs/ipfs-cluster/issues/1361)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1378](https://github.com/ipfs-cluster/ipfs-cluster/issues/1378) | [ipfs-cluster/ipfs-cluster#1395](https://github.com/ipfs-cluster/ipfs-cluster/issues/1395)
+* Update compose to use the latest go-ipfs | [ipfs-cluster/ipfs-cluster#1363](https://github.com/ipfs-cluster/ipfs-cluster/issues/1363)
+* Update IRC links to point to new Matrix channel | [ipfs-cluster/ipfs-cluster#1361](https://github.com/ipfs-cluster/ipfs-cluster/issues/1361)
 
 #### Upgrading notices
 
@@ -877,22 +877,22 @@ a certain size, both configurable.
 Additionally, improvements to timeout behaviours have been introduced.
 
 For more details, check the list below and the latest documentation on the
-[website](https://cluster.ipfs.io).
+[website](https://ipfscluster.io).
 
 #### List of changes
 
 ##### Features
 
-* Support adding CAR files | [ipfs/ipfs-cluster#1343](https://github.com/ipfs/ipfs-cluster/issues/1343)
-* CRDT batching support | [ipfs/ipfs-cluster#1008](https://github.com/ipfs/ipfs-cluster/issues/1008) | [ipfs/ipfs-cluster#1346](https://github.com/ipfs/ipfs-cluster/issues/1346) | [ipfs/ipfs-cluster#1356](https://github.com/ipfs/ipfs-cluster/issues/1356)
+* Support adding CAR files | [ipfs-cluster/ipfs-cluster#1343](https://github.com/ipfs-cluster/ipfs-cluster/issues/1343)
+* CRDT batching support | [ipfs-cluster/ipfs-cluster#1008](https://github.com/ipfs-cluster/ipfs-cluster/issues/1008) | [ipfs-cluster/ipfs-cluster#1346](https://github.com/ipfs-cluster/ipfs-cluster/issues/1346) | [ipfs-cluster/ipfs-cluster#1356](https://github.com/ipfs-cluster/ipfs-cluster/issues/1356)
 
 ##### Bug fixes
 
-* Improve timeouts and timeout faster when dialing | [ipfs/ipfs-cluster#1350](https://github.com/ipfs/ipfs-cluster/issues/1350) | [ipfs/ipfs-cluster#1351](https://github.com/ipfs/ipfs-cluster/issues/1351)
+* Improve timeouts and timeout faster when dialing | [ipfs-cluster/ipfs-cluster#1350](https://github.com/ipfs-cluster/ipfs-cluster/issues/1350) | [ipfs-cluster/ipfs-cluster#1351](https://github.com/ipfs-cluster/ipfs-cluster/issues/1351)
 
 ##### Other changes
 
-* Dependency upgrades | [ipfs/ipfs-cluster#1357](https://github.com/ipfs/ipfs-cluster/issues/1357)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1357](https://github.com/ipfs-cluster/ipfs-cluster/issues/1357)
 
 #### Upgrading notices
 
@@ -947,19 +947,19 @@ couple of small features. It is fully compatible with the previous release.
 
 ##### Features
 
-* Make mDNS failures non-fatal | [ipfs/ipfs-cluster#1193](https://github.com/ipfs/ipfs-cluster/issues/1193) | [ipfs/ipfs-cluster#1310](https://github.com/ipfs/ipfs-cluster/issues/1310)
-* Add `--wait` flag to `ipfs-cluster-ctl add` command | [ipfs/ipfs-cluster#1285](https://github.com/ipfs/ipfs-cluster/issues/1285) | [ipfs/ipfs-cluster#1301](https://github.com/ipfs/ipfs-cluster/issues/1301)
+* Make mDNS failures non-fatal | [ipfs-cluster/ipfs-cluster#1193](https://github.com/ipfs-cluster/ipfs-cluster/issues/1193) | [ipfs-cluster/ipfs-cluster#1310](https://github.com/ipfs-cluster/ipfs-cluster/issues/1310)
+* Add `--wait` flag to `ipfs-cluster-ctl add` command | [ipfs-cluster/ipfs-cluster#1285](https://github.com/ipfs-cluster/ipfs-cluster/issues/1285) | [ipfs-cluster/ipfs-cluster#1301](https://github.com/ipfs-cluster/ipfs-cluster/issues/1301)
 
 ##### Bug fixes
 
-* Stop using secio in REST API libp2p server and client | [ipfs/ipfs-cluster#1315](https://github.com/ipfs/ipfs-cluster/issues/1315) | [ipfs/ipfs-cluster#1316](https://github.com/ipfs/ipfs-cluster/issues/1316)
-* CID status wrongly reported as REMOTE | [ipfs/ipfs-cluster#1319](https://github.com/ipfs/ipfs-cluster/issues/1319) | [ipfs/ipfs-cluster#1331](https://github.com/ipfs/ipfs-cluster/issues/1331)
+* Stop using secio in REST API libp2p server and client | [ipfs-cluster/ipfs-cluster#1315](https://github.com/ipfs-cluster/ipfs-cluster/issues/1315) | [ipfs-cluster/ipfs-cluster#1316](https://github.com/ipfs-cluster/ipfs-cluster/issues/1316)
+* CID status wrongly reported as REMOTE | [ipfs-cluster/ipfs-cluster#1319](https://github.com/ipfs-cluster/ipfs-cluster/issues/1319) | [ipfs-cluster/ipfs-cluster#1331](https://github.com/ipfs-cluster/ipfs-cluster/issues/1331)
 
 
 ##### Other changes
 
-* Dependency upgrades | [ipfs/ipfs-cluster#1335](https://github.com/ipfs/ipfs-cluster/issues/1335)
-* Use cid.Cid as map keys in Pintracker | [ipfs/ipfs-cluster#1322](https://github.com/ipfs/ipfs-cluster/issues/1322)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1335](https://github.com/ipfs-cluster/ipfs-cluster/issues/1335)
+* Use cid.Cid as map keys in Pintracker | [ipfs-cluster/ipfs-cluster#1322](https://github.com/ipfs-cluster/ipfs-cluster/issues/1322)
 
 #### Upgrading notices
 
@@ -998,22 +998,22 @@ The new `noise` transport becomes the preferred option.
 
 ##### Features
 
-* Support for multiple architectures added to the Docker container | [ipfs/ipfs-cluster#1085](https://github.com/ipfs/ipfs-cluster/issues/1085) | [ipfs/ipfs-cluster#1196](https://github.com/ipfs/ipfs-cluster/issues/1196)
-* Add `--name` and `--expire` to `ipfs-cluster-ctl pin update` | [ipfs/ipfs-cluster#1184](https://github.com/ipfs/ipfs-cluster/issues/1184) | [ipfs/ipfs-cluster#1195](https://github.com/ipfs/ipfs-cluster/issues/1195)
-* Failover client integrated in `ipfs-cluster-ctl` | [ipfs/ipfs-cluster#1222](https://github.com/ipfs/ipfs-cluster/issues/1222) | [ipfs/ipfs-cluster#1250](https://github.com/ipfs/ipfs-cluster/issues/1250)
-* `ipfs-cluster-ctl health alerts` lists the last expired metrics seen by the peer | [ipfs/ipfs-cluster#165](https://github.com/ipfs/ipfs-cluster/issues/165) | [ipfs/ipfs-cluster#978](https://github.com/ipfs/ipfs-cluster/issues/978)
+* Support for multiple architectures added to the Docker container | [ipfs-cluster/ipfs-cluster#1085](https://github.com/ipfs-cluster/ipfs-cluster/issues/1085) | [ipfs-cluster/ipfs-cluster#1196](https://github.com/ipfs-cluster/ipfs-cluster/issues/1196)
+* Add `--name` and `--expire` to `ipfs-cluster-ctl pin update` | [ipfs-cluster/ipfs-cluster#1184](https://github.com/ipfs-cluster/ipfs-cluster/issues/1184) | [ipfs-cluster/ipfs-cluster#1195](https://github.com/ipfs-cluster/ipfs-cluster/issues/1195)
+* Failover client integrated in `ipfs-cluster-ctl` | [ipfs-cluster/ipfs-cluster#1222](https://github.com/ipfs-cluster/ipfs-cluster/issues/1222) | [ipfs-cluster/ipfs-cluster#1250](https://github.com/ipfs-cluster/ipfs-cluster/issues/1250)
+* `ipfs-cluster-ctl health alerts` lists the last expired metrics seen by the peer | [ipfs-cluster/ipfs-cluster#165](https://github.com/ipfs-cluster/ipfs-cluster/issues/165) | [ipfs-cluster/ipfs-cluster#978](https://github.com/ipfs-cluster/ipfs-cluster/issues/978)
 
 ##### Bug fixes
 
-* IPFS Proxy: pin progress objects wrongly includes non empty `Hash` key | [ipfs/ipfs-cluster#1286](https://github.com/ipfs/ipfs-cluster/issues/1286) | [ipfs/ipfs-cluster#1287](https://github.com/ipfs/ipfs-cluster/issues/1287)
-* CRDT: Fix pubsub peer validation check | [ipfs/ipfs-cluster#1288](https://github.com/ipfs/ipfs-cluster/issues/1288)
+* IPFS Proxy: pin progress objects wrongly includes non empty `Hash` key | [ipfs-cluster/ipfs-cluster#1286](https://github.com/ipfs-cluster/ipfs-cluster/issues/1286) | [ipfs-cluster/ipfs-cluster#1287](https://github.com/ipfs-cluster/ipfs-cluster/issues/1287)
+* CRDT: Fix pubsub peer validation check | [ipfs-cluster/ipfs-cluster#1288](https://github.com/ipfs-cluster/ipfs-cluster/issues/1288)
 
 ##### Other changes
 
-* Typos | [ipfs/ipfs-cluster#1181](https://github.com/ipfs/ipfs-cluster/issues/1181) | [ipfs/ipfs-cluster#1183](https://github.com/ipfs/ipfs-cluster/issues/1183)
-* Reduce default pin_timeout to 2 minutes | [ipfs/ipfs-cluster#1160](https://github.com/ipfs/ipfs-cluster/issues/1160)
-* Dependency upgrades | [ipfs/ipfs-cluster#1125](https://github.com/ipfs/ipfs-cluster/issues/1125) | [ipfs/ipfs-cluster#1238](https://github.com/ipfs/ipfs-cluster/issues/1238)
-* Remove `secio` security transport | [ipfs/ipfs-cluster#1214](https://github.com/ipfs/ipfs-cluster/issues/1214) | [ipfs/ipfs-cluster#1227](https://github.com/ipfs/ipfs-cluster/issues/1227)
+* Typos | [ipfs-cluster/ipfs-cluster#1181](https://github.com/ipfs-cluster/ipfs-cluster/issues/1181) | [ipfs-cluster/ipfs-cluster#1183](https://github.com/ipfs-cluster/ipfs-cluster/issues/1183)
+* Reduce default pin_timeout to 2 minutes | [ipfs-cluster/ipfs-cluster#1160](https://github.com/ipfs-cluster/ipfs-cluster/issues/1160)
+* Dependency upgrades | [ipfs-cluster/ipfs-cluster#1125](https://github.com/ipfs-cluster/ipfs-cluster/issues/1125) | [ipfs-cluster/ipfs-cluster#1238](https://github.com/ipfs-cluster/ipfs-cluster/issues/1238)
+* Remove `secio` security transport | [ipfs-cluster/ipfs-cluster#1214](https://github.com/ipfs-cluster/ipfs-cluster/issues/1214) | [ipfs-cluster/ipfs-cluster#1227](https://github.com/ipfs-cluster/ipfs-cluster/issues/1227)
 
 #### Upgrading notices
 
@@ -1065,33 +1065,33 @@ as possible for a swifter experience with IPFS Cluster.
 
 ##### Features
 
-* Support multiple listen interfaces | [ipfs/ipfs-cluster#1000](https://github.com/ipfs/ipfs-cluster/issues/1000) | [ipfs/ipfs-cluster#1010](https://github.com/ipfs/ipfs-cluster/issues/1010) | [ipfs/ipfs-cluster#1002](https://github.com/ipfs/ipfs-cluster/issues/1002)
-* Show expiration information in `ipfs-cluster-ctl pin ls` | [ipfs/ipfs-cluster#998](https://github.com/ipfs/ipfs-cluster/issues/998) | [ipfs/ipfs-cluster#1024](https://github.com/ipfs/ipfs-cluster/issues/1024) | [ipfs/ipfs-cluster#1066](https://github.com/ipfs/ipfs-cluster/issues/1066)
-* Show pin names in `ipfs-cluster-ctl status` (and API endpoint) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
-* Allow updating expiration when doing `pin update` | [ipfs/ipfs-cluster#996](https://github.com/ipfs/ipfs-cluster/issues/996) | [ipfs/ipfs-cluster#1065](https://github.com/ipfs/ipfs-cluster/issues/1065) | [ipfs/ipfs-cluster#1013](https://github.com/ipfs/ipfs-cluster/issues/1013)
-* Add "direct" pin mode. Cluster supports direct pins | [ipfs/ipfs-cluster#1009](https://github.com/ipfs/ipfs-cluster/issues/1009) | [ipfs/ipfs-cluster#1083](https://github.com/ipfs/ipfs-cluster/issues/1083)
-* Better badger defaults for less memory usage | [ipfs/ipfs-cluster#1027](https://github.com/ipfs/ipfs-cluster/issues/1027)
-* Print configuration (without sensitive values) when enabling debug for `ipfs-cluster-service` | [ipfs/ipfs-cluster#937](https://github.com/ipfs/ipfs-cluster/issues/937) | [ipfs/ipfs-cluster#959](https://github.com/ipfs/ipfs-cluster/issues/959)
-* `ipfs-cluster-follow <cluster> list` works fully offline (without needing IPFS to run) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
+* Support multiple listen interfaces | [ipfs-cluster/ipfs-cluster#1000](https://github.com/ipfs-cluster/ipfs-cluster/issues/1000) | [ipfs-cluster/ipfs-cluster#1010](https://github.com/ipfs-cluster/ipfs-cluster/issues/1010) | [ipfs-cluster/ipfs-cluster#1002](https://github.com/ipfs-cluster/ipfs-cluster/issues/1002)
+* Show expiration information in `ipfs-cluster-ctl pin ls` | [ipfs-cluster/ipfs-cluster#998](https://github.com/ipfs-cluster/ipfs-cluster/issues/998) | [ipfs-cluster/ipfs-cluster#1024](https://github.com/ipfs-cluster/ipfs-cluster/issues/1024) | [ipfs-cluster/ipfs-cluster#1066](https://github.com/ipfs-cluster/ipfs-cluster/issues/1066)
+* Show pin names in `ipfs-cluster-ctl status` (and API endpoint) | [ipfs-cluster/ipfs-cluster#1129](https://github.com/ipfs-cluster/ipfs-cluster/issues/1129)
+* Allow updating expiration when doing `pin update` | [ipfs-cluster/ipfs-cluster#996](https://github.com/ipfs-cluster/ipfs-cluster/issues/996) | [ipfs-cluster/ipfs-cluster#1065](https://github.com/ipfs-cluster/ipfs-cluster/issues/1065) | [ipfs-cluster/ipfs-cluster#1013](https://github.com/ipfs-cluster/ipfs-cluster/issues/1013)
+* Add "direct" pin mode. Cluster supports direct pins | [ipfs-cluster/ipfs-cluster#1009](https://github.com/ipfs-cluster/ipfs-cluster/issues/1009) | [ipfs-cluster/ipfs-cluster#1083](https://github.com/ipfs-cluster/ipfs-cluster/issues/1083)
+* Better badger defaults for less memory usage | [ipfs-cluster/ipfs-cluster#1027](https://github.com/ipfs-cluster/ipfs-cluster/issues/1027)
+* Print configuration (without sensitive values) when enabling debug for `ipfs-cluster-service` | [ipfs-cluster/ipfs-cluster#937](https://github.com/ipfs-cluster/ipfs-cluster/issues/937) | [ipfs-cluster/ipfs-cluster#959](https://github.com/ipfs-cluster/ipfs-cluster/issues/959)
+* `ipfs-cluster-follow <cluster> list` works fully offline (without needing IPFS to run) | [ipfs-cluster/ipfs-cluster#1129](https://github.com/ipfs-cluster/ipfs-cluster/issues/1129)
 
 ##### Bug fixes
 
-* Fix adding when using CidV1 | [ipfs/ipfs-cluster#1016](https://github.com/ipfs/ipfs-cluster/issues/1016) | [ipfs/ipfs-cluster#1006](https://github.com/ipfs/ipfs-cluster/issues/1006)
-* Fix too many requests error on `ipfs-cluster-follow <cluster> list` | [ipfs/ipfs-cluster#1013](https://github.com/ipfs/ipfs-cluster/issues/1013) | [ipfs/ipfs-cluster#1129](https://github.com/ipfs/ipfs-cluster/issues/1129)
-* Fix repinning not working reliably on collaborative clusters with replication factors set | [ipfs/ipfs-cluster#1064](https://github.com/ipfs/ipfs-cluster/issues/1064) | [ipfs/ipfs-cluster#1127](https://github.com/ipfs/ipfs-cluster/issues/1127)
-* Fix underflow in repo size metric | [ipfs/ipfs-cluster#1120](https://github.com/ipfs/ipfs-cluster/issues/1120) | [ipfs/ipfs-cluster#1121](https://github.com/ipfs/ipfs-cluster/issues/1121)
-* Fix adding keeps going if all BlockPut failed | [ipfs/ipfs-cluster#1131](https://github.com/ipfs/ipfs-cluster/issues/1131)
+* Fix adding when using CidV1 | [ipfs-cluster/ipfs-cluster#1016](https://github.com/ipfs-cluster/ipfs-cluster/issues/1016) | [ipfs-cluster/ipfs-cluster#1006](https://github.com/ipfs-cluster/ipfs-cluster/issues/1006)
+* Fix too many requests error on `ipfs-cluster-follow <cluster> list` | [ipfs-cluster/ipfs-cluster#1013](https://github.com/ipfs-cluster/ipfs-cluster/issues/1013) | [ipfs-cluster/ipfs-cluster#1129](https://github.com/ipfs-cluster/ipfs-cluster/issues/1129)
+* Fix repinning not working reliably on collaborative clusters with replication factors set | [ipfs-cluster/ipfs-cluster#1064](https://github.com/ipfs-cluster/ipfs-cluster/issues/1064) | [ipfs-cluster/ipfs-cluster#1127](https://github.com/ipfs-cluster/ipfs-cluster/issues/1127)
+* Fix underflow in repo size metric | [ipfs-cluster/ipfs-cluster#1120](https://github.com/ipfs-cluster/ipfs-cluster/issues/1120) | [ipfs-cluster/ipfs-cluster#1121](https://github.com/ipfs-cluster/ipfs-cluster/issues/1121)
+* Fix adding keeps going if all BlockPut failed | [ipfs-cluster/ipfs-cluster#1131](https://github.com/ipfs-cluster/ipfs-cluster/issues/1131)
 
 ##### Other changes
 
-* Update license files | [ipfs/ipfs-cluster#1014](https://github.com/ipfs/ipfs-cluster/issues/1014)
-* Fix typos | [ipfs/ipfs-cluster#999](https://github.com/ipfs/ipfs-cluster/issues/999) | [ipfs/ipfs-cluster#1001](https://github.com/ipfs/ipfs-cluster/issues/1001) | [ipfs/ipfs-cluster#1075](https://github.com/ipfs/ipfs-cluster/issues/1075)
-* Lots of dependency upgrades | [ipfs/ipfs-cluster#1020](https://github.com/ipfs/ipfs-cluster/issues/1020) | [ipfs/ipfs-cluster#1051](https://github.com/ipfs/ipfs-cluster/issues/1051) | [ipfs/ipfs-cluster#1073](https://github.com/ipfs/ipfs-cluster/issues/1073) | [ipfs/ipfs-cluster#1074](https://github.com/ipfs/ipfs-cluster/issues/1074)
-* Adjust codecov thresholds | [ipfs/ipfs-cluster#1022](https://github.com/ipfs/ipfs-cluster/issues/1022)
-* Fix all staticcheck warnings | [ipfs/ipfs-cluster#1071](https://github.com/ipfs/ipfs-cluster/issues/1071) | [ipfs/ipfs-cluster#1128](https://github.com/ipfs/ipfs-cluster/issues/1128)
-* Detach RPC protocol version from Cluster releases | [ipfs/ipfs-cluster#1093](https://github.com/ipfs/ipfs-cluster/issues/1093)
-* Trim paths on Makefile build command | [ipfs/ipfs-cluster#1012](https://github.com/ipfs/ipfs-cluster/issues/1012) | [ipfs/ipfs-cluster#1015](https://github.com/ipfs/ipfs-cluster/issues/1015)
-* Add contexts to HTTP requests in the client | [ipfs/ipfs-cluster#1019](https://github.com/ipfs/ipfs-cluster/issues/1019)
+* Update license files | [ipfs-cluster/ipfs-cluster#1014](https://github.com/ipfs-cluster/ipfs-cluster/issues/1014)
+* Fix typos | [ipfs-cluster/ipfs-cluster#999](https://github.com/ipfs-cluster/ipfs-cluster/issues/999) | [ipfs-cluster/ipfs-cluster#1001](https://github.com/ipfs-cluster/ipfs-cluster/issues/1001) | [ipfs-cluster/ipfs-cluster#1075](https://github.com/ipfs-cluster/ipfs-cluster/issues/1075)
+* Lots of dependency upgrades | [ipfs-cluster/ipfs-cluster#1020](https://github.com/ipfs-cluster/ipfs-cluster/issues/1020) | [ipfs-cluster/ipfs-cluster#1051](https://github.com/ipfs-cluster/ipfs-cluster/issues/1051) | [ipfs-cluster/ipfs-cluster#1073](https://github.com/ipfs-cluster/ipfs-cluster/issues/1073) | [ipfs-cluster/ipfs-cluster#1074](https://github.com/ipfs-cluster/ipfs-cluster/issues/1074)
+* Adjust codecov thresholds | [ipfs-cluster/ipfs-cluster#1022](https://github.com/ipfs-cluster/ipfs-cluster/issues/1022)
+* Fix all staticcheck warnings | [ipfs-cluster/ipfs-cluster#1071](https://github.com/ipfs-cluster/ipfs-cluster/issues/1071) | [ipfs-cluster/ipfs-cluster#1128](https://github.com/ipfs-cluster/ipfs-cluster/issues/1128)
+* Detach RPC protocol version from Cluster releases | [ipfs-cluster/ipfs-cluster#1093](https://github.com/ipfs-cluster/ipfs-cluster/issues/1093)
+* Trim paths on Makefile build command | [ipfs-cluster/ipfs-cluster#1012](https://github.com/ipfs-cluster/ipfs-cluster/issues/1012) | [ipfs-cluster/ipfs-cluster#1015](https://github.com/ipfs-cluster/ipfs-cluster/issues/1015)
+* Add contexts to HTTP requests in the client | [ipfs-cluster/ipfs-cluster#1019](https://github.com/ipfs-cluster/ipfs-cluster/issues/1019)
 
 
 #### Upgrading notices
@@ -1159,9 +1159,9 @@ IPFS Cluster v0.12.1 is a maintenance release fixing issues on `ipfs-cluster-fol
 
 ##### Bug fixes
 
-* follow: the `info` command panics when ipfs is offline | [ipfs/ipfs-cluster#991](https://github.com/ipfs/ipfs-cluster/issues/991) | [ipfs/ipfs-cluster#993](https://github.com/ipfs/ipfs-cluster/issues/993)
-* follow: the gateway url is not set on Run&Init command | [ipfs/ipfs-cluster#992](https://github.com/ipfs/ipfs-cluster/issues/992) | [ipfs/ipfs-cluster#993](https://github.com/ipfs/ipfs-cluster/issues/993)
-* follow: disallow trusted peers for RepoGCLocal operation | [ipfs/ipfs-cluster#993](https://github.com/ipfs/ipfs-cluster/issues/993)
+* follow: the `info` command panics when ipfs is offline | [ipfs-cluster/ipfs-cluster#991](https://github.com/ipfs-cluster/ipfs-cluster/issues/991) | [ipfs-cluster/ipfs-cluster#993](https://github.com/ipfs-cluster/ipfs-cluster/issues/993)
+* follow: the gateway url is not set on Run&Init command | [ipfs-cluster/ipfs-cluster#992](https://github.com/ipfs-cluster/ipfs-cluster/issues/992) | [ipfs-cluster/ipfs-cluster#993](https://github.com/ipfs-cluster/ipfs-cluster/issues/993)
+* follow: disallow trusted peers for RepoGCLocal operation | [ipfs-cluster/ipfs-cluster#993](https://github.com/ipfs-cluster/ipfs-cluster/issues/993)
 
 ---
 
@@ -1186,45 +1186,45 @@ NAT-traversal and connectivity etc.
 Users planning to setup public collaborative clusters should upgrade to this
 release, which improves the user experience and comes with documentation on
 how to setup and join these clusters
-(https://cluster.ipfs.io/documentation/collaborative).
+(https://ipfscluster.io/documentation/collaborative).
 
 
 #### List of changes
 
 ##### Features
 
-* cluster: `--local` flag for add: adds only to the local peer instead of multiple destinations | [ipfs/ipfs-cluster#848](https://github.com/ipfs/ipfs-cluster/issues/848) | [ipfs/ipfs-cluster#907](https://github.com/ipfs/ipfs-cluster/issues/907)
+* cluster: `--local` flag for add: adds only to the local peer instead of multiple destinations | [ipfs-cluster/ipfs-cluster#848](https://github.com/ipfs-cluster/ipfs-cluster/issues/848) | [ipfs-cluster/ipfs-cluster#907](https://github.com/ipfs-cluster/ipfs-cluster/issues/907)
 * cluster: `RecoverAll` operation can trigger recover operation in all peers.
-* ipfsproxy: log HTTP requests | [ipfs/ipfs-cluster#574](https://github.com/ipfs/ipfs-cluster/issues/574) | [ipfs/ipfs-cluster#915](https://github.com/ipfs/ipfs-cluster/issues/915)
-* api: `health/metrics` returns list of available metrics | [ipfs/ipfs-cluster#374](https://github.com/ipfs/ipfs-cluster/issues/374) | [ipfs/ipfs-cluster#924](https://github.com/ipfs/ipfs-cluster/issues/924)
-* service: `init --randomports` sets random, unused ports on initialization | [ipfs/ipfs-cluster#794](https://github.com/ipfs/ipfs-cluster/issues/794) | [ipfs/ipfs-cluster#926](https://github.com/ipfs/ipfs-cluster/issues/926)
-* cluster: support pin expiration | [ipfs/ipfs-cluster#481](https://github.com/ipfs/ipfs-cluster/issues/481) | [ipfs/ipfs-cluster#923](https://github.com/ipfs/ipfs-cluster/issues/923)
-* cluster: quic, autorelay, autonat, TLS handshake support | [ipfs/ipfs-cluster#614](https://github.com/ipfs/ipfs-cluster/issues/614) | [ipfs/ipfs-cluster#932](https://github.com/ipfs/ipfs-cluster/issues/932) | [ipfs/ipfs-cluster#973](https://github.com/ipfs/ipfs-cluster/issues/973) | [ipfs/ipfs-cluster#975](https://github.com/ipfs/ipfs-cluster/issues/975)
-* cluster: `health/graph` improvements | [ipfs/ipfs-cluster#800](https://github.com/ipfs/ipfs-cluster/issues/800) | [ipfs/ipfs-cluster#925](https://github.com/ipfs/ipfs-cluster/issues/925) | [ipfs/ipfs-cluster#954](https://github.com/ipfs/ipfs-cluster/issues/954)
-* cluster: `ipfs-cluster-ctl ipfs gc` triggers GC on cluster peers | [ipfs/ipfs-cluster#628](https://github.com/ipfs/ipfs-cluster/issues/628) | [ipfs/ipfs-cluster#777](https://github.com/ipfs/ipfs-cluster/issues/777) | [ipfs/ipfs-cluster#739](https://github.com/ipfs/ipfs-cluster/issues/739) | [ipfs/ipfs-cluster#945](https://github.com/ipfs/ipfs-cluster/issues/945) | [ipfs/ipfs-cluster#961](https://github.com/ipfs/ipfs-cluster/issues/961)
-* cluster: advertise external addresses as soon as known | [ipfs/ipfs-cluster#949](https://github.com/ipfs/ipfs-cluster/issues/949) | [ipfs/ipfs-cluster#950](https://github.com/ipfs/ipfs-cluster/issues/950)
-* cluster: skip contacting remote-allocations (peers) for recover/status operations | [ipfs/ipfs-cluster#935](https://github.com/ipfs/ipfs-cluster/issues/935) | [ipfs/ipfs-cluster#947](https://github.com/ipfs/ipfs-cluster/issues/947)
-* restapi: support listening on a unix socket | [ipfs/ipfs-cluster#969](https://github.com/ipfs/ipfs-cluster/issues/969)
-* config: support `peer_addresses` | [ipfs/ipfs-cluster#791](https://github.com/ipfs/ipfs-cluster/issues/791)
-* pintracker: remove `mappintracker`. Upgrade `stateless` for prime-time | [ipfs/ipfs-cluster#944](https://github.com/ipfs/ipfs-cluster/issues/944) | [ipfs/ipfs-cluster#929](https://github.com/ipfs/ipfs-cluster/issues/929)
-* service: `--loglevel` supports specifying levels for multiple components | [ipfs/ipfs-cluster#938](https://github.com/ipfs/ipfs-cluster/issues/938) | [ipfs/ipfs-cluster#960](https://github.com/ipfs/ipfs-cluster/issues/960)
-* ipfs-cluster-follow: a new CLI tool to run follower cluster peers | [ipfs/ipfs-cluster#976](https://github.com/ipfs/ipfs-cluster/issues/976)
+* ipfsproxy: log HTTP requests | [ipfs-cluster/ipfs-cluster#574](https://github.com/ipfs-cluster/ipfs-cluster/issues/574) | [ipfs-cluster/ipfs-cluster#915](https://github.com/ipfs-cluster/ipfs-cluster/issues/915)
+* api: `health/metrics` returns list of available metrics | [ipfs-cluster/ipfs-cluster#374](https://github.com/ipfs-cluster/ipfs-cluster/issues/374) | [ipfs-cluster/ipfs-cluster#924](https://github.com/ipfs-cluster/ipfs-cluster/issues/924)
+* service: `init --randomports` sets random, unused ports on initialization | [ipfs-cluster/ipfs-cluster#794](https://github.com/ipfs-cluster/ipfs-cluster/issues/794) | [ipfs-cluster/ipfs-cluster#926](https://github.com/ipfs-cluster/ipfs-cluster/issues/926)
+* cluster: support pin expiration | [ipfs-cluster/ipfs-cluster#481](https://github.com/ipfs-cluster/ipfs-cluster/issues/481) | [ipfs-cluster/ipfs-cluster#923](https://github.com/ipfs-cluster/ipfs-cluster/issues/923)
+* cluster: quic, autorelay, autonat, TLS handshake support | [ipfs-cluster/ipfs-cluster#614](https://github.com/ipfs-cluster/ipfs-cluster/issues/614) | [ipfs-cluster/ipfs-cluster#932](https://github.com/ipfs-cluster/ipfs-cluster/issues/932) | [ipfs-cluster/ipfs-cluster#973](https://github.com/ipfs-cluster/ipfs-cluster/issues/973) | [ipfs-cluster/ipfs-cluster#975](https://github.com/ipfs-cluster/ipfs-cluster/issues/975)
+* cluster: `health/graph` improvements | [ipfs-cluster/ipfs-cluster#800](https://github.com/ipfs-cluster/ipfs-cluster/issues/800) | [ipfs-cluster/ipfs-cluster#925](https://github.com/ipfs-cluster/ipfs-cluster/issues/925) | [ipfs-cluster/ipfs-cluster#954](https://github.com/ipfs-cluster/ipfs-cluster/issues/954)
+* cluster: `ipfs-cluster-ctl ipfs gc` triggers GC on cluster peers | [ipfs-cluster/ipfs-cluster#628](https://github.com/ipfs-cluster/ipfs-cluster/issues/628) | [ipfs-cluster/ipfs-cluster#777](https://github.com/ipfs-cluster/ipfs-cluster/issues/777) | [ipfs-cluster/ipfs-cluster#739](https://github.com/ipfs-cluster/ipfs-cluster/issues/739) | [ipfs-cluster/ipfs-cluster#945](https://github.com/ipfs-cluster/ipfs-cluster/issues/945) | [ipfs-cluster/ipfs-cluster#961](https://github.com/ipfs-cluster/ipfs-cluster/issues/961)
+* cluster: advertise external addresses as soon as known | [ipfs-cluster/ipfs-cluster#949](https://github.com/ipfs-cluster/ipfs-cluster/issues/949) | [ipfs-cluster/ipfs-cluster#950](https://github.com/ipfs-cluster/ipfs-cluster/issues/950)
+* cluster: skip contacting remote-allocations (peers) for recover/status operations | [ipfs-cluster/ipfs-cluster#935](https://github.com/ipfs-cluster/ipfs-cluster/issues/935) | [ipfs-cluster/ipfs-cluster#947](https://github.com/ipfs-cluster/ipfs-cluster/issues/947)
+* restapi: support listening on a unix socket | [ipfs-cluster/ipfs-cluster#969](https://github.com/ipfs-cluster/ipfs-cluster/issues/969)
+* config: support `peer_addresses` | [ipfs-cluster/ipfs-cluster#791](https://github.com/ipfs-cluster/ipfs-cluster/issues/791)
+* pintracker: remove `mappintracker`. Upgrade `stateless` for prime-time | [ipfs-cluster/ipfs-cluster#944](https://github.com/ipfs-cluster/ipfs-cluster/issues/944) | [ipfs-cluster/ipfs-cluster#929](https://github.com/ipfs-cluster/ipfs-cluster/issues/929)
+* service: `--loglevel` supports specifying levels for multiple components | [ipfs-cluster/ipfs-cluster#938](https://github.com/ipfs-cluster/ipfs-cluster/issues/938) | [ipfs-cluster/ipfs-cluster#960](https://github.com/ipfs-cluster/ipfs-cluster/issues/960)
+* ipfs-cluster-follow: a new CLI tool to run follower cluster peers | [ipfs-cluster/ipfs-cluster#976](https://github.com/ipfs-cluster/ipfs-cluster/issues/976)
 
 ##### Bug fixes
 
-* restapi/client: Fix out of bounds error on load balanced client | [ipfs/ipfs-cluster#951](https://github.com/ipfs/ipfs-cluster/issues/951)
-* service: disable libp2p restapi on CRDT clusters | [ipfs/ipfs-cluster#968](https://github.com/ipfs/ipfs-cluster/issues/968)
-* observations: Fix pprof index links | [ipfs/ipfs-cluster#965](https://github.com/ipfs/ipfs-cluster/issues/965)
+* restapi/client: Fix out of bounds error on load balanced client | [ipfs-cluster/ipfs-cluster#951](https://github.com/ipfs-cluster/ipfs-cluster/issues/951)
+* service: disable libp2p restapi on CRDT clusters | [ipfs-cluster/ipfs-cluster#968](https://github.com/ipfs-cluster/ipfs-cluster/issues/968)
+* observations: Fix pprof index links | [ipfs-cluster/ipfs-cluster#965](https://github.com/ipfs-cluster/ipfs-cluster/issues/965)
 
 ##### Other changes
 
-* Spelling fix in changelog | [ipfs/ipfs-cluster#920](https://github.com/ipfs/ipfs-cluster/issues/920)
-* Tests: multiple fixes | [ipfs/ipfs-cluster#919](https://github.com/ipfs/ipfs-cluster/issues/919) | [ipfs/ipfs-cluster#943](https://github.com/ipfs/ipfs-cluster/issues/943) | [ipfs/ipfs-cluster#953](https://github.com/ipfs/ipfs-cluster/issues/953) | [ipfs/ipfs-cluster#956](https://github.com/ipfs/ipfs-cluster/issues/956)
-* Stateless tracker: increase default queue size | [ipfs/ipfs-cluster#377](https://github.com/ipfs/ipfs-cluster/issues/377) | [ipfs/ipfs-cluster#917](https://github.com/ipfs/ipfs-cluster/issues/917)
-* Upgrade to Go1.13 | [ipfs/ipfs-cluster#934](https://github.com/ipfs/ipfs-cluster/issues/934)
-* Dockerfiles: improvements | [ipfs/ipfs-cluster#946](https://github.com/ipfs/ipfs-cluster/issues/946)
-* cluster: support multiple informers on initialization | [ipfs/ipfs-cluster#940](https://github.com/ipfs/ipfs-cluster/issues/940) | 962
-* cmdutils: move some methods to cmdutils | [ipfs/ipfs-cluster#970](https://github.com/ipfs/ipfs-cluster/issues/970)
+* Spelling fix in changelog | [ipfs-cluster/ipfs-cluster#920](https://github.com/ipfs-cluster/ipfs-cluster/issues/920)
+* Tests: multiple fixes | [ipfs-cluster/ipfs-cluster#919](https://github.com/ipfs-cluster/ipfs-cluster/issues/919) | [ipfs-cluster/ipfs-cluster#943](https://github.com/ipfs-cluster/ipfs-cluster/issues/943) | [ipfs-cluster/ipfs-cluster#953](https://github.com/ipfs-cluster/ipfs-cluster/issues/953) | [ipfs-cluster/ipfs-cluster#956](https://github.com/ipfs-cluster/ipfs-cluster/issues/956)
+* Stateless tracker: increase default queue size | [ipfs-cluster/ipfs-cluster#377](https://github.com/ipfs-cluster/ipfs-cluster/issues/377) | [ipfs-cluster/ipfs-cluster#917](https://github.com/ipfs-cluster/ipfs-cluster/issues/917)
+* Upgrade to Go1.13 | [ipfs-cluster/ipfs-cluster#934](https://github.com/ipfs-cluster/ipfs-cluster/issues/934)
+* Dockerfiles: improvements | [ipfs-cluster/ipfs-cluster#946](https://github.com/ipfs-cluster/ipfs-cluster/issues/946)
+* cluster: support multiple informers on initialization | [ipfs-cluster/ipfs-cluster#940](https://github.com/ipfs-cluster/ipfs-cluster/issues/940) | 962
+* cmdutils: move some methods to cmdutils | [ipfs-cluster/ipfs-cluster#970](https://github.com/ipfs-cluster/ipfs-cluster/issues/970)
 
 
 #### Upgrading notices
@@ -1308,62 +1308,62 @@ type.
 ##### Features
 
 
-* crdt: introduce crdt-based consensus component | [ipfs/ipfs-cluster#685](https://github.com/ipfs/ipfs-cluster/issues/685) | [ipfs/ipfs-cluster#804](https://github.com/ipfs/ipfs-cluster/issues/804) | [ipfs/ipfs-cluster#787](https://github.com/ipfs/ipfs-cluster/issues/787) | [ipfs/ipfs-cluster#798](https://github.com/ipfs/ipfs-cluster/issues/798) | [ipfs/ipfs-cluster#805](https://github.com/ipfs/ipfs-cluster/issues/805) | [ipfs/ipfs-cluster#811](https://github.com/ipfs/ipfs-cluster/issues/811) | [ipfs/ipfs-cluster#816](https://github.com/ipfs/ipfs-cluster/issues/816) | [ipfs/ipfs-cluster#820](https://github.com/ipfs/ipfs-cluster/issues/820) | [ipfs/ipfs-cluster#856](https://github.com/ipfs/ipfs-cluster/issues/856) | [ipfs/ipfs-cluster#857](https://github.com/ipfs/ipfs-cluster/issues/857) | [ipfs/ipfs-cluster#834](https://github.com/ipfs/ipfs-cluster/issues/834) | [ipfs/ipfs-cluster#856](https://github.com/ipfs/ipfs-cluster/issues/856) | [ipfs/ipfs-cluster#867](https://github.com/ipfs/ipfs-cluster/issues/867) | [ipfs/ipfs-cluster#874](https://github.com/ipfs/ipfs-cluster/issues/874) | [ipfs/ipfs-cluster#885](https://github.com/ipfs/ipfs-cluster/issues/885) | [ipfs/ipfs-cluster#899](https://github.com/ipfs/ipfs-cluster/issues/899) | [ipfs/ipfs-cluster#906](https://github.com/ipfs/ipfs-cluster/issues/906) | [ipfs/ipfs-cluster#918](https://github.com/ipfs/ipfs-cluster/issues/918)
-* configs: separate identity and configuration | [ipfs/ipfs-cluster#760](https://github.com/ipfs/ipfs-cluster/issues/760) | [ipfs/ipfs-cluster#766](https://github.com/ipfs/ipfs-cluster/issues/766) | [ipfs/ipfs-cluster#780](https://github.com/ipfs/ipfs-cluster/issues/780)
-* configs: support running with a remote `service.json` (http) | [ipfs/ipfs-cluster#868](https://github.com/ipfs/ipfs-cluster/issues/868)
-* configs: support a `follower_mode` option | [ipfs/ipfs-cluster#803](https://github.com/ipfs/ipfs-cluster/issues/803) | [ipfs/ipfs-cluster#864](https://github.com/ipfs/ipfs-cluster/issues/864)
-* service/configs: do not load API components if no config present | [ipfs/ipfs-cluster#452](https://github.com/ipfs/ipfs-cluster/issues/452) | [ipfs/ipfs-cluster#836](https://github.com/ipfs/ipfs-cluster/issues/836)
-* service: add `ipfs-cluster-service init --peers` flag to initialize with given peers | [ipfs/ipfs-cluster#835](https://github.com/ipfs/ipfs-cluster/issues/835) | [ipfs/ipfs-cluster#839](https://github.com/ipfs/ipfs-cluster/issues/839) | [ipfs/ipfs-cluster#870](https://github.com/ipfs/ipfs-cluster/issues/870)
-* cluster: RPC auth: block rpc endpoints for non trusted peers | [ipfs/ipfs-cluster#775](https://github.com/ipfs/ipfs-cluster/issues/775) | [ipfs/ipfs-cluster#710](https://github.com/ipfs/ipfs-cluster/issues/710) | [ipfs/ipfs-cluster#666](https://github.com/ipfs/ipfs-cluster/issues/666) | [ipfs/ipfs-cluster#773](https://github.com/ipfs/ipfs-cluster/issues/773) | [ipfs/ipfs-cluster#905](https://github.com/ipfs/ipfs-cluster/issues/905)
-* cluster: introduce connection manager | [ipfs/ipfs-cluster#791](https://github.com/ipfs/ipfs-cluster/issues/791)
-* cluster: support new `PinUpdate` option for new pins | [ipfs/ipfs-cluster#869](https://github.com/ipfs/ipfs-cluster/issues/869) | [ipfs/ipfs-cluster#732](https://github.com/ipfs/ipfs-cluster/issues/732)
-* cluster: trigger `Recover` automatically on a configurable interval | [ipfs/ipfs-cluster#831](https://github.com/ipfs/ipfs-cluster/issues/831) | [ipfs/ipfs-cluster#887](https://github.com/ipfs/ipfs-cluster/issues/887)
-* cluster: enable mDNS discovery for peers | [ipfs/ipfs-cluster#882](https://github.com/ipfs/ipfs-cluster/issues/882) | [ipfs/ipfs-cluster#900](https://github.com/ipfs/ipfs-cluster/issues/900)
-* IPFS Proxy: Support `pin/update` | [ipfs/ipfs-cluster#732](https://github.com/ipfs/ipfs-cluster/issues/732) | [ipfs/ipfs-cluster#768](https://github.com/ipfs/ipfs-cluster/issues/768) | [ipfs/ipfs-cluster#887](https://github.com/ipfs/ipfs-cluster/issues/887)
-* monitor: Accrual failure detection. Leaderless re-pinning | [ipfs/ipfs-cluster#413](https://github.com/ipfs/ipfs-cluster/issues/413) | [ipfs/ipfs-cluster#713](https://github.com/ipfs/ipfs-cluster/issues/713) | [ipfs/ipfs-cluster#714](https://github.com/ipfs/ipfs-cluster/issues/714) | [ipfs/ipfs-cluster#812](https://github.com/ipfs/ipfs-cluster/issues/812) | [ipfs/ipfs-cluster#813](https://github.com/ipfs/ipfs-cluster/issues/813) | [ipfs/ipfs-cluster#814](https://github.com/ipfs/ipfs-cluster/issues/814) | [ipfs/ipfs-cluster#815](https://github.com/ipfs/ipfs-cluster/issues/815)
-* datastore: Expose badger configuration | [ipfs/ipfs-cluster#771](https://github.com/ipfs/ipfs-cluster/issues/771) | [ipfs/ipfs-cluster#776](https://github.com/ipfs/ipfs-cluster/issues/776)
-* IPFSConnector: pin timeout start counting from last received block | [ipfs/ipfs-cluster#497](https://github.com/ipfs/ipfs-cluster/issues/497) | [ipfs/ipfs-cluster#738](https://github.com/ipfs/ipfs-cluster/issues/738)
-* IPFSConnector: remove pin method options | [ipfs/ipfs-cluster#875](https://github.com/ipfs/ipfs-cluster/issues/875)
-* IPFSConnector: `unpin_disable` removes the ability to unpin anything from ipfs (experimental) | [ipfs/ipfs-cluster#793](https://github.com/ipfs/ipfs-cluster/issues/793) | [ipfs/ipfs-cluster#832](https://github.com/ipfs/ipfs-cluster/issues/832)
-* REST API Client: Load-balancing Go client | [ipfs/ipfs-cluster#448](https://github.com/ipfs/ipfs-cluster/issues/448) | [ipfs/ipfs-cluster#737](https://github.com/ipfs/ipfs-cluster/issues/737)
-* REST API: Return allocation objects on pin/unpin | [ipfs/ipfs-cluster#843](https://github.com/ipfs/ipfs-cluster/issues/843)
-* REST API: Support request logging | [ipfs/ipfs-cluster#574](https://github.com/ipfs/ipfs-cluster/issues/574) | [ipfs/ipfs-cluster#894](https://github.com/ipfs/ipfs-cluster/issues/894)
-* Adder: improve error handling. Keep adding while at least one allocation works | [ipfs/ipfs-cluster#852](https://github.com/ipfs/ipfs-cluster/issues/852) | [ipfs/ipfs-cluster#871](https://github.com/ipfs/ipfs-cluster/issues/871)
-* Adder: support user-given allocations for the `Add` operation | [ipfs/ipfs-cluster#761](https://github.com/ipfs/ipfs-cluster/issues/761) | [ipfs/ipfs-cluster#890](https://github.com/ipfs/ipfs-cluster/issues/890)
-* ctl: support adding pin metadata | [ipfs/ipfs-cluster#670](https://github.com/ipfs/ipfs-cluster/issues/670) | [ipfs/ipfs-cluster#891](https://github.com/ipfs/ipfs-cluster/issues/891)
+* crdt: introduce crdt-based consensus component | [ipfs-cluster/ipfs-cluster#685](https://github.com/ipfs-cluster/ipfs-cluster/issues/685) | [ipfs-cluster/ipfs-cluster#804](https://github.com/ipfs-cluster/ipfs-cluster/issues/804) | [ipfs-cluster/ipfs-cluster#787](https://github.com/ipfs-cluster/ipfs-cluster/issues/787) | [ipfs-cluster/ipfs-cluster#798](https://github.com/ipfs-cluster/ipfs-cluster/issues/798) | [ipfs-cluster/ipfs-cluster#805](https://github.com/ipfs-cluster/ipfs-cluster/issues/805) | [ipfs-cluster/ipfs-cluster#811](https://github.com/ipfs-cluster/ipfs-cluster/issues/811) | [ipfs-cluster/ipfs-cluster#816](https://github.com/ipfs-cluster/ipfs-cluster/issues/816) | [ipfs-cluster/ipfs-cluster#820](https://github.com/ipfs-cluster/ipfs-cluster/issues/820) | [ipfs-cluster/ipfs-cluster#856](https://github.com/ipfs-cluster/ipfs-cluster/issues/856) | [ipfs-cluster/ipfs-cluster#857](https://github.com/ipfs-cluster/ipfs-cluster/issues/857) | [ipfs-cluster/ipfs-cluster#834](https://github.com/ipfs-cluster/ipfs-cluster/issues/834) | [ipfs-cluster/ipfs-cluster#856](https://github.com/ipfs-cluster/ipfs-cluster/issues/856) | [ipfs-cluster/ipfs-cluster#867](https://github.com/ipfs-cluster/ipfs-cluster/issues/867) | [ipfs-cluster/ipfs-cluster#874](https://github.com/ipfs-cluster/ipfs-cluster/issues/874) | [ipfs-cluster/ipfs-cluster#885](https://github.com/ipfs-cluster/ipfs-cluster/issues/885) | [ipfs-cluster/ipfs-cluster#899](https://github.com/ipfs-cluster/ipfs-cluster/issues/899) | [ipfs-cluster/ipfs-cluster#906](https://github.com/ipfs-cluster/ipfs-cluster/issues/906) | [ipfs-cluster/ipfs-cluster#918](https://github.com/ipfs-cluster/ipfs-cluster/issues/918)
+* configs: separate identity and configuration | [ipfs-cluster/ipfs-cluster#760](https://github.com/ipfs-cluster/ipfs-cluster/issues/760) | [ipfs-cluster/ipfs-cluster#766](https://github.com/ipfs-cluster/ipfs-cluster/issues/766) | [ipfs-cluster/ipfs-cluster#780](https://github.com/ipfs-cluster/ipfs-cluster/issues/780)
+* configs: support running with a remote `service.json` (http) | [ipfs-cluster/ipfs-cluster#868](https://github.com/ipfs-cluster/ipfs-cluster/issues/868)
+* configs: support a `follower_mode` option | [ipfs-cluster/ipfs-cluster#803](https://github.com/ipfs-cluster/ipfs-cluster/issues/803) | [ipfs-cluster/ipfs-cluster#864](https://github.com/ipfs-cluster/ipfs-cluster/issues/864)
+* service/configs: do not load API components if no config present | [ipfs-cluster/ipfs-cluster#452](https://github.com/ipfs-cluster/ipfs-cluster/issues/452) | [ipfs-cluster/ipfs-cluster#836](https://github.com/ipfs-cluster/ipfs-cluster/issues/836)
+* service: add `ipfs-cluster-service init --peers` flag to initialize with given peers | [ipfs-cluster/ipfs-cluster#835](https://github.com/ipfs-cluster/ipfs-cluster/issues/835) | [ipfs-cluster/ipfs-cluster#839](https://github.com/ipfs-cluster/ipfs-cluster/issues/839) | [ipfs-cluster/ipfs-cluster#870](https://github.com/ipfs-cluster/ipfs-cluster/issues/870)
+* cluster: RPC auth: block rpc endpoints for non trusted peers | [ipfs-cluster/ipfs-cluster#775](https://github.com/ipfs-cluster/ipfs-cluster/issues/775) | [ipfs-cluster/ipfs-cluster#710](https://github.com/ipfs-cluster/ipfs-cluster/issues/710) | [ipfs-cluster/ipfs-cluster#666](https://github.com/ipfs-cluster/ipfs-cluster/issues/666) | [ipfs-cluster/ipfs-cluster#773](https://github.com/ipfs-cluster/ipfs-cluster/issues/773) | [ipfs-cluster/ipfs-cluster#905](https://github.com/ipfs-cluster/ipfs-cluster/issues/905)
+* cluster: introduce connection manager | [ipfs-cluster/ipfs-cluster#791](https://github.com/ipfs-cluster/ipfs-cluster/issues/791)
+* cluster: support new `PinUpdate` option for new pins | [ipfs-cluster/ipfs-cluster#869](https://github.com/ipfs-cluster/ipfs-cluster/issues/869) | [ipfs-cluster/ipfs-cluster#732](https://github.com/ipfs-cluster/ipfs-cluster/issues/732)
+* cluster: trigger `Recover` automatically on a configurable interval | [ipfs-cluster/ipfs-cluster#831](https://github.com/ipfs-cluster/ipfs-cluster/issues/831) | [ipfs-cluster/ipfs-cluster#887](https://github.com/ipfs-cluster/ipfs-cluster/issues/887)
+* cluster: enable mDNS discovery for peers | [ipfs-cluster/ipfs-cluster#882](https://github.com/ipfs-cluster/ipfs-cluster/issues/882) | [ipfs-cluster/ipfs-cluster#900](https://github.com/ipfs-cluster/ipfs-cluster/issues/900)
+* IPFS Proxy: Support `pin/update` | [ipfs-cluster/ipfs-cluster#732](https://github.com/ipfs-cluster/ipfs-cluster/issues/732) | [ipfs-cluster/ipfs-cluster#768](https://github.com/ipfs-cluster/ipfs-cluster/issues/768) | [ipfs-cluster/ipfs-cluster#887](https://github.com/ipfs-cluster/ipfs-cluster/issues/887)
+* monitor: Accrual failure detection. Leaderless re-pinning | [ipfs-cluster/ipfs-cluster#413](https://github.com/ipfs-cluster/ipfs-cluster/issues/413) | [ipfs-cluster/ipfs-cluster#713](https://github.com/ipfs-cluster/ipfs-cluster/issues/713) | [ipfs-cluster/ipfs-cluster#714](https://github.com/ipfs-cluster/ipfs-cluster/issues/714) | [ipfs-cluster/ipfs-cluster#812](https://github.com/ipfs-cluster/ipfs-cluster/issues/812) | [ipfs-cluster/ipfs-cluster#813](https://github.com/ipfs-cluster/ipfs-cluster/issues/813) | [ipfs-cluster/ipfs-cluster#814](https://github.com/ipfs-cluster/ipfs-cluster/issues/814) | [ipfs-cluster/ipfs-cluster#815](https://github.com/ipfs-cluster/ipfs-cluster/issues/815)
+* datastore: Expose badger configuration | [ipfs-cluster/ipfs-cluster#771](https://github.com/ipfs-cluster/ipfs-cluster/issues/771) | [ipfs-cluster/ipfs-cluster#776](https://github.com/ipfs-cluster/ipfs-cluster/issues/776)
+* IPFSConnector: pin timeout start counting from last received block | [ipfs-cluster/ipfs-cluster#497](https://github.com/ipfs-cluster/ipfs-cluster/issues/497) | [ipfs-cluster/ipfs-cluster#738](https://github.com/ipfs-cluster/ipfs-cluster/issues/738)
+* IPFSConnector: remove pin method options | [ipfs-cluster/ipfs-cluster#875](https://github.com/ipfs-cluster/ipfs-cluster/issues/875)
+* IPFSConnector: `unpin_disable` removes the ability to unpin anything from ipfs (experimental) | [ipfs-cluster/ipfs-cluster#793](https://github.com/ipfs-cluster/ipfs-cluster/issues/793) | [ipfs-cluster/ipfs-cluster#832](https://github.com/ipfs-cluster/ipfs-cluster/issues/832)
+* REST API Client: Load-balancing Go client | [ipfs-cluster/ipfs-cluster#448](https://github.com/ipfs-cluster/ipfs-cluster/issues/448) | [ipfs-cluster/ipfs-cluster#737](https://github.com/ipfs-cluster/ipfs-cluster/issues/737)
+* REST API: Return allocation objects on pin/unpin | [ipfs-cluster/ipfs-cluster#843](https://github.com/ipfs-cluster/ipfs-cluster/issues/843)
+* REST API: Support request logging | [ipfs-cluster/ipfs-cluster#574](https://github.com/ipfs-cluster/ipfs-cluster/issues/574) | [ipfs-cluster/ipfs-cluster#894](https://github.com/ipfs-cluster/ipfs-cluster/issues/894)
+* Adder: improve error handling. Keep adding while at least one allocation works | [ipfs-cluster/ipfs-cluster#852](https://github.com/ipfs-cluster/ipfs-cluster/issues/852) | [ipfs-cluster/ipfs-cluster#871](https://github.com/ipfs-cluster/ipfs-cluster/issues/871)
+* Adder: support user-given allocations for the `Add` operation | [ipfs-cluster/ipfs-cluster#761](https://github.com/ipfs-cluster/ipfs-cluster/issues/761) | [ipfs-cluster/ipfs-cluster#890](https://github.com/ipfs-cluster/ipfs-cluster/issues/890)
+* ctl: support adding pin metadata | [ipfs-cluster/ipfs-cluster#670](https://github.com/ipfs-cluster/ipfs-cluster/issues/670) | [ipfs-cluster/ipfs-cluster#891](https://github.com/ipfs-cluster/ipfs-cluster/issues/891)
 
 
 ##### Bug fixes
 
-* REST API: Fix `/allocations` when filter unset | [ipfs/ipfs-cluster#762](https://github.com/ipfs/ipfs-cluster/issues/762)
-* REST API: Fix DELETE returning 500 when pin does not exist | [ipfs/ipfs-cluster#742](https://github.com/ipfs/ipfs-cluster/issues/742) | [ipfs/ipfs-cluster#854](https://github.com/ipfs/ipfs-cluster/issues/854)
-* REST API: Return JSON body on 404s | [ipfs/ipfs-cluster#657](https://github.com/ipfs/ipfs-cluster/issues/657) | [ipfs/ipfs-cluster#879](https://github.com/ipfs/ipfs-cluster/issues/879)
-* service: connectivity fixes | [ipfs/ipfs-cluster#787](https://github.com/ipfs/ipfs-cluster/issues/787) | [ipfs/ipfs-cluster#792](https://github.com/ipfs/ipfs-cluster/issues/792)
-* service: fix using `/dnsaddr` peers | [ipfs/ipfs-cluster#818](https://github.com/ipfs/ipfs-cluster/issues/818)
-* service: reading empty lines on peerstore panics | [ipfs/ipfs-cluster#886](https://github.com/ipfs/ipfs-cluster/issues/886)
-* service/ctl: fix parsing string lists | [ipfs/ipfs-cluster#876](https://github.com/ipfs/ipfs-cluster/issues/876) | [ipfs/ipfs-cluster#841](https://github.com/ipfs/ipfs-cluster/issues/841)
-* IPFSConnector: `pin/ls` does handle base32 and base58 cids properly | [ipfs/ipfs-cluster#808](https://github.com/ipfs/ipfs-cluster/issues/808) [ipfs/ipfs-cluster#809](https://github.com/ipfs/ipfs-cluster/issues/809)
-* configs: some config keys not matching ENV vars names | [ipfs/ipfs-cluster#837](https://github.com/ipfs/ipfs-cluster/issues/837) | [ipfs/ipfs-cluster#778](https://github.com/ipfs/ipfs-cluster/issues/778)
-* raft: delete removed raft peers from peerstore | [ipfs/ipfs-cluster#840](https://github.com/ipfs/ipfs-cluster/issues/840) | [ipfs/ipfs-cluster#846](https://github.com/ipfs/ipfs-cluster/issues/846)
-* cluster: peers forgotten after being down | [ipfs/ipfs-cluster#648](https://github.com/ipfs/ipfs-cluster/issues/648) | [ipfs/ipfs-cluster#860](https://github.com/ipfs/ipfs-cluster/issues/860)
-* cluster: State sync should not keep tracking when queue is full | [ipfs/ipfs-cluster#377](https://github.com/ipfs/ipfs-cluster/issues/377) | [ipfs/ipfs-cluster#901](https://github.com/ipfs/ipfs-cluster/issues/901)
-* cluster: avoid random order on peer lists and listen multiaddresses | [ipfs/ipfs-cluster#327](https://github.com/ipfs/ipfs-cluster/issues/327) | [ipfs/ipfs-cluster#878](https://github.com/ipfs/ipfs-cluster/issues/878)
-* cluster: fix recover and allocation re-assignment to existing pins | [ipfs/ipfs-cluster#912](https://github.com/ipfs/ipfs-cluster/issues/912) | [ipfs/ipfs-cluster#888](https://github.com/ipfs/ipfs-cluster/issues/888)
+* REST API: Fix `/allocations` when filter unset | [ipfs-cluster/ipfs-cluster#762](https://github.com/ipfs-cluster/ipfs-cluster/issues/762)
+* REST API: Fix DELETE returning 500 when pin does not exist | [ipfs-cluster/ipfs-cluster#742](https://github.com/ipfs-cluster/ipfs-cluster/issues/742) | [ipfs-cluster/ipfs-cluster#854](https://github.com/ipfs-cluster/ipfs-cluster/issues/854)
+* REST API: Return JSON body on 404s | [ipfs-cluster/ipfs-cluster#657](https://github.com/ipfs-cluster/ipfs-cluster/issues/657) | [ipfs-cluster/ipfs-cluster#879](https://github.com/ipfs-cluster/ipfs-cluster/issues/879)
+* service: connectivity fixes | [ipfs-cluster/ipfs-cluster#787](https://github.com/ipfs-cluster/ipfs-cluster/issues/787) | [ipfs-cluster/ipfs-cluster#792](https://github.com/ipfs-cluster/ipfs-cluster/issues/792)
+* service: fix using `/dnsaddr` peers | [ipfs-cluster/ipfs-cluster#818](https://github.com/ipfs-cluster/ipfs-cluster/issues/818)
+* service: reading empty lines on peerstore panics | [ipfs-cluster/ipfs-cluster#886](https://github.com/ipfs-cluster/ipfs-cluster/issues/886)
+* service/ctl: fix parsing string lists | [ipfs-cluster/ipfs-cluster#876](https://github.com/ipfs-cluster/ipfs-cluster/issues/876) | [ipfs-cluster/ipfs-cluster#841](https://github.com/ipfs-cluster/ipfs-cluster/issues/841)
+* IPFSConnector: `pin/ls` does handle base32 and base58 cids properly | [ipfs-cluster/ipfs-cluster#808](https://github.com/ipfs-cluster/ipfs-cluster/issues/808) [ipfs-cluster/ipfs-cluster#809](https://github.com/ipfs-cluster/ipfs-cluster/issues/809)
+* configs: some config keys not matching ENV vars names | [ipfs-cluster/ipfs-cluster#837](https://github.com/ipfs-cluster/ipfs-cluster/issues/837) | [ipfs-cluster/ipfs-cluster#778](https://github.com/ipfs-cluster/ipfs-cluster/issues/778)
+* raft: delete removed raft peers from peerstore | [ipfs-cluster/ipfs-cluster#840](https://github.com/ipfs-cluster/ipfs-cluster/issues/840) | [ipfs-cluster/ipfs-cluster#846](https://github.com/ipfs-cluster/ipfs-cluster/issues/846)
+* cluster: peers forgotten after being down | [ipfs-cluster/ipfs-cluster#648](https://github.com/ipfs-cluster/ipfs-cluster/issues/648) | [ipfs-cluster/ipfs-cluster#860](https://github.com/ipfs-cluster/ipfs-cluster/issues/860)
+* cluster: State sync should not keep tracking when queue is full | [ipfs-cluster/ipfs-cluster#377](https://github.com/ipfs-cluster/ipfs-cluster/issues/377) | [ipfs-cluster/ipfs-cluster#901](https://github.com/ipfs-cluster/ipfs-cluster/issues/901)
+* cluster: avoid random order on peer lists and listen multiaddresses | [ipfs-cluster/ipfs-cluster#327](https://github.com/ipfs-cluster/ipfs-cluster/issues/327) | [ipfs-cluster/ipfs-cluster#878](https://github.com/ipfs-cluster/ipfs-cluster/issues/878)
+* cluster: fix recover and allocation re-assignment to existing pins | [ipfs-cluster/ipfs-cluster#912](https://github.com/ipfs-cluster/ipfs-cluster/issues/912) | [ipfs-cluster/ipfs-cluster#888](https://github.com/ipfs-cluster/ipfs-cluster/issues/888)
 
 ##### Other changes
 
-* cluster: Dependency updates | [ipfs/ipfs-cluster#769](https://github.com/ipfs/ipfs-cluster/issues/769) | [ipfs/ipfs-cluster#789](https://github.com/ipfs/ipfs-cluster/issues/789) | [ipfs/ipfs-cluster#795](https://github.com/ipfs/ipfs-cluster/issues/795) | [ipfs/ipfs-cluster#822](https://github.com/ipfs/ipfs-cluster/issues/822) | [ipfs/ipfs-cluster#823](https://github.com/ipfs/ipfs-cluster/issues/823) | [ipfs/ipfs-cluster#828](https://github.com/ipfs/ipfs-cluster/issues/828) | [ipfs/ipfs-cluster#830](https://github.com/ipfs/ipfs-cluster/issues/830) | [ipfs/ipfs-cluster#853](https://github.com/ipfs/ipfs-cluster/issues/853) | [ipfs/ipfs-cluster#839](https://github.com/ipfs/ipfs-cluster/issues/839)
-* cluster: Set `[]peer.ID` as type for user allocations | [ipfs/ipfs-cluster#767](https://github.com/ipfs/ipfs-cluster/issues/767)
-* cluster: RPC: Split services among components | [ipfs/ipfs-cluster#773](https://github.com/ipfs/ipfs-cluster/issues/773)
-* cluster: Multiple improvements to tests | [ipfs/ipfs-cluster#360](https://github.com/ipfs/ipfs-cluster/issues/360) | [ipfs/ipfs-cluster#502](https://github.com/ipfs/ipfs-cluster/issues/502) | [ipfs/ipfs-cluster#779](https://github.com/ipfs/ipfs-cluster/issues/779) | [ipfs/ipfs-cluster#833](https://github.com/ipfs/ipfs-cluster/issues/833) | [ipfs/ipfs-cluster#863](https://github.com/ipfs/ipfs-cluster/issues/863) | [ipfs/ipfs-cluster#883](https://github.com/ipfs/ipfs-cluster/issues/883) | [ipfs/ipfs-cluster#884](https://github.com/ipfs/ipfs-cluster/issues/884) | [ipfs/ipfs-cluster#797](https://github.com/ipfs/ipfs-cluster/issues/797) | [ipfs/ipfs-cluster#892](https://github.com/ipfs/ipfs-cluster/issues/892)
-* cluster: Remove Gx | [ipfs/ipfs-cluster#765](https://github.com/ipfs/ipfs-cluster/issues/765) | [ipfs/ipfs-cluster#781](https://github.com/ipfs/ipfs-cluster/issues/781)
-* cluster: Use `/p2p/` instead of `/ipfs/` in multiaddresses | [ipfs/ipfs-cluster#431](https://github.com/ipfs/ipfs-cluster/issues/431) | [ipfs/ipfs-cluster#877](https://github.com/ipfs/ipfs-cluster/issues/877)
-* cluster: consolidate parsing of pin options | [ipfs/ipfs-cluster#913](https://github.com/ipfs/ipfs-cluster/issues/913)
-* REST API: Replace regexps with `strings.HasPrefix` | [ipfs/ipfs-cluster#806](https://github.com/ipfs/ipfs-cluster/issues/806) | [ipfs/ipfs-cluster#807](https://github.com/ipfs/ipfs-cluster/issues/807)
-* docker: use GOPROXY to build containers | [ipfs/ipfs-cluster#872](https://github.com/ipfs/ipfs-cluster/issues/872)
-* docker: support `IPFS_CLUSTER_CONSENSUS` flag and other improvements | [ipfs/ipfs-cluster#882](https://github.com/ipfs/ipfs-cluster/issues/882)
-* ctl: increase space for peernames | [ipfs/ipfs-cluster#887](https://github.com/ipfs/ipfs-cluster/issues/887)
-* ctl: improve replication factor 0 explanation | [ipfs/ipfs-cluster#755](https://github.com/ipfs/ipfs-cluster/issues/755) | [ipfs/ipfs-cluster#909](https://github.com/ipfs/ipfs-cluster/issues/909)
+* cluster: Dependency updates | [ipfs-cluster/ipfs-cluster#769](https://github.com/ipfs-cluster/ipfs-cluster/issues/769) | [ipfs-cluster/ipfs-cluster#789](https://github.com/ipfs-cluster/ipfs-cluster/issues/789) | [ipfs-cluster/ipfs-cluster#795](https://github.com/ipfs-cluster/ipfs-cluster/issues/795) | [ipfs-cluster/ipfs-cluster#822](https://github.com/ipfs-cluster/ipfs-cluster/issues/822) | [ipfs-cluster/ipfs-cluster#823](https://github.com/ipfs-cluster/ipfs-cluster/issues/823) | [ipfs-cluster/ipfs-cluster#828](https://github.com/ipfs-cluster/ipfs-cluster/issues/828) | [ipfs-cluster/ipfs-cluster#830](https://github.com/ipfs-cluster/ipfs-cluster/issues/830) | [ipfs-cluster/ipfs-cluster#853](https://github.com/ipfs-cluster/ipfs-cluster/issues/853) | [ipfs-cluster/ipfs-cluster#839](https://github.com/ipfs-cluster/ipfs-cluster/issues/839)
+* cluster: Set `[]peer.ID` as type for user allocations | [ipfs-cluster/ipfs-cluster#767](https://github.com/ipfs-cluster/ipfs-cluster/issues/767)
+* cluster: RPC: Split services among components | [ipfs-cluster/ipfs-cluster#773](https://github.com/ipfs-cluster/ipfs-cluster/issues/773)
+* cluster: Multiple improvements to tests | [ipfs-cluster/ipfs-cluster#360](https://github.com/ipfs-cluster/ipfs-cluster/issues/360) | [ipfs-cluster/ipfs-cluster#502](https://github.com/ipfs-cluster/ipfs-cluster/issues/502) | [ipfs-cluster/ipfs-cluster#779](https://github.com/ipfs-cluster/ipfs-cluster/issues/779) | [ipfs-cluster/ipfs-cluster#833](https://github.com/ipfs-cluster/ipfs-cluster/issues/833) | [ipfs-cluster/ipfs-cluster#863](https://github.com/ipfs-cluster/ipfs-cluster/issues/863) | [ipfs-cluster/ipfs-cluster#883](https://github.com/ipfs-cluster/ipfs-cluster/issues/883) | [ipfs-cluster/ipfs-cluster#884](https://github.com/ipfs-cluster/ipfs-cluster/issues/884) | [ipfs-cluster/ipfs-cluster#797](https://github.com/ipfs-cluster/ipfs-cluster/issues/797) | [ipfs-cluster/ipfs-cluster#892](https://github.com/ipfs-cluster/ipfs-cluster/issues/892)
+* cluster: Remove Gx | [ipfs-cluster/ipfs-cluster#765](https://github.com/ipfs-cluster/ipfs-cluster/issues/765) | [ipfs-cluster/ipfs-cluster#781](https://github.com/ipfs-cluster/ipfs-cluster/issues/781)
+* cluster: Use `/p2p/` instead of `/ipfs/` in multiaddresses | [ipfs-cluster/ipfs-cluster#431](https://github.com/ipfs-cluster/ipfs-cluster/issues/431) | [ipfs-cluster/ipfs-cluster#877](https://github.com/ipfs-cluster/ipfs-cluster/issues/877)
+* cluster: consolidate parsing of pin options | [ipfs-cluster/ipfs-cluster#913](https://github.com/ipfs-cluster/ipfs-cluster/issues/913)
+* REST API: Replace regexps with `strings.HasPrefix` | [ipfs-cluster/ipfs-cluster#806](https://github.com/ipfs-cluster/ipfs-cluster/issues/806) | [ipfs-cluster/ipfs-cluster#807](https://github.com/ipfs-cluster/ipfs-cluster/issues/807)
+* docker: use GOPROXY to build containers | [ipfs-cluster/ipfs-cluster#872](https://github.com/ipfs-cluster/ipfs-cluster/issues/872)
+* docker: support `IPFS_CLUSTER_CONSENSUS` flag and other improvements | [ipfs-cluster/ipfs-cluster#882](https://github.com/ipfs-cluster/ipfs-cluster/issues/882)
+* ctl: increase space for peernames | [ipfs-cluster/ipfs-cluster#887](https://github.com/ipfs-cluster/ipfs-cluster/issues/887)
+* ctl: improve replication factor 0 explanation | [ipfs-cluster/ipfs-cluster#755](https://github.com/ipfs-cluster/ipfs-cluster/issues/755) | [ipfs-cluster/ipfs-cluster#909](https://github.com/ipfs-cluster/ipfs-cluster/issues/909)
 
 #### Upgrading notices
 
@@ -1537,20 +1537,20 @@ This release is a maintenance release with a number of bug fixes and a couple of
 
 ##### Features
 
-* Switch to go.mod | [ipfs/ipfs-cluster#706](https://github.com/ipfs/ipfs-cluster/issues/706) | [ipfs/ipfs-cluster#707](https://github.com/ipfs/ipfs-cluster/issues/707) | [ipfs/ipfs-cluster#708](https://github.com/ipfs/ipfs-cluster/issues/708)
-* Remove basic monitor | [ipfs/ipfs-cluster#689](https://github.com/ipfs/ipfs-cluster/issues/689) | [ipfs/ipfs-cluster#726](https://github.com/ipfs/ipfs-cluster/issues/726)
-* Support `nocopy` when adding URLs | [ipfs/ipfs-cluster#735](https://github.com/ipfs/ipfs-cluster/issues/735)
+* Switch to go.mod | [ipfs-cluster/ipfs-cluster#706](https://github.com/ipfs-cluster/ipfs-cluster/issues/706) | [ipfs-cluster/ipfs-cluster#707](https://github.com/ipfs-cluster/ipfs-cluster/issues/707) | [ipfs-cluster/ipfs-cluster#708](https://github.com/ipfs-cluster/ipfs-cluster/issues/708)
+* Remove basic monitor | [ipfs-cluster/ipfs-cluster#689](https://github.com/ipfs-cluster/ipfs-cluster/issues/689) | [ipfs-cluster/ipfs-cluster#726](https://github.com/ipfs-cluster/ipfs-cluster/issues/726)
+* Support `nocopy` when adding URLs | [ipfs-cluster/ipfs-cluster#735](https://github.com/ipfs-cluster/ipfs-cluster/issues/735)
 
 ##### Bug fixes
 
-* Mitigate long header attack | [ipfs/ipfs-cluster#636](https://github.com/ipfs/ipfs-cluster/issues/636) | [ipfs/ipfs-cluster#712](https://github.com/ipfs/ipfs-cluster/issues/712)
-* Fix download link in README | [ipfs/ipfs-cluster#723](https://github.com/ipfs/ipfs-cluster/issues/723)
-* Fix `peers ls` error when peers down | [ipfs/ipfs-cluster#715](https://github.com/ipfs/ipfs-cluster/issues/715) | [ipfs/ipfs-cluster#719](https://github.com/ipfs/ipfs-cluster/issues/719)
-* Nil pointer panic on `ipfs-cluster-ctl add` | [ipfs/ipfs-cluster#727](https://github.com/ipfs/ipfs-cluster/issues/727) | [ipfs/ipfs-cluster#728](https://github.com/ipfs/ipfs-cluster/issues/728)
-* Fix `enc=json` output on `ipfs-cluster-ctl add` | [ipfs/ipfs-cluster#729](https://github.com/ipfs/ipfs-cluster/issues/729)
-* Add SSL CAs to Docker container | [ipfs/ipfs-cluster#730](https://github.com/ipfs/ipfs-cluster/issues/730) | [ipfs/ipfs-cluster#731](https://github.com/ipfs/ipfs-cluster/issues/731)
-* Remove duplicate import | [ipfs/ipfs-cluster#734](https://github.com/ipfs/ipfs-cluster/issues/734)
-* Fix version json object | [ipfs/ipfs-cluster#743](https://github.com/ipfs/ipfs-cluster/issues/743) | [ipfs/ipfs-cluster#752](https://github.com/ipfs/ipfs-cluster/issues/752)
+* Mitigate long header attack | [ipfs-cluster/ipfs-cluster#636](https://github.com/ipfs-cluster/ipfs-cluster/issues/636) | [ipfs-cluster/ipfs-cluster#712](https://github.com/ipfs-cluster/ipfs-cluster/issues/712)
+* Fix download link in README | [ipfs-cluster/ipfs-cluster#723](https://github.com/ipfs-cluster/ipfs-cluster/issues/723)
+* Fix `peers ls` error when peers down | [ipfs-cluster/ipfs-cluster#715](https://github.com/ipfs-cluster/ipfs-cluster/issues/715) | [ipfs-cluster/ipfs-cluster#719](https://github.com/ipfs-cluster/ipfs-cluster/issues/719)
+* Nil pointer panic on `ipfs-cluster-ctl add` | [ipfs-cluster/ipfs-cluster#727](https://github.com/ipfs-cluster/ipfs-cluster/issues/727) | [ipfs-cluster/ipfs-cluster#728](https://github.com/ipfs-cluster/ipfs-cluster/issues/728)
+* Fix `enc=json` output on `ipfs-cluster-ctl add` | [ipfs-cluster/ipfs-cluster#729](https://github.com/ipfs-cluster/ipfs-cluster/issues/729)
+* Add SSL CAs to Docker container | [ipfs-cluster/ipfs-cluster#730](https://github.com/ipfs-cluster/ipfs-cluster/issues/730) | [ipfs-cluster/ipfs-cluster#731](https://github.com/ipfs-cluster/ipfs-cluster/issues/731)
+* Remove duplicate import | [ipfs-cluster/ipfs-cluster#734](https://github.com/ipfs-cluster/ipfs-cluster/issues/734)
+* Fix version json object | [ipfs-cluster/ipfs-cluster#743](https://github.com/ipfs-cluster/ipfs-cluster/issues/743) | [ipfs-cluster/ipfs-cluster#752](https://github.com/ipfs-cluster/ipfs-cluster/issues/752)
 
 #### Upgrading notices
 
@@ -1621,23 +1621,23 @@ comparing your configuration with the new default one.
 
 ##### Features
 
-  * Add full support for environment variables in configurations and initialization | [ipfs/ipfs-cluster#656](https://github.com/ipfs/ipfs-cluster/issues/656) | [ipfs/ipfs-cluster#663](https://github.com/ipfs/ipfs-cluster/issues/663) | [ipfs/ipfs-cluster#667](https://github.com/ipfs/ipfs-cluster/issues/667)
-  * Switch to codecov | [ipfs/ipfs-cluster#683](https://github.com/ipfs/ipfs-cluster/issues/683)
-  * Add auto-resolving IPFS paths | [ipfs/ipfs-cluster#450](https://github.com/ipfs/ipfs-cluster/issues/450) | [ipfs/ipfs-cluster#634](https://github.com/ipfs/ipfs-cluster/issues/634)
-  * Support user-defined allocations | [ipfs/ipfs-cluster#646](https://github.com/ipfs/ipfs-cluster/issues/646) | [ipfs/ipfs-cluster#647](https://github.com/ipfs/ipfs-cluster/issues/647)
-  * Support user-defined metadata in pin objects | [ipfs/ipfs-cluster#681](https://github.com/ipfs/ipfs-cluster/issues/681)
-  * Make normal types serializable and remove `*Serial` types | [ipfs/ipfs-cluster#654](https://github.com/ipfs/ipfs-cluster/issues/654) | [ipfs/ipfs-cluster#688](https://github.com/ipfs/ipfs-cluster/issues/688) | [ipfs/ipfs-cluster#700](https://github.com/ipfs/ipfs-cluster/issues/700)
-  * Support IPFS paths in the IPFS proxy | [ipfs/ipfs-cluster#480](https://github.com/ipfs/ipfs-cluster/issues/480) | [ipfs/ipfs-cluster#690](https://github.com/ipfs/ipfs-cluster/issues/690)
-  * Use go-datastore as backend for the cluster state | [ipfs/ipfs-cluster#655](https://github.com/ipfs/ipfs-cluster/issues/655)
-  * Upgrade dependencies | [ipfs/ipfs-cluster#675](https://github.com/ipfs/ipfs-cluster/issues/675) | [ipfs/ipfs-cluster#679](https://github.com/ipfs/ipfs-cluster/issues/679) | [ipfs/ipfs-cluster#686](https://github.com/ipfs/ipfs-cluster/issues/686) | [ipfs/ipfs-cluster#687](https://github.com/ipfs/ipfs-cluster/issues/687)
-  * Adopt MIT+Apache 2 License (no more sign-off required) | [ipfs/ipfs-cluster#692](https://github.com/ipfs/ipfs-cluster/issues/692)
-  * Add codecov configurtion file | [ipfs/ipfs-cluster#693](https://github.com/ipfs/ipfs-cluster/issues/693)
-  * Additional tests for basic auth | [ipfs/ipfs-cluster#645](https://github.com/ipfs/ipfs-cluster/issues/645) | [ipfs/ipfs-cluster#694](https://github.com/ipfs/ipfs-cluster/issues/694)
+  * Add full support for environment variables in configurations and initialization | [ipfs-cluster/ipfs-cluster#656](https://github.com/ipfs-cluster/ipfs-cluster/issues/656) | [ipfs-cluster/ipfs-cluster#663](https://github.com/ipfs-cluster/ipfs-cluster/issues/663) | [ipfs-cluster/ipfs-cluster#667](https://github.com/ipfs-cluster/ipfs-cluster/issues/667)
+  * Switch to codecov | [ipfs-cluster/ipfs-cluster#683](https://github.com/ipfs-cluster/ipfs-cluster/issues/683)
+  * Add auto-resolving IPFS paths | [ipfs-cluster/ipfs-cluster#450](https://github.com/ipfs-cluster/ipfs-cluster/issues/450) | [ipfs-cluster/ipfs-cluster#634](https://github.com/ipfs-cluster/ipfs-cluster/issues/634)
+  * Support user-defined allocations | [ipfs-cluster/ipfs-cluster#646](https://github.com/ipfs-cluster/ipfs-cluster/issues/646) | [ipfs-cluster/ipfs-cluster#647](https://github.com/ipfs-cluster/ipfs-cluster/issues/647)
+  * Support user-defined metadata in pin objects | [ipfs-cluster/ipfs-cluster#681](https://github.com/ipfs-cluster/ipfs-cluster/issues/681)
+  * Make normal types serializable and remove `*Serial` types | [ipfs-cluster/ipfs-cluster#654](https://github.com/ipfs-cluster/ipfs-cluster/issues/654) | [ipfs-cluster/ipfs-cluster#688](https://github.com/ipfs-cluster/ipfs-cluster/issues/688) | [ipfs-cluster/ipfs-cluster#700](https://github.com/ipfs-cluster/ipfs-cluster/issues/700)
+  * Support IPFS paths in the IPFS proxy | [ipfs-cluster/ipfs-cluster#480](https://github.com/ipfs-cluster/ipfs-cluster/issues/480) | [ipfs-cluster/ipfs-cluster#690](https://github.com/ipfs-cluster/ipfs-cluster/issues/690)
+  * Use go-datastore as backend for the cluster state | [ipfs-cluster/ipfs-cluster#655](https://github.com/ipfs-cluster/ipfs-cluster/issues/655)
+  * Upgrade dependencies | [ipfs-cluster/ipfs-cluster#675](https://github.com/ipfs-cluster/ipfs-cluster/issues/675) | [ipfs-cluster/ipfs-cluster#679](https://github.com/ipfs-cluster/ipfs-cluster/issues/679) | [ipfs-cluster/ipfs-cluster#686](https://github.com/ipfs-cluster/ipfs-cluster/issues/686) | [ipfs-cluster/ipfs-cluster#687](https://github.com/ipfs-cluster/ipfs-cluster/issues/687)
+  * Adopt MIT+Apache 2 License (no more sign-off required) | [ipfs-cluster/ipfs-cluster#692](https://github.com/ipfs-cluster/ipfs-cluster/issues/692)
+  * Add codecov configurtion file | [ipfs-cluster/ipfs-cluster#693](https://github.com/ipfs-cluster/ipfs-cluster/issues/693)
+  * Additional tests for basic auth | [ipfs-cluster/ipfs-cluster#645](https://github.com/ipfs-cluster/ipfs-cluster/issues/645) | [ipfs-cluster/ipfs-cluster#694](https://github.com/ipfs-cluster/ipfs-cluster/issues/694)
 
 ##### Bug fixes
 
-  * Fix docker compose tests | [ipfs/ipfs-cluster#696](https://github.com/ipfs/ipfs-cluster/issues/696)
-  * Hide `ipfsproxy.extract_headers_ttl` and `ipfsproxy.extract_headers_path` options by default | [ipfs/ipfs-cluster#699](https://github.com/ipfs/ipfs-cluster/issues/699)
+  * Fix docker compose tests | [ipfs-cluster/ipfs-cluster#696](https://github.com/ipfs-cluster/ipfs-cluster/issues/696)
+  * Hide `ipfsproxy.extract_headers_ttl` and `ipfsproxy.extract_headers_path` options by default | [ipfs-cluster/ipfs-cluster#699](https://github.com/ipfs-cluster/ipfs-cluster/issues/699)
 
 #### Upgrading notices
 
@@ -1706,7 +1706,7 @@ IPFS Cluster version 0.9.0 comes with one big new feature, [OpenCensus](https://
 
 ##### Features
 
-  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase | [ipfs/ipfs-cluster#486](https://github.com/ipfs/ipfs-cluster/issues/486) | [ipfs/ipfs-cluster#658](https://github.com/ipfs/ipfs-cluster/issues/658) | [ipfs/ipfs-cluster#659](https://github.com/ipfs/ipfs-cluster/issues/659) | [ipfs/ipfs-cluster#676](https://github.com/ipfs/ipfs-cluster/issues/676) | [ipfs/ipfs-cluster#671](https://github.com/ipfs/ipfs-cluster/issues/671) | [ipfs/ipfs-cluster#674](https://github.com/ipfs/ipfs-cluster/issues/674)
+  * Integrate [OpenCensus](https://opencensus.io) tracing and metrics into IPFS Cluster codebase | [ipfs-cluster/ipfs-cluster#486](https://github.com/ipfs-cluster/ipfs-cluster/issues/486) | [ipfs-cluster/ipfs-cluster#658](https://github.com/ipfs-cluster/ipfs-cluster/issues/658) | [ipfs-cluster/ipfs-cluster#659](https://github.com/ipfs-cluster/ipfs-cluster/issues/659) | [ipfs-cluster/ipfs-cluster#676](https://github.com/ipfs-cluster/ipfs-cluster/issues/676) | [ipfs-cluster/ipfs-cluster#671](https://github.com/ipfs-cluster/ipfs-cluster/issues/671) | [ipfs-cluster/ipfs-cluster#674](https://github.com/ipfs-cluster/ipfs-cluster/issues/674)
 
 ##### Bug Fixes
 
@@ -1714,7 +1714,7 @@ No bugs were fixed from the previous release.
 
 ##### Deprecated
 
-  * The snap distribution of IPFS Cluster has been removed | [ipfs/ipfs-cluster#593](https://github.com/ipfs/ipfs-cluster/issues/593) | [ipfs/ipfs-cluster#649](https://github.com/ipfs/ipfs-cluster/issues/649).
+  * The snap distribution of IPFS Cluster has been removed | [ipfs-cluster/ipfs-cluster#593](https://github.com/ipfs-cluster/ipfs-cluster/issues/593) | [ipfs-cluster/ipfs-cluster#649](https://github.com/ipfs-cluster/ipfs-cluster/issues/649).
 
 #### Upgrading notices
 
@@ -1874,22 +1874,22 @@ adding a file, which is always the root hash.
 
 ##### Features
 
-  * IPFS Proxy extraction to its own `API` component: `ipfsproxy` | [ipfs/ipfs-cluster#453](https://github.com/ipfs/ipfs-cluster/issues/453) | [ipfs/ipfs-cluster#576](https://github.com/ipfs/ipfs-cluster/issues/576) | [ipfs/ipfs-cluster#616](https://github.com/ipfs/ipfs-cluster/issues/616) | [ipfs/ipfs-cluster#617](https://github.com/ipfs/ipfs-cluster/issues/617)
-  * Add full CORS handling to `restapi` | [ipfs/ipfs-cluster#639](https://github.com/ipfs/ipfs-cluster/issues/639) | [ipfs/ipfs-cluster#640](https://github.com/ipfs/ipfs-cluster/issues/640)
-  * `restapi` configuration section entries can be overridden from environment variables | [ipfs/ipfs-cluster#609](https://github.com/ipfs/ipfs-cluster/issues/609)
-  * Update to `go-ipfs-files` 2.0 | [ipfs/ipfs-cluster#613](https://github.com/ipfs/ipfs-cluster/issues/613)
-  * Tests for the `/monitor/metrics` endpoint | [ipfs/ipfs-cluster#587](https://github.com/ipfs/ipfs-cluster/issues/587) | [ipfs/ipfs-cluster#622](https://github.com/ipfs/ipfs-cluster/issues/622)
-  * Support `stream-channels=fase` query parameter in `/add` | [ipfs/ipfs-cluster#632](https://github.com/ipfs/ipfs-cluster/issues/632) | [ipfs/ipfs-cluster#633](https://github.com/ipfs/ipfs-cluster/issues/633)
-  * Support server side `/pins` filtering  | [ipfs/ipfs-cluster#445](https://github.com/ipfs/ipfs-cluster/issues/445) | [ipfs/ipfs-cluster#478](https://github.com/ipfs/ipfs-cluster/issues/478) | [ipfs/ipfs-cluster#627](https://github.com/ipfs/ipfs-cluster/issues/627)
-  * `ipfs-cluster-ctl add --no-stream` option | [ipfs/ipfs-cluster#632](https://github.com/ipfs/ipfs-cluster/issues/632) | [ipfs/ipfs-cluster#637](https://github.com/ipfs/ipfs-cluster/issues/637)
-  * Upgrade dependencies and libp2p to version 6.0.29 | [ipfs/ipfs-cluster#624](https://github.com/ipfs/ipfs-cluster/issues/624)
+  * IPFS Proxy extraction to its own `API` component: `ipfsproxy` | [ipfs-cluster/ipfs-cluster#453](https://github.com/ipfs-cluster/ipfs-cluster/issues/453) | [ipfs-cluster/ipfs-cluster#576](https://github.com/ipfs-cluster/ipfs-cluster/issues/576) | [ipfs-cluster/ipfs-cluster#616](https://github.com/ipfs-cluster/ipfs-cluster/issues/616) | [ipfs-cluster/ipfs-cluster#617](https://github.com/ipfs-cluster/ipfs-cluster/issues/617)
+  * Add full CORS handling to `restapi` | [ipfs-cluster/ipfs-cluster#639](https://github.com/ipfs-cluster/ipfs-cluster/issues/639) | [ipfs-cluster/ipfs-cluster#640](https://github.com/ipfs-cluster/ipfs-cluster/issues/640)
+  * `restapi` configuration section entries can be overridden from environment variables | [ipfs-cluster/ipfs-cluster#609](https://github.com/ipfs-cluster/ipfs-cluster/issues/609)
+  * Update to `go-ipfs-files` 2.0 | [ipfs-cluster/ipfs-cluster#613](https://github.com/ipfs-cluster/ipfs-cluster/issues/613)
+  * Tests for the `/monitor/metrics` endpoint | [ipfs-cluster/ipfs-cluster#587](https://github.com/ipfs-cluster/ipfs-cluster/issues/587) | [ipfs-cluster/ipfs-cluster#622](https://github.com/ipfs-cluster/ipfs-cluster/issues/622)
+  * Support `stream-channels=fase` query parameter in `/add` | [ipfs-cluster/ipfs-cluster#632](https://github.com/ipfs-cluster/ipfs-cluster/issues/632) | [ipfs-cluster/ipfs-cluster#633](https://github.com/ipfs-cluster/ipfs-cluster/issues/633)
+  * Support server side `/pins` filtering  | [ipfs-cluster/ipfs-cluster#445](https://github.com/ipfs-cluster/ipfs-cluster/issues/445) | [ipfs-cluster/ipfs-cluster#478](https://github.com/ipfs-cluster/ipfs-cluster/issues/478) | [ipfs-cluster/ipfs-cluster#627](https://github.com/ipfs-cluster/ipfs-cluster/issues/627)
+  * `ipfs-cluster-ctl add --no-stream` option | [ipfs-cluster/ipfs-cluster#632](https://github.com/ipfs-cluster/ipfs-cluster/issues/632) | [ipfs-cluster/ipfs-cluster#637](https://github.com/ipfs-cluster/ipfs-cluster/issues/637)
+  * Upgrade dependencies and libp2p to version 6.0.29 | [ipfs-cluster/ipfs-cluster#624](https://github.com/ipfs-cluster/ipfs-cluster/issues/624)
 
 ##### Bug fixes
 
- * Respect IPFS daemon response headers on non-proxied calls | [ipfs/ipfs-cluster#382](https://github.com/ipfs/ipfs-cluster/issues/382) | [ipfs/ipfs-cluster#623](https://github.com/ipfs/ipfs-cluster/issues/623) | [ipfs/ipfs-cluster#638](https://github.com/ipfs/ipfs-cluster/issues/638)
- * Fix `ipfs-cluster-ctl` usage with HTTPs and `/dns*` hostnames | [ipfs/ipfs-cluster#626](https://github.com/ipfs/ipfs-cluster/issues/626)
- * Minor fixes in sharness | [ipfs/ipfs-cluster#641](https://github.com/ipfs/ipfs-cluster/issues/641) | [ipfs/ipfs-cluster#643](https://github.com/ipfs/ipfs-cluster/issues/643)
- * Fix error handling when parsing the configuration | [ipfs/ipfs-cluster#642](https://github.com/ipfs/ipfs-cluster/issues/642)
+ * Respect IPFS daemon response headers on non-proxied calls | [ipfs-cluster/ipfs-cluster#382](https://github.com/ipfs-cluster/ipfs-cluster/issues/382) | [ipfs-cluster/ipfs-cluster#623](https://github.com/ipfs-cluster/ipfs-cluster/issues/623) | [ipfs-cluster/ipfs-cluster#638](https://github.com/ipfs-cluster/ipfs-cluster/issues/638)
+ * Fix `ipfs-cluster-ctl` usage with HTTPs and `/dns*` hostnames | [ipfs-cluster/ipfs-cluster#626](https://github.com/ipfs-cluster/ipfs-cluster/issues/626)
+ * Minor fixes in sharness | [ipfs-cluster/ipfs-cluster#641](https://github.com/ipfs-cluster/ipfs-cluster/issues/641) | [ipfs-cluster/ipfs-cluster#643](https://github.com/ipfs-cluster/ipfs-cluster/issues/643)
+ * Fix error handling when parsing the configuration | [ipfs-cluster/ipfs-cluster#642](https://github.com/ipfs-cluster/ipfs-cluster/issues/642)
 
 
 
@@ -2005,27 +2005,27 @@ Note that the REST API response format for the `/add` endpoint has changed. Thus
 
 ##### Features
 
-  * Clean (rotate) the state when running `init` | [ipfs/ipfs-cluster#532](https://github.com/ipfs/ipfs-cluster/issues/532) | [ipfs/ipfs-cluster#553](https://github.com/ipfs/ipfs-cluster/issues/553)
-  * Configurable REST API headers and CORS defaults | [ipfs/ipfs-cluster#578](https://github.com/ipfs/ipfs-cluster/issues/578)
-  * Upgrade libp2p and other deps | [ipfs/ipfs-cluster#580](https://github.com/ipfs/ipfs-cluster/issues/580) | [ipfs/ipfs-cluster#590](https://github.com/ipfs/ipfs-cluster/issues/590) | [ipfs/ipfs-cluster#592](https://github.com/ipfs/ipfs-cluster/issues/592) | [ipfs/ipfs-cluster#598](https://github.com/ipfs/ipfs-cluster/issues/598) | [ipfs/ipfs-cluster#599](https://github.com/ipfs/ipfs-cluster/issues/599)
-  * Use `gossipsub` to broadcast metrics | [ipfs/ipfs-cluster#573](https://github.com/ipfs/ipfs-cluster/issues/573)
-  * Download gx and gx-go from IPFS preferentially | [ipfs/ipfs-cluster#577](https://github.com/ipfs/ipfs-cluster/issues/577) | [ipfs/ipfs-cluster#581](https://github.com/ipfs/ipfs-cluster/issues/581)
-  * Expose peer metrics in the API + ctl commands | [ipfs/ipfs-cluster#449](https://github.com/ipfs/ipfs-cluster/issues/449) | [ipfs/ipfs-cluster#572](https://github.com/ipfs/ipfs-cluster/issues/572) | [ipfs/ipfs-cluster#589](https://github.com/ipfs/ipfs-cluster/issues/589) | [ipfs/ipfs-cluster#587](https://github.com/ipfs/ipfs-cluster/issues/587)
-  * Add a `docker-compose.yml` template, which creates a two peer cluster | [ipfs/ipfs-cluster#585](https://github.com/ipfs/ipfs-cluster/issues/585) | [ipfs/ipfs-cluster#588](https://github.com/ipfs/ipfs-cluster/issues/588)
-  * Support overwriting configuration values in the `cluster` section with environmental values | [ipfs/ipfs-cluster#575](https://github.com/ipfs/ipfs-cluster/issues/575) | [ipfs/ipfs-cluster#596](https://github.com/ipfs/ipfs-cluster/issues/596)
-  * Set snaps to `classic` confinement mode and revert it since approval never arrived | [ipfs/ipfs-cluster#579](https://github.com/ipfs/ipfs-cluster/issues/579) | [ipfs/ipfs-cluster#594](https://github.com/ipfs/ipfs-cluster/issues/594)
-* Use Go's reverse proxy library in the proxy endpoint | [ipfs/ipfs-cluster#570](https://github.com/ipfs/ipfs-cluster/issues/570) | [ipfs/ipfs-cluster#605](https://github.com/ipfs/ipfs-cluster/issues/605)
+  * Clean (rotate) the state when running `init` | [ipfs-cluster/ipfs-cluster#532](https://github.com/ipfs-cluster/ipfs-cluster/issues/532) | [ipfs-cluster/ipfs-cluster#553](https://github.com/ipfs-cluster/ipfs-cluster/issues/553)
+  * Configurable REST API headers and CORS defaults | [ipfs-cluster/ipfs-cluster#578](https://github.com/ipfs-cluster/ipfs-cluster/issues/578)
+  * Upgrade libp2p and other deps | [ipfs-cluster/ipfs-cluster#580](https://github.com/ipfs-cluster/ipfs-cluster/issues/580) | [ipfs-cluster/ipfs-cluster#590](https://github.com/ipfs-cluster/ipfs-cluster/issues/590) | [ipfs-cluster/ipfs-cluster#592](https://github.com/ipfs-cluster/ipfs-cluster/issues/592) | [ipfs-cluster/ipfs-cluster#598](https://github.com/ipfs-cluster/ipfs-cluster/issues/598) | [ipfs-cluster/ipfs-cluster#599](https://github.com/ipfs-cluster/ipfs-cluster/issues/599)
+  * Use `gossipsub` to broadcast metrics | [ipfs-cluster/ipfs-cluster#573](https://github.com/ipfs-cluster/ipfs-cluster/issues/573)
+  * Download gx and gx-go from IPFS preferentially | [ipfs-cluster/ipfs-cluster#577](https://github.com/ipfs-cluster/ipfs-cluster/issues/577) | [ipfs-cluster/ipfs-cluster#581](https://github.com/ipfs-cluster/ipfs-cluster/issues/581)
+  * Expose peer metrics in the API + ctl commands | [ipfs-cluster/ipfs-cluster#449](https://github.com/ipfs-cluster/ipfs-cluster/issues/449) | [ipfs-cluster/ipfs-cluster#572](https://github.com/ipfs-cluster/ipfs-cluster/issues/572) | [ipfs-cluster/ipfs-cluster#589](https://github.com/ipfs-cluster/ipfs-cluster/issues/589) | [ipfs-cluster/ipfs-cluster#587](https://github.com/ipfs-cluster/ipfs-cluster/issues/587)
+  * Add a `docker-compose.yml` template, which creates a two peer cluster | [ipfs-cluster/ipfs-cluster#585](https://github.com/ipfs-cluster/ipfs-cluster/issues/585) | [ipfs-cluster/ipfs-cluster#588](https://github.com/ipfs-cluster/ipfs-cluster/issues/588)
+  * Support overwriting configuration values in the `cluster` section with environmental values | [ipfs-cluster/ipfs-cluster#575](https://github.com/ipfs-cluster/ipfs-cluster/issues/575) | [ipfs-cluster/ipfs-cluster#596](https://github.com/ipfs-cluster/ipfs-cluster/issues/596)
+  * Set snaps to `classic` confinement mode and revert it since approval never arrived | [ipfs-cluster/ipfs-cluster#579](https://github.com/ipfs-cluster/ipfs-cluster/issues/579) | [ipfs-cluster/ipfs-cluster#594](https://github.com/ipfs-cluster/ipfs-cluster/issues/594)
+* Use Go's reverse proxy library in the proxy endpoint | [ipfs-cluster/ipfs-cluster#570](https://github.com/ipfs-cluster/ipfs-cluster/issues/570) | [ipfs-cluster/ipfs-cluster#605](https://github.com/ipfs-cluster/ipfs-cluster/issues/605)
 
 
 ##### Bug fixes
 
-  * `/add` endpoints improvements and IPFS Companion compatiblity | [ipfs/ipfs-cluster#582](https://github.com/ipfs/ipfs-cluster/issues/582) | [ipfs/ipfs-cluster#569](https://github.com/ipfs/ipfs-cluster/issues/569)
-  * Fix adding with spaces in the name parameter | [ipfs/ipfs-cluster#583](https://github.com/ipfs/ipfs-cluster/issues/583)
-  * Escape filter query parameter | [ipfs/ipfs-cluster#586](https://github.com/ipfs/ipfs-cluster/issues/586)
-  * Fix some race conditions | [ipfs/ipfs-cluster#597](https://github.com/ipfs/ipfs-cluster/issues/597)
-  * Improve pin deserialization efficiency | [ipfs/ipfs-cluster#601](https://github.com/ipfs/ipfs-cluster/issues/601)
-  * Do not error remote pins | [ipfs/ipfs-cluster#600](https://github.com/ipfs/ipfs-cluster/issues/600) | [ipfs/ipfs-cluster#603](https://github.com/ipfs/ipfs-cluster/issues/603)
-  * Clean up testing folders in `rest` and `rest/client` after tests | [ipfs/ipfs-cluster#607](https://github.com/ipfs/ipfs-cluster/issues/607)
+  * `/add` endpoints improvements and IPFS Companion compatiblity | [ipfs-cluster/ipfs-cluster#582](https://github.com/ipfs-cluster/ipfs-cluster/issues/582) | [ipfs-cluster/ipfs-cluster#569](https://github.com/ipfs-cluster/ipfs-cluster/issues/569)
+  * Fix adding with spaces in the name parameter | [ipfs-cluster/ipfs-cluster#583](https://github.com/ipfs-cluster/ipfs-cluster/issues/583)
+  * Escape filter query parameter | [ipfs-cluster/ipfs-cluster#586](https://github.com/ipfs-cluster/ipfs-cluster/issues/586)
+  * Fix some race conditions | [ipfs-cluster/ipfs-cluster#597](https://github.com/ipfs-cluster/ipfs-cluster/issues/597)
+  * Improve pin deserialization efficiency | [ipfs-cluster/ipfs-cluster#601](https://github.com/ipfs-cluster/ipfs-cluster/issues/601)
+  * Do not error remote pins | [ipfs-cluster/ipfs-cluster#600](https://github.com/ipfs-cluster/ipfs-cluster/issues/600) | [ipfs-cluster/ipfs-cluster#603](https://github.com/ipfs-cluster/ipfs-cluster/issues/603)
+  * Clean up testing folders in `rest` and `rest/client` after tests | [ipfs-cluster/ipfs-cluster#607](https://github.com/ipfs-cluster/ipfs-cluster/issues/607)
 
 #### Upgrading notices
 
@@ -2093,21 +2093,21 @@ Many thanks to all the contributors to this release: @lanzafame, @meiqimichelle,
 
 ##### Features
 
-  * Move commands to the `cmd/` folder | [ipfs/ipfs-cluster#485](https://github.com/ipfs/ipfs-cluster/issues/485) | [ipfs/ipfs-cluster#521](https://github.com/ipfs/ipfs-cluster/issues/521) | [ipfs/ipfs-cluster#556](https://github.com/ipfs/ipfs-cluster/issues/556)
-  * Dependency upgrades: `go-dot`, `go-libp2p`, `cid` | [ipfs/ipfs-cluster#533](https://github.com/ipfs/ipfs-cluster/issues/533) | [ipfs/ipfs-cluster#537](https://github.com/ipfs/ipfs-cluster/issues/537) | [ipfs/ipfs-cluster#535](https://github.com/ipfs/ipfs-cluster/issues/535) | [ipfs/ipfs-cluster#544](https://github.com/ipfs/ipfs-cluster/issues/544) | [ipfs/ipfs-cluster#561](https://github.com/ipfs/ipfs-cluster/issues/561)
-  * Build with go-1.11 | [ipfs/ipfs-cluster#558](https://github.com/ipfs/ipfs-cluster/issues/558)
-  * Peer names in `PinInfo` | [ipfs/ipfs-cluster#446](https://github.com/ipfs/ipfs-cluster/issues/446) | [ipfs/ipfs-cluster#531](https://github.com/ipfs/ipfs-cluster/issues/531)
-  * Wrap API client in an interface | [ipfs/ipfs-cluster#447](https://github.com/ipfs/ipfs-cluster/issues/447) | [ipfs/ipfs-cluster#523](https://github.com/ipfs/ipfs-cluster/issues/523) | [ipfs/ipfs-cluster#564](https://github.com/ipfs/ipfs-cluster/issues/564)
-  * `Makefile`: add `prcheck` target and fix `make all` | [ipfs/ipfs-cluster#536](https://github.com/ipfs/ipfs-cluster/issues/536) | [ipfs/ipfs-cluster#542](https://github.com/ipfs/ipfs-cluster/issues/542) | [ipfs/ipfs-cluster#539](https://github.com/ipfs/ipfs-cluster/issues/539)
-  * Docker: speed up [re]builds | [ipfs/ipfs-cluster#529](https://github.com/ipfs/ipfs-cluster/issues/529)
-  * Re-enable keep-alives on servers | [ipfs/ipfs-cluster#548](https://github.com/ipfs/ipfs-cluster/issues/548) | [ipfs/ipfs-cluster#560](https://github.com/ipfs/ipfs-cluster/issues/560)
+  * Move commands to the `cmd/` folder | [ipfs-cluster/ipfs-cluster#485](https://github.com/ipfs-cluster/ipfs-cluster/issues/485) | [ipfs-cluster/ipfs-cluster#521](https://github.com/ipfs-cluster/ipfs-cluster/issues/521) | [ipfs-cluster/ipfs-cluster#556](https://github.com/ipfs-cluster/ipfs-cluster/issues/556)
+  * Dependency upgrades: `go-dot`, `go-libp2p`, `cid` | [ipfs-cluster/ipfs-cluster#533](https://github.com/ipfs-cluster/ipfs-cluster/issues/533) | [ipfs-cluster/ipfs-cluster#537](https://github.com/ipfs-cluster/ipfs-cluster/issues/537) | [ipfs-cluster/ipfs-cluster#535](https://github.com/ipfs-cluster/ipfs-cluster/issues/535) | [ipfs-cluster/ipfs-cluster#544](https://github.com/ipfs-cluster/ipfs-cluster/issues/544) | [ipfs-cluster/ipfs-cluster#561](https://github.com/ipfs-cluster/ipfs-cluster/issues/561)
+  * Build with go-1.11 | [ipfs-cluster/ipfs-cluster#558](https://github.com/ipfs-cluster/ipfs-cluster/issues/558)
+  * Peer names in `PinInfo` | [ipfs-cluster/ipfs-cluster#446](https://github.com/ipfs-cluster/ipfs-cluster/issues/446) | [ipfs-cluster/ipfs-cluster#531](https://github.com/ipfs-cluster/ipfs-cluster/issues/531)
+  * Wrap API client in an interface | [ipfs-cluster/ipfs-cluster#447](https://github.com/ipfs-cluster/ipfs-cluster/issues/447) | [ipfs-cluster/ipfs-cluster#523](https://github.com/ipfs-cluster/ipfs-cluster/issues/523) | [ipfs-cluster/ipfs-cluster#564](https://github.com/ipfs-cluster/ipfs-cluster/issues/564)
+  * `Makefile`: add `prcheck` target and fix `make all` | [ipfs-cluster/ipfs-cluster#536](https://github.com/ipfs-cluster/ipfs-cluster/issues/536) | [ipfs-cluster/ipfs-cluster#542](https://github.com/ipfs-cluster/ipfs-cluster/issues/542) | [ipfs-cluster/ipfs-cluster#539](https://github.com/ipfs-cluster/ipfs-cluster/issues/539)
+  * Docker: speed up [re]builds | [ipfs-cluster/ipfs-cluster#529](https://github.com/ipfs-cluster/ipfs-cluster/issues/529)
+  * Re-enable keep-alives on servers | [ipfs-cluster/ipfs-cluster#548](https://github.com/ipfs-cluster/ipfs-cluster/issues/548) | [ipfs-cluster/ipfs-cluster#560](https://github.com/ipfs-cluster/ipfs-cluster/issues/560)
 
 ##### Bugfixes
 
-  * Fix adding to cluster with unhealthy peers | [ipfs/ipfs-cluster#543](https://github.com/ipfs/ipfs-cluster/issues/543) | [ipfs/ipfs-cluster#549](https://github.com/ipfs/ipfs-cluster/issues/549)
-  * Fix Snap builds and pushes: multiple architectures re-enabled | [ipfs/ipfs-cluster#520](https://github.com/ipfs/ipfs-cluster/issues/520) | [ipfs/ipfs-cluster#554](https://github.com/ipfs/ipfs-cluster/issues/554) | [ipfs/ipfs-cluster#557](https://github.com/ipfs/ipfs-cluster/issues/557) | [ipfs/ipfs-cluster#562](https://github.com/ipfs/ipfs-cluster/issues/562) | [ipfs/ipfs-cluster#565](https://github.com/ipfs/ipfs-cluster/issues/565)
-  * Docs: Typos in Readme and some improvements | [ipfs/ipfs-cluster#547](https://github.com/ipfs/ipfs-cluster/issues/547) | [ipfs/ipfs-cluster#567](https://github.com/ipfs/ipfs-cluster/issues/567)
-  * Fix tests in `stateless` PinTracker | [ipfs/ipfs-cluster#552](https://github.com/ipfs/ipfs-cluster/issues/552) | [ipfs/ipfs-cluster#563](https://github.com/ipfs/ipfs-cluster/issues/563)
+  * Fix adding to cluster with unhealthy peers | [ipfs-cluster/ipfs-cluster#543](https://github.com/ipfs-cluster/ipfs-cluster/issues/543) | [ipfs-cluster/ipfs-cluster#549](https://github.com/ipfs-cluster/ipfs-cluster/issues/549)
+  * Fix Snap builds and pushes: multiple architectures re-enabled | [ipfs-cluster/ipfs-cluster#520](https://github.com/ipfs-cluster/ipfs-cluster/issues/520) | [ipfs-cluster/ipfs-cluster#554](https://github.com/ipfs-cluster/ipfs-cluster/issues/554) | [ipfs-cluster/ipfs-cluster#557](https://github.com/ipfs-cluster/ipfs-cluster/issues/557) | [ipfs-cluster/ipfs-cluster#562](https://github.com/ipfs-cluster/ipfs-cluster/issues/562) | [ipfs-cluster/ipfs-cluster#565](https://github.com/ipfs-cluster/ipfs-cluster/issues/565)
+  * Docs: Typos in Readme and some improvements | [ipfs-cluster/ipfs-cluster#547](https://github.com/ipfs-cluster/ipfs-cluster/issues/547) | [ipfs-cluster/ipfs-cluster#567](https://github.com/ipfs-cluster/ipfs-cluster/issues/567)
+  * Fix tests in `stateless` PinTracker | [ipfs-cluster/ipfs-cluster#552](https://github.com/ipfs-cluster/ipfs-cluster/issues/552) | [ipfs-cluster/ipfs-cluster#563](https://github.com/ipfs-cluster/ipfs-cluster/issues/563)
 
 #### Upgrading notices
 
@@ -2138,7 +2138,7 @@ IPFS Cluster version 0.5.0 is a minor release which includes a major feature: **
 
 This functionality is provided by `ipfs-cluster-ctl add` and by the API endpoint `/add`. The upload format (multipart) is similar to the IPFS `/add` endpoint, as well as the options (chunker, layout...). Cluster `add` generates the same DAG as `ipfs add` would, but it sends the added blocks directly to their allocations, pinning them on completion. The pin happens very quickly, as content is already locally available in the allocated peers.
 
-The release also includes most of the needed code for the [Sharding feature](https://cluster.ipfs.io/developer/rfcs/dag-sharding-rfc/), but it is not yet usable/enabled, pending features from go-ipfs.
+The release also includes most of the needed code for the [Sharding feature](https://ipfscluster.io/developer/rfcs/dag-sharding-rfc/), but it is not yet usable/enabled, pending features from go-ipfs.
 
 The 0.5.0 release additionally includes a new experimental PinTracker implementation: the `stateless` pin tracker. The stateless pin tracker relies on the IPFS pinset and the cluster state to keep track of pins, rather than keeping an in-memory copy of the cluster pinset, thus reducing the memory usage when having huge pinsets. It can be enabled with `ipfs-cluster-service daemon --pintracker stateless`.
 
@@ -2150,28 +2150,28 @@ This release requires a state upgrade migration. It can be performed with `ipfs-
 
 ##### Features
 
-  * Libp2p upgrades (up to v6) | [ipfs/ipfs-cluster#456](https://github.com/ipfs/ipfs-cluster/issues/456) | [ipfs/ipfs-cluster#482](https://github.com/ipfs/ipfs-cluster/issues/482)
-  * Support `/dns` multiaddresses for `node_multiaddress` | [ipfs/ipfs-cluster#462](https://github.com/ipfs/ipfs-cluster/issues/462) | [ipfs/ipfs-cluster#463](https://github.com/ipfs/ipfs-cluster/issues/463)
-  * Increase `state_sync_interval` to 10 minutes | [ipfs/ipfs-cluster#468](https://github.com/ipfs/ipfs-cluster/issues/468) | [ipfs/ipfs-cluster#469](https://github.com/ipfs/ipfs-cluster/issues/469)
-  * Auto-interpret libp2p addresses in `rest/client`'s `APIAddr` configuration option | [ipfs/ipfs-cluster#498](https://github.com/ipfs/ipfs-cluster/issues/498)
-  * Resolve `APIAddr` (for `/dnsaddr` usage) in `rest/client` | [ipfs/ipfs-cluster#498](https://github.com/ipfs/ipfs-cluster/issues/498)
-  * Support for adding content to Cluster and sharding (sharding is disabled) | [ipfs/ipfs-cluster#484](https://github.com/ipfs/ipfs-cluster/issues/484) | [ipfs/ipfs-cluster#503](https://github.com/ipfs/ipfs-cluster/issues/503) | [ipfs/ipfs-cluster#495](https://github.com/ipfs/ipfs-cluster/issues/495) | [ipfs/ipfs-cluster#504](https://github.com/ipfs/ipfs-cluster/issues/504) | [ipfs/ipfs-cluster#509](https://github.com/ipfs/ipfs-cluster/issues/509) | [ipfs/ipfs-cluster#511](https://github.com/ipfs/ipfs-cluster/issues/511) | [ipfs/ipfs-cluster#518](https://github.com/ipfs/ipfs-cluster/issues/518)
-  * `stateless` PinTracker [ipfs/ipfs-cluster#308](https://github.com/ipfs/ipfs-cluster/issues/308) | [ipfs/ipfs-cluster#460](https://github.com/ipfs/ipfs-cluster/issues/460)
-  * Add `size-only=true` to `repo/stat` calls | [ipfs/ipfs-cluster#507](https://github.com/ipfs/ipfs-cluster/issues/507)
-  * Enable DHT-based peer discovery and routing for cluster peers | [ipfs/ipfs-cluster#489](https://github.com/ipfs/ipfs-cluster/issues/489) | [ipfs/ipfs-cluster#508](https://github.com/ipfs/ipfs-cluster/issues/508)
-  * Gx-go upgrade | [ipfs/ipfs-cluster#517](https://github.com/ipfs/ipfs-cluster/issues/517)
+  * Libp2p upgrades (up to v6) | [ipfs-cluster/ipfs-cluster#456](https://github.com/ipfs-cluster/ipfs-cluster/issues/456) | [ipfs-cluster/ipfs-cluster#482](https://github.com/ipfs-cluster/ipfs-cluster/issues/482)
+  * Support `/dns` multiaddresses for `node_multiaddress` | [ipfs-cluster/ipfs-cluster#462](https://github.com/ipfs-cluster/ipfs-cluster/issues/462) | [ipfs-cluster/ipfs-cluster#463](https://github.com/ipfs-cluster/ipfs-cluster/issues/463)
+  * Increase `state_sync_interval` to 10 minutes | [ipfs-cluster/ipfs-cluster#468](https://github.com/ipfs-cluster/ipfs-cluster/issues/468) | [ipfs-cluster/ipfs-cluster#469](https://github.com/ipfs-cluster/ipfs-cluster/issues/469)
+  * Auto-interpret libp2p addresses in `rest/client`'s `APIAddr` configuration option | [ipfs-cluster/ipfs-cluster#498](https://github.com/ipfs-cluster/ipfs-cluster/issues/498)
+  * Resolve `APIAddr` (for `/dnsaddr` usage) in `rest/client` | [ipfs-cluster/ipfs-cluster#498](https://github.com/ipfs-cluster/ipfs-cluster/issues/498)
+  * Support for adding content to Cluster and sharding (sharding is disabled) | [ipfs-cluster/ipfs-cluster#484](https://github.com/ipfs-cluster/ipfs-cluster/issues/484) | [ipfs-cluster/ipfs-cluster#503](https://github.com/ipfs-cluster/ipfs-cluster/issues/503) | [ipfs-cluster/ipfs-cluster#495](https://github.com/ipfs-cluster/ipfs-cluster/issues/495) | [ipfs-cluster/ipfs-cluster#504](https://github.com/ipfs-cluster/ipfs-cluster/issues/504) | [ipfs-cluster/ipfs-cluster#509](https://github.com/ipfs-cluster/ipfs-cluster/issues/509) | [ipfs-cluster/ipfs-cluster#511](https://github.com/ipfs-cluster/ipfs-cluster/issues/511) | [ipfs-cluster/ipfs-cluster#518](https://github.com/ipfs-cluster/ipfs-cluster/issues/518)
+  * `stateless` PinTracker [ipfs-cluster/ipfs-cluster#308](https://github.com/ipfs-cluster/ipfs-cluster/issues/308) | [ipfs-cluster/ipfs-cluster#460](https://github.com/ipfs-cluster/ipfs-cluster/issues/460)
+  * Add `size-only=true` to `repo/stat` calls | [ipfs-cluster/ipfs-cluster#507](https://github.com/ipfs-cluster/ipfs-cluster/issues/507)
+  * Enable DHT-based peer discovery and routing for cluster peers | [ipfs-cluster/ipfs-cluster#489](https://github.com/ipfs-cluster/ipfs-cluster/issues/489) | [ipfs-cluster/ipfs-cluster#508](https://github.com/ipfs-cluster/ipfs-cluster/issues/508)
+  * Gx-go upgrade | [ipfs-cluster/ipfs-cluster#517](https://github.com/ipfs-cluster/ipfs-cluster/issues/517)
 
 ##### Bugfixes
 
-  * Fix type for constants | [ipfs/ipfs-cluster#455](https://github.com/ipfs/ipfs-cluster/issues/455)
-  * Gofmt fix | [ipfs/ipfs-cluster#464](https://github.com/ipfs/ipfs-cluster/issues/464)
-  * Fix tests for forked repositories | [ipfs/ipfs-cluster#465](https://github.com/ipfs/ipfs-cluster/issues/465) | [ipfs/ipfs-cluster#472](https://github.com/ipfs/ipfs-cluster/issues/472)
-  * Fix resolve panic on `rest/client` | [ipfs/ipfs-cluster#498](https://github.com/ipfs/ipfs-cluster/issues/498)
-  * Fix remote pins stuck in error state | [ipfs/ipfs-cluster#500](https://github.com/ipfs/ipfs-cluster/issues/500) | [ipfs/ipfs-cluster#460](https://github.com/ipfs/ipfs-cluster/issues/460)
-  * Fix running some tests with `-race` | [ipfs/ipfs-cluster#340](https://github.com/ipfs/ipfs-cluster/issues/340) | [ipfs/ipfs-cluster#458](https://github.com/ipfs/ipfs-cluster/issues/458)
-  * Fix ipfs proxy `/add` endpoint | [ipfs/ipfs-cluster#495](https://github.com/ipfs/ipfs-cluster/issues/495) | [ipfs/ipfs-cluster#81](https://github.com/ipfs/ipfs-cluster/issues/81) | [ipfs/ipfs-cluster#505](https://github.com/ipfs/ipfs-cluster/issues/505)
-  * Fix ipfs proxy not hijacking `repo/stat` | [ipfs/ipfs-cluster#466](https://github.com/ipfs/ipfs-cluster/issues/466) | [ipfs/ipfs-cluster#514](https://github.com/ipfs/ipfs-cluster/issues/514)
-  * Fix some godoc comments | [ipfs/ipfs-cluster#519](https://github.com/ipfs/ipfs-cluster/issues/519)
+  * Fix type for constants | [ipfs-cluster/ipfs-cluster#455](https://github.com/ipfs-cluster/ipfs-cluster/issues/455)
+  * Gofmt fix | [ipfs-cluster/ipfs-cluster#464](https://github.com/ipfs-cluster/ipfs-cluster/issues/464)
+  * Fix tests for forked repositories | [ipfs-cluster/ipfs-cluster#465](https://github.com/ipfs-cluster/ipfs-cluster/issues/465) | [ipfs-cluster/ipfs-cluster#472](https://github.com/ipfs-cluster/ipfs-cluster/issues/472)
+  * Fix resolve panic on `rest/client` | [ipfs-cluster/ipfs-cluster#498](https://github.com/ipfs-cluster/ipfs-cluster/issues/498)
+  * Fix remote pins stuck in error state | [ipfs-cluster/ipfs-cluster#500](https://github.com/ipfs-cluster/ipfs-cluster/issues/500) | [ipfs-cluster/ipfs-cluster#460](https://github.com/ipfs-cluster/ipfs-cluster/issues/460)
+  * Fix running some tests with `-race` | [ipfs-cluster/ipfs-cluster#340](https://github.com/ipfs-cluster/ipfs-cluster/issues/340) | [ipfs-cluster/ipfs-cluster#458](https://github.com/ipfs-cluster/ipfs-cluster/issues/458)
+  * Fix ipfs proxy `/add` endpoint | [ipfs-cluster/ipfs-cluster#495](https://github.com/ipfs-cluster/ipfs-cluster/issues/495) | [ipfs-cluster/ipfs-cluster#81](https://github.com/ipfs-cluster/ipfs-cluster/issues/81) | [ipfs-cluster/ipfs-cluster#505](https://github.com/ipfs-cluster/ipfs-cluster/issues/505)
+  * Fix ipfs proxy not hijacking `repo/stat` | [ipfs-cluster/ipfs-cluster#466](https://github.com/ipfs-cluster/ipfs-cluster/issues/466) | [ipfs-cluster/ipfs-cluster#514](https://github.com/ipfs-cluster/ipfs-cluster/issues/514)
+  * Fix some godoc comments | [ipfs-cluster/ipfs-cluster#519](https://github.com/ipfs-cluster/ipfs-cluster/issues/519)
 
 #### Upgrading notices
 
@@ -2208,7 +2208,7 @@ As noted above, upgrade to `state` format version 5 is needed before starting th
 
 #### Summary
 
-The IPFS Cluster version 0.4.0 includes breaking changes and a considerable number of new features causing them. The documentation (particularly that affecting the configuration and startup of peers) has been updated accordingly in https://cluster.ipfs.io . Be sure to also read it if you are upgrading.
+The IPFS Cluster version 0.4.0 includes breaking changes and a considerable number of new features causing them. The documentation (particularly that affecting the configuration and startup of peers) has been updated accordingly in https://ipfscluster.io . Be sure to also read it if you are upgrading.
 
 There are four main developments in this release:
 
@@ -2216,44 +2216,44 @@ There are four main developments in this release:
 * Improvements to the `pintracker`: our pin tracker is now able to cancel ongoing pins when receiving an unpin request for the same CID, and vice-versa. It will also optimize multiple pin requests (by only queuing and triggering them once) and can now report
 whether an item is pinning (a request to ipfs is ongoing) vs. pin-queued (waiting for a worker to perform the request to ipfs).
 * Broadcasting of monitoring metrics using PubSub: we have added a new `monitor` implementation that uses PubSub (rather than RPC broadcasting). With the upcoming improvements to PubSub this means that we can do efficient broadcasting of metrics while at the same time not requiring peers to have RPC permissions, which is preparing the ground for collaborative clusters.
-* We have launched the IPFS Cluster website: https://cluster.ipfs.io . We moved most of the documentation over there, expanded it and updated it.
+* We have launched the IPFS Cluster website: https://ipfscluster.io . We moved most of the documentation over there, expanded it and updated it.
 
 #### List of changes
 
 ##### Features
 
-  * Consensus refactorings | [ipfs/ipfs-cluster#398](https://github.com/ipfs/ipfs-cluster/issues/398) | [ipfs/ipfs-cluster#371](https://github.com/ipfs/ipfs-cluster/issues/371)
-  * Pintracker revamp | [ipfs/ipfs-cluster#308](https://github.com/ipfs/ipfs-cluster/issues/308) | [ipfs/ipfs-cluster#383](https://github.com/ipfs/ipfs-cluster/issues/383) | [ipfs/ipfs-cluster#408](https://github.com/ipfs/ipfs-cluster/issues/408) | [ipfs/ipfs-cluster#415](https://github.com/ipfs/ipfs-cluster/issues/415) | [ipfs/ipfs-cluster#421](https://github.com/ipfs/ipfs-cluster/issues/421) | [ipfs/ipfs-cluster#427](https://github.com/ipfs/ipfs-cluster/issues/427) | [ipfs/ipfs-cluster#432](https://github.com/ipfs/ipfs-cluster/issues/432)
-  * Pubsub monitoring | [ipfs/ipfs-cluster#400](https://github.com/ipfs/ipfs-cluster/issues/400)
-  * Force killing cluster with double CTRL-C | [ipfs/ipfs-cluster#258](https://github.com/ipfs/ipfs-cluster/issues/258) | [ipfs/ipfs-cluster#358](https://github.com/ipfs/ipfs-cluster/issues/358)
-  * 3x faster testsuite | [ipfs/ipfs-cluster#339](https://github.com/ipfs/ipfs-cluster/issues/339) | [ipfs/ipfs-cluster#350](https://github.com/ipfs/ipfs-cluster/issues/350)
-  * Introduce `disable_repinning` option | [ipfs/ipfs-cluster#369](https://github.com/ipfs/ipfs-cluster/issues/369) | [ipfs/ipfs-cluster#387](https://github.com/ipfs/ipfs-cluster/issues/387)
-  * Documentation moved to website and fixes | [ipfs/ipfs-cluster#390](https://github.com/ipfs/ipfs-cluster/issues/390) | [ipfs/ipfs-cluster#391](https://github.com/ipfs/ipfs-cluster/issues/391) | [ipfs/ipfs-cluster#393](https://github.com/ipfs/ipfs-cluster/issues/393) | [ipfs/ipfs-cluster#347](https://github.com/ipfs/ipfs-cluster/issues/347)
-  * Run Docker container with `daemon --upgrade` by default | [ipfs/ipfs-cluster#394](https://github.com/ipfs/ipfs-cluster/issues/394)
-  * Remove the `ipfs-cluster-ctl peers add` command (bootstrap should be used to add peers) | [ipfs/ipfs-cluster#397](https://github.com/ipfs/ipfs-cluster/issues/397)
-  * Add tests using HTTPs endpoints | [ipfs/ipfs-cluster#191](https://github.com/ipfs/ipfs-cluster/issues/191) | [ipfs/ipfs-cluster#403](https://github.com/ipfs/ipfs-cluster/issues/403)
-  * Set `refs` as default `pinning_method` and `10` as default `concurrent_pins` | [ipfs/ipfs-cluster#420](https://github.com/ipfs/ipfs-cluster/issues/420)
-  * Use latest `gx` and `gx-go`. Be more verbose when installing | [ipfs/ipfs-cluster#418](https://github.com/ipfs/ipfs-cluster/issues/418)
-  * Makefile: Properly retrigger builds on source change | [ipfs/ipfs-cluster#426](https://github.com/ipfs/ipfs-cluster/issues/426)
-  * Improvements to StateSync() | [ipfs/ipfs-cluster#429](https://github.com/ipfs/ipfs-cluster/issues/429)
-  * Rename `ipfs-cluster-data` folder to `raft` | [ipfs/ipfs-cluster#430](https://github.com/ipfs/ipfs-cluster/issues/430)
-  * Officially support go 1.10 | [ipfs/ipfs-cluster#439](https://github.com/ipfs/ipfs-cluster/issues/439)
-  * Update to libp2p 5.0.17 | [ipfs/ipfs-cluster#440](https://github.com/ipfs/ipfs-cluster/issues/440)
+  * Consensus refactorings | [ipfs-cluster/ipfs-cluster#398](https://github.com/ipfs-cluster/ipfs-cluster/issues/398) | [ipfs-cluster/ipfs-cluster#371](https://github.com/ipfs-cluster/ipfs-cluster/issues/371)
+  * Pintracker revamp | [ipfs-cluster/ipfs-cluster#308](https://github.com/ipfs-cluster/ipfs-cluster/issues/308) | [ipfs-cluster/ipfs-cluster#383](https://github.com/ipfs-cluster/ipfs-cluster/issues/383) | [ipfs-cluster/ipfs-cluster#408](https://github.com/ipfs-cluster/ipfs-cluster/issues/408) | [ipfs-cluster/ipfs-cluster#415](https://github.com/ipfs-cluster/ipfs-cluster/issues/415) | [ipfs-cluster/ipfs-cluster#421](https://github.com/ipfs-cluster/ipfs-cluster/issues/421) | [ipfs-cluster/ipfs-cluster#427](https://github.com/ipfs-cluster/ipfs-cluster/issues/427) | [ipfs-cluster/ipfs-cluster#432](https://github.com/ipfs-cluster/ipfs-cluster/issues/432)
+  * Pubsub monitoring | [ipfs-cluster/ipfs-cluster#400](https://github.com/ipfs-cluster/ipfs-cluster/issues/400)
+  * Force killing cluster with double CTRL-C | [ipfs-cluster/ipfs-cluster#258](https://github.com/ipfs-cluster/ipfs-cluster/issues/258) | [ipfs-cluster/ipfs-cluster#358](https://github.com/ipfs-cluster/ipfs-cluster/issues/358)
+  * 3x faster testsuite | [ipfs-cluster/ipfs-cluster#339](https://github.com/ipfs-cluster/ipfs-cluster/issues/339) | [ipfs-cluster/ipfs-cluster#350](https://github.com/ipfs-cluster/ipfs-cluster/issues/350)
+  * Introduce `disable_repinning` option | [ipfs-cluster/ipfs-cluster#369](https://github.com/ipfs-cluster/ipfs-cluster/issues/369) | [ipfs-cluster/ipfs-cluster#387](https://github.com/ipfs-cluster/ipfs-cluster/issues/387)
+  * Documentation moved to website and fixes | [ipfs-cluster/ipfs-cluster#390](https://github.com/ipfs-cluster/ipfs-cluster/issues/390) | [ipfs-cluster/ipfs-cluster#391](https://github.com/ipfs-cluster/ipfs-cluster/issues/391) | [ipfs-cluster/ipfs-cluster#393](https://github.com/ipfs-cluster/ipfs-cluster/issues/393) | [ipfs-cluster/ipfs-cluster#347](https://github.com/ipfs-cluster/ipfs-cluster/issues/347)
+  * Run Docker container with `daemon --upgrade` by default | [ipfs-cluster/ipfs-cluster#394](https://github.com/ipfs-cluster/ipfs-cluster/issues/394)
+  * Remove the `ipfs-cluster-ctl peers add` command (bootstrap should be used to add peers) | [ipfs-cluster/ipfs-cluster#397](https://github.com/ipfs-cluster/ipfs-cluster/issues/397)
+  * Add tests using HTTPs endpoints | [ipfs-cluster/ipfs-cluster#191](https://github.com/ipfs-cluster/ipfs-cluster/issues/191) | [ipfs-cluster/ipfs-cluster#403](https://github.com/ipfs-cluster/ipfs-cluster/issues/403)
+  * Set `refs` as default `pinning_method` and `10` as default `concurrent_pins` | [ipfs-cluster/ipfs-cluster#420](https://github.com/ipfs-cluster/ipfs-cluster/issues/420)
+  * Use latest `gx` and `gx-go`. Be more verbose when installing | [ipfs-cluster/ipfs-cluster#418](https://github.com/ipfs-cluster/ipfs-cluster/issues/418)
+  * Makefile: Properly retrigger builds on source change | [ipfs-cluster/ipfs-cluster#426](https://github.com/ipfs-cluster/ipfs-cluster/issues/426)
+  * Improvements to StateSync() | [ipfs-cluster/ipfs-cluster#429](https://github.com/ipfs-cluster/ipfs-cluster/issues/429)
+  * Rename `ipfs-cluster-data` folder to `raft` | [ipfs-cluster/ipfs-cluster#430](https://github.com/ipfs-cluster/ipfs-cluster/issues/430)
+  * Officially support go 1.10 | [ipfs-cluster/ipfs-cluster#439](https://github.com/ipfs-cluster/ipfs-cluster/issues/439)
+  * Update to libp2p 5.0.17 | [ipfs-cluster/ipfs-cluster#440](https://github.com/ipfs-cluster/ipfs-cluster/issues/440)
 
 ##### Bugsfixes:
 
-  * Don't keep peers /ip*/ addresses if we know DNS addresses for them | [ipfs/ipfs-cluster#381](https://github.com/ipfs/ipfs-cluster/issues/381)
-  * Running cluster with wrong configuration path gives misleading error | [ipfs/ipfs-cluster#343](https://github.com/ipfs/ipfs-cluster/issues/343) | [ipfs/ipfs-cluster#370](https://github.com/ipfs/ipfs-cluster/issues/370) | [ipfs/ipfs-cluster#373](https://github.com/ipfs/ipfs-cluster/issues/373)
-  * Do not fail when running with `daemon --upgrade` and no state is present | [ipfs/ipfs-cluster#395](https://github.com/ipfs/ipfs-cluster/issues/395)
-  * IPFS Proxy: handle arguments passed as part of the url | [ipfs/ipfs-cluster#380](https://github.com/ipfs/ipfs-cluster/issues/380) | [ipfs/ipfs-cluster#392](https://github.com/ipfs/ipfs-cluster/issues/392)
-  * WaitForUpdates() may return before state is fully synced | [ipfs/ipfs-cluster#378](https://github.com/ipfs/ipfs-cluster/issues/378)
-  * Configuration mutates no more and shadowing is no longer necessary | [ipfs/ipfs-cluster#235](https://github.com/ipfs/ipfs-cluster/issues/235)
-  * Govet fixes | [ipfs/ipfs-cluster#417](https://github.com/ipfs/ipfs-cluster/issues/417)
+  * Don't keep peers /ip*/ addresses if we know DNS addresses for them | [ipfs-cluster/ipfs-cluster#381](https://github.com/ipfs-cluster/ipfs-cluster/issues/381)
+  * Running cluster with wrong configuration path gives misleading error | [ipfs-cluster/ipfs-cluster#343](https://github.com/ipfs-cluster/ipfs-cluster/issues/343) | [ipfs-cluster/ipfs-cluster#370](https://github.com/ipfs-cluster/ipfs-cluster/issues/370) | [ipfs-cluster/ipfs-cluster#373](https://github.com/ipfs-cluster/ipfs-cluster/issues/373)
+  * Do not fail when running with `daemon --upgrade` and no state is present | [ipfs-cluster/ipfs-cluster#395](https://github.com/ipfs-cluster/ipfs-cluster/issues/395)
+  * IPFS Proxy: handle arguments passed as part of the url | [ipfs-cluster/ipfs-cluster#380](https://github.com/ipfs-cluster/ipfs-cluster/issues/380) | [ipfs-cluster/ipfs-cluster#392](https://github.com/ipfs-cluster/ipfs-cluster/issues/392)
+  * WaitForUpdates() may return before state is fully synced | [ipfs-cluster/ipfs-cluster#378](https://github.com/ipfs-cluster/ipfs-cluster/issues/378)
+  * Configuration mutates no more and shadowing is no longer necessary | [ipfs-cluster/ipfs-cluster#235](https://github.com/ipfs-cluster/ipfs-cluster/issues/235)
+  * Govet fixes | [ipfs-cluster/ipfs-cluster#417](https://github.com/ipfs-cluster/ipfs-cluster/issues/417)
   * Fix release changelog when having RC tags
-  * Fix lock file not being removed on cluster force-kill | [ipfs/ipfs-cluster#423](https://github.com/ipfs/ipfs-cluster/issues/423) | [ipfs/ipfs-cluster#437](https://github.com/ipfs/ipfs-cluster/issues/437)
-  * Fix indirect pins not being correctly parsed | [ipfs/ipfs-cluster#428](https://github.com/ipfs/ipfs-cluster/issues/428) | [ipfs/ipfs-cluster#436](https://github.com/ipfs/ipfs-cluster/issues/436)
-  * Enable NAT support in libp2p host | [ipfs/ipfs-cluster#346](https://github.com/ipfs/ipfs-cluster/issues/346) | [ipfs/ipfs-cluster#441](https://github.com/ipfs/ipfs-cluster/issues/441)
-  * Fix pubsub monitor not working on ARM | [ipfs/ipfs-cluster#433](https://github.com/ipfs/ipfs-cluster/issues/433) | [ipfs/ipfs-cluster#443](https://github.com/ipfs/ipfs-cluster/issues/443)
+  * Fix lock file not being removed on cluster force-kill | [ipfs-cluster/ipfs-cluster#423](https://github.com/ipfs-cluster/ipfs-cluster/issues/423) | [ipfs-cluster/ipfs-cluster#437](https://github.com/ipfs-cluster/ipfs-cluster/issues/437)
+  * Fix indirect pins not being correctly parsed | [ipfs-cluster/ipfs-cluster#428](https://github.com/ipfs-cluster/ipfs-cluster/issues/428) | [ipfs-cluster/ipfs-cluster#436](https://github.com/ipfs-cluster/ipfs-cluster/issues/436)
+  * Enable NAT support in libp2p host | [ipfs-cluster/ipfs-cluster#346](https://github.com/ipfs-cluster/ipfs-cluster/issues/346) | [ipfs-cluster/ipfs-cluster#441](https://github.com/ipfs-cluster/ipfs-cluster/issues/441)
+  * Fix pubsub monitor not working on ARM | [ipfs-cluster/ipfs-cluster#433](https://github.com/ipfs-cluster/ipfs-cluster/issues/433) | [ipfs-cluster/ipfs-cluster#443](https://github.com/ipfs-cluster/ipfs-cluster/issues/443)
 
 #### Upgrading notices
 
@@ -2297,18 +2297,18 @@ The `ipfs-cluster-ctl` no longer has a `peers add` subcommand. Peers should not 
 This release comes full with new features. The biggest ones are the support for parallel pinning (using `refs -r` rather than `pin add` to pin things in IPFS), and the exposing of the http endpoints through libp2p. This allows users to securely interact with the HTTP API without having to setup SSL certificates.
 
 * Features
-  * `--no-status` for `ipfs-cluster-ctl pin add/rm` allows to speed up adding and removing by not fetching the status one second afterwards. Useful for ingesting pinsets to cluster | [ipfs/ipfs-cluster#286](https://github.com/ipfs/ipfs-cluster/issues/286) | [ipfs/ipfs-cluster#329](https://github.com/ipfs/ipfs-cluster/issues/329)
-  * `--wait` flag for `ipfs-cluster-ctl pin add/rm` allows to wait until a CID is fully pinned or unpinned [ipfs/ipfs-cluster#338](https://github.com/ipfs/ipfs-cluster/issues/338) | [ipfs/ipfs-cluster#348](https://github.com/ipfs/ipfs-cluster/issues/348) | [ipfs/ipfs-cluster#363](https://github.com/ipfs/ipfs-cluster/issues/363)
-  * Support `refs` pinning method. Parallel pinning | [ipfs/ipfs-cluster#326](https://github.com/ipfs/ipfs-cluster/issues/326) | [ipfs/ipfs-cluster#331](https://github.com/ipfs/ipfs-cluster/issues/331)
-  * Double default timeouts for `ipfs-cluster-ctl` | [ipfs/ipfs-cluster#323](https://github.com/ipfs/ipfs-cluster/issues/323) | [ipfs/ipfs-cluster#334](https://github.com/ipfs/ipfs-cluster/issues/334)
-  * Better error messages during startup | [ipfs/ipfs-cluster#167](https://github.com/ipfs/ipfs-cluster/issues/167) | [ipfs/ipfs-cluster#344](https://github.com/ipfs/ipfs-cluster/issues/344) | [ipfs/ipfs-cluster#353](https://github.com/ipfs/ipfs-cluster/issues/353)
-  * REST API client now provides an `IPFS()` method which returns a `go-ipfs-api` shell instance pointing to the proxy endpoint | [ipfs/ipfs-cluster#269](https://github.com/ipfs/ipfs-cluster/issues/269) | [ipfs/ipfs-cluster#356](https://github.com/ipfs/ipfs-cluster/issues/356)
-  * REST http-api-over-libp2p. Server, client, `ipfs-cluster-ctl` support added | [ipfs/ipfs-cluster#305](https://github.com/ipfs/ipfs-cluster/issues/305) | [ipfs/ipfs-cluster#349](https://github.com/ipfs/ipfs-cluster/issues/349)
-  * Added support for priority pins and non-recursive pins (sharding-related) | [ipfs/ipfs-cluster#341](https://github.com/ipfs/ipfs-cluster/issues/341) | [ipfs/ipfs-cluster#342](https://github.com/ipfs/ipfs-cluster/issues/342)
-  * Documentation fixes | [ipfs/ipfs-cluster#328](https://github.com/ipfs/ipfs-cluster/issues/328) | [ipfs/ipfs-cluster#357](https://github.com/ipfs/ipfs-cluster/issues/357)
+  * `--no-status` for `ipfs-cluster-ctl pin add/rm` allows to speed up adding and removing by not fetching the status one second afterwards. Useful for ingesting pinsets to cluster | [ipfs-cluster/ipfs-cluster#286](https://github.com/ipfs-cluster/ipfs-cluster/issues/286) | [ipfs-cluster/ipfs-cluster#329](https://github.com/ipfs-cluster/ipfs-cluster/issues/329)
+  * `--wait` flag for `ipfs-cluster-ctl pin add/rm` allows to wait until a CID is fully pinned or unpinned [ipfs-cluster/ipfs-cluster#338](https://github.com/ipfs-cluster/ipfs-cluster/issues/338) | [ipfs-cluster/ipfs-cluster#348](https://github.com/ipfs-cluster/ipfs-cluster/issues/348) | [ipfs-cluster/ipfs-cluster#363](https://github.com/ipfs-cluster/ipfs-cluster/issues/363)
+  * Support `refs` pinning method. Parallel pinning | [ipfs-cluster/ipfs-cluster#326](https://github.com/ipfs-cluster/ipfs-cluster/issues/326) | [ipfs-cluster/ipfs-cluster#331](https://github.com/ipfs-cluster/ipfs-cluster/issues/331)
+  * Double default timeouts for `ipfs-cluster-ctl` | [ipfs-cluster/ipfs-cluster#323](https://github.com/ipfs-cluster/ipfs-cluster/issues/323) | [ipfs-cluster/ipfs-cluster#334](https://github.com/ipfs-cluster/ipfs-cluster/issues/334)
+  * Better error messages during startup | [ipfs-cluster/ipfs-cluster#167](https://github.com/ipfs-cluster/ipfs-cluster/issues/167) | [ipfs-cluster/ipfs-cluster#344](https://github.com/ipfs-cluster/ipfs-cluster/issues/344) | [ipfs-cluster/ipfs-cluster#353](https://github.com/ipfs-cluster/ipfs-cluster/issues/353)
+  * REST API client now provides an `IPFS()` method which returns a `go-ipfs-api` shell instance pointing to the proxy endpoint | [ipfs-cluster/ipfs-cluster#269](https://github.com/ipfs-cluster/ipfs-cluster/issues/269) | [ipfs-cluster/ipfs-cluster#356](https://github.com/ipfs-cluster/ipfs-cluster/issues/356)
+  * REST http-api-over-libp2p. Server, client, `ipfs-cluster-ctl` support added | [ipfs-cluster/ipfs-cluster#305](https://github.com/ipfs-cluster/ipfs-cluster/issues/305) | [ipfs-cluster/ipfs-cluster#349](https://github.com/ipfs-cluster/ipfs-cluster/issues/349)
+  * Added support for priority pins and non-recursive pins (sharding-related) | [ipfs-cluster/ipfs-cluster#341](https://github.com/ipfs-cluster/ipfs-cluster/issues/341) | [ipfs-cluster/ipfs-cluster#342](https://github.com/ipfs-cluster/ipfs-cluster/issues/342)
+  * Documentation fixes | [ipfs-cluster/ipfs-cluster#328](https://github.com/ipfs-cluster/ipfs-cluster/issues/328) | [ipfs-cluster/ipfs-cluster#357](https://github.com/ipfs-cluster/ipfs-cluster/issues/357)
 
 * Bugfixes
-  * Print lock path in logs | [ipfs/ipfs-cluster#332](https://github.com/ipfs/ipfs-cluster/issues/332) | [ipfs/ipfs-cluster#333](https://github.com/ipfs/ipfs-cluster/issues/333)
+  * Print lock path in logs | [ipfs-cluster/ipfs-cluster#332](https://github.com/ipfs-cluster/ipfs-cluster/issues/332) | [ipfs-cluster/ipfs-cluster#333](https://github.com/ipfs-cluster/ipfs-cluster/issues/333)
 
 There are no breaking API changes and all configurations should be backwards compatible. The `api/rest/client` provides a new `IPFS()` method.
 
@@ -2327,7 +2327,7 @@ This release will require a **state upgrade**. Run `ipfs-cluster-service state u
 This release fixes the pre-built binaries.
 
 * Bugfixes
-  * Pre-built binaries panic on start | [ipfs/ipfs-cluster#320](https://github.com/ipfs/ipfs-cluster/issues/320)
+  * Pre-built binaries panic on start | [ipfs-cluster/ipfs-cluster#320](https://github.com/ipfs-cluster/ipfs-cluster/issues/320)
 
 ---
 
@@ -2336,13 +2336,13 @@ This release fixes the pre-built binaries.
 This release includes additional `ipfs-cluster-service state` subcommands and the connectivity graph feature.
 
 * Features
-  * `ipfs-cluster-service daemon --upgrade` allows to automatically run migrations before starting | [ipfs/ipfs-cluster#300](https://github.com/ipfs/ipfs-cluster/issues/300) | [ipfs/ipfs-cluster#307](https://github.com/ipfs/ipfs-cluster/issues/307)
-  * `ipfs-cluster-service state version` reports the shared state format version | [ipfs/ipfs-cluster#298](https://github.com/ipfs/ipfs-cluster/issues/298) | [ipfs/ipfs-cluster#307](https://github.com/ipfs/ipfs-cluster/issues/307)
-  * `ipfs-cluster-service health graph` generates a .dot graph file of cluster connectivity | [ipfs/ipfs-cluster#17](https://github.com/ipfs/ipfs-cluster/issues/17) | [ipfs/ipfs-cluster#291](https://github.com/ipfs/ipfs-cluster/issues/291) | [ipfs/ipfs-cluster#311](https://github.com/ipfs/ipfs-cluster/issues/311)
+  * `ipfs-cluster-service daemon --upgrade` allows to automatically run migrations before starting | [ipfs-cluster/ipfs-cluster#300](https://github.com/ipfs-cluster/ipfs-cluster/issues/300) | [ipfs-cluster/ipfs-cluster#307](https://github.com/ipfs-cluster/ipfs-cluster/issues/307)
+  * `ipfs-cluster-service state version` reports the shared state format version | [ipfs-cluster/ipfs-cluster#298](https://github.com/ipfs-cluster/ipfs-cluster/issues/298) | [ipfs-cluster/ipfs-cluster#307](https://github.com/ipfs-cluster/ipfs-cluster/issues/307)
+  * `ipfs-cluster-service health graph` generates a .dot graph file of cluster connectivity | [ipfs-cluster/ipfs-cluster#17](https://github.com/ipfs-cluster/ipfs-cluster/issues/17) | [ipfs-cluster/ipfs-cluster#291](https://github.com/ipfs-cluster/ipfs-cluster/issues/291) | [ipfs-cluster/ipfs-cluster#311](https://github.com/ipfs-cluster/ipfs-cluster/issues/311)
 
 * Bugfixes
-  * Do not upgrade state if already up to date | [ipfs/ipfs-cluster#296](https://github.com/ipfs/ipfs-cluster/issues/296) | [ipfs/ipfs-cluster#307](https://github.com/ipfs/ipfs-cluster/issues/307)
-  * Fix `ipfs-cluster-service daemon` failing with `unknown allocation strategy` error | [ipfs/ipfs-cluster#314](https://github.com/ipfs/ipfs-cluster/issues/314) | [ipfs/ipfs-cluster#315](https://github.com/ipfs/ipfs-cluster/issues/315)
+  * Do not upgrade state if already up to date | [ipfs-cluster/ipfs-cluster#296](https://github.com/ipfs-cluster/ipfs-cluster/issues/296) | [ipfs-cluster/ipfs-cluster#307](https://github.com/ipfs-cluster/ipfs-cluster/issues/307)
+  * Fix `ipfs-cluster-service daemon` failing with `unknown allocation strategy` error | [ipfs-cluster/ipfs-cluster#314](https://github.com/ipfs-cluster/ipfs-cluster/issues/314) | [ipfs-cluster/ipfs-cluster#315](https://github.com/ipfs-cluster/ipfs-cluster/issues/315)
 
 APIs have not changed in this release. The `/health/graph` endpoint has been added.
 
@@ -2355,25 +2355,25 @@ This release includes a number of bufixes regarding the upgrade and import of st
   * The introduction of `replication_factor_min` and `replication_factor_max` parameters for every Pin (along with the deprecation of `replication_factor`). The defaults are specified in the configuration. For more information on the usage and behavour of these new options, check the IPFS cluster guide.
 
 * Features
-  * New `ipfs-cluster-service state export/import/cleanup` commands | [ipfs/ipfs-cluster#240](https://github.com/ipfs/ipfs-cluster/issues/240) | [ipfs/ipfs-cluster#290](https://github.com/ipfs/ipfs-cluster/issues/290)
-  * New min/max replication factor control | [ipfs/ipfs-cluster#277](https://github.com/ipfs/ipfs-cluster/issues/277) | [ipfs/ipfs-cluster#292](https://github.com/ipfs/ipfs-cluster/issues/292)
-  * Improved migration code | [ipfs/ipfs-cluster#283](https://github.com/ipfs/ipfs-cluster/issues/283)
-  * `ipfs-cluster-service version` output simplified (see below) | [ipfs/ipfs-cluster#274](https://github.com/ipfs/ipfs-cluster/issues/274)
+  * New `ipfs-cluster-service state export/import/cleanup` commands | [ipfs-cluster/ipfs-cluster#240](https://github.com/ipfs-cluster/ipfs-cluster/issues/240) | [ipfs-cluster/ipfs-cluster#290](https://github.com/ipfs-cluster/ipfs-cluster/issues/290)
+  * New min/max replication factor control | [ipfs-cluster/ipfs-cluster#277](https://github.com/ipfs-cluster/ipfs-cluster/issues/277) | [ipfs-cluster/ipfs-cluster#292](https://github.com/ipfs-cluster/ipfs-cluster/issues/292)
+  * Improved migration code | [ipfs-cluster/ipfs-cluster#283](https://github.com/ipfs-cluster/ipfs-cluster/issues/283)
+  * `ipfs-cluster-service version` output simplified (see below) | [ipfs-cluster/ipfs-cluster#274](https://github.com/ipfs-cluster/ipfs-cluster/issues/274)
   * Testing improvements:
-    * Added tests for Dockerfiles | [ipfs/ipfs-cluster#200](https://github.com/ipfs/ipfs-cluster/issues/200) | [ipfs/ipfs-cluster#282](https://github.com/ipfs/ipfs-cluster/issues/282)
-    * Enabled Jenkins testing and made it work | [ipfs/ipfs-cluster#256](https://github.com/ipfs/ipfs-cluster/issues/256) | [ipfs/ipfs-cluster#294](https://github.com/ipfs/ipfs-cluster/issues/294)
+    * Added tests for Dockerfiles | [ipfs-cluster/ipfs-cluster#200](https://github.com/ipfs-cluster/ipfs-cluster/issues/200) | [ipfs-cluster/ipfs-cluster#282](https://github.com/ipfs-cluster/ipfs-cluster/issues/282)
+    * Enabled Jenkins testing and made it work | [ipfs-cluster/ipfs-cluster#256](https://github.com/ipfs-cluster/ipfs-cluster/issues/256) | [ipfs-cluster/ipfs-cluster#294](https://github.com/ipfs-cluster/ipfs-cluster/issues/294)
   * Documentation improvements:
-    * Guide contains more details on state upgrade procedures | [ipfs/ipfs-cluster#270](https://github.com/ipfs/ipfs-cluster/issues/270)
-    * ipfs-cluster-ctl exit status are documented on the README | [ipfs/ipfs-cluster#178](https://github.com/ipfs/ipfs-cluster/issues/178)
+    * Guide contains more details on state upgrade procedures | [ipfs-cluster/ipfs-cluster#270](https://github.com/ipfs-cluster/ipfs-cluster/issues/270)
+    * ipfs-cluster-ctl exit status are documented on the README | [ipfs-cluster/ipfs-cluster#178](https://github.com/ipfs-cluster/ipfs-cluster/issues/178)
 
 * Bugfixes
-  * Force cleanup after sharness tests | [ipfs/ipfs-cluster#181](https://github.com/ipfs/ipfs-cluster/issues/181) | [ipfs/ipfs-cluster#288](https://github.com/ipfs/ipfs-cluster/issues/288)
-  * Fix state version validation on start | [ipfs/ipfs-cluster#293](https://github.com/ipfs/ipfs-cluster/issues/293)
-  * Wait until last index is applied before attempting snapshot on shutdown | [ipfs/ipfs-cluster#275](https://github.com/ipfs/ipfs-cluster/issues/275)
+  * Force cleanup after sharness tests | [ipfs-cluster/ipfs-cluster#181](https://github.com/ipfs-cluster/ipfs-cluster/issues/181) | [ipfs-cluster/ipfs-cluster#288](https://github.com/ipfs-cluster/ipfs-cluster/issues/288)
+  * Fix state version validation on start | [ipfs-cluster/ipfs-cluster#293](https://github.com/ipfs-cluster/ipfs-cluster/issues/293)
+  * Wait until last index is applied before attempting snapshot on shutdown | [ipfs-cluster/ipfs-cluster#275](https://github.com/ipfs-cluster/ipfs-cluster/issues/275)
   * Snaps from master not pushed due to bad credentials
-  * Fix overpinning or underpinning of CIDs after re-join | [ipfs/ipfs-cluster#222](https://github.com/ipfs/ipfs-cluster/issues/222)
-  * Fix unmarshaling state on top of an existing one | [ipfs/ipfs-cluster#297](https://github.com/ipfs/ipfs-cluster/issues/297)
-  * Fix catching up on imported state | [ipfs/ipfs-cluster#297](https://github.com/ipfs/ipfs-cluster/issues/297)
+  * Fix overpinning or underpinning of CIDs after re-join | [ipfs-cluster/ipfs-cluster#222](https://github.com/ipfs-cluster/ipfs-cluster/issues/222)
+  * Fix unmarshaling state on top of an existing one | [ipfs-cluster/ipfs-cluster#297](https://github.com/ipfs-cluster/ipfs-cluster/issues/297)
+  * Fix catching up on imported state | [ipfs-cluster/ipfs-cluster#297](https://github.com/ipfs-cluster/ipfs-cluster/issues/297)
 
 These release is compatible with previous versions of ipfs-cluster on the API level, with the exception of the `ipfs-cluster-service version` command, which returns `x.x.x-shortcommit` rather than `ipfs-cluster-service version 0.3.1`. The former output is still available as `ipfs-cluster-service --version`.
 
@@ -2386,16 +2386,16 @@ The `replication_factor` option is deprecated, but still supported and will serv
 This release includes changes around the consensus state management, so that upgrades can be performed when the internal format changes. It also comes with several features and changes to support a live deployment and integration with IPFS pin-bot, including a REST API client for Go.
 
 * Features
- * `ipfs-cluster-service state upgrade` | [ipfs/ipfs-cluster#194](https://github.com/ipfs/ipfs-cluster/issues/194)
- * `ipfs-cluster-test` Docker image runs with `ipfs:master` | [ipfs/ipfs-cluster#155](https://github.com/ipfs/ipfs-cluster/issues/155) | [ipfs/ipfs-cluster#259](https://github.com/ipfs/ipfs-cluster/issues/259)
- * `ipfs-cluster` Docker image only runs `ipfs-cluster-service` (and not the ipfs daemon anymore) | [ipfs/ipfs-cluster#197](https://github.com/ipfs/ipfs-cluster/issues/197) | [ipfs/ipfs-cluster#155](https://github.com/ipfs/ipfs-cluster/issues/155) | [ipfs/ipfs-cluster#259](https://github.com/ipfs/ipfs-cluster/issues/259)
- * Support for DNS multiaddresses for cluster peers | [ipfs/ipfs-cluster#155](https://github.com/ipfs/ipfs-cluster/issues/155) | [ipfs/ipfs-cluster#259](https://github.com/ipfs/ipfs-cluster/issues/259)
- * Add configuration section and options for `pin_tracker` | [ipfs/ipfs-cluster#155](https://github.com/ipfs/ipfs-cluster/issues/155) | [ipfs/ipfs-cluster#259](https://github.com/ipfs/ipfs-cluster/issues/259)
- * Add `local` flag to Status, Sync, Recover endpoints which allows to run this operations only in the peer receiving the request | [ipfs/ipfs-cluster#155](https://github.com/ipfs/ipfs-cluster/issues/155) | [ipfs/ipfs-cluster#259](https://github.com/ipfs/ipfs-cluster/issues/259)
- * Add Pin names | [ipfs/ipfs-cluster#249](https://github.com/ipfs/ipfs-cluster/issues/249)
- * Add Peer names | [ipfs/ipfs-cluster#250](https://github.com/ipfs/ipfs-cluster/issues/250)
- * New REST API Client module `github.com/ipfs/ipfs-cluster/api/rest/client` allows to integrate against cluster | [ipfs/ipfs-cluster#260](https://github.com/ipfs/ipfs-cluster/issues/260) | [ipfs/ipfs-cluster#263](https://github.com/ipfs/ipfs-cluster/issues/263) | [ipfs/ipfs-cluster#266](https://github.com/ipfs/ipfs-cluster/issues/266)
- * A few rounds addressing code quality issues | [ipfs/ipfs-cluster#264](https://github.com/ipfs/ipfs-cluster/issues/264)
+ * `ipfs-cluster-service state upgrade` | [ipfs-cluster/ipfs-cluster#194](https://github.com/ipfs-cluster/ipfs-cluster/issues/194)
+ * `ipfs-cluster-test` Docker image runs with `ipfs:master` | [ipfs-cluster/ipfs-cluster#155](https://github.com/ipfs-cluster/ipfs-cluster/issues/155) | [ipfs-cluster/ipfs-cluster#259](https://github.com/ipfs-cluster/ipfs-cluster/issues/259)
+ * `ipfs-cluster` Docker image only runs `ipfs-cluster-service` (and not the ipfs daemon anymore) | [ipfs-cluster/ipfs-cluster#197](https://github.com/ipfs-cluster/ipfs-cluster/issues/197) | [ipfs-cluster/ipfs-cluster#155](https://github.com/ipfs-cluster/ipfs-cluster/issues/155) | [ipfs-cluster/ipfs-cluster#259](https://github.com/ipfs-cluster/ipfs-cluster/issues/259)
+ * Support for DNS multiaddresses for cluster peers | [ipfs-cluster/ipfs-cluster#155](https://github.com/ipfs-cluster/ipfs-cluster/issues/155) | [ipfs-cluster/ipfs-cluster#259](https://github.com/ipfs-cluster/ipfs-cluster/issues/259)
+ * Add configuration section and options for `pin_tracker` | [ipfs-cluster/ipfs-cluster#155](https://github.com/ipfs-cluster/ipfs-cluster/issues/155) | [ipfs-cluster/ipfs-cluster#259](https://github.com/ipfs-cluster/ipfs-cluster/issues/259)
+ * Add `local` flag to Status, Sync, Recover endpoints which allows to run this operations only in the peer receiving the request | [ipfs-cluster/ipfs-cluster#155](https://github.com/ipfs-cluster/ipfs-cluster/issues/155) | [ipfs-cluster/ipfs-cluster#259](https://github.com/ipfs-cluster/ipfs-cluster/issues/259)
+ * Add Pin names | [ipfs-cluster/ipfs-cluster#249](https://github.com/ipfs-cluster/ipfs-cluster/issues/249)
+ * Add Peer names | [ipfs-cluster/ipfs-cluster#250](https://github.com/ipfs-cluster/ipfs-cluster/issues/250)
+ * New REST API Client module `github.com/ipfs-cluster/ipfs-cluster/api/rest/client` allows to integrate against cluster | [ipfs-cluster/ipfs-cluster#260](https://github.com/ipfs-cluster/ipfs-cluster/issues/260) | [ipfs-cluster/ipfs-cluster#263](https://github.com/ipfs-cluster/ipfs-cluster/issues/263) | [ipfs-cluster/ipfs-cluster#266](https://github.com/ipfs-cluster/ipfs-cluster/issues/266)
+ * A few rounds addressing code quality issues | [ipfs-cluster/ipfs-cluster#264](https://github.com/ipfs-cluster/ipfs-cluster/issues/264)
 
 This release should stay backwards compatible with the previous one. Nevertheless, some REST API endpoints take the `local` flag, and matching new Go public functions have been added (`RecoverAllLocal`, `SyncAllLocal`...).
 
@@ -2406,17 +2406,17 @@ This release should stay backwards compatible with the previous one. Nevertheles
 This release introduces Raft 1.0.0 and incorporates deep changes to the management of the cluster peerset.
 
 * Features
-  * Upgrade Raft to 1.0.0 | [ipfs/ipfs-cluster#194](https://github.com/ipfs/ipfs-cluster/issues/194) | [ipfs/ipfs-cluster#196](https://github.com/ipfs/ipfs-cluster/issues/196)
-  * Support Snaps | [ipfs/ipfs-cluster#234](https://github.com/ipfs/ipfs-cluster/issues/234) | [ipfs/ipfs-cluster#228](https://github.com/ipfs/ipfs-cluster/issues/228) | [ipfs/ipfs-cluster#232](https://github.com/ipfs/ipfs-cluster/issues/232)
-  * Rotating backups for ipfs-cluster-data | [ipfs/ipfs-cluster#233](https://github.com/ipfs/ipfs-cluster/issues/233)
-  * Bring documentation up to date with the code [ipfs/ipfs-cluster#223](https://github.com/ipfs/ipfs-cluster/issues/223)
+  * Upgrade Raft to 1.0.0 | [ipfs-cluster/ipfs-cluster#194](https://github.com/ipfs-cluster/ipfs-cluster/issues/194) | [ipfs-cluster/ipfs-cluster#196](https://github.com/ipfs-cluster/ipfs-cluster/issues/196)
+  * Support Snaps | [ipfs-cluster/ipfs-cluster#234](https://github.com/ipfs-cluster/ipfs-cluster/issues/234) | [ipfs-cluster/ipfs-cluster#228](https://github.com/ipfs-cluster/ipfs-cluster/issues/228) | [ipfs-cluster/ipfs-cluster#232](https://github.com/ipfs-cluster/ipfs-cluster/issues/232)
+  * Rotating backups for ipfs-cluster-data | [ipfs-cluster/ipfs-cluster#233](https://github.com/ipfs-cluster/ipfs-cluster/issues/233)
+  * Bring documentation up to date with the code [ipfs-cluster/ipfs-cluster#223](https://github.com/ipfs-cluster/ipfs-cluster/issues/223)
 
 Bugfixes:
-  * Fix docker startup | [ipfs/ipfs-cluster#216](https://github.com/ipfs/ipfs-cluster/issues/216) | [ipfs/ipfs-cluster#217](https://github.com/ipfs/ipfs-cluster/issues/217)
-  * Fix configuration save | [ipfs/ipfs-cluster#213](https://github.com/ipfs/ipfs-cluster/issues/213) | [ipfs/ipfs-cluster#214](https://github.com/ipfs/ipfs-cluster/issues/214)
-  * Forward progress updates with IPFS-Proxy | [ipfs/ipfs-cluster#224](https://github.com/ipfs/ipfs-cluster/issues/224) | [ipfs/ipfs-cluster#231](https://github.com/ipfs/ipfs-cluster/issues/231)
-  * Delay ipfs connect swarms on boot and safeguard against panic condition | [ipfs/ipfs-cluster#238](https://github.com/ipfs/ipfs-cluster/issues/238)
-  * Multiple minor fixes | [ipfs/ipfs-cluster#236](https://github.com/ipfs/ipfs-cluster/issues/236)
+  * Fix docker startup | [ipfs-cluster/ipfs-cluster#216](https://github.com/ipfs-cluster/ipfs-cluster/issues/216) | [ipfs-cluster/ipfs-cluster#217](https://github.com/ipfs-cluster/ipfs-cluster/issues/217)
+  * Fix configuration save | [ipfs-cluster/ipfs-cluster#213](https://github.com/ipfs-cluster/ipfs-cluster/issues/213) | [ipfs-cluster/ipfs-cluster#214](https://github.com/ipfs-cluster/ipfs-cluster/issues/214)
+  * Forward progress updates with IPFS-Proxy | [ipfs-cluster/ipfs-cluster#224](https://github.com/ipfs-cluster/ipfs-cluster/issues/224) | [ipfs-cluster/ipfs-cluster#231](https://github.com/ipfs-cluster/ipfs-cluster/issues/231)
+  * Delay ipfs connect swarms on boot and safeguard against panic condition | [ipfs-cluster/ipfs-cluster#238](https://github.com/ipfs-cluster/ipfs-cluster/issues/238)
+  * Multiple minor fixes | [ipfs-cluster/ipfs-cluster#236](https://github.com/ipfs-cluster/ipfs-cluster/issues/236)
     * Avoid shutting down consensus in the middle of a commit
     * Return an ID containing current peers in PeerAdd
     * Do not shut down libp2p host in the middle of peer removal
@@ -2429,7 +2429,7 @@ This releases introduces some changes affecting the configuration file and some 
 * The `consensus.raft` section of the configuration has new options but should be backwards compatible.
 * The `Consensus` component interface has changed, `LogAddPeer` and `LogRmPeer` have been replaced by `AddPeer` and `RmPeer`. It additionally provides `Clean` and `Peers` methods. The `consensus/raft` implementation has been updated accordingly.
 * The `api.ID` (used in REST API among others) object key `ClusterPeers` key is now a list of peer IDs, and not a list of multiaddresses as before. The object includes a new key `ClusterPeersAddresses` which includes the multiaddresses.
-* Note that `--bootstrap` and `--leave` flags when calling `ipfs-cluster-service` will be stored permanently in the configuration (see [ipfs/ipfs-cluster#235](https://github.com/ipfs/ipfs-cluster/issues/235)).
+* Note that `--bootstrap` and `--leave` flags when calling `ipfs-cluster-service` will be stored permanently in the configuration (see [ipfs-cluster/ipfs-cluster#235](https://github.com/ipfs-cluster/ipfs-cluster/issues/235)).
 
 ---
 
@@ -2438,10 +2438,10 @@ This releases introduces some changes affecting the configuration file and some 
 This is a maintenance release with some important bugfixes.
 
 * Fixes:
-  * Dockerfile runs `ipfs-cluster-service` instead of `ctl` | [ipfs/ipfs-cluster#194](https://github.com/ipfs/ipfs-cluster/issues/194) | [ipfs/ipfs-cluster#196](https://github.com/ipfs/ipfs-cluster/issues/196)
-  * Peers and bootstrap entries in the configuration are ignored | [ipfs/ipfs-cluster#203](https://github.com/ipfs/ipfs-cluster/issues/203) | [ipfs/ipfs-cluster#204](https://github.com/ipfs/ipfs-cluster/issues/204)
-  * Informers do not work on 32-bit architectures | [ipfs/ipfs-cluster#202](https://github.com/ipfs/ipfs-cluster/issues/202) | [ipfs/ipfs-cluster#205](https://github.com/ipfs/ipfs-cluster/issues/205)
-  * Replication factor entry in the configuration is ignored | [ipfs/ipfs-cluster#208](https://github.com/ipfs/ipfs-cluster/issues/208) | [ipfs/ipfs-cluster#209](https://github.com/ipfs/ipfs-cluster/issues/209)
+  * Dockerfile runs `ipfs-cluster-service` instead of `ctl` | [ipfs-cluster/ipfs-cluster#194](https://github.com/ipfs-cluster/ipfs-cluster/issues/194) | [ipfs-cluster/ipfs-cluster#196](https://github.com/ipfs-cluster/ipfs-cluster/issues/196)
+  * Peers and bootstrap entries in the configuration are ignored | [ipfs-cluster/ipfs-cluster#203](https://github.com/ipfs-cluster/ipfs-cluster/issues/203) | [ipfs-cluster/ipfs-cluster#204](https://github.com/ipfs-cluster/ipfs-cluster/issues/204)
+  * Informers do not work on 32-bit architectures | [ipfs-cluster/ipfs-cluster#202](https://github.com/ipfs-cluster/ipfs-cluster/issues/202) | [ipfs-cluster/ipfs-cluster#205](https://github.com/ipfs-cluster/ipfs-cluster/issues/205)
+  * Replication factor entry in the configuration is ignored | [ipfs-cluster/ipfs-cluster#208](https://github.com/ipfs-cluster/ipfs-cluster/issues/208) | [ipfs-cluster/ipfs-cluster#209](https://github.com/ipfs-cluster/ipfs-cluster/issues/209)
 
 The fix for 32-bit architectures has required a change in the `IPFSConnector` interface (`FreeSpace()` and `Reposize()` return `uint64` now). The current implementation by the `ipfshttp` module has changed accordingly.
 
@@ -2451,17 +2451,17 @@ The fix for 32-bit architectures has required a change in the `IPFSConnector` in
 ### v0.2.0 - 2017-10-23
 
 * Features:
-  * Basic authentication support added to API component | [ipfs/ipfs-cluster#121](https://github.com/ipfs/ipfs-cluster/issues/121) | [ipfs/ipfs-cluster#147](https://github.com/ipfs/ipfs-cluster/issues/147) | [ipfs/ipfs-cluster#179](https://github.com/ipfs/ipfs-cluster/issues/179)
-  * Copy peers to bootstrap when leaving a cluster | [ipfs/ipfs-cluster#170](https://github.com/ipfs/ipfs-cluster/issues/170) | [ipfs/ipfs-cluster#112](https://github.com/ipfs/ipfs-cluster/issues/112)
-  * New configuration format | [ipfs/ipfs-cluster#162](https://github.com/ipfs/ipfs-cluster/issues/162) | [ipfs/ipfs-cluster#177](https://github.com/ipfs/ipfs-cluster/issues/177)
-  * Freespace disk metric implementation. It's now the default. | [ipfs/ipfs-cluster#142](https://github.com/ipfs/ipfs-cluster/issues/142) | [ipfs/ipfs-cluster#99](https://github.com/ipfs/ipfs-cluster/issues/99)
+  * Basic authentication support added to API component | [ipfs-cluster/ipfs-cluster#121](https://github.com/ipfs-cluster/ipfs-cluster/issues/121) | [ipfs-cluster/ipfs-cluster#147](https://github.com/ipfs-cluster/ipfs-cluster/issues/147) | [ipfs-cluster/ipfs-cluster#179](https://github.com/ipfs-cluster/ipfs-cluster/issues/179)
+  * Copy peers to bootstrap when leaving a cluster | [ipfs-cluster/ipfs-cluster#170](https://github.com/ipfs-cluster/ipfs-cluster/issues/170) | [ipfs-cluster/ipfs-cluster#112](https://github.com/ipfs-cluster/ipfs-cluster/issues/112)
+  * New configuration format | [ipfs-cluster/ipfs-cluster#162](https://github.com/ipfs-cluster/ipfs-cluster/issues/162) | [ipfs-cluster/ipfs-cluster#177](https://github.com/ipfs-cluster/ipfs-cluster/issues/177)
+  * Freespace disk metric implementation. It's now the default. | [ipfs-cluster/ipfs-cluster#142](https://github.com/ipfs-cluster/ipfs-cluster/issues/142) | [ipfs-cluster/ipfs-cluster#99](https://github.com/ipfs-cluster/ipfs-cluster/issues/99)
 
 * Fixes:
-  * IPFS Connector should use only POST | [ipfs/ipfs-cluster#176](https://github.com/ipfs/ipfs-cluster/issues/176) | [ipfs/ipfs-cluster#161](https://github.com/ipfs/ipfs-cluster/issues/161)
-  * `ipfs-cluster-ctl` exit status with error responses | [ipfs/ipfs-cluster#174](https://github.com/ipfs/ipfs-cluster/issues/174)
-  * Sharness tests and update testing container | [ipfs/ipfs-cluster#171](https://github.com/ipfs/ipfs-cluster/issues/171)
-  * Update Dockerfiles | [ipfs/ipfs-cluster#154](https://github.com/ipfs/ipfs-cluster/issues/154) | [ipfs/ipfs-cluster#185](https://github.com/ipfs/ipfs-cluster/issues/185)
-  * `ipfs-cluster-service`: Do not run service with unknown subcommands | [ipfs/ipfs-cluster#186](https://github.com/ipfs/ipfs-cluster/issues/186)
+  * IPFS Connector should use only POST | [ipfs-cluster/ipfs-cluster#176](https://github.com/ipfs-cluster/ipfs-cluster/issues/176) | [ipfs-cluster/ipfs-cluster#161](https://github.com/ipfs-cluster/ipfs-cluster/issues/161)
+  * `ipfs-cluster-ctl` exit status with error responses | [ipfs-cluster/ipfs-cluster#174](https://github.com/ipfs-cluster/ipfs-cluster/issues/174)
+  * Sharness tests and update testing container | [ipfs-cluster/ipfs-cluster#171](https://github.com/ipfs-cluster/ipfs-cluster/issues/171)
+  * Update Dockerfiles | [ipfs-cluster/ipfs-cluster#154](https://github.com/ipfs-cluster/ipfs-cluster/issues/154) | [ipfs-cluster/ipfs-cluster#185](https://github.com/ipfs-cluster/ipfs-cluster/issues/185)
+  * `ipfs-cluster-service`: Do not run service with unknown subcommands | [ipfs-cluster/ipfs-cluster#186](https://github.com/ipfs-cluster/ipfs-cluster/issues/186)
 
 This release introduces some breaking changes affecting configuration files and `go` integrations:
 

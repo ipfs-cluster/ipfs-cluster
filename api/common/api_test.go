@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/common/test"
-	rpctest "github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api/common/test"
+	rpctest "github.com/ipfs-cluster/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	rpc "github.com/libp2p/go-libp2p-gorpc"

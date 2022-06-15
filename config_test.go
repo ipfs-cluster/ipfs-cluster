@@ -1,19 +1,19 @@
 package ipfscluster
 
 import (
-	"github.com/ipfs/ipfs-cluster/allocator/balanced"
-	"github.com/ipfs/ipfs-cluster/api/ipfsproxy"
-	"github.com/ipfs/ipfs-cluster/api/rest"
-	"github.com/ipfs/ipfs-cluster/config"
-	"github.com/ipfs/ipfs-cluster/consensus/crdt"
-	"github.com/ipfs/ipfs-cluster/consensus/raft"
-	"github.com/ipfs/ipfs-cluster/datastore/badger"
-	"github.com/ipfs/ipfs-cluster/datastore/leveldb"
-	"github.com/ipfs/ipfs-cluster/informer/disk"
-	"github.com/ipfs/ipfs-cluster/ipfsconn/ipfshttp"
-	"github.com/ipfs/ipfs-cluster/monitor/pubsubmon"
-	"github.com/ipfs/ipfs-cluster/observations"
-	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
+	"github.com/ipfs-cluster/ipfs-cluster/allocator/balanced"
+	"github.com/ipfs-cluster/ipfs-cluster/api/ipfsproxy"
+	"github.com/ipfs-cluster/ipfs-cluster/api/rest"
+	"github.com/ipfs-cluster/ipfs-cluster/config"
+	"github.com/ipfs-cluster/ipfs-cluster/consensus/crdt"
+	"github.com/ipfs-cluster/ipfs-cluster/consensus/raft"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
+	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
+	"github.com/ipfs-cluster/ipfs-cluster/ipfsconn/ipfshttp"
+	"github.com/ipfs-cluster/ipfs-cluster/monitor/pubsubmon"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
+	"github.com/ipfs-cluster/ipfs-cluster/pintracker/stateless"
 )
 
 var testingClusterSecret, _ = DecodeClusterSecret("2588b80d5cb05374fa142aed6cbb047d1f4ef8ef15e37eba68c65b9d30df67ed")

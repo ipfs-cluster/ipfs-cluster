@@ -11,7 +11,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	ma "github.com/multiformats/go-multiaddr"
 
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs-cluster/ipfs-cluster/config"
 )
 
 const (

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/test"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/test"
 	"github.com/ipld/go-car"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 )
 
 // MockPinStore is used in VerifyShards
