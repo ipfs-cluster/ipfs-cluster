@@ -38,12 +38,12 @@ func TestOperation(t *testing.T) {
 		t.Error("bad timestamp")
 	}
 
-	if op.Cancelled() {
+	if op.Canceled() {
 		t.Error("should not be canceled")
 	}
 
 	op.Cancel()
-	if !op.Cancelled() {
+	if !op.Canceled() {
 		t.Error("should be canceled")
 	}
 
