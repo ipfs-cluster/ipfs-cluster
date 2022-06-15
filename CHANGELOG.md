@@ -185,7 +185,7 @@ The full list of additional features and bug fixes can be found below.
 * Dependency upgrades | [ipfs-cluster/ipfs-cluster#1613](https://github.com/ipfs-cluster/ipfs-cluster/issues/1613) | [ipfs-cluster/ipfs-cluster#1617](https://github.com/ipfs-cluster/ipfs-cluster/issues/1617) | [ipfs-cluster/ipfs-cluster#1627](https://github.com/ipfs-cluster/ipfs-cluster/issues/1627)
 * Bump RPC protocol version | [ipfs-cluster/ipfs-cluster#1615](https://github.com/ipfs-cluster/ipfs-cluster/issues/1615)
 * Replace cid.Cid with api.Cid wrapper type | [ipfs-cluster/ipfs-cluster#1626](https://github.com/ipfs-cluster/ipfs-cluster/issues/1626)
-* Provide string JSON marshalling for PinType | [ipfs-cluster/ipfs-cluster#1628](https://github.com/ipfs-cluster/ipfs-cluster/issues/1628)
+* Provide string JSON marshaling for PinType | [ipfs-cluster/ipfs-cluster#1628](https://github.com/ipfs-cluster/ipfs-cluster/issues/1628)
 * ipfs-cluster-ctl should exit with status 1 when an argument error happens | [ipfs-cluster/ipfs-cluster#1633](https://github.com/ipfs-cluster/ipfs-cluster/issues/1633) | [ipfs-cluster/ipfs-cluster#1634](https://github.com/ipfs-cluster/ipfs-cluster/issues/1634)
 * Revamp and fix basic exported metrics: pins, queued, pinning, pin errors | [ipfs-cluster/ipfs-cluster#1187](https://github.com/ipfs-cluster/ipfs-cluster/issues/1187) | [ipfs-cluster/ipfs-cluster#1470](https://github.com/ipfs-cluster/ipfs-cluster/issues/1470) | [ipfs-cluster/ipfs-cluster#1637](https://github.com/ipfs-cluster/ipfs-cluster/issues/1637)
 
@@ -363,7 +363,7 @@ the latest metric of a certain type received by a peer.
 
 Before, adding content using the `local=true` option would add the blocks to
 the peer receiving the request and then allocate the pin normally (i.e. to the
-peers with most free space avaiable, which may or not be the local peer). Now,
+peers with most free space available, which may or not be the local peer). Now,
 "local add" requests will always allocate the pin to the local peer since it
 already has the content.
 
@@ -520,7 +520,7 @@ The second question is addressed by enriching pin metadata. Pins will now
 store the time that they were added to the cluster. The pin tracker will
 additionally keep track of how many times an operation has been retried. Using
 these two items, we can prioritize pinning of items that are new and have not
-repeteadly failed to pin. The max age and max number of retries used to
+repeatedly failed to pin. The max age and max number of retries used to
 prioritize a pin can be controlled in the configuration.
 
 Please see the information below for more details about how to make use and
@@ -606,7 +606,7 @@ tags allocator with a "group:default" tag will not be present).
 This asks the allocator to allocate pins first by the value of the "group"
 tag-metric, as produced by the tag informer, and then by the value of the
 "freespace" metric. Allocating solely by the "freespace" is the equivalent of
-the cluster behaviour on previous versions. This default assumes the default
+the cluster behavior on previous versions. This default assumes the default
 `informer/tags` configuration section mentioned above is present.
 
 ##### REST API
@@ -686,7 +686,7 @@ redirect). Clients do keep the HTTP method when following 307 redirects.
 
 The parameters object to the RestAPI client `WaitFor` function now has a
 `Limit` field. This allows to return as soon as a number of peers have reached
-the target status. When unset, previous behaviour should be maintained.
+the target status. When unset, previous behavior should be maintained.
 
 ##### Other
 
@@ -719,7 +719,7 @@ constrained disk I/O it will be surely noticed, at least in the first GC
 cycle, since the datastore was never GC'ed before.
 
 Badger is the datastore we are more familiar with and the most scalable choice
-(chosen by both IPFS and Filecoin). However, it may be that badger behaviour
+(chosen by both IPFS and Filecoin). However, it may be that badger behavior
 and GC-needs are not best suited or not preferred, or more downsides are
 discovered in the future. For those cases, we have added the option to run
 with a leveldb backend as an alternative. Level DB does not need GC and it
@@ -741,7 +741,7 @@ connect to the `origins` of a pin before pinning. Note that for the moment
 [ipfs will keep connected to those peers permanently](https://github.com/ipfs-cluster/ipfs-cluster/issues/1376).
 
 Please read carefully through the notes below, as the release includes subtle
-changes in configuration, defaults and behaviours which may in some cases
+changes in configuration, defaults and behaviors which may in some cases
 affect you (although probably will not).
 
 #### List of changes
@@ -871,10 +871,10 @@ state between nodes, creating a new root. Batching allows to group multiple
 updates in a single crdt DAG-node. This reduces the number of broadcasts, the
 depth of the DAG, the breadth of the DAG and the syncing times when the
 Cluster is ingesting many pins, removing most of the overhead in the
-process. The batches are automatically commited when reaching a certain age or
+process. The batches are automatically committed when reaching a certain age or
 a certain size, both configurable.
 
-Additionally, improvements to timeout behaviours have been introduced.
+Additionally, improvements to timeout behaviors have been introduced.
 
 For more details, check the list below and the latest documentation on the
 [website](https://ipfscluster.io).
@@ -1119,7 +1119,7 @@ The IPFS proxy `/pin/add` endpoint now supports `recursive=false` for direct pin
 
 The `/pins` endpoint now return `GlobalPinInfo` objects that include a `name`
 field for the pin name. The same objects do not embed redundant information
-anymore for each peer in the `peer_map`: `cid` and `peer` are ommitted.
+anymore for each peer in the `peer_map`: `cid` and `peer` are omitted.
 
 ##### Go APIs
 
@@ -1236,7 +1236,7 @@ how to setup and join these clusters
   * A new `peer_addresses` key allows specifying additional peer addresses in the configuration (similar to the `peerstore` file). These are treated as libp2p bootstrap addreses (do not mix with Raft bootstrap process). This setting is mostly useful for CRDT collaborative clusters, as template configurations can be distributed including bootstrap peers (usually the same as trusted peers). The values are the full multiaddress of these peers: `/ip4/x.x.x.x/tcp/1234/p2p/Qmxxx...`.
   * `listen_multiaddress` can now be set to be an array providing multiple listen multiaddresses, the new defaults being `/tcp/9096` and `/udp/9096/quic`.
   * `enable_relay_hop` (true by default), lets the cluster peer act as a relay for other cluster peers behind NATs. This is only for the Cluster network. As a reminder, while this setting is problematic on IPFS (due to the amount of traffic the HOP peers start relaying), the cluster-peers networks are smaller and do not move huge amounts of content around.
-  * The `ipfs_sync_interval` option dissappears as the stateless tracker does not keep a state that can lose synchronization with IPFS.
+  * The `ipfs_sync_interval` option disappears as the stateless tracker does not keep a state that can lose synchronization with IPFS.
 * `ipfshttp` section:
   * A new `repogc_timeout` key specifies the timeout for garbage collection operations on IPFS. It is set to 24h by default.
 
@@ -1582,7 +1582,7 @@ longer used and the maintenance of Gx dependencies has been dropped. The
 #### Summary
 
 As we get ready to introduce a new CRDT-based "consensus" component to replace
-Raft, IPFS Cluster 0.10.0 prepares the ground with substancial under-the-hood
+Raft, IPFS Cluster 0.10.0 prepares the ground with substantial under-the-hood
 changes. many performance improvements and a few very useful features.
 
 First of all, this release **requires** users to run `state upgrade` (or start
@@ -1611,7 +1611,7 @@ items to specific Cluster peers, overriding the default allocation policy.
   query arguments to the Pin or PinPath endpoints: `POST
   /pins/<cid-or-path>?meta-key1=value1&meta-key2=value2...`
 
-Note that on this release we have also removed a lot of backwards-compatiblity
+Note that on this release we have also removed a lot of backwards-compatibility
 code for things older than version 0.8.0, which kept things working but
 printed respective warnings. If you're upgrading from an old release, consider
 comparing your configuration with the new default one.
@@ -2019,7 +2019,7 @@ Note that the REST API response format for the `/add` endpoint has changed. Thus
 
 ##### Bug fixes
 
-  * `/add` endpoints improvements and IPFS Companion compatiblity | [ipfs-cluster/ipfs-cluster#582](https://github.com/ipfs-cluster/ipfs-cluster/issues/582) | [ipfs-cluster/ipfs-cluster#569](https://github.com/ipfs-cluster/ipfs-cluster/issues/569)
+  * `/add` endpoints improvements and IPFS Companion compatibility | [ipfs-cluster/ipfs-cluster#582](https://github.com/ipfs-cluster/ipfs-cluster/issues/582) | [ipfs-cluster/ipfs-cluster#569](https://github.com/ipfs-cluster/ipfs-cluster/issues/569)
   * Fix adding with spaces in the name parameter | [ipfs-cluster/ipfs-cluster#583](https://github.com/ipfs-cluster/ipfs-cluster/issues/583)
   * Escape filter query parameter | [ipfs-cluster/ipfs-cluster#586](https://github.com/ipfs-cluster/ipfs-cluster/issues/586)
   * Fix some race conditions | [ipfs-cluster/ipfs-cluster#597](https://github.com/ipfs-cluster/ipfs-cluster/issues/597)
@@ -2352,7 +2352,7 @@ APIs have not changed in this release. The `/health/graph` endpoint has been add
 
 This release includes a number of bufixes regarding the upgrade and import of state, along with two important features:
   * Commands to export and import the internal cluster state: these allow to perform easy and human-readable dumps of the shared cluster state while offline, and eventually restore it in a different peer or cluster.
-  * The introduction of `replication_factor_min` and `replication_factor_max` parameters for every Pin (along with the deprecation of `replication_factor`). The defaults are specified in the configuration. For more information on the usage and behavour of these new options, check the IPFS cluster guide.
+  * The introduction of `replication_factor_min` and `replication_factor_max` parameters for every Pin (along with the deprecation of `replication_factor`). The defaults are specified in the configuration. For more information on the usage and behavior of these new options, check the IPFS cluster guide.
 
 * Features
   * New `ipfs-cluster-service state export/import/cleanup` commands | [ipfs-cluster/ipfs-cluster#240](https://github.com/ipfs-cluster/ipfs-cluster/issues/240) | [ipfs-cluster/ipfs-cluster#290](https://github.com/ipfs-cluster/ipfs-cluster/issues/290)

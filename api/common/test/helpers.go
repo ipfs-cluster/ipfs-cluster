@@ -202,7 +202,7 @@ func MakeGet(t *testing.T, api API, url string, resp interface{}) {
 	CheckHeaders(t, api.Headers(), url, httpResp.Header)
 }
 
-// MakePost performs a POST request agains the API with the given body.
+// MakePost performs a POST request against the API with the given body.
 func MakePost(t *testing.T, api API, url string, body []byte, resp interface{}) {
 	MakePostWithContentType(t, api, url, body, "application/json", resp)
 }

@@ -38,7 +38,7 @@ const (
 	DefaultMaxHeaderBytes     = minMaxHeaderBytes
 )
 
-// Config allows to customize behaviour of IPFSProxy.
+// Config allows to customize behavior of IPFSProxy.
 // It implements the config.ComponentConfig interface.
 type Config struct {
 	config.Saver

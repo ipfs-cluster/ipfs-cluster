@@ -71,7 +71,7 @@ type Config struct {
 }
 
 // badgerOptions is a copy of options.BadgerOptions but
-// without the Logger as it cannot be marshalled to/from
+// without the Logger as it cannot be marshaled to/from
 // JSON.
 type badgerOptions struct {
 	Dir                     string                   `json:"dir"`

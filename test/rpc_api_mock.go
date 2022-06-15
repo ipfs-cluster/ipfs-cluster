@@ -408,7 +408,7 @@ func (mock *mockCluster) SendInformerMetrics(ctx context.Context, in struct{}, o
 
 func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Alert) error {
 	*out = []api.Alert{
-		api.Alert{
+		{
 			Metric: api.Metric{
 				Name:       "ping",
 				Peer:       PeerID2,
