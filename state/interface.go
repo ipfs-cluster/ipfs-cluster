@@ -8,7 +8,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 )
 
 // ErrNotFound should be returned when a pin is not part of the state.

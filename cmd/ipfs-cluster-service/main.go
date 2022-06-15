@@ -12,11 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/cmdutils"
-	"github.com/ipfs/ipfs-cluster/pstoremgr"
-	"github.com/ipfs/ipfs-cluster/version"
+	ipfscluster "github.com/ipfs-cluster/ipfs-cluster"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/cmdutils"
+	"github.com/ipfs-cluster/ipfs-cluster/pstoremgr"
+	"github.com/ipfs-cluster/ipfs-cluster/version"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -83,7 +83,7 @@ default locations are ~/%s/%s
 and ~/%s/%s.
 
 For feedback, bug reports or any additional information, visit
-https://github.com/ipfs/ipfs-cluster.
+https://github.com/ipfs-cluster/ipfs-cluster.
 
 
 EXAMPLES:

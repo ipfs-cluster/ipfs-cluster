@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/ipfs/ipfs-cluster/cmdutils"
+	"github.com/ipfs-cluster/ipfs-cluster/cmdutils"
 
 	ma "github.com/multiformats/go-multiaddr"
 )

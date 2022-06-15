@@ -13,7 +13,7 @@ import (
 	"sort"
 
 	logging "github.com/ipfs/go-log/v2"
-	api "github.com/ipfs/ipfs-cluster/api"
+	api "github.com/ipfs-cluster/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )

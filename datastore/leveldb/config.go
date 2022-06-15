@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/imdario/mergo"
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs-cluster/ipfs-cluster/config"
 	"github.com/kelseyhightower/envconfig"
 	goleveldb "github.com/syndtr/goleveldb/leveldb/opt"
 )

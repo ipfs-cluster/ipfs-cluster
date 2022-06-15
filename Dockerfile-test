@@ -4,7 +4,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # This build state just builds the cluster binaries
 
 ENV GOPATH      /go
-ENV SRC_PATH    $GOPATH/src/github.com/ipfs/ipfs-cluster
+ENV SRC_PATH    $GOPATH/src/github.com/ipfs-cluster/ipfs-cluster
 ENV GO111MODULE on
 ENV GOPROXY     https://proxy.golang.org
 
@@ -27,7 +27,7 @@ MAINTAINER Hector Sanjuan <hector@protocol.ai>
 # built binaries on the go-ipfs-container.
 
 ENV GOPATH                                      /go
-ENV SRC_PATH                                    /go/src/github.com/ipfs/ipfs-cluster
+ENV SRC_PATH                                    /go/src/github.com/ipfs-cluster/ipfs-cluster
 ENV IPFS_CLUSTER_PATH                           /data/ipfs-cluster
 ENV IPFS_CLUSTER_CONSENSUS                      crdt
 ENV IPFS_CLUSTER_DATASTORE                      leveldb

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 )
 
 // CtxsWithTimeout returns n contexts, derived from the given parent

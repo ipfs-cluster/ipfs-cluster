@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	ipfscluster "github.com/ipfs/ipfs-cluster"
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/datastore/inmem"
-	"github.com/ipfs/ipfs-cluster/pintracker/stateless"
-	"github.com/ipfs/ipfs-cluster/state"
-	"github.com/ipfs/ipfs-cluster/state/dsstate"
-	"github.com/ipfs/ipfs-cluster/test"
+	ipfscluster "github.com/ipfs-cluster/ipfs-cluster"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/inmem"
+	"github.com/ipfs-cluster/ipfs-cluster/pintracker/stateless"
+	"github.com/ipfs-cluster/ipfs-cluster/state"
+	"github.com/ipfs-cluster/ipfs-cluster/state/dsstate"
+	"github.com/ipfs-cluster/ipfs-cluster/test"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )

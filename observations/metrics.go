@@ -47,7 +47,7 @@ var (
 	BlocksAddedSize = stats.Int64("blocks/added_size", "Total size of blocks added in bytes", stats.UnitDimensionless)
 
 	BlocksAdded      = stats.Int64("blocks/added", "Total number of blocks added", stats.UnitDimensionless)
-	BlocksAddedError = stats.Int64("blocks/put_error", "Total number of block/put errors", stats.UnitDimensionless)
+	BlocksAddedError = stats.Int64("blocks/put_errors", "Total number of block/put errors", stats.UnitDimensionless)
 )
 
 // views, which is just the aggregation of the metrics
@@ -110,7 +110,7 @@ var (
 	}
 
 	BlocksAddedErrorView = &view.View{
-		Measure:     PinsPinAddError,
+		Measure:     BlocksAddedError,
 		Aggregation: view.Sum(),
 	}
 

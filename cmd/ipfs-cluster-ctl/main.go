@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/api"
-	"github.com/ipfs/ipfs-cluster/api/rest/client"
+	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/api/rest/client"
 
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -62,7 +62,7 @@ part, or a /dnsaddr that resolves to it. Provide the cluster secret with
 --secret as needed.
 
 For feedback, bug reports or any additional information, visit
-https://github.com/ipfs/ipfs-cluster.
+https://github.com/ipfs-cluster/ipfs-cluster.
 `,
 	programName,
 	programName,

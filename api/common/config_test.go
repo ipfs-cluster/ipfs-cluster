@@ -8,7 +8,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	types "github.com/ipfs/ipfs-cluster/api"
+	types "github.com/ipfs-cluster/ipfs-cluster/api"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"

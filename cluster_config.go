@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ipfs/ipfs-cluster/config"
+	"github.com/ipfs-cluster/ipfs-cluster/config"
 
 	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	pnet "github.com/libp2p/go-libp2p-core/pnet"

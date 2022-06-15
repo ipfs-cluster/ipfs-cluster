@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/ipfs/ipfs-cluster/api/rest/client"
-	"github.com/ipfs/ipfs-cluster/cmdutils"
-	"github.com/ipfs/ipfs-cluster/version"
+	"github.com/ipfs-cluster/ipfs-cluster/api/rest/client"
+	"github.com/ipfs-cluster/ipfs-cluster/cmdutils"
+	"github.com/ipfs-cluster/ipfs-cluster/version"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 
@@ -63,7 +63,7 @@ and a datastore associated to it, which are kept under
 "~/%s/<cluster_name>".
 
 For feedback, bug reports or any additional information, visit
-https://github.com/ipfs/ipfs-cluster.
+https://github.com/ipfs-cluster/ipfs-cluster.
 
 
 EXAMPLES:
