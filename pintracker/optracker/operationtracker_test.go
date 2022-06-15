@@ -31,8 +31,8 @@ func TestOperationTracker_TrackNewOperation(t *testing.T) {
 			t.Error("bad type")
 		}
 
-		if op.Cancelled() != false {
-			t.Error("should not be cancelled")
+		if op.Canceled() != false {
+			t.Error("should not be canceled")
 		}
 
 		if op.ToTrackerStatus() != api.TrackerStatusPinQueued {
@@ -53,8 +53,8 @@ func TestOperationTracker_TrackNewOperation(t *testing.T) {
 			t.Fatal("should have created a new operation")
 		}
 
-		if !op.Cancelled() {
-			t.Fatal("should have cancelled the original operation")
+		if !op.Canceled() {
+			t.Fatal("should have canceled the original operation")
 		}
 	})
 

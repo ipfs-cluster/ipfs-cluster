@@ -38,13 +38,13 @@ func TestOperation(t *testing.T) {
 		t.Error("bad timestamp")
 	}
 
-	if op.Cancelled() {
-		t.Error("should not be cancelled")
+	if op.Canceled() {
+		t.Error("should not be canceled")
 	}
 
 	op.Cancel()
-	if !op.Cancelled() {
-		t.Error("should be cancelled")
+	if !op.Canceled() {
+		t.Error("should be canceled")
 	}
 
 	if op.ToTrackerStatus() != api.TrackerStatusUnpinning {

@@ -246,7 +246,7 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 }
 
 // WaitForLeader holds until Raft says we have a leader.
-// Returns if ctx is cancelled.
+// Returns if ctx is canceled.
 func (rw *raftWrapper) WaitForLeader(ctx context.Context) (string, error) {
 	ctx, span := trace.StartSpan(ctx, "consensus/raft/WaitForLeader")
 	defer span.End()

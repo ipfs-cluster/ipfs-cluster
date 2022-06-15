@@ -227,7 +227,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 		case <-spt.optracker.OpContext(ctx, slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
-			t.Errorf("operation context should have been cancelled by now")
+			t.Errorf("operation context should have been canceled by now")
 		}
 	} else {
 		t.Error("slowPin should be pinning and is:", pInfo.Status)
@@ -238,7 +238,7 @@ func TestTrackUntrackWithCancel(t *testing.T) {
 // Because we are pinning the slow CID, the fast one will stay
 // queued. We proceed to untrack it then. Since it was never
 // "pinning", it should simply be unqueued (or ignored), and no
-// cancelling of the pinning operation happens (unlike on WithCancel).
+// canceling of the pinning operation happens (unlike on WithCancel).
 func TestTrackUntrackWithNoCancel(t *testing.T) {
 	ctx := context.Background()
 	spt := testStatelessPinTracker(t)
@@ -333,7 +333,7 @@ func TestUntrackTrackWithCancel(t *testing.T) {
 		case <-spt.optracker.OpContext(ctx, slowPinCid).Done():
 			return
 		case <-time.Tick(100 * time.Millisecond):
-			t.Errorf("operation context should have been cancelled by now")
+			t.Errorf("operation context should have been canceled by now")
 		}
 	} else {
 		t.Error("slowPin should be in unpinning")

@@ -182,7 +182,7 @@ func AddParamsFromQuery(query url.Values) (AddParams, error) {
 		return params, err
 	}
 
-	// This mimics go-ipfs behaviour.
+	// This mimics go-ipfs behavior.
 	if params.CidVersion > 0 {
 		params.RawLeaves = true
 	}
