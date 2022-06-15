@@ -28,6 +28,6 @@ $ ipfs-cluster-follow <clusterName> run --help
 $ ipfs-cluster-follow <clusterName> list --help
 ```
 
-For more information, please check the [Documentation](https://cluster.ipfs.io/documentation), in particular the [`ipfs-cluster-follow` section](https://cluster.ipfs.io/documentation/ipfs-cluster-follow).
+For more information, please check the [Documentation](https://ipfscluster.io/documentation), in particular the [`ipfs-cluster-follow` section](https://ipfscluster.io/documentation/ipfs-cluster-follow).
 
 
