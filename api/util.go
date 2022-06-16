@@ -21,7 +21,6 @@ func StringsToPeers(strs []string) []peer.ID {
 	for _, p := range strs {
 		pid, err := peer.Decode(p)
 		if err != nil {
-			logger.Debugf("'%s': %s", p, err)
 			continue
 		}
 		peers = append(peers, pid)

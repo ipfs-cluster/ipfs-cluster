@@ -321,7 +321,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var err error
-		i := 0
+		i := uint64(0)
 		for stResult := range stCh {
 			if stResult.st.Status == pinsvc.StatusUndefined && stResult.err == nil {
 				// ignore things unpinning
@@ -360,7 +360,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			)
 		}()
 
-		i := 0
+		i := uint64(0)
 		for gpi := range out {
 			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), gpi)
 			if st.Status == pinsvc.StatusUndefined {
