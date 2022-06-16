@@ -238,7 +238,7 @@ type ListOptions struct {
 	Status           Status
 	Before           time.Time
 	After            time.Time
-	Limit            int
+	Limit            uint64
 	Meta             map[string]string
 }
 
@@ -288,14 +288,11 @@ func (lo *ListOptions) FromQuery(q url.Values) error {
 	}
 
 	if v := q.Get("limit"); v != "" {
-		lim, err := strconv.ParseInt(v, 10, 64)
+		lim, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
 			return fmt.Errorf("error parsing 'limit' query param: %s: %w", v, err)
 		}
-		if lim < 0 {
-			return errors.New("'limit' cannot be negative")
-		}
-		lo.Limit = int(lim)
+		lo.Limit = lim
 	}
 
 	if meta := q.Get("meta"); meta != "" {
