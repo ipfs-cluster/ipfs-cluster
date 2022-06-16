@@ -692,7 +692,7 @@ func PinModeFromString(s string) PinMode {
 	case "direct":
 		return PinModeDirect
 	default:
-		logger.Warnf("unknown pin mode %s. Defaulting to recursive", s)
+		logger.Warn("unknown pin mode string. Defaulting to recursive")
 		return PinModeRecursive
 	}
 }
