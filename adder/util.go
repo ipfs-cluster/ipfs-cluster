@@ -148,7 +148,7 @@ func Pin(ctx context.Context, rpc *rpc.Client, pin api.Pin) error {
 }
 
 // ErrDAGNotFound is returned whenever we try to get a block from the DAGService.
-var ErrDAGNotFound = errors.New("dagservice: block not found")
+var ErrDAGNotFound = errors.New("dagservice: a Get operation was attempted while cluster-adding (this is likely a bug)")
 
 // BaseDAGService partially implements an ipld.DAGService.
 // It provides the methods which are not needed by ClusterDAGServices
@@ -164,7 +164,7 @@ func (dag BaseDAGService) Get(ctx context.Context, key cid.Cid) (ipld.Node, erro
 // GetMany returns an output channel that always emits an error
 func (dag BaseDAGService) GetMany(ctx context.Context, keys []cid.Cid) <-chan *ipld.NodeOption {
 	out := make(chan *ipld.NodeOption, 1)
-	out <- &ipld.NodeOption{Err: errors.New("failed to fetch all nodes")}
+	out <- &ipld.NodeOption{Err: ErrDAGNotFound}
 	close(out)
 	return out
 }
