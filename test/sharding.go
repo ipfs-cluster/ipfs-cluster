@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"io"
 	"math/rand"
 	"os"
@@ -10,9 +11,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ipfs-cluster/ipfs-cluster/api"
 	files "github.com/ipfs/go-ipfs-files"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs-cluster/ipfs-cluster/api"
 
 	cid "github.com/ipfs/go-cid"
 )
@@ -287,15 +288,24 @@ func (sth *ShardingTestHelper) makeRandFile(t *testing.T, kbs int) os.FileInfo {
 type MockDAGService struct {
 	mu    sync.Mutex
 	Nodes map[cid.Cid]format.Node
+
+	writeOnly bool
 }
 
 // NewMockDAGService returns an in-memory DAG Service.
-func NewMockDAGService() *MockDAGService {
-	return &MockDAGService{Nodes: make(map[cid.Cid]format.Node)}
+func NewMockDAGService(writeOnly bool) *MockDAGService {
+	return &MockDAGService{
+		Nodes:     make(map[cid.Cid]format.Node),
+		writeOnly: writeOnly,
+	}
 }
 
 // Get reads a node.
 func (d *MockDAGService) Get(ctx context.Context, cid cid.Cid) (format.Node, error) {
+	if d.writeOnly {
+		return nil, errors.New("dagservice: block not found")
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if n, ok := d.Nodes[cid]; ok {
@@ -306,6 +316,13 @@ func (d *MockDAGService) Get(ctx context.Context, cid cid.Cid) (format.Node, err
 
 // GetMany reads many nodes.
 func (d *MockDAGService) GetMany(ctx context.Context, cids []cid.Cid) <-chan *format.NodeOption {
+	if d.writeOnly {
+		out := make(chan *format.NodeOption, 1)
+		out <- &format.NodeOption{Err: errors.New("failed to fetch all nodes")}
+		close(out)
+		return out
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	out := make(chan *format.NodeOption, len(cids))
