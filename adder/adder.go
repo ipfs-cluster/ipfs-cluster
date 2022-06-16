@@ -10,9 +10,9 @@ import (
 	"mime/multipart"
 	"strings"
 
-	"github.com/ipfs/go-unixfs"
 	"github.com/ipfs-cluster/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs/go-unixfs"
 	"github.com/ipld/go-car"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 
@@ -210,7 +210,7 @@ func newIpfsAdder(ctx context.Context, dgs ClusterDAGService, params api.AddPara
 
 	hashFunCode, ok := multihash.Names[strings.ToLower(params.HashFun)]
 	if !ok {
-		return nil, fmt.Errorf("unrecognized hash function: %s", params.HashFun)
+		return nil, errors.New("hash function name not known")
 	}
 	prefix.MhType = hashFunCode
 	prefix.MhLength = -1
