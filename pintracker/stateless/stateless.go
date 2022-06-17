@@ -612,11 +612,23 @@ func (spt *Tracker) Recover(ctx context.Context, c api.Cid) (api.PinInfo, error)
 }
 
 func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi api.PinInfo) (api.PinInfo, error) {
-	var err error
+	st, err := spt.getState(ctx)
+	if err != nil {
+		logger.Error(err)
+		return api.PinInfo{}, err
+	}
+
+	var pin api.Pin
+
 	switch pi.Status {
 	case api.TrackerStatusPinError, api.TrackerStatusUnexpectedlyUnpinned:
+		pin, err = st.Get(ctx, pi.Cid)
+		if err != nil { // ignore error - in case pin was removed while recovering
+			logger.Warn(err)
+			return spt.Status(ctx, pi.Cid), nil
+		}
 		logger.Infof("Restarting pin operation for %s", pi.Cid)
-		err = spt.enqueue(ctx, api.PinCid(pi.Cid), optracker.OperationPin)
+		err = spt.enqueue(ctx, pin, optracker.OperationPin)
 	case api.TrackerStatusUnpinError:
 		logger.Infof("Restarting unpin operation for %s", pi.Cid)
 		err = spt.enqueue(ctx, api.PinCid(pi.Cid), optracker.OperationUnpin)

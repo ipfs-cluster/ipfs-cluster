@@ -154,9 +154,12 @@ func (opt *OperationTracker) SetError(ctx context.Context, c api.Cid, err error)
 func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation, ipfs api.IPFSID) api.PinInfo {
 	if op == nil {
 		return api.PinInfo{
-			Cid:  api.CidUndef,
-			Peer: opt.pid,
-			Name: "",
+			Cid:     api.CidUndef,
+			Name:    "",
+			Peer:    opt.pid,
+			Origins: nil,
+			//Created:  0,
+			Metadata: nil,
 			PinInfoShort: api.PinInfoShort{
 				PeerName:     opt.peerName,
 				IPFS:         "",
@@ -169,9 +172,13 @@ func (opt *OperationTracker) unsafePinInfo(ctx context.Context, op *Operation, i
 		}
 	}
 	return api.PinInfo{
-		Cid:  op.Cid(),
-		Peer: opt.pid,
-		Name: op.Pin().Name,
+		Cid:         op.Cid(),
+		Name:        op.Pin().Name,
+		Peer:        opt.pid,
+		Allocations: op.Pin().Allocations,
+		Origins:     op.Pin().Origins,
+		Created:     op.Pin().Timestamp,
+		Metadata:    op.Pin().Metadata,
 		PinInfoShort: api.PinInfoShort{
 			PeerName:      opt.peerName,
 			IPFS:          ipfs.ID,

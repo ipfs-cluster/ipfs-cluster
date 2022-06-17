@@ -513,7 +513,7 @@ func TestAttemptCountAndPriority(t *testing.T) {
 	normalPin2 := api.PinWithOpts(test.Cid4, pinOpts)
 	errPin := api.PinWithOpts(pinErrCid, pinOpts)
 
-	spt := testStatelessPinTracker(t, normalPin, normalPin2)
+	spt := testStatelessPinTracker(t, normalPin, normalPin2, errPin)
 	defer spt.Shutdown(ctx)
 
 	st := spt.Status(ctx, test.Cid1)
