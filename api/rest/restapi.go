@@ -198,6 +198,12 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 			Pattern:     "/monitor/metrics",
 			HandlerFunc: api.metricNamesHandler,
 		},
+		{
+			Name:        "GetToken",
+			Method:      "POST",
+			Pattern:     "/token",
+			HandlerFunc: api.GenerateTokenHandler,
+		},
 	}
 }
 

@@ -41,8 +41,7 @@
       "write_timeout": "1m0s",
       "idle_timeout": "2m0s",
       "basic_auth_credentials": {
-        "testuser": "testpass",
-        "userwithoutpass": ""
+        "testuser": "testpass"
       },
       "cors_allowed_origins": [
         "*"

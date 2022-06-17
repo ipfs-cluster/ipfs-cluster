@@ -32,6 +32,11 @@ const (
 	invalidUserPassword = "invalidUserPassword"
 )
 
+var (
+	validToken, _   = generateSignedTokenString(validUserName, validUserPassword)
+	invalidToken, _ = generateSignedTokenString(invalidUserName, invalidUserPassword)
+)
+
 func routes(c *rpc.Client) []Route {
 	return []Route{
 		{
@@ -356,6 +361,13 @@ func makeBasicAuthRequestShaper(username, password string) requestShaper {
 	}
 }
 
+func makeTokenAuthRequestShaper(token string) requestShaper {
+	return func(req *http.Request) error {
+		req.Header.Set("Authorization", "Bearer "+token)
+		return nil
+	}
+}
+
 func makeLongHeaderShaper(size int) requestShaper {
 	return func(req *http.Request) error {
 		for sz := size; sz > 0; sz -= 8 {
@@ -484,6 +496,120 @@ func TestBasicAuth(t *testing.T) {
 			method:  "GET",
 			path:    "/test",
 			shaper:  makeBasicAuthRequestShaper(validUserName, validUserPassword),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
+		},
+	} {
+		test.BothEndpoints(t, tc.getTestFunction(rest))
+	}
+}
+
+func TestTokenAuth(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPIwithBasicAuth(t)
+	defer rest.Shutdown(ctx)
+
+	for _, tc := range []httpTestcase{
+		{},
+		{
+			method:  "",
+			path:    "",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "GET",
+			path:    "",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "GET",
+			path:    "/",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "GET",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "POST",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "DELETE",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "HEAD",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "OPTIONS", // Always allowed for CORS
+			path:    "/foo",
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
+		},
+		{
+			method:  "PUT",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "TRACE",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "CONNECT",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "BAR",
+			path:    "/foo",
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeTokenAuthRequestShaper(invalidToken),
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeTokenAuthRequestShaper(invalidToken),
+			checker: assertHTTPStatusIsUnauthoriazed,
+		},
+		{
+			method:  "GET",
+			path:    "/foo",
+			shaper:  makeTokenAuthRequestShaper(validToken),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
+		},
+		{
+			method:  "POST",
+			path:    "/foo",
+			shaper:  makeTokenAuthRequestShaper(validToken),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
+		},
+		{
+			method:  "DELETE",
+			path:    "/foo",
+			shaper:  makeTokenAuthRequestShaper(validToken),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
+		},
+		{
+			method:  "BAR",
+			path:    "/foo",
+			shaper:  makeTokenAuthRequestShaper(validToken),
+			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
+		},
+		{
+			method:  "GET",
+			path:    "/test",
+			shaper:  makeTokenAuthRequestShaper(validToken),
 			checker: makeHTTPStatusNegatedAssert(assertHTTPStatusIsUnauthoriazed),
 		},
 	} {
