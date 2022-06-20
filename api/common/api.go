@@ -37,8 +37,8 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	p2phttp "github.com/libp2p/go-libp2p-http"
-	noise "github.com/libp2p/go-libp2p-noise"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
+	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	manet "github.com/multiformats/go-multiaddr/net"
 
 	handlers "github.com/gorilla/handlers"
