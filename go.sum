@@ -890,8 +890,9 @@ github.com/libp2p/go-libp2p-quic-transport v0.10.0/go.mod h1:RfJbZ8IqXIhxBRm5hqU
 github.com/libp2p/go-libp2p-quic-transport v0.13.0/go.mod h1:39/ZWJ1TW/jx1iFkKzzUg00W6tDJh73FC0xYudjr7Hc=
 github.com/libp2p/go-libp2p-quic-transport v0.16.0/go.mod h1:1BXjVMzr+w7EkPfiHkKnwsWjPjtfaNT0q8RS3tGDvEQ=
 github.com/libp2p/go-libp2p-quic-transport v0.16.1/go.mod h1:1BXjVMzr+w7EkPfiHkKnwsWjPjtfaNT0q8RS3tGDvEQ=
-github.com/libp2p/go-libp2p-quic-transport v0.17.0 h1:yFh4Gf5MlToAYLuw/dRvuzYd1EnE2pX3Lq1N6KDiWRQ=
 github.com/libp2p/go-libp2p-quic-transport v0.17.0/go.mod h1:x4pw61P3/GRCcSLypcQJE/Q2+E9f4X+5aRcZLXf20LM=
+github.com/libp2p/go-libp2p-quic-transport v0.18.0 h1:raDkrTiqoHxdcYiWxe2vfXxoc1REtiyY2lWGVN6zpi4=
+github.com/libp2p/go-libp2p-quic-transport v0.18.0/go.mod h1:ZvZwsihLlgfpKxh8/g0Y0wcB9erGxX2x+a6iK6WzwOo=
 github.com/libp2p/go-libp2p-raft v0.1.8 h1:Fq0aWHbbhi6WJXf+yaOQeMzV+9UgkbHIIGyaJbH3vpo=
 github.com/libp2p/go-libp2p-raft v0.1.8/go.mod h1:+YDisn3uszb7vxshLgKoDdRGs79WSbHRgrOdrYqDPk4=
 github.com/libp2p/go-libp2p-record v0.0.1/go.mod h1:grzqg263Rug/sRex85QrDOLntdFAymLDLm7lxMgU79Q=
