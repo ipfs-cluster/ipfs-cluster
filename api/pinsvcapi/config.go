@@ -68,8 +68,7 @@ func NewConfig() *Config {
 	cfg.APIErrorFunc = func(err error, status int) error {
 		return pinsvc.APIError{
 			Details: pinsvc.APIErrorDetails{
-				Reason:  err.Error(),
-				Details: err.Error(),
+				Reason: err.Error(),
 			},
 		}
 	}
