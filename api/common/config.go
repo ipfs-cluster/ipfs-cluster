@@ -306,8 +306,9 @@ func (cfg *Config) tlsOptions(jcfg *jsonConfig) error {
 		key = filepath.Join(cfg.BaseDir, key)
 	}
 
-	cfg.Logger.Debug(cfg.BaseDir)
-	cfg.Logger.Debug(cert, key)
+	cfg.Logger.Debug("baseDir: ", cfg.BaseDir)
+	cfg.Logger.Debug("cert path: ", cert)
+	cfg.Logger.Debug("key path: ", key)
 
 	tlsCfg, err := newTLSConfig(cert, key)
 	if err != nil {
