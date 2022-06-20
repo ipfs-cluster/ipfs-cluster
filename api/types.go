@@ -26,7 +26,7 @@ import (
 	multiaddr "github.com/multiformats/go-multiaddr"
 
 	// needed to parse /ws multiaddresses
-	_ "github.com/libp2p/go-ws-transport"
+	_ "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 	// needed to parse /dns* multiaddresses
 	_ "github.com/multiformats/go-multiaddr-dns"
 

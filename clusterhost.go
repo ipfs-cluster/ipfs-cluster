@@ -17,14 +17,14 @@ import (
 	routing "github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
-	noise "github.com/libp2p/go-libp2p-noise"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	record "github.com/libp2p/go-libp2p-record"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
-	tcp "github.com/libp2p/go-tcp-transport"
-	websocket "github.com/libp2p/go-ws-transport"
+	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
+	tcp "github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	websocket "github.com/libp2p/go-libp2p/p2p/transport/websocket"
 )
 
 const dhtNamespace = "dht"
