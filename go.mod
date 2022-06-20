@@ -57,7 +57,7 @@ require (
 	github.com/multiformats/go-multicodec v0.4.1
 	github.com/multiformats/go-multihash v0.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/client_golang v1.12.2
 	github.com/rs/cors v1.8.2
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
