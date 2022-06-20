@@ -24,12 +24,17 @@ func init() {
 // APIError is returned by the API as a body when an error
 // occurs. It implements the error interface.
 type APIError struct {
+	Details APIErrorDetails `json:"error"`
+}
+
+// APIErrorDetails contains details about the APIError.
+type APIErrorDetails struct {
 	Reason  string `json:"reason"`
-	Details string `json:"details"`
+	Details string `json:"details,omitempty"`
 }
 
 func (apiErr APIError) Error() string {
-	return apiErr.Reason
+	return apiErr.Details.Reason
 }
 
 // PinName is a string limited to 255 chars when serializing JSON.
@@ -54,9 +59,9 @@ func (pname *PinName) UnmarshalJSON(data []byte) error {
 // Pin contains basic information about a Pin and pinning options.
 type Pin struct {
 	Cid     types.Cid         `json:"cid"`
-	Name    PinName           `json:"name"`
-	Origins []types.Multiaddr `json:"origins"`
-	Meta    map[string]string `json:"meta"`
+	Name    PinName           `json:"name,omitempty"`
+	Origins []types.Multiaddr `json:"origins,omitempty"`
+	Meta    map[string]string `json:"meta,omitempty"`
 }
 
 // Defined returns if the pinis empty (Cid not set).
@@ -221,12 +226,12 @@ type PinStatus struct {
 	Created   time.Time         `json:"created"`
 	Pin       Pin               `json:"pin"`
 	Delegates []types.Multiaddr `json:"delegates"`
-	Info      map[string]string `json:"info"`
+	Info      map[string]string `json:"info,omitempty"`
 }
 
 // PinList is the result of a call to List pins
 type PinList struct {
-	Count   int         `json:"count"`
+	Count   uint64      `json:"count"`
 	Results []PinStatus `json:"results"`
 }
 
@@ -293,6 +298,8 @@ func (lo *ListOptions) FromQuery(q url.Values) error {
 			return fmt.Errorf("error parsing 'limit' query param: %s: %w", v, err)
 		}
 		lo.Limit = lim
+	} else {
+		lo.Limit = 10 // implicit default
 	}
 
 	if meta := q.Get("meta"); meta != "" {

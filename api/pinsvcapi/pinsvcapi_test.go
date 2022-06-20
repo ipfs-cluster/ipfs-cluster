@@ -116,14 +116,14 @@ func TestAPIListEndpoint(t *testing.T) {
 		// Test with cids+limit
 		var resp8 pinsvc.PinList
 		test.MakeGet(t, svcapi, url(svcapi)+"/pins?cid=QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmq,QmP63DkAFEnDYNjDYBpyNDfttu1fvUw99x1brscPzpqmmb&limit=1", &resp8)
-		if resp8.Count != 1 {
+		if resp8.Count != 2 || len(resp8.Results) != 1 {
 			t.Errorf("unexpected statusAll+cids+limit resp:\n %+v", resp8)
 		}
 
 		// Test with limit
 		var resp9 pinsvc.PinList
 		test.MakeGet(t, svcapi, url(svcapi)+"/pins?limit=1", &resp9)
-		if resp9.Count != 1 {
+		if resp9.Count != 3 || len(resp9.Results) != 1 {
 			t.Errorf("unexpected statusAll+limit=1 resp:\n %+v", resp9)
 		}
 
@@ -143,8 +143,8 @@ func TestAPIListEndpoint(t *testing.T) {
 
 		var errorResp pinsvc.APIError
 		test.MakeGet(t, svcapi, url(svcapi)+"/pins?status=invalid", &errorResp)
-		if errorResp.Reason == "" {
-			t.Errorf("expected an error: %s", errorResp.Reason)
+		if errorResp.Details.Reason == "" {
+			t.Errorf("expected an error: %s", errorResp.Details.Reason)
 		}
 	}
 
@@ -200,7 +200,7 @@ func TestAPIPinEndpoint(t *testing.T) {
 			t.Fatal(err)
 		}
 		test.MakePost(t, svcapi, url(svcapi)+"/pins", pinJSON, &errName)
-		if !strings.Contains(errName.Reason, "255") {
+		if !strings.Contains(errName.Details.Reason, "255") {
 			t.Error("expected name error")
 		}
 	}
@@ -231,7 +231,7 @@ func TestAPIGetPinEndpoint(t *testing.T) {
 
 		var err pinsvc.APIError
 		test.MakeGet(t, svcapi, url(svcapi)+"/pins/"+clustertest.ErrorCid.String(), &err)
-		if err.Reason == "" {
+		if err.Details.Reason == "" {
 			t.Error("expected an error")
 		}
 	}

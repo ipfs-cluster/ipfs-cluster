@@ -103,8 +103,10 @@ func globalPinInfoToSvcPinStatus(
 		Origins: gpi.Origins,
 		Meta:    gpi.Metadata,
 	}
+
 	status.Info = apiInfo
 
+	status.Delegates = []types.Multiaddr{}
 	for _, pi := range gpi.PeerMap {
 		status.Delegates = append(status.Delegates, pi.IPFSAddresses...)
 	}
@@ -228,6 +230,23 @@ func (api *API) addPin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Unpin old item
+		if clusterPin.PinUpdate.Defined() {
+			var oldPin types.Pin
+			err = api.rpcClient.CallContext(
+				r.Context(),
+				"",
+				"Cluster",
+				"Unpin",
+				types.PinCid(clusterPin.PinUpdate),
+				&oldPin,
+			)
+			if err != nil {
+				api.SendResponse(w, common.SetStatusAutomatically, err, nil)
+				return
+			}
+		}
+
 		status := api.pinToSvcPinStatus(r.Context(), pin.Cid.String(), pinObj)
 		api.SendResponse(w, common.SetStatusAutomatically, nil, status)
 	}
@@ -297,6 +316,9 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 	tst := svcStatusToTrackerStatus(opts.Status)
 
 	var pinList pinsvc.PinList
+	pinList.Results = []pinsvc.PinStatus{}
+	count := uint64(0)
+
 	if len(opts.Cids) > 0 {
 		// copy approach from restapi
 		type statusResult struct {
@@ -321,19 +343,18 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var err error
-		i := uint64(0)
+
 		for stResult := range stCh {
 			if stResult.st.Status == pinsvc.StatusUndefined && stResult.err == nil {
 				// ignore things unpinning
 				continue
 			}
 
-			pinList.Results = append(pinList.Results, stResult.st)
-			err = multierr.Append(err, stResult.err)
-			if i+1 == opts.Limit {
-				break
+			if count < opts.Limit {
+				pinList.Results = append(pinList.Results, stResult.st)
+				err = multierr.Append(err, stResult.err)
 			}
-			i++
+			count++
 		}
 
 		if err != nil {
@@ -360,18 +381,17 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			)
 		}()
 
-		i := uint64(0)
 		for gpi := range out {
 			st := globalPinInfoToSvcPinStatus(gpi.Cid.String(), gpi)
 			if st.Status == pinsvc.StatusUndefined {
 				// i.e things unpinning
 				continue
 			}
-			if st.Created.Before(opts.After) {
+			if !opts.After.IsZero() && st.Created.Before(opts.After) {
 				continue
 			}
 
-			if st.Created.After(opts.Before) {
+			if !opts.Before.IsZero() && st.Created.After(opts.Before) {
 				continue
 			}
 
@@ -381,11 +401,10 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 			if !st.Pin.MatchesMeta(opts.Meta) {
 				continue
 			}
-			pinList.Results = append(pinList.Results, st)
-			i++
-			if i == opts.Limit {
-				break
+			if count < opts.Limit {
+				pinList.Results = append(pinList.Results, st)
 			}
+			count++
 		}
 
 		err := <-errCh
@@ -395,7 +414,7 @@ func (api *API) listPins(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pinList.Count = len(pinList.Results)
+	pinList.Count = count
 	api.SendResponse(w, common.SetStatusAutomatically, err, pinList)
 }
 
@@ -431,6 +450,7 @@ func (api *API) pinToSvcPinStatus(ctx context.Context, rID string, pin types.Pin
 		peers = pin.Allocations
 	}
 
+	status.Delegates = []types.Multiaddr{}
 	for _, peer := range peers {
 		var ipfsid types.IPFSID
 		err := api.rpcClient.CallContext(
