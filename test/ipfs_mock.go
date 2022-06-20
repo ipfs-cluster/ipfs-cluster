@@ -19,6 +19,7 @@ import (
 	"github.com/ipfs/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs/ipfs-cluster/state"
 	"github.com/ipfs/ipfs-cluster/state/dsstate"
+	"github.com/multiformats/go-multicodec"
 	"github.com/multiformats/go-multihash"
 
 	cid "github.com/ipfs/go-cid"
@@ -371,8 +372,9 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Trailer", "X-Stream-Error")
 
 		query := r.URL.Query()
-		formatStr := query.Get("format")
-		format := cid.Codecs[formatStr]
+		codecStr := query.Get("cid-codec")
+		var mc multicodec.Code
+		mc.Set(codecStr)
 		mhType := multihash.Names[query.Get("mhtype")]
 		mhLen, _ := strconv.Atoi(query.Get("mhLen"))
 
@@ -399,16 +401,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Parse cid from data and format and add to mock block-store
-
-			var builder cid.Builder
-			if formatStr == "v0" && mhType == multihash.SHA2_256 {
-				builder = cid.V0Builder{}
-			} else {
-				builder = cid.V1Builder{
-					Codec:    format,
-					MhType:   mhType,
-					MhLength: mhLen,
-				}
+			builder := cid.V1Builder{
+				Codec:    uint64(mc),
+				MhType:   mhType,
+				MhLength: mhLen,
 			}
 
 			c, err := builder.Sum(data)

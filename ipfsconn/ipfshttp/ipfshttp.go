@@ -29,6 +29,7 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
+	"github.com/multiformats/go-multicodec"
 	multihash "github.com/multiformats/go-multihash"
 
 	"go.opencensus.io/plugin/ochttp"
@@ -1051,8 +1052,9 @@ func (ci *chanIterator) Err() error {
 
 func blockPutQuery(prefix cid.Prefix) (url.Values, error) {
 	q := make(url.Values, 3)
-	format, ok := cid.CodecToStr[prefix.Codec]
-	if !ok {
+
+	codec := multicodec.Code(prefix.Codec).String()
+	if codec == "" {
 		return q, fmt.Errorf("cannot find name for the blocks' CID codec: %x", prefix.Codec)
 	}
 
@@ -1061,17 +1063,12 @@ func blockPutQuery(prefix cid.Prefix) (url.Values, error) {
 		return q, fmt.Errorf("cannot find name for the blocks' Multihash type: %x", prefix.MhType)
 	}
 
-	// IPFS behaves differently when using v0 or protobuf which are
-	// actually the same.
-	if prefix.Version == 0 {
-		q.Set("format", "v0")
-	} else {
-		q.Set("format", format)
-	}
-
+	// From go-ipfs 0.13.0 format is deprecated and we use cid-codec
+	q.Set("cid-codec", codec)
 	q.Set("mhtype", mhType)
 	q.Set("mhlen", strconv.Itoa(prefix.MhLength))
 	q.Set("pin", "false")
+	q.Set("allow-big-block", "true")
 	return q, nil
 }
 
