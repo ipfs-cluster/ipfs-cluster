@@ -241,7 +241,7 @@ func textFormatPrintPin(obj api.Pin) {
 	}
 	expireAt := "∞"
 	if !obj.ExpireAt.IsZero() {
-		expireAt = obj.Timestamp.Format("2006-01-02 15:04:05")
+		expireAt = obj.ExpireAt.Format("2006-01-02 15:04:05")
 	}
 	fmt.Printf(" | Exp: %s", expireAt)
 
