@@ -43,7 +43,7 @@ require (
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
 	github.com/libp2p/go-libp2p v0.20.1
 	github.com/libp2p/go-libp2p-consensus v0.0.1
-	github.com/libp2p/go-libp2p-core v0.16.1
+	github.com/libp2p/go-libp2p-core v0.17.0
 	github.com/libp2p/go-libp2p-gorpc v0.4.0
 	github.com/libp2p/go-libp2p-gostream v0.4.0
 	github.com/libp2p/go-libp2p-http v0.3.0
