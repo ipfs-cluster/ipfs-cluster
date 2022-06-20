@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v4"
 	types "github.com/ipfs-cluster/ipfs-cluster/api"
 	state "github.com/ipfs-cluster/ipfs-cluster/state"
 	logging "github.com/ipfs/go-log/v2"
@@ -38,8 +38,8 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	p2phttp "github.com/libp2p/go-libp2p-http"
-	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
+	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	manet "github.com/multiformats/go-multiaddr/net"
 
 	handlers "github.com/gorilla/handlers"
