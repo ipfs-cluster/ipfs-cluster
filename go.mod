@@ -63,7 +63,7 @@ require (
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.2.7
 	github.com/urfave/cli v1.22.9
-	github.com/urfave/cli/v2 v2.5.1
+	github.com/urfave/cli/v2 v2.10.1
 	go.opencensus.io v0.23.0
 	go.uber.org/multierr v1.8.0
 	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
@@ -203,6 +203,7 @@ require (
 	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
