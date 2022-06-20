@@ -83,11 +83,14 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 	defer opt.mu.Unlock()
 
 	op, ok := opt.operations[pin.Cid]
-	if ok { // operation exists
+	if ok { // operation exists for the CID
 		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
-			return nil // an ongoing operation of the same sign exists
+			// an ongoing operation of the same
+			// type. i.e. pinning, or queued.
+			return nil
 		}
-		opt.recordMetric(op, -1)
+		// i.e. operations in error phase
+		// i.e. pin operations that need to be canceled for unpinning
 		op.Cancel() // cancel ongoing operation and replace it
 	}
 
@@ -99,7 +102,6 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 	}
 	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
 	opt.operations[pin.Cid] = op2
-	opt.recordMetric(op2, 1)
 	return op2
 }
 
@@ -355,12 +357,13 @@ func initializeMetrics(ctx context.Context) {
 	stats.Record(ctx, observations.PinsPinning.M(0))
 }
 
-func (opt *OperationTracker) recordMetric(op *Operation, val int64) {
-	if opt == nil {
+func (opt *OperationTracker) recordMetricUnsafe(op *Operation, val int64) {
+	if opt == nil || op == nil {
 		return
 	}
-	if op.Type() == OperationPin {
-		switch op.Phase() {
+
+	if op.opType == OperationPin {
+		switch op.phase {
 		case PhaseError:
 			pinErrors := atomic.AddInt64(&opt.pinErrorCount, val)
 			stats.Record(op.Context(), observations.PinsPinError.M(pinErrors))
@@ -374,6 +377,17 @@ func (opt *OperationTracker) recordMetric(op *Operation, val int64) {
 			// we have no metric to log anything
 		}
 	}
+}
+
+func (opt *OperationTracker) recordMetric(op *Operation, val int64) {
+	if op == nil {
+		return
+	}
+	op.mu.RLock()
+	{
+		opt.recordMetricUnsafe(op, val)
+	}
+	op.mu.RUnlock()
 }
 
 // PinQueueSize returns the current number of items queued to pin.
