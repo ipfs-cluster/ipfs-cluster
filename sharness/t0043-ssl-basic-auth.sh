@@ -15,12 +15,11 @@ test_expect_success "prerequisites" '
 
 test_expect_success "ssl interaction fails with bad credentials" '
     id=`cluster_id`
-    { test_must_fail ipfs-cluster-ctl --no-check-certificate --basic-auth "testuser:badpass" id; } | grep -A1 "401" | grep "Unauthorized"
+    { test_must_fail ipfs-cluster-ctl --no-check-certificate --basic-auth "testuser:badpass" id; } | grep -A1 "401" | grep -i "unauthorized"
 '
 
 test_expect_success "ssl interaction succeeds" '
     id=`cluster_id`
-    ipfs-cluster-ctl --no-check-certificate --basic-auth "userwithoutpass" id | egrep -q "$id" &&
     ipfs-cluster-ctl --no-check-certificate --basic-auth "testuser:testpass" id | egrep -q "$id"
 '
 

@@ -172,6 +172,12 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 			Pattern:     "/pins/{requestID}",
 			HandlerFunc: api.removePin,
 		},
+		{
+			Name:        "GetToken",
+			Method:      "POST",
+			Pattern:     "/token",
+			HandlerFunc: api.GenerateTokenHandler,
+		},
 	}
 }
 
