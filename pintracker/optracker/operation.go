@@ -75,7 +75,7 @@ func newOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase,
 	defer span.End()
 
 	ctx, cancel := context.WithCancel(ctx)
-	return &Operation{
+	op := &Operation{
 		ctx:    ctx,
 		cancel: cancel,
 
@@ -89,6 +89,8 @@ func newOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase,
 		ts:           time.Now(),
 		error:        "",
 	}
+	tracker.recordMetricUnsafe(op, 1)
+	return op
 }
 
 // String returns a string representation of an Operation.
@@ -124,6 +126,7 @@ func (op *Operation) Context() context.Context {
 func (op *Operation) Cancel() {
 	_, span := trace.StartSpan(op.ctx, "optracker/Cancel")
 	op.cancel()
+	op.tracker.recordMetric(op, -1)
 	span.End()
 }
 
@@ -141,14 +144,15 @@ func (op *Operation) Phase() Phase {
 // SetPhase changes the Phase and updates the timestamp.
 func (op *Operation) SetPhase(ph Phase) {
 	_, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
-	op.tracker.recordMetric(op, -1)
 	op.mu.Lock()
 	{
+		op.tracker.recordMetricUnsafe(op, -1)
 		op.phase = ph
 		op.ts = time.Now()
+		op.tracker.recordMetricUnsafe(op, 1)
 	}
 	op.mu.Unlock()
-	op.tracker.recordMetric(op, 1)
+
 	span.End()
 }
 
@@ -200,15 +204,15 @@ func (op *Operation) Error() string {
 // an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
 	_, span := trace.StartSpan(op.ctx, "optracker/SetError")
-	op.tracker.recordMetric(op, -1)
 	op.mu.Lock()
 	{
+		op.tracker.recordMetricUnsafe(op, -1)
 		op.phase = PhaseError
 		op.error = err.Error()
 		op.ts = time.Now()
+		op.tracker.recordMetricUnsafe(op, 1)
 	}
 	op.mu.Unlock()
-	op.tracker.recordMetric(op, 1)
 	span.End()
 }
 
