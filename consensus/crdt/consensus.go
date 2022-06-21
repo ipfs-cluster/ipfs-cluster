@@ -58,8 +58,10 @@ type batchItem struct {
 // and remove pins from the Cluster shared state. It uses a CRDT-backed
 // implementation of go-datastore (go-ds-crdt).
 type Consensus struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx            context.Context
+	cancel         context.CancelFunc
+	batchingCtx    context.Context
+	batchingCancel context.CancelFunc
 
 	config *Config
 
@@ -105,6 +107,7 @@ func New(
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	batchingCtx, batchingCancel := context.WithCancel(ctx)
 
 	var blocksDatastore ds.Batching
 	ns := ds.NewKey(cfg.DatastoreNamespace)
@@ -122,24 +125,27 @@ func New(
 	if err != nil {
 		logger.Errorf("error creating ipfs-lite: %s", err)
 		cancel()
+		batchingCancel()
 		return nil, err
 	}
 
 	css := &Consensus{
-		ctx:         ctx,
-		cancel:      cancel,
-		config:      cfg,
-		host:        host,
-		peerManager: pstoremgr.New(ctx, host, ""),
-		dht:         dht,
-		store:       store,
-		ipfs:        ipfs,
-		namespace:   ns,
-		pubsub:      pubsub,
-		rpcReady:    make(chan struct{}, 1),
-		readyCh:     make(chan struct{}, 1),
-		stateReady:  make(chan struct{}, 1),
-		batchItemCh: make(chan batchItem, cfg.Batching.MaxQueueSize),
+		ctx:            ctx,
+		cancel:         cancel,
+		batchingCtx:    batchingCtx,
+		batchingCancel: batchingCancel,
+		config:         cfg,
+		host:           host,
+		peerManager:    pstoremgr.New(ctx, host, ""),
+		dht:            dht,
+		store:          store,
+		ipfs:           ipfs,
+		namespace:      ns,
+		pubsub:         pubsub,
+		rpcReady:       make(chan struct{}, 1),
+		readyCh:        make(chan struct{}, 1),
+		stateReady:     make(chan struct{}, 1),
+		batchItemCh:    make(chan batchItem, cfg.Batching.MaxQueueSize),
 	}
 
 	go css.setup()
@@ -330,8 +336,18 @@ func (css *Consensus) Shutdown(ctx context.Context) error {
 		logger.Debug("already shutdown")
 		return nil
 	}
+	css.shutdown = true
 
 	logger.Info("stopping Consensus component")
+
+	// Cancel
+	css.batchingCancel()
+	if css.config.batchingEnabled() {
+		logger.Info("committing pending batches")
+		if err := css.batchingState.Commit(css.ctx); err != nil {
+			logger.Errorf("error committing batch before shutdown: %w", err)
+		}
+	}
 
 	css.cancel()
 
@@ -464,7 +480,10 @@ func (css *Consensus) batchWorker() {
 
 	for {
 		select {
-		case <-css.ctx.Done():
+		case <-css.batchingCtx.Done():
+			if !batchTimer.Stop() {
+				<-batchTimer.C
+			}
 			return
 		case batchItem := <-css.batchItemCh:
 			// First item in batch. Start the timer
