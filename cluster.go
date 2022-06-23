@@ -778,6 +778,14 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 
 	logger.Info("shutting down Cluster")
 
+	// Shutdown APIs first, avoids more requests coming through.
+	for _, api := range c.apis {
+		if err := api.Shutdown(ctx); err != nil {
+			logger.Errorf("error stopping API: %s", err)
+			return err
+		}
+	}
+
 	// Cancel discovery service (this shutdowns announcing). Handling
 	// entries is canceled along with the context below.
 	if c.discovery != nil {
@@ -827,13 +835,6 @@ func (c *Cluster) Shutdown(ctx context.Context) error {
 	if err := c.monitor.Shutdown(ctx); err != nil {
 		logger.Errorf("error stopping monitor: %s", err)
 		return err
-	}
-
-	for _, api := range c.apis {
-		if err := api.Shutdown(ctx); err != nil {
-			logger.Errorf("error stopping API: %s", err)
-			return err
-		}
 	}
 
 	if err := c.ipfs.Shutdown(ctx); err != nil {
