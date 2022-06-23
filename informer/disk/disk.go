@@ -8,10 +8,12 @@ import (
 	"sync"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
 
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -152,5 +154,8 @@ func (disk *Informer) GetMetrics(ctx context.Context) []api.Metric {
 	}
 
 	m.SetTTL(disk.config.MetricTTL)
+
+	stats.Record(ctx, observations.InformerDisk.M(m.Weight))
+
 	return []api.Metric{m}
 }

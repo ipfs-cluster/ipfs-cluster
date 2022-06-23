@@ -48,6 +48,8 @@ var (
 
 	BlocksAdded      = stats.Int64("blocks/added", "Total number of blocks added", stats.UnitDimensionless)
 	BlocksAddedError = stats.Int64("blocks/put_errors", "Total number of block/put errors", stats.UnitDimensionless)
+
+	InformerDisk = stats.Int64("informer/disk", "The metric value weight issued by disk informer", stats.UnitDimensionless)
 )
 
 // views, which is just the aggregation of the metrics
@@ -114,6 +116,11 @@ var (
 		Aggregation: view.Sum(),
 	}
 
+	InformerDiskView = &view.View{
+		Measure:     InformerDisk,
+		Aggregation: view.LastValue(),
+	}
+
 	DefaultViews = []*view.View{
 		PinsView,
 		PinsQueuedView,
@@ -126,6 +133,7 @@ var (
 		BlocksAddedSizeView,
 		BlocksAddedView,
 		BlocksAddedErrorView,
+		InformerDiskView,
 	}
 )
 
