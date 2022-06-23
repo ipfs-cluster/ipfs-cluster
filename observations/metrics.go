@@ -44,10 +44,12 @@ var (
 	PinsPinAdd      = stats.Int64("pins/pin_add", "Total number of IPFS pin requests", stats.UnitDimensionless)
 	PinsPinAddError = stats.Int64("pins/pin_add_errors", "Total number of failed pin requests", stats.UnitDimensionless)
 	BlocksPut       = stats.Int64("blocks/put", "Total number of blocks/put requests", stats.UnitDimensionless)
-	BlocksAddedSize = stats.Int64("blocks/added_size", "Total size of blocks added in bytes", stats.UnitDimensionless)
+	BlocksAddedSize = stats.Int64("blocks/added_size", "Total size of blocks added in bytes", stats.UnitBytes)
 
 	BlocksAdded      = stats.Int64("blocks/added", "Total number of blocks added", stats.UnitDimensionless)
 	BlocksAddedError = stats.Int64("blocks/put_errors", "Total number of block/put errors", stats.UnitDimensionless)
+
+	InformerDisk = stats.Int64("informer/disk", "The metric value weight issued by disk informer", stats.UnitDimensionless)
 )
 
 // views, which is just the aggregation of the metrics
@@ -114,6 +116,11 @@ var (
 		Aggregation: view.Sum(),
 	}
 
+	InformerDiskView = &view.View{
+		Measure:     InformerDisk,
+		Aggregation: view.LastValue(),
+	}
+
 	DefaultViews = []*view.View{
 		PinsView,
 		PinsQueuedView,
@@ -126,6 +133,7 @@ var (
 		BlocksAddedSizeView,
 		BlocksAddedView,
 		BlocksAddedErrorView,
+		InformerDiskView,
 	}
 )
 

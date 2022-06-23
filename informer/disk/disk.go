@@ -8,10 +8,12 @@ import (
 	"sync"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
 
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -105,7 +107,8 @@ func (disk *Informer) GetMetrics(ctx context.Context) []api.Metric {
 	}
 
 	var repoStat api.IPFSRepoStat
-	var metric uint64
+	var weight uint64
+	var value string
 
 	valid := true
 
@@ -126,27 +129,33 @@ func (disk *Informer) GetMetrics(ctx context.Context) []api.Metric {
 			size := repoStat.RepoSize
 			total := repoStat.StorageMax
 			if size < total {
-				metric = total - size
+				weight = total - size
 			} else {
 				// Make sure we don't underflow and stop
 				// sending this metric when space is exhausted.
-				metric = 0
+				weight = 0
 				valid = false
 				logger.Warn("reported freespace is 0")
 			}
+			value = fmt.Sprintf("%d", weight)
 		case MetricRepoSize:
-			metric = repoStat.RepoSize
+			// smaller repositories have more priority
+			weight = -repoStat.RepoSize
+			value = fmt.Sprintf("%d", repoStat.RepoSize)
 		}
 	}
 
 	m := api.Metric{
 		Name:          disk.Name(),
-		Value:         fmt.Sprintf("%d", metric),
+		Value:         value,
 		Valid:         valid,
-		Weight:        int64(metric),
+		Weight:        int64(weight),
 		Partitionable: false,
 	}
 
 	m.SetTTL(disk.config.MetricTTL)
+
+	stats.Record(ctx, observations.InformerDisk.M(m.Weight))
+
 	return []api.Metric{m}
 }
