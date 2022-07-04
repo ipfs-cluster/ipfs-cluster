@@ -91,6 +91,7 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 		}
 		// i.e. operations in error phase
 		// i.e. pin operations that need to be canceled for unpinning
+		op.tracker.recordMetric(op, -1)
 		op.Cancel() // cancel ongoing operation and replace it
 	}
 
@@ -102,6 +103,7 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 	}
 	logger.Debugf("'%s' on cid '%s' has been created with phase '%s'", typ, pin.Cid, ph)
 	opt.operations[pin.Cid] = op2
+	opt.recordMetricUnsafe(op2, 1)
 	return op2
 }
 
