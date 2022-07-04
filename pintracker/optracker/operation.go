@@ -89,7 +89,6 @@ func newOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase,
 		ts:           time.Now(),
 		error:        "",
 	}
-	tracker.recordMetricUnsafe(op, 1)
 	return op
 }
 
@@ -126,7 +125,6 @@ func (op *Operation) Context() context.Context {
 func (op *Operation) Cancel() {
 	_, span := trace.StartSpan(op.ctx, "optracker/Cancel")
 	op.cancel()
-	op.tracker.recordMetric(op, -1)
 	span.End()
 }
 
