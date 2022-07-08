@@ -43,6 +43,9 @@ type ClusterDAGService interface {
 	// Finalize receives the IPFS content root CID as
 	// returned by the ipfs adder.
 	Finalize(ctx context.Context, ipfsRoot api.Cid) (api.Cid, error)
+	// Close performs any necessary cleanups and should be called
+	// whenever the DAGService is not going to be used anymore.
+	Close() error
 	// Allocations returns the allocations made by the cluster DAG service
 	// for the added content.
 	Allocations() []peer.ID

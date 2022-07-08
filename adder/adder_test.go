@@ -55,6 +55,7 @@ func TestAdder(t *testing.T) {
 	expectedCids := test.ShardingDirCids[:]
 
 	dags := newMockCDAGServ()
+	defer dags.Close()
 
 	adder := New(dags, p, nil)
 
@@ -88,6 +89,7 @@ func TestAdder_DoubleStart(t *testing.T) {
 	p := api.DefaultAddParams()
 
 	dags := newMockCDAGServ()
+	defer dags.Close()
 
 	adder := New(dags, p, nil)
 	_, err := adder.FromFiles(context.Background(), f)
@@ -124,6 +126,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 	p := api.DefaultAddParams()
 
 	dags := newMockCDAGServ()
+	defer dags.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	adder := New(dags, p, nil)
@@ -176,6 +179,8 @@ func TestAdder_CAR(t *testing.T) {
 
 	// Add the car, discarding old dags.
 	dags = newMockCDAGServ()
+	defer dags.Close()
+
 	p.Format = "car"
 	adder = New(dags, p, nil)
 	root2, err := adder.FromMultipart(ctx, carMr)
@@ -217,6 +222,7 @@ func TestAdder_LargeFolder(t *testing.T) {
 	p.Wrap = true
 
 	dags := newMockCDAGServ()
+	defer dags.Close()
 
 	adder := New(dags, p, nil)
 	_, err := adder.FromFiles(context.Background(), slf)

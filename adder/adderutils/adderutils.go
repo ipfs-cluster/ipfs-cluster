@@ -39,6 +39,7 @@ func AddMultipartHTTPHandler(
 	} else {
 		dags = single.New(ctx, rpc, params, params.Local)
 	}
+	defer dags.Close()
 
 	if outputTransform == nil {
 		outputTransform = func(in api.AddedOutput) interface{} { return in }
