@@ -1744,6 +1744,7 @@ func (c *Cluster) AddFile(ctx context.Context, reader *multipart.Reader, params 
 	} else {
 		dags = single.New(ctx, c.rpcClient, params, params.Local)
 	}
+	defer dags.Close()
 	add := adder.New(dags, params, nil)
 	return add.FromMultipart(ctx, reader)
 }

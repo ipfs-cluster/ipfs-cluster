@@ -3,10 +3,11 @@ package sharding
 import (
 	"context"
 	"fmt"
+	"sync"
 
-	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs-cluster/ipfs-cluster/adder"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+	ipld "github.com/ipfs/go-ipld-format"
 
 	cid "github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -19,12 +20,13 @@ import (
 // a peer to be block-put and will be part of the same shard in the
 // cluster DAG.
 type shard struct {
-	ctx         context.Context
-	rpc         *rpc.Client
-	allocations []peer.ID
-	pinOptions  api.PinOptions
-	bs          *adder.BlockStreamer
-	blocks      chan api.NodeWithMeta
+	ctx             context.Context
+	rpc             *rpc.Client
+	allocations     []peer.ID
+	pinOptions      api.PinOptions
+	bs              *adder.BlockStreamer
+	blocks          chan api.NodeWithMeta
+	closeBlocksOnce sync.Once
 	// dagNode represents a node with links and will be converted
 	// to Cbor.
 	dagNode     map[string]cid.Cid
@@ -93,6 +95,14 @@ func (sh *shard) sendBlock(ctx context.Context, n ipld.Node) error {
 	}
 }
 
+// Close stops any ongoing block streaming.
+func (sh *shard) Close() error {
+	sh.closeBlocksOnce.Do(func() {
+		close(sh.blocks)
+	})
+	return nil
+}
+
 // Flush completes the allocation of this shard by building a CBOR node
 // and adding it to IPFS, then pinning it in cluster. It returns the Cid of the
 // shard.
@@ -110,7 +120,9 @@ func (sh *shard) Flush(ctx context.Context, shardN int, prev cid.Cid) (cid.Cid, 
 			return cid.Undef, err
 		}
 	}
-	close(sh.blocks)
+
+	sh.Close()
+
 	select {
 	case <-ctx.Done():
 		return cid.Undef, ctx.Err()

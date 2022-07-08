@@ -77,6 +77,15 @@ func (dgs *DAGService) Add(ctx context.Context, node ipld.Node) error {
 	return dgs.ingestBlock(ctx, node)
 }
 
+// Close performs cleanup and should be called when the DAGService is not
+// going to be used anymore.
+func (dgs *DAGService) Close() error {
+	if dgs.currentShard != nil {
+		dgs.currentShard.Close()
+	}
+	return nil
+}
+
 // Finalize finishes sharding, creates the cluster DAG and pins it along
 // with the meta pin for the root node of the content.
 func (dgs *DAGService) Finalize(ctx context.Context, dataRoot api.Cid) (api.Cid, error) {

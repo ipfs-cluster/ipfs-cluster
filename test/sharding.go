@@ -300,6 +300,11 @@ func NewMockDAGService(writeOnly bool) *MockDAGService {
 	}
 }
 
+// Close closes the DAGService.
+func (d *MockDAGService) Close() error {
+	return nil
+}
+
 // Get reads a node.
 func (d *MockDAGService) Get(ctx context.Context, cid cid.Cid) (format.Node, error) {
 	if d.writeOnly {
