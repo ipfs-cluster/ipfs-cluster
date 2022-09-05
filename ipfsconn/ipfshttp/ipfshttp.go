@@ -48,6 +48,10 @@ var logger = logging.Logger("ipfshttp")
 // on-demand requests against the configured IPFS daemom
 // (such as a pin request).
 type Connector struct {
+	updateMetricCount uint64
+
+	ipfsPinCount int64
+
 	ctx    context.Context
 	cancel func()
 
@@ -58,10 +62,6 @@ type Connector struct {
 	rpcReady  chan struct{}
 
 	client *http.Client // client to ipfs daemon
-
-	updateMetricCount uint64
-
-	ipfsPinCount int64
 
 	shutdownLock sync.Mutex
 	shutdown     bool

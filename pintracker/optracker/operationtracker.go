@@ -27,16 +27,16 @@ var logger = logging.Logger("optracker")
 
 // OperationTracker tracks and manages all inflight Operations.
 type OperationTracker struct {
+	pinningCount   int64
+	pinErrorCount  int64
+	pinQueuedCount int64
+
 	ctx      context.Context // parent context for all ops
 	pid      peer.ID
 	peerName string
 
 	mu         sync.RWMutex
 	operations map[api.Cid]*Operation
-
-	pinningCount   int64
-	pinErrorCount  int64
-	pinQueuedCount int64
 }
 
 func (opt *OperationTracker) String() string {
