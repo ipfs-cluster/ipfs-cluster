@@ -21,8 +21,8 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	protocol "github.com/libp2p/go-libp2p-core/protocol"
+	peer "github.com/libp2p/go-libp2p/core/peer"
+	protocol "github.com/libp2p/go-libp2p/core/protocol"
 	multiaddr "github.com/multiformats/go-multiaddr"
 
 	// needed to parse /ws multiaddresses
@@ -385,7 +385,7 @@ func (gpi *GlobalPinInfo) Add(pi PinInfo) {
 		gpi.PeerMap = make(map[string]PinInfoShort)
 	}
 
-	gpi.PeerMap[peer.Encode(pi.Peer)] = pi.PinInfoShort
+	gpi.PeerMap[pi.Peer.String()] = pi.PinInfoShort
 }
 
 // Defined returns if the object is not empty.
@@ -576,17 +576,19 @@ type IPFSID struct {
 // A sharded Pin would look like:
 //
 // [ Meta ] (not pinned on IPFS, only present in cluster state)
-//   |
-//   v
+//
+//	|
+//	v
+//
 // [ Cluster DAG ] (pinned everywhere in "direct")
-//   |      ..  |
-//   v          v
+//
+//	|      ..  |
+//	v          v
+//
 // [Shard1] .. [ShardN] (allocated to peers and pinned with max-depth=1
 // | | .. |    | | .. |
 // v v .. v    v v .. v
 // [][]..[]    [][]..[] Blocks (indirectly pinned on ipfs, not tracked in cluster)
-//
-//
 type PinType uint64
 
 // PinType values. See PinType documentation for further explanation.

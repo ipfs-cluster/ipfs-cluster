@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 func TestChecker_CheckPeers(t *testing.T) {

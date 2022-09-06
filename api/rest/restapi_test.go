@@ -3,7 +3,7 @@ package rest
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -14,7 +14,7 @@ import (
 	clustertest "github.com/ipfs-cluster/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -247,7 +247,7 @@ func TestAPIAddFileEndpoint_StreamChannelsFalse(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		body, closer := sth.GetTreeMultiReader(t)
 		defer closer.Close()
-		fullBody, err := ioutil.ReadAll(body)
+		fullBody, err := io.ReadAll(body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -301,10 +301,10 @@ func TestConnectGraphEndpoint(t *testing.T) {
 		// test a few link values
 		pid1 := clustertest.PeerID1
 		pid4 := clustertest.PeerID4
-		if _, ok := cg.ClustertoIPFS[peer.Encode(pid1)]; !ok {
+		if _, ok := cg.ClustertoIPFS[pid1.String()]; !ok {
 			t.Fatal("missing cluster peer 1 from cluster to peer links map")
 		}
-		if cg.ClustertoIPFS[peer.Encode(pid1)] != pid4 {
+		if cg.ClustertoIPFS[pid1.String()] != pid4 {
 			t.Error("unexpected ipfs peer mapped to cluster peer 1 in graph")
 		}
 	}
@@ -621,7 +621,7 @@ func TestAPIStatusAllEndpoint(t *testing.T) {
 		// mockPinTracker returns 3 items for Cluster.StatusAll
 		if len(resp) != 3 ||
 			!resp[0].Cid.Equals(clustertest.Cid1) ||
-			resp[1].PeerMap[peer.Encode(clustertest.PeerID1)].Status.String() != "pinning" {
+			resp[1].PeerMap[clustertest.PeerID1.String()].Status.String() != "pinning" {
 			t.Errorf("unexpected statusAll resp")
 		}
 
@@ -725,7 +725,7 @@ func TestAPIStatusEndpoint(t *testing.T) {
 		if !resp.Cid.Equals(clustertest.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.Encode(clustertest.PeerID1)]
+		info, ok := resp.PeerMap[clustertest.PeerID1.String()]
 		if !ok {
 			t.Fatal("expected info for clustertest.PeerID1")
 		}
@@ -740,7 +740,7 @@ func TestAPIStatusEndpoint(t *testing.T) {
 		if !resp2.Cid.Equals(clustertest.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok = resp2.PeerMap[peer.Encode(clustertest.PeerID2)]
+		info, ok = resp2.PeerMap[clustertest.PeerID2.String()]
 		if !ok {
 			t.Fatal("expected info for clustertest.PeerID2")
 		}
@@ -764,7 +764,7 @@ func TestAPIRecoverEndpoint(t *testing.T) {
 		if !resp.Cid.Equals(clustertest.Cid1) {
 			t.Error("expected the same cid")
 		}
-		info, ok := resp.PeerMap[peer.Encode(clustertest.PeerID1)]
+		info, ok := resp.PeerMap[clustertest.PeerID1.String()]
 		if !ok {
 			t.Fatal("expected info for clustertest.PeerID1")
 		}

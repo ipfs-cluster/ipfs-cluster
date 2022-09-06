@@ -17,10 +17,10 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
 	consensus "github.com/libp2p/go-libp2p-consensus"
-	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	libp2praft "github.com/libp2p/go-libp2p-raft"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
@@ -410,7 +410,7 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 		}
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
-		finalErr = cc.raft.AddPeer(ctx, peer.Encode(pid))
+		finalErr = cc.raft.AddPeer(ctx, pid.String())
 
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
@@ -441,7 +441,7 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 		}
 		// Being here means we are the leader and can commit
 		cc.shutdownLock.RLock() // do not shutdown while committing
-		finalErr = cc.raft.RemovePeer(ctx, peer.Encode(pid))
+		finalErr = cc.raft.RemovePeer(ctx, pid.String())
 		cc.shutdownLock.RUnlock()
 		if finalErr != nil {
 			time.Sleep(cc.config.CommitRetryDelay)

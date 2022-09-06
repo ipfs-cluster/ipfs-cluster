@@ -20,11 +20,11 @@ import (
 	"go.uber.org/multierr"
 
 	ds "github.com/ipfs/go-datastore"
-	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
+	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	mdns "github.com/libp2p/go-libp2p/p2p/discovery/mdns"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -1129,7 +1129,7 @@ func (c *Cluster) distances(ctx context.Context, exclude peer.ID) (*distanceChec
 // StateSync performs maintenance tasks on the global state that require
 // looping through all the items. It is triggered automatically on
 // StateSyncInterval. Currently it:
-//   * Sends unpin for expired items for which this peer is "closest"
+//   - Sends unpin for expired items for which this peer is "closest"
 //     (skipped for follower peers)
 func (c *Cluster) StateSync(ctx context.Context) error {
 	_, span := trace.StartSpan(ctx, "cluster/StateSync")
@@ -2261,7 +2261,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (api.GlobalRepoGC, error) {
 			&repoGC,
 		)
 		if err == nil {
-			globalRepoGC.PeerMap[peer.Encode(member)] = repoGC
+			globalRepoGC.PeerMap[member.String()] = repoGC
 			continue
 		}
 
@@ -2274,7 +2274,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (api.GlobalRepoGC, error) {
 
 		pv := pingValueFromMetric(c.monitor.LatestForPeer(c.ctx, pingMetricName, member))
 
-		globalRepoGC.PeerMap[peer.Encode(member)] = api.RepoGC{
+		globalRepoGC.PeerMap[member.String()] = api.RepoGC{
 			Peer:     member,
 			Peername: pv.Peername,
 			Keys:     []api.IPFSRepoGC{},

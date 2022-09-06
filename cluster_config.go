@@ -13,8 +13,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"
 
-	ipfsconfig "github.com/ipfs/go-ipfs-config"
-	pnet "github.com/libp2p/go-libp2p-core/pnet"
+	pnet "github.com/libp2p/go-libp2p/core/pnet"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/kelseyhightower/envconfig"
@@ -175,7 +174,7 @@ type configJSON struct {
 	PrivateKey            string             `json:"private_key,omitempty" hidden:"true"`
 	Secret                string             `json:"secret" hidden:"true"`
 	LeaveOnShutdown       bool               `json:"leave_on_shutdown"`
-	ListenMultiaddress    ipfsconfig.Strings `json:"listen_multiaddress"`
+	ListenMultiaddress    config.Strings     `json:"listen_multiaddress"`
 	EnableRelayHop        bool               `json:"enable_relay_hop"`
 	ConnectionManager     *connMgrConfigJSON `json:"connection_manager"`
 	DialPeerTimeout       string             `json:"dial_peer_timeout"`
@@ -503,11 +502,11 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 	jcfg.ReplicationFactorMin = cfg.ReplicationFactorMin
 	jcfg.ReplicationFactorMax = cfg.ReplicationFactorMax
 	jcfg.LeaveOnShutdown = cfg.LeaveOnShutdown
-	var listenAddrs ipfsconfig.Strings
+	var listenAddrs config.Strings
 	for _, addr := range cfg.ListenAddr {
 		listenAddrs = append(listenAddrs, addr.String())
 	}
-	jcfg.ListenMultiaddress = ipfsconfig.Strings(listenAddrs)
+	jcfg.ListenMultiaddress = config.Strings(listenAddrs)
 	jcfg.EnableRelayHop = cfg.EnableRelayHop
 	jcfg.ConnectionManager = &connMgrConfigJSON{
 		HighWater:   cfg.ConnMgr.HighWater,

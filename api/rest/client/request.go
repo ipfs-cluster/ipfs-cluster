@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -89,7 +88,7 @@ func (c *defaultClient) doRequest(
 	return c.client.Do(r)
 }
 func (c *defaultClient) handleResponse(resp *http.Response, obj interface{}) error {
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -25,8 +24,8 @@ import (
 	ipfspinner "github.com/ipfs/go-ipfs-pinner"
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/multiformats/go-multicodec"
@@ -650,7 +649,7 @@ func checkResponse(path string, res *http.Response) ([]byte, error) {
 		return nil, nil
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err == nil {
 		var ipfsErr ipfsError
@@ -679,7 +678,7 @@ func (ipfs *Connector) postCtx(ctx context.Context, path string, contentType str
 	}
 	defer rdr.Close()
 
-	body, err := ioutil.ReadAll(rdr)
+	body, err := io.ReadAll(rdr)
 	if err != nil {
 		logger.Errorf("error reading response body: %s", err)
 		return nil, err

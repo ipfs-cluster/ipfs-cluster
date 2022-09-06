@@ -9,9 +9,9 @@ import (
 	"time"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	p2phttp "github.com/libp2p/go-libp2p-http"
+	peer "github.com/libp2p/go-libp2p/core/peer"
+	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	tcp "github.com/libp2p/go-libp2p/p2p/transport/tcp"
@@ -89,7 +89,7 @@ func (c *defaultClient) enableLibp2p() error {
 	c.transport.RegisterProtocol("libp2p", p2phttp.NewTransport(h))
 	c.net = "libp2p"
 	c.p2p = h
-	c.hostname = peer.Encode(pinfo.ID)
+	c.hostname = pinfo.ID.String()
 	return nil
 }
 

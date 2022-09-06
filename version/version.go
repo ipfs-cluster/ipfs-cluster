@@ -3,7 +3,7 @@ package version
 
 import (
 	semver "github.com/blang/semver"
-	protocol "github.com/libp2p/go-libp2p-core/protocol"
+	protocol "github.com/libp2p/go-libp2p/core/protocol"
 )
 
 // Version is the current cluster version.

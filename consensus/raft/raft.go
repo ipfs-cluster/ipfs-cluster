@@ -11,9 +11,9 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
-	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	hraft "github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -74,7 +74,7 @@ func newRaftWrapper(
 	raftW.host = host
 	raftW.staging = staging
 	// Set correct LocalID
-	cfg.RaftConfig.LocalID = hraft.ServerID(peer.Encode(host.ID()))
+	cfg.RaftConfig.LocalID = hraft.ServerID(host.ID().String())
 
 	df := cfg.GetDataFolder()
 	err := makeDataFolder(df)
@@ -231,7 +231,7 @@ func makeServerConf(peers []peer.ID) hraft.Configuration {
 
 	// Servers are peers + self. We avoid duplicate entries below
 	for _, pid := range peers {
-		p := peer.Encode(pid)
+		p := pid.String()
 		_, ok := sm[p]
 		if !ok { // avoid dups
 			sm[p] = struct{}{}
@@ -273,7 +273,7 @@ func (rw *raftWrapper) WaitForVoter(ctx context.Context) error {
 
 	logger.Debug("waiting until we are promoted to a voter")
 
-	pid := hraft.ServerID(peer.Encode(rw.host.ID()))
+	pid := hraft.ServerID(rw.host.ID().String())
 	for {
 		select {
 		case <-ctx.Done():

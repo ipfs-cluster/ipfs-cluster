@@ -10,8 +10,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	pnet "github.com/libp2p/go-libp2p-core/pnet"
+	pnet "github.com/libp2p/go-libp2p/core/pnet"
 	tcp "github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -60,7 +59,7 @@ func apiMAddr(a *rest.API) ma.Multiaddr {
 }
 
 func peerMAddr(a *rest.API) ma.Multiaddr {
-	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", peer.Encode(a.Host().ID())))
+	ipfsAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", a.Host().ID().String()))
 	for _, a := range a.Host().Addrs() {
 		if _, err := a.ValueForProtocol(ma.P_IP4); err == nil {
 			return a.Encapsulate(ipfsAddr)

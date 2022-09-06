@@ -3,7 +3,7 @@ package ipfscluster
 import (
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"go.opencensus.io/trace"
 )
@@ -29,7 +29,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 
 	for _, member := range members {
 		// one of the entries is for itself, but that shouldn't hurt
-		cg.ClusterTrustLinks[peer.Encode(member)] = c.consensus.IsTrustedPeer(ctx, member)
+		cg.ClusterTrustLinks[member.String()] = c.consensus.IsTrustedPeer(ctx, member)
 	}
 
 	peers := make([][]api.ID, len(members))
@@ -61,7 +61,7 @@ func (c *Cluster) ConnectGraph() (api.ConnectGraph, error) {
 	}
 
 	for i, err := range errs {
-		p := peer.Encode(members[i])
+		p := members[i].String()
 		cg.ClusterLinks[p] = make([]peer.ID, 0)
 		if err != nil { // Only setting cluster connections when no error occurs
 			logger.Debugf("RPC error reaching cluster peer %s: %s", p, err.Error())
@@ -89,7 +89,7 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []api
 			logger.Debugf("Peer %s errored connecting to its peer %s", p, id.ID.Pretty())
 			continue
 		}
-		if peer.Encode(id.ID) == p {
+		if id.ID.String() == p {
 			selfConnection = true
 			pID = id
 		} else {
@@ -106,8 +106,8 @@ func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID api.ID) {
 		return
 	}
 
-	pid := peer.Encode(pID.ID)
-	ipfsPid := peer.Encode(ipfsID)
+	pid := pID.ID.String()
+	ipfsPid := ipfsID.String()
 
 	if _, ok := cg.IPFSLinks[pid]; ok {
 		logger.Warnf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID.Pretty())

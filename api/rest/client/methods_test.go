@@ -11,8 +11,8 @@ import (
 	rest "github.com/ipfs-cluster/ipfs-cluster/api/rest"
 	test "github.com/ipfs-cluster/ipfs-cluster/test"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -510,7 +510,7 @@ func TestAlerts(t *testing.T) {
 		if len(alerts) != 1 {
 			t.Fatal("expected 1 alert")
 		}
-		pID2 := peer.Encode(test.PeerID2)
+		pID2 := test.PeerID2.String()
 		if alerts[0].Peer != test.PeerID2 {
 			t.Errorf("expected an alert from %s", pID2)
 		}
@@ -596,19 +596,19 @@ func (wait *waitService) Status(ctx context.Context, in types.Cid, out *types.Gl
 		*out = types.GlobalPinInfo{
 			Cid: in,
 			PeerMap: map[string]types.PinInfoShort{
-				peer.Encode(test.PeerID1): {
+				test.PeerID1.String(): {
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
-				peer.Encode(test.PeerID2): {
+				test.PeerID2.String(): {
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
-				peer.Encode(test.PeerID3): {
+				test.PeerID3.String(): {
 					Status: types.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
-				peer.Encode(test.PeerID3): {
+				test.PeerID3.String(): {
 					Status: types.TrackerStatusRemote,
 					TS:     wait.pinStart,
 				},
@@ -618,19 +618,19 @@ func (wait *waitService) Status(ctx context.Context, in types.Cid, out *types.Gl
 		*out = types.GlobalPinInfo{
 			Cid: in,
 			PeerMap: map[string]types.PinInfoShort{
-				peer.Encode(test.PeerID1): {
+				test.PeerID1.String(): {
 					Status: types.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
-				peer.Encode(test.PeerID2): {
+				test.PeerID2.String(): {
 					Status: types.TrackerStatusPinned,
 					TS:     wait.pinStart,
 				},
-				peer.Encode(test.PeerID3): {
+				test.PeerID3.String(): {
 					Status: types.TrackerStatusPinning,
 					TS:     wait.pinStart,
 				},
-				peer.Encode(test.PeerID3): {
+				test.PeerID3.String(): {
 					Status: types.TrackerStatusRemote,
 					TS:     wait.pinStart,
 				},
@@ -668,11 +668,11 @@ func (wait *waitServiceUnpin) Status(ctx context.Context, in types.Cid, out *typ
 		*out = types.GlobalPinInfo{
 			Cid: in,
 			PeerMap: map[string]types.PinInfoShort{
-				peer.Encode(test.PeerID1): {
+				test.PeerID1.String(): {
 					Status: types.TrackerStatusUnpinned,
 					TS:     wait.unpinStart,
 				},
-				peer.Encode(test.PeerID2): {
+				test.PeerID2.String(): {
 					Status: types.TrackerStatusUnpinned,
 					TS:     wait.unpinStart,
 				},
@@ -682,11 +682,11 @@ func (wait *waitServiceUnpin) Status(ctx context.Context, in types.Cid, out *typ
 		*out = types.GlobalPinInfo{
 			Cid: in,
 			PeerMap: map[string]types.PinInfoShort{
-				peer.Encode(test.PeerID1): {
+				test.PeerID1.String(): {
 					Status: types.TrackerStatusUnpinning,
 					TS:     wait.unpinStart,
 				},
-				peer.Encode(test.PeerID2): {
+				test.PeerID2.String(): {
 					Status: types.TrackerStatusUnpinning,
 					TS:     wait.unpinStart,
 				},

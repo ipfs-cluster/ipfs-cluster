@@ -11,10 +11,9 @@ import (
 	"path/filepath"
 	"time"
 
-	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	logging "github.com/ipfs/go-log/v2"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	crypto "github.com/libp2p/go-libp2p/core/crypto"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/kelseyhightower/envconfig"
@@ -110,18 +109,18 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	HTTPListenMultiaddress ipfsconfig.Strings `json:"http_listen_multiaddress"`
-	SSLCertFile            string             `json:"ssl_cert_file,omitempty"`
-	SSLKeyFile             string             `json:"ssl_key_file,omitempty"`
-	ReadTimeout            string             `json:"read_timeout"`
-	ReadHeaderTimeout      string             `json:"read_header_timeout"`
-	WriteTimeout           string             `json:"write_timeout"`
-	IdleTimeout            string             `json:"idle_timeout"`
-	MaxHeaderBytes         int                `json:"max_header_bytes"`
+	HTTPListenMultiaddress config.Strings `json:"http_listen_multiaddress"`
+	SSLCertFile            string         `json:"ssl_cert_file,omitempty"`
+	SSLKeyFile             string         `json:"ssl_key_file,omitempty"`
+	ReadTimeout            string         `json:"read_timeout"`
+	ReadHeaderTimeout      string         `json:"read_header_timeout"`
+	WriteTimeout           string         `json:"write_timeout"`
+	IdleTimeout            string         `json:"idle_timeout"`
+	MaxHeaderBytes         int            `json:"max_header_bytes"`
 
-	Libp2pListenMultiaddress ipfsconfig.Strings `json:"libp2p_listen_multiaddress,omitempty"`
-	ID                       string             `json:"id,omitempty"`
-	PrivateKey               string             `json:"private_key,omitempty" hidden:"true"`
+	Libp2pListenMultiaddress config.Strings `json:"libp2p_listen_multiaddress,omitempty"`
+	ID                       string         `json:"id,omitempty"`
+	PrivateKey               string         `json:"private_key,omitempty" hidden:"true"`
 
 	BasicAuthCredentials map[string]string   `json:"basic_auth_credentials"  hidden:"true"`
 	HTTPLogFile          string              `json:"http_log_file"`
@@ -404,7 +403,7 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 	}
 
 	if cfg.ID != "" {
-		jcfg.ID = peer.Encode(cfg.ID)
+		jcfg.ID = cfg.ID.String()
 	}
 	if cfg.PrivateKey != nil {
 		pkeyBytes, err := crypto.MarshalPrivateKey(cfg.PrivateKey)

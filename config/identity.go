@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	crypto "github.com/libp2p/go-libp2p/core/crypto"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -77,7 +77,7 @@ func (ident *Identity) SaveJSON(path string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, bs, 0600)
+	return os.WriteFile(path, bs, 0600)
 }
 
 // ToJSON generates a human-friendly version of Identity.
@@ -164,7 +164,7 @@ func (ident *Identity) Validate() error {
 // LoadJSONFromFile reads an Identity file from disk and parses
 // it and return Identity.
 func (ident *Identity) LoadJSONFromFile(path string) error {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		logger.Error("error reading the configuration file: ", err)
 		return err

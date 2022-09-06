@@ -23,7 +23,7 @@ import (
 	balanced "github.com/ipfs/go-unixfs/importer/balanced"
 	ihelper "github.com/ipfs/go-unixfs/importer/helpers"
 	trickle "github.com/ipfs/go-unixfs/importer/trickle"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 var log = logging.Logger("coreunix")

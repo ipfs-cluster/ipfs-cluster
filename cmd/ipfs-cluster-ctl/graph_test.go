@@ -8,7 +8,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 func verifyOutput(t *testing.T, outStr string, trueStr string) {
@@ -83,37 +83,37 @@ func TestSimpleIpfsGraphs(t *testing.T) {
 	cg := api.ConnectGraph{
 		ClusterID: pid1,
 		ClusterLinks: map[string][]peer.ID{
-			peer.Encode(pid1): {
+			pid1.String(): {
 				pid2,
 				pid3,
 			},
-			peer.Encode(pid2): {
+			pid2.String(): {
 				pid1,
 				pid3,
 			},
-			peer.Encode(pid3): {
+			pid3.String(): {
 				pid1,
 				pid2,
 			},
 		},
 		IPFSLinks: map[string][]peer.ID{
-			peer.Encode(pid4): {
+			pid4.String(): {
 				pid5,
 				pid6,
 			},
-			peer.Encode(pid5): {
+			pid5.String(): {
 				pid4,
 				pid6,
 			},
-			peer.Encode(pid6): {
+			pid6.String(): {
 				pid4,
 				pid5,
 			},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.Encode(pid1): pid4,
-			peer.Encode(pid2): pid5,
-			peer.Encode(pid3): pid6,
+			pid1.String(): pid4,
+			pid2.String(): pid5,
+			pid3.String(): pid6,
 		},
 	}
 	buf := new(bytes.Buffer)
@@ -181,35 +181,35 @@ func TestIpfsAllGraphs(t *testing.T) {
 	cg := api.ConnectGraph{
 		ClusterID: pid1,
 		ClusterLinks: map[string][]peer.ID{
-			peer.Encode(pid1): {
+			pid1.String(): {
 				pid2,
 				pid3,
 			},
-			peer.Encode(pid2): {
+			pid2.String(): {
 				pid1,
 				pid3,
 			},
-			peer.Encode(pid3): {
+			pid3.String(): {
 				pid1,
 				pid2,
 			},
 		},
 		IPFSLinks: map[string][]peer.ID{
-			peer.Encode(pid4): {
+			pid4.String(): {
 				pid5,
 				pid6,
 				pid7,
 				pid8,
 				pid9,
 			},
-			peer.Encode(pid5): {
+			pid5.String(): {
 				pid4,
 				pid6,
 				pid7,
 				pid8,
 				pid9,
 			},
-			peer.Encode(pid6): {
+			pid6.String(): {
 				pid4,
 				pid5,
 				pid7,
@@ -218,9 +218,9 @@ func TestIpfsAllGraphs(t *testing.T) {
 			},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.Encode(pid1): pid4,
-			peer.Encode(pid2): pid5,
-			peer.Encode(pid3): pid6,
+			pid1.String(): pid4,
+			pid2.String(): pid5,
+			pid3.String(): pid6,
 		},
 	}
 

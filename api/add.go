@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	cid "github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 // DefaultShardSize is the shard size for params objects created with DefaultParams().

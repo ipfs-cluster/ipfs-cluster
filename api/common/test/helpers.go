@@ -9,17 +9,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
 	p2phttp "github.com/libp2p/go-libp2p-http"
+	"github.com/libp2p/go-libp2p/core/host"
+	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 var (
@@ -38,7 +37,7 @@ func ProcessResp(t *testing.T, httpResp *http.Response, err error, resp interfac
 	if err != nil {
 		t.Fatal("error making request: ", err)
 	}
-	body, err := ioutil.ReadAll(httpResp.Body)
+	body, err := io.ReadAll(httpResp.Body)
 	defer httpResp.Body.Close()
 	if err != nil {
 		t.Fatal("error reading body: ", err)
@@ -140,7 +139,7 @@ func HTTPURL(a API) string {
 
 // P2pURL returns the libp2p endpoint of the API.
 func P2pURL(a API) string {
-	return fmt.Sprintf("libp2p://%s", peer.Encode(a.Host().ID()))
+	return fmt.Sprintf("libp2p://%s", a.Host().ID().String())
 }
 
 // HttpsURL returns the HTTPS endpoint of the API
@@ -160,7 +159,7 @@ func HTTPClient(t *testing.T, h host.Host, isHTTPS bool) *http.Client {
 	tr := &http.Transport{}
 	if isHTTPS {
 		certpool := x509.NewCertPool()
-		cert, err := ioutil.ReadFile(SSLCertFile)
+		cert, err := os.ReadFile(SSLCertFile)
 		if err != nil {
 			t.Fatal("error reading cert for https client: ", err)
 		}

@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 

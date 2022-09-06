@@ -3,14 +3,14 @@ package raft
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"time"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/config"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	hraft "github.com/hashicorp/raft"
 	"github.com/kelseyhightower/envconfig"
@@ -288,7 +288,7 @@ func (cfg *Config) Default() error {
 	cfg.RaftConfig.LocalID = "will_be_set_automatically"
 
 	// Set up logging
-	cfg.RaftConfig.LogOutput = ioutil.Discard
+	cfg.RaftConfig.LogOutput = io.Discard
 	cfg.RaftConfig.Logger = &hcLogToLogger{}
 	return nil
 }

@@ -22,9 +22,9 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api/common"
 
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	"github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	mux "github.com/gorilla/mux"
 )
@@ -850,7 +850,7 @@ func (api *API) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 func repoGCToGlobal(r types.RepoGC) types.GlobalRepoGC {
 	return types.GlobalRepoGC{
 		PeerMap: map[string]types.RepoGC{
-			peer.Encode(r.Peer): r,
+			r.Peer.String(): r,
 		},
 	}
 }

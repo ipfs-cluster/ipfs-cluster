@@ -17,7 +17,7 @@ import (
 
 	files "github.com/ipfs/go-ipfs-files"
 	gopath "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"go.opencensus.io/trace"
 )
@@ -62,8 +62,7 @@ func (c *defaultClient) PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error
 	ctx, span := trace.StartSpan(ctx, "client/PeerAdd")
 	defer span.End()
 
-	pidStr := peer.Encode(pid)
-	body := peerAddBody{pidStr}
+	body := peerAddBody{pid.String()}
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
