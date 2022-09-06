@@ -11,8 +11,8 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
-	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	p2praft "github.com/libp2p/go-libp2p-raft"
 
 	hraft "github.com/hashicorp/raft"

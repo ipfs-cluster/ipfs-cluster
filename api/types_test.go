@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	multiaddr "github.com/multiformats/go-multiaddr"
 
 	"github.com/ugorji/go/codec"

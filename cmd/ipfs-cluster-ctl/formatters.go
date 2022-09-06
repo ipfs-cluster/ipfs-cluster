@@ -11,7 +11,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	humanize "github.com/dustin/go-humanize"
 )

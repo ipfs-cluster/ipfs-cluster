@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	pnet "github.com/libp2p/go-libp2p-core/pnet"
+	peer "github.com/libp2p/go-libp2p/core/peer"
+	pnet "github.com/libp2p/go-libp2p/core/pnet"
 	tcp "github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	ma "github.com/multiformats/go-multiaddr"
 )

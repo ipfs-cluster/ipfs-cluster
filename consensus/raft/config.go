@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/config"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	hraft "github.com/hashicorp/raft"
 	"github.com/kelseyhightower/envconfig"

@@ -17,7 +17,7 @@ import (
 
 	files "github.com/ipfs/go-ipfs-files"
 	gopath "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"go.opencensus.io/trace"
 )

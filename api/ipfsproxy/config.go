@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	ipfsconfig "github.com/ipfs/go-ipfs-config"
 	"github.com/kelseyhightower/envconfig"
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -98,9 +97,9 @@ type Config struct {
 }
 
 type jsonConfig struct {
-	ListenMultiaddress ipfsconfig.Strings `json:"listen_multiaddress"`
-	NodeMultiaddress   string             `json:"node_multiaddress"`
-	NodeHTTPS          bool               `json:"node_https,omitempty"`
+	ListenMultiaddress config.Strings `json:"listen_multiaddress"`
+	NodeMultiaddress   string         `json:"node_multiaddress"`
+	NodeHTTPS          bool           `json:"node_https,omitempty"`
 
 	LogFile string `json:"log_file"`
 

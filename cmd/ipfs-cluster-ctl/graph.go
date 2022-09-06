@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	dot "github.com/kishansagathiya/go-dot"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 )

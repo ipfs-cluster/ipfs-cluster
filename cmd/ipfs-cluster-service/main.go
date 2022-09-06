@@ -17,7 +17,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/cmdutils"
 	"github.com/ipfs-cluster/ipfs-cluster/pstoremgr"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"

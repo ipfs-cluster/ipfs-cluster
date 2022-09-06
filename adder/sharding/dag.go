@@ -81,7 +81,7 @@ func makeDAGSimple(ctx context.Context, dagObj map[string]cid.Cid) (ipld.Node, e
 // recursively pinned to track the shard
 func makeDAG(ctx context.Context, dagObj map[string]cid.Cid) ([]ipld.Node, error) {
 	// FIXME: We have a 4MB limit on the block size enforced by bitswap:
-	// https://github.com/libp2p/go-libp2p-core/blob/master/network/network.go#L23
+	// https://github.com/libp2p/go-libp2p/core/blob/master/network/network.go#L23
 
 	// No indirect node
 	if len(dagObj) <= MaxLinks {

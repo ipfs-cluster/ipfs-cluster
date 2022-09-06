@@ -25,7 +25,7 @@ import (
 	ipfspinner "github.com/ipfs/go-ipfs-pinner"
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"

@@ -10,7 +10,7 @@ import (
 	blake2b "golang.org/x/crypto/blake2b"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )

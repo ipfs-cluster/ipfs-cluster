@@ -16,7 +16,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api/rest/client"
 
 	logging "github.com/ipfs/go-log/v2"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	uuid "github.com/google/uuid"

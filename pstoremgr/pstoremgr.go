@@ -15,11 +15,11 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log/v2"
-	host "github.com/libp2p/go-libp2p-core/host"
-	net "github.com/libp2p/go-libp2p-core/network"
-	peer "github.com/libp2p/go-libp2p-core/peer"
-	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
-	pstoreutil "github.com/libp2p/go-libp2p-peerstore"
+	host "github.com/libp2p/go-libp2p/core/host"
+	net "github.com/libp2p/go-libp2p/core/network"
+	peer "github.com/libp2p/go-libp2p/core/peer"
+	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
+	pstoreutil "github.com/libp2p/go-libp2p/p2p/host/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
 )
