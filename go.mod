@@ -48,7 +48,7 @@ require (
 	github.com/libp2p/go-libp2p-http v0.4.0
 	github.com/libp2p/go-libp2p-kad-dht v0.18.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.0
-	github.com/libp2p/go-libp2p-raft v0.1.8
+	github.com/libp2p/go-libp2p-raft v0.2.0
 	github.com/libp2p/go-libp2p-record v0.2.0
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
