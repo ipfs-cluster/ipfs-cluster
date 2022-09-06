@@ -782,8 +782,8 @@ github.com/libp2p/go-libp2p-discovery v0.2.0/go.mod h1:s4VGaxYMbw4+4+tsoQTqh7wfx
 github.com/libp2p/go-libp2p-discovery v0.3.0/go.mod h1:o03drFnz9BVAZdzC/QUQ+NeQOu38Fu7LJGEOK2gQltw=
 github.com/libp2p/go-libp2p-discovery v0.5.0/go.mod h1:+srtPIU9gDaBNu//UHvcdliKBIcr4SfDcm0/PfPJLug=
 github.com/libp2p/go-libp2p-gorpc v0.1.0/go.mod h1:DrswTLnu7qjLgbqe4fekX4ISoPiHUqtA45thTsJdE1w=
-github.com/libp2p/go-libp2p-gorpc v0.4.0 h1:kxHg5C3IuXeOq5FHPGbMHwQzKDlTVeB/NDr0ndc8J/g=
-github.com/libp2p/go-libp2p-gorpc v0.4.0/go.mod h1:jux2Mb6BfUE1n58KbVCmWtqvpiZo0DDaKobKInf4s5o=
+github.com/libp2p/go-libp2p-gorpc v0.5.0 h1:mmxxAPdP3JzpYH4KcDf4csXnqtd1HazLPfdyB2MBRb8=
+github.com/libp2p/go-libp2p-gorpc v0.5.0/go.mod h1:GpHuvY3m0YFkd0+inOGo4HDtc4up9OS/mBPXvEpNuRY=
 github.com/libp2p/go-libp2p-gostream v0.3.1/go.mod h1:1V3b+u4Zhaq407UUY9JLCpboaeufAeVQbnvAt12LRsI=
 github.com/libp2p/go-libp2p-gostream v0.5.0 h1:niNGTUrFoUDP/8jxMgu97zngMO+UGYBpVpbCKwIJBls=
 github.com/libp2p/go-libp2p-gostream v0.5.0/go.mod h1:rXrb0CqfcRRxa7m3RSKORQiKiWgk3IPeXWda66ZXKsA=
