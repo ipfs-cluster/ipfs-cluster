@@ -617,8 +617,8 @@ github.com/ipfs/go-unixfs v0.4.0/go.mod h1:I7Nqtm06HgOOd+setAoCU6rf/HgVFHE+peeNu
 github.com/ipfs/go-unixfsnode v1.1.2/go.mod h1:5dcE2x03pyjHk4JjamXmunTMzz+VUtqvPwZjIEkfV6s=
 github.com/ipfs/go-verifcid v0.0.1 h1:m2HI7zIuR5TFyQ1b79Da5N9dnnCP1vcu2QqawmWlK2E=
 github.com/ipfs/go-verifcid v0.0.1/go.mod h1:5Hrva5KBeIog4A+UpqlaIU+DEstipcJYQQZc0g37pY0=
-github.com/ipld/go-car v0.4.0 h1:U6W7F1aKF/OJMHovnOVdst2cpQE5GhmHibQkAixgNcQ=
-github.com/ipld/go-car v0.4.0/go.mod h1:Uslcn4O9cBKK9wqHm/cLTFacg6RAPv6LZx2mxd2Ypl4=
+github.com/ipld/go-car v0.5.0 h1:kcCEa3CvYMs0iE5BzD5sV7O2EwMiCIp3uF8tA6APQT8=
+github.com/ipld/go-car v0.5.0/go.mod h1:ppiN5GWpjOZU9PgpAZ9HbZd9ZgSpwPMr48fGRJOWmvE=
 github.com/ipld/go-codec-dagpb v1.3.0/go.mod h1:ga4JTU3abYApDC3pZ00BC2RSvC3qfBb9MSJkMLSwnhA=
 github.com/ipld/go-codec-dagpb v1.5.0 h1:RspDRdsJpLfgCI0ONhTAnbHdySGD4t+LHSPK4X1+R0k=
 github.com/ipld/go-codec-dagpb v1.5.0/go.mod h1:0yRIutEFD8o1DGVqw4RSHh+BUTlJA9XWldxaaWR/o4g=
