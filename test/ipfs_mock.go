@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -395,7 +394,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("X-Stream-Error", err.Error())
 				return
 			}
-			data, err := ioutil.ReadAll(part)
+			data, err := io.ReadAll(part)
 			if err != nil {
 				w.Header().Set("X-Stream-Error", err.Error())
 				return

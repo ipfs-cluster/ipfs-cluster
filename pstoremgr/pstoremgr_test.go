@@ -28,7 +28,7 @@ func clean(pm *Manager) {
 }
 
 func testAddr(loc string, pid peer.ID) ma.Multiaddr {
-	m, _ := ma.NewMultiaddr(loc + "/p2p/" + peer.Encode(pid))
+	m, _ := ma.NewMultiaddr(loc + "/p2p/" + pid.String())
 	return m
 }
 

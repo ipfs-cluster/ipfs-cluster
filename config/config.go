@@ -8,8 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -347,7 +348,7 @@ func (cfg *Manager) Validate() error {
 func (cfg *Manager) LoadJSONFromFile(path string) error {
 	cfg.path = path
 
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		logger.Error("error reading the configuration file: ", err)
 		return err
@@ -365,7 +366,7 @@ func (cfg *Manager) LoadJSONFromHTTPSource(url string) error {
 		return fmt.Errorf("%w: %s", errFetchingSource, url)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -489,7 +490,7 @@ func (cfg *Manager) SaveJSON(path string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(cfg.path, bs, 0600)
+	return os.WriteFile(cfg.path, bs, 0600)
 }
 
 // ToJSON provides a JSON representation of the configuration by
@@ -612,7 +613,7 @@ func (cfg *Manager) IsLoadedFromJSON(t SectionType, name string) bool {
 // GetClusterConfig extracts cluster config from the configuration file
 // and returns bytes of it
 func GetClusterConfig(configPath string) ([]byte, error) {
-	file, err := ioutil.ReadFile(configPath)
+	file, err := os.ReadFile(configPath)
 	if err != nil {
 		logger.Error("error reading the configuration file: ", err)
 		return nil, err

@@ -3,7 +3,7 @@ package raft
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"path/filepath"
 	"time"
 
@@ -288,7 +288,7 @@ func (cfg *Config) Default() error {
 	cfg.RaftConfig.LocalID = "will_be_set_automatically"
 
 	// Set up logging
-	cfg.RaftConfig.LogOutput = ioutil.Discard
+	cfg.RaftConfig.LogOutput = io.Discard
 	cfg.RaftConfig.Logger = &hcLogToLogger{}
 	return nil
 }

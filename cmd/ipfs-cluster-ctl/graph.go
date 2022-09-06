@@ -45,8 +45,7 @@ func makeDot(cg api.ConnectGraph, w io.Writer, allIpfs bool) error {
 	for k, v := range cg.IPFSLinks {
 		ipfsEdges[k] = make([]peer.ID, 0)
 		for _, id := range v {
-			strPid := peer.Encode(id)
-
+			strPid := id.String()
 			if _, ok := cg.IPFSLinks[strPid]; ok || allIpfs {
 				ipfsEdges[k] = append(ipfsEdges[k], id)
 			}
@@ -63,7 +62,7 @@ func makeDot(cg api.ConnectGraph, w io.Writer, allIpfs bool) error {
 	dW := dotWriter{
 		w:                w,
 		dotGraph:         dot.NewGraph("cluster"),
-		self:             peer.Encode(cg.ClusterID),
+		self:             cg.ClusterID.String(),
 		trustMap:         cg.ClusterTrustLinks,
 		idToPeername:     cg.IDtoPeername,
 		ipfsEdges:        ipfsEdges,
@@ -205,7 +204,7 @@ func (dW *dotWriter) print() error {
 		v := dW.clusterEdges[k]
 		for _, id := range v {
 			toNode := dW.clusterNodes[k]
-			fromNode := dW.clusterNodes[peer.Encode(id)]
+			fromNode := dW.clusterNodes[id.String()]
 			dW.dotGraph.AddEdge(toNode, fromNode, true, "")
 		}
 	}
@@ -227,7 +226,7 @@ func (dW *dotWriter) print() error {
 			continue
 		}
 
-		fromNode, ok = dW.ipfsNodes[peer.Encode(ipfsID)]
+		fromNode, ok = dW.ipfsNodes[ipfsID.String()]
 		if !ok {
 			logger.Error("expected a node at this id")
 			continue
@@ -242,7 +241,7 @@ func (dW *dotWriter) print() error {
 		v := dW.ipfsEdges[k]
 		toNode := dW.ipfsNodes[k]
 		for _, id := range v {
-			idStr := peer.Encode(id)
+			idStr := id.String()
 			fromNode, ok := dW.ipfsNodes[idStr]
 			if !ok {
 				logger.Error("expected a node here")

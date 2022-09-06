@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
 	gopath "github.com/ipfs/go-path"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	host "github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 var (
@@ -226,19 +226,19 @@ func (mock *mockCluster) ConnectGraph(ctx context.Context, in struct{}, out *api
 	*out = api.ConnectGraph{
 		ClusterID: PeerID1,
 		IPFSLinks: map[string][]peer.ID{
-			peer.Encode(PeerID4): {PeerID5, PeerID6},
-			peer.Encode(PeerID5): {PeerID4, PeerID6},
-			peer.Encode(PeerID6): {PeerID4, PeerID5},
+			PeerID4.String(): {PeerID5, PeerID6},
+			PeerID5.String(): {PeerID4, PeerID6},
+			PeerID6.String(): {PeerID4, PeerID5},
 		},
 		ClusterLinks: map[string][]peer.ID{
-			peer.Encode(PeerID1): {PeerID2, PeerID3},
-			peer.Encode(PeerID2): {PeerID1, PeerID3},
-			peer.Encode(PeerID3): {PeerID1, PeerID2},
+			PeerID1.String(): {PeerID2, PeerID3},
+			PeerID2.String(): {PeerID1, PeerID3},
+			PeerID3.String(): {PeerID1, PeerID2},
 		},
 		ClustertoIPFS: map[string]peer.ID{
-			peer.Encode(PeerID1): PeerID4,
-			peer.Encode(PeerID2): PeerID5,
-			peer.Encode(PeerID3): PeerID6,
+			PeerID1.String(): PeerID4,
+			PeerID2.String(): PeerID5,
+			PeerID3.String(): PeerID6,
 		},
 	}
 	return nil
@@ -248,7 +248,7 @@ func (mock *mockCluster) StatusAll(ctx context.Context, in <-chan api.TrackerSta
 	defer close(out)
 	filter := <-in
 
-	pid := peer.Encode(PeerID1)
+	pid := PeerID1.String()
 	gPinInfos := []api.GlobalPinInfo{
 		{
 			Cid:  Cid1,
@@ -323,7 +323,7 @@ func (mock *mockCluster) Status(ctx context.Context, in api.Cid, out *api.Global
 		},
 
 		PeerMap: map[string]api.PinInfoShort{
-			peer.Encode(PeerID1): {
+			PeerID1.String(): {
 				PeerName:      PeerName3,
 				IPFS:          PeerID3,
 				IPFSAddresses: []api.Multiaddr{ma},
@@ -371,7 +371,7 @@ func (mock *mockCluster) RepoGC(ctx context.Context, in struct{}, out *api.Globa
 	_ = mock.RepoGCLocal(ctx, struct{}{}, &localrepoGC)
 	*out = api.GlobalRepoGC{
 		PeerMap: map[string]api.RepoGC{
-			peer.Encode(PeerID1): localrepoGC,
+			PeerID1.String(): localrepoGC,
 		},
 	}
 	return nil

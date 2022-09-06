@@ -9,7 +9,7 @@ func PeersToStrings(peers []peer.ID) []string {
 	strs := make([]string, len(peers))
 	for i, p := range peers {
 		if p != "" {
-			strs[i] = peer.Encode(p)
+			strs[i] = p.String()
 		}
 	}
 	return strs

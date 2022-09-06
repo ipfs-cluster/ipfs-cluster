@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,7 +64,7 @@ func TestIPFSProxyVersion(t *testing.T) {
 		t.Fatal("should forward requests to ipfs host: ", err)
 	}
 	defer res.Body.Close()
-	resBytes, _ := ioutil.ReadAll(res.Body)
+	resBytes, _ := io.ReadAll(res.Body)
 	if res.StatusCode != http.StatusOK {
 		t.Error("the request should have succeeded")
 		t.Fatal(string(resBytes))
@@ -170,7 +169,7 @@ func TestIPFSProxyPin(t *testing.T) {
 				t.Errorf("statusCode: got = %v, want %v", res.StatusCode, tt.args.statusCode)
 			}
 
-			resBytes, _ := ioutil.ReadAll(res.Body)
+			resBytes, _ := io.ReadAll(res.Body)
 
 			switch tt.wantErr {
 			case false:
@@ -283,7 +282,7 @@ func TestIPFSProxyUnpin(t *testing.T) {
 				t.Errorf("statusCode: got = %v, want %v", res.StatusCode, tt.args.statusCode)
 			}
 
-			resBytes, _ := ioutil.ReadAll(res.Body)
+			resBytes, _ := io.ReadAll(res.Body)
 
 			switch tt.wantErr {
 			case false:
@@ -352,7 +351,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 		defer res.Body.Close()
 
 		var resp ipfsPinOpResp
-		resBytes, _ := ioutil.ReadAll(res.Body)
+		resBytes, _ := io.ReadAll(res.Body)
 		err = json.Unmarshal(resBytes, &resp)
 		if err != nil {
 			t.Fatal(err)
@@ -378,7 +377,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 			t.Fatal("request should error")
 		}
 
-		resBytes, _ := ioutil.ReadAll(res.Body)
+		resBytes, _ := io.ReadAll(res.Body)
 		var respErr cmd.Error
 		err = json.Unmarshal(resBytes, &respErr)
 		if err != nil {
@@ -404,7 +403,7 @@ func TestIPFSProxyPinUpdate(t *testing.T) {
 			t.Fatal("request should error")
 		}
 
-		resBytes, _ := ioutil.ReadAll(res.Body)
+		resBytes, _ := io.ReadAll(res.Body)
 		var respErr cmd.Error
 		err = json.Unmarshal(resBytes, &respErr)
 		if err != nil {
@@ -433,7 +432,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Error("the request should have succeeded")
 		}
 
-		resBytes, _ := ioutil.ReadAll(res.Body)
+		resBytes, _ := io.ReadAll(res.Body)
 		var resp ipfsPinLsResp
 		err = json.Unmarshal(resBytes, &resp)
 		if err != nil {
@@ -456,7 +455,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Error("the request should have succeeded")
 		}
 
-		resBytes, _ := ioutil.ReadAll(res.Body)
+		resBytes, _ := io.ReadAll(res.Body)
 		var resp ipfsPinLsResp
 		err = json.Unmarshal(resBytes, &resp)
 		if err != nil {
@@ -479,7 +478,7 @@ func TestIPFSProxyPinLs(t *testing.T) {
 			t.Error("the request should have succeeded")
 		}
 
-		resBytes, _ := ioutil.ReadAll(res2.Body)
+		resBytes, _ := io.ReadAll(res2.Body)
 		var resp ipfsPinLsResp
 		err = json.Unmarshal(resBytes, &resp)
 		if err != nil {
@@ -518,7 +517,7 @@ func TestProxyRepoStat(t *testing.T) {
 		t.Error("request should have succeeded")
 	}
 
-	resBytes, _ := ioutil.ReadAll(res.Body)
+	resBytes, _ := io.ReadAll(res.Body)
 	var stat api.IPFSRepoStat
 	err = json.Unmarshal(resBytes, &stat)
 	if err != nil {

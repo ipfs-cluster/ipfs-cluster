@@ -62,8 +62,7 @@ func (c *defaultClient) PeerAdd(ctx context.Context, pid peer.ID) (api.ID, error
 	ctx, span := trace.StartSpan(ctx, "client/PeerAdd")
 	defer span.End()
 
-	pidStr := peer.Encode(pid)
-	body := peerAddBody{pidStr}
+	body := peerAddBody{pid.String()}
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

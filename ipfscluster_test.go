@@ -34,13 +34,13 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	libp2p "github.com/libp2p/go-libp2p"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -484,16 +484,16 @@ func runF(t *testing.T, clusters []*Cluster, f func(*testing.T, *Cluster)) {
 	wg.Wait()
 }
 
-//////////////////////////////////////
+// ////////////////////////////////////
 // Delay and wait functions
 //
 // Delays are used in tests to wait for certain events to happen:
-//   * ttlDelay() waits for metrics to arrive. If you pin something
+//   - ttlDelay() waits for metrics to arrive. If you pin something
 //     and your next operation depends on updated metrics, you need to wait
-//   * pinDelay() accounts for the time necessary to pin something and for the new
+//   - pinDelay() accounts for the time necessary to pin something and for the new
 //     log entry to be visible in all cluster peers
-//   * delay just sleeps a second or two.
-//   * waitForLeader functions make sure there is a raft leader, for example,
+//   - delay just sleeps a second or two.
+//   - waitForLeader functions make sure there is a raft leader, for example,
 //     after killing the leader.
 //
 // The values for delays are a result of testing and adjusting so tests pass
@@ -915,7 +915,7 @@ func TestClustersStatusAll(t *testing.T) {
 			}
 		}
 
-		pid := peer.Encode(c.host.ID())
+		pid := c.host.ID().String()
 		if info[pid].Status != api.TrackerStatusPinned {
 			t.Error("the hash should have been pinned")
 		}
@@ -990,7 +990,7 @@ func TestClustersStatusAllWithErrors(t *testing.T) {
 				t.Error("bad number of peers in status")
 			}
 
-			pid := peer.Encode(clusters[1].id)
+			pid := clusters[1].id.String()
 			errst := stts.PeerMap[pid]
 
 			if errst.Status != api.TrackerStatusClusterError {
@@ -1109,7 +1109,7 @@ func TestClustersRecover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pinfo, ok := ginfo.PeerMap[peer.Encode(clusters[j].host.ID())]
+	pinfo, ok := ginfo.PeerMap[clusters[j].host.ID().String()]
 	if !ok {
 		t.Fatal("should have info for this host")
 	}
@@ -1118,7 +1118,7 @@ func TestClustersRecover(t *testing.T) {
 	}
 
 	for _, c := range clusters {
-		inf, ok := ginfo.PeerMap[peer.Encode(c.host.ID())]
+		inf, ok := ginfo.PeerMap[c.host.ID().String()]
 		if !ok {
 			t.Fatal("GlobalPinInfo should not be empty for this host")
 		}
@@ -1143,7 +1143,7 @@ func TestClustersRecover(t *testing.T) {
 	}
 
 	for _, c := range clusters {
-		inf, ok := ginfo.PeerMap[peer.Encode(c.host.ID())]
+		inf, ok := ginfo.PeerMap[c.host.ID().String()]
 		if !ok {
 			t.Fatal("GlobalPinInfo should have this cluster")
 		}
@@ -1845,7 +1845,7 @@ func TestClustersRebalanceOnPeerDown(t *testing.T) {
 
 	// kill the local pinner
 	for _, c := range clusters {
-		clid := peer.Encode(c.id)
+		clid := c.id.String()
 		if clid == localPinner {
 			c.Shutdown(ctx)
 		} else if clid == remotePinner {
@@ -1882,7 +1882,7 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 		// Make lookup index for peers connected to id1
 		peerIndex := make(map[string]struct{})
 		for _, p := range peers {
-			peerIndex[peer.Encode(p)] = struct{}{}
+			peerIndex[p.String()] = struct{}{}
 		}
 		for id2 := range clusterIDs {
 			if _, ok := peerIndex[id2]; id1 != id2 && !ok {
@@ -1909,7 +1909,7 @@ func validateClusterGraph(t *testing.T, graph api.ConnectGraph, clusterIDs map[s
 	if len(graph.IPFSLinks) != 1 {
 		t.Error("Expected exactly one ipfs peer for all cluster nodes, the mocked peer")
 	}
-	links, ok := graph.IPFSLinks[peer.Encode(test.PeerID1)]
+	links, ok := graph.IPFSLinks[test.PeerID1.String()]
 	if !ok {
 		t.Error("Expected the mocked ipfs peer to be a node in the graph")
 	} else {
@@ -1951,7 +1951,7 @@ func TestClustersGraphConnected(t *testing.T) {
 
 	clusterIDs := make(map[string]struct{})
 	for _, c := range clusters {
-		id := peer.Encode(c.ID(ctx).ID)
+		id := c.ID(ctx).ID.String()
 		clusterIDs[id] = struct{}{}
 	}
 	validateClusterGraph(t, graph, clusterIDs, nClusters)
@@ -2000,7 +2000,7 @@ func TestClustersGraphUnhealthy(t *testing.T) {
 		if i == discon1 || i == discon2 {
 			continue
 		}
-		id := peer.Encode(c.ID(ctx).ID)
+		id := c.ID(ctx).ID.String()
 		clusterIDs[id] = struct{}{}
 	}
 	peerNum := nClusters
