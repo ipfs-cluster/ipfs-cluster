@@ -48,9 +48,9 @@ var logger = logging.Logger("ipfshttp")
 // on-demand requests against the configured IPFS daemom
 // (such as a pin request).
 type Connector struct {
+	// struct alignment! These fields must be up-front.
 	updateMetricCount uint64
-
-	ipfsPinCount int64
+	ipfsPinCount      int64
 
 	ctx    context.Context
 	cancel func()

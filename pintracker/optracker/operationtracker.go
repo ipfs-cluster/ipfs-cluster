@@ -27,6 +27,7 @@ var logger = logging.Logger("optracker")
 
 // OperationTracker tracks and manages all inflight Operations.
 type OperationTracker struct {
+	// struct alignment. This fields must be upfront!
 	pinningCount   int64
 	pinErrorCount  int64
 	pinQueuedCount int64
