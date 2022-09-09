@@ -815,8 +815,8 @@ func (proxy *Server) blockPutHandler(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(res.Body)
 	enc := json.NewEncoder(w)
 	for {
-		var res ipfsBlockPutResp
-		err = dec.Decode(&res)
+		var blockInfo ipfsBlockPutResp
+		err = dec.Decode(&blockInfo)
 		if err == io.EOF {
 			return
 		}
@@ -825,7 +825,7 @@ func (proxy *Server) blockPutHandler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("X-Stream-Error", err.Error())
 			return
 		}
-		p := api.PinCid(res.Key)
+		p := api.PinCid(blockInfo.Key)
 		var pinObj api.Pin
 		if err := proxy.rpcClient.Call(
 			"",
@@ -838,7 +838,7 @@ func (proxy *Server) blockPutHandler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("X-Stream-Error", err.Error())
 			// keep going though blocks
 		}
-		if err := enc.Encode(res); err != nil {
+		if err := enc.Encode(blockInfo); err != nil {
 			logger.Error(err)
 			w.Header().Add("X-Stream-Error", err.Error())
 			return
@@ -893,8 +893,8 @@ func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(res.Body)
 	enc := json.NewEncoder(w)
 	for {
-		var res ipfsDagPutResp
-		err = dec.Decode(&res)
+		var dagInfo ipfsDagPutResp
+		err = dec.Decode(&dagInfo)
 		if err == io.EOF {
 			return
 		}
@@ -903,7 +903,7 @@ func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("X-Stream-Error", err.Error())
 			return
 		}
-		p := api.PinCid(api.NewCid(res.Cid))
+		p := api.PinCid(api.NewCid(dagInfo.Cid))
 		var pinObj api.Pin
 		if err := proxy.rpcClient.Call(
 			"",
@@ -916,7 +916,7 @@ func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("X-Stream-Error", err.Error())
 			// keep going though blocks
 		}
-		if err := enc.Encode(res); err != nil {
+		if err := enc.Encode(dagInfo); err != nil {
 			logger.Error(err)
 			w.Header().Add("X-Stream-Error", err.Error())
 			return
