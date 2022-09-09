@@ -20,6 +20,8 @@ import (
 	"go.opencensus.io/trace"
 )
 
+var raftLogger = &p2praft.HcLogToLogger{}
+
 // ErrWaitingForSelf is returned when we are waiting for ourselves to depart
 // the peer set, which won't happen
 var errWaitingForSelf = errors.New("waiting for ourselves to depart")
@@ -148,7 +150,7 @@ func (rw *raftWrapper) makeStores() error {
 	snapstore, err := hraft.NewFileSnapshotStoreWithLogger(
 		df,
 		RaftMaxSnapshots,
-		raftStdLogger,
+		raftLogger,
 	)
 	if err != nil {
 		return err
