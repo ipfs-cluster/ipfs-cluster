@@ -779,6 +779,7 @@ func (proxy *Server) blockPutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	proxy.setHeaders(w.Header(), r)
 	u2, err := url.Parse(proxy.nodeAddr)
 	if err != nil {
 		logger.Error(err)
@@ -857,6 +858,7 @@ func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	proxy.setHeaders(w.Header(), r)
 	u2, err := url.Parse(proxy.nodeAddr)
 	if err != nil {
 		logger.Error(err)
