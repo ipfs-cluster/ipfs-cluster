@@ -869,6 +869,9 @@ func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
 	r.URL.Host = u2.Host
 	r.URL.Scheme = u2.Scheme
 	r.Host = u2.Host
+	newQuery := r.URL.Query()
+	newQuery.Set("pin", "false")
+	r.URL.RawQuery = newQuery.Encode()
 	r.RequestURI = ""
 
 	res, err := proxy.reverseProxy.Transport.RoundTrip(r)
