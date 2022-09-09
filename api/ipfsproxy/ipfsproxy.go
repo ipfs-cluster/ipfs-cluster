@@ -31,8 +31,8 @@ import (
 	cmd "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log/v2"
 	path "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
 
@@ -65,9 +65,9 @@ type Server struct {
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
 
-	listeners        []net.Listener    // proxy listener
-	server           *http.Server      // proxy server
-	ipfsRoundTripper http.RoundTripper // allows to talk to IPFS
+	listeners    []net.Listener         // proxy listener
+	server       *http.Server           // proxy server
+	reverseProxy *httputil.ReverseProxy // allows to talk to IPFS
 
 	ipfsHeadersStore sync.Map
 
@@ -198,15 +198,15 @@ func New(cfg *Config) (*Server, error) {
 	reverseProxy.Transport = http.DefaultTransport
 	ctx, cancel := context.WithCancel(context.Background())
 	proxy := &Server{
-		ctx:              ctx,
-		config:           cfg,
-		cancel:           cancel,
-		nodeAddr:         nodeHTTPAddr,
-		nodeScheme:       nodeScheme,
-		rpcReady:         make(chan struct{}, 1),
-		listeners:        listeners,
-		server:           s,
-		ipfsRoundTripper: reverseProxy.Transport,
+		ctx:          ctx,
+		config:       cfg,
+		cancel:       cancel,
+		nodeAddr:     nodeHTTPAddr,
+		nodeScheme:   nodeScheme,
+		rpcReady:     make(chan struct{}, 1),
+		listeners:    listeners,
+		server:       s,
+		reverseProxy: reverseProxy,
 	}
 
 	// Ideally, we should only intercept POST requests, but
@@ -260,6 +260,14 @@ func New(cfg *Config) (*Server, error) {
 		Path("/repo/gc").
 		HandlerFunc(proxy.repoGCHandler).
 		Name("RepoGC")
+	hijackSubrouter.
+		Path("/block/put").
+		HandlerFunc(proxy.blockPutHandler).
+		Name("BlockPut")
+	hijackSubrouter.
+		Path("/dag/put").
+		HandlerFunc(proxy.dagPutHandler).
+		Name("DagPut")
 
 	// Everything else goes to the IPFS daemon.
 	router.PathPrefix("/").Handler(reverseProxy)
@@ -757,6 +765,167 @@ func (proxy *Server) repoGCHandler(w http.ResponseWriter, r *http.Request) {
 	mErrStr := mError.Error()
 	if !streamErrors && mErrStr != "" {
 		w.Header().Set("X-Stream-Error", mErrStr)
+	}
+}
+
+type ipfsBlockPutResp struct {
+	Key  api.Cid
+	Size int
+}
+
+func (proxy *Server) blockPutHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("pin") != "true" {
+		proxy.reverseProxy.ServeHTTP(w, r)
+		return
+	}
+
+	proxy.setHeaders(w.Header(), r)
+	u2, err := url.Parse(proxy.nodeAddr)
+	if err != nil {
+		logger.Error(err)
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	r.URL.Host = u2.Host
+	r.URL.Scheme = u2.Scheme
+	r.Host = u2.Host
+	r.RequestURI = ""
+
+	res, err := proxy.reverseProxy.Transport.RoundTrip(r)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		w.WriteHeader(res.StatusCode)
+		_, err = io.Copy(w, res.Body)
+		if err != nil {
+			logger.Error(err)
+		}
+		return
+	}
+
+	// Returned 200. Parse responses.
+	w.Header().Set("Trailer", "X-Stream-Error")
+	w.WriteHeader(http.StatusOK) // any errors from here go into trailers
+
+	dec := json.NewDecoder(res.Body)
+	enc := json.NewEncoder(w)
+	for {
+		var blockInfo ipfsBlockPutResp
+		err = dec.Decode(&blockInfo)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			logger.Error(err)
+			w.Header().Add("X-Stream-Error", err.Error())
+			return
+		}
+		p := api.PinCid(blockInfo.Key)
+		var pinObj api.Pin
+		if err := proxy.rpcClient.Call(
+			"",
+			"Cluster",
+			"Pin",
+			p,
+			&pinObj,
+		); err != nil {
+			logger.Error(err)
+			w.Header().Add("X-Stream-Error", err.Error())
+			// keep going though blocks
+		}
+		if err := enc.Encode(blockInfo); err != nil {
+			logger.Error(err)
+			w.Header().Add("X-Stream-Error", err.Error())
+			return
+		}
+	}
+}
+
+type ipfsDagPutResp struct {
+	Cid cid.Cid
+}
+
+func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
+	// Note this mostly duplicates blockPutHandler
+	if r.URL.Query().Get("pin") != "true" {
+		proxy.reverseProxy.ServeHTTP(w, r)
+		return
+	}
+
+	proxy.setHeaders(w.Header(), r)
+	u2, err := url.Parse(proxy.nodeAddr)
+	if err != nil {
+		logger.Error(err)
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	r.URL.Host = u2.Host
+	r.URL.Scheme = u2.Scheme
+	r.Host = u2.Host
+	newQuery := r.URL.Query()
+	newQuery.Set("pin", "false")
+	r.URL.RawQuery = newQuery.Encode()
+	r.RequestURI = ""
+
+	res, err := proxy.reverseProxy.Transport.RoundTrip(r)
+	if err != nil {
+		ipfsErrorResponder(w, err.Error(), -1)
+		return
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		w.WriteHeader(res.StatusCode)
+		_, err = io.Copy(w, res.Body)
+		if err != nil {
+			logger.Error(err)
+		}
+		return
+	}
+
+	// Returned 200. Parse responses.
+	w.Header().Set("Trailer", "X-Stream-Error")
+	w.WriteHeader(http.StatusOK) // any errors from here go into trailers
+
+	dec := json.NewDecoder(res.Body)
+	enc := json.NewEncoder(w)
+	for {
+		var dagInfo ipfsDagPutResp
+		err = dec.Decode(&dagInfo)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			logger.Error(err)
+			w.Header().Add("X-Stream-Error", err.Error())
+			return
+		}
+		p := api.PinCid(api.NewCid(dagInfo.Cid))
+		var pinObj api.Pin
+		if err := proxy.rpcClient.Call(
+			"",
+			"Cluster",
+			"Pin",
+			p,
+			&pinObj,
+		); err != nil {
+			logger.Error(err)
+			w.Header().Add("X-Stream-Error", err.Error())
+			// keep going though blocks
+		}
+		if err := enc.Encode(dagInfo); err != nil {
+			logger.Error(err)
+			w.Header().Add("X-Stream-Error", err.Error())
+			return
+		}
 	}
 }
 

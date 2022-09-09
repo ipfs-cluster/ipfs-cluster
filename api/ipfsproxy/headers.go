@@ -119,7 +119,7 @@ func (proxy *Server) copyHeadersFromIPFSWithRequest(
 	hdrs []string,
 	dest http.Header, req *http.Request,
 ) error {
-	res, err := proxy.ipfsRoundTripper.RoundTrip(req)
+	res, err := proxy.reverseProxy.Transport.RoundTrip(req)
 	if err != nil {
 		logger.Error("error making request for header extraction to ipfs: ", err)
 		return err
@@ -132,14 +132,14 @@ func (proxy *Server) copyHeadersFromIPFSWithRequest(
 }
 
 // setHeaders sets some headers for all hijacked endpoints:
-// - First, we fix CORs headers by making an OPTIONS request to IPFS with the
-//   same Origin. Our objective is to get headers for non-preflight requests
-//   only (the ones we hijack).
-// - Second, we add any of the one-time-extracted headers that we deem necessary
-//   or the user needs from IPFS (in case of custom headers).
-//   This may trigger a single POST request to ExtractHeaderPath if they
-//   were not extracted before or TTL has expired.
-// - Third, we set our own headers.
+//   - First, we fix CORs headers by making an OPTIONS request to IPFS with the
+//     same Origin. Our objective is to get headers for non-preflight requests
+//     only (the ones we hijack).
+//   - Second, we add any of the one-time-extracted headers that we deem necessary
+//     or the user needs from IPFS (in case of custom headers).
+//     This may trigger a single POST request to ExtractHeaderPath if they
+//     were not extracted before or TTL has expired.
+//   - Third, we set our own headers.
 func (proxy *Server) setHeaders(dest http.Header, srcRequest *http.Request) {
 	proxy.setCORSHeaders(dest, srcRequest)
 	proxy.setAdditionalIpfsHeaders(dest, srcRequest)
