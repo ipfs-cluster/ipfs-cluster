@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-hclog v1.3.0
-	github.com/hashicorp/raft v1.1.1
+	github.com/hashicorp/raft v1.3.10
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v1.4.2
 	github.com/imdario/mergo v0.3.13
@@ -48,7 +48,7 @@ require (
 	github.com/libp2p/go-libp2p-http v0.4.0
 	github.com/libp2p/go-libp2p-kad-dht v0.18.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.0
-	github.com/libp2p/go-libp2p-raft v0.2.0
+	github.com/libp2p/go-libp2p-raft v0.3.0
 	github.com/libp2p/go-libp2p-record v0.2.0
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
