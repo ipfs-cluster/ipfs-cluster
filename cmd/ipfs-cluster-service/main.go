@@ -12,15 +12,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	ipfslite "github.com/hsanjuan/ipfs-lite"
 	ipfscluster "github.com/ipfs-cluster/ipfs-cluster"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/cmdutils"
+	"github.com/ipfs-cluster/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs-cluster/ipfs-cluster/pstoremgr"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
+	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/namespace"
+	dscrdt "github.com/ipfs/go-ds-crdt"
 	logging "github.com/ipfs/go-log/v2"
 	cli "github.com/urfave/cli"
 )
@@ -452,8 +457,114 @@ the peer IDs in the given multiaddresses.
 		},
 		{
 			Name:  "state",
-			Usage: "Manages the peer's consensus state (pinset)",
+			Usage: "Manages the peer's persistent state (pinset)",
 			Subcommands: []cli.Command{
+				{
+					Name:  "crdt",
+					Usage: "CRDT-state commands",
+					Before: func(c *cli.Context) error {
+						// Load all the configurations and identity
+						cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+						cfgs := cfgHelper.Configs()
+						checkErr("loading configurations", err)
+						defer cfgHelper.Manager().Shutdown()
+
+						if cfgHelper.GetConsensus() != cfgs.Crdt.ConfigKey() {
+							checkErr("", errors.New("crdt subcommands can only be run on peers initialized with crdt consensus"))
+						}
+						return nil
+					},
+
+					Subcommands: []cli.Command{
+						{
+							Name:  "dot",
+							Usage: "Write the CRDT-DAG as DOT file",
+							Description: `
+This command generates a DOT file representing the CRDT-DAG of this node.
+The DOT file can then be visualized, converted to SVG etc.
+
+This is a debugging command to visualize how the DAG looks like, whether there
+is a lot of branching etc. large DAGs will generate large DOT files.
+Use with caution!
+`,
+							Flags: []cli.Flag{
+								cli.StringFlag{
+									Name:  "file, f",
+									Value: "",
+									Usage: "writes to file instead of stdout",
+								},
+							},
+							Action: func(c *cli.Context) error {
+								locker.lock()
+								defer locker.tryUnlock()
+
+								// Load all the configurations and identity
+								cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+								checkErr("loading configurations", err)
+								defer cfgHelper.Manager().Shutdown()
+
+								// Get a state manager and the datastore
+								mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
+								checkErr("creating state manager", err)
+								store, err := mgr.GetStore()
+								checkErr("opening datastore", err)
+								batching, ok := store.(datastore.Batching)
+								if !ok {
+									checkErr("", errors.New("no batching store"))
+								}
+
+								crdtNs := cfgHelper.Configs().Crdt.DatastoreNamespace
+
+								var blocksDatastore datastore.Batching = namespace.Wrap(
+									batching,
+									datastore.NewKey(crdtNs).ChildString(crdt.BlocksNs),
+								)
+
+								ipfs, err := ipfslite.New(
+									context.Background(),
+									blocksDatastore,
+									nil,
+									nil,
+									&ipfslite.Config{
+										Offline: true,
+									},
+								)
+								checkErr("creating ipfs-lite offline node", err)
+
+								opts := dscrdt.DefaultOptions()
+								crdt, err := dscrdt.New(
+									batching,
+									datastore.NewKey(crdtNs),
+									ipfs,
+									nil,
+									opts,
+								)
+								checkErr("creating crdt node", err)
+
+								var w io.WriteCloser
+								outputPath := c.String("file")
+								if outputPath == "" {
+									// Output to stdout
+									w = os.Stdout
+								} else {
+									// Create the export file
+									w, err = os.Create(outputPath)
+									checkErr("creating output file", err)
+								}
+
+								// 256KiB of buffer size.
+								buf := bufio.NewWriterSize(w, 1<<18)
+								defer buf.Flush()
+
+								logger.Info("initiating CDRT-DAG DOT file export. Export might take a long time on large graphs")
+								checkErr("generating graph", crdt.DotDAG(buf))
+								logger.Info("dot file ")
+								return nil
+
+							},
+						},
+					},
+				},
 				{
 					Name:  "export",
 					Usage: "save the state to a JSON file",
@@ -572,7 +683,7 @@ to import. If no argument is provided, stdin will be used.
 					Usage: "remove persistent data",
 					Description: `
 This command removes any persisted consensus data in this peer, including the
-current pinset (state). The next start of the peer will be like the first start
+current pinset (state). The next start of the peer will be like a first start
 to all effects. Peers may need to bootstrap and sync from scratch after this.
 `,
 					Flags: []cli.Flag{

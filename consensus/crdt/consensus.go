@@ -21,12 +21,12 @@ import (
 	crdt "github.com/ipfs/go-ds-crdt"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	logging "github.com/ipfs/go-log/v2"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	host "github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/routing"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	multihash "github.com/multiformats/go-multihash"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
@@ -36,7 +36,8 @@ import (
 var logger = logging.Logger("crdt")
 
 var (
-	blocksNs   = "b" // blockstore namespace
+	// BlocksNs is the namespace to use as blockstore with ipfs-lite.
+	BlocksNs   = "b"
 	connMgrTag = "crdt"
 )
 
@@ -115,7 +116,7 @@ func New(
 
 	var blocksDatastore ds.Batching
 	ns := ds.NewKey(cfg.DatastoreNamespace)
-	blocksDatastore = namespace.Wrap(store, ns.ChildString(blocksNs))
+	blocksDatastore = namespace.Wrap(store, ns.ChildString(BlocksNs))
 
 	ipfs, err := ipfslite.New(
 		ctx,
@@ -706,7 +707,7 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 
 	var blocksDatastore ds.Batching = namespace.Wrap(
 		batching,
-		ds.NewKey(cfg.DatastoreNamespace).ChildString(blocksNs),
+		ds.NewKey(cfg.DatastoreNamespace).ChildString(BlocksNs),
 	)
 
 	ipfs, err := ipfslite.New(
