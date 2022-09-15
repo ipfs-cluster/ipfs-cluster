@@ -1,9 +1,11 @@
-// Package ipfscluster implements a wrapper for the IPFS deamon which
-// allows to orchestrate pinning operations among several IPFS nodes.
+// Package ipfscluster is the heart of the IPFS Cluster implementation
+// gluing together all the subcomponents and performing the core functionality.
 //
-// IPFS Cluster peers form a separate libp2p swarm. A Cluster peer uses
-// multiple Cluster Components which perform different tasks like managing
-// the underlying IPFS daemons, or providing APIs for external control.
+// This package also provide the Cluster GO API through the Cluster object,
+// which allows to programatically build and control a cluster.
+//
+// For an example on how to initialize components and cluster object, see
+// cmd/ipfs-cluster-follow and cmd/ipfs-cluster-service.
 package ipfscluster
 
 import (
@@ -12,8 +14,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 // Component represents a piece of ipfscluster. Cluster components
@@ -73,6 +75,10 @@ type API interface {
 // an IPFS daemon. This is a base component.
 type IPFSConnector interface {
 	Component
+	//Ready provides a channel to notify when IPFS is ready. It allows the
+	//main cluster component to wait for IPFS to be in working state
+	//before starting full-fledge operations.
+	Ready(context.Context) <-chan struct{}
 	ID(context.Context) (api.IPFSID, error)
 	Pin(context.Context, api.Pin) error
 	Unpin(context.Context, api.Cid) error

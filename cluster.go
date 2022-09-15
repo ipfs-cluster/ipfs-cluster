@@ -741,6 +741,20 @@ This might be due to one or several causes:
 		}
 	}
 
+	// Wait for ipfs
+	logger.Info("Waiting for IPFS to be ready...")
+	select {
+	case <-ctx.Done():
+		return
+	case <-c.ipfs.Ready(ctx):
+		ipfsid, err := c.ipfs.ID(ctx)
+		if err != nil {
+			logger.Error("IPFS signaled ready but ID() errored: ", err)
+		} else {
+			logger.Infof("IPFS is ready. Peer ID: %s", ipfsid.ID)
+		}
+	}
+
 	close(c.readyCh)
 	c.shutdownLock.Lock()
 	c.readyB = true
