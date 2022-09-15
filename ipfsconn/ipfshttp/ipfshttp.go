@@ -53,6 +53,7 @@ type Connector struct {
 
 	ctx    context.Context
 	cancel func()
+	ready  chan struct{}
 
 	config   *Config
 	nodeAddr string
@@ -168,8 +169,9 @@ func NewConnector(cfg *Config) (*Connector, error) {
 
 	ipfs := &Connector{
 		ctx:      ctx,
-		config:   cfg,
 		cancel:   cancel,
+		ready:    make(chan struct{}),
+		config:   cfg,
 		nodeAddr: nodeAddr,
 		rpcReady: make(chan struct{}, 1),
 		client:   c,
@@ -196,6 +198,27 @@ func initializeMetrics(ctx context.Context) {
 // we receive the rpcReady signal.
 func (ipfs *Connector) run() {
 	<-ipfs.rpcReady
+
+	// wait for IPFS to be available
+	i := 0
+	for {
+		select {
+		case <-ipfs.ctx.Done():
+			return
+		default:
+		}
+		i++
+		_, err := ipfs.ID(ipfs.ctx)
+		if err == nil {
+			close(ipfs.ready)
+			break
+		}
+		if i%10 == 0 {
+			logger.Warningf("ipfs does not seem to be available after %d retries", i)
+		}
+
+		time.Sleep(time.Second)
+	}
 
 	// Do not shutdown while launching threads
 	// -- prevents race conditions with ipfs.wg.
@@ -257,6 +280,12 @@ func (ipfs *Connector) Shutdown(ctx context.Context) error {
 	ipfs.shutdown = true
 
 	return nil
+}
+
+// Ready returns a channel which gets notified when a testing request to the
+// IPFS daemon first succeeds.
+func (ipfs *Connector) Ready(ctx context.Context) <-chan struct{} {
+	return ipfs.ready
 }
 
 // ID performs an ID request against the configured

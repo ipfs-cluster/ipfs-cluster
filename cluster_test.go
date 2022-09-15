@@ -22,8 +22,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/version"
 
 	gopath "github.com/ipfs/go-path"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 type mockComponent struct {
@@ -51,6 +51,12 @@ type mockConnector struct {
 
 	pins   sync.Map
 	blocks sync.Map
+}
+
+func (ipfs *mockConnector) Ready(ctx context.Context) <-chan struct{} {
+	ch := make(chan struct{})
+	close(ch)
+	return ch
 }
 
 func (ipfs *mockConnector) ID(ctx context.Context) (api.IPFSID, error) {
