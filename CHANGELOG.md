@@ -1,5 +1,80 @@
 # IPFS Cluster Changelog
 
+### v1.0.3 - 2022-09-16
+
+IPFS Cluster v1.0.3 is a maintenance release addressing some bugs and bringing
+some improvements to error handling behavior, as well as a couple of small
+features.
+
+This release upgrades to the latest libp2p release (v0.22.0).
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* ipfs proxy api: intercept and trigger cluster-pins on `/block/put` and `/dag/put` requests | [ipfs/ipfs-cluster#1738](https://github.com/ipfs/ipfs-cluster/issues/1738) | [ipfs/ipfs-cluster#1756](https://github.com/ipfs/ipfs-cluster/issues/1756)
+* "ipfs-cluster-service state crdt dot" command generates a DOT file from the CRDT DAG | [ipfs/ipfs-cluster#1516](https://github.com/ipfs/ipfs-cluster/issues/1516)
+
+##### Bug fixes
+
+* Fix leaking goroutines on aborted /add requests | [ipfs/ipfs-cluster#1732](https://github.com/ipfs/ipfs-cluster/issues/1732)
+* Fix ARM build panics because of unaligned structs | [ipfs/ipfs-cluster#1735](https://github.com/ipfs/ipfs-cluster/issues/1735) | [ipfs/ipfs-cluster#1736](https://github.com/ipfs/ipfs-cluster/issues/1736) | [ipfs/ipfs-cluster#1754](https://github.com/ipfs/ipfs-cluster/issues/1754)
+* Fix "blockPut response CID XXX does not match the multihash of any blocks sent" warning wrongly displayed | [ipfs/ipfs-cluster#1706](https://github.com/ipfs/ipfs-cluster/issues/1706) | [ipfs/ipfs-cluster#1755](https://github.com/ipfs/ipfs-cluster/issues/1755)
+* Fix behavior and error handling when IPFS is unavailable | [ipfs/ipfs-cluster#1733](https://github.com/ipfs/ipfs-cluster/issues/1733) | [ipfs/ipfs-cluster#1762](https://github.com/ipfs/ipfs-cluster/issues/1762)
+
+##### Other changes
+
+* Dependency upgrades | [ipfs/ipfs-cluster#1755](https://github.com/ipfs/ipfs-cluster/issues/1755)
+* Update hashicorp raft libraries | [ipfs/ipfs-cluster#1757](https://github.com/ipfs/ipfs-cluster/issues/1757)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+There are no configuration changes for this release.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+The IPFS Proxy now intercepts `/block/put` and `/dag/put` requests. This happens as follows:
+
+* The request is first forwarded "as is" to the underlying IPFS daemon, with
+  the `?pin` query parameter always set to `false`.
+* If `?pin=true` was set, a cluster pin is triggered for every block and dag
+  object uploaded (reminder that these endpoints accept multipart uploads).
+* Regular IPFS response to the uploads is streamed back to the user.
+
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Note that more than 10 failed requests to IPFS will now result in a rate-limit
+of 1req/s for any request to IPFS. This may cause things to queue up instead
+hammering the ipfs daemon with requets that fail. The rate limit is removed as
+soon as one request succeeds.
+
+Also note that now Cluster peers that are started will not become fully
+operable until IPFS has been detected to be available: no metrics will be
+sent, no recover operations will be run etc. essentially the Cluster peer will
+wait for IPFS to be available before starting to do things that need IPFS to
+be available, rather than doing them right away and have failures.
+
+---
+
 ### v1.0.2 - 2022-07-06
 
 IPFS Cluster v1.0.2 is a maintenance release with bug fixes and another
