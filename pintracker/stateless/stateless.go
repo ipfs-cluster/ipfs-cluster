@@ -15,8 +15,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
 	logging "github.com/ipfs/go-log/v2"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"go.opencensus.io/trace"
 )
@@ -353,13 +353,14 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 		// At some point we need a full map of what we have and what
 		// we don't. The IPFS pinset is the smallest thing we can keep
 		// on memory.
-		ipfsPinsCh, err := spt.ipfsPins(ctx)
-		if err != nil {
-			logger.Error(err)
-			return err
-		}
+		ipfsPinsCh, errCh := spt.ipfsPins(ctx)
 		for ipfsPinInfo := range ipfsPinsCh {
 			ipfsRecursivePins[ipfsPinInfo.Cid] = ipfsPinInfo.Type
+		}
+		// If there was an error listing recursive pins then abort.
+		err := <-errCh
+		if err != nil {
+			return err
 		}
 	}
 
@@ -645,7 +646,7 @@ func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi api.PinInfo) (api
 	return spt.Status(ctx, pi.Cid), nil
 }
 
-func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, error) {
+func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, <-chan error) {
 	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
 	defer span.End()
 
@@ -653,6 +654,7 @@ func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, error
 	in <- []string{"recursive", "direct"}
 	close(in)
 	out := make(chan api.IPFSPinInfo, pinsChannelSize)
+	errCh := make(chan error)
 
 	go func() {
 		err := spt.rpcClient.Stream(
@@ -663,11 +665,10 @@ func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, error
 			in,
 			out,
 		)
-		if err != nil {
-			logger.Error(err)
-		}
+		errCh <- err
+		close(errCh)
 	}()
-	return out, nil
+	return out, errCh
 }
 
 // PinQueueSize returns the current size of the pinning queue.
