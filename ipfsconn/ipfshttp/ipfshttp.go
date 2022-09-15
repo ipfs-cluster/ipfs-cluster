@@ -210,7 +210,6 @@ func (ipfs *Connector) rateLimiter() {
 	// configurable.
 	for {
 		failed := ipfs.failedRequests.Load()
-		fmt.Println(failed)
 		switch {
 		case failed == 0:
 			if isRateLimiting {
