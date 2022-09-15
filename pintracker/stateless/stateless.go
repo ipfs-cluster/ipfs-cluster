@@ -360,6 +360,8 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 		// If there was an error listing recursive pins then abort.
 		err := <-errCh
 		if err != nil {
+			err := fmt.Errorf("could not get pinset from IPFS: %w", err)
+			logger.Error(err)
 			return err
 		}
 	}
@@ -647,7 +649,7 @@ func (spt *Tracker) recoverWithPinInfo(ctx context.Context, pi api.PinInfo) (api
 }
 
 func (spt *Tracker) ipfsPins(ctx context.Context) (<-chan api.IPFSPinInfo, <-chan error) {
-	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfsStatusAll")
+	ctx, span := trace.StartSpan(ctx, "tracker/stateless/ipfspins")
 	defer span.End()
 
 	in := make(chan []string, 1) // type filter.

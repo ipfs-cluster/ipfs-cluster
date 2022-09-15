@@ -575,7 +575,7 @@ nextFilter:
 		path := "pin/ls?stream=true&type=" + typeFilter
 		bodies[i], err = ipfs.postCtxStreamResponse(ctx, path, "", nil)
 		if err != nil {
-			logger.Error("error querying pinset: %s", err)
+			logger.Errorf("error querying pinset: %s", err)
 			return err
 		}
 		defer bodies[i].Close()

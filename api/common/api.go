@@ -33,11 +33,11 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
 	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p/core/host"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	p2phttp "github.com/libp2p/go-libp2p-http"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	manet "github.com/multiformats/go-multiaddr/net"
@@ -742,10 +742,30 @@ func (api *API) StreamResponse(w http.ResponseWriter, next StreamIterator, errCh
 				}
 				return
 			}
-			if !ok { // but no error.
+
+			if !ok {
+				// nothing in the channel, check for errors
+				for err = range errCh {
+					if err == nil {
+						continue
+					}
+					st := http.StatusInternalServerError
+					w.WriteHeader(st)
+					errorResp := api.config.APIErrorFunc(err, st)
+					if err := enc.Encode(errorResp); err != nil {
+						api.config.Logger.Error(err)
+					}
+					// This is correct, here we just process
+					// the first error in the channel.
+					return
+				}
+
+				// No errors at all, then NoContent.
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
+			// There is at least one item and no error, start with
+			// a 200 response.
 			w.WriteHeader(http.StatusOK)
 		}
 		if err != nil {
