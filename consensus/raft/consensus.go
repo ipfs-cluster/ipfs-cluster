@@ -251,8 +251,8 @@ func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
 // returns true if the operation was redirected to the leader
 // note that if the leader just dissappeared, the rpc call will
 // fail because we haven't heard that it's gone.
-func (cc *Consensus) redirectToLeader(method string, arg interface{}) (bool, error) {
-	ctx, span := trace.StartSpan(cc.ctx, "consensus/redirectToLeader")
+func (cc *Consensus) redirectToLeader(ctx context.Context, method string, arg interface{}) (bool, error) {
+	ctx, span := trace.StartSpan(ctx, "consensus/redirectToLeader")
 	defer span.End()
 
 	var finalErr error
@@ -336,7 +336,7 @@ func (cc *Consensus) commit(ctx context.Context, op *LogOp, rpcOp string, redire
 		// try to send it to the leader
 		// redirectToLeader has it's own retry loop. If this fails
 		// we're done here.
-		ok, err := cc.redirectToLeader(rpcOp, redirectArg)
+		ok, err := cc.redirectToLeader(ctx, rpcOp, redirectArg)
 		if err != nil || ok {
 			return err
 		}
@@ -404,7 +404,7 @@ func (cc *Consensus) AddPeer(ctx context.Context, pid peer.ID) error {
 		if finalErr != nil {
 			logger.Errorf("retrying to add peer. Attempt #%d failed: %s", i, finalErr)
 		}
-		ok, err := cc.redirectToLeader("AddPeer", pid)
+		ok, err := cc.redirectToLeader(ctx, "AddPeer", pid)
 		if err != nil || ok {
 			return err
 		}
@@ -435,7 +435,7 @@ func (cc *Consensus) RmPeer(ctx context.Context, pid peer.ID) error {
 		if finalErr != nil {
 			logger.Errorf("retrying to remove peer. Attempt #%d failed: %s", i, finalErr)
 		}
-		ok, err := cc.redirectToLeader("RmPeer", pid)
+		ok, err := cc.redirectToLeader(ctx, "RmPeer", pid)
 		if err != nil || ok {
 			return err
 		}

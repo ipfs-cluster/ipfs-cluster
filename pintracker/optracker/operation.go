@@ -123,9 +123,7 @@ func (op *Operation) Context() context.Context {
 
 // Cancel will cancel the context associated to this operation.
 func (op *Operation) Cancel() {
-	_, span := trace.StartSpan(op.ctx, "optracker/Cancel")
 	op.cancel()
-	span.End()
 }
 
 // Phase returns the Phase.
@@ -141,7 +139,6 @@ func (op *Operation) Phase() Phase {
 
 // SetPhase changes the Phase and updates the timestamp.
 func (op *Operation) SetPhase(ph Phase) {
-	_, span := trace.StartSpan(op.ctx, "optracker/SetPhase")
 	op.mu.Lock()
 	{
 		op.tracker.recordMetricUnsafe(op, -1)
@@ -150,8 +147,6 @@ func (op *Operation) SetPhase(ph Phase) {
 		op.tracker.recordMetricUnsafe(op, 1)
 	}
 	op.mu.Unlock()
-
-	span.End()
 }
 
 // AttemptCount returns the number of times that this operation has been in
@@ -201,7 +196,6 @@ func (op *Operation) Error() string {
 // SetError sets the phase to PhaseError along with
 // an error message. It updates the timestamp.
 func (op *Operation) SetError(err error) {
-	_, span := trace.StartSpan(op.ctx, "optracker/SetError")
 	op.mu.Lock()
 	{
 		op.tracker.recordMetricUnsafe(op, -1)
@@ -211,7 +205,6 @@ func (op *Operation) SetError(err error) {
 		op.tracker.recordMetricUnsafe(op, 1)
 	}
 	op.mu.Unlock()
-	span.End()
 }
 
 // Type returns the operation Type.
@@ -237,9 +230,6 @@ func (op *Operation) Timestamp() time.Time {
 // Canceled returns whether the context for this
 // operation has been canceled.
 func (op *Operation) Canceled() bool {
-	ctx, span := trace.StartSpan(op.ctx, "optracker/Canceled")
-	_ = ctx
-	defer span.End()
 	select {
 	case <-op.ctx.Done():
 		return true
