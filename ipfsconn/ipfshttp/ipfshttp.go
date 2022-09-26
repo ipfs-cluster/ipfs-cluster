@@ -1244,8 +1244,10 @@ func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiUR
 	if failed := ipfs.failedRequests.Load(); failed > 0 {
 		select {
 		case <-ipfs.reqRateLimitCh:
-		case <-ipfs.ctx.Done():
+		case <-ctx.Done():
 			return nil, ctx.Err()
+		case <-ipfs.ctx.Done():
+			return nil, ipfs.ctx.Err()
 		}
 
 	}
