@@ -1198,9 +1198,8 @@ func (ipfs *Connector) shouldUpdateMetric() bool {
 
 // Trigger a broadcast of the local informer metrics.
 func (ipfs *Connector) updateInformerMetric(ctx context.Context) error {
-	_, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/updateInformerMetric")
+	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/updateInformerMetric")
 	defer span.End()
-	ctx = trace.NewContext(ipfs.ctx, span)
 
 	if !ipfs.shouldUpdateMetric() {
 		return nil

@@ -82,7 +82,6 @@ func (c *defaultClient) doRequest(
 		r.ContentLength = -1 // this lets go use "chunked".
 	}
 
-	ctx = trace.NewContext(ctx, span)
 	r = r.WithContext(ctx)
 
 	return c.client.Do(r)
