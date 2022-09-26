@@ -477,6 +477,29 @@ the peer IDs in the given multiaddresses.
 
 					Subcommands: []cli.Command{
 						{
+							Name:  "info",
+							Usage: "Print information about the CRDT store",
+							Description: `
+This commands prints basic information: current heads, dirty flag etc.
+`,
+							Flags: []cli.Flag{},
+							Action: func(c *cli.Context) error {
+								locker.lock()
+								defer locker.tryUnlock()
+
+								crdt := getCrdt()
+								info := crdt.InternalStats()
+								fmt.Printf(
+									"Number of heads: %d. Current max-height: %d. Dirty: %t\nHeads: %s",
+									len(info.Heads),
+									info.MaxHeight,
+									crdt.IsDirty(),
+									info.Heads,
+								)
+								return nil
+							},
+						},
+						{
 							Name:  "dot",
 							Usage: "Write the CRDT-DAG as DOT file",
 							Description: `
@@ -498,49 +521,9 @@ Use with caution!
 								locker.lock()
 								defer locker.tryUnlock()
 
-								// Load all the configurations and identity
-								cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
-								checkErr("loading configurations", err)
-								defer cfgHelper.Manager().Shutdown()
+								crdt := getCrdt()
 
-								// Get a state manager and the datastore
-								mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
-								checkErr("creating state manager", err)
-								store, err := mgr.GetStore()
-								checkErr("opening datastore", err)
-								batching, ok := store.(datastore.Batching)
-								if !ok {
-									checkErr("", errors.New("no batching store"))
-								}
-
-								crdtNs := cfgHelper.Configs().Crdt.DatastoreNamespace
-
-								var blocksDatastore datastore.Batching = namespace.Wrap(
-									batching,
-									datastore.NewKey(crdtNs).ChildString(crdt.BlocksNs),
-								)
-
-								ipfs, err := ipfslite.New(
-									context.Background(),
-									blocksDatastore,
-									nil,
-									nil,
-									&ipfslite.Config{
-										Offline: true,
-									},
-								)
-								checkErr("creating ipfs-lite offline node", err)
-
-								opts := dscrdt.DefaultOptions()
-								crdt, err := dscrdt.New(
-									batching,
-									datastore.NewKey(crdtNs),
-									ipfs,
-									nil,
-									opts,
-								)
-								checkErr("creating crdt node", err)
-
+								var err error
 								var w io.WriteCloser
 								outputPath := c.String("file")
 								if outputPath == "" {
@@ -559,6 +542,43 @@ Use with caution!
 								logger.Info("initiating CDRT-DAG DOT file export. Export might take a long time on large graphs")
 								checkErr("generating graph", crdt.DotDAG(buf))
 								logger.Info("dot file ")
+								return nil
+
+							},
+						},
+						{
+							Name:  "mark-dirty",
+							Usage: "Marks the CRDT-store as dirty",
+							Description: `
+Marking the CRDT store as dirty will force-run a Repair operation on the next
+run (i.e. next time the cluster peer is started).
+`,
+							Flags: []cli.Flag{},
+							Action: func(c *cli.Context) error {
+								locker.lock()
+								defer locker.tryUnlock()
+
+								crdt := getCrdt()
+								crdt.MarkDirty()
+								fmt.Println("Datastore marked 'dirty'")
+								return nil
+							},
+						},
+						{
+							Name:  "mark-clean",
+							Usage: "Marks the CRDT-store as clean",
+							Description: `
+This command remove the dirty-mark on the CRDT-store, which means no
+DAG operations will be run.
+`,
+							Flags: []cli.Flag{},
+							Action: func(c *cli.Context) error {
+								locker.lock()
+								defer locker.tryUnlock()
+
+								crdt := getCrdt()
+								crdt.MarkClean()
+								fmt.Println("Datastore marked 'clean'")
 								return nil
 
 							},
@@ -857,4 +877,51 @@ func getStateManager() cmdutils.StateManager {
 	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
 	checkErr("creating state manager", err)
 	return mgr
+}
+
+func getCrdt() *dscrdt.Datastore {
+	// Load all the configurations and identity
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+	checkErr("loading configurations", err)
+	defer cfgHelper.Manager().Shutdown()
+
+	// Get a state manager and the datastore
+	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
+	checkErr("creating state manager", err)
+	store, err := mgr.GetStore()
+	checkErr("opening datastore", err)
+	batching, ok := store.(datastore.Batching)
+	if !ok {
+		checkErr("", errors.New("no batching store"))
+	}
+
+	crdtNs := cfgHelper.Configs().Crdt.DatastoreNamespace
+
+	var blocksDatastore datastore.Batching = namespace.Wrap(
+		batching,
+		datastore.NewKey(crdtNs).ChildString(crdt.BlocksNs),
+	)
+
+	ipfs, err := ipfslite.New(
+		context.Background(),
+		blocksDatastore,
+		nil,
+		nil,
+		&ipfslite.Config{
+			Offline: true,
+		},
+	)
+	checkErr("creating ipfs-lite offline node", err)
+
+	opts := dscrdt.DefaultOptions()
+	opts.RepairInterval = 0
+	crdt, err := dscrdt.New(
+		batching,
+		datastore.NewKey(crdtNs),
+		ipfs,
+		nil,
+		opts,
+	)
+	checkErr("creating crdt node", err)
+	return crdt
 }
