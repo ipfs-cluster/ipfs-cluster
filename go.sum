@@ -502,6 +502,10 @@ github.com/ipfs/go-ds-badger v0.3.0 h1:xREL3V0EH9S219kFFueOYJJTcjgNSZ2HY1iSvN7U1
 github.com/ipfs/go-ds-badger v0.3.0/go.mod h1:1ke6mXNqeV8K3y5Ak2bAA0osoTfmxUdupVCGm4QUIek=
 github.com/ipfs/go-ds-crdt v0.3.7 h1:LVOxRa6rOUPYhDN+tFrQrE4pu7dHTuDqKT57NUWjl1Y=
 github.com/ipfs/go-ds-crdt v0.3.7/go.mod h1:h2hPQ3njd7DztdvUCOuV33Aq1QYRFwHXJdz+Z5oo2A0=
+github.com/ipfs/go-ds-crdt v0.3.8 h1:znCPI1XjCj++hckxYa7YP+udWxWkRrxZIBlEU5Ao6a0=
+github.com/ipfs/go-ds-crdt v0.3.8/go.mod h1:h2hPQ3njd7DztdvUCOuV33Aq1QYRFwHXJdz+Z5oo2A0=
+github.com/ipfs/go-ds-crdt v0.3.9 h1:hZl67DynkBWGz2YwTQjR7d/dYNMEHFpVX2bz9Dyu6k8=
+github.com/ipfs/go-ds-crdt v0.3.9/go.mod h1:h2hPQ3njd7DztdvUCOuV33Aq1QYRFwHXJdz+Z5oo2A0=
 github.com/ipfs/go-ds-leveldb v0.0.1/go.mod h1:feO8V3kubwsEF22n0YRQCffeb79OOYIykR4L04tMOYc=
 github.com/ipfs/go-ds-leveldb v0.4.1/go.mod h1:jpbku/YqBSsBc1qgME8BkWS4AxzF2cEu1Ii2r79Hh9s=
 github.com/ipfs/go-ds-leveldb v0.4.2/go.mod h1:jpbku/YqBSsBc1qgME8BkWS4AxzF2cEu1Ii2r79Hh9s=
