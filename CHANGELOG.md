@@ -1,5 +1,65 @@
 # IPFS Cluster Changelog
 
+### v1.0.4 - 2022-09-26
+
+IPFS Cluster v1.0.4 is a maintenance release addressing a couple of bugs and
+adding more "state crdt" commands.
+
+One of the bugs has potential to cause a panic, while a second one can
+potentially dead-lock pinning operations and hang new pinning requests. We
+recommend all users to upgrade as soon as possible.
+
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* service: add "state crdt info/mark-dirty/mark-clean" commands | [ipfs/ipfs-cluster#1771](https://github.com/ipfs/ipfs-cluster/issues/1771)
+
+##### Bug fixes
+
+* Fix panic returned when request is canceled while rate-limited | [ipfs/ipfs-cluster#1770](https://github.com/ipfs/ipfs-cluster/issues/1770)
+* Fix operationtracker not respecting context cancellations and never returning locks | [ipfs/ipfs-cluster#1768](https://github.com/ipfs/ipfs-cluster/issues/1768)
+* Fix repinning of a CID not re-allocating errored peers as expected | [ipfs/ipfs-cluster#1774](https://github.com/ipfs/ipfs-cluster/issues/1774)
+
+
+##### Other changes
+
+No other changes.
+
+#### Upgrading notices
+
+##### Configuration changes
+
+There are no configuration changes for this release.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Nothing.
+
+---
+
+
 ### v1.0.3 - 2022-09-16
 
 IPFS Cluster v1.0.3 is a maintenance release addressing some bugs and bringing
