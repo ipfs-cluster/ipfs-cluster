@@ -380,6 +380,8 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 		select {
 		case <-ctx.Done():
 			return false
+		case <-spt.ctx.Done():
+			return false
 		case out <- info:
 			return true
 		}
@@ -389,6 +391,7 @@ func (spt *Tracker) StatusAll(ctx context.Context, filter api.TrackerStatus, out
 	for p := range statePins {
 		select {
 		case <-ctx.Done():
+		case <-spt.ctx.Done():
 		default:
 		}
 

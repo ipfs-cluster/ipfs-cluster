@@ -275,10 +275,13 @@ func (cc *Consensus) redirectToLeader(ctx context.Context, method string, arg in
 			// means we timed out waiting for a leader
 			// we don't retry in this case
 			if err != nil {
-				return false, fmt.Errorf("timed out waiting for leader: %s", err)
+				err = fmt.Errorf("timed out waiting for leader: %w", err)
+				logger.Error(err)
+				return false, err
 			}
 			leader, err = peer.Decode(pidstr)
 			if err != nil {
+				logger.Error(err)
 				return false, err
 			}
 		}

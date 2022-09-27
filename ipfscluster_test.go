@@ -1383,6 +1383,7 @@ func TestClustersReplicationFactorMaxLower(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = 1
 		c.config.ReplicationFactorMax = nClusters
+		c.config.DisableRepinning = true
 	}
 
 	ttlDelay() // make sure we have places to pin
@@ -1438,6 +1439,7 @@ func TestClustersReplicationFactorInBetween(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = 1
 		c.config.ReplicationFactorMax = nClusters
+		c.config.DisableRepinning = true
 	}
 
 	ttlDelay()
@@ -1493,6 +1495,7 @@ func TestClustersReplicationFactorMin(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = nClusters - 1
 		c.config.ReplicationFactorMax = nClusters
+		c.config.DisableRepinning = true
 	}
 
 	// Shutdown two peers
@@ -1525,6 +1528,7 @@ func TestClustersReplicationMinMaxNoRealloc(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = 1
 		c.config.ReplicationFactorMax = nClusters
+		c.config.DisableRepinning = true
 	}
 
 	ttlDelay()
@@ -1579,6 +1583,7 @@ func TestClustersReplicationMinMaxRealloc(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = 3
 		c.config.ReplicationFactorMax = 4
+		c.config.DisableRepinning = true
 	}
 
 	ttlDelay() // make sure metrics are in
@@ -1667,6 +1672,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = nClusters - 1
 		c.config.ReplicationFactorMax = nClusters - 1
+		c.config.DisableRepinning = true
 	}
 
 	ttlDelay()
@@ -1750,8 +1756,8 @@ func TestClustersReplicationRealloc(t *testing.T) {
 			continue
 		}
 		pinfo := c.tracker.Status(ctx, h)
+		t.Log(pinfo.Peer.Pretty(), pinfo.Status)
 		if pinfo.Status == api.TrackerStatusPinned {
-			//t.Log(pinfo.Peer.Pretty())
 			numPinned++
 		}
 	}
@@ -1774,6 +1780,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 	for _, c := range clusters {
 		c.config.ReplicationFactorMin = nClusters - 1
 		c.config.ReplicationFactorMax = nClusters - 1
+		c.config.DisableRepinning = true
 	}
 
 	ttlDelay()

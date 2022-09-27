@@ -638,6 +638,8 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID, pin api.Pin) {
 	ctx, span := trace.StartSpan(ctx, "cluster/repinFromPeer")
 	defer span.End()
 
+	logger.Debugf("repinning %s from peer %s", pin.Cid, p)
+
 	pin.Allocations = nil // force re-allocations
 	// note that pin() should not result in different allocations
 	// if we are not under the replication-factor min.
@@ -1552,22 +1554,6 @@ func (c *Cluster) pin(
 
 	if pin.Type == api.MetaType {
 		return pin, true, c.consensus.LogPin(ctx, pin)
-	}
-
-	// We did not change ANY options and the pin exists so we just repin
-	// what there is without doing new allocations. While this submits
-	// pins to the consensus layer even if they are, this should trigger the
-	// pin tracker and allows users to get re-pin operations by re-adding
-	// without having to use recover, which is naturally expected.
-	//
-	// blacklist is set on repinFromPeer having any blacklisted peers
-	// means we are repinning and need to trigger allocate(), therefore we
-	// can't overwrite the incoming pin (which has Allocations set to
-	// nil).
-	if existing.Defined() &&
-		pin.PinOptions.Equals(existing.PinOptions) &&
-		len(blacklist) == 0 {
-		pin = existing
 	}
 
 	// Usually allocations are unset when pinning normally, however, the
