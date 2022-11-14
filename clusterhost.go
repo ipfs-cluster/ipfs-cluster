@@ -9,15 +9,15 @@ import (
 	namespace "github.com/ipfs/go-datastore/namespace"
 	ipns "github.com/ipfs/go-ipns"
 	libp2p "github.com/libp2p/go-libp2p"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	record "github.com/libp2p/go-libp2p-record"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
 	network "github.com/libp2p/go-libp2p/core/network"
 	corepnet "github.com/libp2p/go-libp2p/core/pnet"
 	routing "github.com/libp2p/go-libp2p/core/routing"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
-	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	record "github.com/libp2p/go-libp2p-record"
 	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
@@ -76,7 +76,9 @@ func NewClusterHost(
 		}),
 		libp2p.EnableNATService(),
 		libp2p.EnableRelay(),
-		libp2p.EnableAutoRelay(),
+		// breaks without passing a way to discover relays.
+		// https://github.com/libp2p/go-libp2p/issues/1852
+		// libp2p.EnableAutoRelay(),
 		libp2p.EnableHolePunching(),
 	}
 
