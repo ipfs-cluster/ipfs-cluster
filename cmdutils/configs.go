@@ -16,6 +16,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/raft"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger3"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/numpin"
@@ -46,6 +47,7 @@ type Configs struct {
 	Metrics          *observations.MetricsConfig
 	Tracing          *observations.TracingConfig
 	Badger           *badger.Config
+	Badger3          *badger3.Config
 	LevelDB          *leveldb.Config
 }
 
@@ -195,10 +197,11 @@ func (ch *ConfigHelper) GetDatastore() string {
 	}
 
 	badgerLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.Badger.ConfigKey())
+	badger3Loaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.Badger3.ConfigKey())
 	levelDBLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.LevelDB.ConfigKey())
 
 	nLoaded := 0
-	for _, v := range []bool{badgerLoaded, levelDBLoaded} {
+	for _, v := range []bool{badgerLoaded, badger3Loaded, levelDBLoaded} {
 		if v {
 			nLoaded++
 		}
@@ -209,6 +212,8 @@ func (ch *ConfigHelper) GetDatastore() string {
 	switch {
 	case badgerLoaded:
 		return ch.configs.Badger.ConfigKey()
+	case badger3Loaded:
+		return ch.configs.Badger3.ConfigKey()
 	case levelDBLoaded:
 		return ch.configs.LevelDB.ConfigKey()
 	default:
@@ -237,6 +242,7 @@ func (ch *ConfigHelper) init() {
 		Metrics:          &observations.MetricsConfig{},
 		Tracing:          &observations.TracingConfig{},
 		Badger:           &badger.Config{},
+		Badger3:          &badger3.Config{},
 		LevelDB:          &leveldb.Config{},
 	}
 	man.RegisterComponent(config.Cluster, cfgs.Cluster)
@@ -272,12 +278,15 @@ func (ch *ConfigHelper) init() {
 		switch ch.datastore {
 		case cfgs.Badger.ConfigKey():
 			man.RegisterComponent(config.Datastore, cfgs.Badger)
+		case cfgs.Badger3.ConfigKey():
+			man.RegisterComponent(config.Datastore, cfgs.Badger3)
 		case cfgs.LevelDB.ConfigKey():
 			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
 
 		default:
 			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
 			man.RegisterComponent(config.Datastore, cfgs.Badger)
+			man.RegisterComponent(config.Datastore, cfgs.Badger3)
 		}
 	}
 
