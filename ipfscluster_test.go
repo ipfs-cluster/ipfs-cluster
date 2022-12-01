@@ -21,8 +21,10 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/raft"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger3"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/pebble"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
 	"github.com/ipfs-cluster/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs-cluster/ipfs-cluster/monitor/pubsubmon"
@@ -174,7 +176,7 @@ func createComponents(
 
 	peername := fmt.Sprintf("peer_%d", i)
 
-	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg := testingConfigs()
+	ident, clusterCfg, apiCfg, ipfsproxyCfg, ipfshttpCfg, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg := testingConfigs()
 
 	ident.ID = host.ID()
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
@@ -192,7 +194,9 @@ func createComponents(
 	raftCfg.DataFolder = filepath.Join(testsFolder, host.ID().Pretty())
 
 	badgerCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger")
+	badger3Cfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger3")
 	levelDBCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "leveldb")
+	pebbleCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "pebble")
 
 	api, err := rest.NewAPI(ctx, apiCfg)
 	if err != nil {
@@ -218,7 +222,7 @@ func createComponents(
 		t.Fatal(err)
 	}
 
-	store := makeStore(t, badgerCfg, levelDBCfg)
+	store := makeStore(t, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, staging, crdtCfg)
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
@@ -239,21 +243,39 @@ func createComponents(
 	return clusterCfg, store, cons, []API{api, ipfsProxy}, ipfs, tracker, mon, alloc, inf, tracer, mock
 }
 
-func makeStore(t *testing.T, badgerCfg *badger.Config, levelDBCfg *leveldb.Config) ds.Datastore {
+func makeStore(t *testing.T, badgerCfg *badger.Config, badger3Cfg *badger3.Config, levelDBCfg *leveldb.Config, pebbleCfg *pebble.Config) ds.Datastore {
 	switch consensus {
 	case "crdt":
-		if datastore == "badger" {
+		switch datastore {
+		case "badger":
 			dstr, err := badger.New(badgerCfg)
 			if err != nil {
 				t.Fatal(err)
 			}
 			return dstr
+		case "badger3":
+			dstr, err := badger3.New(badger3Cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return dstr
+		case "leveldb":
+			dstr, err := leveldb.New(levelDBCfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return dstr
+		case "pebble":
+			dstr, err := pebble.New(pebbleCfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return dstr
+		default:
+			t.Fatal("bad datastore")
+			return nil
 		}
-		dstr, err := leveldb.New(levelDBCfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return dstr
+
 	default:
 		return inmem.New()
 	}
