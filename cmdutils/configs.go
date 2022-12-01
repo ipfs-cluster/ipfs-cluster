@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger3"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/pebble"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/numpin"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/pinqueue"
@@ -49,6 +50,7 @@ type Configs struct {
 	Badger           *badger.Config
 	Badger3          *badger3.Config
 	LevelDB          *leveldb.Config
+	Pebble           *pebble.Config
 }
 
 // ConfigHelper helps managing the configuration and identity files with the
@@ -199,9 +201,10 @@ func (ch *ConfigHelper) GetDatastore() string {
 	badgerLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.Badger.ConfigKey())
 	badger3Loaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.Badger3.ConfigKey())
 	levelDBLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.LevelDB.ConfigKey())
+	pebbleLoaded := ch.manager.IsLoadedFromJSON(config.Datastore, ch.configs.Pebble.ConfigKey())
 
 	nLoaded := 0
-	for _, v := range []bool{badgerLoaded, badger3Loaded, levelDBLoaded} {
+	for _, v := range []bool{badgerLoaded, badger3Loaded, levelDBLoaded, pebbleLoaded} {
 		if v {
 			nLoaded++
 		}
@@ -216,6 +219,8 @@ func (ch *ConfigHelper) GetDatastore() string {
 		return ch.configs.Badger3.ConfigKey()
 	case levelDBLoaded:
 		return ch.configs.LevelDB.ConfigKey()
+	case pebbleLoaded:
+		return ch.configs.Pebble.ConfigKey()
 	default:
 		return ""
 	}
@@ -244,6 +249,7 @@ func (ch *ConfigHelper) init() {
 		Badger:           &badger.Config{},
 		Badger3:          &badger3.Config{},
 		LevelDB:          &leveldb.Config{},
+		Pebble:           &pebble.Config{},
 	}
 	man.RegisterComponent(config.Cluster, cfgs.Cluster)
 	man.RegisterComponent(config.API, cfgs.Restapi)
@@ -282,11 +288,15 @@ func (ch *ConfigHelper) init() {
 			man.RegisterComponent(config.Datastore, cfgs.Badger3)
 		case cfgs.LevelDB.ConfigKey():
 			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
+		case cfgs.Pebble.ConfigKey():
+			man.RegisterComponent(config.Datastore, cfgs.Pebble)
 
 		default:
-			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
 			man.RegisterComponent(config.Datastore, cfgs.Badger)
 			man.RegisterComponent(config.Datastore, cfgs.Badger3)
+			man.RegisterComponent(config.Datastore, cfgs.LevelDB)
+			man.RegisterComponent(config.Datastore, cfgs.Pebble)
+
 		}
 	}
 
