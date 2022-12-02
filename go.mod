@@ -35,7 +35,7 @@ require (
 	github.com/ipfs/go-merkledag v0.8.1
 	github.com/ipfs/go-mfs v0.1.3-0.20210507195338-96fbfa122164
 	github.com/ipfs/go-path v0.3.0
-	github.com/ipfs/go-unixfs v0.4.0
+	github.com/ipfs/go-unixfs v0.4.1
 	github.com/ipld/go-car v0.5.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
