@@ -76,8 +76,7 @@ func NewOperationTracker(ctx context.Context, pid peer.ID, peerName string) *Ope
 // If an operation exists it is of different type, it is
 // canceled and the new one replaces it in the tracker.
 func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin, typ OperationType, ph Phase) *Operation {
-	ctx = trace.NewContext(opt.ctx, trace.FromContext(ctx))
-	ctx, span := trace.StartSpan(ctx, "optracker/TrackNewOperation")
+	_, span := trace.StartSpan(ctx, "optracker/TrackNewOperation")
 	defer span.End()
 
 	opt.mu.Lock()
@@ -95,8 +94,9 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 		op.tracker.recordMetric(op, -1)
 		op.Cancel() // cancel ongoing operation and replace it
 	}
-
-	op2 := newOperation(ctx, pin, typ, ph, opt)
+	// IMPORTANT: the operations must have the OperationTracker context,
+	// as otherwise their context would be canceled after being added.
+	op2 := newOperation(opt.ctx, pin, typ, ph, opt)
 	if ok && op.Type() == typ {
 		// Carry over the attempt count when doing an operation of the
 		// same type.  The old operation exists and was canceled.

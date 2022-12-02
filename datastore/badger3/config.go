@@ -1,4 +1,4 @@
-package badger
+package badger3
 
 import (
 	"encoding/json"
@@ -6,20 +6,20 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/dgraph-io/badger"
-	"github.com/dgraph-io/badger/options"
+	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3/options"
 	"github.com/imdario/mergo"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"
 )
 
-const configKey = "badger"
-const envConfigKey = "cluster_badger"
+const configKey = "badger3"
+const envConfigKey = "cluster_badger3"
 
 // Default values for badger Config
 const (
-	DefaultSubFolder = "badger"
+	DefaultSubFolder = "badger3"
 )
 
 var (
@@ -36,16 +36,36 @@ var (
 )
 
 func init() {
-	// Following go-ds-badger guidance
 	DefaultBadgerOptions = badger.DefaultOptions("")
+	// Better to slow down starts than shutdowns.
 	DefaultBadgerOptions.CompactL0OnClose = false
-	DefaultBadgerOptions.Truncate = true
-	DefaultBadgerOptions.ValueLogLoadingMode = options.FileIO
-	// Explicitly set this to mmap. This doesn't use much memory anyways.
-	DefaultBadgerOptions.TableLoadingMode = options.MemoryMap
-	// Reduce this from 64MiB to 16MiB. That means badger will hold on to
-	// 20MiB by default instead of 80MiB.
-	DefaultBadgerOptions.MaxTableSize = 16 << 20
+	// Defaults to 1MB! For us that means everything goes into the LSM
+	// tree and the LSM tree is supposed to be loaded into memory in full.
+	// We only put very small things on the LSM tree by default (i.e. a
+	// single CID).
+	DefaultBadgerOptions.ValueThreshold = 100
+	// Disable Block Cache: the cluster read-pattern at scale requires
+	// looping regularly all keys. The CRDT read-patterm avoids reading
+	// something twice. In general, it probably does not add much, and it
+	// is recommended to be disabled when not using compression.
+	DefaultBadgerOptions.BlockCacheSize = 0
+	// Let's disable compression for values, better perf when reading and
+	// usually the ratio between data stored by badger and the cluster
+	// should be small. Users can always enable.
+	DefaultBadgerOptions.Compression = options.None
+	// There is a write lock in go-ds-crdt that writes batches one by one.
+	// Also NewWriteBatch says that there can never be transaction
+	// conflicts when doing batches. And IPFS will only write a block
+	// once, or do it with the same values. In general, we probably don't
+	// care about conflicts much (rows updated while a commit transaction
+	// was open). Increases perf too.
+	DefaultBadgerOptions.DetectConflicts = false
+	// TODO: Increase memtable size. This will use some more memory, but any
+	// normal system should be able to deal with using 256MiB for the
+	// memtable. Badger puts a lot of things in memory anyways,
+	// i.e. IndexCacheSize is set to 0. Note NumMemTables is 5.
+	// DefaultBadgerOptions.MemTableSize = 268435456 // 256MiB
+
 }
 
 // Config is used to initialize a BadgerDB datastore. It implements the
@@ -70,30 +90,51 @@ type Config struct {
 	BadgerOptions badger.Options
 }
 
-// badgerOptions is a copy of options.BadgerOptions but
-// without the Logger as it cannot be marshaled to/from
-// JSON.
+// badgerOptions is a copy of badger.Options so it can be marshaled by us.
 type badgerOptions struct {
-	Dir                     string                   `json:"dir"`
-	ValueDir                string                   `json:"value_dir"`
-	SyncWrites              bool                     `json:"sync_writes"`
-	TableLoadingMode        *options.FileLoadingMode `json:"table_loading_mode"`
-	ValueLogLoadingMode     *options.FileLoadingMode `json:"value_log_loading_mode"`
-	NumVersionsToKeep       int                      `json:"num_versions_to_keep"`
-	MaxTableSize            int64                    `json:"max_table_size"`
-	LevelSizeMultiplier     int                      `json:"level_size_multiplier"`
-	MaxLevels               int                      `json:"max_levels"`
-	ValueThreshold          int                      `json:"value_threshold"`
-	NumMemtables            int                      `json:"num_memtables"`
-	NumLevelZeroTables      int                      `json:"num_level_zero_tables"`
-	NumLevelZeroTablesStall int                      `json:"num_level_zero_tables_stall"`
-	LevelOneSize            int64                    `json:"level_one_size"`
-	ValueLogFileSize        int64                    `json:"value_log_file_size"`
-	ValueLogMaxEntries      uint32                   `json:"value_log_max_entries"`
-	NumCompactors           int                      `json:"num_compactors"`
-	CompactL0OnClose        bool                     `json:"compact_l_0_on_close"`
-	ReadOnly                bool                     `json:"read_only"`
-	Truncate                bool                     `json:"truncate"`
+	Dir               string `json:"dir"`
+	ValueDir          string `json:"value_dir"`
+	SyncWrites        bool   `json:"sync_writes"`
+	NumVersionsToKeep int    `json:"num_versions_to_keep"`
+	ReadOnly          bool   `json:"read_only"`
+	// Logger
+	Compression    options.CompressionType `json:"compression"`
+	InMemory       bool                    `json:"in_memory"`
+	MetricsEnabled bool                    `json:"metrics_enabled"`
+	NumGoroutines  int                     `json:"num_goroutines"`
+
+	MemTableSize        int64 `json:"mem_table_size"`
+	BaseTableSize       int64 `json:"base_table_size"`
+	BaseLevelSize       int64 `json:"base_level_size"`
+	LevelSizeMultiplier int   `json:"level_size_multiplier"`
+	TableSizeMultiplier int   `json:"table_size_multiplier"`
+	MaxLevels           int   `json:"max_levels"`
+
+	VLogPercentile     float64 `json:"v_log_percentile"`
+	ValueThreshold     int64   `json:"value_threshold"`
+	NumMemtables       int     `json:"num_memtables"`
+	BlockSize          int     `json:"block_size"`
+	BloomFalsePositive float64 `json:"bloom_false_positive"`
+	BlockCacheSize     int64   `json:"block_cache_size"`
+	IndexCacheSize     int64   `json:"index_cache_size"`
+
+	NumLevelZeroTables      int `json:"num_level_zero_tables"`
+	NumLevelZeroTablesStall int `json:"num_level_zero_tables_stall"`
+
+	ValueLogFileSize   int64  `json:"value_log_file_size"`
+	ValueLogMaxEntries uint32 `json:"value_log_max_entries"`
+
+	NumCompactors        int  `json:"num_compactors"`
+	CompactL0OnClose     bool `json:"compact_l_0_on_close"`
+	LmaxCompaction       bool `json:"lmax_compaction"`
+	ZSTDCompressionLevel int  `json:"zstd_compression_level"`
+
+	VerifyValueChecksum bool `json:"verify_value_checksum"`
+
+	ChecksumVerificationMode options.ChecksumVerificationMode `json:"checksum_verification_mode"`
+	DetectConflicts          bool                             `json:"detect_conflicts"`
+
+	NamespaceOffset int `json:"namespace_offset"`
 }
 
 func (bo *badgerOptions) Unmarshal() *badger.Options {
@@ -101,27 +142,45 @@ func (bo *badgerOptions) Unmarshal() *badger.Options {
 	badgerOpts.Dir = bo.Dir
 	badgerOpts.ValueDir = bo.ValueDir
 	badgerOpts.SyncWrites = bo.SyncWrites
-	if tlm := bo.TableLoadingMode; tlm != nil {
-		badgerOpts.TableLoadingMode = *tlm
-	}
-	if vlm := bo.ValueLogLoadingMode; vlm != nil {
-		badgerOpts.ValueLogLoadingMode = *vlm
-	}
 	badgerOpts.NumVersionsToKeep = bo.NumVersionsToKeep
-	badgerOpts.MaxTableSize = bo.MaxTableSize
+	badgerOpts.ReadOnly = bo.ReadOnly
+	badgerOpts.Compression = bo.Compression
+	badgerOpts.InMemory = bo.InMemory
+	badgerOpts.MetricsEnabled = bo.MetricsEnabled
+	badgerOpts.NumGoroutines = bo.NumGoroutines
+
+	badgerOpts.MemTableSize = bo.MemTableSize
+	badgerOpts.BaseTableSize = bo.BaseTableSize
+	badgerOpts.BaseLevelSize = bo.BaseLevelSize
 	badgerOpts.LevelSizeMultiplier = bo.LevelSizeMultiplier
+	badgerOpts.TableSizeMultiplier = bo.TableSizeMultiplier
 	badgerOpts.MaxLevels = bo.MaxLevels
+
+	badgerOpts.VLogPercentile = bo.VLogPercentile
 	badgerOpts.ValueThreshold = bo.ValueThreshold
 	badgerOpts.NumMemtables = bo.NumMemtables
+	badgerOpts.BlockSize = bo.BlockSize
+	badgerOpts.BloomFalsePositive = bo.BloomFalsePositive
+	badgerOpts.BlockCacheSize = bo.BlockCacheSize
+	badgerOpts.IndexCacheSize = bo.IndexCacheSize
+
 	badgerOpts.NumLevelZeroTables = bo.NumLevelZeroTables
 	badgerOpts.NumLevelZeroTablesStall = bo.NumLevelZeroTablesStall
-	badgerOpts.LevelOneSize = bo.LevelOneSize
+
 	badgerOpts.ValueLogFileSize = bo.ValueLogFileSize
 	badgerOpts.ValueLogMaxEntries = bo.ValueLogMaxEntries
+
 	badgerOpts.NumCompactors = bo.NumCompactors
 	badgerOpts.CompactL0OnClose = bo.CompactL0OnClose
-	badgerOpts.ReadOnly = bo.ReadOnly
-	badgerOpts.Truncate = bo.Truncate
+	badgerOpts.LmaxCompaction = bo.LmaxCompaction
+	badgerOpts.ZSTDCompressionLevel = bo.ZSTDCompressionLevel
+
+	badgerOpts.VerifyValueChecksum = bo.VerifyValueChecksum
+
+	badgerOpts.ChecksumVerificationMode = bo.ChecksumVerificationMode
+	badgerOpts.DetectConflicts = bo.DetectConflicts
+
+	badgerOpts.NamespaceOffset = bo.NamespaceOffset
 
 	return badgerOpts
 }
@@ -130,23 +189,45 @@ func (bo *badgerOptions) Marshal(badgerOpts *badger.Options) {
 	bo.Dir = badgerOpts.Dir
 	bo.ValueDir = badgerOpts.ValueDir
 	bo.SyncWrites = badgerOpts.SyncWrites
-	bo.TableLoadingMode = &badgerOpts.TableLoadingMode
-	bo.ValueLogLoadingMode = &badgerOpts.ValueLogLoadingMode
 	bo.NumVersionsToKeep = badgerOpts.NumVersionsToKeep
-	bo.MaxTableSize = badgerOpts.MaxTableSize
+	bo.ReadOnly = badgerOpts.ReadOnly
+	bo.Compression = badgerOpts.Compression
+	bo.InMemory = badgerOpts.InMemory
+	bo.MetricsEnabled = badgerOpts.MetricsEnabled
+	bo.NumGoroutines = badgerOpts.NumGoroutines
+
+	bo.MemTableSize = badgerOpts.MemTableSize
+	bo.BaseTableSize = badgerOpts.BaseTableSize
+	bo.BaseLevelSize = badgerOpts.BaseLevelSize
 	bo.LevelSizeMultiplier = badgerOpts.LevelSizeMultiplier
+	bo.TableSizeMultiplier = badgerOpts.TableSizeMultiplier
 	bo.MaxLevels = badgerOpts.MaxLevels
+
+	bo.VLogPercentile = badgerOpts.VLogPercentile
 	bo.ValueThreshold = badgerOpts.ValueThreshold
 	bo.NumMemtables = badgerOpts.NumMemtables
+	bo.BlockSize = badgerOpts.BlockSize
+	bo.BloomFalsePositive = badgerOpts.BloomFalsePositive
+	bo.BlockCacheSize = badgerOpts.BlockCacheSize
+	bo.IndexCacheSize = badgerOpts.IndexCacheSize
+
 	bo.NumLevelZeroTables = badgerOpts.NumLevelZeroTables
 	bo.NumLevelZeroTablesStall = badgerOpts.NumLevelZeroTablesStall
-	bo.LevelOneSize = badgerOpts.LevelOneSize
+
 	bo.ValueLogFileSize = badgerOpts.ValueLogFileSize
 	bo.ValueLogMaxEntries = badgerOpts.ValueLogMaxEntries
+
 	bo.NumCompactors = badgerOpts.NumCompactors
 	bo.CompactL0OnClose = badgerOpts.CompactL0OnClose
-	bo.ReadOnly = badgerOpts.ReadOnly
-	bo.Truncate = badgerOpts.Truncate
+	bo.LmaxCompaction = badgerOpts.LmaxCompaction
+	bo.ZSTDCompressionLevel = badgerOpts.ZSTDCompressionLevel
+
+	bo.VerifyValueChecksum = badgerOpts.VerifyValueChecksum
+
+	bo.ChecksumVerificationMode = badgerOpts.ChecksumVerificationMode
+	bo.DetectConflicts = badgerOpts.DetectConflicts
+
+	bo.NamespaceOffset = badgerOpts.NamespaceOffset
 }
 
 type jsonConfig struct {
@@ -232,14 +313,6 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 
 	if err := mergo.Merge(&cfg.BadgerOptions, badgerOpts, mergo.WithOverride); err != nil {
 		return err
-	}
-
-	if jcfg.BadgerOptions.TableLoadingMode != nil {
-		cfg.BadgerOptions.TableLoadingMode = *jcfg.BadgerOptions.TableLoadingMode
-	}
-
-	if jcfg.BadgerOptions.ValueLogLoadingMode != nil {
-		cfg.BadgerOptions.ValueLogLoadingMode = *jcfg.BadgerOptions.ValueLogLoadingMode
 	}
 
 	return cfg.Validate()

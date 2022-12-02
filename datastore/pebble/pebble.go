@@ -1,17 +1,17 @@
-// Package badger provides a configurable BadgerDB go-datastore for use with
+// Package pebble provides a configurable Pebble database backend for use with
 // IPFS Cluster.
-package badger
+package pebble
 
 import (
 	"os"
 
 	ds "github.com/ipfs/go-datastore"
-	badgerds "github.com/ipfs/go-ds-badger"
+	pebbleds "github.com/ipfs/go-ds-pebble"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/pkg/errors"
 )
 
-var logger = logging.Logger("badger")
+var logger = logging.Logger("pebble")
 
 // New returns a BadgerDB datastore configured with the given
 // configuration.
@@ -19,15 +19,9 @@ func New(cfg *Config) (ds.Datastore, error) {
 	folder := cfg.GetFolder()
 	err := os.MkdirAll(folder, 0700)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating badger folder")
+		return nil, errors.Wrap(err, "creating pebble folder")
 	}
-	opts := badgerds.Options{
-		GcDiscardRatio: cfg.GCDiscardRatio,
-		GcInterval:     cfg.GCInterval,
-		GcSleep:        cfg.GCSleep,
-		Options:        cfg.BadgerOptions,
-	}
-	return badgerds.NewDatastore(folder, &opts)
+	return pebbleds.NewDatastore(folder, &cfg.PebbleOptions)
 }
 
 // Cleanup deletes the badger datastore.
@@ -37,5 +31,4 @@ func Cleanup(cfg *Config) error {
 		return nil
 	}
 	return os.RemoveAll(cfg.GetFolder())
-
 }

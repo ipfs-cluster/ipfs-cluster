@@ -8,7 +8,9 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/raft"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger3"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
+	"github.com/ipfs-cluster/ipfs-cluster/datastore/pebble"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
 	"github.com/ipfs-cluster/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs-cluster/ipfs-cluster/monitor/pubsubmon"
@@ -74,11 +76,88 @@ var testingBadgerCfg = []byte(`{
     }
 }`)
 
+var testingBadger3Cfg = []byte(`
+{
+      "gc_discard_ratio": 0.2,
+      "gc_interval": "0s",
+      "gc_sleep": "0s",
+      "badger_options": {
+        "dir": "",
+        "value_dir": "",
+        "sync_writes": false,
+        "num_versions_to_keep": 1,
+        "read_only": false,
+        "compression": 0,
+        "in_memory": false,
+        "metrics_enabled": true,
+        "num_goroutines": 8,
+        "mem_table_size": 1048576,
+        "base_table_size": 2097152,
+        "base_level_size": 10485760,
+        "level_size_multiplier": 10,
+        "table_size_multiplier": 2,
+        "max_levels": 7,
+        "v_log_percentile": 0,
+        "value_threshold": 100,
+        "num_memtables": 5,
+        "block_size": 4096,
+        "bloom_false_positive": 0.01,
+        "block_cache_size": 0,
+        "index_cache_size": 0,
+        "num_level_zero_tables": 5,
+        "num_level_zero_tables_stall": 15,
+        "value_log_file_size": 1073741823,
+        "value_log_max_entries": 1000000,
+        "num_compactors": 4,
+        "compact_l_0_on_close": false,
+        "lmax_compaction": false,
+        "zstd_compression_level": 1,
+        "verify_value_checksum": false,
+        "checksum_verification_mode": 0,
+        "detect_conflicts": false,
+        "namespace_offset": -1
+      }
+    }
+`)
+
 var testingLevelDBCfg = []byte(`{
     "folder": "leveldbFromTests",
     "leveldb_options": {
     }
 }`)
+
+var testingPebbleCfg = []byte(`
+{
+      "pebble_options": {
+        "bytes_per_sync": 524288,
+        "disable_wal": false,
+        "flush_delay_delete_range": 0,
+        "flush_delay_range_key": 0,
+        "flush_split_bytes": 4194304,
+        "format_major_version": 1,
+        "l0_compaction_file_threshold": 500,
+        "l0_compaction_threshold": 4,
+        "l0_stop_writes_threshold": 12,
+        "l_base_max_bytes": 67108864,
+        "levels": [
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "Compression": 1,
+            "filter_type": 0,
+            "index_block_size": 8000,
+            "target_file_size": 2097152
+          }
+        ],
+        "max_open_files": 1000,
+        "mem_table_size": 1048576,
+        "mem_table_stop_writes_threshold": 2,
+        "read_only": false,
+        "wal_bytes_per_sync": 0
+      }
+    }
+`)
 
 var testingAPICfg = []byte(`{
     "http_listen_multiaddress": "/ip4/127.0.0.1/tcp/10002",
@@ -144,16 +223,18 @@ var testingTracerCfg = []byte(`{
     "service_name": "cluster-daemon"
 }`)
 
-func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *balanced.Config, *disk.Config, *observations.TracingConfig) {
-	identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
+func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *badger3.Config, *leveldb.Config, *pebble.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *balanced.Config, *disk.Config, *observations.TracingConfig) {
+	identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg := testingEmptyConfigs()
 	identity.LoadJSON(testingIdentity)
 	clusterCfg.LoadJSON(testingClusterCfg)
 	apiCfg.LoadJSON(testingAPICfg)
 	proxyCfg.LoadJSON(testingProxyCfg)
 	ipfsCfg.LoadJSON(testingIpfsCfg)
 	badgerCfg.LoadJSON(testingBadgerCfg)
-	raftCfg.LoadJSON(testingRaftCfg)
+	badger3Cfg.LoadJSON(testingBadger3Cfg)
 	levelDBCfg.LoadJSON(testingLevelDBCfg)
+	pebbleCfg.LoadJSON(testingPebbleCfg)
+	raftCfg.LoadJSON(testingRaftCfg)
 	crdtCfg.LoadJSON(testingCrdtCfg)
 	statelesstrkrCfg.LoadJSON(testingTrackerCfg)
 	pubsubmonCfg.LoadJSON(testingMonCfg)
@@ -161,25 +242,27 @@ func testingConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Confi
 	diskInfCfg.LoadJSON(testingDiskInfCfg)
 	tracingCfg.LoadJSON(testingTracerCfg)
 
-	return identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg
+	return identity, clusterCfg, apiCfg, proxyCfg, ipfsCfg, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg, raftCfg, crdtCfg, statelesstrkrCfg, pubsubmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg
 }
 
-func testingEmptyConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *leveldb.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *balanced.Config, *disk.Config, *observations.TracingConfig) {
+func testingEmptyConfigs() (*config.Identity, *Config, *rest.Config, *ipfsproxy.Config, *ipfshttp.Config, *badger.Config, *badger3.Config, *leveldb.Config, *pebble.Config, *raft.Config, *crdt.Config, *stateless.Config, *pubsubmon.Config, *balanced.Config, *disk.Config, *observations.TracingConfig) {
 	identity := &config.Identity{}
 	clusterCfg := &Config{}
 	apiCfg := rest.NewConfig()
 	proxyCfg := &ipfsproxy.Config{}
 	ipfshttpCfg := &ipfshttp.Config{}
 	badgerCfg := &badger.Config{}
-	raftCfg := &raft.Config{}
+	badger3Cfg := &badger3.Config{}
 	levelDBCfg := &leveldb.Config{}
+	pebbleCfg := &pebble.Config{}
+	raftCfg := &raft.Config{}
 	crdtCfg := &crdt.Config{}
 	statelessCfg := &stateless.Config{}
 	pubsubmonCfg := &pubsubmon.Config{}
 	allocBalancedCfg := &balanced.Config{}
 	diskInfCfg := &disk.Config{}
 	tracingCfg := &observations.TracingConfig{}
-	return identity, clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelessCfg, pubsubmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg
+	return identity, clusterCfg, apiCfg, proxyCfg, ipfshttpCfg, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg, raftCfg, crdtCfg, statelessCfg, pubsubmonCfg, allocBalancedCfg, diskInfCfg, tracingCfg
 }
 
 // func TestConfigDefault(t *testing.T) {

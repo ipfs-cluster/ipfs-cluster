@@ -1,17 +1,17 @@
-// Package badger provides a configurable BadgerDB go-datastore for use with
+// Package badger3 provides a configurable BadgerDB v3 go-datastore for use with
 // IPFS Cluster.
-package badger
+package badger3
 
 import (
 	"os"
 
 	ds "github.com/ipfs/go-datastore"
-	badgerds "github.com/ipfs/go-ds-badger"
+	badgerds "github.com/ipfs/go-ds-badger3"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/pkg/errors"
 )
 
-var logger = logging.Logger("badger")
+var logger = logging.Logger("badger3")
 
 // New returns a BadgerDB datastore configured with the given
 // configuration.
@@ -37,5 +37,4 @@ func Cleanup(cfg *Config) error {
 		return nil
 	}
 	return os.RemoveAll(cfg.GetFolder())
-
 }

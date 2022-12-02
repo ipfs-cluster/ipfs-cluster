@@ -24,10 +24,10 @@ import (
 	"go.opencensus.io/tag"
 
 	ds "github.com/ipfs/go-datastore"
-	host "github.com/libp2p/go-libp2p/core/host"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -199,8 +199,6 @@ func createCluster(
 	alloc, err := balanced.New(cfgs.BalancedAlloc)
 	checkErr("creating allocator", err)
 
-	ipfscluster.ReadyTimeout = cfgs.Raft.WaitForLeaderTimeout + 5*time.Second
-
 	cons, err := setupConsensus(
 		cfgHelper,
 		host,
@@ -290,6 +288,7 @@ func setupConsensus(
 		if err != nil {
 			return nil, errors.Wrap(err, "creating Raft component")
 		}
+		ipfscluster.ReadyTimeout = cfgs.Raft.WaitForLeaderTimeout + 5*time.Second
 		return rft, nil
 	case cfgs.Crdt.ConfigKey():
 		convrdt, err := crdt.New(
@@ -302,6 +301,9 @@ func setupConsensus(
 		if err != nil {
 			return nil, errors.Wrap(err, "creating CRDT component")
 		}
+		// go-ds-crdt migrations are the main cause that may need
+		// additional time for this consensus layer to be ready.
+		ipfscluster.ReadyTimeout = 356 * 24 * time.Hour
 		return convrdt, nil
 	default:
 		return nil, errors.New("unknown consensus component")
