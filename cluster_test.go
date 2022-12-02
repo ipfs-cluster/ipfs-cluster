@@ -159,7 +159,7 @@ type mockTracer struct {
 }
 
 func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracker) {
-	ident, clusterCfg, _, _, _, badgerCfg, levelDBCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _, _ := testingConfigs()
+	ident, clusterCfg, _, _, _, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg, raftCfg, crdtCfg, statelesstrackerCfg, psmonCfg, _, _, _ := testingConfigs()
 	ctx := context.Background()
 
 	host, pubsub, dht := createHost(t, ident.PrivateKey, clusterCfg.Secret, clusterCfg.ListenAddr)
@@ -169,7 +169,9 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	clusterCfg.SetBaseDir(folder)
 	raftCfg.DataFolder = folder
 	badgerCfg.Folder = filepath.Join(folder, "badger")
+	badger3Cfg.Folder = filepath.Join(folder, "badger3")
 	levelDBCfg.Folder = filepath.Join(folder, "leveldb")
+	pebbleCfg.Folder = filepath.Join(folder, "pebble")
 
 	api := &mockAPI{}
 	proxy := &mockProxy{}
@@ -177,7 +179,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 
 	tracer := &mockTracer{}
 
-	store := makeStore(t, badgerCfg, levelDBCfg)
+	store := makeStore(t, badgerCfg, badger3Cfg, levelDBCfg, pebbleCfg)
 	cons := makeConsensus(t, store, host, pubsub, dht, raftCfg, false, crdtCfg)
 	tracker := stateless.New(statelesstrackerCfg, ident.ID, clusterCfg.Peername, cons.State)
 
@@ -229,27 +231,33 @@ func cleanState() {
 	os.RemoveAll(testsFolder)
 }
 
+func shutdownTestingCluster(ctx context.Context, t *testing.T, cl *Cluster) {
+	t.Helper()
+	err := cl.Shutdown(ctx)
+	if err != nil {
+		t.Fatal("cluster shutdown failed:", err)
+	}
+	cl.dht.Close()
+	cl.host.Close()
+	cl.datastore.Close()
+}
+
 func TestClusterShutdown(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
-	err := cl.Shutdown(ctx)
-	if err != nil {
-		t.Error("cluster shutdown failed:", err)
-	}
-	cl.Shutdown(ctx)
+	shutdownTestingCluster(ctx, t, cl)
+	shutdownTestingCluster(ctx, t, cl)
+
 	cl, _, _, _ = testingCluster(t)
-	err = cl.Shutdown(ctx)
-	if err != nil {
-		t.Error("cluster shutdown failed:", err)
-	}
+	shutdownTestingCluster(ctx, t, cl)
+	cleanState()
 }
 
 func TestClusterStateSync(t *testing.T) {
 	ctx := context.Background()
-	cleanState()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	c := test.Cid1
 	_, err := cl.Pin(ctx, c, api.PinOptions{})
@@ -279,7 +287,7 @@ func TestClusterID(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 	id := cl.ID(ctx)
 	if len(id.Addresses) == 0 {
 		t.Error("expected more addresses")
@@ -299,7 +307,7 @@ func TestClusterPin(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	c := test.Cid1
 	res, err := cl.Pin(ctx, c, api.PinOptions{})
@@ -332,7 +340,7 @@ func TestPinExpired(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	c := test.Cid1
 	_, err := cl.Pin(ctx, c, api.PinOptions{
@@ -347,7 +355,7 @@ func TestClusterPinPath(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	pin, err := cl.PinPath(ctx, test.PathIPFS2, api.PinOptions{})
 	if err != nil {
@@ -368,7 +376,7 @@ func TestAddFile(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
@@ -428,7 +436,7 @@ func TestUnpinShard(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 	sth := test.NewShardingTestHelper()
 	defer sth.Clean(t)
 
@@ -794,7 +802,7 @@ func TestClusterPins(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	c := test.Cid1
 	_, err := cl.Pin(ctx, c, api.PinOptions{})
@@ -820,7 +828,7 @@ func TestClusterPinGet(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	c := test.Cid1
 	_, err := cl.Pin(ctx, c, api.PinOptions{})
@@ -846,7 +854,7 @@ func TestClusterUnpin(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	c := test.Cid1
 	// Unpin should error without pin being committed to state
@@ -881,7 +889,7 @@ func TestClusterUnpinPath(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	// Unpin should error without pin being committed to state
 	_, err := cl.UnpinPath(ctx, test.PathIPFS2)
@@ -911,7 +919,7 @@ func TestClusterPeers(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	out := make(chan api.ID, 10)
 	cl.Peers(ctx, out)
@@ -935,7 +943,7 @@ func TestVersion(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 	if cl.Version() != version.Version.String() {
 		t.Error("bad Version()")
 	}
@@ -945,7 +953,7 @@ func TestClusterRecoverAllLocal(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	_, err := cl.Pin(ctx, test.ErrorCid, api.PinOptions{})
 	if err != nil {
@@ -974,7 +982,7 @@ func TestClusterRepoGC(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	gRepoGC, err := cl.RepoGC(ctx)
 	if err != nil {
@@ -998,7 +1006,7 @@ func TestClusterRepoGCLocal(t *testing.T) {
 	ctx := context.Background()
 	cl, _, _, _ := testingCluster(t)
 	defer cleanState()
-	defer cl.Shutdown(ctx)
+	defer shutdownTestingCluster(ctx, t, cl)
 
 	repoGC, err := cl.RepoGCLocal(ctx)
 	if err != nil {

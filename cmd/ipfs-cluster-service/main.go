@@ -269,12 +269,12 @@ the peer IDs in the given multiaddresses.
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "consensus",
-					Usage: "select consensus component: 'crdt' or 'raft'",
+					Usage: "select consensus: 'crdt' or 'raft'",
 					Value: defaultConsensus,
 				},
 				cli.StringFlag{
 					Name:  "datastore",
-					Usage: "select datastore component: 'badger' or 'leveldb'",
+					Usage: "select datastore: 'badger', 'badger3', 'leveldb', 'pebble'",
 					Value: defaultDatastore,
 				},
 				cli.BoolFlag{
@@ -304,9 +304,9 @@ the peer IDs in the given multiaddresses.
 
 				datastore := c.String("datastore")
 				switch datastore {
-				case "leveldb", "badger":
+				case "leveldb", "badger", "badger3", "pebble":
 				default:
-					checkErr("choosing datastore", errors.New("flag value must be set to 'leveldb' or 'badger'"))
+					checkErr("choosing datastore", errors.New("flag value must be set to 'leveldb', 'badger', 'badger3' or 'pebble'"))
 				}
 
 				cfgHelper := cmdutils.NewConfigHelper(configPath, identityPath, consensus, datastore)
