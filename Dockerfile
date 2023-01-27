@@ -33,6 +33,7 @@ WORKDIR $SRC_PATH
 RUN go mod download
 
 COPY --chown=1000:users . $SRC_PATH
+RUN git config --global --add safe.directory /go/src/github.com/ipfs-cluster/ipfs-cluster
 RUN make install
 
 
