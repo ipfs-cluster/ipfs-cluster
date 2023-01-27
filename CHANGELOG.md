@@ -1,5 +1,71 @@
 # IPFS Cluster Changelog
 
+### v1.0.5 - 2023-01-27
+
+IPFS Cluster v1.0.5 is a maintenance release with one main feature: support
+for `badger3` and `pebble` datastores.
+
+Additionally, this release fixes compatibility with Kubo v0.18.0 and addresses
+the crashes related to libp2p autorelay that affected the previous version.
+
+`pebble` and `badger3` are much newer backends that the already available
+Badger and LevelDB. They are faster, use significantly less disk-space and
+support additional options like compression. We have set `pebble` as the
+default datastore used by the official Docker container, and we will be likely
+making it the final default choice for new installations. In the meantime, we
+encourage the community to try them out and provide feedback.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* Support for `pebble` and `badger3` datastores | [ipfs/ipfs-cluster#1809](https://github.com/ipfs/ipfs-cluster/issues/1809)
+
+##### Bug fixes
+
+* Fix panic on boot (related to libp2p AutoRelay) | [ipfs/ipfs-cluster#1796](https://github.com/ipfs/ipfs-cluster/issues/1796) | [ipfs/ipfs-cluster#1797](https://github.com/ipfs/ipfs-cluster/issues/1797)
+* Fix error parsing quic-v1 multiaddresses from Kubo 0.18.0 | [ipfs/ipfs-cluster#1835](https://github.com/ipfs/ipfs-cluster/issues/1835) | [ipfs/ipfs-cluster#1841](https://github.com/ipfs/ipfs-cluster/issues/1841)
+* Fix error building docker container with newer git | [ipfs/ipfs-cluster#1836](https://github.com/ipfs/ipfs-cluster/issues/1836)
+* Fix building master due to pinned go-mfs dependency | [ipfs/ipfs-cluster#1817](https://github.com/ipfs/ipfs-cluster/issues/1817) | [ipfs/ipfs-cluster#1818](https://github.com/ipfs/ipfs-cluster/issues/1818)
+
+##### Other changes
+
+* Dependency updates (including libp2p v0.24.2) | [ipfs/ipfs-cluster#1813](https://github.com/ipfs/ipfs-cluster/issues/1813) | [ipfs/ipfs-cluster#1840](https://github.com/ipfs/ipfs-cluster/issues/1840)
+* Switch Docker containers to `pebble` by default | [ipfs/ipfs-cluster#1842](https://github.com/ipfs/ipfs-cluster/issues/1842)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+There are no configuration changes for this release.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Nothing.
+
+---
+
+
 ### v1.0.4 - 2022-09-26
 
 IPFS Cluster v1.0.4 is a maintenance release addressing a couple of bugs and
