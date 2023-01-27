@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v1.4.2
 	github.com/imdario/mergo v0.3.13
-	github.com/ipfs/go-block-format v0.0.3
+	github.com/ipfs/go-block-format v0.1.1
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
@@ -137,7 +137,7 @@ require (
 	github.com/ipfs/go-ipfs-provider v0.7.1 // indirect
 	github.com/ipfs/go-ipfs-util v0.0.2 // indirect
 	github.com/ipfs/go-ipld-legacy v0.1.1 // indirect
-	github.com/ipfs/go-libipfs v0.1.0 // indirect
+	github.com/ipfs/go-libipfs v0.3.0 // indirect
 	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/ipfs/go-metrics-interface v0.0.1 // indirect
 	github.com/ipfs/go-peertaskqueue v0.8.0 // indirect
