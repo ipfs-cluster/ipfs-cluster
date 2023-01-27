@@ -373,8 +373,8 @@ func (ipfs *Connector) ID(ctx context.Context) (api.IPFSID, error) {
 	for i, strAddr := range res.Addresses {
 		mAddr, err := api.NewMultiaddr(strAddr)
 		if err != nil {
-			id.Error = err.Error()
-			return id, err
+			logger.Warningf("cannot parse IPFS multiaddress: %s (%w)... ignoring", strAddr, err)
+			continue
 		}
 		mAddrs[i] = mAddr
 	}
