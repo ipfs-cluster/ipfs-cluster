@@ -481,8 +481,8 @@ github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477 h1:bLsrEmB2N
 github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477/go.mod h1:aUF6HQr8+t3FC/ZHAC+pZreUBhTaxumuu3L+d37uRxk=
 github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/JwenrHc=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
-github.com/hsanjuan/ipfs-lite v1.4.2 h1:wzR1jx2uSDmVxCgyc12tFxNtv7St5BrHmS1RMizu2uQ=
-github.com/hsanjuan/ipfs-lite v1.4.2/go.mod h1:YZrszULDL0OkPUYN7+FLVJ1AnVXlD9YkmnIi5GboNYk=
+github.com/hsanjuan/ipfs-lite v1.5.0 h1:9861y7CpAnmgu48epBFqWgJcf1nsqmb9uP1BncJUffw=
+github.com/hsanjuan/ipfs-lite v1.5.0/go.mod h1:gIu0/JPf7LOKsuCVbopTVzuH/HrykXJS9T0yCyiutCA=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
 github.com/huin/goupnp v1.0.0/go.mod h1:n9v9KO1tAxYH82qOn+UTIFQDmx5n1Zxd/ClZDMX7Bnc=
 github.com/huin/goupnp v1.0.3 h1:N8No57ls+MnjlB+JPiCVSOyy/ot7MJTqlo7rn+NYSqQ=

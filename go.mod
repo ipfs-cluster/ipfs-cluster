@@ -14,7 +14,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/raft v1.3.11
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
-	github.com/hsanjuan/ipfs-lite v1.4.2
+	github.com/hsanjuan/ipfs-lite v1.5.0
 	github.com/imdario/mergo v0.3.13
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0

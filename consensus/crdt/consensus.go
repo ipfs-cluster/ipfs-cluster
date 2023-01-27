@@ -121,6 +121,7 @@ func New(
 	ipfs, err := ipfslite.New(
 		ctx,
 		blocksDatastore,
+		nil,
 		host,
 		dht,
 		&ipfslite.Config{
@@ -713,6 +714,7 @@ func OfflineState(cfg *Config, store ds.Datastore) (state.BatchingState, error) 
 	ipfs, err := ipfslite.New(
 		context.Background(),
 		blocksDatastore,
+		nil,
 		nil,
 		nil,
 		&ipfslite.Config{
