@@ -907,6 +907,7 @@ func getCrdt() *dscrdt.Datastore {
 		blocksDatastore,
 		nil,
 		nil,
+		nil,
 		&ipfslite.Config{
 			Offline: true,
 		},
