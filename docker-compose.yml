@@ -3,7 +3,7 @@ version: '3.4'
 # This is an example docker-compose file to quickly test an IPFS Cluster
 # with multiple peers on a contained environment.
 
-# It runs 3 cluster peers (cluster0, cluster1...) attached to go-ipfs daemons
+# It runs 3 cluster peers (cluster0, cluster1...) attached to kubo daemons
 # (ipfs0, ipfs1...) using the CRDT consensus component. Cluster peers
 # autodiscover themselves using mDNS on the docker internal network.
 #
@@ -34,7 +34,7 @@ services:
 
   ipfs0:
     container_name: ipfs0
-    image: ipfs/go-ipfs:latest
+    image: ipfs/kubo:release
 #   ports:
 #     - "4001:4001" # ipfs swarm - expose if needed/wanted
 #     - "5001:5001" # ipfs api - expose if needed/wanted
@@ -72,7 +72,7 @@ services:
 # See Cluster PEER 0 for comments (all removed here and below)
   ipfs1:
     container_name: ipfs1
-    image: ipfs/go-ipfs:latest
+    image: ipfs/kubo:release
     volumes:
       - ./compose/ipfs1:/data/ipfs
 
@@ -97,7 +97,7 @@ services:
 # See Cluster PEER 0 for comments (all removed here and below)
   ipfs2:
     container_name: ipfs2
-    image: ipfs/go-ipfs:latest
+    image: ipfs/kubo:release
     volumes:
       - ./compose/ipfs2:/data/ipfs
 

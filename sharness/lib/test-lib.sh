@@ -33,9 +33,9 @@ test_ipfs_init() {
     if docker ps --format '{{.Names}}' | egrep -q '^ipfs$'; then
         echo "ipfs container already running"
     else
-        docker run --name ipfs -d -p 127.0.0.1:5001:5001 ipfs/go-ipfs > /dev/null 2>&1
+        docker run --name ipfs -d -p 127.0.0.1:5001:5001 ipfs/kubo > /dev/null 2>&1
         if [ $? -ne 0 ]; then
-            echo "IPFS init FAIL: Error running go-ipfs in docker."
+            echo "IPFS init FAIL: Error running kubo in docker."
             exit 1
         fi
         while ! curl -s "localhost:5001/api/v0/version" > /dev/null; do

@@ -163,8 +163,8 @@ jobs:
     - name: Make install
       run: make install
 
-    - name: Pull go-ipfs
-      run: docker pull ipfs/go-ipfs
+    - name: Pull kubo
+      run: docker pull ipfs/kubo
 
     - name: Sharness
       run: make test_sharness

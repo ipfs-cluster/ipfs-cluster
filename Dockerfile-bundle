@@ -1,8 +1,8 @@
 FROM golang:1.19-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
-# This dockerfile builds cluster and runs it along with go-ipfs.
-# It re-uses the latest go-ipfs:release container.
+# This dockerfile builds cluster and runs it along with kubo.
+# It re-uses the latest kubo:release container.
 
 # This builder just builds the cluster binaries
 ENV GOPATH      /go
@@ -19,11 +19,11 @@ RUN git config --global --add safe.directory /go/src/github.com/ipfs-cluster/ipf
 RUN make install
 
 #------------------------------------------------------
-FROM ipfs/go-ipfs:release
+FROM ipfs/kubo:release
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This is the container which just puts the previously
-# built binaries on the go-ipfs-container.
+# built binaries on the kubo-container.
 
 ENV GOPATH                 /go
 ENV SRC_PATH               /go/src/github.com/ipfs-cluster/ipfs-cluster

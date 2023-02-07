@@ -18,7 +18,7 @@
 
 There are 3 different applications:
 
-* A cluster peer application: `ipfs-cluster-service`, to be run along with `go-ipfs` as a sidecar.
+* A cluster peer application: `ipfs-cluster-service`, to be run along with `kubo` (`go-ipfs`) as a sidecar.
 * A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
 * An additional "follower" peer application: `ipfs-cluster-follow`, focused on simplifying the process of configuring and running follower peers.
 
