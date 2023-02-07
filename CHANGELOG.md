@@ -41,7 +41,90 @@ There are no breaking changes on this release.
 
 ##### Configuration changes
 
-There are no configuration changes for this release.
+The `datastore` section of the configuration now supports the two new datastore backends:
+
+  * `badger3`:
+
+```js
+    "badger3": {
+      "gc_discard_ratio": 0.2,
+      "gc_interval": "15m0s",
+      "gc_sleep": "10s",
+      "badger_options": {
+        "dir": "",
+        "value_dir": "",
+        "sync_writes": false,
+        "num_versions_to_keep": 1,
+        "read_only": false,
+        "compression": 0,
+        "in_memory": false,
+        "metrics_enabled": true,
+        "num_goroutines": 8,
+        "mem_table_size": 67108864,
+        "base_table_size": 2097152,
+        "base_level_size": 10485760,
+        "level_size_multiplier": 10,
+        "table_size_multiplier": 2,
+        "max_levels": 7,
+        "v_log_percentile": 0,
+        "value_threshold": 100,
+        "num_memtables": 5,
+        "block_size": 4096,
+        "bloom_false_positive": 0.01,
+        "block_cache_size": 0,
+        "index_cache_size": 0,
+        "num_level_zero_tables": 5,
+        "num_level_zero_tables_stall": 15,
+        "value_log_file_size": 1073741823,
+        "value_log_max_entries": 1000000,
+        "num_compactors": 4,
+        "compact_l_0_on_close": false,
+        "lmax_compaction": false,
+        "zstd_compression_level": 1,
+        "verify_value_checksum": false,
+        "checksum_verification_mode": 0,
+        "detect_conflicts": false,
+        "namespace_offset": -1
+      }
+    }
+```
+
+* `pebble`:
+
+```js
+    "pebble": {
+      "pebble_options": {
+        "bytes_per_sync": 524288,
+        "disable_wal": false,
+        "flush_delay_delete_range": 0,
+        "flush_delay_range_key": 0,
+        "flush_split_bytes": 4194304,
+        "format_major_version": 1,
+        "l0_compaction_file_threshold": 500,
+        "l0_compaction_threshold": 4,
+        "l0_stop_writes_threshold": 12,
+        "l_base_max_bytes": 67108864,
+        "levels": [
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 1,
+            "filter_type": 0,
+            "index_block_size": 4096,
+            "target_file_size": 2097152
+          }
+        ],
+        "max_open_files": 1000,
+        "mem_table_size": 4194304,
+        "mem_table_stop_writes_threshold": 2,
+        "read_only": false,
+        "wal_bytes_per_sync": 0
+      }
+    }
+```
+
+In order to choose the backend during initialization, use the `--datastore` flag in `ipfs-cluster-service init --datastore <backend>`.
 
 ##### REST API
 
@@ -61,6 +144,7 @@ No relevant changes.
 
 ##### Other
 
+Docker containers now use `pebble` as the default datastore backend.
 Nothing.
 
 ---
