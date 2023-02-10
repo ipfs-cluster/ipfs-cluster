@@ -39,7 +39,7 @@ require (
 	github.com/ipfs/go-merkledag v0.9.0
 	github.com/ipfs/go-mfs v0.2.1
 	github.com/ipfs/go-path v0.3.0
-	github.com/ipfs/go-unixfs v0.4.2
+	github.com/ipfs/go-unixfs v0.4.3
 	github.com/ipld/go-car v0.5.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kishansagathiya/go-dot v0.1.0
@@ -125,7 +125,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
-	github.com/ipfs/go-bitfield v1.0.0 // indirect
+	github.com/ipfs/go-bitfield v1.1.0 // indirect
 	github.com/ipfs/go-bitswap v0.11.0 // indirect
 	github.com/ipfs/go-block-format v0.1.1 // indirect
 	github.com/ipfs/go-blockservice v0.5.0 // indirect
