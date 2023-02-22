@@ -371,6 +371,10 @@ content.
 					Usage: "Optional comma-separated list of peer IDs",
 				},
 				cli.BoolFlag{
+					Name:  "no-pin",
+					Usage: "Do not pin after adding",
+				},
+				cli.BoolFlag{
 					Name:  "wait",
 					Usage: waitFlagDesc,
 				},
@@ -478,6 +482,7 @@ content.
 				if c.String("allocations") != "" {
 					p.UserAllocations = api.StringsToPeers(strings.Split(c.String("allocations"), ","))
 				}
+				p.NoPin = c.Bool("no-pin")
 				p.Format = c.String("format")
 				//p.Shard = shard
 				//p.ShardSize = c.Uint64("shard-size")
