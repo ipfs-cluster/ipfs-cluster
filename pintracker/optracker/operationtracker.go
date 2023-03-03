@@ -86,7 +86,9 @@ func (opt *OperationTracker) TrackNewOperation(ctx context.Context, pin api.Pin,
 	if ok { // operation exists for the CID
 		if op.Type() == typ && op.Phase() != PhaseError && op.Phase() != PhaseDone {
 			// an ongoing operation of the same
-			// type. i.e. pinning, or queued.
+			// type. i.e. pinning, or queued.  Update the pin
+			// object though, as it may have different options.
+			op.pin = pin
 			return nil
 		}
 		// i.e. operations in error phase
