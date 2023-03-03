@@ -1,3 +1,5 @@
+//go:build !arm && !386 && !(openbsd && amd64)
+
 package pebble
 
 import (

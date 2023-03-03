@@ -432,7 +432,7 @@ func (cfg *Manager) LoadJSON(bs []byte) error {
 	loadCompJSON := func(name string, component ComponentConfig, jsonSection jsonSection, t SectionType) error {
 		component.SetBaseDir(dir)
 		raw, ok := jsonSection[name]
-		if ok {
+		if ok && raw != nil {
 			err := component.LoadJSON([]byte(*raw))
 			if err != nil {
 				return err
