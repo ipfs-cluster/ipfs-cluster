@@ -51,7 +51,7 @@ func (cfg *Config) LoadJSON(raw []byte) error {
 // ToJSON generates a JSON-formatted human-friendly representation of this
 // Config.
 func (cfg *Config) ToJSON() (raw []byte, err error) {
-	return []byte("{}"), nil
+	return []byte("{}"), ErrUnsupported
 }
 
 // GetFolder returns the Pebble folder.
