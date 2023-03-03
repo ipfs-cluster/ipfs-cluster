@@ -56,7 +56,6 @@ type Operation struct {
 
 	tracker *OperationTracker
 
-	// RO fields
 	opType OperationType
 	pin    api.Pin
 
