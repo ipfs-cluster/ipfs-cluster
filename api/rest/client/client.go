@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
 	shell "github.com/ipfs/go-ipfs-api"
-	files "github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-libipfs/files"
 	logging "github.com/ipfs/go-log/v2"
 	host "github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
