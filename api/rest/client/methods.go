@@ -15,7 +15,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
-	files "github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-libipfs/files"
 	gopath "github.com/ipfs/go-path"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 

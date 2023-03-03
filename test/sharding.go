@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
-	files "github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-libipfs/files"
 	format "github.com/ipfs/go-ipld-format"
 
 	cid "github.com/ipfs/go-cid"

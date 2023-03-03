@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 
 	shell "github.com/ipfs/go-ipfs-api"
-	files "github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-libipfs/files"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 )
