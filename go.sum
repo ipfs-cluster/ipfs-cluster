@@ -609,8 +609,8 @@ github.com/ipfs/go-ipfs-files v0.0.8/go.mod h1:wiN/jSG8FKyk7N0WyctKSvq3ljIa2NNTi
 github.com/ipfs/go-ipfs-files v0.0.9/go.mod h1:aFv2uQ/qxWpL/6lidWvnSQmaVqCrf0TBGoUr+C1Fo84=
 github.com/ipfs/go-ipfs-files v0.3.0 h1:fallckyc5PYjuMEitPNrjRfpwl7YFt69heCOUhsbGxQ=
 github.com/ipfs/go-ipfs-files v0.3.0/go.mod h1:xAUtYMwB+iu/dtf6+muHNSFQCJG2dSiStR2P6sn9tIM=
-github.com/ipfs/go-ipfs-pinner v0.2.1 h1:kw9hiqh2p8TatILYZ3WAfQQABby7SQARdrdA+5Z5QfY=
-github.com/ipfs/go-ipfs-pinner v0.2.1/go.mod h1:l1AtLL5bovb7opnG77sh4Y10waINz3Y1ni6CvTzx7oo=
+github.com/ipfs/go-ipfs-pinner v0.3.0 h1:jwe5ViX3BON3KgOAYrrhav2+1ONB0QzFAWQd7HUlbuM=
+github.com/ipfs/go-ipfs-pinner v0.3.0/go.mod h1:oX0I0nC6zlNIh0LslSrUnjfNKPq8ufoFtqV1/wcJvyo=
 github.com/ipfs/go-ipfs-posinfo v0.0.1 h1:Esoxj+1JgSjX0+ylc0hUmJCOv6V2vFoZiETLR6OtpRs=
 github.com/ipfs/go-ipfs-posinfo v0.0.1/go.mod h1:SwyeVP+jCwiDu0C313l/8jg6ZxM0qqtlt2a0vILTc1A=
 github.com/ipfs/go-ipfs-pq v0.0.1/go.mod h1:LWIqQpqfRG3fNc5XsnIhz/wQ2XXGyugQwls7BgUmUfY=
