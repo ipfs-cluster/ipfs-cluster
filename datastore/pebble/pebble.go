@@ -1,3 +1,5 @@
+//go:build !arm && !386 && !(openbsd && amd64)
+
 // Package pebble provides a configurable Pebble database backend for use with
 // IPFS Cluster.
 package pebble
