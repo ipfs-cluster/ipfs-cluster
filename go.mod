@@ -20,7 +20,7 @@ require (
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
 	github.com/ipfs/go-ds-badger3 v0.0.2
-	github.com/ipfs/go-ds-crdt v0.3.9
+	github.com/ipfs/go-ds-crdt v0.3.10
 	github.com/ipfs/go-ds-leveldb v0.5.0
 	github.com/ipfs/go-ds-pebble v0.2.2
 	github.com/ipfs/go-fs-lock v0.0.7
