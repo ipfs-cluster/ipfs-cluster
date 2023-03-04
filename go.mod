@@ -4,7 +4,7 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/cockroachdb/pebble v0.0.0-20221122204154-936e011bb911
+	github.com/cockroachdb/pebble v0.0.0-20230227185959-8285e8dd5c08
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/dustin/go-humanize v1.0.1
@@ -22,7 +22,7 @@ require (
 	github.com/ipfs/go-ds-badger3 v0.0.2
 	github.com/ipfs/go-ds-crdt v0.3.9
 	github.com/ipfs/go-ds-leveldb v0.5.0
-	github.com/ipfs/go-ds-pebble v0.1.0
+	github.com/ipfs/go-ds-pebble v0.2.2
 	github.com/ipfs/go-fs-lock v0.0.7
 	github.com/ipfs/go-ipfs-api v0.3.0
 	github.com/ipfs/go-ipfs-chunker v0.0.5
@@ -146,7 +146,7 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
-	github.com/klauspost/compress v1.15.12 // indirect
+	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
 	github.com/koron/go-ssdp v0.0.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
