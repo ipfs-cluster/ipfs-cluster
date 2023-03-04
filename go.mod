@@ -37,7 +37,7 @@ require (
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipfs/go-merkledag v0.10.0
 	github.com/ipfs/go-mfs v0.2.1
-	github.com/ipfs/go-path v0.3.0
+	github.com/ipfs/go-path v0.3.1
 	github.com/ipfs/go-unixfs v0.4.4
 	github.com/ipld/go-car v0.6.0
 	github.com/kelseyhightower/envconfig v1.4.0
