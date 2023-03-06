@@ -77,8 +77,8 @@ jobs:
     - name: "Tests"
       run: go test -v -timeout 15m -failfast -datastore badger3 .
 
-  tests-pebble:
-    name: "Using Pebble"
+  tests-badger:
+    name: "Using Badger"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -91,7 +91,7 @@ jobs:
         go-version: ${{ env.GO }}
 
     - name: "Tests"
-      run: go test -v -timeout 15m -failfast -datastore pebble .
+      run: go test -v -timeout 15m -failfast -datastore badger .
 
       
   tests-check:
