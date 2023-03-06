@@ -462,7 +462,7 @@ func (cfg *Config) LogWriter() (io.Writer, error) {
 func newTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return nil, errors.New("Error loading TLS certficate/key: " + err.Error())
+		return nil, errors.New("error loading TLS certificate/key: " + err.Error())
 	}
 	// based on https://github.com/denji/golang-tls
 	return &tls.Config{
