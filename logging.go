@@ -44,6 +44,7 @@ var LoggingFacilitiesExtra = map[string]string{
 	"raftlib":     "ERROR",
 	"badger":      "INFO",
 	"badger3":     "INFO",
+	"pebble":      "INFO",
 }
 
 // SetFacilityLogLevel sets the log level for a given module
