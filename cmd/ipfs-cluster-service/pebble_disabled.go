@@ -3,6 +3,6 @@
 package main
 
 const (
-	defaultDatastore   = "badger"
+	defaultDatastore   = "badger3"
 	datastoreFlagUsage = "select datastore: 'badger', 'badger3' or 'leveldb'"
 )

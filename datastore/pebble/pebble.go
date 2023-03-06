@@ -5,7 +5,9 @@
 package pebble
 
 import (
+	"context"
 	"os"
+	"time"
 
 	ds "github.com/ipfs/go-datastore"
 	pebbleds "github.com/ipfs/go-ds-pebble"
@@ -23,7 +25,23 @@ func New(cfg *Config) (ds.Datastore, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating pebble folder")
 	}
-	return pebbleds.NewDatastore(folder, &cfg.PebbleOptions)
+
+	db, err := pebbleds.NewDatastore(folder, &cfg.PebbleOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calling regularly DB's DiskUsage is a way to printout debug
+	// database statistics.
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			db.DiskUsage(context.Background())
+		}
+	}()
+	return db, nil
 }
 
 // Cleanup deletes the badger datastore.

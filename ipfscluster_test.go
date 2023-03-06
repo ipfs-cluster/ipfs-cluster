@@ -58,7 +58,7 @@ var (
 	customLogLvlFacilities = logFacilities{}
 
 	consensus = "crdt"
-	datastore = "badger"
+	datastore = "pebble"
 
 	ttlDelayTime = 2 * time.Second // set on Main to diskInf.MetricTTL
 	testsFolder  = "clusterTestsFolder"
