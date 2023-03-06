@@ -1,5 +1,173 @@
 # IPFS Cluster Changelog
 
+### v1.0.6 - 2023-03-06
+
+IPFS Cluster v1.0.6 is a maintenance release with some small fixes. The main
+change in this release is that `pebble` becomes the default datastore backend,
+as we mentioned in the last release.
+
+Pebble is the datastore backend used by CockroachDB and is inspired in
+RocksDB.  Upon testing, Pebble has demonstrated good performance and optimal
+disk usage. Pebble incorporates modern datastore-backend features such as
+compression, caching and bloom filters. Pebble is actively maintained by the
+CockroachDB team and therefore seems like the best default choice for IPFS
+Cluster.
+
+Badger3, a very good alternative choice, becomes the new default for platforms
+not supported by Pebble (mainly 32bit architectures). Badger and LevelDB are
+still supported, but we heavily disencourage their usage for new Cluster peers.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* Pebble: make the new default | [ipfs/ipfs-cluster#1881](https://github.com/ipfs/ipfs-cluster/issues/1881) | [ipfs/ipfs-cluster#1847](https://github.com/ipfs/ipfs-cluster/issues/1847)
+* ctl: support `ipfs-cluster-ctl add --no-pin` flag | [ipfs/ipfs-cluster#1852](https://github.com/ipfs/ipfs-cluster/issues/1852)
+
+##### Bug fixes
+
+* PinStatus information not up-to-date for re-pinned items with ongoing operations | [ipfs/ipfs-cluster#1785](https://github.com/ipfs/ipfs-cluster/issues/1785) | [ipfs/ipfs-cluster#1876](https://github.com/ipfs/ipfs-cluster/issues/1876)
+* Broken builds for 32-bit architectures | [ipfs/ipfs-cluster#1884](https://github.com/ipfs/ipfs-cluster/issues/1884) | [ipfs/ipfs-cluster#1854](https://github.com/ipfs/ipfs-cluster/issues/1854) | [ipfs/ipfs-cluster#1851](https://github.com/ipfs/ipfs-cluster/issues/1851)
+
+##### Other changes
+
+* Switch to ipfs/Kubo docker image | [ipfs/ipfs-cluster#1846](https://github.com/ipfs/ipfs-cluster/issues/1846)
+* Dependency updates | [ipfs/ipfs-cluster#1855](https://github.com/ipfs/ipfs-cluster/issues/1855) | [ipfs/ipfs-cluster#1880](https://github.com/ipfs/ipfs-cluster/issues/1880)
+* Fix typo | [ipfs/ipfs-cluster#1882](https://github.com/ipfs/ipfs-cluster/issues/1882)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+The `pebble` section of the configuration has some additional options and new, adjusted defaults:
+
+
+* `pebble`:
+
+```js
+    "pebble": {
+      "pebble_options": {
+        "cache_size_bytes": 1073741824,
+        "bytes_per_sync": 1048576,
+        "disable_wal": false,
+        "flush_delay_delete_range": 0,
+        "flush_delay_range_key": 0,
+        "flush_split_bytes": 4194304,
+        "format_major_version": 1,
+        "l0_compaction_file_threshold": 750,
+        "l0_compaction_threshold": 4,
+        "l0_stop_writes_threshold": 12,
+        "l_base_max_bytes": 134217728,
+        "levels": [
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 4194304
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 8388608
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 16777216
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 33554432
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 67108864
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 134217728
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 2,
+            "filter_type": 0,
+            "filter_policy": 10,
+            "index_block_size": 4096,
+            "target_file_size": 268435456
+          }
+        ],
+        "max_open_files": 1000,
+        "mem_table_size": 67108864,
+        "mem_table_stop_writes_threshold": 20,
+        "read_only": false,
+        "wal_bytes_per_sync": 0
+      }
+    }
+```
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+The `--datastore` flag to `ipfs-cluster-service init` now defaults to `pebble`
+in most platforms, and to `badger3` in those where Pebble is not supported
+(arm, 386).
+
+
+---
+
 ### v1.0.5 - 2023-01-27
 
 IPFS Cluster v1.0.5 is a maintenance release with one main feature: support
