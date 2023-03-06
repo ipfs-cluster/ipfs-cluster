@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"context"
 	"encoding/hex"
-	"time"
 
 	config "github.com/ipfs-cluster/ipfs-cluster/config"
 	ds "github.com/ipfs/go-datastore"
@@ -95,7 +94,7 @@ func NewClusterHost(
 		}),
 		libp2p.EnableNATService(),
 		libp2p.EnableRelay(),
-		libp2p.EnableAutoRelay(autorelay.WithPeerSource(newPeerSource(hostGetter, dhtGetter), time.Minute)),
+		libp2p.EnableAutoRelayWithPeerSource(newPeerSource(hostGetter, dhtGetter)),
 		libp2p.EnableHolePunching(),
 	}
 
@@ -182,8 +181,6 @@ func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
 	)
 }
 
-type peerSourceF func(ctx context.Context, numPeers int) <-chan peer.AddrInfo
-
 // Inspired in Kubo's
 // https://github.com/ipfs/go-ipfs/blob/9327ee64ce96ca6da29bb2a099e0e0930b0d9e09/core/node/libp2p/relay.go#L79-L103
 // and https://github.com/ipfs/go-ipfs/blob/9327ee64ce96ca6da29bb2a099e0e0930b0d9e09/core/node/libp2p/routing.go#L242-L317
@@ -192,7 +189,7 @@ type peerSourceF func(ctx context.Context, numPeers int) <-chan peer.AddrInfo
 //   - We return the peers from that lookup.
 //   - No need to do it async, since we have to wait for the full lookup to
 //     return anyways. We put them on a buffered channel and be done.
-func newPeerSource(hostGetter func() host.Host, dhtGetter func() *dual.DHT) peerSourceF {
+func newPeerSource(hostGetter func() host.Host, dhtGetter func() *dual.DHT) autorelay.PeerSource {
 	return func(ctx context.Context, numPeers int) <-chan peer.AddrInfo {
 		// make a channel to return, and put items from numPeers on
 		// that channel up to numPeers. Then close it.

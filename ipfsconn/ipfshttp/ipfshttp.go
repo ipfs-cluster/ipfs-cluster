@@ -20,7 +20,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
 
 	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-ipfs-files"
+	files "github.com/ipfs/go-libipfs/files"
 	ipfspinner "github.com/ipfs/go-ipfs-pinner"
 	logging "github.com/ipfs/go-log/v2"
 	gopath "github.com/ipfs/go-path"
