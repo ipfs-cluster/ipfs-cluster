@@ -61,7 +61,7 @@ require (
 	github.com/rs/cors v1.8.3
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
-	github.com/ugorji/go/codec v1.2.10
+	github.com/ugorji/go/codec v1.2.11
 	github.com/urfave/cli v1.22.12
 	github.com/urfave/cli/v2 v2.16.3
 	go.opencensus.io v0.24.0
