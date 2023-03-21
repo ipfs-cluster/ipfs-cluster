@@ -475,6 +475,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 					Type: pin.Mode.ToIPFSPinStatus(),
 				}
 				resBytes, _ := json.Marshal(ipinfo)
+				resBytes = append(resBytes, "\n"...)
 				w.Write(resBytes)
 			}
 			wg.Wait()
