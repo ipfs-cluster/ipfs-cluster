@@ -476,6 +476,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				resBytes, _ := json.Marshal(ipinfo)
 				w.Write(resBytes)
+				w.Write([]byte("\n"))
 			}
 			wg.Wait()
 			if err != nil {
