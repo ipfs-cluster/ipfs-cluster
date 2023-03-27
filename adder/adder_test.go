@@ -11,11 +11,11 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/test"
-	"github.com/ipld/go-car"
+	"github.com/ipfs/boxo/ipld/car"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 
+	files "github.com/ipfs/boxo/files"
 	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-libipfs/files"
 )
 
 type mockCDAGServ struct {

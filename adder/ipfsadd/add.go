@@ -11,18 +11,18 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
+	chunker "github.com/ipfs/boxo/chunker"
+	files "github.com/ipfs/boxo/files"
+	posinfo "github.com/ipfs/boxo/filestore/posinfo"
+	dag "github.com/ipfs/boxo/ipld/merkledag"
+	unixfs "github.com/ipfs/boxo/ipld/unixfs"
+	balanced "github.com/ipfs/boxo/ipld/unixfs/importer/balanced"
+	ihelper "github.com/ipfs/boxo/ipld/unixfs/importer/helpers"
+	trickle "github.com/ipfs/boxo/ipld/unixfs/importer/trickle"
+	mfs "github.com/ipfs/boxo/mfs"
 	cid "github.com/ipfs/go-cid"
-	chunker "github.com/ipfs/go-ipfs-chunker"
-	files "github.com/ipfs/go-libipfs/files"
-	posinfo "github.com/ipfs/go-ipfs-posinfo"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	dag "github.com/ipfs/go-merkledag"
-	mfs "github.com/ipfs/go-mfs"
-	unixfs "github.com/ipfs/go-unixfs"
-	balanced "github.com/ipfs/go-unixfs/importer/balanced"
-	ihelper "github.com/ipfs/go-unixfs/importer/helpers"
-	trickle "github.com/ipfs/go-unixfs/importer/trickle"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 

@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	dag "github.com/ipfs/boxo/ipld/merkledag"
+	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
-	blocks "github.com/ipfs/go-libipfs/blocks"
-	dag "github.com/ipfs/go-merkledag"
 	mh "github.com/multiformats/go-multihash"
 )
 
