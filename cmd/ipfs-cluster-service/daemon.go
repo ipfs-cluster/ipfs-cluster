@@ -31,6 +31,7 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 
+	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	errors "github.com/pkg/errors"
 	cli "github.com/urfave/cli"
 )
@@ -104,6 +105,16 @@ func daemon(c *cli.Context) error {
 	// avoid worrying about error handling here (since Cluster
 	// will realize).
 	go bootstrap(ctx, cluster, bootstraps)
+
+	// send readiness notification to systemd
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-cluster.Ready():
+			sddaemon.SdNotify(false, sddaemon.SdNotifyReady)
+		}
+	}()
 
 	return cmdutils.HandleSignals(ctx, cancel, cluster, host, dht, store)
 }
