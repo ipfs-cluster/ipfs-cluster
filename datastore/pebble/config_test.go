@@ -35,7 +35,8 @@ var cfgJSON = []byte(`
         "mem_table_size": 4194304,
         "mem_table_stop_writes_threshold": 2,
         "read_only": false,
-        "wal_bytes_per_sync": 0
+        "wal_bytes_per_sync": 0,
+		"max_concurrent_compactions": 2
     }
 }
 `)
@@ -58,6 +59,10 @@ func TestToJSON(t *testing.T) {
 
 	if !cfg.PebbleOptions.DisableWAL {
 		t.Fatal("Disable WAL should be true")
+	}
+
+	if cfg.PebbleOptions.MaxConcurrentCompactions() != 2 {
+		t.Fatalf("Wrong max concuncurrent compactions value, got: %d, want: %d", cfg.PebbleOptions.MaxConcurrentCompactions(), 2)
 	}
 
 	newjson, err := cfg.ToJSON()
