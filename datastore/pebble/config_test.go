@@ -36,7 +36,7 @@ var cfgJSON = []byte(`
         "mem_table_stop_writes_threshold": 2,
         "read_only": false,
         "wal_bytes_per_sync": 0,
-		"max_concurrent_compactions": 2
+        "max_concurrent_compactions": 2
     }
 }
 `)
