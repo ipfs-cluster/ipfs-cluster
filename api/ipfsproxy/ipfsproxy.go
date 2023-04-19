@@ -27,10 +27,10 @@ import (
 
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
+	path "github.com/ipfs/boxo/path"
 	cid "github.com/ipfs/go-cid"
 	cmd "github.com/ipfs/go-ipfs-cmds"
 	logging "github.com/ipfs/go-log/v2"
-	path "github.com/ipfs/go-path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	madns "github.com/multiformats/go-multiaddr-dns"
@@ -476,6 +476,7 @@ func (proxy *Server) pinLsHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				resBytes, _ := json.Marshal(ipinfo)
 				w.Write(resBytes)
+				w.Write([]byte("\n"))
 			}
 			wg.Wait()
 			if err != nil {

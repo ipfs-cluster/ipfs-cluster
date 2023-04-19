@@ -21,7 +21,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
 
-	gopath "github.com/ipfs/go-path"
+	gopath "github.com/ipfs/boxo/path"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 )

@@ -107,6 +107,7 @@ type pebbleOptions struct {
 	ReadOnly                    bool                      `json:"read_only"`
 	WALBytesPerSync             int                       `json:"wal_bytes_per_sync"`
 	Levels                      []levelOptions            `json:"levels"`
+	MaxConcurrentCompactions    int                       `json:"max_concurrent_compactions"`
 }
 
 func (po *pebbleOptions) Unmarshal() *pebble.Options {
@@ -133,6 +134,7 @@ func (po *pebbleOptions) Unmarshal() *pebble.Options {
 	pebbleOpts.MemTableStopWritesThreshold = po.MemTableStopWritesThreshold
 	pebbleOpts.ReadOnly = po.ReadOnly
 	pebbleOpts.WALBytesPerSync = po.WALBytesPerSync
+	pebbleOpts.MaxConcurrentCompactions = func() int { return po.MaxConcurrentCompactions }
 	return pebbleOpts
 }
 
@@ -158,6 +160,7 @@ func (po *pebbleOptions) Marshal(pebbleOpts *pebble.Options) {
 	po.MemTableStopWritesThreshold = pebbleOpts.MemTableStopWritesThreshold
 	po.ReadOnly = pebbleOpts.ReadOnly
 	po.WALBytesPerSync = pebbleOpts.WALBytesPerSync
+	po.MaxConcurrentCompactions = pebbleOpts.MaxConcurrentCompactions()
 }
 
 // levelOptions carries options for pebble's per-level parameters.

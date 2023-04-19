@@ -10,9 +10,9 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 
-	merkledag "github.com/ipfs/go-merkledag"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/test"
+	merkledag "github.com/ipfs/boxo/ipld/merkledag"
 )
 
 func init() {
