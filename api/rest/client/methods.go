@@ -15,8 +15,8 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
-	files "github.com/ipfs/go-libipfs/files"
-	gopath "github.com/ipfs/go-path"
+	files "github.com/ipfs/boxo/files"
+	gopath "github.com/ipfs/boxo/path"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	"go.opencensus.io/trace"

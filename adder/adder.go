@@ -12,16 +12,16 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/adder/ipfsadd"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
-	"github.com/ipfs/go-unixfs"
-	"github.com/ipld/go-car"
+	"github.com/ipfs/boxo/ipld/car"
+	"github.com/ipfs/boxo/ipld/unixfs"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 
+	files "github.com/ipfs/boxo/files"
+	merkledag "github.com/ipfs/boxo/ipld/merkledag"
 	cid "github.com/ipfs/go-cid"
-	files "github.com/ipfs/go-libipfs/files"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log/v2"
-	merkledag "github.com/ipfs/go-merkledag"
 	multihash "github.com/multiformats/go-multihash"
 )
 
