@@ -10,14 +10,14 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/inmem"
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 
-	ipns "github.com/ipfs/go-ipns"
+	ipns "github.com/ipfs/boxo/ipns"
 	libp2p "github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p/core/host"
-	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	record "github.com/libp2p/go-libp2p-record"
+	host "github.com/libp2p/go-libp2p/core/host"
+	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	routedhost "github.com/libp2p/go-libp2p/p2p/host/routed"
 )
 

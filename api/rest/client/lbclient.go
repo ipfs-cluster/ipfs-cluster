@@ -5,8 +5,10 @@ import (
 	"sync/atomic"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+
+	files "github.com/ipfs/boxo/files"
 	shell "github.com/ipfs/go-ipfs-api"
-	files "github.com/ipfs/go-libipfs/files"
+
 	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 

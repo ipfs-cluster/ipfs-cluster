@@ -12,9 +12,9 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 
+	dshelp "github.com/ipfs/boxo/datastore/dshelp"
 	ds "github.com/ipfs/go-datastore"
 	query "github.com/ipfs/go-datastore/query"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	logging "github.com/ipfs/go-log/v2"
 	codec "github.com/ugorji/go/codec"
 
