@@ -903,3 +903,19 @@ func TestRepoGC(t *testing.T) {
 
 	testClients(t, api, testF)
 }
+
+func TestHealth(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		 err := c.Health(ctx)
+		if err != nil {
+			t.Log(err)
+			t.Error("expected no errors")
+		}
+	}
+
+	testClients(t, api, testF)
+}
