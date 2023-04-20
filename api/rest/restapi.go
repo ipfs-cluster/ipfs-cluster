@@ -204,6 +204,12 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 			Pattern:     "/token",
 			HandlerFunc: api.GenerateTokenHandler,
 		},
+		{
+			Name:        "Health",
+			Method:      "GET",
+			Pattern:     "/health",
+			HandlerFunc: api.HealthHandler,
+		},
 	}
 }
 

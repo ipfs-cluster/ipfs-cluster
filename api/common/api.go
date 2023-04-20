@@ -302,7 +302,7 @@ func (api *API) authHandler(h http.Handler, lggr *logging.ZapEventLogger) http.H
 	wrap := func(w http.ResponseWriter, r *http.Request) {
 		// We let CORS preflight requests pass through the next
 		// handler.
-		if r.Method == http.MethodOptions {
+		if r.Method == http.MethodOptions || r.URL.Path == "/health" {
 			h.ServeHTTP(w, r)
 			return
 		}
@@ -852,4 +852,9 @@ func (api *API) Headers() map[string][]string {
 // for testing.
 func (api *API) SetKeepAlivesEnabled(b bool) {
 	api.server.SetKeepAlivesEnabled(b)
+}
+
+
+func (api *API) HealthHandler(w http.ResponseWriter, r *http.Request){
+	api.SendResponse(w,http.StatusNoContent,nil,nil)
 }
