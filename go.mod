@@ -19,7 +19,7 @@ require (
 	github.com/imdario/mergo v0.3.15
 	github.com/ipfs/boxo v0.8.0
 	github.com/ipfs/go-block-format v0.1.2
-	github.com/ipfs/go-cid v0.4.0
+	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
 	github.com/ipfs/go-ds-badger3 v0.0.2
