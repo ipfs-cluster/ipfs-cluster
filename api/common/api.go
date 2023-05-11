@@ -302,7 +302,7 @@ func (api *API) authHandler(h http.Handler, lggr *logging.ZapEventLogger) http.H
 	wrap := func(w http.ResponseWriter, r *http.Request) {
 		// We let CORS preflight requests pass through the next
 		// handler.
-		if r.Method == http.MethodOptions || r.URL.Path == "/health" {
+		if r.Method == http.MethodOptions || (r.Method == http.MethodGet && r.URL.Path == "/health") {
 			h.ServeHTTP(w, r)
 			return
 		}
