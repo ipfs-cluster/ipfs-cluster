@@ -19,20 +19,33 @@ import (
 	files "github.com/ipfs/boxo/files"
 	merkledag "github.com/ipfs/boxo/ipld/merkledag"
 	cid "github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
+	ipldlegacy "github.com/ipfs/go-ipld-legacy"
 	logging "github.com/ipfs/go-log/v2"
+	dagpb "github.com/ipld/go-codec-dagpb"
+	"github.com/ipld/go-ipld-prime/codec/dagcbor"
+	"github.com/ipld/go-ipld-prime/codec/raw"
+	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
+	"github.com/ipld/go-ipld-prime/multicodec"
+	"github.com/ipld/go-ipld-prime/node/basicnode"
 	multihash "github.com/multiformats/go-multihash"
 )
 
 var logger = logging.Logger("adder")
 
-// go-merkledag does this, but it may be moved.
-// We include for explicitness.
+var ipldDecoder *ipldlegacy.Decoder
+
+// create an ipld registry specific to this package
 func init() {
-	ipld.Register(cid.DagProtobuf, merkledag.DecodeProtobufBlock)
-	ipld.Register(cid.Raw, merkledag.DecodeRawBlock)
-	ipld.Register(cid.DagCBOR, cbor.DecodeBlock)
+	mcReg := multicodec.Registry{}
+	mcReg.RegisterDecoder(cid.DagProtobuf, dagpb.Decode)
+	mcReg.RegisterDecoder(cid.Raw, raw.Decode)
+	mcReg.RegisterDecoder(cid.DagCBOR, dagcbor.Decode)
+	ls := cidlink.LinkSystemUsingMulticodecRegistry(mcReg)
+
+	ipldDecoder = ipldlegacy.NewDecoderWithLS(ls)
+	ipldDecoder.RegisterCodec(cid.DagProtobuf, dagpb.Type.PBNode, merkledag.ProtoNodeConverter)
+	ipldDecoder.RegisterCodec(cid.Raw, basicnode.Prototype.Bytes, merkledag.RawNodeConverter)
 }
 
 // ClusterDAGService is an implementation of ipld.DAGService plus a Finalize
@@ -302,7 +315,7 @@ func (ca *carAdder) Add(name string, fn files.Node) (api.Cid, error) {
 
 		bytes += uint64(len(block.RawData()))
 
-		nd, err := ipld.Decode(block)
+		nd, err := ipldDecoder.DecodeNode(context.TODO(), block)
 		if err != nil {
 			return api.CidUndef, err
 		}

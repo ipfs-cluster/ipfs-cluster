@@ -20,21 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	dag "github.com/ipfs/boxo/ipld/merkledag"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	ipld "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 )
-
-// go-merkledag does this, but it may be moved.
-// We include for explicitness.
-func init() {
-	ipld.Register(cid.DagProtobuf, dag.DecodeProtobufBlock)
-	ipld.Register(cid.Raw, dag.DecodeRawBlock)
-	ipld.Register(cid.DagCBOR, cbor.DecodeBlock)
-}
 
 // MaxLinks is the max number of links that, when serialized fit into a block
 const MaxLinks = 5984
@@ -54,7 +45,7 @@ func CborDataToNode(raw []byte, format string) (ipld.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	shardNode, err := ipld.Decode(shardBlk)
+	shardNode, err := cbor.DecodeBlock(shardBlk)
 	if err != nil {
 		return nil, err
 	}
