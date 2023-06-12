@@ -47,7 +47,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multicodec v0.9.0
-	github.com/multiformats/go-multihash v0.2.1
+	github.com/multiformats/go-multihash v0.2.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.15.1
 	github.com/rs/cors v1.9.0
