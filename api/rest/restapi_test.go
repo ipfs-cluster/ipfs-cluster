@@ -844,3 +844,20 @@ func TestAPIIPFSGCEndpoint(t *testing.T) {
 
 	test.BothEndpoints(t, tf)
 }
+
+
+func TestHealthEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url test.URLFunc) {
+		errResp := api.Error{}
+		test.MakeGet(t, rest, url(rest)+"/health", &errResp)
+		if errResp.Code != 0 || errResp.Message != "" {
+			t.Error("expected no errors")
+		}
+	}
+
+	test.BothEndpoints(t, tf)
+}

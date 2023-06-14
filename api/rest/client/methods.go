@@ -697,3 +697,10 @@ func (c *defaultClient) AddMultiFile(
 	)
 	return err
 }
+
+func (c *defaultClient) Health(ctx context.Context) (error) {
+	ctx, span := trace.StartSpan(ctx, "client/Health")
+	defer span.End()
+	err := c.do(ctx, "GET", "/health", nil, nil, nil)
+	return  err
+}

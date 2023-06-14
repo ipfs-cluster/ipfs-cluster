@@ -22,9 +22,9 @@ import (
 	"go.uber.org/multierr"
 
 	logging "github.com/ipfs/go-log/v2"
+	rpc "github.com/libp2p/go-libp2p-gorpc"
 	"github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	rpc "github.com/libp2p/go-libp2p-gorpc"
 )
 
 var (
@@ -177,6 +177,12 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 			Method:      "POST",
 			Pattern:     "/token",
 			HandlerFunc: api.GenerateTokenHandler,
+		},
+		{
+			Name:        "Health",
+			Method:      "GET",
+			Pattern:     "/health",
+			HandlerFunc: api.HealthHandler,
 		},
 	}
 }
