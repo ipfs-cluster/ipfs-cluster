@@ -59,7 +59,7 @@ require (
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.9.0
 	golang.org/x/crypto v0.8.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
