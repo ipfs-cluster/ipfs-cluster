@@ -19,13 +19,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	types "github.com/ipfs-cluster/ipfs-cluster/api"
@@ -49,10 +47,6 @@ import (
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"go.opencensus.io/trace"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // StreamChannelSize is used to define buffer sizes for channels.
 const StreamChannelSize = 1024
@@ -854,7 +848,6 @@ func (api *API) SetKeepAlivesEnabled(b bool) {
 	api.server.SetKeepAlivesEnabled(b)
 }
 
-
-func (api *API) HealthHandler(w http.ResponseWriter, r *http.Request){
-	api.SendResponse(w,http.StatusNoContent,nil,nil)
+func (api *API) HealthHandler(w http.ResponseWriter, r *http.Request) {
+	api.SendResponse(w, http.StatusNoContent, nil, nil)
 }

@@ -11,11 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ipfs-cluster/ipfs-cluster/adder/adderutils"
 	types "github.com/ipfs-cluster/ipfs-cluster/api"
@@ -28,10 +26,6 @@ import (
 
 	mux "github.com/gorilla/mux"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 var (
 	logger    = logging.Logger("restapi")
