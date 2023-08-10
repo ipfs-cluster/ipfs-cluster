@@ -11,7 +11,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/test"
-	"github.com/ipfs/boxo/ipld/car"
+	"github.com/ipld/go-car"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	files "github.com/ipfs/boxo/files"

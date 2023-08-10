@@ -3,7 +3,6 @@ package ipfscluster
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -425,7 +424,7 @@ func TestClustersPeerRemoveReallocsPins(t *testing.T) {
 	chosenID, err := clusters[0].consensus.Leader(ctx)
 	if err != nil {
 		// choose a random peer - crdt
-		i := rand.Intn(nClusters)
+		i := mrand.Intn(nClusters)
 		chosenID = clusters[i].host.ID()
 	}
 
@@ -618,7 +617,7 @@ func TestClustersPeerJoinAllAtOnce(t *testing.T) {
 // 	}
 
 // 	f := func(t *testing.T, c *Cluster) {
-// 		j := rand.Intn(2)
+// 		j := mrand.Intn(2)
 // 		err := c.Join(clusterAddr(clusters[j]))
 // 		if err != nil {
 // 			t.Fatal(err)

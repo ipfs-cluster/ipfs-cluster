@@ -556,7 +556,7 @@ func (lc *loadBalancingClient) IPFS(ctx context.Context) *shell.Shell {
 	return s
 }
 
-func (lc *loadBalancingClient) Health(ctx context.Context) (error) {
+func (lc *loadBalancingClient) Health(ctx context.Context) error {
 	call := func(c Client) error {
 		err := c.Health(ctx)
 		return err

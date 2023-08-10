@@ -67,6 +67,8 @@ var (
 	// clusterPort   = 10000
 	// apiPort       = 10100
 	// ipfsProxyPort = 10200
+
+	mrand = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 type logFacilities []string
@@ -91,7 +93,6 @@ func (lg *logFacilities) Set(value string) error {
 // as flag.Parse() does not work well there
 // (see https://golang.org/src/testing/testing.go#L211)
 func TestMain(m *testing.M) {
-	rand.Seed(time.Now().UnixNano())
 	ReadyTimeout = 11 * time.Second
 
 	// GossipSub needs to heartbeat to discover newly connected hosts
@@ -322,14 +323,14 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	dhts := make([]*dual.DHT, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
+	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -366,6 +367,7 @@ func newTestDHT(ctx context.Context, h host.Host) (*dual.DHT, error) {
 	return newDHT(ctx, h, nil,
 		dual.DHTOption(dht.RoutingTableRefreshPeriod(600*time.Millisecond)),
 		dual.DHTOption(dht.RoutingTableRefreshQueryTimeout(300*time.Millisecond)),
+		dual.LanDHTOption(dht.AddressFilter(nil)),
 	)
 }
 
@@ -625,7 +627,7 @@ func TestClustersPeers(t *testing.T) {
 
 	delay()
 
-	j := rand.Intn(nClusters) // choose a random cluster peer
+	j := mrand.Intn(nClusters) // choose a random cluster peer
 
 	out := make(chan api.ID, len(clusters))
 	clusters[j].Peers(ctx, out)
@@ -673,7 +675,7 @@ func TestClustersPin(t *testing.T) {
 	ttlDelay()
 
 	for i := 0; i < nPins; i++ {
-		j := rand.Intn(nClusters)           // choose a random cluster peer
+		j := mrand.Intn(nClusters)          // choose a random cluster peer
 		h, err := prefix.Sum(randomBytes()) // create random cid
 		if err != nil {
 			t.Fatal(err)
@@ -729,7 +731,7 @@ func TestClustersPin(t *testing.T) {
 
 	for i := 0; i < len(pinList); i++ {
 		// test re-unpin fails
-		j := rand.Intn(nClusters) // choose a random cluster peer
+		j := mrand.Intn(nClusters) // choose a random cluster peer
 		_, err := clusters[j].Unpin(ctx, pinList[i].Cid)
 		if err != nil {
 			t.Errorf("error unpinning %s: %s", pinList[i].Cid, err)
@@ -744,7 +746,7 @@ func TestClustersPin(t *testing.T) {
 	}
 
 	for i := 0; i < len(pinList); i++ {
-		j := rand.Intn(nClusters) // choose a random cluster peer
+		j := mrand.Intn(nClusters) // choose a random cluster peer
 		_, err := clusters[j].Unpin(ctx, pinList[i].Cid)
 		if err == nil {
 			t.Errorf("expected error re-unpinning %s", pinList[i].Cid)
@@ -1113,7 +1115,7 @@ func TestClustersRecover(t *testing.T) {
 	pinDelay()
 	pinDelay()
 
-	j := rand.Intn(nClusters)
+	j := mrand.Intn(nClusters)
 	ginfo, err := clusters[j].Recover(ctx, h)
 	if err != nil {
 		// we always attempt to return a valid response
@@ -1152,7 +1154,7 @@ func TestClustersRecover(t *testing.T) {
 	}
 
 	// Test with a good Cid
-	j = rand.Intn(nClusters)
+	j = mrand.Intn(nClusters)
 	ginfo, err = clusters[j].Recover(ctx, h2)
 	if err != nil {
 		t.Fatal(err)
@@ -1191,7 +1193,7 @@ func TestClustersRecoverAll(t *testing.T) {
 
 	out := make(chan api.GlobalPinInfo)
 	go func() {
-		err := clusters[rand.Intn(nClusters)].RecoverAll(ctx, out)
+		err := clusters[mrand.Intn(nClusters)].RecoverAll(ctx, out)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1246,7 +1248,7 @@ func TestClustersReplicationOverall(t *testing.T) {
 
 	for i := 0; i < nClusters; i++ {
 		// Pick a random cluster and hash
-		j := rand.Intn(nClusters)           // choose a random cluster peer
+		j := mrand.Intn(nClusters)          // choose a random cluster peer
 		h, err := prefix.Sum(randomBytes()) // create random cid
 		if err != nil {
 			t.Fatal(err)
@@ -1699,7 +1701,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 
 	ttlDelay()
 
-	j := rand.Intn(nClusters)
+	j := mrand.Intn(nClusters)
 	h := test.Cid1
 	_, err := clusters[j].Pin(ctx, h, api.PinOptions{})
 	if err != nil {
@@ -1761,7 +1763,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	// Make sure we haven't killed our randomly
 	// selected cluster
 	for j == killedClusterIndex {
-		j = rand.Intn(nClusters)
+		j = mrand.Intn(nClusters)
 	}
 
 	// now pin should succeed
@@ -1807,7 +1809,7 @@ func TestClustersReplicationNotEnoughPeers(t *testing.T) {
 
 	ttlDelay()
 
-	j := rand.Intn(nClusters)
+	j := mrand.Intn(nClusters)
 	_, err := clusters[j].Pin(ctx, test.Cid1, api.PinOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -1972,7 +1974,7 @@ func TestClustersGraphConnected(t *testing.T) {
 
 	ttlDelay()
 
-	j := rand.Intn(nClusters) // choose a random cluster peer to query
+	j := mrand.Intn(nClusters) // choose a random cluster peer to query
 	graph, err := clusters[j].ConnectGraph()
 	if err != nil {
 		t.Fatal(err)
@@ -1997,7 +1999,7 @@ func TestClustersGraphUnhealthy(t *testing.T) {
 		t.Skip("Need at least 5 peers")
 	}
 
-	j := rand.Intn(nClusters) // choose a random cluster peer to query
+	j := mrand.Intn(nClusters) // choose a random cluster peer to query
 	// chose the clusters to shutdown
 	discon1 := -1
 	discon2 := -1
@@ -2055,7 +2057,7 @@ func TestClustersDisabledRepinning(t *testing.T) {
 
 	ttlDelay()
 
-	j := rand.Intn(nClusters)
+	j := mrand.Intn(nClusters)
 	h := test.Cid1
 	_, err := clusters[j].Pin(ctx, h, api.PinOptions{})
 	if err != nil {
@@ -2084,7 +2086,7 @@ func TestClustersDisabledRepinning(t *testing.T) {
 	// Make sure we haven't killed our randomly
 	// selected cluster
 	for j == killedClusterIndex {
-		j = rand.Intn(nClusters)
+		j = mrand.Intn(nClusters)
 	}
 
 	numPinned := 0
@@ -2204,7 +2206,7 @@ func TestClusterPinsWithExpiration(t *testing.T) {
 
 	ttlDelay()
 
-	cl := clusters[rand.Intn(nClusters)] // choose a random cluster peer to query
+	cl := clusters[mrand.Intn(nClusters)] // choose a random cluster peer to query
 
 	c := test.Cid1
 	expireIn := 1 * time.Second
