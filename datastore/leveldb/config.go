@@ -5,7 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/ipfs-cluster/ipfs-cluster/config"
 	"github.com/kelseyhightower/envconfig"
 	goleveldb "github.com/syndtr/goleveldb/leveldb/opt"
