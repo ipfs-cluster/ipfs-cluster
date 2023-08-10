@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/cockroachdb/pebble"
 	"github.com/cockroachdb/pebble/bloom"
-	"github.com/imdario/mergo"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"

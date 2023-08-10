@@ -3,6 +3,7 @@ module github.com/ipfs-cluster/ipfs-cluster
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
+	dario.cat/mergo v1.0.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cockroachdb/pebble v0.0.0-20230227185959-8285e8dd5c08
 	github.com/coreos/go-systemd/v22 v22.5.0
@@ -16,7 +17,6 @@ require (
 	github.com/hashicorp/raft v1.3.11
 	github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477
 	github.com/hsanjuan/ipfs-lite v1.8.0
-	github.com/imdario/mergo v0.3.13
 	github.com/ipfs/boxo v0.11.0
 	github.com/ipfs/go-block-format v0.1.2
 	github.com/ipfs/go-cid v0.4.1

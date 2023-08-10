@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/dgraph-io/badger"
 	"github.com/dgraph-io/badger/options"
-	"github.com/imdario/mergo"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"
