@@ -11,7 +11,7 @@ if [ `id -u` -eq 0 ]; then
     echo "Changing user to $user"
     # ensure directories are writable
     su-exec "$user" test -w "${IPFS_CLUSTER_PATH}" || chown -R -- "$user" "${IPFS_CLUSTER_PATH}"
-    exec su-exec "$user" "$0" $@
+    exec gosu "$user" "$0" $@
 fi
 
 # Only ipfs user can get here
