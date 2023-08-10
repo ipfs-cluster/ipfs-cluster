@@ -323,14 +323,14 @@ func createHosts(t *testing.T, clusterSecret []byte, nClusters int) ([]host.Host
 	dhts := make([]*dual.DHT, nClusters)
 
 	tcpaddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-	quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
+	//quicAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/udp/0/quic")
 	for i := range hosts {
 		priv, _, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{quicAddr, tcpaddr})
+		h, p, d := createHost(t, priv, clusterSecret, []ma.Multiaddr{tcpaddr})
 		hosts[i] = h
 		dhts[i] = d
 		pubsubs[i] = p
@@ -367,6 +367,7 @@ func newTestDHT(ctx context.Context, h host.Host) (*dual.DHT, error) {
 	return newDHT(ctx, h, nil,
 		dual.DHTOption(dht.RoutingTableRefreshPeriod(600*time.Millisecond)),
 		dual.DHTOption(dht.RoutingTableRefreshQueryTimeout(300*time.Millisecond)),
+		dual.LanDHTOption(dht.AddressFilter(nil)),
 	)
 }
 
