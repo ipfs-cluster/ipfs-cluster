@@ -29,7 +29,7 @@ require (
 	github.com/ipfs/go-fs-lock v0.0.7
 	github.com/ipfs/go-ipfs-api v0.5.0
 	github.com/ipfs/go-ipfs-cmds v0.8.2
-	github.com/ipfs/go-ipld-cbor v0.0.6
+	github.com/ipfs/go-ipld-cbor v0.1.0
 	github.com/ipfs/go-ipld-format v0.5.0
 	github.com/ipfs/go-ipld-legacy v0.2.1
 	github.com/ipfs/go-log/v2 v2.5.1
@@ -189,7 +189,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
-	github.com/whyrusleeping/cbor-gen v0.0.0-20230126041949-52956bd4c9aa // indirect
+	github.com/whyrusleeping/cbor-gen v0.0.0-20230818171029-f91ae536ca25 // indirect
 	github.com/whyrusleeping/chunker v0.0.0-20181014151217-fe64bd25879f // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
