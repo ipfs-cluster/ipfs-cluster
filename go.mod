@@ -11,7 +11,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-jwt/jwt/v4 v4.5.0
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/raft v1.3.11
