@@ -30,7 +30,7 @@ require (
 	github.com/ipfs/go-ipfs-api v0.5.0
 	github.com/ipfs/go-ipfs-cmds v0.8.2
 	github.com/ipfs/go-ipld-cbor v0.0.6
-	github.com/ipfs/go-ipld-format v0.5.0
+	github.com/ipfs/go-ipld-format v0.6.0
 	github.com/ipfs/go-ipld-legacy v0.2.1
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipld/go-car v0.6.2
