@@ -136,8 +136,10 @@ func (c *Cluster) filterMetrics(ctx context.Context, mSet api.MetricsSet, numMet
 				// discard blacklisted peers
 				continue
 			case c.config.PinOnlyOnTrustedPeers && !c.consensus.IsTrustedPeer(ctx, m.Peer):
-				// discard peer that are not trusted when
-				// configured.
+				// discard peers that are not trusted
+				continue
+			case c.config.PinOnlyOnUntrustedPeers && c.consensus.IsTrustedPeer(ctx, m.Peer):
+				// discard peers that are trusted
 				continue
 			case containsPeer(currentAllocs, m.Peer):
 				curPeersMap[m.Peer] = append(curPeersMap[m.Peer], m)
