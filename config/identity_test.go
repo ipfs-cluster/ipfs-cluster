@@ -7,13 +7,19 @@ import (
 )
 
 var identityTestJSON = []byte(`{
-        "id": "QmUfSFm12eYCaRdypg48m8RqkXfLW7A2ZeGZb2skeHHDGA",
-        "private_key": "CAASqAkwggSkAgEAAoIBAQDpT16IRF6bb9tHsCbQ7M+nb2aI8sz8xyt8PoAWM42ki+SNoESIxKb4UhFxixKvtEdGxNE6aUUVc8kFk6wTStJ/X3IGiMetwkXiFiUxabUF/8A6SyvnSVDm+wFuavugpVrZikjLcfrf2xOVgnG3deQQvd/qbAv14jTwMFl+T+8d/cXBo8Mn/leLZCQun/EJEnkXP5MjgNI8XcWUE4NnH3E0ESSm6Pkm8MhMDZ2fmzNgqEyJ0GVinNgSml3Pyha3PBSj5LRczLip/ie4QkKx5OHvX2L3sNv/JIUHse5HSbjZ1c/4oGCYMVTYCykWiczrxBUOlcr8RwnZLOm4n2bCt5ZhAgMBAAECggEAVkePwfzmr7zR7tTpxeGNeXHtDUAdJm3RWwUSASPXgb5qKyXVsm5nAPX4lXDE3E1i/nzSkzNS5PgIoxNVU10cMxZs6JW0okFx7oYaAwgAddN6lxQtjD7EuGaixN6zZ1k/G6vT98iS6i3uNCAlRZ9HVBmjsOF8GtYolZqLvfZ5izEVFlLVq/BCs7Y5OrDrbGmn3XupfitVWYExV0BrHpobDjsx2fYdTZkmPpSSvXNcm4Iq2AXVQzoqAfGo7+qsuLCZtVlyTfVKQjMvE2ffzN1dQunxixOvev/fz4WSjGnRpC6QLn6Oqps9+VxQKqKuXXqUJC+U45DuvA94Of9MvZfAAQKBgQD7xmXueXRBMr2+0WftybAV024ap0cXFrCAu+KWC1SUddCfkiV7e5w+kRJx6RH1cg4cyyCL8yhHZ99Z5V0Mxa/b/usuHMadXPyX5szVI7dOGgIC9q8IijN7B7GMFAXc8+qC7kivehJzjQghpRRAqvRzjDls4gmbNPhbH1jUiU124QKBgQDtOaW5/fOEtOq0yWbDLkLdjImct6oKMLhENL6yeIKjMYgifzHb2adk7rWG3qcMrdgaFtDVfqv8UmMEkzk7bSkovMVj3SkLzMz84ii1SkSfyaCXgt/UOzDkqAUYB0cXMppYA7jxHa2OY8oEHdBgmyJXdLdzJxCp851AoTlRUSePgQKBgQCQgKgUHOUaXnMEx88sbOuBO14gMg3dNIqM+Ejt8QbURmI8k3arzqA4UK8Tbb9+7b0nzXWanS5q/TT1tWyYXgW28DIuvxlHTA01aaP6WItmagrphIelERzG6f1+9ib/T4czKmvROvDIHROjq8lZ7ERs5Pg4g+sbh2VbdzxWj49EQQKBgFEna36ZVfmMOs7mJ3WWGeHY9ira2hzqVd9fe+1qNKbHhx7mDJR9fTqWPxuIh/Vac5dZPtAKqaOEO8OQ6f9edLou+ggT3LrgsS/B3tNGOPvA6mNqrk/Yf/15TWTO+I8DDLIXc+lokbsogC+wU1z5NWJd13RZZOX/JUi63vTmonYBAoGBAIpglLCH2sPXfmguO6p8QcQcv4RjAU1c0GP4P5PNN3Wzo0ItydVd2LHJb6MdmL6ypeiwNklzPFwTeRlKTPmVxJ+QPg1ct/3tAURN/D40GYw9ojDhqmdSl4HW4d6gHS2lYzSFeU5jkG49y5nirOOoEgHy95wghkh6BfpwHujYJGw4"
+    "id": "12D3KooWCLKKDpG1EndPjLYzsqzoqEUBwF2CNyCVdvMVci2x1ppS",
+    "private_key": "CAESQOlnuLttGxDhIak0xsgEoHpQEHYrxOA5cCaJ1rFDP8hCJWOSP00t7dIw++QWdEKL9JJaOWzQD414N5tvsnATICs=",
+    "ipfs_id": "12D3KooWLM4CwdZHVJQzVJF4PeQGJruWF37dZGzUTcKuyBhfC5SH",
+    "ipfs_private_key": "CAESQFBl0Fpe98WZnNkxsqmVro+gpaKDvAqAdQoNuL4j+E7hnHGQhV0X7A6UNVQctokiXib8aJ89YQ2U71nhY1yJqeI=",
+    "ipfs_private_network_secret": "f34099216870b8757e7bccda047c492bf2af8315a7ca6e236dca1eaadc50c12f"
 }`)
 
 var (
-	ID         = "QmUfSFm12eYCaRdypg48m8RqkXfLW7A2ZeGZb2skeHHDGA"
-	PrivateKey = "CAASqAkwggSkAgEAAoIBAQDpT16IRF6bb9tHsCbQ7M+nb2aI8sz8xyt8PoAWM42ki+SNoESIxKb4UhFxixKvtEdGxNE6aUUVc8kFk6wTStJ/X3IGiMetwkXiFiUxabUF/8A6SyvnSVDm+wFuavugpVrZikjLcfrf2xOVgnG3deQQvd/qbAv14jTwMFl+T+8d/cXBo8Mn/leLZCQun/EJEnkXP5MjgNI8XcWUE4NnH3E0ESSm6Pkm8MhMDZ2fmzNgqEyJ0GVinNgSml3Pyha3PBSj5LRczLip/ie4QkKx5OHvX2L3sNv/JIUHse5HSbjZ1c/4oGCYMVTYCykWiczrxBUOlcr8RwnZLOm4n2bCt5ZhAgMBAAECggEAVkePwfzmr7zR7tTpxeGNeXHtDUAdJm3RWwUSASPXgb5qKyXVsm5nAPX4lXDE3E1i/nzSkzNS5PgIoxNVU10cMxZs6JW0okFx7oYaAwgAddN6lxQtjD7EuGaixN6zZ1k/G6vT98iS6i3uNCAlRZ9HVBmjsOF8GtYolZqLvfZ5izEVFlLVq/BCs7Y5OrDrbGmn3XupfitVWYExV0BrHpobDjsx2fYdTZkmPpSSvXNcm4Iq2AXVQzoqAfGo7+qsuLCZtVlyTfVKQjMvE2ffzN1dQunxixOvev/fz4WSjGnRpC6QLn6Oqps9+VxQKqKuXXqUJC+U45DuvA94Of9MvZfAAQKBgQD7xmXueXRBMr2+0WftybAV024ap0cXFrCAu+KWC1SUddCfkiV7e5w+kRJx6RH1cg4cyyCL8yhHZ99Z5V0Mxa/b/usuHMadXPyX5szVI7dOGgIC9q8IijN7B7GMFAXc8+qC7kivehJzjQghpRRAqvRzjDls4gmbNPhbH1jUiU124QKBgQDtOaW5/fOEtOq0yWbDLkLdjImct6oKMLhENL6yeIKjMYgifzHb2adk7rWG3qcMrdgaFtDVfqv8UmMEkzk7bSkovMVj3SkLzMz84ii1SkSfyaCXgt/UOzDkqAUYB0cXMppYA7jxHa2OY8oEHdBgmyJXdLdzJxCp851AoTlRUSePgQKBgQCQgKgUHOUaXnMEx88sbOuBO14gMg3dNIqM+Ejt8QbURmI8k3arzqA4UK8Tbb9+7b0nzXWanS5q/TT1tWyYXgW28DIuvxlHTA01aaP6WItmagrphIelERzG6f1+9ib/T4czKmvROvDIHROjq8lZ7ERs5Pg4g+sbh2VbdzxWj49EQQKBgFEna36ZVfmMOs7mJ3WWGeHY9ira2hzqVd9fe+1qNKbHhx7mDJR9fTqWPxuIh/Vac5dZPtAKqaOEO8OQ6f9edLou+ggT3LrgsS/B3tNGOPvA6mNqrk/Yf/15TWTO+I8DDLIXc+lokbsogC+wU1z5NWJd13RZZOX/JUi63vTmonYBAoGBAIpglLCH2sPXfmguO6p8QcQcv4RjAU1c0GP4P5PNN3Wzo0ItydVd2LHJb6MdmL6ypeiwNklzPFwTeRlKTPmVxJ+QPg1ct/3tAURN/D40GYw9ojDhqmdSl4HW4d6gHS2lYzSFeU5jkG49y5nirOOoEgHy95wghkh6BfpwHujYJGw4"
+	ID                       = "12D3KooWCLKKDpG1EndPjLYzsqzoqEUBwF2CNyCVdvMVci2x1ppS"
+	PrivateKey               = "CAESQOlnuLttGxDhIak0xsgEoHpQEHYrxOA5cCaJ1rFDP8hCJWOSP00t7dIw++QWdEKL9JJaOWzQD414N5tvsnATICs="
+	IPFSID                   = "12D3KooWLM4CwdZHVJQzVJF4PeQGJruWF37dZGzUTcKuyBhfC5SH"
+	IPFSPrivateKey           = "CAESQFBl0Fpe98WZnNkxsqmVro+gpaKDvAqAdQoNuL4j+E7hnHGQhV0X7A6UNVQctokiXib8aJ89YQ2U71nhY1yJqeI="
+	IPFSPrivateNetworkSecret = "f34099216870b8757e7bccda047c492bf2af8315a7ca6e236dca1eaadc50c12f"
 )
 
 func TestLoadJSON(t *testing.T) {
@@ -54,6 +60,38 @@ func TestLoadJSON(t *testing.T) {
 			t.Error("expected error parsing private key")
 		}
 	})
+
+	t.Run("empty ipfs json", func(t *testing.T) {
+		_, err := loadJSON(t, func(j *identityJSON) {
+			j.IPFSID = ""
+			j.IPFSPrivateKey = ""
+			j.IPFSPrivateNetworkSecret = ""
+		})
+		if err != nil {
+			t.Error("json configurations without IPFS keys should parse fine")
+		}
+	})
+
+	t.Run("secret set without ipfs_id", func(t *testing.T) {
+		_, err := loadJSON(t, func(j *identityJSON) {
+			j.IPFSID = ""
+			j.IPFSPrivateKey = ""
+		})
+		if err == nil {
+			t.Error("expected validation error due to missing ipfs key")
+		}
+		t.Log(err)
+	})
+
+	t.Run("secret wrong length", func(t *testing.T) {
+		_, err := loadJSON(t, func(j *identityJSON) {
+			j.IPFSPrivateNetworkSecret = "f3409921"
+		})
+		if err == nil {
+			t.Error("expected validation error due to secret wrong length")
+		}
+		t.Log(err)
+	})
 }
 
 func TestToJSON(t *testing.T) {
@@ -80,6 +118,9 @@ func TestToJSON(t *testing.T) {
 func TestApplyEnvVars(t *testing.T) {
 	os.Setenv("CLUSTER_ID", ID)
 	os.Setenv("CLUSTER_PRIVATEKEY", PrivateKey)
+	os.Setenv("CLUSTER_IPFSID", IPFSID)
+	os.Setenv("CLUSTER_IPFSPRIVATEKEY", IPFSPrivateKey)
+	os.Setenv("CLUSTER_IPFSPRIVATENETWORKSECRET", IPFSPrivateNetworkSecret)
 
 	ident, err := NewIdentity()
 	if err != nil {

@@ -1,7 +1,10 @@
 package config
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +12,7 @@ import (
 
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	peer "github.com/libp2p/go-libp2p/core/peer"
+	pnet "github.com/libp2p/go-libp2p/core/pnet"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -24,21 +28,39 @@ const (
 // Identity represents identity of a cluster peer for communication,
 // including the Consensus component.
 type Identity struct {
-	ID         peer.ID
-	PrivateKey crypto.PrivKey
+	ID                       peer.ID
+	PrivateKey               crypto.PrivKey
+	IPFSID                   peer.ID
+	IPFSPrivateKey           crypto.PrivKey
+	IPFSPrivateNetworkSecret pnet.PSK
 }
 
 // identityJSON represents a Cluster peer identity as it will look when it is
 // saved using JSON.
 type identityJSON struct {
-	ID         string `json:"id"`
-	PrivateKey string `json:"private_key"`
+	ID                       string `json:"id"`
+	PrivateKey               string `json:"private_key"`
+	IPFSID                   string `json:"ipfs_id,omitempty"`
+	IPFSPrivateKey           string `json:"ipfs_private_key,omitempty"`
+	IPFSPrivateNetworkSecret string `json:"ipfs_private_network_secret,omitempty"`
 }
 
 // NewIdentity returns a new random identity.
 func NewIdentity() (*Identity, error) {
 	ident := &Identity{}
 	err := ident.Default()
+	return ident, err
+}
+
+// NewIdentityWithIPFS returns a new random identity with an additional key
+// for an IPFS peer. withPNet will include a random PrivateNetwork secret.
+func NewIdentityWithIPFS(withPNet bool) (*Identity, error) {
+	ident := &Identity{}
+	err := ident.Default()
+	if err != nil {
+		return ident, err
+	}
+	err = ident.DefaultIPFS(withPNet)
 	return ident, err
 }
 
@@ -58,6 +80,41 @@ func (ident *Identity) Default() error {
 	}
 	ident.ID = pid
 	ident.PrivateKey = priv
+	return nil
+}
+
+// DefaultIPFS generates a random IPFS keypair and optional PNet PSK for this
+// identity.
+func (ident *Identity) DefaultIPFS(withPNet bool) error {
+	// pid and private key generation
+	priv, pub, err := crypto.GenerateKeyPair(
+		DefaultConfigCrypto,
+		DefaultConfigKeyLength,
+	)
+	if err != nil {
+		return err
+	}
+	pid, err := peer.IDFromPublicKey(pub)
+	if err != nil {
+		return err
+	}
+	ident.IPFSID = pid
+	ident.IPFSPrivateKey = priv
+
+	if !withPNet {
+		return nil
+	}
+
+	pnetSecret := make([]byte, 32)
+	n, err := rand.Read(pnetSecret)
+	if err != nil {
+		return err
+	}
+	if n != 32 {
+		return errors.New("did not generate 32-byte secret")
+	}
+
+	ident.IPFSPrivateNetworkSecret = pnetSecret
 	return nil
 }
 
@@ -81,30 +138,48 @@ func (ident *Identity) SaveJSON(path string) error {
 }
 
 // ToJSON generates a human-friendly version of Identity.
-func (ident *Identity) ToJSON() (raw []byte, err error) {
+func (ident *Identity) ToJSON() ([]byte, error) {
 	jID, err := ident.toIdentityJSON()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	raw, err = json.MarshalIndent(jID, "", "    ")
-	return
+	raw, err := json.MarshalIndent(jID, "", "    ")
+	return raw, err
 }
 
-func (ident *Identity) toIdentityJSON() (jID *identityJSON, err error) {
-	jID = &identityJSON{}
+func (ident *Identity) toIdentityJSON() (*identityJSON, error) {
+	jID := &identityJSON{}
 
 	// Private Key
 	pkeyBytes, err := crypto.MarshalPrivateKey(ident.PrivateKey)
 	if err != nil {
-		return
+		return jID, err
 	}
 	pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
 
 	// Set all identity fields
 	jID.ID = ident.ID.Pretty()
 	jID.PrivateKey = pKey
-	return
+
+	if ident.IPFSID != "" {
+		// IPFS Private Key
+		ipfsPkeyBytes, err := crypto.MarshalPrivateKey(ident.IPFSPrivateKey)
+		if err != nil {
+			return jID, err
+		}
+		ipfsPKey := base64.StdEncoding.EncodeToString(ipfsPkeyBytes)
+
+		// Set all identity fields
+		jID.IPFSID = ident.IPFSID.Pretty()
+		jID.IPFSPrivateKey = ipfsPKey
+	}
+
+	if s := ident.IPFSPrivateNetworkSecret; s != nil {
+		jID.IPFSPrivateNetworkSecret = hex.EncodeToString(s)
+	}
+
+	return jID, nil
 }
 
 // LoadJSON receives a raw json-formatted identity and
@@ -141,6 +216,35 @@ func (ident *Identity) applyIdentityJSON(jID *identityJSON) error {
 	}
 	ident.PrivateKey = pKey
 
+	if jID.IPFSID != "" {
+		pid, err := peer.Decode(jID.IPFSID)
+		if err != nil {
+			err = fmt.Errorf("error decoding ipfs_id: %s", err)
+			return err
+		}
+		ident.IPFSID = pid
+
+		pkb, err := base64.StdEncoding.DecodeString(jID.IPFSPrivateKey)
+		if err != nil {
+			err = fmt.Errorf("error decoding ipfs_private_key: %s", err)
+			return err
+		}
+		pKey, err := crypto.UnmarshalPrivateKey(pkb)
+		if err != nil {
+			err = fmt.Errorf("error parsing ipfs_private_key: %s", err)
+			return err
+		}
+		ident.IPFSPrivateKey = pKey
+	}
+
+	if jID.IPFSPrivateNetworkSecret != "" {
+		secret, err := hex.DecodeString(jID.IPFSPrivateNetworkSecret)
+		if err != nil {
+			return err
+		}
+		ident.IPFSPrivateNetworkSecret = secret
+	}
+
 	return ident.Validate()
 }
 
@@ -157,6 +261,18 @@ func (ident *Identity) Validate() error {
 
 	if !ident.ID.MatchesPrivateKey(ident.PrivateKey) {
 		return errors.New("identity ID does not match the private_key")
+	}
+
+	if ident.IPFSID != "" && !ident.IPFSID.MatchesPrivateKey(ident.IPFSPrivateKey) {
+		return errors.New("ipfs_id does not match the ipfs_private_key")
+	}
+
+	if ident.IPFSID == "" && ident.IPFSPrivateNetworkSecret != nil {
+		return errors.New("ipfs_id and private_key cannot be empty when ipfs_private_network_secret is set")
+	}
+
+	if ident.IPFSPrivateNetworkSecret != nil && len(ident.IPFSPrivateNetworkSecret) != 32 {
+		return errors.New("ipfs_private_network_secret should be 32 bytes")
 	}
 	return nil
 }
@@ -189,5 +305,7 @@ func (ident *Identity) ApplyEnvVars() error {
 
 // Equals returns true if equal to provided identity.
 func (ident *Identity) Equals(i *Identity) bool {
-	return ident.ID == i.ID && ident.PrivateKey.Equals(i.PrivateKey)
+	return ident.ID == i.ID && ident.PrivateKey.Equals(i.PrivateKey) &&
+		ident.IPFSID == i.IPFSID && ident.IPFSPrivateKey.Equals(i.IPFSPrivateKey) &&
+		bytes.Equal(ident.IPFSPrivateNetworkSecret, i.IPFSPrivateNetworkSecret)
 }
