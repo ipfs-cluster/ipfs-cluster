@@ -213,6 +213,22 @@ func TestLoadJSON(t *testing.T) {
 			t.Error("default conn manager values not set")
 		}
 	})
+
+	t.Run("expected pin_only_on_untrusted_peers", func(t *testing.T) {
+		cfg, err := loadJSON2(
+			t,
+			func(j *configJSON) {
+				j.PinOnlyOnTrustedPeers = false
+				j.PinOnlyOnUntrustedPeers = true
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !cfg.PinOnlyOnUntrustedPeers {
+			t.Error("expected pin_only_on_untrusted_peers to be true")
+		}
+	})
 }
 
 func TestToJSON(t *testing.T) {
@@ -280,6 +296,13 @@ func TestValidate(t *testing.T) {
 
 	cfg.Default()
 	cfg.PinRecoverInterval = 0
+	if cfg.Validate() == nil {
+		t.Fatal("expected error validating")
+	}
+
+	cfg.Default()
+	cfg.PinOnlyOnTrustedPeers = true
+	cfg.PinOnlyOnUntrustedPeers = true
 	if cfg.Validate() == nil {
 		t.Fatal("expected error validating")
 	}
