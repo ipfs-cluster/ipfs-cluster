@@ -31,7 +31,7 @@ There are no breaking changes on this release.
 ##### Bug fixes
 
 * PinStatus information not up-to-date for re-pinned items with ongoing operations | [ipfs/ipfs-cluster#1785](https://github.com/ipfs/ipfs-cluster/issues/1785) | [ipfs/ipfs-cluster#1876](https://github.com/ipfs/ipfs-cluster/issues/1876)
-* Broken builds for 32-bit architectures | [ipfs/ipfs-cluster#1884](https://github.com/ipfs/ipfs-cluster/issues/1884) | [ipfs/ipfs-cluster#1854](https://github.com/ipfs/ipfs-cluster/issues/1854) | [ipfs/ipfs-cluster#1851](https://github.com/ipfs/ipfs-cluster/issues/1851)
+* Broken builds for 32-bit architectures | [ipfs/ipfs-cluster#1844](https://github.com/ipfs/ipfs-cluster/issues/1844) | [ipfs/ipfs-cluster#1854](https://github.com/ipfs/ipfs-cluster/issues/1854) | [ipfs/ipfs-cluster#1851](https://github.com/ipfs/ipfs-cluster/issues/1851)
 
 ##### Other changes
 
