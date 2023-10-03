@@ -119,7 +119,7 @@ func TestAdder_ContextCancelled(t *testing.T) {
 		"a": lg,
 		"b": st,
 	})
-	mr := files.NewMultiFileReader(slf, true)
+	mr := files.NewMultiFileReader(slf, true, false)
 
 	r := multipart.NewReader(mr, mr.Boundary())
 
@@ -174,7 +174,7 @@ func TestAdder_CAR(t *testing.T) {
 	carDir := files.NewMapDirectory(
 		map[string]files.Node{"": carFile},
 	)
-	carMf := files.NewMultiFileReader(carDir, true)
+	carMf := files.NewMultiFileReader(carDir, true, false)
 	carMr := multipart.NewReader(carMf, carMf.Boundary())
 
 	// Add the car, discarding old dags.

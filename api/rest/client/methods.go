@@ -648,7 +648,7 @@ func (c *defaultClient) Add(
 	// If `form` is set to true, the multipart data will have
 	// a Content-Type of 'multipart/form-data', if `form` is false,
 	// the Content-Type will be 'multipart/mixed'.
-	return c.AddMultiFile(ctx, files.NewMultiFileReader(sliceFile, true), params, out)
+	return c.AddMultiFile(ctx, files.NewMultiFileReader(sliceFile, true, false), params, out)
 }
 
 // AddMultiFile imports new files from a MultiFileReader. See Add().
@@ -698,9 +698,9 @@ func (c *defaultClient) AddMultiFile(
 	return err
 }
 
-func (c *defaultClient) Health(ctx context.Context) (error) {
+func (c *defaultClient) Health(ctx context.Context) error {
 	ctx, span := trace.StartSpan(ctx, "client/Health")
 	defer span.End()
 	err := c.do(ctx, "GET", "/health", nil, nil, nil)
-	return  err
+	return err
 }

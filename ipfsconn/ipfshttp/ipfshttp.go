@@ -1113,7 +1113,7 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	// directly, but leave a goroutine draining the channel until it is
 	// closed, which should be soon after returning.
 	stats.Record(ctx, observations.BlocksPut.M(1))
-	multiFileR := files.NewMultiFileReader(dir, true)
+	multiFileR := files.NewMultiFileReader(dir, true, false)
 	contentType := "multipart/form-data; boundary=" + multiFileR.Boundary()
 	body, err := ipfs.postCtxStreamResponse(ctx, url, contentType, multiFileR)
 	if err != nil {

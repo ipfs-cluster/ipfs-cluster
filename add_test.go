@@ -211,7 +211,7 @@ func TestAddOnePeerFails(t *testing.T) {
 		lg, closer := sth.GetRandFileReader(t, 100000) // 100 MB
 		defer closer.Close()
 
-		mr := files.NewMultiFileReader(lg, true)
+		mr := files.NewMultiFileReader(lg, true, false)
 		r := multipart.NewReader(mr, mr.Boundary())
 
 		var wg sync.WaitGroup
@@ -268,7 +268,7 @@ func TestAddAllPeersFail(t *testing.T) {
 
 		lg, closer := sth.GetRandFileReader(t, 100000) // 100 MB
 		defer closer.Close()
-		mr := files.NewMultiFileReader(lg, true)
+		mr := files.NewMultiFileReader(lg, true, false)
 		r := multipart.NewReader(mr, mr.Boundary())
 
 		// var cid cid.Cid

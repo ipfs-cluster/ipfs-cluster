@@ -85,19 +85,19 @@ func NewShardingTestHelper() *ShardingTestHelper {
 // directory tree. Files are pseudo-randomly generated and are always the same.
 // Directory structure:
 //   - testingTree
-//     - A
-//         - alpha
-//             * small_file_0 (< 5 kB)
-//         - beta
-//             * small_file_1 (< 5 kB)
-//         - delta
-//             - empty
-//         * small_file_2 (< 5 kB)
-//         - gamma
-//             * small_file_3 (< 5 kB)
-//     - B
-//         * medium_file (~.3 MB)
-//         * big_file (3 MB)
+//   - A
+//   - alpha
+//   - small_file_0 (< 5 kB)
+//   - beta
+//   - small_file_1 (< 5 kB)
+//   - delta
+//   - empty
+//   - small_file_2 (< 5 kB)
+//   - gamma
+//   - small_file_3 (< 5 kB)
+//   - B
+//   - medium_file (~.3 MB)
+//   - big_file (3 MB)
 //
 // The total size in ext4 is ~3420160 Bytes = ~3340 kB = ~3.4MB
 func (sth *ShardingTestHelper) GetTreeMultiReader(t *testing.T) (*files.MultiFileReader, io.Closer) {
@@ -107,7 +107,7 @@ func (sth *ShardingTestHelper) GetTreeMultiReader(t *testing.T) (*files.MultiFil
 		shardingTestTree: sf,
 	})
 
-	return files.NewMultiFileReader(mapDir, true), sf
+	return files.NewMultiFileReader(mapDir, true, false), sf
 }
 
 // GetTreeSerialFile returns a files.Directory pointing to the testing
@@ -127,7 +127,7 @@ func (sth *ShardingTestHelper) GetTreeSerialFile(t *testing.T) files.Directory {
 // file is different every time.
 func (sth *ShardingTestHelper) GetRandFileMultiReader(t *testing.T, kbs int) (*files.MultiFileReader, io.Closer) {
 	slf, sf := sth.GetRandFileReader(t, kbs)
-	return files.NewMultiFileReader(slf, true), sf
+	return files.NewMultiFileReader(slf, true, false), sf
 }
 
 // GetRandFileReader creates and returns a directory containing a testing
@@ -180,19 +180,19 @@ func (sth *ShardingTestHelper) makeTestFolder(t *testing.T) {
 // This produces this:
 // - shardTesting
 //   - testTree
-//     - A
-//         - alpha
-//             * small_file_0 (< 5 kB)
-//         - beta
-//             * small_file_1 (< 5 kB)
-//         - delta
-//             - empty
-//         * small_file_2 (< 5 kB)
-//         - gamma
-//             * small_file_3 (< 5 kB)
-//     - B
-//         * medium_file (~.3 MB)
-//         * big_file (3 MB)
+//   - A
+//   - alpha
+//   - small_file_0 (< 5 kB)
+//   - beta
+//   - small_file_1 (< 5 kB)
+//   - delta
+//   - empty
+//   - small_file_2 (< 5 kB)
+//   - gamma
+//   - small_file_3 (< 5 kB)
+//   - B
+//   - medium_file (~.3 MB)
+//   - big_file (3 MB)
 //
 // Take special care when modifying this function.  File data depends on order
 // and each file size.  If this changes then hashes above
