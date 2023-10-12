@@ -1,5 +1,73 @@
 # IPFS Cluster Changelog
 
+### v1.0.7 - 2023-10-12
+
+IPFS Cluster v1.0.7 is a maintenance release.
+
+This release updates dependencies and switches to the Boxo library suite with
+the latest libp2p release.
+
+See the notes below for a list of changes and bug fixes.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* API: Add a /health endpoint that bypasses authorization | [ipfs/ipfs-cluster#1884](https://github.com/ipfs/ipfs-cluster/issues/1884) | [ipfs/ipfs-cluster#1919](https://github.com/ipfs/ipfs-cluster/issues/1919)
+* Systemd notify support | [ipfs/ipfs-cluster#1144](https://github.com/ipfs/ipfs-cluster/issues/1144) | [ipfs/ipfs-cluster#1894](https://github.com/ipfs/ipfs-cluster/issues/1894)
+* Add support for pinning only on "untrusted" peers | [ipfs/ipfs-cluster#1976](https://github.com/ipfs/ipfs-cluster/issues/1976) | [ipfs/ipfs-cluster#1977](https://github.com/ipfs/ipfs-cluster/issues/1977)
+* Docker image with multiarch support | [ipfs/ipfs-cluster#1085](https://github.com/ipfs/ipfs-cluster/issues/1085) | [ipfs/ipfs-cluster#1984](https://github.com/ipfs/ipfs-cluster/issues/1984) | [ipfs/ipfs-cluster#1368](https://github.com/ipfs/ipfs-cluster/issues/1368)
+
+##### Bug fixes
+
+* MaxConcurrentCompactions missing from Pebble configuration | [ipfs/ipfs-cluster#1895](https://github.com/ipfs/ipfs-cluster/issues/1895) | [ipfs/ipfs-cluster#1900](https://github.com/ipfs/ipfs-cluster/issues/1900)
+* Missing newline in JSON stream from proxy API when doing pin/ls | [ipfs/ipfs-cluster#1885](https://github.com/ipfs/ipfs-cluster/issues/1885) | [ipfs/ipfs-cluster#1893](https://github.com/ipfs/ipfs-cluster/issues/1893)
+
+##### Other changes
+
+* Dependency updates and upgrade to Boxo | [ipfs/ipfs-cluster#1901](https://github.com/ipfs/ipfs-cluster/issues/1901) | [ipfs/ipfs-cluster#1980](https://github.com/ipfs/ipfs-cluster/issues/1980)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+A new option `cluster.pin_only_on_untrusted_peers` has been added, opposite to the `pin_only_on_trusted_peers` that already existed. Defaults to `false`. Both options cannot be `true`. When enabled, only "untrusted" peers are considered for pin allocations.
+
+##### REST API
+
+A new `/health` endpoint has been added, returns 204 (No Content) and no
+body. It can be used to monitor that the service is running.
+
+##### Pinning Service API
+
+A new `/health` endpoint has been added, returns 204 (No Content) and no
+body. It can be used to monitor that the service is running.
+
+##### IPFS Proxy API
+
+Calling `/api/v0/pin/ls` on the proxy api now adds a final new line at the end
+of the response. This should align with what Kubo does.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+`ipfs-cluster-service` now sends a notification to systemd when it becomes
+"ready" (that is, after all initialization is completed). This means systemd
+service files for `ipfs-cluster-service` can use `Type=notify`.
+
+The official docker images are now built with support for linux/amd64,
+linux/arm/v7 and linux/arm64/v8 architectures. We have also switched to Alpine
+Linux as base image (instead of Busybox). Binaries are now built with
+`CGO_ENABLED=0`.
+
+
 ### v1.0.6 - 2023-03-06
 
 IPFS Cluster v1.0.6 is a maintenance release with some small fixes. The main
