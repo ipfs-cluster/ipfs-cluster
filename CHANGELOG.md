@@ -67,6 +67,7 @@ linux/arm/v7 and linux/arm64/v8 architectures. We have also switched to Alpine
 Linux as base image (instead of Busybox). Binaries are now built with
 `CGO_ENABLED=0`.
 
+---
 
 ### v1.0.6 - 2023-03-06
 
