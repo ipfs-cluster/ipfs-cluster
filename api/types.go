@@ -547,12 +547,25 @@ func (maddr Multiaddr) Value() multiaddr.Multiaddr {
 	return maddr.Multiaddr
 }
 
+// Multiaddrs is a slice of Multiaddr.
+type Multiaddrs []Multiaddr
+
+// NewMultiaddrsWithValues returns a new cluster Multiaddr wrapper using the
+// given multiaddr.Multiaddr.
+func NewMultiaddrsWithValues(mas []multiaddr.Multiaddr) Multiaddrs {
+	maddrs := make(Multiaddrs, len(mas))
+	for i, ma := range mas {
+		maddrs[i] = NewMultiaddrWithValue(ma)
+	}
+	return maddrs
+}
+
 // ID holds information about the Cluster peer
 type ID struct {
 	ID                    peer.ID     `json:"id" codec:"i,omitempty"`
-	Addresses             []Multiaddr `json:"addresses" codec:"a,omitempty"`
+	Addresses             Multiaddrs  `json:"addresses" codec:"a,omitempty"`
 	ClusterPeers          []peer.ID   `json:"cluster_peers" codec:"cp,omitempty"`
-	ClusterPeersAddresses []Multiaddr `json:"cluster_peers_addresses" codec:"cpa,omitempty"`
+	ClusterPeersAddresses Multiaddrs  `json:"cluster_peers_addresses" codec:"cpa,omitempty"`
 	Version               string      `json:"version" codec:"v,omitempty"`
 	Commit                string      `json:"commit" codec:"c,omitempty"`
 	RPCProtocolVersion    protocol.ID `json:"rpc_protocol_version" codec:"rv,omitempty"`
@@ -564,9 +577,9 @@ type ID struct {
 
 // IPFSID is used to store information about the underlying IPFS daemon
 type IPFSID struct {
-	ID        peer.ID     `json:"id,omitempty" codec:"i,omitempty"`
-	Addresses []Multiaddr `json:"addresses" codec:"a,omitempty"`
-	Error     string      `json:"error" codec:"e,omitempty"`
+	ID        peer.ID    `json:"id,omitempty" codec:"i,omitempty"`
+	Addresses Multiaddrs `json:"addresses" codec:"a,omitempty"`
+	Error     string     `json:"error" codec:"e,omitempty"`
 }
 
 // PinType specifies which sort of Pin object we are dealing with.

@@ -8,6 +8,7 @@ import (
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/kelseyhightower/envconfig"
+	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"
 )
@@ -69,7 +70,7 @@ type Config struct {
 type jsonConfig struct {
 	ListenMultiaddresses    []string `json:"listen_multiaddresses"`
 	Offline                 bool     `json:"offline"`
-	ReproviderInterval      int      `json:"reprovider_interval"`
+	ReprovideInterval       string   `json:"reprovide_interval"`
 	UncachedBlockstore      bool     `json:"uncached_blockstore"`
 	ConnectSwarmsDelay      string   `json:"connect_swarms_delay"`
 	PinTimeout              string   `json:"pin_timeout"`
@@ -86,10 +87,19 @@ func (cfg *Config) ConfigKey() string {
 
 // Default sets the fields of this Config to sensible default values.
 func (cfg *Config) Default() error {
-	cfg.ListenAddresses = DefaultListenAddresses
-	cfg.Lite.Offline = DefaultOffline
-	cfg.Lite.ReproviderInterval = DefaultReproviderInterval
-	cfg.Lite.UnchachedBlockstore = DefaultUncachedBlockstore
+	addrs := make([]ma.Multiaddr, 0, len(DefaultListenAddrs))
+	for _, def := range DefaultListenAddrs {
+		listen, err := ma.NewMultiaddr(def)
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, listen)
+	}
+
+	cfg.ListenAddresses = addrs
+	cfg.Config.Offline = DefaultOffline
+	cfg.Config.ReprovideInterval = DefaultReproviderInterval
+	cfg.Config.UncachedBlockstore = DefaultUncachedBlockstore
 	cfg.ConnectSwarmsDelay = DefaultConnectSwarmsDelay
 	cfg.PinTimeout = DefaultPinTimeout
 	cfg.UnpinTimeout = DefaultUnpinTimeout
@@ -124,16 +134,12 @@ func (cfg *Config) Validate() error {
 		err = errors.New("ipfslite.listen_multiaddresses must have a value when not offline")
 	}
 
-	if cfg.Lite.ReproviderInterval < 0 {
+	if cfg.Config.ReprovideInterval < 0 {
 		err = errors.New("ipfslite.reprovider_interval is invalid")
 	}
 
 	if cfg.ConnectSwarmsDelay < 0 {
 		err = errors.New("ipfslite.connect_swarms_delay is invalid")
-	}
-
-	if cfg.IPFSRequestTimeout < 0 {
-		err = errors.New("ipfslite.ipfs_request_timeout invalid")
 	}
 
 	if cfg.PinTimeout < 0 {
@@ -182,16 +188,15 @@ func (cfg *Config) applyJSONConfig(jcfg *jsonConfig) error {
 		}
 	}
 
-	cfg.Lite.Offline = jcfg.Offline
-	cfg.Lite.UnchachedBlockstore = jcfg.UncachedBlockstore
+	cfg.Config.Offline = jcfg.Offline
+	cfg.Config.UncachedBlockstore = jcfg.UncachedBlockstore
 	cfg.UnpinDisable = jcfg.UnpinDisable
 	cfg.InformerTriggerInterval = jcfg.InformerTriggerInterval
 
-	err = config.ParseDurations(
+	err := config.ParseDurations(
 		"ipfslite",
-		&config.DurationOpt{Duration: jcfg.ReproviderInterval, Dst: &cfg.Lite.ReproviderInterval, Name: "reprovider_interval"},
+		&config.DurationOpt{Duration: jcfg.ReprovideInterval, Dst: &cfg.Config.ReprovideInterval, Name: "reprovide_interval"},
 		&config.DurationOpt{Duration: jcfg.ConnectSwarmsDelay, Dst: &cfg.ConnectSwarmsDelay, Name: "connect_swarms_delay"},
-		&config.DurationOpt{Duration: jcfg.IPFSRequestTimeout, Dst: &cfg.IPFSRequestTimeout, Name: "ipfs_request_timeout"},
 		&config.DurationOpt{Duration: jcfg.PinTimeout, Dst: &cfg.PinTimeout, Name: "pin_timeout"},
 		&config.DurationOpt{Duration: jcfg.UnpinTimeout, Dst: &cfg.UnpinTimeout, Name: "unpin_timeout"},
 		&config.DurationOpt{Duration: jcfg.RepoGCTimeout, Dst: &cfg.RepoGCTimeout, Name: "repogc_timeout"},
@@ -231,8 +236,8 @@ func (cfg *Config) toJSONConfig() (jcfg *jsonConfig, err error) {
 
 	// Set all configuration fields
 	jcfg.ListenMultiaddresses = listenAddresses
-	jcfg.Offline = cfg.Lite.Offline
-	jcfg.ReproviderInterval = cfg.Lite.ReproviderInterval.String()
+	jcfg.Offline = cfg.Config.Offline
+	jcfg.ReprovideInterval = cfg.Config.ReprovideInterval.String()
 	jcfg.UncachedBlockstore = DefaultUncachedBlockstore
 	jcfg.ConnectSwarmsDelay = cfg.ConnectSwarmsDelay.String()
 	jcfg.PinTimeout = cfg.PinTimeout.String()

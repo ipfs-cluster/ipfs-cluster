@@ -1,4 +1,4 @@
-package ipfshttp
+package ipfslite
 
 import (
 	"bytes"
