@@ -711,8 +711,8 @@ github.com/multiformats/go-multiaddr v0.0.2/go.mod h1:xKVEak1K9cS1VdmPZW3LSIb6lg
 github.com/multiformats/go-multiaddr v0.0.4/go.mod h1:xKVEak1K9cS1VdmPZW3LSIb6lgmoS58qz/pzqmAxV44=
 github.com/multiformats/go-multiaddr v0.1.1/go.mod h1:aMKBKNEYmzmDmxfX88/vz+J5IU55txyt0p4aiWVohjo=
 github.com/multiformats/go-multiaddr v0.2.0/go.mod h1:0nO36NvPpyV4QzvTLi/lafl2y95ncPj0vFwVF6k6wJ4=
-github.com/multiformats/go-multiaddr v0.11.0 h1:XqGyJ8ufbCE0HmTDwx2kPdsrQ36AGPZNZX6s6xfJH10=
-github.com/multiformats/go-multiaddr v0.11.0/go.mod h1:gWUm0QLR4thQ6+ZF6SXUw8YjtwQSPapICM+NmCkxHSM=
+github.com/multiformats/go-multiaddr v0.12.0 h1:1QlibTFkoXJuDjjYsMHhE73TnzJQl8FSWatk/0gxGzE=
+github.com/multiformats/go-multiaddr v0.12.0/go.mod h1:WmZXgObOQOYp9r3cslLlppkrz1FYSHmE834dfz/lWu8=
 github.com/multiformats/go-multiaddr-dns v0.0.1/go.mod h1:9kWcqw/Pj6FwxAwW38n/9403szc57zJPs45fmnznu3Q=
 github.com/multiformats/go-multiaddr-dns v0.0.2/go.mod h1:9kWcqw/Pj6FwxAwW38n/9403szc57zJPs45fmnznu3Q=
 github.com/multiformats/go-multiaddr-dns v0.3.1 h1:QgQgR+LQVt3NPTjbrLLpsaT2ufAA2y0Mkk+QRVJbW3A=
