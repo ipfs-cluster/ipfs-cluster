@@ -18,6 +18,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
+	"github.com/tv42/httpunix"
 
 	files "github.com/ipfs/boxo/files"
 	gopath "github.com/ipfs/boxo/path"
@@ -55,8 +56,9 @@ type Connector struct {
 	cancel func()
 	ready  chan struct{}
 
-	config   *Config
-	nodeAddr string
+	config      *Config
+	nodeAddr    string
+	nodeNetwork string
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
@@ -152,12 +154,23 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		nodeMAddr = resolvedAddrs[0]
 	}
 
-	_, nodeAddr, err := manet.DialArgs(nodeMAddr)
+	nodeNetwork, nodeAddr, err := manet.DialArgs(nodeMAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &http.Client{} // timeouts are handled by context timeouts
+
+	if nodeNetwork == "unix" {
+		unixTransport := &httpunix.Transport{
+			DialTimeout: time.Second,
+		}
+		unixTransport.RegisterLocation("ipfs", nodeAddr)
+		t := &http.Transport{}
+		t.RegisterProtocol(httpunix.Scheme, unixTransport)
+		c.Transport = t
+	}
+
 	if cfg.Tracing {
 		c.Transport = &ochttp.Transport{
 			Base:           http.DefaultTransport,
@@ -176,6 +189,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		ready:          make(chan struct{}),
 		config:         cfg,
 		nodeAddr:       nodeAddr,
+		nodeNetwork:    nodeNetwork,
 		rpcReady:       make(chan struct{}, 1),
 		reqRateLimitCh: make(chan struct{}),
 		client:         c,
@@ -1222,7 +1236,12 @@ func (ipfs *Connector) updateInformerMetric(ctx context.Context) error {
 
 // daemon API.
 func (ipfs *Connector) apiURL() string {
-	return fmt.Sprintf("http://%s/api/v0", ipfs.nodeAddr)
+	switch ipfs.nodeNetwork {
+	case "unix":
+		return "http+unix://ipfs/api/v0"
+	default:
+		return fmt.Sprintf("http://%s/api/v0", ipfs.nodeAddr)
+	}
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {
