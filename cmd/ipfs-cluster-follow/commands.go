@@ -486,6 +486,42 @@ func listCmd(c *cli.Context) error {
 	return nil
 }
 
+// Stop
+func stopCmd(c *cli.Context) error {
+	clusterName := c.String(clusterNameFlag)
+
+	absPath, configPath, identityPath := buildPaths(c, clusterName)
+	if !isInitialized(absPath) {
+		printNotInitialized(clusterName)
+		return cli.Exit("", 1)
+	}
+
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(
+		configPath,
+		identityPath,
+	)
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "error creating config helper"), 1)
+	}
+	cfgHelper.Manager().Shutdown()
+	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "error creating state manager"), 1)
+	}
+	err = mgr.Clean()
+	if err != nil {
+		return cli.Exit(errors.Wrap(err, "error cleaning datastore, close ipfs-cluster follow daemon first"), 1)
+	}
+
+	if c.Bool("cleanup") {
+		err = os.RemoveAll(absPath)
+		if err != nil {
+			return fmt.Errorf("fail to cleanup: %s", err)
+		}
+	}
+	return nil
+}
+
 func printStatusOnline(absPath, clusterName string) error {
 	ctx := context.Background()
 	client, err := getClient(absPath, clusterName)

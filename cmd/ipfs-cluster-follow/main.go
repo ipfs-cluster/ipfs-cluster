@@ -88,6 +88,10 @@ List items in the pinset for a given cluster:
 
 $ %s <clusterName> list
 
+Leave cluster and remove all pins:
+
+$ %s <clusterName> stop
+
 Getting help and usage info:
 
 $ %s --help
@@ -96,11 +100,14 @@ $ %s <clusterName> info --help
 $ %s <clusterName> init --help
 $ %s <clusterName> run --help
 $ %s <clusterName> list --help
+$ %s <clusterName> stop --help
 
 `,
 	programName,
 	programName,
 	DefaultFolder,
+	programName,
+	programName,
 	programName,
 	programName,
 	programName,
@@ -270,6 +277,25 @@ pin (such as PINNING). If not, it will just display the current list of pins
 as obtained from the internal state on disk.
 `,
 				Action: listCmd,
+			},
+			{
+				Name:      "stop",
+				Usage:     "stop to follow the cluster and unpin everything",
+				ArgsUsage: "",
+				Description: fmt.Sprintf(`
+
+This command stops following %s and leaves %s. It also removes any
+persisted consensus data, including the current pinset (state).
+
+The next start of this follower will be like a first start to all effects.
+`, clusterName, clusterName),
+				Action: stopCmd,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "cleanup",
+						Usage: fmt.Sprintf("delete files in ~/.ipfs-cluster-follow/%s", clusterName),
+					},
+				},
 			},
 		}
 		return clusterApp.RunAsSubcommand(c)
