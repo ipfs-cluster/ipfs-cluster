@@ -496,27 +496,42 @@ func stopCmd(c *cli.Context) error {
 		return cli.Exit("", 1)
 	}
 
-	cfgHelper, err := cmdutils.NewLoadedConfigHelper(
-		configPath,
-		identityPath,
-	)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error creating config helper"), 1)
-	}
-	cfgHelper.Manager().Shutdown()
-	mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error creating state manager"), 1)
-	}
-	err = mgr.Clean()
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "error cleaning datastore, close ipfs-cluster follow daemon first"), 1)
+	// unpin cluster files and kill ipfs-cluster-follow process if cluster and ipfs daemon exist
+	_, err := os.Stat(filepath.Join(absPath, "api-socket"))
+	if err == nil {
+		err = unpinEverything(absPath, clusterName, identityPath)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "unpin error"), 1)
+		}
+		err = killFollower(absPath)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "error killing follower peer(ipfs-cluster-follow daemon)"), 1)
+		}
+	} else {
+		return cli.Exit(errors.Wrap(err, "ipfs-cluster-follow or ipfs daemon not exists"), 1)
 	}
 
+	// clean date and folder
 	if c.Bool("cleanup") {
+		cfgHelper, err := cmdutils.NewLoadedConfigHelper(
+			configPath,
+			identityPath,
+		)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "error creating config helper"), 1)
+		}
+		cfgHelper.Manager().Shutdown()
+		mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "error creating state manager"), 1)
+		}
+		err = mgr.Clean()
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "error cleaning datastore"), 1)
+		}
 		err = os.RemoveAll(absPath)
 		if err != nil {
-			return fmt.Errorf("fail to cleanup: %s", err)
+			return cli.Exit(errors.Wrap(err, "fail to cleanup"), 1)
 		}
 	}
 	return nil
@@ -588,4 +603,37 @@ func printPin(c api.Cid, status, name, err string) {
 		name = name + " (" + err + ")"
 	}
 	fmt.Printf("%-20s %s %s\n", status, c, name)
+}
+
+func unpinEverything(absPath, clusterName, identityPath string) error {
+	ctx := context.Background()
+	client, err := getClient(absPath, clusterName)
+	if err != nil {
+		return err
+	}
+	out := make(chan api.Pin, 1024)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+		errCh <- client.Allocations(ctx, api.AllType, out)
+	}()
+
+	// use client find pinned items and unpin by ipfs connector
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+	if err != nil {
+		return err
+	}
+	connect, err := ipfshttp.NewConnector(cfgHelper.Configs().Ipfshttp)
+	if err != nil {
+		return err
+	}
+	for pin := range out {
+		err = connect.Unpin(ctx, pin.Cid)
+		if err != nil {
+			return err
+		}
+	}
+	err = <-errCh
+	return err
 }
