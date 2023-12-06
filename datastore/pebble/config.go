@@ -31,7 +31,7 @@ var (
 	DefaultCacheSize int64 = 1 << 30 // Pebble's default: 8MiB
 	// DefaultMemTableSize sets the size of the memtables and affecst total
 	// size of the WAL. It must be under 4GB.
-	DefaultMemTableSize int = 64 << 20 // Pebble's default: 4MiB
+	DefaultMemTableSize uint64 = 64 << 20 // Pebble's default: 4MiB
 	// DefaultMemTableStopWritesThreshold defines how many memtables can
 	// be queued for writing before stopping writes (memtable memory
 	// consumption should approach
@@ -102,7 +102,7 @@ type pebbleOptions struct {
 	L0StopWritesThreshold       int                       `json:"l0_stop_writes_threshold"`
 	LBaseMaxBytes               int64                     `json:"l_base_max_bytes"`
 	MaxOpenFiles                int                       `json:"max_open_files"`
-	MemTableSize                int                       `json:"mem_table_size"`
+	MemTableSize                uint64                    `json:"mem_table_size"`
 	MemTableStopWritesThreshold int                       `json:"mem_table_stop_writes_threshold"`
 	ReadOnly                    bool                      `json:"read_only"`
 	WALBytesPerSync             int                       `json:"wal_bytes_per_sync"`
