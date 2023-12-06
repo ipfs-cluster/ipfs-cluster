@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.20-bullseye AS builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.21-bullseye AS builder
 MAINTAINER Hector Sanjuan <code@hector.link>
 
 # This dockerfile builds and runs ipfs-cluster-service.
