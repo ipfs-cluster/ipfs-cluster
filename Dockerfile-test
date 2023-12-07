@@ -1,4 +1,4 @@
-FROM golang:1.20-bullseye AS builder
+FROM golang:1.21-bullseye AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 # This build state just builds the cluster binaries
