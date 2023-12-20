@@ -10,6 +10,7 @@ import (
 	blake2b "golang.org/x/crypto/blake2b"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/ipfs-cluster/ipfs-cluster/config"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	madns "github.com/multiformats/go-multiaddr-dns"
@@ -210,7 +211,7 @@ func publicIPFSAddresses(in []api.Multiaddr) []api.Multiaddr {
 	return out
 }
 
-func toMultiAddrs(addrs []string) ([]ma.Multiaddr, error) {
+func toMultiAddrs(addrs config.Strings) ([]ma.Multiaddr, error) {
 	var mAddrs []ma.Multiaddr
 	for _, addr := range addrs {
 		mAddr, err := ma.NewMultiaddr(addr)

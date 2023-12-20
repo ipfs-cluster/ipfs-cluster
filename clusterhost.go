@@ -88,7 +88,7 @@ func NewClusterHost(
 		return idht
 	}
 
-	addrsFactory, err := makeAddrsFactory(cfg.Announce, cfg.NoAnnounce)
+	addrsFactory, err := makeAddrsFactory(cfg.AnnounceAddr, cfg.NoAnnounceAddr)
 	if err != nil {
 		return nil, nil, nil, err
 	}

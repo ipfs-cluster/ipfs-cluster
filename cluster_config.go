@@ -96,10 +96,10 @@ type Config struct {
 
 	// If non-empty, this array specifies the swarm addresses to announce to
 	// the network. If empty, the daemon will announce inferred swarm addresses.
-	Announce []ma.Multiaddr
+	AnnounceAddr []ma.Multiaddr
 
 	// Array of swarm addresses not to announce to the network.
-	NoAnnounce []ma.Multiaddr
+	NoAnnounceAddr []ma.Multiaddr
 
 	// Time between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
@@ -186,11 +186,11 @@ type configJSON struct {
 	Secret                  string             `json:"secret" hidden:"true"`
 	LeaveOnShutdown         bool               `json:"leave_on_shutdown"`
 	ListenMultiaddress      config.Strings     `json:"listen_multiaddress"`
+	AnnounceMultiaddress    config.Strings     `json:"announce_multiaddress"`
+	NoAnnounceMultiaddress  config.Strings     `json:"no_announce_multiaddress"`
 	EnableRelayHop          bool               `json:"enable_relay_hop"`
 	ConnectionManager       *connMgrConfigJSON `json:"connection_manager"`
 	DialPeerTimeout         string             `json:"dial_peer_timeout"`
-	Announce                []string           `json:"announce"`
-	NoAnnounce              []string           `json:"no_announce"`
 	StateSyncInterval       string             `json:"state_sync_interval"`
 	PinRecoverInterval      string             `json:"pin_recover_interval"`
 	ReplicationFactorMin    int                `json:"replication_factor_min"`
@@ -381,6 +381,8 @@ func (cfg *Config) setDefaults() {
 		listenAddrs = append(listenAddrs, addr)
 	}
 	cfg.ListenAddr = listenAddrs
+	cfg.AnnounceAddr = []ma.Multiaddr{}
+	cfg.NoAnnounceAddr = []ma.Multiaddr{}
 	cfg.EnableRelayHop = DefaultEnableRelayHop
 	cfg.ConnMgr = ConnMgrConfig{
 		HighWater:   DefaultConnMgrHighWater,
@@ -388,8 +390,6 @@ func (cfg *Config) setDefaults() {
 		GracePeriod: DefaultConnMgrGracePeriod,
 	}
 	cfg.DialPeerTimeout = DefaultDialPeerTimeout
-	cfg.Announce = []ma.Multiaddr{}
-	cfg.NoAnnounce = []ma.Multiaddr{}
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
 	cfg.PinRecoverInterval = DefaultPinRecoverInterval
@@ -441,6 +441,21 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		return err
 	}
 	cfg.ListenAddr = listenAddrs
+
+	announceAddrs, err := toMultiAddrs(jcfg.AnnounceMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing announce: %s", err)
+		return err
+	}
+	cfg.AnnounceAddr = announceAddrs
+
+	noAnnounceAddrs, err := toMultiAddrs(jcfg.NoAnnounceMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing no_announce: %s", err)
+		return err
+	}
+	cfg.NoAnnounceAddr = noAnnounceAddrs
+
 	cfg.EnableRelayHop = jcfg.EnableRelayHop
 	if conman := jcfg.ConnectionManager; conman != nil {
 		cfg.ConnMgr = ConnMgrConfig{
@@ -454,20 +469,6 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 			return err
 		}
 	}
-
-	annAddrs, err := toMultiAddrs(jcfg.Announce)
-	if err != nil {
-		err = fmt.Errorf("error parsing announce: %s", err)
-		return err
-	}
-	cfg.Announce = annAddrs
-
-	noAnnAddrs, err := toMultiAddrs(jcfg.NoAnnounce)
-	if err != nil {
-		err = fmt.Errorf("error parsing no_announce: %s", err)
-		return err
-	}
-	cfg.NoAnnounce = noAnnAddrs
 
 	rplMin := jcfg.ReplicationFactorMin
 	rplMax := jcfg.ReplicationFactorMax
@@ -538,6 +539,8 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		listenAddrs = append(listenAddrs, addr.String())
 	}
 	jcfg.ListenMultiaddress = config.Strings(listenAddrs)
+	jcfg.AnnounceMultiaddress = multiAddrstoStrings(cfg.AnnounceAddr)
+	jcfg.NoAnnounceMultiaddress = multiAddrstoStrings(cfg.NoAnnounceAddr)
 	jcfg.EnableRelayHop = cfg.EnableRelayHop
 	jcfg.ConnectionManager = &connMgrConfigJSON{
 		HighWater:   cfg.ConnMgr.HighWater,
@@ -545,8 +548,6 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
 	}
 	jcfg.DialPeerTimeout = cfg.DialPeerTimeout.String()
-	jcfg.Announce = multiAddrstoStrings(cfg.Announce)
-	jcfg.NoAnnounce = multiAddrstoStrings(cfg.NoAnnounce)
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()
 	jcfg.PinRecoverInterval = cfg.PinRecoverInterval.String()
 	jcfg.MonitorPingInterval = cfg.MonitorPingInterval.String()
