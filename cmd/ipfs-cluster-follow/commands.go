@@ -19,6 +19,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
+	"github.com/ipfs-cluster/ipfs-cluster/informer/pinqueue"
+	"github.com/ipfs-cluster/ipfs-cluster/informer/tags"
 	"github.com/ipfs-cluster/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs-cluster/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
@@ -337,10 +339,30 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating IPFS Connector component"), 1)
 	}
 
-	informer, err := disk.NewInformer(cfgs.DiskInf)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
+	var informers []ipfscluster.Informer
+	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.DiskInf.ConfigKey()) {
+		diskInf, err := disk.NewInformer(cfgs.DiskInf)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
+		}
+		informers = append(informers, diskInf)
 	}
+	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.TagsInf.ConfigKey()) {
+		tagsInf, err := tags.New(cfgs.TagsInf)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "creating numpin informer"), 1)
+		}
+		informers = append(informers, tagsInf)
+	}
+
+	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.PinQueueInf.ConfigKey()) {
+		pinQueueInf, err := pinqueue.New(cfgs.PinQueueInf)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "creating pinqueue informer"), 1)
+		}
+		informers = append(informers, pinQueueInf)
+	}
+
 	alloc, err := balanced.New(cfgs.BalancedAlloc)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating metrics allocator"), 1)
@@ -402,7 +424,7 @@ func runCmd(c *cli.Context) error {
 		tracker,
 		mon,
 		alloc,
-		[]ipfscluster.Informer{informer},
+		informers,
 		tracer,
 	)
 	if err != nil {
