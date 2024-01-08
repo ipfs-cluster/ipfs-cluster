@@ -20,6 +20,7 @@ import (
 	corepnet "github.com/libp2p/go-libp2p/core/pnet"
 	routing "github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/p2p/host/autorelay"
+	p2pbhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
@@ -27,6 +28,9 @@ import (
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	tcp "github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	websocket "github.com/libp2p/go-libp2p/p2p/transport/websocket"
+	mafilter "github.com/libp2p/go-maddr-filter"
+	ma "github.com/multiformats/go-multiaddr"
+	mamask "github.com/whyrusleeping/multiaddr-filter"
 )
 
 const dhtNamespace = "dht"
@@ -84,8 +88,14 @@ func NewClusterHost(
 		return idht
 	}
 
+	addrsFactory, err := makeAddrsFactory(cfg.AnnounceAddr, cfg.NoAnnounceAddr)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
+		libp2p.AddrsFactory(addrsFactory),
 		libp2p.NATPortMap(),
 		libp2p.ConnectionManager(connman),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
@@ -239,4 +249,41 @@ func newPeerSource(hostGetter func() host.Host, dhtGetter func() *dual.DHT) auto
 // EncodeProtectorKey converts a byte slice to its hex string representation.
 func EncodeProtectorKey(secretBytes []byte) string {
 	return hex.EncodeToString(secretBytes)
+}
+
+func makeAddrsFactory(announce []ma.Multiaddr, noAnnounce []ma.Multiaddr) (p2pbhost.AddrsFactory, error) {
+	filters := mafilter.NewFilters()
+	noAnnAddrs := map[string]bool{}
+	for _, addr := range multiAddrstoStrings(noAnnounce) {
+		f, err := mamask.NewMask(addr)
+		if err == nil {
+			filters.AddFilter(*f, mafilter.ActionDeny)
+			continue
+		}
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, err
+		}
+		noAnnAddrs[string(maddr.Bytes())] = true
+	}
+
+	return func(allAddrs []ma.Multiaddr) []ma.Multiaddr {
+		var addrs []ma.Multiaddr
+		if len(announce) > 0 {
+			addrs = announce
+		} else {
+			addrs = allAddrs
+		}
+
+		var out []ma.Multiaddr
+		for _, maddr := range addrs {
+			// check for exact matches
+			ok := noAnnAddrs[string(maddr.Bytes())]
+			// check for /ipcidr matches
+			if !ok && !filters.AddrBlocked(maddr) {
+				out = append(out, maddr)
+			}
+		}
+		return out
+	}, nil
 }

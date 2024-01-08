@@ -94,6 +94,13 @@ type Config struct {
 	// peers.
 	DialPeerTimeout time.Duration
 
+	// If non-empty, this array specifies the swarm addresses to announce to
+	// the network. If empty, the daemon will announce inferred swarm addresses.
+	AnnounceAddr []ma.Multiaddr
+
+	// Array of swarm addresses not to announce to the network.
+	NoAnnounceAddr []ma.Multiaddr
+
 	// Time between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
 	// when new nodes are joining the cluster. Reduce for faster
@@ -179,6 +186,8 @@ type configJSON struct {
 	Secret                  string             `json:"secret" hidden:"true"`
 	LeaveOnShutdown         bool               `json:"leave_on_shutdown"`
 	ListenMultiaddress      config.Strings     `json:"listen_multiaddress"`
+	AnnounceMultiaddress    config.Strings     `json:"announce_multiaddress"`
+	NoAnnounceMultiaddress  config.Strings     `json:"no_announce_multiaddress"`
 	EnableRelayHop          bool               `json:"enable_relay_hop"`
 	ConnectionManager       *connMgrConfigJSON `json:"connection_manager"`
 	DialPeerTimeout         string             `json:"dial_peer_timeout"`
@@ -372,6 +381,8 @@ func (cfg *Config) setDefaults() {
 		listenAddrs = append(listenAddrs, addr)
 	}
 	cfg.ListenAddr = listenAddrs
+	cfg.AnnounceAddr = []ma.Multiaddr{}
+	cfg.NoAnnounceAddr = []ma.Multiaddr{}
 	cfg.EnableRelayHop = DefaultEnableRelayHop
 	cfg.ConnMgr = ConnMgrConfig{
 		HighWater:   DefaultConnMgrHighWater,
@@ -424,17 +435,27 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	}
 	cfg.Secret = clusterSecret
 
-	var listenAddrs []ma.Multiaddr
-	for _, addr := range jcfg.ListenMultiaddress {
-		listenAddr, err := ma.NewMultiaddr(addr)
-		if err != nil {
-			err = fmt.Errorf("error parsing a listen_multiaddress: %s", err)
-			return err
-		}
-		listenAddrs = append(listenAddrs, listenAddr)
+	listenAddrs, err := toMultiAddrs(jcfg.ListenMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing listen_multiaddress: %s", err)
+		return err
 	}
-
 	cfg.ListenAddr = listenAddrs
+
+	announceAddrs, err := toMultiAddrs(jcfg.AnnounceMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing announce: %s", err)
+		return err
+	}
+	cfg.AnnounceAddr = announceAddrs
+
+	noAnnounceAddrs, err := toMultiAddrs(jcfg.NoAnnounceMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing no_announce: %s", err)
+		return err
+	}
+	cfg.NoAnnounceAddr = noAnnounceAddrs
+
 	cfg.EnableRelayHop = jcfg.EnableRelayHop
 	if conman := jcfg.ConnectionManager; conman != nil {
 		cfg.ConnMgr = ConnMgrConfig{
@@ -518,6 +539,8 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		listenAddrs = append(listenAddrs, addr.String())
 	}
 	jcfg.ListenMultiaddress = config.Strings(listenAddrs)
+	jcfg.AnnounceMultiaddress = multiAddrstoStrings(cfg.AnnounceAddr)
+	jcfg.NoAnnounceMultiaddress = multiAddrstoStrings(cfg.NoAnnounceAddr)
 	jcfg.EnableRelayHop = cfg.EnableRelayHop
 	jcfg.ConnectionManager = &connMgrConfigJSON{
 		HighWater:   cfg.ConnMgr.HighWater,
