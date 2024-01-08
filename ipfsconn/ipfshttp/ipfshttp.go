@@ -27,7 +27,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/multiformats/go-multicodec"
 	multihash "github.com/multiformats/go-multihash"
@@ -141,20 +140,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		return nil, err
 	}
 
-	nodeMAddr := cfg.NodeAddr
-	// dns multiaddresses need to be resolved first
-	if madns.Matches(nodeMAddr) {
-		ctx, cancel := context.WithTimeout(context.Background(), DNSTimeout)
-		defer cancel()
-		resolvedAddrs, err := madns.Resolve(ctx, cfg.NodeAddr)
-		if err != nil {
-			logger.Error(err)
-			return nil, err
-		}
-		nodeMAddr = resolvedAddrs[0]
-	}
-
-	nodeNetwork, nodeAddr, err := manet.DialArgs(nodeMAddr)
+	nodeNetwork, nodeAddr, err := manet.DialArgs(cfg.NodeAddr)
 	if err != nil {
 		return nil, err
 	}
