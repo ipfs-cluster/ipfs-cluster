@@ -117,8 +117,10 @@ github.com/cockroachdb/errors v1.11.1 h1:xSEW75zKaKCWzR3OfxXUxgrk/NtT4G1MiOv5lWZ
 github.com/cockroachdb/errors v1.11.1/go.mod h1:8MUxA3Gi6b25tYlFEBGLf+D8aISL+M4MIpiWMSNRfxw=
 github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b h1:r6VH0faHjZeQy818SGhaone5OnYfxFR/+AzdY3sf5aE=
 github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b/go.mod h1:Vz9DsVWQQhf3vs21MhPMZpMGSht7O/2vFW2xusFUVOs=
-github.com/cockroachdb/pebble v0.0.0-20231122205016-4cbc644681f2 h1:YXcLkTFbIh0gQkM4T9isuFng1wOwOKCopLkolQf66ic=
-github.com/cockroachdb/pebble v0.0.0-20231122205016-4cbc644681f2/go.mod h1:acMRUGd/BK8AUmQNK3spUCCGzFLZU2bSST3NMXSq2Kc=
+github.com/cockroachdb/metamorphic v0.0.0-20231108215700-4ba948b56895 h1:XANOgPYtvELQ/h4IrmPAohXqe2pWA8Bwhejr3VQoZsA=
+github.com/cockroachdb/metamorphic v0.0.0-20231108215700-4ba948b56895/go.mod h1:aPd7gM9ov9M8v32Yy5NJrDyOcD8z642dqs+F0CeNXfA=
+github.com/cockroachdb/pebble v0.0.0-20240109173520-f93e739e51c8 h1:9od/JaFC4wstR3qB+YIwXOyzO+t6kf5yldFDlsmnXRM=
+github.com/cockroachdb/pebble v0.0.0-20240109173520-f93e739e51c8/go.mod h1:BHuaMa/lK7fUe75BlsteiiTu8ptIG+qSAuDtGMArP18=
 github.com/cockroachdb/redact v1.1.5 h1:u1PMllDkdFfPWaNGMyLD1+so+aq3uUItthCFqzwPJ30=
 github.com/cockroachdb/redact v1.1.5/go.mod h1:BVNblN9mBWFyMyqK1k3AAiSxhvhfK2oOZZ2lK+dpvRg=
 github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 h1:zuQyyAKVxetITBuuhv3BI9cMrmStnpT18zmgmTxunpo=
@@ -407,8 +409,8 @@ github.com/ipfs/go-ds-crdt v0.5.1/go.mod h1:9U8G3gbo5olSOZ2gBi4Va26X4UAHvZj4V6wf
 github.com/ipfs/go-ds-leveldb v0.0.1/go.mod h1:feO8V3kubwsEF22n0YRQCffeb79OOYIykR4L04tMOYc=
 github.com/ipfs/go-ds-leveldb v0.5.0 h1:s++MEBbD3ZKc9/8/njrn4flZLnCuY9I79v94gBUNumo=
 github.com/ipfs/go-ds-leveldb v0.5.0/go.mod h1:d3XG9RUDzQ6V4SHi8+Xgj9j1XuEk1z82lquxrVbml/Q=
-github.com/ipfs/go-ds-pebble v0.2.5 h1:RoNeQBsNJZT3NugYFNLrLA8zPxkNl/BMaUY7EE/Ozzc=
-github.com/ipfs/go-ds-pebble v0.2.5/go.mod h1:JtnEQJ0YJZvPZEMPwqceM0T9kDvTf09YCIYEP2VOyoQ=
+github.com/ipfs/go-ds-pebble v0.2.6 h1:cfVJPApRgf/F9KToLWcEVmb5P8WEIPogvvTi+mgfuCs=
+github.com/ipfs/go-ds-pebble v0.2.6/go.mod h1:DJXjZv0KQt5lnUj6nA1GTXNkoTmxWqs3aJm2R8Ipgdk=
 github.com/ipfs/go-fs-lock v0.0.7 h1:6BR3dajORFrFTkb5EpCUFIAypsoxpGpDSVUdFwzgL9U=
 github.com/ipfs/go-fs-lock v0.0.7/go.mod h1:Js8ka+FNYmgQRLrRXzU3CB/+Csr1BwrRilEcvYrHhhc=
 github.com/ipfs/go-ipfs-api v0.7.0 h1:CMBNCUl0b45coC+lQCXEVpMhwoqjiaCwUIrM+coYW2Q=
