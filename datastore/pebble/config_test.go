@@ -15,7 +15,7 @@ var cfgJSON = []byte(`
         "flush_delay_delete_range": 0,
         "flush_delay_range_key": 0,
         "flush_split_bytes": 4194304,
-        "format_major_version": 13,
+        "format_major_version": 1,
         "l0_compaction_file_threshold": 500,
         "l0_compaction_threshold": 2,
         "l0_stop_writes_threshold": 12,
