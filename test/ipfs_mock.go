@@ -179,7 +179,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 	switch endp {
 	case "id":
 		resp := mockIDResp{
-			ID: PeerID1.Pretty(),
+			ID: PeerID1.String(),
 			Addresses: []string{
 				"/ip4/0.0.0.0/tcp/1234",
 				"/ip6/::/tcp/1234",
@@ -360,10 +360,10 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 		w.Write(j)
 	case "swarm/peers":
 		peer1 := mockIpfsPeer{
-			Peer: PeerID4.Pretty(),
+			Peer: PeerID4.String(),
 		}
 		peer2 := mockIpfsPeer{
-			Peer: PeerID5.Pretty(),
+			Peer: PeerID5.String(),
 		}
 		resp := mockSwarmPeersResp{
 			Peers: []mockIpfsPeer{peer1, peer2},

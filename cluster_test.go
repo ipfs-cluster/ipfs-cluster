@@ -129,7 +129,7 @@ func (ipfs *mockConnector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 }
 
 func (ipfs *mockConnector) Resolve(ctx context.Context, path string) (api.Cid, error) {
-	_, err := gopath.ParsePath(path)
+	_, err := gopath.NewPath(path)
 	if err != nil {
 		return api.CidUndef, err
 	}
@@ -164,7 +164,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 
 	host, pubsub, dht := createHost(t, ident.PrivateKey, clusterCfg.Secret, clusterCfg.ListenAddr)
 
-	folder := filepath.Join(testsFolder, host.ID().Pretty())
+	folder := filepath.Join(testsFolder, host.ID().String())
 	cleanState()
 	clusterCfg.SetBaseDir(folder)
 	raftCfg.DataFolder = folder

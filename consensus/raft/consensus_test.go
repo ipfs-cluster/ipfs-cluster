@@ -177,8 +177,8 @@ func TestConsensusAddPeer(t *testing.T) {
 	ctx := context.Background()
 	cc := testingConsensus(t, 1)
 	cc2 := testingConsensus(t, 2)
-	t.Log(cc.host.ID().Pretty())
-	t.Log(cc2.host.ID().Pretty())
+	t.Log(cc.host.ID())
+	t.Log(cc2.host.ID())
 	defer cleanRaft(1)
 	defer cleanRaft(2)
 	defer cc.Shutdown(ctx)
@@ -192,7 +192,7 @@ func TestConsensusAddPeer(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	err = cc2.raft.WaitForPeer(ctx, cc.host.ID().Pretty(), false)
+	err = cc2.raft.WaitForPeer(ctx, cc.host.ID().String(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestConsensusRmPeer(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), false)
+	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().String(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestConsensusRmPeer(t *testing.T) {
 		t.Fatal("could not remove peer:", err, err2)
 	}
 
-	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().Pretty(), true)
+	err = cc.raft.WaitForPeer(ctx, cc2.host.ID().String(), true)
 	if err != nil {
 		t.Fatal(err)
 	}

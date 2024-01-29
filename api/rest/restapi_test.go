@@ -71,7 +71,7 @@ func TestRestAPIIDEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		id := api.ID{}
 		test.MakeGet(t, rest, url(rest)+"/id", &id)
-		if id.ID.Pretty() != clustertest.PeerID1.Pretty() {
+		if id.ID != clustertest.PeerID1 {
 			t.Error("expected correct id")
 		}
 	}
@@ -106,7 +106,7 @@ func TestAPIPeersEndpoint(t *testing.T) {
 		if len(list) != 1 {
 			t.Fatal("expected 1 element")
 		}
-		if list[0].ID.Pretty() != clustertest.PeerID1.Pretty() {
+		if list[0].ID != clustertest.PeerID1 {
 			t.Error("expected a different peer id list: ", list)
 		}
 	}
@@ -122,10 +122,10 @@ func TestAPIPeerAddEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		id := api.ID{}
 		// post with valid body
-		body := fmt.Sprintf("{\"peer_id\":\"%s\"}", clustertest.PeerID1.Pretty())
+		body := fmt.Sprintf("{\"peer_id\":\"%s\"}", clustertest.PeerID1)
 		t.Log(body)
 		test.MakePost(t, rest, url(rest)+"/peers", []byte(body), &id)
-		if id.ID.Pretty() != clustertest.PeerID1.Pretty() {
+		if id.ID != clustertest.PeerID1 {
 			t.Error("expected correct ID")
 		}
 		if id.Error != "" {
@@ -272,7 +272,7 @@ func TestAPIPeerRemoveEndpoint(t *testing.T) {
 	defer rest.Shutdown(ctx)
 
 	tf := func(t *testing.T, url test.URLFunc) {
-		test.MakeDelete(t, rest, url(rest)+"/peers/"+clustertest.PeerID1.Pretty(), &struct{}{})
+		test.MakeDelete(t, rest, url(rest)+"/peers/"+clustertest.PeerID1.String(), &struct{}{})
 	}
 
 	test.BothEndpoints(t, tf)
@@ -286,7 +286,7 @@ func TestConnectGraphEndpoint(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		var cg api.ConnectGraph
 		test.MakeGet(t, rest, url(rest)+"/health/graph", &cg)
-		if cg.ClusterID.Pretty() != clustertest.PeerID1.Pretty() {
+		if cg.ClusterID != clustertest.PeerID1 {
 			t.Error("unexpected cluster id")
 		}
 		if len(cg.IPFSLinks) != 3 {
@@ -567,7 +567,7 @@ func TestAPIMetricsEndpoint(t *testing.T) {
 			if m.Name != "test" {
 				t.Error("Unexpected metric name: ", m.Name)
 			}
-			if m.Peer.Pretty() != clustertest.PeerID1.Pretty() {
+			if m.Peer != clustertest.PeerID1 {
 				t.Error("Unexpected peer id: ", m.Peer)
 			}
 		}
@@ -844,7 +844,6 @@ func TestAPIIPFSGCEndpoint(t *testing.T) {
 
 	test.BothEndpoints(t, tf)
 }
-
 
 func TestHealthEndpoint(t *testing.T) {
 	ctx := context.Background()
