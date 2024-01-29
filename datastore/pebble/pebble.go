@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cockroachdb/pebble"
 	ds "github.com/ipfs/go-datastore"
 	pebbleds "github.com/ipfs/go-ds-pebble"
 	logging "github.com/ipfs/go-log/v2"
@@ -24,6 +25,19 @@ func New(cfg *Config) (ds.Datastore, error) {
 		return nil, errors.Wrap(err, "creating pebble folder")
 	}
 
+	// Deal with Pebble updates... user should try to be up to date with
+	// latest Pebble table formats.
+	fmv := cfg.PebbleOptions.FormatMajorVersion
+	newest := pebble.FormatNewest
+	if fmv < newest {
+		logger.Warnf(`Pebble's format_major_version is set to %d, but newest version is %d.
+
+It is recommended to increase format_major_version and restart. If an error
+occurrs when increasing the number several versions at once, it may help to
+increase them one by one, restarting the daemon every time.
+`, fmv, newest)
+	}
+
 	db, err := pebbleds.NewDatastore(folder, &cfg.PebbleOptions)
 	if err != nil {
 		return nil, err
@@ -32,11 +46,13 @@ func New(cfg *Config) (ds.Datastore, error) {
 	// Calling regularly DB's DiskUsage is a way to printout debug
 	// database statistics.
 	go func() {
+		ctx := context.Background()
+		db.DiskUsage(ctx)
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		for {
 			<-ticker.C
-			db.DiskUsage(context.Background())
+			db.DiskUsage(ctx)
 		}
 	}()
 	return db, nil
