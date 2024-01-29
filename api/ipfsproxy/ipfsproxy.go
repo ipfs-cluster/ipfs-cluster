@@ -359,7 +359,7 @@ func (proxy *Server) pinOpHandler(op string, w http.ResponseWriter, r *http.Requ
 
 	q := r.URL.Query()
 	arg := q.Get("arg")
-	p, err := path.ParsePath(arg)
+	p, err := pathOrCidPath(arg)
 	if err != nil {
 		ipfsErrorResponder(w, "Error parsing IPFS Path: "+err.Error(), -1)
 		return
@@ -528,13 +528,13 @@ func (proxy *Server) pinUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	to := args[1]
 
 	// Parse paths (we will need to resolve them)
-	pFrom, err := path.ParsePath(from)
+	pFrom, err := pathOrCidPath(from)
 	if err != nil {
 		ipfsErrorResponder(w, "error parsing \"from-path\" argument: "+err.Error(), -1)
 		return
 	}
 
-	pTo, err := path.ParsePath(to)
+	pTo, err := pathOrCidPath(to)
 	if err != nil {
 		ipfsErrorResponder(w, "error parsing \"to-path\" argument: "+err.Error(), -1)
 		return
@@ -966,4 +966,20 @@ func slashHandler(origHandler http.HandlerFunc) http.HandlerFunc {
 		r.URL.RawQuery = q.Encode()
 		origHandler(w, r)
 	}
+}
+
+// pathOrCidPath returns a path.Path built from the argument. It keeps the old
+// behavior by building a path from a CID string.
+func pathOrCidPath(str string) (path.Path, error) {
+	p, err := path.NewPath(str)
+	if err == nil {
+		return p, nil
+	}
+
+	if p, err := path.NewPath("/ipfs/" + str); err == nil {
+		return p, nil
+	}
+
+	// Send back original err.
+	return nil, err
 }

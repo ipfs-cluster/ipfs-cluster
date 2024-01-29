@@ -12,8 +12,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/state/dsstate"
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 var (
@@ -91,7 +91,7 @@ func (mock *mockIPFS) PinLsCid(ctx context.Context, in api.Pin, out *api.IPFSPin
 type mockCluster struct{}
 
 func (mock *mockCluster) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID) error {
-	addr, _ := api.NewMultiaddr("/ip4/127.0.0.1/tcp/4001/p2p/" + test.PeerID1.Pretty())
+	addr, _ := api.NewMultiaddr("/ip4/127.0.0.1/tcp/4001/p2p/" + test.PeerID1.String())
 	*out = api.IPFSID{
 		ID:        test.PeerID1,
 		Addresses: []api.Multiaddr{addr},

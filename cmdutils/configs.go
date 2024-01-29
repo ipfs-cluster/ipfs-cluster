@@ -342,7 +342,7 @@ func (ch *ConfigHelper) SaveIdentityToDisk() error {
 func (ch *ConfigHelper) SetupTracing(forceEnabled bool) {
 	enabled := forceEnabled || ch.configs.Tracing.EnableTracing
 
-	ch.configs.Tracing.ClusterID = ch.Identity().ID.Pretty()
+	ch.configs.Tracing.ClusterID = ch.Identity().ID.String()
 	ch.configs.Tracing.ClusterPeername = ch.configs.Cluster.Peername
 	ch.configs.Tracing.EnableTracing = enabled
 	ch.configs.Cluster.Tracing = enabled

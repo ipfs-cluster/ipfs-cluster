@@ -468,7 +468,7 @@ func (api *API) runLibp2pServer(ctx context.Context) {
 
 	listenMsg := ""
 	for _, a := range api.host.Addrs() {
-		listenMsg += fmt.Sprintf("        %s/p2p/%s\n", a, api.host.ID().Pretty())
+		listenMsg += fmt.Sprintf("        %s/p2p/%s\n", a, api.host.ID())
 	}
 
 	api.config.Logger.Infof(strings.ToUpper(api.config.ConfigKey)+" (libp2p-http): ENABLED. Listening on:\n%s\n", listenMsg)
@@ -544,7 +544,7 @@ func (api *API) ParsePinPathOrFail(w http.ResponseWriter, r *http.Request) types
 	vars := mux.Vars(r)
 	urlpath := "/" + vars["keyType"] + "/" + strings.TrimSuffix(vars["path"], "/")
 
-	path, err := gopath.ParsePath(urlpath)
+	path, err := gopath.NewPath(urlpath)
 	if err != nil {
 		api.SendResponse(w, http.StatusBadRequest, errors.New("error parsing path: "+err.Error()), nil)
 		return types.PinPath{}

@@ -183,7 +183,7 @@ func createComponents(
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
 	clusterCfg.Peername = peername
 	clusterCfg.LeaveOnShutdown = false
-	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().Pretty()))
+	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().String()))
 
 	apiCfg.HTTPListenAddr = []ma.Multiaddr{apiAddr}
 
@@ -192,12 +192,12 @@ func createComponents(
 
 	ipfshttpCfg.NodeAddr = nodeAddr
 
-	raftCfg.DataFolder = filepath.Join(testsFolder, host.ID().Pretty())
+	raftCfg.DataFolder = filepath.Join(testsFolder, host.ID().String())
 
-	badgerCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger")
-	badger3Cfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger3")
-	levelDBCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "leveldb")
-	pebbleCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "pebble")
+	badgerCfg.Folder = filepath.Join(testsFolder, host.ID().String(), "badger")
+	badger3Cfg.Folder = filepath.Join(testsFolder, host.ID().String(), "badger3")
+	levelDBCfg.Folder = filepath.Join(testsFolder, host.ID().String(), "leveldb")
+	pebbleCfg.Folder = filepath.Join(testsFolder, host.ID().String(), "pebble")
 
 	api, err := rest.NewAPI(ctx, apiCfg)
 	if err != nil {
@@ -1748,7 +1748,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	for i, c := range clusters {
 		pinfo := c.tracker.Status(ctx, h)
 		if pinfo.Status == api.TrackerStatusPinned {
-			//t.Logf("Killing %s", c.id.Pretty())
+			//t.Logf("Killing %s", c.id)
 			killedClusterIndex = i
 			t.Logf("Shutting down %s", c.ID(ctx).ID)
 			c.Shutdown(ctx)
@@ -1780,7 +1780,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 			continue
 		}
 		pinfo := c.tracker.Status(ctx, h)
-		t.Log(pinfo.Peer.Pretty(), pinfo.Status)
+		t.Log(pinfo.Peer, pinfo.Status)
 		if pinfo.Status == api.TrackerStatusPinned {
 			numPinned++
 		}
@@ -2096,7 +2096,7 @@ func TestClustersDisabledRepinning(t *testing.T) {
 		}
 		pinfo := c.tracker.Status(ctx, h)
 		if pinfo.Status == api.TrackerStatusPinned {
-			//t.Log(pinfo.Peer.Pretty())
+			//t.Log(pinfo.Peer)
 			numPinned++
 		}
 	}

@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -93,23 +92,24 @@ func (mock *mockCluster) Unpin(ctx context.Context, in api.Pin, out *api.Pin) er
 }
 
 func (mock *mockCluster) PinPath(ctx context.Context, in api.PinPath, out *api.Pin) error {
-	p, err := gopath.ParsePath(in.Path)
+	p, err := gopath.NewPath(in.Path)
 	if err != nil {
-		return err
-	}
-
-	var pin api.Pin
-	if p.IsJustAKey() && !strings.HasPrefix(in.Path, "/ipns") {
-		c, _, err := gopath.SplitAbsPath(p)
+		p, err = gopath.NewPath("/ipfs/" + in.Path)
 		if err != nil {
 			return err
 		}
-		cc := api.NewCid(c)
+	}
+
+	var pin api.Pin
+
+	immPath, err := gopath.NewImmutablePath(p)
+	if err == nil && len(immPath.Segments()) == 2 { // no need to resolve
+		cc := api.NewCid(immPath.RootCid())
 		if cc.Equals(ErrorCid) {
 			return ErrBadCid
 		}
 		pin = api.PinWithOpts(cc, in.PinOptions)
-	} else {
+	} else { // must resolve
 		pin = api.PinWithOpts(CidResolved, in.PinOptions)
 	}
 
@@ -165,7 +165,7 @@ func (mock *mockCluster) ID(ctx context.Context, in struct{}, out *api.ID) error
 	//	DefaultConfigCrypto,
 	//	DefaultConfigKeyLength)
 
-	addr, _ := api.NewMultiaddr("/ip4/127.0.0.1/tcp/4001/p2p/" + PeerID1.Pretty())
+	addr, _ := api.NewMultiaddr("/ip4/127.0.0.1/tcp/4001/p2p/" + PeerID1.String())
 	*out = api.ID{
 		ID: PeerID1,
 		//PublicKey: pubkey,

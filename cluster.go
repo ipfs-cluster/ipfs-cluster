@@ -131,7 +131,7 @@ func NewCluster(
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
-		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID().Pretty())
+		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID())
 	}
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
@@ -607,7 +607,7 @@ func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
 	defer span.End()
 
 	if c.config.DisableRepinning {
-		logger.Warnf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
+		logger.Warnf("repinning is disabled. Will not re-allocate cids from %s", p)
 		return
 	}
 
@@ -645,7 +645,7 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID, pin api.Pin) {
 	// if we are not under the replication-factor min.
 	_, ok, err := c.pin(ctx, pin, []peer.ID{p})
 	if ok && err == nil {
-		logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
+		logger.Infof("repinned %s out of %s", pin.Cid, p)
 	}
 }
 
@@ -739,7 +739,7 @@ This might be due to one or several causes:
 
 	for _, p := range peers {
 		if p != c.id {
-			logger.Infof("    - %s", p.Pretty())
+			logger.Infof("    - %s", p)
 		}
 	}
 
@@ -971,7 +971,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	// seems to help.
 	c.paMux.Lock()
 	defer c.paMux.Unlock()
-	logger.Debugf("peerAdd called with %s", pid.Pretty())
+	logger.Debugf("peerAdd called with %s", pid)
 
 	// Let the consensus layer be aware of this peer
 	err := c.consensus.AddPeer(ctx, pid)
@@ -981,7 +981,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 		return id, err
 	}
 
-	logger.Info("Peer added ", pid.Pretty())
+	logger.Infof("Peer added %s", pid)
 	addedID, err := c.getIDForPeer(ctx, pid)
 	if err != nil {
 		return addedID, err
@@ -1010,7 +1010,7 @@ func (c *Cluster) PeerRemove(ctx context.Context, pid peer.ID) error {
 		logger.Error(err)
 		return err
 	}
-	logger.Info("Peer removed ", pid.Pretty())
+	logger.Info("Peer removed %s", pid)
 	return nil
 }
 
@@ -1123,7 +1123,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}()
 	go c.RecoverAllLocal(c.ctx, out)
 
-	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
+	logger.Infof("%s: joined %s's cluster", c.id, pid)
 	return nil
 }
 

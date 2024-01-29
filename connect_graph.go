@@ -86,7 +86,7 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []api
 	var pID api.ID
 	for _, id := range peers {
 		if id.Error != "" {
-			logger.Debugf("Peer %s errored connecting to its peer %s", p, id.ID.Pretty())
+			logger.Debugf("Peer %s errored connecting to its peer %s", p, id.ID)
 			continue
 		}
 		if id.ID.String() == p {
@@ -102,7 +102,7 @@ func (c *Cluster) recordClusterLinks(cg *api.ConnectGraph, p string, peers []api
 func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID api.ID) {
 	ipfsID := pID.IPFS.ID
 	if pID.IPFS.Error != "" { // Only setting ipfs connections when no error occurs
-		logger.Warnf("ipfs id: %s has error: %s. Skipping swarm connections", ipfsID.Pretty(), pID.IPFS.Error)
+		logger.Warnf("ipfs id: %s has error: %s. Skipping swarm connections", ipfsID, pID.IPFS.Error)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (c *Cluster) recordIPFSLinks(cg *api.ConnectGraph, pID api.ID) {
 	ipfsPid := ipfsID.String()
 
 	if _, ok := cg.IPFSLinks[pid]; ok {
-		logger.Warnf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID.Pretty())
+		logger.Warnf("ipfs id: %s already recorded, one ipfs daemon in use by multiple cluster peers", ipfsID)
 	}
 	cg.ClustertoIPFS[pid] = ipfsID
 	cg.IPFSLinks[ipfsPid] = make([]peer.ID, 0)
