@@ -66,7 +66,8 @@ var (
 	// DefaultFilterPolicy defines the number of bits used per key for
 	// bloom filters. 10 yields a 1% false positive rate.
 	DefaultFilterPolicy bloom.FilterPolicy = 10 // Pebble's default: 10
-
+	// DefaultFormatMajorVersion sets the format of Pebble on-disk files.
+	DefaultFormatMajorVersion = pebble.FormatNewest
 )
 
 func init() {
@@ -219,6 +220,7 @@ func (cfg *Config) Default() error {
 	cfg.PebbleOptions = DefaultPebbleOptions
 	cache := pebble.NewCache(DefaultCacheSize)
 	cfg.PebbleOptions.Cache = cache
+	cfg.PebbleOptions.FormatMajorVersion = DefaultFormatMajorVersion
 	cfg.PebbleOptions.MemTableSize = DefaultMemTableSize
 	cfg.PebbleOptions.MemTableStopWritesThreshold = DefaultMemTableStopWritesThreshold
 	cfg.PebbleOptions.BytesPerSync = DefaultBytesPerSync
