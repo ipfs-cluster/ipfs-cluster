@@ -124,7 +124,10 @@ func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOp
 	var pin api.Pin
 	ipfspath, err := gopath.NewPath(path)
 	if err != nil {
-		return api.Pin{}, err
+		ipfspath, err = gopath.NewPath("/ipfs/" + path)
+		if err != nil {
+			return api.Pin{}, err
+		}
 	}
 	query, err := opts.ToQuery()
 	if err != nil {
@@ -155,7 +158,10 @@ func (c *defaultClient) UnpinPath(ctx context.Context, p string) (api.Pin, error
 	var pin api.Pin
 	ipfspath, err := gopath.NewPath(p)
 	if err != nil {
-		return api.Pin{}, err
+		ipfspath, err = gopath.NewPath("/ipfs/" + p)
+		if err != nil {
+			return api.Pin{}, err
+		}
 	}
 
 	err = c.do(ctx, "DELETE", fmt.Sprintf("/pins%s", ipfspath.String()), nil, nil, &pin)

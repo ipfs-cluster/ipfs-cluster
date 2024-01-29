@@ -94,20 +94,23 @@ func (mock *mockCluster) Unpin(ctx context.Context, in api.Pin, out *api.Pin) er
 func (mock *mockCluster) PinPath(ctx context.Context, in api.PinPath, out *api.Pin) error {
 	p, err := gopath.NewPath(in.Path)
 	if err != nil {
-		return err
+		p, err = gopath.NewPath("/ipfs/" + in.Path)
+		if err != nil {
+			return err
+		}
 	}
 
 	var pin api.Pin
 
 	immPath, err := gopath.NewImmutablePath(p)
-	if err != nil { // mutable
-		pin = api.PinWithOpts(CidResolved, in.PinOptions)
-	} else { // immutable
+	if err == nil && len(immPath.Segments()) == 2 { // no need to resolve
 		cc := api.NewCid(immPath.RootCid())
 		if cc.Equals(ErrorCid) {
 			return ErrBadCid
 		}
 		pin = api.PinWithOpts(cc, in.PinOptions)
+	} else { // must resolve
+		pin = api.PinWithOpts(CidResolved, in.PinOptions)
 	}
 
 	*out = pin

@@ -862,17 +862,20 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (api.Cid, error
 
 	validPath, err := gopath.NewPath(path)
 	if err != nil {
-		logger.Error("could not parse path: " + err.Error())
-		return api.CidUndef, err
+		validPath, err = gopath.NewPath("/ipfs/" + path)
+		if err != nil {
+			logger.Error("could not parse path: " + err.Error())
+			return api.CidUndef, err
+		}
 	}
 	immPath, err := gopath.NewImmutablePath(validPath)
-	if err == nil {
+	if err == nil && len(immPath.Segments()) == 2 { // no need to resolve
 		return api.NewCid(immPath.RootCid()), nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(path), "", nil)
+	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(validPath.String()), "", nil)
 	if err != nil {
 		return api.CidUndef, err
 	}
