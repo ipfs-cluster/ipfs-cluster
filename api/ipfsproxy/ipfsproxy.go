@@ -969,7 +969,7 @@ func slashHandler(origHandler http.HandlerFunc) http.HandlerFunc {
 }
 
 // pathOrCidPath returns a path.Path built from the argument. It keeps the old
-// behaviour by building a path from a CID string.
+// behavior by building a path from a CID string.
 func pathOrCidPath(str string) (path.Path, error) {
 	p, err := path.NewPath(str)
 	if err == nil {
