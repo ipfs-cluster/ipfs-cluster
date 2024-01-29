@@ -127,13 +127,13 @@ func textFormatObject(resp interface{}) {
 
 func textFormatPrintID(obj api.ID) {
 	if obj.Error != "" {
-		fmt.Printf("%s | ERROR: %s\n", obj.ID.Pretty(), obj.Error)
+		fmt.Printf("%s | ERROR: %s\n", obj.ID, obj.Error)
 		return
 	}
 
 	fmt.Printf(
 		"%s | %s | Sees %d other peers\n",
-		obj.ID.Pretty(),
+		obj.ID,
 		obj.Peername,
 		len(obj.ClusterPeers)-1,
 	)
@@ -157,7 +157,7 @@ func textFormatPrintID(obj api.ID) {
 		ipfsAddrs = append(ipfsAddrs, a.String())
 	}
 	ipfsAddrs.Sort()
-	fmt.Printf("  > IPFS: %s\n", obj.IPFS.ID.Pretty())
+	fmt.Printf("  > IPFS: %s\n", obj.IPFS.ID)
 	for _, a := range ipfsAddrs {
 		fmt.Printf("    - %s\n", a)
 	}

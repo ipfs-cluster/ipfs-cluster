@@ -139,7 +139,7 @@ func createCluster(
 	checkErr("getting configuration string", err)
 	logger.Debugf("Configuration:\n%s\n", cfgBytes)
 
-	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().String()))
 	checkErr("tag context with host id", err)
 
 	err = observations.SetupMetrics(cfgs.Metrics)
