@@ -364,8 +364,8 @@ github.com/hashicorp/raft v1.3.11/go.mod h1:J8naEwc6XaaCfts7+28whSeRvCqTd6e20BlC
 github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477 h1:bLsrEmB2NUwkHH18FOJBIa04wOV2RQalJrcafTYu6Lg=
 github.com/hashicorp/raft-boltdb v0.0.0-20190605210249-ef2e128ed477/go.mod h1:aUF6HQr8+t3FC/ZHAC+pZreUBhTaxumuu3L+d37uRxk=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
-github.com/hsanjuan/ipfs-lite v1.8.1 h1:Rpd9bTXYgkmnt8M5QsZnWwtW6ebxAB7HlU/d0zE4BmA=
-github.com/hsanjuan/ipfs-lite v1.8.1/go.mod h1:oGCaHBi+I73UFjc6wPAQ75hr4FjJhoqy6YPZjtghDIc=
+github.com/hsanjuan/ipfs-lite v1.8.2 h1:PwYpfvh4HpActJyP03O4k6QznBR3xd6NmRWeOSJu/bY=
+github.com/hsanjuan/ipfs-lite v1.8.2/go.mod h1:PfY4I2whwnZBHviwoajNzwjSyR9IQIJHxkpPAc5SLxw=
 github.com/huin/goupnp v1.0.0/go.mod h1:n9v9KO1tAxYH82qOn+UTIFQDmx5n1Zxd/ClZDMX7Bnc=
 github.com/huin/goupnp v1.3.0 h1:UvLUlWDNpoUdYzb2TCn+MuTWtcjXKSza2n6CBdQ0xXc=
 github.com/huin/goupnp v1.3.0/go.mod h1:gnGPsThkYa7bFi/KWmEysQRf48l2dvR5bxr2OFckNX8=
