@@ -1,5 +1,74 @@
 # IPFS Cluster Changelog
 
+### v1.0.8 - 2024-01-30
+
+IPFS Cluster v1.0.8 is a maintenance release.
+
+This release updates dependencies (latest boxo and libp2p) and should bring a couple of Pebble-related improvements:
+  * We have upgraded Pebble's version. Some users have reported deadlocks in writes to Pebble ([ipfs/ipfs-cluster#2009](https://github.com/ipfs/ipfs-cluster/issues/2009)) and this seems to have helped.
+  * Pebble now supports 32-bit so it can be the default for all archs.
+  * We added a warning when Pebble's newest `MajorFormatVersion` is higher than
+  what is used in the configuration. **Users should increase their `major_format_version`
+  to maintain forward-compatibility with future versions of Pebble.**
+
+Additionally, some bugs have been fixed and a couple of useful features added, as mentioned below.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* ipfshttp: support talking to Kubo over unix sockets | [ipfs/ipfs-cluster#1999](https://github.com/ipfs/ipfs-cluster/issues/1999)
+* ipfsproxy: support talking to Kubo over unix sockets | [ipfs/ipfs-cluster#2027](https://github.com/ipfs/ipfs-cluster/issues/2027)
+* pebble: enable in all archs as default datastore | [ipfs/ipfs-cluster#2005](https://github.com/ipfs/ipfs-cluster/issues/2005) | [ipfs/ipfs-cluster#2007](https://github.com/ipfs/ipfs-cluster/issues/2007)
+* pebble: set default MajorVersionFormat to newest | [ipfs/ipfs-cluster#2019](https://github.com/ipfs/ipfs-cluster/issues/2019)
+* cluster: Announce and NoAnnounce options | [ipfs/ipfs-cluster#952](https://github.com/ipfs/ipfs-cluster/issues/952) | [ipfs/ipfs-cluster#2010](https://github.com/ipfs/ipfs-cluster/issues/2010)
+
+
+##### Bug fixes
+
+* ipfs-cluster-follow: issue numpin and pinqueue metrics to other peers | [ipfs/ipfs-cluster#2011](https://github.com/ipfs/ipfs-cluster/issues/2011) | [ipfs/ipfs-cluster#2016](https://github.com/ipfs/ipfs-cluster/issues/2016)
+* ipfshttp: do no pre-resolve node_multiaddresses | [ipfs/ipfs-cluster#2004](https://github.com/ipfs/ipfs-cluster/issues/2004) | [ipfs/ipfs-cluster#2017](https://github.com/ipfs/ipfs-cluster/issues/2017)
+* ipfsproxy: do no pre-resolve node_multiaddresses | [ipfs/ipfs-cluster#2027](https://github.com/ipfs/ipfs-cluster/issues/2027)
+* pebble: deadlock | [ipfs/ipfs-cluster#2009](https://github.com/ipfs/ipfs-cluster/issues/2009)
+
+##### Other changes
+
+* The `Dockerfile-bundle` file has been removed (unmaintained) | [ipfs/ipfs-cluster#1986](https://github.com/ipfs/ipfs-cluster/issues/1986)
+* Dependency upgrades | [ipfs/ipfs-cluster#2007](https://github.com/ipfs/ipfs-cluster/issues/2007) | [ipfs/ipfs-cluster#2018](https://github.com/ipfs/ipfs-cluster/issues/2018) | [ipfs/ipfs-cluster#2026](https://github.com/ipfs/ipfs-cluster/issues/2026)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+Two new options have been added to forcefully control the cluster peer libp2p host address announcements: `cluster.announce_multiaddress` and `cluster.no_announce_multiaddress`. Both take a slice of multiaddresses.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Nothing.
+
+---
+
+
 ### v1.0.7 - 2023-10-12
 
 IPFS Cluster v1.0.7 is a maintenance release.
