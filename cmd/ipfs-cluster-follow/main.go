@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"os/user"
@@ -88,6 +89,10 @@ List items in the pinset for a given cluster:
 
 $ %s <clusterName> list
 
+Leave cluster and remove all pins:
+
+$ %s <clusterName> stop
+
 Getting help and usage info:
 
 $ %s --help
@@ -96,11 +101,14 @@ $ %s <clusterName> info --help
 $ %s <clusterName> init --help
 $ %s <clusterName> run --help
 $ %s <clusterName> list --help
+$ %s <clusterName> stop --help
 
 `,
 	programName,
 	programName,
 	DefaultFolder,
+	programName,
+	programName,
 	programName,
 	programName,
 	programName,
@@ -271,6 +279,28 @@ as obtained from the internal state on disk.
 `,
 				Action: listCmd,
 			},
+			{
+				Name:      "stop",
+				Usage:     "stop to follow the cluster and unpin everything",
+				ArgsUsage: "",
+				Description: fmt.Sprintf(`
+
+This command stops following %s and leaves %s. It also removes any
+persisted consensus data, including the current pinset (state).
+
+The next start of this follower will be like a first start to all effects.
+`, clusterName, clusterName),
+				Action: stopCmd,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name: "cleanup",
+						Usage: fmt.Sprintf("delete files in %s", func() string {
+							absPath, _, _ := buildPaths(c, clusterName)
+							return absPath
+						}()),
+					},
+				},
+			},
 		}
 		return clusterApp.RunAsSubcommand(c)
 	}
@@ -304,6 +334,27 @@ func socketAddress(absPath, clusterName string) (multiaddr.Multiaddr, error) {
 		return nil, errors.Wrapf(err, "error parsing socket: %s", socket)
 	}
 	return ma, nil
+}
+
+func killFollower(absPath string) error {
+	conn, err := net.Dial("unix", filepath.Join(absPath, "api-socket"))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	connFile, err := conn.(*net.UnixConn).File()
+	if err != nil {
+		return err
+	}
+	ucred, err := syscall.GetsockoptUcred(int(connFile.Fd()), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
+	if err != nil {
+		return err
+	}
+	clusterP, err := os.FindProcess(int(ucred.Pid))
+	if err != nil {
+		return err
+	}
+	return clusterP.Signal(syscall.SIGTERM)
 }
 
 // returns an REST API client. Points to the socket address unless
