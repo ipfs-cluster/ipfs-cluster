@@ -24,6 +24,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/adder/adderutils"
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/rpcutil"
+	"github.com/tv42/httpunix"
 
 	handlers "github.com/gorilla/handlers"
 	mux "github.com/gorilla/mux"
@@ -33,7 +34,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
 
 	"go.opencensus.io/plugin/ochttp"
@@ -58,12 +58,15 @@ type Server struct {
 	ctx    context.Context
 	cancel func()
 
-	config     *Config
-	nodeScheme string
-	nodeAddr   string
+	config      *Config
+	nodeScheme  string
+	nodeAddr    string
+	nodeNetwork string
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
+
+	transport http.RoundTripper // to the proxied kubo RPC API
 
 	listeners    []net.Listener         // proxy listener
 	server       *http.Server           // proxy server
@@ -111,22 +114,21 @@ func New(cfg *Config) (*Server, error) {
 		return nil, err
 	}
 
-	nodeMAddr := cfg.NodeAddr
-	// dns multiaddresses need to be resolved first
-	if madns.Matches(nodeMAddr) {
-		ctx, cancel := context.WithTimeout(context.Background(), DNSTimeout)
-		defer cancel()
-		resolvedAddrs, err := madns.Resolve(ctx, cfg.NodeAddr)
-		if err != nil {
-			logger.Error(err)
-			return nil, err
-		}
-		nodeMAddr = resolvedAddrs[0]
-	}
-
-	_, nodeAddr, err := manet.DialArgs(nodeMAddr)
+	nodeNetwork, nodeAddr, err := manet.DialArgs(cfg.NodeAddr)
 	if err != nil {
 		return nil, err
+	}
+
+	transport := http.DefaultTransport
+
+	if nodeNetwork == "unix" {
+		unixTransport := &httpunix.Transport{
+			DialTimeout: time.Second,
+		}
+		unixTransport.RegisterLocation("ipfs", nodeAddr)
+		t := &http.Transport{}
+		t.RegisterProtocol(httpunix.Scheme, unixTransport)
+		transport = t
 	}
 
 	var listeners []net.Listener
@@ -195,14 +197,16 @@ func New(cfg *Config) (*Server, error) {
 	s.SetKeepAlivesEnabled(true) // A reminder that this can be changed
 
 	reverseProxy := httputil.NewSingleHostReverseProxy(proxyURL)
-	reverseProxy.Transport = http.DefaultTransport
+	reverseProxy.Transport = transport
 	ctx, cancel := context.WithCancel(context.Background())
 	proxy := &Server{
 		ctx:          ctx,
 		config:       cfg,
 		cancel:       cancel,
 		nodeAddr:     nodeHTTPAddr,
+		nodeNetwork:  nodeNetwork,
 		nodeScheme:   nodeScheme,
+		transport:    transport,
 		rpcReady:     make(chan struct{}, 1),
 		listeners:    listeners,
 		server:       s,
