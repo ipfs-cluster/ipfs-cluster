@@ -426,7 +426,7 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 
 // outputDagnode sends dagnode info over the output channel.
 // Cluster: we use api.AddedOutput instead of coreiface events
-// and make this an adder method to be be able to prefix.
+// and make this an adder method to be able to prefix.
 func (adder *Adder) outputDagnode(out chan api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil
