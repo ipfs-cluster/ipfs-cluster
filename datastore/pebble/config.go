@@ -89,6 +89,7 @@ type Config struct {
 // pebbleOptions is a subset of pebble.Options so it can be marshaled by us in
 // the cluster configuration.
 type pebbleOptions struct {
+	EventListener               *pebble.EventListener     `json:"-"`
 	CacheSizeBytes              int64                     `json:"cache_size_bytes"`
 	BytesPerSync                int                       `json:"bytes_per_sync"`
 	DisableWAL                  bool                      `json:"disable_wal"`
@@ -215,9 +216,12 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with sensible values.
 func (cfg *Config) Default() error {
 	cfg.Folder = DefaultSubFolder
-	cfg.PebbleOptions.Logger = logger
-
 	cfg.PebbleOptions = DefaultPebbleOptions
+
+	cfg.PebbleOptions.Logger = logger
+	eventListener := pebble.MakeLoggingEventListener(logger)
+	cfg.PebbleOptions.EventListener = &eventListener
+
 	cache := pebble.NewCache(DefaultCacheSize)
 	cfg.PebbleOptions.Cache = cache
 	cfg.PebbleOptions.FormatMajorVersion = DefaultFormatMajorVersion
