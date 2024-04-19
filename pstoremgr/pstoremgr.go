@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"sort"
 	"sync"
@@ -292,19 +293,28 @@ func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) error {
 // Bootstrap attempts to get up to "count" connected peers by trying those
 // in the peerstore in priority order. It returns the list of peers it managed
 // to connect to.
-func (pm *Manager) Bootstrap(count int) []peer.ID {
+func (pm *Manager) Bootstrap(count int, byPriority bool) []peer.ID {
+	totalConns := len(pm.host.Network().Conns())
+	// short-cut if there will be nothing to do.
+	if totalConns >= count {
+		return nil
+	}
+
 	knownPeers := pm.host.Peerstore().PeersWithAddrs()
 	toSort := &peerSort{
 		pinfos: pstoreutil.PeerInfos(pm.host.Peerstore(), knownPeers),
 		pstore: pm.host.Peerstore(),
 	}
 
-	// Sort from highest to lowest priority
-	sort.Sort(toSort)
+	if byPriority {
+		// Sort from highest to lowest priority
+		sort.Sort(toSort)
+	} else {
+		rand.Shuffle(len(toSort.pinfos), toSort.Swap)
+	}
 
 	pinfos := toSort.pinfos
 	lenKnown := len(pinfos)
-	totalConns := 0
 	connectedPeers := []peer.ID{}
 
 	// keep conecting while we have peers in the store

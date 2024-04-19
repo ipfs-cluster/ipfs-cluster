@@ -41,7 +41,7 @@ var ReadyTimeout = 30 * time.Second
 const (
 	pingMetricName      = "ping"
 	bootstrapCount      = 3
-	reBootstrapInterval = 30 * time.Second
+	reBootstrapInterval = 2 * time.Minute
 	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
 	maxAlerts           = 1000
 )
@@ -177,11 +177,11 @@ func NewCluster(
 	// a non permanent TTL.
 	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
 	c.peerManager.ImportPeers(c.config.PeerAddresses, false, peerstore.AddressTTL)
-	// Attempt to connect to some peers (up to bootstrapCount)
-	connectedPeers := c.peerManager.Bootstrap(bootstrapCount)
+	// Attempt to connect to some peers.
+	connectedPeers := c.peerManager.Bootstrap(bootstrapCount, true)
 	// We cannot warn when count is low as this as this is normal if going
 	// to Join() later.
-	logger.Debugf("bootstrap count %d", len(connectedPeers))
+	logger.Debugf("Bootstrapped to %d peers successfully", len(connectedPeers))
 	// Log a ping metric for every connected peer. This will make them
 	// visible as peers without having to wait for them to send one.
 	for _, p := range connectedPeers {
@@ -593,7 +593,14 @@ func (c *Cluster) reBootstrap() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
-			connected := c.peerManager.Bootstrap(bootstrapCount)
+			// Attempt to reach low-water setting if for some
+			// reason we are not there already. The default low
+			// water is 100.  On small clusters this ensures we
+			// stay connected to everyone. On larger clusters this
+			// will not trigger new connections when already above
+			// low water. When it does, known peers will be randomly
+			// selected.
+			connected := c.peerManager.Bootstrap(c.config.ConnMgr.LowWater, false)
 			for _, p := range connected {
 				logger.Infof("reconnected to %s", p)
 			}
