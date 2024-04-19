@@ -29,23 +29,26 @@ var DefaultListenAddrs = []string{
 
 // Configuration defaults
 const (
-	DefaultEnableRelayHop          = true
-	DefaultStateSyncInterval       = 5 * time.Minute
-	DefaultPinRecoverInterval      = 12 * time.Minute
-	DefaultMonitorPingInterval     = 15 * time.Second
-	DefaultPeerWatchInterval       = 5 * time.Second
-	DefaultReplicationFactor       = -1
-	DefaultLeaveOnShutdown         = false
-	DefaultPinOnlyOnTrustedPeers   = false
-	DefaultPinOnlyOnUntrustedPeers = false
-	DefaultDisableRepinning        = true
-	DefaultPeerstoreFile           = "peerstore"
-	DefaultConnMgrHighWater        = 400
-	DefaultConnMgrLowWater         = 100
-	DefaultConnMgrGracePeriod      = 2 * time.Minute
-	DefaultDialPeerTimeout         = 3 * time.Second
-	DefaultFollowerMode            = false
-	DefaultMDNSInterval            = 10 * time.Second
+	DefaultEnableRelayHop                  = true
+	DefaultStateSyncInterval               = 5 * time.Minute
+	DefaultPinRecoverInterval              = 12 * time.Minute
+	DefaultMonitorPingInterval             = 15 * time.Second
+	DefaultPeerWatchInterval               = 5 * time.Second
+	DefaultReplicationFactor               = -1
+	DefaultLeaveOnShutdown                 = false
+	DefaultPinOnlyOnTrustedPeers           = false
+	DefaultPinOnlyOnUntrustedPeers         = false
+	DefaultDisableRepinning                = true
+	DefaultPeerstoreFile                   = "peerstore"
+	DefaultConnMgrHighWater                = 400
+	DefaultConnMgrLowWater                 = 100
+	DefaultResourceMgrEnabled              = true
+	DefaultResourceMgrMemoryLimitBytes     = 0
+	DefaultResourceMgrFileDescriptorsLimit = 0
+	DefaultConnMgrGracePeriod              = 2 * time.Minute
+	DefaultDialPeerTimeout                 = 3 * time.Second
+	DefaultFollowerMode                    = false
+	DefaultMDNSInterval                    = 10 * time.Second
 )
 
 // ConnMgrConfig configures the libp2p host connection manager.
@@ -53,6 +56,13 @@ type ConnMgrConfig struct {
 	HighWater   int
 	LowWater    int
 	GracePeriod time.Duration
+}
+
+// ResourceMgrConfig configures the libp2p resource manager scaling.
+type ResourceMgrConfig struct {
+	Enabled              bool
+	MemoryLimitBytes     uint64
+	FileDescriptorsLimit uint64
 }
 
 // Config is the configuration object containing customizable variables to
@@ -89,6 +99,10 @@ type Config struct {
 	// the libp2p host.
 	// FIXME: This only applies to ipfs-cluster-service.
 	ConnMgr ConnMgrConfig
+
+	// ResourceMgr holds configuration for the scaling of the libp2p
+	// resource manager limits.
+	ResourceMgr ResourceMgrConfig
 
 	// Sets the default dial timeout for libp2p connections to other
 	// peers.
@@ -180,30 +194,31 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                      string             `json:"id,omitempty"`
-	Peername                string             `json:"peername"`
-	PrivateKey              string             `json:"private_key,omitempty" hidden:"true"`
-	Secret                  string             `json:"secret" hidden:"true"`
-	LeaveOnShutdown         bool               `json:"leave_on_shutdown"`
-	ListenMultiaddress      config.Strings     `json:"listen_multiaddress"`
-	AnnounceMultiaddress    config.Strings     `json:"announce_multiaddress"`
-	NoAnnounceMultiaddress  config.Strings     `json:"no_announce_multiaddress"`
-	EnableRelayHop          bool               `json:"enable_relay_hop"`
-	ConnectionManager       *connMgrConfigJSON `json:"connection_manager"`
-	DialPeerTimeout         string             `json:"dial_peer_timeout"`
-	StateSyncInterval       string             `json:"state_sync_interval"`
-	PinRecoverInterval      string             `json:"pin_recover_interval"`
-	ReplicationFactorMin    int                `json:"replication_factor_min"`
-	ReplicationFactorMax    int                `json:"replication_factor_max"`
-	MonitorPingInterval     string             `json:"monitor_ping_interval"`
-	PeerWatchInterval       string             `json:"peer_watch_interval"`
-	MDNSInterval            string             `json:"mdns_interval"`
-	PinOnlyOnTrustedPeers   bool               `json:"pin_only_on_trusted_peers"`
-	PinOnlyOnUntrustedPeers bool               `json:"pin_only_on_untrusted_peers"`
-	DisableRepinning        bool               `json:"disable_repinning"`
-	FollowerMode            bool               `json:"follower_mode,omitempty"`
-	PeerstoreFile           string             `json:"peerstore_file,omitempty"`
-	PeerAddresses           []string           `json:"peer_addresses"`
+	ID                      string                 `json:"id,omitempty"`
+	Peername                string                 `json:"peername"`
+	PrivateKey              string                 `json:"private_key,omitempty" hidden:"true"`
+	Secret                  string                 `json:"secret" hidden:"true"`
+	LeaveOnShutdown         bool                   `json:"leave_on_shutdown"`
+	ListenMultiaddress      config.Strings         `json:"listen_multiaddress"`
+	AnnounceMultiaddress    config.Strings         `json:"announce_multiaddress"`
+	NoAnnounceMultiaddress  config.Strings         `json:"no_announce_multiaddress"`
+	EnableRelayHop          bool                   `json:"enable_relay_hop"`
+	ConnectionManager       *connMgrConfigJSON     `json:"connection_manager"`
+	ResourceManager         *resourceMgrConfigJSON `json:"resource_manager"`
+	DialPeerTimeout         string                 `json:"dial_peer_timeout"`
+	StateSyncInterval       string                 `json:"state_sync_interval"`
+	PinRecoverInterval      string                 `json:"pin_recover_interval"`
+	ReplicationFactorMin    int                    `json:"replication_factor_min"`
+	ReplicationFactorMax    int                    `json:"replication_factor_max"`
+	MonitorPingInterval     string                 `json:"monitor_ping_interval"`
+	PeerWatchInterval       string                 `json:"peer_watch_interval"`
+	MDNSInterval            string                 `json:"mdns_interval"`
+	PinOnlyOnTrustedPeers   bool                   `json:"pin_only_on_trusted_peers"`
+	PinOnlyOnUntrustedPeers bool                   `json:"pin_only_on_untrusted_peers"`
+	DisableRepinning        bool                   `json:"disable_repinning"`
+	FollowerMode            bool                   `json:"follower_mode,omitempty"`
+	PeerstoreFile           string                 `json:"peerstore_file,omitempty"`
+	PeerAddresses           []string               `json:"peer_addresses"`
 }
 
 // connMgrConfigJSON configures the libp2p host connection manager.
@@ -211,6 +226,13 @@ type connMgrConfigJSON struct {
 	HighWater   int    `json:"high_water"`
 	LowWater    int    `json:"low_water"`
 	GracePeriod string `json:"grace_period"`
+}
+
+// resourceMgrConfigJSON configures the libp2p host resource manager.
+type resourceMgrConfigJSON struct {
+	Enabled              bool   `json:"enabled"`
+	MemoryLimitBytes     uint64 `json:"memory_limit_bytes"`
+	FileDescriptorsLimit uint64 `json:"file_descriptors_limit"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -389,6 +411,11 @@ func (cfg *Config) setDefaults() {
 		LowWater:    DefaultConnMgrLowWater,
 		GracePeriod: DefaultConnMgrGracePeriod,
 	}
+	cfg.ResourceMgr = ResourceMgrConfig{
+		Enabled:              DefaultResourceMgrEnabled,
+		MemoryLimitBytes:     DefaultResourceMgrMemoryLimitBytes,
+		FileDescriptorsLimit: DefaultResourceMgrFileDescriptorsLimit,
+	}
 	cfg.DialPeerTimeout = DefaultDialPeerTimeout
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
@@ -470,6 +497,12 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		}
 	}
 
+	if rmgr := jcfg.ResourceManager; rmgr != nil {
+		cfg.ResourceMgr.Enabled = rmgr.Enabled
+		cfg.ResourceMgr.MemoryLimitBytes = rmgr.MemoryLimitBytes
+		cfg.ResourceMgr.FileDescriptorsLimit = rmgr.FileDescriptorsLimit
+	}
+
 	rplMin := jcfg.ReplicationFactorMin
 	rplMax := jcfg.ReplicationFactorMax
 	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
@@ -546,6 +579,11 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		HighWater:   cfg.ConnMgr.HighWater,
 		LowWater:    cfg.ConnMgr.LowWater,
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
+	}
+	jcfg.ResourceManager = &resourceMgrConfigJSON{
+		Enabled:              cfg.ResourceMgr.Enabled,
+		MemoryLimitBytes:     cfg.ResourceMgr.MemoryLimitBytes,
+		FileDescriptorsLimit: cfg.ResourceMgr.FileDescriptorsLimit,
 	}
 	jcfg.DialPeerTimeout = cfg.DialPeerTimeout.String()
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()

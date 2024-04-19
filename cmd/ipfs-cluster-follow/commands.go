@@ -314,7 +314,7 @@ func runCmd(c *cli.Context) error {
 	// Defaults to Trusted otherwise.
 	cfgs.Cluster.RPCPolicy["Cluster.RepoGCLocal"] = ipfscluster.RPCClosed
 
-	// Discard API configurations and create our own
+	// Discard API configurations and create our own (unix socket)
 	apiCfg := rest.NewConfig()
 	cfgs.Restapi = apiCfg
 	_ = apiCfg.Default()
