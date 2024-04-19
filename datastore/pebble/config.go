@@ -89,6 +89,7 @@ type Config struct {
 // pebbleOptions is a subset of pebble.Options so it can be marshaled by us in
 // the cluster configuration.
 type pebbleOptions struct {
+	EventListener               *pebble.EventListener     `json:"-"`
 	CacheSizeBytes              int64                     `json:"cache_size_bytes"`
 	BytesPerSync                int                       `json:"bytes_per_sync"`
 	DisableWAL                  bool                      `json:"disable_wal"`
@@ -101,12 +102,12 @@ type pebbleOptions struct {
 	L0StopWritesThreshold       int                       `json:"l0_stop_writes_threshold"`
 	LBaseMaxBytes               int64                     `json:"l_base_max_bytes"`
 	MaxOpenFiles                int                       `json:"max_open_files"`
+	MaxConcurrentCompactions    int                       `json:"max_concurrent_compactions"`
 	MemTableSize                uint64                    `json:"mem_table_size"`
 	MemTableStopWritesThreshold int                       `json:"mem_table_stop_writes_threshold"`
 	ReadOnly                    bool                      `json:"read_only"`
 	WALBytesPerSync             int                       `json:"wal_bytes_per_sync"`
 	Levels                      []levelOptions            `json:"levels"`
-	MaxConcurrentCompactions    int                       `json:"max_concurrent_compactions"`
 }
 
 func (po *pebbleOptions) Unmarshal() *pebble.Options {
@@ -125,15 +126,18 @@ func (po *pebbleOptions) Unmarshal() *pebble.Options {
 	pebbleOpts.L0StopWritesThreshold = po.L0StopWritesThreshold
 	pebbleOpts.LBaseMaxBytes = po.LBaseMaxBytes
 	pebbleOpts.Levels = make([]pebble.LevelOptions, len(po.Levels))
-	for i := range po.Levels {
-		pebbleOpts.Levels[i] = *po.Levels[i].Unmarshal()
-	}
 	pebbleOpts.MaxOpenFiles = po.MaxOpenFiles
+	// Avoid that an empty field results in compactions being disabled.
+	if po.MaxConcurrentCompactions > 0 {
+		pebbleOpts.MaxConcurrentCompactions = func() int { return po.MaxConcurrentCompactions }
+	}
 	pebbleOpts.MemTableSize = po.MemTableSize
 	pebbleOpts.MemTableStopWritesThreshold = po.MemTableStopWritesThreshold
 	pebbleOpts.ReadOnly = po.ReadOnly
 	pebbleOpts.WALBytesPerSync = po.WALBytesPerSync
-	pebbleOpts.MaxConcurrentCompactions = func() int { return po.MaxConcurrentCompactions }
+	for i := range po.Levels {
+		pebbleOpts.Levels[i] = *po.Levels[i].Unmarshal()
+	}
 	return pebbleOpts
 }
 
@@ -215,9 +219,12 @@ func (cfg *Config) ConfigKey() string {
 // Default initializes this Config with sensible values.
 func (cfg *Config) Default() error {
 	cfg.Folder = DefaultSubFolder
-	cfg.PebbleOptions.Logger = logger
-
 	cfg.PebbleOptions = DefaultPebbleOptions
+
+	cfg.PebbleOptions.Logger = logger
+	eventListener := pebble.MakeLoggingEventListener(logger)
+	cfg.PebbleOptions.EventListener = &eventListener
+
 	cache := pebble.NewCache(DefaultCacheSize)
 	cfg.PebbleOptions.Cache = cache
 	cfg.PebbleOptions.FormatMajorVersion = DefaultFormatMajorVersion
@@ -265,6 +272,10 @@ func (cfg *Config) ApplyEnvVars() error {
 func (cfg *Config) Validate() error {
 	if cfg.Folder == "" {
 		return errors.New("folder is unset")
+	}
+
+	if cfg.PebbleOptions.MaxConcurrentCompactions() <= 0 {
+		return errors.New("max_concurrent_compactions must be greater than 0")
 	}
 
 	if err := cfg.PebbleOptions.Validate(); err != nil {
