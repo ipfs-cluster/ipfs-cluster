@@ -76,13 +76,7 @@ func NewClusterHost(
 		return nil, nil, nil, err
 	}
 
-	var rmgr network.ResourceManager
-	if !cfg.ResourceMgr.Enabled {
-		rmgr, err = rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
-		logger.Infof("go-libp2p Resource Manager DISABLED")
-	} else {
-		rmgr, err = makeResourceMgr(cfg.ResourceMgr.MemoryLimitBytes, cfg.ResourceMgr.FileDescriptorsLimit, cfg.ConnMgr.HighWater)
-	}
+	rmgr, err := makeResourceMgr(cfg.ResourceMgr.Enabled, cfg.ResourceMgr.MemoryLimitBytes, cfg.ResourceMgr.FileDescriptorsLimit, cfg.ConnMgr.HighWater)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -308,7 +302,14 @@ func makeAddrsFactory(announce []ma.Multiaddr, noAnnounce []ma.Multiaddr) (p2pbh
 // mostly copy/pasted from https://github.com/ipfs/rainbow/blob/main/rcmgr.go
 // which is itself copy-pasted from Kubo, because libp2p does not have
 // a sane way of doing this.
-func makeResourceMgr(maxMemory, maxFD uint64, connMgrHighWater int) (network.ResourceManager, error) {
+func makeResourceMgr(enabled bool, maxMemory, maxFD uint64, connMgrHighWater int) (network.ResourceManager, error) {
+	if !enabled {
+		rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
+		logger.Infof("go-libp2p Resource Manager DISABLED")
+		return rmgr, err
+	}
+
+	// Auto-scaled limits based on available memory/fds.
 	if maxMemory == 0 {
 		maxMemory = uint64((float64(memory.TotalMemory()) * 0.85))
 	}
