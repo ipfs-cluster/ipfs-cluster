@@ -39,11 +39,12 @@ import (
 var ReadyTimeout = 30 * time.Second
 
 const (
-	pingMetricName      = "ping"
-	bootstrapCount      = 3
-	reBootstrapInterval = 2 * time.Minute
-	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
-	maxAlerts           = 1000
+	pingMetricName                = "ping"
+	bootstrapCount                = 3
+	reBootstrapInterval           = 30 * time.Second
+	priorityPeerReconnectInterval = 5 * time.Minute
+	mdnsServiceTag                = "_ipfs-cluster-discovery._udp"
+	maxAlerts                     = 1000
 )
 
 var errFollowerMode = errors.New("this peer is configured to be in follower mode. Write operations are disabled")
@@ -173,12 +174,15 @@ func NewCluster(
 		readyB:      false,
 	}
 
-	// Import known cluster peers from peerstore file and config. Set
-	// a non permanent TTL.
+	// PeerAddresses are assumed to be permanent and have the maximum
+	// priority for bootstrapping.
+	c.peerManager.ImportPeersWithPriority(c.config.PeerAddresses, false, peerstore.PermanentAddrTTL, 0)
+	// Peerstore addresses come afterwards and have increasing priorities
+	// for bootstrapping and non permanent TTL (1h).
 	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
-	c.peerManager.ImportPeers(c.config.PeerAddresses, false, peerstore.AddressTTL)
+
 	// Attempt to connect to some peers.
-	connectedPeers := c.peerManager.Bootstrap(bootstrapCount, true)
+	connectedPeers := c.peerManager.Bootstrap(bootstrapCount, true, true)
 	// We cannot warn when count is low as this as this is normal if going
 	// to Join() later.
 	logger.Debugf("Bootstrapped to %d peers successfully", len(connectedPeers))
@@ -585,14 +589,17 @@ func (c *Cluster) watchPeers() {
 // peerstore). This should ensure that we auto-recover from situations in
 // which the network was completely gone and we lost all peers.
 func (c *Cluster) reBootstrap() {
-	ticker := time.NewTicker(reBootstrapInterval)
-	defer ticker.Stop()
+	generalBootstrap := time.NewTicker(reBootstrapInterval)
+	priorityPeerReconnect := time.NewTicker(priorityPeerReconnectInterval)
+
+	defer generalBootstrap.Stop()
+	defer priorityPeerReconnect.Stop()
 
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
-		case <-ticker.C:
+		case <-generalBootstrap.C:
 			// Attempt to reach low-water setting if for some
 			// reason we are not there already. The default low
 			// water is 100.  On small clusters this ensures we
@@ -600,9 +607,26 @@ func (c *Cluster) reBootstrap() {
 			// will not trigger new connections when already above
 			// low water. When it does, known peers will be randomly
 			// selected.
-			connected := c.peerManager.Bootstrap(c.config.ConnMgr.LowWater, false)
+			connected := c.peerManager.Bootstrap(c.config.ConnMgr.LowWater, false, false)
 			for _, p := range connected {
 				logger.Infof("reconnected to %s", p)
+			}
+		case <-priorityPeerReconnect.C:
+			// This is a safeguard for clusters with many peers.
+			// It is understood that PeerAddresses are stable,
+			// possibly "trusted" or at least honest peers.
+			//
+			// We don't need to be connected to them, but in an
+			// scenario where there rest of the (untrusted) peers
+			// works to isolate or mislead other peers (i.e. not
+			// propagating pubsub), it does not hurt to reconnect
+			// to one of these peers from time to time.
+			if len(c.config.PeerAddresses) == 0 {
+				break
+			}
+			connected := c.peerManager.Bootstrap(1, true, true)
+			for _, p := range connected {
+				logger.Infof("reconnected to priority peer %s", p)
 			}
 		}
 	}
