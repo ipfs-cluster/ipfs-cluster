@@ -311,7 +311,10 @@ func makeResourceMgr(enabled bool, maxMemory, maxFD uint64, connMgrHighWater int
 
 	// Auto-scaled limits based on available memory/fds.
 	if maxMemory == 0 {
-		maxMemory = uint64((float64(memory.TotalMemory()) * 0.85))
+		maxMemory = uint64((float64(memory.TotalMemory()) * 0.25))
+		if maxMemory < 1<<20 { // 1 GiB
+			maxMemory = 1 << 20
+		}
 	}
 	if maxFD == 0 {
 		maxFD = fd.GetNumFDs() / 2
