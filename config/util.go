@@ -208,7 +208,7 @@ func (o *Strings) UnmarshalJSON(data []byte) error {
 func (o Strings) MarshalJSON() ([]byte, error) {
 	switch len(o) {
 	case 0:
-		return json.Marshal(nil)
+		return json.Marshal([]string{})
 	case 1:
 		return json.Marshal(o[0])
 	default:
