@@ -490,7 +490,7 @@ func listCmd(c *cli.Context) error {
 func stopCmd(c *cli.Context) error {
 	clusterName := c.String(clusterNameFlag)
 
-	absPath, configPath, identityPath := buildPaths(c, clusterName)
+	absPath, _, identityPath := buildPaths(c, clusterName)
 	if !isInitialized(absPath) {
 		printNotInitialized(clusterName)
 		return cli.Exit("", 1)
@@ -499,39 +499,25 @@ func stopCmd(c *cli.Context) error {
 	// unpin cluster files and kill ipfs-cluster-follow process if cluster and ipfs daemon exist
 	_, err := os.Stat(filepath.Join(absPath, "api-socket"))
 	if err == nil {
-		err = unpinEverything(absPath, clusterName, identityPath)
-		if err != nil {
-			return cli.Exit(errors.Wrap(err, "unpin error"), 1)
+		if c.Bool("unpin") {
+			err = unpinEverything(absPath, clusterName, identityPath)
+			if err != nil {
+				return cli.Exit(errors.Wrap(err, "unpin error"), 1)
+			}
 		}
 		err = killFollower(absPath)
 		if err != nil {
-			return cli.Exit(errors.Wrap(err, "error killing follower peer(ipfs-cluster-follow daemon)"), 1)
+			return cli.Exit(errors.Wrap(err, "error killing ipfs-cluster-follow daemon"), 1)
 		}
 	} else {
-		return cli.Exit(errors.Wrap(err, "ipfs-cluster-follow or ipfs daemon not exists"), 1)
+		return cli.Exit(errors.Wrap(err, "ipfs-cluster-follow does not seem to be running for this cluster"), 1)
 	}
 
 	// clean date and folder
 	if c.Bool("cleanup") {
-		cfgHelper, err := cmdutils.NewLoadedConfigHelper(
-			configPath,
-			identityPath,
-		)
-		if err != nil {
-			return cli.Exit(errors.Wrap(err, "error creating config helper"), 1)
-		}
-		cfgHelper.Manager().Shutdown()
-		mgr, err := cmdutils.NewStateManagerWithHelper(cfgHelper)
-		if err != nil {
-			return cli.Exit(errors.Wrap(err, "error creating state manager"), 1)
-		}
-		err = mgr.Clean()
-		if err != nil {
-			return cli.Exit(errors.Wrap(err, "error cleaning datastore"), 1)
-		}
 		err = os.RemoveAll(absPath)
 		if err != nil {
-			return cli.Exit(errors.Wrap(err, "fail to cleanup"), 1)
+			return cli.Exit(errors.Wrap(err, "deleting "+absPath), 1)
 		}
 	}
 	return nil

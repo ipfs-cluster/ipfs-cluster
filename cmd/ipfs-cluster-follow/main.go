@@ -281,17 +281,19 @@ as obtained from the internal state on disk.
 			},
 			{
 				Name:      "stop",
-				Usage:     "stop to follow the cluster and unpin everything",
+				Usage:     fmt.Sprintf("stop to follow %s by default and optionally delete everything", clusterName),
 				ArgsUsage: "",
 				Description: fmt.Sprintf(`
-
-This command stops following %s and leaves %s. It also removes any
-persisted consensus data, including the current pinset (state).
-
-The next start of this follower will be like a first start to all effects.
-`, clusterName, clusterName),
+This command stops the follower from tracking the %s by default. 
+It can also unpin all the items of current pinset or 
+delete all persisted consensus data.
+`, clusterName),
 				Action: stopCmd,
 				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "unpin",
+						Usage: "unpin all the items in the cluster",
+					},
 					&cli.BoolFlag{
 						Name: "cleanup",
 						Usage: fmt.Sprintf("delete files in %s", func() string {
@@ -350,11 +352,11 @@ func killFollower(absPath string) error {
 	if err != nil {
 		return err
 	}
-	clusterP, err := os.FindProcess(int(ucred.Pid))
+	followerP, err := os.FindProcess(int(ucred.Pid))
 	if err != nil {
 		return err
 	}
-	return clusterP.Signal(syscall.SIGTERM)
+	return followerP.Signal(syscall.SIGTERM)
 }
 
 // returns an REST API client. Points to the socket address unless
