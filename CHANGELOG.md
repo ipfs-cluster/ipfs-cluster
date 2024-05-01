@@ -1,5 +1,115 @@
 # IPFS Cluster Changelog
 
+### v1.1.0 - 2024-05-06
+
+IPFS Cluster v1.1.0 is a maintenance release that comes with a number of
+improvements in libp2p connection and resource management. We are bumping the
+minor release version to bring the attention to the slight behavioral changes
+included in this release.
+
+In order to improve how clusters with a very large number of peers behave, we
+have changed the previous logic which made every peer reconnect constantly to
+3 specific peers (usually the "trusted peers" in collaborative clusters). For
+obvious reasons, this caused bottlenecks when the clusters grew into the
+thousands of peers. Swarm connections should now grow more organically and we
+only re-bootstrap when they fall below expectable levels.
+
+Anothe relevant change is the exposure of the libp2p Resource Manager
+settings, and the new defaults, which limit libp2p usages to 25% of the
+system's total memory and 50% of the process' available file descriptors. The
+limits can be adjusted as explained below. The new defaults, along with other
+internal details controlling the initialization of the resource manager are
+likely more restrictive than the defaults used in previous versions. That
+means that memory-constrained systems may start seeing resource-manager errors
+where there were none before. The solution is to increase the limits. The
+limits are conservative as Kubo is the major resource user at the end of the
+day.
+
+We have also updated to the latest Pebble release. This should not cause any
+problems for users that already bumped `major_format_version` when upgrading
+to v1.0.8, otherwise we recommend setting it to `16` per the warning printed
+on daemon's start.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* cluster: expose and customize libp2p's Resource Manager | [ipfs/ipfs-cluster#2039](https://github.com/ipfs/ipfs-cluster/issues/2039) | [ipfs/ipfs-cluster#2049](https://github.com/ipfs/ipfs-cluster/issues/2049)
+* ipfsproxy: support talking to Kubo over unix sockets | [ipfs/ipfs-cluster#2027](https://github.com/ipfs/ipfs-cluster/issues/2027)
+* pebble: enable in all archs as default datastore | [ipfs/ipfs-cluster#2005](https://github.com/ipfs/ipfs-cluster/issues/2005) | [ipfs/ipfs-cluster#2007](https://github.com/ipfs/ipfs-cluster/issues/2007)
+* pebble: set default MajorVersionFormat to newest | [ipfs/ipfs-cluster#2019](https://github.com/ipfs/ipfs-cluster/issues/2019)
+* cluster: Announce and NoAnnounce options | [ipfs/ipfs-cluster#952](https://github.com/ipfs/ipfs-cluster/issues/952) | [ipfs/ipfs-cluster#2010](https://github.com/ipfs/ipfs-cluster/issues/2010)
+
+##### Bug fixes
+
+* go-dot: missing dependency, cannot compile | [ipfs/ipfs-cluster#2052](https://github.com/ipfs/ipfs-cluster/issues/2052) | [ipfs/ipfs-cluster#2053](https://github.com/ipfs/ipfs-cluster/issues/2053)
+* pebble: fix debug logging not happening. Harden settings against footguns | [ipfs/ipfs-cluster#2047](https://github.com/ipfs/ipfs-cluster/issues/2047)
+* config: default empty multiaddresses should be `[]` instead of `null` | [ipfs/ipfs-cluster#2051](https://github.com/ipfs/ipfs-cluster/issues/2051)
+
+##### Other changes
+
+* syntax improvement | [ipfs/ipfs-cluster#2042](https://github.com/ipfs/ipfs-cluster/issues/2042)
+* Dependency upgrades (including Pebble and Raft) | [ipfs/ipfs-cluster#2044](https://github.com/ipfs/ipfs-cluster/issues/2044) | [ipfs/ipfs-cluster#2048](https://github.com/ipfs/ipfs-cluster/issues/2048) | [ipfs/ipfs-cluster#2050](https://github.com/ipfs/ipfs-cluster/issues/2050)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+A `resource_manager` setting has been added to the main `cluster` configuration section:
+
+```
+cluster: {
+  ...
+  "resource_manager": {
+    "enabled": true,
+    "memory_limit_bytes": 0,
+    "file_descriptors_limit": 0
+  },
+```
+
+when not present, the defaults will be as shown above. Using negative values will error.
+
+The new setting controls the working limits for the libp2p Resource
+Manager. `0` means "based on system's resources":
+
+* `memory_limit_bytes` defaults to 25% of the system's total memory when set
+  to `0`, with a minimum of 1GiB.
+* `file_descriptors_limit` defaults to 50% of the process' file descriptor limit when set to `0`.
+
+These limits can be set manually, or the resource manager can be fully
+disabled by toggling the `enabled` setting.
+
+When the limits are reached, libp2p will print warnings and errors as
+connections and libp2p streams are dropped. Note that the limits only affect
+libp2p resources and not the total memory usage of the IPFS Cluster daemon.
+
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Nothing.
+
+---
+
 ### v1.0.8 - 2024-01-30
 
 IPFS Cluster v1.0.8 is a maintenance release.
