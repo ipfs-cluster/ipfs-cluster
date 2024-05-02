@@ -496,27 +496,27 @@ func stopCmd(c *cli.Context) error {
 		return cli.Exit("", 1)
 	}
 
-	// unpin cluster files and kill ipfs-cluster-follow process if cluster and ipfs daemon exist
-	_, err := os.Stat(filepath.Join(absPath, "api-socket"))
-	if err == nil {
-		if c.Bool("unpin") {
-			err = unpinEverything(absPath, clusterName, identityPath)
-			if err != nil {
+	// if unpin flag is set, check if the ipfs-cluster-follow is running and unpin everything
+	if c.Bool("unpin") {
+		if _, err := os.Stat(filepath.Join(absPath, "api-socket")); err == nil {
+			if err := unpinEverything(absPath, clusterName, identityPath); err != nil {
 				return cli.Exit(errors.Wrap(err, "unpin error"), 1)
 			}
+		} else {
+			return cli.Exit(errors.Wrap(err, fmt.Sprintf("ipfs-cluster-follow does not seem to be running for %s", clusterName)), 1)
 		}
-		err = killFollower(absPath)
-		if err != nil {
-			return cli.Exit(errors.Wrap(err, "error killing ipfs-cluster-follow daemon"), 1)
-		}
-	} else {
-		return cli.Exit(errors.Wrap(err, "ipfs-cluster-follow does not seem to be running for this cluster"), 1)
 	}
 
-	// clean date and folder
+	// kill the ipfs-cluster-follow process if it's running
+	if _, err := os.Stat(filepath.Join(absPath, "api-socket")); err == nil {
+		if err := killFollower(absPath); err != nil {
+			return cli.Exit(errors.Wrap(err, "error killing ipfs-cluster-follow daemon"), 1)
+		}
+	}
+
+	// cleanup flag will remove ipfs-cluster-follow folder even if the process is not running
 	if c.Bool("cleanup") {
-		err = os.RemoveAll(absPath)
-		if err != nil {
+		if err := os.RemoveAll(absPath); err != nil {
 			return cli.Exit(errors.Wrap(err, "deleting "+absPath), 1)
 		}
 	}
