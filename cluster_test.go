@@ -208,6 +208,7 @@ func testingCluster(t *testing.T) (*Cluster, *mockAPI, *mockConnector, PinTracke
 	cl, err := NewCluster(
 		ctx,
 		host,
+		nil,
 		dht,
 		clusterCfg,
 		store,

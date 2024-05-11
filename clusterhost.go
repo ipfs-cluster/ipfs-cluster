@@ -19,6 +19,7 @@ import (
 	record "github.com/libp2p/go-libp2p-record"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
+	metrics "github.com/libp2p/go-libp2p/core/metrics"
 	network "github.com/libp2p/go-libp2p/core/network"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	corepnet "github.com/libp2p/go-libp2p/core/pnet"
@@ -64,7 +65,7 @@ func NewClusterHost(
 	ident *config.Identity,
 	cfg *Config,
 	ds ds.Datastore,
-) (host.Host, *pubsub.PubSub, *dual.DHT, error) {
+) (host.Host, metrics.Reporter, *pubsub.PubSub, *dual.DHT, error) {
 
 	// Set the default dial timeout for all libp2p connections.  It is not
 	// very good to touch this global variable here, but the alternative
@@ -74,12 +75,12 @@ func NewClusterHost(
 
 	connman, err := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, connmgr.WithGracePeriod(cfg.ConnMgr.GracePeriod))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	rmgr, err := makeResourceMgr(cfg.ResourceMgr.Enabled, cfg.ResourceMgr.MemoryLimitBytes, cfg.ResourceMgr.FileDescriptorsLimit, cfg.ConnMgr.HighWater)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var h host.Host
@@ -101,8 +102,10 @@ func NewClusterHost(
 
 	addrsFactory, err := makeAddrsFactory(cfg.AnnounceAddr, cfg.NoAnnounceAddr)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
+
+	bwc := metrics.NewBandwidthCounter()
 
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
@@ -119,6 +122,7 @@ func NewClusterHost(
 		libp2p.EnableAutoRelayWithPeerSource(newPeerSource(hostGetter, dhtGetter)),
 		libp2p.EnableHolePunching(),
 		libp2p.PrometheusRegisterer(observations.PromRegistry),
+		libp2p.BandwidthReporter(bwc),
 	}
 
 	if cfg.EnableRelayHop {
@@ -132,16 +136,16 @@ func NewClusterHost(
 		opts...,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	psub, err := newPubSub(ctx, h)
 	if err != nil {
 		h.Close()
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return h, psub, idht, nil
+	return h, bwc, psub, idht, nil
 }
 
 // newHost creates a base cluster host without dht, pubsub, relay or nat etc.

@@ -422,6 +422,24 @@ func (mock *mockCluster) Alerts(ctx context.Context, in struct{}, out *[]api.Ale
 	return nil
 }
 
+func (mock *mockCluster) BandwidthByProtocol(ctx context.Context, in struct{}, out *api.BandwidthByProtocol) error {
+	*out = api.BandwidthByProtocol{
+		"protocol1": api.Bandwidth{
+			TotalIn:  10,
+			TotalOut: 20,
+			RateIn:   1,
+			RateOut:  2,
+		},
+		"protocol2": api.Bandwidth{
+			TotalIn:  30,
+			TotalOut: 40,
+			RateIn:   3,
+			RateOut:  4,
+		},
+	}
+	return nil
+}
+
 func (mock *mockCluster) IPFSID(ctx context.Context, in peer.ID, out *api.IPFSID) error {
 	var id api.ID
 	_ = mock.ID(ctx, struct{}{}, &id)
