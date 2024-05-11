@@ -519,6 +519,27 @@ func TestAlerts(t *testing.T) {
 	testClients(t, api, testF)
 }
 
+func TestBandwidthByProtocol(t *testing.T) {
+	ctx := context.Background()
+	api := testAPI(t)
+	defer shutdown(api)
+
+	testF := func(t *testing.T, c Client) {
+		bw, err := c.BandwidthByProtocol(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bw) != 2 {
+			t.Fatal("expected 2 protocols")
+		}
+		if p1 := bw["protocol1"]; p1.TotalIn != 10 {
+			t.Error("expected different bandwidth stats")
+		}
+	}
+
+	testClients(t, api, testF)
+}
+
 func TestGetConnectGraph(t *testing.T) {
 	ctx := context.Background()
 	api := testAPI(t)
@@ -910,7 +931,7 @@ func TestHealth(t *testing.T) {
 	defer shutdown(api)
 
 	testF := func(t *testing.T, c Client) {
-		 err := c.Health(ctx)
+		err := c.Health(ctx)
 		if err != nil {
 			t.Log(err)
 			t.Error("expected no errors")

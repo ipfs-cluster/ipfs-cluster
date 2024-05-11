@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
+	"github.com/libp2p/go-libp2p/core/protocol"
 
 	humanize "github.com/dustin/go-humanize"
 )
@@ -86,6 +87,8 @@ func textFormatObject(resp interface{}) {
 		textFormatPrintMetric(r)
 	case api.Alert:
 		textFormatPrintAlert(r)
+	case api.BandwidthByProtocol:
+		textFormatPrintBandwidthByProtocol(r)
 	case chan api.ID:
 		for item := range r {
 			textFormatObject(item)
@@ -278,6 +281,23 @@ func textFormatPrintAlert(obj api.Alert) {
 		humanize.Time(time.Unix(0, obj.Expire)),
 		humanize.Time(obj.TriggeredAt),
 	)
+}
+
+func textFormatPrintBandwidthByProtocol(obj api.BandwidthByProtocol) {
+	var keys []string
+	for k := range obj {
+		keys = append(keys, string(k))
+	}
+
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		stat := obj[protocol.ID(k)]
+		fmt.Printf("%25s: In: %7s. Out: %7s. RateIn: %.2fB/s. RateOut: %.2fB/s\n",
+			k, humanize.Bytes(uint64(stat.TotalIn)), humanize.Bytes(uint64(stat.TotalOut)),
+			stat.RateIn, stat.RateOut,
+		)
+	}
 }
 
 func textFormatPrintGlobalRepoGC(obj api.GlobalRepoGC) {

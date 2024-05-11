@@ -350,6 +350,16 @@ func (c *defaultClient) Alerts(ctx context.Context) ([]api.Alert, error) {
 	return alerts, err
 }
 
+// BandwidthByProtocol returns bandwidth stats for each libp2p protocol used.
+func (c *defaultClient) BandwidthByProtocol(ctx context.Context) (api.BandwidthByProtocol, error) {
+	ctx, span := trace.StartSpan(ctx, "client/Alert")
+	defer span.End()
+
+	var bw api.BandwidthByProtocol
+	err := c.do(ctx, "GET", "/health/bandwidth", nil, nil, &bw)
+	return bw, err
+}
+
 // Version returns the ipfs-cluster peer's version.
 func (c *defaultClient) Version(ctx context.Context) (api.Version, error) {
 	ctx, span := trace.StartSpan(ctx, "client/Version")

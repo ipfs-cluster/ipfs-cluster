@@ -1080,6 +1080,19 @@ trigger automatic repinnings if configured.
 						return nil
 					},
 				},
+				{
+					Name:  "bandwidth",
+					Usage: "Lists bandwidth stats for libp2p protocols",
+					Description: `
+This command lists information about bytes sent, received and current bandwidth
+rates for each libp2p protocol that the peer uses.
+`,
+					Action: func(c *cli.Context) error {
+						resp, cerr := globalClient.BandwidthByProtocol(ctx)
+						formatResponse(c, resp, cerr)
+						return nil
+					},
+				},
 			},
 		},
 		{
