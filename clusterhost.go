@@ -6,6 +6,7 @@ import (
 
 	config "github.com/ipfs-cluster/ipfs-cluster/config"
 	fd "github.com/ipfs-cluster/ipfs-cluster/internal/fd"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
 
 	humanize "github.com/dustin/go-humanize"
 	ipns "github.com/ipfs/boxo/ipns"
@@ -117,6 +118,7 @@ func NewClusterHost(
 		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelayWithPeerSource(newPeerSource(hostGetter, dhtGetter)),
 		libp2p.EnableHolePunching(),
+		libp2p.PrometheusRegisterer(observations.PromRegistry),
 	}
 
 	if cfg.EnableRelayHop {

@@ -20,6 +20,9 @@ import (
 	"go.opencensus.io/zpages"
 )
 
+// PromRegistry is the metrics Registry used by Cluster.
+var PromRegistry = prom.NewRegistry()
+
 // SetupMetrics configures and starts stats tooling,
 // if enabled.
 func SetupMetrics(cfg *MetricsConfig) error {
@@ -63,13 +66,12 @@ func SetupTracing(cfg *TracingConfig) (*JaegerTracer, error) {
 
 func setupMetrics(cfg *MetricsConfig) error {
 	// setup Prometheus
-	registry := prom.NewRegistry()
 	goCollector := collectors.NewGoCollector()
 	procCollector := collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
-	registry.MustRegister(goCollector, procCollector)
+	PromRegistry.MustRegister(goCollector, procCollector)
 	pe, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "ipfscluster",
-		Registry:  registry,
+		Registry:  PromRegistry,
 	})
 	if err != nil {
 		return err
