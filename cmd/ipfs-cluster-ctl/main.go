@@ -86,7 +86,14 @@ func out(m string, a ...interface{}) {
 func checkErr(doing string, err error) {
 	if err != nil {
 		out("error %s: %s\n", doing, err)
-		os.Exit(1)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			os.Exit(62)
+		case errors.Is(err, context.Canceled):
+			os.Exit(125)
+		default:
+			os.Exit(1)
+		}
 	}
 }
 
