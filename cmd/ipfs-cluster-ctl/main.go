@@ -83,6 +83,8 @@ func out(m string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, a...)
 }
 
+// check Err is a helper function to check for errors only when error is not in format api.Error.
+// If the error is in format api.Error, it will be formatted and printed to stderr.
 func checkErr(doing string, err error) {
 	if err != nil {
 		out("error %s: %s\n", doing, err)
