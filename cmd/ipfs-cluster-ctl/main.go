@@ -83,16 +83,15 @@ func out(m string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, m, a...)
 }
 
-// check Err is a helper function to check for errors only when error is not in format api.Error.
-// If the error is in format api.Error, it will be formatted and printed to stderr.
+// checkErr is a helper function to check for errors and exit. formatResponse() does its own error handling for api.Error responses.
 func checkErr(doing string, err error) {
 	if err != nil {
 		out("error %s: %s\n", doing, err)
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
-			os.Exit(62)
+			os.Exit(62) // ETIME
 		case errors.Is(err, context.Canceled):
-			os.Exit(125)
+			os.Exit(125) // ECANCELED
 		default:
 			os.Exit(1)
 		}
