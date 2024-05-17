@@ -78,6 +78,7 @@ func listClustersCmd(c *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
+	defer f.Close()
 
 	dirs, err := f.Readdir(-1)
 	if err != nil {
