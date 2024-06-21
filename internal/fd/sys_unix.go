@@ -12,5 +12,5 @@ func GetNumFDs() uint64 {
 	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &l); err != nil {
 		return 0
 	}
-	return l.Cur
+	return uint64(l.Cur)
 }
