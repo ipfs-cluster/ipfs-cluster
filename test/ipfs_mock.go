@@ -605,7 +605,7 @@ func (m *IpfsMock) Close() {
 	}
 }
 
-// extractCidAndMode extracts the cid argument from a url.URL, either via
+// extractCid extracts the cid argument from a url.URL, either via
 // the query string parameters or from the url path itself.
 func extractCid(u *url.URL) (string, bool) {
 	arg := u.Query().Get("arg")
