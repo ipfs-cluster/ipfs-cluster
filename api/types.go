@@ -1411,6 +1411,18 @@ type Alert struct {
 	TriggeredAt time.Time `json:"triggered_at" codec:"r,omitempty"`
 }
 
+// Bandwidth carries bandwidth information per libp2p/core/metrics.Stats.
+type Bandwidth struct {
+	TotalIn  int64   `json:"total_in" codec:"i,omitempty"`
+	TotalOut int64   `json:"total_out" codec:"o,omitempty"`
+	RateIn   float64 `json:"rate_in" codec:"ri,omitempty"`
+	RateOut  float64 `json:"rate_out" codec:"ro,omitempty"`
+}
+
+// BandwidthByProtocol carries Bandwidth information indexed by libp2p
+// protocol tag.
+type BandwidthByProtocol map[protocol.ID]Bandwidth
+
 // Error can be used by APIs to return errors.
 type Error struct {
 	Code    int    `json:"code" codec:"o,omitempty"`

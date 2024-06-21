@@ -101,6 +101,10 @@ type Client interface {
 	// metrics etc.).
 	Alerts(ctx context.Context) ([]api.Alert, error)
 
+	// BandwidthByProtocol returns bandwidth stats for each libp2p
+	// protocol used.
+	BandwidthByProtocol(ctx context.Context) (api.BandwidthByProtocol, error)
+
 	// Version returns the ipfs-cluster peer's version.
 	Version(context.Context) (api.Version, error)
 
@@ -122,9 +126,9 @@ type Client interface {
 	// returns collected CIDs. If local is true, it would garbage collect
 	// only on contacted peer, otherwise on all peers' IPFS daemons.
 	RepoGC(ctx context.Context, local bool) (api.GlobalRepoGC, error)
-	
+
 	// Health returns no content when everything is ok, and an error otherwise
-	Health(ctx context.Context) (error)
+	Health(ctx context.Context) error
 }
 
 // Config allows to configure the parameters to connect

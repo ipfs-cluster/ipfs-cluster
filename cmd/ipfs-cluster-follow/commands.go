@@ -304,7 +304,7 @@ func runCmd(c *cli.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
+	host, bwc, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error creating libp2p components"), 1)
 	}
@@ -416,6 +416,7 @@ func runCmd(c *cli.Context) error {
 	cluster, err := ipfscluster.NewCluster(
 		ctx,
 		host,
+		bwc,
 		dht,
 		cfgs.Cluster,
 		store,

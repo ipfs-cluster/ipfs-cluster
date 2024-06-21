@@ -23,6 +23,7 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	host "github.com/libp2p/go-libp2p/core/host"
+	metrics "github.com/libp2p/go-libp2p/core/metrics"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	mdns "github.com/libp2p/go-libp2p/p2p/discovery/mdns"
@@ -55,12 +56,13 @@ type Cluster struct {
 	ctx    context.Context
 	cancel func()
 
-	id        peer.ID
-	config    *Config
-	host      host.Host
-	dht       *dual.DHT
-	discovery mdns.Service
-	datastore ds.Datastore
+	id                peer.ID
+	config            *Config
+	host              host.Host
+	bandwidthReporter metrics.Reporter
+	dht               *dual.DHT
+	discovery         mdns.Service
+	datastore         ds.Datastore
 
 	rpcServer   *rpc.Server
 	rpcClient   *rpc.Client
@@ -103,6 +105,7 @@ type Cluster struct {
 func NewCluster(
 	ctx context.Context,
 	host host.Host,
+	bwc metrics.Reporter,
 	dht *dual.DHT,
 	cfg *Config,
 	datastore ds.Datastore,
@@ -149,29 +152,30 @@ func NewCluster(
 	}
 
 	c := &Cluster{
-		ctx:         ctx,
-		cancel:      cancel,
-		id:          host.ID(),
-		config:      cfg,
-		host:        host,
-		dht:         dht,
-		discovery:   mdnsSvc,
-		datastore:   datastore,
-		consensus:   consensus,
-		apis:        apis,
-		ipfs:        ipfs,
-		tracker:     tracker,
-		monitor:     monitor,
-		allocator:   allocator,
-		informers:   informers,
-		tracer:      tracer,
-		alerts:      []api.Alert{},
-		peerManager: peerManager,
-		shutdownB:   false,
-		removed:     false,
-		doneCh:      make(chan struct{}),
-		readyCh:     make(chan struct{}),
-		readyB:      false,
+		ctx:               ctx,
+		cancel:            cancel,
+		id:                host.ID(),
+		config:            cfg,
+		host:              host,
+		bandwidthReporter: bwc,
+		dht:               dht,
+		discovery:         mdnsSvc,
+		datastore:         datastore,
+		consensus:         consensus,
+		apis:              apis,
+		ipfs:              ipfs,
+		tracker:           tracker,
+		monitor:           monitor,
+		allocator:         allocator,
+		informers:         informers,
+		tracer:            tracer,
+		alerts:            []api.Alert{},
+		peerManager:       peerManager,
+		shutdownB:         false,
+		removed:           false,
+		doneCh:            make(chan struct{}),
+		readyCh:           make(chan struct{}),
+		readyB:            false,
 	}
 
 	// PeerAddresses are assumed to be permanent and have the maximum
@@ -540,6 +544,28 @@ func (c *Cluster) alertsHandler() {
 			}
 		}
 	}
+}
+
+// BandwidthByProtocol returns the libp2p bandwidth metrics as provided by the
+// bandwidth reporter that the peer was initialized with. Returns nil when
+// unset.
+func (c *Cluster) BandwidthByProtocol() api.BandwidthByProtocol {
+	if c.bandwidthReporter == nil {
+		return nil
+	}
+
+	bbp := make(api.BandwidthByProtocol)
+	stats := c.bandwidthReporter.GetBandwidthByProtocol()
+	for k, v := range stats {
+		bbp[k] = api.Bandwidth{
+			TotalIn:  v.TotalIn,
+			TotalOut: v.TotalOut,
+			RateIn:   v.RateIn,
+			RateOut:  v.RateOut,
+		}
+	}
+
+	return bbp
 }
 
 // detects any changes in the peerset and saves the configuration. When it

@@ -400,6 +400,18 @@ func (lc *loadBalancingClient) Alerts(ctx context.Context) ([]api.Alert, error) 
 	return alerts, err
 }
 
+func (lc *loadBalancingClient) BandwidthByProtocol(ctx context.Context) (api.BandwidthByProtocol, error) {
+	var bw api.BandwidthByProtocol
+	call := func(c Client) error {
+		var err error
+		bw, err = c.BandwidthByProtocol(ctx)
+		return err
+	}
+
+	err := lc.retry(0, call)
+	return bw, err
+}
+
 // Version returns the ipfs-cluster peer's version.
 func (lc *loadBalancingClient) Version(ctx context.Context) (api.Version, error) {
 	var v api.Version

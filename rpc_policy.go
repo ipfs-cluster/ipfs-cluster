@@ -8,6 +8,7 @@ package ipfscluster
 var DefaultRPCPolicy = map[string]RPCEndpointType{
 	// Cluster methods
 	"Cluster.Alerts":               RPCClosed,
+	"Cluster.BandwidthByProtocol":  RPCClosed,
 	"Cluster.BlockAllocate":        RPCClosed,
 	"Cluster.ConnectGraph":         RPCClosed,
 	"Cluster.ID":                   RPCOpen,
@@ -70,3 +71,4 @@ var DefaultRPCPolicy = map[string]RPCEndpointType{
 	"PeerMonitor.LatestMetrics": RPCClosed,
 	"PeerMonitor.MetricNames":   RPCClosed,
 }
+

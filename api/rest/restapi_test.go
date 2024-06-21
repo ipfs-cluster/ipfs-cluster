@@ -608,6 +608,22 @@ func TestAPIAlertsEndpoint(t *testing.T) {
 	test.BothEndpoints(t, tf)
 }
 
+func TestAPIBandwidthByProtocolEndpoint(t *testing.T) {
+	ctx := context.Background()
+	rest := testAPI(t)
+	defer rest.Shutdown(ctx)
+
+	tf := func(t *testing.T, url test.URLFunc) {
+		var resp api.BandwidthByProtocol
+		test.MakeGet(t, rest, url(rest)+"/health/bandwidth", &resp)
+		if len(resp) != 2 {
+			t.Error("expected two protocols")
+		}
+	}
+
+	test.BothEndpoints(t, tf)
+}
+
 func TestAPIStatusAllEndpoint(t *testing.T) {
 	ctx := context.Background()
 	rest := testAPI(t)
