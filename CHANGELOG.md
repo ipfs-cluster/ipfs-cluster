@@ -1,6 +1,6 @@
 # IPFS Cluster Changelog
 
-### v1.1.1 - 2024-06-24
+### v1.1.1 - 2024-06-23
 
 IPFS Cluster v1.1.1 is a maintenance release mostly due to a libp2p-pubsub bug
 that may impair the correct distribution of broadcasted metrics in large
