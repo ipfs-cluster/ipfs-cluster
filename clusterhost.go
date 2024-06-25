@@ -139,7 +139,7 @@ func NewClusterHost(
 		return nil, nil, nil, nil, err
 	}
 
-	psub, err := newPubSub(ctx, h)
+	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		h.Close()
 		return nil, nil, nil, nil, err
@@ -199,12 +199,13 @@ func newDHT(ctx context.Context, h host.Host, store ds.Datastore, extraopts ...d
 	return dual.New(ctx, h, opts...)
 }
 
-func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
+func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, error) {
 	return pubsub.NewGossipSub(
 		ctx,
 		h,
 		pubsub.WithMessageSigning(true),
 		pubsub.WithStrictSignatureVerification(true),
+		pubsub.WithPeerExchange(!cfg.FollowerMode),
 	)
 }
 
