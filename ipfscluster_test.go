@@ -355,7 +355,10 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 
 	// Pubsub needs to be created BEFORE connecting the peers,
 	// otherwise they are not picked up.
-	psub, err := newPubSub(ctx, h)
+	// Note: this is possibly a pubsub bug that was fixed.
+	cfg := &Config{}
+	cfg.Default()
+	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		t.Fatal(err)
 	}
