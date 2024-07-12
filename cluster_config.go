@@ -45,6 +45,12 @@ const (
 	DefaultResourceMgrEnabled              = true
 	DefaultResourceMgrMemoryLimitBytes     = 0
 	DefaultResourceMgrFileDescriptorsLimit = 0
+	DefaultPubSubSeenMessagesTTL           = 30 * time.Minute // default 2m
+	DefaultPubSubHeartbeatInterval         = 10 * time.Second // default 1
+	DefaultPubSubDFactor                   = 4                // default 1
+	DefaultPubSubHistoryGossip             = 2                // def 5
+	DefaultPubSubHistoryLength             = 6                // default 3
+	DefaultPubSubFloodPublish              = false
 	DefaultConnMgrGracePeriod              = 2 * time.Minute
 	DefaultDialPeerTimeout                 = 3 * time.Second
 	DefaultFollowerMode                    = false
@@ -63,6 +69,24 @@ type ResourceMgrConfig struct {
 	Enabled              bool
 	MemoryLimitBytes     uint64
 	FileDescriptorsLimit uint64
+}
+
+// PubSubConfig configures the libp2p pubsub/gossipsub.
+type PubSubConfig struct {
+	// How long to remember that a message was seen.
+	SeenMessagesTTL time.Duration
+	// How often to publish the list of messages we have.
+	HeartbeatInterval time.Duration
+	// How many heartbeats are to include an IHAVE entry for each known
+	// message.
+	HistoryGossip int
+	// For many heartbeats are requests for a message (IWANT) honored.
+	// Messages are fully forgotten after these many hearbeats.
+	HistoryLength int
+	// Factor used to multiply default mesh "D" values (Dlo, D, Dhigh, Dout, DLazy).
+	DFactor int // multiplying factor for defaults
+	// Enables flood publish (first message hop is flooded to all known subscribed peers).
+	FloodPublish bool
 }
 
 // Config is the configuration object containing customizable variables to
@@ -103,6 +127,9 @@ type Config struct {
 	// ResourceMgr holds configuration for the scaling of the libp2p
 	// resource manager limits.
 	ResourceMgr ResourceMgrConfig
+
+	// PubSub contains configuration options for the Pubsub subsystem.
+	PubSub PubSubConfig
 
 	// Sets the default dial timeout for libp2p connections to other
 	// peers.
@@ -205,6 +232,7 @@ type configJSON struct {
 	EnableRelayHop          bool                   `json:"enable_relay_hop"`
 	ConnectionManager       *connMgrConfigJSON     `json:"connection_manager"`
 	ResourceManager         *resourceMgrConfigJSON `json:"resource_manager"`
+	PubSub                  *pubSubConfigJSON      `json:"pubsub"`
 	DialPeerTimeout         string                 `json:"dial_peer_timeout"`
 	StateSyncInterval       string                 `json:"state_sync_interval"`
 	PinRecoverInterval      string                 `json:"pin_recover_interval"`
@@ -233,6 +261,16 @@ type resourceMgrConfigJSON struct {
 	Enabled              bool   `json:"enabled"`
 	MemoryLimitBytes     uint64 `json:"memory_limit_bytes"`
 	FileDescriptorsLimit uint64 `json:"file_descriptors_limit"`
+}
+
+// pubSubConfigJSON configures the libp2p gossipsub instance.
+type pubSubConfigJSON struct {
+	SeenMessagesTTL   string `json:"seen_messages_ttl"`
+	HeartbeatInterval string `json:"heartbeat_interval"`
+	DFactor           int    `json:"d_factor"`
+	HistoryGossip     int    `json:"history_gossip"`
+	HistoryLength     int    `json:"history_length"`
+	FloodPublish      bool   `json:"flood_publish"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -301,6 +339,26 @@ func (cfg *Config) Validate() error {
 
 	if cfg.ConnMgr.GracePeriod == 0 {
 		return errors.New("cluster.connection_manager.grace_period is invalid")
+	}
+
+	if cfg.PubSub.SeenMessagesTTL <= 0 {
+		return errors.New("cluster.pubsub.seen_message_ttl is invalid")
+	}
+
+	if cfg.PubSub.HeartbeatInterval <= 0 {
+		return errors.New("cluster.pubsub.heartbeat_interval is invalid")
+	}
+
+	if cfg.PubSub.DFactor < 1 {
+		return errors.New("cluster.pubsub.d_factor is invalid")
+	}
+
+	if cfg.PubSub.HistoryGossip <= 0 {
+		return errors.New("cluster.pubsub.history_gossip is invalid")
+	}
+
+	if cfg.PubSub.HistoryLength <= 0 {
+		return errors.New("cluster.pubsub.history_length is invalid")
 	}
 
 	if cfg.DialPeerTimeout <= 0 {
@@ -416,6 +474,15 @@ func (cfg *Config) setDefaults() {
 		MemoryLimitBytes:     DefaultResourceMgrMemoryLimitBytes,
 		FileDescriptorsLimit: DefaultResourceMgrFileDescriptorsLimit,
 	}
+	cfg.PubSub = PubSubConfig{
+		SeenMessagesTTL:   DefaultPubSubSeenMessagesTTL,
+		HeartbeatInterval: DefaultPubSubHeartbeatInterval,
+		DFactor:           DefaultPubSubDFactor,
+		HistoryGossip:     DefaultPubSubHistoryGossip,
+		HistoryLength:     DefaultPubSubHistoryLength,
+		FloodPublish:      false,
+	}
+
 	cfg.DialPeerTimeout = DefaultDialPeerTimeout
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
@@ -503,6 +570,20 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		cfg.ResourceMgr.FileDescriptorsLimit = rmgr.FileDescriptorsLimit
 	}
 
+	if pubsub := jcfg.PubSub; pubsub != nil {
+		cfg.PubSub.DFactor = pubsub.DFactor
+		cfg.PubSub.HistoryGossip = pubsub.HistoryGossip
+		cfg.PubSub.HistoryLength = pubsub.HistoryLength
+		cfg.PubSub.FloodPublish = pubsub.FloodPublish
+		err = config.ParseDurations("cluster.pubsub",
+			&config.DurationOpt{Duration: pubsub.SeenMessagesTTL, Dst: &cfg.PubSub.SeenMessagesTTL, Name: "seen_messages_ttl"},
+			&config.DurationOpt{Duration: pubsub.HeartbeatInterval, Dst: &cfg.PubSub.HeartbeatInterval, Name: "heartbeat_interval"},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	rplMin := jcfg.ReplicationFactorMin
 	rplMax := jcfg.ReplicationFactorMax
 	config.SetIfNotDefault(rplMin, &cfg.ReplicationFactorMin)
@@ -584,6 +665,14 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		Enabled:              cfg.ResourceMgr.Enabled,
 		MemoryLimitBytes:     cfg.ResourceMgr.MemoryLimitBytes,
 		FileDescriptorsLimit: cfg.ResourceMgr.FileDescriptorsLimit,
+	}
+	jcfg.PubSub = &pubSubConfigJSON{
+		SeenMessagesTTL:   cfg.PubSub.SeenMessagesTTL.String(),
+		HeartbeatInterval: cfg.PubSub.HeartbeatInterval.String(),
+		DFactor:           cfg.PubSub.DFactor,
+		HistoryGossip:     cfg.PubSub.HistoryGossip,
+		HistoryLength:     cfg.PubSub.HistoryLength,
+		FloodPublish:      cfg.PubSub.FloodPublish,
 	}
 	jcfg.DialPeerTimeout = cfg.DialPeerTimeout.String()
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()

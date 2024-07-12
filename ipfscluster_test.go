@@ -358,6 +358,7 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 	// Note: this is possibly a pubsub bug that was fixed.
 	cfg := &Config{}
 	cfg.Default()
+	cfg.LoadJSON(testingClusterCfg)
 	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		t.Fatal(err)

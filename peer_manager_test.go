@@ -52,6 +52,8 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	// Create a config
 	cfg := &Config{}
 	cfg.Default()
+	cfg.PubSub.HeartbeatInterval = time.Second
+	cfg.PubSub.FloodPublish = true
 	listen, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	cfg.ListenAddr = []ma.Multiaddr{listen}
 	cfg.Secret = testingClusterSecret
