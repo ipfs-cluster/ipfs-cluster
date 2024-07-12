@@ -62,7 +62,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.2
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.24.0
+	golang.org/x/crypto v0.25.0
 	google.golang.org/protobuf v1.34.2
 )
 
