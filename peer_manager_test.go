@@ -44,7 +44,7 @@ func peerManagerClusters(t *testing.T) ([]*Cluster, []*test.IpfsMock, host.Host)
 	}
 	wg.Wait()
 
-	// Creat an identity
+	// Create an identity
 	ident, err := config.NewIdentity()
 	if err != nil {
 		t.Fatal(err)

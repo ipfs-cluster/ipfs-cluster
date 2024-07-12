@@ -30,9 +30,20 @@ var testingClusterCfg = []byte(`{
     "leave_on_shutdown": false,
     "listen_multiaddress": "/ip4/127.0.0.1/tcp/10000",
     "connection_manager": {
-         "high_water": 400,
-         "low_water": 200,
-         "grace_period": "2m0s"
+        "high_water": 400,
+        "low_water": 200,
+        "grace_period": "2m0s"
+    },
+    "resource_manager" : {
+        "enabled": false
+    },
+    "pubsub": {
+        "seen_messages_ttl": "2m",
+        "heartbeat_interval": "1s",
+        "d_factor": 1,
+        "history_gossip": 3,
+        "history_length": 5,
+        "flood_publish": false
     },
     "state_sync_interval": "1m0s",
     "pin_recover_interval": "1m0s",
@@ -134,7 +145,7 @@ var testingPebbleCfg = []byte(`
         "flush_delay_delete_range": 0,
         "flush_delay_range_key": 0,
         "flush_split_bytes": 4194304,
-        "format_major_version": 1,
+        "format_major_version": 16,
         "l0_compaction_file_threshold": 500,
         "l0_compaction_threshold": 4,
         "l0_stop_writes_threshold": 12,

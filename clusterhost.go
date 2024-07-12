@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"context"
 	"encoding/hex"
+	"time"
 
 	config "github.com/ipfs-cluster/ipfs-cluster/config"
 	fd "github.com/ipfs-cluster/ipfs-cluster/internal/fd"
@@ -16,6 +17,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	record "github.com/libp2p/go-libp2p-record"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
@@ -139,7 +141,7 @@ func NewClusterHost(
 		return nil, nil, nil, nil, err
 	}
 
-	psub, err := newPubSub(ctx, h)
+	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		h.Close()
 		return nil, nil, nil, nil, err
@@ -199,12 +201,75 @@ func newDHT(ctx context.Context, h host.Host, store ds.Datastore, extraopts ...d
 	return dual.New(ctx, h, opts...)
 }
 
-func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
+// this function reduces the size of the pubsub message IDs to about 24 bytes.
+func hashMsgID(m *pubsub_pb.Message) string {
+	//hash := blake2b.Sum256(m.Data)
+	id := string(m.GetFrom()[0:16]) + string(m.GetSeqno())
+	return id
+}
+
+func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, error) {
+	gossipParams := pubsub.DefaultGossipSubParams()
+
+	// Let's configure pubsub in an attempt to support networks with
+	// thousands of peers which may be bandwidth and processing constrained.
+
+	// Hearbeat should be rather slow as some peers just may not manage
+	// to handle all incoming publications, so we don't have to deal with
+	// additional IHAVEs too often either.
+	gossipParams.HeartbeatInterval = cfg.PubSub.HeartbeatInterval
+
+	// We increase the gap between History gossip and length to give peers
+	// more time to grab messages, but expire announcements rather quick
+	gossipParams.HistoryLength = cfg.PubSub.HistoryLength // x * Hearbeat seconds of availability of messages for IWANTs (def 5)
+	gossipParams.HistoryGossip = cfg.PubSub.HistoryGossip // x * Heartbeat seconds of announcement of messages via IHAVEs (def 3)
+
+	// Longer Hearbeat intervals means more messages queue up.  IHAVEs
+	// lists may have more message at given moment, so increase this
+	// default.
+	// Note: it may be better to reduce this to a minimum and reduce
+	// heartbeat interval, but then, this is a list of IDs so 10000x16byte
+	// x D is not too much to transfer out is it?
+	gossipParams.MaxIHaveLength = 10000 // 10000 message IDs. (def 5000)
+
+	// For my taste, default mesh parameters are a bit low. We already
+	// have connections to a bunch of peers given DHT etc and having a
+	// tiny mesh only makes more replay necessary. Thus allow me to
+	// increase 4x the defaults.
+	gossipParams.D = cfg.PubSub.DFactor * 6      // default 6
+	gossipParams.Dlo = cfg.PubSub.DFactor * 5    // default 5
+	gossipParams.Dhi = cfg.PubSub.DFactor * 12   // default 12
+	gossipParams.Dscore = cfg.PubSub.DFactor * 4 // default 4
+	gossipParams.Dout = cfg.PubSub.DFactor * 2   // default 2
+	gossipParams.Dlazy = cfg.PubSub.DFactor * 6  // default 6
+
 	return pubsub.NewGossipSub(
 		ctx,
 		h,
 		pubsub.WithMessageSigning(true),
 		pubsub.WithStrictSignatureVerification(true),
+		pubsub.WithPeerExchange(!cfg.FollowerMode),
+		// FloodPublish is disabled as every peer publishes and we
+		// prefer messages to just follow the mesh rather than risking
+		// that small peers saturate themselves every time they
+		// publish a metric.
+		pubsub.WithFloodPublish(cfg.PubSub.FloodPublish),
+		// Custom hash function reduces size of messages and thus traffic.
+		pubsub.WithMessageIdFn(hashMsgID),
+		pubsub.WithPeerOutboundQueueSize(128), // default is 32. Give more leeway to large clusters.
+		pubsub.WithValidateQueueSize(128),     //default also 32
+		pubsub.WithGossipSubParams(gossipParams),
+		// Keep a long cache of seen messages. Otherwise, if they
+		// don't propagate under two minutes, they are re-requested
+		// and re-broadcasted.  1000 peers * 3 metrics * 1 minute
+		// interval * 30 minutes = 180000 messages * 16 bytes = 1.3MiB
+		// of memory needed, tops.
+		pubsub.WithSeenMessagesTTL(30*time.Minute), // default 120 seconds
+
+		// future work
+		//pubsub.WithDefaultValidator(
+		//	pubsub.NewBasicSeqnoValidator(h.Peerstore())),
+
 	)
 }
 
