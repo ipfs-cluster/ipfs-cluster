@@ -42,8 +42,8 @@ var testingClusterCfg = []byte(`{
         "heartbeat_interval": "1s",
         "d_factor": 1,
         "history_gossip": 3,
-        "history_length": 6,
-        "flood_publish": true
+        "history_length": 5,
+        "flood_publish": false
     },
     "state_sync_interval": "1m0s",
     "pin_recover_interval": "1m0s",

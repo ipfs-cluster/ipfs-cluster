@@ -118,14 +118,7 @@ func TestMain(m *testing.M) {
 	}
 
 	for _, f := range customLogLvlFacilities {
-		if _, ok := LoggingFacilities[f]; ok {
-			SetFacilityLogLevel(f, logLevel)
-			continue
-		}
-		if _, ok := LoggingFacilitiesExtra[f]; ok {
-			SetFacilityLogLevel(f, logLevel)
-			continue
-		}
+		SetFacilityLogLevel(f, logLevel)
 	}
 
 	diskInfCfg := &disk.Config{}

@@ -8,7 +8,6 @@ import (
 	config "github.com/ipfs-cluster/ipfs-cluster/config"
 	fd "github.com/ipfs-cluster/ipfs-cluster/internal/fd"
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
-	blake2b "golang.org/x/crypto/blake2b"
 
 	humanize "github.com/dustin/go-humanize"
 	ipns "github.com/ipfs/boxo/ipns"
@@ -18,7 +17,6 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	record "github.com/libp2p/go-libp2p-record"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
@@ -202,10 +200,10 @@ func newDHT(ctx context.Context, h host.Host, store ds.Datastore, extraopts ...d
 	return dual.New(ctx, h, opts...)
 }
 
-func hashMsgID(m *pubsub_pb.Message) string {
-	hash := blake2b.Sum256(m.Data)
-	return string(hash[0:16]) // instead of 32
-}
+// func hashMsgID(m *pubsub_pb.Message) string {
+// 	hash := blake2b.Sum256(m.Data)
+// 	return string(hash[0:16]) // instead of 32
+// }
 
 func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, error) {
 	gossipParams := pubsub.DefaultGossipSubParams()
@@ -235,11 +233,12 @@ func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, e
 	// have connections to a bunch of peers given DHT etc and having a
 	// tiny mesh only makes more replay necessary. Thus allow me to
 	// increase 4x the defaults.
-	gossipParams.D = cfg.PubSub.DFactor * 6     // default 6
-	gossipParams.Dlo = cfg.PubSub.DFactor * 5   // default 5
-	gossipParams.Dhi = cfg.PubSub.DFactor * 12  // default 12
-	gossipParams.Dout = cfg.PubSub.DFactor * 2  // default 2
-	gossipParams.Dlazy = cfg.PubSub.DFactor * 6 // default 6
+	gossipParams.D = cfg.PubSub.DFactor * 6      // default 6
+	gossipParams.Dlo = cfg.PubSub.DFactor * 5    // default 5
+	gossipParams.Dhi = cfg.PubSub.DFactor * 12   // default 12
+	gossipParams.Dscore = cfg.PubSub.DFactor * 4 // default 4
+	gossipParams.Dout = cfg.PubSub.DFactor * 2   // default 2
+	gossipParams.Dlazy = cfg.PubSub.DFactor * 6  // default 6
 
 	return pubsub.NewGossipSub(
 		ctx,
@@ -253,7 +252,9 @@ func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, e
 		// publish a metric.
 		pubsub.WithFloodPublish(cfg.PubSub.FloodPublish),
 		// Custom hash function reduces size of messages and thus traffic.
-		pubsub.WithMessageIdFn(hashMsgID),
+		// Disabled: tests show that this may interphere with crdt
+		// root rebroadcasting. Leaving here as warning.
+		// pubsub.WithMessageIdFn(hashMsgID),
 		pubsub.WithPeerOutboundQueueSize(128), // default is 32. Give more leeway to large clusters.
 		pubsub.WithValidateQueueSize(128),     //default also 32
 		pubsub.WithGossipSubParams(gossipParams),
