@@ -17,6 +17,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	record "github.com/libp2p/go-libp2p-record"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
@@ -200,10 +201,12 @@ func newDHT(ctx context.Context, h host.Host, store ds.Datastore, extraopts ...d
 	return dual.New(ctx, h, opts...)
 }
 
-// func hashMsgID(m *pubsub_pb.Message) string {
-// 	hash := blake2b.Sum256(m.Data)
-// 	return string(hash[0:16]) // instead of 32
-// }
+// this function reduces the size of the pubsub message IDs to about 24 bytes.
+func hashMsgID(m *pubsub_pb.Message) string {
+	//hash := blake2b.Sum256(m.Data)
+	id := string(m.GetFrom()[0:16]) + string(m.GetSeqno())
+	return id
+}
 
 func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, error) {
 	gossipParams := pubsub.DefaultGossipSubParams()
@@ -252,9 +255,7 @@ func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, e
 		// publish a metric.
 		pubsub.WithFloodPublish(cfg.PubSub.FloodPublish),
 		// Custom hash function reduces size of messages and thus traffic.
-		// Disabled: tests show that this may interphere with crdt
-		// root rebroadcasting. Leaving here as warning.
-		// pubsub.WithMessageIdFn(hashMsgID),
+		pubsub.WithMessageIdFn(hashMsgID),
 		pubsub.WithPeerOutboundQueueSize(128), // default is 32. Give more leeway to large clusters.
 		pubsub.WithValidateQueueSize(128),     //default also 32
 		pubsub.WithGossipSubParams(gossipParams),
