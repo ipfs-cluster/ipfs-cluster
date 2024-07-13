@@ -1,5 +1,74 @@
 # IPFS Cluster Changelog
 
+### v1.1.2 - 2024-07-16
+
+IPFS Cluster v1.1.2 is a maintenance release which tunes internal pubsub
+configuration to be less demanding and resilient, as well as exposing some
+of said configuration options.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* Gossipsub: optimize for diverse clusters with many peers | [ipfs/ipfs-cluster#2071](https://github.com/ipfs/ipfs-cluster/issues/2071)
+* ipfshttp: improve logic to update informer metrics | [ipfs/ipfs-cluster#2073](https://github.com/ipfs/ipfs-cluster/issues/2073)
+
+##### Bug fixes
+
+None.
+
+##### Other changes
+
+* Dependency upgrades | [ipfs/ipfs-cluster#2074](https://github.com/ipfs/ipfs-cluster/issues/2074) | [ipfs/ipfs-cluster#2075](https://github.com/ipfs/ipfs-cluster/issues/2075)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+The main `cluster` configuration section now contains a `pubsub` sub-section
+which, if not present, takes the following defaults:
+
+```js
+    "pubsub": {
+      "seen_messages_ttl": "30m0s",
+      "heartbeat_interval": "10s",
+      "d_factor": 4,
+      "history_gossip": 2,
+      "history_length": 6,
+      "flood_publish": false
+    },
+```
+
+Details on the meaning of the options can be obtained in the
+[pubsub documentation](https://pkg.go.dev/github.com/libp2p/go-libp2p-pubsub#GossipSubParams)
+or in the [ipfs-cluster documentation for the Config object](https://pkg.go.dev/github.com/ipfs/ipfs-cluster?utm_source=godoc#Config).
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Nothing.
+
+---
+
 ### v1.1.1 - 2024-06-23
 
 IPFS Cluster v1.1.1 is a maintenance release mostly due to a libp2p-pubsub bug
