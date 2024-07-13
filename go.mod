@@ -39,7 +39,7 @@ require (
 	github.com/ipld/go-ipld-prime v0.21.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
-	github.com/libp2p/go-libp2p v0.35.1
+	github.com/libp2p/go-libp2p v0.35.2
 	github.com/libp2p/go-libp2p-consensus v0.0.1
 	github.com/libp2p/go-libp2p-gorpc v0.6.0
 	github.com/libp2p/go-libp2p-gostream v0.6.0
@@ -225,7 +225,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.27.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.17.1 // indirect
-	go.uber.org/fx v1.22.0 // indirect
+	go.uber.org/fx v1.22.1 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
