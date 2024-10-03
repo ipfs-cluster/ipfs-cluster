@@ -16,7 +16,7 @@ import (
 
 var logger = logging.Logger("pebble")
 
-// New returns a BadgerDB datastore configured with the given
+// New returns a Pebble datastore configured with the given
 // configuration.
 func New(cfg *Config) (ds.Datastore, error) {
 	folder := cfg.GetFolder()
@@ -38,7 +38,7 @@ increase them one by one, restarting the daemon every time.
 `, fmv, newest)
 	}
 
-	db, err := pebbleds.NewDatastore(folder, &cfg.PebbleOptions)
+	db, err := pebbleds.NewDatastore(folder, pebbleds.WithPebbleOpts(&cfg.PebbleOptions))
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ increase them one by one, restarting the daemon every time.
 	return db, nil
 }
 
-// Cleanup deletes the badger datastore.
+// Cleanup deletes the pebble datastore.
 func Cleanup(cfg *Config) error {
 	folder := cfg.GetFolder()
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
