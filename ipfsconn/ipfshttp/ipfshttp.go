@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -949,6 +950,16 @@ func (cd *chanDirectory) Size() (int64, error) {
 
 func (cd *chanDirectory) Entries() files.DirIterator {
 	return cd.iterator
+}
+
+// Mode: return mode for directory, but unused.
+func (cd *chanDirectory) Mode() os.FileMode {
+	return os.ModeDir
+}
+
+// ModeTime: not implemented
+func (cd *chanDirectory) ModTime() (mtime time.Time) {
+	return time.UnixMilli(0)
 }
 
 // chanIterator implements the files.DirIterator interface.
