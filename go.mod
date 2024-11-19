@@ -24,7 +24,7 @@ require (
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
 	github.com/ipfs/go-ds-badger3 v0.0.2
-	github.com/ipfs/go-ds-crdt v0.5.2
+	github.com/ipfs/go-ds-crdt v0.6.0
 	github.com/ipfs/go-ds-leveldb v0.5.0
 	github.com/ipfs/go-ds-pebble v0.3.1
 	github.com/ipfs/go-fs-lock v0.0.7
@@ -63,7 +63,7 @@ require (
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.29.0
-	google.golang.org/protobuf v1.35.1
+	google.golang.org/protobuf v1.35.2
 )
 
 require (
@@ -246,5 +246,4 @@ require (
 )
 
 go 1.22.0
-
 toolchain go1.23.2
