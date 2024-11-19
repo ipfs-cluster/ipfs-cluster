@@ -487,13 +487,15 @@ This commands prints basic information: current heads, dirty flag etc.
 								locker.lock()
 								defer locker.tryUnlock()
 
+								ctx, cancel := context.WithCancel(context.Background())
+								defer cancel()
 								crdt := getCrdt()
-								info := crdt.InternalStats()
+								info := crdt.InternalStats(ctx)
 								fmt.Printf(
 									"Number of heads: %d. Current max-height: %d. Dirty: %t\nHeads: %s",
 									len(info.Heads),
 									info.MaxHeight,
-									crdt.IsDirty(),
+									crdt.IsDirty(ctx),
 									info.Heads,
 								)
 								return nil
@@ -540,7 +542,7 @@ Use with caution!
 								defer buf.Flush()
 
 								logger.Info("initiating CDRT-DAG DOT file export. Export might take a long time on large graphs")
-								checkErr("generating graph", crdt.DotDAG(buf))
+								checkErr("generating graph", crdt.DotDAG(context.Background(), buf))
 								logger.Info("dot file ")
 								return nil
 
@@ -559,7 +561,7 @@ run (i.e. next time the cluster peer is started).
 								defer locker.tryUnlock()
 
 								crdt := getCrdt()
-								crdt.MarkDirty()
+								crdt.MarkDirty(context.Background())
 								fmt.Println("Datastore marked 'dirty'")
 								return nil
 							},
@@ -577,7 +579,7 @@ DAG operations will be run.
 								defer locker.tryUnlock()
 
 								crdt := getCrdt()
-								crdt.MarkClean()
+								crdt.MarkClean(context.Background())
 								fmt.Println("Datastore marked 'clean'")
 								return nil
 
