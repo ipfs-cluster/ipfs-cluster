@@ -53,7 +53,7 @@ func (c *defaultClient) enableLibp2p() error {
 		return errors.New("APIAddr only includes a Peer ID")
 	}
 
-	if c.config.ProtectorKey != nil && len(c.config.ProtectorKey) > 0 {
+	if len(c.config.ProtectorKey) > 0 {
 		if len(c.config.ProtectorKey) != 32 {
 			return errors.New("length of ProtectorKey should be 32")
 		}
