@@ -13,9 +13,9 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/monitor/metrics"
 
 	logging "github.com/ipfs/go-log/v2"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	gocodec "github.com/ugorji/go/codec"
 
 	"go.opencensus.io/trace"

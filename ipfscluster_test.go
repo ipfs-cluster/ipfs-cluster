@@ -118,14 +118,7 @@ func TestMain(m *testing.M) {
 	}
 
 	for _, f := range customLogLvlFacilities {
-		if _, ok := LoggingFacilities[f]; ok {
-			SetFacilityLogLevel(f, logLevel)
-			continue
-		}
-		if _, ok := LoggingFacilitiesExtra[f]; ok {
-			SetFacilityLogLevel(f, logLevel)
-			continue
-		}
+		SetFacilityLogLevel(f, logLevel)
 	}
 
 	diskInfCfg := &disk.Config{}
@@ -355,7 +348,11 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 
 	// Pubsub needs to be created BEFORE connecting the peers,
 	// otherwise they are not picked up.
-	psub, err := newPubSub(ctx, h)
+	// Note: this is possibly a pubsub bug that was fixed.
+	cfg := &Config{}
+	cfg.Default()
+	cfg.LoadJSON(testingClusterCfg)
+	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -416,6 +416,9 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 		return nil
 	}
 
+	// Call at the beginning of pinning to update pinqueue
+	ipfs.updateInformerMetric(ctx)
+	// Call at the end of pinning to update freespace
 	defer ipfs.updateInformerMetric(ctx)
 
 	ctx, cancelRequest := context.WithCancel(ctx)
@@ -569,7 +572,9 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash api.Cid) error {
 		return errors.New("ipfs unpinning is disallowed by configuration on this peer")
 	}
 
-	defer ipfs.updateInformerMetric(ctx)
+	// Unpinning doesn't free space and doesn't matter for pinqueue so not
+	// really necessary to publish metrics.
+	//defer ipfs.updateInformerMetric(ctx)
 
 	path := fmt.Sprintf("pin/rm?arg=%s", hash)
 
@@ -829,6 +834,9 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 	}
 
 	defer body.Close()
+
+	// Freespace metric might have gone down, so update it at the end.
+	defer ipfs.updateInformerMetric(ctx)
 
 	dec := json.NewDecoder(body)
 	repoGC := api.RepoGC{
@@ -1107,6 +1115,9 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	defer span.End()
 
 	logger.Debug("streaming blocks to IPFS")
+
+	// Update at the end of block-streaming to have an updated freespace
+	// metric.
 	defer ipfs.updateInformerMetric(ctx)
 
 	it := &chanIterator{
@@ -1213,7 +1224,7 @@ func (ipfs *Connector) shouldUpdateMetric() bool {
 		return false
 	}
 	curCount := atomic.AddUint64(&ipfs.updateMetricCount, 1)
-	if curCount%uint64(ipfs.config.InformerTriggerInterval) == 0 {
+	if curCount >= uint64(ipfs.config.InformerTriggerInterval) {
 		atomic.StoreUint64(&ipfs.updateMetricCount, 0)
 		return true
 	}

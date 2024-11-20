@@ -139,7 +139,7 @@ func (cfg *Config) Validate() error {
 		err = errors.New("ipfshttp.repogc_timeout invalid")
 	}
 	if cfg.InformerTriggerInterval < 0 {
-		err = errors.New("ipfshttp.update_metrics_after")
+		err = errors.New("ipfshttp.informer_trigger_interval")
 	}
 
 	return err

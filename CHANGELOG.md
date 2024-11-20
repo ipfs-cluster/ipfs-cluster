@@ -1,5 +1,67 @@
 # IPFS Cluster Changelog
 
+### v1.1.1 - 2024-06-23
+
+IPFS Cluster v1.1.1 is a maintenance release mostly due to a libp2p-pubsub bug
+that may impair the correct distribution of broadcasted metrics in large
+clusters.
+
+Along with other dependency upgrades and small fixes, we have also added a new
+endpoint to retrieve peer-bandwidth statistics by libp2p protocol.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* Libp2p metrics and bandwidth stats for libp2p protocols | [ipfs/ipfs-cluster#2056](https://github.com/ipfs/ipfs-cluster/issues/2056)
+* ctl: dedicated return value for timeouts | [ipfs/ipfs-cluster#1675](https://github.com/ipfs/ipfs-cluster/issues/1675) | [ipfs/ipfs-cluster#2057](https://github.com/ipfs/ipfs-cluster/issues/2057)
+
+##### Bug fixes
+
+* Fix: freebsd and windows builds | [ipfs/ipfs-cluster#2055](https://github.com/ipfs/ipfs-cluster/issues/2055)
+* Fix: defer close() file in ipfs-cluster-follow | [ipfs/ipfs-cluster#2058](https://github.com/ipfs/ipfs-cluster/issues/2058)
+* Fix: pubsub propagation issues | [ipfs/ipfs-cluster#2061](https://github.com/ipfs/ipfs-cluster/issues/2061) | [ipfs/ipfs-cluster#2062](https://github.com/ipfs/ipfs-cluster/issues/2062)
+
+##### Other changes
+
+* Dependency upgrades | [ipfs/ipfs-cluster#2062](https://github.com/ipfs/ipfs-cluster/issues/2062)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+A new `/health/bandwidth` endpoint has been added. This endpoint returns an
+object with keys corresponding to libp2p protocols. Each value is a "bandwidth
+stats" object with current rate and totals for inbound and outbound streams,
+aggregated by that protocol.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+Nothing.
+
+---
+
+
 ### v1.1.0 - 2024-05-06
 
 IPFS Cluster v1.1.0 is a maintenance release that comes with a number of

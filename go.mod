@@ -10,7 +10,7 @@ require (
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/dustin/go-humanize v1.0.1
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
@@ -26,7 +26,7 @@ require (
 	github.com/ipfs/go-ds-badger3 v0.0.2
 	github.com/ipfs/go-ds-crdt v0.6.1
 	github.com/ipfs/go-ds-leveldb v0.5.0
-	github.com/ipfs/go-ds-pebble v0.3.1
+	github.com/ipfs/go-ds-pebble v0.4.0
 	github.com/ipfs/go-fs-lock v0.0.7
 	github.com/ipfs/go-ipfs-api v0.7.0
 	github.com/ipfs/go-ipfs-cmds v0.8.2
