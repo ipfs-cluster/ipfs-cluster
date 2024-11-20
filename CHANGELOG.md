@@ -1,10 +1,21 @@
 # IPFS Cluster Changelog
 
-### v1.1.2 - 2024-07-16
+### v1.1.2 - 2024-11-27
 
 IPFS Cluster v1.1.2 is a maintenance release which tunes internal pubsub
 configuration to be less demanding and resilient, as well as exposing some
 of said configuration options.
+
+It additionally contains a bugfix in go-ds-crdt for an issue that can cause
+divergence between peers (https://github.com/ipfs/go-ds-crdt/pull/241). The
+issue manifests itself when a value has been removed (i.e. when doing `pin rm`
+on cluster) and re-added on a different replica before the removal operation
+has been applied there. It may manifest itself in incosistencies in pin
+information depending on the peer. The fix involves running an automatic
+migration that ensures all the pin informations are aligned and that requires
+a write operation for every pin that has ever been deleted pins to ensure that
+cluster is returning the right values. This happens automatically on the first
+boot after upgrade.
 
 #### List of changes
 
@@ -19,18 +30,18 @@ There are no breaking changes on this release.
 
 ##### Bug fixes
 
-None.
+* crdt: Bubble bugfix for diverging states | [ipfs/ipfs-cluster#2115](https://github.com/ipfs/ipfs-cluster/issues/2115)
 
 ##### Other changes
 
-* Dependency upgrades | [ipfs/ipfs-cluster#2074](https://github.com/ipfs/ipfs-cluster/issues/2074) | [ipfs/ipfs-cluster#2075](https://github.com/ipfs/ipfs-cluster/issues/2075)
+* Dependency upgrades | [ipfs/ipfs-cluster#2074](https://github.com/ipfs/ipfs-cluster/issues/2074) | [ipfs/ipfs-cluster#2075](https://github.com/ipfs/ipfs-cluster/issues/2075) | [ipfs/ipfs-cluster#2115](https://github.com/ipfs/ipfs-cluster/issues/2115)
 
 #### Upgrading notices
 
 ##### Configuration changes
 
 The main `cluster` configuration section now contains a `pubsub` sub-section
-which, if not present, takes the following defaults:
+which, when not present, takes the following defaults:
 
 ```js
     "pubsub": {
