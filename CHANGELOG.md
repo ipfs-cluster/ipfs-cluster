@@ -1,5 +1,85 @@
 # IPFS Cluster Changelog
 
+### v1.1.2 - 2024-11-28
+
+IPFS Cluster v1.1.2 is a maintenance release which tunes internal pubsub
+configuration to be less demanding and resilient, as well as exposing some
+of said configuration options.
+
+It additionally contains a bugfix in go-ds-crdt for an issue that can cause
+divergence between peers (https://github.com/ipfs/go-ds-crdt/pull/241). The
+issue manifests itself when a value has been removed (i.e. when doing `pin rm`
+on cluster) and re-added on a different replica before the removal operation
+has been applied there. It may manifest itself in incosistencies in pin
+information depending on the peer. The fix involves running an automatic
+migration that ensures all the pin informations are aligned and that requires
+a write operation for every pin that has ever been deleted pins to ensure that
+cluster is returning the right values. This happens automatically on the first
+boot after upgrade.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* Gossipsub: optimize for diverse clusters with many peers | [ipfs/ipfs-cluster#2071](https://github.com/ipfs/ipfs-cluster/issues/2071)
+* ipfshttp: improve logic to update informer metrics | [ipfs/ipfs-cluster#2073](https://github.com/ipfs/ipfs-cluster/issues/2073)
+
+##### Bug fixes
+
+* crdt: Bubble bugfix for diverging states | [ipfs/ipfs-cluster#2115](https://github.com/ipfs/ipfs-cluster/issues/2115)
+
+##### Other changes
+
+* Dependency upgrades | [ipfs/ipfs-cluster#2074](https://github.com/ipfs/ipfs-cluster/issues/2074) | [ipfs/ipfs-cluster#2075](https://github.com/ipfs/ipfs-cluster/issues/2075) | [ipfs/ipfs-cluster#2115](https://github.com/ipfs/ipfs-cluster/issues/2115) | [ipfs/ipfs-cluster#2117](https://github.com/ipfs/ipfs-cluster/issues/2117)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+The main `cluster` configuration section now contains a `pubsub` sub-section
+which, when not present, takes the following defaults:
+
+```js
+    "pubsub": {
+      "seen_messages_ttl": "30m0s",
+      "heartbeat_interval": "10s",
+      "d_factor": 4,
+      "history_gossip": 2,
+      "history_length": 6,
+      "flood_publish": false
+    },
+```
+
+Details on the meaning of the options can be obtained in the
+[pubsub documentation](https://pkg.go.dev/github.com/libp2p/go-libp2p-pubsub#GossipSubParams)
+or in the [ipfs-cluster documentation for the Config object](https://pkg.go.dev/github.com/ipfs/ipfs-cluster?utm_source=godoc#Config).
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+As mentioned, the crdt datastore will run a migration on first start. A message will be printed when it finishes.
+
+---
+
 ### v1.1.1 - 2024-06-23
 
 IPFS Cluster v1.1.1 is a maintenance release mostly due to a libp2p-pubsub bug
