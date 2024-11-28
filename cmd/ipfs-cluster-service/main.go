@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,12 +20,16 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/consensus/crdt"
 	"github.com/ipfs-cluster/ipfs-cluster/pstoremgr"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
+	"github.com/ipfs/boxo/datastore/dshelp"
+	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
+	"github.com/ipfs/go-datastore/query"
 	dscrdt "github.com/ipfs/go-ds-crdt"
 	logging "github.com/ipfs/go-log/v2"
 	cli "github.com/urfave/cli"
@@ -581,6 +586,159 @@ DAG operations will be run.
 								crdt := getCrdt()
 								crdt.MarkClean(context.Background())
 								fmt.Println("Datastore marked 'clean'")
+								return nil
+
+							},
+						},
+						{
+							Name:  "debug",
+							Usage: "Interactive debugging of the CRDT store",
+							Description: `
+TODO
+`,
+							Flags: []cli.Flag{},
+							Action: func(c *cli.Context) error {
+								locker.lock()
+								defer locker.tryUnlock()
+								ctx := context.Background()
+								printErr := func(err error) {
+									fmt.Println("error:", err)
+									fmt.Println("> ")
+								}
+
+								// convert Cid to /namespace/cid1Key
+								keyf := func(k string) ds.Key {
+									c := cid.MustParse(k)
+									return dshelp.NewKeyFromBinary(c.Bytes())
+								}
+
+								dsKeyToCid := func(k string) api.Cid {
+									kb, err := dshelp.BinaryFromDsKey(ds.NewKey(k))
+									if err != nil {
+										return api.CidUndef
+									}
+									c, err := api.CastCid(kb)
+									if err != nil {
+										return api.CidUndef
+									}
+									return c
+								}
+
+								crdt := getCrdt()
+								commands := `
+> (l)ist                      -> list items in the store
+> (g)get <key>                -> get value for a key
+> (p)ut <key> <value>         -> store value on a key
+> (d)elete <key>              -> delete a key
+> (c)onnect <multiaddr>       -> connect a multiaddr
+> print                       -> Print DAG
+> debug <on/off/peers/subs>   -> enable/disable debug logging
+                                 show connected peers
+                                 show pubsub subscribers
+> exit                        -> quit
+
+
+`
+								fmt.Printf("%s", commands)
+
+								fmt.Printf("> ")
+								scanner := bufio.NewScanner(os.Stdin)
+								for scanner.Scan() {
+									text := scanner.Text()
+									fields := strings.Fields(text)
+									if len(fields) == 0 {
+										fmt.Printf("> ")
+										continue
+									}
+
+									cmd := fields[0]
+
+									switch cmd {
+									case "exit", "quit":
+										return nil
+									case "?", "help", "h":
+										fmt.Printf("%s", commands)
+										fmt.Printf("> ")
+										continue
+									case "l", "list":
+										q := query.Query{}
+										results, err := crdt.Query(ctx, q)
+										if err != nil {
+											printErr(err)
+										}
+										for r := range results.Next() {
+											if r.Error != nil {
+												printErr(err)
+												continue
+											}
+											k := dsKeyToCid(r.Key)
+											fmt.Printf("[%s] -> %s\n", k, string(r.Value))
+										}
+									case "g", "get":
+										if len(fields) < 2 {
+											fmt.Println("get <key>")
+											fmt.Printf("> ")
+											continue
+										}
+										k := fields[1]
+										v, err := crdt.Get(ctx, keyf(k))
+										if err != nil {
+											printErr(err)
+											continue
+										}
+										fmt.Printf("[%s] -> %s\n", k, string(v))
+									case "i", "inspect":
+										if len(fields) < 2 {
+											fmt.Println("inspect <key>")
+											fmt.Printf("> ")
+											continue
+										}
+										k := fields[1]
+										v, p, err := crdt.Inspect(ctx, keyf(k))
+										if err != nil {
+											printErr(err)
+											continue
+										}
+
+										pin := api.Pin{}
+										err = pin.ProtoUnmarshal(v)
+										if err != nil {
+											printErr(err)
+										}
+										js, _ := json.Marshal(pin)
+
+										fmt.Printf("[%s]\n%s\n(%d)\n", k, string(js), p)
+
+									// case "p", "put":
+									// 	if len(fields) < 3 {
+									// 		fmt.Println("put <key> <value>")
+									// 		fmt.Printf("> ")
+									// 		continue
+									// 	}
+									// 	k := ds.NewKey(fields[1])
+									// 	v := strings.Join(fields[2:], " ")
+									// 	err := crdt.Put(ctx, keyf(k), []byte(v))
+									// 	if err != nil {
+									// 		printErr(err)
+									// 		continue
+									// 	}
+									case "d", "delete":
+										if len(fields) < 2 {
+											fmt.Println("delete <key>")
+											fmt.Printf("> ")
+											continue
+										}
+										k := fields[1]
+										err := crdt.Delete(ctx, keyf(k))
+										if err != nil {
+											printErr(err)
+											continue
+										}
+									case "print":
+										crdt.PrintDAG(ctx)
+									}
+									fmt.Printf("> ")
+								}
 								return nil
 
 							},

@@ -248,3 +248,5 @@ require (
 go 1.23
 
 toolchain go1.23.2
+
+replace github.com/ipfs/go-ds-crdt => ../../ipfs/go-ds-crdt

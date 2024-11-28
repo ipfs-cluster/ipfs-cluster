@@ -1020,6 +1020,7 @@ func (pin Pin) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "cid: %s\n", pin.Cid.String())
 	fmt.Fprintf(&b, "type: %s\n", pin.Type)
+	fmt.Fprintf(&b, "replication: %d-%d\n", pin.ReplicationFactorMin, pin.ReplicationFactorMax)
 	fmt.Fprintf(&b, "allocations: %v\n", pin.Allocations)
 	fmt.Fprintf(&b, "maxdepth: %d\n", pin.MaxDepth)
 	if pin.Reference != nil {
