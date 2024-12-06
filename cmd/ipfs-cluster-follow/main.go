@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"os/user"
@@ -88,6 +89,10 @@ List items in the pinset for a given cluster:
 
 $ %s <clusterName> list
 
+Leave cluster and remove all pins:
+
+$ %s <clusterName> stop
+
 Getting help and usage info:
 
 $ %s --help
@@ -96,11 +101,14 @@ $ %s <clusterName> info --help
 $ %s <clusterName> init --help
 $ %s <clusterName> run --help
 $ %s <clusterName> list --help
+$ %s <clusterName> stop --help
 
 `,
 	programName,
 	programName,
 	DefaultFolder,
+	programName,
+	programName,
 	programName,
 	programName,
 	programName,
@@ -271,6 +279,30 @@ as obtained from the internal state on disk.
 `,
 				Action: listCmd,
 			},
+			{
+				Name:      "stop",
+				Usage:     fmt.Sprintf("stop to follow %s by default and optionally delete everything", clusterName),
+				ArgsUsage: "",
+				Description: fmt.Sprintf(`
+This command stops the follower from tracking the %s by default. 
+It can also unpin all the items of current pinset or 
+delete all persisted consensus data.
+`, clusterName),
+				Action: stopCmd,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "unpin",
+						Usage: "unpin all the items in the cluster",
+					},
+					&cli.BoolFlag{
+						Name: "cleanup",
+						Usage: fmt.Sprintf("delete files in %s", func() string {
+							absPath, _, _ := buildPaths(c, clusterName)
+							return absPath
+						}()),
+					},
+				},
+			},
 		}
 		return clusterApp.RunAsSubcommand(c)
 	}
@@ -304,6 +336,27 @@ func socketAddress(absPath, clusterName string) (multiaddr.Multiaddr, error) {
 		return nil, errors.Wrapf(err, "error parsing socket: %s", socket)
 	}
 	return ma, nil
+}
+
+func killFollower(absPath string) error {
+	conn, err := net.Dial("unix", filepath.Join(absPath, "api-socket"))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	connFile, err := conn.(*net.UnixConn).File()
+	if err != nil {
+		return err
+	}
+	ucred, err := syscall.GetsockoptUcred(int(connFile.Fd()), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
+	if err != nil {
+		return err
+	}
+	followerP, err := os.FindProcess(int(ucred.Pid))
+	if err != nil {
+		return err
+	}
+	return followerP.Signal(syscall.SIGTERM)
 }
 
 // returns an REST API client. Points to the socket address unless
