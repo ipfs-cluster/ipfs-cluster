@@ -192,7 +192,7 @@ func createCluster(
 	}
 	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.TagsInf.ConfigKey()) {
 		tagsInf, err := tags.New(cfgs.TagsInf)
-		checkErr("creating numpin informer", err)
+		checkErr("creating tags informer", err)
 		informers = append(informers, tagsInf)
 	}
 
