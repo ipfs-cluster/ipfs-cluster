@@ -351,7 +351,7 @@ func runCmd(c *cli.Context) error {
 	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.TagsInf.ConfigKey()) {
 		tagsInf, err := tags.New(cfgs.TagsInf)
 		if err != nil {
-			return cli.Exit(errors.Wrap(err, "creating numpin informer"), 1)
+			return cli.Exit(errors.Wrap(err, "creating tags informer"), 1)
 		}
 		informers = append(informers, tagsInf)
 	}
