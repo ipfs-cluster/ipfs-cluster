@@ -20,7 +20,7 @@ require (
 	github.com/ipfs-cluster/go-dot v0.0.0-20240429211553-7274b631c71d
 	github.com/ipfs/boxo v0.24.3
 	github.com/ipfs/go-block-format v0.2.0
-	github.com/ipfs/go-cid v0.4.1
+	github.com/ipfs/go-cid v0.5.0
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger v0.3.0
 	github.com/ipfs/go-ds-badger3 v0.0.2
@@ -62,7 +62,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.30.0
+	golang.org/x/crypto v0.31.0
 	google.golang.org/protobuf v1.35.2
 )
 
