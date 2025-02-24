@@ -62,7 +62,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.30.0
+	golang.org/x/crypto v0.34.0
 	google.golang.org/protobuf v1.35.2
 )
 
@@ -233,9 +233,9 @@ require (
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.30.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0
+	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/tools v0.26.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
@@ -246,5 +246,4 @@ require (
 )
 
 go 1.23
-
 toolchain go1.23.2
