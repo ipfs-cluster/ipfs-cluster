@@ -22,7 +22,7 @@ require (
 	github.com/ipfs/go-block-format v0.2.0
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
-	github.com/ipfs/go-ds-badger v0.3.0
+	github.com/ipfs/go-ds-badger v0.3.1
 	github.com/ipfs/go-ds-badger3 v0.0.2
 	github.com/ipfs/go-ds-crdt v0.6.2
 	github.com/ipfs/go-ds-leveldb v0.5.0
