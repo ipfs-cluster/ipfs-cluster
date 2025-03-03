@@ -48,7 +48,7 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.12.0
 	github.com/libp2p/go-libp2p-raft v0.5.0
 	github.com/libp2p/go-libp2p-record v0.2.0
-	github.com/multiformats/go-multiaddr v0.14.0
+	github.com/multiformats/go-multiaddr v0.15.0
 	github.com/multiformats/go-multiaddr-dns v0.4.1
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/multiformats/go-multihash v0.2.3
@@ -62,7 +62,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.5
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.30.0
+	golang.org/x/crypto v0.31.0
 	google.golang.org/protobuf v1.35.2
 )
 
