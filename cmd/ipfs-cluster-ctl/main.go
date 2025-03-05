@@ -795,6 +795,10 @@ existing item from the cluster. Please run "pin rm" for that.
 							Name:  "wait, w",
 							Usage: waitFlagDesc,
 						},
+						cli.IntFlag{
+							Name:  "wait-limit, wl",
+							Usage: waitLimitFlagDesc,
+						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
