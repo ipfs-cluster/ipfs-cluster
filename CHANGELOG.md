@@ -12,7 +12,7 @@ There are no breaking changes on this release.
 
 ##### Features
 
-* Added --wait-limit flag to ipfs-cluster-ctl pin add/rm/update. This additional flag controls how many peers should reach the desired status to finish waiting. i.e. ipfs-cluster-ctl pin add --wait-limit 1 will imply --wait and wait for 1 peer to reach status "pinned". For pin/rm same thing. 
+* Added --wait-limit flag to ipfs-cluster-ctl pin add/rm/update. This additional flag controls how many peers should reach the desired status to finish waiting. i.e. ipfs-cluster-ctl pin add --wait-limit 1 will imply --wait and wait for 1 peer to reach status "pinned". For pin/rm same thing. [ipfs/ipfs-cluster#2170](https://github.com/ipfs/ipfs-cluster/issues/2170)
 
 ##### Bug fixes
 
