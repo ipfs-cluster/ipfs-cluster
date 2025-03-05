@@ -560,7 +560,7 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo, limit
 
 	// Specific case: when limit it set, just count how many targets we
 	// reached.
-	if limit > 0 {
+	if limit > 0 && limit < len(gblPinInfo.PeerMap) {
 		total := 0
 		for _, pinInfo := range gblPinInfo.PeerMap {
 			if pinInfo.Status == target {

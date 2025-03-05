@@ -1,5 +1,55 @@
 # IPFS Cluster Changelog
 
+### v1.1.3 - Unreleased
+
+IPFS Cluster v1.1.3 is a maintenance release.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+* Added --wait-limit flag to ipfs-cluster-ctl pin add/rm/update. This additional flag controls how many peers should reach the desired status to finish waiting. i.e. ipfs-cluster-ctl pin add --wait-limit 1 will imply --wait and wait for 1 peer to reach status "pinned". For pin/rm same thing. 
+
+##### Bug fixes
+
+* No changes.
+
+##### Other changes
+
+* No changes.
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+No changes.
+
+---
+
 ### v1.1.2 - 2024-11-28
 
 IPFS Cluster v1.1.2 is a maintenance release which tunes internal pubsub

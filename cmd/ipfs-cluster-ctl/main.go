@@ -72,6 +72,7 @@ https://github.com/ipfs-cluster/ipfs-cluster.
 
 var (
 	waitFlagDesc        = "Wait for the pin to reach the minimum replication factor before returning"
+	waitLimitFlagDesc   = "This additional flag controls how many peers should reach the desired status to finish waiting."
 	waitTimeoutFlagDesc = "How long to --wait (in seconds). Default: forever"
 )
 
@@ -650,6 +651,10 @@ would still be respected.
 							Name:  "wait, w",
 							Usage: waitFlagDesc,
 						},
+						cli.IntFlag{
+							Name:  "wait-limit, wl",
+							Usage: waitLimitFlagDesc,
+						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
@@ -728,6 +733,10 @@ although unpinning operations in the cluster may take longer or fail.
 						cli.BoolFlag{
 							Name:  "wait, w",
 							Usage: waitFlagDesc,
+						},
+						cli.IntFlag{
+							Name:  "wait-limit, wl",
+							Usage: waitLimitFlagDesc,
 						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
@@ -1228,9 +1237,14 @@ func handlePinResponseFormatFlags(
 	var cerr error
 
 	if c.Bool("wait") {
-		limit := 0
-		if target == api.TrackerStatusPinned {
-			limit = pin.ReplicationFactorMin
+		var limit int
+		if c.IsSet("wait-limit") {
+			limit = c.Int("wait-limit")
+		} else {
+			limit = 0
+			if target == api.TrackerStatusPinned {
+				limit = pin.ReplicationFactorMin
+			}
 		}
 		status, cerr = waitFor(pin.Cid, target, c.Duration("wait-timeout"), limit)
 		checkErr("waiting for pin status", cerr)
