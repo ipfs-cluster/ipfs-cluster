@@ -72,7 +72,7 @@ https://github.com/ipfs-cluster/ipfs-cluster.
 
 var (
 	waitFlagDesc        = "Wait for the pin to reach the minimum replication factor before returning"
-	waitLimitFlagDesc   = "How many peers should reach the desired status to finish waiting."
+	waitLimitFlagDesc   = "How many peers should reach the desired status to finish waiting"
 	waitTimeoutFlagDesc = "How long to --wait (in seconds). Default: forever"
 )
 
