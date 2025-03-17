@@ -24,12 +24,6 @@ There are 3 different applications:
 
 ---
 
-### Are you using IPFS Cluster?
-
-Please participate in the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
-
----
-
 ## Table of Contents
 
 - [Documentation](#documentation)

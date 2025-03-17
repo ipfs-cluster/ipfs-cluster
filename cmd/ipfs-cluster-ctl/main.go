@@ -27,7 +27,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "1.1.2-rc1"
+const Version = "1.1.2"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -72,6 +72,7 @@ https://github.com/ipfs-cluster/ipfs-cluster.
 
 var (
 	waitFlagDesc        = "Wait for the pin to reach the minimum replication factor before returning"
+	waitLimitFlagDesc   = "How many peers should reach the desired status to finish waiting"
 	waitTimeoutFlagDesc = "How long to --wait (in seconds). Default: forever"
 )
 
@@ -650,6 +651,10 @@ would still be respected.
 							Name:  "wait, w",
 							Usage: waitFlagDesc,
 						},
+						cli.IntFlag{
+							Name:  "wait-limit, wl",
+							Usage: waitLimitFlagDesc,
+						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
@@ -729,6 +734,10 @@ although unpinning operations in the cluster may take longer or fail.
 							Name:  "wait, w",
 							Usage: waitFlagDesc,
 						},
+						cli.IntFlag{
+							Name:  "wait-limit, wl",
+							Usage: waitLimitFlagDesc,
+						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
 							Value: 0,
@@ -785,6 +794,10 @@ existing item from the cluster. Please run "pin rm" for that.
 						cli.BoolFlag{
 							Name:  "wait, w",
 							Usage: waitFlagDesc,
+						},
+						cli.IntFlag{
+							Name:  "wait-limit, wl",
+							Usage: waitLimitFlagDesc,
 						},
 						cli.DurationFlag{
 							Name:  "wait-timeout, wt",
@@ -1228,9 +1241,14 @@ func handlePinResponseFormatFlags(
 	var cerr error
 
 	if c.Bool("wait") {
-		limit := 0
-		if target == api.TrackerStatusPinned {
-			limit = pin.ReplicationFactorMin
+		var limit int
+		if c.IsSet("wait-limit") {
+			limit = c.Int("wait-limit")
+		} else {
+			limit = 0
+			if target == api.TrackerStatusPinned {
+				limit = pin.ReplicationFactorMin
+			}
 		}
 		status, cerr = waitFor(pin.Cid, target, c.Duration("wait-timeout"), limit)
 		checkErr("waiting for pin status", cerr)
