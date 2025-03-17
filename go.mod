@@ -25,7 +25,7 @@ require (
 	github.com/ipfs/go-ds-badger v0.3.4
 	github.com/ipfs/go-ds-badger3 v0.1.5
 	github.com/ipfs/go-ds-crdt v0.6.5
-	github.com/ipfs/go-ds-leveldb v0.5.0
+	github.com/ipfs/go-ds-leveldb v0.5.2
 	github.com/ipfs/go-ds-pebble v0.4.4
 	github.com/ipfs/go-fs-lock v0.0.7
 	github.com/ipfs/go-ipfs-api v0.7.0
@@ -35,7 +35,7 @@ require (
 	github.com/ipfs/go-ipld-legacy v0.2.1
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/ipld/go-car v0.6.2
-	github.com/ipld/go-codec-dagpb v1.6.0
+	github.com/ipld/go-codec-dagpb v1.7.0
 	github.com/ipld/go-ipld-prime v0.21.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lanzafame/go-libp2p-ocgorpc v0.1.1
@@ -53,13 +53,13 @@ require (
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/rs/cors v1.11.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 	github.com/ugorji/go/codec v1.2.12
 	github.com/urfave/cli v1.22.16
-	github.com/urfave/cli/v2 v2.27.5
+	github.com/urfave/cli/v2 v2.27.6
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.36.0
