@@ -25,7 +25,7 @@ require (
 	github.com/ipfs/go-ds-badger v0.3.4
 	github.com/ipfs/go-ds-badger3 v0.1.5
 	github.com/ipfs/go-ds-crdt v0.6.5
-	github.com/ipfs/go-ds-leveldb v0.5.0
+	github.com/ipfs/go-ds-leveldb v0.5.2
 	github.com/ipfs/go-ds-pebble v0.4.4
 	github.com/ipfs/go-fs-lock v0.0.7
 	github.com/ipfs/go-ipfs-api v0.7.0
