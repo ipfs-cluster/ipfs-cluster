@@ -35,7 +35,7 @@ func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
 			code := c.Protocol().Code
 
 			if code != ma.P_TCP && code != ma.P_UDP {
-				randomizedMultiaddr.AppendComponent(&c)
+				randomizedMultiaddr = randomizedMultiaddr.AppendComponent(&c)
 				prev = c.Value()
 				return true
 			}
@@ -66,7 +66,7 @@ func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
 				return false
 			}
 
-			randomizedMultiaddr.AppendComponent(c1)
+			randomizedMultiaddr = randomizedMultiaddr.AppendComponent(c1)
 			prev = c.Value()
 
 			return true
