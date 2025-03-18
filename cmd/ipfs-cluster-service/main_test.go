@@ -20,7 +20,7 @@ func TestRandomPorts(t *testing.T) {
 
 	v1, err := addresses[0].ValueForProtocol(ma.P_TCP)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(addresses[0], err)
 	}
 
 	v2, err := addresses[1].ValueForProtocol(ma.P_UDP)

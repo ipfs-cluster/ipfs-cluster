@@ -9,15 +9,14 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	ipfscluster "github.com/ipfs-cluster/ipfs-cluster"
 	ipfshttp "github.com/ipfs-cluster/ipfs-cluster/ipfsconn/ipfshttp"
-	host "github.com/libp2p/go-libp2p/core/host"
+	"github.com/ipfs/go-datastore"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
+	host "github.com/libp2p/go-libp2p/core/host"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -31,12 +30,12 @@ func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
 	for _, m := range addrs {
 		var prev string
 		var err error
-		components := []ma.Multiaddr{}
+		var randomizedMultiaddr ma.Multiaddr
 		ma.ForEach(m, func(c ma.Component) bool {
 			code := c.Protocol().Code
 
 			if code != ma.P_TCP && code != ma.P_UDP {
-				components = append(components, &c)
+				randomizedMultiaddr = randomizedMultiaddr.AppendComponent(&c)
 				prev = c.Value()
 				return true
 			}
@@ -44,15 +43,17 @@ func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
 			var ln io.Closer
 			var port int
 
-			ip := prev
-			if strings.Contains(ip, ":") { // ipv6 needs bracketing
-				ip = "[" + ip + "]"
+			// ip always comes in the prev component to /tcp or /udp
+			ipStr := prev
+			ip := net.ParseIP(ipStr)
+			if ip.To16() != nil { // ipv6 needs bracketing
+				ipStr = "[" + ipStr + "]"
 			}
 
 			if c.Protocol().Code == ma.P_UDP {
-				ln, port, err = listenUDP(c.Protocol().Name, ip)
+				ln, port, err = listenUDP(c.Protocol().Name, ipStr)
 			} else {
-				ln, port, err = listenTCP(c.Protocol().Name, ip)
+				ln, port, err = listenTCP(c.Protocol().Name, ipStr)
 			}
 			if err != nil {
 				return false
@@ -65,7 +66,7 @@ func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
 				return false
 			}
 
-			components = append(components, c1)
+			randomizedMultiaddr = randomizedMultiaddr.AppendComponent(c1)
 			prev = c.Value()
 
 			return true
@@ -73,7 +74,7 @@ func RandomizePorts(addrs []ma.Multiaddr) ([]ma.Multiaddr, error) {
 		if err != nil {
 			return results, err
 		}
-		results = append(results, ma.Join(components...))
+		results = append(results, randomizedMultiaddr)
 	}
 
 	return results, nil

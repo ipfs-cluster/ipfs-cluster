@@ -347,7 +347,7 @@ func (proxy *Server) run() {
 
 // ipfsErrorResponder writes an http error response just like IPFS would.
 func ipfsErrorResponder(w http.ResponseWriter, errMsg string, code int) {
-	res := cmd.Errorf(cmd.ErrNormal, errMsg)
+	res := cmd.Errorf(cmd.ErrNormal, "%s", errMsg)
 
 	resBytes, _ := json.Marshal(res)
 	if code > 0 {

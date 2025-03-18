@@ -253,7 +253,7 @@ func (c *Cluster) obtainAllocations(
 		metrics.priority,
 	)
 	if err != nil {
-		return nil, logError(err.Error())
+		return nil, logError("%s", err.Error())
 	}
 
 	logger.Debugf("obtainAllocations: allocate(): %s", finalAllocs)
