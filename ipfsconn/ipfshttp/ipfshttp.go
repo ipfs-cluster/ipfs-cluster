@@ -370,14 +370,14 @@ func (ipfs *Connector) ID(ctx context.Context) (api.IPFSID, error) {
 		ID: pID,
 	}
 
-	mAddrs := make([]api.Multiaddr, len(res.Addresses))
-	for i, strAddr := range res.Addresses {
+	mAddrs := make([]api.Multiaddr, 0, len(res.Addresses))
+	for _, strAddr := range res.Addresses {
 		mAddr, err := api.NewMultiaddr(strAddr)
 		if err != nil {
 			logger.Warningf("cannot parse IPFS multiaddress: %s (%w)... ignoring", strAddr, err)
 			continue
 		}
-		mAddrs[i] = mAddr
+		mAddrs = append(mAddrs, mAddr)
 	}
 	id.Addresses = mAddrs
 	return id, nil
