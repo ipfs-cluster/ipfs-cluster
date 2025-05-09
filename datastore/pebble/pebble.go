@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cockroachdb/pebble"
+	"github.com/cockroachdb/pebble/v2"
 	ds "github.com/ipfs/go-datastore"
 	pebbleds "github.com/ipfs/go-ds-pebble"
 	logging "github.com/ipfs/go-log/v2"
