@@ -1,8 +1,10 @@
 # IPFS Cluster Changelog
 
-### v1.1.3 - Unreleased
+### v1.1.3 - 2025-05-09
 
-IPFS Cluster v1.1.3 is a maintenance release.
+IPFS Cluster v1.1.3 is a maintenance release with some small fixes and
+upgrades to the latest versions in the IPFS/libp2p stacks, which provide
+enhanced security and performance.
 
 #### List of changes
 
@@ -12,15 +14,18 @@ There are no breaking changes on this release.
 
 ##### Features
 
-* Added --wait-limit flag to ipfs-cluster-ctl pin add/rm/update. This additional flag controls how many peers should reach the desired status to finish waiting. i.e. ipfs-cluster-ctl pin add --wait-limit 1 will imply --wait and wait for 1 peer to reach status "pinned". For pin/rm same thing. [ipfs/ipfs-cluster#2170](https://github.com/ipfs/ipfs-cluster/issues/2170)
+* ipfs-cluster-ctl: Added `--wait-limit` flag tp `pin add/rm/update`. This additional flag controls how many peers should reach the desired status to finish waiting. i.e. `ipfs-cluster-ctl pin add --wait-limit 1` will imply `--wait` and wait for 1 peer to reach status "pinned". Same thing for `pin/rm`. [ipfs/ipfs-cluster#2170](https://github.com/ipfs/ipfs-cluster/issues/2170)
 
 ##### Bug fixes
 
-* No changes.
+* Docker: tag `latest` correctly on releases | [ipfs/ipfs-cluster#2133](https://github.com/ipfs/ipfs-cluster/issues/2133) | [ipfs/ipfs-cluster#2134](https://github.com/ipfs/ipfs-cluster/issues/2134)
+* ipfshttp: fix updates `pins_ipfs_pins` metric (only happening on error) | [ipfs/ipfs-cluster#2122](https://github.com/ipfs/ipfs-cluster/issues/2122)
+* tags informer: fix wrong name in error message | [ipfs/ipfs-cluster#2126](https://github.com/ipfs/ipfs-cluster/issues/2126)
+* ipfshttp: fix panic when handling unknown multiaddresses | [ipfs/ipfs-cluster#2190](https://github.com/ipfs/ipfs-cluster/issues/2190)
 
 ##### Other changes
 
-* No changes.
+* Dependency upgrades | [ipfs/ipfs-cluster#2202](https://github.com/ipfs/ipfs-cluster/issues/2202) | [ipfs/ipfs-cluster#2204](https://github.com/ipfs/ipfs-cluster/issues/2204)
 
 #### Upgrading notices
 
