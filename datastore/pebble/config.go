@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"dario.cat/mergo"
-	"github.com/cockroachdb/pebble"
-	"github.com/cockroachdb/pebble/bloom"
+	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/bloom"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"
@@ -183,7 +183,9 @@ func (lo *levelOptions) Unmarshal() *pebble.LevelOptions {
 	levelOpts.BlockRestartInterval = lo.BlockRestartInterval
 	levelOpts.BlockSize = lo.BlockSize
 	levelOpts.BlockSizeThreshold = lo.BlockSizeThreshold
-	levelOpts.Compression = lo.Compression
+	levelOpts.Compression = func() pebble.Compression {
+		return lo.Compression
+	}
 	levelOpts.FilterType = lo.FilterType
 	levelOpts.FilterPolicy = bloom.FilterPolicy(lo.FilterPolicy)
 	levelOpts.IndexBlockSize = lo.IndexBlockSize
@@ -195,7 +197,7 @@ func (lo *levelOptions) Marshal(levelOpts *pebble.LevelOptions) {
 	lo.BlockRestartInterval = levelOpts.BlockRestartInterval
 	lo.BlockSize = levelOpts.BlockSize
 	lo.BlockSizeThreshold = levelOpts.BlockSizeThreshold
-	lo.Compression = levelOpts.Compression
+	lo.Compression = levelOpts.Compression()
 	lo.FilterType = levelOpts.FilterType
 
 	if fp, ok := levelOpts.FilterPolicy.(bloom.FilterPolicy); ok {
