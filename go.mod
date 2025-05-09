@@ -26,7 +26,7 @@ require (
 	github.com/ipfs/go-ds-badger3 v0.1.5
 	github.com/ipfs/go-ds-crdt v0.6.5
 	github.com/ipfs/go-ds-leveldb v0.5.2
-	github.com/ipfs/go-ds-pebble v0.4.4
+	github.com/ipfs/go-ds-pebble v0.5.0
 	github.com/ipfs/go-fs-lock v0.1.0
 	github.com/ipfs/go-ipfs-api v0.7.0
 	github.com/ipfs/go-ipfs-cmds v0.8.2
@@ -67,7 +67,10 @@ require (
 )
 
 require (
+	github.com/cockroachdb/crlib v0.0.0-20241015224233-894974b3ad94 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
+	github.com/cockroachdb/pebble/v2 v2.0.3 // indirect
+	github.com/cockroachdb/swiss v0.0.0-20250327203710-2932b022f6df // indirect
 	github.com/filecoin-project/go-clock v0.1.0 // indirect
 	github.com/gammazero/chanqueue v1.1.0 // indirect
 	github.com/gammazero/deque v1.0.0 // indirect
@@ -103,7 +106,7 @@ require (
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
-	github.com/DataDog/zstd v1.5.2 // indirect
+	github.com/DataDog/zstd v1.5.6-0.20230824185856-869dae002e5e // indirect
 	github.com/Jorropo/jsync v1.0.1 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
@@ -140,7 +143,7 @@ require (
 	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
+	github.com/golang/snappy v0.0.5-0.20231225225746-43d5d4cd4e0e // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20250208200701-d0013a598941 // indirect
