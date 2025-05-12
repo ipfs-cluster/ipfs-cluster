@@ -427,8 +427,8 @@ github.com/ipfs/go-ds-leveldb v0.5.2 h1:6nmxlQ2zbp4LCNdJVsmHfs9GP0eylfBNxpmY1csp
 github.com/ipfs/go-ds-leveldb v0.5.2/go.mod h1:2fAwmcvD3WoRT72PzEekHBkQmBDhc39DJGoREiuGmYo=
 github.com/ipfs/go-ds-pebble v0.5.0 h1:lXffYCAKVD7nLLPqwJ9D8IxgO7Kz8woiX021tezdsIM=
 github.com/ipfs/go-ds-pebble v0.5.0/go.mod h1:aiCRVcj3K60sxc6k5C+HO9C6rouqiSkjR/WKnbTcMfQ=
-github.com/ipfs/go-fs-lock v0.1.0 h1:akwOIgPPxRWMO4IHo+s2TjAqQ30rN0xSiyc2FXT6xko=
-github.com/ipfs/go-fs-lock v0.1.0/go.mod h1:gnImZfw2m/SCnePrVJSv1NBrBLYadqjsVnuLk3df+iQ=
+github.com/ipfs/go-fs-lock v0.1.1 h1:TecsP/Uc7WqYYatasreZQiP9EGRy4ZnKoG4yXxR33nw=
+github.com/ipfs/go-fs-lock v0.1.1/go.mod h1:2goSXMCw7QfscHmSe09oXiR34DQeUdm+ei+dhonqly0=
 github.com/ipfs/go-ipfs-api v0.7.0 h1:CMBNCUl0b45coC+lQCXEVpMhwoqjiaCwUIrM+coYW2Q=
 github.com/ipfs/go-ipfs-api v0.7.0/go.mod h1:AIxsTNB0+ZhkqIfTZpdZ0VR/cpX5zrXjATa3prSay3g=
 github.com/ipfs/go-ipfs-blockstore v1.3.1 h1:cEI9ci7V0sRNivqaOr0elDsamxXFxJMMMy7PTTDQNsQ=
