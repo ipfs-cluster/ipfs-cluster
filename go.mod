@@ -3,7 +3,7 @@ module github.com/ipfs-cluster/ipfs-cluster
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
-	dario.cat/mergo v1.0.1
+	dario.cat/mergo v1.0.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cockroachdb/pebble/v2 v2.0.3
 	github.com/coreos/go-systemd/v22 v22.5.0
