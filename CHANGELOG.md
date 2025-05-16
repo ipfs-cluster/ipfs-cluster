@@ -1,5 +1,56 @@
 # IPFS Cluster Changelog
 
+### v1.1.4 - 2025-05-016
+
+IPFS Cluster v1.1.4 is a maintenance release to trigger the publishing of
+fixed docker images for non amd64 architectures.
+
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+##### Bug fixes
+
+* Docker: Fix non-amd64 images | [ipfs/ipfs-cluster#2208](https://github.com/ipfs/ipfs-cluster/issues/2208)
+
+##### Other changes
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+No changes.
+
+---
+
+
+---
+
 ### v1.1.3 - 2025-05-09
 
 IPFS Cluster v1.1.3 is a maintenance release with some small fixes and
