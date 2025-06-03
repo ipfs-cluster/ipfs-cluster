@@ -207,7 +207,7 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 		fmt.Println("If this is not the case, specify the full url starting with http:// or https://.")
 		fmt.Println("(You can override the gateway URL by setting IPFS_GATEWAY)")
 		fmt.Println()
-		cfgURL = fmt.Sprintf("http://%s/ipns/%s", gw, cfgURL)
+		cfgURL = fmt.Sprintf("%s/ipns/%s", gw, cfgURL)
 	}
 
 	// Setting the datastore here is useless, as we initialize with remote
