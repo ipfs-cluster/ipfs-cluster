@@ -645,6 +645,7 @@ nextFilter:
 			var ipfsPin api.IPFSPinInfo
 			err = dec.Decode(&ipfsPin)
 			if err == io.EOF {
+				err = nil
 				break nextFilter
 			}
 			if err != nil {
