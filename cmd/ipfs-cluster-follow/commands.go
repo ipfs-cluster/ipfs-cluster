@@ -510,6 +510,43 @@ func listCmd(c *cli.Context) error {
 	return nil
 }
 
+// Stop
+func stopCmd(c *cli.Context) error {
+	clusterName := c.String(clusterNameFlag)
+
+	absPath, _, identityPath := buildPaths(c, clusterName)
+	if !isInitialized(absPath) {
+		printNotInitialized(clusterName)
+		return cli.Exit("", 1)
+	}
+
+	// if unpin flag is set, check if the ipfs-cluster-follow is running and unpin everything
+	if c.Bool("unpin") {
+		if _, err := os.Stat(filepath.Join(absPath, "api-socket")); err == nil {
+			if err := unpinEverything(absPath, clusterName, identityPath); err != nil {
+				return cli.Exit(errors.Wrap(err, "unpin error"), 1)
+			}
+		} else {
+			return cli.Exit(errors.Wrap(err, fmt.Sprintf("ipfs-cluster-follow does not seem to be running for %s", clusterName)), 1)
+		}
+	}
+
+	// kill the ipfs-cluster-follow process if it's running
+	if _, err := os.Stat(filepath.Join(absPath, "api-socket")); err == nil {
+		if err := killFollower(absPath); err != nil {
+			return cli.Exit(errors.Wrap(err, "error killing ipfs-cluster-follow daemon"), 1)
+		}
+	}
+
+	// cleanup flag will remove ipfs-cluster-follow folder even if the process is not running
+	if c.Bool("cleanup") {
+		if err := os.RemoveAll(absPath); err != nil {
+			return cli.Exit(errors.Wrap(err, "deleting "+absPath), 1)
+		}
+	}
+	return nil
+}
+
 func printStatusOnline(absPath, clusterName string) error {
 	ctx := context.Background()
 	client, err := getClient(absPath, clusterName)
@@ -576,4 +613,37 @@ func printPin(c api.Cid, status, name, err string) {
 		name = name + " (" + err + ")"
 	}
 	fmt.Printf("%-20s %s %s\n", status, c, name)
+}
+
+func unpinEverything(absPath, clusterName, identityPath string) error {
+	ctx := context.Background()
+	client, err := getClient(absPath, clusterName)
+	if err != nil {
+		return err
+	}
+	out := make(chan api.Pin, 1024)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+		errCh <- client.Allocations(ctx, api.AllType, out)
+	}()
+
+	// use client find pinned items and unpin by ipfs connector
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+	if err != nil {
+		return err
+	}
+	connect, err := ipfshttp.NewConnector(cfgHelper.Configs().Ipfshttp)
+	if err != nil {
+		return err
+	}
+	for pin := range out {
+		err = connect.Unpin(ctx, pin.Cid)
+		if err != nil {
+			return err
+		}
+	}
+	err = <-errCh
+	return err
 }
