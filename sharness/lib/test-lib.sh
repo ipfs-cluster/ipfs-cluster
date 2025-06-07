@@ -10,7 +10,7 @@ SHARNESS_LIB="lib/sharness/sharness.sh"
 
 # Daemons output will be redirected to...
 IPFS_OUTPUT="/dev/null"
-#IPFS_OUTPUT="/dev/stderr" # uncomment for debugging
+# IPFS_OUTPUT="/dev/stderr" # uncomment for debugging
 
 . "$SHARNESS_LIB" || {
     echo >&2 "Cannot source: $SHARNESS_LIB"
@@ -120,7 +120,7 @@ test_confirm_importState() {
 
 cluster_kill(){
     pkill -1 -f ipfs-cluster-service
-    while pgrep ipfs-cluster-service >/dev/null; do
+    while pgrep ipfs-cluster-s >/dev/null; do
         sleep 0.2
     done
 }

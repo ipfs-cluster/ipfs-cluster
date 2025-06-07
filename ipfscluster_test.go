@@ -118,14 +118,7 @@ func TestMain(m *testing.M) {
 	}
 
 	for _, f := range customLogLvlFacilities {
-		if _, ok := LoggingFacilities[f]; ok {
-			SetFacilityLogLevel(f, logLevel)
-			continue
-		}
-		if _, ok := LoggingFacilitiesExtra[f]; ok {
-			SetFacilityLogLevel(f, logLevel)
-			continue
-		}
+		SetFacilityLogLevel(f, logLevel)
 	}
 
 	diskInfCfg := &disk.Config{}
@@ -183,7 +176,7 @@ func createComponents(
 	ident.PrivateKey = host.Peerstore().PrivKey(host.ID())
 	clusterCfg.Peername = peername
 	clusterCfg.LeaveOnShutdown = false
-	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().Pretty()))
+	clusterCfg.SetBaseDir(filepath.Join(testsFolder, host.ID().String()))
 
 	apiCfg.HTTPListenAddr = []ma.Multiaddr{apiAddr}
 
@@ -192,12 +185,12 @@ func createComponents(
 
 	ipfshttpCfg.NodeAddr = nodeAddr
 
-	raftCfg.DataFolder = filepath.Join(testsFolder, host.ID().Pretty())
+	raftCfg.DataFolder = filepath.Join(testsFolder, host.ID().String())
 
-	badgerCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger")
-	badger3Cfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "badger3")
-	levelDBCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "leveldb")
-	pebbleCfg.Folder = filepath.Join(testsFolder, host.ID().Pretty(), "pebble")
+	badgerCfg.Folder = filepath.Join(testsFolder, host.ID().String(), "badger")
+	badger3Cfg.Folder = filepath.Join(testsFolder, host.ID().String(), "badger3")
+	levelDBCfg.Folder = filepath.Join(testsFolder, host.ID().String(), "leveldb")
+	pebbleCfg.Folder = filepath.Join(testsFolder, host.ID().String(), "pebble")
 
 	api, err := rest.NewAPI(ctx, apiCfg)
 	if err != nil {
@@ -302,7 +295,7 @@ func makeConsensus(t *testing.T, store ds.Datastore, h host.Host, psub *pubsub.P
 }
 
 func createCluster(t *testing.T, host host.Host, dht *dual.DHT, clusterCfg *Config, store ds.Datastore, consensus Consensus, apis []API, ipfs IPFSConnector, tracker PinTracker, mon PeerMonitor, alloc PinAllocator, inf Informer, tracer Tracer) *Cluster {
-	cl, err := NewCluster(context.Background(), host, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, []Informer{inf}, tracer)
+	cl, err := NewCluster(context.Background(), host, nil, dht, clusterCfg, store, consensus, apis, ipfs, tracker, mon, alloc, []Informer{inf}, tracer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +348,11 @@ func createHost(t *testing.T, priv crypto.PrivKey, clusterSecret []byte, listen 
 
 	// Pubsub needs to be created BEFORE connecting the peers,
 	// otherwise they are not picked up.
-	psub, err := newPubSub(ctx, h)
+	// Note: this is possibly a pubsub bug that was fixed.
+	cfg := &Config{}
+	cfg.Default()
+	cfg.LoadJSON(testingClusterCfg)
+	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1748,7 +1745,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 	for i, c := range clusters {
 		pinfo := c.tracker.Status(ctx, h)
 		if pinfo.Status == api.TrackerStatusPinned {
-			//t.Logf("Killing %s", c.id.Pretty())
+			//t.Logf("Killing %s", c.id)
 			killedClusterIndex = i
 			t.Logf("Shutting down %s", c.ID(ctx).ID)
 			c.Shutdown(ctx)
@@ -1780,7 +1777,7 @@ func TestClustersReplicationRealloc(t *testing.T) {
 			continue
 		}
 		pinfo := c.tracker.Status(ctx, h)
-		t.Log(pinfo.Peer.Pretty(), pinfo.Status)
+		t.Log(pinfo.Peer, pinfo.Status)
 		if pinfo.Status == api.TrackerStatusPinned {
 			numPinned++
 		}
@@ -2096,7 +2093,7 @@ func TestClustersDisabledRepinning(t *testing.T) {
 		}
 		pinfo := c.tracker.Status(ctx, h)
 		if pinfo.Status == api.TrackerStatusPinned {
-			//t.Log(pinfo.Peer.Pretty())
+			//t.Log(pinfo.Peer)
 			numPinned++
 		}
 	}

@@ -192,7 +192,7 @@ func allocationError(hash api.Cid, needed, wanted int, candidatesValid []peer.ID
 	logger.Errorf("  Wanted: %d", wanted)
 	logger.Errorf("  Available candidates: %d:", len(candidatesValid))
 	for _, c := range candidatesValid {
-		logger.Errorf("    - %s", c.Pretty())
+		logger.Errorf("    - %s", c)
 	}
 	errorMsg := "not enough peers to allocate CID. "
 	errorMsg += fmt.Sprintf("Needed at least: %d. ", needed)
@@ -253,7 +253,7 @@ func (c *Cluster) obtainAllocations(
 		metrics.priority,
 	)
 	if err != nil {
-		return nil, logError(err.Error())
+		return nil, logError("%s", err.Error())
 	}
 
 	logger.Debugf("obtainAllocations: allocate(): %s", finalAllocs)

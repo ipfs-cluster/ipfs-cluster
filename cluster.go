@@ -23,6 +23,7 @@ import (
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	host "github.com/libp2p/go-libp2p/core/host"
+	metrics "github.com/libp2p/go-libp2p/core/metrics"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	peerstore "github.com/libp2p/go-libp2p/core/peerstore"
 	mdns "github.com/libp2p/go-libp2p/p2p/discovery/mdns"
@@ -39,11 +40,12 @@ import (
 var ReadyTimeout = 30 * time.Second
 
 const (
-	pingMetricName      = "ping"
-	bootstrapCount      = 3
-	reBootstrapInterval = 30 * time.Second
-	mdnsServiceTag      = "_ipfs-cluster-discovery._udp"
-	maxAlerts           = 1000
+	pingMetricName                = "ping"
+	bootstrapCount                = 3
+	reBootstrapInterval           = 30 * time.Second
+	priorityPeerReconnectInterval = 5 * time.Minute
+	mdnsServiceTag                = "_ipfs-cluster-discovery._udp"
+	maxAlerts                     = 1000
 )
 
 var errFollowerMode = errors.New("this peer is configured to be in follower mode. Write operations are disabled")
@@ -54,12 +56,13 @@ type Cluster struct {
 	ctx    context.Context
 	cancel func()
 
-	id        peer.ID
-	config    *Config
-	host      host.Host
-	dht       *dual.DHT
-	discovery mdns.Service
-	datastore ds.Datastore
+	id                peer.ID
+	config            *Config
+	host              host.Host
+	bandwidthReporter metrics.Reporter
+	dht               *dual.DHT
+	discovery         mdns.Service
+	datastore         ds.Datastore
 
 	rpcServer   *rpc.Server
 	rpcClient   *rpc.Client
@@ -102,6 +105,7 @@ type Cluster struct {
 func NewCluster(
 	ctx context.Context,
 	host host.Host,
+	bwc metrics.Reporter,
 	dht *dual.DHT,
 	cfg *Config,
 	datastore ds.Datastore,
@@ -131,7 +135,7 @@ func NewCluster(
 
 	listenAddrs := ""
 	for _, addr := range host.Addrs() {
-		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID().Pretty())
+		listenAddrs += fmt.Sprintf("        %s/p2p/%s\n", addr, host.ID())
 	}
 
 	logger.Infof("IPFS Cluster v%s listening on:\n%s\n", version.Version, listenAddrs)
@@ -148,40 +152,44 @@ func NewCluster(
 	}
 
 	c := &Cluster{
-		ctx:         ctx,
-		cancel:      cancel,
-		id:          host.ID(),
-		config:      cfg,
-		host:        host,
-		dht:         dht,
-		discovery:   mdnsSvc,
-		datastore:   datastore,
-		consensus:   consensus,
-		apis:        apis,
-		ipfs:        ipfs,
-		tracker:     tracker,
-		monitor:     monitor,
-		allocator:   allocator,
-		informers:   informers,
-		tracer:      tracer,
-		alerts:      []api.Alert{},
-		peerManager: peerManager,
-		shutdownB:   false,
-		removed:     false,
-		doneCh:      make(chan struct{}),
-		readyCh:     make(chan struct{}),
-		readyB:      false,
+		ctx:               ctx,
+		cancel:            cancel,
+		id:                host.ID(),
+		config:            cfg,
+		host:              host,
+		bandwidthReporter: bwc,
+		dht:               dht,
+		discovery:         mdnsSvc,
+		datastore:         datastore,
+		consensus:         consensus,
+		apis:              apis,
+		ipfs:              ipfs,
+		tracker:           tracker,
+		monitor:           monitor,
+		allocator:         allocator,
+		informers:         informers,
+		tracer:            tracer,
+		alerts:            []api.Alert{},
+		peerManager:       peerManager,
+		shutdownB:         false,
+		removed:           false,
+		doneCh:            make(chan struct{}),
+		readyCh:           make(chan struct{}),
+		readyB:            false,
 	}
 
-	// Import known cluster peers from peerstore file and config. Set
-	// a non permanent TTL.
+	// PeerAddresses are assumed to be permanent and have the maximum
+	// priority for bootstrapping.
+	c.peerManager.ImportPeersWithPriority(c.config.PeerAddresses, false, peerstore.PermanentAddrTTL, 0)
+	// Peerstore addresses come afterwards and have increasing priorities
+	// for bootstrapping and non permanent TTL (1h).
 	c.peerManager.ImportPeersFromPeerstore(false, peerstore.AddressTTL)
-	c.peerManager.ImportPeers(c.config.PeerAddresses, false, peerstore.AddressTTL)
-	// Attempt to connect to some peers (up to bootstrapCount)
-	connectedPeers := c.peerManager.Bootstrap(bootstrapCount)
+
+	// Attempt to connect to some peers.
+	connectedPeers := c.peerManager.Bootstrap(bootstrapCount, true, true)
 	// We cannot warn when count is low as this as this is normal if going
 	// to Join() later.
-	logger.Debugf("bootstrap count %d", len(connectedPeers))
+	logger.Debugf("Bootstrapped to %d peers successfully", len(connectedPeers))
 	// Log a ping metric for every connected peer. This will make them
 	// visible as peers without having to wait for them to send one.
 	for _, p := range connectedPeers {
@@ -538,6 +546,28 @@ func (c *Cluster) alertsHandler() {
 	}
 }
 
+// BandwidthByProtocol returns the libp2p bandwidth metrics as provided by the
+// bandwidth reporter that the peer was initialized with. Returns nil when
+// unset.
+func (c *Cluster) BandwidthByProtocol() api.BandwidthByProtocol {
+	if c.bandwidthReporter == nil {
+		return nil
+	}
+
+	bbp := make(api.BandwidthByProtocol)
+	stats := c.bandwidthReporter.GetBandwidthByProtocol()
+	for k, v := range stats {
+		bbp[k] = api.Bandwidth{
+			TotalIn:  v.TotalIn,
+			TotalOut: v.TotalOut,
+			RateIn:   v.RateIn,
+			RateOut:  v.RateOut,
+		}
+	}
+
+	return bbp
+}
+
 // detects any changes in the peerset and saves the configuration. When it
 // detects that we have been removed from the peerset, it shuts down this peer.
 func (c *Cluster) watchPeers() {
@@ -585,17 +615,44 @@ func (c *Cluster) watchPeers() {
 // peerstore). This should ensure that we auto-recover from situations in
 // which the network was completely gone and we lost all peers.
 func (c *Cluster) reBootstrap() {
-	ticker := time.NewTicker(reBootstrapInterval)
-	defer ticker.Stop()
+	generalBootstrap := time.NewTicker(reBootstrapInterval)
+	priorityPeerReconnect := time.NewTicker(priorityPeerReconnectInterval)
+
+	defer generalBootstrap.Stop()
+	defer priorityPeerReconnect.Stop()
 
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
-		case <-ticker.C:
-			connected := c.peerManager.Bootstrap(bootstrapCount)
+		case <-generalBootstrap.C:
+			// Attempt to reach low-water setting if for some
+			// reason we are not there already. The default low
+			// water is 100.  On small clusters this ensures we
+			// stay connected to everyone. On larger clusters this
+			// will not trigger new connections when already above
+			// low water. When it does, known peers will be randomly
+			// selected.
+			connected := c.peerManager.Bootstrap(c.config.ConnMgr.LowWater, false, false)
 			for _, p := range connected {
 				logger.Infof("reconnected to %s", p)
+			}
+		case <-priorityPeerReconnect.C:
+			// This is a safeguard for clusters with many peers.
+			// It is understood that PeerAddresses are stable,
+			// possibly "trusted" or at least honest peers.
+			//
+			// We don't need to be connected to them, but in an
+			// scenario where there rest of the (untrusted) peers
+			// works to isolate or mislead other peers (i.e. not
+			// propagating pubsub), it does not hurt to reconnect
+			// to one of these peers from time to time.
+			if len(c.config.PeerAddresses) == 0 {
+				break
+			}
+			connected := c.peerManager.Bootstrap(1, true, true)
+			for _, p := range connected {
+				logger.Infof("reconnected to priority peer %s", p)
 			}
 		}
 	}
@@ -607,7 +664,7 @@ func (c *Cluster) vacatePeer(ctx context.Context, p peer.ID) {
 	defer span.End()
 
 	if c.config.DisableRepinning {
-		logger.Warnf("repinning is disabled. Will not re-allocate cids from %s", p.Pretty())
+		logger.Warnf("repinning is disabled. Will not re-allocate cids from %s", p)
 		return
 	}
 
@@ -645,7 +702,7 @@ func (c *Cluster) repinFromPeer(ctx context.Context, p peer.ID, pin api.Pin) {
 	// if we are not under the replication-factor min.
 	_, ok, err := c.pin(ctx, pin, []peer.ID{p})
 	if ok && err == nil {
-		logger.Infof("repinned %s out of %s", pin.Cid, p.Pretty())
+		logger.Infof("repinned %s out of %s", pin.Cid, p)
 	}
 }
 
@@ -739,7 +796,7 @@ This might be due to one or several causes:
 
 	for _, p := range peers {
 		if p != c.id {
-			logger.Infof("    - %s", p.Pretty())
+			logger.Infof("    - %s", p)
 		}
 	}
 
@@ -971,7 +1028,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 	// seems to help.
 	c.paMux.Lock()
 	defer c.paMux.Unlock()
-	logger.Debugf("peerAdd called with %s", pid.Pretty())
+	logger.Debugf("peerAdd called with %s", pid)
 
 	// Let the consensus layer be aware of this peer
 	err := c.consensus.AddPeer(ctx, pid)
@@ -981,7 +1038,7 @@ func (c *Cluster) PeerAdd(ctx context.Context, pid peer.ID) (*api.ID, error) {
 		return id, err
 	}
 
-	logger.Info("Peer added ", pid.Pretty())
+	logger.Infof("Peer added %s", pid)
 	addedID, err := c.getIDForPeer(ctx, pid)
 	if err != nil {
 		return addedID, err
@@ -1010,7 +1067,7 @@ func (c *Cluster) PeerRemove(ctx context.Context, pid peer.ID) error {
 		logger.Error(err)
 		return err
 	}
-	logger.Info("Peer removed ", pid.Pretty())
+	logger.Info("Peer removed %s", pid)
 	return nil
 }
 
@@ -1123,7 +1180,7 @@ func (c *Cluster) Join(ctx context.Context, addr ma.Multiaddr) error {
 	}()
 	go c.RecoverAllLocal(c.ctx, out)
 
-	logger.Infof("%s: joined %s's cluster", c.id.Pretty(), pid.Pretty())
+	logger.Infof("%s: joined %s's cluster", c.id, pid)
 	return nil
 }
 

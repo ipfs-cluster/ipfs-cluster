@@ -31,7 +31,8 @@ var log = logging.Logger("coreunix")
 // how many bytes of progress to wait before sending a progress update message
 const progressReaderIncrement = 1024 * 256
 
-var liveCacheSize = uint64(256 << 10)
+// cluster: we need to cache all to be able to output intermediate folders
+//var liveCacheSize = uint64(256 << 10)
 
 // NewAdder Returns a new Adder used for a file add operation.
 func NewAdder(ctx context.Context, ds ipld.DAGService, allocs func() []peer.ID) (*Adder, error) {
@@ -61,8 +62,8 @@ type Adder struct {
 	mroot      *mfs.Root
 	tempRoot   cid.Cid
 	CidBuilder cid.Builder
-	liveNodes  uint64
-	lastFile   mfs.FSNode
+	// liveNodes  uint64 // cluster: we do not clear mfs cache.
+	lastFile mfs.FSNode
 	// Cluster: ipfs does a hack in commands/add.go to set the filenames
 	// in emitted events correctly. We carry a root folder name (or a
 	// filename in the case of single files here and emit those events
@@ -272,11 +273,6 @@ func (adder *Adder) AddAllAndPin(file files.Node) (ipld.Node, error) {
 	rootdir := mr.GetDirectory()
 	root = rootdir
 
-	err = root.Flush()
-	if err != nil {
-		return nil, err
-	}
-
 	// if adding a file without wrapping, swap the root to it (when adding a
 	// directory, mfs root is the directory)
 	_, dir := file.(files.Directory)
@@ -320,6 +316,14 @@ func (adder *Adder) AddAllAndPin(file files.Node) (ipld.Node, error) {
 		return nil, err
 	}
 
+	// Flush the MFS directories. This must happen after outputDirs as
+	// otherwise we will have no cached directories in MFS, and we cannot
+	// fetch from the DAGService.
+	err = rootdir.Flush()
+	if err != nil {
+		return nil, err
+	}
+
 	// Cluster: call PinRoot which adds the root cid to the DAGService.
 	// Unsure if this a bug in IPFS when not pinning. Or it would get added
 	// twice.
@@ -330,19 +334,21 @@ func (adder *Adder) AddAllAndPin(file files.Node) (ipld.Node, error) {
 func (adder *Adder) addFileNode(path string, file files.Node, toplevel bool) error {
 	defer file.Close()
 
-	if adder.liveNodes >= liveCacheSize {
-		// TODO: A smarter cache that uses some sort of lru cache with an eviction handler
-		mr, err := adder.mfsRoot()
-		if err != nil {
-			return err
-		}
-		if err := mr.FlushMemFree(adder.ctx); err != nil {
-			return err
-		}
+	// cluster: flushing MFS will cause issues when outputting intermediary
+	// mfs folders.
+	// if adder.liveNodes >= liveCacheSize {
+	// 	// TODO: A smarter cache that uses some sort of lru cache with an eviction handler
+	// 	mr, err := adder.mfsRoot()
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if err := mr.FlushMemFree(adder.ctx); err != nil {
+	// 		return err
+	// 	}
 
-		adder.liveNodes = 0
-	}
-	adder.liveNodes++
+	// 	adder.liveNodes = 0
+	// }
+	// adder.liveNodes++
 
 	switch f := file.(type) {
 	case files.Directory:
@@ -426,7 +432,7 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 
 // outputDagnode sends dagnode info over the output channel.
 // Cluster: we use api.AddedOutput instead of coreiface events
-// and make this an adder method to be be able to prefix.
+// and make this an adder method to be able to prefix.
 func (adder *Adder) outputDagnode(out chan api.AddedOutput, name string, dn ipld.Node) error {
 	if out == nil {
 		return nil

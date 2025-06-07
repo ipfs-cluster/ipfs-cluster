@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"sort"
 	"sync"
@@ -117,7 +118,7 @@ func (pm *Manager) RmPeer(pid peer.ID) error {
 		return nil
 	}
 
-	logger.Debugf("forgetting peer %s", pid.Pretty())
+	logger.Debugf("forgetting peer %s", pid)
 	pm.host.Peerstore().ClearAddrs(pid)
 	return nil
 }
@@ -187,10 +188,24 @@ func (pm *Manager) PeerInfos(peers []peer.ID) []peer.AddrInfo {
 // given connect parameter. Peers are tagged with priority as given
 // by their position in the list.
 func (pm *Manager) ImportPeers(addrs []ma.Multiaddr, connect bool, ttl time.Duration) error {
-	for i, a := range addrs {
+	prio := 1
+	for _, a := range addrs {
 		pid, err := pm.ImportPeer(a, connect, ttl)
 		if err == nil {
-			pm.SetPriority(pid, i)
+			pm.SetPriority(pid, prio)
+			prio++
+		}
+	}
+	return nil
+}
+
+// ImportPeersWithPriority calls ImportPeer for every address in the given
+// slice, using the given connect parameter. Peers are tagged with the given priority.
+func (pm *Manager) ImportPeersWithPriority(addrs []ma.Multiaddr, connect bool, ttl time.Duration, priority int) error {
+	for _, a := range addrs {
+		pid, err := pm.ImportPeer(a, connect, ttl)
+		if err == nil {
+			pm.SetPriority(pid, priority)
 		}
 	}
 	return nil
@@ -289,27 +304,42 @@ func (pm *Manager) SavePeerstoreForPeers(peers []peer.ID) error {
 	return pm.SavePeerstore(pm.PeerInfos(peers))
 }
 
-// Bootstrap attempts to get up to "count" connected peers by trying those
-// in the peerstore in priority order. It returns the list of peers it managed
-// to connect to.
-func (pm *Manager) Bootstrap(count int) []peer.ID {
+// Bootstrap attempts to get up to "count" connected peers.  When byPriority
+// is true it will order the peers based on their priority tags and attempt to
+// connect in that order.  When force is true it will attempt to connect to
+// "count" number of peers regardless of the number of existing
+// connections. It returns the list of peers it managed to connect to.
+func (pm *Manager) Bootstrap(count int, byPriority bool, force bool) []peer.ID {
+	totalConns := 0
+
+	if !force {
+		totalConns = len(pm.host.Network().Conns())
+		// short-cut if there will be nothing to do.
+		if totalConns >= count {
+			return nil
+		}
+	}
+
 	knownPeers := pm.host.Peerstore().PeersWithAddrs()
 	toSort := &peerSort{
 		pinfos: pstoreutil.PeerInfos(pm.host.Peerstore(), knownPeers),
 		pstore: pm.host.Peerstore(),
 	}
 
-	// Sort from highest to lowest priority
-	sort.Sort(toSort)
+	if byPriority {
+		// Sort from highest to lowest priority
+		sort.Sort(toSort)
+	} else {
+		rand.Shuffle(len(toSort.pinfos), toSort.Swap)
+	}
 
 	pinfos := toSort.pinfos
 	lenKnown := len(pinfos)
-	totalConns := 0
 	connectedPeers := []peer.ID{}
 
 	// keep conecting while we have peers in the store
 	// and we have not reached count.
-	for i := 0; i < lenKnown && totalConns < count; i++ {
+	for i := 0; i < lenKnown && (totalConns < count); i++ {
 		pinfo := pinfos[i]
 		ctx, cancel := context.WithTimeout(pm.ctx, ConnectTimeout)
 		defer cancel()
@@ -386,6 +416,12 @@ func (ps *peerSort) Less(i, j int) bool {
 	if err == nil {
 		prio2 = prio2iface.(int)
 	}
+
+	// Randomize order
+	if prio1 == prio2 {
+		return rand.Intn(2) == 0
+	}
+
 	return prio1 < prio2
 }
 

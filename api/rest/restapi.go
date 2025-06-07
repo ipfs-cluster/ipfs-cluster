@@ -181,6 +181,12 @@ func (api *API) routes(c *rpc.Client) []common.Route {
 			HandlerFunc: api.alertsHandler,
 		},
 		{
+			Name:        "Bandwidth by protocol stats",
+			Method:      "GET",
+			Pattern:     "/health/bandwidth",
+			HandlerFunc: api.bandwidthByProtocolHandler,
+		},
+		{
 			Name:        "Metrics",
 			Method:      "GET",
 			Pattern:     "/monitor/metrics/{name}",
@@ -288,6 +294,19 @@ func (api *API) alertsHandler(w http.ResponseWriter, r *http.Request) {
 		&alerts,
 	)
 	api.SendResponse(w, common.SetStatusAutomatically, err, alerts)
+}
+
+func (api *API) bandwidthByProtocolHandler(w http.ResponseWriter, r *http.Request) {
+	var bw types.BandwidthByProtocol
+	err := api.rpcClient.CallContext(
+		r.Context(),
+		"",
+		"Cluster",
+		"BandwidthByProtocol",
+		struct{}{},
+		&bw,
+	)
+	api.SendResponse(w, common.SetStatusAutomatically, err, bw)
 }
 
 func (api *API) addHandler(w http.ResponseWriter, r *http.Request) {

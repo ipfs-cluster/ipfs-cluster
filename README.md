@@ -1,6 +1,6 @@
 # IPFS Cluster
 
-[![Made by](https://img.shields.io/badge/By-Protocol%20Labs-000000.svg?style=flat-square)](https://protocol.ai)
+[![Made by](https://img.shields.io/badge/By-IP%20Shipyard-000000.svg?style=flat-square)](https://ipshipyard.com)
 [![Main project](https://img.shields.io/badge/project-ipfs--cluster-ef5c43.svg?style=flat-square)](http://github.com/ipfs-cluster)
 [![Discord](https://img.shields.io/badge/forum-discuss.ipfs.io-f9a035.svg?style=flat-square)](https://discuss.ipfs.io/c/help/help-ipfs-cluster/24)
 [![Matrix channel](https://img.shields.io/badge/matrix-%23ipfs--cluster-3c8da0.svg?style=flat-square)](https://app.element.io/#/room/#ipfs-cluster:ipfs.io)
@@ -21,12 +21,6 @@ There are 3 different applications:
 * A cluster peer application: `ipfs-cluster-service`, to be run along with `kubo` (`go-ipfs`) as a sidecar.
 * A client CLI application: `ipfs-cluster-ctl`, which allows easily interacting with the peer's HTTP API.
 * An additional "follower" peer application: `ipfs-cluster-follow`, focused on simplifying the process of configuring and running follower peers.
-
----
-
-### Are you using IPFS Cluster?
-
-Please participate in the [IPFS Cluster user registry](https://docs.google.com/forms/d/e/1FAIpQLSdWF5aXNXrAK_sCyu1eVv2obTaKVO3Ac5dfgl2r5_IWcizGRg/viewform).
 
 ---
 
@@ -69,5 +63,3 @@ PRs accepted. As part of the IPFS project, we have some [contribution guidelines
 ## License
 
 This library is dual-licensed under Apache 2.0 and MIT terms.
-
-© 2022. Protocol Labs, Inc.

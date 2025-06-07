@@ -242,7 +242,7 @@ func TestCORS(t *testing.T) {
 	tf := func(t *testing.T, url test.URLFunc) {
 		reqHeaders := make(http.Header)
 		reqHeaders.Set("Origin", "myorigin")
-		reqHeaders.Set("Access-Control-Request-Headers", "Content-Type")
+		reqHeaders.Set("Access-Control-Request-Headers", "content-type")
 
 		for _, tc := range []testcase{
 			{"GET", "/test"},
@@ -264,7 +264,7 @@ func TestCORS(t *testing.T) {
 				t.Error("Bad ACA-Methods:", amethods)
 			}
 
-			if aheaders != "Content-Type" {
+			if aheaders != "content-type" {
 				t.Error("Bad ACA-Headers:", aheaders)
 			}
 

@@ -22,7 +22,7 @@ const tracingEnvConfigKey = "cluster_tracing"
 const (
 	DefaultEnableStats        = false
 	DefaultPrometheusEndpoint = "/ip4/127.0.0.1/tcp/8888"
-	DefaultReportingInterval  = 2 * time.Second
+	DefaultReportingInterval  = 30 * time.Second
 
 	DefaultEnableTracing       = false
 	DefaultJaegerAgentEndpoint = "/ip4/0.0.0.0/udp/6831"

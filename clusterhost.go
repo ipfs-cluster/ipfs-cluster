@@ -3,8 +3,13 @@ package ipfscluster
 import (
 	"context"
 	"encoding/hex"
+	"time"
 
 	config "github.com/ipfs-cluster/ipfs-cluster/config"
+	fd "github.com/ipfs-cluster/ipfs-cluster/internal/fd"
+	"github.com/ipfs-cluster/ipfs-cluster/observations"
+
+	humanize "github.com/dustin/go-humanize"
 	ipns "github.com/ipfs/boxo/ipns"
 	ds "github.com/ipfs/go-datastore"
 	namespace "github.com/ipfs/go-datastore/namespace"
@@ -12,14 +17,18 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub_pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	record "github.com/libp2p/go-libp2p-record"
 	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	host "github.com/libp2p/go-libp2p/core/host"
+	metrics "github.com/libp2p/go-libp2p/core/metrics"
 	network "github.com/libp2p/go-libp2p/core/network"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	corepnet "github.com/libp2p/go-libp2p/core/pnet"
 	routing "github.com/libp2p/go-libp2p/core/routing"
-	"github.com/libp2p/go-libp2p/p2p/host/autorelay"
+	autorelay "github.com/libp2p/go-libp2p/p2p/host/autorelay"
+	p2pbhost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
@@ -27,6 +36,10 @@ import (
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	tcp "github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	websocket "github.com/libp2p/go-libp2p/p2p/transport/websocket"
+	mafilter "github.com/libp2p/go-maddr-filter"
+	ma "github.com/multiformats/go-multiaddr"
+	memory "github.com/pbnjay/memory"
+	mamask "github.com/whyrusleeping/multiaddr-filter"
 )
 
 const dhtNamespace = "dht"
@@ -54,7 +67,7 @@ func NewClusterHost(
 	ident *config.Identity,
 	cfg *Config,
 	ds ds.Datastore,
-) (host.Host, *pubsub.PubSub, *dual.DHT, error) {
+) (host.Host, metrics.Reporter, *pubsub.PubSub, *dual.DHT, error) {
 
 	// Set the default dial timeout for all libp2p connections.  It is not
 	// very good to touch this global variable here, but the alternative
@@ -64,7 +77,12 @@ func NewClusterHost(
 
 	connman, err := connmgr.NewConnManager(cfg.ConnMgr.LowWater, cfg.ConnMgr.HighWater, connmgr.WithGracePeriod(cfg.ConnMgr.GracePeriod))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
+	}
+
+	rmgr, err := makeResourceMgr(cfg.ResourceMgr.Enabled, cfg.ResourceMgr.MemoryLimitBytes, cfg.ResourceMgr.FileDescriptorsLimit, cfg.ConnMgr.HighWater)
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
 
 	var h host.Host
@@ -84,10 +102,19 @@ func NewClusterHost(
 		return idht
 	}
 
+	addrsFactory, err := makeAddrsFactory(cfg.AnnounceAddr, cfg.NoAnnounceAddr)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	bwc := metrics.NewBandwidthCounter()
+
 	opts := []libp2p.Option{
 		libp2p.ListenAddrs(cfg.ListenAddr...),
+		libp2p.AddrsFactory(addrsFactory),
 		libp2p.NATPortMap(),
 		libp2p.ConnectionManager(connman),
+		libp2p.ResourceManager(rmgr),
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			idht, err = newDHT(ctx, h, ds)
 			return idht, err
@@ -96,6 +123,8 @@ func NewClusterHost(
 		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelayWithPeerSource(newPeerSource(hostGetter, dhtGetter)),
 		libp2p.EnableHolePunching(),
+		libp2p.PrometheusRegisterer(observations.PromRegistry),
+		libp2p.BandwidthReporter(bwc),
 	}
 
 	if cfg.EnableRelayHop {
@@ -109,16 +138,16 @@ func NewClusterHost(
 		opts...,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	psub, err := newPubSub(ctx, h)
+	psub, err := newPubSub(ctx, cfg, h)
 	if err != nil {
 		h.Close()
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return h, psub, idht, nil
+	return h, bwc, psub, idht, nil
 }
 
 // newHost creates a base cluster host without dht, pubsub, relay or nat etc.
@@ -172,12 +201,75 @@ func newDHT(ctx context.Context, h host.Host, store ds.Datastore, extraopts ...d
 	return dual.New(ctx, h, opts...)
 }
 
-func newPubSub(ctx context.Context, h host.Host) (*pubsub.PubSub, error) {
+// this function reduces the size of the pubsub message IDs to about 24 bytes.
+func hashMsgID(m *pubsub_pb.Message) string {
+	//hash := blake2b.Sum256(m.Data)
+	id := string(m.GetFrom()[0:16]) + string(m.GetSeqno())
+	return id
+}
+
+func newPubSub(ctx context.Context, cfg *Config, h host.Host) (*pubsub.PubSub, error) {
+	gossipParams := pubsub.DefaultGossipSubParams()
+
+	// Let's configure pubsub in an attempt to support networks with
+	// thousands of peers which may be bandwidth and processing constrained.
+
+	// Hearbeat should be rather slow as some peers just may not manage
+	// to handle all incoming publications, so we don't have to deal with
+	// additional IHAVEs too often either.
+	gossipParams.HeartbeatInterval = cfg.PubSub.HeartbeatInterval
+
+	// We increase the gap between History gossip and length to give peers
+	// more time to grab messages, but expire announcements rather quick
+	gossipParams.HistoryLength = cfg.PubSub.HistoryLength // x * Hearbeat seconds of availability of messages for IWANTs (def 5)
+	gossipParams.HistoryGossip = cfg.PubSub.HistoryGossip // x * Heartbeat seconds of announcement of messages via IHAVEs (def 3)
+
+	// Longer Hearbeat intervals means more messages queue up.  IHAVEs
+	// lists may have more message at given moment, so increase this
+	// default.
+	// Note: it may be better to reduce this to a minimum and reduce
+	// heartbeat interval, but then, this is a list of IDs so 10000x16byte
+	// x D is not too much to transfer out is it?
+	gossipParams.MaxIHaveLength = 10000 // 10000 message IDs. (def 5000)
+
+	// For my taste, default mesh parameters are a bit low. We already
+	// have connections to a bunch of peers given DHT etc and having a
+	// tiny mesh only makes more replay necessary. Thus allow me to
+	// increase 4x the defaults.
+	gossipParams.D = cfg.PubSub.DFactor * 6      // default 6
+	gossipParams.Dlo = cfg.PubSub.DFactor * 5    // default 5
+	gossipParams.Dhi = cfg.PubSub.DFactor * 12   // default 12
+	gossipParams.Dscore = cfg.PubSub.DFactor * 4 // default 4
+	gossipParams.Dout = cfg.PubSub.DFactor * 2   // default 2
+	gossipParams.Dlazy = cfg.PubSub.DFactor * 6  // default 6
+
 	return pubsub.NewGossipSub(
 		ctx,
 		h,
 		pubsub.WithMessageSigning(true),
 		pubsub.WithStrictSignatureVerification(true),
+		pubsub.WithPeerExchange(!cfg.FollowerMode),
+		// FloodPublish is disabled as every peer publishes and we
+		// prefer messages to just follow the mesh rather than risking
+		// that small peers saturate themselves every time they
+		// publish a metric.
+		pubsub.WithFloodPublish(cfg.PubSub.FloodPublish),
+		// Custom hash function reduces size of messages and thus traffic.
+		pubsub.WithMessageIdFn(hashMsgID),
+		pubsub.WithPeerOutboundQueueSize(128), // default is 32. Give more leeway to large clusters.
+		pubsub.WithValidateQueueSize(128),     //default also 32
+		pubsub.WithGossipSubParams(gossipParams),
+		// Keep a long cache of seen messages. Otherwise, if they
+		// don't propagate under two minutes, they are re-requested
+		// and re-broadcasted.  1000 peers * 3 metrics * 1 minute
+		// interval * 30 minutes = 180000 messages * 16 bytes = 1.3MiB
+		// of memory needed, tops.
+		pubsub.WithSeenMessagesTTL(30*time.Minute), // default 120 seconds
+
+		// future work
+		//pubsub.WithDefaultValidator(
+		//	pubsub.NewBasicSeqnoValidator(h.Peerstore())),
+
 	)
 }
 
@@ -239,4 +331,184 @@ func newPeerSource(hostGetter func() host.Host, dhtGetter func() *dual.DHT) auto
 // EncodeProtectorKey converts a byte slice to its hex string representation.
 func EncodeProtectorKey(secretBytes []byte) string {
 	return hex.EncodeToString(secretBytes)
+}
+
+func makeAddrsFactory(announce []ma.Multiaddr, noAnnounce []ma.Multiaddr) (p2pbhost.AddrsFactory, error) {
+	filters := mafilter.NewFilters()
+	noAnnAddrs := map[string]bool{}
+	for _, addr := range multiAddrstoStrings(noAnnounce) {
+		f, err := mamask.NewMask(addr)
+		if err == nil {
+			filters.AddFilter(*f, mafilter.ActionDeny)
+			continue
+		}
+		maddr, err := ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, err
+		}
+		noAnnAddrs[string(maddr.Bytes())] = true
+	}
+
+	return func(allAddrs []ma.Multiaddr) []ma.Multiaddr {
+		var addrs []ma.Multiaddr
+		if len(announce) > 0 {
+			addrs = announce
+		} else {
+			addrs = allAddrs
+		}
+
+		var out []ma.Multiaddr
+		for _, maddr := range addrs {
+			// check for exact matches
+			ok := noAnnAddrs[string(maddr.Bytes())]
+			// check for /ipcidr matches
+			if !ok && !filters.AddrBlocked(maddr) {
+				out = append(out, maddr)
+			}
+		}
+		return out
+	}, nil
+}
+
+// mostly copy/pasted from https://github.com/ipfs/rainbow/blob/main/rcmgr.go
+// which is itself copy-pasted from Kubo, because libp2p does not have
+// a sane way of doing this.
+func makeResourceMgr(enabled bool, maxMemory, maxFD uint64, connMgrHighWater int) (network.ResourceManager, error) {
+	if !enabled {
+		rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits))
+		logger.Infof("go-libp2p Resource Manager DISABLED")
+		return rmgr, err
+	}
+
+	// Auto-scaled limits based on available memory/fds.
+	if maxMemory == 0 {
+		maxMemory = uint64((float64(memory.TotalMemory()) * 0.25))
+		if maxMemory < 1<<20 { // 1 GiB
+			maxMemory = 1 << 20
+		}
+	}
+	if maxFD == 0 {
+		maxFD = fd.GetNumFDs() / 2
+	}
+
+	infiniteResourceLimits := rcmgr.InfiniteLimits.ToPartialLimitConfig().System
+	maxMemoryMB := maxMemory / (1024 * 1024)
+
+	// At least as of 2023-01-25, it's possible to open a connection that
+	// doesn't ask for any memory usage with the libp2p Resource Manager/Accountant
+	// (see https://github.com/libp2p/go-libp2p/issues/2010#issuecomment-1404280736).
+	// As a result, we can't currently rely on Memory limits to full protect us.
+	// Until https://github.com/libp2p/go-libp2p/issues/2010 is addressed,
+	// we take a proxy now of restricting to 1 inbound connection per MB.
+	// Note: this is more generous than go-libp2p's default autoscaled limits which do
+	// 64 connections per 1GB
+	// (see https://github.com/libp2p/go-libp2p/blob/master/p2p/host/resource-manager/limit_defaults.go#L357 ).
+	systemConnsInbound := int(1 * maxMemoryMB)
+
+	partialLimits := rcmgr.PartialLimitConfig{
+		System: rcmgr.ResourceLimits{
+			Memory: rcmgr.LimitVal64(maxMemory),
+			FD:     rcmgr.LimitVal(maxFD),
+
+			Conns:         rcmgr.Unlimited,
+			ConnsInbound:  rcmgr.LimitVal(systemConnsInbound),
+			ConnsOutbound: rcmgr.Unlimited,
+
+			Streams:         rcmgr.Unlimited,
+			StreamsOutbound: rcmgr.Unlimited,
+			StreamsInbound:  rcmgr.Unlimited,
+		},
+
+		// Transient connections won't cause any memory to be accounted for by the resource manager/accountant.
+		// Only established connections do.
+		// As a result, we can't rely on System.Memory to protect us from a bunch of transient connection being opened.
+		// We limit the same values as the System scope, but only allow the Transient scope to take 25% of what is allowed for the System scope.
+		Transient: rcmgr.ResourceLimits{
+			Memory: rcmgr.LimitVal64(maxMemory / 4),
+			FD:     rcmgr.LimitVal(maxFD / 4),
+
+			Conns:         rcmgr.Unlimited,
+			ConnsInbound:  rcmgr.LimitVal(systemConnsInbound / 4),
+			ConnsOutbound: rcmgr.Unlimited,
+
+			Streams:         rcmgr.Unlimited,
+			StreamsInbound:  rcmgr.Unlimited,
+			StreamsOutbound: rcmgr.Unlimited,
+		},
+
+		// Lets get out of the way of the allow list functionality.
+		// If someone specified "Swarm.ResourceMgr.Allowlist" we should let it go through.
+		AllowlistedSystem: infiniteResourceLimits,
+
+		AllowlistedTransient: infiniteResourceLimits,
+
+		// Keep it simple by not having Service, ServicePeer, Protocol, ProtocolPeer, Conn, or Stream limits.
+		ServiceDefault: infiniteResourceLimits,
+
+		ServicePeerDefault: infiniteResourceLimits,
+
+		ProtocolDefault: infiniteResourceLimits,
+
+		ProtocolPeerDefault: infiniteResourceLimits,
+
+		Conn: infiniteResourceLimits,
+
+		Stream: infiniteResourceLimits,
+
+		// Limit the resources consumed by a peer.
+		// This doesn't protect us against intentional DoS attacks since an attacker can easily spin up multiple peers.
+		// We specify this limit against unintentional DoS attacks (e.g., a peer has a bug and is sending too much traffic intentionally).
+		// In that case we want to keep that peer's resource consumption contained.
+		// To keep this simple, we only constrain inbound connections and streams.
+		PeerDefault: rcmgr.ResourceLimits{
+			Memory:          rcmgr.Unlimited64,
+			FD:              rcmgr.Unlimited,
+			Conns:           rcmgr.Unlimited,
+			ConnsInbound:    rcmgr.DefaultLimit,
+			ConnsOutbound:   rcmgr.Unlimited,
+			Streams:         rcmgr.Unlimited,
+			StreamsInbound:  rcmgr.DefaultLimit,
+			StreamsOutbound: rcmgr.Unlimited,
+		},
+	}
+
+	scalingLimitConfig := rcmgr.DefaultLimits
+	libp2p.SetDefaultServiceLimits(&scalingLimitConfig)
+
+	// Anything set above in partialLimits that had a value of rcmgr.DefaultLimit will be overridden.
+	// Anything in scalingLimitConfig that wasn't defined in partialLimits above will be added (e.g., libp2p's default service limits).
+	partialLimits = partialLimits.Build(scalingLimitConfig.Scale(int64(maxMemory), int(maxFD))).ToPartialLimitConfig()
+
+	// Simple checks to override autoscaling ensuring limits make sense versus the connmgr values.
+	// There are ways to break this, but this should catch most problems already.
+	// We might improve this in the future.
+	// See: https://github.com/ipfs/kubo/issues/9545
+	if partialLimits.System.ConnsInbound > rcmgr.DefaultLimit {
+		maxInboundConns := int(partialLimits.System.ConnsInbound)
+		if connmgrHighWaterTimesTwo := connMgrHighWater * 2; maxInboundConns < connmgrHighWaterTimesTwo {
+			maxInboundConns = connmgrHighWaterTimesTwo
+		}
+
+		if maxInboundConns < 800 {
+			maxInboundConns = 800
+		}
+
+		// Scale System.StreamsInbound as well, but use the existing ratio of StreamsInbound to ConnsInbound
+		if partialLimits.System.StreamsInbound > rcmgr.DefaultLimit {
+			partialLimits.System.StreamsInbound = rcmgr.LimitVal(int64(maxInboundConns) * int64(partialLimits.System.StreamsInbound) / int64(partialLimits.System.ConnsInbound))
+		}
+		partialLimits.System.ConnsInbound = rcmgr.LimitVal(maxInboundConns)
+	}
+
+	logger.Infof("go-libp2p Resource Manager ENABLED: Limits based on max_memory: %s, max_fds: %d", humanize.Bytes(maxMemory), maxFD)
+
+	// We already have a complete value thus pass in an empty ConcreteLimitConfig.
+	limitCfg := partialLimits.Build(rcmgr.ConcreteLimitConfig{})
+
+	mgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limitCfg))
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr, nil
 }

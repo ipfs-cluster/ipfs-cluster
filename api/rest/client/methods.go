@@ -78,7 +78,7 @@ func (c *defaultClient) PeerRm(ctx context.Context, id peer.ID) error {
 	ctx, span := trace.StartSpan(ctx, "client/PeerRm")
 	defer span.End()
 
-	return c.do(ctx, "DELETE", fmt.Sprintf("/peers/%s", id.Pretty()), nil, nil, nil)
+	return c.do(ctx, "DELETE", fmt.Sprintf("/peers/%s", id), nil, nil, nil)
 }
 
 // Pin tracks a Cid with the given replication factor and a name for
@@ -122,9 +122,12 @@ func (c *defaultClient) PinPath(ctx context.Context, path string, opts api.PinOp
 	defer span.End()
 
 	var pin api.Pin
-	ipfspath, err := gopath.ParsePath(path)
+	ipfspath, err := gopath.NewPath(path)
 	if err != nil {
-		return api.Pin{}, err
+		ipfspath, err = gopath.NewPath("/ipfs/" + path)
+		if err != nil {
+			return api.Pin{}, err
+		}
 	}
 	query, err := opts.ToQuery()
 	if err != nil {
@@ -153,9 +156,12 @@ func (c *defaultClient) UnpinPath(ctx context.Context, p string) (api.Pin, error
 	defer span.End()
 
 	var pin api.Pin
-	ipfspath, err := gopath.ParsePath(p)
+	ipfspath, err := gopath.NewPath(p)
 	if err != nil {
-		return api.Pin{}, err
+		ipfspath, err = gopath.NewPath("/ipfs/" + p)
+		if err != nil {
+			return api.Pin{}, err
+		}
 	}
 
 	err = c.do(ctx, "DELETE", fmt.Sprintf("/pins%s", ipfspath.String()), nil, nil, &pin)
@@ -342,6 +348,16 @@ func (c *defaultClient) Alerts(ctx context.Context) ([]api.Alert, error) {
 	var alerts []api.Alert
 	err := c.do(ctx, "GET", "/health/alerts", nil, nil, &alerts)
 	return alerts, err
+}
+
+// BandwidthByProtocol returns bandwidth stats for each libp2p protocol used.
+func (c *defaultClient) BandwidthByProtocol(ctx context.Context) (api.BandwidthByProtocol, error) {
+	ctx, span := trace.StartSpan(ctx, "client/Alert")
+	defer span.End()
+
+	var bw api.BandwidthByProtocol
+	err := c.do(ctx, "GET", "/health/bandwidth", nil, nil, &bw)
+	return bw, err
 }
 
 // Version returns the ipfs-cluster peer's version.
@@ -544,6 +560,7 @@ func statusReached(target api.TrackerStatus, gblPinInfo api.GlobalPinInfo, limit
 
 	// Specific case: when limit it set, just count how many targets we
 	// reached.
+	limit = min(limit, len(gblPinInfo.PeerMap))
 	if limit > 0 {
 		total := 0
 		for _, pinInfo := range gblPinInfo.PeerMap {

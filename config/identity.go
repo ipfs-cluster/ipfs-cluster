@@ -102,7 +102,7 @@ func (ident *Identity) toIdentityJSON() (jID *identityJSON, err error) {
 	pKey := base64.StdEncoding.EncodeToString(pkeyBytes)
 
 	// Set all identity fields
-	jID.ID = ident.ID.Pretty()
+	jID.ID = ident.ID.String()
 	jID.PrivateKey = pKey
 	return
 }

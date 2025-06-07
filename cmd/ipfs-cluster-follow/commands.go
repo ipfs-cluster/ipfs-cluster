@@ -19,6 +19,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/badger"
 	"github.com/ipfs-cluster/ipfs-cluster/datastore/leveldb"
 	"github.com/ipfs-cluster/ipfs-cluster/informer/disk"
+	"github.com/ipfs-cluster/ipfs-cluster/informer/pinqueue"
+	"github.com/ipfs-cluster/ipfs-cluster/informer/tags"
 	"github.com/ipfs-cluster/ipfs-cluster/ipfsconn/ipfshttp"
 	"github.com/ipfs-cluster/ipfs-cluster/monitor/pubsubmon"
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
@@ -76,6 +78,7 @@ func listClustersCmd(c *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
+	defer f.Close()
 
 	dirs, err := f.Readdir(-1)
 	if err != nil {
@@ -204,7 +207,7 @@ func initCluster(c *cli.Context, ignoreReinit bool, cfgURL string) error {
 		fmt.Println("If this is not the case, specify the full url starting with http:// or https://.")
 		fmt.Println("(You can override the gateway URL by setting IPFS_GATEWAY)")
 		fmt.Println()
-		cfgURL = fmt.Sprintf("http://%s/ipns/%s", gw, cfgURL)
+		cfgURL = fmt.Sprintf("%s/ipns/%s", gw, cfgURL)
 	}
 
 	// Setting the datastore here is useless, as we initialize with remote
@@ -301,7 +304,7 @@ func runCmd(c *cli.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
+	host, bwc, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "error creating libp2p components"), 1)
 	}
@@ -312,7 +315,7 @@ func runCmd(c *cli.Context) error {
 	// Defaults to Trusted otherwise.
 	cfgs.Cluster.RPCPolicy["Cluster.RepoGCLocal"] = ipfscluster.RPCClosed
 
-	// Discard API configurations and create our own
+	// Discard API configurations and create our own (unix socket)
 	apiCfg := rest.NewConfig()
 	cfgs.Restapi = apiCfg
 	_ = apiCfg.Default()
@@ -337,10 +340,30 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit(errors.Wrap(err, "creating IPFS Connector component"), 1)
 	}
 
-	informer, err := disk.NewInformer(cfgs.DiskInf)
-	if err != nil {
-		return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
+	var informers []ipfscluster.Informer
+	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.DiskInf.ConfigKey()) {
+		diskInf, err := disk.NewInformer(cfgs.DiskInf)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "creating disk informer"), 1)
+		}
+		informers = append(informers, diskInf)
 	}
+	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.TagsInf.ConfigKey()) {
+		tagsInf, err := tags.New(cfgs.TagsInf)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "creating tags informer"), 1)
+		}
+		informers = append(informers, tagsInf)
+	}
+
+	if cfgHelper.Manager().IsLoadedFromJSON(config.Informer, cfgs.PinQueueInf.ConfigKey()) {
+		pinQueueInf, err := pinqueue.New(cfgs.PinQueueInf)
+		if err != nil {
+			return cli.Exit(errors.Wrap(err, "creating pinqueue informer"), 1)
+		}
+		informers = append(informers, pinQueueInf)
+	}
+
 	alloc, err := balanced.New(cfgs.BalancedAlloc)
 	if err != nil {
 		return cli.Exit(errors.Wrap(err, "creating metrics allocator"), 1)
@@ -393,6 +416,7 @@ func runCmd(c *cli.Context) error {
 	cluster, err := ipfscluster.NewCluster(
 		ctx,
 		host,
+		bwc,
 		dht,
 		cfgs.Cluster,
 		store,
@@ -402,7 +426,7 @@ func runCmd(c *cli.Context) error {
 		tracker,
 		mon,
 		alloc,
-		[]ipfscluster.Informer{informer},
+		informers,
 		tracer,
 	)
 	if err != nil {

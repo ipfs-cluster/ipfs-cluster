@@ -29,23 +29,32 @@ var DefaultListenAddrs = []string{
 
 // Configuration defaults
 const (
-	DefaultEnableRelayHop          = true
-	DefaultStateSyncInterval       = 5 * time.Minute
-	DefaultPinRecoverInterval      = 12 * time.Minute
-	DefaultMonitorPingInterval     = 15 * time.Second
-	DefaultPeerWatchInterval       = 5 * time.Second
-	DefaultReplicationFactor       = -1
-	DefaultLeaveOnShutdown         = false
-	DefaultPinOnlyOnTrustedPeers   = false
-	DefaultPinOnlyOnUntrustedPeers = false
-	DefaultDisableRepinning        = true
-	DefaultPeerstoreFile           = "peerstore"
-	DefaultConnMgrHighWater        = 400
-	DefaultConnMgrLowWater         = 100
-	DefaultConnMgrGracePeriod      = 2 * time.Minute
-	DefaultDialPeerTimeout         = 3 * time.Second
-	DefaultFollowerMode            = false
-	DefaultMDNSInterval            = 10 * time.Second
+	DefaultEnableRelayHop                  = true
+	DefaultStateSyncInterval               = 5 * time.Minute
+	DefaultPinRecoverInterval              = 12 * time.Minute
+	DefaultMonitorPingInterval             = 15 * time.Second
+	DefaultPeerWatchInterval               = 5 * time.Second
+	DefaultReplicationFactor               = -1
+	DefaultLeaveOnShutdown                 = false
+	DefaultPinOnlyOnTrustedPeers           = false
+	DefaultPinOnlyOnUntrustedPeers         = false
+	DefaultDisableRepinning                = true
+	DefaultPeerstoreFile                   = "peerstore"
+	DefaultConnMgrHighWater                = 400
+	DefaultConnMgrLowWater                 = 100
+	DefaultResourceMgrEnabled              = true
+	DefaultResourceMgrMemoryLimitBytes     = 0
+	DefaultResourceMgrFileDescriptorsLimit = 0
+	DefaultPubSubSeenMessagesTTL           = 30 * time.Minute // default 2m
+	DefaultPubSubHeartbeatInterval         = 10 * time.Second // default 1
+	DefaultPubSubDFactor                   = 4                // default 1
+	DefaultPubSubHistoryGossip             = 2                // def 5
+	DefaultPubSubHistoryLength             = 6                // default 3
+	DefaultPubSubFloodPublish              = false
+	DefaultConnMgrGracePeriod              = 2 * time.Minute
+	DefaultDialPeerTimeout                 = 3 * time.Second
+	DefaultFollowerMode                    = false
+	DefaultMDNSInterval                    = 10 * time.Second
 )
 
 // ConnMgrConfig configures the libp2p host connection manager.
@@ -53,6 +62,31 @@ type ConnMgrConfig struct {
 	HighWater   int
 	LowWater    int
 	GracePeriod time.Duration
+}
+
+// ResourceMgrConfig configures the libp2p resource manager scaling.
+type ResourceMgrConfig struct {
+	Enabled              bool
+	MemoryLimitBytes     uint64
+	FileDescriptorsLimit uint64
+}
+
+// PubSubConfig configures the libp2p pubsub/gossipsub.
+type PubSubConfig struct {
+	// How long to remember that a message was seen.
+	SeenMessagesTTL time.Duration
+	// How often to publish the list of messages we have.
+	HeartbeatInterval time.Duration
+	// How many heartbeats are to include an IHAVE entry for each known
+	// message.
+	HistoryGossip int
+	// For many heartbeats are requests for a message (IWANT) honored.
+	// Messages are fully forgotten after these many hearbeats.
+	HistoryLength int
+	// Factor used to multiply default mesh "D" values (Dlo, D, Dhigh, Dout, DLazy).
+	DFactor int // multiplying factor for defaults
+	// Enables flood publish (first message hop is flooded to all known subscribed peers).
+	FloodPublish bool
 }
 
 // Config is the configuration object containing customizable variables to
@@ -90,9 +124,23 @@ type Config struct {
 	// FIXME: This only applies to ipfs-cluster-service.
 	ConnMgr ConnMgrConfig
 
+	// ResourceMgr holds configuration for the scaling of the libp2p
+	// resource manager limits.
+	ResourceMgr ResourceMgrConfig
+
+	// PubSub contains configuration options for the Pubsub subsystem.
+	PubSub PubSubConfig
+
 	// Sets the default dial timeout for libp2p connections to other
 	// peers.
 	DialPeerTimeout time.Duration
+
+	// If non-empty, this array specifies the swarm addresses to announce to
+	// the network. If empty, the daemon will announce inferred swarm addresses.
+	AnnounceAddr []ma.Multiaddr
+
+	// Array of swarm addresses not to announce to the network.
+	NoAnnounceAddr []ma.Multiaddr
 
 	// Time between syncs of the consensus state to the
 	// tracker state. Normally states are synced anyway, but this helps
@@ -173,28 +221,32 @@ type Config struct {
 // saved using JSON. Most configuration keys are converted into simple types
 // like strings, and key names aim to be self-explanatory for the user.
 type configJSON struct {
-	ID                      string             `json:"id,omitempty"`
-	Peername                string             `json:"peername"`
-	PrivateKey              string             `json:"private_key,omitempty" hidden:"true"`
-	Secret                  string             `json:"secret" hidden:"true"`
-	LeaveOnShutdown         bool               `json:"leave_on_shutdown"`
-	ListenMultiaddress      config.Strings     `json:"listen_multiaddress"`
-	EnableRelayHop          bool               `json:"enable_relay_hop"`
-	ConnectionManager       *connMgrConfigJSON `json:"connection_manager"`
-	DialPeerTimeout         string             `json:"dial_peer_timeout"`
-	StateSyncInterval       string             `json:"state_sync_interval"`
-	PinRecoverInterval      string             `json:"pin_recover_interval"`
-	ReplicationFactorMin    int                `json:"replication_factor_min"`
-	ReplicationFactorMax    int                `json:"replication_factor_max"`
-	MonitorPingInterval     string             `json:"monitor_ping_interval"`
-	PeerWatchInterval       string             `json:"peer_watch_interval"`
-	MDNSInterval            string             `json:"mdns_interval"`
-	PinOnlyOnTrustedPeers   bool               `json:"pin_only_on_trusted_peers"`
-	PinOnlyOnUntrustedPeers bool               `json:"pin_only_on_untrusted_peers"`
-	DisableRepinning        bool               `json:"disable_repinning"`
-	FollowerMode            bool               `json:"follower_mode,omitempty"`
-	PeerstoreFile           string             `json:"peerstore_file,omitempty"`
-	PeerAddresses           []string           `json:"peer_addresses"`
+	ID                      string                 `json:"id,omitempty"`
+	Peername                string                 `json:"peername"`
+	PrivateKey              string                 `json:"private_key,omitempty" hidden:"true"`
+	Secret                  string                 `json:"secret" hidden:"true"`
+	LeaveOnShutdown         bool                   `json:"leave_on_shutdown"`
+	ListenMultiaddress      config.Strings         `json:"listen_multiaddress"`
+	AnnounceMultiaddress    config.Strings         `json:"announce_multiaddress"`
+	NoAnnounceMultiaddress  config.Strings         `json:"no_announce_multiaddress"`
+	EnableRelayHop          bool                   `json:"enable_relay_hop"`
+	ConnectionManager       *connMgrConfigJSON     `json:"connection_manager"`
+	ResourceManager         *resourceMgrConfigJSON `json:"resource_manager"`
+	PubSub                  *pubSubConfigJSON      `json:"pubsub"`
+	DialPeerTimeout         string                 `json:"dial_peer_timeout"`
+	StateSyncInterval       string                 `json:"state_sync_interval"`
+	PinRecoverInterval      string                 `json:"pin_recover_interval"`
+	ReplicationFactorMin    int                    `json:"replication_factor_min"`
+	ReplicationFactorMax    int                    `json:"replication_factor_max"`
+	MonitorPingInterval     string                 `json:"monitor_ping_interval"`
+	PeerWatchInterval       string                 `json:"peer_watch_interval"`
+	MDNSInterval            string                 `json:"mdns_interval"`
+	PinOnlyOnTrustedPeers   bool                   `json:"pin_only_on_trusted_peers"`
+	PinOnlyOnUntrustedPeers bool                   `json:"pin_only_on_untrusted_peers"`
+	DisableRepinning        bool                   `json:"disable_repinning"`
+	FollowerMode            bool                   `json:"follower_mode,omitempty"`
+	PeerstoreFile           string                 `json:"peerstore_file,omitempty"`
+	PeerAddresses           []string               `json:"peer_addresses"`
 }
 
 // connMgrConfigJSON configures the libp2p host connection manager.
@@ -202,6 +254,23 @@ type connMgrConfigJSON struct {
 	HighWater   int    `json:"high_water"`
 	LowWater    int    `json:"low_water"`
 	GracePeriod string `json:"grace_period"`
+}
+
+// resourceMgrConfigJSON configures the libp2p host resource manager.
+type resourceMgrConfigJSON struct {
+	Enabled              bool   `json:"enabled"`
+	MemoryLimitBytes     uint64 `json:"memory_limit_bytes"`
+	FileDescriptorsLimit uint64 `json:"file_descriptors_limit"`
+}
+
+// pubSubConfigJSON configures the libp2p gossipsub instance.
+type pubSubConfigJSON struct {
+	SeenMessagesTTL   string `json:"seen_messages_ttl"`
+	HeartbeatInterval string `json:"heartbeat_interval"`
+	DFactor           int    `json:"d_factor"`
+	HistoryGossip     int    `json:"history_gossip"`
+	HistoryLength     int    `json:"history_length"`
+	FloodPublish      bool   `json:"flood_publish"`
 }
 
 // ConfigKey returns a human-readable string to identify
@@ -270,6 +339,26 @@ func (cfg *Config) Validate() error {
 
 	if cfg.ConnMgr.GracePeriod == 0 {
 		return errors.New("cluster.connection_manager.grace_period is invalid")
+	}
+
+	if cfg.PubSub.SeenMessagesTTL <= 0 {
+		return errors.New("cluster.pubsub.seen_message_ttl is invalid")
+	}
+
+	if cfg.PubSub.HeartbeatInterval <= 0 {
+		return errors.New("cluster.pubsub.heartbeat_interval is invalid")
+	}
+
+	if cfg.PubSub.DFactor < 1 {
+		return errors.New("cluster.pubsub.d_factor is invalid")
+	}
+
+	if cfg.PubSub.HistoryGossip <= 0 {
+		return errors.New("cluster.pubsub.history_gossip is invalid")
+	}
+
+	if cfg.PubSub.HistoryLength <= 0 {
+		return errors.New("cluster.pubsub.history_length is invalid")
 	}
 
 	if cfg.DialPeerTimeout <= 0 {
@@ -372,12 +461,28 @@ func (cfg *Config) setDefaults() {
 		listenAddrs = append(listenAddrs, addr)
 	}
 	cfg.ListenAddr = listenAddrs
+	cfg.AnnounceAddr = []ma.Multiaddr{}
+	cfg.NoAnnounceAddr = []ma.Multiaddr{}
 	cfg.EnableRelayHop = DefaultEnableRelayHop
 	cfg.ConnMgr = ConnMgrConfig{
 		HighWater:   DefaultConnMgrHighWater,
 		LowWater:    DefaultConnMgrLowWater,
 		GracePeriod: DefaultConnMgrGracePeriod,
 	}
+	cfg.ResourceMgr = ResourceMgrConfig{
+		Enabled:              DefaultResourceMgrEnabled,
+		MemoryLimitBytes:     DefaultResourceMgrMemoryLimitBytes,
+		FileDescriptorsLimit: DefaultResourceMgrFileDescriptorsLimit,
+	}
+	cfg.PubSub = PubSubConfig{
+		SeenMessagesTTL:   DefaultPubSubSeenMessagesTTL,
+		HeartbeatInterval: DefaultPubSubHeartbeatInterval,
+		DFactor:           DefaultPubSubDFactor,
+		HistoryGossip:     DefaultPubSubHistoryGossip,
+		HistoryLength:     DefaultPubSubHistoryLength,
+		FloodPublish:      false,
+	}
+
 	cfg.DialPeerTimeout = DefaultDialPeerTimeout
 	cfg.LeaveOnShutdown = DefaultLeaveOnShutdown
 	cfg.StateSyncInterval = DefaultStateSyncInterval
@@ -424,17 +529,27 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 	}
 	cfg.Secret = clusterSecret
 
-	var listenAddrs []ma.Multiaddr
-	for _, addr := range jcfg.ListenMultiaddress {
-		listenAddr, err := ma.NewMultiaddr(addr)
-		if err != nil {
-			err = fmt.Errorf("error parsing a listen_multiaddress: %s", err)
-			return err
-		}
-		listenAddrs = append(listenAddrs, listenAddr)
+	listenAddrs, err := toMultiAddrs(jcfg.ListenMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing listen_multiaddress: %s", err)
+		return err
 	}
-
 	cfg.ListenAddr = listenAddrs
+
+	announceAddrs, err := toMultiAddrs(jcfg.AnnounceMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing announce: %s", err)
+		return err
+	}
+	cfg.AnnounceAddr = announceAddrs
+
+	noAnnounceAddrs, err := toMultiAddrs(jcfg.NoAnnounceMultiaddress)
+	if err != nil {
+		err = fmt.Errorf("error parsing no_announce: %s", err)
+		return err
+	}
+	cfg.NoAnnounceAddr = noAnnounceAddrs
+
 	cfg.EnableRelayHop = jcfg.EnableRelayHop
 	if conman := jcfg.ConnectionManager; conman != nil {
 		cfg.ConnMgr = ConnMgrConfig{
@@ -443,6 +558,26 @@ func (cfg *Config) applyConfigJSON(jcfg *configJSON) error {
 		}
 		err = config.ParseDurations("cluster",
 			&config.DurationOpt{Duration: jcfg.ConnectionManager.GracePeriod, Dst: &cfg.ConnMgr.GracePeriod, Name: "connection_manager.grace_period"},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	if rmgr := jcfg.ResourceManager; rmgr != nil {
+		cfg.ResourceMgr.Enabled = rmgr.Enabled
+		cfg.ResourceMgr.MemoryLimitBytes = rmgr.MemoryLimitBytes
+		cfg.ResourceMgr.FileDescriptorsLimit = rmgr.FileDescriptorsLimit
+	}
+
+	if pubsub := jcfg.PubSub; pubsub != nil {
+		cfg.PubSub.DFactor = pubsub.DFactor
+		cfg.PubSub.HistoryGossip = pubsub.HistoryGossip
+		cfg.PubSub.HistoryLength = pubsub.HistoryLength
+		cfg.PubSub.FloodPublish = pubsub.FloodPublish
+		err = config.ParseDurations("cluster.pubsub",
+			&config.DurationOpt{Duration: pubsub.SeenMessagesTTL, Dst: &cfg.PubSub.SeenMessagesTTL, Name: "seen_messages_ttl"},
+			&config.DurationOpt{Duration: pubsub.HeartbeatInterval, Dst: &cfg.PubSub.HeartbeatInterval, Name: "heartbeat_interval"},
 		)
 		if err != nil {
 			return err
@@ -518,11 +653,26 @@ func (cfg *Config) toConfigJSON() (jcfg *configJSON, err error) {
 		listenAddrs = append(listenAddrs, addr.String())
 	}
 	jcfg.ListenMultiaddress = config.Strings(listenAddrs)
+	jcfg.AnnounceMultiaddress = multiAddrstoStrings(cfg.AnnounceAddr)
+	jcfg.NoAnnounceMultiaddress = multiAddrstoStrings(cfg.NoAnnounceAddr)
 	jcfg.EnableRelayHop = cfg.EnableRelayHop
 	jcfg.ConnectionManager = &connMgrConfigJSON{
 		HighWater:   cfg.ConnMgr.HighWater,
 		LowWater:    cfg.ConnMgr.LowWater,
 		GracePeriod: cfg.ConnMgr.GracePeriod.String(),
+	}
+	jcfg.ResourceManager = &resourceMgrConfigJSON{
+		Enabled:              cfg.ResourceMgr.Enabled,
+		MemoryLimitBytes:     cfg.ResourceMgr.MemoryLimitBytes,
+		FileDescriptorsLimit: cfg.ResourceMgr.FileDescriptorsLimit,
+	}
+	jcfg.PubSub = &pubSubConfigJSON{
+		SeenMessagesTTL:   cfg.PubSub.SeenMessagesTTL.String(),
+		HeartbeatInterval: cfg.PubSub.HeartbeatInterval.String(),
+		DFactor:           cfg.PubSub.DFactor,
+		HistoryGossip:     cfg.PubSub.HistoryGossip,
+		HistoryLength:     cfg.PubSub.HistoryLength,
+		FloodPublish:      cfg.PubSub.FloodPublish,
 	}
 	jcfg.DialPeerTimeout = cfg.DialPeerTimeout.String()
 	jcfg.StateSyncInterval = cfg.StateSyncInterval.String()

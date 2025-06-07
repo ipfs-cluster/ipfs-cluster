@@ -8,8 +8,8 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/state"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
 
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	ocgorpc "github.com/lanzafame/go-libp2p-ocgorpc"
 	"go.opencensus.io/trace"
@@ -424,6 +424,13 @@ func (rpcapi *ClusterRPCAPI) SendInformersMetrics(ctx context.Context, in struct
 func (rpcapi *ClusterRPCAPI) Alerts(ctx context.Context, in struct{}, out *[]api.Alert) error {
 	alerts := rpcapi.c.Alerts()
 	*out = alerts
+	return nil
+}
+
+// BandwidthByProtocol runs Cluster.BandwidthByProtocol().
+func (rpcapi *ClusterRPCAPI) BandwidthByProtocol(ctx context.Context, in struct{}, out *api.BandwidthByProtocol) error {
+	bw := rpcapi.c.BandwidthByProtocol()
+	*out = bw
 	return nil
 }
 

@@ -44,10 +44,14 @@ if [[ $GIT_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc ]]; then
 elif [[ $GIT_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echoImageName "$GIT_TAG"
   echoImageName "stable"
-
+  echoImageName "latest" # assume we are not going to be tagging old versions
+  
 elif [ "$GIT_BRANCH" = "master" ]; then
   echoImageName "master-${BUILD_NUM}-${GIT_SHA1_SHORT}"
   echoImageName "master-latest"
+
+elif [ "$GIT_BRANCH" = "docker-fixes" ]; then
+  echoImageName "docker-testing"
 
 else
   echo "Nothing to do. No docker tag defined for branch: $GIT_BRANCH, tag: $GIT_TAG"

@@ -1,5 +1,3 @@
-//go:build !arm && !386 && !(openbsd && amd64)
-
 // Package pebble provides a configurable Pebble database backend for use with
 // IPFS Cluster.
 package pebble
@@ -9,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cockroachdb/pebble/v2"
 	ds "github.com/ipfs/go-datastore"
 	pebbleds "github.com/ipfs/go-ds-pebble"
 	logging "github.com/ipfs/go-log/v2"
@@ -17,7 +16,7 @@ import (
 
 var logger = logging.Logger("pebble")
 
-// New returns a BadgerDB datastore configured with the given
+// New returns a Pebble datastore configured with the given
 // configuration.
 func New(cfg *Config) (ds.Datastore, error) {
 	folder := cfg.GetFolder()
@@ -26,7 +25,20 @@ func New(cfg *Config) (ds.Datastore, error) {
 		return nil, errors.Wrap(err, "creating pebble folder")
 	}
 
-	db, err := pebbleds.NewDatastore(folder, &cfg.PebbleOptions)
+	// Deal with Pebble updates... user should try to be up to date with
+	// latest Pebble table formats.
+	fmv := cfg.PebbleOptions.FormatMajorVersion
+	newest := pebble.FormatNewest
+	if fmv < newest {
+		logger.Warnf(`Pebble's format_major_version is set to %d, but newest version is %d.
+
+It is recommended to increase format_major_version and restart. If an error
+occurrs when increasing the number several versions at once, it may help to
+increase them one by one, restarting the daemon every time.
+`, fmv, newest)
+	}
+
+	db, err := pebbleds.NewDatastore(folder, pebbleds.WithPebbleOpts(&cfg.PebbleOptions))
 	if err != nil {
 		return nil, err
 	}
@@ -34,17 +46,19 @@ func New(cfg *Config) (ds.Datastore, error) {
 	// Calling regularly DB's DiskUsage is a way to printout debug
 	// database statistics.
 	go func() {
+		ctx := context.Background()
+		db.DiskUsage(ctx)
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		for {
 			<-ticker.C
-			db.DiskUsage(context.Background())
+			db.DiskUsage(ctx)
 		}
 	}()
 	return db, nil
 }
 
-// Cleanup deletes the badger datastore.
+// Cleanup deletes the pebble datastore.
 func Cleanup(cfg *Config) error {
 	folder := cfg.GetFolder()
 	if _, err := os.Stat(folder); os.IsNotExist(err) {

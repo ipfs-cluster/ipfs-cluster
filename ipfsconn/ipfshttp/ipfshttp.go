@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 	"github.com/ipfs-cluster/ipfs-cluster/observations"
+	"github.com/tv42/httpunix"
 
 	files "github.com/ipfs/boxo/files"
 	gopath "github.com/ipfs/boxo/path"
@@ -26,7 +28,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	madns "github.com/multiformats/go-multiaddr-dns"
 	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/multiformats/go-multicodec"
 	multihash "github.com/multiformats/go-multihash"
@@ -55,8 +56,9 @@ type Connector struct {
 	cancel func()
 	ready  chan struct{}
 
-	config   *Config
-	nodeAddr string
+	config      *Config
+	nodeAddr    string
+	nodeNetwork string
 
 	rpcClient *rpc.Client
 	rpcReady  chan struct{}
@@ -139,25 +141,23 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		return nil, err
 	}
 
-	nodeMAddr := cfg.NodeAddr
-	// dns multiaddresses need to be resolved first
-	if madns.Matches(nodeMAddr) {
-		ctx, cancel := context.WithTimeout(context.Background(), DNSTimeout)
-		defer cancel()
-		resolvedAddrs, err := madns.Resolve(ctx, cfg.NodeAddr)
-		if err != nil {
-			logger.Error(err)
-			return nil, err
-		}
-		nodeMAddr = resolvedAddrs[0]
-	}
-
-	_, nodeAddr, err := manet.DialArgs(nodeMAddr)
+	nodeNetwork, nodeAddr, err := manet.DialArgs(cfg.NodeAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &http.Client{} // timeouts are handled by context timeouts
+
+	if nodeNetwork == "unix" {
+		unixTransport := &httpunix.Transport{
+			DialTimeout: time.Second,
+		}
+		unixTransport.RegisterLocation("ipfs", nodeAddr)
+		t := &http.Transport{}
+		t.RegisterProtocol(httpunix.Scheme, unixTransport)
+		c.Transport = t
+	}
+
 	if cfg.Tracing {
 		c.Transport = &ochttp.Transport{
 			Base:           http.DefaultTransport,
@@ -176,6 +176,7 @@ func NewConnector(cfg *Config) (*Connector, error) {
 		ready:          make(chan struct{}),
 		config:         cfg,
 		nodeAddr:       nodeAddr,
+		nodeNetwork:    nodeNetwork,
 		rpcReady:       make(chan struct{}, 1),
 		reqRateLimitCh: make(chan struct{}),
 		client:         c,
@@ -369,14 +370,14 @@ func (ipfs *Connector) ID(ctx context.Context) (api.IPFSID, error) {
 		ID: pID,
 	}
 
-	mAddrs := make([]api.Multiaddr, len(res.Addresses))
-	for i, strAddr := range res.Addresses {
+	mAddrs := make([]api.Multiaddr, 0, len(res.Addresses))
+	for _, strAddr := range res.Addresses {
 		mAddr, err := api.NewMultiaddr(strAddr)
 		if err != nil {
 			logger.Warningf("cannot parse IPFS multiaddress: %s (%w)... ignoring", strAddr, err)
 			continue
 		}
-		mAddrs[i] = mAddr
+		mAddrs = append(mAddrs, mAddr)
 	}
 	id.Addresses = mAddrs
 	return id, nil
@@ -415,6 +416,9 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 		return nil
 	}
 
+	// Call at the beginning of pinning to update pinqueue
+	ipfs.updateInformerMetric(ctx)
+	// Call at the end of pinning to update freespace
 	defer ipfs.updateInformerMetric(ctx)
 
 	ctx, cancelRequest := context.WithCancel(ctx)
@@ -568,7 +572,9 @@ func (ipfs *Connector) Unpin(ctx context.Context, hash api.Cid) error {
 		return errors.New("ipfs unpinning is disallowed by configuration on this peer")
 	}
 
-	defer ipfs.updateInformerMetric(ctx)
+	// Unpinning doesn't free space and doesn't matter for pinqueue so not
+	// really necessary to publish metrics.
+	//defer ipfs.updateInformerMetric(ctx)
 
 	path := fmt.Sprintf("pin/rm?arg=%s", hash)
 
@@ -609,7 +615,7 @@ func (ipfs *Connector) PinLs(ctx context.Context, typeFilters []string, out chan
 	var err error
 	var totalPinCount int64
 	defer func() {
-		if err != nil {
+		if err == nil {
 			atomic.StoreInt64(&ipfs.ipfsPinCount, totalPinCount)
 			stats.Record(ipfs.ctx, observations.PinsIpfsPins.M(totalPinCount))
 		}
@@ -639,6 +645,7 @@ nextFilter:
 			var ipfsPin api.IPFSPinInfo
 			err = dec.Decode(&ipfsPin)
 			if err == io.EOF {
+				err = nil
 				break nextFilter
 			}
 			if err != nil {
@@ -829,6 +836,9 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 
 	defer body.Close()
 
+	// Freespace metric might have gone down, so update it at the end.
+	defer ipfs.updateInformerMetric(ctx)
+
 	dec := json.NewDecoder(body)
 	repoGC := api.RepoGC{
 		Keys: []api.IPFSRepoGC{},
@@ -860,19 +870,22 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (api.Cid, error
 	ctx, span := trace.StartSpan(ctx, "ipfsconn/ipfshttp/Resolve")
 	defer span.End()
 
-	validPath, err := gopath.ParsePath(path)
+	validPath, err := gopath.NewPath(path)
 	if err != nil {
-		logger.Error("could not parse path: " + err.Error())
-		return api.CidUndef, err
+		validPath, err = gopath.NewPath("/ipfs/" + path)
+		if err != nil {
+			logger.Error("could not parse path: " + err.Error())
+			return api.CidUndef, err
+		}
 	}
-	if !strings.HasPrefix(path, "/ipns") && validPath.IsJustAKey() {
-		ci, _, err := gopath.SplitAbsPath(validPath)
-		return api.NewCid(ci), err
+	immPath, err := gopath.NewImmutablePath(validPath)
+	if err == nil && len(immPath.Segments()) == 2 { // no need to resolve
+		return api.NewCid(immPath.RootCid()), nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, ipfs.config.IPFSRequestTimeout)
 	defer cancel()
-	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(path), "", nil)
+	res, err := ipfs.postCtx(ctx, "resolve?arg="+url.QueryEscape(validPath.String()), "", nil)
 	if err != nil {
 		return api.CidUndef, err
 	}
@@ -884,8 +897,18 @@ func (ipfs *Connector) Resolve(ctx context.Context, path string) (api.Cid, error
 		return api.CidUndef, err
 	}
 
-	ci, _, err := gopath.SplitAbsPath(gopath.FromString(resp.Path))
-	return api.NewCid(ci), err
+	respPath, err := gopath.NewPath(resp.Path)
+	if err != nil {
+		logger.Error("invalid path in response: " + err.Error())
+		return api.CidUndef, err
+	}
+
+	respImmPath, err := gopath.NewImmutablePath(respPath)
+	if err != nil {
+		logger.Error("resolved path is mutable: " + err.Error())
+		return api.CidUndef, err
+	}
+	return api.NewCid(respImmPath.RootCid()), nil
 }
 
 // SwarmPeers returns the peers currently connected to this ipfs daemon.
@@ -936,6 +959,16 @@ func (cd *chanDirectory) Size() (int64, error) {
 
 func (cd *chanDirectory) Entries() files.DirIterator {
 	return cd.iterator
+}
+
+// Mode: return mode for directory, but unused.
+func (cd *chanDirectory) Mode() os.FileMode {
+	return os.ModeDir
+}
+
+// ModeTime: not implemented
+func (cd *chanDirectory) ModTime() (mtime time.Time) {
+	return time.UnixMilli(0)
 }
 
 // chanIterator implements the files.DirIterator interface.
@@ -1083,6 +1116,9 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	defer span.End()
 
 	logger.Debug("streaming blocks to IPFS")
+
+	// Update at the end of block-streaming to have an updated freespace
+	// metric.
 	defer ipfs.updateInformerMetric(ctx)
 
 	it := &chanIterator{
@@ -1189,7 +1225,7 @@ func (ipfs *Connector) shouldUpdateMetric() bool {
 		return false
 	}
 	curCount := atomic.AddUint64(&ipfs.updateMetricCount, 1)
-	if curCount%uint64(ipfs.config.InformerTriggerInterval) == 0 {
+	if curCount >= uint64(ipfs.config.InformerTriggerInterval) {
 		atomic.StoreUint64(&ipfs.updateMetricCount, 0)
 		return true
 	}
@@ -1222,7 +1258,12 @@ func (ipfs *Connector) updateInformerMetric(ctx context.Context) error {
 
 // daemon API.
 func (ipfs *Connector) apiURL() string {
-	return fmt.Sprintf("http://%s/api/v0", ipfs.nodeAddr)
+	switch ipfs.nodeNetwork {
+	case "unix":
+		return "http+unix://ipfs/api/v0"
+	default:
+		return fmt.Sprintf("http://%s/api/v0", ipfs.nodeAddr)
+	}
 }
 
 func (ipfs *Connector) doPostCtx(ctx context.Context, client *http.Client, apiURL, path string, contentType string, postBody io.Reader) (*http.Response, error) {

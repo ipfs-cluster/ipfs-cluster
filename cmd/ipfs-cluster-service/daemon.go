@@ -27,6 +27,7 @@ import (
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	host "github.com/libp2p/go-libp2p/core/host"
+	metrics "github.com/libp2p/go-libp2p/core/metrics"
 	peer "github.com/libp2p/go-libp2p/core/peer"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -93,10 +94,10 @@ func daemon(c *cli.Context) error {
 
 	store := setupDatastore(cfgHelper)
 
-	host, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
+	host, bwc, pubsub, dht, err := ipfscluster.NewClusterHost(ctx, cfgHelper.Identity(), cfgs.Cluster, store)
 	checkErr("creating libp2p host", err)
 
-	cluster, err := createCluster(ctx, c, cfgHelper, host, pubsub, dht, store, raftStaging)
+	cluster, err := createCluster(ctx, c, cfgHelper, host, bwc, pubsub, dht, store, raftStaging)
 	checkErr("starting cluster", err)
 
 	// noop if no bootstraps
@@ -127,6 +128,7 @@ func createCluster(
 	c *cli.Context,
 	cfgHelper *cmdutils.ConfigHelper,
 	host host.Host,
+	bwc metrics.Reporter,
 	pubsub *pubsub.PubSub,
 	dht *dual.DHT,
 	store ds.Datastore,
@@ -139,7 +141,7 @@ func createCluster(
 	checkErr("getting configuration string", err)
 	logger.Debugf("Configuration:\n%s\n", cfgBytes)
 
-	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().Pretty()))
+	ctx, err = tag.New(ctx, tag.Upsert(observations.HostKey, host.ID().String()))
 	checkErr("tag context with host id", err)
 
 	err = observations.SetupMetrics(cfgs.Metrics)
@@ -190,7 +192,7 @@ func createCluster(
 	}
 	if cfgMgr.IsLoadedFromJSON(config.Informer, cfgs.TagsInf.ConfigKey()) {
 		tagsInf, err := tags.New(cfgs.TagsInf)
-		checkErr("creating numpin informer", err)
+		checkErr("creating tags informer", err)
 		informers = append(informers, tagsInf)
 	}
 
@@ -240,6 +242,7 @@ func createCluster(
 	return ipfscluster.NewCluster(
 		ctx,
 		host,
+		bwc,
 		dht,
 		cfgs.Cluster,
 		store,
