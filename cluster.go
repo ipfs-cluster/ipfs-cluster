@@ -2323,7 +2323,7 @@ func (c *Cluster) RepoGC(ctx context.Context) (api.GlobalRepoGC, error) {
 	return globalRepoGC, nil
 }
 
-// RepoGCLocal performs garbage collection only on the local IPFS deamon.
+// RepoGCLocal performs garbage collection only on the local IPFS daemon.
 func (c *Cluster) RepoGCLocal(ctx context.Context) (api.RepoGC, error) {
 	ctx, span := trace.StartSpan(ctx, "cluster/RepoGCLocal")
 	defer span.End()
