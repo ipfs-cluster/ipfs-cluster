@@ -2,7 +2,7 @@
 // gluing together all the subcomponents and performing the core functionality.
 //
 // This package also provide the Cluster GO API through the Cluster object,
-// which allows to programatically build and control a cluster.
+// which allows to programmatically build and control a cluster.
 //
 // For an example on how to initialize components and cluster object, see
 // cmd/ipfs-cluster-follow and cmd/ipfs-cluster-service.

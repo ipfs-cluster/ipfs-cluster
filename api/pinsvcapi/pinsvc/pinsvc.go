@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	// intialize trackerStatusString
+	// initialize trackerStatusString
 	stringStatus = make(map[string]Status)
 	for k, v := range statusString {
 		stringStatus[v] = k

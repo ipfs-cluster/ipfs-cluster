@@ -249,7 +249,7 @@ func (cc *Consensus) op(ctx context.Context, pin api.Pin, t LogOpType) *LogOp {
 }
 
 // returns true if the operation was redirected to the leader
-// note that if the leader just dissappeared, the rpc call will
+// note that if the leader just disappeared, the rpc call will
 // fail because we haven't heard that it's gone.
 func (cc *Consensus) redirectToLeader(ctx context.Context, method string, arg interface{}) (bool, error) {
 	ctx, span := trace.StartSpan(ctx, "consensus/redirectToLeader")
