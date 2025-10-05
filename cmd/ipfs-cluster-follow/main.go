@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"os/user"
@@ -336,27 +335,6 @@ func socketAddress(absPath, clusterName string) (multiaddr.Multiaddr, error) {
 		return nil, errors.Wrapf(err, "error parsing socket: %s", socket)
 	}
 	return ma, nil
-}
-
-func killFollower(absPath string) error {
-	conn, err := net.Dial("unix", filepath.Join(absPath, "api-socket"))
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	connFile, err := conn.(*net.UnixConn).File()
-	if err != nil {
-		return err
-	}
-	ucred, err := syscall.GetsockoptUcred(int(connFile.Fd()), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
-	if err != nil {
-		return err
-	}
-	followerP, err := os.FindProcess(int(ucred.Pid))
-	if err != nil {
-		return err
-	}
-	return followerP.Signal(syscall.SIGTERM)
 }
 
 // returns an REST API client. Points to the socket address unless

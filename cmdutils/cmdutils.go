@@ -9,6 +9,9 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -205,4 +208,50 @@ func WaitForIPFS(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func StopProcess(absPath string) error {
+	pidFile := filepath.Join(absPath, "cluster.pid")
+
+	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
+		return fmt.Errorf("process not running (no PID file found)")
+	}
+
+	content, err := os.ReadFile(pidFile)
+	if err != nil {
+		return fmt.Errorf("failed to read PID file: %v", err)
+	}
+
+	pidStr := strings.TrimSpace(string(content))
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return fmt.Errorf("invalid PID in file: %s", pidStr)
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("process not found: %d", pid)
+	}
+
+	// Platform-specific process termination
+	if err := terminateProcess(process, pid); err != nil {
+		return err
+	}
+
+	fmt.Printf("Sent graceful shutdown signal to process %d\n", pid)
+	return nil
+}
+
+func CreatePIDFile(absPath string) error {
+	pidFile := filepath.Join(absPath, "cluster.pid")
+	pid := os.Getpid()
+	return os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", pid)), 0644)
+}
+
+func RemovePIDFile(absPath string) error {
+	pidFile := filepath.Join(absPath, "cluster.pid")
+	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
+		return nil
+	}
+	return os.Remove(pidFile)
 }
