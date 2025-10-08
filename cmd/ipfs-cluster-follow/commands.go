@@ -538,7 +538,7 @@ func stopCmd(c *cli.Context) error {
 	}
 	if c.Bool("cleanup") {
 		if err := os.RemoveAll(absPath); err != nil {
-			return cli.Exit(errors.Wrap(err, "failed to remove configuration folder"), 1)
+			return cli.Exit(errors.Wrap(err, "deleting "+absPath), 1)
 		}
 		fmt.Println("configuration folder removed successfully")
 	}
