@@ -214,32 +214,50 @@ func StopProcess(absPath string) error {
 	pidFile := filepath.Join(absPath, "cluster.pid")
 
 	if _, err := os.Stat(pidFile); os.IsNotExist(err) {
-		return fmt.Errorf("process not running (no PID file found)")
+		return fmt.Errorf("ipfs-cluster-follow does not seem to be running (no PID file found)")
 	}
 
 	content, err := os.ReadFile(pidFile)
 	if err != nil {
-		return fmt.Errorf("failed to read PID file: %v", err)
+		return fmt.Errorf("failed to read PID file: %w", err)
 	}
 
 	pidStr := strings.TrimSpace(string(content))
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil {
-		return fmt.Errorf("invalid PID in file: %s", pidStr)
+		return fmt.Errorf("invalid PID in file '%s': %w", pidStr, err)
 	}
 
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		return fmt.Errorf("process not found: %d", pid)
+		return fmt.Errorf("process with PID %d not found: %w", pid, err)
 	}
 
-	// Platform-specific process termination
+	// send termination signal (os-specific)
 	if err := terminateProcess(process, pid); err != nil {
-		return err
+		return fmt.Errorf("failed to send termination signal to process %d: %w", pid, err)
 	}
 
-	fmt.Printf("Sent graceful shutdown signal to process %d\n", pid)
-	return nil
+	// Wait for process to exit (check PID file removal)
+	timeout := time.After(30 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			// Timeout: clean up PID file and report error
+			os.Remove(pidFile)
+			return fmt.Errorf("timeout waiting for process %d to exit after 30 seconds", pid)
+		case <-ticker.C:
+			// Check if PID file has been removed (process exited)
+			if _, err := os.Stat(pidFile); os.IsNotExist(err) {
+				time.Sleep(time.Second)
+				fmt.Printf("ipfs-cluster-follower(PID: %d) exited successfully\n", pid)
+				return nil
+			}
+		}
+	}
 }
 
 func CreatePIDFile(absPath string) error {

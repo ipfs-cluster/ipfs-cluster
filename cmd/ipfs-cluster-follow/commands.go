@@ -533,16 +533,14 @@ func stopCmd(c *cli.Context) error {
 			return cli.Exit(errors.Wrap(err, "failed to unpin items"), 1)
 		}
 	}
-
 	if err := cmdutils.StopProcess(absPath); err != nil {
-		cmdutils.ErrorOut("failed to stop follower process: %v\n", err)
+		return cli.Exit(errors.Wrap(err, "failed to stop follower process"), 1)
 	}
-
 	if c.Bool("cleanup") {
-		fmt.Println("Removing configuration folder...")
 		if err := os.RemoveAll(absPath); err != nil {
 			return cli.Exit(errors.Wrap(err, "failed to remove configuration folder"), 1)
 		}
+		fmt.Println("configuration folder removed successfully")
 	}
 	return nil
 }

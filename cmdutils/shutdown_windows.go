@@ -5,54 +5,81 @@ package cmdutils
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
 	"syscall"
-	"time"
 )
 
 var (
 	kernel32                     = syscall.NewLazyDLL("kernel32.dll")
 	procGenerateConsoleCtrlEvent = kernel32.NewProc("GenerateConsoleCtrlEvent")
+	procFreeConsole              = kernel32.NewProc("FreeConsole")
+	procAttachConsole            = kernel32.NewProc("AttachConsole")
+	procSetConsoleCtrlHandler    = kernel32.NewProc("SetConsoleCtrlHandler")
 )
 
 const (
-	CTRL_C_EVENT = 0
+	CTRL_BREAK_EVENT      = 1
+	ctrlBreakHelperEnv    = "IPFS_CLUSTER_CTRL_BREAK_PID"
+	STATUS_CONTROL_C_EXIT = 0xC000013A
 )
 
-// terminateProcess uses Windows-specific termination on Windows.
-// It sends a CTRL_C_EVENT and waits for the process to exit.
-// If the process does not exit within a timeout, it is killed.
-func terminateProcess(process *os.Process, pid int) error {
-	// Try GenerateConsoleCtrlEvent first (graceful)
-	ret, _, err := procGenerateConsoleCtrlEvent.Call(
-		uintptr(CTRL_C_EVENT),
-		uintptr(pid),
-	)
+func init() {
+	if pidStr := os.Getenv(ctrlBreakHelperEnv); pidStr != "" {
+		os.Exit(runCtrlBreakHelperProcess(pidStr))
+	}
+}
 
-	if ret == 0 {
-		// if we could not send the event, just try to kill it.
-		fmt.Printf("Warning: GenerateConsoleCtrlCtrlEvent failed (%v), using process.Kill()\n", err)
+func terminateProcess(process *os.Process, pid int) error {
+	fmt.Printf("sending CTRL_BREAK_EVENT to process %d...\n", pid)
+
+	executable, err := os.Executable()
+	if err != nil {
+		fmt.Println("failed to get executable path, using Kill")
 		return process.Kill()
 	}
 
-	// Wait for the process to exit
-	timeout := time.After(5 * time.Second)
-	tick := time.NewTicker(100 * time.Millisecond)
-	defer tick.Stop()
-
-	for {
-		select {
-		case <-timeout:
-			fmt.Println("Warning: process did not exit gracefully. Killing.")
-			return process.Kill()
-		case <-tick.C:
-			// On Windows, FindProcess always succeeds, so we need to check
-			// if the process is actually still running. A common way is to
-			// send a 0 signal, which doesn't harm the process but returns
-			// an error if the process is not running.
-			err := process.Signal(syscall.Signal(0))
-			if err != nil { // process is gone
-				return nil
-			}
-		}
+	cmd := exec.Command(executable)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%d", ctrlBreakHelperEnv, pid))
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
-} 
+
+	err = cmd.Run()
+	if err == nil {
+		return nil
+	}
+
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		if exitErr.ExitCode() == STATUS_CONTROL_C_EXIT {
+			fmt.Println("CTRL_BREAK_EVENT sent successfully via helper")
+			return nil
+		}
+		fmt.Printf("helper process failed with exit code 0x%X, using Kill\n", exitErr.ExitCode())
+		return process.Kill()
+	}
+
+	fmt.Printf("failed to run helper process (%s), using Kill\n", err)
+	return process.Kill()
+}
+
+func runCtrlBreakHelperProcess(pidStr string) int {
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return 1
+	}
+
+	// ignore original console CTRL+C and CTRL+BREAK signal
+	procSetConsoleCtrlHandler.Call(0, 1)
+	defer procSetConsoleCtrlHandler.Call(0, 0)
+
+	// windows need to attach target console first, then send CTRL+BREAK signal
+	procFreeConsole.Call()
+	if ret, _, _ := procAttachConsole.Call(uintptr(pid)); ret == 0 {
+		return 1
+	}
+	procGenerateConsoleCtrlEvent.Call(uintptr(CTRL_BREAK_EVENT), uintptr(pid))
+	procFreeConsole.Call()
+
+	return 0
+}

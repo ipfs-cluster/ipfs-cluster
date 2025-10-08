@@ -17,7 +17,7 @@ func terminateProcess(process *os.Process, pid int) error {
 
 	// Send SIGTERM for graceful shutdown
 	if err := process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("failed to send SIGTERM to process %d: %v", pid, err)
+		return fmt.Errorf("failed to send SIGTERM to process %d: %w", pid, err)
 	}
 
 	return nil
