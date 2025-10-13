@@ -236,7 +236,7 @@ require (
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
-	golang.org/x/sys v0.33.0
+	golang.org/x/sys v0.37.0
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
@@ -247,6 +247,4 @@ require (
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
 
-go 1.24
-
-toolchain go1.24.0
+go 1.24.0
