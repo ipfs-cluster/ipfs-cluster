@@ -145,7 +145,7 @@ type jsonConfig struct {
 	// LocalID string `json:local_id`
 }
 
-// ConfigKey returns a human-friendly indentifier for this Config.
+// ConfigKey returns a human-friendly identifier for this Config.
 func (cfg *Config) ConfigKey() string {
 	return configKey
 }

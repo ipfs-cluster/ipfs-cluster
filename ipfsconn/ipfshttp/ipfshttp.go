@@ -1331,7 +1331,7 @@ func checkResponse(path string, res *http.Response) ([]byte, error) {
 }
 
 // postCtxStreamResponse makes a POST request against the ipfs daemon, and
-// returns the body reader after checking the request for errros.
+// returns the body reader after checking the request for errors.
 func (ipfs *Connector) postCtxStreamResponse(ctx context.Context, path string, contentType string, postBody io.Reader) (io.ReadCloser, error) {
 	res, err := ipfs.doPostCtx(ctx, ipfs.client, ipfs.apiURL(), path, contentType, postBody)
 	if err != nil {
