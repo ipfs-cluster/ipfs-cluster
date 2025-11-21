@@ -283,7 +283,7 @@ as obtained from the internal state on disk.
 func buildPaths(c *cli.Context, clusterName string) (string, string, string) {
 	absPath, err := filepath.Abs(c.String("config"))
 	if err != nil {
-		cmdutils.ErrorOut("error getting absolute path for %s: %s", err, clusterName)
+		cmdutils.ErrorOut("error getting absolute path for %s: %s", clusterName, err)
 		os.Exit(1)
 	}
 
