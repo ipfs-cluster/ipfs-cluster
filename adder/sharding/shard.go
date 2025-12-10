@@ -162,12 +162,12 @@ func (sh *shard) Size() uint64 {
 	return sh.currentSize
 }
 
-// Size returns this shard's size limit.
+// Limit returns this shard's size limit.
 func (sh *shard) Limit() uint64 {
 	return sh.sizeLimit
 }
 
-// Last returns the last added link. When finishing sharding,
+// LastLink returns the last added link. When finishing sharding,
 // the last link of the last shard is the data root for the
 // full sharded DAG (the CID that would have resulted from
 // adding the content to a single IPFS daemon).
