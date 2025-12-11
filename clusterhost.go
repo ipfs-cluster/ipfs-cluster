@@ -28,9 +28,9 @@ import (
 	routing "github.com/libp2p/go-libp2p/core/routing"
 	autorelay "github.com/libp2p/go-libp2p/p2p/host/autorelay"
 	p2pbhost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	"github.com/libp2p/go-libp2p/p2p/host/observedaddrs"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	connmgr "github.com/libp2p/go-libp2p/p2p/net/connmgr"
-	identify "github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	noise "github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
@@ -54,7 +54,7 @@ func init() {
 	// affects dockerized setups mostly. This may announce non-dialable
 	// NATed addresses too eagerly, but they should progressively be
 	// cleaned up.
-	identify.ActivationThresh = 1
+	observedaddrs.ActivationThresh = 1
 }
 
 // NewClusterHost creates a fully-featured libp2p Host with the options from

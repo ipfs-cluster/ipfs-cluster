@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	gopath "path"
 	"path/filepath"
+	"time"
 
 	"github.com/ipfs-cluster/ipfs-cluster/api"
 
@@ -19,6 +21,7 @@ import (
 	balanced "github.com/ipfs/boxo/ipld/unixfs/importer/balanced"
 	ihelper "github.com/ipfs/boxo/ipld/unixfs/importer/helpers"
 	trickle "github.com/ipfs/boxo/ipld/unixfs/importer/trickle"
+	uio "github.com/ipfs/boxo/ipld/unixfs/io"
 	mfs "github.com/ipfs/boxo/mfs"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -38,30 +41,35 @@ const progressReaderIncrement = 1024 * 256
 func NewAdder(ctx context.Context, ds ipld.DAGService, allocs func() []peer.ID) (*Adder, error) {
 	// Cluster: we don't use pinner nor GCLocker.
 	return &Adder{
-		ctx:        ctx,
-		dagService: ds,
-		allocsFun:  allocs,
-		Progress:   false,
-		Trickle:    false,
-		Chunker:    "",
+		ctx:           ctx,
+		dagService:    ds,
+		allocsFun:     allocs,
+		Progress:      false,
+		Trickle:       false,
+		MaxLinks:      ihelper.DefaultLinksPerBlock,
+		MaxHAMTFanout: uio.DefaultShardWidth,
+		Chunker:       "",
 	}, nil
 }
 
 // Adder holds the switches passed to the `add` command.
 type Adder struct {
-	ctx        context.Context
-	dagService ipld.DAGService
-	allocsFun  func() []peer.ID
-	Out        chan api.AddedOutput
-	Progress   bool
-	Trickle    bool
-	RawLeaves  bool
-	Silent     bool
-	NoCopy     bool
-	Chunker    string
-	mroot      *mfs.Root
-	tempRoot   cid.Cid
-	CidBuilder cid.Builder
+	ctx               context.Context
+	dagService        ipld.DAGService
+	allocsFun         func() []peer.ID
+	Out               chan api.AddedOutput
+	Progress          bool
+	Trickle           bool
+	RawLeaves         bool
+	MaxLinks          int
+	MaxDirectoryLinks int
+	MaxHAMTFanout     int
+	Silent            bool
+	NoCopy            bool
+	Chunker           string
+	mroot             *mfs.Root
+	tempRoot          cid.Cid
+	CidBuilder        cid.Builder
 	// liveNodes  uint64 // cluster: we do not clear mfs cache.
 	lastFile mfs.FSNode
 	// Cluster: ipfs does a hack in commands/add.go to set the filenames
@@ -69,15 +77,24 @@ type Adder struct {
 	// filename in the case of single files here and emit those events
 	// correctly from the beginning).
 	OutputPrefix string
+
+	PreserveMode  bool
+	PreserveMtime bool
+	FileMode      os.FileMode
+	FileMtime     time.Time
 }
 
 func (adder *Adder) mfsRoot() (*mfs.Root, error) {
 	if adder.mroot != nil {
 		return adder.mroot, nil
 	}
-	rnode := unixfs.EmptyDirNode()
-	rnode.SetCidBuilder(adder.CidBuilder)
-	mr, err := mfs.NewRoot(adder.ctx, adder.dagService, rnode, nil)
+
+	// Note, this adds it to DAGService already.
+	mr, err := mfs.NewEmptyRoot(adder.ctx, adder.dagService, nil, nil, mfs.MkdirOpts{
+		CidBuilder:    adder.CidBuilder,
+		MaxLinks:      adder.MaxDirectoryLinks,
+		MaxHAMTFanout: adder.MaxHAMTFanout,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +117,13 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 	// Cluster: we don't do batching/use BufferedDS.
 
 	params := ihelper.DagBuilderParams{
-		Dagserv:    adder.dagService,
-		RawLeaves:  adder.RawLeaves,
-		Maxlinks:   ihelper.DefaultLinksPerBlock,
-		NoCopy:     adder.NoCopy,
-		CidBuilder: adder.CidBuilder,
+		Dagserv:     adder.dagService,
+		RawLeaves:   adder.RawLeaves,
+		Maxlinks:    ihelper.DefaultLinksPerBlock,
+		NoCopy:      adder.NoCopy,
+		CidBuilder:  adder.CidBuilder,
+		FileMode:    adder.FileMode,
+		FileModTime: adder.FileMtime,
 	}
 
 	db, err := params.New(chnk)
@@ -153,10 +172,10 @@ func (adder *Adder) add(reader io.Reader) (ipld.Node, error) {
 // PinRoot recursively pins the root node of Adder and
 // writes the pin state to the backing datastore.
 // Cluster: we don't pin. Former Finalize().
-func (adder *Adder) PinRoot(root ipld.Node) error {
+func (adder *Adder) PinRoot(ctx context.Context, root ipld.Node, name string) error {
 	rnk := root.Cid()
 
-	err := adder.dagService.Add(adder.ctx, root)
+	err := adder.dagService.Add(ctx, root)
 	if err != nil {
 		return err
 	}
@@ -229,9 +248,11 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	dir := gopath.Dir(path)
 	if dir != "." {
 		opts := mfs.MkdirOpts{
-			Mkparents:  true,
-			Flush:      false,
-			CidBuilder: adder.CidBuilder,
+			Mkparents:     true,
+			Flush:         false,
+			CidBuilder:    adder.CidBuilder,
+			MaxLinks:      adder.MaxDirectoryLinks,
+			MaxHAMTFanout: adder.MaxHAMTFanout,
 		}
 		if err := mfs.Mkdir(mr, dir, opts); err != nil {
 			return err
@@ -245,7 +266,7 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	// Cluster: cache the last file added.
 	// This avoids using the DAGService to get the first children
 	// if the MFS root when not wrapping.
-	lastFile, err := mfs.NewFile(path, node, nil, adder.dagService)
+	lastFile, err := mfs.NewFile(path, node, nil, adder.dagService, nil)
 	if err != nil {
 		return err
 	}
@@ -259,8 +280,8 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 
 // AddAllAndPin adds the given request's files and pin them.
 // Cluster: we don'pin. Former AddFiles.
-func (adder *Adder) AddAllAndPin(file files.Node) (ipld.Node, error) {
-	if err := adder.addFileNode("", file, true); err != nil {
+func (adder *Adder) AddAllAndPin(ctx context.Context, file files.Node) (ipld.Node, error) {
+	if err := adder.addFileNode(ctx, "", file, true); err != nil {
 		return nil, err
 	}
 
@@ -327,13 +348,20 @@ func (adder *Adder) AddAllAndPin(file files.Node) (ipld.Node, error) {
 	// Cluster: call PinRoot which adds the root cid to the DAGService.
 	// Unsure if this a bug in IPFS when not pinning. Or it would get added
 	// twice.
-	return nd, adder.PinRoot(nd)
+	return nd, adder.PinRoot(ctx, nd, name)
 }
 
 // Cluster: we don't Pause for GC
-func (adder *Adder) addFileNode(path string, file files.Node, toplevel bool) error {
+func (adder *Adder) addFileNode(ctx context.Context, path string, file files.Node, toplevel bool) error {
 	defer file.Close()
 
+	if adder.PreserveMtime {
+		adder.FileMtime = file.ModTime()
+	}
+
+	if adder.PreserveMode {
+		adder.FileMode = file.Mode()
+	}
 	// cluster: flushing MFS will cause issues when outputting intermediary
 	// mfs folders.
 	// if adder.liveNodes >= liveCacheSize {
@@ -352,9 +380,9 @@ func (adder *Adder) addFileNode(path string, file files.Node, toplevel bool) err
 
 	switch f := file.(type) {
 	case files.Directory:
-		return adder.addDir(path, f, toplevel)
+		return adder.addDir(ctx, path, f, toplevel)
 	case *files.Symlink:
-		return adder.addSymlink(path, f)
+		return adder.addSymlink(ctx, path, f)
 	case files.File:
 		return adder.addFile(path, f)
 	default:
@@ -362,14 +390,29 @@ func (adder *Adder) addFileNode(path string, file files.Node, toplevel bool) err
 	}
 }
 
-func (adder *Adder) addSymlink(path string, l *files.Symlink) error {
+func (adder *Adder) addSymlink(ctx context.Context, path string, l *files.Symlink) error {
 	sdata, err := unixfs.SymlinkData(l.Target)
 	if err != nil {
 		return err
 	}
 
+	if !adder.FileMtime.IsZero() {
+		fsn, err := unixfs.FSNodeFromBytes(sdata)
+		if err != nil {
+			return err
+		}
+
+		fsn.SetModTime(adder.FileMtime)
+		if sdata, err = fsn.GetBytes(); err != nil {
+			return err
+		}
+	}
+
 	dagnode := dag.NodeWithData(sdata)
-	dagnode.SetCidBuilder(adder.CidBuilder)
+	err = dagnode.SetCidBuilder(adder.CidBuilder)
+	if err != nil {
+		return err
+	}
 	err = adder.dagService.Add(adder.ctx, dagnode)
 	if err != nil {
 		return err
@@ -400,8 +443,24 @@ func (adder *Adder) addFile(path string, file files.File) error {
 	return adder.addNode(dagnode, path)
 }
 
-func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) error {
+func (adder *Adder) addDir(ctx context.Context, path string, dir files.Directory, toplevel bool) error {
 	log.Infof("adding directory: %s", path)
+
+	// if we need to store mode or modification time then create a new root which includes that data
+	if toplevel && (adder.FileMode != 0 || !adder.FileMtime.IsZero()) {
+		mr, err := mfs.NewEmptyRoot(ctx, adder.dagService, nil, nil,
+			mfs.MkdirOpts{
+				CidBuilder:    adder.CidBuilder,
+				MaxLinks:      adder.MaxDirectoryLinks,
+				MaxHAMTFanout: adder.MaxHAMTFanout,
+				ModTime:       adder.FileMtime,
+				Mode:          adder.FileMode,
+			})
+		if err != nil {
+			return err
+		}
+		adder.SetMfsRoot(mr)
+	}
 
 	if !(toplevel && path == "") {
 		mr, err := adder.mfsRoot()
@@ -409,9 +468,13 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 			return err
 		}
 		err = mfs.Mkdir(mr, path, mfs.MkdirOpts{
-			Mkparents:  true,
-			Flush:      false,
-			CidBuilder: adder.CidBuilder,
+			Mkparents:     true,
+			Flush:         false,
+			CidBuilder:    adder.CidBuilder,
+			Mode:          adder.FileMode,
+			ModTime:       adder.FileMtime,
+			MaxLinks:      adder.MaxDirectoryLinks,
+			MaxHAMTFanout: adder.MaxHAMTFanout,
 		})
 		if err != nil {
 			return err
@@ -421,7 +484,7 @@ func (adder *Adder) addDir(path string, dir files.Directory, toplevel bool) erro
 	it := dir.Entries()
 	for it.Next() {
 		fpath := gopath.Join(path, it.Name())
-		err := adder.addFileNode(fpath, it.Node(), false)
+		err := adder.addFileNode(ctx, fpath, it.Node(), false)
 		if err != nil {
 			return err
 		}
