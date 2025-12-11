@@ -21,7 +21,7 @@ on:
     - cron: '20 2 * * 5'
 
 env:
-  GO: 1.23.3
+  GO: 1.25
 
 jobs:
   analyze:
