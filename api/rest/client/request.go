@@ -141,7 +141,7 @@ func (c *defaultClient) handleStreamResponse(resp *http.Response, handler respon
 	dec := json.NewDecoder(resp.Body)
 	for {
 		err := handler(dec)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			// we need to check trailers
 			break
 		}

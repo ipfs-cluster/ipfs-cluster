@@ -4,6 +4,7 @@ package dsstate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -260,7 +261,7 @@ func (st *State) Unmarshal(r io.Reader) error {
 	dec := codec.NewDecoder(r, st.codecHandle)
 	for {
 		var entry serialEntry
-		if err := dec.Decode(&entry); err == io.EOF {
+		if err := dec.Decode(&entry); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return err

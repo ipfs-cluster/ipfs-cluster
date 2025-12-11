@@ -577,7 +577,7 @@ func TestProxyRepoGC(t *testing.T) {
 				resp := ipfsRepoGCResp{}
 
 				if err := dec.Decode(&resp); err != nil {
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						break
 					}
 					t.Error(err)
@@ -810,7 +810,7 @@ func TestProxyBlockPut(t *testing.T) {
 
 			for {
 				err := dec.Decode(&resp)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -933,7 +933,7 @@ func TestProxyDagPut(t *testing.T) {
 
 			for {
 				err := dec.Decode(&resp)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {

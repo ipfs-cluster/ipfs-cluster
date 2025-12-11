@@ -197,7 +197,7 @@ func importState(r io.Reader, st state.State, opts api.PinOptions) error {
 	for {
 		var pin api.Pin
 		err := dec.Decode(&pin)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

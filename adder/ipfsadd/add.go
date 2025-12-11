@@ -536,7 +536,7 @@ func (i *progressReader) Read(p []byte) (int, error) {
 	n, err := i.file.Read(p)
 
 	i.bytes += int64(n)
-	if i.bytes-i.lastProgress >= progressReaderIncrement || err == io.EOF {
+	if i.bytes-i.lastProgress >= progressReaderIncrement || errors.Is(err, io.EOF) {
 		i.lastProgress = i.bytes
 		i.out <- api.AddedOutput{
 			Name:  i.path,

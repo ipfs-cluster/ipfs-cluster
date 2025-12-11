@@ -76,7 +76,7 @@ func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp
 		for {
 			v := reflect.New(vType)
 			err := dec.Decode(v.Interface())
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
@@ -88,7 +88,7 @@ func ProcessStreamingResp(t *testing.T, httpResp *http.Response, err error, resp
 	} else {
 		for {
 			err := dec.Decode(resp)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
