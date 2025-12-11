@@ -27,7 +27,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "1.1.2"
+const Version = "1.1.4"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -1129,7 +1129,7 @@ This command will instruct current Cluster peers to run "repo gc" on their
 respective IPFS daemons.
 
 When --local flag is passed, it will garbage collect only on the local IPFS
-deamon, otherwise on all IPFS daemons.
+daemon, otherwise on all IPFS daemons.
 `,
 					Flags: []cli.Flag{
 						localFlag(),

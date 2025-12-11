@@ -72,7 +72,7 @@ type Config struct {
 	Tracing bool
 }
 
-// ConfigJSON represents a human-friendly Config
+// jsonConfig represents a human-friendly Config
 // object which can be saved to JSON.  Most configuration keys are converted
 // into simple types like strings, and key names aim to be self-explanatory
 // for the user.
@@ -145,7 +145,7 @@ type jsonConfig struct {
 	// LocalID string `json:local_id`
 }
 
-// ConfigKey returns a human-friendly indentifier for this Config.
+// ConfigKey returns a human-friendly identifier for this Config.
 func (cfg *Config) ConfigKey() string {
 	return configKey
 }

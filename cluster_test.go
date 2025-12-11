@@ -724,7 +724,7 @@ func TestUnpinShard(t *testing.T) {
 // 	}
 // 	_, err = cl.PinGet(cShard2)
 // 	if err != nil {
-// 		t.Fatal("other shard shoud still be pinned too")
+// 		t.Fatal("other shard should still be pinned too")
 // 	}
 // }
 

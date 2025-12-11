@@ -166,7 +166,7 @@ func (rw *raftWrapper) makeStores() error {
 // Bootstrap calls BootstrapCluster on the Raft instance with a valid
 // Configuration (generated from InitPeerset) when Raft has no state
 // and we are not setting up a staging peer. It returns if Raft
-// was boostrapped (true) and an error.
+// was bootstrapped (true) and an error.
 func (rw *raftWrapper) Bootstrap() (bool, error) {
 	logger.Debug("checking for existing raft states")
 	hasState, err := hraft.HasExistingState(

@@ -39,7 +39,7 @@ var logger = logging.Logger("apitypes")
 var unixZero = time.Unix(0, 0)
 
 func init() {
-	// intialize trackerStatusString
+	// initialize trackerStatusString
 	stringTrackerStatus = make(map[string]TrackerStatus)
 	for k, v := range trackerStatusString {
 		stringTrackerStatus[v] = k
@@ -1108,7 +1108,7 @@ func (pin Pin) ProtoMarshal() ([]byte, error) {
 		timestampProto = uint64(pin.Timestamp.Unix())
 	}
 
-	// Our metadata needs to always be seralized in exactly the same way,
+	// Our metadata needs to always be serialized in exactly the same way,
 	// and that is why we use an array sorted by key and deprecated using
 	// a protobuf map.
 	var sortedMetadata []*pb.Metadata
