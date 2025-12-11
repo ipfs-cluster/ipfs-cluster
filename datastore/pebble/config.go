@@ -40,9 +40,6 @@ var (
 	// DefaultBytesPerSync controls how often to call the Filesystem
 	// Sync.
 	DefaultBytesPerSync = 1 << 20 // Pebble's default: 512KiB
-	// DefaultMaxConcurrentCompactions controls how many compactions
-	// happen at a single time.
-	DefaultMaxConcurrentCompactions = 5 // Pebble's default: 1
 	// DefaultMaxOpenFiles controls how many files can be kept open by
 	// Pebble.
 	DefaultMaxOpenFiles = 1000 // Pebble's default: 500

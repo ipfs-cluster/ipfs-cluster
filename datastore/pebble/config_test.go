@@ -59,10 +59,6 @@ func TestToJSON(t *testing.T) {
 		t.Fatal("Disable WAL should be true")
 	}
 
-	if cfg.PebbleOptions.MaxConcurrentCompactions() != 2 {
-		t.Fatalf("Wrong max concuncurrent compactions value, got: %d, want: %d", cfg.PebbleOptions.MaxConcurrentCompactions(), 2)
-	}
-
 	newjson, err := cfg.ToJSON()
 	if err != nil {
 		t.Fatal(err)
