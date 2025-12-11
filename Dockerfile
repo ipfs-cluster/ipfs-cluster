@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.25-bullseye AS builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.25-trixie AS builder
 
 # This dockerfile builds and runs ipfs-cluster-service.
 ARG TARGETOS TARGETARCH
