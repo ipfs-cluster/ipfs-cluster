@@ -400,8 +400,8 @@ github.com/ipfs/go-ds-badger v0.3.4 h1:MmqFicftE0KrwMC77WjXTrPuoUxhwyFsjKONSeWrl
 github.com/ipfs/go-ds-badger v0.3.4/go.mod h1:HfqsKJcNnIr9ZhZ+rkwS1J5PpaWjJjg6Ipmxd7KPfZ8=
 github.com/ipfs/go-ds-badger3 v0.1.5 h1:P0j3ueoyx5X88gimmAOPEXDxrDkkk9mtfnAkqXbrgvM=
 github.com/ipfs/go-ds-badger3 v0.1.5/go.mod h1:tZyZ9J//GOrJ+CyftiGN3Q0J31US3chnQwDtHanpoT4=
-github.com/ipfs/go-ds-crdt v0.6.5 h1:hjotpuGjAo4B6FIjg0pgXPaxOs9k1eiQUQKJQpXygvQ=
-github.com/ipfs/go-ds-crdt v0.6.5/go.mod h1:dHToH9NA10iUazSz+oosBLu/4cpQHT7/GIO0/9oEXtU=
+github.com/ipfs/go-ds-crdt v0.6.7 h1:Okf1/ca3mEgaBYz1zawiw8RPa6BLXV9GmxFfxJIUKw8=
+github.com/ipfs/go-ds-crdt v0.6.7/go.mod h1:OijSLb0ffgFzBt1hMGOBd/IZBxV7M1CAv0PRzsddLMg=
 github.com/ipfs/go-ds-leveldb v0.0.1/go.mod h1:feO8V3kubwsEF22n0YRQCffeb79OOYIykR4L04tMOYc=
 github.com/ipfs/go-ds-leveldb v0.5.2 h1:6nmxlQ2zbp4LCNdJVsmHfs9GP0eylfBNxpmY1csp0x0=
 github.com/ipfs/go-ds-leveldb v0.5.2/go.mod h1:2fAwmcvD3WoRT72PzEekHBkQmBDhc39DJGoREiuGmYo=
@@ -568,8 +568,8 @@ github.com/libp2p/go-libp2p-nat v0.0.4/go.mod h1:N9Js/zVtAXqaeT99cXgTV9e75KpnWCv
 github.com/libp2p/go-libp2p-netutil v0.1.0/go.mod h1:3Qv/aDqtMLTUyQeundkKsA+YCThNdbQD54k3TqjpbFU=
 github.com/libp2p/go-libp2p-peer v0.2.0/go.mod h1:RCffaCvUyW2CJmG2gAWVqwePwW7JMgxjsHm7+J5kjWY=
 github.com/libp2p/go-libp2p-peerstore v0.1.0/go.mod h1:2CeHkQsr8svp4fZ+Oi9ykN1HBb6u0MOvdJ7YIsmcwtY=
-github.com/libp2p/go-libp2p-pubsub v0.13.1 h1:tV3ttzzZSCk0EtEXnxVmWIXgjVxXx+20Jwjbs/Ctzjo=
-github.com/libp2p/go-libp2p-pubsub v0.13.1/go.mod h1:MKPU5vMI8RRFyTP0HfdsF9cLmL1nHAeJm44AxJGJx44=
+github.com/libp2p/go-libp2p-pubsub v0.14.2 h1:nT5lFHPQOFJcp9CW8hpKtvbpQNdl2udJuzLQWbgRum8=
+github.com/libp2p/go-libp2p-pubsub v0.14.2/go.mod h1:MKPU5vMI8RRFyTP0HfdsF9cLmL1nHAeJm44AxJGJx44=
 github.com/libp2p/go-libp2p-raft v0.5.0 h1:WvOYD1feqnGHVoUVVaEUmXJntvm97ClQjaLZ0eZdJrQ=
 github.com/libp2p/go-libp2p-raft v0.5.0/go.mod h1:vsYlHmXR6F4U05gIu+DLMT/SzMGWdkPkfkO2q4J+9Ho=
 github.com/libp2p/go-libp2p-record v0.3.1 h1:cly48Xi5GjNw5Wq+7gmjfBiG9HCzQVkiZOUZ8kUl+Fg=

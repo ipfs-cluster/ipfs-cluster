@@ -24,7 +24,7 @@ require (
 	github.com/ipfs/go-datastore v0.9.0
 	github.com/ipfs/go-ds-badger v0.3.4
 	github.com/ipfs/go-ds-badger3 v0.1.5
-	github.com/ipfs/go-ds-crdt v0.6.5
+	github.com/ipfs/go-ds-crdt v0.6.7
 	github.com/ipfs/go-ds-leveldb v0.5.2
 	github.com/ipfs/go-ds-pebble v0.5.7
 	github.com/ipfs/go-fs-lock v0.1.0
@@ -45,7 +45,7 @@ require (
 	github.com/libp2p/go-libp2p-gostream v0.6.0
 	github.com/libp2p/go-libp2p-http v0.5.0
 	github.com/libp2p/go-libp2p-kad-dht v0.35.1
-	github.com/libp2p/go-libp2p-pubsub v0.13.1
+	github.com/libp2p/go-libp2p-pubsub v0.14.2
 	github.com/libp2p/go-libp2p-raft v0.5.0
 	github.com/libp2p/go-libp2p-record v0.3.1
 	github.com/multiformats/go-multiaddr v0.16.1
