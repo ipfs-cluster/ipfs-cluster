@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -398,7 +399,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 
 		for {
 			part, err := mpr.NextPart()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			if err != nil {
@@ -472,7 +473,7 @@ func (m *IpfsMock) handler(w http.ResponseWriter, r *http.Request) {
 
 		for {
 			part, err := mpr.NextPart()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			if err != nil {

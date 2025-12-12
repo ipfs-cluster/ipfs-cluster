@@ -9,6 +9,8 @@ import (
 	"dario.cat/mergo"
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/bloom"
+	"github.com/cockroachdb/pebble/v2/sstable"
+	"github.com/cockroachdb/pebble/v2/sstable/block"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/ipfs-cluster/ipfs-cluster/config"
@@ -38,9 +40,6 @@ var (
 	// DefaultBytesPerSync controls how often to call the Filesystem
 	// Sync.
 	DefaultBytesPerSync = 1 << 20 // Pebble's default: 512KiB
-	// DefaultMaxConcurrentCompactions controls how many compactions
-	// happen at a single time.
-	DefaultMaxConcurrentCompactions = 5 // Pebble's default: 1
 	// DefaultMaxOpenFiles controls how many files can be kept open by
 	// Pebble.
 	DefaultMaxOpenFiles = 1000 // Pebble's default: 500
@@ -71,7 +70,7 @@ var (
 )
 
 func init() {
-	DefaultPebbleOptions = *DefaultPebbleOptions.EnsureDefaults()
+	DefaultPebbleOptions.EnsureDefaults()
 }
 
 // Config is used to initialize a Pebble datastore. It implements the
@@ -102,7 +101,6 @@ type pebbleOptions struct {
 	L0StopWritesThreshold       int                       `json:"l0_stop_writes_threshold"`
 	LBaseMaxBytes               int64                     `json:"l_base_max_bytes"`
 	MaxOpenFiles                int                       `json:"max_open_files"`
-	MaxConcurrentCompactions    int                       `json:"max_concurrent_compactions"`
 	MemTableSize                uint64                    `json:"mem_table_size"`
 	MemTableStopWritesThreshold int                       `json:"mem_table_stop_writes_threshold"`
 	ReadOnly                    bool                      `json:"read_only"`
@@ -125,19 +123,31 @@ func (po *pebbleOptions) Unmarshal() *pebble.Options {
 	pebbleOpts.L0CompactionThreshold = po.L0CompactionThreshold
 	pebbleOpts.L0StopWritesThreshold = po.L0StopWritesThreshold
 	pebbleOpts.LBaseMaxBytes = po.LBaseMaxBytes
-	pebbleOpts.Levels = make([]pebble.LevelOptions, len(po.Levels))
+	// pebbleOpts.Levels
 	pebbleOpts.MaxOpenFiles = po.MaxOpenFiles
-	// Avoid that an empty field results in compactions being disabled.
-	if po.MaxConcurrentCompactions > 0 {
-		pebbleOpts.MaxConcurrentCompactions = func() int { return po.MaxConcurrentCompactions }
-	}
 	pebbleOpts.MemTableSize = po.MemTableSize
 	pebbleOpts.MemTableStopWritesThreshold = po.MemTableStopWritesThreshold
 	pebbleOpts.ReadOnly = po.ReadOnly
 	pebbleOpts.WALBytesPerSync = po.WALBytesPerSync
-	for i := range po.Levels {
-		pebbleOpts.Levels[i] = *po.Levels[i].Unmarshal()
+	for i := range pebbleOpts.Levels {
+		if len(po.Levels) > i {
+			lvlOpts, targetFileSize := po.Levels[i].Unmarshal()
+			pebbleOpts.Levels[i] = *lvlOpts
+			pebbleOpts.TargetFileSizes[i] = targetFileSize
+		} else {
+			lvlOpts := &pebble.LevelOptions{}
+			prev := lvlOpts
+			tgtFileSize := DefaultL0TargetFileSize
+			if i > 0 {
+				prev = &pebbleOpts.Levels[i-1]
+				tgtFileSize = pebbleOpts.TargetFileSizes[i-1] * 2
+			}
+			defaultLevelOpts(lvlOpts, prev, i)
+			pebbleOpts.Levels[i] = *lvlOpts
+			pebbleOpts.TargetFileSizes[i] = tgtFileSize
+		}
 	}
+
 	return pebbleOpts
 }
 
@@ -156,48 +166,81 @@ func (po *pebbleOptions) Marshal(pebbleOpts *pebble.Options) {
 	po.LBaseMaxBytes = pebbleOpts.LBaseMaxBytes
 	po.Levels = make([]levelOptions, len(pebbleOpts.Levels))
 	for i := range pebbleOpts.Levels {
-		po.Levels[i].Marshal(&pebbleOpts.Levels[i])
+		po.Levels[i].Marshal(&pebbleOpts.Levels[i], pebbleOpts.TargetFileSizes[i])
 	}
 	po.MaxOpenFiles = pebbleOpts.MaxOpenFiles
 	po.MemTableSize = pebbleOpts.MemTableSize
 	po.MemTableStopWritesThreshold = pebbleOpts.MemTableStopWritesThreshold
 	po.ReadOnly = pebbleOpts.ReadOnly
 	po.WALBytesPerSync = pebbleOpts.WALBytesPerSync
-	po.MaxConcurrentCompactions = pebbleOpts.MaxConcurrentCompactions()
 }
 
 // levelOptions carries options for pebble's per-level parameters.
+// Compression used to be:
+//
+// const (
+//
+//	DefaultCompression Compression = iota
+//	NoCompression
+//	SnappyCompression
+//	ZstdCompression
+//	NCompression -- which means NoCompression it seems
+//
+// )
 type levelOptions struct {
 	BlockRestartInterval int                `json:"block_restart_interval"`
 	BlockSize            int                `json:"block_size"`
 	BlockSizeThreshold   int                `json:"block_size_threshold"`
-	Compression          pebble.Compression `json:"compression"`
+	Compression          int                `json:"compression"`
 	FilterType           pebble.FilterType  `json:"filter_type"`
 	FilterPolicy         bloom.FilterPolicy `json:"filter_policy"`
 	IndexBlockSize       int                `json:"index_block_size"`
 	TargetFileSize       int64              `json:"target_file_size"`
 }
 
-func (lo *levelOptions) Unmarshal() *pebble.LevelOptions {
+func (lo *levelOptions) Unmarshal() (*pebble.LevelOptions, int64) {
 	levelOpts := &pebble.LevelOptions{}
 	levelOpts.BlockRestartInterval = lo.BlockRestartInterval
 	levelOpts.BlockSize = lo.BlockSize
 	levelOpts.BlockSizeThreshold = lo.BlockSizeThreshold
-	levelOpts.Compression = func() pebble.Compression {
-		return lo.Compression
+	// On prevous relesases we could return the int. Now we need to provide a profile.
+	levelOpts.Compression = func() *sstable.CompressionProfile {
+		switch lo.Compression {
+		case 0:
+			return block.DefaultCompression
+		case 1:
+			return block.NoCompression
+		case 2:
+			return block.SnappyCompression
+		case 3:
+			return block.ZstdCompression
+		default:
+			return block.NoCompression
+		}
 	}
 	levelOpts.FilterType = lo.FilterType
 	levelOpts.FilterPolicy = bloom.FilterPolicy(lo.FilterPolicy)
 	levelOpts.IndexBlockSize = lo.IndexBlockSize
-	levelOpts.TargetFileSize = lo.TargetFileSize
-	return levelOpts
+	return levelOpts, lo.TargetFileSize
 }
 
-func (lo *levelOptions) Marshal(levelOpts *pebble.LevelOptions) {
+func (lo *levelOptions) Marshal(levelOpts *pebble.LevelOptions, targetFileSize int64) {
 	lo.BlockRestartInterval = levelOpts.BlockRestartInterval
 	lo.BlockSize = levelOpts.BlockSize
 	lo.BlockSizeThreshold = levelOpts.BlockSizeThreshold
-	lo.Compression = levelOpts.Compression()
+	if comp := levelOpts.Compression(); comp != nil {
+		switch comp.Name {
+		case "snappy":
+			lo.Compression = 2
+		case "zlib":
+			lo.Compression = 3
+		default:
+			lo.Compression = 1 // NoCompression
+		}
+	} else {
+		lo.Compression = 1
+
+	}
 	lo.FilterType = levelOpts.FilterType
 
 	if fp, ok := levelOpts.FilterPolicy.(bloom.FilterPolicy); ok {
@@ -205,7 +248,7 @@ func (lo *levelOptions) Marshal(levelOpts *pebble.LevelOptions) {
 	}
 
 	lo.IndexBlockSize = levelOpts.IndexBlockSize
-	lo.TargetFileSize = levelOpts.TargetFileSize
+	lo.TargetFileSize = targetFileSize
 }
 
 type jsonConfig struct {
@@ -233,28 +276,41 @@ func (cfg *Config) Default() error {
 	cfg.PebbleOptions.MemTableSize = DefaultMemTableSize
 	cfg.PebbleOptions.MemTableStopWritesThreshold = DefaultMemTableStopWritesThreshold
 	cfg.PebbleOptions.BytesPerSync = DefaultBytesPerSync
-	cfg.PebbleOptions.MaxConcurrentCompactions = func() int { return DefaultMaxConcurrentCompactions }
 	cfg.PebbleOptions.MaxOpenFiles = DefaultMaxOpenFiles
 	cfg.PebbleOptions.L0CompactionThreshold = DefaultL0CompactionThreshold
 	cfg.PebbleOptions.L0CompactionFileThreshold = DefaultL0CompactionFileThreshold
 	cfg.PebbleOptions.L0StopWritesThreshold = DefaultL0StopWritesThreshold
 	cfg.PebbleOptions.LBaseMaxBytes = DefaultLBaseMaxBytes
 
-	cfg.PebbleOptions.Levels = make([]pebble.LevelOptions, 7)
-	cfg.PebbleOptions.Levels[0].TargetFileSize = DefaultL0TargetFileSize
+	// cfg.PebbleOptions.Levels = make([]pebble.LevelOptions, 7) // fixed to [7]LevelOptions
 	for i := 0; i < len(cfg.PebbleOptions.Levels); i++ {
 		l := &cfg.PebbleOptions.Levels[i]
-		l.BlockSize = DefaultBlockSize
-		l.FilterPolicy = DefaultFilterPolicy
-		l.FilterType = pebble.TableFilter
+		prev := l
 		if i > 0 {
-			l.TargetFileSize = cfg.PebbleOptions.Levels[i-1].TargetFileSize * 2
+			prev = &cfg.PebbleOptions.Levels[i-1]
 		}
-		l.EnsureDefaults() // does not overwite, only sets the rest.
-
+		defaultLevelOpts(l, prev, i)
+	}
+	// Deprecated: cfg.PebbleOptions.Levels[0].TargetFileSize = DefaultL0TargetFileSize
+	cfg.PebbleOptions.TargetFileSizes[0] = DefaultL0TargetFileSize //added
+	for i := 0; i < len(cfg.PebbleOptions.TargetFileSizes); i++ {
+		if i > 0 {
+			cfg.PebbleOptions.TargetFileSizes[i] = cfg.PebbleOptions.TargetFileSizes[i-1] * 2
+		}
 	}
 
 	return nil
+}
+
+func defaultLevelOpts(l, prev *pebble.LevelOptions, i int) {
+	l.BlockSize = DefaultBlockSize
+	l.FilterPolicy = DefaultFilterPolicy
+	l.FilterType = pebble.TableFilter
+	if i == 0 {
+		l.EnsureL0Defaults() // does not overwite, only sets the rest.
+	} else {
+		l.EnsureL1PlusDefaults(prev)
+	}
 }
 
 // ApplyEnvVars fills in any Config fields found as environment variables.
@@ -274,10 +330,6 @@ func (cfg *Config) ApplyEnvVars() error {
 func (cfg *Config) Validate() error {
 	if cfg.Folder == "" {
 		return errors.New("folder is unset")
-	}
-
-	if cfg.PebbleOptions.MaxConcurrentCompactions() <= 0 {
-		return errors.New("max_concurrent_compactions must be greater than 0")
 	}
 
 	if err := cfg.PebbleOptions.Validate(); err != nil {

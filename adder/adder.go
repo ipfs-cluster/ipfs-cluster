@@ -67,7 +67,7 @@ type ClusterDAGService interface {
 // A dagFormatter can create dags from files.Node. It can keep state
 // to add several files to the same dag.
 type dagFormatter interface {
-	Add(name string, f files.Node) (api.Cid, error)
+	Add(ctx context.Context, name string, f files.Node) (api.Cid, error)
 }
 
 // Adder is used to add content to IPFS Cluster using an implementation of
@@ -174,7 +174,7 @@ func (a *Adder) FromFiles(ctx context.Context, f files.Directory) (api.Cid, erro
 		default:
 			logger.Debugf("ipfsAdder AddFile(%s)", it.Name())
 
-			adderRoot, err = dagFmtr.Add(it.Name(), it.Node())
+			adderRoot, err = dagFmtr.Add(ctx, it.Name(), it.Node())
 			if err != nil {
 				logger.Error("error adding to cluster: ", err)
 				return api.CidUndef, err
@@ -236,7 +236,7 @@ func newIpfsAdder(ctx context.Context, dgs ClusterDAGService, params api.AddPara
 	}, nil
 }
 
-func (ia *ipfsAdder) Add(name string, f files.Node) (api.Cid, error) {
+func (ia *ipfsAdder) Add(ctx context.Context, name string, f files.Node) (api.Cid, error) {
 	// In order to set the AddedOutput names right, we use
 	// OutputPrefix:
 	//
@@ -253,7 +253,7 @@ func (ia *ipfsAdder) Add(name string, f files.Node) (api.Cid, error) {
 	// events before sending to user).
 	ia.OutputPrefix = name
 
-	nd, err := ia.AddAllAndPin(f)
+	nd, err := ia.AddAllAndPin(ctx, f)
 	if err != nil {
 		return api.CidUndef, err
 	}
@@ -283,7 +283,7 @@ func newCarAdder(ctx context.Context, dgs ClusterDAGService, params api.AddParam
 
 // Add takes a node which should be a CAR file and nothing else and
 // adds its blocks using the ClusterDAGService.
-func (ca *carAdder) Add(name string, fn files.Node) (api.Cid, error) {
+func (ca *carAdder) Add(ctx context.Context, name string, fn files.Node) (api.Cid, error) {
 	if ca.params.Wrap {
 		return api.CidUndef, errors.New("cannot wrap a CAR file upload")
 	}

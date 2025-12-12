@@ -9,6 +9,7 @@ package ipfsproxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -823,7 +824,7 @@ func (proxy *Server) blockPutHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		var blockInfo ipfsBlockPutResp
 		err = dec.Decode(&blockInfo)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return
 		}
 		if err != nil {
@@ -905,7 +906,7 @@ func (proxy *Server) dagPutHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		var dagInfo ipfsDagPutResp
 		err = dec.Decode(&dagInfo)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return
 		}
 		if err != nil {

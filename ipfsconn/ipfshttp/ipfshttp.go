@@ -533,7 +533,7 @@ func (ipfs *Connector) pinProgress(ctx context.Context, hash api.Cid, maxDepth a
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return nil // clean exit. Pinned!
 				}
 				return err // error decoding
@@ -644,7 +644,7 @@ nextFilter:
 
 			var ipfsPin api.IPFSPinInfo
 			err = dec.Decode(&ipfsPin)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 				break nextFilter
 			}
@@ -853,7 +853,7 @@ func (ipfs *Connector) RepoGC(ctx context.Context) (api.RepoGC, error) {
 			case <-ctx.Done():
 				return repoGC, ctx.Err()
 			default:
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return repoGC, nil // clean exit
 				}
 				logger.Error(err)
@@ -1161,7 +1161,7 @@ func (ipfs *Connector) BlockStream(ctx context.Context, blocks <-chan api.NodeWi
 	for {
 		var res ipfsBlockPutResp
 		err = dec.Decode(&res)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

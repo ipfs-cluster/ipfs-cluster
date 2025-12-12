@@ -23,7 +23,16 @@ var cfgJSON = []byte(`
             "block_restart_interval": 16,
             "block_size": 4096,
             "block_size_threshold": 90,
-            "Compression": 2,
+            "compression": 0,
+            "filter_type": 0,
+            "index_block_size": 8000,
+            "target_file_size": 2097152
+          },
+          {
+            "block_restart_interval": 16,
+            "block_size": 4096,
+            "block_size_threshold": 90,
+            "compression": 1,
             "filter_type": 0,
             "index_block_size": 8000,
             "target_file_size": 2097152
@@ -59,8 +68,29 @@ func TestToJSON(t *testing.T) {
 		t.Fatal("Disable WAL should be true")
 	}
 
-	if cfg.PebbleOptions.MaxConcurrentCompactions() != 2 {
-		t.Fatalf("Wrong max concuncurrent compactions value, got: %d, want: %d", cfg.PebbleOptions.MaxConcurrentCompactions(), 2)
+	// level0 compression set to 0, default is snappy
+	if comp := cfg.PebbleOptions.Levels[0].Compression().Name; comp != "Snappy" {
+		t.Fatal("compression is ", comp)
+	}
+
+	// inherits level 1 config - no compression
+	if comp := cfg.PebbleOptions.Levels[5].Compression().Name; comp != "NoCompression" {
+		t.Fatal("compression is ", comp)
+	}
+
+	// hardcoded
+	if tfs := cfg.PebbleOptions.TargetFileSizes[0]; tfs != 2097152 {
+		t.Fatal("TargetFileSize[0] is ", tfs)
+	}
+
+	// hardcoded
+	if tfs := cfg.PebbleOptions.TargetFileSizes[1]; tfs != 2097152 {
+		t.Fatal("TargetFileSize[1] is ", tfs)
+	}
+
+	// prev * 2
+	if tfs := cfg.PebbleOptions.TargetFileSizes[2]; tfs != 2097152*2 {
+		t.Fatal("TargetFileSize[2] is ", tfs)
 	}
 
 	newjson, err := cfg.ToJSON()
