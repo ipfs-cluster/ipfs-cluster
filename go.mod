@@ -57,7 +57,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
-	github.com/ugorji/go/codec v1.3.1
+	github.com/ugorji/go/codec v1.2.12
 	github.com/urfave/cli v1.22.17
 	github.com/urfave/cli/v2 v2.27.7
 	go.opencensus.io v0.24.0
@@ -229,7 +229,7 @@ require (
 	go.uber.org/fx v1.24.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
+	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39 // indirect
 	golang.org/x/mod v0.30.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
@@ -245,3 +245,5 @@ require (
 )
 
 go 1.25
+
+replace github.com/ipfs/boxo => ../../ipfs/boxo
