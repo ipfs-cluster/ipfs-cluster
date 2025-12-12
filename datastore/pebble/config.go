@@ -129,11 +129,25 @@ func (po *pebbleOptions) Unmarshal() *pebble.Options {
 	pebbleOpts.MemTableStopWritesThreshold = po.MemTableStopWritesThreshold
 	pebbleOpts.ReadOnly = po.ReadOnly
 	pebbleOpts.WALBytesPerSync = po.WALBytesPerSync
-	for i := range po.Levels {
-		lvlOpts, targetFileSize := po.Levels[i].Unmarshal()
-		pebbleOpts.Levels[i] = *lvlOpts
-		pebbleOpts.TargetFileSizes[i] = targetFileSize
+	for i := range pebbleOpts.Levels {
+		if len(po.Levels) > i {
+			lvlOpts, targetFileSize := po.Levels[i].Unmarshal()
+			pebbleOpts.Levels[i] = *lvlOpts
+			pebbleOpts.TargetFileSizes[i] = targetFileSize
+		} else {
+			lvlOpts := &pebble.LevelOptions{}
+			prev := lvlOpts
+			tgtFileSize := DefaultL0TargetFileSize
+			if i > 0 {
+				prev = &pebbleOpts.Levels[i-1]
+				tgtFileSize = pebbleOpts.TargetFileSizes[i-1] * 2
+			}
+			defaultLevelOpts(lvlOpts, prev, i)
+			pebbleOpts.Levels[i] = *lvlOpts
+			pebbleOpts.TargetFileSizes[i] = tgtFileSize
+		}
 	}
+
 	return pebbleOpts
 }
 
@@ -214,13 +228,18 @@ func (lo *levelOptions) Marshal(levelOpts *pebble.LevelOptions, targetFileSize i
 	lo.BlockRestartInterval = levelOpts.BlockRestartInterval
 	lo.BlockSize = levelOpts.BlockSize
 	lo.BlockSizeThreshold = levelOpts.BlockSizeThreshold
-	switch levelOpts.Compression().Name {
-	case "snappy":
-		lo.Compression = 2
-	case "zlib":
-		lo.Compression = 3
-	default:
-		lo.Compression = 1 // NoCompression
+	if comp := levelOpts.Compression(); comp != nil {
+		switch comp.Name {
+		case "snappy":
+			lo.Compression = 2
+		case "zlib":
+			lo.Compression = 3
+		default:
+			lo.Compression = 1 // NoCompression
+		}
+	} else {
+		lo.Compression = 1
+
 	}
 	lo.FilterType = levelOpts.FilterType
 
@@ -264,24 +283,34 @@ func (cfg *Config) Default() error {
 	cfg.PebbleOptions.LBaseMaxBytes = DefaultLBaseMaxBytes
 
 	// cfg.PebbleOptions.Levels = make([]pebble.LevelOptions, 7) // fixed to [7]LevelOptions
-	// Deprecated: cfg.PebbleOptions.Levels[0].TargetFileSize = DefaultL0TargetFileSize
-	cfg.PebbleOptions.TargetFileSizes[0] = DefaultL0TargetFileSize //added
 	for i := 0; i < len(cfg.PebbleOptions.Levels); i++ {
 		l := &cfg.PebbleOptions.Levels[i]
-		l.BlockSize = DefaultBlockSize
-		l.FilterPolicy = DefaultFilterPolicy
-		l.FilterType = pebble.TableFilter
+		prev := l
+		if i > 0 {
+			prev = &cfg.PebbleOptions.Levels[i-1]
+		}
+		defaultLevelOpts(l, prev, i)
+	}
+	// Deprecated: cfg.PebbleOptions.Levels[0].TargetFileSize = DefaultL0TargetFileSize
+	cfg.PebbleOptions.TargetFileSizes[0] = DefaultL0TargetFileSize //added
+	for i := 0; i < len(cfg.PebbleOptions.TargetFileSizes); i++ {
 		if i > 0 {
 			cfg.PebbleOptions.TargetFileSizes[i] = cfg.PebbleOptions.TargetFileSizes[i-1] * 2
-		}
-		if i == 0 {
-			l.EnsureL0Defaults() // does not overwite, only sets the rest.
-		} else {
-			l.EnsureL1PlusDefaults(&cfg.PebbleOptions.Levels[i-1])
 		}
 	}
 
 	return nil
+}
+
+func defaultLevelOpts(l, prev *pebble.LevelOptions, i int) {
+	l.BlockSize = DefaultBlockSize
+	l.FilterPolicy = DefaultFilterPolicy
+	l.FilterType = pebble.TableFilter
+	if i == 0 {
+		l.EnsureL0Defaults() // does not overwite, only sets the rest.
+	} else {
+		l.EnsureL1PlusDefaults(prev)
+	}
 }
 
 // ApplyEnvVars fills in any Config fields found as environment variables.
