@@ -68,7 +68,12 @@ func newRPCServer(c *Cluster) (*rpc.Server, error) {
 			rpc.WithStreamBufferSize(rpcStreamBufferSize),
 		)
 	} else {
-		s = rpc.NewServer(c.host, version.RPCProtocol, rpc.WithAuthorizeFunc(authF))
+		s = rpc.NewServer(
+			c.host,
+			version.RPCProtocol,
+			rpc.WithAuthorizeFunc(authF),
+			rpc.WithStreamBufferSize(rpcStreamBufferSize),
+		)
 	}
 
 	cl := &ClusterRPCAPI{c}
