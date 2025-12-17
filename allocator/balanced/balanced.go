@@ -14,8 +14,8 @@ import (
 
 	api "github.com/ipfs-cluster/ipfs-cluster/api"
 	logging "github.com/ipfs/go-log/v2"
-	peer "github.com/libp2p/go-libp2p/core/peer"
 	rpc "github.com/libp2p/go-libp2p-gorpc"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 )
 
 var logger = logging.Logger("allocator")
@@ -262,12 +262,12 @@ func (pnedm *partitionedMetric) chooseNext() peer.ID {
 // It works as follows:
 //
 //   - First, it buckets each peer metrics based on the AllocateBy list. The
-//   metric name must match the bucket name, otherwise they are put at the end.
+//     metric name must match the bucket name, otherwise they are put at the end.
 //   - Second, based on the AllocateBy order, it orders the first bucket and
-//   groups peers by ordered value.
+//     groups peers by ordered value.
 //   - Third, it selects metrics on the second bucket for the most prioritary
-//   peers of the first bucket and orders their metrics. Then for the peers in
-//   second position etc.
+//     peers of the first bucket and orders their metrics. Then for the peers in
+//     second position etc.
 //   - It repeats the process until there is no more buckets to sort.
 //   - Finally, it returns the first peer of the first
 //   - Third, based on the AllocateBy order, it select the first metric
