@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/pstoremgr"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
 	peer "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/gologshim"
 	ma "github.com/multiformats/go-multiaddr"
 
 	semver "github.com/blang/semver"
@@ -160,6 +162,12 @@ func init() {
 	}
 
 	DefaultPath = filepath.Join(home, DefaultFolder)
+
+	// Route all slog logs through go-log
+	slog.SetDefault(slog.New(logging.SlogHandler()))
+
+	// Connect go-libp2p to go-log
+	gologshim.SetDefaultHandler(logging.SlogHandler())
 }
 
 func out(m string, a ...interface{}) {
