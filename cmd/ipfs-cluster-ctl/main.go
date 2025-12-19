@@ -197,7 +197,7 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		var configs []*client.Config
 		var err error
-		for _, addr := range strings.Split(c.String("host"), ",") {
+		for addr := range strings.SplitSeq(c.String("host"), ",") {
 			multiaddr, err := ma.NewMultiaddr(addr)
 			checkErr("parsing host multiaddress", err)
 
@@ -883,8 +883,8 @@ The filter only takes effect when listing all pins. The possible values are:
 							formatResponse(c, resp, cerr)
 						} else {
 							var filter api.PinType
-							strFilter := strings.Split(c.String("filter"), ",")
-							for _, f := range strFilter {
+							strFilter := strings.SplitSeq(c.String("filter"), ",")
+							for f := range strFilter {
 								filter |= api.PinTypeFromString(f)
 							}
 

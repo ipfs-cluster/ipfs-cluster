@@ -83,7 +83,7 @@ func (lg *logFacilities) Set(value string) error {
 	if len(*lg) > 0 {
 		return errors.New("logFacilities flag already set")
 	}
-	for _, lf := range strings.Split(value, ",") {
+	for lf := range strings.SplitSeq(value, ",") {
 		*lg = append(*lg, lf)
 	}
 	return nil
