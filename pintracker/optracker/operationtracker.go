@@ -50,8 +50,8 @@ func (opt *OperationTracker) String() string {
 	defer opt.mu.RUnlock()
 	for _, op := range opt.operations {
 		opstr := op.String()
-		opstrs := strings.Split(opstr, "\n")
-		for _, s := range opstrs {
+		opstrs := strings.SplitSeq(opstr, "\n")
+		for s := range opstrs {
 			fmt.Fprintf(&b, "\t%s\n", s)
 		}
 	}
