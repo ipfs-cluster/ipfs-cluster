@@ -478,7 +478,7 @@ func (api *API) allocationsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues := r.URL.Query()
 	filterStr := queryValues.Get("filter")
 	var filter types.PinType
-	for _, f := range strings.Split(filterStr, ",") {
+	for f := range strings.SplitSeq(filterStr, ",") {
 		filter |= types.PinTypeFromString(f)
 	}
 
