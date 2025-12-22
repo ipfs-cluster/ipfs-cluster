@@ -6,7 +6,7 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/cockroachdb/pebble/v2 v2.1.2
-	github.com/coreos/go-systemd/v22 v22.5.0
+	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/dustin/go-humanize v1.0.1
