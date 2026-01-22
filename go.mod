@@ -5,7 +5,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	dario.cat/mergo v1.0.2
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/cockroachdb/pebble/v2 v2.1.2
+	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
@@ -67,10 +67,10 @@ require (
 )
 
 require (
-	github.com/RaduBerinde/axisds v0.0.0-20250419182453-5135a0650657 // indirect
+	github.com/RaduBerinde/axisds v0.1.0 // indirect
 	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/cockroachdb/crlib v0.0.0-20241112164430-1264a2edc35b // indirect
-	github.com/cockroachdb/swiss v0.0.0-20250624142022-d6e517c1d961 // indirect
+	github.com/cockroachdb/swiss v0.0.0-20251224182025-b0f6560f979b // indirect
 	github.com/filecoin-project/go-clock v0.1.0 // indirect
 	github.com/gammazero/chanqueue v1.1.1 // indirect
 	github.com/gammazero/deque v1.2.0 // indirect
