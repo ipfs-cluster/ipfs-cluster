@@ -725,6 +725,20 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
+			// Get pin progress
+			var progress int
+			err2 := api.rpcClient.CallContext(
+				r.Context(),
+				"",
+				"IPFSConnector",
+				"GetIpfsPinProgress",
+				pin.Cid,
+				&progress,
+			)
+			if err2 == nil && progress >= 0 {
+				pinInfo.Progress = progress
+			}
+			logger.Infof("statusHandler (local): cid=%s, pinInfo=%+v, progress=%d, err2=%v", pin.Cid, pinInfo, progress, err2)
 			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo.ToGlobal())
 		} else {
 			var pinInfo types.GlobalPinInfo
@@ -736,6 +750,24 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 				pin.Cid,
 				&pinInfo,
 			)
+			// Get pin progress and add to each peer's info
+			var progress int
+			err2 := api.rpcClient.CallContext(
+				r.Context(),
+				"",
+				"IPFSConnector",
+				"GetIpfsPinProgress",
+				pin.Cid,
+				&progress,
+			)
+			if err2 == nil && progress >= 0 {
+				for pid := range pinInfo.PeerMap {
+					pinfo := pinInfo.PeerMap[pid]
+					pinfo.Progress = progress
+					pinInfo.PeerMap[pid] = pinfo
+				}
+			}
+			logger.Infof("statusHandler (global): cid=%s, pinInfo=%+v, progress=%d, err2=%v", pin.Cid, pinInfo, progress, err2)
 			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo)
 		}
 	}

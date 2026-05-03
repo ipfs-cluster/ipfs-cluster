@@ -146,6 +146,10 @@ func (ipfs *mockConnector) BlockStream(ctx context.Context, in <-chan api.NodeWi
 	return nil
 }
 
+func (ipfs *mockConnector) GetIpfsPinProgress(ctx context.Context, c api.Cid) (int, error) {
+	return -1, errors.New("not in progress")
+}
+
 func (ipfs *mockConnector) BlockGet(ctx context.Context, c api.Cid) ([]byte, error) {
 	d, ok := ipfs.blocks.Load(c.String())
 	if !ok {

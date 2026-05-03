@@ -671,3 +671,13 @@ func (rpcapi *PeerMonitorRPCAPI) MetricNames(ctx context.Context, in struct{}, o
 	*out = rpcapi.mon.MetricNames(ctx)
 	return nil
 }
+
+// GetIpfsPinProgress runs IPFSConnector.GetIpfsPinProgress().
+func (rpcapi *IPFSConnectorRPCAPI) GetIpfsPinProgress(ctx context.Context, in api.Cid, out *int) error {
+	progress, err := rpcapi.ipfs.GetIpfsPinProgress(ctx, in)
+	if err != nil {
+		return err
+	}
+	*out = progress
+	return nil
+}

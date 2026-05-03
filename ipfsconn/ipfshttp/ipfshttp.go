@@ -71,6 +71,8 @@ type Connector struct {
 	shutdownLock sync.Mutex
 	shutdown     bool
 	wg           sync.WaitGroup
+
+	ipfsPinProgressMap sync.Map // map[cid]progress
 }
 
 type ipfsError struct {
@@ -463,6 +465,11 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 
 	// Pin request and timeout if there is no progress
 	outPins := make(chan int)
+
+	// Initialize progress tracking
+	ipfs.ipfsPinProgressMap.Store(hash, 0)
+	defer ipfs.ipfsPinProgressMap.Delete(hash)
+
 	go func() {
 		var lastProgress int
 		lastProgressTime := time.Now()
@@ -485,6 +492,8 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 				if p > lastProgress {
 					lastProgress = p
 					lastProgressTime = time.Now()
+					logger.Infof("storing pin progress for cid %s: %d", hash, p)
+					ipfs.ipfsPinProgressMap.Store(hash, p)
 				}
 			case <-ctx.Done():
 				return
@@ -503,6 +512,16 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 
 	logger.Info("IPFS Pin request succeeded: ", hash)
 	return nil
+}
+
+// GetIpfsPinProgress returns the current progress (nodes fetched) for an ongoing pin operation.
+func (ipfs *Connector) GetIpfsPinProgress(ctx context.Context, c api.Cid) (int, error) {
+	if val, ok := ipfs.ipfsPinProgressMap.Load(c); ok {
+		if progress, ok := val.(int); ok {
+			return progress, nil
+		}
+	}
+	return -1, fmt.Errorf("%v is not in progress", c)
 }
 
 // pinProgress pins an item and sends fetched node's progress on a

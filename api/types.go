@@ -415,6 +415,7 @@ type PinInfoShort struct {
 	Error         string        `json:"error" codec:"e,omitempty"`
 	AttemptCount  int           `json:"attempt_count" codec:"a,omitempty"`
 	PriorityPin   bool          `json:"priority_pin" codec:"y,omitempty"`
+	Progress      int           `json:"progress,omitempty" codec:"pg,omitempty"`
 }
 
 // String provides a string representation of PinInfoShort.
@@ -427,6 +428,7 @@ func (pis PinInfoShort) String() string {
 	fmt.Fprintf(&b, "error: %s\n", pis.Error)
 	fmt.Fprintf(&b, "attemptCount: %d\n", pis.AttemptCount)
 	fmt.Fprintf(&b, "priority: %t\n", pis.PriorityPin)
+	fmt.Fprintf(&b, "progress: %d\n", pis.Progress)
 	return b.String()
 }
 
