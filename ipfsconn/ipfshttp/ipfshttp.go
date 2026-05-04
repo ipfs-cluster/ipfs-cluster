@@ -492,7 +492,6 @@ func (ipfs *Connector) Pin(ctx context.Context, pin api.Pin) error {
 				if p > lastProgress {
 					lastProgress = p
 					lastProgressTime = time.Now()
-					logger.Infof("storing pin progress for cid %s: %d", hash, p)
 					ipfs.ipfsPinProgressMap.Store(hash, p)
 				}
 			case <-ctx.Done():

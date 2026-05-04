@@ -738,7 +738,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 			if err2 == nil && progress >= 0 {
 				pinInfo.Progress = progress
 			}
-			logger.Infof("statusHandler (local): cid=%s, pinInfo=%+v, progress=%d, err2=%v", pin.Cid, pinInfo, progress, err2)
+			//logger.Infof("statusHandler (local): cid=%s, pinInfo=%+v, progress=%d, err2=%v", pin.Cid, pinInfo, progress, err2)
 			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo.ToGlobal())
 		} else {
 			var pinInfo types.GlobalPinInfo
@@ -767,7 +767,7 @@ func (api *API) statusHandler(w http.ResponseWriter, r *http.Request) {
 					pinInfo.PeerMap[pid] = pinfo
 				}
 			}
-			logger.Infof("statusHandler (global): cid=%s, pinInfo=%+v, progress=%d, err2=%v", pin.Cid, pinInfo, progress, err2)
+			//logger.Infof("statusHandler (global): cid=%s, pinInfo=%+v, progress=%d, err2=%v", pin.Cid, pinInfo, progress, err2)
 			api.SendResponse(w, common.SetStatusAutomatically, err, pinInfo)
 		}
 	}
