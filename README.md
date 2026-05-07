@@ -60,6 +60,8 @@ Extensive usage information is provided at https://ipfscluster.io/documentation/
 
 PRs accepted. As part of the IPFS project, we have some [contribution guidelines](https://ipfscluster.io/support/#contribution-guidelines).
 
+Maintainers cutting a new version: see [`RELEASE.md`](RELEASE.md).
+
 ## License
 
 This library is dual-licensed under Apache 2.0 and MIT terms.
