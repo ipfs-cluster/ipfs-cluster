@@ -90,11 +90,11 @@ func (adder *Adder) mfsRoot() (*mfs.Root, error) {
 	}
 
 	// Note, this adds it to DAGService already.
-	mr, err := mfs.NewEmptyRoot(adder.ctx, adder.dagService, nil, nil, mfs.MkdirOpts{
-		CidBuilder:    adder.CidBuilder,
-		MaxLinks:      adder.MaxDirectoryLinks,
-		MaxHAMTFanout: adder.MaxHAMTFanout,
-	})
+	mr, err := mfs.NewEmptyRoot(adder.ctx, adder.dagService, nil, nil,
+		mfs.WithCidBuilder(adder.CidBuilder),
+		mfs.WithMaxLinks(adder.MaxDirectoryLinks),
+		mfs.WithMaxHAMTFanout(adder.MaxHAMTFanout),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -248,13 +248,15 @@ func (adder *Adder) addNode(node ipld.Node, path string) error {
 	dir := gopath.Dir(path)
 	if dir != "." {
 		opts := mfs.MkdirOpts{
-			Mkparents:     true,
-			Flush:         false,
-			CidBuilder:    adder.CidBuilder,
-			MaxLinks:      adder.MaxDirectoryLinks,
-			MaxHAMTFanout: adder.MaxHAMTFanout,
+			Mkparents: true,
+			Flush:     false,
 		}
-		if err := mfs.Mkdir(mr, dir, opts); err != nil {
+		dirOpts := []mfs.Option{
+			mfs.WithCidBuilder(adder.CidBuilder),
+			mfs.WithMaxLinks(adder.MaxDirectoryLinks),
+			mfs.WithMaxHAMTFanout(adder.MaxHAMTFanout),
+		}
+		if err := mfs.Mkdir(mr, dir, opts, dirOpts...); err != nil {
 			return err
 		}
 	}
@@ -449,13 +451,12 @@ func (adder *Adder) addDir(ctx context.Context, path string, dir files.Directory
 	// if we need to store mode or modification time then create a new root which includes that data
 	if toplevel && (adder.FileMode != 0 || !adder.FileMtime.IsZero()) {
 		mr, err := mfs.NewEmptyRoot(ctx, adder.dagService, nil, nil,
-			mfs.MkdirOpts{
-				CidBuilder:    adder.CidBuilder,
-				MaxLinks:      adder.MaxDirectoryLinks,
-				MaxHAMTFanout: adder.MaxHAMTFanout,
-				ModTime:       adder.FileMtime,
-				Mode:          adder.FileMode,
-			})
+			mfs.WithCidBuilder(adder.CidBuilder),
+			mfs.WithMaxLinks(adder.MaxDirectoryLinks),
+			mfs.WithMaxHAMTFanout(adder.MaxHAMTFanout),
+			mfs.WithModTime(adder.FileMtime),
+			mfs.WithMode(adder.FileMode),
+		)
 		if err != nil {
 			return err
 		}
@@ -468,14 +469,15 @@ func (adder *Adder) addDir(ctx context.Context, path string, dir files.Directory
 			return err
 		}
 		err = mfs.Mkdir(mr, path, mfs.MkdirOpts{
-			Mkparents:     true,
-			Flush:         false,
-			CidBuilder:    adder.CidBuilder,
-			Mode:          adder.FileMode,
-			ModTime:       adder.FileMtime,
-			MaxLinks:      adder.MaxDirectoryLinks,
-			MaxHAMTFanout: adder.MaxHAMTFanout,
-		})
+			Mkparents: true,
+			Flush:     false,
+		},
+			mfs.WithCidBuilder(adder.CidBuilder),
+			mfs.WithMode(adder.FileMode),
+			mfs.WithModTime(adder.FileMtime),
+			mfs.WithMaxLinks(adder.MaxDirectoryLinks),
+			mfs.WithMaxHAMTFanout(adder.MaxHAMTFanout),
+		)
 		if err != nil {
 			return err
 		}
