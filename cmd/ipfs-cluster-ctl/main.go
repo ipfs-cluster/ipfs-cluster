@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 
 	logging "github.com/ipfs/go-log/v2"
 	peer "github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/gologshim"
 	ma "github.com/multiformats/go-multiaddr"
 
 	uuid "github.com/google/uuid"
@@ -27,7 +29,7 @@ const programName = `ipfs-cluster-ctl`
 
 // Version is the cluster-ctl tool version. It should match
 // the IPFS cluster's version
-const Version = "1.1.4"
+const Version = "1.1.5"
 
 var (
 	defaultHost          = "/ip4/127.0.0.1/tcp/9094"
@@ -37,6 +39,14 @@ var (
 )
 
 var logger = logging.Logger("cluster-ctl")
+
+func init() {
+	// Route all slog logs through go-log
+	slog.SetDefault(slog.New(logging.SlogHandler()))
+
+	// Connect go-libp2p to go-log
+	gologshim.SetDefaultHandler(logging.SlogHandler())
+}
 
 var globalClient client.Client
 
@@ -187,7 +197,7 @@ requires authorization. implies --https, which you can disable with --force-http
 
 		var configs []*client.Config
 		var err error
-		for _, addr := range strings.Split(c.String("host"), ",") {
+		for addr := range strings.SplitSeq(c.String("host"), ",") {
 			multiaddr, err := ma.NewMultiaddr(addr)
 			checkErr("parsing host multiaddress", err)
 
@@ -873,8 +883,8 @@ The filter only takes effect when listing all pins. The possible values are:
 							formatResponse(c, resp, cerr)
 						} else {
 							var filter api.PinType
-							strFilter := strings.Split(c.String("filter"), ",")
-							for _, f := range strFilter {
+							strFilter := strings.SplitSeq(c.String("filter"), ",")
+							for f := range strFilter {
 								filter |= api.PinTypeFromString(f)
 							}
 

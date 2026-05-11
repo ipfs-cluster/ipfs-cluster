@@ -3,6 +3,7 @@ package ipfscluster
 import (
 	"context"
 	"encoding/hex"
+	"log/slog"
 	"time"
 
 	config "github.com/ipfs-cluster/ipfs-cluster/config"
@@ -13,6 +14,7 @@ import (
 	ipns "github.com/ipfs/boxo/ipns"
 	ds "github.com/ipfs/go-datastore"
 	namespace "github.com/ipfs/go-datastore/namespace"
+	logging "github.com/ipfs/go-log/v2"
 	libp2p "github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	dual "github.com/libp2p/go-libp2p-kad-dht/dual"
@@ -26,6 +28,7 @@ import (
 	peer "github.com/libp2p/go-libp2p/core/peer"
 	corepnet "github.com/libp2p/go-libp2p/core/pnet"
 	routing "github.com/libp2p/go-libp2p/core/routing"
+	"github.com/libp2p/go-libp2p/gologshim"
 	autorelay "github.com/libp2p/go-libp2p/p2p/host/autorelay"
 	p2pbhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 	"github.com/libp2p/go-libp2p/p2p/host/observedaddrs"
@@ -55,6 +58,12 @@ func init() {
 	// NATed addresses too eagerly, but they should progressively be
 	// cleaned up.
 	observedaddrs.ActivationThresh = 1
+
+	// Route all slog logs through go-log
+	slog.SetDefault(slog.New(logging.SlogHandler()))
+
+	// Connect go-libp2p to go-log
+	gologshim.SetDefaultHandler(logging.SlogHandler())
 }
 
 // NewClusterHost creates a fully-featured libp2p Host with the options from

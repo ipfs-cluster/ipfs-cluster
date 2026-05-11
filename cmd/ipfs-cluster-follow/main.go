@@ -3,20 +3,23 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
 	"syscall"
 
+	semver "github.com/blang/semver"
+	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p/gologshim"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/pkg/errors"
+	cli "github.com/urfave/cli/v2"
+
 	"github.com/ipfs-cluster/ipfs-cluster/api/rest/client"
 	"github.com/ipfs-cluster/ipfs-cluster/cmdutils"
 	"github.com/ipfs-cluster/ipfs-cluster/version"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/pkg/errors"
-
-	semver "github.com/blang/semver"
-	cli "github.com/urfave/cli/v2"
 )
 
 const (
@@ -151,6 +154,12 @@ func init() {
 		}
 		os.Exit(1)
 	}()
+
+	// Route all slog logs through go-log
+	slog.SetDefault(slog.New(logging.SlogHandler()))
+
+	// Connect go-libp2p to go-log
+	gologshim.SetDefaultHandler(logging.SlogHandler())
 }
 
 func main() {

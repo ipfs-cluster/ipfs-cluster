@@ -1,5 +1,56 @@
 # IPFS Cluster Changelog
 
+### v1.1.5 - 2025-12-17
+
+IPFS Cluster v1.1.5 is a maintenance release with dependency updates and small fixes.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+##### Bug fixes
+
+* ipfs-cluster-follow: do not hardcode `http://` in front of gateway URL | [ipfs/ipfs-cluster#2216](https://github.com/ipfs/ipfs-cluster/issues/2216)
+* Use WithStreamBufferSize option for RPC server when tracing is disabled | [ipfs/ipfs-cluster#2269](https://github.com/ipfs/ipfs-cluster/issues/2269)
+* Fix "ipfs pin count" metrics update when running pinLs | [ipfs/ipfs-cluster#2215](https://github.com/ipfs/ipfs-cluster/issues/2215)
+
+##### Other changes
+
+* Fixes to comments and spelling issues | [ipfs/ipfs-cluster#2268](https://github.com/ipfs/ipfs-cluster/issues/2268) | [ipfs/ipfs-cluster#2252](https://github.com/ipfs/ipfs-cluster/issues/2252) | [ipfs/ipfs-cluster#2235](https://github.com/ipfs/ipfs-cluster/issues/2235) | [ipfs/ipfs-cluster#2269](https://github.com/ipfs/ipfs-cluster/issues/2269)
+* Dependency upgrades (libp2p/boxo) and related updates | [ipfs/ipfs-cluster#2270](https://github.com/ipfs/ipfs-cluster/issues/2270)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+No changes.
+
+--
+
 ### v1.1.4 - 2025-05-016
 
 IPFS Cluster v1.1.4 is a maintenance release to trigger the publishing of
@@ -45,8 +96,6 @@ No relevant changes.
 ##### Other
 
 No changes.
-
----
 
 
 ---

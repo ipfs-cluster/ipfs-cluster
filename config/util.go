@@ -157,7 +157,7 @@ func DisplayJSON(cfg interface{}) ([]byte, error) {
 
 		// remove omitempty from tag, ignore other tags except json
 		var jsonTags []string
-		for _, s := range strings.Split(f.Tag.Get("json"), ",") {
+		for s := range strings.SplitSeq(f.Tag.Get("json"), ",") {
 			if s != "omitempty" {
 				jsonTags = append(jsonTags, s)
 			}
