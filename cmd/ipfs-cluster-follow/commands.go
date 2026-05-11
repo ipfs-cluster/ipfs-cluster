@@ -271,6 +271,15 @@ func runCmd(c *cli.Context) error {
 		return cli.Exit("", 1)
 	}
 
+	if err := cmdutils.CreatePIDFile(absPath); err != nil {
+		return cli.Exit(errors.Wrap(err, "failed to create PID file"), 1)
+	}
+	defer func() {
+		if err := cmdutils.RemovePIDFile(absPath); err != nil {
+			cmdutils.ErrorOut("Warning: failed to remove PID file: %v\n", err)
+		}
+	}()
+
 	fmt.Printf("Starting the IPFS Cluster follower peer for \"%s\".\nCTRL-C to stop it.\n", clusterName)
 	fmt.Println("Checking if IPFS is online (will wait for 2 minutes)...")
 	ctxIpfs, cancelIpfs := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -510,6 +519,32 @@ func listCmd(c *cli.Context) error {
 	return nil
 }
 
+func stopCmd(c *cli.Context) error {
+	clusterName := c.String(clusterNameFlag)
+	absPath, _, _ := buildPaths(c, clusterName)
+
+	if !isInitialized(absPath) {
+		printNotInitialized(clusterName)
+		return cli.Exit("", 1)
+	}
+
+	if c.Bool("unpin") {
+		if err := unpinEverything(absPath, clusterName); err != nil {
+			return cli.Exit(errors.Wrap(err, "failed to unpin items"), 1)
+		}
+	}
+	if err := cmdutils.StopProcess(absPath); err != nil {
+		return cli.Exit(errors.Wrap(err, "failed to stop follower process"), 1)
+	}
+	if c.Bool("cleanup") {
+		if err := os.RemoveAll(absPath); err != nil {
+			return cli.Exit(errors.Wrap(err, "deleting "+absPath), 1)
+		}
+		fmt.Println("configuration folder removed successfully")
+	}
+	return nil
+}
+
 func printStatusOnline(absPath, clusterName string) error {
 	ctx := context.Background()
 	client, err := getClient(absPath, clusterName)
@@ -576,4 +611,40 @@ func printPin(c api.Cid, status, name, err string) {
 		name = name + " (" + err + ")"
 	}
 	fmt.Printf("%-20s %s %s\n", status, c, name)
+}
+
+func unpinEverything(absPath, clusterName string) error {
+	ctx := context.Background()
+	client, err := getClient(absPath, clusterName)
+	if err != nil {
+		return err
+	}
+	_, err = client.Version(ctx)
+	if err != nil {
+		return err
+	}
+
+	pinCh := make(chan api.Pin, 1024)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+		errCh <- client.Allocations(ctx, api.AllType, pinCh)
+	}()
+
+	cfgHelper, err := cmdutils.NewLoadedConfigHelper(configPath, identityPath)
+	if err != nil {
+		return err
+	}
+	connector, err := ipfshttp.NewConnector(cfgHelper.Configs().Ipfshttp)
+	if err != nil {
+		return err
+	}
+	for pin := range pinCh {
+		if err := connector.Unpin(ctx, pin.Cid); err != nil {
+			return err
+		}
+	}
+	err = <-errCh
+	return err
 }
