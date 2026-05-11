@@ -382,9 +382,9 @@ the peer IDs in the given multiaddresses.
 				peersOpt := c.String("peers")
 				var multiAddrs []ma.Multiaddr
 				if peersOpt != "" {
-					addrs := strings.Split(peersOpt, ",")
+					addrs := strings.SplitSeq(peersOpt, ",")
 
-					for _, addr := range addrs {
+					for addr := range addrs {
 						addr = strings.TrimSpace(addr)
 						multiAddr, err := ma.NewMultiaddr(addr)
 						checkErr("parsing peer multiaddress: "+addr, err)

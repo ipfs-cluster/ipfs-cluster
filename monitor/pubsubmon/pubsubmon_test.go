@@ -13,9 +13,9 @@ import (
 	"github.com/ipfs-cluster/ipfs-cluster/test"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	host "github.com/libp2p/go-libp2p/core/host"
 	peer "github.com/libp2p/go-libp2p/core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
 func init() {

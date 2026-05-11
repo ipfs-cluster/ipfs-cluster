@@ -251,7 +251,7 @@ type ListOptions struct {
 func (lo *ListOptions) FromQuery(q url.Values) error {
 	cidq := q.Get("cid")
 	if len(cidq) > 0 {
-		for _, cstr := range strings.Split(cidq, ",") {
+		for cstr := range strings.SplitSeq(cidq, ",") {
 			c, err := types.DecodeCid(cstr)
 			if err != nil {
 				return fmt.Errorf("error decoding cid %s: %w", cstr, err)
