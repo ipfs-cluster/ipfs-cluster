@@ -1,5 +1,52 @@
 # IPFS Cluster Changelog
 
+### v1.1.6 - 2026-05-11
+
+IPFS Cluster v1.1.6 is a maintenance release with dependency updates to keep up with security improvements in the underlying dependency tree.
+
+#### List of changes
+
+##### Breaking changes
+
+There are no breaking changes on this release.
+
+##### Features
+
+##### Bug fixes
+
+##### Other changes
+
+* Cosmetic, formatting fixes [ipfs/ipfs-cluster#2285](https://github.com/ipfs/ipfs-cluster/issues/2285)
+* Dependency upgrades, go1.26 | [ipfs/ipfs-cluster#2320](https://github.com/ipfs/ipfs-cluster/issues/2320)
+
+#### Upgrading notices
+
+##### Configuration changes
+
+No changes.
+
+##### REST API
+
+No changes.
+
+##### Pinning Service API
+
+No changes.
+
+##### IPFS Proxy API
+
+No changes.
+
+##### Go APIs
+
+No relevant changes.
+
+##### Other
+
+No changes.
+
+--
+
 ### v1.1.5 - 2025-12-17
 
 IPFS Cluster v1.1.5 is a maintenance release with dependency updates and small fixes.
