@@ -91,6 +91,10 @@ List items in the pinset for a given cluster:
 
 $ %s <clusterName> list
 
+Leave cluster and remove all pins:
+
+$ %s <clusterName> stop
+
 Getting help and usage info:
 
 $ %s --help
@@ -99,11 +103,14 @@ $ %s <clusterName> info --help
 $ %s <clusterName> init --help
 $ %s <clusterName> run --help
 $ %s <clusterName> list --help
+$ %s <clusterName> stop --help
 
 `,
 	programName,
 	programName,
 	DefaultFolder,
+	programName,
+	programName,
 	programName,
 	programName,
 	programName,
@@ -279,6 +286,30 @@ pin (such as PINNING). If not, it will just display the current list of pins
 as obtained from the internal state on disk.
 `,
 				Action: listCmd,
+			},
+			{
+				Name:      "stop",
+				Usage:     fmt.Sprintf("stop to follow %s by default and optionally delete everything", clusterName),
+				ArgsUsage: "",
+				Description: fmt.Sprintf(`
+This command stops the follower from tracking the %s by default. 
+It can also unpin all the items of current pinset or 
+delete all persisted consensus data.
+`, clusterName),
+				Action: stopCmd,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "unpin",
+						Usage: "unpin all the items in the cluster",
+					},
+					&cli.BoolFlag{
+						Name: "cleanup",
+						Usage: fmt.Sprintf("delete files in %s", func() string {
+							absPath, _, _ := buildPaths(c, clusterName)
+							return absPath
+						}()),
+					},
+				},
 			},
 		}
 		return clusterApp.RunAsSubcommand(c)
